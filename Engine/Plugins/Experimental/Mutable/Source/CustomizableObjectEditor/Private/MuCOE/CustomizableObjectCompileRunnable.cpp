@@ -96,6 +96,9 @@ uint32 FCustomizableObjectCompileRunnable::Run()
 	const int MinRomSize = 128;
 	CompilerOptions->SetDataPackingStrategy(MinRomSize, MinResidentMips);
 
+	/** At object compilation time we don't know if we will want progressive images or not. Assume we will. */
+	CompilerOptions->SetEnableProgressiveImages(true);
+
 	CompilerOptions->SetTextureLayoutStrategy(bDisableTextureLayout
 		? mu::CompilerOptions::TextureLayoutStrategy::None
 		: mu::CompilerOptions::TextureLayoutStrategy::Pack);

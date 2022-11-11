@@ -90,6 +90,9 @@ namespace mu
         //! 
         void SetDataPackingStrategy( int32 minRomSize, int32 MinTextureResidentMipCount );
 
+		/** If enabled it will make sure that the object is compile to generate smaller mips of the images. */
+		void SetEnableProgressiveImages(bool bEnabled);
+
         //! Different data packing strategies
         enum class TextureLayoutStrategy : std::uint8_t
         {

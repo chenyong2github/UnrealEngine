@@ -19,6 +19,7 @@
 #include "MuT/ASTOpImageMultiLayer.h"
 #include "MuT/ASTOpImagePatch.h"
 #include "MuT/ASTOpImagePixelFormat.h"
+#include "MuT/ASTOpImageMakeGrowMap.h"
 #include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/CodeOptimiser.h"
@@ -1706,69 +1707,6 @@ namespace mu
         //-----------------------------------------------------------------------------------------
         //-----------------------------------------------------------------------------------------
         //-----------------------------------------------------------------------------------------
-        case OP_TYPE::IM_MAKEGROWMAP:
-        {
-            auto sourceAt = children[op.args.ImageMakeGrowMap.mask].child();
-
-            switch ( sourceAt->GetOpType() )
-            {
-
-            case OP_TYPE::IM_CONDITIONAL:
-            {
-                // We move the format down the two paths
-                auto nop = mu::Clone<ASTOpConditional>(sourceAt);
-
-                auto aOp = mu::Clone<ASTOpFixed>(this);
-                aOp->SetChild( aOp->op.args.ImageMakeGrowMap.mask, nop->yes );
-                nop->yes = aOp;
-
-                auto bOp = mu::Clone<ASTOpFixed>(this);
-                bOp->SetChild( bOp->op.args.ImageMakeGrowMap.mask, nop->no);
-                nop->no = bOp;
-
-                at = nop;
-                break;
-            }
-
-            case OP_TYPE::IM_SWITCH:
-            {
-                // Move the format down all the paths
-                auto nop = mu::Clone<ASTOpSwitch>(sourceAt);
-
-                if (nop->def)
-                {
-                    auto defOp = mu::Clone<ASTOpFixed>(this);
-                    defOp->SetChild( defOp->op.args.ImageMakeGrowMap.mask, nop->def );
-                    nop->def = defOp;
-                }
-
-                // We need to copy the options because we change them
-                for ( size_t v=0; v<nop->cases.Num(); ++v )
-                {
-                    if ( nop->cases[v].branch )
-                    {
-                        auto bOp = mu::Clone<ASTOpFixed>(this);
-                        bOp->SetChild( bOp->op.args.ImageMakeGrowMap.mask, nop->cases[v].branch );
-                        nop->cases[v].branch = bOp;
-                    }
-                }
-
-                at = nop;
-                break;
-            }
-
-            default:
-                break;
-            }
-
-            break;
-        }
-
-
-
-        //-----------------------------------------------------------------------------------------
-        //-----------------------------------------------------------------------------------------
-        //-----------------------------------------------------------------------------------------
         case OP_TYPE::IM_DISPLACE:
         {
 			Ptr<ASTOp> OriginalAt = at;
@@ -2176,9 +2114,9 @@ namespace mu
 
 			case OP_TYPE::IM_MAKEGROWMAP:
 			{
-				auto nop = mu::Clone<ASTOpFixed>(at);
-				auto maskOp = nop->children[nop->op.args.ImageMakeGrowMap.mask].child();
-				nop->SetChild(nop->op.args.ImageMakeGrowMap.mask, Visit(maskOp, currentSinkingOp));
+				auto nop = mu::Clone<ASTOpImageMakeGrowMap>(at);
+				auto maskOp = nop->Mask.child();
+				nop->Mask = Visit(maskOp, currentSinkingOp);
 				newAt = nop;
 				break;
 			}
@@ -2474,13 +2412,12 @@ namespace mu
 					newOp->SetChild(newOp->op.args.ImageDisplace.source, baseOp);
 
 					// Clone the map op and replace its children
-					Ptr<ASTOpFixed> mapOp = mu::Clone<ASTOpFixed>(OriginalDisplacementMapOp);
+					Ptr<ASTOpImageMakeGrowMap> mapOp = mu::Clone<ASTOpImageMakeGrowMap>(OriginalDisplacementMapOp);
 					newOp->SetChild(newOp->op.args.ImageDisplace.displacementMap, mapOp);
 
 					Ptr<ASTOpFixed> mapSourceOp = mu::Clone<ASTOpFixed>(this);
-					mapSourceOp->SetChild(mapSourceOp->op.args.ImageResize.source,
-						mapOp->children[mapOp->op.args.ImageMakeGrowMap.mask]);
-					mapOp->SetChild(mapOp->op.args.ImageDisplace.displacementMap, mapSourceOp);
+					mapSourceOp->SetChild(mapSourceOp->op.args.ImageResize.source, mapOp->Mask);
+					mapOp->Mask = mapSourceOp;
 
 					at = newOp;
 				}

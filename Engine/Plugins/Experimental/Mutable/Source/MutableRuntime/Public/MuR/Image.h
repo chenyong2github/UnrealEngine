@@ -343,7 +343,7 @@ namespace mu
 
 		//! Calculate the size in pixels of a particular mipmap of this image. The size doesn't
 		//! include pixels necessary for completing blocks in block-compressed formats.
-		vec2<int> CalculateMipSize(int lod) const;
+		FIntVector2 CalculateMipSize(int lod) const;
 
 		//! Return a pointer to the beginning of the data for a particular mip.
 		uint8* GetMipData(int mip);

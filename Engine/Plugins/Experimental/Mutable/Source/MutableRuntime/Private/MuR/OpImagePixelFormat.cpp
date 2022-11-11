@@ -24,7 +24,7 @@ ImagePtr ImagePixelFormat( int imageCompressionQuality, const Image* pBase,
 {
 	MUTABLE_CPUPROFILER_SCOPE(ImagePixelFormat);
 
-    vec2<int> resultSize;
+	FIntVector2 resultSize;
     int resultLODCount = 0;
 
     if (onlyLOD==-1)
@@ -66,7 +66,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
 
     bool success = true;
 
-    vec2<int> resultSize;
+	FIntVector2 resultSize;
     int resultLODCount = 0;
     const uint8_t* pBaseBuf = 0;
     int pixelCount = 0;
@@ -454,7 +454,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC1_to_RGB( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -466,7 +466,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC2_to_RGB( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -478,7 +478,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC3_to_RGB( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -490,7 +490,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC4_to_RGB( mipSize[0], mipSize[1],
                                       pBase->GetMipData(baseLOD+m),
                                       pResult->GetMipData(m) );
@@ -502,7 +502,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC5_to_RGB( mipSize[0], mipSize[1],
                                       pBase->GetMipData(baseLOD+m),
                                       pResult->GetMipData(m) );
@@ -514,7 +514,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::ASTC4x4RGBL_to_RGB( mipSize[0], mipSize[1],
                                       pBase->GetMipData(baseLOD+m),
                                       pResult->GetMipData(m) );
@@ -526,7 +526,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::ASTC4x4RGBAL_to_RGB( mipSize[0], mipSize[1],
                                       pBase->GetMipData(baseLOD+m),
                                       pResult->GetMipData(m) );
@@ -538,7 +538,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::ASTC4x4RGL_to_RGB( mipSize[0], mipSize[1],
                                       pBase->GetMipData(baseLOD+m),
                                       pResult->GetMipData(m) );
@@ -633,7 +633,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC1_to_RGBA( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -645,7 +645,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC2_to_RGBA( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -657,7 +657,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC3_to_RGBA( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -669,7 +669,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+					FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC4_to_RGBA( mipSize[0], mipSize[1],
                                        pBase->GetMipData(baseLOD+m),
                                        pResult->GetMipData(m) );
@@ -681,7 +681,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC5_to_RGBA( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -693,7 +693,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::ASTC4x4RGBL_to_RGBA( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -705,7 +705,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::ASTC4x4RGBAL_to_RGBA( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -717,7 +717,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             {
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::ASTC4x4RGL_to_RGBA( mipSize[0], mipSize[1],
                                         pBase->GetMipData(baseLOD+m),
                                         pResult->GetMipData(m) );
@@ -866,7 +866,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGB_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGB_to_BC1(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -875,7 +875,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGBA_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGBA_to_BC1(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -887,7 +887,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                 ImagePtr pTemp = ImagePixelFormat( imageCompressionQuality, pBase, EImageFormat::IF_RGB_UBYTE );
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGB_to_BC1(
                         mipSize[0], mipSize[1], pTemp->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -900,7 +900,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                 ImagePtr pTemp = ImagePixelFormat( imageCompressionQuality, pBase, EImageFormat::IF_RGBA_UBYTE );
                 for (int m = 0; m < resultLODCount; ++m)
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize(m);
+                    FIntVector2 mipSize = pResult->CalculateMipSize(m);
                     miro::RGBA_to_BC1(
                         mipSize[0], mipSize[1], pTemp->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -924,7 +924,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGBA_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGBA_to_BC2(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -947,7 +947,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGBA_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGBA_to_BC3(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -957,7 +957,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGB_UBYTE:          
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGB_to_BC3(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -970,7 +970,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
 
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::BC1_to_BC3(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -994,7 +994,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_L_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::L_to_BC4(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -1017,7 +1017,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGBA_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGBA_to_BC5(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -1027,7 +1027,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGB_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGB_to_BC5(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -1050,7 +1050,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGBA_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGBA_to_ASTC4x4RGBL(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -1060,7 +1060,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGB_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGB_to_ASTC4x4RGBL(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -1070,7 +1070,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_ASTC_4x4_RGBA_LDR:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::ASTC4x4RGBAL_to_ASTC4x4RGBL( mipSize[0], mipSize[1],
                                        pBase->GetMipData(baseLOD+m),
                                        pResult->GetMipData(m) );
@@ -1080,7 +1080,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
 			case EImageFormat::IF_L_UBYTE:
 				for (int m = 0; m < resultLODCount; ++m)
 				{
-					vec2<int> mipSize = pResult->CalculateMipSize(m);
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
 					miro::L_to_ASTC4x4RGBL(mipSize[0], mipSize[1],
 						pBase->GetMipData(baseLOD + m),
 						pResult->GetMipData(m), imageCompressionQuality);
@@ -1103,7 +1103,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGBA_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGBA_to_ASTC4x4RGBAL(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -1113,7 +1113,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGB_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGB_to_ASTC4x4RGBAL(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -1123,7 +1123,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_ASTC_4x4_RGB_LDR:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::ASTC4x4RGBL_to_ASTC4x4RGBAL( mipSize[0], mipSize[1],
                                        pBase->GetMipData(baseLOD+m),
                                        pResult->GetMipData(m) );
@@ -1146,7 +1146,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGBA_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGBA_to_ASTC4x4RGL(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -1156,7 +1156,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_RGB_UBYTE:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGB_to_ASTC4x4RGL(
                         mipSize[0], mipSize[1], pBase->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), imageCompressionQuality );
@@ -1166,7 +1166,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
             case EImageFormat::IF_ASTC_4x4_RG_LDR:
                 for ( int m=0; m<resultLODCount; ++m )
                 {
-                    vec2<int> mipSize = pResult->CalculateMipSize( m );
+                    FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     // Hack that actually works because of block size.
                     miro::ASTC4x4RGBAL_to_ASTC4x4RGBL( mipSize[0], mipSize[1],
                                        pBase->GetMipData(baseLOD+m),

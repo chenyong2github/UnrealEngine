@@ -195,6 +195,9 @@ namespace mu
         //! Store resource data in disk instead of memory
         bool m_useDiskCache = false;
 
+		/** Compile optimizing for the generation of smaller mipmaps of every image. */
+		bool bEnableProgressiveImages = false;
+
         // Additional advanced fine-tuning parameters
         //---------------------------------------------------------------------
 
@@ -273,7 +276,7 @@ namespace mu
 	public:
 
 		// \TODO This is recursive and may cause stack overflows in big models.
-		Ptr<ASTOp> Apply(const ASTOp* root);
+		Ptr<ASTOp> Apply(const ASTOp* Root);
 
 	protected:
 
@@ -292,7 +295,7 @@ namespace mu
 	{
 	public:
 
-		Ptr<ASTOp> Apply(const ASTOp* root);
+		Ptr<ASTOp> Apply(const class ASTOpImageMipmap* Root);
 
 	protected:
 

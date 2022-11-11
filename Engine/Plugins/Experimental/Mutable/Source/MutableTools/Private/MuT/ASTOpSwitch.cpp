@@ -2,6 +2,7 @@
 
 #include "MuT/ASTOpSwitch.h"
 
+#include "MuT/ASTOpParameter.h"
 #include "Containers/Map.h"
 #include "Misc/AssertionMacros.h"
 #include "MuR/ImagePrivate.h"
@@ -415,7 +416,7 @@ namespace mu
 		// Constant condition?
 		if (variable->GetOpType() == OP_TYPE::NU_CONSTANT)
 		{
-			Ptr<ASTOp> branch = def.child();
+			Ptr<ASTOp> Branch = def.child();
 
 			auto typedCondition = dynamic_cast<const ASTOpFixed*>(variable.child().get());
 			for (int32 o = 0; o < cases.Num(); ++o)
@@ -425,55 +426,58 @@ namespace mu
 					==
 					(int)cases[o].condition)
 				{
-					branch = cases[o].branch.child();
+					Branch = cases[o].branch.child();
 					break;
 				}
 			}
 
-			return branch;
+			return Branch;
 		}
 
-		//else
-		//{
-			// If all the possible branches are the same, remove the instruction
-			// TODO: If the variables is a parameter, checking that all the possible
-			// values of this parameter are handled.
+		else if (variable->GetOpType() == OP_TYPE::NU_PARAMETER)
+		{
+			// If all the branches for the possible values are the same op remove the instruction
+			const ASTOpParameter* ParamOp = dynamic_cast<const ASTOpParameter*>(variable.child().get());
+			check(ParamOp);
+			check(!ParamOp->parameter.m_possibleValues.IsEmpty());
 
-	//            Disable this: I think it doesn't deal correctly with def. If all branches are the same but the
-	//              value is none of the options, "def" should be selected.
-	//            OP::ADDRESS switchAt = at;
-	//            bool same = true;
-	//            OP::ADDRESS value = 0;
-	//            //vector< UINT16 > options;
+			bool bFirstValue = true;
+			bool bAllSame = true;
+			Ptr<ASTOp> SameBranch = nullptr;
+			for (const FParameterDesc::INT_VALUE_DESC& Value : ParamOp->parameter.m_possibleValues)
+			{
+				// Look for the switch branch it would take
+				Ptr<ASTOp> Branch = def.child();
+				for (const FCase& Case : cases)
+				{
+					if (Case.condition == Value.m_value)
+					{
+						Branch = Case.branch.child();
+						break;
+					}
+				}
 
-	//            const auto& options = program.m_constantSwitches[program.m_code[switchAt].args.Switch.options].m_options;
-	//            for ( size_t o=0; o<options.size(); ++o )
-	//            {
-	//                if ( options[o].at )
-	//                {
-	//                    if (!value)
-	//                    {
-	//                        value = options[o].at;
-	//                    }
-	//                    else
-	//                    {
-	//                        same &= ( value == options[o].at );
-	//                    }
+				if (bFirstValue)
+				{
+					bFirstValue = false;
+					SameBranch = Branch;
+				}
+				else
+				{
+					if (SameBranch != Branch)
+					{
+						bAllSame = false;
+						SameBranch = nullptr;
+						break;
+					}
+				}
+			}
 
-	//                    //options.push_back
-	//                    //		( program.m_code[switchAt].args.Switch.conditions[o] );
-	//                }
-	//            }
-
-
-	//            if (same)
-	//            {
-	//                m_modified = true;
-
-	//                at = value;
-	//            }
-
-		//}
+	        if (bAllSame)
+	        {
+				return SameBranch;
+	        }
+		}
 
 		return nullptr;
 	}

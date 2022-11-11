@@ -869,7 +869,7 @@ void SMutableCodeViewer::GetOperationsOfType(const mu::OP_TYPE& TargetOperationT
 		// Process the children of this object
 		GetOperationsOfType(TargetOperationType, InSearchPayload, InProgram);
 	}
-}
+ }
 
 
 void SMutableCodeViewer::CacheOperationTypesPresentOnModel()
@@ -1086,7 +1086,7 @@ void SMutableCodeViewer::GenerateAllTreeElements()
 		const FSlateColor LabelColor = ColorPerComputationalCost[StaticCast<uint8>(GetOperationTypeComputationalCost(
 			ModelPrivate->m_program.GetOpType(State.m_root)))];
 		
-		RootNodes.Add(MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(),MutableModel, State.m_root, Caption,LabelColor)));
+		RootNodes.Add(MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(), MutableModel, State.m_root, Caption,LabelColor)));
 
 		// Iterate over each root node and generate all the elements in a human readable pattern (Z Pattern)
 
@@ -1102,37 +1102,102 @@ void SMutableCodeViewer::GenerateAllTreeElements()
 
 void SMutableCodeViewer::GenerateElementRecursive(mu::OP::ADDRESS InParentAddress,  const mu::FProgram& InProgram)
 {
-	// Find children of the provided element
+	// This will be used to add operations
 	uint32 ChildIndex = 0;
-	mu::ForEachReference(InProgram, InParentAddress, [this, InParentAddress, &ChildIndex, &InProgram](mu::OP::ADDRESS ChildAddress)
-	{
-		if (ChildAddress)
+	auto AddOpFunc = [this, InParentAddress, &InProgram, &ChildIndex](mu::OP::ADDRESS ChildAddress, const FString& Caption)
 		{
-			const FItemCacheKey Key = { InParentAddress, ChildAddress, ChildIndex };
-			const TSharedPtr<FMutableCodeTreeElement>* CachedItem = ItemCache.Find(Key);
-
-			if (!CachedItem)
+			if (ChildAddress)
 			{
-				// Locate the "original" tree element
-				const TSharedPtr<FMutableCodeTreeElement>* MainItemPtr = MainItemPerOp.Find(ChildAddress);
+				const FItemCacheKey Key = { InParentAddress, ChildAddress, ChildIndex };
+				const TSharedPtr<FMutableCodeTreeElement>* CachedItem = ItemCache.Find(Key);
 
-				const FSlateColor LabelColor = ColorPerComputationalCost[ StaticCast<uint8> (GetOperationTypeComputationalCost(InProgram.GetOpType(ChildAddress))) ];
-				const TSharedPtr<FMutableCodeTreeElement> Item = MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(),MutableModel, ChildAddress, TEXT(""),LabelColor, MainItemPtr));
+				// Will this ever really hit?
+				check(!CachedItem);
 
-				// Cache this element for later access
-				ItemCache.Add(Key, Item);
-				
-				// It is not a duplicated of another one, then we can continue searching
-				if (!MainItemPtr)
+				if (!CachedItem)
 				{
-					MainItemPerOp.Add(ChildAddress, Item);
-					
-					GenerateElementRecursive(ChildAddress,InProgram);
+					// Locate the "original" tree element
+					const TSharedPtr<FMutableCodeTreeElement>* MainItemPtr = MainItemPerOp.Find(ChildAddress);
+
+					const FSlateColor LabelColor = ColorPerComputationalCost[StaticCast<uint8>(GetOperationTypeComputationalCost(InProgram.GetOpType(ChildAddress)))];
+
+					// No caption for the generic tree
+					const TSharedPtr<FMutableCodeTreeElement> Item = MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(), MutableModel, ChildAddress, Caption, LabelColor, MainItemPtr));
+
+					// Cache this element for later access
+					ItemCache.Add(Key, Item);
+
+					// It is not a duplicated of another one, then we can continue searching
+					if (!MainItemPtr)
+					{
+						MainItemPerOp.Add(ChildAddress, Item);
+
+						GenerateElementRecursive(ChildAddress, InProgram);
+					}
 				}
 			}
+			++ChildIndex;
+		};
+
+	
+	// For some specific parent operation types we create more detailed subtrees.
+	const mu::OP_TYPE ParentOperationType = InProgram.GetOpType(InParentAddress);
+	switch (ParentOperationType)
+	{
+	case mu::OP_TYPE::IM_SWITCH:
+	case mu::OP_TYPE::LA_SWITCH:
+	case mu::OP_TYPE::ME_SWITCH:
+	case mu::OP_TYPE::CO_SWITCH:
+	case mu::OP_TYPE::SC_SWITCH:
+	case mu::OP_TYPE::NU_SWITCH:
+	case mu::OP_TYPE::IN_SWITCH:
+	{
+		const uint8* OpData = InProgram.GetOpArgsPointer(InParentAddress);
+
+		mu::OP::ADDRESS VarAddress;
+		FMemory::Memcpy(&VarAddress, OpData, sizeof(mu::OP::ADDRESS));
+		OpData += sizeof(mu::OP::ADDRESS);
+		AddOpFunc(VarAddress, TEXT("var "));
+
+		mu::OP::ADDRESS DefAddress;
+		FMemory::Memcpy(&DefAddress, OpData, sizeof(mu::OP::ADDRESS));
+		OpData += sizeof(mu::OP::ADDRESS);
+		AddOpFunc(DefAddress, TEXT("def "));
+
+		uint32 CaseCount;
+		FMemory::Memcpy(&CaseCount, OpData, sizeof(uint32));
+		OpData += sizeof(uint32);
+
+		for (uint32 C = 0; C < CaseCount; ++C)
+		{
+			int32 Condition;
+			FMemory::Memcpy(&Condition, OpData, sizeof(int32));
+			OpData += sizeof(int32);
+
+			mu::OP::ADDRESS At;
+			FMemory::Memcpy(&At, OpData, sizeof(mu::OP::ADDRESS));
+			OpData += sizeof(mu::OP::ADDRESS);
+
+			FString Caption = FString::Printf(TEXT("case %d "),Condition);
+			AddOpFunc(At, Caption);
 		}
-		++ChildIndex;
-	});
+
+		break;
+	}
+
+	default:
+	{
+		// Generic list of child operations
+
+		// Find children of the provided element
+		mu::ForEachReference(InProgram, InParentAddress, [this, &InProgram, AddOpFunc](mu::OP::ADDRESS ChildAddress)
+			{
+				AddOpFunc(ChildAddress,TEXT(""));
+			});
+		break;
+	}
+
+	}
 }
 
 SMutableCodeViewer::EOperationComputationalCost SMutableCodeViewer::GetOperationTypeComputationalCost(mu::OP_TYPE OperationType) const
@@ -2289,7 +2354,7 @@ FReply SMutableCodeViewer::OnDrop(const FGeometry& MyGeometry, const FDragDropEv
 				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
 				if (DraggedFileExtension == TEXT(".mutable_compiled"))
 				{
-					// Dump source model to a file.
+					// Read a mutable compiled model file.
 					mu::InputFileStream stream(TCHAR_TO_ANSI(*Files[0]));
 
 					char MutableSourceTag[4] = {};

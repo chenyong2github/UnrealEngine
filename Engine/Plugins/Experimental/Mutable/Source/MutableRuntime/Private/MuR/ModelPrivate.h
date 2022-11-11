@@ -331,7 +331,9 @@ namespace mu
 			bool bCannotBeScaled = pImage->m_flags & Image::IF_CANNOT_BE_SCALED;
 			if (bCannotBeScaled)
 			{
-				MipsToStore = 1;
+				// Store only the mips that we have already calculated. We assume we have calculated them correctly.
+				//MipsToStore = 1;
+				MipsToStore = pImage->GetLODCount();
 			}
 
 			// TODO:

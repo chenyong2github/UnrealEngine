@@ -13,37 +13,21 @@ namespace mu
 {
 	struct FProgram;
 
-	class ASTOpImageMipmap : public ASTOp
+	class ASTOpImageMakeGrowMap : public ASTOp
 	{
 	public:
 
-		ASTChild Source;
+		ASTChild Mask;
 
-		uint8 Levels = 0;
-
-		//! Number of mipmaps that can be generated for a single layout block.
-		uint8 BlockLevels = 0;
-
-		//! This is true if this operation is supposed to build only the tail mipmaps.
-		//! It is used during the code optimisation phase, and to validate the code.
-		bool bOnlyTail = false;
-
-		/** If this is enabled, at optimize time, the mip operation will not be split in top and bottom mip (for compose tails). */
-		bool bPreventSplitTail = false;
-
-		//! Mipmap generation settings. 
-		float SharpenFactor = 0.0f;
-		EAddressMode AddressMode = EAddressMode::AM_NONE;
-		EMipmapFilterType FilterType = EMipmapFilterType::MFT_Unfiltered;
-		bool DitherMipmapAlpha = false;
+		uint32 Border = 0;
 
 	public:
 
-		ASTOpImageMipmap();
-		ASTOpImageMipmap(const ASTOpImageMipmap&) = delete;
-		~ASTOpImageMipmap();
+		ASTOpImageMakeGrowMap();
+		ASTOpImageMakeGrowMap(const ASTOpImageMakeGrowMap&) = delete;
+		~ASTOpImageMakeGrowMap();
 
-		OP_TYPE GetOpType() const override { return OP_TYPE::IM_MIPMAP; }
+		OP_TYPE GetOpType() const override { return OP_TYPE::IM_MAKEGROWMAP; }
 		uint64 Hash() const override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;

@@ -28,13 +28,13 @@ namespace mu
 			float* inBuf = &inOutKernelStorage[0];
 			float* outBuf = &temp[0];
 
-			for (int32_t i = 0; i < ITERS; ++i)
+			for (int32 i = 0; i < ITERS; ++i)
 			{
 				constexpr float oneOverThree = 1.0f / 3.0f;
 
 				outBuf[0] = (inBuf[0] + inBuf[1]) * oneOverThree;
 
-				for (int32_t j = 1; j < N - 1; ++j)
+				for (int32 j = 1; j < N - 1; ++j)
 				{
 					outBuf[j] = (inBuf[j - 1] + inBuf[j] + inBuf[j + 1]) * oneOverThree;
 				}
@@ -47,7 +47,7 @@ namespace mu
 
 			if (ITERS % 2 == 1)
 			{
-				for (uint32_t i = 0; i < N; ++i)
+				for (uint32 i = 0; i < N; ++i)
 				{
 					inOutKernelStorage[i] = temp[i];
 				}
@@ -68,7 +68,7 @@ namespace mu
 
 			const float center = static_cast<float>(N) * 0.5f;
 			float sum = 0;
-			for (int32_t i = 0; i < N; ++i)
+			for (int32 i = 0; i < N; ++i)
 			{
 				const float dist = normalDist(static_cast<float>(i) - center + 0.5f);
 				kernel[i] = dist;
@@ -76,7 +76,7 @@ namespace mu
 			}
 
 			const float normFactor = 1.0f / sum;
-			for (int32_t i = 0; i < N; ++i)
+			for (int32 i = 0; i < N; ++i)
 			{
 				kernel[i] *= normFactor;
 			}
@@ -85,7 +85,7 @@ namespace mu
 		template<size_t N>
 		inline void BuildSharpenKernel(float(&kernel)[N], float factor)
 		{
-			for (uint32_t i = 0; i < N; ++i)
+			for (uint32 i = 0; i < N; ++i)
 			{
 				kernel[i] = 0.0f;
 			}
@@ -99,9 +99,9 @@ namespace mu
 		{
 			static_assert(N == SharpenKernelStorage8::SIZE);
 
-			for (int32_t y = 0; y < N; ++y)
+			for (int32 y = 0; y < N; ++y)
 			{
-				for (int32_t x = 0; x < N; ++x)
+				for (int32 x = 0; x < N; ++x)
 				{
 					outKernel.m_storage[y * N + x] = kernel1D[y] * kernel1D[x];
 				}
@@ -131,7 +131,7 @@ namespace mu
 			BlurKernel<1>(kernel1DStorage0);
 			BlurKernel<3>(kernel1DStorage1);
 
-			for (int32_t i = 0; i < SharpenKernelStorage8::SIZE; ++i)
+			for (int32 i = 0; i < SharpenKernelStorage8::SIZE; ++i)
 			{
 				kernel1DStorage0[i] += kernel1DStorage1[i];
 			}
@@ -141,78 +141,78 @@ namespace mu
 			return kernel;
 		}
 
-		template<int32_t PIXEL_SIZE, typename CHANNEL_TYPE, EAddressMode AD_MODE = EAddressMode::AM_NONE>
+		template<int32 PIXEL_SIZE, typename CHANNEL_TYPE, EAddressMode AD_MODE = EAddressMode::AM_NONE>
 		class ImageAccessor
 		{
-			const vec2<int32_t> m_dim;
+			const FIntVector2 m_dim;
 			CHANNEL_TYPE const* const m_pImageBuf;
 
 		public:
-			ImageAccessor(const CHANNEL_TYPE* const pImageBuf, vec2<uint32_t> dim)
+			ImageAccessor(const CHANNEL_TYPE* const pImageBuf, FIntVector2 dim)
 				: m_dim(dim)
 				, m_pImageBuf(pImageBuf)
 			{
 			}
 
-			uint8_t operator()(int32_t x, int32_t y, int32_t c) const
+			uint8 operator()(int32 x, int32 y, int32 c) const
 			{
 				if constexpr (AD_MODE == EAddressMode::AM_WRAP)
 				{
-					// (y & (m_dim.y() - 1)) * m_dim.y() + (x & (m_dim.x() - 1))
-					return m_pImageBuf[((y % m_dim.y()) * m_dim.x() + (x % m_dim.x())) * PIXEL_SIZE + c];
+					// (y & (m_dim.Y - 1)) * m_dim.Y + (x & (m_dim.X - 1))
+					return m_pImageBuf[((y % m_dim.Y) * m_dim.X + (x % m_dim.X)) * PIXEL_SIZE + c];
 				}
 				else if (AD_MODE == EAddressMode::AM_CLAMP)
 				{
-					return m_pImageBuf[(mu::clamp(y, 0, m_dim.y() - 1) * m_dim.x() +
-						mu::clamp(x, 0, m_dim.x() - 1))
+					return m_pImageBuf[(mu::clamp(y, 0, m_dim.Y - 1) * m_dim.X +
+						mu::clamp(x, 0, m_dim.X - 1))
 						* PIXEL_SIZE + c];
 				}
 				else if (AD_MODE == EAddressMode::AM_BLACK_BORDER)
 				{
-					return ((x < m_dim.x()) && (y < m_dim.y()) && (x >= 0) && (y >= 0))
-						? m_pImageBuf[(y * m_dim.x() + x) * PIXEL_SIZE + c]
+					return ((x < m_dim.X) && (y < m_dim.Y) && (x >= 0) && (y >= 0))
+						? m_pImageBuf[(y * m_dim.X + x) * PIXEL_SIZE + c]
 						: 0;
 				}
 				else
 				{
-					return m_pImageBuf[(y * m_dim.x() + x) * PIXEL_SIZE + c];
+					return m_pImageBuf[(y * m_dim.X + x) * PIXEL_SIZE + c];
 				}
 			}
 		};
 
 
-		template<int32_t PIXEL_SIZE, EAddressMode AD, typename PIXEL_TYPE>
+		template<int32 PIXEL_SIZE, EAddressMode AD, typename PIXEL_TYPE>
 		void GenerateMipSharpenedRegion(
 			const SharpenKernelStorage8& kernel,
 			const ImageAccessor<PIXEL_SIZE, PIXEL_TYPE, AD>& sourceAccessor,
-			PIXEL_TYPE* pDest, vec2<int32_t> destSize,
-			vec2<int32_t> regionStart, vec2<int32_t> regionEnd)
+			PIXEL_TYPE* pDest, FIntVector2 destSize,
+			FIntVector2 regionStart, FIntVector2 regionEnd)
 		{
 			// Only kernels of size 8 supported.
-			constexpr int32_t kernelSize = SharpenKernelStorage8::SIZE;
+			constexpr int32 kernelSize = SharpenKernelStorage8::SIZE;
 			static_assert(kernelSize == 8);
 
-			constexpr int32_t kernelCenter = (kernelSize >> 1) - 1;
-			for (int32_t y = regionStart.y(); y < regionEnd.y(); ++y)
+			constexpr int32 kernelCenter = (kernelSize >> 1) - 1;
+			for (int32 y = regionStart.Y; y < regionEnd.Y; ++y)
 			{
-				for (int32_t x = regionStart.x(); x < regionEnd.x(); ++x)
+				for (int32 x = regionStart.X; x < regionEnd.X; ++x)
 				{
 					float stagingStorage[kernelSize * kernelSize * PIXEL_SIZE];
 
-					const vec2<uint32_t> sourceCoord = vec2<uint32_t>(x << 1, y << 1);
+					const FIntVector2 sourceCoord = FIntVector2(x << 1, y << 1);
 
 
 					// Convert Image kernel stamp to float. This conversion will be done multiple times.
 					// and should be done once before applying the kernel, or operate directly in unorm8/snorm8.
-					for (int32_t ky = 0; ky < kernelSize; ++ky)
+					for (int32 ky = 0; ky < kernelSize; ++ky)
 					{
-						for (int32_t kx = 0; kx < kernelSize; ++kx)
+						for (int32 kx = 0; kx < kernelSize; ++kx)
 						{
-							for (int32_t c = 0; c < PIXEL_SIZE; ++c)
+							for (int32 c = 0; c < PIXEL_SIZE; ++c)
 							{
 								stagingStorage[(ky * kernelSize + kx) + (kernelSize * kernelSize * c)] = static_cast<float>(
-									sourceAccessor(sourceCoord.x() + kx - kernelCenter,
-										sourceCoord.y() + ky - kernelCenter,
+									sourceAccessor(sourceCoord.X + kx - kernelCenter,
+										sourceCoord.Y + ky - kernelCenter,
 										c)) / 255.0f;
 							}
 						}
@@ -223,17 +223,17 @@ namespace mu
 					// Since here we are only applying to half the image and the kernel used is small (8x8) the benefits are not 
 					// clear.
 
-					for (int32_t c = 0; c < PIXEL_SIZE; ++c)
+					for (int32 c = 0; c < PIXEL_SIZE; ++c)
 					{
 						float sampleValue = 0.0f;
 						float sum = 0.0f;
-						for (int32_t k = 0; k < kernelSize * kernelSize; ++k)
+						for (int32 k = 0; k < kernelSize * kernelSize; ++k)
 						{
 							sampleValue += kernel.m_storage[k] * stagingStorage[k + (kernelSize * kernelSize * c)];
 							sum += kernel.m_storage[k];
 						}
 
-						pDest[(y * destSize.x() + x) * PIXEL_SIZE + c] = static_cast<uint8_t>(mu::clamp(sampleValue, 0.0f, 1.0f) * 255.0f);
+						pDest[(y * destSize.X + x) * PIXEL_SIZE + c] = static_cast<uint8>(mu::clamp(sampleValue, 0.0f, 1.0f) * 255.0f);
 					}
 				}
 			}
@@ -241,8 +241,8 @@ namespace mu
 
 		template<size_t PIXEL_SIZE, EAddressMode AD_MODE>
 		inline void GenerateMipmapUint8Sharpen(int mips,
-			const uint8_t* pSource, uint8_t* pDest,
-			vec2<int32_t> sourceSize,
+			const uint8* pSource, uint8* pDest,
+			FIntVector2 sourceSize,
 			float sharpeningFactor)
 		{
 			SharpenKernelStorage8 kernel = MakeMipGaussianSharpenKernel(sharpeningFactor);
@@ -251,10 +251,10 @@ namespace mu
 
 			for (; mips >= 0; --mips)
 			{
-				ImageAccessor<PIXEL_SIZE, uint8_t, AD_MODE> sourceSampler(pSource, sourceSize);
-				ImageAccessor<PIXEL_SIZE, uint8_t, EAddressMode::AM_NONE> sourceSamplerAddressModeNone(pSource, sourceSize);
+				ImageAccessor<PIXEL_SIZE, uint8, AD_MODE> sourceSampler(pSource, sourceSize);
+				ImageAccessor<PIXEL_SIZE, uint8, EAddressMode::AM_NONE> sourceSamplerAddressModeNone(pSource, sourceSize);
 
-				vec2<int32_t> destSize = vec2<int32_t>(FMath::DivideAndRoundUp(sourceSize.x(), 2), FMath::DivideAndRoundUp(sourceSize.y(), 2));
+				FIntVector2 destSize = FIntVector2(FMath::DivideAndRoundUp(sourceSize.X, 2), FMath::DivideAndRoundUp(sourceSize.Y, 2));
 
 				// Core image, will never sample outside the image so we don't need to care about address mode.
 				// Only sample source pixels where the kernel can be fully applied.
@@ -263,81 +263,81 @@ namespace mu
 					kernel,
 					sourceSamplerAddressModeNone,
 					pDest, destSize,
-					vec2<int32_t>(2, 2), vec2<int32_t>(destSize.x() - 2, destSize.y() - 2));
+					FIntVector2(2, 2), FIntVector2(destSize.X - 2, destSize.Y - 2));
 
 				// Horizontal borders.
 				GenerateMipSharpenedRegion(
 					kernel,
 					sourceSampler,
 					pDest, destSize,
-					vec2<int32_t>(0, 0), vec2<int32_t>(destSize.x(), FMath::Min(2, destSize.y())));
+					FIntVector2(0, 0), FIntVector2(destSize.X, FMath::Min(2, destSize.Y)));
 
 				GenerateMipSharpenedRegion(
 					kernel,
 					sourceSampler,
 					pDest, destSize,
-					vec2<int32_t>(0, FMath::Max(destSize.y() - 2, 0)), vec2<int32_t>(destSize.x(), destSize.y()));
+					FIntVector2(0, FMath::Max(destSize.Y - 2, 0)), FIntVector2(destSize.X, destSize.Y));
 
 				// Vertical borders
 				GenerateMipSharpenedRegion(
 					kernel,
 					sourceSampler,
 					pDest, destSize,
-					vec2<int32_t>(0, FMath::Min(2, destSize.y())), vec2<int32_t>(FMath::Min(2, destSize.x()), destSize.y() - 2));
+					FIntVector2(0, FMath::Min(2, destSize.Y)), FIntVector2(FMath::Min(2, destSize.X), destSize.Y - 2));
 
 				GenerateMipSharpenedRegion(
 					kernel,
 					sourceSampler,
 					pDest, destSize,
-					vec2<int32_t>(destSize.x() - 2, FMath::Min(2, destSize.y())), vec2<int32_t>(destSize.x(), destSize.y() - 2));
+					FIntVector2(destSize.X - 2, FMath::Min(2, destSize.Y)), FIntVector2(destSize.X, destSize.Y - 2));
 
 				sourceSize = destSize;
 
 				pSource = pDest;
-				pDest = pDest + destSize.x() * destSize.y() * PIXEL_SIZE;
+				pDest = pDest + destSize.X * destSize.Y * PIXEL_SIZE;
 
-				totalDestSize += sourceSize.x() * sourceSize.y() * PIXEL_SIZE;
+				totalDestSize += sourceSize.X * sourceSize.Y * PIXEL_SIZE;
 			}
 		}
 
-		template<int32_t PIXEL_SIZE>
+		template<int32 PIXEL_SIZE>
 		inline void GenerateMipmapUint8Unfiltered(
 			int mips,
-			const uint8_t* pSource, uint8_t* pDest,
-			vec2<int> sourceSize)
+			const uint8* pSource, uint8* pDest,
+			FIntVector2 sourceSize)
 		{
 			for (; mips >= 0; --mips)
 			{
-				vec2<int32_t> destSize = vec2<int32_t>(FMath::DivideAndRoundUp(sourceSize.x(), 2), FMath::DivideAndRoundUp(sourceSize.y(), 2));
+				FIntVector2 destSize = FIntVector2(FMath::DivideAndRoundUp(sourceSize.X, 2), FMath::DivideAndRoundUp(sourceSize.Y, 2));
 
-				for (int32_t y = 0; y < destSize.y(); ++y)
+				for (int32 y = 0; y < destSize.Y; ++y)
 				{
-					for (int32_t x = 0; x < destSize.x(); ++x)
+					for (int32 x = 0; x < destSize.X; ++x)
 					{
-						for (int32_t c = 0; c < PIXEL_SIZE; ++c)
+						for (int32 c = 0; c < PIXEL_SIZE; ++c)
 						{
-							pDest[(y * destSize.x() + x) * PIXEL_SIZE + c] =
-								pSource[((y << 1) * sourceSize.x() + (x << 1)) * PIXEL_SIZE + c];
+							pDest[(y * destSize.X + x) * PIXEL_SIZE + c] =
+								pSource[((y << 1) * sourceSize.X + (x << 1)) * PIXEL_SIZE + c];
 						}
 					}
 				}
 
 				sourceSize = destSize;
 				pSource = pDest;
-				pDest = pDest + destSize.x() * destSize.y() * PIXEL_SIZE;
+				pDest = pDest + destSize.X * destSize.Y * PIXEL_SIZE;
 			}
 		}
 
-		template<int32_t PIXEL_SIZE>
+		template<int32 PIXEL_SIZE>
 		inline void GenerateMipmapsUint8SimpleAverage(
 			int mips,
-			const uint8_t* pSource, uint8_t* pDest,
-			vec2<int> sourceSize)
+			const uint8* pSource, uint8* pDest,
+			FIntVector2 sourceSize)
 		{
-			const uint8_t* pMipSource = pSource;
-			uint8_t* pMipDest = pDest;
+			const uint8* pMipSource = pSource;
+			uint8* pMipDest = pDest;
 
-			vec2<int> destSize = sourceSize;
+			FIntVector2 destSize = sourceSize;
 			for (int m = 0; m < mips; ++m)
 			{
 				check(destSize[0] > 1 || destSize[1] > 1);
@@ -355,13 +355,13 @@ namespace mu
 				int sourceStride = sourceSize[0] * PIXEL_SIZE;
 				int destStride = destSize[0] * PIXEL_SIZE;
 
-				const auto& ProcessRow = [
+				const auto ProcessRow = [
 					pMipDest, pMipSource, fullColumns, strayColumn, sourceStride, destStride
 				] (uint32 y)
 				{
-					const uint8_t* pSourceRow0 = pMipSource + 2 * y * sourceStride;
-					const uint8_t* pSourceRow1 = pSourceRow0 + sourceStride;
-					uint8_t* pDestRow = pMipDest + y * destStride;
+					const uint8* pSourceRow0 = pMipSource + 2 * y * sourceStride;
+					const uint8* pSourceRow1 = pSourceRow0 + sourceStride;
+					uint8* pDestRow = pMipDest + y * destStride;
 
 					for (int x = 0; x < fullColumns; ++x)
 					{
@@ -369,7 +369,7 @@ namespace mu
 						{
 							int p = pSourceRow0[c] + pSourceRow0[PIXEL_SIZE + c] + pSourceRow1[c] +
 								pSourceRow1[PIXEL_SIZE + c];
-							pDestRow[c] = (uint8_t)(p >> 2);
+							pDestRow[c] = (uint8)(p >> 2);
 						}
 
 						pSourceRow0 += 2 * PIXEL_SIZE;
@@ -382,7 +382,7 @@ namespace mu
 						for (int c = 0; c < PIXEL_SIZE; ++c)
 						{
 							int p = pSourceRow0[c] + pSourceRow1[c];
-							pDestRow[c] = (uint8_t)(p >> 1);
+							pDestRow[c] = (uint8)(p >> 1);
 						}
 					}
 				};
@@ -402,16 +402,16 @@ namespace mu
 
 					if (strayRow)
 					{
-						const uint8_t* pSourceRow0 = pMipSource + 2 * fullRows * sourceStride;
-						const uint8_t* pSourceRow1 = pSourceRow0 + sourceStride;
-						uint8_t* pDestRow = pMipDest + fullRows * destStride;
+						const uint8* pSourceRow0 = pMipSource + 2 * fullRows * sourceStride;
+						const uint8* pSourceRow1 = pSourceRow0 + sourceStride;
+						uint8* pDestRow = pMipDest + fullRows * destStride;
 
 						for (int x = 0; x < fullColumns; ++x)
 						{
 							for (int c = 0; c < PIXEL_SIZE; ++c)
 							{
 								int p = pSourceRow0[c] + pSourceRow0[PIXEL_SIZE + c];
-								pDestRow[c] = (uint8_t)(p >> 1);
+								pDestRow[c] = (uint8)(p >> 1);
 							}
 
 							pSourceRow0 += 2 * PIXEL_SIZE;
@@ -441,10 +441,10 @@ namespace mu
 		//! Generate the mipmaps for byte-based images of whatever number of channels.
 		//! \param mips number of additional levels to build from the source.
 		//---------------------------------------------------------------------------------------------
-	template<int32_t PIXEL_SIZE>
+	template<int32 PIXEL_SIZE>
 	inline void GenerateMipmapsUint8(int mips,
-		const uint8_t* pSource, uint8_t* pDest,
-		vec2<int32_t> sourceSize,
+		const uint8* pSource, uint8* pDest,
+		FIntVector2 sourceSize,
 		const FMipmapGenerationSettings& settings)
 	{
 		using namespace OpImageMipmap_Detail;
@@ -543,28 +543,27 @@ namespace mu
         case EImageFormat::IF_ASTC_4x4_RG_LDR:
         {
 		// Uncompress the last mip that we already have
-		vec2<int> uncompressedSize = pBase->CalculateMipSize(startLevel);
-		scratch->pUncompressed = new Image(
-			(uint16)uncompressedSize[0],
-			(uint16)uncompressedSize[1],
-			1,
-			EImageFormat::IF_RGBA_UBYTE);
+			FIntVector2 uncompressedSize = pBase->CalculateMipSize(startLevel);
+			scratch->pUncompressed = new Image(
+				(uint16)uncompressedSize[0],
+				(uint16)uncompressedSize[1],
+				1,
+				EImageFormat::IF_RGBA_UBYTE);
 
+			FIntVector2 uncompressedMipsSize = pBase->CalculateMipSize(startLevel + 1);
+			// Generate the mipmaps from there on
+			scratch->pUncompressedMips = new Image(
+				(uint16)uncompressedMipsSize[0],
+				(uint16)uncompressedMipsSize[1],
+				FMath::Max(1, levelCount - startLevel - 1),
+				EImageFormat::IF_RGBA_UBYTE);
 
-		FImageSize uncompressedMipsSize = pBase->CalculateMipSize(startLevel + 1);
-        // Generate the mipmaps from there on
-        scratch->pUncompressedMips = new Image(
-			(uint16)uncompressedMipsSize[0],
-			(uint16)uncompressedMipsSize[1],
-			FMath::Max(1, levelCount - startLevel - 1),
-			EImageFormat::IF_RGBA_UBYTE);
-
-		// Compress the mipmapped image
-		scratch->pCompressedMips = new Image(
-			(uint16)uncompressedMipsSize[0],
-			(uint16)uncompressedMipsSize[1],
-			scratch->pUncompressedMips->GetLODCount(),
-			pBase->GetFormat());
+			// Compress the mipmapped image
+			scratch->pCompressedMips = new Image(
+				(uint16)uncompressedMipsSize[0],
+				(uint16)uncompressedMipsSize[1],
+				scratch->pUncompressedMips->GetLODCount(),
+				pBase->GetFormat());
 
             break;
         }
@@ -573,7 +572,7 @@ namespace mu
         case EImageFormat::IF_L_UBYTE_RLE:
         {
             // Uncompress the last mip that we already have
-            vec2<int> uncompressedSize = pBase->CalculateMipSize(startLevel);
+			FIntVector2 uncompressedSize = pBase->CalculateMipSize(startLevel);
             scratch->pUncompressed = new Image(
                 (uint16)uncompressedSize[0],
                 (uint16)uncompressedSize[1],
@@ -581,7 +580,7 @@ namespace mu
                 EImageFormat::IF_L_UBYTE);
 
 
-			FImageSize uncompressedMipsSize = pBase->CalculateMipSize(startLevel + 1);
+			FIntVector2 uncompressedMipsSize = pBase->CalculateMipSize(startLevel + 1);
             // Generate the mipmaps from there on
             scratch->pUncompressedMips = new Image(
                 (uint16)uncompressedMipsSize[0],
@@ -639,8 +638,8 @@ namespace mu
 			check(
 				[&]() -> bool
 				{
-					const FImageSize BaseImageNextMipSize = pBase->CalculateMipSize(startLevel + 1);
-					return BaseImageNextMipSize.x() == pDest->GetSizeX() && BaseImageNextMipSize.y() == pDest->GetSizeY();
+					const FIntVector2 BaseImageNextMipSize = pBase->CalculateMipSize(startLevel + 1);
+					return BaseImageNextMipSize.X == pDest->GetSizeX() && BaseImageNextMipSize.Y == pDest->GetSizeY();
 				}());
 		}
 
@@ -661,11 +660,11 @@ namespace mu
             return;
         }
 
-        const uint8_t* pSourceBuf = !bGenerateOnlyTail ? pDest->GetMipData(startLevel) : pBase->GetMipData(startLevel);
+        const uint8* pSourceBuf = !bGenerateOnlyTail ? pDest->GetMipData(startLevel) : pBase->GetMipData(startLevel);
 
-        uint8_t* pDestBuf = !bGenerateOnlyTail ? pDest->GetMipData(startLevel + 1) : pDest->GetMipData(0);
+        uint8* pDestBuf = !bGenerateOnlyTail ? pDest->GetMipData(startLevel + 1) : pDest->GetMipData(0);
 	
-        vec2<int> sourceSize = pBase->CalculateMipSize(startLevel);
+		FIntVector2 sourceSize = pBase->CalculateMipSize(startLevel);
 
         switch (pBase->GetFormat())
         {
@@ -756,10 +755,10 @@ namespace mu
 			return;
 		}
 
-		const uint8_t* pSourceBuf = InBase->GetMipData(StartLevel);
-		uint8_t* pDestBuf = InBase->GetMipData(StartLevel + 1);
+		const uint8* pSourceBuf = InBase->GetMipData(StartLevel);
+		uint8* pDestBuf = InBase->GetMipData(StartLevel + 1);
 
-		vec2<int> sourceSize = InBase->CalculateMipSize(StartLevel);
+		FIntVector2 sourceSize = InBase->CalculateMipSize(StartLevel);
 
 		switch (InBase->GetFormat())
 		{

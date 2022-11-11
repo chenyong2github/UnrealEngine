@@ -623,7 +623,7 @@ namespace mu
 
         // Linear filtering
         //for ( int y=0; y<destSizeY; ++y )
-		const auto& ProcessRow = [
+		const auto ProcessRow = [
 			pDest, pBase, sizeX, destSizeY
 		] (uint32 y)
 		{

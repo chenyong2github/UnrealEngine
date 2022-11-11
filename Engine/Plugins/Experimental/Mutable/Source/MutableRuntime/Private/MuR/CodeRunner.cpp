@@ -3882,7 +3882,7 @@ namespace mu
 
                 Ptr<const Image> pMask = GetMemory().GetImage( CACHE_ADDRESS(args.mask,item) );
 
-                ImagePtr pNew = new Image( pMask->GetSizeX(), pMask->GetSizeY(), 1, EImageFormat::IF_L_UBYTE );
+                ImagePtr pNew = new Image( pMask->GetSizeX(), pMask->GetSizeY(), pMask->GetLODCount(), EImageFormat::IF_L_UBYTE);
 
                 ImageMakeGrowMap( pNew.get(), pMask.get(), args.border );
 				pNew->m_flags |= Image::IF_CANNOT_BE_SCALED;

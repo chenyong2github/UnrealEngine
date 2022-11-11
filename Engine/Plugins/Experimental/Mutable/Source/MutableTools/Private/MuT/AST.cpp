@@ -1234,29 +1234,10 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext
         res.m_format = EImageFormat::IF_L_UBYTE;
         break;
 
-    case OP_TYPE::IM_GPU:
-    {
-        check(false);
-        // The size comes from a special instruction
-//                const GPU_PROGRAM& gpuProg = program.m_gpuPrograms[ op.args.ImageGPU.program ];
-//                if (gpuProg.m_size)
-//                {
-//                    res = children[op.args.VolumeLayer.source]->GetImageDesc( returnBestOption, context );
-//                }
-//                // The format is fixed in the program description
-//                res.m_format = gpuProg.m_format;
-        break;
-    }
-
     case OP_TYPE::IM_RASTERMESH:
         res = GetImageDesc( op.args.ImageRasterMesh.image, returnBestOption, context );
         res.m_size[0]=op.args.ImageRasterMesh.sizeX;
         res.m_size[1]=op.args.ImageRasterMesh.sizeY;
-        break;
-
-    case OP_TYPE::IM_MAKEGROWMAP:
-        res = GetImageDesc( op.args.ImageMakeGrowMap.mask, returnBestOption, context );
-        res.m_format = EImageFormat::IF_L_UBYTE;
         break;
 
     case OP_TYPE::IM_DISPLACE:
@@ -1784,13 +1765,6 @@ mu::Ptr<ImageSizeExpression> ASTOpFixed::GetImageSizeExpression() const
         pRes->type = ImageSizeExpression::ISET_CONSTANT;
         pRes->size[0] = op.args.ImageGradient.size[0];
         pRes->size[1] = op.args.ImageGradient.size[1];
-        break;
-
-    case OP_TYPE::IM_MAKEGROWMAP:
-        if ( children[op.args.ImageMakeGrowMap.mask] )
-        {
-            pRes = children[op.args.ImageMakeGrowMap.mask].child()->GetImageSizeExpression();
-        }
         break;
 
     case OP_TYPE::IM_DISPLACE:

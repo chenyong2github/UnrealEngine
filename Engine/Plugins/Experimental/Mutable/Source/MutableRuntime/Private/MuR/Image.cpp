@@ -109,7 +109,7 @@ namespace mu
 			return Clone();
 		}
 
-		vec2<int> MipSize = CalculateMipSize(Mip);
+		FIntVector2 MipSize = CalculateMipSize(Mip);
 
 		int32 Quality = 4;
 
@@ -295,7 +295,7 @@ namespace mu
             // An RLE image.
             for ( int l=0; l<FMath::Max(1,(int)m_lods); ++l )
             {
-                auto mipSize = CalculateMipSize(l);
+				FIntVector2 mipSize = CalculateMipSize(l);
                 res += mipSize[0] * mipSize[1];
             }
         }
@@ -331,7 +331,7 @@ namespace mu
         else
         {
             // An RLE image.
-            auto mipSize = CalculateMipSize(mip);
+			FIntVector2 mipSize = CalculateMipSize(mip);
             res += mipSize[0] * mipSize[1];
         }
 
@@ -340,11 +340,11 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    vec2<int> Image::CalculateMipSize( int mip ) const
+	FIntVector2 Image::CalculateMipSize( int mip ) const
     {
-        vec2<int> res;
+		FIntVector2 res(0,0);
 
-        FImageSize s = m_size;
+		FIntVector2 s = FIntVector2(m_size.x(), m_size.y());
 
         for ( int l=0; l<mip+1; ++l )
         {
@@ -355,8 +355,8 @@ namespace mu
                 return res;
             }
 
-            s[0] = FMath::DivideAndRoundUp( s[0], (uint16)2 );
-            s[1] = FMath::DivideAndRoundUp( s[1], (uint16)2 );
+            s[0] = FMath::DivideAndRoundUp( s[0], 2 );
+            s[1] = FMath::DivideAndRoundUp( s[1], 2 );
         }
 
         return res;
@@ -922,7 +922,7 @@ namespace mu
 				DataToSkip += MipDataSize;
 			}
 
-			vec2<int> FinalSize = CalculateMipSize(LODSToSkip);
+			FIntVector2 FinalSize = CalculateMipSize(LODSToSkip);
 			m_size[0] = uint16(FinalSize[0]);
 			m_size[1] = uint16(FinalSize[1]);
 			m_lods = NewLODCount;
@@ -949,7 +949,7 @@ namespace mu
 				DataToSkip += MipDataSize;
 			}
 
-			vec2<int> FinalSize = CalculateMipSize(LODSToSkip);
+			FIntVector2 FinalSize = CalculateMipSize(LODSToSkip);
 			m_size[0] = uint16(FinalSize[0]);
 			m_size[1] = uint16(FinalSize[1]);
 			m_lods -= LODSToSkip;

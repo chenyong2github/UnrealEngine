@@ -1094,7 +1094,6 @@ namespace mu
             ImageGPUArgs ImageGPU;
             ImageCropArgs ImageCrop;
             ImageRasterMeshArgs ImageRasterMesh;
-            ImageMakeGrowMapArgs ImageMakeGrowMap;
             ImageDisplaceArgs ImageDisplace;
 			ImageInvertArgs ImageInvert;
 

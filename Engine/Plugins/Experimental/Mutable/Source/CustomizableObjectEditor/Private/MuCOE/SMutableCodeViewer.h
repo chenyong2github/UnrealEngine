@@ -455,8 +455,10 @@ private:
 			// Generate a key for this element in order to search in on the map with all the elements
 								
 			// Find that element on the tree, (check error if not found since all elements should be there)
-			TSharedPtr<FMutableCodeTreeElement> FoundElement = *InItemCache.Find(Key);
-			check (FoundElement != nullptr);
+			const TSharedPtr<FMutableCodeTreeElement>* PtrFoundElement = InItemCache.Find(Key);
+			check(PtrFoundElement);
+			TSharedPtr<FMutableCodeTreeElement> FoundElement = *PtrFoundElement;
+			check(FoundElement != nullptr);
 			
 			// Store this element on our temp Map of elements
 			FoundElements.Add(FoundElement);

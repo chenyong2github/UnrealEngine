@@ -156,6 +156,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void ForEachReference( OP& op, const TFunctionRef<void(OP::ADDRESS*)> f )
     {
+		// Only operations that still use ASTOpFixed should be handled here.
         switch ( op.type )
         {
         case OP_TYPE::NONE:
@@ -354,10 +355,6 @@ namespace mu
             f(&op.args.ImageRasterMesh.mask );
             f(&op.args.ImageRasterMesh.angleFadeProperties );
             f(&op.args.ImageRasterMesh.projector );
-            break;
-
-        case OP_TYPE::IM_MAKEGROWMAP:
-            f(&op.args.ImageMakeGrowMap.mask );
             break;
 
         case OP_TYPE::IM_DISPLACE:

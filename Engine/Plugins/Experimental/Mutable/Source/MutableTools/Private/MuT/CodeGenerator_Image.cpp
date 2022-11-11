@@ -26,6 +26,7 @@
 #include "MuT/ASTOpImageNormalComposite.h"
 #include "MuT/ASTOpImagePixelFormat.h"
 #include "MuT/ASTOpImageTransform.h"
+#include "MuT/ASTOpImageMakeGrowMap.h"
 #include "MuT/ASTOpMeshExtractLayoutBlocks.h"
 #include "MuT/ASTOpMeshFormat.h"
 #include "MuT/ASTOpParameter.h"
@@ -1606,14 +1607,22 @@ namespace mu
         rasterop->op.args.ImageRasterMesh.sizeX = op->op.args.ImageRasterMesh.sizeX;
         rasterop->op.args.ImageRasterMesh.sizeY = op->op.args.ImageRasterMesh.sizeY;
 
-        Ptr<ASTOpFixed> mapop = new ASTOpFixed();
-        mapop->op.type = OP_TYPE::IM_MAKEGROWMAP;
-        mapop->SetChild( mapop->op.args.ImageMakeGrowMap.mask, rasterop );
-        mapop->op.args.ImageMakeGrowMap.border = 2;
+        Ptr<ASTOpImageMakeGrowMap> MakeGrowMapOp = new ASTOpImageMakeGrowMap();
+		MakeGrowMapOp->Mask = rasterop;
+		MakeGrowMapOp->Border = 2;
+		
+		// If we want to be able to generate progressive mips efficiently, we need mipmaps for the "displacement map".
+		if (m_compilerOptions->m_optimisationOptions.bEnableProgressiveImages)
+		{
+			Ptr<ASTOpImageMipmap> MipMask = new ASTOpImageMipmap;
+			MipMask->Source = MakeGrowMapOp->Mask.child();
+			MipMask->bPreventSplitTail = true;
+			MakeGrowMapOp->Mask = MipMask;
+		}
 
         Ptr<ASTOpFixed> disop = new ASTOpFixed();
         disop->op.type = OP_TYPE::IM_DISPLACE;
-        disop->SetChild( disop->op.args.ImageDisplace.displacementMap, mapop );
+        disop->SetChild( disop->op.args.ImageDisplace.displacementMap, MakeGrowMapOp);
         disop->SetChild( disop->op.args.ImageDisplace.source, op );
 
         result.op = disop;
