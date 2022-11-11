@@ -62,17 +62,6 @@ struct SActorTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidget
 				{
 					return !CanExecuteRenameRequest(Item.Get());
 				})
-			]
-
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(0.0f, 0.f, 3.0f, 0.0f)
-			[
-				SNew(STextBlock)
-				.Text(this, &SActorTreeLabel::GetTypeText)
-				.Visibility(this, &SActorTreeLabel::GetTypeTextVisibility)
-				.HighlightText(HighlightText)
 			];
 
 		if (WeakSceneOutliner.Pin()->GetMode()->IsInteractive())
@@ -143,21 +132,6 @@ private:
 		}
 
 		return FText();
-	}
-
-	FText GetTypeText() const
-	{
-		if (const AActor* Actor = ActorPtr.Get())
-		{
-			return FText::FromName(Actor->GetClass()->GetFName());
-		}
-
-		return FText();
-	}
-
-	EVisibility GetTypeTextVisibility() const
-	{
-		return HighlightText.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
 	}
 
 	const FSlateBrush* GetIcon() const
