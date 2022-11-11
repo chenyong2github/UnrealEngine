@@ -75,7 +75,7 @@ export void ApplyLegacySphericalBackstopConstraints(uniform FVector4f ParticlesP
 		const FVector3f AnimationPosition = VectorLoad(&AnimationPositions[extract(ParticleIndex, 0)]);
 		const FVector3f AnimationNormal = VectorLoad(&AnimationNormals[extract(ParticleIndex, 0)]);
 
-		const float SphereOffsetDistance = SphereOffsetDistances[Index];
+		const float SphereOffsetDistance = SphereOffsetDistances[Index] * SphereRadiiMultiplier;
 		const float Radius = SphereRadii[Index] * SphereRadiiMultiplier;
 
 		const FVector3f Center = AnimationPosition - SphereOffsetDistance * AnimationNormal;  // Legacy version already includes the radius within the distance
@@ -124,7 +124,7 @@ export void ApplySphericalBackstopConstraints(uniform FVector4f ParticlesPandInv
 		const FVector3f AnimationPosition = VectorLoad(&AnimationPositions[extract(ParticleIndex, 0)]);
 		const FVector3f AnimationNormal = VectorLoad(&AnimationNormals[extract(ParticleIndex, 0)]);
 
-		const float SphereOffsetDistance = SphereOffsetDistances[Index];
+		const float SphereOffsetDistance = SphereOffsetDistances[Index] * SphereRadiiMultiplier;
 		const float Radius = SphereRadii[Index] * SphereRadiiMultiplier;
 
 		const FVector3f Center = AnimationPosition - (Radius + SphereOffsetDistance) * AnimationNormal;  // Non legacy version adds radius to the distance

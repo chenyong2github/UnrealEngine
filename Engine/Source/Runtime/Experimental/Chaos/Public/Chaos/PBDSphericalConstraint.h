@@ -197,7 +197,7 @@ private:
 			const FSolverVec3& AnimationPosition = AnimationPositions[ParticleIndex];
 			const FSolverVec3& AnimationNormal = AnimationNormals[ParticleIndex];
 
-			const FSolverReal SphereOffsetDistance = SphereOffsetDistances[Index];
+			const FSolverReal SphereOffsetDistance = SphereOffsetDistances[Index] * SphereRadiiMultiplier;
 			const FSolverReal Radius = SphereRadii[Index] * SphereRadiiMultiplier;
 
 			const FSolverVec3 Center = AnimationPosition - (Radius + SphereOffsetDistance) * AnimationNormal;  // Non legacy version adds radius to the distance
@@ -234,7 +234,7 @@ private:
 			const FSolverVec3& AnimationPosition = AnimationPositions[ParticleIndex];
 			const FSolverVec3& AnimationNormal = AnimationNormals[ParticleIndex];
 
-			const FSolverReal SphereOffsetDistance = SphereOffsetDistances[Index];
+			const FSolverReal SphereOffsetDistance = SphereOffsetDistances[Index] * SphereRadiiMultiplier;
 			const FSolverReal Radius = SphereRadii[Index] * SphereRadiiMultiplier;
 
 			const FSolverVec3 Center = AnimationPosition - SphereOffsetDistance * AnimationNormal;  // Legacy version already includes the radius within the distance
