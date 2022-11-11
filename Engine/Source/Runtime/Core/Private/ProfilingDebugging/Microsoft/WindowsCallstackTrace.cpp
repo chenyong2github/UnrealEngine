@@ -567,7 +567,7 @@ const FBacktracer::FFunction* FBacktracer::LookupFunction(UPTRINT Address, FLook
 uint32 FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 {
 	FLookupState LookupState = {};
-	FCallstackTracer::FBacktraceEntry BacktraceEntry;
+	uint64 Frames[256];
 
 	UPTRINT* StackPointer = (UPTRINT*)AddressOfReturnAddress;
 
@@ -596,8 +596,7 @@ uint32 FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 	{
 		UPTRINT RetAddr = *StackPointer;
 		
-		BacktraceEntry.Frames[FrameIdx++] = RetAddr;
-		BacktraceEntry.FrameCount = FrameIdx;
+		Frames[FrameIdx++] = RetAddr;
 
 		// This is a simple order-dependent LCG. Should be sufficient enough
 		BacktraceHash += RetAddr;
@@ -685,10 +684,13 @@ uint32 FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 		StackPointer += Function->RspBias;
 	}
 	// Trunkate callstacks longer than MaxStackDepth
-	while (*StackPointer && FrameIdx < FCallstackTracer::FBacktraceEntry::MaxStackDepth);
+	while (*StackPointer && FrameIdx < UE_ARRAY_COUNT(Frames));
 
-	// Save the collected id
+	// Build the backtrace entry for submission
+	FCallstackTracer::FBacktraceEntry BacktraceEntry;
 	BacktraceEntry.Hash = BacktraceHash;
+	BacktraceEntry.FrameCount = FrameIdx;
+	BacktraceEntry.Frames = Frames;
 
 #if BACKTRACE_DBGLVL >= 3
 	for (uint32 i = 0; i < NumBacktrace; ++i)

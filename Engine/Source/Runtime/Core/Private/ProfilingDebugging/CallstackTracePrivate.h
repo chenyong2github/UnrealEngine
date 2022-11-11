@@ -42,10 +42,9 @@ namespace {
 	public:
 		struct FBacktraceEntry
 		{
-			enum {MaxStackDepth = 256};
 			uint64	Hash = 0;
 			uint32	FrameCount = 0;
-			uint64	Frames[MaxStackDepth] = { 0 };
+			uint64* Frames;
 		};
 
 		FCallstackTracer(FMalloc* InMalloc)
