@@ -7,6 +7,7 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/Parse.h"
+#include "UObject/CoreRedirects.h"
 #include "UObject/PropertyHelper.h"
 
 IMPLEMENT_FIELD(FFieldPathProperty)
@@ -162,7 +163,14 @@ const TCHAR* FFieldPathProperty::ImportText_Internal( const TCHAR* Buffer, void*
 			}
 			PathName = MoveTemp(UnquotedPathName);
 		}
+
+		// Attempt to apply core redirects to imported path name
+		PathName = RedirectFieldPathName(PathName);
+
+		// Resolve FFieldPath from imported and fixed up path name
 		ImportedPath.Generate(*PathName);
+
+		// Set the FFieldPath value within container
 		if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 		{
 			SetValue_InContainer(ContainerOrPropertyPtr, ImportedPath);
@@ -212,4 +220,46 @@ FString FFieldPathProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExpo
 bool FFieldPathProperty::SupportsNetSharedSerialization() const
 {
 	return false;
+}
+
+FString FFieldPathProperty::RedirectFieldPathName(const FString& InPathName)
+{
+	// Apply redirectors to imported PathName value. First deconstruct it into package, class and field names.
+	// PathName format: /Script/MyGameModule.MyClass:MyField
+	FString OldPackageName;
+	FString OldClassName;
+	FString OldFieldName;
+	FString Tmp;
+	if (InPathName.Split(TEXT("."), &OldPackageName, &Tmp) && Tmp.Split(TEXT(":"), &OldClassName, &OldFieldName))
+	{
+		// Check for full property path redirect
+		{
+			const FCoreRedirectObjectName OldRedirectName = FCoreRedirectObjectName(InPathName);
+			constexpr ECoreRedirectFlags RedirectFlags = ECoreRedirectFlags::Type_Property; 
+			FCoreRedirectObjectName NewObjectName;
+			const FCoreRedirect* FoundValueRedirect = nullptr;
+			if (FCoreRedirects::RedirectNameAndValues(RedirectFlags, OldRedirectName, NewObjectName, &FoundValueRedirect))
+			{
+				const FString NewPathName = FString::Printf(TEXT("%s.%s:%s"), *NewObjectName.PackageName.ToString(), *NewObjectName.OuterName.ToString(), *NewObjectName.ObjectName.ToString());
+				UE_LOG(LogCoreRedirects, Verbose, TEXT("FFieldPathProperty: Redirected '%s' -> '%s'"), *InPathName, *NewPathName);
+				return NewPathName;
+			}
+		}
+		
+		// Check for outer-only redirect
+		{
+			const FCoreRedirectObjectName OldRedirectName(*OldClassName, NAME_None, *OldPackageName);
+			constexpr ECoreRedirectFlags RedirectFlags = ECoreRedirectFlags::Type_Package | ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Type_Struct;
+			FCoreRedirectObjectName NewObjectName;
+			const FCoreRedirect* FoundValueRedirect = nullptr;
+			if (FCoreRedirects::RedirectNameAndValues(RedirectFlags, OldRedirectName, NewObjectName, &FoundValueRedirect))
+			{
+				const FString NewPathName = FString::Printf(TEXT("%s.%s:%s"), *NewObjectName.PackageName.ToString(), *NewObjectName.ObjectName.ToString(), *OldFieldName);
+				UE_LOG(LogCoreRedirects, Verbose, TEXT("FFieldPathProperty: Redirected '%s' -> '%s'"), *InPathName, *NewPathName);
+				return NewPathName;
+			}
+		}
+	}
+	
+	return InPathName;
 }

@@ -79,4 +79,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper) override;
 	virtual bool SupportsNetSharedSerialization() const override;
 	// End of FProperty interface
+
+	static FString RedirectFieldPathName(const FString& InPathName);
 };
