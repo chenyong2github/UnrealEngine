@@ -357,9 +357,10 @@ bool FConcertSyncObjectWriter::ShouldSkipProperty(const FProperty* InProperty) c
 		|| (!ConcertSyncUtil::CanExportProperty(InProperty, !IsFilterEditorOnly()));
 }
 
-FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const TArray<uint8>& InBytes)
+FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const TArray<uint8>& InBytes, const FConcertSyncEncounteredMissingObject& InEncounteredMissingObjectDelegate)
 	: FConcertIdentifierReader(InLocalIdentifierTable, InBytes, /*bIsPersistent*/false)
 	, WorldRemapper(MoveTemp(InWorldRemapper))
+	, EncounteredMissingObjectDelegate(InEncounteredMissingObjectDelegate)
 {
 	ArIgnoreClassRef = false;
 	ArIgnoreArchetypeRef = false;
@@ -393,6 +394,11 @@ FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifier
 		SetLocalizationNamespace(TextNamespaceUtil::EnsurePackageNamespace(InObj));
 	}
 #endif // USE_STABLE_LOCALIZATION_KEYS
+}
+
+FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const TArray<uint8>& InBytes)
+	: FConcertSyncObjectReader(InLocalIdentifierTable, InWorldRemapper, InVersionInfo, InObj, InBytes, FConcertSyncEncounteredMissingObject())
+{
 }
 
 void FConcertSyncObjectReader::SerializeObject(UObject* InObject)
@@ -441,6 +447,11 @@ FArchive& FConcertSyncObjectReader::operator<<(UObject*& Obj)
 				{
 					Obj = StaticLoadObject(UObject::StaticClass(), nullptr, *ResolvedObjPath);
 				}
+			}
+
+			if (!Obj && EncounteredMissingObjectDelegate.IsBound())
+			{
+				EncounteredMissingObjectDelegate.Execute(FStringView(ResolvedObjPath));
 			}
 		}
 	}

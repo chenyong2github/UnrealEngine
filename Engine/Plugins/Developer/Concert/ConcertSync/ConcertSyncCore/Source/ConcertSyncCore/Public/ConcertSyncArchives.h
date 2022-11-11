@@ -9,6 +9,7 @@ struct FConcertSessionVersionInfo;
 
 DECLARE_DELEGATE_OneParam(FConcertSyncRemapObjectPath, FString& /*ObjectPath*/)
 DECLARE_DELEGATE_RetVal_OneParam(bool, FConcertSyncObjectPathBelongsToWorld, const FStringView /*ObjectPath*/)
+DECLARE_DELEGATE_OneParam(FConcertSyncEncounteredMissingObject, const FStringView /*ObjectPath*/)
 
 namespace ConcertSyncUtil
 {
@@ -77,6 +78,7 @@ private:
 class CONCERTSYNCCORE_API FConcertSyncObjectReader : public FConcertIdentifierReader
 {
 public:
+	FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const TArray<uint8>& InBytes, const FConcertSyncEncounteredMissingObject& InEncounteredMissingObjectDelegate);
 	FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const TArray<uint8>& InBytes);
 
 	void SerializeObject(UObject* InObject);
@@ -96,4 +98,5 @@ public:
 
 private:
 	FConcertSyncWorldRemapper WorldRemapper;
+	FConcertSyncEncounteredMissingObject EncounteredMissingObjectDelegate;
 };
