@@ -226,6 +226,7 @@ void UMIDIDeviceManager::FindAllMIDIDeviceInfo(TArray<FMIDIDeviceInfo>& OutMIDII
 	{
 		ReinitializeDeviceManager();
 	}
+	FindAllMIDIDeviceInfoInternal(OutMIDIInputDevicesInfo, OutMIDIOutputDevicesInfo);
 }
 
 void UMIDIDeviceManager::GetMIDIInputDeviceIDByName(const FString DeviceName, int32& DeviceID)
