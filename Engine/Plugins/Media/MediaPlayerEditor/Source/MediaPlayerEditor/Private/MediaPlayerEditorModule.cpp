@@ -18,8 +18,10 @@
 
 #include "BaseMediaSource.h"
 #include "FileMediaSource.h"
+#include "IMediaAssetsModule.h"
 #include "MediaPlayer.h"
 #include "MediaSoundComponent.h"
+#include "MediaSourceRenderer.h"
 #include "MediaTexture.h"
 #include "PlatformMediaSource.h"
 
@@ -224,6 +226,14 @@ protected:
 	/** Registers asset thumbnail renderers .*/
 	void RegisterThumbnailRenderers()
 	{
+		IMediaAssetsModule* MediaAssetsModule = FModuleManager::LoadModulePtr<IMediaAssetsModule>("MediaAssets");
+		if (MediaAssetsModule != nullptr)
+		{
+			MediaAssetsModule->RegisterCreateMediaSourceRenderer(
+				IMediaAssetsModule::FOnCreateMediaSourceRenderer::CreateRaw(this,
+					&FMediaPlayerEditorModule::CreateMediaSourceRenderer));
+		}
+
 		UThumbnailManager::Get().RegisterCustomRenderer(UMediaTexture::StaticClass(), UTextureThumbnailRenderer::StaticClass());
 		UThumbnailManager::Get().RegisterCustomRenderer(UMediaSource::StaticClass(), UMediaSourceThumbnailRenderer::StaticClass());
 	}
@@ -235,7 +245,19 @@ protected:
 		{
 			UThumbnailManager::Get().UnregisterCustomRenderer(UMediaSource::StaticClass());
 			UThumbnailManager::Get().UnregisterCustomRenderer(UMediaTexture::StaticClass());
+
+			IMediaAssetsModule* MediaAssetsModule = FModuleManager::GetModulePtr<IMediaAssetsModule>("MediaAssets");
+			if (MediaAssetsModule != nullptr)
+			{
+				MediaAssetsModule->UnregisterCreateMediaSourceRenderer();
+			}
 		}
+	}
+
+	/** Creates an object that implements IMediaSourceRendererInterface. */
+	UObject* CreateMediaSourceRenderer()
+	{
+		return NewObject<UMediaSourceRenderer>(GetTransientPackage());
 	}
 
 protected:

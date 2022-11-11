@@ -2,12 +2,14 @@
 
 #include "MediaSource.h"
 
+#include "IMediaAssetsModule.h"
 #include "MediaAssetsPrivate.h"
+#include "Modules/ModuleManager.h"
 #include "Misc/Paths.h"
 #include "StreamMediaSource.h"
 
 #if WITH_EDITOR
-#include "Misc/MediaSourceRenderer.h"
+#include "MediaSourceRendererInterface.h"
 #include "UObject/Package.h"
 #endif
 
@@ -25,10 +27,21 @@ void UMediaSource::GenerateThumbnail()
 {
 	if (MediaSourceRenderer == nullptr)
 	{
-		MediaSourceRenderer = NewObject<UMediaSourceRenderer>(GetTransientPackage());
+		IMediaAssetsModule* MediaAssetsModule = FModuleManager::LoadModulePtr<IMediaAssetsModule>("MediaAssets");
+		if (MediaAssetsModule != nullptr)
+		{
+			MediaSourceRenderer = MediaAssetsModule->CreateMediaSourceRenderer();
+		}
 	}
 
-	ThumbnailImage = MediaSourceRenderer->Open(this);
+	if (MediaSourceRenderer != nullptr)
+	{
+		IMediaSourceRendererInterface* Interface = Cast<IMediaSourceRendererInterface>(MediaSourceRenderer);
+		if (Interface != nullptr)
+		{
+			ThumbnailImage = Interface->Open(this);
+		}
+	}
 }
 
 #endif // WITH_EDITOR

@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Misc/MediaSourceRenderer.h"
+#include "MediaSourceRenderer.h"
 
 #include "MediaPlayer.h"
 #include "MediaSource.h"
 #include "MediaTexture.h"
 #include "UObject/Package.h"
-
-#if WITH_EDITOR
 
 UMediaTexture* UMediaSourceRenderer::Open(UMediaSource* InMediaSource)
 {
@@ -97,18 +95,13 @@ void UMediaSourceRenderer::Tick(float DeltaTime)
 	}
 }
 
-#endif // WITH_EDITOR
-
 void UMediaSourceRenderer::OnSeekCompleted()
 {
-#if WITH_EDITOR
 	bIsSeekActive = false;
-#endif // WITH_EDITOR
 }
 
 void UMediaSourceRenderer::Close()
 {
-#if WITH_EDITOR
 	if (MediaTexture != nullptr)
 	{
 		MediaTexture->SetMediaPlayer(nullptr);
@@ -118,5 +111,4 @@ void UMediaSourceRenderer::Close()
 		MediaPlayer->Close();
 		MediaPlayer = nullptr;
 	}
-#endif // WITH_EDITOR
 }

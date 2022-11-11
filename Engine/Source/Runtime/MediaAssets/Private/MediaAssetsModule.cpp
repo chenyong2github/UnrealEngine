@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "FileMediaSource.h"
 #include "IMediaAssetsModule.h"
+#include "MediaSourceRendererInterface.h"
 #include "Misc/CoreMisc.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectHash.h"
@@ -90,6 +91,26 @@ public:
 
 		return Player;
 	}
+
+	virtual void RegisterCreateMediaSourceRenderer(const FOnCreateMediaSourceRenderer& Delegate) override
+	{
+		CreateMediaSourceRendererDelegate = Delegate;
+	}
+
+	virtual void UnregisterCreateMediaSourceRenderer()
+	{
+		CreateMediaSourceRendererDelegate.Unbind();
+	}
+
+	virtual UObject* CreateMediaSourceRenderer() override
+	{
+		UObject* Renderer = nullptr;
+		if (CreateMediaSourceRendererDelegate.IsBound())
+		{
+			Renderer = CreateMediaSourceRendererDelegate.Execute();
+		}
+		return Renderer;
+	}
 	
 	//~ IModuleInterface interface
 
@@ -144,6 +165,9 @@ private:
 		TEXT("mp4"),
 		TEXT("wmv"),
 	};
+
+	/** Delegate to create an object that implements IMediaSourceRendererInterface. */
+	FOnCreateMediaSourceRenderer CreateMediaSourceRendererDelegate;
 };
 
 

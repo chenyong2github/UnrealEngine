@@ -5,6 +5,7 @@
 #include "Delegates/Delegate.h"
 #include "Modules/ModuleInterface.h"
 
+class IMediaSourceRendererInterface;
 class UMediaPlayer;
 class UObject;
 
@@ -17,6 +18,8 @@ class IMediaAssetsModule
 public:
 	/** Delegate to get a player from a UObject. */
 	DECLARE_DELEGATE_RetVal_TwoParams(UMediaPlayer*, FOnGetPlayerFromObject, UObject*, UObject*& /*PlayerProxy*/);
+	/** Delegate to create an object that implements IMediaSourceRendererInterface. */
+	DECLARE_DELEGATE_RetVal(UObject*, FOnCreateMediaSourceRenderer);
 
 	/**
 	 * Plugins should call this so they can provide a function to get a media player from an object.
@@ -44,6 +47,21 @@ public:
 	 * @return Media player, or nullptr if none found. 
 	 */
 	virtual UMediaPlayer* GetPlayerFromObject(UObject* Object, UObject*& PlayerProxy) = 0;
+
+	/**
+	 * Register a delegate to create an object that implements IMediaSourceRendererInterface.
+	 */
+	virtual void RegisterCreateMediaSourceRenderer(const FOnCreateMediaSourceRenderer& Delegate) = 0;
+	
+	/**
+	 * Unregisters the delegate passed in with RegisterCreateMediaSourceRenderer.
+	 */
+	virtual void UnregisterCreateMediaSourceRenderer() = 0;
+
+	/**
+	 * Creates an object that implements IMediaSourceRendererInterface.
+	 */
+	virtual UObject* CreateMediaSourceRenderer() = 0;
 
 	/** Virtual destructor. */
 	virtual ~IMediaAssetsModule() { }

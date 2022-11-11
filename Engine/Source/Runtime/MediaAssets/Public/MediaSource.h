@@ -21,8 +21,8 @@
 #include "MediaSource.generated.h"
 
 class FVariant;
+class IMediaSourceRendererInterface;
 class UMediaSource;
-class UMediaSourceRenderer;
 class UMediaTexture;
 struct FFrame;
 
@@ -190,7 +190,7 @@ private:
 
 	/** Renders thumnbnails for us. */
 	UPROPERTY(Transient)
-	TObjectPtr<UMediaSourceRenderer> MediaSourceRenderer = nullptr;
+	TObjectPtr<UObject> MediaSourceRenderer = nullptr;
 
 #endif
 };
