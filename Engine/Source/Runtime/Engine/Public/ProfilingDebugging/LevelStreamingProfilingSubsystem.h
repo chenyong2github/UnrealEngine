@@ -6,6 +6,7 @@
 #include "Containers/ArrayView.h"
 #include "Containers/Map.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Tasks/Task.h"
 #include "UObject/ObjectKey.h"
 
 #include "LevelStreamingProfilingSubsystem.generated.h"
@@ -186,6 +187,9 @@ private:
 	// Stats for levels which have been at least partially loaded. 
 	// May contain duplicates for a given level if it streamed out and back in again.
 	TArray<FLevelStats> LevelStats;
+
+	// Possibly-executing task dependend on our recorded stats. Cannot start recording again until this task is complete.
+	UE::Tasks::TTask<void> ReportWritingTask;
 #endif // !UE_BUILD_SHIPPING 
 };
 
