@@ -1554,6 +1554,7 @@ bool GRHISupportsDirectGPUMemoryLock = false;
 bool GRHISupportsMultithreadedShaderCreation = true;
 bool GRHISupportsMultithreadedResources = false;
 
+bool GRHISupportAsyncTextureStreamOut = false;
 bool GRHISupportsMSAADepthSampleAccess = false;
 
 bool GRHISupportsBackBufferWithCustomDepthStencil = true;

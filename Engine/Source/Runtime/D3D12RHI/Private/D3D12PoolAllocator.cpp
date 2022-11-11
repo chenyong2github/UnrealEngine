@@ -7,6 +7,14 @@
 #define NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND 0
 #endif
 
+int32 GUseCommittedTexturesNV = 0;
+static FAutoConsoleVariableRef CVarUseCommittedTexturesNV(
+	TEXT("r.D3D12.UseCommittedTexturesNV"),
+	GUseCommittedTexturesNV,
+	TEXT("Force committed resource creation for textures to fix possible driver bug"),
+	ECVF_Default
+);
+
 //-----------------------------------------------------------------------------
 //	FD3D12MemoryPool
 //-----------------------------------------------------------------------------
@@ -293,7 +301,18 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 
 	const bool bSharedResource = EnumHasAnyFlags(InDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS);
 	const bool PoolResource = InSize <= MaxAllocationSize && !bSharedResource;
-	if (PoolResource)
+
+	// Disable pooling for VRAM allocated textures and force use the committed resource path
+	bool bForceCommittedResourcePath = false;
+#if PLATFORM_WINDOWS
+	const bool bUseCommittedTexturesNV = GUseCommittedTexturesNV && IsRHIDeviceNVIDIA();
+	if (PoolResource && bUseCommittedTexturesNV && InHeapType == D3D12_HEAP_TYPE_DEFAULT && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		bForceCommittedResourcePath = true;
+	}
+#endif // PLATFORM_WINDOWS
+
+	if (PoolResource && !bForceCommittedResourcePath)
 	{
 		const bool bPlacedResource = (AllocationStrategy == EResourceAllocationStrategy::kPlacedResource);
 
@@ -376,10 +395,10 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 
 		// If we are tracking all allocation data and allocating a standalone texture, then first create a heap so we can retrieve the GPU virtual address as well
 		// UAV Aliasing needs a Heap to create the aliased resource in.
-		if (InDesc.NeedsUAVAliasWorkarounds() || (Adapter->IsTrackingAllAllocations() && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER))
+		if (InDesc.NeedsUAVAliasWorkarounds() || (Adapter->IsTrackingAllAllocations() && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER && !bForceCommittedResourcePath))
 		{
 			D3D12_HEAP_DESC HeapDesc = {};
-			HeapDesc.SizeInBytes = InSize;
+			HeapDesc.SizeInBytes = FMath::Max((uint64)D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, InSize);
 			HeapDesc.Properties = HeapProps;
 			HeapDesc.Alignment = InDesc.SampleDesc.Count > 1 ? D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT : 0;
 			HeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;

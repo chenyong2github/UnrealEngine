@@ -27,6 +27,7 @@
 #include "DerivedDataRequestOwner.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Streaming/TextureStreamingHelpers.h"
+#include "Streaming/Texture2DStreamOut_AsyncCreate.h"
 #include "Streaming/Texture2DStreamOut_AsyncReallocate.h"
 #include "Streaming/Texture2DStreamOut_Virtual.h"
 #include "Streaming/Texture2DStreamIn_DDC_AsyncCreate.h"
@@ -1745,6 +1746,11 @@ bool UTexture2D::StreamOut(int32 NewMipCount)
 		if (Texture2DResource->bUsePartiallyResidentMips)
 		{
 			PendingUpdate = new FTexture2DStreamOut_Virtual(this);
+		}
+		// If the platform supports creating the new texture on an async thread, use that path.
+		else if (GRHISupportAsyncTextureStreamOut)
+		{
+			PendingUpdate = new FTexture2DStreamOut_AsyncCreate(this);
 		}
 		else
 		{

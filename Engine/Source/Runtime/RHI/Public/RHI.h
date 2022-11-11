@@ -550,6 +550,9 @@ extern RHI_API bool GRHISupportsRawViewsForAnyBuffer;
 /** Whether depth or stencil can individually be set to CopySrc/Dest access. */
 extern RHI_API bool GRHISupportsSeparateDepthStencilCopyAccess;
 
+/** Support using async thread for texture stream out operations */
+extern RHI_API bool GRHISupportAsyncTextureStreamOut;
+
 FORCEINLINE uint64 GetMaxBufferDimension()
 {
 	return GMaxBufferDimensions;

@@ -1527,6 +1527,7 @@ void FD3D12DynamicRHI::Init()
 	GRHISupportsAsyncTextureCreation = D3D12RHI_ShouldAllowAsyncResourceCreation();
 	if (GRHISupportsAsyncTextureCreation)
 	{
+		GRHISupportAsyncTextureStreamOut = true;
 		UE_LOG(LogD3D12RHI, Log, TEXT("Async texture creation enabled"));
 	}
 	else
