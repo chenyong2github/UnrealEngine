@@ -51,16 +51,22 @@ public:
 		}
 	}
 
+#if MAX_PRODUCT_YEAR_NUMBER < 2020  // Starting 2020 using ReferenceMaker to handle this notification
+	virtual void UserPropertiesChanged(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"UserPropertiesChanged", nodes);
+		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
+		{
+			SceneTracker.NodePropertiesChanged(NodeEventNamespace::GetNodeByKey(nodes[NodeIndex]));
+		}
+	}
+#endif
+
 	// Not used:
 
 	virtual void LayerChanged(NodeKeyTab& nodes) override
 	{
 		LogNodeEvent(L"LayerChanged", nodes);
-	}
-
-	virtual void UserPropertiesChanged(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"UserPropertiesChanged", nodes);
 	}
 
 	virtual void HideChanged(NodeKeyTab& nodes) override
@@ -480,9 +486,11 @@ public:
 			SceneTracker.NodePropertiesChanged(&Node);
 		break;
 
-		// todo: appears in Max SDK since 2020 
-		// case REFMSG_NODE_USER_PROPERTY_CHANGED:
-		// break;
+#if MAX_PRODUCT_YEAR_NUMBER >= 2020
+		case REFMSG_NODE_USER_PROPERTY_CHANGED:
+			SceneTracker.NodePropertiesChanged(&Node);
+		break;
+#endif
 
 		// SceneTracker.NodeGeometryChanged(nodes[NodeIndex]);
 		default: 
