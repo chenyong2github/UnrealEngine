@@ -92,6 +92,25 @@ static bool ShouldSaveToPackageSidecar()
 	return ConfigSetting.bEnabled;
 }
 
+/** 
+ * Returns true if the project wants to log if an editor bulkdata is cooked or uncooked annd returns
+ * false if the project does not care. The engine ini file defaults to false 
+ */
+static bool ShouldLogCookedStatus()
+{
+	static const struct FShouldLogCookedStatus
+	{
+		bool bEnabled = false;
+
+		FShouldLogCookedStatus()
+		{
+			GConfig->GetBool(TEXT("EditorBulkData"), TEXT("LogCookedStatus"), bEnabled, GEditorIni);
+		}
+	} ConfigSetting;
+
+	return ConfigSetting.bEnabled;
+}
+
 #if UE_ENABLE_VIRTUALIZATION_TOGGLE
 bool ShouldAllowVirtualizationOptOut()
 {
@@ -1547,6 +1566,20 @@ FCompressedBuffer FEditorBulkData::PullData() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::PullData);
 
+	// Utility lambda used to generate a postfix for VA failure messages based on if the project
+	// wants to know the cooked status of the editor bulkdata.
+	auto PostFixStatus = [](EFlags InFlags)
+		{
+			if (ShouldLogCookedStatus())
+			{
+				return EnumHasAnyFlags(InFlags, EFlags::IsCooked) ? TEXT(" [Cooked]") : TEXT(" [Uncooked]");
+			}
+			else
+			{
+				return TEXT("");
+			}
+		};
+
 	UE::Virtualization::IVirtualizationSystem& System = UE::Virtualization::IVirtualizationSystem::Get();
 	if (System.IsEnabled())
 	{
@@ -1557,13 +1590,18 @@ FCompressedBuffer FEditorBulkData::PullData() const
 			PayloadSize,
 			PulledPayload.GetRawSize());
 
-		UE_CLOG(PulledPayload.IsNull(), LogSerialization, Error, TEXT("Failed to pull payload '%s'"), *LexToString(PayloadContentId));
+		UE_CLOG(PulledPayload.IsNull(), LogSerialization, Error, TEXT("Failed to pull payload '%s'%s"),
+			*LexToString(PayloadContentId),
+			PostFixStatus(Flags));
 
 		return PulledPayload;
 	}
 	else
 	{
-		UE_LOG(LogSerialization, Error, TEXT("Cannot pull payload '%s' as the virtualization system is disabled"), *LexToString(PayloadContentId));
+		UE_LOG(LogSerialization, Error, TEXT("Failed to pull payload '%s' as the virtualization system is disabled%s"),
+			*LexToString(PayloadContentId), 
+			PostFixStatus(Flags));
+
 		return FCompressedBuffer();
 	}	
 }
