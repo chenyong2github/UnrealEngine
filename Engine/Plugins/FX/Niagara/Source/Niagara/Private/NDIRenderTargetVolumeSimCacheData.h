@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Serialization/BulkData.h"
+#include "PixelFormat.h"
+
 #include "NDIRenderTargetVolumeSimCacheData.generated.h"
 
 USTRUCT()
