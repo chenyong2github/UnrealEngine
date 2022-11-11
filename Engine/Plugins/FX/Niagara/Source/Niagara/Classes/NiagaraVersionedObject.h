@@ -23,14 +23,15 @@ class NIAGARA_API FNiagaraVersionedObject
 public:
 	virtual ~FNiagaraVersionedObject() = default;
 
-	virtual TSharedPtr<FNiagaraVersionDataAccessor> GetVersionDataAccessor(const FGuid& Version); 
+	/** Returns all available versions for this object. */
+	virtual TArray<FNiagaraAssetVersion> GetAllAvailableVersions() const;
+
+#if WITH_EDITORONLY_DATA
+	virtual TSharedPtr<FNiagaraVersionDataAccessor> GetVersionDataAccessor(const FGuid& Version);
 
 	/** If true then this script asset uses active version control to track changes. */
 	virtual bool IsVersioningEnabled() const;
 	
-	/** Returns all available versions for this object. */
-	virtual TArray<FNiagaraAssetVersion> GetAllAvailableVersions() const;
-
 	/** Returns the version of the exposed version data (i.e. the version used when adding a module to the stack) */
 	virtual FNiagaraAssetVersion GetExposedVersion() const;
 
@@ -51,4 +52,5 @@ public:
 
 	/** Disables versioning and keeps only the data from the given version guid. Note that this breaks ALL references from existing assets and should only be used when creating a copy of an object, as the effect is very destructive.  */
 	virtual void DisableVersioning(const FGuid& VersionGuidToUse);
+#endif //WITH_EDITORONLY_DATA
 };

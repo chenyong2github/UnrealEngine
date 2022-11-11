@@ -1633,6 +1633,7 @@ void FVersionedNiagaraEmitterData::UpdateDebugName(const UNiagaraEmitter& Emitte
 		DebugSimName = SystemOwner->GetName();
 		DebugSimName.AppendChar(':');
 	}
+#if WITH_EDITORONLY_DATA
 	DebugSimName.Append(Emitter.GetName());
 	if (Emitter.IsVersioningEnabled())
 	{
@@ -1641,6 +1642,7 @@ void FVersionedNiagaraEmitterData::UpdateDebugName(const UNiagaraEmitter& Emitte
 		DebugSimName.AppendChar('.');
 		DebugSimName.AppendInt(Version.MinorVersion);
 	}
+#endif
 #endif
 
 	RebuildRendererBindings(Emitter);

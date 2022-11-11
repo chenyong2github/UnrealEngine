@@ -70,6 +70,13 @@ FFilePath& FNiagaraVersionDataAccessor::GetScriptAsset()
 	return NiagaraVersionedObject::Dummy.GetScriptAsset();
 }
 
+TArray<FNiagaraAssetVersion> FNiagaraVersionedObject::GetAllAvailableVersions() const
+{
+	ensure(false);
+	return TArray<FNiagaraAssetVersion>();
+}
+
+#if WITH_EDITORONLY_DATA
 TSharedPtr<FNiagaraVersionDataAccessor> FNiagaraVersionedObject::GetVersionDataAccessor(const FGuid& Version)
 {
 	ensure(false);
@@ -80,12 +87,6 @@ bool FNiagaraVersionedObject::IsVersioningEnabled() const
 {
 	ensure(false);
 	return false;
-}
-
-TArray<FNiagaraAssetVersion> FNiagaraVersionedObject::GetAllAvailableVersions() const
-{
-	ensure(false);
-	return TArray<FNiagaraAssetVersion>();
 }
 
 FNiagaraAssetVersion FNiagaraVersionedObject::GetExposedVersion() const
@@ -125,3 +126,4 @@ void FNiagaraVersionedObject::DisableVersioning(const FGuid& VersionGuidToUse)
 {
 	ensure(false);
 }
+#endif //WITH_EDITORONLY_DATA
