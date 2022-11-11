@@ -163,7 +163,7 @@ void UCommonAnimatedSwitcher::SetActiveWidgetIndex_Internal(int32 Index)
 	{
 		HandleOutgoingWidget();
 
-		SetActiveWidgetIndex(Index);
+		Super::SetActiveWidgetIndex(Index);
 
 		if (MyAnimatedSwitcher.IsValid())
 		{
