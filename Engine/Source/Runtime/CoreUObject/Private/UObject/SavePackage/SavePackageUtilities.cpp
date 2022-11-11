@@ -159,20 +159,6 @@ void FSavePackageStats::MergeStats(const TMap<FName, FArchiveDiffStats>& ToMerge
 
 #endif
 
-#if WITH_EDITORONLY_DATA
-
-void FArchiveObjectCrc32NonEditorProperties::Serialize(void* Data, int64 Length)
-{
-	int32 NewEditorOnlyProp = EditorOnlyProp + this->IsEditorOnlyPropertyOnTheStack();
-	TGuardValue<int32> Guard(EditorOnlyProp, NewEditorOnlyProp);
-	if (NewEditorOnlyProp == 0)
-	{
-		Super::Serialize(Data, Length);
-	}
-}
-
-#endif
-
 static FThreadSafeCounter OutstandingAsyncWrites;
 
 

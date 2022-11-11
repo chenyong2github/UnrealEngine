@@ -343,39 +343,6 @@ private:
 	friend FEDLCookChecker;
 };
 
-#if WITH_EDITORONLY_DATA
-
-/**
- * Archive to calculate a checksum on an object's serialized data stream, but only of its non-editor properties.
- */
-class FArchiveObjectCrc32NonEditorProperties : public FArchiveObjectCrc32
-{
-	using Super = FArchiveObjectCrc32;
-
-public:
-	FArchiveObjectCrc32NonEditorProperties()
-		: EditorOnlyProp(0)
-	{
-	}
-
-	virtual FString GetArchiveName() const
-	{
-		return TEXT("FArchiveObjectCrc32NonEditorProperties");
-	}
-
-	virtual void Serialize(void* Data, int64 Length);
-private:
-	int32 EditorOnlyProp;
-};
-
-#else
-
-class COREUOBJECT_API FArchiveObjectCrc32NonEditorProperties : public FArchiveObjectCrc32
-{
-};
-
-#endif
-
 // Utility functions used by both UPackage::Save and/or UPackage::Save2
 namespace SavePackageUtilities
 {

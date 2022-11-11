@@ -273,7 +273,8 @@ ESavePackageResult RoutePresave(FSaveContext& SaveContext)
 		{
 			if (SaveContext.IsCooking() && Object->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 			{
-				FArchiveObjectCrc32NonEditorProperties CrcArchive;
+				FArchiveObjectCrc32 CrcArchive;
+				CrcArchive.ArIsFilterEditorOnly = true;
 				int32 Before = CrcArchive.Crc32(Object);
 				UE::SavePackageUtilities::CallPreSave(Object, SaveContext.GetObjectSaveContext());
 				int32 After = CrcArchive.Crc32(Object);
