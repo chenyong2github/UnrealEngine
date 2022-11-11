@@ -72,7 +72,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Cached length of this node
 		/// </summary>
-		readonly long _cachedLength;
+		long _cachedLength;
 
 		/// <summary>
 		/// Constructor
@@ -133,6 +133,14 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			FileNode node = await ExpandAsync(reader, cancellationToken);
 			await node.CopyToFileAsync(reader, file, cancellationToken);
+		}
+
+		/// <inheritdoc/>
+		protected override void OnCollapse()
+		{
+			base.OnCollapse();
+
+			_cachedLength = Target!.Length;
 		}
 
 		/// <inheritdoc/>

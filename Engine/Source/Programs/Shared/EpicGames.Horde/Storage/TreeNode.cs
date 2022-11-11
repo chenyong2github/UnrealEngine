@@ -4,7 +4,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Reflection.Emit;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -17,9 +16,10 @@ namespace EpicGames.Horde.Storage
 	public abstract class TreeNode
 	{
 		/// <summary>
-		/// The ref which points to this node
+		/// Revision number of the node. Incremented whenever the node is modified, and used to track whether nodes are modified between 
+		/// writes starting and completing.
 		/// </summary>
-		public TreeNodeRef? IncomingRef { get; internal set; }
+		public uint Revision { get; private set; }
 
 		/// <summary>
 		/// Default constructor
@@ -42,10 +42,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		protected void MarkAsDirty()
 		{
-			if (IncomingRef != null)
-			{
-				IncomingRef.MarkAsDirty();
-			}
+			Revision++;
 		}
 
 		/// <summary>

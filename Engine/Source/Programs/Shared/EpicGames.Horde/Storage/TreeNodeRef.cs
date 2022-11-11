@@ -9,15 +9,26 @@ using EpicGames.Core;
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
-	/// Stores a reference from a parent to child node. The reference may be to a node in memory, or to a node in the storage system.
+	/// Stores a reference to a node, which may be in memory or in the storage system.
+	/// 
+	/// Refs may be in the following states:
+	///  * In storage 
+	///      * Hash and Locator are valid, Target is null, IsDirty() returns false.
+	///      * Writing or calling Collapse() is a no-op.
+	///  * In memory and target was expanded, has not been modified 
+	///      * Hash and Locator are valid, Target is valid, IsDirty() returns false.
+	///      * Writing or calling Collapse() on a ref transitions it to the "in storage" state.
+	///  * In memory and target is new
+	///      * Hash and Locator are invalid, Target is valid, IsDirty() returns true.
+	///      * Writing a ref transitions it to the "in storage" state. Calling Collapse is a no-op.
+	///  * In memory but target has been modified
+	///      * Hash and Locator are set but may not reflect the current node state, Target is valid, IsDirty() returns true. 
+	///      * Writing a ref transitions it to the "in storage" state. Calling Collapse is a no-op.
+	///      
+	/// The <see cref="OnCollapse"/> and <see cref="OnExpand"/> methods allow overriden implementations to cache information about the target.
 	/// </summary>
 	public class TreeNodeRef
 	{
-		/// <summary>
-		/// Node that owns this ref
-		/// </summary>
-		internal TreeNode? _owner;
-
 		/// <summary>
 		/// Hash of the referenced node. Invalid for nodes in memory.
 		/// </summary>
@@ -31,69 +42,26 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// The target node, or null if the node is not resident in memory.
 		/// </summary>
-		public TreeNode? Target
-		{
-			get => _target;
-			set
-			{
-				if (value != _target)
-				{
-					if (value == null)
-					{
-						_target = value;
-					}
-					else
-					{
-						if (value.IncomingRef != null)
-						{
-							throw new ArgumentException("Target node may not be part of an existing tree.");
-						}
-						if (_target != null)
-						{
-							_target.IncomingRef = null;
-						}
-						_target = value;
-						MarkAsDirty();
-					}
-				}
-			}
-		}
-
-		/// <summary>
-		/// Node pointed to by this ref
-		/// </summary>
-		private TreeNode? _target;
-
-		/// <summary>
-		/// Whether this ref is dirty
-		/// </summary>
-		private bool _dirty;
+		public TreeNode? Target { get; private set; }
 
 		/// <summary>
 		/// Creates a reference to a node in memory.
 		/// </summary>
 		/// <param name="target">Node to reference</param>
-		protected internal TreeNodeRef(TreeNode target)
+		public TreeNodeRef(TreeNode target)
 		{
-			Debug.Assert(target != null);
 			Target = target;
-			_dirty = true;
 		}
 
 		/// <summary>
 		/// Creates a reference to a node with the given hash
 		/// </summary>
-		/// <param name="owner">Node which owns the ref</param>
 		/// <param name="hash">Hash of the referenced node</param>
 		/// <param name="locator">Locator for the node</param>
-		internal TreeNodeRef(TreeNode owner, IoHash hash, NodeLocator locator)
+		public TreeNodeRef(IoHash hash, NodeLocator locator)
 		{
-			_owner = owner;
-
 			Hash = hash;
 			Locator = locator;
-
-			_dirty = false;
 		}
 
 		/// <summary>
@@ -105,8 +73,6 @@ namespace EpicGames.Horde.Storage
 			TreeNodeRefData data = reader.ReadRefData();
 			Hash = data.Hash;
 			Locator = data.Locator;
-
-			_dirty = false;
 			Debug.Assert(Hash != IoHash.Zero);
 		}
 
@@ -114,40 +80,20 @@ namespace EpicGames.Horde.Storage
 		/// Determines whether the the referenced node has modified from the last version written to storage
 		/// </summary>
 		/// <returns></returns>
-		public bool IsDirty() => _dirty;
+		public bool IsDirty() => Target != null && (Target.Revision != 0 || !Locator.IsValid());
 
 		/// <summary>
 		/// Update the reference to refer to a node in memory.
 		/// </summary>
 		public void MarkAsDirty()
 		{
-			Debug.Assert(Target != null);
+			if (Target == null)
+			{
+				throw new InvalidOperationException("Cannot mark a ref as dirty without having expanded it.");
+			}
 
 			Hash = default;
 			Locator = default;
-
-			if (!_dirty)
-			{
-				_dirty = true;
-				if (_owner != null && _owner.IncomingRef != null)
-				{
-					_owner.IncomingRef.MarkAsDirty();
-				}
-			}
-		}
-
-		/// <summary>
-		/// Update the reference to refer to a location in storage.
-		/// </summary>
-		/// <param name="hash">Hash of the node</param>
-		/// <param name="locator">Location of the node</param>
-		internal void MarkAsWritten(IoHash hash, NodeLocator locator)
-		{
-			if (hash == Hash)
-			{
-				Locator = locator;
-				_dirty = false;
-			}
 		}
 
 		/// <summary>
@@ -158,7 +104,25 @@ namespace EpicGames.Horde.Storage
 		internal void MarkAsPendingWrite(IoHash hash)
 		{
 			Hash = hash;
-			_dirty = false;
+			OnCollapse();
+		}
+
+		/// <summary>
+		/// Update the reference to refer to a location in storage.
+		/// </summary>
+		/// <param name="hash">Hash of the node</param>
+		/// <param name="locator">Location of the node</param>
+		/// <param name="revision">Revision number that was written</param>
+		internal void MarkAsWritten(IoHash hash, NodeLocator locator, uint revision)
+		{
+			if (Hash == hash)
+			{
+				Locator = locator;
+				if (Target != null && Target.Revision == revision)
+				{
+					Target = null;
+				}
+			}
 		}
 
 		/// <summary>
@@ -178,9 +142,35 @@ namespace EpicGames.Horde.Storage
 			if (Target == null)
 			{
 				Target = await reader.ReadNodeAsync(Locator, cancellationToken);
-				Target!.IncomingRef = this;
+				OnExpand();
 			}
-			return Target!;
+			return Target;
+		}
+
+		/// <summary>
+		/// Collapse the current node
+		/// </summary>
+		public void Collapse()
+		{
+			if (Target != null && !IsDirty())
+			{
+				OnCollapse();
+				Target = null;
+			}
+		}
+
+		/// <summary>
+		/// Callback after a node is expanded, allowing overridden implementations to cache any information about the target
+		/// </summary>
+		protected virtual void OnExpand()
+		{
+		}
+
+		/// <summary>
+		/// Callback before a node is collapsed, allowing overridden implementations to cache any information about the target
+		/// </summary>
+		protected virtual void OnCollapse()
+		{
 		}
 	}
 
@@ -193,11 +183,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Accessor for the target node
 		/// </summary>
-		public new T? Target
-		{
-			get => (T?)base.Target;
-			set => base.Target = value;
-		}
+		public new T? Target => (T?)base.Target;
 
 		/// <summary>
 		/// Constructor
@@ -210,11 +196,10 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="owner">Node which owns the ref</param>
 		/// <param name="hash">Hash of the referenced node</param>
 		/// <param name="locator">Locator for the node</param>
-		internal TreeNodeRef(TreeNode owner, IoHash hash, NodeLocator locator) 
-			: base(owner, hash, locator)
+		internal TreeNodeRef(IoHash hash, NodeLocator locator) 
+			: base(hash, locator)
 		{
 		}
 

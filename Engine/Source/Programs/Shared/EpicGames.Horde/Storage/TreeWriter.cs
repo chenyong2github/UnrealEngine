@@ -46,6 +46,7 @@ namespace EpicGames.Horde.Storage
 			public readonly int Length;
 			public readonly IReadOnlyList<IoHash> RefHashes;
 			public readonly TreeNodeRef NodeRef;
+			public readonly uint Revision;
 
 			public NodeInfo(BundleType type, IoHash hash, int length, IReadOnlyList<IoHash> refs, TreeNodeRef nodeRef)
 			{
@@ -54,6 +55,7 @@ namespace EpicGames.Horde.Storage
 				Length = length;
 				RefHashes = refs;
 				NodeRef = nodeRef;
+				Revision = nodeRef.Target!.Revision;
 			}
 		}
 
@@ -158,19 +160,7 @@ namespace EpicGames.Horde.Storage
 		/// <inheritdoc/>
 		public async Task<IoHash> WriteAsync(TreeNodeRef nodeRef, CancellationToken cancellationToken = default)
 		{
-			// If the target node hasn't been modified, use the existing state.
-			if (!nodeRef.IsDirty())
-			{
-				// Make sure the locator is valid. The node may be queued for writing but not flushed to disk yet.
-				if (nodeRef.Locator.IsValid())
-				{
-					_hashToNode.TryAdd(nodeRef.Hash, nodeRef.Locator);
-					nodeRef.Target = null;
-				}
-				return nodeRef.Hash;
-			}
-
-			// Check we actually have a target node
+			// Check we actually have a target node. If we don't, we don't need to write anything.
 			TreeNode? node = nodeRef.Target;
 			if (node == null)
 			{
@@ -179,28 +169,38 @@ namespace EpicGames.Horde.Storage
 				return nodeRef.Hash;
 			}
 
-			// Update the incoming ref
-			if (node.IncomingRef == null)
-			{
-				node.IncomingRef = nodeRef;
-			}
-			else if(node.IncomingRef != nodeRef)
-			{
-				throw new InvalidOperationException("Node cannot have multiple incoming references");
-			}
-
-			// Write all the referenced nodes first
+			// Write all the nodes it references, and mark the ref as dirty if any of them change.
 			Dictionary<TreeNodeRef, IoHash> nextRefToHash = new Dictionary<TreeNodeRef, IoHash>();
 			foreach (TreeNodeRef nextRef in node.EnumerateRefs())
 			{
+				IoHash prevHash = nextRef.Hash;
 				IoHash nextHash = await WriteAsync(nextRef, cancellationToken);
 				Debug.Assert(nextHash != IoHash.Zero);
+
 				nextRefToHash.Add(nextRef, nextHash);
+
+				if (prevHash != nextHash)
+				{
+					nodeRef.MarkAsDirty();
+				}
+			}
+
+			// If the target node hasn't been modified, use the existing serialized state.
+			if (!nodeRef.IsDirty())
+			{
+				// Make sure the locator is valid. The node may be queued for writing but not flushed to disk yet.
+				if (nodeRef.Locator.IsValid())
+				{
+					_hashToNode.TryAdd(nodeRef.Hash, nodeRef.Locator);
+					nodeRef.Collapse();
+				}
+				return nodeRef.Hash;
 			}
 
 			// Serialize the node
 			NodeWriter nodeWriter = new NodeWriter(nextRefToHash);
 			nodeRef.Target!.Serialize(nodeWriter);
+			BundleType bundleType = nodeRef.Target.GetBundleType();
 
 			// Get the hash for the new blob
 			ReadOnlySequence<byte> data = nodeWriter.Data.AsSequence();
@@ -208,14 +208,14 @@ namespace EpicGames.Horde.Storage
 			nodeRef.MarkAsPendingWrite(hash);
 
 			// Check if we're already tracking a node with the same hash
-			NodeInfo nodeInfo = new NodeInfo(nodeRef.Target.GetBundleType(), hash, (int)data.Length, nextRefToHash.Values.Distinct().ToArray(), nodeRef);
+			NodeInfo nodeInfo = new NodeInfo(bundleType, hash, (int)data.Length, nextRefToHash.Values.Distinct().ToArray(), nodeRef);
 			if (_hashToNode.TryGetValue(hash, out NodeLocator locator))
 			{
 				// If the node is in the lookup but not currently valid, it's already queued for writing. Add this ref to the list of refs that needs fixing up,
 				// so we can update it after flushing.
 				if (locator.IsValid())
 				{
-					nodeRef.MarkAsWritten(hash, locator);
+					nodeRef.MarkAsWritten(hash, locator, nodeInfo.Revision);
 				}
 				else
 				{
@@ -379,7 +379,7 @@ namespace EpicGames.Horde.Storage
 					NodeLocator nodeLocator = new NodeLocator(locator, idx);
 
 					NodeInfo nodeInfo = _queue[idx];
-					nodeInfo.NodeRef.MarkAsWritten(nodeInfo.Hash, nodeLocator);
+					nodeInfo.NodeRef.MarkAsWritten(nodeInfo.Hash, nodeLocator, nodeInfo.Revision);
 
 					_hashToNode[nodeInfo.Hash] = nodeLocator;
 				}
@@ -391,7 +391,7 @@ namespace EpicGames.Horde.Storage
 					NodeInfo nodeInfo = _secondaryQueue[refIdx];
 					if (_hashToNode.TryGetValue(nodeInfo.Hash, out NodeLocator refLocator))
 					{
-						nodeInfo.NodeRef.MarkAsWritten(nodeInfo.Hash, refLocator);
+						nodeInfo.NodeRef.MarkAsWritten(nodeInfo.Hash, refLocator, nodeInfo.Revision);
 					}
 				}
 				_secondaryQueue.RemoveRange(0, refIdx);
