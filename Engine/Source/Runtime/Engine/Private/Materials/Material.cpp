@@ -945,7 +945,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MaxDisplacement = 0.0f;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bEnableSeparateTranslucency = true;
-	bEnableMobileSeparateTranslucency = false;
+	bSeparateTranslucencyRenderAfterDOF = false;
 	bEnableResponsiveAA = false;
 	bScreenSpaceReflections = false;
 	bContactShadows = false;

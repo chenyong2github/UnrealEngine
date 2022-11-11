@@ -19,6 +19,7 @@ VolumetricFog.cpp
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "Math/Halton.h"
+#include "MobileShadingRenderer.h"
 
 IMPLEMENT_TYPE_LAYOUT(FVolumetricFogIntegrationParameters);
 IMPLEMENT_TYPE_LAYOUT(FVolumeShadowingParameters);

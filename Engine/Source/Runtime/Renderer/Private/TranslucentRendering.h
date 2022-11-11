@@ -31,9 +31,18 @@ struct FSeparateTranslucencyDimensions
 class FSeparateTranslucencyTextures
 {
 public:
+	FSeparateTranslucencyTextures()
+	{}
+
 	FSeparateTranslucencyTextures(FSeparateTranslucencyDimensions InDimensions)
 		: Dimensions(InDimensions)
 	{}
+
+	FSeparateTranslucencyTextures& operator=(const FSeparateTranslucencyDimensions& InDimensions)
+	{
+		Dimensions = InDimensions;
+		return *this;
+	}
 
 	bool IsColorValid() const
 	{
@@ -52,6 +61,8 @@ public:
 	FRDGTextureRef  GetColorModulateForRead(FRDGBuilder& GraphBuilder) const;
 
 	FRDGTextureMSAA GetForWrite(FRDGBuilder& GraphBuilder, ETranslucencyPass::Type TranslucencyPass);
+	TRefCountPtr<IPooledRenderTarget> GetMobileColor(FRDGBuilder& GraphBuilder);
+	TRefCountPtr<IPooledRenderTarget> GetMobileDepth(FRDGBuilder& GraphBuilder);
 
 	const FSeparateTranslucencyDimensions& GetDimensions() const
 	{
@@ -83,3 +94,6 @@ FSeparateTranslucencyDimensions UpdateTranslucencyTimers(FRHICommandListImmediat
 
 /** Returns whether the view family is requesting to render translucency. */
 bool ShouldRenderTranslucency(const FSceneViewFamily& ViewFamily);
+
+float GetSeparateTranslucencyDownsampleScale();
+bool IsMobileSeparateTranslucencyColorTextureEnabled(ETranslucencyPass::Type TranslucencyPass, float DownsampleScale);

@@ -1205,7 +1205,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
 { 
-	return Material->bEnableSeparateTranslucency && !IsUIMaterial() && !IsDeferredDecal();
+	return Material->bEnableSeparateTranslucency 
+	    && Material->bSeparateTranslucencyRenderAfterDOF
+		&& !IsUIMaterial() && !IsDeferredDecal();
 }
 
 bool FMaterialResource::IsDualBlendingEnabled(EShaderPlatform Platform) const
@@ -1213,11 +1215,6 @@ bool FMaterialResource::IsDualBlendingEnabled(EShaderPlatform Platform) const
 	const bool bIsMaterialEnabled = (Material->ShadingModel == MSM_ThinTranslucent);
 	const bool bIsPlatformSupported = RHISupportsDualSourceBlending(Platform);
 	return bIsMaterialEnabled && bIsPlatformSupported;
-}
-
-bool FMaterialResource::IsMobileSeparateTranslucencyEnabled() const
-{
-	return Material->bEnableMobileSeparateTranslucency && !IsUIMaterial() && !IsDeferredDecal();
 }
 
 bool FMaterialResource::IsAdaptiveTessellationEnabled() const

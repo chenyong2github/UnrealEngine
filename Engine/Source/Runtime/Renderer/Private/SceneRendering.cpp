@@ -64,6 +64,7 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 #include "FXSystem.h"
+#include "MobileShadingRenderer.h"
 
 /*-----------------------------------------------------------------------------
 	Globals

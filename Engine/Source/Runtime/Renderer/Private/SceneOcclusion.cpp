@@ -17,6 +17,7 @@
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "VisualizeTexture.h"
+#include "MobileShadingRenderer.h"
 
 
 /*-----------------------------------------------------------------------------

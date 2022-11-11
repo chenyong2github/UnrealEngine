@@ -9,6 +9,7 @@
 #include "ScenePrivate.h"
 #include "SceneTextureParameters.h"
 #include "../ScreenSpaceRayTracing.h"
+#include "MobileShadingRenderer.h"
 
 class FMobileScreenSpaceReflectionPassPS : public FGlobalShader
 {

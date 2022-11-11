@@ -30,6 +30,7 @@
 #include "PipelineStateCache.h"
 #include "MeshPassProcessor.inl"
 #include "ClearQuad.h"
+#include "MobileShadingRenderer.h"
 
 void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews)
 {

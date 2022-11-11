@@ -466,7 +466,7 @@ public:
 	FShadingModelMaterialInput ShadingModelFromMaterialExpression;
 
 	/** Indicates that the material should be rendered in the SeparateTranslucency Pass (not affected by DOF, requires bAllowSeparateTranslucency to be set in .ini). */
-	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Render After DOF"), AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Render In Separate Translucency"), AdvancedDisplay)
 	uint8 bEnableSeparateTranslucency : 1;
 
 	/**
@@ -505,8 +505,8 @@ public:
 	TEnumAsByte<enum ETranslucencyLightingMode> TranslucencyLightingMode;
 
 	/** Indicates that the translucent material should not be affected by bloom or DOF. (Note: Depth testing is not available) */
-	UPROPERTY(EditAnywhere, Category = Translucency, meta = (DisplayName = "Mobile Separate Translucency"), AdvancedDisplay)
-	uint8 bEnableMobileSeparateTranslucency : 1;
+	UPROPERTY(EditAnywhere, Category = Translucency, meta = (DisplayName = "Render After DOF"), AdvancedDisplay)
+	uint8 bSeparateTranslucencyRenderAfterDOF : 1;
 
 	/** Number of customized UV inputs to display.  Unconnected customized UV inputs will just pass through the vertex UVs. */
 	UPROPERTY(EditAnywhere, Category = Material, AdvancedDisplay, meta = (ClampMin = 0))

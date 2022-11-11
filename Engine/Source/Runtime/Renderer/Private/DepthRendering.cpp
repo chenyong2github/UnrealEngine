@@ -28,6 +28,7 @@
 #include "ClearQuad.h"
 #include "GPUSkinCache.h"
 #include "MeshPassProcessor.inl"
+#include "MobileShadingRenderer.h"
 
 static TAutoConsoleVariable<int32> CVarParallelPrePass(
 	TEXT("r.ParallelPrePass"),
