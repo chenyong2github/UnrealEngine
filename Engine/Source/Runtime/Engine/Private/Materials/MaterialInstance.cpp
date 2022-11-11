@@ -2805,19 +2805,20 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 	{
 		ValidateTextureOverrides(GMaxRHIFeatureLevel);
 	}
-
-#if WITH_EDITORONLY_DATA
-	if (Ar.IsLoading() && !GetEditorOnlyData()->StaticParameters.StaticSwitchParameters_DEPRECATED.IsEmpty())
-	{
-		StaticParametersRuntime.StaticSwitchParameters = MoveTemp(GetEditorOnlyData()->StaticParameters.StaticSwitchParameters_DEPRECATED);
-	}
-#endif
 }
 
 void UMaterialInstance::PostLoad()
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
 	SCOPED_LOADTIMER(MaterialInstancePostLoad);
+
+#if WITH_EDITORONLY_DATA // fixup serialization before everything else
+	if (IsEditorOnlyDataValid() && !GetEditorOnlyData()->StaticParameters.StaticSwitchParameters_DEPRECATED.IsEmpty())
+	{
+		ensure(StaticParametersRuntime.StaticSwitchParameters.IsEmpty());
+		StaticParametersRuntime.StaticSwitchParameters = MoveTemp(GetEditorOnlyData()->StaticParameters.StaticSwitchParameters_DEPRECATED);
+	}
+#endif
 
 	Super::PostLoad();
 
