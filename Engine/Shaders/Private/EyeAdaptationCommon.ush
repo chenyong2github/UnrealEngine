@@ -46,7 +46,10 @@ float EyeAdaptationLookup()
 	#if SHADING_PATH_DEFERRED
 		return EyeAdaptationLookupTexture2D(EyeAdaptationStruct.EyeAdaptationTexture).x;
 	#elif SHADING_PATH_MOBILE
-		return EyeAdaptationLookupBuffer(EyeAdaptationStruct.EyeAdaptationBuffer).x;
+		// Unofortunatelly on older MALI GL drivers (r9p0), passing this buffer into 'log' or other functions, fails with this error: Function call discards 'readonly' access qualifier
+		// So we have to use last frame eye adaptation value as a workaround on mobile
+		// return EyeAdaptationLookupBuffer(EyeAdaptationBuffer).x;
+		return ResolvedView.PreExposure;
 	#else
 		#error Unknown shading path.
 	#endif
