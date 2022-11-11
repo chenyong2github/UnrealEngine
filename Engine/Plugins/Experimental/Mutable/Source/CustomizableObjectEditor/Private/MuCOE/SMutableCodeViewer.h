@@ -279,11 +279,12 @@ private:
 	/** Operation type we are using to search for tree nodes. Driven primarily by the UI */
 	mu::OP_TYPE OperationTypeToSearch = mu::OP_TYPE::NONE;
 
-	/** Operation types present on the currently set mutable model. */
-	TArray<mu::OP_TYPE> ModelOperationTypes;
+	/** Operation types present on the currently set mutable model.
+	 * The value of the TPair represents the amount of times operations using it have been found (not duplicates) */
+	TArray< TPair< mu::OP_TYPE,uint32>> ModelOperationTypes;
 	
 	/** Array with all the names for each of the operations available on mutable. Used by the UI  */
-	TArray<TSharedPtr<FString>> ModelOperationTypeStrings;
+	TArray<FString> ModelOperationTypeNames;
 	
 	/** Stores a list of strings based on the possible types of operations mutable define to be used by the UI */
 	void GenerateNavigationOpTypeStrings();
@@ -297,16 +298,6 @@ private:
 	 * @note Method designed to be called once per model.*/
 	void CacheOperationTypesPresentOnModel();
 	
-	/** Method to scan over all the operations performed on the current model to produce a set of operation types present on it.
-	 * @param InParentAddresses Addresses of the parent objects. Required to be able to perform recursive calls to this method (to get the data from the children)
-	 * @param  InProgram Mutable program.
-	 * @param OutLocatedOperations Output of the method : Set with all the operation types present on the model.
-	 * @param AlreadyProcessedAddresses Addresses already processed. Used to avoid processing the same operation twice.
-	 */
-	void GetOperationTypesPresentOnModel(
-		const TArray< mu::OP::ADDRESS>& InParentAddresses, const mu::FProgram& InProgram, TSet<mu::OP_TYPE>& OutLocatedOperations,
-		TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses);
-
 	
 	/*
 	 * Navigation : UI callback methods
@@ -717,11 +708,20 @@ private:
 class FMutableOperationElement : public TSharedFromThis<FMutableOperationElement>
 {
 public:
-	FMutableOperationElement(mu::OP_TYPE InOperationType, FText OperationTypeBeingRepresented,FSlateColor OperationColor)
+	FMutableOperationElement(mu::OP_TYPE InOperationType,FText OperationTypeName,uint32 OperationTypeInstanceCount,FSlateColor OperationColor)
 	{
 		OperationType = InOperationType;
-		OperationTypeText = OperationTypeBeingRepresented;
 		OperationTextColor = OperationColor;
+
+		// Show the amount of instances of the operation type is found on model.
+		// @note This if block will not be triggered when working with an operation type that is not present on the model
+		// but added manually to the list of operation types (currently mu::OP_Type::None is an example of this)
+		FText OperationsCountText = FText::GetEmpty();
+		if (OperationTypeInstanceCount > 0)
+		{
+			OperationsCountText = FText::Format(INVTEXT(" - ({0})"), OperationTypeInstanceCount);
+		}
+		OperationTypeText = FText::Format(INVTEXT("{0}{1}"), OperationTypeName,OperationsCountText);
 	}
 
 public:
