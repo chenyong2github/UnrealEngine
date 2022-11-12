@@ -862,13 +862,13 @@ namespace AutomationScripts
 				ServerApp = Exes[0].FullName;
 			}
 			var Args = bCooked ? "" : (SC.ProjectArgForCommandLines + " ");
-			Console.WriteLine(Params.ServerDeviceAddress);
+			Console.WriteLine("Running dedicated server on device with address: " + Params.ServerDeviceAddress);
 			TargetPlatformDescriptor ServerPlatformDesc = ServerParams.ServerTargetPlatforms[0];
 			if (ServerParams.Cook && ServerPlatformDesc.Type == UnrealTargetPlatform.Linux && !String.IsNullOrEmpty(ServerParams.ServerDeviceAddress))
 			{
 				ServerApp = @"C:\Windows\system32\cmd.exe";
 
-				string plinkPath = CombinePaths(Environment.GetEnvironmentVariable("LINUX_ROOT"), "bin/PLINK.exe ");
+				string plinkPath = CombinePaths(Unreal.EngineDirectory.FullName, "Extras", "ThirdPartyNotUE", "putty", "PLINK.exe");
 				string exePath = CombinePaths(SC.ShortProjectName, "Binaries", ServerPlatformDesc.Type.ToString(), SC.ShortProjectName + "Server");
 				if (ServerParams.ServerConfigsToBuild[0] != UnrealTargetConfiguration.Development)
 				{

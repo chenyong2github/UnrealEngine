@@ -14,6 +14,9 @@ using UnrealBuildBase;
 
 public abstract class BaseLinuxPlatform : Platform
 {
+	// Matches strings of the form "DeviceName@IP Address" such as "WindowsServer@10.1.168.74"
+	static Regex DeviceRegex = new Regex(@"\w.+@([A-Za-z0-9\.\-]+)[\+]?");
+
 	static string PScpPath = CombinePaths(Unreal.RootDirectory.FullName, "\\Engine\\Extras\\ThirdPartyNotUE\\putty\\PSCP.EXE");
 	static string PlinkPath = CombinePaths(Unreal.RootDirectory.FullName, "\\Engine\\Extras\\ThirdPartyNotUE\\putty\\PLINK.EXE");
 	static string LaunchOnHelperShellScriptName = "LaunchOnHelper.sh";
@@ -322,6 +325,12 @@ chmod +x {0}
 	{
 		if ((ProjParams.Deploy || ProjParams.Run) && BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Linux)
 		{
+ 			Match ServerDeviceMatch = DeviceRegex.Match(ProjParams.ServerDevice);
+			if (ServerDeviceMatch.Success)
+			{
+				ProjParams.ServerDeviceAddress = ServerDeviceMatch.Groups[1].Value;
+			}
+
 			// we don't need username/password if we are only targeting steamdeck devices
 			bool bNeedsUsernameAndPassword = false;
 			foreach (string DeviceId in ProjParams.DeviceNames)
