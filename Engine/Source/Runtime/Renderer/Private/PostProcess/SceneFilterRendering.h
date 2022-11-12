@@ -15,6 +15,8 @@
 #include "ShaderParameterUtils.h"
 #include "SceneRenderTargetParameters.h"
 
+enum class EStereoscopicPass;
+
 /** Uniform buffer for computing the vertex positional and UV adjustments in the vertex shader. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FDrawRectangleParameters, RENDERER_API)
 	SHADER_PARAMETER( FVector4f, PosScaleBias )
