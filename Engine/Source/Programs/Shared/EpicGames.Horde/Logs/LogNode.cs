@@ -110,7 +110,7 @@ namespace EpicGames.Horde.Logs
 	/// <summary>
 	/// Assists building log files through trees of <see cref="LogNode"/>, <see cref="LogIndexNode"/> and <see cref="LogChunkNode"/> nodes.
 	/// </summary>
-	class LogBuilder
+	public class LogBuilder
 	{
 		/// <summary>
 		/// Default maximum size for a log text block

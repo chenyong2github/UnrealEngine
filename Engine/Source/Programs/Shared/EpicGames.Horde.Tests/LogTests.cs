@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Resources;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Logs;
@@ -13,6 +14,8 @@ using EpicGames.Horde.Tests.Properties;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+[assembly: NeutralResourcesLanguageAttribute("en-US")]
 
 namespace EpicGames.Horde.Tests
 {
