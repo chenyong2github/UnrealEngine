@@ -9,9 +9,14 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "UObject/Object.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/EngineTypes.h"
+#endif
+#include "Engine/TimerHandle.h"
+#include "Templates/Function.h"
 
 class UGameInstance;
+enum class ELevelCollectionType : uint8;
 struct FTimerSourceList;
 
 DECLARE_DELEGATE(FTimerDelegate);
@@ -127,19 +132,12 @@ struct FTimerData
 	FTimerHandle Handle;
 
 	/** This is the key to the TimerIndicesByObject map - this is kept so that we can look up even if the referenced object is expired */
-	const void* TimerIndicesByObjectKey;
+	const void* TimerIndicesByObjectKey = nullptr;
 
 	/** The level collection that was active when this timer was created. Used to set the correct context before executing the timer's delegate. */
 	ELevelCollectionType LevelCollection;
 
-	FTimerData()
-		: bLoop(false)
-		, bRequiresDelegate(false)
-		, Status(ETimerStatus::Active)
-		, Rate(0)
-		, ExpireTime(0)
-		, LevelCollection(ELevelCollectionType::DynamicSourceLevels)
-	{}
+	ENGINE_API FTimerData();
 
 	// Movable only
 	FTimerData(FTimerData&&) = default;
