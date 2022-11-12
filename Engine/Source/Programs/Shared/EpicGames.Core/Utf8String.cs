@@ -55,6 +55,18 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="text">Text to construct from</param>
+		public Utf8String(ReadOnlySpan<char> text)
+		{
+			int length = Encoding.UTF8.GetByteCount(text);
+			byte[] buffer = new byte[length];
+			Encoding.UTF8.GetBytes(text, buffer);
+			Memory = buffer;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		/// <param name="memory">The data to construct from</param>
 		public Utf8String(ReadOnlyMemory<byte> memory)
 		{
