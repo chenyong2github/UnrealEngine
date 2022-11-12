@@ -9,6 +9,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
+#include "RenderedTextureStats.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CanvasTypes.h"
 #include "UnrealClient.h"
@@ -417,15 +418,6 @@ protected:
 	 * what it was when the changes were made.
 	 */
 	int32		NumWantingResourcesCounter;
-};
-
-/**
- * Lightweight struct used to list the MIP levels of rendered assets.
- */
-struct FRenderedTextureStats
-{
-	int32 MaxMipLevelShown;
-	FString TextureGroup;
 };
 
 /**
