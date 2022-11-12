@@ -4,6 +4,8 @@
 #include "GenericPlatform/IInputInterface.h"
 #include "Misc/App.h"
 #include "GameFramework/InputDeviceProperties.h"
+#include "GameFramework/InputDeviceSubsystem.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ForceFeedbackEffect)
 
@@ -13,6 +15,12 @@ UForceFeedbackEffect::UForceFeedbackEffect(const FObjectInitializer& ObjectIniti
 	// Make sure that by default the force feedback effect has an entry
 	FForceFeedbackChannelDetails ChannelDetail;
 	ChannelDetails.Add(ChannelDetail);
+}
+
+FForceFeedbackEffectOverridenChannelDetails::FForceFeedbackEffectOverridenChannelDetails()
+{
+	// Add one default channel details by default
+	ChannelDetails.AddDefaulted(1);
 }
 
 #if WITH_EDITOR
@@ -31,10 +39,13 @@ float UForceFeedbackEffect::GetDuration()
 	{
 		Duration = 0.f;
 
+		// Just use the primary platform user when calculating duration, this won't be affected by which player the effect is for
+		const TArray<FForceFeedbackChannelDetails>& CurrentDetails = GetCurrentChannelDetails(IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser());
+
 		float MinTime, MaxTime;
-		for (int32 Index = 0; Index < ChannelDetails.Num(); ++Index)
+		for (int32 Index = 0; Index < CurrentDetails.Num(); ++Index)
 		{
-			ChannelDetails[Index].Curve.GetRichCurve()->GetTimeRange(MinTime, MaxTime);
+			CurrentDetails[Index].Curve.GetRichCurveConst()->GetTimeRange(MinTime, MaxTime);
 
 			if (MaxTime > Duration)
 			{
@@ -66,11 +77,13 @@ float UForceFeedbackEffect::GetTotalDevicePropertyDuration()
 	return LongestDuration;
 }
 
-void UForceFeedbackEffect::GetValues(const float EvalTime, FForceFeedbackValues& Values, const float ValueMultiplier) const
+void UForceFeedbackEffect::GetValues(const float EvalTime, FForceFeedbackValues& Values, const FPlatformUserId PlatformUser, const float ValueMultiplier) const
 {
-	for (int32 Index = 0; Index < ChannelDetails.Num(); ++Index)
+	const TArray<FForceFeedbackChannelDetails>& CurrentDetails = GetCurrentChannelDetails(PlatformUser);
+
+	for (int32 Index = 0; Index < CurrentDetails.Num(); ++Index)
 	{
-		const FForceFeedbackChannelDetails& Details = ChannelDetails[Index];
+		const FForceFeedbackChannelDetails& Details = CurrentDetails[Index];
 		const float Value = Details.Curve.GetRichCurveConst()->Eval(EvalTime) * ValueMultiplier;
 
 		if (Details.bAffectsLeftLarge)
@@ -122,13 +135,28 @@ void UForceFeedbackEffect::ResetDeviceProperties(const FPlatformUserId PlatformU
 	}
 }
 
+const TArray<FForceFeedbackChannelDetails>& UForceFeedbackEffect::GetCurrentChannelDetails(const FPlatformUserId PlatformUser) const
+{	
+	if (const UInputDeviceSubsystem* SubSystem = UInputDeviceSubsystem::Get())
+	{
+		FHardwareDeviceIdentifier Hardware = SubSystem->GetMostRecentlyUsedHardwareDevice(PlatformUser);
+		// Check if there are any per-input device overrides available
+		if (const FForceFeedbackEffectOverridenChannelDetails* Details = PerDeviceOverides.Find(Hardware.HardwareDeviceIdentifier))
+		{
+			return Details->ChannelDetails;
+		}
+	}
+
+	return ChannelDetails;
+}
+
 void FActiveForceFeedbackEffect::GetValues(FForceFeedbackValues& Values) const
 {
 	if (ForceFeedbackEffect)
 	{
 		const float Duration = ForceFeedbackEffect->GetDuration();
 		const float EvalTime = PlayTime - Duration * FMath::FloorToFloat(PlayTime / Duration);
-		ForceFeedbackEffect->GetValues(EvalTime, Values);
+		ForceFeedbackEffect->GetValues(EvalTime, Values, PlatformUser);
 	}
 	else
 	{

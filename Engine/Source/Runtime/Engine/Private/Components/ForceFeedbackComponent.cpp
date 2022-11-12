@@ -106,25 +106,25 @@ void FForceFeedbackManager::Tick(float DeltaTime)
 	}
 }
 
-void FForceFeedbackManager::Update(const FVector Location, FForceFeedbackValues& Values) const
+void FForceFeedbackManager::Update(const FVector Location, FForceFeedbackValues& Values, const FPlatformUserId UserId) const
 {
 	for (UForceFeedbackComponent* FFC : ActiveForceFeedbackComponents)
 	{
 		if (FFC)
 		{
-			FFC->Update(Location, Values);
+			FFC->Update(Location, Values, UserId);
 		}
 	}
 }
 
-void FForceFeedbackManager::DrawDebug(const FVector Location, FDisplayDebugManager& DisplayDebugManager) const
+void FForceFeedbackManager::DrawDebug(const FVector Location, FDisplayDebugManager& DisplayDebugManager, const FPlatformUserId UserId) const
 {
 	for (UForceFeedbackComponent* FFC : ActiveForceFeedbackComponents)
 	{
 		if (FFC && FFC->ForceFeedbackEffect)
 		{
 			FForceFeedbackValues ActiveValues;
-			FFC->Update(Location, ActiveValues);
+			FFC->Update(Location, ActiveValues, UserId);
 
 			const FString ActiveEntry = FString::Printf(TEXT("%s %s %.2f %.2f %s %.2f - LL: %.2f LS: %.2f RL: %.2f RS: %.2f"), 
 				*FFC->ForceFeedbackEffect->GetFName().ToString(), 
@@ -373,7 +373,7 @@ bool UForceFeedbackComponent::Advance(const float DeltaTime)
 	return true;
 }
 
-void UForceFeedbackComponent::Update(FVector Location, FForceFeedbackValues& Values) const
+void UForceFeedbackComponent::Update(FVector Location, FForceFeedbackValues& Values, const FPlatformUserId UserId) const
 {
 	if (ForceFeedbackEffect)
 	{
@@ -392,7 +392,7 @@ void UForceFeedbackComponent::Update(FVector Location, FForceFeedbackValues& Val
 
 		if (ValueMultiplier > 0.f)
 		{
-			ForceFeedbackEffect->GetValues(EvalTime, Values, ValueMultiplier);
+			ForceFeedbackEffect->GetValues(EvalTime, Values, UserId, ValueMultiplier);
 		}
 	}
 }

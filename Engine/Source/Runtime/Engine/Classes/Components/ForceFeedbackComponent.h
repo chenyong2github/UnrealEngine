@@ -28,9 +28,9 @@ public:
 	void AddActiveComponent(UForceFeedbackComponent* ForceFeedbackComponent);
 	void RemoveActiveComponent(UForceFeedbackComponent* ForceFeedbackComponent);
 
-	void Update(FVector Location, FForceFeedbackValues& Values) const;
+	void Update(FVector Location, FForceFeedbackValues& Values, const FPlatformUserId UserId) const;
 
-	void DrawDebug(const FVector Location, FDisplayDebugManager& DisplayDebugManager) const;
+	void DrawDebug(const FVector Location, FDisplayDebugManager& DisplayDebugManager, const FPlatformUserId UserId) const;
 
 private:
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -162,7 +162,7 @@ private:
 #endif
 
 	bool Advance(float DeltaTime);
-	void Update(FVector Location, FForceFeedbackValues& Values) const;
+	void Update(FVector Location, FForceFeedbackValues& Values, const FPlatformUserId UserId) const;
 	void StopInternal(bool bRemoveFromManager = true);
 
 	friend FForceFeedbackManager;

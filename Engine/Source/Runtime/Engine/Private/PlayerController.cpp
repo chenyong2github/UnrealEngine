@@ -3396,7 +3396,7 @@ void APlayerController::DisplayDebug(class UCanvas* Canvas, const FDebugDisplayI
 		}
 		if (FForceFeedbackManager* FFM = FForceFeedbackManager::Get(GetWorld()))
 		{
-			FFM->DrawDebug(GetFocalLocation(), DisplayDebugManager);
+			FFM->DrawDebug(GetFocalLocation(), DisplayDebugManager, GetPlatformUserId());
 		}
 		DisplayDebugManager.DrawString(TEXT("-----------------------------------------------------"));
 #endif
@@ -4577,7 +4577,7 @@ void APlayerController::ProcessForceFeedbackAndHaptics(const float DeltaTime, co
 
 		if (FForceFeedbackManager* ForceFeedbackManager = FForceFeedbackManager::Get(World))
 		{
-			ForceFeedbackManager->Update(GetFocalLocation(), ForceFeedbackValues);
+			ForceFeedbackManager->Update(GetFocalLocation(), ForceFeedbackValues, GetPlatformUserId());
 		}
 
 		// Apply ForceFeedbackScale

@@ -80,6 +80,18 @@ struct ENGINE_API FActiveForceFeedbackEffect
 	void GetValues(FForceFeedbackValues& Values) const;
 };
 
+/** A wrapper struct for setting channel details on a per-platform basis */
+USTRUCT()
+struct FForceFeedbackEffectOverridenChannelDetails
+{
+	GENERATED_BODY()
+
+	FForceFeedbackEffectOverridenChannelDetails();
+
+	UPROPERTY(EditAnywhere, Category="ForceFeedbackEffect")
+	TArray<FForceFeedbackChannelDetails> ChannelDetails;
+};
+
 /**
  * A predefined force-feedback effect to be played on a controller
  */
@@ -90,6 +102,10 @@ class UForceFeedbackEffect : public UObject
 
 	UPROPERTY(EditAnywhere, Category="ForceFeedbackEffect")
 	TArray<FForceFeedbackChannelDetails> ChannelDetails;
+
+	/** A map of platform name -> ForceFeedback channel details */
+	UPROPERTY(EditAnywhere, Category = "ForceFeedbackEffect", Meta = (GetOptions = "Engine.InputPlatformSettings.GetAllHardwareDeviceNames"))
+	TMap<FString, FForceFeedbackEffectOverridenChannelDetails> PerDeviceOverides;
 
 	/** A map of input device properties that we want to set while this effect is playing */
 	UPROPERTY(EditAnywhere, Instanced, Category = "ForceFeedbackEffect")
@@ -108,10 +124,17 @@ class UForceFeedbackEffect : public UObject
 	/** Returns the longest duration of any active UInputDeviceProperty's that this effect has on it. */
 	float GetTotalDevicePropertyDuration();
 
-	void GetValues(const float EvalTime, FForceFeedbackValues& Values, float ValueMultiplier = 1.f) const;
+	void GetValues(const float EvalTime, FForceFeedbackValues& Values, const FPlatformUserId PlatformUser, float ValueMultiplier = 1.f) const;
 
 	void SetDeviceProperties(const FPlatformUserId PlatformUser, const float DeltaTime, const float EvalTime);
 
 	/** Reset any device properties that may need to be after the duration of this effect has ended. */
 	void ResetDeviceProperties(const FPlatformUserId PlatformUser);
+
+	/**
+	 * Returns the channel details that should currently be used for the given platform.
+	 * This will return one of the OverridenDetails if the current platform has one specified.
+	 * If there isn't an override specified, then it will return the generic "ChannelDetails" array.
+	 **/
+	const TArray<FForceFeedbackChannelDetails>& GetCurrentChannelDetails(const FPlatformUserId PlatformUser) const;
 };
