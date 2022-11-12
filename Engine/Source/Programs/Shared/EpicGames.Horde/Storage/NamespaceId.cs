@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
 
 namespace EpicGames.Horde.Storage
 {
@@ -18,34 +19,34 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// The text representing this id
 		/// </summary>
-		readonly StringId _inner;
+		public Utf8String Text { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="input">Unique id for the string</param>
-		public NamespaceId(string input)
+		/// <param name="text">Unique id for the namespace</param>
+		public NamespaceId(Utf8String text)
 		{
-			_inner = new StringId(input);
+			Text = text;
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? obj) => obj is NamespaceId id && _inner.Equals(id._inner);
+		public override bool Equals(object? obj) => obj is NamespaceId id && Text.Equals(id.Text);
 
 		/// <inheritdoc/>
-		public override int GetHashCode() => _inner.GetHashCode();
+		public override int GetHashCode() => Text.GetHashCode();
 
 		/// <inheritdoc/>
-		public bool Equals(NamespaceId other) => _inner.Equals(other._inner);
+		public bool Equals(NamespaceId other) => Text.Equals(other.Text);
 
 		/// <inheritdoc/>
-		public override string ToString() => _inner.ToString();
+		public override string ToString() => Text.ToString();
 
 		/// <inheritdoc cref="StringId.op_Equality"/>
-		public static bool operator ==(NamespaceId left, NamespaceId right) => left._inner == right._inner;
+		public static bool operator ==(NamespaceId left, NamespaceId right) => left.Text == right.Text;
 
 		/// <inheritdoc cref="StringId.op_Inequality"/>
-		public static bool operator !=(NamespaceId left, NamespaceId right) => left._inner != right._inner;
+		public static bool operator !=(NamespaceId left, NamespaceId right) => left.Text != right.Text;
 	}
 
 	/// <summary>
@@ -54,10 +55,10 @@ namespace EpicGames.Horde.Storage
 	sealed class NamespaceIdJsonConverter : JsonConverter<NamespaceId>
 	{
 		/// <inheritdoc/>
-		public override NamespaceId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => new NamespaceId(reader.GetString() ?? String.Empty);
+		public override NamespaceId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => new NamespaceId(new Utf8String(reader.GetUtf8String().ToArray()));
 
 		/// <inheritdoc/>
-		public override void Write(Utf8JsonWriter writer, NamespaceId value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());
+		public override void Write(Utf8JsonWriter writer, NamespaceId value, JsonSerializerOptions options) => writer.WriteStringValue(value.Text.Span);
 	}
 
 	/// <summary>

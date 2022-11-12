@@ -166,6 +166,8 @@ namespace Horde.Agent.Execution
 
 		protected Dictionary<string, string> _envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+		public bool UseNewLogger { get; private set; }
+
 		public JobExecutor(ISession session, string jobId, string batchId, string agentTypeName, IHttpClientFactory httpClientFactory)
 		{
 			_session = session;
@@ -238,6 +240,10 @@ namespace Horde.Agent.Execution
 				else if (argument.Equals("-Preprocess", StringComparison.OrdinalIgnoreCase))
 				{
 					_preprocessScript = true;
+				}
+				else if (argument.Equals("-UseNewLogger", StringComparison.OrdinalIgnoreCase))
+				{
+					UseNewLogger = true;
 				}
 				else if (argument.StartsWith(TargetArgumentPrefix, StringComparison.OrdinalIgnoreCase))
 				{
@@ -669,6 +675,11 @@ namespace Horde.Agent.Execution
 			//			FileStorageClient storage = new FileStorageClient(DirectoryReference.Combine(sharedStorageDir, "bundles"), cache, logger);
 			TreeReader reader = new TreeReader(storage, cache, logger);
 			logger.LogInformation("Using Horde-managed shared storage via {SharedStorageDir}", sharedStorageDir);
+
+			JsonRpcLogger rpcLogger = (JsonRpcLogger)logger;
+			await using JsonRpcAndStorageLogSink sink = new JsonRpcAndStorageLogSink(RpcConnection, rpcLogger._logId, rpcLogger._sink, storage, logger);
+			await using JsonRpcLogger newRpcLogger = new JsonRpcLogger(sink, rpcLogger._logId, rpcLogger._warnings, rpcLogger._inner);
+			logger = newRpcLogger;
 
 			// Create the mapping of tag names to file sets
 			Dictionary<string, HashSet<FileReference>> tagNameToFileSet = new Dictionary<string, HashSet<FileReference>>();

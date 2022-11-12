@@ -321,6 +321,7 @@ namespace EpicGames.Horde.Logs
 		/// <returns>New chunk data object</returns>
 		public void Append(ReadOnlySpan<byte> textData)
 		{
+			CreateOutputSpace(textData.Length);
 			textData.CopyTo(_data.AsSpan(_length, textData.Length));
 
 			int prevLength = _length;
@@ -334,14 +335,7 @@ namespace EpicGames.Horde.Logs
 		/// </summary>
 		public void AppendJsonAsPlainText(ReadOnlySpan<byte> inputLine, ILogger logger)
 		{
-			// Make sure the output buffer is large enough
-			int requiredSpace = inputLine.Length;
-			if (_length + requiredSpace > _data.Length)
-			{
-				Array.Resize(ref _data, _length + requiredSpace);
-			}
-
-			// Convert the line to plain text
+			CreateOutputSpace(inputLine.Length);
 			try
 			{
 				_length = ConvertToPlainText(inputLine, _data, _length);
@@ -366,6 +360,19 @@ namespace EpicGames.Horde.Logs
 				int nextLineOffset = srcText.LineOffsets[srcLineIndex + idx + 1];
 				ReadOnlySpan<byte> inputLine = srcText.Data.Slice(lineOffset, nextLineOffset - lineOffset).Span;
 				AppendJsonAsPlainText(inputLine, logger);
+			}
+		}
+
+		/// <summary>
+		/// Ensure there is a certain amount of space in the output buffer
+		/// </summary>
+		/// <param name="appendLength">Required space</param>
+		void CreateOutputSpace(int appendLength)
+		{
+			int requiredLength = _length + appendLength;
+			if (_data.Length < requiredLength)
+			{
+				Array.Resize(ref _data, requiredLength);
 			}
 		}
 
@@ -511,7 +518,7 @@ namespace EpicGames.Horde.Logs
 	class LogChunkSequenceBuilder
 	{
 		readonly List<LogChunkNode> _chunks = new List<LogChunkNode>();
-		readonly LogChunkBuilder _nextChunkBuilder = new LogChunkBuilder();
+		readonly LogChunkBuilder _nextChunkBuilder;
 		int _flushedLength;
 		int _flushedLineCount;
 
@@ -542,6 +549,7 @@ namespace EpicGames.Horde.Logs
 		public LogChunkSequenceBuilder(int chunkSize)
 		{
 			ChunkSize = chunkSize;
+			_nextChunkBuilder = new LogChunkBuilder(chunkSize);
 		}
 
 		/// <summary>

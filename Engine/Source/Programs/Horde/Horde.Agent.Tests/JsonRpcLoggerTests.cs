@@ -4,8 +4,18 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
+using EpicGames.Horde.Logs;
 using Horde.Agent.Parser;
+using Horde.Agent.Utility;
+using Horde.Common.Rpc;
+using HordeCommon;
+using HordeCommon.Rpc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -90,6 +100,98 @@ namespace Horde.Agent.Tests
 			string[] result = SplitMultiLineMessage(msg);
 			Assert.AreEqual(1, result.Length);
 			Assert.AreEqual(result[0], msg);
+		}
+
+		class FakeJsonRpcLoggerBackend : JsonRpcAndStorageLogSink
+		{
+			public NodeLocator Locator { get; private set; }
+
+			public FakeJsonRpcLoggerBackend(IRpcConnection connection, string logId, IJsonRpcLogSink inner, IStorageClient store, ILogger logger)
+				: base(connection, logId, inner, store, logger)
+			{
+			}
+
+			protected override Task UpdateLogAsync(NodeLocator locator, int lineCount, CancellationToken cancellationToken)
+			{
+				Locator = locator;
+				return Task.CompletedTask;
+			}
+
+			protected override async Task<int> UpdateLogTailAsync(int tailNext, ReadOnlyMemory<byte> tailData, CancellationToken cancellationToken)
+			{
+				await Task.Delay(TimeSpan.FromSeconds(2.0), cancellationToken);
+				return -1;
+			}
+		}
+
+		class FakeLogSink : IJsonRpcLogSink
+		{
+			public Task SetOutcomeAsync(JobStepOutcome outcome, CancellationToken cancellationToken) => Task.CompletedTask;
+
+			public Task WriteEventsAsync(List<CreateEventRequest> events, CancellationToken cancellationToken) => Task.CompletedTask;
+
+			public Task WriteOutputAsync(WriteOutputRequest request, CancellationToken cancellationToken) => Task.CompletedTask;
+		}
+
+		[TestMethod]
+		public async Task StorageLoggerTest()
+		{
+			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			MemoryStorageClient store = new MemoryStorageClient();
+
+			TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
+
+			FakeLogSink innerSink = new FakeLogSink();
+
+			const int Count = 20000;
+
+			LogNode file;
+			await using (FakeJsonRpcLoggerBackend sink = new FakeJsonRpcLoggerBackend(null!, "foo", innerSink, store, NullLogger.Instance))
+			{
+				await using (JsonRpcLogger logger = new JsonRpcLogger(sink, "foo", null, NullLogger.Instance))
+				{
+					for (int idx = 0; idx < Count; idx++)
+					{
+						logger.LogInformation("Testing {Number}", idx);
+					}
+				}
+				file = await reader.ReadNodeAsync<LogNode>(sink.Locator);
+			}
+
+			// Check the index text
+			List<Utf8String> extractedIndexText = new List<Utf8String>();
+
+			LogIndexNode index = await file.IndexRef.ExpandAsync(reader);
+			foreach (LogChunkRef block in index.PlainTextChunkRefs)
+			{
+				LogChunkNode text = await block.ExpandAsync(reader);
+				extractedIndexText.AddRange(text.Lines);
+			}
+
+			Assert.AreEqual(Count, extractedIndexText.Count);
+			for (int idx = 0; idx < Count; idx++)
+			{
+				Assert.AreEqual(extractedIndexText[idx], new Utf8String($"Testing {idx}"));
+			}
+
+			// Check the body text
+			List<string> extractedBodyText = new List<string>();
+
+			foreach (LogChunkRef blockRef in file.TextChunkRefs)
+			{
+				LogChunkNode blockText = await blockRef.ExpandAsync(reader);
+				foreach (Utf8String line in blockText.Lines)
+				{
+					LogEvent logEvent = LogEvent.Read(line.Span);
+					extractedBodyText.Add(logEvent.ToString());
+				}
+			}
+
+			Assert.AreEqual(Count, extractedBodyText.Count);
+			for (int idx = 0; idx < Count; idx++)
+			{
+				Assert.AreEqual(extractedBodyText[idx], $"Testing {idx}");
+			}
 		}
 	}
 }

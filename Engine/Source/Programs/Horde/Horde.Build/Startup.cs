@@ -976,6 +976,7 @@ namespace Horde.Build
 			{
 				endpoints.MapGrpcService<HealthService>();
 				endpoints.MapGrpcService<RpcService>();
+				endpoints.MapGrpcService<LogRpcService>();
 
 				endpoints.MapGrpcReflectionService();
 
