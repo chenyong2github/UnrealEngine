@@ -9,6 +9,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnrealBuildTool;
+using EpicGames.Core;
+using Log = Gauntlet.Log;
 
 namespace UE
 {
@@ -532,7 +534,7 @@ namespace UE
 			if (ChannelEntries.Count > LastAutomationEntryCount)
 			{
 				// log new entries so people have something to look at
-				ChannelEntries.Skip(LastAutomationEntryCount).ToList().ForEach(S => Log.Info("{0}", S));
+				ChannelEntries.Skip(LastAutomationEntryCount).ToList().ForEach(S => Log.Info(S));
 				LastAutomationEntryTime = DateTime.Now;
 				LastAutomationEntryCount = ChannelEntries.Count;
 			}
@@ -549,7 +551,7 @@ namespace UE
 				// Check for timeout
 				if (ElapsedTime > IdleTimeout)
 				{
-					Log.Error("No activity observed in last {0:0.00} minutes. Aborting test", IdleTimeout / 60);
+					Log.Warning(KnownLogEvents.Gauntlet_TestEvent, "No activity observed in last {Time:0.00} minutes. Aborting test", IdleTimeout / 60);
 					MarkTestComplete();
 					SetUnrealTestResult(TestResult.TimedOut);
 				}
@@ -577,7 +579,7 @@ namespace UE
 							}
 							catch (Exception Ex)
 							{
-								Log.Warning("Failed to load Json report. {0}", Ex);
+								Log.Warning(KnownLogEvents.Gauntlet_TestEvent, "Failed to load Json report. {Exception}", Ex);
 							}
 						}
 					}
@@ -630,7 +632,7 @@ namespace UE
 			if (JsonTestPassResults.InProcess > 0)
 			{
 				// The test pass did not run completely
-				Log.Verbose("Found in-process tests: {0}", JsonTestPassResults.InProcess);
+				Log.Verbose("Found in-process tests: {Count}", JsonTestPassResults.InProcess);
 				// Get any critical error and push it to json report and resave it.
 				if (RoleResults != null)
 				{
@@ -682,7 +684,7 @@ namespace UE
 			if (JsonTestPassResults.NotRun > 0)
 			{
 				// The test pass did not run at all
-				Log.Verbose("Found not-run tests: {0}", JsonTestPassResults.NotRun);
+				Log.Verbose("Found not-run tests: {Count}", JsonTestPassResults.NotRun);
 				if (GetConfiguration().ResumeOnCriticalFailure && !HasTimeout)
 				{
 					// Reschedule test to resume from last 'in-process' test.
@@ -709,7 +711,7 @@ namespace UE
 					}
 					else
 					{
-						Log.Error("Reach maximum of retries({0}) to resume on critical failure!", Retries);
+						Log.Warning(KnownLogEvents.Gauntlet_TestEvent, "Reach maximum of retries({Count}) to resume on critical failure!", Retries);
 						// Adding a note to the report about why the not-run are not going to be run
 						string Message = string.Format("Session reached maximum of retries({0}) to resume on critical failure!", Retries);
 						if (!string.IsNullOrEmpty(LastTestWithCriticalFailure))
@@ -825,7 +827,7 @@ namespace UE
 					}
 					else
 					{
-						Log.Warning("Publishing Telemetry is requested but '{0}' does not support telemetry input.", Report.GetType().FullName);
+						Log.Warning("Publishing Telemetry is requested but '{Config}' does not support telemetry input.", Report.GetType().FullName);
 					}
 				}
 			}
@@ -838,11 +840,11 @@ namespace UE
 		/// a link to the reports
 		/// </summary>
 		/// <returns></returns>
-		protected override string GetTestSummaryHeader()
+		protected override void LogTestSummaryHeader()
 		{
-			const int kMaxErrorsOrWarningsToDisplay = 5;
+			const int kMaxErrorsOrWarningsToDisplay = 10;
 
-			MarkdownBuilder MB = new MarkdownBuilder(base.GetTestSummaryHeader());
+			base.LogTestSummaryHeader();
 
 			// Everything we need is in the editor artifacts
 			var EditorRole = RoleResults.Where(R => R.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
@@ -857,13 +859,11 @@ namespace UE
 				IEnumerable<UnrealAutomatedTestResult> FailedTests = AllTests.Where(T => T.IsComplete && T.HasFailed);
 				IEnumerable<UnrealAutomatedTestResult> TestsWithWarnings = AllTests.Where(T => T.HasSucceeded && T.HasWarnings);
 
-				Func<string, string> ErrorLineForHorde = (L) => string.Format("Err: {0}", L);
-				Func<string, string> WarningLineForHorde = (L) => string.Format("Warn: {0}", L);
 				Func<IEnumerable<string>, IEnumerable<string>> CapErrorOrWarningList = (E) =>
 				{
 					if (E.Count() > kMaxErrorsOrWarningsToDisplay)
 					{
-						E = E.Skip(E.Count() - kMaxErrorsOrWarningsToDisplay);
+						E = E.Take(kMaxErrorsOrWarningsToDisplay);
 					}
 					return E;
 				};
@@ -872,27 +872,37 @@ namespace UE
 				{
 					if (AllTests.Count() == 0)
 					{
-						MB.H3("Error: No tests were executed.");
+						Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * No tests were executed.");
+						Log.Info("");
 					}
 					else if (IncompleteTests.Count() > 0)
 					{
 						var InProcess = IncompleteTests.Where(T => T.State == TestStateType.InProcess);
 						if (InProcess.Any())
 						{
-							MB.H3("The following test(s) were incomplete:");
+							Log.Info(" ### The following Engine test(s) were incomplete:");
 							foreach (UnrealAutomatedTestResult Result in InProcess)
 							{
-								MB.H4(string.Format("Error: Test '{0}' did not complete", Result.TestDisplayName));
-								MB.Paragraph("FullName: " + Result.FullTestPath);
-								MB.UnorderedList(CapErrorOrWarningList(Result.ErrorEvents.Select(E => ErrorLineForHorde(E.Message)).Distinct()));
-								MB.UnorderedList(CapErrorOrWarningList(Result.WarningEvents.Select(E => WarningLineForHorde(E.Message)).Distinct()));
+								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' did not complete.", Result.FullTestPath);
+								var Errors = CapErrorOrWarningList(Result.ErrorEvents.Select(E => E.Message).Distinct());
+								foreach (var Error in Errors)
+								{
+									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Error);
+								}
+								var Warnings = CapErrorOrWarningList(Result.WarningEvents.Select(E => E.Message).Distinct());
+								foreach (var Warning in Warnings)
+								{
+									Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Warning);
+								}
+								Log.Info("");
 							}
 						}
 						var NotRun = IncompleteTests.Where(T => T.State == TestStateType.NotRun);
 						if (NotRun.Any())
 						{
-							MB.H3("The following test(s) were not run:");
-							MB.UnorderedList(NotRun.Select(T => T.FullTestPath));
+							Log.Info(" ### The following Engine test(s) were not run:");
+							Log.Info(string.Join("\n", NotRun.Select(T => " * "+T.FullTestPath)));
+							Log.Info("");
 						}
 					}
 				}
@@ -900,18 +910,26 @@ namespace UE
 				{
 					if (AllTests.Count() == 0)
 					{
-						MB.H3("Error: No tests were executed.");
+						Log.Error(KnownLogEvents.Gauntlet_TestEvent, " * No tests were executed.");
 
-						IEnumerable<string> WarningsAndErrors = Events.Where(E => E.IsError || E.IsWarning).Select(E => E.IsError? ErrorLineForHorde(E.Message) : WarningLineForHorde(E.Message)).Distinct();
-
-						if (WarningsAndErrors.Any())
+						IEnumerable<string> Errors = Events.Where(E => E.IsError).Select(E => E.Message).Distinct();
+						IEnumerable<string> Warnings = Events.Where(E => E.IsWarning).Select(E => E.Message).Distinct();
+						if (Errors.Any() || Warnings.Any())
 						{
-							WarningsAndErrors = CapErrorOrWarningList(WarningsAndErrors);
-							MB.UnorderedList(WarningsAndErrors);
+							Log.Info("   See log above for details.");
+							foreach (var Error in CapErrorOrWarningList(Errors))
+							{
+								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Error);
+							}
+							foreach (var Warning in CapErrorOrWarningList(Warnings))
+							{
+								Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Warning);
+							}
+							Log.Info("");
 						}
 						else
 						{
-							MB.Paragraph("Unknown failure.");
+							Log.Info("   Unknown failure.\n");
 						}
 					}
 					else
@@ -919,53 +937,56 @@ namespace UE
 						// Now list the tests that failed
 						if (FailedTests.Count() > 0)
 						{
-							MB.H3("The following test(s) failed:");
+							Log.Info(" ### The following Engine test(s) failed:");
 
 							foreach (UnrealAutomatedTestResult Result in FailedTests)
 							{
+								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' failed.", Result.FullTestPath);
 								// only show the last N items
-								IEnumerable<string> Events = Result.ErrorEvents.Select(E => ErrorLineForHorde(E.Message)).Distinct();
-
+								IEnumerable<string> Events = Result.ErrorEvents.Select(E => E.Message).Distinct();
 								Events = CapErrorOrWarningList(Events);
-
-								MB.H4(string.Format("Error: Test '{0}' failed", Result.TestDisplayName));
-								MB.Paragraph("FullName: " + Result.FullTestPath);
-								MB.UnorderedList(Events);
+								foreach (var Event in Events)
+								{
+									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event);
+								}
+								Log.Info("");
 							}
 						}
 
 						if (TestsWithWarnings.Count() > 0)
 						{
-							MB.H3("The following test(s) completed with warnings:");
+							Log.Info(" ### The following Engine test(s) completed with warnings:");
 
 							foreach (UnrealAutomatedTestResult Result in TestsWithWarnings)
 							{
+								Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' completed with warnings.", Result.FullTestPath);
 								// only show the last N items
-								IEnumerable<string> WarningEvents = Result.WarningEvents.Select(E => WarningLineForHorde(E.Message)).Distinct();
-
+								IEnumerable<string> WarningEvents = Result.WarningEvents.Select(E => E.Message).Distinct();
 								WarningEvents = CapErrorOrWarningList(WarningEvents);
-
-								MB.H4(string.Format("Warning: Test '{0}' completed with warnings", Result.TestDisplayName));
-								MB.Paragraph("FullName: " + Result.FullTestPath);
-								MB.UnorderedList(WarningEvents);
+								foreach (var Event in WarningEvents)
+								{
+									Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event);
+								}
+								Log.Info("");
 							}
 						}
 
 						if (IncompleteTests.Count() > 0)
 						{
-							MB.H3("The following test(s) timed out or did not run:");
+							Log.Info(" ### The following Engine test(s) timed out or did not run:");
 
 							foreach (UnrealAutomatedTestResult Result in IncompleteTests)
 							{
+								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' did not run or complete.", Result.FullTestPath);
 								// only show the last N items
-								IEnumerable<string> ErrorAndWarningEvents = Result.WarningAndErrorEvents.Select(E => E.IsError? ErrorLineForHorde(E.Message) : WarningLineForHorde(E.Message)).Distinct();
-
+								IEnumerable<string> ErrorAndWarningEvents = Result.WarningAndErrorEvents.Select(E => E.IsError? E.Message : E.Message).Distinct();
 								ErrorAndWarningEvents = CapErrorOrWarningList(ErrorAndWarningEvents);
-
-								MB.H4(string.Format("Error: Test '{0}' did not run or complete", Result.TestDisplayName));
-								MB.Paragraph("FullName: " + Result.FullTestPath);
-								MB.UnorderedList(ErrorAndWarningEvents);
+								foreach (var Event in ErrorAndWarningEvents)
+								{
+									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event);
+								}
 							}
+							Log.Info("");
 						}
 
 						// show a brief summary at the end where it's most visible
@@ -974,31 +995,32 @@ namespace UE
 						int PassedTests = AllTests.Count() - (FailedTests.Count() + IncompleteTests.Count());
 						int TestsPassedWithoutWarnings = PassedTests - TestsWithWarnings.Count();
 
-						TestSummary.Add(string.Format("{0} Test(s) Requested", AllTests.Count()));
+						TestSummary.Add(string.Format(" * {0} Test(s) Requested", AllTests.Count()));
 
 						// Print out a summary of each category of result
 						if (TestsPassedWithoutWarnings > 0)
 						{
-							TestSummary.Add(string.Format("{0} Test(s) Passed", TestsPassedWithoutWarnings));
+							TestSummary.Add(string.Format(" * {0} Test(s) Passed", TestsPassedWithoutWarnings));
 						}
 
 						if (TestsWithWarnings.Count() > 0)
 						{
-							TestSummary.Add(string.Format("{0} Test(s) Passed with warnings", TestsWithWarnings.Count()));
+							TestSummary.Add(string.Format(" * {0} Test(s) Passed with warnings", TestsWithWarnings.Count()));
 						}
 
 						if (FailedTests.Count() > 0)
 						{
-							TestSummary.Add(string.Format("{0} Test(s) Failed", FailedTests.Count()));
+							TestSummary.Add(string.Format(" * {0} Test(s) Failed", FailedTests.Count()));
 						}
 
 						if (IncompleteTests.Count() > 0)
 						{
-							TestSummary.Add(string.Format("{0} Test(s) didn't complete", IncompleteTests.Count()));
+							TestSummary.Add(string.Format(" * {0} Test(s) didn't complete", IncompleteTests.Count()));
 						}
 
-						MB.H3("Summary");
-						MB.UnorderedList(TestSummary);
+						Log.Info(" ### Summary");
+						Log.Info(string.Join("\n", TestSummary));
+						Log.Info("");
 					}
 				}
 
@@ -1013,22 +1035,21 @@ namespace UE
 					}
 					if (!string.IsNullOrEmpty(AutomationReportPath) || !string.IsNullOrEmpty(AutomationReportURL))
 					{
-						MB.H3("Links");
+						Log.Info(" ### Links");
 
 						if (string.IsNullOrEmpty(AutomationReportURL) == false)
 						{
-							MB.Paragraph(string.Format("View results here: {0}", AutomationReportURL));
+							Log.Info("  View results here: {URL}", AutomationReportURL);
 						}
 
 						if (string.IsNullOrEmpty(AutomationReportPath) == false)
 						{
-							MB.Paragraph(string.Format("Open results in UnrealEd from {0}", AutomationReportPath));
+							Log.Info("  Open results in UnrealEd from {Path}", AutomationReportPath);
 						}
+						Log.Info("");
 					}
 				}
 			}
-
-			return MB.ToString();
 		}
 
 		/// <summary>

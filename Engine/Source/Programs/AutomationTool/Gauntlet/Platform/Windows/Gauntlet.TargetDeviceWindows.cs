@@ -8,6 +8,7 @@ using System.Threading;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
@@ -90,7 +91,7 @@ namespace Gauntlet
 					{
 						string Output = LogReader.ReadToEnd();
 
-						if (Output != null)
+						if (!string.IsNullOrEmpty(Output))
 						{
 							ProcessLogOutput += Output;
 						}
@@ -186,7 +187,7 @@ namespace Gauntlet
 				}
 				catch (Exception Ex)
 				{
-					Log.Warning("Failed to delete {0}. {1}", ArtifactPath, Ex.Message);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to delete {File}. {Exception}", ArtifactPath, Ex.Message);
 				}
 			}
 		}
@@ -336,7 +337,7 @@ namespace Gauntlet
 				catch (Exception Ex)
 				{
 					//throw new AutomationException("Unable to delete existing log file {0} {1}", ProcessLogFile, Ex.Message);
-					Log.Warning("Unable to delete existing log file {0}. {1}", ProcessLogFile, Ex.Message);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Unable to delete existing log file {File}. {Exception}", ProcessLogFile, Ex.Message);
 				}
 
 				Log.Verbose("\t{0}", CmdLine);
@@ -380,7 +381,7 @@ namespace Gauntlet
 					}
 					else
 					{
-						Log.Warning("File to copy {0} not found", FileToCopy);
+						Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "File to copy {File} not found", FileToCopy);
 					}
 				}
 			}

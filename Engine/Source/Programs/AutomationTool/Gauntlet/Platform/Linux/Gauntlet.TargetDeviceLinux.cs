@@ -8,6 +8,7 @@ using System.Threading;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
@@ -84,7 +85,7 @@ namespace Gauntlet
 				}
 				catch (Exception Ex)
 				{
-					Log.Warning("Failed to delete {0}. {1}", ArtifactPath, Ex.Message);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to delete {File}. {Exception}", ArtifactPath, Ex.Message);
 				}
 			}
 		}
@@ -279,7 +280,7 @@ namespace Gauntlet
 					}
 					else
 					{
-						Log.Warning("File to copy {0} not found", FileToCopy);
+						Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "File to copy {File} not found", FileToCopy);
 					}
 				}
 			}

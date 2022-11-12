@@ -8,6 +8,7 @@ using UnrealBuildTool;
 using System.Threading;
 using System.Text.RegularExpressions;
 using System.Linq;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
@@ -104,7 +105,7 @@ namespace Gauntlet
 				var SourceApkMatch = Regex.Match(BatContents, @" install\s+(.+\.apk)");
 				if ( SourceApkMatch.Groups.Count <= 0)
 				{
-					Log.Warning("Could not parse install command from {0}", Fi.FullName);
+					Log.Warning(KnownLogEvents.Gauntlet_BuildDropEvent, "Could not parse install command from {File}", Fi.FullName);
 					continue;
 				}
 				string SourceApkPath = Path.Combine(AbsPath,SourceApkMatch.Groups[1].ToString());
@@ -132,19 +133,19 @@ namespace Gauntlet
 	
 				if (string.IsNullOrEmpty(SourceApkPath))
 				{
-					Log.Warning("No APK found for build at {0}", Fi.FullName);
+					Log.Warning(KnownLogEvents.Gauntlet_BuildDropEvent, "No APK found for build at {File}", Fi.FullName);
 					continue;
 				}
 
 				if (!File.Exists(SourceApkPath))
 				{
-					Log.Warning("Resolved APK name but it doesn't exist {0}", SourceApkPath);
+					Log.Warning(KnownLogEvents.Gauntlet_BuildDropEvent, "Resolved APK name but it doesn't exist {File}", SourceApkPath);
 					continue;
 				}
 
 				if (string.IsNullOrEmpty(AndroidPackageName))
 				{
-					Log.Warning("No product name found for build at {0}", Fi.FullName);
+					Log.Warning(KnownLogEvents.Gauntlet_BuildDropEvent, "No product name found for build at {File}", Fi.FullName);
 					continue;
 				}
 

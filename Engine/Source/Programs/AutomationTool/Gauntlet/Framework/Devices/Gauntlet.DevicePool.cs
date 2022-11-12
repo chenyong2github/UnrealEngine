@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
@@ -344,7 +345,7 @@ namespace Gauntlet
 
 						if (Failures >= 0.33)
 						{
-							FailedProvisions.ForEach(D => Log.Warning("Device {0} could not be added", D));
+							FailedProvisions.ForEach(D => Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Device {Name} could not be added", D));
 						}
 					}
 
@@ -354,7 +355,7 @@ namespace Gauntlet
 					// warn if anything was left registered
 					ReservedDevices.ForEach(D =>
 					{
-						Log.Warning("Device {0} was not unregistered prior to DevicePool.Dispose!. Forcibly disposing.", D.Name);
+						Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Device {Name} was not unregistered prior to DevicePool.Dispose!. Forcibly disposing.", D.Name);
 						D.Dispose();
 					});
 
@@ -499,7 +500,7 @@ namespace Gauntlet
 		{
 			if (MaxDeviceErrorReports == 0)
 			{
-				Log.Warning("Maximum device errors reported to backend, {0} : {1} ignored", ServiceDeviceName, ErrorMessage);
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Maximum device errors reported to backend, {Name} : {Message} ignored", ServiceDeviceName, ErrorMessage);
 				return;
 			}
 
@@ -529,7 +530,7 @@ namespace Gauntlet
 				catch (Exception Ex)
 				{
 					// warn and use a different directory
-					Log.Warning("Failed to delete {0}. {1}", ClientTempDir, Ex.Message);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to delete {Folder}. {Message}", ClientTempDir, Ex.Message);
 					ClientTempDir = Path.Combine(PlatformCache, string.Format("{0}_{1}", InDeviceDefiniton.Name, CleanAttempts++));
 				}
 			}
@@ -639,7 +640,7 @@ namespace Gauntlet
                 if (!DeviceMap.ContainsKey(Entry.Key.Platform.Value))
 				{
 					// if an unsupported device, we can't reserve it
-					Log.Info("Unable to reserve service device of type: {0}", Entry.Key);
+					Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Unable to reserve service device of type: {Type}", Entry.Key);
 					return false;
 				}
 
@@ -648,7 +649,7 @@ namespace Gauntlet
 					// if specific device model, we can't currently reserve it from (legacy) service
 					if (DeviceURL.ToLower().Contains("deviceservice.epicgames.net"))
 					{
-						Log.Info("Unable to reserve service device of model: {0} on legacy service", Entry.Key.Model);
+						Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Unable to reserve service device of model: {Model} on legacy service", Entry.Key.Model);
 						return false;
 					}
 									
@@ -680,7 +681,7 @@ namespace Gauntlet
 				}
 				catch (Exception Ex)
 				{
-					Log.Info("Unable to make device registration: {0}", Ex);
+					Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Unable to make device registration: {Exception}", Ex);
 					return false;
 				}
 
@@ -727,7 +728,7 @@ namespace Gauntlet
 							DeviceReservation.Dispose();
 						}
 
-						Log.Info("Unable to make device registration: device registration failed for {0}:{1}", Def.Platform, Def.Name);
+						Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Unable to make device registration: device registration failed for {Platform}:{Name}", Def.Platform, Def.Name);
 						return false;
 					}
 					else
@@ -739,14 +740,14 @@ namespace Gauntlet
 					ServiceReservations[TargetDevice] = DeviceReservation;
 				}
 
-				Log.Info("Successfully reserved service devices");
-				Devices.ForEach(Device => Log.Verbose("    Device: {0}", Device));
+				Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Successfully reserved service devices");
+				Devices.ForEach(Device => Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, "    Device: {Name}", Device));
 
 				return true;
 			}
 
-			Log.Info("Unable to reserve service devices:");
-			Devices.ForEach(Device => Log.Info("    Device: {0}", Device));
+			Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Unable to reserve service devices:");
+			Devices.ForEach(Device => Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "    Device: {Name}", Device));
 			return false;
 		}
 
@@ -769,7 +770,7 @@ namespace Gauntlet
 				// Did they specify a file?
 				if (PossibleFileName && File.Exists(InputReference))
 				{
-					Gauntlet.Log.Info("Adding devices from {0}", InputReference);
+					Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Adding devices from {Reference}", InputReference);
 					List<DeviceDefinition> DeviceDefinitions = JsonSerializer.Deserialize<List < DeviceDefinition >>(
 						File.ReadAllText(InputReference),
 						new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
@@ -777,7 +778,7 @@ namespace Gauntlet
 
 					foreach (DeviceDefinition Def in DeviceDefinitions)
 					{
-						Gauntlet.Log.Info("Adding {0}", Def);
+						Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Adding {Name}", Def);
 
 						// use Legacy field if it exists
 						if (Def.Platform == null)
@@ -791,7 +792,7 @@ namespace Gauntlet
 							// check whether disabled
 							if (String.Compare(Def.Available, "disabled", true) == 0)
 							{
-								Gauntlet.Log.Info("Skipping {0} due to being disabled", Def.Name);
+								Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Skipping {Name} due to being disabled", Def.Name);
 								continue;
 							}
 
@@ -821,13 +822,13 @@ namespace Gauntlet
 
 									if (DateTime.Now < From || DateTime.Now > To)
 									{
-										Gauntlet.Log.Info("Skipping {0} due to availability constraint {1}", Def.Name, Def.Available);
+										Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Skipping {Name} due to availability constraint {Constraint}", Def.Name, Def.Available);
 										continue;
 									}
 								}
 								else
 								{
-									Gauntlet.Log.Warning("Failed to parse availability {0} for {1}", Def.Available, Def.Name);
+									Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to parse availability {Constraint} for {Name}", Def.Available, Def.Name);
 								}
 							}
 						}
@@ -887,7 +888,7 @@ namespace Gauntlet
 
 							} 
 
-							Log.Info("Added device {0}:{1} to pool", DevicePlatform, DeviceAddress);
+							Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Added device {Platform}:{Address} to pool", DevicePlatform, DeviceAddress);
 							DeviceDefinition Def = new DeviceDefinition();
 							Def.Address = DeviceAddress;
 							Def.Name = DeviceAddress;
@@ -972,12 +973,12 @@ namespace Gauntlet
 
 				if (NewDevice.IsAvailable == false)
 				{
-					Log.Info("Assigned device {0} reports unavailable. Requesting a forced disconnect", NewDevice);
+					Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Assigned device {Name} reports unavailable. Requesting a forced disconnect", NewDevice);
 					NewDevice.Disconnect(true);
 
 					if  (NewDevice.IsAvailable == false)
 					{
-						Log.Info("Assigned device {0} still  unavailable. Requesting a reboot", NewDevice);
+						Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Assigned device {Name} still  unavailable. Requesting a reboot", NewDevice);
 						NewDevice.Reboot();
 					}
 				}
@@ -992,7 +993,7 @@ namespace Gauntlet
 			}
 			catch (Exception Ex)
 			{
-				Log.Info("Failed to create device {0}. {1}", Def.ToString(), Ex.Message);
+				Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to create device {Name}. {Message}", Def.ToString(), Ex.Message);
 			}
 
 			return NewDevice;
@@ -1080,7 +1081,7 @@ namespace Gauntlet
 				TotalDeviceTypes[Constraint] = DevicePool.Instance.GetTotalDeviceCount(Constraint, Validate);
 
 
-				Log.Verbose("{0}: {1} devices required. Total:{2}, Available:{3}",
+				Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, "{Constraint}: {Platform} devices required. Total:{Total}, Available:{Available}",
 					Constraint, PlatformRequirement.Value,
 					TotalDeviceTypes[PlatformRequirement.Key], AvailableDeviceTypes[PlatformRequirement.Key]);
 			}
@@ -1100,7 +1101,7 @@ namespace Gauntlet
 
 				Devices.ToList().ForEach(Platform => DeviceCounts[Platform] = RequiredDevices[Platform]);
 
-				Log.Info("Requesting devices from service at {0}", DeviceURL);
+				Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Requesting devices from service at {URL}", DeviceURL);
 
 				// Acquire necessary devices from service
 				if (!ReserveDevicesFromService(DeviceURL, DeviceCounts))
@@ -1114,7 +1115,7 @@ namespace Gauntlet
 				if (TooFewTotalDevices.Count() > 0)
 				{
 					var MissingDeviceStrings = TooFewTotalDevices.Select(D => string.Format("Not enough devices of type {0} exist for test. ({1} required, {2} available)", D, RequiredDevices[D], AvailableDeviceTypes[D]));
-					Log.Error("{0}", string.Join("\n", MissingDeviceStrings));
+					Log.Error(KnownLogEvents.Gauntlet_DeviceEvent, string.Join("\n", MissingDeviceStrings));
 					throw new AutomationException("Not enough devices available");
 				}
 
@@ -1122,7 +1123,7 @@ namespace Gauntlet
 				if (TooFewCurrentDevices.Count() > 0)
 				{
 					var MissingDeviceStrings = TooFewCurrentDevices.Select(D => string.Format("Not enough devices of type {0} available for test. ({1} required, {2} available)", D, RequiredDevices[D], AvailableDeviceTypes[D]));
-					Log.Verbose("{0}", string.Join("\n", MissingDeviceStrings));
+					Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, string.Join("\n", MissingDeviceStrings));
 					return false;
 				}
 			}
@@ -1145,13 +1146,13 @@ namespace Gauntlet
 			{
 				List<ITargetDevice> Selection = new List<ITargetDevice>();
 				
-				Log.Verbose($"Enumerating devices for constraint {Constraint}");
+				Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, $"Enumerating devices for constraint {Constraint}");
 
-				Log.Verbose($"   Available devices:");
-				AvailableDevices.ForEach(D => Log.Verbose($"      {D.Platform}:{D.Name}"));
+				Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, $"   Available devices:");
+				AvailableDevices.ForEach(D => Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, $"      {D.Platform}:{D.Name}"));
 
-				Log.Verbose($"   Unprovisioned devices:");
-				UnprovisionedDevices.ForEach(D => Log.Verbose($"      {D}"));
+				Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, $"   Unprovisioned devices:");
+				UnprovisionedDevices.ForEach(D => Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, $"      {D}"));
 				
 				// randomize the order of all devices that are of this platform
 				var MatchingProvisionedDevices = AvailableDevices.Where(D => Constraint.Check(D)).ToList();
@@ -1169,7 +1170,7 @@ namespace Gauntlet
 
 					while (NextDevice != null && ContinuePredicate)
 					{
-						Log.Verbose("Checking {0} against predicate", NextDevice.Name);
+						Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, "Checking {Name} against predicate", NextDevice.Name);
 						MatchingProvisionedDevices.Remove(NextDevice);
 						ContinuePredicate = Predicate(NextDevice);
 
@@ -1185,7 +1186,7 @@ namespace Gauntlet
 
 						if (NextDeviceDef != null)
 						{
-							Log.Verbose("Provisioning device {0} for the pool", NextDeviceDef.Name);
+							Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, "Provisioning device {Name} for the pool", NextDeviceDef.Name);
 
 							// try to create a device. This can fail, but if so we'll just end up back here
 							// on the next iteration
@@ -1197,11 +1198,11 @@ namespace Gauntlet
 							if (NewDevice != null)
 							{
 								MatchingProvisionedDevices.Add(NewDevice);
-								Log.Verbose("Added device {0} to pool", NewDevice.Name);
+								Log.Verbose(KnownLogEvents.Gauntlet_DeviceEvent, "Added device {Name} to pool", NewDevice.Name);
 							}
 							else
 							{
-								Log.Info("Failed to provision {0}", NextDeviceDef.Name);
+								Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to provision {Name}", NextDeviceDef.Name);
 								// track this
 								if (FailedProvisions.Contains(NextDeviceDef) == false)
 								{
@@ -1211,7 +1212,7 @@ namespace Gauntlet
 						}
 						else
 						{
-							Log.Info("Pool ran out of devices of type {0}!", Constraint);
+							Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Pool ran out of devices of type {Constraint}!", Constraint);
 							OutOfDevices = true;
 						}
 					}

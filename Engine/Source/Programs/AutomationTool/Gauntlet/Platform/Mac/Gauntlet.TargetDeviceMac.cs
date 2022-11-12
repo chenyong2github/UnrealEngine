@@ -67,7 +67,7 @@ namespace Gauntlet
 				}
 				catch (Exception Ex)
 				{
-					Log.Warning("Failed to delete {0}. {1}", ArtifactPath, Ex.Message);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to delete {File}. {Exception}", ArtifactPath, Ex.Message);
 				}
 			}
 		}

@@ -10,6 +10,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using System.Text;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
 
 /*
 
@@ -69,7 +70,7 @@ namespace Gauntlet
 
 			if (DownloadCmd.ExitCode != 0)
 			{
-				Log.Warning("Failed to retrieve artifacts. {0}", DownloadCmd.Output);
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to retrieve artifacts. {Output}", DownloadCmd.Output);
 			}
 			
 		}
@@ -238,7 +239,7 @@ namespace Gauntlet
 				}
 				catch (Exception Ex)
 				{
-					Log.Warning("TargetDeviceIOS.Dispose() threw: {0}", Ex.Message);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "TargetDeviceIOS.Dispose() threw: {Exception}", Ex.Message);
 				}
 				finally
 				{
@@ -295,7 +296,7 @@ namespace Gauntlet
 			// Give ios-deploy a chance to throw out any errors...
 			if (Result.HasExited)
 			{
-				Log.Warning("ios-deploy exited early: " + Result.Output);
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "ios-deploy exited early: " + Result.Output);
 				throw new DeviceException("Failed to launch on {0}. {1}", Name, Result.Output);
 			}
 
@@ -325,7 +326,7 @@ namespace Gauntlet
 
 				if (Result.ExitCode != 0)
 				{
-					Log.Warning("Failed to clean artifacts from device");
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to clean artifacts from device");
 					return false;
 				}
 
@@ -449,7 +450,7 @@ namespace Gauntlet
 			}
 			else
 			{
-				Log.Warning("No symbols found for local build at {0}, removing cached app symbols", LocalSymbolsDir);
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "No symbols found for local build at {Directory}, removing cached app symbols", LocalSymbolsDir);
 			}
 
 			// resign application
@@ -566,7 +567,7 @@ namespace Gauntlet
 						}
 						else
 						{
-							Log.Warning("File to copy {0} not found", FileToCopy);
+							Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "File to copy {File} not found", FileToCopy);
 						}
 					}
 				}
@@ -660,7 +661,7 @@ namespace Gauntlet
 
 			if (!rebooted) 
 			{
-				Log.Warning("Failed to reboot iOS device {0}, device didn't come back after restart", DeviceName);
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to reboot iOS device {Name}, device didn't come back after restart", DeviceName);
 			}
 
 			return true; 
@@ -1017,7 +1018,7 @@ namespace Gauntlet
 			} 
 			catch (Exception Ex)
 			{
-				Log.Warning("Exception parsing LLDB callstack {0}", Ex.Message);
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Exception parsing LLDB callstack {Exception}", Ex.Message);
 			}
 
 			return null;
@@ -1155,14 +1156,14 @@ namespace Gauntlet
 
 			if (Threads.Count(T => T.Current == true) > 1)
 			{
-				Log.Warning("LLDB debug parsed more than one current thread");
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "LLDB debug parsed more than one current thread");
 			}
 
 			Thread = Threads.FirstOrDefault(T => T.Current == true);
 
 			if (Threads.Count > 0 && Thread == null)
 			{
-				Log.Warning("Unable to parse full crash callstack");
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Unable to parse full crash callstack");
 			}
 
 

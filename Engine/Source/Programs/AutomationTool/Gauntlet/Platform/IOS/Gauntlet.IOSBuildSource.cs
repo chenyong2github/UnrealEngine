@@ -8,6 +8,7 @@ using UnrealBuildTool;
 using System.Threading;
 using System.Text.RegularExpressions;
 using System.Linq;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
@@ -79,7 +80,7 @@ namespace Gauntlet
 					{
 						if (!File.Exists(ShouldExist) && !Directory.Exists(ShouldExist))
 						{
-							Log.Error(String.Format("unzip encountered an error or warning procesing IPA, possibly due to Zip64 issue, {0} missing", ShouldExist));
+							Log.Error(KnownLogEvents.Gauntlet_BuildDropEvent, "unzip encountered an error or warning procesing IPA, possibly due to Zip64 issue, {File} missing", ShouldExist);
 							return false;
 						}
 					}

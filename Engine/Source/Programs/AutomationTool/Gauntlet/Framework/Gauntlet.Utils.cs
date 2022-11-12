@@ -14,6 +14,8 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Logging = Microsoft.Extensions.Logging;
 
 namespace Gauntlet
 {
@@ -204,6 +206,7 @@ namespace Gauntlet
 
 		static int SanitizationSuspendCount = 0;
 
+		static ILogger Logger = EpicGames.Core.Log.Logger;
 
 		public static void AddCallback(Action<string> CB)
 		{
@@ -264,7 +267,7 @@ namespace Gauntlet
 			{
 				if (CommandUtils.IsBuildMachine)
 				{
-					OutputMessage("<-- Suspend Log Parsing -->");
+					OutputMessage("<-- Suspend Log Parsing -->", KnownLogEvents.Gauntlet);
 				}
 			}
 		}
@@ -275,7 +278,7 @@ namespace Gauntlet
 			{
 				if (CommandUtils.IsBuildMachine)
 				{
-					OutputMessage("<-- Resume Log Parsing -->");
+					OutputMessage("<-- Resume Log Parsing -->", KnownLogEvents.Gauntlet);
 				}
 			}
 		}
@@ -312,15 +315,16 @@ namespace Gauntlet
 		}
 
 		/// <summary>
-		/// Outputs the message to the console with an optional prefix and sanitization. Sanitizing
-		/// allows errors and exceptions to be passed through to logs without triggering CIS warnings
-		/// about out log
+		/// Outputs the message to the console with an optional log level and sanitization.
+		/// Sanitizing allows errors and exceptions to be passed through to logs without triggering CIS warnings about out log
 		/// </summary>
 		/// <param name="Message"></param>
-		/// <param name="Prefix"></param>
+		/// <param name="EventId"></param>
+		/// <param name="Level"></param>
 		/// <param name="Sanitize"></param>
+		/// <param name="Args"></param>
 		/// <returns></returns>
-		static private void OutputMessage(string Message, string Prefix="", bool Sanitize=true)
+		static private void OutputMessage(string Message, Logging.EventId EventId, Logging.LogLevel Level = Logging.LogLevel.Information, bool Sanitize=true, params object[] Args)
 		{
 			// EC detects error statements in the log as a failure. Need to investigate best way of 
 			// reporting errors, but not errors we've handled from tools.
@@ -347,45 +351,58 @@ namespace Gauntlet
 				Message = "[" + ElapsedTime.ToString() + "] " + Message;
 			}
 
-			if (string.IsNullOrEmpty(Prefix) == false)
-			{
-				Message = Prefix + ": " + Message;
-			}
+			Logger.Log(Level, EventId, Message, Args);
 
-			// TODO - Remove all Gauntlet logging and switch to UBT log?
-			CommandUtils.LogInformation(Message);
-
-			try
+			if (LogFile != null || Callbacks != null)
 			{
-				if (LogFile != null)
+				try
 				{
-					LogFile.WriteLine(Message);
-				}
+					if (Args.Length > 0)
+					{
+						// Adjust Message and Arguments for string.Format
+						int Index = 0;
+						string SequenceMessage = Regex.Replace(Message, @"\{[^{}:]+(:[^{}]+)?\}", M => "{" + Index++.ToString() + M.Groups[1].Value + "}", RegexOptions.IgnoreCase);
+						if (Index > Args.Length)
+						{
+							Args = Args.Concat(Enumerable.Repeat("null", Index - Args.Length)).ToArray();
+						}
+						else if (Index < Args.Length)
+						{
+							Args = Args.Take(Index).ToArray();
+						}
+						Message = string.Format(SequenceMessage, Args);
+					}
 
-				if (Callbacks != null)
+					if (LogFile != null)
+					{
+						LogFile.WriteLine(Message);
+					}
+
+					if (Callbacks != null)
+					{
+						Callbacks.ForEach(A => A(Message));
+					}
+				}
+				catch (Exception Ex)
 				{
-					Callbacks.ForEach(A => A(Message));
+					Logger.LogWarning(KnownLogEvents.Gauntlet, "Exception logging '{Message}'. {Exception}", Message, Ex.ToString());
 				}
 			}
-			catch (Exception Ex)
-			{
-				CommandUtils.LogWarning("Exception logging '{0}'. {1}", Message, Ex.ToString());
-			}			
 		}	
 
 		static public void Verbose(string Format, params object[] Args)
 		{
 			if (IsVerbose)
 			{
-				Verbose(string.Format(Format, Args));
+				Verbose(KnownLogEvents.Gauntlet, Format, Args);
 			}
 		}
 
-		static public void Verbose(string Message)
+		static public void Verbose(Logging.EventId EventId, string Format, params object[] Args)
 		{
 			if (IsVerbose)
 			{
-				OutputMessage(Message);
+				OutputMessage(Format, EventId, Args: Args);
 			}
 		}
 
@@ -393,44 +410,44 @@ namespace Gauntlet
 		{
 			if (IsVeryVerbose)
 			{
-				VeryVerbose(string.Format(Format, Args));
+				VeryVerbose(KnownLogEvents.Gauntlet, Format, Args);
 			}
 		}
 
-		static public void VeryVerbose(string Message)
+		static public void VeryVerbose(Logging.EventId EventId, string Format, params object[] Args)
 		{
 			if (IsVeryVerbose)
 			{
-				OutputMessage(Message);
+				OutputMessage(Format, EventId, Args: Args);
 			}
 		}
 
 		static public void Info(string Format, params object[] Args)
 		{
-			Info(string.Format(Format, Args));
+			Info(KnownLogEvents.Gauntlet, Format, Args);
 		}
 
-		static public void Info(string Message)
+		static public void Info(Logging.EventId EventId, string Format, params object[] Args)
 		{
-			OutputMessage(Message);
+			OutputMessage(Format, EventId, Args: Args);
 		}
 
 		static public void Warning(string Format, params object[] Args)
 		{
-			Warning(string.Format(Format, Args));
+			Warning(KnownLogEvents.Gauntlet, Format, Args);
 		}
 
-		static public void Warning(string Message)
+		static public void Warning(Logging.EventId EventId, string Format, params object[] Args)
 		{
-			OutputMessage(Message, "Warning");
+			OutputMessage(Format, EventId, Logging.LogLevel.Warning, Args: Args);
 		}
 		static public void Error(string Format, params object[] Args)
 		{
-			Error(string.Format(Format, Args));
+			Error(KnownLogEvents.Gauntlet, Format, Args);
 		}
-		static public void Error(string Message)
-		{		
-			OutputMessage(Message, "Error", false);
+		static public void Error(Logging.EventId EventId, string Format, params object[] Args)
+		{
+			OutputMessage(Format, EventId, Logging.LogLevel.Error, false, Args);
 		}
 	}
 

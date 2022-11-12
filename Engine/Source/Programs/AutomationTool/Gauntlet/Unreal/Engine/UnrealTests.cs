@@ -7,6 +7,7 @@ using System.Linq;
 using AutomationTool;
 using UnrealBuildTool;
 using UnrealBuildBase;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
@@ -163,7 +164,7 @@ namespace Gauntlet
 					// Check for timeout
 					if (ElapsedTime > IdleTimeout)
 					{
-						Log.Error("No activity observed in last {0:0.00} minutes. Aborting test", IdleTimeout / 60);
+						Log.Error(KnownLogEvents.Gauntlet_TestEvent, "No activity observed in last {0:0.00} minutes. Aborting test", IdleTimeout / 60);
 						MarkTestComplete();
 						SetUnrealTestResult(TestResult.TimedOut);
 					}
@@ -247,9 +248,9 @@ namespace Gauntlet
 			/// Override the summary report so we can insert a link to our report and the failed tests
 			/// </summary>
 			/// <returns></returns>
-			protected override string GetTestSummaryHeader()
+			protected override void LogTestSummaryHeader()
 			{
-				MarkdownBuilder MB = new MarkdownBuilder(base.GetTestSummaryHeader());
+				base.LogTestSummaryHeader();
 
 				var EditorRole = RoleResults.Where(R => R.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
 
@@ -263,32 +264,38 @@ namespace Gauntlet
 
 					if (AllTests.Count() == 0)
 					{
-						MB.Paragraph("No tests were executed!");
+						Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * No tests were executed!");
 					}
 					else
 					{
 						int PassedTests = AllTests.Count() - (FailedTests.Count() + IncompleteTests.Count());
-						MB.Paragraph(string.Format("{0} of {1} tests passed", PassedTests, AllTests.Count()));
+						Log.Info(" * {0} of {1} tests passed", PassedTests, AllTests.Count());
 
 						if (FailedTests.Count() > 0)
 						{
-							MB.H3("The following tests failed:");
+							Log.Info(" ### The following tests failed:");
 
 							foreach (UnrealAutomatedTestResult Result in FailedTests)
 							{
-								MB.H4(string.Format("{0}: {1}", Result.TestDisplayName, Result.FullTestPath));
-								MB.UnorderedList(Result.ErrorEvents.Select(E => string.Format("Error: {0}",E.Message)));
+								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * {0} failed", Result.FullTestPath);
+								foreach (var Event in Result.ErrorEvents)
+								{
+									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    "+Event.Message);
+								}
 							}
 						}
 
 						if (IncompleteTests.Count() > 0)
 						{
-							MB.H3("The following tests timed out:");
+							Log.Info(" ### The following tests timed out:");
 
 							foreach (UnrealAutomatedTestResult Result in IncompleteTests)
 							{
-								MB.H4(string.Format("{0}: {1}", Result.TestDisplayName, Result.FullTestPath));
-								MB.UnorderedList(Result.ErrorEvents.Select(E => string.Format("Error: {0}", E.Message)));
+								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * {0} timed out", Result.FullTestPath);
+								foreach (var Event in Result.ErrorEvents)
+								{
+									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event.Message);
+								}
 							}
 						}
 
@@ -297,24 +304,22 @@ namespace Gauntlet
 
 						if (!string.IsNullOrEmpty(ReportLink) || !string.IsNullOrEmpty(ReportPath))
 						{
-							MB.H3("Links");
+							Log.Info(" ### Links");
 
 							if (string.IsNullOrEmpty(ReportLink) == false)
 							{
-								MB.Paragraph(string.Format("View results here: {0}", ReportLink));
+								Log.Info("  View results here: {URL}", ReportLink);
 							}
 
 							if (string.IsNullOrEmpty(ReportPath) == false)
 							{
-								MB.Paragraph(string.Format("Open results in UnrealEd from {0}", ReportPath));
+								Log.Info("  Open results in UnrealEd from {Path}", ReportPath);
 							}
 						}
 
 
 					}
 				}
-
-				return MB.ToString();
 			}
 		}
 

@@ -146,14 +146,24 @@ namespace EpicGames.Core
 		public static EventId Gauntlet { get; } = new EventId(600);
 
 		/// <summary>
-		/// Error message from Gauntlet engine tests
+		/// Error message from Gauntlet test events
 		/// </summary>
-		public static EventId Gauntlet_UnitTest { get; } = new EventId(601);
+		public static EventId Gauntlet_TestEvent { get; } = new EventId(601);
 
 		/// <summary>
-		/// Error message from Gauntlet screenshot tests
+		/// Error message from Gauntlet device events
 		/// </summary>
-		public static EventId Gauntlet_ScreenshotTest { get; } = new EventId(602);
+		public static EventId Gauntlet_DeviceEvent { get; } = new EventId(602);
+
+		/// <summary>
+		/// Error message from Gauntlet Unreal Engine test events
+		/// </summary>
+		public static EventId Gauntlet_UnrealEngineTestEvent { get; } = new EventId(603);
+
+		/// <summary>
+		/// Error message from Gauntlet build drop events
+		/// </summary>
+		public static EventId Gauntlet_BuildDropEvent { get; } = new EventId(604);
 
 		/// <summary>
 		/// A systemic event, relating to the health of the farm

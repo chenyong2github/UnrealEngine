@@ -161,7 +161,7 @@ namespace Gauntlet
 
 			if (Install.AndroidDevice != null && Install.AndroidDevice.Disposed)
 			{
-				Log.Warning("Attempting to cache log using disposed Android device");
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Attempting to cache log using disposed Android device");
 				return;
 			}
 
@@ -229,7 +229,7 @@ namespace Gauntlet
 				}
 				catch
 				{
-					Log.Warning("Failed to remove old cache folder {0}", Install.AndroidDevice.LocalCachePath);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to remove old cache folder {Folder}", Install.AndroidDevice.LocalCachePath);
 				}
 			}
 
@@ -240,7 +240,7 @@ namespace Gauntlet
 			}
 			catch (Exception Ex)
 			{
-				Log.Warning("Exception marking directory for cleanup {0}", Ex.Message);
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Exception marking directory for cleanup {Exception}", Ex.Message);
 			}			
 
 			string LocalSaved = Path.Combine(Install.AndroidDevice.LocalCachePath, "Saved");
@@ -257,7 +257,7 @@ namespace Gauntlet
 
 			if (PullCmd.ExitCode != 0)
 			{
-				Log.Warning("Failed to retrieve artifacts. {0}", PullCmd.Output);
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to retrieve artifacts. {Output}", PullCmd.Output);
 			}
 			else
 			{
@@ -416,7 +416,7 @@ namespace Gauntlet
 
 				if (AllDevices[DeviceName] == false)
 				{
-					Log.Warning("Device {0} is connected but we are not authorized", DeviceName);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Device {Name} is connected but we are not authorized", DeviceName);
 					return false;
 				}
 
@@ -568,7 +568,7 @@ namespace Gauntlet
 				}
 				catch (Exception Ex)
 				{
-					Log.Warning("TargetDeviceAndroid.Dispose() threw: {0}", Ex.Message);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "TargetDeviceAndroid.Dispose() threw: {Exception}", Ex.Message);
 				}
 				finally
 				{
@@ -840,7 +840,7 @@ namespace Gauntlet
 
 				if (AdbResult.ExitCode != 0)
 				{
-					Log.Warning("Failed to write dependency file {0}", DepFile);
+					Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to write dependency file {File}", DepFile);
 				}
 			}
 
@@ -963,7 +963,7 @@ namespace Gauntlet
 
                     else
                     {
-                        Log.Warning("File to copy {0} not found", FileToCopy);
+                        Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "File to copy {File} not found", FileToCopy);
                     }
                 }
             }

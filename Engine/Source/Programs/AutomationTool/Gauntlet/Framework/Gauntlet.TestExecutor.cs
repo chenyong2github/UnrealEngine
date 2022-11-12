@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Text.RegularExpressions;
 using System.Drawing;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
@@ -120,7 +121,7 @@ namespace Gauntlet
 		{
 			Options = InOptions;
 
-			Log.Info("Preparing to start {0} automation test(s)", RequiredTests.Count());
+			Log.Info("Preparing to start {Number} automation test(s)", RequiredTests.Count());
 
 			// install a cancel handler so we can stop parallel-for gracefully
 			Action CancelHandler = delegate ()
@@ -173,7 +174,7 @@ namespace Gauntlet
 
 				DateTime StartPassTime = DateTime.Now;
 
-				Log.Info("Starting test iteration {0} of {1}", CurrentTestPass + 1, Options.TestIterations);
+				Log.Info("Starting test iteration {Index} of {Total}", CurrentTestPass + 1, Options.TestIterations);
 
 				// Tests that we want to run
 				List<TestExecutionInfo> PendingTests = RequiredTests.Select(N => new TestExecutionInfo(N)).ToList();
@@ -230,7 +231,7 @@ namespace Gauntlet
 							}
 							catch (System.Exception ex)
 							{
-								Log.Error("Test {0} threw an exception during ready check. Ex: {1}", Node, ex);
+								Log.Error(KnownLogEvents.Gauntlet_TestEvent, "Test {Name} threw an exception during ready check. Ex: {Exception}", Node, ex);
 								Node.AddTestEvent(new UnrealTestEvent(EventSeverity.Error, "Test Failed to Start", new List<string> {ex.Message}));
 								PendingTests[i] = null;
 								NodeInfo.TimeSetupBegan = NodeInfo.TimeSetupEnded = NodeInfo.TimeTestEnded = DateTime.Now;
@@ -265,7 +266,7 @@ namespace Gauntlet
 									double TimeWaiting = (DateTime.Now - NodeInfo.FirstReadyCheckTime).TotalSeconds;
 									if (TimeWaiting >= Options.Wait)
 									{
-										Log.Warning("Test {0} has been waiting to run resource-free for {1:00} seconds. Removing from wait list", Node, TimeWaiting);
+										Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Test {Name} has been waiting to run resource-free for {Time:00} seconds. Removing from wait list", Node, TimeWaiting);
 										Node.AddTestEvent(new UnrealTestEvent(EventSeverity.Error, "Insufficient devices found", new List<string> {string.Format("Test {0} was unable to find enough devices after trying for {1:00} seconds.", Node, TimeWaiting), "This is not a test-related failure."}));
 										PendingTests[i] = null;
 										NodeInfo.TimeSetupBegan = NodeInfo.TimeSetupEnded = NodeInfo.TimeTestEnded = DateTime.Now;
@@ -281,7 +282,7 @@ namespace Gauntlet
 
 						if (TestToStart != null)
 						{
-							Log.Info("Test {0} is ready to run", TestToStart);
+							Log.Info("Test {Name} is ready to run", TestToStart);
 
 							PendingTests.Remove(TestToStart);
 							StartingTests.Add(TestToStart);
@@ -301,7 +302,7 @@ namespace Gauntlet
 									{
 										TestToStart.TimeSetupEnded = TestToStart.TimeTestEnded = DateTime.Now;
 										CompletedTests.Add(TestToStart);
-										Log.Error("Test {0} failed to start", TestToStart);
+										Log.Error(KnownLogEvents.Gauntlet_TestEvent, "Test {Name} failed to start", TestToStart);
 									}
 									else
 									{
@@ -341,7 +342,7 @@ namespace Gauntlet
 
 							if ((SecondsRunning % 60) == 0)
 							{
-								Log.Verbose("Test {0} is still running. {1:00} seconds elapsed, will timeout in {2:00} seconds",
+								Log.Verbose("Test {Name} is still running. {Elapsed:00} seconds elapsed, will timeout in {Max:00} seconds",
 									TestInfo,
 									RunningTime.TotalSeconds,
 									TestInfo.TestNode.MaxDuration - RunningTime.TotalSeconds);
@@ -363,7 +364,7 @@ namespace Gauntlet
 					if ((DateTime.Now - LastStatusUpdateTime).TotalSeconds >= StatusUpdatePeriod)
 					{
 						LastStatusUpdateTime = DateTime.Now;
-						Log.Info("Status: Completed:{0}, Running:{1}, Starting: {2}, Waiting:{3}",
+						Log.Info("Status: Completed:{Completed}, Running:{Running}, Starting: {Starting}, Waiting:{Waiting}",
 							CompletedTests.Count(), RunningTests.Count(), StartingTests.Count(), PendingTests.Count());
 					}
 
@@ -390,7 +391,7 @@ namespace Gauntlet
 
 						if (Elapsed >= 5)
 						{
-							Log.Error("Giving up waiting for tests after {0:00} seconds", Elapsed);
+							Log.Error(KnownLogEvents.Gauntlet_TestEvent, "Giving up waiting for tests after {Elapsed:00} seconds", Elapsed);
 							break;
 						}
 					}
@@ -410,20 +411,20 @@ namespace Gauntlet
 
 					foreach (TestExecutionInfo TestInfo in StartingTests)
 					{
-						Log.Info("Forcing pending test {0} to run CleanupTest", TestInfo.TestNode.Name);
+						Log.Info("Forcing pending test {Name} to run CleanupTest", TestInfo.TestNode.Name);
 						TestInfo.TestNode.CleanupTest();
 						CompletedTests.Add(TestInfo);
 					}
 
 					foreach (TestExecutionInfo TestInfo in RunningTests)
 					{
-						Log.Info("Ticking test {0} to cancel", TestInfo.TestNode.Name);
+						Log.Info("Ticking test {Name} to cancel", TestInfo.TestNode.Name);
 						TestResult Res = TickTest(TestInfo);
 						CompletedTests.Add(TestInfo);
 
 						if (Res != TestResult.Failed)
 						{
-							Log.Warning("Ticking of cancelled test {0} returnd {1}", TestInfo.TestNode.Name, Res);
+							Log.Warning(KnownLogEvents.Gauntlet_TestEvent, "Ticking of cancelled test {Name} returned {Result}", TestInfo.TestNode.Name, Res);
 						}
 					}
 				}
@@ -475,14 +476,14 @@ namespace Gauntlet
 						Log.Info(Msg);
 
 						// log test timing to info
-						Log.Info(string.Format("Test Time: {0:mm\\:ss} (Waited:{1:mm\\:ss}, Setup:{2:mm\\:ss})", TestDuration, TimeWaiting, SetupTime));
+						Log.Info("Test Time: {Duration:mm\\:ss} (Waited:{Waited:mm\\:ss}, Setup:{Setup:mm\\:ss})", TestDuration, TimeWaiting, SetupTime);
 
 					});
 
 					if (Options.Parallel > 1)
 					{
-						Log.Info("MaxParallelTasks: {0}", MaxParallelTasks);
-						Log.Info("MaxStartingTasks: {0}", MaxStartingTasks);
+						Log.Info("MaxParallelTasks: {Count}", MaxParallelTasks);
+						Log.Info("MaxStartingTasks: {Count}", MaxStartingTasks);
 					}
 
 					// report all tests
@@ -531,7 +532,7 @@ namespace Gauntlet
 
 				MB.HorizontalLine();
 
-				Log.Info("{0}", MB.ToString());
+				Log.Info(MB.ToString());
 			}			
 
 			IsRunning = false;
@@ -552,7 +553,7 @@ namespace Gauntlet
 		{
 			string Name = TestInfo.TestNode.Name;
 
-			Log.Info("Starting Test {0}", TestInfo);
+			Log.Info("Starting Test {Name}", TestInfo);
 
 			try
 			{
@@ -560,13 +561,13 @@ namespace Gauntlet
 				if (TestInfo.TestNode.StartTest(Pass, NumPasses))
 				{
 					TestInfo.TimeSetupEnded = DateTime.Now;
-					Log.Info("Launched test {0} at {1}", Name, TestInfo.TimeSetupEnded.ToString("h:mm:ss"));
+					Log.Info("Launched test {Name} at {Time}", Name, TestInfo.TimeSetupEnded.ToString("h:mm:ss"));
 					return true;
 				}
 			}
 			catch (Exception Ex)
 			{
-				Log.Error("Test {0} threw an exception during launch. Skipping test. Ex: {1}\n{2}", Name, Ex.Message, Ex.StackTrace);
+				Log.Error(KnownLogEvents.Gauntlet_TestEvent, "Test {Name} threw an exception during launch. Skipping test. Ex: {Exception}\n{Callstack}", Name, Ex.Message, Ex.StackTrace);
 			}			
 
 			return false;			
@@ -579,41 +580,54 @@ namespace Gauntlet
 		/// <returns></returns>
 		void ReportTestSummary(TestExecutionInfo TestInfo)
 		{
-			string Summary = TestInfo.TestNode.GetTestSummary();
-
 			Log.SuspendSanitization();
 
+			string Summary = TestInfo.TestNode.GetTestSummary();
+
 			// Show summary
-			Summary.Split('\n').ToList().ForEach(L => Log.Info("  " + L));
+			Summary.Split('\n').ToList().ForEach(L => {
+				if (L.Contains("Error: "))
+				{
+					Log.Error(KnownLogEvents.Gauntlet_TestEvent, " " + L);
+				}
+				else if (L.Contains("Warning: "))
+				{
+					Log.Warning(KnownLogEvents.Gauntlet_TestEvent, " " + L);
+				}
+				else
+				{
+					Log.Info(" " + L);
+				}
+			});
 
 			Log.ResumeSanitization();
 
 			// list warnings/errors if the test wants that
 			if (TestInfo.TestNode.LogWarningsAndErrorsAfterSummary)
 			{
-				TestInfo.TestNode.GetErrors().ToList().ForEach(E => Log.Error("{0}", E));
+				TestInfo.TestNode.GetErrors().ToList().ForEach(E => Log.Error(KnownLogEvents.Gauntlet_TestEvent, E));
 
-				TestInfo.TestNode.GetWarnings().ToList().ForEach(E => Log.Warning("{0}", E));
+				TestInfo.TestNode.GetWarnings().ToList().ForEach(E => Log.Warning(KnownLogEvents.Gauntlet_TestEvent, E));
 			}
 
 			// display the final result
 			if (TestInfo.FinalResult != TestResult.Passed)
 			{
-				Log.Info("{0} result={1}", TestInfo, TestInfo.FinalResult);
+				Log.Info("{TestInfo} result={Result}", TestInfo, TestInfo.FinalResult);
 				if (string.IsNullOrEmpty(TestInfo.CancellationReason) == false)
 				{
-					Log.Info("\tReason: {0}", TestInfo.CancellationReason);
+					Log.Info("\tReason: {Reason}", TestInfo.CancellationReason);
 				}				
 			}
 			else
 			{
 				if (TestInfo.TestNode.GetWarnings().Any())
 				{
-					Log.Info("{0} result={1} with warnings", TestInfo, TestInfo.FinalResult);
+					Log.Info("{TestInfo} result={Result} with warnings", TestInfo, TestInfo.FinalResult);
 				}
 				else
 				{
-					Log.Info("{0} result={1}", TestInfo, TestInfo.FinalResult);
+					Log.Info("{TestInfo} result={Result}", TestInfo, TestInfo.FinalResult);
 				}
 			}
 
@@ -673,7 +687,7 @@ namespace Gauntlet
 			// only show pass info for multiple passes
 			if (NumPasses > 1)
 			{
-				Log.Info("Completed test pass {0} of {1}.", CurrentPass, NumPasses);
+				Log.Info("Completed test pass {Index} of {Total}.", CurrentPass, NumPasses);
 			}
 
 			// only show count of passed/failed etc for multiple test
@@ -722,13 +736,13 @@ namespace Gauntlet
 				{
 					TestInfo.CancellationReason = string.Format("Terminating Test {0} due to maximum duration of {1} seconds. ", TestInfo.TestNode, TestInfo.TestNode.MaxDuration);
 					TestInfo.FinalResult = TestResult.TimedOut;
-					Log.Error("{0}", TestInfo.CancellationReason);
+					Log.Error(KnownLogEvents.Gauntlet_TestEvent, TestInfo.CancellationReason);
 				}
 				else if (TestInfo.TestNode.MaxDurationReachedResult == EMaxDurationReachedResult.Success)
 				{
 					TestInfo.FinalResult = TestResult.Passed;
 					TestIsRunning = false;
-					Log.Info(string.Format("Test {0} successfully reached maximum duration of {1} seconds. ", TestInfo.TestNode, TestInfo.TestNode.MaxDuration));
+					Log.Info("Test {Name} successfully reached maximum duration of {Time} seconds. ", TestInfo.TestNode, TestInfo.TestNode.MaxDuration);
 				}
 			}
 
@@ -736,7 +750,7 @@ namespace Gauntlet
 			{
 				TestInfo.CancellationReason = string.Format("Cancelling Test {0} on request", TestInfo.TestNode);
 				TestInfo.FinalResult = TestResult.Cancelled;
-				Log.Info("{0}", TestInfo.CancellationReason);
+				Log.Info(TestInfo.CancellationReason);
 			}
 
 			if (!string.IsNullOrEmpty(TestInfo.CancellationReason))
@@ -754,7 +768,7 @@ namespace Gauntlet
 					// artifcat links
 					Log.Info("*");
 					Log.Info("****************************************************************");
-					Log.Info("Finished Test: {0} in {1:mm\\:ss}", TestInfo, DateTime.Now - TestInfo.TimeSetupEnded);
+					Log.Info("Finished Test: {Name} in {Time:mm\\:ss}", TestInfo, DateTime.Now - TestInfo.TimeSetupEnded);
 
 					// Tell the test it's done. If it still thinks its running it was cancelled
 					TestInfo.TestNode.StopTest(TestIsRunning ? StopReason.MaxDuration : StopReason.Completed);
@@ -766,7 +780,7 @@ namespace Gauntlet
 					bool bCanFinalizeTest = true;
 					if (TestInfo.FinalResult == TestResult.WantRetry)
 					{
-						Log.Info("{0} requested retry. Cleaning up old test and relaunching", TestInfo);
+						Log.Info("{Name} requested retry. Cleaning up old test and relaunching", TestInfo);
 
 						DateTime OriginalStartTime = TestInfo.TimeSetupEnded;
 
@@ -781,14 +795,14 @@ namespace Gauntlet
 						else
 						{
 							TestInfo.CancellationReason = "Failed to restart during retry.";
-							Log.Error(TestInfo.CancellationReason);
+							Log.Error(KnownLogEvents.Gauntlet_TestEvent, TestInfo.CancellationReason);
 							TestInfo.FinalResult = TestResult.Failed;
 						}
 					}
 
 					if (bCanFinalizeTest)
 					{
-						Log.Info("{0} result={1}", TestInfo, TestInfo.FinalResult);
+						Log.Info("{Name} result={Result}", TestInfo, TestInfo.FinalResult);
 
 						if (!Options.DeferReports)
 						{
@@ -802,7 +816,7 @@ namespace Gauntlet
 						}
 						catch (System.Exception ex)
 						{
-							Log.Error("Test {0} threw an exception while cleaning up. Ex: {1}", TestInfo.TestNode.Name, ex.Message);
+							Log.Error(KnownLogEvents.Gauntlet_TestEvent, "Test {Name} threw an exception while cleaning up. Ex: {Exception}", TestInfo.TestNode.Name, ex.Message);
 						}
 					}
 
@@ -813,12 +827,12 @@ namespace Gauntlet
 				{
 					if (TestIsRunning)
 					{
-						Log.Warning("Cancelled Test {0} threw an exception while stopping. Ex: {1}\n{2}", 
+						Log.Warning(KnownLogEvents.Gauntlet_TestEvent, "Cancelled Test {Name} threw an exception while stopping. Ex: {Eception}\n{Callstack}", 
 							TestInfo.TestNode.Name, ex.Message, ex.StackTrace);
 					}
 					else
 					{
-						Log.Error("Test {0} threw an exception while stopping. Ex: {1}\n{2}",
+						Log.Error(KnownLogEvents.Gauntlet_TestEvent, "Test {Name} threw an exception while stopping. Ex: {Exception}\n{Callstack}",
 							TestInfo.TestNode.Name, ex.Message, ex.StackTrace);
 					}
 
@@ -835,7 +849,7 @@ namespace Gauntlet
 		/// </summary>
 		bool WaitForTests()
 		{
-			Log.Info("Waiting for {0} tests to complete", RunningTests.Count);
+			Log.Info("Waiting for {Count} tests to complete", RunningTests.Count);
 
 			DateTime LastUpdateMsg = DateTime.Now;
 
@@ -859,7 +873,7 @@ namespace Gauntlet
 
 						if ((DateTime.Now - LastUpdateMsg).TotalSeconds > 60.0f)
 						{
-							Log.Verbose("Test {0} is still running. {1:00} seconds elapsed, will timeout in {2:00} seconds",
+							Log.Verbose("Test {Name} is still running. {Elapsed:00} seconds elapsed, will timeout in {Max:00} seconds",
 								Process.TestNode.Name,
 								RunningTime.TotalSeconds,
 								Process.TestNode.MaxDuration - RunningTime.TotalSeconds);
@@ -873,7 +887,7 @@ namespace Gauntlet
 						{
 							AllTestsPassed = false;
 						}
-						Log.Info("Test {0} Result: {1}", Process.TestNode.Name, Result);
+						Log.Info("Test {Name} Result: {Result}", Process.TestNode.Name, Result);
 					}
 				}
 
