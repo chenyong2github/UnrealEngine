@@ -41,6 +41,8 @@
 #include "types.hpp"
 #include "vertex_descriptor.hpp"
 // EPIC MOD - BEGIN - MetalRT Support
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 160000
 #include "acceleration_structure.hpp"
 #include "acceleration_structure_command_encoder.hpp"
+#endif
 // EPIC MOD - END - MetalRT Support
