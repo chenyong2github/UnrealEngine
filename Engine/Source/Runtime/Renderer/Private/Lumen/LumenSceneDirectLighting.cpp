@@ -1637,7 +1637,9 @@ void CullDirectLightingTiles(
 
 		auto ComputeShader = GlobalShaderMap->GetShader<FInitializeLightTileIndirectArgsCS>();
 
-		const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(GatheredLights.Num() * Views.Num(), FInitializeLightTileIndirectArgsCS::GetGroupSize());
+		const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(
+			FMath::Max(GatheredLights.Num() * Views.Num(), 1), // Dispatch at least one group in order to init global tile indirect arguments
+			FInitializeLightTileIndirectArgsCS::GetGroupSize());
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
