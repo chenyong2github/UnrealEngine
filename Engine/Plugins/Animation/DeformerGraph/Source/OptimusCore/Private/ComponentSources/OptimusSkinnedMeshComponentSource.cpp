@@ -14,6 +14,7 @@
 
 FName UOptimusSkinnedMeshComponentSource::Domains::Vertex("Vertex");
 FName UOptimusSkinnedMeshComponentSource::Domains::Triangle("Triangle");
+FName UOptimusSkinnedMeshComponentSource::Domains::DuplicateVertex("DuplicateVertex");
 
 
 FText UOptimusSkinnedMeshComponentSource::GetDisplayName() const

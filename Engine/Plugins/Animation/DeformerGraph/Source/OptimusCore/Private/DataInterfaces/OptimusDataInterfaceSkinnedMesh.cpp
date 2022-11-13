@@ -86,21 +86,6 @@ void UOptimusSkinnedMeshDataInterface::GetSupportedInputs(TArray<FShaderFunction
 		.SetName(TEXT("ReadColor"))
 		.AddReturnType(EShaderFundamentalType::Float, 4)
 		.AddParam(EShaderFundamentalType::Uint);
-
-	OutFunctions.AddDefaulted_GetRef()
-		.SetName(TEXT("ReadDuplicatedIndicesStart"))
-		.AddReturnType(EShaderFundamentalType::Uint)
-		.AddParam(EShaderFundamentalType::Uint);
-
-	OutFunctions.AddDefaulted_GetRef()
-		.SetName(TEXT("ReadDuplicatedIndicesLength"))
-		.AddReturnType(EShaderFundamentalType::Uint)
-		.AddParam(EShaderFundamentalType::Uint);
-
-	OutFunctions.AddDefaulted_GetRef()
-		.SetName(TEXT("ReadDuplicatedIndex"))
-		.AddReturnType(EShaderFundamentalType::Uint)
-		.AddParam(EShaderFundamentalType::Uint);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSkinnedMeshDataInterfaceParameters, )
@@ -114,8 +99,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSkinnedMeshDataInterfaceParameters, )
 	SHADER_PARAMETER_SRV(Buffer<SNORM float4>, TangentInputBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float2>, UVInputBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, ColorInputBuffer)
-	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicatedIndicesIndices)
-	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicatedIndices)
 END_SHADER_PARAMETER_STRUCT()
 
 void UOptimusSkinnedMeshDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
@@ -193,10 +176,6 @@ void FOptimusSkinnedMeshDataProviderProxy::GatherDispatchData(FDispatchSetup con
 		FRHIShaderResourceView* MeshUVBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
 		FRHIShaderResourceView* MeshColorBufferSRV = LodRenderData->StaticVertexBuffers.ColorVertexBuffer.GetColorComponentsSRV();
 
-		FRHIShaderResourceView* DuplicatedIndicesIndicesSRV = RenderSection.DuplicatedVerticesBuffer.LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV;
-		FRHIShaderResourceView* DuplicatedIndicesSRV = RenderSection.DuplicatedVerticesBuffer.DuplicatedVerticesIndexBuffer.VertexBufferSRV;
-		const bool bValidDuplicatedIndices = (DuplicatedIndicesIndicesSRV != nullptr) && (DuplicatedIndicesSRV != nullptr);
-
 		FSkinnedMeshDataInterfaceParameters* Parameters = (FSkinnedMeshDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		Parameters->NumVertices = RenderSection.NumVertices;
 		Parameters->NumTriangles = RenderSection.NumTriangles;
@@ -208,7 +187,5 @@ void FOptimusSkinnedMeshDataProviderProxy::GatherDispatchData(FDispatchSetup con
 		Parameters->TangentInputBuffer = MeshTangentBufferSRV != nullptr ? MeshTangentBufferSRV : NullSRVBinding;
 		Parameters->UVInputBuffer = MeshUVBufferSRV != nullptr ? MeshUVBufferSRV : NullSRVBinding;
 		Parameters->ColorInputBuffer = MeshColorBufferSRV != nullptr ? MeshColorBufferSRV : NullSRVBinding;
-		Parameters->DuplicatedIndicesIndices = DuplicatedIndicesIndicesSRV != nullptr ? DuplicatedIndicesIndicesSRV : NullSRVBinding;
-		Parameters->DuplicatedIndices = DuplicatedIndicesSRV != nullptr ? DuplicatedIndicesSRV : NullSRVBinding;
 	}
 }

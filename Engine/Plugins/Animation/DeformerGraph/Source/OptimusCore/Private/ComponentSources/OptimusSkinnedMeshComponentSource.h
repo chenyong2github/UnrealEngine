@@ -17,6 +17,7 @@ public:
 	{
 		static FName Vertex;
 		static FName Triangle;
+		static FName DuplicateVertex;
 	};
 	
 	// UOptimusComponentSource implementations

@@ -1,0 +1,172 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "OptimusDataInterfaceDuplicateVertices.h"
+
+#include "ComponentSources/OptimusSkinnedMeshComponentSource.h"
+#include "ComputeFramework/ComputeKernelPermutationVector.h"
+#include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "OptimusDataDomain.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "ShaderParameterMetadataBuilder.h"
+#include "SkeletalRenderPublic.h"
+
+
+FString UOptimusDuplicateVerticesDataInterface::GetDisplayName() const
+{
+	return TEXT("Duplicate Vertices");
+}
+
+TArray<FOptimusCDIPinDefinition> UOptimusDuplicateVerticesDataInterface::GetPinDefinitions() const
+{
+	FName Vertex(UOptimusSkinnedMeshComponentSource::Domains::Vertex);
+	FName Triangle(UOptimusSkinnedMeshComponentSource::Domains::Triangle);
+	FName DuplicateVertex(UOptimusSkinnedMeshComponentSource::Domains::DuplicateVertex);
+	
+	TArray<FOptimusCDIPinDefinition> Defs;
+	Defs.Add({"NumVertices", "ReadNumVertices"});
+	Defs.Add({"DuplicateVerticesStartAndLength", "ReadDuplicateVerticesStartAndLength", Vertex, "ReadDuplicateVerticesStartAndLength"});
+	Defs.Add({"DuplicateVertex", "ReadDuplicateVertex", DuplicateVertex, "ReadDuplicateVertex"});
+	return Defs;
+}
+
+
+TSubclassOf<UActorComponent> UOptimusDuplicateVerticesDataInterface::GetRequiredComponentClass() const
+{
+	return USkinnedMeshComponent::StaticClass();
+}
+
+
+void UOptimusDuplicateVerticesDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+{
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadNumVertices"))
+		.AddReturnType(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadNumDuplicateVertices"))
+		.AddReturnType(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadDuplicateVerticesStartAndLength"))
+		.AddReturnType(EShaderFundamentalType::Int, 2)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadDuplicateVertex"))
+		.AddReturnType(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Uint);
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FDuplicateVerticesDataInterfaceParameters, )
+	SHADER_PARAMETER(uint32, NumVertices)
+	SHADER_PARAMETER(uint32, NumDuplicateVertices)
+	SHADER_PARAMETER(uint32, InputStreamStart)
+	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicateVertexStartAndLength)
+	SHADER_PARAMETER_SRV(Buffer<uint>, DuplicateVertices)
+END_SHADER_PARAMETER_STRUCT()
+
+void UOptimusDuplicateVerticesDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
+{
+	InOutBuilder.AddNestedStruct<FDuplicateVerticesDataInterfaceParameters>(UID);
+}
+
+void UOptimusDuplicateVerticesDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
+{
+	OutPermutationVector.AddPermutation(TEXT("ENABLE_DUPLICATED_VERTICES"), 2);
+}
+
+void UOptimusDuplicateVerticesDataInterface::GetShaderHash(FString& InOutKey) const
+{
+	GetShaderFileHash(TEXT("/Plugin/Optimus/Private/DataInterfaceSkinnedMesh.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+}
+
+void UOptimusDuplicateVerticesDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
+{
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{ TEXT("DataInterfaceName"), InDataInterfaceName },
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(TEXT("/Plugin/Optimus/Private/DataInterfaceDuplicateVertices.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+}
+
+UComputeDataProvider* UOptimusDuplicateVerticesDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
+{
+	UOptimusDuplicateVerticesDataProvider* Provider = NewObject<UOptimusDuplicateVerticesDataProvider>();
+	Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InBinding);
+	return Provider;
+}
+
+
+bool UOptimusDuplicateVerticesDataProvider::IsValid() const
+{
+	return
+		SkinnedMesh != nullptr &&
+		SkinnedMesh->MeshObject != nullptr;
+}
+
+FComputeDataProviderRenderProxy* UOptimusDuplicateVerticesDataProvider::GetRenderProxy()
+{
+	return new FOptimusDuplicateVerticesDataProviderProxy(SkinnedMesh);
+}
+
+
+FOptimusDuplicateVerticesDataProviderProxy::FOptimusDuplicateVerticesDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent)
+{
+	SkeletalMeshObject = SkinnedMeshComponent->MeshObject;
+}
+
+struct FDuplicateVerticesDataInterfacePermutationIds
+{
+	uint32 EnableDuplicateVertices = 0;
+
+	FDuplicateVerticesDataInterfacePermutationIds(FComputeKernelPermutationVector const& PermutationVector)
+	{
+		{
+			static FString Name(TEXT("ENABLE_DUPLICATED_VERTICES"));
+			static uint32 Hash = GetTypeHash(Name);
+			EnableDuplicateVertices = PermutationVector.GetPermutationBits(Name, Hash, 1);
+		}
+	}
+};
+
+void FOptimusDuplicateVerticesDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+{
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FDuplicateVerticesDataInterfaceParameters)))
+	{
+		return;
+	}
+
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
+	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
+	if (!ensure(LodRenderData->RenderSections.Num() == InDispatchSetup.NumInvocations))
+	{
+		return;
+	}
+
+	FDuplicateVerticesDataInterfacePermutationIds PermutationIds(InDispatchSetup.PermutationVector);
+
+	FRHIShaderResourceView* NullSRVBinding = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI.GetReference();
+
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+	{
+		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
+
+		FRHIShaderResourceView* DuplicateVertexStartAndLengthSRV = RenderSection.DuplicatedVerticesBuffer.LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV;
+		FRHIShaderResourceView* DuplicateVerticesSRV = RenderSection.DuplicatedVerticesBuffer.DuplicatedVerticesIndexBuffer.VertexBufferSRV;
+		const bool bValidDuplicateIndices = (DuplicateVertexStartAndLengthSRV != nullptr) && (DuplicateVerticesSRV != nullptr);
+
+		FDuplicateVerticesDataInterfaceParameters* Parameters = (FDuplicateVerticesDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		Parameters->NumVertices = RenderSection.NumVertices;
+		Parameters->NumDuplicateVertices = bValidDuplicateIndices ? RenderSection.DuplicatedVerticesBuffer.DupVertData.Num() : 0;
+		Parameters->InputStreamStart = RenderSection.BaseVertexIndex;
+		Parameters->DuplicateVertexStartAndLength = bValidDuplicateIndices ? DuplicateVertexStartAndLengthSRV : NullSRVBinding;
+		Parameters->DuplicateVertices = bValidDuplicateIndices ? DuplicateVerticesSRV : NullSRVBinding;
+
+		InOutDispatchData.PermutationId[InvocationIndex] |= (bValidDuplicateIndices ? PermutationIds.EnableDuplicateVertices : 0);
+	}
+}
