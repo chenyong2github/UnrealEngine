@@ -89,6 +89,16 @@ bool UPCGMetadataAccessorHelpers::HasAttributeSetByMetadataKey(PCGMetadataEntryK
 	}
 }
 
+int32 UPCGMetadataAccessorHelpers::GetInteger32AttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<int32>(Key, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetInteger32AttributeByMetadataKey(int64& Key, UPCGMetadata* Metadata, FName AttributeName, int32 Value)
+{
+	SetAttribute(Key, Metadata, AttributeName, Value);
+}
+
 int64 UPCGMetadataAccessorHelpers::GetInteger64AttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<int64>(Key, Metadata, AttributeName);
@@ -189,6 +199,16 @@ void UPCGMetadataAccessorHelpers::SetStringAttributeByMetadataKey(int64& Key, UP
 	SetAttribute(Key, Metadata, AttributeName, Value);
 }
 
+bool UPCGMetadataAccessorHelpers::GetBoolAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<bool>(Key, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetBoolAttributeByMetadataKey(int64& Key, UPCGMetadata* Metadata, FName AttributeName, bool Value)
+{
+	SetAttribute(Key, Metadata, AttributeName, Value);
+}
+
 bool UPCGMetadataAccessorHelpers::SetAttributeFromPropertyByMetadataKey(int64& Key, UPCGMetadata* Metadata, FName AttributeName, const UObject* Object, FName PropertyName)
 {
 	if (!Object)
@@ -252,6 +272,16 @@ void UPCGMetadataAccessorHelpers::InitializeMetadata(FPCGPoint& Point, UPCGMetad
 void UPCGMetadataAccessorHelpers::InitializeMetadataWithParent(FPCGPoint& Point, UPCGMetadata* Metadata, const FPCGPoint& ParentPoint, const UPCGMetadata* ParentMetadata)
 {
 	Point.MetadataEntry = Metadata ? (Metadata->HasParent(ParentMetadata) ? Metadata->AddEntry(ParentPoint.MetadataEntry) : Metadata->AddEntry()) : PCGInvalidEntryKey;
+}
+
+int32 UPCGMetadataAccessorHelpers::GetInteger32Attribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<int32>(Point.MetadataEntry, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetInteger32Attribute(FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, int32 Value)
+{
+	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }
 
 int64 UPCGMetadataAccessorHelpers::GetInteger64Attribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
@@ -350,6 +380,16 @@ FString UPCGMetadataAccessorHelpers::GetStringAttribute(const FPCGPoint& Point, 
 }
 
 void UPCGMetadataAccessorHelpers::SetStringAttribute(FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, const FString& Value)
+{
+	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
+}
+
+bool UPCGMetadataAccessorHelpers::GetBoolAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<bool>(Point.MetadataEntry, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetBoolAttribute(FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, bool Value)
 {
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }

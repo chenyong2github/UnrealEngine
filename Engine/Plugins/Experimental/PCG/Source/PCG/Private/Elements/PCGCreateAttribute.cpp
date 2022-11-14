@@ -27,6 +27,10 @@ namespace PCGCreateAttributeElement
 		{
 		case EPCGMetadataTypes::Integer64:
 			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, IntValue, Params));
+		case EPCGMetadataTypes::Integer32:
+			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, Int32Value, Params));
+		case EPCGMetadataTypes::Float:
+			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, FloatValue, Params));
 		case EPCGMetadataTypes::Double:
 			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, DoubleValue, Params));
 		case EPCGMetadataTypes::Vector2:
@@ -83,6 +87,10 @@ FName UPCGCreateAttributeSettings::AdditionalTaskName() const
 
 		switch (Type)
 		{
+		case EPCGMetadataTypes::Integer32:
+			return FName(FString::Printf(TEXT("%s: %d"), *Name, Int32Value));
+		case EPCGMetadataTypes::Float:
+			return FName(FString::Printf(TEXT("%s: %.2f"), *Name, FloatValue));
 		case EPCGMetadataTypes::Integer64:
 			return FName(FString::Printf(TEXT("%s: %lld"), *Name, IntValue));
 		case EPCGMetadataTypes::Double:

@@ -80,6 +80,9 @@ public:
 
 	/** Create new streams */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void CreateInteger32Attribute(FName AttributeName, int32 DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void CreateInteger64Attribute(FName AttributeName, int64 DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
@@ -108,6 +111,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void CreateStringAttribute(FName AttributeName, FString DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void CreateBoolAttribute(FName AttributeName, bool DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);
 
 	/** Set an attribute given a property and its value.
 	* @param AttributeName: Target attribute to set the property's value to
