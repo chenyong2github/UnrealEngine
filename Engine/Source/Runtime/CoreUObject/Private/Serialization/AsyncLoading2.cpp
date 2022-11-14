@@ -72,10 +72,6 @@
 
 #include <atomic>
 
-#if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
-PRAGMA_DISABLE_OPTIMIZATION
-#endif
-
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 CSV_DEFINE_STAT(FileIO, FrameCompletedExportBundleLoadsKB);
 
@@ -7930,7 +7926,3 @@ IAsyncPackageLoader* MakeAsyncPackageLoader2(FIoDispatcher& InIoDispatcher, IAsy
 {
 	return new FAsyncLoadingThread2(InIoDispatcher, InUncookedPackageLoader);
 }
-
-#if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
-PRAGMA_ENABLE_OPTIMIZATION
-#endif
