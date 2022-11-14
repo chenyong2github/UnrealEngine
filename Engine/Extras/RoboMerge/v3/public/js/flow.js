@@ -80,7 +80,7 @@ class Graph {
     addNodesAndEdges(grouped) {
         for (const branchStatus of this.branchList) {
             const botTitle = grouped
-                                ? this.options.aliases.get(branchStatus.bot).length > 0
+                                ? this.options.aliases && this.options.aliases.get(branchStatus.bot).length > 0
                                     ? branchStatus.bot + ' (' + this.options.aliases.get(branchStatus.bot).join(", ") + ')'
                                     : branchStatus.bot
                                 : null;
