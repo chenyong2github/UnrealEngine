@@ -3062,7 +3062,7 @@ static FGeometryDynamicCollection::FSharedImplicit CreateImplicitGeometry(
 }
 
 static void ComputeGeometryVolumeAndCenterOfMass(
-	const TArray<FVector3f> Vertices,
+	const TArray<FVector3f>& Vertices,
 	const Chaos::FTriangleMesh& TriMesh,
 	const FBox& BoundingBox,
 	const FSharedSimulationParameters& SharedParams, 
