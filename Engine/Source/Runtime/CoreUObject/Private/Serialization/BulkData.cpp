@@ -1228,6 +1228,7 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 					check(IsInSeparateFile());
 					check(Package != nullptr);
 					BulkMeta.SetFlags(EBulkDataFlags(BulkMeta.GetFlags() | BULKDATA_UsesIoDispatcher));
+					BulkChunkId = CreateBulkDataIoChunkId(BulkMeta, Owner);
 				}
 			}
 			else
@@ -1237,6 +1238,11 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 					if (LinkerLoad = Owner->GetLinker(); LinkerLoad == nullptr)
 					{
 						LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(Package);
+					}
+
+					if (LinkerLoad != nullptr)
+					{
+						BulkChunkId = CreateBulkDataIoChunkId(BulkMeta, Owner);
 					}
 #if WITH_EDITOR
 					Linker = LinkerLoad;
@@ -1249,8 +1255,6 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 #endif // WITH_EDITOR
 				}
 			}
-
-			BulkChunkId = CreateBulkDataIoChunkId(BulkMeta, Owner);
 
 			if (IsInlined())
 			{

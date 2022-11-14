@@ -191,7 +191,7 @@ FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, UObject* Owner
 
 		const uint16 ChunkIndex = EnumHasAnyFlags(BulkMeta.GetMetaFlags(), FBulkMetaData::EMetaFlags::OptionalPackage) ? 1 : 0;
 		
-		return CreateIoChunkId(Pkg->GetPackageId().Value(), ChunkIndex, ChunkType);
+		return CreateIoChunkId(Pkg->GetPackageIdToLoad().Value(), ChunkIndex, ChunkType);
 	}
 	else
 	{
