@@ -110,6 +110,9 @@ private:
 	/** Adds a new stage actor of the specified class and moves it to the cached mouse position */
 	void AddStageActorHere(UClass* InClass);
 
+	/** If placing actors is allowed */
+	bool CanPlaceActorHere() const;
+
 	/** Toggles light card labels on or off */
 	void ToggleLabels();
 

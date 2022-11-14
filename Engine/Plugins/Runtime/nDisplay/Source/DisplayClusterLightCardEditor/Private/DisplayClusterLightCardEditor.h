@@ -117,7 +117,7 @@ public:
 	void AddLightCardsToActor(const TArray<ADisplayClusterLightCardActor*>& LightCards);
 
 	/** If a Light Card can currently be added */
-	bool CanAddLightCard() const;
+	bool CanAddNewActor() const;
 
 	/** Copies any selected actors to the clipboard, and then deletes them */
 	void CutSelectedActors();

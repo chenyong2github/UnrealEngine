@@ -734,13 +734,15 @@ void SDisplayClusterLightCardEditorViewport::MakePlaceActorsSubMenu(FMenuBuilder
 		FDisplayClusterLightCardEditorCommands::Get().AddNewFlag->GetLabel(),
 		FDisplayClusterLightCardEditorCommands::Get().AddNewFlag->GetDescription(),
 		FlagIcon,
-		FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddFlagHere)));
+		FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddFlagHere),
+			FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::CanPlaceActorHere)));
 
 	MenuBuilder.AddMenuEntry(
 		FDisplayClusterLightCardEditorCommands::Get().AddNewLightCard->GetLabel(),
 		FDisplayClusterLightCardEditorCommands::Get().AddNewLightCard->GetDescription(),
 		bIsUVMode ? UVLightCardIcon : LightCardIcon,
-		FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddLightCardHere)));
+		FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddLightCardHere),
+			FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::CanPlaceActorHere)));
 
 	TSet<UClass*> StageActorClasses = UE::DisplayClusterLightCardEditorUtils::GetAllStageActorClasses();
 	for (UClass* Class : StageActorClasses)
@@ -757,7 +759,8 @@ void SDisplayClusterLightCardEditorViewport::MakePlaceActorsSubMenu(FMenuBuilder
 			Label,
 			LOCTEXT("AddStageActorHeader", "Add a stage actor to the scene"), 
 			StageActorIcon,
-			FUIAction(FExecuteAction::CreateRaw(this, &SDisplayClusterLightCardEditorViewport::AddStageActorHere, Class)));
+			FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AddStageActorHere, Class),
+				FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::CanPlaceActorHere)));
 	}
 }
 
@@ -922,6 +925,11 @@ void SDisplayClusterLightCardEditorViewport::AddStageActorHere(UClass* InClass)
 			});
 		}
 	}
+}
+
+bool SDisplayClusterLightCardEditorViewport::CanPlaceActorHere() const
+{
+	return LightCardEditorPtr.IsValid() && LightCardEditorPtr.Pin()->CanAddNewActor();
 }
 
 void SDisplayClusterLightCardEditorViewport::ToggleLabels()
