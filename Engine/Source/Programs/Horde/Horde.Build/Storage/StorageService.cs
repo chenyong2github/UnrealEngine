@@ -680,7 +680,7 @@ namespace Horde.Build.Storage
 			HostId hostId = HostId.Empty;
 
 			ObjectId id = ObjectId.GenerateNewId(_clock.UtcNow);
-			BlobId blobId = (prefix.Length > 0) ? new BlobId($"{prefix}{id}", BlobId.Validate.None) : new BlobId(id.ToString());
+			BlobId blobId = (prefix.Length > 0) ? new BlobId($"{prefix}/{id}") : new BlobId(id.ToString());
 
 			BlobInfo blobInfo = new BlobInfo(id, namespaceId, hostId, blobId);
 			await _blobCollection.InsertOneAsync(blobInfo, new InsertOneOptions { }, cancellationToken);

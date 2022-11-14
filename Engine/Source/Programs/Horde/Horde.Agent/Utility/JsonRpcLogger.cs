@@ -110,7 +110,7 @@ namespace Horde.Agent.Parser
 			_logId = logId;
 			_builder = new LogBuilder(LogFormat.Json, logger);
 			_inner = inner;
-			_writer = new TreeWriter(store, prefix: logId);
+			_writer = new TreeWriter(store, prefix: $"logs/{logId}");
 			_logger = logger;
 
 			_tailCancellationSource = new CancellationTokenSource();
