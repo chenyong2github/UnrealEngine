@@ -45,9 +45,7 @@ namespace Impl
 
 			if (!WinPixGpuCapturerHandle)
 			{
-#if !WITH_EDITOR
 				if (FParse::Param(FCommandLine::Get(), TEXT("attachPIX")))
-#endif
 				{
 					WinPixGpuCapturerHandle = PIXLoadLatestWinPixGpuCapturerLibrary();
 				}
