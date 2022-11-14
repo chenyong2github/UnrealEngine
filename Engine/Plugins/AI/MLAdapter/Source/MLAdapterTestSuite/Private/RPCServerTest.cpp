@@ -7,9 +7,6 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_MLAdapterTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
-
 void FRPCTestBase::TearDown() 
 {
 	UMLAdapterManager::Get().GetOnAddClientFunctions().Remove(BindClientHandle);
@@ -140,8 +137,6 @@ struct FRPCTest_ServerBinds : public FRPCTest_BasicBinds
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FRPCTest_ServerBinds, "System.AI.MLAdapter.RPC.ServerBinds")
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
 

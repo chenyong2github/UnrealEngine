@@ -12,8 +12,6 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_MLAdapterTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 /**
  *	this fixture creates a game instance and can react to changes done to pawn.controller
  *	also, the session instance is created via the UMLAdapterManager so all other notifies should get through as well, most 
@@ -117,7 +115,5 @@ IMPLEMENT_INSTANT_TEST_WITH_FIXTURE(FMLAdapterTest_WithSession, "System.AI.MLAda
 	AITEST_NULL("After the controller unpossessing its pawn the agent should automatically update", Agent->GetPawn());
 	return true;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

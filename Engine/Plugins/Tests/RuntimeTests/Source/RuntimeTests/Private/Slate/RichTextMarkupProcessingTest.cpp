@@ -6,9 +6,6 @@
 
 #include "Framework/Text/RichTextMarkupProcessing.h"
 
-// Disable optimization for RickTextMarkupProcessingTest as it compiles very slowly in development builds
-PRAGMA_DISABLE_OPTIMIZATION
-
 #define LOCTEXT_NAMESPACE "Slate.RichText.MarkupProcessingTest"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRTFProcessingTest, "System.Slate.RichText.MarkupProcessing", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
@@ -380,5 +377,3 @@ bool FRTFProcessingTest::RunTest (const FString& Parameters)
 }
 
 #undef LOCTEXT_NAMESPACE 
-
-PRAGMA_ENABLE_OPTIMIZATION

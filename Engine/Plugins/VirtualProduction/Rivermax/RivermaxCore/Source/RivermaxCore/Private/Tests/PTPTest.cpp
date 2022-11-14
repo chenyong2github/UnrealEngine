@@ -12,7 +12,6 @@
 #include "Misc/AutomationTest.h"
 #include "RivermaxPTPUtils.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
 #if WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPTPTest, "Plugin.Rivermax.PTP", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
@@ -105,4 +104,3 @@ bool FPTPTest::RunTest(const FString& Parameters)
 
 
 #endif //WITH_DEV_AUTOMATION_TESTS
-PRAGMA_ENABLE_OPTIMIZATION

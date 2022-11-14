@@ -8,9 +8,6 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_MLAdapterTest"
 
-
-PRAGMA_DISABLE_OPTIMIZATION
-
 struct FMockAgentConfig_Actors : public FMLAdapterAgentConfig
 {
 	FMockAgentConfig_Actors()
@@ -143,7 +140,5 @@ IMPLEMENT_INSTANT_TEST_WITH_FIXTURE(FMLAdapterTest_AvatarSettingFixture, "System
 	
 	return true;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION 
 
 #undef LOCTEXT_NAMESPACE

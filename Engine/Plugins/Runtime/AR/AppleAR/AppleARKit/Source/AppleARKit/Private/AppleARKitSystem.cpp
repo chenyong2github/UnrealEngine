@@ -1572,8 +1572,6 @@ void FAppleARKitSystem::OnSpawnARActor(AARActor* NewARActor, UARComponent* NewAR
 	}
 }
 
-
-PRAGMA_DISABLE_OPTIMIZATION
 bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 {
 	TimecodeProvider = UAppleARKitSettings::GetTimecodeProvider();
@@ -1752,7 +1750,6 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 	}
 	return true;
 }
-PRAGMA_ENABLE_OPTIMIZATION
 
 bool FAppleARKitSystem::IsRunning() const
 {

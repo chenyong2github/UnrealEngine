@@ -20,8 +20,6 @@
 #include "Misc/AutomationTest.h"
 #include "UObject/StrongObjectPtr.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 #define PROP_NAME(Class, Name) GET_MEMBER_NAME_CHECKED(Class, Name)
 #define GET_TEST_PROP(PropName) URemoteControlLogicTestData::StaticClass()->FindPropertyByName(PROP_NAME(URemoteControlLogicTestData, PropName))
  
@@ -166,7 +164,4 @@ bool FRemoteControlLogicTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("After empty controllers could should be equal 0"), Preset->GetNumControllers(), 0);
  
 	return true;
-}
- 
-PRAGMA_ENABLE_OPTIMIZATION
- 
+} 

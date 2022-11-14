@@ -5,8 +5,6 @@
 #include "RHITestsCommon.h"
 #include "Async/ParallelFor.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 class FRHIBufferTests
 {
 	// Copies data in the specified vertex buffer back to the CPU, and passes a pointer to that data to the provided verification lambda.
@@ -442,5 +440,3 @@ public:
 		});
 	}
 };
-
-PRAGMA_ENABLE_OPTIMIZATION

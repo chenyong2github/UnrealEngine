@@ -4,8 +4,6 @@
 
 #include "SimModule/TorqueSimModule.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace Chaos
 {
 	struct FAllInputs;
@@ -77,5 +75,3 @@ namespace Chaos
 	};
 
 } // namespace Chaos
-
-PRAGMA_ENABLE_OPTIMIZATION

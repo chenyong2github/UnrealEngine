@@ -11,8 +11,6 @@
 
 class UVCamModifier;
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 // Links a Modifier with a Name for use in a Modifier Stack
 USTRUCT()
 struct FModifierStackEntry
@@ -82,5 +80,3 @@ struct FModifierStackEntry
 		return !(*this == Other);
 	}
 };
-
-PRAGMA_ENABLE_OPTIMIZATION

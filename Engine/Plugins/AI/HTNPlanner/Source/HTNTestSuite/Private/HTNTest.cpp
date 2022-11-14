@@ -11,8 +11,6 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_HTNTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 // missing tests:
 //  testing invalid conditions
 //	testing specific scenarios with known plans 
@@ -630,7 +628,5 @@ IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNOperatorsOfGeneratedPlan, "System.AI.HTN.Op
 // Component tests
 //----------------------------------------------------------------------//
 typedef FAITest_SimpleComponentBasedTest<UMockHTNComponent> FAITest_HTNComponentTest;
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

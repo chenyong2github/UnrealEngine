@@ -1,9 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-
-PRAGMA_DISABLE_OPTIMIZATION
-
 #include "CompactingObjectPool.h"
 
 struct Base
@@ -82,4 +79,3 @@ void RunCompactingObjectPoolTests()
 	ensure(!MyDynamicHandleToIntPart.PointsToValidObject());
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
