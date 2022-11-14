@@ -1613,7 +1613,7 @@ namespace UnrealBuildTool
 		public bool bPGOOptimize = false;
 
 		/// <summary>
-		/// Whether to support edit and continue.  Only works on Microsoft compilers.
+		/// Whether to support edit and continue.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bSupportEditAndContinue = false;

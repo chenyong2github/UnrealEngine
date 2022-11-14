@@ -95,19 +95,14 @@ namespace UnrealBuildTool
 		GenerateSymbols = 1 << 13,
 
 		/// <summary>
-		/// Enables live code editing
-		/// </summary>
-		EnableLiveCodeEditing = 1 << 14,
-
-		/// <summary>
 		/// Enables dead code/data stripping and common code folding.
 		/// </summary>
-		EnableDeadStripping = 1 << 15,
+		EnableDeadStripping = 1 << 14,
 
 		/// <summary>
 		/// Indicates that the target is a moduler build i.e. Target.LinkType == TargetLinkType.Modular
 		/// </summary>
-		ModularBuild = 1 << 16,
+		ModularBuild = 1 << 15,
 	}
 
 	abstract class ClangToolChain : ISPCToolChain
