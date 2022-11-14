@@ -488,7 +488,7 @@ bool FPlacementModeModule::RegisterPlacementCategory(const FPlacementCategoryInf
 
 void FPlacementModeModule::UnregisterPlacementCategory(FName Handle)
 {
-	if (Categories.Remove(Handle))
+	if (Categories.Remove(Handle) && !IsEngineExitRequested())
 	{
 		PlacementModeCategoryListChanged.Broadcast();
 	}
