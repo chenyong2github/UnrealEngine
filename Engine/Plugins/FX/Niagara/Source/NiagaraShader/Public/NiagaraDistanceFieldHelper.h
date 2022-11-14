@@ -3,8 +3,11 @@
 #pragma once
 
 #include "GlobalDistanceFieldParameters.h"
-#include "Renderer/Private/DistanceFieldLightingShared.h"
 #include "RenderGraphBuilder.h"
+
+class FDistanceFieldSceneData;
+class FDistanceFieldObjectBufferParameters;
+class FDistanceFieldAtlasParameters;
 
 namespace FNiagaraDistanceFieldHelper
 {

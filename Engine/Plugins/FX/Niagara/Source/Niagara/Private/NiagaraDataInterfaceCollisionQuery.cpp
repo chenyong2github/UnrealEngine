@@ -2,6 +2,7 @@
 
 #include "NiagaraDataInterfaceCollisionQuery.h"
 
+#include "DistanceFieldLightingShared.h"
 #include "GlobalDistanceFieldParameters.h"
 #include "NiagaraAsyncGpuTraceHelper.h"
 #include "NiagaraDistanceFieldHelper.h"

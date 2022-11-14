@@ -5,8 +5,8 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
-#include "Niagara/Private/NiagaraStats.h"
 #include "NiagaraDataInterfaceGrid3DCollection.h"
+#include "NiagaraStats.h"
 
 #include "NiagaraDataInterfaceGrid3DCollectionReader.generated.h"
 

@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "ClearQuad.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterfaceRW.h"
 #include "NiagaraRenderGraphUtils.h"
-#include "ClearQuad.h"
-#include "Niagara/Private/NiagaraStats.h"
+#include "NiagaraStats.h"
 
 #include "NiagaraDataInterfaceNeighborGrid3D.generated.h"
 

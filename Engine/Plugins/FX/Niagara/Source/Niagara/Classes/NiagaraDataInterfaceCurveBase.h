@@ -6,8 +6,8 @@
 #include "VectorVM.h"
 #include "StaticMeshResources.h"
 #include "Curves/RichCurve.h"
-#include "Niagara/Private/NiagaraStats.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraStats.h"
 #include "NiagaraDataInterfaceCurveBase.generated.h"
 
 /** Base class for curve data proxy data. */

@@ -7,8 +7,8 @@
 #include "NiagaraDataInterfaceArray.h"
 #include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
-#include "Niagara/Private/NiagaraGpuReadbackManager.h"
-#include "Niagara/Private/NiagaraStats.h"
+#include "NiagaraGpuReadbackManager.h"
+#include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Async/Async.h"

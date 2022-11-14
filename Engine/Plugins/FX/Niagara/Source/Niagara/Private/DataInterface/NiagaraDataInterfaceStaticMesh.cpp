@@ -21,6 +21,7 @@
 #include "Subsystems/ImportSubsystem.h"
 #endif
 
+#include "DistanceFieldLightingShared.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/StaticMeshSocket.h"
 #include "NiagaraDataInterfaceStaticMeshUvMapping.h"

@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NiagaraDataInterface.h"
-#include "NiagaraCommon.h"
-#include "VectorVM.h"
-#include "NiagaraParameterStore.h"
 #include "Components/SplineComponent.h"
-#include "Niagara/Private/NiagaraStats.h"
+#include "NiagaraCommon.h"
+#include "NiagaraDataInterface.h"
+#include "NiagaraParameterStore.h"
+#include "NiagaraStats.h"
+#include "VectorVM.h"
 #include "NiagaraDataInterfaceSpline.generated.h"
 
 class UNiagaraDataInterfaceSpline;
