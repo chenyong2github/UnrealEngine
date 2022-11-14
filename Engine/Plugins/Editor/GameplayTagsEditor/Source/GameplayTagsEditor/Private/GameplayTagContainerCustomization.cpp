@@ -446,9 +446,14 @@ bool FGameplayTagContainerCustomization::CanPaste()
 {
 	FString TagName;
 	FPlatformApplicationMisc::ClipboardPaste(TagName);
-	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-
-	return Tag.IsValid();
+	
+	if (FName::IsValidXName(TagName))
+	{
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+		return Tag.IsValid();
+	}
+	
+    return false;
 }
 
 #undef LOCTEXT_NAMESPACE
