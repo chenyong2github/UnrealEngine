@@ -870,8 +870,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 {
 	LLM_SCOPE_BYTAG(NetDriver);
 
-	TGuardValue<bool> GuardInNetTick(bInTick, true);
-
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NetworkOutgoing);
 	SCOPE_CYCLE_COUNTER(STAT_NetTickFlush);
 	bool bEnableTimer = (NetDriverName == NAME_GameNetDriver) && ShouldEnableScopeSecondsTimers();
@@ -1541,9 +1539,9 @@ void UNetDriver::RegisterTickEvents(class UWorld* InWorld)
 {
 	if (InWorld)
 	{
-		TickDispatchDelegateHandle  = InWorld->OnTickDispatch ().AddUObject(this, &UNetDriver::TickDispatch);
+		TickDispatchDelegateHandle  = InWorld->OnTickDispatch ().AddUObject(this, &UNetDriver::InternalTickDispatch);
 		PostTickDispatchDelegateHandle	= InWorld->OnPostTickDispatch().AddUObject(this, &UNetDriver::PostTickDispatch);
-		TickFlushDelegateHandle     = InWorld->OnTickFlush    ().AddUObject(this, &UNetDriver::TickFlush);
+		TickFlushDelegateHandle     = InWorld->OnTickFlush    ().AddUObject(this, &UNetDriver::InternalTickFlush);
 		PostTickFlushDelegateHandle		= InWorld->OnPostTickFlush	 ().AddUObject(this, &UNetDriver::PostTickFlush);
 	}
 }
@@ -1557,6 +1555,18 @@ void UNetDriver::UnregisterTickEvents(class UWorld* InWorld)
 		InWorld->OnTickFlush    ().Remove(TickFlushDelegateHandle);
 		InWorld->OnPostTickFlush   ().Remove(PostTickFlushDelegateHandle);
 	}
+}
+
+void UNetDriver::InternalTickDispatch(float DeltaSeconds)
+{
+	TGuardValue<bool> GuardInNetTick(bInTick, true);
+	TickDispatch(DeltaSeconds);
+}
+
+void UNetDriver::InternalTickFlush(float DeltaSeconds)
+{
+	TGuardValue<bool> GuardInNetTick(bInTick, true);
+	TickFlush(DeltaSeconds);
 }
 
 static bool bCVarLogPendingGuidsOnShutdown = false;
@@ -1762,8 +1772,6 @@ struct FRPCCSVTracker
 
 void UNetDriver::TickDispatch( float DeltaTime )
 {
-	TGuardValue<bool> GuardInNetTick(bInTick, true);
-
 	SendCycles=0;
 
 	const double CurrentRealtime = FPlatformTime::Seconds();
