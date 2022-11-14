@@ -440,14 +440,15 @@ void FPluginManager::RefreshPluginsList()
 	for (FDiscoveredPluginMap::TIterator Iter(AllPlugins); Iter; ++Iter)
 	{
 		const TSharedRef<FPlugin>& Plugin = DiscoveredPluginMapUtils::ResolvePluginFromMapVal(Iter.Value());
-		if(Plugin->bEnabled)
+
+		if (!Plugin->bEnabled || (Plugin->GetDescriptor().bExplicitlyLoaded && !Plugin->bIsMounted))
 		{
-			// Forget all the other discovered versions (which we assume aren't enabled)
-			DiscoveredPluginMapUtils::DiscardAllSupressedVersions(Iter.Value());
+			Iter.RemoveCurrent();
 		}
 		else
 		{
-			Iter.RemoveCurrent();
+			// Forget all the other discovered versions (which we assume aren't enabled/mounted)
+			DiscoveredPluginMapUtils::DiscardAllSupressedVersions(Iter.Value());
 		}
 	}
 
