@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
+#include "Misc/CString.h"
 
 namespace UE::String
 {

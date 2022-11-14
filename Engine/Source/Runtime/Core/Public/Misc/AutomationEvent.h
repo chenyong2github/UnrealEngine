@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 
 enum class EAutomationEventType : uint8

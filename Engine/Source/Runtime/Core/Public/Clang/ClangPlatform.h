@@ -6,6 +6,8 @@
 
 #pragma once
 
+// HEADER_UNIT_UNSUPPORTED - Clang not supporting header units
+
 #if !defined(__cpp_if_constexpr)
 	#error "Compiler is expected to support if constexpr"
 #endif

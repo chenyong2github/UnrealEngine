@@ -4,6 +4,7 @@
 
 #include "Algo/Accumulate.h"
 #include "Algo/Impl/RangePointerType.h"
+#include "Math/RandomStream.h"
 #include "Templates/UnrealTemplate.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 

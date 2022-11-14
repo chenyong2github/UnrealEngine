@@ -183,7 +183,7 @@ public:
 		Ar.Logf( TEXT( "Unfreed memory:" ) );
 		for( FMemDebug* Ptr = GFirstDebug; Ptr; Ptr = Ptr->Next )
 		{
-			Count += Ptr->Size;
+			Count += (int32)Ptr->Size;
 			Chunks++;
 		}
 

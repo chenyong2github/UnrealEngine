@@ -2,8 +2,11 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - This needs TOptional to compile properly. Don't know why it is not included?
+
 #include "CoreTypes.h"
 #include "Misc/OptionalFwd.h"
+#include "Templates/EnableIf.h"
 #include "Templates/PointerIsConvertibleFromTo.h"
 
 // So we can construct TNonNullPtrs

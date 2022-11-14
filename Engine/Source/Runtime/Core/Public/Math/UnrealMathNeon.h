@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
 
 #include <type_traits>

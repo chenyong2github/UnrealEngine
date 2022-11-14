@@ -731,7 +731,7 @@ namespace UE::Tasks
 			TTypeCompatibleBytes<TaskBodyType> TaskBodyStorage;
 		};
 
-		static constexpr int32 SmallTaskSize = 256;
+		inline constexpr int32 SmallTaskSize = 256;
 		using FExecutableTaskAllocator = TLockFreeFixedSizeAllocator_TLSCache<SmallTaskSize, PLATFORM_CACHE_LINE_SIZE>;
 		CORE_API extern FExecutableTaskAllocator SmallTaskAllocator;
 

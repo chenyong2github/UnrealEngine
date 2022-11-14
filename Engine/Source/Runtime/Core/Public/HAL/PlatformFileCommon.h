@@ -42,6 +42,8 @@ public:
 	{
 	}
 
+	virtual ~FFileHandleRegistry() = default;
+
 	FRegisteredFileHandle* InitialOpenFile(const TCHAR* Filename)
 	{
 		if (HandlesCurrentlyInUse.Increment() > MaxOpenHandles)

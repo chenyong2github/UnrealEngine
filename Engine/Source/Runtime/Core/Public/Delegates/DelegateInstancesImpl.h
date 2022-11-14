@@ -8,6 +8,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "CoreTypes.h"
 #include "Delegates/DelegateInstanceInterface.h"
 #include "Misc/AssertionMacros.h"

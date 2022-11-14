@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Included through UnrealString.h
+
 #include "Containers/ContainersFwd.h"
 
 /** An argument supplied to FString::Format */

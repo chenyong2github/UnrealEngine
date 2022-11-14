@@ -8,6 +8,8 @@
 #include "Math/Float32.h"
 #include "Serialization/MemoryLayout.h"
 
+template <typename T> struct TCanBulkSerialize;
+
 /**
 * 16 bit float components and conversion
 *

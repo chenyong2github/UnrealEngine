@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Internationalization/Text.h"
 #include "Misc/Guid.h"
 #include "Internationalization/Text.h"
 #include "UObject/UObjectHierarchyFwd.h"

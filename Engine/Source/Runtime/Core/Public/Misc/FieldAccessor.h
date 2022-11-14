@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/Function.h"
 
 /**
  * Helper to provide backward compatibility when converting a raw pointer into accessors.

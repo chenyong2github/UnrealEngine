@@ -35,7 +35,7 @@ namespace AlgoImpl
 		}
 	}
 
-	constexpr int32 MinMergeSubgroupSize = 2;
+	inline constexpr int32 MinMergeSubgroupSize = 2;
 
 	/**
 	 * Sort elements using user defined projection and predicate classes.  The sort is stable, meaning that the ordering of equal items is preserved.

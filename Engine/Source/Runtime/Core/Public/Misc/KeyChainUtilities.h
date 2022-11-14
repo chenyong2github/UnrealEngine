@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_UNSUPPORTED - Includes JsonSerializer.h which is not in Core module
+
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
 #include "Misc/AES.h"

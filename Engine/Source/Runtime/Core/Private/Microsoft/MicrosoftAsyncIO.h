@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "ProfilingDebugging/PlatformFileTrace.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS

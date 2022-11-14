@@ -4,6 +4,8 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
 #include "Templates/IsSigned.h"
 
 /*-----------------------------------------------------------------------------

@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
-#include "Logging/LogMacros.h"
 #include "HAL/PlatformTime.h"
 #include "Math/NumericLimits.h"
 

@@ -2,18 +2,11 @@
 
 #pragma once
 
-#ifdef TEXT
-	#undef TEXT
-#endif
-
 #include <Unknwn.h>
 #include "Misc/AssertionMacros.h"
 
-#ifdef TEXT 
-	#undef TEXT
-#endif // TEXT 
-
 #ifdef TEXT_PASTE
+	#undef TEXT
 	#define TEXT(x) TEXT_PASTE(x)
 #endif
 

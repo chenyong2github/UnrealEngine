@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_UNSUPPORTED - Contains code with dll export not allowed COREUOBJECT_API
+
 #include "Async/Future.h"
 #include "Containers/StringView.h"
 #include "IO/IoDispatcher.h"
@@ -16,6 +18,7 @@ class FAssetRegistryState;
 class FLargeMemoryWriter;
 class ICookedPackageWriter;
 class IPackageStoreWriter;
+class UObject;
 struct FPackageStoreEntryResource;
 struct FSavePackageArgs;
 struct FSavePackageResultStruct;

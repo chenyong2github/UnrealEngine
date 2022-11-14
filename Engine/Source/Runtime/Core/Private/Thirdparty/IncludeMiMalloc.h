@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #if !defined(PLATFORM_BUILDS_MIMALLOC)
 #	define PLATFORM_BUILDS_MIMALLOC 0
 #endif

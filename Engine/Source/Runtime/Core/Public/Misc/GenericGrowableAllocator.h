@@ -312,8 +312,8 @@ public:
 		if (Entry && (Offset + Size) == Entry->Location)
 		{
 			// Join with chunk
-			Entry->Location -= AllocationSize;
-			Entry->BlockSize += AllocationSize;
+			Entry->Location -= uint32(AllocationSize);
+			Entry->BlockSize += uint32(AllocationSize);
 
 			// Can we join the two entries?
 			if (Prev && (Prev->Location + Prev->BlockSize) == Entry->Location)
@@ -334,7 +334,7 @@ public:
 		if (Prev && (Prev->Location + Prev->BlockSize + Padding) == Offset)
 		{
 			// Join with chunk
-			Prev->BlockSize += AllocationSize;
+			Prev->BlockSize += uint32(AllocationSize);
 
 			// Can we join the two entries?
 			if (Entry && (Prev->Location + Prev->BlockSize) == Entry->Location)
@@ -348,7 +348,7 @@ public:
 		}
 
 		// Insert a new entry.
-		FFreeEntry* NewFree = new FFreeEntry(Entry, Offset - Padding, AllocationSize);
+		FFreeEntry* NewFree = new FFreeEntry(Entry, uint32(Offset - Padding), AllocationSize);
 		FFreeEntry*& PrevRef = Prev ? Prev->Next : FreeList;
 		PrevRef = NewFree;
 		MaxFreeEntrySize = FMath::Max(MaxFreeEntrySize, NewFree->BlockSize);
@@ -411,7 +411,7 @@ private:
 		/** Constructor */
 		FFreeEntry(FFreeEntry *NextEntry, uint32 InLocation, uint64 InSize)
 			: Location(InLocation)
-			, BlockSize(InSize)
+			, BlockSize(uint32(InSize))
 			, Next(NextEntry)
 		{
 		}
@@ -455,8 +455,8 @@ private:
 			if (BlockSize - AllocationSize >= MinSize)
 			{
 				// update this free entry to just point to what's left after using the UsedSize
-				Location += AllocationSize;
-				BlockSize -= AllocationSize;
+				Location += uint32(AllocationSize);
+				BlockSize -= uint32(AllocationSize);
 				bDelete = false;
 			}
 			// if no more room, then just remove this entry from the list of free items

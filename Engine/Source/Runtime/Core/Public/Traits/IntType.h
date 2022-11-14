@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 /**
  * Type trait which yields a signed integer type of a given number of bytes.
  * If there is no such type, the Type member type will be absent, allowing it to be used in SFINAE contexts.

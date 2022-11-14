@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #if PLATFORM_HAS_FPlatformVirtualMemoryBlock
 /*
  *  Perform checks that ensure that the pools are working as intended. This is not necessary in builds that are used for Shipping/Test or for the Development editor.

@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/PlatformProcess.h"
+#include "Misc/ScopeLock.h"
 #include "Templates/AlignmentTemplates.h"
 
 class FVirtualAllocator
@@ -105,6 +107,8 @@ public:
 		check(LowAddress && HighAddress && LowAddress < HighAddress && IsAligned(LowAddress, MaximumAlignment));
 	}
 
+	virtual ~FVirtualAllocator() = default;
+
 	uint32 GetPagesForSizeAndAlignment(size_t Size, size_t Alignment = 1) const
 	{
 		check(Alignment <= MaximumAlignment && Alignment > 0);
@@ -114,14 +118,14 @@ public:
 			// this is hack, MB3 will ask for tons of virtual and never free it, so we won't round up to power of two
 			size_t Pages = SizeAndAlignment / PageSize;
 			check(Pages == uint32(Pages)); // overflow of uint32
-			return Pages;
+			return uint32(Pages);
 		}
-		int32 BlockIndex = FMath::CeilLogTwo64(FMath::Max(SizeAndAlignment, PageSize));
+		size_t BlockIndex = FMath::CeilLogTwo64(FMath::Max(SizeAndAlignment, PageSize));
 		size_t AlignedSize = size_t(1) << BlockIndex;
 		check(AlignedSize % PageSize == 0);
 		size_t Pages = AlignedSize / PageSize;
 		check(Pages == uint32(Pages)); // overflow of uint32
-		return Pages;
+		return uint32(Pages);
 	}
 
 	void* AllocateVirtualPages(uint32 NumPages, size_t AlignmentForCheck = 1) 
@@ -129,7 +133,7 @@ public:
 		check(AlignmentForCheck <= MaximumAlignment && AlignmentForCheck > 0 && NumPages);
 
 
-		int32 BlockIndex = FMath::CeilLogTwo64(NumPages * PageSize);
+		size_t BlockIndex = FMath::CeilLogTwo64(NumPages * PageSize);
 		size_t AlignedSize = size_t(1) << BlockIndex;
 		bool bHackForHugeBlock = false;
 		if (size_t(NumPages) * PageSize * 2 >= TotalSize)
@@ -195,7 +199,7 @@ public:
 			check(!"Huge vm blocks may not be freed.");
 			return;
 		}
-		int32 BlockIndex = FMath::CeilLogTwo64(NumPages * PageSize);
+		size_t BlockIndex = FMath::CeilLogTwo64(NumPages * PageSize);
 		size_t AlignedSize = size_t(1) << BlockIndex;
 
 		FPerBlockSize& Block = Blocks[BlockIndex];

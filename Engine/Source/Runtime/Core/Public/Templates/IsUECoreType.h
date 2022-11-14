@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include <type_traits>
 
 /**
 * Traits class which tests if a type is a core variant type (e.g. FVector, which supports FVector3f/FVector3d float/double variants.

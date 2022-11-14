@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// HEADER_UNIT_SKIP - Not included directly
+
 // #TODO: redirect to platform-agnostic version for the time being. Eventually this will become an error
 #include "HAL/Platform.h"
 #if !PLATFORM_WINDOWS

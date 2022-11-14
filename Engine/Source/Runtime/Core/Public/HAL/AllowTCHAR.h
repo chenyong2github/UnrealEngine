@@ -3,6 +3,8 @@
 // This header is expected to be included after HAL/HideTCHAR.h - see the comments in that header
 // for more details.
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #ifdef UE_HIDETCHAR_INCLUDED
 	#undef UE_HIDETCHAR_INCLUDED
 #else

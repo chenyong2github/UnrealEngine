@@ -9,6 +9,8 @@
 #include "GenericPlatform/GenericPlatformAtomics.h"
 #include "CoreTypes.h"
 
+// HEADER_UNIT_UNSUPPORTED - Clang not supporting header units
+
 /**
  * GCC/Clang implementation of the Atomics OS functions
  **/

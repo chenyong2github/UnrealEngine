@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_UNSUPPORTED - Unsupported platform
+
 #include "CoreTypes.h"
 #include <pthread.h>
 #include <errno.h>

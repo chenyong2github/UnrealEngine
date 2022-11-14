@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include <sal.h>
 
 #if defined(__clang__)
@@ -124,6 +126,10 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 // http://msdn.microsoft.com/en-us/library/windows/desktop/hh972640.aspx
 #define PLATFORM_HAS_128BIT_ATOMICS							(!HACK_HEADER_GENERATOR && PLATFORM_64BITS && (WINVER >= 0x602))
 #define PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING	0
+
+#ifdef CDECL
+#undef CDECL
+#endif
 
 // Function type macros.
 #define VARARGS     __cdecl											/* Functions with variable arguments */

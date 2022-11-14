@@ -7,6 +7,8 @@
 #pragma once
 #include "GenericPlatform/GenericPlatformMath.h"
 
+// HEADER_UNIT_UNSUPPORTED - Clang not supporting header units
+
 /**
  * Clang implementation of math functions
  **/

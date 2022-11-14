@@ -2,7 +2,10 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/MallocBinnedCommon.h"
 
 class FPageCache

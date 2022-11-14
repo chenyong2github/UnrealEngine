@@ -230,6 +230,11 @@ namespace UE::StructuredArchive::Private
 		return StructuredArchive.GetUnderlyingArchive();
 	}
 
+	FORCEINLINE FArchiveState& GetUnderlyingArchiveStateImpl(FStructuredArchive& StructuredArchive)
+	{
+		return StructuredArchive.GetUnderlyingArchive().GetArchiveState();
+	}
+
 #if WITH_TEXT_ARCHIVE_SUPPORT
 	FORCEINLINE FElementId GetCurrentSlotElementIdImpl(FStructuredArchive& StructuredArchive)
 	{

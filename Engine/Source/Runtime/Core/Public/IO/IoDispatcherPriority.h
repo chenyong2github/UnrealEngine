@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 enum EIoDispatcherPriority : int32
 {
 	IoDispatcherPriority_Min = INT32_MIN,

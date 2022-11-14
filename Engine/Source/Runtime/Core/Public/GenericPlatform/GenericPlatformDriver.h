@@ -7,6 +7,7 @@
 #include "Containers/Array.h"
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
+#include "Misc/DateTime.h"
 #include "Misc/Parse.h"
 #include "Misc/ConfigCacheIni.h"
 

@@ -21,6 +21,8 @@
 // If we ever need to deliberately refer to the system TCHAR rather than our Platform.h TCHAR, we
 // can use the UE_SYSTEM_TCHAR type instead.
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #ifndef UE_HIDETCHAR_INCLUDED
 	#define UE_HIDETCHAR_INCLUDED
 #else

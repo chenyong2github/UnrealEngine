@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_UNSUPPORTED - Clang not supporting header units
+
 #ifndef DISABLE_DEPRECATION
 	#pragma clang diagnostic warning "-Wdeprecated-declarations"
 

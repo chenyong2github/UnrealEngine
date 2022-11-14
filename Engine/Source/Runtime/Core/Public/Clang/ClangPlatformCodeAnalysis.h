@@ -3,6 +3,7 @@
 
 #pragma once
 
+// HEADER_UNIT_UNSUPPORTED - Clang not supporting header units
 
 // Code analysis features
 #if defined( __clang_analyzer__ )

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
 
 namespace UE::Virtualization

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreGlobals.h"
+#include "Misc/Optional.h"
 
 /**
  * This struct allows you to cache a value for a frame, and automatically invalidates

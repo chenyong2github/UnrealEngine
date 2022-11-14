@@ -4,11 +4,14 @@
 
 #include "CoreTypes.h"
 
+class FArchive;
 class FStructuredArchive;
+struct FArchiveState;
 
 namespace UE::StructuredArchive::Private
 {
 	FArchive& GetUnderlyingArchiveImpl(FStructuredArchive& Ar);
+	FArchiveState& GetUnderlyingArchiveStateImpl(FStructuredArchive& Ar);
 
 	struct FElementId
 	{
@@ -93,7 +96,7 @@ namespace UE::StructuredArchive::Private
 
 		const FArchiveState& GetArchiveState() const
 		{
-			return GetUnderlyingArchiveImpl(StructuredArchive).GetArchiveState();
+			return GetUnderlyingArchiveStateImpl(StructuredArchive);
 		}
 
 	protected:
