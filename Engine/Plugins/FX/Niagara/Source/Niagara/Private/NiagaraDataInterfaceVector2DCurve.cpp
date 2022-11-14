@@ -138,8 +138,8 @@ bool UNiagaraDataInterfaceVector2DCurve::Equals(const UNiagaraDataInterface* Oth
 }
 void UNiagaraDataInterfaceVector2DCurve::GetCurveData(TArray<FCurveData>& OutCurveData)
 {
-	OutCurveData.Add(FCurveData(&XCurve, TEXT("X"), FLinearColor::Red));
-	OutCurveData.Add(FCurveData(&YCurve, TEXT("Y"), FLinearColor::Green));
+	OutCurveData.Add(FCurveData(&XCurve, TEXT("X"), FLinearColor(1.0f, 0.05f, 0.05f)));
+	OutCurveData.Add(FCurveData(&YCurve, TEXT("Y"), FLinearColor(0.05f, 1.0f, 0.05f)));
 }
 
 void UNiagaraDataInterfaceVector2DCurve::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)

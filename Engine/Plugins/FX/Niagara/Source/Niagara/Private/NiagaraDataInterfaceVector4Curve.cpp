@@ -157,10 +157,10 @@ bool UNiagaraDataInterfaceVector4Curve::Equals(const UNiagaraDataInterface* Othe
 
 void UNiagaraDataInterfaceVector4Curve::GetCurveData(TArray<FCurveData>& OutCurveData)
 {
-	OutCurveData.Add(FCurveData(&XCurve, TEXT("X"), FLinearColor::Red));
-	OutCurveData.Add(FCurveData(&YCurve, TEXT("Y"), FLinearColor::Green));
-	OutCurveData.Add(FCurveData(&ZCurve, TEXT("Z"), FLinearColor::Blue));
-	OutCurveData.Add(FCurveData(&WCurve, TEXT("W"), FLinearColor::White));
+	OutCurveData.Add(FCurveData(&XCurve, TEXT("X"), FLinearColor(1.0f, 0.05f, 0.05f)));
+	OutCurveData.Add(FCurveData(&YCurve, TEXT("Y"), FLinearColor(0.05f, 1.0f, 0.05f)));
+	OutCurveData.Add(FCurveData(&ZCurve, TEXT("Z"), FLinearColor(0.1f, 0.2f, 1.0f)));
+	OutCurveData.Add(FCurveData(&WCurve, TEXT("W"), FLinearColor(0.2f, 0.2f, 0.2f)));
 }
 
 void UNiagaraDataInterfaceVector4Curve::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
