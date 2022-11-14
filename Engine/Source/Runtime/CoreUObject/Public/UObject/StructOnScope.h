@@ -21,7 +21,7 @@ protected:
 	{
 		if (const UStruct* ScriptStructPtr = ScriptStruct.Get())
 		{
-			SampleStructMemory = (uint8*)FMemory::Malloc(ScriptStructPtr->GetStructureSize() ? ScriptStructPtr->GetStructureSize() : 1);
+			SampleStructMemory = (uint8*)FMemory::Malloc(ScriptStructPtr->GetStructureSize() ? ScriptStructPtr->GetStructureSize() : 1, ScriptStructPtr->GetMinAlignment());
 			ScriptStructPtr->InitializeStruct(SampleStructMemory);
 			OwnsMemory = true;
 		}
