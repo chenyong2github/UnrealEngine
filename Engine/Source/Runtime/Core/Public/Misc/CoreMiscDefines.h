@@ -4,6 +4,8 @@
 
 #include "../HAL/PreprocessorHelpers.h"
 
+// When passed to pragma message will result in clickable warning in VS
+#define WARNING_LOCATION(Line) __FILE__ "(" PREPROCESSOR_TO_STRING(Line) ")"
 
 // This file is included in some resource files, which issue a warning:
 //
@@ -27,13 +29,37 @@
 /** This controls if metadata for compiled in classes is unpacked and setup at boot time. Meta data is not normally used except by the editor. **/
 #define WITH_METADATA (WITH_EDITORONLY_DATA && WITH_EDITOR)
 
-// Set up optimization control macros, now that we have both the build settings and the platform macros
-#define PRAGMA_DISABLE_OPTIMIZATION		PRAGMA_DISABLE_OPTIMIZATION_ACTUAL
-#if UE_BUILD_DEBUG
-	#define PRAGMA_ENABLE_OPTIMIZATION  PRAGMA_DISABLE_OPTIMIZATION_ACTUAL
-#else
-	#define PRAGMA_ENABLE_OPTIMIZATION  PRAGMA_ENABLE_OPTIMIZATION_ACTUAL
+// Option to check for UE_DISABLE_OPTIMIZATION being submitted
+#ifndef UE_CHECK_DISABLE_OPTIMIZATION
+#define UE_CHECK_DISABLE_OPTIMIZATION 0
 #endif
+
+// Set up optimization control macros, now that we have both the build settings and the platform macros
+
+// Defines for submitting optimizations off
+#define UE_DISABLE_OPTIMIZATION_SHIP  PRAGMA_DISABLE_OPTIMIZATION_ACTUAL
+
+//in debug keep optimizations off for the enable macro otherwise code following enable will be optimized
+#if UE_BUILD_DEBUG
+	#define UE_ENABLE_OPTIMIZATION_SHIP  PRAGMA_DISABLE_OPTIMIZATION_ACTUAL
+#else
+	#define UE_ENABLE_OPTIMIZATION_SHIP  PRAGMA_ENABLE_OPTIMIZATION_ACTUAL
+#endif
+
+// if running on a build machine assert on the dev optimizations macros to validate that code is not being submitted with optimizations off
+#if UE_CHECK_DISABLE_OPTIMIZATION
+	#define UE_DISABLE_OPTIMIZATION static_assert(false, "Error UE_DISABLE_OPTIMIZATION submitted. Use UE_DISABLE_OPTIMIZATION_SHIP to submit with optimizations off.");
+	#define UE_ENABLE_OPTIMIZATION static_assert(false, "Error UE_ENABLE_OPTIMIZATION submitted. Use UE_ENABLE_OPTIMIZATION_SHIP to submit with optimizations off.");
+#else
+	#define UE_DISABLE_OPTIMIZATION  UE_DISABLE_OPTIMIZATION_SHIP
+	#define UE_ENABLE_OPTIMIZATION  UE_ENABLE_OPTIMIZATION_SHIP
+#endif
+
+#define PRAGMA_DISABLE_OPTIMIZATION \
+	UE_DISABLE_OPTIMIZATION_SHIP
+
+#define PRAGMA_ENABLE_OPTIMIZATION  \
+	UE_ENABLE_OPTIMIZATION_SHIP
 
 #if UE_BUILD_DEBUG
 	#define FORCEINLINE_DEBUGGABLE FORCEINLINE_DEBUGGABLE_ACTUAL
@@ -112,9 +138,6 @@ enum ENoInit {NoInit};
 enum EInPlace {InPlace};
 
 #endif // RC_INVOKED
-
-// When passed to pragma message will result in clickable warning in VS
-#define WARNING_LOCATION(Line) __FILE__ "(" PREPROCESSOR_TO_STRING(Line) ")"
 
 // Push and pop macro definitions
 #ifdef __clang__
