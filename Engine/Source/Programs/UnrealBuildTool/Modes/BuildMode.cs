@@ -593,6 +593,7 @@ namespace UnrealBuildTool
 					using (GlobalTracer.Instance.BuildSpan("ActionGraph.WriteActions").StartActive())
 					{
 						ActionGraph.ExportJson(MergedActionsToExecute, WriteOutdatedActionsFile);
+						Logger.LogInformation("Exported build actions to {WriteOutdatedActionsFile}", WriteOutdatedActionsFile);
 					}
 				}
 				else
