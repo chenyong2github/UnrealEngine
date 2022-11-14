@@ -382,7 +382,7 @@ namespace Chaos
 
 		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const T InMargin, const TVector<T, d>& Scale, T* OutSupportDelta, int32& VertexIndex) const
 		{
-			const TVector<T, d> ScaledDirection = Direction * Scale;
+			const TVector<T, d> ScaledDirection = Direction * Scale; // Compensate for Negative scales, only the signs really matter here
 
 			TVector<T, d> ChosenPt;
 			FIntVector ChosenAxis;

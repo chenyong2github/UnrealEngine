@@ -387,6 +387,7 @@ namespace Chaos
 		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, const FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
 			// NOTE: Ignores InMargin, assumes Radius
+			// Note: Scaling the direction vector like this, might not seem quite right, but works due to the commutativity of the single dot product that follows
 			return SupportCore(Scale * Direction, GetMargin(), OutSupportDelta, VertexIndex) * Scale;
 		}
 

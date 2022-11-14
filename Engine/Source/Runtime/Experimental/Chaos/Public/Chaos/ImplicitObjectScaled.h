@@ -160,24 +160,24 @@ public:
 	}
 
 	// The support position from the specified direction
-	FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
+	FORCEINLINE_DEBUGGABLE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
 	{
 		return MObject->Support(Direction, Thickness, VertexIndex); 
 	}
 
 	// this shouldn't be called, but is required until we remove the explicit function implementations in CollisionResolution.cpp
-	FORCEINLINE FVec3 SupportScaled(const FVec3& Direction, const T Thickness, const FVec3& Scale, int32& VertexIndex) const
+	FORCEINLINE_DEBUGGABLE FVec3 SupportScaled(const FVec3& Direction, const T Thickness, const FVec3& Scale, int32& VertexIndex) const
 	{
 		return MObject->SupportScaled(Direction, Thickness, Scale, VertexIndex);
 	}
 
 	// The support position from the specified direction, if the shape is reduced by the margin
-	FORCEINLINE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
+	FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 	{
 		return MObject->SupportCore(Direction, InMargin, OutSupportDelta, VertexIndex);
 	}
 
-	FORCEINLINE VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
+	FORCEINLINE_DEBUGGABLE VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
 	{
 		FVec3 DirectionVec3;
 		VectorStoreFloat3(Direction, &DirectionVec3);

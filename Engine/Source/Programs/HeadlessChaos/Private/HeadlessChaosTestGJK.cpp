@@ -2100,4 +2100,24 @@ namespace ChaosTest
 		EXPECT_TRUE(GJKIntersection(BigBoxScaled, SmallBox, BToATM, FReal(0), Chaos::TVector<FReal, 3>(-16000, -16000, 500)));		
 
 	}
+
+
+	// Test capsule support functions when scaled
+	GTEST_TEST(GJKTests, GJK_TestSupportFunctions)
+	{
+		FVec3 PointA{ -1, 0, -100 };
+		FVec3 PointB{ 1, 0, 100 };
+		FVec3 ScaleX{ 100, 1, 1 };
+		TUniquePtr<Chaos::FCapsule> Capsule = MakeUnique<FCapsule>(PointA, PointB, 10);
+		TImplicitObjectScaled<Chaos::FCapsule> CapsuleScaled(MakeSerializable(Capsule), nullptr, ScaleX);
+
+		FVec3 SupportDir{0.1f, 0.0f, -1.0f}; // Pointing down and slightly to the right
+
+		int32 Vertex = INDEX_NONE;
+		FVec3 Support = Capsule->SupportCore(SupportDir,0, nullptr, Vertex);
+		EXPECT_EQ(Support, PointA); // Expect bottom point
+
+		Support = CapsuleScaled.SupportCore(SupportDir, 0, nullptr, Vertex);
+		EXPECT_EQ(Support, ScaleX * PointA); // Still expect bottom point (But scaled)
+	}
 }
