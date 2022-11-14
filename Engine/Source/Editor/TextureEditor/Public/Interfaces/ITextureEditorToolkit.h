@@ -55,6 +55,7 @@ public:
 	virtual const FRotator& GetOrientation() const = 0;
 	virtual void SetOrientation(const FRotator& InOrientation) = 0;
 	virtual void ResetOrientation() = 0;
+	virtual ETextureEditorSampling GetSampling() const = 0;
 	virtual int32 GetExposureBias() const = 0;
 	virtual bool IsVolumeTexture() const = 0;
 public:

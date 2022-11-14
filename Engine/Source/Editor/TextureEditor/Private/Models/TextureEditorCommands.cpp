@@ -22,6 +22,8 @@ void FTextureEditorCommands::RegisterCommands()
 	UI_COMMAND(ZoomToNatural, "Scale To 100%", "Resets the zoom level to 100%, displaying the texture at its natural size", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(SolidBackground, "Solid Color", "Solid color background", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(TextureBorder, "Draw Border", "If enabled, a border is drawn around the texture", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(DefaultSampling, "Default Sampling", "Use default texture sampling", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(PointSampling, "Nearest-Point Sampling", "Use nearest-point texture sampling", EUserInterfaceActionType::RadioButton, FInputChord());
 
 	UI_COMMAND(CompressNow, "Compress", "Compress the texture", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(Reimport, "Reimport", "Reimports the texture from file", EUserInterfaceActionType::Button, FInputChord());

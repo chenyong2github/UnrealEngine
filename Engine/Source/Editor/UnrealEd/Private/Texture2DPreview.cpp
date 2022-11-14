@@ -63,7 +63,7 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Parameters.Platform);
 	}
 
-	void SetParameters(FRHICommandList& InRHICmdList, const FTexture* InTextureValue, const FMatrix44f& InColorWeightsValue, float InGammaValue, float InMipLevel, float InLayerIndex, float InSliceIndex, bool bInIsNormalMap, bool bInIsSingleVTPhysicalSpace, bool bInIsVirtualTexture, bool bInIsTextureArray)
+	void SetParameters(FRHICommandList& InRHICmdList, const FTexture* InTextureValue, const FMatrix44f& InColorWeightsValue, float InGammaValue, float InMipLevel, float InLayerIndex, float InSliceIndex, bool bInIsNormalMap, bool bInIsSingleVTPhysicalSpace, bool bInIsVirtualTexture, bool bInIsTextureArray, bool bInUsePointSampling)
 	{
 		FRHIPixelShader* ShaderRHI = InRHICmdList.GetBoundPixelShader();
 		if (bInIsVirtualTexture)
@@ -73,7 +73,9 @@ public:
 	
 			FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureSRV((uint32)InLayerIndex, InTextureValue->bSRGB);
 			SetSRVParameter(InRHICmdList, ShaderRHI, InTexture, PhysicalView);
-			SetSamplerParameter(InRHICmdList, ShaderRHI, InTextureSampler, VirtualTextureValue->SamplerStateRHI);
+
+			FRHISamplerState* SamplerState = bInUsePointSampling ? TStaticSamplerState<SF_Point>::GetRHI() : VirtualTextureValue->SamplerStateRHI.GetReference();
+			SetSamplerParameter(InRHICmdList, ShaderRHI, InTextureSampler, SamplerState);
 
 			SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture0, AllocatedVT->GetPageTableTexture(0u));
 			if (AllocatedVT->GetNumPageTableTextures() > 1u)
@@ -98,7 +100,9 @@ public:
 		{
 			SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture0, GBlackTexture->TextureRHI);
 			SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture1, GBlackTexture->TextureRHI);
-			SetTextureParameter(InRHICmdList, ShaderRHI, InTexture, InTextureSampler, InTextureValue);
+
+			FRHISamplerState* SamplerState = bInUsePointSampling ? TStaticSamplerState<SF_Point>::GetRHI() : InTextureValue->SamplerStateRHI.GetReference();
+			SetTextureParameter(InRHICmdList, ShaderRHI, InTexture, InTextureSampler, SamplerState, InTextureValue->TextureRHI);
 		}
 		
 		SetShaderValue(InRHICmdList, ShaderRHI,ColorWeights,InColorWeightsValue);
@@ -165,5 +169,5 @@ void FBatchedElementTexture2DPreviewParameters::BindShaders(
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, FMatrix44f(ColorWeights), InGamma, MipLevel, LayerIndex, SliceIndex, bIsNormalMap, bIsSingleVTPhysicalSpace, bIsVirtualTexture, bIsTextureArray);
+	PixelShader->SetParameters(RHICmdList, Texture, FMatrix44f(ColorWeights), InGamma, MipLevel, LayerIndex, SliceIndex, bIsNormalMap, bIsSingleVTPhysicalSpace, bIsVirtualTexture, bIsTextureArray, bUsePointSampling);
 }

@@ -15,7 +15,7 @@
 class UNREALED_API FBatchedElementTexture2DPreviewParameters : public FBatchedElementParameters
 {
 public:
-	FBatchedElementTexture2DPreviewParameters(float InMipLevel, float InLayerIndex, float InSliceIndex, bool bInIsNormalMap, bool bInIsSingleChannel, bool bInIsSingleVTPhysicalSpace, bool bInIsVirtualTexture, bool bInIsTextureArray)
+	FBatchedElementTexture2DPreviewParameters(float InMipLevel, float InLayerIndex, float InSliceIndex, bool bInIsNormalMap, bool bInIsSingleChannel, bool bInIsSingleVTPhysicalSpace, bool bInIsVirtualTexture, bool bInIsTextureArray, bool bInUsePointSampling)
 		: MipLevel(InMipLevel)
 		, LayerIndex(InLayerIndex)
 		, SliceIndex(InSliceIndex)
@@ -24,6 +24,7 @@ public:
 		, bIsSingleVTPhysicalSpace(bInIsSingleVTPhysicalSpace)
 		, bIsVirtualTexture(bInIsVirtualTexture)
 		, bIsTextureArray(bInIsTextureArray)
+		, bUsePointSampling(bInUsePointSampling)
 	{
 	}
 
@@ -43,4 +44,7 @@ private:
 	/** Parameters that are used to select a shader permutation */
 	bool bIsVirtualTexture;
 	bool bIsTextureArray;
+
+	/** Whether to use nearest-point sampling when rendering the texture */
+	bool bUsePointSampling;
 };

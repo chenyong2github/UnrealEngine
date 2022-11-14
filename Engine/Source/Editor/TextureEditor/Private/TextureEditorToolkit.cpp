@@ -262,11 +262,12 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 	SpecifiedFace = 0;
 	bUseSpecifiedFace = false;
 
-	// Start at whatever the last used zoom mode, volume view mode and cubemap view mode were
+	// Start at whatever the last used values of the following settings were
 	const UTextureEditorSettings& Settings = *GetDefault<UTextureEditorSettings>();
 	ZoomMode = Settings.ZoomMode;
 	VolumeViewMode = Settings.VolumeViewMode;
 	CubemapViewMode = Settings.CubemapViewMode;
+	Sampling = Settings.Sampling;
 
 	ResetOrientation();
 	Zoom = 1.0f;
@@ -988,6 +989,11 @@ void FTextureEditorToolkit::ResetOrientation()
 	SetOrientation(IsVolumeTexture() ? FRotator(90, 0, -90) : FRotator(0, 0, 0));
 }
 
+ETextureEditorSampling FTextureEditorToolkit::GetSampling() const
+{
+	return Sampling;
+}
+
 /* IToolkit interface
  *****************************************************************************/
 
@@ -1108,6 +1114,18 @@ void FTextureEditorToolkit::BindCommands( )
 		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleTextureBorderActionExecute),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleTextureBorderActionIsChecked));
+
+	ToolkitCommands->MapAction(
+		Commands.DefaultSampling,
+		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleSamplingActionExecute, TextureEditorSampling_Default),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleSamplingActionIsChecked, TextureEditorSampling_Default));
+
+	ToolkitCommands->MapAction(
+		Commands.PointSampling,
+		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleSamplingActionExecute, TextureEditorSampling_Point),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleSamplingActionIsChecked, TextureEditorSampling_Point));
 
 	ToolkitCommands->MapAction(
 		Commands.CompressNow,
@@ -2137,6 +2155,22 @@ bool FTextureEditorToolkit::HandleCheckeredBackgroundActionIsChecked( ETextureEd
 	const UTextureEditorSettings& Settings = *GetDefault<UTextureEditorSettings>();
 
 	return (Background == Settings.Background);
+}
+
+void FTextureEditorToolkit::HandleSamplingActionExecute(ETextureEditorSampling InSampling)
+{
+	// Update our own sampling
+	Sampling = InSampling;
+
+	UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
+	Settings.Sampling = InSampling;
+	Settings.PostEditChange();
+}
+
+
+bool FTextureEditorToolkit::HandleSamplingActionIsChecked(ETextureEditorSampling InSampling)
+{
+	return InSampling == Sampling;
 }
 
 // Callback for toggling the volume view action.

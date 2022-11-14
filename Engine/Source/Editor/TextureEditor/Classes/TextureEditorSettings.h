@@ -21,6 +21,13 @@ enum ETextureEditorBackgrounds
 };
 
 UENUM()
+enum ETextureEditorSampling
+{
+	TextureEditorSampling_Default UMETA(DisplayName = "Default Sampling"),
+	TextureEditorSampling_Point UMETA(DisplayName = "Nearest-Point Sampling"),
+};
+
+UENUM()
 enum ETextureEditorVolumeViewMode
 {
 	TextureEditorVolumeViewMode_DepthSlices UMETA(DisplayName="Depth Slices"),
@@ -56,6 +63,10 @@ public:
 	/** The type of background to draw in the texture editor view port. */
 	UPROPERTY(config)
 	TEnumAsByte<ETextureEditorBackgrounds> Background;
+
+	/** The texture sampling mode used to render textures in the texture editor view port. */
+	UPROPERTY(config)
+	TEnumAsByte<ETextureEditorSampling> Sampling;
 
 	/** The view mode when previewing volume textures. */
 	UPROPERTY(config)

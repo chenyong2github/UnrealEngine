@@ -15,13 +15,14 @@
 class UNREALED_API FBatchedElementVolumeTexturePreviewParameters : public FBatchedElementParameters
 {
 public:
-	FBatchedElementVolumeTexturePreviewParameters(bool InViewModeAsDepthSlices, int32 InSizeZ, float InMipLevel, float InOpacity, bool InShowSlices, const FRotator& InTraceOrientation)
+	FBatchedElementVolumeTexturePreviewParameters(bool InViewModeAsDepthSlices, int32 InSizeZ, float InMipLevel, float InOpacity, bool InShowSlices, const FRotator& InTraceOrientation, bool bInUsePointSampling)
 		: bViewModeAsDepthSlices(InViewModeAsDepthSlices)
 		, SizeZ(InSizeZ)
 		, MipLevel(InMipLevel)
 		, Opacity(InOpacity)
 		, bShowSlices(InShowSlices)
 		, TraceOrientation(InTraceOrientation)
+		, bUsePointSampling(bInUsePointSampling)
 	{
 	}
 
@@ -46,4 +47,7 @@ private:
 
 	/** The orientation when tracing */
 	FRotator TraceOrientation;
+
+	/** Whether to use nearest-point sampling when rendering the volume */
+	bool bUsePointSampling;
 };

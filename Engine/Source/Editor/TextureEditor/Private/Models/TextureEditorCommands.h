@@ -70,6 +70,12 @@ public:
 	/** If enabled, a border is drawn around the texture */
 	TSharedPtr<FUICommandInfo> TextureBorder;
 
+	/** If enabled, default sampling is used for rendering the texture */
+	TSharedPtr<FUICommandInfo> DefaultSampling;
+
+	/** If enabled, nearest-point sampling is used for rendering the texture */
+	TSharedPtr<FUICommandInfo> PointSampling;
+
 	/** Compress the texture */
 	TSharedPtr<FUICommandInfo> CompressNow;
 

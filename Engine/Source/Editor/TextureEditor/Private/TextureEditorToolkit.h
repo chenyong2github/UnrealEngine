@@ -92,6 +92,7 @@ public:
 	virtual const FRotator& GetOrientation() const override;
 	virtual void SetOrientation(const FRotator& InOrientation) override;
 	virtual void ResetOrientation() override;
+	virtual ETextureEditorSampling GetSampling() const override;
 	virtual int32 GetExposureBias() const override
 	{
 		return ExposureBias;
@@ -200,6 +201,12 @@ private:
 
 	// Callback for getting the checked state of the Checkered Background action.
 	bool HandleCheckeredBackgroundActionIsChecked( ETextureEditorBackgrounds Background );
+
+	// Callback for toggling the Sampling action.
+	void HandleSamplingActionExecute(ETextureEditorSampling Sampling);
+
+	// Callback for getting the checked state of the Sampling action.
+	bool HandleSamplingActionIsChecked(ETextureEditorSampling Sampling);
 
 	// Callback for toggling the volume view action.
 	void HandleVolumeViewModeActionExecute( ETextureEditorVolumeViewMode InViewMode );
@@ -486,6 +493,9 @@ private:
 
 	/** This toolkit's current cubemap view mode **/
 	ETextureEditorCubemapViewMode CubemapViewMode;
+
+	/** This toolkit's current sampling mode **/
+	ETextureEditorSampling Sampling;
 
 	// Orientation of the texture in 3d when using "3D View" mode
 	FRotator Orientation;

@@ -34,6 +34,12 @@ public:
 			);
 
 			MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().TextureBorder);
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("Sampling", "Sampling Mode"),
+				LOCTEXT("SamplingTooltip", "Set the texture sampling mode"),
+				FNewMenuDelegate::CreateStatic(&FTextureEditorViewOptionsMenu::GenerateSamplingMenuContent)
+			);
 		}
 		MenuBuilder.EndSection();
 
@@ -55,6 +61,16 @@ protected:
 		MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().SolidBackground);
 	}
 
+	/**
+	 * Creates the 'Sampling Mode' sub-menu.
+	 *
+	 * @param MenuBuilder The builder for the menu that owns this menu.
+	 */
+	static void GenerateSamplingMenuContent(FMenuBuilder& MenuBuilder)
+	{
+		MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().DefaultSampling);
+		MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().PointSampling);
+	}
 };
 
 
