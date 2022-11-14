@@ -2238,8 +2238,13 @@ int32 UEditorEngine::OnSwitchWorldForSlatePieWindow(int32 WorldID, int32 WorldPI
 	{
 		// When we have an invalid world id we always switch to the pie world in the PIE window
 		OnSwitchWorldsForPIEInstance(WorldPIEInstance);
-		// The editor world was active restore it later
-		RestoreID = EditorWorldID;
+
+		// Make sure the switch to the PIE world was successful
+		if (GIsPlayInEditorWorld)
+		{
+			// The editor world was active restore it later
+			RestoreID = EditorWorldID;
+		}
 	}
 	else if(WorldID == PieWorldID && !GIsPlayInEditorWorld)
 	{
