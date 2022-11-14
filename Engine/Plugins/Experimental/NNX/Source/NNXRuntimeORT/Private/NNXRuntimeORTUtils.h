@@ -194,7 +194,7 @@ inline void CopyFromORTToBindings(
 		const void* OrtTensorData = OrtTensor.GetTensorData<void>();
 		const uint64 DataSize = FMath::Min(Tensor.GetDataSize(), Binding.SizeInBytes);
 
-		if (DataSize >= 0)
+		if (DataSize > 0)
 		{
 			FMemory::Memcpy(CpuMemory, OrtTensorData, DataSize);
 		}
