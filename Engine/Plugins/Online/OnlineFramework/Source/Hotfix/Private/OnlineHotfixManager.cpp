@@ -1124,16 +1124,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		OnlineSub->ReloadConfigs(OnlineSubSections);
 	}
 
-	// If there is an embedded MCP and it's loaded, Reload configs relevant to OSS config sections that were updated
-	if (IOnlineSubsystem::IsLoaded(MCP_SUBSYSTEM_EMBEDDED))
-	{
-		IOnlineSubsystem* OnlineSubEmbedded = IOnlineSubsystem::Get(MCP_SUBSYSTEM_EMBEDDED);
-		if (OnlineSubEmbedded != nullptr)
-		{
-			OnlineSubEmbedded->ReloadConfigs(OnlineSubSections);
-		}
-	}
-
 	UE_LOG(LogHotfixManager, Log, TEXT("Updating config from %s took %f seconds and reloaded %d objects"),
 		*FileName, FPlatformTime::Seconds() - StartTime, NumObjectsReloaded);
 	return true;
