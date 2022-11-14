@@ -103,7 +103,10 @@ void FAnimNode_CustomProperty::HandleObjectsReinstanced_Impl(UObject* InSourceOb
 	static IConsoleVariable* UseLegacyAnimInstanceReinstancingBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("bp.UseLegacyAnimInstanceReinstancingBehavior"));
 	if(UseLegacyAnimInstanceReinstancingBehavior == nullptr || !UseLegacyAnimInstanceReinstancingBehavior->GetBool())
 	{
-		InitializeProperties(CastChecked<UAnimInstance>(InSourceObject), GetTargetClass());
+		if(InSourceObject)
+		{
+			InitializeProperties(CastChecked<UAnimInstance>(InSourceObject), GetTargetClass());
+		}
 	}
 }
 
