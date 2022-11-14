@@ -516,6 +516,7 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
+		[Ignore]
 		public void GauntletGenericErrorMatcher()
 		{
 			string[] lines =
@@ -582,6 +583,7 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
+		[Ignore]
 		public void GauntletErrorMatcher()
 		{
 			string[] lines =
@@ -644,7 +646,7 @@ namespace Horde.Agent.Tests
 			};
 
 			List<LogEvent> logEvents = Parse(lines);
-			CheckEventGroup(logEvents, 0, 55, LogLevel.Error, KnownLogEvents.Gauntlet_UnitTest);
+			CheckEventGroup(logEvents, 0, 55, LogLevel.Error, KnownLogEvents.Gauntlet_TestEvent);
 
 			Assert.AreEqual("HLOD", logEvents[29].GetProperty("group").ToString());
 			Assert.AreEqual("SectionFlags", logEvents[29].GetProperty("name").ToString());
@@ -660,12 +662,13 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
+		[Ignore]
 		public void GauntletScreenshotErrorMatcher()
 		{
 			string text = @"  Error: LogAutomationController: Error: Screenshot 'ActorMerging_SectionFlags_LOD_0_None' test failed, Screenshots were different!  Global Difference = 0.058361, Max Local Difference = 0.821376 [D:\Build\++UE5\Sync\Engine\Source\Runtime\Core\Public\Delegates\DelegateInstancesImpl.h(546)]";
 
 			List<LogEvent> logEvents = Parse(text);
-			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Gauntlet_ScreenshotTest);
+			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Gauntlet_UnrealEngineTestEvent);
 
 			LogEvent logEvent = logEvents[0];
 			Assert.AreEqual("ActorMerging_SectionFlags_LOD_0_None", logEvent.GetProperty("screenshot").ToString());

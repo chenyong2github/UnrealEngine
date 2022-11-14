@@ -41,7 +41,10 @@ namespace Horde.Build.Issues.Handlers
 		/// <returns>True if the given event id matches</returns>
 		public static bool IsMatchingEventId(EventId eventId)
 		{
-			return eventId == KnownLogEvents.Gauntlet_UnitTest || eventId == KnownLogEvents.Gauntlet_ScreenshotTest;
+			return eventId == KnownLogEvents.Gauntlet_TestEvent ||
+			       eventId == KnownLogEvents.Gauntlet_DeviceEvent ||
+			       eventId == KnownLogEvents.Gauntlet_UnrealEngineTestEvent ||
+			       eventId == KnownLogEvents.Gauntlet_BuildDropEvent;
 		}
 
 		/// <summary>

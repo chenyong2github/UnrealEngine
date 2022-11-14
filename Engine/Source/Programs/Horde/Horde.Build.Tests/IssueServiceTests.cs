@@ -1699,6 +1699,7 @@ namespace Horde.Build.Tests
 		}
 
 		[TestMethod]
+		[Ignore]
 		public async Task GauntletIssueTest()
 		{
 			string[] lines =
