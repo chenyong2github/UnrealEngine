@@ -526,6 +526,7 @@ namespace Horde.Storage.Utility
 	/// <summary>
 	/// Node representing a temp storage block
 	/// </summary>
+	[TreeNode("{73AE9604-45E6-473A-95D6-2C9732A0820E}")]
 	class TempStorageBlockNode : TreeNode
 	{
 		public TempStorageBlockManifest Manifest { get; set; }
@@ -578,6 +579,7 @@ namespace Horde.Storage.Utility
 	/// <summary>
 	/// Node representing a temp storage tag
 	/// </summary>
+	[TreeNode("{CB4DEA03-3FA5-42A1-890D-1BFD7435427C}")]
 	class TempStorageTagNode : TreeNode
 	{
 		public TempStorageTagManifest FileList { get; }
@@ -621,6 +623,7 @@ namespace Horde.Storage.Utility
 	/// <summary>
 	/// Node representing all the outputs from a node
 	/// </summary>
+	[TreeNode("{A1380FBC-06DB-4CD5-9CF2-ABEB5108E406}")]
 	class TempStorageNode : TreeNode
 	{
 		public Dictionary<string, TreeNodeRef<TempStorageTagNode>> Tags { get; } = new Dictionary<string, TreeNodeRef<TempStorageTagNode>>(StringComparer.OrdinalIgnoreCase);

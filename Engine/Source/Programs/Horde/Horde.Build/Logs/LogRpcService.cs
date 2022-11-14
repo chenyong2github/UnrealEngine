@@ -18,13 +18,13 @@ namespace Horde.Build.Logs
 	[Authorize]
 	public class LogRpcService : LogRpc.LogRpcBase
 	{
-		readonly LogFileService _logFileService;
+		readonly ILogFileService _logFileService;
 		readonly StorageService _storageService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogRpcService(LogFileService logFileService, StorageService storageService)
+		public LogRpcService(ILogFileService logFileService, StorageService storageService)
 		{
 			_logFileService = logFileService;
 			_storageService = storageService;
