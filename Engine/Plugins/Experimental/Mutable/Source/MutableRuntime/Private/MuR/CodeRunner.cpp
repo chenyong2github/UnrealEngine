@@ -4994,12 +4994,7 @@ namespace mu
 			{
 				Ptr<const Mesh> Mesh = GetMemory().GetMesh(CACHE_ADDRESS(args.Mesh, item));
 
-				Ptr<const Layout> Result;
-
-				if (Mesh && Mesh->GetLayoutCount()>int32(args.LayoutIndex))
-				{
-					Result = Mesh->GetLayout( args.LayoutIndex );
-				}
+				Ptr<const Layout> Result = LayoutFromMesh_RemoveBlocks(Mesh.get(), args.LayoutIndex);
 
 				GetMemory().SetLayout(item, Result);
 				break;
