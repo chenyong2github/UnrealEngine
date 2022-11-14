@@ -123,6 +123,11 @@ private:
 	bool CanProcessTransactionEvent() const;
 
 	/**
+	 * Can we send transaction events to remote clients.
+	 */
+	bool CanSendTransactionEvents() const;
+
+	/**
 	 * Process a transaction event.
 	 */
 	void ProcessTransactionEvent(const FPendingTransactionToProcessContext& InContext, const FStructOnScope& InEvent);
@@ -140,7 +145,7 @@ private:
 	/**
 	 * Handle a local transaction, ensuring that there is a pending entry to be sent.
 	 */
-	FPendingTransactionToSend& HandleLocalTransactionCommon(const FConcertClientLocalTransactionCommonData& InCommonData);
+	FPendingTransactionToSend& HandleLocalTransactionCommon(const FConcertClientLocalTransactionCommonData& InCommonData, const TArray<FConcertExportedObject>& ObjectUpdates);
 
 	/**
 	 * Handle a local transaction being snapshot, queueing it for send later.
@@ -166,6 +171,27 @@ private:
 	 * Send any pending transaction events that qualify.
 	 */
 	void SendPendingTransactionEvents();
+
+	/**
+	 * Check the inbound transaction event for conflicts in the pending send. If we are receive only
+	 * and a conflict is detected then we have to remove pending send object.
+	 */
+	void CheckEventForSendConflicts(const FConcertTransactionFinalizedEvent& InEvent);
+
+	/**
+	 * Remove the given pending to send object.
+	 */
+	void RemovePendingToSend(const FConcertClientLocalTransactionCommonData& InCommonData);
+
+	/**
+	 * Remove the given pending to send object.
+	 */
+	FPendingTransactionToSend& AddPendingToSend(const FConcertClientLocalTransactionCommonData& InCommonData, const TArray<FConcertExportedObject>& ObjectUpdates);
+
+	/**
+	   Send any pending
+	 */
+	void IsPrimaryObjectInPendingSend(UObject* PrimaryObject) const;
 
 	/**
 	 * Should process this transaction event?
@@ -203,4 +229,10 @@ private:
 	 * Map of transaction IDs to the pending transaction that may be sent in the future (when finalized).
 	 */
 	TMap<FGuid, FPendingTransactionToSend> PendingTransactionsToSend;
+
+	/**
+	 * Named lookup for pending transactions to send.  This is so we can cross check the pending for send against
+	 * remote transactions that may conflict.
+	 */
+	TMap<FName, TSet<FGuid> > NameLookupForPendingTransactionsToSend;
 };
