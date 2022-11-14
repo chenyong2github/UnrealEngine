@@ -608,6 +608,8 @@ void FDisplayClusterClusterManager::ImportObjectsData(const EDisplayClusterSyncG
 			UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("sync-data: %s=%s"), *It->Key, *It->Value);
 		}
 
+		FScopeLock Lock(&ObjectsToSyncCS);
+
 		for (IDisplayClusterClusterSyncObject* SyncObj : ObjectsToSync[InSyncGroup])
 		{
 			if (SyncObj && SyncObj->IsActive())
