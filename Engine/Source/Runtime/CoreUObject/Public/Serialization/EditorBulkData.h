@@ -403,6 +403,7 @@ private:
 	bool CanLoadDataFromDisk() const;
 
 	void UpdateKeyIfNeeded();
+	void UpdateKeyIfNeeded(FCompressedBuffer InPayload) const;
 
 	void RecompressForSerialization(FCompressedBuffer& InOutPayload, EFlags PayloadFlags) const;
 	EFlags BuildFlagsForSerialization(FArchive& Ar, bool bKeepFileDataByReference) const;

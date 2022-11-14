@@ -53,6 +53,7 @@ public:
 	virtual void UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override {}
 	virtual void Unregister(const UE::Serialization::FEditorBulkData& BulkData) override {}
 	virtual void OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData) override {}
+	virtual void UpdatePlaceholderPayloadId(const UE::Serialization::FEditorBulkData& BulkData) override {};
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) override
 	{
 		TPromise<UE::BulkDataRegistry::FMetaData> Promise;

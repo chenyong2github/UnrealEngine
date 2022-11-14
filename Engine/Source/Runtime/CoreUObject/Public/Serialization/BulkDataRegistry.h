@@ -89,6 +89,11 @@ public:
 	virtual void Unregister(const UE::Serialization::FEditorBulkData& BulkData) = 0;
 	/** Report that a BulkData is leaving memory and its in-memory payload (if it had one) is no longer available. */
 	virtual void OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData) = 0;
+	/**
+	 * Notify that a legacy BulkData with a PlaceholderPayloadId has loaded its data and updated its PayloadId, and
+	 * the Registry should copy the updated PayloadId into the cache if it hasn't already calculated it.
+	 */
+	virtual void UpdatePlaceholderPayloadId(const UE::Serialization::FEditorBulkData& BulkData) = 0;
 
 	/** Return the metadata for the given registered BulkData; returns false if not registered. */
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) = 0;

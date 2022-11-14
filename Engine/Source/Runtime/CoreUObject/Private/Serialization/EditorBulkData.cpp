@@ -1327,6 +1327,9 @@ FCompressedBuffer FEditorBulkData::LoadFromPackageFile() const
 	FCompressedBuffer PayloadFromDisk;
 	SerializeData(*BulkArchive, PayloadFromDisk, Flags);
 
+	// If PayloadId is placeholder, compute the actual now that we have the payload available to hash.
+	UpdateKeyIfNeeded(PayloadFromDisk);
+
 	return PayloadFromDisk;
 }
 
@@ -2139,14 +2142,39 @@ void FEditorBulkData::UpdateKeyIfNeeded()
 	{
 		checkf(IsDataVirtualized() == false, TEXT("Cannot have a virtualized payload if loaded from legacy BulkData")); // Sanity check
 
-		// Load the payload from disk (or memory) so that we can hash it
-		FSharedBuffer InPayload = GetDataInternal().Decompress();
-		PayloadContentId = HashPayload(InPayload);
+		// Call GetDataInternal to load the payload from disk; LoadFromPackageFile will call the version of
+		// UpdateKeyIfNeeded that takes the decompressed Payload parameter.
+		FSharedBuffer LocalPayload = GetDataInternal().Decompress();
+
+		if (EnumHasAnyFlags(Flags, EFlags::LegacyKeyWasGuidDerived))
+		{
+			ensureMsgf(false, TEXT("EditorBulkData logic error: LegacyKeyWasGuidDerived was not removed by GetDataInternal; this is unexpected and a minor performance problem."));
+			UpdateKeyIfNeeded(FCompressedBuffer::Compress(LocalPayload,
+				ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None));
+			check(!EnumHasAnyFlags(Flags, EFlags::LegacyKeyWasGuidDerived)); // UpdateKeyIfNeeded(FCompressedBuffer) guarantees the conversion, so a fatal assert is warranted
+		}
 
 		// Store as the in memory payload, since this method is only called during saving 
 		// we know it will get cleared anyway.
-		Payload = InPayload;
-		EnumRemoveFlags(Flags, EFlags::LegacyKeyWasGuidDerived);
+		Payload = LocalPayload;
+	}
+}
+
+void FEditorBulkData::UpdateKeyIfNeeded(FCompressedBuffer CompressedPayload) const
+{
+	if (EnumHasAnyFlags(Flags, EFlags::LegacyKeyWasGuidDerived))
+	{
+		// PayloadContentId and its associated flag are mutable for legacy BulkDatas.
+		// We do a const-cast instead of marking them mutable because they are immutable for non-legacy.
+		const_cast<FEditorBulkData&>(*this).PayloadContentId = CompressedPayload.GetRawHash();
+
+		EnumRemoveFlags(const_cast<FEditorBulkData&>(*this).Flags, EFlags::LegacyKeyWasGuidDerived);
+#if WITH_EDITOR
+		if (EnumHasAnyFlags(Flags, EFlags::HasRegistered))
+		{
+			IBulkDataRegistry::Get().UpdatePlaceholderPayloadId(*this);
+		}
+#endif
 	}
 }
 

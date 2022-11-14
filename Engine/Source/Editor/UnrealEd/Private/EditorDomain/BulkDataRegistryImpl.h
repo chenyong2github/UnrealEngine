@@ -45,10 +45,37 @@ struct FRegisteredBulk
 	}
 	UE::Serialization::FEditorBulkData BulkData;
 	FName PackageName;
+	/**
+	 * True if this->BulkData has loaded its payload (because we wanted to update its PlaceholderPayloadId) and we kept
+	 * the payload in memory because we want to use it on the GetData call that we expect to come soon.
+	 */
 	bool bHasTempPayload : 1;
+	/**
+	 * For legacy bulkdatas with a PlaceholderPayloadId, and we don't know the actual PayloadId, we will load their
+	 * bulkdata and calculate the actual PayloadId when it is requested by clients such as the build system. Loading
+	 * the bulkdata to calculate this is expensive so we cache the actual PayloadId in DDC.
+	 * However, this caching is only valid for BulkDatas that are discovered during package loading and not modified
+	 * after. bAllowedToWritePayloadIdToCache is true for those bulkdatas and is set to false if they are created too
+	 * late or are modified after loading. Iff this flag is true when we load the bulkdata to calculate the PayloadId,
+	 * we write the actual PayloadId to DDC. We also set this flag to false once we know it is already in the cache.
+	 */
 	bool bAllowedToWritePayloadIdToCache : 1;
+	/**
+	 * True if the key associated with this FRegisteredBulk value has been registered by an FEditorBulkData outside
+	 * of the registry. Non-registered FRegisteredBulks can be created when we read the list of BulkDatas in the
+	 * package from DDC and get the results back before the FEditorBulkDatas are discovered during package loading.
+	 */
 	bool bRegistered : 1;
+	/**
+	 * True iff an FEditorBulkData outside of the registry has registered the key associated with this FRegisteredBulk,
+	 * AND that FEditorBulkData has not yet called OnExitMemory to indicate its destruction.
+	 */
 	bool bInMemory : 1;
+	/**
+	 * If true, then we can load the data for the BulkData to satisfy GetData requests. If false, this->BulkData is
+	 * invalid and we don't know what the data is. This can happen when a memory-only FEditorBulkData calls
+	 * OnExitMemory. We keep FRegisteredBulk around in that case solely to detect duplicate Guid bugs.
+	 */
 	bool bPayloadAvailable : 1;
 };
 
@@ -184,6 +211,7 @@ public:
 	virtual void UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override;
 	virtual void Unregister(const UE::Serialization::FEditorBulkData& BulkData) override;
 	virtual void OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData) override;
+	virtual void UpdatePlaceholderPayloadId(const UE::Serialization::FEditorBulkData& BulkData) override;
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) override;
 	virtual TFuture<UE::BulkDataRegistry::FData> GetData(const FGuid& BulkDataId) override;
 	virtual bool TryGetBulkData(const FGuid& BulkDataId, UE::Serialization::FEditorBulkData* OutBulk = nullptr,
@@ -218,7 +246,15 @@ private:
 	TMap<FGuid, FRegisteredBulk> Registry;
 	FResaveSizeTracker ResaveSizeTracker;
 	TMap<FGuid, FUpdatingPayload> UpdatingPayloads;
+	/**
+	 * All of the PendingPackage structs for packages that are still loading or have pending Cache Gets or Puts that
+	 * were launched when they started loading. PendingPackages are deleted when the package is done loading and the
+	 * cache operations are complete. @see FPendingPackage. These structs manage the DDC operations, both to list
+	 * the bulkdatas present in a package and to store the actual PayloadId for legacy BulkDatas with Placeholder
+	 * PayloadIds.
+	 */
 	TMap<FName, TUniquePtr<FPendingPackage>> PendingPackages;
+	/** All of the BulkDataIds for which we have a PayloadID cache Get in progress. */
 	TMap<FGuid, TRefCountPtr<FPendingPayloadId>> PendingPayloadIds;
 	TRingBuffer<FTempLoadedPayload> TempLoadedPayloads;
 	uint64 TempLoadedPayloadsSize = 0;
