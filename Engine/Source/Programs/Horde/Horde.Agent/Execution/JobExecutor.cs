@@ -676,7 +676,8 @@ namespace Horde.Agent.Execution
 			TreeReader reader = new TreeReader(storage, cache, logger);
 			logger.LogInformation("Using Horde-managed shared storage via {SharedStorageDir}", sharedStorageDir);
 
-			JsonRpcLogger rpcLogger = (JsonRpcLogger)logger;
+			PerforceLogger perforceLogger = (PerforceLogger)logger;
+			JsonRpcLogger rpcLogger = (JsonRpcLogger)perforceLogger.Inner;
 			await using JsonRpcAndStorageLogSink sink = new JsonRpcAndStorageLogSink(RpcConnection, rpcLogger._logId, rpcLogger._sink, storage, logger);
 			await using JsonRpcLogger newRpcLogger = new JsonRpcLogger(sink, rpcLogger._logId, rpcLogger._warnings, rpcLogger._inner);
 			logger = newRpcLogger;

@@ -34,6 +34,11 @@ namespace Horde.Agent.Utility
 		readonly List<ClientView> _clients = new List<ClientView>();
 
 		/// <summary>
+		/// Accessor for the inner logger
+		/// </summary>
+		public ILogger Inner => _inner;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="inner"></param>
