@@ -223,6 +223,11 @@ private:
 	TSharedRef<SWidget> MakeBrowseNaniteOverrideMaterialButton() const;
 
 	/**
+	 * @return The tool tip for the textures menuuuuu
+	 */
+	FText GetTexturesMenuToolTipText() const;
+
+	/**
 	 * On Get object path handler
 	 */
 	FString OnGetObjectPath() const;
