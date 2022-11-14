@@ -1128,18 +1128,6 @@ namespace Audio
 
 				AudioBuses.Add(InAudioBusId, NewBusData);
 			}
-
-			//  Now add any existing playing sources to this audio bus as sends if they exist
-			for (FSourceInfo& SourceInfo : SourceInfos)
-			{
-				if (SourceInfo.AudioBusId == InAudioBusId)
-				{
-					SourceInfo.bIsPlaying = false;
-					SourceInfo.bIsPaused = false;
-					SourceInfo.bIsActive = false;
-					SourceInfo.bIsStopping = false;
-				}
-			}
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("StartAudioBus"));
 	}
 
@@ -1221,6 +1209,35 @@ namespace Audio
 		{
 			AddPatchOutputForAudioBus(InAudioBusId, NewPatchPtr);
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("AddPatchOutputForAudioBus_AudioThread()"));
+	}
+
+	void FMixerSourceManager::AddPatchInputForAudioBus(uint32 InAudioBusId, FPatchInput& InPatchInput)
+	{
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+		if (MixerDevice->IsAudioRenderingThread())
+		{
+			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+			if (AudioBusPtr.IsValid())
+			{
+				AudioBusPtr->AddNewPatchInput(InPatchInput);
+			}
+		}
+		else
+		{
+			// Queue up the command via MPSC command queue
+			AudioMixerThreadMPSCCommand([this, InAudioBusId, InPatchInput]() mutable
+			{
+				AddPatchInputForAudioBus(InAudioBusId, InPatchInput);
+			});
+		}
+	}
+
+	void FMixerSourceManager::AddPatchInputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchInput& InPatchInput)
+	{
+		AudioMixerThreadCommand([this, InAudioBusId, PatchInput = InPatchInput]() mutable
+		{
+			AddPatchInputForAudioBus(InAudioBusId, PatchInput);
+		}, AUDIO_MIXER_THREAD_COMMAND_STRING("AddPatchInputForAudioBus_AudioThread()"));
 	}
 
 	void FMixerSourceManager::Play(const int32 SourceId)

@@ -106,8 +106,9 @@ namespace Audio
 		FMixerSourceManager* SourceManager;
 
 		// Multiple places can produce and consume from audio buses
-		Audio::FPatchInput AudioBusInput;
-		Audio::FPatchMixerSplitter PatchMixerSplitter;
+		Audio::FPatchMixer PatchMixer;
+		Audio::FPatchSplitter PatchSplitter;
+		FAlignedFloatBuffer SampleCache;
 
 		// Was created manually, not via source buses.
 		bool bIsAutomatic;

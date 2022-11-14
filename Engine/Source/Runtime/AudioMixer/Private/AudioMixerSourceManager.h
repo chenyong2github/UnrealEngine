@@ -210,6 +210,9 @@ namespace Audio
 		// Adds a patch input for an audio bus
 		void AddPatchInputForAudioBus(uint32 InAudioBusId, FPatchInput& InPatchInput);
 
+		// Adds a patch input for an audio bus from the Audio Thread
+		void AddPatchInputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchInput& InPatchInput);
+
 		void Play(const int32 SourceId);
 		void Stop(const int32 SourceId);
 		void CancelQuantizedSound(const int32 SourceId);

@@ -223,8 +223,6 @@ namespace Audio
 	class SIGNALPROCESSING_API FPatchMixerSplitter
 	{
 	public:
-		virtual ~FPatchMixerSplitter() = default;
-
 		/**
 		 * Adds a new output. Calling this is thread safe, but individual instances of FPatchOutput are only safe to be used from one thread.
 		 * the returned FPatchOutputPtr can be safely destroyed at any point.
@@ -245,10 +243,6 @@ namespace Audio
 
 		/** Mixes audio from all inputs and pushes it to all outputs. Should be called regularly. */
 		void ProcessAudio();
-
-	protected:
-		/** This class can be subclassed with OnProcessAudio overridden. */
-		virtual void OnProcessAudio(TArrayView<const float> InAudio) { }
 
 	private:
 		FPatchMixer Mixer;

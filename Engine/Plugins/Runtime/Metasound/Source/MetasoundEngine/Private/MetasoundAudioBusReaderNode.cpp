@@ -228,12 +228,12 @@ namespace Metasound
 	};
 
 #define REGISTER_AUDIO_BUS_READER_NODE(ChannelCount) \
-	using FTriggerSequenceNode_##ChannelCount = TAudioBusReaderNode<ChannelCount>; \
-	METASOUND_REGISTER_NODE(FTriggerSequenceNode_##ChannelCount) \
+	using FAudioBusReaderNode_##ChannelCount = TAudioBusReaderNode<ChannelCount>; \
+	METASOUND_REGISTER_NODE(FAudioBusReaderNode_##ChannelCount) \
 
 	
-	REGISTER_AUDIO_BUS_READER_NODE(1)
-	REGISTER_AUDIO_BUS_READER_NODE(2)
+	REGISTER_AUDIO_BUS_READER_NODE(1);
+	REGISTER_AUDIO_BUS_READER_NODE(2);
 }
 
 #undef LOCTEXT_NAMESPACE

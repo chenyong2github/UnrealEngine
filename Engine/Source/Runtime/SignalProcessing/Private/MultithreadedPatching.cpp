@@ -561,8 +561,6 @@ namespace Audio
 		int32 PopResult = Mixer.PopAudio(IntermediateBuffer.GetData(), NumSamplesToForward, false);
 		check(PopResult == NumSamplesToForward);
 		
-		OnProcessAudio(TArrayView<const float>(IntermediateBuffer));
-
 		// Push audio to outputs
 		Splitter.PushAudio(IntermediateBuffer.GetData(), NumSamplesToForward);
 	}

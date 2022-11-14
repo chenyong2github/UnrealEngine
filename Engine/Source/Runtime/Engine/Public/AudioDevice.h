@@ -970,6 +970,14 @@ public:
 		return nullptr;
 	}
 	
+	virtual void AddPatchInputForAudioBus(const Audio::FPatchInput& InPatchInput, uint32 InAudioBusId, float InPatchGain = 1.0f)
+	{
+	}
+
+	virtual void AddPatchInputForAudioBus_GameThread(const Audio::FPatchInput& InPatchInput, uint32 InAudioBusId, float InPatchGain = 1.0f)
+	{
+	}
+
 	virtual void InitSoundEffectPresets() {}
 
 	/**

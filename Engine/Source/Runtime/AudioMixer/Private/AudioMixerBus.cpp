@@ -17,9 +17,6 @@ namespace Audio
 		, bIsAutomatic(bInIsAutomatic)
 	{
 		SetNumOutputChannels(NumChannels);
-
-		// Make a patch bus input to push mixed audio sent to audio bus from source manager
-		AudioBusInput = PatchMixerSplitter.AddNewInput(2*InNumChannels*NumFrames, 1.0f);
 	}
 
 	void FMixerAudioBus::SetNumOutputChannels(int32 InNumOutputChannels)
@@ -90,14 +87,26 @@ namespace Audio
 
 	void FMixerAudioBus::MixBuffer()
 	{
-		// Reset and zero the mixed source data buffer for this bus
+		// Mix the patch mixer's inputs into the source data
+		const int32 MaxNumSamplesToPop = PatchMixer.MaxNumberOfSamplesThatCanBePopped();
 		const int32 NumSamples = NumFrames * NumChannels;
-
-		MixedSourceData[CurrentBufferIndex].Reset();
-		MixedSourceData[CurrentBufferIndex].AddZeroed(NumSamples);
-
-		float* BusDataBufferPtr = MixedSourceData[CurrentBufferIndex].GetData();
 		const int32 NumOutputFrames = SourceManager->GetNumOutputFrames();
+
+		FAlignedFloatBuffer& MixBuffer = MixedSourceData[CurrentBufferIndex];
+		float* BusDataBufferPtr = MixBuffer.GetData();
+
+		if (MaxNumSamplesToPop < NumSamples)
+		{
+			// Zero buffer when there are no inputs connected,
+			// or one of the inputs has not pushed any audio yet.
+			FMemory::Memzero(BusDataBufferPtr, NumSamples * sizeof(float));
+		}
+		else
+		{
+			// Mix down inputs
+			int32 PopResult = PatchMixer.PopAudio(BusDataBufferPtr, NumSamples, false);
+			check(PopResult == NumSamples);
+		}
 
 		for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
 		{
@@ -146,11 +155,39 @@ namespace Audio
 			}
 		}
 
-		// Push the mixed data to the patch splitter
-		AudioBusInput.PushAudio(BusDataBufferPtr, NumOutputFrames * NumChannels);
+		// Send the mix to the patch splitter's outputs
+		int32 NumSamplesToPush = PatchSplitter.MaxNumberOfSamplesThatCanBePushed();
+		if (NumSamplesToPush <= 0)
+		{
+			// Early exit when there are no outputs.
+			return;
+		}
 
-		// Process the audio in the patch mixer splitter
-		PatchMixerSplitter.ProcessAudio();
+		int SampleCacheSize = SampleCache.Num();
+		if (0 <= SampleCacheSize)
+		{
+			float* SampleCacheBufferPtr = SampleCache.GetData();
+			PatchSplitter.PushAudio(SampleCacheBufferPtr, FMath::Min(SampleCacheSize, NumSamplesToPush));
+
+			if (NumSamplesToPush < SampleCacheSize)
+			{
+				const int32 NumSamplesToCache = SampleCacheSize - NumSamplesToPush;
+				FMemory::Memmove(SampleCacheBufferPtr, &SampleCache[NumSamplesToPush], NumSamplesToCache);
+				SampleCache.SetNum(NumSamplesToCache, false);
+				SampleCache.Append(MixBuffer);
+				return;
+			}
+
+			NumSamplesToPush -= SampleCacheSize;
+			SampleCache.Reset();
+		}
+
+		PatchSplitter.PushAudio(BusDataBufferPtr, FMath::Min(NumSamples, NumSamplesToPush));
+
+		if (NumSamplesToPush < NumSamples)
+		{
+			SampleCache.Append(&MixBuffer[NumSamplesToPush], NumSamples - NumSamplesToPush);
+		}
 	}
 
 	void FMixerAudioBus::CopyCurrentBuffer(Audio::FAlignedFloatBuffer& InChannelMap, int32 InNumOutputChannels, FAlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const
@@ -180,20 +217,16 @@ namespace Audio
 
 	void FMixerAudioBus::AddNewPatchOutput(const FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
-		PatchMixerSplitter.AddNewOutput(InPatchOutputStrongPtr);
+		PatchSplitter.AddNewPatch(InPatchOutputStrongPtr);
 	}
 
 	void FMixerAudioBus::AddNewPatchInput(FPatchInput& InPatchInput)
 	{
-		return PatchMixerSplitter.AddNewInput(InPatchInput);
+		return PatchMixer.AddNewInput(InPatchInput);
 	}
 
 	void FMixerAudioBus::RemovePatchInput(const FPatchInput& PatchInput)
 	{
-		return PatchMixerSplitter.RemovePatch(PatchInput);
+		return PatchMixer.RemovePatch(PatchInput);
 	}
-
-
-
 }
-

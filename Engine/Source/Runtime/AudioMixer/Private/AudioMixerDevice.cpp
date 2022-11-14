@@ -2719,7 +2719,82 @@ namespace Audio
 		return StrongOutputPtr;
 	}
 
-	Audio::FPatchOutputStrongPtr FMixerDevice::AddPatchForSubmix(uint32 InObjectId, float InPatchGain)
+	void FMixerDevice::AddPatchInputForAudioBus(const FPatchInput& InPatchInput, uint32 InAudioBusId, float InPatchGain)
+	{
+		// This function is supporting adding audio bus patches from multiple threads (AT, ART, GT, and tasks) and is currently
+		// depending on a number of places where data lives, which accounts for the complexity here.
+		// This code needs a clean up to refactor everything into a true MPSC model, along with an MPSC refactor of the source manager
+		// and our command queues. Once we do that we can remove the code which branches based on the thread the request is coming from. 
+
+		if (IsInGameThread())
+		{
+			if (ActiveAudioBuses_GameThread.Find(InAudioBusId))
+			{
+				FAudioThread::RunCommandOnAudioThread([this, PatchInput = InPatchInput, InAudioBusId]() mutable
+				{
+					SourceManager->AddPatchInputForAudioBus_AudioThread(InAudioBusId, PatchInput);
+				});
+				return;
+			}
+			UE_LOG(LogAudioMixer, Warning, TEXT("Unable to add a patch input for audio bus because audio bus id '%d' is not active."), InAudioBusId);
+			return;
+		}
+		else if (IsInAudioThread())
+		{
+			SourceManager->AddPatchInputForAudioBus_AudioThread(InAudioBusId, InPatchInput);
+			return;
+		}
+		else if (IsAudioRenderingThread())
+		{
+			check(SourceManager);
+			FPatchInput PatchInput(InPatchInput);
+			SourceManager->AddPatchInputForAudioBus(InAudioBusId, PatchInput);
+			return;
+		}
+		else
+		{
+			GameThreadMPSCCommand([this, PatchInput = InPatchInput, InAudioBusId]
+			{
+				if (ActiveAudioBuses_GameThread.Find(InAudioBusId))
+				{
+					FAudioThread::RunCommandOnAudioThread([this, InAudioBusId, PatchInput = PatchInput]() mutable
+					{
+						SourceManager->AddPatchInputForAudioBus_AudioThread(InAudioBusId, PatchInput);
+					});
+				}
+				else
+				{
+					UE_LOG(LogAudioMixer, Warning, TEXT("Unable to add a patch output for audio bus because audio bus id '%d' is not active."), InAudioBusId);
+				}
+			});
+			return;
+		}
+	}
+
+	void FMixerDevice::AddPatchInputForAudioBus_GameThread(const FPatchInput& InPatchInput, uint32 InAudioBusId, float InPatchGain)
+	{
+		if (IsInGameThread())
+		{
+			FActiveBusData* BusData = ActiveAudioBuses_GameThread.Find(InAudioBusId);
+			if (BusData)
+			{
+				FAudioThread::RunCommandOnAudioThread([this, InAudioBusId, PatchInput = InPatchInput]() mutable
+				{
+					SourceManager->AddPatchInputForAudioBus_AudioThread(InAudioBusId, PatchInput);
+				});
+			}
+			else
+			{
+				UE_LOG(LogAudioMixer, Warning, TEXT("Unable to add a patch input for audio bus because audio bus id '%d' is not active."), InAudioBusId);
+			}
+		}
+		else
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("AddPatchForAudioBus can only be called from the game thread."));
+		}
+	}
+
+	FPatchOutputStrongPtr FMixerDevice::AddPatchForSubmix(uint32 InObjectId, float InPatchGain)
 	{
 		if (!ensure(IsAudioRenderingThread()))
 		{
