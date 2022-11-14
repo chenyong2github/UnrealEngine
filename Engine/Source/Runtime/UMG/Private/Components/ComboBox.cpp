@@ -10,8 +10,6 @@
 /////////////////////////////////////////////////////
 // UComboBox
 
-static FScrollBarStyle* DefaultScrollBoxBarStyle = nullptr;
-
 UComboBox::UComboBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
