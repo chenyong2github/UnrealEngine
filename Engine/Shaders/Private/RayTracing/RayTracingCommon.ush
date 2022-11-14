@@ -213,8 +213,8 @@ uint GetRayTracingInstanceDescriptorFlags(FRayTracingInstanceDescriptor Desc)
 FRayTracingInstanceDescriptor BuildPlatformRayTracingInstanceDesc(uint InstanceMask, uint InstanceId, uint InstanceFlags, uint InstanceContributionToHitGroupIndex, float3x4 LocalToWorld, uint2 AccelerationStructureAddress)
 {
 	FRayTracingInstanceDescriptor Desc;
-	Desc.InstanceIdAndMask = (InstanceMask << 24) | InstanceId;
-	Desc.InstanceContributionToHitGroupIndexAndFlags = (InstanceFlags << 24) | InstanceContributionToHitGroupIndex;
+	Desc.InstanceIdAndMask = (InstanceMask << 24) | (InstanceId & 0x00FFFFFF);
+	Desc.InstanceContributionToHitGroupIndexAndFlags = (InstanceFlags << 24) | (InstanceContributionToHitGroupIndex & 0x00FFFFFF);
 	Desc.AccelerationStructure = AccelerationStructureAddress;
 	SetRayTracingInstanceTransform(Desc, LocalToWorld);
 
