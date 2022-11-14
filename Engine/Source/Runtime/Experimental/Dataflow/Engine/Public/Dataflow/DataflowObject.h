@@ -69,7 +69,7 @@ public:
 	/** 
 	* Find all the node of a speific type and evaluate them using a specific UObject
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Graph")
+	UE_DEPRECATED(5.1, "Use Blueprint library version of the function")
 	void EvaluateTerminalNodeByName(FName NodeName, UObject* Asset);
 
 public:

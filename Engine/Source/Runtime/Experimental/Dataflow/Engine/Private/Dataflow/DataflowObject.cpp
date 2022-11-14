@@ -8,10 +8,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowObject)
 
-
 #define LOCTEXT_NAMESPACE "UDataflow"
-
-DEFINE_LOG_CATEGORY_STATIC(DATAFLOWOBJECT_LOG, Error, All);
 
 FDataflowAssetEdit::FDataflowAssetEdit(UDataflow* InAsset, FPostEditFunctionCallback InCallback)
 	: PostEditCallback(InCallback)
@@ -40,23 +37,7 @@ UDataflow::UDataflow(const FObjectInitializer& ObjectInitializer)
 
 void UDataflow::EvaluateTerminalNodeByName(FName NodeName, UObject* Asset)
 {
-	if (Dataflow)
-	{
-		TSharedPtr<FDataflowNode> Node = Dataflow->FindTerminalNode(NodeName);
-		if (const FDataflowTerminalNode* TerminalNode = Node->AsType<const FDataflowTerminalNode>())
-		{
-			Dataflow::FEngineContext Context(Asset, this, FPlatformTime::Cycles64());
-			TerminalNode->Evaluate(Context);
-			if (Asset)
-			{
-				TerminalNode->SetAssetValue(Asset, Context);
-			}
-		}
-		else
-		{
-			UE_LOG(DATAFLOWOBJECT_LOG, Warning, TEXT("UDataflow::EvaluateTerminalNodeByName() : Could no find terminal node %s"), *NodeName.ToString());
-		}
-	}
+	ensureAlwaysMsgf(false, TEXT("Deprecated use the dataflow blueprint library from now on"));
 }
 
 void UDataflow::PostEditCallback()
