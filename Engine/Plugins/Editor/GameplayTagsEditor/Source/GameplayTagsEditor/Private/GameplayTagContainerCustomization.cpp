@@ -446,8 +446,8 @@ bool FGameplayTagContainerCustomization::CanPaste()
 {
 	FString TagName;
 	FPlatformApplicationMisc::ClipboardPaste(TagName);
-	
-	if (FName::IsValidXName(TagName))
+
+	if (TagName.Len() < NAME_SIZE)
 	{
 		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
 		return Tag.IsValid();
