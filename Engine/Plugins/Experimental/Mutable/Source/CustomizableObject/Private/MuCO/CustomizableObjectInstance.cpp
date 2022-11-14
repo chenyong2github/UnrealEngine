@@ -256,9 +256,14 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectIns
 
 	// Save the new LODs
 	SetCOInstanceFlags(Public->Descriptor.MinLODToLoad != NewMinLOD || Public->Descriptor.MaxLODToLoad != NewMaxLOD ? PendingLODsUpdate : ECONone);
-
+	
 	Public->Descriptor.MinLODToLoad = NewMinLOD;
 	Public->Descriptor.MaxLODToLoad = NewMaxLOD;
+
+	if (const FMutableQueueElem* QueueElem = UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableOperationQueue.Get(Public))
+	{
+		QueueElem->Operation->InstanceDescriptorRuntimeHash = Public->GetUpdateDescriptorRuntimeHash();
+	}
 }
 
 
@@ -544,6 +549,7 @@ void UCustomizableObjectInstance::PostLoad()
 	Super::PostLoad();
 
 	Descriptor.ReloadParameters();
+	SetMinMaxLODToLoad();
 }
 
 
@@ -565,9 +571,9 @@ bool UCustomizableObjectInstance::IsParamMultidimensional(const FString& ParamNa
 }
 
 
-int32 UCustomizableObjectInstance::CurrentParamRange(const FString& ParamName) const
+int32 UCustomizableObjectInstance::GetProjectorValueRange(const FString& ParamName) const
 {
-	return Descriptor.CurrentParamRange(ParamName);
+	return Descriptor.GetProjectorValueRange(ParamName);
 }
 
 
@@ -680,6 +686,7 @@ void UCustomizableObjectInstance::SetObject(UCustomizableObject* InObject)
 {
 	Descriptor.SetCustomizableObject(*InObject);
 	PrivateData->ReloadParameters(this);
+	SetMinMaxLODToLoad();
 }
 
 

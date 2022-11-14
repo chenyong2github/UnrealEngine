@@ -312,7 +312,7 @@ public:
 	bool IsParamMultidimensional(const FString& ParamName) const;
 
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
-	int32 CurrentParamRange(const FString& ParamName) const;
+	int32 GetProjectorValueRange(const FString& ParamName) const;
 	
 	bool IsParamMultidimensional(int32 ParamIndex) const;
 	FCustomizableObjectProjector GetProjectorDefaultValue(int32 ParamIndex) const;
@@ -601,7 +601,7 @@ public:
 	void SetIsPlayerOrNearIt(bool NewValue);
 	float GetMinSquareDistToPlayer() const;
 	void SetMinSquareDistToPlayer(float NewValue);
-	void SetMinMaxLODToLoad(int32 NewMinLOD, int32 NewMaxLOD, bool LimitLODUpgrades = true);
+	void SetMinMaxLODToLoad(int32 NewMinLOD = 0, int32 NewMaxLOD = INT32_MAX, bool LimitLODUpgrades = true);
 	int32 GetMinLODToLoad() const;
 	int32 GetMaxLODToLoad() const;
 	int32 GetNumLODsAvailable() const;
