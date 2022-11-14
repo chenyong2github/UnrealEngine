@@ -218,12 +218,23 @@ void FElectraPlayer::ClearToDefaultState()
 /**
  *	Open player
  */
-bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict& PlayerOptions, const FPlaystartOptions& InPlaystartOptions)
+bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict& InPlayerOptions, const FPlaystartOptions& InPlaystartOptions, EOpenType InOpenType)
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
 	CSV_EVENT(ElectraPlayer, TEXT("Open"));
 
-	CloseInternal(false);
+	// Open the provided URL as a media or a blob?
+	FString BlobParams;
+	bool bPreviousOpenLoadedBlob = PendingBlobRequest.IsValid();
+	PendingBlobRequest.Reset();
+	bool bCreateNewPlayer = (InOpenType == IElectraPlayerInterface::EOpenType::Media && !bPreviousOpenLoadedBlob) ||
+							(InOpenType == IElectraPlayerInterface::EOpenType::Blob);
+	if (bCreateNewPlayer)
+	{
+		CloseInternal(false);
+	}
+	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> NewPlayer = MoveTemp(CurrentPlayer);
+
 	// Clear out our work variables
 	ClearToDefaultState();
 	bAllowKillAfterCloseEvent = false;
@@ -240,74 +251,111 @@ bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict& PlayerOp
 
 	PlaystartOptions = InPlaystartOptions;
 
-	// Create a new empty player structure. This contains the actual player instance, its associated renderers and sample queues.
-	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> NewPlayer = MakeShared<FInternalPlayerImpl, ESPMode::ThreadSafe>();
-
 	// Get a writable copy of the URL so we can sanitize it if necessary.
 	MediaUrl = Url;
 	MediaUrl.TrimStartAndEndInline();
-	UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] IMediaPlayer::Open(%s)"), this, NewPlayer.Get(), *SanitizeMessage(MediaUrl));
 
-	// Create the renderers so we can pass them to the internal player.
-	// They get a pointer to ourselves which they will call On[Video|Audio]Decoded() and On[Video|Audio]Flush() on.
-	NewPlayer->RendererVideo = MakeShared<FElectraRendererVideo, ESPMode::ThreadSafe>(SharedThis(this));
-	NewPlayer->RendererAudio = MakeShared<FElectraRendererAudio, ESPMode::ThreadSafe>(SharedThis(this));
-
-	// Create the internal player and register ourselves as metrics receiver and static resource provider.
-	IAdaptiveStreamingPlayer::FCreateParam CreateParams;
-	CreateParams.VideoRenderer = NewPlayer->RendererVideo;
-	CreateParams.AudioRenderer = NewPlayer->RendererAudio;
-	CreateParams.ExternalPlayerGUID = PlayerGuid;
-	NewPlayer->AdaptivePlayer = IAdaptiveStreamingPlayer::Create(CreateParams);
-	NewPlayer->AdaptivePlayer->AddMetricsReceiver(this);
-	NewPlayer->AdaptivePlayer->SetStaticResourceProviderCallback(StaticResourceProvider);
-	NewPlayer->AdaptivePlayer->SetVideoDecoderResourceDelegate(VideoDecoderResourceDelegate);
-
-	// Create the subtitle receiver and register it with the player.
-	MediaPlayerSubtitleReceiver = MakeSharedTS<FSubtitleEventReceiver>();
-	MediaPlayerSubtitleReceiver->GetSubtitleReceivedDelegate().BindRaw(this, &FElectraPlayer::OnSubtitleDecoded);
-	MediaPlayerSubtitleReceiver->GetSubtitleFlushDelegate().BindRaw(this, &FElectraPlayer::OnSubtitleFlush);
-	NewPlayer->AdaptivePlayer->AddSubtitleReceiver(MediaPlayerSubtitleReceiver);
-
-	// Create a new media player event receiver and register it to receive all non player internal events as soon as they are received.
-	MediaPlayerEventReceiver = MakeSharedTS<FAEMSEventReceiver>();
-	MediaPlayerEventReceiver->GetEventReceivedDelegate().BindRaw(this, &FElectraPlayer::OnMediaPlayerEventReceived);
-	NewPlayer->AdaptivePlayer->AddAEMSReceiver(MediaPlayerEventReceiver, TEXT("*"), TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnReceive);
-
-	NewPlayer->AdaptivePlayer->Initialize(PlayerOptions);
-
-	// Check for options that can be changed during playback and apply them at startup already.
-	// If a media source supports the MaxResolutionForMediaStreaming option then we can override the max resolution.
-	if (PlaystartOptions.MaxVerticalStreamResolution.IsSet())
+	if (!NewPlayer.IsValid())
 	{
-		NewPlayer->AdaptivePlayer->SetMaxResolution(0, PlaystartOptions.MaxVerticalStreamResolution.GetValue());
+		FParamDict PlayerOptions(InPlayerOptions);
+
+		// Create a new empty player structure. This contains the actual player instance, its associated renderers and sample queues.
+		NewPlayer = MakeShared<FInternalPlayerImpl, ESPMode::ThreadSafe>();
+
+		// Create the renderers so we can pass them to the internal player.
+		// They get a pointer to ourselves which they will call On[Video|Audio]Decoded() and On[Video|Audio]Flush() on.
+		NewPlayer->RendererVideo = MakeShared<FElectraRendererVideo, ESPMode::ThreadSafe>(SharedThis(this));
+		NewPlayer->RendererAudio = MakeShared<FElectraRendererAudio, ESPMode::ThreadSafe>(SharedThis(this));
+
+		// Create the internal player and register ourselves as metrics receiver and static resource provider.
+		IAdaptiveStreamingPlayer::FCreateParam CreateParams;
+		CreateParams.VideoRenderer = NewPlayer->RendererVideo;
+		CreateParams.AudioRenderer = NewPlayer->RendererAudio;
+		CreateParams.ExternalPlayerGUID = PlayerGuid;
+		NewPlayer->AdaptivePlayer = IAdaptiveStreamingPlayer::Create(CreateParams);
+		NewPlayer->AdaptivePlayer->AddMetricsReceiver(this);
+		NewPlayer->AdaptivePlayer->SetStaticResourceProviderCallback(StaticResourceProvider);
+		NewPlayer->AdaptivePlayer->SetVideoDecoderResourceDelegate(VideoDecoderResourceDelegate);
+
+		// Create the subtitle receiver and register it with the player.
+		MediaPlayerSubtitleReceiver = MakeSharedTS<FSubtitleEventReceiver>();
+		MediaPlayerSubtitleReceiver->GetSubtitleReceivedDelegate().BindRaw(this, &FElectraPlayer::OnSubtitleDecoded);
+		MediaPlayerSubtitleReceiver->GetSubtitleFlushDelegate().BindRaw(this, &FElectraPlayer::OnSubtitleFlush);
+		NewPlayer->AdaptivePlayer->AddSubtitleReceiver(MediaPlayerSubtitleReceiver);
+
+		// Create a new media player event receiver and register it to receive all non player internal events as soon as they are received.
+		MediaPlayerEventReceiver = MakeSharedTS<FAEMSEventReceiver>();
+		MediaPlayerEventReceiver->GetEventReceivedDelegate().BindRaw(this, &FElectraPlayer::OnMediaPlayerEventReceived);
+		NewPlayer->AdaptivePlayer->AddAEMSReceiver(MediaPlayerEventReceiver, TEXT("*"), TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnReceive);
+
+		if (InOpenType == IElectraPlayerInterface::EOpenType::Blob)
+		{
+			const TCHAR * const KeyBlob = TEXT("blobparams");
+			if (PlayerOptions.HaveKey(KeyBlob))
+			{
+				BlobParams = PlayerOptions.GetValue(KeyBlob).SafeGetFString();
+				PlayerOptions.Remove(KeyBlob);
+			}
+		}
+		NewPlayer->AdaptivePlayer->Initialize(PlayerOptions);
 	}
 
-	if (PlaystartOptions.MaxBandwidthForStreaming.IsSet())
+	if (InOpenType == IElectraPlayerInterface::EOpenType::Media)
 	{
-		NewPlayer->AdaptivePlayer->SetBitrateCeiling(PlaystartOptions.MaxBandwidthForStreaming.GetValue());
-	}
+		// Check for options that can be changed during playback and apply them at startup already.
+		// If a media source supports the MaxResolutionForMediaStreaming option then we can override the max resolution.
+		if (PlaystartOptions.MaxVerticalStreamResolution.IsSet())
+		{
+			NewPlayer->AdaptivePlayer->SetMaxResolution(0, PlaystartOptions.MaxVerticalStreamResolution.GetValue());
+		}
 
-	// Set the player member variable to the new player now that it has been fully initialized.
-	CurrentPlayer = MoveTemp(NewPlayer);
-	// Apply options that may have been set prior to calling Open().
-	// Set these only if they have defined values as to not override what might have been set in the PlayerOptions.
-	if (bFrameAccurateSeeking.IsSet())
-	{
-		SetFrameAccurateSeekMode(bFrameAccurateSeeking.GetValue());
-	}
-	if (bEnableLooping.IsSet())
-	{
-		SetLooping(bEnableLooping.GetValue());
-	}
-	if (CurrentPlaybackRange.Start.IsSet() || CurrentPlaybackRange.End.IsSet())
-	{
-		SetPlaybackRange(CurrentPlaybackRange);
-	}
+		if (PlaystartOptions.MaxBandwidthForStreaming.IsSet())
+		{
+			NewPlayer->AdaptivePlayer->SetBitrateCeiling(PlaystartOptions.MaxBandwidthForStreaming.GetValue());
+		}
 
-	// Issue load of the playlist.
-	CurrentPlayer->AdaptivePlayer->LoadManifest(MediaUrl);
- 	return true;
+		// Apply options that may have been set prior to calling Open().
+		// Set these only if they have defined values as to not override what might have been set in the PlayerOptions.
+		if (bFrameAccurateSeeking.IsSet())
+		{
+			SetFrameAccurateSeekMode(bFrameAccurateSeeking.GetValue());
+		}
+		if (bEnableLooping.IsSet())
+		{
+			SetLooping(bEnableLooping.GetValue());
+		}
+		if (CurrentPlaybackRange.Start.IsSet() || CurrentPlaybackRange.End.IsSet())
+		{
+			SetPlaybackRange(CurrentPlaybackRange);
+		}
+
+		// Set the player member variable to the new player now that it has been fully initialized.
+		CurrentPlayer = MoveTemp(NewPlayer);
+
+		if (bPreviousOpenLoadedBlob)
+		{
+			CurrentPlayer->AdaptivePlayer->ModifyOptions(InPlayerOptions, Electra::FParamDict());
+		}
+
+		// Issue load of the playlist.
+		UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] IMediaPlayer::Open(%s)"), this, CurrentPlayer.Get(), *SanitizeMessage(MediaUrl));
+		CurrentPlayer->AdaptivePlayer->LoadManifest(MediaUrl);
+	}
+	else
+	{
+		PendingBlobRequest = MakeShared<FBlobRequest, ESPMode::ThreadSafe>();
+		if (!PendingBlobRequest->Request->SetFromJSON(BlobParams))
+		{
+			UE_LOG(LogElectraPlayer, Error, TEXT("[%p] IMediaPlayer::OpenBlob(%s) has bad JSON parameters"), this, *SanitizeMessage(MediaUrl));
+			PendingBlobRequest.Reset();
+			return false;
+		}
+		CurrentPlayer = MoveTemp(NewPlayer);
+		UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] IMediaPlayer::OpenBlob(%s)"), this, CurrentPlayer.Get(), *SanitizeMessage(MediaUrl));
+		PendingBlobRequest->Request->URL(MediaUrl).Callback().BindThreadSafeSP(PendingBlobRequest.ToSharedRef(), &FBlobRequest::OnBlobRequestComplete);
+		CurrentPlayer->AdaptivePlayer->LoadBlob(PendingBlobRequest->Request);
+	}
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -558,6 +606,9 @@ void FElectraPlayer::Tick(FTimespan DeltaTime, FTimespan Timecode)
 		// Handle static resource fetch requests.
 		StaticResourceProvider->ProcessPendingStaticResourceRequests();
 
+		// Check for blob loading completed
+		HandleBlobDownload();
+
 		// Check for option changes
 		TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
 		if (PinnedAdapterDelegate.IsValid())
@@ -618,6 +669,33 @@ void FElectraPlayer::Tick(FTimespan DeltaTime, FTimespan Timecode)
 		while (DeferredEvents.Dequeue(Event))
 		{
 			PinnedAdapterDelegate->SendMediaEvent(Event);
+		}
+	}
+}
+
+
+void FElectraPlayer::HandleBlobDownload()
+{
+	if (PendingBlobRequest.IsValid() && PendingBlobRequest->bIsComplete && !PendingBlobRequest->bDispatched)
+	{
+		PendingBlobRequest->bDispatched = true;
+		if (!PendingBlobRequest->Request->GetWasCanceled())
+		{
+			int32 ErrCode = PendingBlobRequest->Request->GetError();
+			IElectraPlayerAdapterDelegate::EBlobResultType Result = ErrCode == 0 ? IElectraPlayerAdapterDelegate::EBlobResultType::Success :
+																	ErrCode > 0 && ErrCode < 100 ? IElectraPlayerAdapterDelegate::EBlobResultType::TimedOut :
+																	IElectraPlayerAdapterDelegate::EBlobResultType::HttpFailure;
+			TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> BlobData = MakeShared<TArray<uint8>, ESPMode::ThreadSafe>();
+			TSharedPtrTS<IElectraHttpManager::FReceiveBuffer> ResponseBuffer = PendingBlobRequest->Request->GetResponseBuffer();
+			if (ResponseBuffer.IsValid())
+			{
+				BlobData->Append((const uint8*)ResponseBuffer->Buffer.GetLinearReadData(), ResponseBuffer->Buffer.Num());
+			}
+			TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
+			if (PinnedAdapterDelegate.IsValid())
+			{
+				PinnedAdapterDelegate->BlobReceived(BlobData, Result, ErrCode, nullptr);
+			}
 		}
 	}
 }
@@ -2999,7 +3077,7 @@ void FElectraPlayer::FAdaptiveStreamingPlayerResourceProvider::ProcessPendingSta
 						UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] IMediaPlayer::Open: Source provided playlist data for '%s'"), this, CurrentPlayer.Get(), *SanitizeMessage(InOutRequest->GetResourceURL()));
 						*/
 
-						// FString is Unicode but the HTTP response for an HLS playlist is a UTF-8 string.
+						// FString is Unicode but the HTTP response for a playlist is expected to be a UTF-8 string.
 						// Create a plain array from this.
 						TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ResponseDataPtr = MakeShared<TArray<uint8>, ESPMode::ThreadSafe>((const uint8*)TCHAR_TO_UTF8(*PlaylistData), PlaylistData.Len());
 						// And put it into the request

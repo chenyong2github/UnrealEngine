@@ -925,6 +925,7 @@ public:
 
 	void SetInitialStreamAttributes(EStreamType StreamType, const FStreamSelectionAttributes& InitialSelection) override;
 	void EnableFrameAccurateSeeking(bool bEnabled) override;
+	void LoadBlob(TSharedPtr<FHTTPResourceRequest, ESPMode::ThreadSafe> InBlobLoadRequest) override;
 	void LoadManifest(const FString& manifestURL) override;
 
 	void SeekTo(const FSeekParam& NewPosition) override;
@@ -1356,6 +1357,7 @@ private:
 				// Commands
 				Initialize,
 				LoadManifest,
+				LoadBlob,
 				Pause,
 				Resume,
 				Loop,
@@ -1382,6 +1384,10 @@ private:
 				{
 					FString											URL;
 					FString											MimeType;
+				};
+				struct FLoadBlob
+				{
+					TSharedPtrTS<FHTTPResourceRequest>				BlobLoadRequest;
 				};
 				struct FStreamReader
 				{
@@ -1443,6 +1449,7 @@ private:
 				};
 
 				FLoadManifest				ManifestToLoad;
+				FLoadBlob					BlobToLoad;
 				FStreamReader				StreamReader;
 				FEvent						MediaEvent;
 				FLoop						Looping;
@@ -1489,6 +1496,13 @@ private:
 			Msg.Type = FMessage::EType::LoadManifest;
 			Msg.Data.ManifestToLoad.URL = URL;
 			Msg.Data.ManifestToLoad.MimeType = MimeType;
+			TriggerSharedWorkerThread(MoveTemp(Msg));
+		}
+		void SendLoadBlobMessage(TSharedPtr<FHTTPResourceRequest, ESPMode::ThreadSafe> InBlobLoadRequest)
+		{
+			FMessage Msg;
+			Msg.Type = FMessage::EType::LoadBlob;
+			Msg.Data.BlobToLoad.BlobLoadRequest = MoveTemp(InBlobLoadRequest);
 			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendPauseMessage()

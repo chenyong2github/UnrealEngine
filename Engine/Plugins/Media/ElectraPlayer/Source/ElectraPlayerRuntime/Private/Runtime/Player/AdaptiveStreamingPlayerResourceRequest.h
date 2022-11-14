@@ -65,11 +65,16 @@ public:
 
 	DECLARE_DELEGATE_OneParam(FOnRequestCompletedCallback, TSharedPtrTS<FHTTPResourceRequest> /*Request*/);
 
+	virtual bool SetFromJSON(const FString& InJSONParams);
+
 	virtual FHTTPResourceRequest& URL(const FString& InURL)
 	{ Request->Parameters.URL = InURL; return *this; }
 
 	virtual FHTTPResourceRequest& Verb(const FString& InVerb)
 	{ Request->Parameters.Verb = InVerb; return *this; }
+
+	virtual FHTTPResourceRequest& UserAgent(const FString& InUserAgent)
+	{ Request->Parameters.UserAgent.Set(InUserAgent); return *this; }
 
 	virtual FHTTPResourceRequest& PostData(TArray<uint8> InPostData)
 	{ Request->Parameters.PostData = MoveTemp(InPostData); return *this; }
@@ -176,7 +181,7 @@ private:
 			}
 		}
 
-		//! Signal request completion. Must be called with ot without data being set.
+		//! Signal request completion. Must be called with or without data being set.
 		virtual void SignalDataReady()
 		{
 			TSharedPtrTS<FHTTPResourceRequest> p(Owner.Pin());
@@ -200,7 +205,7 @@ private:
 	TSharedPtrTS<IElectraHttpManager::FProgressListener> ProgressListener;
 	FOnRequestCompletedCallback CompletedCallback;
 	TWeakPtrTS<IHTTPResourceRequestObject> UserObject;
-	IPlayerSessionServices* PlayerSessionServices = nullptr;
+	TWeakPtrTS<IElectraHttpManager> HTTPManager;
 	TMediaOptionalValue<IAdaptiveStreamingPlayerResourceRequest::EPlaybackResourceType> StaticQueryType;
 	bool bWasAdded = false;
 	bool bWasCanceled = false;

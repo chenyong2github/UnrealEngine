@@ -87,7 +87,7 @@ public:
 
 	// -------- PlayerAdapter (Plugin/Native) API
 
-	bool OpenInternal(const FString& Url, const FParamDict& PlayerOptions, const FPlaystartOptions& InPlaystartOptions) override;
+	bool OpenInternal(const FString& Url, const FParamDict& PlayerOptions, const FPlaystartOptions& InPlaystartOptions, EOpenType InOpenType) override;
 	void CloseInternal(bool bKillAfterClose) override;
 
 	void Tick(FTimespan DeltaTime, FTimespan Timecode) override;
@@ -505,6 +505,21 @@ private:
 	TSharedPtr<FAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> StaticResourceProvider;
 	TSharedPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe> VideoDecoderResourceDelegate;
 
+	class FBlobRequest
+	{
+	public:
+		FBlobRequest() : Request(MakeShared<Electra::FHTTPResourceRequest, ESPMode::ThreadSafe>())
+		{ }
+		void OnBlobRequestComplete(TSharedPtrTS<Electra::FHTTPResourceRequest> InRequest)
+		{
+			bIsComplete = true;
+		}
+		TSharedPtr<Electra::FHTTPResourceRequest, ESPMode::ThreadSafe> Request;
+		bool bIsComplete = false;
+		bool bDispatched = false;
+	};
+	TSharedPtr<FBlobRequest, ESPMode::ThreadSafe> PendingBlobRequest;
+
 
 	class FAverageValue
 	{
@@ -754,6 +769,7 @@ private:
 	/** Sequential analytics event number. Helps sorting events. **/
 	uint32									AnalyticsInstanceEventCount;
 
+	void HandleBlobDownload();
 
 	void HandleDeferredPlayerEvents();
 	void HandlePlayerEventOpenSource(const FString& URL);

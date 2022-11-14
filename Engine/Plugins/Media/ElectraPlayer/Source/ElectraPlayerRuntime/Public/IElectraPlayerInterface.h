@@ -42,6 +42,14 @@ public:
 	};
 	virtual Electra::FVariantValue QueryOptions(EOptionType Type, const Electra::FVariantValue& Param = Electra::FVariantValue()) = 0;
 
+	enum class EBlobResultType
+	{
+		Success,
+		TimedOut,
+		HttpFailure
+	};
+	virtual void BlobReceived(const TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>& InBlobData, EBlobResultType InResultType, int32 InResultCode, const Electra::FParamDict* InExtraInfo) = 0;
+
 	enum class EPlayerEvent
 	{
 		MediaBuffering = 0,
@@ -126,7 +134,13 @@ public:
 		bool						bDoNotPreload = false;
 	};
 
-	virtual bool OpenInternal(const FString& Url, const Electra::FParamDict& PlayerOptions, const FPlaystartOptions& InPlaystartOptions) = 0;
+	enum class EOpenType
+	{
+		Media,
+		Blob
+	};
+
+	virtual bool OpenInternal(const FString& Url, const Electra::FParamDict& PlayerOptions, const FPlaystartOptions& InPlaystartOptions, EOpenType InOpenType) = 0;
 	virtual void CloseInternal(bool bKillAfterClose) = 0;
 
 	virtual void Tick(FTimespan DeltaTime, FTimespan Timecode) = 0;

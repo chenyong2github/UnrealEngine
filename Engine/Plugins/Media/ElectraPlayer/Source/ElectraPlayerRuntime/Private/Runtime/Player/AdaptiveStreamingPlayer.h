@@ -39,7 +39,7 @@ public:
 	//-------------------------------------------------------------------------
 	// Various resource providers/delegates
 	//
-	virtual void SetStaticResourceProviderCallback(const TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> & InStaticResourceProvider) = 0;
+	virtual void SetStaticResourceProviderCallback(const TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe>& InStaticResourceProvider) = 0;
 	virtual void SetVideoDecoderResourceDelegate(const TSharedPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe>& ResourceDelegate) = 0;
 
 
@@ -100,7 +100,10 @@ public:
 	//-------------------------------------------------------------------------
 	// Manifest loading functions
 	//
-	//! Issue a load and parse of the manifest/master playlist file. Make initial stream selection choice by calling SetInitialStreamAttributes() beforehand.
+	//! Issues loading of a binary blob of arbitrary data.
+	virtual void LoadBlob(TSharedPtr<FHTTPResourceRequest, ESPMode::ThreadSafe> InBlobLoadRequest) = 0;
+
+	//! Issue a load and parse of the manifest/main playlist file. Make initial stream selection choice by calling SetInitialStreamAttributes() beforehand.
 	virtual void LoadManifest(const FString& ManifestURL) = 0;
 
 

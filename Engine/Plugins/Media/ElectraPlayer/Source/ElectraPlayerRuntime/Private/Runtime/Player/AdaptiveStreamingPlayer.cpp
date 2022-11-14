@@ -406,7 +406,10 @@ void FAdaptiveStreamingPlayer::DispatchEvent(TSharedPtrTS<FMetricEvent> Event)
 {
 	if (EventDispatcher.IsValid())
 	{
-		Event->Player = SharedThis(this);
+		if (DoesSharedInstanceExist())
+		{
+			Event->Player = SharedThis(this);
+		}
 		EventDispatcher->DispatchEvent(Event);
 	}
 }
@@ -575,11 +578,16 @@ void FAdaptiveStreamingPlayer::GetPlaybackRange(FPlaybackRange& OutPlaybackRange
 
 //-----------------------------------------------------------------------------
 /**
- * Starts loading the manifest / master playlist.
+ * Starts loading the manifest / main playlist.
  */
 void FAdaptiveStreamingPlayer::LoadManifest(const FString& InManifestURL)
 {
 	WorkerThread.SendLoadManifestMessage(InManifestURL, FString());
+}
+
+void FAdaptiveStreamingPlayer::LoadBlob(TSharedPtr<FHTTPResourceRequest, ESPMode::ThreadSafe> InBlobLoadRequest)
+{
+	WorkerThread.SendLoadBlobMessage(InBlobLoadRequest);
 }
 
 
@@ -1330,6 +1338,14 @@ bool FAdaptiveStreamingPlayer::InternalHandleThreadMessages()
 			case FWorkerThreadMessages::FMessage::EType::LoadManifest:
 			{
 				InternalLoadManifest(msg.Data.ManifestToLoad.URL, msg.Data.ManifestToLoad.MimeType);
+				break;
+			}
+			case FWorkerThreadMessages::FMessage::EType::LoadBlob:
+			{
+				if (msg.Data.BlobToLoad.BlobLoadRequest.IsValid())
+				{
+					msg.Data.BlobToLoad.BlobLoadRequest->StartGet(this);
+				}
 				break;
 			}
 			case FWorkerThreadMessages::FMessage::EType::Pause:
