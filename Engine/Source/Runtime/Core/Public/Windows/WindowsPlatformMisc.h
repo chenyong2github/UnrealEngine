@@ -82,6 +82,15 @@ struct CORE_API FWindowsPlatformMisc
 
 	static void SetUTF8Output();
 	static void LocalPrint(const TCHAR *Message);
+
+	static bool IsLocalPrintThreadSafe()
+	{ 
+		//returning true when the debugger is attached is to allow
+		//printing of log lines immediately to the output window.
+		//return false in not attached because OutputDebuString is slow.
+		return IsDebuggerPresent();
+	}
+	
 	static void RequestExitWithStatus(bool Force, uint8 ReturnCode);
 	static void RequestExit(bool Force);
 	static const TCHAR* GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error);

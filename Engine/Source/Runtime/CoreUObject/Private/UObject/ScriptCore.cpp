@@ -346,7 +346,6 @@ void PrintScriptCallStackImpl()
 			ScriptStack << TEXT("\n");
 		}
 		UE_LOG(LogOutputDevice, Warning, TEXT("%s"), *ScriptStack);
-		GLog->Flush(); // flush is needed because logging is buffered 
 	}
 }
 
