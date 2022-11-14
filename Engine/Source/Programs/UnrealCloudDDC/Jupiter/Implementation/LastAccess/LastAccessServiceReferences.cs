@@ -4,11 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter.Common;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using Serilog;
 
 namespace Jupiter.Implementation
@@ -19,17 +19,19 @@ namespace Jupiter.Implementation
         private readonly ILastAccessCache<LastAccessRecord> _lastAccessCacheRecord;
         private readonly IReferencesStore _referencesStore;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
+        private readonly Tracer _tracer;
         private readonly ILogger _logger = Log.ForContext<LastAccessServiceReferences>();
         private Timer? _timer;
         private readonly UnrealCloudDDCSettings _settings;
         
         public bool Running { get; private set; }
 
-        public LastAccessServiceReferences(IOptionsMonitor<UnrealCloudDDCSettings> settings, ILastAccessCache<LastAccessRecord> lastAccessCache, IReferencesStore referencesStore, INamespacePolicyResolver namespacePolicyResolver)
+        public LastAccessServiceReferences(IOptionsMonitor<UnrealCloudDDCSettings> settings, ILastAccessCache<LastAccessRecord> lastAccessCache, IReferencesStore referencesStore, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer)
         {
             _lastAccessCacheRecord = lastAccessCache;
             _referencesStore = referencesStore;
             _namespacePolicyResolver = namespacePolicyResolver;
+            _tracer = tracer;
             _settings = settings.CurrentValue;
         }
 
@@ -79,8 +81,7 @@ namespace Jupiter.Implementation
                     continue;
                 }
 
-                using IScope scope = Tracer.Instance.StartActive("lastAccess.update");
-                scope.Span.ResourceName = $"{record.Namespace}:{record.Bucket}.{record.Key}";
+                using TelemetrySpan scope = _tracer.StartActiveSpan("lastAccess.update").SetAttribute("resource.name", $"{record.Namespace}:{record.Bucket}.{record.Key}");
                 _logger.Debug("Updating last access time to {LastAccessTime} for {Record}", lastAccessTime, record);
                 await _referencesStore.UpdateLastAccessTime(record.Namespace, record.Bucket, record.Key, lastAccessTime);
                 // delay 10ms between each record to distribute the load more evenly for the db

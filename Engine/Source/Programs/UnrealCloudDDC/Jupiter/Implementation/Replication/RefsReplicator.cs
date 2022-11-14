@@ -12,15 +12,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter.Controllers;
 using Jupiter.Implementation.TransactionLog;
 using Jupiter.Common;
 using Jupiter.Common.Implementation;
-using Jupiter.Implementation;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using OpenTelemetry.Trace;
 using Serilog;
 
 namespace Jupiter.Implementation
@@ -35,13 +34,16 @@ namespace Jupiter.Implementation
         private readonly IBlobService _blobService;
         private readonly IReplicationLog _replicationLog;
         private readonly IServiceCredentials _serviceCredentials;
+        private readonly Tracer _tracer;
+        private readonly BufferedPayloadFactory _bufferedPayloadFactory;
+        private readonly ReplicationLogFactory _replicationLogFactory;
         private readonly HttpClient _httpClient;
         private readonly NamespaceId _namespace;
         private RefsState _refsState;
         private bool _replicationRunning;
         private bool _disposed = false;
 
-        public RefsReplicator(ReplicatorSettings replicatorSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials)
+        public RefsReplicator(ReplicatorSettings replicatorSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory, ReplicationLogFactory replicationLogFactory)
         {
             _name = replicatorSettings.ReplicatorName;
             _namespace = new NamespaceId(replicatorSettings.NamespaceToReplicate);
@@ -49,6 +51,9 @@ namespace Jupiter.Implementation
             _blobService = blobService;
             _replicationLog = replicationLog;
             _serviceCredentials = serviceCredentials;
+            _tracer = tracer;
+            _bufferedPayloadFactory = bufferedPayloadFactory;
+            _replicationLogFactory = replicationLogFactory;
 
             _httpClient = httpClientFactory.CreateClient();
             _httpClient.BaseAddress = new Uri(replicatorSettings.ConnectionString);
@@ -285,7 +290,7 @@ namespace Jupiter.Implementation
                 HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                 response.EnsureSuccessStatusCode();
                 await using Stream blobStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobStream);
+                snapshot = _replicationLogFactory.DeserializeSnapshotFromStream(blobStream);
             }
 
             if (!snapshot.LastEvent.HasValue)
@@ -304,8 +309,8 @@ namespace Jupiter.Implementation
             {
                 try
                 {
-                    using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_snapshot");
-                    scope.Span.ResourceName = $"{ns}.{snapshotLiveObject.Blob}";
+                    using TelemetrySpan? scope = _tracer.StartActiveSpan("replicator.replicate_op_snapshot");
+                    scope.SetAttribute("resource.name", $"{ns}.{snapshotLiveObject.Blob}");
                     Interlocked.Increment(ref countOfObjectsCurrentlyReplicating);
                     LogReplicationHeartbeat(countOfObjectsCurrentlyReplicating);
 
@@ -370,9 +375,9 @@ namespace Jupiter.Implementation
 
             await GetRefEvents(ns, lastBucket, lastEvent, replicationToken).ParallelForEachAsync(async (ReplicationLogEvent @event) =>
             {
-                using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental");
-                scope.Span.ResourceName = $"{ns}.{@event.Bucket}.{@event.Key}";
-                scope.Span.SetTag("time-bucket", @event.Timestamp.ToString(CultureInfo.InvariantCulture));
+                using TelemetrySpan? scope = _tracer.StartActiveSpan("replicator.replicate_op_incremental")
+                    .SetAttribute("resource.name", $"{ns}.{@event.Bucket}.{@event.Key}")
+                    .SetAttribute("time-bucket", @event.Timestamp.ToString(CultureInfo.InvariantCulture));
 
                 _logger.Information("{Name} New transaction to replicate found. Ref: {Namespace} {Bucket} {Key} in {TimeBucket} ({TimeDate}) with id {EventId}. Count of running replications: {CurrentReplications}", _name, @event.Namespace, @event.Bucket, @event.Key, @event.TimeBucket, @event.Timestamp, @event.EventId, replicationTasks.Count);
                 
@@ -449,8 +454,7 @@ namespace Jupiter.Implementation
 
         private async Task<bool> ReplicateOp(NamespaceId ns, BlobIdentifier objectToReplicate, CancellationToken cancellationToken)
         {
-            using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op");
-            scope.Span.ResourceName = $"{ns}.{objectToReplicate}";
+            using TelemetrySpan scope = _tracer.StartActiveSpan("replicator.replicate_op").SetAttribute("resource.name", $"{ns}.{objectToReplicate}");
 
             _logger.Information("Attempting to replicate object {Blob} in {Namespace}.", objectToReplicate, ns);
 
@@ -512,8 +516,13 @@ namespace Jupiter.Implementation
 
                     await using Stream s = await blobResponse.Content.ReadAsStreamAsync(cancellationToken);
                     long? contentLength = blobResponse.Content.Headers.ContentLength;
-                            
-                    using IBufferedPayload payload = contentLength is null or > int.MaxValue ? await FilesystemBufferedPayload.Create(s) : await MemoryBufferedPayload.Create(s);
+
+                    if (contentLength == null)
+                    {
+                        throw new Exception("Expected content-length on blob response");
+                    }
+
+                    using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromStream(s, contentLength.Value);
 
                     await _blobService.PutObject(ns, payload, blobToReplicate);
                 }, cancellationToken);

@@ -20,6 +20,7 @@ using Jupiter.Implementation.Blob;
 using Jupiter.Implementation.LeaderElection;
 using Jupiter;
 using Jupiter.Common.Implementation;
+using Jupiter.Implementation.TransactionLog;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -115,6 +116,7 @@ namespace Jupiter
                 return AWSCredentialsHelper.GetCredentials(awsSettings, "Jupiter");
             });
             services.AddSingleton<BufferedPayloadFactory>();
+            services.AddSingleton<ReplicationLogFactory>();
 
             services.AddSingleton<BlobCleanupService>();
             services.AddHostedService<BlobCleanupService>(p => p.GetService<BlobCleanupService>()!);

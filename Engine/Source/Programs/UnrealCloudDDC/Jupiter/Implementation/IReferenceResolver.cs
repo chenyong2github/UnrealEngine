@@ -4,13 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
-using Jupiter.Implementation;
 using Jupiter.Utils;
-using ContentId = Jupiter.Implementation.ContentId;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Implementation
 {
@@ -77,11 +75,13 @@ namespace Jupiter.Implementation
     {
         private readonly IBlobService _blobStore;
         private readonly IContentIdStore _contentIdStore;
+        private readonly Tracer _tracer;
 
-        public ReferenceResolver(IBlobService blobStore, IContentIdStore contentIdStore)
+        public ReferenceResolver(IBlobService blobStore, IContentIdStore contentIdStore, Tracer tracer)
         {
             _blobStore = blobStore;
             _contentIdStore = contentIdStore;
+            _tracer = tracer;
         }
 
         public async IAsyncEnumerable<Attachment> GetAttachments(NamespaceId ns, CbObject cb)
@@ -266,8 +266,7 @@ namespace Jupiter.Implementation
 
         private async Task<(ContentId, BlobIdentifier[]?)> ResolveContentId(NamespaceId ns, ContentId contentId)
         {
-            using IScope scope = Tracer.Instance.StartActive("ReferenceResolver.ResolveContentId");
-            scope.Span.ResourceName = contentId.ToString();
+            using TelemetrySpan scope = _tracer.StartActiveSpan("ReferenceResolver.ResolveContentId").SetAttribute("resource.name", contentId.ToString());
             BlobIdentifier[]? resolvedBlobs = await _contentIdStore.Resolve(ns, contentId);
             return (contentId, resolvedBlobs);
         }

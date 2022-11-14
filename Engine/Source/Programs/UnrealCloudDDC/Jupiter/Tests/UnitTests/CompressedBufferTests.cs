@@ -4,6 +4,7 @@ using System.Text;
 using Jupiter.Implementation;
 using Jupiter.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Tests.Unit
 {
@@ -18,7 +19,7 @@ namespace Jupiter.Tests.Unit
 
             using OodleCompressor compressor = new OodleCompressor();
             compressor.InitializeOodle();
-            CompressedBufferUtils bufferUtils = new CompressedBufferUtils(compressor);
+            CompressedBufferUtils bufferUtils = new CompressedBufferUtils(compressor, TracerProvider.Default.GetTracer("TestTracer"));
 
             byte[] compressedBytes = bufferUtils.CompressContent(OoodleCompressorMethod.Mermaid, OoodleCompressionLevel.VeryFast, bytes);
 

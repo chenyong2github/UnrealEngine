@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -13,14 +14,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.AspNet;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Jupiter.Implementation;
 using JetBrains.Annotations;
-using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
@@ -29,10 +28,10 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using OpenTelemetry.Trace;
 using Serilog;
 using ContentHash = Jupiter.Implementation.ContentHash;
 using ContentId = Jupiter.Implementation.ContentId;
-using CustomMediaTypeNames = Jupiter.CustomMediaTypeNames;
 using Log = Serilog.Log;
 
 namespace Jupiter.Controllers
@@ -47,28 +46,26 @@ namespace Jupiter.Controllers
     public class ReferencesController : ControllerBase
     {
         private readonly IDiagnosticContext _diagnosticContext;
-        private readonly IContentIdStore _contentIdStore;
         private readonly FormatResolver _formatResolver;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
         private readonly IReferenceResolver _referenceResolver;
         private readonly RequestHelper _requestHelper;
-        private readonly CompressedBufferUtils _compressedBufferUtils;
+        private readonly Tracer _tracer;
 
         private readonly ILogger _logger = Log.ForContext<ReferencesController>();
         private readonly IObjectService _objectService;
         private readonly IBlobService _blobStore;
 
-        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, IContentIdStore contentIdStore, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver, RequestHelper requestHelper, CompressedBufferUtils compressedBufferUtils)
+        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver, RequestHelper requestHelper, Tracer tracer)
         {
             _objectService = objectService;
             _blobStore = blobStore;
             _diagnosticContext = diagnosticContext;
-            _contentIdStore = contentIdStore;
             _formatResolver = formatResolver;
             _bufferedPayloadFactory = bufferedPayloadFactory;
             _referenceResolver = referenceResolver;
             _requestHelper = requestHelper;
-            _compressedBufferUtils = compressedBufferUtils;
+            _tracer = tracer;
         }
 
         /// <summary>
@@ -117,6 +114,9 @@ namespace Jupiter.Controllers
                 return accessResult;
             }
 
+            using ActivitySource? MyActivitySource = new ActivitySource("MyCompany.MyProduct.MyService");
+            using Activity? activity = MyActivitySource.StartActivity("SayHello");
+            activity?.SetTag("test", "foo");
             try
             {
                 (ObjectRecord objectRecord, BlobContents? blob) = await _objectService.Get(ns, bucket, key, Array.Empty<string>());
@@ -140,9 +140,9 @@ namespace Jupiter.Controllers
                     IServerTiming? serverTiming = Request.HttpContext.RequestServices.GetService<IServerTiming>();
                     using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("body.write", "Time spent writing body");
 
-                    using IScope scope = Tracer.Instance.StartActive("body.write");
                     long contentLength = blobContents.Length;
-                    scope.Span.SetTag("content-length", contentLength.ToString());
+                    using TelemetrySpan scope = _tracer.StartActiveSpan("body.write");
+                    scope.SetAttribute("content-length", contentLength);
                     const int BufferSize = 64 * 1024;
                     Stream outputStream = Response.Body;
                     Response.ContentLength = contentLength;
@@ -217,7 +217,7 @@ namespace Jupiter.Controllers
                     {
                         byte[] blobMemory;
                         {
-                            using IScope scope = Tracer.Instance.StartActive("json.readblob");
+                            using TelemetrySpan scope = _tracer.StartActiveSpan("json.readblob");
                             blobMemory = await blob.Stream.ToByteArray();
                         }
                         CbObject cb = new CbObject(blobMemory);
@@ -260,7 +260,7 @@ namespace Jupiter.Controllers
                                 {
 
                                     ContentId contentId = contentIdAttachment.Identifier;
-                                    (attachmentContents, string mime) = await _blobStore.GetCompressedObject(ns, contentId, _contentIdStore);
+                                    (attachmentContents, string mime) = await _blobStore.GetCompressedObject(ns, contentId, HttpContext.RequestServices);
                                     if (mime == CustomMediaTypeNames.UnrealCompressedBuffer)
                                     {
                                         flags &= CbPackageAttachmentFlags.IsCompressed;
@@ -725,9 +725,7 @@ namespace Jupiter.Controllers
                     if (entry.Flags.HasFlag(CbPackageAttachmentFlags.IsCompressed))
                     {
                         using MemoryBufferedPayload payload = new MemoryBufferedPayload(blob);
-                        await _blobStore.PutCompressedObject(
-                            ns, payload, ContentId.FromIoHash(entry.AttachmentHash),
-                            _contentIdStore, _compressedBufferUtils);
+                        await _blobStore.PutCompressedObject(ns, payload, ContentId.FromIoHash(entry.AttachmentHash), HttpContext.RequestServices);
                     }
                     else
                     {

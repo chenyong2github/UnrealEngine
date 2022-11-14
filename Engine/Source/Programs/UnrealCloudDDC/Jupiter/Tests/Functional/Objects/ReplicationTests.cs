@@ -564,6 +564,8 @@ namespace Jupiter.FunctionalTests.References
             // verify there are no previous snapshots
             Assert.AreEqual(0, (await _replicationLog.GetSnapshots(TestNamespace).ToListAsync()).Count);
 
+            ReplicationLogFactory replicationLogFactory = ActivatorUtilities.CreateInstance<ReplicationLogFactory>(_server!.Services);
+
             // create a snapshot
             ReplicationLogSnapshotBuilder snapshotBuilder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_server!.Services);
             Assert.IsNotNull(snapshotBuilder);
@@ -575,7 +577,7 @@ namespace Jupiter.FunctionalTests.References
             Assert.AreEqual(snapshotBlobId, snapshotInfo.SnapshotBlob);
 
             BlobContents blobContents = await _blobStore.GetObject(SnapshotNamespace, snapshotBlobId);
-            ReplicationLogSnapshot snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
+            ReplicationLogSnapshot snapshot = replicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
 
             Assert.AreEqual(lastEventId, snapshot.LastEvent);
             Assert.AreEqual(lastEventBucket, snapshot.LastBucket);
@@ -612,6 +614,7 @@ namespace Jupiter.FunctionalTests.References
             Assert.AreEqual(0, (await _replicationLog.GetSnapshots(TestNamespace).ToListAsync()).Count);
 
             // create a snapshot
+            ReplicationLogFactory replicationLogFactory = ActivatorUtilities.CreateInstance<ReplicationLogFactory>(_server!.Services);
             ReplicationLogSnapshotBuilder snapshotBuilder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_server!.Services);
             Assert.IsNotNull(snapshotBuilder);
             BlobIdentifier snapshotBlobId = await snapshotBuilder.BuildSnapshot(TestNamespace, SnapshotNamespace);
@@ -634,7 +637,7 @@ namespace Jupiter.FunctionalTests.References
 
                 Assert.AreEqual(snapshotBlobId, foundSnapshot.SnapshotBlob);
                 BlobContents blobContents = await _blobStore.GetObject(SnapshotNamespace, snapshotBlobId);
-                ReplicationLogSnapshot snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
+                ReplicationLogSnapshot snapshot = replicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
 
                 Assert.AreEqual(lastEventBucket, snapshot.LastBucket);
                 Assert.AreEqual(lastEventId, snapshot.LastEvent);
@@ -667,6 +670,7 @@ namespace Jupiter.FunctionalTests.References
             Assert.AreEqual(0, (await _replicationLog.GetSnapshots(TestNamespace).ToListAsync()).Count);
 
             // create a snapshot
+            ReplicationLogFactory replicationLogFactory = ActivatorUtilities.CreateInstance<ReplicationLogFactory>(_server!.Services);
             ReplicationLogSnapshotBuilder snapshotBuilder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_server!.Services);
             Assert.IsNotNull(snapshotBuilder);
             BlobIdentifier snapshotBlobId = await snapshotBuilder.BuildSnapshot(TestNamespace, SnapshotNamespace);
@@ -676,7 +680,7 @@ namespace Jupiter.FunctionalTests.References
             Assert.AreEqual(snapshotBlobId, snapshotInfo.SnapshotBlob);
 
             BlobContents blobContents = await _blobStore.GetObject(SnapshotNamespace, snapshotBlobId);
-            ReplicationLogSnapshot snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
+            ReplicationLogSnapshot snapshot = replicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
 
             // insert more events
             await _replicationLog.InsertAddEvent(TestNamespace, TestBucket, IoHashKey.FromName("fifthObject"), objectHash, oldestTimestamp.AddDays(0.91));

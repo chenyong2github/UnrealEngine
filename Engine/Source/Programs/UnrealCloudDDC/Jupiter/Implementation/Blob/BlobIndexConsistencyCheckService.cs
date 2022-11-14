@@ -4,12 +4,10 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using Jupiter.Implementation.Blob;
-using Jupiter;
 using Jupiter.Common;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using Serilog;
 
 namespace Jupiter.Implementation
@@ -27,6 +25,7 @@ namespace Jupiter.Implementation
         private readonly IBlobIndex _blobIndex;
         private readonly IBlobService _blobService;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
+        private readonly Tracer _tracer;
         private readonly ILogger _logger = Log.ForContext<BlobIndexConsistencyCheckService>();
 
         protected override bool ShouldStartPolling()
@@ -34,7 +33,7 @@ namespace Jupiter.Implementation
             return _settings.CurrentValue.EnableBlobIndexChecks;
         }
 
-        public BlobIndexConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<JupiterSettings> jupiterSettings, ILeaderElection leaderElection, IBlobIndex blobIndex, IBlobService blobService, INamespacePolicyResolver namespacePolicyResolver) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new BlobIndexConsistencyState())
+        public BlobIndexConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<JupiterSettings> jupiterSettings, ILeaderElection leaderElection, IBlobIndex blobIndex, IBlobService blobService, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new BlobIndexConsistencyState())
         {
             _settings = settings;
             _jupiterSettings = jupiterSettings;
@@ -42,6 +41,7 @@ namespace Jupiter.Implementation
             _blobIndex = blobIndex;
             _blobService = blobService;
             _namespacePolicyResolver = namespacePolicyResolver;
+            _tracer = tracer;
         }
 
         public override async Task<bool> OnPoll(BlobIndexConsistencyState state, CancellationToken cancellationToken)
@@ -81,8 +81,7 @@ namespace Jupiter.Implementation
                         _logger.Information("Consistency check running on blob index, count of blobs processed so far: {CountOfBlobs}", countOfBlobsChecked);
                     }
 
-                    using IScope scope = Tracer.Instance.StartActive("consistency_check.blob_index");
-                    scope.Span.ResourceName = $"{blobInfo.Namespace}.{blobInfo.BlobIdentifier}";
+                    using TelemetrySpan scope = _tracer.StartActiveSpan("consistency_check.blob_index").SetAttribute("resource.name", $"{blobInfo.Namespace}.{blobInfo.BlobIdentifier}");
 
                     bool issueFound = false;
                     bool deleted = false;
@@ -181,10 +180,12 @@ namespace Jupiter.Implementation
                     catch (Exception e)
                     {
                         _logger.Error(e, "Exception when doing blob index consistency check for {Blob} in namespace {Namespace}", blobInfo.BlobIdentifier, blobInfo.Namespace);
+                        scope.RecordException(e);
+                        scope.SetStatus(Status.Error);
                     }
 
-                    scope.Span.SetTag("issueFound", issueFound.ToString());
-                    scope.Span.SetTag("deleted", deleted.ToString());
+                    scope.SetAttribute("issueFound", issueFound.ToString());
+                    scope.SetAttribute("deleted", deleted.ToString());
                 }
             );
 

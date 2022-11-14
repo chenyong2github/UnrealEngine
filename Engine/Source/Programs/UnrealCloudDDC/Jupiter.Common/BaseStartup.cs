@@ -8,9 +8,8 @@ using System.IO;
 using System.Net.Mime;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
 using Amazon;
-using Datadog.Trace;
+using Azure.Monitor.OpenTelemetry.Exporter;
 using EpicGames.AspNet;
 using Jupiter.Common;
 using Microsoft.AspNetCore.Authentication;
@@ -33,6 +32,9 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Okta.AspNet.Abstractions;
 using Okta.AspNetCore;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
 using ILogger = Serilog.ILogger;
 using OktaWebApiOptions = Okta.AspNetCore.OktaWebApiOptions;
@@ -73,6 +75,8 @@ namespace Jupiter
 
             services.AddOptions<JupiterSettings>().Bind(Configuration.GetSection("Jupiter")).ValidateDataAnnotations();
             services.AddOptions<NamespaceSettings>().Bind(Configuration.GetSection("Namespaces")).ValidateDataAnnotations();
+
+            services.AddOptions<TracerSettings>().Bind(Configuration.GetSection("Tracer")).ValidateDataAnnotations();
 
             services.AddSingleton(typeof(INamespacePolicyResolver), typeof(NamespacePolicyResolver));
 
@@ -241,6 +245,49 @@ namespace Jupiter
             services.AddSingleton<IAuthorizationHandler, NamespaceAuthorizationHandler>();
             services.AddSingleton<IAuthorizationHandler, GlobalAuthorizationHandler>();
 
+            services.AddOpenTelemetryTracing(builder =>
+            {
+                builder.AddHttpClientInstrumentation();
+                builder.AddAspNetCoreInstrumentation();
+
+                builder.Configure((provider, providerBuilder) =>
+                {
+                    IOptionsMonitor<TracerSettings> settings = provider.GetService<IOptionsMonitor<TracerSettings>>()!;
+                    string tracerServiceName = settings.CurrentValue.TracerServiceName ?? "UnrealCloudDDC";
+
+                    builder.AddSource(tracerServiceName, "ScyllaDB");
+
+                    builder.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(tracerServiceName, serviceVersion: settings.CurrentValue.TracerServiceVersion, serviceInstanceId: Environment.MachineName));
+
+                    if (settings.CurrentValue.TracerImplementation == TracerSettings.TracerImplementations.OpenTelemetry)
+                    {
+                        providerBuilder.AddOtlpExporter(options =>
+                        {
+                            if (settings.CurrentValue.ConnectionString != null)
+                            {
+                                options.Endpoint = new Uri(settings.CurrentValue.ConnectionString);
+                            }
+                        });
+                    }
+                    else if (settings.CurrentValue.TracerImplementation == TracerSettings.TracerImplementations.AzureMonitor)
+                    {
+                        // forward open telemetry requests to AzureMonitor
+                        providerBuilder.AddAzureMonitorTraceExporter(options =>
+                        {
+                            options.ConnectionString = settings.CurrentValue.ConnectionString;
+                        });
+                    }
+                });
+            });
+            services.Configure<OpenTelemetryLoggerOptions>(opt =>
+            {
+                opt.IncludeScopes = true;
+                opt.ParseStateValues = true;
+                opt.IncludeFormattedMessage = true;
+            });
+
+            services.AddSingleton<Tracer>(CreateTracer);
+
             services.Configure<ForwardedHeadersOptions>(options =>
             {
                 options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -271,6 +318,13 @@ namespace Jupiter
             OnAddService(services);
 
             OnAddHealthChecks(services);
+        }
+
+        private Tracer CreateTracer(IServiceProvider provider)
+        {
+            Tracer tracer = TracerProvider.Default.GetTracer("UnrealCloudDDC");
+
+            return tracer;
         }
 
         private void OnAddHealthChecks(IServiceCollection services)
@@ -325,12 +379,10 @@ namespace Jupiter
         private void ConfigureMiddlewares(JupiterSettings jupiterSettings, IApplicationBuilder app, IWebHostEnvironment env)
         {
             // enable use of forwarding headers as we expect a reverse proxy to be running in front of us
-            //app.UseMiddleware<DatadogTraceMiddleware>("ForwardedHeaders");
             app.UseForwardedHeaders();
 
             if (jupiterSettings.UseRequestLogging)
             {
-                //app.UseMiddleware<DatadogTraceMiddleware>("RequestLogging");
                 app.UseSerilogRequestLogging();
             }
 
@@ -345,18 +397,14 @@ namespace Jupiter
                 app.UseExceptionHandler("/error");
             }
                 
-            //app.UseMiddleware<DatadogTraceMiddleware>("Routing");
             app.UseRouting();
 
-            //app.UseMiddleware<DatadogTraceMiddleware>("Authentication");
             app.UseAuthentication();
-            //app.UseMiddleware<DatadogTraceMiddleware>("Authorization");
             app.UseAuthorization();
 
             app.UseMiddleware<SuppressExceptionMiddleware>();
             app.UseMiddleware<ServerTimingMiddleware>();
 
-            //app.UseMiddleware<DatadogTraceMiddleware>("Endpoints");
             app.UseEndpoints(endpoints =>
             {
                 static bool PassAllChecks(HealthCheckRegistration check) => true;
@@ -392,7 +440,6 @@ namespace Jupiter
 
             if (jupiterSettings.HostSwaggerDocumentation)
             {
-                //app.UseMiddleware<DatadogTraceMiddleware>("Swagger");
                 app.UseSwagger();
                 app.UseReDoc(options => { options.SpecUrl = "/swagger/v1/swagger.json"; });
             }
@@ -636,6 +683,26 @@ namespace Jupiter
         public string CurrentSite { get; set; } = "";
     }
 
+    public class TracerSettings
+    {
+        public enum TracerImplementations 
+        { 
+            /// <summary>
+            /// Use OpenTelemetry with OTLP exporter
+            /// </summary>
+            OpenTelemetry, 
+            /// <summary>
+            /// Forward all open telemetry events to azure monitor
+            /// </summary>
+            AzureMonitor
+        };
+
+        public TracerImplementations TracerImplementation { get; set; } = TracerImplementations.OpenTelemetry;
+        public string? ConnectionString { get; set; } = null;
+        public string? TracerServiceName { get; set; } = null;
+        public string? TracerServiceVersion { get; set; } = null;
+    }
+
     public class NamespaceSettings
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
@@ -653,25 +720,5 @@ namespace Jupiter
         public bool UseBlobIndexForExists { get; set; } = false;
         public bool UseBlobIndexForSlowExists { get; set; } = false;
         public bool IsPublicNamespace { get; set; } = true;
-    }
-
-    public class DatadogTraceMiddleware
-    {
-        private readonly RequestDelegate _next;
-        private readonly string _scopeName;
-
-        public DatadogTraceMiddleware(RequestDelegate next, string scopeName)
-        {
-            _next = next;
-            _scopeName = scopeName;
-        }
-
-        public async Task InvokeAsync(HttpContext httpContext)
-        {
-            using IScope _ = Tracer.Instance.StartActive(_scopeName);
-
-            //Move to next delegate/middleware in the pipeline
-            await _next.Invoke(httpContext);
-        }
     }
 }

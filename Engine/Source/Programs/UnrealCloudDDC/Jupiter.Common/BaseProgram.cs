@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry.Trace;
+using OpenTracing;
+using OpenTracing.Util;
 using Serilog;
+using Serilog.Core;
 
 namespace Jupiter
 {
@@ -46,6 +51,7 @@ namespace Jupiter
         {
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(Configuration)
+                .Enrich.With<DatadogLogEnricher>()
                 .CreateLogger();
 
             try
@@ -88,6 +94,33 @@ namespace Jupiter
                         options.AddServerHeader = false;
                     });
                 });
+        }
+    }
+
+    class DatadogLogEnricher : ILogEventEnricher
+    {
+        public void Enrich(Serilog.Events.LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
+        {
+            string? ddAgentHost = System.Environment.GetEnvironmentVariable("DD_AGENT_HOST");
+            if (string.IsNullOrEmpty(ddAgentHost))
+            {
+                return;
+            }
+
+            if (Activity.Current == null)
+            {
+                return;
+            }
+
+            // convert open telemetry trace ids to dd traces
+            string stringTraceId = Activity.Current.TraceId.ToString();
+            string stringSpanId = Activity.Current.SpanId.ToString();
+
+            string ddTraceId = Convert.ToUInt64(stringTraceId.Substring(16), 16).ToString();
+            string ddSpanId = Convert.ToUInt64(stringSpanId, 16).ToString();
+
+            logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("dd.trace_id", ddTraceId));
+            logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("dd.span_id", ddSpanId));
         }
     }
 }

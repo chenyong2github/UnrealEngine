@@ -3,12 +3,10 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using Jupiter;
 using Jupiter.Common;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using Serilog;
 
 namespace Jupiter.Implementation
@@ -24,15 +22,17 @@ namespace Jupiter.Implementation
         private readonly IReferencesStore _referencesStore;
         private readonly IReplicationLog _replicationLog;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
+        private readonly Tracer _tracer;
         private readonly ILogger _logger = Log.ForContext<RefCleanup>();
 
         public RefCleanup(IOptionsMonitor<GCSettings> settings, IReferencesStore referencesStore,
-            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver)
+            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer)
         {
             _settings = settings;
             _referencesStore = referencesStore;
             _replicationLog = replicationLog;
             _namespacePolicyResolver = namespacePolicyResolver;
+            _tracer = tracer;
         }
 
         public Task<int> Cleanup(NamespaceId ns, CancellationToken cancellationToken)
@@ -86,9 +86,7 @@ namespace Jupiter.Implementation
                     _logger.Information(
                         "Attempting to delete object {Namespace} {Bucket} {Name} as it was last updated {LastAccessTime} which is older then {CutoffTime}",
                         ns, bucket, name, lastAccessTime, cutoffTime);
-                    using IScope scope = Tracer.Instance.StartActive("gc.ref");
-                    scope.Span.ResourceName = $"{ns}:{bucket}.{name}";
-                    scope.Span.SetTag("namespace", ns.ToString());
+                    using TelemetrySpan scope = _tracer.StartActiveSpan("gc.ref").SetAttribute("resource.name", $"{ns}:{bucket}.{name}").SetAttribute("namespace", ns.ToString());
                     // delete the old record from the ref refs
 
                     bool storeDelete = false;

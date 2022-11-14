@@ -3,10 +3,10 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Common.Implementation
 {
@@ -28,10 +28,10 @@ namespace Jupiter.Common.Implementation
             _buffer = source;
         }
 
-        public static async Task<MemoryBufferedPayload> Create(Stream s)
+        public static async Task<MemoryBufferedPayload> Create(Tracer tracer, Stream s)
         {
-            using IScope scope = Tracer.Instance.StartActive("payload.buffer");
-            scope.Span.SetTag("bufferType", "Memory");
+            using TelemetrySpan scope = tracer.StartActiveSpan("payload.buffer");
+            scope.SetAttribute("bufferType", "Memory");
             MemoryBufferedPayload payload = new MemoryBufferedPayload(await s.ToByteArray());
 
             return payload;
@@ -63,19 +63,13 @@ namespace Jupiter.Common.Implementation
             _tempFile = new FileInfo(Path.GetTempFileName());
         }
 
-        private FilesystemBufferedPayload(FileInfo fi)
-        {
-            _tempFile = fi;
-            _length = fi.Length;
-        }
-
-        public static async Task<FilesystemBufferedPayload> Create(Stream s)
+        public static async Task<FilesystemBufferedPayload> Create(Tracer tracer, Stream s)
         {
             FilesystemBufferedPayload payload = new FilesystemBufferedPayload();
 
             {
-                using IScope scope = Tracer.Instance.StartActive("payload.buffer");
-                scope.Span.SetTag("bufferType", "Filesystem");
+                using TelemetrySpan? scope = tracer.StartActiveSpan("payload.buffer");
+                scope.SetAttribute("bufferType", "Filesystem");
                 await using FileStream fs = payload._tempFile.OpenWrite();
                 await s.CopyToAsync(fs);
             }
@@ -100,23 +94,20 @@ namespace Jupiter.Common.Implementation
         }
 
         public long Length => _length;
-
-        public static FilesystemBufferedPayload FromTempFile(FileInfo tempFile)
-        {
-            return new FilesystemBufferedPayload(tempFile);
-        }
     }
 
     public class BufferedPayloadFactory
     {
         private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
+        private readonly Tracer _tracer;
 
-        public BufferedPayloadFactory(IOptionsMonitor<JupiterSettings> jupiterSettings)
+        public BufferedPayloadFactory(IOptionsMonitor<JupiterSettings> jupiterSettings, Tracer tracer)
         {
             _jupiterSettings = jupiterSettings;
+            _tracer = tracer;
         }
 
-        public async Task<IBufferedPayload> CreateFromRequest(HttpRequest request)
+        public Task<IBufferedPayload> CreateFromRequest(HttpRequest request)
         {
             long? contentLength = request.ContentLength;
 
@@ -125,14 +116,23 @@ namespace Jupiter.Common.Implementation
                 throw new Exception("Expected content-length on all requests");
             }
 
-            
+            return CreateFromStream(request.Body, contentLength.Value);
+        }
+
+        public async Task<IBufferedPayload> CreateFromStream(Stream s, long contentLength)
+        {
             // blob is small enough to fit into memory we just read it as is
             if (contentLength < _jupiterSettings.CurrentValue.MemoryBufferSize)
             {
-                return await MemoryBufferedPayload.Create(request.Body);
+                return await MemoryBufferedPayload.Create(_tracer, s);
             }
 
-            return await FilesystemBufferedPayload.Create(request.Body);
+            return await FilesystemBufferedPayload.Create(_tracer, s);
+        }
+
+        public async Task<IBufferedPayload> CreateFilesystemBufferedPayload(Stream s)
+        {
+            return await FilesystemBufferedPayload.Create(_tracer, s);
         }
     }
 }

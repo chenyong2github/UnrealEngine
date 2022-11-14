@@ -11,6 +11,7 @@ using JetBrains.Annotations;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Newtonsoft.Json;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Implementation.TransactionLog
 {
@@ -79,9 +80,9 @@ namespace Jupiter.Implementation.TransactionLog
             }
         }
 
-        public static ReplicationLogSnapshot FromStream(Stream stream)
+        public static ReplicationLogSnapshot FromStream(Tracer tracer, Stream stream)
         {
-            FilesystemBufferedPayload payload = FilesystemBufferedPayload.Create(stream).Result;
+            FilesystemBufferedPayload payload = FilesystemBufferedPayload.Create(tracer, stream).Result;
 
             using Stream payloadStream = payload.GetStream();
             (NamespaceId ns, string lastBucket, Guid lastEvent, ulong countOfObjects) = ReadHeader(payloadStream);
@@ -142,9 +143,16 @@ namespace Jupiter.Implementation.TransactionLog
         }
     }
 
-    public static class ReplicationLogFactory
+    public class ReplicationLogFactory
     {
-        public static ReplicationLogSnapshot DeserializeSnapshotFromStream(Stream stream)
+        private readonly Tracer _tracer;
+
+        public ReplicationLogFactory(Tracer tracer)
+        {
+            _tracer = tracer;
+        }
+
+        public ReplicationLogSnapshot DeserializeSnapshotFromStream(Stream stream)
         {
             if (!stream.CanSeek)
             {
@@ -163,7 +171,7 @@ namespace Jupiter.Implementation.TransactionLog
 
             if (hasMagic)
             {
-                return BinaryReplicationLogSnapshot.FromStream(stream);
+                return BinaryReplicationLogSnapshot.FromStream(_tracer, stream);
             }
 
             return JsonReplicationLogSnapshot.FromStream(stream);

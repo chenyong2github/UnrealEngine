@@ -5,8 +5,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Mapping;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Implementation
 {
@@ -14,14 +14,16 @@ namespace Jupiter.Implementation
     {
         private readonly ISession _session;
         private readonly IBlobService _blobStore;
+        private readonly Tracer _tracer;
         private readonly Mapper _mapper;
         private readonly IScyllaSessionManager _scyllaSessionManager;
 
-        public ScyllaContentIdStore(IScyllaSessionManager scyllaSessionManager, IBlobService blobStore)
+        public ScyllaContentIdStore(IScyllaSessionManager scyllaSessionManager, IBlobService blobStore, Tracer tracer)
         {
             _scyllaSessionManager = scyllaSessionManager;
             _session = scyllaSessionManager.GetSessionForReplicatedKeyspace();
             _blobStore = blobStore;
+            _tracer = tracer;
 
             _mapper = new Mapper(_session);
 
@@ -37,8 +39,7 @@ namespace Jupiter.Implementation
 
         public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId)
         {
-            using IScope scope = Tracer.Instance.StartActive("ScyllaContentIdStore.ResolveContentId");
-            scope.Span.ResourceName = contentId.ToString();
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("ScyllaContentIdStore.ResolveContentId").SetAttribute("resource.name", contentId.ToString());
 
             BlobIdentifier contentIdBlob = contentId.AsBlobIdentifier();
             Task<bool>? blobStoreExistsTask = null;
@@ -48,9 +49,7 @@ namespace Jupiter.Implementation
             }
 
             {
-                using IScope contentIdFetchScope = Tracer.Instance.StartActive("ScyllaContentIdStore.FetchContentId");
-                contentIdFetchScope.Span.ResourceName = contentId.ToString();
-                ScyllaUtils.SetupScyllaScope(contentIdFetchScope);
+                using TelemetrySpan contentIdFetchScope = _tracer.BuildScyllaSpan("ScyllaContentIdStore.FetchContentId").SetAttribute("resource.name", contentId.ToString());
 
                 if (_scyllaSessionManager.IsScylla)
                 {
@@ -65,7 +64,7 @@ namespace Jupiter.Implementation
                         BlobIdentifier[] blobs = resolvedContentId.Chunks.Select(b => b.AsBlobIdentifier()).ToArray();
 
                         {
-                            using IScope _ = Tracer.Instance.StartActive("ScyllaContentIdStore.FindMissingBlobs");
+                            using TelemetrySpan _ = _tracer.StartActiveSpan("ScyllaContentIdStore.FindMissingBlobs");
 
                             BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
                             if (missingBlobs.Length == 0)
@@ -89,7 +88,7 @@ namespace Jupiter.Implementation
                         BlobIdentifier[] blobs = resolvedContentId.Chunks.Select(b => b.AsBlobIdentifier()).ToArray();
 
                         {
-                            using IScope _ = Tracer.Instance.StartActive("ScyllaContentIdStore.FindMissingBlobs");
+                            using TelemetrySpan _ = _tracer.StartActiveSpan("ScyllaContentIdStore.FindMissingBlobs");
 
                             BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
                             if (missingBlobs.Length == 0)
@@ -120,8 +119,7 @@ namespace Jupiter.Implementation
 
         public async Task Put(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
         {
-            using IScope scope = Tracer.Instance.StartActive("ScyllaContentIdStore.PutContentId");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("ScyllaContentIdStore.PutContentId");
 
             if (_scyllaSessionManager.IsScylla)
             {

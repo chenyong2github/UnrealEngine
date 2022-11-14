@@ -9,8 +9,6 @@ using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Jupiter.Common.Implementation;
-using Jupiter.Implementation;
-using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Jupiter.Implementation.TransactionLog
 {
@@ -19,12 +17,16 @@ namespace Jupiter.Implementation.TransactionLog
         private readonly IReplicationLog _replicationLog;
         private readonly IBlobService _blobService;
         private readonly IObjectService _objectService;
+        private readonly BufferedPayloadFactory _bufferedPayloadFactory;
+        private readonly ReplicationLogFactory _replicationLogFactory;
 
-        public ReplicationLogSnapshotBuilder(IReplicationLog replicationLog, IBlobService blobService, IObjectService objectService)
+        public ReplicationLogSnapshotBuilder(IReplicationLog replicationLog, IBlobService blobService, IObjectService objectService, BufferedPayloadFactory bufferedPayloadFactory, ReplicationLogFactory replicationLogFactory)
         {
             _replicationLog = replicationLog;
             _blobService = blobService;
             _objectService = objectService;
+            _bufferedPayloadFactory = bufferedPayloadFactory;
+            _replicationLogFactory = replicationLogFactory;
         }
 
         public async Task<BlobIdentifier> BuildSnapshot(NamespaceId ns, NamespaceId storeInNamespace, CancellationToken cancellationToken = default(CancellationToken))
@@ -50,9 +52,9 @@ namespace Jupiter.Implementation.TransactionLog
                     throw new TaskCanceledException();
                 }
 
-                using FilesystemBufferedPayload snapshotPayload = await FilesystemBufferedPayload.Create(blobContents.Stream);
+                using IBufferedPayload snapshotPayload = await _bufferedPayloadFactory.CreateFilesystemBufferedPayload(blobContents.Stream);
                 await using Stream s = snapshotPayload.GetStream();
-                snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(s);
+                snapshot = _replicationLogFactory.DeserializeSnapshotFromStream(s);
                 lastBucket = snapshot.LastBucket;
                 lastEvent = snapshot.LastEvent;
             }
@@ -86,7 +88,11 @@ namespace Jupiter.Implementation.TransactionLog
                 await fs.FlushAsync(cancellationToken);
             }
 
-            using FilesystemBufferedPayload payload = FilesystemBufferedPayload.FromTempFile(tempFile);
+            Stream tempFileStream = tempFile.OpenRead();
+            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromStream(tempFileStream, tempFile.Length);
+            tempFileStream.Close();
+            tempFile.Delete();
+
             {
                 BlobIdentifier blobIdentifier;
                 {
@@ -111,7 +117,6 @@ namespace Jupiter.Implementation.TransactionLog
                 // upload the attachment first so we are not missing any references when we go to create the ref
                 await _blobService.PutObject(storeInNamespace, payload, blobIdentifier);
             
-                tempFile.Delete();
                 (ContentId[] missingContentIds, BlobIdentifier[] missingBlobs) = await _objectService.Put(storeInNamespace, new BucketId("snapshot"), new IoHashKey(blobIdentifier.ToString()), cbBlobId, new CbObject(cbObjectBytes));
                 List<ContentHash> missingHashes = new List<ContentHash>(missingContentIds);
                 missingHashes.AddRange(missingBlobs);

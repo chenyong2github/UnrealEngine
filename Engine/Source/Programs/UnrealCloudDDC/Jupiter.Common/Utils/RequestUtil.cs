@@ -3,8 +3,9 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Trace;
 
 namespace Jupiter
 {
@@ -19,8 +20,10 @@ namespace Jupiter
                 throw new Exception("Expected content-length on all raw body requests");
             }
 
-            using IScope scope = Tracer.Instance.StartActive("readbody");
-            scope.Span.SetTag("Content-Length", contentLength.ToString());
+            Tracer? tracer = request.HttpContext.RequestServices.GetService<Tracer>();
+            using TelemetrySpan? scope = tracer?.StartActiveSpan("readbody");
+            scope?.SetAttribute("Content-Length", contentLength.Value);
+
             await using MemoryStream ms = new MemoryStream((int)contentLength);
             DateTime readStart = DateTime.Now;
             await request.Body.CopyToAsync(ms);

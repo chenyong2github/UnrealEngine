@@ -7,21 +7,23 @@ using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Mapping;
 using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Implementation
 {
     class ScyllaReplicationLog : IReplicationLog
     {
         private readonly IOptionsMonitor<ScyllaSettings> _settings;
+        private readonly Tracer _tracer;
         private readonly ISession _session;
         private readonly Mapper _mapper;
 
-        public ScyllaReplicationLog(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings)
+        public ScyllaReplicationLog(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings, Tracer tracer)
         {
             _settings = settings;
+            _tracer = tracer;
             _session = scyllaSessionManager.GetSessionForLocalKeyspace();
             _mapper = new Mapper(_session);
 
@@ -74,8 +76,7 @@ namespace Jupiter.Implementation
 
         public async Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timestamp)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.insert_add_event");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.insert_add_event");
 
             Task addNamespaceTask = PotentiallyAddNamespace(ns);
             DateTime timeBucket = timestamp.GetValueOrDefault(DateTime.UtcNow);
@@ -88,8 +89,7 @@ namespace Jupiter.Implementation
 
         public async Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime? timestamp)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.insert_delete_event");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.insert_delete_event");
 
             Task addNamespaceTask = PotentiallyAddNamespace(ns);
             DateTime timeBucket = timestamp.GetValueOrDefault(DateTime.UtcNow);
@@ -107,8 +107,7 @@ namespace Jupiter.Implementation
 
         public async IAsyncEnumerable<ReplicationLogEvent> Get(NamespaceId ns, string? lastBucket, Guid? lastEvent)
         {
-            using IScope getReplicationLogScope = Tracer.Instance.StartActive("scylla.get_replication_log");
-            ScyllaUtils.SetupScyllaScope(getReplicationLogScope);
+            using TelemetrySpan getReplicationLogScope = _tracer.BuildScyllaSpan("scylla.get_replication_log");
             if (lastBucket == "now")
             {
                 // for debug purposes we allow you to list the latest bucket
@@ -121,11 +120,9 @@ namespace Jupiter.Implementation
             bool bucketFound = false;
             await foreach (long bucketField in buckets)
             {
-                using IScope readReplicationScope = Tracer.Instance.StartActive("scylla.read_replication_bucket");
-                ScyllaUtils.SetupScyllaScope(readReplicationScope);
                 DateTime t = DateTime.FromFileTimeUtc(bucketField);
                 string bucket = t.ToReplicationBucketIdentifier();
-                readReplicationScope.Span.ResourceName = bucket;
+                using TelemetrySpan readReplicationScope = _tracer.BuildScyllaSpan("scylla.read_replication_bucket").SetAttribute("resource.name", bucket);
 
                 if (lastBucket != null && bucket != lastBucket)
                 {
@@ -183,8 +180,7 @@ namespace Jupiter.Implementation
 
         private async IAsyncEnumerable<long> FindReplicationBuckets(NamespaceId ns, string? lastBucket)
         {
-            using IScope findReplicationBucketScope = Tracer.Instance.StartActive("scylla.find_replication_buckets");
-            ScyllaUtils.SetupScyllaScope(findReplicationBucketScope);
+            using TelemetrySpan findReplicationBucketScope = _tracer.BuildScyllaSpan("scylla.find_replication_buckets");
             // ignore any bucket that is older then a cutoff, as that can cause us to end up scanning thru a lot of hours that will never exist (incremental logs are deleted after 7 days)
             DateTime oldCutoff = DateTime.UtcNow.AddDays(-14);
 
@@ -204,8 +200,7 @@ namespace Jupiter.Implementation
             }
             else
             {
-                using IScope firstReplicationBucketScope = Tracer.Instance.StartActive("scylla.determine_first_replication_bucket");
-                ScyllaUtils.SetupScyllaScope(firstReplicationBucketScope);
+                using TelemetrySpan firstReplicationBucketScope = _tracer.BuildScyllaSpan("scylla.determine_first_replication_bucket");
                 // we should have no data older then the ttl to lets just assume that the bucket to start searching from is now - time to live
                 DateTime oldestTimestamp = DateTime.UtcNow.AddSeconds(-1 * _settings.CurrentValue.ReplicationLogTimeToLive.TotalSeconds);
                 startBucketTime = oldestTimestamp;
@@ -215,8 +210,7 @@ namespace Jupiter.Implementation
             DateTime bucketTime = startBucketTime.AddHours(1.0).ToHourlyBucket();
             while(bucketTime < DateTime.UtcNow && bucketTime > oldCutoff)
             {
-                using IScope determineBucketExistsScope = Tracer.Instance.StartActive("scylla.determine_replication_bucket_exists");
-                ScyllaUtils.SetupScyllaScope(determineBucketExistsScope);
+                using TelemetrySpan determineBucketExistsScope = _tracer.BuildScyllaSpan("scylla.determine_replication_bucket_exists");
                 // fetch all the buckets that exists and sort them based on time
                 IEnumerable<ScyllaReplicationLogEvent> logEvent = await _mapper.FetchAsync<ScyllaReplicationLogEvent>("WHERE namespace = ? AND replication_bucket = ? LIMIT 1", ns.ToString(), bucketTime.ToFileTimeUtc());
                 ScyllaReplicationLogEvent? e = logEvent.FirstOrDefault();
@@ -291,8 +285,7 @@ namespace Jupiter.Implementation
 
         public async Task<ReplicatorState?> GetReplicatorState(NamespaceId ns, string name)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.get_replicator_state");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.get_replicator_state");
 
             ScyllaReplicationState? replicationState = await _mapper.FirstOrDefaultAsync<ScyllaReplicationState>("WHERE namespace = ? AND name = ?", ns.ToString(), name);
 

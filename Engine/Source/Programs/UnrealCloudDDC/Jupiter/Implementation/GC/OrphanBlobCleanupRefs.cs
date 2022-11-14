@@ -6,11 +6,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
 using Jupiter.Common;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using Serilog;
 
 namespace Jupiter.Implementation
@@ -23,10 +23,11 @@ namespace Jupiter.Implementation
         private readonly IBlobIndex _blobIndex;
         private readonly ILeaderElection _leaderElection;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
+        private readonly Tracer _tracer;
         private readonly ILogger _logger = Log.ForContext<OrphanBlobCleanupRefs>();
 
         // ReSharper disable once UnusedMember.Global
-        public OrphanBlobCleanupRefs(IOptionsMonitor<GCSettings> gcSettings, IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, INamespacePolicyResolver namespacePolicyResolver)
+        public OrphanBlobCleanupRefs(IOptionsMonitor<GCSettings> gcSettings, IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer)
         {
             _gcSettings = gcSettings;
             _blobService = blobService;
@@ -34,6 +35,7 @@ namespace Jupiter.Implementation
             _blobIndex = blobIndex;
             _leaderElection = leaderElection;
             _namespacePolicyResolver = namespacePolicyResolver;
+            _tracer = tracer;
         }
 
         public bool ShouldRun()
@@ -112,9 +114,8 @@ namespace Jupiter.Implementation
 
         private async Task<bool> GCBlob(string storagePool, List<NamespaceId> namespacesThatSharePool, BlobIdentifier blob, DateTime lastModifiedTime, CancellationToken cancellationToken)
         {
-            using IScope removeBlobScope = Tracer.Instance.StartActive("gc.blob");
             string storagePoolName = string.IsNullOrEmpty(storagePool) ? "default" : storagePool; 
-            removeBlobScope.Span.ResourceName = $"{storagePoolName}.{blob}";
+            using TelemetrySpan removeBlobScope = _tracer.StartActiveSpan("gc.blob").SetAttribute("resource.name", $"{storagePoolName}.{blob}");
 
             bool found = false;
 
@@ -168,7 +169,7 @@ namespace Jupiter.Implementation
                 return false;
             }
 
-            removeBlobScope.Span.SetTag("removed", (!found).ToString());
+            removeBlobScope.SetAttribute("removed", (!found).ToString());
 
             // something is still referencing this blob, we should not delete it
             if (found)

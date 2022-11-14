@@ -7,12 +7,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
-using Jupiter;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using Serilog;
 
 namespace Jupiter.Implementation
@@ -30,6 +28,7 @@ namespace Jupiter.Implementation
         private readonly ILeaderElection _leaderElection;
         private readonly IReferencesStore _referencesStore;
         private readonly IBlobIndex _blobIndex;
+        private readonly Tracer _tracer;
         private readonly ILogger _logger = Log.ForContext<BlobStoreConsistencyCheckService>();
 
         protected override bool ShouldStartPolling()
@@ -37,7 +36,7 @@ namespace Jupiter.Implementation
             return _settings.CurrentValue.EnableBlobStoreChecks;
         }
 
-        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<UnrealCloudDDCSettings> UnrealCloudDDCSettings, IServiceProvider provider, ILeaderElection leaderElection, IReferencesStore referencesStore, IBlobIndex blobIndex) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState())
+        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<UnrealCloudDDCSettings> UnrealCloudDDCSettings, IServiceProvider provider, ILeaderElection leaderElection, IReferencesStore referencesStore, IBlobIndex blobIndex, Tracer tracer) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState())
         {
             _settings = settings;
             _UnrealCloudDDCSettings = UnrealCloudDDCSettings;
@@ -45,6 +44,7 @@ namespace Jupiter.Implementation
             _leaderElection = leaderElection;
             _referencesStore = referencesStore;
             _blobIndex = blobIndex;
+            _tracer = tracer;
         }
 
         public override async Task<bool> OnPoll(ConsistencyState state, CancellationToken cancellationToken)
@@ -90,9 +90,9 @@ namespace Jupiter.Implementation
 
                     await foreach ((BlobIdentifier blob, DateTime lastModified) in blobStore.ListObjects(ns))
                     {
-                        using IScope scope = Tracer.Instance.StartActive("consistency_check.blob_store");
-                        scope.Span.ResourceName = $"{ns}.{blob}";
-                        scope.Span.SetTag("BlobStore", blobStoreName);
+                        using TelemetrySpan scope = _tracer.StartActiveSpan("consistency_check.blob_store")
+                            .SetAttribute("resource.name", $"{ns}.{blob}")
+                            .SetAttribute("BlobStore", blobStoreName);
 
                         if (countOfBlobsChecked % 100 == 0)
                         {
@@ -120,7 +120,7 @@ namespace Jupiter.Implementation
                             }
                         }
 
-                        scope.Span.SetTag("deleted", inconsistencyFound.ToString());
+                        scope.SetAttribute("deleted", inconsistencyFound.ToString());
                     }
 
                     _logger.Information("Blob Store {BlobStore}: Consistency check finished for {Namespace}, found {CountOfIncorrectBlobs} incorrect blobs. Processed {CountOfBlobs} blobs.", blobStoreName, ns, countOfIncorrectBlobsFound, countOfBlobsChecked);

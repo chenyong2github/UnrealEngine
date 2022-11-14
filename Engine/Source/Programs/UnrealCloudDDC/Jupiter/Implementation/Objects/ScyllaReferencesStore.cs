@@ -6,9 +6,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Mapping;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using Serilog;
 
 namespace Jupiter.Implementation
@@ -18,14 +18,16 @@ namespace Jupiter.Implementation
         private readonly ISession _session;
         private readonly IMapper _mapper;
         private readonly IOptionsMonitor<ScyllaSettings> _settings;
+        private readonly Tracer _tracer;
         private readonly ILogger _logger = Log.ForContext<ScyllaReferencesStore>();
         private readonly PreparedStatement _getObjectsStatement;
         private readonly PreparedStatement _getNamespacesStatement;
 
-        public ScyllaReferencesStore(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings)
+        public ScyllaReferencesStore(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings, Tracer tracer)
         {
             _session = scyllaSessionManager.GetSessionForReplicatedKeyspace();
             _settings = settings;
+            _tracer = tracer;
 
             _mapper = new Mapper(_session);
 
@@ -56,9 +58,7 @@ namespace Jupiter.Implementation
 
         public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey name, IReferencesStore.FieldFlags flags)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.get");
-            ScyllaUtils.SetupScyllaScope(scope);
-            scope.Span.ResourceName = $"{ns}.{bucket}.{name}";
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.get").SetAttribute("resource.name", $"{ns}.{bucket}.{name}");
 
             ScyllaObject? o;
             bool includePayload = (flags & IReferencesStore.FieldFlags.IncludePayload) != 0;
@@ -92,9 +92,7 @@ namespace Jupiter.Implementation
 
         public async Task Put(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.put");
-            ScyllaUtils.SetupScyllaScope(scope);
-            scope.Span.ResourceName = $"{ns}.{bucket}.{name}";
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.put").SetAttribute("resource.name", $"{ns}.{bucket}.{name}");
 
             if (blob.LongLength > _settings.CurrentValue.InlineBlobMaxSize)
             {
@@ -111,25 +109,21 @@ namespace Jupiter.Implementation
 
         public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobIdentifier)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.finalize");
-            ScyllaUtils.SetupScyllaScope(scope);
-            scope.Span.ResourceName = $"{ns}.{bucket}.{name}";
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.finalize").SetAttribute("resource.name", $"{ns}.{bucket}.{name}");
 
             await _mapper.UpdateAsync<ScyllaObject>("SET is_finalized=true WHERE namespace=? AND bucket=? AND name=?", ns.ToString(), bucket.ToString(), name.ToString());
         }
 
         public async Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, IoHashKey name, DateTime lastAccessTime)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.update_last_access_time");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.update_last_access_time");
 
             await _mapper.UpdateAsync<ScyllaObject>("SET last_access_time = ? WHERE namespace = ? AND bucket = ? AND name = ?", lastAccessTime, ns.ToString(), bucket.ToString(), name.ToString());
         }
 
         public async IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.get_records");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.get_records");
             int retryAttempts = 0;
             const int MaxRetryAttempts = 3;
             RowSet rowSet = await _session.ExecuteAsync(_getObjectsStatement.Bind(ns.ToString()));
@@ -188,8 +182,7 @@ namespace Jupiter.Implementation
 
         public async IAsyncEnumerable<NamespaceId> GetNamespaces()
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.get_namespaces");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.get_namespaces");
             RowSet rowSet = await _session.ExecuteAsync(_getNamespacesStatement.Bind());
 
             foreach (Row row in rowSet)
@@ -205,9 +198,7 @@ namespace Jupiter.Implementation
 
         public async Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.delete_record");
-            ScyllaUtils.SetupScyllaScope(scope);
-            scope.Span.ResourceName = $"{ns}.{bucket}.{key}";
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.delete_record").SetAttribute("resource.name", $"{ns}.{bucket}.{key}");
 
             AppliedInfo<ScyllaObject> info = await _mapper.DeleteIfAsync<ScyllaObject>("WHERE namespace=? AND bucket=? AND name=? IF EXISTS", ns.ToString(), bucket.ToString(), key.ToString());
 
@@ -221,8 +212,7 @@ namespace Jupiter.Implementation
 
         public async Task<long> DropNamespace(NamespaceId ns)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.delete_namespace");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.delete_namespace");
             RowSet rowSet = await _session.ExecuteAsync(new SimpleStatement("SELECT bucket, name FROM objects WHERE namespace = ? ALLOW FILTERING;", ns.ToString()));
             long deletedCount = 0;
             foreach (Row row in rowSet)
@@ -243,8 +233,7 @@ namespace Jupiter.Implementation
 
         public async Task<long> DeleteBucket(NamespaceId ns, BucketId bucket)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.delete_bucket");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.delete_bucket");
             RowSet rowSet = await _session.ExecuteAsync(new SimpleStatement("SELECT name FROM objects WHERE namespace = ? AND bucket = ? ALLOW FILTERING;", ns.ToString(), bucket.ToString()));
             long deletedCount = 0;
             foreach (Row row in rowSet)
@@ -263,8 +252,7 @@ namespace Jupiter.Implementation
 
         private async Task MaybeAddBucket(NamespaceId ns, BucketId bucket)
         {
-            using IScope scope = Tracer.Instance.StartActive("scylla.add_bucket");
-            ScyllaUtils.SetupScyllaScope(scope);
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.add_bucket");
             await _mapper.UpdateAsync<ScyllaBucket>("SET bucket = bucket + ? WHERE namespace = ?", new string[] {bucket.ToString()}, ns.ToString());
         }
     }

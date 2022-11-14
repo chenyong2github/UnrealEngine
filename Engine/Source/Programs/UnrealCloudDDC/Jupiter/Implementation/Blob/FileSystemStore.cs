@@ -7,10 +7,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using Serilog;
 
 namespace Jupiter.Implementation
@@ -19,12 +18,14 @@ namespace Jupiter.Implementation
     {
         private readonly ILogger _logger = Log.ForContext<FileSystemStore>();
         private readonly IOptionsMonitor<FilesystemSettings> _settings;
+        private readonly Tracer _tracer;
 
         private const int DefaultBufferSize = 4096;
 
-        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings)
+        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings, Tracer tracer)
         {
             _settings = settings;
+            _tracer = tracer;
         }
 
         private string GetRootDir()
@@ -216,7 +217,7 @@ namespace Jupiter.Implementation
         /// <returns></returns>
         public async Task<ulong> CleanupInternal(CancellationToken cancellationToken, int batchSize = 100000)
         {
-            using IScope scope = Tracer.Instance.StartActive("gc.filesystem");
+            using TelemetrySpan scope = _tracer.StartActiveSpan("gc.filesystem");
 
             ulong maxSizeBytes = _settings.CurrentValue.MaxSizeBytes;
             long triggerSize = (long) (maxSizeBytes * _settings.CurrentValue.TriggerThresholdPercentage);

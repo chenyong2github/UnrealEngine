@@ -2,14 +2,13 @@
 
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using Jupiter;
 using Jupiter.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Controllers;
 
@@ -18,17 +17,19 @@ public class RequestHelper
     private readonly IAuthorizationService _authorizationService;
     private readonly INamespacePolicyResolver _namespacePolicyResolver;
     private readonly IOptionsMonitor<JupiterSettings> _settings;
+    private readonly Tracer _tracer;
 
-    public RequestHelper(IAuthorizationService authorizationService, INamespacePolicyResolver namespacePolicyResolver, IOptionsMonitor<JupiterSettings> settings)
+    public RequestHelper(IAuthorizationService authorizationService, INamespacePolicyResolver namespacePolicyResolver, IOptionsMonitor<JupiterSettings> settings, Tracer tracer)
     {
         _authorizationService = authorizationService;
         _namespacePolicyResolver = namespacePolicyResolver;
         _settings = settings;
+        _tracer = tracer;
     }
 
     public async Task<ActionResult?> HasAccessToNamespace(ClaimsPrincipal user, HttpRequest request, NamespaceId ns, AclAction[] aclActions)
     {
-        using IScope _ = Tracer.Instance.StartActive("authorize");
+        using TelemetrySpan _ = _tracer.StartActiveSpan("authorize");
         AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(user, new NamespaceAccessRequest
         {
             Namespace = ns,
@@ -66,7 +67,7 @@ public class RequestHelper
 
     public async Task<ActionResult?> HasAccessForGlobalOperations(ClaimsPrincipal user, AclAction[] aclActions)
     {
-        using IScope _ = Tracer.Instance.StartActive("authorize");
+        using TelemetrySpan _ = _tracer.StartActiveSpan("authorize");
         AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(user, new GlobalAccessRequest
         {
             Actions = aclActions

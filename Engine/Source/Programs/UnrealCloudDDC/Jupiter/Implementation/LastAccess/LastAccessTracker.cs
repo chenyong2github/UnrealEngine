@@ -6,10 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using Serilog;
 
 namespace Jupiter.Implementation
@@ -30,7 +29,7 @@ namespace Jupiter.Implementation
 
     public class LastAccessTrackerReference : LastAccessTracker<LastAccessRecord>
     {
-        public LastAccessTrackerReference(IOptionsMonitor<UnrealCloudDDCSettings> settings) : base(settings)
+        public LastAccessTrackerReference(IOptionsMonitor<UnrealCloudDDCSettings> settings, Tracer tracer) : base(settings, tracer)
         {
         }
 
@@ -43,6 +42,7 @@ namespace Jupiter.Implementation
     public abstract class LastAccessTracker<T> : ILastAccessTracker<T>, ILastAccessCache<T>
     {
         private readonly IOptionsMonitor<UnrealCloudDDCSettings> _settings;
+        private readonly Tracer _tracer;
         private readonly ILogger _logger = Log.ForContext<LastAccessTracker<T>>();
 
         private ConcurrentDictionary<string, LastAccessRecord> _cache = new ConcurrentDictionary<string, LastAccessRecord>();
@@ -50,9 +50,10 @@ namespace Jupiter.Implementation
         // we will exchange the refs dictionary when fetching the records and use a rw lock to make sure no-one is trying to add things at the same time
         private readonly ReaderWriterLock _rwLock = new ReaderWriterLock();
 
-        protected LastAccessTracker(IOptionsMonitor<UnrealCloudDDCSettings> settings)
+        protected LastAccessTracker(IOptionsMonitor<UnrealCloudDDCSettings> settings, Tracer tracer)
         {
             _settings = settings;
+            _tracer = tracer;
         }
 
         protected abstract string BuildCacheKey(T record);
@@ -66,7 +67,7 @@ namespace Jupiter.Implementation
 
             return Task.Run(() =>
             {
-                using IScope _ = Tracer.Instance.StartActive("lastAccessTracker.track");
+                using TelemetrySpan _ = _tracer.StartActiveSpan("lastAccessTracker.track");
                 try
                 {
                     _rwLock.AcquireReaderLock(-1);

@@ -12,10 +12,12 @@ using Jupiter.Implementation;
 using Jupiter.Implementation.Blob;
 using Jupiter;
 using Jupiter.Common;
+using Jupiter.Common.Implementation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.UnitTests
 {
@@ -57,7 +59,11 @@ namespace Jupiter.UnitTests
             Mock<INamespacePolicyResolver> mockPolicyResolver = new Mock<INamespacePolicyResolver>();
             mockPolicyResolver.Setup(x => x.GetPoliciesForNs(It.IsAny<NamespaceId>())).Returns(new NamespacePolicy());
 
-            _chained = new BlobService(serviceProviderMock.Object, settingsMonitor, Mock.Of<IBlobIndex>(), Mock.Of<IPeerStatusService>(), Mock.Of<IHttpClientFactory>(), Mock.Of<IServiceCredentials>(), mockPolicyResolver.Object, Mock.Of<IHttpContextAccessor>());
+            Tracer tracer = TracerProvider.Default.GetTracer("TestTracer");
+            IOptionsMonitor<JupiterSettings> jupiterSettings = Mock.Of<IOptionsMonitor<JupiterSettings>>(_ => _.CurrentValue == new JupiterSettings());
+            BufferedPayloadFactory bufferedPayloadFactory = new BufferedPayloadFactory(jupiterSettings, tracer);
+
+            _chained = new BlobService(serviceProviderMock.Object, settingsMonitor, Mock.Of<IBlobIndex>(), Mock.Of<IPeerStatusService>(), Mock.Of<IHttpClientFactory>(), Mock.Of<IServiceCredentials>(), mockPolicyResolver.Object, Mock.Of<IHttpContextAccessor>(), tracer, bufferedPayloadFactory);
             _chained.BlobStore = new List<IBlobStore> { _first, _second, _third };
 
             await _first.PutObject(Ns, Encoding.ASCII.GetBytes("onlyFirstContent"), _onlyFirstId);

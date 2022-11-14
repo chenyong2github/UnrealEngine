@@ -10,21 +10,18 @@ using System.Net.Http;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using Jupiter.Controllers;
 using Jupiter.Implementation.Blob;
 using Jupiter.Common;
 using Jupiter.Common.Implementation;
-using Jupiter.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using Serilog;
-using ContentId = Jupiter.Implementation.ContentId;
-using CustomMediaTypeNames = Jupiter.CustomMediaTypeNames;
 
 namespace Jupiter.Implementation;
 
@@ -73,6 +70,8 @@ public class BlobService : IBlobService
     private readonly IServiceCredentials _serviceCredentials;
     private readonly INamespacePolicyResolver _namespacePolicyResolver;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly Tracer _tracer;
+    private readonly BufferedPayloadFactory _bufferedPayloadFactory;
     private readonly ILogger _logger = Log.ForContext<BlobService>();
 
     internal IEnumerable<IBlobStore> BlobStore
@@ -81,7 +80,7 @@ public class BlobService : IBlobService
         set => _blobStores = value.ToList();
     }
 
-    public BlobService(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver, IHttpContextAccessor httpContextAccessor)
+    public BlobService(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver, IHttpContextAccessor httpContextAccessor, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory)
     {
         _blobStores = GetBlobStores(provider, settings).ToList();
         _settings = settings;
@@ -91,6 +90,8 @@ public class BlobService : IBlobService
         _serviceCredentials = serviceCredentials;
         _namespacePolicyResolver = namespacePolicyResolver;
         _httpContextAccessor = httpContextAccessor;
+        _tracer = tracer;
+        _bufferedPayloadFactory = bufferedPayloadFactory;
     }
 
     public static IEnumerable<IBlobStore> GetBlobStores(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings)
@@ -122,7 +123,7 @@ public class BlobService : IBlobService
     {
         ContentHash blobHash;
         {
-            using IScope _ = Tracer.Instance.StartActive("web.hash");
+            using TelemetrySpan _ = _tracer.StartActiveSpan("web.hash");
             blobHash = await BlobIdentifier.FromStream(content);
         }
 
@@ -136,9 +137,9 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObject(NamespaceId ns, IBufferedPayload payload, BlobIdentifier identifier)
     {
-        using IScope scope = Tracer.Instance.StartActive("put_blob");
-        scope.Span.ResourceName = identifier.ToString();
-        scope.Span.SetTag("Content-Length", payload.Length.ToString());
+        using TelemetrySpan scope = _tracer.StartActiveSpan("put_blob")
+            .SetAttribute("resource.name", identifier.ToString())
+            .SetAttribute("Content-Length", payload.Length.ToString());
 
         await using Stream hashStream = payload.GetStream();
         BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
@@ -152,9 +153,10 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] payload, BlobIdentifier identifier)
     {
-        using IScope scope = Tracer.Instance.StartActive("put_blob");
-        scope.Span.ResourceName = identifier.ToString();
-        scope.Span.SetTag("Content-Length", payload.Length.ToString());
+        using TelemetrySpan scope = _tracer.StartActiveSpan("put_blob")
+            .SetAttribute("resource.name", identifier.ToString())
+            .SetAttribute("Content-Length", payload.Length.ToString())
+            ;
 
         await using Stream hashStream = new MemoryStream(payload);
         BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
@@ -167,9 +169,10 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObjectKnownHash(NamespaceId ns, IBufferedPayload content, BlobIdentifier identifier)
     {
-        using IScope scope = Tracer.Instance.StartActive("put_blob");
-        scope.Span.ResourceName = identifier.ToString();
-        scope.Span.SetTag("Content-Length", content.Length.ToString());
+        using TelemetrySpan scope = _tracer.StartActiveSpan("put_blob")
+            .SetAttribute("resource.name", identifier.ToString())
+            .SetAttribute("Content-Length", content.Length.ToString())
+            ;
 
         BlobIdentifier objectStoreIdentifier = await PutObjectToStores(ns, content, identifier);
         await _blobIndex.AddBlobToIndex(ns, identifier);
@@ -183,9 +186,10 @@ public class BlobService : IBlobService
 
         foreach (IBlobStore store in _blobStores)
         {
-            using IScope scope = Tracer.Instance.StartActive("put_blob_to_store");
-            scope.Span.ResourceName = identifier.ToString();
-            scope.Span.SetTag("store", store.ToString());
+            using TelemetrySpan scope = _tracer.StartActiveSpan("put_blob_to_store")
+                .SetAttribute("resource.name", identifier.ToString())
+                .SetAttribute("store", store.GetType().ToString())
+                ;
             string storeName = store.GetType().Name;
 
             using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.put.{storeName}", $"PUT to store: '{storeName}'");
@@ -238,17 +242,19 @@ public class BlobService : IBlobService
                 }
             }
 
-            using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.GetObject");
-            scope.Span.ResourceName = blob.ToString();
-            scope.Span.SetTag("BlobStore", blobStoreName);
-            scope.Span.SetTag("ObjectFound", false.ToString());
+            using TelemetrySpan scope = _tracer.StartActiveSpan("HierarchicalStore.GetObject")
+                .SetAttribute("resource.name",  blob.ToString())
+                .SetAttribute("BlobStore", store.GetType().ToString())
+                .SetAttribute("ObjectFound", false.ToString())
+                ;
+
             string storeName = store.GetType().Name;
             using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.get.{storeName}", $"Blob GET from: '{storeName}'");
 
             try
             {
                 blobContents = await store.GetObject(ns, blob);
-                scope.Span.SetTag("ObjectFound", true.ToString());
+                scope.SetAttribute("ObjectFound", true.ToString());
                 break;
             }
             catch (BlobNotFoundException)
@@ -286,7 +292,7 @@ public class BlobService : IBlobService
 
         if (numStoreMisses >= 1)
         {
-            using IScope _ = Tracer.Instance.StartActive("HierarchicalStore.Populate");
+            using TelemetrySpan _ = _tracer.StartActiveSpan("HierarchicalStore.Populate");
             using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope($"blob.populate", "Populating caches with blob contents");
 
             await using MemoryStream tempStream = new MemoryStream();
@@ -297,8 +303,8 @@ public class BlobService : IBlobService
             for (int i = 0; i < numStoreMisses; i++)
             {
                 IBlobStore blobStore = _blobStores[i];
-                using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.PopulateStore");
-                scope.Span.SetTag("BlobStore", blobStore.GetType().Name);
+                using TelemetrySpan scope = _tracer.StartActiveSpan("HierarchicalStore.PopulateStore")
+                    .SetAttribute("BlobStore", blobStore.GetType().Name);
                 // Populate each store traversed that did not have the content found lower in the hierarchy
                 await blobStore.PutObject(ns, data, blob);
             }
@@ -318,7 +324,7 @@ public class BlobService : IBlobService
             throw new NotSupportedException($"Replication is not allowed in namespace {ns}");
         }
         IServerTiming? serverTiming = _httpContextAccessor.HttpContext?.RequestServices.GetService<IServerTiming>();
-        using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.Replicate");
+        using TelemetrySpan scope = _tracer.StartActiveSpan("HierarchicalStore.Replicate");
 
         using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("blob.replicate", "Replicating blob from remote instances");
 
@@ -364,7 +370,7 @@ public class BlobService : IBlobService
             }
 
             await using Stream s = await blobResponse.Content.ReadAsStreamAsync();
-            using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(s);
+            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFilesystemBufferedPayload(s);
             await PutObject(ns, payload, blob);
             replicated = true;
             break;
@@ -400,17 +406,18 @@ public class BlobService : IBlobService
         bool useBlobIndex = _namespacePolicyResolver.GetPoliciesForNs(ns).UseBlobIndexForExists;
         if (useBlobIndex)
         {
-            using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
-            scope.Span.ResourceName = blob.ToString();
-            scope.Span.SetTag("BlobStore", "BlobIndex");
+            using TelemetrySpan scope = _tracer.StartActiveSpan("HierarchicalStore.ObjectExists")
+                .SetAttribute("resource.name", blob.ToString())
+                .SetAttribute("BlobStore", "BlobIndex")
+                ;
             bool exists = await _blobIndex.BlobExistsInRegion(ns, blob);
             if (exists)
             {
-                scope.Span.SetTag("ObjectFound", true.ToString());
+                scope.SetAttribute("ObjectFound", true.ToString());
                 return true;
             }
 
-            scope.Span.SetTag("ObjectFound", false.ToString());
+            scope.SetAttribute("ObjectFound", false.ToString());
             return false;
         }
         else
@@ -436,15 +443,17 @@ public class BlobService : IBlobService
                         continue;
                     }
                 }
-                using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
-                scope.Span.ResourceName = blob.ToString();
-                scope.Span.SetTag("BlobStore", blobStoreName);
+
+                using TelemetrySpan scope = _tracer.StartActiveSpan("HierarchicalStore.ObjectExists")
+                    .SetAttribute("resource.name", blob.ToString())
+                    .SetAttribute("BlobStore", blobStoreName)
+                    ;
                 if (await store.Exists(ns, blob))
                 {
-                    scope.Span.SetTag("ObjectFound", true.ToString());
+                    scope.SetAttribute("ObjectFound", true.ToString());
                     return true;
                 }
-                scope.Span.SetTag("ObjectFound", false.ToString());
+                scope.SetAttribute("ObjectFound", false.ToString());
             }
 
             return false;
@@ -455,15 +464,16 @@ public class BlobService : IBlobService
     {
         IBlobStore store = _blobStores.Last();
 
-        using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExistsInRoot");
-        scope.Span.ResourceName = blob.ToString();
-        scope.Span.SetTag("BlobStore", store.GetType().Name);
+        using TelemetrySpan scope = _tracer.StartActiveSpan("HierarchicalStore.ObjectExistsInRoot")
+            .SetAttribute("resource.name", blob.ToString())
+            .SetAttribute("BlobStore", store.GetType().Name)
+            ;
         if (await store.Exists(ns, blob))
         {
-            scope.Span.SetTag("ObjectFound", true.ToString());
+            scope.SetAttribute("ObjectFound", true.ToString());
             return true;
         }
-        scope.Span.SetTag("ObjectFound", false.ToString());
+        scope.SetAttribute("ObjectFound", false.ToString());
         return false;
     }
 
@@ -481,9 +491,11 @@ public class BlobService : IBlobService
         {
             try
             {
-                using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.DeleteObject");
-                scope.Span.ResourceName = blob.ToString();
-                scope.Span.SetTag("BlobStore", store.GetType().Name);
+                using TelemetrySpan scope = _tracer.StartActiveSpan("HierarchicalStore.DeleteObject")
+                    .SetAttribute("resource.name", blob.ToString())
+                    .SetAttribute("BlobStore", store.GetType().Name)
+                    ;
+
                 await store.DeleteObject(ns, blob);
                 deletedAtLeastOnce = true;
             }
@@ -515,8 +527,10 @@ public class BlobService : IBlobService
         bool deletedAtLeastOnce = false;
         foreach (IBlobStore store in _blobStores)
         {
-            using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.DeleteNamespace");
-            scope.Span.SetTag("BlobStore", store.GetType().Name);
+            using TelemetrySpan scope = _tracer.StartActiveSpan("HierarchicalStore.DeleteNamespace")
+                .SetAttribute("resource.name", ns.ToString())
+                .SetAttribute("BlobStore", store.GetType().Name)
+                ;
             try
             {
                 await store.DeleteNamespace(ns);
@@ -581,7 +595,7 @@ public class BlobService : IBlobService
 
     public async Task<BlobContents> GetObjects(NamespaceId ns, BlobIdentifier[] blobs)
     {
-        using IScope _ = Tracer.Instance.StartActive("blob.combine");
+        using TelemetrySpan _ = _tracer.StartActiveSpan("blob.combine");
         Task<BlobContents>[] tasks = new Task<BlobContents>[blobs.Length];
         for (int i = 0; i < blobs.Length; i++)
         {
@@ -604,8 +618,12 @@ public class BlobService : IBlobService
 
 public static class BlobServiceExtensions
 {
-    public static async Task<ContentId> PutCompressedObject(this IBlobService blobService, NamespaceId ns, IBufferedPayload payload, ContentId? id, IContentIdStore contentIdStore, CompressedBufferUtils compressedBufferUtils)
+    public static async Task<ContentId> PutCompressedObject(this IBlobService blobService, NamespaceId ns, IBufferedPayload payload, ContentId? id, IServiceProvider provider)
     {
+        IContentIdStore contentIdStore = provider.GetService<IContentIdStore>()!;
+        CompressedBufferUtils compressedBufferUtils = provider.GetService<CompressedBufferUtils>()!;
+        Tracer tracer = provider.GetService<Tracer>()!;
+
         // decompress the content and generate a identifier from it to verify the identifier we got
         await using Stream decompressStream = payload.GetStream();
         // TODO: we should add a overload for decompress content that can work on streams, otherwise we are still limited to 2GB compressed blobs
@@ -621,7 +639,7 @@ public static class BlobServiceExtensions
         {
             ContentHash blobHash;
             {
-                using IScope _ = Tracer.Instance.StartActive("web.hash");
+                using TelemetrySpan _ = tracer.StartActiveSpan("web.hash");
                 blobHash = await BlobIdentifier.FromStream(decompressedStream);
             }
 
@@ -630,7 +648,7 @@ public static class BlobServiceExtensions
 
         BlobIdentifier identifierCompressedPayload;
         {
-            using IScope _ = Tracer.Instance.StartActive("web.hash");
+            using TelemetrySpan _ = tracer.StartActiveSpan("web.hash");
             await using Stream hashStream = payload.GetStream();
             identifierCompressedPayload = await BlobIdentifier.FromStream(hashStream);
         }
@@ -650,8 +668,11 @@ public static class BlobServiceExtensions
         return identifierDecompressedPayload;
     }
 
-    public static async Task<(BlobContents, string)> GetCompressedObject(this IBlobService blobService, NamespaceId ns, ContentId contentId, IContentIdStore contentIdStore)
+    public static async Task<(BlobContents, string)> GetCompressedObject(this IBlobService blobService, NamespaceId ns, ContentId contentId, IServiceProvider provider)
     {
+        IContentIdStore contentIdStore = provider.GetService<IContentIdStore>()!;
+        Tracer tracer = provider.GetService<Tracer>()!;
+
         BlobIdentifier[]? chunks = await contentIdStore.Resolve(ns, contentId, mustBeContentId: false);
         if (chunks == null || chunks.Length == 0)
         {
@@ -673,7 +694,7 @@ public static class BlobServiceExtensions
         }
 
         // chunked content, combine the chunks into a single stream
-        using IScope _ = Tracer.Instance.StartActive("blob.combine");
+        using TelemetrySpan _ = tracer.StartActiveSpan("blob.combine");
         Task<BlobContents>[] tasks = new Task<BlobContents>[chunks.Length];
         for (int i = 0; i < chunks.Length; i++)
         {

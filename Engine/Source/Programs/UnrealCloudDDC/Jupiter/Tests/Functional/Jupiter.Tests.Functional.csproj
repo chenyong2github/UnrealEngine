@@ -11,7 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Grpc.Net.Client" Version="2.37.0" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="6.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.0.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="2.2.7" />

@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using Cassandra;
-using Datadog.Trace;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Implementation
 {
@@ -49,14 +49,16 @@ namespace Jupiter.Implementation
         public bool IsCassandra { get; }
     }
 
-    public static class ScyllaUtils
+    public static class ScyllaTraceExtensions
     {
-        private const string DatadogScyllaServiceName = "ScyllaDB";
+        private static readonly Tracer ScyllaTracer = TracerProvider.Default.GetTracer(ScyllaServiceName);
 
-        public static void SetupScyllaScope(IScope scope)
+        private const string ScyllaServiceName = "ScyllaDB";
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Useful to create from the tracer in case we want to use that context")]
+        public static TelemetrySpan BuildScyllaSpan(this Tracer tracer, string spanName)
         {
-            scope.Span.ServiceName = DatadogScyllaServiceName;
-            scope.Span.SetTag("type", "db");
+            return ScyllaTracer.StartActiveSpan(spanName).SetAttribute("type", "db").SetAttribute("service.name", ScyllaServiceName);
         }
     }
 }

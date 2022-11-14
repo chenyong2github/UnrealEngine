@@ -5,22 +5,23 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Datadog.Trace;
 using EpicGames.Core;
 using Force.Crc32;
-using Jupiter.Implementation;
 using Jupiter.Utils;
 using K4os.Compression.LZ4;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Implementation
 {
     public class CompressedBufferUtils
     {
         private readonly OodleCompressor _oodleCompressor;
+        private readonly Tracer _tracer;
 
-        public CompressedBufferUtils(OodleCompressor oodleCompressor)
+        public CompressedBufferUtils(OodleCompressor oodleCompressor, Tracer tracer)
         {
             _oodleCompressor = oodleCompressor;
+            _tracer = tracer;
         }
 
         private class Header
@@ -228,7 +229,7 @@ namespace Jupiter.Implementation
             }
 
             {
-                using IScope _ = Tracer.Instance.StartActive("web.hash");
+                using TelemetrySpan _ = _tracer.StartActiveSpan("web.hash");
 
                 // only read the first 20 bytes of the hash field as IoHashes are 20 bytes and not 32 bytes
                 byte[] slicedHash = new byte[20];

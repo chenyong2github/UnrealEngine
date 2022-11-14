@@ -1,9 +1,9 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using Datadog.Trace;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using OpenTelemetry.Trace;
 
 namespace Jupiter.Controllers
 {
@@ -32,7 +32,8 @@ namespace Jupiter.Controllers
             }
 
             // add the error to our trace
-            Tracer.Instance.ActiveScope.Span.SetException(context.Error);
+            Tracer.CurrentSpan.SetStatus(Status.Error);
+            Tracer.CurrentSpan.RecordException(context.Error);
 
             return Problem(
                 detail: context.Error.StackTrace,

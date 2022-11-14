@@ -12,14 +12,12 @@ using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Jupiter.Implementation;
-using Jupiter;
 using Jupiter.Common.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using Serilog;
 using ContentId = Jupiter.Implementation.ContentId;
-using CustomMediaTypeNames = Jupiter.CustomMediaTypeNames;
 
 namespace Jupiter.Controllers
 {
@@ -34,16 +32,14 @@ namespace Jupiter.Controllers
         private readonly IContentIdStore _contentIdStore;
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly RequestHelper _requestHelper;
-        private readonly CompressedBufferUtils _compressedBufferUtils;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
 
-        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, CompressedBufferUtils compressedBufferUtils, BufferedPayloadFactory bufferedPayloadFactory)
+        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, BufferedPayloadFactory bufferedPayloadFactory)
         {
             _storage = storage;
             _contentIdStore = contentIdStore;
             _diagnosticContext = diagnosticContext;
             _requestHelper = requestHelper;
-            _compressedBufferUtils = compressedBufferUtils;
             _bufferedPayloadFactory = bufferedPayloadFactory;
         }
 
@@ -64,7 +60,7 @@ namespace Jupiter.Controllers
 
             try
             {
-                (BlobContents blobContents, string mediaType) = await _storage.GetCompressedObject(ns, id, _contentIdStore);
+                (BlobContents blobContents, string mediaType) = await _storage.GetCompressedObject(ns, id, HttpContext.RequestServices);
 
                 StringValues acceptHeader = Request.Headers["Accept"];
                 if (!acceptHeader.Contains("*/*") && acceptHeader.Count != 0 && !acceptHeader.Contains(mediaType))
@@ -223,8 +219,7 @@ namespace Jupiter.Controllers
             {
                 using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
-                ContentId identifier =
-                    await _storage.PutCompressedObject(ns, payload, id, _contentIdStore, _compressedBufferUtils);
+                ContentId identifier = await _storage.PutCompressedObject(ns, payload, id, HttpContext.RequestServices);
 
                 return Ok(new { Identifier = identifier.ToString() });
             }
@@ -260,7 +255,7 @@ namespace Jupiter.Controllers
             {
                 using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
-                ContentId identifier = await _storage.PutCompressedObject(ns, payload, null, _contentIdStore, _compressedBufferUtils);
+                ContentId identifier = await _storage.PutCompressedObject(ns, payload, null, HttpContext.RequestServices);
 
                 return Ok(new
                 {

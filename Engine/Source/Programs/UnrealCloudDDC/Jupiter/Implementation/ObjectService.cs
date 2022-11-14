@@ -5,17 +5,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dasync.Collections;
-using Datadog.Trace;
 using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Jupiter.Implementation.Blob;
-using Jupiter.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Trace;
 using Serilog;
-using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Jupiter.Implementation
 {
@@ -41,9 +39,10 @@ namespace Jupiter.Implementation
         private readonly IReplicationLog _replicationLog;
         private readonly IBlobIndex _blobIndex;
         private readonly ILastAccessTracker<LastAccessRecord> _lastAccessTracker;
+        private readonly Tracer _tracer;
         private readonly ILogger _logger = Log.ForContext<ObjectService>();
 
-        public ObjectService(IHttpContextAccessor httpContextAccessor, IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex, ILastAccessTracker<LastAccessRecord> lastAccessTracker)
+        public ObjectService(IHttpContextAccessor httpContextAccessor, IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex, ILastAccessTracker<LastAccessRecord> lastAccessTracker, Tracer tracer)
         {
             _httpContextAccessor = httpContextAccessor;
             _referencesStore = referencesStore;
@@ -52,6 +51,7 @@ namespace Jupiter.Implementation
             _replicationLog = replicationLog;
             _blobIndex = blobIndex;
             _lastAccessTracker = lastAccessTracker;
+            _tracer = tracer;
         }
 
         public async Task<(ObjectRecord, BlobContents?)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[]? fields = null, bool doLastAccessTracking = true)
@@ -190,7 +190,7 @@ namespace Jupiter.Implementation
             bool hasReferences = HasAttachments(payload);
             if (hasReferences)
             {
-                using IScope _ = Tracer.Instance.StartActive("ObjectService.ResolveReferences");
+                using TelemetrySpan _ = _tracer.StartActiveSpan("ObjectService.ResolveReferences");
                 try
                 {
                     IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.GetReferencedBlobs(ns, payload);
