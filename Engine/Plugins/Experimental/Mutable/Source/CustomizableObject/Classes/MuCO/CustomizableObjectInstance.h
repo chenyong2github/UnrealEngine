@@ -601,7 +601,7 @@ public:
 	void SetIsPlayerOrNearIt(bool NewValue);
 	float GetMinSquareDistToPlayer() const;
 	void SetMinSquareDistToPlayer(float NewValue);
-	void SetMinMaxLODToLoad(int32 NewMinLOD = 0, int32 NewMaxLOD = INT32_MAX, bool LimitLODUpgrades = true);
+	void SetMinMaxLODToLoad(int32 NewMinLOD, int32 NewMaxLOD, bool LimitLODUpgrades = true);
 	int32 GetMinLODToLoad() const;
 	int32 GetMaxLODToLoad() const;
 	int32 GetNumLODsAvailable() const;

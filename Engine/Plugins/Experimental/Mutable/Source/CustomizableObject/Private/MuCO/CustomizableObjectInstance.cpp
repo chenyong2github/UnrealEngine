@@ -259,11 +259,6 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectIns
 	
 	Public->Descriptor.MinLODToLoad = NewMinLOD;
 	Public->Descriptor.MaxLODToLoad = NewMaxLOD;
-
-	if (const FMutableQueueElem* QueueElem = UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableOperationQueue.Get(Public))
-	{
-		QueueElem->Operation->InstanceDescriptorRuntimeHash = Public->GetUpdateDescriptorRuntimeHash();
-	}
 }
 
 
@@ -549,7 +544,6 @@ void UCustomizableObjectInstance::PostLoad()
 	Super::PostLoad();
 
 	Descriptor.ReloadParameters();
-	SetMinMaxLODToLoad();
 }
 
 
@@ -686,7 +680,6 @@ void UCustomizableObjectInstance::SetObject(UCustomizableObject* InObject)
 {
 	Descriptor.SetCustomizableObject(*InObject);
 	PrivateData->ReloadParameters(this);
-	SetMinMaxLODToLoad();
 }
 
 
