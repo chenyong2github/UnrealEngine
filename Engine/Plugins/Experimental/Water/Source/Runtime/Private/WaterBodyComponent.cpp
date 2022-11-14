@@ -1368,8 +1368,9 @@ void UWaterBodyComponent::UpdateAll(const FOnWaterBodyChangedParams& InParams)
 
 void UWaterBodyComponent::UpdateSplineComponent()
 {
-	if (USplineComponent* WaterSpline = GetWaterSpline())
+	if (UWaterSplineComponent* WaterSpline = GetWaterSpline())
 	{
+		WaterSpline->SynchronizeWaterProperties();
 		WaterSpline->SetClosedLoop(IsWaterSplineClosedLoop());
 	}
 }
