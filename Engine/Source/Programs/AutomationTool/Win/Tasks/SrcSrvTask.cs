@@ -1,22 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using AutomationTool;
 using UnrealBuildTool;
-using System.IO;
-using System.Threading;
 using System.Xml;
-using System.Diagnostics;
 
-using Action = System.Action;
 using EpicGames.Core;
 using UnrealBuildBase;
 using EpicGames.BuildGraph;
-using AutomationTool.Tasks;
 using System.Runtime.Versioning;
 
 namespace Win.Automation
@@ -53,6 +45,11 @@ namespace Win.Automation
 
 	/// <summary>
 	/// Task which strips symbols from a set of files
+	/// Note that this task only supports source indexing for Windows-like platforms.
+	/// SymStore can be considered a generalization of this task because in addition to uploading symbols
+	/// it can also index sources and supports consoles as well (any missing platform that supports
+	/// source indexing in general may add support for it by extending PublishSymbols).
+	/// Check SymStoreTaskParameters.IndexSources/SourceFiles/Branch/Change
 	/// </summary>
 	[TaskElement("SrcSrv", typeof(SrcSrvTaskParameters))]
 	public class SrcSrvTask : CustomTask
@@ -88,89 +85,12 @@ namespace Win.Automation
 		[SupportedOSPlatform("windows")]
 		internal static void Execute(FileReference[] BinaryFiles, FileReference[] SourceFiles, string Branch, int Change)
 		{
-			FileReference[] PdbFiles = BinaryFiles.Where(x => x.HasExtension(".pdb")).ToArray();
+			IEnumerable<FileReference> PdbFiles = BinaryFiles.Where(x => x.HasExtension(".pdb"));
 
-			// Get the PDBSTR.EXE path, using the latest SDK version we can find.
-			FileReference PdbStrExe = GetPdbStrExe();
+			Win64Platform WindowsPlatform = Platform.GetPlatform(UnrealTargetPlatform.Win64) as Win64Platform;
 
-			// Get the path to the generated SRCSRV.INI file
-			FileReference SrcSrvIni = FileReference.Combine(Unreal.RootDirectory, "Engine", "Intermediate", "SrcSrv.ini");
-			DirectoryReference.CreateDirectory(SrcSrvIni.Directory);
-
-			// Generate the SRCSRV.INI file
-			using (StreamWriter Writer = new StreamWriter(SrcSrvIni.FullName))
-			{
-				Writer.WriteLine("SRCSRV: ini------------------------------------------------");
-				Writer.WriteLine("VERSION=1");
-				Writer.WriteLine("VERCTRL=Perforce");
-				Writer.WriteLine("SRCSRV: variables------------------------------------------");
-				Writer.WriteLine("SRCSRVTRG=%sdtrg%");
-				Writer.WriteLine("SRCSRVCMD=%sdcmd%");
-				Writer.WriteLine("SDCMD=p4.exe print -o %srcsrvtrg% \"{0}/%var2%@{1}\"", Branch.TrimEnd('/'), Change);
-				Writer.WriteLine("SDTRG=%targ%\\{0}\\{1}\\%fnbksl%(%var2%)", Branch.Replace('/', '+'), Change);
-				Writer.WriteLine("SRCSRV: source files ---------------------------------------");
-				foreach (FileReference SourceFile in SourceFiles)
-				{
-					string RelativeSourceFile = SourceFile.MakeRelativeTo(Unreal.RootDirectory);
-					Writer.WriteLine("{0}*{1}", SourceFile.FullName, RelativeSourceFile.Replace('\\', '/'));
-				}
-				Writer.WriteLine("SRCSRV: end------------------------------------------------");
-			}
-
-            // Execute PDBSTR on the PDB files in parallel.
-            Parallel.For(0, PdbFiles.Length, (Idx, State) => { ExecuteTool(PdbStrExe, PdbFiles[Idx], SrcSrvIni, State); });
+			WindowsPlatform.AddSourceIndexToSymbols(PdbFiles, SourceFiles, Branch, Change);
 		}
-
-        /// <summary>
-        /// Executes the PdbStr tool.
-        /// </summary>
-        /// <param name="PdbStrExe">Path to PdbStr.exe</param>
-        /// <param name="PdbFile">The PDB file to embed source information for</param>
-        /// <param name="SrcSrvIni">Ini file containing settings to embed</param>
-        /// <param name="State">The current loop state</param>
-        /// <returns>True if the tool executed succesfully</returns>
-        static void ExecuteTool(FileReference PdbStrExe, FileReference PdbFile, FileReference SrcSrvIni, ParallelLoopState State)
-        {
-            using (Process Process = new Process())
-            {
-                List<string> Messages = new List<string>();
-                Messages.Add(String.Format("Writing source server data: {0}", PdbFile));
-
-                DataReceivedEventHandler OutputHandler = (s, e) => { if (e.Data != null) { Messages.Add(e.Data); } };
-                Process.StartInfo.FileName = PdbStrExe.FullName;
-                Process.StartInfo.Arguments = String.Format("-w -p:\"{0}\" -i:\"{1}\" -s:srcsrv", PdbFile.FullName, SrcSrvIni.FullName);
-                Process.StartInfo.UseShellExecute = false;
-                Process.StartInfo.RedirectStandardOutput = true;
-                Process.StartInfo.RedirectStandardError = true;
-                Process.StartInfo.RedirectStandardInput = false;
-                Process.StartInfo.CreateNoWindow = true;
-                Process.OutputDataReceived += OutputHandler;
-                Process.ErrorDataReceived += OutputHandler;
-                Process.Start();
-                Process.BeginOutputReadLine();
-                Process.BeginErrorReadLine();
-                Process.WaitForExit();
-
-                if(Process.ExitCode != 0)
-                {
-                    Messages.Add(String.Format("Exit code: {0}", Process.ExitCode));
-                    State.Break();
-                }
-
-                lock (State)
-                {
-                    foreach (string Message in Messages)
-                    {
-                        CommandUtils.LogInformation(Message);
-                    }
-                }
-
-				if(Process.ExitCode != 0)
-				{
-					throw new AutomationException("Failed to embed source server data for {0}", PdbFile);
-				}
-            }
-        }
 
         /// <summary>
         /// Output this task out to an XML writer.
@@ -203,31 +123,6 @@ namespace Win.Automation
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			yield break;
-		}
-
-		/// <summary>
-		/// Try to get the PDBSTR.EXE path from the Windows SDK
-		/// </summary>
-		/// <returns>Path to PDBSTR.EXE</returns>
-		[SupportedOSPlatform("windows")]
-		public static FileReference GetPdbStrExe()
-		{
-			List<KeyValuePair<string, DirectoryReference>> WindowsSdkDirs = WindowsExports.GetWindowsSdkDirs();
-			foreach (DirectoryReference WindowsSdkDir in WindowsSdkDirs.Select(x => x.Value))
-			{
-				FileReference CheckPdbStrExe64 = FileReference.Combine(WindowsSdkDir, "Debuggers", "x64", "SrcSrv", "PdbStr.exe");
-				if (FileReference.Exists(CheckPdbStrExe64))
-				{
-					return CheckPdbStrExe64;
-				}
-
-				FileReference CheckPdbStrExe32 = FileReference.Combine(WindowsSdkDir, "Debuggers", "x86", "SrcSrv", "PdbStr.exe");
-				if (FileReference.Exists(CheckPdbStrExe32))
-				{
-					return CheckPdbStrExe32;
-				}
-			}
-			throw new AutomationException("Unable to find a Windows SDK installation containing PDBSTR.EXE");
 		}
 	}
 

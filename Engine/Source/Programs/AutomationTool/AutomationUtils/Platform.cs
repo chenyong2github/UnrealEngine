@@ -747,7 +747,9 @@ namespace AutomationTool
 			}
 		}
 
-		public virtual bool PublishSymbols(DirectoryReference SymbolStoreDirectory, List<FileReference> Files, string Product, string BuildVersion = null)
+		public virtual bool PublishSymbols(DirectoryReference SymbolStoreDirectory, List<FileReference> Files,
+			bool bIndexSources, List<FileReference> SourceFiles,
+			string Product, string Branch, int Change, string BuildVersion = null)
 		{
 			CommandUtils.LogWarning("PublishSymbols() has not been implemented for {0}", PlatformType.ToString());
 			return false;
@@ -770,6 +772,16 @@ namespace AutomationTool
 		public virtual bool SymbolServerDeleteIndividualFiles
 		{
 			get { return false; }
+		}
+
+		/// <summary>
+		/// When true, callers of PublishSymbols() must provide an explicit list of source files to create the index from.
+		/// Some platforms discover the source files via other means, so it is possible to turn this step of the process
+		/// off, since it can be slow.
+		/// </summary>
+		public virtual bool SymbolServerSourceIndexingRequiresListOfSourceFiles
+		{
+			get { return true; }
 		}
 
 		/// <summary>

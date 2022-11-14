@@ -44,10 +44,41 @@ namespace AutomationTool.Tasks
         public string Product;
 
 		/// <summary>
+		/// Name of the Branch to base all the depot source files from.
+		/// Used when IndexSources is true (may be used only on some platforms).
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string Branch;
+
+		/// <summary>
+		/// Changelist to which all the depot source files have been synced to.
+		/// Used when IndexSources is true (may be used only on some platforms).
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public int Change;
+
+		/// <summary>
 		/// BuildVersion associated with these symbols. Used for clean-up in AgeStore by matching this version against a directory name in a build share.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string BuildVersion;
+
+		/// <summary>
+		/// Whether to include the source code index in the uploaded symbols.
+		/// When enabled, the task will generate data required by a source server (only some platforms and source control servers are supported).
+		/// The source server allows debuggers to automatically fetch the matching source code when debbugging builds or analyzing dumps.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool IndexSources = false;
+
+		/// <summary>
+		/// Filter for the depot source files that are to be indexed.
+		/// It's a semicolon-separated list of perforce filter e.g. Engine/....cpp;Engine/....h.
+		/// It may also be a name of a previously defined tag e.g. "#SourceFiles
+		/// Used when IndexSources is true (may be used only on some platforms).
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string SourceFiles;
 	}
 
     /// <summary>
@@ -86,9 +117,20 @@ namespace AutomationTool.Tasks
 
 			// Take the lock before accessing the symbol server, if required by the platform
 			Platform TargetPlatform = Platform.GetPlatform(Parameters.Platform);
+
+			List<FileReference> SourceFiles = new List<FileReference>();
+
+			if (Parameters.IndexSources && TargetPlatform.SymbolServerSourceIndexingRequiresListOfSourceFiles)
+			{
+				CommandUtils.LogInformation("Discovering source code files...");
+
+				SourceFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.SourceFiles, TagNameToFileSet).ToList();
+			}
+
 			CommandUtils.OptionallyTakeLock(TargetPlatform.SymbolServerRequiresLock, StoreDir, TimeSpan.FromMinutes(60), () =>
 			{
-				if (!TargetPlatform.PublishSymbols(StoreDir, Files, Parameters.Product, Parameters.BuildVersion))
+				if (!TargetPlatform.PublishSymbols(StoreDir, Files, Parameters.IndexSources, SourceFiles,
+					Parameters.Product, Parameters.Branch, Parameters.Change, Parameters.BuildVersion))
 				{
 					throw new AutomationException("Failure publishing symbol files.");
 				}
