@@ -470,7 +470,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 				FBox BBoxReducedMesh = ReducedMesh.ComputeBoundingBox();
 				double BBoxReducedMeshSize = (BBoxReducedMesh.Max - BBoxReducedMesh.Min).Length();
 
-				if (BBoxReducedMeshSize > BBoxInitMeshSize * 1.01)
+				constexpr double ThresholdForAbnormalGrowthOfBBox = 1.1;
+				if (BBoxReducedMeshSize > BBoxInitMeshSize * ThresholdForAbnormalGrowthOfBBox)
 				{
 					UE_LOG(LogStaticMeshBuilder, Warning, TEXT("The generation of LOD could have generated spikes on the mesh for %s"), *StaticMesh->GetName());
 				}
