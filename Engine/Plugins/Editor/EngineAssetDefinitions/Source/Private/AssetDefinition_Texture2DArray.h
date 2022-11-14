@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Texture2DArray.h"
-#include "AssetDefinitionDefault.h"
+#include "AssetDefinition_Texture.h"
 
 #include "AssetDefinition_Texture2DArray.generated.h"
 
