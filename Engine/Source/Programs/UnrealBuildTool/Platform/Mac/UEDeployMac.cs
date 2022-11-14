@@ -55,7 +55,17 @@ namespace UnrealBuildTool
             Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleIdentifier);
 
             string BundleVersion = MacToolChain.LoadEngineDisplayVersion();
-			PListData = PListData.Replace("${EXECUTABLE_NAME}", ExeName).Replace("${APP_NAME}", BundleIdentifier.Replace("[PROJECT_NAME]", ProjectName).Replace("_", "")).Replace("${ICON_NAME}", GameName).Replace("${MACOSX_DEPLOYMENT_TARGET}", MacToolChain.Settings.MinMacOSVersion).Replace("${BUNDLE_VERSION}", BundleVersion);
+			// duplicating some logic in MacToolchain for the BundleID
+			string[] ExeNameParts = ExeName.Split('-');
+			bool bBuildingEditor = ExeNameParts[0].EndsWith("Editor");
+			string FinalBundleID = bBuildingEditor ? $"com.epicgames.{ExeNameParts[0]}" : BundleIdentifier.Replace("[PROJECT_NAME]", ProjectName);
+			FinalBundleID = FinalBundleID.Replace("_", "");
+
+			PListData = PListData.Replace("${EXECUTABLE_NAME}", ExeName).
+				Replace("${APP_NAME}", FinalBundleID).
+				Replace("${ICON_NAME}", GameName).
+				Replace("${MACOSX_DEPLOYMENT_TARGET}", MacToolChain.Settings.MinMacOSVersion).
+				Replace("${BUNDLE_VERSION}", BundleVersion);
 
 			if (!Directory.Exists(IntermediateDirectory))
 			{
