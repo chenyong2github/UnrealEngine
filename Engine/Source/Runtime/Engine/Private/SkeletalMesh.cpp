@@ -6031,12 +6031,6 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		}
 	}
 #endif
-
-	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
-	{
-		// batch occlusion for a "Static" skeletal mesh
-		bAllowApproximateOcclusion = (bAllowApproximateOcclusion || bRenderStatic);
-	}
 }
 
 
