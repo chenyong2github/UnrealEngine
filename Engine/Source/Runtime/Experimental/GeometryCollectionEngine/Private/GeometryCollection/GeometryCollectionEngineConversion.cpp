@@ -1305,7 +1305,7 @@ int32 FGeometryCollectionEngineConversion::AppendSkeletalMeshMaterials(const USk
 	return MaterialStart;
 }
 
-void FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(const FGeometryCollectionSource& GeometryCollectionSource, FGeometryCollection& GeometryCollectionInOut, TArray<UMaterial*>& MaterialsInOut)
+void FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(const FGeometryCollectionSource& GeometryCollectionSource, FGeometryCollection& GeometryCollectionInOut, TArray<UMaterial*>& MaterialsInOut, bool ReindexMaterials)
 {
 	if (const UObject* SourceObject = GeometryCollectionSource.SourceGeometryObject.ResolveObject())
 	{
@@ -1319,7 +1319,10 @@ void FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(const F
 				SourceStaticMesh,
 				StartMaterialIndex,
 				GeometryCollectionSource.LocalTransform,
-				&GeometryCollectionInOut
+				&GeometryCollectionInOut,
+				ReindexMaterials,
+				GeometryCollectionSource.bAddInternalMaterials,
+				GeometryCollectionSource.bSplitComponents
 				);
 		}
 		else if (const USkeletalMesh* SourceSkeletalMesh = Cast<USkeletalMesh>(SourceObject))
@@ -1328,7 +1331,8 @@ void FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(const F
 				SourceSkeletalMesh,
 				StartMaterialIndex,
 				GeometryCollectionSource.LocalTransform,
-				&GeometryCollectionInOut
+				&GeometryCollectionInOut,
+				ReindexMaterials
 				);
 		}
 		else if (const UGeometryCollection* SourceGeometryCollection = Cast<UGeometryCollection>(SourceObject))
@@ -1337,7 +1341,8 @@ void FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(const F
 				SourceGeometryCollection->GetGeometryCollection().Get(),
 				StartMaterialIndex,
 				GeometryCollectionSource.LocalTransform,
-				&GeometryCollectionInOut
+				&GeometryCollectionInOut,
+				ReindexMaterials
 				);
 		}
 	}

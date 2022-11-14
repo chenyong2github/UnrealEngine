@@ -427,10 +427,13 @@ void FGeometryCollection::ReindexMaterials(FManagedArrayCollection& InCollection
 	TManagedArray<FGeometryCollectionSection>& Sections = InCollection.ModifyAttribute<FGeometryCollectionSection>("Sections", FGeometryCollection::MaterialGroup);
 	TManagedArray<int32>& MaterialIndex = InCollection.ModifyAttribute<int32>("MaterialIndex", FGeometryCollection::FacesGroup);
 
+	FManagedArrayCollection::FProcessingParameters ProcessingParams;
+	ProcessingParams.bDoValidation = false; // disable validation as this can be very costly ( only in editor )
+
 	// clear all sections	
 	TArray<int32> DelSections;
 	GeometryCollectionAlgo::ContiguousArray(DelSections, InCollection.NumElements(FGeometryCollection::MaterialGroup));
-	InCollection.RemoveElements(FGeometryCollection::MaterialGroup, DelSections);
+	InCollection.RemoveElements(FGeometryCollection::MaterialGroup, DelSections, ProcessingParams);
 	DelSections.Reset(0);
 
 
@@ -481,10 +484,13 @@ void FGeometryCollection::ReindexMaterials(FManagedArrayCollection& InCollection
 	}
 
 	// remap indices so the materials appear to be grouped
+	const int32 NumSections = InCollection.NumElements(FGeometryCollection::MaterialGroup);
+	const int32 NumFaceElements = InCollection.NumElements(FGeometryCollection::FacesGroup);
+
 	int Idx = 0;
-	for (int Section=0; Section < InCollection.NumElements(FGeometryCollection::MaterialGroup); Section++)
+	for (int Section=0; Section < NumSections; Section++)
 	{
-		for (int FaceElement = 0; FaceElement < InCollection.NumElements(FGeometryCollection::FacesGroup); FaceElement++)
+		for (int FaceElement = 0; FaceElement < NumFaceElements; FaceElement++)
 		{
 			int32 ID = (MaterialID)[FaceElement];
 	
@@ -498,7 +504,7 @@ void FGeometryCollection::ReindexMaterials(FManagedArrayCollection& InCollection
 	// delete unused material sections
 	if (DelSections.Num())
 	{
-		InCollection.RemoveElements(FGeometryCollection::MaterialGroup, DelSections);
+		InCollection.RemoveElements(FGeometryCollection::MaterialGroup, DelSections, ProcessingParams);
 	}
 }
 

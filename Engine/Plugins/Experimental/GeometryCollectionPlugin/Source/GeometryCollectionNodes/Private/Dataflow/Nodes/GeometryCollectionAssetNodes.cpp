@@ -115,10 +115,15 @@ void FCreateGeometryCollectionFromSourcesDataflowNode::Evaluate(Dataflow::FConte
 
 	FGeometryCollection OutCollection;
 	TArray<TObjectPtr<UMaterial>> OutMaterials;
+	constexpr bool bReindexMaterialsInLoop = false;
 	for (const FGeometryCollectionSource& Source: InSources)
 	{
 		// todo: change AppendGeometryCollectionSource to take a FManagedArrayCollection so we could move the collection when assigning it to the output
-		FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(Source, OutCollection, OutMaterials);
+		FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(Source, OutCollection, OutMaterials, bReindexMaterialsInLoop);
+	}
+	if (bReindexMaterialsInLoop == false)
+	{
+		OutCollection.ReindexMaterials();
 	}
 
 	// we have to make a copy since we have generated a FGeometryCollection which is inherited from FManagedArrayCollection

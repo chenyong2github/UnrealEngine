@@ -164,5 +164,5 @@ public:
 	*  @param GeometryCollectionInOut : GeometryCollection to append to 
 	*  @param MaterialsInOut  : array of materials to append to
 	*/
-	static void AppendGeometryCollectionSource(const FGeometryCollectionSource& GeometryCollectionSource, FGeometryCollection& GeometryCollectionInOut, TArray<UMaterial*>& MaterialsInOut);
+	static void AppendGeometryCollectionSource(const FGeometryCollectionSource& GeometryCollectionSource, FGeometryCollection& GeometryCollectionInOut, TArray<UMaterial*>& MaterialsInOut, bool ReindexMaterials = true);
 };
