@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "PoseSearch/PoseSearch.h"
-
 #if WITH_EDITOR
+#include "PoseSearch/PoseSearch.h"
 #include "TickableEditorObject.h"
 #include "UObject/ObjectSaveContext.h"
 
@@ -13,28 +12,27 @@ namespace UE::PoseSearch
 	struct FPoseSearchDatabaseAsyncCacheTask;
 	class FPoseSearchDatabaseAsyncCacheTasks;
 
+	enum class ERequestAsyncBuildFlag
+	{
+		NewRequest = 1 << 0,			// generates new key and kick off a task to get updated data (it'll cancel for eventual previous Database request, unless WaitPreviousRequest)
+		ContinueRequest = 1 << 1,		// make sure there's associated data to the Database (doesn't have to be up to date)
+		WaitForCompletion = 1 << 2,		// wait the termination of the NewRequest or ContinueRequest
+		WaitPreviousRequest = 1 << 3	// if NewRequest will WaitPreviousRequest
+	};
+	ENUM_CLASS_FLAGS(ERequestAsyncBuildFlag);
+
 	class POSESEARCH_API FAsyncPoseSearchDatabasesManagement : public FTickableEditorObject, public FTickableCookObject, public FGCObject
 	{
 	public:
-		~FAsyncPoseSearchDatabasesManagement();
-		static FAsyncPoseSearchDatabasesManagement& Get();
-		void RequestAsyncBuildIndex(UPoseSearchDatabase& Database, bool bWaitForCompletion = false, bool bCancelPreviousTask = false);
-		void WaitOnExistingBuildIndex(const UPoseSearchDatabase& Database, bool bWantResults);
-		bool IsBuildingIndex(const UPoseSearchDatabase& Database) const;
+		static bool RequestAsyncBuildIndex(const UPoseSearchDatabase* Database, ERequestAsyncBuildFlag Flag);
 
 	private:
 		FAsyncPoseSearchDatabasesManagement();
+		~FAsyncPoseSearchDatabasesManagement();
 
-		void ForEachPoseSearchDatabase(bool bUseTasksDatabases, TFunctionRef<void(UPoseSearchDatabase&)> InFunction);
-		void ExecuteIfObjectIsReferencedByDatabase(UObject* Object, bool bUseTasksDatabases, TFunctionRef<void(UPoseSearchDatabase&)> InFunction);
+		static FAsyncPoseSearchDatabasesManagement& Get();
 
-		void OnObjectPreSave(UObject* SavedObject, FObjectPreSaveContext SaveContext);
-		void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropChain);
-		void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
-
-		FPoseSearchDatabaseAsyncCacheTask& GetTask(int32 TaskIndex);
-		const FPoseSearchDatabaseAsyncCacheTask& GetTask(int32 TaskIndex) const;
-		void RemoveTask(int32 TaskIndex);
+		void OnObjectModified(UObject* Object);
 
 		void Shutdown();
 		void StartQueuedTasks(int32 MaxActiveTasks);
@@ -53,12 +51,11 @@ namespace UE::PoseSearch
 		void AddReferencedObjects(FReferenceCollector& Collector) override;
 		virtual FString GetReferencerName() const override { return TEXT("FAsyncPoseSearchDatabaseManagement"); }
 		// End FGCObject
-
+		
 		FPoseSearchDatabaseAsyncCacheTasks& Tasks;
-
-		FDelegateHandle OnObjectPreSaveHandle;
-		FDelegateHandle OnObjectPropertyChangedHandle;
-		FDelegateHandle OnPreObjectPropertyChangedHandle;
+		FDelegateHandle OnObjectModifiedHandle;
+		
+		static FCriticalSection Mutex;
 	};
 } // namespace UE::PoseSearch
 

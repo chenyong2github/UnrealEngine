@@ -9,6 +9,7 @@
 #include "PoseSearchDatabaseEditorReflection.h"
 #include "PoseSearchEditor.h"
 #include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchDerivedData.h"
 #include "GameFramework/WorldSettings.h"
 #include "AdvancedPreviewSceneModule.h"
 #include "IStructureDetailsView.h"
@@ -205,19 +206,19 @@ namespace UE::PoseSearch
 			// Ensure statistics information get updated/populated
 			if (DatabaseAsset)
 			{
-				const auto UpdateStatisticsInformationLambda = [this](UPoseSearchDatabase::EDerivedDataBuildState State = UPoseSearchDatabase::EDerivedDataBuildState::Ended)
+				const auto UpdateStatisticsInformationLambda = [this]()
 				{
-					if (State == UPoseSearchDatabase::EDerivedDataBuildState::Ended)
-					{
-						UPoseSearchDatabaseStatistics* Statistics = NewObject<UPoseSearchDatabaseStatistics>();
-						Statistics->AddToRoot();
-						Statistics->Initialize(GetPoseSearchDatabase());
-						StatisticsOverviewWidget->SetObject(Statistics);
-					}
+					UPoseSearchDatabaseStatistics* Statistics = NewObject<UPoseSearchDatabaseStatistics>();
+					Statistics->AddToRoot();
+					Statistics->Initialize(GetPoseSearchDatabase());
+					StatisticsOverviewWidget->SetObject(Statistics);
 				};
 
 				// Init statistics
-				UpdateStatisticsInformationLambda();
+				if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(GetPoseSearchDatabase(), ERequestAsyncBuildFlag::ContinueRequest))
+				{
+					UpdateStatisticsInformationLambda();
+				}
 
 				// Ensure any database changes are reflected
 				DatabaseAsset->RegisterOnDerivedDataRebuild(UPoseSearchDatabase::FOnDerivedDataRebuild::CreateLambda(UpdateStatisticsInformationLambda));
@@ -226,7 +227,7 @@ namespace UE::PoseSearch
 		
 		// Define Editor Layout
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout =
-		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.07")
+		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.08")
 			->AddArea
 			(
 				FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)

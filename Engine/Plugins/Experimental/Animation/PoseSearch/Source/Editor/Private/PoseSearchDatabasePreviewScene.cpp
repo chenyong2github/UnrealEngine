@@ -6,6 +6,7 @@
 #include "PoseSearchDatabaseViewModel.h"
 
 #include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchDerivedData.h"
 
 #include "Animation/DebugSkelMeshComponent.h"
 #include "GameFramework/WorldSettings.h"
@@ -61,11 +62,12 @@ namespace UE::PoseSearch
 		const FDatabaseViewModel* ViewModel = GetEditor()->GetViewModel();
 		const UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
 
-		if (Database && Database->IsValidForSearch() && ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::All | EFeaturesDrawMode::Detailed))
+		if (ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::All | EFeaturesDrawMode::Detailed) && !ViewModel->GetPreviewActors().IsEmpty() &&
+			FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 		{
 			for (const FDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
 			{
-				if (Database->IsValidPoseIndex(PreviewActor.CurrentPoseIndex))
+				if (Database->GetSearchIndex().IsValidPoseIndex(PreviewActor.CurrentPoseIndex))
 				{
 					UE::PoseSearch::FDebugDrawParams DrawParams;
 					DrawParams.RootTransform = PreviewActor.Mesh->GetComponentTransform();

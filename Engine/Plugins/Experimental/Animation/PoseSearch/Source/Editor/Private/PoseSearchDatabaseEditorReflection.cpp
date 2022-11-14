@@ -54,52 +54,51 @@ void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSe
 	
 	if (PoseSearchDatabase)
 	{
-		if (const FPoseSearchIndex* SearchIndexSafe = PoseSearchDatabase->GetSearchIndexSafe())
+		const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+		// General information
+	
+		AnimationSequences = PoseSearchDatabase->Sequences.Num();
+			
+		const int32 SampleRate = FMath::Max(1, PoseSearchDatabase->Schema->SampleRate);
+		TotalAnimationPosesInFrames = SearchIndex.NumPoses;
+		TotalAnimationPosesInTime = FText::Format(TimeFormat, static_cast<double>(SearchIndex.NumPoses) / SampleRate);
+			
 		{
-			// General information
-	
-			AnimationSequences = PoseSearchDatabase->Sequences.Num();
-			
-			TotalAnimationPosesInFrames = SearchIndexSafe->NumPoses;
-			TotalAnimationPosesInTime = FText::Format(TimeFormat, static_cast<double>(SearchIndexSafe->NumPoses) / PoseSearchDatabase->Schema->SampleRate);
-			
+			uint32 NumOfSearchablePoses = 0;
+			for (const FPoseSearchPoseMetadata & PoseMetadata : SearchIndex.PoseMetadata)
 			{
-				uint32 NumOfSearchablePoses = 0;
-				for (const FPoseSearchPoseMetadata & PoseMetadata : SearchIndexSafe->PoseMetadata)
-				{
-					NumOfSearchablePoses += PoseMetadata.Flags != EPoseSearchPoseFlags::BlockTransition;
-				}
-				
-				SearchableFrames = NumOfSearchablePoses;
-				SearchableTime = FText::Format(TimeFormat, static_cast<double>(NumOfSearchablePoses) / PoseSearchDatabase->Schema->SampleRate);
+				NumOfSearchablePoses += PoseMetadata.Flags != EPoseSearchPoseFlags::BlockTransition;
 			}
+				
+			SearchableFrames = NumOfSearchablePoses;
+			SearchableTime = FText::Format(TimeFormat, static_cast<double>(NumOfSearchablePoses) / SampleRate);
+		}
 			
-			// Velocity information
+		// Velocity information
 	
-			// TODO: Set values once they can be queried from the PoseSearchIndex.
+		// TODO: Set values once they can be queried from the PoseSearchIndex.
 			
-			// Principal Component Analysis
+		// Principal Component Analysis
 			
-			ExplainedVariance = SearchIndexSafe->PCAExplainedVariance;
+		ExplainedVariance = SearchIndex.PCAExplainedVariance;
 			
-			// Memory information
+		// Memory information
 			
-			{
-				const uint32 ValuesBytesSize = SearchIndexSafe->Values.GetAllocatedSize();
-				const uint32 PCAValuesBytesSize = SearchIndexSafe->PCAValues.GetAllocatedSize();
-				const uint32 KDTreeBytesSize = SearchIndexSafe->KDTree.GetAllocatedSize();
-				const uint32 PoseMetadataBytesSize = SearchIndexSafe->PoseMetadata.GetAllocatedSize();
-				const uint32 AssetsBytesSize = SearchIndexSafe->Assets.GetAllocatedSize();
-				const uint32 OtherBytesSize = SearchIndexSafe->PCAProjectionMatrix.GetAllocatedSize() + SearchIndexSafe->Mean.GetAllocatedSize() + SearchIndexSafe->WeightsSqrt.GetAllocatedSize();
-				const uint32 EstimatedDatabaseBytesSize = ValuesBytesSize + PCAValuesBytesSize + KDTreeBytesSize + PoseMetadataBytesSize + AssetsBytesSize + OtherBytesSize;
+		{
+			const uint32 ValuesBytesSize = SearchIndex.Values.GetAllocatedSize();
+			const uint32 PCAValuesBytesSize = SearchIndex.PCAValues.GetAllocatedSize();
+			const uint32 KDTreeBytesSize = SearchIndex.KDTree.GetAllocatedSize();
+			const uint32 PoseMetadataBytesSize = SearchIndex.PoseMetadata.GetAllocatedSize();
+			const uint32 AssetsBytesSize = SearchIndex.Assets.GetAllocatedSize();
+			const uint32 OtherBytesSize = SearchIndex.PCAProjectionMatrix.GetAllocatedSize() + SearchIndex.Mean.GetAllocatedSize() + SearchIndex.WeightsSqrt.GetAllocatedSize();
+			const uint32 EstimatedDatabaseBytesSize = ValuesBytesSize + PCAValuesBytesSize + KDTreeBytesSize + PoseMetadataBytesSize + AssetsBytesSize + OtherBytesSize;
 				
-				ValuesSize = FText::AsMemory(ValuesBytesSize);
-				PCAValuesSize = FText::AsMemory(PCAValuesBytesSize);
-				KDTreeSize = FText::AsMemory(KDTreeBytesSize);
-				PoseMetadataSize = FText::AsMemory(PoseMetadataBytesSize);
-				AssetsSize = FText::AsMemory(AssetsBytesSize);
-				EstimatedDatabaseSize = FText::AsMemory(EstimatedDatabaseBytesSize);
-			}
+			ValuesSize = FText::AsMemory(ValuesBytesSize);
+			PCAValuesSize = FText::AsMemory(PCAValuesBytesSize);
+			KDTreeSize = FText::AsMemory(KDTreeBytesSize);
+			PoseMetadataSize = FText::AsMemory(PoseMetadataBytesSize);
+			AssetsSize = FText::AsMemory(AssetsBytesSize);
+			EstimatedDatabaseSize = FText::AsMemory(EstimatedDatabaseBytesSize);
 		}
 	}
 }

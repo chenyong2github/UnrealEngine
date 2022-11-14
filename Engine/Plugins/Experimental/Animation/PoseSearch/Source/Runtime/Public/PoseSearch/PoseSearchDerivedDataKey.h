@@ -2,21 +2,29 @@
 
 #pragma once
 
-#include "Containers/Queue.h"
+#if WITH_EDITOR
+
+#include "Animation/AnimBoneCompressionSettings.h"
+#include "Animation/AnimCurveCompressionSettings.h"
+#include "Animation/MirrorDataTable.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
-#include "Serialization/ArchiveUObject.h"
+#include "Factories/FbxAnimSequenceImportData.h"
 #include "Hash/Blake3.h"
-#include "UObject/UnrealType.h"
+#include "Serialization/ArchiveUObject.h"
 #include "UObject/Object.h"
-
-#if WITH_EDITORONLY_DATA
+#include "UObject/UnrealType.h"
 
 namespace UE::PoseSearch
 {
-
+// log properties and UObjects names
 #ifndef UE_POSE_SEARCH_DERIVED_DATA_LOGGING
 	#define UE_POSE_SEARCH_DERIVED_DATA_LOGGING 0
+#endif
+
+// log properties data
+#ifndef UE_POSE_SEARCH_DERIVED_DATA_LOGGING_VERBOSE
+	#define UE_POSE_SEARCH_DERIVED_DATA_LOGGING_VERBOSE 0
 #endif
 
 //////////////////////////////////////////////////////////////////////////
@@ -61,11 +69,16 @@ public:
 			return true;
 		}
 
+		if (!InProperty->HasAllPropertyFlags(CPF_Edit)) // bIsEditAnywhereProperty
+		{
+			return true;
+		}
+
 		if (InProperty->HasAllPropertyFlags(CPF_Transient))
 		{
 			return true;
 		}
-		
+
 		if (InProperty->HasMetaData(ExcludeFromHashName))
 		{
 			return true;
@@ -73,9 +86,10 @@ public:
 		
 		check(!InProperty->HasMetaData(NeverInHashName));
 
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-		UE_LOG(LogPoseSearch, Log, TEXT("    %s"), *InProperty->GetFullName());
-#endif
+		#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		UE_LOG(LogPoseSearch, Log, TEXT("%s - %s"), *GetIndentation(), *InProperty->GetFullName());
+		#endif
+
 		return false;
 	}
 
@@ -83,10 +97,11 @@ public:
 	{
 		const uint8* HasherData = reinterpret_cast<uint8*>(Data);
 
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING_VERBOSE
 		FString RawBytesString = BytesToString(HasherData, Length);
-		UE_LOG(LogPoseSearch, Log, TEXT("    %s"), *RawBytesString);
-#endif
+		UE_LOG(LogPoseSearch, Log, TEXT("%s  > %s"), *GetIndentation(), *RawBytesString);
+		#endif
+
 		Hasher.Update(HasherData, Length);
 	}
 
@@ -112,82 +127,109 @@ public:
 
 	virtual FArchive& operator<<(class UObject*& Object) override
 	{
-		if (!RootObject || !Object || !Object->IsIn(RootObject))
+		if (Object)
 		{
-			auto UniqueName = GetPathNameSafe(Object);
-			*this << UniqueName;
+			#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+			++Indentation;
+			#endif
+
+			bool bAlreadyProcessed = false;
+			ObjectsAlreadySerialized.Add(Object, &bAlreadyProcessed);
+
+			// If we haven't already serialized this object
+			if (bAlreadyProcessed)
+			{
+				#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+				UE_LOG(LogPoseSearch, Log, TEXT("%sAlreadyProcessed '%s' (%s)"), *GetIndentation(), *Object->GetName(), *Object->GetClass()->GetName());
+				#endif
+			}
+			// for specific types we only add their names to the hash
+			else if (AddNameOnly(Object))
+			{
+				#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+				UE_LOG(LogPoseSearch, Log, TEXT("%sAddingNameOnly '%s' (%s)"), *GetIndentation(), *Object->GetName(), *Object->GetClass()->GetName());
+				#endif
+
+				FString ObjectName = GetFullNameSafe(Object);
+				*this << ObjectName;
+			}
+			else
+			{
+				// Serialize it
+				ObjectBeingSerialized = Object;
+
+				#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+				UE_LOG(LogPoseSearch, Log, TEXT("%sBegin '%s' (%s)"), *GetIndentation(), *Object->GetName(), *Object->GetClass()->GetName());
+				#endif
+
+				const_cast<UObject*>(Object)->Serialize(*this);
+
+				#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+				UE_LOG(LogPoseSearch, Log, TEXT("%sEnd '%s' (%s)"), *GetIndentation(), *Object->GetName(), *Object->GetClass()->GetName());
+				#endif
+
+				ObjectBeingSerialized = nullptr;
+			}
+			
+			#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+			--Indentation;
+			#endif
 		}
-		else
-		{
-			ObjectsToSerialize.Enqueue(Object);
-		}
+
 		return *this;
 	}
-
 
 	virtual FString GetArchiveName() const override
 	{
 		return TEXT("FDerivedDataKeyBuilder");
 	}
 	//~ End FArchive Interface
-
-	/**
-	* Serialize the given object and update the hash
-	*/
-	void Update(const UObject* Object, const UObject* Root)
-	{
-		RootObject = Root;
-		if (Object)
-		{
-			// Start with the given object
-			ObjectsToSerialize.Enqueue(Object);
-
-			// Continue until we no longer have any objects to serialize
-			while (ObjectsToSerialize.Dequeue(Object))
-			{
-				bool bAlreadyProcessed = false;
-				ObjectsAlreadySerialized.Add(Object, &bAlreadyProcessed);
-				// If we haven't already serialized this object
-				if (!bAlreadyProcessed)
-				{
-					// Serialize it
-					ObjectBeingSerialized = Object;
-					const_cast<UObject*>(Object)->Serialize(*this);
-					ObjectBeingSerialized = nullptr;
-				}
-			}
-
-			// Cleanup
-			RootObject = nullptr;
-		}
-	}
-
-	void Update(const UObject* Object)
-	{
-		Update(Object, Object);
-	}
-
+	
 	HashDigestType Finalize()
 	{
 		return Hasher.Finalize();
 	}
 
-protected:
-	HashBuilderType Hasher;
+	const TSet<const UObject*>& GetDependencies() const
+	{
+		return ObjectsAlreadySerialized;
+	}
 
-	/** Queue of object references awaiting serialization */
-	TQueue<const UObject*> ObjectsToSerialize;
+protected:
+	/** to keep the key generation lightweight, we hash only the full names for these types */
+	bool AddNameOnly(class UObject* Object) const
+	{
+		return
+			Cast<UAnimBoneCompressionSettings>(Object) ||
+			Cast<UAnimCurveCompressionSettings>(Object) ||
+			Cast<UFbxAnimSequenceImportData>(Object) ||
+			Cast<UMirrorDataTable>(Object) ||
+			Cast<USkeleton>(Object);
+	}
+
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+	FString GetIndentation() const
+	{
+		FString IndentationString;
+		for (int32 i = 0; i < Indentation; ++i)
+		{
+			IndentationString.Append(" ");
+		}
+		return IndentationString;
+	}
+
+	int32 Indentation = 0;
+#endif
+
+	HashBuilderType Hasher;
 
 	/** Set of objects that have already been serialized */
 	TSet<const UObject*> ObjectsAlreadySerialized;
 
 	/** Object currently being serialized */
 	const UObject* ObjectBeingSerialized = nullptr;
-
-	/** Root of object currently being serialized */
-	const UObject* RootObject = nullptr;
 };
 
 } // namespace UE::PoseSearch
 
-#endif // WITH_EDITORONLY_DATA
+#endif // WITH_EDITOR

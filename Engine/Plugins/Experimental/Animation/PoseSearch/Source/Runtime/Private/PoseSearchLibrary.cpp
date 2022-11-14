@@ -70,7 +70,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 					return Entry.Sequence == DbSequence.FollowUpSequence;
 				});
 
-			int32 FollowUpSearchIndexAssetIdx = CurrentSearchResult.Database->GetSearchIndex()->Assets.IndexOfByPredicate(
+			int32 FollowUpSearchIndexAssetIdx = CurrentSearchResult.Database->GetSearchIndex().Assets.IndexOfByPredicate(
 				[&](const FPoseSearchIndexAsset& Entry)
 				{
 					const bool bIsMatch =
@@ -84,7 +84,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 			{
 				bOutAdvanceToFollowUpAsset = true;
 
-				const FPoseSearchIndexAsset& FollowUpSearchIndexAsset = CurrentSearchResult.Database->GetSearchIndex()->Assets[FollowUpSearchIndexAssetIdx];
+				const FPoseSearchIndexAsset& FollowUpSearchIndexAsset = CurrentSearchResult.Database->GetSearchIndex().Assets[FollowUpSearchIndexAssetIdx];
 
 				// Follow up asset time will start slightly before the beginning of the sequence as 
 				// this is essentially what the matching time in the corresponding main sequence is.
@@ -427,7 +427,7 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 				if (const UPoseSearchFeatureChannel_Trajectory* TrajectoryChannel = CurrentSearchResult.Database->Schema->FindFirstChannelOfType<UPoseSearchFeatureChannel_Trajectory>())
 				{
 					TConstArrayView<float> QueryData = PoseSearchFeatureVectorBuilder->GetValues();
-					TConstArrayView<float> ResultData = CurrentSearchResult.Database->GetSearchIndex()->GetPoseValues(CurrentSearchResult.PoseIdx);
+					TConstArrayView<float> ResultData = CurrentSearchResult.Database->GetSearchIndex().GetPoseValues(CurrentSearchResult.PoseIdx);
 					float EstimatedSpeedRatio = 1.f;
 					if (TrajectoryChannel->GetEstimatedSpeedRatio(QueryData, ResultData, EstimatedSpeedRatio))
 					{

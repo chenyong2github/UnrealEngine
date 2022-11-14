@@ -41,7 +41,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	float SampleTimeOffset = 0.f;
 
-	UPROPERTY()
+	UPROPERTY(meta = (ExcludeFromHash))
 	int8 SchemaBoneIdx = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ExcludeFromHash))

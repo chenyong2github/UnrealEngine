@@ -15,6 +15,7 @@
 #include "IRewindDebugger.h"
 #include "ObjectTrace.h"
 #include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchDerivedData.h"
 #include "Preferences/PersonaOptions.h"
 #include "PropertyEditorModule.h"
 #include "Styling/AppStyle.h"
@@ -897,58 +898,56 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 	for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 	{
 		const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-		if (Database)
+		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			if (const FPoseSearchIndex* SearchIndex = Database->GetSearchIndexSafe(false))
+			const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
+			for (const FTraceMotionMatchingStatePoseEntry& PoseEntry : DbEntry.PoseEntries)
 			{
-				for (const FTraceMotionMatchingStatePoseEntry& PoseEntry : DbEntry.PoseEntries)
+				if (const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex.GetAssetForPoseSafe(PoseEntry.DbPoseIdx))
 				{
-					if (const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex->GetAssetForPoseSafe(PoseEntry.DbPoseIdx))
+					TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
+
+					const float Time = SearchIndex.GetAssetTime(PoseEntry.DbPoseIdx, Database->Schema->GetSamplingInterval());
+
+					Row->PoseIdx = PoseEntry.DbPoseIdx;
+					Row->SourceDatabase = Database;
+					Row->DatabaseName = Database->GetName();
+					Row->DatabasePath = Database->GetPathName();
+					Row->PoseCandidateFlags = PoseEntry.PoseCandidateFlags;
+					Row->DbAssetIdx = SearchIndexAsset->SourceAssetIdx;
+					Row->AssetTime = Time;
+					Row->bMirrored = SearchIndexAsset->bMirrored;
+					Row->PoseCost = PoseEntry.Cost;
+
+					Row->CostVector.SetNum(Database->Schema->SchemaCardinality);
+					TConstArrayView<float> PoseValues = SearchIndex.GetPoseValuesSafe(PoseEntry.DbPoseIdx);
+
+					// in case we modify the schema while PIE is paused and displaying the Pose Search Editor, we could end up with a stale State with a DbEntry.QueryVector saved with the previous schema
+					// so the cardinality of DbEntry.QueryVector and PoseValues don't match. In that case we just use PoseValues as query to have all costs set to zero
+					const bool bIsQueryVectorValid = DbEntry.QueryVector.Num() == PoseValues.Num();
+					CompareFeatureVectors(PoseValues, bIsQueryVectorValid ? DbEntry.QueryVector : PoseValues, SearchIndex.WeightsSqrt, Row->CostVector);
+
+					if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
 					{
-						TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
-
-						const float Time = SearchIndex->GetAssetTime(PoseEntry.DbPoseIdx, Database->Schema->GetSamplingInterval());
-
-						Row->PoseIdx = PoseEntry.DbPoseIdx;
-						Row->SourceDatabase = Database;
-						Row->DatabaseName = Database->GetName();
-						Row->DatabasePath = Database->GetPathName();
-						Row->PoseCandidateFlags = PoseEntry.PoseCandidateFlags;
-						Row->DbAssetIdx = SearchIndexAsset->SourceAssetIdx;
-						Row->AssetTime = Time;
-						Row->bMirrored = SearchIndexAsset->bMirrored;
-						Row->PoseCost = PoseEntry.Cost;
-
-						Row->CostVector.SetNum(Database->Schema->SchemaCardinality);
-						TConstArrayView<float> PoseValues = SearchIndex->GetPoseValuesSafe(PoseEntry.DbPoseIdx);
-
-						// in case we modify the schema while PIE is paused and displaying the Pose Search Editor, we could end up with a stale State with a DbEntry.QueryVector saved with the previous schema
-						// so the cardinality of DbEntry.QueryVector and PoseValues don't match. In that case we just use PoseValues as query to have all costs set to zero
-						const bool bIsQueryVectorValid = DbEntry.QueryVector.Num() == PoseValues.Num();
-						CompareFeatureVectors(PoseValues, bIsQueryVectorValid ? DbEntry.QueryVector : PoseValues, SearchIndex->WeightsSqrt, Row->CostVector);
-
-						if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
-						{
-							const FPoseSearchDatabaseSequence& DbSequence = Database->GetSequenceSourceAsset(*SearchIndexAsset);
-							Row->AssetType = ESearchIndexAssetType::Sequence;
-							Row->AssetName = DbSequence.Sequence->GetName();
-							Row->AssetPath = DbSequence.Sequence->GetPathName();
-							Row->AnimFrame = DbSequence.Sequence->GetFrameAtTime(Time);
-							Row->AnimPercentage = Time / DbSequence.Sequence->GetPlayLength();
-							Row->bLooping = DbSequence.Sequence->bLoop;
-							Row->BlendParameters = FVector::Zero();
-						}
-						else if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
-						{
-							const FPoseSearchDatabaseBlendSpace& DbBlendSpace = Database->GetBlendSpaceSourceAsset(*SearchIndexAsset);
-							Row->AssetType = ESearchIndexAssetType::BlendSpace;
-							Row->AssetName = DbBlendSpace.BlendSpace->GetName();
-							Row->AssetPath = DbBlendSpace.BlendSpace->GetPathName();
-							Row->AnimFrame = 0; // There is no frame index associated with a blendspace
-							Row->AnimPercentage = 0.0f;
-							Row->bLooping = DbBlendSpace.BlendSpace->bLoop;
-							Row->BlendParameters = SearchIndexAsset->BlendParameters;
-						}
+						const FPoseSearchDatabaseSequence& DbSequence = Database->GetSequenceSourceAsset(*SearchIndexAsset);
+						Row->AssetType = ESearchIndexAssetType::Sequence;
+						Row->AssetName = DbSequence.Sequence->GetName();
+						Row->AssetPath = DbSequence.Sequence->GetPathName();
+						Row->AnimFrame = DbSequence.Sequence->GetFrameAtTime(Time);
+						Row->AnimPercentage = Time / DbSequence.Sequence->GetPlayLength();
+						Row->bLooping = DbSequence.Sequence->bLoop;
+						Row->BlendParameters = FVector::Zero();
+					}
+					else if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
+					{
+						const FPoseSearchDatabaseBlendSpace& DbBlendSpace = Database->GetBlendSpaceSourceAsset(*SearchIndexAsset);
+						Row->AssetType = ESearchIndexAssetType::BlendSpace;
+						Row->AssetName = DbBlendSpace.BlendSpace->GetName();
+						Row->AssetPath = DbBlendSpace.BlendSpace->GetPathName();
+						Row->AnimFrame = 0; // There is no frame index associated with a blendspace
+						Row->AnimPercentage = 0.0f;
+						Row->bLooping = DbBlendSpace.BlendSpace->bLoop;
+						Row->BlendParameters = SearchIndexAsset->BlendParameters;
 					}
 				}
 			}
@@ -961,12 +960,9 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 		{
 			const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-			if (Database)
+			if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
-				if (Database->GetSearchIndexSafe(false))
-				{
-					Database->Schema->ComputeCostBreakdowns(CostBreakDownData);
-				}
+				Database->Schema->ComputeCostBreakdowns(CostBreakDownData);
 			}
 		}
 
@@ -1566,48 +1562,42 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 	check(Reflection);
 
 	const UPoseSearchDatabase* CurrentDatabase = State.GetCurrentDatabase();
-	const FPoseSearchIndex* CurrentSearchIndex = CurrentDatabase ? CurrentDatabase->GetSearchIndex() : nullptr;
-	int32 CurrentDbPoseIdx = State.GetCurrentDatabasePoseIndex();
-
-	Reflection->CurrentDatabaseName = CurrentDatabase ? CurrentDatabase->GetName() : "None";
-	Reflection->ElapsedPoseJumpTime = State.ElapsedPoseJumpTime;
-	Reflection->bFollowUpAnimation = EnumHasAnyFlags(State.Flags, FTraceMotionMatchingState::EFlags::FollowupAnimation);
-
-	Reflection->AssetPlayerAssetName = "None";
-	if (CurrentSearchIndex)
+	if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 	{
-		if (const FPoseSearchIndexAsset* IndexAsset = CurrentSearchIndex->GetAssetForPoseSafe(CurrentDbPoseIdx))
+		const FPoseSearchIndex& CurrentSearchIndex = CurrentDatabase->GetSearchIndex();
+		int32 CurrentDbPoseIdx = State.GetCurrentDatabasePoseIndex();
+
+		Reflection->CurrentDatabaseName = CurrentDatabase->GetName();
+		Reflection->ElapsedPoseJumpTime = State.ElapsedPoseJumpTime;
+		Reflection->bFollowUpAnimation = EnumHasAnyFlags(State.Flags, FTraceMotionMatchingState::EFlags::FollowupAnimation);
+
+		Reflection->AssetPlayerAssetName = "None";
+		if (const FPoseSearchIndexAsset* IndexAsset = CurrentSearchIndex.GetAssetForPoseSafe(CurrentDbPoseIdx))
 		{
 			Reflection->AssetPlayerAssetName = CurrentDatabase->GetSourceAssetName(*IndexAsset);
 		}
-	}
 
-	Reflection->AssetPlayerTime = State.AssetPlayerTime;
-	Reflection->LastDeltaTime = State.DeltaTime;
-	Reflection->SimLinearVelocity = State.SimLinearVelocity;
-	Reflection->SimAngularVelocity = State.SimAngularVelocity;
-	Reflection->AnimLinearVelocity = State.AnimLinearVelocity;
-	Reflection->AnimAngularVelocity = State.AnimAngularVelocity;
-	 
-	// Query pose
-	Reflection->QueryPoseVector.Reset();
-	for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
-	{
-		const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-		if (Database && Database == CurrentDatabase)
+		Reflection->AssetPlayerTime = State.AssetPlayerTime;
+		Reflection->LastDeltaTime = State.DeltaTime;
+		Reflection->SimLinearVelocity = State.SimLinearVelocity;
+		Reflection->SimAngularVelocity = State.SimAngularVelocity;
+		Reflection->AnimLinearVelocity = State.AnimLinearVelocity;
+		Reflection->AnimAngularVelocity = State.AnimAngularVelocity;
+
+		// Query pose
+		Reflection->QueryPoseVector.Reset();
+		for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 		{
-			if (Database->GetSearchIndexSafe(false))
+			const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
+			if (Database && Database == CurrentDatabase)
 			{
 				Reflection->QueryPoseVector = DbEntry.QueryVector;
 				break;
 			}
 		}
-	}
 
-	// Active pose
-	if (CurrentSearchIndex)
-	{
-		Reflection->ActivePoseVector = CurrentSearchIndex->GetPoseValuesSafe(CurrentDbPoseIdx);
+		// Active pose
+		Reflection->ActivePoseVector = CurrentSearchIndex.GetPoseValuesSafe(CurrentDbPoseIdx);
 	}
 
 	auto DebuggerView = ParentDebuggerViewPtr.Pin();
@@ -1617,15 +1607,11 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 		if (!SelectedRows.IsEmpty())
 		{
 			const TSharedRef<FDebuggerDatabaseRowData>& Selected = SelectedRows[0];
-			if (Selected->SourceDatabase.IsValid())
+			if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Selected->SourceDatabase.Get(), ERequestAsyncBuildFlag::ContinueRequest))
 			{
-				const FPoseSearchIndex* SelectedSearchIndex = Selected->SourceDatabase->GetSearchIndex();
-				if (SelectedSearchIndex)
-				{
-					Reflection->SelectedPoseVector = SelectedSearchIndex->GetPoseValuesSafe(Selected->PoseIdx);
-				}
+				const FPoseSearchIndex& SelectedSearchIndex = Selected->SourceDatabase->GetSearchIndex();
+				Reflection->SelectedPoseVector = SelectedSearchIndex.GetPoseValuesSafe(Selected->PoseIdx);
 			}
-
 			Reflection->CostVector = Selected->CostVector;
 		}
 	}
@@ -1868,23 +1854,21 @@ void SDebuggerView::DrawFeatures(
 			for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 			{
 				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-				if (Database && Database == CurrentDatabase)
+				if (Database && Database == CurrentDatabase && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality && 
+					FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 				{
-					if (Database->GetSearchIndexSafe(false) && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality)
-					{
-						// Set shared state
-						FDebugDrawParams DrawParams;
-						DrawParams.World = &DebuggerWorld;
-						DrawParams.RootTransform = Transform;
-						DrawParams.DefaultLifeTime = 0.0f; // Single frame render
-						DrawParams.Mesh = Mesh;
-						DrawParams.Database = CurrentDatabase;
-						SetDrawFlags(DrawParams, Reflection ? Reflection->QueryDrawOptions : FPoseSearchDebuggerFeatureDrawOptions());
-						EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
-						DrawFeatureVector(DrawParams, DbEntry.QueryVector);
-						EnumRemoveFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
-						break;
-					}
+					// Set shared state
+					FDebugDrawParams DrawParams;
+					DrawParams.World = &DebuggerWorld;
+					DrawParams.RootTransform = Transform;
+					DrawParams.DefaultLifeTime = 0.0f; // Single frame render
+					DrawParams.Mesh = Mesh;
+					DrawParams.Database = CurrentDatabase;
+					SetDrawFlags(DrawParams, Reflection ? Reflection->QueryDrawOptions : FPoseSearchDebuggerFeatureDrawOptions());
+					EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
+					DrawFeatureVector(DrawParams, DbEntry.QueryVector);
+					EnumRemoveFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
+					break;
 				}
 			}
 		}
@@ -2317,24 +2301,19 @@ const UPoseSearchSearchableAsset* FDebuggerViewModel::GetSearchableAsset() const
 
 void FDebuggerViewModel::ShowSelectedSkeleton(const UPoseSearchDatabase* Database, int32 DbPoseIdx, float Time)
 {
-	if (!Database)
-	{
-		return;
-	}
-
 	UPoseSearchMeshComponent* Component = Skeletons[SelectedPose].Component.Get();
 	if (!Component)
 	{
 		return;
 	}
 
-	const FPoseSearchIndex* SearchIndex = Database->GetSearchIndex();
-	if (!SearchIndex)
+	if (!FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 	{
 		return;
 	}
 
-	const FPoseSearchIndexAsset& IndexAsset = SearchIndex->GetAssetForPose(DbPoseIdx);
+	const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
+	const FPoseSearchIndexAsset& IndexAsset = SearchIndex.GetAssetForPose(DbPoseIdx);
 	
 	Component->ResetToStart(); 
 	bSelecting = true;
@@ -2419,11 +2398,11 @@ void FDebuggerViewModel::OnUpdateNodeSelection(int32 InNodeId)
 	if (ActiveMotionMatchingState)
 	{
 		const UPoseSearchDatabase* CurrentDatabase = ActiveMotionMatchingState->GetCurrentDatabase();
-		const FPoseSearchIndex* CurrentSearchIndex = CurrentDatabase ? CurrentDatabase->GetSearchIndexSafe() : nullptr;
-		if (CurrentSearchIndex)
+		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
+			const FPoseSearchIndex& CurrentSearchIndex = CurrentDatabase->GetSearchIndex();
 			int32 CurrentPoseIdx = ActiveMotionMatchingState->GetCurrentDatabasePoseIndex();
-			if (const FPoseSearchIndexAsset* IndexAsset = CurrentSearchIndex->GetAssetForPoseSafe(CurrentPoseIdx))
+			if (const FPoseSearchIndexAsset* IndexAsset = CurrentSearchIndex.GetAssetForPoseSafe(CurrentPoseIdx))
 			{
 				Skeletons[Asset].Type = IndexAsset->Type;
 				Skeletons[Asset].bMirrored = IndexAsset->bMirrored;
@@ -2782,18 +2761,19 @@ void FDebuggerViewModel::FillCompactPoseAndComponentRefRotations()
 
 void FDebuggerViewModel::PlaySelection(int32 PoseIdx, float Time)
 {
-	const UPoseSearchDatabase* Database = GetCurrentDatabase();
-	if (!Database)
-	{
-		return;
-	}
 	UPoseSearchMeshComponent* Component = Skeletons[Asset].Component.Get();
 	if (!Component)
 	{
 		return;
 	}
-	const FPoseSearchIndexAsset& IndexAsset = Database->GetSearchIndex()->GetAssetForPose(PoseIdx);
 
+	const UPoseSearchDatabase* Database = GetCurrentDatabase();
+	if (!FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
+	{
+		return;
+	}
+	
+	const FPoseSearchIndexAsset& IndexAsset = Database->GetSearchIndex().GetAssetForPose(PoseIdx);
 	Component->ResetToStart();
 	
 	Skeletons[Asset].Type = IndexAsset.Type;

@@ -86,15 +86,7 @@ namespace UE::PoseSearch
 
 		RemovePreviewActors();
 
-		const auto ResetPreviewActorsLambda = [this](UPoseSearchDatabase::EDerivedDataBuildState State)
-		{
-			if (State != UPoseSearchDatabase::EDerivedDataBuildState::Cancelled)
-			{
-				ResetPreviewActors();
-			}
-		};
-
-		PoseSearchDatabase->RegisterOnDerivedDataRebuild(UPoseSearchDatabase::FOnDerivedDataRebuild::CreateLambda(ResetPreviewActorsLambda));
+		PoseSearchDatabase->RegisterOnDerivedDataRebuild(UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(this, &FDatabaseViewModel::ResetPreviewActors));
 	}
 
 	void FDatabaseViewModel::ResetPreviewActors()
@@ -129,15 +121,15 @@ namespace UE::PoseSearch
 			}
 		}
 
-		const FPoseSearchIndex* SearchIndex = PoseSearchDatabase->GetSearchIndexSafe(false);
-		if (SearchIndex)
+		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
 			FBoneContainer BoneContainer;
 			BoneContainer.InitializeTo(PoseSearchDatabase->Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *PoseSearchDatabase->Schema->Skeleton);
 
-			for (int32 IndexAssetIndex = 0; IndexAssetIndex < SearchIndex->Assets.Num(); ++IndexAssetIndex)
+			const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+			for (int32 IndexAssetIndex = 0; IndexAssetIndex < SearchIndex.Assets.Num(); ++IndexAssetIndex)
 			{
-				const FPoseSearchIndexAsset& IndexAsset = SearchIndex->Assets[IndexAssetIndex];
+				const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
 
 				bool bSpawn = false;
 				if (AnimationPreviewMode == EAnimationPreviewMode::OriginalAndMirrored || !IndexAsset.bMirrored)
@@ -177,7 +169,8 @@ namespace UE::PoseSearch
 
 	void FDatabaseViewModel::BuildSearchIndex()
 	{
-		UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().RequestAsyncBuildIndex(*PoseSearchDatabase, false, true);
+		using namespace UE::PoseSearch;
+		FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::NewRequest);
 	}
 
 	void FDatabaseViewModel::PreviewBackwardEnd()
@@ -221,79 +214,75 @@ namespace UE::PoseSearch
 	{
 		FDatabasePreviewActor PreviewActor;
 
-		if (PoseSearchDatabase && PoseSearchDatabase->IsValidForIndexing())
+		check(PoseSearchDatabase);
+		const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+		const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
+		UAnimationAsset* PreviewAsset = nullptr;
+		if (IndexAsset.Type == ESearchIndexAssetType::Sequence)
 		{
-			if (const FPoseSearchIndex* SearchIndex = PoseSearchDatabase->GetSearchIndexSafe(false))
+			FPoseSearchDatabaseSequence DatabaseSequence = PoseSearchDatabase->Sequences[IndexAsset.SourceAssetIdx];
+			PreviewAsset = DatabaseSequence.Sequence;
+			if (!PreviewAsset)
 			{
-				const FPoseSearchIndexAsset& IndexAsset = SearchIndex->Assets[IndexAssetIndex];
-				UAnimationAsset* PreviewAsset = nullptr;
-				if (IndexAsset.Type == ESearchIndexAssetType::Sequence)
-				{
-					FPoseSearchDatabaseSequence DatabaseSequence = PoseSearchDatabase->Sequences[IndexAsset.SourceAssetIdx];
-					PreviewAsset = DatabaseSequence.Sequence;
-					if (!PreviewAsset)
-					{
-						return PreviewActor;
-					}
-
-					FSequenceSampler::FInput Input;
-					Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
-					Input.Sequence = DatabaseSequence.Sequence;
-
-					PreviewActor.SequenceSampler.Init(Input);
-				}
-				else if (IndexAsset.Type == ESearchIndexAssetType::BlendSpace)
-				{
-					FPoseSearchDatabaseBlendSpace DatabaseBlendSpace = PoseSearchDatabase->BlendSpaces[IndexAsset.SourceAssetIdx];
-					PreviewAsset = DatabaseBlendSpace.BlendSpace;
-					if (!PreviewAsset)
-					{
-						return PreviewActor;
-					}
-
-					FBlendSpaceSampler::FInput Input;
-					Input.BoneContainer = BoneContainer;
-					Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
-					Input.BlendSpace = DatabaseBlendSpace.BlendSpace;
-					Input.BlendParameters = IndexAsset.BlendParameters;
-
-					PreviewActor.BlendSpaceSampler.Init(Input);
-				}
-
-				PreviewActor.Type = IndexAsset.Type;
-				PreviewActor.IndexAssetIndex = IndexAssetIndex;
-				PreviewActor.CurrentPoseIndex = INDEX_NONE;
-
-				FActorSpawnParameters Params;
-				Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-				PreviewActor.Actor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, Params);
-				PreviewActor.Actor->SetFlags(RF_Transient);
-
-				PreviewActor.Mesh = NewObject<UDebugSkelMeshComponent>(PreviewActor.Actor.Get());
-				PreviewActor.Mesh->RegisterComponentWithWorld(GetWorld());
-
-				PreviewActor.AnimInstance = NewObject<UAnimPreviewInstance>(PreviewActor.Mesh.Get());
-				PreviewActor.Mesh->PreviewInstance = PreviewActor.AnimInstance.Get();
-				PreviewActor.AnimInstance->InitializeAnimation();
-				PreviewActor.Mesh->SetSkeletalMesh(PoseSearchDatabase->Schema->Skeleton->GetPreviewMesh(true));
-				PreviewActor.Mesh->EnablePreview(true, PreviewAsset);
-				PreviewActor.AnimInstance->SetAnimationAsset(PreviewAsset, false, 0.0f);
-				PreviewActor.AnimInstance->SetBlendSpacePosition(IndexAsset.BlendParameters);
-				if (IndexAsset.bMirrored && PoseSearchDatabase->Schema)
-				{
-					PreviewActor.AnimInstance->SetMirrorDataTable(PoseSearchDatabase->Schema->MirrorDataTable);
-				}
-
-				PreviewActor.AnimInstance->PlayAnim(false, 0.0f);
-
-				if (!PreviewActor.Actor->GetRootComponent())
-				{
-					PreviewActor.Actor->SetRootComponent(PreviewActor.Mesh.Get());
-				}
-
-				UE_LOG(LogPoseSearchEditor, Log, TEXT("Spawned preview Actor: %s"), *GetNameSafe(PreviewActor.Actor.Get()));
+				return PreviewActor;
 			}
+
+			FSequenceSampler::FInput Input;
+			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
+			Input.Sequence = DatabaseSequence.Sequence;
+
+			PreviewActor.SequenceSampler.Init(Input);
 		}
+		else if (IndexAsset.Type == ESearchIndexAssetType::BlendSpace)
+		{
+			FPoseSearchDatabaseBlendSpace DatabaseBlendSpace = PoseSearchDatabase->BlendSpaces[IndexAsset.SourceAssetIdx];
+			PreviewAsset = DatabaseBlendSpace.BlendSpace;
+			if (!PreviewAsset)
+			{
+				return PreviewActor;
+			}
+
+			FBlendSpaceSampler::FInput Input;
+			Input.BoneContainer = BoneContainer;
+			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
+			Input.BlendSpace = DatabaseBlendSpace.BlendSpace;
+			Input.BlendParameters = IndexAsset.BlendParameters;
+
+			PreviewActor.BlendSpaceSampler.Init(Input);
+		}
+
+		PreviewActor.Type = IndexAsset.Type;
+		PreviewActor.IndexAssetIndex = IndexAssetIndex;
+		PreviewActor.CurrentPoseIndex = INDEX_NONE;
+
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		PreviewActor.Actor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, Params);
+		PreviewActor.Actor->SetFlags(RF_Transient);
+
+		PreviewActor.Mesh = NewObject<UDebugSkelMeshComponent>(PreviewActor.Actor.Get());
+		PreviewActor.Mesh->RegisterComponentWithWorld(GetWorld());
+
+		PreviewActor.AnimInstance = NewObject<UAnimPreviewInstance>(PreviewActor.Mesh.Get());
+		PreviewActor.Mesh->PreviewInstance = PreviewActor.AnimInstance.Get();
+		PreviewActor.AnimInstance->InitializeAnimation();
+		PreviewActor.Mesh->SetSkeletalMesh(PoseSearchDatabase->Schema->Skeleton->GetPreviewMesh(true));
+		PreviewActor.Mesh->EnablePreview(true, PreviewAsset);
+		PreviewActor.AnimInstance->SetAnimationAsset(PreviewAsset, false, 0.0f);
+		PreviewActor.AnimInstance->SetBlendSpacePosition(IndexAsset.BlendParameters);
+		if (IndexAsset.bMirrored && PoseSearchDatabase->Schema)
+		{
+			PreviewActor.AnimInstance->SetMirrorDataTable(PoseSearchDatabase->Schema->MirrorDataTable);
+		}
+
+		PreviewActor.AnimInstance->PlayAnim(false, 0.0f);
+
+		if (!PreviewActor.Actor->GetRootComponent())
+		{
+			PreviewActor.Actor->SetRootComponent(PreviewActor.Mesh.Get());
+		}
+
+		UE_LOG(LogPoseSearchEditor, Log, TEXT("Spawned preview Actor: %s"), *GetNameSafe(PreviewActor.Actor.Get()));
 		return PreviewActor;
 	}
 
@@ -318,41 +307,43 @@ namespace UE::PoseSearch
 	{
 		PlayTime += DeltaSeconds * DeltaTimeMultiplier;
 		PlayTime = FMath::Clamp(PlayTime, 0.0f, MaxPreviewPlayLength);
-		UpdatePreviewActors(true);
+
+		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
+		{
+			UpdatePreviewActors(true);
+		}
 	}
 
 	void FDatabaseViewModel::UpdatePreviewActors(bool bInTickPlayTime)
 	{
-		if (const FPoseSearchIndex* SearchIndex = PoseSearchDatabase->GetSearchIndexSafe(false))
+		const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+		TSharedPtr<FDatabasePreviewScene> PreviewScene = PreviewScenePtr.Pin();
+		for (FDatabasePreviewActor& PreviewActor : GetPreviewActors())
 		{
-			TSharedPtr<FDatabasePreviewScene> PreviewScene = PreviewScenePtr.Pin();
-			for (FDatabasePreviewActor& PreviewActor : GetPreviewActors())
+			if (PreviewActor.IndexAssetIndex < SearchIndex.Assets.Num())
 			{
-				if (PreviewActor.IndexAssetIndex < SearchIndex->Assets.Num())
+				if (const UAnimationAsset* PreviewAsset = PreviewActor.AnimInstance->GetAnimationAsset())
 				{
-					if (const UAnimationAsset* PreviewAsset = PreviewActor.AnimInstance->GetAnimationAsset())
+					if (const IAssetSampler* Sampler = PreviewActor.GetSampler())
 					{
-						if (const IAssetSampler* Sampler = PreviewActor.GetSampler())
+						float CurrentTime = 0.f;
+						FAnimationRuntime::AdvanceTime(false, PlayTime, CurrentTime, PreviewAsset->GetPlayLength());
+
+						const float CurrentScaledTime = PreviewActor.GetScaledTime(CurrentTime);
+						const float OldScaledTime = PreviewActor.AnimInstance->GetCurrentTime();
+						if (!FMath::IsNearlyEqual(CurrentScaledTime, OldScaledTime, UE_KINDA_SMALL_NUMBER))
 						{
-							float CurrentTime = 0.f;
-							FAnimationRuntime::AdvanceTime(false, PlayTime, CurrentTime, PreviewAsset->GetPlayLength());
-
-							const float CurrentScaledTime = PreviewActor.GetScaledTime(CurrentTime);
-							const float OldScaledTime = PreviewActor.AnimInstance->GetCurrentTime();
-							if (!FMath::IsNearlyEqual(CurrentScaledTime, OldScaledTime, UE_KINDA_SMALL_NUMBER))
+							FTransform RootMotion = Sampler->ExtractRootTransform(CurrentTime);
+							if (PreviewActor.AnimInstance->GetMirrorDataTable())
 							{
-								FTransform RootMotion = Sampler->ExtractRootTransform(CurrentTime);
-								if (PreviewActor.AnimInstance->GetMirrorDataTable())
-								{
-									RootMotion = MirrorRootMotion(RootMotion, PreviewActor.AnimInstance->GetMirrorDataTable());
-								}
-								PreviewActor.Actor->SetActorTransform(RootMotion);
-
-								PreviewActor.AnimInstance->SetPosition(CurrentScaledTime);
-
-								const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex->Assets[PreviewActor.IndexAssetIndex];
-								PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, SearchIndexAsset);
+								RootMotion = MirrorRootMotion(RootMotion, PreviewActor.AnimInstance->GetMirrorDataTable());
 							}
+							PreviewActor.Actor->SetActorTransform(RootMotion);
+
+							PreviewActor.AnimInstance->SetPosition(CurrentScaledTime);
+
+							const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex.Assets[PreviewActor.IndexAssetIndex];
+							PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, SearchIndexAsset);
 						}
 					}
 				}
@@ -484,14 +475,12 @@ namespace UE::PoseSearch
 
 	const FPoseSearchIndexAsset* FDatabaseViewModel::GetSelectedActorIndexAsset() const
 	{
-		if (PoseSearchDatabase)
+		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			if (const FPoseSearchIndex* SearchIndex = PoseSearchDatabase->GetSearchIndexSafe(false))
+			const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+			if (SearchIndex.Assets.IsValidIndex(SelectedActorIndexAssetIndex))
 			{
-				if (SearchIndex->Assets.IsValidIndex(SelectedActorIndexAssetIndex))
-				{
-					return &SearchIndex->Assets[SelectedActorIndexAssetIndex];
-				}
+				return &SearchIndex.Assets[SelectedActorIndexAssetIndex];
 			}
 		}
 		return nullptr;

@@ -61,7 +61,6 @@ struct FDebugDrawParams;
 struct FSchemaInitializer;
 struct FQueryBuildingContext;
 struct FSearchContext;
-class FDerivedDataKeyBuilder;
 } // namespace UE::PoseSearch
 
 #if WITH_EDITOR
@@ -496,14 +495,14 @@ private:
 
 	friend class ::UPoseSearchSchema;
 
-	UPROPERTY()
+	UPROPERTY(meta = (ExcludeFromHash))
 	int32 ChannelIdx = INDEX_NONE;
 
 protected:
-	UPROPERTY()
+	UPROPERTY(meta = (ExcludeFromHash))
 	int32 ChannelDataOffset = INDEX_NONE;
 
-	UPROPERTY()
+	UPROPERTY(meta = (ExcludeFromHash))
 	int32 ChannelCardinality = INDEX_NONE;
 };
 
@@ -572,11 +571,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Normalize;
 
-	UPROPERTY()
+	UPROPERTY(meta = (ExcludeFromHash))
 	int32 SchemaCardinality = 0;
 
 	// @todo: used only for indexing: cache it somewhere else
-	UPROPERTY()
+	UPROPERTY(meta = (ExcludeFromHash))
 	TArray<FBoneReference> BoneReferences;
 
 	UPROPERTY(Transient)
@@ -653,19 +652,19 @@ struct POSESEARCH_API FPoseSearchPoseMetadata
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	EPoseSearchPoseFlags Flags = EPoseSearchPoseFlags::None;
 
 	// @todo: consider float16
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	float CostAddend = 0.0f;
 
 	// @todo: consider float16
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	float ContinuingPoseCostAddend = 0.0f;
 
 	// @todo: consider int16
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	int32 AssetIndex = INDEX_NONE;
 };
 
@@ -815,9 +814,6 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimationAssetBase
 	virtual ~FPoseSearchDatabaseAnimationAssetBase() {}
 	virtual UAnimationAsset* GetAnimationAsset() const { return nullptr; }
 	virtual bool IsLooping() const { return false; }
-#if WITH_EDITOR
-	virtual void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) const {}
-#endif
 };
 
 /** An entry in a UPoseSearchDatabase. */
@@ -854,9 +850,6 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 
 	virtual UAnimationAsset* GetAnimationAsset() const override { return Sequence; }
 	virtual bool IsLooping() const override { return Sequence->bLoop; }
-#if WITH_EDITOR
-	virtual void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) const override;
-#endif
 };
 
 /** An blend space entry in a UPoseSearchDatabase. */
@@ -887,9 +880,6 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 
 	virtual UAnimationAsset* GetAnimationAsset() const override;
 	virtual bool IsLooping() const override;
-#if WITH_EDITOR
-	virtual void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) const override;
-#endif
 
 	void GetBlendSpaceParameterSampleRanges(int32& HorizontalBlendNum, int32& VerticalBlendNum) const;
 	FVector BlendParameterForSampleRanges(int32 HorizontalBlendIndex, int32 VerticalBlendIndex) const;
@@ -1115,18 +1105,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	bool bSkipSearchIfPossible = true;
 
+private:
 	UPROPERTY(Transient, meta = (ExcludeFromHash))
-	FPoseSearchIndex PoseSearchIndex;
+	FPoseSearchIndex SearchIndexPrivate; // do not use it directly. use GetSearchIndex / SetSearchIndex interact with it and validate that is ok to do so
 
+public:
 	virtual ~UPoseSearchDatabase();
 
-	const FPoseSearchIndex* GetSearchIndex() const;
-	const FPoseSearchIndex* GetSearchIndexSafe(bool bVerboseLogging = true) const;
+	void SetSearchIndex(const FPoseSearchIndex& SearchIndex);
+	const FPoseSearchIndex& GetSearchIndex() const;
 	
 	bool GetSkipSearchIfPossible() const;
-	bool IsValidForIndexing() const;
-	bool IsValidForSearch() const;
-	bool IsValidPoseIndex(int32 PoseIdx) const;
 
 	int32 GetPoseIndexFromTime(float AssetTime, const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	bool GetPoseIndicesAndLerpValueFromTime(float Time, const FPoseSearchIndexAsset& SearchIndexAsset, int32& PrevPoseIdx, int32& PoseIdx, int32& NextPoseIdx, float& LerpValue) const;
@@ -1150,28 +1139,20 @@ public:
 	// End UPoseSearchSearchableAsset
 
 #if WITH_EDITOR
-	void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) const;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 
-	enum class EDerivedDataBuildState
-	{
-		Prestarted,
-		Ended,
-		Cancelled
-	};
 private:
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDerivedDataRebuildMulticaster, EDerivedDataBuildState State);
+	DECLARE_MULTICAST_DELEGATE(FOnDerivedDataRebuildMulticaster);
 	FOnDerivedDataRebuildMulticaster OnDerivedDataRebuild;
 public:
 	typedef FOnDerivedDataRebuildMulticaster::FDelegate FOnDerivedDataRebuild;
 	void RegisterOnDerivedDataRebuild(const FOnDerivedDataRebuild& Delegate);
 	void UnregisterOnDerivedDataRebuild(void* Unregister);
-	void NotifyDerivedDataRebuild(EDerivedDataBuildState State) const;
+	void NotifyDerivedDataRebuild() const;
 #endif // WITH_EDITOR
 
 private:
-	FPoseSearchIndex* GetSearchIndex();
 	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
 	UE::PoseSearch::FSearchResult SearchBruteForce(UE::PoseSearch::FSearchContext& SearchContext) const;
 };
