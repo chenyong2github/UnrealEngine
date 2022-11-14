@@ -74,7 +74,7 @@ private:
 	static TSharedRef<SWidget> GenerateSourceControlMenuContent();
 	static FText GetSourceControlStatusText();
 	static FText GetSourceControlTooltip();
-	static const FSlateBrush* GetSourceControlIcon();	
+	static const FSlateBrush* GetSourceControlIcon();
 
 	/** Sync button */
 	static bool IsAtLatestRevision();
@@ -83,13 +83,6 @@ private:
 	static FText GetSourceControlSyncStatusTooltipText();
 	static const FSlateBrush* GetSourceControlSyncStatusIcon();
 	static FReply OnSourceControlSyncClicked();
-
-	void SyncProject();
-	bool SaveDirtyPackages();
-	TArray<FString> ListAllPackages();
-
-	/** Loaded packages to reload after a Sync or Revert operation */
-	TArray<UPackage*> PackagesToReload;
 
 	/** Check-in button */
 	static int GetNumLocalChanges();

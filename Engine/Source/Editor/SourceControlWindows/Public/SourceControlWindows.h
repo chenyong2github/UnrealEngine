@@ -50,11 +50,21 @@ public:
 	 */
 	static bool ChoosePackagesToCheckIn(const FSourceControlWindowsOnCheckInComplete& OnCompleteDelegate = FSourceControlWindowsOnCheckInComplete());
 
-	/** Determines whether we can choose packages to check in (we cant if an operation is already in progress) */
+	/** Determines whether we can choose packages to check in (we can't if an operation is already in progress) */
 	static bool CanChoosePackagesToCheckIn();
 
 	/** Determines if the Submit Content action should be visible or not */
 	static bool ShouldChoosePackagesToCheckBeVisible();
+	/**
+	 * Saves all unsaved levels and assets and then - conditionally - performs an FSync operation on all packages, unloading and reloading
+	 * them as necessary.
+	 * 
+	 * @return	true - if command completed successfully.
+	 */
+	static bool SyncAllPackages();
+
+	/** Determines whether we can sync all packages */
+	static bool CanSyncAllPackages();
 
 	/**
 	 * Display check in dialog for the specified packages and get additional result information

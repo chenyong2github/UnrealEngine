@@ -560,6 +560,13 @@ void FMainMenu::RegisterToolsMenu()
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit")
 	);
 
+	SourceControlSection.AddMenuEntry(
+		FMainFrameCommands::Get().SyncContent,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Sync")
+	);
+
 	SourceControlSection.AddDynamicEntry("ConnectToSourceControl", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		ISourceControlModule& SourceControlModule = ISourceControlModule::Get();

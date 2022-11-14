@@ -19,7 +19,6 @@
 #include "Widgets/Images/SImage.h"
 #include "LevelEditorActions.h"
 #include "PackageTools.h"
-#include "AssetViewUtils.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 
@@ -348,83 +347,12 @@ const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlSyncStatusIcon()
 
 FReply FSourceControlMenuHelpers::OnSourceControlSyncClicked()
 {
-	FSourceControlMenuHelpers::Get().SyncProject();
+	if (FSourceControlWindows::CanSyncAllPackages())
+	{
+		FSourceControlWindows::SyncAllPackages();
+	}
 
 	return FReply::Handled();
-}
-
-void FSourceControlMenuHelpers::SyncProject()
-{
-	const bool bSaved = SaveDirtyPackages();
-	EAppReturnType::Type DialogResult = EAppReturnType::No;
-
-	if (!bSaved)
-	{
-		FText Title = LOCTEXT("UnsavedWarningTitle", "Unsaved changes");
-
-		DialogResult = FMessageDialog::Open(EAppMsgType::YesNo,
-			LOCTEXT("UnsavedWarningText", "Warning: There are modified assets which are not being saved. If you sync to latest you may lose your unsaved changes. Do you want to continue?"),
-			&Title);
-	}
-
-	if (bSaved || DialogResult == EAppReturnType::Yes)
-	{
-		AssetViewUtils::SyncPackagesFromSourceControl(ListAllPackages());
-	}
-}
-
-/// Prompt to save or discard all packages
-bool FSourceControlMenuHelpers::SaveDirtyPackages()
-{
-	const bool bPromptUserToSave = true;
-	const bool bSaveMapPackages = true;
-	const bool bSaveContentPackages = true;
-	const bool bFastSave = false;
-	const bool bNotifyNoPackagesSaved = false;
-	const bool bCanBeDeclined = true; // If the user clicks "don't save" this will continue and lose their changes
-	bool bHadPackagesToSave = false;
-
-	bool bSaved = FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, &bHadPackagesToSave);
-
-	// bSaved can be true if the user selects to not save an asset by unchecking it and clicking "save"
-	if (bSaved)
-	{
-		TArray<UPackage*> DirtyPackages;
-		FEditorFileUtils::GetDirtyWorldPackages(DirtyPackages);
-		FEditorFileUtils::GetDirtyContentPackages(DirtyPackages);
-		bSaved = DirtyPackages.Num() == 0;
-	}
-
-	return bSaved;
-}
-
-/// Find all packages in Content directory
-TArray<FString> FSourceControlMenuHelpers::ListAllPackages()
-{
-	const FString ProjectContentDir = FPaths::ProjectContentDir();
-	const FString ProjectSourceControlDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-	const FString& Root = ProjectSourceControlDir.IsEmpty() ? ProjectContentDir : ProjectSourceControlDir;
-
-	TArray<FString> PackageRelativePaths;
-	FPackageName::FindPackagesInDirectory(PackageRelativePaths, FPaths::ConvertRelativePathToFull(Root));
-
-	TArray<FString> PackageNames;
-	PackageNames.Reserve(PackageRelativePaths.Num());
-	for (const FString& Path : PackageRelativePaths)
-	{
-		FString PackageName;
-		FString FailureReason;
-		if (FPackageName::TryConvertFilenameToLongPackageName(Path, PackageName, &FailureReason))
-		{
-			PackageNames.Add(PackageName);
-		}
-		else
-		{
-			FMessageLog("SourceControl").Error(FText::FromString(FailureReason));
-		}
-	}
-
-	return PackageNames;
 }
 
 /** Check-in Status */

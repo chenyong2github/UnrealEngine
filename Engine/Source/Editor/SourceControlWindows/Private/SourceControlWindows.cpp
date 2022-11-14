@@ -2,7 +2,7 @@
 
 #include "SourceControlWindows.h"
 #include "SSourceControlSubmit.h"
-
+#include "AssetViewUtils.h"
 #include "FileHelpers.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
@@ -151,6 +151,129 @@ bool FSourceControlWindows::CanChoosePackagesToCheckIn()
 bool FSourceControlWindows::ShouldChoosePackagesToCheckBeVisible()
 {
 	return GetDefault<USourceControlSettings>()->bEnableSubmitContentMenuAction;
+}
+
+
+static bool SaveDirtyPackages()
+{
+	const bool bPromptUserToSave = true;
+	const bool bSaveMapPackages = true;
+	const bool bSaveContentPackages = true;
+	const bool bFastSave = false;
+	const bool bNotifyNoPackagesSaved = false;
+	const bool bCanBeDeclined = true; // If the user clicks "don't save" this will continue and lose their changes
+
+	bool bHadPackagesToSave = false;
+	bool bSaved = FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, &bHadPackagesToSave);
+
+	// bSaved can be true if the user selects to not save an asset by unchecking it and clicking "save"
+	if (bSaved)
+	{
+		TArray<UPackage*> DirtyPackages;
+		FEditorFileUtils::GetDirtyWorldPackages(DirtyPackages);
+		FEditorFileUtils::GetDirtyContentPackages(DirtyPackages);
+
+		bSaved = DirtyPackages.Num() == 0;
+	}
+
+	// if not properly saved, ask for confirmation from the user before continuing.
+	if (!bSaved)
+	{
+		FText DialogText = NSLOCTEXT("SourceControlCommands", "UnsavedWarningText", "Warning: There are modified assets which are not being saved. If you sync to latest you may lose your unsaved changes. Do you want to continue?");
+		FText DialogTitle = NSLOCTEXT("SourceControlCommands", "UnsavedWarningTitle", "Unsaved changes");
+
+		EAppReturnType::Type DialogResult = FMessageDialog::Open(EAppMsgType::YesNo, DialogText, &DialogTitle);
+
+		bSaved = (DialogResult == EAppReturnType::Yes);
+	}
+	
+	return bSaved;
+}
+
+
+static bool ListAllPackages(TArray<FString>& OutPackageNames)
+{
+	// determine source control locations
+	TArray<FString> SourceControlLocations;
+
+	if (ISourceControlModule::Get().UsesCustomProjectDir())
+	{
+		SourceControlLocations.Add(ISourceControlModule::Get().GetSourceControlProjectDir());
+	}
+	else
+	{
+		FSourceControlWindows::GetSourceControlLocations(/*bContentOnly=*/true);
+	}
+
+	// find packages in those locations
+	for (const FString& SourceControlLocation : SourceControlLocations)
+	{
+		TArray<FString> PackageRelativePaths;
+		if (FPackageName::FindPackagesInDirectory(PackageRelativePaths, FPaths::ConvertRelativePathToFull(SourceControlLocation)))
+		{
+			OutPackageNames.Reserve(OutPackageNames.Num() + PackageRelativePaths.Num());
+			for (const FString& Path : PackageRelativePaths)
+			{
+				FString PackageName;
+				FString FailureReason;
+				if (FPackageName::TryConvertFilenameToLongPackageName(Path, PackageName, &FailureReason))
+				{
+					OutPackageNames.Add(PackageName);
+				}
+				else
+				{
+					FMessageLog("SourceControl").Error(FText::FromString(FailureReason));
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+
+bool FSourceControlWindows::SyncAllPackages()
+{
+	bool bSaved = SaveDirtyPackages();
+
+	// if properly saved or confirmation given, find all packages and use source control to update them.
+	if (bSaved)
+	{
+		TArray<FString> PackageNames;
+		if (ListAllPackages(PackageNames))
+		{
+			// sync those packages if any were found
+			if (PackageNames.Num() > 0)
+			{
+				AssetViewUtils::SyncPackagesFromSourceControl(PackageNames);
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+bool FSourceControlWindows::CanSyncAllPackages()
+{
+	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+
+	if (SourceControlModule.IsEnabled() &&
+		SourceControlModule.GetProvider().IsAvailable())
+	{
+		if (SourceControlModule.GetProvider().IsAtLatestRevision().IsSet())
+		{
+			return !SourceControlModule.GetProvider().IsAtLatestRevision().GetValue();
+		}
+		else
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 
