@@ -18,30 +18,42 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Parse the inheritance 
 		/// </summary>
-		/// <param name="tokenReader">Token reader</param>
+		/// <param name="headerFileParser">Header file being parsed</param>
 		/// <param name="config">Configuration</param>
 		/// <param name="superIdentifier">Output super identifier</param>
 		/// <param name="baseIdentifiers">Output base identifiers</param>
-		public static void ParseInheritance(IUhtTokenReader tokenReader, IUhtConfig config, out UhtToken superIdentifier, out List<UhtToken[]>? baseIdentifiers)
+		public static void ParseInheritance(UhtHeaderFileParser headerFileParser, IUhtConfig config, out UhtToken superIdentifier, out List<UhtToken[]>? baseIdentifiers)
 		{
-			UhtToken superIdentifierTemp = new();
-			List<UhtToken[]>? baseIdentifiersTemp = null;
-			tokenReader.OptionalInheritance(
-				(ref UhtToken identifier) =>
-				{
-					config.RedirectTypeIdentifier(ref identifier);
-					superIdentifierTemp = identifier;
-				},
-				(UhtTokenList identifier) =>
-				{
-					if (baseIdentifiersTemp == null)
+
+			// TODO: C++ UHT doesn't allow preprocessor statements inside of inheritance lists
+			string? restrictedPreprocessorContext = headerFileParser.RestrictedPreprocessorContext;
+			headerFileParser.RestrictedPreprocessorContext = "parsing inheritance list";
+
+			try
+			{
+				UhtToken superIdentifierTemp = new();
+				List<UhtToken[]>? baseIdentifiersTemp = null;
+				headerFileParser.TokenReader.OptionalInheritance(
+					(ref UhtToken identifier) =>
 					{
-						baseIdentifiersTemp = new List<UhtToken[]>();
-					}
-					baseIdentifiersTemp.Add(identifier.ToArray());
-				});
-			superIdentifier = superIdentifierTemp;
-			baseIdentifiers = baseIdentifiersTemp;
+						config.RedirectTypeIdentifier(ref identifier);
+						superIdentifierTemp = identifier;
+					},
+					(UhtTokenList identifier) =>
+					{
+						if (baseIdentifiersTemp == null)
+						{
+							baseIdentifiersTemp = new List<UhtToken[]>();
+						}
+						baseIdentifiersTemp.Add(identifier.ToArray());
+					});
+				superIdentifier = superIdentifierTemp;
+				baseIdentifiers = baseIdentifiersTemp;
+			}
+			finally
+			{
+				headerFileParser.RestrictedPreprocessorContext = restrictedPreprocessorContext;
+			}
 		}
 
 		/// <summary>
