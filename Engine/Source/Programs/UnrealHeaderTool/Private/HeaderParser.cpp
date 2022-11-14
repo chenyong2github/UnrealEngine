@@ -6728,17 +6728,18 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 
 		if (Parameter.IsExecuteContext())
 		{
+			const FString ExecuteContextName = Parameter.GetExecuteContextTypeName();
 			if(StructRigVMInfo.ExecuteContextMember.IsEmpty())
 			{
 				StructRigVMInfo.ExecuteContextMember = Parameter.Name;
 			}
 			if(StructRigVMInfo.ExecuteContextType == TEXT("FRigVMExecuteContext"))
 			{
-				StructRigVMInfo.ExecuteContextType = Parameter.Type;
+				StructRigVMInfo.ExecuteContextType = ExecuteContextName;
 			}
-			else if(StructRigVMInfo.ExecuteContextType != Parameter.Type)
+			else if(StructRigVMInfo.ExecuteContextType != ExecuteContextName)
 			{
-				LogError(TEXT("RigVM Struct '%s' contains properties of varying execute context type %s vs %s."), *StructDef.GetName(), *StructRigVMInfo.ExecuteContextType, *Parameter.Type);
+				LogError(TEXT("RigVM Struct '%s' contains properties of varying execute context type %s vs %s."), *StructDef.GetName(), *StructRigVMInfo.ExecuteContextType, *ExecuteContextName);
 			}
 		}
 		else

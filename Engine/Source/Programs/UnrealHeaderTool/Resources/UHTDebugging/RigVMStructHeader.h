@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "RigVMCore/RigVMExecuteContext.h"
 
 #include "RigVMStructHeader.generated.h"
 
@@ -37,6 +38,18 @@ struct FRigVMStructBase
 	virtual FName GetNextAggregateName(const FName& InLastAggregateName) const {};
 
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const {};
+};
+
+USTRUCT(BlueprintType)
+struct FRigVMExecuteContext
+{
+	GENERATED_BODY()
+};
+
+USTRUCT(BlueprintType)
+struct FUHTTestExecuteContext : public FRigVMExecuteContext
+{
+	GENERATED_BODY()
 };
 
 USTRUCT(meta = (Deprecated = "5.0.0"))
@@ -116,6 +129,36 @@ struct CONTROLRIG_API FRigUnit_Control
 	}
 
 	/** The transform of this control */
-	UPROPERTY(EditAnywhere, Category="Control")
+	UPROPERTY(EditAnywhere, Category="Control", meta=(Input))
 	float Factor;
+};
+
+USTRUCT()
+struct CONTROLRIG_API FRigUnit_Mutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_Mutable()
+	{
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(float Factor);
+
+	/** The transform of this control */
+	UPROPERTY(EditAnywhere, Category="Control", meta=(Input, Output))
+	FUHTTestExecuteContext ExecuteContext;
+};
+
+USTRUCT()
+struct CONTROLRIG_API FRigUnit_BeginExecution
+{
+	GENERATED_BODY()
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigVMExecuteContext& Context) override;
+
+	// The execution result
+	UPROPERTY(EditAnywhere, Transient, DisplayName = "Execute", Category = "BeginExecution", meta = (Output))
+	FUHTTestExecuteContext ExecuteContext;
 };

@@ -3409,7 +3409,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	const FString& ChoppedSingletonName = ScriptStructDef.GetSingletonNameChopped(true);
 
 	const FString RigVMExecuteContextDeclaration = TEXT("FRigVMExtendedExecuteContext& RigVMExecuteContext");
-	const FString RigVMExecuteContextPublicDeclaration = FString::Printf(TEXT("const %s& RigVMExecuteContext"), *ScriptStructDef.GetRigVMInfo().ExecuteContextType);
+	const FString RigVMExecuteContextPublicDeclaration = FString::Printf(TEXT("%s& ExecuteContext"), *ScriptStructDef.GetRigVMInfo().ExecuteContextType);
 	TArray<FString> RigVMVirtualFuncProlog, RigVMVirtualFuncEpilog, RigVMStubProlog;
 
 	// for RigVM methods we need to generated a macro used for implementing the static method
@@ -3475,12 +3475,12 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			}
 		}
 
-		FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
+		FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false, false, false);
 
 		OutGeneratedHeaderText.Log(TEXT("\r\n"));
 		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 		{
-			FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(", \\\r\n\t\t"));
+			FString ParameterSuffix = MethodInfo.Parameters.Declarations(!StructMembers.IsEmpty(), TEXT(", \\\r\n\t\t"));
 			FString RigVMParameterPrefix2 = RigVMExecuteContextPublicDeclaration + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(", \\\r\n\t\t"));
 			OutGeneratedHeaderText.Logf(TEXT("#define %s_%s() \\\r\n"), *StructNameCPP, *MethodInfo.Name);
 			OutGeneratedHeaderText.Logf(TEXT("\t%s %s::Static%s( \\\r\n\t\t%s%s%s \\\r\n\t)\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers, *ParameterSuffix);
@@ -3503,12 +3503,12 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		FString RigVMMethodsDeclarations;
 		if (StructRigVMInfo.bHasRigVM)
 		{
-			FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(",\r\n\t\t"), true, false);
+			FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(",\r\n\t\t"), true, false, true, false);
 			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 			{
-				FString StructMembersForStub = StructRigVMInfo.Members.Names(false, TEXT(",\r\n\t\t\t"), false);
-				FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(",\r\n\t\t"));
-				FString ParameterNamesSuffix = MethodInfo.Parameters.Names(true, TEXT(",\r\n\t\t\t"));
+				FString StructMembersForStub = StructRigVMInfo.Members.Names(false, TEXT(",\r\n\t\t\t"), false, true, false);
+				FString ParameterSuffix = MethodInfo.Parameters.Declarations(!StructMembers.IsEmpty(), TEXT(",\r\n\t\t"));
+				FString ParameterNamesSuffix = MethodInfo.Parameters.Names(!StructMembersForStub.IsEmpty(), TEXT(",\r\n\t\t\t"));
 				FString RigVMParameterPrefix2 = RigVMExecuteContextPublicDeclaration + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
 				FString RigVMParameterPrefix4 = FString(TEXT("RigVMExecuteContext.GetPublicData<")) +
 					StructRigVMInfo.ExecuteContextType +
@@ -3766,14 +3766,14 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	// The static method is implemented by the user using a macro.
 	if (StructRigVMInfo.bHasRigVM)
 	{
-		FString StructMembersForVirtualFunc = StructRigVMInfo.Members.Names(false, TEXT(",\r\n\t\t"), true);
+		FString StructMembersForVirtualFunc = StructRigVMInfo.Members.Names(false, TEXT(",\r\n\t\t"), true, true, false);
 
 		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 		{
 			Out.Log(TEXT("\r\n"));
 
 			FString ParameterDeclaration = MethodInfo.Parameters.Declarations(false, TEXT(",\r\n\t\t"));
-			FString ParameterSuffix = MethodInfo.Parameters.Names(true, TEXT(",\r\n\t\t"));
+			FString ParameterSuffix = MethodInfo.Parameters.Names(!StructMembersForVirtualFunc.IsEmpty(), TEXT(",\r\n\t\t"));
 			FString RigVMParameterPrefix3 = FString(TEXT("TemporaryExecuteContext")) + FString((StructMembersForVirtualFunc.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
 
 			// implement the virtual function body.

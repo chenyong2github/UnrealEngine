@@ -424,23 +424,28 @@ bool FAdvancedDisplayParameterHandler::CanMarkMore() const
 
 bool FRigVMParameter::IsExecuteContext() const
 {
-	if(PropertyDef)
+	if(PropertyDef && PropertyDef->IsStructOrStructStaticArray())
 	{
-		if(const FProperty* Property = PropertyDef->GetPropertySafe())
+		if(const FUnrealStructDefinitionInfo* StructDef = PropertyDef->GetPropertyBase().ScriptStructDef)
 		{
-			if(const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+			while(StructDef != nullptr)
 			{
-				const UScriptStruct* Struct = StructProperty->Struct;
-				while(Struct != nullptr)
+				if(StructDef->GetNameCPP() == TEXT("FRigVMExecuteContext"))
 				{
-					if(Struct->GetStructCPPName() == TEXT("FRigVMExecuteContext"))
-					{
-						return true;
-					}
-					Struct = Cast<UScriptStruct>(Struct->GetSuperStruct());
+					return true;
 				}
+				StructDef = StructDef->GetSuperStruct();
 			}
 		}
 	}
 	return false;
+}
+
+FString FRigVMParameter::GetExecuteContextTypeName() const
+{
+	if(IsExecuteContext())
+	{
+		return PropertyDef->GetPropertyBase().ScriptStructDef->GetNameCPP();
+	}
+	return FString();
 }
