@@ -148,6 +148,11 @@ namespace EpicGames.Core
 		readonly List<Scope> _scopes = new List<Scope>();
 
 		/// <summary>
+		/// The inner logger
+		/// </summary>
+		public ILogger Inner => _inner;
+
+		/// <summary>
 		/// The current indent text
 		/// </summary>
 		public string Indent
