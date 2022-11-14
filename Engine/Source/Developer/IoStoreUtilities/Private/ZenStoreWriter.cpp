@@ -492,8 +492,7 @@ void FZenStoreWriter::BeginCook()
 		PackageObj.BeginObject();
 		PackageObj << "key" << "CookOnTheFly";
 
-		const bool bGenerateContainerHeader = false;
-		CreateProjectMetaData(Pkg, PackageObj, bGenerateContainerHeader);
+		CreateProjectMetaData(Pkg, PackageObj);
 
 		PackageObj.EndObject();
 		FCbObject Obj = PackageObj.Save().AsObject();
@@ -536,8 +535,7 @@ void FZenStoreWriter::EndCook()
 	PackageObj.BeginObject();
 	PackageObj << "key" << "EndCook";
 
-	const bool bGenerateContainerHeader = true;
-	CreateProjectMetaData(Pkg, PackageObj, bGenerateContainerHeader);
+	CreateProjectMetaData(Pkg, PackageObj);
 
 	PackageObj.EndObject();
 	FCbObject Obj = PackageObj.Save().AsObject();
@@ -1032,7 +1030,7 @@ void FZenStoreWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePacka
 	}
 }
 
-void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader)
+void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj)
 {
 	// File Manifest
 	{
@@ -1106,30 +1104,6 @@ void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageO
 		PackageObj << "name" << "ScriptObjects";
 		PackageObj << "data" << ScriptAttachment;
 		PackageObj.EndObject();
-
-		// Generate Container Header
-		if (bGenerateContainerHeader)
-		{
-			FCbObjectId HeaderOid = ToObjectId(CreateIoChunkId(ContainerId.Value(), 0, EIoChunkType::ContainerHeader));
-			FIoBuffer HeaderBuffer;
-
-			{
-				FIoContainerHeader Header = PackageStoreOptimizer->CreateContainerHeader(ContainerId, PackageStoreEntries);
-				FLargeMemoryWriter HeaderAr(0, true);
-				HeaderAr << Header;
-				int64 DataSize = HeaderAr.TotalSize();
-				HeaderBuffer = FIoBuffer(FIoBuffer::AssumeOwnership, HeaderAr.ReleaseOwnership(), DataSize);
-			}
-
-			FCbAttachment HeaderAttachment = CreateAttachment(HeaderBuffer);
-			Pkg.AddAttachment(HeaderAttachment);
-			
-			PackageObj.BeginObject();
-			PackageObj << "id" << HeaderOid;
-			PackageObj << "name" << "ContainerHeader";
-			PackageObj << "data" << HeaderAttachment;
-			PackageObj.EndObject();
-		}
 
 		PackageObj.EndArray();	// End of Meta array
 	}

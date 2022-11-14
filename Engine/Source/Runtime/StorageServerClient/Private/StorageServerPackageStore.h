@@ -36,8 +36,13 @@ public:
 	}
 
 private:
-	TArray<uint8> StoreEntriesData;
-	TMap<FPackageId, const FFilePackageStoreEntry*> StoreEntriesMap;
+	struct FStoreEntry
+	{
+		FPackageStoreExportInfo ExportInfo;
+		TArray<FPackageId> ImportedPackages;
+		TArray<FSHAHash> ShaderMapHashes;
+	};
+	TMap<FPackageId, FStoreEntry> StoreEntriesMap;
 };
 
 #endif

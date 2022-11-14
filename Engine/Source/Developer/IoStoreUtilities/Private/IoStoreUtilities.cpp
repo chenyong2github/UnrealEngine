@@ -659,39 +659,32 @@ public:
 
 		if (const FPackageStoreManifest::FZenServerInfo* ZenServerInfo = PackageStoreManifest.ReadZenServerInfo())
 		{
-			DataSource = MakeUnique<FZenStoreDataSource>(*ZenServerInfo);
+			ZenStoreClient = MakeUnique<UE::FZenStoreHttpClient>(UE::Zen::FServiceSettings(ZenServerInfo->Settings));
+			ZenStoreClient->InitializeReadOnly(ZenServerInfo->ProjectId, ZenServerInfo->OplogId);
 		}
 		
-		if (DataSource)
+		if (ZenStoreClient)
 		{
-			FIoContainerId ContainerId = FIoContainerId::FromName(TEXT("global"));
-
-			TIoStatusOr<FIoBuffer> HeaderBuffer = DataSource->ReadChunk(CreateIoChunkId(ContainerId.Value(), 0, EIoChunkType::ContainerHeader), FIoReadOptions());
-			if (!HeaderBuffer.IsOk())
-			{
-				return FIoStatusBuilder(EIoErrorCode::ReadError) << TEXT("Failed to read container header");
-			}
-
-			FMemoryReaderView Ar(MakeArrayView(HeaderBuffer.ValueOrDie().Data(), HeaderBuffer.ValueOrDie().DataSize()));
-			FIoContainerHeader ContainerHeader;
-			Ar << ContainerHeader;
-
-			PackageEntries.Reserve(ContainerHeader.PackageIds.Num());
-			TArrayView<const FFilePackageStoreEntry> FilePackageEntries = MakeArrayView<const FFilePackageStoreEntry>(reinterpret_cast<const FFilePackageStoreEntry*>(ContainerHeader.StoreEntries.GetData()), ContainerHeader.PackageIds.Num());
-
-			int32 Idx = 0;
-			for (const FFilePackageStoreEntry& FilePackageEntry : FilePackageEntries)
-			{
-				FPackageStoreEntryResource& Entry = PackageEntries.AddDefaulted_GetRef();
-
-				Entry.ExportInfo = FPackageStoreExportInfo
+			TFuture<FIoStatus> FutureOplogStatus = ZenStoreClient->GetOplog().Next([this](TIoStatusOr<FCbObject> OplogStatus)
 				{
-					FilePackageEntry.ExportCount,
-					FilePackageEntry.ExportBundleCount
-				};
-				Entry.ImportedPackageIds = MakeArrayView<const FPackageId>(FilePackageEntry.ImportedPackages.Data(), FilePackageEntry.ImportedPackages.Num());
+					if (!OplogStatus.IsOk())
+					{
+						return OplogStatus.Status();
+					}
+					FCbObject Oplog = OplogStatus.ConsumeValueOrDie();
+					for (FCbField& OplogEntry : Oplog["entries"].AsArray())
+					{
+						FCbObject OplogObj = OplogEntry.AsObject();
+						FPackageStoreEntryResource Entry = FPackageStoreEntryResource::FromCbObject(OplogObj["packagestoreentry"].AsObject());
+						FPackageId PackageId = Entry.GetPackageId();
+						PackageIdToEntry.Add(PackageId, MoveTemp(Entry));
+					}
+					return FIoStatus::Ok;
+				});
 
-				PackageIdToEntry.Add(ContainerHeader.PackageIds[Idx++], &Entry);
+			if (!FutureOplogStatus.Get().IsOk())
+			{
+				return FutureOplogStatus.Get();
 			}
 		}
 		
@@ -747,22 +740,23 @@ public:
 
 	const FPackageStoreEntryResource* GetPackageStoreEntry(FPackageId PackageId) const
 	{
-		return PackageIdToEntry.FindRef(PackageId);
+		return PackageIdToEntry.Find(PackageId);
 	}
 
-	bool HasDataSource() const
+	bool HasZenStoreClient() const
 	{
-		return DataSource.IsValid();
+		return ZenStoreClient.IsValid();
 	}
 
 	TIoStatusOr<uint64> GetChunkSize(const FIoChunkId& ChunkId)
 	{
-		return DataSource->GetChunkSize(ChunkId);
+		return ZenStoreClient->GetChunkSize(ChunkId);
 	}
 
 	TIoStatusOr<FIoBuffer> ReadChunk(const FIoChunkId& ChunkId)
 	{
-		return DataSource->ReadChunk(ChunkId, FIoReadOptions());
+		FIoReadOptions ReadOptions;
+		return ZenStoreClient->ReadChunk(ChunkId, ReadOptions.GetOffset(), ReadOptions.GetSize());
 	}
 
 	void ReadChunkAsync(const FIoChunkId& ChunkId, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
@@ -771,8 +765,8 @@ public:
 			: public FNonAbandonableTask
 		{
 		public:
-			FReadChunkTask(IDataSource* InDataSource, const FIoChunkId& InChunkId, TFunction<void(TIoStatusOr<FIoBuffer>)>&& InCallback)
-				: DataSource(InDataSource)
+			FReadChunkTask(UE::FZenStoreHttpClient* InZenStoreClient, const FIoChunkId& InChunkId, TFunction<void(TIoStatusOr<FIoBuffer>)>&& InCallback)
+				: ZenStoreClient(InZenStoreClient)
 				, ChunkId(InChunkId)
 				, Callback(MoveTemp(InCallback))
 			{
@@ -780,7 +774,8 @@ public:
 
 			void DoWork()
 			{
-				Callback(DataSource->ReadChunk(ChunkId, FIoReadOptions()));
+				FIoReadOptions ReadOptions;
+				Callback(ZenStoreClient->ReadChunk(ChunkId, ReadOptions.GetOffset(), ReadOptions.GetSize()));
 			}
 
 			TStatId GetStatId() const
@@ -789,22 +784,22 @@ public:
 			}
 
 		private:
-			IDataSource* DataSource;
+			UE::FZenStoreHttpClient* ZenStoreClient;
 			FIoChunkId ChunkId;
 			TFunction<void(TIoStatusOr<FIoBuffer>)> Callback;
 		};
 
-		(new FAutoDeleteAsyncTask<FReadChunkTask>(DataSource.Get(), ChunkId, MoveTemp(Callback)))->StartBackgroundTask();
+		(new FAutoDeleteAsyncTask<FReadChunkTask>(ZenStoreClient.Get(), ChunkId, MoveTemp(Callback)))->StartBackgroundTask();
 	}
 	
-	TIoStatusOr<FIoBuffer> ReadPackageHeader(FPackageId PackageId)
+	TIoStatusOr<FIoBuffer> ReadPackageHeaderFromZen(FPackageId PackageId)
 	{
-		if (const FPackageStoreEntryResource* Entry = PackageIdToEntry.FindRef(PackageId))
+		if (const FPackageStoreEntryResource* Entry = PackageIdToEntry.Find(PackageId))
 		{
 			FIoReadOptions ReadOptions;
 			ReadOptions.SetRange(0, 64 << 10);
 			
-			TIoStatusOr<FIoBuffer> Status = DataSource->ReadChunk(CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData), ReadOptions);
+			TIoStatusOr<FIoBuffer> Status = ZenStoreClient->ReadChunk(CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData), ReadOptions.GetOffset(), ReadOptions.GetSize());
 			if (!Status.IsOk())
 			{
 				return Status;
@@ -816,7 +811,7 @@ public:
 			{
 				ReadOptions.SetRange(0, HeaderSize);
 
-				Status = DataSource->ReadChunk(CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData), ReadOptions);
+				Status = ZenStoreClient->ReadChunk(CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData), ReadOptions.GetOffset(), ReadOptions.GetSize());
 				if (!Status.IsOk())
 				{
 					return Status;
@@ -831,44 +826,10 @@ public:
 	}
 
 private:
-	class IDataSource
-	{
-	public:
-		virtual ~IDataSource() = default;
-		virtual TIoStatusOr<uint64> GetChunkSize(const FIoChunkId& ChunkId) = 0;
-		virtual TIoStatusOr<FIoBuffer> ReadChunk(const FIoChunkId& ChunkId, const FIoReadOptions& ReadOptions) = 0;
-	};
-
-	class FZenStoreDataSource
-		: public IDataSource
-	{
-	public:
-		FZenStoreDataSource(const FPackageStoreManifest::FZenServerInfo& ZenServerInfo)
-		{
-			ZenStoreClient = MakeUnique<UE::FZenStoreHttpClient>(UE::Zen::FServiceSettings(ZenServerInfo.Settings));
-
-			ZenStoreClient->InitializeReadOnly(ZenServerInfo.ProjectId, ZenServerInfo.OplogId);
-		}
-
-		virtual TIoStatusOr<uint64> GetChunkSize(const FIoChunkId& ChunkId) override
-		{
-			return ZenStoreClient->GetChunkSize(ChunkId);
-		}
-
-		virtual TIoStatusOr<FIoBuffer> ReadChunk(const FIoChunkId& ChunkId, const FIoReadOptions& ReadOptions) override
-		{
-			return ZenStoreClient->ReadChunk(ChunkId, ReadOptions.GetOffset(), ReadOptions.GetSize());
-		}
-
-	private:
-		TUniquePtr<UE::FZenStoreHttpClient> ZenStoreClient;
-	};
-	
-	TUniquePtr<IDataSource> DataSource;
+	TUniquePtr<UE::FZenStoreHttpClient> ZenStoreClient;
 	FPackageStoreManifest PackageStoreManifest;
 	TArray<FPackageStoreManifest::FPackageInfo> ManifestPackageInfos;
-	TArray<FPackageStoreEntryResource> PackageEntries;
-	TMap<FPackageId, const FPackageStoreEntryResource*> PackageIdToEntry;
+	TMap<FPackageId, FPackageStoreEntryResource> PackageIdToEntry;
 	TMap<FString, FIoChunkId> FilenameToChunkIdMap;
 	TMap<FIoChunkId, FName> ChunkIdToPackageNameMap;
 	TMap<FString, FName> FilenameToPackageNameMap;
@@ -1611,9 +1572,9 @@ static void ParsePackageAssetsFromFiles(TArray<FLegacyCookedPackage*>& Packages,
 	FMemory::Free(OptionalSegmentUAssetMemory);
 }
 
-static void ParsePackageAssetsFromPackageStore(FCookedPackageStore& PackageStore, TArray<FLegacyCookedPackage*>& Packages, const FPackageStoreOptimizer& PackageStoreOptimizer)
+static void ParsePackageAssetsFromZen(FCookedPackageStore& PackageStore, TArray<FLegacyCookedPackage*>& Packages, const FPackageStoreOptimizer& PackageStoreOptimizer)
 {
-	IOSTORE_CPU_SCOPE(ParsePackageAssetsFromPackageStore);
+	IOSTORE_CPU_SCOPE(ParsePackageAssetsFromZen);
 	UE_LOG(LogIoStore, Display, TEXT("Parsing packages..."));
 
 	const int32 TotalPackageCount = Packages.Num();
@@ -1624,7 +1585,7 @@ static void ParsePackageAssetsFromPackageStore(FCookedPackageStore& PackageStore
 		&Packages](int32 Index)
 	{
 		FLegacyCookedPackage* Package = Packages[Index];
-		TIoStatusOr<FIoBuffer> HeaderBuffer = PackageStore.ReadPackageHeader(Package->GlobalPackageId);
+		TIoStatusOr<FIoBuffer> HeaderBuffer = PackageStore.ReadPackageHeaderFromZen(Package->GlobalPackageId);
 		Package->UExpSize = Package->UAssetSize - HeaderBuffer.ValueOrDie().DataSize();
 		Package->UAssetSize = HeaderBuffer.ValueOrDie().DataSize();
 		Package->OptimizedPackage = PackageStoreOptimizer.CreatePackageFromPackageStoreHeader(Package->PackageName, HeaderBuffer.ValueOrDie(), *Package->PackageStoreEntry);
@@ -2259,7 +2220,7 @@ void InitializeContainerTargetsAndPackages(
 		return true;
 	};
 
-	auto CreateTargetFileFromPackageStore = [
+	auto CreateTargetFileFromZen = [
 		&Arguments,
 		&Packages,
 		&PackageNameMap,
@@ -2390,8 +2351,8 @@ void InitializeContainerTargetsAndPackages(
 			for (const FContainerSourceFile& SourceFile : ContainerSource.SourceFiles)
 			{
 				FContainerTargetFile TargetFile;
-				bool bIsValidTargetFile = Arguments.PackageStore->HasDataSource()
-					? CreateTargetFileFromPackageStore(SourceFile, TargetFile)
+				bool bIsValidTargetFile = Arguments.PackageStore->HasZenStoreClient()
+					? CreateTargetFileFromZen(SourceFile, TargetFile)
 					: CreateTargetFileFromCookedFile(SourceFile, TargetFile);
 
 				if (!bIsValidTargetFile)
@@ -2660,9 +2621,9 @@ public:
 		{
 			return new FInMemoryWriteRequest(*this, InTargetFile);
 		}
-		else if (PackageStore->HasDataSource())
+		else if (PackageStore->HasZenStoreClient())
 		{
-			return new FCookedPackageStoreWriteRequest(*this, InTargetFile);
+			return new FZenWriteRequest(*this, InTargetFile);
 		}
 		else
 		{
@@ -2792,12 +2753,11 @@ private:
 		}
 	};
 
-	// Used when cooking directly to I/O store container file
-	class FCookedPackageStoreWriteRequest
+	class FZenWriteRequest
 		: public FWriteContainerTargetFileRequest
 	{
 	public:
-		FCookedPackageStoreWriteRequest(FIoStoreWriteRequestManager& InManager,const FContainerTargetFile& InTargetFile)
+		FZenWriteRequest(FIoStoreWriteRequestManager& InManager,const FContainerTargetFile& InTargetFile)
 			: FWriteContainerTargetFileRequest(InManager, InTargetFile) {}
 
 		virtual void LoadSourceBufferAsync() override
@@ -3379,9 +3339,9 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		}
 	}
 
-	if (Arguments.PackageStore->HasDataSource())
+	if (Arguments.PackageStore->HasZenStoreClient())
 	{
-		ParsePackageAssetsFromPackageStore(*Arguments.PackageStore, Packages, PackageStoreOptimizer);
+		ParsePackageAssetsFromZen(*Arguments.PackageStore, Packages, PackageStoreOptimizer);
 	}
 	else
 	{
@@ -6686,7 +6646,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	}
 	else
 	{
-		UE_CLOG(!Arguments.PackageStore->HasDataSource(), LogIoStore, Fatal, TEXT("Expected -ScriptObjects=<path to script objects file> argument"));
+		UE_CLOG(!Arguments.PackageStore->HasZenStoreClient(), LogIoStore, Fatal, TEXT("Expected -ScriptObjects=<path to script objects file> argument"));
 		TIoStatusOr<FIoBuffer> Status = Arguments.PackageStore->ReadChunk(CreateIoChunkId(0, 0, EIoChunkType::ScriptObjects));
 		UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed reading script objects chunk '%s'"), *Status.Status().ToString());
 		Arguments.ScriptObjects = MakeUnique<FIoBuffer>(Status.ConsumeValueOrDie());

@@ -15,7 +15,6 @@
 #include "Delegates/Delegate.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
-#include "IO/IoContainerId.h"
 #include "IO/IoDispatcher.h"
 #include "IO/PackageStore.h"
 #include "Misc/AssertionMacros.h"
@@ -162,7 +161,7 @@ private:
 		return PendingPackages.FindAndRemoveChecked(PackageName);
 	}
 
-	void CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader);
+	void CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj);
 	void BroadcastCommit(IPackageStoreWriter::FCommitEventArgs& EventArgs);
 	void BroadcastMarkUpToDate(IPackageStoreWriter::FMarkUpToDateEventArgs& EventArgs);
 	struct FZenCommitInfo;
@@ -182,7 +181,6 @@ private:
 	FString								OplogId;
 	FString								OutputPath;
 	FString								MetadataDirectoryPath;
-	FIoContainerId						ContainerId = FIoContainerId::FromName(TEXT("global"));
 	TMap<FName, TRefCountPtr<FPackageHashes>> AllPackageHashes;
 
 	FPackageStoreManifest				PackageStoreManifest;

@@ -14,6 +14,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
+#include "IO/PackageStore.h"
 
 #if !UE_BUILD_SHIPPING
 
@@ -531,6 +532,34 @@ int32 FStorageServerConnection::HandshakeRequest(TArrayView<const TSharedPtr<FIn
 	ServerAddr.Reset();
 	
 	return -1;
+}
+
+void FStorageServerConnection::PackageStoreRequest(TFunctionRef<void(FPackageStoreEntryResource&&)> Callback)
+{
+	TAnsiStringBuilder<256> ResourceBuilder;
+	ResourceBuilder.Append(OplogPath).Append("/entries");
+	FStorageServerRequest Request("GET", *ResourceBuilder, Hostname, EStorageServerContentType::CbObject);
+	FSocket* Socket = Request.Send(*this);
+	if (!Socket)
+	{
+		UE_LOG(LogStorageServerConnection, Fatal, TEXT("Failed to send oplog request to storage server at %s."), *ServerAddr->ToString(true));
+		return;
+	}
+	FStorageServerResponse Response(*this, *Socket);
+	if (Response.IsOk())
+	{
+		FCbObject ResponseObj = Response.GetResponseObject();
+		for (FCbField& OplogEntry : ResponseObj["entries"].AsArray())
+		{
+			FCbObject OplogObj = OplogEntry.AsObject();
+			FPackageStoreEntryResource Entry = FPackageStoreEntryResource::FromCbObject(OplogObj["packagestoreentry"].AsObject());
+			Callback(MoveTemp(Entry));
+		}
+	}
+	else
+	{
+		UE_LOG(LogStorageServerConnection, Fatal, TEXT("Failed to read oplog from storage server at %s. '%s'"), *ServerAddr->ToString(true), *Response.GetErrorMessage());
+	}
 }
 
 void FStorageServerConnection::FileManifestRequest(TFunctionRef<void(FIoChunkId Id, FStringView Path)> Callback)
