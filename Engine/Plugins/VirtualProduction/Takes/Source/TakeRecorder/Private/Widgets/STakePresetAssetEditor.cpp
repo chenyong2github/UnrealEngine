@@ -30,7 +30,7 @@ STakePresetAssetEditor::~STakePresetAssetEditor()
 	Toolkit.Reset();
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void STakePresetAssetEditor::Construct(const FArguments& InArgs, TSharedPtr<FTakePresetToolkit> InToolkit, TWeakPtr<STakeRecorderTabContent> OuterTabContent)
 {
 	WeakTabContent = OuterTabContent;
@@ -117,7 +117,7 @@ void STakePresetAssetEditor::Construct(const FArguments& InArgs, TSharedPtr<FTak
 		]
 	];
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ULevelSequence* STakePresetAssetEditor::GetLevelSequence() const
 {

@@ -48,7 +48,7 @@ FNetworkingProfilerCommands::FNetworkingProfilerCommands()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // UI_COMMAND takes long for the compiler to optimize
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void FNetworkingProfilerCommands::RegisterCommands()
 {
 	UI_COMMAND(TogglePacketViewVisibility,
@@ -75,7 +75,7 @@ void FNetworkingProfilerCommands::RegisterCommands()
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord());
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Toggle Commands

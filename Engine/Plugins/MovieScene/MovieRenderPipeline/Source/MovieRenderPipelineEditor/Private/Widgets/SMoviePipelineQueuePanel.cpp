@@ -52,7 +52,7 @@
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineQueuePanel"
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 {
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -257,7 +257,7 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 	];
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 FReply SMoviePipelineQueuePanel::OnRenderLocalRequested()
 {

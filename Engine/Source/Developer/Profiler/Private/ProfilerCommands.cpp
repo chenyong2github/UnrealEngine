@@ -32,7 +32,7 @@ FProfilerCommands::FProfilerCommands()
 
 
 /** UI_COMMAND takes long for the compile to optimize */
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void FProfilerCommands::RegisterCommands()
 {
 	/*-----------------------------------------------------------------------------
@@ -71,7 +71,7 @@ void FProfilerCommands::RegisterCommands()
 
 	UI_COMMAND( EventGraph_SelectAllFrames, "Select all frames", "Selects all frames in the data graph and displays them in the event graph", EUserInterfaceActionType::Button, FInputChord() );
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 //static_assert(sizeof(FProfilerActionManager) == 0, "Cannot contain any variables at this moment.");
 

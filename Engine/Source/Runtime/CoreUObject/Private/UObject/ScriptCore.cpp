@@ -329,7 +329,7 @@ bool FBlueprintContextTracker::RecordAccessViolation(const UObject* Object)
 }
 
 // This is meant to be called from the immediate mode, and for confusing reasons the optimized code isn't always safe in that case
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 
 void PrintScriptCallStackImpl()
 {
@@ -349,7 +349,7 @@ void PrintScriptCallStackImpl()
 	}
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 extern CORE_API void (*GPrintScriptCallStackFn)();
 

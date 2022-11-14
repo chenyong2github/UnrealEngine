@@ -54,7 +54,7 @@ FTimingProfilerCommands::~FTimingProfilerCommands()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // UI_COMMAND takes long for the compiler to optimize
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void FTimingProfilerCommands::RegisterCommands()
 {
 	UI_COMMAND(ToggleFramesTrackVisibility, "Frames", "Toggles the visibility of the Frames track.", EUserInterfaceActionType::ToggleButton, FInputChord());
@@ -65,7 +65,7 @@ void FTimingProfilerCommands::RegisterCommands()
 	UI_COMMAND(ToggleStatsCountersViewVisibility, "Counters", "Toggles the visibility of the Counters view.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleLogViewVisibility, "Log", "Toggles the visibility of the Log view.", EUserInterfaceActionType::ToggleButton,FInputChord());
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTimingViewCommands
@@ -89,7 +89,7 @@ FTimingViewCommands::~FTimingViewCommands()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // UI_COMMAND takes long for the compiler to optimize
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void FTimingViewCommands::RegisterCommands()
 {
 	UI_COMMAND(AutoHideEmptyTracks,
@@ -122,7 +122,7 @@ void FTimingViewCommands::RegisterCommands()
 		EUserInterfaceActionType::Button,
 		FInputChord(EModifierKey::Control, EKeys::F));
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Toggle Commands

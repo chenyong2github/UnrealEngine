@@ -1443,7 +1443,7 @@ ECoreRedirectFlags FCoreRedirects::GetFlagsForTypeClass(UClass *TypeClass)
 
 #if UE_WITH_CORE_REDIRECTS
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 
 // The compiler doesn't like having a massive string table in a single function so split it up
 #define CLASS_REDIRECT(OldName, NewName) Redirects.Emplace_GetRef(ECoreRedirectFlags::Type_Class, TEXT(OldName), TEXT(NewName))
@@ -2184,7 +2184,7 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	ENUM_REDIRECT("EInterpolationBlend", "/Script/AnimGraphRuntime.EInterpolationBlend");
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 void FCoreRedirects::RegisterNativeRedirects()
 {

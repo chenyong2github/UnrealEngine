@@ -53,7 +53,7 @@ FMemoryTimingViewCommands::~FMemoryTimingViewCommands()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // UI_COMMAND takes long for the compiler to optimize
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void FMemoryTimingViewCommands::RegisterCommands()
 {
 	UI_COMMAND(ShowHideAllMemoryTracks,
@@ -62,7 +62,7 @@ void FMemoryTimingViewCommands::RegisterCommands()
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord(EModifierKey::Control, EKeys::M));
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FMemorySharedState

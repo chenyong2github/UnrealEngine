@@ -46,7 +46,7 @@ SMoviePipelineConfigPanel::~SMoviePipelineConfigPanel()
 {
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<UMoviePipelineConfigBase> InConfigType)
 {
 	ConfigAssetType = InConfigType;
@@ -237,7 +237,7 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 	}
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 FText SMoviePipelineConfigPanel::GetConfigTypeLabel() const
 {

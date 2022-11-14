@@ -837,7 +837,7 @@ int32 GetNumDigits(const double Precision)
 	return D;
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 int32 GetNumDigitsOptDisabled(const double Precision)
 {
 	//double Log10 = -log10(Precision);
@@ -845,9 +845,9 @@ int32 GetNumDigitsOptDisabled(const double Precision)
 	int32 D = (Log10 > 0) ? FMath::CeilToInt(Log10) : 0;
 	return D;
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void TestOptimizationIssue()
 {
 	constexpr double Ns = 0.000000001;
@@ -857,7 +857,7 @@ void TestOptimizationIssue()
 	ensure(D1 == 9); // 10 ?
 	ensure(D1 == D2);
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

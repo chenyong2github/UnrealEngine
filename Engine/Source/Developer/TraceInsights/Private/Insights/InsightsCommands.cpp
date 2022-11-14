@@ -31,7 +31,7 @@ FInsightsCommands::FInsightsCommands()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // UI_COMMAND takes long for the compile to optimize
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void FInsightsCommands::RegisterCommands()
 {
 	UI_COMMAND(InsightsManager_Load,
@@ -52,7 +52,7 @@ void FInsightsCommands::RegisterCommands()
 		EUserInterfaceActionType::Button,
 		FInputChord(EModifierKey::Control, EKeys::O));
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ToggleDebugInfo

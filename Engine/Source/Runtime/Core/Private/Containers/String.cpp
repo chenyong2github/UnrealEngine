@@ -1209,7 +1209,7 @@ bool FString::ToHexBlob( const FString& Source, uint8* DestBuffer, const uint32 
 	return false;
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void StripNegativeZero(double& InFloat)
 {
 	// This works for translating a negative zero into a positive zero,
@@ -1217,7 +1217,7 @@ void StripNegativeZero(double& InFloat)
 	// or /fp:fast, the compiler can strip it out.
 	InFloat += 0.0f;
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 FString FString::SanitizeFloat( double InFloat, const int32 InMinFractionalDigits )
 {

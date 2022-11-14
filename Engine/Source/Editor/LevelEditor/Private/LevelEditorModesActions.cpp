@@ -9,7 +9,7 @@ DEFINE_LOG_CATEGORY_STATIC(LevelEditorModesActions, Log, All);
 #define LOCTEXT_NAMESPACE "LevelEditorModesActions"
 
 /** UI_COMMAND takes long for the compile to optimize */
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void FLevelEditorModesCommands::RegisterCommands()
 {
 	EditorModeCommands.Empty();
@@ -59,6 +59,6 @@ void FLevelEditorModesCommands::RegisterCommands()
 	}
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE

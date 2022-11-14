@@ -529,7 +529,7 @@ void FKeyDetails::CommonInit(const uint32 InKeyFlags)
 }
 
 #if !FAST_BOOT_HACKS
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 #endif
 void EKeys::Initialize()
 {
@@ -992,7 +992,7 @@ void EKeys::Initialize()
 	FInputKeyManager::Get();
 }
 #if !FAST_BOOT_HACKS
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 #endif
 
 void EKeys::AddKey(const FKeyDetails& KeyDetails)
@@ -1089,7 +1089,7 @@ FName EKeys::GetMenuCategoryPaletteIcon(const FName CategoryName)
 
 EConsoleForGamepadLabels::Type EKeys::ConsoleForGamepadLabels = EConsoleForGamepadLabels::None;
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 FText EKeys::GetGamepadDisplayName(const FKey Key)
 {
 	switch (ConsoleForGamepadLabels)
@@ -1275,7 +1275,7 @@ FText EKeys::GetGamepadDisplayName(const FKey Key)
 	ensureMsgf(false, TEXT("Unexpected key %s using EKeys::GetGamepadDisplayName"), *Key.ToString());
 	return FText::FromString(Key.ToString());
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 bool FKey::IsValid() const
 {

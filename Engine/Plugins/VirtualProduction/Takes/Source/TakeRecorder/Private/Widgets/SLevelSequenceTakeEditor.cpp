@@ -104,7 +104,7 @@ TArray<UClass*> FindRecordingSourceClasses()
 	return Classes;
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void SLevelSequenceTakeEditor::Construct(const FArguments& InArgs)
 {
 	bRequestDetailsRefresh = true;
@@ -149,7 +149,7 @@ TSharedRef<SWidget> SLevelSequenceTakeEditor::MakeAddSourceButton()
 		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 		.Text(LOCTEXT("AddNewSource_Text", "Source"));
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 void SLevelSequenceTakeEditor::AddExternalSettingsObject(UObject* InObject)
 {

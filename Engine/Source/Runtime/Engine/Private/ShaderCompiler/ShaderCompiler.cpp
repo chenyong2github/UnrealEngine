@@ -1839,7 +1839,7 @@ static void LogQueuedCompileJobs(const TArray<FShaderCommonCompileJobPtr>& Queue
 }
 
 // Disable optimization for this crash handler to get full access to the entire stack frame when debugging a crash dump
-PRAGMA_DISABLE_OPTIMIZATION;
+UE_DISABLE_OPTIMIZATION_SHIP
 static void HandleWorkerCrash(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& OutputFile, int32 OutputVersion, int64 FileSize, ESCWErrorCode ErrorCode, int32 NumProcessedJobs, int32 CallstackLength, int32 ExceptionInfoLength)
 {
 	TArray<TCHAR> Callstack;
@@ -1941,7 +1941,7 @@ static void HandleWorkerCrash(const TArray<FShaderCommonCompileJobPtr>& QueuedJo
 		break;
 	}
 }
-PRAGMA_ENABLE_OPTIMIZATION;
+UE_ENABLE_OPTIMIZATION_SHIP
 
 // Process results from Worker Process
 void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& OutputFile)

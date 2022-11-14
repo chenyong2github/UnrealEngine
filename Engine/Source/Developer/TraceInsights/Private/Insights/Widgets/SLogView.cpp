@@ -60,7 +60,7 @@ public:
 	}
 
 	// UI_COMMAND takes long for the compiler to optimize
-	PRAGMA_DISABLE_OPTIMIZATION
+	UE_DISABLE_OPTIMIZATION_SHIP
 	virtual void RegisterCommands() override
 	{
 		UI_COMMAND(Command_HideSelectedCategory,
@@ -119,7 +119,7 @@ public:
 			"Opens the source file of the selected message in the registered IDE.",
 			EUserInterfaceActionType::Button, FInputChord());
 	}
-	PRAGMA_ENABLE_OPTIMIZATION
+	UE_ENABLE_OPTIMIZATION_SHIP
 
 	TSharedPtr<FUICommandInfo> Command_HideSelectedCategory;
 	TSharedPtr<FUICommandInfo> Command_ShowOnlySelectedCategory;

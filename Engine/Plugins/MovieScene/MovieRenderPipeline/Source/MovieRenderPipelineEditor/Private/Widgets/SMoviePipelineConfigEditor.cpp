@@ -450,7 +450,7 @@ protected:
 /**
  * Widget used to edit a Movie Render Pipeline Shot Config.
  */
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 {
 	bRequestDetailsRefresh = true;
@@ -575,7 +575,7 @@ TSharedRef<SWidget> SMoviePipelineConfigEditor::MakeAddSettingButton()
 		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 		.Text(LOCTEXT("AddNewSetting_Text", "Setting"));
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 void SMoviePipelineConfigEditor::OnBlueprintReinstanced()
 {

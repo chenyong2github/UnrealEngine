@@ -77,7 +77,7 @@ STakeRecorderPanel::~STakeRecorderPanel()
 	TakeRecorderModule.GetExternalObjectAddRemoveEventDelegate().Remove(OnWidgetExternalObjectChangedHandle);
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void STakeRecorderPanel::Construct(const FArguments& InArgs)
 {
 	// If a recording is currently underway, initialize to that now
@@ -530,7 +530,7 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 
 	return Border;
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ULevelSequence* STakeRecorderPanel::GetLevelSequence() const
 {

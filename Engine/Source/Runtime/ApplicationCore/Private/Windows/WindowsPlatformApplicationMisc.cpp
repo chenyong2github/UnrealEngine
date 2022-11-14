@@ -378,7 +378,7 @@ float FWindowsPlatformApplicationMisc::GetDPIScaleFactorAtPoint(float X, float Y
 // Disabling optimizations helps to reduce the frequency of OpenClipboard failing with error code 0. It still happens
 // though only with really large text buffers and we worked around this by changing the editor to use an intermediate
 // text buffer for internal operations.
-PRAGMA_DISABLE_OPTIMIZATION 
+UE_DISABLE_OPTIMIZATION_SHIP
 
 void FWindowsPlatformApplicationMisc::ClipboardCopy(const TCHAR* Str)
 {
@@ -447,4 +447,4 @@ void FWindowsPlatformApplicationMisc::ClipboardPaste(class FString& Result)
 	}
 }
 
-PRAGMA_ENABLE_OPTIMIZATION 
+UE_ENABLE_OPTIMIZATION_SHIP

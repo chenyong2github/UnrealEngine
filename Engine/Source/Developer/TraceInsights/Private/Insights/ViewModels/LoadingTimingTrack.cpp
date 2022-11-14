@@ -45,7 +45,7 @@ FLoadingTimingViewCommands::~FLoadingTimingViewCommands()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // UI_COMMAND takes long for the compiler to optimize
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void FLoadingTimingViewCommands::RegisterCommands()
 {
 	UI_COMMAND(ShowHideAllLoadingTracks,
@@ -54,7 +54,7 @@ void FLoadingTimingViewCommands::RegisterCommands()
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord(EKeys::L));
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FLoadingSharedState

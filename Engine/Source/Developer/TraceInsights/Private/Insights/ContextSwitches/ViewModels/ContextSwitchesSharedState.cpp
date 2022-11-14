@@ -50,7 +50,7 @@ FContextSwitchesStateCommands::~FContextSwitchesStateCommands()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // UI_COMMAND takes long for the compiler to optimize
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 void FContextSwitchesStateCommands::RegisterCommands()
 {
 	UI_COMMAND(Command_ShowCoreTracks,
@@ -101,7 +101,7 @@ void FContextSwitchesStateCommands::RegisterCommands()
 		EUserInterfaceActionType::Button,
 		FInputChord());
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FContextSwitchesSharedState
