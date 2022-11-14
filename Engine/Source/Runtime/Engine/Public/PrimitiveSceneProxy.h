@@ -1298,13 +1298,13 @@ protected:
 	uint8 bHasPerInstanceEditorData : 1;
 #endif
 
+	/** If this is True, this primitive doesn't need exact occlusion info. */
+	uint8 bAllowApproximateOcclusion : 1;
+
 private:
 
 	/** If this is True, this primitive will be used to occlusion cull other primitives. */
 	uint8 bUseAsOccluder:1;
-
-	/** If this is True, this primitive doesn't need exact occlusion info. */
-	uint8 bAllowApproximateOcclusion : 1;
 
 	/** If this is True, this primitive can be selected in the editor. */
 	uint8 bSelectable : 1;
