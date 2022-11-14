@@ -315,10 +315,6 @@ public:
 
 	ENiagaraGPUTickHandlingMode GetGPUTickHandlingMode() const;
 
-	/** If true we use legacy simulation contexts that could not handle per instance DI calls in the system scripts and would force the whole simulation solo. */
-	static bool UseLegacySystemSimulationContexts();
-	static void OnChanged_UseLegacySystemSimulationContexts(class IConsoleVariable* CVar);
-
 	FORCEINLINE UWorld* GetWorld()const{return World;}
 
 protected:

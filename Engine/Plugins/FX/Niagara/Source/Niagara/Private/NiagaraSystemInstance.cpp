@@ -99,32 +99,6 @@ static FAutoConsoleVariableRef CVarNiagaraAllowDeferredReset(
 	ECVF_Default
 );
 
-bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const FNiagaraUserRedirectionParameterStore* OverrideParameters)
-{
-	if (FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
-	{
-		if (System.HasSystemScriptDIsWithPerInstanceData())
-		{
-			return true;
-		}
-
-		const TArray<FName>& UserDINamesReadInSystemScripts = System.GetUserDINamesReadInSystemScripts();
-		if (OverrideParameters != nullptr && UserDINamesReadInSystemScripts.Num() > 0)
-		{
-			TArray<FNiagaraVariable> OverrideParameterVariables;
-			OverrideParameters->GetParameters(OverrideParameterVariables);
-			for (const FNiagaraVariable& OverrideParameterVariable : OverrideParameterVariables)
-			{
-				if (OverrideParameterVariable.IsDataInterface() && UserDINamesReadInSystemScripts.Contains(OverrideParameterVariable.GetName()))
-				{
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
 FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& InAsset, FNiagaraUserRedirectionParameterStore* InOverrideParameters,
                                                USceneComponent* InAttachComponent, ENiagaraTickBehavior InTickBehavior, bool bInPooled)
 	: SystemInstanceIndex(INDEX_NONE)
@@ -527,8 +501,6 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 		}
 		else
 		{
-			ensureMsgf(DoSystemDataInterfacesRequireSolo(*GetSystem(), OverrideParameters) == false, TEXT("Disabling solo mode but data interfaces require it"));
-
 			const ETickingGroup TickGroup = CalculateTickGroup();
 			TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 
@@ -1108,7 +1080,6 @@ void FNiagaraSystemInstance::ReInitInternal()
 		return;
 	}
 
-	bSolo |= DoSystemDataInterfacesRequireSolo(*System, OverrideParameters);
 	if (bSolo)
 	{
 		if (!SystemSimulation.IsValid())
@@ -1235,14 +1206,6 @@ void FNiagaraSystemInstance::BindParameters()
 		{
 			// NOTE: We don't rebind if it's already bound to improve reset times.
 			OverrideParameters->Bind(&InstanceParameters);
-		}
-
-		if (SystemSimulation->GetIsSolo() && FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
-		{
-			// If this simulation is solo than we can bind the instance parameters to the system simulation contexts so that
-			// the system and emitter scripts use the per-instance data interfaces.
-			OverrideParameters->Bind(&SystemSimulation->GetSpawnExecutionContext()->Parameters);
-			OverrideParameters->Bind(&SystemSimulation->GetUpdateExecutionContext()->Parameters);
 		}
 	}
 	else
@@ -1515,20 +1478,8 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	};
 
 	CalcInstDataSize(InstanceParameters, false, false, false);//This probably should be a proper exec context.
-
-	if (SystemSimulation->GetIsSolo() && FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
-	{
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, true, false, false);
-		SystemSimulation->GetSpawnExecutionContext()->DirtyDataInterfaces();
-
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, true, false, false);
-		SystemSimulation->GetUpdateExecutionContext()->DirtyDataInterfaces();
-	}
-	else
-	{
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, true, false, true);
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, true, false, true);
-	}
+	CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, true, false, true);
+	CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, true, false, true);
 
 	//Iterate over interfaces to get size for table and clear their interface bindings.
 	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Simulation : Emitters)
@@ -1620,7 +1571,6 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	//We have valid DI instance data so now generate the table of function calls.
 	//When using the new exec contexts, each system instance builds it's own tables of DI function bindings for DI calls that require it.
 	//i.e. User DIs or those with per instance data that are called from system scripts.
-	if (FNiagaraSystemSimulation::UseLegacySystemSimulationContexts() == false)
 	{
 		bool bSuccess = true;
 		bSuccess &= SystemSimulation->GetSpawnExecutionContext()->GeneratePerInstanceDIFunctionTable(this, PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Spawn]);
@@ -1713,7 +1663,6 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 		}
 
 		// Rebind funcs for system scripts
-		if (FNiagaraSystemSimulation::UseLegacySystemSimulationContexts() == false)
 		{
 			PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Spawn].Reset();
 			PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Update].Reset();
@@ -1728,11 +1677,6 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 				UE_LOG(LogNiagara, Error, TEXT("Error rebinding VM functions after re-initializing data interface(s). Completing system. %s"), *GetNameSafe(Asset.Get()));
 				Complete(true);
 			}
-		}
-		else
-		{
-			SystemSimulation->GetSpawnExecutionContext()->DirtyDataInterfaces();
-			SystemSimulation->GetUpdateExecutionContext()->DirtyDataInterfaces();
 		}
 	}
 }
@@ -2826,10 +2770,9 @@ void FNiagaraSystemInstance::SetForceSolo(bool bInForceSolo)
 		return;
 	}
 
-	const bool bNewSolo = bForceSolo || DoSystemDataInterfacesRequireSolo(*GetSystem(), OverrideParameters);
-	if (bNewSolo != bSolo)
+	if (bForceSolo != bSolo)
 	{
-		SetSolo(bNewSolo);
+		SetSolo(bForceSolo);
 	}
 }
 

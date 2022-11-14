@@ -681,21 +681,10 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 
 		{
 			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_ExecContexts);
-
-			if (UseLegacySystemSimulationContexts())
-			{
-				SpawnExecContext = MakeUnique<FNiagaraScriptExecutionContext>();
-				UpdateExecContext = MakeUnique<FNiagaraScriptExecutionContext>();
-				bCanExecute &= SpawnExecContext->Init(SpawnScript, ENiagaraSimTarget::CPUSim);
-				bCanExecute &= UpdateExecContext->Init(UpdateScript, ENiagaraSimTarget::CPUSim);
-			}
-			else
-			{
-				SpawnExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Spawn);
-				UpdateExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Update);
-				bCanExecute &= SpawnExecContext->Init(SpawnScript, ENiagaraSimTarget::CPUSim);
-				bCanExecute &= UpdateExecContext->Init(UpdateScript, ENiagaraSimTarget::CPUSim);
-			}
+			SpawnExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Spawn);
+			UpdateExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Update);
+			bCanExecute &= SpawnExecContext->Init(SpawnScript, ENiagaraSimTarget::CPUSim);
+			bCanExecute &= UpdateExecContext->Init(UpdateScript, ENiagaraSimTarget::CPUSim);
 		}
 
 		{
@@ -741,15 +730,6 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 
 			SpawnScript->RapidIterationParameters.Bind(&SpawnExecContext->Parameters);
 			UpdateScript->RapidIterationParameters.Bind(&UpdateExecContext->Parameters);
-
-			// If this simulation is not solo than we have bind the source system parameters to the system simulation contexts so that
-			// the system and emitter scripts use the default shared data interfaces.
-			if (UseLegacySystemSimulationContexts() && !bIsSolo)
-			{
-				FNiagaraUserRedirectionParameterStore& ExposedParameters = System->GetExposedParameters();
-				ExposedParameters.Bind(&SpawnExecContext->Parameters);
-				ExposedParameters.Bind(&UpdateExecContext->Parameters);
-			}
 		}
 
 		{
@@ -2396,53 +2376,4 @@ ENiagaraGPUTickHandlingMode FNiagaraSystemSimulation::GetGPUTickHandlingMode()co
 	}
 
 	return ENiagaraGPUTickHandlingMode::None;
-}
-
-static int32 GbNiagaraUseLegacySystemSimContexts = 0;
-static FAutoConsoleVariableRef CVarNiagaraUseLevgacySystemSimContexts(
-	TEXT("fx.Niagara.UseLegacySystemSimContexts"),
-	GbNiagaraUseLegacySystemSimContexts,
-	TEXT("If > 0, Niagara will use legacy system simulation contexts which would force the whole simulation solo if there were per instance DI calls in the system scripts. \n"),
-	FConsoleVariableDelegate::CreateStatic(&FNiagaraSystemSimulation::OnChanged_UseLegacySystemSimulationContexts),
-	ECVF_Default
-);
-
-bool FNiagaraSystemSimulation::bUseLegacyExecContexts = GbNiagaraUseLegacySystemSimContexts != 0;
-bool FNiagaraSystemSimulation::UseLegacySystemSimulationContexts()
-{
-	return bUseLegacyExecContexts;
-}
-
-void FNiagaraSystemSimulation::OnChanged_UseLegacySystemSimulationContexts(IConsoleVariable* CVar)
-{
-	bool bNewValue = GbNiagaraUseLegacySystemSimContexts != 0;
-	if( bUseLegacyExecContexts != bNewValue)
-	{
-		//To change at runtime we have to reinit all systems so they have the correct per instance DI bindings.
-		FNiagaraSystemUpdateContext UpdateContext;
-		UpdateContext.SetDestroyOnAdd(true);
-		UpdateContext.SetOnlyActive(true);
-		UpdateContext.AddAll(true);
-
-		//Just to be sure there's no lingering state, clear out the pools.
-		//TODO: Moveinto the update context itself?
-		FNiagaraWorldManager::ForAllWorldManagers(
-			[](FNiagaraWorldManager& WorldMan)
-			{
-				WorldMan.GetComponentPool()->Cleanup(nullptr);
-			}
-		);
-
-		//Reactivate any FX that were active.
-		bUseLegacyExecContexts = bNewValue;
-		UpdateContext.CommitUpdate();
-
-		//Re-prime the pools.
-		FNiagaraWorldManager::ForAllWorldManagers(
-			[](FNiagaraWorldManager& WorldMan)
-			{
-				WorldMan.PrimePoolForAllSystems();
-			}
-		);
-	}
 }
