@@ -7,6 +7,7 @@ using Grpc.Core;
 using Horde.Build.Utilities;
 using EpicGames.Horde.Storage;
 using Horde.Build.Storage;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Logs
 {
@@ -20,14 +21,16 @@ namespace Horde.Build.Logs
 	{
 		readonly ILogFileService _logFileService;
 		readonly StorageService _storageService;
+		readonly ILogger<LogRpcService> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogRpcService(ILogFileService logFileService, StorageService storageService)
+		public LogRpcService(ILogFileService logFileService, StorageService storageService, ILogger<LogRpcService> logger)
 		{
 			_logFileService = logFileService;
 			_storageService = storageService;
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
@@ -44,6 +47,7 @@ namespace Horde.Build.Logs
 			}
 
 			IStorageClient store = await _storageService.GetClientAsync(new NamespaceId("default"), context.CancellationToken);
+			_logger.LogInformation("Updating {LogId} to node {Locator}", request.LogId, request.BlobLocator);
 			await store.WriteRefTargetAsync(new RefName(request.LogId), NodeLocator.Parse(request.BlobLocator));
 			return new UpdateLogResponse();
 		}

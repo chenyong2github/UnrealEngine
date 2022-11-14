@@ -203,6 +203,8 @@ namespace Horde.Agent.Parser
 
 		protected virtual async Task UpdateLogAsync(NodeLocator locator, int lineCount, CancellationToken cancellationToken)
 		{
+			_logger.LogDebug("Updating log {LogId} to line {LineCount}, blob {Locator}", _logId, lineCount, locator);
+
 			UpdateLogRequest request = new UpdateLogRequest();
 			request.LineCount = lineCount;
 			request.BlobLocator = locator.ToString();
@@ -225,7 +227,7 @@ namespace Horde.Agent.Parser
 					// Wait until the server responds or we need to trigger a new update
 					Task<bool> moveNextAsync = call.ResponseStream.MoveNext();
 
-					Task task = await Task.WhenAny(moveNextAsync, clientRef.DisposingTask);
+					Task task = await Task.WhenAny(moveNextAsync, clientRef.DisposingTask, Task.Delay(TimeSpan.FromMinutes(1.0), CancellationToken.None));
 					if (task == clientRef.DisposingTask)
 					{
 						_logger.LogDebug("Cancelling long poll from client side (server migration)");
