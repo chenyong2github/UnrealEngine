@@ -1979,16 +1979,10 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 
 	if (InitBlueprints.Num() == 1)
 	{
-		if (!bShouldOpenInDefaultsMode)
+		// Load blueprint libraries
+		if (!bShouldOpenInDefaultsMode && ShouldLoadBPLibrariesFromAssetRegistry())
 		{
-			// Load blueprint libraries
-			if (ShouldLoadBPLibrariesFromAssetRegistry())
-			{
-				LoadLibrariesFromAssetRegistry();
-			}
-
-			// Init the action DB for the context menu/palette if not already constructed
-			FBlueprintActionDatabase::Get();
+			LoadLibrariesFromAssetRegistry();
 		}
 
 		FLoadObjectsFromAssetRegistryHelper::Load<UUserDefinedEnum>(UserDefinedEnumerators);
@@ -2886,6 +2880,10 @@ void FBlueprintEditor::CreateDefaultTabContents(const TArray<UBlueprint*>& InBlu
 
 	if (InBlueprint)
 	{
+		this->Palette = 
+			SNew(SBlueprintPalette, SharedThis(this))
+				.IsEnabled(this, &FBlueprintEditor::IsFocusedGraphEditable);
+
 		this->BookmarksWidget =
 			SNew(SBlueprintBookmarks)
 				.EditorContext(SharedThis(this));
@@ -3677,19 +3675,6 @@ bool FBlueprintEditor::CanNavigateToChildGraph() const
 void FBlueprintEditor::SetKeyboardFocus()
 {
 	FSlateApplication::Get().SetKeyboardFocus(GetMyBlueprintWidget());
-}
-
-TSharedRef<SBlueprintPalette> FBlueprintEditor::GetPalette()
-{
-	// Note: construction is deferred until first access; in large-scale projects this can be an expensive widget to construct during editor
-	// initialization logic. It's an unnecessary cost if the tab it's hosted in is closed and/or unavailable (e.g. as in the default layout).
-	if (!Palette.IsValid())
-	{
-		SAssignNew(Palette, SBlueprintPalette, SharedThis(this))
-			.IsEnabled(this, &FBlueprintEditor::IsFocusedGraphEditable);
-	}
-
-	return Palette.ToSharedRef();
 }
 
 bool FBlueprintEditor::TransactionObjectAffectsBlueprint(UObject* InTransactedObject)
