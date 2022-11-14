@@ -82,6 +82,14 @@ FSetDevicePropertyParams::FSetDevicePropertyParams()
 
 }
 
+FSetDevicePropertyParams::FSetDevicePropertyParams(TSubclassOf<UInputDeviceProperty> InClass, const FPlatformUserId InUserId, const bool bInResetUponCompletion /* = true */)
+	: DevicePropertyClass(InClass)
+	, UserId(InUserId)
+	, bResetUponCompletion(bInResetUponCompletion)
+{
+	
+}
+
 UInputDeviceSubsystem* UInputDeviceSubsystem::Get()
 {
 	return GEngine ? GEngine->GetEngineSubsystem<UInputDeviceSubsystem>() : nullptr;
@@ -256,6 +264,11 @@ int32 UInputDeviceSubsystem::RemoveDeviceProperty(const FPlatformUserId UserId, 
 	}
 
 	return NumRemoved;
+}
+
+void UInputDeviceSubsystem::RemoveAllDeviceProperties()
+{
+	ActiveProperties.Empty();
 }
 
 FHardwareDeviceIdentifier UInputDeviceSubsystem::GetMostRecentlyUsedHardwareDevice(const FPlatformUserId InUserId) const

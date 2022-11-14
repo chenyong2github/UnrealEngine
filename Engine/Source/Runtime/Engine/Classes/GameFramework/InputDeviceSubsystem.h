@@ -14,7 +14,7 @@ class UInputDeviceProperty;
 
 /** Contains a pointer to an active device property and keeps track of how long it has been evaluated for */
 USTRUCT()
-struct FActiveDeviceProperty
+struct ENGINE_API FActiveDeviceProperty
 {
 	GENERATED_BODY()
 
@@ -38,11 +38,13 @@ struct FActiveDeviceProperty
 
 /** Parameters for the UInputDeviceSubsystem::SetDeviceProperty function */
 USTRUCT(BlueprintType)
-struct FSetDevicePropertyParams
+struct ENGINE_API FSetDevicePropertyParams
 {
 	GENERATED_BODY()
 
 	FSetDevicePropertyParams();
+
+	FSetDevicePropertyParams(TSubclassOf<UInputDeviceProperty> InClass, const FPlatformUserId InUserId, const bool bInResetUponCompletion = true);
 	
 	/** The device Property to set */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
@@ -73,7 +75,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHardwareInputDeviceChanged, const F
 * on any Platform User. 
 */
 UCLASS(BlueprintType)
-class UInputDeviceSubsystem : public UEngineSubsystem, public FTickableGameObject
+class ENGINE_API UInputDeviceSubsystem : public UEngineSubsystem, public FTickableGameObject
 {
 	friend class FInputDeviceSubsystemProcessor;
 	
@@ -110,6 +112,10 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Num Removed"))
 	int32 RemoveDeviceProperty(const FPlatformUserId UserId, TSubclassOf<UInputDeviceProperty> DevicePropertyClass);
+
+	/** Removes all the current Input Device Properties that are active, regardless of the Platform User */
+	UFUNCTION(BlueprintCallable, Category = "Input Devices")
+	void RemoveAllDeviceProperties();
 
 	/** Gets the most recently used hardware input device for the given platform user */
 	FHardwareDeviceIdentifier GetMostRecentlyUsedHardwareDevice(const FPlatformUserId InUserId) const;
