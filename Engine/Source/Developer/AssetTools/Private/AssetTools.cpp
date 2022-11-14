@@ -225,10 +225,17 @@ public:
 		uint32 CategoryBits = 0;
 		for (const FAssetCategoryPath& Category : AssetDefinitionPtr.Get()->GetAssetCategories())
 		{
-			CategoryBits |= AssetTools.FindAdvancedAssetCategory(Category.GetCategory());
+			if (Category.GetCategory() == EAssetCategoryPaths::Basic.GetCategory())
+			{
+				CategoryBits |= EAssetTypeCategories::Basic;
+			}
+			else
+			{
+				CategoryBits |= AssetTools.FindAdvancedAssetCategory(Category.GetCategory());	
+			}
 		}
 
-		return EAssetTypeCategories::Misc;
+		return CategoryBits;
 	}
 
 private:

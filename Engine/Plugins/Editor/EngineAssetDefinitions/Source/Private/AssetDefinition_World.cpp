@@ -10,6 +10,12 @@
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_World"
 
+TConstArrayView<FAssetCategoryPath> UAssetDefinition_World::GetAssetCategories() const
+{
+	static const auto Categories = { EAssetCategoryPaths::Basic };
+	return Categories;
+}
+
 TArray<FAssetData> UAssetDefinition_World::PrepareToActivateAssets(const FAssetActivateArgs& ActivateArgs) const
 {
 	TArray<FAssetData> AssetsToOpen;

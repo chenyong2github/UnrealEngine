@@ -5,6 +5,8 @@
 #include "IAssetTools.h"
 #include "Misc/AssetFilterData.h"
 
+#define LOCTEXT_NAMESPACE "UAssetDefinition_AssetTypeActionsProxy"
+
 void UAssetDefinition_AssetTypeActionsProxy::Initialize(const TSharedRef<IAssetTypeActions>& NewActions)
 {
 	AssetType = NewActions;
@@ -40,6 +42,12 @@ TConstArrayView<FAssetCategoryPath> UAssetDefinition_AssetTypeActionsProxy::GetA
     AssetTools.GetAllAdvancedAssetCategories(AdvancedAssetCategories);
 	
 	const uint32 CategoryBits = AssetType->GetCategories();
+
+	if (CategoryBits & EAssetTypeCategories::Basic)
+	{
+		AssetCategories.Add(FAssetCategoryPath({ EAssetCategoryPaths::Basic }));
+	}
+	
 	for (const FAdvancedAssetCategory& Category : AdvancedAssetCategories)
 	{
 		if (Category.CategoryType & CategoryBits)
@@ -227,3 +235,5 @@ TSharedPtr<SWidget> UAssetDefinition_AssetTypeActionsProxy::GetThumbnailOverlay(
 {
 	return AssetType->GetThumbnailOverlay(InAssetData);
 }
+
+#undef LOCTEXT_NAMESPACE
