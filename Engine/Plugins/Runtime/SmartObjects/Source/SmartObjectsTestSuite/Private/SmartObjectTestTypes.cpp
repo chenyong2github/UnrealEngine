@@ -2,8 +2,6 @@
 
 #include "SmartObjectTestTypes.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 //----------------------------------------------------------------------//
 // USmartObjectTestSubsystem
 //----------------------------------------------------------------------//
@@ -72,5 +70,3 @@ bool ASmartObjectTestCollection::UnregisterWithSubsystem(const FString& Context)
 {
 	return false;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

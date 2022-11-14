@@ -129,7 +129,6 @@ struct FPostProcessGroup
 	{}
 };
 
-PRAGMA_DISABLE_OPTIMIZATION
 void FPostProcessSettingsCustomization::CustomizeChildren( TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils )
 {
 	uint32 NumChildren = 0;
@@ -277,8 +276,6 @@ void FPostProcessSettingsCustomization::CustomizeChildren( TSharedRef<IPropertyH
 		}
 	}
 }
-PRAGMA_ENABLE_OPTIMIZATION
-
 
 void FPostProcessSettingsCustomization::CustomizeHeader( TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils )
 {

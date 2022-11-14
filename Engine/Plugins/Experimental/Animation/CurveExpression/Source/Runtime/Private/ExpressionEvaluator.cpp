@@ -4,8 +4,6 @@
 
 #include <limits>
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace CurveExpression::Evaluator
 {
 
@@ -913,5 +911,3 @@ TOptional<FParseError> FEngine::Verify(
 }
 
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

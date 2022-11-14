@@ -48,12 +48,9 @@ public:
 	{
 	}
 
-	// UI_COMMAND takes long for the compiler to optimize
-	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
 	}
-	PRAGMA_ENABLE_OPTIMIZATION
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

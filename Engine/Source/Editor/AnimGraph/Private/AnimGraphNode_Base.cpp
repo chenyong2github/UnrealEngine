@@ -707,7 +707,6 @@ void UAnimGraphNode_Base::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshCompon
 	}
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
 FAnimNode_Base* UAnimGraphNode_Base::FindDebugAnimNode(USkeletalMeshComponent* InPreviewSkelMeshComp) const
 {
 	FAnimNode_Base* DebugNode = nullptr;
@@ -749,7 +748,6 @@ FAnimNode_Base* UAnimGraphNode_Base::FindDebugAnimNode(USkeletalMeshComponent* I
 
 	return DebugNode;
 }
-PRAGMA_ENABLE_OPTIMIZATION
 
 EAnimAssetHandlerType UAnimGraphNode_Base::SupportsAssetClass(const UClass* AssetClass) const
 {
