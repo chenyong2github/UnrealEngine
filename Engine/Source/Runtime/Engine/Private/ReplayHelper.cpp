@@ -749,7 +749,7 @@ void FReplayHelper::ProcessCheckpointActors(UNetConnection* Connection, TArrayVi
 	// more often than the normal update rate.
 	AGameStateBase* const GameState = World != nullptr ? World->GetGameState() : nullptr;
 
-	const float SavedReplicatedServerTimeSeconds = GameState ? GameState->ReplicatedWorldTimeSeconds : -1.0f;
+	const double SavedReplicatedServerTimeSeconds = GameState ? GameState->ReplicatedWorldTimeSeconds : -1.0;
 
 	// Normally AGameStateBase::ReplicatedWorldTimeSeconds is only updated periodically,
 	// but we want to make sure it's accurate for the checkpoint.

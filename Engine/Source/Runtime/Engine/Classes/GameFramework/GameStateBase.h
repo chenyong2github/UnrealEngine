@@ -69,7 +69,7 @@ public:
 
 	/** Returns the simulated TimeSeconds on the server, will be synchronized on client and server */
 	UFUNCTION(BlueprintCallable, Category=GameState)
-	virtual float GetServerWorldTimeSeconds() const;
+	virtual double GetServerWorldTimeSeconds() const;
 
 	/** Returns true if the world has started play (called BeginPlay on actors) */
 	UFUNCTION(BlueprintCallable, Category=GameState)
@@ -148,7 +148,7 @@ protected:
 
 	/** Server TimeSeconds. Useful for syncing up animation and gameplay. */
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedWorldTimeSeconds)
-	float ReplicatedWorldTimeSeconds;
+	double ReplicatedWorldTimeSeconds;
 
 	/** The difference from the local world's TimeSeconds and the server world's TimeSeconds. */
 	UPROPERTY(Transient)

@@ -282,7 +282,7 @@ private:
 	FOnGotoTimeDelegate OnGotoTimeDelegate_Transient;
 	
 	/** Saved server time after loading a checkpoint, so that we can set the server time as accurately as possible after the fast-forward */
-	float SavedReplicatedWorldTimeSeconds;
+	double SavedReplicatedWorldTimeSeconds;
 
 	/** Saved fast-forward time, used for correcting world time after the fast-forward is complete */
 	float SavedSecondsToSkip;

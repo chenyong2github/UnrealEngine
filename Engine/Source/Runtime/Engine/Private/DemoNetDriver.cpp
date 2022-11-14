@@ -830,7 +830,7 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 		bIsFastForwardingForCheckpoint	= false;
 		bIsRestoringStartupActors		= false;
 		bWasStartStreamingSuccessful	= true;
-		SavedReplicatedWorldTimeSeconds	= 0.0f;
+		SavedReplicatedWorldTimeSeconds	= 0.0;
 		SavedSecondsToSkip				= 0.0f;
 		MaxDesiredRecordTimeMS			= -1.0f;
 		ViewerOverride					= nullptr;
@@ -2969,7 +2969,7 @@ void UDemoNetDriver::FinalizeFastForward(const double StartTime)
 	{
 		if (bIsFastForwardingForCheckpoint)
 		{
-			const float PostCheckpointServerTime = SavedReplicatedWorldTimeSeconds + SavedSecondsToSkip;
+			const double PostCheckpointServerTime = SavedReplicatedWorldTimeSeconds + SavedSecondsToSkip;
 			GameState->ReplicatedWorldTimeSeconds = PostCheckpointServerTime;
 		}
 

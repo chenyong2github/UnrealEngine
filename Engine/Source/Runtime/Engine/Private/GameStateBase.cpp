@@ -138,7 +138,7 @@ void AGameStateBase::RemovePlayerState(APlayerState* PlayerState)
 	}
 }
 
-float AGameStateBase::GetServerWorldTimeSeconds() const
+double AGameStateBase::GetServerWorldTimeSeconds() const
 {
 	UWorld* World = GetWorld();
 	if (World)
@@ -146,7 +146,7 @@ float AGameStateBase::GetServerWorldTimeSeconds() const
 		return World->GetTimeSeconds() + ServerWorldTimeSecondsDelta;
 	}
 
-	return 0.f;
+	return 0.;
 }
 
 void AGameStateBase::UpdateServerTimeSeconds()
@@ -163,11 +163,11 @@ void AGameStateBase::OnRep_ReplicatedWorldTimeSeconds()
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		const float ServerWorldTimeDelta = ReplicatedWorldTimeSeconds - World->GetTimeSeconds();
+		const double ServerWorldTimeDelta = ReplicatedWorldTimeSeconds - World->GetTimeSeconds();
 
 		// Accumulate the computed server world delta
 		SumServerWorldTimeSecondsDelta += ServerWorldTimeDelta;
-		NumServerWorldTimeSecondsDeltas += 1.0;
+		NumServerWorldTimeSecondsDeltas += 1;
 
 		// Reset the accumulated values to ensure that we remain representative of the current delta
 		if (NumServerWorldTimeSecondsDeltas > 250)
