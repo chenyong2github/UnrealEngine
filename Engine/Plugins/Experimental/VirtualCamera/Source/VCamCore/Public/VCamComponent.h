@@ -42,14 +42,13 @@ enum class EVCamTargetViewportID : uint8
 	Viewport4 = 4
 };
 
-UCLASS(Blueprintable, ClassGroup=(VCam), meta=(BlueprintSpawnableComponent))
+UCLASS(Blueprintable, ClassGroup = VCam, HideCategories=(Mobility), meta=(BlueprintSpawnableComponent))
 class VCAMCORE_API UVCamComponent : public USceneComponent
 {
 	GENERATED_BODY()
-
 	friend class UVCamModifier;
-
 public:
+	
 	UVCamComponent();
 
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;

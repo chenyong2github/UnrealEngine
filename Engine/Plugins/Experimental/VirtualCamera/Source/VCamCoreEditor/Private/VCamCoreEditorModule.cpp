@@ -7,8 +7,10 @@
 #include "Interfaces/IPluginManager.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "PropertyEditorModule.h"
+#include "VCamBaseActor.h"
 #include "VCamComponent.h"
 #include "VCamModifier.h"
+#include "Customizations/VCamBaseActorCustomization.h"
 
 namespace UE::VCamCoreEditor::Private
 {
@@ -24,6 +26,7 @@ namespace UE::VCamCoreEditor::Private
 		
 			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 			PropertyModule.RegisterCustomPropertyTypeLayout("VCamInputProfile", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FVCamInputProfileCustomization::MakeInstance));
+			PropertyModule.RegisterCustomClassLayout(AVCamBaseActor::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FVCamBaseActorCustomization::MakeInstance));
 		};
 	
 		virtual void ShutdownModule() override

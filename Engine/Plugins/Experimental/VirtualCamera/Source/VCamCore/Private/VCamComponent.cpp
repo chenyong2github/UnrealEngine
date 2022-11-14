@@ -50,8 +50,12 @@ namespace VCamComponent
 
 UVCamComponent::UVCamComponent()
 {
-	// Don't run on CDO
-	if (!HasAnyFlags(RF_ClassDefaultObject) && !GIsCookerLoadingPackage)
+	// For temporary objects, the InputComponent should not be created and neither should we subscribe to global callbacks
+	// 1. The Blueprint editor has two objects:
+	//	1.1 The "real" one which saves the property data - this one is RF_ArchetypeObject
+	//	1.2 The preview one (which I assume is displayed in the viewport) - this one is RF_Transient.
+	// 2. When you drag-create an actor, level editor creates a RF_Transient template actor. After you release the mouse, a real one is created (not RF_Transient).
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject | RF_Transient) && !GIsCookerLoadingPackage)
 	{
 		// Hook into the Live Link Client for our Tick
 		IModularFeatures& ModularFeatures = IModularFeatures::Get();
@@ -81,14 +85,16 @@ UVCamComponent::UVCamComponent()
 #endif
 
 		// Setup Input
-		InputComponent = NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), TEXT("VCamInput0"), RF_Transient);
+		UClass* InputComponentClass = UInputSettings::GetDefaultInputComponentClass();
+		constexpr bool bIsRequired = true;
+		constexpr bool bIsTransient = true;
+		InputComponent = Cast<UInputComponent>(CreateDefaultSubobject(TEXT("VCamInput0"), InputComponentClass, InputComponentClass, bIsRequired, bIsTransient));
 
 		// Apply the Default Input profile if possible
 		if (const UVCamInputSettings* VCamInputSettings = GetDefault<UVCamInputSettings>())
 		{
 			SetInputProfileFromName(VCamInputSettings->DefaultInputProfile);
 		}
-		
 	}
 }
 
