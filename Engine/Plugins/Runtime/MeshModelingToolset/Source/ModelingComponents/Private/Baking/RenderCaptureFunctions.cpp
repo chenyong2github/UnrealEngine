@@ -214,12 +214,25 @@ TUniquePtr<FSceneCapturePhotoSet> UE::Geometry::CapturePhotoSet(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CapturePhotoSet);
 
+	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = MakeUnique<FSceneCapturePhotoSet>();
+
+	UpdatePhotoSet(SceneCapture,Actors, Options, bAllowCancel);
+
+	return SceneCapture;
+}
+
+void UE::Geometry::UpdatePhotoSet(
+	TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+	const TArray<TObjectPtr<AActor>>& Actors,
+	const FRenderCaptureOptions& Options,
+	bool bAllowCancel
+)
+{
 	double FieldOfView = Options.FieldOfViewDegrees;
 	double NearPlaneDist = Options.NearPlaneDist;
 
 	FImageDimensions CaptureDimensions(Options.RenderCaptureImageSize, Options.RenderCaptureImageSize);
 
-	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = MakeUnique<FSceneCapturePhotoSet>();
 	SceneCapture->SetAllowCancel(bAllowCancel);
 
 	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth, Options.bBakeDeviceDepth);
@@ -246,8 +259,6 @@ TUniquePtr<FSceneCapturePhotoSet> UE::Geometry::CapturePhotoSet(
 	SceneCapture->AddStandardExteriorCapturesFromBoundingBox(
 		CaptureDimensions, FieldOfView, NearPlaneDist,
 		true, true, true, true, true);
-
-	return SceneCapture;
 }
 
 

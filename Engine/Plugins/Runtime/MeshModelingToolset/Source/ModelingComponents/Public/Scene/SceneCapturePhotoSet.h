@@ -51,6 +51,12 @@ public:
 	void SetCaptureSceneActors(UWorld* World, const TArray<AActor*>& Actors);
 
 	/**
+	 * Disable all capture types. By default a standard set of capture types is enabled but, for performance reasons,
+	 * you can use this function to disable them all and then only enable the ones you need.
+	 */
+	void DisableAllCaptureTypes();
+
+	/**
 	 * Enable/Disable a particular capture type
 	 */
 	void SetCaptureTypeEnabled(ERenderCaptureType CaptureType, bool bEnabled);

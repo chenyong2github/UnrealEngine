@@ -77,6 +77,9 @@ public:
 	/** @return the number of photos in the photo set */
 	int32 Num() const { return Photos.Num(); }
 
+	/** @return removes all photos from the photo set */
+	void Empty() { return Photos.Empty(); }
+
 	/** @return the photo at the given index */
 	const TSpatialPhoto<PixelType>& Get(int32 Index) const { return *Photos[Index]; }
 

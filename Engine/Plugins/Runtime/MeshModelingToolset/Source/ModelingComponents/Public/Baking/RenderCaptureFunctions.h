@@ -145,6 +145,13 @@ TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 	const FRenderCaptureOptions& Options,
 	bool bAllowCancel);
 
+MODELINGCOMPONENTS_API
+void UpdatePhotoSet(
+	TUniquePtr<FSceneCapturePhotoSet>& SceneCapture,
+	const TArray<TObjectPtr<AActor>>& Actors,
+	const FRenderCaptureOptions& Options,
+	bool bAllowCancel);
+
 
 
 // Return a render capture baker, note the lifetime of all arguments such match the lifetime of the returned baker

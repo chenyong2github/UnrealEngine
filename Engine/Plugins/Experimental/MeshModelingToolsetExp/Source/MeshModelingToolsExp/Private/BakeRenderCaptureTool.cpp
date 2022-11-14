@@ -602,7 +602,7 @@ void UBakeRenderCaptureTool::UpdateResult()
 	}
 
 	//
-	// create a set of spatially located render captures of the scene ("photo set"). We need to recompute this if the
+	// Create a set of spatially located render captures of the scene ("photo set"). We need to recompute this if the
 	// render capture properties changed. Note we only compare the URenderCaptureProperties, and not the
 	// ValidSampleDepthThreshold, this is intentional so that we only trigger a scene capture recompute when we go from
 	// a zero to a positive threshold (we need to compute the depth capture), or a positive to a zero threshold (we can
@@ -619,13 +619,26 @@ void UBakeRenderCaptureTool::UpdateResult()
 		// Do not allow user-cancellation on the call that occurs when the Render Capture Tool starts up
 		const bool bAllowCancel = (bFirstEverSceneCapture == false);
 
-		SceneCapture.Reset();
 		FRenderCaptureOptions Options = MakeRenderCaptureOptions(*RenderCaptureProperties, *Settings, *InputMeshSettings);
 		{
 			FScopedSlowTask Progress(1.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
 			Progress.EnterProgressFrame(1.f);
 			Progress.MakeDialog(bAllowCancel);
-			SceneCapture = CapturePhotoSet(Actors, Options, bAllowCancel);
+
+			const bool bRequireFullRecompute = (
+				RenderCaptureProperties->Resolution         != ComputedRenderCaptureProperties->Resolution ||
+				RenderCaptureProperties->bAntiAliasing      != ComputedRenderCaptureProperties->bAntiAliasing ||
+				RenderCaptureProperties->CaptureFieldOfView != ComputedRenderCaptureProperties->CaptureFieldOfView ||
+				RenderCaptureProperties->NearPlaneDist      != ComputedRenderCaptureProperties->NearPlaneDist);
+
+			if (!SceneCapture || (SceneCapture && bRequireFullRecompute))
+			{
+				SceneCapture = CapturePhotoSet(Actors, Options, bAllowCancel);
+			}
+			else
+			{
+				UpdatePhotoSet(SceneCapture, Actors, Options, bAllowCancel);
+			}
 		}
 
 		for (int Idx = 1; Idx < Targets.Num(); ++Idx)
@@ -736,12 +749,12 @@ void UBakeRenderCaptureTool::UpdateResult()
 			UpdateVisualization(); // Clear the preview mesh material inputs
 		}
 		OpState = EBakeOpState::Invalid;
-		return;
 	}
-
-	InvalidateComputeRC();
-
-	OpState = EBakeOpState::Clean;
+	else
+	{
+		InvalidateComputeRC();
+		OpState = EBakeOpState::Clean;
+	}
 }
 
 

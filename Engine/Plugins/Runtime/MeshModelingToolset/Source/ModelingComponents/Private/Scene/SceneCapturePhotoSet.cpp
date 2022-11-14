@@ -56,7 +56,7 @@ void FSceneCapturePhotoSet::SetCaptureConfig(ERenderCaptureType CaptureType, con
 			DeviceDepthConfig = Config;
 			break;
 		default:
-			check(false);
+			ensure(false);
 	}
 }
 
@@ -81,41 +81,101 @@ FRenderCaptureConfig FSceneCapturePhotoSet::GetCaptureConfig(ERenderCaptureType 
 		case ERenderCaptureType::DeviceDepth:
 			return DeviceDepthConfig;
 		default:
-			check(false);
+			ensure(false);
 	}
 	return BaseColorConfig;
 }
+
+void FSceneCapturePhotoSet::DisableAllCaptureTypes()
+{
+	SetCaptureTypeEnabled(ERenderCaptureType::BaseColor, false);
+	SetCaptureTypeEnabled(ERenderCaptureType::WorldNormal, false);
+	SetCaptureTypeEnabled(ERenderCaptureType::Roughness, false);
+	SetCaptureTypeEnabled(ERenderCaptureType::Metallic, false);
+	SetCaptureTypeEnabled(ERenderCaptureType::Specular, false);
+	SetCaptureTypeEnabled(ERenderCaptureType::Emissive, false);
+	SetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS, false);
+	SetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth, false);
+}
+
 
 void FSceneCapturePhotoSet::SetCaptureTypeEnabled(ERenderCaptureType CaptureType, bool bEnabled)
 {
 	switch (CaptureType)
 	{
 	case ERenderCaptureType::BaseColor:
-			bEnableBaseColor = bEnabled;
+		bEnableBaseColor = bEnabled;
+		break;
+	case ERenderCaptureType::WorldNormal:
+		bEnableWorldNormal = bEnabled;
+		break;
+	case ERenderCaptureType::Roughness:
+		bEnableRoughness = bEnabled;
+		break;
+	case ERenderCaptureType::Metallic:
+		bEnableMetallic = bEnabled;
+		break;
+	case ERenderCaptureType::Specular:
+		bEnableSpecular = bEnabled;
+		break;
+	case ERenderCaptureType::Emissive:
+		bEnableEmissive = bEnabled;
+		break;
+	case ERenderCaptureType::CombinedMRS:
+		bEnablePackedMRS = bEnabled;
+		break;
+	case ERenderCaptureType::DeviceDepth:
+		bEnableDeviceDepth = bEnabled;
+		break;
+	default:
+		ensure(false);
+	}
+
+	// If we're disabling a CaptureType we need to remove any existing photos
+	if (bEnabled == false)
+	{
+		switch (CaptureType)
+		{
+		case ERenderCaptureType::BaseColor:
+			BaseColorPhotoSet.Empty();
 			break;
 		case ERenderCaptureType::WorldNormal:
-			bEnableWorldNormal = bEnabled;
+			WorldNormalPhotoSet.Empty();
 			break;
 		case ERenderCaptureType::Roughness:
-			bEnableRoughness = bEnabled;
+			RoughnessPhotoSet.Empty();
 			break;
 		case ERenderCaptureType::Metallic:
-			bEnableMetallic = bEnabled;
+			MetallicPhotoSet.Empty();
 			break;
 		case ERenderCaptureType::Specular:
-			bEnableSpecular = bEnabled;
+			SpecularPhotoSet.Empty();
 			break;
 		case ERenderCaptureType::Emissive:
-			bEnableEmissive = bEnabled;
+			EmissivePhotoSet.Empty();
 			break;
 		case ERenderCaptureType::CombinedMRS:
-			bEnablePackedMRS = bEnabled;
+			PackedMRSPhotoSet.Empty();
 			break;
 		case ERenderCaptureType::DeviceDepth:
-			bEnableDeviceDepth = bEnabled;
+			DeviceDepthPhotoSet.Empty();
 			break;
 		default:
-			check(false);
+			ensure(false);
+		}
+	}
+
+	// If all photo sets are disabled we should also clear the photo set params
+	if (!bEnableBaseColor &&
+		!bEnableRoughness &&
+		!bEnableSpecular &&
+		!bEnableMetallic &&
+		!bEnablePackedMRS &&
+		!bEnableWorldNormal &&
+		!bEnableEmissive &&
+		!bEnableDeviceDepth)
+	{
+		PhotoSetParams.Empty();
 	}
 }
 
@@ -262,42 +322,57 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 		FVector3d ViewDirection = Directions[di];
 		ViewDirection.Normalize();
 
+		FSpatialPhotoParams Params;
+		Params.NearPlaneDist = NearPlaneDist;
+		Params.HorzFOVDegrees = HorizontalFOVDegrees;
+		Params.Dimensions = PhotoDimensions;
 		// TODO Align the frame with the renderer coordinate system then remove the axis swapping in WorldRenderCapture.cpp
-		FFrame3d ViewFrame;
-		ViewFrame.AlignAxis(0, ViewDirection);
-		ViewFrame.ConstrainedAlignAxis(2, FVector3d::UnitZ(), ViewFrame.X());
-		ViewFrame.Origin = (FVector3d)RenderSphere.Center;
-		ViewFrame.Origin -= (double)RenderSphere.W * ViewFrame.X();
+		Params.Frame.AlignAxis(0, ViewDirection);
+		Params.Frame.ConstrainedAlignAxis(2, FVector3d::UnitZ(), Params.Frame.X());
+		Params.Frame.Origin = RenderSphere.Center;
+		Params.Frame.Origin -= RenderSphere.W * Params.Frame.X();
 
-		FSpatialPhoto3f BasePhoto3f;
-		BasePhoto3f.Frame = ViewFrame;
-		BasePhoto3f.NearPlaneDist = NearPlaneDist;
-		BasePhoto3f.HorzFOVDegrees = HorizontalFOVDegrees;
-		BasePhoto3f.Dimensions = PhotoDimensions;
-
-		auto CaptureImageTypeFunc_3f = [this, &Progress, &BasePhoto3f, &RenderCapture](ERenderCaptureType CaptureType, FSpatialPhotoSet3f& PhotoSet)
+		auto CaptureImageTypeFunc_3f = [this, &Progress, &RenderCapture, &Params, &NumDirections]
+			(ERenderCaptureType CaptureType, FSpatialPhotoSet3f& PhotoSet)
 		{
-			FSpatialPhoto3f NewPhoto = BasePhoto3f;
-			FImageAdapter Image(&NewPhoto.Image);
-			FRenderCaptureConfig Config = GetCaptureConfig(CaptureType);
-			RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image, Config);
-			PhotoSet.Add(MoveTemp(NewPhoto));
+			// Test NumDirections to avoid recomputing photo sets. Search :SceneCaptureWithExistingCaptures
+			if (PhotoSet.Num() < NumDirections)
+			{
+				FSpatialPhoto3f NewPhoto;
+				NewPhoto.Frame = Params.Frame;
+				NewPhoto.NearPlaneDist = Params.NearPlaneDist;
+				NewPhoto.HorzFOVDegrees = Params.HorzFOVDegrees;
+				NewPhoto.Dimensions = Params.Dimensions;
+
+				// TODO Do something with the success boolean returned by RenderCapture.CaptureFromPosition
+				FImageAdapter Image(&NewPhoto.Image);
+				FRenderCaptureConfig Config = GetCaptureConfig(CaptureType);
+				RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image, Config);
+				PhotoSet.Add(MoveTemp(NewPhoto));
+			}
+
 			Progress.TickProgress();
 		};
 
-		FSpatialPhoto1f BasePhoto1f;
-		BasePhoto1f.Frame = ViewFrame;
-		BasePhoto1f.NearPlaneDist = NearPlaneDist;
-		BasePhoto1f.HorzFOVDegrees = HorizontalFOVDegrees;
-		BasePhoto1f.Dimensions = PhotoDimensions;
-
-		auto CaptureImageTypeFunc_1f = [this, &Progress, &BasePhoto1f, &RenderCapture](ERenderCaptureType CaptureType, FSpatialPhotoSet1f& PhotoSet)
+		auto CaptureImageTypeFunc_1f = [this, &Progress, &RenderCapture, &Params, &NumDirections]
+			(ERenderCaptureType CaptureType, FSpatialPhotoSet1f& PhotoSet)
 		{
-			FSpatialPhoto1f NewPhoto = BasePhoto1f;
-			FImageAdapter Image(&NewPhoto.Image);
-			FRenderCaptureConfig Config = GetCaptureConfig(CaptureType);
-			RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image, Config);
-			PhotoSet.Add(MoveTemp(NewPhoto));
+			// Test NumDirections to avoid recomputing photo sets. Search :SceneCaptureWithExistingCaptures
+			if (PhotoSet.Num() < NumDirections)
+			{
+				FSpatialPhoto1f NewPhoto;
+				NewPhoto.Frame = Params.Frame;
+				NewPhoto.NearPlaneDist = Params.NearPlaneDist;
+				NewPhoto.HorzFOVDegrees = Params.HorzFOVDegrees;
+				NewPhoto.Dimensions = Params.Dimensions;
+
+				// TODO Do something with the success boolean returned by RenderCapture.CaptureFromPosition
+				FImageAdapter Image(&NewPhoto.Image);
+				FRenderCaptureConfig Config = GetCaptureConfig(CaptureType);
+				RenderCapture.CaptureFromPosition(CaptureType, NewPhoto.Frame, NewPhoto.HorzFOVDegrees, NewPhoto.NearPlaneDist, Image, Config);
+				PhotoSet.Add(MoveTemp(NewPhoto));
+			}
+
 			Progress.TickProgress();
 		};
 
@@ -334,13 +409,14 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 			CaptureImageTypeFunc_3f(ERenderCaptureType::Emissive, EmissivePhotoSet);
 		}
 
-		FSpatialPhotoParams Params;
-		Params.Frame = ViewFrame;
-		Params.NearPlaneDist = NearPlaneDist;
-		Params.HorzFOVDegrees = HorizontalFOVDegrees;
-		Params.Dimensions = PhotoDimensions;
-		Params.ViewMatrices = RenderCapture.GetLastCaptureViewMatrices();
-		PhotoSetParams.Add(Params);
+		// AddExteriorCaptures can be called on an FSceneCapturePhotoSet which already has some capture types computed
+		// and in this case we should not modify the existing photo sets/cached photo set parameters.
+		// See :SceneCaptureWithExistingCaptures 
+		if (PhotoSetParams.Num() < NumDirections)
+		{
+			Params.ViewMatrices = RenderCapture.GetLastCaptureViewMatrices();
+			PhotoSetParams.Add(Params);
+		}
 	}
 }
 
@@ -387,7 +463,7 @@ FVector3f FSceneCapturePhotoSet::FSceneSample::GetValue3f(ERenderCaptureType Cap
 	case ERenderCaptureType::DeviceDepth:
 		return DeviceDepth * FVector3f::One();
 	default:
-		check(false);
+		ensure(false);
 	}
 	return FVector3f::Zero();
 }
@@ -413,7 +489,7 @@ FVector4f FSceneCapturePhotoSet::FSceneSample::GetValue4f(ERenderCaptureType Cap
 	case ERenderCaptureType::DeviceDepth:
 		return FVector4f(DeviceDepth, DeviceDepth, DeviceDepth, 1.0f);
 	default:
-		check(false);
+		ensure(false);
 	}
 	return FVector4f::Zero();
 }
