@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreTypes.h"
 #include "Misc/StringBuilder.h"
 #include "OverrideVoidReturnInvoker.h"
+#include "UObject/NameTypes.h"
 
 /** A simple name/value pairs map */
 class FPropertyPairsMap

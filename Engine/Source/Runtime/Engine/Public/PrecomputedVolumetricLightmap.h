@@ -307,7 +307,7 @@ inline FLinearColor ConvertToLinearColor<uint8>(uint8 InColor)
 	return FLinearColor(InColor * Scale, 0, 0, 0);
 };
 
-static const float GPointFilteringThreshold = .001f;
+inline static const float GPointFilteringThreshold = .001f;
 
 template<typename VoxelDataType>
 FLinearColor FilteredVolumeLookup(FVector Coordinate, FIntVector DataDimensions, const VoxelDataType* Data)

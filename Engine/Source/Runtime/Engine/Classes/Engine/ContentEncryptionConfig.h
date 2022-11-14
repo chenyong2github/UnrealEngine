@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreTypes.h"
+
 /** Project specific configuration for content encryption */
 class FContentEncryptionConfig
 {

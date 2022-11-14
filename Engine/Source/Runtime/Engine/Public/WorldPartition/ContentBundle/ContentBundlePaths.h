@@ -8,8 +8,8 @@ class FContentBundleBase;
 
 namespace ContentBundlePaths
 {
-	constexpr FStringView ContentBundleFolder = TEXTVIEW("/ContentBundle/");
-	constexpr FStringView GeneratedFolder = TEXTVIEW("/_Generated_/");
+	inline constexpr FStringView ContentBundleFolder = TEXTVIEW("/ContentBundle/");
+	inline constexpr FStringView GeneratedFolder = TEXTVIEW("/_Generated_/");
 
 	// Returns "/ContentBundle/"
 	constexpr FStringView GetContentBundleFolder() { return ContentBundleFolder; }

@@ -14,7 +14,7 @@
 
 // Currently we support at most 2 views for each planar reflection, one view per stereo pass
 // Must match FPlanarReflectionUniformParameters.
-const int32 GMaxPlanarReflectionViews = 2;
+inline const int32 GMaxPlanarReflectionViews = 2;
 
 class UPlanarReflectionComponent;
 

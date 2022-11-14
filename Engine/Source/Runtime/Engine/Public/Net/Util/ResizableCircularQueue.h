@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Deprecated
+
 // forward to new location
 #include "Net/Core/Misc/ResizableCircularQueue.h"
 

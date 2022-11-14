@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Animation/AnimMontage.h"
+
 struct FMontageEvaluationState
 {
 	FMontageEvaluationState(UAnimMontage* InMontage, float InPosition, FDeltaTimeRecord InDeltaTimeRecord, bool bInIsPlaying, bool bInIsActive, const FAlphaBlend& InBlendInfo, const UBlendProfile* InActiveBlendProfile, float InBlendStartAlpha)

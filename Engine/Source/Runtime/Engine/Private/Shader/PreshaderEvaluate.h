@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Shader/PreshaderTypes.h"
+#include "Shader/Preshader.h"
 
 class FUniformExpressionSet;
 struct FMaterialRenderContext;

@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// HEADER_UNIT_SKIP - Included through other
+
+#include "CoreTypes.h"
 
 /** Determines how the geometry of a component will be incorporated in proxy (simplified) HLODs. */
 UENUM()

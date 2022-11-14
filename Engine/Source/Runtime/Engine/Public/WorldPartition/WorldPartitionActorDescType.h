@@ -3,6 +3,8 @@
 
 #include "CoreMinimal.h"
 
+class AActor;
+
 #if WITH_EDITOR
 template <typename ActorType, TEMPLATE_REQUIRES(TIsDerivedFrom<ActorType, AActor>::IsDerived)>
 struct FWorldPartitionActorDescType

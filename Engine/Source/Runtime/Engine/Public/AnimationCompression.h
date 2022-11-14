@@ -36,7 +36,7 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAnimationCompression, Log, All);
 #define Quant11BitOffs    (1023)
 
 //@TODO: Explore different scales
-static constexpr int32 LogScale = 7;
+inline static constexpr int32 LogScale = 7;
 
 namespace AnimationCompressionUtils
 {

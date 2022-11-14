@@ -36,18 +36,18 @@ template <class T> class TLockFreePointerListLIFO;
 namespace DistanceField
 {
 	// One voxel border around object for handling gradient
-	constexpr int32 MeshDistanceFieldObjectBorder = 1;
-	constexpr int32 UniqueDataBrickSize = 7;
+	inline constexpr int32 MeshDistanceFieldObjectBorder = 1;
+	inline constexpr int32 UniqueDataBrickSize = 7;
 	// Half voxel border around brick for trilinear filtering
-	constexpr int32 BrickSize = 8;
+	inline constexpr int32 BrickSize = 8;
 	// Trade off between SDF memory and number of steps required to find intersection
-	constexpr int32 BandSizeInVoxels = 4;
-	constexpr int32 NumMips = 3;
-	constexpr uint32 InvalidBrickIndex = 0xFFFFFFFF;
-	constexpr EPixelFormat DistanceFieldFormat = PF_G8;
+	inline constexpr int32 BandSizeInVoxels = 4;
+	inline constexpr int32 NumMips = 3;
+	inline constexpr uint32 InvalidBrickIndex = 0xFFFFFFFF;
+	inline constexpr EPixelFormat DistanceFieldFormat = PF_G8;
 
 	// Must match LoadDFAssetData
-	constexpr uint32 MaxIndirectionDimension = 1024;
+	inline constexpr uint32 MaxIndirectionDimension = 1024;
 };
 
 class ENGINE_API FLandscapeTextureAtlas : public FRenderResource

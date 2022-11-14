@@ -2,6 +2,8 @@
 
 // [[ IncludeTool: Inline ]] // Markup to tell IncludeTool that this file is state changing and cannot be optimized out.
 
+// HEADER_UNIT_SKIP - Included through other header
+
 DO_ANIMSTAT_PROCESSING(PerformAnimEvaluation);
 DO_ANIMSTAT_PROCESSING(SkeletalComponentAnimEvaluate);
 DO_ANIMSTAT_PROCESSING(EvaluateAnimGraph);

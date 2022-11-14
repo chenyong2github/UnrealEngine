@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
 
 /** 
  * Various data declarations relating to split screen on a GameViewportClient

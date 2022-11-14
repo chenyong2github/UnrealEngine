@@ -66,7 +66,7 @@ enum EAdditiveBasePoseType
 * Indicates animation data compression format.
 */
 UENUM()
-enum AnimationCompressionFormat
+enum AnimationCompressionFormat : int
 {
 	ACF_None,
 	ACF_Float96NoW,

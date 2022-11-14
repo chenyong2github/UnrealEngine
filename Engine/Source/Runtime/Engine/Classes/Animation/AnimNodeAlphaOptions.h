@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimNodeBase.h"
+#include "Animation/InputScaleBias.h"
 
 // Alpha blending options helper functions for anim nodes
 // Assumes that the specified node contains the members:

@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_UNSUPPORTED - I don't think this header is used. dll export of templated function below indicates that.
+
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Engine/EngineTypes.h"
 

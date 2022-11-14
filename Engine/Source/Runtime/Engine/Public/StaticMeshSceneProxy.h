@@ -9,6 +9,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "PrimitiveSceneProxy.h"
 #include "RayTracingInstance.h"
+#include "SceneManagement.h"
 
 class FLocalVertexFactoryUniformShaderParameters;
 class FRawStaticIndexBuffer;

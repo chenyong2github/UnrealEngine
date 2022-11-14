@@ -1091,9 +1091,9 @@ template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPLineC
 		// Calculate the vector's direction in local space
 		LocalDir = LocalEnd - LocalStart;
 		// Build the one over dir
-		LocalOneOverDir.X = LocalDir.X ? 1.f / LocalDir.X : MAX_FLT;
-		LocalOneOverDir.Y = LocalDir.Y ? 1.f / LocalDir.Y : MAX_FLT;
-		LocalOneOverDir.Z = LocalDir.Z ? 1.f / LocalDir.Z : MAX_FLT;
+		LocalOneOverDir.X = LocalDir.X ? 1.f / LocalDir.X : UE_MAX_FLT;
+		LocalOneOverDir.Y = LocalDir.Y ? 1.f / LocalDir.Y : UE_MAX_FLT;
+		LocalOneOverDir.Z = LocalDir.Z ? 1.f / LocalDir.Z : UE_MAX_FLT;
 
 		// Construct the SOA data
 		StartSOA.X = VectorLoadFloat1( &LocalStart.X );

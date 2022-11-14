@@ -116,12 +116,12 @@ enum ENetworkVersionHistory
 	HISTORY_LATEST = HISTORY_PLUS_ONE - 1
 };
 
-static const uint32 NETWORK_DEMO_MAGIC = 0x2CF5A13D;
-static const uint32 NETWORK_DEMO_VERSION = HISTORY_LATEST;
-static const uint32 MIN_NETWORK_DEMO_VERSION = HISTORY_CHARACTER_MOVEMENT;
+inline static const uint32 NETWORK_DEMO_MAGIC = 0x2CF5A13D;
+inline static const uint32 NETWORK_DEMO_VERSION = HISTORY_LATEST;
+inline static const uint32 MIN_NETWORK_DEMO_VERSION = HISTORY_CHARACTER_MOVEMENT;
 
-static const uint32 NETWORK_DEMO_METADATA_MAGIC = 0x3D06B24E;
-static const uint32 NETWORK_DEMO_METADATA_VERSION = 0;
+inline static const uint32 NETWORK_DEMO_METADATA_MAGIC = 0x3D06B24E;
+inline static const uint32 NETWORK_DEMO_METADATA_VERSION = 0;
 
 struct FNetworkDemoHeader
 {

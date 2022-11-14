@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include <type_traits>
 
 /**
  * Wraps invocation of a function that can return a value or not. If it doesn't, the function call is wrapped into

@@ -6,6 +6,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Deprecated
+
 #ifdef _MSC_VER
 #pragma message(__FILE__"(9): warning : #include LevelStreamingDynamic.h instead of LevelStreamingKismet.h")
 #else

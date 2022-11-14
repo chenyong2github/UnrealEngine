@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 class FResourceArrayInterface;
 
 enum class EResizeBufferFlags

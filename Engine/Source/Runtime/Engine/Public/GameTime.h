@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/AssertionMacros.h"
 #include "Misc/CoreMiscDefines.h"
 
 /** Contains all the timings of a gaming frame, to handle pause and time dilation (for instance bullet time) of the world. */

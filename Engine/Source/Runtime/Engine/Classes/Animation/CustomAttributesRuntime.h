@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP
+
 #include "CoreMinimal.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

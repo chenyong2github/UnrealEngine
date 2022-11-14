@@ -45,7 +45,7 @@ enum EParticleDetailMode
 	PDM_High UMETA(DisplayName = "High"),
 	PDM_MAX UMETA(Hidden),
 };
-const int32 PDM_DefaultValue = 0xFFFF;
+inline const int32 PDM_DefaultValue = 0xFFFF;
 
 
 /*-----------------------------------------------------------------------------

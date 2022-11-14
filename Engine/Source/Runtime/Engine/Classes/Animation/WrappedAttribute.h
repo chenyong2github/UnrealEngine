@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "UObject/Class.h"
 
 namespace UE
 {

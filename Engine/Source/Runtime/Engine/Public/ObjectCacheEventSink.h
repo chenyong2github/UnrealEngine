@@ -5,6 +5,11 @@
 
 #if WITH_EDITOR
 
+class UActorComponent;
+class UMaterialInterface;
+class UPrimitiveComponent;
+class UStaticMeshComponent;
+
 struct ENGINE_API FObjectCacheEventSink
 {
 	// For parallel processing.  Calling BeginQueueNotifyEvents will prevent notify events from being processed, an instead placed in a list for later processing.

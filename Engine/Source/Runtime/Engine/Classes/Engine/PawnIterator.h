@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 
 /** Wrapper object that tries to imitate the TWeakObjectPtr interface for the objects previously in the PawnList and iterated by FConstPawnIterator. */

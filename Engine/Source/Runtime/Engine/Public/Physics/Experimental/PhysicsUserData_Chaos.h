@@ -5,6 +5,8 @@
 #include "EngineDefines.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
 
+class UPhysicalMaterial;
+struct FBodyInstance;
 struct FConstraintInstanceBase;
 
 // Note: this must match the enum EChaosUserDataType in PhysicsInterfaceTypesCore

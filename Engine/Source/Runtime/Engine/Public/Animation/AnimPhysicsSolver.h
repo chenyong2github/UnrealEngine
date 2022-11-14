@@ -48,16 +48,16 @@ class FAnimPhys;
 namespace AnimPhysicsConstants
 {
 	// Added bias for angular joints
-	const float		JointBiasFactor = 0.3f;
+	inline const float		JointBiasFactor = 0.3f;
 
 	// Damping for linear momentum (1 = critically damped)
-	const float		LinearDamping = 0.7f;
+	inline const float		LinearDamping = 0.7f;
 
 	// Damping for angular momentum (1 = critically damped)
-	const float		AngularDamping = 0.7f;
+	inline const float		AngularDamping = 0.7f;
 
-	const float		DefaultSpringConstantLinear = 12.0f;
-	const float		DefaultSpringConstantAngular = 4.0f;
+	inline const float		DefaultSpringConstantLinear = 12.0f;
+	inline const float		DefaultSpringConstantAngular = 4.0f;
 }
 
 // Enum for picking current angular twist axis

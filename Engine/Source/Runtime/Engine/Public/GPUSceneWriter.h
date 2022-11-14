@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ShaderParameterMacros.h"
 #include "ShaderParameters.h"
 
 class FSceneView;
