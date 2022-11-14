@@ -119,7 +119,8 @@ static FAutoConsoleVariableRef CVarNaniteRayTracingMode(
 	TEXT("r.RayTracing.Nanite.Mode"),
 	GNaniteRayTracingMode,
 	TEXT("0 - fallback mesh (default);\n")
-	TEXT("1 - streamed out mesh;")
+	TEXT("1 - streamed out mesh;"),
+	ECVF_RenderThreadSafe
 );
 
 #define VF_NANITE_PROCEDURAL_INTERSECTOR 1
