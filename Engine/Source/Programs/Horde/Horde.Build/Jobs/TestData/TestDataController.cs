@@ -85,18 +85,11 @@ namespace Horde.Build.Jobs.TestData
 		/// Get stream test data for the provided ids
 		/// </summary>
 		/// <param name="streamIds"></param>
-		/// <param name="metaIds"></param>
-		/// <param name="minCreateTime"></param>
-		/// <param name="maxCreateTime"></param>
 		/// <returns></returns>
 		[HttpGet]
 		[Route("/api/v2/testdata/streams")]
 		[ProducesResponseType(typeof(List<GetTestStreamResponse>), 200)]
-		public async Task<ActionResult<List<GetTestStreamResponse>>> GetTestStreamsAsync(
-			[FromQuery(Name = "Id")] string[] streamIds,
-			[FromQuery(Name = "Mid")] string[] metaIds,
-			[FromQuery] DateTimeOffset minCreateTime,
-			[FromQuery] DateTimeOffset? maxCreateTime = null)
+		public async Task<ActionResult<List<GetTestStreamResponse>>> GetTestStreamsAsync([FromQuery(Name = "Id")] string[] streamIds)
 		{
 			StreamId[] streamIdValues = Array.ConvertAll(streamIds, x => new StreamId(x));
 
@@ -121,8 +114,99 @@ namespace Horde.Build.Jobs.TestData
 				return responses;
 			}
 
-			List<TestStream> streams = await _testDataService.FindTestStreams(queryStreams.ToArray(), metaIds.ConvertAll(x => TestMetaId.Parse(x)).ToArray(), minCreateTime.UtcDateTime, maxCreateTime?.UtcDateTime);
-			streams.ForEach(s => responses.Add(new GetTestStreamResponse(s.StreamId, s.Tests, s.TestSuites, s.TestMeta)));
+			HashSet<TestId> testIds = new HashSet<TestId>();
+			HashSet<TestMetaId> metaIds = new HashSet<TestMetaId>();
+
+			List<ITestStream> streams = await _testDataService.FindTestStreams(queryStreams.ToArray());
+
+			// flatten requested streams to single service queries
+		
+			HashSet<TestSuiteId> suiteIds = new HashSet<TestSuiteId>();
+			for (int i = 0; i < streams.Count; i++)
+			{
+				foreach(TestId testId in streams[i].Tests)
+				{
+					testIds.Add(testId);
+				}
+
+				foreach(TestSuiteId suiteId in streams[i].TestSuites)
+				{
+					suiteIds.Add(suiteId);
+				}				
+			}
+
+			List<ITestSuite> suites = new List<ITestSuite>();
+			if (suiteIds.Count > 0)
+			{
+				suites = await _testDataService.FindTestSuites(suiteIds.ToArray());
+			}
+
+			foreach(ITestSuite suite in suites)
+			{
+				foreach(TestId id in suite.Tests)
+				{
+					testIds.Add(id);
+				}
+			}
+
+			List<ITest> tests = new List<ITest>();
+			if (testIds.Count > 0)
+			{
+				tests = await _testDataService.FindTests(testIds.ToArray());
+			}
+
+			List<ITestMeta> metaData = new List<ITestMeta>();
+			foreach (ITest test in tests)
+			{
+				foreach (TestMetaId metaId in test.Metadata)
+				{
+					metaIds.Add(metaId);
+				}
+			}
+
+			if (metaIds.Count > 0)
+			{
+				metaData = await _testDataService.FindTestMeta(metaIds: metaIds.ToArray());
+			}
+
+			// generate individual stream responses
+			streams.ForEach(s => {
+				
+				List<ITest> streamTests = tests.Where(x => s.Tests.Contains(x.Id)).ToList();
+
+				List<ITestSuite> streamSuites = new List<ITestSuite>();
+				foreach (TestSuiteId suiteId in s.TestSuites)
+				{
+					ITestSuite? suite = suites.FirstOrDefault(x => x.Id == suiteId);
+					if (suite != null)
+					{
+						streamSuites.Add(suite);
+						foreach (TestId testId in suite.Tests)
+						{
+							ITest? test = tests.FirstOrDefault(x => x.Id == testId);
+							if (test != null)
+							{
+								streamTests.Add(test);
+							}
+						}
+					}
+				}
+
+				HashSet<TestMetaId> streamMetaIds = new HashSet<TestMetaId>();
+				foreach (ITest test in streamTests)
+				{
+					foreach (TestMetaId id in test.Metadata)
+					{
+						streamMetaIds.Add(id);
+					}						
+				}
+
+				List<ITestMeta> streamMetaData = metaData.Where(x => streamMetaIds.Contains(x.Id)).ToList();
+
+				responses.Add(new GetTestStreamResponse(s.StreamId, streamTests, streamSuites, streamMetaData));				
+
+			});
+
 			return responses;
 		}
 

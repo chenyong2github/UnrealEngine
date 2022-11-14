@@ -22,19 +22,19 @@ namespace Horde.Build.Jobs.TestData
 	public sealed class TestDataService : IDisposable
 	{
 		
-		readonly ITestDataCollection _testData;
+		readonly ITestDataCollection _testData;		
 
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
 		public TestDataService(ITestDataCollection testData)
 		{
-			_testData = testData;			
+			_testData = testData;		
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
-		{
+		{		
 		}
 
 
@@ -42,18 +42,31 @@ namespace Horde.Build.Jobs.TestData
 		/// Find test streams
 		/// </summary>
 		/// <param name="streamIds"></param>
-		/// <param name="metaIds"></param>
-		/// <param name="minCreateTime"></param>
-		/// <param name="maxCreateTime"></param>
 		/// <returns></returns>
-		public async Task<List<TestStream>> FindTestStreams(StreamId[] streamIds, TestMetaId[] metaIds, DateTime minCreateTime, DateTime? maxCreateTime = null)
+		public async Task<List<ITestStream>> FindTestStreams(StreamId[] streamIds)
 		{
-			if (maxCreateTime == null)
-			{
-				maxCreateTime = DateTime.UtcNow;
-			}
 
-			return await _testData.FindTestStreams(streamIds, metaIds, minCreateTime, maxCreateTime.Value);
+			return await _testData.FindTestStreams(streamIds);			
+		}
+
+		/// <summary>
+		/// Find tests
+		/// </summary>
+		/// <param name="testIds"></param>
+		/// <returns></returns>
+		public async Task<List<ITest>> FindTests(TestId[] testIds)
+		{
+			return await _testData.FindTests(testIds);
+		}
+
+		/// <summary>
+		/// Find test suites
+		/// </summary>
+		/// <param name="suiteIds"></param>
+		/// <returns></returns>
+		public async Task<List<ITestSuite>> FindTestSuites(TestSuiteId[] suiteIds)
+		{
+			return await _testData.FindTestSuites(suiteIds);
 		}
 
 		/// <summary>

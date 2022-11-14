@@ -80,6 +80,11 @@ namespace Horde.Build.Jobs.TestData
 	public interface ITest
 	{
 		/// <summary>
+		/// The test id
+		/// </summary>
+		TestId Id { get; }
+
+		/// <summary>
 		/// The fully qualified name of the test 
 		/// </summary>
 		string Name { get; }
@@ -105,6 +110,11 @@ namespace Horde.Build.Jobs.TestData
 	/// </summary>
 	public interface ITestSuite
 	{
+		/// <summary>
+		/// The test suite id
+		/// </summary>
+		TestSuiteId Id { get; }
+
 		/// <summary>
 		/// The name of the test suite
 		/// </summary>
@@ -192,7 +202,29 @@ namespace Horde.Build.Jobs.TestData
 		/// </summary>
 		IReadOnlyList<ISuiteTestData>? SuiteTests { get; }
 	}
-	
+
+	/// <summary>
+	/// The tests and suites running in a given stream
+	/// </summary>
+	public interface ITestStream
+	{
+		/// <summary>
+		/// The stream id
+		/// </summary>
+		StreamId StreamId { get; }
+
+		/// <summary>
+		/// Test ids of tests running in the stream
+		/// </summary>
+		IReadOnlyList<TestId> Tests { get; }
+
+		/// <summary>
+		/// Test suite ids
+		/// </summary>
+		IReadOnlyList<TestSuiteId> TestSuites { get; } 
+	}
+
+
 	/// <summary>
 	/// Stores information about the results of a test
 	/// </summary>

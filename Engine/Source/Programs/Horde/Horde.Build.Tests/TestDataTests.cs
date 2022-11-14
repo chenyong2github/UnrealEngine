@@ -186,8 +186,7 @@ namespace Horde.Build.Tests
 			List<GetTestMetaResponse> meta = metaResult.Value;
 			Assert.AreEqual(1, meta.Count);
 
-			DateTimeOffset minCreateTime = new DateTimeOffset(DateTime.UtcNow.Subtract(TimeSpan.FromHours(1)));
-			ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds, meta.Select(x => x.Id).ToArray(), minCreateTime);
+			ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
 			Assert.IsNotNull(streamResult);
 			Assert.IsNotNull(streamResult.Value);
 			List<GetTestStreamResponse> streams = streamResult.Value;
@@ -250,8 +249,7 @@ namespace Horde.Build.Tests
 			Assert.AreEqual("EngineTest", meta[0].ProjectName);
 			Assert.AreEqual("default", meta[0].RHI);
 
-			DateTimeOffset minCreateTime = new DateTimeOffset(DateTime.UtcNow.Subtract(TimeSpan.FromHours(1)));
-			ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds, meta.Select(x => x.Id).ToArray(), minCreateTime);
+			ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
 			Assert.IsNotNull(streamResult);
 			Assert.IsNotNull(streamResult.Value);
 			List<GetTestStreamResponse> streams = streamResult.Value;

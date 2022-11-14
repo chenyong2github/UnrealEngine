@@ -24,11 +24,8 @@ namespace Horde.Build.Jobs.TestData
 		/// Gets the tests running in provided streams
 		/// </summary>
 		/// <param name="streamIds"></param>
-		/// <param name="metaIds"></param>
-		/// <param name="minCreateTime"></param>
-		/// <param name="maxCreateTime"></param>
 		/// <returns></returns>
-		Task<List<TestStream>> FindTestStreams(StreamId[] streamIds, TestMetaId[] metaIds, DateTime minCreateTime, DateTime maxCreateTime);
+		Task<List<ITestStream>> FindTestStreams(StreamId[] streamIds);
 
 		/// <summary>
 		/// 
@@ -43,6 +40,20 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="maxChange"></param>
 		/// <returns></returns>
 		Task<List<ITestDataRef>> FindTestRefs(StreamId[] streamIds, TestMetaId[]? metaIds = null, TestId[]? testIds = null, TestSuiteId[]? suiteIds = null, DateTime? minCreateTime = null, DateTime? maxCreateTime = null, int? minChange = null, int? maxChange = null);
+
+		/// <summary>
+		/// Find tests
+		/// </summary>
+		/// <param name="testIds"></param>
+		/// <returns></returns>
+		Task<List<ITest>> FindTests(TestId[] testIds);
+
+		/// <summary>
+		/// Find test suites
+		/// </summary>
+		/// <param name="suiteIds"></param>
+		/// <returns></returns>
+		Task<List<ITestSuite>> FindTestSuites(TestSuiteId[] suiteIds);
 
 		/// <summary>
 		/// Creates a new test data document

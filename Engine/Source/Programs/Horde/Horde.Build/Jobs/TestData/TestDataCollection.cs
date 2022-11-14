@@ -26,48 +26,7 @@ namespace Horde.Build.Jobs.TestData
 
 	using TestId = ObjectId<ITest>;
 	using TestSuiteId = ObjectId<ITestSuite>;
-	using TestMetaId = ObjectId<ITestMeta>;	
-
-	/// <summary>
-	/// Tests which are run in a  stream
-	/// </summary>
-	public class TestStream
-	{
-		/// <summary>
-		/// The associated stream tests are running in
-		/// </summary>
-		public StreamId StreamId { get; set; }
-
-		/// <summary>
-		/// The individual tests running in the stream
-		/// </summary>
-		public List<ITest> Tests { get; set; }
-
-		/// <summary>
-		/// The tests suites running in the stream
-		/// </summary>
-		public List<ITestSuite> TestSuites { get; set; }
-
-		/// <summary>
-		/// The test meta data (environments) running in the stream
-		/// </summary>
-		public List<ITestMeta> TestMeta { get; set; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="streamId"></param>
-		/// <param name="tests"></param>
-		/// <param name="testSuites"></param>
-		/// <param name="testMeta"></param>
-		public TestStream(StreamId streamId, List<ITest> tests, List<ITestSuite> testSuites, List<ITestMeta> testMeta)
-		{
-			StreamId = streamId;
-			Tests = tests;
-			TestSuites = testSuites;
-			TestMeta = testMeta;
-		}
-	}
+	using TestMetaId = ObjectId<ITestMeta>;
 
 	/// <summary>
 	/// Collection of test data documents
@@ -249,6 +208,38 @@ namespace Horde.Build.Jobs.TestData
 		}
 
 		/// <summary>
+		/// Stores the tests and suites running in a stream
+		/// </summary>
+		class TestStreamDocument : ITestStream
+		{
+			[BsonRequired, BsonId]
+			public ObjectId Id { get; set; }
+
+			[BsonRequired]
+			public StreamId StreamId { get; set; }
+
+			[BsonRequired]
+			public List<TestId> Tests { get; set; } = new List<TestId>();
+			IReadOnlyList<TestId> ITestStream.Tests => Tests;
+
+			[BsonRequired]
+			public List<TestSuiteId> TestSuites { get; set; } = new List<TestSuiteId>();
+			IReadOnlyList<TestSuiteId> ITestStream.TestSuites => TestSuites;
+
+			private TestStreamDocument()
+			{
+
+			}
+
+			public TestStreamDocument(StreamId streamId)
+			{
+				Id = ObjectId.GenerateNewId();
+				StreamId = streamId;
+			}
+
+		}
+
+		/// <summary>
 		/// Information about a test data document
 		/// </summary>
 		class TestDataDocument : ITestData
@@ -306,6 +297,11 @@ namespace Horde.Build.Jobs.TestData
 		/// </summary>
 		readonly IMongoCollection<TestDataRefDocument> _testRefs;
 
+		/// <summary>
+		/// Test suite collection
+		/// </summary>
+		readonly IMongoCollection<TestStreamDocument> _testStreams;
+
 		readonly ILogger _logger;
 
 
@@ -339,6 +335,11 @@ namespace Horde.Build.Jobs.TestData
 			List<MongoIndex<TestDataRefDocument>> testRefIndexes = new List<MongoIndex<TestDataRefDocument>>();
 			testRefIndexes.Add(keys => keys.Ascending(x => x.StreamId).Ascending(x => x.Metadata).Descending(x => x.BuildChangeList).Ascending(x => x.TestId).Ascending(x => x.SuiteId));
 			_testRefs = mongoService.GetCollection<TestDataRefDocument>("TestData.TestRefsV2", testRefIndexes);
+
+			List<MongoIndex<TestStreamDocument>> streamIndexes = new List<MongoIndex<TestStreamDocument>>();
+			streamIndexes.Add(keys => keys.Ascending(x => x.StreamId), unique: true);
+			_testStreams = mongoService.GetCollection<TestStreamDocument>("TestData.TestStreamsV2", streamIndexes);
+
 		}
 
 		/// <summary>
@@ -558,6 +559,22 @@ namespace Horde.Build.Jobs.TestData
 			return result.ConvertAll<ITestMeta>(x => x);			
 		}
 
+		/// <inheritdoc/>
+		public async Task<List<ITest>> FindTests(TestId[] testIds)
+		{
+			List<TestDocument> results = await _tests.Find(Builders<TestDocument>.Filter.In(x => x.Id, testIds)).ToListAsync();
+			return results.ConvertAll<ITest>(x => x);
+
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<ITestSuite>> FindTestSuites(TestSuiteId[] suiteIds)
+		{
+			List<TestSuiteDocument> results = await _testSuites.Find(Builders<TestSuiteDocument>.Filter.In(x => x.Id, suiteIds)).ToListAsync();
+			return results.ConvertAll<ITestSuite>(x => x);
+
+		}
+
 		private async Task<List<TestDocument>> FindTests(bool? suiteTests = null, string[]? projectNames = null, string[]? testNames = null, string[]? suiteNames = null, TestMetaId[]? metaIds = null, TestId[]? testIds = null)
 		{
 			List<ITestMeta> metaData = new List<ITestMeta>();
@@ -659,81 +676,66 @@ namespace Horde.Build.Jobs.TestData
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<TestStream>> FindTestStreams(StreamId[] streamIds, TestMetaId[] metaIds, DateTime minCreateTime, DateTime maxCreateTime)
-		{		
-			List<ITestDataRef> refs = await FindTestRefs(streamIds, metaIds: metaIds, minCreateTime: minCreateTime, maxCreateTime: maxCreateTime);
-			List<ITestMeta> metaData = await FindTestMeta(metaIds: metaIds);
+		public async Task<List<ITestStream>> FindTestStreams(StreamId[] streamIds)
+		{
+			List<TestStreamDocument> results  = await _testStreams.Find(Builders<TestStreamDocument>.Filter.In(x => x.StreamId, streamIds)).ToListAsync();
+			return results.ConvertAll<ITestStream>(x => x);
+		}
 
-			HashSet<TestId> allTestIds = new HashSet<TestId>();
-			HashSet<TestId> testIds = new HashSet<TestId>();
-			HashSet<TestId> suiteTestIds = new HashSet<TestId>();
+		async Task AddTestRef(TestDataRefDocument testRef)
+		{
+			StreamId streamId = testRef.StreamId;
 
-			for (int i = 0; i < refs.Count; i++)
+			List<TestStreamDocument> streams = await _testStreams.Find(Builders<TestStreamDocument>.Filter.Eq(x => x.StreamId, streamId)).ToListAsync();
+
+			if (streams.Count == 0)
 			{
-				ITestDataRef testRef = refs[i];
+				TestStreamDocument streamDoc = new TestStreamDocument(streamId);
+				if (testRef.TestId != null)
+				{
+					streamDoc.Tests.Add(testRef.TestId.Value);
+				}
+
+				if (testRef.SuiteId != null)
+				{
+					streamDoc.TestSuites.Add(testRef.SuiteId.Value);
+				}
+
+				await _testStreams.InsertOneAsync(streamDoc);
+			}
+			else
+			{
+				UpdateDefinitionBuilder<TestStreamDocument> updateBuilder = Builders<TestStreamDocument>.Update;
+				List<UpdateDefinition<TestStreamDocument>> updates = new List<UpdateDefinition<TestStreamDocument>>();
+
+				TestStreamDocument streamDoc = streams[0];
 
 				if (testRef.TestId != null)
 				{
-					testIds.Add(testRef.TestId.Value);
-					allTestIds.Add(testRef.TestId.Value);
-				}
-				else if (testRef.SuiteTests != null)
-				{
-					foreach (ISuiteTestData t in testRef.SuiteTests)
+					if (!streamDoc.Tests.Contains(testRef.TestId.Value))
 					{
-						suiteTestIds.Add(t.TestId);
-						allTestIds.Add(t.TestId);
+						streamDoc.Tests.Add(testRef.TestId.Value);
+						updates.Add(updateBuilder.Set(x => x.Tests, streamDoc.Tests));
+					}					
+				}
+
+				if (testRef.SuiteId != null)
+				{
+					if (!streamDoc.TestSuites.Contains(testRef.SuiteId.Value))
+					{
+						streamDoc.TestSuites.Add(testRef.SuiteId.Value);
+						updates.Add(updateBuilder.Set(x => x.TestSuites, streamDoc.TestSuites));
 					}
+				}
+				if (updates.Count > 0)
+				{
+					FilterDefinitionBuilder<TestStreamDocument> ebuilder = Builders<TestStreamDocument>.Filter;
+					FilterDefinition<TestStreamDocument> efilter = ebuilder.Eq(x => x.StreamId, streamDoc.StreamId);
+					await _testStreams.UpdateOneAsync(efilter, updateBuilder.Combine(updates));
+
 				}
 			}
-			List<TestDocument> allTests = await FindTests(testIds: allTestIds.ToArray());
-
-			List<TestDocument> tests = allTests.Where(t => testIds.Contains(t.Id)).ToList();
-
-			List<TestSuiteDocument> suites = await FindTestSuites(testIds: suiteTestIds.ToArray());
-			List<TestDocument> suiteTests = allTests.Where(t => suiteTestIds.Contains(t.Id)).ToList();
-		
-			List<TestMetaId> allMetaIds = allTests.SelectMany(t => t.Metadata).Distinct().ToList();			
-			
-			List<TestStream> testStreams = new List<TestStream>();
-			for (int i = 0; i < streamIds.Length; i++)
-			{
-				StreamId id = streamIds[i];
-
-				List<ITestDataRef> streamRefs = refs.Where(r => r.StreamId == id).ToList();
-
-				allTestIds.Clear();
-				testIds.Clear();
-				suiteTestIds.Clear();
-
-				for (int j = 0; j < streamRefs.Count; j++)
-				{
-					ITestDataRef testRef = streamRefs[j];
-
-					if (testRef.TestId != null)
-					{
-						testIds.Add(testRef.TestId.Value);
-						allTestIds.Add(testRef.TestId.Value);
-					}
-					else if (testRef.SuiteTests != null)
-					{
-						foreach (ISuiteTestData t in testRef.SuiteTests)
-						{
-							suiteTestIds.Add(t.TestId);
-							allTestIds.Add(t.TestId);
-						}
-					}
-				}
-
-				List<ITest> streamTests = allTests.Where(x => allTestIds.Contains(x.Id)).ToList<ITest>();
-				List<ITestSuite> streamSuites = suites.Where(x => allTestIds.Intersect(x.Tests).Any()).ToList<ITestSuite>();
-				
-				List<TestMetaId> streamMetaIds = streamTests.SelectMany(t => t.Metadata).Distinct().ToList();
-				List<ITestMeta> streamMeta = metaData.Where(x => streamMetaIds.Contains(x.Id)).ToList();
-				testStreams.Add(new TestStream(id, streamTests, streamSuites, streamMeta));
-			}
-
-			return testStreams;
+			await _testRefs.InsertOneAsync(testRef);
 		}
 
 		/// <summary>
@@ -1069,7 +1071,7 @@ namespace Horde.Build.Jobs.TestData
 						break;
 				}
 
-				await _testRefs.InsertOneAsync(testRef);
+				await AddTestRef(testRef);
 
 			}
 			catch (Exception ex)
@@ -1213,7 +1215,7 @@ namespace Horde.Build.Jobs.TestData
 							testRef.SuiteTests.Add(new SuiteTestData(document.Id, outcome, TimeSpan.FromSeconds(test.TimeElapseSec), test.TestUID));
 						}
 
-						await _testRefs.InsertOneAsync(testRef);
+						await AddTestRef(testRef);
 					}
 					else
 					{
