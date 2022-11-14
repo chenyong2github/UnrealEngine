@@ -106,25 +106,26 @@ public:
 	TConstArrayView<FTensorDesc> GetInputTensorDescs() const;
 	TConstArrayView<FTensorDesc> GetOutputTensorDescs() const;
 
-	/** Getters for input/output shapes if they were set already. Empty list otherwise. See SetInputShapes() */
+	/** Getters for input shapes if they were set already (see SetInputTensorShapes). Empty list otherwise. */
 	TConstArrayView<FTensorShape> GetInputTensorShapes() const;
+
+	/** Getters for outputs shapes if they were already resolved. Empty list otherwise.
+	* Output shape might be resolved after a call to SetInputTensorShapes() if the model and engine support it
+	* otherwise they will be resolved during Run() or EnqueueRDG() */
 	TConstArrayView<FTensorShape> GetOutputTensorShapes() const;
 	
-	/** This call will prepare the model to be run with the given input shape, it is an optional call.
-	 * Run() and EnqueueRDG() will call it internally if it was not call explicitely.
-	 * It is recommended to call this function ahead of time to avoid overhead during the first model execution. */
-	virtual int SetInputShapes(TConstArrayView<FTensorShape> InInputShapes);
+	/** Prepare the model to be run with the given input shape, The call is mandatory before Run or Enqueue() can be called. */
+	virtual int SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes);
 
-	/** This call is synchronous on all engine types(CPU, RDG, GPU), i.e.the calling thread will be blocked.
-	 * until execution is finished */
+	/** This call is synchronous on all engine types(CPU, RDG, GPU), i.e.the calling thread will be blocked until execution is finished.
+	* Bindings should point to a buffers big enough */
 	virtual int Run(TConstArrayView<FMLTensorBinding> InInputTensors,
-		            TConstArrayView<FTensorShape> InInputShapes,
 					TConstArrayView<FMLTensorBinding> InOutputTensors) = 0;
 
-	/** Enqueue the execution on the Render graph render thread. It's caller's responsibility to actually run the graph. */
+	/** Enqueue the execution on the Render graph render thread. It's caller's responsibility to actually run the graph.
+	* Bindings should point to a buffers big enough */
 	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, 
 		TConstArrayView<FMLTensorBinding> InInputTensors, 
-		TConstArrayView<FTensorShape> InInputShapes,
 		TConstArrayView<FMLTensorBinding> InOutputTensors)
 	{
 		return -1;
@@ -136,10 +137,10 @@ protected:
 		: Type(InType)
 	{}
 
-	TArray<FTensorShape>		InputTensorShapes;
-	TArray<FTensorShape>		OutputTensorShapes;
-	TArray<FTensorDesc>	InputSymbolicTensors;
-	TArray<FTensorDesc>	OutputSymbolicTensors;
+	TArray<FTensorShape>	InputTensorShapes;
+	TArray<FTensorShape>	OutputTensorShapes;
+	TArray<FTensorDesc>		InputSymbolicTensors;
+	TArray<FTensorDesc>		OutputSymbolicTensors;
 	EMLInferenceModelType	Type;
 };
 

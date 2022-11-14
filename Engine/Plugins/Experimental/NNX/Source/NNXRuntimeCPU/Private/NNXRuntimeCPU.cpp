@@ -191,13 +191,7 @@ bool FMLInferenceModelCPU::ConfigureTensors(const bool InIsInput)
 		}
 
 		FTensorDesc SymbolicTensorDesc = FTensorDesc::Make(FString(CurTensorName), Shape, TypeAndSize.first);
-		if (!SymbolicTensorDesc.IsConcrete())
-			{
-				UE_LOG(LogNNX, Display,
-					TEXT("Negative (i.e., variable) dimensions not allowed yet, hard-coded to 1. Let us know if you really need variable dimensions."
-						" Keep in mind that fixed sizes might allow additional optimizations and speedup of the network during Run()."));
-			}
-
+		
 		check(SymbolicTensorDesc.GetElemByteSize() == TypeAndSize.second);
 		SymbolicTensorDescs.Emplace(SymbolicTensorDesc);
 	}
@@ -205,33 +199,46 @@ bool FMLInferenceModelCPU::ConfigureTensors(const bool InIsInput)
 	return true;
 }
 
-int FMLInferenceModelCPU::SetInputShapes(TConstArrayView<FTensorShape> InInputShapes)
+int FMLInferenceModelCPU::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 {
-	//Verify input shape are valid for the model
-	if (FMLInferenceModel::SetInputShapes(InInputShapes) != 0)
+	// Verify input shape are valid for the model and set InputTensorShapes
+	if (FMLInferenceModel::SetInputTensorShapes(InInputShapes) != 0)
 	{
 		return -1;
 	}
 
-	//Run shape inference
-	//TODO jira 168972: handle dynamic input shape
-
-	//Build concrete input and output tensor descriptions
+	// Setup concrete input tensor
 	InputTensors.Empty();
-	for (FTensorDesc SymbolicTensorDesc : InputSymbolicTensors)
+	for (int i = 0; i < InputSymbolicTensors.Num(); ++i)
 	{
-		InputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+		FTensor Tensor = FTensor::Make(InputSymbolicTensors[i].GetName(), InInputShapes[i], InputSymbolicTensors[i].GetDataType());
+		InputTensors.Emplace(Tensor);
 	}
+
+	// Here model optimization could be done now that we know the input shapes, for some models
+	// this would allow to resolve output shapes here rather than during inference.
+
+	// Setup concrete output shapes only if all model output shapes are concretes, otherwise it will be set during Run()
 	OutputTensors.Empty();
 	for (FTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
 	{
-		OutputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+		if (SymbolicTensorDesc.IsConcrete())
+		{
+			FTensor Tensor = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
+			OutputTensors.Emplace(Tensor);
+			OutputTensorShapes.Emplace(Tensor.GetShape());
+		}
+	}
+	if (OutputTensors.Num() != OutputSymbolicTensors.Num())
+	{
+		OutputTensors.Empty();
+		OutputTensorShapes.Empty();
 	}
 
 	return 0;
 }
 
-int FMLInferenceModelCPU::Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FTensorShape> InInputShapes, TConstArrayView<FMLTensorBinding> InOutputBindings)
+int FMLInferenceModelCPU::Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FMLInferenceModelCPU_Run"), STAT_FMLInferenceModelCPU_Run, STATGROUP_MachineLearning);
 
@@ -242,11 +249,10 @@ int FMLInferenceModelCPU::Run(TConstArrayView<FMLTensorBinding> InInputBindings,
 		return -1;
 	}
 
-	// Prepare the model for the concrete input shapes
-	int Res = SetInputShapes(InInputShapes);
-	if (Res != 0)
+	// Verify the model inputs were prepared
+	if (InputTensorShapes.Num() == 0)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Model preparation failed with error code:%d"), Res);
+		UE_LOG(LogNNX, Error, TEXT("Run(): Input shapes are not set, please call SetInputTensorShapes."));
 		return -1;
 	}
 
@@ -265,13 +271,36 @@ int FMLInferenceModelCPU::Run(TConstArrayView<FMLTensorBinding> InInputBindings,
 		TArray<Ort::Value> InputOrtTensors;
 		BindTensorsToORT(InInputBindings, InputTensors, InputTensorsORTType, AllocatorInfo.Get(), InputOrtTensors);
 
-		TArray<Ort::Value> OutputOrtTensors;
-		BindTensorsToORT(InOutputBindings, OutputTensors, OutputTensorsORTType, AllocatorInfo.Get(), OutputOrtTensors);
+		if (!OutputTensors.IsEmpty())
+		{
+			// If output shapes are known we can directly map preallocated output buffers
+			TArray<Ort::Value> OutputOrtTensors;
+			BindTensorsToORT(InOutputBindings, OutputTensors, OutputTensorsORTType, AllocatorInfo.Get(), OutputOrtTensors);
 
-		Session->Run(Ort::RunOptions{ nullptr },
-			InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),
-			OutputTensorNames.GetData(), &OutputOrtTensors[0], OutputTensorNames.Num());
+			Session->Run(Ort::RunOptions{ nullptr },
+				InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),
+				OutputTensorNames.GetData(), &OutputOrtTensors[0], OutputTensorNames.Num());
+		}
+		else
+		{
+			TArray<Ort::Value> OutputOrtTensors;
+			for (int i = 0; i < InOutputBindings.Num(); ++i)
+			{
+				OutputOrtTensors.Emplace(nullptr);
+			}
 
+			Session->Run(Ort::RunOptions{ nullptr },
+				InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),
+				OutputTensorNames.GetData(), &OutputOrtTensors[0], OutputTensorNames.Num());
+			
+			// Output shapes were resolved during inference: Copy the data back to bindings and expose output tensor shapes
+			CopyFromORTToBindings(OutputOrtTensors, InOutputBindings, OutputSymbolicTensors, OutputTensors);
+			check(OutputTensorShapes.IsEmpty());
+			for (int i = 0; i < OutputTensors.Num(); ++i)
+			{
+				OutputTensorShapes.Emplace(OutputTensors[i].GetShape());
+			}
+		}
 	}
 #if WITH_EDITOR
 	catch (const std::exception& Exception)

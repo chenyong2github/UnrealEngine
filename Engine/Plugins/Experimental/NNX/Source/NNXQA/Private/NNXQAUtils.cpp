@@ -14,6 +14,21 @@ namespace NNX
 {
 namespace Test 
 {
+	static void FillTensors(
+		TConstArrayView<FTensor> TensorsFromTestSetup,
+		TConstArrayView<FTensorDesc> TensorDescsFromModel,
+		TArray<FTensor>& OutTensors)
+	{
+		OutTensors = TensorsFromTestSetup;
+		if (OutTensors.IsEmpty())
+		{
+			for (const FTensorDesc& SymbolicTensorDesc : TensorDescsFromModel)
+			{
+				FTensor TensorDesc = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
+				OutTensors.Emplace(TensorDesc);
+			}
+		}
+	}
 	static void FillTensorBindings(TConstArrayView<FTensor> TensorDescs,
 		TArray<TArray<char>>& OutMemBuffers, TArray<FMLTensorBinding>& OutBindings,
         std::function<float(EMLTensorDataType, uint32, uint32)> Initializer)
@@ -140,8 +155,8 @@ namespace Test
 	}
 
 	template<typename T> bool CompareTensorData(
-		const NNX::FTensor& RefTensorDesc,   const TArray<char>& RefRawBuffer,
-		const NNX::FTensor& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
+		const FTensor& RefTensorDesc,   const TArray<char>& RefRawBuffer,
+		const FTensor& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
 		float AbsoluteErrorEpsilon, float RelativeErrorPercent)
 	{
 		const T* RefBuffer = (T*)RefRawBuffer.GetData();
@@ -242,8 +257,8 @@ namespace Test
 	}
 
 	bool VerifyTensorResult(
-		const NNX::FTensor& RefTensorDesc, const TArray<char>& RefRawBuffer,
-		const NNX::FTensor& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
+		const FTensor& RefTensorDesc, const TArray<char>& RefRawBuffer,
+		const FTensor& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
 		float AbsoluteErrorEpsilon, float RelativeErrorPercent)
 	{
 		bool bTensorDescMatch = true;
@@ -325,11 +340,11 @@ namespace Test
 		return FMath::Sin((float)(ElementIndex + IndexOffsetBetweenTensor * TensorIndex));
 	}
 
-	static int RunTestInference(const FNNIModelRaw& ONNXModelData, IRuntime* Runtime, 
-		TArray<FTensor>& OutOutputTensorsDesc, TArray<TArray<char>>& OutOutputMemBuffers)
+	static int RunTestInference(const FNNIModelRaw& ONNXModelData, const FTests::FTestSetup& TestSetup, 
+		IRuntime* Runtime, TArray<FTensor>& OutOutputTensors, TArray<TArray<char>>& OutOutputMemBuffers)
 	{
 		OutOutputMemBuffers.Empty();
-		OutOutputTensorsDesc.Empty();
+		OutOutputTensors.Empty();
 
 		FOptimizerOptionsMap Options;
 		FNNIModelRaw RuntimeModelData;
@@ -350,37 +365,25 @@ namespace Test
 			return -1;
 		}
 
-		//bind input tensors to memory (CPU) and initialize
-		TConstArrayView<FTensorDesc> InputSymbolicTensorDescs = InferenceModel->GetInputTensorDescs();
-		TArray<FTensorShape> InputShapes;
-		TArray<FTensor> InputTensorsDescs;
+		// If test does not ask for specific input/output, fill with model default converting variable dim to 1 if any.
+		TArray<FTensor> InputTensors;
+		
+		FillTensors(TestSetup.Inputs, InferenceModel->GetInputTensorDescs(), InputTensors);
+		FillTensors(TestSetup.Outputs, InferenceModel->GetOutputTensorDescs(), OutOutputTensors);
+		
+		// bind tensors to memory (CPU) and initialize
 		TArray<FMLTensorBinding> InputBindings;
+		TArray<FMLTensorBinding> OutputBindings;
 		TArray<TArray<char>> InputMemBuffers;
+		TArray<TArray<char>> OutputMemBuffers;
 		
-		for (const FTensorDesc& SymbolicTensorDesc : InputSymbolicTensorDescs)
-		{
-			FTensor TensorDesc = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
-			InputShapes.Emplace(TensorDesc.GetShape());
-			InputTensorsDescs.Emplace(TensorDesc);
-		}
-		FillTensorBindings(InputTensorsDescs, InputMemBuffers, InputBindings, InputTensorInitializer);
-		
-		//bind output tensors to memory (CPU) and initialize
-		TConstArrayView<FTensorDesc> OutputSymbolicTensorDescs = InferenceModel->GetOutputTensorDescs();
-		TArray<FTensor> OutputTensorsDescs;
-		TArray<NNX::FMLTensorBinding> OutputBindings;
+		FillTensorBindings(InputTensors, InputMemBuffers, InputBindings, InputTensorInitializer);
+		FillTensorBindings(OutOutputTensors, OutOutputMemBuffers, OutputBindings, OutputTensorInitializer);
 
-		for (const FTensorDesc& SymbolicTensorDesc : OutputSymbolicTensorDescs)
-		{
-			FTensor TensorDesc = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
-			OutputTensorsDescs.Emplace(TensorDesc);
-		}
-		OutOutputTensorsDesc = OutputTensorsDescs;
-		FillTensorBindings(OutputTensorsDescs, OutOutputMemBuffers, OutputBindings, OutputTensorInitializer);
+		check(InputTensors.Num() == InputMemBuffers.Num());
+		check(OutOutputTensors.Num() == OutOutputMemBuffers.Num());
 
-		check(OutOutputTensorsDesc.Num() == OutOutputMemBuffers.Num());
-
-		//To help for debugging sessions.
+		// To help for debugging sessions.
 		#ifdef UE_BUILD_DEBUG
 		const constexpr int32 NumTensorPtrForDebug = 3;
 		float* InputsAsFloat[NumTensorPtrForDebug];
@@ -397,8 +400,29 @@ namespace Test
 		}
 		#endif //UE_BUILD_DEBUG
 
-		//run inference
-		int ReturnValue = InferenceModel->Run(InputBindings, InputShapes, OutputBindings);
+		
+		TArray<FTensorShape> InputShapes;
+		for (const FTensor& Tensor : InputTensors)
+		{
+			InputShapes.Emplace(Tensor.GetShape());
+		}
+
+		// Setup inputs
+		int ReturnValue = InferenceModel->SetInputTensorShapes(InputShapes);
+		if (ReturnValue != 0)
+		{
+			UE_LOG(LogNNX, Error, TEXT("Failed to set input tensor shapes."));
+			return ReturnValue;
+		}
+
+		// Run inference
+		ReturnValue = InferenceModel->Run(InputBindings, OutputBindings);
+		if (ReturnValue != 0)
+		{
+			UE_LOG(LogNNX, Error, TEXT("Failed to run the model."));
+			return ReturnValue;
+		}
+		
 		return ReturnValue;
 	}
 
@@ -413,7 +437,7 @@ namespace Test
 		UE_LOG(LogNNX, Display, TEXT("Starting tests of '%s'"), *TestSetup.TargetName);
 
 		// Reference runtime
-		NNX::IRuntime* RefRuntime = NNX::GetRuntime(TEXT("NNXRuntimeCPU"));
+		IRuntime* RefRuntime = NNX::GetRuntime(TEXT("NNXRuntimeCPU"));
 		if (!RefRuntime)
 		{
 			UE_LOG(LogNNX, Error, TEXT("Can't load NNXRuntimeCPU runtime. Tests ABORTED!"));
@@ -421,15 +445,15 @@ namespace Test
 		}
 		const FString& RefName = RefRuntime->GetRuntimeName();
 		TArray<TArray<char>> RefOutputMemBuffers;
-		TArray<NNX::FTensor> RefOutputTensorDescs;
+		TArray<FTensor> RefOutputTensorDescs;
 
-		RunTestInference(ONNXModel, RefRuntime, RefOutputTensorDescs, RefOutputMemBuffers);
+		RunTestInference(ONNXModel, TestSetup, RefRuntime, RefOutputTensorDescs, RefOutputMemBuffers);
 
 		// Test against other runtime
-		TArray<NNX::IRuntime*> Runtimes;
+		TArray<IRuntime*> Runtimes;
 		bool bAllTestsSucceeded = true;
 
-		Runtimes = NNX::GetAllRuntimes();
+		Runtimes = GetAllRuntimes();
 		for (auto Runtime : Runtimes)
 		{
 			const FString& RuntimeName = Runtime->GetRuntimeName();
@@ -459,12 +483,12 @@ namespace Test
 			else
 			{
 				TArray<TArray<char>> OutputMemBuffers;
-				TArray<NNX::FTensor> OutputTensorDescs;
+				TArray<FTensor> OutputTensorDescs;
 				bool bTestSuceeded = true;
 				float AbsoluteErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RuntimeName);
 				float RelativeErrorPercent = TestSetup.GetRelativeErrorPercentForRuntime(RuntimeName);
 
-				RunTestInference(ONNXModel, Runtime, OutputTensorDescs, OutputMemBuffers);
+				RunTestInference(ONNXModel, TestSetup, Runtime, OutputTensorDescs, OutputMemBuffers);
 				if (OutputTensorDescs.Num() == RefOutputTensorDescs.Num())
 				{
 					for (int i = 0; i < OutputTensorDescs.Num(); ++i)

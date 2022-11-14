@@ -84,8 +84,8 @@ namespace NNX
 		bool Init(const UMLInferenceModel* InferenceModel);
 		bool IsLoaded() const;
 
-		virtual int SetInputShapes(TConstArrayView<FTensorShape> InInputShapes) override;
-		virtual int Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FTensorShape> InInputShapes, TConstArrayView<FMLTensorBinding> InOutputBindings) override;
+		virtual int SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes) override;
+		virtual int Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings) override;
 
 		float GetLastRunTimeMSec() const;
 		UE::NNEProfiling::Internal::FStatistics GetRunStatistics() const;

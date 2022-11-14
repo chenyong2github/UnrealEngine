@@ -63,9 +63,9 @@ public:
 
 	~FMLInferenceModelRDG();
 
-	virtual int SetInputShapes(TConstArrayView<FTensorShape> InputShapes) override;
-	virtual int Run(TConstArrayView<FMLTensorBinding> InputBindings, TConstArrayView<FTensorShape> InputShapes, TConstArrayView<FMLTensorBinding> OutputBindings) override;
-	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FMLTensorBinding> InputBindings, TConstArrayView<FTensorShape> InputShapes, TConstArrayView<FMLTensorBinding> OutputBindings) override;
+	virtual int SetInputTensorShapes(TConstArrayView<FTensorShape> InputShapes) override;
+	virtual int Run(TConstArrayView<FMLTensorBinding> InputBindings, TConstArrayView<FMLTensorBinding> OutputBindings) override;
+	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FMLTensorBinding> InputBindings, TConstArrayView<FMLTensorBinding> OutputBindings) override;
 
 protected:
 

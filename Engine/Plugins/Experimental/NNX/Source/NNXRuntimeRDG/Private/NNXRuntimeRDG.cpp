@@ -244,21 +244,21 @@ bool FMLInferenceModelRDG::LoadModel(const FNNIModelRaw& InModel, FMLRuntimeForm
 /**
  * Run the inference model (synchronous version)
  */
-int FMLInferenceModelRDG::Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FTensorShape> InInputShapes, TConstArrayView<FMLTensorBinding> InOutputBindings)
+int FMLInferenceModelRDG::Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings)
 {
-	// Prepare the model for the concrete input shapes
-	int Res = SetInputShapes(InInputShapes);
-	if (Res != 0)
+	// Verify the model inputs were prepared
+	if (InputTensorShapes.Num() == 0)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Model preparation failed with error code:%d"), Res);
+		UE_LOG(LogNNX, Error, TEXT("Run(): Input shapes are not set, please call SetInputTensorShapes."));
 		return -1;
 	}
 	
+	int Res = 0;
 	FEvent* Signal = FGenericPlatformProcess::GetSynchEventFromPool(false);
 
 	ENQUEUE_RENDER_COMMAND(FMLInferenceModel_Run)
 	(
-		[&Signal, &Res, this, InInputBindings, InInputShapes, InOutputBindings](FRHICommandListImmediate& RHICmdList)
+		[&Signal, &Res, this, InInputBindings, InOutputBindings](FRHICommandListImmediate& RHICmdList)
 		{
 			TOptional<ERHIPipeline>		Pipeline = RHICmdList.GetPipeline();
 
@@ -269,7 +269,7 @@ int FMLInferenceModelRDG::Run(TConstArrayView<FMLTensorBinding> InInputBindings,
 
 			FRDGBuilder	RDGBuilder(RHICmdList);
 
-			Res = EnqueueRDG(RDGBuilder, InInputBindings, InInputShapes, InOutputBindings);
+			Res = EnqueueRDG(RDGBuilder, InInputBindings, InOutputBindings);
 			if (Res == 0)
 			{
 				RDGBuilder.Execute();
@@ -305,10 +305,10 @@ int FMLInferenceModelRDG::Run(TConstArrayView<FMLTensorBinding> InInputBindings,
 	return Res;
 }
 
-int FMLInferenceModelRDG::SetInputShapes(TConstArrayView<FTensorShape> InInputShapes)
+int FMLInferenceModelRDG::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 {
-	//Verify input shape are valid for the model
-	if (FMLInferenceModel::SetInputShapes(InInputShapes) != 0)
+	//Verify input shape are valid for the model and set InputTensorShapes
+	if (FMLInferenceModel::SetInputTensorShapes(InInputShapes) != 0)
 	{
 		return -1;
 	}
@@ -329,10 +329,13 @@ int FMLInferenceModelRDG::SetInputShapes(TConstArrayView<FTensorShape> InInputSh
 	{
 		InputTensors.Emplace(AllTensors[InputIndices]);
 	}
+	
 	OutputTensors.Empty();
+	OutputTensorShapes.Empty();
 	for (int32 OutputIndices : OutputTensorIndices)
 	{
 		OutputTensors.Emplace(AllTensors[OutputIndices]);
+		OutputTensorShapes.Emplace(AllTensors[OutputIndices].GetShape());
 	}
 	check(InputTensorIndices.Num() + OutputTensorIndices.Num() + IntermediateTensorIndices.Num() == AllTensors.Num());
 	check(InputTensors.Num() + OutputTensors.Num() + IntermediateTensorIndices.Num() == AllSymbolicTensors.Num());
@@ -352,17 +355,16 @@ FRDGBufferDesc CreateRDGBufferDescFromTensorDesc(const FTensor& TensorDesc)
 /**
  * Enqueue operators to RDG, the caller will run the GraphBuilder.Execute()
  */
-int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FTensorShape> InInputShapes, TConstArrayView<FMLTensorBinding> InOutputBindings)
+int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings)
 {
 	check(IsInRenderingThread());
 
 	int Res;
 
-	// Prepare the model for the concrete input shapes
-	Res = SetInputShapes(InInputShapes);
-	if (Res != 0)
+	// Verify the model inputs were prepared
+	if (InputTensorShapes.Num() == 0)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Model preparation failed with error code:%d"), Res);
+		UE_LOG(LogNNX, Error, TEXT("EnqueueRDG(): Input shapes are not set, please call SetInputTensorShapes."));
 		return -1;
 	}
 

@@ -42,8 +42,10 @@ namespace NNX
 		return Binding;
 	}
 
-	int FMLInferenceModel::SetInputShapes(TConstArrayView<FTensorShape> InInputShapes)
+	int FMLInferenceModel::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 	{
+		InputTensorShapes.Empty();
+		
 		if (InInputShapes.Num() != InputSymbolicTensors.Num())
 		{
 			UE_LOG(LogNNX, Warning, TEXT("Number of input shapes does not match number of input tensors"));
@@ -60,9 +62,10 @@ namespace NNX
 			}
 		}
 
-		//Implementations are responsible to handle shape inference.
-		//This base implementation only validate that all inputs are
-		//matching what the model can support.
+		InputTensorShapes = InInputShapes;
+
+		//Implementations are responsible to handle output and intermediate tensor shape inference.
+		//This base implementation only validate that all inputs are matching what the model can support.
 		return 0;
 	}
 

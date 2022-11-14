@@ -143,7 +143,7 @@ void FMLInferenceModelHlsl::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilde
 	checkCode(
 		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
 		{
-			check(AllTensors[i].GetDataSize() == AllTensorBindings[i].SizeInBytes);
+			check(AllTensors[i].GetDataSize() <= AllTensorBindings[i].SizeInBytes);
 		}
 	);
 

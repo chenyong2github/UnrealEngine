@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/UnrealMemory.h"
 #include "NNXTypes.h"
 #include "NNXRuntime.h"
 #include "NNXThirdPartyWarningDisabler.h"
@@ -15,7 +16,7 @@ DECLARE_STATS_GROUP(TEXT("MachineLearning"), STATGROUP_MachineLearning, STATCAT_
 
 using TypeInfoORT = std::pair<EMLTensorDataType, uint64>;
 
-inline TypeInfoORT TranslateTensorTypeORTToNNI(unsigned int OrtDataType) 
+inline TypeInfoORT TranslateTensorTypeORTToNNI(unsigned int OrtDataType)
 {
 	EMLTensorDataType DataType = EMLTensorDataType::None;
 	uint64 ElementSize = 0;
@@ -108,19 +109,19 @@ inline TypeInfoORT TranslateTensorTypeORTToNNI(unsigned int OrtDataType)
 		break;
 	}
 
-	return TypeInfoORT{DataType, ElementSize};
+	return TypeInfoORT{ DataType, ElementSize };
 }
 
 inline void BindTensorsToORT(
-	TArrayView<const NNX::FMLTensorBinding> InBindingTensors,
-	const TArray<NNX::FTensor>& InTensorsDescriptors,
-	const TArray<ONNXTensorElementDataType>& InTensorsORTType, 
+	TConstArrayView<const NNX::FMLTensorBinding> InBindingTensors,
+	TConstArrayView<NNX::FTensor> InTensors,
+	TConstArrayView<ONNXTensorElementDataType> InTensorsORTType,
 	const Ort::MemoryInfo* InAllocatorInfo,
-	TArray<Ort::Value>& OutOrtTensors	
+	TArray<Ort::Value>& OutOrtTensors
 )
 {
 	const uint32 NumBinding = InBindingTensors.Num();
-	const uint32 NumDescriptors = InTensorsDescriptors.Num();
+	const uint32 NumDescriptors = InTensors.Num();
 
 	if (NumBinding != NumDescriptors)
 	{
@@ -130,28 +131,77 @@ inline void BindTensorsToORT(
 
 	for (uint32 Index = 0; Index < NumBinding; ++Index)
 	{
-		const NNX::FMLTensorBinding& CurrentBinding = InBindingTensors[Index];
-		const NNX::FTensor& CurrentDescriptor = InTensorsDescriptors[Index];
-		ONNXTensorElementDataType CurrentORTType = InTensorsORTType[Index];
+		const NNX::FMLTensorBinding& Binding = InBindingTensors[Index];
+		const NNX::FTensor& Tensor = InTensors[Index];
+		const ONNXTensorElementDataType CurrentORTType = InTensorsORTType[Index];
 
 		TUniquePtr<int64_t[]> SizesInt64t;
-		SizesInt64t = MakeUnique<int64_t[]>(CurrentDescriptor.GetShape().Rank());
-		for (int32 DimIndex = 0; DimIndex < CurrentDescriptor.GetShape().Rank(); ++DimIndex)
+		SizesInt64t = MakeUnique<int64_t[]>(Tensor.GetShape().Rank());
+		for (int32 DimIndex = 0; DimIndex < Tensor.GetShape().Rank(); ++DimIndex)
 		{
-			SizesInt64t.Get()[DimIndex] = CurrentDescriptor.GetShape().Data[DimIndex];
+			SizesInt64t.Get()[DimIndex] = Tensor.GetShape().Data[DimIndex];
 		}
 
-		const uint64 ByteCount { InTensorsDescriptors[Index].GetDataSize() };
-		const uint32 ArrayDimensions { (uint32)CurrentDescriptor.GetShape().Rank() };
+		const uint64 ByteCount{ InTensors[Index].GetDataSize() };
+		const uint32 ArrayDimensions{ (uint32)Tensor.GetShape().Rank() };
 		OutOrtTensors.Emplace(
 			Ort::Value::CreateTensor(
 				*InAllocatorInfo,
-				CurrentBinding.CpuMemory,
-				ByteCount, 
+				Binding.CpuMemory,
+				ByteCount,
 				SizesInt64t.Get(),
-				ArrayDimensions, 
+				ArrayDimensions,
 				CurrentORTType
 			)
 		);
+	}
+}
+
+inline void CopyFromORTToBindings(
+	TConstArrayView<Ort::Value> InOrtTensors,
+	TConstArrayView<const NNX::FMLTensorBinding> InBindingTensors,
+	TConstArrayView<NNX::FTensorDesc> InTensorDescs,
+	TArray<NNX::FTensor>& OutTensors
+)
+{
+	const uint32 NumBinding = InOrtTensors.Num();
+	const uint32 NumDescriptors = InTensorDescs.Num();
+
+	if (NumBinding != NumDescriptors)
+	{
+		UE_LOG(LogNNX, Error, TEXT("CopyFromORTToBindings: Number of Bindings is different of Descriptors."));
+		return;
+	}
+
+	for (uint32 Index = 0; Index < NumBinding; ++Index)
+	{
+		const NNX::FMLTensorBinding& Binding = InBindingTensors[Index];
+		const NNX::FTensorDesc& TensorDesc = InTensorDescs[Index];
+		const Ort::Value& OrtTensor = InOrtTensors[Index];
+		const std::vector<int64_t>& OrtShape = OrtTensor.GetTensorTypeAndShapeInfo().GetShape();
+
+		NNX::FTensorShape Shape;
+		for (int32 DimIndex = 0; DimIndex < OrtShape.size(); ++DimIndex)
+		{
+			check(OrtShape[DimIndex] >= 0);
+			Shape.Data.Add(OrtShape[DimIndex]);
+		}
+
+		NNX::FTensor Tensor = NNX::FTensor::Make(TensorDesc.GetName(), Shape, TensorDesc.GetDataType());
+		OutTensors.Emplace(Tensor);
+
+		void* CpuMemory = (uint8_t*)Binding.CpuMemory + Binding.OffsetInBytes;
+		const void* OrtTensorData = OrtTensor.GetTensorData<void>();
+		const uint64 DataSize = FMath::Min(Tensor.GetDataSize(), Binding.SizeInBytes);
+
+		if (DataSize >= 0)
+		{
+			FMemory::Memcpy(CpuMemory, OrtTensorData, DataSize);
+		}
+
+		if (Tensor.GetDataSize() > Binding.SizeInBytes)
+		{
+			UE_LOG(LogNNX, Error, TEXT("CopyFromORTToBindings: Binding buffer was not large enough to contain all of the data, only first %d bytes were copied."), DataSize);
+		}
 	}
 }

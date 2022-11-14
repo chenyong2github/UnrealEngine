@@ -79,6 +79,28 @@
 					"tags": [ "SmokeTest" ]
 				}
 			]
+		},
+		{
+			"category": "VariableInputShapes",
+			"is_model_test": true,
+			"targets": [
+				{
+					"target": "OneLayerNoWeightVariableInputShape",
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "skip": true, "comment": "RDG does not support variable input sized tensor" },
+						{ "name": "NNXRuntimeDML",  "skip": true, "comment": "RDG does not support variable input sized tensor" }
+					]
+				},
+				{
+					"target": "TwoLayersNoWeightVariableInputShape",
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "skip": true, "comment": "RDG does not support variable input sized tensor" },
+						{ "name": "NNXRuntimeDML",  "skip": true, "comment": "RDG does not support variable input sized tensor" }
+					]
+				}
+			]
 		}
 	],
 
@@ -259,9 +281,16 @@
 
 	"input_output_sets": [
 		{
+			"name": "VariableInputShapes.Regular",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1,1 ] } ], "comment": "if not specified output is defaulted as the first input" },
+				{ "inputs": [ { "shape": [ 2,3 ] } ] }
+			]
+		},
+		{
 			"name": "Elementwise.Unary.Regular",
 			"datasets": [
-				{ "inputs": [ { "shape": [ 1 ] } ], "comment": "if not specified output is defaulted as the first input" },
+				{ "inputs": [ { "shape": [ 1 ] } ] },
 				{ "inputs": [ { "shape": [ 1,2,3,4 ] } ] },
 				{ "inputs": [ { "shape": [ 1,512 ] } ] }
 			]

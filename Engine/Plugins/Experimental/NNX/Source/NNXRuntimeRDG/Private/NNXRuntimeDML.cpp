@@ -1522,7 +1522,7 @@ void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder
 	checkCode(
 		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
 		{
-			check(AllTensors[i].GetDataSize() == AllTensorBindings[i].SizeInBytes);
+			check(AllTensors[i].GetDataSize() <= AllTensorBindings[i].SizeInBytes);
 		}
 	);
 
