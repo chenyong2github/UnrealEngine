@@ -386,15 +386,15 @@ void FComputeKernelShaderCompilationManager::ProcessCompiledComputeKernelShaderM
 					{
 						if (CompletedShaderMap->IsComplete(Kernel, true))
 						{
-							const FString PlatformName = ShaderPlatformToShaderFormatName(ShaderMap->GetShaderPlatform()).ToString();
+							const FString ShaderFormatName = FDataDrivenShaderPlatformInfo::GetShaderFormat(ShaderMap->GetShaderPlatform()).ToString();
 							if (bSuccess)
 							{
-								const FString SuccessMessage = FString::Printf(TEXT("%s: %s shader compilation success!"), *Kernel->GetFriendlyName(), *PlatformName);
+								const FString SuccessMessage = FString::Printf(TEXT("%s: %s shader compilation success!"), *Kernel->GetFriendlyName(), *ShaderFormatName);
 								Kernel->NotifyCompilationFinished(SuccessMessage);
 							}
 							else
 							{
-								const FString FailMessage = FString::Printf(TEXT("%s: %s shader compilation failed."), *Kernel->GetFriendlyName(), *PlatformName);
+								const FString FailMessage = FString::Printf(TEXT("%s: %s shader compilation failed."), *Kernel->GetFriendlyName(), *ShaderFormatName);
 								Kernel->NotifyCompilationFinished(FailMessage);
 							}
 						}
@@ -430,9 +430,10 @@ void FComputeKernelShaderCompilationManager::ProcessCompiledComputeKernelShaderM
 
 			if (ShaderMap && ShaderMap->CompiledSuccessfully())
 			{
+				const FString ShaderFormatName = FDataDrivenShaderPlatformInfo::GetShaderFormat(ShaderMap->GetShaderPlatform()).ToString();
 				const FString SuccessMessage = FString::Printf(TEXT("%s: %s shader compilation success!"), 
 					*Kernel->GetFriendlyName(), 
-					*ShaderPlatformToShaderFormatName(ShaderMap->GetShaderPlatform()).ToString());
+					*ShaderFormatName);
 				Kernel->NotifyCompilationFinished(SuccessMessage);
 			}
 			else

@@ -390,10 +390,11 @@ void FComputeKernelShaderMap::Compile(
 				else if (ShaderType)
 				{
 					InKernel->RemoveOutstandingCompileId(CompilingId);
+					const FString ShaderFormatName = FDataDrivenShaderPlatformInfo::GetShaderFormat(InPlatform).ToString();
 
 					FString Message = FString::Printf(TEXT("%s: Compilation not supported on %s."), 
 						*InKernel->GetFriendlyName(), 
-						*ShaderPlatformToShaderFormatName(InPlatform).ToString());
+						*ShaderFormatName);
 					InKernel->NotifyCompilationFinished(Message);
 				}
 			}

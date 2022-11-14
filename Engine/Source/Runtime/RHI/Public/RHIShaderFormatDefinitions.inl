@@ -30,60 +30,6 @@ static FName NAME_VULKAN_SM5_ANDROID(TEXT("SF_VULKAN_SM5_ANDROID"));
 
 static FName NAME_D3D_ES3_1_HOLOLENS(TEXT("D3D_ES3_1_HOLOLENS"));
 
-static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
-{
-	switch (Platform)
-	{
-	case SP_PCD3D_SM6:
-		return NAME_PCD3D_SM6;
-	case SP_PCD3D_SM5:
-		return NAME_PCD3D_SM5;
-	case SP_PCD3D_ES3_1:
-		return NAME_PCD3D_ES3_1;
-
-	case SP_OPENGL_PCES3_1:
-		return NAME_GLSL_150_ES31;
-	case SP_OPENGL_ES3_1_ANDROID:
-		return NAME_GLSL_ES3_1_ANDROID;
-
-	case SP_METAL:
-		return NAME_SF_METAL;
-	case SP_METAL_MRT:
-		return NAME_SF_METAL_MRT;
-	case SP_METAL_TVOS:
-		return NAME_SF_METAL_TVOS;
-	case SP_METAL_MRT_TVOS:
-		return NAME_SF_METAL_MRT_TVOS;
-	case SP_METAL_MRT_MAC:
-		return NAME_SF_METAL_MRT_MAC;
-	case SP_METAL_SM5:
-		return NAME_SF_METAL_SM5;
-	case SP_METAL_MACES3_1:
-		return NAME_SF_METAL_MACES3_1;
-	case SP_VULKAN_ES3_1_ANDROID:
-		return NAME_VULKAN_ES3_1_ANDROID;
-	case SP_VULKAN_PCES3_1:
-		return NAME_VULKAN_ES3_1;
-	case SP_VULKAN_SM5:
-		return NAME_VULKAN_SM5;
-	case SP_VULKAN_SM5_ANDROID:
-		return NAME_VULKAN_SM5_ANDROID;
-	case SP_D3D_ES3_1_HOLOLENS:
-		return NAME_D3D_ES3_1_HOLOLENS;
-
-	default:
-		if (FStaticShaderPlatformNames::IsStaticPlatform(Platform))
-		{
-			return FStaticShaderPlatformNames::Get().GetShaderFormat(Platform);
-		}
-		else
-		{
-			checkf(0, TEXT("Unknown EShaderPlatform %d!"), (int32)Platform);
-			return NAME_PCD3D_SM5;
-		}
-	}
-}
-
 static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 {
 	if (ShaderFormat == NAME_PCD3D_SM6)					return SP_PCD3D_SM6;

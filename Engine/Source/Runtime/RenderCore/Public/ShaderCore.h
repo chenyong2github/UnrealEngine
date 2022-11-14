@@ -117,7 +117,7 @@ extern RENDERCORE_API void InitializeShaderHashCache();
 extern RENDERCORE_API void UpdateIncludeDirectoryForPreviewPlatform(EShaderPlatform PreviewPlatform, EShaderPlatform ActualPlatform);
 
 /** Checks if shader include isn't skipped by a shader hash cache. */
-extern RENDERCORE_API void CheckShaderHashCacheInclude(const FString& VirtualFilePath, EShaderPlatform ShaderPlatform);
+extern RENDERCORE_API void CheckShaderHashCacheInclude(const FString& VirtualFilePath, EShaderPlatform ShaderPlatform, const FString& ShaderFormatName);
 
 /** Initializes cached shader type data.  This must be called before creating any FShaderType. */
 extern RENDERCORE_API void InitializeShaderTypes();

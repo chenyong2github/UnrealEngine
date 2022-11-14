@@ -93,7 +93,7 @@ private:
 			}
 			else
 			{
-				CheckShaderHashCacheInclude(VirtualFilePath, This->ShaderInput.Target.GetPlatform());
+				CheckShaderHashCacheInclude(VirtualFilePath, This->ShaderInput.Target.GetPlatform(), This->ShaderInput.ShaderFormat.ToString());
 
 				LoadShaderSourceFile(*VirtualFilePath, This->ShaderInput.Target.GetPlatform(), &FileContents, &This->ShaderOutput.Errors, &This->ShaderInput.ShaderPlatformName);
 			}

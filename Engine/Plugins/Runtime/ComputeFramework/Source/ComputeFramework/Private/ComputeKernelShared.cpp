@@ -391,7 +391,8 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 	}
 	else
 	{
-		NotifyCompilationFinished(FString::Printf(TEXT("%s: Loaded %s shaders from DDC."), *GetFriendlyName(), *ShaderPlatformToShaderFormatName(InPlatform).ToString()));
+		const FString ShaderFormatName = FDataDrivenShaderPlatformInfo::GetShaderFormat(InPlatform).ToString();
+		NotifyCompilationFinished(FString::Printf(TEXT("%s: Loaded %s shaders from DDC."), *GetFriendlyName(), *ShaderFormatName));
 		bSucceeded = true;
 	}
 

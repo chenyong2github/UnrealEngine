@@ -1481,7 +1481,7 @@ void UpdateIncludeDirectoryForPreviewPlatform(EShaderPlatform PreviewPlatform, E
 	GShaderHashCache.UpdateIncludeDirectoryForPreviewPlatform(PreviewPlatform, ActualPlatform);
 }
 
-void CheckShaderHashCacheInclude(const FString& VirtualFilePath, EShaderPlatform ShaderPlatform)
+void CheckShaderHashCacheInclude(const FString& VirtualFilePath, EShaderPlatform ShaderPlatform, const FString& ShaderFormatName)
 {
 	FRWScopeLock ShaderHashAccessLock(GShaderHashAccessRWLock, SLT_ReadOnly);
 	bool bIgnoreInclude = GShaderHashCache.ShouldIgnoreInclude(VirtualFilePath, ShaderPlatform);
@@ -1489,7 +1489,7 @@ void CheckShaderHashCacheInclude(const FString& VirtualFilePath, EShaderPlatform
 	checkf(!bIgnoreInclude,
 		TEXT("Shader compiler is trying to include %s, which is not located in IShaderFormat::GetPlatformIncludeDirectory for %s."),
 		*VirtualFilePath,
-		*ShaderPlatformToShaderFormatName(ShaderPlatform).ToString());
+		*ShaderFormatName);
 }
 
 void InitializeShaderTypes()
