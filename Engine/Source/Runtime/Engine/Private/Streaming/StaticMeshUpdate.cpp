@@ -237,12 +237,11 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 #if RHI_RAYTRACING
 				if (IsRayTracingEnabled() && Context.Mesh->bSupportRayTracing &&
 					LODResource.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
-				{
-					check(LODResource.RayTracingGeometry.RayTracingGeometryRHI != nullptr);
+				{					
 					check(IntermediateRayTracingGeometry[LODIdx].RayTracingGeometryRHI != nullptr);
 					LODResource.RayTracingGeometry.InitRHIForStreaming(IntermediateRayTracingGeometry[LODIdx].RayTracingGeometryRHI, Batcher);
 
-					LODResource.RayTracingGeometry.bRequiresBuild = IntermediateRayTracingGeometry[LODIdx].bRequiresBuild;
+					LODResource.RayTracingGeometry.SetRequiresBuild(IntermediateRayTracingGeometry[LODIdx].GetRequiresBuild());
 
 					IntermediateRayTracingGeometry[LODIdx].Initializer = {};
 					IntermediateRayTracingGeometry[LODIdx].RayTracingGeometryRHI.SafeRelease();				
@@ -253,7 +252,7 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 
 #if RHI_RAYTRACING
 		// Must happen after the batched updates have been flushed
-		if (IsRayTracingEnabled() && Context.Mesh->bSupportRayTracing)
+		if (IsRayTracingAllowed() && Context.Mesh->bSupportRayTracing)
 		{
 			for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 			{
@@ -273,8 +272,13 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 						LODResource.SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
 					}
 					LODResource.RayTracingGeometry.SetInitializer(Initializer);
+					LODResource.RayTracingGeometry.SetAsStreamedIn();			
 
-					LODResource.RayTracingGeometry.RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority::Normal);
+					// Under very rare circumstances that we switch ray tracing on/off right in the middle of streaming RayTracingGeometryRHI might not be valid.
+					if (IsRayTracingEnabled() && LODResource.RayTracingGeometry.RayTracingGeometryRHI.IsValid())
+					{
+						LODResource.RayTracingGeometry.RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority::Normal);
+					}
 				}
 			}
 
@@ -399,7 +403,7 @@ void FStaticMeshStreamOut::ReleaseRHIBuffers(const FContext& Context)
 			LODResource.ReleaseRHIForStreaming(Batcher);
 			
 #if RHI_RAYTRACING
-			if (IsRayTracingEnabled())
+			if (IsRayTracingAllowed())
 			{
 				LODResource.RayTracingGeometry.ReleaseRHIForStreaming(Batcher);
 			}

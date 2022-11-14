@@ -123,7 +123,7 @@ void FRayTracingGeometryManager::Tick()
 		{
 			if (Geometry->RayTracingGeometryRHI == nullptr)
 			{
-				Geometry->InitRHI();
+				Geometry->InitRHIForDynamicRayTracing();
 			}
 		}
 	}

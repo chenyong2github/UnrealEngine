@@ -515,7 +515,7 @@ void FRayTracingGeometry::CreateRayTracingGeometryFromCPUData(TResourceArray<uin
 		Initializer.OfflineData = nullptr;
 	}
 
-	bRequiresBuild = Initializer.OfflineData == nullptr;		
+	SetRequiresBuild(Initializer.OfflineData == nullptr);
 	RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
 }
 
@@ -523,11 +523,52 @@ void FRayTracingGeometry::RequestBuildIfNeeded(ERTAccelerationStructureBuildPrio
 {
 	RayTracingGeometryRHI->SetInitializer(Initializer);
 
-	if (bRequiresBuild)
+	if (GetRequiresBuild())
 	{
 		RayTracingBuildRequestIndex = GRayTracingGeometryManager.RequestBuildAccelerationStructure(this, InBuildPriority);
-		bRequiresBuild = false;
+		SetRequiresBuild(false);
 	}	
+}
+
+void FRayTracingGeometry::InitRHIForDynamicRayTracing()
+{
+	check(GetRayTracingMode() == ERayTracingMode::Dynamic);
+
+	// Streaming BLAS needs special handling to not get their "streaming" type wiped out as it will cause issues down the line.	
+	// We only have to do this if the geometry was marked to be streamed in.
+	// In that case we will recreate the geometry as-if it was streamed in.
+	if (EnumHasAnyFlags(GeometryState, FRayTracingGeometry::EGeometryStateFlags::StreamedIn))
+	{
+		// When a mesh is streamed in (FStaticMeshStreamIn::DoFinishUpdate) we update the geometry initializer using just streamed in VB/IB.
+		// That initializer sets a Rendering type but RHI object was created as StreamingDestination and we have a mismatch between geometry initializer and RHI initializer.
+		// It's not an issue unless we try to initialize the geometry again using the geometry's initializer.
+		// We need the current geometry and RHI object to be StreamingDestination so the streaming continues to work.
+		Initializer.Type = ERayTracingGeometryInitializerType::StreamingDestination;
+
+		// Creating RHI with StreamingDestination type will only initialize RHI object but will not created the underlying BLAS buffers.
+		InitRHI();
+		
+		// Here we simulate geometry streaming: create geometry with StreamingSource type to allocate BLAS buffers (1) and swap it with the current geometry (2).
+		// Follows the same pattern as: (1) FStaticMeshStreamIn::CreateBuffers_* (2) FStaticMeshStreamIn::DoFinishUpdate
+		// There is no other way to initialize BLAS buffers for the geometry that has a StreamingDestination type.
+		{			
+			TRHIResourceUpdateBatcher<1> Batcher;
+			FRayTracingGeometryInitializer IntermediateInitializer = Initializer;
+			IntermediateInitializer.Type = ERayTracingGeometryInitializerType::StreamingSource;
+
+			FRayTracingGeometryRHIRef IntermediateRayTracingGeometry = RHICreateRayTracingGeometry(IntermediateInitializer);
+			InitRHIForStreaming(IntermediateRayTracingGeometry, Batcher);
+
+			// When Batcher goes out of scope it will add commands to copy the BLAS buffers on RHI thread.
+			// We need to do it before we build the current geometry (also on RHI thread).
+		}
+		
+		RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority::Normal);
+	}
+	else
+	{
+		InitRHI();
+	}
 }
 
 void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority)
@@ -560,7 +601,16 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 	const bool bWithoutNativeResource = Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination;
 	if (bAllSegmentsAreValid)
 	{
-		bValid = !bWithoutNativeResource;
+		// Only geometries with StreamingDestination type are initially created in invalid state until they are streamed in (see InitRHIForStreaming).
+		if (bWithoutNativeResource)
+		{
+			EnumRemoveFlags(GeometryState, EGeometryStateFlags::Valid);
+		}
+		else
+		{
+			EnumAddFlags(GeometryState, EGeometryStateFlags::Valid);
+		}
+
 		if (IsRayTracingEnabled())
 		{
 			RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
@@ -583,16 +633,16 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 				{
 					RayTracingBuildRequestIndex = GRayTracingGeometryManager.RequestBuildAccelerationStructure(this, InBuildPriority);
 				}
-				bRequiresBuild = false;
+				SetRequiresBuild(false);
 			}
 			else
 			{
-				bRequiresBuild = true;
+				SetRequiresBuild(true);
 			}
 		}
 		else
 		{
-			bRequiresBuild = false;
+			SetRequiresBuild(false);
 
 			// Offline data ownership is transferred to the RHI, which discards it after use.
 			// It is no longer valid to use it after this point.
@@ -603,7 +653,7 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 
 bool FRayTracingGeometry::IsValid() const
 {
-	return RayTracingGeometryRHI != nullptr && Initializer.TotalPrimitiveCount > 0 && bValid;
+	return RayTracingGeometryRHI != nullptr && Initializer.TotalPrimitiveCount > 0 && EnumHasAnyFlags(GeometryState, EGeometryStateFlags::Valid);
 }
 
 void FRayTracingGeometry::InitRHI()

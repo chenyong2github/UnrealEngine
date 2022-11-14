@@ -743,7 +743,24 @@ public:
 
 	FRayTracingGeometryInitializer Initializer;
 	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
-	bool bRequiresBuild = false;
+
+	// Flags for tracking the state of RayTracingGeometryRHI.
+	enum class EGeometryStateFlags : uint32
+	{
+		// Initial state when the geometry was not created or was created for streaming but not yet streamed in.
+		Invalid			= 0,
+
+		// If the geometry needs to be built.
+		RequiresBuild	= 1 << 0,
+
+		// If the geometry was successfully created or streamed in.
+		Valid			= 1 << 1,
+
+		// Special flag that is used when ray tracing is dynamic to mark the streamed geometry to be recreated when ray tracing is switched on.
+		// Only set when mesh streaming is used.
+		StreamedIn		= 1 << 2
+	};
+	FRIEND_ENUM_CLASS_FLAGS(EGeometryStateFlags);
 
 	/** LOD of the mesh associated with this ray tracing geometry object (-1 if unknown) */
 	int8 LODIndex = -1;
@@ -755,13 +772,42 @@ public:
 
 	bool IsValid() const;
 
+	void SetAsStreamedIn()
+	{
+		EnumAddFlags(GeometryState, EGeometryStateFlags::StreamedIn);
+	}
+
+	bool GetRequiresBuild() const 
+	{
+		return EnumHasAnyFlags(GeometryState, EGeometryStateFlags::RequiresBuild);
+	}
+
+	void SetRequiresBuild(bool bBuild)
+	{
+		if (bBuild)
+		{
+			EnumAddFlags(GeometryState, EGeometryStateFlags::RequiresBuild);
+		}
+		else
+		{
+			EnumRemoveFlags(GeometryState, EGeometryStateFlags::RequiresBuild);
+		}
+	}
+	
+	EGeometryStateFlags GetGeometryState() const 
+	{ 
+		return GeometryState; 
+	}
+
 	template <uint32 MaxNumUpdates>
 	void InitRHIForStreaming(FRHIRayTracingGeometry* IntermediateGeometry, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
+		EnumAddFlags(GeometryState, EGeometryStateFlags::StreamedIn);
+
 		if (RayTracingGeometryRHI && IntermediateGeometry)
 		{
 			Batcher.QueueUpdateRequest(RayTracingGeometryRHI, IntermediateGeometry);
-			bValid = true;
+			EnumAddFlags(GeometryState, EGeometryStateFlags::Valid);
 		}
 	}
 
@@ -771,15 +817,19 @@ public:
 		Initializer = {};
 
 		RemoveBuildRequest();
+		EnumRemoveFlags(GeometryState, EGeometryStateFlags::StreamedIn);
 
 		if (RayTracingGeometryRHI)
 		{
 			Batcher.QueueUpdateRequest(RayTracingGeometryRHI, nullptr);
-			bValid = false;
+			EnumRemoveFlags(GeometryState, EGeometryStateFlags::Valid);
 		}		
 	}
 	void CreateRayTracingGeometryFromCPUData(TResourceArray<uint8>& OfflineData);
 	void RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority InBuildPriority);
+
+	// That function is only supposed to be used when dynamic ray tracing is enabled
+	void InitRHIForDynamicRayTracing();
 
 	void CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority);
 
@@ -803,9 +853,13 @@ protected:
 	friend class FRayTracingGeometryManager;
 	int32 RayTracingBuildRequestIndex = INDEX_NONE;
 	int32 RayTracingGeometryHandle = INDEX_NONE; // Only valid when ray tracing is dynamic
-	bool bValid = false;
+	EGeometryStateFlags GeometryState = EGeometryStateFlags::Invalid;
 #endif
 };
+
+#if RHI_RAYTRACING
+ENUM_CLASS_FLAGS(FRayTracingGeometry::EGeometryStateFlags);
+#endif
 
 /**
  * A system for dynamically allocating GPU memory for vertices.

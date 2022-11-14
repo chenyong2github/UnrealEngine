@@ -343,16 +343,16 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	{
 		checkf(Geometry.Initializer.OfflineData == nullptr, TEXT("Dynamic geometry is not expected to have offline acceleration structure data"));
 		Geometry.RayTracingGeometryRHI = RHICreateRayTracingGeometry(Geometry.Initializer);
-		Geometry.bRequiresBuild = true;
+		Geometry.SetRequiresBuild(true);
 	}
 
 	FRayTracingGeometryBuildParams Params;
 	Params.Geometry = Geometry.RayTracingGeometryRHI;
-	Params.BuildMode = Geometry.bRequiresBuild
+	Params.BuildMode = Geometry.GetRequiresBuild()
 		? EAccelerationStructureBuildMode::Build
 		: EAccelerationStructureBuildMode::Update;
 
-	Geometry.bRequiresBuild = false;
+	Geometry.SetRequiresBuild(false);
 
 	if (bUseSharedVertexBuffer)
 	{

@@ -432,7 +432,7 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 	if (NewValue && !bDynamicRayTracingGeometry)
 	{
 		bDynamicRayTracingGeometry = true;
-		if (IsRayTracingEnabled())
+		if (IsRayTracingAllowed())
 		{
 			DynamicRayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
 
@@ -464,7 +464,7 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 	else if (!NewValue && bDynamicRayTracingGeometry)
 	{
 		bDynamicRayTracingGeometry = false;
-		if (IsRayTracingEnabled())
+		if (IsRayTracingAllowed())
 		{
 			for (auto& Geometry : DynamicRayTracingGeometries)
 			{
@@ -743,7 +743,7 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 void FStaticMeshSceneProxy::CreateRenderThreadResources()
 {
 #if RHI_RAYTRACING
-	if(IsRayTracingEnabled() && bSupportRayTracing)
+	if(IsRayTracingAllowed() && bSupportRayTracing)
 	{
 		if (bDynamicRayTracingGeometry)
 		{

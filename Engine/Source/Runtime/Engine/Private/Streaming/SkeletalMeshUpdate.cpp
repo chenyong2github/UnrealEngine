@@ -205,7 +205,7 @@ void FSkeletalMeshStreamIn::DoFinishUpdate(const FContext& Context)
 
 #if RHI_RAYTRACING
 		// Must happen after the batched updates have been flushed
-		if (IsRayTracingEnabled())
+		if (IsRayTracingAllowed())
 		{
 			for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 			{
@@ -364,7 +364,7 @@ void FSkeletalMeshStreamOut::ReleaseBuffers(const FContext& Context)
 			}
 
 #if RHI_RAYTRACING
-			if (IsRayTracingEnabled())
+			if (IsRayTracingAllowed())
 			{
 				if (RenderData->LODRenderData[LODIndex].bReferencedByStaticSkeletalMeshObjects_RenderThread)
 				{

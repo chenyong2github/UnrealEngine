@@ -46,7 +46,7 @@ void FSkeletalMeshObjectStatic::InitResources(USkinnedMeshComponent* InMeshCompo
 			SkelLOD.InitResources(CompLODInfo);
 
 #if RHI_RAYTRACING
-			if (IsRayTracingEnabled() && SkelLOD.SkelMeshRenderData->bSupportRayTracing)
+			if (IsRayTracingAllowed() && SkelLOD.SkelMeshRenderData->bSupportRayTracing)
 			{
 				if (SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects == 0)
 				{
@@ -135,7 +135,7 @@ void FSkeletalMeshObjectStatic::ReleaseResources()
 		if (SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].GetNumVertices() > 0)
 		{
 #if RHI_RAYTRACING
-			if (IsRayTracingEnabled())
+			if (IsRayTracingAllowed())
 			{
 				if (SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects > 0)
 				{

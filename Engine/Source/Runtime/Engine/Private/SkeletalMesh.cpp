@@ -6018,7 +6018,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 	}
 
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled(GetScene().GetShaderPlatform()))
+	if (IsRayTracingAllowed())
 	{
 		if (bRenderStatic)
 		{

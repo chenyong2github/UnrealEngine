@@ -1170,7 +1170,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 #endif
 
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+	if (IsRayTracingAllowed())
 	{
 		for (int32 SubY = 0; SubY < NumSubsections; SubY++)
 		{
