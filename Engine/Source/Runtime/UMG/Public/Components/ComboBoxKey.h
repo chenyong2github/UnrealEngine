@@ -44,6 +44,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style)
 	FTableRowStyle ItemStyle;
 
+	/** The scroll bar style. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style")
+    FScrollBarStyle ScrollBarStyle;
+
 	/** The foreground color to pass through the hierarchy. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style, meta = (DesignerRebuild))
 	FSlateColor ForegroundColor;

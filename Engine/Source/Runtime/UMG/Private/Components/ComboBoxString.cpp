@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/ComboBoxString.h"
+
+#include "DefaultStyleCache.h"
 #include "Widgets/SNullWidget.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ConstructorHelpers.h"
@@ -14,66 +16,25 @@
 /////////////////////////////////////////////////////
 // UComboBoxString
 
-static FComboBoxStyle* DefaultComboBoxStyle = nullptr;
-static FTableRowStyle* DefaultComboBoxRowStyle = nullptr;
-
-#if WITH_EDITOR
-static FComboBoxStyle* EditorComboBoxStyle = nullptr;
-static FTableRowStyle* EditorComboBoxRowStyle = nullptr;
-#endif 
-
 UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	if (DefaultComboBoxStyle == nullptr)
-	{
-		DefaultComboBoxStyle = new FComboBoxStyle(FUMGCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox"));
-
-		// Unlink UMG default colors.
-		DefaultComboBoxStyle->UnlinkColors();
-	}
-
-	if (DefaultComboBoxRowStyle == nullptr)
-	{
-		DefaultComboBoxRowStyle = new FTableRowStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"));
-
-		// Unlink UMG default colors.
-		DefaultComboBoxRowStyle->UnlinkColors();
-	}
-
-	WidgetStyle = *DefaultComboBoxStyle;
-	ItemStyle = *DefaultComboBoxRowStyle;
+	WidgetStyle = FDefaultStyleCache::Get().GetComboBoxStyle();
+	ItemStyle = FDefaultStyleCache::Get().GetComboBoxRowStyle();
+	ScrollBarStyle = FDefaultStyleCache::Get().GetScrollBarStyle();
 
 #if WITH_EDITOR 
-	if (EditorComboBoxStyle == nullptr)
-	{
-		EditorComboBoxStyle = new FComboBoxStyle(FCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("EditorUtilityComboBox"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorComboBoxStyle->UnlinkColors();
-	}
-
-	if (EditorComboBoxRowStyle == nullptr)
-	{
-		EditorComboBoxRowStyle = new FTableRowStyle(FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorComboBoxRowStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorComboBoxStyle;
-		ItemStyle = *EditorComboBoxRowStyle;
+		WidgetStyle = FDefaultStyleCache::Get().GetEditorComboBoxStyle();
+		ItemStyle = FDefaultStyleCache::Get().GetEditorComboBoxRowStyle();
+		ScrollBarStyle = FDefaultStyleCache::Get().GetEditorScrollBarStyle();
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
-#endif // WITH_EDITOR
-
-	WidgetStyle.UnlinkColors();
-	ItemStyle.UnlinkColors();
-
+#endif
+	
 	ForegroundColor = ItemStyle.TextColor;
 	bIsFocusable = true;
 
@@ -133,7 +94,7 @@ void UComboBoxString::PostLoad()
 
 TSharedRef<SWidget> UComboBoxString::RebuildWidget()
 {
-	int32 InitialIndex = FindOptionIndex(SelectedOption);
+	const int32 InitialIndex = FindOptionIndex(SelectedOption);
 	if ( InitialIndex != -1 )
 	{
 		CurrentOptionPtr = Options[InitialIndex];
@@ -153,6 +114,7 @@ TSharedRef<SWidget> UComboBoxString::RebuildWidget()
 		.OnGenerateWidget(BIND_UOBJECT_DELEGATE(SComboBox< TSharedPtr<FString> >::FOnGenerateWidget, HandleGenerateWidget))
 		.OnSelectionChanged(BIND_UOBJECT_DELEGATE(SComboBox< TSharedPtr<FString> >::FOnSelectionChanged, HandleSelectionChanged))
 		.OnComboBoxOpening(BIND_UOBJECT_DELEGATE(FOnComboBoxOpening, HandleOpening))
+	    .ScrollBarStyle(&ScrollBarStyle)
 		.IsFocusable(bIsFocusable)
 		[
 			SAssignNew(ComboBoxContent, SBox)
@@ -176,7 +138,7 @@ void UComboBoxString::AddOption(const FString& Option)
 
 bool UComboBoxString::RemoveOption(const FString& Option)
 {
-	int32 OptionIndex = FindOptionIndex(Option);
+	const int32 OptionIndex = FindOptionIndex(Option);
 
 	if ( OptionIndex != -1 )
 	{
@@ -256,7 +218,7 @@ void UComboBoxString::RefreshOptions()
 
 void UComboBoxString::SetSelectedOption(FString Option)
 {
-	int32 InitialIndex = FindOptionIndex(Option);
+	const int32 InitialIndex = FindOptionIndex(Option);
 	SetSelectedIndex(InitialIndex);
 }
 
@@ -335,7 +297,7 @@ void UComboBoxString::UpdateOrGenerateWidget(TSharedPtr<FString> Item)
 
 TSharedRef<SWidget> UComboBoxString::HandleGenerateWidget(TSharedPtr<FString> Item) const
 {
-	FString StringItem = Item.IsValid() ? *Item : FString();
+	const FString StringItem = Item.IsValid() ? *Item : FString();
 
 	// Call the user's delegate to see if they want to generate a custom widget bound to the data source.
 	if ( !IsDesignTime() && OnGenerateWidgetEvent.IsBound() )
@@ -387,4 +349,3 @@ const FText UComboBoxString::GetPaletteCategory()
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
-

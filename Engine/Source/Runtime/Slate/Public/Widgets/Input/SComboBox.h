@@ -111,6 +111,7 @@ public:
 		, _ComboBoxStyle(&FAppStyle::Get().GetWidgetStyle< FComboBoxStyle >("ComboBox"))
 		, _ButtonStyle(nullptr)
 		, _ItemStyle(&FAppStyle::Get().GetWidgetStyle< FTableRowStyle >("ComboBox.Row"))
+		, _ScrollBarStyle(&FAppStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"))
 		, _ContentPadding(_ComboBoxStyle->ContentPadding)
 		, _ForegroundColor(FSlateColor::UseStyle())
 		, _OptionsSource()
@@ -133,6 +134,8 @@ public:
 		SLATE_STYLE_ARGUMENT( FButtonStyle, ButtonStyle )
 
 		SLATE_STYLE_ARGUMENT(FTableRowStyle, ItemStyle)
+		
+		SLATE_STYLE_ARGUMENT( FScrollBarStyle, ScrollBarStyle )
 
 		SLATE_ATTRIBUTE( FMargin, ContentPadding )
 		SLATE_ATTRIBUTE( FSlateColor, ForegroundColor )
@@ -218,7 +221,9 @@ public:
 				.OnSelectionChanged(this, &SComboBox< OptionType >::OnSelectionChanged_Internal)
 				.OnKeyDownHandler(this, &SComboBox< OptionType >::OnKeyDownHandler)
 				.SelectionMode(ESelectionMode::Single)
+				.ScrollBarStyle(InArgs._ScrollBarStyle)
 				.ExternalScrollbar(InArgs._CustomScrollbar)
+				
 			];
 
 		// Set up content

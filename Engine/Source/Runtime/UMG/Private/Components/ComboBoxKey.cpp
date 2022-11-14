@@ -2,6 +2,7 @@
 
 #include "Components/ComboBoxKey.h"
 
+#include "DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Widgets/Layout/SBox.h"
@@ -21,9 +22,9 @@ UComboBoxKey::UComboBoxKey()
 	if (!IsRunningDedicatedServer())
 	{
 #if WITH_EDITOR 
-		const ISlateStyle& SlateStyle = IsEditorWidget() ? FCoreStyle::Get() : FUMGCoreStyle::Get();
-		WidgetStyle = SlateStyle.GetWidgetStyle<FComboBoxStyle>(IsEditorWidget() ? "EditorUtilityComboBox" : "ComboBox");
-		ItemStyle = SlateStyle.GetWidgetStyle<FTableRowStyle>("TableView.Row");
+		WidgetStyle = IsEditorWidget() ? FDefaultStyleCache::Get().GetEditorComboBoxStyle() : FDefaultStyleCache::Get().GetComboBoxStyle();
+		ItemStyle = IsEditorWidget() ? FDefaultStyleCache::Get().GetEditorComboBoxRowStyle() : FDefaultStyleCache::Get().GetComboBoxRowStyle();
+		ScrollBarStyle = IsEditorWidget() ? FDefaultStyleCache::Get().GetEditorScrollBarStyle() : FDefaultStyleCache::Get().GetScrollBarStyle();
 
 		if (IsEditorWidget())
 		{
@@ -31,8 +32,9 @@ UComboBoxKey::UComboBoxKey()
 			PostEditChange();
 		}
 #else
-		WidgetStyle = FUMGCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox");
-		ItemStyle = FUMGCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
+		WidgetStyle = FDefaultStyleCache::Get().GetComboBoxStyle();
+		ItemStyle = FDefaultStyleCache::Get().GetComboBoxRowStyle();
+		ScrollBarStyle = FDefaultStyleCache::Get().GetScrollBarStyle();
 #endif // WITH_EDITOR
 	}
 
@@ -72,6 +74,7 @@ TSharedRef<SWidget> UComboBoxKey::RebuildWidget()
 		.OnSelectionChanged_UObject(this, &UComboBoxKey::HandleSelectionChanged)
 		.OnComboBoxOpening_UObject(this, &UComboBoxKey::HandleOpening)
 		.IsFocusable(bIsFocusable)
+		.ScrollBarStyle(&ScrollBarStyle)
 		[
 			SAssignNew(ComboBoxContent, SBox)
 		];

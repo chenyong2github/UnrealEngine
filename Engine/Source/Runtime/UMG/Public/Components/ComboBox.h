@@ -19,6 +19,9 @@ class UMG_API UComboBox : public UWidget
 
 public:
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style")
+	FScrollBarStyle ScrollBarStyle;
+
 	/** The list of items to be displayed on the combobox. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Content)
 	TArray<TObjectPtr<UObject>> Items;

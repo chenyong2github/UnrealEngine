@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/ComboBox.h"
+#include "DefaultStyleCache.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ComboBox)
 
@@ -9,10 +10,13 @@
 /////////////////////////////////////////////////////
 // UComboBox
 
+static FScrollBarStyle* DefaultScrollBoxBarStyle = nullptr;
+
 UComboBox::UComboBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bIsFocusable = true;
+	ScrollBarStyle = FDefaultStyleCache::Get().GetScrollBarStyle();
 }
 
 void UComboBox::ReleaseSlateResources(bool bReleaseChildren)
@@ -26,12 +30,14 @@ TSharedRef<SWidget> UComboBox::RebuildWidget()
 {
 	TSet<UObject*> UniqueItems(Items);
 	Items = UniqueItems.Array();
-
+	
 	MyComboBox =
 		SNew(SComboBox<UObject*>)
 		.OptionsSource(&ToRawPtrTArrayUnsafe(Items))
 		.OnGenerateWidget(BIND_UOBJECT_DELEGATE(SComboBox<UObject*>::FOnGenerateWidget, HandleGenerateWidget))
-		.IsFocusable(bIsFocusable);
+		.IsFocusable(bIsFocusable)
+		.ScrollBarStyle(&ScrollBarStyle)
+	;
 
 	return MyComboBox.ToSharedRef();
 }
@@ -42,7 +48,7 @@ TSharedRef<SWidget> UComboBox::HandleGenerateWidget(UObject* Item) const
 	if ( OnGenerateWidgetEvent.IsBound() )
 	{
 		UWidget* Widget = OnGenerateWidgetEvent.Execute(Item);
-		if ( Widget != NULL )
+		if ( Widget != nullptr )
 		{
 			return Widget->TakeWidget();
 		}
