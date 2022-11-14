@@ -128,7 +128,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 {
 	check(InActorHandle.IsValid());
 
-	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded() && !WorldPartitionEditorModule->GetDisableLoadingInEditor();
+	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded();
 	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetBounds() : FBox(ForceInit);
 
 #if DO_CHECK
@@ -240,7 +240,7 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 {
 	check(InActorHandle.IsValid());
 
-	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded()  && !WorldPartitionEditorModule->GetDisableLoadingInEditor();
+	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded();
 	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetBounds() : FBox(ForceInit);
 
 #if DO_CHECK

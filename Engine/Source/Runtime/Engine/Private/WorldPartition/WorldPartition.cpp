@@ -280,6 +280,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	, EditorHash(nullptr)
 	, AlwaysLoadedActors(nullptr)
+	, ForceLoadedActors(nullptr)
 	, PinnedActors(nullptr)
 	, WorldPartitionEditor(nullptr)
 	, bStreamingWasEnabled(true)
@@ -495,6 +496,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		AlwaysLoadedActors = new FLoaderAdapterAlwaysLoadedActors(OuterWorld);
 		PinnedActors = new FLoaderAdapterActorList(OuterWorld);
+		
+		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+		ForceLoadedActors = WorldPartitionEditorModule.GetDisableLoadingInEditor() ? new FLoaderAdapterActorList(OuterWorld) : nullptr;
 	}
 
 	check(RuntimeHash);
@@ -695,6 +699,12 @@ void UWorldPartition::Uninitialize()
 		{
 			delete PinnedActors;
 			PinnedActors = nullptr;
+		}
+
+		if (ForceLoadedActors)
+		{
+			delete ForceLoadedActors;
+			ForceLoadedActors = nullptr;
 		}
 
 		if (RegisteredEditorLoaderAdapters.Num())
@@ -1160,6 +1170,11 @@ void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 	EditorHash->HashActor(ActorHandle);
 
 	bShouldCheckEnableStreamingWarning = IsMainWorldPartition();
+
+	if (ForceLoadedActors)
+	{
+		ForceLoadedActors->AddActors({ ActorDesc->GetGuid() });
+	}
 }
 
 void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
@@ -1169,6 +1184,11 @@ void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 
 	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
 	EditorHash->UnhashActor(ActorHandle);
+
+	if (ForceLoadedActors)
+	{
+		ForceLoadedActors->RemoveActors({ ActorDesc->GetGuid() });
+	}
 }
 #endif
 
