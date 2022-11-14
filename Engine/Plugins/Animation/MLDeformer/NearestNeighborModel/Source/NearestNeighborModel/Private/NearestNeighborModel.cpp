@@ -78,6 +78,26 @@ TArray<uint32> ReadTxt(const FString &Path)
 	return UIntArr;
 }
 
+TArray<uint32> Range(const uint32 Start, const uint32 End)
+{
+	TArray<uint32> Arr; Arr.SetNum(End - Start + 1);
+	for (uint32 i = Start; i < End; i++)
+	{
+		Arr[i - Start] = i;
+	}
+	return Arr;
+}
+
+TArray<uint32> AddConstant(const TArray<uint32> &InArr, uint32 Constant)
+{
+	TArray<uint32> OutArr = InArr;
+	for (int32 i = 0; i < InArr.Num(); i++)
+	{
+		OutArr[i] = InArr[i] + Constant;
+	}
+	return OutArr;
+}
+
 void UNearestNeighborModel::ClipInputs(float* InputPtr, int NumInputs)
 {
 	if(InputsMin.Num() == NumInputs && InputsMax.Num() == NumInputs)
@@ -157,40 +177,86 @@ void UNearestNeighborModel::UpdateNetworkOutputDim()
 	}
 }
 
+UE::NearestNeighborModel::EUpdateResult UNearestNeighborModel::UpdateVertexMap(int32 PartId, const FString& VertexMapPath, const FSkelMeshImportedMeshInfo& Info)
+{
+	using namespace UE::NearestNeighborModel;
+	uint8 ReturnCode = EUpdateResult::SUCCESS;
+	const int32 StartIndex = Info.StartImportedVertex;
+	const int32 NumVertices = Info.NumVertices;
+	bool bIsVertexMapValid = true;
+
+	if (VertexMapPath.IsEmpty())
+	{
+		bIsVertexMapValid = false;
+	}
+	else if (!FPaths::FileExists(VertexMapPath))
+	{
+		bIsVertexMapValid = false;
+		ReturnCode |= EUpdateResult::ERROR;
+		UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d txt path %s does not exist"), PartId, *VertexMapPath, NumVertices);
+	}
+	else
+	{
+		const TArray<uint32> PartVertexMap = ReadTxt(ClothPartEditorData[PartId].VertexMapPath);
+		if (PartVertexMap.Num() > NumVertices)
+		{
+			bIsVertexMapValid = false;
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d vertex map has %d vertices, larger than %d vertices in skeletal mesh, using %d vertices instead"), PartId, PartVertexMap.Num(), NumVertices, NumVertices);
+			ReturnCode |= EUpdateResult::ERROR;
+		}
+		else
+		{
+			const int32 MaxIndex = FMath::Max(PartVertexMap);
+			if (MaxIndex >= NumVertices)
+			{
+				bIsVertexMapValid = false;
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d vertex map max index is %d. There are only %d vertices in skeletal mesh, using %d vertices instead"), PartId, MaxIndex, NumVertices, NumVertices);
+				ReturnCode |= EUpdateResult::ERROR;
+			}
+		}
+		if (bIsVertexMapValid)
+		{
+			ClothPartData[PartId].VertexMap = AddConstant(PartVertexMap, StartIndex);
+			return (EUpdateResult)ReturnCode;
+		}
+	}
+
+	ClothPartData[PartId].VertexMap = Range(StartIndex, StartIndex + NumVertices);
+	return (EUpdateResult)ReturnCode;
+}
+
 UE::NearestNeighborModel::EUpdateResult UNearestNeighborModel::UpdateClothPartData()
 {
 	using namespace UE::NearestNeighborModel;
+	uint8 ReturnCode = EUpdateResult::SUCCESS;
 	if(ClothPartEditorData.Num() == 0)
 	{
 		UE_LOG(LogNearestNeighborModel, Error, TEXT("There should be at least 1 cloth part"));
 		return EUpdateResult::ERROR;
 	}
+	if (!GetSkeletalMesh() || !GetSkeletalMesh()->GetImportedModel() || GetSkeletalMesh()->GetImportedModel()->LODModels[0].ImportedMeshInfos.IsEmpty())
+	{
+		UE_LOG(LogNearestNeighborModel, Error, TEXT("SkeletalMesh is None or SkeletalMesh has no imported model."));
+		return EUpdateResult::ERROR;
+	}
+	const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = GetSkeletalMesh()->GetImportedModel()->LODModels[0].ImportedMeshInfos;
 
 	ClothPartData.SetNum(ClothPartEditorData.Num());
 	for(int32 PartId = 0; PartId < GetNumParts(); PartId++)
 	{
-		if(FPaths::FileExists(ClothPartEditorData[PartId].VertexMapPath))
-		{
-			ClothPartData[PartId].PCACoeffNum = ClothPartEditorData[PartId].PCACoeffNum;
-			ClothPartData[PartId].VertexMap = ReadTxt(ClothPartEditorData[PartId].VertexMapPath);
-			ClothPartData[PartId].NumVertices = ClothPartData[PartId].VertexMap.Num();
+		ClothPartData[PartId].PCACoeffNum = ClothPartEditorData[PartId].PCACoeffNum;
+		ReturnCode |= UpdateVertexMap(PartId, ClothPartEditorData[PartId].VertexMapPath, SkelMeshInfos[ClothPartEditorData[PartId].MeshIndex]);
+		ClothPartData[PartId].NumVertices = ClothPartData[PartId].VertexMap.Num();
 
-			// Initialize PCA data with 0 to prevent NearestNeighborModelInstance::Tick from crashing
-			if (!CheckPCAData(PartId))
-			{
-				ClothPartData[PartId].VertexMean.SetNumZeroed(ClothPartData[PartId].NumVertices * 3);
-				ClothPartData[PartId].PCABasis.SetNumZeroed(ClothPartData[PartId].NumVertices * 3 * ClothPartData[PartId].PCACoeffNum);
-
-				// Init default neighbor data.
-				ClothPartData[PartId].NeighborCoeffs.SetNumZeroed(ClothPartData[PartId].PCACoeffNum);
-				ClothPartData[PartId].NeighborOffsets.SetNumZeroed(ClothPartData[PartId].NumVertices * 3);
-				ClothPartData[PartId].NumNeighbors = 1;
-			}
-		}
-		else
+		if (!CheckPCAData(PartId))
 		{
-			UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d txt path %s does not exist"), PartId, *ClothPartEditorData[PartId].VertexMapPath);
-			return EUpdateResult::ERROR;
+			ClothPartData[PartId].VertexMean.SetNumZeroed(ClothPartData[PartId].NumVertices * 3);
+			ClothPartData[PartId].PCABasis.SetNumZeroed(ClothPartData[PartId].NumVertices * 3 * ClothPartData[PartId].PCACoeffNum);
+
+			// Init default neighbor data.
+			ClothPartData[PartId].NeighborCoeffs.SetNumZeroed(ClothPartData[PartId].PCACoeffNum);
+			ClothPartData[PartId].NeighborOffsets.SetNumZeroed(ClothPartData[PartId].NumVertices * 3);
+			ClothPartData[PartId].NumNeighbors = 1;
 		}
 	}
 	UpdatePCACoeffNums();
@@ -199,7 +265,7 @@ UE::NearestNeighborModel::EUpdateResult UNearestNeighborModel::UpdateClothPartDa
 	UpdateNetworkInputDim();
 	UpdateNetworkOutputDim();
 	bClothPartDataValid = true;
-	return EUpdateResult::SUCCESS;
+	return (EUpdateResult)ReturnCode;
 }
 
 TObjectPtr<UAnimSequence> UNearestNeighborModel::GetNearestNeighborSkeletons(int32 PartId)

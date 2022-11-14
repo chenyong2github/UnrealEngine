@@ -10,6 +10,7 @@
 #include "UObject/Object.h"
 #include "NearestNeighborModel.generated.h"
 
+struct FSkelMeshImportedMeshInfo;
 class USkeletalMesh;
 class UGeometryCache;
 class UAnimSequence;
@@ -69,8 +70,11 @@ struct FClothPartEditorData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1", ClampMax = "128"), Category = "Nearest Neighbors")
 	int32 PCACoeffNum = 128;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors", meta = (DisplayName = "Vertex Map Path (Optional)"))
 	FString VertexMapPath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors")
+	int32 MeshIndex = 0;
 };
 
 USTRUCT(BlueprintType, Blueprintable)
@@ -231,6 +235,7 @@ public:
 	void UpdateNetworkInputDim();
 	void UpdateNetworkOutputDim();
 	UE::NearestNeighborModel::EUpdateResult UpdateClothPartData();
+	UE::NearestNeighborModel::EUpdateResult UpdateVertexMap(int32 PartId, const FString& VertexMapPath, const FSkelMeshImportedMeshInfo& Info);
 	void UpdatePCACoeffNums();
 	void UpdateNetworkSize();
 	void UpdateMorphTargetSize();
@@ -296,6 +301,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
 	FString GetModelDir() const;
+
+	int32 GetPartMeshIndex(int32 PartId) const { return ClothPartEditorData[PartId].MeshIndex; }
+	void SetPartMeshIndex(int32 PartId, int32 MeshIndex) { ClothPartEditorData[PartId].MeshIndex = MeshIndex; }
 #endif
 
 

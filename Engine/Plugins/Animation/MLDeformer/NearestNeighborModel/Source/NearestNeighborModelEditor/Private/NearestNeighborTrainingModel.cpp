@@ -36,7 +36,7 @@ const TArray<int32> UNearestNeighborTrainingModel::GetPartVertexMap(const int32 
 int32 UNearestNeighborTrainingModel::SamplePart(int32 PartId, int32 Index)
 {
 	FNearestNeighborGeomCacheSampler* Sampler = static_cast<FNearestNeighborGeomCacheSampler*>(EditorModel->GetSampler());
-	int32 Result = Sampler->SamplePart(Index, NearestNeighborModel->PartVertexMap(PartId));
+	int32 Result = Sampler->SamplePart(Index, PartId);
 	PartSampleDeltas = Sampler->GetPartVertexDeltas();
 	SampleBoneRotations = Sampler->GetBoneRotations();
 	return Result;

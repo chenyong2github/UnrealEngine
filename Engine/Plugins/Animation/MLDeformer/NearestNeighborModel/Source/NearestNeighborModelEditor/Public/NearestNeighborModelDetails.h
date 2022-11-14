@@ -6,6 +6,8 @@
 #include "MLDeformerMorphModelDetails.h"
 
 class UNearestNeighborModel;
+class IPropertyHandle;
+class IDetailChildrenBuilder;
 
 namespace UE::NearestNeighborModel
 {
@@ -27,6 +29,8 @@ namespace UE::NearestNeighborModel
 		virtual bool UpdateMemberPointers(const TArray<TWeakObjectPtr<UObject>>& Objects) override;
 		virtual void AddUpdateResultText(IDetailCategoryBuilder* CategoryBuilder, uint8 Result);
 
+		void GenerateClothPartElementWidget(TSharedRef<IPropertyHandle> PropertyHandle, int32 ArrayIndex, IDetailChildrenBuilder& ChildrenBuilder);
+
 	protected:
 		UNearestNeighborModel* NearestNeighborModel = nullptr;
 		FNearestNeighborEditorModel* NearestNeighborEditorModel = nullptr;
@@ -35,5 +39,10 @@ namespace UE::NearestNeighborModel
 		IDetailCategoryBuilder* ClothPartCategoryBuilder = nullptr;
 		IDetailCategoryBuilder* NearestNeighborCategoryBuilder = nullptr;
 		IDetailCategoryBuilder* KMeansCategoryBuilder = nullptr;
+
+		TArray<TSharedPtr<FString> > SubMeshNames;
+		TMap<TSharedPtr<FString>, int32> SubMeshNameMap;
+		void BuildSubMeshNames();
+		void SubMeshComboSelectionChanged(TSharedPtr<FString> InSelectedItem, ESelectInfo::Type SelectInfo, int32 ArrayIndex);
 	};
 }	// namespace UE::NearestNeighborModel

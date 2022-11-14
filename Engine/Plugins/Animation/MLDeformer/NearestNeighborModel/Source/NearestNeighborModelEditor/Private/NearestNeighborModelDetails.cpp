@@ -7,10 +7,17 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
-#include "SWarningOrErrorBox.h"
+#include "Engine/SkeletalMesh.h"
+#include "IDetailChildrenBuilder.h"
 #include "IDetailGroup.h"
 #include "IDetailsView.h"
+#include "PropertyCustomizationHelpers.h"
+#include "Rendering/SkeletalMeshModel.h"
+#include "Rendering/SkeletalMeshLODModel.h"
+#include "SWarningOrErrorBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -63,6 +70,106 @@ namespace UE::NearestNeighborModel
 			];
 	}
 
+
+	void FNearestNeighborModelDetails::GenerateClothPartElementWidget(TSharedRef<IPropertyHandle> PropertyHandle, int32 ArrayIndex, IDetailChildrenBuilder& ChildrenBuilder)
+	{
+		TSharedPtr<IPropertyHandle> PCACoeffNumPropertyHandle = PropertyHandle->GetChildHandle(TEXT("PCACoeffNum"));
+		TSharedPtr<IPropertyHandle> VertexMapPathHandle = PropertyHandle->GetChildHandle(TEXT("VertexMapPath"));
+
+		typename STextComboBox::FOnTextSelectionChanged SubMeshComboOnSelectionChangedDelegate;
+		SubMeshComboOnSelectionChangedDelegate.BindRaw(this, &FNearestNeighborModelDetails::SubMeshComboSelectionChanged, ArrayIndex);
+		const int32 InitMeshIndex = NearestNeighborModel ? NearestNeighborModel->GetPartMeshIndex(ArrayIndex) : 0;
+
+		ChildrenBuilder.AddCustomRow(FText::GetEmpty())
+		[
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.Padding(5, 2)
+				.FillWidth(0.3f)
+				[
+					PropertyHandle->CreatePropertyNameWidget()
+				]
+
+				+SHorizontalBox::Slot()
+				.Padding(5, 2)
+				.FillWidth(0.7f)
+				[
+					PropertyHandle->CreatePropertyValueWidget()
+				]
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.Padding(5, 2)
+				.FillWidth(0.3f)
+				[
+					PCACoeffNumPropertyHandle->CreatePropertyNameWidget()
+				]
+
+				+SHorizontalBox::Slot()
+				.Padding(5, 2)
+				.FillWidth(0.7f)
+				[
+					PCACoeffNumPropertyHandle->CreatePropertyValueWidget()
+				]
+
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.Padding(5, 2)
+				.FillWidth(0.3f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("Submesh")))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+				+SHorizontalBox::Slot()
+				.Padding(5, 2)
+				.FillWidth(0.7f)
+				[
+					SNew(STextComboBox)
+					.OptionsSource(&SubMeshNames)
+					.OnSelectionChanged(SubMeshComboOnSelectionChangedDelegate)
+					.InitiallySelectedItem(SubMeshNames[InitMeshIndex])
+				]
+			]
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.Padding(5, 2)
+				.FillWidth(0.3f)		
+				[
+					VertexMapPathHandle->CreatePropertyNameWidget()
+				]
+
+				+SHorizontalBox::Slot()
+				.Padding(5, 2)
+				.FillWidth(0.7f)
+				[
+					VertexMapPathHandle->CreatePropertyValueWidget()
+				]
+			]
+		];
+	}
+
 	void FNearestNeighborModelDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	{
 		// Create all the detail categories and add the properties of the base class.
@@ -84,31 +191,14 @@ namespace UE::NearestNeighborModel
 		Group->AddPropertyRow(DetailBuilder.GetProperty(UNearestNeighborModel::GetRecomputeDeltasPropertyName()));
 		Group->AddPropertyRow(DetailBuilder.GetProperty(UNearestNeighborModel::GetRecomputePCAPropertyName()));
 
-		// Cloth part settings
-		ClothPartCategoryBuilder->AddProperty(UNearestNeighborModel::GetClothPartEditorDataPropertyName());
-
-		FString VertexCountStr = "VertexCounts:";
-		if (NearestNeighborModel)
+		BuildSubMeshNames();
+		TSharedRef<IPropertyHandle> ClothPartDataPropertyHandle = DetailBuilder.GetProperty(UNearestNeighborModel::GetClothPartEditorDataPropertyName());
+		if (ClothPartDataPropertyHandle->AsArray().IsValid())
 		{
-			const int32 NumParts = NearestNeighborModel->GetNumParts();
-			VertexCountStr += "[";
-			for (int32 PartId = 0; PartId < NumParts; PartId++)
-			{
-				VertexCountStr += FString::Printf(TEXT("%d"), NearestNeighborModel->GetPartNumVerts(PartId));
-				if (PartId != NumParts - 1)
-				{
-					VertexCountStr += ",";
-				}
-			}
-			VertexCountStr += "]";
+			TSharedRef<FDetailArrayBuilder> PropertyBuilder = MakeShared<FDetailArrayBuilder>(ClothPartDataPropertyHandle, true, false, true);
+			PropertyBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FNearestNeighborModelDetails::GenerateClothPartElementWidget));
+			ClothPartCategoryBuilder->AddCustomBuilder(PropertyBuilder);
 		}
-		FText VertexCountText = FText::FromString(VertexCountStr);
-		ClothPartCategoryBuilder->AddCustomRow(FText::FromString(""))
-			.WholeRowContent()
-			[
-				SNew(STextBlock)
-				.Text(VertexCountText)
-			];
 
 		// Nearest Neighbor settings
 		NearestNeighborCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, DecayFactor));
@@ -183,6 +273,30 @@ namespace UE::NearestNeighborModel
 		}
 	}
 
+	void FNearestNeighborModelDetails::BuildSubMeshNames()
+	{
+		SubMeshNames.Reset();
+		SubMeshNameMap.Reset();
+		if (NearestNeighborModel && NearestNeighborModel->GetSkeletalMesh() && NearestNeighborModel->GetSkeletalMesh()->GetImportedModel())
+		{
+			const FSkeletalMeshLODModel& LODModel =  NearestNeighborModel->GetSkeletalMesh()->GetImportedModel()->LODModels[0];
+			const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = LODModel.ImportedMeshInfos;
+			for (int32 i = 0; i < SkelMeshInfos.Num(); i++)
+			{
+				TSharedPtr<FString> StrPtr = MakeShared<FString>(SkelMeshInfos[i].Name.ToString());
+				SubMeshNames.Add(StrPtr);
+				SubMeshNameMap.Add(StrPtr, i);
+			}
+		}
+	}
+
+	void FNearestNeighborModelDetails::SubMeshComboSelectionChanged(TSharedPtr<FString> InSelectedItem, ESelectInfo::Type SelectInfo, int32 ArrayIndex)
+	{
+		if (NearestNeighborModel)
+		{
+			NearestNeighborModel->SetPartMeshIndex(ArrayIndex, SubMeshNameMap[InSelectedItem]);
+		}
+	}
 }	// namespace UE::NearestNeighborModel
 
 #undef LOCTEXT_NAMESPACE

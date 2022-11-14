@@ -22,6 +22,7 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 					"CoreUObject",
 					"Engine",
+					"InputCore",
 					"Slate",
 					"SlateCore",
 					"EditorWidgets",

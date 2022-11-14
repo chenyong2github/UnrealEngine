@@ -17,7 +17,7 @@
 using namespace UE::MLDeformer;
 namespace UE::NearestNeighborModel
 {
-	uint8 FNearestNeighborGeomCacheSampler::SamplePart(int32 InAnimFrameIndex, const TArray<uint32>& VertexMap)
+	uint8 FNearestNeighborGeomCacheSampler::SamplePart(int32 InAnimFrameIndex, int32 PartId)
 	{
 		FMLDeformerSampler::Sample(InAnimFrameIndex);
 		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent.Get() ? SkeletalMeshComponent->GetSkeletalMeshAsset() : nullptr;
@@ -35,7 +35,12 @@ namespace UE::NearestNeighborModel
 				UE_LOG(LogNearestNeighborModel, Error, TEXT("SamplePart: MeshMappings is empty."));
 				return EUpdateResult::ERROR;
 			}
-			const UE::MLDeformer::FMLDeformerGeomCacheMeshMapping& MeshMapping = MeshMappings[0]; 
+			if (PartId >= MeshMappingIndices.Num())
+			{
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("SamplePart: MeshMappingIndices.Num()=%d is smaller than PartId %d"), MeshMappingIndices.Num(), PartId);
+				return EUpdateResult::ERROR;
+			}
+			const UE::MLDeformer::FMLDeformerGeomCacheMeshMapping& MeshMapping = MeshMappings[MeshMappingIndices[PartId]]; 
 
 			check(SkelMeshInfos.Num() > MeshMapping.MeshIndex);
 			const FSkelMeshImportedMeshInfo& MeshInfo = SkelMeshInfos[MeshMapping.MeshIndex]; 
@@ -57,6 +62,9 @@ namespace UE::NearestNeighborModel
 			const FSkeletalMeshLODRenderData& SkelMeshLODData = SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex];
 			const FSkinWeightVertexBuffer& SkinWeightBuffer = *SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex);
 
+			UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
+			check(NearestNeighborModel != nullptr);
+			const TArray<uint32>& VertexMap = NearestNeighborModel->PartVertexMap(PartId);
 			const int32 NumPartVerts = VertexMap.Num();
 			PartVertexDeltas.Reset();
 			PartVertexDeltas.SetNum(NumPartVerts * 3);
@@ -103,7 +111,6 @@ namespace UE::NearestNeighborModel
 		uint8 Result = EUpdateResult::SUCCESS;
 		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent.Get() ? SkeletalMeshComponent->GetSkeletalMeshAsset() : nullptr;
 		UGeometryCache* GeometryCache = GeometryCacheComponent.Get() ? GeometryCacheComponent->GetGeometryCache() : nullptr;
-		// TODO: make this more general
 		if (SkeletalMeshComponent && SkeletalMesh && GeometryCacheComponent && GeometryCache)
 		{
 			if (!bUsePartOnlyMesh)
@@ -111,6 +118,7 @@ namespace UE::NearestNeighborModel
 				TArray<FString> FailedNames;
 				TArray<FString> VertexMisMatchNames;
 				GenerateGeomCacheMeshMappings(SkeletalMesh, GeometryCache, MeshMappings, FailedNames, VertexMisMatchNames);
+				Result |= GenerateMeshMappingIndices();
 				if (!FailedNames.IsEmpty() || !VertexMisMatchNames.IsEmpty())
 				{
 					Result |= EUpdateResult::WARNING;
@@ -151,12 +159,6 @@ namespace UE::NearestNeighborModel
 				for (int32 SkelMeshIndex = 0; SkelMeshIndex < SkelMeshInfos.Num(); ++SkelMeshIndex)
 				{
 					const FSkelMeshImportedMeshInfo& MeshInfo = SkelMeshInfos[SkelMeshIndex];
-
-					// Hack for now
-					if (MeshInfo.StartImportedVertex != 0)
-					{
-						continue;
-					}
 
 					SkelMeshName = MeshInfo.Name.ToString();
 					if (Track &&
@@ -213,6 +215,7 @@ namespace UE::NearestNeighborModel
 			Result |= EUpdateResult::WARNING;
 			UE_LOG(LogNearestNeighborModel, Warning, TEXT("SkeletalMesh or GeometryCache is none. No mapping is generated"));
 		}
+		Result |= GenerateMeshMappingIndices();
 		return Result;
 	}
 
@@ -244,4 +247,33 @@ namespace UE::NearestNeighborModel
 			UpdateCurveValues();
 		}
 	}
+
+	uint8 FNearestNeighborGeomCacheSampler::GenerateMeshMappingIndices()
+	{
+		UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
+		if (NearestNeighborModel)
+		{
+			const int32 NumParts = NearestNeighborModel->GetNumParts();
+			MeshMappingIndices.SetNum(NumParts);
+			for (int32 PartId = 0; PartId < NumParts; PartId++)
+			{
+				bool bFoundIndex = false;
+				for (int32 MappingId = 0; MappingId < MeshMappings.Num(); MappingId++)
+				{
+					if (MeshMappings[MappingId].MeshIndex == NearestNeighborModel->GetPartMeshIndex(PartId))
+					{
+						MeshMappingIndices[PartId] = MappingId;
+						bFoundIndex = true;
+						break;
+					}
+				}
+				if (!bFoundIndex)
+				{
+					UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d could not find a mesh mapping."), PartId);
+					return EUpdateResult::ERROR;
+				}
+			}
+		}
+		return EUpdateResult::SUCCESS;
+	} 
 };
