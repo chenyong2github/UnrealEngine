@@ -220,14 +220,23 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef & InDstTexture, const FConv
 	EPixelFormat Format;
 	if (VideoDecoderOutput->GetOutputType() != FVideoDecoderOutputPC::EOutputType::HardwareWin8Plus)
 	{
-		//
-		// SW decoder has decoded into a HW texture (not known to RHI) -> copy it into an RHI one
-		//
-		check(VideoDecoderOutput->GetOutputType() == FVideoDecoderOutputPC::EOutputType::SoftwareWin8Plus);
-		check(VideoDecoderOutput->GetFormat() == EPixelFormat::PF_NV12);
+		if (VideoDecoderOutput->GetOutputType() != FVideoDecoderOutputPC::EOutputType::Hardware_DX)
+		{
+			//
+			// SW decoder has decoded into a HW texture (not known to RHI) -> copy it into an RHI one
+			//
+			check(VideoDecoderOutput->GetOutputType() == FVideoDecoderOutputPC::EOutputType::SoftwareWin8Plus);
+			check(VideoDecoderOutput->GetFormat() == EPixelFormat::PF_NV12);
 
-		Format = EPixelFormat::PF_G8; // use fixed format: we flag this as NV12, too - as it is - but DX11 will only support a "higher than normal G8 texture" (with specialized access in shader)
-		bCrossDeviceCopy = false;
+			Format = EPixelFormat::PF_G8; // use fixed format: we flag this as NV12, too - as it is - but DX11 will only support a "higher than normal G8 texture" (with specialized access in shader)
+			bCrossDeviceCopy = false;
+		}
+		else
+		{
+			// We have a texture on the rendering device
+			Format = (VideoDecoderOutput->GetFormat() == PF_NV12) ? PF_G8 : PF_G16; // return a texture, representing the whole NV12/P010 layout as a single texture (1.5 height)
+			bCrossDeviceCopy = false;
+		}
 	}
 	else
 	{

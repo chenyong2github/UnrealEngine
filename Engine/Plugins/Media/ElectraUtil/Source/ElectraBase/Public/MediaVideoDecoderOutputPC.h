@@ -25,10 +25,11 @@ public:
 	enum class EOutputType
 	{
 		Unknown = 0,
-		SoftwareWin7,			// SW decode into buffer
+		SoftwareWin7,			// SW decode into CPU buffer
 		SoftwareWin8Plus,		// SW decode into DX11 texture
 		HardwareWin8Plus,		// HW decode into shared DX11 texture
-		HardwareDX9_DX12,		// HW decode into buffer
+		HardwareDX9_DX12,		// HW decode into CPU buffer
+		Hardware_DX,			// HW decode into DX texture on render device (DX11 or DX12)
 	};
 
 	virtual EOutputType GetOutputType() const = 0;
