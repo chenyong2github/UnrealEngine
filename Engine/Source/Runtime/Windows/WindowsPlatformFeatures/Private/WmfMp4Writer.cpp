@@ -14,8 +14,6 @@ DECLARE_LOG_CATEGORY_EXTERN(MP4, Log, VeryVerbose);
 
 DEFINE_LOG_CATEGORY(MP4);
 
-WINDOWSPLATFORMFEATURES_START
-
 bool FWmfMp4Writer::Initialize(const TCHAR* Filename)
 {
 	CHECK_HR(MFCreateSinkWriterFromURL(Filename, nullptr, nullptr, Writer.GetInitReference()));
@@ -138,7 +136,3 @@ bool FWmfMp4Writer::Finalize()
 
 	return true;
 }
-
-WINDOWSPLATFORMFEATURES_END
-
-

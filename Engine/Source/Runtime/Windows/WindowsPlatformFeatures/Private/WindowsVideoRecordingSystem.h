@@ -13,7 +13,6 @@
 #include "RHI.h"
 #include "RHIResources.h"
 #include "PipelineStateCache.h"
-#include "WindowsPlatformFeaturesCommon.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(WindowsVideoRecordingSystem, VeryVerbose, VeryVerbose);
 

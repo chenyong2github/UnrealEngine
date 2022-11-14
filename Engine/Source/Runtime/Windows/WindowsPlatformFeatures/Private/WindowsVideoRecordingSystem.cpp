@@ -19,8 +19,6 @@ DEFINE_VIDEOSYSTEMRECORDING_STATS
 DEFINE_LOG_CATEGORY(WindowsVideoRecordingSystem);
 CSV_DEFINE_CATEGORY(WindowsVideoRecordingSystem, true);
 
-WINDOWSPLATFORMFEATURES_START
-
 /**
  * This internal helper class handles disabling of the Windows built-in screenshot (PrtScr key) and clip
  * recorder (via Win-G key menu on Windows 10)
@@ -414,6 +412,3 @@ EVideoRecordingState FWindowsVideoRecordingSystem::GetRecordingState() const
 {
 	return RecordState;
 }
-
-WINDOWSPLATFORMFEATURES_END
-

@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "PlatformFeatures.h"
-#include "WindowsPlatformFeaturesCommon.h"
 
 class FWindowsPlatformFeaturesModule : public IPlatformFeaturesModule
 {

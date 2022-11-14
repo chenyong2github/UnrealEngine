@@ -7,8 +7,6 @@
 
 IMPLEMENT_MODULE(FWindowsPlatformFeaturesModule, WindowsPlatformFeatures);
 
-WINDOWSPLATFORMFEATURES_START
-
 FWindowsPlatformFeaturesModule::FWindowsPlatformFeaturesModule()
 {
 }
@@ -23,5 +21,3 @@ void FWindowsPlatformFeaturesModule::StartupModule()
 {
 	FModuleManager::Get().LoadModule(TEXT("GameplayMediaEncoder"));
 }
-
-WINDOWSPLATFORMFEATURES_END

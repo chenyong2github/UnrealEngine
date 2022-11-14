@@ -6,8 +6,6 @@
 DECLARE_LOG_CATEGORY_EXTERN(WmfRingBuffer, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(WmfRingBuffer);
 
-WINDOWSPLATFORMFEATURES_START
-
 void FWmfRingBuffer::Push(AVEncoder::FMediaPacket&& Sample)
 {
 	check(MaxDuration != 0);
@@ -136,6 +134,3 @@ void FWmfRingBuffer::Reset()
 	FScopeLock Lock(&Mutex);
 	Samples.Empty();
 }
-
-WINDOWSPLATFORMFEATURES_END
-

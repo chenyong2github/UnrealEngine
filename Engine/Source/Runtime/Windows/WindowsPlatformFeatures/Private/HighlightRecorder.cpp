@@ -20,8 +20,6 @@
 DEFINE_LOG_CATEGORY(WMF);
 DEFINE_LOG_CATEGORY(HighlightRecorder);
 
-WINDOWSPLATFORMFEATURES_START
-
 //////////////////////////////////////////////////////////////////////////
 // console commands for testing
 
@@ -413,6 +411,3 @@ bool FHighlightRecorder::GetSavingStart(const TArray<AVEncoder::FMediaPacket>& S
 
 	return true;
 }
-
-WINDOWSPLATFORMFEATURES_END
-

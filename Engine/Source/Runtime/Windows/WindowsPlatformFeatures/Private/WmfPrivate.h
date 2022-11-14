@@ -21,8 +21,6 @@ THIRD_PARTY_INCLUDES_START
 	#include <shlwapi.h>
 THIRD_PARTY_INCLUDES_END
 
-#include "WindowsPlatformFeaturesCommon.h"
-
 inline const FString GetComErrorDescription(HRESULT Res)
 {
 	const uint32 BufSize = 4096;
