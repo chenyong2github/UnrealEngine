@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
 	public class ControlRigSpline : ModuleRules
 	{
 		public ControlRigSpline(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("ControlRigSpline/ThirdParty/TinySpline");
+			PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "ThirdParty/TinySpline"));
 
 			PublicDependencyModuleNames.AddRange(
 			new string[]
@@ -17,6 +19,9 @@ namespace UnrealBuildTool.Rules
 				"RigVM",
 				"ControlRig",
 			});
+
+			// TODO: Should not be including private headers in public code
+			PublicIncludePaths.Add(Path.Combine(GetModuleDirectory("ControlRig"), "Private/Units/Highlevel/Hierarchy")); // For RigUnit_FitChainToCurve.h
 		}
 	}
 }

@@ -4,6 +4,7 @@
 #include "Units/RigUnitContext.h"
 #include "Features/IModularFeatures.h"
 #include "Algo/BinarySearch.h"
+#include "RigUnit_FitChainToCurve.h"
 
 #include "tinysplinecxx.h"
 
