@@ -1229,7 +1229,13 @@ private:
 	bool bIsTransacting; // Performing undo/redo transaction
 	bool bIsRunningUnitTest;
 	bool bIsFullyResolvingTemplateNode;
+
+public:
+	
 	bool bSuspendRecomputingTemplateFilters;
+
+private:
+
 #if WITH_EDITOR
 	bool bRegisterTemplateNodeUsage;
 #endif

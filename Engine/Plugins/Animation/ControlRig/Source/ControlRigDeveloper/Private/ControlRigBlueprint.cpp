@@ -4594,7 +4594,8 @@ void UControlRigBlueprint::PatchLinksWithCast()
 					Controller->ReattachLinksToPinObjects(true, &LinksToReattach, true, false, false);
 				}
 			}
-			
+
+			TGuardValue<bool> DisableRecomputeTemplates(Controller->bSuspendRecomputingTemplateFilters, true);
 			Controller->BreakLink(Tuple.Get<2>(), Tuple.Get<3>(), false);
 
 			// notify the user that the link has been broken.

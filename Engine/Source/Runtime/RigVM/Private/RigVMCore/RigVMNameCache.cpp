@@ -5,7 +5,7 @@
 
 #if WITH_EDITOR
 #include "RigVMCore/RigVM.h"
-TAutoConsoleVariable<int32> CVarRigVMNameCacheMaxSize(TEXT("RigVM.NameCacheMaxSize"), 512, TEXT("Change to control how many names are cached per VM instance."));
+TAutoConsoleVariable<int32> CVarRigVMNameCacheMaxSize(TEXT("RigVM.NameCacheMaxSize"), 4096, TEXT("Change to control how many names are cached per VM instance."));
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
