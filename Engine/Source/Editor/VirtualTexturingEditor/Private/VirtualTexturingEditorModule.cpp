@@ -8,12 +8,14 @@
 #include "RuntimeVirtualTextureBuildStreamingMips.h"
 #include "RuntimeVirtualTextureDetailsCustomization.h"
 #include "RuntimeVirtualTextureThumbnailRenderer.h"
+#include "SConvertToVirtualTexture.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "VirtualTextureBuilderAssetTypeActions.h"
 #include "VirtualTextureBuilderThumbnailRenderer.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
 #include "VT/VirtualTextureBuilder.h"
+#include "VirtualTextureConversionWorker.h"
 
 #define LOCTEXT_NAMESPACE "VirtualTexturingEditorModule"
 
@@ -30,6 +32,8 @@ public:
 	//~ Begin IVirtualTexturingEditorModule Interface.
 	virtual bool HasStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
 	virtual bool BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const override;
+	virtual void ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const override;
+	virtual void ConvertVirtualTexturesWithDialog(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual) const override;
 	//~ End IVirtualTexturingEditorModule Interface.
 
 private:
@@ -86,6 +90,25 @@ bool FVirtualTexturingEditorModule::HasStreamedMips(URuntimeVirtualTextureCompon
 bool FVirtualTexturingEditorModule::BuildStreamedMips(URuntimeVirtualTextureComponent* InComponent) const
 {
 	return RuntimeVirtualTexture::BuildStreamedMips(InComponent, ERuntimeVirtualTextureDebugType::None);
+}
+
+void FVirtualTexturingEditorModule::ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const
+{
+	FVirtualTextureConversionWorker VirtualTextureConversionWorker(bConvertBackToNonVirtual);
+	VirtualTextureConversionWorker.UserTextures = Textures;
+	//We want all given texture to be added, so we put a minimum texture size of 0
+	VirtualTextureConversionWorker.FilterList(0);
+	if (RelatedMaterials)
+	{
+		VirtualTextureConversionWorker.Materials.Append(*RelatedMaterials);
+	}
+
+	VirtualTextureConversionWorker.DoConvert();
+}
+
+void FVirtualTexturingEditorModule::ConvertVirtualTexturesWithDialog(const TArray<UTexture2D*>& Textures, bool bConvertBackToNonVirtual) const
+{
+	SConvertToVirtualTexture::ConvertVTTexture(Textures, bConvertBackToNonVirtual);
 }
 
 #undef LOCTEXT_NAMESPACE

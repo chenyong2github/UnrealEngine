@@ -11,6 +11,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "IContentBrowserSingleton.h"
 #include "MaterialEditingLibrary.h"
+#include "AssetRegistry/AssetRegistryHelpers.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSample.h"
 #include "Materials/MaterialFunction.h"
@@ -27,41 +28,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogRuntimeVirtualTextureFixMaterial, Log, Log);
 
 namespace
 {
-	void GetReferencersData(UObject *Object, UClass *MatchClass, TArray<FAssetData> &OutAssetDatas)
-	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-
-		TArray<FAssetIdentifier> Referencers;
-		AssetRegistry.GetReferencers(Object->GetOuter()->GetFName(), Referencers);
-
-		for (auto AssetIdentifier : Referencers)
-		{
-			TArray<FAssetData> Assets;
-			AssetRegistry.GetAssetsByPackageName(AssetIdentifier.PackageName, Assets);
-
-			for (auto AssetData : Assets)
-			{
-				if (MatchClass != nullptr)
-				{
-					if (AssetData.IsInstanceOf(MatchClass))
-					{
-						OutAssetDatas.AddUnique(AssetData);
-					}
-				}
-				else
-				{
-					OutAssetDatas.AddUnique(AssetData);
-				}
-			}
-		}
-	}
-
 	template <class T> 
 	void GetReferencersOfType(UObject *Object, TArray<T*> &OutObjects)
 	{
 		TArray<FAssetData> AssetDatas;
-		GetReferencersData(Object, T::StaticClass(), AssetDatas);
+		UAssetRegistryHelpers::FindReferencersOfAssetOfClass(Object, { T::StaticClass() }, AssetDatas);
 
 		for (auto Data : AssetDatas)
 		{
@@ -253,8 +224,7 @@ void FAssetTypeActions_RuntimeVirtualTexture::ExecuteFindMaterials(TWeakObjectPt
 	URuntimeVirtualTexture* RuntimeVirtualTexture = Object.Get();
 	if (RuntimeVirtualTexture != nullptr)
 	{
-		GetReferencersData(RuntimeVirtualTexture, UMaterialInterface::StaticClass(), Materials);
-		GetReferencersData(RuntimeVirtualTexture, UMaterialFunction::StaticClass(), Materials);
+		UAssetRegistryHelpers::FindReferencersOfAssetOfClass(RuntimeVirtualTexture, { UMaterialInterface::StaticClass(), UMaterialFunction::StaticClass() }, Materials);
 	}
 
 	if (Materials.Num() > 0)

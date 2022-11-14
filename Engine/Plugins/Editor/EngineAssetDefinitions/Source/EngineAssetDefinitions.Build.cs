@@ -21,11 +21,28 @@ public class EngineAssetDefinitions : ModuleRules
 				"UnrealEd",
 				"ToolMenus",
 				"CoreUObject",
+				"RHI",
 				"Engine",
+				"AssetRegistry",
 				"AssetTools",
 				"SlateCore",
+				"InputCore",
 				"Slate",
-				"Kismet"
+				"Kismet",
+				"TextureEditor",
+				"MaterialEditor",
+			}
+		);
+		
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"VirtualTexturingEditor",
+			}
+		);
+
+		DynamicallyLoadedModuleNames.AddRange(
+			new string[] {
+				"VirtualTexturingEditor",
 			}
 		);
 	}

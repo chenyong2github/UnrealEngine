@@ -15,12 +15,14 @@
 #include "UObject/ScriptInterface.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
+#include "Containers/ArrayView.h"
 
 #include "AssetRegistryHelpers.generated.h"
 
 class IAssetRegistry;
 class UClass;
 struct FFrame;
+struct FAssetIdentifier;
 
 USTRUCT(BlueprintType)
 struct FTagAndValue
@@ -108,6 +110,16 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Asset Registry", meta=(ScriptMethod))
 	static ASSETREGISTRY_API UClass* FindAssetNativeClass(const FAssetData& AssetData);
+
+	/**
+	 * Finds references of the provided asset that are of the a class contained in the InMatchClasses set.
+	 */
+	static ASSETREGISTRY_API void FindReferencersOfAssetOfClass(UObject* AssetInstance, TConstArrayView<UClass*> InMatchClasses, TArray<FAssetData>& OutAssetDatas);
+
+	/**
+	 * Finds references of the provided asset that are of the a class contained in the InMatchClasses set.
+	 */
+	static ASSETREGISTRY_API void FindReferencersOfAssetOfClass(const FAssetIdentifier& InAssetIdentifier, TConstArrayView<UClass*> InMatchClasses, TArray<FAssetData>& OutAssetDatas);
 	
 	/** Enable/disable asset registry caching mode for the duration of the scope */
 	struct ASSETREGISTRY_API FTemporaryCachingModeScope

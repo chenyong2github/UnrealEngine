@@ -5,16 +5,19 @@
 #include "CoreMinimal.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/GCObject.h"
+#include "AssetRegistry/AssetIdentifier.h"
 
 class UTexture2D;
 class UMaterial;
 class UMaterialFunctionInterface;
 struct FScopedSlowTask;
+class UClass;
+struct FAssetData;
 
-class FVTConversionWorker : public FGCObject
+class FVirtualTextureConversionWorker : public FGCObject
 {
 public:
-	FVTConversionWorker(bool bInConvertBackward = false) : bConvertBackward(bInConvertBackward){}
+	FVirtualTextureConversionWorker(bool bInConvertBackward = false) : bConvertBackward(bInConvertBackward){}
 
 	bool bConvertBackward;
 
@@ -60,5 +63,3 @@ private:
 	void FindAllTexturesAndMaterials(TArray<UMaterial *> &OutAffectedMaterials, TArray<UMaterialFunctionInterface *> &OutAffectedFunctions, TArray<UTexture2D *> &OutAffectedTextures);
 
 };
-
-void GetReferencersData(UObject *Object, UClass *MatchClass, TArray<FAssetData> &OutAssetDatas);

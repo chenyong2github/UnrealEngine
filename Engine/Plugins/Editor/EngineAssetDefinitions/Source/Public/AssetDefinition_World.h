@@ -18,7 +18,11 @@ public:
 	virtual FText GetAssetDisplayName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_World", "Level"); }
 	virtual FLinearColor GetAssetColor() const override { return FAppStyle::Get().GetColor("LevelEditor.AssetColor"); }
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UWorld::StaticClass(); }
-	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override { return { EAssetCategoryPaths::Basic }; }
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override
+	{
+		static const auto Categories = { EAssetCategoryPaths::Basic };
+		return Categories;
+	}
 
 	virtual TArray<FAssetData> PrepareToActivateAssets(const FAssetActivateArgs& ActivateArgs) const override;
 	virtual EAssetCommandResult OpenAssets(const FAssetOpenArgs& OpenArgs) const override;

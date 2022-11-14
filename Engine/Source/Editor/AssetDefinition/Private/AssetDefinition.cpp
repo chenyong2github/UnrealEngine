@@ -75,9 +75,4 @@ EAssetCommandResult UAssetDefinition::GetFilters(TArray<FAssetFilterData>& OutFi
 	return EAssetCommandResult::Unhandled;
 }
 
-TConstArrayView<FAssetCategoryPath> UAssetDefinition::GetAssetCategories() const
-{
-	return { EAssetCategoryPaths::Basic };
-}
-
 #undef LOCTEXT_NAMESPACE

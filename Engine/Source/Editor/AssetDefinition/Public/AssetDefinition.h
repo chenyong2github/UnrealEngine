@@ -5,6 +5,7 @@
 #include "UObject/Object.h"
 #include "UObject/SoftObjectPtr.h"
 #include "AssetRegistry/AssetData.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Toolkits/IToolkit.h"
 
 #include "AssetDefinition.generated.h"
@@ -56,11 +57,15 @@ struct FAssetArgs
 	template<typename ExpectedObjectType>
 	TArray<ExpectedObjectType*> LoadObjects(const TSet<FName>& LoadTags = {}) const
 	{
+		FScopedSlowTask SlowTask(Assets.Num());
+	
 		TArray<ExpectedObjectType*> LoadedObjects;
 		LoadedObjects.Reserve(Assets.Num());
 		
 		for (const FAssetData& Asset : Assets)
 		{
+			SlowTask.EnterProgressFrame(1, FText::FromString(Asset.GetObjectPathString()));
+			
 			if (Asset.IsInstanceOf(ExpectedObjectType::StaticClass()))
 			{
 				if (ExpectedObjectType* ExpectedType = Cast<ExpectedObjectType>(Asset.GetAsset(LoadTags)))
@@ -179,9 +184,14 @@ struct FAssetDiffArgs
 
 struct FAssetOpenSupportArgs
 {
-	EAssetOpenMethod OpenMethod;
+	EAssetOpenMethod OpenMethod = EAssetOpenMethod::Edit;
 };
 
+/**
+ * The asset category path is how we know how to build menus around assets.  For example, Basic is generally the ones
+ * we expose at the top level, where as everything else is a category with a pull out menu, and the subcategory would
+ * be where it gets placed in a submenu inside of there.
+ */
 struct ASSETDEFINITION_API FAssetCategoryPath
 {
 	FAssetCategoryPath(FText InCategory);
@@ -193,11 +203,15 @@ struct ASSETDEFINITION_API FAssetCategoryPath
 	bool HasSubCategory() const { return CategoryPath.Num() > 1; }
 	FName GetSubCategory() const { return HasSubCategory() ? CategoryPath[1].Key : NAME_None; }
 	FText GetSubCategoryText() const { return HasSubCategory() ? CategoryPath[1].Value : FText::GetEmpty(); }
-
+	
 private:
 	TArray<TPair<FName, FText>> CategoryPath;
 };
 
+/**
+ * These are just some common asset categories.  You're not at all limited to these, and can register an "Advanced"
+ * category with the IAssetTools::RegisterAdvancedAssetCategory.
+ */
 struct ASSETDEFINITION_API EAssetCategoryPaths
 {
 	static FAssetCategoryPath Basic;
@@ -266,7 +280,11 @@ public:
 	virtual FText GetAssetDescription(const FAssetData& AssetData) const { return FText::GetEmpty(); }
 
 	/** Gets a list of categories this asset is in, these categories are used to help organize */
-	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const;
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const
+	{
+		static const auto Categories = { EAssetCategoryPaths::Misc };
+		return Categories;
+	}
 	
 public:
 	// Common Operations
@@ -340,7 +358,7 @@ public:
 	// Thumbnails
 
 	/** Returns the thumbnail info for the specified asset, if it has one. This typically requires loading the asset.  */
-	virtual UThumbnailInfo* LoadThumbnailInfo(const FAssetData& Asset) const
+	virtual UThumbnailInfo* LoadThumbnailInfo(const FAssetData& InAssetData) const
 	{
 		return nullptr;
 	}
@@ -358,7 +376,7 @@ public:
 	}
 	
 	/** Optionally returns a custom widget to overlay on top of this assets' thumbnail */
-	virtual TSharedPtr<SWidget> GetThumbnailOverlay(const FAssetData& AssetData) const
+	virtual TSharedPtr<SWidget> GetThumbnailOverlay(const FAssetData& InAssetData) const
 	{
 		return TSharedPtr<SWidget>();
 	}

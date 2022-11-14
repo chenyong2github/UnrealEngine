@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetVtConversion.h"
+#include "VirtualTextureConversionWorker.h"
+
 #include "Engine/Texture2D.h"
 #include "Misc/PackageName.h"
 #include "Materials/Material.h"
@@ -9,8 +10,6 @@
 #include "MaterialEditor/PreviewMaterial.h"
 #include "Factories/MaterialFactoryNew.h"
 #include "EditorFramework/AssetImportData.h"
-#include "AssetTools.h"
-#include "Interfaces/ITextureEditorModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ObjectTools.h"
 
@@ -19,53 +18,17 @@
 #include "EditorSupportDelegates.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialEditingLibrary.h"
+#include "AssetRegistry/AssetRegistryHelpers.h"
 #include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "AssetVTConversion"
-
-/**
-* Get assets datas of objects referencing the passed in object.
-* @param Object: The object to get references for.
-* @param MatchClass: Parent class of the returned objects. Cann be null to get all references.
-* @param OutAssetDatas: The founds object are ADDED to this array (doesn't destroy existing content). If the found assets is already in the list it is not added a second time.
-*/
-void GetReferencersData(UObject *Object, UClass *MatchClass, TArray<FAssetData> &OutAssetDatas)
-{
-	// If the asset registry is still loading assets, we cant check for referencers, so we must open the rename dialog
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-
-	TArray<FAssetIdentifier> Referencers;
-	AssetRegistry.GetReferencers(Object->GetOuter()->GetFName(), Referencers);
-
-	for (auto AssetIdentifier : Referencers)
-	{
-		TArray<FAssetData> Assets;
-		AssetRegistry.GetAssetsByPackageName(AssetIdentifier.PackageName, Assets);
-
-		for (auto AssetData : Assets)
-		{
-			if (MatchClass != nullptr)
-			{
-				if (AssetData.IsInstanceOf(MatchClass))
-				{
-					OutAssetDatas.AddUnique(AssetData);
-				}
-			}
-			else
-			{
-				OutAssetDatas.AddUnique(AssetData);
-			}
-		}
-	}
-}
 
 DEFINE_LOG_CATEGORY_STATIC(LogVirtualTextureConversion, Log, All);
 
 template <class T> void GetReferencersOfType(UObject *Object, TArray<T*> &OutObjects)
 {
 	TArray<FAssetData> OutAssetDatas;
-	GetReferencersData(Object, T::StaticClass(), OutAssetDatas);
+	UAssetRegistryHelpers::FindReferencersOfAssetOfClass(Object, { T::StaticClass() }, OutAssetDatas);
 
 	FScopedSlowTask SlowTask(OutAssetDatas.Num(), LOCTEXT("ConvertToVT_Progress_LoadingObjects", "Loading Objects..."));
 
@@ -120,7 +83,7 @@ bool IsVirtualTextureValidForMaterial(UMaterialInterface* InMaterial, UTexture2D
 	return true;
 }
 
-void FVTConversionWorker::AddReferencedObjects( FReferenceCollector& Collector )
+void FVirtualTextureConversionWorker::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	Collector.AddReferencedObjects( UserTextures );
 	Collector.AddReferencedObjects( Textures );
@@ -135,7 +98,7 @@ void FVTConversionWorker::AddReferencedObjects( FReferenceCollector& Collector )
 	Collector.AddReferencedObjects( AuditTrailKeys );
 }
 
-void FVTConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial*>& InAffectedMaterials,
+void FVirtualTextureConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial*>& InAffectedMaterials,
 	TArray<UMaterialFunctionInterface*>& InAffectedFunctions,
 	TArray<UTexture2D*>& InAffectedTextures,
 	TArray<UTexture2D*>& InInvalidTextures,
@@ -457,7 +420,7 @@ void FVTConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial
 	}
 }
 
-void FVTConversionWorker::FindAllTexturesAndMaterials(TArray<UMaterial *> &OutAffectedMaterials, TArray<UMaterialFunctionInterface *> &OutAffectedFunctions, TArray<UTexture2D *> &OutAffectedTextures)
+void FVirtualTextureConversionWorker::FindAllTexturesAndMaterials(TArray<UMaterial *> &OutAffectedMaterials, TArray<UMaterialFunctionInterface *> &OutAffectedFunctions, TArray<UTexture2D *> &OutAffectedTextures)
 {
 	int LastNumMaterials = OutAffectedMaterials.Num();
 	int LastNumTextures = OutAffectedTextures.Num();
@@ -479,7 +442,7 @@ void FVTConversionWorker::FindAllTexturesAndMaterials(TArray<UMaterial *> &OutAf
 	}
 }
 
-void FVTConversionWorker::FilterList(int32 SizeThreshold)
+void FVirtualTextureConversionWorker::FilterList(int32 SizeThreshold)
 {
 	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ConvertToVT_Progress_FindingTextures", "Finding textures to convert..."));
 	SlowTask.MakeDialog();
@@ -520,7 +483,7 @@ static void MarkTextureExpressionModified(UMaterialExpressionTextureBase* Expres
 	Expression->PostEditChangeProperty(TextureChangeEvent);
 }
 
-void FVTConversionWorker::DoConvert()
+void FVirtualTextureConversionWorker::DoConvert()
 {
 	const bool bVirtualTextureEnable = !bConvertBackward;
 

@@ -18,7 +18,7 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_Blueprint", "Blueprint Class"); }
 	virtual FColor GetTypeColor() const override { return FColor( 63, 126, 255 ); }
 	virtual UClass* GetSupportedClass() const override { return UBlueprint::StaticClass(); }
-
+	
 	// AssetDefinition - The Blueprint actions are now in the UAssetDefinition_Blueprint,
 	// can't use false here, since FAssetTypeActions_Blueprint is inherited.  Need the others to function until they can
 	// move.
