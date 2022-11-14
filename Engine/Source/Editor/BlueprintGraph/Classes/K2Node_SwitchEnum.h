@@ -67,8 +67,9 @@ class UK2Node_SwitchEnum : public UK2Node_Switch, public INodeDependingOnEnumInt
 	virtual void AddPinToSwitchNode() override;
 	virtual void RemovePinFromSwitchNode(UEdGraphPin* TargetPin) override;
 	virtual ERedirectType DoPinsMatchForReconstruction(const UEdGraphPin* NewPin, int32 NewPinIndex, const UEdGraphPin* OldPin, int32 OldPinIndex) const override;
+	virtual bool SupportsAddPinButton() const { return false; }
 	// End of UK2Node_Switch Interface
-
+	
 	/** Bind the switch to a named enum */
 	void SetEnum(UEnum* InEnum);
 

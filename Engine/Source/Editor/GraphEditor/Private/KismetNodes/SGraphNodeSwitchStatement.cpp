@@ -11,7 +11,6 @@
 #include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node_Switch.h"
-#include "K2Node_SwitchEnum.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "Layout/Margin.h"
@@ -120,7 +119,8 @@ void SGraphNodeSwitchStatement::CreateOutputSideAddButton(TSharedPtr<SVerticalBo
 
 EVisibility SGraphNodeSwitchStatement::IsAddPinButtonVisible() const
 {
-	if(!GraphNode->IsA<UK2Node_SwitchEnum>())
+	if (UK2Node_Switch* SwitchNode = CastChecked<UK2Node_Switch>(GraphNode)
+		; SwitchNode && SwitchNode->SupportsAddPinButton())
 	{
 		return SGraphNode::IsAddPinButtonVisible();
 	}

@@ -84,6 +84,9 @@ class BLUEPRINTGRAPH_API UK2Node_Switch : public UK2Node
 	/** Whether an execution pin can be removed from the node or not */
 	virtual bool CanRemoveExecutionPin(UEdGraphPin* TargetPin) const;
 
+	/** Determines whether the add button should be enabled */
+	virtual bool SupportsAddPinButton() const { return true; }
+
 	/** Getting pin access */
 	UEdGraphPin* GetSelectionPin() const;
 	UEdGraphPin* GetDefaultPin() const;
