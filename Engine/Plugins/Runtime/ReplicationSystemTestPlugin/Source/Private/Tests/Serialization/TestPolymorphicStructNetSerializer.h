@@ -14,7 +14,7 @@
 USTRUCT()
 struct FExamplePolymorphicStructBase
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	virtual ~FExamplePolymorphicStructBase() { }
 
@@ -77,6 +77,14 @@ public:
 		return IsValid(Index) ? Data[Index].Get() : nullptr;
 	}
 
+	void RemoveAt(int32 Index)
+	{
+		if (Index > 0 && Index < Num())
+		{
+			Data.RemoveAt(Index);
+		}
+	}
+
 	/** Adds a new FExamplePolymorphicArrayStruct data to FExamplePolymorphicArrayStruct, it must have been created with new */
 	void Add(FExamplePolymorphicStructBase* DataPtr)
 	{
@@ -97,13 +105,14 @@ public:
 		{
 			return false;
 		}
-		for (int32 i = 0; i < Data.Num(); ++i)
+
+		for (int32 It = 0, EndIt = Data.Num(); It < EndIt; ++It)
 		{
-			if (Data[i].IsValid() != Other.Data[i].IsValid())
+			if (Data[It].IsValid() != Other.Data[It].IsValid())
 			{
 				return false;
 			}
-			if (Data[i].Get() != Other.Data[i].Get())
+			if (Data[It].Get() != Other.Data[It].Get())
 			{
 				return false;
 			}
@@ -153,7 +162,7 @@ UE_NET_DECLARE_SERIALIZER(FTestPolymorphicArrayStructNetSerializer, REPLICATIONS
 USTRUCT()
 struct FTestPolymorphicArrayStructNetSerializerConfig : public FPolymorphicArrayStructNetSerializerConfig
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -187,6 +196,7 @@ struct FExamplePolymorphicStruct
 			const FExamplePolymorphicStructBase* SrcPolymorphicStruct = Other.Data.IsValid() ? Other.Data.Get() : nullptr;
 			if (SrcPolymorphicStruct)
 			{
+				CA_ASSUME(SrcScriptStruct != nullptr);
 				FExamplePolymorphicStructBase* const DstPolymorphicStruct = Data.IsValid() ? Data.Get() : nullptr;
 				if (DstPolymorphicStruct == SrcPolymorphicStruct)
 				{
@@ -294,7 +304,7 @@ UE_NET_DECLARE_SERIALIZER(FTestPolymorphicStructNetSerializer, REPLICATIONSYSTEM
 USTRUCT()
 struct FTestPolymorphicStructNetSerializerConfig : public FPolymorphicStructNetSerializerConfig
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -371,7 +381,7 @@ private:
 USTRUCT()
 struct FExamplePolymorphicStructA : public FExamplePolymorphicStructBase
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY()
 	int32 SomeInt;
@@ -386,10 +396,10 @@ struct FExamplePolymorphicStructA : public FExamplePolymorphicStructBase
 USTRUCT()
 struct FExamplePolymorphicStructB : public FExamplePolymorphicStructBase
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY()
-	int32 SomeFloat;
+	float SomeFloat;
 
 	/** Returns the serialization data, must always be overridden */
 	virtual UScriptStruct* GetScriptStruct() const override
@@ -401,7 +411,7 @@ struct FExamplePolymorphicStructB : public FExamplePolymorphicStructBase
 USTRUCT()
 struct FExamplePolymorphicStructC : public FExamplePolymorphicStructBase
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY()
 	bool SomeBool;
@@ -420,7 +430,7 @@ struct FExamplePolymorphicStructC : public FExamplePolymorphicStructBase
 USTRUCT()
 struct FExamplePolymorphicStructD : public FExamplePolymorphicStructBase
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 	
 	// Since we do not have any properties, we need a custom compare operator and mark the struct with WithIdenticalViaEquality Trait
 	// Alternatively we could mark SomeValue as a non-replicated property (UProperty(NotReplicated))

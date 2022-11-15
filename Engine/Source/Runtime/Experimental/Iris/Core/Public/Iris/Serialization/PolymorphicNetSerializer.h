@@ -51,11 +51,9 @@ struct FPolymorphicStructNetSerializerConfig : public FNetSerializerConfig
 };
 
 USTRUCT()
-struct FPolymorphicArrayStructNetSerializerConfig : public FNetSerializerConfig
+struct FPolymorphicArrayStructNetSerializerConfig : public FPolymorphicStructNetSerializerConfig
 {
 	GENERATED_BODY()
-
-	UE::Net::FPolymorphicNetSerializerScriptStructCache RegisteredTypes;
 };
 
 namespace UE::Net

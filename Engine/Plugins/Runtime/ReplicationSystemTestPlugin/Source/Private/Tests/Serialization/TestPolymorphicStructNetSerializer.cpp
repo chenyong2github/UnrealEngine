@@ -16,6 +16,11 @@
 namespace UE::Net
 {
 
+FTestMessage& operator<<(FTestMessage& Message, const FExamplePolymorphicArrayStruct& Value)
+{
+	return Message << "FExamplePolymorphicArrayStruct of size " << Value.Num();
+}
+
 struct FTestPolymorphicArrayStructNetSerializer : public TPolymorphicArrayStructNetSerializerImpl<FExamplePolymorphicArrayStruct, FExamplePolymorphicStructBase, FExamplePolymorphicArrayStruct::GetArray, FExamplePolymorphicArrayStruct::SetArrayNum>
 {
 	typedef TPolymorphicArrayStructNetSerializerImpl<FExamplePolymorphicArrayStruct, FExamplePolymorphicStructBase, FExamplePolymorphicArrayStruct::GetArray, FExamplePolymorphicArrayStruct::SetArrayNum> InternalNetSerializerType;
@@ -50,6 +55,11 @@ UE_NET_IMPLEMENT_SERIALIZER(FTestPolymorphicStructNetSerializer);
 namespace UE::Net::Private
 {
 
+FTestMessage& PrintPolymorphicArrayStructNetSerializerConfig(FTestMessage& Message, const FNetSerializerConfig& InConfig)
+{
+	return Message;
+}
+
 class FTestPolymorphicArrayStructNetSerializerFixture : public FReplicationSystemServerClientTestFixture
 {
 public:
@@ -67,6 +77,7 @@ protected:
 	void SerializeDelta();
 	void DeserializeDelta();
 	void Quantize();
+	void QuantizeTwoStates();
 	void Dequantize();
 	bool IsEqual(bool bQuantized);
 	void Clone();
@@ -91,20 +102,42 @@ protected:
 	FExamplePolymorphicStructC* StructC;
 	FExamplePolymorphicStructD* StructD;
 
-	alignas(8) uint8 QuantizedBuffer[2048];
-	alignas(8) uint8 ClonedQuantizedBuffer[2048];
+	alignas(8) uint8 QuantizedBuffer[2][2048];
+	alignas(8) uint8 ClonedQuantizedBuffer[2][2048];
 	alignas(8) uint8 BitStreamBuffer[2048];
 
-	bool bHasQuantizedState;
-	bool bHasClonedQuantizedState;
+	bool bHasQuantizedState = false;
+	bool bHasClonedQuantizedState = false;
+
+	uint32 QuantizedStateCount = 0;
+	uint32 ClonedQuantizedStateCount = 0;
 
 	FNetBitStreamWriter Writer;
 	FNetBitStreamReader Reader;
 
-	static bool bHasRegisteredStructDNetSerializer;
+	inline static bool bHasRegisteredStructDNetSerializer = false;
 };
 
-bool FTestPolymorphicArrayStructNetSerializerFixture::bHasRegisteredStructDNetSerializer = false;
+class FTestPolymorphicArrayStructNetSerializerDeltaSerializationFixture : public TTestNetSerializerFixture<PrintPolymorphicArrayStructNetSerializerConfig, FExamplePolymorphicArrayStruct>
+{
+protected:
+	using Super = TTestNetSerializerFixture<PrintPolymorphicArrayStructNetSerializerConfig, FExamplePolymorphicArrayStruct>;
+
+	FTestPolymorphicArrayStructNetSerializerDeltaSerializationFixture() : Super(UE_NET_GET_SERIALIZER(FTestPolymorphicArrayStructNetSerializer)) {}
+
+	virtual void SetUp() override;
+	virtual void TearDown() override;
+
+	void SetArbitraryState(FExamplePolymorphicArrayStruct& Target);
+
+protected:
+	FTestPolymorphicArrayStructNetSerializerConfig Config;
+
+	FInternalNetSerializationContext InternalNetSerializationContext;
+
+	FDataStreamTestUtil DataStreamUtil;
+	FReplicationSystemTestServer* Server = nullptr;
+};
 
 }
 
@@ -237,29 +270,36 @@ UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestDequant
 
 UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestSerializeDelta)
 {
-	Quantize();
+	QuantizeTwoStates();
 	SerializeDelta();
 }
 
 UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestDeserializeDelta)
 {
-	Quantize();
-	Serialize();
-	FreeQuantizedState();
+	QuantizeTwoStates();
+	SerializeDelta();
 	DeserializeDelta();
+}
+
+UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestDequantizeDeltaSerializedState)
+{
+	QuantizeTwoStates();
+	SerializeDelta();
+	DeserializeDelta();
+	Dequantize();
+	ValidateExpectedState(PolymorphicStructInstance1);
 }
 
 UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestCollectReferencesNoRef)
 {
 	Quantize();
-	UE_NET_ASSERT_TRUE(bHasQuantizedState);
 
 	FNetReferenceCollector Collector;
 
 	FNetCollectReferencesArgs Args = {};
 	Args.Version = PolymorphicNetSerializer->Version;
 	Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
-	Args.Source = NetSerializerValuePointer(&QuantizedBuffer);
+	Args.Source = NetSerializerValuePointer(&QuantizedBuffer[0]);
 	Args.Collector = NetSerializerValuePointer(&Collector);
 
 	PolymorphicNetSerializer->CollectNetReferences(NetSerializationContext, Args);	
@@ -270,14 +310,13 @@ UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestCollect
 UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestCollectReferencesRef)
 {
 	Quantize();
-	UE_NET_ASSERT_TRUE(bHasQuantizedState);
 
 	FNetReferenceCollector Collector(ENetReferenceCollectorTraits::IncludeInvalidReferences);
 
 	FNetCollectReferencesArgs Args = {};
 	Args.Version = PolymorphicNetSerializer->Version;
 	Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
-	Args.Source = NetSerializerValuePointer(&QuantizedBuffer);
+	Args.Source = NetSerializerValuePointer(&QuantizedBuffer[0]);
 	Args.Collector = NetSerializerValuePointer(&Collector);
 
 	PolymorphicNetSerializer->CollectNetReferences(NetSerializationContext, Args);	
@@ -316,6 +355,52 @@ UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestValidat
 	Validate();
 }
 
+UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerDeltaSerializationFixture, TestDeltaSerialization)
+{
+	TArray<FExamplePolymorphicArrayStruct> Values;
+
+	{
+		// Add empty value
+		{
+			FExamplePolymorphicArrayStruct EmptyArray;
+			Values.Emplace(MoveTemp(EmptyArray));
+		}
+
+		// Add arbitrary array
+		{
+			FExamplePolymorphicArrayStruct ArbitraryArray;
+			SetArbitraryState(ArbitraryArray);
+			Values.Emplace(ArbitraryArray);
+		}
+
+		// Add "arbitrary array" without first value
+		{
+			FExamplePolymorphicArrayStruct ArbitraryArrayWithoutFirstElement;
+			SetArbitraryState(ArbitraryArrayWithoutFirstElement);
+			if (ArbitraryArrayWithoutFirstElement.Num() > 0)
+			{
+				ArbitraryArrayWithoutFirstElement.RemoveAt(0);
+			}
+			Values.Emplace(MoveTemp(ArbitraryArrayWithoutFirstElement));
+		}
+
+		// Add "arbitrary array" without last value
+		{
+			FExamplePolymorphicArrayStruct ArbitraryArrayWithoutLastElement;
+			SetArbitraryState(ArbitraryArrayWithoutLastElement);
+			if (ArbitraryArrayWithoutLastElement.Num() > 0)
+			{
+				ArbitraryArrayWithoutLastElement.RemoveAt(ArbitraryArrayWithoutLastElement.Num() - 1);
+			}
+			Values.Emplace(ArbitraryArrayWithoutLastElement);
+		}
+	}
+
+	Super::TestSerializeDelta(Values.GetData(), Values.Num(), Config);
+}
+
+
+// FTestPolymorphicArrayStructNetSerializerFixture implementation
 void FTestPolymorphicArrayStructNetSerializerFixture::SetExpectedState(FExamplePolymorphicArrayStruct& Target)
 {
 	StructA = new FExamplePolymorphicStructA;
@@ -328,7 +413,7 @@ void FTestPolymorphicArrayStructNetSerializerFixture::SetExpectedState(FExampleP
 	StructC->SomeBool = false;
 
 	StructD = new FExamplePolymorphicStructD;
-	StructD->SomeValue = 0xBEEEEEEF;
+	StructD->SomeValue = 0x7E577E57;
 	
 	// Add some data, we need some structs to send as well
 	Target.Add(StructA);
@@ -356,7 +441,7 @@ void FTestPolymorphicArrayStructNetSerializerFixture::SetUp()
 	InternalNetSerializationContext = MoveTemp(TempInternalNetSerializationContext);
 	NetSerializationContext.SetInternalContext(&InternalNetSerializationContext);
 
-	FMemory::Memzero(QuantizedBuffer, 0);
+	FMemory::Memzero(QuantizedBuffer, sizeof(QuantizedBuffer));
 
 	SetExpectedState(PolymorphicStructInstance0);
 
@@ -424,7 +509,7 @@ void FTestPolymorphicArrayStructNetSerializerFixture::Serialize()
 		FNetSerializeArgs Args = {};
 		Args.Version = PolymorphicNetSerializer->Version;
 		Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
-		Args.Source = NetSerializerValuePointer(&QuantizedBuffer);
+		Args.Source = NetSerializerValuePointer(&QuantizedBuffer[0]);
 		PolymorphicNetSerializer->Serialize(Context, Args);
 
 		Writer.CommitWrites();
@@ -448,7 +533,7 @@ void FTestPolymorphicArrayStructNetSerializerFixture::Deserialize()
 	FNetDeserializeArgs Args = {};
 	Args.Version = PolymorphicNetSerializer->Version;
 	Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
-	Args.Target = NetSerializerValuePointer(&QuantizedBuffer);
+	Args.Target = NetSerializerValuePointer(&QuantizedBuffer[0]);
 	PolymorphicNetSerializer->Deserialize(Context, Args);
 
 	bHasQuantizedState = true;
@@ -457,7 +542,7 @@ void FTestPolymorphicArrayStructNetSerializerFixture::Deserialize()
 void FTestPolymorphicArrayStructNetSerializerFixture::SerializeDelta()
 {
 	// Check pre-conditions
-	UE_NET_ASSERT_TRUE(bHasQuantizedState);
+	UE_NET_ASSERT_TRUE(bHasQuantizedState && QuantizedStateCount == 2U);
 	
 	// Serialize data
 	{
@@ -468,7 +553,8 @@ void FTestPolymorphicArrayStructNetSerializerFixture::SerializeDelta()
 		FNetSerializeDeltaArgs Args = {};
 		Args.Version = PolymorphicNetSerializer->Version;
 		Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
-		Args.Source = NetSerializerValuePointer(&QuantizedBuffer);
+		Args.Source = NetSerializerValuePointer(&QuantizedBuffer[0]);
+		Args.Prev = NetSerializerValuePointer(&QuantizedBuffer[1]);
 
 		PolymorphicNetSerializer->SerializeDelta(Context, Args);
 
@@ -482,7 +568,6 @@ void FTestPolymorphicArrayStructNetSerializerFixture::SerializeDelta()
 void FTestPolymorphicArrayStructNetSerializerFixture::DeserializeDelta()
 {
 	// Check pre-conditions
-	UE_NET_ASSERT_FALSE(bHasQuantizedState);
 	UE_NET_ASSERT_TRUE(Writer.GetPosBytes() > 0U);
 	
 	Reader.InitBits(BitStreamBuffer, Writer.GetPosBits());
@@ -493,10 +578,12 @@ void FTestPolymorphicArrayStructNetSerializerFixture::DeserializeDelta()
 	FNetDeserializeDeltaArgs Args = {};
 	Args.Version = PolymorphicNetSerializer->Version;
 	Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
-	Args.Target = NetSerializerValuePointer(&QuantizedBuffer);
+	Args.Target = NetSerializerValuePointer(&QuantizedBuffer[0]);
+	Args.Prev = NetSerializerValuePointer(&QuantizedBuffer[1]);
 	PolymorphicNetSerializer->DeserializeDelta(Context, Args);
 
 	bHasQuantizedState = true;
+	QuantizedStateCount = 1;
 }
 
 void FTestPolymorphicArrayStructNetSerializerFixture::Quantize()
@@ -504,12 +591,29 @@ void FTestPolymorphicArrayStructNetSerializerFixture::Quantize()
 	FNetQuantizeArgs Args = {};
 	Args.Version = PolymorphicNetSerializer->Version;
 	Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
-	Args.Target = NetSerializerValuePointer(&QuantizedBuffer);
+	Args.Target = NetSerializerValuePointer(&QuantizedBuffer[0]);
 	Args.Source = NetSerializerValuePointer(&PolymorphicStructInstance0);
 	PolymorphicNetSerializer->Quantize(NetSerializationContext, Args);
 
 	bHasQuantizedState = true;
+	QuantizedStateCount = 1;
 }
+
+void FTestPolymorphicArrayStructNetSerializerFixture::QuantizeTwoStates()
+{
+	Quantize();
+
+	FNetQuantizeArgs Args = {};
+	Args.Version = PolymorphicNetSerializer->Version;
+	Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
+	Args.Target = NetSerializerValuePointer(&QuantizedBuffer[1]);
+	Args.Source = NetSerializerValuePointer(&PolymorphicStructInstance1);
+	PolymorphicNetSerializer->Quantize(NetSerializationContext, Args);
+
+	bHasQuantizedState = true;
+	QuantizedStateCount = 2;
+}
+
 
 void FTestPolymorphicArrayStructNetSerializerFixture::Clone()
 {
@@ -517,10 +621,13 @@ void FTestPolymorphicArrayStructNetSerializerFixture::Clone()
 	UE_NET_ASSERT_TRUE(bHasQuantizedState);
 
 	FNetCloneDynamicStateArgs Args = {};
-	Args.Source = NetSerializerValuePointer(QuantizedBuffer);
-	Args.Target = NetSerializerValuePointer(ClonedQuantizedBuffer);
+	Args.Source = NetSerializerValuePointer(&QuantizedBuffer[0]);
+	Args.Target = NetSerializerValuePointer(&ClonedQuantizedBuffer[0]);
 	Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
 	PolymorphicNetSerializer->CloneDynamicState(NetSerializationContext, Args);
+
+	bHasClonedQuantizedState = true;
+	ClonedQuantizedStateCount = 1;
 }
 
 void FTestPolymorphicArrayStructNetSerializerFixture::FreeQuantizedState()
@@ -531,15 +638,21 @@ void FTestPolymorphicArrayStructNetSerializerFixture::FreeQuantizedState()
 
 	if (bHasQuantizedState)
 	{
-		Args.Source = NetSerializerValuePointer(&QuantizedBuffer);
-		PolymorphicNetSerializer->FreeDynamicState(NetSerializationContext, Args);
+		for (uint32 StateIt = 0, StateEndIt = QuantizedStateCount; StateIt != StateEndIt; ++StateIt)
+		{
+			Args.Source = NetSerializerValuePointer(&QuantizedBuffer[StateIt]);
+			PolymorphicNetSerializer->FreeDynamicState(NetSerializationContext, Args);
+		}
 		bHasQuantizedState = false;
 	}
 		
 	if (bHasClonedQuantizedState)
 	{
-		Args.Source = NetSerializerValuePointer(&ClonedQuantizedBuffer);
-		PolymorphicNetSerializer->FreeDynamicState(NetSerializationContext, Args);
+		for (uint32 StateIt = 0, StateEndIt = ClonedQuantizedStateCount; StateIt != StateEndIt; ++StateIt)
+		{
+			Args.Source = NetSerializerValuePointer(&ClonedQuantizedBuffer[StateIt]);
+			PolymorphicNetSerializer->FreeDynamicState(NetSerializationContext, Args);
+		}
 		bHasClonedQuantizedState = false;
 	}
 }
@@ -551,13 +664,20 @@ void FTestPolymorphicArrayStructNetSerializerFixture::Dequantize()
 	FNetDequantizeArgs Args = {};
 	Args.Version = PolymorphicNetSerializer->Version;
 	Args.NetSerializerConfig = NetSerializerConfigParam(&PolymorphicNetSerializerConfig);
-	Args.Source = NetSerializerValuePointer(&QuantizedBuffer);
+	Args.Source = NetSerializerValuePointer(&QuantizedBuffer[0]);
 	Args.Target = NetSerializerValuePointer(&PolymorphicStructInstance1);
 	PolymorphicNetSerializer->Dequantize(NetSerializationContext, Args);
 }
 
 bool FTestPolymorphicArrayStructNetSerializerFixture::IsEqual(bool bQuantized)
 {
+	if (bQuantized)
+	{
+		// Trick to return false if assertion fails.
+		UE_NET_ASSERT_TRUE(bHasQuantizedState), false;
+		UE_NET_ASSERT_TRUE(bHasClonedQuantizedState), false;
+	}
+
 	FNetSerializationContext Context;
 	FNetIsEqualArgs Args = {};
 	Args.Version = PolymorphicNetSerializer->Version;
@@ -595,19 +715,20 @@ UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestPolymor
 
 	// Replicate
 	Server->PreSendUpdate();
-	Server->SendAndDeliverTo(Client, true);
+	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 	
 	auto ClientObject = Client->GetObjectAs<UTestPolymorphicStructNetSerializer_TestObject>(ServerObject->NetHandle);
-	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
-	UE_NET_ASSERT_TRUE(ClientObject->PolyStruct.GetAs<FExamplePolymorphicStructB>().SomeFloat == 12.0f);
+	UE_NET_ASSERT_NE(ClientObject, nullptr);
+	CA_ASSUME(ClientObject != nullptr);
+	UE_NET_ASSERT_EQ(ClientObject->PolyStruct.GetAs<FExamplePolymorphicStructB>().SomeFloat, 12.0f);
 
 	// Modify
 	ServerObject->PolyStruct.GetAs<FExamplePolymorphicStructB>().SomeFloat += 1.0f;
 
 	// Replicate
 	Server->PreSendUpdate();
-	Server->SendAndDeliverTo(Client, true);
+	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
 	// Verify that we detected the modification
@@ -619,7 +740,7 @@ UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestPolymor
 
 	// Replicate
 	Server->PreSendUpdate();
-	Server->SendAndDeliverTo(Client, true);
+	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
 	UE_NET_ASSERT_TRUE(ClientObject->PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue == ServerObject->PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue);	
@@ -654,11 +775,12 @@ UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestPolymor
 	
 	// Replicate
 	Server->PreSendUpdate();
-	Server->SendAndDeliverTo(Client, true);
+	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 	
 	auto ClientObject = Client->GetObjectAs<UTestPolymorphicStructNetSerializer_TestObject>(ServerObject->NetHandle);
-	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
+	UE_NET_ASSERT_NE(ClientObject, nullptr);
+	CA_ASSUME(ClientObject != nullptr);
 	UE_NET_ASSERT_EQ(ClientObject->PolyStructFastArray.GetItemArray().Num(), ServerObject->PolyStructFastArray.GetItemArray().Num());
 	UE_NET_ASSERT_EQ(ClientObject->PolyStructFastArray.GetItemArray()[3].PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue, 100U);
 
@@ -667,7 +789,7 @@ UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestPolymor
 
 	// Replicate
 	Server->PreSendUpdate();
-	Server->SendAndDeliverTo(Client, true);
+	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
 	// Verified that the client got the modified value
@@ -679,11 +801,63 @@ UE_NET_TEST_FIXTURE(FTestPolymorphicArrayStructNetSerializerFixture, TestPolymor
 
 	// Replicate
 	Server->PreSendUpdate();
-	Server->SendAndDeliverTo(Client, true);
+	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
 	// Verified that the client got the modified value
 	UE_NET_ASSERT_EQ(ClientObject->PolyStructFastArray.GetItemArray()[2].PolyStruct.GetAs<FExamplePolymorphicStructD>().SomeValue, 1U);
+}
+
+// FTestPolymorphicArrayStructNetSerializerDeltaSerializationFixture implementation
+void FTestPolymorphicArrayStructNetSerializerDeltaSerializationFixture::SetUp()
+{
+	Super::SetUp();
+
+	Config.RegisteredTypes.InitForType(FExamplePolymorphicStructBase::StaticStruct());
+
+	Server = new FReplicationSystemTestServer(GetName());
+
+	// Init NetSerializationContext
+	FReplicationSystemInternal* ReplicationSystemInternal = Server->GetReplicationSystem()->GetReplicationSystemInternal();
+
+	FInternalNetSerializationContext TempInternalNetSerializationContext;
+	FInternalNetSerializationContext::FInitParameters TempInternalNetSerializationContextInitParams;
+	TempInternalNetSerializationContextInitParams.ReplicationSystem = Server->ReplicationSystem;
+	TempInternalNetSerializationContextInitParams.ObjectResolveContext.RemoteNetTokenStoreState = ReplicationSystemInternal->GetNetTokenStore().GetLocalNetTokenStoreState();
+	TempInternalNetSerializationContext.Init(TempInternalNetSerializationContextInitParams);
+
+	InternalNetSerializationContext = MoveTemp(TempInternalNetSerializationContext);
+	Context.SetInternalContext(&InternalNetSerializationContext);
+}
+
+void FTestPolymorphicArrayStructNetSerializerDeltaSerializationFixture::TearDown()
+{
+	delete Server;
+	Server = nullptr;
+
+	Super::TearDown();
+}
+
+void FTestPolymorphicArrayStructNetSerializerDeltaSerializationFixture::SetArbitraryState(FExamplePolymorphicArrayStruct& Target)
+{
+	FExamplePolymorphicStructA* StructA = new FExamplePolymorphicStructA;
+	StructA->SomeInt = -29837492;
+	
+	FExamplePolymorphicStructB* StructB = new FExamplePolymorphicStructB;
+	StructB->SomeFloat = 17.0f;
+
+	FExamplePolymorphicStructC* StructC = new FExamplePolymorphicStructC;
+	StructC->SomeObjectRef = nullptr;
+	StructC->SomeBool = false;
+
+	FExamplePolymorphicStructD* StructD = new FExamplePolymorphicStructD;
+	StructD->SomeValue = 0xBEEEEEEF;
+
+	// Add values to target
+	Target.Add(StructA);
+	Target.Add(StructB);
+	Target.Add(StructC);
+	Target.Add(StructD);
 }
 
 }
