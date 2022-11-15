@@ -237,6 +237,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PostRecording(U
 
 				FFrameNumber RecordStartFrame = MovieScene->GetPlaybackRange().GetLowerBoundValue();
 
+				NewAudioSection->SetRowIndex(RowIndex + 1);
 				NewAudioSection->SetSound(RecordedSoundWave);
 				NewAudioSection->SetRange(TRange<FFrameNumber>(RecordStartFrame, RecordStartFrame + (RecordedSoundWave->GetDuration() * TickResolution).CeilToFrame()));
 				NewAudioSection->TimecodeSource = FTimecode::FromFrameNumber(RecordStartFrame, DisplayRate);
