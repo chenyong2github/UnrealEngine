@@ -17,6 +17,7 @@ class FNiagaraSystemInstanceController;
 class FVertexFactoryType;
 class UMaterial;
 class UMaterialInterface;
+class UMaterialInstanceConstant;
 class UTexture;
 class FNiagaraEmitterInstance;
 class SWidget;
@@ -211,6 +212,19 @@ struct FNiagaraRendererMaterialTextureParameter
 	TObjectPtr<UTexture> Texture;
 };
 
+USTRUCT()
+struct FNiagaraRendererMaterialStaticBoolParameter
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	FName MaterialParameterName;
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	FName StaticVariableName;
+};
+
+
 /**
 * Parameters to apply to the material, these are both constant and dynamic bindings
 * Having any bindings set will cause a MID to be generated
@@ -232,7 +246,12 @@ struct FNiagaraRendererMaterialParameters
 	UPROPERTY(EditAnywhere, Category = "Material")
 	TArray<FNiagaraRendererMaterialTextureParameter> TextureParameters;
 
+	UPROPERTY(EditAnywhere, Category = "Material")
+	TArray<FNiagaraRendererMaterialStaticBoolParameter> StaticBoolParameters;
+
 #if WITH_EDITORONLY_DATA
+	void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode SourceMode);
+	void RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode SourceMode);
 	void GetFeedback(TArrayView<UMaterialInterface*> Materials, TArray<FNiagaraRendererFeedback>& OutWarnings) const;
 #endif
 
@@ -402,6 +421,13 @@ protected:
 
 	/** utility function that can be used to fix up old vec3 bindings into position bindings. */
 	static void ChangeToPositionBinding(FNiagaraVariableAttributeBinding& Binding);
+
+	/** Update MIC Static Parameters. */
+	bool UpdateMaterialStaticParameters(const FNiagaraRendererMaterialParameters& MaterialParameters, UMaterialInstanceConstant* MIC);
+
+	/** Utility function to updates MICs. */
+	void UpdateMaterialParametersMIC(const FNiagaraRendererMaterialParameters& MaterialParameters, TObjectPtr<UMaterialInterface>& InOutMaterial, TObjectPtr<UMaterialInstanceConstant>& InOutMIC);
+	void UpdateMaterialParametersMIC(const FNiagaraRendererMaterialParameters& MaterialParameters, TArrayView<UMaterialInterface*> Materials, TArray<TObjectPtr<UMaterialInstanceConstant>>& InOutMICs);
 #endif
 
 #if WITH_EDITOR

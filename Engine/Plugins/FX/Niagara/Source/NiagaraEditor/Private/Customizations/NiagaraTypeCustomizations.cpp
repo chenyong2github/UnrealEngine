@@ -2040,17 +2040,17 @@ void FNiagaraRendererMaterialParameterCustomization::CustomizeHeader(TSharedRef<
 	}
 
 	HeaderRow
-		.NameContent()
-		[
-			PropertyHandle->CreatePropertyNameWidget()
-		]
-		.ValueContent()
-		[
-			PropertyHandle->CreatePropertyValueWidget()
-		];
+	.NameContent()
+	[
+		PropertyHandle->CreatePropertyNameWidget()
+	]
+	.ValueContent()
+	[
+		PropertyHandle->CreatePropertyValueWidget()
+	];
 }
 
-void FNiagaraRendererMaterialParameterCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FNiagaraRendererMaterialParameterCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	uint32 NumChildren;
 	StructPropertyHandle->GetNumChildren(NumChildren);
@@ -2061,8 +2061,6 @@ void FNiagaraRendererMaterialParameterCustomization::CustomizeChildren(TSharedRe
 		TSharedPtr<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle(ChildIndex);
 		if ( ChildHandle->GetProperty()->GetFName() == NAME_MaterialParameterName )
 		{
-			MaterialBindingNameProperty = ChildHandle;
-
 			ChildBuilder.AddCustomRow(ChildHandle->GetPropertyDisplayName())
 			.NameWidget
 			[
@@ -2071,41 +2069,41 @@ void FNiagaraRendererMaterialParameterCustomization::CustomizeChildren(TSharedRe
 			.ValueWidget
 			[
 				SNew(SComboButton)
-				.OnGetMenuContent(this, &FNiagaraRendererMaterialParameterCustomization::OnGetMaterialBindingNameMenuContent)
+				.OnGetMenuContent(this, &FNiagaraRendererMaterialParameterCustomization::OnGetMaterialBindingNameMenuContent, ChildHandle)
 				.ContentPadding(1)
 				.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
 				.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 				.ButtonContent()
 				[
 					SNew(STextBlock)
-					.Text(this, &FNiagaraRendererMaterialParameterCustomization::GetMaterialBindingNameText)
+					.Text(this, &FNiagaraRendererMaterialParameterCustomization::GetBindingNameText, ChildHandle)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			];
 		}
-		else
+		else if ( CustomizeChildProperty(ChildBuilder, ChildHandle) == false )
 		{
 			ChildBuilder.AddProperty(ChildHandle.ToSharedRef());
 		}
 	}
 }
 
-FText FNiagaraRendererMaterialParameterCustomization::GetMaterialBindingNameText() const
+FText FNiagaraRendererMaterialParameterCustomization::GetBindingNameText(TSharedPtr<IPropertyHandle> PropertyHandle) const
 {
 	FName BindingName;
-	if ( MaterialBindingNameProperty.IsValid() )
+	if (PropertyHandle.IsValid() )
 	{
-		MaterialBindingNameProperty->GetValue(BindingName);
+		PropertyHandle->GetValue(BindingName);
 	}
 	return FText::FromName(BindingName);
 }
 
-TSharedRef<SWidget> FNiagaraRendererMaterialParameterCustomization::OnGetMaterialBindingNameMenuContent() const
+TSharedRef<SWidget> FNiagaraRendererMaterialParameterCustomization::OnGetMaterialBindingNameMenuContent(TSharedPtr<IPropertyHandle> PropertyHandle) const
 {
 	FMenuBuilder MenuBuilder(true, NULL);
 
 	UNiagaraRendererProperties* RenderProperties = WeakRenderProperties.Get();
-	if (RenderProperties != nullptr && MaterialBindingNameProperty.IsValid())
+	if (RenderProperties != nullptr && PropertyHandle.IsValid())
 	{
 		TArray<UMaterialInterface*> UsedMaterials;
 		RenderProperties->GetUsedMaterials(nullptr, UsedMaterials);
@@ -2129,9 +2127,9 @@ TSharedRef<SWidget> FNiagaraRendererMaterialParameterCustomization::OnGetMateria
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateLambda(
-						[ValidBinding, PropertyToSet=MaterialBindingNameProperty]()
+						[ValidBinding, PropertyHandle]()
 						{
-							PropertyToSet->SetValue(ValidBinding);
+				PropertyHandle->SetValue(ValidBinding);
 						}
 					)
 				)
@@ -2179,5 +2177,109 @@ void FNiagaraRendererMaterialTextureParameterCustomization::GetMaterialBindingNa
 	}
 }
 
-#undef LOCTEXT_NAMESPACE
+bool FNiagaraRendererMaterialStaticBoolParameterCustomization::CustomizeChildProperty(class IDetailChildrenBuilder& ChildBuilder, TSharedPtr<IPropertyHandle> PropertyHandle)
+{
+	if (PropertyHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FNiagaraRendererMaterialStaticBoolParameter, StaticVariableName))
+	{
+		ChildBuilder.AddCustomRow(PropertyHandle->GetPropertyDisplayName())
+		.NameWidget
+		[
+			PropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueWidget
+		[
+			SNew(SComboButton)
+			.OnGetMenuContent(this, &FNiagaraRendererMaterialStaticBoolParameterCustomization::OnGetStaticVariablelBindingNameMenuContent, PropertyHandle)
+			.ContentPadding(1)
+			.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+			.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+			.ButtonContent()
+			[
+				SNew(STextBlock)
+				.Text(this, &FNiagaraRendererMaterialParameterCustomization::GetBindingNameText, PropertyHandle)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+		];
 
+		return true;
+	}
+	return false;
+}
+
+void FNiagaraRendererMaterialStaticBoolParameterCustomization::GetMaterialBindingNames(UMaterialInterface* Material, TArray<FName>& OutBindings) const
+{
+	TArray<FMaterialParameterInfo> MaterialParameterInfos;
+	TArray<FGuid> Guids;
+	Material->GetAllStaticSwitchParameterInfo(MaterialParameterInfos, Guids);
+
+	for (const FMaterialParameterInfo& MaterialParameterInfo : MaterialParameterInfos)
+	{
+		OutBindings.AddUnique(MaterialParameterInfo.Name);
+	}
+}
+
+TSharedRef<SWidget> FNiagaraRendererMaterialStaticBoolParameterCustomization::OnGetStaticVariablelBindingNameMenuContent(TSharedPtr<IPropertyHandle> PropertyHandle) const
+{
+	FMenuBuilder MenuBuilder(true, NULL);
+
+	UNiagaraRendererProperties* RenderProperties = WeakRenderProperties.Get();
+	if (RenderProperties != nullptr && PropertyHandle.IsValid())
+	{
+		const FVersionedNiagaraEmitter NiagaraEmitter = RenderProperties->GetOuterEmitter();
+		const FNiagaraTypeDefinition StaticBoolDef = FNiagaraTypeDefinition::GetBoolDef().ToStaticDef();
+
+		if (FVersionedNiagaraEmitterData* EmitterData = NiagaraEmitter.GetEmitterData())
+		{
+			const FNiagaraAliasContext AliasContext = FNiagaraAliasContext().ChangeEmitterNameToEmitter(NiagaraEmitter.Emitter->GetUniqueEmitterName());
+
+			auto AddStaticVariables =
+				[&](UNiagaraScript* NiagaraScript)
+				{
+					if (NiagaraScript == nullptr)
+					{
+						return;
+					}
+					for ( const FNiagaraVariable& StaticVariable : NiagaraScript->GetVMExecutableData().StaticVariablesWritten )
+					{
+						if ( StaticVariable.GetType() != StaticBoolDef)
+						{
+							continue;
+						}
+						const FNiagaraVariableBase ResolvedVariable = FNiagaraUtilities::ResolveAliases(StaticVariable, AliasContext);
+						const bool bSystemAttribute = ResolvedVariable.IsInNameSpace(FNiagaraConstants::SystemNamespaceString);
+						const bool bEmitterAttribute = ResolvedVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString);
+						const bool bParticleAttribute = ResolvedVariable.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString);
+						if (!bSystemAttribute && !bEmitterAttribute && !bParticleAttribute)
+						{
+							continue;
+						}
+
+						MenuBuilder.AddMenuEntry(
+							FText::FromName(ResolvedVariable.GetName()),
+							TAttribute<FText>(),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateLambda(
+									[ValidBinding= ResolvedVariable.GetName(), PropertyHandle]()
+									{
+										PropertyHandle->SetValue(ValidBinding);
+									}
+								)
+							)
+						);
+					}
+				};
+
+			if (UNiagaraSystem* NiagaraSystem = RenderProperties->GetTypedOuter<UNiagaraSystem>())
+			{
+				AddStaticVariables(NiagaraSystem->GetSystemSpawnScript());
+				AddStaticVariables(NiagaraSystem->GetSystemUpdateScript());
+			}
+			EmitterData->ForEachScript(AddStaticVariables);
+		}
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+#undef LOCTEXT_NAMESPACE

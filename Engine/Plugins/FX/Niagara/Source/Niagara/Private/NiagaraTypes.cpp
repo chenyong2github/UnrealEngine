@@ -49,7 +49,7 @@ bool FNiagaraVariableBase::ReplaceRootNamespace(const FStringView& ExpectedNames
 	{
 		FNameBuilder NewNameString;
 		NewNameString.Append(NewNamespace);
-		NewNameString.Append(NameStringView.Mid(ExpectedNamespace.Len() + 1));
+		NewNameString.Append(NameStringView.Mid(ExpectedNamespace.Len()));
 		Name = FName(FStringView(NewNameString));
 		return true;
 	}

@@ -1025,6 +1025,10 @@ void FNiagaraEditorModule::StartupModule()
 		FNiagaraRendererMaterialTextureParameter::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraRendererMaterialTextureParameterCustomization::MakeInstance));
 
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraRendererMaterialStaticBoolParameter::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraRendererMaterialStaticBoolParameterCustomization::MakeInstance));
+
 	// Outliner Customizations end.
 
 	//Register Stack Object Issue Generators.

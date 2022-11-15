@@ -8,8 +8,10 @@
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
+
 #include "Interfaces/ITargetPlatform.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Styling/SlateIconFinder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraRendererProperties)
@@ -108,6 +110,48 @@ void FNiagaraRendererLayout::Finalize()
 //////////////////////////////////////////////////////////////////////////
 
 #if WITH_EDITORONLY_DATA
+void FNiagaraRendererMaterialParameters::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode SourceMode)
+{
+	for (FNiagaraMaterialAttributeBinding& Binding : AttributeBindings)
+	{
+		Binding.RenameVariableIfMatching(OldVariable, NewVariable, InEmitter.Emitter, SourceMode);
+	}
+
+	if ( OldVariable.GetType() == FNiagaraTypeDefinition::GetBoolDef().ToStaticDef() )
+	{
+		for (FNiagaraRendererMaterialStaticBoolParameter& Binding : StaticBoolParameters)
+		{
+			if (Binding.StaticVariableName == OldVariable.GetName())
+			{
+				Binding.StaticVariableName = NewVariable.GetName();
+			}
+		}
+	}
+}
+
+void FNiagaraRendererMaterialParameters::RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode SourceMode)
+{
+	for (FNiagaraMaterialAttributeBinding& Binding : AttributeBindings)
+	{
+		if (Binding.Matches(OldVariable, InEmitter.Emitter, SourceMode))
+		{
+			Binding.NiagaraVariable = FNiagaraVariable();
+			Binding.CacheValues(InEmitter.Emitter);
+		}
+	}
+
+	if (OldVariable.GetType() == FNiagaraTypeDefinition::GetBoolDef().ToStaticDef())
+	{
+		for (FNiagaraRendererMaterialStaticBoolParameter& Binding : StaticBoolParameters)
+		{
+			if (Binding.StaticVariableName == OldVariable.GetName())
+			{
+				Binding.StaticVariableName = FName();
+			}
+		}
+	}
+}
+
 void FNiagaraRendererMaterialParameters::GetFeedback(TArrayView<UMaterialInterface*> Materials, TArray<FNiagaraRendererFeedback>& OutWarnings) const
 {
 	TArray<bool> AttributeBindingsValid;
@@ -263,6 +307,146 @@ void UNiagaraRendererProperties::ChangeToPositionBinding(FNiagaraVariableAttribu
 	{
 		FNiagaraVariable NewVarType(FNiagaraTypeDefinition::GetPositionDef(), Binding.GetParamMapBindableVariable().GetName());
 		Binding = FNiagaraConstants::GetAttributeDefaultBinding(NewVarType);
+	}
+}
+
+bool UNiagaraRendererProperties::UpdateMaterialStaticParameters(const FNiagaraRendererMaterialParameters& MaterialParameters, UMaterialInstanceConstant* MIC)
+{
+	FStaticParameterSet StaticParameterSet;
+
+	UNiagaraEmitter* NiagaraEmitter = GetTypedOuter<UNiagaraEmitter>();
+	UNiagaraSystem* NiagaraSystem = GetTypedOuter<UNiagaraSystem>();
+	if (NiagaraEmitter == nullptr || NiagaraSystem == nullptr)
+	{
+		return false;
+	}
+
+	bool bModified = false;
+	for (const FNiagaraRendererMaterialStaticBoolParameter& ParameterBinding : MaterialParameters.StaticBoolParameters)
+	{
+		NiagaraSystem->ForEachScript(
+			[&](UNiagaraScript* NiagaraScript)
+			{
+				for ( const FNiagaraVariable& StaticVariable : NiagaraScript->GetVMExecutableData().StaticVariablesWritten )
+				{
+					if (StaticVariable.GetType() != FNiagaraTypeDefinition::GetBoolDef().ToStaticDef())
+					{
+						continue;
+					}
+
+					FNiagaraVariableBase ResolvedStaticVariable = StaticVariable;
+					ResolvedStaticVariable.ReplaceRootNamespace(NiagaraEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespaceString);
+					if (ResolvedStaticVariable.GetName() != ParameterBinding.StaticVariableName)
+					{
+						continue;
+					}
+
+					FStaticSwitchParameter* StaticParameter = StaticParameterSet.StaticSwitchParameters.FindByPredicate(
+						[ParameterBinding](const FStaticSwitchParameter& StaticParameter)
+						{
+							return StaticParameter.ParameterInfo.Name == ParameterBinding.MaterialParameterName;
+						}
+					);
+
+					const bool bNewValue = StaticVariable.GetValue<bool>();
+					if (StaticParameter == nullptr)
+					{
+						FGuid ParameterGuid;
+						bool bDefaultValue = false;
+						if (MIC->GetStaticSwitchParameterDefaultValue(ParameterBinding.MaterialParameterName, bDefaultValue, ParameterGuid))
+						{
+							if (bDefaultValue != bNewValue)
+							{
+								StaticParameterSet.SetParameterValue(ParameterBinding.MaterialParameterName, FMaterialParameterValue(bNewValue), EMaterialSetParameterValueFlags::None);
+								bModified = true;
+							}
+						}
+					}
+					else
+					{
+						if (StaticParameter && StaticParameter->Value != bNewValue)
+						{
+							StaticParameter->Value = bNewValue;
+							bModified = true;
+						}
+					}
+
+					break;
+				}
+			}
+		);
+	}
+
+	if (bModified)
+	{
+		MIC->UpdateStaticPermutation(StaticParameterSet);
+	}
+
+	return bModified;
+}
+
+void UNiagaraRendererProperties::UpdateMaterialParametersMIC(const FNiagaraRendererMaterialParameters& MaterialParameters, TObjectPtr<UMaterialInterface>& InOutMaterial, TObjectPtr<UMaterialInstanceConstant>& InOutMIC)
+{
+	if (InOutMaterial == nullptr || MaterialParameters.StaticBoolParameters.Num() == 0)
+	{
+		InOutMIC = nullptr;
+		return;
+	}
+
+	if (InOutMIC == nullptr)
+	{
+		InOutMIC = NewObject<UMaterialInstanceConstant>(this);
+	}
+	InOutMIC->SetParentEditorOnly(InOutMaterial);
+
+	if (UpdateMaterialStaticParameters(MaterialParameters, InOutMIC) == false)
+	{
+		InOutMIC = nullptr;
+	}
+}
+
+void UNiagaraRendererProperties::UpdateMaterialParametersMIC(const FNiagaraRendererMaterialParameters& MaterialParameters, TArrayView<UMaterialInterface*> Materials, TArray<TObjectPtr<UMaterialInstanceConstant>>& InOutMICs)
+{
+	if (Materials.Num() == 0 || MaterialParameters.StaticBoolParameters.Num() == 0)
+	{
+		InOutMICs.Empty();
+		return;
+	}
+
+	// Create a pool of unique MICs that we can potentially reuse
+	TArray<UMaterialInstanceConstant*> MICPool;
+	MICPool.Reserve(InOutMICs.Num());
+	for (UMaterialInstanceConstant* MIC : InOutMICs)
+	{
+		if (MIC != nullptr)
+		{
+			MICPool.AddUnique(MIC);
+		}
+	}
+	InOutMICs.Reset(0);
+
+	// Loop over each material to see if we need to generate a MIC for it
+	for ( int i=0; i < Materials.Num(); ++i )
+	{
+		UMaterialInterface* Material = Materials[i];
+		if ( Material == nullptr )
+		{
+			continue;
+		}
+
+		//-OPT: We should be able to reuse rather than create
+		UMaterialInstanceConstant* MIC = MICPool.Num() > 0 ? MICPool.Pop() : NewObject<UMaterialInstanceConstant>(this);
+		MIC->SetParentEditorOnly(Material);
+
+		if (UpdateMaterialStaticParameters(MaterialParameters, MIC) == false)
+		{
+			MICPool.Add(MIC);
+		}
+		else
+		{
+			InOutMICs.SetNum(i + 1);
+			InOutMICs[i] = MIC;
+		}
 	}
 }
 

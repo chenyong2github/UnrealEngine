@@ -7,8 +7,11 @@
 #include "NiagaraBoundsCalculatorHelper.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEmitterInstance.h"
-#include "Modules/ModuleManager.h"
 #include "NiagaraGPUSortInfo.h"
+#include "NiagaraSystem.h"
+
+#include "Materials/MaterialInstanceConstant.h"
+#include "Modules/ModuleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraMeshRendererProperties)
 
@@ -244,7 +247,45 @@ void UNiagaraMeshRendererProperties::Serialize(FArchive& Ar)
 	{
 		SortMode = ENiagaraSortMode::ViewDistance;
 	}
-	Super::Serialize(Ar);
+
+	// MICs will replace the main material during serialize
+	// Be careful if adding code that looks at the material to make sure you get the correct one
+	{
+	#if WITH_EDITORONLY_DATA
+		// For cooked builds we put our MIC material directly into the OverrideMaterial slot to avoid wasting memory
+		TOptional<bool> OverrideMaterialsGuard;
+		TArray<FNiagaraMeshMaterialOverride> OverrideMaterialsArrayGuard;
+		if (Ar.IsSaving() && Ar.IsCooking() && MICMaterials.Num() > 0)
+		{
+			OverrideMaterialsGuard = bOverrideMaterials;
+			OverrideMaterialsArrayGuard = OverrideMaterials;
+
+			for (int i=0; i < OverrideMaterials.Num(); ++i)
+			{
+				FNiagaraMeshMaterialOverride& MaterialOverride = OverrideMaterials[i];
+				if (MICMaterials.IsValidIndex(i) && MICMaterials[i])
+				{
+					MaterialOverride.ExplicitMat = MICMaterials[i];
+				}
+				else if (bOverrideMaterials == false)
+				{
+					MaterialOverride.ExplicitMat = nullptr;
+				}
+			}
+			bOverrideMaterials = true;
+		}
+	#endif
+
+		Super::Serialize(Ar);
+
+#if WITH_EDITORONLY_DATA
+		if (OverrideMaterialsGuard.IsSet())
+		{
+			bOverrideMaterials = OverrideMaterialsGuard.GetValue();
+			OverrideMaterials = OverrideMaterialsArrayGuard;
+		}
+#endif
+	}
 }
 
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/
@@ -317,6 +358,7 @@ void UNiagaraMeshRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererS
 void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
 	UpdateSourceModeDerivates(SourceMode);
+	UpdateMICs();
 
 	// Initialize layout
 	const int32 NumLayoutVars = NeedsPreciseMotionVectors() ? ENiagaraMeshVFLayout::Num_Max : ENiagaraMeshVFLayout::Num_Default;
@@ -368,6 +410,21 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 		RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, PrevVelocityBinding, ENiagaraMeshVFLayout::PrevVelocity);
 	}
 	RendererLayoutWithoutCustomSorting.Finalize();
+}
+
+void UNiagaraMeshRendererProperties::UpdateMICs()
+{
+#if WITH_EDITORONLY_DATA
+	// Note: We need to swap out MICMaterials as GetUsedMaterials uses them to override the material
+	TArray<TObjectPtr<UMaterialInstanceConstant>> TempMICMaterials;
+	Swap(TempMICMaterials, MICMaterials);
+
+	TArray<UMaterialInterface*> Materials;
+	GetUsedMaterials(nullptr, Materials);
+	UpdateMaterialParametersMIC(MaterialParameters, Materials, TempMICMaterials);
+
+	Swap(TempMICMaterials, MICMaterials);
+#endif
 }
 
 #if WITH_EDITORONLY_DATA
@@ -442,6 +499,9 @@ void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const
 				if (!OverrideMat)
 				{
 					OverrideMat = OverrideMaterials[OverrideIndex].ExplicitMat;
+				#if WITH_EDITORONLY_DATA
+					OverrideMat = MICMaterials.IsValidIndex(OverrideIndex) && MICMaterials[OverrideIndex] ? MICMaterials[OverrideIndex] : OverrideMat;
+				#endif
 				}
 
 				if (OverrideMat)
@@ -450,6 +510,19 @@ void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const
 				}
 			}
 		}
+	}
+	else
+	{
+	#if WITH_EDITORONLY_DATA
+		if (MICMaterials.Num() > 0)
+		{
+			const int MaterialMax = FMath::Min(OutMaterials.Num(), MICMaterials.Num());
+			for (int i = 0; i < MaterialMax; ++i)
+			{
+				OutMaterials[i] = MICMaterials[i] ? MICMaterials[i] : OutMaterials[i];
+			}
+		}
+	#endif
 	}
 }
 
@@ -754,6 +827,8 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 
 	const bool bIsRedirect = PropertyChangedEvent.ChangeType == EPropertyChangeType::Redirected;
 	const bool bRebuildMeshList = ChangeRequiresMeshListRebuild(PropertyChangedEvent.Property);
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	const FName MemberPropertyName = PropertyChangedEvent.GetMemberPropertyName();
 
 	if (bIsRedirect)
 	{
@@ -771,7 +846,7 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 	if (bRebuildMeshList)
 	{
 		if (!IsRunningCommandlet() &&
-			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, bEnableMeshFlipbook) &&
+			PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, bEnableMeshFlipbook) &&
 			bEnableMeshFlipbook &&
 			Meshes.Num() > 0)
 		{
@@ -815,7 +890,7 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 	}
 
 	// If changing the source mode, we may need to update many of our values.
-	if (PropertyChangedEvent.GetPropertyName() == TEXT("SourceMode"))
+	if (PropertyName == TEXT("SourceMode"))
 	{
 		UpdateSourceModeDerivates(SourceMode, true);
 	}
@@ -838,33 +913,32 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 		}
 	}
 
+	// Update our MICs if we change override material / material bindings / meshes
+	//-OPT: Could narrow down further to only static materials
+	if ((MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, OverrideMaterials)) ||
+		(MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, Meshes)) ||
+		(MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, MaterialParameters)))
+	{
+		UpdateMICs();
+	}
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void UNiagaraMeshRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter)
 {
 	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
-
-	// Handle renaming material bindings
-	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
-	{
-		Binding.RenameVariableIfMatching(OldVariable, NewVariable, InEmitter.Emitter, GetCurrentSourceMode());
-	}
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RenameVariable(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+#endif
 }
 
 void UNiagaraMeshRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter)
 {
 	Super::RemoveVariable(OldVariable, InEmitter);
-
-	// Handle resetting material bindings to defaults
-	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
-	{
-		if (Binding.Matches(OldVariable, InEmitter.Emitter, GetCurrentSourceMode()))
-		{
-			Binding.NiagaraVariable = FNiagaraVariable();
-			Binding.CacheValues(InEmitter.Emitter);
-		}
-	}
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RemoveVariable(OldVariable, InEmitter, GetCurrentSourceMode());
+#endif
 }
 
 void UNiagaraMeshRendererProperties::OnMeshChanged()
@@ -878,6 +952,7 @@ void UNiagaraMeshRendererProperties::OnMeshChanged()
 	}
 
 	CheckMaterialUsage();
+	UpdateMICs();
 }
 
 void UNiagaraMeshRendererProperties::OnMeshPostBuild(UStaticMesh*)

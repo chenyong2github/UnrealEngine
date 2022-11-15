@@ -203,20 +203,24 @@ void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProp
 			// Create an index remap from mesh material index to it's index in the base material list
 			TArray<UMaterialInterface*> MeshMaterials;
 			Properties->GetUsedMeshMaterials(SourceMeshIndex, Emitter, MeshMaterials);
-			for (auto MeshMaterial : MeshMaterials)
+			for (UMaterialInterface* MeshMaterial : MeshMaterials)
 			{
-				MeshData.MaterialRemapTable.Add(BaseMaterials_GT.IndexOfByPredicate([&](UMaterialInterface* LookMat)
-				{
-					if (LookMat == MeshMaterial)
-					{
-						return true;
-					}
-					if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(LookMat))
-					{
-						return MeshMaterial == MID->Parent;
-					}
-					return false;
-				}));
+				MeshData.MaterialRemapTable.Add(
+					BaseMaterials_GT.IndexOfByPredicate(
+						[&](UMaterialInterface* LookMat)
+						{
+							if (LookMat == MeshMaterial)
+							{
+								return true;
+							}
+							if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(LookMat))
+							{
+								return MeshMaterial == MID->Parent;
+							}
+							return false;
+						}
+					)
+				);
 			}
 
 			// Determine the max section count for all LODs of this mesh and accumulate it on the max for all meshes

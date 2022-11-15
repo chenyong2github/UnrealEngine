@@ -6,6 +6,9 @@
 #include "NiagaraBoundsCalculatorHelper.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEmitterInstance.h"
+#include "NiagaraSystem.h"
+
+#include "Materials/MaterialInstanceConstant.h"
 #include "Modules/ModuleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraRibbonRendererProperties)
@@ -174,6 +177,10 @@ void UNiagaraRibbonRendererProperties::GetUsedMaterials(const FNiagaraEmitterIns
 		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialUserParamBinding.Parameter));
 	}
 
+#if WITH_EDITORONLY_DATA
+	MaterialInterface = MaterialInterface ? MaterialInterface : ToRawPtr(MICMaterial);
+#endif
+
 	OutMaterials.Add(MaterialInterface ? MaterialInterface : ToRawPtr(Material));
 }
 
@@ -260,6 +267,24 @@ void UNiagaraRibbonRendererProperties::PostInitProperties()
 	}
 }
 
+void UNiagaraRibbonRendererProperties::Serialize(FStructuredArchive::FRecord Record)
+{
+	FArchive& Ar = Record.GetUnderlyingArchive();
+
+	// MIC will replace the main material during serialize
+	// Be careful if adding code that looks at the material to make sure you get the correct one
+	{
+#if WITH_EDITORONLY_DATA
+		TOptional<TGuardValue<TObjectPtr<UMaterialInterface>>> MICGuard;
+		if (Ar.IsSaving() && Ar.IsCooking() && MICMaterial)
+		{
+			MICGuard.Emplace(Material, MICMaterial);
+		}
+#endif
+		Super::Serialize(Record);
+	}
+}
+
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/
 void UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
@@ -313,6 +338,8 @@ void UNiagaraRibbonRendererProperties::SetPreviousBindings(const FVersionedNiaga
 
 void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
+	UpdateMICs();
+
 	// Initialize accessors
 	bSortKeyDataSetAccessorIsAge = false;
 	SortKeyDataSetAccessor.Init(CompiledData, RibbonLinkOrderBinding.GetDataSetBindableVariable().GetName());
@@ -394,6 +421,12 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	RendererLayout.Finalize();
 }
 
+void UNiagaraRibbonRendererProperties::UpdateMICs()
+{
+#if WITH_EDITORONLY_DATA
+	UpdateMaterialParametersMIC(MaterialParameters, Material, MICMaterial);
+#endif
+}
 
 #if WITH_EDITORONLY_DATA
 
@@ -412,13 +445,24 @@ bool UNiagaraRibbonRendererProperties::IsSupportedVariableForBinding(const FNiag
 void UNiagaraRibbonRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	FName PropertyName = PropertyChangedEvent.GetPropertyName();
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	const FName MemberPropertyName = PropertyChangedEvent.GetMemberPropertyName();
+
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraRibbonRendererProperties, TessellationAngle))
 	{
 		if (TessellationAngle > 0.f && TessellationAngle < 1.f)
 		{
 			TessellationAngle = 1.f;
 		}
+	}
+
+	// Update our MICs if we change material / material bindings
+	//-OPT: Could narrow down further to only static materials
+	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraRibbonRendererProperties, Material)) ||
+		(MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraRibbonRendererProperties, MaterialParameters)))
+	{
+		UpdateMICs();
 	}
 }
 
@@ -589,27 +633,17 @@ bool UNiagaraRibbonRendererProperties::CanEditChange(const FProperty* InProperty
 void UNiagaraRibbonRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter)
 {
 	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
-
-	// Handle renaming material bindings
-	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
-	{
-		Binding.RenameVariableIfMatching(OldVariable, NewVariable, InEmitter.Emitter, GetCurrentSourceMode());
-	}
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RenameVariable(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+#endif
 }
 
 void UNiagaraRibbonRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter)
 {
 	Super::RemoveVariable(OldVariable, InEmitter);
-
-	// Handle resetting material bindings to defaults
-	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
-	{
-		if (Binding.Matches(OldVariable, InEmitter.Emitter, GetCurrentSourceMode()))
-		{
-			Binding.NiagaraVariable = FNiagaraVariable();
-			Binding.CacheValues(InEmitter.Emitter);
-		}
-	}
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RemoveVariable(OldVariable, InEmitter, GetCurrentSourceMode());
+#endif
 }
 
 #endif // WITH_EDITORONLY_DATA

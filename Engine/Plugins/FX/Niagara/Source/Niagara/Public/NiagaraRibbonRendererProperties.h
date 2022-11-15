@@ -9,6 +9,7 @@
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraRibbonRendererProperties.generated.h"
 
+class UMaterialInstanceConstant;
 class FNiagaraEmitterInstance;
 class FAssetThumbnailPool;
 class FVertexFactoryType;
@@ -200,6 +201,7 @@ public:
 	//UObject Interface
 	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
@@ -238,6 +240,11 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	TObjectPtr<UMaterialInterface> Material;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient)
+	TObjectPtr<UMaterialInstanceConstant> MICMaterial;
+#endif
 
 	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and Material is also set, UserParamBinding wins.*/
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
@@ -490,6 +497,8 @@ protected:
 	void SetPreviousBindings(const FVersionedNiagaraEmitter& SrcEmitter);
 
 	void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit);
+
+	void UpdateMICs();
 
 	virtual bool NeedsMIDsForMaterials() const { return MaterialParameters.HasAnyBindings(); }
 private: 

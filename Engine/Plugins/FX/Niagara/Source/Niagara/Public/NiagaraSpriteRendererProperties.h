@@ -9,6 +9,7 @@
 #include "Particles/SubUVAnimation.h"
 #include "NiagaraSpriteRendererProperties.generated.h"
 
+class UMaterialInstanceConstant;
 class FVertexFactoryType;
 
 /** This enum decides how a sprite particle will orient its "up" axis. Must keep these in sync with NiagaraSpriteVertexFactory.ush*/
@@ -148,6 +149,11 @@ public:
 	/** The material used to render the particle. Note that it must have the Use with Niagara Sprites flag checked.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
 	TObjectPtr<UMaterialInterface> Material;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient)
+	TObjectPtr<UMaterialInstanceConstant> MICMaterial;
+#endif
 
 	/** Whether or not to draw a single element for the Emitter or to draw the particles.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
@@ -398,6 +404,8 @@ protected:
 	void InitBindings();
 	void SetPreviousBindings(const FVersionedNiagaraEmitter& SrcEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
+
+	void UpdateMICs();
 
 #if WITH_EDITORONLY_DATA
 	virtual FNiagaraVariable GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const override;

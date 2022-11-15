@@ -8,6 +8,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraMeshRendererProperties.generated.h"
 
+class UMaterialInstanceConstant;
 class FNiagaraEmitterInstance;
 class FAssetThumbnailPool;
 class SWidget;
@@ -195,6 +196,8 @@ public:
 #endif // WITH_EDITORONLY_DATA
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 
+	void UpdateMICs();
+
 #if WITH_EDITORONLY_DATA
 	bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const;
 #endif
@@ -262,6 +265,11 @@ public:
 	requires more materials than exist in this array or any entry in this array is set to None, we will use the ParticleMesh's existing Material instead.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
 	TArray<FNiagaraMeshMaterialOverride> OverrideMaterials;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient)
+	TArray<TObjectPtr<UMaterialInstanceConstant>> MICMaterials;
+#endif
 
 	/** When using SubImage lookups for particles, this variable contains the number of columns in X and the number of rows in Y.*/
 	UPROPERTY(EditAnywhere, Category = "SubUV")

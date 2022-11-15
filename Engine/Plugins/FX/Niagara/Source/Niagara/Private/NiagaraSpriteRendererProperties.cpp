@@ -1,17 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSpriteRendererProperties.h"
-#include "Engine/Texture2D.h"
 #include "NiagaraRenderer.h"
-#include "Internationalization/Internationalization.h"
 #include "NiagaraConstants.h"
 #include "NiagaraRendererSprites.h"
 #include "NiagaraBoundsCalculatorHelper.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEmitterInstance.h"
-#include "Modules/ModuleManager.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptSourceBase.h"
+#include "NiagaraSystem.h"
+
+#include "Engine/Texture2D.h"
+#include "Internationalization/Internationalization.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "Modules/ModuleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSpriteRendererProperties)
 
@@ -123,6 +126,10 @@ void UNiagaraSpriteRendererProperties::GetUsedMaterials(const FNiagaraEmitterIns
 		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialUserParamBinding.Parameter));
 	}
 
+#if WITH_EDITORONLY_DATA
+	MaterialInterface = MaterialInterface ? MaterialInterface : ToRawPtr(MICMaterial);
+#endif
+
 	OutMaterials.Add(MaterialInterface ? MaterialInterface : ToRawPtr(Material));
 }
 
@@ -197,15 +204,26 @@ void UNiagaraSpriteRendererProperties::Serialize(FStructuredArchive::FRecord Rec
 		SortMode = ENiagaraSortMode::ViewDistance;
 	}
 
-	Super::Serialize(Record);
+	// MIC will replace the main material during serialize
+	// Be careful if adding code that looks at the material to make sure you get the correct one
+	{
+	#if WITH_EDITORONLY_DATA
+		TOptional<TGuardValue<TObjectPtr<UMaterialInterface>>> MICGuard;
+		if (Ar.IsSaving() && Ar.IsCooking() && MICMaterial)
+		{
+			MICGuard.Emplace(Material, MICMaterial);
+		}
+	#endif
+
+		Super::Serialize(Record);
+	}
 
 	bool bIsCookedForEditor = false;
 #if WITH_EDITORONLY_DATA
 	bIsCookedForEditor = ((Ar.GetPortFlags() & PPF_Duplicate) == 0) && GetPackage()->HasAnyPackageFlags(PKG_Cooked);
 #endif // WITH_EDITORONLY_DATA
 
-	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
-	if (UnderlyingArchive.IsCooking() || (FPlatformProperties::RequiresCookedData() && UnderlyingArchive.IsLoading()) || bIsCookedForEditor)
+	if (Ar.IsCooking() || (FPlatformProperties::RequiresCookedData() && Ar.IsLoading()) || bIsCookedForEditor)
 	{
 		DerivedData.Serialize(Record.EnterField(TEXT("DerivedData")));
 	}
@@ -271,6 +289,7 @@ void UNiagaraSpriteRendererProperties::SetPreviousBindings(const FVersionedNiaga
 void UNiagaraSpriteRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
 	UpdateSourceModeDerivates(SourceMode);
+	UpdateMICs();
 
 	const int32 NumLayoutVars = NeedsPreciseMotionVectors() ? ENiagaraSpriteVFLayout::Num_Max : ENiagaraSpriteVFLayout::Num_Default;
 	RendererLayoutWithCustomSort.Initialize(NumLayoutVars);
@@ -335,7 +354,6 @@ void UNiagaraSpriteRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 		RendererLayoutWithoutCustomSort.SetVariableFromBinding(CompiledData, PrevPivotOffsetBinding, ENiagaraSpriteVFLayout::PrevPivotOffset);
 	}
 	RendererLayoutWithoutCustomSort.Finalize();
-
 }
 
 #if WITH_EDITORONLY_DATA
@@ -390,6 +408,13 @@ void UNiagaraSpriteRendererProperties::UpdateSourceModeDerivates(ENiagaraRendere
 	}
 }
 
+void UNiagaraSpriteRendererProperties::UpdateMICs()
+{
+#if WITH_EDITORONLY_DATA
+	UpdateMaterialParametersMIC(MaterialParameters, Material, MICMaterial);
+#endif
+}
+
 #if WITH_EDITORONLY_DATA
 
 bool UNiagaraSpriteRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
@@ -421,6 +446,9 @@ bool UNiagaraSpriteRendererProperties::IsSupportedVariableForBinding(const FNiag
 
 void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	const FName MemberPropertyName = PropertyChangedEvent.GetMemberPropertyName();
+
 	SubImageSize.X = FMath::Max<float>(SubImageSize.X, 1.f);
 	SubImageSize.Y = FMath::Max<float>(SubImageSize.Y, 1.f);
 
@@ -428,18 +456,26 @@ void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyCh
 	if (bUseMaterialCutoutTexture || CutoutTexture || DerivedData.BoundingGeometry.Num())
 	{
 		const bool bUpdateCutoutDDC =
-			PropertyChangedEvent.GetPropertyName() == TEXT("bUseMaterialCutoutTexture") ||
-			PropertyChangedEvent.GetPropertyName() == TEXT("CutoutTexture") ||
-			PropertyChangedEvent.GetPropertyName() == TEXT("BoundingMode") ||
-			PropertyChangedEvent.GetPropertyName() == TEXT("OpacitySourceMode") ||
-			PropertyChangedEvent.GetPropertyName() == TEXT("AlphaThreshold") ||
-			(bUseMaterialCutoutTexture && PropertyChangedEvent.GetPropertyName() == TEXT("Material"));
+			PropertyName == TEXT("bUseMaterialCutoutTexture") ||
+			PropertyName == TEXT("CutoutTexture") ||
+			PropertyName == TEXT("BoundingMode") ||
+			PropertyName == TEXT("OpacitySourceMode") ||
+			PropertyName == TEXT("AlphaThreshold") ||
+			(bUseMaterialCutoutTexture && PropertyName == TEXT("Material"));
 
 		if (bUpdateCutoutDDC)
 		{
 			UpdateCutoutTexture();
 			CacheDerivedData();
 		}
+	}
+
+	// Update our MICs if we change material / material bindings
+	//-OPT: Could narrow down further to only static materials
+	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSpriteRendererProperties, Material)) ||
+		(MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSpriteRendererProperties, MaterialParameters)) )
+	{
+		UpdateMICs();
 	}
 
 	// If changing the source mode, we may need to update many of our values.
@@ -467,34 +503,22 @@ void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyCh
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
 }
-
 
 void UNiagaraSpriteRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter)
 {
 	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
-
-	// Handle renaming material bindings
-	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
-	{
-		Binding.RenameVariableIfMatching(OldVariable, NewVariable, InEmitter.Emitter, GetCurrentSourceMode());
-	}
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RenameVariable(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+#endif
 }
 
 void UNiagaraSpriteRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter)
 {
 	Super::RemoveVariable(OldVariable, InEmitter);
-
-	// Handle resetting material bindings to defaults
-	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
-	{
-		if (Binding.Matches(OldVariable, InEmitter.Emitter, GetCurrentSourceMode()))
-		{
-			Binding.NiagaraVariable = FNiagaraVariable();
-			Binding.CacheValues(InEmitter.Emitter);
-		}
-	}
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RemoveVariable(OldVariable, InEmitter, GetCurrentSourceMode());
+#endif
 }
 
 const TArray<FNiagaraVariable>& UNiagaraSpriteRendererProperties::GetOptionalAttributes()
