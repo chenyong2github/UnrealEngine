@@ -246,7 +246,20 @@ namespace Jupiter
 
             services.AddOpenTelemetryTracing(builder =>
             {
-                builder.AddHttpClientInstrumentation();
+                builder.AddHttpClientInstrumentation(options =>
+                {
+                    options.EnrichWithHttpRequestMessage = (activity, message) =>
+                    {
+                        activity.AddTag("service.name", activity.Source.Name + "-http-client");
+                        activity.AddTag("operation.name", "http-request");
+                    };
+
+                    options.EnrichWithHttpResponseMessage = (activity, message) =>
+                    {
+                        activity.AddTag("service.name", activity.Source.Name + "-http-client");
+                        activity.AddTag("operation.name", "http-response");
+                    };
+                });
                 builder.AddAspNetCoreInstrumentation();
 
                 builder.AddOtlpExporter();
