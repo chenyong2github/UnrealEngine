@@ -307,31 +307,33 @@ int FMLInferenceModelRDG::Run(TConstArrayView<FMLTensorBinding> InInputBindings,
 
 int FMLInferenceModelRDG::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 {
+	InputTensors.Empty();
+	OutputTensors.Empty();
+	OutputTensorShapes.Empty();
+	
 	//Verify input shape are valid for the model and set InputTensorShapes
 	if (FMLInferenceModel::SetInputTensorShapes(InInputShapes) != 0)
 	{
 		return -1;
 	}
 
-	//Run shape inference
-	AllTensors.Empty();
-	for (FTensorDesc SymbolicTensorDesc : AllSymbolicTensors)
+	//Run shape inference filling AllTensors
+	if (RunShapeInference() != 0)
 	{
-		//Fake shape inference for now
-		check(SymbolicTensorDesc.IsConcrete());
-		FTensor TensorDesc = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
-		AllTensors.Emplace(TensorDesc);
+		return -1;
 	}
 
-	//Build concrete input and output tensor descriptions
-	InputTensors.Empty();
-	for (int32 InputIndices : InputTensorIndices)
+	// Setup concrete input tensor
+	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
 	{
-		InputTensors.Emplace(AllTensors[InputIndices]);
+		const int32 TensorIndice = InputTensorIndices[i];
+		const FTensor& InputTensor = AllTensors[TensorIndice];
+
+		InputTensors.Emplace(InputTensor);
+		check(InputTensor.GetShape().Data == InputTensorShapes[i].Data);
 	}
-	
-	OutputTensors.Empty();
-	OutputTensorShapes.Empty();
+
+	//Set OutputTensorShapes for the model from shape inference result
 	for (int32 OutputIndices : OutputTensorIndices)
 	{
 		OutputTensors.Emplace(AllTensors[OutputIndices]);

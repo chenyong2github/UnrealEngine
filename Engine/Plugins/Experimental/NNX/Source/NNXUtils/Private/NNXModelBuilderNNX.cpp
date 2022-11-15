@@ -111,7 +111,14 @@ public:
 
 	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape)
 	{
-		int Idx = AddTensor(Name, Shape, DataType, EMLFormatTensorType::None);
+		TArray<int32, TInlineAllocator<FTensorShape::MaxRank>> NNIShape;
+		for (int i = 0; i < Shape.Num(); ++i)
+		{
+			//ORT Graph return 0 for variable dimensions, NNI use -1.
+			NNIShape.Emplace(Shape[i] == 0 ? -1 : Shape[i]);
+		}
+		
+		int Idx = AddTensor(Name, NNIShape, DataType, EMLFormatTensorType::None);
 		
 		return MakeTensorHandle(reinterpret_cast<void*>((int64) Idx));
 	}

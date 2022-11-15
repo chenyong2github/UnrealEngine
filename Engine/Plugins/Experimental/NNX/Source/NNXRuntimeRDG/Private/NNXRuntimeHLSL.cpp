@@ -35,6 +35,7 @@ public:
 protected:
 
 	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
+	virtual int RunShapeInference() override;
 
 private:
 
@@ -132,6 +133,107 @@ FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayVi
 	Op->Initialize(InputTensorDescs, OutputTensorDescs, AttributeMap);
 
 	return Op;
+}
+
+int FMLInferenceModelHlsl::RunShapeInference()
+{
+	AllTensors.Empty();
+
+	if (Operators.Num() == 0)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("No operators in model"));
+		return -1;
+	}
+
+	static constexpr int32 MaxExpectedInput = 10;
+	TArray<FTensorShape, TInlineAllocator<MaxExpectedInput>> InputShapes;
+	TArray<FTensorShape> OutputShapes;
+	TArray<FTensorShape> AllShapes;
+	TArray<bool> AllInitializedShapes;
+
+	checkCode(AllInitializedShapes.SetNum(AllSymbolicTensors.Num(), false););
+	AllShapes.SetNum(AllSymbolicTensors.Num());
+
+	//Prime shape inference with model inputs
+	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
+	{
+		const int32 InputTensorModelIndex = InputTensorIndices[i];
+
+		AllShapes[InputTensorModelIndex] = InputTensorShapes[i];
+		checkCode(AllInitializedShapes[InputTensorModelIndex] = true);
+	}
+
+	// Run shape inference on all operators
+	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
+	{
+		InputShapes.Empty();
+		OutputShapes.Empty();
+
+		for (int32 i : OperatorInputTensorIndices[Idx])
+		{
+			checkf(AllInitializedShapes[i] == true, TEXT("Input shape %d for operator %d should have been initialized."), i, Idx);
+			InputShapes.Emplace(AllShapes[i]);
+		}
+
+		//If operator output shapes are not variable we don't need to run shape inference
+		bool bShouldRunShapeInferenceForOperator = false;
+		for (int32 i = 0; i < OperatorOutputTensorIndices[Idx].Num(); ++i)
+		{
+			const int32 OutputTensorIndex = OperatorOutputTensorIndices[Idx][i];
+
+			if (!OutputSymbolicTensors[i].IsConcrete())
+			{
+				bShouldRunShapeInferenceForOperator = true;
+				continue;
+			}
+			OutputShapes.Emplace(FTensorShape::MakeFromSymbolic(OutputSymbolicTensors[i].GetShape()));
+		}
+
+		//Otherwise we need to run shape inference for the operator
+		if (bShouldRunShapeInferenceForOperator)
+		{
+			OutputShapes.Empty();
+
+			const FMLOperatorHlsl* Op = Operators[Idx];
+
+			if (Op->ComputeOutputShape(InputShapes, OutputShapes) != 0)
+			{
+				//Operator could not compute output shapes, meaning we can't allocate
+				//output buffer before running the model. This engine does not support this.
+				UE_LOG(LogNNX, Warning, TEXT("Could not deduce tensor shapes for this model during shape inference, HLSL engine wont support the model as it need to precompute all shapes for performance reasons."));
+				AllTensors.Empty();
+				OutputTensorShapes.Empty();
+				return -1;
+			}
+		}
+
+		for (int32 i = 0; i < OperatorOutputTensorIndices[Idx].Num(); ++i)
+		{
+			const int32 OutputTensorIndex = OperatorOutputTensorIndices[Idx][i];
+
+			AllShapes[OutputTensorIndex] = OutputShapes[i];
+			checkCode(AllInitializedShapes[OutputTensorIndex] = true);
+		}
+	}
+
+	checkCode(
+		for (int i = 0; i < AllInitializedShapes.Num(); ++i)
+		{
+			checkf(AllInitializedShapes[i], TEXT("Tensor at index %d, was not initialized by shape inference."));
+		};
+	);
+
+	AllTensors.Reserve(AllShapes.Num());
+	for (int i = 0; i < AllShapes.Num(); ++i)
+	{
+		FTensor Tensor = FTensor::Make(AllSymbolicTensors[i].GetName(), AllShapes[i], AllSymbolicTensors[i].GetDataType());
+		AllTensors.Emplace(Tensor);
+	}
+
+	check(AllShapes.Num() == AllSymbolicTensors.Num());
+	check(AllShapes.Num() == AllTensors.Num());
+
+	return 0;
 }
 
 //

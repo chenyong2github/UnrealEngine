@@ -275,6 +275,10 @@ bool FMLInferenceModelORT::ConfigureTensors(const bool InIsInput)
 
 int FMLInferenceModelORT::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 {
+	InputTensors.Empty();
+	OutputTensors.Empty();
+	OutputTensorShapes.Empty();
+	
 	// Verify input shape are valid for the model and set InputTensorShapes
 	if (FMLInferenceModel::SetInputTensorShapes(InInputShapes) != 0)
 	{
@@ -282,7 +286,6 @@ int FMLInferenceModelORT::SetInputTensorShapes(TConstArrayView<FTensorShape> InI
 	}
 
 	// Setup concrete input tensor
-	InputTensors.Empty();
 	for (int i = 0; i < InputSymbolicTensors.Num(); ++i)
 	{
 		FTensor Tensor = FTensor::Make(InputSymbolicTensors[i].GetName(), InInputShapes[i], InputSymbolicTensors[i].GetDataType());
@@ -293,7 +296,6 @@ int FMLInferenceModelORT::SetInputTensorShapes(TConstArrayView<FTensorShape> InI
 	// this would allow to resolve output shapes here rather than during inference.
 
 	// Setup concrete output shapes only if all model output shapes are concretes, otherwise it will be set during Run()
-	OutputTensors.Empty();
 	for (FTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
 	{
 		if (SymbolicTensorDesc.IsConcrete())

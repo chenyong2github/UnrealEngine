@@ -1173,6 +1173,7 @@ public:
 protected:
 
 	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
+	virtual int RunShapeInference() override;
 
 private:
 
@@ -1579,6 +1580,31 @@ FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView
 	}
 
 	return Op;
+}
+
+//
+//
+//
+int FMLInferenceModelDml::RunShapeInference()
+{
+	AllTensors.Empty();
+
+	for (FTensorDesc SymbolicTensorDesc : AllSymbolicTensors)
+	{
+		if (SymbolicTensorDesc.IsConcrete())
+		{
+			FTensor Tensor = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
+			AllTensors.Emplace(Tensor);
+		}
+	}
+	if (AllTensors.Num() != AllSymbolicTensors.Num())
+	{
+		AllTensors.Empty();
+		UE_LOG(LogNNX, Warning, TEXT("DML engine does not support model with variable shapes yet."));
+		return -1;
+	}
+
+	return 0;
 }
 
 //
