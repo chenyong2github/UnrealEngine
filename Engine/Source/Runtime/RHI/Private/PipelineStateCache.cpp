@@ -2277,8 +2277,11 @@ FGraphEventRef PipelineStateCache::PrecacheGraphicsPipelineState(const FGraphics
 	// Mark as precache so it will try and use the background thread pool if available
 	bool bPSOPrecache = true;
 
+	FGraphicsPipelineStateInitializer InitializerCopy(Initializer);
+	InitializerCopy.bPSOPrecache = true;
+
 	// Start the precache task
-	return CreateGraphicsPipelineState(Initializer, EPSOPrecacheResult::Active, bDoAsyncCompile, bPSOPrecache, NewGraphicsPipelineState);
+	return CreateGraphicsPipelineState(InitializerCopy, EPSOPrecacheResult::Active, bDoAsyncCompile, bPSOPrecache, NewGraphicsPipelineState);
 }
 
 EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(const FGraphicsPipelineStateInitializer& PipelineStateInitializer)

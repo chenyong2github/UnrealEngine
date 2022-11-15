@@ -3438,7 +3438,8 @@ public:
 	{
 		struct
 		{
-			uint16					Reserved			: 15;
+			uint16					Reserved			: 14;
+			uint16					bPSOPrecache			: 1;
 			uint16					bFromPSOFileCache	: 1;
 		};
 		uint16						Flags;

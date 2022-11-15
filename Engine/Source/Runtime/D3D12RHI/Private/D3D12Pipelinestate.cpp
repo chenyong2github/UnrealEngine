@@ -252,6 +252,7 @@ FD3D12PipelineState::FD3D12PipelineState(FD3D12Adapter* Parent)
 
 FD3D12PipelineState::~FD3D12PipelineState()
 {
+	check(!UsePSORefCounting() || GetRefCount() == 0);
 	if (Worker)
 	{
 		Worker->EnsureCompletion(true);
@@ -260,6 +261,16 @@ FD3D12PipelineState::~FD3D12PipelineState()
 	}
 
 	DEC_DWORD_STAT(STAT_D3D12NumPSOs);
+}
+
+bool FD3D12PipelineState::UsePSORefCounting()
+{
+#if D3D12_USE_DERIVED_PSO
+	return false;
+#else
+	static const auto CVarPSOPrecaching = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PSOPrecaching"));
+	return CVarPSOPrecaching && (CVarPSOPrecaching->GetInt() != 0);
+#endif
 }
 
 ID3D12PipelineState* FD3D12PipelineState::InternalGetPipelineState()
@@ -347,6 +358,21 @@ FD3D12GraphicsPipelineState::~FD3D12GraphicsPipelineState()
 #if D3D12_USE_DERIVED_PSO
 	delete PipelineState;
 	PipelineState = nullptr;
+#else
+	if (FD3D12PipelineState::UsePSORefCounting() && PipelineState != nullptr)
+	{
+		uint32 RefCount = PipelineState->Release();
+		check(RefCount > 0);
+        // precache PSO are here to avoid hitches at runtime when we want to create one that is actually used. We don't need to keep them
+		// around as this can add up to a lot of system memory
+		if (PipelineStateInitializer.bPSOPrecache && RefCount == 1) 
+		{
+			FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
+			FD3D12PipelineStateCache& PSOCache = D3D12RHI->GetAdapter().GetPSOCache();
+			// NB: it's possible that this remove will not do anything because another thread might have requested the same PSO since we entered the if
+			PSOCache.RemoveFromLowLevelCache(PipelineState, PipelineStateInitializer, RootSignature);
+		}
+	}
 #endif
 
 	// release bound RHI resources
@@ -399,7 +425,17 @@ void FD3D12PipelineStateCacheBase::CleanupPipelineStateCaches()
 		for (auto Iter = LowLevelGraphicsPipelineStateCache.CreateConstIterator(); Iter; ++Iter)
 		{
 			const FD3D12PipelineState* const PipelineState = Iter.Value();
-			delete PipelineState;
+			if (FD3D12PipelineState::UsePSORefCounting())
+			{
+				if (PipelineState)
+				{
+					PipelineState->Release();
+				}
+			}
+			else
+			{
+				delete PipelineState;
+			}
 		}
 		LowLevelGraphicsPipelineStateCache.Empty();
 	}
@@ -446,6 +482,10 @@ FD3D12PipelineState* FD3D12PipelineStateCacheBase::FindInLowLevelCache(const FD3
 		if (Found)
 		{
 			INC_DWORD_STAT(STAT_PSOGraphicsLowlevelCacheHit);
+			if (FD3D12PipelineState::UsePSORefCounting())
+			{
+				verify((*Found)->AddRef() >= 2);
+			}
 			return *Found;
 		}
 	}
@@ -466,6 +506,31 @@ FD3D12PipelineState* FD3D12PipelineStateCacheBase::CreateAndAddToLowLevelCache(c
 	return PipelineState;
 }
 
+void FD3D12PipelineStateCacheBase::RemoveFromLowLevelCache(FD3D12PipelineState* PipelineState, const FGraphicsPipelineStateInitializer& PipelineStateInitializer, const FD3D12RootSignature* RootSignature)
+{
+    if (!FD3D12PipelineState::UsePSORefCounting())
+    {
+        checkNoEntry();
+        return;
+    }
+
+	FRWScopeLock Lock(LowLevelGraphicsPipelineStateCacheMutex, FRWScopeLockType::SLT_Write);
+	// By the time we reach this function, it's possible another thread made a request for the same PSO
+	if (PipelineState->Release() == 0)
+	{
+		FD3D12LowLevelGraphicsPipelineStateDesc LowLevelDesc = GetLowLevelGraphicsPipelineStateDesc(PipelineStateInitializer, RootSignature);
+		LowLevelDesc.Desc.NodeMask = FRHIGPUMask::All().GetNative();
+		LowLevelDesc.CombinedHash = FD3D12PipelineStateCacheBase::HashPSODesc(LowLevelDesc);
+		int32 ElementsRemoved = LowLevelGraphicsPipelineStateCache.Remove(LowLevelDesc);
+		ensure(ElementsRemoved == 1);
+	}
+	else
+	{
+		// If another thread requested the pipeline state, we need to restore the refcount we just decremented
+		verify(PipelineState->AddRef() >= 2);
+	}
+}
+
 void FD3D12PipelineStateCacheBase::AddToLowLevelCache(const FD3D12LowLevelGraphicsPipelineStateDesc& Desc, FD3D12PipelineState** OutPipelineState, const FPostCreateGraphicCallback& PostCreateCallback)
 {
 	check(Desc.CombinedHash != 0);
@@ -479,6 +544,10 @@ void FD3D12PipelineStateCacheBase::AddToLowLevelCache(const FD3D12LowLevelGraphi
 		{
 			// This desc already exists.
 			*OutPipelineState = *PipelineState;
+			if (FD3D12PipelineState::UsePSORefCounting())
+			{
+				(*OutPipelineState)->AddRef();
+			}
 			return;
 		}
 
@@ -488,7 +557,20 @@ void FD3D12PipelineStateCacheBase::AddToLowLevelCache(const FD3D12LowLevelGraphi
 		FD3D12PipelineState* NewPipelineState = new FD3D12PipelineState(GetParentAdapter());
 		LowLevelGraphicsPipelineStateCache.Add(Desc, NewPipelineState);
 
+		// This AddRef is for the low level cache
+		if (FD3D12PipelineState::UsePSORefCounting())
+		{
+			NewPipelineState->AddRef();
+		}
+
 		*OutPipelineState = NewPipelineState;
+
+		// This AddRef is for the FD3D12GraphicsPipelineState requesting it
+		if (FD3D12PipelineState::UsePSORefCounting())
+		{
+			(*OutPipelineState)->AddRef();
+		}
+
 	}
 
 	// Create the underlying PSO and then perform any other additional tasks like cleaning up/adding to caches, etc.

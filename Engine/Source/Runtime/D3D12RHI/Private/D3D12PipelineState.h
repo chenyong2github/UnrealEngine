@@ -292,7 +292,7 @@ struct FD3D12PipelineStateWorker : public FD3D12AdapterChild, public FNonAbandon
 	TRefCountPtr<ID3D12PipelineState> PSO;
 };
 
-struct FD3D12PipelineState : public FD3D12AdapterChild, public FD3D12MultiNodeGPUObject, public FNoncopyable
+struct FD3D12PipelineState : public FD3D12AdapterChild, public FD3D12MultiNodeGPUObject, public FNoncopyable, public FRefCountBase
 {
 public:
 	explicit FD3D12PipelineState(FD3D12Adapter* Parent);
@@ -336,6 +336,8 @@ public:
 	}
 
 	FD3D12PipelineState& operator=(const FD3D12PipelineState& other) = delete;
+
+    static bool UsePSORefCounting();
 
 private:
 	ID3D12PipelineState* InternalGetPipelineState();
@@ -496,6 +498,8 @@ protected:
 	FD3D12GraphicsPipelineState* CreateAndAdd(const FGraphicsPipelineStateInitializer& Initializer, const FD3D12RootSignature* RootSignature, const FD3D12LowLevelGraphicsPipelineStateDesc& LowLevelDesc);
 #endif
 public:
+	void RemoveFromLowLevelCache(FD3D12PipelineState* PipelineState, const FGraphicsPipelineStateInitializer& PipelineStateInitializer, const FD3D12RootSignature* RootSignature);
+
 #if D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE
 	FD3D12GraphicsPipelineState* FindInRuntimeCache(const FGraphicsPipelineStateInitializer& Initializer, uint32& OutHash);
 	FD3D12GraphicsPipelineState* FindInLoadedCache(const FGraphicsPipelineStateInitializer& Initializer, uint32 InitializerHash, const FD3D12RootSignature* RootSignature, FD3D12LowLevelGraphicsPipelineStateDesc& OutLowLevelDesc);
