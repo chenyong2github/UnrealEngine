@@ -449,10 +449,10 @@ namespace Horde.Build.Jobs.Graphs
 		}
 
 		/// <inheritdoc/>
-		public async Task<IGraph> AddAsync(ITemplate template)
+		public async Task<IGraph> AddAsync(ITemplate template, string? streamInitialAgentType)
 		{
 			Node node = new Node(IJob.SetupNodeName, null, null, Array.Empty<NodeRef>(), Array.Empty<NodeRef>(), Priority.High, true, false, true, null, null, null);
-			NodeGroup group = new NodeGroup(template.InitialAgentType ?? "Win64", new List<Node> { node });
+			NodeGroup group = new NodeGroup(template.InitialAgentType ?? streamInitialAgentType ?? "Win64", new List<Node> { node });
 
 			GraphDocument graph = new GraphDocument(new List<NodeGroup> { group }, new List<Aggregate>(), new List<Label>());
 			await AddAsync(graph);

@@ -435,7 +435,7 @@ namespace Horde.Build.Tests
 			stream = (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!;
 
 			// Create the TriggerNext step and mark it as complete
-			IGraph graphA = await GraphCollection.AddAsync(newTemplate1);
+			IGraph graphA = await GraphCollection.AddAsync(newTemplate1, null);
 			NewGroup groupA = new NewGroup("win", new List<NewNode> { new NewNode("TriggerNext") });
 			graphA = await GraphCollection.AppendAsync(graphA, new List<NewGroup> { groupA });
 
@@ -530,7 +530,7 @@ namespace Horde.Build.Tests
 			Assert.IsNotNull(template2);
 
 			// Create the graph
-			IGraph graphA = await GraphCollection.AddAsync(template1);
+			IGraph graphA = await GraphCollection.AddAsync(template1, null);
 			NewGroup groupA = new NewGroup("win", new List<NewNode> { new NewNode("TriggerNext") });
 			graphA = await GraphCollection.AppendAsync(graphA, new List<NewGroup> { groupA });
 

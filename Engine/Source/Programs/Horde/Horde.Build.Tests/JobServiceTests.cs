@@ -46,7 +46,7 @@ namespace Horde.Build.Tests
 			Assert.IsNotNull(project);
 
 			ITemplate template = await TemplateCollection.AddAsync("Test template");
-			IGraph graph = await GraphCollection.AddAsync(template);
+			IGraph graph = await GraphCollection.AddAsync(template, null);
 
 			TemplateId templateRefId1 = new TemplateId("template1");
 			TemplateId templateRefId2 = new TemplateId("template2");
@@ -216,7 +216,7 @@ namespace Horde.Build.Tests
 			stream = await CreateOrReplaceStreamAsync(streamId, stream, project!.Id, new StreamConfig { Name = "//UE5/Main" });
 
 			ITemplate template = await TemplateCollection.AddAsync("Test template");
-			IGraph graph = await GraphCollection.AddAsync(template);
+			IGraph graph = await GraphCollection.AddAsync(template, null);
 
 			NewGroup groupA = new NewGroup("win", new List<NewNode>());
 			groupA.Nodes.Add(new NewNode("Compile"));

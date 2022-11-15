@@ -446,7 +446,7 @@ namespace Horde.Build.Jobs.Schedules
 			}
 
 			// Register the graph for it
-			IGraph graph = await _graphs.AddAsync(template);
+			IGraph graph = await _graphs.AddAsync(template, stream.Config.InitialAgentType);
 
 			// We may need to submit a new change for any new jobs. This only makes sense if there's one change.
 			if (template.SubmitNewChange != null)

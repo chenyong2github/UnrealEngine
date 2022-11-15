@@ -62,7 +62,7 @@ namespace Horde.Build.Tests
 			fg.Labels = new List<ILabel>();
 
 			Template = await templateCollection.AddAsync("Test template");
-			Graph = await graphCollection.AddAsync(Template);
+			Graph = await graphCollection.AddAsync(Template, null);
 
 			TemplateRefId1 = new TemplateId("template1");
 			TemplateRefId2 = new TemplateId("template2");

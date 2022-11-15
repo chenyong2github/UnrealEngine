@@ -164,7 +164,7 @@ namespace Horde.Build.Jobs
 			Priority priority = create.Priority ?? template.Priority ?? Priority.Normal;
 
 			// New groups for the job
-			IGraph graph = await _graphs.AddAsync(template);
+			IGraph graph = await _graphs.AddAsync(template, stream.Config.InitialAgentType);
 
 			// Get the commits for this stream
 			ICommitCollection commits = _commitService.GetCollection(stream);

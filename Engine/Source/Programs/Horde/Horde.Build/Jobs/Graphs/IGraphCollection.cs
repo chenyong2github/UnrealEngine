@@ -16,8 +16,9 @@ namespace Horde.Build.Jobs.Graphs
 		/// Adds a graph from a template
 		/// </summary>
 		/// <param name="template">The template</param>
+		/// <param name="streamInitialAgentType">Default agent type for the stream</param>
 		/// <returns>New graph</returns>
-		Task<IGraph> AddAsync(ITemplate template);
+		Task<IGraph> AddAsync(ITemplate template, string? streamInitialAgentType);
 
 		/// <summary>
 		/// Creates a graph by appending groups and aggregates to an existing graph.

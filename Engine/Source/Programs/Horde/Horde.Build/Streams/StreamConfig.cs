@@ -88,6 +88,11 @@ namespace Horde.Build.Streams
 		public int Order { get; set; } = 128;
 
 		/// <summary>
+		/// Default initial agent type for templates
+		/// </summary>
+		public string? InitialAgentType { get; set; }
+
+		/// <summary>
 		/// Notification channel for all jobs in this stream
 		/// </summary>
 		public string? NotificationChannel { get; set; }

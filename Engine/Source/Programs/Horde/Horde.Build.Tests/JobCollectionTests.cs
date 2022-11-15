@@ -75,7 +75,7 @@ namespace Horde.Build.Tests
 			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
 			templateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
 
-			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
+			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object, null);
 
 			CreateJobOptions options = new CreateJobOptions();
 			options.Arguments.Add("-Target=Publish Client");
@@ -150,7 +150,7 @@ namespace Horde.Build.Tests
 			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
 			templateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
 
-			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
+			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object, null);
 
 			CreateJobOptions options = new CreateJobOptions();
 			options.Arguments.Add("-Target=Step 1");
@@ -206,7 +206,7 @@ namespace Horde.Build.Tests
 			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
 			templateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
 
-			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
+			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object, null);
 
 			CreateJobOptions options = new CreateJobOptions();
 			options.Arguments.Add("-Target=Step 1");
@@ -257,7 +257,7 @@ namespace Horde.Build.Tests
 			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
 			templateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
 
-			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
+			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object, null);
 
 			CreateJobOptions options = new CreateJobOptions();
 			options.Arguments.Add("-Target=Step 1");

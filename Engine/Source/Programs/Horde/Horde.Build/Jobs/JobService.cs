@@ -1327,7 +1327,7 @@ namespace Horde.Build.Jobs
 						break;
 					}
 
-					IGraph triggerGraph = await _graphs.AddAsync(template);
+					IGraph triggerGraph = await _graphs.AddAsync(template, stream.Config.InitialAgentType);
 					_logger.LogInformation("Creating downstream job {ChainedJobId} from job {JobId}", chainedJobId, newJob.Id);
 
 					CreateJobOptions options = new CreateJobOptions(templateRef.Config);
