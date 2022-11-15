@@ -114,7 +114,9 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		Result = EXIT_FAILURE;
 	}
 
-	FCoreDelegates::OnExit.Broadcast();
+	FEngineLoop::AppPreExit();
+	FModuleManager::Get().UnloadModulesAtShutdown();
+	FEngineLoop::AppExit();
 
 	FPlatformMisc::RequestExit(true);
 

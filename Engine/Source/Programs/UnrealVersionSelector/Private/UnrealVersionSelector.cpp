@@ -447,6 +447,7 @@ int Main(const TArray<FString>& Arguments)
 
 		FEngineLoop::AppPreExit();
 		FModuleManager::Get().UnloadModulesAtShutdown();
+		FEngineLoop::AppExit();
 
 		return Result;
 	}

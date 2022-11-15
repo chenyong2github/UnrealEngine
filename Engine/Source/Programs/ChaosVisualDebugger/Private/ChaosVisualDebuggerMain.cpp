@@ -133,7 +133,9 @@ int32 ChaosVisualDebuggerMain(const TCHAR* CommandLine)
 
 	FCoreDelegates::OnExit.Broadcast();
 	FSlateApplication::Shutdown();
+	FEngineLoop::AppPreExit();
 	FModuleManager::Get().UnloadModulesAtShutdown();
+	FEngineLoop::AppExit();
 
 	return 0;
 } 
