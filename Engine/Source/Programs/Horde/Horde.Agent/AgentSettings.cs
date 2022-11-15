@@ -6,31 +6,11 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using Horde.Agent.Execution;
 using Microsoft.Extensions.Configuration;
 
 namespace Horde.Agent
 {
-	/// <summary>
-	/// The type of executor to use
-	/// </summary>
-	public enum ExecutorType
-	{
-		/// <summary>
-		/// The test executor (predefined job, 
-		/// </summary>
-		Test,
-
-		/// <summary>
-		/// The local executor (run all steps locally)
-		/// </summary>
-		Local,
-
-		/// <summary>
-		/// Manage workspaces and run steps in a synced branch
-		/// </summary>
-		Perforce,
-	}
-
 	/// <summary>
 	/// Describes a network share to mount
 	/// </summary>
@@ -165,7 +145,7 @@ namespace Horde.Agent
 		/// <summary>
 		/// The executor to use for jobs. Defaults to the Perforce executor.
 		/// </summary>
-		public ExecutorType Executor { get; set; } = ExecutorType.Perforce;
+		public string Executor { get; set; } = Execution.PerforceExecutor.Name;
 
 		/// <summary>
 		/// Settings for the local executor

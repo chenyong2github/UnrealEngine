@@ -652,6 +652,11 @@ namespace Horde.Build.Jobs
 		public DateTime CreateTimeUtc { get; }
 
 		/// <summary>
+		/// Executor to use for this job
+		/// </summary>
+		public string? Executor { get; }
+
+		/// <summary>
 		/// Largest value of the CombinedPriority value for batches in the ready state.
 		/// </summary>
 		public int SchedulePriority { get; }

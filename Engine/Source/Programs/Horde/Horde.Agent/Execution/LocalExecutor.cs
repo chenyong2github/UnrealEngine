@@ -54,6 +54,8 @@ namespace Horde.Agent.Execution
 		readonly LocalExecutorSettings _settings;
 		readonly IHttpClientFactory _httpClientFactory;
 
+		public override string Name => "Local";
+
 		public LocalExecutorFactory(IOptions<LocalExecutorSettings> settings, IHttpClientFactory httpClientFactory)
 		{
 			_settings = settings.Value;

@@ -28,6 +28,7 @@ using HordeCommon.Rpc;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 
@@ -1419,6 +1420,8 @@ namespace Horde.Agent.Execution
 
 	abstract class JobExecutorFactory
 	{
+		public abstract string Name { get; }
+
 		public abstract JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse);
 	}
 }

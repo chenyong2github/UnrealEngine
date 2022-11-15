@@ -225,6 +225,8 @@ namespace Horde.Agent.Tests
 	{
 		readonly JobExecutor _executor;
 
+		public override string Name => "Simple";
+
 		public SimpleTestExecutorFactory(JobExecutor executor)
 		{
 			_executor = executor;
