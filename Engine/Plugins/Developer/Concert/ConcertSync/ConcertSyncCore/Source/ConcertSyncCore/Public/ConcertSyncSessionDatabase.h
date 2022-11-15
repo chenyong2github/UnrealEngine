@@ -23,6 +23,7 @@ using FIteratePackageActivityFunc = TFunctionRef<EBreakBehavior(FConcertSyncActi
 using FIterateActivityFunc = TFunctionRef<EBreakBehavior(FConcertSyncActivity&&)>;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActivityProduced, const FConcertSyncActivity&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPackageSaved, const FName& PackageName);
 
 /**
  * Database of activities that have happened in a Concert Sync Session.
@@ -695,15 +696,16 @@ private:
 
 	/** Helper functions that for getting a package revision for an optional package revision argument */
 	TOptional<int64> GetSpecifiedOrHeadPackageRevision(FName InPackageName, const int64* InPackageRevision) const;
-	
+
 	/**
 	 * Schedule an asynchronous write for the given Package Stream.  The stream must be in-memory. File sharing
 	 * asynchronous write is not supported.
 	 *
+	 * @param InPackageName	            Name of the package in content area.
 	 * @param InDstPackageBlobPathName  Full path of the destination package.
 	 * @param InPackageDataStream       The package data stream.
 	 **/
-	void ScheduleAsyncWrite(const FString& InDstPackageBlobPathname, FConcertPackageDataStream& InPackageDataStream);
+	void ScheduleAsyncWrite(const FName& InPackageName, const FString& InDstPackageBlobPathname, FConcertPackageDataStream& InPackageDataStream);
 
 	/**
 	 * Set the active ignored state for the given activity.
@@ -969,6 +971,12 @@ private:
 
 	TPimplPtr<struct FDeferredLargePackageIOImpl> DeferredLargePackageIOPtr;
 };
+
+namespace UE::ConcertSyncCore::SyncDatabase
+{
+	/** Get the global saved package delegate */
+	CONCERTSYNCCORE_API FOnPackageSaved& GetOnPackageSavedDelegate();
+}
 
 namespace ConcertSyncSessionDatabaseFilterUtil
 {

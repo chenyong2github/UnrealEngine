@@ -11,6 +11,8 @@
 #include "IConcertClientPresenceManager.h"
 #include "ConcertSettings.h"
 #include "ConcertMessageData.h"
+#include "ConcertSyncSessionDatabase.h"
+#include "IConcertClientWorkspace.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogMultiUserClient, Log, All);
@@ -172,6 +174,63 @@ void UMultiUserClientStatics::PersistMultiUserSessionChanges()
 #endif
 }
 
+void UMultiUserClientStatics::PersistSpecifiedPackages(const TArray<FName>& PackagesToPersist)
+{
+#if WITH_CONCERT
+	if (IMultiUserClientModule::IsAvailable())
+	{
+		if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IMultiUserClientModule::Get().GetClient())
+		{
+			if (TSharedPtr<IConcertClientWorkspace> Workspace = ConcertSyncClient->GetWorkspace())
+			{
+				ConcertSyncClient->PersistSpecificChanges({PackagesToPersist});
+			}
+		}
+	}
+#endif
+}
+
+TArray<FName> UMultiUserClientStatics::GatherSessionChanges(bool bIgnorePersisted)
+{
+#if WITH_CONCERT
+	if (IMultiUserClientModule::IsAvailable())
+	{
+		if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IMultiUserClientModule::Get().GetClient())
+		{
+			if (TSharedPtr<IConcertClientWorkspace> Workspace = ConcertSyncClient->GetWorkspace())
+			{
+				return Workspace->GatherSessionChanges();
+			}
+		}
+	}
+#endif
+	return {};
+}
+
+UMultiUserClientSyncDatabase* UMultiUserClientStatics::GetConcertSyncDatabase()
+{
+#if WITH_CONCERT
+	static bool bRunOnce = []()
+	{
+		UE::ConcertSyncCore::SyncDatabase::GetOnPackageSavedDelegate().AddLambda([](const FName& PackageName)
+		{
+			UMultiUserClientSyncDatabase* Database = GetMutableDefault<UMultiUserClientSyncDatabase>();
+			check(Database);
+			// Re-broadcast message to blueprints.
+			Database->OnPackageSaved.Broadcast(PackageName);
+		});
+		return true;
+	}();
+
+	UMultiUserClientSyncDatabase* SyncDatabase = GetMutableDefault<UMultiUserClientSyncDatabase>();
+	if (bRunOnce && SyncDatabase)
+	{
+		return SyncDatabase;
+	}
+#endif
+	return nullptr;
+}
+
 FMultiUserClientInfo UMultiUserClientStatics::GetLocalMultiUserClientInfo()
 {
 	FMultiUserClientInfo ClientInfo;
@@ -182,7 +241,7 @@ FMultiUserClientInfo UMultiUserClientStatics::GetLocalMultiUserClientInfo()
 		{
 			IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
 			TSharedPtr<IConcertClientSession> ClientSession = ConcertClient->GetCurrentSession();
-		
+
 			FGuid LocalClientEndpointId = ClientSession ? ClientSession->GetSessionClientEndpointId() : FGuid();
 			const FConcertClientInfo& LocalClientInfo = ClientSession ? ClientSession->GetLocalClientInfo() : ConcertClient->GetClientInfo();
 			ClientInfo = MultiUserClientUtil::ConvertClientInfo(LocalClientEndpointId, LocalClientInfo);

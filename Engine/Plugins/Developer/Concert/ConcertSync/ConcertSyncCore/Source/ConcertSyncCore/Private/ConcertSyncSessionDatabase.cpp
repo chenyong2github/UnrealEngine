@@ -18,7 +18,6 @@
 #include "Serialization/MemoryWriter.h"
 #include "Async/Async.h"
 
-
 /** Contains an asynchronous representation of the FConcertPackageDataStream */
 namespace PackageDataUtil
 {
@@ -31,7 +30,7 @@ namespace PackageDataUtil
 
 struct FConcertPackageAsyncDataStream
 {
-	FConcertPackageAsyncDataStream(const FConcertPackageDataStream& InStream, const FString& InPackageName)
+	FConcertPackageAsyncDataStream(const FConcertPackageDataStream& InStream, const FName& InPackageName)
 		:
 		CachedPackageName(InPackageName),
 		PackageData(InStream.DataBlob->GetData(),InStream.DataBlob->Num())
@@ -39,7 +38,7 @@ struct FConcertPackageAsyncDataStream
 		PackageStream = {nullptr, InStream.DataSize, &PackageData};
 	}
 
-	FString								CachedPackageName;
+	FName								CachedPackageName;
 	TFuture<bool>						AsyncTask;
 	PackageDataUtil::WritePackageResult Result;
 
@@ -69,6 +68,12 @@ struct FDeferredLargePackageIOImpl
 
 	FAsyncDataStreamMap DeferredLargePackageIO;
 };
+
+FOnPackageSaved& UE::ConcertSyncCore::SyncDatabase::GetOnPackageSavedDelegate()
+{
+	static FOnPackageSaved SavedDelegate;
+	return SavedDelegate;
+}
 
 namespace TransactionDataUtil
 {
@@ -2740,24 +2745,35 @@ bool FConcertSyncSessionDatabase::LoadTransaction(const FString& InTransactionFi
 	return false;
 }
 
-bool HandleWritePackageResult(const FString& InDstPackageBlobPathname, TUniquePtr<FConcertFileCache>& Cache, PackageDataUtil::WritePackageResult Result)
+bool HandleWritePackageResult(const FName& PackageName, const FString& InDstPackageBlobPathname, TUniquePtr<FConcertFileCache>& Cache, PackageDataUtil::WritePackageResult Result)
 {
-	if (Result.CacheData.Num()>0)
+	auto SaveResult = [](const FString& InDstPackageBlobPathname, TUniquePtr<FConcertFileCache>& Cache, PackageDataUtil::WritePackageResult Result)
 	{
-		if (Result.bShouldCache)
+		if (Result.CacheData.Num()>0)
 		{
-			return Cache->SaveAndCacheFile(InDstPackageBlobPathname, MoveTemp(Result.CacheData));
+			if (Result.bShouldCache)
+			{
+				return Cache->SaveAndCacheFile(InDstPackageBlobPathname, MoveTemp(Result.CacheData));
+			}
+			TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
+			if (DstAr)
+			{
+				DstAr->Serialize(Result.CacheData.GetData(), Result.CacheData.Num());
+				return !DstAr->IsError();
+			}
+			UE_LOG(LogConcert, Warning, TEXT("Failed to handle package write result of file '%s'."), *InDstPackageBlobPathname);
+			return false;
 		}
-		TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
-		if (DstAr)
-		{
-			DstAr->Serialize(Result.CacheData.GetData(), Result.CacheData.Num());
-			return !DstAr->IsError();
-		}
-		UE_LOG(LogConcert, Warning, TEXT("Failed to handle package write result of file '%s'."), *InDstPackageBlobPathname);
-		return false;
+		return true;
+	};
+
+	const bool bSaveResult = SaveResult(InDstPackageBlobPathname, Cache, Result);
+	if (bSaveResult)
+	{
+		UE::ConcertSyncCore::SyncDatabase::GetOnPackageSavedDelegate().Broadcast(PackageName);
 	}
-	return true;
+
+	return bSaveResult;
 }
 
 bool FConcertSyncSessionDatabase::SavePackage(const FString& InDstPackageBlobPathname, const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream)
@@ -2772,9 +2788,10 @@ bool FConcertSyncSessionDatabase::SavePackage(const FString& InDstPackageBlobPat
 	//     of this object and thus we cannot perform asynchronous work (Unless the raw data via DataBlob has already
 	//     been provided) in which case we ignore the DstAr and do asynchronous path.
 	//
+	FName PackageName = InPackageInfo.PackageUpdateType == EConcertPackageUpdateType::Renamed ? InPackageInfo.NewPackageName : InPackageInfo.PackageName;
 	if (InPackageDataStream.DataBlob && InPackageDataStream.DataBlob->Num() > 0)
 	{
-		ScheduleAsyncWrite(InDstPackageBlobPathname, InPackageDataStream);
+		ScheduleAsyncWrite(PackageName, InDstPackageBlobPathname, InPackageDataStream);
 		return true;
 	}
 	else
@@ -2783,7 +2800,7 @@ bool FConcertSyncSessionDatabase::SavePackage(const FString& InDstPackageBlobPat
 		{
 			FArchive NullArchive;
 			PackageDataUtil::WritePackageResult Result = PackageDataUtil::WritePackage(InPackageDataStream, &NullArchive);
-			return HandleWritePackageResult(InDstPackageBlobPathname, PackageFileCache, MoveTemp(Result));
+			return HandleWritePackageResult(PackageName, *InDstPackageBlobPathname, PackageFileCache, MoveTemp(Result));
 		}
 		else
 		{
@@ -2835,11 +2852,11 @@ void FConcertSyncSessionDatabase::FlushAsynchronousTasks()
 	{
 		if (Item.Value->AsyncTask.Get())
 		{
-			HandleWritePackageResult(Item.Key, PackageFileCache, MoveTemp(Item.Value->Result));
+			HandleWritePackageResult(Item.Value->CachedPackageName, Item.Key, PackageFileCache, MoveTemp(Item.Value->Result));
 		}
 		else
 		{
-			UE_LOG(LogConcert, Error, TEXT("Async task failed to write package %s"), *Item.Value->CachedPackageName);
+			UE_LOG(LogConcert, Error, TEXT("Async task failed to write package %s"), *Item.Value->CachedPackageName.ToString());
 		}
 	}
 	DeferredLargePackageIOPtr->Clear();
@@ -2851,7 +2868,7 @@ void FConcertSyncSessionDatabase::UpdateAsynchronousTasks()
 	{
 		if (It->Value->AsyncTask.IsReady())
 		{
-			HandleWritePackageResult(It->Key, PackageFileCache,MoveTemp(It->Value->Result));
+			HandleWritePackageResult(It->Value->CachedPackageName, It->Key, PackageFileCache, MoveTemp(It->Value->Result));
 			It.RemoveCurrent();
 		}
 	}
@@ -2893,15 +2910,15 @@ TOptional<int64> FConcertSyncSessionDatabase::GetSpecifiedOrHeadPackageRevision(
 	return PackageRevision;
 }
 
-void FConcertSyncSessionDatabase::ScheduleAsyncWrite(const FString& InDstPackageBlobPathname, FConcertPackageDataStream& InPackageDataStream)
+void FConcertSyncSessionDatabase::ScheduleAsyncWrite(const FName& InPackageName, const FString& InDstPackageBlobPathname, FConcertPackageDataStream& InPackageDataStream)
 {
 	check(InPackageDataStream.DataBlob && InPackageDataStream.DataBlob->Num() > 0);
 
-	FConcertPackageAsyncDataStreamPtr SharedStream = MakeShared<FConcertPackageAsyncDataStream,ESPMode::ThreadSafe>(InPackageDataStream, InDstPackageBlobPathname);
+	FConcertPackageAsyncDataStreamPtr SharedStream = MakeShared<FConcertPackageAsyncDataStream,ESPMode::ThreadSafe>(InPackageDataStream, InPackageName);
 	if(FConcertPackageAsyncDataStreamPtr* Item = DeferredLargePackageIOPtr->GetMap().Find(InDstPackageBlobPathname))
 	{
 		(*Item)->AsyncTask.Get();
-		HandleWritePackageResult(InDstPackageBlobPathname, PackageFileCache, MoveTemp((*Item)->Result));
+		HandleWritePackageResult((*Item)->CachedPackageName, InDstPackageBlobPathname, PackageFileCache, MoveTemp((*Item)->Result));
 	}
 	DeferredLargePackageIOPtr->GetMap().FindOrAdd(InDstPackageBlobPathname) = SharedStream;
 	SharedStream->AsyncTask = Async(EAsyncExecution::TaskGraph, [InDstPackageBlobPathname,SharedStream]()

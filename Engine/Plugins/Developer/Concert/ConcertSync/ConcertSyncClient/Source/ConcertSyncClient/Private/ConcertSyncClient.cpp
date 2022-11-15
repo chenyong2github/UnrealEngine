@@ -106,6 +106,16 @@ FOnConcertClientSyncSessionStartupOrShutdown& FConcertSyncClient::OnSyncSessionS
 	return OnSyncSessionShutdownDelegate;
 }
 
+void FConcertSyncClient::PersistSpecificChanges(TArrayView<const FName> InPackages)
+{
+#if WITH_EDITOR
+	if (Workspace)
+	{
+		Workspace->PersistSessionChanges({InPackages, SourceControlProxy.Get()});
+	}
+#endif
+}
+
 void FConcertSyncClient::PersistAllSessionChanges()
 {
 #if WITH_EDITOR

@@ -77,6 +77,9 @@ public:
 	/** Get the delegate called just after the workspace gets deleted. */
 	virtual FOnConcertClientSyncSessionStartupOrShutdown& OnSyncSessionShutdown() = 0;
 
+	/** Persist specific packages */
+	virtual void PersistSpecificChanges(TArrayView<const FName> Packages) = 0;
+
 	/** Persist all session changes and prepare the files for source control submission. */
 	virtual void PersistAllSessionChanges() = 0;
 

@@ -36,6 +36,7 @@ public:
 	virtual FOnConcertClientSyncSessionStartupOrShutdown& OnSyncSessionStartup() override;
 	virtual FOnConcertClientSyncSessionStartupOrShutdown& OnSyncSessionShutdown() override;
 
+	virtual void PersistSpecificChanges(TArrayView<const FName> InPackages) override;
 	virtual void PersistAllSessionChanges() override;
 	virtual void GetSessionClientActions(const FConcertSessionClientInfo& InClientInfo, TArray<FConcertActionDefinition>& OutActions) const override;
 
