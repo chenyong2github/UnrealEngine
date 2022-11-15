@@ -5,6 +5,7 @@
 #include "OnlineIdentityFacebook.h"
 #include "OnlineFriendsFacebook.h"
 #include "OnlineSharingFacebook.h"
+#include "OnlineUserFacebook.h"
 
 FOnlineSubsystemFacebook::FOnlineSubsystemFacebook(FName InInstanceName)
 	: FOnlineSubsystemFacebookCommon(InInstanceName)
