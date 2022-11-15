@@ -11,7 +11,7 @@ class IHttpRequest;
 /**
  * Platform specific Http implementations
  */
-class FUnixPlatformHttp : public FGenericPlatformHttp
+class HTTP_API FUnixPlatformHttp : public FGenericPlatformHttp
 {
 public:
 

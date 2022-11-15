@@ -8,7 +8,7 @@
 /**
 * Platform specific HTTP implementations.
 */
-class FHoloLensHttp : public FGenericPlatformHttp
+class HTTP_API FHoloLensHttp : public FGenericPlatformHttp
 {
 public:
 

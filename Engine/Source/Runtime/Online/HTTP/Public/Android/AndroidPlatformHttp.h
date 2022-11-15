@@ -6,7 +6,7 @@
 /**
  * Platform specific Http implementations
  */
-class FAndroidPlatformHttp : public FGenericPlatformHttp
+class HTTP_API FAndroidPlatformHttp : public FGenericPlatformHttp
 {
 public:
 

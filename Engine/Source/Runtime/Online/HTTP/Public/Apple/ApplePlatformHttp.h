@@ -6,7 +6,7 @@
 /**
  * Platform specific Http implementations
  */
-class FApplePlatformHttp : public FGenericPlatformHttp
+class HTTP_API FApplePlatformHttp : public FGenericPlatformHttp
 {
 public:
 
