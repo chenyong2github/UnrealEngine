@@ -30,6 +30,7 @@ namespace LensFileUtils
 		UTextureRenderTarget2D* NewRenderTarget2D = NewObject<UTextureRenderTarget2D>(Outer, MakeUniqueObjectName(Outer, UTextureRenderTarget2D::StaticClass(), TEXT("LensDisplacementMap")), RF_Public);
 		NewRenderTarget2D->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
 		NewRenderTarget2D->ClearColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.5f);
+		NewRenderTarget2D->Filter = TF_Bilinear;
 		NewRenderTarget2D->AddressX = TA_Clamp;
 		NewRenderTarget2D->AddressY = TA_Clamp;
 		NewRenderTarget2D->bAutoGenerateMips = false;

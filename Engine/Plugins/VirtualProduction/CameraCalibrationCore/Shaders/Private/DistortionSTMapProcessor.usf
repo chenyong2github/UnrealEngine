@@ -33,12 +33,12 @@ RWTexture2D<float2> OutDistortionDisplacementMap;
 void DistortionSTMapProcessorMainCS(uint3 ThreadId : SV_DispatchThreadID)
 {
 	float2 UV = TexelSize * (ThreadId.xy + 0.5f);
-
-#if PIXEL_ORIGIN == PIXEL_ORIGIN_TOPLEFT
 	float4 UVMapping = DistortionSTMap.SampleLevel(DistortionSTMapSampler, UV, 0);
-#elif PIXEL_ORIGIN == PIXEL_ORIGIN_BOTTOMLEFT
-	float2 MirroredUV = float2(UV.x, 1.0f - UV.y);
-	float4 UVMapping = DistortionSTMap.SampleLevel(DistortionSTMapSampler, MirroredUV, 0);
+
+	// If the ST Map is flipped vertically, invert the green and alpha channels
+#if PIXEL_ORIGIN == PIXEL_ORIGIN_BOTTOMLEFT
+	UVMapping.g = 1 - UVMapping.g;
+	UVMapping.a = 1 - UVMapping.a;
 #endif
 
 #if UNDISTORTION_CHANNELS == UNDISTORTION_CHANNELS_RG

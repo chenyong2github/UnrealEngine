@@ -72,6 +72,7 @@ void ULensDistortionModelHandlerBase::CreateDisplacementMaps(const FIntPoint Dis
 	{
 		DisplacementMap->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
 		DisplacementMap->ClearColor = FLinearColor::Black;
+		DisplacementMap->Filter = TF_Bilinear;
 		DisplacementMap->AddressX = TA_Clamp;
 		DisplacementMap->AddressY = TA_Clamp;
 		DisplacementMap->bAutoGenerateMips = false;
