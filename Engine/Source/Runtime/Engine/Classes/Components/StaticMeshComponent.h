@@ -141,8 +141,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(editcondition = "bOverrideWireframeColor"))
 	FColor WireframeColorOverride;
 
+	/** Forces this component to use fallback mesh for rendering if Nanite is enabled on the mesh. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Rendering)
 	uint8 bDisallowNanite : 1;
+
+	/** Forces this component to use fallback mesh for rendering if Nanite is enabled on the mesh (run-time override) */
+	UPROPERTY()
+	uint8 bForceDisableNanite : 1;
 
 	/** 
 	 * Whether to evaluate World Position Offset. 
@@ -391,6 +396,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetReverseCulling(bool ReverseCulling);
+
+	/** Force disabling of Nanite rendering. When true, Will swap to the the fallback mesh instead. */
+	UFUNCTION(BlueprintCallable, Category="Rendering")
+	void SetForceDisableNanite(bool bInForceDisableNanite);
 
 	virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true) override;
 

@@ -208,6 +208,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bForceNavigationObstacle = true;
 	bDisallowMeshPaintPerInstance = false;
 	bDisallowNanite = false;
+	bForceDisableNanite = false;
 	bEvaluateWorldPositionOffset = true;
 	bEvaluateWorldPositionOffsetInRayTracing = false;
 	bInitialEvaluateWorldPositionOffset = false;
@@ -1721,7 +1722,7 @@ void UStaticMeshComponent::UpdatePreCulledData(int32 LODIndex, const TArray<uint
 
 bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
 {
-	if (bDisallowNanite || GetScene() == nullptr)
+	if (bDisallowNanite || bForceDisableNanite || GetScene() == nullptr)
 	{
 		// Regardless of the static mesh asset supporting Nanite, this component does not want Nanite to be used
 		return false;
@@ -2367,6 +2368,17 @@ void UStaticMeshComponent::SetReverseCulling(bool ReverseCulling)
 	if (ReverseCulling != bReverseCulling)
 	{
 		bReverseCulling = ReverseCulling;
+		MarkRenderStateDirty();
+	}
+}
+
+void UStaticMeshComponent::SetForceDisableNanite(bool bInForceDisableNanite)
+{
+	bForceDisableNanite = bInForceDisableNanite;
+
+	// Check if we now need to recreate our scene proxy
+	if (SceneProxy != nullptr && SceneProxy->IsNaniteMesh() != ShouldCreateNaniteProxy())
+	{
 		MarkRenderStateDirty();
 	}
 }
