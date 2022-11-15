@@ -726,7 +726,7 @@ UMovieSceneKeyStructType* InstanceGeneratedStruct(FMovieSceneObjectPathChannel* 
 		return nullptr;
 	}
 
-	FSoftObjectProperty* NewValueProperty = new FSoftObjectProperty(NewStruct, "Value", RF_NoFlags);
+	FObjectPtrProperty* NewValueProperty = new FObjectPtrProperty(NewStruct, "Value", RF_NoFlags);
 	NewValueProperty->SetPropertyFlags(CPF_Edit);
 	NewValueProperty->SetMetaData("Category", TEXT("Key"));
 	NewValueProperty->PropertyClass = PropertyClass;
@@ -741,29 +741,51 @@ UMovieSceneKeyStructType* InstanceGeneratedStruct(FMovieSceneObjectPathChannel* 
 	return NewStruct;
 }
 
+
 void PostConstructKeyInstance(const TMovieSceneChannelHandle<FMovieSceneObjectPathChannel>& ChannelHandle, FKeyHandle InHandle, FStructOnScope* Struct)
-{	
+{
 	const UMovieSceneKeyStructType* GeneratedStructType = CastChecked<const UMovieSceneKeyStructType>(Struct->GetStruct());
 
-	FSoftObjectProperty* EditProperty = CastFieldChecked<FSoftObjectProperty>(GeneratedStructType->DestValueProperty.Get());
-	const uint8* PropertyAddress = EditProperty->ContainerPtrToValuePtr<uint8>(Struct->GetStructMemory());
+	uint8* StructMemory = Struct->GetStructMemory();
+
+	FObjectPtrProperty* ValueProperty = CastFieldChecked<FObjectPtrProperty>(GeneratedStructType->DestValueProperty.Get());
+	FStructProperty*     TimeProperty  = CastFieldChecked<FStructProperty>(GeneratedStructType->DestTimeProperty.Get());
+
+	const FFrameNumber*  TimeAddress   = TimeProperty->ContainerPtrToValuePtr<FFrameNumber>(StructMemory);
+	void*                ValueAddress  = ValueProperty->ContainerPtrToValuePtr<uint8>(StructMemory);
 
 	// It is safe to capture the property and address in this lambda because the lambda is owned by the struct itself, so cannot be invoked if the struct has been destroyed
-	auto CopyInstanceToKeyLambda = [ChannelHandle, InHandle, EditProperty, PropertyAddress](const FPropertyChangedEvent&)
+	auto CopyInstanceToKeyLambda = [ChannelHandle, InHandle, GeneratedStructType, ValueProperty, ValueAddress, TimeAddress](const FPropertyChangedEvent&)
 	{
 		if (FMovieSceneObjectPathChannel* DestinationChannel = ChannelHandle.Get())
 		{
 			const int32 KeyIndex = DestinationChannel->GetData().GetIndex(InHandle);
 			if (KeyIndex != INDEX_NONE)
 			{
-				UObject* ObjectPropertyValue = EditProperty->GetObjectPropertyValue(PropertyAddress);
+				UObject* ObjectPropertyValue = ValueProperty->GetObjectPropertyValue(ValueAddress);
 				DestinationChannel->GetData().GetValues()[KeyIndex] = ObjectPropertyValue;
+
+				// Set the new key time
+				DestinationChannel->SetKeyTime(InHandle, *TimeAddress);
 			}
 		}
 	};
 
 	FGeneratedMovieSceneKeyStruct* KeyStruct = reinterpret_cast<FGeneratedMovieSceneKeyStruct*>(Struct->GetStructMemory());
 	KeyStruct->OnPropertyChangedEvent = CopyInstanceToKeyLambda;
+
+	// Copy the initial value for the struct
+	FMovieSceneObjectPathChannel* Channel = ChannelHandle.Get();
+	if (Channel)
+	{
+		// Copy the initial value into the struct
+		const int32 KeyIndex = Channel->GetData().GetIndex(InHandle);
+		if (KeyIndex != INDEX_NONE)
+		{
+			UObject* InitialObject = Channel->GetData().GetValues()[KeyIndex].Get();
+			ValueProperty->SetObjectPropertyValue(ValueAddress, InitialObject);
+		}
+	}
 }
 
 template<typename ChannelType>

@@ -41,6 +41,9 @@ public:
 
 	UMovieSceneKeyStructType(const FObjectInitializer& ObjInit);
 
+	void InitializeStruct(void* InDest, int32 ArrayDim) const override;
+	void DestroyStruct(void* Dest, int32 ArrayDim) const override;
+
 	/**
 	 * Check whether this generated struct is complete and ready to be used
 	 */
@@ -64,6 +67,9 @@ public:
 	/** The value property for this reflected struct, of the same type as SourceValuesProperty->Inner */
 	UPROPERTY()
 	TFieldPath<FProperty> DestValueProperty;
+
+private:
+	using UStruct::SetSuperStruct;
 };
 
 /**
@@ -192,6 +198,24 @@ inline UMovieSceneKeyStructType* InstanceGeneratedStruct(void* Channel, FSequenc
 template<typename ChannelType>
 void PostConstructKeyInstance(const TMovieSceneChannelHandle<ChannelType>& ChannelHandle, FKeyHandle InHandle, FStructOnScope* Struct)
 {
+	ChannelType* Channel = ChannelHandle.Get();
+	if (Channel)
+	{
+		const UMovieSceneKeyStructType* GeneratedStructType = CastChecked<const UMovieSceneKeyStructType>(Struct->GetStruct());
+		void* StructPtr = Struct->GetStructMemory();
+
+		const int32 InitialKeyIndex = Channel->GetData().GetIndex(InHandle);
+
+		// Copy the initial value into the struct
+		if (InitialKeyIndex != INDEX_NONE)
+		{
+			const uint8* SrcValueData  = GeneratedStructType->SourceValuesProperty->ContainerPtrToValuePtr<uint8>(Channel);
+			uint8*       DestValueData = GeneratedStructType->DestValueProperty->ContainerPtrToValuePtr<uint8>(StructPtr);
+
+			FScriptArrayHelper SourceValuesArray(GeneratedStructType->SourceValuesProperty.Get(), SrcValueData);
+			GeneratedStructType->SourceValuesProperty->Inner->CopyCompleteValue(DestValueData, SourceValuesArray.GetRawPtr(InitialKeyIndex));
+		}
+	}
 }
 
 template<typename ChannelType>

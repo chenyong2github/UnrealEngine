@@ -14,6 +14,48 @@ UMovieSceneKeyStructType::UMovieSceneKeyStructType(const FObjectInitializer& Obj
 	SourceTimesProperty  = nullptr;
 	DestValueProperty    = nullptr;
 	DestTimeProperty     = nullptr;
+
+	SetSuperStruct(FGeneratedMovieSceneKeyStruct::StaticStruct());
+	ensureMsgf(FGeneratedMovieSceneKeyStruct::StaticStruct()->PropertyLink == nullptr, TEXT("FGeneratedMovieSceneKeyStruct must not have any UPROPERTY members."));
+}
+
+void UMovieSceneKeyStructType::InitializeStruct(void* InDest, int32 ArrayDim) const
+{
+	const int32 Stride = GetStructureSize();
+
+	FMemory::Memzero(InDest, ArrayDim*Stride);
+
+	// Initialize the native super struct first
+	for (int32 Index = 0; Index < ArrayDim; ++Index)
+	{
+		uint8* ElementBytes = reinterpret_cast<uint8*>(InDest) + Index*Stride;
+		new (ElementBytes) FGeneratedMovieSceneKeyStruct();
+
+		// Initialize any additional properties on this struct
+		for (FProperty* Property = PropertyLink; Property; Property = Property->PropertyLinkNext)
+		{
+			Property->InitializeValue_InContainer(ElementBytes);
+		}
+	}
+}
+
+void UMovieSceneKeyStructType::DestroyStruct(void* InDest, int32 ArrayDim) const
+{
+	const int32 Stride = GetStructureSize();
+
+	for (int32 Index = 0; Index < ArrayDim; ++Index)
+	{
+		uint8* ElementBytes = reinterpret_cast<uint8*>(InDest) + Index*Stride;
+
+		// Destroy any additional properties on this struct
+		for (FProperty* Property = PropertyLink; Property; Property = Property->PropertyLinkNext)
+		{
+			Property->DestroyValue_InContainer(ElementBytes);
+		}
+
+		// Destroy the base class
+		reinterpret_cast<FGeneratedMovieSceneKeyStruct*>(ElementBytes)->~FGeneratedMovieSceneKeyStruct();
+	}
 }
 
 FSequencerKeyStructGenerator& FSequencerKeyStructGenerator::Get()
@@ -25,7 +67,6 @@ FSequencerKeyStructGenerator& FSequencerKeyStructGenerator::Get()
 UMovieSceneKeyStructType* FSequencerKeyStructGenerator::AllocateNewKeyStruct()
 {
 	UMovieSceneKeyStructType* NewStruct = NewObject<UMovieSceneKeyStructType>(GetTransientPackage(), NAME_None, RF_Public | RF_Standalone);
-	NewStruct->SetSuperStruct(FGeneratedMovieSceneKeyStruct::StaticStruct());
 	return NewStruct;
 }
 
@@ -103,8 +144,6 @@ void FSequencerKeyStructGenerator::FinalizeNewKeyStruct(UMovieSceneKeyStructType
 	InStruct->Bind();
 	InStruct->StaticLink(true);
 
-	UMovieSceneKeyStructType::DeferCppStructOps(InStruct->GetStructPathName(), new UScriptStruct::TCppStructOps<FGeneratedMovieSceneKeyStruct>);
-
 	check(InStruct->IsComplete());
 }
 
@@ -146,21 +185,11 @@ TSharedPtr<FStructOnScope> FSequencerKeyStructGenerator::CreateInitialStructInst
 
 	// Copy the initial time into the struct
 	{
-
 		const uint8* SrcTimeData  = GeneratedStructType->SourceTimesProperty->ContainerPtrToValuePtr<uint8>(SourceChannel);
 		uint8*       DestTimeData = GeneratedStructType->DestTimeProperty->ContainerPtrToValuePtr<uint8>(StructPtr);
 
 		FScriptArrayHelper SourceTimesArray(GeneratedStructType->SourceTimesProperty.Get(), SrcTimeData);
 		GeneratedStructType->SourceTimesProperty->Inner->CopyCompleteValue(DestTimeData, SourceTimesArray.GetRawPtr(InitialKeyIndex));
-	}
-
-	// Copy the initial value into the struct
-	{
-		const uint8* SrcValueData  = GeneratedStructType->SourceValuesProperty->ContainerPtrToValuePtr<uint8>(SourceChannel);
-		uint8*       DestValueData = GeneratedStructType->DestValueProperty->ContainerPtrToValuePtr<uint8>(StructPtr);
-
-		FScriptArrayHelper SourceValuesArray(GeneratedStructType->SourceValuesProperty.Get(), SrcValueData);
-		GeneratedStructType->SourceValuesProperty->Inner->CopyCompleteValue(DestValueData, SourceValuesArray.GetRawPtr(InitialKeyIndex));
 	}
 
 	return Struct;
