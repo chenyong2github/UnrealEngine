@@ -8,7 +8,7 @@ UE::FDynamicallyTypedValueType& UE::FDynamicallyTypedValue::NullType()
 	{
 		FNullType(): FDynamicallyTypedValueType(0, 0, EContainsReferences::DoesNot) {}
 
-		virtual void MarkReachable() override {}
+		virtual void MarkReachable(FReferenceCollector& Collector) override {}
 		virtual void MarkValueReachable(void* Data, FReferenceCollector& Collector) const override {}
 
 		virtual void InitializeValue(void* Data) const override {}

@@ -30,7 +30,7 @@ namespace UE
 		}
 
 		// Marks the type itself as reachable.
-		virtual void MarkReachable() = 0;
+		virtual void MarkReachable(FReferenceCollector& Collector) = 0;
 
 		// Marks a value of the type as reachable.
 		virtual void MarkValueReachable(void* Data, FReferenceCollector& Collector) const = 0;

@@ -1288,7 +1288,7 @@ private:
 					{
 						TokenReturnCount = ReferenceInfo.ReturnCount;
 						UE::FDynamicallyTypedValue* DynamicallyTypedValue = (UE::FDynamicallyTypedValue*)(StackEntryData + ReferenceInfo.Offset);
-						DynamicallyTypedValue->GetType().MarkReachable();
+						DynamicallyTypedValue->GetType().MarkReachable(ReferenceCollector);
 						if (DynamicallyTypedValue->GetType().GetContainsReferences() != UE::FDynamicallyTypedValueType::EContainsReferences::DoesNot)
 						{
 							DynamicallyTypedValue->GetType().MarkValueReachable(DynamicallyTypedValue->GetDataPointer(), ReferenceCollector);
