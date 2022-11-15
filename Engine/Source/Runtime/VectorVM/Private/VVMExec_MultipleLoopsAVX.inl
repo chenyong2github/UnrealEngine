@@ -449,12 +449,12 @@
 										}
 
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION_SHIP
 static void execChunkMultipleLoopsAVX(FVectorVMExecContext *ExecCtx, FVectorVMBatchState *BatchState, int StartInstanceThisChunk, int NumInstancesThisChunk, int NumLoops, FVectorVMSerializeState *SerializeState, FVectorVMSerializeState *CmpSerializeState)
 {
 #include "VectorVMExecCore.inl"
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef VVM_execCoreSetupIncVars
 #undef VVM_execCoreSetupPtrVars
