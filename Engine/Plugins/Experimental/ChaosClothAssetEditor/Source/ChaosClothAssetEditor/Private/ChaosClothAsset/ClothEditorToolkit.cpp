@@ -441,7 +441,6 @@ void FChaosClothAssetEditorToolkit::PostInitAssetEditor()
 	check(ClothMode);
 	const TWeakPtr<FViewportClient> WeakViewportClient(ViewportClient);
 	ClothMode->SetRestSpaceViewportClient(StaticCastWeakPtr<FChaosClothEditorRestSpaceViewportClient>(WeakViewportClient));
-	ClothMode->RefocusRestSpaceViewportClient();
 
 	// Note: We force the cloth preview viewport to open, since some ViewportClient functions are not robust to having no viewport.
 	// See UE-114649

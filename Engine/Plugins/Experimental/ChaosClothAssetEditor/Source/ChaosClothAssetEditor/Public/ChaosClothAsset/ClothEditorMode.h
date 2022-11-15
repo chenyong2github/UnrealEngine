@@ -25,6 +25,7 @@ class UDynamicMeshComponent;
 class UChaosClothComponent;
 class FEditorViewportClient;
 class FChaosClothEditorRestSpaceViewportClient;
+class FViewport;
 
 /**
  * The cloth editor mode is the mode used in the cloth asset editor. It holds most of the inter-tool state.
@@ -153,10 +154,14 @@ private:
 	FDelegateHandle SelectionModifiedEventHandle;
 
 	// Whether to display the 2D pattern or 3D rest configuration in the left viewport
-	bool bPattern2DMode = false;
+	bool bPattern2DMode = true;
 
 	// If we can switch between 2D and 3D rest configuration
 	bool bCanTogglePattern2DMode = true;
+
+	bool bShouldFocusRestSpaceView = true;
+
+	void RestSpaceViewportResized(FViewport* RestspaceViewport, uint32 Unused);
 
 	// Whether to combine all patterns into a single DynamicMeshComponent, or have separate components for each pattern
 	// TODO: Expose this to the user

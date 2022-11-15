@@ -633,7 +633,7 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 	}
 
 	ReinitializeDynamicMeshComponents();
-	RefocusRestSpaceViewportClient();
+	bShouldFocusRestSpaceView = true;
 
 	// Prep things for layer/channel selection
 	AssetNames.Reset(ToolTargets.Num());
@@ -751,6 +751,16 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 	}
 }
 
+void UChaosClothAssetEditorMode::RestSpaceViewportResized(FViewport* RestspaceViewport, uint32 /*Unused*/)
+{
+	// We'd like to call RefocusRestSpaceViewportClient() when the viewport is first created, however in Ortho mode the
+	// viewport needs to have non-zero size for FocusViewportOnBox() to work properly. So we wait until the viewport is resized here.
+	if (bShouldFocusRestSpaceView && RestspaceViewport && RestspaceViewport->GetSizeXY().X > 0 && RestspaceViewport->GetSizeXY().Y > 0)
+	{
+		RefocusRestSpaceViewportClient();
+		bShouldFocusRestSpaceView = false;
+	}
+}
 
 FBox UChaosClothAssetEditorMode::SceneBoundingBox() const
 {
@@ -859,6 +869,11 @@ void UChaosClothAssetEditorMode::SetRestSpaceViewportClient(TWeakPtr<FChaosCloth
 	{
 		VC->Set2DMode(bPattern2DMode);
 		VC->SetToolCommandList(ToolCommandList);
+
+		if (VC->Viewport)
+		{
+			VC->Viewport->ViewportResizedEvent.AddUObject(this, &UChaosClothAssetEditorMode::RestSpaceViewportResized);
+		}
 	}
 }
 
