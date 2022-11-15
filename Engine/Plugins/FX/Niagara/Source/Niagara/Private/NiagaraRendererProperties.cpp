@@ -8,6 +8,7 @@
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemImpl.h"
 
 #include "Interfaces/ITargetPlatform.h"
 #include "Materials/MaterialInterface.h"
