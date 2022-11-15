@@ -55,7 +55,10 @@ public:
 	void ConfigPathChangedEvent(const TArray<FFileChangeData>& InFileChanges, const FString InFileMountPath);
 
 #if WITH_EDITORONLY_DATA && WITH_OCIO
-	OCIO_NAMESPACE::ConstConfigRcPtr GetLoadedConfigurationFile() const { return LoadedConfig; }
+	OCIO_NAMESPACE::ConstConfigRcPtr GetLoadedConfiguration() const { return LoadedConfig; }
+
+	UE_DEPRECATED(5.2, "GetLoadedConfigurationFile is deprecated, please use GetLoadedConfiguration instead.")
+	OCIO_NAMESPACE::ConstConfigRcPtr GetLoadedConfigurationFile() const { return GetLoadedConfiguration(); }
 #endif
 
 protected:
@@ -72,6 +75,7 @@ protected:
 public:
 
 	//~ Begin UObject interface
+	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 #if WITH_EDITORONLY_DATA
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
@@ -86,7 +90,7 @@ public:
 	//~ End UObject interface
 
 private:
-	void LoadConfigurationFile();
+	void LoadConfiguration();
 
 	/** This method resets the status of Notification dialog and reacts depending on user's choice. */
 	void OnToastCallback(bool bInReloadColorspaces);

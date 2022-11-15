@@ -50,6 +50,7 @@ namespace OCIODirectoryWatcher
 UOpenColorIOConfiguration::UOpenColorIOConfiguration(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	
 }
 
 void UOpenColorIOConfiguration::BeginDestroy()
@@ -171,7 +172,7 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 	DesiredColorSpaces.Reset();
 	DesiredDisplayViews.Reset();
 	CleanupTransforms();
-	LoadConfigurationFile();
+	LoadConfiguration();
 
 	if (!LoadedConfig)
 	{
@@ -421,6 +422,20 @@ void UOpenColorIOConfiguration::CleanupTransforms()
 		});
 }
 
+
+void UOpenColorIOConfiguration::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_NeedLoad | RF_ClassDefaultObject))
+	{
+		ConfigurationFile.FilePath = TEXT("ocio://default");
+
+		// Ensure the default built-in configuration is loaded.
+		LoadConfiguration();
+	}
+}
+
 void UOpenColorIOConfiguration::PostLoad()
 {
 	Super::PostLoad();
@@ -472,7 +487,7 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UOpenColorIOConfiguration, ConfigurationFile))
 	{
-		LoadConfigurationFile();
+		LoadConfiguration();
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UOpenColorIOConfiguration, DesiredColorSpaces))
 	{
@@ -534,7 +549,7 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 }
 #endif //WITH_EDITOR
 
-void UOpenColorIOConfiguration::LoadConfigurationFile()
+void UOpenColorIOConfiguration::LoadConfiguration()
 {
 #if WITH_EDITOR && WITH_OCIO
 	if (!ConfigurationFile.FilePath.IsEmpty())
@@ -543,41 +558,49 @@ void UOpenColorIOConfiguration::LoadConfigurationFile()
 		try
 #endif
 		{
-			LoadedConfig.reset();
-
-			FString FullPath;
 			FString ConfigurationFilePath = ConfigurationFile.FilePath;
-			if (ConfigurationFilePath.Contains(TEXT("{Engine}")))
+			if (ConfigurationFilePath.StartsWith(TEXT("ocio://")))
 			{
-				ConfigurationFilePath = FPaths::ConvertRelativePathToFull(ConfigurationFilePath.Replace(TEXT("{Engine}"), *FPaths::EngineDir()));
-			}    
-
-			if (!FPaths::IsRelative(ConfigurationFilePath))
-			{
-				FullPath = ConfigurationFilePath;
+				LoadedConfig = OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*ConfigurationFilePath).Get());
+				UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded built-in OCIO configuration file %s"), *ConfigurationFilePath);
 			}
 			else
 			{
-				const FString AbsoluteGameDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-				FullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(AbsoluteGameDir, ConfigurationFilePath));
-			}
+				LoadedConfig.reset();
 
-			OCIO_NAMESPACE::ConstConfigRcPtr NewConfig = OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*FullPath).Get());
-			if (NewConfig)
-			{
-				UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded OCIO configuration file %s"), *FullPath);
-				LoadedConfig = NewConfig;
-				StartDirectoryWatch(FullPath);
-			}
-			else
-			{
-				UE_LOG(LogOpenColorIO, Error, TEXT("Could not load OCIO configuration file %s. Verify that the path is good or that the file is valid."), *ConfigurationFile.FilePath);
+				FString FullPath;
+				if (ConfigurationFilePath.Contains(TEXT("{Engine}")))
+				{
+					ConfigurationFilePath = FPaths::ConvertRelativePathToFull(ConfigurationFilePath.Replace(TEXT("{Engine}"), *FPaths::EngineDir()));
+				}
+
+				if (!FPaths::IsRelative(ConfigurationFilePath))
+				{
+					FullPath = ConfigurationFilePath;
+				}
+				else
+				{
+					const FString AbsoluteGameDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+					FullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(AbsoluteGameDir, ConfigurationFilePath));
+				}
+
+				OCIO_NAMESPACE::ConstConfigRcPtr NewConfig = OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*FullPath).Get());
+				if (NewConfig)
+				{
+					UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded OCIO configuration file %s"), *FullPath);
+					LoadedConfig = NewConfig;
+					StartDirectoryWatch(FullPath);
+				}
+				else
+				{
+					UE_LOG(LogOpenColorIO, Error, TEXT("Could not load OCIO configuration file %s. Verify that the path is good or that the file is valid."), *ConfigurationFile.FilePath);
+				}
 			}
 		}
 #if !PLATFORM_EXCEPTIONS_DISABLED
 		catch (OCIO_NAMESPACE::Exception& exception)
 		{
-			UE_LOG(LogOpenColorIO, Error, TEXT("Could not load OCIO configuration file %s. Error message: %s."), *ConfigurationFile.FilePath, StringCast<TCHAR>(exception.what()).Get());
+			UE_LOG(LogOpenColorIO, Error, TEXT("Could not create OCIO configuration file for %s. Error message: %s."), *ConfigurationFile.FilePath, StringCast<TCHAR>(exception.what()).Get());
 		}
 #endif
 	}
