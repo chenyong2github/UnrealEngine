@@ -63,4 +63,16 @@ namespace NNX
 		return ThreadGroupCount;
 	}
 
+	bool ConvertConcreteTensorDescsToTensors(TConstArrayView<FTensorDesc> TensorDescs, TArray<FTensor>& Tensors)
+	{
+		Tensors.Empty();
+		bool bAllShapesWereConcrete = true;
+		for (const FTensorDesc& TensorDesc : TensorDescs)
+		{
+			Tensors.Emplace(FTensor::MakeFromSymbolicDesc(TensorDesc));
+			bAllShapesWereConcrete &= TensorDesc.IsConcrete();
+		}
+		return bAllShapesWereConcrete;
+	}
+
 } // NNX

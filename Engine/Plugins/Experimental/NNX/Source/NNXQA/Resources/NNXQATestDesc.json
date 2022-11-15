@@ -88,7 +88,6 @@
 					"target": "OneLayerNoWeightVariableInputShape",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "skip": true, "comment": "RDG does not support variable input sized tensor" },
 						{ "name": "NNXRuntimeDML",  "skip": true, "comment": "RDG does not support variable input sized tensor" }
 					]
 				},
@@ -96,7 +95,6 @@
 					"target": "TwoLayersNoWeightVariableInputShape",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "skip": true, "comment": "RDG does not support variable input sized tensor" },
 						{ "name": "NNXRuntimeDML",  "skip": true, "comment": "RDG does not support variable input sized tensor" }
 					]
 				}

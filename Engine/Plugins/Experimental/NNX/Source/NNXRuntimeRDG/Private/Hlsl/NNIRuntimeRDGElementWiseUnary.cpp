@@ -28,23 +28,26 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		float Alpha = 0.0f;
 		float Beta = 0.0f;
 		float Gamma = 0.0f;
-		NNX::FTensor Input = {};
-		NNX::FTensor Output = {};
+		int32 ElemByteSize = 0;
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FTensor> InputTensors, TArrayView<const NNX::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
 		{
-			check(InputTensors.Num() == 1);
-			check(OutputTensors.Num() == 1);
+			check(InputShapes.Num() == 1);
+			OutputShapes = InputShapes;
+			return 0;
+		}
 
-			Input = InputTensors[0];
-			Output = OutputTensors[0];
+		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
+		{
+			check(InputTensorDescs.Num() == 1);
+			check(OutputTensorDescs.Num() == 1);
 
 			Alpha = Attributes.GetValueOrDefault(TEXT("alpha"), Alpha);
 			Beta = Attributes.GetValueOrDefault(TEXT("beta"), Beta);
 			Gamma = Attributes.GetValueOrDefault(TEXT("gamma"), Gamma);
-
+			ElemByteSize = InputTensorDescs[0].GetElemByteSize();
 			return true;
 		}
 
@@ -78,7 +81,8 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			FRDGBufferSRVRef InputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
 			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
 		
-			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.GetVolume(), FElementWiseUnaryConstants::NUM_GROUP_THREADS);
+			int32 NumElements = OutOutputBindings[0].SizeInBytes / ElemByteSize;//TODO jira 169354: Use shape from Dispatch instead
+			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(NumElements, FElementWiseUnaryConstants::NUM_GROUP_THREADS);
 
 			// Set parameters
 			TElementWiseUnaryCS::FParameters* Params = GraphBuilder.AllocParameters<TElementWiseUnaryCS::FParameters>();
@@ -87,7 +91,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			Params->Alpha = Alpha;
 			Params->Beta = Beta;
 			Params->Gamma = Gamma;
-			Params->Num = Output.GetVolume();
+			Params->Num = NumElements;
 			Params->ThreadCountX = ThreadGroupCount.X * FElementWiseUnaryConstants::NUM_GROUP_THREADS;
 
 			TElementWiseUnaryCS::FPermutationDomain PermutationVector;

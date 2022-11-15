@@ -46,8 +46,17 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FTensor> InputTensors, TArrayView<const NNX::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
 		{
+			TArray<NNX::FTensor> InputTensors;
+			TArray<NNX::FTensor> OutputTensors;
+			if (!NNX::ConvertConcreteTensorDescsToTensors(InputTensorDescs, InputTensors) ||
+				!NNX::ConvertConcreteTensorDescsToTensors(OutputTensorDescs, OutputTensors))
+			{
+				UE_LOG(LogNNX, Warning, TEXT("Variable input shapes are not supported by this operator"));
+				return false;
+			}
+			
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
 

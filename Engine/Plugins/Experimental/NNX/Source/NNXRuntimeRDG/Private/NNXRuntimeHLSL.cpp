@@ -39,7 +39,7 @@ protected:
 
 private:
 
-	FMLOperatorHlsl* OpCreate(const FString& Name, TArrayView<const FTensor> InputTensorDesc, TArrayView<const FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes);
+	FMLOperatorHlsl* OpCreate(const FString& Name, TConstArrayView<FTensorDesc> InputTensorDesc, TConstArrayView<FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes);
 
 	TArray<FMLOperatorHlsl*>	Operators;
 };
@@ -78,28 +78,24 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 	{
 		const FString TypeName = Format.Operators[Idx].TypeName;
 
-		TArray<FTensor> OpInputTensors;
-		TArray<FTensor> OpOutputTensors;
+		TArray<FTensorDesc> Inputs;
+		TArray<FTensorDesc> Outputs;
 		UE::NNECore::FAttributeMap AttributeMap;
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
-			FTensorDesc SymbolicTensorDesc = AllSymbolicTensors[InputTensorIndex];
-			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
-			OpInputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+			Inputs.Emplace(AllSymbolicTensors[InputTensorIndex]);
 		}
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			FTensorDesc SymbolicTensorDesc = AllSymbolicTensors[OutputTensorIndex];
-			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
-			OpOutputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+			Outputs.Emplace(AllSymbolicTensors[OutputTensorIndex]);
 		}
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
 			AttributeMap.SetAttribute(Desc.Name, Desc.Value);
 		}
 
-		FMLOperatorHlsl* Op = OpCreate(TypeName, OpInputTensors, OpOutputTensors, AttributeMap);
+		FMLOperatorHlsl* Op = OpCreate(TypeName, Inputs, Outputs, AttributeMap);
 
 		if (!Op) //Op.Shader.IsNull())
 		{
@@ -118,7 +114,7 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 //
 //
 //
-FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayView<const FTensor> InputTensorDescs, TArrayView<const FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& AttributeMap)
+FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TConstArrayView<FTensorDesc> InputTensorDescs, TConstArrayView<FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& AttributeMap)
 {
 	FMLOperatorRegistryHlsl::OperatorCreateFunc CreateFn = FMLOperatorRegistryHlsl::Get()->OpFind(OpName);
 
@@ -130,7 +126,12 @@ FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayVi
 
 	FMLOperatorHlsl* Op = CreateFn();
 
-	Op->Initialize(InputTensorDescs, OutputTensorDescs, AttributeMap);
+	if (!Op->Initialize(InputTensorDescs, OutputTensorDescs, AttributeMap))
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Hlsl engine: Error initializing operator:%s"), *OpName);
+		delete Op;
+		return nullptr;
+	}
 
 	return Op;
 }
