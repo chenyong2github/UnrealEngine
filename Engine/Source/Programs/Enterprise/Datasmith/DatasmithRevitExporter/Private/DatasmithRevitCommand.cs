@@ -11,15 +11,14 @@ using System.Windows.Forms;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Microsoft.Win32;
 
 namespace DatasmithRevitExporter
 {
-	public abstract class DatasmithRevitCommandUtils
+	public abstract class DatasmithRevitCommand : IExternalCommand
 	{
 		public const string DIALOG_CAPTION = "Export 3D View to Unreal Datasmith";
 
-		public static Result ExecuteFunc(
+		public Result Execute(
 			ExternalCommandData InCommandData,		// contains reference to Application and View
 			ref string			OutCommandMessage,  // error message to display in the failure dialog when the command returns "Failed"
 			ElementSet			OutElements         // set of problem elements to display in the failure dialog when the command returns "Failed"
@@ -50,19 +49,17 @@ namespace DatasmithRevitExporter
 				return Result.Cancelled;
 			}
 
-			return Result.Succeeded;
+			return OnExecute(InCommandData, ref OutCommandMessage, OutElements);
 		}
+
+		public abstract Result OnExecute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements);
 	}
 
 	[Transaction(TransactionMode.Manual)]
-	public class DatasmithSyncRevitCommand : IExternalCommand
+	public class DatasmithSyncRevitCommand : DatasmithRevitCommand
 	{
-		public static Result ExecuteFunc(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
+		public override Result OnExecute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
 		{
-			Result Result = DatasmithRevitCommandUtils.ExecuteFunc(InCommandData, ref OutCommandMessage, OutElements);
-			if (Result != Result.Succeeded)
-				return Result;
-
 			UIDocument UIDoc = InCommandData.Application.ActiveUIDocument;
 			Document Doc = UIDoc.Document;
 			View3D ActiveView = FDocument.ActiveDocument?.ActiveDirectLinkInstance?.SyncView;
@@ -70,14 +67,14 @@ namespace DatasmithRevitExporter
 			if (ActiveView == null)
 			{
 				string Message = "You must select a 3D view to sync.";
-				MessageBox.Show(Message, DatasmithRevitCommandUtils.DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return Result.Cancelled;
 			}
 
 			if (ActiveView.IsTemplate || !ActiveView.CanBePrinted)
 			{
 				string Message = "The active 3D view cannot be exported.";
-				MessageBox.Show(Message, DatasmithRevitCommandUtils.DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return Result.Cancelled;
 			}
 
@@ -113,7 +110,7 @@ namespace DatasmithRevitExporter
 				catch (System.Exception exception)
 				{
 					OutCommandMessage = string.Format("Cannot export the 3D view:\n\n{0}\n\n{1}", exception.Message, exception.StackTrace);
-					MessageBox.Show(OutCommandMessage, DatasmithRevitCommandUtils.DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Error);
+					MessageBox.Show(OutCommandMessage, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Error);
 					return Result.Failed;
 				}
 				finally
@@ -130,22 +127,13 @@ namespace DatasmithRevitExporter
 
 			return Result.Succeeded;
 		}
-
-		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
-		{
-			return ExecuteFunc(InCommandData, ref OutCommandMessage, OutElements);
-		}
 	}
 
 	[Transaction(TransactionMode.Manual)]
-	public class DatasmithAutoSyncRevitCommand : IExternalCommand
+	public class DatasmithAutoSyncRevitCommand : DatasmithRevitCommand
 	{
-		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
+		public override Result OnExecute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
 		{
-			Result Result = DatasmithRevitCommandUtils.ExecuteFunc(InCommandData, ref OutCommandMessage, OutElements);
-			if (Result != Result.Succeeded)
-				return Result;
-
 			FDirectLink.bAutoSync = !FDirectLink.bAutoSync;
 
 			DatasmithRevitApplication.Instance.SetAutoSyncButtonToggled(FDirectLink.bAutoSync);
@@ -156,7 +144,7 @@ namespace DatasmithRevitExporter
 
 	// Add-in external command Export to Unreal Datasmith. 
 	[Transaction(TransactionMode.Manual)]
-	public class DatasmithExportRevitCommand : IExternalCommand
+	public class DatasmithExportRevitCommand : DatasmithRevitCommand
 	{
 		class DocumentExportPathCache
 		{
@@ -168,12 +156,8 @@ namespace DatasmithRevitExporter
 		private static Dictionary<Document, DocumentExportPathCache> ExportPaths = new Dictionary<Document, DocumentExportPathCache>();
 	
 		// Implement the interface to execute the command.
-		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
+		public override Result OnExecute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
 		{
-			Result Result = DatasmithRevitCommandUtils.ExecuteFunc(InCommandData, ref OutCommandMessage, OutElements);
-			if (Result != Result.Succeeded)
-				return Result;
-
 			UIDocument UIDoc = InCommandData.Application.ActiveUIDocument;
 			Document Doc = UIDoc.Document;
 
@@ -182,7 +166,7 @@ namespace DatasmithRevitExporter
 			if (string.IsNullOrWhiteSpace(DocumentPath))
 			{
 				string message = "Your document must be saved on disk before exporting.";
-				MessageBox.Show(message, DatasmithRevitCommandUtils.DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return Result.Cancelled;
 			}
 
@@ -202,14 +186,14 @@ namespace DatasmithRevitExporter
 				if (ActiveView == null)
 				{
 					string Message = "You must be in a 3D view to export.";
-					MessageBox.Show(Message, DatasmithRevitCommandUtils.DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 					return Result.Cancelled;
 				}
 
 				if (ActiveView.IsTemplate || !ActiveView.CanBePrinted)
 				{
 					string Message = "The active 3D view cannot be exported.";
-					MessageBox.Show(Message, DatasmithRevitCommandUtils.DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					MessageBox.Show(Message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 					return Result.Cancelled;
 				}
 
@@ -246,7 +230,7 @@ namespace DatasmithRevitExporter
 
 				SaveFileDialog Dialog = new SaveFileDialog();
 
-				Dialog.Title            = DatasmithRevitCommandUtils.DIALOG_CAPTION;
+				Dialog.Title            = DIALOG_CAPTION;
 				Dialog.InitialDirectory = InitialDir;
 				Dialog.FileName         = FileName;
 				Dialog.DefaultExt       = "udatasmith";
@@ -267,7 +251,7 @@ namespace DatasmithRevitExporter
 				if (string.IsNullOrWhiteSpace(Dialog.FileName))
 				{
 					string message = "The given Unreal Datasmith file name is blank.";
-					MessageBox.Show(message, DatasmithRevitCommandUtils.DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					MessageBox.Show(message, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 					return Result.Cancelled;
 				}
 
@@ -280,9 +264,9 @@ namespace DatasmithRevitExporter
 				using (var FBD = new FolderBrowserDialog())
 				{
 					FBD.ShowNewFolderButton = true;
-					DialogResult DlgResult = FBD.ShowDialog();
+					DialogResult result = FBD.ShowDialog();
 
-					if (DlgResult != DialogResult.OK || string.IsNullOrWhiteSpace(FBD.SelectedPath))
+					if (result != DialogResult.OK || string.IsNullOrWhiteSpace(FBD.SelectedPath))
 					{
 						return Result.Cancelled;
 					}
@@ -341,7 +325,7 @@ namespace DatasmithRevitExporter
 				catch( System.Exception exception )
 				{
 					OutCommandMessage = string.Format("Cannot export the 3D view:\n\n{0}\n\n{1}", exception.Message, exception.StackTrace);
-					MessageBox.Show(OutCommandMessage, DatasmithRevitCommandUtils.DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Error);
+					MessageBox.Show(OutCommandMessage, DIALOG_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Error);
 					return Result.Failed;
 				}
 				finally
@@ -455,59 +439,6 @@ namespace DatasmithRevitExporter
 			DatasmithRevitSettingsDialog ExportOptions = new DatasmithRevitSettingsDialog(InCommandData.Application.ActiveUIDocument.Document, FDocument.ActiveDocument?.Settings);
 			ExportOptions.ShowDialog();
 			return Result.Succeeded;
-		}
-	}
-
-	[Transaction(TransactionMode.Manual)]
-	public class DatasmithOpenInTwinmotionCommand : IExternalCommand
-	{
-		private static string GetCompatibleVersionOfTwinmotionExecutablePath()
-		{
-			List<string> RegTwinmotion = new List<string> {
-				@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Twinmotion2023.1.exe",
-				@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Twinmotion2022.2.exe",
-				@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Twinmotion2022.2-Revit.exe"
-			 };
-			
-			foreach (string Reg in RegTwinmotion)
-			{
-				try
-				{
-					var Key = Registry.CurrentUser.OpenSubKey(Reg);
-					var Exe = Key?.GetValue(null)?.ToString() ?? "";
-					if (!String.IsNullOrEmpty(Exe) && File.Exists(Exe))
-						return Exe;
-				}
-				catch (Exception Ex)
-				{
-					Trace.WriteLine(Ex.ToString()); // TODO_REVIEW (Dump journal comments.)
-				}
-			}
-			return null;
-		}
-		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
-		{
-			Result Result = DatasmithSyncRevitCommand.ExecuteFunc(InCommandData, ref OutCommandMessage, OutElements);
-			if (Result != Result.Succeeded)
-				return Result;
-			FDirectLink DirectLinkInstance = FDocument.ActiveDocument?.ActiveDirectLinkInstance;
-			if (DirectLinkInstance != null)
-			{
-				string SourceName = Regex.Replace($"{DirectLinkInstance.DatasmithScene.GetName()}", @"\s+", "_");
-				string ExecutablePath = GetCompatibleVersionOfTwinmotionExecutablePath();
-				if (ExecutablePath != null)
-				{
-					Process.Start(ExecutablePath, $@"-OpenProject=prompt -DirectLink.SourceName={SourceName}");
-				}
-			}
-			return Result.Succeeded;
-		}
-	}
-	public class DatasmithOpenInTwinmotionCommandAvailability : IExternalCommandAvailability
-	{
-		public bool IsCommandAvailable(UIApplication InUIApplication, CategorySet InCategorySet)
-		{
-			return !DatasmithRevitApplication.IsPreHandshakeRevitBuild(InUIApplication.Application.VersionBuild);
 		}
 	}
 }
