@@ -1218,6 +1218,7 @@ void FMeshToCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 
 void FStaticMeshToMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
+#if WITH_EDITORONLY_DATA
 	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh))
 	{
 #if WITH_EDITORONLY_DATA
@@ -1240,6 +1241,7 @@ void FStaticMeshToMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
 		}
 	}
+#endif
 }
 
 void FTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
