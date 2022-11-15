@@ -12,27 +12,32 @@ public class Facebook : ModuleRules
 		// Additional Frameworks and Libraries for Android found in OnlineSubsystemFacebook_UPL.xml
         if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			PublicDefinitions.Add("WITH_FACEBOOK=1");
+			bEnableObjCAutomaticReferenceCounting = true;
 
-            // These are iOS system libraries that Facebook depends on
-            //PublicFrameworks.AddRange(
-            //new string[] {
-            //    "ImageIO"
-            //});
+			PrivateDependencyModuleNames.Add("Swift");
+			
+			PublicWeakFrameworks.Add("Accelerate");
+			
+			// Dependency from other Facebook kits
+			PublicAdditionalFrameworks.Add(
+				new Framework(
+					"FBAEMKit",
+					"IOS/FacebookSDK/FBAEMKit.xcframework"
+				)
+			);
 
-            // More dependencies for Facebook
-            //PublicAdditionalLibraries.AddRange(
-            //new string[] {
-            //    "xml2"
-            //});
-
-
+			PublicAdditionalFrameworks.Add(
+				new Framework(
+					"FBSDKCoreKit_Basics",
+					"IOS/FacebookSDK/FBSDKCoreKit_Basics.xcframework"
+				)
+			);
 
 			// Access to Facebook core
 			PublicAdditionalFrameworks.Add(
 				new Framework(
 					"FBSDKCoreKit",
-					"IOS/FacebookSDK/FBSDKCoreKit.embeddedframework.zip"
+					"IOS/FacebookSDK/FBSDKCoreKit.xcframework"
 				)
 			);
 
@@ -40,25 +45,15 @@ public class Facebook : ModuleRules
 			PublicAdditionalFrameworks.Add(
 				new Framework(
 					"FBSDKLoginKit",
-					"IOS/FacebookSDK/FBSDKLoginKit.embeddedframework.zip"
+					"IOS/FacebookSDK/FBSDKLoginKit.xcframework"
 				)
 			);
-
-
-			// commenting out over if(false) for #jira FORT-77943 per Peter.Sauerbrei prior change with CL 3960071
-			//// Access to Facebook places
-			//PublicAdditionalFrameworks.Add(
-			//	new UEBuildFramework(
-			//		"FBSDKPlacesKit",
-			//		"IOS/FacebookSDK/FBSDKPlacesKit.embeddedframework.zip"
-			//	)
-			//);
 
 			// Access to Facebook sharing
 			PublicAdditionalFrameworks.Add(
 				new Framework(
 					"FBSDKShareKit",
-					"IOS/FacebookSDK/FBSDKShareKit.embeddedframework.zip"
+					"IOS/FacebookSDK/FBSDKShareKit.xcframework"
 				)
 			);
 		}

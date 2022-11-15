@@ -12,20 +12,7 @@
 class FOnlineSubsystemFacebook;
 
 /** Windows implementation of a Facebook user account */
-class FUserOnlineAccountFacebook : public FUserOnlineAccountFacebookCommon
-{
-public:
-
-	explicit FUserOnlineAccountFacebook(const FString& InUserId = FString(), const FString& InAuthTicket = FString())
-		: FUserOnlineAccountFacebookCommon(InUserId, InAuthTicket)
-	{
-	}
-
-	virtual ~FUserOnlineAccountFacebook()
-	{
-	}
-
-};
+using FUserOnlineAccountFacebook  = FUserOnlineAccountFacebookCommon;
 
 /**
  * Contains URL details for Windows Facebook interaction

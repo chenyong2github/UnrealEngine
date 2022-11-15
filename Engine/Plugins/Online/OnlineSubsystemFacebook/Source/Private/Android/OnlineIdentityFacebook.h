@@ -54,20 +54,7 @@ typedef FOnFacebookLogoutComplete::FDelegate FOnFacebookLogoutCompleteDelegate;
 
 
 /** Android implementation of a Facebook user account */
-class FUserOnlineAccountFacebook : public FUserOnlineAccountFacebookCommon
-{
-public:
-
-	explicit FUserOnlineAccountFacebook(const FString& InUserId = FString(), const FString& InAuthTicket = FString())
-		: FUserOnlineAccountFacebookCommon(InUserId, InAuthTicket)
-	{
-	}
-
-	virtual ~FUserOnlineAccountFacebook()
-	{
-	}
-
-};
+using FUserOnlineAccountFacebook  = FUserOnlineAccountFacebookCommon;
 
 /**
  * Facebook service implementation of the online identity interface

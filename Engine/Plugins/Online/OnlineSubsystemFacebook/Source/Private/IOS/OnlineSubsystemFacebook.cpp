@@ -3,18 +3,19 @@
 #include "OnlineSubsystemFacebook.h"
 #include "OnlineSubsystemFacebookPrivate.h"
 
+#include "Misc/CoreDelegates.h"
+#include "IOS/IOSAppDelegate.h"
+#include "Misc/ConfigCacheIni.h"
+
 #include "OnlineFriendsFacebook.h"
 #include "OnlineIdentityFacebook.h"
 #include "OnlineSharingFacebook.h"
 #include "OnlineUserFacebook.h"
 
-#import <FBSDKCoreKit/FBSDKCoreKit.h>
+THIRD_PARTY_INCLUDES_START
+#import <FBSDKCoreKit/FBSDKCoreKit-Swift.h>
 #import <FBSDKCoreKit/FBSDKSettings.h>
-
-#include "Misc/CoreDelegates.h"
-#include "IOS/IOSAppDelegate.h"
-#include "Misc/CommandLine.h"
-#include "Misc/ConfigCacheIni.h"
+THIRD_PARTY_INCLUDES_END
 
 #define FACEBOOK_DEBUG_ENABLED 0
 
@@ -40,7 +41,7 @@ static void OnFacebookAppDidBecomeActive()
 #if 0 // turn off analytics
 	dispatch_async(dispatch_get_main_queue(), ^
 	{
-		[FBSDKAppEvents activateApp];
+		[[FBSDKAppEvents shared] activateApp];
 	});
 #endif
 }
@@ -48,29 +49,29 @@ static void OnFacebookAppDidBecomeActive()
 /** Add verbose logging for various Facebook SDK features */
 void SetFBLoggingBehavior()
 {
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorAppEvents];
-#if FACEBOOK_DEBUG_ENABLED
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorAccessTokens];
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorPerformanceCharacteristics];
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorAppEvents];
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorInformational];
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorCacheErrors];
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorUIControlErrors];
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorGraphAPIDebugWarning];
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorGraphAPIDebugInfo];
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorNetworkRequests];
-	[FBSDKSettings enableLoggingBehavior:FBSDKLoggingBehaviorDeveloperErrors];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorAppEvents];
+#if 1//FACEBOOK_DEBUG_ENABLED
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorAccessTokens];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorPerformanceCharacteristics];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorAppEvents];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorInformational];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorCacheErrors];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorUIControlErrors];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorGraphAPIDebugWarning];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorGraphAPIDebugInfo];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorNetworkRequests];
+	[[FBSDKSettings sharedSettings] enableLoggingBehavior:FBSDKLoggingBehaviorDeveloperErrors];
 #endif
 }
 
 /** Print various details about the Facebook SDK */
 void PrintSDKStatus()
 {
-	NSString* AppId = [FBSDKSettings appID];
-	NSString* SDKVersion = [FBSDKSettings sdkVersion];
-	NSString* GraphVer = [FBSDKSettings graphAPIVersion];
-	NSString* OverrideAppId = [FBSDKAppEvents loggingOverrideAppID];
-    NSSet* LoggingBehaviors = [FBSDKSettings loggingBehaviors];
+	NSString* AppId = [[FBSDKSettings sharedSettings] appID];
+	NSString* SDKVersion = [[FBSDKSettings sharedSettings] sdkVersion];
+	NSString* GraphVer = [[FBSDKSettings sharedSettings] graphAPIVersion];
+	NSString* OverrideAppId = [[FBSDKAppEvents shared] loggingOverrideAppID];
+    NSSet* LoggingBehaviors = [[FBSDKSettings sharedSettings] loggingBehaviors];
 
 	UE_LOG_ONLINE(Log, TEXT("Facebook SDK:%s"), *FString(SDKVersion));
 	UE_LOG_ONLINE(Log, TEXT("AppId:%s"), *FString(AppId));
@@ -89,113 +90,61 @@ void PrintSDKStatus()
 
 bool FOnlineSubsystemFacebook::Init()
 {
-	bool bSuccessfullyStartedUp = false;
-	if (FOnlineSubsystemFacebookCommon::Init())
+	if (!FOnlineSubsystemFacebookCommon::Init())
 	{
-		FString IOSFacebookAppID;
-		if (!GConfig->GetString(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("FacebookAppID"), IOSFacebookAppID, GEngineIni))
-		{
-			UE_LOG_ONLINE(Warning, TEXT("The [IOSRuntimeSettings]:FacebookAppID has not been set"));
-		}
+        return false;
+    }
+    FIOSCoreDelegates::OnOpenURL.AddStatic(&OnFacebookOpenURL);
+    FCoreDelegates::ApplicationHasReactivatedDelegate.AddStatic(&OnFacebookAppDidBecomeActive);
 
-		if (ClientId.IsEmpty() || IOSFacebookAppID.IsEmpty() || (IOSFacebookAppID != ClientId))
-		{
-			UE_LOG_ONLINE(Warning, TEXT("Inconsistency between OnlineSubsystemFacebook AppId [%s] and IOSRuntimeSettings AppId [%s]"), *ClientId, *IOSFacebookAppID);
-		}
+    auto IosIdentity = MakeShared<FOnlineIdentityFacebook>(this);
+    IosIdentity->Init();
 
-		FIOSCoreDelegates::OnOpenURL.AddStatic(&OnFacebookOpenURL);
-		FCoreDelegates::ApplicationHasReactivatedDelegate.AddStatic(&OnFacebookAppDidBecomeActive);
+    FacebookIdentity = MoveTemp(IosIdentity);
+    FacebookSharing = MakeShared<FOnlineSharingFacebook>(this);
+    FacebookFriends = MakeShared<FOnlineFriendsFacebook>(this);
+    FacebookUser = MakeShared<FOnlineUserFacebook>(this);
 
-		FOnlineIdentityFacebookPtr TempPtr = MakeShareable(new FOnlineIdentityFacebook(this));
-		if (TempPtr->Init())
-		{
-			FacebookIdentity = TempPtr;
-		}
-		FacebookSharing = MakeShareable(new FOnlineSharingFacebook(this));
-		FacebookFriends = MakeShareable(new FOnlineFriendsFacebook(this));
-		FacebookUser = MakeShareable(new FOnlineUserFacebook(this));
+    FString AnalyticsId;
+    GConfig->GetString(TEXT("OnlineSubsystemFacebook"), TEXT("AnalyticsId"), AnalyticsId, GEngineIni);
 
-		FString AnalyticsId;
-		GConfig->GetString(TEXT("OnlineSubsystemFacebook"), TEXT("AnalyticsId"), AnalyticsId, GEngineIni);
+    NSString* APIVerStr = [NSString stringWithFString:GetAPIVer()];
+    [[FBSDKSettings sharedSettings] setGraphAPIVersion:APIVerStr];
+    SetFBLoggingBehavior();
 
-		NSString* APIVerStr = [NSString stringWithFString:GetAPIVer()];
-		[FBSDKSettings setGraphAPIVersion:APIVerStr];
-		SetFBLoggingBehavior();
+    /** Sets whether data such as that generated through FBSDKAppEvents and sent to Facebook should be restricted from being used for other than analytics and conversions */
+    [[FBSDKSettings sharedSettings] setIsEventDataUsageLimited:TRUE];
 
-		/** Sets whether data such as that generated through FBSDKAppEvents and sent to Facebook should be restricted from being used for other than analytics and conversions */
-		[FBSDKSettings setLimitEventAndDataUsage:TRUE];
+    // Trigger Facebook SDK last now that everything is setup
+    dispatch_async(dispatch_get_main_queue(), ^
+    {
+        UIApplication* sharedApp = [UIApplication sharedApplication];
+        NSDictionary* launchDict = [IOSAppDelegate GetDelegate].launchOptions;
+        if ([[FBSDKSettings sharedSettings] isAdvertiserIDCollectionEnabled])
+        {
+            if (!AnalyticsId.IsEmpty())
+            {
+                NSString* AnalyticsStr = [NSString stringWithFString:AnalyticsId];
+                [[FBSDKAppEvents shared] setLoggingOverrideAppID:AnalyticsStr];
+            }
+            [[FBSDKAppEvents shared] activateApp];
+        }
+        [[FBSDKApplicationDelegate sharedInstance] application:sharedApp didFinishLaunchingWithOptions: launchDict];
+        PrintSDKStatus();
+    });
 
-		bool bEnableAutomaticLogging = false;
-		if (GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bEnableAutomaticLogging"), bEnableAutomaticLogging, GEngineIni) && bEnableAutomaticLogging)
-		{
-			UE_LOG_ONLINE(Log, TEXT("AutologAppEvents: Enabled"));
-			[FBSDKSettings setAutoLogAppEventsEnabled:[NSNumber numberWithBool: YES]];
-		}
-		else
-		{
-			UE_LOG_ONLINE(Log, TEXT("AutologAppEvents: Disabled"));
-			[FBSDKSettings setAutoLogAppEventsEnabled:[NSNumber numberWithBool: NO]];
-		}
-
-#if 0
-		bool bEnableAdvertisingId = false;
-		if (GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bEnableAdvertisingId"), bEnableAdvertisingId, GEngineIni) && bEnableAdvertisingId)
-		{
-			UE_LOG_ONLINE(Log, TEXT("AdvertiserId collection: Enabled"));
-			[FBSDKSettings setAdvertiserIDCollectionEnabled:1];
-		}
-		else
-		{
-			UE_LOG_ONLINE(Log, TEXT("AdvertiserId collection: Disabled"));
-			[[FBSDKSettings setAdvertiserIDCollectionEnabled:0];
-		}
-#endif
-
-		// Trigger Facebook SDK last now that everything is setup
-		dispatch_async(dispatch_get_main_queue(), ^
-		{
-			UIApplication* sharedApp = [UIApplication sharedApplication];
-			NSDictionary* launchDict = [IOSAppDelegate GetDelegate].launchOptions;
-			if (bEnableAutomaticLogging)
-			{
-				if (!AnalyticsId.IsEmpty())
-				{
-					NSString* AnalyticsStr = [NSString stringWithFString:AnalyticsId];
-					[FBSDKAppEvents setLoggingOverrideAppID:AnalyticsStr];
-				}
-				[FBSDKAppEvents activateApp];
-			}
-			[[FBSDKApplicationDelegate sharedInstance] application:sharedApp didFinishLaunchingWithOptions: launchDict];
-			PrintSDKStatus();
-		});
-
-		bSuccessfullyStartedUp = FacebookIdentity.IsValid() && FacebookSharing.IsValid() && FacebookFriends.IsValid() && FacebookUser.IsValid();
-	}
-	return bSuccessfullyStartedUp;
+	return true;
 }
 
 bool FOnlineSubsystemFacebook::Shutdown()
 {
-	bool bSuccessfullyShutdown = true;
 	StaticCastSharedPtr<FOnlineIdentityFacebook>(FacebookIdentity)->Shutdown();
 
-	bSuccessfullyShutdown = FOnlineSubsystemFacebookCommon::Shutdown();
-	return bSuccessfullyShutdown;
+	return FOnlineSubsystemFacebookCommon::Shutdown();
 }
 
 bool FOnlineSubsystemFacebook::IsEnabled() const
 {
-	bool bEnableFacebookSupport = false;
-
-	// IOSRuntimeSettings holds a value for editor ease of use
-	if (!GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bEnableFacebookSupport"), bEnableFacebookSupport, GEngineIni))
-	{
-		UE_LOG_ONLINE(Warning, TEXT("The [IOSRuntimeSettings]:bEnableFacebookSupport flag has not been set"));
-
-		// Fallback to regular OSS location
-		bEnableFacebookSupport = FOnlineSubsystemFacebookCommon::IsEnabled();
-	}
-
-	return bEnableFacebookSupport;
+    return FOnlineSubsystemFacebookCommon::IsEnabled();
 }
 

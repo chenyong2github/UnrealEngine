@@ -4,116 +4,123 @@
 #include "OnlineSubsystemFacebookPrivate.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 
+THIRD_PARTY_INCLUDES_START
+#import <FBSDKLoginKit/FBSDKLoginKit.h>
+THIRD_PARTY_INCLUDES_END
+
 @implementation FFacebookHelper
 
-- (id)init
+- (id)initWithOwner:(TWeakPtr<FIOSFacebookNotificationDelegate>) InOwner
 {
-	self = [super init];
+    self = [super init];
+    
+    Owner = InOwner;
 
-	NSLog(@"Facebook SDK Version: %@", [FBSDKSettings sdkVersion]);
+    NSLog(@"Facebook SDK Version: %@", [[FBSDKSettings sharedSettings] sdkVersion]);
 
-	NSNotificationCenter* center = [NSNotificationCenter defaultCenter];
-	NSOperationQueue* mainQueue = [NSOperationQueue mainQueue];
+    [FBSDKProfile enableUpdatesOnAccessTokenChange:YES];
 
-	[center addObserver:self selector:@selector(tokenChangeCallback:) name: FBSDKAccessTokenDidChangeNotification object:nil];
-	[center addObserver:self selector:@selector(userIdChangeCallback:) name: FBSDKAccessTokenDidChangeUserIDKey object:nil];
+    NSNotificationCenter* center = [NSNotificationCenter defaultCenter];
+    [center addObserver:self selector:@selector(tokenChangeCallback:) name: FBSDKAccessTokenDidChangeNotification object:nil];
+    [center addObserver:self selector:@selector(userIdChangeCallback:) name: FBSDKAccessTokenDidChangeUserIDKey object:nil];
+    [center addObserver:self selector:@selector(profileChangeCallback:) name: FBSDKProfileDidChangeNotification object:nil];
 
-	[FBSDKProfile enableUpdatesOnAccessTokenChange:YES];
-	[center addObserver:self selector:@selector(profileChangeCallback:) name: FBSDKProfileDidChangeNotification object:nil];
-
-	return self;
+    return self;
 }
 
--(FDelegateHandle)AddOnFacebookTokenChange: (const FOnFacebookTokenChangeDelegate&) Delegate
+-(void)Shutdown
 {
-	_OnFacebookTokenChange.Add(Delegate);
-	return Delegate.GetHandle();
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    Owner = nullptr;
 }
 
--(FDelegateHandle)AddOnFacebookUserIdChange: (const FOnFacebookUserIdChangeDelegate&) Delegate
-{
-	_OnFacebookUserIdChange.Add(Delegate);
-	return Delegate.GetHandle();
-}
-
--(FDelegateHandle)AddOnFacebookProfileChange: (const FOnFacebookProfileChangeDelegate&) Delegate
-{
-	_OnFacebookProfileChange.Add(Delegate);
-	return Delegate.GetHandle();
-}
-
+/** Delegate fired when a token change has occurred */
 -(void)tokenChangeCallback: (NSNotification*) note
 {
-	const FString UserId([FBSDKAccessToken currentAccessToken].userID);
-	const FString Token([FBSDKAccessToken currentAccessToken].tokenString);
-	UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Facebook Token Change UserId: %s Token: %s"), *UserId, *Token);
+    const FString UserId([FBSDKAccessToken currentAccessToken].userID);
+    const FString Token([FBSDKAccessToken currentAccessToken].tokenString);
+    UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Facebook Token Change UserId: %s Token: %s"), *UserId, *Token);
 
 #if !UE_BUILD_SHIPPING
-	for(NSString *key in [[note userInfo] allKeys])
-	{
-		NSLog(@"Key: %@ Value: %@", key, [[note userInfo] objectForKey:key]);
-	}
+    for(NSString *key in [[note userInfo] allKeys])
+    {
+        NSLog(@"Key: %@ Value: %@", key, [[note userInfo] objectForKey:key]);
+    }
 #endif
 
-	// header mentions FBSDKAccessTokenChangeOldKey FBSDKAccessTokenChangeNewKey
-	NSNumber* DidChange = [[note userInfo] objectForKey:@"FBSDKAccessTokenDidChangeUserID"];
-	bool bDidTokenChange = [DidChange boolValue];
-	FBSDKAccessToken* NewToken = [[note userInfo] objectForKey:@"FBSDKAccessToken"];
-	FBSDKAccessToken* OldToken = [[note userInfo] objectForKey:@"FBSDKAccessTokenOld"];
+    // header mentions FBSDKAccessTokenChangeOldKey FBSDKAccessTokenChangeNewKey
+    NSNumber* DidChange = [[note userInfo] objectForKey:@"FBSDKAccessTokenDidChangeUserID"];
+    bool bDidTokenChange = [DidChange boolValue];
+    FBSDKAccessToken* NewToken = [[note userInfo] objectForKey:@"FBSDKAccessToken"];
+    FBSDKAccessToken* OldToken = [[note userInfo] objectForKey:@"FBSDKAccessTokenOld"];
 
-	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-	{
-		// Notify on the game thread
-		_OnFacebookTokenChange.Broadcast(OldToken, NewToken);
-		return true;
-	}];
+    TWeakPtr<FIOSFacebookNotificationDelegate> CapturedOwner = Owner;
+    [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+    {
+        // Notify on the game thread
+        if(auto PinnedOwner = CapturedOwner.Pin())
+        {
+            PinnedOwner->OnFacebookTokenChange(OldToken, NewToken);
+        }
+        return true;
+    }];
 }
 
+/** Delegate fired when a user id change has occurred */
 -(void)userIdChangeCallback: (NSNotification*) note
 {
-	const FString UserId([FBSDKAccessToken currentAccessToken].userID);
-	const FString Token([FBSDKAccessToken currentAccessToken].tokenString);
-	UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Facebook UserId Change UserId: %s Token: %s"), *UserId, *Token);
+    const FString UserId([FBSDKAccessToken currentAccessToken].userID);
+    const FString Token([FBSDKAccessToken currentAccessToken].tokenString);
+    UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Facebook UserId Change UserId: %s Token: %s"), *UserId, *Token);
 
 #if !UE_BUILD_SHIPPING
-	for(NSString *key in [[note userInfo] allKeys])
-	{
-		NSLog(@"Key: %@ Value: %@", key, [[note userInfo] objectForKey:key]);
-	}
+    for(NSString *key in [[note userInfo] allKeys])
+    {
+        NSLog(@"Key: %@ Value: %@", key, [[note userInfo] objectForKey:key]);
+    }
 #endif
 
-	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-	{
-		// Notify on the game thread
-		_OnFacebookUserIdChange.Broadcast();
-		return true;
-	}];
+    TWeakPtr<FIOSFacebookNotificationDelegate> CapturedOwner = Owner;
+    [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+    {
+        // Notify on the game thread
+        if(auto PinnedOwner = CapturedOwner.Pin())
+        {
+            PinnedOwner->OnFacebookUserIdChange();
+        }
+        return true;
+    }];
 
 }
 
+/** Delegate fired when a profile change has occurred */
 -(void)profileChangeCallback: (NSNotification*) note
 {
-	const FString UserId([FBSDKAccessToken currentAccessToken].userID);
-	const FString Token([FBSDKAccessToken currentAccessToken].tokenString);
-	UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Facebook Profile Change UserId: %s Token: %s"), *UserId, *Token);
+    const FString UserId([FBSDKAccessToken currentAccessToken].userID);
+    const FString Token([FBSDKAccessToken currentAccessToken].tokenString);
+    UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Facebook Profile Change UserId: %s Token: %s"), *UserId, *Token);
 
 #if !UE_BUILD_SHIPPING
-	for(NSString *key in [[note userInfo] allKeys])
-	{
-		NSLog(@"Key: %@ Value: %@", key, [[note userInfo] objectForKey:key]);
-	}
+    for(NSString *key in [[note userInfo] allKeys])
+    {
+        NSLog(@"Key: %@ Value: %@", key, [[note userInfo] objectForKey:key]);
+    }
 #endif
 
-	// header mentions FBSDKProfileChangeOldKey FBSDKProfileChangeNewKey
-	FBSDKProfile* NewProfile = [[note userInfo] objectForKey:@"FBSDKProfileNew"];
-	FBSDKProfile* OldProfile = [[note userInfo] objectForKey:@"FBSDKProfileOld"];
+    // header mentions FBSDKProfileChangeOldKey FBSDKProfileChangeNewKey
+    FBSDKProfile* NewProfile = [[note userInfo] objectForKey:@"FBSDKProfileNew"];
+    FBSDKProfile* OldProfile = [[note userInfo] objectForKey:@"FBSDKProfileOld"];
 
-	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-	{
-		// Notify on the game thread
-		_OnFacebookProfileChange.Broadcast(OldProfile, NewProfile);
-		return true;
-	}];
+    TWeakPtr<FIOSFacebookNotificationDelegate> CapturedOwner = Owner;
+    [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+    {
+        // Notify on the game thread
+        if(auto PinnedOwner = CapturedOwner.Pin())
+        {
+            PinnedOwner->OnFacebookProfileChange(OldProfile, NewProfile);
+        }
+        return true;
+    }];
 }
 
 @end

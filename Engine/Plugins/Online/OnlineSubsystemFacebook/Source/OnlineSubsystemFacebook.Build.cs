@@ -35,8 +35,13 @@ public class OnlineSubsystemFacebook : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
+			bEnableObjCAutomaticReferenceCounting = true;
+			PCHUsage = ModuleRules.PCHUsageMode.NoPCHs;
+
 			PublicDefinitions.Add("WITH_FACEBOOK=1");
 			PrivateIncludePaths.Add("Private/IOS");
+			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+			AdditionalPropertiesForReceipt.Add("IOSPlugin", Path.Combine(PluginPath, "OnlineSubsystemFacebookIOS_UPL.xml"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
@@ -50,7 +55,7 @@ public class OnlineSubsystemFacebook : ModuleRules
 			);
 
 			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "OnlineSubsystemFacebook_UPL.xml"));
+			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "OnlineSubsystemFacebookAndroid_UPL.xml"));
 		}
 		else if (bUsesRestfulImpl)
 		{

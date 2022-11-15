@@ -17,9 +17,7 @@ class FOnlineSharingFacebook : public FOnlineSharingFacebookCommon
 public:
 
 	//~ Begin IOnlineSharing Interface
-	virtual bool ReadNewsFeed(int32 LocalUserNum, int32 NumPostsToRead) override;
 	virtual bool RequestNewReadPermissions(int32 LocalUserNum, EOnlineSharingCategory NewPermissions) override;
-	virtual bool ShareStatusUpdate(int32 LocalUserNum, const FOnlineStatusUpdate& StatusUpdate) override;
 	virtual bool RequestNewPublishPermissions(int32 LocalUserNum, EOnlineSharingCategory NewPermissions, EOnlineStatusUpdatePrivacy Privacy) override;
 	//~ End IOnlineSharing Interface
 

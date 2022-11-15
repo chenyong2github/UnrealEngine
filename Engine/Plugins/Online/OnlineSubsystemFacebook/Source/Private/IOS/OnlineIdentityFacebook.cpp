@@ -2,68 +2,18 @@
 
 // Module includes
 #include "OnlineIdentityFacebook.h"
+#include "OnlineSharingFacebook.h"
 #include "OnlineSubsystemFacebookPrivate.h"
 #include "Interfaces/OnlineSharingInterface.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
 
-THIRD_PARTY_INCLUDES_START
-#import <FBSDKCoreKit/FBSDKCoreKit.h>
-#import <FBSDKLoginKit/FBSDKLoginKit.h>
-THIRD_PARTY_INCLUDES_END
-
-#import "FacebookHelper.h"
-
-#include "IOS/IOSAppDelegate.h"
 #include "Misc/ConfigCacheIni.h"
 #include "IOS/IOSAsyncTask.h"
-#include "Misc/ConfigCacheIni.h"
 
-///////////////////////////////////////////////////////////////////////////////////////
-// FUserOnlineAccountFacebook implementation
-
-void FUserOnlineAccountFacebook::Parse(const FBSDKAccessToken* AccessToken)
-{
-	const FString UserIdStr(AccessToken.userID);
-
-	if (UserIdPtr->ToString().IsEmpty() ||
-		UserIdPtr->ToString() != UserIdStr)
-	{
-		UserIdPtr = FUniqueNetIdFacebook::Create(UserIdStr);
-	}
-
-	const FString Token(AccessToken.tokenString);
-	AuthTicket = Token;
-}
-
-void FUserOnlineAccountFacebook::Parse(const FBSDKProfile* NewProfile)
-{
-	ensure(NewProfile != nil);
-
-	const FString NewProfileUserId(NewProfile.userID);
-	if (UserIdPtr->ToString().IsEmpty() ||
-		UserIdPtr->ToString() == NewProfileUserId)
-	{
-		UserIdPtr = FUniqueNetIdFacebook::Create(NewProfileUserId);
-
-		RealName = FString(NewProfile.name);
-
-		FirstName = FString(NewProfile.firstName);
-		LastName = FString(NewProfile.lastName);
-		
-		SetAccountData(TEXT(ME_FIELD_ID), UserId);
-		SetAccountData(TEXT(ME_FIELD_NAME), RealName);
-		SetAccountData(TEXT(ME_FIELD_FIRSTNAME), FirstName);
-		SetAccountData(TEXT(ME_FIELD_LASTNAME), LastName);
-
-		NSISO8601DateFormatter* dateFormatter = [[NSISO8601DateFormatter alloc] init];
-		dateFormatter.formatOptions = NSISO8601DateFormatWithInternetDateTime | NSISO8601DateFormatWithDashSeparatorInDate | NSISO8601DateFormatWithColonSeparatorInTime | NSISO8601DateFormatWithTimeZone;
-
-		NSString* iso8601String = [dateFormatter stringFromDate: NewProfile.refreshDate];
-		[dateFormatter release];
-
-		SetAccountData(TEXT("refreshdate"), FString(iso8601String));
-	}
-}
+THIRD_PARTY_INCLUDES_START
+#import <FBSDKCoreKit/FBSDKCoreKit.h>
+#import <FBSDKLoginKit/FBSDKLoginKit-Swift.h>
+THIRD_PARTY_INCLUDES_END
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // FOnlineIdentityFacebook implementation
@@ -76,31 +26,18 @@ FOnlineIdentityFacebook::FOnlineIdentityFacebook(FOnlineSubsystemFacebook* InSub
 	GConfig->GetArray(TEXT("OnlineSubsystemFacebook.OnlineIdentityFacebook"), TEXT("ScopeFields"), ScopeFields, GEngineIni);
 	// always required fields
 	ScopeFields.AddUnique(TEXT(PERM_PUBLIC_PROFILE));
+
 }
 
-bool FOnlineIdentityFacebook::Init()
+void FOnlineIdentityFacebook::Init()
 {
-	FacebookHelper = [[FFacebookHelper alloc] init];
-	[FacebookHelper retain];
-
-	FOnFacebookTokenChangeDelegate OnFacebookTokenChangeDelegate;
-	OnFacebookTokenChangeDelegate.BindRaw(this, &FOnlineIdentityFacebook::OnFacebookTokenChange);
-	[FacebookHelper AddOnFacebookTokenChange: OnFacebookTokenChangeDelegate];
-
-	FOnFacebookUserIdChangeDelegate OnFacebookUserIdChangeDelegate;
-	OnFacebookUserIdChangeDelegate.BindRaw(this, &FOnlineIdentityFacebook::OnFacebookUserIdChange);
-	[FacebookHelper AddOnFacebookUserIdChange: OnFacebookUserIdChangeDelegate];
-
-	FOnFacebookProfileChangeDelegate OnFacebookProfileChangeDelegate;
-	OnFacebookProfileChangeDelegate.BindRaw(this, &FOnlineIdentityFacebook::OnFacebookProfileChange);
-	[FacebookHelper AddOnFacebookProfileChange: OnFacebookProfileChangeDelegate];
-
-	return true;
+    FacebookHelper = [[FFacebookHelper alloc] initWithOwner: AsShared()];
 }
 
 void FOnlineIdentityFacebook::Shutdown()
 {
-	[FacebookHelper release];
+    [FacebookHelper Shutdown];
+	FacebookHelper = nil;
 }
 
 void FOnlineIdentityFacebook::OnFacebookTokenChange(FBSDKAccessToken* OldToken, FBSDKAccessToken* NewToken)
@@ -170,12 +107,28 @@ bool FOnlineIdentityFacebook::Login(int32 LocalUserNum, const FOnlineAccountCred
 							bSuccessfulLogin = true;
 						}
 
+                        TArray<FString> GrantedPermissions, DeclinedPermissions;
+
+                        GrantedPermissions.Reserve(result.grantedPermissions.count);
+                        for(NSString* permission in result.grantedPermissions)
+                        {
+                            GrantedPermissions.Add(permission);
+                        }
+
+                        DeclinedPermissions.Reserve(result.declinedPermissions.count);
+                        for(NSString* permission in result.declinedPermissions)
+                        {
+                            DeclinedPermissions.Add(permission);
+                        }
+
 						const FString AccessToken([[result token] tokenString]);
 						[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
 						{
 							// Trigger this on the game thread
 							if (bSuccessfulLogin)
 							{
+                                TSharedPtr<FOnlineSharingFacebook> Sharing = StaticCastSharedPtr<FOnlineSharingFacebook>(FacebookSubsystem->GetSharingInterface());
+                                Sharing->SetCurrentPermissions(GrantedPermissions, DeclinedPermissions);
 								Login(LocalUserNum, AccessToken);
 							}
 							else

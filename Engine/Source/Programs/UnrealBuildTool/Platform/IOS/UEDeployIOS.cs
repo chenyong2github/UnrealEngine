@@ -334,21 +334,6 @@ namespace UnrealBuildTool
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "MinimumiOSVersion", out MinVersionSetting);
 			string MinVersion  = GetMinimumOSVersion(MinVersionSetting, Logger);
 
-			// Get Facebook Support details
-			bool bEnableFacebookSupport = true;
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableFacebookSupport", out bEnableFacebookSupport);
-			bool bEnableAutomaticLogging = true;
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableAutomaticLogging", out bEnableAutomaticLogging);
-			bool bEnableAdvertisingId = true;
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableAdvertisingId", out bEnableAdvertisingId);
-
-			// Write the Facebook App ID if we need it.
-			string FacebookAppID = "";
-			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "FacebookAppID", out FacebookAppID);
-			bEnableFacebookSupport = bEnableFacebookSupport && !string.IsNullOrWhiteSpace(FacebookAppID);
-			string FacebookDisplayName = "";
-			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleDisplayName", out FacebookDisplayName);
-
 			// Get Google Support details
 			bool bEnableGoogleSupport = true;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableGoogleSupport", out bEnableGoogleSupport);
@@ -392,11 +377,6 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t\t\t<key>CFBundleURLSchemes</key>");
 			Text.AppendLine("\t\t\t<array>");
 			Text.AppendLine(string.Format("\t\t\t\t<string>{0}</string>", bIsUnrealGame ? "UnrealGame" : GameName));
-			if (bEnableFacebookSupport)
-			{
-				// This is needed for facebook login to redirect back to the app after completion.
-				Text.AppendLine(string.Format("\t\t\t\t<string>fb{0}</string>", FacebookAppID));
-			}
 			if (bEnableGoogleSupport)
 			{
 				Text.AppendLine(string.Format("\t\t\t\t<string>{0}</string>", GoogleReversedClientId));
@@ -544,33 +524,6 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t<dict>");
 				Text.AppendLine("\t\t\t<key>NSAllowsArbitraryLoads</key><true/>");
 				Text.AppendLine("\t\t</dict>");
-			}
-
-			if (bEnableFacebookSupport)
-			{
-				Text.AppendLine("\t<key>FacebookAppID</key>");
-				Text.AppendLine(string.Format("\t<string>{0}</string>", FacebookAppID));
-				Text.AppendLine("\t<key>FacebookDisplayName</key>");
-				Text.AppendLine(string.Format("\t<string>{0}</string>", FacebookDisplayName));
-
-				if (!bEnableAutomaticLogging)
-				{
-					Text.AppendLine("<key>FacebookAutoLogAppEventsEnabled</key><false/>");
-				}
-
-				if (!bEnableAdvertisingId)
-				{
-					Text.AppendLine("<key>FacebookAdvertiserIDCollectionEnabled</key><false/>");
-				}
-
-				Text.AppendLine("\t<key>LSApplicationQueriesSchemes</key>");
-				Text.AppendLine("\t<array>");
-				Text.AppendLine("\t\t<string>fbapi</string>");
-				Text.AppendLine("\t\t<string>fb-messenger-api</string>");
-				Text.AppendLine("\t\t<string>fb-messenger-share-api</string>");
-				Text.AppendLine("\t\t<string>fbauth2</string>");
-				Text.AppendLine("\t\t<string>fbshareextension</string>");
-				Text.AppendLine("\t</array>");
 			}
 
 			if (!string.IsNullOrEmpty(ExtraData))

@@ -20,7 +20,8 @@ bool FOnlineSubsystemFacebook::Init()
 #if WITH_FACEBOOK
 	FacebookIdentity = MakeShared<FOnlineIdentityFacebook>(this);
 	FacebookFriends = MakeShared<FOnlineFriendsFacebook>(this);
-	FacebookSharing = MakeShared <FOnlineSharingFacebook>(this);
+	FacebookSharing = MakeShared<FOnlineSharingFacebook>(this);
+    FacebookUser = MakeShared<FOnlineUserFacebook>(this);
 	return true;
 #else
 	return false;
