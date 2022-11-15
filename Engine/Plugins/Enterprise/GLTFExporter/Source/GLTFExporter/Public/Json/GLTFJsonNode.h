@@ -15,10 +15,7 @@ struct GLTFEXPORTER_API FGLTFJsonNode : IGLTFJsonIndexedObject
 	FGLTFJsonCamera*    Camera;
 	FGLTFJsonSkin*      Skin;
 	FGLTFJsonMesh*      Mesh;
-	FGLTFJsonBackdrop*  Backdrop;
 	FGLTFJsonLight*     Light;
-	FGLTFJsonLightMap*  LightMap;
-	FGLTFJsonSkySphere* SkySphere;
 
 	TArray<FGLTFJsonNode*> Children;
 
@@ -36,10 +33,7 @@ protected:
 		, Camera(nullptr)
 		, Skin(nullptr)
 		, Mesh(nullptr)
-		, Backdrop(nullptr)
 		, Light(nullptr)
-		, LightMap(nullptr)
-		, SkySphere(nullptr)
 	{
 	}
 };

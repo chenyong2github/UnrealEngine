@@ -4,10 +4,7 @@
 #include "Json/GLTFJsonCamera.h"
 #include "Json/GLTFJsonSkin.h"
 #include "Json/GLTFJsonMesh.h"
-#include "Json/GLTFJsonBackdrop.h"
 #include "Json/GLTFJsonLight.h"
-#include "Json/GLTFJsonLightMap.h"
-#include "Json/GLTFJsonSkySphere.h"
 
 void FGLTFJsonNode::WriteObject(IGLTFJsonWriter& Writer) const
 {
@@ -46,37 +43,13 @@ void FGLTFJsonNode::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("mesh"), Mesh);
 	}
 
-	if (Backdrop != nullptr || Light != nullptr || LightMap != nullptr || SkySphere != nullptr)
+	if (Light != nullptr)
 	{
 		Writer.StartExtensions();
 
-		if (Backdrop != nullptr)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_HDRIBackdrops);
-			Writer.Write(TEXT("backdrop"), Backdrop);
-			Writer.EndExtension();
-		}
-
-		if (Light != nullptr)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::KHR_LightsPunctual);
-			Writer.Write(TEXT("light"), Light);
-			Writer.EndExtension();
-		}
-
-		if (LightMap != nullptr)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_LightmapTextures);
-			Writer.Write(TEXT("lightmap"), LightMap);
-			Writer.EndExtension();
-		}
-
-		if (SkySphere != nullptr)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_SkySpheres);
-			Writer.Write(TEXT("skySphere"), SkySphere);
-			Writer.EndExtension();
-		}
+		Writer.StartExtension(EGLTFJsonExtension::KHR_LightsPunctual);
+		Writer.Write(TEXT("light"), Light);
+		Writer.EndExtension();
 
 		Writer.EndExtensions();
 	}

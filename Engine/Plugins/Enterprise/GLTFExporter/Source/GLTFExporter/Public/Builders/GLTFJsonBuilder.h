@@ -28,11 +28,7 @@ public:
 	FGLTFJsonScene* AddScene();
 	FGLTFJsonSkin* AddSkin();
 	FGLTFJsonTexture* AddTexture();
-	FGLTFJsonBackdrop* AddBackdrop();
 	FGLTFJsonLight* AddLight();
-	FGLTFJsonLightMap* AddLightMap();
-	FGLTFJsonSkySphere* AddSkySphere();
-	FGLTFJsonEpicLevelVariantSets* AddEpicLevelVariantSets();
 	FGLTFJsonKhrMaterialVariant* AddKhrMaterialVariant();
 
 	const FGLTFJsonRoot& GetRoot() const;
@@ -41,13 +37,9 @@ protected:
 
 	void WriteJsonArchive(FArchive& Archive);
 
-	TSet<EGLTFJsonExtension> GetCustomExtensionsUsed() const;
-
 private:
 
 	FString GetGeneratorString() const;
-
-	static bool IsCustomExtension(EGLTFJsonExtension Extension);
 
 	FGLTFJsonRoot JsonRoot;
 };

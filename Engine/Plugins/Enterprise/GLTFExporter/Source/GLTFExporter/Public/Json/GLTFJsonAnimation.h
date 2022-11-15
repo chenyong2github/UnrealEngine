@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Json/GLTFJsonCore.h"
-#include "Json/GLTFJsonAnimationPlayback.h"
 
 struct GLTFEXPORTER_API FGLTFJsonAnimationChannelTarget : IGLTFJsonObject
 {
@@ -60,8 +59,6 @@ struct GLTFEXPORTER_API FGLTFJsonAnimation : IGLTFJsonIndexedObject
 
 	TArray<FGLTFJsonAnimationChannel> Channels;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonAnimationSampler> Samplers;
-
-	FGLTFJsonAnimationPlayback Playback;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 

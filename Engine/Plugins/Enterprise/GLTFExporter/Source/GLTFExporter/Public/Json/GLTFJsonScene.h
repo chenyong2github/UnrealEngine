@@ -9,7 +9,6 @@ struct GLTFEXPORTER_API FGLTFJsonScene : IGLTFJsonIndexedObject
 	FString Name;
 
 	TArray<FGLTFJsonNode*> Nodes;
-	TArray<FGLTFJsonEpicLevelVariantSets*>  EpicLevelVariantSets;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 

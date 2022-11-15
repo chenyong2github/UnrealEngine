@@ -153,16 +153,9 @@ void FGLTFJsonMaterial::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("doubleSided"), DoubleSided);
 	}
 
-	if (BlendMode != EGLTFJsonBlendMode::None || ShadingModel == EGLTFJsonShadingModel::Unlit || ShadingModel == EGLTFJsonShadingModel::ClearCoat)
+	if (ShadingModel == EGLTFJsonShadingModel::Unlit || ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 	{
 		Writer.StartExtensions();
-
-		if (BlendMode != EGLTFJsonBlendMode::None)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_BlendModes);
-			Writer.Write(TEXT("blendMode"), BlendMode);
-			Writer.EndExtension();
-		}
 
 		if (ShadingModel == EGLTFJsonShadingModel::Unlit)
 		{

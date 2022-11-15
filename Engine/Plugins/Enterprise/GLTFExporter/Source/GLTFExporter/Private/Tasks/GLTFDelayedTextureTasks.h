@@ -30,33 +30,6 @@ private:
 	FGLTFJsonTexture* JsonTexture;
 };
 
-class FGLTFDelayedTextureCubeTask : public FGLTFDelayedTask
-{
-public:
-
-	FGLTFDelayedTextureCubeTask(FGLTFConvertBuilder& Builder, const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
-		: FGLTFDelayedTask(EGLTFTaskPriority::Texture)
-		, Builder(Builder)
-		, TextureCube(TextureCube)
-		, CubeFace(CubeFace)
-		, bToSRGB(bToSRGB)
-		, JsonTexture(JsonTexture)
-	{
-	}
-
-	virtual FString GetName() override;
-
-	virtual void Process() override;
-
-private:
-
-	FGLTFConvertBuilder& Builder;
-	const UTextureCube* TextureCube;
-	ECubeFace CubeFace;
-	bool bToSRGB;
-	FGLTFJsonTexture* JsonTexture;
-};
-
 class FGLTFDelayedTextureRenderTarget2DTask : public FGLTFDelayedTask
 {
 public:
@@ -81,57 +54,3 @@ private:
 	bool bToSRGB;
 	FGLTFJsonTexture* JsonTexture;
 };
-
-class FGLTFDelayedTextureRenderTargetCubeTask : public FGLTFDelayedTask
-{
-public:
-
-	FGLTFDelayedTextureRenderTargetCubeTask(FGLTFConvertBuilder& Builder, const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
-		: FGLTFDelayedTask(EGLTFTaskPriority::Texture)
-		, Builder(Builder)
-		, RenderTargetCube(RenderTargetCube)
-		, CubeFace(CubeFace)
-		, bToSRGB(bToSRGB)
-		, JsonTexture(JsonTexture)
-	{
-	}
-
-	virtual FString GetName() override;
-
-	virtual void Process() override;
-
-private:
-
-	FGLTFConvertBuilder& Builder;
-	const UTextureRenderTargetCube* RenderTargetCube;
-	ECubeFace CubeFace;
-	bool bToSRGB;
-	FGLTFJsonTexture* JsonTexture;
-};
-
-#if WITH_EDITOR
-
-class FGLTFDelayedTextureLightMapTask : public FGLTFDelayedTask
-{
-public:
-
-	FGLTFDelayedTextureLightMapTask(FGLTFConvertBuilder& Builder, const ULightMapTexture2D* LightMap, FGLTFJsonTexture* JsonTexture)
-		: FGLTFDelayedTask(EGLTFTaskPriority::Texture)
-		, Builder(Builder)
-		, LightMap(LightMap)
-		, JsonTexture(JsonTexture)
-	{
-	}
-
-	virtual FString GetName() override;
-
-	virtual void Process() override;
-
-private:
-
-	FGLTFConvertBuilder& Builder;
-	const ULightMapTexture2D* LightMap;
-	FGLTFJsonTexture* JsonTexture;
-};
-
-#endif

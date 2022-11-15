@@ -5,9 +5,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Texture2D.h"
-#include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Engine/TextureRenderTargetCube.h"
 
 FGLTFConvertBuilder::FGLTFConvertBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors)
 	: FGLTFBufferBuilder(FileName, ExportOptions)
@@ -262,29 +260,9 @@ FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTexture2D* Textur
 	return AddUniqueTexture(Texture, Texture->SRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureCube* Texture, ECubeFace CubeFace)
-{
-	return AddUniqueTexture(Texture, CubeFace, Texture->SRGB);
-}
-
 FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureRenderTarget2D* Texture)
 {
 	return AddUniqueTexture(Texture, Texture->SRGB);
-}
-
-FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace)
-{
-	return AddUniqueTexture(Texture, CubeFace, Texture->SRGB);
-}
-
-FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const ULightMapTexture2D* Texture)
-{
-	if (Texture == nullptr)
-	{
-		return nullptr;
-	}
-
-	return TextureLightMapConverter->GetOrAdd(Texture);
 }
 
 FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTexture* Texture, bool bToSRGB)
@@ -312,16 +290,6 @@ FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTexture2D* Textur
 	return Texture2DConverter->GetOrAdd(Texture, bToSRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureCube* Texture, ECubeFace CubeFace, bool bToSRGB)
-{
-	if (Texture == nullptr)
-	{
-		return nullptr;
-	}
-
-	return TextureCubeConverter->GetOrAdd(Texture, CubeFace, bToSRGB);
-}
-
 FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureRenderTarget2D* Texture, bool bToSRGB)
 {
 	if (Texture == nullptr)
@@ -330,16 +298,6 @@ FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureRenderTarg
 	}
 
 	return TextureRenderTarget2DConverter->GetOrAdd(Texture, bToSRGB);
-}
-
-FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace, bool bToSRGB)
-{
-	if (Texture == nullptr)
-	{
-		return nullptr;
-	}
-
-	return TextureRenderTargetCubeConverter->GetOrAdd(Texture, CubeFace, bToSRGB);
 }
 
 FGLTFJsonImage* FGLTFConvertBuilder::AddUniqueImage(TGLTFSharedArray<FColor>& Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type, const FString& Name)
@@ -502,46 +460,6 @@ FGLTFJsonLight* FGLTFConvertBuilder::AddUniqueLight(const ULightComponent* Light
 	}
 
 	return LightConverter->GetOrAdd(LightComponent);
-}
-
-FGLTFJsonBackdrop* FGLTFConvertBuilder::AddUniqueBackdrop(const AActor* BackdropActor)
-{
-	if (BackdropActor == nullptr)
-	{
-		return nullptr;
-	}
-
-	return BackdropConverter->GetOrAdd(BackdropActor);
-}
-
-FGLTFJsonLightMap* FGLTFConvertBuilder::AddUniqueLightMap(const UStaticMeshComponent* StaticMeshComponent)
-{
-	if (StaticMeshComponent == nullptr)
-	{
-		return nullptr;
-	}
-
-	return LightMapConverter->GetOrAdd(StaticMeshComponent);
-}
-
-FGLTFJsonSkySphere* FGLTFConvertBuilder::AddUniqueSkySphere(const AActor* SkySphereActor)
-{
-	if (SkySphereActor == nullptr)
-	{
-		return nullptr;
-	}
-
-	return SkySphereConverter->GetOrAdd(SkySphereActor);
-}
-
-FGLTFJsonEpicLevelVariantSets* FGLTFConvertBuilder::AddUniqueEpicLevelVariantSets(const ULevelVariantSets* LevelVariantSets)
-{
-	if (LevelVariantSets == nullptr)
-	{
-		return nullptr;
-	}
-
-	return EpicLevelVariantSetsConverter->GetOrAdd(LevelVariantSets);
 }
 
 FGLTFJsonKhrMaterialVariant* FGLTFConvertBuilder::AddUniqueKhrMaterialVariant(const UVariant* Variant)

@@ -38,17 +38,7 @@ struct FGLTFTextureUtility
 	static bool DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, const FMatrix& InTransform = FMatrix::Identity);
 	static bool RotateTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, float InDegrees);
 
-	static UTexture2D* CreateTextureFromCubeFace(const UTextureCube* TextureCube, ECubeFace CubeFace);
-	static UTexture2D* CreateTextureFromCubeFace(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace);
-
-	static bool ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels, EGLTFJsonHDREncoding Encoding);
-
-	static void EncodeRGBM(const TArray<FFloat16Color>& InPixels, TArray<FColor>& OutPixels, float MaxRange = 8);
-	static void EncodeRGBE(const TArray<FFloat16Color>& InPixels, TArray<FColor>& OutPixels);
-
-	// TODO: maybe use template specialization to avoid the need for duplicated functions
-	static bool LoadPlatformData(UTexture2D* Texture);
-	static bool LoadPlatformData(UTextureCube* TextureCube);
+	static bool ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels);
 
 	static void FlipGreenChannel(TArray<FColor>& Pixels);
 	static void TransformColorSpace(TArray<FColor>& Pixels, bool bFromSRGB, bool bToSRGB);

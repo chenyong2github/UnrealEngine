@@ -21,18 +21,6 @@ void FGLTFContainerBuilder::WriteInternalArchive(FArchive& Archive)
 	{
 		WriteJsonArchive(Archive);
 	}
-
-	const TSet<EGLTFJsonExtension> CustomExtensions = GetCustomExtensionsUsed();
-	if (CustomExtensions.Num() > 0)
-	{
-		const FString ExtensionsString = FString::JoinBy(CustomExtensions, TEXT(", "),
-			[](EGLTFJsonExtension Extension)
-		{
-			return FGLTFJsonUtilities::GetValue(Extension);
-		});
-
-		LogWarning(FString::Printf(TEXT("Export uses some extensions that may only be supported in Unreal's glTF viewer: %s"), *ExtensionsString));
-	}
 }
 
 bool FGLTFContainerBuilder::WriteAllFiles(const FString& DirPath, uint32 WriteFlags)

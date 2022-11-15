@@ -55,18 +55,7 @@ FGLTFJsonAnimation* FGLTFAnimationDataConverter::Convert(FGLTFJsonNode* RootNode
 		return nullptr;
 	}
 
-	FGLTFJsonAnimation* JsonAnimation = Builder.AddUniqueAnimation(RootNode, SkeletalMesh, AnimSequence);
-	if (JsonAnimation != nullptr && Builder.ExportOptions->bExportPlaybackSettings)
-	{
-		FGLTFJsonAnimationPlayback& JsonPlayback = JsonAnimation->Playback;
-
-		JsonPlayback.bLoop = SkeletalMeshComponent->AnimationData.bSavedLooping;
-		JsonPlayback.bAutoPlay = SkeletalMeshComponent->AnimationData.bSavedPlaying;
-		JsonPlayback.PlayRate = SkeletalMeshComponent->AnimationData.SavedPlayRate;
-		JsonPlayback.StartTime = SkeletalMeshComponent->AnimationData.SavedPosition;
-	}
-
-	return JsonAnimation;
+	return Builder.AddUniqueAnimation(RootNode, SkeletalMesh, AnimSequence);
 }
 
 FGLTFJsonAnimation* FGLTFLevelSequenceConverter::Convert(const ULevel* Level, const ULevelSequence* LevelSequence)
@@ -99,17 +88,5 @@ FGLTFJsonAnimation* FGLTFLevelSequenceDataConverter::Convert(const ALevelSequenc
 #endif
 	}
 
-	FGLTFJsonAnimation* JsonAnimation = Builder.AddUniqueAnimation(Level, LevelSequence);
-	if (JsonAnimation != nullptr && Builder.ExportOptions->bExportPlaybackSettings)
-	{
-		FGLTFJsonAnimationPlayback& JsonPlayback = JsonAnimation->Playback;
-
-		// TODO: report warning if loop count is not 0 or -1 (infinite)
-		JsonPlayback.bLoop = LevelSequenceActor->PlaybackSettings.LoopCount.Value != 0;
-		JsonPlayback.bAutoPlay = LevelSequenceActor->PlaybackSettings.bAutoPlay;
-		JsonPlayback.PlayRate = LevelSequenceActor->PlaybackSettings.PlayRate;
-		JsonPlayback.StartTime = LevelSequenceActor->PlaybackSettings.StartTime;
-	}
-
-	return JsonAnimation;
+	return Builder.AddUniqueAnimation(Level, LevelSequence);
 }

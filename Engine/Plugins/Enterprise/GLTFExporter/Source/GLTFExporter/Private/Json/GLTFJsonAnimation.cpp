@@ -37,11 +37,4 @@ void FGLTFJsonAnimation::WriteObject(IGLTFJsonWriter& Writer) const
 
 	Writer.Write(TEXT("channels"), Channels);
 	Writer.Write(TEXT("samplers"), Samplers);
-
-	if (Playback != FGLTFJsonAnimationPlayback())
-	{
-		Writer.StartExtensions();
-		Writer.Write(EGLTFJsonExtension::EPIC_AnimationPlayback, Playback);
-		Writer.EndExtensions();
-	}
 }

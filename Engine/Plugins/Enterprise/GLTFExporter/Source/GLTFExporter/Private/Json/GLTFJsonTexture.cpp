@@ -20,15 +20,4 @@ void FGLTFJsonTexture::WriteObject(IGLTFJsonWriter& Writer) const
 	{
 		Writer.Write(TEXT("source"), Source);
 	}
-
-	if (Encoding != EGLTFJsonHDREncoding::None)
-	{
-		Writer.StartExtensions();
-
-		Writer.StartExtension(EGLTFJsonExtension::EPIC_TextureHDREncoding);
-		Writer.Write(TEXT("encoding"), Encoding);
-		Writer.EndExtension();
-
-		Writer.EndExtensions();
-	}
 }

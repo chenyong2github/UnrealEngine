@@ -18,7 +18,6 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportProxyMaterials = true;
 	bExportUnlitMaterials = true;
 	bExportClearCoatMaterials = true;
-	bExportExtraBlendModes = false;
 	BakeMaterialInputs = EGLTFMaterialBakeMode::UseMeshData;
 	DefaultMaterialBakeSize = EGLTFMaterialBakeSizePOT::POT_1024;
 	DefaultMaterialBakeFilter = TF_Trilinear;
@@ -29,21 +28,13 @@ void UGLTFExportOptions::ResetToDefault()
 	bUseMeshQuantization = false;
 	bExportLevelSequences = true;
 	bExportAnimationSequences = true;
-	bExportPlaybackSettings = false;
 	TextureImageFormat = EGLTFTextureImageFormat::PNG;
 	TextureImageQuality = 0;
 	NoLossyImageFormatFor = static_cast<int32>(EGLTFTextureType::All);
 	bExportTextureTransforms = true;
-	bExportLightmaps = false;
-	TextureHDREncoding = EGLTFTextureHDREncoding::None;
 	bAdjustNormalmaps = true;
 	bExportHiddenInGame = false;
 	ExportLights = static_cast<int32>(EGLTFSceneMobility::Stationary | EGLTFSceneMobility::Movable);
 	bExportCameras = true;
-	bExportHDRIBackdrops = false;
-	bExportSkySpheres = false;
-	VariantSetsMode = EGLTFVariantSetsMode::None;
 	ExportMaterialVariants = EGLTFMaterialVariantMode::UseMeshData;
-	bExportMeshVariants = true;
-	bExportVisibilityVariants = true;
 }

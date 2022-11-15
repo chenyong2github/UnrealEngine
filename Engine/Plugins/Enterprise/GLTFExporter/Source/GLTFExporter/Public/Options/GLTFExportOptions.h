@@ -53,17 +53,6 @@ enum class EGLTFSceneMobility : uint8
 ENUM_CLASS_FLAGS(EGLTFSceneMobility);
 
 UENUM(BlueprintType)
-enum class EGLTFVariantSetsMode : uint8
-{
-	/** Never export variants sets. */
-	None,
-	/** Uses the official extension KHR_materials_variants. Supports material variants only. */
-	Khronos,
-	/** Uses the extension EPIC_level_variant_sets, which is supported by Unreal's glTF viewer. */
-	Epic
-};
-
-UENUM(BlueprintType)
 enum class EGLTFMaterialVariantMode : uint8
 {
 	/** Never export material variants. */
@@ -111,10 +100,6 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
 	bool bExportClearCoatMaterials;
 
-	/** If enabled, materials with blend modes additive, modulate, and alpha composite will be properly exported. Uses extension EPIC_blend_modes, which is supported by Unreal's glTF viewer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
-	bool bExportExtraBlendModes;
-
 	/** Bake mode determining if and how a material input is baked out to a texture. Baking is only used for non-trivial material inputs (i.e. not simple texture or constant expressions). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
 	EGLTFMaterialBakeMode BakeMaterialInputs;
@@ -159,10 +144,6 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation, Meta = (EditCondition = "bExportVertexSkinWeights"))
 	bool bExportAnimationSequences;
 
-	/** If enabled, export play rate, start time, looping, and auto play for an animation or level sequence. Uses extension EPIC_animation_playback, which is supported by Unreal's glTF viewer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation)
-	bool bExportPlaybackSettings;
-
 	/** Desired image format used for exported textures. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
 	EGLTFTextureImageFormat TextureImageFormat;
@@ -178,14 +159,6 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	/** If enabled, export UV tiling and un-mirroring settings in a texture coordinate expression node for simple material input expressions. Uses extension KHR_texture_transform. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (EditCondition = "TextureImageFormat != EGLTFTextureImageFormat::None"))
 	bool bExportTextureTransforms;
-
-	/** If enabled, export lightmaps (created by Lightmass) when exporting a level. Uses extension EPIC_lightmap_textures, which is supported by Unreal's glTF viewer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (EditCondition = "TextureImageFormat != EGLTFTextureImageFormat::None"))
-	bool bExportLightmaps;
-
-	/** Encoding used to store textures that have pixel colors with more than 8-bit per channel. Uses extension EPIC_texture_hdr_encoding, which is supported by Unreal's glTF viewer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (DisplayName = "Texture HDR Encoding", EditCondition = "TextureImageFormat != EGLTFTextureImageFormat::None"))
-	EGLTFTextureHDREncoding TextureHDREncoding;
 
 	/** If enabled, exported normalmaps will be adjusted from Unreal to glTF convention (i.e. the green channel is flipped). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (EditCondition = "TextureImageFormat != EGLTFTextureImageFormat::None"))
@@ -203,29 +176,9 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportCameras;
 
-	/** If enabled, export HDRIBackdrop blueprints. Uses extension EPIC_hdri_backdrops, which is supported by Unreal's glTF viewer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta = (DisplayName = "Export HDRI Backdrops"))
-	bool bExportHDRIBackdrops;
-
-	/** If enabled, export SkySphere blueprints. Uses extension EPIC_sky_spheres, which is supported by Unreal's glTF viewer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
-	bool bExportSkySpheres;
-
-	/** Mode determining if and how to export LevelVariantSetsActors. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
-	EGLTFVariantSetsMode VariantSetsMode;
-
 	/** Mode determining if and how to export material variants that change the materials property on a static or skeletal mesh component. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "VariantSetsMode != EGLTFVariantSetsMode::None"))
 	EGLTFMaterialVariantMode ExportMaterialVariants;
-
-	/** If enabled, export variants that change the mesh property on a static or skeletal mesh component. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "VariantSetsMode == EGLTFVariantSetsMode::Epic"))
-	bool bExportMeshVariants;
-
-	/** If enabled, export variants that change the visible property on a scene component. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "VariantSetsMode == EGLTFVariantSetsMode::Epic"))
-	bool bExportVisibilityVariants;
 
 	UFUNCTION(BlueprintCallable, Category = General)
 	void ResetToDefault();

@@ -76,19 +76,6 @@ TextureAddress FGLTFBuilder::GetBakeTilingForMaterialProperty(const UMaterialInt
 	return UGLTFMaterialExportOptions::GetBakeTilingForPropertyGroup(Material, PropertyGroup, DefaultValue);
 }
 
-EGLTFJsonHDREncoding FGLTFBuilder::GetTextureHDREncoding() const
-{
-	switch (ExportOptions->TextureHDREncoding)
-	{
-		case EGLTFTextureHDREncoding::None: return EGLTFJsonHDREncoding::None;
-		case EGLTFTextureHDREncoding::RGBM: return EGLTFJsonHDREncoding::RGBM;
-		// TODO: add more encodings (like RGBE) when viewer supports them
-		default:
-			checkNoEntry();
-			return EGLTFJsonHDREncoding::None;
-	}
-}
-
 bool FGLTFBuilder::ShouldExportLight(EComponentMobility::Type LightMobility) const
 {
 	const EGLTFSceneMobility AllowedMobility = static_cast<EGLTFSceneMobility>(ExportOptions->ExportLights);

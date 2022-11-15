@@ -16,10 +16,10 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 {
 	const ULevelVariantSets* LevelVariantSets = CastChecked<ULevelVariantSets>(Object);
 
-	if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::None)
+	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::None)
 	{
 		Builder.LogError(
-			FString::Printf(TEXT("Failed to export level variant sets %s because variant sets are disabled by export options"),
+			FString::Printf(TEXT("Failed to export level variant sets %s because material variants are disabled by export options"),
 			*LevelVariantSets->GetName()));
 		return false;
 	}
@@ -52,28 +52,12 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Epic)
+	if (Builder.GetRoot().KhrMaterialVariants.Num() < 1)
 	{
-		FGLTFJsonEpicLevelVariantSets* EpicLevelVariantSets = Builder.AddUniqueEpicLevelVariantSets(LevelVariantSets);
-		if (EpicLevelVariantSets == nullptr)
-		{
-			Builder.LogError(
-				FString::Printf(TEXT("Failed to export level variant sets %s"),
-				*LevelVariantSets->GetName()));
-			return false;
-		}
-
-		Scene->EpicLevelVariantSets.AddUnique(EpicLevelVariantSets);
-	}
-	else if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Khronos)
-	{
-		if (Builder.GetRoot().KhrMaterialVariants.Num() < 1)
-		{
-			Builder.LogError(
-				FString::Printf(TEXT("Failed to export any supported variant from level variant sets %s"),
-				*LevelVariantSets->GetName()));
-			return false;
-		}
+		Builder.LogError(
+			FString::Printf(TEXT("Failed to export any supported variant from level variant sets %s"),
+			*LevelVariantSets->GetName()));
+		return false;
 	}
 
 	Builder.DefaultScene = Scene;

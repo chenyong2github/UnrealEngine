@@ -3,7 +3,6 @@
 #include "Converters/GLTFNodeConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFCoreUtilities.h"
-#include "Converters/GLTFBlueprintUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "LevelSequenceActor.h"
 #include "Camera/CameraComponent.h"
@@ -33,22 +32,7 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 
 	// TODO: process all components since any component can be attached to any other component in runtime
 
-	const FString BlueprintPath = FGLTFBlueprintUtility::GetClassPath(Actor);
-	if (FGLTFBlueprintUtility::IsSkySphere(BlueprintPath))
-	{
-		if (Builder.ExportOptions->bExportSkySpheres)
-		{
-			RootNode->SkySphere = Builder.AddUniqueSkySphere(Actor);
-		}
-	}
-	else if (FGLTFBlueprintUtility::IsHDRIBackdrop(BlueprintPath))
-	{
-		if (Builder.ExportOptions->bExportHDRIBackdrops)
-		{
-			RootNode->Backdrop = Builder.AddUniqueBackdrop(Actor);
-		}
-	}
-	else if (const ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
+	if (const ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
 	{
 		if (Builder.ExportOptions->bExportLevelSequences)
 		{
@@ -141,12 +125,6 @@ void FGLTFComponentConverter::ConvertComponentSpecialization(const USceneCompone
 		return;
 	}
 
-	const FString BlueprintPath = FGLTFBlueprintUtility::GetClassPath(Owner);
-	if (FGLTFBlueprintUtility::IsSkySphere(BlueprintPath) || FGLTFBlueprintUtility::IsHDRIBackdrop(BlueprintPath))
-	{
-		return;
-	}
-
 	if (Owner->IsA<ALevelSequenceActor>() || Owner->IsA<APawn>())
 	{
 		return;
@@ -155,11 +133,6 @@ void FGLTFComponentConverter::ConvertComponentSpecialization(const USceneCompone
 	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
 		Node->Mesh = Builder.AddUniqueMesh(StaticMeshComponent);
-
-		if (Builder.ExportOptions->bExportLightmaps)
-		{
-			Node->LightMap = Builder.AddUniqueLightMap(StaticMeshComponent);
-		}
 	}
 	else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
 	{

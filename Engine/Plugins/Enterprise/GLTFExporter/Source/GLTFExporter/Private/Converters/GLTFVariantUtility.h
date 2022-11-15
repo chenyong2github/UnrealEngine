@@ -16,12 +16,6 @@ class UPropertyValue;
 
 struct FGLTFVariantUtility
 {
-	static const TArray<FCapturedPropSegment>& GetCapturedPropSegments(const UPropertyValue* Property);
-
-	static bool IsStaticMeshProperty(const UPropertyValue* Property);
-	static bool IsSkeletalMeshProperty(const UPropertyValue* Property);
-	static bool IsVisibleProperty(const UPropertyValue* Property);
-
 	template <typename T>
 	static bool TryGetPropertyValue(UPropertyValue* Property, T& OutValue)
 	{

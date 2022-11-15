@@ -31,8 +31,6 @@ public:
 	TextureFilter GetBakeFilterForMaterialProperty(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup) const;
 	TextureAddress GetBakeTilingForMaterialProperty(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup) const;
 
-	EGLTFJsonHDREncoding GetTextureHDREncoding() const;
-
 	bool ShouldExportLight(EComponentMobility::Type LightMobility) const;
 
 	int32 SanitizeLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex) const;

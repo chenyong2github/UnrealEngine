@@ -60,7 +60,7 @@ void FGLTFDelayedMaterialTask::Process()
 	JsonMaterial->DoubleSided = Material->IsTwoSided();
 
 	ConvertShadingModel(JsonMaterial->ShadingModel);
-	ConvertAlphaMode(JsonMaterial->AlphaMode, JsonMaterial->BlendMode);
+	ConvertAlphaMode(JsonMaterial->AlphaMode);
 
 	if (FGLTFProxyMaterialUtilities::IsProxyMaterial(BaseMaterial))
 	{
@@ -435,7 +435,7 @@ void FGLTFDelayedMaterialTask::ConvertShadingModel(EGLTFJsonShadingModel& OutSha
 	}
 }
 
-void FGLTFDelayedMaterialTask::ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJsonBlendMode& OutBlendMode) const
+void FGLTFDelayedMaterialTask::ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode) const
 {
 	const EBlendMode BlendMode = Material->GetBlendMode();
 
@@ -443,7 +443,6 @@ void FGLTFDelayedMaterialTask::ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode
 	if (OutAlphaMode == EGLTFJsonAlphaMode::None)
 	{
 		OutAlphaMode = EGLTFJsonAlphaMode::Blend;
-		OutBlendMode = EGLTFJsonBlendMode::None;
 
 		Builder.LogWarning(FString::Printf(
 			TEXT("Unsupported blend mode (%s) in material %s, will export as %s"),
@@ -451,21 +450,6 @@ void FGLTFDelayedMaterialTask::ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode
 			*Material->GetName(),
 			*FGLTFNameUtility::GetName(BLEND_Translucent)));
 		return;
-	}
-
-	if (OutAlphaMode == EGLTFJsonAlphaMode::Blend)
-	{
-		OutBlendMode = FGLTFCoreUtilities::ConvertBlendMode(BlendMode);
-		if (OutBlendMode != EGLTFJsonBlendMode::None && !Builder.ExportOptions->bExportExtraBlendModes)
-		{
-			OutBlendMode = EGLTFJsonBlendMode::None;
-
-			Builder.LogWarning(FString::Printf(
-				TEXT("Extra blend mode (%s) in material %s disabled by export options, will export as %s"),
-				*FGLTFNameUtility::GetName(BlendMode),
-				*Material->GetName(),
-				*FGLTFNameUtility::GetName(BLEND_Translucent)));
-		}
 	}
 }
 

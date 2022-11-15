@@ -17,21 +17,6 @@ void FGLTFJsonBuilder::WriteJsonArchive(FArchive& Archive)
 	JsonRoot.WriteJson(Archive, !bIsGLB, ExportOptions->bSkipNearDefaultValues ? KINDA_SMALL_NUMBER : 0);
 }
 
-TSet<EGLTFJsonExtension> FGLTFJsonBuilder::GetCustomExtensionsUsed() const
-{
-	TSet<EGLTFJsonExtension> CustomExtensions;
-
-	for (EGLTFJsonExtension Extension : JsonRoot.Extensions.Used)
-	{
-		if (IsCustomExtension(Extension))
-		{
-			CustomExtensions.Add(Extension);
-		}
-	}
-
-	return CustomExtensions;
-}
-
 void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequired)
 {
 	JsonRoot.Extensions.Used.Add(Extension);
@@ -106,29 +91,9 @@ FGLTFJsonTexture* FGLTFJsonBuilder::AddTexture()
 	return JsonRoot.Textures.Add();
 }
 
-FGLTFJsonBackdrop* FGLTFJsonBuilder::AddBackdrop()
-{
-	return JsonRoot.Backdrops.Add();
-}
-
 FGLTFJsonLight* FGLTFJsonBuilder::AddLight()
 {
 	return JsonRoot.Lights.Add();
-}
-
-FGLTFJsonLightMap* FGLTFJsonBuilder::AddLightMap()
-{
-	return JsonRoot.LightMaps.Add();
-}
-
-FGLTFJsonSkySphere* FGLTFJsonBuilder::AddSkySphere()
-{
-	return JsonRoot.SkySpheres.Add();
-}
-
-FGLTFJsonEpicLevelVariantSets* FGLTFJsonBuilder::AddEpicLevelVariantSets()
-{
-	return JsonRoot.EpicLevelVariantSets.Add();
 }
 
 FGLTFJsonKhrMaterialVariant* FGLTFJsonBuilder::AddKhrMaterialVariant()
@@ -149,12 +114,4 @@ FString FGLTFJsonBuilder::GetGeneratorString() const
 	return ExportOptions->bIncludeGeneratorVersion
 		? TEXT(EPIC_PRODUCT_NAME) TEXT(" ") ENGINE_VERSION_STRING TEXT(" ") + PluginDescriptor.FriendlyName + TEXT(" ") + PluginDescriptor.VersionName
 		: TEXT(EPIC_PRODUCT_NAME) TEXT(" ") + PluginDescriptor.FriendlyName;
-}
-
-bool FGLTFJsonBuilder::IsCustomExtension(EGLTFJsonExtension Extension)
-{
-	const TCHAR CustomPrefix[] = TEXT("EPIC_");
-
-	const TCHAR* ExtensionString = FGLTFJsonUtilities::GetValue(Extension);
-	return FCString::Strncmp(ExtensionString, CustomPrefix, GetNum(CustomPrefix) - 1) == 0;
 }

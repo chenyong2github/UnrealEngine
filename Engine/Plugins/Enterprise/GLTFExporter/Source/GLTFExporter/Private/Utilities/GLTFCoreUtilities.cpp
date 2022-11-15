@@ -245,21 +245,7 @@ EGLTFJsonAlphaMode FGLTFCoreUtilities::ConvertAlphaMode(EBlendMode Mode)
 		case BLEND_Opaque:         return EGLTFJsonAlphaMode::Opaque;
 		case BLEND_Masked:         return EGLTFJsonAlphaMode::Mask;
 		case BLEND_Translucent:    return EGLTFJsonAlphaMode::Blend;
-		case BLEND_Additive:       return EGLTFJsonAlphaMode::Blend;
-		case BLEND_Modulate:       return EGLTFJsonAlphaMode::Blend;
-		case BLEND_AlphaComposite: return EGLTFJsonAlphaMode::Blend;
 		default:                   return EGLTFJsonAlphaMode::None;
-	}
-}
-
-EGLTFJsonBlendMode FGLTFCoreUtilities::ConvertBlendMode(EBlendMode Mode)
-{
-	switch (Mode)
-	{
-		case BLEND_Additive:       return EGLTFJsonBlendMode::Additive;
-		case BLEND_Modulate:       return EGLTFJsonBlendMode::Modulate;
-		case BLEND_AlphaComposite: return EGLTFJsonBlendMode::AlphaComposite;
-		default:                   return EGLTFJsonBlendMode::None;
 	}
 }
 
@@ -304,18 +290,4 @@ EGLTFJsonTextureFilter FGLTFCoreUtilities::ConvertMinFilter(TextureFilter Filter
 EGLTFJsonTextureFilter FGLTFCoreUtilities::ConvertMagFilter(TextureFilter Filter, TextureGroup LODGroup)
 {
 	return ConvertMagFilter(Filter == TF_Default ? FGLTFTextureUtility::GetDefaultFilter(LODGroup) : Filter);
-}
-
-EGLTFJsonCubeFace FGLTFCoreUtilities::ConvertCubeFace(ECubeFace CubeFace)
-{
-	switch (CubeFace)
-	{
-		case CubeFace_PosX:	return EGLTFJsonCubeFace::NegX;
-		case CubeFace_NegX:	return EGLTFJsonCubeFace::PosX;
-		case CubeFace_PosY:	return EGLTFJsonCubeFace::PosZ;
-		case CubeFace_NegY:	return EGLTFJsonCubeFace::NegZ;
-		case CubeFace_PosZ:	return EGLTFJsonCubeFace::PosY;
-		case CubeFace_NegZ:	return EGLTFJsonCubeFace::NegY;
-		default:            return EGLTFJsonCubeFace::None; // TODO: add error handling in callers
-	}
 }

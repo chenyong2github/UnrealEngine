@@ -17,11 +17,7 @@
 #include "Json/GLTFJsonScene.h"
 #include "Json/GLTFJsonSkin.h"
 #include "Json/GLTFJsonTexture.h"
-#include "Json/GLTFJsonBackdrop.h"
 #include "Json/GLTFJsonLight.h"
-#include "Json/GLTFJsonLightMap.h"
-#include "Json/GLTFJsonSkySphere.h"
-#include "Json/GLTFJsonEpicLevelVariantSets.h"
 #include "Json/GLTFJsonKhrMaterialVariant.h"
 
 struct GLTFEXPORTER_API FGLTFJsonRoot : IGLTFJsonObject
@@ -45,11 +41,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot : IGLTFJsonObject
 	TGLTFJsonIndexedObjectArray<FGLTFJsonScene>      Scenes;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonSkin>       Skins;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonTexture>    Textures;
-	TGLTFJsonIndexedObjectArray<FGLTFJsonBackdrop>   Backdrops;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonLight>      Lights;
-	TGLTFJsonIndexedObjectArray<FGLTFJsonLightMap>   LightMaps;
-	TGLTFJsonIndexedObjectArray<FGLTFJsonSkySphere>  SkySpheres;
-	TGLTFJsonIndexedObjectArray<FGLTFJsonEpicLevelVariantSets> EpicLevelVariantSets;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonKhrMaterialVariant>   KhrMaterialVariants;
 
 	FGLTFJsonRoot()

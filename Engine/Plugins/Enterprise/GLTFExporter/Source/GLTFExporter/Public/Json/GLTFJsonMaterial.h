@@ -102,8 +102,6 @@ struct GLTFEXPORTER_API FGLTFJsonMaterial : IGLTFJsonIndexedObject
 
 	bool DoubleSided;
 
-	EGLTFJsonBlendMode BlendMode;
-
 	FGLTFJsonClearCoatExtension ClearCoat;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
@@ -119,7 +117,6 @@ protected:
 		, AlphaMode(EGLTFJsonAlphaMode::Opaque)
 		, AlphaCutoff(0.5f)
 		, DoubleSided(false)
-		, BlendMode(EGLTFJsonBlendMode::None)
 	{
 	}
 };

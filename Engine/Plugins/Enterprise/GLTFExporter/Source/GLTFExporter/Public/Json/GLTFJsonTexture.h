@@ -12,8 +12,6 @@ struct GLTFEXPORTER_API FGLTFJsonTexture : IGLTFJsonIndexedObject
 
 	FGLTFJsonImage* Source;
 
-	EGLTFJsonHDREncoding Encoding;
-
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 
 protected:
@@ -24,7 +22,6 @@ protected:
 		: IGLTFJsonIndexedObject(Index)
 		, Sampler(nullptr)
 		, Source(nullptr)
-		, Encoding(EGLTFJsonHDREncoding::None)
 	{
 	}
 };

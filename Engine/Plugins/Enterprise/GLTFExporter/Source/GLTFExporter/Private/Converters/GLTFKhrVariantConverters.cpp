@@ -110,7 +110,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 		return false;
 	}
 
-	const TArray<FCapturedPropSegment>& CapturedPropSegments = FGLTFVariantUtility::GetCapturedPropSegments(Property);
+	const TArray<FCapturedPropSegment>& CapturedPropSegments = Property->GetCapturedPropSegments();
 	const int32 NumPropSegments = CapturedPropSegments.Num();
 
 	if (NumPropSegments < 1)

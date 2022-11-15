@@ -311,7 +311,6 @@ UGLTFExportOptions* FGLTFMaterialProxyFactory::CreateExportOptions(const UGLTFPr
 	UGLTFExportOptions* ExportOptions = NewObject<UGLTFExportOptions>();
 	ExportOptions->ResetToDefault();
 	ExportOptions->bExportProxyMaterials = false;
-	ExportOptions->bExportExtraBlendModes = true;
 	ExportOptions->BakeMaterialInputs = ProxyOptions->bBakeMaterialInputs ? EGLTFMaterialBakeMode::Simple : EGLTFMaterialBakeMode::Disabled;
 	ExportOptions->DefaultMaterialBakeSize = ProxyOptions->DefaultMaterialBakeSize;
 	ExportOptions->DefaultMaterialBakeFilter = ProxyOptions->DefaultMaterialBakeFilter;

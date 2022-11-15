@@ -25,23 +25,9 @@ void FGLTFJsonRoot::WriteObject(IGLTFJsonWriter& Writer) const
 	if (Skins.Num() > 0) Writer.Write(TEXT("skins"), Skins);
 	if (Textures.Num() > 0) Writer.Write(TEXT("textures"), Textures);
 
-	if (Backdrops.Num() > 0 || Lights.Num() > 0 || LightMaps.Num() > 0 || SkySpheres.Num() > 0 || EpicLevelVariantSets.Num() > 0 || KhrMaterialVariants.Num() > 0)
+	if (Lights.Num() > 0 || KhrMaterialVariants.Num() > 0)
 	{
 		Writer.StartExtensions();
-
-		if (Backdrops.Num() > 0)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_HDRIBackdrops);
-			Writer.Write(TEXT("backdrops"), Backdrops);
-			Writer.EndExtension();
-		}
-
-		if (EpicLevelVariantSets.Num() > 0)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_LevelVariantSets);
-			Writer.Write(TEXT("levelVariantSets"), EpicLevelVariantSets);
-			Writer.EndExtension();
-		}
 
 		if (KhrMaterialVariants.Num() > 0)
 		{
@@ -54,20 +40,6 @@ void FGLTFJsonRoot::WriteObject(IGLTFJsonWriter& Writer) const
 		{
 			Writer.StartExtension(EGLTFJsonExtension::KHR_LightsPunctual);
 			Writer.Write(TEXT("lights"), Lights);
-			Writer.EndExtension();
-		}
-
-		if (LightMaps.Num() > 0)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_LightmapTextures);
-			Writer.Write(TEXT("lightmaps"), LightMaps);
-			Writer.EndExtension();
-		}
-
-		if (SkySpheres.Num() > 0)
-		{
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_SkySpheres);
-			Writer.Write(TEXT("skySpheres"), SkySpheres);
 			Writer.EndExtension();
 		}
 

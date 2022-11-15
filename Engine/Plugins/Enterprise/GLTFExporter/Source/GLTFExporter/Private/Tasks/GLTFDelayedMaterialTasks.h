@@ -56,7 +56,7 @@ private:
 
 	EMaterialShadingModel GetShadingModel() const;
 	void ConvertShadingModel(EGLTFJsonShadingModel& OutShadingModel) const;
-	void ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJsonBlendMode& OutBlendMode) const;
+	void ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode) const;
 
 #if WITH_EDITOR
 	TSet<FGLTFMaterialPropertyEx> MeshDataBakedProperties;

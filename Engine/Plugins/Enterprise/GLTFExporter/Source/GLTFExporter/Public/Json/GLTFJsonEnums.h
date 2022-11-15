@@ -9,14 +9,7 @@ enum class EGLTFJsonExtension
 	KHR_MaterialsUnlit,
 	KHR_MaterialsVariants,
 	KHR_MeshQuantization,
-	KHR_TextureTransform,
-	EPIC_AnimationPlayback,
-	EPIC_BlendModes,
-	EPIC_HDRIBackdrops,
-	EPIC_LevelVariantSets,
-	EPIC_LightmapTextures,
-	EPIC_SkySpheres,
-	EPIC_TextureHDREncoding
+	KHR_TextureTransform
 };
 
 enum class EGLTFJsonShadingModel
@@ -27,24 +20,6 @@ enum class EGLTFJsonShadingModel
 	ClearCoat,
 
 	NumShadingModels
-};
-
-enum class EGLTFJsonHDREncoding
-{
-	None = -1,
-	RGBM,
-	RGBE
-};
-
-enum class EGLTFJsonCubeFace
-{
-	None = -1,
-	PosX,
-	NegX,
-	PosY,
-	NegY,
-	PosZ,
-	NegZ
 };
 
 enum class EGLTFJsonAccessorType
@@ -95,14 +70,6 @@ enum class EGLTFJsonAlphaMode
 	Opaque,
 	Mask,
 	Blend
-};
-
-enum class EGLTFJsonBlendMode
-{
-	None = -1,
-	Additive,
-	Modulate,
-	AlphaComposite
 };
 
 enum class EGLTFJsonMimeType
