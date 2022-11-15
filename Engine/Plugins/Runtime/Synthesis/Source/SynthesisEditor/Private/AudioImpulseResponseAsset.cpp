@@ -111,6 +111,10 @@ UObject* UAudioImpulseResponseFactory::FactoryCreateNew(UClass* Class, UObject* 
 			}
 		}
 
+#if WITH_EDITORONLY_DATA
+		NewAsset->bIsEvenChannelCount = NewAsset->NumChannels % 2 == 0;
+#endif
+
 		StagedSoundWave.Reset();
 	}
 

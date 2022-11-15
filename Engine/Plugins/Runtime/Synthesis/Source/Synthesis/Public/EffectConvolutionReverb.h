@@ -54,17 +54,23 @@ public:
 	float NormalizationVolumeDb;
 
 	/* If true, impulse response channels are interpreted as true stereo which allows channel crosstalk. If false, impulse response channels are interpreted as independent channel impulses. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SubmixEffectPreset, meta = (EditCondition = "(NumChannels > 0) && (NumChannels % 2 == 0)"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SubmixEffectPreset, meta = (EditCondition = "(NumChannels > 0) && bIsEvenChannelCount"))
 	bool bTrueStereo;
 
 	UPROPERTY(meta = (DeprecatedProperty))
 	TArray<float> IRData_DEPRECATED;
+
+	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITORONLY_DATA
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	// This delegate is called whenever PostEditChangeProperty called.
 	FAudioImpulseResponsePropertyChange OnObjectPropertyChanged;
+
+	// Used to evaluate whether TrueStereo should be editable
+	UPROPERTY()
+	bool bIsEvenChannelCount;
 #endif
 };
 

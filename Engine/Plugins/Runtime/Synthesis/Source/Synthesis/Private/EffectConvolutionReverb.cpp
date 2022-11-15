@@ -21,6 +21,18 @@ void UAudioImpulseResponse::PostEditChangeProperty(FPropertyChangedEvent& Proper
 }
 #endif
 
+void UAudioImpulseResponse::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading())
+	{
+		bIsEvenChannelCount = NumChannels % 2 == 0;
+	}
+#endif // WITH_EDITORONLY_DATA
+}
+
 namespace AudioConvReverbIntrinsics
 {
 	// Task for creating convolution algorithm object.
