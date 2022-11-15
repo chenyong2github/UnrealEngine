@@ -13,7 +13,7 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSimCacheAttributeReaderHelper.h"
 #include "NiagaraSimCacheHelper.h"
-#include "NiagaraSystem.h"
+#include "NiagaraSystemImpl.h"
 #include "NiagaraSystemInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSimCache)

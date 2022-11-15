@@ -12,7 +12,7 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraSettings.h"
 #include "NiagaraSimulationStageBase.h"
-#include "NiagaraSystem.h"
+#include "NiagaraSystemImpl.h"
 #include "NiagaraSystemEditorData.h"
 #include "DataInterface/NiagaraDataInterfaceActorComponent.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"

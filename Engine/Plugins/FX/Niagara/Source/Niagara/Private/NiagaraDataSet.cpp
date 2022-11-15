@@ -14,8 +14,6 @@
 #include "NiagaraShaderParticleID.h"
 #include "NiagaraShared.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataSet)
-
 DECLARE_CYCLE_STAT(TEXT("InitRenderData"), STAT_InitRenderData, STATGROUP_Niagara);
 
 //////////////////////////////////////////////////////////////////////////

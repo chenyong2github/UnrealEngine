@@ -46,7 +46,7 @@ enum class ENiagaraScalabilityUpdateFrequency
 
 /** Controls how cull proxies should be handled for a system. */
 UENUM()
-enum class ENiagaraCullProxyMode
+enum class ENiagaraCullProxyMode : uint32
 {
 	/** No cull proxy replaces culled systems. */
 	None,
@@ -288,16 +288,6 @@ struct NIAGARA_API FNiagaraSystemScalabilityOverride : public FNiagaraSystemScal
 	/** Controls whether we override the cull proxy settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideCullProxySettings : 1;
-};
-
-/** Container struct for an array of system scalability overrides. Enables details customization and data validation. */
-USTRUCT()
-struct NIAGARA_API FNiagaraSystemScalabilityOverrides
-{
-	GENERATED_USTRUCT_BODY()
-	
-	UPROPERTY(EditAnywhere, Category = "Override")
-	TArray<FNiagaraSystemScalabilityOverride> Overrides;
 };
 
 /** Scalability settings for Niagara Emitters on a particular platform set. */

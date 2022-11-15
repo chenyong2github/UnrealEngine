@@ -4,17 +4,30 @@
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "NiagaraTypes.h"
-#include "NiagaraDataSet.h"
+#include "NiagaraDataSetCompiledData.h"
 
+class FNiagaraDataBuffer;
+class FNiagaraDataSet;
 template<typename TType>
 struct FNiagaraDataSetAccessorTypeInfo;
+
+namespace NiagaraDataSetPrivate
+{
+	inline const FNiagaraDataSetCompiledData& GetCompiledData(const FNiagaraDataSet& DataSet);
+	inline FNiagaraDataBuffer* GetCurrentData(const FNiagaraDataSet& DataSet);
+	inline FNiagaraDataBuffer* GetDestinationData(const FNiagaraDataSet& DataSet);
+	inline uint8* GetComponentPtrFloat(FNiagaraDataBuffer* DataBuffer, uint32 ComponentIdx);
+	inline uint8* GetComponentPtrHalf(FNiagaraDataBuffer* DataBuffer, uint32 ComponentIdx);
+	inline uint8* GetComponentPtrInt32(FNiagaraDataBuffer* DataBuffer, uint32 ComponentIdx);
+	inline uint32 GetNumInstances(FNiagaraDataBuffer* DataBuffer);
+}
 
 template<typename TType>
 struct FNiagaraDataSetAccessor : public FNiagaraDataSetAccessorTypeInfo<TType>::TAccessorBaseClass
 {
 	static_assert(!TIsUECoreVariant<TType, double>::Value, "Double core variant. Must be float type!");
 	FORCEINLINE FNiagaraDataSetAccessor<TType>() {}
-	FORCEINLINE explicit FNiagaraDataSetAccessor<TType>(const FNiagaraDataSet& DataSet, const FName VariableName) { FNiagaraDataSetAccessorTypeInfo<TType>::TAccessorBaseClass::Init(DataSet.GetCompiledData(), VariableName); }
+	FORCEINLINE explicit FNiagaraDataSetAccessor<TType>(const FNiagaraDataSet& DataSet, const FName VariableName) { FNiagaraDataSetAccessorTypeInfo<TType>::TAccessorBaseClass::Init(NiagaraDataSetPrivate::GetCompiledData(DataSet), VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessor<TType>(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { FNiagaraDataSetAccessorTypeInfo<TType>::TAccessorBaseClass::Init(DataSetCompiledData, VariableName); }
 };
 
@@ -32,15 +45,16 @@ struct FNiagaraDataSetReaderFloat
 	explicit FNiagaraDataSetReaderFloat(FNiagaraDataBuffer* DataBuffer, bool bInIsFloat, int32 ComponentIndex)
 		: bIsFloat(bInIsFloat)
 	{
+		using namespace NiagaraDataSetPrivate;
 		if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE)
 		{
 			checkf(bInIsFloat || bSupportsHalf, TEXT("Must be float if we do not support halfs, how has this happened?"));
 			bIsValid = true;
 			for (int i = 0; i < FNiagaraDataSetAccessorTypeInfo<TType>::NumElements; ++i)
 			{
-				ComponentData[i] = bIsFloat ? DataBuffer->GetComponentPtrFloat(ComponentIndex + i) : DataBuffer->GetComponentPtrHalf(ComponentIndex + i);
+				ComponentData[i] = bIsFloat ? GetComponentPtrFloat(DataBuffer, ComponentIndex + i) : GetComponentPtrHalf(DataBuffer, ComponentIndex + i);
 			}
-			NumInstances = DataBuffer->GetNumInstances();
+			NumInstances = GetNumInstances(DataBuffer);
 		}
 	}
 
@@ -170,10 +184,10 @@ struct FNiagaraDataSetAccessorFloat
 {
 	static_assert(!TIsUECoreVariant<TType, double>::Value, "Double core variant. Must be float type!");
 	FORCEINLINE FNiagaraDataSetAccessorFloat() {}
-	FORCEINLINE explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+	FORCEINLINE explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(NiagaraDataSetPrivate::GetCompiledData(DataSet), VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
-	FORCEINLINE void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+	FORCEINLINE void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(NiagaraDataSetPrivate::GetCompiledData(DataSet), VariableName); }
 
 	void Init(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName)
 	{
@@ -227,8 +241,8 @@ struct FNiagaraDataSetAccessorFloat
 	FORCEINLINE static FNiagaraDataSetReaderFloat<TType> CreateReader(const FNiagaraDataSet& DataSet, const FName VariableName) { return FNiagaraDataSetAccessorFloat<TType>(DataSet, VariableName).GetReader(DataSet); }
 	//FORCEINLINE static FNiagaraDataSetWriterFloat<TType> CreateWriter(const FNiagaraDataSet& DataSet, const FName VariableName) { return FNiagaraDataSetAccessorFloat<TType>(DataSet, VariableName).GetWriter(DataSet); }
 
-	FORCEINLINE FNiagaraDataSetReaderFloat<TType> GetReader(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetReaderFloat<TType>(DataSet.GetCurrentData(), bIsFloat, ComponentIndex); }
-	//FORCEINLINE FNiagaraDataSetWriterFloat<TType> GetWriter(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetWriterFloat<TType>(DataSet.GetDestinationData(), bIsFloat, ComponentIndex); }
+	FORCEINLINE FNiagaraDataSetReaderFloat<TType> GetReader(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetReaderFloat<TType>(NiagaraDataSetPrivate::GetCurrentData(DataSet), bIsFloat, ComponentIndex); }
+	//FORCEINLINE FNiagaraDataSetWriterFloat<TType> GetWriter(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetWriterFloat<TType>(NiagaraDataSetPrivate::GetDestinationData(DataSet), bIsFloat, ComponentIndex); }
 
 private:
 	bool bIsFloat = true;
@@ -336,14 +350,15 @@ struct FNiagaraDataSetReaderInt32
 
 	explicit FNiagaraDataSetReaderInt32(FNiagaraDataBuffer* DataBuffer, int32 ComponentIndex)
 	{
+		using namespace NiagaraDataSetPrivate;
 		if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE)
 		{
 			bIsValid = true;
 			for (int i = 0; i < FNiagaraDataSetAccessorTypeInfo<TType>::NumElements; ++i)
 			{
-				ComponentData[i] = DataBuffer->GetComponentPtrInt32(ComponentIndex + i);
+				ComponentData[i] = GetComponentPtrInt32(DataBuffer, ComponentIndex + i);
 			}
-			NumInstances = DataBuffer->GetNumInstances();
+			NumInstances = GetNumInstances(DataBuffer);
 		}
 	}
 
@@ -387,14 +402,15 @@ struct FNiagaraDataSetWriterInt32
 
 	explicit FNiagaraDataSetWriterInt32(FNiagaraDataBuffer* DataBuffer, int32 ComponentIndex)
 	{
+		using namespace NiagaraDataSetPrivate;
 		if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE)
 		{
 			bIsValid = true;
 			for (int i = 0; i < FNiagaraDataSetAccessorTypeInfo<TType>::NumElements; ++i)
 			{
-				ComponentData[i] = DataBuffer->GetComponentPtrInt32(ComponentIndex + i);
+				ComponentData[i] = GetComponentPtrInt32(DataBuffer, ComponentIndex + i);
 			}
-			NumInstances = DataBuffer->GetNumInstances();
+			NumInstances = GetNumInstances(DataBuffer);
 		}
 	}
 
@@ -435,10 +451,10 @@ template<typename TType>
 struct FNiagaraDataSetAccessorInt32
 {
 	FORCEINLINE FNiagaraDataSetAccessorInt32() {}
-	FORCEINLINE explicit FNiagaraDataSetAccessorInt32(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+	FORCEINLINE explicit FNiagaraDataSetAccessorInt32(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(NiagaraDataSetPrivate::GetCompiledData(DataSet), VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessorInt32(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessorInt32(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
-	FORCEINLINE void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+	FORCEINLINE void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(NiagaraDataSetPrivate::GetCompiledData(DataSet), VariableName); }
 
 	FORCEINLINE void Init(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName)
 	{
@@ -468,8 +484,8 @@ struct FNiagaraDataSetAccessorInt32
 	FORCEINLINE static FNiagaraDataSetReaderInt32<TType> CreateReader(const FNiagaraDataSet& DataSet, const FName VariableName) { return FNiagaraDataSetAccessorInt32<TType>(DataSet, VariableName).GetReader(DataSet); }
 	FORCEINLINE static FNiagaraDataSetWriterInt32<TType> CreateWriter(const FNiagaraDataSet& DataSet, const FName VariableName) { return FNiagaraDataSetAccessorInt32<TType>(DataSet, VariableName).GetWriter(DataSet); }
 
-	FORCEINLINE FNiagaraDataSetReaderInt32<TType> GetReader(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetReaderInt32<TType>(DataSet.GetCurrentData(), ComponentIndex); }
-	FORCEINLINE FNiagaraDataSetWriterInt32<TType> GetWriter(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetWriterInt32<TType>(DataSet.GetDestinationData(), ComponentIndex); }
+	FORCEINLINE FNiagaraDataSetReaderInt32<TType> GetReader(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetReaderInt32<TType>(NiagaraDataSetPrivate::GetCurrentData(DataSet), ComponentIndex); }
+	FORCEINLINE FNiagaraDataSetWriterInt32<TType> GetWriter(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetWriterInt32<TType>(NiagaraDataSetPrivate::GetDestinationData(DataSet), ComponentIndex); }
 
 private:
 	int32 ComponentIndex = INDEX_NONE;
@@ -517,6 +533,7 @@ struct FNiagaraDataSetReaderStruct
 
 	explicit FNiagaraDataSetReaderStruct(FNiagaraDataBuffer* DataBuffer, int32 FloatComponentIndex, int32 Int32ComponentIndex)
 	{
+		using namespace NiagaraDataSetPrivate;
 		bIsValid  = DataBuffer != nullptr;
 		bIsValid &= (FNiagaraDataSetAccessorTypeInfo<TType>::NumFloatComponents == 0) || (FloatComponentIndex != INDEX_NONE);
 		bIsValid &= (FNiagaraDataSetAccessorTypeInfo<TType>::NumInt32Components == 0) || (Int32ComponentIndex != INDEX_NONE);
@@ -525,13 +542,13 @@ struct FNiagaraDataSetReaderStruct
 			int32 ComponentIndex = 0;
 			for (int i = 0; i < FNiagaraDataSetAccessorTypeInfo<TType>::NumFloatComponents; ++i)
 			{
-				ComponentData[ComponentIndex++] = DataBuffer->GetComponentPtrFloat(FloatComponentIndex + i);
+				ComponentData[ComponentIndex++] = GetComponentPtrFloat(DataBuffer, FloatComponentIndex + i);
 			}
 			for (int i = 0; i < FNiagaraDataSetAccessorTypeInfo<TType>::NumInt32Components; ++i)
 			{
-				ComponentData[ComponentIndex++] = DataBuffer->GetComponentPtrInt32(Int32ComponentIndex + i);
+				ComponentData[ComponentIndex++] = GetComponentPtrInt32(DataBuffer, Int32ComponentIndex + i);
 			}
-			NumInstances = DataBuffer->GetNumInstances();
+			NumInstances = GetNumInstances(DataBuffer);
 		}
 	}
 
@@ -575,10 +592,10 @@ template<typename TType>
 struct FNiagaraDataSetAccessorStruct
 {
 	FORCEINLINE FNiagaraDataSetAccessorStruct() {}
-	FORCEINLINE explicit FNiagaraDataSetAccessorStruct(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+	FORCEINLINE explicit FNiagaraDataSetAccessorStruct(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(NiagaraDataSetPrivate::GetCompiledData(DataSet), VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessorStruct(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessorStruct(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
-	FORCEINLINE void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
+	FORCEINLINE void Init(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(NiagaraDataSetPrivate::GetCompiledData(DataSet), VariableName); }
 
 	void Init(const FNiagaraDataSetCompiledData* DataSetCompiledData, const FName VariableName)
 	{
@@ -612,8 +629,8 @@ struct FNiagaraDataSetAccessorStruct
 	FORCEINLINE static FNiagaraDataSetReaderStruct<TType> CreateReader(const FNiagaraDataSet& DataSet, const FName VariableName) { return FNiagaraDataSetAccessorStruct<TType>(DataSet, VariableName).GetReader(DataSet); }
 	//FORCEINLINE static FNiagaraDataSetWriterStruct<TType> CreateWriter(const FNiagaraDataSet& DataSet, const FName VariableName) { return FNiagaraDataSetAccessorStruct<TType>(DataSet, VariableName).GetWriter(DataSet); }
 
-	FORCEINLINE FNiagaraDataSetReaderStruct<TType> GetReader(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetReaderStruct<TType>(DataSet.GetCurrentData(), FloatComponentIndex, Int32ComponentIndex); }
-	//FNiagaraDataSetReaderStruct<TType> GetWriter(const FNiagaraDataSet& DataSet) { return FNiagaraDataSetReaderStruct<TType>(DataSet.GetDestinationData(), FloatComponentIndex, Int32ComponentIndex); }
+	FORCEINLINE FNiagaraDataSetReaderStruct<TType> GetReader(const FNiagaraDataSet& DataSet) const { return FNiagaraDataSetReaderStruct<TType>(NiagaraDataSetPrivate::GetCurrentData(DataSet), FloatComponentIndex, Int32ComponentIndex); }
+	//FNiagaraDataSetReaderStruct<TType> GetWriter(const FNiagaraDataSet& DataSet) { return FNiagaraDataSetReaderStruct<TType>(NiagaraDataSetPrivate::GetDestinationData(DataSet), FloatComponentIndex, Int32ComponentIndex); }
 
 private:
 	bool bIsValid = false;

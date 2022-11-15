@@ -7,7 +7,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigUtilities.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "NiagaraSystem.h"
+#include "NiagaraSystemImpl.h"
 #include "NiagaraSettings.h"
 #include "SystemSettings.h"
 #include "UObject/UObjectIterator.h"

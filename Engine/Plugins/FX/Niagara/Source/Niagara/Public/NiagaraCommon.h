@@ -4,23 +4,25 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineBaseTypes.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Engine/TextureRenderTarget2D.h"
-#endif
-#include "Engine/BlueprintGeneratedClass.h"
 #include "Particles/ParticlePerfStats.h"
 #include "RHIDefinitions.h"
 #include "UObject/ObjectKey.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakFieldPtr.h"
 
-#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraComponentPoolMethodEnum.h"
 #include "NiagaraDefines.h"
 #include "NiagaraScalabilityState.h"
 #include "NiagaraTickBehaviorEnum.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCore.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "NiagaraCompileHashVisitor.h"
+#endif
+
 #include "NiagaraCommon.generated.h"
 
 struct FVersionedNiagaraEmitter;
@@ -51,15 +53,15 @@ enum ETextureRenderTargetFormat : int;
 #define INTERPOLATED_PARAMETER_PREFIX TEXT("PREV_")
 
 /** Defines The maximum ThreadGroup size we allow in Niagara.  This is important for how memory is allocated as we always need to round this and the final instance is used to avoid overflowing the buffer. */
-constexpr uint32 NiagaraComputeMaxThreadGroupSize = 64;
+inline constexpr uint32 NiagaraComputeMaxThreadGroupSize = 64;
 
 /** The maximum number of spawn infos we can run on the GPU, modifying this will require a version update as it is used in the shader compiler  */
-constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
+inline constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
 
 /** TickGroup information for Niagara.  */
-constexpr ETickingGroup NiagaraFirstTickGroup = TG_PrePhysics;
-constexpr ETickingGroup NiagaraLastTickGroup = TG_LastDemotable;
-constexpr int NiagaraNumTickGroups = NiagaraLastTickGroup - NiagaraFirstTickGroup + 1;
+inline constexpr ETickingGroup NiagaraFirstTickGroup = TG_PrePhysics;
+inline constexpr ETickingGroup NiagaraLastTickGroup = TG_LastDemotable;
+inline constexpr int NiagaraNumTickGroups = NiagaraLastTickGroup - NiagaraFirstTickGroup + 1;
 
 enum ENiagaraBaseTypes
 {

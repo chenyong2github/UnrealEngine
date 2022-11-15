@@ -12,20 +12,6 @@
 struct FNiagaraSystemStaticBuffers
 {
 public:
-	struct FDeletor
-	{
-		void operator()(FNiagaraSystemStaticBuffers* Ptr) const
-		{
-			ENQUEUE_RENDER_COMMAND(ScriptSafeDelete)(
-				[RT_Ptr=Ptr](FRHICommandListImmediate& RHICmdList)
-				{
-					delete RT_Ptr;
-				}
-			);
-		}
-	};
-
-public:
 	FNiagaraSystemStaticBuffers() {}
 	~FNiagaraSystemStaticBuffers();
 

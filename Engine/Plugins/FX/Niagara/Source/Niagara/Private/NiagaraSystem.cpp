@@ -2,11 +2,13 @@
 
 
 #include "NiagaraSystem.h"
+#include "NiagaraSystemImpl.h"
 
 #include "AssetRegistry/IAssetRegistry.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraAsyncCompile.h"
 #include "NiagaraConstants.h"
+#include "NiagaraBakerSettings.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraEmitter.h"
@@ -20,6 +22,7 @@
 #include "NiagaraShared.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraStats.h"
+#include "NiagaraSystemStaticBuffers.h"
 #include "NiagaraTrace.h"
 #include "NiagaraTypes.h"
 #include "NiagaraWorldManager.h"
@@ -124,9 +127,16 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
+FNiagaraSystemScalabilityOverrides::FNiagaraSystemScalabilityOverrides() = default;
+FNiagaraSystemScalabilityOverrides::~FNiagaraSystemScalabilityOverrides() = default;
+
+//////////////////////////////////////////////////////////////////////////
+
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
+, LibraryVisibility(ENiagaraScriptLibraryVisibility::Unexposed)
+, TemplateSpecification(ENiagaraScriptTemplateSpecification::None)
 , bCompileForEdit(false)
 , bBakeOutRapidIteration(false)
 , bBakeOutRapidIterationOnCook(true)
@@ -138,6 +148,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 #endif
 , bSupportLargeWorldCoordinates(true)
 , bDisableExperimentalVM(false)
+, CustomDepthStencilWriteMask(ERendererStencilMask::ERSM_Default)
 , bFixedBounds(false)
 #if WITH_EDITORONLY_DATA
 , bIsolateEnabled(false)
@@ -150,6 +161,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , bHasSystemScriptDIsWithPerInstanceData(false)
 , bNeedsGPUContextInitForDataInterfaces(false)
 , bNeedsAsyncOptimize(true)
+, CurrentScalabilitySettings(*new FNiagaraSystemScalabilitySettings())
 , bHasDIsWithPostSimulateTick(false)
 , bAllDIsPostSimulateCanOverlapFrames(true)
 , bHasAnyGPUEmitters(false)
@@ -179,7 +191,23 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 
 UNiagaraSystem::UNiagaraSystem(FVTableHelper& Helper)
 	: Super(Helper)
+	, CurrentScalabilitySettings(*new FNiagaraSystemScalabilitySettings())
 {
+}
+
+UNiagaraSystem::~UNiagaraSystem()
+{
+	delete &CurrentScalabilitySettings;
+}
+
+void UNiagaraSystem::FStaticBuffersDeletor::operator()(FNiagaraSystemStaticBuffers* Ptr) const
+{
+	ENQUEUE_RENDER_COMMAND(ScriptSafeDelete)(
+		[RT_Ptr = Ptr](FRHICommandListImmediate& RHICmdList)
+		{
+			delete RT_Ptr;
+		}
+	);
 }
 
 void UNiagaraSystem::BeginDestroy()
@@ -3448,6 +3476,19 @@ void UNiagaraSystem::AsyncOptimizeAllScripts()
 	bNeedsAsyncOptimize = false;
 }
 
+FGraphEventRef UNiagaraSystem::GetScriptOptimizationCompletionEvent()
+{
+	if (ScriptOptimizationCompletionEvent.IsValid())
+	{
+		if (!ScriptOptimizationCompletionEvent->IsComplete())
+		{
+			return ScriptOptimizationCompletionEvent;
+		}
+		ScriptOptimizationCompletionEvent = nullptr;
+	}
+	return nullptr;
+}
+
 void UNiagaraSystem::GenerateStatID()const
 {
 #if STATS
@@ -3666,6 +3707,11 @@ void UNiagaraSystem::UpdateScalability()
 	{
 		FNiagaraWorldManager::PrimePoolForAllWorlds(this);
 	}
+}
+
+ENiagaraCullProxyMode UNiagaraSystem::GetCullProxyMode()const
+{
+	return GetScalabilitySettings().CullProxyMode;
 }
 
 const FString& UNiagaraSystem::GetCrashReporterTag()const

@@ -16,6 +16,7 @@
 #include "NiagaraGpuComputeDebug.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraCrashReporterHandler.h"
+#include "NiagaraSystemImpl.h"
 
 #include "Async/Async.h"
 #include "Components/SkeletalMeshComponent.h"

@@ -3,14 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "NiagaraEmitter.h"
 #include "Misc/Guid.h"
+#include "NiagaraTypes.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
+#endif
+
 #include "NiagaraEmitterHandle.generated.h"
 
 class UNiagaraSystem;
-class UNiagaraEmitter;
 
 /** 
  * Stores emitter information within the context of a System.

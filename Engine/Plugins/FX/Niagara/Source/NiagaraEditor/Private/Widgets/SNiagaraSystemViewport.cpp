@@ -15,7 +15,7 @@
 #include "NiagaraEffectType.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraSettings.h"
-#include "NiagaraSystem.h"
+#include "NiagaraSystemImpl.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemInstanceController.h"
 #include "NiagaraSystemGpuComputeProxy.h"

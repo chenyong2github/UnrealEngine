@@ -5,7 +5,7 @@
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraConstants.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraSystem.h"
+#include "NiagaraSystemImpl.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemSimulation.h"
 
