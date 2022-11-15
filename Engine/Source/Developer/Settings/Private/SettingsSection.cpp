@@ -5,6 +5,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigContext.h"
 #include "UObject/Class.h"
+#include "UObject/Reload.h"
 
 
 /* FSettingsSection structors
@@ -27,6 +28,12 @@ FSettingsSection::FSettingsSection( const ISettingsCategoryRef& InCategory, cons
 	, Name(InName)
 { }
 
+#if WITH_RELOAD
+void FSettingsSection::ReinstancingComplete(IReload* Reload)
+{
+	SettingsObject = Reload->GetReinstancedCDO(SettingsObject.Get(true));
+}
+#endif
 
 /* ISettingsSection interface
  *****************************************************************************/

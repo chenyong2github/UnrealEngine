@@ -6,7 +6,8 @@
 #include "UObject/WeakObjectPtr.h"
 #include "SettingsContainer.h"
 #include "ISettingsModule.h"
-
+#include "UObject/Reload.h"
+#include "UObject/UObjectGlobals.h"
 
 #define LOCTEXT_NAMESPACE "FSettingsModule"
 
@@ -95,9 +96,19 @@ public:
 		ProjectSettingsContainer->DescribeCategory("Editor", LOCTEXT("ProjectEditorCategoryName", "Editor"), LOCTEXT("ProjectEditorCategoryDescription", "Project settings specific to the editor"));
 		ProjectSettingsContainer->DescribeCategory("Platforms", LOCTEXT("ProjectPlatformsCategoryName", "Platforms"), LOCTEXT("ProjectPlatformsCategoryDescription", "Platform settings description text here"));
 		ProjectSettingsContainer->DescribeCategory("Plugins", LOCTEXT("ProjectPluginsCategoryName", "Plugins"), LOCTEXT("ProjectPluginsCategoryDescription", "Plugins settings description text here"));
+
+#if WITH_RELOAD
+		OnReloadHandle = FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.AddLambda([this] { ReinstancingComplete(); });
+#endif
 	}
 
-	virtual void ShutdownModule() override { }
+	virtual void ShutdownModule() override
+	{
+#if WITH_RELOAD
+		FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Remove(OnReloadHandle);
+		OnReloadHandle.Reset();
+#endif
+	}
 
 protected:
 
@@ -119,6 +130,20 @@ protected:
 		return Container.ToSharedRef();
 	}
 
+#if WITH_RELOAD
+	void ReinstancingComplete()
+	{
+		IReload* Reload = GetActiveReloadInterface();
+		if (Reload != nullptr)
+		{
+			for (TTuple <FName, TSharedPtr<FSettingsContainer> >& ContainerPair : ContainerNamesToContainers)
+			{
+				ContainerPair.Value->ReinstancingComplete(Reload);
+			}
+		}
+	}
+#endif
+
 private:
 
 	/** Holds the default settings container. */
@@ -129,6 +154,11 @@ private:
 
 	/** Holds the collection of registered settings viewers. */
 	TMap<FName, ISettingsViewer*> ContainerNamesToViewers;
+
+#if WITH_RELOAD
+	/** Delegate handle for the re-instancing complete notification */
+	FDelegateHandle OnReloadHandle;
+#endif
 };
 
 

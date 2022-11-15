@@ -67,6 +67,16 @@ void FSettingsContainer::RemoveSection( const FName& CategoryName, const FName& 
 	}
 }
 
+#if WITH_RELOAD
+void FSettingsContainer::ReinstancingComplete(IReload* Reload)
+{
+	for (TTuple<FName, TSharedPtr<FSettingsCategory>>& CategoryPair : Categories)
+	{
+		CategoryPair.Value->ReinstancingComplete(Reload);
+	}
+}
+#endif
+
 /* ISettingsContainer interface
  *****************************************************************************/
 

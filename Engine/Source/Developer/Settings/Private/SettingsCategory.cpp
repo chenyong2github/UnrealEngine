@@ -53,6 +53,16 @@ void FSettingsCategory::RemoveSection( const FName& SectionName )
 	Sections.Remove(SectionName);
 }
 
+#if WITH_RELOAD
+void FSettingsCategory::ReinstancingComplete(IReload* Reload)
+{
+	for (TTuple<FName, TSharedPtr<FSettingsSection>>& SectionPair : Sections)
+	{
+		SectionPair.Value->ReinstancingComplete(Reload);
+	}
+}
+#endif
+
 
 /* ISettingsCategory interface
  *****************************************************************************/

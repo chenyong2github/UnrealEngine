@@ -6,6 +6,7 @@
 #include "ISettingsContainer.h"
 #include "SettingsCategory.h"
 
+class IReload;
 class SWidget;
 
 /**
@@ -60,6 +61,15 @@ public:
 	 * @param SectionName The name of the section to remove.
 	 */
 	void RemoveSection( const FName& CategoryName, const FName& SectionName );
+
+#if WITH_RELOAD
+	/**
+	 * Invoked when reinstancing is complete.  Allows for settings objects to update their settings object pointers.
+	 * 
+	 * @param Reload The active reload
+	 */
+	void ReinstancingComplete(IReload* Reload);
+#endif
 
 public:
 

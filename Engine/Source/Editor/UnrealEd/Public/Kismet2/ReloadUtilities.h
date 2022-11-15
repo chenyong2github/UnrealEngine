@@ -42,6 +42,8 @@ public:
 	virtual void NotifyChange(UScriptStruct* New, UScriptStruct* Old) override;
 	virtual void NotifyChange(UPackage* New, UPackage* Old) override;
 	virtual void Reinstance() override;
+	virtual UObject* GetReinstancedCDO(UObject* CDO) override;
+	virtual const UObject* GetReinstancedCDO(const UObject* CDO) override;
 
 	/**
 	 * If you wish to reuse the same reload object, invoke this method to reset the state
@@ -140,6 +142,9 @@ private:
 
 	/** Map of the reconstructed CDOs during the reinstancing process */
 	TMap<UObject*, UObject*> ReconstructedCDOsMap;
+
+	/** Map of new CDOs where classes where changed */
+	TMap<UObject*, UObject*> ReinstancedCDOsMap;
 
 	/** Map from old class to new class.  New class may be null */
 	TMap<UClass*, UClass*> ReinstancedClasses;

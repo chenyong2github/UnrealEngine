@@ -607,7 +607,7 @@ namespace UE::Reload::Private
 		};
 
 	public:
-		FReloadClassHelper(FOutputDevice& InAr, const TSet<UObject*>& InReinstancingObjects, TSet<UBlueprint*>& InCompiledBlueprints, TMap<UObject*, UObject*>& InReconstructedCDOsMap);
+		FReloadClassHelper(FOutputDevice& InAr, const TSet<UObject*>& InReinstancingObjects, TSet<UBlueprint*>& InCompiledBlueprints, TMap<UObject*, UObject*>& InReconstructedCDOsMap, TMap<UObject*, UObject*>& InReinstancedCDOsMap);
 
 		/** 
 		 * Re-instance the collection of classes.  
@@ -632,15 +632,18 @@ namespace UE::Reload::Private
 		const TSet<UObject*>& ReinstancingObjects;
 		TSet<UBlueprint*>& CompiledBlueprints;
 		TMap<UObject*, UObject*>& ReconstructedCDOsMap;
+		TMap<UObject*, UObject*>& ReinstancedCDOsMap;
+
 
 		TMap<UClass*, ClassReinstanceState> ReinstanceStates;
 	};
 
-	FReloadClassHelper::FReloadClassHelper(FOutputDevice& InAr, const TSet<UObject*>& InReinstancingObjects, TSet<UBlueprint*>& InCompiledBlueprints, TMap<UObject*, UObject*>& InReconstructedCDOsMap)
+	FReloadClassHelper::FReloadClassHelper(FOutputDevice& InAr, const TSet<UObject*>& InReinstancingObjects, TSet<UBlueprint*>& InCompiledBlueprints, TMap<UObject*, UObject*>& InReconstructedCDOsMap, TMap<UObject*, UObject*>& InReinstancedCDOsMap)
 		: Ar(InAr)
 		, ReinstancingObjects(InReinstancingObjects)
 		, CompiledBlueprints(InCompiledBlueprints)
 		, ReconstructedCDOsMap(InReconstructedCDOsMap)
+		, ReinstancedCDOsMap(InReinstancedCDOsMap)
 	{
 	}
 
@@ -727,6 +730,7 @@ namespace UE::Reload::Private
 			// We only need to do re-instancing when we have a new UClass.
 			else
 			{
+				ReinstancedCDOsMap.Add(State.OldClassCDO, NewClass->GetDefaultObject());
 				UClass* NullableNewClass = NewClass == OldClass ? nullptr : NewClass;
 				TSharedPtr<FReloadClassReinstancer> ReinstanceHelper = MakeShareable(new FReloadClassReinstancer(
 					NullableNewClass, OldClass, State.OldClassCDO, ReinstancingObjects, CompiledBlueprints));
@@ -1127,7 +1131,7 @@ void FReload::Reinstance()
 
 	// Re-instance the classes
 	TSet<UBlueprint*> CompiledBlueprints;
-	UE::Reload::Private::FReloadClassHelper rch(Ar, ReinstancingObjects, CompiledBlueprints, ReconstructedCDOsMap);
+	UE::Reload::Private::FReloadClassHelper rch(Ar, ReinstancingObjects, CompiledBlueprints, ReconstructedCDOsMap, ReinstancedCDOsMap);
 	rch.ReinstanceClasses(ClassesToReinstance);
 
 	// Recompile blueprints if they haven't already been recompiled)
@@ -1146,6 +1150,28 @@ void FReload::Reinstance()
 	ReinstancedClasses = MoveTemp(ClassesToReinstance);
 
 	FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Broadcast();
+}
+
+UObject* FReload::GetReinstancedCDO(UObject* CDO)
+{
+	return const_cast<UObject*>(GetReinstancedCDO(const_cast<const UObject*>(CDO)));
+}
+
+const UObject* FReload::GetReinstancedCDO(const UObject* CDO)
+{
+	UObject* const* NewCDO = ReconstructedCDOsMap.Find(CDO);
+	if (NewCDO != nullptr)
+	{
+		return *NewCDO;
+	}
+
+	NewCDO = ReinstancedCDOsMap.Find(CDO);
+	if (NewCDO != nullptr)
+	{
+		return *NewCDO;
+	}
+
+	return CDO;
 }
 
 void FReload::Finalize(bool bRunGC)

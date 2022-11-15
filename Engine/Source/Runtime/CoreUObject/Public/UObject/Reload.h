@@ -53,6 +53,13 @@ public:
 	 * Perform the re-instancing 
 	 */
 	virtual void Reinstance() = 0;
+
+	/**
+	 * For a given CDO, return the new CDO if it has been re-instanced.  If it hasn't been re-instanced,
+	 * then the supplied CDO will be returned. If a non-CDO object is passed in, it will be returned as is.
+	 */
+	virtual UObject* GetReinstancedCDO(UObject* CDO) = 0;
+	virtual const UObject* GetReinstancedCDO(const UObject* CDO) = 0;
 };
 
 /**

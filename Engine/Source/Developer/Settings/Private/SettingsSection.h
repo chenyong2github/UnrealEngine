@@ -7,6 +7,7 @@
 #include "ISettingsCategory.h"
 #include "ISettingsSection.h"
 
+class IReload;
 class SWidget;
 
 /**
@@ -38,6 +39,15 @@ public:
 	 * @param InCustomWidget A custom settings widget.
 	 */
 	FSettingsSection( const ISettingsCategoryRef& InCategory, const FName& InName, const FText& InDisplayName, const FText& InDescription, const TSharedRef<SWidget>& InCustomWidget );
+
+#if WITH_RELOAD
+	/**
+	 * Invoked when reinstancing is complete.  Allows for settings objects to update their settings object pointers.
+	 * 
+	 * @param Reload The active reload
+	 */
+	void ReinstancingComplete(IReload* Reload);
+#endif
 
 public:
 

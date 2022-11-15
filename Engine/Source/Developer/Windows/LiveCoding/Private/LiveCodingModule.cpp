@@ -129,6 +129,16 @@ public:
 	{
 	}
 
+	virtual UObject* GetReinstancedCDO(UObject* CDO) override
+	{
+		return CDO;
+	}
+
+	virtual const UObject* GetReinstancedCDO(const UObject* CDO) override
+	{
+		return CDO;
+	}
+
 	bool HasReinstancingOccurred() const
 	{
 		return bHasReinstancingOccurred;
