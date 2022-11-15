@@ -1628,7 +1628,10 @@ FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FR
 		if (DoAsyncCompile)
 		{
 			OutCachedState->CompletionEvent = TGraphTask<FCompilePipelineStateTask>::CreateTask().ConstructAndDispatchWhenReady(OutCachedState, FGraphicsPipelineStateInitializer(), EPSOPrecacheResult::Untracked);
-			RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
+			if (!bFromFileCache)
+			{
+				RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
+			}
 		}
 		else
 		{
