@@ -293,7 +293,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		// Weight channel components need a time and result to evaluate
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightChannel, EvalTime);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightChannel, WeightResult);
-		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightResult, CachedWeightChannelInterpolation);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightChannel, CachedWeightChannelInterpolation);
 	}
 
 	// Weight and easing result component relationship
