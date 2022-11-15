@@ -42,6 +42,8 @@ public:
 #if WITH_EDITOR
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FLinearColor GetNodeBodyTintColor() const override;
+	virtual FText GetTooltipText() const override;
+	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 #endif // WITH_EDITOR
 	// End of UEdGraphNode interface
 

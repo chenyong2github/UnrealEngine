@@ -18,8 +18,20 @@ namespace UnrealBuildTool.Rules
 					"GeometryCollectionEngine",
 					"GeometryCore",
 					"Voronoi",
+					"GeometryFramework",
+					"MeshDescription",
+					"StaticMeshDescription",
 					"PlanarCut",
 					"Engine"
+				}
+			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[] 
+				{
+					"DynamicMesh",
+					"MeshConversion",
+					"FractureEngine"
 				}
 			);
 		}

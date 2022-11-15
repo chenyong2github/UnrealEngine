@@ -8,7 +8,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowNode)
 
-
+const FName FDataflowNode::DataflowInput = TEXT("DataflowInput");
+const FName FDataflowNode::DataflowOutput = TEXT("DataflowOutput");
+const FName FDataflowNode::DataflowPassthrough = TEXT("DataflowPassthrough");
+const FName FDataflowNode::DataflowIntrinsic = TEXT("DataflowIntrinsic");
 
 //
 // Inputs
@@ -293,7 +296,7 @@ bool FDataflowNode::ValidateConnections()
 				const FProperty* Property = *PropertyIt;
 				FName PropName(Property->GetName());
 #if WITH_EDITORONLY_DATA
-				if (Property->HasMetaData(TEXT("DataflowInput")))
+				if (Property->HasMetaData(FDataflowNode::DataflowInput))
 				{
 					if (!FindInput(PropName))
 					{
@@ -301,7 +304,7 @@ bool FDataflowNode::ValidateConnections()
 						bValid = false;
 					}
 				}
-				if (Property->HasMetaData(TEXT("DataflowOutput")))
+				if (Property->HasMetaData(FDataflowNode::DataflowOutput))
 				{
 					const FDataflowOutput* OutputConnection = FindOutput(PropName);
 					if(!OutputConnection)
@@ -311,12 +314,12 @@ bool FDataflowNode::ValidateConnections()
 					}
 
 					// Validate passthrough connections if they exist
-					if (const FString* PassthroughName = Property->FindMetaData(TEXT("Passthrough")))
+					if (const FString* PassthroughName = Property->FindMetaData(FDataflowNode::DataflowPassthrough))
 					{
 						void* PassthroughConnectionAddress = OutputConnection->GetPassthroughRealAddress();
 						if(PassthroughConnectionAddress == nullptr)
 						{
-							UE_LOG(LogChaos, Warning, TEXT("Missing Passthrough registration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+							UE_LOG(LogChaos, Warning, TEXT("Missing DataflowPassthrough registration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
 							bValid = false;
 						}
 
@@ -325,25 +328,25 @@ bool FDataflowNode::ValidateConnections()
 
 						if(PassthroughConnectionInputFromArg != PassthroughConnectionInput)
 						{
-							UE_LOG(LogChaos, Warning, TEXT("Mismatch in declared and registered Passthrough connection; (%s:%s vs %s)"), *GetName().ToString(), *PropName.ToString(), *PassthroughConnectionInputFromArg->GetName().ToString());
+							UE_LOG(LogChaos, Warning, TEXT("Mismatch in declared and registered DataflowPassthrough connection; (%s:%s vs %s)"), *GetName().ToString(), *PropName.ToString(), *PassthroughConnectionInputFromArg->GetName().ToString());
 							bValid = false;
 						}
 
 						if(!PassthroughConnectionInput)
 						{
-							UE_LOG(LogChaos, Warning, TEXT("Incorrect Passthrough Connection set for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+							UE_LOG(LogChaos, Warning, TEXT("Incorrect DataflowPassthrough Connection set for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
 							bValid = false;
 						}
 
 						else if(OutputConnection->GetType() != PassthroughConnectionInput->GetType())
 						{
-							UE_LOG(LogChaos, Warning, TEXT("Passthrough connection types mismatch for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+							UE_LOG(LogChaos, Warning, TEXT("DataflowPassthrough connection types mismatch for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
 							bValid = false;
 						}
 					}
 					else if(OutputConnection->GetPassthroughRealAddress()) 
 					{
-						UE_LOG(LogChaos, Warning, TEXT("Missing Passthrough decleration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+						UE_LOG(LogChaos, Warning, TEXT("Missing DataflowPassthrough decleration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
 						bValid = false;
 					}
 				}
@@ -353,6 +356,159 @@ bool FDataflowNode::ValidateConnections()
 	}
 	return bValid;
 }
+
+FString FDataflowNode::GetToolTip()
+{
+	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
+	{
+#if WITH_EDITORONLY_DATA
+		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
+		{
+			FString OutStr, InputsStr, OutputsStr;
+			
+			FText StructText = Struct->GetToolTipText();
+
+			OutStr.Appendf(TEXT("%s\n\n%s\n"), *GetDisplayName().ToString(), *StructText.ToString());
+			
+			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			{
+				const FProperty* Property = *PropertyIt;
+
+				if (Property->HasMetaData(TEXT("Tooltip")))
+				{
+					FString ToolTipStr = Property->GetToolTipText(true).ToString();
+					if (ToolTipStr.Len() > 0)
+					{
+						TArray<FString> OutArr;
+						ToolTipStr.ParseIntoArray(OutArr, TEXT(":\r\n"));
+
+						if (Property->HasMetaData(FDataflowNode::DataflowInput) &&
+							Property->HasMetaData(FDataflowNode::DataflowOutput) &&
+							Property->HasMetaData(FDataflowNode::DataflowPassthrough))
+						{
+							if (Property->HasMetaData(FDataflowNode::DataflowIntrinsic))
+							{
+								InputsStr.Appendf(TEXT("    %s [Intrinsic] - %s\n"), *Property->GetName(), *OutArr[1]);
+							}
+							else
+							{
+								InputsStr.Appendf(TEXT("    %s - %s\n"), *Property->GetName(), *OutArr[1]);
+							}
+
+							OutputsStr.Appendf(TEXT("    %s [Passthrough] - %s\n"), *Property->GetName(), *OutArr[1]);
+						}					
+						else if (Property->HasMetaData(FDataflowNode::DataflowInput))
+						{
+							if (Property->HasMetaData(FDataflowNode::DataflowIntrinsic))
+							{
+								InputsStr.Appendf(TEXT("    %s [Intrinsic] - %s\n"), *Property->GetName(), *OutArr[1]);
+							}
+							else
+							{
+								InputsStr.Appendf(TEXT("    %s - %s\n"), *Property->GetName(), *OutArr[1]);
+							}
+						}
+						else if (Property->HasMetaData(FDataflowNode::DataflowOutput))
+						{
+							OutputsStr.Appendf(TEXT("    %s - %s\n"), *Property->GetName(), *OutArr[1]);
+						}
+						
+						if (!Property->HasMetaData(FDataflowNode::DataflowInput) && !Property->HasMetaData(FDataflowNode::DataflowOutput))
+						{
+							InputsStr.Appendf(TEXT("    %s - %s\n"), *Property->GetName(), *OutArr[1]);
+						}
+					}
+				}
+			}
+
+			if (InputsStr.Len() > 0)
+			{
+				OutStr.Appendf(TEXT("\n Input(s) :\n % s"), *InputsStr);
+			}
+			if (OutputsStr.Len() > 0)
+			{
+				OutStr.Appendf(TEXT("\n Output(s):\n%s"), *OutputsStr);
+			}
+
+			return OutStr;
+		}
+#endif
+	}
+
+	return "";
+}
+
+FString FDataflowNode::GetPinToolTip(const FName& PropertyName)
+{
+	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
+	{
+		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
+		{
+			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			{
+				const FProperty* Property = *PropertyIt;
+
+#if WITH_EDITORONLY_DATA
+				if (Property->GetName() == PropertyName.ToString())
+				{
+					if (Property->HasMetaData(TEXT("Tooltip")))
+					{
+						FString ToolTipStr = Property->GetToolTipText(true).ToString();
+						if (ToolTipStr.Len() > 0)
+						{
+							TArray<FString> OutArr;
+							int32 NumElems = ToolTipStr.ParseIntoArray(OutArr, TEXT(":\r\n"));
+
+							if (NumElems == 2)
+							{
+								return OutArr[1];
+							}
+						}
+					}
+				}
+#endif
+			}
+		}
+	}
+
+	return "";
+}
+
+TArray<FString> FDataflowNode::GetPinMetaData(const FName& PropertyName)
+{
+	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
+	{
+		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
+		{
+			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			{
+				const FProperty* Property = *PropertyIt;
+
+#if WITH_EDITORONLY_DATA
+				if (Property->GetName() == PropertyName.ToString())
+				{
+					TArray<FString> MetaDataStrArr;
+					if (Property->HasMetaData(FDataflowNode::DataflowPassthrough))
+					{
+						MetaDataStrArr.Add("Passthrough");
+					}
+					if (Property->HasMetaData(FDataflowNode::DataflowIntrinsic))
+					{
+						MetaDataStrArr.Add("Intrinsic");
+					}
+
+					return MetaDataStrArr;
+				}
+#endif
+			}
+		}
+	}
+
+	return TArray<FString>();
+}
+
+
+
 
 
 

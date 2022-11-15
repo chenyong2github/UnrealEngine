@@ -16,6 +16,8 @@ namespace Dataflow
 			TUniquePtr<FDataflowNode> Node = ClassMap[Param.Type](Param);
 			if(Node->IsValid())
 			{
+				ParametersMap[Param.Type].ToolTip = Node->GetToolTip();
+
 				return Graph.AddNode(MoveTemp(Node));
 			}
 			

@@ -75,7 +75,9 @@ struct DATAFLOWCORE_API FDataflowNode
 	virtual FName GetDisplayName() const { return ""; }
 	virtual FName GetCategory() const { return ""; }
 	virtual FString GetTags() const { return ""; }
-	virtual FString GetToolTip() const { return ""; }
+	virtual FString GetToolTip();
+	FString GetPinToolTip(const FName& PropertyName);
+	TArray<FString> GetPinMetaData(const FName& PropertyName);
 	virtual TArray<Dataflow::FRenderingParameter> GetRenderParameters() const { return GetRenderParametersImpl(); }
 
 	//
@@ -104,7 +106,10 @@ struct DATAFLOWCORE_API FDataflowNode
 	const FDataflowOutput* FindOutput(FName Name) const;
 	const FDataflowOutput* FindOutput(const void* Reference) const;
 
-
+	static const FName DataflowInput;
+	static const FName DataflowOutput;
+	static const FName DataflowPassthrough;
+	static const FName DataflowIntrinsic;
 
 	//
 	//  Struct Support
@@ -243,7 +248,6 @@ public:																				\
 	virtual FName GetDisplayName() const override { return TYPE::StaticDisplay(); }	\
 	virtual FName GetCategory() const override { return TYPE::StaticCategory(); }	\
 	virtual FString GetTags() const override { return TYPE::StaticTags(); }			\
-	virtual FString GetToolTip() const override { return TYPE::StaticToolTip(); }	\
 	virtual const UScriptStruct* TypedScriptStruct() const override					\
 		{return TYPE::StaticStruct();}												\
 	TYPE() {}																		\

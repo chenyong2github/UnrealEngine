@@ -39,6 +39,10 @@
 		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
+		},
+		{
+			"Name": "Fracture",
+			"Enabled": true
 		}
 	]
 }

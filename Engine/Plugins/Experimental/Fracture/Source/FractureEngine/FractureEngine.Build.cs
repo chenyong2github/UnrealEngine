@@ -1,28 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
+using System;
 
-public class FractureEngine : ModuleRules
+namespace UnrealBuildTool.Rules
 {
-	public FractureEngine(ReadOnlyTargetRules Target) : base(Target)
+	public class FractureEngine : ModuleRules
 	{
-		PrivateIncludePaths.Add(ModuleDirectory + "/Private");
-		PublicIncludePaths.Add(ModuleDirectory + "/Public");
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
+		public FractureEngine(ReadOnlyTargetRules Target) : base(Target)
+		{
+			PrivateIncludePaths.Add("FractureEngine/Private");
+			PublicIncludePaths.Add(ModuleDirectory + "/Public");
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Chaos",
+					"Core",
+					"DataflowCore"
+				}
+				);
 
-				// ... add other public dependencies that you statically link with here ...
-			}
-            );
-			
-		
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-
-				// ... add private dependencies that you statically link with here ...	
-			}
-            );
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+				}
+				);
+		}
 	}
 }
+

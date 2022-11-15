@@ -43,7 +43,7 @@ struct FFleshAssetTerminalDataflowNode : public FDataflowTerminalNode
 
 public:
 
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, Passthrough = "Collection", DisplayName = "Collection"))
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough  = "Collection"))
 	FManagedArrayCollection Collection;
 
 
@@ -126,7 +126,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	float Density = 1.f;
 
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", Passthrough = "Collection"))
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough  = "Collection"))
 	FManagedArrayCollection Collection;
 
 	FComputeFleshMassNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
@@ -154,7 +154,7 @@ struct FComputeFiberFieldNode : public FDataflowNode
 public:
 	//typedef FManagedArrayCollection DataType;
 
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", Passthrough = "Collection"))
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough  = "Collection"))
 	FManagedArrayCollection Collection;
 
 	//UPROPERTY(meta = (DataflowInput, DisplayName = "OriginVertexIndices"))

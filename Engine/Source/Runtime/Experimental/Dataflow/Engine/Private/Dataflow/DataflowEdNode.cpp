@@ -199,6 +199,56 @@ FLinearColor UDataflowEdNode::GetNodeBodyTintColor() const
 	return FLinearColor(0.f, 0.f, 0.f);
 }
 
+FText UDataflowEdNode::GetTooltipText() const
+{
+	if (DataflowGraph)
+	{
+		if (DataflowNodeGuid.IsValid())
+		{
+			if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+			{
+				return FText::FromString(DataflowNode->GetToolTip());
+			}
+		}
+	}
+
+	return FText::FromString("");
+
+}
+
+void UDataflowEdNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
+{
+	if (DataflowGraph)
+	{
+		if (DataflowNodeGuid.IsValid())
+		{
+			if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+			{		
+				FString MetaDataStr;
+				
+				TArray<FString> PinMetaData = DataflowNode->GetPinMetaData(Pin.PinName);
+			
+				if (Pin.Direction == EGPD_Input && PinMetaData.Contains(FDataflowNode::DataflowIntrinsic.ToString()))
+				{
+					MetaDataStr = "[Intrinsic]";
+				}
+				if (Pin.Direction == EGPD_Output && PinMetaData.Contains(FDataflowNode::DataflowPassthrough.ToString()))
+				{
+					MetaDataStr = "[Passthrough]";
+				}
+
+				FString NameStr = Pin.PinName.ToString();
+				if (MetaDataStr.Len() > 0)
+				{
+					NameStr.Appendf(TEXT(" %s"), *MetaDataStr);
+				}
+
+				HoverTextOut.Appendf(TEXT("%s\n%s\n\n%s"), *NameStr, *Pin.PinType.PinCategory.ToString(), *DataflowNode->GetPinToolTip(Pin.PinName));
+			}
+		}
+	}
+}
+
 #endif
 
 

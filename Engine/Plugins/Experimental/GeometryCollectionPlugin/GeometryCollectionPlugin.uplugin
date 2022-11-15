@@ -52,6 +52,10 @@
 		{
 			"Name": "PlanarCut",
 			"Enabled": true
+		},
+		{
+			"Name": "Fracture",
+			"Enabled": true
 		}
 	]
 }
