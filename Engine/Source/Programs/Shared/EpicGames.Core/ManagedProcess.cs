@@ -1060,6 +1060,7 @@ namespace EpicGames.Core
 				for (; ; )
 				{
 					Task<int> readTask = StdOut.ReadAsync(buffer, 0, bufferSize, cancellationToken);
+					_ = readTask.ContinueWith(x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted);
 
 					Task completedTask = await Task.WhenAny(readTask, taskCompletionSource.Task);
 					cancellationToken.ThrowIfCancellationRequested();
