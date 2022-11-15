@@ -9,6 +9,12 @@
 #include "RenderGrid/RenderGridBlueprintGeneratedClass.h"
 
 
+URenderGridBlueprint::URenderGridBlueprint()
+{
+	RenderGrid = CreateDefaultSubobject<URenderGrid>("RenderGrid");
+	RenderGrid->SetFlags(RF_DefaultSubObject | RF_Transactional);
+}
+
 UClass* URenderGridBlueprint::GetBlueprintClass() const
 {
 	return URenderGridBlueprintGeneratedClass::StaticClass();
@@ -17,6 +23,8 @@ UClass* URenderGridBlueprint::GetBlueprintClass() const
 void URenderGridBlueprint::PostLoad()
 {
 	Super::PostLoad();
+
+	PropagateAllPropertiesToInstances();
 
 	if (UbergraphPages.IsEmpty() || ((UbergraphPages.Num() == 1) && UbergraphPages[0]->Nodes.IsEmpty()))
 	{
@@ -48,22 +56,95 @@ void URenderGridBlueprint::PostLoad()
 		LastEditedDocuments.AddUnique(NewGraph);
 	}
 
-	FCoreUObjectDelegates::OnObjectModified.RemoveAll(this);
 	OnChanged().RemoveAll(this);
-	FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &URenderGridBlueprint::OnPreVariablesChange);
 	OnChanged().AddUObject(this, &URenderGridBlueprint::OnPostVariablesChange);
 
-	OnPreVariablesChange(this);
 	OnPostVariablesChange(this);
 }
 
-void URenderGridBlueprint::OnPreVariablesChange(UObject* InObject)
+void URenderGridBlueprint::RunOnInstances(const UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback& Callback)
 {
-	if (InObject != this)
+	if (UClass* MyRenderGridClass = GeneratedClass; IsValid(MyRenderGridClass))
 	{
-		return;
+		if (URenderGrid* DefaultObject = Cast<URenderGrid>(MyRenderGridClass->GetDefaultObject(false)); IsValid(DefaultObject))
+		{
+			Callback.ExecuteIfBound(DefaultObject);
+
+			TArray<UObject*> ArchetypeInstances;
+			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
+			for (UObject* ArchetypeInstance : ArchetypeInstances)
+			{
+				if (URenderGrid* InstanceGrid = Cast<URenderGrid>(ArchetypeInstance); IsValid(InstanceGrid))
+				{
+					Callback.ExecuteIfBound(InstanceGrid);
+				}
+			}
+		}
 	}
-	LastNewVariables = NewVariables;
+}
+
+void URenderGridBlueprint::Load()
+{
+	for (URenderGridJob* Job : RenderGrid->GetRenderGridJobsRef())
+	{
+		Job->Rename(nullptr, RenderGrid);
+	}
+}
+
+void URenderGridBlueprint::Save()
+{
+	if (UClass* MyRenderGridClass = GeneratedClass; IsValid(MyRenderGridClass))
+	{
+		if (URenderGrid* DefaultObject = Cast<URenderGrid>(MyRenderGridClass->GetDefaultObject(false)); IsValid(DefaultObject))
+		{
+			for (URenderGridJob* Job : DefaultObject->GetRenderGridJobsRef())
+			{
+				Job->Rename(nullptr, DefaultObject);
+			}
+		}
+	}
+}
+
+void URenderGridBlueprint::PropagateJobsToInstances()
+{
+	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this](URenderGrid* Instance)
+	{
+		Instance->CopyJobs(RenderGrid);
+	}));
+}
+
+void URenderGridBlueprint::PropagateAllPropertiesExceptJobsToInstances()
+{
+	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this](URenderGrid* Instance)
+	{
+		Instance->CopyAllPropertiesExceptJobs(RenderGrid);
+	}));
+}
+
+void URenderGridBlueprint::PropagateAllPropertiesToInstances()
+{
+	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this](URenderGrid* Instance)
+	{
+		Instance->CopyAllProperties(RenderGrid);
+	}));
+}
+
+void URenderGridBlueprint::PropagateJobsToAsset(URenderGrid* Instance)
+{
+	check(IsValid(Instance));
+	RenderGrid->CopyJobs(Instance);
+}
+
+void URenderGridBlueprint::PropagateAllPropertiesExceptJobsToAsset(URenderGrid* Instance)
+{
+	check(IsValid(Instance));
+	RenderGrid->CopyAllPropertiesExceptJobs(Instance);
+}
+
+void URenderGridBlueprint::PropagateAllPropertiesToAsset(URenderGrid* Instance)
+{
+	check(IsValid(Instance));
+	RenderGrid->CopyAllProperties(Instance);
 }
 
 void URenderGridBlueprint::OnPostVariablesChange(UBlueprint* InBlueprint)
@@ -74,87 +155,24 @@ void URenderGridBlueprint::OnPostVariablesChange(UBlueprint* InBlueprint)
 	}
 
 	bool bFoundChange = false;
-
-	TMap<FGuid, int32> NewVariablesByGuid;
-	for (int32 VarIndex = 0; VarIndex < NewVariables.Num(); VarIndex++)
-	{
-		NewVariablesByGuid.Add(NewVariables[VarIndex].VarGuid, VarIndex);
-	}
-
-	TMap<FGuid, int32> OldVariablesByGuid;
-	for (int32 VarIndex = 0; VarIndex < LastNewVariables.Num(); VarIndex++)
-	{
-		OldVariablesByGuid.Add(LastNewVariables[VarIndex].VarGuid, VarIndex);
-	}
-
-	for (FBPVariableDescription& OldVariable : LastNewVariables)
-	{
-		if (!NewVariablesByGuid.Contains(OldVariable.VarGuid))
-		{
-			bFoundChange = true;
-			OnVariableRemoved(OldVariable);
-		}
-	}
-
 	for (FBPVariableDescription& NewVariable : NewVariables)
 	{
-		if (!OldVariablesByGuid.Contains(NewVariable.VarGuid))
-		{
-			bFoundChange = true;
-			OnVariableAdded(NewVariable);
-			continue;
-		}
+		uint64 PreviousPropertyFlags = NewVariable.PropertyFlags;
+		bFoundChange = bFoundChange || NewVariable.HasMetaData(FBlueprintMetadata::MD_ExposeOnSpawn);
 
-		int32 OldVarIndex = OldVariablesByGuid.FindChecked(NewVariable.VarGuid);
-		const FBPVariableDescription& OldVariable = LastNewVariables[OldVarIndex];
-		if (OldVariable.VarName != NewVariable.VarName)
-		{
-			bFoundChange = true;
-			OnVariableRenamed(NewVariable, OldVariable.VarName, NewVariable.VarName);
-		}
+		// fix that's required for the way of saving/loading the render grid,
+		//  the render grid instance (in the blueprint class) isn't of the generated class (but instead it's of the URenderGrid class itself), and so variables can't be saved or load,
+		//  meaning that every variable has to be transient no matter what, otherwise saving or loading the render grid asset will cause a crash
+		NewVariable.PropertyFlags |= CPF_DisableEditOnInstance;
+		NewVariable.PropertyFlags &= ~CPF_ExposeOnSpawn;
+		NewVariable.PropertyFlags |= CPF_Transient;
+		NewVariable.RemoveMetaData(FBlueprintMetadata::MD_ExposeOnSpawn);
 
-		if (OldVariable.VarType != NewVariable.VarType)
-		{
-			bFoundChange = true;
-			OnVariableTypeChanged(NewVariable, OldVariable.VarType, NewVariable.VarType);
-		}
-
-		if (OldVariable.PropertyFlags != NewVariable.PropertyFlags)
-		{
-			bFoundChange = true;
-			OnVariablePropertyFlagsChanged(NewVariable, OldVariable.PropertyFlags, NewVariable.PropertyFlags);
-		}
+		bFoundChange = bFoundChange || (NewVariable.PropertyFlags != PreviousPropertyFlags);
 	}
-
-	LastNewVariables = NewVariables;
 
 	if (bFoundChange)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
-	}
-}
-
-void URenderGridBlueprint::OnVariableAdded(FBPVariableDescription& InVar)
-{
-	MakeVariableTransientUnlessInstanceEditable(InVar);
-}
-
-void URenderGridBlueprint::OnVariablePropertyFlagsChanged(FBPVariableDescription& InVar, const uint64 InOldVarPropertyFlags, const uint64 InNewVarPropertyFlags)
-{
-	if ((InOldVarPropertyFlags & CPF_DisableEditOnInstance) != (InNewVarPropertyFlags & CPF_DisableEditOnInstance))// if the value of [Instance Editable] changed
-	{
-		MakeVariableTransientUnlessInstanceEditable(InVar);
-	}
-}
-
-void URenderGridBlueprint::MakeVariableTransientUnlessInstanceEditable(FBPVariableDescription& InVar)
-{
-	if ((InVar.PropertyFlags & CPF_DisableEditOnInstance) == 0)// if [Instance Editable]
-	{
-		InVar.PropertyFlags &= ~CPF_Transient;// set [Transient] to false
-	}
-	else
-	{
-		InVar.PropertyFlags |= CPF_Transient;// set [Transient] to true
 	}
 }

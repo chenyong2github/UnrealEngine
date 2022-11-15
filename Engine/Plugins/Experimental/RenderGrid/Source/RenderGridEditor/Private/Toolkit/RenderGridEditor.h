@@ -181,7 +181,7 @@ namespace UE::RenderGrid::Private
 		TSharedPtr<FExtender> ToolbarExtender;
 
 		/** The blueprint instance that's currently visible in the editor. */
-		TStrongObjectPtr<URenderGridBlueprint> PreviewBlueprint;
+		TWeakObjectPtr<URenderGridBlueprint> PreviewBlueprintWeakPtr;
 
 		/** The current render grid instance that's visible in the editor. */
 		mutable TWeakObjectPtr<URenderGrid> RenderGridWeakPtr;

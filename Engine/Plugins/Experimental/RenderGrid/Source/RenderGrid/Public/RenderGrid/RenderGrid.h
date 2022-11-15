@@ -306,7 +306,7 @@ class RENDERGRID_API URenderGrid : public UObject
 	GENERATED_BODY()
 
 public:
-	URenderGrid(const FObjectInitializer& ObjectInitializer);
+	URenderGrid();
 
 	//UObject interface
 	virtual UWorld* GetWorld() const override;
@@ -314,8 +314,14 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject Interface
 
-	/** Should be called when the editor closes this asset. */
-	void OnClose() { SaveValuesToCDO(); }
+	/** Copy jobs from the given RenderGrid to self. */
+	void CopyJobs(URenderGrid* From);
+
+	/** Copy all properties except jobs from the given RenderGrid to self. */
+	void CopyAllPropertiesExceptJobs(URenderGrid* From);
+
+	/** Copy all properties from the given RenderGrid to self. */
+	void CopyAllProperties(URenderGrid* From);
 
 public:
 	static TArray<FString> GetBlueprintImplementableEvents()
@@ -438,25 +444,6 @@ public:
 	/** Overridable native event for when job rendering for the viewport viewer-mode ends. */
 	virtual void EndViewportRender(URenderGridJob* Job);
 
-private:
-	/**
-	 * Because render grid assets are blueprints (assets that also have a blueprint graph), the render grid data is not stored directly in the asset data that you see in the content browser.
-	 * Instead, the data that is stored (and load) is the CDO (class default object).
-	 * Because of that, any data that needs to persist needs to be copied over to the CDO during a save, and data you'd like to load from it needs to be copied from the CDO during a load.
-	 */
-
-	/** Obtains the CDO, could return itself if this is called on the CDO instance. */
-	URenderGrid* GetCDO() { return (HasAnyFlags(RF_ClassDefaultObject) ? this : GetClass()->GetDefaultObject<URenderGrid>()); }
-
-	/** Copied values over into the CDO. */
-	void SaveValuesToCDO() { CopyValuesToOrFromCDO(true); }
-
-	/** Copied values over from the CDO. */
-	void LoadValuesFromCDO() { CopyValuesToOrFromCDO(false); }
-
-	/** Copied values to or from the CDO, based on whether bToCDO is true or false. */
-	void CopyValuesToOrFromCDO(const bool bToCDO);
-
 public:
 	/** Returns the GUID, which is randomly generated at creation. */
 	UFUNCTION(BlueprintPure, Category="Render Grid")
@@ -515,6 +502,12 @@ public:
 	void SetDefaultOutputDirectoryRaw(const FString& NewOutputDirectory) { Defaults->OutputDirectory = NewOutputDirectory; }
 
 public:
+	UFUNCTION(BlueprintCallable, Category="Render Grid", Meta=(Keywords="remove delete all"))
+	void ClearRenderGridJobs();
+	
+	UFUNCTION(BlueprintCallable, Category="Render Grid")
+	void SetRenderGridJobs(const TArray<URenderGridJob*>& Jobs);
+
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
 	void AddRenderGridJob(URenderGridJob* Job);
 
@@ -584,14 +577,6 @@ public:
 	bool IsCurrentlyExecutingUserCode() const { return bExecutingBlueprintEvent; }
 
 private:
-	DECLARE_MULTICAST_DELEGATE(FOnRenderGridPreSave);
-	FOnRenderGridPreSave& OnPreSaveCDO() { return GetCDO()->OnRenderGridPreSaveDelegate; }
-
-private:
-	/** The delegate for when this grid is about to save. */
-	FOnRenderGridPreSave OnRenderGridPreSaveDelegate;
-
-private:
 	/** The unique ID of this render grid. */
 	UPROPERTY()
 	FGuid Guid;
@@ -602,7 +587,7 @@ private:
 	ERenderGridPropsSourceType PropsSourceType;
 
 	/** The remote control properties that a job in this grid can have, only use this if PropsSourceType is ERenderGridPropsSourceType::RemoteControl. */
-	UPROPERTY(EditInstanceOnly, Category="Render Grid", Meta=(DisplayName="Remote Control Preset", AllowPrivateAccess="true", EditCondition="PropsSourceType == ERenderGridPropsSourceType::RemoteControl", EditConditionHides))
+	UPROPERTY(EditInstanceOnly, Category="Render Grid", Meta=(DisplayName="Remote Control Preset", AllowPrivateAccess="true" /*, EditCondition="PropsSourceType == ERenderGridPropsSourceType::RemoteControl", EditConditionHides*/))
 	TObjectPtr<URemoteControlPreset> PropsSourceOrigin_RemoteControl;
 
 

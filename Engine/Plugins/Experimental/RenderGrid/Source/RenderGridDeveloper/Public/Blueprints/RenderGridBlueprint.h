@@ -4,7 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Blueprint.h"
+#include "RenderGrid/RenderGrid.h"
 #include "RenderGridBlueprint.generated.h"
+
+
+namespace UE::RenderGrid
+{
+	/** A delegate for URenderGridBlueprint::PropagateToInstances. */
+	DECLARE_DELEGATE_OneParam(FRenderGridBlueprintRunOnInstancesCallback, URenderGrid* /*Instance*/);
+}
 
 
 /**
@@ -12,12 +20,14 @@
  *
  * Required in order for a RenderGrid to be able to have a blueprint graph.
  */
-UCLASS(BlueprintType, Meta = (IgnoreClassThumbnail))
+UCLASS(BlueprintType, Meta=(IgnoreClassThumbnail))
 class RENDERGRIDDEVELOPER_API URenderGridBlueprint : public UBlueprint
 {
 	GENERATED_BODY()
 
 public:
+	URenderGridBlueprint();
+
 	//~ Begin UBlueprint Interface
 	virtual bool SupportedByDefaultBlueprintFactory() const override { return false; }
 	virtual bool IsValidForBytecodeOnlyRecompile() const override { return false; }
@@ -34,19 +44,29 @@ public:
 	//~ End UBlueprint Interface
 
 private:
-	virtual void OnPreVariablesChange(UObject* InObject);
-	virtual void OnPostVariablesChange(UBlueprint* InBlueprint);
+	void RunOnInstances(const UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback& Callback);
 
-protected:
-	virtual void OnVariableAdded(FBPVariableDescription& InVar);
-	virtual void OnVariableRemoved(FBPVariableDescription& InVar) {}
-	virtual void OnVariableRenamed(FBPVariableDescription& InVar, const FName& InOldVarName, const FName& InNewVarName) {}
-	virtual void OnVariableTypeChanged(FBPVariableDescription& InVar, const FEdGraphPinType& InOldVarType, const FEdGraphPinType& InNewVarType) {}
-	virtual void OnVariablePropertyFlagsChanged(FBPVariableDescription& InVar, const uint64 InOldVarPropertyFlags, const uint64 InNewVarPropertyFlags);
+public:
+	void Load();
+	void Save();
 
-protected:
-	virtual void MakeVariableTransientUnlessInstanceEditable(FBPVariableDescription& InVar);
+	void PropagateJobsToInstances();
+	void PropagateAllPropertiesExceptJobsToInstances();
+	void PropagateAllPropertiesToInstances();
+
+	void PropagateJobsToAsset(URenderGrid* Instance);
+	void PropagateAllPropertiesExceptJobsToAsset(URenderGrid* Instance);
+	void PropagateAllPropertiesToAsset(URenderGrid* Instance);
+
+public:
+	/** Returns the RenderGrid reference that this RenderGrid asset contains. */
+	UFUNCTION(BlueprintPure, Category="Render Grid")
+	URenderGrid* GetRenderGrid() const { return RenderGrid; }
 
 private:
-	TArray<FBPVariableDescription> LastNewVariables;
+	virtual void OnPostVariablesChange(UBlueprint* InBlueprint);
+
+private:
+	UPROPERTY()
+	TObjectPtr<URenderGrid> RenderGrid;
 };

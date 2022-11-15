@@ -5,6 +5,8 @@
 #include "RenderGrid/RenderGrid.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "SlateOptMacros.h"
+#include "Blueprints/RenderGridBlueprint.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "SRenderGrid"
 
@@ -76,7 +78,9 @@ void UE::RenderGrid::Private::SRenderGrid::NotifyPostChange(const FPropertyChang
 {
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
+		FScopedTransaction Transaction(LOCTEXT("RenderGridParameterChanged", "RenderGrid Parameter Changed"));
 		BlueprintEditor->MarkAsModified();
+		BlueprintEditor->GetRenderGridBlueprint()->PropagateAllPropertiesExceptJobsToAsset(BlueprintEditor->GetInstance());
 		BlueprintEditor->OnRenderGridChanged().Broadcast();
 	}
 }

@@ -112,7 +112,10 @@ void UE::RenderGrid::Private::FRenderGridEditor::InitRenderGridEditor(const EToo
 	RegenerateMenusAndToolbars();
 
 	UpdateInstance(GetRenderGridBlueprint(), true);
-
+	if (URenderGridBlueprint* RenderGridBlueprint = GetRenderGridBlueprint())
+	{
+		RenderGridBlueprint->PropagateAllPropertiesToInstances();
+	}
 	constexpr bool bShouldOpenInDefaultsMode = true;
 	RegisterApplicationModes(RenderGridBlueprints, bShouldOpenInDefaultsMode, InRenderGridBlueprint->bIsNewlyCreated);
 
@@ -121,7 +124,7 @@ void UE::RenderGrid::Private::FRenderGridEditor::InitRenderGridEditor(const EToo
 }
 
 UE::RenderGrid::Private::FRenderGridEditor::FRenderGridEditor()
-	: PreviewBlueprint(nullptr)
+	: PreviewBlueprintWeakPtr(nullptr)
 	, RenderGridJobSelection(NewObject<URenderGridJobSelection>())
 	, bRunRenderNewBatch(false)
 	, BatchRenderQueue(nullptr)
@@ -222,6 +225,11 @@ void UE::RenderGrid::Private::FRenderGridEditor::PostUndo(bool bSuccessful)
 {
 	FBlueprintEditor::PostUndo(bSuccessful);
 
+	if (URenderGridBlueprint* PreviewBlueprint = PreviewBlueprintWeakPtr.Get(); IsValid(PreviewBlueprint))
+	{
+		PreviewBlueprint->PropagateAllPropertiesToInstances();
+	}
+
 	OnRenderGridChanged().Broadcast();
 	OnRenderGridJobsSelectionChanged().Broadcast();
 }
@@ -229,6 +237,11 @@ void UE::RenderGrid::Private::FRenderGridEditor::PostUndo(bool bSuccessful)
 void UE::RenderGrid::Private::FRenderGridEditor::PostRedo(bool bSuccessful)
 {
 	FBlueprintEditor::PostRedo(bSuccessful);
+
+	if (URenderGridBlueprint* PreviewBlueprint = PreviewBlueprintWeakPtr.Get(); IsValid(PreviewBlueprint))
+	{
+		PreviewBlueprint->PropagateAllPropertiesToInstances();
+	}
 
 	OnRenderGridChanged().Broadcast();
 	OnRenderGridJobsSelectionChanged().Broadcast();
@@ -282,13 +295,10 @@ void UE::RenderGrid::Private::FRenderGridEditor::SetPreviewRenderQueue(URenderGr
 
 void UE::RenderGrid::Private::FRenderGridEditor::MarkAsModified()
 {
-	if (URenderGrid* Instance = GetInstance(); IsValid(Instance))
-	{
-		Instance->Modify();
-	}
-	if (UBlueprint* BlueprintObj = GetBlueprintObj(); IsValid(BlueprintObj))
+	if (URenderGridBlueprint* BlueprintObj = Cast<URenderGridBlueprint>(GetBlueprintObj()); IsValid(BlueprintObj))
 	{
 		BlueprintObj->Modify();
+		BlueprintObj->GetRenderGrid()->Modify();
 	}
 }
 
@@ -316,7 +326,6 @@ void UE::RenderGrid::Private::FRenderGridEditor::SetSelectedRenderGridJobs(const
 	if (URenderGridJobSelection* JobSelection = RenderGridJobSelection.Get(); IsValid(JobSelection))
 	{
 		{
-			FScopedTransaction Transaction(LOCTEXT("ChangeJobSelection", "Change Job Selection"));
 			JobSelection->Modify();
 			if (!JobSelection->SetSelectedRenderGridJobs(Jobs))
 			{
@@ -414,6 +423,10 @@ void UE::RenderGrid::Private::FRenderGridEditor::OnBlueprintChangedImpl(UBluepri
 	if (InBlueprint)
 	{
 		RefreshInstance();
+		if (URenderGridBlueprint* RenderGridBlueprint = Cast<URenderGridBlueprint>(InBlueprint); IsValid(RenderGridBlueprint))
+		{
+			RenderGridBlueprint->PropagateAllPropertiesToInstances();
+		}
 	}
 }
 
@@ -431,9 +444,9 @@ void UE::RenderGrid::Private::FRenderGridEditor::NotifyPreChange(FProperty* Prop
 {
 	FBlueprintEditor::NotifyPreChange(PropertyAboutToChange);
 
-	if (URenderGridBlueprint* RenderGridBP = GetRenderGridBlueprint())
+	if (URenderGridBlueprint* RenderGridBlueprint = GetRenderGridBlueprint())
 	{
-		RenderGridBP->Modify();
+		RenderGridBlueprint->Modify();
 	}
 }
 
@@ -461,10 +474,14 @@ void UE::RenderGrid::Private::FRenderGridEditor::AddJobAction()
 		FScopedTransaction Transaction(LOCTEXT("AddJob", "Add Job"));
 		MarkAsModified();
 
-		if (URenderGridJob* Job = Instance->CreateAndAddNewRenderGridJob(); IsValid(Job))
+		if (URenderGridBlueprint* PreviewBlueprint = PreviewBlueprintWeakPtr.Get(); IsValid(PreviewBlueprint))
 		{
-			OnRenderGridJobCreated().Broadcast(Job);
-			OnRenderGridChanged().Broadcast();
+			if (URenderGridJob* Job = PreviewBlueprint->GetRenderGrid()->CreateAndAddNewRenderGridJob(); IsValid(Job))
+			{
+				PreviewBlueprint->PropagateJobsToInstances();
+				OnRenderGridJobCreated().Broadcast(Job);
+				OnRenderGridChanged().Broadcast();
+			}
 		}
 	}
 }
@@ -482,11 +499,15 @@ void UE::RenderGrid::Private::FRenderGridEditor::DuplicateJobAction()
 		FScopedTransaction Transaction(LOCTEXT("DuplicateJob", "Duplicate Job"));
 		MarkAsModified();
 
-		for (URenderGridJob* SelectedJob : SelectedJobs)
+		if (URenderGridBlueprint* PreviewBlueprint = PreviewBlueprintWeakPtr.Get(); IsValid(PreviewBlueprint))
 		{
-			Instance->DuplicateAndAddRenderGridJob(SelectedJob);
+			for (URenderGridJob* SelectedJob : SelectedJobs)
+			{
+				PreviewBlueprint->GetRenderGrid()->DuplicateAndAddRenderGridJob(SelectedJob);
+			}
+			PreviewBlueprint->PropagateJobsToInstances();
+			OnRenderGridChanged().Broadcast();
 		}
-		OnRenderGridChanged().Broadcast();
 	}
 }
 
@@ -498,27 +519,20 @@ void UE::RenderGrid::Private::FRenderGridEditor::DeleteJobAction()
 		return;
 	}
 
-	const FText TitleText = LOCTEXT("ConfirmToDeleteTitle", "Confirm To Delete");
-	const EAppReturnType::Type DialogResult = FMessageDialog::Open(
-		EAppMsgType::OkCancel,
-		((SelectedJobs.Num() == 1) ? LOCTEXT("ConfirmToDeleteSingleText", "Are you sure you want to delete the selected job?") : LOCTEXT("ConfirmToDeleteMultipleText", "Are you sure you want to delete the selected jobs?")),
-		&TitleText);
-
-	if (DialogResult != EAppReturnType::Ok)
-	{
-		return;
-	}
-
 	if (URenderGrid* Instance = GetInstance(); IsValid(Instance))
 	{
 		FScopedTransaction Transaction(LOCTEXT("DeleteJob", "Delete Job"));
 		MarkAsModified();
 
-		for (URenderGridJob* SelectedJob : SelectedJobs)
+		if (URenderGridBlueprint* PreviewBlueprint = PreviewBlueprintWeakPtr.Get(); IsValid(PreviewBlueprint))
 		{
-			Instance->RemoveRenderGridJob(SelectedJob);
+			for (URenderGridJob* SelectedJob : SelectedJobs)
+			{
+				PreviewBlueprint->GetRenderGrid()->RemoveRenderGridJob(SelectedJob);
+			}
+			PreviewBlueprint->PropagateJobsToInstances();
+			OnRenderGridChanged().Broadcast();
 		}
-		OnRenderGridChanged().Broadcast();
 	}
 }
 
@@ -626,42 +640,44 @@ void UE::RenderGrid::Private::FRenderGridEditor::FillToolbar(FToolBarBuilder& To
 
 void UE::RenderGrid::Private::FRenderGridEditor::DestroyInstance()
 {
-	if (URenderGrid* Instance = GetInstance(); IsValid(Instance))
+	if (URenderGrid* Instance = RenderGridWeakPtr.Get(); IsValid(Instance))
 	{
 		// Execute the blueprint event
 		Instance->EndEditor();
 
-		// Store the data
-		Instance->OnClose();
-
 		// Garbage collection
-		RenderGridWeakPtr.Reset();
 		Instance->MarkAsGarbage();
-
-		// Clear the undo/redo buffer, to prevent any bugs/glitches with undo/redo while the render grid editor is closed
-		GEditor->ResetTransaction(LOCTEXT("RenderGridEditorClosed", "Render Grid Editor Closed"));
 	}
+
+	if (URenderGridBlueprint* PreviewBlueprint = PreviewBlueprintWeakPtr.Get(); IsValid(PreviewBlueprint))
+	{
+		PreviewBlueprint->Save();
+	}
+
+	RenderGridWeakPtr.Reset();
+	PreviewBlueprintWeakPtr.Reset();
+
+	// Clear the undo/redo buffer, to prevent any bugs/glitches with undo/redo while the render grid editor is closed
+	//GEditor->ResetTransaction(LOCTEXT("RenderGridEditorClosed", "RenderGrid Editor Closed"));
 }
 
 void UE::RenderGrid::Private::FRenderGridEditor::UpdateInstance(UBlueprint* InBlueprint, bool bInForceFullUpdate)
 {
 	// If the Blueprint is changing
-	if ((InBlueprint != PreviewBlueprint.Get()) || bInForceFullUpdate)
+	if ((InBlueprint != PreviewBlueprintWeakPtr.Get()) || bInForceFullUpdate)
 	{
 		// Destroy the previous instance
 		DestroyInstance();
 
 		// Save the Blueprint we're creating a preview for
-		PreviewBlueprint = TStrongObjectPtr(Cast<URenderGridBlueprint>(InBlueprint));
+		PreviewBlueprintWeakPtr = Cast<URenderGridBlueprint>(InBlueprint);
 
-		URenderGrid* RenderGrid;
-		// Create the Widget, we have to do special swapping out of the widget tree.
+		URenderGrid* RenderGrid = nullptr;
+		if (URenderGridBlueprint* PreviewBlueprint = PreviewBlueprintWeakPtr.Get(); IsValid(PreviewBlueprint) && IsValid(PreviewBlueprint->GeneratedClass))
 		{
-			// Assign the outer to the game instance if it exists, otherwise use the world
-			{
-				FMakeClassSpawnableOnScope TemporarilySpawnable(PreviewBlueprint->GeneratedClass);
-				RenderGrid = NewObject<URenderGrid>(PreviewScene.GetWorld(), PreviewBlueprint->GeneratedClass);
-			}
+			PreviewBlueprint->Load();
+			FMakeClassSpawnableOnScope TemporarilySpawnable(PreviewBlueprint->GeneratedClass);
+			RenderGrid = NewObject<URenderGrid>(PreviewScene.GetWorld(), PreviewBlueprint->GeneratedClass);
 		}
 
 		// Set the debug object again, if it was debugging
@@ -675,7 +691,10 @@ void UE::RenderGrid::Private::FRenderGridEditor::UpdateInstance(UBlueprint* InBl
 		OnRenderGridJobsSelectionChanged().Broadcast();
 
 		// Execute the blueprint event
-		RenderGrid->BeginEditor();
+		if (IsValid(RenderGrid))
+		{
+			RenderGrid->BeginEditor();
+		}
 	}
 }
 

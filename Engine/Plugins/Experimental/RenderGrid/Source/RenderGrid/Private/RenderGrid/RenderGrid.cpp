@@ -433,20 +433,19 @@ bool URenderGridJob::SetRemoteControlValue(const TSharedPtr<FRemoteControlEntity
 }
 
 
-URenderGrid::URenderGrid(const FObjectInitializer& ObjectInitializer): Super(ObjectInitializer)
-	, Guid(FGuid::NewGuid())
+URenderGrid::URenderGrid()
+	: Guid(FGuid::NewGuid())
 	, PropsSourceType(ERenderGridPropsSourceType::RemoteControl)
 	, PropsSourceOrigin_RemoteControl(nullptr)
-	, Defaults(ObjectInitializer.CreateDefaultSubobject<URenderGridDefaults>(this, TEXT("RenderGridDefaults")))
+	, Defaults(CreateDefaultSubobject<URenderGridDefaults>(TEXT("RenderGridDefaults")))
 	, bExecutingBlueprintEvent(false)
 	, CachedPropsSource(nullptr)
 	, CachedPropsSourceType(ERenderGridPropsSourceType::Local)
 {
-	if (!HasAnyFlags(RF_ClassDefaultObject))
+	SetFlags(RF_Public);
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_DefaultSubObject))
 	{
-		SetFlags(RF_Public | RF_Transactional);
-		LoadValuesFromCDO();
-		OnPreSaveCDO().AddUObject(this, &URenderGrid::SaveValuesToCDO);
+		ClearFlags(RF_Transactional);
 	}
 }
 
@@ -491,25 +490,23 @@ UWorld* URenderGrid::GetWorld() const
 
 void URenderGrid::PreSave(FObjectPreSaveContext SaveContext)
 {
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		OnPreSaveCDO().Broadcast();
-	}
 	Super::PreSave(SaveContext);
-	SaveValuesToCDO();
 }
 
 void URenderGrid::PostLoad()
 {
 	Super::PostLoad();
-	LoadValuesFromCDO();
 
 	if (PropsSourceType == ERenderGridPropsSourceType::Local)
 	{
 		PropsSourceType = ERenderGridPropsSourceType::RemoteControl;
 	}
 
-	SetFlags(RF_Public | RF_Transactional);
+	SetFlags(RF_Public);
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_DefaultSubObject))
+	{
+		ClearFlags(RF_Transactional);
+	}
 	for (TObjectPtr<URenderGridJob> Job : RenderGridJobs)
 	{
 		if (IsValid(Job))
@@ -522,6 +519,40 @@ void URenderGrid::PostLoad()
 		Defaults = NewObject<URenderGridDefaults>(this, TEXT("RenderGridDefaults"));
 	}
 	Defaults->SetFlags(RF_Public | RF_Transactional);
+}
+
+void URenderGrid::CopyJobs(URenderGrid* From)
+{
+	if (!IsValid(From))
+	{
+		return;
+	}
+	SetRenderGridJobs(From->GetRenderGridJobs());
+}
+
+void URenderGrid::CopyAllPropertiesExceptJobs(URenderGrid* From)
+{
+	if (!IsValid(From))
+	{
+		return;
+	}
+	for (FProperty* Property = StaticClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	{
+		if (!Property->HasAnyPropertyFlags(CPF_Transient | CPF_DuplicateTransient) && Property->GetName().Compare("RenderGridJobs"))// if not [Transient] and not "RenderGridJobs"
+		{
+			Property->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(this), Property->ContainerPtrToValuePtr<void>(From));
+		}
+	}
+}
+
+void URenderGrid::CopyAllProperties(URenderGrid* From)
+{
+	if (!IsValid(From))
+	{
+		return;
+	}
+	CopyJobs(From);
+	CopyAllPropertiesExceptJobs(From);
 }
 
 void URenderGrid::BeginEditor()
@@ -585,55 +616,6 @@ void URenderGrid::EndViewportRender(URenderGridJob* Job)
 	bExecutingBlueprintEvent = true;
 	ReceiveEndViewportRender(Job);
 	bExecutingBlueprintEvent = false;
-}
-
-void URenderGrid::CopyValuesToOrFromCDO(const bool bToCDO)
-{
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		return;
-	}
-
-	URenderGrid* CDO = GetCDO();
-	if (!IsValid(CDO))
-	{
-		return;
-	}
-
-	for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
-	{
-		if (!Property->HasAnyPropertyFlags(CPF_Transient | CPF_DuplicateTransient))// if not [Transient]
-		{
-			void* Data = Property->ContainerPtrToValuePtr<void>(this);
-			void* DataCDO = Property->ContainerPtrToValuePtr<void>(CDO);
-			if (bToCDO)
-			{
-				Property->CopyCompleteValue(DataCDO, Data);
-			}
-			else
-			{
-				Property->CopyCompleteValue(Data, DataCDO);
-			}
-		}
-	}
-
-	if (bToCDO)
-	{
-		CDO->RenderGridJobs = TArray<TObjectPtr<URenderGridJob>>();
-		for (URenderGridJob* Job : RenderGridJobs)
-		{
-			if (!IsValid(Job))
-			{
-				continue;
-			}
-			if (URenderGridJob* JobCopy = DuplicateObject(Job, CDO); IsValid(JobCopy))
-			{
-				CDO->RenderGridJobs.Add(JobCopy);
-			}
-		}
-
-		CDO->Defaults = DuplicateObject(Defaults, CDO);
-	}
 }
 
 void URenderGrid::SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin)
@@ -700,6 +682,20 @@ FString URenderGrid::GetDefaultOutputDirectory() const
 void URenderGrid::SetDefaultOutputDirectory(const FString& NewOutputDirectory)
 {
 	Defaults->OutputDirectory = UE::RenderGrid::Private::FRenderGridUtils::NormalizeJobOutputDirectory(NewOutputDirectory);
+}
+
+void URenderGrid::ClearRenderGridJobs()
+{
+	RenderGridJobs.Empty();
+}
+
+void URenderGrid::SetRenderGridJobs(const TArray<URenderGridJob*>& Jobs)
+{
+	RenderGridJobs.Empty();
+	for (URenderGridJob* Job : Jobs)
+	{
+		AddRenderGridJob(Job);
+	}
 }
 
 void URenderGrid::AddRenderGridJob(URenderGridJob* Job)

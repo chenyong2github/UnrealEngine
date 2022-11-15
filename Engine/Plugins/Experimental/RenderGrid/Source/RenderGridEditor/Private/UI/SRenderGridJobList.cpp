@@ -21,6 +21,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
+#include "Blueprints/RenderGridBlueprint.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "Tracks/MovieSceneSubTrack.h"
@@ -400,6 +401,7 @@ void UE::RenderGrid::Private::SRenderGridJobListTable::HandleJobListSelectionCha
 	}
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
+		FScopedTransaction Transaction(LOCTEXT("ChangeJobSelection", "Change Job Selection"));
 		BlueprintEditor->SetSelectedRenderGridJobs(GetSelectedItems());
 	}
 }
@@ -447,9 +449,11 @@ FReply UE::RenderGrid::Private::SRenderGridJobListTableRow::OnAcceptDrop(const F
 		{
 			if (URenderGrid* Instance = BlueprintEditor->GetInstance(); IsValid(Instance))
 			{
+				FScopedTransaction Transaction(LOCTEXT("MoveJob", "Move Job"));
+				BlueprintEditor->MarkAsModified();
 				if (Instance->ReorderRenderGridJob(DragDropOp->GetJob(), InJob, (InItemDropZone != EItemDropZone::AboveItem)))
 				{
-					BlueprintEditor->MarkAsModified();
+					BlueprintEditor->GetRenderGridBlueprint()->PropagateJobsToAsset(Instance);
 					BlueprintEditor->OnRenderGridChanged().Broadcast();
 					return FReply::Handled();
 				}

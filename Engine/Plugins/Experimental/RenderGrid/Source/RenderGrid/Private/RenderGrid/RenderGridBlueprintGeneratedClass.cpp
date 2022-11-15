@@ -5,6 +5,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RenderGridBlueprintGeneratedClass)
 
+
 uint8* URenderGridBlueprintGeneratedClass::GetPersistentUberGraphFrame(UObject* Obj, UFunction* FuncToCheck) const
 {
 	if (!IsInGameThread())
