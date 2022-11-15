@@ -24,7 +24,7 @@ UE_THIRD_PARTY_LOCATION="$UE_ENGINE_LOCATION/Source/ThirdParty"
 TBB_LOCATION="$UE_THIRD_PARTY_LOCATION/Intel/TBB/IntelTBB-2019u8"
 TBB_INCLUDE_LOCATION="$TBB_LOCATION/include"
 TBB_LIB_LOCATION="$TBB_LOCATION/lib/Mac"
-BOOST_LOCATION="$UE_THIRD_PARTY_LOCATION/Boost/boost-1_70_0"
+BOOST_LOCATION="$UE_THIRD_PARTY_LOCATION/Boost/boost-1_80_0"
 BOOST_INCLUDE_LOCATION="$BOOST_LOCATION/include"
 BOOST_LIB_LOCATION="$BOOST_LOCATION/lib/Mac"
 IMATH_LOCATION="$UE_THIRD_PARTY_LOCATION/Imath/Deploy/Imath-3.1.3"
@@ -62,6 +62,7 @@ CMAKE_ARGS=(
     -DTBB_LIBRARY="$TBB_LIB_LOCATION"
     -DBoost_NO_BOOST_CMAKE=ON
     -DBoost_NO_SYSTEM_PATHS=ON
+    -DBoost_ARCHITECTURE="-a64"
     -DBOOST_INCLUDEDIR="$BOOST_INCLUDE_LOCATION"
     -DBOOST_LIBRARYDIR="$BOOST_LIB_LOCATION"
     -DPXR_USE_PYTHON_3=ON
@@ -149,11 +150,6 @@ do
             install_name_tool -delete_rpath $RPATH_TO_DELETE $SHARED_LIB
         fi
     done
-
-    # Also replace any architecture-specific libboost_python paths to use the
-    # universal binary instead.
-    install_name_tool -change @rpath/libboost_python39-mt-x64.dylib @rpath/libboost_python39-mt.dylib $SHARED_LIB
-    install_name_tool -change @rpath/libboost_python39-mt-a64.dylib @rpath/libboost_python39-mt.dylib $SHARED_LIB
 done
 
 echo Done.

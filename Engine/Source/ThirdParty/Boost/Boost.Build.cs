@@ -9,8 +9,8 @@ public class Boost : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string BoostVersion = "1_70_0";
-		string[] BoostLibraries = { "atomic", "chrono", "iostreams", "program_options", "python39", "regex", "system", "thread" };
+		string BoostVersion = "1_80_0";
+		string[] BoostLibraries = { "atomic", "chrono", "filesystem", "iostreams", "program_options", "python39", "regex", "system", "thread" };
 
 		string BoostVersionDir = "boost-" + BoostVersion;
 		string BoostPath = Path.Combine(Target.UEThirdPartySourceDirectory, "Boost", BoostVersionDir);
@@ -19,19 +19,15 @@ public class Boost : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string BoostToolsetVersion = "vc142";
-
 			string BoostLibPath = Path.Combine(BoostPath, "lib", "Win64");
-			string BoostVersionShort = BoostVersion.Substring(BoostVersion.Length - 2) == "_0" ? BoostVersion.Substring(0, BoostVersion.Length - 2) : BoostVersion;
 
 			foreach (string BoostLib in BoostLibraries)
 			{
-				string BoostLibName = "boost_" + BoostLib + "-" + BoostToolsetVersion + "-mt-x64" + "-" + BoostVersionShort;
+				string BoostLibName = "boost_" + BoostLib + "-mt-x64";
 				PublicAdditionalLibraries.Add(Path.Combine(BoostLibPath, BoostLibName + ".lib"));
 				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", BoostLibName + ".dll"), Path.Combine(BoostLibPath, BoostLibName + ".dll"));
 			}
 
-			PublicDefinitions.Add("BOOST_LIB_TOOLSET=\"" + BoostToolsetVersion + "\"");
 			PublicDefinitions.Add("BOOST_ALL_NO_LIB");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -42,7 +38,7 @@ public class Boost : ModuleRules
 			{
 				// Note that these file names identify the universal binaries
 				// that support both x86_64 and arm64.
-				string BoostLibName = "libboost_" + BoostLib + "-mt";
+				string BoostLibName = "libboost_" + BoostLib + "-mt-a64";
 				PublicAdditionalLibraries.Add(Path.Combine(BoostLibPath, BoostLibName + ".a"));
 				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", BoostLibName + ".dylib"), Path.Combine(BoostLibPath, BoostLibName + ".dylib"));
 			}
