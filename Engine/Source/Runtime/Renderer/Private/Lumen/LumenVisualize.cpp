@@ -749,7 +749,14 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 
 				FVisualizeTile VisualizeTiles[LumenVisualize::NumOverviewTilesPerRow];
 				VisualizeTiles[0].Mode = VISUALIZE_MODE_LUMEN_SCENE;
-				VisualizeTiles[0].Name = TEXT("Lumen Scene");
+				if (Lumen::UseHardwareRayTracing(ViewFamily))
+				{
+					VisualizeTiles[0].Name = LumenVisualize::IsHitLightingForceEnabled(View) ? TEXT("Lumen Scene (HWRT with hit lighting)") : TEXT("Lumen Scene (HWRT)");
+				}
+				else
+				{
+					VisualizeTiles[0].Name = Lumen::UseMeshSDFTracing(ViewFamily) ? TEXT("Lumen Scene (SWRT with detail tracing)") : TEXT("Lumen Scene (SWRT)");
+				}
 				VisualizeTiles[1].Mode = VISUALIZE_MODE_REFLECTION_VIEW;
 				VisualizeTiles[1].Name = TEXT("Reflection View");
 				VisualizeTiles[2].Mode = VISUALIZE_MODE_SURFACE_CACHE;

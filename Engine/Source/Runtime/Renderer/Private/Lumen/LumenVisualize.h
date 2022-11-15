@@ -42,6 +42,8 @@ namespace LumenVisualize
 		FLumenVisualizeSceneParameters& VisualizeParameters,
 		FRDGTextureRef SceneColor,
 		bool bVisualizeModeWithHitLighting);
+
+	bool IsHitLightingForceEnabled(const FViewInfo& View);
 };
 
 struct FVisualizeLumenSceneInputs
