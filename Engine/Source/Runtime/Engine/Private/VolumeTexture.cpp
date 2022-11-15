@@ -21,6 +21,7 @@
 #include "TextureResource.h"
 #include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
+#include "ImageCoreUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeTexture)
 
@@ -248,10 +249,8 @@ ENGINE_API bool UVolumeTexture::UpdateSourceFromFunction(TFunction<void(int32, i
 	
 	Modify(true);
 
-	// First clear up the existing source with the requested TextureSourceFormat
-	Source.Init(0, 0, 0, 1, Format, nullptr);
-	// It is now possible to query the correct FormatDataSize (there is no static version of GetBytesPerPixel)
-	const int32 FormatDataSize = Source.GetBytesPerPixel();
+	Source2DTexture = nullptr;
+	const int32 FormatDataSize = ERawImageFormat::GetBytesPerPixel(FImageCoreUtils::ConvertToRawImageFormat(Format));
 
 	// Allocate temp buffer used to fill texture
 	uint8* const NewData = (uint8*)FMemory::Malloc(SizeX * SizeY * SizeZ * FormatDataSize);
