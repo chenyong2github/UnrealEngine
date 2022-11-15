@@ -1997,7 +1997,7 @@ public:
 
 	bool HasPendingHeightFieldOperations() const
 	{
-		return PendingHeightFieldAddOps.Num() > 0 || PendingHeightFieldUpdateOps.Num() > 0 || PendingHeightFieldRemoveOps.Num() > 0;
+		return PendingHeightFieldAddOps.Num() > 0 || PendingHeightFieldRemoveOps.Num() > 0;
 	}
 
 	bool HasPendingRemovePrimitive(const FPrimitiveSceneInfo* Primitive) const
@@ -2013,27 +2013,9 @@ public:
 		return false;
 	}
 
-	bool HasPendingRemoveHeightFieldPrimitive(const FPrimitiveSceneInfo* Primitive) const
-	{
-		for (int32 RemoveIndex = 0; RemoveIndex < PendingHeightFieldRemoveOps.Num(); ++RemoveIndex)
-		{
-			if (PendingHeightFieldRemoveOps[RemoveIndex].Primitive == Primitive)
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
 	inline bool CanUse16BitObjectIndices() const
 	{
 		return bCanUse16BitObjectIndices && (NumObjectsInBuffer < (1 << 16));
-	}
-
-	bool CanUse16BitHeightFieldObjectIndices() const
-	{
-		return bCanUse16BitObjectIndices && (NumHeightFieldObjectsInBuffer < 65536);
 	}
 
 	const class FDistanceFieldObjectBuffers* GetCurrentObjectBuffers() const
@@ -2047,7 +2029,6 @@ public:
 	}
 
 	int32 NumObjectsInBuffer;
-	int32 NumHeightFieldObjectsInBuffer;
 	class FDistanceFieldObjectBuffers* ObjectBuffers;
 	class FHeightFieldObjectBuffers* HeightFieldObjectBuffers;
 
@@ -2057,7 +2038,6 @@ public:
 	FRDGScatterUploadBuffer UploadDistanceFieldBoundsBuffer;
 	
 	TArray<int32> IndicesToUpdateInObjectBuffers;
-	TArray<int32> IndicesToUpdateInHeightFieldObjectBuffers;
 
 	TSet<FDistanceFieldAssetState, TFDistanceFieldAssetStateFuncs> AssetStateArray;
 	TRefCountPtr<FRDGPooledBuffer> AssetDataBuffer;
@@ -2096,7 +2076,6 @@ public:
 	TArray<FBox> PrimitiveModifiedBounds[GDF_Num];
 
 	TSet<FPrimitiveSceneInfo*> PendingHeightFieldAddOps;
-	TSet<FPrimitiveSceneInfo*> PendingHeightFieldUpdateOps;
 	TArray<FHeightFieldPrimitiveRemoveInfo> PendingHeightFieldRemoveOps;
 
 	int32 HeightFieldAtlasGeneration;

@@ -30,6 +30,7 @@ float4 ShadowConvexHull[12];
 float4 ShadowBoundingSphere;
 uint NumShadowHullPlanes;
 uint bDrawNaniteMeshes;
+uint bCullHeighfieldsNotInAtlas;
 
 bool ShadowConvexHullIntersectSphere(float3 SphereOrigin, float SphereRadius)
 {
@@ -124,7 +125,7 @@ void CullObjectsForShadowCS(
 #else
 		FHeightfieldObjectBounds Bounds = LoadHeightfieldObjectBounds(ObjectIndex);
 		const float3 TranslatedBoxOrigin = LWCToFloat(LWCAdd(Bounds.BoxOrigin, PrimaryView.PreViewTranslation));
-		if (ShadowConvexHullIntersectBox(TranslatedBoxOrigin, Bounds.BoxExtent))
+		if ((Bounds.bInAtlas || !bCullHeighfieldsNotInAtlas) && ShadowConvexHullIntersectBox(TranslatedBoxOrigin, Bounds.BoxExtent))
 		{
 			uint DestIndex;
 			InterlockedAdd(RWObjectIndirectArguments[1], 1U, DestIndex);

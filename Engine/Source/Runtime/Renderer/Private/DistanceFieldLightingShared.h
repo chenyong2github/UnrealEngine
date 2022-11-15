@@ -210,6 +210,7 @@ extern void CullDistanceFieldObjectsForLight(
 	const FVector4f& ShadowBoundingSphere,
 	float ShadowBoundingRadius,
 	bool bCullingForDirectShadowing,
+	bool bCullHeighfieldsNotInAtlas,
 	const FDistanceFieldObjectBufferParameters& ObjectBufferParameters,
 	FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
 	FLightTileIntersectionParameters& LightTileIntersectionParameters);

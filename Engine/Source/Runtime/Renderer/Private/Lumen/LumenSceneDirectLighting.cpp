@@ -1011,6 +1011,9 @@ void CullMeshObjectsForLightCards(
 
 	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
 
+	const bool bCullingForDirectShadowing = false;
+	const bool bCullHeighfieldsNotInAtlas = false;
+
 	CullDistanceFieldObjectsForLight(
 		GraphBuilder,
 		View,
@@ -1022,7 +1025,8 @@ void CullMeshObjectsForLightCards(
 		PrePlaneTranslation,
 		LocalLightShadowBoundingSphere,
 		MeshSDFShadowBounds.W,
-		false,
+		bCullingForDirectShadowing,
+		bCullHeighfieldsNotInAtlas,
 		ObjectBufferParameters,
 		CulledObjectBufferParameters,
 		LightTileIntersectionParameters);

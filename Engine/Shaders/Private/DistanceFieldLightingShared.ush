@@ -202,6 +202,7 @@ struct FHeightfieldObjectBounds
 {
 	FLWCVector3 BoxOrigin;	// World space AABB center
 	float3 BoxExtent;		// World space AABB extent
+	bool bInAtlas;
 };
 
 // Must match FLumenHeightfieldData as heightfield culling is reused
@@ -219,6 +220,9 @@ FHeightfieldObjectBounds LoadHeightfieldObjectBounds(uint ObjectIndex)
 
 	float4 Vector2 = SceneHeightfieldObjectBounds[ObjectIndex * HEIGHTFIELD_OBJECT_BOUNDS_STRIDE + 2];
 	Bounds.BoxExtent = Vector2.xyz;
+
+	uint Flags = asuint(Vector2.w);
+	Bounds.bInAtlas = Flags & 1U;
 
 	return Bounds;
 }

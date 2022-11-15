@@ -595,14 +595,11 @@ bool FPixelInspectorData::AddPixelInspectorRequest(FPixelInspectorRequest *Pixel
 
 FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform) 
 	: NumObjectsInBuffer(0)
-	, NumHeightFieldObjectsInBuffer(0)
 	, IndirectionAtlasLayout(8, 8, 8, 512, 512, 512, false, true, false)
 	, HeightFieldAtlasGeneration(0)
 	, HFVisibilityAtlasGenerattion(0)
 {
 	ObjectBuffers = nullptr;
-	HeightFieldObjectBuffers = nullptr;
-
 	HeightFieldObjectBuffers = nullptr;
 
 	bTrackAllPrimitives = ShouldAllPrimitivesHaveDistanceField(ShaderPlatform);
@@ -615,6 +612,7 @@ FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform)
 FDistanceFieldSceneData::~FDistanceFieldSceneData() 
 {
 	delete ObjectBuffers;
+	delete HeightFieldObjectBuffers;
 }
 
 bool IncludePrimitiveInDistanceFieldSceneData(bool bTrackAllPrimitives, const FPrimitiveSceneProxy* Proxy)
@@ -652,7 +650,6 @@ void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 			}
 
 			checkSlow(!PendingHeightFieldAddOps.Contains(InPrimitive));
-			checkSlow(!PendingHeightFieldUpdateOps.Contains(InPrimitive));
 			PendingHeightFieldAddOps.Add(InPrimitive);
 		}
 
@@ -716,7 +713,6 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 			}
 
 			PendingHeightFieldAddOps.Remove(InPrimitive);
-			PendingHeightFieldUpdateOps.Remove(InPrimitive);
 
 			if (InPrimitive->DistanceFieldInstanceIndices.Num() > 0)
 			{
@@ -732,7 +728,6 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 	checkf(!PendingThrottledOperations.Contains(InPrimitive), TEXT("Primitive is being removed from the scene, but didn't remove from Distance Field Scene properly - a crash will occur when processing PendingThrottledOperations.  This can happen if the proxy's properties have changed without recreating its render state."));
 	
 	checkf(!PendingHeightFieldAddOps.Contains(InPrimitive), TEXT("Primitive is being removed from the scene, but didn't remove from Distance Field Scene properly - a crash will occur when processing PendingHeightFieldAddOps.  This can happen if the proxy's properties have changed without recreating its render state."));
-	checkf(!PendingHeightFieldUpdateOps.Contains(InPrimitive), TEXT("Primitive is being removed from the scene, but didn't remove from Distance Field Scene properly - a crash will occur when processing PendingHeightFieldUpdateOps.  This can happen if the proxy's properties have changed without recreating its render state."));
 }
 
 void FDistanceFieldSceneData::Release()
