@@ -19,6 +19,7 @@ using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Tasks
 {
@@ -45,12 +46,13 @@ namespace Horde.Build.Tasks
 		readonly PerforceLoadBalancer _perforceLoadBalancer;
 		readonly ILogFileService _logService;
 		readonly ILogger _logger;
+		readonly IOptionsMonitor<ServerSettings> _settings;
 		readonly ITicker _tickConformList;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConformTaskSource(MongoService mongoService, GlobalsService globalsService, IAgentCollection agentCollection, PoolService poolService, ILogFileService logService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, ILogger<ConformTaskSource> logger)
+		public ConformTaskSource(MongoService mongoService, GlobalsService globalsService, IAgentCollection agentCollection, PoolService poolService, ILogFileService logService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConformTaskSource> logger)
 		{
 			_mongoService = mongoService;
 			_globalsService = globalsService;
@@ -59,6 +61,7 @@ namespace Horde.Build.Tasks
 			_conformList = new SingletonDocument<ConformList>(mongoService);
 			_perforceLoadBalancer = perforceLoadBalancer;
 			_logService = logService;
+			_settings = settings;
 			_logger = logger;
 			_tickConformList = clock.AddSharedTicker<ConformTaskSource>(TimeSpan.FromMinutes(1.0), CleanConformListAsync, logger);
 
@@ -156,6 +159,11 @@ namespace Horde.Build.Tasks
 		/// <inheritdoc/>
 		public override async Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
+			if (!_settings.CurrentValue.EnableConformTasks)
+			{
+				return Skip(cancellationToken);
+			}
+
 			DateTime utcNow = DateTime.UtcNow;
 			if (!await IsConformPendingAsync(agent, utcNow))
 			{

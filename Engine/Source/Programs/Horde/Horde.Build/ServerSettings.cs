@@ -609,6 +609,16 @@ namespace Horde.Build
 		public int PerforceConnectionPoolSize { get; set; } = 5;
 
 		/// <summary>
+		/// Whether to enable the upgrade task source.
+		/// </summary>
+		public bool EnableUpgradeTasks { get; set; } = true;
+
+		/// <summary>
+		/// Whether to enable the conform task source.
+		/// </summary>
+		public bool EnableConformTasks { get; set; } = true;
+
+		/// <summary>
 		/// Forces configuration data to be read and updated as part of appplication startup, rather than on a schedule. Useful when running locally.
 		/// </summary>
 		public bool ForceConfigUpdateOnStartup { get; set; }

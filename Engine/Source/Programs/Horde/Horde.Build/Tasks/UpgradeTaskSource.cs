@@ -14,6 +14,7 @@ using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Tasks
 {
@@ -31,13 +32,15 @@ namespace Horde.Build.Tasks
 		readonly AgentSoftwareService _agentSoftwareService;
 		readonly GlobalsService _globalsService;
 		readonly ILogFileService _logService;
+		readonly IOptionsMonitor<ServerSettings> _settings;
 		readonly IClock _clock;
 
-		public UpgradeTaskSource(AgentSoftwareService agentSoftwareService, GlobalsService globalsService, ILogFileService logService, IClock clock)
+		public UpgradeTaskSource(AgentSoftwareService agentSoftwareService, GlobalsService globalsService, ILogFileService logService, IOptionsMonitor<ServerSettings> settings, IClock clock)
 		{
 			_agentSoftwareService = agentSoftwareService;
 			_globalsService = globalsService;
 			_logService = logService;
+			_settings = settings;
 			_clock = clock;
 
 			OnLeaseStartedProperties.Add(nameof(UpgradeTask.LogId), x => new LogId(x.LogId));
@@ -45,6 +48,11 @@ namespace Horde.Build.Tasks
 
 		public override async Task<Task<AgentLease?>> AssignLeaseAsync(IAgent agent, CancellationToken cancellationToken)
 		{
+			if (!_settings.CurrentValue.EnableUpgradeTasks)
+			{
+				return Skip(cancellationToken);
+			}
+
 			string? requiredVersion = await GetRequiredSoftwareVersion(agent);
 			if (requiredVersion == null || agent.Version == requiredVersion)
 			{
