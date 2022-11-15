@@ -4,6 +4,7 @@
 #include "Systems/DoubleChannelEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
+#include "Systems/MovieSceneQuaternionInterpolationRotationSystem.h"
 
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
@@ -20,14 +21,21 @@ UMovieSceneComponentTransformSystem::UMovieSceneComponentTransformSystem(const F
 	// This system can be used for interrogation
 	SystemCategories &= ~FSystemInterrogator::GetExcludedFromInterrogationCategory();
 
-	BindToProperty(FMovieSceneTracksComponentTypes::Get()->ComponentTransform);
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+
+	BindToProperty(TrackComponents->ComponentTransform);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineImplicitPrerequisite(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass(), GetClass());
-		DefineImplicitPrerequisite(UDoubleChannelEvaluatorSystem::StaticClass(), GetClass());
 
-		DefineComponentConsumer(GetClass(), UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->ComponentTransform.PropertyTag);
+		DefineComponentConsumer(GetClass(), TrackComponents->ComponentTransform.PropertyTag);
+
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BuiltInComponents->DoubleResult); ++Index)
+		{
+			DefineComponentConsumer(GetClass(), BuiltInComponents->DoubleResult[Index]);
+		}
 	}
 }
 

@@ -500,15 +500,21 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::ReleaseEasingChannel(UE::M
 UWeightAndEasingEvaluatorSystem::UWeightAndEasingEvaluatorSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	using namespace UE::MovieScene;
+
 	SystemCategories = UE::MovieScene::EEntitySystemCategory::ChannelEvaluators;
 
 	bResultsNeedResort = false;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
+		const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+		DefineComponentConsumer(GetClass(), BuiltInComponents->WeightResult);
+
 		DefineImplicitPrerequisite(UMovieSceneEvalTimeSystem::StaticClass(), GetClass());
-		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
-		DefineImplicitPrerequisite(UDoubleChannelEvaluatorSystem::StaticClass(), GetClass());
+		DefineComponentProducer(GetClass(), BuiltInComponents->EasingResult);
+		DefineComponentProducer(GetClass(), BuiltInComponents->WeightAndEasingResult);
 	}
 }
 
