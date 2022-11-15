@@ -119,8 +119,7 @@ namespace Horde.Build.Jobs.TestData
 
 			List<ITestStream> streams = await _testDataService.FindTestStreams(queryStreams.ToArray());
 
-			// flatten requested streams to single service queries
-		
+			// flatten requested streams to single service queries		
 			HashSet<TestSuiteId> suiteIds = new HashSet<TestSuiteId>();
 			for (int i = 0; i < streams.Count; i++)
 			{
@@ -147,10 +146,19 @@ namespace Horde.Build.Jobs.TestData
 				tests = await _testDataService.FindTests(testIds.ToArray());
 			}
 
+			// gather all meta data
 			List<ITestMeta> metaData = new List<ITestMeta>();
 			foreach (ITest test in tests)
 			{
 				foreach (TestMetaId metaId in test.Metadata)
+				{
+					metaIds.Add(metaId);
+				}
+			}
+
+			foreach (ITestSuite suite in suites)
+			{
+				foreach (TestMetaId metaId in suite.Metadata)
 				{
 					metaIds.Add(metaId);
 				}
@@ -183,6 +191,14 @@ namespace Horde.Build.Jobs.TestData
 					{
 						streamMetaIds.Add(id);
 					}						
+				}
+
+				foreach (ITestSuite suite in streamSuites)
+				{
+					foreach (TestMetaId id in suite.Metadata)
+					{
+						streamMetaIds.Add(id);
+					}
 				}
 
 				List<ITestMeta> streamMetaData = metaData.Where(x => streamMetaIds.Contains(x.Id)).ToList();

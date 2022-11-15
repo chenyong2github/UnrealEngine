@@ -126,6 +126,11 @@ namespace Horde.Build.Jobs.TestData
 		/// The tests that compose the suite
 		/// </summary>
 		IReadOnlyList<TestId> Tests { get; }
+
+		/// <summary>
+		/// The meta data for the test suite
+		/// </summary>
+		IReadOnlyList<TestMetaId> Metadata { get; }
 	}
 
 	/// <summary>

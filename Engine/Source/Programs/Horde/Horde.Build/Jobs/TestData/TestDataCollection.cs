@@ -121,6 +121,10 @@ namespace Horde.Build.Jobs.TestData
 			[BsonRequired, BsonElement("n")]
 			public string Name { get; set; }
 
+			[BsonRequired, BsonElement("m")]
+			public List<TestMetaId> Metadata { get; set; }
+			IReadOnlyList<TestMetaId> ITestSuite.Metadata => Metadata;
+
 			[BsonRequired, BsonElement("t")]
 			public List<TestId> Tests { get; set; }
 			IReadOnlyList<TestId> ITestSuite.Tests => Tests;
@@ -129,12 +133,14 @@ namespace Horde.Build.Jobs.TestData
 			{
 				Name = String.Empty;
 				Tests = new List<TestId>();
+				Metadata = new List<TestMetaId>();
 			}
 
-			public TestSuiteDocument(string name, List<TestId> tests)
+			public TestSuiteDocument(string name, List<TestMetaId> metaIds, List<TestId> tests)
 			{
 				Id = TestSuiteId.GenerateNewId();
 				Name = name;
+				Metadata = metaIds;
 				Tests = tests;
 			}
 		}
@@ -692,29 +698,30 @@ namespace Horde.Build.Jobs.TestData
 			return await _tests.Find(filter).ToListAsync();
 		}
 
-		private async Task<List<TestSuiteDocument>> FindTestSuites(string[]? projectNames = null, string[]? suiteNames = null, TestMetaId[]? metaIds = null, TestId[]? testIds = null)
+		private async Task<List<TestSuiteDocument>> FindTestSuites(string[] suiteNames, TestMetaId[] metaIds)
 		{
-			// get the tests which satsify the environment
-			List<TestDocument> tests = await FindTests(true, projectNames, null, suiteNames, metaIds, testIds);
-
-			TestId[] testIdQuery = tests.Select(t => t.Id).Distinct().ToArray();
-
-			if (testIdQuery.Length == 0)
-			{
-				return new List<TestSuiteDocument>();
-			}
 
 			FilterDefinitionBuilder<TestSuiteDocument> filterBuilder = Builders<TestSuiteDocument>.Filter;
 			FilterDefinition<TestSuiteDocument> filter = FilterDefinition<TestSuiteDocument>.Empty;
 
-			if (testIdQuery.Length == 1)
+			if (suiteNames.Length == 1)
 			{
-				filter &= filterBuilder.AnyEq(x => x.Tests, testIdQuery[0]);
+				filter &= filterBuilder.Eq(x => x.Name, suiteNames[0]);
 			}
 			else
 			{
-				filter &= filterBuilder.AnyIn(x => x.Tests, testIdQuery);
+				filter &= filterBuilder.In(x => x.Name, suiteNames);
 			}
+
+			if (metaIds.Length == 1)
+			{
+				filter &= filterBuilder.AnyEq(x => x.Metadata, metaIds[0]);
+			}
+			else
+			{
+				filter &= filterBuilder.AnyIn(x => x.Metadata, metaIds);
+			}
+
 
 			return await _testSuites.Find(filter).ToListAsync();
 		}
@@ -912,7 +919,7 @@ namespace Horde.Build.Jobs.TestData
 
 			if (suiteTests.Count == 0)
 			{
-				suite = new TestSuiteDocument(suiteName, testIds);
+				suite = new TestSuiteDocument(suiteName, new List<TestMetaId> { metaId }, testIds);
 				await _testSuites.InsertOneAsync(suite);
 			}
 			else
@@ -921,16 +928,27 @@ namespace Horde.Build.Jobs.TestData
 
 				List<TestId> newIds = suite.Tests.Union(testIds).ToList();
 
-				if (newIds.Count != suite.Tests.Count)
+				if (newIds.Count != suite.Tests.Count || !suite.Metadata.Contains(metaId))
 				{
-					suite.Tests = newIds;
-
+					List<UpdateDefinition<TestSuiteDocument>> updates = new List<UpdateDefinition<TestSuiteDocument>>();
 					FilterDefinitionBuilder<TestSuiteDocument> ebuilder = Builders<TestSuiteDocument>.Filter;
 					FilterDefinition<TestSuiteDocument> efilter = ebuilder.Eq(x => x.Id, suite.Id);
 
 					UpdateDefinitionBuilder<TestSuiteDocument> updateBuilder = Builders<TestSuiteDocument>.Update;
-					UpdateDefinition<TestSuiteDocument> update = updateBuilder.Set(x => x.Tests, suite.Tests);
-					await _testSuites.UpdateOneAsync(efilter, update);
+
+					if (newIds.Count != suite.Tests.Count)
+					{
+						suite.Tests = newIds;
+						updates.Add(updateBuilder.Set(x => x.Tests, suite.Tests));
+					}
+
+					if (!suite.Metadata.Contains(metaId))
+					{
+						suite.Metadata.Add(metaId);
+						updates.Add(updateBuilder.Set(x => x.Metadata, suite.Metadata));
+					}
+
+					await _testSuites.UpdateOneAsync(efilter, updateBuilder.Combine(updates));
 				}
 
 			}
