@@ -25,6 +25,8 @@ namespace Horde.Agent.Execution
 {
 	class PerforceExecutor : JobExecutor
 	{
+		public const string Name = "Perforce";
+
 		protected AgentWorkspace? _autoSdkWorkspaceInfo;
 		protected AgentWorkspace _workspaceInfo;
 		protected DirectoryReference _rootDir;
@@ -411,6 +413,8 @@ namespace Horde.Agent.Execution
 	class PerforceExecutorFactory : JobExecutorFactory
 	{
 		readonly IHttpClientFactory _httpClientFactory;
+
+		public override string Name => PerforceExecutor.Name;
 
 		public PerforceExecutorFactory(IHttpClientFactory httpClientFactory)
 		{

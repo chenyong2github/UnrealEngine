@@ -858,6 +858,7 @@ namespace Horde.Build.Jobs
 			task.BatchId = batch.Id.ToString();
 			task.LogId = logId.ToString();
 			task.JobName = leaseName.ToString();
+			task.Executor = job.Executor ?? String.Empty;
 
 			List<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces = new List<HordeCommon.Rpc.Messages.AgentWorkspace>();
 

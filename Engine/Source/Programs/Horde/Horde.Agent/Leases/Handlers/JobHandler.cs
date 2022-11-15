@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,16 +32,16 @@ namespace Horde.Agent.Leases.Handlers
 		/// </summary>
 		internal TimeSpan _stepAbortPollInterval = TimeSpan.FromSeconds(5);
 
-		readonly JobExecutorFactory _executorFactory;
+		readonly IEnumerable<JobExecutorFactory> _executorFactories;
 		readonly AgentSettings _settings;
 		readonly ILogger _defaultLogger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobHandler(JobExecutorFactory executorFactory, IOptions<AgentSettings> settings, ILogger<JobHandler> defaultLogger)
+		public JobHandler(IEnumerable<JobExecutorFactory> executorFactories, IOptions<AgentSettings> settings, ILogger<JobHandler> defaultLogger)
 		{
-			_executorFactory = executorFactory;
+			_executorFactories = executorFactories;
 			_settings = settings.Value;
 			_defaultLogger = defaultLogger;
 		}
@@ -99,7 +101,16 @@ namespace Horde.Agent.Leases.Handlers
 			await session.TerminateProcessesAsync(batchLogger, cancellationToken);
 
 			// Create an executor for this job
-			JobExecutor executor = _executorFactory.CreateExecutor(session, executeTask, batch);
+			string executorName = String.IsNullOrEmpty(executeTask.Executor) ? _settings.Executor : executeTask.Executor;
+
+			JobExecutorFactory? executorFactory = _executorFactories.FirstOrDefault(x => x.Name.Equals(executorName, StringComparison.OrdinalIgnoreCase));
+			if (executorFactory == null)
+			{
+				batchLogger.LogError("Unable to find executor '{ExecutorName}'", executorName);
+				return;
+			}
+
+			JobExecutor executor = executorFactory.CreateExecutor(session, executeTask, batch);
 
 			// Try to initialize the executor
 			batchLogger.LogInformation("Initializing...");

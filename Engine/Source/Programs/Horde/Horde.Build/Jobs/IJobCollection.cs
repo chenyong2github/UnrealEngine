@@ -73,6 +73,11 @@ namespace Horde.Build.Jobs
 		public bool? PromoteIssuesByDefault { get; set; }
 
 		/// <summary>
+		/// The executor to use
+		/// </summary>
+		public string? Executor { get; set; }
+
+		/// <summary>
 		/// List of downstream job triggers
 		/// </summary>
 		public List<ChainedJobTemplateConfig> JobTriggers { get; } = new List<ChainedJobTemplateConfig>();
@@ -119,6 +124,7 @@ namespace Horde.Build.Jobs
 		/// </summary>
 		public CreateJobOptions(TemplateRefConfig templateRefConfig)
 		{
+			Executor = templateRefConfig.Executor;
 			PromoteIssuesByDefault = templateRefConfig.PromoteIssuesByDefault;
 			if (templateRefConfig.ChainedJobs != null)
 			{

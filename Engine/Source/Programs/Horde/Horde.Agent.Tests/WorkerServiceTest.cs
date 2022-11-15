@@ -35,7 +35,7 @@ namespace Horde.Agent.Tests
 	[TestClass]
 	public class WorkerServiceTest
 	{
-		private ServiceCollection _serviceCollection;
+		private readonly ServiceCollection _serviceCollection;
 
 		internal static JobExecutor NullExecutor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
 		{
@@ -59,7 +59,7 @@ namespace Horde.Agent.Tests
 				settings.ServerProfiles.Add(profile);
 				settings.Server = "test";
 				settings.WorkingDir = Path.GetTempPath();
-				settings.Executor = ExecutorType.Test; // Not really used since the executor is overridden in the tests
+				settings.Executor = TestExecutor.Name; // Not really used since the executor is overridden in the tests
 			});
 
 			_serviceCollection.AddSingleton<WorkerService>();
@@ -114,6 +114,7 @@ namespace Horde.Agent.Tests
 			executeJobTask.BatchId = "batchId1";
 			executeJobTask.LogId = "logId1";
 			executeJobTask.JobName = "jobName1";
+			executeJobTask.Executor = SimpleTestExecutor.Name;
 			executeJobTask.AutoSdkWorkspace = new AgentWorkspace();
 			executeJobTask.Workspace = new AgentWorkspace();
 
