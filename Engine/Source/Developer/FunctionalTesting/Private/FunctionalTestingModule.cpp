@@ -129,7 +129,11 @@ void FFunctionalTestingModule::GetMapTests(bool bEditorOnlyTests, TArray<FString
 				FString MapAssetPath = MapAsset.GetObjectPathString();
 				FString MapPackageName = MapAsset.PackageName.ToString();
 				if (!IsDeveloperDirectoryIncluded && MapPackageName.Find(TEXT("/Game/Developers")) == 0) continue;
-				FString PartialSuiteName = MapPackageName.RightChop(6).Replace(TEXT("/"), TEXT(".")); // Remove "/Game/" from the name and use dot syntax
+				FString PartialSuiteName = MapPackageName.RightChop(1).Replace(TEXT("/"), TEXT(".")); // use dot syntax
+				if (MapPackageName.StartsWith(TEXT("/Game/")))
+				{
+					PartialSuiteName = PartialSuiteName.RightChop(5); // Remove "/Game/" from the name
+				}
 
 				FString AllTestNames;
 				FAssetDataTagMapSharedView::FFindTagResult MapTestNames = MapAsset.TagsAndValues.FindTag(bEditorOnlyTests ? TEXT("TestNamesEditor") : TEXT("TestNames"));
