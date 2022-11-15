@@ -16,5 +16,7 @@ namespace UE::NearestNeighborModel
 		{
 			return MakeShareable(new FNearestNeighborModelVizSettingsDetails());
 		}
+		
+		virtual void AddAdditionalSettings() override;
 	};
 }	// namespace UE::NearestNeighborModel

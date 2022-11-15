@@ -48,7 +48,8 @@ namespace UE::NearestNeighborModel
 
 		// Some helpers that cast to this model's variants of some classes.
 		UNearestNeighborModel* GetNearestNeighborModel() const { return static_cast<UNearestNeighborModel*>(Model); }
-	
+		UNearestNeighborModelVizSettings* GetNearestNeighborModelVizSettings() const;
+
 		// Recomputes nearest neighbor coeffcients and nearest neighbor vertex offsets. 
 		virtual uint8 UpdateNearestNeighborData();
 

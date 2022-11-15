@@ -16,4 +16,14 @@ class NEARESTNEIGHBORMODEL_API UNearestNeighborModelVizSettings
 	: public UMLDeformerMorphModelVizSettings
 {
 	GENERATED_BODY()
+public:
+#if	WITH_EDITORONLY_DATA
+	void SetNearestNeighborActorsOffset(float InOffset) { NearestNeighborActorsOffset = InOffset; }
+	float GetNearestNeighborActorsOffset() const { return NearestNeighborActorsOffset; }
+	static FName GetNearestNeighborActorsOffsetPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModelVizSettings, NearestNeighborActorsOffset); }
+
+protected:
+	UPROPERTY(EditAnywhere, Category = "Live Settings")
+	float NearestNeighborActorsOffset = 2.0f;
+#endif
 };

@@ -110,6 +110,11 @@ namespace UE::NearestNeighborModel
 		}
 	}
 
+	UNearestNeighborModelVizSettings* FNearestNeighborEditorModel::GetNearestNeighborModelVizSettings() const
+	{
+		return Cast<UNearestNeighborModelVizSettings>(GetMorphModel()->GetVizSettings()); 
+	}
+
 	void FNearestNeighborEditorModel::CreateActors(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 	{
 		FMLDeformerMorphModelEditorModel::CreateActors(InPersonaPreviewScene);
@@ -122,11 +127,17 @@ namespace UE::NearestNeighborModel
 	void FNearestNeighborEditorModel::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 	{
 		FMLDeformerEditorModel::Tick(ViewportClient, DeltaTime);
-		for (FNearestNeighborEditorModelActor* NearestNeighborActor : NearestNeighborActors)
+		if (!NearestNeighborActors.IsEmpty())
 		{
-			if (NearestNeighborActor)
+			const UNearestNeighborModelVizSettings* NNViz = GetNearestNeighborModelVizSettings();
+			const float Offset = NNViz->GetNearestNeighborActorsOffset();
+			for (FNearestNeighborEditorModelActor* NearestNeighborActor : NearestNeighborActors)
 			{
-				NearestNeighborActor->TickNearestNeighborActor();
+				if (NearestNeighborActor)
+				{
+					NearestNeighborActor->TickNearestNeighborActor();
+					NearestNeighborActor->SetMeshOffsetFactor(Offset);
+				}
 			}
 		}
 	}
@@ -141,6 +152,9 @@ namespace UE::NearestNeighborModel
 			NearestNeighborActors.Reset();
 		}
 		NearestNeighborActors.SetNumZeroed(NumParts);
+
+		const UNearestNeighborModelVizSettings* NNViz = GetNearestNeighborModelVizSettings();
+		const float Offset = NNViz->GetNearestNeighborActorsOffset();
 		
 		for(int32 PartId = StartIndex; PartId < NumParts; PartId++)
 		{
@@ -159,7 +173,7 @@ namespace UE::NearestNeighborModel
 			FNearestNeighborEditorModelActor* NearestNeighborActor = static_cast<FNearestNeighborEditorModelActor*>(EditorActors.Last());
 			UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
 			NearestNeighborActor->InitNearestNeighborActor(PartId, MLDeformerComponent);
-			NearestNeighborActor->SetMeshOffsetFactor(2.0f);
+			NearestNeighborActor->SetMeshOffsetFactor(Offset);
 			NearestNeighborActors[PartId] = NearestNeighborActor;
 		}
 	}
