@@ -7,6 +7,7 @@
 #include "MovieSceneSection.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneSkeletalAnimationSection.generated.h"
 
 struct FMovieSceneSkeletalAnimRootMotionTrackParams;
@@ -26,6 +27,17 @@ struct FMovieSceneSkeletalAnimationParams
 
 	/** Gets the animation sequence length, not modified by play rate */
 	float GetSequenceLength() const { return Animation != nullptr ? Animation->GetPlayLength() : 0.f; }
+
+	/**
+	 * Convert a sequence frame to a time in seconds inside the animation clip, taking into account start/end offsets,
+	 * looping, etc.
+	 */
+	double MapTimeToAnimation(const UMovieSceneSection* InSection, FFrameTime InPosition, FFrameRate InFrameRate) const;
+
+	/**
+	 * As above, but with already computed section bounds.
+	 */
+	double MapTimeToAnimation(FFrameNumber InSectionStartTime, FFrameNumber InSectionEndTime, FFrameTime InPosition, FFrameRate InFrameRate) const;
 
 	/** The animation this section plays */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Animation", meta=(AllowedClasses = "/Script/Engine.AnimSequence,/Script/Engine.AnimComposite,/Script/Engine.AnimStreamable"))
@@ -88,6 +100,7 @@ struct FMovieSceneSkeletalAnimationParams
 UCLASS( MinimalAPI )
 class UMovieSceneSkeletalAnimationSection
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -125,6 +138,8 @@ protected:
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
 
+	/** ~IMovieSceneEntityProvider interface */
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& InParams, FImportedEntity* OutImportedEntity) override;
 
 private:
 

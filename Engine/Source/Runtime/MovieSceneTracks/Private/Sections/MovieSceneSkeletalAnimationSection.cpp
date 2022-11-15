@@ -4,7 +4,6 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Animation/AnimSequence.h"
 #include "AnimSequencerInstanceProxy.h"
-#include "Evaluation/MovieSceneSkeletalAnimationTemplate.h"
 #include "Logging/MessageLog.h"
 #include "MovieScene.h"
 #include "UObject/SequencerObjectVersion.h"
@@ -14,6 +13,8 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AttributesRuntime.h"
 #include "Misc/FrameRate.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
+#include "MovieSceneTracksComponentTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSkeletalAnimationSection)
 
@@ -42,6 +43,51 @@ FMovieSceneSkeletalAnimationParams::FMovieSceneSkeletalAnimationParams()
 	bSkipAnimNotifiers = false;
 	bForceCustomMode = false;
 	SwapRootBone = ESwapRootBone::SwapRootBone_None;
+}
+
+double FMovieSceneSkeletalAnimationParams::MapTimeToAnimation(const UMovieSceneSection* InSection, FFrameTime InPosition, FFrameRate InFrameRate) const
+{
+	const FFrameNumber SectionStartTime = InSection->GetInclusiveStartFrame();
+	const FFrameNumber SectionEndTime = InSection->GetExclusiveEndFrame();
+	return MapTimeToAnimation(SectionStartTime, SectionEndTime, InPosition, InFrameRate);
+}
+
+double FMovieSceneSkeletalAnimationParams::MapTimeToAnimation(FFrameNumber InSectionStartTime, FFrameNumber InSectionEndTime, FFrameTime InPosition, FFrameRate InFrameRate) const
+{
+	// Get Animation Length and frame time
+	const FFrameTime AnimationLength = GetSequenceLength() * InFrameRate;
+	const int32 LengthInFrames = AnimationLength.FrameNumber.Value + (int)(AnimationLength.GetSubFrame() + 0.5f) + 1;
+
+	// we only play end if we are not looping, and assuming we are looping if Length is greater than default length;
+	const bool bLooping = (InSectionEndTime.Value - InSectionStartTime.Value - StartFrameOffset - EndFrameOffset) > LengthInFrames;	
+
+	// Make sure InPosition FrameTime doesn't underflow InSectionStartTime or overflow InSectionEndTime
+	InPosition = FMath::Clamp(InPosition, FFrameTime(InSectionStartTime), FFrameTime(InSectionEndTime - 1));
+	
+	// Gather helper values
+	const float SectionPlayRate = PlayRate * Animation->RateScale;
+	const float AnimPlayRate = FMath::IsNearlyZero(SectionPlayRate) ? 1.0f : SectionPlayRate;
+	const double SeqLength = GetSequenceLength() - InFrameRate.AsSeconds(StartFrameOffset + EndFrameOffset);
+
+	// The Time from the beginning of InSectionStartTime to InPosition in seconds
+	double SecondsFromSectionStart = FFrameTime::FromDecimal((InPosition - InSectionStartTime).AsDecimal() * AnimPlayRate) / InFrameRate;
+
+	// Logic for reversed animation
+	if (bReverse)
+	{
+		// Duration of this section 
+		double SectionDuration = (((InSectionEndTime - InSectionStartTime) * AnimPlayRate) / InFrameRate);
+		SecondsFromSectionStart = SectionDuration - SecondsFromSectionStart;
+	}
+	// Make sure Seconds is in range
+	if (SeqLength > 0.0 && (bLooping || !FMath::IsNearlyEqual(SecondsFromSectionStart, SeqLength, 1e-4)))
+	{
+		SecondsFromSectionStart = FMath::Fmod(SecondsFromSectionStart, SeqLength);
+	}
+
+	// Add the StartFrameOffset and FirstLoopStartFrameOffset to the current seconds in the section to get the right animation frame
+	SecondsFromSectionStart += InFrameRate.AsSeconds(StartFrameOffset) + InFrameRate.AsSeconds(FirstLoopStartFrameOffset);
+	return SecondsFromSectionStart;
 }
 
 UMovieSceneSkeletalAnimationSection::UMovieSceneSkeletalAnimationSection( const FObjectInitializer& ObjectInitializer )
@@ -305,8 +351,7 @@ void UMovieSceneSkeletalAnimationSection::GetSnapTimes(TArray<FFrameNumber>& Out
 
 double UMovieSceneSkeletalAnimationSection::MapTimeToAnimation(FFrameTime InPosition, FFrameRate InFrameRate) const
 {
-	FMovieSceneSkeletalAnimationSectionTemplateParameters TemplateParams(Params, GetInclusiveStartFrame(), GetExclusiveEndFrame());
-	return TemplateParams.MapTimeToAnimation(InPosition, InFrameRate);
+	return Params.MapTimeToAnimation(this, InPosition, InFrameRate);
 }
 
 float UMovieSceneSkeletalAnimationSection::GetTotalWeightValue(FFrameTime InTime) const
@@ -342,6 +387,23 @@ void UMovieSceneSkeletalAnimationSection::SetEndFrame(TRangeBound<FFrameNumber> 
 	}
 }
 
+void UMovieSceneSkeletalAnimationSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& InParams, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+
+	const FGuid ObjectBindingID = InParams.GetObjectBindingID();
+	FMovieSceneSkeletalAnimationComponentData ComponentData { this };
+
+	OutImportedEntity->AddBuilder(
+		FEntityBuilder()
+		.Add(TrackComponents->SkeletalAnimation, ComponentData)
+		.AddConditional(BuiltInComponents->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
+		.AddConditional(BuiltInComponents->WeightChannel, &Params.Weight, Params.Weight.HasAnyData())
+	);
+}
 
 #if WITH_EDITOR
 void UMovieSceneSkeletalAnimationSection::PreEditChange(FProperty* PropertyAboutToChange)

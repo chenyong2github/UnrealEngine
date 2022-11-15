@@ -582,6 +582,8 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	ComponentRegistry->NewComponentType(&FloatPerlinNoiseChannel, TEXT("Float Perlin Noise Channel"));
 	ComponentRegistry->NewComponentType(&DoublePerlinNoiseChannel, TEXT("Double Perlin Noise Channel"));
 
+	ComponentRegistry->NewComponentType(&SkeletalAnimation, TEXT("Skeletal Animation"));
+
 	ComponentRegistry->NewComponentType(&LevelVisibility, TEXT("Level Visibility"));
 	ComponentRegistry->NewComponentType(&DataLayer, TEXT("Data Layer"));
 
@@ -797,6 +799,10 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	// Set up PerlinNoise components
 	ComponentRegistry->Factories.DuplicateChildComponent(FloatPerlinNoiseChannel);
 	ComponentRegistry->Factories.DuplicateChildComponent(DoublePerlinNoiseChannel);
+
+	// --------------------------------------------------------------------------------------------
+	// Set up SkeletalAnimation components
+	ComponentRegistry->Factories.DuplicateChildComponent(SkeletalAnimation);
 }
 
 FMovieSceneTracksComponentTypes::~FMovieSceneTracksComponentTypes()

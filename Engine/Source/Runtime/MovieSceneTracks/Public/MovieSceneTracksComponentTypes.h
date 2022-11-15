@@ -17,9 +17,10 @@
 #include "MovieSceneTracksComponentTypes.generated.h"
 
 class UMaterialParameterCollection;
+class UMovieScene3DTransformSection;
 class UMovieSceneDataLayerSection;
 class UMovieSceneLevelVisibilitySection;
-class UMovieScene3DTransformSection;
+class UMovieSceneSkeletalAnimationSection;
 struct FMovieSceneObjectBindingID;
 
 
@@ -78,6 +79,16 @@ struct FConstraintComponentData
 	FName ConstraintName;
 	FConstraintAndActiveChannel* ConstraintAndActiveChannel;
 	UMovieScene3DTransformSection* Section;
+};
+
+/** Component data for a skeletal mesh animation */
+USTRUCT()
+struct FMovieSceneSkeletalAnimationComponentData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UMovieSceneSkeletalAnimationSection> Section;
 };
 
 namespace UE
@@ -430,6 +441,8 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TComponentTypeID<FPerlinNoiseParams> FloatPerlinNoiseChannel;
 	TComponentTypeID<FPerlinNoiseParams> DoublePerlinNoiseChannel;
 
+	TComponentTypeID<FMovieSceneSkeletalAnimationComponentData> SkeletalAnimation;
+
 	TComponentTypeID<int32> ComponentMaterialIndex;
 
 	TComponentTypeID<FName> BoolParameterName;
@@ -471,7 +484,6 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 private:
 	FMovieSceneTracksComponentTypes();
 };
-
 
 } // namespace MovieScene
 } // namespace UE

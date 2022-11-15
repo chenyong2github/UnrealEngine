@@ -6,8 +6,6 @@
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
-#include "Evaluation/MovieSceneSkeletalAnimationTemplate.h"
-#include "Compilation/IMovieSceneTemplateGenerator.h"
 #include "Compilation/MovieSceneEvaluationTreePopulationRules.h"
 #include "MovieScene.h"
 #include "AnimationRuntime.h"
@@ -52,11 +50,6 @@ UMovieSceneSkeletalAnimationTrack::UMovieSceneSkeletalAnimationTrack(const FObje
 
 /* UMovieSceneSkeletalAnimationTrack interface
  *****************************************************************************/
-
-FMovieSceneEvalTemplatePtr UMovieSceneSkeletalAnimationTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieSceneSkeletalAnimationSectionTemplate(*CastChecked<const UMovieSceneSkeletalAnimationSection>(&InSection));
-}
 
 UMovieSceneSection* UMovieSceneSkeletalAnimationTrack::AddNewAnimationOnRow(FFrameNumber KeyTime, UAnimSequenceBase* AnimSequence, int32 RowIndex)
 {
