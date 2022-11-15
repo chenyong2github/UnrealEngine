@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DefaultStyleCache.h"
+
+#include "Misc/LazySingleton.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/UMGCoreStyle.h"
 
@@ -8,16 +10,9 @@
 #include "Styling/CoreStyle.h"
 #endif
 
-FDefaultStyleCache* FDefaultStyleCache::Instance = nullptr;
-
 FDefaultStyleCache& FDefaultStyleCache::Get()
 {
-    if (!Instance)
-	{
-		Instance = new FDefaultStyleCache();
-	}
-	
-	return *Instance;
+	return TLazySingleton<FDefaultStyleCache>::Get();
 }
 
 FDefaultStyleCache::FDefaultStyleCache()

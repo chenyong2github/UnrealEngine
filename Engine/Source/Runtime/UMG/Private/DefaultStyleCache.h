@@ -20,9 +20,9 @@ struct FDefaultStyleCache
 #endif
 	
 private:
+	friend class FLazySingleton;
+
 	FDefaultStyleCache();
-	
-    static FDefaultStyleCache* Instance;
 
 	struct FStyles
 	{
