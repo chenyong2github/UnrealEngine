@@ -23,6 +23,10 @@
 
 -(void) dealloc
 {
+    if(_ossObserver)
+    {
+        [_ossObserver release];
+    }
     [super dealloc];
 }
 
