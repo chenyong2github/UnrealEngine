@@ -234,7 +234,7 @@ namespace Horde.Build.Jobs.TestData
 		{
 			Id = suite.Id.ToString();
 			Name = suite.Name;
-			Metadata = suite.Tests.Select(x => x.ToString()).ToList();
+			Metadata = suite.Metadata.Select(x => x.ToString()).ToList();
 		}
 	}
 
