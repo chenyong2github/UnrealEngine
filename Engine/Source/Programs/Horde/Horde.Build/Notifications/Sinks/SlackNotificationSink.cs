@@ -1449,9 +1449,12 @@ namespace Horde.Build.Notifications.Sinks
 				return user.Login;
 			}
 
-			if (!_environment.IsProduction() || !allowMentions)
+			if (_allowUsers == null || !_allowUsers.Contains(slackUserId))
 			{
-				return $"{user.Name} [{slackUserId}]";
+				if (!_environment.IsProduction() || !allowMentions)
+				{
+					return $"{user.Name} [{slackUserId}]";
+				}
 			}
 
 			return $"<@{slackUserId}>";
