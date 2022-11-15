@@ -40,6 +40,7 @@
 #include "LevelSequenceEditorBlueprintLibrary.h"
 #include "Tools/ConstraintBaker.h"
 #include "TransformConstraint.h"
+#include "Rigs/FKControlRig.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSequencerEditorLibrary)
 
@@ -402,6 +403,43 @@ bool UControlRigSequencerEditorLibrary::TweenControlRig(ULevelSequence* LevelSeq
 	}
 	return false;
 }
+
+bool UControlRigSequencerEditorLibrary::BlendValuesOnSelected(ULevelSequence* LevelSequence, EAnimToolBlendOperation BlendOperation, float BlendValue)
+{
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset();
+	if (WeakSequencer.IsValid() && WeakSequencer.Pin()->GetFocusedMovieSceneSequence() == LevelSequence
+		&& LevelSequence->GetMovieScene())
+	{
+		FControlsToTween ControlsToTween;
+		LevelSequence->GetMovieScene()->Modify();
+		switch(BlendOperation)
+		{ 
+			case EAnimToolBlendOperation::Tween:
+			{
+				FControlsToTween BlendTool;
+				BlendTool.Setup(WeakSequencer);
+				BlendTool.Blend(WeakSequencer, BlendValue);
+				return true;
+			}
+			case EAnimToolBlendOperation::BlendToNeighbor:
+			{
+				FBlendNeighborSlider BlendTool;
+				BlendTool.Setup(WeakSequencer);
+				BlendTool.Blend(WeakSequencer, BlendValue);
+				return true;
+			}
+			case EAnimToolBlendOperation::PushPull:
+			{
+				FPushPullSlider BlendTool;
+				BlendTool.Setup(WeakSequencer);
+				BlendTool.Blend(WeakSequencer, BlendValue);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 
 bool UControlRigSequencerEditorLibrary::BakeConstraint(UWorld* World, UTickableConstraint* Constraint, const TArray<FFrameNumber>& Frames, ESequenceTimeUnit TimeUnit)
 {
@@ -2545,6 +2583,31 @@ void UControlRigSequencerEditorLibrary::HideAllControls(UMovieSceneSection* InSe
 
 	ParameterSection->Modify();
 	ParameterSection->FillControlsMask(false);
+}
+
+bool UControlRigSequencerEditorLibrary::IsFKControlRig(UControlRig* InControlRig)
+{
+	return (InControlRig && InControlRig->IsA<UFKControlRig>());
+}
+
+EControlRigFKRigExecuteMode UControlRigSequencerEditorLibrary::GetFKControlRigApplyMode(UControlRig* InControlRig)
+{
+	EControlRigFKRigExecuteMode ApplyMode = EControlRigFKRigExecuteMode::Direct;
+	if (UFKControlRig* FKRig = Cast<UFKControlRig>(InControlRig))
+	{
+		ApplyMode = FKRig->GetApplyMode();
+	}
+	return ApplyMode;
+}
+
+bool UControlRigSequencerEditorLibrary::SetControlRigApplyMode(UControlRig* InControlRig, EControlRigFKRigExecuteMode InApplyMode)
+{
+	if (UFKControlRig* FKRig = Cast<UFKControlRig>(InControlRig))
+	{
+		FKRig->SetApplyMode(InApplyMode);
+		return true;
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

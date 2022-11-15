@@ -48,6 +48,14 @@ struct FControlRigSequencerBindingProxy
 	TObjectPtr<UMovieSceneControlRigParameterTrack> Track;
 };
 
+UENUM(BlueprintType)
+enum class EAnimToolBlendOperation : uint8
+{
+	Tween,
+	BlendToNeighbor,
+	PushPull
+};
+
 /**
 * This is a set of helper functions to access various parts of the Sequencer and Control Rig API via Python and Blueprints.
 */
@@ -147,6 +155,16 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static bool TweenControlRig(ULevelSequence* LevelSequence, UControlRig* ControlRig, float TweenValue);
+	
+	/**
+	* Peform specified blend operation based upon selected keys in the curve editor or selected control rig controls
+	* @param LevelSequence The LevelSequence that's loaded in the editor
+	* @param EAnimToolBlendOperation The operation to perform
+	* @param BlendValue The blend value to use, range from -1(blend to previous) to 1(blend to next)
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool BlendValuesOnSelected(ULevelSequence* LevelSequence, EAnimToolBlendOperation BlendOperation, 
+		float BlendValue);
 
 	/**
 	* Peform a Snap operation to snap the children to the parent. 
@@ -914,4 +932,25 @@ public:
 	/** Hides all of the controls for the given section */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static void HideAllControls(UMovieSceneSection* InSection);
+
+	/**	Whether or not the control rig is an FK Control Rig.
+	@param InControlRig Rig to test to see if FK Control Rig
+	**/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool IsFKControlRig(UControlRig* InControlRig);
+
+	/**	Get FKControlRig Apply Mode.
+	@param InControlRig Rig to test
+	@return The EControlRigFKRigExecuteMode mode it is in, either Replace,Additive or Direct
+	**/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static EControlRigFKRigExecuteMode  GetFKControlRigApplyMode(UControlRig* InControlRig);
+
+	/**	Set the FK Control Rig to apply mode
+	@param InControlRig Rig to set 
+	@param InApplyMode Set the EControlRigFKRigExecuteMode mode (Replace,Addtiive or Direct)
+	@return returns True if the mode was set, may not be set if the Control Rig doesn't support these modes currently only FKControlRig's do.
+	**/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool SetControlRigApplyMode(UControlRig* InControlRig, EControlRigFKRigExecuteMode InApplyMode);
 };

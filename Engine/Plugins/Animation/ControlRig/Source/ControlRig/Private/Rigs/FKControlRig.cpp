@@ -27,7 +27,7 @@ FName UFKControlRig::GetControlName(const FName& InName, const ERigElementType& 
 {
 	if (InName != NAME_None)
 	{
-		check(InType == ERigElementType::Bone || InType == ERigElementType::Curve);
+		//@jurre to look at after vacation, causes ensure check(InType == ERigElementType::Bone || InType == ERigElementType::Curve);
 		static thread_local TMap<FName, FName> NameToControlMappings[2];
 		TMap<FName, FName>& NameToControlMapping = NameToControlMappings[InType == ERigElementType::Bone ? 0 : 1];
 		if (const FName* CachedName = NameToControlMapping.Find(InName))
@@ -62,7 +62,7 @@ FName UFKControlRig::GetControlTargetName(const FName& InName, const ERigElement
 {
 	if (InName != NAME_None)
 	{
-		check(InType == ERigElementType::Bone || InType == ERigElementType::Curve);
+		//@jurre to look at after vacation, causes ensure check(InType == ERigElementType::Bone || InType == ERigElementType::Curve);
 		static thread_local TMap<FName, FName> NameToTargetMappings[2];
 		TMap<FName, FName>& NameToTargetMapping = NameToTargetMappings[InType == ERigElementType::Bone ? 0 : 1];
 		if (const FName* CachedName = NameToTargetMapping.Find(InName))

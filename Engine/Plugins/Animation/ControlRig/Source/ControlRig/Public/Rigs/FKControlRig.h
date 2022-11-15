@@ -18,7 +18,7 @@ struct FFKBoneCheckInfo
 	bool  bActive;
 };
 
-UENUM()
+UENUM(Blueprintable)
 enum class EControlRigFKRigExecuteMode: uint8
 {
 	/** Replaces the current pose */
@@ -62,6 +62,7 @@ public:
 	void ToggleApplyMode();
 	bool CanToggleApplyMode() const { return true; }
 	bool IsApplyModeAdditive() const { return ApplyMode == EControlRigFKRigExecuteMode::Additive; }
+	EControlRigFKRigExecuteMode GetApplyMode() const { return ApplyMode; }
 
 	// Ensures that controls mask is updated according to contained ControlRig (control) elements
 	void RefreshActiveControls();
