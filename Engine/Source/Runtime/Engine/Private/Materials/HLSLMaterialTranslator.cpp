@@ -12039,23 +12039,27 @@ int32 FHLSLMaterialTranslator::EyeAdaptationInverse(int32 LightValueArg, int32 A
 		return INDEX_NONE;
 	}
 
-	if (GetParameterType(LightValueArg) != MCT_Float3)
+	const EMaterialValueType LightValueType = GetParameterType(LightValueArg);
+	const EMaterialValueType ResultType = LightValueType;
+
+	if (!IsFloatNumericType(LightValueType))
 	{
-		Errorf(TEXT("EyeAdaptationInverse expects a float3 type for LightValue"));
+		Errorf(TEXT("EyeAdaptationInverse expects a float numeric type for LightValue"));
 		return INDEX_NONE;
 	}
-	int32 LightValueName = LightValueArg;
 
 	if (GetParameterType(AlphaArg) != MCT_Float)
 	{
 		Errorf(TEXT("EyeAdaptationInverse expects a float type for Alpha"));
 		return INDEX_NONE;
 	}
-	int32 AlphaName = AlphaArg;
 
 	MaterialCompilationOutput.bUsesEyeAdaptation = true;
 
-	return AddInlinedCodeChunk(MCT_Float3, TEXT("EyeAdaptationInverseLookup(%s,%s)"), *GetParameterCode(LightValueName), *GetParameterCode(AlphaName));
+	int32 Multiplier = AddInlinedCodeChunk(MCT_Float, TEXT("EyeAdaptationInverseLookup(%s)"), *GetParameterCode(AlphaArg));
+
+	// return LightValue scaled by inverse eye adaptation
+	return Mul(LightValueArg, Multiplier);
 }
 
 // to only have one piece of code dealing with error handling if the Primitive constant buffer is not used.
