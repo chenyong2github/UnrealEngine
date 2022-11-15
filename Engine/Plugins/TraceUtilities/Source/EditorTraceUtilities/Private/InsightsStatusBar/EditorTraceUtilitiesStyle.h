@@ -24,15 +24,24 @@ public:
 		SetContentRoot(FPaths::EnginePluginsDir() / TEXT("/TraceUtilities/Content/Slate"));
 		SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-		Set("Icons.OpenLiveSession", new CORE_IMAGE_BRUSH_SVG("Starship/Insights/Session", Icon16x16));
+		Set("Icons.OpenLiveSession.Menu", new CORE_IMAGE_BRUSH_SVG("Starship/Insights/Session", Icon16x16));
 
-		Set("Icons.Trace", new IMAGE_BRUSH_SVG("Trace", Icon16x16));
-		Set("Icons.RecordTrace", new IMAGE_BRUSH_SVG("RecordTrace", Icon16x16));
-		Set("Icons.RecordTraceOutline", new IMAGE_BRUSH_SVG("RecordTraceOutline", Icon16x16));
-		Set("Icons.RecordTraceWithOutline", new IMAGE_BRUSH_SVG("RecordTraceWithOutline", Icon16x16));
-		Set("Icons.RecordTraceStop", new IMAGE_BRUSH_SVG("RecordTraceStop", Icon16x16, FStyleColors::Error));
-		Set("Icons.StartTrace", new IMAGE_BRUSH_SVG("StartTrace", Icon16x16));
-		Set("Icons.TraceSnapshot", new IMAGE_BRUSH_SVG("TraceSnapshot", Icon16x16));
+		Set("Icons.UnrealInsights.Menu", new IMAGE_BRUSH_SVG("UnrealInsights_16", Icon16x16));
+
+		Set("Icons.Trace.Menu", new IMAGE_BRUSH_SVG("Trace_16", Icon16x16));
+		Set("Icons.Trace.StatusBar", new IMAGE_BRUSH_SVG("Trace_20", Icon16x16));
+
+		Set("Icons.RecordTraceCenter.StatusBar", new IMAGE_BRUSH_SVG("RecordTraceCenter_20", Icon16x16));
+		Set("Icons.RecordTraceOutline.StatusBar", new IMAGE_BRUSH_SVG("RecordTraceOutline_20", Icon16x16));
+		Set("Icons.RecordTraceRecording.StatusBar", new IMAGE_BRUSH_SVG("RecordTraceRecording_20", Icon16x16));
+		
+		Set("Icons.RecordTraceStop.StatusBar", new IMAGE_BRUSH_SVG("RecordTraceStop_20", Icon16x16, FStyleColors::Error));
+
+		Set("Icons.StartTrace.Menu", new IMAGE_BRUSH_SVG("StartTrace_16", Icon16x16));
+		Set("Icons.StartTrace.StatusBar", new IMAGE_BRUSH_SVG("StartTrace_20", Icon16x16));
+
+		Set("Icons.TraceSnapshot.Menu", new IMAGE_BRUSH_SVG("TraceSnapshot_16", Icon16x16));
+		Set("Icons.TraceSnapshot.StatusBar", new IMAGE_BRUSH_SVG("TraceSnapshot_20", Icon16x16));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
