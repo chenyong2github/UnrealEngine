@@ -201,7 +201,7 @@ FBlake3Hash GGlobalConstructClassesHash;
 int64 GMaxBulkDataSize = -1;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("2A2A362225084BE8B1FCD539E21BDE28");
+const TCHAR* EditorDomainVersion = TEXT("0CE4958BE8484993A0399BF2CB52EF4E");
 
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
@@ -2016,8 +2016,6 @@ bool TrySavePackage(UPackage* Package)
 		StorageResult = ESaveStorageResult::BulkDataTooLarge;
 	}
 
-	ICache& Cache = GetCache();
-
 	bool bStorageResultValid = StorageResult == ESaveStorageResult::Valid;
 	TCbWriter<16> MetaData;
 	MetaData.BeginObject();
@@ -2036,11 +2034,21 @@ bool TrySavePackage(UPackage* Package)
 	FCacheRecordBuilder RecordBuilder(GetEditorDomainPackageKey(PackageDigest.Hash));
 	if (bStorageResultValid)
 	{
+		COOK_STAT(Timer.AddMiss(FileSize + MetaData.GetSaveSize()));
+
+		uint64 TotalAttachmentSize = 0;
 		for (const FEditorDomainPackageWriter::FAttachment& Attachment : PackageWriter->GetAttachments())
 		{
 			RecordBuilder.AddValue(Attachment.ValueId, Attachment.Buffer);
+			TotalAttachmentSize += Attachment.Buffer.GetSize();
 		}
-		COOK_STAT(Timer.AddMiss(FileSize + MetaData.GetSaveSize()));
+		if (TotalAttachmentSize != FileSize)
+		{
+			UE_LOG(LogEditorDomain, Warning,
+				TEXT("Could not save %s to EditorDomain due to TrySavePackage bug: size of all segments %" UINT64_FMT " is not equal to FileSize in metadata %" UINT64_FMT "."),
+				*Package->GetName(), TotalAttachmentSize, FileSize);
+			return false;
+		}
 	}
 	else
 	{
@@ -2048,7 +2056,7 @@ bool TrySavePackage(UPackage* Package)
 	}
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
 	FRequestOwner Owner(EPriority::Normal);
-	Cache.Put({ {{Package->GetName()}, RecordBuilder.Build()} }, Owner);
+	GetCache().Put({ {{Package->GetName()}, RecordBuilder.Build()} }, Owner);
 	Owner.KeepAlive();
 
 	if (bStorageResultValid)

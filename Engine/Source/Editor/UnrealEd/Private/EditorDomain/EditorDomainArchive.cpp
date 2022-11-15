@@ -328,6 +328,7 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 					TEXT("size of all segments "), CompositeSize, TEXT(" is not equal to FileSize in metadata "), FileSize
 					) : TEXT("metadata is empty"));
 			Segments.Empty();
+			bExistsInEditorDomain = false;
 		}
 		else
 		{
