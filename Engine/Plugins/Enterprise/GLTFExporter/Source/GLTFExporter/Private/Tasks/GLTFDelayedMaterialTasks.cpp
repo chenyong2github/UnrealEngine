@@ -521,7 +521,7 @@ bool FGLTFDelayedMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRou
 	if (BaseColorBakeOutput.bIsConstant && OpacityBakeOutput.bIsConstant)
 	{
 		FLinearColor BaseColorFactor(BaseColorBakeOutput.ConstantValue * BaseColorScale);
-		BaseColorFactor.A = OpacityBakeOutput.ConstantValue.A;
+		BaseColorFactor.A = OpacityBakeOutput.ConstantValue.R;
 
 		OutPBRParams.BaseColorFactor = FGLTFCoreUtilities::ConvertColor(BaseColorFactor, Builder.ExportOptions->bStrictCompliance);
 		return true;
