@@ -54,22 +54,13 @@ bool FClothLODDataCommon::Serialize(FArchive& Ar)
 		}
 		ParameterMasks_DEPRECATED.Empty();
 
-		// Migrate Convex Planes from the legacy Apex collision (used for box collision)
-		// Note: This code is not enough to get Apex convex working (it's missing surface points and face indices),
-		//       but it is better to keep the data alive for now in case the Apex deprecation causes any issues.
-		for (FClothCollisionPrim_Convex& Convex : CollisionData.Convexes)
-		{
-			const int32 NumDeprecatedPlanes = Convex.Planes_DEPRECATED.Num();
-			if (NumDeprecatedPlanes)
-			{
-				Convex.Faces.SetNum(NumDeprecatedPlanes);
-				for (int32 FaceIndex = 0; FaceIndex < NumDeprecatedPlanes; ++FaceIndex)
-				{
-					Convex.Faces[FaceIndex].Plane = Convex.Planes_DEPRECATED[FaceIndex];
-				}
-				Convex.Planes_DEPRECATED.Empty();
-			}
-		}
+		// Remove deprecated Apex collisions from the LOD data
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		CollisionData.Spheres.Empty();
+		CollisionData.SphereConnections.Empty();
+		CollisionData.Convexes.Empty();
+		CollisionData.Boxes.Empty();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 #endif // WITH_EDITORONLY_DATA
 	return true;

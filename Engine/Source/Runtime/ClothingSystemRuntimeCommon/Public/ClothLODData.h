@@ -11,12 +11,22 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothLODDataCommon
 {
 	GENERATED_BODY()
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // For CollisionData
+	FClothLODDataCommon() = default;
+	FClothLODDataCommon(const FClothLODDataCommon&) = default;
+	FClothLODDataCommon(FClothLODDataCommon&&) = default;
+	~FClothLODDataCommon() = default;
+	FClothLODDataCommon& operator=(const FClothLODDataCommon&) = default;
+	FClothLODDataCommon& operator=(FClothLODDataCommon&&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	// Raw phys mesh data
 	UPROPERTY(EditAnywhere, Category = SimMesh)
 	FClothPhysicalMeshData PhysicalMeshData;
 
 	// Collision primitive and convex data for clothing collisions
-	UPROPERTY(EditAnywhere, Category = Collision)
+	UE_DEPRECATED(5.2, "This property is no longer supported. Use Physics Asset instead.")
+	UPROPERTY(EditAnywhere, Category = Collision, Meta = (DeprecatedProperty, DeprecationMessage = "This property is no longer supported. Use Physics Asset instead."))
 	FClothCollisionData CollisionData;
 
 	// Whether to use multiple triangles to interpolate from simulated cloth mesh to render mesh

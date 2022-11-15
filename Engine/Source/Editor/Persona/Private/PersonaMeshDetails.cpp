@@ -6248,7 +6248,6 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 		{
 			const FClothLODDataCommon& LodData = Asset->LodData[LODIndex];
 			const FClothPhysicalMeshData& PhysMeshData = LodData.PhysicalMeshData;
-			const FClothCollisionData& CollisionData = LodData.CollisionData;
 
 			Grid->AddSlot(0, RowNumber)
 				.HAlign(HAlign_Center)
@@ -6312,22 +6311,6 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 					SNew(STextBlock)
 					.Font(DetailFontInfo)
 				.Text(FText::AsNumber(PhysMeshData.MaxBoneWeights))
-				];
-
-			Grid->AddSlot(4, RowNumber)
-				.HAlign(HAlign_Center)
-				[
-					SNew(STextBlock)
-					.Font(DetailFontInfo)
-				.Text(LOCTEXT("NumBoneSpheres", "Spheres"))
-				];
-
-			Grid->AddSlot(4, RowNumber + 1)
-				.HAlign(HAlign_Center)
-				[
-					SNew(STextBlock)
-					.Font(DetailFontInfo)
-				.Text(FText::AsNumber(CollisionData.Spheres.Num()))
 				];
 
 			RowNumber += 2;

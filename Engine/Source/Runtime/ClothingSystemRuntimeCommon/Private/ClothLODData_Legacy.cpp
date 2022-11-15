@@ -69,12 +69,6 @@ void UClothLODDataCommon_Legacy::MigrateTo(FClothLODDataCommon& LodData)
 		LodData.PhysicalMeshData.MigrateFrom(ClothPhysicalMeshData);
 	}
 
-	// Migrate collision
-	LodData.CollisionData.Spheres = MoveTemp(CollisionData.Spheres);
-	LodData.CollisionData.SphereConnections = MoveTemp(CollisionData.SphereConnections);
-	LodData.CollisionData.Convexes = MoveTemp(CollisionData.Convexes);
-	LodData.CollisionData.Boxes = MoveTemp(CollisionData.Boxes);
-
 #if WITH_EDITORONLY_DATA
 	// Migrate editor maps
 	LodData.PointWeightMaps = MoveTemp(ParameterMasks);
