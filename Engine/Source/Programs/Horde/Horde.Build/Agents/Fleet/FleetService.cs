@@ -360,7 +360,7 @@ namespace Horde.Build.Agents.Fleet
 			}
 
 			// These is the legacy way of creating and configuring strategies (list-based approach above is preferred)
-			switch (pool.SizeStrategy)
+			switch (pool.SizeStrategy ?? _settings.Value.DefaultAgentPoolSizeStrategy)
 			{
 				case PoolSizeStrategy.JobQueue:
 					return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, _cache, pool.JobQueueSettings);

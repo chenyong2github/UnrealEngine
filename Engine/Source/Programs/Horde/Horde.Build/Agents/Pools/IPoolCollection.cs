@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Amazon.Util.Internal;
 using EpicGames.Horde.Common;
 using Horde.Build.Agents.Fleet;
 using Horde.Build.Utilities;
@@ -10,6 +11,38 @@ using Horde.Build.Utilities;
 namespace Horde.Build.Agents.Pools
 {
 	using PoolId = StringId<IPool>;
+
+	/// <summary>
+	/// Exception when conflicting definitions for a pool are encountered
+	/// </summary>
+	public sealed class PoolConflictException : Exception
+	{
+		/// <summary>
+		/// Pool with conflicting definitions
+		/// </summary>
+		public PoolId PoolId { get; }
+
+		/// <summary>
+		/// The first revision string
+		/// </summary>
+		public string PrevRevision { get; }
+
+		/// <summary>
+		/// The second revision string
+		/// </summary>
+		public string NextRevision { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public PoolConflictException(PoolId poolId, string prevRevision, string nextRevision)
+			: base($"Duplicate definitions for {poolId} - first in {prevRevision}, now {nextRevision}")
+		{
+			PoolId = poolId;
+			PrevRevision = prevRevision;
+			NextRevision = nextRevision;
+		}
+	}
 
 	/// <summary>
 	/// Collection of pool documents
@@ -127,5 +160,11 @@ namespace Horde.Build.Agents.Pools
 			JobQueueSettings? jobQueueSettings = null,
 			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings = null,
 			bool? useDefaultStrategy = null);
+
+		/// <summary>
+		/// Updates the list of pools from a config file
+		/// </summary>
+		/// <param name="poolConfigs">Configuration for the pools, and revision string for the config file containing them</param>
+		Task ConfigureAsync(IReadOnlyList<(PoolConfig Config, string Revision)> poolConfigs);
 	}
 }

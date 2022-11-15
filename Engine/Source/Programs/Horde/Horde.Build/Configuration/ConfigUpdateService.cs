@@ -10,6 +10,7 @@ using EpicGames.Core;
 using EpicGames.Perforce;
 using Horde.Build.Acls;
 using Horde.Build.Agents;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Notifications;
 using Horde.Build.Perforce;
 using Horde.Build.Projects;
@@ -44,6 +45,7 @@ namespace Horde.Build.Configuration
 
 		readonly GlobalsService _globalsService;
 		readonly ConfigCollection _configCollection;
+		readonly IPoolCollection _poolCollection;
 		readonly ToolCollection _toolCollection;
 		readonly ProjectService _projectService;
 		readonly StreamService _streamService;
@@ -57,11 +59,12 @@ namespace Horde.Build.Configuration
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigUpdateService(GlobalsService globalsService, MongoService mongoService, ConfigCollection configCollection, IPerforceService perforceService, ToolCollection toolCollection, ProjectService projectService, StreamService streamService, INotificationService notificationService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigUpdateService> logger)
+		public ConfigUpdateService(GlobalsService globalsService, MongoService mongoService, ConfigCollection configCollection, IPerforceService perforceService, IPoolCollection poolCollection, ToolCollection toolCollection, ProjectService projectService, StreamService streamService, INotificationService notificationService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigUpdateService> logger)
 		{
 			_globalsService = globalsService;
 			_configCollection = configCollection;
 			_perforceService = perforceService;
+			_poolCollection = poolCollection;
 			_toolCollection = toolCollection;
 			_projectService = projectService;
 			_streamService = streamService;
@@ -316,6 +319,19 @@ namespace Horde.Build.Configuration
 			{
 				_logger.LogInformation("Removing stream {StreamId}", removeStreamId);
 				await _streamService.DeleteStreamAsync(removeStreamId);
+			}
+
+			// Configure all the pools
+			List<(PoolConfig, string)> poolConfigs = new();
+			poolConfigs.AddRange(globalConfig.Pools.Select(x => (x, _cachedGlobalConfigRevision!)));
+			poolConfigs.AddRange(_cachedProjectConfigs.Values.SelectMany(x => x.Config.Pools.Select(y => (y, x.Revision))));
+			try
+			{
+				await _poolCollection.ConfigureAsync(poolConfigs);
+			}
+			catch (PoolConflictException ex)
+			{
+				await SendFailureNotificationAsync(ex, configPath, cancellationToken);
 			}
 		}
 

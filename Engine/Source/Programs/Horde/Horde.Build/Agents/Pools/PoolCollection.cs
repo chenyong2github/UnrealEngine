@@ -24,49 +24,84 @@ namespace Horde.Build.Agents.Pools
 	{
 		class PoolDocument : IPool
 		{
-			// Properties
 			[BsonId]
 			public PoolId Id { get; set; }
+
 			[BsonRequired]
 			public string Name { get; set; } = null!;
+
 			[BsonIgnoreIfNull]
 			public Condition? Condition { get; set; }
+
 			public List<AgentWorkspace> Workspaces { get; set; } = new List<AgentWorkspace>();
+
+			[BsonIgnoreIfDefault, BsonDefaultValue(true)]
 			public bool UseAutoSdk { get; set; } = true;
+
 			public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
+
+			[BsonIgnoreIfDefault, BsonDefaultValue(true)]
 			public bool EnableAutoscaling { get; set; } = true;
+
+			[BsonIgnoreIfNull]
 			public int? MinAgents { get; set; }
+
+			[BsonIgnoreIfNull]
 			public int? NumReserveAgents { get; set; }
+
+			[BsonIgnoreIfNull]
 			public TimeSpan? ConformInterval { get; set; }
+
+			[BsonIgnoreIfNull]
 			public DateTime? LastScaleUpTime { get; set; }
+
+			[BsonIgnoreIfNull]
 			public DateTime? LastScaleDownTime { get; set; }
+
+			[BsonIgnoreIfNull]
 			public TimeSpan? ScaleOutCooldown { get; set; }
+
+			[BsonIgnoreIfNull]
 			public TimeSpan? ScaleInCooldown { get; set; }
+
+			[BsonIgnoreIfNull]
 			public PoolSizeStrategy? SizeStrategy { get; set; }
-			PoolSizeStrategy IPool.SizeStrategy => SizeStrategy ?? s_defaultStrategy!.Value;
-			public List<PoolSizeStrategyInfo> SizeStrategies { get; set; } = new ();
-			public List<FleetManagerInfo> FleetManagers { get; set; } = new ();
+
+			[BsonIgnoreIfNull]
+			public List<PoolSizeStrategyInfo>? SizeStrategies { get; set; }
+
+			[BsonIgnoreIfNull]
+			public List<FleetManagerInfo>? FleetManagers { get; set; }
+
+			[BsonIgnoreIfNull]
 			public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
+
+			[BsonIgnoreIfNull]
 			public JobQueueSettings? JobQueueSettings { get; set; }
+
+			[BsonIgnoreIfNull]
 			public ComputeQueueAwsMetricSettings? ComputeQueueAwsMetricSettings { get; set; }
+
+			[BsonIgnoreIfNull]
+			public string? Revision { get; set; }
+
 			public int UpdateIndex { get; set; }
 
 			// Read-only wrappers
 			IReadOnlyList<AgentWorkspace> IPool.Workspaces => Workspaces;
-			IReadOnlyDictionary<string, string> IPool.Properties => Properties;
-			IReadOnlyList<PoolSizeStrategyInfo> IPool.SizeStrategies => SizeStrategies;
-			IReadOnlyList<FleetManagerInfo> IPool.FleetManagers => FleetManagers;
+			IReadOnlyDictionary<string, string> IPoolConfig.Properties => Properties;
+			IReadOnlyList<PoolSizeStrategyInfo> IPoolConfig.SizeStrategies => (IReadOnlyList<PoolSizeStrategyInfo>?)SizeStrategies ?? Array.Empty<PoolSizeStrategyInfo>();
+			IReadOnlyList<FleetManagerInfo> IPoolConfig.FleetManagers => (IReadOnlyList<FleetManagerInfo>?)FleetManagers ?? Array.Empty<FleetManagerInfo>();
 
 			public PoolDocument()
 			{
 			}
 
-			public PoolDocument(IPool other)
+			public PoolDocument(IPoolConfig other, string? otherRevision)
 			{
 				Id = other.Id;
-				Name = other.Name;
+				Name = String.IsNullOrEmpty(other.Name)? other.Id.ToString() : other.Name;
 				Condition = other.Condition;
-				Workspaces.AddRange(other.Workspaces);
 				UseAutoSdk = other.UseAutoSdk;
 				Properties = new Dictionary<string, string>(other.Properties);
 				EnableAutoscaling = other.EnableAutoscaling;
@@ -78,11 +113,24 @@ namespace Horde.Build.Agents.Pools
 				ScaleOutCooldown = other.ScaleOutCooldown;
 				ScaleInCooldown = other.ScaleInCooldown;
 				SizeStrategy = other.SizeStrategy;
-				SizeStrategies.AddRange(other.SizeStrategies);
-				FleetManagers.AddRange(other.FleetManagers);
+				if (other.SizeStrategies != null && other.SizeStrategies.Count > 0)
+				{
+					SizeStrategies = new List<PoolSizeStrategyInfo>(other.SizeStrategies);
+				}
+				if (other.FleetManagers != null && other.FleetManagers.Count > 0)
+				{
+					FleetManagers = new List<FleetManagerInfo>(other.FleetManagers);
+				}
 				LeaseUtilizationSettings = other.LeaseUtilizationSettings;
 				JobQueueSettings = other.JobQueueSettings;
 				ComputeQueueAwsMetricSettings = other.ComputeQueueAwsMetricSettings;
+				Revision = otherRevision;
+			}
+
+			public PoolDocument(IPool other)
+				: this(other, other.Revision)
+			{
+				Workspaces.AddRange(other.Workspaces);
 				UpdateIndex = other.UpdateIndex;
 			}
 		}
@@ -92,17 +140,13 @@ namespace Horde.Build.Agents.Pools
 		/// </summary>
 		readonly IMongoCollection<PoolDocument> _pools;
 
-		static PoolSizeStrategy? s_defaultStrategy;
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService">The database service instance</param>
-		/// <param name="serverSettings">The server settings</param>
-		public PoolCollection(MongoService mongoService, IOptions<ServerSettings> serverSettings)
+		public PoolCollection(MongoService mongoService)
 		{
 			_pools = mongoService.GetCollection<PoolDocument>("Pools");
-			s_defaultStrategy = serverSettings.Value.DefaultAgentPoolSizeStrategy;
 		}
 
 		/// <inheritdoc/>
@@ -363,6 +407,68 @@ namespace Horde.Build.Agents.Pools
 				transaction.Set(x => x.ComputeQueueAwsMetricSettings, computeQueueAwsMetricSettings);
 			}
 			return TryUpdateAsync(pool, transaction);
+		}
+
+		/// <inheritdoc/>
+		public async Task ConfigureAsync(IReadOnlyList<(PoolConfig Config, string Revision)> poolConfigs)
+		{
+			List<PoolDocument> pools = await _pools.Find(FilterDefinition<PoolDocument>.Empty).ToListAsync();
+			Dictionary<PoolId, PoolDocument> idToPool = pools.ToDictionary(x => x.Id, x => x);
+
+			// Make sure we don't have any duplicates in the new pool configs before setting anything
+			Dictionary<PoolId, string> poolIdToRevision = new Dictionary<PoolId, string>();
+			foreach ((PoolConfig poolConfig, string revision) in poolConfigs)
+			{
+				if (poolIdToRevision.TryGetValue(poolConfig.Id, out string? prevRevision))
+				{
+					throw new PoolConflictException(poolConfig.Id, prevRevision, revision);
+				}
+				else
+				{
+					poolIdToRevision.Add(poolConfig.Id, revision);
+				}
+			}
+
+			// Update all the pools which are still present
+			foreach ((PoolConfig poolConfig, string revision) in poolConfigs)
+			{
+				idToPool.TryGetValue(poolConfig.Id, out PoolDocument? currentPool);
+				while (currentPool == null || currentPool.Revision != revision)
+				{
+					int updateIndex = currentPool?.UpdateIndex ?? 0;
+
+					PoolDocument newPool = new PoolDocument(poolConfig, revision);
+					if (currentPool != null)
+					{
+						newPool.Workspaces.AddRange(currentPool.Workspaces);
+						newPool.UpdateIndex = currentPool.UpdateIndex;
+					}
+
+					ReplaceOneResult result = await _pools.ReplaceOneAsync(x => x.Id == poolConfig.Id && x.UpdateIndex == updateIndex, newPool, new ReplaceOptions { IsUpsert = true });
+					if (result.MatchedCount > 0)
+					{
+						break;
+					}
+
+					currentPool = await _pools.Find(x => x.Id == poolConfig.Id).FirstOrDefaultAsync();
+				}
+				idToPool.Remove(poolConfig.Id);
+			}
+
+			// Remove anything that has been deleted
+			foreach (PoolDocument remainingPool in idToPool.Values)
+			{
+				PoolDocument? remainingPoolCopy = remainingPool;
+				while (remainingPoolCopy != null && !String.IsNullOrEmpty(remainingPoolCopy.Revision))
+				{
+					DeleteResult result = await _pools.DeleteOneAsync(x => x.Id == remainingPool.Id && x.UpdateIndex == remainingPoolCopy.UpdateIndex);
+					if (result.DeletedCount > 0)
+					{
+						break;
+					}
+					remainingPoolCopy = await _pools.Find(x => x.Id == remainingPool.Id).FirstOrDefaultAsync();
+				}
+			}
 		}
 	}
 }

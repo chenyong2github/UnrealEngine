@@ -17,5 +17,27 @@
 				"id": "default"
 			}
 		]
-	}
+	},
+	"pools": [
+		{
+			"id": "any",
+			"name": "Any",
+			"condition": "true"
+		},
+		{
+			"id": "win64",
+			"name": "Win64",
+			"condition": "Platform == 'Win64'"
+		},
+		{
+			"id": "mac",
+			"name": "Mac",
+			"condition": "Platform == 'Mac'"
+		},
+		{
+			"id": "linux",
+			"name": "Linux",
+			"condition": "Platform == 'Linux'"
+		}
+	]
 }

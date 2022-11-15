@@ -9,6 +9,7 @@ using EpicGames.Horde.Common;
 using EpicGames.Perforce;
 using EpicGames.Serialization;
 using Horde.Build.Acls;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Agents.Software;
 using Horde.Build.Projects;
 using Horde.Build.Storage;
@@ -31,6 +32,11 @@ namespace Horde.Build.Server
 		/// List of projects
 		/// </summary>
 		public List<ProjectConfigRef> Projects { get; set; } = new List<ProjectConfigRef>();
+
+		/// <summary>
+		/// List of pools
+		/// </summary>
+		public List<PoolConfig> Pools { get; set; } = new List<PoolConfig>();
 
 		/// <summary>
 		/// List of scheduled downtime

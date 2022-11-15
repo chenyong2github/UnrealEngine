@@ -6,6 +6,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Horde.Build.Acls;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 
@@ -30,6 +31,11 @@ namespace Horde.Build.Projects
 		/// Path to the project logo
 		/// </summary>
 		public string? Logo { get; set; }
+
+		/// <summary>
+		/// List of pools for this project
+		/// </summary>
+		public List<PoolConfig> Pools { get; set; } = new List<PoolConfig>();
 
 		/// <summary>
 		/// Categories to include in this project
