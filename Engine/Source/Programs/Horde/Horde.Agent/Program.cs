@@ -21,6 +21,7 @@ using Horde.Agent.Utility;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTracing.Util;
 using Polly;
 
@@ -180,9 +181,18 @@ namespace Horde.Agent
 
 			services.AddSingleton<GrpcService>();
 
-			services.AddSingleton<JobExecutorFactory, PerforceExecutorFactory>();
-			services.AddSingleton<JobExecutorFactory, LocalExecutorFactory>();
-			services.AddSingleton<JobExecutorFactory, TestExecutorFactory>();
+			services.AddSingleton<PerforceExecutorFactory>();
+			services.AddSingleton<LocalExecutorFactory>();
+			services.AddSingleton<TestExecutorFactory>();
+
+			services.AddSingleton<JobExecutorFactory>(sp =>
+				sp.GetRequiredService<IOptions<AgentSettings>>().Value.Executor switch
+				{
+					ExecutorType.Test => sp.GetRequiredService<TestExecutorFactory>(),
+					ExecutorType.Local => sp.GetRequiredService<LocalExecutorFactory>(),
+					ExecutorType.Perforce => sp.GetRequiredService<PerforceExecutorFactory>(),
+					_ => throw new NotImplementedException()
+				});
 
 			services.AddSingleton<LeaseHandler, ComputeHandler>();
 			services.AddSingleton<LeaseHandler, ConformHandler>();

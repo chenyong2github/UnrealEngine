@@ -445,11 +445,6 @@ namespace Horde.Build.Jobs.Templates
 		/// Parameters for this template
 		/// </summary>
 		public List<ParameterData> Parameters { get; set; } = new List<ParameterData>();
-
-		/// <summary>
-		/// The executor to use for this job. Mainly used for debugging.
-		/// </summary>
-		public string? Executor { get; set; }
 	}
 
 	/// <summary>

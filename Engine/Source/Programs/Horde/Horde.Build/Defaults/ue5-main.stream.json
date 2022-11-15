@@ -8,7 +8,6 @@
 			"showNames": true,
 			"templates":
 			[
-				"test-executor",
 				"custom"
 			],
 			"columns":
@@ -33,9 +32,6 @@
 	],
 	"agentTypes":
 	{
-		"AnyAgent": {
-			"pool": "any"
-		},
 		"Win-UE5":
 		{
 			"pool": "win-ue5",
@@ -49,15 +45,6 @@
 	},
 	"templates":
 	[
-		{
-			"id": "test-executor",
-			"name": "Run Test Executor",
-			"executor": "Test",
-			"initialAgentType": "AnyAgent",
-			"arguments": [
-				"-Target=Full Build"
-			]
-		},
 		{
 			"id": "custom",
 			"name": "Custom...",

@@ -253,9 +253,6 @@ namespace Horde.Build.Jobs
 			public DateTimeOffset? CreateTime { get; set; }
 
 			[BsonIgnoreIfNull]
-			public string? Executor { get; set; }
-
-			[BsonIgnoreIfNull]
 			public DateTime? CreateTimeUtc { get; set; }
 
 			public int SchedulePriority { get; set; }
@@ -325,7 +322,6 @@ namespace Horde.Build.Jobs
 				AutoSubmit = options.AutoSubmit ?? false;
 				UpdateIssues = options.UpdateIssues ?? (options.StartedByUserId == null && ( options.PreflightChange == 0 || options.PreflightChange == null));
 				PromoteIssuesByDefault = options.PromoteIssuesByDefault ?? false;
-				Executor = options.Executor;
 				CreateTimeUtc = createTimeUtc;
 				ChainedJobs.AddRange(options.JobTriggers.Select(x => new ChainedJobDocument(x)));
 				ShowUgsBadges = options.ShowUgsBadges;

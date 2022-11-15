@@ -20,8 +20,6 @@ namespace Horde.Agent.Execution
 {
 	class TestExecutor : JobExecutor
 	{
-		public const string Name = "Test";
-
 		public TestExecutor(ISession session, string jobId, string batchId, string agentTypeName, IHttpClientFactory httpClientFactory)
 			: base(session, jobId, batchId, agentTypeName, httpClientFactory)
 		{
@@ -42,31 +40,26 @@ namespace Horde.Agent.Execution
 			UpdateGraphRequest updateGraph = new UpdateGraphRequest();
 			updateGraph.JobId = _jobId;
 
-			CreateGroupRequest winEditorGroup = CreateGroup("AnyAgent");
+			CreateGroupRequest winEditorGroup = CreateGroup("Win64");
 			winEditorGroup.Nodes.Add(CreateNode("Update Version Files", Array.Empty<string>(), JobStepOutcome.Success));
 			winEditorGroup.Nodes.Add(CreateNode("Compile UnrealHeaderTool Win64", new string[] { "Update Version Files" }, JobStepOutcome.Success));
 			winEditorGroup.Nodes.Add(CreateNode("Compile UE4Editor Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Success));
 			winEditorGroup.Nodes.Add(CreateNode("Compile FortniteEditor Win64", new string[] { "Compile UnrealHeaderTool Win64", "Compile UE4Editor Win64" }, JobStepOutcome.Success));
 			updateGraph.Groups.Add(winEditorGroup);
 
-			CreateGroupRequest winToolsGroup = CreateGroup("AnyAgent"); 
+			CreateGroupRequest winToolsGroup = CreateGroup("Win64"); 
 			winToolsGroup.Nodes.Add(CreateNode("Compile Tools Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Warnings));
 			updateGraph.Groups.Add(winToolsGroup);
 
-			CreateGroupRequest winClientsGroup = CreateGroup("AnyAgent");
+			CreateGroupRequest winClientsGroup = CreateGroup("Win64");
 			winClientsGroup.Nodes.Add(CreateNode("Compile FortniteClient Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Success));
 			updateGraph.Groups.Add(winClientsGroup);
 
-			CreateGroupRequest winCooksGroup = CreateGroup("AnyAgent");
+			CreateGroupRequest winCooksGroup = CreateGroup("Win64");
 			winCooksGroup.Nodes.Add(CreateNode("Cook FortniteClient Win64", new string[] { "Compile FortniteEditor Win64", "Compile Tools Win64" }, JobStepOutcome.Warnings));
 			winCooksGroup.Nodes.Add(CreateNode("Stage FortniteClient Win64", new string[] { "Cook FortniteClient Win64", "Compile Tools Win64" }, JobStepOutcome.Success));
 			winCooksGroup.Nodes.Add(CreateNode("Publish FortniteClient Win64", new string[] { "Stage FortniteClient Win64" }, JobStepOutcome.Success));
 			updateGraph.Groups.Add(winCooksGroup);
-
-			CreateAggregateRequest aggregate = new CreateAggregateRequest();
-			aggregate.Name = "Full Build";
-			aggregate.Nodes.Add("Publish FortniteClient Win64");
-			updateGraph.Aggregates.Add(aggregate);
 
 			Dictionary<string, string[]> dependencyMap = CreateDependencyMap(updateGraph.Groups);
 			updateGraph.Labels.Add(CreateLabel("Editors", "UE4", new string[] { "Compile UE4Editor Win64" }, Array.Empty<string>(), dependencyMap));
@@ -193,8 +186,6 @@ namespace Horde.Agent.Execution
 	class TestExecutorFactory : JobExecutorFactory
 	{
 		readonly IHttpClientFactory _httpClientFactory;
-
-		public override string Name => TestExecutor.Name;
 
 		public TestExecutorFactory(IHttpClientFactory httpClientFactory)
 		{
