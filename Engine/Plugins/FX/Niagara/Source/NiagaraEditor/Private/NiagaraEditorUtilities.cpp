@@ -1014,6 +1014,16 @@ bool FNiagaraEditorUtilities::AreTypesAssignable(const FNiagaraTypeDefinition& T
 
 void FNiagaraEditorUtilities::MarkDependentCompilableAssetsDirty(TArray<UObject*> InObjects)
 {
+	TArray<FAssetData> AssetsToCheck;
+	for (UObject* InObject : InObjects)
+	{	
+		AssetsToCheck.Add(FAssetData(InObject));
+	}
+	MarkDependentCompilableAssetsDirty(AssetsToCheck);
+}
+
+void FNiagaraEditorUtilities::MarkDependentCompilableAssetsDirty(const TArray<FAssetData>& InAssetsToCheck)
+{
 	const FText LoadAndMarkDirtyDisplayName = NSLOCTEXT("NiagaraEditor", "MarkDependentAssetsDirtySlowTask", "Loading and marking dependent assets dirty.");
 	GWarn->BeginSlowTask(LoadAndMarkDirtyDisplayName, true, true);
 
@@ -1021,12 +1031,7 @@ void FNiagaraEditorUtilities::MarkDependentCompilableAssetsDirty(TArray<UObject*
 	TArray<FAssetIdentifier> ReferenceNames;
 
 	TArray<FAssetData> AssetsToLoadAndMarkDirty;
-	TArray<FAssetData> AssetsToCheck;
-
-	for (UObject* InObject : InObjects)
-	{	
-		AssetsToCheck.Add(FAssetData(InObject));
-	}
+	TArray<FAssetData> AssetsToCheck = InAssetsToCheck;
 
 	while (AssetsToCheck.Num() > 0)
 	{

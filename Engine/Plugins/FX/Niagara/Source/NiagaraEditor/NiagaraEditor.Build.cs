@@ -61,6 +61,8 @@ public class NiagaraEditor : ModuleRules
 				"DeveloperSettings",
 				"PythonScriptPlugin",
 				"ImageWrapper",
+				"AssetDefinition",
+				"ContentBrowser"
 			}
 		);
 

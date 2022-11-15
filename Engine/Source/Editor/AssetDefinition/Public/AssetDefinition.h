@@ -195,6 +195,7 @@ struct FAssetOpenSupportArgs
 struct ASSETDEFINITION_API FAssetCategoryPath
 {
 	FAssetCategoryPath(FText InCategory);
+	FAssetCategoryPath(FText InCategory, FText InSubCategory);
 	FAssetCategoryPath(TConstArrayView<FText> InCategoryPath);
 
 	FName GetCategory() const { return CategoryPath[0].Key; }

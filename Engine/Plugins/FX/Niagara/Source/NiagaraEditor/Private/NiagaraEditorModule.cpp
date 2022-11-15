@@ -15,14 +15,8 @@
 #include "Subsystems/ImportSubsystem.h"
 #include "UObject/UObjectThreadContext.h"
 
-#include "AssetTypeActions/AssetTypeActions_NiagaraSystem.h"
-#include "AssetTypeActions/AssetTypeActions_NiagaraEmitter.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraParameterCollection.h"
-#include "AssetTypeActions/AssetTypeActions_NiagaraEffectType.h"
-#include "AssetTypeActions/AssetTypeActions_NiagaraParameterDefinitions.h"
-#include "AssetTypeActions/AssetTypeActions_NiagaraSimCache.h"
-#include "AssetTypeActions/AssetTypeActions_NiagaraValidationRuleSet.h"
 
 #include "EdGraphSchema_Niagara.h"
 #include "EdGraphUtilities.h"
@@ -857,17 +851,11 @@ void FNiagaraEditorModule::StartupModule()
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	NiagaraAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("FX")), LOCTEXT("NiagaraAssetsCategory", "FX"));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraSystem()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraEmitter()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptFunctions()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptModules()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptDynamicInputs()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollection())); 
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollectionInstance()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterDefinitions()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraEffectType()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraSimCache()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraValidationRuleSet()));
 
 	// Preload all parameter definition & collection assets so that they will be postloaded before postload calls to scripts/emitters/systems that rely on them.
 	{

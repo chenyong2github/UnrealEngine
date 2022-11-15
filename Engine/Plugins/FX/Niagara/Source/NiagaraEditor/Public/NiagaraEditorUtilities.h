@@ -168,6 +168,7 @@ namespace FNiagaraEditorUtilities
 	NIAGARAEDITOR_API bool AreTypesAssignable(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB);
 
 	void MarkDependentCompilableAssetsDirty(TArray<UObject*> InObjects);
+	void MarkDependentCompilableAssetsDirty(const TArray<FAssetData>& InAssets);
 
 	void ResolveNumerics(UNiagaraGraph* SourceGraph, bool bForceParametersToResolveNumerics, TArray<FNiagaraVariable>& ChangedNumericParams);
 

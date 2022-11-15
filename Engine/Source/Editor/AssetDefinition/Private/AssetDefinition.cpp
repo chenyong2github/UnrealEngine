@@ -22,6 +22,11 @@ FAssetCategoryPath::FAssetCategoryPath(const FText InCategory)
 	CategoryPath = { TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InCategory)), InCategory) };
 }
 
+FAssetCategoryPath::FAssetCategoryPath(FText InCategory, FText InSubCategory)
+{
+	CategoryPath = { TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InCategory)), InCategory), TPair<FName, FText>(FName(*FTextInspector::GetSourceString(InSubCategory)), InSubCategory) };
+}
+
 FAssetCategoryPath::FAssetCategoryPath(TConstArrayView<FText> InCategoryPath)
 {
 	check(InCategoryPath.Num() > 0);
