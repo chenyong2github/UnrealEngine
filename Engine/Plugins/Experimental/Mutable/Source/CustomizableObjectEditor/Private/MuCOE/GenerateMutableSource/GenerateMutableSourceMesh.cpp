@@ -1819,12 +1819,14 @@ mu::MeshPtr ConvertStaticMeshToMutable(UStaticMesh* StaticMesh, int LOD, int Mat
 }
 
 
-// Convert a mesh constant to a mutable format.
-mu::MeshPtr GenerateMutableMesh(UObject * Mesh, int32 LOD, int32 MaterialIndex, FMutableGraphGenerationContext & GenerationContext, const UCustomizableObjectNode* CurrentNode)
+// Convert a Mesh constant to a mutable format. UniqueTags are the tags that make this Mesh unique that cannot be merged in the cache 
+//  with the exact same Mesh with other tags
+mu::MeshPtr GenerateMutableMesh(UObject * Mesh, int32 LOD, int32 MaterialIndex, const FString& UniqueTags, FMutableGraphGenerationContext & GenerationContext, const UCustomizableObjectNode* CurrentNode)
 {
 	// Get the mesh generation flags to use
 	uint32 CurrentFlags = GenerationContext.MeshGenerationFlags.Last();
-	FMutableGraphGenerationContext::FGeneratedMeshData::FKey Key = { Mesh, LOD, MaterialIndex, CurrentFlags };
+
+	FMutableGraphGenerationContext::FGeneratedMeshData::FKey Key = { Mesh, LOD, MaterialIndex, CurrentFlags, UniqueTags };
 	mu::MeshPtr MutableMesh = GenerationContext.FindGeneratedMesh(Key);
 	
 	if (!MutableMesh)
@@ -1929,7 +1931,7 @@ mu::MeshPtr BuildMorphedMutableMesh(const UEdGraphPin* BaseSourcePin, const FStr
 
 
 		// Get the base mesh
-		mu::MeshPtr BaseSourceMesh = GenerateMutableMesh(SkeletalMesh, LODIndex, SectionIndex, GenerationContext, Node);
+		mu::MeshPtr BaseSourceMesh = GenerateMutableMesh(SkeletalMesh, LODIndex, SectionIndex, FString(), GenerationContext, Node);
 		if (BaseSourceMesh)
 		{
 			// Clone it (it will probably be shared)
@@ -2679,7 +2681,30 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				}
 			}
 
-			mu::MeshPtr MutableMesh = GenerateMutableMesh(TypedNodeSkel->SkeletalMesh, LOD, SectionIndex, GenerationContext, TypedNodeSkel);
+			// First process the mesh tags that are going to make the mesh unique and affect whether it's repeated in 
+			// the mesh cache or not
+			FString MeshUniqueTags;
+			FString AnimBPAssetTag;
+
+			if (!TypedNodeSkel->AnimInstance.IsNull())
+			{
+				int32 SlotIndex = TypedNodeSkel->AnimBlueprintSlot;
+				GenerationContext.AnimBPAssetsMap.Add(TypedNodeSkel->AnimInstance.ToString(), TypedNodeSkel->AnimInstance);
+
+				AnimBPAssetTag = GenerateAnimationInstanceTag(TypedNodeSkel->AnimInstance.ToString(), SlotIndex);
+				MeshUniqueTags += AnimBPAssetTag;
+			}
+
+			TArray<FString> ArrayAnimBPTags;
+
+			for (const FGameplayTag& GamePlayTag : TypedNodeSkel->AnimationGameplayTags)
+			{
+				const FString AnimBPTag = GenerateGameplayTag(GamePlayTag.ToString());
+				ArrayAnimBPTags.Add(AnimBPTag);
+				MeshUniqueTags += AnimBPTag;
+			}
+
+			mu::MeshPtr MutableMesh = GenerateMutableMesh(TypedNodeSkel->SkeletalMesh, LOD, SectionIndex, MeshUniqueTags, GenerationContext, TypedNodeSkel);
 			if (MutableMesh)
 			{
 				MeshNode->SetValue(MutableMesh);
@@ -2737,19 +2762,12 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 				if (!TypedNodeSkel->AnimInstance.IsNull())
 				{
-					int32 SlotIndex= TypedNodeSkel->AnimBlueprintSlot;
-					GenerationContext.AnimBPAssetsMap.Add(TypedNodeSkel->AnimInstance.ToString(), TypedNodeSkel->AnimInstance);
-
-					FString AnimBPAssetTag = GenerateAnimationInstanceTag(TypedNodeSkel->AnimInstance.ToString(), SlotIndex);
-
 					AddTagToMutableMeshUnique(*MutableMesh, AnimBPAssetTag);
 				}
 
-				for (const FGameplayTag& GamePlayTag : TypedNodeSkel->AnimationGameplayTags)
+				for (const FString& GamePlayTag : ArrayAnimBPTags)
 				{
-					const FString AnimBPTag = GenerateGameplayTag(GamePlayTag.ToString());
-					
-					AddTagToMutableMeshUnique(*MutableMesh, AnimBPTag);
+					AddTagToMutableMeshUnique(*MutableMesh, GamePlayTag);
 				}
 
 				AddSocketTagsToMesh(TypedNodeSkel->SkeletalMesh, MutableMesh, GenerationContext);
@@ -2868,7 +2886,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			}
 			check(MaterialIndex < TypedNodeStatic->LODs[LOD].Materials.Num());
 
-			mu::MeshPtr MutableMesh = GenerateMutableMesh(TypedNodeStatic->StaticMesh, LOD, MaterialIndex, GenerationContext, TypedNodeStatic);
+			mu::MeshPtr MutableMesh = GenerateMutableMesh(TypedNodeStatic->StaticMesh, LOD, MaterialIndex, FString(), GenerationContext, TypedNodeStatic);
 			if (MutableMesh)
 			{
 				MeshNode->SetValue(MutableMesh);

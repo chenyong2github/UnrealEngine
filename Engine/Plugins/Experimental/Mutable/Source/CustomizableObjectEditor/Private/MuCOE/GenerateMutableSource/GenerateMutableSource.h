@@ -572,16 +572,22 @@ struct FMutableGraphGenerationContext
 		{
 			/** Source mesh data. */
 			const UObject* Mesh = nullptr;
-			int LOD = 0;
-			int MaterialIndex = 0;
+			int32 LOD = 0;
+			int32 MaterialIndex = 0;
 
 			/** Flag used to generate this mesh. Bit mask of EMutableMeshConversionFlags */
 			uint32 Flags = 0;
 
-			bool operator==( const FKey& k ) const
+			/** Tags added at the UE level that go through the Mutable core and are merged in the generated mesh.
+			 *  Only add the tags that make the mesh unique and require it not to be cached together with the 
+			 *  same exact mesh but with different tags.
+			*/
+			FString Tags;
+
+			bool operator==( const FKey& OtherKey ) const
 			{
-				return Mesh == k.Mesh && LOD == k.LOD && MaterialIndex == k.MaterialIndex 
-					&& Flags == k.Flags;
+				return Mesh == OtherKey.Mesh && LOD == OtherKey.LOD && MaterialIndex == OtherKey.MaterialIndex
+					&& Flags == OtherKey.Flags && Tags == OtherKey.Tags;
 			}
 		};
 

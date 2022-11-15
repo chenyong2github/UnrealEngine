@@ -219,7 +219,23 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 						CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*MutableColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
 					}
 
-					mu::MeshPtr MutableMesh = GenerateMutableMesh(SkeletalMesh, CurrentLOD, MatIndex, GenerationContext, CustomNodeTable);
+					// First process the mesh tags that are going to make the mesh unique and affect whether it's repeated in 
+					// the mesh cache or not
+					FString MeshUniqueTags;
+
+					if (!AnimBPAssetTag.IsEmpty())
+					{
+						MeshUniqueTags += AnimBPAssetTag;
+					}
+
+					TArray<FString> ArrayAnimBPTags;
+
+					for (const FGameplayTag& Tag : GameplayTags)
+					{
+						MeshUniqueTags += GenerateGameplayTag(Tag.ToString());
+					}
+
+					mu::MeshPtr MutableMesh = GenerateMutableMesh(SkeletalMesh, CurrentLOD, MatIndex, MeshUniqueTags, GenerationContext, CustomNodeTable);
 
 					if (MutableMesh)
 					{
@@ -310,7 +326,7 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 						CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*MutableColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
 					}
 
-					mu::MeshPtr MutableMesh = GenerateMutableMesh(StaticMesh, CurrentLOD, MatIndex, GenerationContext, CustomNodeTable);
+					mu::MeshPtr MutableMesh = GenerateMutableMesh(StaticMesh, CurrentLOD, MatIndex, FString(), GenerationContext, CustomNodeTable);
 
 					if (MutableMesh)
 					{
