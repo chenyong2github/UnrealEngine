@@ -253,15 +253,15 @@ namespace Horde.Build.Tests
 
 			Assert.AreEqual(2, streams.Count);
 
-			Assert.AreEqual(4, streams[0].Tests.Count);				
-			Assert.AreEqual(1, streams[0].TestMetadata.Count);
+			Assert.AreEqual(0, streams[0].Tests.Count);				
+			Assert.AreEqual(0, streams[0].TestMetadata.Count);
 			Assert.AreEqual(1, streams[0].TestSuites.Count);
 
-			Assert.AreEqual(4, streams[1].Tests.Count);
-			Assert.AreEqual(1, streams[1].TestMetadata.Count);
+			Assert.AreEqual(0, streams[1].Tests.Count);
+			Assert.AreEqual(0, streams[1].TestMetadata.Count);
 			Assert.AreEqual(1, streams[1].TestSuites.Count);			
 
-			Assert.AreEqual(streams[0].TestMetadata[0].Id, streams[1].TestMetadata[0].Id);
+			//Assert.AreEqual(streams[0].TestMetadata[0].Id, streams[1].TestMetadata[0].Id);
 
 			ActionResult<List<GetTestDataRefResponse>> refResult = await TestDataController.GetTestDataRefAsync(streamIds, meta.Select(x => x.Id).ToArray());
 			Assert.IsNotNull(refResult);
