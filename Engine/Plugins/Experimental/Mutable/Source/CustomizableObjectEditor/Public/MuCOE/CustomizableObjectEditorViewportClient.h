@@ -418,6 +418,14 @@ public:
 		return FullNameMaterialToDrawInUVs;
 	}
 
+	/** Sets the skeletal mesh bones visibility */
+	void SetShowBones();
+
+	/** Returns true if bones are vibile in viewport */
+	bool IsShowingBones() const;
+
+	/** Draws Mesh Bones in foreground (From: FAnimationViewportClient) */
+	void DrawMeshBones(UDebugSkelMeshComponent* MeshComponent, FPrimitiveDrawInterface* PDI);
 
 private:
 	/** Component for the static/skeletal mesh. */
@@ -519,4 +527,7 @@ private:
 
 	/** bool to return the Camera mode to Orbital when changing the Camera view to Perspective */
 	bool bSetOrbitalOnPerspectiveMode;
+
+	/** Flag to control the bones visibility in the viewport */
+	bool bShowBones;
 };

@@ -116,18 +116,11 @@ private:
 	void GenerateSceneSetupMenu(FMenuBuilder& MenuBuilder);
 
 	/**
-	* Generates the toolbar Camera Mode menu content
+	* Generates the toolbar Options Mode menu content
 	*
-	* @return The widget containing the Camera Mode menu content
+	* @return The widget containing the Options menu content
 	*/
-	TSharedRef<SWidget> GenerateCameraModeMenu() const;
-
-	/**
-	* Returns the label for the Camera Mode tool bar menu, which changes depending on the current Camera Mode selection
-	*
-	* @return	Label to use for this Camera Mode label
-	*/
-	FText GetCameraModeMenuLabel() const;
+	TSharedRef<SWidget> GenerateViewportOptionsMenu() const;
 
 
 	/** Customize the details of the scene setup object */

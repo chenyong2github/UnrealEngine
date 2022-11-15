@@ -618,6 +618,14 @@ void SCustomizableObjectEditorViewportTabBody::BindCommands()
 		FIsActionChecked::CreateSP(this, &SCustomizableObjectEditorViewportTabBody::IsCameraModeActive,1)
 	);
 
+	// Bones Mode
+	CommandList.MapAction(
+		ViewportLODMenuCommands.ShowBones,
+		FExecuteAction::CreateSP(this, &SCustomizableObjectEditorViewportTabBody::SetShowBones),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SCustomizableObjectEditorViewportTabBody::IsShowingBones)
+	);
+
 	const FEditorViewportCommands& ViewportCommands = FEditorViewportCommands::Get();
 
 	// Camera Views
@@ -717,6 +725,30 @@ void SCustomizableObjectEditorViewportTabBody::SetDrawDefaultUVMaterial()
 			LevelViewportClient->SetDrawUVOverlayMaterial(*(ArrayUVMaterialOptionString[0]), "0");
 		}
 	}
+}
+
+
+void SCustomizableObjectEditorViewportTabBody::SetShowBones()
+{
+	LevelViewportClient->SetShowBones();
+}
+
+
+bool SCustomizableObjectEditorViewportTabBody::IsShowingBones()
+{
+	return LevelViewportClient->IsShowingBones();
+}
+
+
+void SCustomizableObjectEditorViewportTabBody::SetViewportCameraSpeed(const int32 Speed)
+{
+	LevelViewportClient->SetCameraSpeedSetting(Speed);
+}
+
+
+int32 SCustomizableObjectEditorViewportTabBody::GetViewportCameraSpeed()
+{
+	return LevelViewportClient->GetCameraSpeedSetting();
 }
 
 

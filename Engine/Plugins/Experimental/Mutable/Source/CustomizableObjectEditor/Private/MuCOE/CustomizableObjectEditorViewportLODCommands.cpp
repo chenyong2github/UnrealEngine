@@ -18,6 +18,7 @@ void FCustomizableObjectEditorViewportLODCommands::RegisterCommands()
 	UI_COMMAND(HighResScreenshot, "High Resolution Screenshot...", "Opens the control panel for high resolution screenshots", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(OrbitalCamera, "Orbital Camera", "Sets the camera in orbital mode", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(FreeCamera, "Free Camera", "Sets the camera in free mode", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(ShowBones, "Show Bones", "Shows the bone hierarchy of the skeletal mesh", EUserInterfaceActionType::ToggleButton, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -56,6 +56,9 @@ public:
 	/** Sets the camera mode to free camera */
 	TSharedPtr< FUICommandInfo > FreeCamera;
 
+	/** Shows/Hide the bones of the skeletal mesh */
+	TSharedPtr< FUICommandInfo > ShowBones;
+
 public:
 	/** Registers our commands with the binding system */
 	virtual void RegisterCommands() override;

@@ -97,6 +97,7 @@
 #include "SceneView.h"
 #include "ScopedTransaction.h"
 #include "ShowFlags.h"
+#include "SkeletalDebugRendering.h"
 #include "SlotBase.h"
 #include "StaticMeshResources.h"
 #include "Styling/AppStyle.h"
@@ -502,6 +503,11 @@ FCustomizableObjectEditorViewportClient::FCustomizableObjectEditorViewportClient
 	bActivateOrbitalCamera = true;
 	bSetOrbitalOnPerspectiveMode = true;
 
+	const int32 CameraSpeed = 3;
+	SetCameraSpeedSetting(CameraSpeed);
+
+	bShowBones = false;
+
 	MaterialToDrawInUVs = 0;
 	MaterialToDrawInUVsLOD = 0;
 	MaterialToDrawInUVsIndex = 0;
@@ -899,6 +905,17 @@ void FCustomizableObjectEditorViewportClient::Draw(const FSceneView* View, FPrim
 			{
 				UE_LOG(LogMutable, Warning, TEXT("ERROR: wrong projector type for projector %d"), *GizmoProxy.ProjectorParameterName);
 				break;
+			}
+		}
+	}
+
+	if (bShowBones)
+	{
+		for (TWeakObjectPtr<UDebugSkelMeshComponent> SkeletalMeshComponent : SkeletalMeshComponents)
+		{
+			if (SkeletalMeshComponent.IsValid())
+			{
+				DrawMeshBones(SkeletalMeshComponent.Get(), PDI);
 			}
 		}
 	}
@@ -3316,6 +3333,84 @@ void FCustomizableObjectEditorViewportClient::SetCameraMode(bool Value)
 	bActivateOrbitalCamera = Value;
 	UpdateCameraSetup();
 }
+
+
+void FCustomizableObjectEditorViewportClient::SetShowBones()
+{
+	bShowBones = !bShowBones;
+}
+
+
+bool FCustomizableObjectEditorViewportClient::IsShowingBones() const
+{
+	return bShowBones;
+}
+
+
+void FCustomizableObjectEditorViewportClient::DrawMeshBones(UDebugSkelMeshComponent* MeshComponent, FPrimitiveDrawInterface* PDI)
+{
+	if (!MeshComponent ||
+		!MeshComponent->GetSkeletalMeshAsset() ||
+		MeshComponent->GetNumDrawTransform() == 0 ||
+		MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::Hidden)
+	{
+		return;
+	}
+
+	TArray<FTransform> WorldTransforms;
+	WorldTransforms.AddUninitialized(MeshComponent->GetNumDrawTransform());
+
+	TArray<FLinearColor> BoneColors;
+	BoneColors.AddUninitialized(MeshComponent->GetNumDrawTransform());
+
+	const FLinearColor BoneColor = GetDefault<UPersonaOptions>()->DefaultBoneColor;
+	const FLinearColor VirtualBoneColor = GetDefault<UPersonaOptions>()->VirtualBoneColor;
+	const TArray<FBoneIndexType>& DrawBoneIndices = MeshComponent->GetDrawBoneIndices();
+	
+	for (int32 Index = 0; Index < DrawBoneIndices.Num(); ++Index)
+	{
+		const int32 BoneIndex = DrawBoneIndices[Index];
+		WorldTransforms[BoneIndex] = MeshComponent->GetDrawTransform(BoneIndex) * MeshComponent->GetComponentTransform();
+		BoneColors[BoneIndex] = BoneColor;
+	}
+
+	// color virtual bones
+	for (int16 VirtualBoneIndex : MeshComponent->GetReferenceSkeleton().GetRequiredVirtualBones())
+	{
+		BoneColors[VirtualBoneIndex] = VirtualBoneColor;
+	}
+
+	constexpr bool bForceDraw = false;
+
+	// don't allow selection if the skeleton draw mode is greyed out
+	//const bool bAddHitProxy = MeshComponent->SkeletonDrawMode != ESkeletonDrawMode::GreyedOut;
+
+	FSkelDebugDrawConfig DrawConfig;
+	DrawConfig.BoneDrawMode = EBoneDrawMode::All;
+	DrawConfig.BoneDrawSize = 1.0f;
+	DrawConfig.bAddHitProxy = false;
+	DrawConfig.bForceDraw = bForceDraw;
+	DrawConfig.DefaultBoneColor = GetMutableDefault<UPersonaOptions>()->DefaultBoneColor;
+	DrawConfig.AffectedBoneColor = GetMutableDefault<UPersonaOptions>()->AffectedBoneColor;
+	DrawConfig.SelectedBoneColor = GetMutableDefault<UPersonaOptions>()->SelectedBoneColor;
+	DrawConfig.ParentOfSelectedBoneColor = GetMutableDefault<UPersonaOptions>()->ParentOfSelectedBoneColor;
+
+	//No user interaction right now
+	TArray<TRefCountPtr<HHitProxy>> HitProxies;
+
+	SkeletalDebugRendering::DrawBones(
+		PDI,
+		MeshComponent->GetComponentLocation(),
+		DrawBoneIndices,
+		MeshComponent->GetReferenceSkeleton(),
+		WorldTransforms,
+		MeshComponent->BonesOfInterest,
+		BoneColors,
+		HitProxies,
+		DrawConfig
+	);
+}
+
 
 /////////////////////////////////////////////////
 // select folder dialog \todo: move to its own file
