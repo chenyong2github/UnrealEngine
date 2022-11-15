@@ -115,6 +115,14 @@ public:
 	virtual float GetFloatMetaData(const FName& Key) const = 0;
 
 	/**
+	 * Find the metadata value associated with the key and return double
+	 *
+	 * @param Key The key to lookup in the metadata
+	 * @return the double value stored in the metadata.
+	 */
+	virtual double GetDoubleMetaData(const FName& Key) const = 0;
+
+	/**
 	 * Find the metadata value associated with the key and return UClass*
 	 *
 	 * @param Key The key to lookup in the metadata

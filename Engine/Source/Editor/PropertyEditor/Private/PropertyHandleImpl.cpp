@@ -2623,8 +2623,13 @@ FProperty* FPropertyHandleBase::GetMetaDataProperty() const
 
 bool FPropertyHandleBase::HasMetaData(const FName& Key) const
 {
-	FProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->HasMetaData(Key) : false;
+	if (const FString* InstanceValue = GetInstanceMetaData(Key))
+	{
+		return true;
+	}
+
+	const FProperty* MetaDataProperty = GetMetaDataProperty();
+	return MetaDataProperty ? MetaDataProperty->HasMetaData(Key) : false;
 }
 
 const FString& FPropertyHandleBase::GetMetaData(const FName& Key) const
@@ -2632,34 +2637,50 @@ const FString& FPropertyHandleBase::GetMetaData(const FName& Key) const
 	// if not found, return a static empty string
 	static const FString EmptyString = TEXT("");
 
-	FProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->GetMetaData(Key) : EmptyString;
+	if (const FString* InstanceValue = GetInstanceMetaData(Key))
+	{
+		return *InstanceValue;
+	}
+
+	const FProperty* MetaDataProperty = GetMetaDataProperty();
+	return MetaDataProperty ? MetaDataProperty->GetMetaData(Key) : EmptyString;
 }
 
 bool FPropertyHandleBase::GetBoolMetaData(const FName& Key) const
 {
-	FProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->GetBoolMetaData(Key) : false;
+	if (!HasMetaData(Key))
+	{
+		return false;
+	}
+
+	const FString& StringValue = GetMetaData(Key);
+	return StringValue.IsEmpty() || StringValue == TEXT("true");
 }
 
 int32 FPropertyHandleBase::GetIntMetaData(const FName& Key) const
 {
-	FProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->GetIntMetaData(Key) : 0;
+	const FString& StringValue = GetMetaData(Key);
+	return FCString::Atoi(*StringValue);
 }
 
 float FPropertyHandleBase::GetFloatMetaData(const FName& Key) const
 {
-	FProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->GetFloatMetaData(Key) : 0.0f;
+	const FString& StringValue = GetMetaData(Key);
+	return FCString::Atof(*StringValue);
+}
+
+double FPropertyHandleBase::GetDoubleMetaData(const FName& Key) const
+{
+	const FString& StringValue = GetMetaData(Key);
+	return FCString::Atod(*StringValue);
 }
 
 UClass* FPropertyHandleBase::GetClassMetaData(const FName& Key) const
 {
-	FProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->GetClassMetaData(Key) : nullptr;
+	const FString& ClassName = GetMetaData(Key);
+	UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(ClassName);
+	return FoundClass;
 }
-
 
 void FPropertyHandleBase::SetInstanceMetaData(const FName& Key, const FString& Value)
 {
