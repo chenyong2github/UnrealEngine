@@ -312,14 +312,14 @@ namespace Horde.Build.Jobs.TestData
 	public class GetTestDataRefResponse
 	{
 		/// <summary>
+		/// The test ref id
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
 		/// The associated stream
 		/// </summary>
 		public string StreamId { get; set; }
-
-		/// <summary>
-		/// The full details test data for this ref
-		/// </summary>
-		public List<string> TestDataIds { get; set; }
 
 		/// <summary>
 		/// How long the test ran
@@ -352,9 +352,19 @@ namespace Horde.Build.Jobs.TestData
 		public string? SuiteId { get; set; }
 
 		/// <summary>
-		/// The suite tests
+		/// Suite tests skipped
 		/// </summary>
-		public List<GetSuiteTestDataResponse>? SuiteTests { get; set; }
+		public int? SuiteSkipCount { get; set; }
+
+		/// <summary>
+		/// Suite test warnings
+		/// </summary>
+		public int? SuiteWarningCount { get; set; }
+
+		/// <summary>
+		/// Suite test errors
+		/// </summary>
+		public int? SuiteErrorCount { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -362,22 +372,17 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="testData"></param>
 		public GetTestDataRefResponse(ITestDataRef testData)
 		{
+			Id = testData.Id.ToString();
 			StreamId = testData.StreamId.ToString();
-			TestDataIds = testData.TestDataIds.Select(x => x.ToString()).ToList();
 			Duration = testData.Duration;
 			BuildChangeList = testData.BuildChangeList;
 			MetaId = testData.Metadata.ToString();
 			TestId = testData.TestId?.ToString();
 			Outcome = testData.Outcome;
 			SuiteId = testData.SuiteId?.ToString();
-			if (testData.SuiteTests != null)
-			{
-				SuiteTests = new List<GetSuiteTestDataResponse>();
-				foreach (ISuiteTestData test in testData.SuiteTests)
-				{
-					SuiteTests.Add(new GetSuiteTestDataResponse(test));
-				}
-			}			
+			SuiteSkipCount = testData.SuiteSkipCount;
+			SuiteWarningCount = testData.SuiteWarningCount;
+			SuiteErrorCount = testData.SuiteErrorCount;
 		}
 	}
 }

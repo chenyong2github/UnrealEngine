@@ -207,9 +207,6 @@ namespace Horde.Build.Tests
 			List<GetTestDataRefResponse> refs = refResult.Value;
 
 			Assert.AreEqual(2, refs.Count);
-
-			Assert.AreEqual(1, refs[0].TestDataIds.Count);
-			Assert.AreEqual(1, refs[1].TestDataIds.Count);			
 		}
 
 		[TestMethod]
@@ -275,9 +272,9 @@ namespace Horde.Build.Tests
 
 			Assert.AreEqual(2, refs.Count);
 
-			Assert.AreEqual(3, refs[0].TestDataIds.Count);
-			Assert.AreEqual(3, refs[1].TestDataIds.Count);			
-
+			Assert.AreEqual(1, refs[0].SuiteSkipCount);
+			Assert.AreEqual(1, refs[0].SuiteWarningCount);
+			Assert.AreEqual(1, refs[0].SuiteErrorCount);
 		}
 
 		private readonly string[] _simpleTestDataLines =

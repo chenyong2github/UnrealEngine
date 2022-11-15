@@ -5,6 +5,7 @@ using System;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Jobs.TestData
 {
@@ -15,6 +16,7 @@ namespace Horde.Build.Jobs.TestData
 	using TestId = ObjectId<ITest>;
 	using TestSuiteId = ObjectId<ITestSuite>;
 	using TestMetaId = ObjectId<ITestMeta>;
+	using TestRefId = ObjectId<ITestDataRef>;
 
 	/// <summary>
 	/// Test outcome
@@ -153,19 +155,17 @@ namespace Horde.Build.Jobs.TestData
 	}
 
 	/// <summary>
-	/// Data ref 
+	/// Data ref with minimal data required for aggregate views
 	/// </summary>
 	public interface ITestDataRef
 	{
+		/// The test ref id
+		TestRefId Id { get; }
+
 		/// <summary>
 		/// The associated stream
 		/// </summary>
 		StreamId StreamId { get; }
-
-		/// <summary>
-		/// The full details test data for this ref
-		/// </summary>
-		IReadOnlyList<ObjectId> TestDataIds { get; }
 
 		/// <summary>
 		/// How long the test ran
@@ -180,7 +180,7 @@ namespace Horde.Build.Jobs.TestData
 		/// <summary>
 		/// The environment the test ran in
 		/// </summary>
-		TestMetaId Metadata { get; }
+		TestMetaId Metadata { get; }	
 
 		/// <summary>
 		/// The ITest in stream
@@ -198,10 +198,38 @@ namespace Horde.Build.Jobs.TestData
 		TestSuiteId? SuiteId { get; }
 
 		/// <summary>
-		/// List for suite test data
+		/// Suite tests skipped
 		/// </summary>
-		IReadOnlyList<ISuiteTestData>? SuiteTests { get; }
+		int? SuiteSkipCount { get; }
+
+		/// <summary>
+		/// Suite test warnings
+		/// </summary>
+		int? SuiteWarningCount { get; }
+
+		/// <summary>
+		/// Suite test errors
+		/// </summary>
+		int? SuiteErrorCount { get; }
+
 	}
+
+	interface ITestDataDetails
+	{
+		/// The corresponding test ref		
+		TestRefId Id { get; }
+
+		/// <summary>
+		/// The full details test data for this ref
+		/// </summary>
+		IReadOnlyList<ObjectId> TestDataIds { get; }
+
+		/// <summary>
+		/// Suite test data
+		/// </summary>		
+		IReadOnlyList<ISuiteTestData>? SuiteTests { get; } 
+	}
+
 
 	/// <summary>
 	/// The tests and suites running in a given stream

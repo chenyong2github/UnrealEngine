@@ -27,6 +27,7 @@ namespace Horde.Build.Jobs.TestData
 	using TestId = ObjectId<ITest>;
 	using TestSuiteId = ObjectId<ITestSuite>;
 	using TestMetaId = ObjectId<ITestMeta>;
+	using TestRefId = ObjectId<ITestDataRef>;
 
 	/// <summary>
 	/// Collection of test data documents
@@ -138,75 +139,6 @@ namespace Horde.Build.Jobs.TestData
 			}
 		}
 
-		class SuiteTestData : ISuiteTestData
-		{
-			[BsonRequired, BsonElement("tid")]
-			public TestId TestId { get; set; }
-
-			[BsonRequired, BsonElement("o")]
-			public TestOutcome Outcome { get; set; }
-
-			[BsonRequired, BsonElement("d")]
-			public TimeSpan Duration { get; set; }
-
-			[BsonRequired, BsonElement("uid")]
-			public string UID { get; set; }
-
-			public SuiteTestData(TestId id, TestOutcome outcome, TimeSpan duration, string uid)
-			{
-				TestId = id;
-				Outcome = outcome;
-				Duration = duration;
-				UID = uid;
-			}
-		}
-
-		class TestDataRefDocument : ITestDataRef
-		{
-			[BsonRequired, BsonId]
-			public ObjectId Id { get; set; }
-
-			[BsonRequired,BsonElement("sid")]
-			public StreamId StreamId { get; set; }
-
-			[BsonRequired, BsonElement("m")]
-			public TestMetaId Metadata { get; set; }
-
-			[BsonRequired, BsonElement("bcl")]
-			public int BuildChangeList { get; set; }
-
-			[BsonRequired, BsonElement("tdid")]
-			public List<ObjectId> TestDataIds { get; set; } = new List<ObjectId>();
-			IReadOnlyList<ObjectId> ITestDataRef.TestDataIds => TestDataIds;
-
-			[BsonRequired, BsonElement("d")]
-			public TimeSpan Duration { get; set; }
-
-			[BsonIgnoreIfNull, BsonElement("tid")]
-			public TestId? TestId { get; set; }
-
-			[BsonIgnoreIfNull, BsonElement("o")]
-			public TestOutcome? Outcome { get; set; }
-
-			[BsonIgnoreIfNull, BsonElement("suid")]
-			public TestSuiteId? SuiteId { get; set; }
-
-			[BsonIgnoreIfNull, BsonElement("sts")]
-			public List<SuiteTestData>? SuiteTests { get; set; }
-			IReadOnlyList<ISuiteTestData>? ITestDataRef.SuiteTests => SuiteTests;
-
-			private TestDataRefDocument()
-			{
-
-			}
-
-			public TestDataRefDocument(StreamId streamId)
-			{
-				Id = ObjectId.GenerateNewId();
-				StreamId = streamId;
-			}
-		}
-
 		/// <summary>
 		/// Stores the tests and suites running in a stream
 		/// </summary>
@@ -236,7 +168,113 @@ namespace Horde.Build.Jobs.TestData
 				Id = ObjectId.GenerateNewId();
 				StreamId = streamId;
 			}
+		}
 
+		class SuiteTestData : ISuiteTestData
+		{
+			[BsonRequired, BsonElement("tid")]
+			public TestId TestId { get; set; }
+
+			[BsonRequired, BsonElement("o")]
+			public TestOutcome Outcome { get; set; }
+
+			[BsonRequired, BsonElement("d")]
+			public TimeSpan Duration { get; set; }
+
+			[BsonRequired, BsonElement("uid")]
+			public string UID { get; set; }
+
+			public SuiteTestData(TestId id, TestOutcome outcome, TimeSpan duration, string uid)
+			{
+				TestId = id;
+				Outcome = outcome;
+				Duration = duration;
+				UID = uid;
+			}
+		}
+
+		class TestDataRefDocument : ITestDataRef
+		{
+			[BsonRequired, BsonId]
+			public TestRefId Id { get; set; }
+
+			[BsonRequired,BsonElement("sid")]
+			public StreamId StreamId { get; set; }
+
+			[BsonRequired, BsonElement("m")]
+			public TestMetaId Metadata { get; set; }
+
+			[BsonRequired, BsonElement("bcl")]
+			public int BuildChangeList { get; set; }
+
+			[BsonRequired, BsonElement("d")]
+			public TimeSpan Duration { get; set; }
+
+			// --- Single tests
+			[BsonIgnoreIfNull, BsonElement("tid")]
+			public TestId? TestId { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("o")]
+			public TestOutcome? Outcome { get; set; }
+			
+			// --- Suite tests			
+			[BsonIgnoreIfNull, BsonElement("suid")]
+			public TestSuiteId? SuiteId { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("ssc")]
+			public int? SuiteSkipCount { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("swc")]
+			public int? SuiteWarningCount { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("sec")]
+			public int? SuiteErrorCount { get; set; }
+
+			private TestDataRefDocument()
+			{
+
+			}
+
+			public TestDataRefDocument(StreamId streamId)
+			{
+				Id = TestRefId.GenerateNewId();
+				StreamId = streamId;
+			}
+		}
+
+		class TestDataDetailsDocument : ITestDataDetails
+		{
+			/// <summary>
+			/// The corresponding test ref for these details
+			/// </summary>
+			[BsonRequired, BsonId]
+			public TestRefId Id { get; set; }
+
+			/// <summary>
+			/// The full (raw) data for this test, which can be consumed by various clients
+			/// </summary>
+			[BsonRequired, BsonElement("tdid")]
+			public List<ObjectId> TestDataIds { get; set; } = new List<ObjectId>();
+			IReadOnlyList<ObjectId> ITestDataDetails.TestDataIds => TestDataIds;
+
+			/// <summary>
+			/// Suite test data
+			/// </summary>
+			[BsonIgnoreIfNull, BsonElement("sts")]
+			public List<SuiteTestData>? SuiteTests { get; set; }
+			IReadOnlyList<ISuiteTestData>? ITestDataDetails.SuiteTests => SuiteTests;
+
+			private TestDataDetailsDocument()
+			{
+
+			}
+
+			public TestDataDetailsDocument(TestRefId id, List<ObjectId> testDataIds, List<SuiteTestData>? suiteTests = null)
+			{
+				Id = id;
+				TestDataIds = testDataIds;
+				SuiteTests = suiteTests;
+			}
 		}
 
 		/// <summary>
@@ -278,7 +316,7 @@ namespace Horde.Build.Jobs.TestData
 		readonly IMongoCollection<TestDataDocument> _testDataDocuments;
 
 		/// <summary>
-		/// Test platform collection
+		/// Test meta collection
 		/// </summary>
 		readonly IMongoCollection<TestMetaDocument> _testMeta;
 
@@ -293,12 +331,16 @@ namespace Horde.Build.Jobs.TestData
 		readonly IMongoCollection<TestSuiteDocument> _testSuites;
 
 		/// <summary>
-		/// Test suite collection
+		/// Test data refs collection
 		/// </summary>
 		readonly IMongoCollection<TestDataRefDocument> _testRefs;
 
 		/// <summary>
-		/// Test suite collection
+		/// Test data refs collection
+		/// </summary>
+		readonly IMongoCollection<TestDataDetailsDocument> _testDetails;
+		/// <summary>
+		/// Test streams collection
 		/// </summary>
 		readonly IMongoCollection<TestStreamDocument> _testStreams;
 
@@ -336,6 +378,8 @@ namespace Horde.Build.Jobs.TestData
 			testRefIndexes.Add(keys => keys.Ascending(x => x.StreamId).Ascending(x => x.Metadata).Descending(x => x.BuildChangeList).Ascending(x => x.TestId).Ascending(x => x.SuiteId));
 			_testRefs = mongoService.GetCollection<TestDataRefDocument>("TestData.TestRefsV2", testRefIndexes);
 
+			_testDetails = mongoService.GetCollection<TestDataDetailsDocument>("TestData.TestDetailsV2");
+
 			List<MongoIndex<TestStreamDocument>> streamIndexes = new List<MongoIndex<TestStreamDocument>>();
 			streamIndexes.Add(keys => keys.Ascending(x => x.StreamId), unique: true);
 			_testStreams = mongoService.GetCollection<TestStreamDocument>("TestData.TestStreamsV2", streamIndexes);
@@ -364,13 +408,13 @@ namespace Horde.Build.Jobs.TestData
 
 			if (minCreateTime != null)
 			{
-				ObjectId minTime = ObjectId.GenerateNewId(minCreateTime.Value);
+				TestRefId minTime = TestRefId.GenerateNewId(minCreateTime.Value);
 				filter &= filterBuilder.Gte(x => x.Id!, minTime);
 
 			}
 			if (maxCreateTime != null)
 			{
-				ObjectId maxTime = ObjectId.GenerateNewId(maxCreateTime.Value);
+				TestRefId maxTime = TestRefId.GenerateNewId(maxCreateTime.Value);
 				filter &= filterBuilder.Lte(x => x.Id!, maxTime);
 			}
 
@@ -1056,22 +1100,25 @@ namespace Horde.Build.Jobs.TestData
 				testRef.BuildChangeList = testData.BuildChangeList <= 0 ? job.Change : testData.BuildChangeList;
 				testRef.Duration = TimeSpan.FromSeconds(testData.TotalDurationSeconds);
 				testRef.TestId = test.Id;
-				testRef.TestDataIds.Add(testDataId);
-				testRef.Outcome = TestOutcome.Unspecified;
+				testRef.Outcome = testData.HasSucceeded ? TestOutcome.Success : TestOutcome.Unspecified;
 
-				switch (testData.TestResult)
+				if (testRef.Outcome == TestOutcome.Unspecified)
 				{
-					case "Passed":
-						testRef.Outcome = TestOutcome.Success;
-						break;
-					case "Failed":
-					case "Cancelled":
-					case "TimedOut":
-						testRef.Outcome = TestOutcome.Failure;
-						break;
+					switch (testData.TestResult)
+					{
+						case "Passed":
+							testRef.Outcome = TestOutcome.Success;
+							break;
+						case "Failed":
+						case "Cancelled":
+						case "TimedOut":
+							testRef.Outcome = TestOutcome.Failure;
+							break;
+					}
 				}
 
 				await AddTestRef(testRef);
+				await _testDetails.InsertOneAsync(new TestDataDetailsDocument(testRef.Id, new List<ObjectId> { testDataId }));
 
 			}
 			catch (Exception ex)
@@ -1186,15 +1233,26 @@ namespace Horde.Build.Jobs.TestData
 						testRef.Metadata = metaId.Value;
 						testRef.BuildChangeList = job.Change;
 						testRef.Duration = TimeSpan.FromSeconds(session.TestSessionInfo!.TimeElapseSec);
-						testRef.TestDataIds = documents.Select(x => x.Id).ToList();
 						testRef.Outcome = TestOutcome.Unspecified;
 						testRef.SuiteId = testSuite.Id;
-						testRef.SuiteTests = new List<SuiteTestData>();
+
+						int skipCount = 0;
+						int warningCount = 0;
+						int errorCount = 0;
 
 						// populate the suite tests
-
+						List<SuiteTestData> suiteTestData = new List<SuiteTestData>();
 						foreach (AutomatedTestSessionData.SessionTest test in suiteTests)
 						{
+							if (test.WarningCount > 0)
+							{
+								warningCount++;
+							}
+
+							if (test.ErrorCount > 0)
+							{
+								errorCount++;
+							}
 
 							TestDocument document = suiteTestDocuments[test.Name];
 							TestOutcome outcome = TestOutcome.Unspecified;
@@ -1206,16 +1264,23 @@ namespace Horde.Build.Jobs.TestData
 									break;
 								case "Skipped":
 									outcome = TestOutcome.Skipped;
+									skipCount++;
 									break;
 								case "Fail":
 									outcome = TestOutcome.Failure;
 									break;
 							}
 
-							testRef.SuiteTests.Add(new SuiteTestData(document.Id, outcome, TimeSpan.FromSeconds(test.TimeElapseSec), test.TestUID));
+							suiteTestData.Add(new SuiteTestData(document.Id, outcome, TimeSpan.FromSeconds(test.TimeElapseSec), test.TestUID));
 						}
 
+						testRef.SuiteSkipCount = skipCount;
+						testRef.SuiteErrorCount = errorCount;
+						testRef.SuiteWarningCount =warningCount;
+
+						// and add to collections
 						await AddTestRef(testRef);
+						await _testDetails.InsertOneAsync(new TestDataDetailsDocument(testRef.Id, documents.Select(x => x.Id).ToList(), suiteTestData));
 					}
 					else
 					{
