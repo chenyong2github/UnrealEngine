@@ -16,7 +16,11 @@ namespace UE::Chaos::ClothAsset
 /**
  * Cloth simulation component.
  */
-UCLASS(ClassGroup = Physics, Meta = (BlueprintSpawnableComponent, ToolTip = "Chaos cloth simulation component."), DisplayName = "Cloth Simulation", HideCategories = (Object, "Mesh|SkeletalAsset", Constraints, Advanced, Cooking, Collision))
+UCLASS(
+	ClassGroup = Physics, 
+	Meta = (BlueprintSpawnableComponent, ToolTip = "Chaos cloth simulation component."),
+	DisplayName = "Cloth Simulation",
+	HideCategories = (Object, "Mesh|SkeletalAsset", Constraints, Advanced, Cooking, Collision, Navigation))
 class CHAOSCLOTHASSETENGINE_API UChaosClothComponent : public USkinnedMeshComponent
 {
 	GENERATED_BODY()
@@ -82,6 +86,7 @@ protected:
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	virtual void OnAttachmentChanged() override;
 	//~ End USceneComponent Interface
 
 	//~ Begin USkinnedMeshComponent Interface
@@ -92,7 +97,7 @@ protected:
 private:
 	void StartNewParallelSimulation(float DeltaTime);
 	void HandleExistingParallelSimulation();
-	bool ShouldWaitForParallelSimulationInTickFunction() const;
+	bool ShouldWaitForParallelSimulationInTickComponent() const;
 
 #if WITH_EDITORONLY_DATA
 	/** Cloth asset used by this component. */
@@ -100,6 +105,14 @@ private:
 	UPROPERTY(EditAnywhere, Transient, BlueprintSetter = SetClothAsset, BlueprintGetter = GetClothAsset, Category = ClothAsset)
 	TObjectPtr<UChaosClothAsset> ClothAsset;
 #endif
+
+	/** If enabled, and the parent is another Skinned Mesh Component (e.g. another Cloth Component, Poseable Mesh Component, Skeletal Mesh Component, ...etc.), use its pose. */
+	UPROPERTY(EditAnywhere, Category = ClothComponent)
+	uint8 bUseAttachedParentAsPoseComponent : 1;
+
+	/** Whether to wait for the cloth simulation to end in the TickComponent instead of in the EndOfFrameUpdates. */
+	UPROPERTY(EditAnywhere, Category = ClothComponent)
+	uint8 bWaitForParallelTask : 1;
 
 	/** Whether to disable the simulation and use the skinned pose instead. */
 	UPROPERTY()
@@ -109,9 +122,6 @@ private:
 	UPROPERTY()
 	uint8 bSuspendSimulation : 1;
 
-	/** Whether to wait for the cloth simulation to end in the TickComponent instead of in the EndOfFrameUpdates. */
-	UPROPERTY()
-	uint8 bWaitForParallelTask : 1;
 
 	/** Whether to use the leader component pose. */
 	UPROPERTY()

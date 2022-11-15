@@ -14,9 +14,10 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
 UChaosClothComponent::UChaosClothComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bUseAttachedParentAsPoseComponent(1)  // By default use the parent component as leader pose component
+	, bWaitForParallelTask(0)
 	, bDisableSimulation(0)
 	, bSuspendSimulation(0)
-	, bWaitForParallelTask(0)
 	, bBindToLeaderComponent(0)
 {
 	bAutoActivate = true;
@@ -93,12 +94,15 @@ void UChaosClothComponent::OnRegister()
 		const TSharedPtr<const FChaosClothSimulationModel> ClothSimulationModel = GetClothAsset()->GetClothSimulationModel();
 		if (ensure(ClothSimulationModel) && ClothSimulationModel->GetNumLods())
 		{
-			FSkeletalMeshLODRenderData& LODData = GetClothAsset()->GetResourceForRendering()->LODRenderData[GetPredictedLODLevel()];
-			GetClothAsset()->FillComponentSpaceTransforms(GetClothAsset()->GetRefSkeleton().GetRefBonePose(), LODData.RequiredBones, GetEditableComponentSpaceTransforms());
+			if (!LeaderPoseComponent.IsValid())
+			{
+				FSkeletalMeshLODRenderData& LODData = GetClothAsset()->GetResourceForRendering()->LODRenderData[GetPredictedLODLevel()];
+				GetClothAsset()->FillComponentSpaceTransforms(GetClothAsset()->GetRefSkeleton().GetRefBonePose(), LODData.RequiredBones, GetEditableComponentSpaceTransforms());
 
-			bNeedToFlipSpaceBaseBuffers = true; // Have updated space bases so need to flip
-			FlipEditableSpaceBases();
-			bHasValidBoneTransform = true;
+				bNeedToFlipSpaceBaseBuffers = true; // Have updated space bases so need to flip
+				FlipEditableSpaceBases();
+				bHasValidBoneTransform = true;
+			}
 
 			// Create simulation proxy
 			ClothSimulationProxy = MakeUnique<FClothSimulationProxy>(*this);
@@ -144,14 +148,11 @@ void UChaosClothComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 	// Update the proxy and start the simulation parallel task
 	StartNewParallelSimulation(DeltaTime);
 
-	// TODO: Wait in tick function
-	//if (ShouldWaitForClothInTickFunction())
-	//{
-	//	FGraphEventArray Prerequisites;
-	//	Prerequisites.Add(ParallelClothTask);
-	//	FGraphEventRef ClothCompletionEvent = TGraphTask<FParallelClothCompletionTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this);
-	//	ThisTickFunction.GetCompletionHandle()->DontCompleteUntil(ClothCompletionEvent);
-	//}
+	// Wait in tick function for the simulation results if required
+	if (ShouldWaitForParallelSimulationInTickComponent())
+	{
+		HandleExistingParallelSimulation();
+	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
@@ -242,7 +243,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UChaosClothComponent::RequiresPreEndOfFrameSync() const
 {
-	if (!IsSimulationSuspended() && !ShouldWaitForParallelSimulationInTickFunction())
+	if (!IsSimulationSuspended() && !ShouldWaitForParallelSimulationInTickComponent())
 	{
 		// By default we await the cloth task in TickComponent, but...
 		// If we have cloth and have no game-thread dependencies on the cloth output, 
@@ -285,6 +286,16 @@ FBoxSphereBounds UChaosClothComponent::CalcBounds(const FTransform& LocalToWorld
 	return NewBounds;
 }
 
+void UChaosClothComponent::OnAttachmentChanged()
+{
+	if (bUseAttachedParentAsPoseComponent)
+	{
+		SetLeaderPoseComponent(Cast<USkinnedMeshComponent>(GetAttachParent()));  // If the cast fail, remove the current leader
+	}
+
+	Super::OnAttachmentChanged();
+}
+
 void UChaosClothComponent::StartNewParallelSimulation(float DeltaTime)
 {
 	if (ClothSimulationProxy.IsValid())
@@ -310,7 +321,7 @@ void UChaosClothComponent::HandleExistingParallelSimulation()
 	}
 }
 
-bool UChaosClothComponent::ShouldWaitForParallelSimulationInTickFunction() const
+bool UChaosClothComponent::ShouldWaitForParallelSimulationInTickComponent() const
 {
 	static IConsoleVariable* const CVarClothPhysicsWaitForParallelClothTask = IConsoleManager::Get().FindConsoleVariable(TEXT("p.ClothPhysics.WaitForParallelClothTask"));
 
