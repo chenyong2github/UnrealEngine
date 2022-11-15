@@ -1939,22 +1939,6 @@ struct FUniqueUVMeshDescriptionView final : FLayoutUV::IMeshView
 	TArray<FVector2D>&					OutputTexCoords;
 	bool								bMustRemap;
 
-	bool IsDegenerateTriangle(const FVector2f& A, const FVector2f& B, const FVector2f& C)
-	{
-		const FVector2f AB = B - A;
-		const FVector2f AC = C - A;
-		const float DoubleArea = FMath::Abs(AB ^ AC);
-		return DoubleArea < 2 * UE_SMALL_NUMBER;
-	}
-
-	bool IsDegenerateTriangle(const FVector3f& A, const FVector3f& B, const FVector3f& C)
-	{
-		const FVector3f AB = B - A;
-		const FVector3f AC = C - A;
-		const float DoubleAreaSquared = (AB ^ AC).SizeSquared();
-		return DoubleAreaSquared < 2 * UE_SMALL_NUMBER * UE_SMALL_NUMBER;
-	}
-
 	FUniqueUVMeshDescriptionView(const FMeshDescription& InMeshDescription, bool bMergeIdenticalMaterials, TArray<FVector2D>& InOutTexCoords)
 		: MeshDescription(InMeshDescription)
 		, OutputTexCoords(InOutTexCoords)
@@ -1998,39 +1982,33 @@ struct FUniqueUVMeshDescriptionView final : FLayoutUV::IMeshView
 
 			FTriangleID RemapTriangleID = TriangleID;
 
-			// Filter out degenerate triangles
-			bool bDegenerate = false;
-			bDegenerate = bDegenerate || IsDegenerateTriangle(Positions[VertexIDs[0]], Positions[VertexIDs[1]], Positions[VertexIDs[2]]);
-			bDegenerate = bDegenerate || IsDegenerateTriangle(TexCoords[VertexInstancesIDs[0]], TexCoords[VertexInstancesIDs[1]], TexCoords[VertexInstancesIDs[2]]);
-			if (!bDegenerate)
+			bool bUnique = true;
+
+			if (bMergeIdenticalMaterials)
 			{
-				bool bUnique = true;
-				if (bMergeIdenticalMaterials)
+				int32 TriangleHash = GetTypeHash(RefPolygonGroupID);
+				for (const FVertexInstanceID& VertexInstanceID : VertexInstancesIDs)
 				{
-					int32 TriangleHash = GetTypeHash(RefPolygonGroupID);
-					for (const FVertexInstanceID& VertexInstanceID : VertexInstancesIDs)
-					{
-						// Compute hash based on UVs & vertices colors
-						HashAttribute(VertexInstanceID, TexCoords, TriangleHash);
-						HashAttribute(VertexInstanceID, VertexColors, TriangleHash);
-					}
-
-					FTriangleID* UniqueTriangleIDPtr = UniqueTriangles.Find(TriangleHash);
-					if (UniqueTriangleIDPtr != nullptr)
-					{
-						RemapTriangleID = *UniqueTriangleIDPtr;
-						bUnique = false;
-					}
-					else
-					{
-						UniqueTriangles.Add(TriangleHash, TriangleID);
-					}
+					// Compute hash based on UVs & vertices colors
+					HashAttribute(VertexInstanceID, TexCoords, TriangleHash);
+					HashAttribute(VertexInstanceID, VertexColors, TriangleHash);
 				}
 
-				if (bUnique)
+				FTriangleID* UniqueTriangleIDPtr = UniqueTriangles.Find(TriangleHash);
+				if (UniqueTriangleIDPtr != nullptr)
 				{
-					UniqueVerts.Append(VertexInstancesIDs);
+					RemapTriangleID = *UniqueTriangleIDPtr;
+					bUnique = false;
 				}
+				else
+				{
+					UniqueTriangles.Add(TriangleHash, TriangleID);
+				}
+			}
+
+			if (bUnique)
+			{
+				UniqueVerts.Append(VertexInstancesIDs);
 			}
 
 			RemapTriangles.Add(RemapTriangleID);

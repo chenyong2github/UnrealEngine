@@ -23,6 +23,9 @@ struct FMeshChart
 	FVector2f	UVScale;
 	FVector2f	WorldScale;
 	
+	float		UVLengthSum;
+	float		WorldLengthSum;
+
 	FVector2f	PackingScaleU;
 	FVector2f	PackingScaleV;
 	FVector2f	PackingBias;

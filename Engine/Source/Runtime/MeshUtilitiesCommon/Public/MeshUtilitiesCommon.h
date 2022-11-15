@@ -16,7 +16,8 @@ enum class ELightmapUVVersion : int32
 	ForceLightmapPadding = 7,
 	Segments2D = 8,
 	OptimalSurfaceArea = 9,
-	Latest = OptimalSurfaceArea
+	ScaleByEdgesLength = 10,
+	Latest = ScaleByEdgesLength
 };
 
 /**

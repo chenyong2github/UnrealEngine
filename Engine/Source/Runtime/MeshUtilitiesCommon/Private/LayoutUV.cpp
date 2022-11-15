@@ -16,9 +16,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogLayoutUV, Log, All);
 
 #define CHART_JOINING	1
 
-#define NEW_UVS_ARE_SAME THRESH_POINTS_ARE_SAME
-#define LEGACY_UVS_ARE_SAME (1.0f / 1024.0f)
-#define UVLAYOUT_THRESH_UVS_ARE_SAME (GetUVEqualityThreshold())
+#define NEW_UVS_ARE_SAME				UE_THRESH_POINTS_ARE_SAME
+#define LEGACY_UVS_ARE_SAME				UE_THRESH_UVS_ARE_SAME
+#define UVLAYOUT_THRESH_UVS_ARE_SAME	(GetUVEqualityThreshold())
 
 TAtomic<uint64> FLayoutUV::FindBestPackingCount(0);
 TAtomic<uint64> FLayoutUV::FindBestPackingCycles(0);
@@ -238,7 +238,8 @@ int32 FLayoutUV::FChartFinder::FindCharts( const FOverlappingCorners& Overlappin
 		Chart.MinUV = FVector2f( FLT_MAX, FLT_MAX );
 		Chart.MaxUV = FVector2f( -FLT_MAX, -FLT_MAX );
 		Chart.UVArea = 0.0f;
-		Chart.WorldScale = FVector2f::ZeroVector;
+		Chart.UVLengthSum = 0.0f;
+		Chart.WorldLengthSum = 0.0f;
 		FMemory::Memset( Chart.Join, 0xff );
 
 		Chart.FirstTri = Tri;
@@ -266,30 +267,41 @@ int32 FLayoutUV::FChartFinder::FindCharts( const FOverlappingCorners& Overlappin
 
 			FVector3f Edge1 = Positions[1] - Positions[0];
 			FVector3f Edge2 = Positions[2] - Positions[0];
-			float Area = 0.5f * ( Edge1 ^ Edge2 ).Size();
+			FVector Edge3 = Positions[2] - Positions[1];
+			float WorldLength = Edge1.Length() + Edge2.Length() + Edge3.Length();
 
 			FVector2f EdgeUV1 = UVs[1] - UVs[0];
 			FVector2f EdgeUV2 = UVs[2] - UVs[0];
+			FVector2f EdgeUV3 = UVs[2] - UVs[1];
+			float UVLength = EdgeUV1.Length() + EdgeUV2.Length() + EdgeUV3.Length();
 			float UVArea = 0.5f * FMath::Abs( EdgeUV1.X * EdgeUV2.Y - EdgeUV1.Y * EdgeUV2.X );
 
-			FVector2f UVLength;
-			UVLength.X = ( EdgeUV2.Y * Edge1 - EdgeUV1.Y * Edge2 ).Size();
-			UVLength.Y = (-EdgeUV2.X * Edge1 + EdgeUV1.X * Edge2 ).Size();
-			
-			Chart.WorldScale += UVLength;
+			Chart.UVLengthSum += UVLength;
+			Chart.WorldLengthSum += WorldLength;
 			Chart.UVArea += UVArea;
 		}
 		
 		Chart.LastTri = Tri;
 
 #if !CHART_JOINING
-		if (LayoutVersion >= ELightmapUVVersion::SmallChartPacking)
+		if (LayoutVersion >= ELightmapUVVersion::ScaleByEdgesLength)
 		{
-			Chart.WorldScale /= FMath::Max(Chart.UVArea, 1e-8f);
+			if (Chart.UVLengthSum < UE_SMALL_NUMBER)
+			{
+				Chart.WorldScale = FVector2f(1.0f);
+			}
+			else
+			{
+				Chart.WorldScale = FVector2f(Chart.WorldLengthSum / Chart.UVLengthSum);
+			}
+		}
+		else if (LayoutVersion >= ELightmapUVVersion::SmallChartPacking)
+		{
+			Chart.WorldScale /= FMath::Max(Chart.UVArea, UE_SMALL_NUMBER);
 		}
 		else
 		{
-			if (Chart.UVArea > 1e-4f)
+			if (Chart.UVArea > UE_KINDA_SMALL_NUMBER)
 			{
 				Chart.WorldScale /= Chart.UVArea;
 			}
@@ -561,11 +573,15 @@ int32 FLayoutUV::FChartFinder::FindCharts( const FOverlappingCorners& Overlappin
 						// Fixing joined chart MaxUV value to properly inflate non-joined axis extent
 						ChartA.MaxUV[ Axis ^ 1 ] = FMath::Max( ChartA.MaxUV[ Axis ^ 1 ], ChartA.MinUV[ Axis ^ 1 ] + ( ChartB.MaxUV[ Axis ^ 1 ] - ChartB.MinUV[ Axis ^ 1 ] ) );
 					}
+					ChartA.UVLengthSum += ChartB.UVLengthSum;
+					ChartA.WorldLengthSum += ChartB.WorldLengthSum;
 					ChartA.WorldScale += ChartB.WorldScale;
 					ChartA.UVArea += ChartB.UVArea;
 
 					ChartB.FirstTri = 0;
 					ChartB.LastTri = 0;
+					ChartB.UVLengthSum = 0.0f;
+					ChartB.WorldLengthSum = 0.0f;
 					ChartB.UVArea = 0.0f;
 
 					DisconnectChart( Charts, ChartB, Side ^ 2 );
@@ -608,13 +624,25 @@ int32 FLayoutUV::FChartFinder::FindCharts( const FOverlappingCorners& Overlappin
 	{
 		FMeshChart& Chart = Charts[i];
 
+		if (LayoutVersion >= ELightmapUVVersion::ScaleByEdgesLength)
+		{					
+			if (Chart.UVLengthSum < UE_SMALL_NUMBER)
+			{
+				Chart.WorldScale = FVector2f(1.0f);
+			}
+			else
+			{
+				Chart.WorldScale = FVector2f(Chart.WorldLengthSum / Chart.UVLengthSum);
+			}
+		}
+		else
 		if (LayoutVersion >= ELightmapUVVersion::SmallChartPacking)
 		{
-			Chart.WorldScale /= FMath::Max(Chart.UVArea, 1e-8f);
+			Chart.WorldScale /= FMath::Max(Chart.UVArea, UE_SMALL_NUMBER);
 		}
 		else
 		{
-			if (Chart.UVArea > 1e-4f)
+			if (Chart.UVArea > UE_KINDA_SMALL_NUMBER)
 			{
 				Chart.WorldScale /= Chart.UVArea;
 			}
