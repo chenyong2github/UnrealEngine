@@ -183,6 +183,8 @@ namespace Horde.Agent.Tests
 
 	class SimpleTestExecutor : JobExecutor
 	{
+		public const string Name = "Simple";
+
 		private readonly Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> _func;
 
 		public SimpleTestExecutor(Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> func)
@@ -225,7 +227,7 @@ namespace Horde.Agent.Tests
 	{
 		readonly JobExecutor _executor;
 
-		public override string Name => "Simple";
+		public override string Name => SimpleTestExecutor.Name;
 
 		public SimpleTestExecutorFactory(JobExecutor executor)
 		{
