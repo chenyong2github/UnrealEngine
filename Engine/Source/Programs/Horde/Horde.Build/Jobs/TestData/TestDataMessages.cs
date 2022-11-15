@@ -176,6 +176,11 @@ namespace Horde.Build.Jobs.TestData
 	public class GetTestResponse
 	{
 		/// <summary>
+		/// The id of the test
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
 		/// The name of the test 
 		/// </summary>
 		public string Name { get; set; }
@@ -191,12 +196,13 @@ namespace Horde.Build.Jobs.TestData
 		public string? SuiteName { get; set; }
 
 		/// <summary>
-		/// The platforms the test runs on
+		/// The meta data the test runs on
 		/// </summary>
 		public List<string> Metadata { get; set; }
 
 		internal GetTestResponse(ITest test)
 		{
+			Id = test.Id.ToString();
 			Name = test.Name;
 			DisplayName = test.DisplayName;
 			SuiteName = test.SuiteName?.ToString();
@@ -210,19 +216,25 @@ namespace Horde.Build.Jobs.TestData
 	public class GetTestSuiteResponse
 	{
 		/// <summary>
+		/// The id of the suite
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
 		/// The name of the test suite
 		/// </summary>
 		public string Name { get; set; }
 
 		/// <summary>
-		/// The tests in the suite
+		/// The meta data the test suite runs on
 		/// </summary>
-		public List<TestId> Tests { get; set; }
+		public List<string> Metadata { get; set; }
 
 		internal GetTestSuiteResponse(ITestSuite suite)
 		{
+			Id = suite.Id.ToString();
 			Name = suite.Name;
-			Tests = suite.Tests.ToList();
+			Metadata = suite.Tests.Select(x => x.ToString()).ToList();
 		}
 	}
 
