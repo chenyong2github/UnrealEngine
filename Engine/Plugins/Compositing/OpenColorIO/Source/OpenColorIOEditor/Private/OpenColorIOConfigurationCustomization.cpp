@@ -2,6 +2,7 @@
 
 #include "OpenColorIOConfigurationCustomization.h"
 
+#include "OpenColorIOColorSpaceCustomization.h"
 #include "OpenColorIOConfiguration.h"
 #include "Containers/StringConv.h"
 #include "DetailWidgetRow.h"
@@ -50,6 +51,14 @@ void FOpenColorIOConfigurationCustomization::CustomizeDetails(IDetailLayoutBuild
 				return FReply::Handled();
 			})
 		];
+
+	DetailBuilder.RegisterInstancedCustomPropertyTypeLayout(
+			FOpenColorIOColorSpace::StaticStruct()->GetFName(),
+			FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<FOpenColorIOColorSpaceCustomization>(); }));
+
+	DetailBuilder.RegisterInstancedCustomPropertyTypeLayout(
+		FOpenColorIODisplayView::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<FOpenColorIODisplayViewCustomization>(); }));
 }
 
 #undef LOCTEXT_NAMESPACE

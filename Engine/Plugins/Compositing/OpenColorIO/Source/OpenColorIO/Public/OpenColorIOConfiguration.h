@@ -45,6 +45,7 @@ public:
 	bool Validate() const;
 
 	/** This forces to reload colorspaces and corresponding shaders if those are not loaded already. */
+	UFUNCTION(BlueprintCallable, Category = "OpenColorIO")
 	void ReloadExistingColorspaces();
 
 	/*

@@ -28,18 +28,18 @@ public:
 	FOpenColorIOColorSpace(const FString& InColorSpaceName, int32 InColorSpaceIndex, const FString& InFamilyName);
 
 	/** The ColorSpace name. */
-	UPROPERTY(VisibleAnywhere, Category=ColorSpace)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ColorSpace)
 	FString ColorSpaceName;
 
 	/** The index of the ColorSpace in the config */
-	UPROPERTY(VisibleAnywhere, Category=ColorSpace)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ColorSpace)
 	int32 ColorSpaceIndex;
 
 	/** 
 	 * The family of this ColorSpace as specified in the configuration file. 
 	 * When you have lots of colorspaces, you can regroup them by family to facilitate browsing them. 
 	 */
-	UPROPERTY(VisibleAnywhere, Category=ColorSpace)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ColorSpace)
 	FString FamilyName;
 
 	/** Delimiter used in the OpenColorIO library to make family hierarchies */
@@ -95,10 +95,10 @@ public:
 	 */
 	FOpenColorIODisplayView(FStringView InDisplayName, FStringView InViewName);
 
-	UPROPERTY(VisibleAnywhere, Category = ColorSpace)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorSpace)
 	FString Display;
 
-	UPROPERTY(VisibleAnywhere, Category = ColorSpace)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorSpace)
 	FString View;
 
 	FString ToString() const;
