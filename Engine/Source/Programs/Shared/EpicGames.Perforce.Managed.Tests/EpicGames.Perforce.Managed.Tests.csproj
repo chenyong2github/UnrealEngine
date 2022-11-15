@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EpicGames.Perforce.Managed\EpicGames.Perforce.Managed.csproj" />
+    <ProjectReference Include="..\EpicGames.Perforce.Fixture\EpicGames.Perforce.Fixture.csproj" />
   </ItemGroup>
 
 </Project>
