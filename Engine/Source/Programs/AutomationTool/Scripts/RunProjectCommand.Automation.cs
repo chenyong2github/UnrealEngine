@@ -868,8 +868,8 @@ namespace AutomationScripts
 			{
 				ServerApp = @"C:\Windows\system32\cmd.exe";
 
-				string plinkPath = CombinePaths(Unreal.EngineDirectory.FullName, "Extras", "ThirdPartyNotUE", "putty", "PLINK.exe");
-				string exePath = CombinePaths(SC.ShortProjectName, "Binaries", ServerPlatformDesc.Type.ToString(), SC.ShortProjectName + "Server");
+				string plinkPath = MakePathSafeToUseWithCommandLine(CombinePaths(Unreal.RootDirectory.FullName, "Engine", "Extras", "ThirdPartyNotUE", "putty", "PLINK.exe"));
+				string exePath = MakePathSafeToUseWithCommandLine(CombinePaths(SC.ShortProjectName, "Binaries", ServerPlatformDesc.Type.ToString(), SC.ShortProjectName + "Server"));
 				if (ServerParams.ServerConfigsToBuild[0] != UnrealTargetConfiguration.Development)
 				{
 					exePath += "-" + ServerPlatformDesc.Type.ToString() + "-" + ServerParams.ServerConfigsToBuild[0].ToString();
