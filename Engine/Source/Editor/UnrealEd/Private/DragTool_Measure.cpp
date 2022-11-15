@@ -37,7 +37,8 @@ FVector2D FDragTool_Measure::GetSnappedPixelPos(FVector2D PixelPos)
 	FSceneView* View = ViewportClient->CalcSceneView(&ViewFamily);
 
 	// Put the mouse pos in world space
-	FVector WorldPos = View->ScreenToWorld(View->PixelToScreen(PixelPos.X, PixelPos.Y, 0.5f));;
+	FVector2f PixelPosFloat{ PixelPos };
+	FVector WorldPos = View->ScreenToWorld(View->PixelToScreen(PixelPosFloat.X, PixelPosFloat.Y, 0.5f));;
 
 	// Snap the world position
 	const float GridSize = GEditor->GetGridSize();
@@ -73,7 +74,7 @@ void FDragTool_Measure::AddDelta(const FVector& InDelta)
 void FDragTool_Measure::Render(const FSceneView* View, FCanvas* Canvas)
 {
 	const float OrthoUnitsPerPixel = ViewportClient->GetOrthoUnitsPerPixel(ViewportClient->Viewport);
-	const float Length = FMath::RoundToFloat((PixelEnd - PixelStart).Size() * OrthoUnitsPerPixel * ViewportClient->GetDPIScale());
+	const float Length = FMath::RoundToFloat(FVector2f{ PixelEnd - PixelStart }.Size() * OrthoUnitsPerPixel * ViewportClient->GetDPIScale());
 
 	if (View != nullptr && Canvas != nullptr && Length >= 1.f)
 	{

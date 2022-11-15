@@ -813,7 +813,7 @@ void FDataTableEditorUtils::CacheDataForEditing(const UScriptStruct* RowStruct, 
 			CachedColumnData->Property = Prop;
 		}
 
-		CachedColumnData->DesiredColumnWidth = FontMeasure->Measure(CachedColumnData->DisplayName, CellTextStyle.Font).X + CellPadding;
+		CachedColumnData->DesiredColumnWidth = static_cast<float>(FontMeasure->Measure(CachedColumnData->DisplayName, CellTextStyle.Font).X + CellPadding);
 
 		OutAvailableColumns.Add(CachedColumnData);
 	}
@@ -856,9 +856,9 @@ void FDataTableEditorUtils::CacheDataForEditing(const UScriptStruct* RowStruct, 
 
 				const FVector2D CellTextSize = FontMeasure->Measure(CellText, CellTextStyle.Font);
 
-				CachedRowData->DesiredRowHeight = FMath::Max(CachedRowData->DesiredRowHeight, CellTextSize.Y);
+				CachedRowData->DesiredRowHeight = static_cast<float>(FMath::Max(CachedRowData->DesiredRowHeight, CellTextSize.Y));
 
-				const float CellWidth = CellTextSize.X + CellPadding;
+				const float CellWidth = static_cast<float>(CellTextSize.X + CellPadding);
 				CachedColumnData->DesiredColumnWidth = FMath::Max(CachedColumnData->DesiredColumnWidth, CellWidth);
 			}
 		}

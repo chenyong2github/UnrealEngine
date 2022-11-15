@@ -309,11 +309,14 @@ void FDragTool_ActorBoxSelect::CalculateBox( FBox& OutBox )
 
 	FSceneView* View = LevelViewportClient->CalcSceneView(&ViewFamily);
 
-	FVector4 StartScreenPos = View->PixelToScreen(Start.X, Start.Y, 0);
-	FVector4 EndScreenPos = View->PixelToScreen(End.X, End.Y, 0);
+	FVector3f StartFloat{ Start };
+	FVector3f EndFloat{ End };
 
-	FVector TransformedStart = View->ScreenToWorld(View->PixelToScreen(Start.X, Start.Y, 0.5f));
-	FVector TransformedEnd = View->ScreenToWorld(View->PixelToScreen(End.X, End.Y, 0.5f));
+	FVector4 StartScreenPos = View->PixelToScreen(StartFloat.X, StartFloat.Y, 0);
+	FVector4 EndScreenPos = View->PixelToScreen(EndFloat.X, EndFloat.Y, 0);
+
+	FVector TransformedStart = View->ScreenToWorld(View->PixelToScreen(StartFloat.X, StartFloat.Y, 0.5f));
+	FVector TransformedEnd = View->ScreenToWorld(View->PixelToScreen(EndFloat.X, EndFloat.Y, 0.5f));
 
 	// Create a bounding box based on the start/end points (normalizes the points).
 	OutBox.Init();

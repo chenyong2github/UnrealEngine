@@ -258,7 +258,7 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 			FIntPoint WindowPosition = InParams.EditorPlaySettings->NewWindowPosition;
 			
 			WindowPosition.X += FMath::Max(InInstanceNum - 1, 0) * WindowSize.X;
-			WindowPosition.Y += SWindowDefs::DefaultTitleBarSize * FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(0, 0);
+			WindowPosition.Y += static_cast<int32>(SWindowDefs::DefaultTitleBarSize * FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(0, 0));
 
 			// If they don't want to center the new window, we add a specific location. This will get saved to user settings
 			// via SAVEWINPOS and not end up reflected in our PlayInEditor settings.

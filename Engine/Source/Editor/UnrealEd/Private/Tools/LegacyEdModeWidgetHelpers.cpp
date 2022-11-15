@@ -647,9 +647,9 @@ void FLegacyEdModeWidgetHelper::Render(const FSceneView* View, FViewport* Viewpo
 				const FTransform WorldWidgetTransform = LocalWidgetTransform * DisplayWidgetToWorld;
 				const FMatrix WidgetTM(WorldWidgetTransform.ToMatrixWithScale());
 
-				const float WidgetSize = 0.035f;
-				const float ZoomFactor = FMath::Min<float>(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
-				const float WidgetRadius = View->Project(WorldWidgetTransform.GetTranslation()).W * (WidgetSize / ZoomFactor);
+				const double WidgetSize = 0.035;
+				const double ZoomFactor = FMath::Min(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
+				const float WidgetRadius = static_cast<float>(View->Project(WorldWidgetTransform.GetTranslation()).W * (WidgetSize / ZoomFactor));
 
 				if (bHitTesting) PDI->SetHitProxy(new HPropertyWidgetProxy(WidgetInfo.PropertyName, WidgetInfo.PropertyIndex, WidgetInfo.bIsTransform));
 				DrawWireDiamond(PDI, WidgetTM, WidgetRadius, WidgetColor, SDPG_Foreground);
@@ -669,9 +669,14 @@ void FLegacyEdModeWidgetHelper::DrawHUD(FEditorViewportClient* ViewportClient, F
 		{
 			FEditorScriptExecutionGuard ScriptGuard;
 
-			FIntPoint SizeXYWithDPIScale = Viewport->GetSizeXY() / Canvas->GetDPIScale();
-			const int32 HalfX = 0.5f * SizeXYWithDPIScale.X;
-			const int32 HalfY = 0.5f * SizeXYWithDPIScale.Y;
+			FIntPoint SizeXY = Viewport->GetSizeXY();
+			int32 ScaledX = FMath::TruncToInt32(static_cast<float>(SizeXY.X) / Canvas->GetDPIScale());
+			int32 ScaledY = FMath::TruncToInt32(static_cast<float>(SizeXY.Y) / Canvas->GetDPIScale());
+
+			FIntPoint SizeXYWithDPIScale{ ScaledX, ScaledY };
+
+			const int32 HalfX = SizeXYWithDPIScale.X / 2;
+			const int32 HalfY = SizeXYWithDPIScale.Y / 2;
 
 			UClass* Class = BestSelectedItem->GetClass();
 			TArray<FPropertyWidgetInfo> WidgetInfos;
@@ -693,8 +698,8 @@ void FLegacyEdModeWidgetHelper::DrawHUD(FEditorViewportClient* ViewportClient, F
 					const FString WidgetDisplayName = WidgetInfo.DisplayName + ((VectorIndex != INDEX_NONE) ? FString::Printf(TEXT("[%d]"), VectorIndex) : TEXT(""));
 					const FString DisplayString = ValidationMessage.IsEmpty() ? WidgetDisplayName : ValidationMessage;
 
-					const int32 XPos = HalfX + (HalfX * Proj.X);
-					const int32 YPos = HalfY + (HalfY * (Proj.Y * -1.f));
+					const int32 XPos = static_cast<int32>(HalfX + (HalfX * Proj.X));
+					const int32 YPos = static_cast<int32>(HalfY + (HalfY * (Proj.Y * -1.f)));
 					FCanvasTextItem TextItem(FVector2D(XPos + 5, YPos), FText::FromString(DisplayString), GEngine->GetSmallFont(), FLinearColor::White);
 					TextItem.EnableShadow(FLinearColor::Black);
 					Canvas->DrawItem(TextItem);

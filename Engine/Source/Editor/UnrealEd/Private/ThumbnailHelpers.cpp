@@ -126,7 +126,7 @@ FSceneView* FThumbnailPreviewScene::CreateView(FSceneViewFamily * ViewFamily, in
 		FPlane(0,	1,	0,	0),
 		FPlane(0,	0,	0,	1));
 
-	Origin -= ViewRotationMatrix.InverseTransformPosition( FVector::ZeroVector );
+	Origin -= ViewRotationMatrix.InverseTransformPosition(FVector::ZeroVector);
 	ViewRotationMatrix = ViewRotationMatrix.RemoveTranslation();
 
 	FSceneViewInitOptions ViewInitOptions;
@@ -148,7 +148,9 @@ FSceneView* FThumbnailPreviewScene::CreateView(FSceneViewFamily * ViewFamily, in
 	// NOTE: Sizes may not actually be in screen space depending on how the thumbnail ends up stretched by the UI.  Not a big deal though.
 	// NOTE: Textures still take a little time to stream if the view has not been re-rendered recently, so they may briefly appear blurry while mips are prepared
 	// NOTE: Content Browser only renders thumbnails for loaded assets, and only when the mouse is over the panel. They'll be frozen in their last state while the mouse cursor is not over the panel.  This is for performance reasons
-	IStreamingManager::Get().AddViewInformation( Origin, SizeX, SizeX / FMath::Tan( FOVDegrees ) );
+	float ScreenSize = static_cast<float>(SizeX);
+	float FOVScreenSize = static_cast<float>(SizeX) / FMath::Tan(FOVDegrees);
+	IStreamingManager::Get().AddViewInformation(Origin, ScreenSize, FOVScreenSize);
 
 	return NewView;
 }
@@ -166,7 +168,7 @@ TStatId FThumbnailPreviewScene::GetStatId() const
 float FThumbnailPreviewScene::GetBoundsZOffset(const FBoxSphereBounds& Bounds) const
 {
 	// Return half the height of the bounds plus one to avoid ZFighting with the floor plane
-	return Bounds.BoxExtent.Z + 1;
+	return static_cast<float>(Bounds.BoxExtent.Z + 1.0);
 }
 
 /*
@@ -390,7 +392,7 @@ void FMaterialThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees, 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// Add extra size to view slightly outside of the bounds to compensate for perspective
 	const float BoundsMultiplier = 1.15f;
-	const float HalfMeshSize = PreviewActor->GetStaticMeshComponent()->Bounds.SphereRadius * BoundsMultiplier;
+	const float HalfMeshSize = static_cast<float>(PreviewActor->GetStaticMeshComponent()->Bounds.SphereRadius * BoundsMultiplier);
 	const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetStaticMeshComponent()->Bounds);
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
@@ -472,7 +474,7 @@ void FSkeletalMeshThumbnailScene::GetViewMatrixParameters(const float InFOVDegre
 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// No need to add extra size to view slightly outside of the sphere to compensate for perspective since skeletal meshes already buffer bounds.
-	const float HalfMeshSize = PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius; 
+	const float HalfMeshSize = static_cast<float>(PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius); 
 	const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetSkeletalMeshComponent()->Bounds);
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
@@ -560,7 +562,7 @@ void FStaticMeshThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees
 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// Add extra size to view slightly outside of the sphere to compensate for perspective
-	const float HalfMeshSize = PreviewActor->GetStaticMeshComponent()->Bounds.SphereRadius * 1.15;
+	const float HalfMeshSize = static_cast<float>(PreviewActor->GetStaticMeshComponent()->Bounds.SphereRadius * 1.15);
 	const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetStaticMeshComponent()->Bounds);
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
@@ -695,7 +697,7 @@ void FAnimationSequenceThumbnailScene::GetViewMatrixParameters(const float InFOV
 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// No need to add extra size to view slightly outside of the sphere to compensate for perspective since skeletal meshes already buffer bounds.
-	const float HalfMeshSize = PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius;
+	const float HalfMeshSize = static_cast<float>(PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius);
 	const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetSkeletalMeshComponent()->Bounds);
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
@@ -829,7 +831,7 @@ void FBlendSpaceThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees
 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// No need to add extra size to view slightly outside of the sphere to compensate for perspective since skeletal meshes already buffer bounds.
-	const float HalfMeshSize = PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius;
+	const float HalfMeshSize = static_cast<float>(PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius);
 	const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetSkeletalMeshComponent()->Bounds);
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
@@ -950,7 +952,7 @@ void FAnimBlueprintThumbnailScene::GetViewMatrixParameters(const float InFOVDegr
 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// No need to add extra size to view slightly outside of the sphere to compensate for perspective since skeletal meshes already buffer bounds.
-	const float HalfMeshSize = PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius;
+	const float HalfMeshSize = static_cast<float>(PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius);
 	const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetSkeletalMeshComponent()->Bounds);
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
@@ -1025,7 +1027,7 @@ void FPhysicsAssetThumbnailScene::GetViewMatrixParameters(const float InFOVDegre
 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// No need to add extra size to view slightly outside of the sphere to compensate for perspective since skeletal meshes already buffer bounds.
-	const float HalfMeshSize = PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius; 
+	const float HalfMeshSize = static_cast<float>(PreviewActor->GetSkeletalMeshComponent()->Bounds.SphereRadius);
 	const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetSkeletalMeshComponent()->Bounds);
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
@@ -1161,7 +1163,7 @@ void FClassActorThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees
 	// Add extra size to view slightly outside of the sphere to compensate for perspective
 	const FBoxSphereBounds Bounds = GetPreviewActorBounds();
 
-	const float HalfMeshSize = Bounds.SphereRadius * 1.15;
+	const float HalfMeshSize = static_cast<float>(Bounds.SphereRadius * 1.15);
 	const float BoundsZOffset = GetBoundsZOffset(Bounds);
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 

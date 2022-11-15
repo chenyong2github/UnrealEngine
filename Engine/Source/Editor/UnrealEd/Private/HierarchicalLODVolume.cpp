@@ -38,7 +38,7 @@ bool AHierarchicalLODVolume::IsActorIncluded(const AActor* InActor) const
 
 	if (bIncludeOverlappingActors)
 	{
-		return EncompassesPoint(ActorBoundingBox.GetCenter(), ActorBoundingBox.GetExtent().Size());
+		return EncompassesPoint(ActorBoundingBox.GetCenter(), static_cast<float>(ActorBoundingBox.GetExtent().Size()));
 	}
 	else
 	{

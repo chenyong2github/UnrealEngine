@@ -56,8 +56,8 @@ void FDragTool_ViewportChange::EndDrag()
 	}
 	else
 	{
-		float OffsetRatio = ViewOptionOffset.X / ViewOptionOffset.Y;
-		float DragAngle = FMath::RadiansToDegrees(FMath::Atan(OffsetRatio));
+		double OffsetRatio = ViewOptionOffset.X / ViewOptionOffset.Y;
+		double DragAngle = FMath::RadiansToDegrees(FMath::Atan(OffsetRatio));
 
 		if (ViewOptionOffset.Y >= 0)
 		{
@@ -99,7 +99,7 @@ void FDragTool_ViewportChange::EndDrag()
 		}
 	}
 
-	float OffsetLength = FMath::RoundToFloat((End - Start).Size());
+	double OffsetLength = FMath::RoundToFloat((End - Start).Size());
 	if (OffsetLength >= 125.15f)
 	{
 		LevelViewportClient->SetViewportTypeFromTool(ViewOption);
