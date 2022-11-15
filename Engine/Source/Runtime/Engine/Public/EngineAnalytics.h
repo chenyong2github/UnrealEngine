@@ -56,6 +56,8 @@ public:
 
 	static ENGINE_API void LowDriveSpaceDetected();
 
+	static ENGINE_API void SetAPIKey(const FString& InAPIKey, const FString& Backend);
+
 private:
 	static bool bIsInitialized;
 	static ENGINE_API TSharedPtr<IAnalyticsProviderET> Analytics;
