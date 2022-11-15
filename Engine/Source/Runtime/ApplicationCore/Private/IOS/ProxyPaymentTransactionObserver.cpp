@@ -21,6 +21,11 @@
 	return self;
 }
 
+-(void) dealloc
+{
+    [super dealloc];
+}
+
 -(void)paymentQueue:(SKPaymentQueue*)queue updatedTransactions : (NSArray*)transactions
 {
     if(self.ossObserver)
