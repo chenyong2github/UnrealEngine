@@ -113,10 +113,9 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 			continue;
 		}
 
-		for (const FSharedBuffer& Buffer : Request.GetPayload().GetCompressed().GetSegments())
 		{
-			// Const cast because FArchive requires a non-const pointer!
-			FileAr->Serialize(const_cast<void*>(Buffer.GetData()), static_cast<int64>(Buffer.GetSize()));
+			FCompressedBuffer Payload = Request.GetPayload();
+			*FileAr << Payload;
 		}
 
 		if (!FileAr->Close())
