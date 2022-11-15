@@ -69,10 +69,17 @@ public:
 	 * Adds a set of objects to as a child.  Similar to details panels, all objects will be visible in the details panel as set of properties from the common base class from the list of objects
 	 *
 	 * @param  Objects			The objects to add
+	 * @param  Params			Optional parameters for customizing the display of the property rows.
+	 * @return The header row generated for this set of objects by the details panel
+	 */
+	virtual IDetailPropertyRow* AddExternalObjects(const TArray<UObject*>& Objects, const FAddPropertyParams& Params = FAddPropertyParams()) = 0;
+
+	/**
+	 * Adds a set of objects to as a child.  Similar to details panels, all objects will be visible in the details panel as set of properties from the common base class from the list of objects
+	 *
+	 * @param  Objects			The objects to add
 	 * @param  PropertyName		Name of a property inside the object(s) to add.
-	 * @param  UniqueIdName		Optional identifier that uniquely identifies this object among other objects of the same type.  If this is empty, saving and restoring expansion state of this object may not work
-	 * @param  bAllowChildrenOverride Allows customization of how the new root property node is expanded when this is added.
-	 * @param  bCreateCategoryNodesOverride Allows customization of how the new root node's category is displayed (or not).
+	 * @param  Params			Optional parameters for customizing the display of the property rows.
 	 * @return The header row generated for this set of objects by the details panel
 	 */
 	virtual IDetailPropertyRow* AddExternalObjectProperty(const TArray<UObject*>& Objects, FName PropertyName, const FAddPropertyParams& Params = FAddPropertyParams()) = 0;
