@@ -29,5 +29,7 @@ public class UIFramework : ModuleRules
 				"NetCore",
 			}
 		);
+
+		SetupIrisSupport(Target);
 	}
 }
