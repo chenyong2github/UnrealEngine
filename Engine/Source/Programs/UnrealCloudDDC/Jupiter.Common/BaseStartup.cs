@@ -9,7 +9,6 @@ using System.Net.Mime;
 using System.Reflection;
 using System.Text;
 using Amazon;
-using Azure.Monitor.OpenTelemetry.Exporter;
 using EpicGames.AspNet;
 using Jupiter.Common;
 using Microsoft.AspNetCore.Authentication;
@@ -250,33 +249,18 @@ namespace Jupiter
                 builder.AddHttpClientInstrumentation();
                 builder.AddAspNetCoreInstrumentation();
 
-                builder.Configure((provider, providerBuilder) =>
+                builder.AddOtlpExporter();
+
+                builder.ConfigureBuilder((provider, _) =>
                 {
                     IOptionsMonitor<TracerSettings> settings = provider.GetService<IOptionsMonitor<TracerSettings>>()!;
                     string tracerServiceName = settings.CurrentValue.TracerServiceName ?? "UnrealCloudDDC";
 
                     builder.AddSource(tracerServiceName, "ScyllaDB");
 
-                    builder.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(tracerServiceName, serviceVersion: settings.CurrentValue.TracerServiceVersion, serviceInstanceId: Environment.MachineName));
-
-                    if (settings.CurrentValue.TracerImplementation == TracerSettings.TracerImplementations.OpenTelemetry)
-                    {
-                        providerBuilder.AddOtlpExporter(options =>
-                        {
-                            if (settings.CurrentValue.ConnectionString != null)
-                            {
-                                options.Endpoint = new Uri(settings.CurrentValue.ConnectionString);
-                            }
-                        });
-                    }
-                    else if (settings.CurrentValue.TracerImplementation == TracerSettings.TracerImplementations.AzureMonitor)
-                    {
-                        // forward open telemetry requests to AzureMonitor
-                        providerBuilder.AddAzureMonitorTraceExporter(options =>
-                        {
-                            options.ConnectionString = settings.CurrentValue.ConnectionString;
-                        });
-                    }
+                    builder.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(tracerServiceName,
+                        serviceVersion: settings.CurrentValue.TracerServiceVersion,
+                        serviceInstanceId: Environment.MachineName));
                 });
             });
             services.Configure<OpenTelemetryLoggerOptions>(opt =>
@@ -685,20 +669,6 @@ namespace Jupiter
 
     public class TracerSettings
     {
-        public enum TracerImplementations 
-        { 
-            /// <summary>
-            /// Use OpenTelemetry with OTLP exporter
-            /// </summary>
-            OpenTelemetry, 
-            /// <summary>
-            /// Forward all open telemetry events to azure monitor
-            /// </summary>
-            AzureMonitor
-        };
-
-        public TracerImplementations TracerImplementation { get; set; } = TracerImplementations.OpenTelemetry;
-        public string? ConnectionString { get; set; } = null;
         public string? TracerServiceName { get; set; } = null;
         public string? TracerServiceVersion { get; set; } = null;
     }
