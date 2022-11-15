@@ -11,6 +11,7 @@
 
 class FSlateBatchData;
 class FSlateDrawElement;
+class FSlateRenderBatch;
 class FSlateRenderingPolicy;
 class FSlateShaderResource;
 class FSlateWindowElementList;
@@ -152,12 +153,8 @@ public:
 class FSlateBatchData
 {
 public:
-	FSlateBatchData()
-		: FirstRenderBatchIndex(INDEX_NONE)
-		, NumLayers(0)
-		, NumBatches(0)
-		, bIsStencilBufferRequired(false)
-	{}
+	SLATECORE_API FSlateBatchData();
+	SLATECORE_API ~FSlateBatchData();
 
 	SLATECORE_API void ResetData();
 

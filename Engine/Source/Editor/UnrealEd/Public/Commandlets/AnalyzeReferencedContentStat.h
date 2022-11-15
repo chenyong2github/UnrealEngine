@@ -14,6 +14,7 @@ class UTexture;
 class UModel;
 class USkeletalMesh;
 class UStaticMesh;
+enum AnimationCompressionFormat : int;
 
 class FAnalyzeReferencedContentStat
 {
@@ -501,11 +502,11 @@ public:
 		/** Whether resource is forced to be uncompressed by human action               */
 		bool bMarkedAsDoNotOverrideCompression;
 		/** Type of compression used on this animation.									*/
-		enum AnimationCompressionFormat TranslationFormat;
+		AnimationCompressionFormat TranslationFormat;
 		/** Type of compression used on this animation.									*/
-		enum AnimationCompressionFormat RotationFormat;
+		AnimationCompressionFormat RotationFormat;
 		/** Type of compression used on this animation.									*/
-		enum AnimationCompressionFormat ScaleFormat;
+		AnimationCompressionFormat ScaleFormat;
 		/** Name of compression algo class used. */
 		FString CompressionScheme;
 		/** Size in bytes of this animation. */

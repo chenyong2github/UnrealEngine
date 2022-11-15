@@ -680,7 +680,7 @@ struct FMeshProcessorShaders
  * This is tweaked so that the bindings for BasePass shaders of an average material using a FLocalVertexFactory fit into the inline storage.
  * Overflow of the inline storage will cause a heap allocation per draw (and corresponding cache miss on traversal)
  */
-const int32 NumInlineShaderBindings = 10;
+inline const int32 NumInlineShaderBindings = 10;
 
 /**
 * Debug only data for being able to backtrack the origin of given FMeshDrawCommand.

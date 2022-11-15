@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/World.h"
+#include "Folder.h"
 #include "Input/DragAndDrop.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "EditorFolderUtils.h"

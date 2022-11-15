@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 
+class FText;
 struct FAssetData;
 
 /** Used in filtering allowed references between assets. Implement a subclass of this and return it in OnMakeAssetReferenceFilter */

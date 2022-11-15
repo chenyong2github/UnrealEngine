@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Can't find includes if UE_WITH_IRIS is not set
+
 #if UE_WITH_IRIS
 
 #include "Iris/ReplicationSystem/NetHandle.h"

@@ -103,7 +103,7 @@ static const int DT_NAVMESH_STATE_VERSION = 1;
 static const unsigned short DT_EXT_LINK = 0x8000;
 
 /// A value that indicates the entity does not link to anything.
-static const unsigned int DT_NULL_LINK = 0xffffffff;
+inline const unsigned int DT_NULL_LINK = 0xffffffff;
 
 /// A flag that indicates that an off-mesh connection can be traversed in both directions. (Is bidirectional.)
 static const unsigned char DT_OFFMESH_CON_BIDIR = 0x01;

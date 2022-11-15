@@ -50,7 +50,7 @@ namespace FBlackboard
 #ifdef AI_BLACKBOARD_KEY_SIZE_8
 	// this is the legacy BB key size. Add AI_BLACKBOARD_KEY_SIZE_8 to your *.target.cs to enable it.
 	using FKey = uint8;
-	constexpr FKey InvalidKey = FKey(-1);
+	inline constexpr FKey InvalidKey = FKey(-1);
 #else
 	//the default BB key size is now 16
 	struct FKey
@@ -69,7 +69,7 @@ namespace FBlackboard
 		uint16 Key = static_cast<uint16>(-1);
 	};
 
-	constexpr FKey InvalidKey = FKey();
+	inline constexpr FKey InvalidKey = FKey();
 
 	inline uint32 GetTypeHash(const FKey& Key) { return ::GetTypeHash(Key.Key);}
 #endif
@@ -94,10 +94,10 @@ DECLARE_DELEGATE_RetVal_TwoParams(EBlackboardNotificationResult, FOnBlackboardCh
 
 namespace BTSpecialChild
 {
-	constexpr int32 NotInitialized = -1;	// special value for child indices: needs to be initialized
-	constexpr int32 ReturnToParent = -2;	// special value for child indices: return to parent node
+	inline constexpr int32 NotInitialized = -1;	// special value for child indices: needs to be initialized
+	inline constexpr int32 ReturnToParent = -2;	// special value for child indices: return to parent node
 	
-	constexpr uint8 OwnedByComposite = MAX_uint8;	// special value for aux node's child index: owned by composite node instead of a task
+	inline constexpr uint8 OwnedByComposite = MAX_uint8;	// special value for aux node's child index: owned by composite node instead of a task
 }
 
 UENUM(BlueprintType)
@@ -292,7 +292,7 @@ struct FBehaviorTreeExecutionStep
 	/** Game world's time stamp of this step */
 	double TimeStamp;
 
-	static constexpr int32 InvalidExecutionId = -1;
+	inline static constexpr int32 InvalidExecutionId = -1;
 
 	/** Id of execution step */
 	int32 ExecutionStepId;

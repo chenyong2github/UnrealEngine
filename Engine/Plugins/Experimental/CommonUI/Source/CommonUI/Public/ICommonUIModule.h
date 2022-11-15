@@ -4,6 +4,7 @@
 
 struct FStreamableManager;
 class UCommonUISettings;
+typedef int32 TAsyncLoadPriority;
 
 #if WITH_EDITOR
 class UCommonUIEditorSettings;

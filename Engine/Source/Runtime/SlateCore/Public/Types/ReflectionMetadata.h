@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Types/ISlateMetaData.h"

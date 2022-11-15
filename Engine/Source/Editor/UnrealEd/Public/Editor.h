@@ -377,16 +377,16 @@ namespace MapChangeEventFlags
 	typedef uint32 Type;
 
 	/** Default flags */
-	const Type Default = 0;
+	inline const Type Default = 0;
 
 	/** Set when a new map is created, loaded from disk, imported, etc. */
-	const Type NewMap = 1 << 0;
+	inline const Type NewMap = 1 << 0;
 
 	/** Set when a map rebuild occurred */
-	const Type MapRebuild = 1 << 1;
+	inline const Type MapRebuild = 1 << 1;
 
 	/** Set when a world was destroyed (torn down) */
-	const Type WorldTornDown = 1 << 2;
+	inline const Type WorldTornDown = 1 << 2;
 }
 
 /**

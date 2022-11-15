@@ -20,7 +20,7 @@ namespace Algo::Graph
 {
 
 typedef int32 FVertex;
-constexpr FVertex InvalidVertex = static_cast<FVertex>(INDEX_NONE);
+inline constexpr FVertex InvalidVertex = static_cast<FVertex>(INDEX_NONE);
 
 enum class EConvertToGraphOptions
 {

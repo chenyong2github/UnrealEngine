@@ -86,7 +86,7 @@ namespace EImplicitObject
 		DisableCollisions = 1 << 2
 	};
 
-	const int32 FiniteConvex = IsConvex | HasBoundingBox;
+	inline const int32 FiniteConvex = IsConvex | HasBoundingBox;
 }
 
 

@@ -2,6 +2,11 @@
 
 #pragma once
 
+#include "Math/MathFwd.h"
+#include "PhysicsInterfaceDeclaresCore.h"
+
+enum class EHitFlags : uint16;
+
 inline bool LowLevelRaycastImp(const FVector& Start, const FVector& Dir, float DeltaMag, const Chaos::FImplicitObject& Shape, const FTransform ActorTM, EHitFlags OutputFlags, FHitRaycast& Hit)
 {
 	//TODO_SQ_IMPLEMENTATION

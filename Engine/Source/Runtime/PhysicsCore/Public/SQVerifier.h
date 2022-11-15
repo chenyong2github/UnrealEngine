@@ -7,6 +7,7 @@
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "PhysicsInterfaceUtilsCore.h"
 #include "PhysTestSerializer.h"
+#include "SQAccelerator.h"
 
 #ifndef SQ_REPLAY_TEST
 #define SQ_REPLAY_TEST(cond) bEnsureOnMismatch ? ensure(cond) : (cond)

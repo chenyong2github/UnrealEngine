@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+class FUniqueNetId;
 struct FOnlineError;
 
 class FCodeLockInfo

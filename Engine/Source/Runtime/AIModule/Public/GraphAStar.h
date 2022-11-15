@@ -20,7 +20,7 @@ enum EGraphAStarResult
 	InfiniteLoop
 };
 
-const int32 NO_COUNT = INT_MAX;
+inline const int32 NO_COUNT = INT_MAX;
 
 // To get AStar Graph tracing, enable this define
 #define ENABLE_GRAPH_ASTAR_LOGGING 0

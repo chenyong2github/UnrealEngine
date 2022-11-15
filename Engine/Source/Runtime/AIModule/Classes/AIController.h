@@ -54,11 +54,11 @@ namespace EAIFocusPriority
 {
 	typedef uint8 Type;
 
-	const Type Default = 0;
-	const Type Move = 1;
-	const Type Gameplay = 2;
+	inline const Type Default = 0;
+	inline const Type Move = 1;
+	inline const Type Gameplay = 2;
 
-	const Type LastFocusPriority = Gameplay;
+	inline const Type LastFocusPriority = Gameplay;
 }
 
 struct FFocusKnowledge

@@ -9,7 +9,7 @@
 namespace Chaos
 {
 
-constexpr int32 ArraySizeEPA = 16;
+inline constexpr int32 ArraySizeEPA = 16;
 
 // Array type used in EPA to avoid heap allocation for small convex shapes
 // @todo(chaos): The inline size was picked to avoid allocations in box-box collision - it might need adjusting after more general purpose testing

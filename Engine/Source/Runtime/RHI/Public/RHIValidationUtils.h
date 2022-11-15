@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Misc/Build.h"
+
 #if ENABLE_RHI_VALIDATION
 
 class FValidationRHIUtils

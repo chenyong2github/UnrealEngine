@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
+#include "Misc/Attribute.h"
 
 struct FAccessibleWidgetData
 {

@@ -67,6 +67,15 @@ void FSlateElementBatch::SaveClippingState(const TArray<FSlateClippingState>& Pr
 	}*/
 }
 
+FSlateBatchData::FSlateBatchData()
+	: FirstRenderBatchIndex(INDEX_NONE)
+	, NumLayers(0)
+	, NumBatches(0)
+	, bIsStencilBufferRequired(false)
+{}
+
+FSlateBatchData::~FSlateBatchData() = default;
+
 void FSlateBatchData::ResetData()
 {
 	RenderBatches.Reset();

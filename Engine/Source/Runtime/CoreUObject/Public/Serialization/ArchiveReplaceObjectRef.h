@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "Serialization/ArchiveUObject.h"
+#include "UObject/Object.h"
+#include "UObject/SoftObjectPath.h"
 
 /** Base class for object replacement archives */ 
 class COREUOBJECT_API FArchiveReplaceObjectRefBase : public FArchiveUObject

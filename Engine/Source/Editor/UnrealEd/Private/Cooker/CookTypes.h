@@ -518,8 +518,8 @@ bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorker& Value
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
 LLM_DECLARE_TAG(Cooker);
 
-constexpr uint32 ExpectedMaxNumPlatforms = 32;
+inline constexpr uint32 ExpectedMaxNumPlatforms = 32;
 #define REMAPPED_PLUGINS TEXT("RemappedPlugins")
 extern float GCookProgressWarnBusyTime;
 
-constexpr float TickCookableObjectsFrameTime = .100f;
+inline constexpr float TickCookableObjectsFrameTime = .100f;

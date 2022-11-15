@@ -4,4 +4,6 @@
 
 #include "CoreTypes.h"
 
+class FString;
+
 int UnixPlatformLookupSyscallNumberFromName(const FString& SyscallName);

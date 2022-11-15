@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Commands/UIAction.h"
 #include "Layout/Visibility.h"
 #include "Styling/SlateTypes.h"
 #include "Framework/SlateDelegates.h"

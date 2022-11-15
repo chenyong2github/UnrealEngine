@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Field.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
 #include "Serialization/ArchiveUObject.h"

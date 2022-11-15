@@ -48,7 +48,7 @@
 namespace FreeTypeConstants
 {
 	/** The horizontal DPI we render at (horizontal and vertical) */
-	const uint32 RenderDPI = 96;
+	inline const uint32 RenderDPI = 96;
 } // namespace FreeTypeConstants
 
 

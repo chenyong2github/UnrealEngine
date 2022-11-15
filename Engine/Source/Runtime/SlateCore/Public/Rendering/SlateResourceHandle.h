@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+
 class FSlateSharedHandleData;
 class FSlateShaderResourceProxy;
 

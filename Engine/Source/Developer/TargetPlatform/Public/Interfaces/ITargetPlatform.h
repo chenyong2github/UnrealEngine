@@ -132,34 +132,34 @@ enum class EOfflineBVHMode
 namespace ETargetPlatformReadyStatus
 {
 	/** Ready */
-	const int32 Ready = 0;
+	inline const int32 Ready = 0;
 
 	/** SDK Not Found*/
-	const int32 SDKNotFound = 1;
+	inline const int32 SDKNotFound = 1;
 
 	/** Code Build Not Supported */
-	const int32 CodeUnsupported = 2;
+	inline const int32 CodeUnsupported = 2;
 
 	/** Plugins Not Supported */
-	const int32 PluginsUnsupported = 4;
+	inline const int32 PluginsUnsupported = 4;
 
 	/** Signing Key Not Found */
-	const int32 SigningKeyNotFound = 8;
+	inline const int32 SigningKeyNotFound = 8;
 
 	/** Provision Not Found */
-	const int32 ProvisionNotFound = 16;
+	inline const int32 ProvisionNotFound = 16;
 
 	/** Manifest Not Found */
-	const int32 ManifestNotFound = 32;
+	inline const int32 ManifestNotFound = 32;
 
 	/** Remote Server Name Empty */
-	const int32 RemoveServerNameEmpty = 64;
+	inline const int32 RemoveServerNameEmpty = 64;
 
 	/** License Not Accepted  */
-	const int32 LicenseNotAccepted = 128;
+	inline const int32 LicenseNotAccepted = 128;
 
 	/** Code Build Required */
-	const int32 CodeBuildRequired = 256;
+	inline const int32 CodeBuildRequired = 256;
 };
 
 

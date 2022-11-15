@@ -12,7 +12,7 @@ class FSocket;
 namespace UE::Cook::Sockets
 {
 
-constexpr int32 COOKDIRECTOR_DEFAULT_REQUEST_CONNECTION_PORT = 41897;
+inline constexpr int32 COOKDIRECTOR_DEFAULT_REQUEST_CONNECTION_PORT = 41897;
 
 /** Destruct Socket as gracefully as possible. Sets Socket to nullptr. Early exits if Socket is already null. */
 void CloseSocket(FSocket*& Socket);

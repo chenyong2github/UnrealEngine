@@ -16,5 +16,5 @@ typedef double dtReal;
 
 #endif // DT_LARGE_WORLD_COORDINATES_DISABLED
 
-constexpr dtReal DT_REAL_MAX = std::numeric_limits<dtReal>::max();
+inline constexpr dtReal DT_REAL_MAX = std::numeric_limits<dtReal>::max();
 

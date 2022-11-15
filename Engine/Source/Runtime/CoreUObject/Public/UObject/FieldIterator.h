@@ -8,6 +8,7 @@ FieldIterator.h: FField iterators.
 
 #include "CoreMinimal.h"
 #include "UObject/Field.h"
+#include "UObject/UnrealType.h"
 #include "UObject/UObjectIterator.h"
 
 /**

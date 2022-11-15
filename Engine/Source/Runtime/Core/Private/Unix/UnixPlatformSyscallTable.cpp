@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnixPlatformSyscallTable.h"
+#include "Containers/UnrealString.h"
 
 namespace
 {

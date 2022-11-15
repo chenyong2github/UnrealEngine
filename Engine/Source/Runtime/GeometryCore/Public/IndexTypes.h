@@ -10,7 +10,7 @@
 
 namespace IndexConstants
 {
-	constexpr int InvalidID = -1;
+	inline constexpr int InvalidID = -1;
 }
 
 namespace UE

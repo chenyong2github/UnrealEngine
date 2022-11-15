@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/FeedbackContext.h"
 
 /**
  * These bit flag values represent the different types of information that can be reported about a package

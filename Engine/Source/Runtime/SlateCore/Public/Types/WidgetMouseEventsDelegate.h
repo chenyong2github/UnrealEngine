@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/DelegateCombinations.h"
 #include "Input/Events.h"
+#include "Input/Reply.h"
 #include "Layout/Geometry.h"
 
 /** Delegate type for handling mouse events */

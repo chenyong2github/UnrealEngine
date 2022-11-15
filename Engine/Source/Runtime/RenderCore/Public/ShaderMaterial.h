@@ -10,6 +10,7 @@
 #include "Templates/RefCounting.h"
 #include "Serialization/MemoryLayout.h"
 
+namespace ERHIFeatureLevel { enum Type : int; }
 struct FShaderCompilerEnvironment;
 
 struct FShaderGlobalDefines

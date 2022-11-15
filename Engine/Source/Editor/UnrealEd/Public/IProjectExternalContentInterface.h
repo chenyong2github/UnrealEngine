@@ -3,6 +3,8 @@
 
 #include "CoreMinimal.h"
 
+class IPlugin;
+
 /** Interface to manage project references to external content */
 class IProjectExternalContentInterface
 {

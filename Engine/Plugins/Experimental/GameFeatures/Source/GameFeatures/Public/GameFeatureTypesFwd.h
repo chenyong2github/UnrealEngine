@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
+class FString;
 enum class EGameFeaturePluginProtocol : uint8;
 
 namespace GameFeaturePluginStatePrivate

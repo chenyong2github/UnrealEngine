@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Map.h"
 
 class UObject;
 struct FTransactionObjectChange;

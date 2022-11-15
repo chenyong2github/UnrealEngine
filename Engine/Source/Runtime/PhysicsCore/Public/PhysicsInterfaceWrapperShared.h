@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 enum class EQueryFlags : uint16
 {
 	None = 0,

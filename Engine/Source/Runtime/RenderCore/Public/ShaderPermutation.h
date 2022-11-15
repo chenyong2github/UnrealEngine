@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 
+struct FShaderCompilerEnvironment;
 
 /** Defines at compile time a boolean permutation dimension. */
 struct FShaderPermutationBool

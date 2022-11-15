@@ -113,13 +113,13 @@ public:
 namespace ERecastPathFlags
 {
 	/** If set, path won't be post processed. */
-	const int32 SkipStringPulling = (1 << 0);
+	inline const int32 SkipStringPulling = (1 << 0);
 
 	/** If set, path will contain navigation corridor. */
-	const int32 GenerateCorridor = (1 << 1);
+	inline const int32 GenerateCorridor = (1 << 1);
 
 	/** Make your game-specific flags start at this index */
-	const uint8 FirstAvailableFlag = 2;
+	inline const uint8 FirstAvailableFlag = 2;
 }
 
 #if WITH_RECAST

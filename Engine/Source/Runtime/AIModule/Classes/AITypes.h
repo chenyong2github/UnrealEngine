@@ -20,13 +20,13 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Overall AI Time"), STAT_AI_Overall, STATGROUP_AI
 
 namespace FAISystem
 {
-	static const FRotator InvalidRotation = FRotator(FLT_MAX);
-	static const FQuat InvalidOrientation = FQuat(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
-	static const FVector InvalidLocation = FVector(FLT_MAX);
-	static const FVector InvalidDirection = FVector::ZeroVector; 
-	static const float InvalidRange = -1.f;
-	static const float InfiniteInterval = -FLT_MAX;
-	static const uint32 InvalidUnsignedID = uint32(INDEX_NONE);
+	inline static const FRotator InvalidRotation = FRotator(FLT_MAX);
+	inline static const FQuat InvalidOrientation = FQuat(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
+	inline static const FVector InvalidLocation = FVector(FLT_MAX);
+	inline static const FVector InvalidDirection = FVector::ZeroVector; 
+	inline static const float InvalidRange = -1.f;
+	inline static const float InfiniteInterval = -FLT_MAX;
+	inline static const uint32 InvalidUnsignedID = uint32(INDEX_NONE);
 
 	FORCEINLINE bool IsValidLocation(const FVector& TestLocation)
 	{

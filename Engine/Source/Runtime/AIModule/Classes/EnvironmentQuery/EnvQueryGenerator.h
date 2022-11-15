@@ -11,10 +11,10 @@
 
 namespace EnvQueryGeneratorVersion
 {
-	const int32 Initial = 0;
-	const int32 DataProviders = 1;
+	inline const int32 Initial = 0;
+	inline const int32 DataProviders = 1;
 
-	const int32 Latest = DataProviders;
+	inline const int32 Latest = DataProviders;
 }
 
 UCLASS(EditInlineNew, Abstract, meta = (Category = "Generators"))

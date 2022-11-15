@@ -78,42 +78,42 @@ namespace FPathFollowingResultFlags
 {
 	typedef uint16 Type;
 
-	const Type None = 0;
+	inline const Type None = 0;
 
 	/** Reached destination (EPathFollowingResult::Success) */
-	const Type Success = (1 << 0);
+	inline const Type Success = (1 << 0);
 
 	/** Movement was blocked (EPathFollowingResult::Blocked) */
-	const Type Blocked = (1 << 1);
+	inline const Type Blocked = (1 << 1);
 
 	/** Agent is not on path (EPathFollowingResult::OffPath) */
-	const Type OffPath = (1 << 2);
+	inline const Type OffPath = (1 << 2);
 
 	/** Aborted (EPathFollowingResult::Aborted) */
-	const Type UserAbort = (1 << 3);
+	inline const Type UserAbort = (1 << 3);
 
 	/** Abort details: owner no longer wants to move */
-	const Type OwnerFinished = (1 << 4);
+	inline const Type OwnerFinished = (1 << 4);
 
 	/** Abort details: path is no longer valid */
-	const Type InvalidPath = (1 << 5);
+	inline const Type InvalidPath = (1 << 5);
 
 	/** Abort details: unable to move */
-	const Type MovementStop = (1 << 6);
+	inline const Type MovementStop = (1 << 6);
 
 	/** Abort details: new movement request was received */
-	const Type NewRequest = (1 << 7);
+	inline const Type NewRequest = (1 << 7);
 
 	/** Abort details: blueprint MoveTo function was called */
-	const Type ForcedScript = (1 << 8);
+	inline const Type ForcedScript = (1 << 8);
 
 	/** Finish details: never started, agent was already at goal */
-	const Type AlreadyAtGoal = (1 << 9);
+	inline const Type AlreadyAtGoal = (1 << 9);
 
 	/** Can be used to create project specific reasons */
-	const Type FirstGameplayFlagShift = 10;
+	inline const Type FirstGameplayFlagShift = 10;
 
-	const Type UserAbortFlagMask = ~(Success | Blocked | OffPath);
+	inline const Type UserAbortFlagMask = ~(Success | Blocked | OffPath);
 
 	FString ToString(uint16 Value);
 }

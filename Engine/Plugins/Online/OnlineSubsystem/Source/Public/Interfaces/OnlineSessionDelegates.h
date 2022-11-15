@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Delegates/Delegate.h"
+
 /**
  * Delegate fired when a session create request has completed
  *

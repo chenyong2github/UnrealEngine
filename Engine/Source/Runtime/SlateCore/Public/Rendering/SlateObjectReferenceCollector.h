@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/UObjectGlobals.h"
 
 /**
  * Used to gather all the referenced UObjects used by Slate when rendering a frame.

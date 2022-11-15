@@ -41,10 +41,10 @@ namespace EAssetRegistryDependencyType
 		// Note: Also update FAssetRegistryDependencyOptions when adding more flags
 	};
 
-	static const Type None = (Type)(0);
-	static const Type All = (Type)(Soft | Hard | SearchableName | SoftManage | HardManage);
-	static const Type Packages = (Type)(Soft | Hard);
-	static const Type Manage = (Type)(SoftManage | HardManage);
+	inline static const Type None = (Type)(0);
+	inline static const Type All = (Type)(Soft | Hard | SearchableName | SoftManage | HardManage);
+	inline static const Type Packages = (Type)(Soft | Hard);
+	inline static const Type Manage = (Type)(SoftManage | HardManage);
 }
 
 class IAssetRegistry;

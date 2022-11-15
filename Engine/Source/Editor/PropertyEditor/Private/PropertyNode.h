@@ -28,59 +28,59 @@ namespace EPropertyNodeFlags
 {
 	typedef uint32 Type;
 
-	const Type	IsSeen							= 1 << 0;	/** true if this node can be seen based on current parent expansion.  Does not take into account clipping*/
-	const Type	IsSeenDueToFiltering			= 1 << 1;	/** true if this node has been accepted by the filter*/
-	const Type	IsSeenDueToChildFiltering		= 1 << 2;	/** true if this node or one of it's children is seen due to filtering.  It will then be forced on as well.*/
-	const Type	IsParentSeenDueToFiltering		= 1 << 3;	/** True if the parent was visible due to filtering*/
-	const Type	IsSeenDueToChildFavorite		= 1 << 4;	/** True if this node is seen to it having a favorite as a child */
+	inline const Type	IsSeen							= 1 << 0;	/** true if this node can be seen based on current parent expansion.  Does not take into account clipping*/
+	inline const Type	IsSeenDueToFiltering			= 1 << 1;	/** true if this node has been accepted by the filter*/
+	inline const Type	IsSeenDueToChildFiltering		= 1 << 2;	/** true if this node or one of it's children is seen due to filtering.  It will then be forced on as well.*/
+	inline const Type	IsParentSeenDueToFiltering		= 1 << 3;	/** True if the parent was visible due to filtering*/
+	inline const Type	IsSeenDueToChildFavorite		= 1 << 4;	/** True if this node is seen to it having a favorite as a child */
 	
-	const Type	Expanded						= 1 << 5;	/** true if this node should display its children*/
-	const Type	CanBeExpanded					= 1 << 6;	/** true if this node is able to be expanded */
+	inline const Type	Expanded						= 1 << 5;	/** true if this node should display its children*/
+	inline const Type	CanBeExpanded					= 1 << 6;	/** true if this node is able to be expanded */
 
-	const Type	EditInlineNew					= 1 << 7;	/** true if the property can be expanded into the property window. */
+	inline const Type	EditInlineNew					= 1 << 7;	/** true if the property can be expanded into the property window. */
 
-	const Type	SingleSelectOnly				= 1 << 8;	/** true if only a single object is selected. */
-	const Type  ShowCategories					= 1 << 9;	/** true if this node should show categories.  Different*/
+	inline const Type	SingleSelectOnly				= 1 << 8;	/** true if only a single object is selected. */
+	inline const Type  ShowCategories					= 1 << 9;	/** true if this node should show categories.  Different*/
 
-	const Type  HasEverBeenExpanded				= 1 << 10;	/** true if expand has ever been called on this node */
+	inline const Type  HasEverBeenExpanded				= 1 << 10;	/** true if expand has ever been called on this node */
 
-	const Type	IsBeingFiltered					= 1 << 11;	/** true if the node is being filtered. If this is true, seen flags should be checked for visibility.  If this is false the node has no filter and is visible */
+	inline const Type	IsBeingFiltered					= 1 << 11;	/** true if the node is being filtered. If this is true, seen flags should be checked for visibility.  If this is false the node has no filter and is visible */
 
-	const Type  IsFavorite						= 1 << 12;	/** true if this item has been dubbed a favorite by the user */
+	inline const Type  IsFavorite						= 1 << 12;	/** true if this item has been dubbed a favorite by the user */
 
-	const Type  NoChildrenDueToCircularReference= 1 << 13;	/** true if this node has no children (but normally would) due to circular referencing */
+	inline const Type  NoChildrenDueToCircularReference= 1 << 13;	/** true if this node has no children (but normally would) due to circular referencing */
 
-	const Type	AutoExpanded					= 1 << 14;	/** true if this node was autoexpanded due to being filtered */
-	const Type	ShouldShowHiddenProperties		= 1 << 15;	/** true if this node should all properties not just those with the correct flag(s) to be shown in the editor */
-	const Type	IsAdvanced						= 1 << 16;	/** true if the property node is advanced (i.e it only shows up in advanced sections) */
-	const Type	IsCustomized					= 1 << 17;	/** true if this node's visual representation has been customized by the editor */
+	inline const Type	AutoExpanded					= 1 << 14;	/** true if this node was autoexpanded due to being filtered */
+	inline const Type	ShouldShowHiddenProperties		= 1 << 15;	/** true if this node should all properties not just those with the correct flag(s) to be shown in the editor */
+	inline const Type	IsAdvanced						= 1 << 16;	/** true if the property node is advanced (i.e it only shows up in advanced sections) */
+	inline const Type	IsCustomized					= 1 << 17;	/** true if this node's visual representation has been customized by the editor */
 	
-	const Type	RequiresValidation				= 1 << 18;	/** true if this node could unexpectedly change (array changes, editinlinenew changes) */
+	inline const Type	RequiresValidation				= 1 << 18;	/** true if this node could unexpectedly change (array changes, editinlinenew changes) */
 
-	const Type	ShouldShowDisableEditOnInstance = 1 << 19;	/** true if this node should show child properties marked CPF_DisableEditOnInstance */
+	inline const Type	ShouldShowDisableEditOnInstance = 1 << 19;	/** true if this node should show child properties marked CPF_DisableEditOnInstance */
 
-	const Type	IsReadOnly						= 1 << 20;	/** true if this node is overridden to appear as read-only */
+	inline const Type	IsReadOnly						= 1 << 20;	/** true if this node is overridden to appear as read-only */
 
-	const Type	SkipChildValidation				= 1 << 21;	/** true if this node should skip child validation */
+	inline const Type	SkipChildValidation				= 1 << 21;	/** true if this node should skip child validation */
 
-	const Type  ShowInnerObjectProperties		= 1 << 22;
+	inline const Type  ShowInnerObjectProperties		= 1 << 22;
 
-	const Type	HasCustomResetToDefault			= 1 << 23;	/** true if this node's visual representation of reset to default has been customized*/
+	inline const Type	HasCustomResetToDefault			= 1 << 23;	/** true if this node's visual representation of reset to default has been customized*/
 
-	const Type	IsSparseClassData				= 1 << 24;	/** true if the property on this node is part of a sparse class data structure */
+	inline const Type	IsSparseClassData				= 1 << 24;	/** true if the property on this node is part of a sparse class data structure */
 
-	const Type	ShouldShowInViewport			= 1 << 25;	/** true if the property should be shown in the viewport context menu */
+	inline const Type	ShouldShowInViewport			= 1 << 25;	/** true if the property should be shown in the viewport context menu */
 
-	const Type 	NoFlags							= 0;
+	inline const Type 	NoFlags							= 0;
 
 };
 
 namespace FPropertyNodeConstants
 {
-	const int32 NoDepthRestrictions = -1;
+	inline const int32 NoDepthRestrictions = -1;
 
 	/** Character used to deliminate sub-categories in category path names */
-	const TCHAR CategoryDelimiterChar = TCHAR( '|' );
+	inline const TCHAR CategoryDelimiterChar = TCHAR( '|' );
 };
 
 class FPropertySettings

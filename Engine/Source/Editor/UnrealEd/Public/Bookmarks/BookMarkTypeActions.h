@@ -3,13 +3,13 @@
 #pragma once
 
 #include "Bookmarks/IBookmarkTypeActions.h"
-#include "EditorViewportClient.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 
 #include "Engine/BookMark.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
+#include "LevelEditorViewport.h"
 
 class FBookMarkTypeActions : public IBookmarkTypeActions
 {

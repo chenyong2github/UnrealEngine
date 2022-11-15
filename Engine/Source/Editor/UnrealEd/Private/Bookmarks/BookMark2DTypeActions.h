@@ -10,6 +10,7 @@
 #include "Engine/BookMark2D.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
+#include "LevelEditorViewport.h"
 
 class FBookMark2DTypeActions : public IBookmarkTypeActions
 {
