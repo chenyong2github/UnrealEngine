@@ -288,7 +288,7 @@ private:
 	const FActorProxy* FindActorProxyFromActor(AActor* InActor) const;
 
 	/** Create a stage actor proxy */
-	void CreateStageActorProxy(AActor* InLevelInstance);
+	AActor* CreateStageActorProxy(AActor* InLevelInstance);
 	
 	/** Update the transforms for the specific proxy */
 	void UpdateProxyTransforms(const FActorProxy& InActorProxy);
