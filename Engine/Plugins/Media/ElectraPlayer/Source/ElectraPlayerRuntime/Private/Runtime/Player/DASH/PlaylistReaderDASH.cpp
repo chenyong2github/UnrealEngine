@@ -1559,6 +1559,12 @@ void FPlaylistReaderDASH::Timesync_httpiso_Completed(FResourceLoadRequestPtr Req
 			{
 				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(NewTime);
 			}
+			// If parsing failed then maybe the response is just a number (possibly with frational digits) giving the
+			// current Unix epoch time.
+			else if (UnixEpoch::ParseFloatString(NewTime, Response))
+			{
+				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(NewTime);
+			}
 		}
 	}
 	// Presently we do not try another time sync method if this one has failed. Clear out what we have attempted so far and be done with it.

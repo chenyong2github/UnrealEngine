@@ -153,7 +153,7 @@ namespace DASHUrlHelpers
 	 * Collects BaseURL elements beginning at the specified element up the MPD hierarchy.
 	 * At most one BaseURL per level is added to the output. If a preferred service location is specified the BaseURL element matching this will
 	 * be added. If no BaseURL on that level matching the preferred service location the first BaseURL element is used.
-	 * Results are added in reverse hierarchy order, eg. Representation, Adaptation, Period, MPD.
+	 * Results are added in hierarchy order, eg. MPD, Period, Adaptation, Representation.
 	 */
 	void GetAllHierarchyBaseURLs(IPlayerSessionServices* InPlayerSessionServices, TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& OutBaseURLs, TSharedPtrTS<const IDashMPDElement> StartingAt, const TCHAR* PreferredServiceLocation)
 	{
@@ -164,7 +164,7 @@ namespace DASHUrlHelpers
 			{
 				if (ElementBaseURLs.Num())
 				{
-					OutBaseURLs.Emplace(ElementBaseURLs[0]);
+					OutBaseURLs.Insert(ElementBaseURLs[0], 0);
 				}
 			}
 			else
@@ -173,7 +173,7 @@ namespace DASHUrlHelpers
 				{
 					if (i == 0 || ElementBaseURLs[i]->GetServiceLocation().Equals(PreferredServiceLocation))
 					{
-						OutBaseURLs.Emplace(ElementBaseURLs[i]);
+						OutBaseURLs.Insert(ElementBaseURLs[i], 0);
 						break;
 					}
 				}
@@ -563,8 +563,7 @@ namespace DASHUrlHelpers
 
 
 	/**
-	 * Resolves relative URLs against their parent BaseURL elements in the hierarchy.
-	 * If this does not produce an absolute URL it will finally be resolved against the URL the MPD was loaded from.
+	 * Resolves an element URLs against its parent BaseURL elements in the hierarchy.
 	 * Returns true if an absolute URL could be generated, false if not.
 	 * Since the MPD URL had to be an absolute URL this cannot actually fail.
 	 */
@@ -575,60 +574,39 @@ namespace DASHUrlHelpers
 		bATOComplete.Reset();
 		FURL_RFC3986 UrlParser;
 		FString ElementURL(InElementURL);
-		// If the element URL is empty it is specified as the first entry in the BaseURL array.
-		// We MUST NOT resolve against an empty URL because as per RFC 3986 section 5.2.2 the query string and fragment come from the relative
-		// URL and if we were to start with an empty one we would lose those!
-		int32 nBase = 0;
-		if (ElementURL.IsEmpty())
+
+		// If there is no element URL and BaseURLs this is probably for an MPD update in which case we return the original document URL.
+		if (ElementURL.IsEmpty() && BaseURLs.Num() == 0)
 		{
-			// If there is no element URL and BaseURLs this is probably for an MPD update in which case we return the original document URL.
-			if (BaseURLs.Num() == 0)
-			{
-				OutURL = DocumentURL;
-				return true;
-			}
-			ElementURL = BaseURLs[0]->GetURL();
-			++nBase;
+			OutURL = DocumentURL;
+			return true;
 		}
-		if (UrlParser.Parse(ElementURL))
+
+		// Starting with the document URL apply the <BaseURL> elements down the path to the element.
+		// If at any level an absolute URL is specified it replaces the URL as a whole, otherwise
+		// relative URLs are resolved against the parent.
+		if (!UrlParser.Parse(DocumentURL))
 		{
-			while(1)
-			{
-				if (UrlParser.IsAbsolute())
-				{
-					break;
-				}
-				else
-				{
-					if (nBase < BaseURLs.Num())
-					{
-						UrlParser.ResolveAgainst(BaseURLs[nBase]->GetURL());
-						SumOfUrlATOs += BaseURLs[nBase]->GetAvailabilityTimeOffset();
-						if (!bATOComplete.IsSet())
-						{
-							bATOComplete = BaseURLs[nBase]->GetAvailabilityTimeComplete();
-						}
-						else
-						{
-							if (BaseURLs[nBase]->GetAvailabilityTimeComplete().IsSet() && BaseURLs[nBase]->GetAvailabilityTimeComplete().Value() != bATOComplete.Value())
-							{
-								// Inconsistent availabilityTimeComplete across the hierarchy.
-							}
-						}
-						++nBase;
-					}
-					else
-					{
-						UrlParser.ResolveAgainst(DocumentURL);
-						break;
-					}
-				}
-			}
-			OutURL = UrlParser.Get();
-			ATO = SumOfUrlATOs;
-			return UrlParser.IsAbsolute();
+			return false;
 		}
-		return false;
+		for(int32 nBase=0; nBase<BaseURLs.Num(); ++nBase)
+		{
+			UrlParser.ResolveWith(BaseURLs[nBase]->GetURL());
+			SumOfUrlATOs += BaseURLs[nBase]->GetAvailabilityTimeOffset();
+			if (!bATOComplete.IsSet())
+			{
+				bATOComplete = BaseURLs[nBase]->GetAvailabilityTimeComplete();
+			}
+			else if (BaseURLs[nBase]->GetAvailabilityTimeComplete().IsSet() && BaseURLs[nBase]->GetAvailabilityTimeComplete().Value() != bATOComplete.Value())
+			{
+				// Inconsistent availabilityTimeComplete across the hierarchy.
+				// TBD
+			}
+		}
+		UrlParser.ResolveWith(InElementURL);
+		OutURL = UrlParser.Get();
+		ATO = SumOfUrlATOs;
+		return UrlParser.IsAbsolute();
 	}
 
 	FString ApplyAnnexEByteRange(FString InURL, FString InRange, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& BaseURLs)
