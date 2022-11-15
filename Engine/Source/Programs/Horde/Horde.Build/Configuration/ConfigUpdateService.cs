@@ -82,7 +82,14 @@ namespace Horde.Build.Configuration
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
+		public async Task StartAsync(CancellationToken cancellationToken)
+		{
+			if (_settings.CurrentValue.ForceConfigUpdateOnStartup)
+			{
+				await TickLeaderAsync(cancellationToken);
+			}
+			await _ticker.StartAsync();
+		}
 
 		/// <inheritdoc/>
 		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
@@ -451,15 +458,16 @@ namespace Horde.Build.Configuration
 		{
 			Uri? configUri = null;
 
-			if (Path.IsPathRooted(_settings.CurrentValue.ConfigPath) && !_settings.CurrentValue.ConfigPath.StartsWith("//", StringComparison.Ordinal))
+			ServerSettings settings = _settings.CurrentValue;
+			if (Path.IsPathRooted(settings.ConfigPath) && !settings.ConfigPath.StartsWith("//", StringComparison.Ordinal))
 			{
 				// absolute path to config
-				configUri = new Uri(_settings.CurrentValue.ConfigPath);
+				configUri = new Uri(settings.ConfigPath);
 			}
-			else if (_settings.CurrentValue.ConfigPath != null)
+			else if (settings.ConfigPath != null)
 			{
 				// relative (development) or perforce path
-				configUri = CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), _settings.CurrentValue.ConfigPath);
+				configUri = CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), settings.ConfigPath);
 			}
 
 			if (configUri != null)

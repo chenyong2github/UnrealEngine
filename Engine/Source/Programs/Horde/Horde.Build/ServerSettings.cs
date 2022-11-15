@@ -609,6 +609,11 @@ namespace Horde.Build
 		public int PerforceConnectionPoolSize { get; set; } = 5;
 
 		/// <summary>
+		/// Forces configuration data to be read and updated as part of appplication startup, rather than on a schedule. Useful when running locally.
+		/// </summary>
+		public bool ForceConfigUpdateOnStartup { get; set; }
+
+		/// <summary>
 		/// Lazily computed timezone value
 		/// </summary>
 		public TimeZoneInfo TimeZoneInfo
