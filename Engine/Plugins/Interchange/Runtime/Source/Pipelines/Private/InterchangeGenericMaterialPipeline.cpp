@@ -1887,7 +1887,7 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	{
 		HandleTransformVectorNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
-	else if(*ShaderType == Nodes::TransformVector::Name)
+	else if(*ShaderType == Nodes::VectorNoise::Name)
 	{
 		HandleVectorNoiseNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
