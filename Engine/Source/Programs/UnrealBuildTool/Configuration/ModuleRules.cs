@@ -721,6 +721,13 @@ namespace UnrealBuildTool
 		public bool bEnableObjCExceptions = false;
 
 		/// <summary>
+		/// Enable objective C automatic reference counting (ARC)
+		/// If you set this to true you should not use shared PCHs for this module. The engine won't be extensively using ARC in the short term  
+		/// Not doing this will result in a compile errors because shared PCHs were compiled with different flags than consumer
+		/// </summary>
+		public bool bEnableObjCAutomaticReferenceCounting = false;
+		
+		/// <summary>
 		/// How to treat shadow variable warnings
 		/// </summary>
 		public WarningLevel ShadowVariableWarningLevel

@@ -23,6 +23,7 @@
 #define UE_DEBUG_BREAK_IMPL() PLATFORM_BREAK()
 
 #ifdef __OBJC__
+#if !__has_feature(objc_arc)
 
 class FScopeAutoreleasePool
 {
@@ -45,6 +46,7 @@ private:
 
 #define SCOPED_AUTORELEASE_POOL const FScopeAutoreleasePool PREPROCESSOR_JOIN(Pool,__LINE__);
 
+#endif // !__has_feature(objc_arc)
 #endif // __OBJC__
 
 /**

@@ -342,14 +342,7 @@ public:
 
 #ifdef __OBJC__
 	/** Convert FString to Objective-C NSString */
-	FORCEINLINE NSString* GetNSString() const
-	{
-#if PLATFORM_TCHAR_IS_4_BYTES
-		return [[[NSString alloc] initWithBytes:Data.GetData() length:Len() * sizeof(TCHAR) encoding:NSUTF32LittleEndianStringEncoding] autorelease];
-#else
-		return [[[NSString alloc] initWithBytes:Data.GetData() length:Len() * sizeof(TCHAR) encoding:NSUTF16LittleEndianStringEncoding] autorelease];
-#endif
-	}
+    NSString* GetNSString() const;
 #endif
 
 	/** 

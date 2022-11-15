@@ -324,6 +324,18 @@ void FString::Shrink()
 	Data.Shrink();
 }
 
+#ifdef __OBJC__
+/** Convert FString to Objective-C NSString */
+NSString* FString::GetNSString() const
+{
+#if PLATFORM_TCHAR_IS_4_BYTES
+    return [[[NSString alloc] initWithBytes:Data.GetData() length:Len() * sizeof(TCHAR) encoding:NSUTF32LittleEndianStringEncoding] autorelease];
+#else
+    return [[[NSString alloc] initWithBytes:Data.GetData() length:Len() * sizeof(TCHAR) encoding:NSUTF16LittleEndianStringEncoding] autorelease];
+#endif
+}
+#endif
+
 FString& FString::AppendChar(TCHAR InChar)
 {
 	CheckInvariants();

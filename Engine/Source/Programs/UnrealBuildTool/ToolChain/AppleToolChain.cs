@@ -254,6 +254,16 @@ namespace UnrealBuildTool
 			return Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
 		}
 
+		protected override void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			if (CompileEnvironment.bEnableObjCAutomaticReferenceCounting)
+			{
+				Arguments.Add("-fobjc-arc");
+			}
+
+			base.GetCppStandardCompileArgument(CompileEnvironment, Arguments);
+		}
+
 		protected override void GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			Arguments.Add("-x objective-c++");
