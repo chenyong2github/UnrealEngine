@@ -28,8 +28,14 @@ FSMRTResult SMRTRayCast(
 	int NumSteps,
 	float StepOffset)
 {
-	float DepthHistory = -1;
-	float DepthHistoryTime = -1;
+	// NOTE: Need a magic initializer that we can detect. Would be natural to use DepthHistoryTime for this,
+	// but we want that register to disappear (DCE) when SMRT_EXTRAPOLATE_SLOPE is disabled.
+	// DepthHistory *can* be negative though when crossing clipmap boundaries, as the depth range expands.
+	// In practice it will only ever be down to -2 or so.
+	const float DepthHistoryNotSet = -10000.0f;
+	float DepthHistory = DepthHistoryNotSet;
+
+	float DepthHistoryTime = -1.0f;
 	float DepthSlope = 0;
 
 	const float TimeScale = -1.0f / NumSteps;
@@ -59,7 +65,7 @@ FSMRTResult SMRTRayCast(
 		if (Sample.bValid)
 		{
 			const float SampleDepth = Sample.SampleDepth;
-			if (DepthHistory < 0)
+			if (DepthHistory == DepthHistoryNotSet)
 			{
 				// First valid sample we've seen. Do a regular depth compare.
 				DepthHistory = SampleDepth;
