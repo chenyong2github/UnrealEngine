@@ -6,9 +6,9 @@
 #include "NiagaraConvertPinViewModel.h"
 #include "NiagaraConvertPinSocketViewModel.h"
 #include "SNiagaraConvertPinSocket.h"
-#include "Widgets/Input/SButton.h"
 #include "GraphEditorSettings.h"
 #include "Rendering/DrawElements.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "SGraphPin.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraGraphNodeConvert"
@@ -22,41 +22,70 @@ void SNiagaraGraphNodeConvert::Construct(const FArguments& InArgs, UEdGraphNode*
 	UpdateGraphNode();
 }
 
-TSharedRef<SWidget> SNiagaraGraphNodeConvert::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
+void SNiagaraGraphNodeConvert::SetDefaultTitleAreaWidget(TSharedRef<SOverlay> DefaultTitleAreaWidget)
 {
-	return SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
+	DefaultTitleAreaWidget->AddSlot()
+	.Padding(5)
+	.VAlign(VAlign_Center)
+	.HAlign(HAlign_Right)
+	[
+		SNew(SCheckBox)
+		.OnCheckStateChanged(this, &SNiagaraGraphNodeConvert::ToggleShowWiring)
+		.IsChecked(this, &SNiagaraGraphNodeConvert::GetToggleButtonChecked)
+		.Cursor(EMouseCursor::Default)
+		.ToolTipText(LOCTEXT("ToggleShaderCode_Tooltip", "Toggle visibility of shader code."))
+		.Style(FAppStyle::Get(), "Graph.Node.AdvancedView")
 		[
-			SGraphNode::CreateTitleWidget(NodeTitle)
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(10.0f, 0.0f)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Right)
-		[
-			SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), "FlatButton")
-			.ToolTipText(LOCTEXT("ShowWiring_Tooltip", "Toggle visibility of the internal wiring switchboard."))
-			.OnClicked(this, &SNiagaraGraphNodeConvert::ToggleShowWiring)
-			.Content()
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FAppStyle::GetBrush("Icons.Edit"))
+				.Image(this, &SNiagaraGraphNodeConvert::GetToggleButtonArrow)
 			]
-		];
+		]
+	];
 }
 
-FReply SNiagaraGraphNodeConvert::ToggleShowWiring()
+FReply SNiagaraGraphNodeConvert::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
-	UNiagaraNodeConvert* ConvertNode = Cast<UNiagaraNodeConvert>(GraphNode);
-	if (ConvertNode != nullptr)
+	if(InMouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 	{
-		ConvertNode->SetWiringShown(!ConvertNode->IsWiringShown());
+		if (UNiagaraNodeConvert* ConvertNode = Cast<UNiagaraNodeConvert>(GraphNode))
+		{
+			ConvertNode->SetWiringShown(true);
+		}
+		OnDoubleClick.ExecuteIfBound(GraphNode);
+		return FReply::Handled();
 	}
+	return FReply::Unhandled();
+}
 
-	return FReply::Handled();
+void SNiagaraGraphNodeConvert::ToggleShowWiring(const ECheckBoxState NewState)
+{
+	if (UNiagaraNodeConvert* ConvertNode = Cast<UNiagaraNodeConvert>(GraphNode))
+	{
+		ConvertNode->SetWiringShown(NewState == ECheckBoxState::Unchecked ? false : true);
+	}
+}
+
+ECheckBoxState SNiagaraGraphNodeConvert::GetToggleButtonChecked() const
+{
+	if (UNiagaraNodeConvert* ConvertNode = Cast<UNiagaraNodeConvert>(GraphNode))
+	{
+		return ConvertNode->IsWiringShown() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+	return ECheckBoxState::Checked;
+}
+
+const FSlateBrush* SNiagaraGraphNodeConvert::GetToggleButtonArrow() const
+{
+	if (UNiagaraNodeConvert* ConvertNode = Cast<UNiagaraNodeConvert>(GraphNode))
+	{
+		return FAppStyle::GetBrush(ConvertNode->IsWiringShown() ? TEXT("Icons.ChevronUp") : TEXT("Icons.ChevronDown"));
+	}
+	return FAppStyle::GetBrush(TEXT("Icons.ChevronUp"));
 }
 
 TSharedRef<SWidget> ConstructPinSocketsRecursive(const TArray<TSharedRef<FNiagaraConvertPinSocketViewModel>>& SocketViewModels)

@@ -19,6 +19,9 @@ public:
 	const FString& GetCustomHlsl() const;
 	void SetCustomHlsl(const FString& InCustomHlsl);
 
+	bool IsShaderCodeShown() const;
+	void SetShaderCodeShown(bool bInShown);
+
 	void GetIncludeFilePaths(TArray<FNiagaraCustomHlslInclude>& OutCustomHlslIncludeFilePaths) const;
 
 	UPROPERTY()
@@ -27,6 +30,7 @@ public:
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 	virtual void OnRenameNode(const FString& NewName) override;
 	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FText GetTooltipText() const override;
 
 	FText GetHlslText() const;
 	void OnCustomHlslTextCommitted(const FText& InText, ETextCommit::Type InType);
@@ -93,4 +97,8 @@ private:
 	// For example, /Plugin/FX/Niagara maps to /Engine/Plugins/FX/Niagara/Shaders. Custom mappings can be added via AddShaderSourceDirectoryMapping().
 	UPROPERTY(EditAnywhere, Category = "HLSL")
 	TArray<FString> VirtualIncludeFilePaths;
+	
+	// Is the shader code UI shown?
+	UPROPERTY()
+	bool bIsShaderCodeShown;
 };

@@ -20,6 +20,8 @@ UNiagaraNodeCustomHlsl::UNiagaraNodeCustomHlsl(const FObjectInitializer& ObjectI
 
 	Signature.Name = TEXT("Custom Hlsl");
 	FunctionDisplayName = Signature.Name.ToString();
+
+	bIsShaderCodeShown = true;
 }
 
 const FString& UNiagaraNodeCustomHlsl::GetCustomHlsl() const
@@ -37,6 +39,21 @@ void UNiagaraNodeCustomHlsl::SetCustomHlsl(const FString& InCustomHlsl)
 		// This is needed to guard against a crash when setting this value before the node has actually been
 		// added to a graph.
 		MarkNodeRequiresSynchronization(__FUNCTION__, true);
+	}
+}
+
+bool UNiagaraNodeCustomHlsl::IsShaderCodeShown() const
+{
+	return bIsShaderCodeShown;
+}
+
+void UNiagaraNodeCustomHlsl::SetShaderCodeShown(bool bInShown)
+{
+	if (bIsShaderCodeShown != bInShown)
+	{
+		Modify();
+		bIsShaderCodeShown = bInShown;
+		PostEditChange();
 	}
 }
 
@@ -87,6 +104,11 @@ void UNiagaraNodeCustomHlsl::OnCustomHlslTextCommitted(const FText& InText, ETex
 FLinearColor UNiagaraNodeCustomHlsl::GetNodeTitleColor() const
 {
 	return UEdGraphSchema_Niagara::NodeTitleColor_CustomHlsl;
+}
+
+FText UNiagaraNodeCustomHlsl::GetTooltipText() const
+{
+	return LOCTEXT("CustomHlslTooltip", "Inserts the entered hlsl code into the translated script.");
 }
 
 bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<FString>& OutTokens, bool IncludeComments, bool IncludeWhitespace)

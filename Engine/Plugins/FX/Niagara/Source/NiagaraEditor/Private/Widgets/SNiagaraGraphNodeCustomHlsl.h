@@ -19,12 +19,12 @@ public:
 	void Construct(const FArguments& InArgs, UEdGraphNode* InGraphNode);
 
 	//~ SGraphNode api
-	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
+	virtual void SetDefaultTitleAreaWidget(TSharedRef<SOverlay> DefaultTitleAreaWidget) override;
 	virtual bool IsNameReadOnly() const override;
 	virtual void RequestRenameOnSpawn() override;
 	virtual bool ShouldAllowCulling() const override { return false; }
-
-	virtual void CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox);
+	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
+	virtual void CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox) override;
 protected:
 
 	TSharedPtr<FNiagaraHLSLSyntaxHighlighter> SyntaxHighlighter;
@@ -32,4 +32,9 @@ protected:
 
 private:
 	FReply OnShaderTextKeyChar(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent);
+
+	EVisibility GetShaderTextVisibility() const;
+	void ToggleShowShaderCode(const ECheckBoxState NewCheckedState);
+	ECheckBoxState GetToggleButtonChecked() const;
+	const FSlateBrush* GetToggleButtonArrow() const;
 };

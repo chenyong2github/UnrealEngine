@@ -317,6 +317,7 @@ void FNiagaraEditorStyle::InitCodeView()
 	const FTextBlockStyle NormalText = FAppStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
 
 	// Code View
+	Set("NiagaraEditor.CodeView.ToggledHide", FLinearColor(FColor(24, 160, 251)));
 	Set("NiagaraEditor.CodeView.Checkbox.Text", FTextBlockStyle(NormalText)
 		.SetFont(DEFAULT_FONT("Bold", 12))
 		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.9f))
