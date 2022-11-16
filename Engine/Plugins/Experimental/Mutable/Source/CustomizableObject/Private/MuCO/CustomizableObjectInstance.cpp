@@ -3072,7 +3072,7 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshSkeletonData(const TShar
 
 		// The second step is to update the pose transforms in the ref skeleton from the BasesInvMatrix
 		FReferenceSkeletonModifier SkeletonModifier(ReferenceSkeleton, Skeleton);
-		for (int32 RefSkelBoneIndex = 0; RefSkelBoneIndex < ReferenceSkeleton.GetNum(); ++RefSkelBoneIndex)
+		for (int32 RefSkelBoneIndex = 0; RefSkelBoneIndex < ReferenceSkeleton.GetRawBoneNum(); ++RefSkelBoneIndex)
 		{
 			int32 ParentBoneIndex = ReferenceSkeleton.GetParentIndex(RefSkelBoneIndex);
 			if (ParentBoneIndex >= 0)

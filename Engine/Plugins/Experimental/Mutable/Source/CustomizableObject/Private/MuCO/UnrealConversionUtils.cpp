@@ -130,7 +130,7 @@ namespace UnrealConversionUtils
 		, const FReferenceSkeleton& InSourceReferenceSkeleton, const TArray<bool>& InUsedBones,
 		FReferenceSkeleton& InRefSkeleton, const USkeleton* InSkeleton)
 	{
-		const int32 SourceBoneCount = InSourceReferenceSkeleton.GetNum();
+		const int32 SourceBoneCount = InSourceReferenceSkeleton.GetRawBoneNum();
 		const TArray<FTransform>& SourceRawMeshBonePose = InSourceReferenceSkeleton.GetRawRefBonePose();
 
 		MUTABLE_CPUPROFILER_SCOPE(BuildSkeletonData_BuildRefSkeleton);

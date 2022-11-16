@@ -155,7 +155,7 @@ void FCustomizableObjectNodeProjectorParameterDetails::CustomizeDetails( IDetail
 	{
 		BoneComboOptions.Empty();
 			
-		for (int32 i = 0; i < SkeletalMesh->GetRefSkeleton().GetNum(); ++i)
+		for (int32 i = 0; i < SkeletalMesh->GetRefSkeleton().GetRawBoneNum(); ++i)
 		{
 			FName BoneName = SkeletalMesh->GetRefSkeleton().GetBoneName(i);
 			BoneComboOptions.Add(MakeShareable(new FString(BoneName.ToString())));
@@ -272,7 +272,7 @@ void FCustomizableObjectNodeProjectorParameterDetails::OnBoneComboBoxSelectionCh
 
 				FVector ChildLocation = FVector::ForwardVector;
 
-				for (int32 i = 0; i < SkeletalMesh->GetRefSkeleton().GetNum(); ++i)
+				for (int32 i = 0; i < SkeletalMesh->GetRefSkeleton().GetRawBoneNum(); ++i)
 				{
 					if (SkeletalMesh->GetRefSkeleton().GetParentIndex(i) == ParentIndex)
 					{

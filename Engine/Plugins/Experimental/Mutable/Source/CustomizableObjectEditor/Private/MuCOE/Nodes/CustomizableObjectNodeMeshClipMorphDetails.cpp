@@ -108,7 +108,7 @@ void FCustomizableObjectNodeMeshClipMorphDetails::CustomizeDetails(IDetailLayout
 		{
 			BoneComboOptions.Empty();
 				
-			for (int32 i = 0; i < SkeletalMesh->GetRefSkeleton().GetNum(); ++i)
+			for (int32 i = 0; i < SkeletalMesh->GetRefSkeleton().GetRawBoneNum(); ++i)
 			{
 				FName BoneName = SkeletalMesh->GetRefSkeleton().GetBoneName(i);
 				BoneComboOptions.Add(MakeShareable(new FString(BoneName.ToString())));
@@ -252,7 +252,7 @@ void FCustomizableObjectNodeMeshClipMorphDetails::OnBoneComboBoxSelectionChanged
 
 			//			int32 NextBone = -1;
 
-			//			for (int32 i = 0; i < SkeletalMesh->RefSkeleton.GetNum(); ++i)
+			//			for (int32 i = 0; i < SkeletalMesh->RefSkeleton.GetRawBoneNum(); ++i)
 			//			{
 			//				if (SkeletalMesh->RefSkeleton.GetParentIndex(i) == CurrentBone)
 			//				{
@@ -281,7 +281,7 @@ void FCustomizableObjectNodeMeshClipMorphDetails::OnBoneComboBoxSelectionChanged
 
 				FVector ChildLocation = FVector::ForwardVector;
 
-				for (int32 i = 0; i < SkeletalMesh->GetRefSkeleton().GetNum(); ++i)
+				for (int32 i = 0; i < SkeletalMesh->GetRefSkeleton().GetRawBoneNum(); ++i)
 				{
 					if (SkeletalMesh->GetRefSkeleton().GetParentIndex(i) == ParentIndex)
 					{

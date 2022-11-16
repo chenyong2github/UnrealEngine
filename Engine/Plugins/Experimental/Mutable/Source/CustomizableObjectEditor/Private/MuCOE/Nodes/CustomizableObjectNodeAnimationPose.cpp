@@ -114,9 +114,9 @@ void UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(UPoseAs
 
 		// Use all bones from the pose's skeleton as RequiredBones
 		TArray<FBoneIndexType> RequiredBones;
-		RequiredBones.SetNumUninitialized(PoseRefSkeleton.GetNum());
+		RequiredBones.SetNumUninitialized(PoseRefSkeleton.GetRawBoneNum());
 
-		for (uint16 BoneIndex = 0; BoneIndex < PoseRefSkeleton.GetNum(); ++BoneIndex)
+		for (uint16 BoneIndex = 0; BoneIndex < PoseRefSkeleton.GetRawBoneNum(); ++BoneIndex)
 		{
 			RequiredBones[BoneIndex] = BoneIndex;
 		}
@@ -156,7 +156,7 @@ void UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(UPoseAs
 
 		// Extract final pose by combining the OutPose with the RefSkeleton pose (for bones missing in the PoseRefSkeleton)
 		const FReferenceSkeleton& RefSkeleton = RefSkeletalMesh->GetRefSkeleton();
-		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
+		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetRawBoneNum(); ++BoneIndex)
 		{
 			FName BoneName = RefSkeleton.GetBoneName(BoneIndex);
 

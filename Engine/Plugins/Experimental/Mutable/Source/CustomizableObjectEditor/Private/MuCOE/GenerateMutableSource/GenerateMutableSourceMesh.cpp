@@ -2149,7 +2149,7 @@ bool GetAndValidateReshapeBonesToDeform(
 	{
 		for (const USkeletalMesh* SkeletalMesh : SkeletalMeshes)
 		{
-			int32 NumBonesToDeform = SkeletalMesh->GetRefSkeleton().GetNum();
+			int32 NumBonesToDeform = SkeletalMesh->GetRefSkeleton().GetRawBoneNum();
 
 			for (int32 BoneIndex = 0; BoneIndex < NumBonesToDeform; ++BoneIndex)
 			{
@@ -2178,7 +2178,7 @@ bool GetAndValidateReshapeBonesToDeform(
 	{
 		// Getting reference skeleton from the reference skeletal mesh of the current component
 		const FReferenceSkeleton RefSkeleton = GenerationContext.ComponentInfos[GenerationContext.CurrentMeshComponent].RefSkeletalMesh->GetRefSkeleton();
-		int32 NumBones = RefSkeleton.GetNum();
+		int32 NumBones = RefSkeleton.GetRawBoneNum();
 
 		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 		{
@@ -2196,7 +2196,7 @@ bool GetAndValidateReshapeBonesToDeform(
 
 		for (const USkeletalMesh* SkeletalMesh : SkeletalMeshes)
 		{
-			int32 NumBones = SkeletalMesh->GetRefSkeleton().GetNum();
+			int32 NumBones = SkeletalMesh->GetRefSkeleton().GetRawBoneNum();
 
 			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 			{
@@ -2235,7 +2235,7 @@ bool GetAndValidateReshapePhysicsToDeform(
 		const FReferenceSkeleton& RefSkeleton =
 			GenerationContext.ComponentInfos[GenerationContext.CurrentMeshComponent].RefSkeletalMesh->GetRefSkeleton();
 
-		const int32 RefSkeletonNumBones = RefSkeleton.GetNum();
+		const int32 RefSkeletonNumBones = RefSkeleton.GetRawBoneNum();
 		BoneNamesInUserSelection.SetNum(RefSkeletonNumBones);
 		for (int32 I = 0; I < RefSkeletonNumBones; ++I)
 		{
