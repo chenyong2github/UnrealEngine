@@ -3,6 +3,7 @@
 #include "Elements/PCGDataFromActor.h"
 
 #include "PCGComponent.h"
+#include "Data/PCGSpatialData.h"
 
 #include "GameFramework/Actor.h"
 #include "UObject/Package.h"
@@ -125,6 +126,17 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* Context) const
 	{
 		FPCGTaggedData& Output = Outputs.Emplace_GetRef();
 		Output.Data = UPCGComponent::CreateActorPCGData(FoundActor, Context->SourceComponent.Get(), /*bParseActor=*/Settings->Mode != EPCGGetDataFromActorMode::GetSinglePoint);
+	}
+
+	if (Context->SourceComponent.IsValid())
+	{
+		for (FPCGTaggedData& Output : Outputs)
+		{
+			if (UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Output.Data))
+			{
+				SpatialData->TargetActor = Context->SourceComponent->GetOwner();
+			}
+		}
 	}
 
 	return true;
