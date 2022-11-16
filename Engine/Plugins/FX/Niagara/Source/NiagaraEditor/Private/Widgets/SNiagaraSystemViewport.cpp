@@ -97,6 +97,8 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 	SetOrbitModeFromSettings();
 	bCaptureScreenShot = false;
 
+	bDrawAxesGame = true;
+
 	//This seems to be needed to get the correct world time in the preview.
 	FNiagaraSystemViewportClient::SetIsSimulateInEditorViewport(true);
 }

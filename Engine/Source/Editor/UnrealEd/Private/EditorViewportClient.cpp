@@ -411,6 +411,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, bUseNumpadCameraControl(true)
 	, bDisableInput(false)
 	, bDrawAxes(true)
+	, bDrawAxesGame(false)
 	, bSetListenerPosition(false)
 	, LandscapeLODOverride(-1)
 	, bDrawVertices(false)
@@ -4122,7 +4123,8 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	}
 
 	// Axes indicators
-	if (bDrawAxes && !ViewFamily.EngineShowFlags.Game && !GLevelEditorModeTools().IsViewportUIHidden() && !IsVisualizeCalibrationMaterialEnabled())
+	const bool bShouldDrawAxes = (bDrawAxes && !ViewFamily.EngineShowFlags.Game) || (bDrawAxesGame && ViewFamily.EngineShowFlags.Game);
+	if (bShouldDrawAxes && !GLevelEditorModeTools().IsViewportUIHidden() && !IsVisualizeCalibrationMaterialEnabled())
 	{
 		switch (GetViewportType())
 		{

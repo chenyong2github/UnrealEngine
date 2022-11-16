@@ -1721,6 +1721,9 @@ public:
 	/** If true, draw the axis indicators when the viewport is perspective. */
 	bool					bDrawAxes;
 
+	/** If true, draw the axis indicators when EngineShowFlags.Game is set. */
+	bool					bDrawAxesGame;
+
 	/** If true, the listener position will be set */
 	bool					bSetListenerPosition;
 
