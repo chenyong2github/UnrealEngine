@@ -28,11 +28,6 @@ public:
 	//~ IAjaMediaModule interface
 	virtual TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CreatePlayer(IMediaEventSink& EventSink) override
 	{
-		if (!FAja::IsInitialized())
-		{
-			return nullptr;
-		}
-
 		return MakeShared<FAjaMediaPlayer, ESPMode::ThreadSafe>(EventSink);
 	}
 
@@ -41,7 +36,7 @@ public:
 		return StyleSet;
 	}
 
-	virtual bool IsInitialized() const override { return FAja::IsInitialized(); }
+	virtual bool IsInitialized() const override { return true; }
 
 	virtual bool CanBeUsed() const override { return FAja::CanUseAJACard(); }
 
@@ -50,13 +45,6 @@ public:
 	//~ IModuleInterface interface
 	virtual void StartupModule() override
 	{
-		// initialize AJA
-		if (!FAja::Initialize())
-		{
-			UE_LOG(LogAjaMedia, Error, TEXT("Failed to initialize AJA"));
-			return;
-		}
-
 		CreateStyle();
 
 		IMediaIOCoreModule::Get().RegisterDeviceProvider(&DeviceProvider);
@@ -68,7 +56,6 @@ public:
 		{
 			IMediaIOCoreModule::Get().UnregisterDeviceProvider(&DeviceProvider);
 		}
-		FAja::Shutdown();
 	}
 
 private:

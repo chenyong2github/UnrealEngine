@@ -17,6 +17,8 @@ namespace UE::GPUTextureTransfer
 		RHI_MAX
 	};
 
+	using FLoggingCallbackPtr = void(*)(const TCHAR* Format, ...);
+
 	struct GPUTEXTURETRANSFER_API FInitializeDMAArgs
 	{
 		/** Which RHI is being used. */
@@ -117,4 +119,7 @@ namespace UE::GPUTextureTransfer
 		virtual bool Initialize(const FInitializeDMAArgs& Args) = 0;
 		virtual bool Uninitialize() = 0;
 	};
+
+	GPUTEXTURETRANSFER_API ITextureTransfer* GetTextureTransfer(const FInitializeDMAArgs& Args);
+	GPUTEXTURETRANSFER_API void CleanupTextureTransfer(ITextureTransfer* TextureTransfer);
 }

@@ -20,6 +20,7 @@
 
 #if WITH_EDITOR
 #include "AnalyticsEventAttribute.h"
+#include "Editor.h"
 #include "EngineAnalytics.h"
 #include "Interfaces/IMainFrameModule.h"
 #endif
@@ -226,10 +227,13 @@ UAjaMediaCapture::UAjaMediaCapture()
 	bGPUTextureTransferAvailable = ((FAjaMediaOutputModule*)&IAjaMediaOutputModule::Get())->IsGPUTextureTransferAvailable();
 
 #if WITH_EDITOR
-	// In editor, an asset re-save dialog can prevent AJA from cleaning up in the regular PreExit callback,
-	// So we have to do our cleanup before the regular callback is called.
-	IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
-	CanCloseEditorDelegateHandle = MainFrame.RegisterCanCloseEditor(IMainFrameModule::FMainFrameCanCloseEditor::CreateUObject(this, &UAjaMediaCapture::CleanupPreEditorExit));
+	if (GEditor)
+	{
+		// In editor, an asset re-save dialog can prevent AJA from cleaning up in the regular PreExit callback,
+		// So we have to do our cleanup before the regular callback is called.
+		IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+		CanCloseEditorDelegateHandle = MainFrame.RegisterCanCloseEditor(IMainFrameModule::FMainFrameCanCloseEditor::CreateUObject(this, &UAjaMediaCapture::CleanupPreEditorExit));
+	}
 #else
 	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UAjaMediaCapture::OnEnginePreExit);
 #endif
@@ -307,7 +311,7 @@ void UAjaMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 				{
 					for (FTextureRHIRef& Texture : TexturesToRelease)
 					{
-						AJA::UnregisterDMATexture(Texture->GetTexture2D()->GetNativeResource());
+						AJA::UnregisterDMATexture(Texture->GetTexture2D());
 					}
 
 					TexturesToRelease.Reset();
@@ -572,7 +576,7 @@ void UAjaMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptureBaseD
 		bool bSetVideoResult = false;
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::SetVideo_GPUDirect);
-			bSetVideoResult = OutputChannel->SetVideoFrameData(FrameBuffer, InTexture->GetTexture2D()->GetNativeResource());
+			bSetVideoResult = OutputChannel->SetVideoFrameData(FrameBuffer, InTexture->GetTexture2D());
 		}
 
 		// If the set video call fails, that means we probably didn't find an available frame to write to,
@@ -601,19 +605,20 @@ void UAjaMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTexture)
 
 			FRHITexture2D* Texture = InTexture->GetTexture2D();
 			AJA::FRegisterDMATextureArgs Args;
-			Args.RHITexture = Texture->GetNativeResource();
+			Args.RHITexture = Texture;
 			//Args.InRHIResourceMemory = Texture->GetNativeResource(); todo: VulkanTexture->Surface->GetAllocationHandle for Vulkan
+
 			AJA::RegisterDMATexture(Args);
 		}
 	}
 
-	AJA::LockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+	AJA::LockDMATexture(InTexture->GetTexture2D());
 }
 
 void UAjaMediaCapture::UnlockDMATexture_RenderThread(FTextureRHIRef InTexture)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::UnlockDMATexture);
-	AJA::UnlockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+	AJA::UnlockDMATexture(InTexture->GetTexture2D());
 }
 
 void UAjaMediaCapture::WaitForSync_RenderingThread() const

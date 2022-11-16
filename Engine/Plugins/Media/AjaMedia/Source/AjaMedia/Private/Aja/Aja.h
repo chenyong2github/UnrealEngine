@@ -26,11 +26,5 @@ public:
 	static bool CanUseAJACard() { return (FApp::CanEverRender() || bCanForceAJAUsage); }
 
 private:
-	static void LogInfo(const TCHAR* InFormat, ...);
-	static void LogWarning(const TCHAR* InFormat, ...);
-	static void LogError(const TCHAR* InFormat, ...);
-
-private:
-	static void* LibHandle;
 	static bool bCanForceAJAUsage;
 };

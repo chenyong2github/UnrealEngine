@@ -34,9 +34,10 @@ namespace UE::GPUTextureTransfer::Private
 		virtual void UnlockTexture(FRHITexture* InRHITexture) override;
 		// End ITextureTransfer interface
 
-	protected:
 		virtual bool Initialize(const FInitializeDMAArgs& Args) override;
 		virtual bool Uninitialize() override;
+
+	protected:
 
 		struct DVPSync
 		{

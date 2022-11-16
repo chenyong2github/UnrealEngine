@@ -20,12 +20,15 @@
 #endif
 
 #include "CoreMinimal.h"
+#include "GPUTextureTransfer.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "RenderingThread.h"
+
+#include <unordered_map>
 
 DEFINE_LOG_CATEGORY(LogGPUTextureTransfer);
 
@@ -234,5 +237,98 @@ void FGPUTextureTransferModule::UninitializeTextureTransfer()
 		});
 #endif
 }
+
+namespace UE::GPUTextureTransfer
+{
+	struct FTextureTransfersWrapper
+	{
+		static constexpr uint8_t RHI_MAX = static_cast<uint8_t>(ERHI::RHI_MAX);
+		ITextureTransfer* Transfers[RHI_MAX];
+
+		FTextureTransfersWrapper()
+		{
+			for (uint8_t RhiIt = 0; RhiIt < RHI_MAX; RhiIt++)
+			{
+				Transfers[RhiIt] = nullptr;
+			}
+		}
+
+		~FTextureTransfersWrapper()
+		{
+			// 0 is Invalid RHI
+			for (uint8_t RhiIt = 1; RhiIt < RHI_MAX; RhiIt++)
+			{
+				ITextureTransfer* TextureTransfer = Transfers[RhiIt];
+				if (TextureTransfer)
+				{
+					TextureTransfer->Uninitialize();
+					delete TextureTransfer;
+					Transfers[RhiIt] = nullptr;
+				}
+			}
+		}
+
+		void CleanupTextureTransfer(ITextureTransfer* TextureTransfer)
+		{
+			if (TextureTransfer)
+			{
+				for (uint8_t RhiIt = 1; RhiIt < RHI_MAX; RhiIt++)
+				{
+					if (Transfers[RhiIt] == TextureTransfer)
+					{
+						TextureTransfer->Uninitialize();
+						delete TextureTransfer;
+						Transfers[RhiIt] = nullptr;
+					}
+				}
+			}
+		}
+
+	} TextureTransfersWrapper;
+
+	ITextureTransfer* GetTextureTransfer(const UE::GPUTextureTransfer::FInitializeDMAArgs& Args)
+	{
+#if DVP_SUPPORTED_PLATFORM
+		const uint8_t RHIIndex = static_cast<uint8_t>(Args.RHI);
+
+		if (TextureTransfersWrapper.Transfers[RHIIndex])
+		{
+			return TextureTransfersWrapper.Transfers[RHIIndex];
+		}
+
+		ITextureTransfer* TextureTransfer = nullptr;
+		switch (Args.RHI)
+		{
+		case ERHI::D3D11:
+			TextureTransfer = new Private::FD3D11TextureTransfer();
+			break;
+		case ERHI::D3D12:
+			TextureTransfer = new Private::FD3D12TextureTransfer();
+			break;
+		default:
+			return nullptr;
+		}
+
+		if ((Private::FTextureTransferBase*)(TextureTransfer)->Initialize(Args))
+		{
+			TextureTransfersWrapper.Transfers[RHIIndex] = TextureTransfer;
+		}
+		else
+		{
+			delete TextureTransfer;
+		}
+
+		return TextureTransfersWrapper.Transfers[RHIIndex];
+#else
+		return nullptr;
+#endif
+	}
+
+	void CleanupTextureTransfer(ITextureTransfer* TextureTransfer)
+	{
+		TextureTransfersWrapper.CleanupTextureTransfer(TextureTransfer);
+	}
+}
+
 
 IMPLEMENT_MODULE(FGPUTextureTransferModule, GPUTextureTransfer);

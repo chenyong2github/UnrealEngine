@@ -15,6 +15,12 @@
 	"SupportedTargetPlatforms": [ "Win64" ],
 	"Modules": [
 		{
+			"Name": "AjaCore",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [ "Win64" ]
+		},
+		{
 			"Name": "AjaMedia",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
