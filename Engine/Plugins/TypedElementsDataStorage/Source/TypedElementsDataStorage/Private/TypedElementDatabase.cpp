@@ -250,15 +250,15 @@ ColumnDataResult UTypedElementDatabase::GetColumnData(TypedElementRowHandle Row,
 	return ColumnDataResult{ nullptr, nullptr };
 }
 
-TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(const QueryDescription& Query)
+TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(const FQueryDescription& Query)
 {
-	auto LocalToNativeAccess = [](QueryDescription::EAccessType Access) -> EMassFragmentAccess
+	auto LocalToNativeAccess = [](FQueryDescription::EAccessType Access) -> EMassFragmentAccess
 	{
 		switch (Access)
 		{
-		case QueryDescription::EAccessType::ReadOnly:
+		case FQueryDescription::EAccessType::ReadOnly:
 			return EMassFragmentAccess::ReadOnly;
-		case QueryDescription::EAccessType::ReadWrite:
+		case FQueryDescription::EAccessType::ReadWrite:
 			return EMassFragmentAccess::ReadWrite;
 		default:
 			checkf(false, TEXT("Invalid query access type: %i."), static_cast<uint32>(Access));
@@ -267,14 +267,25 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(const QueryDescript
 	};
 
 	QueryStore::Handle Result = Queries.Emplace();
-	FMassEntityQuery& NativeQuery = Queries.GetMutable(Result).NativeQuery;
+	FExtendedQuery& StoredQuery = Queries.GetMutable(Result);
+	StoredQuery.Action = Query.Action;
+	StoredQuery.bSimpleQuery = Query.bSimpleQuery;
 
-	for (const QueryDescription::AccessControlledStruct& SelectEntry : Query.Selection)
+	FMassEntityQuery& NativeQuery = StoredQuery.NativeQuery;
+
+	if (Query.Action == FQueryDescription::EActionType::Count)
 	{
-		checkf(SelectEntry.Type, TEXT("Provided query selection type can not be null."));
-		checkf(SelectEntry.Type->IsChildOf(FMassFragment::StaticStruct()), 
-			TEXT("Provided query selection type '%s' is not based on FMassFragment."), *SelectEntry.Type->GetStructPathName().ToString());
-		NativeQuery.AddRequirement(SelectEntry.Type, LocalToNativeAccess(SelectEntry.Access));
+		checkf(Query.Selection.IsEmpty(), TEXT("Count queries for the Typed Elements Data Storage can't have entries for selection."));
+	}
+	else
+	{
+		for (const FQueryDescription::FAccessControlledStruct& SelectEntry : Query.Selection)
+		{
+			checkf(SelectEntry.Type, TEXT("Provided query selection type can not be null."));
+			checkf(SelectEntry.Type->IsChildOf(FTypedElementDataStorageColumn::StaticStruct()),
+				TEXT("Provided query selection type '%s' is not based on FTypedElementDataStorageColumn."), *SelectEntry.Type->GetStructPathName().ToString());
+			NativeQuery.AddRequirement(SelectEntry.Type, LocalToNativeAccess(SelectEntry.Access));
+		}
 	}
 
 	if (Query.bSimpleQuery) // This backend currently only supports simple queries.
@@ -282,19 +293,19 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(const QueryDescript
 		checkf(Query.ConditionTypes.Num() == Query.ConditionOperators.Num(),
 			TEXT("The types and operators for a typed element query have gone out of sync."));
 		
-		const QueryDescription::Operator* Operand = Query.ConditionOperators.GetData();
-		for (QueryDescription::OperatorType Type : Query.ConditionTypes)
+		const FQueryDescription::FOperator* Operand = Query.ConditionOperators.GetData();
+		for (FQueryDescription::EOperatorType Type : Query.ConditionTypes)
 		{
 			EMassFragmentPresence Presence;
 			switch (Type)
 			{
-			case QueryDescription::OperatorType::SimpleAll:
+			case FQueryDescription::EOperatorType::SimpleAll:
 				Presence = EMassFragmentPresence::All;
 				break;
-			case QueryDescription::OperatorType::SimpleAny:
+			case FQueryDescription::EOperatorType::SimpleAny:
 				Presence = EMassFragmentPresence::Any;
 				break;
-			case QueryDescription::OperatorType::SimpleNone:
+			case FQueryDescription::EOperatorType::SimpleNone:
 				Presence = EMassFragmentPresence::None;
 				break;
 			default:
@@ -314,7 +325,7 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(const QueryDescript
 		}
 	}
 
-	for (const QueryDescription::AccessControlledClass& DependencyEntry : Query.Dependencies)
+	for (const FQueryDescription::FAccessControlledClass& DependencyEntry : Query.Dependencies)
 	{
 		checkf(DependencyEntry.Type, TEXT("Provided query dependcy type can not be null."));
 		checkf(DependencyEntry.Type->IsChildOf<UWorldSubsystem>(),
@@ -338,6 +349,50 @@ void UTypedElementDatabase::UnregisterQuery(TypedElementQueryHandle Query)
 	}
 
 	Queries.Remove(Handle);
+}
+
+ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(TypedElementQueryHandle Query)
+{
+	FQueryResult Result;
+
+	QueryStore::Handle Handle;
+	Handle.Handle = Query;
+
+	if (Queries.IsAlive(Handle))
+	{
+		FExtendedQuery& QueryData = Queries.Get(Handle);
+		if (QueryData.bSimpleQuery)
+		{
+			switch (QueryData.Action)
+			{
+			case FQueryDescription::EActionType::None:
+				Result.Completed = FQueryResult::ECompletion::Fully;
+				break;
+			case FQueryDescription::EActionType::Select:
+				Result.Completed = FQueryResult::ECompletion::Unsupported;
+				break;
+			case FQueryDescription::EActionType::Count:
+				checkf(ActiveEditorEntityManager, 
+					TEXT("Unable to run Typed Element Data Storage query before a MASS Entity Manager has been assigned."));
+				Result.Count = QueryData.NativeQuery.GetNumMatchingEntities(*ActiveEditorEntityManager);
+				Result.Completed = FQueryResult::ECompletion::Fully;
+				break;
+			default:
+				Result.Completed = FQueryResult::ECompletion::Unsupported;
+				break;
+			}
+		}
+		else
+		{
+			Result.Completed = FQueryResult::ECompletion::Unsupported;
+		}
+	}
+	else
+	{
+		Result.Completed = FQueryResult::ECompletion::Unavailable;
+	}
+
+	return Result;
 }
 
 FTypedElementOnDataStorageCreation& UTypedElementDatabase::OnCreation()

@@ -14,9 +14,10 @@ class UScriptStruct;
  * 
  * Queries are constructed with the following section:
  * - Select		A list of the data objects that are returned as the result of the query.
+ * - Count		Counts the total number or rows that pass the filter.
  * - Where		A list of conditions that restrict what's accepted by the query.
  * - DependsOn	A list of systems outside the data storage that will be accessed by the query('s user).
- * - Commit		Compiles the query into its final form and can be used afterwards.
+ * - Compile	Compiles the query into its final form and can be used afterwards.
  * 
  * Calls to the sections become increasingly restrictive, e.g. after calling Where only DependsOn can be
  * called again.
@@ -34,6 +35,8 @@ class UScriptStruct;
  * - ReadOnly: Indicates that the data object will only be read from
  * - ReadWrite: Indicated that the data object will be read and written to.
  * 
+ * "Count" does not have any construction options.
+ * 
  * "Where" is constructed with:
  * - All: The query will be accepted only if all the types listed here are present in a table.
  * - Any: The query will be accepted if at least one of the listed types is present in a table.
@@ -47,8 +50,8 @@ class UScriptStruct;
  * - ReadWrite: Indicates that the external system will be used to write data to.
  * 
  * Usage example:
- * ITypedElementDataStorageInterface::QueryDescription Query =
- *		Select{}
+ * ITypedElementDataStorageInterface::FQueryDescription Query =
+ *		Select()
  *			.ReadWrite({ FDataExample1::StaticStruct() })
  *			.ReadWrite<FDataExample2, FDataExample3>()
  *			.ReadOnly<FDataExample4>()
@@ -59,7 +62,7 @@ class UScriptStruct;
  *		.DependsOn()
  *			.ReadOnly<USystemExample1, USystemExample2>()
  *			.ReadWrite(USystemExample2::StaticClass())
- *		.Commit();
+ *		.Compile();
  * 
  * Creating a query is expensive on the builder and the backend side. It's therefore recommended to create a query
  * and store its compiled form for repeated use instead of rebuilding the query on every update.
@@ -67,63 +70,70 @@ class UScriptStruct;
 
 namespace TypedElementQueryBuilder
 {
-	using EAccessType = ITypedElementDataStorageInterface::QueryDescription::EAccessType;
+	using EAccessType = ITypedElementDataStorageInterface::FQueryDescription::EAccessType;
 
 	TYPEDELEMENTFRAMEWORK_API const UScriptStruct* Type(FTopLevelAssetPath Name);
 	TYPEDELEMENTFRAMEWORK_API const UScriptStruct* TypeOptional(FTopLevelAssetPath Name);
 	TYPEDELEMENTFRAMEWORK_API const UScriptStruct* operator""_Type(const char* Name, std::size_t NameSize);
 	TYPEDELEMENTFRAMEWORK_API const UScriptStruct* operator""_TypeOptional(const char* Name, std::size_t NameSize);
 
-	class TYPEDELEMENTFRAMEWORK_API Dependency final
+	class TYPEDELEMENTFRAMEWORK_API FDependency final
 	{
+		friend class Count;
 		friend class Select;
-		friend class SimpleQuery;
+		friend class FSimpleQuery;
 	public:
 		template<typename... TargetTypes>
-		Dependency& ReadOnly();
-		Dependency& ReadOnly(const UClass* Target);
-		Dependency& ReadOnly(std::initializer_list<const UClass*> Targets);
+		FDependency& ReadOnly();
+		FDependency& ReadOnly(const UClass* Target);
+		FDependency& ReadOnly(std::initializer_list<const UClass*> Targets);
 		template<typename... TargetTypes>
-		Dependency& ReadWrite();
-		Dependency& ReadWrite(const UClass* Target);
-		Dependency& ReadWrite(std::initializer_list<const UClass*> Targets);
+		FDependency& ReadWrite();
+		FDependency& ReadWrite(const UClass* Target);
+		FDependency& ReadWrite(std::initializer_list<const UClass*> Targets);
 
-		ITypedElementDataStorageInterface::QueryDescription&& Commit();
+		ITypedElementDataStorageInterface::FQueryDescription&& Compile();
 
 	private:
-		explicit Dependency(ITypedElementDataStorageInterface::QueryDescription* Query);
+		explicit FDependency(ITypedElementDataStorageInterface::FQueryDescription* Query);
 		
-		ITypedElementDataStorageInterface::QueryDescription* Query;
+		ITypedElementDataStorageInterface::FQueryDescription* Query;
 	};
 
-	class TYPEDELEMENTFRAMEWORK_API SimpleQuery final
+	class TYPEDELEMENTFRAMEWORK_API FSimpleQuery final
 	{
 	public:
+		friend class Count;
 		friend class Select;
-		Dependency DependsOn();
+
+		FDependency DependsOn();
+		ITypedElementDataStorageInterface::FQueryDescription&& Compile();
 
 		template<typename... TargetTypes>
-		SimpleQuery& All();
-		SimpleQuery& All(const UScriptStruct* Target);
-		SimpleQuery& All(std::initializer_list<const UScriptStruct*> Targets);
+		FSimpleQuery& All();
+		FSimpleQuery& All(const UScriptStruct* Target);
+		FSimpleQuery& All(std::initializer_list<const UScriptStruct*> Targets);
 		template<typename... TargetTypes>
-		SimpleQuery& Any();
-		SimpleQuery& Any(const UScriptStruct* Target);
-		SimpleQuery& Any(std::initializer_list<const UScriptStruct*> Targets);
+		FSimpleQuery& Any();
+		FSimpleQuery& Any(const UScriptStruct* Target);
+		FSimpleQuery& Any(std::initializer_list<const UScriptStruct*> Targets);
 		template<typename... TargetTypes>
-		SimpleQuery& None();
-		SimpleQuery& None(const UScriptStruct* Target);
-		SimpleQuery& None(std::initializer_list<const UScriptStruct*> Targets);
+		FSimpleQuery& None();
+		FSimpleQuery& None(const UScriptStruct* Target);
+		FSimpleQuery& None(std::initializer_list<const UScriptStruct*> Targets);
 
 	private:
-		explicit SimpleQuery(ITypedElementDataStorageInterface::QueryDescription* Query);
+		explicit FSimpleQuery(ITypedElementDataStorageInterface::FQueryDescription* Query);
 
-		ITypedElementDataStorageInterface::QueryDescription* Query;
+		ITypedElementDataStorageInterface::FQueryDescription* Query;
 	};
 
+	// Explicitly not following the naming convention in order to keep readability consistent. It now reads like a query sentence.
 	class TYPEDELEMENTFRAMEWORK_API Select final
 	{
 	public:
+		Select();
+
 		template<typename... TargetTypes>
 		Select& ReadOnly();
 		Select& ReadOnly(const UScriptStruct* Target);
@@ -133,16 +143,52 @@ namespace TypedElementQueryBuilder
 		Select& ReadWrite(const UScriptStruct* Target);
 		Select& ReadWrite(std::initializer_list<const UScriptStruct*> Targets);
 
-		ITypedElementDataStorageInterface::QueryDescription&& Commit();
-		SimpleQuery Where();
-		Dependency DependsOn();
+		ITypedElementDataStorageInterface::FQueryDescription&& Compile();
+		FSimpleQuery Where();
+		FDependency DependsOn();
 
 	private:
-		ITypedElementDataStorageInterface::QueryDescription Query;
+		ITypedElementDataStorageInterface::FQueryDescription Query;
+	};
+
+	// Explicitly not following the naming convention in order to keep readability consistent. It now reads like a query sentence.
+	class TYPEDELEMENTFRAMEWORK_API Count final
+	{
+	public:
+		Count();
+
+		FSimpleQuery Where();
+		FDependency DependsOn();
+
+	private:
+		ITypedElementDataStorageInterface::FQueryDescription Query;
 	};
 
 
 	// Implementations
+
+	//
+	// FDependecy
+	//
+
+	template<typename... TargetTypes>
+	FDependency& FDependency::ReadOnly()
+	{
+		ReadOnly({ TargetTypes::StaticClass()... });
+		return *this;
+	}
+
+	template<typename... TargetTypes>
+	FDependency& FDependency::ReadWrite()
+	{
+		ReadWrite({ TargetTypes::StaticClass()... });
+		return *this;
+	}
+
+
+	//
+	// Select
+	//
 
 	template<typename... TargetTypes>
 	Select& Select::ReadOnly()
@@ -159,40 +205,28 @@ namespace TypedElementQueryBuilder
 	}
 
 
+	//
+	// FSimpleQuery
+	//
+
 	template<typename... TargetTypes>
-	SimpleQuery& SimpleQuery::All()
+	FSimpleQuery& FSimpleQuery::All()
 	{
 		All({ TargetTypes::StaticStruct()... });
 		return *this;
 	}
 
 	template<typename... TargetTypes>
-	SimpleQuery& SimpleQuery::Any()
+	FSimpleQuery& FSimpleQuery::Any()
 	{
 		Any({ TargetTypes::StaticStruct()... });
 		return *this;
 	}
 
 	template<typename... TargetTypes>
-	SimpleQuery& SimpleQuery::None()
+	FSimpleQuery& FSimpleQuery::None()
 	{
 		None({ TargetTypes::StaticStruct()... });
 		return *this;
 	}
-
-
-	template<typename... TargetTypes>
-	Dependency& Dependency::ReadOnly()
-	{
-		ReadOnly( { TargetTypes::StaticClass()... } );
-		return *this;
-	}
-
-	template<typename... TargetTypes>
-	Dependency& Dependency::ReadWrite()
-	{
-		ReadWrite({ TargetTypes::StaticClass()... });
-		return *this;
-	}
-
 } // namespace TypedElementQueryBuilder

@@ -31,19 +31,19 @@ namespace TypedElementQueryBuilder
 	 * DependsOn
 	 */
 
-	Dependency::Dependency(ITypedElementDataStorageInterface::QueryDescription* Query)
+	FDependency::FDependency(ITypedElementDataStorageInterface::FQueryDescription* Query)
 		: Query(Query)
 	{
 	}
 
-	Dependency& Dependency::ReadOnly(const UClass* Target)
+	FDependency& FDependency::ReadOnly(const UClass* Target)
 	{
 		checkf(Target, TEXT("The Dependency section in the Typed Elements query builder doesn't support nullptrs as Read-Only input."));
 		Query->Dependencies.Emplace(Target, EAccessType::ReadOnly);
 		return *this;
 	}
 
-	Dependency& Dependency::ReadOnly(std::initializer_list<const UClass*> Targets)
+	FDependency& FDependency::ReadOnly(std::initializer_list<const UClass*> Targets)
 	{
 		for (const UClass* Target : Targets)
 		{
@@ -52,14 +52,14 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	Dependency& Dependency::ReadWrite(const UClass* Target)
+	FDependency& FDependency::ReadWrite(const UClass* Target)
 	{
 		checkf(Target, TEXT("The Dependency section in the Typed Elements query builder doesn't support nullptrs as Read/Write input."));
 		Query->Dependencies.Emplace(Target, EAccessType::ReadWrite);
 		return *this;
 	}
 
-	Dependency& Dependency::ReadWrite(std::initializer_list<const UClass*> Targets)
+	FDependency& FDependency::ReadWrite(std::initializer_list<const UClass*> Targets)
 	{
 		for (const UClass* Target : Targets)
 		{
@@ -68,33 +68,33 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	ITypedElementDataStorageInterface::QueryDescription&& Dependency::Commit()
+	ITypedElementDataStorageInterface::FQueryDescription&& FDependency::Compile()
 	{
 		return MoveTemp(*Query);
 	}
 
 
 	/**
-	 * SimpleQuery
+	 * Simple Query
 	 */
 
-	SimpleQuery::SimpleQuery(ITypedElementDataStorageInterface::QueryDescription* Query)
+	FSimpleQuery::FSimpleQuery(ITypedElementDataStorageInterface::FQueryDescription* Query)
 		: Query(Query)
 	{
 		Query->bSimpleQuery = true;
 	}
 
-	SimpleQuery& SimpleQuery::All(const UScriptStruct* Target)
+	FSimpleQuery& FSimpleQuery::All(const UScriptStruct* Target)
 	{
 		if (Target)
 		{
-			Query->ConditionTypes.Add(ITypedElementDataStorageInterface::QueryDescription::OperatorType::SimpleAll);
+			Query->ConditionTypes.Add(ITypedElementDataStorageInterface::FQueryDescription::EOperatorType::SimpleAll);
 			Query->ConditionOperators.AddZeroed_GetRef().Type = Target;
 		}
 		return *this;
 	}
 
-	SimpleQuery& SimpleQuery::All(std::initializer_list<const UScriptStruct*> Targets)
+	FSimpleQuery& FSimpleQuery::All(std::initializer_list<const UScriptStruct*> Targets)
 	{
 		for (const UScriptStruct* Target : Targets)
 		{
@@ -103,17 +103,17 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	SimpleQuery& SimpleQuery::Any(const UScriptStruct* Target)
+	FSimpleQuery& FSimpleQuery::Any(const UScriptStruct* Target)
 	{
 		if (Target)
 		{
-			Query->ConditionTypes.Add(ITypedElementDataStorageInterface::QueryDescription::OperatorType::SimpleAny);
+			Query->ConditionTypes.Add(ITypedElementDataStorageInterface::FQueryDescription::EOperatorType::SimpleAny);
 			Query->ConditionOperators.AddZeroed_GetRef().Type = Target;
 		}
 		return *this;
 	}
 
-	SimpleQuery& SimpleQuery::Any(std::initializer_list<const UScriptStruct*> Targets)
+	FSimpleQuery& FSimpleQuery::Any(std::initializer_list<const UScriptStruct*> Targets)
 	{
 		for (const UScriptStruct* Target : Targets)
 		{
@@ -122,17 +122,17 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	SimpleQuery& SimpleQuery::None(const UScriptStruct* Target)
+	FSimpleQuery& FSimpleQuery::None(const UScriptStruct* Target)
 	{
 		if (Target)
 		{
-			Query->ConditionTypes.Add(ITypedElementDataStorageInterface::QueryDescription::OperatorType::SimpleNone);
+			Query->ConditionTypes.Add(ITypedElementDataStorageInterface::FQueryDescription::EOperatorType::SimpleNone);
 			Query->ConditionOperators.AddZeroed_GetRef().Type = Target;
 		}
 		return *this;
 	}
 
-	SimpleQuery& SimpleQuery::None(std::initializer_list<const UScriptStruct*> Targets)
+	FSimpleQuery& FSimpleQuery::None(std::initializer_list<const UScriptStruct*> Targets)
 	{
 		for (const UScriptStruct* Target : Targets)
 		{
@@ -141,15 +141,25 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	Dependency SimpleQuery::DependsOn()
+	FDependency FSimpleQuery::DependsOn()
 	{
-		return Dependency{ Query };
+		return FDependency{ Query };
+	}
+
+	ITypedElementDataStorageInterface::FQueryDescription&& FSimpleQuery::Compile()
+	{
+		return MoveTemp(*Query);
 	}
 
 
 	/**
 	 * Select
 	 */
+
+	Select::Select()
+	{
+		Query.Action = ITypedElementDataStorageInterface::FQueryDescription::EActionType::Select;
+	}
 	
 	Select& Select::ReadOnly(const UScriptStruct* Target)
 	{
@@ -183,18 +193,38 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	SimpleQuery Select::Where()
+	FSimpleQuery Select::Where()
 	{
-		return SimpleQuery{ &Query };
+		return FSimpleQuery{ &Query };
 	}
 
-	Dependency Select::DependsOn()
+	FDependency Select::DependsOn()
 	{
-		return Dependency{ &Query };
+		return FDependency{ &Query };
 	}
 
-	ITypedElementDataStorageInterface::QueryDescription&& Select::Commit()
+	ITypedElementDataStorageInterface::FQueryDescription&& Select::Compile()
 	{
 		return MoveTemp(Query);
+	}
+
+
+	/**
+	 * Count
+	 */
+
+	Count::Count()
+	{
+		Query.Action = ITypedElementDataStorageInterface::FQueryDescription::EActionType::Count;
+	}
+
+	FSimpleQuery Count::Where()
+	{
+		return FSimpleQuery{ &Query };
+	}
+
+	FDependency Count::DependsOn()
+	{
+		return FDependency{ &Query };
 	}
 }

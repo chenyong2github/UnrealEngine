@@ -24,6 +24,8 @@ public:
 	struct FExtendedQuery
 	{
 		FMassEntityQuery NativeQuery;
+		FQueryDescription::EActionType Action{ FQueryDescription::EActionType::None };
+		bool bSimpleQuery{ false };
 	};
 
 	~UTypedElementDatabase() override = default;
@@ -52,8 +54,9 @@ public:
 		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments) override;
 	ColumnDataResult GetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) override;
 
-	TypedElementQueryHandle RegisterQuery(const QueryDescription& Query) override;
+	TypedElementQueryHandle RegisterQuery(const FQueryDescription& Query) override;
 	void UnregisterQuery(TypedElementQueryHandle Query) override;
+	FQueryResult RunQuery(TypedElementQueryHandle Query) override;
 
 	FTypedElementOnDataStorageCreation& OnCreation() override;
 	FTypedElementOnDataStorageDestruction& OnDestruction() override;

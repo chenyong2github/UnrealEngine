@@ -37,6 +37,24 @@ using FTypedElementOnDataStorageUpdate = FSimpleMulticastDelegate;
 
 using TypedElementDataStorageCreationCallbackRef = TFunctionRef<void(TypedElementRowHandle Row)>;
 
+/**
+ * Base for the data structures for a column.
+ */
+USTRUCT()
+struct FTypedElementDataStorageColumn
+{
+	GENERATED_BODY()
+};
+
+/**
+ * Base for the data structures that act as tags to rows. Tags should not have any data.
+ */
+USTRUCT()
+struct FTypedElementDataStorageTag
+{
+	GENERATED_BODY()
+};
+
 UINTERFACE(MinimalAPI)
 class UTypedElementDataStorageInterface : public UInterface
 {
@@ -115,10 +133,17 @@ public:
 	 * can be used directly in the processor to do additional filtering. This will however impact performance and it's 
 	 * therefore recommended to try to simplify the query first before relying on extended query filtering in a processor.
 	 */
-	struct QueryDescription final
+	struct FQueryDescription final
 	{
+		enum class EActionType : uint8
+		{
+			None,	/** Do nothing. */
+			Select,	/** Selects a set of columns for further processing. */
+			Count	/** Counts the number of entries that match the filter condition. */
+		};
+
 		using OperatorIndex = int32;
-		enum class OperatorType
+		enum class EOperatorType
 		{
 			SimpleAll,			// Unary: Type
 			SimpleAny,			// Unary: Type
@@ -130,48 +155,70 @@ public:
 			Type				// Unary: Type
 		};
 
-		struct BinaryOperator final
+		struct FBinaryOperator final
 		{
 			OperatorIndex Left;
 			OperatorIndex Right;
 		};
 		
-		union Operator
+		union FOperator
 		{
-			BinaryOperator Binary;
+			FBinaryOperator Binary;
 			OperatorIndex Unary;
 			const UScriptStruct* Type;
 		};
 
 		enum class EAccessType { ReadOnly, ReadWrite };
 
-		struct AccessControlledStruct
+		struct FAccessControlledStruct
 		{
-			AccessControlledStruct() = default;
-			inline AccessControlledStruct(const UScriptStruct* Type, EAccessType Access) : Type(Type), Access(Access) {}
+			FAccessControlledStruct() = default;
+			inline FAccessControlledStruct(const UScriptStruct* Type, EAccessType Access) : Type(Type), Access(Access) {}
 
 			const UScriptStruct* Type;
 			EAccessType Access;
 		};
 
-		struct AccessControlledClass
+		struct FAccessControlledClass
 		{
-			AccessControlledClass() = default;
-			inline AccessControlledClass(const UClass* Type, EAccessType Access) : Type(Type), Access(Access) {}
+			FAccessControlledClass() = default;
+			inline FAccessControlledClass(const UClass* Type, EAccessType Access) : Type(Type), Access(Access) {}
 
 			const UClass* Type;
 			EAccessType Access;
 		};
 
-		TArray<AccessControlledStruct, TInlineAllocator<16>> Selection;
-		TArray<OperatorType, TInlineAllocator<32>> ConditionTypes;
-		TArray<Operator, TInlineAllocator<32>> ConditionOperators;
-		TArray<AccessControlledClass, TInlineAllocator<4>> Dependencies;
+		TArray<FAccessControlledStruct, TInlineAllocator<16>> Selection;
+		TArray<EOperatorType, TInlineAllocator<32>> ConditionTypes;
+		TArray<FOperator, TInlineAllocator<32>> ConditionOperators;
+		TArray<FAccessControlledClass, TInlineAllocator<4>> Dependencies;
+		EActionType Action;
 		/** If true, this query only has simple operations and is guaranteed to be executed fully and at optimal performance. */
 		bool bSimpleQuery{ false };
 	};
-	virtual TypedElementQueryHandle RegisterQuery(const QueryDescription& Query) = 0;
+	virtual TypedElementQueryHandle RegisterQuery(const FQueryDescription& Query) = 0;
 	virtual void UnregisterQuery(TypedElementQueryHandle Query) = 0;
+	struct FQueryResult
+	{
+		enum class ECompletion
+		{
+			/** Query could be fully executed. */
+			Fully,
+			/** Only portions of the query were executed. This is caused by a problem that was encountered partway through processing. */
+			Partially,
+			/** 
+			 * The backend doesn't support the particular query. This may be a limitation in how/where the query is run or because
+			 * the query contains actions and/or operations that are not supported.
+			 */
+			Unsupported,
+			/** The provided query is no longer available. */
+			Unavailable
+		};
+		
+		uint32 Count{ 0 }; /** The number of rows were processed. */
+		ECompletion Completed{ ECompletion::Unavailable };
+	};
+	virtual FQueryResult RunQuery(TypedElementQueryHandle Query) = 0;
 	
 	/**
 	 * @section Misc
@@ -220,7 +267,7 @@ public:
 	
 	/** Adds a tag to a row or does nothing if already added. */
 	template<typename TagType>
-	void AddTag();
+	void AddTag(TypedElementRowHandle Row);
 	
 	/**
 	 * Returns a pointer to the column of the given row or creates a new one if not found. Optionally arguments can be provided
@@ -240,9 +287,9 @@ public:
 
 // Implementations
 template<typename TagType>
-void ITypedElementDataStorageInterface::AddTag()
+void ITypedElementDataStorageInterface::AddTag(TypedElementRowHandle Row)
 {
-	AddTag(TagType::StaticStruct());
+	AddTag(Row, TagType::StaticStruct());
 }
 
 template<typename ColumnType, typename... Args>
