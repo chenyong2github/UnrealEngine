@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Styling/StyleColors.h"
+#include "Styling/AppStyle.h"
 
 /** Differences found within a graph or object */
 namespace EDiffType
