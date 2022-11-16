@@ -10,8 +10,6 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_WorldConditionsTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 struct FWorldConditionTest_Init : FAITestBase
 {
 	virtual bool InstantTest() override
@@ -168,7 +166,5 @@ struct FWorldConditionTest_EvalComplex : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_EvalComplex, "System.WorldConditions.EvalComplex");
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
