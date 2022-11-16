@@ -133,7 +133,8 @@ void AInteractiveFoliageActor::SetupCollisionCylinder()
 		const FVector Scale3D = GetStaticMeshComponent()->GetRelativeScale3D();
 		// Set the cylinder's radius based off of the static mesh's bounds radius
 		// CollisionRadius is in world space so apply the actor's scale
-		CapsuleComponent->SetCapsuleSize(MeshBounds.SphereRadius * .7f * FMath::Max(Scale3D.X, Scale3D.Y), MeshBounds.BoxExtent.Z * Scale3D.Z);
+		CapsuleComponent->SetCapsuleSize(static_cast<float>(MeshBounds.SphereRadius * .7f * FMath::Max(Scale3D.X, Scale3D.Y)), static_cast<float>(MeshBounds.BoxExtent.Z * Scale3D.Z));
+
 
 		// Ensure delegate is bound (just once)
 		CapsuleComponent->OnComponentBeginOverlap.RemoveDynamic(this, &AInteractiveFoliageActor::CapsuleTouched);
@@ -218,7 +219,7 @@ void AInteractiveFoliageActor::Tick(float DeltaSeconds)
 		//@todo - derive this height from the static mesh
 		const float IntersectionHeight = 100.0f;
 		// Calculate the rotation angle using Sin(Angle) = Opposite / Hypotenuse
-		const float RotationAngle = -FMath::Asin(FoliagePosition.Size() / IntersectionHeight);
+		const FVector::FReal RotationAngle = -FMath::Asin(FoliagePosition.Size() / IntersectionHeight);
 		// Use a rotation angle perpendicular to the impulse direction and the z axis
 		const FVector NormalizedRotationAxis = FoliagePosition.SizeSquared() > KINDA_SMALL_NUMBER ? 
 			(FoliagePosition ^ FVector(0,0,1)).GetSafeNormal() :

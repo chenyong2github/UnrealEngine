@@ -97,8 +97,8 @@ struct FFoliageDensityFalloff
 	UPROPERTY(Category = Procedural, EditAnywhere, meta = (Subcategory = "Density", XAxisName = "Normalized Distance", YAxisName = "Density Factor"))
 	FRuntimeFloatCurve FalloffCurve;
 
-	FOLIAGE_API bool IsInstanceFiltered(const FVector2D& Position, const FVector2D& Origin, float MaxDistance) const;
-	FOLIAGE_API float GetDensityFalloffValue(const FVector2D& Position, const FVector2D& Origin, float MaxDistance) const;
+	FOLIAGE_API bool IsInstanceFiltered(const FVector2D& Position, const FVector2D& Origin, FVector::FReal MaxDistance) const;
+	FOLIAGE_API float GetDensityFalloffValue(const FVector2D& Position, const FVector2D& Origin, FVector::FReal MaxDistance) const;
 };
 
 UCLASS(abstract, hidecategories = Object, editinlinenew, MinimalAPI, BlueprintType, Blueprintable)
@@ -113,7 +113,7 @@ class UFoliageType : public UObject
 	virtual void PostLoad() override;
 
 	virtual bool IsNotAssetOrBlueprint() const;
-	FOLIAGE_API FVector GetRandomScale() const;
+	FOLIAGE_API FVector3f GetRandomScale() const;
 	
 #if WITH_EDITOR
 

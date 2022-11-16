@@ -20,7 +20,7 @@ enum class ECheckBoxState : uint8;
 class DETAILCUSTOMIZATIONS_API FMobilityCustomization : public IDetailCustomNodeBuilder, public TSharedFromThis<FMobilityCustomization>
 {
 public:
-	enum
+	enum : uint8
 	{
 		StaticMobilityBitMask = (1u << EComponentMobility::Static),
 		StationaryMobilityBitMask = (1u << EComponentMobility::Stationary),

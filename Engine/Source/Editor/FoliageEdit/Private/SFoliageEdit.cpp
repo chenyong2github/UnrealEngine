@@ -66,12 +66,12 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0, 0, 0, 5)
+		.Padding(0.f, 0.f, 0.f, 5.f)
 		[
 			SAssignNew(ErrorText, SErrorText)
 		]
 		+ SVerticalBox::Slot()
-		.Padding(0)
+		.Padding(0.f)
 		[
 			SNew(SVerticalBox)
 			.IsEnabled(this, &SFoliageEdit::IsFoliageEditorEnabled)
@@ -254,7 +254,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							.Visibility(this, &SFoliageEdit::GetVisibility_SingleInstantiationPlacementMode)
 							.IsEnabled(this, &SFoliageEdit::GetIsEnabled_SingleInstantiationPlacementMode)
 							.OnGetMenuContent(this, &SFoliageEdit::GetSingleInstantiationModeMenuContent)
-							.ContentPadding(2)
+							.ContentPadding(2.f)
 							.ToolTipText(LOCTEXT("SingleInstantiationPlacementModeToolTips", "Changes the placement mode when using single instance"))
 							.ButtonContent()
 							[
@@ -282,7 +282,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							+ SWrapBox::Slot()
 							[
 								SNew(SBox)
-								.MinDesiredWidth(150)
+								.MinDesiredWidth(150.f)
 								[
 									SNew(SCheckBox)
 									.Visibility(this, &SFoliageEdit::GetVisibility_SpawnInCurrentLevelMode)
@@ -331,7 +331,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							+ SWrapBox::Slot()
 							[
 								SNew(SBox)
-								.MinDesiredWidth(91)
+								.MinDesiredWidth(91.f)
 								.Visibility(this, &SFoliageEdit::GetVisibility_LandscapeFilter)
 								[
 									SNew(SCheckBox)
@@ -350,7 +350,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							+ SWrapBox::Slot()
 							[
 								SNew(SBox)
-								.MinDesiredWidth(91)
+								.MinDesiredWidth(91.f)
 								[
 									SNew(SCheckBox)
 									.Visibility(this, &SFoliageEdit::GetVisibility_Filters)
@@ -368,7 +368,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							+ SWrapBox::Slot()
 							[
 								SNew(SBox)
-								.MinDesiredWidth(91)
+								.MinDesiredWidth(91.f)
 								[
 									SNew(SCheckBox)
 									.Visibility(this, &SFoliageEdit::GetVisibility_Filters)
@@ -386,7 +386,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							+ SWrapBox::Slot()
 							[
 								SNew(SBox)
-								.MinDesiredWidth(91)
+								.MinDesiredWidth(91.f)
 								[
 									SNew(SCheckBox)
 									.Visibility(this, &SFoliageEdit::GetVisibility_Filters)
@@ -404,7 +404,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							+ SWrapBox::Slot()
 							[
 								SNew(SBox)
-								.MinDesiredWidth(91)
+								.MinDesiredWidth(91.f)
 								[
 									SNew(SCheckBox)
 									.Visibility(this, &SFoliageEdit::GetVisibility_Filters)

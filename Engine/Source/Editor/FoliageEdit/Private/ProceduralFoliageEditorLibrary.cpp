@@ -40,7 +40,7 @@ void UProceduralFoliageEditorLibrary::ClearProceduralFoliageVolumes(const TArray
 
 void UProceduralFoliageEditorLibrary::ClearProceduralFoliageComponents(const TArray<UProceduralFoliageComponent*>& ProceduralFoliageComponents)
 {
-	FScopedSlowTask SlowTask(ProceduralFoliageComponents.Num(), LOCTEXT("ClearProceduralFoliageComponents", "Clearing Procedural Foliage Components"));
+	FScopedSlowTask SlowTask(static_cast<float>(ProceduralFoliageComponents.Num()), LOCTEXT("ClearProceduralFoliageComponents", "Clearing Procedural Foliage Components"));
 	SlowTask.MakeDialogDelayed(0.5f);
 	for (UProceduralFoliageComponent* Component : ProceduralFoliageComponents)
 	{
@@ -54,7 +54,7 @@ void UProceduralFoliageEditorLibrary::ClearProceduralFoliageComponents(const TAr
 
 void UProceduralFoliageEditorLibrary::ResimulateProceduralFoliageComponents(const TArray<UProceduralFoliageComponent*>& ProceduralFoliageComponents)
 {
-	FScopedSlowTask SlowTask(ProceduralFoliageComponents.Num(), LOCTEXT("ResimulateProceduralFoliageComponents", "Resimulating Procedural Foliage Components"));
+	FScopedSlowTask SlowTask(static_cast<float>(ProceduralFoliageComponents.Num()), LOCTEXT("ResimulateProceduralFoliageComponents", "Resimulating Procedural Foliage Components"));
 	SlowTask.MakeDialogDelayed(0.5f);
 	for (UProceduralFoliageComponent* Component : ProceduralFoliageComponents)
 	{

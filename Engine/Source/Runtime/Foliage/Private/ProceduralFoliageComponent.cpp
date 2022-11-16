@@ -99,13 +99,13 @@ void UProceduralFoliageComponent::GetTileLayout(const FGenerateProceduralContent
 	{
 		// Determine the bottom-left-most tile that contains the min position (when accounting for overlap)
 		const FVector MinPosition = InParams.Bounds.Min + InParams.TileOverlap;
-		OutTileLayout.BottomLeftX = FMath::FloorToInt(MinPosition.X / InParams.FoliageSpawner->TileSize);
-		OutTileLayout.BottomLeftY = FMath::FloorToInt(MinPosition.Y / InParams.FoliageSpawner->TileSize);
+		OutTileLayout.BottomLeftX = FMath::FloorToInt(FloatCastChecked<float>(MinPosition.X / InParams.FoliageSpawner->TileSize, UE::LWC::DefaultFloatPrecision));
+		OutTileLayout.BottomLeftY = FMath::FloorToInt(FloatCastChecked<float>(MinPosition.Y / InParams.FoliageSpawner->TileSize, UE::LWC::DefaultFloatPrecision));
 
 		// Determine the total number of tiles along each active axis
 		const FVector MaxPosition = InParams.Bounds.Max - InParams.TileOverlap;
-		const int32 MaxXIdx = FMath::FloorToInt(MaxPosition.X / InParams.FoliageSpawner->TileSize);
-		const int32 MaxYIdx = FMath::FloorToInt(MaxPosition.Y / InParams.FoliageSpawner->TileSize);
+		const int32 MaxXIdx = FMath::FloorToInt(FloatCastChecked<float>(MaxPosition.X / InParams.FoliageSpawner->TileSize, UE::LWC::DefaultFloatPrecision));
+		const int32 MaxYIdx = FMath::FloorToInt(FloatCastChecked<float>(MaxPosition.Y / InParams.FoliageSpawner->TileSize, UE::LWC::DefaultFloatPrecision));
 
 		OutTileLayout.NumTilesX = (MaxXIdx - OutTileLayout.BottomLeftX) + 1;
 		OutTileLayout.NumTilesY = (MaxYIdx - OutTileLayout.BottomLeftY) + 1;
@@ -199,7 +199,7 @@ bool UProceduralFoliageComponent::GenerateProceduralContent(const FGenerateProce
 		const float TileSize = InParams.FoliageSpawner->TileSize;
 		const FVector WorldPosition = GetWorldPosition(InParams);
 		FVector2D GenerateLocation = FVector2D(InParams.Bounds.GetCenter());
-		const float GenerateMaxExtent = FVector2D(InParams.Bounds.GetExtent()).GetMax();
+		const FVector::FReal GenerateMaxExtent = FVector2D(InParams.Bounds.GetExtent()).GetMax();
 		FTileLayout TileLayout;
 		GetTileLayout(InParams, TileLayout);
 

@@ -42,7 +42,7 @@ class FOLIAGE_API UProceduralFoliageTile : public UObject
 	/**
 	 *	Extracts information on each instance that should be spawned based on the simulation.
 	 */
-	void ExtractDesiredInstances(TArray<FDesiredFoliageInstance>& OutDesiredInstances, const FTransform& WorldTM, const FVector2D& ActorVolumeLocation, float ActorVolumeMaxExtent, const FGuid& ProceduralGuid, const float HalfHeight, const FBodyInstance* VolumeBodyInstance, bool bEmptyTileInfo = true);
+	void ExtractDesiredInstances(TArray<FDesiredFoliageInstance>& OutDesiredInstances, const FTransform& WorldTM, const FVector2D& ActorVolumeLocation, FVector::FReal ActorVolumeMaxExtent, const FGuid& ProceduralGuid, const FVector::FReal HalfHeight, const FBodyInstance* VolumeBodyInstance, bool bEmptyTileInfo = true);
 	
 	/**
 	 *	Copies instances within this tile to another

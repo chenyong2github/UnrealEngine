@@ -35,7 +35,7 @@ struct FTileLayout
 	int32 NumTilesY;
 	
 
-	float HalfHeight;
+	FVector::FReal HalfHeight;
 };
 
 UCLASS(BlueprintType)

@@ -119,7 +119,7 @@ struct FFoliageInstance : public FFoliageInstancePlacementInfo
 		// limit the maximum pitch angle if it's > 0.
 		if (AlignMaxAngle > 0.f)
 		{
-			int32 MaxPitch = AlignMaxAngle;
+			int32 MaxPitch = static_cast<int32>(AlignMaxAngle);
 			if (AlignRotation.Pitch > MaxPitch)
 			{
 				AlignRotation.Pitch = MaxPitch;

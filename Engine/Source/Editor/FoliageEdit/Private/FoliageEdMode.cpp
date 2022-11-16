@@ -1012,7 +1012,7 @@ void FEdModeFoliage::GetRandomVectorInBrush(FVector& OutStart, FVector& OutEnd)
 	OutEnd = BrushLocation + UISettings.GetRadius() * (Point - Rw);
 }
 
-static bool IsWithinSlopeAngle(float NormalZ, float MinAngle, float MaxAngle, float Tolerance = SMALL_NUMBER)
+static bool IsWithinSlopeAngle(FVector::FReal NormalZ, float MinAngle, float MaxAngle, float Tolerance = SMALL_NUMBER)
 {
 	const float MaxNormalAngle = FMath::Cos(FMath::DegreesToRadians(MaxAngle));
 	const float MinNormalAngle = FMath::Cos(FMath::DegreesToRadians(MinAngle));
@@ -1023,7 +1023,8 @@ static bool IsWithinSlopeAngle(float NormalZ, float MinAngle, float MaxAngle, fl
 static bool CheckLocationForPotentialInstance_ThreadSafe(const UFoliageType* Settings, const FVector& Location, const FVector& Normal)
 {
 	// Check height range
-	if (!Settings->Height.Contains(Location.Z))
+	FDoubleInterval HeightInterval((double)Settings->Height.Min, (double)Settings->Height.Max);
+	if (!HeightInterval.Contains(Location.Z))
 	{
 		return false;
 	}
@@ -2161,8 +2162,8 @@ void FEdModeFoliage::SelectInvalidInstances(const UFoliageType* Settings)
 					if (HitComponent == CurrentInstanceBase)
 					{
 						FVector InstanceWorldZOffset = Instance.GetInstanceWorldTransform().TransformVector(FVector(0.f, 0.f, Instance.ZOffset));
-						float DistanceToGround = FVector::Dist(Instance.Location, Hit.Location + InstanceWorldZOffset);
-						float InstanceWorldTreshold = Instance.GetInstanceWorldTransform().TransformVector(FVector(0.f, 0.f, InstanceOffGroundLocalThreshold)).Size();
+						FVector::FReal DistanceToGround = FVector::Dist(Instance.Location, Hit.Location + InstanceWorldZOffset);
+						FVector::FReal InstanceWorldTreshold = Instance.GetInstanceWorldTransform().TransformVector(FVector(0.f, 0.f, InstanceOffGroundLocalThreshold)).Size();
 
 						if ((DistanceToGround - InstanceWorldTreshold) <= KINDA_SMALL_NUMBER)
 						{
@@ -2245,6 +2246,7 @@ void FEdModeFoliage::ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliage
 	TArray<int32> ExistingInstances;
 	FoliageInfo->GetInstancesInsideSphere(BrushSphere, ExistingInstances);
 
+	const FDoubleInterval HeightInterval(Settings->Height.Min, Settings->Height.Max);
 	bool bUpdated = false;
 	TArray<int32> UpdatedInstances;
 	TSet<int32> InstancesToDelete;
@@ -2352,13 +2354,13 @@ void FEdModeFoliage::ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliage
 			// Reapply scale
 			if (Settings->ReapplyScaling)
 			{
-				FVector NewScale = Settings->GetRandomScale();
+				FVector3f NewScale = Settings->GetRandomScale();
 
 				if (Settings->ReapplyScaleX)
 				{
 					if (Settings->Scaling == EFoliageScaling::Uniform)
 					{
-						Instance.DrawScale3D = (FVector3f)NewScale;
+						Instance.DrawScale3D = NewScale;
 					}
 					else
 					{
@@ -2471,7 +2473,7 @@ void FEdModeFoliage::ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliage
 			// Cull instances that don't meet the height range
 			if (Settings->ReapplyHeight)
 			{
-				if (!Settings->Height.Contains(Instance.Location.Z))
+				if (!HeightInterval.Contains(Instance.Location.Z))
 				{
 					InstancesToDelete.Add(InstanceIndex);
 					if (bReapplyLocation)
@@ -2714,7 +2716,7 @@ struct FFoliagePaintBucketTriangle
 		VertexColor[2] = InColor2;
 
 		WorldNormal = InLocalToWorld.GetDeterminant() >= 0.f ? Vector2 ^ Vector1 : Vector1 ^ Vector2;
-		float WorldNormalSize = WorldNormal.Size();
+		FVector::FReal WorldNormalSize = WorldNormal.Size();
 		Area = WorldNormalSize * 0.5f;
 		if (WorldNormalSize > SMALL_NUMBER)
 		{
@@ -2743,7 +2745,7 @@ struct FFoliagePaintBucketTriangle
 	FVector Vector1;
 	FVector Vector2;
 	FVector WorldNormal;
-	float Area;
+	FVector::FReal Area;
 	FColor VertexColor[3];
 };
 
@@ -2828,9 +2830,9 @@ void FEdModeFoliage::ApplyPaintBucket_Add(AActor* Actor)
 					const int32 Index1 = Indices[Idx + 1];
 					const int32 Index2 = Indices[Idx + 2];
 
-					const FVector Vert0 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue((FVector)PositionVertexBuffer.VertexPosition(Index0), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index0) * Mask);
-					const FVector Vert1 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue((FVector)PositionVertexBuffer.VertexPosition(Index1), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index1) * Mask);
-					const FVector Vert2 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue((FVector)PositionVertexBuffer.VertexPosition(Index2), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index2) * Mask);
+					const FVector Vert0 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue(PositionVertexBuffer.VertexPosition(Index0), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index0) * Mask);
+					const FVector Vert1 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue(PositionVertexBuffer.VertexPosition(Index1), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index1) * Mask);
+					const FVector Vert2 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue(PositionVertexBuffer.VertexPosition(Index2), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index2) * Mask);
 
 					new(PotentialTriangles)FFoliagePaintBucketTriangle(LocalToWorld
 						, Vert0
@@ -2894,12 +2896,12 @@ void FEdModeFoliage::ApplyPaintBucket_Add(AActor* Actor)
 				}
 
 				// This is the total set of instances disregarding parameters like slope, height or layer.
-				float DesiredInstanceCountFloat = Triangle.Area * Settings->Density * UISettings.GetPaintDensity() / (1000.f*1000.f);
+				FVector::FReal DesiredInstanceCountReal = Triangle.Area * Settings->Density * UISettings.GetPaintDensity() / (1000.f*1000.f);
 
 				// Allow a single instance with a random chance, if the brush is smaller than the density
-				int32 DesiredInstanceCount = DesiredInstanceCountFloat > 1.f ? FMath::RoundToInt(DesiredInstanceCountFloat) : FMath::FRand() < DesiredInstanceCountFloat ? 1 : 0;
+				int64 DesiredInstanceCount = DesiredInstanceCountReal > 1.f ? FMath::RoundToInt(DesiredInstanceCountReal) : FMath::FRand() < DesiredInstanceCountReal ? 1 : 0;
 
-				for (int32 Idx = 0; Idx < DesiredInstanceCount; Idx++)
+				for (int64 Idx = 0; Idx < DesiredInstanceCountReal; Idx++)
 				{
 					FVector InstLocation;
 					FColor VertexColor;
@@ -3013,7 +3015,7 @@ bool FEdModeFoliage::GetStaticMeshVertexColorForHit(const UStaticMeshComponent* 
 				}
 
 				// find the barycentric coordiantes of the hit location, so we can interpolate the vertex colors
-				FVector BaryCoords = FMath::GetBaryCentric2D(InHitLocation, WorldVert0, WorldVert1, WorldVert2);
+				FVector3f BaryCoords = (FVector3f)FMath::GetBaryCentric2D(InHitLocation, WorldVert0, WorldVert1, WorldVert2);
 
 				FLinearColor InterpColor = BaryCoords.X * Color0 + BaryCoords.Y * Color1 + BaryCoords.Z * Color2;
 

@@ -134,7 +134,7 @@ TSharedRef<SToolTip> FFoliagePaletteItemModel::CreateTooltipWidget() const
 {
 	return 
 		SNew(SToolTip)
-		.TextMargin(1)
+		.TextMargin(1.f)
 		.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ToolTipBorder"))
 		.Visibility(this, &FFoliagePaletteItemModel::GetTooltipVisibility)
 		[
@@ -265,7 +265,7 @@ TSharedRef<SButton> FFoliagePaletteItemModel::CreateSaveAssetButton(TAttribute<E
 		.ToolTipText(LOCTEXT("SaveButtonToolTip", "Save foliage asset"))
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Top)
-		.ContentPadding(0)
+		.ContentPadding(0.f)
 		.Content()
 		[
 			SNew(SImage)
@@ -311,7 +311,7 @@ FText FFoliagePaletteItemModel::GetInstanceCountText(bool bRounded) const
 		};
 
 		int32 NumThousands = 0;
-		float DisplayValue = InstanceCountCurrentLevel;
+		double DisplayValue = InstanceCountCurrentLevel;
 		while (DisplayValue >= 1000.f && NumThousands < EInstanceCountMagnitude::Max)
 		{
 			DisplayValue /= 1000.f;

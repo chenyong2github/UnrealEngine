@@ -337,7 +337,7 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 					SNew(SBox)
 					.Visibility(this, &SFoliagePalette::GetDropFoliageHintVisibility)
 					.Padding(FMargin(15, 0))
-					.MinDesiredHeight(30)
+					.MinDesiredHeight(30.f)
 					[
 						SNew(SScaleBox)
 						.Stretch(EStretch::ScaleToFit)
@@ -1124,8 +1124,8 @@ void SFoliagePalette::FillReplaceFoliageTypeSubmenu(FMenuBuilder& MenuBuilder)
 	AssetPickerConfig.bAllowNullSelection = false;
 
 	TSharedRef<SWidget> MenuContent = SNew(SBox)
-		.WidthOverride(384)
-		.HeightOverride(500)
+		.WidthOverride(384.f)
+		.HeightOverride(500.f)
 		[
 			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 		];

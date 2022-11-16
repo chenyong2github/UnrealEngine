@@ -101,7 +101,7 @@ FProceduralFoliageInstance* UProceduralFoliageTile::NewSeed(const FVector& Locat
 float GetSeedMinDistance(const FProceduralFoliageInstance* Instance, const float NewInstanceAge, const int32 SimulationStep)
 {
 	const UFoliageType* Type = Instance->Type;
-	const int32 StepsLeft = Type->MaxAge - SimulationStep;
+	const int32 StepsLeft = static_cast<int32>(Type->MaxAge - SimulationStep);
 	const float InstanceMaxAge = Type->GetNextAge(Instance->Age, StepsLeft);
 	const float NewInstanceMaxAge = Type->GetNextAge(NewInstanceAge, StepsLeft);
 
@@ -291,13 +291,13 @@ void UProceduralFoliageTile::AddRandomSeeds(TArray<FProceduralFoliageInstance*>&
 			const float Scale = Type->GetScaleForAge(NewAge);
 
 			FRandomStream& TypeRandomStream = RandomStreamPerType.FindChecked(Type);
-			float InitX = 0.f;
-			float InitY = 0.f;
+			FVector::FReal InitX = 0.f;
+			FVector::FReal InitY = 0.f;
 			float NeededRadius = 0.f;
 
 			if (bSimulateOnlyInShade && LastShadeCastingIndex >= 0)
 			{
-				const int32 InstanceSpawnerIdx = TypeRandomStream.FRandRange(0, LastShadeCastingIndex);
+				const int32 InstanceSpawnerIdx = TypeRandomStream.RandRange(0, LastShadeCastingIndex);
 				const FProceduralFoliageInstance& Spawner = InstancesArray[InstanceSpawnerIdx];
 				InitX = Spawner.Location.X;
 				InitY = Spawner.Location.Y;
@@ -310,13 +310,13 @@ void UProceduralFoliageTile::AddRandomSeeds(TArray<FProceduralFoliageInstance*>&
 				NeededRadius = MaxShadeRadii.FindRef(Type->DistributionSeed);
 			}
 
-			const float Rad = RandomStream.FRandRange(0, PI*2.f);
+			const FVector::FReal Rad = RandomStream.FRandRange(0, PI*2.f);
 			
 			
 			const FVector GlobalOffset = (RandomStream.FRandRange(0, Type->MaxInitialSeedOffset) + NeededRadius) * FVector(FMath::Cos(Rad), FMath::Sin(Rad), 0.f);
 
-			const float X = InitX + GlobalOffset.X;
-			const float Y = InitY + GlobalOffset.Y;
+			const FVector::FReal X = InitX + GlobalOffset.X;
+			const FVector::FReal Y = InitY + GlobalOffset.Y;
 
 			if (FProceduralFoliageInstance* NewInst = NewSeed(FVector(X, Y, 0.f), Scale, Type, NewAge))
 			{
@@ -467,7 +467,7 @@ void UProceduralFoliageTile::BeginDestroy()
 	RemoveInstances();
 }
 
-void UProceduralFoliageTile::ExtractDesiredInstances(TArray<FDesiredFoliageInstance>& OutInstances, const FTransform& WorldTM, const FVector2D& ActorVolumeLocation, float ActorVolumeMaxExtent, const FGuid& ProceduralGuid, const float HalfHeight, const FBodyInstance* VolumeBodyInstance, bool bEmptyTileInfo)
+void UProceduralFoliageTile::ExtractDesiredInstances(TArray<FDesiredFoliageInstance>& OutInstances, const FTransform& WorldTM, const FVector2D& ActorVolumeLocation, FVector::FReal ActorVolumeMaxExtent, const FGuid& ProceduralGuid, const FVector::FReal HalfHeight, const FBodyInstance* VolumeBodyInstance, bool bEmptyTileInfo)
 {
 	InstancesToArray();
 

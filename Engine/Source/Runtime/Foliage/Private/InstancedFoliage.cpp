@@ -210,7 +210,7 @@ namespace FoliageUtil
 			return FoliageType->CullDistance;
 		}
 
-		return FInt32Interval(FoliageType->CullDistance.Min * CullDistanceScale, FoliageType->CullDistance.Max * CullDistanceScale);
+		return FInt32Interval(static_cast<int32>(FoliageType->CullDistance.Min * CullDistanceScale), static_cast<int32>(FoliageType->CullDistance.Max * CullDistanceScale));
 	}
 
 	void UpdateComponentCullDistance(const UFoliageType* FoliageType, UHierarchicalInstancedStaticMeshComponent* Component, float CullDistanceScale)
@@ -262,8 +262,8 @@ struct FFoliagePlacementUtil
 	static int32 GetRandomSeedForPosition(const FVector2D& Position)
 	{
 		// generate a unique random seed for a given position (precision = cm)
-		int32 Xcm = FMath::RoundToInt(Position.X);
-		int32 Ycm = FMath::RoundToInt(Position.Y);
+		int64 Xcm = FMath::RoundToInt(Position.X);
+		int64 Ycm = FMath::RoundToInt(Position.Y);
 		// use the int32 hashing function to avoid patterns by spreading out distribution : 
 		return HashCombine(GetTypeHash(Xcm), GetTypeHash(Ycm));
 	}
@@ -540,7 +540,7 @@ FFoliageDensityFalloff::FFoliageDensityFalloff()
 	FalloffRichCurve->AddKey(1.f, 0.f);
 }
 
-bool FFoliageDensityFalloff::IsInstanceFiltered(const FVector2D& InstancePosition, const FVector2D& Origin, float MaxDistance) const
+bool FFoliageDensityFalloff::IsInstanceFiltered(const FVector2D& InstancePosition, const FVector2D& Origin, FVector::FReal MaxDistance) const
 {
 	float KeepPointProbability = GetDensityFalloffValue(InstancePosition, Origin, MaxDistance);
 	check(KeepPointProbability >= 0.f && KeepPointProbability <= 1.f);
@@ -554,13 +554,13 @@ bool FFoliageDensityFalloff::IsInstanceFiltered(const FVector2D& InstancePositio
 	return false;
 }
 
-float FFoliageDensityFalloff::GetDensityFalloffValue(const FVector2D& Position, const FVector2D& Origin, float MaxDistance) const
+float FFoliageDensityFalloff::GetDensityFalloffValue(const FVector2D& Position, const FVector2D& Origin, FVector::FReal MaxDistance) const
 {
 	float KeepPointProbability = 1.f;
 	if (bUseFalloffCurve)
 	{
-		float Distance = FVector2D::Distance(Position, Origin);
-		float NormalizedDistance = MaxDistance > 0.f ? (Distance / MaxDistance) : 1.f;
+		FVector::FReal Distance = FVector2D::Distance(Position, Origin);
+		float NormalizedDistance = static_cast<float>(MaxDistance > 0.f ? (Distance / MaxDistance) : 1.f);
 		if (NormalizedDistance > 1.f)
 			NormalizedDistance = 1.f;
 		const FRichCurve* FalloffRichCurve = FalloffCurve.GetRichCurveConst();
@@ -806,9 +806,10 @@ bool UFoliageType::IsNotAssetOrBlueprint() const
 	return IsAsset() == false && GetClass()->IsNative();
 }
 
-FVector UFoliageType::GetRandomScale() const
+
+FVector3f UFoliageType::GetRandomScale() const
 {
-	FVector Result(1.0f);
+	FVector3f Result(1.0f);
 	float LockRand = 0.0f;
 
 	switch (Scaling)
@@ -955,7 +956,7 @@ void UFoliageType_Actor::UpdateBounds()
 	FBox LowBound = MeshBounds.GetBox();
 	LowBound.Max.Z = LowBound.Min.Z + (LowBound.Max.Z - LowBound.Min.Z) * 0.1f;
 
-	float MinX = LowBound.Min.X, MaxX = LowBound.Max.X, MinY = LowBound.Min.Y, MaxY = LowBound.Max.Y;
+	FVector::FReal MinX = LowBound.Min.X, MaxX = LowBound.Max.X, MinY = LowBound.Min.Y, MaxY = LowBound.Max.Y;
 	LowBoundOriginRadius = FVector::ZeroVector;
 
 	// TODO: Get more precise lower bound from multiple possible meshes in Actor
@@ -981,7 +982,7 @@ float UFoliageType::GetScaleForAge(const float Age) const
 
 float UFoliageType::GetInitAge(FRandomStream& RandomStream) const
 {
-	return RandomStream.FRandRange(0, MaxInitialAge);
+	return MaxInitialAge * RandomStream.GetFraction();
 }
 
 float UFoliageType::GetNextAge(const float CurrentAge, const int32 InNumSteps) const
@@ -1640,7 +1641,7 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 		}
 		if (Component->VirtualTextureCullMips != FoliageType->VirtualTextureCullMips)
 		{
-			Component->VirtualTextureCullMips = FoliageType->VirtualTextureCullMips;
+			Component->VirtualTextureCullMips = static_cast<int8>(FoliageType->VirtualTextureCullMips);
 			bNeedsMarkRenderStateDirty = true;
 		}
 		if (Component->TranslucencySortPriority != FoliageType->TranslucencySortPriority)
@@ -2681,13 +2682,13 @@ void FFoliageInfo::GetInstanceAtLocation(const FVector& Location, int32& OutInst
 {
 	auto TempInstances = InstanceHash->GetInstancesOverlappingBox(FBox::BuildAABB(Location, FVector(KINDA_SMALL_NUMBER)));
 
-	float ShortestDistance = MAX_FLT;
+	FVector::FReal ShortestDistance = MAX_dbl;
 	OutInstance = -1;
 
 	for (int32 Idx : TempInstances)
 	{
 		FVector InstanceLocation = Instances[Idx].Location;
-		float DistanceSquared = FVector::DistSquared(InstanceLocation, Location);
+		FVector::FReal DistanceSquared = FVector::DistSquared(InstanceLocation, Location);
 		if (DistanceSquared < ShortestDistance)
 		{
 			ShortestDistance = DistanceSquared;
@@ -5343,7 +5344,7 @@ bool AInstancedFoliageActor::FoliageTrace(const UWorld* InWorld, FHitResult& Out
 					{
 						FBox ActorVolumeBounds = Brush->Bounds.GetBox();
 						FVector2D ActorVolumeLocation = FVector2D(ActorVolumeBounds.GetCenter());
-						const float ActorVolumeMaxExtent = FVector2D(ActorVolumeBounds.GetExtent()).GetMax();
+						const FVector::FReal ActorVolumeMaxExtent = FVector2D(ActorVolumeBounds.GetExtent()).GetMax();
 
 						const FVector2D Origin(ProceduralFoliageBlockingVolume->GetActorTransform().GetLocation());
 						if (ProceduralFoliageBlockingVolume->DensityFalloff.IsInstanceFiltered(FVector2D(Hit.ImpactPoint), ActorVolumeLocation, ActorVolumeMaxExtent))
@@ -5463,8 +5464,8 @@ bool AInstancedFoliageActor::FoliageTrace(const UWorld* InWorld, FHitResult& Out
 			bool bSingleComponent = DesiredInstance.FoliageType->AverageNormalSingleComponent;
 			for (int32 i = 0; i < DesiredInstance.FoliageType->AverageNormalSampleCount; ++i)
 			{
-				const float Angle = LocalRandomStream.FRandRange(0, PI * 2.f);
-				const float SqrtRadius = FMath::Sqrt(LocalRandomStream.FRand()) * DesiredInstance.FoliageType->LowBoundOriginRadius.Z;
+				const FVector::FReal Angle = LocalRandomStream.FRandRange(0, PI * 2.f);
+				const FVector::FReal SqrtRadius = FMath::Sqrt(LocalRandomStream.FRand()) * DesiredInstance.FoliageType->LowBoundOriginRadius.Z;
 				FVector Offset(SqrtRadius * FMath::Cos(Angle), SqrtRadius* FMath::Sin(Angle), 0.f);
 				NormalHits.Reset();
 				if (InWorld->LineTraceMultiByObjectType(NormalHits, StartTrace + Offset, DesiredInstance.EndTrace + Offset, FCollisionObjectQueryParams(ECC_WorldStatic), QueryParams))
@@ -5573,7 +5574,7 @@ bool FPotentialInstance::PlaceInstance(const UWorld* InWorld, const UFoliageType
 {
 	if (DesiredInstance.PlacementMode != EFoliagePlacementMode::Procedural)
 	{
-		Inst.DrawScale3D = (FVector3f)Settings->GetRandomScale();
+		Inst.DrawScale3D = Settings->GetRandomScale();
 		Inst.ZOffset = Settings->ZOffset.Interpolate(FMath::FRand());
 	}
 	else
@@ -5903,7 +5904,7 @@ void UFoliageInstancedStaticMeshComponent::ReceiveComponentDamage(float DamageAm
 			if (Instances.Num())
 			{
 				FVector LocalOrigin = GetComponentToWorld().Inverse().TransformPosition(RadialDamageEvent->Origin);
-				float Scale = GetComponentScale().X; // assume component (not instances) is uniformly scaled
+				FVector::FReal Scale = GetComponentScale().X; // assume component (not instances) is uniformly scaled
 
 				TArray<float> Damages;
 				Damages.Empty(Instances.Num());
@@ -5911,8 +5912,9 @@ void UFoliageInstancedStaticMeshComponent::ReceiveComponentDamage(float DamageAm
 				for (int32 InstanceIndex : Instances)
 				{
 					// Find distance in local space and then scale; quicker than transforming each instance to world space.
-					float DistanceFromOrigin = (PerInstanceSMData[InstanceIndex].Transform.GetOrigin() - LocalOrigin).Size() * Scale;
+					float DistanceFromOrigin = static_cast<float>((PerInstanceSMData[InstanceIndex].Transform.GetOrigin() - LocalOrigin).Size() * Scale);
 					Damages.Add(RadialDamageEvent->Params.GetDamageScale(DistanceFromOrigin));
+
 				}
 
 				OnInstanceTakeRadialDamage.Broadcast(Instances, Damages, EventInstigator, RadialDamageEvent->Origin, MaxRadius, DamageTypeCDO, DamageCauser);
