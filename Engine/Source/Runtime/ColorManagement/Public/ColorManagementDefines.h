@@ -40,24 +40,25 @@ enum class EEncoding : uint8
 
 /** List of available color spaces. (Increment COLORSPACE_VER upon breaking changes to the list.)
 * 
-* NOTE: This list is replicated as a UENUM in TextureDefines.h, and both should always match.
+* NOTE: This list is partially replicated as a UENUM in TextureDefines.h: any type exposed to textures should match the enum value below.
 */
 enum class EColorSpace : uint8
 {
 	None = 0,
 	sRGB = 1,
-	Rec2020,
-	ACESAP0,
-	ACESAP1,
-	P3DCI,
-	P3D65,
-	REDWideGamut,
-	SonySGamut3,
-	SonySGamut3Cine,
-	AlexaWideGamut,
-	CanonCinemaGamut,
-	GoProProtuneNative,
-	PanasonicVGamut,
+	Rec2020 = 2,
+	ACESAP0 = 3,
+	ACESAP1 = 4,
+	P3DCI = 5,
+	P3D65 = 6,
+	REDWideGamut = 7,
+	SonySGamut3 = 8,
+	SonySGamut3Cine = 9,
+	AlexaWideGamut = 10,
+	CanonCinemaGamut = 11,
+	GoProProtuneNative = 12,
+	PanasonicVGamut = 13,
+	PLASA_E1_54 = 14,
 };
 
 

@@ -125,6 +125,12 @@ FColorSpace::FColorSpace(EColorSpace ColorSpaceType)
 		Chromaticities[2] = FVector2d(0.100, -0.030);
 		Chromaticities[3] = GetWhitePoint(EWhitePoint::CIE1931_D65);
 		break;
+	case EColorSpace::PLASA_E1_54:
+		Chromaticities[0] = FVector2d(0.7347, 0.2653);
+		Chromaticities[1] = FVector2d(0.1596, 0.8404);
+		Chromaticities[2] = FVector2d(0.0366, 0.0001);
+		Chromaticities[3] = FVector2d(0.4254, 0.4044);
+		break;
 	default:
 		checkNoEntry();
 		break;
