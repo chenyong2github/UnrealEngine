@@ -624,20 +624,6 @@ namespace Horde.Build
 		public bool ForceConfigUpdateOnStartup { get; set; }
 
 		/// <summary>
-		/// Lazily computed timezone value
-		/// </summary>
-		public TimeZoneInfo TimeZoneInfo
-		{
-			get
-			{
-				_cachedTimeZoneInfo ??= (ScheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(ScheduleTimeZone);
-				return _cachedTimeZoneInfo;
-			}
-		}
-
-		private TimeZoneInfo? _cachedTimeZoneInfo;
-
-		/// <summary>
 		/// Whether to open a browser on startup
 		/// </summary>
 		public bool OpenBrowser { get; set; } = false;

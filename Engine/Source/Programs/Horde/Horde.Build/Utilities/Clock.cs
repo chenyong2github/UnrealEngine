@@ -6,9 +6,12 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Redis.Utility;
+using Horde.Build;
 using Horde.Build.Server;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
+using TimeZoneConverter;
 
 namespace HordeCommon
 {
@@ -51,8 +54,12 @@ namespace HordeCommon
 		/// <summary>
 		/// Return time expressed as the Coordinated Universal Time (UTC)
 		/// </summary>
-		/// <returns></returns>
 		DateTime UtcNow { get; }
+
+		/// <summary>
+		/// Time zone for schedules etc...
+		/// </summary>
+		TimeZoneInfo TimeZone { get; }
 
 		/// <summary>
 		/// Create an event that will trigger after the given time
@@ -130,6 +137,19 @@ namespace HordeCommon
 		/// <param name="logger">Logger for error messages</param>
 		/// <returns>New ticker instance</returns>
 		public static ITicker AddSharedTicker<T>(this IClock clock, TimeSpan interval, Func<CancellationToken, ValueTask> tickAsync, ILogger logger) => clock.AddSharedTicker(typeof(T).Name, interval, tickAsync, logger);
+
+		/// <summary>
+		/// Gets the start of the day for the given datetime in UTC, respecting the configured timezone.
+		/// </summary>
+		/// <param name="timeZone">Time zone to adjust for</param>
+		/// <param name="time">Time to convert</param>
+		/// <returns>UTC datetime for the start of the day</returns>
+		public static DateTime GetStartOfDayUtc(this TimeZoneInfo timeZone, DateTime time)
+		{
+			DateTime currentTimeLocal = TimeZoneInfo.ConvertTime(time, timeZone);
+			DateTime startOfDayLocal = currentTimeLocal - currentTimeLocal.TimeOfDay;
+			return TimeZoneInfo.ConvertTime(startOfDayLocal, timeZone, TimeZoneInfo.Utc);
+		}
 	}
 
 	/// <summary>
@@ -210,16 +230,23 @@ namespace HordeCommon
 		}
 
 		readonly RedisService _redis;
+		readonly TimeZoneInfo _timeZone;
 
 		/// <inheritdoc/>
 		public DateTime UtcNow => DateTime.UtcNow;
 
+		/// <inheritdoc/>
+		public TimeZoneInfo TimeZone => _timeZone;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public Clock(RedisService redis)
+		public Clock(RedisService redis, IOptions<ServerSettings> settings)
 		{
 			_redis = redis;
+
+			string? timeZoneName = settings.Value.ScheduleTimeZone;
+			_timeZone = (timeZoneName == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(timeZoneName);
 		}
 
 		/// <inheritdoc/>
@@ -322,6 +349,7 @@ namespace HordeCommon
 		public FakeClock()
 		{
 			_utcNowPrivate = DateTime.UtcNow;
+			TimeZone = TimeZoneInfo.Utc;
 		}
 
 		/// <summary>
@@ -355,6 +383,9 @@ namespace HordeCommon
 			get => _utcNowPrivate;
 			set => _utcNowPrivate = value.ToUniversalTime(); 
 		}
+
+		/// <inheritdoc/>
+		public TimeZoneInfo TimeZone { get; set; }
 
 		/// <inheritdoc/>
 		public ITicker AddTicker(string name, TimeSpan interval, Func<CancellationToken, ValueTask<TimeSpan?>> tickAsync, ILogger logger)

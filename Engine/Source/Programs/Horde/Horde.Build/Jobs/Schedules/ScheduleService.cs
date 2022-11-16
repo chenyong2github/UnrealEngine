@@ -67,7 +67,6 @@ namespace Horde.Build.Jobs.Schedules
 		readonly JobService _jobService;
 		readonly StreamService _streamService;
 		readonly ITemplateCollection _templateCollection;
-		readonly TimeZoneInfo _timeZone;
 		readonly IClock _clock;
 		readonly ILogger _logger;
 		readonly RedisService _redis;
@@ -88,10 +87,6 @@ namespace Horde.Build.Jobs.Schedules
 			_streamService = streamService;
 			_templateCollection = templateCollection;
 			_clock = clock;
-
-			string? scheduleTimeZone = settings.CurrentValue.ScheduleTimeZone;
-			_timeZone = (scheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(scheduleTimeZone);
-
 			_logger = logger;
 
 			_redis = redis;
@@ -214,7 +209,7 @@ namespace Horde.Build.Jobs.Schedules
 				{
 					if (templateRef.Schedule != null)
 					{
-						DateTime? nextTriggerTimeUtc = templateRef.Schedule.GetNextTriggerTimeUtc(_timeZone);
+						DateTime? nextTriggerTimeUtc = templateRef.Schedule.GetNextTriggerTimeUtc(_clock.TimeZone);
 						if (nextTriggerTimeUtc != null)
 						{
 							if (utcNow > nextTriggerTimeUtc.Value)

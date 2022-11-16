@@ -200,6 +200,7 @@ namespace Horde.Build.Tests
 		{
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
+			Clock.TimeZone = TimeZoneInfo.Local;
 
 			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
@@ -228,6 +229,7 @@ namespace Horde.Build.Tests
 		{
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
+			Clock.TimeZone = TimeZoneInfo.Local;
 
 			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
@@ -267,6 +269,7 @@ namespace Horde.Build.Tests
 		{
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
+			Clock.TimeZone = TimeZoneInfo.Local;
 
 			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
@@ -304,6 +307,7 @@ namespace Horde.Build.Tests
 		{
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
+			Clock.TimeZone = TimeZoneInfo.Local;
 
 			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
@@ -341,6 +345,7 @@ namespace Horde.Build.Tests
 		{
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
+			Clock.TimeZone = TimeZoneInfo.Local;
 
 			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
@@ -383,6 +388,7 @@ namespace Horde.Build.Tests
 		{
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
+			Clock.TimeZone = TimeZoneInfo.Local;
 
 			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
@@ -571,6 +577,7 @@ namespace Horde.Build.Tests
 		{
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
+			Clock.TimeZone = TimeZoneInfo.Local;
 
 			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;

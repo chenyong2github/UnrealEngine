@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
+using HordeCommon;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -47,26 +48,26 @@ namespace Horde.Build.Server.Notices
 		readonly LazyCachedValue<Task<List<INotice>>> _cachedNotices;
 
 		/// <summary>
-		/// Server settings
+		/// Time information
 		/// </summary>
-		readonly IOptionsMonitor<ServerSettings> _settings;
+		readonly IClock _clock;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="settings">The server settings</param>
 		/// <param name="globalsService">The globals service singleton</param>
 		/// <param name="noticeService">The notice service singleton</param>
 		/// <param name="aclService">The acl service singleton</param>
 		/// <param name="userCollection">The user collection singleton</param>
-		public NoticesController(IOptionsMonitor<ServerSettings> settings, GlobalsService globalsService, NoticeService noticeService, AclService aclService, IUserCollection userCollection)
+		/// <param name="clock"></param>
+		public NoticesController(GlobalsService globalsService, NoticeService noticeService, AclService aclService, IUserCollection userCollection, IClock clock)
 		{			
-			_settings = settings;
 			_aclService = aclService;
 			_userCollection = userCollection;
 			_noticeService = noticeService;
 			_cachedGlobals = new LazyCachedValue<Task<IGlobals>>(async () => await globalsService.GetAsync(), TimeSpan.FromSeconds(30.0));
 			_cachedNotices = new LazyCachedValue<Task<List<INotice>>>(() => noticeService.GetNoticesAsync(), TimeSpan.FromMinutes(1));
+			_clock = clock;
 		}
 
 		/// <summary>
@@ -132,7 +133,7 @@ namespace Horde.Build.Server.Notices
 
 			IGlobals globals = await _cachedGlobals.GetCached();
 
-			DateTimeOffset now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, _settings.CurrentValue.TimeZoneInfo);
+			DateTimeOffset now = TimeZoneInfo.ConvertTime(new DateTimeOffset(_clock.UtcNow), _clock.TimeZone);
 						
 			foreach (ScheduledDowntime schedule in globals.Config.Downtime)
 			{

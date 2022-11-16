@@ -154,13 +154,13 @@ namespace Horde.Build.Issues
 							continue;
 						}
 
-						DateTime lastScheduledReportTime = GetLastScheduledReportTime(workflow, currentTime);
+						DateTime lastScheduledReportTime = GetLastScheduledReportTime(workflow, currentTime, _clock.TimeZone);
 						if (lastReportTime > lastScheduledReportTime)
 						{
 							continue;
 						}
 
-						DateTime prevScheduledReportTime = GetLastScheduledReportTime(workflow, lastScheduledReportTime - TimeSpan.FromMinutes(1.0));
+						DateTime prevScheduledReportTime = GetLastScheduledReportTime(workflow, lastScheduledReportTime - TimeSpan.FromMinutes(1.0), _clock.TimeZone);
 
 						_logger.LogInformation("Creating report for {StreamId} workflow {WorkflowId}", stream.Id, workflow.Id);
 
@@ -273,22 +273,22 @@ namespace Horde.Build.Issues
 			return workflowIdToStats;
 		}
 
-		static DateTime GetLastScheduledReportTime(WorkflowConfig workflow, DateTime currentTime)
+		static DateTime GetLastScheduledReportTime(WorkflowConfig workflow, DateTime currentTimeUtc, TimeZoneInfo timeZone)
 		{
 			if (workflow.ReportTimes.Count > 0)
 			{
-				DateTime startOfDay = currentTime - currentTime.TimeOfDay;
+				DateTime startOfDayUtc = timeZone.GetStartOfDayUtc(currentTimeUtc);
 				for (; ; )
 				{
 					for (int idx = workflow.ReportTimes.Count - 1; idx >= 0; idx--)
 					{
-						DateTime reportTime = startOfDay + workflow.ReportTimes[idx];
-						if (reportTime < currentTime)
+						DateTime reportTime = startOfDayUtc + workflow.ReportTimes[idx];
+						if (reportTime < currentTimeUtc)
 						{
 							return reportTime;
 						}
 					}
-					startOfDay -= TimeSpan.FromDays(1.0);
+					startOfDayUtc -= TimeSpan.FromDays(1.0);
 				}
 			}
 			return DateTime.MinValue;

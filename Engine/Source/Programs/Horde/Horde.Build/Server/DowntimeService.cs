@@ -40,8 +40,8 @@ namespace Horde.Build.Server
 		}
 
 		readonly GlobalsService _globalsService;
+		readonly IClock _clock;
 		readonly ITicker _ticker;
-		readonly IOptionsMonitor<ServerSettings> _settings;
 		readonly ILogger _logger;
 
 		/// <summary>
@@ -49,12 +49,11 @@ namespace Horde.Build.Server
 		/// </summary>
 		/// <param name="globalsService">The database service instance</param>
 		/// <param name="clock"></param>
-		/// <param name="settings">The server settings</param>
 		/// <param name="logger">Logger instance</param>
-		public DowntimeService(GlobalsService globalsService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<DowntimeService> logger)
+		public DowntimeService(GlobalsService globalsService, IClock clock, ILogger<DowntimeService> logger)
 		{
 			_globalsService = globalsService;
-			_settings = settings;
+			_clock = clock;
 			_logger = logger;
 
 			// Ensure the initial value to be correct
@@ -81,7 +80,7 @@ namespace Horde.Build.Server
 		{
 			IGlobals globals = await _globalsService.GetAsync();
 
-			DateTimeOffset now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, _settings.CurrentValue.TimeZoneInfo);
+			DateTimeOffset now = TimeZoneInfo.ConvertTime(new DateTimeOffset(_clock.UtcNow), _clock.TimeZone);
 			bool isActive = globals.Config.Downtime.Any(x => x.IsActive(now));
 
 			DateTimeOffset? next = null;
