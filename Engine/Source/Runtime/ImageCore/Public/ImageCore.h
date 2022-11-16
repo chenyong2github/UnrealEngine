@@ -312,7 +312,7 @@ public:
 	TArrayView64<uint16> AsRGBA16() const
 	{
 		check(Format == ERawImageFormat::RGBA16);
-		return { (uint16*)RawData, GetNumPixels() };
+		return { (uint16*)RawData, GetNumPixels() * 4 };
 	}
 
 	TArrayView64<FFloat16Color> AsRGBA16F() const
