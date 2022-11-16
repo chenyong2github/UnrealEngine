@@ -12,8 +12,8 @@ struct DATAFLOWCORE_API FDataflowSelection
 	void Initialize(int32 NumBits, bool Value);
 	void Initialize(const FDataflowSelection& Other);
 	int32 Num() const { return SelectionArray.Num(); }
-	int32 NumSelected();
-	bool AnySelected();
+	int32 NumSelected() const;
+	bool AnySelected() const;
 	bool IsSelected(int32 Idx) const { return SelectionArray[Idx]; }
 	void SetSelected(int32 Idx) { SelectionArray[Idx] = true; }
 	void SetNotSelected(int32 Idx) { SelectionArray[Idx] = false; }

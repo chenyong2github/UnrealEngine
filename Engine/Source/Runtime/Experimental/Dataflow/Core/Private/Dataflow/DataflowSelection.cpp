@@ -64,7 +64,7 @@ void FDataflowSelection::XOR(const FDataflowSelection& Other, FDataflowSelection
 	Result.SelectionArray = TBitArray<>::BitwiseXOR(SelectionArray, Other.SelectionArray, EBitwiseOperatorFlags::MaxSize);
 }
 
-int32 FDataflowSelection::NumSelected()
+int32 FDataflowSelection::NumSelected() const
 {
 	int32 NumSelectedBits = 0;
 
@@ -82,7 +82,7 @@ int32 FDataflowSelection::NumSelected()
 	return NumSelectedBits;
 }
 
-bool FDataflowSelection::AnySelected()
+bool FDataflowSelection::AnySelected() const
 {
 	TBitArray<>::FConstIterator It(SelectionArray);
 	while (It)
