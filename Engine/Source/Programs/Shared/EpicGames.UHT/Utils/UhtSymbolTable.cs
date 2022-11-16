@@ -265,7 +265,21 @@ namespace EpicGames.UHT.Utils
 			// If requested, skip self
 			if (options.HasAnyFlags(UhtFindOptions.NoSelf) && currentType == startingType)
 			{
-				currentType = ((UhtStruct)currentType).Super;
+				if (currentType is UhtFunction)
+				{
+					if (currentType.Outer is UhtStruct outerStructType)
+					{
+						currentType = outerStructType;
+					}
+					else
+					{
+						currentType = null;
+					}
+				}
+				else
+				{
+					currentType = ((UhtStruct)currentType).Super;
+				}
 			}
 
 			// Search the chain

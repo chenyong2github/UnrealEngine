@@ -752,6 +752,9 @@ namespace EpicGames.UHT.Types
 							this.LogError($"Can't override delegate signature function '{SourceName}'");
 						}
 					}
+
+					// Disable shadow checks for delegates
+					options &= ~UhtValidationOptions.Shadowing;
 					break;
 			}
 
