@@ -6,7 +6,6 @@
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
-#include "RigVMExecuteContext.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Misc/AssertionMacros.h"
 #include "RigVMMemoryCommon.h"
