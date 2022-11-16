@@ -274,8 +274,6 @@ template<
 class TSet
 {
 public:
-	static constexpr bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
-
 	typedef InElementType ElementType;
 	typedef KeyFuncs    KeyFuncsType;
 	typedef Allocator   AllocatorType;
@@ -1337,45 +1335,38 @@ private:
 	mutable HashType Hash;
 	mutable int32	 HashSize;
 
-	template<bool bFreezeMemoryImage, typename Dummy=void>
-	struct TSupportsFreezeMemoryImageHelper
-	{
-		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TSet&) { Writer.WriteBytes(TSet()); }
-		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const TSet&, void* Dst) { new(Dst) TSet(); }
-	};
-
-	template<typename Dummy>
-	struct TSupportsFreezeMemoryImageHelper<true, Dummy>
-	{
-		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TSet& Object)
-		{
-			Object.Elements.WriteMemoryImage(Writer);
-			Object.Hash.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<FSetElementId>(), Object.HashSize);
-			Writer.WriteBytes(Object.HashSize);
-		}
-
-		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const TSet& Object, void* Dst)
-		{
-			TSet* DstObject = static_cast<TSet*>(Dst);
-			Object.Elements.CopyUnfrozen(Context, &DstObject->Elements);
-
-			new(&DstObject->Hash) HashType();
-			DstObject->Hash.ResizeAllocation(0, Object.HashSize, sizeof(FSetElementId));
-			FMemory::Memcpy(DstObject->Hash.GetAllocation(), Object.Hash.GetAllocation(), sizeof(FSetElementId) * Object.HashSize);
-			DstObject->HashSize = Object.HashSize;
-		}
-	};
-
 public:
 	void WriteMemoryImage(FMemoryImageWriter& Writer) const
 	{
 		checkf(!Writer.Is32BitTarget(), TEXT("TSet does not currently support freezing for 32bits"));
-		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
+		if constexpr (TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value)
+		{
+			this->Elements.WriteMemoryImage(Writer);
+			this->Hash.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<FSetElementId>(), this->HashSize);
+			Writer.WriteBytes(this->HashSize);
+		}
+		else
+		{
+			Writer.WriteBytes(TSet());
+		}
 	}
 
 	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
 	{
-		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::CopyUnfrozen(Context, *this, Dst);
+		if constexpr (TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value)
+		{
+			TSet* DstObject = static_cast<TSet*>(Dst);
+			this->Elements.CopyUnfrozen(Context, &DstObject->Elements);
+
+			new(&DstObject->Hash) HashType();
+			DstObject->Hash.ResizeAllocation(0, this->HashSize, sizeof(FSetElementId));
+			FMemory::Memcpy(DstObject->Hash.GetAllocation(), this->Hash.GetAllocation(), sizeof(FSetElementId) * this->HashSize);
+			DstObject->HashSize = this->HashSize;
+		}
+		else
+		{
+			new(Dst) TSet();
+		}
 	}
 
 	static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)

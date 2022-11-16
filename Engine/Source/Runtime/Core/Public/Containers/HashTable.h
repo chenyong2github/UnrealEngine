@@ -431,46 +431,34 @@ private:
 	uint32					HashMask;
 	uint32					IndexSize;
 
-	template<bool bFreezeMemoryImage, typename Dummy = void>
-	struct TSupportsFreezeMemoryImageHelper
-	{
-		static void WriteMemoryImage(FMemoryImageWriter& Writer, const THashTable&)
-		{
-			check(false);
-		}
-
-		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const THashTable&, void* Dst) { new(Dst) THashTable(); }
-	};
-
-	template<typename Dummy>
-	struct TSupportsFreezeMemoryImageHelper<true, Dummy>
-	{
-		static void WriteMemoryImage(FMemoryImageWriter& Writer, const THashTable& Object)
-		{
-			Object.Hash.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<uint32>(), Object.HashMask + 1u);
-			Object.NextIndex.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<uint32>(), Object.IndexSize);
-			Writer.WriteBytes(Object.HashMask);
-			Writer.WriteBytes(Object.IndexSize);
-		}
-		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const THashTable& Object, void* Dst)
-		{
-			THashTable* DstTable = new(Dst) THashTable(Object.HashMask + 1u, Object.IndexSize);
-			FMemory::Memcpy(DstTable->Hash.GetAllocation(), Object.Hash.GetAllocation(), (Object.HashMask + 1u) * 4);
-			FMemory::Memcpy(DstTable->NextIndex.GetAllocation(), Object.NextIndex.GetAllocation(), Object.IndexSize * 4);
-		}
-	};
-
 public:
 	void WriteMemoryImage(FMemoryImageWriter& Writer) const
 	{
-		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage;
-		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
+		if constexpr (TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage)
+		{
+			this->Hash.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<uint32>(), this->HashMask + 1u);
+			this->NextIndex.WriteMemoryImage(Writer, StaticGetTypeLayoutDesc<uint32>(), this->IndexSize);
+			Writer.WriteBytes(this->HashMask);
+			Writer.WriteBytes(this->IndexSize);
+		}
+		else
+		{
+			check(false);
+		}
 	}
 
 	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
 	{
-		static const bool bSupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage;
-		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::CopyUnfrozen(Context, *this, Dst);
+		if constexpr (TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage)
+		{
+			THashTable* DstTable = new(Dst) THashTable(this->HashMask + 1u, this->IndexSize);
+			FMemory::Memcpy(DstTable->Hash.GetAllocation(), this->Hash.GetAllocation(), (this->HashMask + 1u) * 4);
+			FMemory::Memcpy(DstTable->NextIndex.GetAllocation(), this->NextIndex.GetAllocation(), this->IndexSize * 4);
+		}
+		else
+		{
+			new(Dst) THashTable();
+		}
 	}
 };
 

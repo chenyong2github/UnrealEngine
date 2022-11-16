@@ -79,8 +79,6 @@ class TSparseArray
 	friend class TScriptSparseArray;
 
 public:
-	static constexpr bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
-
 	/** Destructor. */
 	~TSparseArray()
 	{
@@ -1071,30 +1069,23 @@ private:
 	/** The number of elements in the free list. */
 	int32 NumFreeIndices;
 
-	template<bool bFreezeMemoryImage, typename Dummy=void>
-	struct TSupportsFreezeMemoryImageHelper
+public:
+	void WriteMemoryImage(FMemoryImageWriter& Writer) const
 	{
-		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TSparseArray&) { Writer.WriteBytes(TSparseArray()); }
-		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const TSparseArray&, void* Dst) { new(Dst) TSparseArray(); }
-		static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher) {}
-	};
-
-	template<typename Dummy>
-	struct TSupportsFreezeMemoryImageHelper<true, Dummy>
-	{
-		static void WriteMemoryImage(FMemoryImageWriter& Writer, const TSparseArray& Object)
+		checkf(!Writer.Is32BitTarget(), TEXT("TSparseArray does not currently support freezing for 32bits"));
+		if constexpr (TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<ElementType>::Value)
 		{
 			// Write Data
-			const int32 NumElements = Object.Data.Num();
+			const int32 NumElements = this->Data.Num();
 			if (NumElements > 0)
 			{
 				const FTypeLayoutDesc& ElementTypeDesc = StaticGetTypeLayoutDesc<ElementType>();
 				FMemoryImageWriter ArrayWriter = Writer.WritePointer(ElementTypeDesc);
 				for (int32 i = 0; i < NumElements; ++i)
 				{
-					const FElementOrFreeListLink& Elem = Object.Data[i];
+					const FElementOrFreeListLink& Elem = this->Data[i];
 					const uint32 StartOffset = ArrayWriter.WriteAlignment<FElementOrFreeListLink>();
-					if (Object.AllocationFlags[i])
+					if (this->AllocationFlags[i])
 					{
 						ArrayWriter.WriteObject(&Elem.ElementData, ElementTypeDesc);
 					}
@@ -1114,23 +1105,30 @@ private:
 			Writer.WriteBytes(NumElements);
 
 			//
-			Object.AllocationFlags.WriteMemoryImage(Writer);
-			Writer.WriteBytes(Object.FirstFreeIndex);
-			Writer.WriteBytes(Object.NumFreeIndices);
+			this->AllocationFlags.WriteMemoryImage(Writer);
+			Writer.WriteBytes(this->FirstFreeIndex);
+			Writer.WriteBytes(this->NumFreeIndices);
 		}
+		else
+		{
+			Writer.WriteBytes(TSparseArray());
+		}
+	}
 
-		static void CopyUnfrozen(const FMemoryUnfreezeContent& Context, const TSparseArray& Object, void* Dst)
+	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
+	{
+		if constexpr (TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<ElementType>::Value)
 		{
 			const FTypeLayoutDesc& ElementTypeDesc = StaticGetTypeLayoutDesc<ElementType>();
 			TSparseArray* DstObject = (TSparseArray*)Dst;
 			{
 				new(&DstObject->Data) DataType();
-				DstObject->Data.SetNumUninitialized(Object.Data.Num());
-				for (int32 i = 0; i < Object.Data.Num(); ++i)
+				DstObject->Data.SetNumUninitialized(this->Data.Num());
+				for (int32 i = 0; i < this->Data.Num(); ++i)
 				{
-					const FElementOrFreeListLink& Elem = Object.Data[i];
+					const FElementOrFreeListLink& Elem = this->Data[i];
 					FElementOrFreeListLink& DstElem = DstObject->Data[i];
-					if (Object.AllocationFlags[i])
+					if (this->AllocationFlags[i])
 					{
 						Context.UnfreezeObject(&Elem.ElementData, ElementTypeDesc, &DstElem.ElementData);
 					}
@@ -1142,32 +1140,22 @@ private:
 				}
 			}
 
-			new(&DstObject->AllocationFlags) AllocationBitArrayType(Object.AllocationFlags);
-			DstObject->FirstFreeIndex = Object.FirstFreeIndex;
-			DstObject->NumFreeIndices = Object.NumFreeIndices;
+			new(&DstObject->AllocationFlags) AllocationBitArrayType(this->AllocationFlags);
+			DstObject->FirstFreeIndex = this->FirstFreeIndex;
+			DstObject->NumFreeIndices = this->NumFreeIndices;
 		}
-
-		static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+		else
 		{
-			Freeze::AppendHash(StaticGetTypeLayoutDesc<ElementType>(), LayoutParams, Hasher);
+			new(Dst) TSparseArray();
 		}
-	};
-
-public:
-	void WriteMemoryImage(FMemoryImageWriter& Writer) const
-	{
-		checkf(!Writer.Is32BitTarget(), TEXT("TSparseArray does not currently support freezing for 32bits"));
-		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
-	}
-
-	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
-	{
-		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::CopyUnfrozen(Context, *this, Dst);
 	}
 
 	static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
 	{
-		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::AppendHash(LayoutParams, Hasher);
+		if constexpr (TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<ElementType>::Value)
+		{
+			Freeze::AppendHash(StaticGetTypeLayoutDesc<ElementType>(), LayoutParams, Hasher);
+		}
 	}
 };
 
