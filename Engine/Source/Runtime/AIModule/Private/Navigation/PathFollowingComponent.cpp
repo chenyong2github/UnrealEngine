@@ -877,6 +877,7 @@ void UPathFollowingComponent::SetMoveSegment(int32 SegmentStartIndex)
 
 		// update move focus in owning AI
 		UpdateMoveFocus();
+		UpdateDecelerationData();
 	}
 }
 
