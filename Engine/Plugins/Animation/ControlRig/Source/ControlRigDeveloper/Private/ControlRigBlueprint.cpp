@@ -261,7 +261,7 @@ bool UControlRigBlueprint::ExportGraphToText(UEdGraph* InEdGraph, FString& OutTe
 
 bool UControlRigBlueprint::CanImportGraphFromText(const FString& InClipboardText)
 {
-	return GetTemplateController()->CanImportNodesFromText(InClipboardText);
+	return GetTemplateController(true)->CanImportNodesFromText(InClipboardText);
 }
 
 void UControlRigBlueprint::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -2313,12 +2313,19 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 }
 
 
-URigVMGraph* UControlRigBlueprint::GetTemplateModel()
+URigVMGraph* UControlRigBlueprint::GetTemplateModel(bool bIsFunctionLibrary)
 {
 #if WITH_EDITORONLY_DATA
 	if (TemplateModel == nullptr)
 	{
-		TemplateModel = NewObject<URigVMGraph>(this, TEXT("TemplateModel"));
+		if (bIsFunctionLibrary)
+		{
+			TemplateModel = NewObject<URigVMFunctionLibrary>(this, TEXT("TemplateFunctionLibrary"));
+		}
+		else
+		{
+			TemplateModel = NewObject<URigVMGraph>(this, TEXT("TemplateModel"));
+		}
 		TemplateModel->SetFlags(RF_Transient);
 		TemplateModel->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
 	}
@@ -2328,13 +2335,13 @@ URigVMGraph* UControlRigBlueprint::GetTemplateModel()
 #endif
 }
 
-URigVMController* UControlRigBlueprint::GetTemplateController()
+URigVMController* UControlRigBlueprint::GetTemplateController(bool bIsFunctionLibrary)
 {
 #if WITH_EDITORONLY_DATA
 	if (TemplateController == nullptr)
 	{
 		TemplateController = NewObject<URigVMController>(this, TEXT("TemplateController"));
-		TemplateController->SetGraph(GetTemplateModel());
+		TemplateController->SetGraph(GetTemplateModel(bIsFunctionLibrary));
 		TemplateController->EnableReporting(false);
 		TemplateController->SetFlags(RF_Transient);
 	}

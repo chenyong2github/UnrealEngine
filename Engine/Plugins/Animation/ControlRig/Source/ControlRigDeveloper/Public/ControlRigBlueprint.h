@@ -349,8 +349,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	TArray<FString> GeneratePythonCommands(const FString InNewBlueprintName);
 
-	URigVMGraph* GetTemplateModel();
-	URigVMController* GetTemplateController();
+	URigVMGraph* GetTemplateModel(bool bIsFunctionLibrary = false);
+	URigVMController* GetTemplateController(bool bIsFunctionLibrary = false);
 
 #if WITH_EDITOR
 	UEdGraph* GetEdGraph(URigVMGraph* InModel) const;

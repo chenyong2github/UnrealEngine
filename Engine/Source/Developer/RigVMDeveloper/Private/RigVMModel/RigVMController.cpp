@@ -13776,6 +13776,14 @@ bool URigVMController::CanAddNode(URigVMNode* InNode, bool bReportErrors, bool b
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		if (!InNode->IsA<URigVMCollapseNode>())
+		{
+			return false;
+		}
+	}
+
 	if (URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(InNode))
 	{
 		if (URigVMFunctionLibrary* FunctionLibrary = FunctionRefNode->GetLibrary())
