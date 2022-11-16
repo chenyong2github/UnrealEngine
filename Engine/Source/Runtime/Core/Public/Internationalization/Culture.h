@@ -24,6 +24,7 @@ class CORE_API FCulture
 #if UE_ENABLE_ICU
 	friend class FText;
 	friend class FTextChronoFormatter;
+	friend class FTextComparison;
 	friend class FICUBreakIteratorManager;
 #endif
 

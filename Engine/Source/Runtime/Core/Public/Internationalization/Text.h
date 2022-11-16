@@ -14,6 +14,7 @@
 #include "Internationalization/TextKey.h"
 #include "Internationalization/LocKeyFuncs.h"
 #include "Internationalization/CulturePointer.h"
+#include "Internationalization/TextComparison.h"
 #include "Internationalization/TextLocalizationManager.h"
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/ITextData.h"
@@ -42,19 +43,6 @@ namespace ETextFlag
 		ConvertedProperty = (1 << 2),
 		Immutable = (1 << 3),
 		InitializedFromString = (1<<4),  // this ftext was initialized using FromString
-	};
-}
-
-namespace ETextComparisonLevel
-{
-	enum Type
-	{
-		Default,	// Locale-specific Default
-		Primary,	// Base
-		Secondary,	// Accent
-		Tertiary,	// Case
-		Quaternary,	// Punctuation
-		Quinary		// Identical
 	};
 }
 

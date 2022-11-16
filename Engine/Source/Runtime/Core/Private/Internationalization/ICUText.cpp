@@ -96,39 +96,41 @@ bool FText::IsWhitespace(const TCHAR Char)
 	return u_isWhitespace(ICUChar) != 0;
 }
 
-int32 FText::CompareTo( const FText& Other, const ETextComparisonLevel::Type ComparisonLevel ) const
+int32 FTextComparison::CompareTo( const FString& A, const FString& B, const ETextComparisonLevel::Type ComparisonLevel )
 {
 	const TSharedRef<const icu::Collator, ESPMode::ThreadSafe> Collator( FInternationalization::Get().GetCurrentLanguage()->Implementation->GetCollator(ComparisonLevel) );
 
-	// Create an iterator for 'this' so that we can interface with ICU
-	UCharIterator DisplayStringICUIterator;
-	FICUTextCharacterIterator DisplayStringIterator(FStringView(this->ToString()));
-	uiter_setCharacterIterator(&DisplayStringICUIterator, &DisplayStringIterator);
+	// Create an iterator for 'A' so that we can interface with ICU
+	FStringView AView = A;
+	UCharIterator ADisplayStringICUIterator;
+	FICUTextCharacterIterator ADisplayStringIterator(AView);
+	uiter_setCharacterIterator(&ADisplayStringICUIterator, &ADisplayStringIterator);
 
-	// Create an iterator for 'Other' so that we can interface with ICU
-	UCharIterator OtherDisplayStringICUIterator;
-	FICUTextCharacterIterator OtherDisplayStringIterator(FStringView(Other.ToString()));
-	uiter_setCharacterIterator(&OtherDisplayStringICUIterator, &OtherDisplayStringIterator);
+	// Create an iterator for 'B' so that we can interface with ICU
+	FStringView BView = B;
+	UCharIterator BDisplayStringICUIterator;
+	FICUTextCharacterIterator BDisplayStringIterator(BView);
+	uiter_setCharacterIterator(&BDisplayStringICUIterator, &BDisplayStringIterator);
 
 	UErrorCode ICUStatus = U_ZERO_ERROR;
-	const UCollationResult Result = Collator->compare(DisplayStringICUIterator, OtherDisplayStringICUIterator, ICUStatus);
+	const UCollationResult Result = Collator->compare(ADisplayStringICUIterator, BDisplayStringICUIterator, ICUStatus);
 
 	return Result;
 }
 
-int32 FText::CompareToCaseIgnored( const FText& Other ) const
+int32 FTextComparison::CompareToCaseIgnored( const FString& A, const FString& B )
 {
-	return CompareTo(Other, ETextComparisonLevel::Secondary);
+	return CompareTo(A, B, ETextComparisonLevel::Secondary);
 }
 
-bool FText::EqualTo( const FText& Other, const ETextComparisonLevel::Type ComparisonLevel ) const
+bool FTextComparison::EqualTo( const FString& A, const FString& B, const ETextComparisonLevel::Type ComparisonLevel )
 {
-	return CompareTo(Other, ComparisonLevel) == 0;
+	return CompareTo(A, B, ComparisonLevel) == 0;
 }
 
-bool FText::EqualToCaseIgnored( const FText& Other ) const
+bool FTextComparison::EqualToCaseIgnored( const FString& A, const FString& B )
 {
-	return EqualTo(Other, ETextComparisonLevel::Secondary);
+	return EqualTo(A, B, ETextComparisonLevel::Secondary);
 }
 
 class FText::FSortPredicate::FSortPredicateImplementation

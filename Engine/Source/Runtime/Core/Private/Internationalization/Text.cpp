@@ -1129,6 +1129,26 @@ bool FText::IsNumeric() const
 	return ToString().IsNumeric();
 }
 
+int32 FText::CompareTo(const FText& Other, const ETextComparisonLevel::Type ComparisonLevel) const
+{
+	return FTextComparison::CompareTo(ToString(), Other.ToString(), ComparisonLevel);
+}
+
+int32 FText::CompareToCaseIgnored(const FText& Other) const
+{
+	return FTextComparison::CompareToCaseIgnored(ToString(), Other.ToString());
+}
+
+bool FText::EqualTo(const FText& Other, const ETextComparisonLevel::Type ComparisonLevel) const
+{
+	return FTextComparison::EqualTo(ToString(), Other.ToString(), ComparisonLevel);
+}
+
+bool FText::EqualToCaseIgnored(const FText& Other) const
+{
+	return FTextComparison::EqualToCaseIgnored(ToString(), Other.ToString());
+}
+
 void FText::Rebuild() const
 {
 	TextData->GetMutableTextHistory().UpdateDisplayStringIfOutOfDate();
