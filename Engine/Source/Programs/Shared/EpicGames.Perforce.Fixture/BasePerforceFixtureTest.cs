@@ -37,6 +37,11 @@ public abstract class BasePerforceFixtureTest : IDisposable
 	/// </summary>
 	protected PerforceConnection PerforceConnection { get; private set; }
 
+	/// <summary>
+	/// Fixture data mirroring how the stream/depot looks
+	/// </summary>
+	protected PerforceFixture Fixture { get; } = new ();
+
 	private readonly string _clientName;
 	
 	protected BasePerforceFixtureTest()

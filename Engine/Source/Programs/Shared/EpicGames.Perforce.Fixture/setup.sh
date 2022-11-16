@@ -98,6 +98,9 @@ echo "This is change main.cpp #3" > $CLIENT_ROOT/main.cpp
 echo "This is change main.h #2" > $CLIENT_ROOT/main.h
 p4 submit -d "Some updates to main"
 
+# Changelist #7
+echo "This is change moredata.txt #1" > $CLIENT_ROOT/Data/moredata.txt && p4 add $CLIENT_ROOT/Data/moredata.txt
+p4 submit -d "Add more data"
 
 # Stop server running in background
 kill "$(pidof p4d)"
