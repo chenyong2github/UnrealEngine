@@ -656,14 +656,18 @@ bool UAnimStateTransitionNode::IsBoundGraphShared() const
 {
 	if (BoundGraph)
 	{
-		//@TODO: O(N) search
-		UEdGraph* ParentGraph = GetGraph();
-		for (int32 NodeIdx = 0; NodeIdx < ParentGraph->Nodes.Num(); NodeIdx++)
+		if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(GetGraph()))
 		{
-			UAnimStateNodeBase* AnimNode = Cast<UAnimStateNodeBase>(ParentGraph->Nodes[NodeIdx]);
-			if ((AnimNode != NULL) && (AnimNode != this) && (AnimNode->GetBoundGraph() == BoundGraph))
+			TArray<UAnimStateNodeBase*> StateNodes;
+			FBlueprintEditorUtils::GetAllNodesOfClassEx<UAnimStateNodeBase>(Blueprint, StateNodes);
+
+			for (int32 NodeIdx = 0; NodeIdx < StateNodes.Num(); NodeIdx++)
 			{
-				return true;
+				UAnimStateNodeBase* AnimNode = Cast<UAnimStateNodeBase>(StateNodes[NodeIdx]);
+				if ((AnimNode != NULL) && (AnimNode != this) && (AnimNode->GetBoundGraph() == BoundGraph))
+				{
+					return true;
+				}
 			}
 		}
 	}

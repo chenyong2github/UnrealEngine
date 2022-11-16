@@ -367,33 +367,58 @@ TSharedRef<SWidget> FAnimTransitionNodeDetails::OnGetShareableNodesMenu(bool bSh
 
 	MenuBuilder.BeginSection("AnimTransitionSharableNodes", SectionText);
 
-	if (UAnimStateTransitionNode* TransNode = TransitionNode.Get())
+	if (UAnimStateTransitionNode* RawTransitionNode = TransitionNode.Get())
 	{
-		const UEdGraph* CurrentGraph = TransNode->GetGraph();
+		const UEdGraph* CurrentGraph = RawTransitionNode->GetGraph();
 
-		// Loop through the graph and build a list of the unique shared transitions
-		TMap<FString, UAnimStateTransitionNode*> SharedTransitions;
-
-		for (int32 NodeIdx=0; NodeIdx < CurrentGraph->Nodes.Num(); NodeIdx++)
+		// Collect all unique shared transitions and group them by their name.
+		TMultiMap<FString, UAnimStateTransitionNode*> SharedTransitions;
+		if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(CurrentGraph))
 		{
-			if (UAnimStateTransitionNode* GraphTransNode = Cast<UAnimStateTransitionNode>(CurrentGraph->Nodes[NodeIdx]))
-			{
-				if (bShareRules && !GraphTransNode->SharedRulesName.IsEmpty())
-				{
-					SharedTransitions.Add(GraphTransNode->SharedRulesName, GraphTransNode);
-				}
+			TArray<UAnimStateNodeBase*> StateNodes;
+			FBlueprintEditorUtils::GetAllNodesOfClassEx<UAnimStateNodeBase>(Blueprint, StateNodes);
 
-				if (!bShareRules && !GraphTransNode->SharedCrossfadeName.IsEmpty())
+			for (UAnimStateNodeBase* StateNodeBase : StateNodes)
+			{
+				if (UAnimStateTransitionNode* GraphTransNode = Cast<UAnimStateTransitionNode>(StateNodeBase))
 				{
-					SharedTransitions.Add(GraphTransNode->SharedCrossfadeName, GraphTransNode);
+					if (bShareRules && !GraphTransNode->SharedRulesName.IsEmpty())
+					{
+						SharedTransitions.Add(GraphTransNode->SharedRulesName, GraphTransNode);
+					}
+
+					if (!bShareRules && !GraphTransNode->SharedCrossfadeName.IsEmpty())
+					{
+						SharedTransitions.Add(GraphTransNode->SharedCrossfadeName, GraphTransNode);
+					}
 				}
 			}
 		}
 
-		for (auto Iter = SharedTransitions.CreateIterator(); Iter; ++Iter)
+		// Get the unique shared transition names
+		TSet<FString> SharedTransitionKeys;
+		SharedTransitions.GetKeys(SharedTransitionKeys);
+
+		// Iterate through the unique shared transition names and list all the places where they are referenced in the tooltip.
+		TArray<UAnimStateTransitionNode*> UsedIn;
+		for (const FString& Key : SharedTransitionKeys)
 		{
-			FUIAction Action = FUIAction( FExecuteAction::CreateSP(this, &FAnimTransitionNodeDetails::BecomeSharedWith, Iter.Value(), bShareRules) );
-			MenuBuilder.AddMenuEntry( FText::FromString( Iter.Key() ), LOCTEXT("ShaerdTransitionToolTip", "Use this shared transition"), FSlateIcon(), Action);
+			UsedIn.Reset();
+			SharedTransitions.MultiFind(Key, UsedIn, /*bMaintainOrder=*/true);
+			if (UsedIn.IsEmpty())
+			{
+				continue;
+			}
+
+			FTextBuilder ToolTipBuilder;
+			ToolTipBuilder.AppendLine(LOCTEXT("AnimTransitionUsedBy", "Used by:"));
+			for (const UAnimStateTransitionNode* UsedInTransitionNode : UsedIn)
+			{
+				ToolTipBuilder.AppendLine(UsedInTransitionNode->GetGraph()->GetName());
+			}
+
+			FUIAction Action = FUIAction( FExecuteAction::CreateSP(this, &FAnimTransitionNodeDetails::BecomeSharedWith, UsedIn[0], bShareRules));
+			MenuBuilder.AddMenuEntry( FText::FromString(Key), ToolTipBuilder.ToText(), FSlateIcon(), Action);
 		}
 	}
 	MenuBuilder.EndSection();
