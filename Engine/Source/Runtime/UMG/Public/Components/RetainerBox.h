@@ -88,11 +88,6 @@ public:
 	/**
 	 * Get the current dynamic effect material applied to the retainer box.
 	 */
-	const UMaterialInterface* GetEffectMaterialInterface() const;
-
-	/**
-	 * Get the current dynamic effect material applied to the retainer box.
-	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer|Effect")
 	UMaterialInstanceDynamic* GetEffectMaterial() const;
 
@@ -107,11 +102,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer|Effect")
 	void SetTextureParameter(FName TextureParameter);
-
-	/**
-	 * Gets the name of the texture parameter to set the render target to on the material.
-	 */
-	const FName& GetTextureParameter() const;
 
 	/**
 	* Set the flag for if we retain the render or pass-through
@@ -188,6 +178,17 @@ protected:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	//~ End UObject interface
+
+public:
+	/**
+	* Gets the name of the texture parameter to set the render target to on the material.
+	*/
+	const FName& GetTextureParameter() const;
+
+	/**
+	* Gets the current dynamic effect material applied to the retainer box.
+	*/
+	const UMaterialInterface* GetEffectMaterialInterface() const;
 
 protected:
 	TSharedPtr<class SRetainerWidget> MyRetainerWidget;
