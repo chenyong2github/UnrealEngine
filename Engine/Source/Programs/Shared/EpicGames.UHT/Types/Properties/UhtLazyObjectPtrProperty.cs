@@ -99,7 +99,7 @@ namespace EpicGames.UHT.Types
 
 			// UFunctions with a smart pointer as input parameter wont compile anyway, because of missing P_GET_... macro.
 			// UFunctions with a smart pointer as return type will crash when called via blueprint, because they are not supported in VM.
-			if (this == outermostProperty && PropertyCategory != UhtPropertyCategory.Member)
+			if (!options.HasAnyFlags(UhtValidationOptions.IsKey) && PropertyCategory != UhtPropertyCategory.Member)
 			{
 				outerStruct.LogError("UFunctions cannot take a lazy pointer as a parameter.");
 			}
