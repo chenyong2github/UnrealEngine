@@ -6,8 +6,8 @@
 
 #include "Editor.h"
 #include "Engine/World.h"
+#include "GameplayMediaEncoderCommon.h"
 #include "LevelSnapshot.h"
-#include "GameplayMediaEncoder/Private/GameplayMediaEncoderCommon.h"
 #include "Logging/MessageLog.h"
 #include "UObject/MetaData.h"
 #include "Util/TakeSnapshotUtil.h"

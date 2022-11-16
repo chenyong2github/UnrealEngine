@@ -10,7 +10,7 @@
 #include "Util/ScopedSessionDatabase.h"
 
 #include "Algo/AllOf.h"
-#include "Core/Tests/Containers/TestUtils.h"
+#include "Containers/TestUtils.h"
 #include "Misc/AutomationTest.h"
 
 namespace UE::ConcertSyncTests

@@ -2,12 +2,12 @@
 
 #pragma once
 
+#include "GPULightmassSettings.h"
 #include "LightmapTilePool.h"
 #include "Misc/QueuedThreadPool.h"
 #include "RHIGPUReadback.h"
-#include "GPULightmassSettings.h"
 // TBB suffers from extreme fragmentation problem in editor
-#include "Core/Private/HAL/Allocators/AnsiAllocator.h"
+#include "Runtime/Core/Private/HAL/Allocators/AnsiAllocator.h"
 
 namespace GPULightmass
 {

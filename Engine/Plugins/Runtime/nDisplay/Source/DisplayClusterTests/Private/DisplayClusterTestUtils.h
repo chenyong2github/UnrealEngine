@@ -2,11 +2,11 @@
 
 #pragma once
 #include "DisplayClusterConfigurationTypes_Viewport.h"
-#include "PropertyEditor/Private/PropertyNode.h"
+#include "Editor/PropertyEditor/Private/PropertyNode.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "DisplayClusterConfigurator/Private/DisplayClusterConfiguratorPropertyUtils.h"
+#include "DisplayClusterConfiguratorPropertyUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 class UDisplayClusterBlueprint;

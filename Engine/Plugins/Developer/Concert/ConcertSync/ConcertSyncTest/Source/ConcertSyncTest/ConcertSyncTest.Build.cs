@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
 	public class ConcertSyncTest : ModuleRules
@@ -22,6 +24,13 @@ namespace UnrealBuildTool.Rules
 					"ConcertSyncCore",
 					"ConcertSyncClient",
 					"ConcertSyncServer",
+				}
+			);
+
+			PrivateIncludePaths.AddRange(
+				new string[]
+				{
+					Path.Combine(GetModuleDirectory("Core"), "Tests"),
 				}
 			);
 		}

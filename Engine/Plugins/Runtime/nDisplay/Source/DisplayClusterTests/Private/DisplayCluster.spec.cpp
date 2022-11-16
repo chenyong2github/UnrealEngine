@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ComponentAssetBroker.h"
-#include "DisplayClusterRootActor.h"
-#include "DisplayClusterTestUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Blueprints/DisplayClusterBlueprintGeneratedClass.h"
+#include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
+#include "ComponentAssetBroker.h"
 #include "Components/DisplayClusterScreenComponent.h"
 #include "Components/DisplayClusterXformComponent.h"
-#include "DisplayClusterConfigurator/Private/ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
+#include "DisplayClusterRootActor.h"
+#include "DisplayClusterTestUtils.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Kismet2/ComponentEditorUtils.h"

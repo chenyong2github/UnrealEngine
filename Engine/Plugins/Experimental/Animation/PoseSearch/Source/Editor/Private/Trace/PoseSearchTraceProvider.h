@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Model/PointTimeline.h"
-#include "Runtime/Private/Trace/PoseSearchTraceLogger.h"
+#include "Trace/PoseSearchTraceLogger.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
 

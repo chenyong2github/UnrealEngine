@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class PoseSearchEditor : ModuleRules
@@ -51,5 +52,11 @@ public class PoseSearchEditor : ModuleRules
 				"ToolWidgets"
 			}
 		);
+
+		// TODO: Should not be including private headers from a different module
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				Path.Combine(GetModuleDirectory("PoseSearch"), "Private"), // For PoseSearchTraceLogger.h
+			});
 	}
 }

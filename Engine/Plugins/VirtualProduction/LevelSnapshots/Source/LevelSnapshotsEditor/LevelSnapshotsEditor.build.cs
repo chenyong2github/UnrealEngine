@@ -44,5 +44,11 @@ public class LevelSnapshotsEditor : ModuleRules
 				"WorkspaceMenuStructure"
 			}
 			);
+
+		// TODO: Should not be including private headers from a different module
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				Path.Combine(GetModuleDirectory("GameplayMediaEncoder"), "Private"), // For GameplayMediaEncoderCommon.h
+			});
 	}
 }

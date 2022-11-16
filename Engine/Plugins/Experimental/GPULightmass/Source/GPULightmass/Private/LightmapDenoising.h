@@ -13,7 +13,7 @@
 #endif
 
 // TBB suffers from extreme fragmentation problem in editor
-#include "Core/Private/HAL/Allocators/AnsiAllocator.h"
+#include "Runtime/Core/Private/HAL/Allocators/AnsiAllocator.h"
 
 struct FDenoiserFilterSet
 {

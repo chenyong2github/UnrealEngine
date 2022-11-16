@@ -5,10 +5,10 @@
 
 #include "DisplayClusterRootActor.h"
 
-#include "IDisplayClusterConfiguration.h"
 #include "DisplayClusterConfigurationTypes.h"
+#include "IDisplayClusterConfiguration.h"
 
-#include "DisplayCluster/Private/IPDisplayCluster.h"
+#include "IPDisplayCluster.h"
 
 #include "Engine/LevelStreaming.h"
 

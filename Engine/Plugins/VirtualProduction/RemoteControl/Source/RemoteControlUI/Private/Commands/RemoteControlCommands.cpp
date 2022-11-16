@@ -2,7 +2,7 @@
 
 #include "Commands/RemoteControlCommands.h"
 
-#include "RemoteControlUI/Private/UI/RemoteControlPanelStyle.h"
+#include "UI/RemoteControlPanelStyle.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlCommands"
 

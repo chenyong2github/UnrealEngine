@@ -20,6 +20,12 @@ public class DisplayClusterTests : ModuleRules
 				"UnrealEd"
 			});
 
+		// TODO: Should not be including private headers from a different module
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				Path.Combine(GetModuleDirectory("DisplayClusterConfigurator"), "Private"), // For DisplayClusterConfiguratorPropertyUtils.h
+			});
+
 		OptimizeCode = CodeOptimization.Never;
 		PCHUsage = PCHUsageMode.NoPCHs;
 	}

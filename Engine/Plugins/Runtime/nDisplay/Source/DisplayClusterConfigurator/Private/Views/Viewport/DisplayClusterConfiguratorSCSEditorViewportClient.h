@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Kismet/Private/SCSEditorViewportClient.h"
+#include "Editor/Kismet/Private/SCSEditorViewportClient.h"
 #include "UnrealWidgetFwd.h"
 
 class UMaterialInstanceConstant;

@@ -2,10 +2,10 @@
 
 #include "Widgets/SLevelSnapshotsEditorBrowser.h"
 
-#include "LevelSnapshot.h"
 #include "Data/LevelSnapshotsEditorData.h"
-#include "LevelSnapshotsEditor/Private/LevelSnapshotsEditorModule.h"
+#include "LevelSnapshot.h"
 #include "LevelSnapshotsEditorFunctionLibrary.h"
+#include "LevelSnapshotsEditorModule.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsLog.h"
 

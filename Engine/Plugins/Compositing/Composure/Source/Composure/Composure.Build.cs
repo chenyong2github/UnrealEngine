@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
 	public class Composure : ModuleRules
@@ -54,6 +56,9 @@ namespace UnrealBuildTool.Rules
 					}
 					);
             }
-        }
-    }
+
+			// TODO: Use proper module reference (currently cannot reference editor module for non-editor target)
+			PrivateIncludePaths.Add(Path.Combine(GetModuleDirectory("ComposureLayersEditor"), "Public")); // ICompElementManager.h & CompElementEditorModule.h
+		}
+	}
 }
