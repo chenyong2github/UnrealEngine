@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,11 +8,11 @@
 #include "WorldConditionBase.h"
 #include "WorldConditionTypes.h"
 #include "Templates/SubclassOf.h"
+#include "WorldConditionSchema.h"
 #include "WorldConditionQuery.generated.h"
 
 struct FWorldConditionContext;
 struct FWorldConditionContextData;
-class UWorldConditionSchema;
 
 /**
  * World Condition Query is an expression of World Conditions whose state can be queried.
