@@ -7,6 +7,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 class SSourceControlReviewEntry;
 class SChangelistEditableTextBox;
