@@ -148,6 +148,17 @@ public:
 private:
 	bool IsRelevantInput(FSlateApplication& SlateApp, const FInputEvent& InputEvent, const ECommonInputType DesiredInputType)
 	{
+#if WITH_EDITOR
+		// If we're stopped at a breakpoint we need for this input preprocessor to just ignore all incoming input
+		// because we're now doing stuff outside the game loop in the editor and it needs to not block all that.
+		// This can happen if you suspend input while spawning a dialog and then hit another breakpoint and then
+		// try and use the editor, you can suddenly be unable to do anything.
+		if (GIntraFrameDebuggingGameThread)
+		{
+			return false;
+		}
+#endif
+		
 		if (SlateApp.IsActive() 
 			|| SlateApp.GetHandleDeviceInputWhenApplicationNotActive() 
 			|| (ICommonInputModule::GetSettings().GetAllowOutOfFocusDeviceInput() && DesiredInputType == ECommonInputType::Gamepad))
@@ -163,6 +174,7 @@ private:
 #endif
 			return ControllerId == InputEvent.GetUserIndex();
 		}
+		
 		return false;
 	}
 
