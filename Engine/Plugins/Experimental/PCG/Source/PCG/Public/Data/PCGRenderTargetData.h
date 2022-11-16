@@ -19,6 +19,13 @@ public:
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::RenderTarget | Super::GetDataType(); }
 	// ~End UPCGData interface
 
+
+	//~Begin UPCGSpatialData interface
+protected:
+	virtual UPCGSpatialData* CopyInternal() const override;
+	//~End UPCGSpatialData interface
+
+public:
 	UFUNCTION(BlueprintCallable, Category = RenderTarget)
 	void Initialize(UTextureRenderTarget2D* InRenderTarget, const FTransform& InTransform);
 

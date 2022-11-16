@@ -113,11 +113,6 @@ public:
 class FPCGMetadataElementBase : public FSimplePCGElement
 {
 public:
-	// FPCGMetadataElementBase relies on StaticDuplicateObject (when we duplicate tagged data), so we cannot run outside of the main thread
-	virtual bool CanExecuteOnlyOnMainThread(FPCGContext*) const override { return true; }
-
-	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return true; }
-
 	struct FOperationData
 	{
 		TArray<const FPCGMetadataAttributeBase*> SourceAttributes;

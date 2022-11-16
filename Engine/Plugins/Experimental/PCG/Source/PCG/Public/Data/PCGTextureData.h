@@ -88,6 +88,8 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
 	int32 Width = 0;
+
+	void CopyBaseTextureData(UPCGBaseTextureData* NewTextureData) const;
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
@@ -100,6 +102,12 @@ public:
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Texture | Super::GetDataType(); }
 	// ~End UPCGData interface
 
+	//~Begin UPCGSpatialData interface
+protected:
+	virtual UPCGSpatialData* CopyInternal() const override;
+	//~End UPCGSpatialData interface
+
+public:
 	UFUNCTION(BlueprintCallable, Category = Texture)
 	void Initialize(UTexture2D* InTexture, const FTransform& InTransform);
 

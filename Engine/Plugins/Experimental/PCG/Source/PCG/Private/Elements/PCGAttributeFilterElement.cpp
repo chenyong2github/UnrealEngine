@@ -66,13 +66,10 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (const UPCGSpatialData* InputSpatialData = Cast<UPCGSpatialData>(InputData))
 		{
-			Metadata = NewObject<UPCGMetadata>();
 			ParentMetadata = InputSpatialData->Metadata;
 
-			UPCGSpatialData* NewSpatialData = DuplicateObject<UPCGSpatialData>(const_cast<UPCGSpatialData*>(InputSpatialData), nullptr);
-			NewSpatialData->Metadata = Metadata;
-			// We also need set the Metadata outer to this new data.
-			Metadata->Rename(nullptr, NewSpatialData);
+			UPCGSpatialData* NewSpatialData = InputSpatialData->DuplicateData(/*bInitializeFromThisData=*/false);
+			Metadata = NewSpatialData->Metadata;
 			NewSpatialData->Metadata->Initialize(ParentMetadata, /*bAddAttributesFromParent=*/false);
 
 			// No need to inherit metadata since we already initialized it.

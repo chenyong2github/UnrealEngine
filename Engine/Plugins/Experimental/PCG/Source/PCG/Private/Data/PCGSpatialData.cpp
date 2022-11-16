@@ -148,3 +148,16 @@ void UPCGSpatialData::InitializeFromData(const UPCGSpatialData* InSource, const 
 		UE_LOG(LogPCG, Warning, TEXT("InitializeFromData has both no source and no metadata override"));
 	}
 }
+
+UPCGSpatialData* UPCGSpatialData::DuplicateData(const bool bInitializeMetadata) const
+{
+	UPCGSpatialData* NewSpatialData = CopyInternal();
+	check(NewSpatialData);
+
+	if (bInitializeMetadata)
+	{
+		NewSpatialData->InitializeFromData(this);
+	}
+
+	return NewSpatialData;
+}

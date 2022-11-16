@@ -218,3 +218,12 @@ bool UPCGLandscapeSplineData::SamplePoint(const FTransform& InTransform, const F
 	OutPoint.Density = PointDensity;
 	return OutPoint.Density > 0;
 }
+
+UPCGSpatialData* UPCGLandscapeSplineData::CopyInternal() const
+{
+	UPCGLandscapeSplineData* NewLandscapeSplineData = NewObject<UPCGLandscapeSplineData>();
+
+	NewLandscapeSplineData->Spline = Spline;
+
+	return NewLandscapeSplineData;
+}

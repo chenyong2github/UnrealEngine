@@ -51,3 +51,15 @@ const UPCGPointData* UPCGPrimitiveData::CreatePointData(FPCGContext* Context) co
 
 	return Data;
 }
+
+UPCGSpatialData* UPCGPrimitiveData::CopyInternal() const
+{
+	UPCGPrimitiveData* NewPrimitiveData = NewObject<UPCGPrimitiveData>();
+
+	NewPrimitiveData->VoxelSize = VoxelSize;
+	NewPrimitiveData->Primitive = Primitive;
+	NewPrimitiveData->CachedBounds = CachedBounds;
+	NewPrimitiveData->CachedStrictBounds = CachedStrictBounds;
+
+	return NewPrimitiveData;
+}

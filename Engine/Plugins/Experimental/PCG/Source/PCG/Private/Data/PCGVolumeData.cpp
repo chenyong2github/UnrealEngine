@@ -85,3 +85,20 @@ bool UPCGVolumeData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 		return false;
 	}
 }
+
+inline void UPCGVolumeData::CopyBaseVolumeData(UPCGVolumeData* NewVolumeData) const
+{
+	NewVolumeData->VoxelSize = VoxelSize;
+	NewVolumeData->Volume = Volume;
+	NewVolumeData->Bounds = Bounds;
+	NewVolumeData->StrictBounds = StrictBounds;
+}
+
+UPCGSpatialData* UPCGVolumeData::CopyInternal() const
+{
+	UPCGVolumeData* NewVolumeData = NewObject<UPCGVolumeData>();
+
+	CopyBaseVolumeData(NewVolumeData);
+
+	return NewVolumeData;
+}

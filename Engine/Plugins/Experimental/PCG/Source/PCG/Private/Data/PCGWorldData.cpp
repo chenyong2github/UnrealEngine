@@ -128,6 +128,19 @@ const UPCGPointData* UPCGWorldVolumetricData::CreatePointData(FPCGContext* Conte
 	return Data;
 }
 
+UPCGSpatialData* UPCGWorldVolumetricData::CopyInternal() const
+{
+	UPCGWorldVolumetricData* NewVolumetricData = NewObject<UPCGWorldVolumetricData>();
+
+	CopyBaseVolumeData(NewVolumetricData);
+
+	NewVolumetricData->World = World;
+	NewVolumetricData->OriginatingComponent = OriginatingComponent;
+	NewVolumetricData->QueryParams = QueryParams;
+
+	return NewVolumetricData;
+}
+
 /** World Ray Hit data implementation */
 void UPCGWorldRayHitData::Initialize(UWorld* InWorld, const FBox& InBounds)
 {
@@ -232,4 +245,18 @@ const UPCGPointData* UPCGWorldRayHitData::CreatePointData(FPCGContext* Context, 
 	}
 
 	return Data;
+}
+
+UPCGSpatialData* UPCGWorldRayHitData::CopyInternal() const
+{
+	UPCGWorldRayHitData* NewData = NewObject<UPCGWorldRayHitData>();
+
+	CopyBaseSurfaceData(NewData);
+
+	NewData->World = World;
+	NewData->OriginatingComponent = OriginatingComponent;
+	NewData->Bounds = Bounds;
+	NewData->QueryParams = QueryParams;
+
+	return NewData;
 }

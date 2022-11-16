@@ -26,13 +26,18 @@ public:
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	virtual bool HasNonTrivialTransform() const override;
 	virtual bool RequiresCollapseToSample() const override { return true; }
+protected:
+	virtual UPCGSpatialData* CopyInternal() const override;
 	//~End UPCGSpatialData interface
 
+public:
 	//~Begin UPCGSpatialDataWithPointCache interface
 	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const override;
 	//~End UPCGSpatialDataWithPointCache interface
 
 protected:
+	void CopyBaseProjectionClass(UPCGProjectionData* NewProjectionData) const;
+
 	FBox ProjectBounds(const FBox& InBounds) const;
 
 	/** Applies data from target point to projected point, conditionally according to the projection params. */

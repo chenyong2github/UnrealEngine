@@ -35,13 +35,16 @@ public:
 	virtual FBox GetStrictBounds() const override;
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	virtual bool HasNonTrivialTransform() const override { return true; }
-	// ~End UPGCConcreteData interface
+protected:
+	virtual UPCGSpatialData* CopyInternal() const override;
+	//~End UPCGSpatialData interface
 
+public:
 	// ~Begin UPCGSpatialDataWithPointCache interface
 	virtual bool SupportsBoundedPointData() const { return true; }
 	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const override { return CreatePointData(Context, FBox(EForceInit::ForceInit)); }
 	virtual const UPCGPointData* CreatePointData(FPCGContext* Context, const FBox& InBounds) const override;
-	// ~End UPCGConcreteDataWithPointCache interface
+	// ~End UPCGSpatialDataWithPointCache interface
 
 	// TODO: add on property changed to clear cached data. This is used to populate the LandscapeInfos array.
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)

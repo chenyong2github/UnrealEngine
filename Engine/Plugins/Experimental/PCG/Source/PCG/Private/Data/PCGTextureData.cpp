@@ -238,6 +238,25 @@ bool UPCGBaseTextureData::IsValid() const
 	return Height > 0 && Width > 0;
 }
 
+void UPCGBaseTextureData::CopyBaseTextureData(UPCGBaseTextureData* NewTextureData) const
+{
+	CopyBaseSurfaceData(NewTextureData);
+
+	NewTextureData->DensityFunction = DensityFunction;
+	NewTextureData->ColorChannel = ColorChannel;
+	NewTextureData->TexelSize = TexelSize;
+	NewTextureData->bUseAdvancedTiling = bUseAdvancedTiling;
+	NewTextureData->Tiling = Tiling;
+	NewTextureData->CenterOffset = CenterOffset;
+	NewTextureData->Rotation = Rotation;
+	NewTextureData->bUseTileBounds = bUseTileBounds;
+	NewTextureData->TileBounds = TileBounds;
+	NewTextureData->ColorData = ColorData;
+	NewTextureData->Bounds = Bounds;
+	NewTextureData->Height = Height;
+	NewTextureData->Width = Width;
+}
+
 void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTransform)
 {
 	Texture = InTexture;
@@ -308,4 +327,15 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 	Bounds += FVector(-1.0f, -1.0f, 0.0f);
 	Bounds += FVector(1.0f, 1.0f, 0.0f);
 	Bounds = Bounds.TransformBy(Transform);
+}
+
+UPCGSpatialData* UPCGTextureData::CopyInternal() const
+{
+	UPCGTextureData* NewTextureData = NewObject<UPCGTextureData>();
+
+	CopyBaseTextureData(NewTextureData);
+
+	NewTextureData->Texture = Texture;
+
+	return NewTextureData;
 }

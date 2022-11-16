@@ -20,6 +20,8 @@ namespace PCGMetadataElementCommon
 	template<typename T>
 	FPCGMetadataAttribute<T>* ClearOrCreateAttribute(UPCGMetadata* Metadata, const FName& DestinationAttribute, T DefaultValue)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(PCGMetadataElementCommon::ClearOrCreateAttribute);
+
 		if (!Metadata)
 		{
 			UE_LOG(LogPCG, Error, TEXT("Failed to create metadata"));
@@ -28,7 +30,7 @@ namespace PCGMetadataElementCommon
 
 		if (Metadata->HasAttribute(DestinationAttribute))
 		{
-			UE_LOG(LogPCG, Warning, TEXT("Attribute %s already exists and has been overwritten"), *DestinationAttribute.ToString());
+			UE_LOG(LogPCG, Verbose, TEXT("Attribute %s already exists and has been overwritten"), *DestinationAttribute.ToString());
 			Metadata->DeleteAttribute(DestinationAttribute);
 		}
 

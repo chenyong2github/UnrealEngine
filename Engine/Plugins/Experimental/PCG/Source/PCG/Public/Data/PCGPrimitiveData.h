@@ -23,8 +23,11 @@ public:
 	virtual FBox GetBounds() const override { return CachedBounds; }
 	virtual FBox GetStrictBounds() const override { return CachedStrictBounds; }
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
-	// ~End UPCGSpatialData interface
+protected:
+	virtual UPCGSpatialData* CopyInternal() const override;
+	//~End UPCGSpatialData interface
 
+public:
 	// ~Begin UPCGSpatialDataWithPointCache implementation
 	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const override;
 	// ~End UPCGSpatialDataWithPointCache implementation

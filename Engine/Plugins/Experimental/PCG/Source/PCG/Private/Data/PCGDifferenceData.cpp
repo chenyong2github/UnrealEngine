@@ -212,3 +212,18 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 
 	return Data;
 }
+
+UPCGSpatialData* UPCGDifferenceData::CopyInternal() const
+{
+	UPCGDifferenceData* NewDifferenceData = NewObject<UPCGDifferenceData>();
+
+	NewDifferenceData->Source = Source;
+	NewDifferenceData->Difference = Difference;
+	NewDifferenceData->DensityFunction = DensityFunction;
+	if (DifferencesUnion)
+	{
+		NewDifferenceData->DifferencesUnion = static_cast<UPCGUnionData*>(DifferencesUnion->DuplicateData());
+	}
+
+	return NewDifferenceData;
+}

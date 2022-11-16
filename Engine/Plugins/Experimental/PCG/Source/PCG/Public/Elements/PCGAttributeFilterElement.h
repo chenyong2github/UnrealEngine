@@ -40,10 +40,6 @@ protected:
 
 class FPCGAttributeFilterElement : public FSimplePCGElement
 {
-public:
-	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const { return true; }
-	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
-
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };

@@ -213,7 +213,6 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 		PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[0], OutputData, OutMetadata);
 		OperationData.OutputAttributes[OutputIndex] = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputAttributeFinalName, DefaultValue);
-		PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], OperationData.SourceAttributes[0], OperationData.OutputAttributes[OutputIndex]);
 
 		return OperationData.OutputAttributes[OutputIndex] != nullptr;
 	};

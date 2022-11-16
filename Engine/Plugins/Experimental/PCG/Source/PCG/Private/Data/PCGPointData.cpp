@@ -461,3 +461,11 @@ void UPCGPointData::RebuildOctree() const
 	Octree = NewOctree;
 	bOctreeIsDirty = false;
 }
+
+UPCGSpatialData* UPCGPointData::CopyInternal() const
+{
+	UPCGPointData* NewPointData = NewObject<UPCGPointData>();
+	NewPointData->GetMutablePoints() = GetPoints();
+
+	return NewPointData;
+}

@@ -204,3 +204,21 @@ void UPCGProjectionData::GetIncludeExcludeAttributeNames(TSet<FName>& OutAttribu
 		OutAttributeNames.Add(FName(*Attribute));
 	}
 }
+
+inline void UPCGProjectionData::CopyBaseProjectionClass(UPCGProjectionData* NewProjectionData) const
+{
+	NewProjectionData->Source = Source;
+	NewProjectionData->Target = Target;
+	NewProjectionData->CachedBounds = CachedBounds;
+	NewProjectionData->CachedStrictBounds = CachedStrictBounds;
+	NewProjectionData->Params = Params;
+}
+
+UPCGSpatialData* UPCGProjectionData::CopyInternal() const
+{
+	UPCGProjectionData* NewProjectionData = NewObject<UPCGProjectionData>();
+
+	CopyBaseProjectionClass(NewProjectionData);
+
+	return NewProjectionData;
+}

@@ -40,6 +40,16 @@ public:
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial | Super::GetDataType(); }
 	// ~End UPCGData interface
 
+	/** Virtual call to allocate a new spacial data object, duplicate this spatial data into
+	*   and parent the new metadata with this class metadata (if asked).
+	*   Should be way cheaper than DuplicateObject, since we avoid duplicating metadata.
+	*   It will not deep copy references.
+	*   Some data are marked mutable and therefore are not threadsafe to copy, so they are not copied.
+	*   They are mainly cached values (and octree for points).
+	*   TODO: If we want to also copy those values (can be an optimization), we need to guard the copy.
+	*/
+	UPCGSpatialData* DuplicateData(const bool bInitializeMetadata = true) const;
+
 	/** Returns the dimension of the data type, which has nothing to do with the dimension of its points */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	virtual int GetDimension() const PURE_VIRTUAL(UPCGSpatialData::GetDimension, return 0;);
@@ -120,6 +130,9 @@ public:
 	// Not accessible through blueprint to make sure the constness is preserved
 	UPROPERTY(VisibleAnywhere, Category = Metadata)
 	TObjectPtr<UPCGMetadata> Metadata = nullptr;
+
+protected:
+	virtual UPCGSpatialData* CopyInternal() const PURE_VIRTUAL(UPCGSpatialData::CopyInternal, return nullptr;);
 };
 
 UCLASS(Abstract, ClassGroup = (Procedural))

@@ -118,6 +118,16 @@ UPCGProjectionData* UPCGSplineData::ProjectOn(const UPCGSpatialData* InOther, co
 	}
 }
 
+UPCGSpatialData* UPCGSplineData::CopyInternal() const
+{
+	UPCGSplineData* NewSplineData = NewObject<UPCGSplineData>();
+
+	NewSplineData->Spline = Spline;
+	NewSplineData->CachedBounds = CachedBounds;
+
+	return NewSplineData;
+}
+
 FVector2D UPCGSplineProjectionData::Project(const FVector& InVector) const
 {
 	const FVector& SurfaceNormal = GetSurface()->GetNormal();
@@ -191,4 +201,15 @@ const UPCGSplineData* UPCGSplineProjectionData::GetSpline() const
 const UPCGSpatialData* UPCGSplineProjectionData::GetSurface() const
 {
 	return Target;
+}
+
+UPCGSpatialData* UPCGSplineProjectionData::CopyInternal() const
+{
+	UPCGSplineProjectionData* NewProjectionData = NewObject<UPCGSplineProjectionData>();
+
+	CopyBaseProjectionClass(NewProjectionData);
+
+	NewProjectionData->ProjectedPosition = ProjectedPosition;
+
+	return NewProjectionData;
 }

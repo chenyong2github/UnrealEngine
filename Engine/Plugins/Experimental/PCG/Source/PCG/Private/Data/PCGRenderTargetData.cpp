@@ -39,3 +39,14 @@ void UPCGRenderTargetData::Initialize(UTextureRenderTarget2D* InRenderTarget, co
 	Bounds += FVector(1.0f, 1.0f, 0.0f);
 	Bounds = Bounds.TransformBy(Transform);
 }
+
+UPCGSpatialData* UPCGRenderTargetData::CopyInternal() const
+{
+	UPCGRenderTargetData* NewRenderTargetData = NewObject<UPCGRenderTargetData>();
+
+	CopyBaseTextureData(NewRenderTargetData);
+
+	NewRenderTargetData->RenderTarget = RenderTarget;
+
+	return NewRenderTargetData;
+}

@@ -23,6 +23,8 @@ public:
 	//~End UPCGSpatialData interface
 
 protected:
+	void CopyBaseSurfaceData(UPCGSurfaceData* NewSurfaceData) const;
+
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
 	FTransform Transform;
 };

@@ -196,3 +196,16 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Conte
 
 	return Data;
 }
+
+UPCGSpatialData* UPCGIntersectionData::CopyInternal() const
+{
+	UPCGIntersectionData* NewIntersectionData = NewObject<UPCGIntersectionData>();
+
+	NewIntersectionData->DensityFunction = DensityFunction;
+	NewIntersectionData->A = A;
+	NewIntersectionData->B = B;
+	NewIntersectionData->CachedBounds = CachedBounds;
+	NewIntersectionData->CachedStrictBounds = CachedStrictBounds;
+
+	return NewIntersectionData;
+}

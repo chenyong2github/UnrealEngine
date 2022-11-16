@@ -285,3 +285,19 @@ const ULandscapeInfo* UPCGLandscapeData::GetLandscapeInfo(const FVector& InPosit
 
 	return nullptr;
 }
+
+UPCGSpatialData* UPCGLandscapeData::CopyInternal() const
+{
+	UPCGLandscapeData* NewLandsacapeData = NewObject<UPCGLandscapeData>();
+
+	CopyBaseSurfaceData(NewLandsacapeData);
+
+	NewLandsacapeData->Landscapes = Landscapes;
+	NewLandsacapeData->Bounds = Bounds;
+	NewLandsacapeData->bHeightOnly = bHeightOnly;
+	NewLandsacapeData->bUseMetadata = bUseMetadata;
+	NewLandsacapeData->LandscapeInfos = LandscapeInfos;
+	NewLandsacapeData->LandscapeCache = LandscapeCache;
+
+	return NewLandsacapeData;
+}

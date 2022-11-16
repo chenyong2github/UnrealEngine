@@ -329,3 +329,18 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 		SelectedDataPoints.Reset();
 	}
 }
+
+UPCGSpatialData* UPCGUnionData::CopyInternal() const
+{
+	UPCGUnionData* NewUnionData = NewObject<UPCGUnionData>();
+
+	NewUnionData->Data = Data;
+	NewUnionData->FirstNonTrivialTransformData = FirstNonTrivialTransformData;
+	NewUnionData->UnionType = UnionType;
+	NewUnionData->DensityFunction = DensityFunction;
+	NewUnionData->CachedBounds = CachedBounds;
+	NewUnionData->CachedStrictBounds = CachedStrictBounds;
+	NewUnionData->CachedDimension = CachedDimension;
+
+	return NewUnionData;
+}
