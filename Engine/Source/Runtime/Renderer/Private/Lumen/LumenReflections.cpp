@@ -78,7 +78,14 @@ float GLumenReflectionMaxRoughnessToTrace = .4f;
 FAutoConsoleVariableRef GVarLumenReflectionMaxRoughnessToTrace(
 	TEXT("r.Lumen.Reflections.MaxRoughnessToTrace"),
 	GLumenReflectionMaxRoughnessToTrace,
-	TEXT(""),
+	TEXT("Max roughness value for which we still trace dedicated reflection rays."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<float> GVarLumenReflectionsMaxRoughnessToTraceForFoliage(
+	TEXT("r.Lumen.Reflections.MaxRoughnessToTraceForFoliage"),
+	0.2f,
+	TEXT("Max roughness value for which we still tracededicated reflection rays from foliage pixels (two sided or subsurface shading model)."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -87,13 +94,6 @@ FAutoConsoleVariableRef GVarLumenReflectionRoughnessFadeLength(
 	TEXT("r.Lumen.Reflections.RoughnessFadeLength"),
 	GLumenReflectionRoughnessFadeLength,
 	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-TAutoConsoleVariable<int32> GVarLumenReflectionsFoliage(
-	TEXT("r.Lumen.Reflections.Foliage"),
-	1,
-	TEXT("Whether to trace reflections rays for foliage."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -282,9 +282,9 @@ void GetReflectionsVisualizeTracesBuffer(TRefCountPtr<FRDGPooledBuffer>& Visuali
 
 void LumenReflections::SetupCompositeParameters(LumenReflections::FCompositeParameters& OutParameters)
 {
-	OutParameters.MaxRoughnessToTrace = FMath::Clamp(GLumenReflectionMaxRoughnessToTrace, 0.0f, 1.0f);
+	OutParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 	OutParameters.InvRoughnessFadeLength = 1.0f / FMath::Clamp(GLumenReflectionRoughnessFadeLength, 0.001f, 1.0f);
-	OutParameters.TraceReflectionForFoliage = GVarLumenReflectionsFoliage.GetValueOnRenderThread() ? 1 : 0;
+	OutParameters.MaxRoughnessToTraceForFoliage = GVarLumenReflectionsMaxRoughnessToTraceForFoliage.GetValueOnRenderThread();
 }
 
 // Must match usf RESOLVE_TILE_SIZE

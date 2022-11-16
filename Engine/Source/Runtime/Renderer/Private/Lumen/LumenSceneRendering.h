@@ -97,8 +97,8 @@ namespace LumenReflections
 {
 	BEGIN_SHADER_PARAMETER_STRUCT(FCompositeParameters, )
 		SHADER_PARAMETER(float, MaxRoughnessToTrace)
+		SHADER_PARAMETER(float, MaxRoughnessToTraceForFoliage)
 		SHADER_PARAMETER(float, InvRoughnessFadeLength)
-		SHADER_PARAMETER(uint32, TraceReflectionForFoliage)
 	END_SHADER_PARAMETER_STRUCT()
 
 	void SetupCompositeParameters(LumenReflections::FCompositeParameters& OutParameters);
