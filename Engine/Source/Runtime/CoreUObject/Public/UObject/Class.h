@@ -474,22 +474,47 @@ public:
 	/** Creates the field/property links and gets structure ready for use at runtime */
 	virtual void Link(FArchive& Ar, bool bRelinkExistingProperties);
 
-	/** Serializes struct properties, does not handle defaults*/
+	/**
+	 * Serializes struct properties, does not handle defaults.  See SerializeBinEx for handling defaults.
+	 *
+	 * @param	Ar				the archive to use for serialization
+	 * @param	Data			pointer to the location of the beginning of the property data
+	 *
+	 * @note Binary serialization will read and write unstructured data from the archive.  As deprecated
+	 *       properties are read from archives but not written, it is dangerous to call this function on
+	 *       types with deprecated properties, unless the ArWantBinarySerialization flag is set on the
+	 *       archive to force serialization to occur always.
+	 */
 	virtual void SerializeBin(FArchive& Ar, void* Data) const final 
 	{
 		SerializeBin(FStructuredArchiveFromArchive(Ar).GetSlot(), Data);
 	}
 
-	/** Serializes struct properties, does not handle defaults */
+	/**
+	 * Serializes struct properties, does not handle defaults.  See SerializeBinEx for handling defaults.
+	 *
+	 * @param	Slot			The structured archive slot we are serializing to
+	 * @param	Data			pointer to the location of the beginning of the property data
+	 *
+	 * @note Binary serialization will read and write unstructured data from the archive.  As deprecated
+	 *       properties are read from archives but not written, it is dangerous to call this function on
+	 *       types with deprecated properties, unless the ArWantBinarySerialization flag is set on the
+	 *       archive to force serialization to occur always.
+	 */
 	virtual void SerializeBin(FStructuredArchive::FSlot Slot, void* Data) const;
 
 	/**
 	 * Serializes the class properties that reside in Data if they differ from the corresponding values in DefaultData
 	 *
-	 * @param	Ar				the archive to use for serialization
+	 * @param	Slot			The structured archive slot we are serializing to
 	 * @param	Data			pointer to the location of the beginning of the property data
 	 * @param	DefaultData		pointer to the location of the beginning of the data that should be compared against
 	 * @param	DefaultStruct	the struct corresponding to the block of memory located at DefaultData 
+	 *
+	 * @note Binary serialization will read and write unstructured data from the archive.  As deprecated
+	 *       properties are read from archives but not written, it is dangerous to call this function on
+	 *       types with deprecated properties, unless the ArWantBinarySerialization flag is set on the
+	 *       archive to force serialization to occur always.
 	 */
 	void SerializeBinEx( FStructuredArchive::FSlot Slot, void* Data, void const* DefaultData, UStruct* DefaultStruct ) const;
 

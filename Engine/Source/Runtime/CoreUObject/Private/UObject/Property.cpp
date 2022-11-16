@@ -1137,13 +1137,15 @@ bool FProperty::ExportText_Direct
 	return false;
 }
 
-bool FProperty::ShouldSerializeValue( FArchive& Ar ) const
+bool FProperty::ShouldSerializeValue(FArchive& Ar) const
 {
+	// Skip the property if the archive says we should
 	if (Ar.ShouldSkipProperty(this))
 	{
 		return false;
 	}
 
+	// Skip non-SaveGame properties if we're saving game state
 	if (!(PropertyFlags & CPF_SaveGame) && Ar.IsSaveGame())
 	{
 		return false;
@@ -1155,16 +1157,50 @@ bool FProperty::ShouldSerializeValue( FArchive& Ar ) const
 		return true;
 	}
 
-	bool Skip =
-			((PropertyFlags & CPF_Transient) && Ar.IsPersistent() && !Ar.IsSerializingDefaults())
-		||	((PropertyFlags & CPF_DuplicateTransient) && (Ar.GetPortFlags() & PPF_Duplicate))
-		||	((PropertyFlags & CPF_NonPIEDuplicateTransient) && !(Ar.GetPortFlags() & PPF_DuplicateForPIE) && (Ar.GetPortFlags() & PPF_Duplicate))
-		||	((PropertyFlags & CPF_NonTransactional) && Ar.IsTransacting())
-		||	((PropertyFlags & CPF_Deprecated) && !Ar.HasAllPortFlags(PPF_UseDeprecatedProperties) && (Ar.IsSaving() || Ar.IsTransacting() || Ar.WantBinaryPropertySerialization()))
-		||  ((PropertyFlags & CPF_SkipSerialization) && (Ar.WantBinaryPropertySerialization() || !Ar.HasAllPortFlags(PPF_ForceTaggedSerialization)))
-		||  (IsEditorOnlyProperty() && Ar.IsFilterEditorOnly());
+	// Skip properties marked Transient when persisting an object, unless we're saving an archetype
+	if ((PropertyFlags & CPF_Transient) && Ar.IsPersistent() && !Ar.IsSerializingDefaults())
+	{
+		return false;
+	}
 
-	return !Skip;
+	// Skip properties marked DuplicateTransient when duplicating
+	if ((PropertyFlags & CPF_DuplicateTransient) && (Ar.GetPortFlags() & PPF_Duplicate))
+	{
+		return false;
+	}
+
+	// Skip properties marked NonPIEDuplicateTransient when duplicating, but not when we're duplicating for PIE
+	if ((PropertyFlags & CPF_NonPIEDuplicateTransient) && !(Ar.GetPortFlags() & PPF_DuplicateForPIE) && (Ar.GetPortFlags() & PPF_Duplicate))
+	{
+		return false;
+	}
+
+	// Skip properties marked NonTransactional when transacting
+	if ((PropertyFlags & CPF_NonTransactional) && Ar.IsTransacting())
+	{
+		return false;
+	}
+
+	// Skip deprecated properties when saving or transacting, unless the archive has explicitly requested them
+	if ((PropertyFlags & CPF_Deprecated) && !Ar.HasAllPortFlags(PPF_UseDeprecatedProperties) && (Ar.IsSaving() || Ar.IsTransacting() || Ar.WantBinaryPropertySerialization()))
+	{
+		return false;
+	}
+
+	// Skip properties marked SkipSerialization, unless the archive is forcing them
+	if ((PropertyFlags & CPF_SkipSerialization) && (Ar.WantBinaryPropertySerialization() || !Ar.HasAllPortFlags(PPF_ForceTaggedSerialization)))
+	{
+		return false;
+	}
+
+	// Skip editor-only properties when the archive is rejecting them
+	if (IsEditorOnlyProperty() && Ar.IsFilterEditorOnly())
+	{
+		return false;
+	}
+
+	// Otherwise serialize!
+	return true;
 }
 
 
