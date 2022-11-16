@@ -40,12 +40,18 @@ struct FAccumulationTask
 		{
 			if (TArray<FBlendResult>* AccumulationBuffer = AccumulationBuffers->Find(ComponentHeader.ComponentType))
 			{
-				ComponentHeader.ReadWriteLock.ReadLock();
+				if (Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
+				{
+					ComponentHeader.ReadWriteLock.ReadLock();
+				}
 
 				const double* Results = static_cast<const double*>(ComponentHeader.GetValuePtr(0));
 				AccumulateResults(Allocation, Results, BlendIDs, OptionalEasingAndWeights, *AccumulationBuffer);
 
-				ComponentHeader.ReadWriteLock.ReadUnlock();
+				if (Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
+				{
+					ComponentHeader.ReadWriteLock.ReadUnlock();
+				}
 			}
 		}
 	}
@@ -120,7 +126,7 @@ struct FAdditiveFromBaseBlendTask
 			if (FAdditiveFromBaseBuffer* Buffer = AccumulationBuffers->Find(ComponentHeader.ComponentType))
 			{
 				TComponentReader<double> BaseValues = Allocation->ReadComponents(Buffer->BaseComponent.template ReinterpretCast<double>());
-				TComponentReader<double> Results(&ComponentHeader);
+				TComponentReader<double> Results(&ComponentHeader, Allocation->GetCurrentLockMode());
 
 				AccumulateResults(Allocation, Results.AsPtr(), BaseValues.AsPtr(), BlendIDs, EasingAndWeightResults, Buffer->Buffer);
 			}

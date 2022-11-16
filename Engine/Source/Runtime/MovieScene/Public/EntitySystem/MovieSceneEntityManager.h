@@ -252,12 +252,18 @@ public:
 		if (Entry.Data.Allocation != nullptr)
 		{
 			const FComponentHeader& Header = Entry.Data.Allocation->GetComponentHeaderChecked(ComponentTypeID);
-			Header.ReadWriteLock.WriteLock();
+			if (Entry.Data.Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
+			{
+				Header.ReadWriteLock.WriteLock();
+			}
 
 			T* Component = reinterpret_cast<T*>(Header.GetValuePtr(Entry.Data.ComponentOffset));
 			*Component = Forward<ValueType>(InValue);
 
-			Header.ReadWriteLock.WriteUnlock();
+			if (Entry.Data.Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
+			{
+				Header.ReadWriteLock.WriteUnlock();
+			}
 		}
 	}
 
@@ -456,11 +462,15 @@ public:
 		FEntityAllocation* Allocation = EntityAllocations[Location.GetAllocationIndex()];
 		const int32 ComponentOffset = Location.GetEntryIndexWithinAllocation();
 
+		EComponentHeaderLockMode LockMode = GetThreadingModel() == EEntityThreadingModel::NoThreading
+			? EComponentHeaderLockMode::LockFree
+			: EComponentHeaderLockMode::Mutex;
+
 		for (FComponentHeader& Header : Allocation->GetComponentHeaders())
 		{
 			if (Header.ComponentType == ComponentTypeID)
 			{
-				return TComponentLock<TReadOptional<T>>(&Header, ComponentOffset);
+				return TComponentLock<TReadOptional<T>>(&Header, LockMode, ComponentOffset);
 			}
 		}
 
@@ -512,11 +522,15 @@ public:
 		FEntityAllocation* Allocation = EntityAllocations[Location.GetAllocationIndex()];
 		const int32 ComponentOffset = Location.GetEntryIndexWithinAllocation();
 
+		EComponentHeaderLockMode LockMode = GetThreadingModel() == EEntityThreadingModel::NoThreading
+			? EComponentHeaderLockMode::LockFree
+			: EComponentHeaderLockMode::Mutex;
+
 		for (FComponentHeader& Header : Allocation->GetComponentHeaders())
 		{
 			if (Header.ComponentType == ComponentTypeID)
 			{
-				return TComponentLock<TWriteOptional<T>>(&Header, FEntityAllocationWriteContext(*this), ComponentOffset);
+				return TComponentLock<TWriteOptional<T>>(&Header, LockMode, FEntityAllocationWriteContext(*this), ComponentOffset);
 			}
 		}
 

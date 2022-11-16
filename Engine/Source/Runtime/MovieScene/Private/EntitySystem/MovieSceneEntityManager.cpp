@@ -1669,6 +1669,8 @@ int32 FEntityManager::MutateAll(const FEntityComponentFilter& Filter, const IMov
 		EntityAllocationMasks[Pair.Key] = Pair.Value;
 		EntityAllocations[Pair.Key] = NewAllocation;
 
+		FEntityAllocationMutexGuard LockGuard(NewAllocation, EComponentHeaderLockMode::LockFree);
+
 		// Default construct all the new components in the allocation, and then allow the mutation to further initialize this data if needed
 		for (FComponentMaskIterator Component = Pair.Value.Iterate(); Component; ++Component)
 		{

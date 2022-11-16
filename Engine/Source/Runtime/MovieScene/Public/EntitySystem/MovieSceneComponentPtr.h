@@ -105,8 +105,8 @@ template<>
 struct TComponentLockMixin<FScopedHeaderReadLock>
 {
 	TComponentLockMixin() = default;
-	explicit TComponentLockMixin(const FComponentHeader* InHeader)
-		: Lock(InHeader)
+	explicit TComponentLockMixin(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode)
+		: Lock(InHeader, InLockMode)
 	{}
 
 private:
@@ -117,8 +117,8 @@ template<>
 struct TComponentLockMixin<FScopedHeaderWriteLock>
 {
 	TComponentLockMixin() = default;
-	explicit TComponentLockMixin(const FComponentHeader* InHeader, FEntityAllocationWriteContext InWriteContext)
-		: Lock(InHeader, InWriteContext)
+	explicit TComponentLockMixin(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, FEntityAllocationWriteContext InWriteContext)
+		: Lock(InHeader, InLockMode, InWriteContext)
 	{}
 
 private:
@@ -325,8 +325,8 @@ template<typename AccessorType> struct TComponentLock;
 template<>
 struct TComponentLock<FReadErased> : TComponentLockMixin<FScopedHeaderReadLock>, FReadErased
 {
-	explicit TComponentLock(const FComponentHeader* InHeader, int32 ComponentOffset = 0)
-		: TComponentLockMixin<FScopedHeaderReadLock>(InHeader)
+	explicit TComponentLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, int32 ComponentOffset = 0)
+		: TComponentLockMixin<FScopedHeaderReadLock>(InHeader, InLockMode)
 		, FReadErased(InHeader, ComponentOffset)
 	{}
 
@@ -339,11 +339,11 @@ template<>
 struct TComponentLock<FReadErasedOptional> : TComponentLockMixin<FScopedHeaderReadLock>, FReadErasedOptional
 {
 	TComponentLock() = default;
-	explicit TComponentLock(const FComponentHeader* InHeader, int32 ComponentOffset = 0)
+	explicit TComponentLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, int32 ComponentOffset = 0)
 	{
 		if (InHeader)
 		{
-			*static_cast<TComponentLockMixin<FScopedHeaderReadLock>*>(this) = TComponentLockMixin<FScopedHeaderReadLock>(InHeader);
+			*static_cast<TComponentLockMixin<FScopedHeaderReadLock>*>(this) = TComponentLockMixin<FScopedHeaderReadLock>(InHeader, InLockMode);
 			*static_cast<FReadErasedOptional*>(this) = FReadErasedOptional(InHeader, ComponentOffset);
 		}
 	}
@@ -361,8 +361,8 @@ struct TComponentLock<FReadErasedOptional> : TComponentLockMixin<FScopedHeaderRe
 template<>
 struct TComponentLock<FWriteErased> : TComponentLockMixin<FScopedHeaderWriteLock>, FWriteErased
 {
-	explicit TComponentLock(const FComponentHeader* InHeader, FEntityAllocationWriteContext InWriteContext, int32 ComponentOffset = 0)
-		: TComponentLockMixin<FScopedHeaderWriteLock>(InHeader, InWriteContext)
+	explicit TComponentLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, FEntityAllocationWriteContext InWriteContext, int32 ComponentOffset = 0)
+		: TComponentLockMixin<FScopedHeaderWriteLock>(InHeader, InLockMode, InWriteContext)
 		, FWriteErased(InHeader, ComponentOffset)
 	{}
 
@@ -375,11 +375,11 @@ template<>
 struct TComponentLock<FWriteErasedOptional> : TComponentLockMixin<FScopedHeaderWriteLock>, FWriteErasedOptional
 {
 	TComponentLock() = default;
-	explicit TComponentLock(const FComponentHeader* InHeader, FEntityAllocationWriteContext InWriteContext, int32 ComponentOffset = 0)
+	explicit TComponentLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, FEntityAllocationWriteContext InWriteContext, int32 ComponentOffset = 0)
 	{
 		if (InHeader)
 		{
-			*static_cast<TComponentLockMixin<FScopedHeaderWriteLock>*>(this) = TComponentLockMixin<FScopedHeaderWriteLock>(InHeader, InWriteContext);
+			*static_cast<TComponentLockMixin<FScopedHeaderWriteLock>*>(this) = TComponentLockMixin<FScopedHeaderWriteLock>(InHeader, InLockMode, InWriteContext);
 			*static_cast<FWriteErasedOptional*>(this) = FWriteErasedOptional(InHeader, ComponentOffset);
 		}
 	}
@@ -397,8 +397,8 @@ struct TComponentLock<FWriteErasedOptional> : TComponentLockMixin<FScopedHeaderW
 template<typename T>
 struct TComponentLock<TRead<T>> : TComponentLockMixin<FScopedHeaderReadLock>, TRead<T>
 {
-	explicit TComponentLock(const FComponentHeader* InHeader, int32 ComponentOffset = 0)
-		: TComponentLockMixin<FScopedHeaderReadLock>(InHeader)
+	explicit TComponentLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode , int32 ComponentOffset = 0)
+		: TComponentLockMixin<FScopedHeaderReadLock>(InHeader, InLockMode)
 		, TRead<T>(InHeader, ComponentOffset)
 	{}
 };
@@ -407,11 +407,11 @@ template<typename T>
 struct TComponentLock<TReadOptional<T>> : TComponentLockMixin<FScopedHeaderReadLock>, TReadOptional<T>
 {
 	TComponentLock() = default;
-	explicit TComponentLock(const FComponentHeader* InHeader, int32 ComponentOffset = 0)
+	explicit TComponentLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, int32 ComponentOffset = 0)
 	{
 		if (InHeader)
 		{
-			*static_cast<TComponentLockMixin<FScopedHeaderReadLock>*>(this) = TComponentLockMixin<FScopedHeaderReadLock>(InHeader);
+			*static_cast<TComponentLockMixin<FScopedHeaderReadLock>*>(this) = TComponentLockMixin<FScopedHeaderReadLock>(InHeader, InLockMode);
 			*static_cast<TReadOptional<T>*>(this) = TReadOptional<T>(InHeader, ComponentOffset);
 		}
 	}
@@ -429,8 +429,8 @@ struct TComponentLock<TReadOptional<T>> : TComponentLockMixin<FScopedHeaderReadL
 template<typename T>
 struct TComponentLock<TWrite<T>> : TComponentLockMixin<FScopedHeaderWriteLock>, TWrite<T>
 {
-	explicit TComponentLock(const FComponentHeader* InHeader, FEntityAllocationWriteContext InWriteContext, int32 ComponentOffset = 0)
-		: TComponentLockMixin<FScopedHeaderWriteLock>(InHeader, InWriteContext)
+	explicit TComponentLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, FEntityAllocationWriteContext InWriteContext, int32 ComponentOffset = 0)
+		: TComponentLockMixin<FScopedHeaderWriteLock>(InHeader, InLockMode, InWriteContext)
 		, TWrite<T>(InHeader, ComponentOffset)
 	{}
 
@@ -444,11 +444,11 @@ template<typename T>
 struct TComponentLock<TWriteOptional<T>> : TComponentLockMixin<FScopedHeaderWriteLock>, TWriteOptional<T>
 {
 	TComponentLock() = default;
-	explicit TComponentLock(const FComponentHeader* InHeader, FEntityAllocationWriteContext InWriteContext, int32 ComponentOffset = 0)
+	explicit TComponentLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, FEntityAllocationWriteContext InWriteContext, int32 ComponentOffset = 0)
 	{
 		if (InHeader)
 		{
-			*static_cast<TComponentLockMixin<FScopedHeaderWriteLock>*>(this) = TComponentLockMixin<FScopedHeaderWriteLock>(InHeader, InWriteContext);
+			*static_cast<TComponentLockMixin<FScopedHeaderWriteLock>*>(this) = TComponentLockMixin<FScopedHeaderWriteLock>(InHeader, InLockMode, InWriteContext);
 			*static_cast<TWriteOptional<T>*>(this) = TWriteOptional<T>(InHeader, ComponentOffset);
 		}
 	}

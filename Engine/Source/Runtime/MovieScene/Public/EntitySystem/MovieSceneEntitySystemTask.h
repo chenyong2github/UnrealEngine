@@ -620,7 +620,7 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 	}
 
 	/**
-	 * Perform a thread-safe iteration of the specified allocation using this task, inline on the current thread
+	 * Perform a direct iteration of the specified allocation using this task, inline on the current thread
 	 * @note: This is highly unsafe as it circumvents all the thread-safety mechanisms that protect component data
 	 *
 	 * @param Allocation  The allocation to iterate
@@ -637,7 +637,7 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 	}
 
 	/**
-	 * Perform a thread-safe iteration of the specified entity range using this task, inline on the current thread
+	 * Perform a direct iteration of the specified entity range using this task, inline on the current thread
 	 * @note: This is highly unsafe as it circumvents all the thread-safety mechanisms that protect component data
 	 *
 	 * @param Allocation  The allocation to iterate
@@ -696,9 +696,15 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 		{
 			FEntityAllocationWriteContext WriteContext(*EntityManager);
 
+			EComponentHeaderLockMode LockMode = EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading
+				? EComponentHeaderLockMode::LockFree
+				: EComponentHeaderLockMode::Mutex;
+
 			for (FEntityAllocation* Allocation : EntityManager->Iterate(&Filter))
 			{
 				FEntityIterationResult Result;
+
+				FEntityAllocationMutexGuard LockGuard(Allocation, LockMode);
 
 				// Lock the components we want to access
 				TupleType ComponentData( Accessors.template Get<Indices>().LockComponentData(Allocation, WriteContext)... );
@@ -725,9 +731,15 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 		if (IsValid())
 		{
 			FEntityAllocationWriteContext WriteContext(*EntityManager);
+
+			EComponentHeaderLockMode LockMode = EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading
+				? EComponentHeaderLockMode::LockFree
+				: EComponentHeaderLockMode::Mutex;
+
 			for (FEntityAllocationIteratorItem Item : EntityManager->Iterate(&Filter))
 			{
 				FEntityAllocation* Allocation = Item;
+				FEntityAllocationMutexGuard LockGuard(Item.GetAllocation(), LockMode);
 
 				// Lock on the components we want to access
 				auto ComponentData = MakeTuple( Accessors.template Get<Indices>().LockComponentData(Allocation, WriteContext)... );
@@ -1145,8 +1157,13 @@ struct TEntityTaskBase
 
 		PreTask(&TaskImplInstance);
 
+		EComponentHeaderLockMode LockMode = EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading
+			? EComponentHeaderLockMode::LockFree
+			: EComponentHeaderLockMode::Mutex;
+
 		for (FEntityAllocation* Allocation : EntityManager->Iterate(&FilteredTask.GetFilter()))
 		{
+			FEntityAllocationMutexGuard LockGuard(Allocation, LockMode);
 			Caller::ForEachEntityImpl(TaskImplInstance, Allocation, WriteContext, FilteredTask.GetComponents());
 		}
 
@@ -1259,8 +1276,13 @@ struct TEntityAllocationTaskBase
 
 		PreTask(&TaskImplInstance);
 
+		EComponentHeaderLockMode LockMode = EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading
+			? EComponentHeaderLockMode::LockFree
+			: EComponentHeaderLockMode::Mutex;
+
 		for (FEntityAllocationIteratorItem Item : EntityManager->Iterate(&ComponentFilter.GetFilter()))
 		{
+			FEntityAllocationMutexGuard LockGuard(Item.GetAllocation(), LockMode);
 			Caller::ForEachAllocationImpl(TaskImplInstance, Item, WriteContext, ComponentFilter.GetComponents());
 		}
 

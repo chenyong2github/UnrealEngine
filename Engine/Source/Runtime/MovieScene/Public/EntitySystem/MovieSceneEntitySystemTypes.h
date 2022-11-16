@@ -92,6 +92,14 @@ enum class EComplexFilterMode : uint8
 ENUM_CLASS_FLAGS(EComplexFilterMode);
 
 
+/**
+ * Enumeration specifying the locking mechanism to use when accessing component data
+ */
+enum class EComponentHeaderLockMode
+{
+	LockFree,
+	Mutex,
+};
 
 /**
  * A numeric identifier used to represent a specific 'channel' within an interrogation linker.
@@ -473,7 +481,7 @@ public:
 struct FScopedHeaderReadLock
 {
 	FScopedHeaderReadLock();
-	FScopedHeaderReadLock(const FComponentHeader* InHeader);
+	FScopedHeaderReadLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode);
 
 	FScopedHeaderReadLock(const FScopedHeaderReadLock& RHS) = delete;
 	void operator=(const FScopedHeaderReadLock& RHS) = delete;
@@ -494,7 +502,7 @@ private:
 struct FScopedHeaderWriteLock
 {
 	FScopedHeaderWriteLock();
-	FScopedHeaderWriteLock(const FComponentHeader* InHeader, FEntityAllocationWriteContext InWriteContext);
+	FScopedHeaderWriteLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, FEntityAllocationWriteContext InWriteContext);
 
 	FScopedHeaderWriteLock(const FScopedHeaderWriteLock& RHS) = delete;
 	void operator=(const FScopedHeaderWriteLock& RHS) = delete;
@@ -507,6 +515,7 @@ struct FScopedHeaderWriteLock
 private:
 	const FComponentHeader* Header;
 	FEntityAllocationWriteContext WriteContext;
+	EComponentHeaderLockMode LockMode;
 };
 
 
@@ -539,6 +548,7 @@ struct FEntityAllocation
 		, Size(0)
 		, Capacity(0)
 		, MaxCapacity(0)
+		, LockMode(EComponentHeaderLockMode::Mutex)
 	{}
 
 	/**
@@ -740,6 +750,14 @@ struct FEntityAllocation
 	}
 
 	/**
+	 * Get this allocation's current lock mode
+	 */
+	EComponentHeaderLockMode GetCurrentLockMode() const
+	{
+		return LockMode;
+	}
+
+	/**
 	 * Read type-erased component data for the specified component type
 	 */
 	UE_NODISCARD MOVIESCENE_API TComponentLock<FReadErased> ReadComponentsErased(FComponentTypeID ComponentType) const;
@@ -766,7 +784,7 @@ struct FEntityAllocation
 	UE_NODISCARD TComponentLock<TRead<T>> ReadComponents(TComponentTypeID<T> ComponentType) const
 	{
 		const FComponentHeader& Header = GetComponentHeaderChecked(ComponentType);
-		return TComponentLock<TRead<T>>(&Header);
+		return TComponentLock<TRead<T>>(&Header, LockMode);
 	}
 
 	/**
@@ -777,7 +795,7 @@ struct FEntityAllocation
 	{
 		if (const FComponentHeader* Header = FindComponentHeader(ComponentType))
 		{
-			return TComponentLock<TReadOptional<T>>(Header);
+			return TComponentLock<TReadOptional<T>>(Header, LockMode);
 		}
 		return TComponentLock<TReadOptional<T>>();
 	}
@@ -786,21 +804,21 @@ struct FEntityAllocation
 	 * Write typed component data for the specified component type
 	 */
 	template<typename T>
-	UE_NODISCARD TComponentLock<TWrite<T>> WriteComponents(TComponentTypeID<T> ComponentType, FEntityAllocationWriteContext InWriteContext) const
+	UE_NODISCARD TComponentLock<TWrite<T>> WriteComponents(TComponentTypeID<T> ComponentType, FEntityAllocationWriteContext InWriteContext, EComponentHeaderLockMode LockMode = EComponentHeaderLockMode::Mutex) const
 	{
 		const FComponentHeader& Header = GetComponentHeaderChecked(ComponentType);
-		return TComponentLock<TWrite<T>>(&Header, InWriteContext);
+		return TComponentLock<TWrite<T>>(&Header, LockMode, InWriteContext);
 	}
 
 	/**
 	 * Attempt to write typed component data for the specified component type
 	 */
 	template<typename T>
-	UE_NODISCARD TComponentLock<TWriteOptional<T>> TryWriteComponents(TComponentTypeID<T> ComponentType, FEntityAllocationWriteContext InWriteContext) const
+	UE_NODISCARD TComponentLock<TWriteOptional<T>> TryWriteComponents(TComponentTypeID<T> ComponentType, FEntityAllocationWriteContext InWriteContext, EComponentHeaderLockMode LockMode = EComponentHeaderLockMode::Mutex) const
 	{
 		if (const FComponentHeader* Header = FindComponentHeader(ComponentType))
 		{
-			return TComponentLock<TWriteOptional<T>>(Header, InWriteContext);
+			return TComponentLock<TWriteOptional<T>>(Header, LockMode, InWriteContext);
 		}
 		return TComponentLock<TWriteOptional<T>>();
 	}
@@ -808,6 +826,7 @@ struct FEntityAllocation
 private:
 
 	friend struct FEntityInitializer;
+	friend struct FEntityAllocationMutexGuard;
 
 	/** Assigned to FEntityManager::GetSystemSerial whenever this allocation is written to */
 	uint64 SerialNumber;
@@ -822,6 +841,9 @@ private:
 	/** The maximum number of entities that this entity is allowed to reallocate to accomodate for. */
 	uint16 MaxCapacity;
 
+	/** Lock mode for access - under threading models this will be set to EComponentHeaderLockMode::Mutex, EComponentHeaderLockMode::LockFree otherwise */
+	EComponentHeaderLockMode LockMode;
+
 	/** Pointer to the entity ID array (stored in the end padding of this structure). */
 	FMovieSceneEntityID* EntityIDs;
 
@@ -831,6 +853,26 @@ private:
 public:
 	/** Pointer to array of the component headers of size NumComponents (stored in the end padding of this structure). */
 	FComponentHeader* ComponentHeaders;
+};
+
+
+/**
+ * Scoped guard that temporarily overrides the locking mechanism for a specific allocation.
+ * In order to guarantee thread-safety, this structure only actually does anything if InLockMode is specified as LockFree
+ */
+struct FEntityAllocationMutexGuard
+{
+	FEntityAllocationMutexGuard(FEntityAllocation* InAllocation, EComponentHeaderLockMode InLockMode);
+	~FEntityAllocationMutexGuard();
+
+	FEntityAllocationMutexGuard(const FEntityAllocationMutexGuard&) = delete;
+	void operator=(const FEntityAllocationMutexGuard&) = delete;
+
+	FEntityAllocationMutexGuard(const FEntityAllocationMutexGuard&&) = delete;
+	void operator=(const FEntityAllocationMutexGuard&&) = delete;
+
+private:
+	FEntityAllocation* Allocation;
 };
 
 
@@ -920,13 +962,44 @@ struct FEntityInfo
 	FMovieSceneEntityID EntityID;
 };
 
+inline FEntityAllocationMutexGuard::FEntityAllocationMutexGuard(FEntityAllocation* InAllocation, EComponentHeaderLockMode InLockMode)
+{
+	// Since FEntityAllocation always defaults to Mutex locking, we only 
+	// read/write to the allocation if LockFree is specified here (implying we are always in single-thread mode)
+	if (InLockMode == EComponentHeaderLockMode::LockFree)
+	{
+		Allocation = InAllocation;
+		InAllocation->LockMode = EComponentHeaderLockMode::LockFree;
+	}
+	else
+	{
+		Allocation = nullptr;
+	}
+}
+
+inline FEntityAllocationMutexGuard::~FEntityAllocationMutexGuard()
+{
+	// Always reset back to Mutex
+	if (Allocation)
+	{
+		Allocation->LockMode = EComponentHeaderLockMode::Mutex;
+	}
+}
+
 inline FScopedHeaderReadLock::FScopedHeaderReadLock()
 	: Header(nullptr)
 {}
-inline FScopedHeaderReadLock::FScopedHeaderReadLock(const FComponentHeader* InHeader)
-	: Header(InHeader)
+inline FScopedHeaderReadLock::FScopedHeaderReadLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode)
 {
-	InHeader->ReadWriteLock.ReadLock();
+	if (InLockMode == EComponentHeaderLockMode::Mutex)
+	{
+		Header = InHeader;
+		InHeader->ReadWriteLock.ReadLock();
+	}
+	else
+	{
+		Header = nullptr;
+	}
 }
 inline FScopedHeaderReadLock::FScopedHeaderReadLock(FScopedHeaderReadLock&& RHS)
 	: Header(RHS.Header)
@@ -956,18 +1029,24 @@ inline FScopedHeaderReadLock::~FScopedHeaderReadLock()
 inline FScopedHeaderWriteLock::FScopedHeaderWriteLock()
 	: Header(nullptr)
 	, WriteContext(FEntityAllocationWriteContext::NewAllocation())
+	, LockMode(EComponentHeaderLockMode::Mutex)
 {}
 
-inline FScopedHeaderWriteLock::FScopedHeaderWriteLock(const FComponentHeader* InHeader, FEntityAllocationWriteContext InWriteContext)
+inline FScopedHeaderWriteLock::FScopedHeaderWriteLock(const FComponentHeader* InHeader, EComponentHeaderLockMode InLockMode, FEntityAllocationWriteContext InWriteContext)
 	: Header(InHeader)
 	, WriteContext(InWriteContext)
+	, LockMode(InLockMode)
 {
-	InHeader->ReadWriteLock.WriteLock();
+	if (InLockMode == EComponentHeaderLockMode::Mutex)
+	{
+		InHeader->ReadWriteLock.WriteLock();
+	}
 }
 
 inline FScopedHeaderWriteLock::FScopedHeaderWriteLock(FScopedHeaderWriteLock&& RHS)
 	: Header(RHS.Header)
 	, WriteContext(RHS.WriteContext)
+	, LockMode(RHS.LockMode)
 {
 	RHS.Header = nullptr;
 }
@@ -976,11 +1055,16 @@ inline FScopedHeaderWriteLock& FScopedHeaderWriteLock::operator=(FScopedHeaderWr
 	if (Header)
 	{
 		Header->PostWriteComponents(WriteContext);
-		Header->ReadWriteLock.WriteUnlock();
+
+		if (LockMode == EComponentHeaderLockMode::Mutex)
+		{
+			Header->ReadWriteLock.WriteUnlock();
+		}
 	}
 
 	Header = RHS.Header;
 	WriteContext = RHS.WriteContext;
+	LockMode = RHS.LockMode;
 
 	RHS.Header = nullptr;
 	return *this;
@@ -990,7 +1074,11 @@ inline FScopedHeaderWriteLock::~FScopedHeaderWriteLock()
 	if (Header)
 	{
 		Header->PostWriteComponents(WriteContext);
-		Header->ReadWriteLock.WriteUnlock();
+
+		if (LockMode == EComponentHeaderLockMode::Mutex)
+		{
+			Header->ReadWriteLock.WriteUnlock();
+		}
 	}
 }
 

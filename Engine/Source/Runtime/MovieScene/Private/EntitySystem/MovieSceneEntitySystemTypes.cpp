@@ -111,20 +111,20 @@ FEntityAllocationWriteContext::FEntityAllocationWriteContext(const FEntityManage
 FComponentReader FEntityAllocation::ReadComponentsErased(FComponentTypeID ComponentType) const
 {
 	const FComponentHeader& Header = GetComponentHeaderChecked(ComponentType);
-	return FComponentReader(&Header);
+	return FComponentReader(&Header, LockMode);
 }
 
 FComponentWriter FEntityAllocation::WriteComponentsErased(FComponentTypeID ComponentType, FEntityAllocationWriteContext InWriteContext) const
 {
 	const FComponentHeader& Header = GetComponentHeaderChecked(ComponentType);
-	return FComponentWriter(&Header, InWriteContext);
+	return FComponentWriter(&Header, LockMode, InWriteContext);
 }
 
 FOptionalComponentReader FEntityAllocation::TryReadComponentsErased(FComponentTypeID ComponentType) const
 {
 	if (const FComponentHeader* Header = FindComponentHeader(ComponentType))
 	{
-		return FOptionalComponentReader(Header);
+		return FOptionalComponentReader(Header, LockMode);
 	}
 
 	return FOptionalComponentReader();
@@ -134,7 +134,7 @@ FOptionalComponentWriter FEntityAllocation::TryWriteComponentsErased(FComponentT
 {
 	if (const FComponentHeader* Header = FindComponentHeader(ComponentType))
 	{
-		return FOptionalComponentWriter(Header, InWriteContext);
+		return FOptionalComponentWriter(Header, LockMode, InWriteContext);
 	}
 
 	return FOptionalComponentWriter();
