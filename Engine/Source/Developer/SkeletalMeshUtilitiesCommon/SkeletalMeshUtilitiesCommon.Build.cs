@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"SkeletalMeshDescription",
 					"Slate",
+					"StaticMeshDescription",
                 }
             );
         }
