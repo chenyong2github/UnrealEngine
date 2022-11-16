@@ -4,11 +4,11 @@
 #include "IAssetTypeActions.h"
 #include "SSourceControlReview.h"
 #include "Engine/Blueprint.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 
-class SSourceControlReviewEntry : public SCompoundWidget
+class SImage;
+
+class SSourceControlReviewEntry : public SMultiColumnTableRow<TSharedPtr<SourceControlReview::FChangelistFileData>>
 {
 public:
 	using ESourceControlAction = SourceControlReview::ESourceControlAction;
@@ -20,13 +20,16 @@ public:
 	SLATE_END_ARGS()
 	
 	/** Constructs the widget */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView);
+	
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 	
 	/**
 	 * Sets needed data to show diff and browse to asset
 	 * @param InChangelistFileData changelist entry information
 	 */
 	void SetEntryData(const FChangelistFileData& InChangelistFileData);
+private:
 
 	/**
 	 * Hooks into built in engine diff functionality to show differences between supplied file revisions
@@ -38,7 +41,11 @@ public:
 	 */
 	FReply OnBrowseToAssetClicked() const;
 
-private:
+	/**
+	 * Uses engine sync to browse to asset functionality to navigate the content window to file
+	 */
+	FText GetBrowseToAssetTooltip() const;
+
 	/**
 	 * Checks if we have a valid local file for this entry to sync content window to
 	 */
@@ -78,11 +85,21 @@ private:
 	 * return an icon reflecting this entry's source control action (i.e. add, edit, delete, etc...)
 	 */
 	const FSlateBrush* GetSourceControlIcon() const;
+
+	/**
+	 * return the color associated with this entry's source control action (i.e. add, edit, delete, etc...)
+	 */
+	FSlateColor GetSourceControlIconColor() const;
 	
 	/**
 	 * return an icon that indicates the type of the asset being displayed
 	 */
-	const FSlateBrush* GetAssetTypeIcon() const;
+	const FSlateBrush* GetAssetTypeIcon();
+	
+	/**
+	 * return an icon that indicates the type of the asset being displayed
+	 */
+	FText GetAssetType();
 
 	/**
 	 * Name of the asset being displayed
@@ -113,10 +130,5 @@ private:
 	FDiffMethod DiffMethod;
 
 	// Sub-Widgets
-	TSharedPtr<SImage> SourceActionIcon;
 	TSharedPtr<SImage> AssetTypeIcon;
-	TSharedPtr<STextBlock> FileDeletedTextBlock;
-	TSharedPtr<SHorizontalBox> ReviewInputsBox;
-	TSharedPtr<SImage> ViewedEntryIcon;
-	TSharedPtr<STextBlock> ViewDiffButtonText;
 };

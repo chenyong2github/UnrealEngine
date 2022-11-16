@@ -6,8 +6,10 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Views/SListView.h"
 
-class SChangelistEditableText;
+class SSourceControlReviewEntry;
+class SChangelistEditableTextBox;
 class SProgressBar;
 
 namespace SourceControlReview
@@ -75,7 +77,19 @@ namespace SourceControlReview
 		EChangelistState ChangelistState = EChangelistState::Submitted;
 
 		ESourceControlAction FileSourceControlAction = ESourceControlAction::Unset;
+
+		const UClass* GetIconClass();
+		
+	private:
+		TOptional<const UClass*> CachedIconClass;
 	};
+
+	namespace ColumnIds
+	{
+		inline const FName Status = TEXT("Status");
+		inline const FName File = TEXT("File");
+		inline const FName Tools = TEXT("Tools");
+	}
 }
 
 
@@ -104,6 +118,7 @@ public:
 private:
 	void OnChangelistLoadComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FString Changelist);
 	FReply OnLoadChangelistClicked();
+	void OnChangelistNumChanged(const FText& Text);
 	void OnChangelistNumCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 	
 	/**
@@ -142,16 +157,14 @@ private:
 	 */
 	void SetChangelistInfo(const TMap<FString, FString>& InChangelistRecord);
 
-	/**
-	 * Adds a SSourceControlReviewEntry to the GUI
-	 * @param FileData The File being added to the list
-	 */
-	void AddDiffFile(const FChangelistFileData& FileData) const;
+	TSharedRef<ITableRow> OnGenerateFileRow(TSharedPtr<FChangelistFileData> FileData, const TSharedRef<STableViewBase>& Table) const;
 
 	/**
 	 * Removes CurrentChangelistInfo.SharedPath from the beginning of FullCLPath
 	 */
 	FString TrimSharedPath(FString FullCLPath) const;
+
+	static SHeaderRow::FColumn::FArguments HeaderColumn(FName HeaderName);
 
 	/**
 	 * Removes the game directory from the beginning of the FullCLPath
@@ -162,16 +175,14 @@ private:
 	bool bChangelistLoading = false;
 	uint32 FilesToLoad = 0;
 	uint32 FilesLoaded = 0;
-	TMap<FString, TSharedPtr<FChangelistFileData>> ChangelistFileDataMap;
-
-	// builds a widget that displays a changelist's Author, Path, Status, and Description
-	TSharedRef<SWidget> GetChangelistInfoWidget();
+	TArray<TSharedPtr<FChangelistFileData>> ChangelistFiles;
 	
-	TSharedPtr<SChangelistEditableText> ChangelistNumWidget;
+	TSharedPtr<SEditableTextBox> ChangelistNumWidget;
+	TSharedPtr<STextBlock> EnterChangelistTextBlock;
 	TSharedPtr<STextBlock> LoadingTextBlock;
 	TSharedPtr<SProgressBar> LoadingProgressBar;
 	TSharedPtr<SWidget> ChangelistInfoWidget;
-	TSharedPtr<SVerticalBox> ChangelistEntriesWidget;
+	TSharedPtr<SListView<TSharedPtr<FChangelistFileData>>> ChangelistEntriesWidget;
 
 	// Info about the current chagnelist
 	struct FChangelistInfo

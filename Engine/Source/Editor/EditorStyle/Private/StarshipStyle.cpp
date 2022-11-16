@@ -7091,6 +7091,12 @@ void FStarshipEditorStyle::FStyle::SetupSourceControlStyles()
 		Set("SourceControl.Actions.CheckOut", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16));
 		Set("SourceControl.Actions.Refresh", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Undo", Icon16x16));
 		Set("SourceControl.Actions.NewChangelist", new CORE_IMAGE_BRUSH_SVG("Starship/Common/plus-circle", Icon16x16));
+
+		// Diff colors
+		Set("SourceControl.Diff.AdditionColor", FLinearColor(0.02f, 0.94f, 0.f));
+		Set("SourceControl.Diff.SubtractionColor", FLinearColor(1.f, 0.16f, 0.16f));
+		Set("SourceControl.Diff.MajorModificationColor", FLinearColor(0.04f, 0.87f, 1.f));
+		Set("SourceControl.Diff.MinorModificationColor", FLinearColor(0.74f, 0.69f, 0.79f));
 	}
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 

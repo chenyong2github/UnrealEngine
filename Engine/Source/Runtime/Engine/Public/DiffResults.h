@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Styling/StyleColors.h"
 
 /** Differences found within a graph or object */
 namespace EDiffType
@@ -114,12 +115,12 @@ struct FDiffSingleResult
 	{
 		switch(Category)
 		{
-		case EDiffType::ADDITION: return FLinearColor(0.02f, 0.94f, 0.f);
-		case EDiffType::SUBTRACTION: return FLinearColor(1.f, 0.16f, 0.16f);
-		case EDiffType::MODIFICATION: return FLinearColor(0.04f, 0.87f, 1.f);
-		case EDiffType::MINOR:  return FLinearColor(0.74f, 0.69f, 0.79f);
+		case EDiffType::ADDITION: return FAppStyle::Get().GetSlateColor("SourceControl.Diff.AdditionColor").GetSpecifiedColor();
+		case EDiffType::SUBTRACTION: return FAppStyle::Get().GetSlateColor("SourceControl.Diff.SubtractionColor").GetSpecifiedColor();
+		case EDiffType::MODIFICATION: return FAppStyle::Get().GetSlateColor("SourceControl.Diff.MajorModificationColor").GetSpecifiedColor();
+		case EDiffType::MINOR:  return FAppStyle::Get().GetSlateColor("SourceControl.Diff.MinorModificationColor").GetSpecifiedColor();
 		
-		default: return FLinearColor::White;
+		default: return FStyleColors::Foreground.GetSpecifiedColor();
 		}
 	}
 

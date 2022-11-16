@@ -2,9 +2,9 @@
 
 #include "SSourceControlReview.h"
 
+#include "ClassIconFinder.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
-#include "SChangelistEditableText.h"
 #include "SourceControlOperations.h"
 #include "SSourceControlReviewEntry.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -18,16 +18,17 @@
 #include "Widgets/Layout/SBox.h"
 #include "Misc/App.h"
 #include "Misc/MessageDialog.h"
+#include "Styling/StyleColors.h"
+#include "Widgets/Layout/SGridPanel.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlReview"
 
+using namespace SourceControlReview;
+
 namespace ReviewHelpers
 {
-	const FText EnterChangelistText(LOCTEXT("EnterChangelistText", "Enter a changelist number to diff:"));
-	const FText EnterChangelistTooltip(LOCTEXT("EnterChangelistTooltip", "Enter changelist"));
-	const FText LoadChangelistText(LOCTEXT("LoadChangelistText", "Load Changelist"));
-	const FText LoadingText(LOCTEXT("LoadingText", "Loading..."));
-	
 	const FString FileDepotKey = TEXT("depotFile");
 	const FString FileRevisionKey = TEXT("rev");
 	const FString FileActionKey = TEXT("action");
@@ -39,10 +40,43 @@ namespace ReviewHelpers
 	constexpr int32 RecordIndex = 0;
 }
 
+const UClass* FChangelistFileData::GetIconClass()
+{
+	// If we haven't cached the icon class yet, find it
+	if (!CachedIconClass.IsSet())
+	{
+		CachedIconClass = nullptr;
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		FString TempPackageName;
+		if (FPackageName::TryConvertFilenameToLongPackageName(ReviewFileName, TempPackageName))
+		{
+			TArray<FAssetData> OutAssetData;
+			AssetRegistryModule.Get().GetAssetsByPackageName(*TempPackageName, OutAssetData);
+
+			if (OutAssetData.Num() > 0)
+			{
+				CachedIconClass = FClassIconFinder::GetIconClassForAssetData(OutAssetData[0]);
+			}
+		}
+	}
+
+	return CachedIconClass.GetValue();
+}
+
 void SSourceControlReview::Construct(const FArguments& InArgs)
 {
 	const FString ProjectName = FApp::GetProjectName();
 	ensureAlwaysMsgf((!ProjectName.IsEmpty()), TEXT("BlueprintReviewTool - Unable to get ProjectName"));
+
+	const static FSlateRoundedBoxBrush RecessedBrush(FStyleColors::Recessed, CoreStyleConstants::InputFocusRadius);
+	const static FEditableTextBoxStyle InfoWidgetStyle =
+		FEditableTextBoxStyle(FAppStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
+		.SetBackgroundImageNormal(RecessedBrush)
+		.SetBackgroundImageHovered(RecessedBrush)
+		.SetBackgroundImageFocused(RecessedBrush)
+		.SetBackgroundImageReadOnly(RecessedBrush);
+
+	const static FMargin InfoWidgetMargin(4.f, 2.f, 4.f, 8.f);
 	
 	ChildSlot
 	[
@@ -54,55 +88,170 @@ void SSourceControlReview::Construct(const FArguments& InArgs)
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
+				SAssignNew(ChangelistInfoWidget, SGridPanel)
+				.FillColumn(1, 1.f)
+
+				// Changelist
+				+SGridPanel::Slot(0,0)
+				.Padding(InfoWidgetMargin)
+				.HAlign(HAlign_Right)
 				[
 					SNew(STextBlock)
-					.Text(ReviewHelpers::EnterChangelistText)
-					.Font(FStyleFonts::Get().LargeBold)
+					.Text(LOCTEXT("ChangelistNumber", "Changelist"))
+					.Font(FStyleFonts::Get().Normal)
 				]
-				+SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(5.f,0.f)
-				.AutoWidth()
+				+SGridPanel::Slot(1,0)
+				.Padding(4.f, 0.f, 4.f, 8.f)
+				.HAlign(HAlign_Left)
 				[
-					SNew(SBorder)
-					.ToolTipText(ReviewHelpers::EnterChangelistTooltip)
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(0.f, 0.f, 8.f, 0.f)
+					.AutoWidth()
 					[
-						SAssignNew(ChangelistNumWidget, SChangelistEditableText)
-						.Font(FStyleFonts::Get().Large)
-						.MinDesiredWidth(200.f)
+						SAssignNew(ChangelistNumWidget, SEditableTextBox)
+						.Font(FStyleFonts::Get().Normal)
+						.MinDesiredWidth(55.f)
 						.Justification(ETextJustify::Center)
-						.Style(&FAppStyle::Get().GetWidgetStyle<FEditableTextStyle>("NormalEditableText"))
 						.OnTextCommitted(this, &SSourceControlReview::OnChangelistNumCommitted)
+						.OnTextChanged(this, &SSourceControlReview::OnChangelistNumChanged)
+						.BackgroundColor(FStyleColors::Input)
+					]
+					+SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					[
+						SNew(SButton)
+						.HAlign(HAlign_Center)
+						.OnClicked(this, &SSourceControlReview::OnLoadChangelistClicked)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("LoadChangelistText", "Load"))
+							.Font(FStyleFonts::Get().Normal)
+						]
 					]
 				]
-				+SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
+
+				// Author
+				+SGridPanel::Slot(0,1)
+				.Padding(InfoWidgetMargin)
+				.HAlign(HAlign_Right)
 				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.OnClicked(this, &SSourceControlReview::OnLoadChangelistClicked)
+					SNew(STextBlock)
+					.Text(LOCTEXT("ChangelistAuthor", "Author"))
+					.Font(FStyleFonts::Get().Normal)
+				]
+				+SGridPanel::Slot(1,1)
+				.Padding(4.f, 0.f, 4.f, 8.f)
+				.HAlign(HAlign_Fill)
+				[
+					SNew(SEditableTextBox)
+					.Text_Lambda([this]{return CurrentChangelistInfo.Author;})
+					.IsReadOnly(true)
+					.Style(&InfoWidgetStyle)
+				]
+
+				// Path
+				+SGridPanel::Slot(0,2)
+				.Padding(InfoWidgetMargin)
+				.HAlign(HAlign_Right)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ChangelistPath", "Path"))
+					.Font(FStyleFonts::Get().Normal)
+				]
+				+SGridPanel::Slot(1,2)
+				.Padding(4.f, 0.f, 4.f, 8.f)
+				.HAlign(HAlign_Fill)
+				[
+					SNew(SEditableTextBox)
+					.Text_Lambda([this]{return CurrentChangelistInfo.SharedPath;})
+					.IsReadOnly(true)
+					.Style(&InfoWidgetStyle)
+				]
+
+				// Status
+				+SGridPanel::Slot(0,3)
+				.Padding(InfoWidgetMargin)
+				.HAlign(HAlign_Right)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ChangelistStatus", "Status"))
+					.Font(FStyleFonts::Get().Normal)
+				]
+				+SGridPanel::Slot(1,3)
+				.Padding(4.f, 0.f, 4.f, 8.f)
+				.HAlign(HAlign_Fill)
+				[
+					SNew(SEditableTextBox)
+					.Text_Lambda([this]{return CurrentChangelistInfo.Status;})
+					.IsReadOnly(true)
+					.Style(&InfoWidgetStyle)
+				]
+
+				// Description
+				+SGridPanel::Slot(0,4)
+				.Padding(InfoWidgetMargin)
+				.HAlign(HAlign_Right)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ChangelistDescription", "Description"))
+					.Font(FStyleFonts::Get().Normal)
+				]
+				+SGridPanel::Slot(1,4)
+				.Padding(InfoWidgetMargin)
+				.HAlign(HAlign_Fill)
+				[
+					SNew(SBox)
+					.MaxDesiredHeight(147.f)
+					.MinDesiredHeight(147.f)
 					[
-						SNew(STextBlock)
-						.Text(ReviewHelpers::LoadChangelistText)
-						.Font(FStyleFonts::Get().LargeBold)
+						SNew(SMultiLineEditableTextBox)
+						.Text_Lambda([this]{return CurrentChangelistInfo.Description;})
+						.AutoWrapText(true)
+						.IsReadOnly(true)
+						.Style(&InfoWidgetStyle)
 					]
 				]
 			]
+			
+			+SVerticalBox::Slot()
+			.VAlign(VAlign_Top)
+			[
+				SAssignNew(ChangelistEntriesWidget, SListView<TSharedPtr<FChangelistFileData>>)
+				.ListItemsSource(&ChangelistFiles)
+				.OnGenerateRow(this, &SSourceControlReview::OnGenerateFileRow)
+				.HeaderRow(
+					SNew(SHeaderRow)
+					+HeaderColumn(ColumnIds::Status)
+					+HeaderColumn(ColumnIds::File)
+					+HeaderColumn(ColumnIds::Tools)
+				)
+			]
+			
+			+SVerticalBox::Slot()
+			.Padding(0.f, 0.f, 0.f, 98.f)
+			.HAlign(HAlign_Center)
+			.AutoHeight()
+			[
+				SAssignNew(EnterChangelistTextBlock, STextBlock)
+				.Visibility(EVisibility::Visible)
+				.ColorAndOpacity(FStyleColors::AccentGray)
+				.Text(LOCTEXT("EnterChangelistText", "Enter a Changelist number above to search"))
+			]
+			
 			+SVerticalBox::Slot()
 			.Padding(0.f, 10.f)
 			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
+			.VAlign(VAlign_Bottom)
 			.AutoHeight()
 			[
 				SAssignNew(LoadingTextBlock, STextBlock)
 				.Visibility(EVisibility::Collapsed)
-				.Text(ReviewHelpers::LoadingText)
+				.Text(LOCTEXT("LoadingText", "Loading..."))
 				.Font(FStyleFonts::Get().Large)
 			]
+			
 			+SVerticalBox::Slot()
 			.Padding(0.f, 15.f)
 			.AutoHeight()
@@ -111,115 +260,12 @@ void SSourceControlReview::Construct(const FArguments& InArgs)
 				.Visibility(EVisibility::Collapsed)
 				.Percent(1.f)
 			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.f, 20.f)
-			[
-				GetChangelistInfoWidget()
-			]
-			+SVerticalBox::Slot()
-			[
-				SNew(SScrollBox)
-				+SScrollBox::Slot()
-				[
-					SAssignNew(ChangelistEntriesWidget, SVerticalBox)
-				]
-			]
 		]
-	];
-}
-
-TSharedRef<SWidget> SSourceControlReview::GetChangelistInfoWidget()
-{
-	auto GenerateRow = [](FText Key, const TAttribute<FText>& Value)->TSharedRef<SWidget>
-	{
-		const TSharedRef<SWidget> KeyWidget = SNew(STextBlock)
-			.Text(FText::Format(LOCTEXT("ChangelistInfoKey", "{0}:"), Key))
-			.Font(FStyleFonts::Get().Large);
-
-		const TSharedRef<SWidget> ValueWidget = SNew(SBox)
-			.MaxDesiredHeight(125.f)
-			[
-				SNew(SScrollBox)
-				+SScrollBox::Slot()
-				[
-					SNew(SMultiLineEditableTextBox)
-					.Text(Value)
-					.IsReadOnly(true)
-					.Font(FStyleFonts::Get().Normal)
-					.BackgroundColor(FLinearColor(0,0,0,0))
-				]
-			];
-
-		return SNew(SWidgetSwitcher)
-		.WidgetIndex_Lambda(
-			[Value]{
-				const FString ResolvedValue = Value.Get().ToString();
-				int32 Index;
-				return ResolvedValue.FindChar('\n', Index);
-			}
-		)
-		+SWidgetSwitcher::Slot()
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				KeyWidget
-			]
-			+SHorizontalBox::Slot()
-			[
-				ValueWidget
-			]
-		]
-		+SWidgetSwitcher::Slot()
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				KeyWidget
-			]
-			+SHorizontalBox::Slot()
-			[
-				ValueWidget
-			]
-		];
-	};
-	
-	return SAssignNew(ChangelistInfoWidget, SVerticalBox)
-	.Visibility(EVisibility::Collapsed)
-	+SVerticalBox::Slot()
-	.AutoHeight()
-	[
-		GenerateRow(LOCTEXT("ChangelistAuthor", "Author"), TAttribute<FText>::CreateLambda(
-			[this]{return CurrentChangelistInfo.Author;}))
-	]
-	+SVerticalBox::Slot()
-	.AutoHeight()
-	[
-		GenerateRow(LOCTEXT("ChangelistPath", "Path"), TAttribute<FText>::CreateLambda(
-			[this]{return CurrentChangelistInfo.SharedPath;}))
-	]
-	+SVerticalBox::Slot()
-	.AutoHeight()
-	[
-		GenerateRow(LOCTEXT("ChangelistStatus", "Status"), TAttribute<FText>::CreateLambda(
-			[this]{return CurrentChangelistInfo.Status;}))
-	]
-	+SVerticalBox::Slot()
-	.AutoHeight()
-	[
-		GenerateRow(LOCTEXT("ChangelistDescription", "Description"), TAttribute<FText>::CreateLambda(
-			[this]{return CurrentChangelistInfo.Description;}))
 	];
 }
 
 void SSourceControlReview::LoadChangelist(const FString& Changelist)
 {
-	ChangelistEntriesWidget->ClearChildren();
-	
 	if (!IsLoading())
 	{
 		SetLoading(true);
@@ -230,7 +276,7 @@ void SSourceControlReview::LoadChangelist(const FString& Changelist)
 		return;
 	}
 
-	ChangelistFileDataMap.Empty();
+	ChangelistFiles.Empty();
 
 	//This command runs p4 -describe (or similar for other version controls) to retrieve changelist record information
 	const TSharedRef<FGetChangelistDetails> GetChangelistDetailsCommand = ISourceControlOperation::Create<FGetChangelistDetails>();
@@ -350,6 +396,44 @@ FReply SSourceControlReview::OnLoadChangelistClicked()
 	return FReply::Handled();
 }
 
+void SSourceControlReview::OnChangelistNumChanged(const FText& Text)
+{
+	const FString& Data = Text.ToString();
+
+	// Use the longest substring that consists of only valid characters.
+	// For example if someone enters:
+	// "john.doe2/CL_123456789/version_13", we'll use "123456789" because it's longer than "2" and "13"
+	int32 BestSubstrBegin = 0;
+	int32 BestSubstrLen = 0;
+	int32 I = 0;
+	while (I < Data.Len())
+	{
+		// skip invalid characters
+		while(I < Data.Len() && !TChar<TCHAR>::IsDigit(Data[I]))
+		{
+			++I;
+		}
+
+		// grab chunk of consecutive valid characters
+		const int32 SubstrBegin = I;
+		while(I < Data.Len() && TChar<TCHAR>::IsDigit(Data[I]))
+		{
+			++I;
+		}
+		
+		// if found substr is longer than the best so far, update the best so far
+		if (I - SubstrBegin > BestSubstrLen)
+		{
+			BestSubstrLen = I - SubstrBegin;
+			BestSubstrBegin = SubstrBegin;
+		}
+	}
+	
+	const FString ValidData = Data.Mid(BestSubstrBegin, BestSubstrLen);
+	const FText ValidText = FText::FromString(ValidData);
+	ChangelistNumWidget->SetText(ValidText);
+}
+
 void SSourceControlReview::OnChangelistNumCommitted(const FText& Text, ETextCommit::Type CommitMethod)
 {
 	if (CommitMethod == ETextCommit::OnEnter)
@@ -362,7 +446,7 @@ void SSourceControlReview::OnGetFileFromSourceControl(TSharedPtr<FChangelistFile
 {
 	if (ChangelistFileData && ChangelistFileData->IsDataValidForEntry())
 	{
-		ChangelistFileDataMap.Add(ChangelistFileData->ReviewFileName, ChangelistFileData);
+		ChangelistFiles.Add(ChangelistFileData);
 	}
 
 	FilesLoaded++;
@@ -373,15 +457,13 @@ void SSourceControlReview::OnGetFileFromSourceControl(TSharedPtr<FChangelistFile
 	{
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( TEXT( "AssetRegistry" ) );
 
-		TArray<TSharedPtr<FChangelistFileData>> ChangelistFilesData;
-		ChangelistFileDataMap.GenerateValueArray(ChangelistFilesData);
-		Algo::Sort(ChangelistFilesData, [](const TSharedPtr<FChangelistFileData> &A, const TSharedPtr<FChangelistFileData> &B)
+		Algo::Sort(ChangelistFiles, [](const TSharedPtr<FChangelistFileData> &A, const TSharedPtr<FChangelistFileData> &B)
 		{
 			return A->RelativeFilePath < B->RelativeFilePath;
 		});
 		
 		TArray<FString> ChangelistFilePaths;
-		for (const TSharedPtr<FChangelistFileData>& FileData : ChangelistFilesData)
+		for (const TSharedPtr<FChangelistFileData>& FileData : ChangelistFiles)
 		{
 			if(FileData)
 			{
@@ -390,11 +472,17 @@ void SSourceControlReview::OnGetFileFromSourceControl(TSharedPtr<FChangelistFile
 		}
 		
 		AssetRegistryModule.Get().ScanFilesSynchronous(ChangelistFilePaths);
-		
-		for(const TSharedPtr<FChangelistFileData>& FileData : ChangelistFilesData)
+
+		// now that the files are in the asset registry, cache their associated class so their class icons can be created quickly
+		for (const TSharedPtr<FChangelistFileData>& FileData : ChangelistFiles)
 		{
-			AddDiffFile(*FileData);
+			if(FileData)
+			{
+				FileData->GetIconClass();
+			}
 		}
+		
+		ChangelistEntriesWidget->RebuildList();
 		SetLoading(false);
 	}
 }
@@ -406,9 +494,14 @@ void SSourceControlReview::SetLoading(bool bInLoading)
 	// show loading bar and text if we're loading
 	LoadingProgressBar->SetVisibility(bInLoading? EVisibility::Visible : EVisibility::Collapsed);
 	LoadingTextBlock->SetVisibility(bInLoading? EVisibility::Visible : EVisibility::Collapsed);
-
-	// hide CL info if we're loading or there's no changelist
-	ChangelistInfoWidget->SetVisibility((ChangelistNumWidget->GetText().IsEmpty() || bInLoading)? EVisibility::Collapsed : EVisibility::Visible);
+	if (bInLoading)
+	{
+		EnterChangelistTextBlock->SetVisibility(EVisibility::Collapsed);
+	}
+	else if(ChangelistFiles.IsEmpty())
+	{
+		EnterChangelistTextBlock->SetVisibility(EVisibility::Visible);
+	}
 }
 
 bool SSourceControlReview::IsLoading() const
@@ -535,20 +628,49 @@ void SSourceControlReview::SetChangelistInfo(const TMap<FString, FString>& InCha
 	CurrentChangelistInfo.SharedPath = FText::FromString(GetSharedBranchPath(InChangelistRecord));
 }
 
-void SSourceControlReview::AddDiffFile(const FChangelistFileData& FileData) const
+TSharedRef<ITableRow> SSourceControlReview::OnGenerateFileRow(TSharedPtr<FChangelistFileData> FileData, const TSharedRef<STableViewBase>& Table) const
 {
-	ChangelistEntriesWidget->AddSlot()
-	.Padding(0.f, 5.f)
-	[
-		SNew(SSourceControlReviewEntry)
-		.FileData(FileData)
-	];
+	return SNew(SSourceControlReviewEntry, Table)
+	.FileData(*FileData);
 }
 
 FString SSourceControlReview::TrimSharedPath(FString FullCLPath) const
 {
 	FullCLPath.RemoveFromStart(*CurrentChangelistInfo.SharedPath.ToString());
 	return FullCLPath;
+}
+
+SHeaderRow::FColumn::FArguments SSourceControlReview::HeaderColumn(FName HeaderName)
+{
+	FText ColumnLabel;
+	TOptional<float> ColumnWidth;
+	if (HeaderName == ColumnIds::Status)
+	{
+		ColumnLabel = LOCTEXT("StatusColumnHeader", "Status");
+		ColumnWidth = 60;
+	}
+	else if (HeaderName == ColumnIds::File)
+	{
+		ColumnLabel = LOCTEXT("FileColumnHeader", "File");
+	}
+	else if (HeaderName == ColumnIds::Tools)
+	{
+		ColumnLabel = LOCTEXT("ToolsColumnHeader", "Tools");
+		ColumnWidth = 88;
+	}
+
+	return SHeaderRow::Column(HeaderName)
+		.FixedWidth(ColumnWidth)
+		.HAlignHeader(HeaderName == ColumnIds::File? HAlign_Fill : HAlign_Center)
+		.HAlignCell(HAlign_Fill)
+		.VAlignCell(VAlign_Fill)
+		.VAlignHeader(VAlign_Fill)
+		.HeaderContentPadding(FMargin(10.f, 6.f))
+		[
+			SNew(STextBlock)
+			.Text(ColumnLabel)
+			.Font(FStyleFonts::Get().Normal)
+		];
 }
 
 FString SSourceControlReview::AsAssetPath(const FString& FullCLPath)

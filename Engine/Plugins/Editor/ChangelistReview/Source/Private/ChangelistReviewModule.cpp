@@ -7,7 +7,7 @@
 #include "SSourceControlReview.h"
 #include "ToolMenus.h"
 
-#define LOCTEXT_NAMESPACE "FChangelistReviewModule"
+#define LOCTEXT_NAMESPACE "ChangelistReviewModule"
 
 static const FName SourceControlReviewTabName = FName(TEXT("SourceControlChangelistReview"));
 
@@ -24,7 +24,9 @@ void FChangelistReviewModule::StartupModule()
 		SourceControlIcon,
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FChangelistReviewModule::ShowReviewTab),
-			FCanExecuteAction::CreateRaw(this, &FChangelistReviewModule::CanShowReviewTab)
+			FCanExecuteAction(),
+			FGetActionCheckState(),
+			FIsActionButtonVisible::CreateRaw(this, &FChangelistReviewModule::CanShowReviewTab)
 		)
 	);
 	

@@ -12,9 +12,11 @@
 #include "Misc/MessageDialog.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "Styling/StarshipCoreStyle.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlReviewEntry"
 
@@ -23,129 +25,135 @@ namespace ReviewEntryConsts
 	static const FString TempFolder = TEXT("/Temp/");
 }
 
-void SSourceControlReviewEntry::Construct(const FArguments& InArgs)
+void SSourceControlReviewEntry::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
-	static const UFont* Font = LoadObject<UFont>(nullptr, TEXT("/Game/UI/Foundation/Fonts/NotoSans.NotoSans"));
-	
 	ChangelistFileData = InArgs._FileData;
-	ChildSlot
-	[
-		SNew(SHorizontalBox)
-		
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(10.f, 0.f)
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		[
-			SAssignNew(SourceActionIcon, SImage)
-			.Image(this, &SSourceControlReviewEntry::GetSourceControlIcon)
-		]
-		
-		+SHorizontalBox::Slot()
-		.FillWidth(1.f)
-		.Padding(0.f, 0.f, 5.f, 0.f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
+	SMultiColumnTableRow::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+
+	// figure out how this asset diffs, and bind it to this->DiffMethod
+	TryBindDiffMethod();
+}
+
+TSharedRef<SWidget> SSourceControlReviewEntry::GenerateWidgetForColumn(const FName& ColumnName)
+{
+	TSharedPtr<SWidget> InnerContent;
+	
+	if (ColumnName == SourceControlReview::ColumnIds::Status)
+	{
+		SAssignNew(InnerContent, SImage)
+		.DesiredSizeOverride(FVector2D(20.f, 20.f))
+		.ColorAndOpacity(this, &SSourceControlReviewEntry::GetSourceControlIconColor)
+		.Image(this, &SSourceControlReviewEntry::GetSourceControlIcon);
+	}
+	else if (ColumnName == SourceControlReview::ColumnIds::File)
+	{
+		SAssignNew(InnerContent, SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(16.f, 1.f, 0.f, 0.f)
+		[	
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.AutoWidth()
+			.Padding(0.f, 0.f, 8.f, 4.f)
+			[
+				SNew(SBox)
+				.MaxAspectRatio(1.f)
+				.MinAspectRatio(1.f)
+				.HAlign(HAlign_Left)
+				[
+							
+					SAssignNew(AssetTypeIcon, SImage)
+					.DesiredSizeOverride(FVector2D(16.f, 16.f))
+					.Image(GetAssetTypeIcon())
+					.ToolTipText(GetAssetType())
+				]
+			]
+			+SHorizontalBox::Slot()
+			.FillWidth(1.f)
 			[
 				SNew(STextBlock)
 				.Text(this, &SSourceControlReviewEntry::GetAssetNameText)
-				.Font(FStyleFonts::Get().Large)
+				.ColorAndOpacity(FStyleColors::AccentWhite)
+				.Font(FStyleFonts::Get().Normal)
 			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(16.f, 0.f, 0.f, 5.f)
+		[
+			SNew(SScrollBox)
+			.Orientation(EOrientation::Orient_Horizontal)
+			+SScrollBox::Slot()
 			[
 				SNew(STextBlock)
 				.Text(this, &SSourceControlReviewEntry::GetLocalAssetPathText)
 				.Font(FStyleFonts::Get().Small)
 			]
-		]
-		
+		];
+	}
+	else if (ColumnName == SourceControlReview::ColumnIds::Tools)
+	{
+		SAssignNew(InnerContent, SHorizontalBox)
 		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(10.f, 0.f)
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
+		.Padding(0.f, 0.f, 7.f, 0.f)
 		[
-			SNew(SBox)
-			.WidthOverride(32.f)
-			.HeightOverride(32.f)
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.OnClicked(this, &SSourceControlReviewEntry::OnDiffClicked)
+	 		.ToolTipText(LOCTEXT("ViewDiffTooltip", "Diff Against Previous Revision"))
+			.ContentPadding(FMargin(0.f))
 			[
-				SAssignNew(AssetTypeIcon, SImage)
-				.Image(GetAssetTypeIcon())
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.DesiredSizeOverride(FVector2D(20.f, 20.f))
+				.Image(FAppStyle::Get().GetBrush("SourceControl.Actions.Diff"))
 			]
 		]
-		
 		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
+		.Padding(7.f, 0.f, 0.f, 0.f)
 		[
-			SAssignNew(FileDeletedTextBlock, STextBlock)
-		]
-		
-		+SHorizontalBox::Slot()
-		.FillWidth(1.f)
-		.Padding(10.f, 0.f)
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.IsEnabled(this, &SSourceControlReviewEntry::CanBrowseToAsset)
+			.OnClicked(this, &SSourceControlReviewEntry::OnBrowseToAssetClicked)
+			.ToolTipText(this, &SSourceControlReviewEntry::GetBrowseToAssetTooltip)
+			.ContentPadding(FMargin(0.f))
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.DesiredSizeOverride(FVector2D(20.f, 20.f))
+				.Image(FAppStyle::Get().GetBrush("Icons.BrowseContent"))
+			]
+			
+		];
+	}
+
+	static const FSlateBrush* const WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
+	
+	return SNew(SBorder)
+	.BorderImage(WhiteBrush)
+	.BorderBackgroundColor(FStyleColors::AccentBlack)
+	.Padding(1.f)
+	[
+		SNew(SBorder)
+		.BorderImage(WhiteBrush)
+		.BorderBackgroundColor(FStyleColors::Recessed)
+		.Padding(0.f)
 		.VAlign(VAlign_Center)
+		.HAlign(ColumnName == SourceControlReview::ColumnIds::File? HAlign_Fill : HAlign_Center)
 		[
-			SAssignNew(ReviewInputsBox, SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.FillWidth(1.f)
-			.Padding(0.f, 0.f, 5.f, 0.f)
-			[
-				SNew(SButton)
-				.VAlign(VAlign_Center)
-				[
-					SAssignNew(ViewDiffButtonText, STextBlock)
-					.Justification(ETextJustify::Center)
-					.Text(LOCTEXT("ViewDiffButton", "View Diff"))
-				]
-				.OnClicked(this, &SSourceControlReviewEntry::OnDiffClicked)
-			]
-			+SHorizontalBox::Slot()
-			.FillWidth(1.f)
-			.Padding(0.f, 0.f, 5.f, 0.f)
-			[
-				SNew(SButton)
-				.IsEnabled(this, &SSourceControlReviewEntry::CanBrowseToAsset)
-				.ContentPadding(FMargin(8.f, 4.f))
-				.OnClicked(this, &SSourceControlReviewEntry::OnBrowseToAssetClicked)
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					[
-						SNew(SImage)
-						.Image(FAppStyle::GetBrush("Icons.Search"))
-					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1.f)
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Center)
-					[
-						SNew(STextBlock)
-						.Justification(ETextJustify::Center)
-						.Text(LOCTEXT("BrowseToAssetButton", "Browse To Asset"))
-					]
-				]
-			]
+			InnerContent.ToSharedRef()
 		]
 	];
-
-	// figure out how this asset diffs, and bind it to this->DiffMethod
-	TryBindDiffMethod();
 }
 
 void SSourceControlReviewEntry::SetEntryData(const FChangelistFileData& InChangelistFileData)
 {
 	ChangelistFileData = InChangelistFileData;
 	AssetTypeIcon->SetImage(GetAssetTypeIcon());
+	AssetTypeIcon->SetToolTipText(GetAssetType());
 
 	// if asset changed, we might diff differently. rebind the diff method.
 	DiffMethod.Unbind();
@@ -165,6 +173,15 @@ FReply SSourceControlReviewEntry::OnBrowseToAssetClicked() const
 	const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 	AssetToolsModule.Get().SyncBrowserToAssets(Assets);
 	return FReply::Handled();
+}
+
+FText SSourceControlReviewEntry::GetBrowseToAssetTooltip() const
+{
+	if (CanBrowseToAsset())
+	{
+		return LOCTEXT("BrowseToAssetTooltip", "Browse To Asset");
+	}
+	return  LOCTEXT("CantBrowseToAssetTooltip", "This File is not an Asset");
 }
 
 bool SSourceControlReviewEntry::CanBrowseToAsset() const
@@ -312,26 +329,47 @@ const FSlateBrush* SSourceControlReviewEntry::GetSourceControlIcon() const
 	return Brushes[Index];
 }
 
-const FSlateBrush* SSourceControlReviewEntry::GetAssetTypeIcon() const
+FSlateColor SSourceControlReviewEntry::GetSourceControlIconColor() const
 {
-	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( TEXT( "AssetRegistry" ) );
-	
-	FString TempPackageName;
-	if (FPackageName::TryConvertFilenameToLongPackageName(ChangelistFileData.ReviewFileName, TempPackageName))
+	switch(ChangelistFileData.FileSourceControlAction)
 	{
-		TArray<FAssetData> OutAssetData;
-		AssetRegistryModule.Get().GetAssetsByPackageName( *TempPackageName, OutAssetData );
-		
-		if (OutAssetData.Num() > 0)
+	case ESourceControlAction::Add:
+		return FAppStyle::Get().GetSlateColor("SourceControl.Diff.AdditionColor");
+	case ESourceControlAction::Edit:
+		return FAppStyle::Get().GetSlateColor("SourceControl.Diff.MajorModificationColor");
+	case ESourceControlAction::Delete:
+		return FAppStyle::Get().GetSlateColor("SourceControl.Diff.SubtractionColor");
+	
+	case ESourceControlAction::Branch:
+	case ESourceControlAction::Integrate:
+		return FAppStyle::Get().GetSlateColor("SourceControl.Diff.MinorModificationColor");
+	
+	default: return FStyleColors::Foreground.GetSpecifiedColor();
+	}
+}
+
+const FSlateBrush* SSourceControlReviewEntry::GetAssetTypeIcon()
+{
+	if (const UClass* IconClass = ChangelistFileData.GetIconClass())
+	{
+		if (const FSlateBrush* FileTypeBrush = FClassIconFinder::FindThumbnailForClass(IconClass))
 		{
-			if (const FSlateBrush* FileTypeBrush = FClassIconFinder::FindThumbnailForClass(FClassIconFinder::GetIconClassForAssetData(OutAssetData[0])))
-			{
-				return FileTypeBrush;
-			}
+			return FileTypeBrush;
 		}
 	}
+	return FAppStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
+}
+
+FText SSourceControlReviewEntry::GetAssetType()
+{
+	if (const UClass* IconClass = ChangelistFileData.GetIconClass())
+	{
+		return FText::FromString(IconClass->GetName());
+	}
 	
-	return FAppStyle::Get().GetBrush(TEXT("NoBrush"));
+	int32 ChopIndex;
+	ChangelistFileData.AssetFilePath.FindLastChar('.', ChopIndex);
+	return FText::Format(LOCTEXT("NonAssetFileType", "{0} File"), FText::FromString(ChangelistFileData.AssetFilePath.RightChop(ChopIndex)));
 }
 
 FText SSourceControlReviewEntry::GetAssetNameText() const
@@ -341,7 +379,7 @@ FText SSourceControlReviewEntry::GetAssetNameText() const
 
 FText SSourceControlReviewEntry::GetLocalAssetPathText() const
 {
-	return FText::FromString(ChangelistFileData.RelativeFilePath);
+	return FText::FromString(TEXT("...") + ChangelistFileData.RelativeFilePath);
 }
 
 const FString& SSourceControlReviewEntry::GetSearchableString() const

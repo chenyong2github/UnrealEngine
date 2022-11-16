@@ -24,6 +24,7 @@ public class ChangelistReview : ModuleRules
 				"EditorStyle",
 				"ToolMenus",
 				"SourceControl",
+				"InputCore"
 			}
 		);
 	}
