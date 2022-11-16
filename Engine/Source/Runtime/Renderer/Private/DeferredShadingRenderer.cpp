@@ -265,6 +265,12 @@ static TAutoConsoleVariable<int32> CVarSceneDepthHZBAsyncCompute(
 	TEXT(" 2: Use async compute, start after ComputeLightGrid.CompactLinks pass"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarShadowsUseSharedExternalAccessQueue(
+	TEXT("r.ShadowsUseSharedExternalAccessQueue"), 1,
+	TEXT("If enabled, shadows will use the shared external access queue, minimizing unnecessary transitions"),
+	ECVF_RenderThreadSafe);
+
+
 #if RHI_RAYTRACING
 
 static bool bRefreshRayTracingInstances = false;
@@ -2706,7 +2712,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue, false);
-	ExternalAccessQueue.Submit(GraphBuilder);
+	if (!CVarShadowsUseSharedExternalAccessQueue.GetValueOnRenderThread())
+	{
+		ExternalAccessQueue.Submit(GraphBuilder);
+	}
 
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const EShaderPlatform Platform = GetViewFamilyInfo(Views).GetShaderPlatform();
@@ -3110,7 +3119,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		// With forward shading we need to render shadow maps early
 		ensureMsgf(!VirtualShadowMapArray.IsEnabled(), TEXT("Virtual shadow maps are not supported in the forward shading path"));
-		RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
+		RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
 
 		if (bHairStrandsEnable && !bHasRayTracedOverlay)
 		{
@@ -3359,7 +3368,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, NaniteRasterResults, SingleLayerWaterPrePassResult);
 			}
 
-			RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
+			RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
 		}
 		CheckShadowDepthRenderCompleted();
 
@@ -3378,6 +3387,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
 			RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries);
 		}
+	}
+	if (CVarShadowsUseSharedExternalAccessQueue.GetValueOnRenderThread())
+	{
+		ExternalAccessQueue.Submit(GraphBuilder);
 	}
 	// End shadow and fog after base pass
 

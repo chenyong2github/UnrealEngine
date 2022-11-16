@@ -937,7 +937,9 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 	
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Shadows));
-	RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
+	FRDGExternalAccessQueue ExternalAccessQueue; // Ideally we'd use the shared access queue and pass that in, but keeping this minimal for now
+	RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
+	ExternalAccessQueue.Submit(GraphBuilder);
 	
 	PollOcclusionQueriesPass(GraphBuilder);
 	GraphBuilder.AddDispatchHint();

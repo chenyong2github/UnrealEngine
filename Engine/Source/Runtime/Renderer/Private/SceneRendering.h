@@ -2270,7 +2270,7 @@ protected:
 	void BeginGatherShadowPrimitives(FDynamicShadowsTaskData* TaskData);
 	void FinishGatherShadowPrimitives(FDynamicShadowsTaskData* TaskData);
 
-	void RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager);
+	void RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
 	void RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled);
 	void RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder);
 
