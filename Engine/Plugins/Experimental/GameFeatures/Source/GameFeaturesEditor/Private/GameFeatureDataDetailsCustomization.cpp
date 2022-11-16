@@ -44,7 +44,7 @@ void FGameFeatureDataDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder
 	ObjectsBeingCustomized.Empty();
 	DetailBuilder.GetObjectsBeingCustomized(/*out*/ ObjectsBeingCustomized);
 
-	if (ObjectsBeingCustomized.Num() == 1)
+	if (ObjectsBeingCustomized.Num() == 1 && !ObjectsBeingCustomized[0]->GetPackage()->HasAnyPackageFlags(PKG_ForDiffing))
 	{
 		const UGameFeatureData* GameFeature = CastChecked<const UGameFeatureData>(ObjectsBeingCustomized[0]);
 
