@@ -211,6 +211,17 @@ namespace Horde.Build.Jobs.TestData
 	}
 
 	/// <summary>
+	/// Get tests request
+	/// </summary>
+	public class GetTestsRequest
+	{
+		/// <summary>
+		/// Test ids to get
+		/// </summary>
+		public List<string> testIds { get; set; }
+	}
+
+	/// <summary>
 	/// A test suite that runs in a stream, contain subtests
 	/// </summary>
 	public class GetTestSuiteResponse
@@ -349,7 +360,6 @@ namespace Horde.Build.Jobs.TestData
 			SuiteTests = details.SuiteTests?.Select(x => new GetSuiteTestDataResponse(x)).ToList();
 		}
 	}
-
 
 	/// <summary>
 	/// Data ref 

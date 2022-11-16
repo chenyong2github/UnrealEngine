@@ -101,29 +101,16 @@ namespace Horde.Build.Jobs.TestData
 			return details.Select(d => new GetTestDataDetailsResponse(d)).ToList();
 		}
 
-		internal class TestRequest
-		{
-			public List<string>? testIds { get; set; }
-		}
-
 		/// <summary>
 		/// Get test details from provided refs
 		/// </summary>
-		/// <param name="tests">Base64 encoded tests request (there may be thousands of requested test ids)</param>
+		/// <param name="request"></param>
 		/// <returns></returns>
-		[HttpGet]
+		[HttpPost]
 		[Route("/api/v2/testdata/tests")]
 		[ProducesResponseType(typeof(List<GetTestResponse>), 200)]
-		public async Task<ActionResult<List<GetTestResponse>>> GetTestsAsync([FromQuery] string tests)
+		public async Task<ActionResult<List<GetTestResponse>>> GetTestsAsync([FromBody] GetTestsRequest request)
 		{
-			JsonSerializerOptions options = new JsonSerializerOptions();
-			TestRequest request = JsonSerializer.Deserialize<TestRequest>(Convert.FromBase64String(tests), options)!;
-
-			if (request.testIds == null || request.testIds.Count == 0)
-			{
-				return new List<GetTestResponse>();
-			}
-
 			HashSet<string> testIds = new HashSet<string>(request.testIds);
 
 			List<ITest> testValues = await _testDataService.FindTests(testIds.Select(x => new TestId(x)).ToArray());			

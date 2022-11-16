@@ -18,7 +18,6 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Horde.Build.Logs;
 using System.Linq;
-using System.Text.Json;
 
 namespace Horde.Build.Tests
 {
@@ -209,10 +208,8 @@ namespace Horde.Build.Tests
 
 			Assert.AreEqual(2, refs.Count);
 
-			// Get tests
-			TestRequest request = new TestRequest() { testIds = streams[0].Tests.Select(x => x.Id.ToString()).ToList() };
-			JsonSerializerOptions options = new JsonSerializerOptions();
-			ActionResult<List<GetTestResponse>> testResults = await TestDataController.GetTestsAsync(Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request, options))));
+			GetTestsRequest request = new GetTestsRequest() { testIds = streams[0].Tests.Select(x => x.Id.ToString()).ToList() };
+			ActionResult<List<GetTestResponse>> testResults = await TestDataController.GetTestsAsync(request);
 			Assert.IsNotNull(testResults);
 			Assert.IsNotNull(testResults.Value);
 			Assert.IsNotNull(testResults.Value[0].Id, streams[0].Tests[0].Id);
