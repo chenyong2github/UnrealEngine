@@ -218,8 +218,11 @@ namespace Horde.Build.Jobs.TestData
 		int? SuiteErrorCount { get; }
 
 	}
-
-	interface ITestDataDetails
+	
+	/// <summary>
+	/// Test data details
+	/// </summary>
+	public interface ITestDataDetails
 	{
 		/// The corresponding test ref		
 		TestRefId Id { get; }

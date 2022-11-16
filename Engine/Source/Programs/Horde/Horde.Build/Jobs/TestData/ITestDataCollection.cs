@@ -14,6 +14,7 @@ namespace Horde.Build.Jobs.TestData
 	using TestId = ObjectId<ITest>;
 	using TestSuiteId = ObjectId<ITestSuite>;
 	using TestMetaId = ObjectId<ITestMeta>;
+	using TestRefId = ObjectId<ITestDataRef>;
 
 	/// <summary>
 	/// Collection of test data documents
@@ -40,6 +41,14 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="maxChange"></param>
 		/// <returns></returns>
 		Task<List<ITestDataRef>> FindTestRefs(StreamId[] streamIds, TestMetaId[]? metaIds = null, TestId[]? testIds = null, TestSuiteId[]? suiteIds = null, DateTime? minCreateTime = null, DateTime? maxCreateTime = null, int? minChange = null, int? maxChange = null);
+
+
+		/// <summary>
+		/// Find test details
+		/// </summary>
+		/// <param name="ids"></param>
+		/// <returns></returns>
+		Task<List<ITestDataDetails>> FindTestDetails(TestRefId[] ids);
 
 		/// <summary>
 		/// Find tests

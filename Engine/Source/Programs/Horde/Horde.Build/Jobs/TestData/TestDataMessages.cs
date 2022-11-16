@@ -6,12 +6,12 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 
 namespace Horde.Build.Jobs.TestData
 {
-	using StreamId = StringId<IStream>;
-	using TestId = ObjectId<ITest>;
+	using StreamId = StringId<IStream>;	
 
 	/// <summary>
 	/// Response object describing test data to store
@@ -319,6 +319,39 @@ namespace Horde.Build.Jobs.TestData
 	}
 
 	/// <summary>
+	/// Test details
+	/// </summary>
+	public class GetTestDataDetailsResponse
+	{
+		/// <summary>
+		/// The corresponding test ref
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
+		/// The test documents for this ref
+		/// </summary>
+		public List<string> TestDataIds { get; set; }
+
+		/// <summary>
+		/// Suite test data
+		/// </summary>		
+		public List<GetSuiteTestDataResponse>? SuiteTests { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="details"></param>
+		public GetTestDataDetailsResponse(ITestDataDetails details)
+		{
+			Id = details.Id.ToString();
+			TestDataIds = details.TestDataIds.Select(x => x.ToString()).ToList();
+			SuiteTests = details.SuiteTests?.Select(x => new GetSuiteTestDataResponse(x)).ToList();
+		}
+	}
+
+
+	/// <summary>
 	/// Data ref 
 	/// </summary>
 	public class GetTestDataRefResponse
@@ -390,7 +423,10 @@ namespace Horde.Build.Jobs.TestData
 			BuildChangeList = testData.BuildChangeList;
 			MetaId = testData.Metadata.ToString();
 			TestId = testData.TestId?.ToString();
-			Outcome = testData.Outcome;
+			if (testData.TestId != null)
+			{
+				Outcome = testData.Outcome;
+			}			
 			SuiteId = testData.SuiteId?.ToString();
 			SuiteSkipCount = testData.SuiteSkipCount;
 			SuiteWarningCount = testData.SuiteWarningCount;

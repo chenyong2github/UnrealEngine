@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Jobs.TestData
 {
@@ -15,6 +14,7 @@ namespace Horde.Build.Jobs.TestData
 	using TestId = ObjectId<ITest>;
 	using TestSuiteId = ObjectId<ITestSuite>;
 	using TestMetaId = ObjectId<ITestMeta>;
+	using TestRefId = ObjectId<ITestDataRef>;
 
 	/// <summary>
 	/// Device management service
@@ -102,6 +102,16 @@ namespace Horde.Build.Jobs.TestData
 			TestSuiteId[]? sids = suiteIds?.ConvertAll(x => new TestSuiteId(x)).ToArray();
 
 			return await _testData.FindTestRefs(streamIds, metaIds, tids, sids, minCreateTime, maxCreateTime, minChange, maxChange);
+		}
+
+		/// <summary>
+		/// Find test details
+		/// </summary>
+		/// <param name="ids"></param>
+		/// <returns></returns>
+		public async Task<List<ITestDataDetails>> FindTestDetails(TestRefId[] ids)
+		{
+			return await _testData.FindTestDetails(ids);
 		}
 	}
 }

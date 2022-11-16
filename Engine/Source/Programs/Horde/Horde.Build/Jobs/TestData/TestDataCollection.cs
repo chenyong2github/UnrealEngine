@@ -540,6 +540,25 @@ namespace Horde.Build.Jobs.TestData
 		}
 
 		/// <inheritdoc/>
+		public async Task<List<ITestDataDetails>> FindTestDetails(TestRefId[] ids)
+		{
+			FilterDefinitionBuilder<TestDataDetailsDocument> filterBuilder = Builders<TestDataDetailsDocument>.Filter;
+			FilterDefinition<TestDataDetailsDocument> filter = FilterDefinition<TestDataDetailsDocument>.Empty;
+
+			if (ids.Length == 1)
+			{
+				filter &= filterBuilder.Eq(x => x.Id, ids[0]);
+			}
+			else
+			{
+				filter &= filterBuilder.In(x => x.Id, ids);
+			}
+
+			List<TestDataDetailsDocument> results = await _testDetails.Find(filter).ToListAsync();
+			return results.ConvertAll<ITestDataDetails>(x => x);
+		}
+
+		/// <inheritdoc/>
 		public async Task<List<ITestMeta>> FindTestMeta(string[]? projectNames = null, string[]? platforms = null, string[]? configurations = null, string[]? buildTargets = null, string? rhi = null, TestMetaId[]? metaIds = null)
 		{
 			FilterDefinitionBuilder<TestMetaDocument> filterBuilder = Builders<TestMetaDocument>.Filter;

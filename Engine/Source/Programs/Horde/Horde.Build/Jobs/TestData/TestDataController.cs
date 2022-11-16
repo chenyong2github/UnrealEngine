@@ -11,6 +11,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using EpicGames.Core;
+using System.Text;
+using System.Text.Json.Serialization;
+using System.Text.Json;
+using System.Threading;
 
 namespace Horde.Build.Jobs.TestData
 {
@@ -20,6 +24,7 @@ namespace Horde.Build.Jobs.TestData
 	using TestId = ObjectId<ITest>;
 	using TestSuiteId = ObjectId<ITestSuite>;
 	using TestMetaId = ObjectId<ITestMeta>;
+	using TestRefId = ObjectId<ITestDataRef>;
 
 	/// <summary>
 	/// Controller for the /api/v1/testdata endpoint
@@ -79,6 +84,51 @@ namespace Horde.Build.Jobs.TestData
 			List<ITestMeta> metaData = await _testDataService.FindTestMeta(projects, platforms, configurations, targets);
 			metaData.ForEach(m => responses.Add(new GetTestMetaResponse(m)));
 			return responses;
+		}
+
+		/// <summary>
+		/// Get test details from provided refs
+		/// </summary>
+		/// <param name="ids"></param>
+		/// <returns></returns>
+		[HttpGet]
+		[Route("/api/v2/testdata/details")]
+		[ProducesResponseType(typeof(List<GetTestDataDetailsResponse>), 200)]
+		public async Task<ActionResult<List<GetTestDataDetailsResponse>>> GetTestDetailsAsync([FromQuery(Name = "id")] string[] ids)
+		{
+			TestRefId[] idValues = Array.ConvertAll(ids, x => new TestRefId(x));
+			List<ITestDataDetails> details = await _testDataService.FindTestDetails(idValues);
+			return details.Select(d => new GetTestDataDetailsResponse(d)).ToList();
+		}
+
+		internal class TestRequest
+		{
+			public List<string>? testIds { get; set; }
+		}
+
+		/// <summary>
+		/// Get test details from provided refs
+		/// </summary>
+		/// <param name="tests">Base64 encoded tests request (there may be thousands of requested test ids)</param>
+		/// <returns></returns>
+		[HttpGet]
+		[Route("/api/v2/testdata/tests")]
+		[ProducesResponseType(typeof(List<GetTestResponse>), 200)]
+		public async Task<ActionResult<List<GetTestResponse>>> GetTestsAsync([FromQuery] string tests)
+		{
+			JsonSerializerOptions options = new JsonSerializerOptions();
+			TestRequest request = JsonSerializer.Deserialize<TestRequest>(Convert.FromBase64String(tests), options)!;
+
+			if (request.testIds == null || request.testIds.Count == 0)
+			{
+				return new List<GetTestResponse>();
+			}
+
+			HashSet<string> testIds = new HashSet<string>(request.testIds);
+
+			List<ITest> testValues = await _testDataService.FindTests(testIds.Select(x => new TestId(x)).ToArray());			
+
+			return testValues.Select(x => new GetTestResponse(x)).ToList();
 		}
 
 		/// <summary>
