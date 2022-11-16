@@ -51,11 +51,13 @@ namespace Chaos
 		void SetDragCoefficient(float InCoeffient)
 		{
 			DragCoefficient = InCoeffient;
+			EffectiveDragConstant = 0.5f * Setup().AreaMetresSquared * DragCoefficient;
 		}
 
 		void SetDownforceCoefficient(float InCoeffient)
 		{
 			DownforceCoefficient = InCoeffient;
+			EffectiveLiftConstant = 0.5f * Setup().AreaMetresSquared * DownforceCoefficient;
 		}
 
 		/** get the drag force generated at the given velocity */
