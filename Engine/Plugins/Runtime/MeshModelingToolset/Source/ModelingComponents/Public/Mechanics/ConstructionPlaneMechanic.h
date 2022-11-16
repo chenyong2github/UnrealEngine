@@ -10,6 +10,7 @@
 
 #include "ConstructionPlaneMechanic.generated.h"
 
+class ULocalSingleClickInputBehavior;
 class UCombinedTransformGizmo;
 class UTransformProxy;
 class IClickBehaviorTarget;
@@ -25,7 +26,7 @@ class MODELINGCOMPONENTS_API UConstructionPlaneMechanic : public UInteractionMec
 {
 	GENERATED_BODY()
 public:
-
+	
 	/** Replace this to externally control if plane can be updated */
 	TUniqueFunction<bool()> CanUpdatePlaneFunc = []() { return true; };
 
@@ -74,6 +75,10 @@ public:
 protected:
 	UPROPERTY()
 	TObjectPtr<USingleClickInputBehavior> ClickToSetPlaneBehavior;
+	
+	/** This is the behavior and behavior target used for the Shift+click behavior that sets the gizmo's position in the world. */
+	UPROPERTY()
+	TObjectPtr<ULocalSingleClickInputBehavior> MiddleClickToSetGizmoBehavior;
 
 	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
 };

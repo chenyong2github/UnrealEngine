@@ -28,7 +28,7 @@ void UConstructionPlaneMechanic::Shutdown()
 void UConstructionPlaneMechanic::Initialize(UWorld* TargetWorld, const FFrame3d& InitialPlane)
 {
 	Plane = InitialPlane;
-
+	
 	// create proxy and gizmo
 	UInteractiveGizmoManager* GizmoManager = GetParentTool()->GetToolManager()->GetPairedGizmoManager();
 
@@ -55,6 +55,33 @@ void UConstructionPlaneMechanic::Initialize(UWorld* TargetWorld, const FFrame3d&
 	ClickToSetPlaneBehavior->Initialize(SetPlaneCtrlClickBehaviorTarget.Get());
 
 	GetParentTool()->AddInputBehavior(ClickToSetPlaneBehavior);
+
+	// click to set gizmo position behavior
+	MiddleClickToSetGizmoBehavior = NewObject<ULocalSingleClickInputBehavior>();
+	MiddleClickToSetGizmoBehavior->IsHitByClickFunc = [this](const FInputDeviceRay& InputRay) {
+		FInputRayHit OutResult;
+		FVector3d HitPointOut;
+		OutResult.bHit = Plane.RayPlaneIntersection(InputRay.WorldRay.Origin, InputRay.WorldRay.Direction, 2, HitPointOut);
+		return OutResult;
+	};
+	MiddleClickToSetGizmoBehavior->OnClickedFunc = [this](const FInputDeviceRay& ClickPos)
+	{
+		FVector3d HitPointOut;
+		if (Plane.RayPlaneIntersection(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction, 2, HitPointOut))
+		{
+			FTransform NewTransform = PlaneTransformGizmo->GetGizmoTransform();
+			NewTransform.SetLocation(HitPointOut);
+
+			// Note: The plane of this mechanic is not being updated and OnPlaneChanged is not being broadcasted here, but the
+			// gizmo's position is. Anything listening for the gizmo's OnTransformChanged delegate however will be notified.
+			PlaneTransformGizmo->SetNewGizmoTransform(NewTransform);
+		}
+	};
+	MiddleClickToSetGizmoBehavior->ModifierCheckFunc = FInputDeviceState::IsCtrlKeyDown;
+	MiddleClickToSetGizmoBehavior->SetUseMiddleMouseButton();
+	MiddleClickToSetGizmoBehavior->Initialize();	// This takes no target because this behavior is its own target.
+	
+	GetParentTool()->AddInputBehavior(MiddleClickToSetGizmoBehavior);
 }
 
 
