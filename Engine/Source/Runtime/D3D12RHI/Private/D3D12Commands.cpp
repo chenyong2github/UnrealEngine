@@ -16,6 +16,7 @@ D3D12Commands.cpp: D3D RHI commands implementation.
 #include "ResolveShader.h"
 #include "SceneUtils.h"
 #include "RenderUtils.h"
+#include "RHIShaderParametersShared.h"
 
 int32 AFRSyncTemporalResources = 1;
 static FAutoConsoleVariableRef CVarSyncTemporalResources(
@@ -1139,6 +1140,30 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeS
 
 	BoundUniformBuffers[SF_Compute][BufferIndex] = Buffer;
 	DirtyUniformBuffers[SF_Compute] |= (1 << BufferIndex);
+}
+
+void FD3D12CommandContext::RHISetShaderParameters(FRHIGraphicsShader* Shader, TArrayView<const uint8> InParametersData, TArrayView<const FRHIShaderParameter> InParameters, TArrayView<const FRHIShaderParameterResource> InResourceParameters, TArrayView<const FRHIShaderParameterResource> InBindlessParameters)
+{
+	UE::RHICore::RHISetShaderParametersShared(
+		*this
+		, Shader
+		, InParametersData
+		, InParameters
+		, InResourceParameters
+		, InBindlessParameters
+	);
+}
+
+void FD3D12CommandContext::RHISetShaderParameters(FRHIComputeShader* Shader, TArrayView<const uint8> InParametersData, TArrayView<const FRHIShaderParameter> InParameters, TArrayView<const FRHIShaderParameterResource> InResourceParameters, TArrayView<const FRHIShaderParameterResource> InBindlessParameters)
+{
+	UE::RHICore::RHISetShaderParametersShared(
+		*this
+		, Shader
+		, InParametersData
+		, InParameters
+		, InResourceParameters
+		, InBindlessParameters
+	);
 }
 
 void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, uint32 BufferIndex, uint32 Offset, uint32 NumBytes, const void* NewValue)

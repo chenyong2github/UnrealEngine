@@ -10,6 +10,7 @@
 #include "EngineGlobals.h"
 #include "VulkanLLM.h"
 #include "RenderUtils.h"
+#include "RHIShaderParametersShared.h"
 
 static TAutoConsoleVariable<int32> GCVarSubmitOnDispatch(
 	TEXT("r.Vulkan.SubmitOnDispatch"),
@@ -253,6 +254,30 @@ void FVulkanCommandListContext::RHISetShaderParameter(FRHIComputeShader* Compute
 	check(PendingComputeState->GetCurrentShader() == ComputeShader);
 
 	PendingComputeState->SetPackedGlobalShaderParameter(BufferIndex, BaseIndex, NumBytes, NewValue);
+}
+
+void FVulkanCommandListContext::RHISetShaderParameters(FRHIGraphicsShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
+{
+	UE::RHICore::RHISetShaderParametersShared(
+		*this
+		, Shader
+		, InParametersData
+		, InParameters
+		, InResourceParameters
+		, InBindlessParameters
+	);
+}
+
+void FVulkanCommandListContext::RHISetShaderParameters(FRHIComputeShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
+{
+	UE::RHICore::RHISetShaderParametersShared(
+		*this
+		, Shader
+		, InParametersData
+		, InParameters
+		, InResourceParameters
+		, InBindlessParameters
+	);
 }
 
 template <typename TState>

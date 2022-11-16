@@ -14,6 +14,7 @@
 #include "ShaderParameterUtils.h"
 #include "SceneUtils.h"
 #include "EngineGlobals.h"
+#include "RHIShaderParametersShared.h"
 
 #if !PLATFORM_HOLOLENS
 // For Depth Bounds Test interface
@@ -682,6 +683,32 @@ void FD3D11DynamicRHI::RHISetShaderParameter(FRHIComputeShader* ComputeShaderRHI
 	//VALIDATE_BOUND_SHADER(ComputeShaderRHI);
 	checkSlow(CSConstantBuffers[BufferIndex]);
 	CSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue,BaseIndex,NumBytes);
+}
+
+void FD3D11DynamicRHI::RHISetShaderParameters(FRHIComputeShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
+{
+	UE::RHICore::RHISetShaderParametersShared(
+		*this
+		, Shader
+		, InParametersData
+		, InParameters
+		, InResourceParameters
+		, InBindlessParameters
+		, true /*bBindUAVsFirst*/
+	);
+}
+
+void FD3D11DynamicRHI::RHISetShaderParameters(FRHIGraphicsShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
+{
+	UE::RHICore::RHISetShaderParametersShared(
+		*this
+		, Shader
+		, InParametersData
+		, InParameters
+		, InResourceParameters
+		, InBindlessParameters
+		, true /*bBindUAVsFirst*/
+	);
 }
 
 void FD3D11DynamicRHI::ValidateExclusiveDepthStencilAccess(FExclusiveDepthStencil RequestedAccess) const

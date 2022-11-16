@@ -4328,3 +4328,41 @@ private:
 	TArray<TPair<FRHIBufferUAVCreateInfo, FUnorderedAccessViewRHIRef>, TInlineAllocator<1>> UAVs;
 	TArray<TPair<FRHIBufferSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
 };
+
+struct FRHIShaderParameter
+{
+	FRHIShaderParameter(uint16 InBufferIndex, uint16 InBaseIndex, uint16 InByteOffset, uint16 InByteSize)
+		: BufferIndex(InBufferIndex)
+		, BaseIndex(InBaseIndex)
+		, ByteOffset(InByteOffset)
+		, ByteSize(InByteSize)
+	{
+	}
+	uint16 BufferIndex;
+	uint16 BaseIndex;
+	uint16 ByteOffset;
+	uint16 ByteSize;
+};
+
+struct FRHIShaderParameterResource
+{
+	enum class EType : uint8
+	{
+		Texture,
+		ResourceView,
+		UnorderedAccessView,
+		Sampler,
+		UniformBuffer,
+	};
+
+	FRHIShaderParameterResource(EType InType, FRHIResource* InResource, uint16 InIndex)
+		: Resource(InResource)
+		, Index(InIndex)
+		, Type(InType)
+	{
+	}
+
+	FRHIResource* Resource;
+	uint16        Index;
+	EType         Type;
+};

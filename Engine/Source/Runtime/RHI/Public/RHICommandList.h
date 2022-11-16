@@ -458,6 +458,13 @@ public:
 		return MemManager.Alloc(AllocSize, Alignment);
 	}
 
+	FORCEINLINE_DEBUGGABLE void* AllocCopy(const void* InSourceData, int64 AllocSize, int64 Alignment)
+	{
+		void* NewData = Alloc(AllocSize, Alignment);
+		FMemory::Memcpy(NewData, InSourceData, AllocSize);
+		return NewData;
+	}
+
 	template <typename T>
 	FORCEINLINE_DEBUGGABLE void* Alloc()
 	{
@@ -473,9 +480,13 @@ public:
 	template <typename T>
 	FORCEINLINE_DEBUGGABLE const TArrayView<T> AllocArray(const TArrayView<T> InArray)
 	{
+		if (InArray.Num() == 0)
+		{
+			return TArrayView<T>();
+		}
+
 		// @todo static_assert(TIsTrivial<T>::Value, "Only trivially constructible / copyable types can be used in RHICmdList.");
-		void* NewArray = Alloc(InArray.Num() * sizeof(T), alignof(T));
-		FMemory::Memcpy(NewArray, InArray.GetData(), InArray.Num() * sizeof(T));
+		void* NewArray = AllocCopy(InArray.GetData(), InArray.Num() * sizeof(T), alignof(T));
 		return TArrayView<T>((T*) NewArray, InArray.Num());
 	}
 
@@ -1052,6 +1063,31 @@ FRHICOMMAND_MACRO(FRHICommandSetStencilRef)
 	uint32 StencilRef;
 	FORCEINLINE_DEBUGGABLE FRHICommandSetStencilRef(uint32 InStencilRef)
 		: StencilRef(InStencilRef)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+FRHICOMMAND_MACRO_TPL(TRHIShader, FRHICommandSetShaderParameters)
+{
+	TRHIShader* Shader;
+	TConstArrayView<uint8> ParametersData;
+	TConstArrayView<FRHIShaderParameter> Parameters;
+	TConstArrayView<FRHIShaderParameterResource> ResourceParameters;
+	TConstArrayView<FRHIShaderParameterResource> BindlessParameters;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandSetShaderParameters(
+		TRHIShader* InShader
+		, TConstArrayView<uint8> InParametersData
+		, TConstArrayView<FRHIShaderParameter> InParameters
+		, TConstArrayView<FRHIShaderParameterResource> InResourceParameters
+		, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters
+	)
+		: Shader(InShader)
+		, ParametersData(InParametersData)
+		, Parameters(InParameters)
+		, ResourceParameters(InResourceParameters)
+		, BindlessParameters(InBindlessParameters)
 	{
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -2222,6 +2258,7 @@ FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 };
 #endif // RHI_RAYTRACING
 
+template<> RHI_API void FRHICommandSetShaderParameters           <FRHIComputeShader>::Execute(FRHICommandListBase& CmdList);
 template<> RHI_API void FRHICommandSetShaderParameter            <FRHIComputeShader>::Execute(FRHICommandListBase& CmdList);
 template<> RHI_API void FRHICommandSetShaderUniformBuffer        <FRHIComputeShader>::Execute(FRHICommandListBase& CmdList);
 template<> RHI_API void FRHICommandSetShaderTexture              <FRHIComputeShader>::Execute(FRHICommandListBase& CmdList);
@@ -2319,6 +2356,30 @@ public:
 	FORCEINLINE_DEBUGGABLE void SetLocalShaderUniformBuffer(const TRefCountPtr<TShaderRHI>& Shader, uint32 BaseIndex, const FLocalUniformBuffer& UniformBuffer)
 	{
 		SetLocalShaderUniformBuffer(Shader.GetReference(), BaseIndex, UniformBuffer);
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetShaderParameters(
+		FRHIComputeShader* InShader
+		, TConstArrayView<uint8> InParametersData
+		, TConstArrayView<FRHIShaderParameter> InParameters
+		, TConstArrayView<FRHIShaderParameterResource> InResourceParameters
+		, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters
+	)
+	{
+		ValidateBoundShader(InShader);
+		if (Bypass())
+		{
+			GetComputeContext().RHISetShaderParameters(InShader, InParametersData, InParameters, InResourceParameters, InBindlessParameters);
+			return;
+		}
+
+		ALLOC_COMMAND(FRHICommandSetShaderParameters<FRHIComputeShader>)(
+			InShader
+			, AllocArray(InParametersData)
+			, AllocArray(InParameters)
+			, AllocArray(InResourceParameters)
+			, AllocArray(InBindlessParameters)
+		);
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetShaderParameter(FRHIComputeShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
@@ -2915,6 +2976,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 };
 
+template<> RHI_API void FRHICommandSetShaderParameters           <FRHIGraphicsShader>::Execute(FRHICommandListBase& CmdList);
 template<> RHI_API void FRHICommandSetShaderParameter            <FRHIGraphicsShader>::Execute(FRHICommandListBase& CmdList);
 template<> RHI_API void FRHICommandSetShaderUniformBuffer        <FRHIGraphicsShader>::Execute(FRHICommandListBase& CmdList);
 template<> RHI_API void FRHICommandSetShaderTexture              <FRHIGraphicsShader>::Execute(FRHICommandListBase& CmdList);
@@ -3014,6 +3076,32 @@ public:
 	FORCEINLINE void SetShaderUniformBuffer(const TRefCountPtr<TShaderRHI>& Shader, uint32 BaseIndex, FRHIUniformBuffer* UniformBuffer)
 	{
 		SetShaderUniformBuffer(Shader.GetReference(), BaseIndex, UniformBuffer);
+	}
+
+	using FRHIComputeCommandList::SetShaderParameters;
+
+	FORCEINLINE_DEBUGGABLE void SetShaderParameters(
+		FRHIGraphicsShader* InShader
+		, TConstArrayView<uint8> InParametersData
+		, TConstArrayView<FRHIShaderParameter> InParameters
+		, TConstArrayView<FRHIShaderParameterResource> InResourceParameters
+		, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters
+	)
+	{
+		ValidateBoundShader(InShader);
+		if (Bypass())
+		{
+			GetContext().RHISetShaderParameters(InShader, InParametersData, InParameters, InResourceParameters, InBindlessParameters);
+			return;
+		}
+
+		ALLOC_COMMAND(FRHICommandSetShaderParameters<FRHIGraphicsShader>)(
+			InShader
+			, AllocArray(InParametersData)
+			, AllocArray(InParameters)
+			, AllocArray(InResourceParameters)
+			, AllocArray(InBindlessParameters)
+			);
 	}
 
 	using FRHIComputeCommandList::SetShaderParameter;
