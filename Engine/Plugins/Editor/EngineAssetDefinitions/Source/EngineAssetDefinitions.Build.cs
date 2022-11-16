@@ -29,8 +29,6 @@ public class EngineAssetDefinitions : ModuleRules
 				"InputCore",
 				"Slate",
 				"Kismet",
-				"TextureEditor",
-				"MaterialEditor",
 				"DesktopPlatform",
 			}
 		);
@@ -39,6 +37,9 @@ public class EngineAssetDefinitions : ModuleRules
 			new string[] {
 				"VirtualTexturingEditor",
 				"CurveAssetEditor",
+				"StaticMeshEditor",
+				"TextureEditor",
+				"MaterialEditor",
 			}
 		);
 
@@ -46,6 +47,9 @@ public class EngineAssetDefinitions : ModuleRules
 			new string[] {
 				"VirtualTexturingEditor",
 				"CurveAssetEditor",
+				"StaticMeshEditor",
+				"TextureEditor",
+				"MaterialEditor",
 			}
 		);
 	}

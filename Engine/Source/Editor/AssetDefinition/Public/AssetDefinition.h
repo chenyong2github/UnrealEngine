@@ -325,7 +325,7 @@ public:
 
 	virtual FAssetSupportResponse CanLocalize(const FAssetData& InAsset) const
 	{
-		return FAssetSupportResponse::NotSupported();
+		return FAssetSupportResponse::Supported();
 	}
 
 	

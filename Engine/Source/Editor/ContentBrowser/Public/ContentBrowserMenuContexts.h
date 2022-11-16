@@ -156,6 +156,29 @@ public:
 
 		return Context;
 	}
+
+	template<typename MenuOrSectionType>
+	static int32 GetNumAssetsSelected(const MenuOrSectionType& MenuOrSection)
+	{
+		if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::template FindContextWithAssets(MenuOrSection))
+		{
+			return Context->SelectedAssets.Num();
+		}
+		return 0;
+	}
+
+	template<typename ExpectedType, typename MenuOrSectionType>
+	static ExpectedType* LoadSingleSelectedAsset(const MenuOrSectionType& MenuOrSection)
+	{
+		if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::template FindContextWithAssets(MenuOrSection))
+		{
+			if (ensure(Context->SelectedAssets.Num() == 1))
+			{
+				return Cast<ExpectedType>(Context->SelectedAssets[0].GetAsset());
+			}
+		}
+		return nullptr;
+	}
 };
 
 UCLASS()

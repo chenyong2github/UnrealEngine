@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
 #include "AssetDefinitionDefault.h"
 #include "Curves/CurveBase.h"
 
