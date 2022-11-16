@@ -2292,4 +2292,91 @@ public class IOSPlatform : ApplePlatform
 	{
 		return DirectoryReference.Combine(RuntimeRoot, "cookeddata/" + RelativeProjectRootForStage.Name);
 	}
+
+	public override void PrepareForDebugging(string SourcePackage, string ProjectFilePath, string ClientPlatform)
+	{
+		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
+		{
+			LogInformation("Wrangling data for debug for an iOS/tvOS app for XCode is a Mac only feature. Aborting command.");
+			return;
+		}
+
+		int StartPos = ProjectFilePath.LastIndexOf("/");
+		int StringLength = ProjectFilePath.Length - 10; // 9 for .uproject, 1 for the /
+		string PackageName = ProjectFilePath.Substring(StartPos + 1, StringLength - StartPos);
+			if (string.IsNullOrEmpty(SourcePackage))
+		{
+			SourcePackage = ProjectFilePath;
+			SourcePackage = SourcePackage.Substring(0, SourcePackage.LastIndexOf('/'));
+			SourcePackage = SourcePackage + "/Build/" + ClientPlatform + '/' + PackageName + ".ipa";
+		}
+
+		string ZipFile = SourcePackage.Replace(".ipa", ".zip");
+
+		string PayloadPath = SourcePackage;
+		PayloadPath = PayloadPath.Substring(0, PayloadPath.LastIndexOf('/'));
+		PayloadPath += "/Payload/";
+		string CookedDataDirectory = PayloadPath + PackageName + ".app/cookeddata/";
+
+		LogInformation("ClientPlatform : {0}", ClientPlatform);
+		LogInformation("ProjectFilePath : {0}", ProjectFilePath);
+		LogInformation("Source : {0}", SourcePackage);
+		LogInformation("ZipFile {0}", ZipFile);
+		LogInformation("PackageName {0}", PackageName);
+		LogInformation("PayloadPath {0}", PayloadPath);
+
+		if (File.Exists(ZipFile))
+		{
+			LogInformation("Deleting previously present ZIP file created from IPA");
+			File.Delete(ZipFile);
+		}
+
+		File.Copy(SourcePackage, ZipFile);
+		UnzipPackage(ZipFile);
+
+		string ProjectPath = ProjectFilePath;
+		int Index = ProjectFilePath.IndexOf("?");
+		if (Index >= 0)
+		{
+		   ProjectPath = ProjectPath.Substring(0, Index);
+		}
+		if (Directory.Exists(ProjectPath + "/Binaries/" + ClientPlatform + '/' + "Payload/" + PackageName + ".app"))
+		{
+			CopyDirectory_NoExceptions(CookedDataDirectory, ProjectPath + "/Binaries/" + ClientPlatform + "/Payload/" + PackageName + ".app/cookeddata/", true);
+		}
+		else
+		{
+			string ProjectRoot = SourcePackage;
+			ProjectRoot = ProjectRoot.Substring(0, ProjectRoot.LastIndexOf('/'));
+			CopyFile(SourcePackage, ProjectRoot + "/Binaries/" + ClientPlatform + "/Payload/" + PackageName + ".ipa", true);
+		}
+
+		//cleanup
+		LogInformation("Deleting temp files ...");
+		File.Delete(ZipFile);
+		LogInformation("{0} deleted", ZipFile);
+		Directory.Delete(PayloadPath, true);
+		LogInformation("{0} deleted", PayloadPath);
+	}
+
+	public void UnzipPackage(string PackageToUnzip)
+	{
+		string UnzipPath = PackageToUnzip;
+		UnzipPath = UnzipPath.Substring(0, UnzipPath.LastIndexOf('/'));
+		LogInformation("Unzipping to {0}", UnzipPath);
+
+		using (Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(PackageToUnzip))
+		{
+			foreach (Ionic.Zip.ZipEntry Entry in Zip.Entries.Where(x => !x.IsDirectory))
+			{
+				string OutputFileName = Path.Combine(UnzipPath, Entry.FileName);
+				Directory.CreateDirectory(Path.GetDirectoryName(OutputFileName));
+				using (FileStream OutputStream = new FileStream(OutputFileName, FileMode.Create, FileAccess.Write))
+				{
+					Entry.Extract(OutputStream);
+				}
+				LogInformation("Extracted {0}", OutputFileName);
+			}
+		}
+	}
 }

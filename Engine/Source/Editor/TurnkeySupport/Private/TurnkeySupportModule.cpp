@@ -235,12 +235,6 @@ public:
 			return false;
 		}
 
-// 		// PrepForDebugging needs the platform to specify how
-// 		if (Mode == EPrepareContentMode::PrepareForDebugging)
-// 		{
-// 			return FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName).PrepareForDebuggingOptions != TEXT("");
-// 		}
-
 		return true;
 	}
 
@@ -516,15 +510,18 @@ public:
 				BuildCookRunParams += TEXT(" -nodebuginfo");
 			}
 		}
-// 		else if (Mode == EPrepareContentMode::PrepareForDebugging)
-// 		{
-// 			if (ShouldBuildProject(PackagingSettings, TargetPlatform))
-// 			{
-// 				BuildCookRunParams += TEXT(" -build");
-// 			}
-// 
-// 			BuildCookRunParams += FString::Printf(TEXT(" %s"), *FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName).PrepareForDebuggingOptions);
-// 		}
+        else if (Mode == EPrepareContentMode::PrepareForDebugging)
+         {
+             if (IniPlatformName == TEXT("IOS") || IniPlatformName == TEXT("TvOS"))
+             {
+                 FString CommandLine = FString::Printf(TEXT("WrangleContentForDebugging -platform=%s -ProjectFilePath=%s"), *IniPlatformName.ToString().ToLower(), *ProjectPath);
+              
+                 FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, ContentPrepDescription, ContentPrepTaskName, ContentPrepIcon, &AnalyticsParamArray);
+             
+                 return;
+
+             }
+ 		}
 		else if (Mode == EPrepareContentMode::CookOnly)
 		{
 			ContentPrepDescription = LOCTEXT("CookingContentTaskName", "Cooking content");
@@ -1114,18 +1111,35 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
 				FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanCookOrPackage, IniPlatformName, EPrepareContentMode::CookOnly)
 			)
 		);
-// 
-// 		Section.AddMenuEntry(
-//			NAME_None,
-// 			LOCTEXT("Turnkey_PrepareForDebugging", "Prepare For Debugging"),
-// 			LOCTEXT("TurnkeyTooltip_PrepareForDebugging", "Prepare this project for debugging"),
-// 			FSlateIcon(),
-// 			FUIAction(
-// 				FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging),
-// 				FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanCookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging)
-// 			)
-// 		);
-// 
+        // add platforms here when they have their own Prepare for debug flow
+#if PLATFORM_MAC
+        if (IniPlatformName.ToString() == "IOS")
+        {
+            Section.AddMenuEntry(
+                                 NAME_None,
+                                 LOCTEXT("Turnkey_PrepareForDebugging", "Prepare For Debugging"),
+                                 LOCTEXT("TurnkeyTooltip_PrepareForDebuggingIOS", "Prepare this project for debugging. Expects an IPA package with the same name as the project file in the Build/IOS/ folder."),
+                                 FSlateIcon(),
+                                 FUIAction(
+                                           FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging),
+                                           FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanCookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging)
+                                           )
+                                 );
+        }
+        if (IniPlatformName.ToString() == "TvOS")
+        {
+            Section.AddMenuEntry(
+                                 NAME_None,
+                                 LOCTEXT("Turnkey_PrepareForDebugging", "Prepare For Debugging"),
+                                 LOCTEXT("TurnkeyTooltip_PrepareForDebuggingIOS", "Prepare this project for debugging. Expects an IPA package with the same name as the project file in the Build/TVOS/ folder."),
+                                 FSlateIcon(),
+                                 FUIAction(
+                                           FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging),
+                                           FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanCookOrPackage, IniPlatformName, EPrepareContentMode::PrepareForDebugging)
+                                           )
+                                 );
+        }
+#endif
 
 		UProjectPackagingSettings* PackagingSettings = FTurnkeySupportCallbacks::GetPackagingSettingsForPlatform(IniPlatformName);
 

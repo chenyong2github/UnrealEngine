@@ -863,6 +863,11 @@ namespace AutomationTool
 			return DirectoryReference.Combine(RuntimeRoot, RelativeProjectRootForStage.Name);
 		}
 
+		public virtual void PrepareForDebugging(string SourcePackage, string ProjectFilePath, string ClientPlatform)
+		{
+			LogError("Not implemented for the %s platform.", ClientPlatform);
+		}
+
 		// let the platform set the exe extension if it chooses (otherwise, use
 		// the switch statement in GetExeExtension below)
 		protected virtual string GetPlatformExeExtension()
