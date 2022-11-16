@@ -950,6 +950,12 @@ bool FShaderPipelineCacheTask::Precompile(FRHICommandListImmediate& RHICmdList, 
 
 				if (PSO.GraphicsDesc.MeshShader != FSHAHash())
 				{
+					// Skip creation of mesh shaders if RHI doesn't support them
+					if (!GRHISupportsMeshShadersTier0)
+					{
+						return false;
+					}
+
 					FMeshShaderRHIRef MeshShader = FShaderCodeLibrary::CreateMeshShader(Platform, PSO.GraphicsDesc.MeshShader);
 					GraphicsInitializer.BoundShaderState.SetMeshShader(MeshShader);
 
