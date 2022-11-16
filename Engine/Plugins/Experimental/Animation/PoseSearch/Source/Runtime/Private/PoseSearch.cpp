@@ -14,7 +14,6 @@
 #include "Templates/Less.h"
 #include "Features/IModularFeatures.h"
 #include "DrawDebugHelpers.h"
-#include "Animation/AnimPoseSearchProvider.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
@@ -442,18 +441,17 @@ void UPoseSearchFeatureChannel::ComputeMeanDeviations(const Eigen::MatrixXd& Cen
 }
 
 //////////////////////////////////////////////////////////////////////////
-// UPoseSearchSchema
-
+// FSchemaInitializer
 namespace UE::PoseSearch
 {
-
 int32 FSchemaInitializer::AddBoneReference(const FBoneReference& BoneReference)
 {
 	return BoneReferences.AddUnique(BoneReference);
 }
-
 } // namespace UE::PoseSearch
 
+//////////////////////////////////////////////////////////////////////////
+// UPoseSearchSchema
 void UPoseSearchSchema::Finalize(bool bRemoveEmptyChannels)
 {
 	using namespace UE::PoseSearch;
@@ -564,7 +562,6 @@ void UPoseSearchSchema::ResolveBoneReferences()
 	}
 }
 
-
 bool UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_BuildQuery);
@@ -659,10 +656,6 @@ float FPoseSearchIndex::GetAssetTime(int32 PoseIdx, float SamplingInterval) cons
 	checkNoEntry();
 	return -1.0f;
 }
-
-
-//////////////////////////////////////////////////////////////////////////
-// FPoseSearchIndex
 
 bool FPoseSearchIndex::IsEmpty() const
 {
@@ -801,7 +794,6 @@ void FPoseSearchIndex::InitSearchIndexAssets(TConstArrayView<FPoseSearchDatabase
 	}
 }
 
-
 FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 {
 	int32 NumValues = 0;
@@ -856,95 +848,6 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 	Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
 
 	return Ar;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// UPoseSearchSequenceMetaData
-
-void UPoseSearchSequenceMetaData::PreSave(FObjectPreSaveContext ObjectSaveContext)
-{
-	SearchIndex.Reset();
-
-#if WITH_EDITOR
-	if (!IsTemplate())
-	{
-		if (IsValidForIndexing())
-		{
-			UObject* Outer = GetOuter();
-			if (UAnimSequence* Sequence = Cast<UAnimSequence>(Outer))
-			{
-				UE::PoseSearch::BuildIndex(Sequence, this);
-			}
-		}
-	}
-#endif
-
-	Super::PreSave(ObjectSaveContext);
-}
-
-bool UPoseSearchSequenceMetaData::IsValidForIndexing() const
-{
-	return Schema && Schema->IsValid() && UE::PoseSearch::IsSamplingRangeValid(SamplingRange);
-}
-
-bool UPoseSearchSequenceMetaData::IsValidForSearch() const
-{
-	return IsValidForIndexing() && !SearchIndex.IsEmpty();
-}
-
-UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch::FSearchContext& SearchContext) const
-{
-	using namespace UE::PoseSearch;
-
-	FSearchResult Result;
-
-	if (!ensure(Schema->IsValid() && !SearchIndex.IsEmpty()))
-	{
-		return Result;
-	}
-
-	Schema->BuildQuery(SearchContext, Result.ComposedQuery);
-	TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
-
-	if (!ensure(QueryValues.Num() == Schema->SchemaCardinality))
-	{
-		return Result;
-	}
-
-	for (const FPoseSearchIndexAsset& Asset : SearchIndex.Assets)
-	{
-		const int32 EndIndex = Asset.FirstPoseIdx + Asset.NumPoses;
-		for (int32 PoseIdx = Asset.FirstPoseIdx; PoseIdx < EndIndex; ++PoseIdx)
-		{
-			const FPoseSearchPoseMetadata& Metadata = SearchIndex.PoseMetadata[PoseIdx];
-
-			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
-			{
-				continue;
-			}
-
-			const FPoseSearchCost PoseCost = SearchIndex.ComparePoses(PoseIdx, EPoseSearchBooleanRequest::Indifferent, EPoseComparisonFlags::ContinuingPose, Schema->MirrorMismatchCostBias, QueryValues);
-			if (PoseCost < Result.PoseCost)
-			{
-				Result.PoseCost = PoseCost;
-				Result.PoseIdx = PoseIdx;
-			}
-		}
-	}
-
-	if (Result.PoseIdx != INDEX_NONE)
-	{
-		Result.AssetTime = SearchIndex.GetAssetTime(Result.PoseIdx, Schema->GetSamplingInterval());
-	}
-
-#if ENABLE_DRAW_DEBUG
-	DrawFeatureVector(SearchContext.DebugDrawParams, Result.PoseIdx);
-	
-	EnumAddFlags(SearchContext.DebugDrawParams.Flags, EDebugDrawFlags::DrawQuery);
-	DrawFeatureVector(SearchContext.DebugDrawParams, QueryValues);
-#endif // ENABLE_DRAW_DEBUG
-
-	return Result;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2254,32 +2157,12 @@ FColor FDebugDrawParams::GetColor(int32 ColorPreset) const
 
 const FPoseSearchIndex* FDebugDrawParams::GetSearchIndex() const
 {
-	if (Database)
-	{
-		return &Database->GetSearchIndex();
-	}
-
-	if (SequenceMetaData)
-	{
-		return &SequenceMetaData->SearchIndex;
-	}
-
-	return nullptr;
+	return Database ? &Database->GetSearchIndex() : nullptr;
 }
 
 const UPoseSearchSchema* FDebugDrawParams::GetSchema() const
 {
-	if (Database)
-	{
-		return Database->Schema;
-	}
-
-	if (SequenceMetaData)
-	{
-		return SequenceMetaData->Schema;
-	}
-
-	return nullptr;
+	return Database ? Database->Schema : nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3986,70 +3869,6 @@ static void PreprocessSearchIndex(FPoseSearchIndex& SearchIndex, const UPoseSear
 	PreprocessSearchIndexKDTree(SearchIndex, Schema->SchemaCardinality, NumberOfPrincipalComponents, PoseSearchMode, KDTreeMaxLeafSize, KDTreeQueryNumNeighbors);
 }
 
-bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* SequenceMetaData)
-{
-	check(Sequence);
-	check(SequenceMetaData);
-
-	if (!SequenceMetaData->IsValidForIndexing())
-	{
-		return false;
-	}
-
-	USkeleton* SeqSkeleton = Sequence->GetSkeleton();
-	if (!SeqSkeleton)
-	{
-		return false;
-	}
-
-	FBoneContainer BoneContainer;
-	BoneContainer.InitializeTo(SequenceMetaData->Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *SequenceMetaData->Schema->Skeleton);
-	FAssetSamplingContext SamplingContext;
-	SamplingContext.Init(SequenceMetaData->Schema->MirrorDataTable, BoneContainer);
-
-	FSequenceSampler Sampler;
-	FSequenceSampler::FInput SamplerInput;
-	SamplerInput.ExtrapolationParameters = SequenceMetaData->ExtrapolationParameters;
-	SamplerInput.Sequence = Sequence;
-	Sampler.Init(SamplerInput);
-	Sampler.Process();
-
-	FAssetIndexer Indexer;
-	FAssetIndexingContext IndexerContext;
-	IndexerContext.SamplingContext = &SamplingContext;
-	IndexerContext.MainSampler = &Sampler;
-	IndexerContext.Schema = SequenceMetaData->Schema;
-	IndexerContext.RequestedSamplingRange = GetEffectiveSamplingRange(Sequence, SequenceMetaData->SamplingRange);
-
-	Indexer.Init(IndexerContext, BoneContainer);
-	if (!Indexer.Process())
-	{
-		return false;
-	}
-
-	SequenceMetaData->SearchIndex.Assets.Empty();
-	FPoseSearchIndexAsset SearchIndexAsset;
-	SearchIndexAsset.SourceAssetIdx = 0;
-	SearchIndexAsset.FirstPoseIdx = 0;
-	SearchIndexAsset.NumPoses = Indexer.Output.NumIndexedPoses;
-	SearchIndexAsset.SamplingInterval = IndexerContext.RequestedSamplingRange;
-
-	SequenceMetaData->SearchIndex.Values = Indexer.Output.FeatureVectorTable;
-	SequenceMetaData->SearchIndex.NumPoses = Indexer.Output.NumIndexedPoses;
-	SequenceMetaData->SearchIndex.Assets.Add(SearchIndexAsset);
-	SequenceMetaData->SearchIndex.PoseMetadata = Indexer.Output.PoseMetadata;
-
-	SequenceMetaData->SearchIndex.OverallFlags = EPoseSearchPoseFlags::None;
-	for (const FPoseSearchPoseMetadata& PoseMetadata : Indexer.Output.PoseMetadata)
-	{
-		SequenceMetaData->SearchIndex.OverallFlags = PoseMetadata.Flags;
-	}
-
-	// todo: do we need to PreprocessSearchIndex?
-	// PreprocessSearchIndex(&SequenceMetaData->SearchIndex, Database);
-	return true;
-}
-
 struct FDatabaseIndexingContext
 {
 	FPoseSearchIndex* SearchIndex = nullptr;
@@ -4332,60 +4151,13 @@ bool BuildIndex(const UPoseSearchDatabase& Database, FPoseSearchIndex& OutSearch
 
 //////////////////////////////////////////////////////////////////////////
 // FModule
-
-class FModule : public IModuleInterface, public UE::Anim::IPoseSearchProvider
+// @todo: clean up this code
+class FModule : public IModuleInterface
 {
 public: // IModuleInterface
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-
-public: // IPoseSearchProvider
-	virtual UE::Anim::IPoseSearchProvider::FSearchResult Search(const FAnimationBaseContext& GraphContext, const UAnimSequenceBase* Sequence) override;
+	virtual void StartupModule() override {}
+	virtual void ShutdownModule() override {}
 };
-
-void FModule::StartupModule()
-{
-	IModularFeatures::Get().RegisterModularFeature(UE::Anim::IPoseSearchProvider::ModularFeatureName, this);
-}
-
-void FModule::ShutdownModule()
-{
-	IModularFeatures::Get().UnregisterModularFeature(UE::Anim::IPoseSearchProvider::ModularFeatureName, this);
-}
-
-UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBaseContext& GraphContext, const UAnimSequenceBase* Sequence)
-{
-	UE::Anim::IPoseSearchProvider::FSearchResult ProviderResult;
-
-	using namespace UE::PoseSearch;
-
-	const UPoseSearchSequenceMetaData* MetaData = Sequence ? Sequence->FindMetaDataByClass<UPoseSearchSequenceMetaData>() : nullptr;
-	if (!MetaData || !MetaData->IsValidForSearch())
-	{
-		return ProviderResult;
-	}
-
-	IPoseHistoryProvider* PoseHistoryProvider = GraphContext.GetMessage<IPoseHistoryProvider>();
-	if (!PoseHistoryProvider)
-	{
-		return ProviderResult;
-	}
-
-	FPoseHistory& PoseHistory = PoseHistoryProvider->GetPoseHistory();
-
-	FSearchContext SearchContext;
-	SearchContext.OwningComponent = GraphContext.AnimInstanceProxy->GetSkelMeshComponent();
-	SearchContext.BoneContainer = &GraphContext.AnimInstanceProxy->GetRequiredBones();
-	SearchContext.History = &PoseHistoryProvider->GetPoseHistory();
-
-	UE::PoseSearch::FSearchResult Result = MetaData->Search(SearchContext);
-
-	ProviderResult.Dissimilarity = Result.PoseCost.GetTotalCost();
-	ProviderResult.PoseIdx = Result.PoseIdx;
-	ProviderResult.TimeOffsetSeconds = Result.AssetTime;
-	return ProviderResult;
-}
-
 } // namespace UE::PoseSearch
 
 #undef LOCTEXT_NAMESPACE

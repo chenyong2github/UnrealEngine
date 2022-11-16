@@ -23,50 +23,11 @@ DEFINE_LOG_CATEGORY(LogPoseSearchEditor);
 
 #define LOCTEXT_NAMESPACE "PoseSearchEditorModule"
 
-//////////////////////////////////////////////////////////////////////////
-// FEditorCommands
-
 namespace UE::PoseSearch
 {
 
-namespace FEditorCommands
-{
-
-void DrawSearchIndex()
-{
-	FDebugDrawParams DrawParams;
-	DrawParams.DefaultLifeTime = 60.0f;
-	EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex);
-
-	TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
-	for (UObject* EditedAsset : EditedAssets)
-	{
-		if (UAnimSequence* Sequence = Cast<UAnimSequence>(EditedAsset))
-		{
-			const UPoseSearchSequenceMetaData* MetaData = Sequence->FindMetaDataByClass<UPoseSearchSequenceMetaData>();
-			if (MetaData)
-			{
-				DrawParams.SequenceMetaData = MetaData;
-				IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Sequence, true /*bFocusIfOpen*/);
-				if (EditorInstance && EditorInstance->GetEditorName() == TEXT("AnimationEditor"))
-				{
-					IAnimationEditor* Editor = static_cast<IAnimationEditor*>(EditorInstance);
-					TSharedRef<IPersonaToolkit> Toolkit = Editor->GetPersonaToolkit();
-					TSharedRef<IPersonaPreviewScene> Scene = Toolkit->GetPreviewScene();
-
-					DrawParams.World = Scene->GetWorld();
-					DrawSearchIndex(DrawParams);
-				}
-			}
-		}
-	}
-}
-
-} // namespace FEditorCommands
-
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchEditorModule
-
 class FEditorModule : public IPoseSearchEditorModuleInterface
 {
 public:
@@ -111,17 +72,8 @@ void FEditorModule::StartupModule()
 		IModularFeatures::Get().RegisterModularFeature("RewindDebuggerViewCreator", DebuggerViewCreator.Get());
 		IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, TraceModule.Get());
 		
-		ConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
-			TEXT("a.PoseSearch.DrawSearchIndex"),
-			TEXT("Draw the search index for the selected asset"),
-			FConsoleCommandDelegate::CreateStatic(&FEditorCommands::DrawSearchIndex),
-			ECVF_Default
-		));
-
 		// Register Ed Mode used by pose search database
-		FEditorModeRegistry::Get().RegisterMode<FDatabaseEdMode>(
-			FDatabaseEdMode::EdModeId,
-			LOCTEXT("PoseSearchDatabaseEdModeName", "PoseSearchDatabase"));
+		FEditorModeRegistry::Get().RegisterMode<FDatabaseEdMode>(FDatabaseEdMode::EdModeId, LOCTEXT("PoseSearchDatabaseEdModeName", "PoseSearchDatabase"));
 
 		// Register UPoseSearchDatabase Type Actions 
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -138,7 +90,6 @@ void FEditorModule::StartupModule()
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.NotifyCustomizationModuleChanged();
-
 }
 
 void FEditorModule::ShutdownModule()
@@ -179,7 +130,6 @@ void FEditorModule::RegisterCustomClassLayout(FName ClassName, FOnGetDetailCusto
 	PropertyModule.RegisterCustomClassLayout(ClassName, DetailLayoutDelegate);
 }
 
-
 void FEditorModule::RegisterCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate)
 {
 	check(PropertyTypeName != NAME_None);
@@ -190,7 +140,6 @@ void FEditorModule::RegisterCustomPropertyTypeLayout(FName PropertyTypeName, FOn
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
 	PropertyModule.RegisterCustomPropertyTypeLayout(PropertyTypeName, PropertyTypeLayoutDelegate);
 }
-
 
 void FEditorModule::RegisterPropertyTypeCustomizations()
 {
@@ -229,7 +178,6 @@ void FEditorModule::UnregisterCustomizations()
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}
 }
-
 
 } // namespace UE::PoseSearch
 

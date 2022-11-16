@@ -38,6 +38,7 @@ public:
 	// End of FAnimNode_Base interface
 
 	float GetTimeFromEnd(float CurrentNodeTime) const;
+	UE_DEPRECATED(5.1, "GetEffectiveStartPosition is no longer supported. Please use GetStartPosition instead")
 	float GetEffectiveStartPosition(const FAnimationBaseContext& Context) const;
 
 	// The animation sequence asset to play

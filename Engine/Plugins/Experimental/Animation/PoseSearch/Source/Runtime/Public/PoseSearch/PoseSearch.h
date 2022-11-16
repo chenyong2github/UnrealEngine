@@ -724,8 +724,7 @@ public:
 };
 
 /**
-* A search index for animation poses. The structure of the search index is determined by its UPoseSearchSchema.
-* May represent a single animation (see UPoseSearchSequenceMetaData) or a collection (see UPoseSearchDatabase).
+* A search index for animation poses for a UPoseSearchDatabase. The structure of the search index is determined by its UPoseSearchSchema.
 */
 USTRUCT()
 struct POSESEARCH_API FPoseSearchIndex
@@ -991,7 +990,6 @@ struct POSESEARCH_API FDebugDrawParams
 {
 	const UWorld* World = nullptr;
 	const UPoseSearchDatabase* Database = nullptr;
-	const UPoseSearchSequenceMetaData* SequenceMetaData = nullptr;
 	EDebugDrawFlags Flags = EDebugDrawFlags::None;
 	uint32 ChannelMask = (uint32)-1;
 
@@ -1155,37 +1153,6 @@ public:
 private:
 	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
 	UE::PoseSearch::FSearchResult SearchBruteForce(UE::PoseSearch::FSearchContext& SearchContext) const;
-};
-
-//////////////////////////////////////////////////////////////////////////
-// Sequence metadata
-
-/** Animation metadata object for indexing a single animation. */
-UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental)
-class POSESEARCH_API UPoseSearchSequenceMetaData : public UAnimMetaData
-{
-	GENERATED_BODY()
-public:
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	TObjectPtr<const UPoseSearchSchema> Schema;
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	FFloatInterval SamplingRange = FFloatInterval(0.f, 0.f);
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	FPoseSearchExtrapolationParameters ExtrapolationParameters;
-
-	UPROPERTY(meta = (ExcludeFromHash))
-	FPoseSearchIndex SearchIndex;
-
-	bool IsValidForIndexing() const;
-	bool IsValidForSearch() const;
-
-	UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const;
-
-public: // UObject
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1438,16 +1405,6 @@ POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, TConst
 POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx);
 POSESEARCH_API void DrawSearchIndex(const FDebugDrawParams& DrawParams);
 POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result);
-
-/**
-* Creates a pose search index for an animation sequence
-* 
-* @param Sequence			The input sequence create a search index for
-* @param SequenceMetaData	The input sequence indexing info and output search index
-* 
-* @return Whether the index was built successfully
-*/
-POSESEARCH_API bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* SequenceMetaData);
 
 /**
 * Creates a pose search index for a collection of animations
