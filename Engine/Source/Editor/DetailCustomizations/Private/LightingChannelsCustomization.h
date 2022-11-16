@@ -23,7 +23,8 @@ private:
 
 	FText GetStructPropertyNameText() const;
 	FText GetStructPropertyTooltipText() const;
-	
+
+	bool IsLightingChannelButtonEditable(uint32 ChildIndex) const;
 	void OnButtonCheckedStateChanged(ECheckBoxState NewState, uint32 ChildIndex) const;
 	ECheckBoxState GetButtonCheckedState(uint32 ChildIndex) const;
 

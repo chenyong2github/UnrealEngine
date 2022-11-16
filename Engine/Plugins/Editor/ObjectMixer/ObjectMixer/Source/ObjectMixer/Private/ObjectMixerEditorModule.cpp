@@ -53,6 +53,11 @@ UWorld* FObjectMixerEditorModule::GetWorld()
 
 void FObjectMixerEditorModule::Initialize()
 {
+	PropertiesThatRequireRefresh =
+		{
+			"LightingChannels"
+		};
+	
 	BindDelegates();
 	
 	SetupMenuItemVariables();
@@ -352,10 +357,25 @@ void FObjectMixerEditorModule::BindDelegates()
 	}));
 
 	DelegateHandles.Add(FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject*, const FTransactionObjectEvent& Event)
-	{
-		if (Event.GetEventType() == ETransactionObjectEventType::Finalized && Event.HasNameChange())
+	{		
+		if (Event.GetEventType() == ETransactionObjectEventType::Finalized)
 		{
-			RequestRebuildList();
+			if (Event.HasNameChange())
+			{
+				RequestRebuildList();
+			}
+			else
+			{
+				const TSet<FName> ChangedPropertyNames = TSet<FName>(Event.GetChangedProperties());
+				const bool bPropertyChangedThatRequiresRefresh =
+					ChangedPropertyNames.Difference(PropertiesThatRequireRefresh).Num() > 0 ||
+						PropertiesThatRequireRefresh.Difference(ChangedPropertyNames).Num() > 0;
+
+				if (bPropertyChangedThatRequiresRefresh)
+				{
+					RequestRebuildList();
+				}
+			}
 		}
 	}));
 

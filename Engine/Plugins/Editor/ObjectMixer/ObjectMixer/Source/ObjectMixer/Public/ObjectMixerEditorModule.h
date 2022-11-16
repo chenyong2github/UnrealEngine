@@ -91,6 +91,9 @@ protected:
 	
 	TSet<FDelegateHandle> DelegateHandles;
 
+	/** If a property is changed that has a name found in this set, the panel will be refreshed. */
+	TSet<FName> PropertiesThatRequireRefresh;
+
 private:
 
 	TSharedPtr<FWorkspaceItem> WorkspaceGroup;

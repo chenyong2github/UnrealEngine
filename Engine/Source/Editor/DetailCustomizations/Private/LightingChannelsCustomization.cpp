@@ -51,16 +51,19 @@ void FLightingChannelsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle>
 	{
 		const FText NumericText = FText::AsNumber(ChildIndex);
 		const FText SlotTooltipText = FText::Format(LOCTEXT("LightingChannelToggleFormat", "Toggle Lighting Channel {0}"), NumericText);
+
+		const bool bIsLastChild = ChildIndex == ChildCount - 1;
 		
 		ButtonOptionsPanel->AddSlot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
-		.Padding(0, 0, ChildIndex == ChildCount -1 ? 16 : 0, 0)
+		.Padding(0, 0, bIsLastChild ? 0 : 8, 0)
 		[
 			SNew(SBox)
 			.WidthOverride(20)
 			.HAlign(HAlign_Fill)
+			.IsEnabled(this, &FLightingChannelsCustomization::IsLightingChannelButtonEditable, ChildIndex)
 			[
 				SNew(SCheckBox)
 				.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("DetailsView.ChannelToggleButton"))
@@ -115,6 +118,18 @@ FText FLightingChannelsCustomization::GetStructPropertyTooltipText() const
 	}
 
 	return FText::GetEmpty();
+}
+
+bool FLightingChannelsCustomization::IsLightingChannelButtonEditable(uint32 ChildIndex) const
+{
+	if (LightingChannelsHandle.IsValid())
+	{
+		if (TSharedPtr<IPropertyHandle> ChildHandle = LightingChannelsHandle->GetChildHandle(ChildIndex))
+		{
+			return ChildHandle->IsEditable() && !ChildHandle->IsEditConst();
+		}
+	}
+	return false;
 }
 
 void FLightingChannelsCustomization::OnButtonCheckedStateChanged(ECheckBoxState NewState, uint32 ChildIndex) const
