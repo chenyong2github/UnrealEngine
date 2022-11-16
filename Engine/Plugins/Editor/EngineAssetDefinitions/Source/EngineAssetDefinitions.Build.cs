@@ -30,6 +30,8 @@ public class EngineAssetDefinitions : ModuleRules
 				"Slate",
 				"Kismet",
 				"DesktopPlatform",
+				"Foliage",
+				"PhysicsCore",
 			}
 		);
 		
@@ -40,6 +42,7 @@ public class EngineAssetDefinitions : ModuleRules
 				"StaticMeshEditor",
 				"TextureEditor",
 				"MaterialEditor",
+				"PhysicsAssetEditor",
 			}
 		);
 
@@ -50,6 +53,7 @@ public class EngineAssetDefinitions : ModuleRules
 				"StaticMeshEditor",
 				"TextureEditor",
 				"MaterialEditor",
+				"PhysicsAssetEditor",
 			}
 		);
 	}

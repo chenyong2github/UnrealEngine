@@ -42,7 +42,6 @@
 #include "AssetTypeActions/AssetTypeActions_MaterialInterface.h"
 #include "AssetTypeActions/AssetTypeActions_SkeletalMesh.h"
 #include "AssetTypeActions/AssetTypeActions_FbxSceneImportData.h"
-#include "AssetTypeActions/AssetTypeActions_VectorField.h"
 #include "AssetTypeActions/AssetTypeActions_AnimationAsset.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprint.h"
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprintInterface.h"
@@ -70,7 +69,6 @@
 #include "AssetTypeActions/AssetTypeActions_ForceFeedbackEffect.h"
 #include "AssetTypeActions/AssetTypeActions_HapticFeedback.h"
 #include "AssetTypeActions/AssetTypeActions_HLODProxy.h"
-#include "AssetTypeActions/AssetTypeActions_SubsurfaceProfile.h"
 #include "AssetTypeActions/AssetTypeActions_ActorFoliageSettings.h"
 #include "AssetTypeActions/AssetTypeActions_InstancedFoliageSettings.h"
 #include "AssetTypeActions/AssetTypeActions_LandscapeLayer.h"
@@ -81,24 +79,12 @@
 #include "AssetTypeActions/AssetTypeActions_MaterialFunctionInstance.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialInstanceConstant.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialInstanceDynamic.h"
-#include "AssetTypeActions/AssetTypeActions_MaterialParameterCollection.h"
 #include "AssetTypeActions/AssetTypeActions_MirrorDataTable.h"
-#include "AssetTypeActions/AssetTypeActions_ObjectLibrary.h"
 #include "AssetTypeActions/AssetTypeActions_ParticleSystem.h"
-#include "AssetTypeActions/AssetTypeActions_PhysicalMaterial.h"
 #include "AssetTypeActions/AssetTypeActions_PhysicalMaterialMask.h"
-#include "AssetTypeActions/AssetTypeActions_PhysicsAsset.h"
-#include "AssetTypeActions/AssetTypeActions_PoseAsset.h"
-#include "AssetTypeActions/AssetTypeActions_PreviewMeshCollection.h"
-#include "AssetTypeActions/AssetTypeActions_ProceduralFoliageSpawner.h"
-#include "AssetTypeActions/AssetTypeActions_Rig.h"
 #include "AssetTypeActions/AssetTypeActions_Skeleton.h"
 #include "AssetTypeActions/AssetTypeActions_SlateBrush.h"
 #include "AssetTypeActions/AssetTypeActions_SlateWidgetStyle.h"
-#include "AssetTypeActions/AssetTypeActions_SubUVAnimation.h"
-#include "AssetTypeActions/AssetTypeActions_TouchInterface.h"
-#include "AssetTypeActions/AssetTypeActions_VectorFieldAnimated.h"
-#include "AssetTypeActions/AssetTypeActions_VectorFieldStatic.h"
 #include "WorldPartition/WorldPartition.h"
 #include "SDiscoveringAssetsDialog.h"
 #include "AssetFixUpRedirectors.h"
@@ -1238,7 +1224,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AimOffset));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AimOffset1D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_BlendSpace));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PoseAsset));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_BlendSpace1D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Blueprint));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_BlueprintGeneratedClass));
@@ -1254,7 +1239,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ForceFeedbackAttenuation(InputCategoryBit)));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ForceFeedbackEffect(InputCategoryBit)));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_HLODProxy));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SubsurfaceProfile));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_InstancedFoliageSettings(FoliageCategoryBit)));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ActorFoliageSettings(FoliageCategoryBit)));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_LandscapeLayer));
@@ -1270,25 +1254,13 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInstanceConstant(EAssetTypeCategories::Type::None)));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInstanceDynamic));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialInterface));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MaterialParameterCollection));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_MirrorDataTable));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ObjectLibrary));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ParticleSystem));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SubUVAnimation));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicalMaterial));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicalMaterialMask));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicsAsset));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PreviewMeshCollection));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ProceduralFoliageSpawner(FoliageCategoryBit)));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Rig));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SkeletalMesh));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Skeleton));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SlateBrush));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SlateWidgetStyle));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TouchInterface));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VectorField));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VectorFieldAnimated));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VectorFieldStatic));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_HapticFeedbackEffectBuffer));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_HapticFeedbackEffectCurve));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_HapticFeedbackEffectSoundWave));
