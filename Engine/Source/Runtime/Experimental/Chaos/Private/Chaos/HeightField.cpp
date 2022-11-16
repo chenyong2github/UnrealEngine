@@ -1990,9 +1990,9 @@ namespace Chaos
 			}
 			else
 			{
-				VectorRegister4Float X1;
-				VectorRegister4Float X2;
-				FRealSingle Radius;
+				[[maybe_unused]] VectorRegister4Float X1;
+				[[maybe_unused]] VectorRegister4Float X2;
+				[[maybe_unused]] FRealSingle Radius;
 				if constexpr (std::is_same<QueryGeomType, FCapsule>::value)
 				{
 					Radius = FRealSingle(QueryGeom.GetRadius());
