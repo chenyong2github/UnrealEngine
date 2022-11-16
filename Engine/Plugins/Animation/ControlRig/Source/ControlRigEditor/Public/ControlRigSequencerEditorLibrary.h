@@ -177,7 +177,7 @@ public:
 	* @return Returns array of Constraints this handle is constrained to.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	static TArray <TObjectPtr<UTickableConstraint>> GetConstraintsForHandle(UWorld* InWorld, const UTransformableHandle* InChild);
+	static TArray <UTickableConstraint*> GetConstraintsForHandle(UWorld* InWorld, const UTransformableHandle* InChild);
 
 	/** Move the constraint active key in the current open Sequencer
 	* @param InConstraint The constraint whose key to move

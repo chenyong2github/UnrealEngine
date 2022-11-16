@@ -72,7 +72,7 @@ public:
 	@return Copy of the constraints in the level
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig | Constraints")
-	static TArray<TObjectPtr<UTickableConstraint>> GetConstraintsArray(UWorld* InWorld);
+	static TArray<UTickableConstraint*> GetConstraintsArray(UWorld* InWorld);
 
 	/**
 	* Remove constraint at specified index

@@ -473,9 +473,9 @@ UTickableConstraint* UControlRigSequencerEditorLibrary::AddConstraint(UWorld* Wo
 	return Constraint;
 }
 
-TArray <TObjectPtr<UTickableConstraint>> UControlRigSequencerEditorLibrary::GetConstraintsForHandle(UWorld* InWorld, const UTransformableHandle* InChild)
+TArray <UTickableConstraint*> UControlRigSequencerEditorLibrary::GetConstraintsForHandle(UWorld* InWorld, const UTransformableHandle* InChild)
 {
-	TArray <TObjectPtr<UTickableConstraint>> Constraints;
+	TArray <UTickableConstraint*> Constraints;
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 	const TArray<TObjectPtr<UTickableConstraint>>& AllConstraints = Controller.GetAllConstraints(false);
 	for (const TObjectPtr<UTickableConstraint>& TickConstraint : AllConstraints)
@@ -484,7 +484,7 @@ TArray <TObjectPtr<UTickableConstraint>> UControlRigSequencerEditorLibrary::GetC
 		{
 			if (Constraint->ChildTRSHandle == InChild)
 			{
-				Constraints.Add(Constraint);
+				Constraints.Add(Constraint.Get());
 			}
 		}
 	}

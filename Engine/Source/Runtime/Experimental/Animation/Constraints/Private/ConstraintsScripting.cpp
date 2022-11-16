@@ -43,9 +43,9 @@ bool UConstraintsScriptingLibrary::AddConstraint(UWorld* InWorld, UTransformable
 	return Val;
 }
 
-TArray<TObjectPtr<UTickableConstraint>> UConstraintsScriptingLibrary::GetConstraintsArray(UWorld* InWorld)
+TArray<UTickableConstraint*> UConstraintsScriptingLibrary::GetConstraintsArray(UWorld* InWorld)
 {
-	TArray<TObjectPtr<UTickableConstraint>> Constraints;
+	TArray<UTickableConstraint*> Constraints;
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 	const TArray< TObjectPtr<UTickableConstraint> >& ConstraintsArray = Controller.GetConstraintsArray();
 	for (const TObjectPtr<UTickableConstraint>& Constraint : ConstraintsArray)
