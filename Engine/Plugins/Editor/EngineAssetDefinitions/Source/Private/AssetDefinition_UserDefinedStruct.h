@@ -9,7 +9,7 @@
 #include "AssetDefinition_UserDefinedStruct.generated.h"
 
 UCLASS()
-class ENGINEASSETDEFINITIONS_API UAssetDefinition_UserDefinedStruct : public UAssetDefinitionDefault
+class UAssetDefinition_UserDefinedStruct : public UAssetDefinitionDefault
 {
 	GENERATED_BODY()
 

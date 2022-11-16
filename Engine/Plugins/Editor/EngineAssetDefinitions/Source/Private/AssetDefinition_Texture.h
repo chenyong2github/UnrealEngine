@@ -8,8 +8,8 @@
 
 #include "AssetDefinition_Texture.generated.h"
 
-UCLASS(Abstract)
-class ENGINEASSETDEFINITIONS_API UAssetDefinition_Texture : public UAssetDefinitionDefault
+UCLASS()
+class UAssetDefinition_Texture : public UAssetDefinitionDefault
 {
 	GENERATED_BODY()
 

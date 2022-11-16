@@ -31,18 +31,21 @@ public class EngineAssetDefinitions : ModuleRules
 				"Kismet",
 				"TextureEditor",
 				"MaterialEditor",
+				"DesktopPlatform",
 			}
 		);
 		
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"VirtualTexturingEditor",
+				"CurveAssetEditor",
 			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"VirtualTexturingEditor",
+				"CurveAssetEditor",
 			}
 		);
 	}

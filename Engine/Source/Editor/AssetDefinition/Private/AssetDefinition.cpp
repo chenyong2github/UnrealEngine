@@ -53,6 +53,12 @@ void UAssetDefinition::PostCDOContruct()
 	}
 }
 
+TConstArrayView<FAssetCategoryPath> UAssetDefinition::GetAssetCategories() const
+{
+	static const auto Categories = { EAssetCategoryPaths::Misc };
+	return Categories;
+}
+
 bool UAssetDefinition::CanRegisterStatically() const
 {
 	return !GetClass()->HasAnyClassFlags(CLASS_Abstract);

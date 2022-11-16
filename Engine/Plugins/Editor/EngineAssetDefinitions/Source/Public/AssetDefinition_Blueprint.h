@@ -13,7 +13,7 @@ struct FAssetData;
 class UFactory;
 
 UCLASS()
-class ENGINEASSETDEFINITIONS_API UAssetDefinition_Blueprint : public UAssetDefinitionDefault
+class UAssetDefinition_Blueprint : public UAssetDefinitionDefault
 {
 	GENERATED_BODY()
 

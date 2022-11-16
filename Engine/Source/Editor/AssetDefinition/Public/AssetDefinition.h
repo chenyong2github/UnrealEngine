@@ -289,11 +289,7 @@ public:
 	virtual FText GetAssetDescription(const FAssetData& AssetData) const { return FText::GetEmpty(); }
 
 	/** Gets a list of categories this asset is in, these categories are used to help organize */
-	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const
-	{
-		static const auto Categories = { EAssetCategoryPaths::Misc };
-		return Categories;
-	}
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const;
 	
 public:
 	// Common Operations

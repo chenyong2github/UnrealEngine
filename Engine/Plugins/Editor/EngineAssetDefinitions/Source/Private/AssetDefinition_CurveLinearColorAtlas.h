@@ -9,7 +9,7 @@
 #include "AssetDefinition_CurveLinearColorAtlas.generated.h"
 
 UCLASS()
-class ENGINEASSETDEFINITIONS_API UAssetDefinition_CurveLinearColorAtlas : public UAssetDefinition_Texture
+class UAssetDefinition_CurveLinearColorAtlas : public UAssetDefinition_Texture
 {
 	GENERATED_BODY()
 

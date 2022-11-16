@@ -39,7 +39,6 @@
 #include "AssetTypeActions/AssetTypeActions_ActorFolder.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 #include "AssetTypeActions/AssetTypeActions_BlueprintGeneratedClass.h"
-#include "AssetTypeActions/AssetTypeActions_Curve.h"
 #include "AssetTypeActions/AssetTypeActions_MaterialInterface.h"
 #include "AssetTypeActions/AssetTypeActions_SkeletalMesh.h"
 #include "AssetTypeActions/AssetTypeActions_FbxSceneImportData.h"
@@ -58,11 +57,8 @@
 #include "AssetTypeActions/AssetTypeActions_AimOffset.h"
 #include "AssetTypeActions/AssetTypeActions_BlendSpace1D.h"
 #include "AssetTypeActions/AssetTypeActions_AimOffset1D.h"
-#include "AssetTypeActions/AssetTypeActions_CurveFloat.h"
 #include "AssetTypeActions/AssetTypeActions_CurveTable.h"
 #include "AssetTypeActions/AssetTypeActions_CompositeCurveTable.h"
-#include "AssetTypeActions/AssetTypeActions_CurveVector.h"
-#include "AssetTypeActions/AssetTypeActions_CurveLinearColor.h"
 #include "AssetTypeActions/AssetTypeActions_DataAsset.h"
 #include "AssetTypeActions/AssetTypeActions_DataLayer.h"
 #include "AssetTypeActions/AssetTypeActions_DataTable.h"
@@ -1248,12 +1244,8 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_BlendSpace1D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Blueprint));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_BlueprintGeneratedClass));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Curve));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveFloat));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CompositeCurveTable));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveVector));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveLinearColor));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataLayer));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CompositeDataTable));
