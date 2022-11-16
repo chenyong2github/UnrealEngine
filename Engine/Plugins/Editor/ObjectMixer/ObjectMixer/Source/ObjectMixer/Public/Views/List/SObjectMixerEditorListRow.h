@@ -6,7 +6,6 @@
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/IToolTip.h"
 #include "Widgets/Views/STableRow.h"
 
 class SObjectMixerEditorListValueInput;
@@ -57,9 +56,6 @@ private:
 	TSharedPtr<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> RowPtr);
 
 	void OnPropertyChanged(const FPropertyChangedEvent& Event, const FName PropertyName) const;
-
-	void OnClickBlueprintLink(UBlueprint* AsBlueprint, UObject* Object = nullptr);
-	FText GetHighlightText() const;
 	
 	TWeakPtr<FObjectMixerEditorListRow> Item;
 	

@@ -64,6 +64,46 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow : TSharedFromThis<FObject
 		bool bShouldBeSolo = false;
 	};
 
+	struct FTreeItemUniqueIdentifier
+	{
+		FTreeItemUniqueIdentifier() = default;
+		
+		FTreeItemUniqueIdentifier(FObjectMixerEditorListRowPtr InTreeViewItem);
+
+		bool operator==(const FTreeItemUniqueIdentifier& Other) const
+		{
+			if (Other.UniqueIdNumber != 0)
+			{
+				return Other.UniqueIdNumber == UniqueIdNumber;
+			}
+
+			return Other.RowName.Equals(RowName);
+		}
+
+		bool IdentifiesAnyRow() const
+		{
+			return UniqueIdNumber != 0 || !RowName.IsEmpty();
+		}
+
+		void Reset()
+		{
+			UniqueIdNumber = 0;
+			RowName = "";
+		}
+		
+		uint32 UniqueIdNumber = 0;
+		FString RowName = "";
+	};
+
+	struct FPropertyPropagationInfo
+	{
+		FPropertyPropagationInfo() = default;
+		
+		FTreeItemUniqueIdentifier RowIdentifier;
+		FName PropertyName = NAME_None;
+		EPropertyValueSetFlags::Type PropertyValueSetFlags = 0;
+	};
+
 	~FObjectMixerEditorListRow();
 
 	bool operator==(const TSharedPtr<FObjectMixerEditorListRow>& Other) const
@@ -236,6 +276,12 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow : TSharedFromThis<FObject
 	void SetRowSoloState(const bool bNewSolo);
 
 	void ClearSoloRows() const;
+	
+	FObjectMixerEditorListRowPtr GetHybridChildOrRowItemIfNull();
+
+	bool GetIsItemOrHybridChildSelected();
+
+	void PropagateChangesToSimilarSelectedRowProperties(const FPropertyPropagationInfo PropertyPropagationInfo);
 
 	FOnRenameCommand& OnRenameCommand()
 	{
@@ -245,6 +291,15 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow : TSharedFromThis<FObject
 	void CallOnRenameCommandDelegate()
 	{
 		OnRenameCommandDelegate.ExecuteIfBound();
+	}
+
+	const FTreeItemUniqueIdentifier& GetUniqueIdentifier()
+	{
+		if (!UniqueIdentifier.IdentifiesAnyRow())
+		{
+			UniqueIdentifier = FTreeItemUniqueIdentifier(SharedThis(this));
+		}
+		return UniqueIdentifier;
 	}
 	
 	TMap<FName, TWeakPtr<IPropertyHandle>> PropertyNamesToHandles;
@@ -280,4 +335,6 @@ private:
 	int32 CachedHybridRowIndex = INDEX_NONE;
 
 	FOnRenameCommand OnRenameCommandDelegate;
+
+	FTreeItemUniqueIdentifier UniqueIdentifier;
 };

@@ -2,15 +2,12 @@
 
 #include "Views/List/ObjectMixerEditorListRow.h"
 
-#include "ObjectMixerEditorSettings.h"
-#include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
-
 #include "Algo/AllOf.h"
 #include "ClassIconFinder.h"
 #include "ObjectMixerEditorSerializedData.h"
+#include "ScopedTransaction.h"
 #include "GameFramework/Actor.h"
 #include "Styling/SlateIconFinder.h"
-#include "Views/List/ObjectMixerEditorList.h"
 #include "Views/List/SObjectMixerEditorList.h"
 
 TSharedRef<FObjectMixerListRowDragDropOp> FObjectMixerListRowDragDropOp::New(const TArray<FObjectMixerEditorListRowPtr>& InItems)
@@ -29,6 +26,17 @@ TSharedRef<FObjectMixerListRowDragDropOp> FObjectMixerListRowDragDropOp::New(con
 	Operation->Construct();
 
 	return Operation;
+}
+
+FObjectMixerEditorListRow::FTreeItemUniqueIdentifier::FTreeItemUniqueIdentifier(FObjectMixerEditorListRowPtr InTreeViewItem)
+{
+	const UObject* RowObject = InTreeViewItem->GetObject();
+			
+	UniqueIdNumber = RowObject ? RowObject->GetUniqueID() : -1;
+			
+	RowName =
+		InTreeViewItem->GetRowType() == FObjectMixerEditorListRow::Folder ?
+			InTreeViewItem->GetFolderPath().ToString() : InTreeViewItem->GetDisplayName().ToString();
 }
 
 FObjectMixerEditorListRow::~FObjectMixerEditorListRow()
@@ -530,6 +538,130 @@ void FObjectMixerEditorListRow::SetRowSoloState(const bool bNewSolo)
 void FObjectMixerEditorListRow::ClearSoloRows() const
 {
 	GetListViewPtr().Pin()->ClearSoloRows();
+}
+
+FObjectMixerEditorListRowPtr FObjectMixerEditorListRow::GetHybridChildOrRowItemIfNull()
+{
+	if (FObjectMixerEditorListRowPtr HybridChild = GetHybridChild())
+	{
+		return HybridChild;
+	}
+		
+	return SharedThis(this);
+}
+
+bool FObjectMixerEditorListRow::GetIsItemOrHybridChildSelected()
+{
+	const bool bIsItemSelected = GetIsSelected();
+	const bool bHasHybridChild = GetOrFindHybridRowIndex() != INDEX_NONE && GetChildRows()[GetOrFindHybridRowIndex()].IsValid();
+	const bool bIsChildSelected = bHasHybridChild && GetHybridChild()->GetIsSelected();
+	return bIsChildSelected  || bIsItemSelected;
+}
+
+void SetValueOnSelectedItems(
+	const FString& ValueAsString, const TArray<FObjectMixerEditorListRowPtr>& OtherSelectedItems,
+	const FName& PropertyName, const FObjectMixerEditorListRowPtr PinnedItem,
+	const EPropertyValueSetFlags::Type Flags)
+{
+	if (!ValueAsString.IsEmpty())
+	{
+		FScopedTransaction Transaction(
+			NSLOCTEXT("ObjectMixerEditor","OnPropertyChangedTransaction", "Object Mixer - Bulk Edit Selected Row Properties") );
+				
+		for (const TSharedPtr<FObjectMixerEditorListRow>& SelectedRow : OtherSelectedItems)
+		{
+			const FObjectMixerEditorListRowPtr SelectedHybridRow = SelectedRow->GetHybridChild();
+			const FObjectMixerEditorListRowPtr RowToUse = SelectedHybridRow.IsValid() ? SelectedHybridRow : SelectedRow;
+
+			// Use handles if valid, otherwise use ImportText
+			if (RowToUse == PinnedItem)
+			{
+				return;
+			}
+
+			UObject* ObjectToModify = RowToUse->GetObject();
+			
+			if (const TWeakPtr<IPropertyHandle>* SelectedHandlePtr = RowToUse->PropertyNamesToHandles.Find(PropertyName))
+			{
+				if (SelectedHandlePtr->IsValid())
+				{
+					if (ObjectToModify)
+					{
+						ObjectToModify->Modify();
+					}
+					
+					SelectedHandlePtr->Pin()->SetValueFromFormattedString(ValueAsString, Flags);
+					continue;
+				}
+			}
+			
+			if (ObjectToModify)
+			{
+				if (FProperty* PropertyToChange = FindFProperty<FProperty>(ObjectToModify->GetClass(), PropertyName))
+				{
+					if (void* ValuePtr = PropertyToChange->ContainerPtrToValuePtr<void>(ObjectToModify))
+					{
+						EPropertyChangeType::Type ChangeType =
+							Flags == EPropertyValueSetFlags::InteractiveChange
+								? EPropertyChangeType::Interactive
+								: EPropertyChangeType::ValueSet;
+
+						// Set the actual property value
+						PropertyToChange->ImportText_Direct(*ValueAsString, ValuePtr, ObjectToModify, PPF_None);
+						FPropertyChangedEvent ChangeEvent(
+							PropertyToChange,
+							ChangeType,
+							MakeArrayView({ObjectToModify}));
+						ObjectToModify->PostEditChangeProperty(ChangeEvent);
+
+						// Propagate to outers
+						UObject* Outer = ObjectToModify->GetOuter();
+						while (Outer) 
+						{
+							FPropertyChangedEvent ActorChangeEvent(
+								PropertyToChange,
+								ChangeType,
+								MakeArrayView({Outer}));
+							Outer->PostEditChangeProperty(ActorChangeEvent);
+
+							Outer = Outer->GetOuter();
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void FObjectMixerEditorListRow::PropagateChangesToSimilarSelectedRowProperties(const FPropertyPropagationInfo PropertyPropagationInfo)
+{
+	if (PropertyPropagationInfo.PropertyName == NAME_None)
+	{
+		return;
+	}
+
+	if (const FObjectMixerEditorListRowPtr RowToUse = GetHybridChildOrRowItemIfNull())
+	{
+		if (!GetIsItemOrHybridChildSelected())
+		{
+			return;
+		}
+		
+		const TWeakPtr<IPropertyHandle>* HandlePtr = RowToUse->PropertyNamesToHandles.Find(PropertyPropagationInfo.PropertyName);
+		if (HandlePtr->IsValid())
+		{
+			const TArray<FObjectMixerEditorListRowPtr> OtherSelectedItems = RowToUse->GetSelectedTreeViewItems();
+			if (OtherSelectedItems.Num())
+			{
+				FString ValueAsString;
+				(*HandlePtr).Pin()->GetValueAsFormattedString(ValueAsString);
+			
+				SetValueOnSelectedItems(
+					ValueAsString, OtherSelectedItems, PropertyPropagationInfo.PropertyName,
+					RowToUse, PropertyPropagationInfo.PropertyValueSetFlags);
+			}
+		}
+	}
 }
 
 FObjectMixerEditorListRowPtr FObjectMixerEditorListRow::GetAsShared()

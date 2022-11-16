@@ -103,6 +103,8 @@ public:
 	/** Called when the Rename command is executed from the UI or hotkey. */
 	void OnRenameCommand();
 
+	void AddToPendingPropertyPropagations(const FObjectMixerEditorListRow::FPropertyPropagationInfo& InPropagationInfo);
+
 	[[nodiscard]] TArray<FObjectMixerEditorListRowPtr> GetSelectedTreeViewItems() const;
 	int32 GetSelectedTreeViewItemCount() const;
 
@@ -162,6 +164,8 @@ public:
 	/** Saves tree item expanded states to be recalled after the tree view is regenerated. */
 	void CacheTreeState(const TArray<TWeakPtr<IObjectMixerEditorListFilter>>& InFilterCombo);
 	void RestoreTreeState(const TArray<TWeakPtr<IObjectMixerEditorListFilter>>& InFilterCombo, const bool bFlushCache = true);
+
+	void PropagatePropertyChangesToSelectedRows();
 
 	// Sorting
 
@@ -256,49 +260,9 @@ protected:
 
 	TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> TreeViewPtr;
 
-	struct FTreeItemUniqueIdentifier
-	{
-		FTreeItemUniqueIdentifier() = default;
-		
-		FTreeItemUniqueIdentifier(FObjectMixerEditorListRowPtr InTreeViewItem)
-		{
-			const UObject* RowObject = InTreeViewItem->GetObject();
-			
-			UniqueIdNumber = RowObject ? RowObject->GetUniqueID() : -1;
-			
-			RowName =
-				InTreeViewItem->GetRowType() == FObjectMixerEditorListRow::Folder ?
-					InTreeViewItem->GetFolderPath().ToString() : InTreeViewItem->GetDisplayName().ToString();
-		}
-
-		bool operator==(const FTreeItemUniqueIdentifier& Other) const
-		{
-			if (Other.UniqueIdNumber != -1)
-			{
-				return Other.UniqueIdNumber == UniqueIdNumber;
-			}
-
-			return Other.RowName.Equals(RowName);
-		}
-
-		bool IdentifiesAnyRow() const
-		{
-			return UniqueIdNumber != 1 || !RowName.IsEmpty();
-		}
-
-		void Reset()
-		{
-			UniqueIdNumber = -1;
-			RowName = "";
-		}
-		
-		uint32 UniqueIdNumber = -1;
-		FString RowName = "";
-	};
-
 	struct FTreeItemStateCache
 	{
-		FTreeItemUniqueIdentifier UniqueIdentifier;
+		FObjectMixerEditorListRow::FTreeItemUniqueIdentifier UniqueIdentifier;
 		bool bIsExpanded = false;
 		bool bIsSelected = false;
 		FObjectMixerEditorListRow::FTransientEditorVisibilityRules VisibilityRules;
@@ -312,7 +276,8 @@ protected:
 
 	TArray<FFilterComboToStateCaches> FilterComboToStateCaches;
 	
-	FTreeItemUniqueIdentifier PendingRenameItem;
+	FObjectMixerEditorListRow::FTreeItemUniqueIdentifier PendingRenameItem;
+	TArray<FObjectMixerEditorListRow::FPropertyPropagationInfo> PendingPropertyPropagations;
 	
 	TMap<UObject*, FObjectMixerEditorListRowPtr> ObjectsToRowsCreated;
 

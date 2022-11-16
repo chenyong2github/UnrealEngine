@@ -206,8 +206,14 @@ void SObjectMixerEditorList::OnRenameCommand()
 	{
 		const FObjectMixerEditorListRowPtr TreeViewItem = GetSelectedTreeViewItems()[0];
 
-		PendingRenameItem = FTreeItemUniqueIdentifier(TreeViewItem);
+		PendingRenameItem = TreeViewItem->GetUniqueIdentifier();
 	}
+}
+
+void SObjectMixerEditorList::AddToPendingPropertyPropagations(
+	const FObjectMixerEditorListRow::FPropertyPropagationInfo& InPropagationInfo)
+{
+	PendingPropertyPropagations.Add(InPropagationInfo);
 }
 
 TArray<FObjectMixerEditorListRowPtr> SObjectMixerEditorList::GetSelectedTreeViewItems() const
@@ -765,14 +771,14 @@ FListViewColumnInfo* SObjectMixerEditorList::GetColumnInfoByPropertyName(const F
 
 void SObjectMixerEditorList::ExecuteRenameOnPending()
 {
-	using LambdaType = const FObjectMixerEditorListRowPtr*(*)(const TArray<FObjectMixerEditorListRowPtr>&, const FTreeItemUniqueIdentifier&);
+	using LambdaType = const FObjectMixerEditorListRowPtr*(*)(const TArray<FObjectMixerEditorListRowPtr>&, const FObjectMixerEditorListRow::FTreeItemUniqueIdentifier&);
 		
 	static LambdaType RecursivelyFindByUniqueIdentifier = [](
-		const TArray<FObjectMixerEditorListRowPtr>& InObjects, const FTreeItemUniqueIdentifier& InUniqueIdentifier)
+		const TArray<FObjectMixerEditorListRowPtr>& InObjects, const FObjectMixerEditorListRow::FTreeItemUniqueIdentifier& InUniqueIdentifier)
 	{
 		for (const FObjectMixerEditorListRowPtr& TreeViewItem : InObjects)
 		{
-			FTreeItemUniqueIdentifier TreeItemUniqueIdentifier(TreeViewItem);
+			const FObjectMixerEditorListRow::FTreeItemUniqueIdentifier& TreeItemUniqueIdentifier = TreeViewItem->GetUniqueIdentifier();
 
 			if (InUniqueIdentifier == TreeItemUniqueIdentifier)
 			{
@@ -799,7 +805,7 @@ void SObjectMixerEditorList::ExecuteRenameOnPending()
 }
 
 void SObjectMixerEditorList::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime,
-	const float InDeltaTime)
+                                  const float InDeltaTime)
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
@@ -820,6 +826,11 @@ void SObjectMixerEditorList::Tick(const FGeometry& AllottedGeometry, const doubl
 	{
 		bShouldPauseSyncSelection = false;
 		bIsEditorToListSelectionSyncRequested = false;
+	}
+
+	if (PendingPropertyPropagations.Num() > 0)
+	{
+		PropagatePropertyChangesToSelectedRows();
 	}
 
 	if (PendingRenameItem.IdentifiesAnyRow())
@@ -1198,7 +1209,7 @@ void SObjectMixerEditorList::CacheTreeState(const TArray<TWeakPtr<IObjectMixerEd
 	{
 		for (const FObjectMixerEditorListRowPtr& TreeViewItem : InObjects)
 		{
-			FTreeItemUniqueIdentifier UniqueIdentifier(TreeViewItem);
+			const FObjectMixerEditorListRow::FTreeItemUniqueIdentifier& UniqueIdentifier = TreeViewItem->GetUniqueIdentifier();
 
 			if (!UniqueIdentifier.RowName.IsEmpty())
 			{
@@ -1251,7 +1262,7 @@ void SObjectMixerEditorList::RestoreTreeState(const TArray<TWeakPtr<IObjectMixer
 	{
 		for (const FObjectMixerEditorListRowPtr& TreeViewItem : InObjects)
 		{
-			const FTreeItemUniqueIdentifier TreeItemUniqueIdentifier(TreeViewItem);
+			const FObjectMixerEditorListRow::FTreeItemUniqueIdentifier& TreeItemUniqueIdentifier = TreeViewItem->GetUniqueIdentifier();
 			
 			if (const FTreeItemStateCache* StateCachePtr = Algo::FindByPredicate(
 				*TreeItemStateCache,
@@ -1273,7 +1284,9 @@ void SObjectMixerEditorList::RestoreTreeState(const TArray<TWeakPtr<IObjectMixer
 			}
 
 			RecursivelyRestoreTreeState(
-				TreeViewItem->GetChildRows(), TreeItemStateCache, InTreeViewPtr, bExpandByDefault);
+				TreeViewItem->GetChildRows(), TreeItemStateCache, InTreeViewPtr,
+				bExpandByDefault
+			);
 		}
 	};
 	
@@ -1288,7 +1301,9 @@ void SObjectMixerEditorList::RestoreTreeState(const TArray<TWeakPtr<IObjectMixer
 		if (FilterComboToStateCaches[CachesItr].FilterCombo == InFilterCombo)
 		{
 			RecursivelyRestoreTreeState(
-			  TreeViewRootObjects, &FilterComboToStateCaches[CachesItr].Caches, TreeViewPtr, bExpandByDefault);
+			  TreeViewRootObjects, &FilterComboToStateCaches[CachesItr].Caches,
+			  TreeViewPtr, bExpandByDefault
+			);
 
 			if (bFlushCache)
 			{
@@ -1298,6 +1313,48 @@ void SObjectMixerEditorList::RestoreTreeState(const TArray<TWeakPtr<IObjectMixer
 			break;
 		}
 	}
+}
+
+void SObjectMixerEditorList::PropagatePropertyChangesToSelectedRows()
+{
+	using LambdaType = void(*)(const TArray<FObjectMixerEditorListRowPtr>&,
+			TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>>,
+			const TArray<FObjectMixerEditorListRow::FPropertyPropagationInfo>&);
+	
+	static LambdaType RecursivelyRestoreTreeState = [](
+		const TArray<FObjectMixerEditorListRowPtr>& InObjects,
+		TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> InTreeViewPtr,
+		const TArray<FObjectMixerEditorListRow::FPropertyPropagationInfo>& InPendingPropertyPropagations)
+	{
+		for (const FObjectMixerEditorListRowPtr& TreeViewItem : InObjects)
+		{
+			const FObjectMixerEditorListRow::FTreeItemUniqueIdentifier& TreeItemUniqueIdentifier = TreeViewItem->GetUniqueIdentifier();
+
+				if (const FObjectMixerEditorListRow::FPropertyPropagationInfo* PendingPropagation =
+					Algo::FindByPredicate(
+						InPendingPropertyPropagations,
+						[&TreeItemUniqueIdentifier](const FObjectMixerEditorListRow::FPropertyPropagationInfo& Other)
+						{
+							return Other.RowIdentifier == TreeItemUniqueIdentifier;
+						}))
+				{
+					TreeViewItem->PropagateChangesToSimilarSelectedRowProperties(*PendingPropagation);
+				}
+
+			RecursivelyRestoreTreeState(
+				TreeViewItem->GetChildRows(), InTreeViewPtr, InPendingPropertyPropagations
+			);
+		}
+	};
+
+	if (GetSelectedTreeViewItemCount() > 1)
+	{
+		RecursivelyRestoreTreeState(
+		   TreeViewRootObjects, TreeViewPtr, PendingPropertyPropagations
+	   );
+	}
+
+	PendingPropertyPropagations.Empty();
 }
 
 void SObjectMixerEditorList::BuildPerformanceCacheAndGenerateHeaderIfNeeded()
