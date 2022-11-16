@@ -84,7 +84,9 @@ enum EConsoleVariableFlags
 	 */
 	ECVF_RenderThreadSafe = 0x20,
 
-	/* ApplyCVarSettingsGroupFromIni will complain if this wasn't set, should not be combined with ECVF_Cheat */
+	/* ApplyCVarSettingsGroupFromIni will complain if this wasn't set, should not be combined with ECVF_Cheat and ECVF_ExcludeFromPreview. 
+	 * They are automatically added as  ECVF_Preview unless ECVF_ExcludeFromPreview is used
+	 */
 	ECVF_Scalability = 0x40,
 
 	/* those cvars control other cvars with the flag ECVF_Scalability, names should start with "sg." */
@@ -101,6 +103,9 @@ enum EConsoleVariableFlags
 
 	/* Cvars with this flag will modify the Shader Keystring for Desktop Platforms*/
 	ECVF_DesktopShaderChange = 0x800,
+
+	/* CVars with this flag will be excluded from the device profile previews. */
+	ECVF_ExcludeFromPreview = 0x1000,
 
 	// ------------------------------------------------
 

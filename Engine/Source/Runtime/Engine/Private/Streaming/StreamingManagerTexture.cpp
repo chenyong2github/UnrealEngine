@@ -1309,14 +1309,14 @@ static TAutoConsoleVariable<int32> CVarTextureStreamingAmortizeCPUToGPUCopy(
 	0,
 	TEXT("If set and r.Streaming.MaxNumTexturesToStreamPerFrame > 0, limit the number of 2D textures ")
 	TEXT("streamed from CPU memory to GPU memory each frame"),
-	ECVF_Scalability);
+	ECVF_Scalability | ECVF_ExcludeFromPreview);
 
 static TAutoConsoleVariable<int32> CVarTextureStreamingMaxNumTexturesToStreamPerFrame(
 	TEXT("r.Streaming.MaxNumTexturesToStreamPerFrame"),
 	0,
 	TEXT("Maximum number of 2D textures allowed to stream from CPU memory to GPU memory each frame. ")
 	TEXT("<= 0 means no limit. This has no effect if r.Streaming.AmortizeCPUToGPUCopy is not set"),
-	ECVF_Scalability);
+	ECVF_Scalability | ECVF_ExcludeFromPreview);
 
 static FORCEINLINE bool ShouldAmortizeMipCopies()
 {

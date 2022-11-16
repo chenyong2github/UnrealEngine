@@ -110,7 +110,8 @@ public:
 
 	void ApplyPreviewIfScalability()
 	{
-		if (((uint32)Flags & (uint32)ECVF_Scalability) != 0)
+		if (((uint32)Flags & (uint32)ECVF_Scalability) != 0
+			&& ((uint32)Flags & (uint32)ECVF_ExcludeFromPreview) == 0)
 		{
 			Flags = (EConsoleVariableFlags)((uint32)Flags | (uint32)ECVF_Preview);
 		}
@@ -281,7 +282,8 @@ public:
 
 	void ApplyPreviewIfScalability()
 	{
-		if (((uint32)Flags & (uint32)ECVF_Scalability) != 0)
+		if (((uint32)Flags & (uint32)ECVF_Scalability) != 0
+			&& ((uint32)Flags & (uint32)ECVF_ExcludeFromPreview) == 0)
 		{
 			Flags = (EConsoleVariableFlags)((uint32)Flags | (uint32)ECVF_Preview);
 		}
@@ -383,6 +385,14 @@ static void ExpandScalabilityCVar(FConfigCacheIni* ConfigSystem, const FString& 
 	}
 }
 
+EConsoleVariableFlags GetPreviewFlagsOfCvar(const TCHAR* Name)
+{
+	// now look up the cvar, if it exists (it's okay if it doesn't, it may not exist on host platform, but then it's not previewable!)
+	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name, false /* bTrackFrequentCalls */);
+	EConsoleVariableFlags PreviewFlag = (CVar != nullptr) ? (EConsoleVariableFlags)(CVar->GetFlags() & ECVF_Preview) : ECVF_Default;
+	return PreviewFlag;
+}
+
 bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, const FString& DeviceProfileName, TFunctionRef<void(const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)> Visit)
 {
 	// we can't get to Scalability code in here (it's in Engine) but we still want to apply the default level... 
@@ -467,10 +477,7 @@ bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, const F
 
 		CVarSetByMap[Name] = SetByInt;
 
-		// now look up the cvar, if it exists (it's okay if it doesn't, it may not exist on host platform, but then it's not previewable!)
-		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Name, false /* bTrackFrequentCalls */);
-		EConsoleVariableFlags PreviewFlag = (CVar != nullptr) ? (EConsoleVariableFlags)(CVar->GetFlags() & ECVF_Preview) : ECVF_Default;
-		Visit(Name, Value, (EConsoleVariableFlags)(SetBy | PreviewFlag));
+		Visit(Name, Value, (EConsoleVariableFlags)(SetBy | GetPreviewFlagsOfCvar(*Name)));
 	};
 
 	// now walk up the stack getting current values
@@ -538,8 +545,7 @@ bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, const F
 				FString Value = Pair.Value.GetValue();
 
 				// don't bother tracking when looking up other platform cvars
-				IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Key, false /* bTrackFrequentCalls */);
-				EConsoleVariableFlags PreviewFlag = (CVar != nullptr) ? (EConsoleVariableFlags)(CVar->GetFlags() & ECVF_Preview) : ECVF_Default;
+				EConsoleVariableFlags PreviewFlag = GetPreviewFlagsOfCvar(*Key);
 
 				if (Key.StartsWith(TEXT("sg.")))
 				{
@@ -552,7 +558,17 @@ bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, const F
 
 					for (const auto& ScalabilityPair : ScalabilityCVars)
 					{
-						VisitIfAllowed(ScalabilityPair.Key, ScalabilityPair.Value, (EConsoleVariableFlags)(ECVF_SetByScalability | PreviewFlag));
+						// See if the expanded scalability cvar is not allowed to preview and has ECVF_ExcludeFromPreview set
+						IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*ScalabilityPair.Key, false /* bTrackFrequentCalls */);
+						EConsoleVariableFlags ScalabilityCvarFlags = (CVar != nullptr) ? CVar->GetFlags() : ECVF_Default;
+						if (ScalabilityCvarFlags & ECVF_ExcludeFromPreview)
+						{
+							VisitIfAllowed(ScalabilityPair.Key, ScalabilityPair.Value, (EConsoleVariableFlags)(ECVF_SetByScalability));
+						}
+						else
+						{
+							VisitIfAllowed(ScalabilityPair.Key, ScalabilityPair.Value, (EConsoleVariableFlags)(ECVF_SetByScalability | PreviewFlag));
+						}
 					}
 				}
 				else
