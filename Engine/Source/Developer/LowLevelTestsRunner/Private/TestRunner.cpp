@@ -26,7 +26,6 @@
 
 namespace UE::LowLevelTests
 {
-
 static ITestRunner* GTestRunner;
 
 ITestRunner* ITestRunner::Get()
@@ -229,6 +228,11 @@ void FTestRunner::GlobalSetup()
 
 		FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
 	}
+
+	if (FTestDelegates::GlobalSetup.Get()->IsBound())
+	{
+		FTestDelegates::GlobalSetup.Get()->Execute();
+	}
 }
 
 void FTestRunner::GlobalTeardown() const
@@ -242,6 +246,11 @@ void FTestRunner::GlobalTeardown() const
 	if (GError == &ErrorOutputDevice)
 	{
 		GError = ErrorOutputDevice.GetDeviceError();
+	}
+
+	if (FTestDelegates::GlobalTeardown.Get()->IsBound())
+	{
+		FTestDelegates::GlobalTeardown.Get()->Execute();
 	}
 
 	CleanupPlatform();
