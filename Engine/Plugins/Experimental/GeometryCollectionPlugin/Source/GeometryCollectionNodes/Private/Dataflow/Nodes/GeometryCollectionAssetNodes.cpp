@@ -6,6 +6,8 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionEngineConversion.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
+#include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 
 namespace Dataflow
 {
@@ -126,8 +128,17 @@ void FCreateGeometryCollectionFromSourcesDataflowNode::Evaluate(Dataflow::FConte
 		OutCollection.ReindexMaterials();
 	}
 
-	// we have to make a copy since we have generated a FGeometryCollection which is inherited from FManagedArrayCollection
+	// make sure we have only one root
+	if (FGeometryCollectionClusteringUtility::ContainsMultipleRootBones(&OutCollection))
+	{
+		FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(&OutCollection);
+	}
 
+	// make sure we have a level attribute
+	Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(OutCollection);
+	HierarchyFacade.GenerateLevelAttribute();
+
+	// we have to make a copy since we have generated a FGeometryCollection which is inherited from FManagedArrayCollection
 	SetValue(Context, static_cast<const FManagedArrayCollection&>(OutCollection), &Collection);
 	SetValue(Context, MoveTemp(OutMaterials), &Materials);
 }

@@ -10,20 +10,12 @@ void FDataflowSelection::Initialize(int32 NumBits, bool Value)
 
 void FDataflowSelection::Initialize(const FDataflowSelection& Other)
 {
-	Initialize(Other.Num(), false);
-
-	for (int32 Idx = 0; Idx < Other.Num(); ++Idx)
-	{
-		if (Other.IsSelected(Idx))
-		{
-			SelectionArray[Idx] = true;
-		}
-	}
+	SelectionArray = Other.SelectionArray;
 }
 
 void FDataflowSelection::AsArray(TArray<int32>& SelectionArr) const
 {
-	SelectionArr.Empty();
+	SelectionArr.Reset(SelectionArray.Num());
 
 	TBitArray<>::FConstIterator It(SelectionArray);
 	while (It)
@@ -41,7 +33,7 @@ void FDataflowSelection::AsArray(TArray<int32>& SelectionArr) const
 
 void FDataflowSelection::SetFromArray(const TArray<int32>& SelectionArr)
 {
-	SelectionArray.Init(false, SelectionArray.Num());
+	SelectionArray.Init(false, SelectionArr.Num());
 
 	for (int32 Elem : SelectionArr)
 	{
@@ -66,6 +58,7 @@ void FDataflowSelection::XOR(const FDataflowSelection& Other, FDataflowSelection
 
 int32 FDataflowSelection::NumSelected() const
 {
+	// todo : use SelectionArray.CountSetBits instead 
 	int32 NumSelectedBits = 0;
 
 	TBitArray<>::FConstIterator It(SelectionArray);
