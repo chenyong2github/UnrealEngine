@@ -474,6 +474,11 @@ public:
 	virtual TSharedPtr<SWidget> GetUserFocusedWidget(uint32 UserIndex) const = 0;
 
 	/**
+	 * @return the Widget that started a tick, paint, prepass or an event.
+	 */
+	virtual TSharedPtr<SWidget> GetCurrentDebugContextWidget() const = 0;
+
+	/**
 	 * Gets a delegate that is invoked when a global invalidate of all widgets should occur
 	 */
 	DECLARE_EVENT_OneParam(FSlateApplicationBase, FOnInvalidateAllWidgets, bool);

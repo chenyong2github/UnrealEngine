@@ -1479,6 +1479,7 @@ public:
 	virtual void SetAllUserFocus(const FWidgetPath& InFocusPath, const EFocusCause InCause) override;
 	virtual void SetAllUserFocusAllowingDescendantFocus(const FWidgetPath& InFocusPath, const EFocusCause InCause) override;
 	virtual TSharedPtr<SWidget> GetUserFocusedWidget(uint32 UserIndex) const override;
+	virtual TSharedPtr<SWidget> GetCurrentDebugContextWidget() const override;
 	virtual const TArray<TSharedRef<SWindow>> GetTopLevelWindows() const override { return SlateWindows; }
 
 	DECLARE_EVENT_OneParam(FSlateApplication, FApplicationActivationStateChangedEvent, const bool /*IsActive*/)
@@ -1773,11 +1774,13 @@ private:
 	/** Weak pointers to the allocated virtual users. */
 	TArray<TWeakPtr<FSlateVirtualUserHandle>> VirtualUsers;
 
-	/**
-	  * Last widget that was set for 'all users' focus and the cause.
-	  */
+	/** Last widget that was set for 'all users' focus and the cause. */
 	TWeakPtr<SWidget> LastAllUsersFocusWidget;
 	EFocusCause LastAllUsersFocusCause;
+
+	/** The painting SWindow. */
+	TWeakPtr<SWidget> CurrentDebugContextWidget;
+	TWeakPtr<SWindow> CurrentDebuggingWindow;
 
 	/**
 	 * Application throttling

@@ -391,7 +391,17 @@ void SGameLayerManager::Tick(const FGeometry& AllottedGeometry, const double InC
 int32 SGameLayerManager::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	SCOPED_NAMED_EVENT_TEXT("Paint: Game UI", FColor::Green);
-	
+#if WITH_EDITOR
+	if (GIntraFrameDebuggingGameThread)
+	{
+		// When BP debugging, do not paint the PIE game.
+		//It may trigger other BP code and while it's in a Debugging state the BP will not execute.
+		//It may also tick widgets that may already be ticking.
+		// ie. [A] SMyWidget::Tick() => BPEvent => BP Breakpoint => FApplication::EnterDebuggingMode() => while( SWindow::Paint() => SMyWidget::Tick() ) => End of the first [A] SMyWidget::Tick
+		return FMath::Max(GetPersistentState().OutgoingLayerId, LayerId);
+	}
+#endif
+
 	// By default game layer state is used to ignore disabled effects, don't set this flag if user wants disabled draw effects in-game
 	OutDrawElements.SetIsInGameLayer(!bApplyDisabledEffectOnWidgets);
 	const int32 ResultLayer = SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
