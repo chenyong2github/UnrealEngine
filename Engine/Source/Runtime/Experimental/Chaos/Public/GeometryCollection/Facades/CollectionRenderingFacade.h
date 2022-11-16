@@ -14,11 +14,10 @@ namespace GeometryCollection::Facades
 	/**
 	* FRenderingFacade
 	*
-	* Defines common API for storing a vertex weights bound to a bone. This mapping is from the
-	* the vertex to the bone index. The FSelectionFacad will store the mapping from the BoneIndex
-	* to the vertex.
+	* Defines common API for storing rendering data.
+	*
 	* Usage:
-	*    FRenderingFacade::AddBoneWeights(this, FSelectionFacade(this) );
+	*    FRenderingFacade::AddTriangle(this, FTriangle(...) );
 	*
 	* Then arrays can be accessed later by:
 	*	const TManagedArray< FIntVector >* FaceIndices = FRenderingFacade::GetIndices(this);
@@ -35,6 +34,13 @@ namespace GeometryCollection::Facades
 		FManagedArrayCollection* Self;
 
 	public:
+		// Groups 
+		static const FName VerticesGroup;
+		static const FName FacesGroup;
+
+		// Attributes
+		static const FName VertexAttribute;
+		static const FName IndicesAttribute;
 
 		/**
 		* FRenderingFacade Constuctor

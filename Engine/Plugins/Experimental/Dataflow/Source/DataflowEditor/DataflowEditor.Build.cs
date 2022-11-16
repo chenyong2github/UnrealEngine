@@ -34,6 +34,7 @@ namespace UnrealBuildTool.Rules
 					"DataflowEngine",
 					"DataflowEnginePlugin",
 					"Slate",
+					"Chaos",
 				}
 			);
 		}

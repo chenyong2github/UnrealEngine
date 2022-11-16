@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CanvasTypes.h"
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowNodeParameters.h"
 #include "EditorViewportClient.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
 #include "SAssetEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 
@@ -14,6 +16,7 @@ class FDataflowEditorViewportClient;
 class SEditorViewport;
 class ADataflowActor;
 class ADataflowRenderingActor;
+class FDynamicMeshBuilder;
 
 // ----------------------------------------------------------------------------------
 
@@ -37,6 +40,7 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override{return TEXT("SDataflowEditorViewport");}
 
+
 protected:
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
 	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
@@ -48,7 +52,6 @@ private:
 	TSharedPtr<FDataflowEditorViewportClient> EditorViewportClient;
 
 	TWeakPtr<FDataflowEditorToolkit> DataflowEditorToolkitPtr;
-
 	ADataflowActor* CustomDataflowActor = nullptr;
 	ADataflowRenderingActor* CustomDataflowRenderingActor = nullptr;
 };
@@ -65,11 +68,12 @@ public:
 		const TWeakPtr<SEditorViewport> InEditorViewportWidget = nullptr,
 		TWeakPtr<FDataflowEditorToolkit> InDataflowEditorToolkitPtr = nullptr);
 
-
-	void SetDataflowRenderingActor(ADataflowRenderingActor* InActor) { DataflowRenderingActor = InActor; }
 	Dataflow::FTimestamp LatestTimestamp(const UDataflow* Dataflow, const Dataflow::FContext* Context);
+	void SetDataflowRenderingActor(ADataflowRenderingActor* InActor) { DataflowRenderingActor = InActor; }
 
 	// FEditorViewportClient interface
+	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
+	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
 	virtual void Tick(float DeltaSeconds) override;
 	// End of FEditorViewportClient
 
@@ -77,7 +81,20 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override { return TEXT("FDataflowEditorViewportClient"); }
 
+private:
+	void RenderIntoStructures();
+	void ReleaseRenderStructures();
+
 	TWeakPtr<FDataflowEditorToolkit> DataflowEditorToolkitPtr = nullptr;
-	ADataflowRenderingActor* DataflowRenderingActor = nullptr;
 	Dataflow::FTimestamp LastModifiedTimestamp = Dataflow::FTimestamp::Invalid;
+	ADataflowRenderingActor* DataflowRenderingActor = nullptr;
+
+	FManagedArrayCollection RenderCollection;
+
+	// Renderables
+	bool bRenderMesh = false;
+	TArray<uint32> IndexBuffer;
+	TArray<FDynamicMeshVertex> VertexBuffer;
+	TUniquePtr<FDynamicMeshBuilder> MeshBuilder = nullptr;
+
 };
