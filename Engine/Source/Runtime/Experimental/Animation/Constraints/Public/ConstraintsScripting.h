@@ -71,7 +71,8 @@ public:
 	@param InWorld World we are in
 	@return Copy of the constraints in the level
 	*/
-	static TArray<TWeakObjectPtr<UTickableConstraint>> GetConstraintsArray(UWorld* InWorld);
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig | Constraints")
+	static TArray<TObjectPtr<UTickableConstraint>> GetConstraintsArray(UWorld* InWorld);
 
 	/**
 	* Remove constraint at specified index

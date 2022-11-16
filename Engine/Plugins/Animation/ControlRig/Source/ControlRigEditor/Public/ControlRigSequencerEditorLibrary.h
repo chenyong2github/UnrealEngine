@@ -21,6 +21,8 @@
 
 class ULevelSequence;
 class UTickableConstraint;
+class UTickableTransformConstraint;
+class UTransformableHandle;
 
 USTRUCT(BlueprintType)
 struct FControlRigSequencerBindingProxy
@@ -142,10 +144,77 @@ public:
 	* @param Constraint The Constraint to bake. After baking it will be keyed to be inactive of the range of frames that are baked
 	* @param Frames The frames to bake, if the array is empty it will use the active time ranges of the constraint to deteremine where it should bake
 	* @param TimeUnit Unit for all frame and time values, either in display rate or tick resolution
-	* @return returns True if successful, False otherwise
+	* @return Returns True if successful, False otherwise
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static bool BakeConstraint(UWorld* World, UTickableConstraint* Constraint, const TArray<FFrameNumber>& Frames, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+
+	/**
+	* Add a constraint possibly adding to sequencer also if one is open.
+	* @param World The active world
+	* @param InType Type of constraint to create
+	* @param InChild The handle to the transormable to be constrainted
+	* @param InParent The handle to the parent of the constraint
+	* @param bMaintainOffset Whether to maintain offset between child and parent when setting the constraint
+	* @return Returns the constraint if created all nullptr if not
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static UTickableConstraint* AddConstraint(UWorld* World, ETransformConstraintType InType, UTransformableHandle* InChild, UTransformableHandle* InParent, const bool bMaintainOffset);
+	
+	/**
+	* Set the constraint active key in the current open Sequencer
+	* @param InConstraint The constraint to set the key
+	* @param bActive Whether or not it's active
+	* @param FrameTime Time to set the value 
+	* @return Returns true if we set the constraint to be the passed in value, false if not. We may not do so if the value is the same.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool SetConstraintActiveKey(UTickableConstraint* InConstraint, bool bActive,const FFrameNumber& FrameTime);
+	
+	/**
+	* Get all constraints for this object, which is described by a transformable handle
+	* @param InChild The handle to look for constraints controlling it
+	* @return Returns array of Constraints this handle is constrained to.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static TArray <TObjectPtr<UTickableConstraint>> GetConstraintsForHandle(UWorld* InWorld, const UTransformableHandle* InChild);
+
+	/** Move the constraint active key in the current open Sequencer
+	* @param InConstraint The constraint whose key to move
+	* @param ConstraintSection Section containing Cosntraint Key
+	* @param InTime Original time of the constraint key
+	* @param InNewTime New time for the constraint key
+	* @param TimeUnit Unit for the time params, either in display rate or tick resolution
+	* @return Will return false if function fails, for example if there is no key at this time it will fail, or if the new time is invalid it could fail also
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	bool MoveConstraintKey(UTickableConstraint* Constraint, UMovieSceneSection* ConstraintSection, FFrameNumber InTime, FFrameNumber InNewTime, ESequenceTimeUnit TimeUnit);
+
+	/** Delete the Key for the Constraint at the specified time. 
+	* @param InConstraint The constraint whose key to move
+	* @param ConstraintSection Section containing Cosntraint Key
+	* @param InTime Time to delete the constraint.
+	* @param TimeUnit Unit for the InTime, either in display rate or tick resolution
+	* @return Will return false if function fails,  for example if there is no key at this time it will fail.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool DeleteConstraintKey(UTickableConstraint* Constraint, UMovieSceneSection* ConstraintSection, FFrameNumber InTime, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+	/**
+	* Compensate constraint at the specfied time 
+	* @param InConstraint The constraint to compensate
+	* @param FrameTime  Time to compensate
+	* @return Returns true if it can compensate
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool Compensate(UTickableConstraint* InConstraint, const FFrameNumber& FrameTime);
+
+	/**
+	* Compensate constraint at all keys
+	* @param InConstraint The constraint to compensate
+	* @return Returns true if it can compensate
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool CompensateAll(UTickableConstraint* InConstraint);
 
 	/**
 	* Peform a Tween operation on the current active sequencer time(must be visible).
@@ -904,8 +973,6 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static bool MoveControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, FName InControlName, FFrameNumber InTime, FFrameNumber InNewTime, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
-
-
 
 	/** Rename the Control Rig Channels in Sequencer to the specified new control names, which should be present on the Control Rig
 	* @param InSequence Sequence to rename controls

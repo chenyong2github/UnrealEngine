@@ -323,7 +323,7 @@ void SDroppableConstraintItem::CreateConstraint(
 					FTransformConstraintUtils::CreateAndAddFromActors(World, InParent, InSocketName, Child, InConstraintType);
 				if (Constraint)
 				{
-					FConstraintChannelHelper::SmartConstraintKey(Constraint);
+					FConstraintChannelHelper::SmartConstraintKey(Constraint, TOptional<bool>(), TOptional<FFrameNumber>());
 					bCreated = true;
 				}
 			}
@@ -557,7 +557,7 @@ void SEditableConstraintItem::Construct(
 				if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
 				{
 					FScopedTransaction Transaction(LOCTEXT("CreateConstraintKey", "Create Constraint Key"));
-					FConstraintChannelHelper::SmartConstraintKey(TransformConstraint);
+					FConstraintChannelHelper::SmartConstraintKey(TransformConstraint,TOptional<bool>(), TOptional<FFrameNumber>());
 				}
 				return FReply::Handled();
 			})
@@ -1047,7 +1047,15 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateLambda([TransformConstraint]()
 				{
-					FConstraintChannelHelper::Compensate(TransformConstraint);
+					const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
+					if (WeakSequencer.IsValid())
+					{
+						const TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+						const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+						const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
+						const FFrameNumber Time = FrameTime.GetFrame();
+						FConstraintChannelHelper::Compensate(TransformConstraint, TOptional<FFrameNumber>(Time));
+					}
 				}), IsCompensationEnabled),
 				NAME_None,
 				EUserInterfaceActionType::Button);
@@ -1058,7 +1066,7 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateLambda([TransformConstraint]()
 				{
-					FConstraintChannelHelper::Compensate(TransformConstraint, true);
+					FConstraintChannelHelper::Compensate(TransformConstraint, TOptional<FFrameNumber>());
 				}), IsCompensationEnabled),
 				NAME_None,
 				EUserInterfaceActionType::Button);

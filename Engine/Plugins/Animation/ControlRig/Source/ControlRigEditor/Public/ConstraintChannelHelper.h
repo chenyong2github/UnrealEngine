@@ -31,14 +31,17 @@ public:
 	/** @todo documentation. */
 	static bool IsKeyframingAvailable();
 	
-	/** Adds an active key if needed and does the compensation when switching. */
-	static void SmartConstraintKey(UTickableTransformConstraint* InConstraint);
+	/** Adds an active key if needed and does the compensation when switching. Will use the optional active and time if set. 
+	Will return true if key is actually set, may not be if the value is the same.*/
+	static bool SmartConstraintKey(UTickableTransformConstraint* InConstraint, 
+		const TOptional<bool>&  bActive ,
+		const TOptional<FFrameNumber>& FrameTime);
 
 
 	/** Compensate transform on handles when a constraint switches state. */
 	static void Compensate(
 		UTickableTransformConstraint* InConstraint,
-		const bool bAllTimes = false);
+		const TOptional<FFrameNumber>& OptionalTime);
 	static void CompensateIfNeeded(
 		UWorld* InWorld,
 		const TSharedPtr<ISequencer>& InSequencer,
@@ -55,8 +58,10 @@ private:
 	/** BEGIN CONTROL RIG SECTION */
 	
 	/** @todo documentation. */
-	static void SmartControlConstraintKey(
+	static bool SmartControlConstraintKey(
 		UTickableTransformConstraint* InConstraint,
+		const TOptional<bool>& bActive,
+		const FFrameNumber& FrameTime,
 		const TSharedPtr<ISequencer>& InSequencer);
 	
 	/** END CONTROL RIG SECTION */
@@ -64,8 +69,10 @@ private:
 	/** BEGIN COMPONENT SECTION */
 
 	/** @todo documentation. */
-	static void SmartComponentConstraintKey(
+	static bool SmartComponentConstraintKey(
 		UTickableTransformConstraint* InConstraint,
+		const TOptional<bool>&  bActive, 
+		const FFrameNumber& FrameTime,
 		const TSharedPtr<ISequencer>& InSequencer);
 
 	/** @todo documentation. */

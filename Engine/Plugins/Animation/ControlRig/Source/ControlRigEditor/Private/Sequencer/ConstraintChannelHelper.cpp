@@ -73,26 +73,48 @@ bool FConstraintChannelHelper::IsKeyframingAvailable()
 	return true;
 }
 
-void FConstraintChannelHelper::SmartConstraintKey(UTickableTransformConstraint* InConstraint)
+bool FConstraintChannelHelper::SmartConstraintKey(UTickableTransformConstraint* InConstraint, 
+	const TOptional<bool>& bActive, 
+	const TOptional<FFrameNumber>& OptFrameTime)
 {
 	const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
-	if (!WeakSequencer.IsValid() || !WeakSequencer.Pin()->GetFocusedMovieSceneSequence())
+	if (!WeakSequencer.IsValid() )
 	{
-		return;
+		return false;
+	}
+	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+	if (SequencerPtr->GetFocusedMovieSceneSequence() == nullptr)
+	{
+		return false;
+	}
+	FFrameNumber Time;
+	if (OptFrameTime.IsSet())
+	{
+		Time = OptFrameTime.GetValue();
+	}
+	else
+	{
+		const FFrameRate TickResolution = SequencerPtr->GetFocusedTickResolution();
+		const FFrameTime FrameTime = SequencerPtr->GetLocalTime().ConvertTo(TickResolution);
+		Time = FrameTime.GetFrame();
 	}
 
+	bool bSuceeded = false;
 	if (const UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(InConstraint->ChildTRSHandle))
 	{
-		SmartComponentConstraintKey(InConstraint, WeakSequencer.Pin());
+		bSuceeded = SmartComponentConstraintKey(InConstraint,bActive,Time, SequencerPtr);
 	}
 	
 	else if (const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle))
 	{
-		SmartControlConstraintKey(InConstraint, WeakSequencer.Pin());
+		bSuceeded = SmartControlConstraintKey(InConstraint,bActive,Time, SequencerPtr);
 	}
 
+	//todo need to revisit this to see if we need to create this even if we don't set a key, it's harmless I think either way
 	FConstraintChannelHelper::CreateBindingIDForHandle(InConstraint->ChildTRSHandle);
 	FConstraintChannelHelper::CreateBindingIDForHandle(InConstraint->ParentTRSHandle);
+
+	return bSuceeded;
 }
 
 
@@ -171,14 +193,16 @@ UMovieScene3DTransformSection* FConstraintChannelHelper::GetTransformSection(
 	return MovieSceneToolHelpers::GetTransformSection(InSequencer.Get(), Guid);
 }
 
-void FConstraintChannelHelper::SmartControlConstraintKey(
+bool FConstraintChannelHelper::SmartControlConstraintKey(
 	UTickableTransformConstraint* InConstraint,
+	const TOptional<bool>& bActive,
+	const FFrameNumber& Time,
 	const TSharedPtr<ISequencer>& InSequencer)
 {
 	const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle);
 	if (!ControlHandle)
 	{
-		return;
+		return false;
 	}
 	
 	if (UMovieSceneControlRigParameterSection* Section = GetControlSection(ControlHandle, InSequencer))
@@ -195,13 +219,13 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 		// add key if needed
 		if (FConstraintAndActiveChannel* Channel = Section->GetConstraintChannel(InConstraint->GetFName()))
 		{
-			const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
-			const FFrameTime FrameTime = InSequencer->GetLocalTime().ConvertTo(TickResolution);
-			const FFrameNumber Time = FrameTime.GetFrame();
 
 			bool ActiveValueToBeSet = false;
-			if (CanAddKey(Channel->ActiveChannel, Time, ActiveValueToBeSet))
+			//add key if we can and make sure the key we are setting is what we want
+			if (CanAddKey(Channel->ActiveChannel, Time, ActiveValueToBeSet) && (bActive.IsSet() == false || bActive.GetValue() == ActiveValueToBeSet))
 			{
+				const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
+
 				const bool bNeedsCompensation = InConstraint->NeedsCompensation();
 				
 				TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
@@ -283,31 +307,35 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 						SetTangentsAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, Section, Time, Tangents);
 					}
 				}
+				return true;
 			}
 		}
 	}
+	return false;
 }
 
-void FConstraintChannelHelper::SmartComponentConstraintKey(
+bool FConstraintChannelHelper::SmartComponentConstraintKey(
 	UTickableTransformConstraint* InConstraint,
+	const TOptional<bool>& bActive,
+	const FFrameNumber& Time,
 	const TSharedPtr<ISequencer>& InSequencer)
 {
 	const UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(InConstraint->ChildTRSHandle);
 	if (!ComponentHandle)
 	{
-		return;
+		return false;
 	}
 	AActor* Actor = ComponentHandle->Component->GetOwner();
 	if (!Actor)
 	{
-		return;
+		return false;
 	}
 
 	const FTransform LocalTransform = ComponentHandle->GetLocalTransform();
 	const FGuid Guid = InSequencer->GetHandleToObject(Actor, true);
 	if (!Guid.IsValid())
 	{
-		return;
+		return false;
 	}
 
 	if (UMovieScene3DTransformSection* Section = MovieSceneToolHelpers::GetTransformSection(InSequencer.Get(), Guid, LocalTransform))
@@ -324,13 +352,11 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 		// add key if needed
 		if (FConstraintAndActiveChannel* Channel = Section->GetConstraintChannel(InConstraint->GetFName()))
 		{
-			const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
-			const FFrameTime FrameTime = InSequencer->GetLocalTime().ConvertTo(TickResolution);
-			const FFrameNumber Time = FrameTime.GetFrame();
-
 			bool ActiveValueToBeSet = false;
-			if (CanAddKey(Channel->ActiveChannel, Time, ActiveValueToBeSet))
+			//add key if we can and make sure the key we are setting is what we want
+			if (CanAddKey(Channel->ActiveChannel, Time, ActiveValueToBeSet) && (bActive.IsSet() == false || bActive.GetValue() == ActiveValueToBeSet))
 			{
+				const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
 				const bool bNeedsCompensation = InConstraint->NeedsCompensation();
 				
 				Section->Modify();
@@ -421,12 +447,14 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 				{
 					InSequencer->SetAutoChangeMode(AutoChangeMode);
 				}
+				return true;
 			}
 		}
 	}
+	return false;
 }
 
-void FConstraintChannelHelper::Compensate(UTickableTransformConstraint* InConstraint, const bool bAllTimes)
+void FConstraintChannelHelper::Compensate(UTickableTransformConstraint* InConstraint, const TOptional<FFrameNumber>& OptTime)
 {
 	const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
 	if (!WeakSequencer.IsValid() || !WeakSequencer.Pin()->GetFocusedMovieSceneSequence())
@@ -473,11 +501,6 @@ void FConstraintChannelHelper::Compensate(UTickableTransformConstraint* InConstr
 		}
 	}
 
-	const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
-	const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
-	const FFrameNumber Time = FrameTime.GetFrame();
-
-	const TOptional<FFrameNumber> OptTime = bAllTimes ? TOptional<FFrameNumber>() : TOptional<FFrameNumber>(Time);
 	CompensateIfNeeded(World, Sequencer, Section, OptTime);
 }
 
