@@ -104,6 +104,7 @@ public:
 	TMap<FRigVMASTProxy, FRigVMASTProxyArray> CachedProxiesWithSharedOperand;
 	const FRigVMASTProxySourceMap* ProxySources;
 	FRigVMASTProxyTargetsMap ProxyTargets;
+	TMap<URigVMNode*, TArray<FRigVMBranchInfo>> BranchInfos;
 
 	struct FFunctionRegisterData
 	{

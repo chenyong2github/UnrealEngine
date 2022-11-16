@@ -166,6 +166,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	virtual bool HasIOPin() const;
 
+	// Returns true if the node has any lazily evaluating pins
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	virtual bool HasLazyPin(bool bOnlyConsiderPinsWithLinks = false) const;
+
 	// Returns true if the node has any output pins
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	virtual bool HasOutputPin(bool bIncludeIO = true) const;
@@ -272,6 +276,7 @@ protected:
 	virtual TArray<int32> GetInstructionsForVMImpl(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const; 
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const;
 	virtual bool AllowsLinksOn(const URigVMPin* InPin) const { return true; }
+	virtual bool ShouldInputPinComputeLazily(const URigVMPin* InPin) const { return false; }
 
 	UPROPERTY()
 	FString NodeTitle;

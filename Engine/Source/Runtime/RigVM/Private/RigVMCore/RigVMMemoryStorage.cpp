@@ -112,8 +112,10 @@ const uint8* TRigVMLazyValueBase::GetData() const
 {
 	if(MemoryHandle)
 	{
-		checkf(MemoryHandle->IsLazy(), TEXT("If you are hitting this the compiler didn't add a branch info to the bytecode for a lazy argument."));
-		MemoryHandle->ComputeLazyValueIfNecessary(SliceIndex);
+		if(MemoryHandle->IsLazy())
+		{
+			MemoryHandle->ComputeLazyValueIfNecessary(SliceIndex);
+		}
 		return MemoryHandle->GetData(bFollowPropertyPath, SliceIndex);
 	}
 	return nullptr;

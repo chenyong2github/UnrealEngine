@@ -1298,14 +1298,74 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 
 	FRigVMExprAST* ParentExprForLinks = PinExpr;
 
-	if ((Pin->GetDirection() == ERigVMPinDirection::IO || Pin->GetDirection() == ERigVMPinDirection::Input) &&
-		(InParentExpr->IsA(FRigVMExprAST::If) || InParentExpr->IsA(FRigVMExprAST::Select)) &&
-		LinkIndices.Num() > 0)
+	if(LinkIndices.Num() > 0)
 	{
-		FRigVMBlockExprAST* BlockExpr = MakeExpr<FRigVMBlockExprAST>(FRigVMExprAST::EType::Block, FRigVMASTProxy());
-		BlockExpr->AddParent(PinExpr);
-		BlockExpr->Name = Pin->GetFName();
-		ParentExprForLinks = BlockExpr;
+		if (Pin->IsLazy())
+		{
+			// create a block for each lazily executing pin
+			FRigVMBlockExprAST* BlockExpr = MakeExpr<FRigVMBlockExprAST>(FRigVMExprAST::EType::Block, FRigVMASTProxy());
+			BlockExpr->Name = Pin->GetFName();
+			BlockExpr->AddParent(PinExpr);
+			ParentExprForLinks = BlockExpr;
+		}
+		else if (Pin->GetNode()->HasLazyPin(true))
+		{
+			// for greedy pins on nodes containing a lazy pin - we need to also create a block for the node itself
+			FRigVMBlockExprAST* BlockExpr = nullptr;
+
+			if(const FRigVMExprAST* NodeExpr = PinExpr->GetFirstParentOfType(FRigVMExprAST::CallExtern))
+			{
+				const FRigVMCallExternExprAST* CallExternExpr = NodeExpr->To<FRigVMCallExternExprAST>();
+				
+				// try to find the block under all non-lazy pins.
+				// this is the block that is run before anything else - so for example
+				// if you have a lazy interplate with values A and B being lazy and a greedy T blend pin,
+				// you need a block to store the instructions related to computing T. once T is computed,
+				// the callextern can run and lazily pull on A or B.
+				for(const URigVMPin* NodePin : Pin->GetNode()->GetPins())
+				{
+					if(NodePin == Pin)
+					{
+						continue;
+					}
+					
+					if(!NodePin->IsLazy() &&
+						(NodePin->GetDirection() == ERigVMPinDirection::Input ||
+						NodePin->GetDirection() == ERigVMPinDirection::IO))
+					{
+						if(const FRigVMExprAST* NodePinExpr = CallExternExpr->FindExprWithPinName(NodePin->GetFName()))
+						{
+							if(const FRigVMExprAST* ExistingBlockExpr = NodePinExpr->GetFirstChildOfType(FRigVMExprAST::Block))
+							{
+								BlockExpr = (FRigVMBlockExprAST*)ExistingBlockExpr->To<FRigVMBlockExprAST>();
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			if(BlockExpr == nullptr)
+			{
+				BlockExpr = MakeExpr<FRigVMBlockExprAST>(FRigVMExprAST::EType::Block, FRigVMASTProxy());
+				BlockExpr->Name = Pin->GetFName();
+			}
+
+			if(BlockExpr)
+			{
+				BlockExpr->AddParent(PinExpr);
+				ParentExprForLinks = BlockExpr;
+			}
+		}
+		else if ((Pin->GetDirection() == ERigVMPinDirection::IO || Pin->GetDirection() == ERigVMPinDirection::Input) &&
+			(InParentExpr->IsA(FRigVMExprAST::If) || InParentExpr->IsA(FRigVMExprAST::Select)) &&
+			LinkIndices.Num() > 0)
+		{
+			FRigVMBlockExprAST* BlockExpr = MakeExpr<FRigVMBlockExprAST>(FRigVMExprAST::EType::Block, FRigVMASTProxy());
+			BlockExpr->Name = Pin->GetFName();
+			BlockExpr->AddParent(PinExpr);
+			ParentExprForLinks = BlockExpr;
+		}
 	}
 
 	for (const int32 LinkIndex : LinkIndices)
@@ -1539,28 +1599,84 @@ void FRigVMParserAST::BubbleUpExpressions()
 			BlockCandidates.Append(Blocks);
 			FRigVMBlockExprAST* OuterBlock = nullptr;
 
-			// deal with a case where an expression is linked within both the true and false case of an "if" node
-			if(Blocks.Num() == 2)
+			// check if we need to add this expression to the block representing the non-lazy pins on the node.
+			// the expressions in that block are supposed to run before the node can execute - since they are greedy. 
+			// note: for backwards compatibility this also works for the condition pin on the if node and the index pin
+			// on the select node
+			TArray<const FRigVMExprAST*> Parents;
+			TArray<const FRigVMExprAST*> GrandParents;
+
+			for(const FRigVMBlockExprAST* Block : Blocks)
 			{
-				const FRigVMExprAST* Parent0 = Blocks[0]->GetParent();
-				const FRigVMExprAST* Parent1 = Blocks[1]->GetParent();
-				if(Parent0 && Parent1)
+				const FRigVMExprAST* Parent = Block->GetParent();
+				Parents.AddUnique(Parent);
+				if(Parent)
 				{
-					const FRigVMExprAST* GrandParent0 = Parent0->GetParent();
-					const FRigVMExprAST* GrandParent1 = Parent1->GetParent();
-					if(GrandParent0 && GrandParent1 && GrandParent0 == GrandParent1)
+					GrandParents.AddUnique(Parent->GetParent());
+				}
+			}
+
+			// if any of the parents is nullptr - it means that the block didn't
+			// have a parent and thus is the top level block. in that case we cannot
+			// bubble up further.
+			if(!Parents.Contains(nullptr))
+			{
+				// if all blocks here are part of the same grandparent
+				// parent == pin, grandparent == node
+				if(GrandParents.Num() == 1 && !GrandParents.Contains(nullptr))
+				{
+					if(GrandParents[0]->IsA(FRigVMExprAST::EType::CallExtern) ||
+						GrandParents[0]->IsA(FRigVMExprAST::EType::If) ||
+						GrandParents[0]->IsA(FRigVMExprAST::EType::Select))
 					{
-						if(GrandParent0->IsA(FRigVMExprAST::EType::If))
+						const FRigVMNodeExprAST* NodeExpr = GrandParents[0]->To<FRigVMNodeExprAST>();
+
+						// find a pin on the node which is either an input or an io and not lazy
+						const URigVMNode* Node = NodeExpr->GetNode();
+						const FRigVMExprAST* TopLevelBlockExpression = nullptr;
+						for(const URigVMPin* Pin : Node->GetPins())
 						{
-							const FRigVMIfExprAST* IfExpression = GrandParent0->To<FRigVMIfExprAST>();
-							const FRigVMExprAST* ConditionBlockExpression = IfExpression->GetConditionExpr()->GetFirstChildOfType(FRigVMExprAST::Block);
-							if(ConditionBlockExpression)
+							if(Pin->IsLazy())
 							{
-								OuterBlock = (FRigVMBlockExprAST*)ConditionBlockExpression->To<FRigVMBlockExprAST>();
-								OuterBlock->Children.Add(Expression);
-								Expression->Parents.Insert(OuterBlock, 0);
 								continue;
 							}
+
+							if(Pin->GetDirection() == ERigVMPinDirection::Input ||
+								Pin->GetDirection() == ERigVMPinDirection::IO)
+							{
+								if(Pin->GetNode()->IsA<URigVMIfNode>())
+								{
+									if(Pin->GetName() != URigVMIfNode::ConditionName)
+									{
+										continue;
+									}
+								}
+								else if(Pin->GetNode()->IsA<URigVMSelectNode>())
+								{
+									if(Pin->GetName() != URigVMSelectNode::IndexName)
+									{
+										continue;
+									}
+								}
+
+								if(const FRigVMExprAST* PinExpr = NodeExpr->FindExprWithPinName(Pin->GetFName()))
+								{
+									TopLevelBlockExpression = PinExpr->GetFirstChildOfType(FRigVMExprAST::Block);
+								}
+							}
+
+							if(TopLevelBlockExpression)
+							{
+								break;
+							}
+						}
+
+						if(TopLevelBlockExpression)
+						{
+							OuterBlock = (FRigVMBlockExprAST*)TopLevelBlockExpression->To<FRigVMBlockExprAST>();
+							OuterBlock->Children.Add(Expression);
+							Expression->Parents.Insert(OuterBlock, 0);
+							continue;
 						}
 					}
 				}

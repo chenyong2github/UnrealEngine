@@ -695,13 +695,13 @@ void FRigVMByteCode::Load(FArchive& Ar)
 		Ar << BranchInfos;
 
 		// make sure the lookup table is up 2 date
-		BranchInfoPerInstruction.Reset();
+		BranchInfoLookup.Reset();
 		(void)GetBranchInfo({0,0});
 	}
 	else
 	{
 		BranchInfos.Reset();
-		BranchInfoPerInstruction.Reset();
+		BranchInfoLookup.Reset();
 	}
 }
 
@@ -712,7 +712,7 @@ void FRigVMByteCode::Reset()
 	NumInstructions = 0;
 	Entries.Reset();
 	BranchInfos.Reset();
-	BranchInfoPerInstruction.Reset();
+	BranchInfoLookup.Reset();
 
 #if WITH_EDITORONLY_DATA
 	SubjectPerInstruction.Reset();
@@ -1614,18 +1614,24 @@ uint64 FRigVMByteCode::AddInvokeEntryOp(const FName& InEntryName)
 	return AddOp(FRigVMInvokeEntryOp(InEntryName));
 }
 
+void FRigVMByteCode::AddBranchInfo(const FRigVMBranchInfo& InBranchInfo)
+{
+	FRigVMBranchInfo BranchInfo = InBranchInfo;
+	BranchInfo.Index = BranchInfos.Num();
+	BranchInfos.Add(BranchInfo);
+	BranchInfoLookup.Reset();
+}
+
 void FRigVMByteCode::AddBranchInfo(const FName& InBranchLabel, int32 InInstructionIndex, int32 InArgumentIndex,
 	int32 InFirstBranchInstruction, int32 InLastBranchInstruction)
 {
 	FRigVMBranchInfo BranchInfo;
-	BranchInfo.Index = BranchInfos.Num();
 	BranchInfo.Label = InBranchLabel;
 	BranchInfo.InstructionIndex = InInstructionIndex;
 	BranchInfo.ArgumentIndex = InArgumentIndex;
 	BranchInfo.FirstInstruction = InFirstBranchInstruction;
 	BranchInfo.LastInstruction = InLastBranchInstruction;
-	BranchInfos.Add(BranchInfo);
-	BranchInfoPerInstruction.Reset();
+	AddBranchInfo(BranchInfo);
 }
 
 FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InInstruction) const
@@ -2377,23 +2383,23 @@ void FRigVMByteCode::SetOperandsForInstruction(int32 InInstructionIndex, const F
 
 #endif
 
-const FRigVMBranchInfo* FRigVMByteCode::GetBranchInfo(const TRigVMBranchInfoKey& InBranchInfoKey) const
+const FRigVMBranchInfo* FRigVMByteCode::GetBranchInfo(const FRigVMBranchInfoKey& InBranchInfoKey) const
 {
 	if(BranchInfos.IsEmpty())
 	{
 		return nullptr;
 	}
 
-	if(BranchInfoPerInstruction.IsEmpty())
+	if(BranchInfoLookup.IsEmpty())
 	{
 		for(const FRigVMBranchInfo& BranchInfo : BranchInfos)
 		{
-			const TRigVMBranchInfoKey Key(BranchInfo.InstructionIndex, BranchInfo.ArgumentIndex);
-			BranchInfoPerInstruction.FindOrAdd(Key) = &BranchInfo;
+			const FRigVMBranchInfoKey Key(BranchInfo.InstructionIndex, BranchInfo.ArgumentIndex, BranchInfo.Label);
+			BranchInfoLookup.FindOrAdd(Key) = &BranchInfo;
 		}
 	}
 	
-	if(const FRigVMBranchInfo** BranchInfoPtr = BranchInfoPerInstruction.Find(InBranchInfoKey))
+	if(const FRigVMBranchInfo** BranchInfoPtr = BranchInfoLookup.Find(InBranchInfoKey))
 	{
 		return *BranchInfoPtr;
 	}

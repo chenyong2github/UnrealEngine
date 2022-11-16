@@ -343,6 +343,22 @@ bool URigVMNode::HasIOPin() const
 	return HasPinOfDirection(ERigVMPinDirection::IO);
 }
 
+bool URigVMNode::HasLazyPin(bool bOnlyConsiderPinsWithLinks) const
+{
+	return Pins.ContainsByPredicate([bOnlyConsiderPinsWithLinks](const URigVMPin* Pin) -> bool
+	{
+		if(Pin->IsLazy())
+		{
+			if(bOnlyConsiderPinsWithLinks)
+			{
+				return Pin->GetLinkedSourcePins(true).Num() > 0;
+			}
+			return true;
+		}
+		return false;
+	});
+}
+
 bool URigVMNode::HasOutputPin(bool bIncludeIO) const
 {
 	if (HasPinOfDirection(ERigVMPinDirection::Output))

@@ -1119,7 +1119,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 	auto InstructionOpEval = [&](
 		int32 InstructionIndex,
 		int32 InHandleBaseIndex,
-		TFunctionRef<void(int32 InHandleIndex, const TRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InArg)> InOpFunc
+		TFunctionRef<void(int32 InHandleIndex, const FRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InArg)> InOpFunc
 		) -> void
 	{
 		const ERigVMOpCode OpCode = Instructions[InstructionIndex].OpCode; 
@@ -1267,7 +1267,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 	for (int32 InstructionIndex = 0; InstructionIndex < Instructions.Num(); InstructionIndex++)
 	{
 		InstructionOpEval(InstructionIndex, INDEX_NONE,
-			[&HandleCount](int32, const TRigVMBranchInfoKey&, const FRigVMOperand& )
+			[&HandleCount](int32, const FRigVMBranchInfoKey&, const FRigVMOperand& )
 			{
 				HandleCount++;
 			});
@@ -1290,7 +1290,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 		[&](int32 InstructionIndex)
 		{
 			InstructionOpEval(InstructionIndex, FirstHandleForInstruction[InstructionIndex],
-				[&](int32 InHandleIndex, const TRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InOp)
+				[&](int32 InHandleIndex, const FRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InOp)
 				{
 					CacheSingleMemoryHandle(InHandleIndex, InBranchInfoKey, InOp);
 				});
@@ -3374,7 +3374,7 @@ void URigVM::ClearDebugMemory()
 #endif
 }
 
-void URigVM::CacheSingleMemoryHandle(int32 InHandleIndex, const TRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InArg, bool bForExecute)
+void URigVM::CacheSingleMemoryHandle(int32 InHandleIndex, const FRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InArg, bool bForExecute)
 {
 	URigVMMemoryStorage* Memory = GetMemoryByType(InArg.GetMemoryType(), false);
 

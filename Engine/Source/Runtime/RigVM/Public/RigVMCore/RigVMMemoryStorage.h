@@ -780,9 +780,7 @@ private:
 
 	FORCEINLINE_DEBUGGABLE TRigVMLazyValueBase GetDataLazily_Internal(bool bFollowPropertyPath, int32 InSliceIndex) const
 	{
-		// this should only get called on memory handles which can execute lazily
-		check(LazyBranch != nullptr);
-		
+		// note: this works also for memory handles which don't provide a lazy branch
 		TRigVMLazyValueBase LazyValue;
 		LazyValue.MemoryHandle = (FRigVMMemoryHandle*)this;
 		LazyValue.bFollowPropertyPath = bFollowPropertyPath;

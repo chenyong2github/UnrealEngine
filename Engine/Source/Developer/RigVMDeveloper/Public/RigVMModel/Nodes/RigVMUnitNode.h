@@ -76,6 +76,7 @@ public:
 protected:
 
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
+	virtual bool ShouldInputPinComputeLazily(const URigVMPin* InPin) const override;
 
 private:
 

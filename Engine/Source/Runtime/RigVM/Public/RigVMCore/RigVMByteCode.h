@@ -27,7 +27,67 @@ class FArchive;
 class UObject;
 struct FRigVMByteCode;
 
-typedef TTuple<int32,int32> TRigVMBranchInfoKey;
+struct FRigVMBranchInfoKey
+{
+	FRigVMBranchInfoKey()
+		: InstructionIndex(INDEX_NONE)
+		, ArgumentIndex(INDEX_NONE)
+		, Label(NAME_None)
+	{}
+
+	FRigVMBranchInfoKey(int32 InInstructionIndex, int32 InArgumentIndex)
+		: InstructionIndex(InInstructionIndex)
+		, ArgumentIndex(InArgumentIndex)
+		, Label(NAME_None)
+	{}
+
+	FRigVMBranchInfoKey(int32 InInstructionIndex, const FName& InLabel)
+		: InstructionIndex(InInstructionIndex)
+		, ArgumentIndex(INDEX_NONE)
+		, Label(InLabel)
+	{}
+
+	FRigVMBranchInfoKey(int32 InInstructionIndex, int32 InArgumentIndex, const FName& InLabel)
+		: InstructionIndex(InInstructionIndex)
+		, ArgumentIndex(InArgumentIndex)
+		, Label(InLabel)
+	{}
+
+	friend uint32 GetTypeHash(const FRigVMBranchInfoKey& InKey)
+	{
+		return HashCombine(
+			HashCombine(
+				GetTypeHash(InKey.InstructionIndex),
+				GetTypeHash(InKey.ArgumentIndex)
+			),
+			GetTypeHash(InKey.Label)
+		);
+	}
+
+	bool operator ==(const FRigVMBranchInfoKey& InOther) const
+	{
+		if(InstructionIndex != InOther.InstructionIndex)
+		{
+			return false;
+		}
+
+		if(ArgumentIndex != INDEX_NONE && InOther.ArgumentIndex != INDEX_NONE)
+		{
+			return ArgumentIndex == InOther.ArgumentIndex;
+		}
+
+		if(!Label.IsNone() && !InOther.Label.IsNone())
+		{
+			return Label == InOther.Label;
+		}
+
+		return true;
+	}
+
+	int32 InstructionIndex;
+	int32 ArgumentIndex;
+	FName Label;
+};
 
 
 // The code for a single operation within the RigVM
@@ -996,6 +1056,7 @@ public:
 	uint64 AddInvokeEntryOp(const FName& InEntryName);
 
 	// adds information about a branch for an instruction's argument
+	void AddBranchInfo(const FRigVMBranchInfo& InBranchInfo);
 	void AddBranchInfo(const FName& InBranchLabel, int32 InInstructionIndex, int32 InArgumentIndex, int32 InFirstBranchInstruction, int32 InLastBranchInstruction);
 
 	// returns an instruction array for iterating over all operators
@@ -1217,8 +1278,8 @@ private:
 	UPROPERTY()
 	TArray<FRigVMBranchInfo> BranchInfos;
 
-	const FRigVMBranchInfo* GetBranchInfo(const TRigVMBranchInfoKey& InBranchInfoKey) const;
-	mutable TMap<TRigVMBranchInfoKey, const FRigVMBranchInfo*> BranchInfoPerInstruction;
+	const FRigVMBranchInfo* GetBranchInfo(const FRigVMBranchInfoKey& InBranchInfoKey) const;
+	mutable TMap<FRigVMBranchInfoKey, const FRigVMBranchInfo*> BranchInfoLookup;
 
 	// if this is set to true the stored bytecode is aligned / padded
 	bool bByteCodeIsAligned;

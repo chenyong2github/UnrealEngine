@@ -1126,7 +1126,97 @@ void URigVMCompiler::TraverseBlock(const FRigVMBlockExprAST* InExpr, FRigVMCompi
 	{
 		return;
 	}
+
+	if (InExpr->NumChildren() == 0)
+	{
+		return;
+	}
+
+	// check if the block is under a lazy pin, in which case we need to set up a branch info
+	URigVMNode* CallExternNode = nullptr;
+	FRigVMBranchInfo BranchInfo;
+	if(!WorkData.bSetupMemory)
+	{
+		if(const FRigVMExprAST* ParentExpr = InExpr->GetParent())
+		{
+			if(const FRigVMExprAST* GrandParentExpr = ParentExpr->GetParent())
+			{
+				if(GrandParentExpr->IsA(FRigVMExprAST::CallExtern))
+				{
+					const URigVMPin* Pin = nullptr;
+					if(ParentExpr->IsA(FRigVMExprAST::Var))
+					{
+						Pin = ParentExpr->To<FRigVMVarExprAST>()->GetPin();
+					}
+					else if(ParentExpr->IsA(FRigVMExprAST::CachedValue))
+					{
+						Pin = ParentExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr()->GetPin();
+					}
+
+					if(Pin)
+					{
+						Pin = Pin->GetRootPin();
+						if(Pin->IsLazy())
+						{
+							CallExternNode = Pin->GetNode();
+							
+							BranchInfo.Label = Pin->GetFName();
+							BranchInfo.InstructionIndex = INDEX_NONE; // we'll fill in the instruction info later
+							BranchInfo.FirstInstruction = WorkData.VM->GetByteCode().GetNumInstructions();
+
+							// find the argument index for the given pin
+							if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(CallExternNode))
+							{
+								if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+								{
+									for(int32 ArgumentIndex = 0; ArgumentIndex != Template->NumArguments(); ArgumentIndex++)
+									{
+										const FRigVMTemplateArgument* Argument = Template->GetArgument(ArgumentIndex);
+										if(Template->GetArgument(ArgumentIndex)->GetName() == Pin->GetFName())
+										{
+											BranchInfo.ArgumentIndex = ArgumentIndex;
+											break;
+										}
+									}
+								}
+								// we also need to deal with unit nodes separately here. if a unit node does
+								// not offer a valid backing template - we need to visit its properties. since
+								// templates don't contain executecontext type arguments anymore - we need
+								// to step over them as well here.
+								else if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(CallExternNode))
+								{
+									int32 ArgumentIndex = 0;
+									for(const URigVMPin* NodePin : UnitNode->GetPins())
+									{
+										if(NodePin->IsExecuteContext())
+										{
+											continue;
+										}
+										if(NodePin->GetFName() == Pin->GetFName())
+										{
+											BranchInfo.ArgumentIndex = ArgumentIndex;
+											break;
+										}
+										ArgumentIndex++;
+									}
+								}	
+							}
+
+							check(BranchInfo.ArgumentIndex != INDEX_NONE);
+						}
+					}
+				}
+			}
+		}
+	}
+	
 	TraverseChildren(InExpr, WorkData);
+
+	if(!BranchInfo.Label.IsNone())
+	{
+		BranchInfo.LastInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+		WorkData.BranchInfos.FindOrAdd(CallExternNode).Add(BranchInfo);
+	}
 }
 
 void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
@@ -1333,13 +1423,72 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			}
 		}
 
-		TraverseChildren(InExpr, WorkData);
+		// traverse all non-lazy children
+		TArray<const FRigVMExprAST*> LazyChildExprs;
+		for (const FRigVMExprAST* ChildExpr : *InExpr)
+		{
+			// if there's a direct child block under this - the pin may be lazy
+			if(ChildExpr->IsA(FRigVMExprAST::Var) || ChildExpr->IsA(FRigVMExprAST::CachedValue))
+			{
+				if(const FRigVMExprAST* BlockExpr = ChildExpr->GetFirstChildOfType(FRigVMExprAST::Block))
+				{
+					if(BlockExpr->GetParent() == ChildExpr)
+					{
+						URigVMPin* Pin = nullptr;
+						if(ChildExpr->IsA(FRigVMExprAST::Var))
+						{
+							Pin = ChildExpr->To<FRigVMVarExprAST>()->GetPin();
+						}
+						else
+						{
+							Pin = ChildExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr()->GetPin();
+						}
+						check(Pin);
+						
+						if(Pin->IsLazy())
+						{
+							LazyChildExprs.Add(ChildExpr);
+							continue;
+						}
+					}
+				}
+			}
+			TraverseExpression(ChildExpr, WorkData);
+		}
+
+		if(!LazyChildExprs.IsEmpty())
+		{
+			// set up an operator to skip the lazy branches 
+			const uint64 JumpToCallExternByte = WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpForward, INDEX_NONE);
+			const int32 JumpToCallExternInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+
+			// traverse the lazy children 
+			for (const FRigVMExprAST* ChildExpr : LazyChildExprs)
+			{
+				TraverseExpression(ChildExpr, WorkData);
+			}
+
+			// update the operator with the target instruction 
+			const int32 InstructionsToJump = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToCallExternInstruction;
+			WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpOp>(JumpToCallExternByte).InstructionIndex = InstructionsToJump;
+		}
 
 		// setup the instruction
 		const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(Function->GetName());
 		check(FunctionIndex != INDEX_NONE);
 		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
 		InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+
+		// setup the branch infos for this call extern instruction
+		if(const TArray<FRigVMBranchInfo>* BranchInfosPtr = WorkData.BranchInfos.Find(Node))
+		{
+			const TArray<FRigVMBranchInfo>& BranchInfos = *BranchInfosPtr;
+			for(FRigVMBranchInfo BranchInfo : BranchInfos)
+			{
+				BranchInfo.InstructionIndex = InstructionIndex;
+				WorkData.VM->GetByteCode().AddBranchInfo(BranchInfo);
+			}
+		}
 
 #if WITH_EDITORONLY_DATA
 		TArray<FRigVMOperand> InputsOperands, OutputOperands;

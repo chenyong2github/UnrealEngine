@@ -174,6 +174,18 @@ void URigVMDispatchNode::InvalidateCache()
 	CachedFactory = nullptr;
 }
 
+bool URigVMDispatchNode::ShouldInputPinComputeLazily(const URigVMPin* InPin) const
+{
+	const URigVMPin* RootPin = InPin->GetRootPin();
+	check(RootPin->GetNode() == this);
+
+	if(const FRigVMDispatchFactory* Factory = GetFactory())
+	{
+		return Factory->HasArgumentMetaData(RootPin->GetFName(), FRigVMStruct::ComputeLazilyMetaName); 
+	}
+	return Super::ShouldInputPinComputeLazily(InPin);
+}
+
 FRigVMStructUpgradeInfo URigVMDispatchNode::GetUpgradeInfo() const
 {
 	if(const FRigVMDispatchFactory* Factory = GetFactory())

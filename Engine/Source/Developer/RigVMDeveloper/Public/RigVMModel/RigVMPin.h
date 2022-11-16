@@ -225,6 +225,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsReferenceCountedContainer() const { return IsDynamicArray(); }
 
+	// Returns true if this pin's value may be executed lazily
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool IsLazy() const;
+
 	// Returns the index of the Pin within the node / parent Pin
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	int32 GetPinIndex() const;

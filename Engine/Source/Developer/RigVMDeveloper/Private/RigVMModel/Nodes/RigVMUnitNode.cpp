@@ -136,6 +136,22 @@ FText URigVMUnitNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 	return URigVMNode::GetToolTipTextForPin(InPin);
 }
 
+bool URigVMUnitNode::ShouldInputPinComputeLazily(const URigVMPin* InPin) const
+{
+	const URigVMPin* RootPin = InPin->GetRootPin();
+	check(RootPin->GetNode() == this);
+
+	if(const UScriptStruct* Struct = GetScriptStruct())
+	{
+		if(const FProperty* Property = Struct->FindPropertyByName(RootPin->GetFName()))
+		{
+			return Property->HasMetaData(FRigVMStruct::ComputeLazilyMetaName);
+		}
+	}
+
+	return Super::ShouldInputPinComputeLazily(InPin);
+}
+
 bool URigVMUnitNode::IsDeprecated() const
 {
 	return !GetDeprecatedMetadata().IsEmpty();

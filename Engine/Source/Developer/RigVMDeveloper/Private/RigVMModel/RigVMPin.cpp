@@ -565,6 +565,18 @@ bool URigVMPin::IsDynamicArray() const
 	return bIsDynamicArray;
 }
 
+bool URigVMPin::IsLazy() const
+{
+	if(GetDirection() == ERigVMPinDirection::Input)
+	{
+		if(const URigVMNode* Node = GetNode())
+		{
+			return Node->ShouldInputPinComputeLazily(this);
+		}
+	}
+	return false;
+}
+
 int32 URigVMPin::GetPinIndex() const
 {
 	int32 Index = INDEX_NONE;

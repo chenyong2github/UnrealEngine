@@ -13,6 +13,7 @@
 
 class FRigVMParserAST;
 class FRigVMBlockExprAST;
+class FRigVMNodeExprAST;
 class FRigVMEntryExprAST;
 class FRigVMInvokeEntryExprAST;
 class FRigVMCallExternExprAST;
@@ -297,7 +298,7 @@ protected:
 	friend class URigVMCompiler;
 };
 
-// specialized cast for type checkiFRigVMAssignExprASTng
+// specialized cast for type checking
 // for a Block / FRigVMBlockExprAST expression
 // will raise if types are not compatible
 // @return this expression cast to FRigVMBlockExprAST
@@ -306,6 +307,27 @@ FORCEINLINE const FRigVMBlockExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Block));
 	return (const FRigVMBlockExprAST*)this;
+}
+
+// specialized cast for type checking
+// for a Node / FRigVMNodeExprAST expression
+// will raise if types are not compatible
+// @return this expression cast to FRigVMNodeExprAST
+template<>
+FORCEINLINE const FRigVMNodeExprAST* FRigVMExprAST::To() const
+{
+	ensure(
+		IsA(EType::Entry) ||
+		IsA(EType::InvokeEntry) ||
+		IsA(EType::CallExtern) ||
+		IsA(EType::InlineFunction) ||
+		IsA(EType::NoOp) ||
+		IsA(EType::Branch) ||
+		IsA(EType::If) ||
+		IsA(EType::Select) ||
+		IsA(EType::Array)
+	);
+	return (const FRigVMNodeExprAST*)this;
 }
 
 // specialized cast for type checking

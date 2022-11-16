@@ -54,6 +54,7 @@ protected:
 	const UScriptStruct* GetFactoryStruct() const;
 	const FRigVMTemplateTypeMap& GetFilteredTypes() const;
 	virtual void InvalidateCache() override;
+	virtual bool ShouldInputPinComputeLazily(const URigVMPin* InPin) const override;
 
 private:
 
