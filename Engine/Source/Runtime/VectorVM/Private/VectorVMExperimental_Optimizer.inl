@@ -163,11 +163,29 @@ void FreezeVectorVMOptimizeContext(const FVectorVMOptimizeContext& Context, TArr
 	FMemory::Memcpy(DestData + InputDataSetOffsetsOffset, Context.InputDataSetOffsets, InputDataSetOffsetsSize);
 	FMemory::Memcpy(DestData + ExtFnOffset, Context.ExtFnTable, ExtFnSize);
 
-	// we want to clear out the pointers to any callbacks
+	// we want to clear out the pointers to any callbacks or pointers to the data that is being pushed past
+	// the end of the struct
 	FVectorVMOptimizeContext& DestContext = *reinterpret_cast<FVectorVMOptimizeContext*>(DestData);
+
+	// relocated buffers
+	DestContext.OutputBytecode = nullptr;
+	DestContext.ConstRemap[0] = nullptr;
+	DestContext.ConstRemap[1] = nullptr;
+	DestContext.InputRemapTable = nullptr;
+	DestContext.InputDataSetOffsets = nullptr;
+	DestContext.ExtFnTable = nullptr;
+
+	// callbacks
 	DestContext.Init.ReallocFn = nullptr;
 	DestContext.Init.FreeFn = nullptr;
 	DestContext.Error.CallbackFn = nullptr;
+
+	// external function pointers
+	FVectorVMExtFunctionData* ExtFunctionTable = reinterpret_cast<FVectorVMExtFunctionData*>(DestData + ExtFnOffset);
+	for (uint32 ExtFunctionIt = 0; ExtFunctionIt < Context.NumExtFns; ++ExtFunctionIt)
+	{
+		ExtFunctionTable[ExtFunctionIt].Function = nullptr;
+	}
 }
 
 static void* VectorVMFrozenRealloc(void* Ptr, size_t NumBytes, const char* Filename, int LineNum)

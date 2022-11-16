@@ -534,9 +534,6 @@ public:
 	UPROPERTY()
 	FString ErrorMsg;
 
-	UPROPERTY()
-	float CompileTime;
-
 	/** Array of all compile events generated last time the script was compiled.*/
 	UPROPERTY()
 	TArray<FNiagaraCompileEvent> LastCompileEvents;
@@ -1114,11 +1111,11 @@ public:
 		gather up the results with. The function returns whether or not any compiles were actually issued. */
 	NIAGARA_API bool RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, const TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe>& RequestDuplicateData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle);
 
-	/** Builds the DDC string for the derived data cache using the supplied CompiledId */
-	static FString BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId);
+	/** Builds the DDC string for the derived data cache using the supplied CompiledId and ScriptPath */
+	static FString BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId, const FString& ScriptPath);
 
 	/** Creates a string key for the derived data cache */
-	FString GetNiagaraDDCKeyString(const FGuid& ScriptVersion);
+	FString GetNiagaraDDCKeyString(const FGuid& ScriptVersion, const FString& ScriptPath);
 
 	/** Callback issued whenever a VM script compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnScriptCompiled& OnVMScriptCompiled();

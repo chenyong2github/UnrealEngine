@@ -2034,8 +2034,6 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			}
 		}
 		Results.CompileTime = (float)(FPlatformTime::Seconds() - CompilationJob->StartTime);
-		Results.Data->CompileTime = Results.CompileTime;
-
 
 		Results.Data->CalledVMExternalFunctions.Empty(CompilationOutput.CalledVMFunctionTable.Num());
 		for (FCalledVMFunction& FuncInfo : CompilationOutput.CalledVMFunctionTable)

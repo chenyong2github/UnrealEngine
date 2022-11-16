@@ -234,7 +234,6 @@ FNiagaraVMExecutableData::FNiagaraVMExecutableData()
 	, LastCompileStatus(ENiagaraScriptCompileStatus::NCS_Unknown)
 #if WITH_EDITORONLY_DATA
 	, bReadsAttributeData(false)
-	, CompileTime(0.0f)
 #endif
 	, bReadsSignificanceIndex(false)
 	, bNeedsGPUContextInit(false)
@@ -911,20 +910,33 @@ FNiagaraVMExecutableDataId& UNiagaraScript::GetLastGeneratedVMId(const FGuid& Ve
 	return VersionData[0].LastGeneratedVMId;
 }
 
-FString UNiagaraScript::BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId)
+// while it would be nice to not have to include the script path into the DDC key (so that two scripts on different
+// could share the same DDC data) we currently have a number of elements of the system/emitter scripts that get
+// incorporated into the data stored in the DDC that make it difficult to have scripts owned by different emitters
+// generated deterministic results.  Current limitations include:
+//	-stat scopes and emitter functions incorporating identifiers into the generated hlsl
+//	-graph specific information (node guids) used in serialized errors/warnings for backtracking to the source in the UI
+FString UNiagaraScript::BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId, const FString& ScriptPath)
 {
 	enum { UE_NIAGARA_COMPILATION_DERIVEDDATA_VER = 2 };
 
-	FString KeyString = FString::Printf(TEXT("%i_%i"),
+	FString KeyString;
+	KeyString.Reserve(1024);
+
+	KeyString.Appendf(TEXT("%i_%i"),
 		(int32)UE_NIAGARA_COMPILATION_DERIVEDDATA_VER, GNiagaraSkipVectorVMBackendOptimizations);
+
+	KeyString.AppendChar(TCHAR('_'));
+	KeyString.Append(ScriptPath);
+	KeyString.AppendChar(TCHAR('_'));
 
 	CompileId.AppendKeyString(KeyString);
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("NiagaraScriptDerivedData"), NIAGARASCRIPT_DERIVEDDATA_VER, *KeyString);
 }
 
-FString UNiagaraScript::GetNiagaraDDCKeyString(const FGuid& ScriptVersion)
+FString UNiagaraScript::GetNiagaraDDCKeyString(const FGuid& ScriptVersion, const FString& ScriptPath)
 {
-	return BuildNiagaraDDCKeyString(GetLastGeneratedVMId(ScriptVersion));
+	return BuildNiagaraDDCKeyString(GetLastGeneratedVMId(ScriptVersion), ScriptPath);
 }
 
 void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGuid VersionGuid) const
@@ -2806,8 +2818,10 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 			return;
 		}
 
+		const FString ScriptPathName = GetPathName();
+
 		// check the ddc first
-		if (GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(ScriptVersion), OutData, GetPathName()))
+		if (GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(ScriptVersion, ScriptPathName), OutData, ScriptPathName))
 		{
 			FNiagaraVMExecutableData ExeData;
 			if (BinaryToExecData(this, OutData, ExeData))
@@ -2821,7 +2835,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 		ActiveCompileRoots.Empty();
 		RequestDuplicateData->GetDuplicatedObjects(ActiveCompileRoots);
 
-		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ScriptData->ModuleUsageBitmask, GetPathName(), GetFullName(), GetName());
+		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ScriptData->ModuleUsageBitmask, ScriptPathName, GetFullName(), GetName());
 		int32 JobHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), RequestDuplicateData.Get(), Options);
 		TSharedPtr<FNiagaraVMExecutableData> ExeData = NiagaraModule.GetCompileJobResult(JobHandle, true);
 		if (ExeData)
@@ -2831,7 +2845,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 			if (ExecToBinaryData(this, OutData, *ExeData))
 			{
 				COOK_STAT(Timer.AddMiss(OutData.Num()));
-				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(ScriptVersion), OutData, GetPathName());
+				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(ScriptVersion, ScriptPathName), OutData, ScriptPathName);
 			}
 		}
 		ActiveCompileRoots.Empty();

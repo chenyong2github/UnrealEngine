@@ -2683,7 +2683,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 			if (EmitterCompiledScriptPair.bResultsReady)
 			{
 				TSharedPtr<FNiagaraVMExecutableData> ExeData = EmitterCompiledScriptPair.CompileResults;
-				CompileRequest.CombinedCompileTime += ExeData->CompileTime;
+				CompileRequest.CombinedCompileTime += EmitterCompiledScriptPair.CompileTime;
 				UNiagaraScript* CompiledScript = EmitterCompiledScriptPair.CompiledScript;
 
 				// generate the ObjectNameMap from the source (from the duplicated data if available).
@@ -3182,7 +3182,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 			};
 
 			TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = *ActiveCompilation.DDCTasks.FindByPredicate(InPairs);
-			AsyncTask->DDCKey = UNiagaraScript::BuildNiagaraDDCKeyString(AsyncTask->GetScriptPair().CompileId);
+			AsyncTask->DDCKey = UNiagaraScript::BuildNiagaraDDCKeyString(AsyncTask->GetScriptPair().CompileId, AsyncTask->AssetPath);
 			AsyncTask->PrecompileReference = PrecompileReference;
 			AsyncTask->StartTaskTime = FPlatformTime::Seconds();
 

@@ -259,7 +259,7 @@ void FNiagaraAsyncCompileTask::PrecompileData()
 	// because otherwise we would save the compiled data under the wrong ddc key
 	FNiagaraVMExecutableDataId NewID;
 	ScriptPair.CompiledScript->ComputeVMCompilationId(NewID, FGuid());
-	FString CurrentDDCKey = UNiagaraScript::BuildNiagaraDDCKeyString(NewID);
+	FString CurrentDDCKey = UNiagaraScript::BuildNiagaraDDCKeyString(NewID, AssetPath);
 	if (DDCKey != CurrentDDCKey && LogNiagara.GetVerbosity() >= ELogVerbosity::Verbose)
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("Compile ID for %s changed during the compilation task."), *AssetPath);
@@ -372,7 +372,7 @@ void FNiagaraAsyncCompileTask::ProcessResult()
 	// convert results to be saved in the ddc
 	ScriptPair.CompileResults = ExeData;
 	ScriptPair.bResultsReady = true;
-	ExeData->CompileTime = FPlatformTime::Seconds() - StartCompileTime;
+	ScriptPair.CompileTime = FPlatformTime::Seconds() - StartCompileTime;
 	ScriptPair.CompiledScript->ExecToBinaryData(ScriptPair.CompiledScript, DDCOutData, *ExeData);
 	UE_LOG(LogNiagara, Verbose, TEXT("Got %i bytes in ddc data for %s"), DDCOutData.Num(), *AssetPath);
 }
