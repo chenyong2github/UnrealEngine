@@ -949,6 +949,7 @@ namespace ChaosTest {
 		// Long box
 		{
 			TBox<FReal, 3> Box(FVec3(-1.0, -1.0, -1.0), FVec3(1.0, 1.0, 10.0));
+			FCapsule Capsule(FVec3(0.0, 0.0, 0.0), FVec3(0.0, 0.0, 9.0), 1.14);
 			for (int32 Row = 0; Row < Rows; ++Row)
 			{
 				for (int32 Col = 0; Col < Columns; ++Col)
@@ -956,20 +957,23 @@ namespace ChaosTest {
 					const FVec3 Translation(Col, Row, 1.5);
 					FRigidTransform3 QueryTM(Translation, TRotation<FReal, 3>::Identity);
 					FVec3 Dir(1, 0, 0);
-					bool Result = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					bool BoxResult = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
 					// No collision on the side of the mountain
 					if ((Col < 3 || Col > 7) && (Row < 3 || Row > 7))
 					{
-						EXPECT_FALSE(Result);
+						EXPECT_FALSE(BoxResult);
+						EXPECT_FALSE(CapsuleResult);
 					}
 					// Collision with the mountain
 					else if ((Col >= 3 && Col <= 7) && (Row >= 3 && Row <= 7))
 					{
-						EXPECT_TRUE(Result);
+						EXPECT_TRUE(BoxResult);
+						EXPECT_TRUE(CapsuleResult);
 					}
 					else
 					{
-						EXPECT_FALSE(Result);
+						EXPECT_FALSE(BoxResult);
 					}
 				}
 			}
@@ -977,6 +981,7 @@ namespace ChaosTest {
 		// Box rotated in X
 		{
 			TBox<FReal, 3> Box(FVec3(-1.0, -1.0, -20.0), FVec3(1.0, 1.0, 20.0));
+			FCapsule Capsule(FVec3(0.0, 0.0, -19.0), FVec3(0.0, 0.0, 19.0), 1.14);
 			for (int32 Row = 0; Row < Rows; ++Row)
 			{
 				for (int32 Col = 0; Col < Columns; ++Col)
@@ -984,15 +989,18 @@ namespace ChaosTest {
 					const FVec3 Translation(Col, Row, 2.0);
 					FRigidTransform3 QueryTM(Translation, TRotation<FReal, 3>(UE::Math::TQuat<FReal>(TVector<FReal, 3>(1.0, 0.0, 0.0), 3.14159/2.0)));
 					FVec3 Dir(1, 0, 0);
-					bool Result = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					bool BoxResult = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
 					// Collision with the mountain
 					if (Col >= 3 && Col <= 7)
 					{
-						EXPECT_TRUE(Result);
+						EXPECT_TRUE(BoxResult);
+						EXPECT_TRUE(CapsuleResult);
 					}
 					else
 					{
-						EXPECT_FALSE(Result);
+						EXPECT_FALSE(BoxResult);
+						EXPECT_FALSE(CapsuleResult);
 					}
 				}
 			}
@@ -1000,6 +1008,7 @@ namespace ChaosTest {
 		// Box rotated in Y
 		{
 			TBox<FReal, 3> Box(FVec3(-1.0, -1.0, -20.0), FVec3(1.0, 1.0, 20.0));
+			FCapsule Capsule(FVec3(0.0, 0.0, -19.0), FVec3(0.0, 0.0, 19.0), 1.14);
 			for (int32 Row = 0; Row < Rows; ++Row)
 			{
 				for (int32 Col = 0; Col < Columns; ++Col)
@@ -1007,15 +1016,18 @@ namespace ChaosTest {
 					const FVec3 Translation(Col, Row, 2.0);
 					FRigidTransform3 QueryTM(Translation, TRotation<FReal, 3>(UE::Math::TQuat<FReal>(TVector<FReal, 3>(0.0, 1.0, 0.0), 3.14159 / 2.0)));
 					FVec3 Dir(1, 0, 0);
-					bool Result = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					bool BoxResult = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
 					// Collision with the mountain
 					if (Row >= 3 && Row <= 7)
 					{
-						EXPECT_TRUE(Result);
+						EXPECT_TRUE(BoxResult);
+						EXPECT_TRUE(CapsuleResult);
 					}
 					else
 					{
-						EXPECT_FALSE(Result);
+						EXPECT_FALSE(BoxResult);
+						EXPECT_FALSE(CapsuleResult);
 					}
 				}
 			}
@@ -1023,6 +1035,7 @@ namespace ChaosTest {
 		// Thin Box
 		{
 			TBox<FReal, 3> Box(FVec3(-10.0, -10.0, -0.001), FVec3(10.0, 10.0, 0.001));
+			FCapsule Capsule(FVec3(0.0, 0.0, -0.001), FVec3(0.0, 0.0, 0.001), 11.4);
 			for (int32 Row = 0; Row < Rows; ++Row)
 			{
 				for (int32 Col = 0; Col < Columns; ++Col)
@@ -1030,15 +1043,17 @@ namespace ChaosTest {
 					const FVec3 Translation(Col, Row, 2.0);
 					FRigidTransform3 QueryTM(Translation, TRotation<FReal, 3>(UE::Math::TQuat<FReal>(TVector<FReal, 3>(1.0, 0.0, 0.0), 0.0)));
 					FVec3 Dir(1, 0, 0);
-					bool Result = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
-					// Collision with the mountain
-					EXPECT_TRUE(Result);
+					bool BoxResult = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
+					EXPECT_TRUE(BoxResult);
+					EXPECT_TRUE(CapsuleResult);
 				}
 			}
 		}
 		// Thin Box on the top
 		{
 			TBox<FReal, 3> Box(FVec3(-10.0, -10.0, -0.001), FVec3(10.0, 10.0, 0.001));
+			FCapsule Capsule(FVec3(0.0, 0.0, -0.001), FVec3(0.0, 0.0, 0.001), 11.4);
 			for (int32 Row = 0; Row < Rows; ++Row)
 			{
 				for (int32 Col = 0; Col < Columns; ++Col)
@@ -1046,9 +1061,10 @@ namespace ChaosTest {
 					const FVec3 Translation(Col, Row, 9.5);
 					FRigidTransform3 QueryTM(Translation, TRotation<FReal, 3>(UE::Math::TQuat<FReal>(TVector<FReal, 3>(1.0, 0.0, 0.0), 0.0)));
 					FVec3 Dir(1, 0, 0);
-					bool Result = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
-					// Collision with the mountain
-					EXPECT_TRUE(Result);
+					bool BoxResult = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
+					EXPECT_TRUE(BoxResult);
+					EXPECT_TRUE(CapsuleResult);
 				}
 			}
 		}
@@ -1056,12 +1072,14 @@ namespace ChaosTest {
 		// Inclined Box
 		{
 			TBox<FReal, 3> Box(FVec3(-1.0, -1.0, -0.0001), FVec3(1.0, 1.0, 10.0));
+			FCapsule Capsule(FVec3(0.0, 0.0, 1.0-0.0001), FVec3(0.0, 0.0, 9.0), 1.0);
 			const FVec3 Translation(5.0, 0.0, 15.0);
 			FRigidTransform3 QueryTM(Translation, TRotation<FReal, 3>(UE::Math::TQuat<FReal>(TVector<FReal, 3>(1.0, 0.0, 0.0), -3*3.1415926 / 4.0)));
 			FVec3 Dir(1, 0, 0);
-			bool Result = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
-			// Collision with the mountain
-			EXPECT_TRUE(Result);
+			bool BoxResult = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+			bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
+			EXPECT_TRUE(BoxResult);
+			EXPECT_TRUE(CapsuleResult);
 		}
 	}
 	

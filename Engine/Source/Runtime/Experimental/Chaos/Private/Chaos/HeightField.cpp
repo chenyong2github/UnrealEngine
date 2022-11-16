@@ -4,6 +4,7 @@
 #include "Chaos/Collision/ContactPoint.h"
 #include "Chaos/Collision/ContactPointsMiscShapes.h"
 #include "Chaos/Collision/ContactTriangles.h"
+#include "Chaos/Collision/TriangleOverlap.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/CollisionOneShotManifolds.h"
 #include "Chaos/Core.h"
@@ -1989,6 +1990,26 @@ namespace Chaos
 			}
 			else
 			{
+				VectorRegister4Float X1;
+				VectorRegister4Float X2;
+				FRealSingle Radius;
+				if constexpr (std::is_same<QueryGeomType, FCapsule>::value)
+				{
+					Radius = FRealSingle(QueryGeom.GetRadius());
+					const FVec3f X1f = QueryGeom.GetX1();
+					const FVec3f X2f = QueryGeom.GetX2();
+					X1 = VectorLoadFloat3(&X1f.X);
+					X2 = VectorLoadFloat3(&X2f.X);
+				}
+				else if constexpr (std::is_same<QueryGeomType, TImplicitObjectScaled < FCapsule>>::value)
+				{
+					Radius = FRealSingle(QueryGeom.GetRadius());
+					const FVec3f X1f = QueryGeom.GetUnscaledObject()->GetX1() * QueryGeom.GetScale();
+					const FVec3f X2f = QueryGeom.GetUnscaledObject()->GetX2() * QueryGeom.GetScale();
+					X1 = VectorLoadFloat3(&X1f.X);
+					X2 = VectorLoadFloat3(&X2f.X);
+				}
+
 				VectorRegister4Float Points[4];
 				const UE::Math::TQuat<FReal>& RotationDouble = QueryTM.GetRotation();
 				VectorRegister4Float Rotation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RotationDouble.X, RotationDouble.Y, RotationDouble.Z, RotationDouble.W));
@@ -2013,14 +2034,28 @@ namespace Chaos
 							P = VectorQuaternionRotateVector(InvRotation, P);
 						}
 
-						if (OverlapTriangleNoMTD(Points[0], Points[1], Points[3]))
+						if constexpr (std::is_same<QueryGeomType, FCapsule>::value || std::is_same<QueryGeomType, TImplicitObjectScaled < FCapsule>>::value)
 						{
-							return true;
+							if (ComputeCapsuleTriangleOverlapSimd(Points[0], Points[1], Points[3], X1, X2, Radius))
+							{
+								return true;
+							}
+							if (ComputeCapsuleTriangleOverlapSimd(Points[0], Points[3], Points[2], X1, X2, Radius))
+							{
+								return true;
+							}
 						}
-						if (OverlapTriangleNoMTD(Points[0], Points[3], Points[2]))
+						else
 						{
-							return true;
-						}
+							if (OverlapTriangleNoMTD(Points[0], Points[1], Points[3]))
+							{
+								return true;
+							}
+							if (OverlapTriangleNoMTD(Points[0], Points[3], Points[2]))
+							{
+								return true;
+							}
+						}	
 					}
 				}
 			}
