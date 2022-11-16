@@ -55,7 +55,7 @@ struct FRigVMFunctionCompilationPropertyPath
 	GENERATED_BODY()
 
 	UPROPERTY()
-	int32 PropertyIndex;
+	int32 PropertyIndex = INDEX_NONE;
 
 	UPROPERTY()
 	FString HeadCPPType;
