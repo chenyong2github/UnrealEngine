@@ -277,8 +277,7 @@ FHardwareDeviceIdentifier UInputDeviceSubsystem::GetMostRecentlyUsedHardwareDevi
 	{
 		return *FoundDevice;
 	}
-	
-	UE_LOG(LogInputDeviceProperties, Warning, TEXT("Could not determine the hardware device last used by platform user %d"), InUserId.GetInternalId());
+		
 	return FHardwareDeviceIdentifier::Invalid;
 }
 
