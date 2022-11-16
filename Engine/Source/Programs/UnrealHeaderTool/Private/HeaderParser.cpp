@@ -6628,6 +6628,7 @@ const FName FHeaderParser::NAME_InputText(TEXT("Input"));
 const FName FHeaderParser::NAME_OutputText(TEXT("Output"));
 const FName FHeaderParser::NAME_ConstantText(TEXT("Constant"));
 const FName FHeaderParser::NAME_VisibleText(TEXT("Visible"));
+const FName FHeaderParser::NAME_LazyText(TEXT("Lazy"));
 
 const FName FHeaderParser::NAME_SingletonText(TEXT("Singleton"));
 
@@ -6686,6 +6687,13 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 			Parameter.bOutput = false;
 		}
 
+		Parameter.bIsLazy = PropertyDef->HasMetaData(NAME_LazyText);
+
+		if(Parameter.bOutput && Parameter.bIsLazy)
+		{
+			LogError(TEXT("RigVM Struct '%s' - Member '%s' is both an output and a lazy input."), *StructDef.GetName(), *Parameter.Name);
+		}
+
 		if (Parameter.bEditorOnly)
 		{
 			LogError(TEXT("RigVM Struct '%s' - Member '%s' is editor only - WITH_EDITORONLY_DATA not allowed on structs with RIGVM_METHOD."), *StructDef.GetName(), *Parameter.Name, *MemberCPPType);
@@ -6718,7 +6726,7 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 		{
 			ExtendedCPPType = FString::Printf(TEXT("<%s>"), *ExtendedCPPType.LeftChop(1).RightChop(1));
 			
-			if(Parameter.IsConst())
+			if(Parameter.IsConst() && !Parameter.bIsLazy)
 			{
 				ExtendedCPPType = FString::Printf(TEXT("<const %s>"), *ExtendedCPPType.LeftChop(1).RightChop(1));
 				Parameter.CastName = FString::Printf(TEXT("%s_%d_Array"), *Parameter.Name, StructRigVMInfo.Members.Num());

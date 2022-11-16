@@ -3441,15 +3441,35 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				AdditionalParameters = SliceContextParameter;
 			}
 
+			FString GetDataMethod = TEXT("GetData");
+			if(Parameter.bIsLazy)
+			{
+				static constexpr TCHAR GetDataLazilyFormat[] = TEXT("GetDataLazily<%s>");
+				GetDataMethod = FString::Printf(GetDataLazilyFormat, *Parameter.TypeOriginal(false, false));
+			}
+
 			if (Parameter.IsArray())
 			{
-				FString ExtendedType = Parameter.ExtendedType();
-				RigVMStubProlog.Add(FString::Printf(TEXT("TArray%s& %s = *(TArray%s*)RigVMMemoryHandles[%d].GetData(false%s);"),
-					*ExtendedType,
-					*ParamNameOriginal,
-					*ExtendedType,
-					OperandIndex,
-					*AdditionalParameters));
+				if(!Parameter.bIsLazy)
+				{
+					FString ExtendedType = Parameter.ExtendedType();
+					RigVMStubProlog.Add(FString::Printf(TEXT("TArray%s& %s = *(TArray%s*)RigVMMemoryHandles[%d].%s(false%s);"),
+						*ExtendedType,
+						*ParamNameOriginal,
+						*ExtendedType,
+						OperandIndex,
+						*GetDataMethod,
+						*AdditionalParameters));
+				}
+				else
+				{
+					RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = RigVMMemoryHandles[%d].%s(false%s);"),
+						*Parameter.TypeConstRef(false),
+						*ParamNameOriginal,
+						OperandIndex,
+						*GetDataMethod,
+						*AdditionalParameters));
+				}
 
 				OperandIndex++;
 			}
@@ -3462,13 +3482,19 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				{
 					ExtractedType = Parameter.TypeOriginal(true);
 				}
+				
 				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
+				if(Parameter.bIsLazy)
+				{
+					ParameterCast.Reset();
+				}
 
-				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMMemoryHandles[%d].GetData(false%s);"),
+				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMMemoryHandles[%d].%s(false%s);"),
 				*VariableType,
 				*ParamNameOriginal,
 				*ParameterCast,
 				OperandIndex,
+				*GetDataMethod,
 				*AdditionalParameters));
 
 				OperandIndex++;

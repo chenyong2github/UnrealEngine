@@ -60,6 +60,11 @@ namespace EpicGames.UHT.Types
 		/// Set if the property is an enum as byte
 		/// </summary>
 		IsEnumAsByte = 0x00040000,
+
+		/// <summary>
+		/// Computes the value lazily
+		/// </summary>
+		IsLazy = 0x00080000,
 	}
 
 	/// <summary>
@@ -189,6 +194,12 @@ namespace EpicGames.UHT.Types
 		public bool IsEnumAsByte => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.IsEnumAsByte);
 
 		/// <summary>
+		/// True if the parameter should be computed lazily
+		/// </summary>
+		[JsonIgnore]
+		public bool IsLazy => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.IsLazy);
+
+		/// <summary>
 		/// True if the parameter is an array
 		/// </summary>
 		[JsonIgnore]
@@ -209,6 +220,7 @@ namespace EpicGames.UHT.Types
 			ParameterFlags |= property.MetaData.ContainsKey("Output") ? UhtRigVMParameterFlags.Output : UhtRigVMParameterFlags.None;
 			ParameterFlags |= property.IsEditorOnlyProperty ? UhtRigVMParameterFlags.EditorOnly : UhtRigVMParameterFlags.None;
 			ParameterFlags |= property.MetaData.ContainsKey("Singleton") ? UhtRigVMParameterFlags.Singleton : UhtRigVMParameterFlags.None;
+			ParameterFlags |= property.MetaData.ContainsKey("Lazy") ? UhtRigVMParameterFlags.IsLazy : UhtRigVMParameterFlags.None;
 
 			if (property.MetaData.ContainsKey("Visible"))
 			{
@@ -236,7 +248,7 @@ namespace EpicGames.UHT.Types
 				if (property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsRigVMArray))
 				{
 					ParameterFlags |= UhtRigVMParameterFlags.IsArray;
-					if (IsConst())
+					if (IsConst() && !IsLazy)
 					{
 						string extendedType = ExtendedType(false);
 						CastName = $"{Name}_{index}_Array";
@@ -275,10 +287,11 @@ namespace EpicGames.UHT.Types
 		/// Get the type of the parameter
 		/// </summary>
 		/// <param name="castType">If true, return the cast type</param>
+		/// <param name="wrapLazyType">If true, return the wrapped lazy type as needed</param>
 		/// <returns>Parameter type</returns>
-		public string TypeOriginal(bool castType = false)
+		public string TypeOriginal(bool castType = false, bool wrapLazyType = true)
 		{
-			return castType && CastType != null ? CastType : Type;
+			return GetLazyType(castType && CastType != null ? CastType : Type, wrapLazyType);
 		}
 
 		/// <summary>
@@ -299,7 +312,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Base parameter type</returns>
 		public string BaseType(bool castType = false)
 		{
-			string typeOriginal = TypeOriginal(castType);
+			string typeOriginal = TypeOriginal(castType, false);
 
 			int lesserPos = typeOriginal.IndexOf('<', StringComparison.Ordinal);
 			if (lesserPos >= 0)
@@ -319,7 +332,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Template arguments of the type</returns>
 		public string ExtendedType(bool castType = false)
 		{
-			string typeOriginal = TypeOriginal(castType);
+			string typeOriginal = TypeOriginal(castType, false);
 
 			int lesserPos = typeOriginal.IndexOf('<', StringComparison.Ordinal);
 			if (lesserPos >= 0)
@@ -387,6 +400,21 @@ namespace EpicGames.UHT.Types
 		public string TypeVariableRef(bool castType = false)
 		{
 			return IsConst() ? TypeConstRef(castType) : TypeRef(castType);
+		}
+
+		/// <summary>
+		/// Return the type wrapped with a lazy struct as needed
+		/// </summary>
+		/// <param name="typeToWrap">The type to wrap with a lazy struct</param>
+		/// <param name="wrapLazyType">If true the type will be wrapped as needed</param>
+		/// <returns>Type wrapped as needed</returns>
+		public string GetLazyType(string typeToWrap, bool wrapLazyType)
+		{
+			if (IsLazy && wrapLazyType)
+			{
+				return $"TRigVMLazyValue<{typeToWrap}>";
+			}
+			return typeToWrap;
 		}
 
 		/// <summary>
@@ -910,6 +938,10 @@ namespace EpicGames.UHT.Types
 						}
 						else
 						{
+							if (parameter.IsLazy && parameter.Output)
+							{
+								this.LogError($"RigVM Struct {this.SourceName} - Member {parameter.Name} is both an output and a lazy input.");
+							}
 							RigVMStructInfo.Members.Add(parameter);
 						}
 					}

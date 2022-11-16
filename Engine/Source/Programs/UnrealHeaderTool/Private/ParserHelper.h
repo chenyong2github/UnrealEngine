@@ -534,6 +534,7 @@ struct FRigVMParameter
 		, bEditorOnly(false)
 		, bIsEnum(false)
 		, bIsEnumAsByte(false)
+		, bIsLazy(false)
 	{
 	}
 
@@ -550,15 +551,16 @@ struct FRigVMParameter
 	bool bEditorOnly;
 	bool bIsEnum;
 	bool bIsEnumAsByte;
+	bool bIsLazy;
 
 	const FString& NameOriginal(bool bCastName = false) const
 	{
 		return (bCastName && !CastName.IsEmpty()) ? CastName : Name;
 	}
 
-	const FString& TypeOriginal(bool bCastType = false) const
+	FString TypeOriginal(bool bCastType = false, bool bWrapLazyType = true) const
 	{
-		return (bCastType && !CastType.IsEmpty()) ? CastType : Type;
+		return GetLazyType((bCastType && !CastType.IsEmpty()) ? CastType : Type, bWrapLazyType);
 	}
 
 	FString Declaration(bool bCastType = false, bool bCastName = false) const
@@ -568,7 +570,7 @@ struct FRigVMParameter
 
 	FString BaseType(bool bCastType = false) const
 	{
-		const FString& String = TypeOriginal(bCastType);
+		const FString& String = TypeOriginal(bCastType, false);
 		int32 LesserPos = 0;
 		if (String.FindChar(TEXT('<'), LesserPos))
 		{
@@ -579,7 +581,7 @@ struct FRigVMParameter
 
 	FString ExtendedType(bool bCastType = false) const
 	{
-		const FString& String = TypeOriginal(bCastType);
+		const FString& String = TypeOriginal(bCastType, false);
 		int32 LesserPos = 0;
 		if (String.FindChar(TEXT('<'), LesserPos))
 		{
@@ -617,6 +619,16 @@ struct FRigVMParameter
 	FString TypeVariableRef(bool bCastType = false) const
 	{
 		return IsConst() ? TypeConstRef(bCastType) : TypeRef(bCastType);
+	}
+
+	FString GetLazyType(const FString& InType, bool bWrapLazyType) const
+	{
+		if(bIsLazy && bWrapLazyType)
+		{
+			static constexpr TCHAR LazyTypeFormat[] = TEXT("TRigVMLazyValue<%s>");
+			return FString::Printf(LazyTypeFormat, *InType);
+		}
+		return InType;
 	}
 
 	FString Variable(bool bCastType = false, bool bCastName = false) const

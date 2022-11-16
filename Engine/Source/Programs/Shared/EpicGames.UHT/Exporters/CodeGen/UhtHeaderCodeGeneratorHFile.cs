@@ -194,19 +194,44 @@ namespace EpicGames.UHT.Exporters.CodeGen
 										additionalParameters = ", RigVMExecuteContext.GetSlice().GetIndex()";
 									}
 
+									string getDataMethod = "GetData";
+									if (parameter.IsLazy)
+									{
+										getDataMethod = $"GetDataLazily<{parameter.TypeOriginal(false, false)}>";
+									}
+
 									if (parameter.IsArray)
 									{
 										string extendedType = parameter.ExtendedType();
+
+										if (!parameter.IsLazy)
+										{
+											builder
+												.Append("\t\tTArray")
+												.Append(extendedType)
+												.Append("& ")
+												.Append(paramNameOriginal)
+												.Append(" = ")
+												.Append("*(TArray")
+												.Append(extendedType)
+												.Append("*)");
+										}
+										else
+										{
+											builder
+												.Append("\t\tconst ")
+												.Append(paramTypeOriginal)
+												.Append("& ")
+												.Append(paramNameOriginal)
+												.Append(" = ");
+										}
+
 										builder
-											.Append("\t\tTArray")
-											.Append(extendedType)
-											.Append("& ")
-											.Append(paramNameOriginal)
-											.Append(" = *(TArray")
-											.Append(extendedType)
-											.Append("*)RigVMMemoryHandles[")
+											.Append("RigVMMemoryHandles[")
 											.Append(operandIndex)
-											.Append("].GetData(false")
+											.Append("].")
+											.Append(getDataMethod)
+											.Append("(false")
 											.Append(additionalParameters)
 											.Append("); \\\r\n");
 										operandIndex++;
@@ -226,11 +251,22 @@ namespace EpicGames.UHT.Exporters.CodeGen
 											.Append(variableType)
 											.Append(' ')
 											.Append(paramNameOriginal)
-											.Append(" = *(")
-											.Append(extractedType)
-											.Append("*)RigVMMemoryHandles[")
+											.Append(" = ");
+
+										if (!parameter.IsLazy)
+										{
+											builder
+												.Append("*(")
+												.Append(extractedType)
+												.Append("*)");
+										}
+
+										builder
+											.Append("RigVMMemoryHandles[")
 											.Append(operandIndex)
-											.Append("].GetData(false")
+											.Append("].")
+											.Append(getDataMethod)
+											.Append("(false")
 											.Append(additionalParameters)
 											.Append("); \\\r\n");
 										operandIndex++;

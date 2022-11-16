@@ -162,3 +162,24 @@ struct CONTROLRIG_API FRigUnit_BeginExecution
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Execute", Category = "BeginExecution", meta = (Output))
 	FUHTTestExecuteContext ExecuteContext;
 };
+
+USTRUCT()
+struct FRigVMLazyStruct
+{
+	GENERATED_BODY()
+
+	RIGVM_METHOD()
+	void Compute();
+
+	UPROPERTY(meta = (Input, Lazy))
+	float A;
+
+	UPROPERTY(meta = (Input, Lazy))
+	TArray<float> B;
+
+	UPROPERTY(meta = (Input))
+	TArray<float> C;
+
+	UPROPERTY(meta = (Output))
+	float Result;
+};
