@@ -218,7 +218,7 @@ namespace Horde.Build.Jobs.TestData
 		/// <summary>
 		/// Test ids to get
 		/// </summary>
-		public List<string> testIds { get; set; }
+		public List<string> testIds { get; set; } = new List<string>();
 	}
 
 	/// <summary>
