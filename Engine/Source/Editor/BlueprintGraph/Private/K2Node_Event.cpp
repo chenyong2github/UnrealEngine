@@ -884,14 +884,22 @@ FSlateIcon UK2Node_Event::GetIconAndTint(FLinearColor& OutColor) const
 
 FString UK2Node_Event::GetFindReferenceSearchString() const
 {
-	FString FunctionName = EventReference.GetMemberName().ToString(); // If we fail to find the function, still want to search for its expected name.
-
-	if (UFunction* Function = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
+	// Behavior modeled after UK2Node_Event::GetNodeTitle but without "Event" prepended
+	if (bOverrideFunction || (CustomFunctionName == NAME_None))
 	{
-		FunctionName = UEdGraphSchema_K2::GetFriendlySignatureName(Function).ToString();
-	}
+		FString FunctionName = EventReference.GetMemberName().ToString(); // If we fail to find the function, still want to search for its expected name.
 
-	return FunctionName;
+		if (const UFunction* Function = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode()))
+		{
+			FunctionName = UEdGraphSchema_K2::GetFriendlySignatureName(Function).ToString();
+		}
+
+		return FunctionName;
+	}
+	else
+	{
+		return CustomFunctionName.ToString();
+	}
 }
 
 void UK2Node_Event::FindDiffs(UEdGraphNode* OtherNode, struct FDiffResults& Results)
