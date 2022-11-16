@@ -4,7 +4,6 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Misc/TVariant.h"
@@ -23,7 +22,7 @@ struct FParameterData
 	TVariant<TArray<float>, TArray<double>> Data;
 
 public:
-	friend FArchive& operator<<(FArchive& Ar, FParameterData& Pattern);
+	friend FArchive& operator<<(FArchive& Ar, FParameterData& ParameterData);
 };
 
 
@@ -37,8 +36,19 @@ public:
 	TArray<FParameterData> Parameters;
 
 public:
-	bool IsValid() { return SimRestPosition.Num() == SimPosition.Num() && SimTriangleIndices.Num() % 3 == 0 && SimTriangleIndices.Num(); }
+	bool IsValid() const { return SimRestPosition.Num() == SimPosition.Num() && SimTriangleIndices.Num() % 3 == 0 && SimTriangleIndices.Num(); }
 	friend FArchive& operator<<(FArchive& Ar, FDatasmithClothPattern& Pattern);
+};
+
+
+struct FDatasmithClothSewingInfo
+{
+	uint32 Seam0PanelIndex = 0;
+	uint32 Seam1PanelIndex = 0;
+	TArray<uint32> Seam0MeshIndices;
+	TArray<uint32> Seam1MeshIndices;
+
+	friend FArchive& operator<<(FArchive& Ar, FDatasmithClothSewingInfo& Sewing);
 };
 
 
@@ -68,6 +78,7 @@ class DATASMITHCORE_API FDatasmithCloth
 {
 public:
 	TArray<FDatasmithClothPattern> Patterns;
+	TArray<FDatasmithClothSewingInfo> Sewing;
 	TArray<FDatasmithClothPresetPropertySet> PropertySets;
 
 public:

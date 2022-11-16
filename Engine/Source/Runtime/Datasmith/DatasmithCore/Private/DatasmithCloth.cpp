@@ -10,10 +10,11 @@ enum EDatasmithClothSerializationVersion
 {
     EDCSV_Base = 0,
     EDCSV_WithPatternParameters = 1,
+    EDCSV_WithSewingInfo = 2,
 
 	// -----<new versions can be added before this line>-------------------------------------------------
-    _EDCSV_LastPlusOne,
-    _EDCSV_Last = _EDCSV_LastPlusOne -1
+    _EDCSV_Count,
+    _EDCSV_Last = _EDCSV_Count - 1
 };
 
 struct FDatasmithClothSerializationVersion
@@ -23,7 +24,6 @@ struct FDatasmithClothSerializationVersion
 private:
     FDatasmithClothSerializationVersion() = default;
 };
-
 
 const FGuid FDatasmithClothSerializationVersion::GUID(0x28B01036, 0x66B4498F, 0x99425ACA, 0xDB78A9B5);
 
@@ -45,10 +45,11 @@ FArchive& operator<<(FArchive& Ar, FParameterData& ParameterData)
 	return Ar;
 }
 
+
 FArchive& operator<<(FArchive& Ar, FDatasmithClothPattern& Pattern)
 {
 	Ar.UsingCustomVersion(FDatasmithClothSerializationVersion::GUID);
-	int32 ClothSerialVersion = Ar.CustomVer(FDatasmithClothSerializationVersion::GUID);
+	const int32 ClothSerialVersion = Ar.CustomVer(FDatasmithClothSerializationVersion::GUID);
 
 	Ar << Pattern.SimPosition;
 	Ar << Pattern.SimRestPosition;
@@ -58,6 +59,19 @@ FArchive& operator<<(FArchive& Ar, FDatasmithClothPattern& Pattern)
 	{
 		Ar << Pattern.Parameters;
 	}
+
+	return Ar;
+}
+
+
+FArchive& operator<<(FArchive& Ar, FDatasmithClothSewingInfo& Sewing)
+{
+	Ar.UsingCustomVersion(FDatasmithClothSerializationVersion::GUID);
+
+	Ar << Sewing.Seam0MeshIndices;
+	Ar << Sewing.Seam1MeshIndices;
+	Ar << Sewing.Seam0PanelIndex;
+	Ar << Sewing.Seam1PanelIndex;
 
 	return Ar;
 }
@@ -73,6 +87,7 @@ FArchive& operator<<(FArchive& Ar, FDatasmithClothPresetProperty& Property)
 	return Ar;
 }
 
+
 FArchive& operator<<(FArchive& Ar, FDatasmithClothPresetPropertySet& PropertySet)
 {
 	Ar.UsingCustomVersion(FDatasmithClothSerializationVersion::GUID);
@@ -83,12 +98,19 @@ FArchive& operator<<(FArchive& Ar, FDatasmithClothPresetPropertySet& PropertySet
 	return Ar;
 }
 
+
 FArchive& operator<<(FArchive& Ar, FDatasmithCloth& Cloth)
 {
 	Ar.UsingCustomVersion(FDatasmithClothSerializationVersion::GUID);
+	const int32 ClothSerialVersion = Ar.CustomVer(FDatasmithClothSerializationVersion::GUID);
 
 	Ar << Cloth.Patterns;
 	Ar << Cloth.PropertySets;
+
+	if (ClothSerialVersion >= EDCSV_WithSewingInfo)
+	{
+		Ar << Cloth.Sewing;
+	}
 
 	return Ar;
 }
