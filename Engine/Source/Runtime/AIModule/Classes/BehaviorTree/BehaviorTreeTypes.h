@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Blackboard.h"
+#include "Blackboard/BlackboardKey.h"
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "UObject/ObjectMacros.h"
