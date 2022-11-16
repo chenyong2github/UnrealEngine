@@ -2435,7 +2435,7 @@ namespace AutomationTool
 					GameTarget = ChooseTarget(AvailableClientTargets, TargetType.Client);
 					ProjectType = TargetType.Client;
 				}
-				else if (AvailableGameTargets.Count > 0)
+				else if (AvailableGameTargets.Count > 0 && !NoClient)
 				{
 					if (AvailableGameTargets.Count > 1)
 					{
