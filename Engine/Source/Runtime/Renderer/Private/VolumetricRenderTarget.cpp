@@ -21,11 +21,6 @@ static TAutoConsoleVariable<int32> CVarVolumetricRenderTarget(
 	TEXT(""),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static TAutoConsoleVariable<float> CVarVolumetricRenderTargetUvNoiseScale(
-	TEXT("r.VolumetricRenderTarget.UvNoiseScale"), 0.5f,
-	TEXT("Used when r.VolumetricRenderTarget.UpsamplingMode is in a mode using jitter - this value scales the amount of jitter."),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-
 static TAutoConsoleVariable<float> CVarVolumetricRenderTargetUvNoiseSampleAcceptanceWeight(
 	TEXT("r.VolumetricRenderTarget.UvNoiseSampleAcceptanceWeight"), 20.0f,
 	TEXT("Used when r.VolumetricRenderTarget.UpsamplingMode is in a mode using jitter - this value control the acceptance of noisy cloud samples according to their similarities. A higher value means large differences will be less accepted for blending."),
@@ -172,12 +167,10 @@ FVolumetricRenderTargetViewStateData::~FVolumetricRenderTargetViewStateData()
 
 void FVolumetricRenderTargetViewStateData::Initialise(
 	FIntPoint& ViewRectResolutionIn,
-	float InUvNoiseScale,
 	int32 InMode,
 	int32 InUpsamplingMode)
 {
 	// Update internal settings
-	UvNoiseScale = InUvNoiseScale;
 	Mode = FMath::Clamp(InMode, 0, 3);
 	UpsamplingMode = Mode == 2 ? 2 : FMath::Clamp(InUpsamplingMode, 0, 4); // if we are using mode 2 then we cannot intersect with depth and upsampling should be 2 (simple on/off intersection)
 
@@ -407,7 +400,6 @@ void InitVolumetricRenderTargetForViews(FRDGBuilder& GraphBuilder, TArrayView<FV
 		FIntPoint ViewRect = ViewInfo.ViewRect.Size();
 		VolumetricCloudRT.Initialise(	// TODO this is going to reallocate a buffer each time dynamic resolution scaling is applied 
 			ViewRect,
-			CVarVolumetricRenderTargetUvNoiseScale.GetValueOnAnyThread(), 
 			CVarVolumetricRenderTargetMode.GetValueOnRenderThread(),
 			CVarVolumetricRenderTargetUpsamplingMode.GetValueOnAnyThread());
 
@@ -601,7 +593,6 @@ class FComposeVolumetricRTOverScenePS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearTextureSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, WaterLinearDepthSampler)
 		RENDER_TARGET_BINDING_SLOTS()
-		SHADER_PARAMETER(float, UvOffsetScale)
 		SHADER_PARAMETER(float, UvOffsetSampleAcceptanceWeight)
 		SHADER_PARAMETER(FVector4f, VolumetricTextureSizeAndInvSize)
 		SHADER_PARAMETER(FVector2f, FullResolutionToVolumetricBufferResolutionScale)
@@ -693,7 +684,6 @@ void ComposeVolumetricRenderTargetOverScene(
 		PassParameters->VolumetricTexture = VolumetricTexture;
 		PassParameters->VolumetricDepthTexture = VolumetricDepthTexture;
 		PassParameters->LinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-		PassParameters->UvOffsetScale = VolumetricCloudRT.GetUvNoiseScale();
 		PassParameters->UvOffsetSampleAcceptanceWeight = GetUvNoiseSampleAcceptanceWeight();
 		PassParameters->FullResolutionToVolumetricBufferResolutionScale = FVector2f(1.0f / float(GetMainDownsampleFactor(VRTMode)), float(GetMainDownsampleFactor(VRTMode)));
 		PassParameters->SceneTextures = SceneTextures.UniformBuffer;
@@ -766,7 +756,6 @@ void ComposeVolumetricRenderTargetOverSceneUnderWater(
 		PassParameters->WaterLinearDepthTexture = WaterPassData.DepthTexture;
 		PassParameters->LinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 		PassParameters->WaterLinearDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
-		PassParameters->UvOffsetScale = VolumetricCloudRT.GetUvNoiseScale();
 		PassParameters->UvOffsetSampleAcceptanceWeight = GetUvNoiseSampleAcceptanceWeight();
 		PassParameters->FullResolutionToVolumetricBufferResolutionScale = FVector2f(1.0f / float(GetMainDownsampleFactor(VRTMode)), float(GetMainDownsampleFactor(VRTMode)));
 		PassParameters->FullResolutionToWaterBufferScale = FVector2f(1.0f / WaterPassData.RefractionDownsampleFactor, WaterPassData.RefractionDownsampleFactor);
@@ -824,7 +813,6 @@ void ComposeVolumetricRenderTargetOverSceneForVisualization(
 		PassParameters->VolumetricTexture = VolumetricTexture;
 		PassParameters->VolumetricDepthTexture = VolumetricDepthTexture;
 		PassParameters->LinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-		PassParameters->UvOffsetScale = VolumetricCloudRT.GetUvNoiseScale();
 		PassParameters->UvOffsetSampleAcceptanceWeight = GetUvNoiseSampleAcceptanceWeight();
 		PassParameters->FullResolutionToVolumetricBufferResolutionScale = FVector2f(1.0f / float(GetMainDownsampleFactor(VRTMode)), float(GetMainDownsampleFactor(VRTMode)));
 		PassParameters->SceneTextures = SceneTextures.UniformBuffer;

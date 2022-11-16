@@ -23,7 +23,6 @@ public:
 
 	void Initialise(
 		FIntPoint& ViewRectResolutionIn,
-		float UvNoiseScale,
 		int32 Mode,
 		int32 UpsamplingMode);
 
@@ -53,7 +52,6 @@ public:
 	FUintVector4 GetTracingCoordToZbufferCoordScaleBias() const;
 	FUintVector4 GetTracingCoordToFullResPixelCoordScaleBias() const;
 
-	float GetUvNoiseScale()		const { return UvNoiseScale; }
 	int32 GetMode()				const { return Mode; }
 	int32 GetUpsamplingMode()	const { return UpsamplingMode; }
 
@@ -85,7 +83,6 @@ private:
 	TRefCountPtr<IPooledRenderTarget> VolumetricSecondaryTracingRT;
 	TRefCountPtr<IPooledRenderTarget> VolumetricTracingRTDepth;
 
-	float UvNoiseScale;
 	int32 Mode;
 	int32 UpsamplingMode;
 };

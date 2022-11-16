@@ -509,7 +509,6 @@ float2 SafeSampleVolumetricDepthTexture(float2 UV)
 }
 
 float4 VolumetricTextureSizeAndInvSize;
-float UvOffsetScale;
 float UvOffsetSampleAcceptanceWeight;
 float2 FullResolutionToVolumetricBufferResolutionScale;
 
@@ -541,6 +540,7 @@ void ComposeVolumetricRTOverScenePS(
 	Offset2Sample = normalize(Offset2Sample);
 	Offset3Sample = normalize(Offset3Sample);
 
+	const float UvOffsetScale = 1.0f;
 	float2 Offset0 = Offset0Sample * FullResOffsetUVScale * UvOffsetScale;
 	float2 Offset1 = Offset1Sample * FullResOffsetUVScale * UvOffsetScale;
 	float2 Offset2 = Offset2Sample * FullResOffsetUVScale * UvOffsetScale;
@@ -858,64 +858,13 @@ void ComposeVolumetricRTOverScenePS(
 		//DataAcc = float4(0, 1.0, 0, 0);
 	}
 
-		// we are going to fetch far sample so let's skip water pixel because depth cannot be trusted and used in this case.
-	if (UvOffsetScale > 0.0 && !bIsWaterPixel &&	
-		// Also only blur background to not leak cloud over opaque (this can happen when cloud data happear over meshes due to temporal jittering)
-#if HAS_INVERTED_Z_BUFFER
-		PixelDeviceZ < 0.0001				
-#else
-		PixelDeviceZ > 0.9999
-#endif
-		)
-	{
-		// Add some jittered samples to hide upsampling and noise through TAA filtering
-		// We use only Offset0 to save ALU and go faster. Variation across pixels is enough noise for taa to soften it out.
-		float4 VolumeRGBT0 = SafeSampleVolumetricTexture(VolumeUV + Offset0);
-		float4 VolumeRGBT1 = SafeSampleVolumetricTexture(VolumeUV - Offset0);
-		float4 VolumeRGBT2 = SafeSampleVolumetricTexture(VolumeUV + float2(Offset0.y, -Offset0.x));
-		float4 VolumeRGBT3 = SafeSampleVolumetricTexture(VolumeUV - float2(Offset0.y, -Offset0.x));
-
-		// Resolve the OutputRt0 from DataAcc to know what we want to blend into for the bilaterial upsampling based on a=transmittance.
-		// Why using transmittance? Because it cause less artefact than depth for far away pixels and 
-		// pixel with similar transmittance or more likely to be a good choice to mix together to produce noise (that is our assumption here)
-		OutputRt0 = float4(0.0f, 0.0f, 0.0f, 1.0f);
-		if (ValidSampleCount > 0.0f)
-		{
-			OutputRt0 = DataAcc / ValidSampleCount;
-		}
-
-		// Now continue to accumulate in DataAcc
-		const float Extinction = UvOffsetSampleAcceptanceWeight;
-		{
-			const float weight = exp2(-Extinction * abs(VolumeRGBT0.a - OutputRt0.a));
-			ValidSampleCount += weight;
-			DataAcc += VolumeRGBT0 * weight;
-		}
-		{
-			const float weight = exp2(-Extinction * abs(VolumeRGBT1.a - OutputRt0.a));
-			ValidSampleCount += weight;
-			DataAcc += VolumeRGBT1 * weight;
-		}
-		{
-			const float weight = exp2(-Extinction * abs(VolumeRGBT2.a - OutputRt0.a));
-			ValidSampleCount += weight;
-			DataAcc += VolumeRGBT2 * weight;
-		}
-		{
-			const float weight = exp2(-Extinction * abs(VolumeRGBT3.a - OutputRt0.a));
-			ValidSampleCount += weight;
-			DataAcc += VolumeRGBT3 * weight;
-		}
-	}
-
-	OutputRt0 = float4(0, 0, 0, 1);
+	OutputRt0 = float4(0.0f, 0.0f, 0.0f, 1.0f);
 	if (ValidSampleCount > 0.0f)
 	{
 		OutputRt0 = DataAcc / ValidSampleCount;
 	}
 	else
 	{
-		OutputRt0 = float4(0.0f, 0.0f, 0.0f, 1.0f);
 		clip(-1.0f);
 	}
 
