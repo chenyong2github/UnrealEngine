@@ -98,11 +98,11 @@ class UChaosWheeledVehicleMovementComponent;
 		float WheelWidth;
 
 		/** Tyre Cornering Ability */
-		UPROPERTY(EditAnywhere, Category = Wheel, meta = (EditCondition = "bNewWheelSimulation"))
+		UPROPERTY(EditAnywhere, Category = Wheel)
 		float CorneringStiffness;
 
 		/** Friction Force Multiplier */
-		UPROPERTY(EditAnywhere, Category = Wheel, meta = (EditCondition = "bNewWheelSimulation"))
+		UPROPERTY(EditAnywhere, Category = Wheel)
 		float FrictionForceMultiplier;
 
 		/** Wheel Lateral Skid Grip Loss, lower number less grip on skid */
