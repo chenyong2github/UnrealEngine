@@ -376,8 +376,8 @@ static void RecordStrataAnalytics()
 
 static EPixelFormat GetTopLayerTextureFormat()
 {
-	static const auto CVarGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
-	return CVarGBufferFormat && CVarGBufferFormat->GetValueOnAnyThread() > 1 ? PF_R32G32_UINT : PF_R32_UINT;
+	static const auto CVarStrataGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
+	return CVarStrataGBufferFormat && CVarStrataGBufferFormat->GetValueOnAnyThread() > 1 ? PF_R32G32_UINT : PF_R32_UINT;
 }
 
 void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer)

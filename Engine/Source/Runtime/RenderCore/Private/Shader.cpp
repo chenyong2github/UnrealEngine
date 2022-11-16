@@ -1924,8 +1924,8 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += FString::Printf(TEXT("_ROUGHDIFF"));
 		}
 
-		static const auto CVarGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
-		const uint32 StrataNormalQuality = CVarGBufferFormat && CVarGBufferFormat->GetValueOnAnyThread() > 1 ? 1 : 0;
+		static const auto CVarStrataGBufferFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
+		const uint32 StrataNormalQuality = CVarStrataGBufferFormat && CVarStrataGBufferFormat->GetValueOnAnyThread() > 1 ? 1 : 0;
 		if (bStrataEnabled && StrataNormalQuality > 0)
 		{
 			KeyString += FString::Printf(TEXT("_STRTNRMQ"));
