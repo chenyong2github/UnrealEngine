@@ -546,9 +546,22 @@ namespace UnrealBuildTool
 				Arguments.Add("-fdata-sections");
 			}
 
-			if (bSuppressPIE && !CompileEnvironment.bIsBuildingDLL)
+			// only suppress if happen to be using a system compiler and we have not explicitly requested pie
+			if (!CompileEnvironment.bIsBuildingDLL)
 			{
-				Arguments.Add("-fno-PIE");
+				if (CompileEnvironment.bUsePIE)
+				{
+					Arguments.Add("-fPIE");
+				}
+				else if (bSuppressPIE)
+				{
+					Arguments.Add("-fno-PIE");
+				}
+			}
+
+			if (CompileEnvironment.bUseStackProtection)
+			{
+				Arguments.Add("-fstack-protector");
 			}
 
 			if (PlatformSDK.bVerboseCompiler)
@@ -691,9 +704,12 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add("-Wl,--gc-sections");
 
-				if (bSuppressPIE)
+				if (LinkEnvironment.bUsePIE)
 				{
-					Arguments.Add("-Wl,-no-pie");
+					Arguments.Add("-pie");
+				}
+				else if (bSuppressPIE)
+				{ 					Arguments.Add("-Wl,-no-pie");
 				}
 			}
 
@@ -830,10 +846,20 @@ namespace UnrealBuildTool
 				Logger.LogInformation("Using LTO (link-time optimization).");
 			}
 
-			if (bSuppressPIE)
+			if (CompileEnvironment.bUsePIE)
+			{
+				Logger.LogInformation("Using position independent executables (PIE)");
+			}
+			else if (bSuppressPIE)
 			{
 				Logger.LogInformation("Compiler is set up to generate position independent executables by default, but we're suppressing it.");
 			}
+
+			if (CompileEnvironment.bUseStackProtection)
+			{
+				Logger.LogInformation("Using stack protection");
+			}
+
 			Logger.LogInformation("------------------------------");
 		}
 

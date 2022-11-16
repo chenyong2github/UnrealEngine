@@ -995,6 +995,18 @@ namespace UnrealBuildTool
 		public bool bForceEnableRTTI = false;
 
 		/// <summary>
+		/// Enable Position Independent Executable (PIE). Has an overhead cost
+		/// </summary>
+		[CommandLine("-pie")]
+		public bool bEnablePIE = false;
+
+		/// <summary>
+		/// Enable Stack Protection. Has an overhead cost
+		/// </summary>
+		[CommandLine("-stack-protect")]
+		public bool bEnableStackProtection = false;
+
+		/// <summary>
 		/// Compile server-only code.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2900,6 +2912,16 @@ namespace UnrealBuildTool
 		public bool bForceEnableRTTI
 		{
 			get { return Inner.bForceEnableRTTI; }
+		}
+
+		public bool bEnablePIE
+		{
+			get { return Inner.bEnablePIE; }
+		}
+
+		public bool bEnableStackProtection
+		{
+			get { return Inner.bEnableStackProtection; }
 		}
 
 		public bool bUseInlining

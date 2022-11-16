@@ -171,6 +171,16 @@ namespace UnrealBuildTool
 		public bool bUseRTTI = false;
 
 		/// <summary>
+		/// Use Position Independent Executable (PIE). Has an overhead cost
+		/// </summary>
+		public bool bUsePIE = false;
+
+		/// <summary>
+		/// Use Stack Protection. Has an overhead cost
+		/// </summary>
+		public bool bUseStackProtection = false;
+
+		/// <summary>
 		/// Enable inlining.
 		/// </summary>
 		public bool bUseInlining = false;
@@ -523,6 +533,8 @@ namespace UnrealBuildTool
 			PrecompiledHeaderAction = Other.PrecompiledHeaderAction;
 			bUseSharedBuildEnvironment = Other.bUseSharedBuildEnvironment;
 			bUseRTTI = Other.bUseRTTI;
+			bUsePIE = Other.bUsePIE;
+			bUseStackProtection = Other.bUseStackProtection;
 			bUseInlining = Other.bUseInlining;
 			bCompileISPC = Other.bCompileISPC;
 			bUseAVX = Other.bUseAVX;

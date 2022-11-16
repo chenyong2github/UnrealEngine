@@ -252,6 +252,11 @@ namespace UnrealBuildTool
 		public bool bUseFastPDBLinking;
 
 		/// <summary>
+		/// Use Position Independent Executable (PIE). Has an overhead cost
+		/// </summary>
+		public bool bUsePIE = false;
+
+		/// <summary>
 		/// Whether to ignore dangling (i.e. unresolved external) symbols in modules
 		/// </summary>
 		public bool bIgnoreUnresolvedSymbols;
@@ -388,6 +393,7 @@ namespace UnrealBuildTool
             bCreateMapFile = Other.bCreateMapFile;
 			bUsePDBFiles = Other.bUsePDBFiles;
 			bUseFastPDBLinking = Other.bUseFastPDBLinking;
+			bUsePIE = Other.bUsePIE;
 			bIgnoreUnresolvedSymbols = Other.bIgnoreUnresolvedSymbols;
 			bDeterministic = Other.bDeterministic;
 			bPrintTimingInfo = Other.bPrintTimingInfo;
