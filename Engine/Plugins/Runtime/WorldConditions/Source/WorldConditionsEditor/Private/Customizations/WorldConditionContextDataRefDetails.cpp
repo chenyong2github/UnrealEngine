@@ -14,6 +14,7 @@
 #include "WorldConditionTypes.h"
 #include "WorldConditionQuery.h"
 #include "WorldConditionSchema.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "WorldCondition"
 

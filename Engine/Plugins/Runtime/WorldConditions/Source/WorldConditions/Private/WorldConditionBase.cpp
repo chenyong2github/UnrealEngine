@@ -1,7 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditionBase.h"
 #include "WorldConditionQuery.h"
+#include "WorldConditionSchema.h"
 
 FWorldConditionBase::~FWorldConditionBase()
 {

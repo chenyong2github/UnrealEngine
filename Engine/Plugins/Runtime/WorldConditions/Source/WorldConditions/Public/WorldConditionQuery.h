@@ -12,6 +12,7 @@
 
 struct FWorldConditionContext;
 struct FWorldConditionContextData;
+class UWorldConditionSchema;
 
 /**
  * World Condition Query is an expression of World Conditions whose state can be queried.

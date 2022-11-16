@@ -5,6 +5,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/StyleColors.h"
 #include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
 
 TUniquePtr<FWorldConditionEditorStyle> FWorldConditionEditorStyle::Instance(nullptr);
 FColor FWorldConditionEditorStyle::TypeColor(104,49,178);

@@ -2,6 +2,7 @@
 
 #include "WorldConditionQuery.h"
 #include "WorldConditionContext.h"
+#include "WorldConditionSchema.h"
 
 FWorldConditionQueryState::~FWorldConditionQueryState()
 {
