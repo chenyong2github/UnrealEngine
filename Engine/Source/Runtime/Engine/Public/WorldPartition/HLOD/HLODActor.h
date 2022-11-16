@@ -63,8 +63,8 @@ protected:
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
 	virtual bool NeedsLoadForServer() const override;
-#if WITH_EDITOR
 	virtual void PostLoad() override;
+#if WITH_EDITOR
 	virtual void RerunConstructionScripts() override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override { return false; }
 	virtual bool CanEditChangeComponent(const UActorComponent* Component, const FProperty* InProperty) const override { return false; }
