@@ -83,14 +83,25 @@ struct FFriendSettings
 };
 
 /**
+ * Encounter type of recent player
+ */
+enum class ERecentPlayerEncounterType : uint8
+{
+	Default,
+	Teammate,
+	Opponent
+};
+
+/**
  * Stores information about a recent player
  */
 struct FReportPlayedWithUser
 {
 	FReportPlayedWithUser() = delete;
-	FReportPlayedWithUser(const FUniqueNetIdRef& InUserId, const FString& InPresenceStr)
+	FReportPlayedWithUser(const FUniqueNetIdRef& InUserId, const FString& InPresenceStr, ERecentPlayerEncounterType InEncounterType=ERecentPlayerEncounterType::Default)
 		: UserId(InUserId)
 		, PresenceStr(InPresenceStr)
+		, EncounterType(InEncounterType)
 	{
 	}
 
@@ -98,6 +109,8 @@ struct FReportPlayedWithUser
 	FUniqueNetIdRef UserId;
 	/** Optional presence string */
 	FString PresenceStr;
+	/** Encounter type of this user */
+	ERecentPlayerEncounterType EncounterType;
 };
 
 /**
