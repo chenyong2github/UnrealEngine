@@ -724,7 +724,7 @@ namespace UnrealBuildTool
 		Dictionary<string, IOSProvisioningData> ProvisionCache = new Dictionary<string, IOSProvisioningData>();
 
 		// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
-		public static string IOSArchitecture = "";
+		public static string IOSArchitecture = "arm64";
 
 		public IOSPlatform(UEBuildPlatformSDK InSDK, ILogger Logger)
 			: this(InSDK, UnrealTargetPlatform.IOS, Logger)
