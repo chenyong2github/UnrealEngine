@@ -17,10 +17,12 @@ UScaleBox::UScaleBox(const FObjectInitializer& ObjectInitializer)
 	bIsVariable = false;
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	StretchDirection = EStretchDirection::Both;
 	Stretch = EStretch::ScaleToFit;
 	UserSpecifiedScale = 1.0f;
 	IgnoreInheritedScale = false;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UScaleBox::ReleaseSlateResources(bool bReleaseChildren)
@@ -46,6 +48,7 @@ TSharedRef<SWidget> UScaleBox::RebuildWidget()
 	return MyScaleBox.ToSharedRef();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UScaleBox::SetStretch(EStretch::Type InStretch)
 {
 	Stretch = InStretch;
@@ -53,6 +56,11 @@ void UScaleBox::SetStretch(EStretch::Type InStretch)
 	{
 		MyScaleBox->SetStretch(InStretch);
 	}
+}
+
+EStretch::Type UScaleBox::GetStretch() const
+{
+	return Stretch;
 }
 
 void UScaleBox::SetStretchDirection(EStretchDirection::Type InStretchDirection)
@@ -64,6 +72,11 @@ void UScaleBox::SetStretchDirection(EStretchDirection::Type InStretchDirection)
 	}
 }
 
+EStretchDirection::Type UScaleBox::GetStretchDirection() const
+{
+	return StretchDirection;
+}
+
 void UScaleBox::SetUserSpecifiedScale(float InUserSpecifiedScale)
 {
 	UserSpecifiedScale = InUserSpecifiedScale;
@@ -71,6 +84,11 @@ void UScaleBox::SetUserSpecifiedScale(float InUserSpecifiedScale)
 	{
 		MyScaleBox->SetUserSpecifiedScale(InUserSpecifiedScale);
 	}
+}
+
+float UScaleBox::GetUserSpecifiedScale() const
+{
+	return UserSpecifiedScale;
 }
 
 void UScaleBox::SetIgnoreInheritedScale(bool bInIgnoreInheritedScale)
@@ -82,14 +100,22 @@ void UScaleBox::SetIgnoreInheritedScale(bool bInIgnoreInheritedScale)
 	}
 }
 
+bool UScaleBox::IsIgnoreInheritedScale() const
+{
+	return IgnoreInheritedScale;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 void UScaleBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyScaleBox->SetStretchDirection(StretchDirection);
 	MyScaleBox->SetStretch(Stretch);
 	MyScaleBox->SetUserSpecifiedScale(UserSpecifiedScale);
 	MyScaleBox->SetIgnoreInheritedScale(IgnoreInheritedScale);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 UClass* UScaleBox::GetSlotClass() const
@@ -135,7 +161,7 @@ bool UScaleBox::CanEditChange(const FProperty* InProperty) const
 	if (bIsEditable && InProperty)
 	{
 		const FName PropertyName = InProperty->GetFName();
-
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(UScaleBox, StretchDirection))
 		{
 			return Stretch != EStretch::None && Stretch != EStretch::ScaleBySafeZone &&
@@ -146,6 +172,7 @@ bool UScaleBox::CanEditChange(const FProperty* InProperty) const
 		{
 			return Stretch == EStretch::UserSpecified || Stretch == EStretch::UserSpecifiedWithClipping;
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return bIsEditable;

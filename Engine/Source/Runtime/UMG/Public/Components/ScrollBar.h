@@ -19,27 +19,33 @@ class UMG_API UScrollBar : public UWidget
 public:
 
 	/** Style of the scrollbar */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
+	UE_DEPRECATED(5.2, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Style", meta=( DisplayName="Style" ))
 	FScrollBarStyle WidgetStyle;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category="Behavior")
+	UE_DEPRECATED(5.2, "Direct access to bAlwaysShowScrollbar is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsAlwaysShowScrollbar", Setter = "SetAlwaysShowScrollbar", Category = "Behavior")
 	bool bAlwaysShowScrollbar;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category = "Behavior")
+	UE_DEPRECATED(5.2, "Direct access to bAlwaysShowScrollbarTrack is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsAlwaysShowScrollbarTrack", Setter = "SetAlwaysShowScrollbarTrack", Category = "Behavior")
 	bool bAlwaysShowScrollbarTrack;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category="Behavior")
+	UE_DEPRECATED(5.2, "Direct access to Orientation is deprecated. Please use the getter. Note that the orientation of a scrollbar is only set at construction and is not modifiable at runtime.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Behavior")
 	TEnumAsByte<EOrientation> Orientation;
 
 	/** The thickness of the scrollbar thumb */
-	UPROPERTY(EditAnywhere, Category="Behavior")
+	UE_DEPRECATED(5.2, "Direct access to Thickness is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Behavior")
 	FVector2D Thickness;
 
 	/** The margin around the scrollbar */
-	UPROPERTY(EditAnywhere, Category = "Behavior")
+	UE_DEPRECATED(5.2, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Behavior")
 	FMargin Padding;
 
 public:
@@ -89,6 +95,34 @@ public:
 	virtual const FText GetPaletteCategory() override;
 	//~ End UWidget Interface
 #endif
+
+	/** @return the style of scrollbar. */
+	const FScrollBarStyle& GetWidgetStyle() const;
+	/** Sets the style of scrollbar. */
+	void SetWidgetStyle(const FScrollBarStyle& InWidgetStyle);
+
+	/** @return True if the scrollbar should always show. */
+	bool IsAlwaysShowScrollbar() const;
+	/** Sets whether the scrollbar should always show. */
+	void SetAlwaysShowScrollbar(bool bNewValue);
+
+	/** @return True if the scrollbar track should always show. */
+	bool IsAlwaysShowScrollbarTrack() const;
+	/** Sets whether the scrollbar track should always show */
+	void SetAlwaysShowScrollbarTrack(bool bNewValue);
+
+	/** @return the orientation of the scrollbar. */
+	EOrientation GetOrientation() const;
+
+	/** @return the thickness of the scrollbar. */
+	FVector2D GetThickness() const;
+	/** Sets the thickness of the scrollbar. */
+	void SetThickness(const FVector2D& InThickness);
+
+	/** Sets the padding of the scrollbar. */
+	FMargin GetPadding() const;
+	/** @return the padding of the scrollbar. */
+	void SetPadding(const FMargin& InPadding);
 
 protected:
 

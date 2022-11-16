@@ -28,7 +28,8 @@ class UMG_API URetainerBox : public UContentWidget
 	GENERATED_UCLASS_BODY()
 
 protected:
-	UPROPERTY(EditAnywhere, Category="Render Rules")
+	UE_DEPRECATED(5.2, "Direct access to bRetainRender is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter = "SetRetainRendering", Getter = "IsRetainRendering", BlueprintSetter = "SetRetainRendering", Category = "Render Rules")
 	bool bRetainRender = true;
 
 public:
@@ -36,13 +37,15 @@ public:
 	 * Should this widget redraw the contents it has every time it receives an invalidation request
 	 * from it's children, similar to the invalidation panel.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Rules", meta=(EditCondition=bRetainRender))
+	UE_DEPRECATED(5.2, "Direct access to RenderOnInvalidation is deprecated. Please use the getter.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsRenderOnInvalidation", Category = "Render Rules", meta = (EditCondition = bRetainRender))
 	bool RenderOnInvalidation;
 
 	/**
 	 * Should this widget redraw the contents it has every time the phase occurs.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Rules", meta=(EditCondition=bRetainRender))
+	UE_DEPRECATED(5.2, "Direct access to RenderOnPhase is deprecated. Please use the getter.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsRenderOnPhase", Category = "Render Rules", meta = (EditCondition = bRetainRender))
 	bool RenderOnPhase;
 
 	/**
@@ -52,7 +55,8 @@ public:
 	 * If the Phase were 0, and the PhaseCount were 2, this retainer would draw a fresh frame every
 	 * other frame.  So in a 60Hz game, the UI would render at 30Hz.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Rules", meta=(UIMin=0, ClampMin=0))
+	UE_DEPRECATED(5.2, "Direct access to Phase is deprecated. Please use the getter.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Render Rules", meta=(UIMin=0, ClampMin=0))
 	int32 Phase;
 
 	/**
@@ -63,7 +67,8 @@ public:
 	 * If the Phase were 0, and the PhaseCount were 2, this retainer would draw a fresh frame every 
 	 * other frame.  So in a 60Hz game, the UI would render at 30Hz.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Render Rules", meta=(UIMin=1, ClampMin=1))
+	UE_DEPRECATED(5.2, "Direct access to PhaseCount is deprecated. Please use the getter.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Render Rules", meta=(UIMin=1, ClampMin=1))
 	int32 PhaseCount;
 
 public:
@@ -83,6 +88,11 @@ public:
 	/**
 	 * Get the current dynamic effect material applied to the retainer box.
 	 */
+	const UMaterialInterface* GetEffectMaterialInterface() const;
+
+	/**
+	 * Get the current dynamic effect material applied to the retainer box.
+	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer|Effect")
 	UMaterialInstanceDynamic* GetEffectMaterial() const;
 
@@ -97,11 +107,42 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer|Effect")
 	void SetTextureParameter(FName TextureParameter);
+
+	/**
+	 * Gets the name of the texture parameter to set the render target to on the material.
+	 */
+	const FName& GetTextureParameter() const;
+
 	/**
 	* Set the flag for if we retain the render or pass-through
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Retainer")
 	void SetRetainRendering(bool bInRetainRendering);
+
+	/**
+	 * Get the flag for if we retain the render or pass-through.
+	 */
+	bool IsRetainRendering() const;
+
+	/**
+	 * Get the phase to render on.
+	 */
+	int32 GetPhase() const;
+
+	/**
+	 * Get the total number of phases.
+	 */
+	int32 GetPhaseCount() const;
+
+	/**
+	 * Get whether this widget should redraw the contents it has every time it receives an invalidation request.
+	 */
+	bool IsRenderOnInvalidation() const;
+
+	/**
+	 * Get whether this widget should redraw the contents it has every time the phase occurs.
+	 */
+	bool IsRenderOnPhase() const;
 
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
@@ -121,13 +162,15 @@ protected:
 	 * and make sure to multiply the alpha you're apply across the surface to the color and the alpha of the render target, otherwise
 	 * you won't see the expected color.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Effect")
+	UE_DEPRECATED(5.2, "Direct access to EffectMaterial is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "GetEffectMaterialInterface", Setter, BlueprintSetter = "SetEffectMaterial", Category = "Effect")
 	TObjectPtr<UMaterialInterface> EffectMaterial;
 
 	/**
 	 * The texture sampler parameter of the @EffectMaterial, that we'll set to the render target.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Effect")
+	UE_DEPRECATED(5.2, "Direct access to TextureParameter is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetTextureParameter", Category="Effect")
 	FName TextureParameter;
 
 	//~ Begin UPanelWidget interface
