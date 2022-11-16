@@ -113,9 +113,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UV Projection")
 	FVector Dimensions = FVector(100.0f, 100.0f, 100.0f);
 
-	/** Only use the Dimensions X value to uniformly define all projection shape dimensions */
+	/** If true, changes to Dimensions result in all components be changed proportionally */
 	UPROPERTY(EditAnywhere, Category = "UV Projection")
-	bool bUniformDimensions = false;
+	bool bProportionalDimensions = false;
 
 	/** Determines how projection settings will be initialized; this only takes effect if the projection shape dimensions or position are unchanged */
 	UPROPERTY(EditAnywhere, Category = "UV Projection")
@@ -173,7 +173,7 @@ public:
 	FVector SavedDimensions = FVector::ZeroVector;
 
 	UPROPERTY()
-	bool bSavedUniformDimensions = false;
+	bool bSavedProportionalDimensions = false;
 
 	UPROPERTY()
 	FTransform SavedTransform;
@@ -215,6 +215,8 @@ public:
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
@@ -262,8 +264,9 @@ protected:
 	FTransform3d WorldTransform;
 	UE::Geometry::FAxisAlignedBox3d WorldBounds;
 
+	FVector CachedDimensions;
 	FVector InitialDimensions;
-	bool bInitialUniformDimensions;
+	bool bInitialProportionalDimensions;
 	FTransform InitialTransform;
 	int32 DimensionsWatcher = -1;
 	int32 DimensionsModeWatcher = -1;
