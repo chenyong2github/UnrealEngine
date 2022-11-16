@@ -30,11 +30,11 @@ namespace UE::NearestNeighborModel
 			const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
 			const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = LODModel.ImportedMeshInfos;
 
-			if (MeshMappings.IsEmpty())
+			if (HasError(CheckMeshMappingsEmpty()))
 			{
-				UE_LOG(LogNearestNeighborModel, Error, TEXT("SamplePart: MeshMappings is empty."));
 				return EUpdateResult::ERROR;
 			}
+
 			if (PartId >= MeshMappingIndices.Num())
 			{
 				UE_LOG(LogNearestNeighborModel, Error, TEXT("SamplePart: MeshMappingIndices.Num()=%d is smaller than PartId %d"), MeshMappingIndices.Num(), PartId);
@@ -129,11 +129,8 @@ namespace UE::NearestNeighborModel
 				}
 				GeomCacheMeshDatas.Reset();
 				GeomCacheMeshDatas.AddDefaulted(MeshMappings.Num());
-				if(MeshMappings.IsEmpty())
-				{
-					UE_LOG(LogNearestNeighborModel, Error, TEXT("Unable to match skeletal mesh with geometry cache."));
-					Result = EUpdateResult::ERROR;
-				}
+
+				Result |= CheckMeshMappingsEmpty();
 				return Result;
 			}
 			FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
@@ -178,6 +175,14 @@ namespace UE::NearestNeighborModel
 							continue;
 						}
 
+						const int32 NumVertsFromGeomCache = FMath::Max(GeomCacheMeshData.ImportedVertexNumbers) + 1;
+						const int32 NumVertsFromVertexMap = VertexMap.Num();
+						Result |= CheckGeomCacheVertCount(NumVertsFromGeomCache, NumVertsFromVertexMap);
+						if (HasError(Result))
+						{
+							return Result;
+						}
+
 						// Create a new mesh mapping entry.
 						MeshMappings.AddDefaulted();
 						UE::MLDeformer::FMLDeformerGeomCacheMeshMapping& Mapping = MeshMappings.Last();
@@ -215,8 +220,45 @@ namespace UE::NearestNeighborModel
 			Result |= EUpdateResult::WARNING;
 			UE_LOG(LogNearestNeighborModel, Warning, TEXT("SkeletalMesh or GeometryCache is none. No mapping is generated"));
 		}
+		Result |= CheckMeshMappingsEmpty();
 		Result |= GenerateMeshMappingIndices();
 		return Result;
+	}
+
+	uint8 FNearestNeighborGeomCacheSampler::CheckGeomCacheVertCount(int32 NumVertsFromGeomCache, int32 NumVertsFromVertexMap) const
+	{
+		uint8 ResultCode = EUpdateResult::SUCCESS;		
+		UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
+		if (NearestNeighborModel->GetUsePartOnlyMesh())
+		{
+			if (NumVertsFromGeomCache != NumVertsFromVertexMap)
+			{
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Vertex count mismatch: GeomCache has %d vertices but vertex map has %d vertices. Maybe turn off UsePartOnlyMesh."), NumVertsFromGeomCache, NumVertsFromVertexMap);
+				return EUpdateResult::ERROR;
+			}
+		}
+		else
+		{
+			if (NumVertsFromVertexMap > NumVertsFromGeomCache)
+			{
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Vertex count in vertex map %d is larger than the vertex count in geometry cache %d. Something is wrong with vertex map or geometry cache"), NumVertsFromVertexMap, NumVertsFromGeomCache);
+				return EUpdateResult::ERROR;
+			}
+		}
+		return ResultCode;
+	}
+
+	uint8 FNearestNeighborGeomCacheSampler::CheckMeshMappingsEmpty() const
+	{
+		if(MeshMappings.IsEmpty())
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("MeshMappings is empty. Unable to match skeletal mesh with geometry cache."));
+			return EUpdateResult::ERROR;
+		}
+		else
+		{
+			return EUpdateResult::SUCCESS;
+		}
 	}
 
 	void FNearestNeighborGeomCacheSampler::SampleKMeansAnim(const int32 SkeletonId)

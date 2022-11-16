@@ -16,8 +16,9 @@ namespace UE::NearestNeighborModel
 		const TArray<float>& GetPartVertexDeltas() const { return PartVertexDeltas; }
 		uint8 GeneratePartMeshMappings(const TArray<uint32>& VertexMap, bool bUsePartOnlyMesh);
 		uint8 GenerateMeshMappingIndices();
+		uint8 CheckGeomCacheVertCount(int32 NumVertsFromGeomCache, int32 NumVertsFromVertexMap) const;
+		uint8 CheckMeshMappingsEmpty() const;
 
-		bool IsMeshMappingsEmpty() const { return MeshMappings.IsEmpty(); }
 	protected:
 		TArray<float> PartVertexDeltas;
 		TArray<int32> MeshMappingIndices;

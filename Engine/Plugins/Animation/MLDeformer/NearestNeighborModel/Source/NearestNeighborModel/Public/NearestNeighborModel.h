@@ -127,6 +127,11 @@ namespace UE::NearestNeighborModel
 		ERROR = 1,
 		WARNING = 2
 	};
+
+	static bool HasError(uint8 Flag)
+	{
+		return (Flag & EUpdateResult::ERROR) != 0;
+	}
 };
 
 /**

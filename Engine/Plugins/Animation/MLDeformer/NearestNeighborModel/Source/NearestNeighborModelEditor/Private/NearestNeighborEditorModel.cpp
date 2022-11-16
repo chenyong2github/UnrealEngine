@@ -190,11 +190,6 @@ namespace UE::NearestNeighborModel
 		NearestNeighborModel->InitInputInfo();
 	}
 
-	bool HasError(uint8 Flag)
-	{
-		return (Flag & EUpdateResult::ERROR) != 0;
-	}
-
 	ETrainingResult FNearestNeighborEditorModel::Train()
 	{
 		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
@@ -252,12 +247,6 @@ namespace UE::NearestNeighborModel
 					if (HasError(ReturnCode))
 					{
 						return ReturnCode;
-					}
-
-					if (GeomCacheSampler->IsMeshMappingsEmpty())
-					{
-						UE_LOG(LogNearestNeighborModel, Error, TEXT("Failed to generate mappings between skeletal mesh and geometry cache."));
-						return EUpdateResult::ERROR;
 					}
 
 					NumTrainingFramesOverride = NumFrames;
