@@ -100,6 +100,7 @@ float3 HistoryGuideQuantizationError;
 float FlickeringFramePeriod;
 
 Texture2D<tsr_halfC> InputTexture;
+Texture2D<tsr_half>  InputMoireLumaTexture;
 Texture2D<tsr_half4> InputSceneTranslucencyTexture;
 Texture2D<tsr_halfC> ReprojectedHistoryGuideTexture;
 Texture2D<tsr_half4> ReprojectedHistoryMoireTexture;
@@ -611,6 +612,7 @@ void MainCS(
 	tsr_simd_halfC OriginalHistory;
 	tsr_simd_half bIsValid;
 	#if CONFIG_MOIRE_DETECTION
+		tsr_simd_half MoireInput;
 		tsr_simd_half4 PrevMoire;
 		tsr_simd_half bIsStatic;
 	#endif
@@ -632,6 +634,7 @@ void MainCS(
 			OriginalHistory.SetElement(SimdIndex, ReprojectedHistoryGuideTexture[ClampedFetchPixelPos]);
 			bIsValid.SetElement(SimdIndex, ParallaxRejectionMaskTexture[ClampedFetchPixelPos] > tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD) ? tsr_half(1.0) : tsr_half(0.0));
 			#if CONFIG_MOIRE_DETECTION
+				MoireInput.SetElement(SimdIndex, InputMoireLumaTexture[ClampedFetchPixelPos]);
 				PrevMoire.SetElement(SimdIndex, ReprojectedHistoryMoireTexture[ClampedFetchPixelPos]);
 				bIsStatic.SetElement(SimdIndex, tsr_half(1.0) - tsr_half(IsMovingMaskTexture[ClampedFetchPixelPos]) * rcp(tsr_half(255.0)));
 			#endif
@@ -705,6 +708,11 @@ void MainCS(
 
 
 		tsr_simd_half InputLuma;
+		#if 1
+		{
+			InputLuma = MoireInput;
+		}
+		#else
 		{
 			UNROLL_N(SIMD_SIZE)
 			for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
@@ -714,6 +722,7 @@ void MainCS(
 				InputLuma.SetElement(SimdIndex, dot(OriginalOpaqueInput.GetElement(SimdIndex).rgb, LumaWeights));
 			}
 		}
+		#endif
 		
 		// Convolve the input luma to have the exact same moire pattern as FilteredInput below.
 		InputLuma = Convolve3x3HV<TAccumulatorAvg<tsr_simd_half>, tsr_simd_half>(InputLuma, bIsValid, GroupThreadIndex);

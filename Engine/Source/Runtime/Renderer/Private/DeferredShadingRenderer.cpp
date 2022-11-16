@@ -3709,6 +3709,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	// Draw translucency.
+	TArray<FScreenPassTexture> TSRMoireInputTextures;
 	if (!bHasRayTracedOverlay && TranslucencyViewsToRender != ETranslucencyView::None)
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
@@ -3732,6 +3733,21 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			if (GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen)
 			{
 				RenderLumenFrontLayerTranslucencyReflections(GraphBuilder, View, SceneTextures, LumenFrameTemporaries);
+			}
+		}
+
+		// Extract TSR's moire heuristic luminance before renderering translucency into the scene color.
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		{
+			FViewInfo& View = Views[ViewIndex];
+			if (ITemporalUpscaler::GetMainTAAPassConfig(View) == EMainTAAPassConfig::TSR)
+			{
+				if (TSRMoireInputTextures.Num() == 0)
+				{
+					TSRMoireInputTextures.SetNum(Views.Num());
+				}
+
+				TSRMoireInputTextures[ViewIndex] = AddTSRComputeMoireLuma(GraphBuilder, View.ShaderMap, FScreenPassTexture(SceneTextures.Color.Target, View.ViewRect));
 			}
 		}
 
@@ -4005,7 +4021,24 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 					const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-					AddPostProcessingPasses(GraphBuilder, View, ViewIndex, bAnyLumenActive, ViewPipelineState.ReflectionsMethod, PostProcessingInputs, NaniteResults, InstanceCullingManager, &VirtualShadowMapArray, LumenFrameTemporaries, SceneWithoutWaterTextures);
+					FScreenPassTexture TSRMoireInput;
+					if (ViewIndex < TSRMoireInputTextures.Num())
+					{
+						TSRMoireInput = TSRMoireInputTextures[ViewIndex];
+					}
+
+					AddPostProcessingPasses(
+						GraphBuilder,
+						View, ViewIndex,
+						bAnyLumenActive,
+						ViewPipelineState.ReflectionsMethod,
+						PostProcessingInputs,
+						NaniteResults,
+						InstanceCullingManager,
+						&VirtualShadowMapArray,
+						LumenFrameTemporaries,
+						SceneWithoutWaterTextures,
+						TSRMoireInput);
 				}
 			}
 		}

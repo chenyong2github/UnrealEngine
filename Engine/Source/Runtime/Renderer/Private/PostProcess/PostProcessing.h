@@ -53,7 +53,8 @@ void AddPostProcessingPasses(
 	FInstanceCullingManager& InstanceCullingManager,
 	FVirtualShadowMapArray* VirtualShadowMapArray,
 	struct FLumenSceneFrameTemporaries& LumenFrameTemporaries,
-	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures);
+	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
+	FScreenPassTexture TSRMoireInput);
 
 void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults);
 

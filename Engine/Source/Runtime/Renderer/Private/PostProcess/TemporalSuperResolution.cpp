@@ -59,7 +59,7 @@ TAutoConsoleVariable<int32> CVarTSRFlickeringAdjustToFrameRate(
 TAutoConsoleVariable<float> CVarTSRFlickeringPeriod(
 	TEXT("r.TSR.ShadingRejection.Flickering.Period"), 3.0f,
 	TEXT("Periode in 60hz frames in which luma oscilations at equal or greater frequency is considered flickering and should ghost (Default=3.0).\n"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<float> CVarTSRFlickeringMaxParralaxVelocity(
 	TEXT("r.TSR.ShadingRejection.Flickering.MaxParralaxVelocity"), 10.0,
@@ -339,6 +339,18 @@ public:
 	}
 }; // class FTemporalSuperResolutionShader
 
+class FTSRComputeMoireLumaCS : public FTSRShader
+{
+	DECLARE_GLOBAL_SHADER(FTSRComputeMoireLumaCS);
+	SHADER_USE_PARAMETER_STRUCT(FTSRComputeMoireLumaCS, FTSRShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InputInfo)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, MoireLumaOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTSRComputeMoireLumaCS
+
 class FTSRClearPrevTexturesCS : public FTSRShader
 {
 	DECLARE_GLOBAL_SHADER(FTSRClearPrevTexturesCS);
@@ -478,6 +490,7 @@ class FTSRRejectShadingCS : public FTSRShader
 		SHADER_PARAMETER(float, FlickeringFramePeriod)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputMoireLumaTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneTranslucencyTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ReprojectedHistoryGuideTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ReprojectedHistoryMoireTexture)
@@ -719,6 +732,7 @@ class FTSRDebugHistoryCS : public FTSRShader
 	END_SHADER_PARAMETER_STRUCT()
 }; // class FTSRDebugHistoryCS
 
+IMPLEMENT_GLOBAL_SHADER(FTSRComputeMoireLumaCS,      "/Engine/Private/TemporalSuperResolution/TSRComputeMoireLuma.usf",      "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRClearPrevTexturesCS,     "/Engine/Private/TemporalSuperResolution/TSRClearPrevTextures.usf",     "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRDilateVelocityCS,        "/Engine/Private/TemporalSuperResolution/TSRDilateVelocity.usf",        "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRDecimateHistoryCS,       "/Engine/Private/TemporalSuperResolution/TSRDecimateHistory.usf",       "MainCS", SF_Compute);
@@ -754,6 +768,40 @@ static FRDGTextureUAVRef CreateDummyUAV(FRDGBuilder& GraphBuilder, EPixelFormat 
 
 	return GraphBuilder.CreateUAV(DummyTexture);
 };
+
+FScreenPassTexture AddTSRComputeMoireLuma(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FScreenPassTexture SceneColor)
+{
+	check(SceneColor.Texture)
+;	RDG_GPU_STAT_SCOPE(GraphBuilder, TemporalSuperResolution);
+
+	FScreenPassTexture MoireLuma;
+	{
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			SceneColor.Texture->Desc.Extent,
+			PF_R8,
+			FClearValueBinding::None,
+			/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+
+		MoireLuma.Texture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.Moire.Luma"));
+		MoireLuma.ViewRect = SceneColor.ViewRect;
+	}
+
+	FTSRComputeMoireLumaCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRComputeMoireLumaCS::FParameters>();
+	PassParameters->InputInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
+		SceneColor.Texture->Desc.Extent, SceneColor.ViewRect));
+	PassParameters->SceneColorTexture = SceneColor.Texture;
+	PassParameters->MoireLumaOutput = GraphBuilder.CreateUAV(MoireLuma.Texture);
+
+	TShaderMapRef<FTSRComputeMoireLumaCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("TSR ComputeMoireLuma %dx%d", SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height()),
+		ComputeShader,
+		PassParameters,
+		FComputeShaderUtils::GetGroupCount(MoireLuma.ViewRect.Size(), 8 * 2));
+
+	return MoireLuma;
+}
 
 ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FRDGBuilder& GraphBuilder,
@@ -1496,6 +1544,15 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->FlickeringFramePeriod = FlickeringFramePeriod;
 
 		PassParameters->InputTexture = PassInputs.SceneColorTexture;
+		if (PassInputs.MoireInputTexture.IsValid())
+		{
+			ensure(InputRect == PassInputs.MoireInputTexture.ViewRect);
+			PassParameters->InputMoireLumaTexture = PassInputs.MoireInputTexture.Texture;
+		}
+		else
+		{
+			PassParameters->InputMoireLumaTexture = BlackDummy;
+		}
 		if (bAccumulateTranslucencySeparately)
 		{
 			PassParameters->InputSceneTranslucencyTexture = BlackAlphaOneDummy;
