@@ -869,7 +869,8 @@ void ModifyBasePassCSPSCompilationEnvironment(const FMeshMaterialShaderPermutati
 		FVelocityRendering::BasePassCanOutputVelocity(Parameters.Platform);
 	if (bOutputVelocity)
 	{
-		const int32 VelocityIndex = IsForwardShadingEnabled(Parameters.Platform) ? 1 : 4; // As defined in BasePassPixelShader.usf
+		// As defined in BasePassPixelShader.usf. Also account for Strata setting velocity in slot 1 as described in FetchLegacyGBufferInfo.
+		const int32 VelocityIndex = Strata::IsStrataEnabled() ? 1 : (IsForwardShadingEnabled(Parameters.Platform) ? 1 : 4);
 		OutEnvironment.SetRenderTargetOutputFormat(VelocityIndex, PF_G16R16);
 	}
 

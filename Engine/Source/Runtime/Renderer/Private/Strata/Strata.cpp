@@ -1136,12 +1136,14 @@ void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, const F
 		}
 		const FGBufferInfo BufferInfo = FetchFullGBufferInfo(GBufferParams);
 
-		// Add 2 uint for Strata fast path
-		OutEnvironment.SetRenderTargetOutputFormat(BufferInfo.NumTargets + 0, PF_R32_UINT);
-		OutEnvironment.SetRenderTargetOutputFormat(BufferInfo.NumTargets + 1, PF_R32_UINT);
+		// Add N uint for Strata fast path
+		for (int i = 0; i < STRATA_BASE_PASS_MRT_OUTPUT_COUNT; ++i)
+		{
+			OutEnvironment.SetRenderTargetOutputFormat(BufferInfo.NumTargets + i, PF_R32_UINT);
+		}
 
 		// Add another MRT for Strata top layer information
-		OutEnvironment.SetRenderTargetOutputFormat(BufferInfo.NumTargets + 2, PF_R32_UINT);
+		OutEnvironment.SetRenderTargetOutputFormat(BufferInfo.NumTargets + STRATA_BASE_PASS_MRT_OUTPUT_COUNT, PF_R32_UINT);
 	}
 }
 
