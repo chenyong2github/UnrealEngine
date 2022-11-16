@@ -12,6 +12,7 @@
 #include "Preferences/MaterialStatsOptions.h"
 #include "FrameNumberDisplayFormat.h"
 #include "RHI.h"
+#include "Animation/Skeleton.h"
 
 // @todo find a better place for all of this, preferably in the appropriate modules
 // though this would require the classes to be relocated as well

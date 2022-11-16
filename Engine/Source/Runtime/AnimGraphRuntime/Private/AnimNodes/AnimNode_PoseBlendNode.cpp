@@ -47,7 +47,7 @@ void FAnimNode_PoseBlendNode::Evaluate_AnyThread(FPoseContext& Output)
 	bool bValidPose = false;
 
 	const UPoseAsset* CachedPoseAsset = CurrentPoseAsset.Get();
-	if (PoseAsset && PoseExtractContext.PoseCurves.Num() > 0 && PoseAsset->GetSkeleton() != nullptr)
+	if (CachedPoseAsset && PoseExtractContext.PoseCurves.Num() > 0 && CachedPoseAsset->GetSkeleton() != nullptr)
 	{
 		FPoseContext CurrentPose(Output);
 		// only give pose curve, we don't set any more curve here

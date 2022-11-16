@@ -377,7 +377,7 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 			const UPoseAsset* CachedPoseAsset = CurrentPoseAsset.Get();
 			if (DriveOutput == EPoseDriverOutput::DrivePoses &&
 				CachedPoseAsset &&
-				CurrentPoseAsset->GetSkeleton() != nullptr)
+				CachedPoseAsset->GetSkeleton() != nullptr)
 			{
 				FPoseContext CurrentPose(Output);
 

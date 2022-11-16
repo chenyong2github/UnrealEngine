@@ -35,6 +35,7 @@ struct FAssetData;
 enum class EPackageReloadPhase : uint8;
 class USkeleton;
 typedef SmartName::UID_Type SkeletonAnimCurveUID;
+class USkeleton;
 
 // Delegate used to control global skeleton compatibility
 DECLARE_DELEGATE_RetVal(bool, FAreAllSkeletonsCompatible);

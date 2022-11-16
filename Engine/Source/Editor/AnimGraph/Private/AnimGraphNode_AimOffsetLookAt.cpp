@@ -208,7 +208,6 @@ void UAnimGraphNode_AimOffsetLookAt::ValidateAnimNodeDuringCompilation(class USk
 					// Make sure that the source socket name is a valid one for the skeleton
 					UEdGraphPin* SocketNamePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_AimOffsetLookAt, PivotSocketName));
 					FName SocketNameToCheck = (SocketNamePin != nullptr) ? FName(*SocketNamePin->DefaultValue) : Node.PivotSocketName;
-
 					const FReferenceSkeleton& RefSkel = BlendSpaceSkeleton->GetReferenceSkeleton();
 
 					const bool bValidValue = SocketNamePin == nullptr && (

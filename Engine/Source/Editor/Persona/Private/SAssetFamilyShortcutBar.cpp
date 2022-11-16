@@ -519,6 +519,9 @@ private:
 
 	/** Cache the package's dirty state */
 	bool bPackageDirty;
+
+	/** Flag for handling deferred refreshes */
+	bool bDeferAssetAdded;
 };
 
 void SAssetFamilyShortcutBar::Construct(const FArguments& InArgs, const TSharedRef<FWorkflowCentricApplication>& InHostingApp, const TSharedRef<IAssetFamily>& InAssetFamily)

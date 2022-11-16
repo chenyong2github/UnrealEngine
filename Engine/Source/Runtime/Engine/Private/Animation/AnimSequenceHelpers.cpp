@@ -17,6 +17,9 @@
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Misc/MessageDialog.h"
+#include "Animation/AnimSequenceHelpers.h"
+#include "Animation/SkeletonRemapping.h"
+#include "Animation/SkeletonRemappingRegistry.h"
 #include "Animation/AttributesRuntime.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequenceHelpers"

@@ -16,6 +16,8 @@
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonWriter.h"
 #include "UObject/LinkerLoad.h"
+#include "Animation/SkeletonRemapping.h"
+#include "Animation/SkeletonRemappingRegistry.h"
 
 static FString GCompressionJsonOutput;
 static FAutoConsoleVariableRef CVarCompressionJsonOutput(
