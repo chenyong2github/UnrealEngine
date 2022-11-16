@@ -4,8 +4,10 @@
 
 #include "SkeletalMeshModelingToolsCommands.h"
 #include "SkeletalMeshModelingToolsEditorMode.h"
+#include "SkeletalMeshModelingToolsMeshConverter.h"
 #include "SkeletalMeshModelingToolsStyle.h"
 
+#include "ContentBrowserMenuContexts.h"
 #include "EditorModeManager.h"
 #include "EditorModeRegistry.h"
 #include "ISkeletalMeshEditor.h"
@@ -13,6 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "SkeletalMeshToolMenuContext.h"
 #include "ToolMenus.h"
+#include "Styling/SlateIconFinder.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
 
 
@@ -59,11 +62,11 @@ void FSkeletalMeshModelingToolsModule::RegisterMenusAndToolbars()
 {
 	FToolMenuOwnerScoped OwnerScoped(this);
 
-	UToolMenu* Toolbar = UToolMenus::Get()->ExtendMenu("AssetEditor.SkeletalMeshEditor.ToolBar");
+	if (UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu("AssetEditor.SkeletalMeshEditor.ToolBar"))
 	{
-		FToolMenuSection& Section = Toolbar->FindOrAddSection("SkeletalMesh");
+		FToolMenuSection& Section = ToolMenu->FindOrAddSection("SkeletalMesh");
 		Section.AddDynamicEntry("ToggleModelingToolsMode", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection) {
-			USkeletalMeshToolMenuContext* Context = InSection.FindContext<USkeletalMeshToolMenuContext>();
+			const USkeletalMeshToolMenuContext* Context = InSection.FindContext<USkeletalMeshToolMenuContext>();
 			if (Context && Context->SkeletalMeshEditor.IsValid())
 			{
 				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
@@ -72,6 +75,28 @@ void FSkeletalMeshModelingToolsModule::RegisterMenusAndToolbars()
 				    LOCTEXT("SkeletalMeshEditorModelingModeTooltip", "Opens the Modeling Tools palette that provides selected mesh modification tools."),
 				    FSlateIcon("ModelingToolsStyle", "LevelEditor.ModelingToolsMode")));
 			}
+		}));
+	}
+
+	// Extend the asset browser for static meshes to include the conversion to skelmesh.
+	if (UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.StaticMesh"))
+	{
+		FToolMenuSection& Section = ToolMenu->FindOrAddSection("GetAssetActions");
+		Section.AddDynamicEntry("ConvertToSkeletalMesh", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			const TAttribute<FText> Label = LOCTEXT("ConvertToSkeletalMesh", "Convert to Skeletal Mesh");
+			const TAttribute<FText> ToolTip = LOCTEXT("ConvertToSkeletalMeshToolTip", "Converts a non-Nanite static mesh to a skeletal mesh with an associated skeleton.");
+			const FSlateIcon Icon = FSlateIconFinder::FindIconForClass(USkeletalMesh::StaticClass());
+			const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateLambda([](const FToolMenuContext& InMenuContext)
+			{
+				if (const UContentBrowserAssetContextMenuContext* Context = InMenuContext.FindContext<UContentBrowserAssetContextMenuContext>())
+				{
+					ConvertStaticMeshToSkeletalMeshInteractive(
+						Context->GetSelectedAssetsOfType(UStaticMesh::StaticClass()));
+				}
+			});
+
+			InSection.AddMenuEntry("ConvertToSkeletalMesh", Label, ToolTip, Icon, UIAction);
 		}));
 	}
 }

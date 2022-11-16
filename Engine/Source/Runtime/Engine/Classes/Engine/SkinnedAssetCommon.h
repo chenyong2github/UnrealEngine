@@ -242,6 +242,21 @@ struct FSkeletalMaterial
 
 	}
 
+	FSkeletalMaterial(
+		UMaterialInterface* InMaterialInterface,
+		FName InMaterialSlotName,
+		FName InImportedMaterialSlotName = NAME_None)
+		: MaterialInterface( InMaterialInterface )
+		, MaterialSlotName(InMaterialSlotName)
+#if WITH_EDITORONLY_DATA
+		, bEnableShadowCasting_DEPRECATED(true)
+		, bRecomputeTangent_DEPRECATED(false)
+		, ImportedMaterialSlotName(InImportedMaterialSlotName)
+#endif //WITH_EDITORONLY_DATA
+	{
+
+	}
+
 	FSkeletalMaterial( class UMaterialInterface* InMaterialInterface
 						, bool bInEnableShadowCasting = true
 						, bool bInRecomputeTangent = false

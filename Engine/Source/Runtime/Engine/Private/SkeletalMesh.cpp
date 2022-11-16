@@ -535,7 +535,7 @@ void USkeletalMesh::CalculateExtendedBounds()
 	// Convert back to Origin, Extent and update SphereRadius
 	CalculatedBounds.Origin = (Min + Max) / 2;
 	CalculatedBounds.BoxExtent = (Max - Min) / 2;
-	CalculatedBounds.SphereRadius = CalculatedBounds.BoxExtent.GetAbsMax();
+	CalculatedBounds.SphereRadius = CalculatedBounds.BoxExtent.Size();
 
 	SetExtendedBounds(CalculatedBounds);
 }

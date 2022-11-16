@@ -15,25 +15,27 @@ public class SkeletalMeshModelingTools : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"ContentBrowser",
 				"Core",
 				"CoreUObject",
-				"Slate",
-				"SlateCore",
 				"EditorFramework",
+				"EditorInteractiveToolsFramework",
 				"Engine",
-				"ToolMenus",
-				"UnrealEd",
 				"InputCore",
-				"ModelingComponentsEditorOnly",
+				"InteractiveToolsFramework",
 				"MeshModelingTools",
-				"MeshModelingToolsExp",
 				"MeshModelingToolsEditorOnly",
 				"MeshModelingToolsEditorOnlyExp",
+				"MeshModelingToolsExp",
+				"ModelingComponentsEditorOnly",
 				"ModelingToolsEditorMode",
-				"InteractiveToolsFramework",
-				"EditorInteractiveToolsFramework",
+				"SkeletalMeshUtilitiesCommon",
+				"Slate",
+				"SlateCore",
 				"StylusInput",
+				"ToolMenus",
 				"ToolWidgets",
+				"UnrealEd", 
 			}
 		);
 	}
