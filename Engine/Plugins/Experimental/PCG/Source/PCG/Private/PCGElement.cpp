@@ -151,7 +151,10 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 	CleanupAndValidateOutput(Context);
 
 #if WITH_EDITOR
-	PCGE_LOG(Log, "Executed in (%f)s and (%d) call(s)", Context->ElapsedTime, Context->ExecutionCount);
+	{
+		FScopeLock Lock(&TimersLock);
+		PCGE_LOG(Verbose, "Executed in (%f)s and (%d) frames(s)", Timers[CurrentTimerIndex].ExecutionTime, Timers[CurrentTimerIndex].ExecutionFrameCount);
+	}
 #endif
 
 	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
@@ -217,7 +220,6 @@ void IPCGElement::ResetTimers()
 	FScopeLock Lock(&TimersLock);
 	Timers.Empty();
 	CurrentTimerIndex = 0;
-
 }
 #endif // WITH_EDITOR
 
@@ -263,30 +265,50 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 
 #if WITH_EDITOR
 IPCGElement::FScopedCallTimer::FScopedCallTimer(const IPCGElement& InOwner, FPCGContext* InContext)
-	: Owner(InOwner), Context(InContext)
+	: Owner(InOwner), Context(InContext), Phase(InContext->CurrentPhase)
 {
 	StartTime = FPlatformTime::Seconds();
 }
 
 IPCGElement::FScopedCallTimer::~FScopedCallTimer()
 {
-	const double EndTime = FPlatformTime::Seconds();
-	const double ElapsedTime = EndTime - StartTime;
-	Context->ElapsedTime += ElapsedTime;
-	Context->ExecutionCount++;
+	const double ThisFrameTime = FPlatformTime::Seconds() - StartTime;
 
-	constexpr int MaxNumberOfTrackedTimers = 100;
+	FScopeLock Lock(&Owner.TimersLock);
+
+	constexpr int32 MaxNumberOfTrackedTimers = 100;
+	if (Phase == EPCGExecutionPhase::PrepareData)
 	{
-		FScopeLock Lock(&Owner.TimersLock);
 		if (Owner.Timers.Num() < MaxNumberOfTrackedTimers)
 		{
-			Owner.Timers.Add(ElapsedTime);
+			// first time here
+			Owner.Timers.Add({});
+			Owner.CurrentTimerIndex = Owner.Timers.Num()-1;
 		}
 		else
 		{
-			Owner.Timers[Owner.CurrentTimerIndex] = ElapsedTime;
+			Owner.CurrentTimerIndex = (Owner.CurrentTimerIndex+1) % MaxNumberOfTrackedTimers;
+			Owner.Timers[Owner.CurrentTimerIndex] = FCallTime();
 		}
-		Owner.CurrentTimerIndex = (Owner.CurrentTimerIndex + 1) % MaxNumberOfTrackedTimers;
+
+		FCallTime& Time = Owner.Timers[Owner.CurrentTimerIndex];
+		Time.PrepareDataTime = ThisFrameTime;
+	}
+	else if (Phase == EPCGExecutionPhase::Execute)
+	{
+		FCallTime& Time = Owner.Timers[Owner.CurrentTimerIndex];
+
+		Time.ExecutionTime += ThisFrameTime;
+		Time.ExecutionFrameCount++;
+
+		Time.MaxExecutionFrameTime = FMath::Max(Time.MaxExecutionFrameTime, ThisFrameTime);
+		Time.MinExecutionFrameTime = FMath::Min(Time.MinExecutionFrameTime, ThisFrameTime);
+	}
+	else if (Phase == EPCGExecutionPhase::PostExecute)
+	{
+		FCallTime& Time = Owner.Timers[Owner.CurrentTimerIndex];
+
+		Time.PostExecuteTime = ThisFrameTime;
 	}
 }
 #endif // WITH_EDITOR

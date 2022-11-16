@@ -64,11 +64,6 @@ struct PCG_API FPCGContext
 	/** True if currently inside a PCGAsync scope - will prevent further async processing */
 	bool bIsRunningAsyncCall = false;
 
-#if WITH_EDITOR
-	double ElapsedTime = 0.0;
-	int32 ExecutionCount = 0;
-#endif
-
 	template<typename SettingsType>
 	const SettingsType* GetInputSettings() const
 	{

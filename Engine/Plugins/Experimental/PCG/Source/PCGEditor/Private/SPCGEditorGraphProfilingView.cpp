@@ -22,21 +22,33 @@ namespace PCGEditorGraphProfilingView
 	
 	/** Names of the columns in the attribute list */
 	const FName NAME_Node = FName(TEXT("Node"));
-	const FName NAME_AvgTime = FName(TEXT("AvgTime"));
-	const FName NAME_MinTime = FName(TEXT("MinTime"));
-	const FName NAME_MaxTime = FName(TEXT("MaxTime"));
-	const FName NAME_StdTime = FName(TEXT("StdTime"));
-	const FName NAME_TotalTime = FName(TEXT("TotalTime"));
+	const FName NAME_PrepareDataTime = FName(TEXT("PrepareDataTime"));
+	const FName NAME_AvgExecutionTime = FName(TEXT("AvgExecutionTime"));
+	const FName NAME_MinExecutionTime = FName(TEXT("MinExecutionTime"));
+	const FName NAME_MaxExecutionTime = FName(TEXT("MaxExecutionTime"));
+	const FName NAME_MinExecutionFrameTime = FName(TEXT("MinFrameTime"));
+	const FName NAME_MaxExecutionFrameTime = FName(TEXT("MaxFrameTime"));
+	const FName NAME_MinNbExecutionFrames = FName(TEXT("MinNbExecutionFrames"));
+	const FName NAME_MaxNbExecutionFrames = FName(TEXT("MaxNbExecutionFrames"));
+	const FName NAME_StdExecutionTime = FName(TEXT("StdExecutionTime"));
+	const FName NAME_TotalExecutionTime = FName(TEXT("TotalExecutionTime"));
 	const FName NAME_NbCalls = FName(TEXT("NbCalls"));
+	const FName NAME_NbExecutionFrames = FName(TEXT("NbExecutionFrames"));
+	const FName NAME_PostExecuteTime = FName(TEXT("PostExecuteTime"));
 
 	/** Labels of the columns */
 	const FText TEXT_NodeLabel = LOCTEXT("NodeLabel", "Node");
-	const FText TEXT_AvgTimeLabel = LOCTEXT("AvgTimeLabel", "Avg Time(ms)");
-	const FText TEXT_MinTimeLabel = LOCTEXT("MinTimeLabel", "Min Time(ms)");
-	const FText TEXT_MaxTimeLabel = LOCTEXT("MaxTimeLabel", "Max Time(ms)");
-	const FText TEXT_StdTimeLabel = LOCTEXT("StdTimeLabel", "Std(ms)");
-	const FText TEXT_TotalTimeLabel = LOCTEXT("TotalTimeLabel", "Total time(s)");
-	const FText TEXT_NbCallsLabel = LOCTEXT("NbCallsLabel", "Number of calls");
+	const FText TEXT_PrepareDataTimeLabel = LOCTEXT("PrepareDataTimeLabel", "PrepareData (ms)");
+	const FText TEXT_PostExecuteTimeLabel = LOCTEXT("PrepareDataTimeLabel", "PrepareData (ms)");
+	const FText TEXT_AvgExecutionTimeLabel = LOCTEXT("AvgExecutionTimeLabel", "Avg Time(ms)");
+	const FText TEXT_MinExecutionTimeLabel = LOCTEXT("MinExecutionTimeLabel", "Min Time(ms)");
+	const FText TEXT_MaxExecutionTimeLabel = LOCTEXT("MaxExecutionTimeLabel", "Max Time(ms)");
+	const FText TEXT_MinExecutionFrameTimeLabel = LOCTEXT("MinExecutionFrameTimeLabel", "Min Frame Time(ms)");
+	const FText TEXT_MaxExecutionFrameTimeLabel = LOCTEXT("MaxExecutionFrameTimeLabel", "Max Frame Time(ms)");
+	const FText TEXT_StdExecutionTimeLabel = LOCTEXT("StdExecutionTimeLabel", "Std(ms)");
+	const FText TEXT_TotalExecutionTimeLabel = LOCTEXT("TotalExecutionTimeLabel", "Total time(s)");
+	const FText TEXT_NbCallsLabel = LOCTEXT("NbCallsLabel", "Calls");
+	const FText TEXT_NbExecutionFramesLabel = LOCTEXT("NbExecutionFramesLabel", "Exec frames");
 }
 
 void SPCGProfilingListViewItemRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const PCGProfilingListViewItemPtr& Item)
@@ -62,35 +74,65 @@ TSharedRef<SWidget> SPCGProfilingListViewItemRow::GenerateWidgetForColumn(const 
 		{
 			ColumnData = FText::AsNumber(InternalItem->NbCalls);
 		}
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_NbExecutionFrames)
+		{
+			ColumnData = FText::AsNumber(InternalItem->NbExecutionFrames);
+		}
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_MinNbExecutionFrames)
+		{
+			ColumnData = FText::AsNumber(InternalItem->MinNbExecutionFrames);
+		}
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_MaxNbExecutionFrames)
+		{
+			ColumnData = FText::AsNumber(InternalItem->MaxNbExecutionFrames);
+		}
 		// For all other values, if we don't have data, just write "N/A"
 		else if (!InternalItem->HasData)
 		{
 			ColumnData = PCGEditorGraphProfilingView::NoDataAvailableText;
 		}
-		else if (ColumnId == PCGEditorGraphProfilingView::NAME_AvgTime)
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_AvgExecutionTime)
 		{
 			// In ms
-			ColumnData = FText::AsNumber(InternalItem->AvgTime * 1000.0);
+			ColumnData = FText::AsNumber(InternalItem->AvgExecutionTime * 1000.0);
 		}
-		else if (ColumnId == PCGEditorGraphProfilingView::NAME_MinTime)
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_MinExecutionTime)
 		{
 			// In ms
-			ColumnData = FText::AsNumber(InternalItem->MinTime * 1000.0);
+			ColumnData = FText::AsNumber(InternalItem->MinExecutionTime * 1000.0);
 		}
-		else if (ColumnId == PCGEditorGraphProfilingView::NAME_MaxTime)
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_MaxExecutionTime)
 		{
 			// In ms
-			ColumnData = FText::AsNumber(InternalItem->MaxTime * 1000.0);
+			ColumnData = FText::AsNumber(InternalItem->MaxExecutionTime * 1000.0);
 		}
-		else if (ColumnId == PCGEditorGraphProfilingView::NAME_StdTime)
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_MinExecutionFrameTime)
 		{
 			// In ms
-			ColumnData = FText::AsNumber(InternalItem->StdTime * 1000.0);
+			ColumnData = FText::AsNumber(InternalItem->MinExecutionFrameTime * 1000.0);
 		}
-		else if (ColumnId == PCGEditorGraphProfilingView::NAME_TotalTime)
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_MaxExecutionFrameTime)
+		{
+			// In ms
+			ColumnData = FText::AsNumber(InternalItem->MaxExecutionFrameTime * 1000.0);
+		}
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_StdExecutionTime)
+		{
+			// In ms
+			ColumnData = FText::AsNumber(InternalItem->StdExecutionTime * 1000.0);
+		}
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_TotalExecutionTime)
 		{
 			// In s
-			ColumnData = FText::AsNumber(InternalItem->TotalTime);
+			ColumnData = FText::AsNumber(InternalItem->ExecutionTime);
+		}
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_PrepareDataTime)
+		{
+			ColumnData = FText::AsNumber(InternalItem->PrepareDataTime * 1000.0);
+		}
+		else if (ColumnId == PCGEditorGraphProfilingView::NAME_PostExecuteTime)
+		{
+			ColumnData = FText::AsNumber(InternalItem->PostExecuteTime * 1000.0);
 		}
 	}
 
@@ -211,47 +253,75 @@ TSharedRef<SHeaderRow> SPCGEditorGraphProfilingView::CreateHeaderRowWidget()
 		.HAlignCell(HAlign_Left)
 		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_Node)
 		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
-		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_AvgTime)
-		.ManualWidth(100)
-		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_AvgTimeLabel)
-		.HAlignHeader(HAlign_Center)
-		.HAlignCell(HAlign_Right)
-		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_AvgTime)
-		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
-		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_MinTime)
-		.ManualWidth(100)
-		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_MinTimeLabel)
-		.HAlignHeader(HAlign_Center)
-		.HAlignCell(HAlign_Right)
-		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_MinTime)
-		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
-		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_MaxTime)
-		.ManualWidth(100)
-		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_MaxTimeLabel)
-		.HAlignHeader(HAlign_Center)
-		.HAlignCell(HAlign_Right)
-		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_MaxTime)
-		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
-		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_StdTime)
-		.ManualWidth(100)
-		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_StdTimeLabel)
-		.HAlignHeader(HAlign_Center)
-		.HAlignCell(HAlign_Right)
-		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_StdTime)
-		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
-		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_TotalTime)
-		.ManualWidth(100)
-		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_TotalTimeLabel)
-		.HAlignHeader(HAlign_Center)
-		.HAlignCell(HAlign_Right)
-		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_TotalTime)
-		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
 		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_NbCalls)
-		.ManualWidth(125)
+		.ManualWidth(80)
 		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_NbCallsLabel)
 		.HAlignHeader(HAlign_Center)
 		.HAlignCell(HAlign_Right)
 		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_NbCalls)
+		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
+		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_PrepareDataTime)
+		.ManualWidth(125)
+		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_PrepareDataTimeLabel)
+		.HAlignHeader(HAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_PrepareDataTime)
+		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
+		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_NbExecutionFrames)
+		.ManualWidth(80)
+		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_NbExecutionFramesLabel)
+		.HAlignHeader(HAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_NbExecutionFrames)
+		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
+		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_MinExecutionFrameTime)
+		.ManualWidth(130)
+		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_MinExecutionFrameTimeLabel)
+		.HAlignHeader(HAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_MinExecutionFrameTime)
+		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
+		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_MaxExecutionFrameTime)
+		.ManualWidth(130)
+		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_MaxExecutionFrameTimeLabel)
+		.HAlignHeader(HAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_MaxExecutionFrameTime)
+		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
+		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_AvgExecutionTime)
+		.ManualWidth(100)
+		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_AvgExecutionTimeLabel)
+		.HAlignHeader(HAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_AvgExecutionTime)
+		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
+		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_MinExecutionTime)
+		.ManualWidth(100)
+		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_MinExecutionTimeLabel)
+		.HAlignHeader(HAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_MinExecutionTime)
+		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
+		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_MaxExecutionTime)
+		.ManualWidth(100)
+		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_MaxExecutionTimeLabel)
+		.HAlignHeader(HAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_MaxExecutionTime)
+		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
+		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_StdExecutionTime)
+		.ManualWidth(100)
+		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_StdExecutionTimeLabel)
+		.HAlignHeader(HAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_StdExecutionTime)
+		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
+		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_TotalExecutionTime)
+		.ManualWidth(100)
+		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_TotalExecutionTimeLabel)
+		.HAlignHeader(HAlign_Center)
+		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_TotalExecutionTime)
 		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader);
 }
 
@@ -355,37 +425,43 @@ FReply SPCGEditorGraphProfilingView::Refresh()
 				{
 					if (const IPCGElement* Element = Settings->GetElement().Get())
 					{
-						const TArray<double>& Timers = Element->GetTimers();
-						if (!Timers.IsEmpty())
+						const TArray<IPCGElement::FCallTime>& Timers = Element->GetTimers();
+						if (Timers.IsEmpty())
 						{
-							ListViewItem->MinTime = std::numeric_limits<double>::max();
-							ListViewItem->MaxTime = std::numeric_limits<double>::min();
-							for (double v : Timers)
-							{
-								ListViewItem->TotalTime += v;
-								if (v < ListViewItem->MinTime)
-								{
-									ListViewItem->MinTime = v;
-								}
-
-								if (v > ListViewItem->MaxTime)
-								{
-									ListViewItem->MaxTime = v;
-								}
-							}
-
-							ListViewItem->AvgTime = ListViewItem->TotalTime / Timers.Num();
-
-							for (double v : Timers)
-							{
-								ListViewItem->StdTime += (ListViewItem->AvgTime - v) * (ListViewItem->AvgTime - v);
-							}
-
-							ListViewItem->StdTime = FMath::Sqrt(ListViewItem->StdTime / Timers.Num());
-
-							ListViewItem->HasData = true;
-							ListViewItem->NbCalls = Timers.Num();
+							continue;
 						}
+
+						ListViewItem->MinExecutionTime = std::numeric_limits<double>::max();
+						ListViewItem->MaxExecutionTime = std::numeric_limits<double>::min();
+						ListViewItem->MinExecutionFrameTime = std::numeric_limits<double>::max();
+						ListViewItem->MaxExecutionFrameTime = std::numeric_limits<double>::min();
+
+						for(const IPCGElement::FCallTime& Timer : Timers)
+						{
+							ListViewItem->PrepareDataTime += Timer.PrepareDataTime;
+
+							ListViewItem->MinExecutionFrameTime = FMath::Min(ListViewItem->MinExecutionFrameTime, Timer.MinExecutionFrameTime);
+							ListViewItem->MaxExecutionFrameTime = FMath::Max(ListViewItem->MaxExecutionFrameTime, Timer.MaxExecutionFrameTime);
+
+							ListViewItem->ExecutionTime += Timer.ExecutionTime;
+							ListViewItem->MinExecutionTime = FMath::Min(ListViewItem->MinExecutionTime, Timer.ExecutionTime);
+							ListViewItem->MaxExecutionTime = FMath::Max(ListViewItem->MaxExecutionTime, Timer.ExecutionTime);
+
+							ListViewItem->NbExecutionFrames += Timer.ExecutionFrameCount;
+							ListViewItem->MaxNbExecutionFrames = FMath::Max(ListViewItem->MaxNbExecutionFrames, Timer.ExecutionFrameCount);
+							ListViewItem->MinNbExecutionFrames = FMath::Min(ListViewItem->MinNbExecutionFrames, Timer.ExecutionFrameCount);
+						}
+
+						ListViewItem->NbCalls = Timers.Num();
+						ListViewItem->AvgExecutionTime = ListViewItem->ExecutionTime / ListViewItem->NbCalls;
+
+						for (const IPCGElement::FCallTime& Timer : Timers)
+						{
+							ListViewItem->StdExecutionTime += FMath::Square(ListViewItem->AvgExecutionTime - Timer.ExecutionTime);
+						}
+
+						ListViewItem->StdExecutionTime = FMath::Sqrt(ListViewItem->StdExecutionTime / ListViewItem->NbCalls);
+						ListViewItem->HasData = true;
 					}
 				}
 			}
@@ -403,29 +479,53 @@ FReply SPCGEditorGraphProfilingView::Refresh()
 				{
 					isLess = A->Name.FastLess(B->Name);
 				}
-				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_AvgTime)
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_PrepareDataTime)
 				{
-					isLess = A->AvgTime < B->AvgTime;
+					isLess = A->PrepareDataTime < B->PrepareDataTime;
 				}
-				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_MinTime)
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_AvgExecutionTime)
 				{
-					isLess = A->MinTime < B->MinTime;
+					isLess = A->AvgExecutionTime < B->AvgExecutionTime;
 				}
-				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_MaxTime)
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_MinExecutionTime)
 				{
-					isLess = A->MaxTime < B->MaxTime;
+					isLess = A->MinExecutionTime < B->MinExecutionTime;
 				}
-				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_StdTime)
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_MaxExecutionTime)
 				{
-					isLess = A->StdTime < B->StdTime;
+					isLess = A->MaxExecutionTime < B->MaxExecutionTime;
 				}
-				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_TotalTime)
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_MinExecutionFrameTime)
 				{
-					isLess = A->TotalTime < B->TotalTime;
+					isLess = A->MinExecutionFrameTime < B->MinExecutionFrameTime;
+				}
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_MaxExecutionFrameTime)
+				{
+					isLess = A->MaxExecutionFrameTime < B->MaxExecutionFrameTime;
+				}
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_StdExecutionTime)
+				{
+					isLess = A->StdExecutionTime < B->StdExecutionTime;
+				}
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_TotalExecutionTime)
+				{
+					isLess = A->ExecutionTime < B->ExecutionTime;
 				}
 				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_NbCalls)
 				{
 					isLess = A->NbCalls < B->NbCalls;
+				}
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_NbExecutionFrames)
+				{
+					isLess = A->NbExecutionFrames < B->NbExecutionFrames;
+				}
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_MaxNbExecutionFrames)
+				{
+					isLess = A->MaxNbExecutionFrames < B->MaxNbExecutionFrames;
+				}
+				else if (SortingColumn == PCGEditorGraphProfilingView::NAME_MinNbExecutionFrames)
+				{
+					isLess = A->MinNbExecutionFrames < B->MinNbExecutionFrames;
 				}
 
 				return SortMode == EColumnSortMode::Ascending ? isLess : !isLess;
