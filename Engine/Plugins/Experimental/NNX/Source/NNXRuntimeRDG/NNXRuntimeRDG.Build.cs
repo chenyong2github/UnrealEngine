@@ -32,6 +32,8 @@ public class NNXRuntimeRDG : ModuleRules
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectMLDefault");
+
+			PublicDefinitions.Add("NNE_USE_DIRECTML");
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)

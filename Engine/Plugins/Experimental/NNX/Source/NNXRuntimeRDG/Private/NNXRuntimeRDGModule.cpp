@@ -19,7 +19,7 @@ public:
 
 	virtual void StartupModule() override
 	{
-#if PLATFORM_WINDOWS
+#ifdef NNE_USE_DIRECTML
 		DmlRuntime = NNX::FMLRuntimeDmlStartup();
 
 		if (DmlRuntime)
@@ -38,7 +38,7 @@ public:
 
 	virtual void ShutdownModule() override
 	{
-#if PLATFORM_WINDOWS
+#ifdef NNE_USE_DIRECTML
 		if (DmlRuntime)
 		{
 			NNX::UnregisterRuntime(DmlRuntime);

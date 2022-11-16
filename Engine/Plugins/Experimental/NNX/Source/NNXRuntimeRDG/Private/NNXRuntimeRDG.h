@@ -277,7 +277,7 @@ public:
 };
 
 // NOTE: For now we only have DML on Windows, we should add support for XSX
-#if PLATFORM_WINDOWS
+#ifdef NNE_USE_DIRECTML
 
 extern IRuntime* FMLRuntimeDmlStartup();
 extern void FMLRuntimeDmlShutdown();
