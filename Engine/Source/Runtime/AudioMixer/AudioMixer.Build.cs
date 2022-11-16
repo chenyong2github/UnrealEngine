@@ -33,7 +33,8 @@ namespace UnrealBuildTool.Rules
 					"AudioExtensions",
 					"AudioLinkCore",
 					"AudioLinkEngine",
-					"HeadMountedDisplay"
+					"HeadMountedDisplay",
+					"TraceLog"
 				}
 			);
 

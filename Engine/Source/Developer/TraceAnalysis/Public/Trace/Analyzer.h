@@ -253,7 +253,7 @@ public:
 		double AsSecondsAbsolute(int64 DurationCycles64) const;
 	};
 
-	struct FOnEventContext
+	struct TRACEANALYSIS_API FOnEventContext
 	{
 		const FThreadInfo&	ThreadInfo;
 		const FEventTime&	EventTime;

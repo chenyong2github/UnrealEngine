@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "AudioMixer.h"
+
+#include "AudioDefines.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/FloatArrayMath.h"
 #include "HAL/RunnableThread.h"
@@ -12,12 +13,19 @@
 #include "Misc/ScopeTryLock.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Trace/Trace.h"
+
 
 // Defines the "Audio" category in the CSV profiler.
 // This should only be defined here. Modules who wish to use this category should contain the line
 // 		CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 //
 CSV_DEFINE_CATEGORY_MODULE(AUDIOMIXERCORE_API, Audio, false);
+
+#if ENABLE_AUDIO_TRACE
+UE_TRACE_CHANNEL_DEFINE(AudioMixerChannel);
+#endif // ENABLE_AUDIO_TRACE
+
 
 // Command to enable logging to display accurate audio render times
 static int32 LogRenderTimesCVar = 0;

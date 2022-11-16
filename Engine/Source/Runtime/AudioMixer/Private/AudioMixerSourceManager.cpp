@@ -2,10 +2,12 @@
 
 #include "AudioMixerSourceManager.h"
 
+#include "AudioDefines.h"
 #include "AudioMixerSourceBuffer.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioMixerSubmix.h"
+#include "AudioMixerTrace.h"
 #include "AudioThread.h"
 #include "DSP/FloatArrayMath.h"
 #include "IAudioExtensionPlugin.h"
@@ -16,6 +18,8 @@
 #include "Async/Async.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Stats/Stats.h"
+#include "Trace/Trace.h"
+
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
@@ -163,6 +167,14 @@ DEFINE_STAT(STAT_AudioMixerSourceBuffers);
 DEFINE_STAT(STAT_AudioMixerSourceEffectBuffers);
 DEFINE_STAT(STAT_AudioMixerSourceManagerUpdate);
 DEFINE_STAT(STAT_AudioMixerSourceOutputBuffers);
+
+#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+UE_TRACE_EVENT_BEGIN(Audio, MixerSourceVolume)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(float, Volume)
+UE_TRACE_EVENT_END()
+#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
 
 namespace Audio
 {
@@ -2519,6 +2531,16 @@ namespace Audio
 				}
 
 				Audio::ArrayFade(PreDistanceAttenBufferView, VolumeStart, VolumeDestination);
+#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+				if (!FMath::IsNearlyEqual(VolumeStart, VolumeDestination))
+				{
+					const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
+					UE_TRACE_LOG(Audio, MixerSourceVolume, AudioMixerChannel)
+						<< MixerSourceVolume.Timestamp(FPlatformTime::Cycles64())
+						<< MixerSourceVolume.SourceId(SourceId)
+						<< MixerSourceVolume.Volume(VolumeDestination);
+				}
+#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
 			}
 			SourceInfo.VolumeSourceStart = SourceInfo.VolumeSourceDestination;
 

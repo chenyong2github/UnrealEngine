@@ -227,14 +227,13 @@ namespace Audio
 		void SetLPFFrequency(const int32 SourceId, const float Frequency);
 		void SetHPFFrequency(const int32 SourceId, const float Frequency);
 
-		// Sets base (i.e. carrier) frequency of modulateable parameters
+		// Sets base (i.e. carrier) frequency of modulatable parameters
 		void SetModPitch(const int32 SourceId, const float InModPitch);
 		void SetModVolume(const int32 SourceId, const float InModVolume);
 		void SetModLPFFrequency(const int32 SourceId, const float InModFrequency);
 		void SetModHPFFrequency(const int32 SourceId, const float InModFrequency);
 
 		void SetSourceBufferListener(const int32 SourceId, FSharedISourceBufferListenerPtr& InSourceBufferListener, bool InShouldSourceBufferListenerZeroBuffer);
-
 
 		void SetListenerTransforms(const TArray<FTransform>& ListenerTransforms);
 		const TArray<FTransform>* GetListenerTransforms() const;

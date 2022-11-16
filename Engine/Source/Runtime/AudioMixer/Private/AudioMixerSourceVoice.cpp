@@ -248,6 +248,21 @@ namespace Audio
 		SourceManager->StopFade(SourceId, NumFrames);
 	}
 
+	int32 FMixerSourceVoice::GetSourceId() const
+	{
+		return SourceId;
+	}
+
+	float FMixerSourceVoice::GetDistanceAttenuation() const
+	{
+		return DistanceAttenuation;
+	}
+
+	float FMixerSourceVoice::GetDistance() const
+	{
+		return Distance;
+	}
+
 	void FMixerSourceVoice::Pause()
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);

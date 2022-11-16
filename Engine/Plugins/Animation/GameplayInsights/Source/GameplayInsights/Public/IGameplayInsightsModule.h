@@ -14,7 +14,7 @@ namespace TraceServices
 	class IAnalysisSession;
 }
 
-class IGameplayInsightsModule
+class GAMEPLAYINSIGHTS_API IGameplayInsightsModule
 	: public IModuleInterface
 {
 public:

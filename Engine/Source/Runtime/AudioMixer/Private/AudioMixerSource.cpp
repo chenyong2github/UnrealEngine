@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "AudioMixerSource.h"
+
+#include "AudioDefines.h"
 #include "AudioMixerSourceBuffer.h"
 #include "ActiveSound.h"
 #include "AudioMixerSourceBuffer.h"
@@ -15,9 +16,37 @@
 #include "Sound/SoundModulationDestination.h"
 #include "Misc/ScopeRWLock.h"
 #include "Templates/Function.h"
+#include "Trace/Trace.h"
 
-// Link to "Audio" profiling category
+
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
+
+#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+UE_TRACE_EVENT_BEGIN(Audio, MixerSourceStart)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Audio, MixerSourceStop)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Audio, MixerSourceUpdate)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+	UE_TRACE_EVENT_FIELD(float, Pitch)
+	UE_TRACE_EVENT_FIELD(float, LPFreq)
+	UE_TRACE_EVENT_FIELD(float, HPFreq)
+	UE_TRACE_EVENT_FIELD(float, Envelope)
+	UE_TRACE_EVENT_FIELD(float, Distance)
+	UE_TRACE_EVENT_FIELD(float, DistanceAttenuation)
+UE_TRACE_EVENT_END()
+#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+
 
 static int32 UseListenerOverrideForSpreadCVar = 0;
 FAutoConsoleVariableRef CVarUseListenerOverrideForSpread(
@@ -70,7 +99,8 @@ namespace Audio
 
 			return SoundClass;
 		}
-	}
+	} // namespace MixerSourcePrivate
+
 	namespace ModulationUtils
 	{
 		void MixInRoutedValue(const FModulationParameter& InParam, float& InOutValueA, float InValueB)
@@ -1011,9 +1041,7 @@ namespace Audio
 
 		UpdateChannelMaps();
 
-#if ENABLE_AUDIO_DEBUG
-		Audio::FAudioDebugger::DrawDebugInfo(*this);
-#endif // ENABLE_AUDIO_DEBUG
+		UpdateTraceInfo();
 	}
 
 	bool FMixerSource::PrepareForInitialization(FWaveInstance* InWaveInstance)
@@ -1224,6 +1252,23 @@ namespace Audio
 		if (MixerSourceVoice && InitializationState == EMixerSourceInitializationState::Initialized)
 		{
 			MixerSourceVoice->Play();
+
+#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+			const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
+			if (bChannelEnabled && WaveInstance)
+			{
+				int32 TraceSourceId = INDEX_NONE;
+				if (MixerSourceVoice)
+				{
+					TraceSourceId = MixerSourceVoice->GetSourceId();
+				}
+
+				UE_TRACE_LOG(Audio, MixerSourceStart, AudioMixerChannel)
+					<< MixerSourceStart.Timestamp(FPlatformTime::Cycles64())
+					<< MixerSourceStart.SourceId(TraceSourceId)
+					<< MixerSourceStart.Name(*WaveInstance->GetName());
+			}
+#endif // ENABLE_AUDIO_TRACE
 		}
 
 		bIsStopping = false;
@@ -1308,6 +1353,23 @@ namespace Audio
 		{
 			if (MixerSourceVoice && Playing)
 			{
+#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+				const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
+				if (bChannelEnabled)
+				{
+					int32 TraceSourceId = INDEX_NONE;
+					if (MixerSourceVoice)
+					{
+						TraceSourceId = MixerSourceVoice->GetSourceId();
+					}
+
+					UE_TRACE_LOG(Audio, MixerSourceStop, AudioMixerChannel)
+						<< MixerSourceStop.Timestamp(FPlatformTime::Cycles64())
+						<< MixerSourceStop.SourceId(TraceSourceId)
+						<< MixerSourceStop.Name(*WaveInstance->GetName());
+				}
+#endif // ENABLE_AUDIO_TRACE
+
 				MixerSourceVoice->Stop();
 			}
 
@@ -1844,6 +1906,45 @@ namespace Audio
 		}
 
 		bPrevAllowedSpatializationSetting = IsSpatializationCVarEnabled();
+	}
+
+	void FMixerSource::UpdateTraceInfo()
+	{
+#if ENABLE_AUDIO_DEBUG
+		Audio::FAudioDebugger::DrawDebugInfo(*this);
+#endif // ENABLE_AUDIO_DEBUG
+
+#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+		const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
+		if (bChannelEnabled && WaveInstance)
+		{
+			int32 TraceSourceId = INDEX_NONE;
+			float TraceVolume = 1.0f;
+			float TracePitch  = 1.0f;
+			float TraceLPFreq = MIN_FILTER_FREQUENCY;
+			float TraceHPFreq = MAX_FILTER_FREQUENCY;
+			float TraceEnv = 1.0f;
+			float TraceDistAttenuation = 0.0f;
+
+			if (MixerSourceVoice)
+			{
+				TraceSourceId = MixerSourceVoice->GetSourceId();
+				TraceEnv = MixerSourceVoice->GetEnvelopeValue();
+				TraceDistAttenuation = MixerSourceVoice->GetDistanceAttenuation();
+			}
+
+			UE_TRACE_LOG(Audio, MixerSourceUpdate, AudioMixerChannel)
+				<< MixerSourceUpdate.Timestamp(FPlatformTime::Cycles64())
+				<< MixerSourceUpdate.SourceId(TraceSourceId)
+				<< MixerSourceUpdate.Name(*WaveInstance->GetName())
+				<< MixerSourceUpdate.Pitch(TracePitch)
+				<< MixerSourceUpdate.LPFreq(TraceLPFreq)
+				<< MixerSourceUpdate.HPFreq(TraceHPFreq)
+				<< MixerSourceUpdate.Envelope(TraceEnv)
+				<< MixerSourceUpdate.DistanceAttenuation(TraceDistAttenuation);
+
+		}
+#endif // ENABLE_AUDIO_TRACE
 	}
 
 	bool FMixerSource::ComputeMonoChannelMap(Audio::FAlignedFloatBuffer& OutChannelMap)

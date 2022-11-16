@@ -80,8 +80,14 @@ namespace Audio
 		// Does a faded stop (to avoid discontinuity)
 		void StopFade(int32 NumFrames);
 
-		// Get the source's Id
-		int32 GetSourceId() const { return SourceId; }
+		// Returns the source's Id
+		int32 GetSourceId() const;
+
+		// Returns the source's distance attenuation
+		float GetDistanceAttenuation() const;
+
+		// Returns the source's distance from the closest listener
+		float GetDistance() const;
 
 		// Queries if the voice is playing
 		bool IsPlaying() const;
