@@ -40,7 +40,17 @@ public:
 	{
 		if (InItem.IsValid())
 		{
-			return InItem->IsObjectRefInCollection(CollectionName);
+			if (InItem->IsObjectRefInCollection(CollectionName))
+			{
+				return true;
+			}
+
+			const TWeakPtr<FObjectMixerEditorListRow> ParentRow = InItem->GetDirectParentRow();
+
+			if (ParentRow.IsValid() && ParentRow.Pin()->IsObjectRefInCollection(CollectionName))
+			{
+				return true;
+			}
 		}
 
 		return false;

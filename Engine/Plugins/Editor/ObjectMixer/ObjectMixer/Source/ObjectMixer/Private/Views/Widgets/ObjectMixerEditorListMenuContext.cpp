@@ -138,6 +138,7 @@ TSharedPtr<SWidget> UObjectMixerEditorListMenuContext::BuildContextMenu(const FO
 	{
 		FLevelEditorContextMenu::RegisterComponentContextMenu();
 		FLevelEditorContextMenu::RegisterElementContextMenu();
+		RegisterObjectMixerElementContextMenuExtension("LevelEditor.ComponentContextMenu");
 
 		PerformLevelEditorRegistrations(Context);
 
@@ -147,6 +148,7 @@ TSharedPtr<SWidget> UObjectMixerEditorListMenuContext::BuildContextMenu(const FO
 	if (DoesSelectionHaveType(InData, UObject::StaticClass()))
 	{
 		FLevelEditorContextMenu::RegisterElementContextMenu();
+		RegisterObjectMixerElementContextMenuExtension("LevelEditor.ElementContextMenu");
 
 		PerformLevelEditorRegistrations(Context);
 
@@ -250,11 +252,24 @@ void UObjectMixerEditorListMenuContext::RegisterFoldersOnlyContextMenu()
 	}));
 }
 
+void UObjectMixerEditorListMenuContext::AddCollectionsMenuItem(UToolMenu* InMenu, const FObjectMixerEditorListMenuContextData& ContextData)
+{
+	FToolMenuSection& Section = InMenu->FindOrAddSection("ObjectMixerCollections");
+	Section.Label = LOCTEXT("ObjectMixerCollectionsSectionName", "Mixer Collections");
+		
+	Section.AddSubMenu(
+		"SelectCollectionsSubMenu",
+		LOCTEXT("SelectCollectionsSubmenu", "Select or Add Collection"),
+		LOCTEXT("SelectCollectionsSubmenu_Tooltip", "Select the collection to which you wish to assign this object."),
+		FNewToolMenuDelegate::CreateStatic(&UObjectMixerEditorListMenuContext::CreateSelectCollectionsSubMenu, ContextData)
+	);
+}
+
 void UObjectMixerEditorListMenuContext::RegisterObjectMixerActorContextMenuExtension()
 {
 	if (UToolMenu* ActorContextMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu"))
 	{		
-		ActorContextMenu->AddDynamicSection("DynamicCollectionsSection", FNewToolMenuDelegate::CreateLambda(
+		ActorContextMenu->AddDynamicSection("DynamicActorSection", FNewToolMenuDelegate::CreateLambda(
 			[](UToolMenu* InMenu)
 			{
 				// Ensure proper context
@@ -268,20 +283,32 @@ void UObjectMixerEditorListMenuContext::RegisterObjectMixerActorContextMenuExten
 
 				ReplaceEditSubMenu(ContextData);
 
-				// Collections submenu
-				{
-					FToolMenuSection& Section = InMenu->FindOrAddSection("ObjectMixerCollections");
-					Section.Label = LOCTEXT("ObjectMixerCollectionsSectionName", "Mixer Collections");
-		
-					Section.AddSubMenu(
-						"SelectCollectionsSubMenu",
-						LOCTEXT("SelectCollectionsSubmenu", "Select or Add Collection"),
-						LOCTEXT("SelectCollectionsSubmenu_Tooltip", "Select the collection to which you wish to assign this object."),
-						FNewToolMenuDelegate::CreateStatic(&UObjectMixerEditorListMenuContext::CreateSelectCollectionsSubMenu, ContextData)
-					);
-				}
+				AddCollectionsMenuItem(InMenu, ContextData);
 
 				GenerateMoveToMenu(InMenu, FToolMenuInsert("ActorTypeTools", EToolMenuInsertType::After), ContextData);
+			}),
+			FToolMenuInsert(NAME_None,EToolMenuInsertType::First)
+		);
+	}
+}
+
+void UObjectMixerEditorListMenuContext::RegisterObjectMixerElementContextMenuExtension(const FName& MenuName)
+{
+	if (UToolMenu* ActorContextMenu = UToolMenus::Get()->ExtendMenu(MenuName))
+	{		
+		ActorContextMenu->AddDynamicSection("DynamicSubobjectSection", FNewToolMenuDelegate::CreateLambda(
+			[](UToolMenu* InMenu)
+			{
+				// Ensure proper context
+				UObjectMixerEditorListMenuContext* Context = InMenu->FindContext<UObjectMixerEditorListMenuContext>();
+				if (!Context || Context->Data.SelectedItems.Num() == 0)
+				{
+					return;
+				}
+
+				const FObjectMixerEditorListMenuContextData& ContextData = Context->Data;
+
+				AddCollectionsMenuItem(InMenu, ContextData);
 			}),
 			FToolMenuInsert(NAME_None,EToolMenuInsertType::First)
 		);
@@ -301,7 +328,7 @@ void UObjectMixerEditorListMenuContext::AddCollectionWidget(const FName& Key, co
 		SNew(SCheckBox)
 		.OnCheckStateChanged_Lambda([Key, ContextData](ECheckBoxState)
 		{
-			OnClickCollectionMenuEntry(Key, ContextData);
+			OnCollectionMenuEntryCheckStateChanged(Key, ContextData);
 		})
 		.IsChecked_Static(&UObjectMixerEditorListMenuContext::GetCheckStateForCollection, Key, ContextData)
 	];
@@ -533,7 +560,7 @@ void UObjectMixerEditorListMenuContext::SelectDescendentsOfSelectedFolders(
 	}
 }
 
-void UObjectMixerEditorListMenuContext::OnClickCollectionMenuEntry(const FName Key, const FObjectMixerEditorListMenuContextData ContextData)
+void UObjectMixerEditorListMenuContext::OnCollectionMenuEntryCheckStateChanged(const FName Key, const FObjectMixerEditorListMenuContextData ContextData)
 {
 	if (AreAllObjectsInCollection(Key, ContextData))
 	{
