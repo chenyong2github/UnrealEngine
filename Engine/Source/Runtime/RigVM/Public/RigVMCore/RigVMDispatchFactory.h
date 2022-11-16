@@ -74,6 +74,12 @@ public:
 	// Returns meta data on the property of the permutations 
 	FORCEINLINE virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const { return FString(); }
 
+	// Returns true if the factory provides metadata for a given argument
+	bool HasArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
+	{
+		return !GetArgumentMetaData(InArgumentName, InMetaDataKey).IsEmpty();
+	}
+
 	// Returns the category this factory is under
 	virtual FString GetCategory() const;
 

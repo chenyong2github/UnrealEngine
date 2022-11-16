@@ -295,6 +295,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Added TransformScaleMethod pin to SpawnActorFromClass node
 		SpawnActorFromClassTransformScaleMethod,
 
+		// Added support for the RigVM to run branches lazily
+		RigVMLazyEvaluation,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

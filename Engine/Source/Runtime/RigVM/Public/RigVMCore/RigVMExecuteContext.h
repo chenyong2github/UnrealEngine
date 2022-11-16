@@ -21,6 +21,7 @@
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
 #include "RigVMCore/RigVMNameCache.h"
+#include "UObject/StructOnScope.h"
 
 #include "RigVMExecuteContext.generated.h"
 
@@ -276,6 +277,15 @@ struct RIGVM_API FRigVMExecuteContext
 		}
 	}
 
+	virtual void Copy(const FRigVMExecuteContext* InOtherContext)
+	{
+		EventName = InOtherContext->EventName;
+		FunctionName = InOtherContext->FunctionName;
+		InstructionIndex = InOtherContext->InstructionIndex;
+		RuntimeSettings = InOtherContext->RuntimeSettings;
+		NameCache = InOtherContext->NameCache;
+	}
+
 protected:
 
 	FORCEINLINE virtual void Reset()
@@ -340,6 +350,15 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		}
 	}
 
+	FORCEINLINE_DEBUGGABLE FRigVMExtendedExecuteContext(const FRigVMExtendedExecuteContext& InOther)
+		: PublicDataScope()
+		, VM(nullptr)
+		, LastExecutionMicroSeconds()
+		, Factory(nullptr)
+	{
+		*this = InOther;
+	}
+
 	virtual ~FRigVMExtendedExecuteContext() {}
 
 	FORCEINLINE void Reset()
@@ -352,13 +371,23 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		Factory = nullptr;
 	}
 
-	FORCEINLINE FRigVMExtendedExecuteContext& operator =(const FRigVMExtendedExecuteContext& Other)
+	FORCEINLINE_DEBUGGABLE FRigVMExtendedExecuteContext& operator =(const FRigVMExtendedExecuteContext& Other)
 	{
-		const UScriptStruct* PublicDataStruct = Cast<UScriptStruct>(Other.PublicDataScope.GetStruct());
-		check(PublicDataStruct);
-		PublicDataScope = FStructOnScope(PublicDataStruct);
-		PublicDataStruct->CopyScriptStruct(PublicDataScope.GetStructMemory(), Other.PublicDataScope.GetStructMemory());
-		SetDefaultNameCache();
+		const UScriptStruct* OtherPublicDataStruct = Cast<UScriptStruct>(Other.PublicDataScope.GetStruct());
+		check(OtherPublicDataStruct);
+		if(PublicDataScope.GetStruct() != OtherPublicDataStruct)
+		{
+			PublicDataScope = FStructOnScope(OtherPublicDataStruct);
+		}
+
+		FRigVMExecuteContext* ThisPublicContext = (FRigVMExecuteContext*)PublicDataScope.GetStructMemory();
+		const FRigVMExecuteContext* OtherPublicContext = (const FRigVMExecuteContext*)Other.PublicDataScope.GetStructMemory();
+		ThisPublicContext->Copy(OtherPublicContext);
+
+		if(OtherPublicContext->GetNameCache() == &Other.NameCache)
+		{
+			SetDefaultNameCache();
+		}
 
 		VM = Other.VM;
 		OpaqueArguments = Other.OpaqueArguments;

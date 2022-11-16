@@ -215,13 +215,21 @@ public:
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
-	virtual bool Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
+	virtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
 	UFUNCTION(BlueprintCallable, Category = RigVM)
 	virtual bool Execute(const FName& InEntryName = NAME_None);
+
+	// Executes a single branch on the VM. We assume that the memory is already set correctly at this point.
+	ERigVMExecuteResult ExecuteLazyBranch(const FRigVMBranchInfo& InBranchToRun);
+
+private:
+	ERigVMExecuteResult ExecuteInstructions(int32 InFirstInstruction, int32 InLastInstruction);
+
+public:
 
 	// Add a function for execute instructions to this VM.
 	// Execute instructions can then refer to the function by index.
@@ -745,6 +753,7 @@ private:
 	// changes to the layout of cached memory array should be reflected in GetContainerIndex()
 	TArray<URigVMMemoryStorage*> CachedMemory;
 	TArray<FRigVMExternalVariable> ExternalVariables;
+	TArray<FRigVMLazyBranch> LazyBranches;
 
 	// this function should be kept in sync with FRigVMOperand::GetContainerIndex()
 	static int32 GetContainerIndex(ERigVMMemoryType InType)
@@ -776,7 +785,7 @@ private:
 	// debug watch register memory needs to be cleared for each execution
 	void ClearDebugMemory();
 	
-	void CacheSingleMemoryHandle(int32 InHandleIndex, const FRigVMOperand& InArg, bool bForExecute = false);
+	void CacheSingleMemoryHandle(int32 InHandleIndex, const TRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InArg, bool bForExecute = false);
 
 	FORCEINLINE_DEBUGGABLE void CopyOperandForDebuggingIfNeeded(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle)
 	{
@@ -830,6 +839,17 @@ protected:
 private:
 	
 	mutable TArray<FName> EntryNames;
+
+	ERigVMExecuteResult CurrentExecuteResult;
+	FName CurrentEntryName;
+	bool bCurrentlyRunningRootEntry;
+	TArrayView<URigVMMemoryStorage*> CurrentMemory;
+	TArrayView<void*> CurrentAdditionalArguments;
+
+#if WITH_EDITOR
+	uint64 StartCycles = 0;
+	uint64 OverallCycles = 0;
+#endif
 
 	UPROPERTY(transient)
 	TObjectPtr<URigVM> DeferredVMToCopy;

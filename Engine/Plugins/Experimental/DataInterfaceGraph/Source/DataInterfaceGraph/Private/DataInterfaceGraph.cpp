@@ -33,7 +33,8 @@ bool UDataInterfaceGraph::GetDataImpl(const UE::DataInterface::FContext& Context
 		RigUnitContext.State = EControlRigState::Update;
 		FDataInterfaceUnitContext DataInterfaceUnitContext(this, Context, bResult);
 		void* AdditionalArguments[2] = { &RigUnitContext, &DataInterfaceUnitContext };
-		bResult &= RigVM->Execute(TArray<URigVMMemoryStorage*>(), AdditionalArguments, FRigUnit_DataInterfaceBeginExecution::EventName);
+		bResult &=
+			(RigVM->Execute(TArray<URigVMMemoryStorage*>(), AdditionalArguments, FRigUnit_DataInterfaceBeginExecution::EventName) != ERigVMExecuteResult::Failed);
 	}
 	
 	return bResult;

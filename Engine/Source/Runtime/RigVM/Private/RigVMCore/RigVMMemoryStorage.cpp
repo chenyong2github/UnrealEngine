@@ -5,6 +5,7 @@
 #include "RigVMTypeUtils.h"
 #include "UObject/Interface.h"
 #include "AssetRegistry/AssetData.h"
+#include "RigVMCore/RigVM.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMMemoryStorage)
 
@@ -53,6 +54,80 @@ static UObject* GetGeneratorClassOuter(UPackage* InPackage)
 	return AssetObject;	
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FRigVMBranchInfo::Serialize(FArchive& Ar)
+{
+	Ar << Index;
+
+	if(Ar.IsLoading())
+	{
+		FString LabelString;
+		Ar << LabelString;
+		Label = *LabelString;
+	}
+	else
+	{
+		FString LabelString = Label.ToString();
+		Ar << LabelString;
+	}
+	
+	Ar << InstructionIndex;
+	Ar << ArgumentIndex;
+	Ar << FirstInstruction;
+	Ar << LastInstruction;
+}
+
+ERigVMExecuteResult FRigVMLazyBranch::Execute()
+{
+	check(VM);
+	return VM->ExecuteLazyBranch(BranchInfo);
+}
+
+ERigVMExecuteResult FRigVMLazyBranch::ExecuteIfRequired(int32 InSliceIndex)
+{
+	check(VM);
+
+	if(InSliceIndex == INDEX_NONE)
+	{
+		InSliceIndex = 0;
+	}
+	
+	while(!LastVMNumExecutions.IsValidIndex(InSliceIndex))
+	{
+		LastVMNumExecutions.Add(INDEX_NONE);
+	}
+
+	if(VM->GetNumExecutions() != LastVMNumExecutions[InSliceIndex])
+	{
+		const ERigVMExecuteResult Result = Execute();
+		LastVMNumExecutions[InSliceIndex] = VM->GetNumExecutions();
+		return Result;
+	}
+	
+	return ERigVMExecuteResult::Succeeded;
+}
+
+const uint8* TRigVMLazyValueBase::GetData() const
+{
+	if(MemoryHandle)
+	{
+		checkf(MemoryHandle->IsLazy(), TEXT("If you are hitting this the compiler didn't add a branch info to the bytecode for a lazy argument."));
+		MemoryHandle->ComputeLazyValueIfNecessary(SliceIndex);
+		return MemoryHandle->GetData(bFollowPropertyPath, SliceIndex);
+	}
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FRigVMMemoryHandle::ComputeLazyValueIfNecessary(int32 InSliceIndex)
+{
+	check(IsLazy());
+	return LazyBranch->ExecuteIfRequired(InSliceIndex) != ERigVMExecuteResult::Failed;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FRigVMPropertyDescription::FRigVMPropertyDescription(const FProperty* InProperty, const FString& InDefaultValue, const FName& InName)
 	: Name(InName)

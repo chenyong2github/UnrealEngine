@@ -306,6 +306,7 @@ const FName FRigVMStruct::ForLoopCountPinName("Count");
 const FName FRigVMStruct::ForLoopContinuePinName("Continue");
 const FName FRigVMStruct::ForLoopCompletedPinName("Completed");
 const FName FRigVMStruct::ForLoopIndexPinName("Index");
+const FName FRigVMStruct::ComputeLazilyMetaName("Lazy");
 
 float FRigVMStruct::GetRatioFromIndex(int32 InIndex, int32 InCount)
 {

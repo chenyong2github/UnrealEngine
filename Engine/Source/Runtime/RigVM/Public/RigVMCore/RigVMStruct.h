@@ -249,6 +249,7 @@ public:
 	static const FName ForLoopContinuePinName;
 	static const FName ForLoopCompletedPinName;
 	static const FName ForLoopIndexPinName;
+	static const FName ComputeLazilyMetaName;
 
 protected:
 

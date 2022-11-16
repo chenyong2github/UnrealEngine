@@ -6,6 +6,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "RigVMExecuteContext.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Misc/AssertionMacros.h"
 #include "RigVMMemoryCommon.h"
@@ -31,6 +32,158 @@
 #include "RigVMMemoryStorage.generated.h"
 
 class FArchive;
+class URigVM;
+struct FRigVMMemoryHandle;
+
+enum class ERigVMExecuteResult : uint8
+{
+	Failed
+	,Succeeded
+#if WITH_EDITOR
+	,Halted
+#endif
+};
+
+//////////////////////////////////////////////////////////////////////////////
+/// Lazy execution
+//////////////////////////////////////////////////////////////////////////////
+
+// A description of a branch in the VM's bytecode
+USTRUCT()
+struct RIGVM_API FRigVMBranchInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	FRigVMBranchInfo()
+	: Index(INDEX_NONE)
+	, Label(NAME_None)
+	, InstructionIndex(INDEX_NONE)
+	, ArgumentIndex(INDEX_NONE)
+	, FirstInstruction(INDEX_NONE)
+	, LastInstruction(INDEX_NONE)
+	{}
+
+	bool IsValid() const
+	{
+		return InstructionIndex != INDEX_NONE;
+	}
+
+	void Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMBranchInfo& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+
+	UPROPERTY()
+	int32 Index;
+
+	UPROPERTY()
+	FName Label;
+
+	UPROPERTY()
+	int32 InstructionIndex;
+
+	UPROPERTY()
+	int32 ArgumentIndex;
+
+	UPROPERTY()
+	uint16 FirstInstruction;
+
+	UPROPERTY()
+	uint16 LastInstruction;
+};
+
+
+/**
+ * A branch which can be lazily executed
+ */
+struct RIGVM_API FRigVMLazyBranch
+{
+public:
+	
+	FRigVMLazyBranch()
+		: VM(nullptr)
+		, LastVMNumExecutions()
+		, BranchInfo()
+	{}
+
+	ERigVMExecuteResult Execute();
+	ERigVMExecuteResult ExecuteIfRequired(int32 InSliceIndex = INDEX_NONE);
+
+private:
+
+	URigVM* VM;
+	TArray<int32> LastVMNumExecutions;
+	FRigVMBranchInfo BranchInfo;
+
+	friend class URigVM;
+};
+
+/**
+ * A template container for a lazily computed value
+ */
+struct RIGVM_API TRigVMLazyValueBase
+{
+public:
+
+	TRigVMLazyValueBase()
+		: bFollowPropertyPath(false)
+		, SliceIndex(INDEX_NONE)
+		, MemoryHandle(nullptr)
+	{
+	}
+
+	const uint8* GetData() const;
+
+protected:
+	
+	bool bFollowPropertyPath;
+	int32 SliceIndex;
+	FRigVMMemoryHandle* MemoryHandle;
+	
+	friend class URigVM;
+	friend struct FRigVMMemoryHandle;
+};
+
+/**
+ * A template container for a lazily computed value
+ */
+template<typename ComputedType>
+struct TRigVMLazyValue : public TRigVMLazyValueBase
+{
+public:
+
+	TRigVMLazyValue(ComputedType InConstValue)
+		: TRigVMLazyValueBase()
+		, ConstValue(InConstValue)
+	{}
+
+	FORCEINLINE const ComputedType& Get() const
+	{
+		if(MemoryHandle)
+		{
+			return *(const ComputedType*)GetData();
+		}
+		return ConstValue;
+	}
+
+protected:
+
+	TRigVMLazyValue(const TRigVMLazyValue<ComputedType>& InOther) = delete;
+
+	TRigVMLazyValue(const TRigVMLazyValueBase& InOther)
+		: TRigVMLazyValueBase(InOther)
+	{}
+
+	ComputedType ConstValue;
+
+	friend struct FRigVMMemoryHandle;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+/// Memory handle
+//////////////////////////////////////////////////////////////////////////////
 
 /**
  * The FRigVMMemoryHandle is used to access the memory used within a URigMemoryStorage.
@@ -53,6 +206,7 @@ public:
 		: Ptr(nullptr)
 		, Property(nullptr) 
 		, PropertyPath(nullptr)
+		, LazyBranch(nullptr)
 	{}
 
 	// Constructor from complete data
@@ -60,6 +214,7 @@ public:
 		: Ptr(InPtr)
 		, Property(InProperty)
 		, PropertyPath(InPropertyPath)
+		, LazyBranch(nullptr)
 	{
 	}
 
@@ -75,7 +230,7 @@ public:
 	}
 
 	/**
-	 * Returns the cached pointer stored within the handle.
+	 * Computes the data if necessary and returns the cached pointer stored within the handle.
 	 * @param bFollowPropertyPath If set to true the memory handle will traverse the memory using the property path
 	 * @param InSliceIndex If this is != INDEX_NONE the memory handle will return the slice of the memory requested
 	 * @return The traversed memory cached by this handle (const)
@@ -84,6 +239,33 @@ public:
 	{
 		return GetData_Internal(bFollowPropertyPath, InSliceIndex);
 	}
+
+	/**
+	 * Computes the data if necessary and returns the cached pointer stored within the handle.
+	 * @param bFollowPropertyPath If set to true the memory handle will traverse the memory using the property path
+	 * @param InSliceIndex If this is != INDEX_NONE the memory handle will return the slice of the memory requested
+	 * @return The traversed memory cached by this handle (const)
+	 */
+	template<typename ComputedType>
+	FORCEINLINE TRigVMLazyValue<ComputedType> GetDataLazily(bool bFollowPropertyPath = false, int32 InSliceIndex = INDEX_NONE) const
+	{
+		return GetDataLazily_Internal(bFollowPropertyPath, InSliceIndex);
+	}
+
+	/**
+	 * Returns true if this memory handle depends on a lazily executed branch
+	 * @return True if this memory handle depends on a lazily executed branch
+	 */
+	FORCEINLINE bool IsLazy() const
+	{
+		return LazyBranch != nullptr;
+	}
+	
+	/**
+	 * Computes the data if necessary and returns true if the value is valid
+	 * @return True if the value of the handle is valid after the compute
+	 */
+	bool ComputeLazyValueIfNecessary(int32 InSliceIndex = INDEX_NONE);
 
 	// Returns the head property of this handle
 	FORCEINLINE const FProperty* GetProperty() const
@@ -596,6 +778,18 @@ private:
 		return Ptr;
 	}
 
+	FORCEINLINE_DEBUGGABLE TRigVMLazyValueBase GetDataLazily_Internal(bool bFollowPropertyPath, int32 InSliceIndex) const
+	{
+		// this should only get called on memory handles which can execute lazily
+		check(LazyBranch != nullptr);
+		
+		TRigVMLazyValueBase LazyValue;
+		LazyValue.MemoryHandle = (FRigVMMemoryHandle*)this;
+		LazyValue.bFollowPropertyPath = bFollowPropertyPath;
+		LazyValue.SliceIndex = InSliceIndex;
+		return LazyValue;
+	}
+
 	FORCEINLINE static const FProperty* GetArrayElementProperty(const FProperty* InProperty)
 	{
 		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
@@ -678,7 +872,11 @@ private:
 	// The [optional] property path used by this handle
 	const FRigVMPropertyPath* PropertyPath;
 
+	// The [optional] lazy branch used by this handle
+	FRigVMLazyBranch* LazyBranch;
+
 	friend class URigVM;
+	friend struct TRigVMLazyValueBase;
 };
 
 //////////////////////////////////////////////////////////////////////////////

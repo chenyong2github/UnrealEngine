@@ -37,6 +37,17 @@ struct FDataInterfaceExecuteContext : public FRigVMExecuteContext
 		check(Interface);
 		return Interface;
 	}
+	
+	virtual void Copy(const FRigVMExecuteContext* InOtherContext) override
+	{
+		Super::Copy(InOtherContext);
+
+		const FDataInterfaceExecuteContext* OtherContext = (const FDataInterfaceExecuteContext*)InOtherContext; 
+		DataInterfaceContext = OtherContext->DataInterfaceContext;
+		Interface = OtherContext->Interface; 
+		ResultPtr = OtherContext->ResultPtr; 
+	}
+
 
 private:
 	const UE::DataInterface::FContext* DataInterfaceContext = nullptr;

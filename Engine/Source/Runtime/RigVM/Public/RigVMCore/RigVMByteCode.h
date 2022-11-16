@@ -27,6 +27,9 @@ class FArchive;
 class UObject;
 struct FRigVMByteCode;
 
+typedef TTuple<int32,int32> TRigVMBranchInfoKey;
+
+
 // The code for a single operation within the RigVM
 UENUM()
 enum class ERigVMOpCode : uint8
@@ -992,6 +995,9 @@ public:
 	// adds an invoke entry operator
 	uint64 AddInvokeEntryOp(const FName& InEntryName);
 
+	// adds information about a branch for an instruction's argument
+	void AddBranchInfo(const FName& InBranchLabel, int32 InInstructionIndex, int32 InArgumentIndex, int32 InFirstBranchInstruction, int32 InLastBranchInstruction);
+
 	// returns an instruction array for iterating over all operators
 	FORCEINLINE FRigVMInstructionArray GetInstructions() const
 	{
@@ -1206,6 +1212,13 @@ private:
 	// a look up table from entry name to instruction index
 	UPROPERTY()
 	TArray<FRigVMByteCodeEntry> Entries;
+
+	// a list of all lazily evaluation branches
+	UPROPERTY()
+	TArray<FRigVMBranchInfo> BranchInfos;
+
+	const FRigVMBranchInfo* GetBranchInfo(const TRigVMBranchInfoKey& InBranchInfoKey) const;
+	mutable TMap<TRigVMBranchInfoKey, const FRigVMBranchInfo*> BranchInfoPerInstruction;
 
 	// if this is set to true the stored bytecode is aligned / padded
 	bool bByteCodeIsAligned;

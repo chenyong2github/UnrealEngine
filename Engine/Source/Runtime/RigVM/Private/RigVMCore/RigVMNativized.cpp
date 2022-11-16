@@ -26,11 +26,11 @@ bool URigVMNativized::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArray
 	return true;
 }
 
-bool URigVMNativized::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments,
+ERigVMExecuteResult URigVMNativized::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments,
 	const FName& InEntryName)
 {
 	// to be implemented by the generated code
-	return false;
+	return ERigVMExecuteResult::Failed;
 }
 
 const FRigVMInstructionArray& URigVMNativized::GetInstructions()

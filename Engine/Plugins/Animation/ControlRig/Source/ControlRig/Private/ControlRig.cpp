@@ -1617,7 +1617,7 @@ bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 #endif
 			FRigHierarchyExecuteContextBracket HierarchyContextGuard(Hierarchy, &VM->GetContext());
 
-			bSuccess = VM->Execute(LocalMemory, AdditionalArguments, InEventName);
+			bSuccess = VM->Execute(LocalMemory, AdditionalArguments, InEventName) != ERigVMExecuteResult::Failed;
 		}
 
 #if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
