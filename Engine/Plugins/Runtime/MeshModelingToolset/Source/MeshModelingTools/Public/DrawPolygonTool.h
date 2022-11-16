@@ -17,6 +17,7 @@
 #include "DrawPolygonTool.generated.h"
 
 
+class UConstructionPlaneMechanic;
 class UCombinedTransformGizmo;
 class UDragAlignmentMechanic;
 class UTransformProxy;
@@ -235,13 +236,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UNewMeshMaterialProperties> MaterialProperties;
 	
-
-	/** Origin of plane we will draw polygon on */
-	FVector3d DrawPlaneOrigin;
-
-	/** Orientation of plane we will draw polygon on */
-	UE::Geometry::FQuaterniond DrawPlaneOrientation;
-	
 	/** Vertices of current preview polygon */
 	TArray<FVector3d> PolygonVertices;
 
@@ -257,26 +251,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UPreviewMesh> PreviewMesh;
-
 	
-	// drawing plane gizmo
-
-	UPROPERTY()
-	TObjectPtr<UCombinedTransformGizmo> PlaneTransformGizmo;
-
-	UPROPERTY()
-	TObjectPtr<UTransformProxy> PlaneTransformProxy;
-
-	// called on PlaneTransformProxy.OnTransformChanged
-	void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
-
-	// calls SetDrawPlaneFromWorldPos when user ctrl+clicks on scene
-	IClickBehaviorTarget* SetPointInWorldConnector = nullptr;
-
-	// updates plane and gizmo position
-	virtual void SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal);
-
-	void UpdateShowGizmoState(bool bNewVisibility);
+	// called on PlaneMechanic.OnPlaneChanged
+	void PlaneTransformChanged();
 
 	// whether to allow the draw plane to be updated in the UI -- returns false if there is an in-progress shape relying on the current draw plane
 	bool AllowDrawPlaneUpdates();
@@ -322,6 +299,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UConstructionPlaneMechanic> PlaneMechanic = nullptr;
 
 	/** Generate extruded meshes.  Returns true on success. */
 	bool GeneratePolygonMesh(const TArray<FVector3d>& Polygon, const TArray<TArray<FVector3d>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, UE::Geometry::FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric);
