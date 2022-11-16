@@ -87,6 +87,13 @@ public:
 	*/
 	void RemoveEntry(int32 InBoneIdx);
 
+	/**
+	 * Get the bone entry by entry index.
+	 * @param[in] InEntryIdx The index to the bone entry in range [0, GetNumBlendEntries()-1].
+	 * @return The bone entry containing the bone reference and blend scale.
+	 **/
+	const FBlendProfileBoneEntry& GetEntry(const int32 InEntryIdx) const;
+
 	/** Get the set blend scale for the specified bone, will return 1.0f if no entry was found (no scale)
 	 *  @param InBoneIdx Index of the bone to retrieve
 	 */

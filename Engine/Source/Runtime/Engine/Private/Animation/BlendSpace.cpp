@@ -5,6 +5,7 @@
 =============================================================================*/ 
 
 #include "Animation/BlendSpace.h"
+#include "Animation/BlendProfile.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "AnimationUtils.h"
 #include "Animation/BlendSpaceUtilities.h"
@@ -12,6 +13,7 @@
 #include "Animation/AttributesRuntime.h"
 #include "Animation/BlendSpaceHelpers.h"
 #include "Animation/BlendSpace1DHelpers.h"
+#include "Math/UnrealMathUtility.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectIterator.h"
@@ -152,8 +154,11 @@ void UBlendSpace::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
-	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UBlendSpace, PerBoneBlend) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(FPerBoneInterpolation, InterpolationSpeedPerSec))
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UBlendSpace, ManualPerBoneOverrides) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FPerBoneInterpolation, InterpolationSpeedPerSec) ||
+		MemberPropertyName == GET_MEMBER_NAME_CHECKED(UBlendSpace, PerBoneBlendProfile) ||
+		MemberPropertyName == GET_MEMBER_NAME_CHECKED(UBlendSpace, PerBoneBlendMode) ||
+		MemberPropertyName == GET_MEMBER_NAME_CHECKED(UBlendSpace, TargetWeightInterpolationSpeedPerSec))
 	{
 		InitializePerBoneBlend();
 	}
@@ -244,7 +249,7 @@ bool UBlendSpace::UpdateBlendSamples_Internal(
 	if (GetSamplesFromBlendInput(InBlendSpacePosition, NewSampleDataList, InOutCachedTriangulationIndex, true))
 	{
 		// if target weight interpolation is set
-		if (TargetWeightInterpolationSpeedPerSec > 0.f || PerBoneBlend.Num() > 0)
+		if (TargetWeightInterpolationSpeedPerSec > 0.f || PerBoneBlendValues.Num() > 0)
 		{
 			// target weight interpolation
 			if (InterpolateWeightOfSampleData(InDeltaTime, InOutOldSampleDataList, NewSampleDataList, InOutSampleDataCache))
@@ -731,10 +736,10 @@ struct FSortedPerBoneInterpolationData : public IInterpolationIndexProvider::FPe
 TSharedPtr<IInterpolationIndexProvider::FPerBoneInterpolationData> UBlendSpace::GetPerBoneInterpolationData(const USkeleton* RuntimeSkeleton) const 
 {
 	FSortedPerBoneInterpolationData* Data = new FSortedPerBoneInterpolationData();
-	Data->Data.SetNumUninitialized(PerBoneBlend.Num());
-	for (int32 Iter = 0 ; Iter != PerBoneBlend.Num() ; ++Iter)
+	Data->Data.SetNumUninitialized(PerBoneBlendValues.Num());
+	for (int32 Iter = 0 ; Iter != PerBoneBlendValues.Num() ; ++Iter)
 	{
-		Data->Data[Iter] = FSortedPerBoneInterpolation(PerBoneBlend[Iter], Iter);
+		Data->Data[Iter] = FSortedPerBoneInterpolation(PerBoneBlendValues[Iter], Iter);
 		if (!IsAsset())
 		{
 			FBoneReference& Bone = Data->Data[Iter].PerBoneBlend.BoneReference;
@@ -911,7 +916,7 @@ void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampl
 
 	TArrayView<FCompactPose> ChildrenPosesView(ChildrenPoses);
 
-	if (PerBoneBlend.Num() > 0)
+	if (PerBoneBlendValues.Num() > 0)
 	{
 		bool bValidAdditive = IsValidAdditive();
 
@@ -1516,10 +1521,66 @@ bool UBlendSpace::IsTooCloseToExistingSamplePoint(const FVector& SampleValue, in
 
 #endif // WITH_EDITOR
 
+// When using CriticallyDampedSmoothing, how to go from the interpolation speed to the smooth
+// time? What would the critically damped velocity be as it goes from a starting value of 0 to a
+// target of 1 (see eq in CriticallyDampedSmoothing), starting with v = 0?
+//
+// v = W^2 t exp(-W t)
+//
+// Differentiate and set equal to zero to find maximum v is at t = 1 / W
+//
+// vMax = W / e = 2 / (SmoothingTime * e)
+//
+// Set this equal to TargetWeightInterpolationSpeedPerSec, we get
+//
+// SmoothingTime = 2 / (e * TargetWeightInterpolationSpeedPerSec)
+//
+// However - this looks significantly slower than when using a constant speed, because we're
+// easing in/out, so aim for twice this speed (i.e. smooth over half the time)
+static float SmoothingTimeFromSpeed(float Speed)
+{
+	return Speed > FLT_EPSILON ? 1.0f / (UE_EULERS_NUMBER * Speed) : 0.0f;
+}
+
+static float SpeedFromSmoothingTime(float SmoothingTime)
+{
+	return SmoothingTime > FLT_EPSILON ? 1 / (UE_EULERS_NUMBER * SmoothingTime) : 0.0f;
+}
+
 void UBlendSpace::InitializePerBoneBlend()
 {
+	if (PerBoneBlendMode == EBlendSpacePerBoneBlendMode::ManualPerBoneOverride)
+	{
+		PerBoneBlendValues = ManualPerBoneOverrides;
+	}
+	else
+	{
+		PerBoneBlendValues.Empty();
+
+		UBlendProfile* BlendProfile = PerBoneBlendProfile.BlendProfile.Get();
+		if (BlendProfile)
+		{
+			int32 NumBlendEntries = BlendProfile->GetNumBlendEntries();
+			for (int32 EntryIndex = 0; EntryIndex < NumBlendEntries; ++EntryIndex)
+			{
+				const FBlendProfileBoneEntry& BoneEntry = BlendProfile->GetEntry(EntryIndex);
+
+				FPerBoneInterpolation BoneInterpolation;
+				BoneInterpolation.BoneReference = BoneEntry.BoneReference;
+
+				const float TargetWeightInterpolationTime = SmoothingTimeFromSpeed(TargetWeightInterpolationSpeedPerSec);
+				const float BlendProfileInterpolationTime = SmoothingTimeFromSpeed(PerBoneBlendProfile.TargetWeightInterpolationSpeedPerSec);
+
+				const float InterpolatedTime = FMath::Lerp(TargetWeightInterpolationTime, BlendProfileInterpolationTime, FMath::Clamp(BoneEntry.BlendScale, 0.0f, 1.0f));
+				BoneInterpolation.InterpolationSpeedPerSec = SpeedFromSmoothingTime(InterpolatedTime);
+
+				PerBoneBlendValues.Add(BoneInterpolation);
+			}
+		}
+	}
+
 	const USkeleton* MySkeleton = GetSkeleton();
-	for (FPerBoneInterpolation& BoneInterpolationData : PerBoneBlend)
+	for (FPerBoneInterpolation& BoneInterpolationData : PerBoneBlendValues)
 	{
 		BoneInterpolationData.Initialize(MySkeleton);
 	}
@@ -1627,27 +1688,6 @@ const FEditorElement* UBlendSpace::GetGridSampleInternal(int32 Index) const
 	return GridSamples.IsValidIndex(Index) ? &GridSamples[Index] : nullptr;
 }
 
-// When using CriticallyDampedSmoothing, how to go from the interpolation speed to the smooth
-// time? What would the critically damped velocity be as it goes from a starting value of 0 to a
-// target of 1 (see eq in CriticallyDampedSmoothing), starting with v = 0?
-//
-// v = W^2 t exp(-W t)
-//
-// Differentiate and set equal to zero to find maximum v is at t = 1 / W
-//
-// vMax = W / e = 2 / (SmoothingTime * e)
-//
-// Set this equal to TargetWeightInterpolationSpeedPerSec, we get
-//
-// SmoothingTime = 2 / (e * TargetWeightInterpolationSpeedPerSec)
-//
-// However - this looks significantly slower than when using a constant speed, because we're
-// easing in/out, so aim for twice this speed (i.e. smooth over half the time)
-static float SmoothingTimeFromSpeed(float Speed)
-{
-	return 1.0f / (UE_EULERS_NUMBER * Speed);
-}
-
 static void SmoothWeight(float& Output, float& OutputRate, float Input, float InputRate, float Target, float DeltaTime, float Speed, bool bUseEaseInOut)
 {
 	if (Speed <= 0.0f)
@@ -1680,10 +1720,10 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 		FBlendSampleData OldSample = *OldIt;
 		bool bTargetSampleExists = false;
 
-		if (OldSample.PerBoneBlendData.Num() != PerBoneBlend.Num())
+		if (OldSample.PerBoneBlendData.Num() != PerBoneBlendValues.Num())
 		{
-			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, PerBoneBlend.Num());
-			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, PerBoneBlend.Num());
+			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, PerBoneBlendValues.Num());
+			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, PerBoneBlendValues.Num());
 		}
 
 		for (auto NewIt = NewSampleDataList.CreateConstIterator(); NewIt; ++NewIt)
@@ -1704,7 +1744,7 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 					SmoothWeight(
 						InterpData.PerBoneBlendData[Iter], InterpData.PerBoneWeightRate[Iter],
 						OldSample.PerBoneBlendData[Iter], OldSample.PerBoneWeightRate[Iter], NewSample.TotalWeight,
-						DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
+						DeltaTime, PerBoneBlendValues[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
 					TotalPerBoneWeight += InterpData.PerBoneBlendData[Iter];
 				}
 
@@ -1731,7 +1771,7 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 				SmoothWeight(
 					InterpData.PerBoneBlendData[Iter], InterpData.PerBoneWeightRate[Iter],
 					OldSample.PerBoneBlendData[Iter], OldSample.PerBoneWeightRate[Iter], 0.0f,
-					DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
+					DeltaTime, PerBoneBlendValues[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
 				TotalPerBoneWeight += InterpData.PerBoneBlendData[Iter];
 			}
 
@@ -1752,10 +1792,10 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 		FBlendSampleData OldSample = *OldIt;
 		bool bOldSampleExists = false;
 
-		if (OldSample.PerBoneBlendData.Num() != PerBoneBlend.Num())
+		if (OldSample.PerBoneBlendData.Num() != PerBoneBlendValues.Num())
 		{
-			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, PerBoneBlend.Num());
-			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, PerBoneBlend.Num());
+			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, PerBoneBlendValues.Num());
+			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, PerBoneBlendValues.Num());
 		}
 
 		for (auto NewIt = FinalSampleDataList.CreateConstIterator(); NewIt; ++NewIt)
@@ -1786,7 +1826,7 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 				SmoothWeight(
 					InterpData.PerBoneBlendData[Iter], InterpData.PerBoneWeightRate[Iter],
 					OldSample.PerBoneBlendData[Iter], OldSample.PerBoneWeightRate[Iter], Target,
-					DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
+					DeltaTime, PerBoneBlendValues[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
 				TotalPerBoneWeight += InterpData.PerBoneBlendData[Iter];
 			}
 			if (InterpData.TotalWeight > ZERO_ANIMWEIGHT_THRESH || TotalPerBoneWeight > ZERO_ANIMWEIGHT_THRESH)
