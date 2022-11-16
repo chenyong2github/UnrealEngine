@@ -181,7 +181,7 @@ bool SControlRigVariableBinding::OnCanBindProperty(FProperty* InProperty) const
 		}
 		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
 		{
-			TArray<FRigVMExternalVariable> InnerVariables = FunctionReferenceNode->GetContainedGraph()->GetExternalVariables();
+			TArray<FRigVMExternalVariable> InnerVariables = FunctionReferenceNode->GetReferencedFunctionHeader().ExternalVariables;
 			for(const FRigVMExternalVariable& InnerVariable : InnerVariables)
 			{
 				if(InnerVariable.Name == InnerVariableName)

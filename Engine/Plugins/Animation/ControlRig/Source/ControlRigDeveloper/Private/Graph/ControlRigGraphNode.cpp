@@ -81,12 +81,13 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 			else if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ModelNode))
 			{
-				if(URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->GetReferencedNode())
+				const FRigVMGraphFunctionHeader& ReferencedHeader = FunctionReferenceNode->GetReferencedFunctionHeader();
 				{
-					UPackage* ReferencedPackage = ReferencedNode->GetOutermost();
-					if(ReferencedPackage != ModelNode->GetOutermost())
+					TSoftObjectPtr<URigVMFunctionReferenceNode> RefNodePtr(FunctionReferenceNode);
+					const FString& PackagePath = ReferencedHeader.LibraryPointer.LibraryNode.GetLongPackageName();
+					if(PackagePath != RefNodePtr.GetLongPackageName())
 					{
-						SubTitle = FString::Printf(TEXT("From %s"), *ReferencedPackage->GetName());
+						SubTitle = FString::Printf(TEXT("From %s"), *PackagePath);
 					}
 					else
 					{
@@ -1142,7 +1143,7 @@ void UControlRigGraphNode::AllocateDefaultPins()
 	{
 		if(FunctionReferenceNode->RequiresVariableRemapping())
 		{
-			TArray<FRigVMExternalVariable> CurrentExternalVariables = FunctionReferenceNode->GetContainedGraph()->GetExternalVariables();
+			TArray<FRigVMExternalVariable> CurrentExternalVariables = FunctionReferenceNode->GetReferencedFunctionHeader().ExternalVariables;
 			for(const FRigVMExternalVariable& CurrentExternalVariable : CurrentExternalVariables)
 			{
 				ExternalVariables.Add(MakeShared<FRigVMExternalVariable>(CurrentExternalVariable));

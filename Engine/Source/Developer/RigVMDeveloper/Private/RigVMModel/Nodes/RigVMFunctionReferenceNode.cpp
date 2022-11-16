@@ -2,70 +2,54 @@
 
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/RigVMFunctionLibrary.h"
+#include "RigVMCore/RigVMGraphFunctionDefinition.h"
+#include "RigVMCore/RigVMGraphFunctionHost.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunctionReferenceNode)
 
 FString URigVMFunctionReferenceNode::GetNodeTitle() const
 {
-	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
 	{
-		return ReferencedNode->GetNodeTitle();
+		return Data->Header.NodeTitle;
 	}
 	return Super::GetNodeTitle();
 }
 
 FLinearColor URigVMFunctionReferenceNode::GetNodeColor() const
 {
-	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
 	{
-		return ReferencedNode->GetNodeColor();
+		return Data->Header.NodeColor;
 	}
 	return Super::GetNodeColor();
 }
 
 FText URigVMFunctionReferenceNode::GetToolTipText() const
 {
-	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
 	{
-		return ReferencedNode->GetToolTipText();
+		return Data->Header.Tooltip;
 	}
 	return Super::GetToolTipText();
 }
 
 FString URigVMFunctionReferenceNode::GetNodeCategory() const
 {
-	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
 	{
-		return ReferencedNode->GetNodeCategory();
+		return Data->Header.Category;
 	}
 	return Super::GetNodeCategory();
 }
 
 FString URigVMFunctionReferenceNode::GetNodeKeywords() const
 {
-	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
 	{
-		return ReferencedNode->GetNodeKeywords();
+		return Data->Header.Keywords;
 	}
 	return Super::GetNodeKeywords();
-}
-
-URigVMFunctionLibrary* URigVMFunctionReferenceNode::GetLibrary() const
-{
-	if(URigVMLibraryNode* ReferencedNode = GetReferencedNode())
-	{
-		return ReferencedNode->GetLibrary();
-	}
-	return nullptr;
-}
-
-URigVMGraph* URigVMFunctionReferenceNode::GetContainedGraph() const
-{
-	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
-	{
-		return ReferencedNode->GetContainedGraph();
-	}
-	return nullptr;
 }
 
 bool URigVMFunctionReferenceNode::RequiresVariableRemapping() const
@@ -77,62 +61,15 @@ bool URigVMFunctionReferenceNode::RequiresVariableRemapping() const
 bool URigVMFunctionReferenceNode::RequiresVariableRemappingInternal(TArray<FRigVMExternalVariable>& InnerVariables) const
 {
 	bool bHostedInDifferencePackage = false;
-	if(URigVMLibraryNode* ReferencedNode = GetReferencedNode())
-	{
-		// we only need to remap variables if we are referencing
-		// a function which is hosted in another asset.
-		const UObject* ReferencedPackage = ReferencedNode->GetOutermost(); 
-		const UObject* Package = GetOutermost();
-		if(ReferencedPackage != Package)
-		{
-			bHostedInDifferencePackage = true;
-		}
-		else
-		{
-			// this case might happen within unit tests
-			// where the graphs are not parented to a package
-			const UObject* TransientPackage = GetTransientPackage();
-			if((ReferencedPackage == TransientPackage) && (Package == TransientPackage))
-			{
-				const UObject* ReferencedOuter = ReferencedNode;
-				while(ReferencedOuter)
-				{
-					const UObject* Outer = ReferencedOuter->GetOuter();
-					if(Outer != TransientPackage)
-					{
-						ReferencedOuter = Outer;
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				const UObject* CurrentOuter = this;
-				while(CurrentOuter)
-				{
-					const UObject* Outer = CurrentOuter->GetOuter();
-					if(Outer != TransientPackage)
-					{
-						CurrentOuter = Outer;
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				if(CurrentOuter != ReferencedOuter)
-				{
-					bHostedInDifferencePackage = true;
-				}
-			}
-		}
-	}
-
+	
+	FRigVMGraphFunctionIdentifier LibraryPointer = ReferencedFunctionHeader.LibraryPointer;
+	const FString& LibraryPackagePath = LibraryPointer.LibraryNode.GetLongPackageName();
+	const FString& ThisPacakgePath = GetPackage()->GetPathName();
+	bHostedInDifferencePackage = LibraryPackagePath != ThisPacakgePath;
+		
 	if(bHostedInDifferencePackage)
 	{
-		InnerVariables = Super::GetExternalVariables();
+		InnerVariables = ReferencedFunctionHeader.ExternalVariables;
 		if(InnerVariables.Num() == 0)
 		{
 			return false;
@@ -169,22 +106,13 @@ TArray<FRigVMExternalVariable> URigVMFunctionReferenceNode::GetExternalVariables
 	return GetExternalVariables(true);
 }
 
-const FRigVMTemplate* URigVMFunctionReferenceNode::GetTemplate() const
-{
-	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
-	{
-		return ReferencedNode->GetTemplate();
-	}
-	return nullptr;
-}
-
 TArray<FRigVMExternalVariable> URigVMFunctionReferenceNode::GetExternalVariables(bool bRemapped) const
 {
 	TArray<FRigVMExternalVariable> Variables;
 	
 	if(!bRemapped)
 	{
-		Variables = Super::GetExternalVariables();
+		Variables = ReferencedFunctionHeader.ExternalVariables;
 	}
 	else
 	{
@@ -214,37 +142,43 @@ FName URigVMFunctionReferenceNode::GetOuterVariableName(const FName& InInnerVari
 	return NAME_None;
 }
 
+const FRigVMGraphFunctionData* URigVMFunctionReferenceNode::GetReferencedFunctionData() const
+{
+	if (IRigVMGraphFunctionHost* Host = ReferencedFunctionHeader.GetFunctionHost())
+	{
+		return Host->GetRigVMGraphFunctionStore()->FindFunction(ReferencedFunctionHeader.LibraryPointer);
+	}
+	return nullptr;
+}
+
 FText URigVMFunctionReferenceNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 {
 	check(InPin);
-	
-	if(URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+
+	URigVMPin* RootPin = InPin->GetRootPin();
+	const FRigVMGraphFunctionArgument* Argument = ReferencedFunctionHeader.Arguments.FindByPredicate([RootPin](const FRigVMGraphFunctionArgument& Argument)
 	{
-		if(URigVMPin* ReferencedPin = ReferencedNode->FindPin(InPin->GetSegmentPath(true)))
+		return Argument.Name == RootPin->GetFName();
+	});
+
+	if (Argument)
+	{
+		if (const FText* Tooltip = Argument->PathToTooltip.Find(InPin->GetSegmentPath(false)))
 		{
-			const FString DefaultValue = ReferencedPin->GetDefaultValue();
-			if(!DefaultValue.IsEmpty())
-			{
-				return FText::FromString(FString::Printf(TEXT("%s\nDefault %s"),
-					*ReferencedPin->GetToolTipText().ToString(),
-					*DefaultValue));
-			}
+			return *Tooltip;
 		}
 	}
-
+	
 	return Super::GetToolTipTextForPin(InPin);
 }
 
-URigVMLibraryNode* URigVMFunctionReferenceNode::GetReferencedNode() const
+URigVMLibraryNode* URigVMFunctionReferenceNode::LoadReferencedNode() const
 {
-	if (!ReferencedNodePtr.IsValid())
+	UObject* LibraryNode = ReferencedFunctionHeader.LibraryPointer.LibraryNode.ResolveObject();
+	if (!LibraryNode)
 	{
-		ReferencedNodePtr.LoadSynchronous();
+		LibraryNode = ReferencedFunctionHeader.LibraryPointer.LibraryNode.TryLoad();
 	}
-	return ReferencedNodePtr.Get();
-}
-
-void URigVMFunctionReferenceNode::SetReferencedNode(URigVMLibraryNode* InReferenceNode)
-{
-	ReferencedNodePtr = InReferenceNode;
+	return Cast<URigVMLibraryNode>(LibraryNode);
+	
 }

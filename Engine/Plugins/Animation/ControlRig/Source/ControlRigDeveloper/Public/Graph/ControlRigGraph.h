@@ -96,8 +96,6 @@ public:
 	UPROPERTY()
 	bool bIsFunctionDefinition;
 
-	FControlRigPublicFunctionData GetPublicFunctionData() const;
-
 private:
 
 	template<class T>

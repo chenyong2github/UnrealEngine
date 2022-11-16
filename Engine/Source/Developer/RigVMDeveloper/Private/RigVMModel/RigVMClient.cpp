@@ -91,9 +91,9 @@ URigVMGraph* FRigVMClient::GetModel(const FString& InNodePathOrName) const
 		if(InNodePathOrName.StartsWith(NodePathPrefix))
 		{
 			const FString RemainingNodePath = InNodePathOrName.Mid(NodePathPrefix.Len());
-			if(const URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(RemainingNodePath)))
+			if(const URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Model->FindNode(RemainingNodePath)))
 			{
-				return LibraryNode->GetContainedGraph();
+				return CollapseNode->GetContainedGraph();
 			}
 		}
 	}
@@ -261,6 +261,7 @@ void FRigVMClient::AddModel(URigVMGraph* InModel, bool bCreateController)
 	{
 		check(FunctionLibrary == nullptr);
 		FunctionLibrary = Cast<URigVMFunctionLibrary>(InModel);
+		FunctionLibrary->SetDefaultFunctionLibrary(FunctionLibrary);		
 	}
 	else
 	{
@@ -321,6 +322,17 @@ URigVMFunctionLibrary* FRigVMClient::GetOrCreateFunctionLibrary(bool bSetupUndoR
 	{
 		NewFunctionLibrary = NewObject<URigVMFunctionLibrary>(GetOuter(), SafeGraphName);
 	}
+
+	NewFunctionLibrary->GetFunctionHostObjectPathDelegate.BindLambda([this]() -> const FSoftObjectPath 
+		{
+			if (GetOuter()->Implements<URigVMClientHost>())
+			{
+				IRigVMClientHost* ClientHost = Cast<IRigVMClientHost>(GetOuter());
+				return Cast<UObject>(ClientHost->GetRigVMGraphFunctionHost());				
+			}
+			return nullptr;
+		});
+	
 	AddModel(NewFunctionLibrary, bCreateController);
 	return NewFunctionLibrary;
 }
@@ -605,6 +617,10 @@ URigVMController* FRigVMClient::CreateController(const URigVMGraph* InModel)
 	URigVMController* Controller = NewObject<URigVMController>(GetOuter(), SafeControllerName);
 	Controllers.Add(InModel, Controller);
 	Controller->SetGraph((URigVMGraph*)InModel);
+	Controller->OnModified().AddLambda([this](ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
+	{
+		HandleGraphModifiedEvent(InNotifType, InGraph, InSubject);
+	});
 
 	if (GetOuter()->Implements<URigVMClientHost>())
 	{
@@ -651,3 +667,316 @@ void FRigVMClient::PatchModelsOnLoad()
 	}
 }
 
+void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
+{
+	if (bIgnoreModelNotifications)
+	{
+		return;
+	}
+	
+#if WITH_EDITOR
+
+	IRigVMClientHost* ClientHost = Cast<IRigVMClientHost>(GetOuter());
+	IRigVMGraphFunctionHost* FunctionHost = ClientHost->GetRigVMGraphFunctionHost();
+	FRigVMGraphFunctionStore* FunctionStore = FunctionHost->GetRigVMGraphFunctionStore();
+
+	switch (InNotifType)
+	{
+		case ERigVMGraphNotifType::NodeAdded: // A node has been added to the graph (Subject == URigVMNode)
+		{
+			// A node was added directly into the function library
+			if(InGraph->IsA<URigVMFunctionLibrary>())
+			{
+				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InSubject))
+				{
+					if (GetOuter()->Implements<URigVMClientHost>())
+					{
+						FunctionStore->AddFunction(CollapseNode->GetFunctionHeader(FunctionHost), false);
+					}
+				}
+			}
+			// A node was added into the contained graph of a function
+			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
+			{
+				DirtyGraphFunctionCompilationData(LibraryNode);
+				if (URigVMFunctionReferenceNode* FunctionReference = Cast<URigVMFunctionReferenceNode>(InSubject))
+				{
+					UpdateDependenciesForFunction(LibraryNode);
+					UpdateExternalVariablesForFunction(LibraryNode);
+				}
+			}
+			break;	
+		}
+		case ERigVMGraphNotifType::NodeRemoved: // A node has been removed from the graph (Subject == URigVMNode)
+		{		
+			if(InSubject->GetOuter()->IsA<URigVMFunctionLibrary>())
+			{
+				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InSubject))
+				{
+					if (GetOuter()->Implements<URigVMClientHost>())
+					{
+						FunctionStore->RemoveFunction(FRigVMGraphFunctionIdentifier (Cast<UObject>(FunctionHost), CollapseNode));
+					}
+				}
+			}
+			// A node was added into the contained graph of a function
+			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
+			{
+				DirtyGraphFunctionCompilationData(LibraryNode);
+				if (URigVMFunctionReferenceNode* FunctionReference = Cast<URigVMFunctionReferenceNode>(InSubject))
+				{
+					UpdateDependenciesForFunction(LibraryNode);
+					UpdateExternalVariablesForFunction(LibraryNode);
+				}
+			}
+			break;	
+		}
+		case ERigVMGraphNotifType::VariableAdded: // A variable has been added (Subject == URigVMVariableNode)
+		case ERigVMGraphNotifType::VariableRemoved: // A variable has been removed (Subject == URigVMVariableNode)
+		case ERigVMGraphNotifType::VariableRenamed: // A variable has been renamed (Subject == URigVMVariableNode)
+		case ERigVMGraphNotifType::VariableRemappingChanged: // A function reference node's remapping has changed (Subject == URigVMFunctionReferenceNode)
+		{
+			if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
+			{
+				DirtyGraphFunctionCompilationData(LibraryNode);
+				UpdateExternalVariablesForFunction(LibraryNode);				
+			}
+			break;
+		}
+		case ERigVMGraphNotifType::NodeRenamed: // A node has been renamed in the graph (Subject == URigVMNode)
+		{
+			if(InSubject->GetOuter()->IsA<URigVMFunctionLibrary>())
+			{
+				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InSubject))
+				{
+					URigVMBuildData* BuildData = GetFunctionLibrary()->GetBuildData();
+					IRigVMGraphFunctionHost* Host = Cast<IRigVMGraphFunctionHost>(CollapseNode->GetFunctionIdentifier().HostObject.ResolveObject());
+					FRigVMGraphFunctionData* Data = Host->GetRigVMGraphFunctionStore()->FindFunctionByName(CollapseNode->GetPreviousFName());
+					Data->Header = CollapseNode->GetFunctionHeader();
+					
+					BuildData->ForEachFunctionReference(CollapseNode->GetFunctionIdentifier(), [Data](URigVMFunctionReferenceNode* ReferenceNode)
+					{
+						ReferenceNode->ReferencedFunctionHeader = Data->Header;
+					});
+					UpdateGraphFunctionData(CollapseNode);
+				}
+			}
+			break;	
+		}
+		case ERigVMGraphNotifType::NodeColorChanged: // A node's color has changed (Subject == URigVMNode)
+		case ERigVMGraphNotifType::NodeCategoryChanged: // A node's category has changed (Subject == URigVMNode)
+		case ERigVMGraphNotifType::NodeKeywordsChanged: // A node's keywords have changed (Subject == URigVMNode)
+		case ERigVMGraphNotifType::NodeDescriptionChanged: // A node's description has changed (Subject == URigVMNode)
+		{
+			if(InSubject->GetOuter()->IsA<URigVMFunctionLibrary>())
+			{
+				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InSubject))
+				{
+					UpdateGraphFunctionData(CollapseNode);
+				}
+			}
+		}
+		case ERigVMGraphNotifType::NodeReferenceChanged: // A node has changed it's referenced function (Subject == URigVMFunctionReferenceNode)
+		case ERigVMGraphNotifType::LibraryTemplateChanged: // The definition of a library node's template has changed (Subject == URigVMLibraryNode)
+		{
+			
+			
+			break;	
+		}
+		
+		case ERigVMGraphNotifType::PinAdded: // A pin has been added to a given node (Subject == URigVMPin)
+		case ERigVMGraphNotifType::PinRemoved: // A pin has been removed from a given node (Subject == URigVMPin)
+		case ERigVMGraphNotifType::PinRenamed: // A pin has been renamed (Subject == URigVMPin)
+		case ERigVMGraphNotifType::PinArraySizeChanged: // An array pin's size has changed (Subject == URigVMPin)
+		case ERigVMGraphNotifType::PinDefaultValueChanged: // A pin's default value has changed (Subject == URigVMPin)
+		case ERigVMGraphNotifType::PinDirectionChanged: // A pin's direction has changed (Subject == URigVMPin)
+		case ERigVMGraphNotifType::PinTypeChanged: // A pin's data type has changed (Subject == URigVMPin)
+		case ERigVMGraphNotifType::PinIndexChanged: // A pin's index has changed (Subject == URigVMPin)
+		{
+			if (URigVMNode* Node = Cast<URigVMNode>(InSubject->GetOuter()))
+			{
+				if (URigVMLibraryNode* LibraryNode = Node->FindFunctionForNode())
+				{
+					DirtyGraphFunctionCompilationData(LibraryNode);
+				}
+				if(Node->GetOuter()->IsA<URigVMFunctionLibrary>())
+				{
+					if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+					{
+						UpdateGraphFunctionData(CollapseNode);
+					}
+				}
+			}
+		}
+
+		case ERigVMGraphNotifType::LinkAdded: // A link has been added (Subject == URigVMLink)
+		case ERigVMGraphNotifType::LinkRemoved: // A link has been removed (Subject == URigVMLink)
+		{
+			if (URigVMLink* Link = Cast<URigVMLink>(InSubject))
+			{
+				if (URigVMNode* OuterNode = Cast<URigVMNode>(Link->GetGraph()->GetOuter()))
+				{
+					if (URigVMLibraryNode* LibraryNode = OuterNode->FindFunctionForNode())
+					{
+						DirtyGraphFunctionCompilationData(LibraryNode);
+					}
+				}
+			}
+		}
+		
+		
+		default:
+		{
+			break;
+		}
+	}
+	
+#endif
+}
+
+FRigVMGraphFunctionStore* FRigVMClient::FindFunctionStore(const URigVMLibraryNode* InLibraryNode)
+{
+	if (IRigVMClientHost* ClientHost = InLibraryNode->GetImplementingOuter<IRigVMClientHost>())
+	{
+		if (IRigVMGraphFunctionHost* FunctionHost = ClientHost->GetRigVMGraphFunctionHost())
+		{
+			return FunctionHost->GetRigVMGraphFunctionStore();
+		}
+	}
+	return nullptr;
+}
+
+bool FRigVMClient::UpdateFunctionReferences(const FRigVMGraphFunctionHeader& Header, bool bUpdateDependencies, bool bUpdateExternalVariables)
+{
+	URigVMBuildData* BuildData = GetFunctionLibrary()->GetBuildData();
+	if (const FRigVMFunctionReferenceArray* FunctionReferenceArray = BuildData->FindFunctionReferences(Header.LibraryPointer))
+	{
+		for (int32 i=0; i<FunctionReferenceArray->Num(); ++i)
+		{
+			TSoftObjectPtr<URigVMFunctionReferenceNode> Reference = FunctionReferenceArray->FunctionReferences[i];
+			if (Reference.IsValid())
+			{
+				URigVMFunctionReferenceNode* Node = Reference.Get();
+				Node->ReferencedFunctionHeader = Header;
+
+				if (bUpdateDependencies || bUpdateExternalVariables)
+				{
+					if (URigVMLibraryNode* LibraryNode = Node->FindFunctionForNode())
+					{
+						IRigVMClientHost* OtherClientHost = LibraryNode->GetImplementingOuter<IRigVMClientHost>();							
+						if (bUpdateDependencies)
+						{
+							OtherClientHost->GetRigVMClient()->UpdateDependenciesForFunction(LibraryNode);
+						}
+						if (bUpdateExternalVariables)
+						{								
+							OtherClientHost->GetRigVMClient()->UpdateExternalVariablesForFunction(LibraryNode);
+						}
+					}
+				}
+			}
+		}
+	}
+	return true;
+}
+
+bool FRigVMClient::UpdateGraphFunctionData(const URigVMLibraryNode* InLibraryNode)
+{
+	if (GetOuter()->Implements<URigVMClientHost>())
+	{
+		if (FRigVMGraphFunctionStore* Store = FindFunctionStore(InLibraryNode))
+		{
+			if (FRigVMGraphFunctionData* Data = Store->UpdateFunctionInterface(InLibraryNode->GetFunctionHeader()))
+			{
+				UpdateFunctionReferences(Data->Header, false, false);
+				return true;
+			}
+		}
+	}	
+	
+	return false;	
+}
+
+bool FRigVMClient::UpdateExternalVariablesForFunction(const URigVMLibraryNode* InLibraryNode)
+{
+	if (FRigVMGraphFunctionStore* Store = FindFunctionStore(InLibraryNode))
+	{
+		FRigVMGraphFunctionIdentifier Identifier = InLibraryNode->GetFunctionIdentifier();
+		if (Store->UpdateExternalVariables(Identifier, InLibraryNode->GetExternalVariables()))
+		{
+			const FRigVMGraphFunctionData* Data = Store->FindFunction(Identifier);
+			UpdateFunctionReferences(Data->Header, false, true);
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool FRigVMClient::UpdateDependenciesForFunction(const URigVMLibraryNode* InLibraryNode)
+{
+	if (FRigVMGraphFunctionStore* Store = FindFunctionStore(InLibraryNode))
+	{
+		TMap<FRigVMGraphFunctionIdentifier, uint32> Dependencies = InLibraryNode->GetDependencies();
+		FRigVMGraphFunctionIdentifier Identifier = InLibraryNode->GetFunctionIdentifier();
+		if (Store->UpdateDependencies(Identifier, Dependencies))
+		{
+			const FRigVMGraphFunctionData* Data = Store->FindFunction(Identifier);
+			UpdateFunctionReferences(Data->Header, true, false);
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool FRigVMClient::DirtyGraphFunctionCompilationData(URigVMLibraryNode* InLibraryNode)
+{
+	if (FRigVMGraphFunctionStore* Store = FindFunctionStore(InLibraryNode))
+	{
+		FRigVMGraphFunctionIdentifier Identifier = InLibraryNode->GetFunctionIdentifier();
+		if (const FRigVMGraphFunctionData* Data = Store->FindFunction(Identifier))
+		{
+			if (Store->RemoveFunctionCompilationData(Identifier))
+			{
+				URigVMBuildData* BuildData = GetFunctionLibrary()->GetBuildData();
+				if (const FRigVMFunctionReferenceArray* FunctionReferenceArray = BuildData->FindFunctionReferences(Identifier))
+				{
+					for (int32 i=0; i<FunctionReferenceArray->Num(); ++i)
+					{
+						TSoftObjectPtr<URigVMFunctionReferenceNode> Reference = FunctionReferenceArray->FunctionReferences[i];
+						{
+							if (!Reference.IsValid())
+							{
+								Reference.LoadSynchronous();
+							}
+							if (Reference.IsValid())
+							{
+								if (URigVMFunctionLibrary* ReferenceFunctionLibrary = Reference->GetGraph()->GetDefaultFunctionLibrary())
+								{
+									if (URigVMLibraryNode* ReferenceLibraryNode = Reference.Get()->FindFunctionForNode())
+									{
+										IRigVMClientHost* OtherClientHost = ReferenceLibraryNode->GetImplementingOuter<IRigVMClientHost>();
+										OtherClientHost->GetRigVMClient()->DirtyGraphFunctionCompilationData(ReferenceLibraryNode);
+									}
+								}							
+							}
+						}
+					}
+				}
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FRigVMClient::IsFunctionPublic(URigVMLibraryNode* InLibraryNode)
+{
+	if (FRigVMGraphFunctionStore* Store = FindFunctionStore(InLibraryNode))
+	{
+		return Store->IsFunctionPublic(InLibraryNode->GetFunctionIdentifier());
+	}
+	return false;
+}

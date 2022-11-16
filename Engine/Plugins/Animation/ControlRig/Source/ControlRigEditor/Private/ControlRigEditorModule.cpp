@@ -1175,28 +1175,37 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	}
 
-	FArrayProperty* PublicFunctionsProperty = CastField<FArrayProperty>(UControlRigBlueprint::StaticClass()->FindPropertyByName(TEXT("PublicFunctions")));
+	FArrayProperty* PublicFunctionsProperty = CastField<FArrayProperty>(UControlRigBlueprint::StaticClass()->FindPropertyByName(TEXT("PublicGraphFunctions")));
 	if(PublicFunctionsProperty)
 	{
 		// find all control rigs in the project
 		TArray<FAssetData> ControlRigAssetDatas;
 		FARFilter ControlRigAssetFilter;
 		ControlRigAssetFilter.ClassPaths.Add(UControlRigBlueprint::StaticClass()->GetClassPathName());
+		ControlRigAssetFilter.ClassPaths.Add(UControlRigBlueprintGeneratedClass::StaticClass()->GetClassPathName());
 		AssetRegistryModule.Get().GetAssets(ControlRigAssetFilter, ControlRigAssetDatas);
 
 		// loop over all control rigs in the project
+		TSet<FName> PackagesProcessed;
 		for(const FAssetData& ControlRigAssetData : ControlRigAssetDatas)
 		{
+			// Avoid duplication of spawners
+			if (PackagesProcessed.Contains(ControlRigAssetData.PackageName))
+			{
+				continue;
+			}
+			PackagesProcessed.Add(ControlRigAssetData.PackageName);
+			
 			const FString PublicFunctionsString = ControlRigAssetData.GetTagValueRef<FString>(PublicFunctionsProperty->GetFName());
 			if(PublicFunctionsString.IsEmpty())
 			{
 				continue;
 			}
 
-			TArray<FControlRigPublicFunctionData> PublicFunctions;
+			TArray<FRigVMGraphFunctionHeader> PublicFunctions;
 			PublicFunctionsProperty->ImportText_Direct(*PublicFunctionsString, &PublicFunctions, nullptr, EPropertyPortFlags::PPF_None);
 
-			for(const FControlRigPublicFunctionData& PublicFunction : PublicFunctions)
+			for(const FRigVMGraphFunctionHeader& PublicFunction : PublicFunctions)
 			{
 				UBlueprintNodeSpawner* NodeSpawner = UControlRigFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
 				check(NodeSpawner != nullptr);
@@ -1208,7 +1217,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 
 void FControlRigEditorModule::GetInstanceActions(UControlRigBlueprint* CRB, FBlueprintActionDatabaseRegistrar& ActionRegistrar)
 {
-	if (UClass* GeneratedClass = CRB->GetControlRigBlueprintGeneratedClass())
+	if (UControlRigBlueprintGeneratedClass* GeneratedClass = CRB->GetControlRigBlueprintGeneratedClass())
 	{
 		if (UControlRig* CDO = Cast<UControlRig>(GeneratedClass->GetDefaultObject()))
 		{
@@ -2371,19 +2380,23 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 					if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode()))
 					{
-						if(FunctionReferenceNode->GetLibrary() != RigBlueprint->GetLocalFunctionLibrary())
+						TSoftObjectPtr<URigVMFunctionReferenceNode> RefPtr(FunctionReferenceNode);
+						if(RefPtr.GetLongPackageName() != FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.GetLongPackageName())
 						{
-							OrganizationSection.AddMenuEntry(
-                                "Localize Function",
-                                LOCTEXT("LocalizeFunction", "Localize Function"),
-                                LOCTEXT("LocalizeFunction_Tooltip", "Creates a local copy of the function backing the node."),
-                                FSlateIcon(),
-                                FUIAction(FExecuteAction::CreateLambda([RigBlueprint, FunctionReferenceNode]() {
-                                    RigBlueprint->BroadcastRequestLocalizeFunctionDialog(FunctionReferenceNode->GetReferencedNode(), true);
-                                })
-                            ));
+							if (URigVMLibraryNode* LibraryNode = FunctionReferenceNode->LoadReferencedNode())
+							{
+								OrganizationSection.AddMenuEntry(
+								   "Localize Function",
+								   LOCTEXT("LocalizeFunction", "Localize Function"),
+								   LOCTEXT("LocalizeFunction_Tooltip", "Creates a local copy of the function backing the node."),
+								   FSlateIcon(),
+								   FUIAction(FExecuteAction::CreateLambda([RigBlueprint, LibraryNode]() {
+									   RigBlueprint->BroadcastRequestLocalizeFunctionDialog(LibraryNode, true);
+								   })
+							   ));
+							}
 
-							if(!FunctionReferenceNode->IsFullyRemapped())
+							if(!FunctionReferenceNode->IsFullyRemapped() && FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.ResolveObject())
 							{
 								FToolMenuSection& VariablesSection = Menu->AddSection("EdGraphSchemaVariables", LOCTEXT("Variables", "Variables"));
 								VariablesSection.AddMenuEntry(
@@ -2399,29 +2412,32 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 											FScopedTransaction Transaction(LOCTEXT("MakeVariablesFromFunctionReferenceNode", "Create required variables"));
                                     		RigBlueprint->Modify();
 
-                                    		UControlRigBlueprint* ReferencedBlueprint = FunctionReferenceNode->GetReferencedNode()->GetTypedOuter<UControlRigBlueprint>();
-                                    		// ReferencedBlueprint != RigBlueprint - since only FunctionReferenceNodes from other assets have the potential to be unmapped
-                                    		
-                                    		for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+                                    		if (URigVMLibraryNode* LibraryNode = FunctionReferenceNode->LoadReferencedNode())
                                     		{
-                                    			FString DefaultValue;
-                                    			if(ReferencedBlueprint)
-                                    			{
-                                    				for(const FBPVariableDescription& NewVariable : ReferencedBlueprint->NewVariables)
-                                    				{
-                                    					if(NewVariable.VarName == ExternalVariable.Name)
-                                    					{
-                                    						DefaultValue = NewVariable.DefaultValue;
-                                    						break;
-                                    					}
-                                    				}
-                                    			}
+                                    			UControlRigBlueprint* ReferencedBlueprint = LibraryNode->GetTypedOuter<UControlRigBlueprint>();
+											   // ReferencedBlueprint != RigBlueprint - since only FunctionReferenceNodes from other assets have the potential to be unmapped
+                                    		
+											   for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+											   {
+												   FString DefaultValue;
+												   if(ReferencedBlueprint)
+												   {
+													   for(const FBPVariableDescription& NewVariable : ReferencedBlueprint->NewVariables)
+													   {
+														   if(NewVariable.VarName == ExternalVariable.Name)
+														   {
+															   DefaultValue = NewVariable.DefaultValue;
+															   break;
+														   }
+													   }
+												   }
                                     			
-                                                FName NewVariableName = RigBlueprint->AddCRMemberVariableFromExternal(ExternalVariable, DefaultValue);
-                                    			if(!NewVariableName.IsNone())
-                                    			{
-                                    				Controller->SetRemappedVariable(FunctionReferenceNode, ExternalVariable.Name, NewVariableName);
-                                    			}
+												   FName NewVariableName = RigBlueprint->AddCRMemberVariableFromExternal(ExternalVariable, DefaultValue);
+												   if(!NewVariableName.IsNone())
+												   {
+													   Controller->SetRemappedVariable(FunctionReferenceNode, ExternalVariable.Name, NewVariableName);
+												   }
+											   }
                                     		}
 
                                     		FBlueprintEditorUtils::MarkBlueprintAsModified(RigBlueprint);

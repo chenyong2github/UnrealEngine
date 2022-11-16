@@ -28,6 +28,12 @@ public:
 	// Returns the rigvm client for this host
 	virtual const FRigVMClient* GetRigVMClient() const = 0;
 
+	// Returns the rigvm function host
+	virtual IRigVMGraphFunctionHost* GetRigVMGraphFunctionHost() = 0;
+
+	// Returns the rigvm function host
+	virtual const IRigVMGraphFunctionHost* GetRigVMGraphFunctionHost() const = 0;
+
 	// Returns the editor object corresponding with the supplied editor object
 	virtual UObject* GetEditorObjectForRigVMGraph(URigVMGraph* InVMGraph) const = 0;
 
@@ -78,6 +84,7 @@ public:
 	FRigVMClient()
 		: FunctionLibrary(nullptr)
 		, bSuspendNotifications(false)
+		, bIgnoreModelNotifications(false)
 		, OuterClientHost(nullptr)
 		, OuterClientPropertyName(NAME_None)
 	{
@@ -130,6 +137,16 @@ public:
 	// backwards compatibility
 	void PatchModelsOnLoad();
 
+	void HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
+
+	FRigVMGraphFunctionStore* FindFunctionStore(const URigVMLibraryNode* InLibraryNode);
+	bool UpdateGraphFunctionData(const URigVMLibraryNode* InLibraryNode);
+	bool UpdateExternalVariablesForFunction(const URigVMLibraryNode* InLibraryNode);
+	bool UpdateDependenciesForFunction(const URigVMLibraryNode* InLibraryNode);
+	bool UpdateFunctionReferences(const FRigVMGraphFunctionHeader& InHeader, bool bUpdateDependencies, bool bUpdateExternalVariables);
+	bool DirtyGraphFunctionCompilationData(URigVMLibraryNode* InLibraryNode);
+	bool IsFunctionPublic(URigVMLibraryNode* InLibraryNode);
+
 private:
 
 	enum ERigVMClientAction
@@ -165,6 +182,7 @@ private:
 
 public:
 	bool bSuspendNotifications;
+	bool bIgnoreModelNotifications;
 private:
 	TWeakObjectPtr<UObject> OuterClientHost;
 	FName OuterClientPropertyName;

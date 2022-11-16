@@ -9,13 +9,17 @@
 #include "RigVMModule.h"
 #include "RigVMTypeUtils.h"
 #include "UObject/UnrealType.h"
+#include "RigVMExternalVariable.generated.h"
 
 /**
  * The external variable can be used to map external / unowned
  * memory into the VM and back out
  */
+USTRUCT(BlueprintType)
 struct RIGVM_API FRigVMExternalVariable
 {
+	GENERATED_BODY()
+	
 	FORCEINLINE FRigVMExternalVariable()
 		: Name(NAME_None)
 		, Property(nullptr)
@@ -587,7 +591,7 @@ struct RIGVM_API FRigVMExternalVariable
 		return TypeName;
 	}
 
-	FORCEINLINE static void MergeExternalVariable(TArray<FRigVMExternalVariable>& OutVariables, const FRigVMExternalVariable& InVariable)
+	FORCEINLINE_DEBUGGABLE static void MergeExternalVariable(TArray<FRigVMExternalVariable>& OutVariables, const FRigVMExternalVariable& InVariable)
 	{
 		if(!InVariable.IsValid(true))
 		{
@@ -617,3 +621,28 @@ struct RIGVM_API FRigVMExternalVariable
 	int32 Size;
 	uint8* Memory;
 };
+
+FORCEINLINE FArchive& operator<<(FArchive& Ar, FRigVMExternalVariable& Variable)
+{
+	Ar << Variable.Name;
+	Ar << Variable.TypeName;
+
+	if (Ar.IsSaving())
+	{
+		FSoftObjectPath TypeObjectPath(Variable.TypeObject);
+		Ar << TypeObjectPath;
+	}
+	else if (Ar.IsLoading())
+	{
+		FSoftObjectPath TypeObjectPath;
+		Ar << TypeObjectPath;
+		Variable.TypeObject = TypeObjectPath.ResolveObject();
+	}
+	
+	Ar << Variable.bIsArray;
+	Ar << Variable.bIsPublic;
+	Ar << Variable.bIsReadOnly;
+	Ar << Variable.Size;
+	return Ar;
+}
+

@@ -7,10 +7,11 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "ControlRigDefines.h"
 #include "RigVMCore/RigVM.h"
+#include "RigVMCore/RigVMGraphFunctionHost.h"
 #include "ControlRigBlueprintGeneratedClass.generated.h"
 
 UCLASS()
-class CONTROLRIG_API UControlRigBlueprintGeneratedClass : public UBlueprintGeneratedClass
+class CONTROLRIG_API UControlRigBlueprintGeneratedClass : public UBlueprintGeneratedClass, public IRigVMGraphFunctionHost
 {
 	GENERATED_UCLASS_BODY()
 
@@ -22,4 +23,12 @@ public:
 
 	// UObject interface
 	void Serialize(FArchive& Ar);
+
+	// IRigVMGraphFunctionHost interface
+	virtual const FRigVMGraphFunctionStore* GetRigVMGraphFunctionStore() const override { return &GraphFunctionStore; }
+	virtual FRigVMGraphFunctionStore* GetRigVMGraphFunctionStore() override { return &GraphFunctionStore; }
+
+	UPROPERTY()
+	FRigVMGraphFunctionStore GraphFunctionStore;
+	
 };

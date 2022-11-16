@@ -69,5 +69,12 @@ void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)
 			CDO->VM->CopyFrom(VM);
 		}
 	}
+
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::StoreFunctionsInGeneratedClass)
+	{
+		return;
+	}
+	
+	Ar << GraphFunctionStore;
 }
 

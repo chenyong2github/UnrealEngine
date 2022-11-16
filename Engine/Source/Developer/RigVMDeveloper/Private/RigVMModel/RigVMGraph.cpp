@@ -169,9 +169,9 @@ URigVMNode* URigVMGraph::FindNode(const FString& InNodePath) const
 		return FindNodeByName(*Left);
 	}
 
-	if (URigVMLibraryNode* LibraryNode = Cast< URigVMLibraryNode>(FindNodeByName(*Left)))
+	if (URigVMCollapseNode* CollapseNode = Cast< URigVMCollapseNode>(FindNodeByName(*Left)))
 	{
-		return LibraryNode->GetContainedGraph()->FindNode(Right);
+		return CollapseNode->GetContainedGraph()->FindNode(Right);
 	}
 
 	return nullptr;

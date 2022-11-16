@@ -254,6 +254,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const { return NAME_None; }
 
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	virtual URigVMLibraryNode* FindFunctionForNode();
+
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const { return FRigVMStructUpgradeInfo(); }
 
 private:

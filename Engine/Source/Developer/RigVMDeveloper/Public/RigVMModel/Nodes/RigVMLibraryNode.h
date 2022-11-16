@@ -3,6 +3,8 @@
 #pragma once
 
 #include "RigVMModel/Nodes/RigVMTemplateNode.h"
+#include "RigVMCore/RigVMGraphFunctionDefinition.h"
+#include "RigVMCore/RigVMGraphFunctionHost.h"
 #include "RigVMLibraryNode.generated.h"
 
 class URigVMGraph;
@@ -54,6 +56,10 @@ public:
 	virtual URigVMFunctionReturnNode* GetReturnNode() const;
 	virtual bool Contains(URigVMLibraryNode* InContainedNode, bool bRecursive = true) const;
 	virtual TArray<FRigVMExternalVariable> GetExternalVariables() const;
+	virtual TMap<FRigVMGraphFunctionIdentifier, uint32> GetDependencies() const;
+
+	FRigVMGraphFunctionIdentifier GetFunctionIdentifier() const;
+	FRigVMGraphFunctionHeader GetFunctionHeader(IRigVMGraphFunctionHost* InHostObject = nullptr) const;
 
 protected:
 

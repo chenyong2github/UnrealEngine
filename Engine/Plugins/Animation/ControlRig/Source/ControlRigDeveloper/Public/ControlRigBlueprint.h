@@ -19,6 +19,7 @@
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "ControlRigValidationPass.h"
 #include "Drawing/ControlRigDrawContainer.h"
+#include "RigVMCore/RigVMGraphFunctionDefinition.h"
 
 #if WITH_EDITOR
 #include "Kismet2/Kismet2NameValidators.h"
@@ -46,7 +47,7 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FControlRigOnBreakLinksDialogRequestedDel
 DECLARE_EVENT(UControlRigBlueprint, FOnBreakpointAdded);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnRequestInspectObject, const TArray<UObject*>& );
 
-USTRUCT()
+USTRUCT(meta = (Deprecated = "5.2"))
 struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionArg
 {
 	GENERATED_BODY();
@@ -77,7 +78,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionArg
 	FEdGraphPinType GetPinType() const;
 };
 
-USTRUCT()
+USTRUCT(meta = (Deprecated = "5.2"))
 struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionData
 {
 	GENERATED_BODY();
@@ -264,6 +265,8 @@ public:
 	// IRigVMClientHost interface
 	virtual FRigVMClient* GetRigVMClient() override;
 	virtual const FRigVMClient* GetRigVMClient() const override;
+	virtual IRigVMGraphFunctionHost* GetRigVMGraphFunctionHost() override;
+	virtual const IRigVMGraphFunctionHost* GetRigVMGraphFunctionHost() const override;
 	virtual UObject* GetEditorObjectForRigVMGraph(URigVMGraph* InVMGraph) const override;
 	virtual void HandleRigVMGraphAdded(const FRigVMClient* InClient, const FString& InNodePath) override;
 	virtual void HandleRigVMGraphRemoved(const FRigVMClient* InClient, const FString& InNodePath) override;
@@ -408,7 +411,11 @@ protected:
 
 	/** Asset searchable information about exposed public functions on this rig */
 	UPROPERTY(AssetRegistrySearchable)
-	TArray<FControlRigPublicFunctionData> PublicFunctions;
+	TArray<FControlRigPublicFunctionData> PublicFunctions_DEPRECATED;
+
+	/** Asset searchable information about exposed public functions on this rig */
+	UPROPERTY(AssetRegistrySearchable)
+	TArray<FRigVMGraphFunctionHeader> PublicGraphFunctions;
 
 	/** Asset searchable information function references in this rig */
 	UPROPERTY(AssetRegistrySearchable)
@@ -606,6 +613,7 @@ private:
 	void PatchParameterNodesOnLoad();
 	void PatchTemplateNodesWithPreferredPermutation();
 	void PatchLinksWithCast();
+	void PatchFunctionsOnLoad();
 
 	TMap<FName, int32> AddedMemberVariableMap;
 	TArray<FBPVariableDescription> LastNewVariables;

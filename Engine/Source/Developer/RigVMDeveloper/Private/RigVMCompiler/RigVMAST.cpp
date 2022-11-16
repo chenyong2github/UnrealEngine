@@ -1845,7 +1845,8 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs
 	for (const FRigVMASTProxy& NodeProxy : NodeProxies)
 	{
 		if (NodeProxy.IsA<URigVMVariableNode>() ||
-			NodeProxy.IsA<URigVMEnumNode>())
+			NodeProxy.IsA<URigVMEnumNode>() ||
+			NodeProxy.IsA<URigVMFunctionReferenceNode>())
 		{
 			continue;
 		}
@@ -1918,6 +1919,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs
 
 				if (SourceNodeProxy.IsA<URigVMVariableNode>() ||
 					SourceNodeProxy.IsA<URigVMRerouteNode>() ||
+					SourceNodeProxy.IsA<URigVMFunctionReferenceNode>() ||
 					SourceNodeProxy.IsA<URigVMEnumNode>())
 				{
 					continue;
@@ -1955,19 +1957,19 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs
 				NodesToCompute.AddUnique(SourceProxy);
 			}
 
-			// if the node is a library node - also add the return node
-			if(URigVMLibraryNode* LibraryToCompute = Cast<URigVMLibraryNode>(NodeToCompute))
+			// if the node is a collapse node - also add the return node
+			if(URigVMCollapseNode* CollapseToCompute = Cast<URigVMCollapseNode>(NodeToCompute))
 			{
-				if(URigVMNode* ReturnNodeToCompute = LibraryToCompute->GetReturnNode())
+				if(URigVMNode* ReturnNodeToCompute = CollapseToCompute->GetReturnNode())
 				{
-					const FRigVMASTProxy LibraryProxy = ProxyToCompute.GetSibling(LibraryToCompute);
-					const FRigVMASTProxy ReturnProxy = LibraryProxy.GetChild(ReturnNodeToCompute);
+					const FRigVMASTProxy CollapseProxy = ProxyToCompute.GetSibling(CollapseToCompute);
+					const FRigVMASTProxy ReturnProxy = CollapseProxy.GetChild(ReturnNodeToCompute);
 					NodesToCompute.AddUnique(ReturnProxy);
 				}
 			}
       
-			// if the node is an entry node - also add host library node
-			if(NodeToCompute->IsA<URigVMFunctionEntryNode>())
+			// if the node is an entry node - also add host collapse node
+			if(NodeToCompute->IsA<URigVMFunctionEntryNode>() && NodeToCompute->GetGraph()->GetOuter()->IsA<URigVMCollapseNode>())
 			{
 				check(ProxyToCompute.GetCallstack().Num() > 1);
 				const FRigVMASTProxy LibraryProxy = ProxyToCompute.GetParent();
@@ -1975,6 +1977,18 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs
 			}
 		}
 	}
+
+	// validate nodes to compute
+	for(int32 NodeToComputeIndex = 0; NodeToComputeIndex < NodesToCompute.Num(); NodeToComputeIndex++)
+	{
+		FRigVMASTProxy ProxyToCompute = NodesToCompute[NodeToComputeIndex];
+		if(URigVMNode* NodeToCompute = ProxyToCompute.GetSubject<URigVMNode>())
+		{
+			// All mutable nodes should be considered varying, so should never arrive to this point
+			check(!NodeToCompute->IsMutable());			
+		}
+	}
+	
 
 	// we now know the node we need to run.
 	// let's build an temporary AST which has only those nodes
@@ -2734,7 +2748,7 @@ FString FRigVMParserAST::DumpDot() const
 				{
 					if (URigVMFunctionReferenceNode* Node = Cast<URigVMFunctionReferenceNode>(InExpr->To<FRigVMInlineFunctionExprAST>()->GetNode()))
 					{
-						Label = FString::Printf(TEXT("Inline %s"), *Node->GetReferencedNode()->GetName());
+						Label = FString::Printf(TEXT("Inline %s"), *Node->GetReferencedFunctionHeader().Name.ToString());
 					}
 					break;
 				}
@@ -3465,52 +3479,47 @@ void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMA
 				}
 			}
 
-			if (URigVMLibraryNode* LibraryNode = InNodeProxy.GetSubject<URigVMLibraryNode>())
+			if (URigVMCollapseNode* LibraryNode = InNodeProxy.GetSubject<URigVMCollapseNode>())
 			{
 				if (LibraryNode->GetContainedGraph() == nullptr)
 				{
-					if (URigVMFunctionReferenceNode* FunctionRef = Cast<URigVMFunctionReferenceNode>(LibraryNode))
-					{
-						FString FunctionPath = FunctionRef->ReferencedNodePtr.ToString();
-
-						OutTraversalInfo.Settings->Reportf(
-							EMessageSeverity::Error, 
-							LibraryNode, 
-							TEXT("Function Reference '%s' references a missing function (%s)."), 
-							*LibraryNode->GetName(),
-							*FunctionPath);
-					}
-					else
-					{
-						OutTraversalInfo.Settings->Reportf(
-							EMessageSeverity::Error,
-							LibraryNode,
-							TEXT("Library Node '%s' doesn't contain a subgraph."),
-							*LibraryNode->GetName());
-					}
+					OutTraversalInfo.Settings->Reportf(
+						EMessageSeverity::Error,
+						LibraryNode,
+						TEXT("Library Node '%s' doesn't contain a subgraph."),
+						*LibraryNode->GetName());
 					return;
 				}
 
-				if (URigVMFunctionReferenceNode* FunctionRef = Cast<URigVMFunctionReferenceNode>(LibraryNode))
+				OutTraversalInfo.LibraryNodeCallstack.Push(InNodeProxy);
+				TArray<URigVMNode*> ContainedNodes = LibraryNode->GetContainedNodes();
+				for (URigVMNode* ContainedNode : ContainedNodes)
 				{
-					for (URigVMPin* Pin : FunctionRef->GetPins())
-					{
-						FRigVMASTProxy PinProxy = InNodeProxy.GetSibling(Pin);
-						LocalPinTraversalInfo::VisitPin(PinProxy, OutTraversalInfo);
-					}
+					// create a proxy which uses the previous node as a callstack
+					FRigVMASTProxy ContainedNodeProxy = InNodeProxy.GetChild(ContainedNode);
+					VisitNode(ContainedNodeProxy, OutTraversalInfo);
 				}
-				else
+				OutTraversalInfo.LibraryNodeCallstack.Pop();
+			}
+			else if (URigVMFunctionReferenceNode* FuncRefNode = InNodeProxy.GetSubject<URigVMFunctionReferenceNode>())
+			{
+				if (FuncRefNode->GetReferencedFunctionData() == nullptr)
 				{
-					OutTraversalInfo.LibraryNodeCallstack.Push(InNodeProxy);
-					TArray<URigVMNode*> ContainedNodes = LibraryNode->GetContainedNodes();
-					for (URigVMNode* ContainedNode : ContainedNodes)
-					{
-						// create a proxy which uses the previous node as a callstack
-						FRigVMASTProxy ContainedNodeProxy = InNodeProxy.GetChild(ContainedNode);
-						VisitNode(ContainedNodeProxy, OutTraversalInfo);
-					}
-					OutTraversalInfo.LibraryNodeCallstack.Pop();
-				}				
+					FString FunctionPath = FuncRefNode->GetReferencedFunctionHeader().GetHash();
+
+					OutTraversalInfo.Settings->Reportf(
+						EMessageSeverity::Error, 
+						FuncRefNode, 
+						TEXT("Function Reference '%s' references a missing function (%s)."), 
+						*FuncRefNode->GetName(),
+						*FunctionPath);
+				}
+					
+				for (URigVMPin* Pin : FuncRefNode->GetPins())
+				{
+					FRigVMASTProxy PinProxy = InNodeProxy.GetSibling(Pin);
+					LocalPinTraversalInfo::VisitPin(PinProxy, OutTraversalInfo);
+				}
 			}
 			else
 			{

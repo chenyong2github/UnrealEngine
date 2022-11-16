@@ -1194,42 +1194,5 @@ void UControlRigGraph::HandleVMCompiledEvent(UObject* InCompiledObject, URigVM* 
 
 #endif
 
-FControlRigPublicFunctionData UControlRigGraph::GetPublicFunctionData() const
-{
-	FControlRigPublicFunctionData Data;
-
-	FString Prefix, ModelNodeName;
-	if(!URigVMNode::SplitNodePathAtEnd(ModelNodePath, Prefix, ModelNodeName))
-	{
-		ModelNodeName = ModelNodePath;
-	}
-	Data.Name = *ModelNodeName;
-
-	if(URigVMGraph* RigGraph = GetModel())
-	{
-		if(URigVMCollapseNode* FunctionNode = Cast<URigVMCollapseNode>(RigGraph->GetOuter()))
-		{
-			Data.Category = FunctionNode->GetNodeCategory();
-			Data.Keywords = FunctionNode->GetNodeKeywords();
-			
-			for(URigVMPin* Pin : FunctionNode->GetPins())
-			{
-				FControlRigPublicFunctionArg Arg;
-				Arg.Name = Pin->GetFName();
-				Arg.bIsArray = Pin->IsArray();
-				Arg.Direction = Pin->GetDirection();
-				Arg.CPPType = *Pin->GetCPPType();
-				if(Pin->GetCPPTypeObject())
-				{
-					Arg.CPPTypeObjectPath = *Pin->GetCPPTypeObject()->GetPathName();
-				}
-				Data.Arguments.Add(Arg);
-			}
-		}
-	}
-
-	return Data;
-}
-
 #undef LOCTEXT_NAMESPACE
 

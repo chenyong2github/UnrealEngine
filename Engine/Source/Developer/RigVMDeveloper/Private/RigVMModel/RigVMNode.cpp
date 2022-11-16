@@ -3,6 +3,8 @@
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMModel/RigVMGraph.h"
+#include "RigVMModel/Nodes/RigVMLibraryNode.h"
+#include "RigVMModel/RigVMFunctionLibrary.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMUserWorkflowRegistry.h"
@@ -388,6 +390,21 @@ bool URigVMNode::IsLinkedTo(URigVMNode* InNode) const
 		}
 	}
 	return false;
+}
+
+URigVMLibraryNode* URigVMNode::FindFunctionForNode() 
+{
+	UObject* Subject = this;
+	while (Subject->GetOuter() && !Subject->GetOuter()->IsA<URigVMFunctionLibrary>())
+	{
+		Subject = Subject->GetOuter();
+		if(Subject == nullptr)
+		{
+			return nullptr;
+		}
+	}
+
+	return Cast<URigVMLibraryNode>(Subject);
 }
 
 bool URigVMNode::IsLinkedToRecursive(URigVMPin* InPin, URigVMNode* InNode) const

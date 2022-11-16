@@ -10,6 +10,9 @@
 #include "UObject/Interface.h"
 #include "Stats/StatsHierarchical.h"
 #include "RigVMTypeUtils.h"
+#include "RigVMCore/RigVMGraphFunctionDefinition.h"
+#include "ProfilingDebugging/ScopedTimers.h"
+#include "RigVMModel/RigVMClient.h"
 #include "Algo/Count.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMCompiler)
@@ -242,8 +245,11 @@ URigVMCompiler::URigVMCompiler()
 {
 }
 
-bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* InController, URigVM* OutVM, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InAST)
+bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* InController, URigVM* OutVM, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InAST, FRigVMFunctionCompilationData* OutFunctionCompilationData)
 {
+	double CompilationTime = 0;
+	FDurationTimer CompileTimer(CompilationTime);
+	
 	if (InGraphs.IsEmpty() || InGraphs.Contains(nullptr))
 	{
 		ReportError(TEXT("Provided graph is nullptr."));
@@ -290,114 +296,106 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 
 	URigVMFunctionLibrary* FunctionLibrary = InGraphs[0]->GetDefaultFunctionLibrary();
 	bool bEncounteredGraphError = false;
-	if (CurrentCompilationFunction == nullptr)
+
+	TMap<FString, const FRigVMFunctionCompilationData*> CurrentCompiledFunctions;
+
+	// Gather function compilation data
 	{
-		ClearFunctionCompilationData();
-
-		// We need to compile the functions in order of dependency (leaf functions with no dependency first)
-		TArray<URigVMLibraryNode*> FunctionsToCompile;
-		if (FunctionLibrary)
+		TArray<URigVMNode*> Nodes = InGraphs[0]->GetNodes();
+		for (int32 i=0; i<Nodes.Num(); ++i)
 		{
-			FunctionsToCompile = FunctionLibrary->GetFunctions();
-		}
-
-		// Add public functions from other assets
-		// todo: this should be a check if the compilation data exists
-		{
-			TArray<URigVMNode*> Nodes = InGraphs[0]->GetNodes();
-			for (int32 i=0; i<Nodes.Num(); ++i)
+			if (URigVMFunctionReferenceNode* ReferenceNode = Cast<URigVMFunctionReferenceNode>(Nodes[i]))
 			{
-				if (URigVMFunctionReferenceNode* ReferenceNode = Cast<URigVMFunctionReferenceNode>(Nodes[i]))
+				if (!ReferenceNode->GetReferencedFunctionHeader().IsValid())
 				{
-					FunctionsToCompile.AddUnique(ReferenceNode->GetReferencedNode());
+					static const FString FunctionCompilationErrorMessage = TEXT("Function reference @@ has no function data.");
+					Settings.ASTSettings.Report(EMessageSeverity::Error, ReferenceNode, FunctionCompilationErrorMessage);
+					bEncounteredGraphError = true;
+					break;
 				}
-				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Nodes[i]))
+				
+				// Try to find the compiled data
+				FString FunctionHash = ReferenceNode->GetReferencedFunctionHeader().GetHash();
+				if (!CurrentCompiledFunctions.Contains(FunctionHash))
 				{
-					Nodes.Append(CollapseNode->GetContainedGraph()->GetNodes());
-				}
-			}
-		}
-		while (CompiledFunctions.Num() < FunctionsToCompile.Num())
-		{
-			for (int32 FunctionIndex=0; FunctionIndex<FunctionsToCompile.Num(); ++FunctionIndex)
-			{
-				if (URigVMLibraryNode* FunctionToCompile = FunctionsToCompile[FunctionIndex])
-				{
-					if (CompiledFunctions.Contains(FunctionToCompile))
+					if (FRigVMGraphFunctionData* FunctionData = ReferenceNode->GetReferencedFunctionHeader().GetFunctionData())
 					{
-						continue;
-					}
-			
-					bool bCanBeCompiled = true;
-					TArray<URigVMNode*> Nodes = FunctionToCompile->GetContainedNodes();
-					for (int32 i=0; i<Nodes.Num() && bCanBeCompiled; ++i)
-					{
-						if (URigVMFunctionReferenceNode* FunctionReference = Cast<URigVMFunctionReferenceNode>(Nodes[i]))
+						// Clear compilation data if compiled with outdated dependency data
+						if (FunctionData->CompilationData.IsValid())
 						{
-							if (const URigVMFunctionLibrary* ReferencedFunctionLibrary = FunctionReference->GetReferencedNode()->GetLibrary())
+							for (const TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : ReferenceNode->GetReferencedFunctionHeader().Dependencies)
 							{
-								if (ReferencedFunctionLibrary == FunctionLibrary)
+								if (IRigVMGraphFunctionHost* HostObj = Cast<IRigVMGraphFunctionHost>(Pair.Key.HostObject.ResolveObject()))
 								{
-									if (!CompiledFunctions.Contains(FunctionReference->GetReferencedNode()))
+									if (FRigVMGraphFunctionData* DependencyData = HostObj->GetRigVMGraphFunctionStore()->FindFunction(Pair.Key))
 									{
-										bCanBeCompiled = false;
-										break;
+										if (Pair.Value != DependencyData->CompilationData.Hash)
+										{
+											FunctionData->ClearCompilationData();
+											break;
+										}
 									}
+								}
+							}
+						}
+						
+						if (const FRigVMFunctionCompilationData* CompilationData = &FunctionData->CompilationData)
+						{
+							bool bSuccessfullCompilation = false;
+							if (!CompilationData->IsValid())
+							{
+								if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(FunctionData->Header.LibraryPointer.LibraryNode.TryLoad()))
+								{
+									IRigVMClientHost* ClientHost = LibraryNode->GetImplementingOuter<IRigVMClientHost>();
+									URigVMController* FunctionController = ClientHost->GetRigVMClient()->GetController(LibraryNode->GetLibrary());
+									bSuccessfullCompilation = CompileFunction(LibraryNode, FunctionController, &FunctionData->CompilationData);
 								}
 								else
 								{
-									// Public function.
-									// todo Try to find its compilation data
-									bool bFoundCompilationData = true;
-									if (!CompiledFunctions.Contains(FunctionReference->GetReferencedNode()))
-									{
-										FunctionsToCompile.AddUnique(FunctionReference->GetReferencedNode());
-										bCanBeCompiled = false;
-										break;
-									}
-
-									if (!bFoundCompilationData)
-									{
-										static const FString FunctionCompilationErrorMessage = TEXT("Could not find compilation data for public function @@.");
-										Settings.ASTSettings.Report(EMessageSeverity::Error, FunctionReference, FunctionCompilationErrorMessage);
-										bEncounteredGraphError = true;
-										bCanBeCompiled = false;
-										break;
-									}
+									static const FString FunctionCompilationErrorMessage = TEXT("Compilation data for public function @@ has no instructions.");
+									Settings.ASTSettings.Report(EMessageSeverity::Error, ReferenceNode, FunctionCompilationErrorMessage);
+									bEncounteredGraphError = true;
 								}
 							}
-						}
-
-						if (bCanBeCompiled)
-						{
-							if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Nodes[i]))
+							if (bSuccessfullCompilation || CompilationData->IsValid())
 							{
-								Nodes.Append(LibraryNode->GetContainedNodes());	
+								CurrentCompiledFunctions.Add(FunctionHash, CompilationData);
+							}
+							else
+							{
+								static const FString FunctionCompilationErrorMessage = TEXT("Compilation data for public function @@ has no instructions.");
+								Settings.ASTSettings.Report(EMessageSeverity::Error, ReferenceNode, FunctionCompilationErrorMessage);
+								bEncounteredGraphError = true;
 							}
 						}
-					}
-
-					if (bCanBeCompiled)
-					{
-						if (!CompileFunction(FunctionToCompile, InController, UserData))
+						else
 						{
-							static const FString FunctionCompilationErrorMessage = TEXT("Function @@ failed to compile.");
-							Settings.ASTSettings.Report(EMessageSeverity::Error, FunctionToCompile, FunctionCompilationErrorMessage);
+							static const FString FunctionCompilationErrorMessage = TEXT("Could not find compilation data for node @@.");
+							Settings.ASTSettings.Report(EMessageSeverity::Error, ReferenceNode, FunctionCompilationErrorMessage);
 							bEncounteredGraphError = true;
-							break;
 						}
+					}
+					else
+					{
+						static const FString FunctionCompilationErrorMessage = TEXT("Could not find graph function data for node @@.");
+						Settings.ASTSettings.Report(EMessageSeverity::Error, ReferenceNode, FunctionCompilationErrorMessage);
+						bEncounteredGraphError = true;
 					}
 				}
 			}
-
-			FunctionsToCompile.RemoveAll([](const URigVMLibraryNode* Node) { return Node == nullptr; });
-			
-			if(bEncounteredGraphError)
+			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Nodes[i]))
 			{
-				return false;
+				Nodes.Append(CollapseNode->GetContainedGraph()->GetNodes());
 			}
 		}
 	}
+
+	if (bEncounteredGraphError)
+	{
+		return false;
+	}
+
+	CompiledFunctions = CurrentCompiledFunctions;
 
 #if WITH_EDITOR
 
@@ -452,9 +450,10 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 						bEncounteredGraphError = true;
 					}
 
-					if (const FunctionCompilationData* CompilationData = CompiledFunctions.Find(FunctionReferenceNode->GetReferencedNode()))
+					FString FunctionHash = FunctionReferenceNode->GetReferencedFunctionHeader().GetHash();
+					if (const FRigVMFunctionCompilationData** CompilationData = CompiledFunctions.Find(FunctionHash))
 					{
-						for (const TPair<int32, FName>& Pair : CompilationData->ExternalRegisterIndexToVariable)
+						for (const TPair<int32, FName>& Pair : (*CompilationData)->ExternalRegisterIndexToVariable)
 						{
 							FName OuterName = FunctionReferenceNode->GetOuterVariableName(Pair.Value);
 							if (OuterName.IsNone())
@@ -821,21 +820,84 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	}
 
 	// Store function compile data
-	if (CurrentCompilationFunction)
+	if (CurrentCompilationFunction && OutFunctionCompilationData)
 	{
-		FunctionCompilationData Data;
-		Data.ByteCode = WorkData.VM->ByteCodeStorage;
-		Data.FunctionNames = WorkData.VM->FunctionNamesStorage;
-		Data.PropertyDescriptions = WorkData.PropertyDescriptions;
-		Data.PropertyPathDescriptions = WorkData.PropertyPathDescriptions;
-		Data.Operands = *OutOperands;
+		OutFunctionCompilationData->ByteCode = WorkData.VM->ByteCodeStorage;
+		OutFunctionCompilationData->FunctionNames = WorkData.VM->FunctionNamesStorage;
+		OutFunctionCompilationData->Operands = *OutOperands;
+
+		for (uint8 MemoryTypeIndex=0; MemoryTypeIndex<(uint8)ERigVMMemoryType::Invalid; ++MemoryTypeIndex)
+		{
+			TArray<FRigVMFunctionCompilationPropertyDescription>* PropertyDescriptions = nullptr;
+			TArray<FRigVMFunctionCompilationPropertyPath>* PropertyPathDescriptions = nullptr;
+			ERigVMMemoryType MemoryType = (ERigVMMemoryType) MemoryTypeIndex;
+			switch (MemoryType)
+			{
+				case ERigVMMemoryType::Work:
+				{
+					PropertyDescriptions = &OutFunctionCompilationData->WorkPropertyDescriptions;	
+					PropertyPathDescriptions = &OutFunctionCompilationData->WorkPropertyPathDescriptions;
+					break;
+				}
+				case ERigVMMemoryType::Literal:
+				{
+					PropertyDescriptions = &OutFunctionCompilationData->LiteralPropertyDescriptions;	
+					PropertyPathDescriptions = &OutFunctionCompilationData->LiteralPropertyPathDescriptions;
+					break;
+				}
+				case ERigVMMemoryType::External:
+				{
+					PropertyDescriptions = &OutFunctionCompilationData->ExternalPropertyDescriptions;	
+					PropertyPathDescriptions = &OutFunctionCompilationData->ExternalPropertyPathDescriptions;
+					break;
+				}
+				case ERigVMMemoryType::Debug:
+				{
+					PropertyDescriptions = &OutFunctionCompilationData->DebugPropertyDescriptions;	
+					PropertyPathDescriptions = &OutFunctionCompilationData->DebugPropertyPathDescriptions;
+					break;
+				}
+				default:
+				{
+					checkNoEntry();
+				}
+			}
+
+			PropertyDescriptions->Reset();
+			PropertyPathDescriptions->Reset();
+			if (const TArray<FRigVMPropertyDescription>* Descriptions = WorkData.PropertyDescriptions.Find(MemoryType))
+			{
+				PropertyDescriptions->Reserve(Descriptions->Num());
+				for (const FRigVMPropertyDescription& Description : (*Descriptions))
+				{
+					FRigVMFunctionCompilationPropertyDescription NewDescription;
+					NewDescription.Name = Description.Name;
+					NewDescription.CPPType = Description.CPPType;
+					NewDescription.CPPTypeObject = Description.CPPTypeObject;
+					NewDescription.DefaultValue = Description.DefaultValue;
+					PropertyDescriptions->Add(NewDescription);
+				}
+			}
+			if (const TArray<FRigVMPropertyPathDescription>* PathDescriptions = WorkData.PropertyPathDescriptions.Find(MemoryType))
+			{
+				PropertyPathDescriptions->Reserve(PathDescriptions->Num());
+				for (const FRigVMPropertyPathDescription& Description : (*PathDescriptions))
+				{
+					FRigVMFunctionCompilationPropertyPath NewDescription;
+					NewDescription.PropertyIndex = Description.PropertyIndex;
+					NewDescription.SegmentPath = Description.SegmentPath;
+					NewDescription.HeadCPPType = Description.HeadCPPType;
+					PropertyPathDescriptions->Add(NewDescription);
+				}
+			}
+		}
 
 		// Only add used external registers to the function compilation data
-		FRigVMInstructionArray Instructions = Data.ByteCode.GetInstructions();
+		FRigVMInstructionArray Instructions = OutFunctionCompilationData->ByteCode.GetInstructions();
 		TSet<int32> UsedExternalVariableRegisters;
 		for (const FRigVMInstruction& Instruction : Instructions)
 		{
-			const FRigVMOperandArray OperandArray = Data.ByteCode.GetOperandsForOp(Instruction);
+			const FRigVMOperandArray OperandArray = OutFunctionCompilationData->ByteCode.GetOperandsForOp(Instruction);
 			for (const FRigVMOperand& Operand : OperandArray)
 			{
 				if (Operand.GetMemoryType() == ERigVMMemoryType::External)
@@ -854,20 +916,37 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 				if (UsedExternalVariableRegisters.Contains(Pair.Value.GetRegisterIndex()))
 				{
 					FString VariableName = Pair.Key.RightChop(VariablePrefix.Len());
-					Data.ExternalRegisterIndexToVariable.Add(Pair.Value.GetRegisterIndex(), *VariableName);
+					OutFunctionCompilationData->ExternalRegisterIndexToVariable.Add(Pair.Value.GetRegisterIndex(), *VariableName);
 				}
 			}
 		}
-		CompiledFunctions.Add(CurrentCompilationFunction, Data);
 	}
+
+	if (!CurrentCompilationFunction)
+	{
+		CompileTimer.Stop();
+		ReportInfof(TEXT("Total Compilation time %f\n"), CompilationTime*1000);
+	}
+
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n\n"), *WorkData.VM->DumpByteCodeAsText());
 
 	return true;
 }
 
-bool URigVMCompiler::CompileFunction(URigVMLibraryNode* InLibraryNode, URigVMController* InController, const TArray<FRigVMUserDataArray>& InRigVMUserData)
+bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URigVMController* InController, FRigVMFunctionCompilationData* OutFunctionCompilationData)
 {
-	TGuardValue<URigVMLibraryNode*> CompilationGuard(CurrentCompilationFunction, InLibraryNode);
+	TGuardValue<const URigVMLibraryNode*> CompilationGuard(CurrentCompilationFunction, InLibraryNode);
 	FRigVMControllerGraphGuard ControllerGraphGuard(InController, InLibraryNode->GetContainedGraph(), false);
+
+	double CompilationTime = 0;
+	FDurationTimer CompileTimer(CompilationTime);
+
+	if (OutFunctionCompilationData == nullptr)
+	{
+		return false;
+	}
+
+	OutFunctionCompilationData->ByteCode.Reset();
 
 	TArray<FRigVMExternalVariable> ExternalVariables;
 	if (InController->GetExternalVariablesDelegate.IsBound())
@@ -875,54 +954,43 @@ bool URigVMCompiler::CompileFunction(URigVMLibraryNode* InLibraryNode, URigVMCon
 		ExternalVariables = InController->GetExternalVariablesDelegate.Execute(InLibraryNode->GetContainedGraph());
 	}
 	TMap<FString, FRigVMOperand> Operands;
+	TArray<FRigVMUserDataArray> UserData;
+	UserData.Add(FRigVMUserDataArray());
+	
 	URigVM* TempVM = NewObject<URigVM>(InLibraryNode->GetContainedGraph());
-	const bool bSuccess = Compile({InLibraryNode->GetContainedGraph()}, InController, TempVM, ExternalVariables, InRigVMUserData, &Operands);
+	const bool bSuccess = Compile({InLibraryNode->GetContainedGraph()}, InController, TempVM, ExternalVariables, UserData, &Operands, nullptr, OutFunctionCompilationData);
 	TempVM->ClearMemory();
 	TempVM->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 	TempVM->MarkAsGarbage();
 
-	return bSuccess;
-}
+	CompileTimer.Stop();
+	ReportInfof(TEXT("Compiled Function %s in %fms"), *InLibraryNode->GetName(), CompilationTime*1000);
 
-void URigVMCompiler::ClearFunctionCompilationData()
-{
-	TArray<TSoftObjectPtr<URigVMLibraryNode>> Functions;
-	CompiledFunctions.GetKeys(Functions);
-	for (TSoftObjectPtr<URigVMLibraryNode> Function : Functions)
+	// Update the compilation data of this library, and the hashes of the compilation data of its dependencies used for this compilation
+	if (IRigVMClientHost* ClientHost = InLibraryNode->GetImplementingOuter<IRigVMClientHost>())
 	{
-		RemoveFunctionCompilationData(Function);
-	}
-	CompiledFunctions.Reset();
-}
-
-void URigVMCompiler::RemoveFunctionCompilationData(TSoftObjectPtr<URigVMLibraryNode> LibraryNode)
-{
-	FunctionCompilationData* CompilationData = CompiledFunctions.Find(LibraryNode);
-	if (CompilationData)
-	{
-		CompiledFunctions.Remove(LibraryNode);
-	}
-
-	if (!LibraryNode.IsValid())
-	{
-		return;
-	}
-
-	// Clear the compilation data of any function referencing the removed function
-	URigVMFunctionLibrary* Library = LibraryNode->GetLibrary();
-	URigVMBuildData* BuildData = Library->GetBuildData();
-	if (const FRigVMFunctionReferenceArray* FunctionReferences = BuildData->FindFunctionReferences(LibraryNode.Get()))
-	{
-		for (int32 i=0; i<FunctionReferences->Num(); ++i)
+		if (IRigVMGraphFunctionHost* FunctionHost = ClientHost->GetRigVMGraphFunctionHost())
 		{
-			const TSoftObjectPtr<URigVMFunctionReferenceNode> Reference = FunctionReferences->operator[](i);
-			if (Reference.IsValid())
+			if (FRigVMGraphFunctionStore* Store = FunctionHost->GetRigVMGraphFunctionStore())
 			{
-				URigVMLibraryNode* ReferencedNode = Reference->GetReferencedNode();
-				// todo: remove compilation data of this function
+				if (FRigVMGraphFunctionData* Data = Store->FindFunction(InLibraryNode->GetFunctionIdentifier()))
+				{
+					for(TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : Data->Header.Dependencies)
+					{
+						IRigVMGraphFunctionHost* ReferencedFunctionHost = Cast<IRigVMGraphFunctionHost>(Pair.Key.HostObject.ResolveObject());
+						if (FRigVMGraphFunctionData* ReferencedData = ReferencedFunctionHost->GetRigVMGraphFunctionStore()->FindFunction(Pair.Key))
+						{
+							Pair.Value = ReferencedData->CompilationData.Hash;
+						}
+					}
+				}
+		
+				Store->UpdateFunctionCompilationData(InLibraryNode->GetFunctionIdentifier(), *OutFunctionCompilationData);
 			}
 		}
 	}
+
+	return bSuccess;
 }
 
 void URigVMCompiler::TraverseExpression(const FRigVMExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
@@ -1335,37 +1403,86 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 	int32 InstructionIndexStart = INDEX_NONE;
 	int32 InstructionIndexEnd = INDEX_NONE;
 
-	const URigVMLibraryNode* ReferencedLibrary = FunctionReferenceNode->GetReferencedNode();
-	if (!CompiledFunctions.Contains(ReferencedLibrary))
+	
+	FString FunctionHash = FunctionReferenceNode->GetReferencedFunctionHeader().GetHash();
+	if (!CompiledFunctions.Contains(FunctionHash))
 	{
 		return INDEX_NONE;
 	}
-	const FunctionCompilationData& FunctionCompilationData = CompiledFunctions.FindChecked(ReferencedLibrary);
-	const FRigVMByteCode& FunctionByteCode = FunctionCompilationData.ByteCode;
+	const FRigVMFunctionCompilationData* FunctionCompilationData = CompiledFunctions.FindChecked(FunctionHash);
+	const FRigVMByteCode& FunctionByteCode = FunctionCompilationData->ByteCode;
 	
 	if (WorkData.bSetupMemory)
 	{
 		TraverseChildren(InExpr, WorkData);
 
 		// Add internal operands (not the ones represented by interface pins)
-		TArray<ERigVMMemoryType> MemoryTypes;
-		FunctionCompilationData.PropertyDescriptions.GetKeys(MemoryTypes);
-		for (const ERigVMMemoryType& MemoryType : MemoryTypes)
+		for (uint8 MemoryIndex=0; MemoryIndex< (uint8)ERigVMMemoryType::Invalid; ++MemoryIndex)
 		{
-			const TArray<FRigVMPropertyDescription>& Properties = FunctionCompilationData.PropertyDescriptions[MemoryType];
-			const int32 NumArguments = Algo::CountIf(ReferencedLibrary->GetPins(), [](const URigVMPin* Pin) -> bool
+			ERigVMMemoryType MemoryType = (ERigVMMemoryType) MemoryIndex;
+			TArray<FRigVMFunctionCompilationPropertyDescription> Properties;
+			switch (MemoryType)
 			{
-				return !Pin->IsExecuteContext();
-			});
- 
-			int32 StartIndex = MemoryType == ERigVMMemoryType::Work ? NumArguments : 0;
+				case ERigVMMemoryType::Work:
+				{
+					Properties = FunctionCompilationData->WorkPropertyDescriptions;
+					break;
+				}
+				case ERigVMMemoryType::Literal:
+				{
+					Properties = FunctionCompilationData->LiteralPropertyDescriptions;
+					break;
+				}
+				case ERigVMMemoryType::External:
+				{
+					Properties = FunctionCompilationData->ExternalPropertyDescriptions;
+					break;
+				}
+				case ERigVMMemoryType::Debug:
+				{
+					Properties = FunctionCompilationData->DebugPropertyDescriptions;
+					break;
+				}
+			}
+
+			int32 NumProperties = 0;
+			if (MemoryType == ERigVMMemoryType::Work)
+			{
+				for (const FRigVMGraphFunctionArgument& Argument : FunctionReferenceNode->GetReferencedFunctionHeader().Arguments)
+				{
+					if (Argument.CPPTypeObject.IsValid())
+					{
+						if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Argument.CPPTypeObject.Get()))
+						{
+							if (ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+							{
+								continue;
+							}
+						}
+					}
+					if (!Properties.IsValidIndex(NumProperties))
+					{
+						continue;
+					}
+					if (!Properties[NumProperties].Name.ToString().Contains(Argument.Name.ToString()))
+					{
+						continue;
+					}
+					NumProperties++;
+				}
+			}
+			
+			int32 StartIndex = MemoryType == ERigVMMemoryType::Work ? NumProperties : 0;
 			for (int32 PropertyIndex = StartIndex; PropertyIndex < Properties.Num(); ++PropertyIndex)
 			{
-				const FRigVMPropertyDescription& Description = Properties[PropertyIndex];
+				const FRigVMFunctionCompilationPropertyDescription& Description = Properties[PropertyIndex];
 				FString NewName = Description.Name.ToString();
 				static const FString FunctionLibraryPrefix = TEXT("FunctionLibrary");
-				NewName = FString::Printf(TEXT("%s%s"), *FunctionReferenceNode->GetNodePath(), *NewName.RightChop(FunctionLibraryPrefix.Len()));
-				FRigVMOperand Operand = WorkData.AddProperty(MemoryType, *NewName, Description.CPPType, Description.CPPTypeObject, Description.DefaultValue);
+				if (NewName.StartsWith(FunctionLibraryPrefix))
+				{
+					NewName = FString::Printf(TEXT("%s%s"), *FunctionReferenceNode->GetNodePath(), *NewName.RightChop(FunctionLibraryPrefix.Len()));
+				}
+				FRigVMOperand Operand = WorkData.AddProperty(MemoryType, *NewName, Description.CPPType, Description.CPPTypeObject.Get(), Description.DefaultValue);
 				FRigVMCompilerWorkData::FFunctionRegisterData Data = {FunctionReferenceNode, MemoryType, PropertyIndex};
 				WorkData.FunctionRegisterToOperand.Add(Data, Operand);
 
@@ -1428,7 +1545,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 				// Remap the variable: find the operand index of the outer variable
 				if (Operand->GetMemoryType() == ERigVMMemoryType::External)
 				{
-					const FName& InnerVariableName = FunctionCompilationData.ExternalRegisterIndexToVariable[Operand->GetRegisterIndex()];
+					const FName& InnerVariableName = FunctionCompilationData->ExternalRegisterIndexToVariable[Operand->GetRegisterIndex()];
 					FName OuterVariableName = InnerVariableName;
 					if (const FName* VariableRemapped = FunctionReferenceNode->GetVariableMap().Find(InnerVariableName))
 					{
@@ -1461,7 +1578,31 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 				// For all operands, check to see if we need to add a property path
 				if (Operand->GetRegisterOffset() != INDEX_NONE)
 				{
-					const FRigVMPropertyPathDescription& Description = FunctionCompilationData.PropertyPathDescriptions[OriginalMemoryType][Operand->GetRegisterOffset()];
+					
+					FRigVMFunctionCompilationPropertyPath Description;
+					switch (OriginalMemoryType)
+					{
+						case ERigVMMemoryType::Work:
+						{
+							Description = FunctionCompilationData->WorkPropertyPathDescriptions[Operand->GetRegisterOffset()];
+							break;
+						}
+						case ERigVMMemoryType::Literal:
+						{
+							Description = FunctionCompilationData->LiteralPropertyPathDescriptions[Operand->GetRegisterOffset()];
+							break;
+						}
+						case ERigVMMemoryType::External:
+						{
+							Description = FunctionCompilationData->ExternalPropertyPathDescriptions[Operand->GetRegisterOffset()];
+							break;
+						}
+						case ERigVMMemoryType::Debug:
+						{
+							Description = FunctionCompilationData->DebugPropertyPathDescriptions[Operand->GetRegisterOffset()];
+							break;
+						}
+					}
 					Operand->RegisterOffset = WorkData.FindOrAddPropertyPath(*Operand, Description.HeadCPPType, Description.SegmentPath);
 				}
 			}
@@ -1469,7 +1610,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 			if (Instruction.OpCode >= ERigVMOpCode::Execute_0_Operands && Instruction.OpCode <= ERigVMOpCode::Execute_64_Operands)
 			{
 				FRigVMExecuteOp& Op = ByteCode.GetOpAt<FRigVMExecuteOp>(Instruction);
-				const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(FunctionCompilationData.FunctionNames[Op.FunctionIndex].ToString());
+				const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(FunctionCompilationData->FunctionNames[Op.FunctionIndex].ToString());
 				Op.FunctionIndex = FunctionIndex;
 			}
 
@@ -2587,7 +2728,7 @@ void URigVMCompiler::AddCopyOperator(
 	AddCopyOperator(CopyOpInfo.Op, CopyOpInfo.AssignExpr, CopyOpInfo.SourceExpr, CopyOpInfo.TargetExpr, WorkData, bDelayCopyOperations);
 }
 
-FString URigVMCompiler::GetPinHashImpl(const URigVMPin* InPin, const FRigVMVarExprAST* InVarExpr, bool bIsDebugValue, URigVMLibraryNode* FunctionCompiling, const FRigVMASTProxy& InPinProxy)
+FString URigVMCompiler::GetPinHashImpl(const URigVMPin* InPin, const FRigVMVarExprAST* InVarExpr, bool bIsDebugValue, const URigVMLibraryNode* FunctionCompiling, const FRigVMASTProxy& InPinProxy)
 {
 	FString Prefix = bIsDebugValue ? TEXT("DebugWatch:") : TEXT("");
 	FString Suffix;
@@ -2776,7 +2917,7 @@ FString URigVMCompiler::GetPinHashImpl(const URigVMPin* InPin, const FRigVMVarEx
 	return FString::Printf(TEXT("%s%s%s"), *Prefix, *PinPath, *Suffix);
 }
 
-FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAST* InVarExpr, bool bIsDebugValue, URigVMLibraryNode* FunctionCompiling, const FRigVMASTProxy& InPinProxy)
+FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAST* InVarExpr, bool bIsDebugValue, const URigVMLibraryNode* FunctionCompiling, const FRigVMASTProxy& InPinProxy)
 {
 	const FString Hash = GetPinHashImpl(InPin, InVarExpr, bIsDebugValue, FunctionCompiling, InPinProxy);
 	if(!bIsDebugValue && FunctionCompiling == nullptr)

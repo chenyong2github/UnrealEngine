@@ -107,7 +107,7 @@ void URigVMFunctionLibrary::ForEachReference(const FName& InFunctionName,
 	{
 		if(const URigVMBuildData* BuildData = GetBuildData())
 		{
-			BuildData->ForEachFunctionReference(Function, PerReferenceFunction);
+			BuildData->ForEachFunctionReference(Function->GetFunctionIdentifier(),PerReferenceFunction);
 		}
 	}
 }
@@ -119,7 +119,7 @@ void URigVMFunctionLibrary::ForEachReferenceSoftPtr(const FName& InFunctionName,
 	{
 		if(const URigVMBuildData* BuildData = GetBuildData())
 		{
-			BuildData->ForEachFunctionReferenceSoftPtr(Function, PerReferenceFunction);
+			BuildData->ForEachFunctionReferenceSoftPtr(Function->GetFunctionIdentifier(), PerReferenceFunction);
 		}
 	}
 }
@@ -160,6 +160,15 @@ URigVMLibraryNode* URigVMFunctionLibrary::FindPreviouslyLocalizedFunction(URigVM
 	}
 	
 	return LocalizedFunction;
+}
+
+const FSoftObjectPath URigVMFunctionLibrary::GetFunctionHostObjectPath() const
+{
+	if (GetFunctionHostObjectPathDelegate.IsBound())
+	{
+		return GetFunctionHostObjectPathDelegate.Execute();
+	}
+	return FSoftObjectPath();
 }
 
 

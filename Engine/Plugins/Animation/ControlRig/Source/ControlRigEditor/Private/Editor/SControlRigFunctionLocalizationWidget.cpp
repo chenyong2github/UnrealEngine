@@ -102,7 +102,15 @@ void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, 
 	for(int32 NodeToVisitIndex=0; NodeToVisitIndex<NodesToVisit.Num(); NodeToVisitIndex++)
 	{
 		URigVMLibraryNode* NodeToVisit = NodesToVisit[NodeToVisitIndex];
-		const TArray<URigVMNode*>& ContainedNodes = NodeToVisit->GetContainedNodes();
+		TArray<URigVMNode*> ContainedNodes = NodeToVisit->GetContainedNodes();
+		if (URigVMFunctionReferenceNode* ReferenceNode = Cast<URigVMFunctionReferenceNode>(NodeToVisit))
+		{
+			if (ReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.ResolveObject())
+			{
+				URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(ReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.ResolveObject());
+				ContainedNodes = LibraryNode->GetContainedNodes();
+			}
+		}
 		for(URigVMNode* ContainedNode : ContainedNodes)
 		{
 			if(URigVMLibraryNode* ContainedLibraryNode = Cast<URigVMLibraryNode>(ContainedNode))
@@ -113,8 +121,10 @@ void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, 
 
 		if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(NodeToVisit))
 		{
-			if(URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->GetReferencedNode())
+			FSoftObjectPath ReferencedNodePath = FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode;
+			if(ReferencedNodePath.ResolveObject())
 			{
+				URigVMLibraryNode* ReferencedNode = Cast<URigVMLibraryNode>(ReferencedNodePath.ResolveObject());
 				if(URigVMFunctionLibrary* ReferencedLibrary = ReferencedNode->GetLibrary())
 				{
 					if(UControlRigBlueprint* ReferencedBlueprint = Cast<UControlRigBlueprint>(ReferencedLibrary->GetOuter()))

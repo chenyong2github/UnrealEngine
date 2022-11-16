@@ -612,8 +612,8 @@ void FControlRigEditor::InitFunctionReferences()
 		return;
 	}
 	
-	FFunctionGraphTask::CreateAndDispatchWhenReady([]()
-	{
+	//FFunctionGraphTask::CreateAndDispatchWhenReady([]()
+	//{
 		if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
 		{
 			const FArrayProperty* ReferenceNodeDataProperty =
@@ -641,14 +641,21 @@ void FControlRigEditor::InitFunctionReferences()
 					TArray<FRigVMReferenceNodeData> ReferenceNodeDatas;
 					ReferenceNodeDataProperty->ImportText_Direct(*ReferenceNodeDataString, &ReferenceNodeDatas, nullptr, EPropertyPortFlags::PPF_None);
 
-					for(const FRigVMReferenceNodeData& ReferenceNodeData : ReferenceNodeDatas)
+					for(FRigVMReferenceNodeData& ReferenceNodeData : ReferenceNodeDatas)
 					{
-						BuildData->RegisterFunctionReference(ReferenceNodeData);
+						if (ReferenceNodeData.ReferencedHeader.IsValid())
+						{
+							BuildData->RegisterFunctionReference(ReferenceNodeData.ReferencedHeader.LibraryPointer, ReferenceNodeData.GetReferenceNodeObjectPath());
+						}
+						else if (!ReferenceNodeData.ReferencedFunctionPath_DEPRECATED.IsEmpty())
+						{
+							BuildData->RegisterFunctionReference(ReferenceNodeData);							
+						}
 					}
 				}
 			}
 		}
-	}, TStatId(), NULL, ENamedThreads::GameThread);
+	//}, TStatId(), NULL, ENamedThreads::GameThread);
 	
 	bAreFunctionReferencesInitialized = true;
 }
@@ -2773,12 +2780,17 @@ void FControlRigEditor::PasteNodes()
 
 	TGuardValue<FRigVMController_RequestLocalizeFunctionDelegate> RequestLocalizeDelegateGuard(
 		GetFocusedController()->RequestLocalizeFunctionDelegate,
-		FRigVMController_RequestLocalizeFunctionDelegate::CreateLambda([this](URigVMLibraryNode* InFunctionToLocalize)
+		FRigVMController_RequestLocalizeFunctionDelegate::CreateLambda([this](TSoftObjectPtr<URigVMLibraryNode> InFunctionToLocalize)
 		{
-			OnRequestLocalizeFunctionDialog(InFunctionToLocalize, GetControlRigBlueprint(), true);
+			if (InFunctionToLocalize.IsValid())
+			{
+				URigVMLibraryNode* LibraryNode = InFunctionToLocalize.Get();
+				OnRequestLocalizeFunctionDialog(LibraryNode, GetControlRigBlueprint(), true);
 
-			const URigVMLibraryNode* LocalizedFunctionNode = GetControlRigBlueprint()->GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(InFunctionToLocalize);
-			return LocalizedFunctionNode != nullptr;
+			   const URigVMLibraryNode* LocalizedFunctionNode = GetControlRigBlueprint()->GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(LibraryNode);
+			   return LocalizedFunctionNode != nullptr;
+			}
+			return false;
 		})
 	);
 	
@@ -6809,7 +6821,15 @@ void FControlRigEditor::OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, U
 
 	if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
 	{
-		if(URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
+		URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph();
+		if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(LibraryNode))
+		{
+			if (URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->LoadReferencedNode())
+			{
+				ContainedGraph = ReferencedNode->GetContainedGraph();
+			}
+		}
+		if(ContainedGraph)
 		{
 			if (UEdGraph* EdGraph = InBlueprint->GetEdGraph(ContainedGraph))
 			{

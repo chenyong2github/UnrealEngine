@@ -6,7 +6,10 @@
 #include "RigVMBuildData.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
+#include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "RigVMFunctionLibrary.generated.h"
+
+DECLARE_DELEGATE_RetVal(const FSoftObjectPath, URigVMFunctionLibrary_GetFunctionHostObjectPath);
 
 /**
  * The Function Library is a graph used only to store
@@ -69,7 +72,10 @@ public:
 	// We maintain meta data on what functions have been created locally based on which other ones,
 	// and use this method to avoid redundant localizations.
 	URigVMLibraryNode* FindPreviouslyLocalizedFunction(URigVMLibraryNode* InFunctionToLocalize);
-	
+
+	const FSoftObjectPath GetFunctionHostObjectPath() const;
+	URigVMFunctionLibrary_GetFunctionHostObjectPath GetFunctionHostObjectPathDelegate;
+
 private:
 
 #if WITH_EDITORONLY_DATA
@@ -81,7 +87,7 @@ private:
 	// The source pathname is the full path of the source function that was localized
 	// to the local copy stored in the value of the pair.
 	UPROPERTY()
-	TMap< FString, TObjectPtr<URigVMLibraryNode> > LocalizedFunctions;
+	TMap< FSoftObjectPath, TObjectPtr<URigVMLibraryNode> > LocalizedFunctions;
 
 	friend class URigVMController;
 	friend class URigVMCompiler;

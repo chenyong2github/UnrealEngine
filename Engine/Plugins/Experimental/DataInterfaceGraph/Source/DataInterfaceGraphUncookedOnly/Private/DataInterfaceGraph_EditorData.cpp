@@ -172,16 +172,6 @@ void UDataInterfaceGraph_EditorData::HandleConfigureRigVMController(const FRigVM
 
 	});
 
-	InControllerToConfigure->IsFunctionAvailableDelegate.BindLambda([](URigVMLibraryNode* InFunction) -> bool
-	{
-		return true;	// @TODO: should only allow main entry point function here
-	});
-
-	InControllerToConfigure->IsDependencyCyclicDelegate.BindLambda([](UObject* InDependentObject, UObject* InDependencyObject) -> bool
-	{
-		return false;
-	});
-
 #if WITH_EDITOR
 	InControllerToConfigure->SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable, FString)>::CreateLambda(
 		[](FRigVMExternalVariable InVariableToCreate, FString InDefaultValue) -> FName

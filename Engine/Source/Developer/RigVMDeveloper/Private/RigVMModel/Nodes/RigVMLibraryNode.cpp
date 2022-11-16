@@ -6,6 +6,7 @@
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
+#include "RigVMModel/RigVMFunctionLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMLibraryNode)
 
@@ -153,12 +154,10 @@ bool URigVMLibraryNode::Contains(URigVMLibraryNode* InContainedNode, bool bRecur
 
 		if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ContainedNode))
 		{
-			if(URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->GetReferencedNode())
+			FRigVMGraphFunctionIdentifier ReferencedNode = FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer;
+			if(ReferencedNode.LibraryNode == InContainedNode)
 			{
-				if(ReferencedNode == InContainedNode)
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 		if(URigVMLibraryNode* ContainedLibraryNode = Cast<URigVMLibraryNode>(ContainedNode))
@@ -187,6 +186,108 @@ TArray<FRigVMExternalVariable> URigVMLibraryNode::GetExternalVariables() const
 	}
 
 	return Variables;
+}
+
+TMap<FRigVMGraphFunctionIdentifier, uint32> URigVMLibraryNode::GetDependencies() const
+{
+	TMap<FRigVMGraphFunctionIdentifier, uint32> Dependencies;
+	
+    TArray<URigVMNode*> NodesToProcess = GetContainedNodes();
+    for (int32 i=0; i<NodesToProcess.Num(); ++i)
+    {
+    	const URigVMNode* Node = NodesToProcess[i];
+    	if (const URigVMFunctionReferenceNode* RefNode = Cast<URigVMFunctionReferenceNode>(Node))
+    	{
+    		uint32 Hash = 0;
+    		if (const FRigVMGraphFunctionData* Data = RefNode->GetReferencedFunctionData())
+    		{
+    			Hash = Data->CompilationData.Hash;
+    		}
+    		Dependencies.Add(RefNode->GetReferencedFunctionHeader().LibraryPointer, Hash);
+    		for (const TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : RefNode->GetReferencedFunctionHeader().Dependencies)
+    		{
+    			Dependencies.Add(Pair);
+    		}
+    	}
+    	if (const URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+    	{
+    		NodesToProcess.Append(CollapseNode->GetContainedNodes());
+    	}
+    }
+	
+	return Dependencies;
+}
+
+FRigVMGraphFunctionIdentifier URigVMLibraryNode::GetFunctionIdentifier() const
+{
+	FRigVMGraphFunctionIdentifier Identifier;
+	Identifier.HostObject = GetLibrary()->GetFunctionHostObjectPath();
+	Identifier.LibraryNode = this;
+	return Identifier;
+}
+
+FRigVMGraphFunctionHeader URigVMLibraryNode::GetFunctionHeader(IRigVMGraphFunctionHost* InHostObject) const
+{
+	FRigVMGraphFunctionHeader Header;
+	
+	if (InHostObject == nullptr)
+	{
+		Header.LibraryPointer = GetFunctionIdentifier();
+	}
+	else
+	{
+	    Header.LibraryPointer.LibraryNode = this;
+	    Header.LibraryPointer.HostObject = Cast<UObject>(InHostObject);
+	}	
+    
+    Header.Name = GetFName();
+    Header.Category = GetNodeCategory();
+    Header.Keywords = GetNodeKeywords();						
+    Header.Tooltip = GetToolTipText();
+    Header.NodeColor = GetNodeColor();
+    Header.NodeTitle = GetNodeTitle();
+    for(URigVMPin* Pin : GetPins())
+    {
+    	FRigVMGraphFunctionArgument Arg;
+    	Arg.Name = Pin->GetFName();
+    	Arg.DisplayName = Pin->GetDisplayName();
+    	Arg.bIsArray = Pin->IsArray();
+    	Arg.Direction = Pin->GetDirection();
+    	Arg.CPPType = *Pin->GetCPPType();
+    	Arg.CPPTypeObject = Pin->GetCPPTypeObject();
+    	Arg.DefaultValue = Pin->GetDefaultValue();
+    	Arg.bIsConst = Pin->IsDefinedAsConstant();
+
+    	TArray<URigVMPin*> PinsToProcess;
+    	PinsToProcess.Add(Pin);
+    	for (int32 i=0; i<PinsToProcess.Num(); ++i)
+    	{
+    		const FString SubPinPath = PinsToProcess[i]->GetSubPinPath(Pin, false);
+    		Arg.PathToTooltip.Add(SubPinPath, GetToolTipTextForPin(PinsToProcess[i]));
+    		PinsToProcess.Append(PinsToProcess[i]->GetSubPins());
+    	}
+    	
+    	Header.Arguments.Add(Arg);
+    }
+
+	// If the header already exists, try to find it and get its external variables and dependencies
+	TArray<FString> Dependencies;
+	TArray<FRigVMExternalVariable> ExternalVariables;
+	UObject* HostPtr = Cast<UObject>(Header.LibraryPointer.HostObject.ResolveObject());
+	if (IRigVMGraphFunctionHost* Host = Cast<IRigVMGraphFunctionHost>(HostPtr))
+	{
+		if (FRigVMGraphFunctionData* Data = Host->GetRigVMGraphFunctionStore()->FindFunction(Header.LibraryPointer))
+		{
+			Header.Dependencies = Data->Header.Dependencies;
+			Header.ExternalVariables = Data->Header.ExternalVariables;
+		}
+		else
+		{
+			Header.ExternalVariables = GetExternalVariables();
+		}
+	}
+	
+	return Header;
 }
 
 

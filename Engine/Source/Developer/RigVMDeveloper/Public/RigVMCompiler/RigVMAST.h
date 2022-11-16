@@ -714,6 +714,9 @@ public:
 		return InType == EType::InlineFunction;
 	};
 
+	// todo: For now, all function references are considered varying (UE-170129)
+	virtual bool IsConstant() const override { return false; }
+
 protected:
 
 	// default constructor (protected so that only parser can access it)

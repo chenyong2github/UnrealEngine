@@ -1236,10 +1236,15 @@ FText FControlRigGraphDetails::GetCurrentAccessSpecifierName() const
 		UControlRigGraph* Graph = GraphPtr.Get();
 		UControlRigBlueprint* ControlRigBlueprint = ControlRigBlueprintPtr.Get();
 
-		const FControlRigPublicFunctionData ExpectedFunctionData = Graph->GetPublicFunctionData();
-		if(ControlRigBlueprint->IsFunctionPublic(ExpectedFunctionData.Name))
+		if (URigVMGraph* RigVMGraph = Graph->GetModel())
 		{
-			return FText::FromString(*AccessSpecifierStrings[0].Get()); // public
+			if (URigVMLibraryNode* LibraryNode = RigVMGraph->GetTypedOuter<URigVMLibraryNode>())
+			{
+				if(ControlRigBlueprint->IsFunctionPublic(LibraryNode->GetFName()))
+				{
+					return FText::FromString(*AccessSpecifierStrings[0].Get()); // public
+				}
+			}
 		}
 	}
 
@@ -1252,15 +1257,20 @@ void FControlRigGraphDetails::OnAccessSpecifierSelected( TSharedPtr<FString> Spe
 	{
 		UControlRigGraph* Graph = GraphPtr.Get();
 		UControlRigBlueprint* ControlRigBlueprint = ControlRigBlueprintPtr.Get();
-		const FControlRigPublicFunctionData ExpectedFunctionData = Graph->GetPublicFunctionData();
-		
-		if(SpecifierName->Equals(TEXT("Private")))
+
+		if (URigVMGraph* RigVMGraph = Graph->GetModel())
 		{
-			ControlRigBlueprint->MarkFunctionPublic(ExpectedFunctionData.Name, false);
-		}
-		else
-		{
-			ControlRigBlueprint->MarkFunctionPublic(ExpectedFunctionData.Name, true);
+			if (URigVMLibraryNode* LibraryNode = RigVMGraph->GetTypedOuter<URigVMLibraryNode>())
+			{
+				if(SpecifierName->Equals(TEXT("Private")))
+				{
+					ControlRigBlueprint->MarkFunctionPublic(LibraryNode->GetFName(), false);
+				}
+				else
+				{
+					ControlRigBlueprint->MarkFunctionPublic(LibraryNode->GetFName(), true);
+				}
+			}
 		}
 	}
 }

@@ -2,6 +2,8 @@
 
 #include "RigVMModel/RigVMBuildData.h"
 
+#include "RigVMModel/RigVMFunctionLibrary.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMBuildData)
 
 FRigVMReferenceNodeData::FRigVMReferenceNodeData(URigVMFunctionReferenceNode* InReferenceNode)
@@ -9,8 +11,7 @@ FRigVMReferenceNodeData::FRigVMReferenceNodeData(URigVMFunctionReferenceNode* In
 	check(InReferenceNode);
 	ReferenceNodePtr = TSoftObjectPtr<URigVMFunctionReferenceNode>(InReferenceNode);
 	ReferenceNodePath = ReferenceNodePtr.ToString();
-	LibraryNodePtr = TSoftObjectPtr<URigVMLibraryNode>(InReferenceNode->GetReferencedNode());
-	ReferencedFunctionPath = LibraryNodePtr.ToString();
+	ReferencedHeader = InReferenceNode->GetReferencedFunctionHeader();
 }
 
 TSoftObjectPtr<URigVMFunctionReferenceNode> FRigVMReferenceNodeData::GetReferenceNodeObjectPath()
@@ -20,15 +21,6 @@ TSoftObjectPtr<URigVMFunctionReferenceNode> FRigVMReferenceNodeData::GetReferenc
 		ReferenceNodePtr = TSoftObjectPtr<URigVMFunctionReferenceNode>(ReferenceNodePath);
 	}
 	return ReferenceNodePtr;
-}
-
-TSoftObjectPtr<URigVMLibraryNode> FRigVMReferenceNodeData::GetReferencedFunctionObjectPath()
-{
-	if(LibraryNodePtr.IsNull())
-	{
-		LibraryNodePtr = TSoftObjectPtr<URigVMFunctionReferenceNode>(ReferencedFunctionPath);
-	}
-	return LibraryNodePtr;
 }
 
 URigVMFunctionReferenceNode* FRigVMReferenceNodeData::GetReferenceNode()
@@ -48,42 +40,20 @@ URigVMFunctionReferenceNode* FRigVMReferenceNodeData::GetReferenceNode()
 	return nullptr;
 }
 
-URigVMLibraryNode* FRigVMReferenceNodeData::GetReferencedFunction()
-{
-	if(LibraryNodePtr.IsNull())
-	{
-		LibraryNodePtr = TSoftObjectPtr<URigVMLibraryNode>(ReferencedFunctionPath);
-	}
-	if(!LibraryNodePtr.IsValid())
-	{
-		LibraryNodePtr.LoadSynchronous();
-	}
-	if(LibraryNodePtr.IsValid())
-	{
-		return LibraryNodePtr.Get();
-	}
-	return nullptr;
-}
-
 URigVMBuildData::URigVMBuildData()
 : UObject()
 , bIsRunningUnitTest(false)
 {
 }
 
-const FRigVMFunctionReferenceArray* URigVMBuildData::FindFunctionReferences(const URigVMLibraryNode* InFunction) const
+const FRigVMFunctionReferenceArray* URigVMBuildData::FindFunctionReferences(const FRigVMGraphFunctionIdentifier& InFunction) const
 {
-	check(InFunction);
-
-	const TSoftObjectPtr<URigVMLibraryNode> Key(InFunction);
-	return FunctionReferences.Find(Key);
+	return GraphFunctionReferences.Find(InFunction);
 }
 
-void URigVMBuildData::ForEachFunctionReference(const URigVMLibraryNode* InFunction,
-                                             TFunction<void(URigVMFunctionReferenceNode*)> PerReferenceFunction) const
+void URigVMBuildData::ForEachFunctionReference(const FRigVMGraphFunctionIdentifier& InFunction,
+                                               TFunction<void(URigVMFunctionReferenceNode*)> PerReferenceFunction) const
 {
-	check(InFunction);
-	
 	if (const FRigVMFunctionReferenceArray* ReferencesEntry = FindFunctionReferences(InFunction))
 	{
 		for (int32 ReferenceIndex = 0; ReferenceIndex < ReferencesEntry->Num(); ReferenceIndex++)
@@ -101,11 +71,9 @@ void URigVMBuildData::ForEachFunctionReference(const URigVMLibraryNode* InFuncti
 	}
 }
 
-void URigVMBuildData::ForEachFunctionReferenceSoftPtr(const URigVMLibraryNode* InFunction,
-	TFunction<void(TSoftObjectPtr<URigVMFunctionReferenceNode>)> PerReferenceFunction) const
+void URigVMBuildData::ForEachFunctionReferenceSoftPtr(const FRigVMGraphFunctionIdentifier& InFunction,
+                                                      TFunction<void(TSoftObjectPtr<URigVMFunctionReferenceNode>)> PerReferenceFunction) const
 {
-	check(InFunction);
-
 	if (const FRigVMFunctionReferenceArray* ReferencesEntry = FindFunctionReferences(InFunction))
 	{
 		for (int32 ReferenceIndex = 0; ReferenceIndex < ReferencesEntry->Num(); ReferenceIndex++)
@@ -124,57 +92,53 @@ void URigVMBuildData::UpdateReferencesForFunctionReferenceNode(URigVMFunctionRef
 	{
 		return;
 	}
-	
-	if(const URigVMLibraryNode* Function = InReferenceNode->GetReferencedNode())
+
+	const FRigVMGraphFunctionHeader& Header = InReferenceNode->GetReferencedFunctionHeader();
+	FRigVMFunctionReferenceArray* ReferencesEntry = GraphFunctionReferences.Find(Header.LibraryPointer);
+	if (ReferencesEntry == nullptr)
 	{
-		const TSoftObjectPtr<URigVMLibraryNode> Key(Function);
-		FRigVMFunctionReferenceArray* ReferencesEntry = FunctionReferences.Find(Key);
-		if (ReferencesEntry == nullptr)
-		{
-			Modify();
-			FunctionReferences.Add(Key);
-			ReferencesEntry = FunctionReferences.Find(Key);
-		}
-
-		const FString ReferenceNodePathName = InReferenceNode->GetPathName();
-		for (int32 ReferenceIndex = 0; ReferenceIndex < ReferencesEntry->Num(); ReferenceIndex++)
-		{
-			const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference = ReferencesEntry->operator [](ReferenceIndex);
-			if(Reference.ToString() == ReferenceNodePathName)
-			{
-				return;
-			}
-		}
-
 		Modify();
-		ReferencesEntry->FunctionReferences.Add(InReferenceNode);
-		MarkPackageDirty();
+		GraphFunctionReferences.Add(Header.LibraryPointer);
+		ReferencesEntry = GraphFunctionReferences.Find(Header.LibraryPointer);
 	}
+
+	const FString ReferenceNodePathName = InReferenceNode->GetPathName();
+	for (int32 ReferenceIndex = 0; ReferenceIndex < ReferencesEntry->Num(); ReferenceIndex++)
+	{
+		const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference = ReferencesEntry->operator [](ReferenceIndex);
+		if(Reference.ToString() == ReferenceNodePathName)
+		{
+			return;
+		}
+	}
+
+	Modify();
+	ReferencesEntry->FunctionReferences.Add(InReferenceNode);
+	MarkPackageDirty();
+
 }
 
-void URigVMBuildData::RegisterFunctionReference(URigVMLibraryNode* InFunction,
-	URigVMFunctionReferenceNode* InReference)
+void URigVMBuildData::RegisterFunctionReference(const FRigVMGraphFunctionIdentifier& InFunction, URigVMFunctionReferenceNode* InReference)
 {
-	if(InFunction == nullptr || InReference == nullptr)
+	if(InReference == nullptr)
 	{
 		return;
 	}
 
-	const TSoftObjectPtr<URigVMLibraryNode> FunctionKey(InFunction);
 	const TSoftObjectPtr<URigVMFunctionReferenceNode> ReferenceKey(InReference);
 
-	RegisterFunctionReference(FunctionKey, ReferenceKey);
+	RegisterFunctionReference(InFunction, ReferenceKey);
 }
 
-void URigVMBuildData::RegisterFunctionReference(TSoftObjectPtr<URigVMLibraryNode> InFunction,
-	TSoftObjectPtr<URigVMFunctionReferenceNode> InReference)
+void URigVMBuildData::RegisterFunctionReference(const FRigVMGraphFunctionIdentifier& InFunction,
+                                                TSoftObjectPtr<URigVMFunctionReferenceNode> InReference)
 {
-	if(InFunction.IsNull() || InReference.IsNull())
+	if(InReference.IsNull())
 	{
 		return;
 	}
 
-	if(FRigVMFunctionReferenceArray* ReferenceEntry = FunctionReferences.Find(InFunction))
+	if(FRigVMFunctionReferenceArray* ReferenceEntry = GraphFunctionReferences.Find(InFunction))
 	{
 		if(ReferenceEntry->FunctionReferences.Contains(InReference))
 		{
@@ -189,7 +153,7 @@ void URigVMBuildData::RegisterFunctionReference(TSoftObjectPtr<URigVMLibraryNode
 		Modify();
 		FRigVMFunctionReferenceArray NewReferenceEntry;
 		NewReferenceEntry.FunctionReferences.Add(InReference);
-		FunctionReferences.Add(InFunction, NewReferenceEntry);
+		GraphFunctionReferences.Add(InFunction, NewReferenceEntry);
 	}
 	
 	MarkPackageDirty();
@@ -197,32 +161,64 @@ void URigVMBuildData::RegisterFunctionReference(TSoftObjectPtr<URigVMLibraryNode
 
 void URigVMBuildData::RegisterFunctionReference(FRigVMReferenceNodeData InReferenceNodeData)
 {
-	RegisterFunctionReference(InReferenceNodeData.GetReferencedFunctionObjectPath(), InReferenceNodeData.GetReferenceNodeObjectPath());
+	if (InReferenceNodeData.ReferencedHeader.IsValid())
+	{
+		return RegisterFunctionReference(InReferenceNodeData.ReferencedHeader.LibraryPointer, InReferenceNodeData.GetReferenceNodeObjectPath());
+	}
+	
+	check(!InReferenceNodeData.ReferencedFunctionPath_DEPRECATED.IsEmpty());
+
+	TSoftObjectPtr<URigVMLibraryNode> LibraryNodePtr = TSoftObjectPtr<URigVMLibraryNode>(InReferenceNodeData.ReferencedFunctionPath_DEPRECATED);
+	bool bFound = false;
+	for (TPair< FRigVMGraphFunctionIdentifier, FRigVMFunctionReferenceArray >& Pair : GraphFunctionReferences)
+	{
+		if (Pair.Key.LibraryNode == LibraryNodePtr.ToSoftObjectPath())
+		{
+			Pair.Value.FunctionReferences.Add(InReferenceNodeData.GetReferenceNodeObjectPath());
+			bFound = true;
+			break;
+		}
+	}
+
+	if (!bFound)
+	{
+		FRigVMGraphFunctionIdentifier Pointer(nullptr, LibraryNodePtr.ToSoftObjectPath());
+		if (!LibraryNodePtr.IsValid())
+		{
+			LibraryNodePtr.LoadSynchronous();
+		}
+		if (LibraryNodePtr.IsValid())
+		{
+			Pointer.HostObject = Cast<UObject>(LibraryNodePtr.Get()->GetFunctionHeader().GetFunctionHost());
+		}
+		FRigVMFunctionReferenceArray RefArray;
+		RefArray.FunctionReferences.Add(InReferenceNodeData.GetReferenceNodeObjectPath());
+		GraphFunctionReferences.Add(Pointer, RefArray);
+	}
 }
 
-void URigVMBuildData::UnregisterFunctionReference(URigVMLibraryNode* InFunction,
+void URigVMBuildData::UnregisterFunctionReference(const FRigVMGraphFunctionIdentifier& InFunction,
                                                   URigVMFunctionReferenceNode* InReference)
 {
-	if(InFunction == nullptr || InReference == nullptr)
+	if(InReference == nullptr)
 	{
 		return;
 	}
 
-	const TSoftObjectPtr<URigVMLibraryNode> FunctionKey(InFunction);
 	const TSoftObjectPtr<URigVMFunctionReferenceNode> ReferenceKey(InReference);
 
-	return UnregisterFunctionReference(FunctionKey, ReferenceKey);
+	return UnregisterFunctionReference(InFunction, ReferenceKey);
 }
 
-void URigVMBuildData::UnregisterFunctionReference(TSoftObjectPtr<URigVMLibraryNode> InFunction,
-	TSoftObjectPtr<URigVMFunctionReferenceNode> InReference)
+void URigVMBuildData::UnregisterFunctionReference(const FRigVMGraphFunctionIdentifier& InFunction,
+                                                  TSoftObjectPtr<URigVMFunctionReferenceNode> InReference)
 {
-	if(InFunction.IsNull() || InReference.IsNull())
+	if(InReference.IsNull())
 	{
 		return;
 	}
 
-	if(FRigVMFunctionReferenceArray* ReferenceEntry = FunctionReferences.Find(InFunction))
+	if(FRigVMFunctionReferenceArray* ReferenceEntry = GraphFunctionReferences.Find(InFunction))
 	{
 		if(!ReferenceEntry->FunctionReferences.Contains(InReference))
 		{
@@ -246,7 +242,7 @@ void URigVMBuildData::ClearInvalidReferences()
 	
 	// check each function's each reference
 	int32 NumRemoved = 0;
-	for (TTuple<TSoftObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray>& FunctionReferenceInfo : FunctionReferences)
+	for (TTuple<FRigVMGraphFunctionIdentifier, FRigVMFunctionReferenceArray>& FunctionReferenceInfo : GraphFunctionReferences)
 	{
 		FRigVMFunctionReferenceArray* ReferencesEntry = &FunctionReferenceInfo.Value;
 

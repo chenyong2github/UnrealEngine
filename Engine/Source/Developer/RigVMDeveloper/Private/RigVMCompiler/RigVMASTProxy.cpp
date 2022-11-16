@@ -4,6 +4,8 @@
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMModel/RigVMPin.h"
+#include "RigVMModel/Nodes/RigVMCollapseNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 
 FString FRigVMCallstack::GetCallPath(bool bIncludeLast) const
@@ -147,9 +149,16 @@ FRigVMASTProxy FRigVMASTProxy::MakeFromCallPath(const FString& InCallPath, UObje
 			Right.Empty();
 		}
 
-		if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(ParentObject))
+		if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(ParentObject))
 		{
-			ParentObject = LibraryNode->GetContainedGraph();
+			ParentObject = CollapseNode->GetContainedGraph();
+		}
+		else if(URigVMFunctionReferenceNode* ReferenceNode = Cast<URigVMFunctionReferenceNode>(ParentObject))
+		{
+			if (URigVMLibraryNode* LibraryNode = ReferenceNode->LoadReferencedNode())
+			{
+				ParentObject = LibraryNode->GetContainedGraph();
+			}
 		}
 
 		if(URigVMGraph* Graph = Cast<URigVMGraph>(ParentObject))
