@@ -65,5 +65,13 @@ public:
 	{
 		return FindPin(TEXT("Projectors"));
 	}
+
+	UEdGraphPin* GroupPin() const
+	{
+		return FindPin(TEXT("Group"));
+	}
+
+private:
+	FString LastGroupName;
 };
 
