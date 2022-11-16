@@ -192,7 +192,8 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 
 		const bool bCanUseDifferentSkeleton =
 			(PersonaToolkit.Pin()->GetContext() == UPhysicsAsset::StaticClass()->GetFName()) ||
-			(PersonaToolkit.Pin()->GetContext() == TEXT("ControlRigBlueprint"));
+			(PersonaToolkit.Pin()->GetContext() == TEXT("ControlRigBlueprint")) ||
+			(PersonaToolkit.Pin()->GetAnimBlueprint() != nullptr && PersonaToolkit.Pin()->GetAnimBlueprint()->bIsTemplate);
 
 		DetailBuilder.EditCategory("Mesh")
 		.AddProperty(SkeletalMeshProperty)

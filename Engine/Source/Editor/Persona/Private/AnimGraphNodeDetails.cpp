@@ -98,6 +98,7 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 
 	TargetSkeleton = AnimGraphNode->HasValidBlueprint() ? AnimGraphNode->GetAnimBlueprint()->TargetSkeleton : nullptr;
 	TargetSkeletonName = TargetSkeleton ? FObjectPropertyBase::GetExportPath(TargetSkeleton) : FString(TEXT(""));
+	bIsAnimBPTemplate = AnimGraphNode->HasValidBlueprint() ? AnimGraphNode->GetAnimBlueprint()->bIsTemplate : false;
 
 	// Get the node property
 	const FStructProperty* NodeProperty = AnimGraphNode->GetFNodeProperty();
@@ -275,13 +276,27 @@ TSharedRef<SWidget> FAnimGraphNodeDetails::CreatePropertyWidget(FProperty* Targe
 bool FAnimGraphNodeDetails::OnShouldFilterAnimAsset( const FAssetData& AssetData, UClass* NodeToFilterFor ) const
 {
 	FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag("Skeleton");
-	if (Result.IsSet() && TargetSkeleton && TargetSkeleton->IsCompatibleForEditor(AssetData))
+	if (Result.IsSet())
 	{
-		const UClass* AssetClass = AssetData.GetClass();
-		// If node is an 'asset player', only let you select the right kind of asset for it
-		if (!NodeToFilterFor->IsChildOf(UAnimGraphNode_AssetPlayerBase::StaticClass()) || (AssetClass && SupportNodeClassForAsset(AssetClass, NodeToFilterFor)))
+		bool bIsAssetCompatible;
+		if (bIsAnimBPTemplate)
 		{
-			return false;
+			// If we are a template, we are always compatible
+			bIsAssetCompatible = true;
+		}
+		else
+		{
+			bIsAssetCompatible = TargetSkeleton && TargetSkeleton->IsCompatibleForEditor(AssetData);
+		}
+
+		if (bIsAssetCompatible)
+		{
+			const UClass* AssetClass = AssetData.GetClass();
+			// If node is an 'asset player', only let you select the right kind of asset for it
+			if (!NodeToFilterFor->IsChildOf(UAnimGraphNode_AssetPlayerBase::StaticClass()) || (AssetClass && SupportNodeClassForAsset(AssetClass, NodeToFilterFor)))
+			{
+				return false;
+			}
 		}
 	}
 	return true;

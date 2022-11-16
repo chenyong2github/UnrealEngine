@@ -44,7 +44,6 @@
 #include "AnimationBlueprintEditorModule.h"
 #include "AnimationBlueprintEditorSettings.h"
 #include "AnimationBlueprintInterfaceEditorMode.h"
-#include "AnimationBlueprintTemplateEditorMode.h"
 #include "AnimationEditorPreviewScene.h"
 #include "AnimationEditorUtils.h"
 #include "AnimationGraph.h"
@@ -462,6 +461,8 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	// Register document editor for blendspaces
 	DocumentManager->RegisterDocumentFactory(MakeShared<FBlendSpaceDocumentTabFactory>(SharedThis(this)));
 
+	bool bHasBlueprintPreview = false;
+
 	if(InAnimBlueprint->BlueprintType == BPTYPE_Interface)
 	{
 		AddApplicationMode(
@@ -479,7 +480,9 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	{
 		AddApplicationMode(
 			FAnimationBlueprintEditorModes::AnimationBlueprintTemplateEditorMode,
-			MakeShareable(new FAnimationBlueprintTemplateEditorMode(SharedThis(this))));
+			MakeShareable(new FAnimationBlueprintEditorMode(SharedThis(this))));
+
+		bHasBlueprintPreview = true;
 		
 		ExtendMenu();
 		ExtendToolbar();
@@ -494,10 +497,22 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 			FAnimationBlueprintEditorModes::AnimationBlueprintEditorMode,
 			MakeShareable(new FAnimationBlueprintEditorMode(SharedThis(this))));
 
+		bHasBlueprintPreview = true;
+
+		ExtendMenu();
+		ExtendToolbar();
+		RegenerateMenusAndToolbars();
+
+		// Activate the initial mode (which will populate with a real layout)
+		SetCurrentMode(FAnimationBlueprintEditorModes::AnimationBlueprintEditorMode);
+	}
+
+	if (bHasBlueprintPreview)
+	{
 		UDebugSkelMeshComponent* PreviewMeshComponent = PersonaToolkit->GetPreviewMeshComponent();
 		UAnimBlueprint* AnimBlueprint = PersonaToolkit->GetAnimBlueprint();
 		UAnimBlueprint* PreviewAnimBlueprint = AnimBlueprint->GetPreviewAnimationBlueprint();
-		
+
 		if (PreviewAnimBlueprint)
 		{
 			PersonaToolkit->GetPreviewScene()->SetPreviewAnimationBlueprint(PreviewAnimBlueprint, AnimBlueprint);
@@ -509,13 +524,6 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 		}
 
 		PersonaUtils::SetObjectBeingDebugged(AnimBlueprint, PreviewMeshComponent->GetAnimInstance());
-
-		ExtendMenu();
-		ExtendToolbar();
-		RegenerateMenusAndToolbars();
-
-		// Activate the initial mode (which will populate with a real layout)
-		SetCurrentMode(FAnimationBlueprintEditorModes::AnimationBlueprintEditorMode);
 	}
 
 	// Post-layout initialization

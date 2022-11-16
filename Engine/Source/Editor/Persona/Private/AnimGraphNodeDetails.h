@@ -74,6 +74,9 @@ protected:
 
 	/** Builder that built this customization (used for refresh) */
 	IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
+
+	/** Whether or not the anim blueprint is a template */
+	bool bIsAnimBPTemplate = false;
 };
 
 /////////////////////////////////////////////////////

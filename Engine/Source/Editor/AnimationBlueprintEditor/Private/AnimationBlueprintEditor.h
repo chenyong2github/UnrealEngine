@@ -91,6 +91,7 @@ namespace AnimationBlueprintEditorTabs
 class FAnimationBlueprintEditor : public IAnimationBlueprintEditor
 {
 	friend class FAnimationBlueprintEditorMode;
+	friend class FAnimationBlueprintTemplateEditorMode;
 
 public:
 	/**

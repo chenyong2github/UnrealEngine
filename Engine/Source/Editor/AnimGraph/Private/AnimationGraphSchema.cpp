@@ -44,6 +44,29 @@
 
 #define LOCTEXT_NAMESPACE "AnimationGraphSchema"
 
+namespace UE::Anim::BP::Editor
+{
+	bool IsSkeletonCompatible(const UAnimBlueprint* AnimBlueprint, const UAnimationAsset* Asset)
+	{
+		if (AnimBlueprint == nullptr)
+		{
+			return false;	// No blueprint provided, cannot be compatible
+		}
+
+		if (AnimBlueprint->bIsTemplate)
+		{
+			return true;	// Templates are always compatible
+		}
+
+		if (AnimBlueprint->TargetSkeleton == nullptr)
+		{
+			return false;	// No target skeleton provided, cannot be compatible
+		}
+
+		return AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(Asset->GetSkeleton());
+	}
+}
+
 /////////////////////////////////////////////////////
 // FAnimationLayerDragDropAction
 /** DragDropAction class for drag and dropping animation layers */
@@ -564,7 +587,7 @@ void UAnimationGraphSchema::SpawnNodeFromAsset(UAnimationAsset* Asset, const FVe
 
 	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(Graph));
 
-	const bool bSkelMatch = (AnimBlueprint != nullptr) && (AnimBlueprint->TargetSkeleton != nullptr) && (AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(Asset->GetSkeleton()));
+	const bool bSkelMatch = UE::Anim::BP::Editor::IsSkeletonCompatible(AnimBlueprint, Asset);
 	const bool bTypeMatch = (PinIfAvailable == nullptr) || UAnimationGraphSchema::IsLocalSpacePosePin(PinIfAvailable->PinType);
 	const bool bDirectionMatch = (PinIfAvailable == nullptr) || (PinIfAvailable->Direction == EGPD_Input);
 
@@ -673,7 +696,7 @@ void UAnimationGraphSchema::GetAssetsNodeHoverMessage(const TArray<FAssetData>& 
 
 	// this one only should happen when there is an Anim Blueprint
 	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(HoverNode));
-	const bool bSkelMatch = (AnimBlueprint != NULL) && (AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(Asset->GetSkeleton()));
+	const bool bSkelMatch = UE::Anim::BP::Editor::IsSkeletonCompatible(AnimBlueprint, Asset);
 
 	if (!bSkelMatch)
 	{
@@ -705,7 +728,7 @@ void UAnimationGraphSchema::GetAssetsPinHoverMessage(const TArray<FAssetData>& A
 	// this one only should happen when there is an Anim Blueprint
 	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(HoverPin->GetOwningNode()));
 
-	const bool bSkelMatch = (AnimBlueprint != NULL) && (AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(Asset->GetSkeleton()));
+	const bool bSkelMatch = UE::Anim::BP::Editor::IsSkeletonCompatible(AnimBlueprint, Asset);
 	const bool bTypeMatch = UAnimationGraphSchema::IsLocalSpacePosePin(HoverPin->PinType);
 	const bool bDirectionMatch = HoverPin->Direction == EGPD_Input;
 
@@ -726,7 +749,7 @@ void UAnimationGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>&
 	if (UAnimationAsset* AnimationAsset = FAssetData::GetFirstAsset<UAnimationAsset>(Assets))
 	{
 		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(HoverGraph));
-		const bool bSkelMatch = (AnimBlueprint != nullptr) && (AnimBlueprint->TargetSkeleton != nullptr) && (AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(AnimationAsset->GetSkeleton()));
+		const bool bSkelMatch = UE::Anim::BP::Editor::IsSkeletonCompatible(AnimBlueprint, AnimationAsset);
 		if (!bSkelMatch)
 		{
 			OutOkIcon = false;

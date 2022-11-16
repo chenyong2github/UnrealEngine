@@ -3863,12 +3863,7 @@ void USkeletalMeshComponent::ValidateAnimation()
 		IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(AnimClass);
 		if (AnimClassInterface && SkelMesh)
 		{
-			if (AnimClassInterface->GetTargetSkeleton() == nullptr)
-			{
-				UE_LOG(LogAnimation, Warning, TEXT("AnimBP %s is incompatible because it has no target skeleton, removing AnimBP from actor."), *AnimClass->GetName());
-				AnimClass = nullptr;
-			}
-			else if (SkelMesh->GetSkeleton() == nullptr)
+			if (SkelMesh->GetSkeleton() == nullptr)
 			{
 				UE_LOG(LogAnimation, Warning, TEXT("AnimBP %s is incompatible because mesh %s has no skeleton, removing AnimBP from actor."), *AnimClass->GetName(), *SkelMesh->GetName());
 				AnimClass = nullptr;

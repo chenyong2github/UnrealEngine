@@ -279,15 +279,11 @@ void UAnimBlueprint::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 USkeletalMesh* UAnimBlueprint::GetPreviewMesh(bool bFindIfNotSet/*=false*/)
 {
 #if WITH_EDITORONLY_DATA
-	USkeletalMesh* PreviewMesh = PreviewSkeletalMesh.LoadSynchronous();
-	// if somehow skeleton changes, just nullify it. 
-	if (PreviewMesh && PreviewMesh->GetSkeleton() != TargetSkeleton)
+	if (!PreviewSkeletalMesh.IsValid())
 	{
-		PreviewMesh = nullptr;
-		SetPreviewMesh(nullptr);
+		PreviewSkeletalMesh.LoadSynchronous();
 	}
-
-	return PreviewMesh;
+	return PreviewSkeletalMesh.Get();
 #else
 	return nullptr;
 #endif
