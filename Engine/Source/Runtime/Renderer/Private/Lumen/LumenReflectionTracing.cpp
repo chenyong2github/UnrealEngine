@@ -88,6 +88,22 @@ FAutoConsoleVariableRef CVarLumenReflectionTraceCompactionWaveOps(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenReflectionsSampleSceneColorAtHit = 1;
+FAutoConsoleVariableRef CVarLumenReflectionsSampleSceneColorAtHit(
+	TEXT("r.Lumen.Reflections.SampleSceneColorAtHit"),
+	GLumenReflectionsSampleSceneColorAtHit,
+	TEXT("Whether to sample SceneColor on reflection ray hits (both SWRT and HWRT).  Useful for hiding areas where Screen Traces gave up when they went behind a foreground object."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenReflectionSampleSceneColorRelativeDepthThreshold = .05f;
+FAutoConsoleVariableRef GVarLumenReflectionSampleSceneColorRelativeDepthThreshold(
+	TEXT("r.Lumen.Reflections.SampleSceneColorRelativeDepthThickness"),
+	GLumenReflectionSampleSceneColorRelativeDepthThreshold,
+	TEXT("Depth threshold that controls how close ray hits have to be to the depth buffer, before sampling SceneColor is allowed."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 class FReflectionClearTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FReflectionClearTracesCS)
@@ -360,13 +376,17 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHZBScreenTraceParameters, HZBScreenTraceParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER(float, RelativeDepthThickness)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FThreadGroupSize32 : SHADER_PERMUTATION_BOOL("THREADGROUP_SIZE_32");
 	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("TRACE_GLOBAL_SDF");
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
-	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FTraceGlobalSDF, FHairStrands, FRadianceCache>;
+	class FSampleSceneColor : SHADER_PERMUTATION_BOOL("SAMPLE_SCENE_COLOR");
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FTraceGlobalSDF, FHairStrands, FRadianceCache, FSampleSceneColor>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -634,6 +654,7 @@ void TraceReflections(
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
 	const bool bScreenTraces = GLumenReflectionScreenTraces != 0 && View.Family->EngineShowFlags.LumenScreenTraces;
+	const bool bSampleSceneColorAtHit = GLumenReflectionsSampleSceneColorAtHit != 0 && bScreenTraces;
 
 	if (bScreenTraces)
 	{
@@ -701,6 +722,7 @@ void TraceReflections(
 
 		RenderLumenHardwareRayTracingReflections(
 			GraphBuilder,
+			SceneTextures,
 			SceneTextureParameters,
 			Scene,
 			View,
@@ -710,7 +732,8 @@ void TraceReflections(
 			CompactedTraceParameters,
 			IndirectTracingParameters.MaxTraceDistance,
 			bUseRadianceCache,
-			RadianceCacheParameters
+			RadianceCacheParameters,
+			bSampleSceneColorAtHit
 			);
 	}
 	else 
@@ -809,11 +832,22 @@ void TraceReflections(
 				PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 			}
 
+			PassParameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
+			PassParameters->SceneTextures = SceneTextureParameters;
+
+			if (PassParameters->HZBScreenTraceParameters.PrevSceneColorTexture == SceneTextures.Color.Resolve || !PassParameters->SceneTextures.GBufferVelocityTexture)
+			{
+				PassParameters->SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+			}
+
+			PassParameters->RelativeDepthThickness = GLumenReflectionSampleSceneColorRelativeDepthThreshold;
+
 			FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set< FReflectionTraceVoxelsCS::FThreadGroupSize32 >(Lumen::UseThreadGroupSize32());
 			PermutationVector.Set< FReflectionTraceVoxelsCS::FTraceGlobalSDF >(Lumen::UseGlobalSDFTracing(*View.Family));
 			PermutationVector.Set< FReflectionTraceVoxelsCS::FHairStrands >(bNeedTraceHairVoxel);
 			PermutationVector.Set< FReflectionTraceVoxelsCS::FRadianceCache >(bUseRadianceCache);
+			PermutationVector.Set< FReflectionTraceVoxelsCS::FSampleSceneColor >(bSampleSceneColorAtHit);
 			auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceVoxelsCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(

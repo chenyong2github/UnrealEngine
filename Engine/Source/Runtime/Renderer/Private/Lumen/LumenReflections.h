@@ -82,7 +82,8 @@ class FLumenReflectionTracingParameters;
 class FLumenReflectionTileParameters;
 extern void RenderLumenHardwareRayTracingReflections(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
+	const FSceneTextures& SceneTextures,
+	const FSceneTextureParameters& SceneTextureParameters,
 	const FScene* Scene,
 	const FViewInfo& View,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
@@ -91,4 +92,5 @@ extern void RenderLumenHardwareRayTracingReflections(
 	const FCompactedReflectionTraceParameters& CompactedTraceParameters,
 	float MaxTraceDistance,
 	bool bUseRadianceCache,
-	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	bool bSampleSceneColorAtHit);

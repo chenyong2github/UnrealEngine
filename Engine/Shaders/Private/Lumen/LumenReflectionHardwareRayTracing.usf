@@ -17,6 +17,7 @@
 #include "LumenVisualizeTraces.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenHardwareRayTracingPipelineCommon.ush"
+#include "LumenScreenTracing.ush"
 
 #ifndef THREADGROUP_SIZE_2D
 #define THREADGROUP_SIZE_2D 8
@@ -65,6 +66,8 @@ float PullbackBias;
 int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 int ApplySkyLight;
+int SampleSceneColor;
+float RelativeDepthThickness;
 
 RWTexture2D<float3> RWTraceRadiance;
 RWTexture2D<float> RWTraceHit;
@@ -173,6 +176,15 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 #endif // DIM_LIGHTING_MODE
 
+
+#if DIM_WRITE_FINAL_LIGHTING
+		if (Result.bIsHit && SampleSceneColor > 0)
+		{
+			float3 HitTranslatedWorldPosition = Ray.Origin + Ray.Direction * Result.TraceHitDistance;
+			SampleSceneColorAtHit(HitTranslatedWorldPosition, TraceCoord, RelativeDepthThickness, Result.Radiance);
+		}
+#endif
+
 #if ENABLE_NEAR_FIELD_TRACING && DIM_RADIANCE_CACHE
 		// If we're tracing a near field ray that missed, which has valid Radiance Cache coverage, use that for final lighting
 		if (!Result.bIsHit && RayData.bUseRadianceCache)
@@ -216,6 +228,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 #endif // DIM_PACK_TRACE_DATA
 
 #if DIM_WRITE_FINAL_LIGHTING
+
 		Result.Radiance += GetSkylightLeaking(Ray.Direction, Result.TraceHitDistance);
 		Result.Radiance *= View.PreExposure;
 

@@ -11,7 +11,6 @@
 #include "LumenVisualizeTraces.ush"
 
 #define IS_SSGI_SHADER 0
-#include "../SSRT/SSRTRayCast.ush"
 #include "../SHCommon.ush"
 
 #include "LumenScreenTracing.ush"
@@ -48,15 +47,7 @@ float MaxTraceDistance;
 Texture2D FurthestHZBTexture;
 #define FurthestHZBTextureSampler GlobalPointClampedSampler
 
-Texture2D PrevSceneColorTexture;
-float2 PrevSceneColorBilinearUVMin;
-float2 PrevSceneColorBilinearUVMax;
-float4 PrevScreenPositionScaleBias;
-float4 PrevScreenPositionScaleBiasForDepth;
-Texture2D HistorySceneDepth;
-
 float4 HZBUvFactorAndInvFactor;
-float PrevSceneColorPreExposureCorrection;
 float MaxHierarchicalScreenTraceIterations;
 float RelativeDepthThickness;
 float HistoryDepthTestRelativeThickness;

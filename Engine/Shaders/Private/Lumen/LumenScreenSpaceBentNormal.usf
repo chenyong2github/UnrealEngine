@@ -8,10 +8,8 @@
 #include "../MonteCarlo.ush"
 #include "../ShadingModelsSampling.ush"
 #include "../SceneTextureParameters.ush"
-#include "LumenScreenTracing.ush"
-
 #define IS_SSGI_SHADER 1
-#include "../SSRT/SSRTRayCast.ush"
+#include "LumenScreenTracing.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1

@@ -8,7 +8,6 @@
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenReflectionCommon.ush"
 #include "../SceneTextureParameters.ush"
-#include "../SSRT/SSRTRayCast.ush"
 #include "../SHCommon.ush"
 #define HZB_TRACE_INCLUDE_FULL_RES_DEPTH 1
 #include "LumenScreenTracing.ush"
@@ -34,14 +33,6 @@ void ReflectionClearTracesCS(
 }
  
 float MaxTraceDistance;
-
-Texture2D PrevSceneColorTexture;
-Texture2D HistorySceneDepth;
-float2 PrevSceneColorBilinearUVMin;
-float2 PrevSceneColorBilinearUVMax;
-float4 PrevScreenPositionScaleBias;
-float4 PrevScreenPositionScaleBiasForDepth;
-float PrevSceneColorPreExposureCorrection;
 float4 HZBUvFactorAndInvFactor;
 float MaxHierarchicalScreenTraceIterations;
 float RelativeDepthThickness;
@@ -62,7 +53,8 @@ void ReflectionTraceScreenTexturesCS(
 
 		if (SceneDepth > 0.0f)
 		{
-			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 			FRayData RayData = GetRayData(ReflectionTracingCoord.CoordFlatten);
 
 			bool bHit;
@@ -72,7 +64,7 @@ void ReflectionTraceScreenTexturesCS(
 			float HitTileZ;
 
 			TraceScreen(
-				WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation),
+				TranslatedWorldPosition,
 				RayData.Direction,
 				RayData.TraceDistance,
 				HZBUvFactorAndInvFactor,
@@ -96,7 +88,7 @@ void ReflectionTraceScreenTexturesCS(
 				float Hair_HitTileZ;
 
 				TraceHairScreen(
-					WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation),
+					TranslatedWorldPosition,
 					RayData.Direction,
 					RayData.TraceDistance,
 					HZBUvFactorAndInvFactor,
@@ -121,8 +113,6 @@ void ReflectionTraceScreenTexturesCS(
 			#endif
 
 			bHit = bHit && !bUncertain;
-
-			float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), HitUVz)), MaxTraceDistance);
 
 			if (bHit)
 			{
@@ -166,6 +156,7 @@ void ReflectionTraceScreenTexturesCS(
 					HitHistoryScreenUV = clamp(HitHistoryScreenUV, PrevSceneColorBilinearUVMin, PrevSceneColorBilinearUVMax);
 					float3 Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection;
 
+					float HitDistance = min(sqrt(ComputeRayHitSqrDistance(TranslatedWorldPosition, HitUVz)), MaxTraceDistance);
 					Lighting += GetSkylightLeaking(RayData.Direction, HitDistance) * View.PreExposure;
 
 					float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
@@ -183,6 +174,7 @@ void ReflectionTraceScreenTexturesCS(
 				}
 			}
 
+			float HitDistance = min(sqrt(ComputeRayHitSqrDistance(TranslatedWorldPosition, HitUVz)), MaxTraceDistance);
 			RWTraceHit[ReflectionTracingCoord.CoordFlatten] = EncodeRayDistance(HitDistance, bHit);
 		}
 	}
@@ -561,6 +553,14 @@ void TraceVoxels(
 	{
 		TraceHitDistance = GetMaxHitDistance();
 	}
+
+#if SAMPLE_SCENE_COLOR
+	if (bHit)
+	{
+		float3 HitTranslatedWorldPosition = SampleTranslatedPosition + RayData.Direction * TraceResult.OpaqueHitDistance;
+		SampleSceneColorAtHit(HitTranslatedWorldPosition, ReflectionTracingCoord.Coord, RelativeDepthThickness, TraceResult.Lighting);
+	}
+#endif
 
 	if (!bHit)
 	{

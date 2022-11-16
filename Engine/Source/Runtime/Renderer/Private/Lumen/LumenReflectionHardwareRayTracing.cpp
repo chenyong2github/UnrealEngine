@@ -131,8 +131,10 @@ class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShader
 		RDG_BUFFER_ACCESS(HardwareRayTracingIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, TraceTexelDataPacked)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHZBScreenTraceParameters, HZBScreenTraceParameters)
+		SHADER_PARAMETER(float, RelativeDepthThickness)
+		SHADER_PARAMETER(int32, SampleSceneColor)
 
-		// Constants
 		SHADER_PARAMETER(int, ThreadCount)
 		SHADER_PARAMETER(int, GroupCount)
 		SHADER_PARAMETER(int, NearFieldLightingMode)
@@ -320,7 +322,8 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 
 void SetLumenHardwareRayTracingReflectionParameters(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
+	const FSceneTextures& SceneTextures,
+	const FSceneTextureParameters& SceneTextureParameters,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
@@ -330,6 +333,7 @@ void SetLumenHardwareRayTracingReflectionParameters(
 	bool bApplySkyLight,
 	bool bEnableHitLighting,
 	bool bEnableFarFieldTracing,
+	bool bSampleSceneColorAtHit,
 	FRDGBufferRef HardwareRayTracingIndirectArgsBuffer,
 	FRDGBufferRef RayAllocatorBuffer,
 	FRDGBufferRef TraceTexelDataPackedBuffer,
@@ -342,7 +346,7 @@ void SetLumenHardwareRayTracingReflectionParameters(
 
 	SetLumenHardwareRayTracingSharedParameters(
 		GraphBuilder,
-		SceneTextures,
+		SceneTextureParameters,
 		View,
 		TracingInputs,
 		&Parameters->SharedParameters
@@ -351,7 +355,17 @@ void SetLumenHardwareRayTracingReflectionParameters(
 	Parameters->HardwareRayTracingIndirectArgs = HardwareRayTracingIndirectArgsBuffer;
 	Parameters->TraceTexelDataPacked = GraphBuilder.CreateSRV(TraceTexelDataPackedBuffer, PF_R32G32_UINT);
 
-	// Constants
+	Parameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
+
+	if (Parameters->HZBScreenTraceParameters.PrevSceneColorTexture == SceneTextures.Color.Resolve || !Parameters->SharedParameters.SceneTextures.GBufferVelocityTexture)
+	{
+		Parameters->SharedParameters.SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+	}
+
+	extern float GLumenReflectionSampleSceneColorRelativeDepthThreshold;
+	Parameters->RelativeDepthThickness = GLumenReflectionSampleSceneColorRelativeDepthThreshold;
+	Parameters->SampleSceneColor = bSampleSceneColorAtHit ? 1 : 0;
+
 	Parameters->ThreadCount = DefaultThreadCount;
 	Parameters->GroupCount = DefaultGroupCount;
 	Parameters->NearFieldLightingMode = static_cast<int32>(Lumen::GetHardwareRayTracingLightingMode(View));
@@ -392,7 +406,8 @@ void DispatchLumenReflectionHardwareRayTracingIndirectArgs(FRDGBuilder& GraphBui
 
 void DispatchRayGenOrComputeShader(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
+	const FSceneTextures& SceneTextures,
+	const FSceneTextureParameters& SceneTextureParameters,
 	const FScene* Scene,
 	const FViewInfo& View,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
@@ -406,6 +421,7 @@ void DispatchRayGenOrComputeShader(
 	bool bApplySkyLight,
 	bool bUseRadianceCache,
 	bool bInlineRayTracing,
+	bool bSampleSceneColorAtHit,
 	FRDGBufferRef RayAllocatorBuffer,
 	FRDGBufferRef TraceTexelDataPackedBuffer,
 	FRDGBufferRef TraceDataPackedBuffer
@@ -425,6 +441,7 @@ void DispatchRayGenOrComputeShader(
 	SetLumenHardwareRayTracingReflectionParameters(
 		GraphBuilder,
 		SceneTextures,
+		SceneTextureParameters,
 		View,
 		TracingInputs,
 		ReflectionTracingParameters,
@@ -434,6 +451,7 @@ void DispatchRayGenOrComputeShader(
 		bApplySkyLight,
 		bEnableHitLighting,
 		bEnableFarFieldTracing,
+		bSampleSceneColorAtHit,
 		HardwareRayTracingIndirectArgsBuffer,
 		RayAllocatorBuffer,
 		TraceTexelDataPackedBuffer,
@@ -518,7 +536,8 @@ void DispatchRayGenOrComputeShader(
 
 void RenderLumenHardwareRayTracingReflections(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
+	const FSceneTextures& SceneTextures,
+	const FSceneTextureParameters& SceneTextureParameters,
 	const FScene* Scene,
 	const FViewInfo& View,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
@@ -527,7 +546,8 @@ void RenderLumenHardwareRayTracingReflections(
 	const FCompactedReflectionTraceParameters& CompactedTraceParameters,
 	float MaxVoxelTraceDistance,
 	bool bUseRadianceCache,
-	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	bool bSampleSceneColorAtHit
 )
 {
 #if RHI_RAYTRACING
@@ -556,8 +576,8 @@ void RenderLumenHardwareRayTracingReflections(
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FIndirectDispatchDim>(IsHardwareRayTracingReflectionsIndirectDispatch());
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FPackTraceDataDim>(bUseHitLighting || bUseFarFieldForReflections);
 
-		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
-			PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing,
+		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
+			PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing, bSampleSceneColorAtHit,
 			RayAllocatorBufferCached, TraceTexelDataPackedBufferCached, TraceDataPackedBufferCached);
 
 	}
@@ -585,8 +605,8 @@ void RenderLumenHardwareRayTracingReflections(
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FPackTraceDataDim>(bUseHitLighting);
 
 		// Trace continuation rays
-		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
-			PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing,
+		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
+			PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing, bSampleSceneColorAtHit,
 			FarFieldRayAllocatorBuffer, TraceTexelDataPackedBufferCached, FarFieldTraceDataPackedBuffer);
 	}
 
@@ -632,8 +652,8 @@ void RenderLumenHardwareRayTracingReflections(
 			PermutationVector.Set<FLumenReflectionHardwareRayTracing::FIndirectDispatchDim>(IsHardwareRayTracingReflectionsIndirectDispatch());
 			PermutationVector.Set<FLumenReflectionHardwareRayTracing::FPackTraceDataDim>(false);
 
-			DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
-				PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache, bUseInline,
+			DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
+				PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache, bUseInline, bSampleSceneColorAtHit,
 				RayAllocatorBuffer, TraceTexelDataPackedBufferCached, TraceDataPackedBuffer);
 		}
 	}

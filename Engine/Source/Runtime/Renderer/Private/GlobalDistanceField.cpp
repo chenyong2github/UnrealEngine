@@ -94,6 +94,14 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldForceFullUpdate(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GAOGlobalDistanceFieldForceUpdateOnce = 0;
+FAutoConsoleVariableRef CVarAOGlobalDistanceFieldForceUpdateOnce(
+	TEXT("r.AOGlobalDistanceFieldForceUpdateOnce"),
+	GAOGlobalDistanceFieldForceUpdateOnce,
+	TEXT("Whether to force full global distance field once."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GAOGlobalDistanceFieldForceMovementUpdate = 0;
 FAutoConsoleVariableRef CVarAOGlobalDistanceFieldForceMovementUpdate(
 	TEXT("r.AOGlobalDistanceFieldForceMovementUpdate"),
@@ -967,6 +975,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				|| ClipmapViewState.CacheMostlyStaticSeparately != GAOGlobalDistanceFieldCacheMostlyStaticSeparately
 				|| ClipmapViewState.LastUsedSceneDataForFullUpdate != &Scene->DistanceFieldSceneData
 				|| GAOGlobalDistanceFieldForceFullUpdate
+				|| GAOGlobalDistanceFieldForceUpdateOnce
 				|| GDFReadbackRequest != nullptr;
 
 			const bool bUpdateRequested = GAOUpdateGlobalDistanceField != 0 && ShouldUpdateClipmapThisFrame(ClipmapIndex, NumClipmaps, GlobalDistanceFieldData.UpdateIndex);
@@ -1125,6 +1134,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 			ClipmapViewState.CacheClipmapInfluenceRadius = ClipmapInfluenceRadius;
 			ClipmapViewState.CacheMostlyStaticSeparately = GAOGlobalDistanceFieldCacheMostlyStaticSeparately;
 		}
+		GAOGlobalDistanceFieldForceUpdateOnce = 0;
 
 		ensureMsgf(!GAOGlobalDistanceFieldStaggeredUpdates || NumClipmapUpdateRequests <= GetNumClipmapUpdatesPerFrame(), TEXT("ShouldUpdateClipmapThisFrame needs to be adjusted for the NumClipmaps to even out the work distribution"));
 	}
