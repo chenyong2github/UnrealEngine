@@ -591,7 +591,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	float3 GetGeometryNormal()				{ return GetWorldNormal(); }
 	void   SetGeometryNormal(float3 In)		{ }
 
-	bool IsValid()							{ return StrataData.PackedTopLayerData != 0; }
+	bool IsValid()							{ return any(StrataData.PackedTopLayerData != 0); }
 	uint  GetShadingModelID()				{ return IsValid() ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT; }
 	uint  GetFlags()						{ return (Flags & 0xFF); }
 	uint  GetBlendingMode()					{ return (Flags >> 16u) & 0x7; }

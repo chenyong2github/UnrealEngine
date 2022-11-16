@@ -49,7 +49,7 @@ FProjectionShadingInfo GetProjectionShadingInfo(uint2 PixelPos)
 #if STRATA_ENABLED
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 	const FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
 
 	const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, PixelPos);
 	const bool bIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);

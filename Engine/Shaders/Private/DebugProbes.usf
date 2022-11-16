@@ -83,7 +83,7 @@ void WriteOutMaterial(
 	, inout float4 OutGBufferA
 	, inout uint OutGBufferB
 	, inout uint OutGBufferC
-	, inout uint OutGBufferD
+	, inout STRATA_TOP_LAYER_TYPE OutGBufferD
 	, inout uint OutGBufferE
 #else
 	, inout float4 OutGBufferA
@@ -197,11 +197,11 @@ void MainPS(
 	, out float4 OutColor		: SV_Target0
 #if PERMUTATION_PASS == RENDER_BASEPASS
 	#if STRATA_ENABLED
-	, out float4 OutGBufferA : SV_Target1
-	, out uint OutGBufferB : SV_Target2
-	, out uint OutGBufferC : SV_Target3
-	, out uint OutGBufferD : SV_Target4
-	, out uint OutGBufferE : SV_Target5
+	, out float4 OutGBufferA				: SV_Target1
+	, out uint OutGBufferB					: SV_Target2
+	, out uint OutGBufferC					: SV_Target3
+	, out STRATA_TOP_LAYER_TYPE OutGBufferD : SV_Target4
+	, out uint OutGBufferE					: SV_Target5
 	#else
 	, out float4 OutGBufferA	: SV_Target1
 	, out float4 OutGBufferB	: SV_Target2

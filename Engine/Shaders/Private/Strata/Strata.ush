@@ -658,18 +658,32 @@ struct FStrataTopLayerData
 	uint   Material;
 };
 
-uint StrataPackTopLayerData(FStrataTopLayerData In)
+STRATA_TOP_LAYER_TYPE StrataPackTopLayerData(FStrataTopLayerData In)
 {
+#if STRATA_NORMAL_QUALITY==0
 	// Output is min. by 1 to flag data has valid. This creates a small bias for one particular orientation with a mirror roughness.
 	return (StrataPackNormal22(In.WorldNormal) << 10) | (PackR8(In.Roughness) << 2) | (In.Material);
+#elif STRATA_NORMAL_QUALITY==1
+	return uint2(StrataPackNormal(In.WorldNormal), (PackR8(In.Roughness) << 2) | (In.Material));
+#else
+#error Unkown STRATA_NORMAL_QUALITY
+#endif
 }
 
-FStrataTopLayerData StrataUnpackTopLayerData(uint In)
+FStrataTopLayerData StrataUnpackTopLayerData(STRATA_TOP_LAYER_TYPE In)
 {
 	FStrataTopLayerData Out = (FStrataTopLayerData)0;
+#if STRATA_NORMAL_QUALITY==0
 	Out.Material = (In & 0x3);
 	Out.WorldNormal = StrataUnpackNormal22(In >> 10);
 	Out.Roughness = UnpackR8(In >> 2);
+#elif STRATA_NORMAL_QUALITY==1
+	Out.Material = (In.y & 0x3);
+	Out.WorldNormal = StrataUnpackNormal(In.x);
+	Out.Roughness = UnpackR8(In.y >> 2);
+#else
+#error Unkown STRATA_NORMAL_QUALITY
+#endif
 	return Out;
 }
 
@@ -1630,7 +1644,7 @@ struct FStrataRaytracingPayload
 	// Total size: 40 bytes. (assuming the default value of STRATA_RT_PAYLOAD_NUM_UINTS)
 	// If this changes, update FPackedMaterialClosestHitPayload in RayTracingCommon.ush 
 	// and ensure the payload size is smaller than the maximum size
-	uint PackedTopLayerData;
+	STRATA_TOP_LAYER_TYPE PackedTopLayerData;
 	uint Data[STRATA_RT_PAYLOAD_NUM_UINTS];
 };
 
@@ -1790,13 +1804,17 @@ uint StrataLoadUint1AtIndexOffset(in FStrataMaterialContainer StrataBuffer, in F
 	return Data;
 }
 
+// FStrataTopLayerDataContainer can be a uint or a uint2 resource, following STRATA_TOP_LAYER_TYPE according to r.GBufferFormat.
+// However, we do not change the type of the resource:
+//    - Leverage the hardware fetch unit filtering what can be loaded/stored according to the actual resource format.
+//    - We also filter the read data from StrataLoadTopLayerData 
 #if STRATA_MATERIALCONTAINER_IS_WRITABLE
-#define FStrataTopLayerDataContainer RWTexture2D<uint>
+#define FStrataTopLayerDataContainer RWTexture2D<uint2>
 #else
-#define FStrataTopLayerDataContainer Texture2D<uint>
+#define FStrataTopLayerDataContainer Texture2D<uint2>
 #endif
 
-uint StrataLoadTopLayerData(FStrataTopLayerDataContainer InTopLayerContainer, inout FStrataAddressing StrataAddressing)
+STRATA_TOP_LAYER_TYPE StrataLoadTopLayerData(FStrataTopLayerDataContainer InTopLayerContainer, inout FStrataAddressing StrataAddressing)
 {
 	#if STRATA_MATERIALCONTAINER_IS_WRITABLE
 	return InTopLayerContainer[StrataAddressing.PixelCoords];
@@ -1829,7 +1847,7 @@ uint StrataLoadUint1AtIndexOffset(in FStrataMaterialContainer StrataBuffer, in F
 
 #define FStrataTopLayerDataContainer FStrataRaytracingPayload
 
-uint StrataLoadTopLayerData(FStrataTopLayerDataContainer Container, inout FStrataAddressing StrataAddressing)
+STRATA_TOP_LAYER_TYPE StrataLoadTopLayerData(FStrataTopLayerDataContainer Container, inout FStrataAddressing StrataAddressing)
 {
 	return Container.PackedTopLayerData;
 }
@@ -1883,7 +1901,7 @@ struct FStrataPixelHeader
 	FStrataMaterialContainer StrataBuffer;
 	uint SharedLocalBasesIndexOffset;
 	uint SharedLocalBasesTypes_PackedHeader; // Stores SharedLocalBasesTypes for non-simple material, and PackedHeader data for simple material
-	uint PackedTopLayerData;
+	STRATA_TOP_LAYER_TYPE PackedTopLayerData;
 #endif
 
 	uint State;

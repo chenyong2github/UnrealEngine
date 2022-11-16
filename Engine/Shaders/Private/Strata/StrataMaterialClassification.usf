@@ -16,7 +16,7 @@ int bRectPrimitive;
 int2 ViewResolution;
 uint MaxBytesPerPixel;
 int FirstSliceStoringStrataSSSData;
-Texture2D<uint> TopLayerTexture;
+Texture2D<uint2> TopLayerTexture;
 #if PERMUTATION_CMASK
 Texture2D<uint> TopLayerCmaskTexture;
 #endif
@@ -406,7 +406,7 @@ int2 TileOffset_Primary;
 int2 OverflowTileCount;
 int2 OverflowTileOffset;
 
-Texture2D<uint> TopLayerTexture;
+Texture2D<uint2> TopLayerTexture;
 Texture2DArray<uint> MaterialTextureArray;
 
 Buffer<uint> TileListBuffer;

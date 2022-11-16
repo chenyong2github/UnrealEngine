@@ -560,13 +560,13 @@ namespace EGBufferFormat
 {
 	enum Type
 	{
-		/** Forces all GBuffers to 8 bits per channel. Intended as profiling for best performance. */
+		/** Forces all GBuffers to 8 bits per channel. Intended as profiling for best performance. (Strata: Octahedral encoding as 2x11bits for simple and single materials, 2x16bits for complex materials) */
 		Force8BitsPerChannel = 0 UMETA(DisplayName = "Force 8 Bits Per Channel"),
-		/** See GBuffer allocation function for layout details. */
+		/** See GBuffer allocation function for layout details. (Strata: Octahedral encoding as 2x11bits for simple and single material, 2x16bits for complex materials) */
 		Default = 1,
-		/** Same as Default except normals are encoded at 16 bits per channel. */
+		/** Same as Default except normals are encoded at 16 bits per channel. (Strata: Octahedral encoding as 2x16bits for all materials.) */
 		HighPrecisionNormals = 3,
-		/** Forces all GBuffers to 16 bits per channel. Intended as profiling for best quality. */
+		/** Forces all GBuffers to 16 bits per channel. Intended as profiling for best quality. (Strata: Octahedral encoding as 2x16bits for all materials.) */
 		Force16BitsPerChannel = 5 UMETA(DisplayName = "Force 16 Bits Per Channel"),
 	};
 }

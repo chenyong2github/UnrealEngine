@@ -176,7 +176,7 @@ void MainSetupPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPo
 		Samples[i].rgb = normalize(ReconstructNormalFromDepthBuffer(float4(UV[i] * ViewPortSize, SvPosition.zw))) * 0.5f + 0.5f;
 #else
 #if STRATA_ENABLED
-		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(clamp(UV[i] * View.BufferSizeAndInvSize.xy, 0.0f, View.BufferSizeAndInvSize.xy - 1.0f), 0)));
+		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(clamp(UV[i] * View.BufferSizeAndInvSize.xy, 0.0f, View.BufferSizeAndInvSize.xy - 1.0f), 0)));
 		Samples[i].rgb = TopLayerData.WorldNormal * 0.5f + 0.5f;
 #else
 		Samples[i].rgb = GetGBufferData(UV[i], true).WorldNormal * 0.5f + 0.5f;
@@ -603,7 +603,7 @@ float3 GetNormal(float2 UV, float3 ViewSpacePosMid)
 #if USE_NORMALBUFFER
 
 #if STRATA_ENABLED
-	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(clamp(UV * View.BufferSizeAndInvSize.xy, 0.0f, View.BufferSizeAndInvSize.xy-1.0f), 0)));
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(clamp(UV * View.BufferSizeAndInvSize.xy, 0.0f, View.BufferSizeAndInvSize.xy-1.0f), 0)));
 	float3 WorldNormal = TopLayerData.WorldNormal;
 #else
 	// Get the normal from the normal buffer
@@ -981,7 +981,7 @@ float GTAOInnerIntegratePSandCS(in float2 UV, in uint2 iPos)
 	// ViewspacePos and Normal
 	float3 ViewSpacePos		= ScreenToViewPos(UV, SceneDepth);
 #if STRATA_ENABLED
-	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(iPos, 0)));
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(iPos, 0)));
 	float3 WorldNormal = TopLayerData.WorldNormal;
 #else
 	float3 WorldNormal		= GetGBufferData(UV, false).WorldNormal;

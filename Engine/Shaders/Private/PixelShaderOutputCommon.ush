@@ -63,22 +63,22 @@ void MainPS
 		, out uint StrataOutput4 : SV_Target4
 		, out uint StrataOutput5 : SV_Target5
 		, out uint StrataOutput6 : SV_Target6
-		, out uint StrataOutput7 : SV_Target7
+		, out STRATA_TOP_LAYER_TYPE StrataOutput7 : SV_Target7
 #elif PIXELSHADEROUTPUT_MRT2
 		, out uint StrataOutput3 : SV_Target3
 		, out uint StrataOutput4 : SV_Target4
 		, out uint StrataOutput5 : SV_Target5
-		, out uint StrataOutput6 : SV_Target6
+		, out STRATA_TOP_LAYER_TYPE StrataOutput6 : SV_Target6
 #elif PIXELSHADEROUTPUT_MRT1
 		, out uint StrataOutput2 : SV_Target2
 		, out uint StrataOutput3 : SV_Target3
 		, out uint StrataOutput4 : SV_Target4
-		, out uint StrataOutput5 : SV_Target5
+		, out STRATA_TOP_LAYER_TYPE StrataOutput5 : SV_Target5
 #else
 		, out uint StrataOutput1 : SV_Target1
 		, out uint StrataOutput2 : SV_Target2
 		, out uint StrataOutput3 : SV_Target3
-		, out uint StrataOutput4 : SV_Target4
+		, out STRATA_TOP_LAYER_TYPE StrataOutput4 : SV_Target4
 #endif
 #else // STRATA_OPAQUE_DEFERRED
 
@@ -170,22 +170,22 @@ void MainPS
 	StrataOutput4 = PixelShaderOut.StrataOutput[0];
 	StrataOutput5 = PixelShaderOut.StrataOutput[1];
 	StrataOutput6 = PixelShaderOut.StrataOutput[2];
-	StrataOutput7 = PixelShaderOut.StrataOutput[3];
+	StrataOutput7 = PixelShaderOut.StrataTopLayerData;
 #elif PIXELSHADEROUTPUT_MRT2
 	StrataOutput3 = PixelShaderOut.StrataOutput[0];
 	StrataOutput4 = PixelShaderOut.StrataOutput[1];
 	StrataOutput5 = PixelShaderOut.StrataOutput[2];
-	StrataOutput6 = PixelShaderOut.StrataOutput[3];
+	StrataOutput6 = PixelShaderOut.StrataTopLayerData;
 #elif PIXELSHADEROUTPUT_MRT1
 	StrataOutput2 = PixelShaderOut.StrataOutput[0];
 	StrataOutput3 = PixelShaderOut.StrataOutput[1];
 	StrataOutput4 = PixelShaderOut.StrataOutput[2];
-	StrataOutput5 = PixelShaderOut.StrataOutput[3];
+	StrataOutput5 = PixelShaderOut.StrataTopLayerData;
 #else
 	StrataOutput1 = PixelShaderOut.StrataOutput[0];
 	StrataOutput2 = PixelShaderOut.StrataOutput[1];
 	StrataOutput3 = PixelShaderOut.StrataOutput[2];
-	StrataOutput4 = PixelShaderOut.StrataOutput[3];
+	StrataOutput4 = PixelShaderOut.StrataTopLayerData;
 #endif
 
 #else // STRATA_OPAQUE_DEFERRED

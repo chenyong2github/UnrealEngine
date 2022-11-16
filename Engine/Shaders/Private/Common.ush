@@ -2017,7 +2017,8 @@ struct FPixelShaderOut
 	float4 MRT[8];
 	
 	// Explicit uint output specific to strata.
-	uint StrataOutput[4];
+	uint StrataOutput[3];
+	STRATA_TOP_LAYER_TYPE StrataTopLayerData;
 
 	// Pixel Shader OutCoverage, only usable if PIXELSHADEROUTPUT_COVERAGE is 1
 	uint Coverage;

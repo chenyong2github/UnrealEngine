@@ -204,7 +204,7 @@ void Main(
 			const float3 LightDirection = bIsDirectional ? -LightPositionOrDirection.xyz : normalize(LightPositionOrDirection.xyz - TranslateWorldPosition);
 
 		#if STRATA_ENABLED
-			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
+			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
 			const float3 WorldNormal = TopLayerData.WorldNormal;
 		#else
 			FGBufferData GBufferData = GetGBufferData(ScreenUV);
@@ -304,7 +304,7 @@ void Main(
 			if (bHasSubsurfaceTransmission)
 			{
 			#if STRATA_ENABLED
-				const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
+				const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
 				const float3 WorldNormal = TopLayerData.WorldNormal;
 
 				// For non-profile version, use default transmission parameters (only NormalScale & ExtinctionScale are used)
@@ -417,7 +417,7 @@ void MainOnePassPointLightPS(
 #if !SUBPIXEL_SHADOW
 	{
 #if STRATA_ENABLED
-		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
+		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
 		const float3 WorldNormal = TopLayerData.WorldNormal;
 #else // STRATA_ENABLED
 		FGBufferData GBufferData = GetGBufferData(ScreenUV);
@@ -455,7 +455,7 @@ void MainOnePassPointLightPS(
 
 #if STRATA_ENABLED
 
-	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
 
 	const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, SVPos.xy);
 

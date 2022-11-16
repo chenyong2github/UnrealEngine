@@ -70,7 +70,7 @@ SamplerState DBufferCTextureSampler;
 int2 ViewResolution;
 uint MaxBytesPerPixel;
 uint FirstSliceStoringStrataSSSData;
-RWTexture2D<uint> TopLayerTexture;
+RWTexture2D<uint2> TopLayerTexture;
 RWTexture2DArray<uint> MaterialTextureArrayUAV;
 
 Buffer<uint> TileListBuffer;

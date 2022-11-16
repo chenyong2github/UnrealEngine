@@ -417,7 +417,7 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 	// Header
 	if (BSDFIndex < Header.BSDFCount && BSDFIndex == 0)
 	{
-		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(InCoord, 0)));
+		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(InCoord, 0)));
 
 		const bool bStrataMaterial = Header.BSDFCount > 0;
 		const bool bIsSimpleMaterial = IsSimpleMaterial(Header) || Header.BSDFCount == 0;

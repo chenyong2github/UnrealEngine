@@ -274,7 +274,7 @@ void MainCS(
 			UpdateLane2DCoordinateInformations(PixelPosition, /* out */ BufferUV, /* out */ ScreenPos, /* out */ FullResPixelPosition);
 	
 		#if STRATA_ENABLED
-			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(FullResPixelPosition, 0)));
+			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(FullResPixelPosition, 0)));
 			const float Roughness = TopLayerData.Roughness;
 			const float3 WorldNormal = TopLayerData.WorldNormal;
 			const bool bIsValid = IsStrataMaterial(TopLayerData);

@@ -785,7 +785,8 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
 		ConsoleVariable = "r.GBufferFormat", DisplayName = "GBuffer Format",
-		ToolTip = "Selects which GBuffer format should be used. Affects performance primarily via how much GPU memory bandwidth used."))
+		ToolTip = "Selects which GBuffer format should be used. Affects performance primarily via how much GPU memory bandwidth used. This also controls Strata normal quality and, in this case, a restart is required.",
+		ConfigRestartRequired = true))
 	TEnumAsByte<EGBufferFormat::Type> GBufferFormat;
 
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
