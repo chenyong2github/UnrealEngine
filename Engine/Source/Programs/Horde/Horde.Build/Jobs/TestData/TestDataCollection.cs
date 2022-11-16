@@ -431,14 +431,12 @@ namespace Horde.Build.Jobs.TestData
 
 			if (testIds != null && testIds.Length > 0)
 			{
-				filter &= filterBuilder.Ne(x => x.TestId, null);
-				filter &= filterBuilder.In(x => x.TestId!.Value, testIds);
+				filter &= filterBuilder.And(filterBuilder.Ne(x => x.TestId, null), filterBuilder.In(x => (TestId) x.TestId!, testIds));
 			}
 
 			if (suiteIds != null && suiteIds.Length > 0)
 			{
-				filter &= filterBuilder.Ne(x => x.SuiteId, null);
-				filter &= filterBuilder.In(x => x.SuiteId!.Value, suiteIds);
+				filter &= filterBuilder.And(filterBuilder.Ne(x => x.SuiteId, null), filterBuilder.In(x => (TestSuiteId)x.SuiteId!, suiteIds));
 			}
 
 			if (minChange != null)
