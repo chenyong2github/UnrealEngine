@@ -118,3 +118,14 @@ FORCEINLINE uint32 GetTypeHash(const TEnumAsByte<T>& Enum)
 
 
 template<class T> struct TIsPODType<TEnumAsByte<T>> { enum { Value = true }; };
+
+template <typename T>
+struct TIsTEnumAsByte
+{
+	static constexpr bool Value = false;
+};
+
+template <typename T> struct TIsTEnumAsByte<               TEnumAsByte<T>> { static constexpr bool Value = true; };
+template <typename T> struct TIsTEnumAsByte<const          TEnumAsByte<T>> { static constexpr bool Value = true; };
+template <typename T> struct TIsTEnumAsByte<      volatile TEnumAsByte<T>> { static constexpr bool Value = true; };
+template <typename T> struct TIsTEnumAsByte<const volatile TEnumAsByte<T>> { static constexpr bool Value = true; };

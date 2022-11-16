@@ -11,5 +11,11 @@ public class PropertyPath : ModuleRules
 			"Core",
 			"CoreUObject" 
 		});
+
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				"Runtime/PropertyPath/Private"
+			}
+		);
 	}
 }

@@ -383,24 +383,28 @@ struct FConcreteTypeCompatibleWithReflectedTypeHelper<TLazyObjectPtr<T>>
 /** 
  * Check whether the concrete type T is compatible with the reflected type of a FProperty for 
  * the purposes of CopysingleValue()
- * Non-enum implementation.
  */
 template<typename T>
-static inline typename TEnableIf<!TIsEnum<T>::Value, bool>::Type IsConcreteTypeCompatibleWithReflectedType(FProperty* Property)
+static inline bool IsConcreteTypeCompatibleWithReflectedType(FProperty* Property)
 {
-	return FConcreteTypeCompatibleWithReflectedTypeHelper<T>::IsConcreteTypeCompatibleWithReflectedType(Property);
-}
-
-/** Enum implementation. @see IsConcreteTypeCompatibleWithReflectedType */
-template<typename T>
-static inline typename TEnableIf<TIsEnum<T>::Value, bool>::Type IsConcreteTypeCompatibleWithReflectedType(FProperty* Property)
-{
-	return FConcreteTypeCompatibleWithReflectedTypeHelper<uint8>::IsConcreteTypeCompatibleWithReflectedType(Property);
+	if constexpr (TIsEnum<T>::Value || TIsTEnumAsByte<T>::Value)
+	{
+		return FConcreteTypeCompatibleWithReflectedTypeHelper<uint8>::IsConcreteTypeCompatibleWithReflectedType(Property);
+	}
+	else
+	{
+		return FConcreteTypeCompatibleWithReflectedTypeHelper<T>::IsConcreteTypeCompatibleWithReflectedType(Property);
+	}
 }
 
 template<typename T>
 inline bool PropertySizesMatch_Impl(FProperty* InProperty)
 {
+	if (FByteProperty* ByteProperty = CastField<FByteProperty>(InProperty))
+	{
+		return InProperty->ElementSize == sizeof(uint8);
+	}
+
 	return InProperty->ElementSize == sizeof(T);
 }
 
