@@ -69,7 +69,6 @@
 #include "AssetTypeActions/AssetTypeActions_CompositeDataTable.h"
 #include "AssetTypeActions/AssetTypeActions_Enum.h"
 #include "AssetTypeActions/AssetTypeActions_Class.h"
-#include "AssetTypeActions/AssetTypeActions_Struct.h"
 #include "AssetTypeActions/AssetTypeActions_Font.h"
 #include "AssetTypeActions/AssetTypeActions_FontFace.h"
 #include "AssetTypeActions/AssetTypeActions_ForceFeedbackAttenuation.h"
@@ -167,6 +166,7 @@
 #include "AssetDefinitionRegistry.h"
 #include "VirtualTexturingEditorModule.h"
 #include "Algo/AnyOf.h"
+#include "Engine/UserDefinedStruct.h"
 #include "Misc/AssetFilterData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AssetTools)
@@ -1259,7 +1259,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CompositeDataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Enum));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Class));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Struct));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SceneImportData));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Font));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_FontFace));

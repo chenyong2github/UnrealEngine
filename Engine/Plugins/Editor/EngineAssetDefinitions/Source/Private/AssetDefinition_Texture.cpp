@@ -27,12 +27,10 @@
 
 EAssetCommandResult UAssetDefinition_Texture::OpenAssets(const FAssetOpenArgs& OpenArgs) const
 {
-	const EToolkitMode::Type Mode = OpenArgs.ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
-
 	for (UTexture* Texture : OpenArgs.LoadObjects<UTexture>())
 	{
 		ITextureEditorModule* TextureEditorModule = &FModuleManager::LoadModuleChecked<ITextureEditorModule>("TextureEditor");
-		TextureEditorModule->CreateTextureEditor(Mode, OpenArgs.ToolkitHost, Texture);
+		TextureEditorModule->CreateTextureEditor(OpenArgs.GetToolkitMode(), OpenArgs.ToolkitHost, Texture);
 	}
 	
 	return EAssetCommandResult::Handled;

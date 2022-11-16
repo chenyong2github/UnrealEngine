@@ -83,6 +83,8 @@ struct FAssetOpenArgs : public FAssetArgs
 {
 	EAssetOpenMethod OpenMethod;
 	TSharedPtr<IToolkitHost> ToolkitHost;
+
+	EToolkitMode::Type GetToolkitMode() const { return ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone; }
 };
 
 struct FAssetActivateArgs : public FAssetArgs
@@ -215,16 +217,22 @@ private:
  */
 struct ASSETDEFINITION_API EAssetCategoryPaths
 {
+	// This category is special, "Basic" assets appear at the very top level and are not placed into any submenu.
+	// Arguably the basic category should not exist and should instead be user configurable on what they feel should be
+	// top level assets.
 	static FAssetCategoryPath Basic;
+	
 	static FAssetCategoryPath Animation;
-	static FAssetCategoryPath Material;
 	static FAssetCategoryPath Audio;
-	static FAssetCategoryPath Physics;
-	static FAssetCategoryPath UI;
-	static FAssetCategoryPath Misc;
-	static FAssetCategoryPath Gameplay;
 	static FAssetCategoryPath Blueprint;
+	static FAssetCategoryPath Foliage;
+	static FAssetCategoryPath Gameplay;
+	static FAssetCategoryPath Input;
+	static FAssetCategoryPath Material;
+	static FAssetCategoryPath Misc;
+	static FAssetCategoryPath Physics;
 	static FAssetCategoryPath Texture;
+	static FAssetCategoryPath UI;
 };
 
 struct FAssetOpenSupport
