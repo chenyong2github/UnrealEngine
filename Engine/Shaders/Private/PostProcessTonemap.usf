@@ -427,7 +427,7 @@ float4 TonemapCommonPS(
 #endif
 #else
 	// If eye adaptation is disabled (e.g. fixed exposure level ) or not available.  
-	float2 EyeAdaptationData = DefaultEyeExposure;
+	float2 EyeAdaptationData = DefaultEyeExposure.xx;
 #endif
 
 	float ExposureScale = EyeAdaptationData.x;
@@ -593,11 +593,6 @@ float4 TonemapCommonPS(
 			}
 			#endif
 		}
-		#endif
-
-		// TODO: doesn't need a shader permutation for a scalar.
-		#if NO_EYEADAPTATION_EXPOSURE_FIX == 1
-			ExposureScale = 1.0;
 		#endif
 		
 		LinearColor *= ExposureScale;

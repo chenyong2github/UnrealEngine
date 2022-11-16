@@ -1195,18 +1195,19 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 	// but this is too limiting for certain view. For instance shader preview doesn't have 
 	// volumetric lighting enabled, which makes the view be flagged as rich, and not updating 
 	// the pre-exposition value.
-	const bool bIsPreExposureRelevant =
-		ViewFamily.EngineShowFlags.EyeAdaptation && // Controls whether scene luminance is computed at all.
-		ViewFamily.EngineShowFlags.Lighting &&
-		ViewFamily.EngineShowFlags.PostProcessing &&
-		ViewFamily.bResolveScene &&
-		!ViewFamily.EngineShowFlags.LightMapDensity &&
-		!ViewFamily.EngineShowFlags.StationaryLightOverlap &&
-		!ViewFamily.EngineShowFlags.LightComplexity &&
-		!ViewFamily.EngineShowFlags.LODColoration &&
-		!ViewFamily.EngineShowFlags.HLODColoration &&
-		!ViewFamily.EngineShowFlags.LevelColoration &&
-		((!ViewFamily.EngineShowFlags.VisualizeBuffer) || View.CurrentBufferVisualizationMode != NAME_None); // disable pre-exposure for the buffer visualization modes
+	const bool bIsPreExposureRelevant = true
+		&& ViewFamily.EngineShowFlags.EyeAdaptation // Controls whether scene luminance is computed at all.
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& ViewFamily.EngineShowFlags.PostProcessing
+		&& ViewFamily.bResolveScene
+		&& !ViewFamily.EngineShowFlags.LightMapDensity
+		&& !ViewFamily.EngineShowFlags.StationaryLightOverlap
+		&& !ViewFamily.EngineShowFlags.LightComplexity
+		&& !ViewFamily.EngineShowFlags.LODColoration
+		&& !ViewFamily.EngineShowFlags.HLODColoration
+		&& !ViewFamily.EngineShowFlags.LevelColoration
+		&& ((!ViewFamily.EngineShowFlags.VisualizeBuffer) || View.CurrentBufferVisualizationMode != NAME_None) // disable pre-exposure for the buffer visualization modes
+		&& !ViewFamily.EngineShowFlags.RayTracingDebug;
 
 	PreExposure = 1.f;
 	bUpdateLastExposure = false;
