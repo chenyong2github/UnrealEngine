@@ -236,7 +236,11 @@ namespace UnrealGameSync
 			_queuedLines = new ConcurrentQueue<string>();
 			if(_logFileStream != null)
 			{
-				_logFileStream.SetLength(0);
+				try
+				{
+					_logFileStream.SetLength(0);
+				}
+				catch { }
 			}
 		}
 
