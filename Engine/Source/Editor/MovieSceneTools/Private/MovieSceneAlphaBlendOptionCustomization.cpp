@@ -69,7 +69,6 @@ void FAlphaBlendPropertyCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 	FilterExclude.Add(EMovieSceneBuiltInEasing::QuadIn);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::QuadOut);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::CubicOut);
-	FilterExclude.Add(EMovieSceneBuiltInEasing::CubicInOut);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::QuartIn);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::QuartOut);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::QuintIn);
