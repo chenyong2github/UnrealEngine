@@ -90,7 +90,7 @@ protected:
 	FText CurveToolTipInputText;		
 	FText CurveToolTipOutputText;
 	
-	const FSlateBrush* WhiteBrush;
+	const FSlateBrush* FillBrush;
 
 	bool bUseFixedRange;
 	float FixedRangeMin;
