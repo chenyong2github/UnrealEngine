@@ -176,5 +176,5 @@ protected:
 
 	bool bIsVirtualized = false;
 
-	friend class AudioComponentGroupDebug;
+	friend class FAudioComponentGroupDebug;
 };

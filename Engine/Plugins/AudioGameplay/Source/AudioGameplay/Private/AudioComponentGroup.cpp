@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioComponentGroup.h"
+#include "AudioComponentGroupDebug.h"
 #include "AudioParameter.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -264,7 +265,7 @@ void UAudioComponentGroup::TickComponent(float DeltaTime, enum ELevelTick TickTy
 	UpdateComponentParameters();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	//AudioComponentGroupDebug::DebugPrint(this);
+	FAudioComponentGroupDebug::DebugPrint(this);
 #endif
 }
 
