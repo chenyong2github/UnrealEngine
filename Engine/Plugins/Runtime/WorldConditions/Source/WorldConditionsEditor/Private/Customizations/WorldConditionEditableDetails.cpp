@@ -17,6 +17,8 @@
 #include "WorldConditionEditorStyle.h"
 #include "InstancedStructDetails.h"
 #include "WorldConditionSchema.h"
+#include "Editor.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "WorldCondition"
 
