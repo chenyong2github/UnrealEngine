@@ -748,8 +748,7 @@ public class Win64Platform : Platform
 
 			if (Process.ExitCode != 0)
 			{
-				Messages.Add(String.Format("Exit code: {0}", Process.ExitCode));
-				State.Break();
+				Messages.Add($"Failed to embed source server data for {PdbFile} (exit code: {Process.ExitCode})");
 			}
 
 			lock (State)
@@ -758,11 +757,6 @@ public class Win64Platform : Platform
 				{
 					CommandUtils.LogInformation(Message);
 				}
-			}
-
-			if (Process.ExitCode != 0)
-			{
-				throw new AutomationException("Failed to embed source server data for {0}", PdbFile);
 			}
 		}
 	}
