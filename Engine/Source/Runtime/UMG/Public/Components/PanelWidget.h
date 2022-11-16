@@ -58,6 +58,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
 	UPanelSlot* AddChild(UWidget* Content);
 
+#if WITH_EDITOR
+
 	/**
 	 * Swaps the widget out of the slot at the given index, replacing it with a different widget.
 	 *
@@ -66,8 +68,6 @@ public:
 	 * @return true if the index existed and the child could be replaced.
 	 */
 	bool ReplaceChildAt(int32 Index, UWidget* Content);
-
-#if WITH_EDITOR
 
 	/**
 	 * Swaps the child widget out of the slot, and replaces it with the new child widget.

@@ -148,6 +148,8 @@ UPanelSlot* UPanelWidget::AddChild(UWidget* Content)
 	return PanelSlot;
 }
 
+#if WITH_EDITOR
+
 bool UPanelWidget::ReplaceChildAt(int32 Index, UWidget* Content)
 {
 	if ( Index < 0 || Index >= Slots.Num() )
@@ -167,8 +169,6 @@ bool UPanelWidget::ReplaceChildAt(int32 Index, UWidget* Content)
 
 	return true;
 }
-
-#if WITH_EDITOR
 
 bool UPanelWidget::ReplaceChild(UWidget* CurrentChild, UWidget* NewChild)
 {
