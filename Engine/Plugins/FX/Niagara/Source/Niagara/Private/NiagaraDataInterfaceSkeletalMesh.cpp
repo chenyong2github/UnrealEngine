@@ -2816,6 +2816,8 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 {
 	static const TSet<FName> ValidGpuFunctions =
 	{
+		NDISkelMeshLocal::NAME_GetPreSkinnedLocalBounds,
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		FSkeletalMeshInterfaceHelper::GetTriCoordVerticesName,
 		FSkeletalMeshInterfaceHelper::GetTriangleCountName,
 		FSkeletalMeshInterfaceHelper::GetFilteredTriangleCountName,
