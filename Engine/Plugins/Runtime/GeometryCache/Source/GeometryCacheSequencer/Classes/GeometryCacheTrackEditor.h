@@ -22,7 +22,7 @@ class UGeometryCacheComponent;
 /**
  * Tools for Geometry Cache tracks
  */
-class FGeometryCacheTrackEditor : public FMovieSceneTrackEditor
+class GEOMETRYCACHESEQUENCER_API FGeometryCacheTrackEditor : public FMovieSceneTrackEditor
 {
 public:
 	/**
