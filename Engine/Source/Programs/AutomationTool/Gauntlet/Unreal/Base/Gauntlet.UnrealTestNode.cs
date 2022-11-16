@@ -864,7 +864,7 @@ namespace Gauntlet
 		public override string GetRunLocalCommand(string LaunchingBuildCommand)
 		{
 			string[] ArgsToNotDisplay =
-			{
+			new List<string>{
 					"test",
 					"tests",
 					"tempdir",
@@ -875,11 +875,20 @@ namespace Gauntlet
 					"RecordDeviceUsage",
 					"uploadreport",
 					"skipdashboardsubmit",
-			};
+					"ReportURL",
+					"ReportExportPath",
+					"WriteTestResultsForHorde",
+					"HordeTestDataKey",
+					"PublishTelemetryTo",
+					"ECBranch",
+					"ECChangelist",
+					"PreFlightChange",
+			}.Select(I => I.ToLower()).ToArray();
 
 			bool ShouldArgBeDisplayed(string InArg)
 			{
-				return !ArgsToNotDisplay.Any(str => InArg.StartsWith(str));
+				InArg = InArg.Split("=", 2).First().ToLower();
+				return !ArgsToNotDisplay.Any(str => InArg == str);
 			}
 			
 			string WrapParameterInQuotes(string InString)

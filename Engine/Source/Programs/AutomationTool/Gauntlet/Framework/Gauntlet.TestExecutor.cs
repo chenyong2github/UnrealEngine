@@ -105,7 +105,7 @@ namespace Gauntlet
 		/// </summary>
 		public TestExecutor(string InBuildCommand)
 		{
-			BuildCommandThatLaunchedExecutor = InBuildCommand;
+			BuildCommandThatLaunchedExecutor = InBuildCommand.Split(".").Last();
 			RunningTests = new List<TestExecutionInfo>();
 		}
 
