@@ -573,9 +573,13 @@ void UContentBundleUnsavedActorMonitor::Uninitialize()
 {
 	StopListeningOnActorEvents();
 
-	for (TWeakObjectPtr<AActor>& Actor : UnsavedActors)
+	for (TWeakObjectPtr<AActor>& ActorPtr : UnsavedActors)
 	{
-		ContentBundle->GetInjectedWorld()->DestroyActor(Actor.Get());
+		// @todo_ow: figure out how can this happen
+		if (AActor* Actor = ActorPtr.Get())
+		{
+			ContentBundle->GetInjectedWorld()->DestroyActor(Actor);
+		}
 	}
 	UnsavedActors.Empty();
 
