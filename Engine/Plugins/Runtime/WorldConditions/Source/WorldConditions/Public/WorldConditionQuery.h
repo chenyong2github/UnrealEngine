@@ -7,6 +7,7 @@
 #include "StructView.h"
 #include "WorldConditionBase.h"
 #include "WorldConditionTypes.h"
+#include "Templates/SubclassOf.h"
 #include "WorldConditionQuery.generated.h"
 
 struct FWorldConditionContext;

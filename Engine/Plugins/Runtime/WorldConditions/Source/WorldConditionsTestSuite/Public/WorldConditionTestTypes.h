@@ -7,6 +7,7 @@
 #include "WorldConditionSchema.h"
 #include "WorldConditionBase.h"
 #include "WorldConditionContext.h"
+#include "GameFramework/Actor.h"
 #include "WorldConditionTestTypes.generated.h"
 
 USTRUCT()
