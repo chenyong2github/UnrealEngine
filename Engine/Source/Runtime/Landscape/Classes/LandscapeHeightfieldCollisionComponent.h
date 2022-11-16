@@ -229,7 +229,7 @@ public:
 	/** 
 	 * Cooks raw height data into collision object binary stream
 	 */
-	virtual bool CookCollisionData(const FName& Format, bool bUseOnlyDefMaterial, bool bCheckDDC, TArray<uint8>& OutCookedData, TArray<UPhysicalMaterial*>& InOutMaterials) const;
+	virtual bool CookCollisionData(const FName& Format, bool bUseDefaultMaterialOnly, bool bCheckDDC, TArray<uint8>& OutCookedData, TArray<UPhysicalMaterial*>& InOutMaterials) const;
 
 	/** Modify a sub-region of the physics heightfield. Note that this does not update the physical material */
 	void UpdateHeightfieldRegion(int32 ComponentX1, int32 ComponentY1, int32 ComponentX2, int32 ComponentY2);
@@ -237,6 +237,23 @@ public:
 	/** Computes a hash of all the data that will impact final collision */
 	virtual uint32 ComputeCollisionHash() const;
 #endif
+
+	struct FWriteRuntimeDataParams
+	{
+		bool bUseDefaultMaterialOnly = false;
+		TArrayView<const uint16> Heights;
+		TArrayView<const uint16> SimpleHeights;
+		TArrayView<const uint8> DominantLayers;
+		TArrayView<const uint8> SimpleDominantLayers;
+		TArrayView<const uint8> RenderPhysicalMaterialIds;
+		TArrayView<const uint8> SimpleRenderPhysicalMaterialIds;
+	};
+
+	void GetCollisionSampleInfo(int32& OutCollisionSizeVerts, int32& OutSimpleCollisionSizeVerts, int32& OutNumSamples, int32& OutNumSimpleSamples) const;
+
+	// Writes to a cooked data buffer using raw heightfield data
+	LANDSCAPE_API bool WriteRuntimeData(const FWriteRuntimeDataParams& Params, TArray<uint8>& OutHeightfieldData, TArray<UPhysicalMaterial*>& InOutMaterials) const;
+
 	/** Gets the landscape info object for this landscape */
 	ULandscapeInfo* GetLandscapeInfo() const;
 
