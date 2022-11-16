@@ -985,6 +985,16 @@ void UAssetManager::StopBulkScanning()
 	GetAssetRegistry().SetTemporaryCachingMode(bOldTemporaryCachingMode);
 	
 	RebuildObjectReferenceList();
+
+	// Shrink some big containers because we've finished modifying them.
+	AssetPathMap.Shrink();
+	AssetTypeMap.Shrink();
+	for (const auto& Pair : AssetTypeMap)
+	{
+		FPrimaryAssetTypeData& AssetTypeData = *Pair.Value;
+		AssetTypeData.AssetMap.Shrink();
+		AssetTypeData.RealAssetScanPaths.Shrink();
+	}
 }
 
 bool UAssetManager::RegisterSpecificPrimaryAsset(const FPrimaryAssetId& PrimaryAssetId, const FAssetData& NewAssetData)
