@@ -1233,7 +1233,9 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 		if (HitProxy->IsA(HActor::StaticGetType()))
 		{
 			HActor* ActorHitProxy = static_cast<HActor*>(HitProxy);
-			if (ActorHitProxy->Actor == RootActorProxy.Get())
+
+			// Only perform the ray trace when not in UV mode, as it doesn't make sense to ray trace against UV space
+			if (ActorHitProxy->Actor == RootActorProxy.Get() && ProjectionMode != EDisplayClusterMeshProjectionType::UV)
 			{
 				if (ActorHitProxy->PrimComponent && ActorHitProxy->PrimComponent->IsA<UStaticMeshComponent>())
 				{

@@ -821,8 +821,8 @@ void FDisplayClusterLightCardEditorHelper::GetSceneViewInitOptions(
 
 	if (bIsOrthographic)
 	{
-		const float ZScale = 0.5f / HALF_WORLD_MAX;
-		const float ZOffset = HALF_WORLD_MAX;
+		const float ZScale = 0.5f / UE_OLD_HALF_WORLD_MAX;
+		const float ZOffset = UE_OLD_HALF_WORLD_MAX;
 
 		const float FOVScale = FMath::Tan(HalfFOV) / InDPIScale;
 
