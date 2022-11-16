@@ -8,6 +8,7 @@
 #include "IPropertyTypeCustomization.h"
 #include "KeyStructCustomization.h"
 
+class IDetailPropertyRow;
 class IDetailLayoutBuilder;
 
 class FInputContextDetails : public IDetailCustomization
@@ -38,10 +39,15 @@ private:
 
 	void RemoveMappingButton_OnClick() const;
 	void OnTriggersChanged() const;
+	void AddInputActionProperties(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder);
+	void OnInputActionTriggersChanged() const;
+	void OnInputActionModifiersChanged() const;
 
 	TSharedPtr<IPropertyTypeCustomization> KeyStructInstance;
 	TSharedPtr<IPropertyHandle> MappingPropertyHandle;
 	TSharedPtr<FKeyStructCustomization> KeyStructCustomization;
+	IDetailPropertyRow* InputActionTriggersPropertyRow = nullptr;
+	IDetailPropertyRow* InputActionModifiersPropertyRow = nullptr;
 };
 
 /**

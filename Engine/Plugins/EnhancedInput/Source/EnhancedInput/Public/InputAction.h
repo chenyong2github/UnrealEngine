@@ -34,6 +34,12 @@ public:
 	 * Returns a bitmask of supported trigger events that is built from each UInputTrigger on this Action.
 	 */
 	ETriggerEventsSupported GetSupportedTriggerEvents() const;
+
+	DECLARE_MULTICAST_DELEGATE(FTriggersChanged);
+	DECLARE_MULTICAST_DELEGATE(FModifiersChanged);
+
+	FTriggersChanged OnTriggersChanged;
+	FModifiersChanged OnModifiersChanged;
 #endif // WITH_EDITOR
 	
 	/**

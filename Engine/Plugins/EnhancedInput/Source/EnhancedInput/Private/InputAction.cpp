@@ -110,6 +110,16 @@ TSet<const UInputAction*> UInputAction::ActionsWithModifiedValueTypes;
 
 void UInputAction::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	// if our value changes were to the trigger or modifier array broadcast the change
+	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UInputAction, Modifiers))
+	{
+		OnModifiersChanged.Broadcast();
+	}
+	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UInputAction, Triggers))
+	{
+		OnTriggersChanged.Broadcast();
+	}
+	
 	// If our value type changes we need to inform any blueprint InputActionEx nodes that refer to this action
 	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UInputAction, ValueType) ||
 		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UInputAction, Triggers))
