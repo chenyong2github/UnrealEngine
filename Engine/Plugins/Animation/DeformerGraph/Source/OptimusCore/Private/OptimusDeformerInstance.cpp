@@ -3,6 +3,8 @@
 #include "OptimusDeformerInstance.h"
 
 #include "Components/MeshComponent.h"
+#include "ComputeFramework/ComputeFramework.h"
+#include "ComputeWorkerInterface.h"
 #include "DataInterfaces/OptimusDataInterfaceGraph.h"
 #include "OptimusComputeGraph.h"
 #include "OptimusDataTypeRegistry.h"
@@ -427,20 +429,46 @@ bool UOptimusDeformerInstance::IsActive() const
 	return !ComputeGraphExecInfos.IsEmpty();
 }
 
-void UOptimusDeformerInstance::EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, FName InOwnerName)
+void UOptimusDeformerInstance::EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, EExectutionGroup InExecutionGroup, FName InOwnerName)
 {
+	// Convert execution group enum to ComputeTaskExecutionGroup name.
+	FName ExecutionGroupName;
+	switch (InExecutionGroup)
+	{
+	case UMeshDeformerInstance::ExecutionGroup_Immediate:
+		ExecutionGroupName = ComputeTaskExecutionGroup::Immediate;
+		break;
+	case UMeshDeformerInstance::ExecutionGroup_Default:
+	case UMeshDeformerInstance::ExecutionGroup_EndOfFrameUodate:
+		ExecutionGroupName = ComputeTaskExecutionGroup::EndOfFrameUpdate;
+		break;
+	default:
+		ensure(0);
+		return;
+	}
+
+	// Get the current queued graphs.
 	TSet<FName> GraphsToRun;
 	{
 		UE::TScopeLock<FCriticalSection> Lock(GraphsToRunOnNextTickLock);
 		Swap(GraphsToRunOnNextTick, GraphsToRun);
 	}
 	
+	// Enqueue work.
+	bool bIsWorkEnqueued = false;
 	for (FOptimusDeformerInstanceExecInfo& Info: ComputeGraphExecInfos)
 	{
 		if (Info.GraphType == EOptimusNodeGraphType::Update || GraphsToRun.Contains(Info.GraphName))
 		{
-			Info.ComputeGraphInstance.EnqueueWork(Info.ComputeGraph, InScene, InOwnerName);
+			Info.ComputeGraphInstance.EnqueueWork(Info.ComputeGraph, InScene, ExecutionGroupName, InOwnerName);
+			bIsWorkEnqueued = true;
 		}
+	}
+
+	// If this was enqueued to the Immediate group then flush all work on that group now.
+	if (bIsWorkEnqueued && InExecutionGroup == UMeshDeformerInstance::ExecutionGroup_Immediate)
+	{
+		ComputeFramework::FlushWork(InScene, ExecutionGroupName);
 	}
 }
 

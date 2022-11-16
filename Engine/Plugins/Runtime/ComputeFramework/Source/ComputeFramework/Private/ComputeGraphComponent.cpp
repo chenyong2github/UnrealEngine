@@ -3,6 +3,7 @@
 #include "ComputeFramework/ComputeGraphComponent.h"
 
 #include "ComputeFramework/ComputeGraph.h"
+#include "ComputeWorkerInterface.h"
 #include "GameFramework/Actor.h"
 
 UComputeGraphComponent::UComputeGraphComponent()
@@ -61,5 +62,5 @@ void UComputeGraphComponent::SendRenderDynamicData_Concurrent()
 {
 	Super::SendRenderDynamicData_Concurrent();
 	
-	ComputeGraphInstance.EnqueueWork(ComputeGraph, GetScene(), GetOwner()->GetFName());
+	ComputeGraphInstance.EnqueueWork(ComputeGraph, GetScene(), ComputeTaskExecutionGroup::EndOfFrameUpdate, GetOwner()->GetFName());
 }

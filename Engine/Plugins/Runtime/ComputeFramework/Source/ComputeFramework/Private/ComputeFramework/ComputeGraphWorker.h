@@ -21,14 +21,16 @@ class FComputeGraphTaskWorker : public IComputeTaskWorker
 public:
 	/** Enqueue a compute graph for execution. */
 	void Enqueue(
+		FName InExecutionGroupName,
 		FName InOwnerName,
 		FComputeGraphRenderProxy const* InGraphRenderProxy, 
 		TArray<FComputeDataProviderRenderProxy*> InDataProviderRenderProxies );
 
 	/** Submit enqueued compute graph work. */
 	void SubmitWork(
-		FRHICommandListImmediate& RHICmdList,
-		ERHIFeatureLevel::Type FeatureLevel ) override;
+		FRDGBuilder& GraphBuilder,
+		FName InExecutionGroupName,
+		ERHIFeatureLevel::Type InFeatureLevel ) override;
 
 private:
 	/** Description of each graph that is enqueued. */
@@ -44,5 +46,6 @@ private:
 		~FGraphInvocation();
 	};
 
-	TArray<FGraphInvocation> GraphInvocations;
+	/** Map of enqueued work per execution group . */
+	TMap<FName, TArray<FGraphInvocation> > GraphInvocationsPerGroup;
 };

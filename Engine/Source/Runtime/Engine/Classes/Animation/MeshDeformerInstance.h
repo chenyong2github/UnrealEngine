@@ -37,6 +37,14 @@ public:
 		WorkLoad_Update,
 	};
 
+	/** Enumeration for exectution groups to enqueue on. */
+	enum EExectutionGroup
+	{
+		ExecutionGroup_Default,
+		ExecutionGroup_Immediate,
+		ExecutionGroup_EndOfFrameUodate,
+	};
+
 	/** Called to allocate any persistent render resources */
 	virtual void AllocateResources() PURE_VIRTUAL(, );
 
@@ -47,5 +55,11 @@ public:
 	virtual bool IsActive() const PURE_VIRTUAL(, return false;);
 	
 	/** Enqueue the mesh deformer workload on a scene. InOwnerName is used for debugging. */
-	virtual void EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, FName InOwnerName) PURE_VIRTUAL(, );
+	virtual void EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, EExectutionGroup InExecutionGroup, FName InOwnerName) PURE_VIRTUAL(, );
+
+	/** For backwards compatibility. To deprecate. */
+	void EnqueueWork(FSceneInterface* InScene, EWorkLoad InWorkLoadType, FName InOwnerName)
+	{
+		EnqueueWork(InScene, InWorkLoadType, ExecutionGroup_Default, InOwnerName);
+	}
 };

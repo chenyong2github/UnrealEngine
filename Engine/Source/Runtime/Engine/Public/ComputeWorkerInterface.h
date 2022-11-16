@@ -14,5 +14,12 @@ public:
 	virtual ~IComputeTaskWorker() {}
 
 	/** Add any scheduled work to an RDGBuilder ready for execution. */
-	virtual void SubmitWork(class FRHICommandListImmediate& RHIComdList, ERHIFeatureLevel::Type FeatureLevel) = 0;
+	virtual void SubmitWork(class FRDGBuilder& GraphBuilder, FName InExecutionGroupName, ERHIFeatureLevel::Type FeatureLevel) = 0;
+};
+
+/** Core execution group names for use in IComputeTaskWorker::SubmitWork(). */
+struct ENGINE_API ComputeTaskExecutionGroup
+{
+	static FName Immediate;
+	static FName EndOfFrameUpdate;
 };

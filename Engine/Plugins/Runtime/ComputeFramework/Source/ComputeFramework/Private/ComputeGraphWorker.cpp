@@ -14,26 +14,25 @@
 
 DECLARE_GPU_STAT_NAMED(ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::ExecuteBatches"));
 
-void FComputeGraphTaskWorker::Enqueue(FName InOwnerName, FComputeGraphRenderProxy const* InGraphRenderProxy, TArray<FComputeDataProviderRenderProxy*> InDataProviderRenderProxies)
+void FComputeGraphTaskWorker::Enqueue(FName InExecutionGroupName, FName InOwnerName, FComputeGraphRenderProxy const* InGraphRenderProxy, TArray<FComputeDataProviderRenderProxy*> InDataProviderRenderProxies)
 {
-	FGraphInvocation& GraphInvocation = GraphInvocations.AddDefaulted_GetRef();
+	FGraphInvocation& GraphInvocation = GraphInvocationsPerGroup.FindOrAdd(InExecutionGroupName).AddDefaulted_GetRef();
 	GraphInvocation.OwnerName = InOwnerName;
 	GraphInvocation.GraphRenderProxy = InGraphRenderProxy;
 	GraphInvocation.DataProviderRenderProxies = MoveTemp(InDataProviderRenderProxies);
 }
 
-void FComputeGraphTaskWorker::SubmitWork(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExecutionGroupName, ERHIFeatureLevel::Type FeatureLevel)
 {
+	TArray<FGraphInvocation>& GraphInvocations = GraphInvocationsPerGroup.FindOrAdd(InExecutionGroupName);
 	if (GraphInvocations.IsEmpty())
 	{
 		return;
 	}
 
 	{
-		SCOPED_DRAW_EVENTF(RHICmdList, ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::ExecuteBatches"));
-		SCOPED_GPU_STAT(RHICmdList, ComputeFramework_ExecuteBatches);
-
-		FRDGBuilder GraphBuilder(RHICmdList);
+		SCOPED_DRAW_EVENTF(GraphBuilder.RHICmdList, ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::ExecuteBatches"));
+		SCOPED_GPU_STAT(GraphBuilder.RHICmdList, ComputeFramework_ExecuteBatches);
 
 		for (int32 GraphIndex = 0; GraphIndex < GraphInvocations.Num(); ++GraphIndex)
 		{
@@ -113,16 +112,12 @@ void FComputeGraphTaskWorker::SubmitWork(FRHICommandListImmediate& RHICmdList, E
 
 		// Release any graph resources at the end of graph execution.
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Release Data Providers"), 
-			ERDGPassFlags::None, 
-			[this](FRHICommandList&) 
-		{
-			GraphInvocations.Reset(); 
-		});
-
-		// Execute graph.
-		// todo[CF]: We can pull this out into calling code so that graph can be shared with other work.
-		GraphBuilder.Execute();
+			RDG_EVENT_NAME("Release Data Providers"),
+			ERDGPassFlags::None,
+			[this, InExecutionGroupName](FRHICommandList&)
+			{
+				GraphInvocationsPerGroup.FindChecked(InExecutionGroupName).Reset();
+			});
 	}
 }
 

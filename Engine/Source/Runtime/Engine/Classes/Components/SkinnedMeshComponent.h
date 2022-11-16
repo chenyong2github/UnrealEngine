@@ -707,9 +707,6 @@ protected:
 	/** Whether we have updated bone visibility this tick */
 	uint8 bBoneVisibilityDirty:1;
 
-	/** Whether mesh deformer state is dirty and will need updating at the next tick. */
-	uint8 bUpdateDeformerAtNextTick : 1;
-
 private:
 	/** If true, UpdateTransform will always result in a call to MeshObject->Update. */
 	UPROPERTY(transient)

@@ -412,8 +412,6 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 	bNeedToFlipSpaceBaseBuffers = false;
 	bBoneVisibilityDirty = false;
 
-	bUpdateDeformerAtNextTick = false;
-
 	bCanEverAffectNavigation = false;
 	LeaderBoneMapCacheCount = 0;
 	bSyncAttachParentLOD = true;
@@ -904,14 +902,6 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 				}
 			}
 
-			if (MeshDeformerInstance)
-			{
-				MeshDeformerInstance->AllocateResources();
-				
-				// After creating the MeshObject we need to run the MeshDeformer at least once to set up the vertex data.
-				bUpdateDeformerAtNextTick = true;
-			}
-
 			//Allow the editor a chance to manipulate it before its added to the scene
 			PostInitMeshObject(MeshObject);
 		}
@@ -964,6 +954,16 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 
 		// scene proxy update of material usage based on active morphs
 		UpdateMorphMaterialUsageOnProxy();
+	}
+ 
+ 	if (MeshDeformerInstance)
+ 	{
+		MeshDeformerInstance->AllocateResources();
+		if (MeshDeformerInstance->IsActive())
+		{
+			// Enqueue immediate execution of work here to ensure that we have some deformer outputs written for the next frame.
+			MeshDeformerInstance->EnqueueWork(GetScene(), UMeshDeformerInstance::WorkLoad_Update, UMeshDeformerInstance::ExecutionGroup_Immediate, GetSkinnedAsset()->GetFName());
+		}
 	}
 }
 
@@ -1079,7 +1079,7 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 		{
 			if (MeshDeformerInstance->IsActive())
 			{
-				MeshDeformerInstance->EnqueueWork(GetScene(), UMeshDeformerInstance::WorkLoad_Update, GetSkinnedAsset()->GetFName());
+				MeshDeformerInstance->EnqueueWork(GetScene(), UMeshDeformerInstance::WorkLoad_Update, UMeshDeformerInstance::ExecutionGroup_Default, GetSkinnedAsset()->GetFName());
 			}
 			else
 			{
@@ -1306,12 +1306,6 @@ void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 		}
 	}
 #endif // WITH_EDITOR
-
-	if (bUpdateDeformerAtNextTick)
-	{
-		MarkRenderDynamicDataDirty();
-		bUpdateDeformerAtNextTick = false;
-	}
 }
 
 UObject const* USkinnedMeshComponent::AdditionalStatObject() const
@@ -1914,7 +1908,7 @@ bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
 	static const IConsoleVariable* CVarDefaultGPUSkinCacheBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.DefaultBehavior"));
 	const bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
 
-	if (HasMeshDeformer())
+	if (MeshDeformerInstance != nullptr)
 	{
 		// Disable skin cache if a mesh deformer is in use.
 		// Any animation buffers are expected to be owned by the MeshDeformer.

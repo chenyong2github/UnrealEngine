@@ -67,6 +67,7 @@
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "GPUSkinCache.h"
 #include "ComputeWorkerInterface.h"
+#include "RenderGraphBuilder.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -1032,7 +1033,9 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOfFr
 				SCOPED_GPU_STAT(RHICmdList, ComputeTaskWorkerUpdates);
 				for (IComputeTaskWorker* ComputeTaskWorker : ComputeTaskWorkers)
 				{
-					ComputeTaskWorker->SubmitWork(RHICmdList, FeatureLevel);
+					FRDGBuilder GraphBuilder(RHICmdList);
+					ComputeTaskWorker->SubmitWork(GraphBuilder, ComputeTaskExecutionGroup::EndOfFrameUpdate, FeatureLevel);
+					GraphBuilder.Execute();
 				}
 			}
 		});
