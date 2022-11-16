@@ -6,6 +6,8 @@
 #include "IPlatformFilePak.h"
 #include "Containers/Ticker.h"
 #include "Misc/CommandLine.h"
+#include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
