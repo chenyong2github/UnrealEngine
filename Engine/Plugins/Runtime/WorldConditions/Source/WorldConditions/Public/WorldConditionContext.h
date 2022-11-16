@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -125,7 +125,7 @@ struct WORLDCONDITIONS_API FWorldConditionContextData
 		const int32 Index = Schema->GetContextDataIndexByName(Name, T::StaticStruct());
 		if (Index != INDEX_NONE)
 		{
-			checkSlow(T::StaticStruct()->IsChildOf(Schema->GetContextDataDescByIndex(Index)->Struct));
+			checkSlow(T::StaticStruct()->IsChildOf(Schema->GetContextDataDescByIndex(Index).Struct));
 			Views[Index] = FWorldConditionDataView(T::StaticStruct(), reinterpret_cast<const uint8*>(Value), Schema->GetContextDataTypeByIndex(Index));
 			return true;
 		}
@@ -140,7 +140,7 @@ struct WORLDCONDITIONS_API FWorldConditionContextData
 		const int32 Index = Schema->GetContextDataIndexByName(Name, T::StaticClass());
 		if (Index != INDEX_NONE)
 		{
-			checkSlow(T::StaticStruct()->IsChildOf(Schema->GetContextDataDescByIndex(Index)->Struct));
+			checkSlow(T::StaticStruct()->IsChildOf(Schema->GetContextDataDescByIndex(Index).Struct));
 			Views[Index] = FWorldConditionDataView(Object, Schema->GetContextDataTypeByIndex(Index));
 			return true;
 		}

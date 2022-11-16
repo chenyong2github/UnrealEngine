@@ -9,10 +9,12 @@ FWorldConditionBase::~FWorldConditionBase()
 	// Empty
 }
 
+#if WITH_EDITOR
 FText FWorldConditionBase::GetDescription() const
 {
 	return StaticStruct()->GetDisplayNameText();
 }
+#endif
 
 bool FWorldConditionBase::Initialize(const UWorldConditionSchema& Schema)
 {

@@ -86,8 +86,10 @@ struct WORLDCONDITIONS_API FWorldConditionBase
 	/** @return The Instance data type of the condition. */
 	virtual const UStruct* GetRuntimeStateType() const { return nullptr; }
 
+#if WITH_EDITOR
 	/** @retrun Description to be shown in the UI. */
 	virtual FText GetDescription() const;
+#endif
 
 	/**
 	 * Initializes the condition to be used with a specific schema.

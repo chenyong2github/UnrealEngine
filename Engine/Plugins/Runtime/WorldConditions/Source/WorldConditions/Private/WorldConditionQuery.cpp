@@ -286,7 +286,9 @@ bool FWorldConditionQuery::DebugInitialize(const TSubclassOf<UWorldConditionSche
 	}
 
 	QueryDefinition.SchemaClass = InSchemaClass;
+#if WITH_EDITORONLY_DATA
 	QueryDefinition.EditableConditions = InConditions;
+#endif
 	return QueryDefinition.Initialize();
 }
 
