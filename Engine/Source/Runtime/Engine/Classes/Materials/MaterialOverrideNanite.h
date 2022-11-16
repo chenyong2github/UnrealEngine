@@ -63,6 +63,17 @@ struct FMaterialOverrideNanite
 	void ClearOverride();
 #endif
 
+	/** 
+	 * Setup the object directly.
+	 * Beware that this avoids all the protections around keeping the hard pointer unresolved on non-nanite platforms.
+	 */
+	void InitUnsafe(UMaterialInterface* InMaterial)
+	{
+		OverrideMaterialRef = InMaterial;
+		OverrideMaterial = InMaterial;
+		bEnableOverride = true;
+	}
+
 protected:
 	/** Cached hard reference to override material which is only created if necessary. */
 	UPROPERTY()

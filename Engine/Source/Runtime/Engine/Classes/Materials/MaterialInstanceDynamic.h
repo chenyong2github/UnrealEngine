@@ -186,6 +186,8 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	 */
 	void CopyScalarAndVectorParameters(const UMaterialInterface& SourceMaterialToCopyFrom, ERHIFeatureLevel::Type FeatureLevel);
 
+	void SetNaniteOverride(UMaterialInterface* InMaterial);
+
 	virtual bool HasOverridenBaseProperties()const override{ return false; }
 
 	//Material base property overrides. MIDs cannot override these so they just grab from their parent.

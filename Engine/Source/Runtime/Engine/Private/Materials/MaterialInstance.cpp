@@ -1621,6 +1621,11 @@ void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInte
 	}
 }
 
+void UMaterialInstanceDynamic::SetNaniteOverride(UMaterialInterface* InMaterial)
+{
+	NaniteOverrideMaterial.InitUnsafe(InMaterial);
+}
+
 float UMaterialInstanceDynamic::GetOpacityMaskClipValue() const
 {
 	return Parent ? Parent->GetOpacityMaskClipValue() : 0.0f;
