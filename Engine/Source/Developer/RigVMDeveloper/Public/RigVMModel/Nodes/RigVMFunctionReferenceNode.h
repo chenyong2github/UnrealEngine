@@ -33,6 +33,8 @@ public:
 	virtual const FRigVMTemplate* GetTemplate() const override { return nullptr; }
 	// end URigVMLibraryNode interface
 
+	bool IsReferencedFunctionHostLoaded() const;
+	bool IsReferencedNodeLoaded() const;
 	URigVMLibraryNode* LoadReferencedNode() const;
 
 	// Variable remapping

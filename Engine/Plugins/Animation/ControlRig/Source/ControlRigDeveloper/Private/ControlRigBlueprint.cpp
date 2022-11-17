@@ -690,11 +690,14 @@ void UControlRigBlueprint::Serialize(FArchive& Ar)
 
 	if(Ar.IsObjectReferenceCollector())
 	{
-		TArray<UControlRigBlueprint*> ReferencedBlueprints = GetReferencedControlRigBlueprints();
+		TArray<IRigVMGraphFunctionHost*> ReferencedFunctionHosts = GetReferencedFunctionHosts(false);
 
-		for(UControlRigBlueprint* ReferencedBlueprint : ReferencedBlueprints)
+		for(IRigVMGraphFunctionHost* ReferencedFunctionHost : ReferencedFunctionHosts)
 		{
-			Ar << ReferencedBlueprints;
+			if (UControlRigBlueprintGeneratedClass* BPGeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ReferencedFunctionHost))
+			{
+				Ar << BPGeneratedClass;
+			}
 		}
 
 		for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibraryPtr : ShapeLibraries)
@@ -767,15 +770,18 @@ void UControlRigBlueprint::PostLoad()
 	{
 		TGuardValue<bool> IsCompilingGuard(bIsCompiling, true);
 		
-		TArray<UControlRigBlueprint*> ReferencedBlueprints = GetReferencedControlRigBlueprints();
+		TArray<IRigVMGraphFunctionHost*> ReferencedFunctionHosts = GetReferencedFunctionHosts(true);
 
-		// PostLoad all referenced BPs so that their function graphs are fully loaded 
+		// PostLoad all referenced function hosts so that their function data are fully loaded 
 		// and ready to be inlined into this BP during compilation
-		for (UControlRigBlueprint* BP : ReferencedBlueprints)
+		for (IRigVMGraphFunctionHost* FunctionHost : ReferencedFunctionHosts)
 		{
-			if (BP->HasAllFlags(RF_NeedPostLoad))
+			if (UControlRigBlueprintGeneratedClass* BPGeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(FunctionHost))
 			{
-				BP->ConditionalPostLoad();
+				if (BPGeneratedClass->HasAllFlags(RF_NeedPostLoad))
+				{
+					BPGeneratedClass->ConditionalPostLoad();
+				}
 			}
 		}
 		
@@ -1639,9 +1645,9 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 	}
 }
 
-TArray<UControlRigBlueprint*> UControlRigBlueprint::GetReferencedControlRigBlueprints()
+TArray<IRigVMGraphFunctionHost*> UControlRigBlueprint::GetReferencedFunctionHosts(bool bForceLoad)
 {
-	TArray<UControlRigBlueprint*> ReferencedBlueprints;
+	TArray<IRigVMGraphFunctionHost*> ReferencedBlueprints;
 	
 	TArray<UEdGraph*> EdGraphs;
 	GetAllGraphs(EdGraphs);
@@ -1653,15 +1659,31 @@ TArray<UControlRigBlueprint*> UControlRigBlueprint::GetReferencedControlRigBluep
 			{
 				if(URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode()))
 				{
-					if(const URigVMLibraryNode* ReferencedNode = FunctionRefNode->LoadReferencedNode())
+					IRigVMGraphFunctionHost* Host = nullptr;
+					if (bForceLoad || FunctionRefNode->IsReferencedFunctionHostLoaded())
 					{
-						if(URigVMFunctionLibrary* ReferencedFunctionLibrary = ReferencedNode->GetLibrary())
+						// Load the function host
+						Host = FunctionRefNode->GetReferencedFunctionHeader().GetFunctionHost();
+					}
+					else if (bForceLoad || FunctionRefNode->IsReferencedNodeLoaded())
+					{
+						// Load the reference library node
+						if(const URigVMLibraryNode* ReferencedNode = FunctionRefNode->LoadReferencedNode())
 						{
-							if(ReferencedFunctionLibrary == GetLocalFunctionLibrary())
+							if(URigVMFunctionLibrary* ReferencedFunctionLibrary = ReferencedNode->GetLibrary())
 							{
-								continue;
+								FSoftObjectPath FunctionHostPath = ReferencedFunctionLibrary->GetFunctionHostObjectPath();
+								if (UObject* FunctionHostObj = FunctionHostPath.TryLoad())
+								{
+									Host = Cast<IRigVMGraphFunctionHost>(FunctionHostObj);									
+								}
 							}
 						}
+					}
+
+					if (Host != nullptr && Host != GetControlRigBlueprintGeneratedClass())
+					{
+						ReferencedBlueprints.Add(Host);
 					}
 				}
 			}

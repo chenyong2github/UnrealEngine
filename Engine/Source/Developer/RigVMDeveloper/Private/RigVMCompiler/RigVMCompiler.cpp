@@ -928,8 +928,6 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 		ReportInfof(TEXT("Total Compilation time %f\n"), CompilationTime*1000);
 	}
 
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n\n"), *WorkData.VM->DumpByteCodeAsText());
-
 	return true;
 }
 

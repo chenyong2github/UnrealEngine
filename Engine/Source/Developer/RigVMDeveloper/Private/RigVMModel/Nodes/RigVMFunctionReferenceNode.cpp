@@ -9,47 +9,27 @@
 
 FString URigVMFunctionReferenceNode::GetNodeTitle() const
 {
-	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
-	{
-		return Data->Header.NodeTitle;
-	}
-	return Super::GetNodeTitle();
+	return ReferencedFunctionHeader.NodeTitle;
 }
 
 FLinearColor URigVMFunctionReferenceNode::GetNodeColor() const
 {
-	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
-	{
-		return Data->Header.NodeColor;
-	}
-	return Super::GetNodeColor();
+	return ReferencedFunctionHeader.NodeColor;
 }
 
 FText URigVMFunctionReferenceNode::GetToolTipText() const
 {
-	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
-	{
-		return Data->Header.Tooltip;
-	}
-	return Super::GetToolTipText();
+	return ReferencedFunctionHeader.Tooltip;
 }
 
 FString URigVMFunctionReferenceNode::GetNodeCategory() const
 {
-	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
-	{
-		return Data->Header.Category;
-	}
-	return Super::GetNodeCategory();
+	return ReferencedFunctionHeader.Category;
 }
 
 FString URigVMFunctionReferenceNode::GetNodeKeywords() const
 {
-	if (const FRigVMGraphFunctionData* Data = GetReferencedFunctionData())
-	{
-		return Data->Header.Keywords;
-	}
-	return Super::GetNodeKeywords();
+	return ReferencedFunctionHeader.Keywords;
 }
 
 bool URigVMFunctionReferenceNode::RequiresVariableRemapping() const
@@ -170,6 +150,16 @@ FText URigVMFunctionReferenceNode::GetToolTipTextForPin(const URigVMPin* InPin) 
 	}
 	
 	return Super::GetToolTipTextForPin(InPin);
+}
+
+bool URigVMFunctionReferenceNode::IsReferencedFunctionHostLoaded() const
+{
+	return ReferencedFunctionHeader.LibraryPointer.HostObject.ResolveObject() != nullptr;
+}
+
+bool URigVMFunctionReferenceNode::IsReferencedNodeLoaded() const
+{
+	return ReferencedFunctionHeader.LibraryPointer.LibraryNode.ResolveObject() != nullptr;
 }
 
 URigVMLibraryNode* URigVMFunctionReferenceNode::LoadReferencedNode() const

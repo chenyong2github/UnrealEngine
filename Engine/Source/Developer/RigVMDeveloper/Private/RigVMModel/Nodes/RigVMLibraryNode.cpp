@@ -221,7 +221,10 @@ TMap<FRigVMGraphFunctionIdentifier, uint32> URigVMLibraryNode::GetDependencies()
 FRigVMGraphFunctionIdentifier URigVMLibraryNode::GetFunctionIdentifier() const
 {
 	FRigVMGraphFunctionIdentifier Identifier;
-	Identifier.HostObject = GetLibrary()->GetFunctionHostObjectPath();
+	if (URigVMFunctionLibrary* Library = GetLibrary())
+	{
+		Identifier.HostObject = Library->GetFunctionHostObjectPath();
+	}
 	Identifier.LibraryNode = this;
 	return Identifier;
 }

@@ -183,10 +183,6 @@ void URigVMBuildData::RegisterFunctionReference(FRigVMReferenceNodeData InRefere
 	if (!bFound)
 	{
 		FRigVMGraphFunctionIdentifier Pointer(nullptr, LibraryNodePtr.ToSoftObjectPath());
-		if (!LibraryNodePtr.IsValid())
-		{
-			LibraryNodePtr.LoadSynchronous();
-		}
 		if (LibraryNodePtr.IsValid())
 		{
 			Pointer.HostObject = Cast<UObject>(LibraryNodePtr.Get()->GetFunctionHeader().GetFunctionHost());

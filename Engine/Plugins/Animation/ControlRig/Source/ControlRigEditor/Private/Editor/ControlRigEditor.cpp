@@ -612,8 +612,8 @@ void FControlRigEditor::InitFunctionReferences()
 		return;
 	}
 	
-	//FFunctionGraphTask::CreateAndDispatchWhenReady([]()
-	//{
+	FFunctionGraphTask::CreateAndDispatchWhenReady([]()
+	{
 		if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
 		{
 			const FArrayProperty* ReferenceNodeDataProperty =
@@ -655,7 +655,7 @@ void FControlRigEditor::InitFunctionReferences()
 				}
 			}
 		}
-	//}, TStatId(), NULL, ENamedThreads::GameThread);
+	}, TStatId(), NULL, ENamedThreads::GameThread);
 	
 	bAreFunctionReferencesInitialized = true;
 }

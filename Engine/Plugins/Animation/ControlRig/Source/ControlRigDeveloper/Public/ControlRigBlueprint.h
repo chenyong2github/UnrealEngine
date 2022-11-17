@@ -735,7 +735,7 @@ private:
 	bool RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNode, bool bNotify = false);
 	void HandleReportFromCompiler(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage);
 
-	TArray<UControlRigBlueprint*> GetReferencedControlRigBlueprints();
+	TArray<IRigVMGraphFunctionHost*> GetReferencedFunctionHosts(bool bForceLoad);
 	
 #if WITH_EDITOR
 private:
