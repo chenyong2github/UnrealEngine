@@ -94,6 +94,7 @@ private:
 
 	void ProcessJoinFailure();
 
+	bool ShouldAlwaysCreateLocalPlatformSession() const;
 	bool ShouldRecordAsRecentPlayer(const FUniqueNetId& LocalUserId, const UPartyMember* PartyMember);
 	void UpdateRecentPlayersOfLocalMembers(const TArray<UPartyMember*>& RecentPlayers);
 	void UpdateRecentPlayersOfLocalUser(const FUniqueNetId& LocalUserId, const TArray<UPartyMember*>& Members);

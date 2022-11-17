@@ -104,6 +104,10 @@ static FAutoConsoleVariableRef CVar_EstablishSessionRetryDelay(
 	ECVF_Default
 );
 
+#if PARTY_PLATFORM_SESSIONS_XBL
+extern TAutoConsoleVariable<bool> CVarXboxMpaEnabled;
+#endif
+
 //////////////////////////////////////////////////////////////////////////
 // FPartySessionManager
 //////////////////////////////////////////////////////////////////////////
@@ -475,15 +479,22 @@ void FPartyPlatformSessionMonitor::EvaluateCurrentSession()
 		}
 		else
 		{
-			for (UPartyMember* Member : MonitoredParty->GetPartyMembers())
+			if (ShouldAlwaysCreateLocalPlatformSession())
 			{
-				if (Member->IsLocalPlayer())
+				CreateSession(SessionManager->GetLocalUserPlatformId());
+			}
+			else
+			{
+				for (UPartyMember* Member : MonitoredParty->GetPartyMembers())
 				{
-					if (ExistingSessionInfo->IsSessionOwner(*Member))
+					if (Member->IsLocalPlayer())
 					{
-						// There is no session ID yet, but the session owner is a local player, so it's on us to create it now
-						CreateSession(Member->GetRepData().GetPlatformDataUniqueId());
-						break;
+						if (ExistingSessionInfo->IsSessionOwner(*Member))
+						{
+							// There is no session ID yet, but the session owner is a local player, so it's on us to create it now
+							CreateSession(Member->GetRepData().GetPlatformDataUniqueId());
+							break;
+						}
 					}
 				}
 			}
@@ -821,6 +832,18 @@ void FPartyPlatformSessionMonitor::HandlePartyMemberCreated(UPartyMember& NewMem
 	}
 }
 
+bool FPartyPlatformSessionMonitor::ShouldAlwaysCreateLocalPlatformSession() const
+{
+#if PARTY_PLATFORM_SESSIONS_XBL
+	if (CVarXboxMpaEnabled.GetValueOnAnyThread())
+	{
+		return true;
+	}
+#endif
+
+	return false;
+}
+
 bool FPartyPlatformSessionMonitor::ShouldRecordAsRecentPlayer(const FUniqueNetId& LocalUserId, const UPartyMember* PartyMember)
 {
 	if (PartyMember->GetPlatformOssName() != LocalUserId.GetType())
@@ -1061,10 +1084,6 @@ void FPartyPlatformSessionMonitor::HandleDestroySessionComplete(FName SessionNam
 	//@todo DanH Sessions: What does it mean to fail at leaving a session? Does that mean we need to try again? Or just that we weren't in one to begin with? #suggested
 	ShutdownInternal();
 }
-
-#if PARTY_PLATFORM_SESSIONS_XBL
-extern TAutoConsoleVariable<bool> CVarXboxMpaEnabled;
-#endif
 
 bool FPartyPlatformSessionMonitor::ConfigurePlatformSessionSettings(FOnlineSessionSettings& SessionSettings) const
 {
