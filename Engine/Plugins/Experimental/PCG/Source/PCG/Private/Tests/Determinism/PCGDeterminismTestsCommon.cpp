@@ -45,7 +45,7 @@ namespace PCGDeterminismTests
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGDeterminismTests::RunDeterminismTest::Node);
 
-		if (!InPCGNode || !InPCGNode->DefaultSettings)
+		if (!InPCGNode || !InPCGNode->GetSettings())
 		{
 			OutResult.DataTypesTested = EPCGDataType::None;
 			OutResult.bFlagRaised = true;
@@ -279,14 +279,14 @@ namespace PCGDeterminismTests
 		const UPCGNode* PCGNode = NodeAndOptions.PCGNode;
 		const TArray<TArray<EPCGDataType>>& BaseOptionsByPin = NodeAndOptions.BaseOptionsByPin;
 
-		PCGTestsCommon::FTestData TestData(NodeAndOptions.Seed, PCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData TestData(NodeAndOptions.Seed, PCGNode->GetSettings());
 
 		// For all permutations
 		const int32 NumPermutations = GetNumPermutations(BaseOptionsByPin);
 		for (int32 PermutationIndex = 0; PermutationIndex < NumPermutations; ++PermutationIndex)
 		{
 			// Reset test data
-			TestData.Reset(PCGNode->DefaultSettings);
+			TestData.Reset(PCGNode->GetSettings());
 
 			// Add an input for each pin
 			for (int32 PinIndex = 0; PinIndex < BaseOptionsByPin.Num(); ++PinIndex)
@@ -309,16 +309,16 @@ namespace PCGDeterminismTests
 		const UPCGNode* PCGNode = NodeAndOptions.PCGNode;
 		const TArray<TArray<EPCGDataType>>& BaseOptionsByPin = NodeAndOptions.BaseOptionsByPin;
 
-		PCGTestsCommon::FTestData FirstTestData(NodeAndOptions.Seed, PCGNode->DefaultSettings);
-		PCGTestsCommon::FTestData SecondTestData(NodeAndOptions.Seed, PCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData FirstTestData(NodeAndOptions.Seed, PCGNode->GetSettings());
+		PCGTestsCommon::FTestData SecondTestData(NodeAndOptions.Seed, PCGNode->GetSettings());
 
 		const int32 NumPermutations = GetNumPermutations(BaseOptionsByPin);
 		// For all permutations
 		for (int32 PermutationIndex = 0; PermutationIndex < NumPermutations; ++PermutationIndex)
 		{
 			// Reset test data
-			FirstTestData.Reset(PCGNode->DefaultSettings);
-			SecondTestData.Reset(PCGNode->DefaultSettings);
+			FirstTestData.Reset(PCGNode->GetSettings());
+			SecondTestData.Reset(PCGNode->GetSettings());
 
 			// Add an input for each pin
 			for (int32 PinIndex = 0; PinIndex < BaseOptionsByPin.Num(); ++PinIndex)
@@ -346,8 +346,8 @@ namespace PCGDeterminismTests
 		const UPCGNode* PCGNode = NodeAndOptions.PCGNode;
 		const TArray<TArray<EPCGDataType>>& BaseOptionsByPin = NodeAndOptions.BaseOptionsByPin;
 
-		PCGTestsCommon::FTestData FirstTestData(NodeAndOptions.Seed, PCGNode->DefaultSettings);
-		PCGTestsCommon::FTestData SecondTestData(NodeAndOptions.Seed, PCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData FirstTestData(NodeAndOptions.Seed, PCGNode->GetSettings());
+		PCGTestsCommon::FTestData SecondTestData(NodeAndOptions.Seed, PCGNode->GetSettings());
 
 		int32 NumInputs = NodeAndOptions.bMultipleOptionsPerPin ? NumInputsPerPin : 1;
 		const int32 NumPermutations = GetNumPermutations(BaseOptionsByPin);
@@ -358,8 +358,8 @@ namespace PCGDeterminismTests
 			for (int32 PermutationIndex = 0; PermutationIndex < NumPermutations;)
 			{
 				// Reset test data
-				FirstTestData.Reset(PCGNode->DefaultSettings);
-				SecondTestData.Reset(PCGNode->DefaultSettings);
+				FirstTestData.Reset(PCGNode->GetSettings());
+				SecondTestData.Reset(PCGNode->GetSettings());
 
 				// Add an input for each pin
 				for (int32 PinIndex = 0; PinIndex < BaseOptionsByPin.Num(); ++PinIndex)
@@ -424,8 +424,8 @@ namespace PCGDeterminismTests
 		const UPCGNode* PCGNode = NodeAndOptions.PCGNode;
 		const TArray<TArray<EPCGDataType>>& BaseOptionsByPin = NodeAndOptions.BaseOptionsByPin;
 
-		PCGTestsCommon::FTestData FirstTestData(NodeAndOptions.Seed, PCGNode->DefaultSettings);
-		PCGTestsCommon::FTestData SecondTestData(NodeAndOptions.Seed, PCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData FirstTestData(NodeAndOptions.Seed, PCGNode->GetSettings());
+		PCGTestsCommon::FTestData SecondTestData(NodeAndOptions.Seed, PCGNode->GetSettings());
 
 		int32 NumInputs = NodeAndOptions.bMultipleOptionsPerPin ? NumInputsPerPin : 1;
 

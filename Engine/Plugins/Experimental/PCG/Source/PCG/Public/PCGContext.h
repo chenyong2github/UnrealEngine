@@ -9,6 +9,7 @@
 #include "PCGContext.generated.h"
 
 class UPCGComponent;
+class UPCGSettingsInterface;
 struct FPCGGraphCache;
 
 namespace PCGContextHelpers
@@ -16,9 +17,9 @@ namespace PCGContextHelpers
 	template<typename SettingsType>
 	const SettingsType* GetInputSettings(const UPCGNode* Node, const FPCGDataCollection& InputData)
 	{
-		if (Node && Node->DefaultSettings)
+		if (Node && Node->GetSettings())
 		{
-			return Cast<SettingsType>(InputData.GetSettings(Node->DefaultSettings));
+			return Cast<SettingsType>(InputData.GetSettings(Node->GetSettings()));
 		}
 		else
 		{
@@ -68,6 +69,8 @@ struct PCG_API FPCGContext
 	double ElapsedTime = 0.0;
 	int32 ExecutionCount = 0;
 #endif
+
+	const UPCGSettingsInterface* GetInputSettingsInterface() const;
 
 	template<typename SettingsType>
 	const SettingsType* GetInputSettings() const

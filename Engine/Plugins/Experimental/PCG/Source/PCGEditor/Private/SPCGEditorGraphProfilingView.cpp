@@ -303,7 +303,7 @@ FReply SPCGEditorGraphProfilingView::ResetTimers()
 		{
 			if (UPCGNode* PCGNode = PCGEditorNode->GetPCGNode())
 			{
-				if (UPCGSettings* Settings = PCGNode->DefaultSettings)
+				if (UPCGSettings* Settings = PCGNode->GetSettings())
 				{
 					if (IPCGElement* Element = Settings->GetElement().Get())
 					{
@@ -351,7 +351,7 @@ FReply SPCGEditorGraphProfilingView::Refresh()
 			{
 				ListViewItem->Name = ListViewItem->PCGNode->GetNodeTitle();
 
-				if (const UPCGSettings* Settings = ListViewItem->PCGNode->DefaultSettings)
+				if (const UPCGSettings* Settings = ListViewItem->PCGNode->GetSettings())
 				{
 					if (const IPCGElement* Element = Settings->GetElement().Get())
 					{

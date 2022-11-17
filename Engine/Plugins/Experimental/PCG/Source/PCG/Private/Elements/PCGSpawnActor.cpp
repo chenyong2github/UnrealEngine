@@ -67,7 +67,7 @@ bool UPCGSpawnActorSettings::IsStructuralProperty(const FName& InPropertyName) c
 
 TObjectPtr<UPCGGraph> UPCGSpawnActorNode::GetSubgraph() const
 {
-	TObjectPtr<UPCGSpawnActorSettings> Settings = Cast<UPCGSpawnActorSettings>(DefaultSettings);
+	TObjectPtr<UPCGSpawnActorSettings> Settings = Cast<UPCGSpawnActorSettings>(GetSettings());
 	return (Settings && Settings->Option != EPCGSpawnActorOption::NoMerging) ? Settings->GetSubgraph() : nullptr;
 }
 

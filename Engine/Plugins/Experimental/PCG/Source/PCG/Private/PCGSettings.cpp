@@ -5,6 +5,7 @@
 #include "PCGNode.h"
 #include "PCGSubsystem.h"
 #include "Serialization/ArchiveObjectCrc32.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -23,6 +24,11 @@ public:
 #endif // WITH_EDITORONLY_DATA
 	}
 };
+
+bool UPCGSettingsInterface::IsInstance() const
+{
+	return this != GetSettings();
+}
 
 bool UPCGSettings::operator==(const UPCGSettings& Other) const
 {
@@ -43,6 +49,19 @@ uint32 UPCGSettings::GetCrc32() const
 {
 	FPCGSettingsObjectCrc32 Ar;
 	return Ar.Crc32(const_cast<UPCGSettings*>(this));
+}
+
+void UPCGSettings::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	if (ExecutionMode_DEPRECATED != EPCGSettingsExecutionMode::Enabled)
+	{
+		ExecutionMode = ExecutionMode_DEPRECATED;
+		ExecutionMode_DEPRECATED = EPCGSettingsExecutionMode::Enabled;
+	}
+#endif
 }
 
 void UPCGSettings::Serialize(FArchive& Ar)
@@ -78,6 +97,17 @@ void UPCGSettings::Serialize(FArchive& Ar)
 		}
 #endif // WITH_EDITOR
 	}
+}
+
+void UPCGSettings::PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext)
+{
+	Super::PostSaveRoot(ObjectSaveContext);
+
+#if WITH_EDITOR
+	// This will get called when an external settings gets saved;
+	// This is to trigger generation on save, if we've called changed properties from a blueprint
+	OnSettingsChangedDelegate.Broadcast(this, EPCGChangeType::Structural);
+#endif
 }
 
 #if WITH_EDITOR
@@ -157,6 +187,75 @@ TArray<FPCGPinProperties> UPCGSettings::DefaultPointOutputPinProperties() const
 	Properties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Point);
 	return Properties;
 }
+
+void UPCGSettingsInstance::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (Settings)
+	{
+		Settings->OnSettingsChangedDelegate.AddUObject(this, &UPCGSettingsInstance::OnSettingsChanged);
+		Settings->ConditionalPostLoad();
+	}
+#endif
+
+#if WITH_EDITORONLY_DATA
+	OriginalSettings = Settings;
+#endif
+}
+
+void UPCGSettingsInstance::BeginDestroy()
+{
+#if WITH_EDITOR
+	if (Settings)
+	{
+		Settings->OnSettingsChangedDelegate.RemoveAll(this);
+	}
+#endif
+
+	Super::BeginDestroy();
+}
+
+void UPCGSettingsInstance::SetSettings(UPCGSettings* InSettings)
+{
+#if WITH_EDITOR
+	if (Settings)
+	{
+		Settings->OnSettingsChangedDelegate.RemoveAll(this);
+	}
+#endif
+
+	Settings = InSettings;
+#if WITH_EDITORONLY_DATA
+	OriginalSettings = Settings;
+#endif
+
+#if WITH_EDITOR
+	if (Settings)
+	{
+		Settings->OnSettingsChangedDelegate.AddUObject(this, &UPCGSettingsInstance::OnSettingsChanged);
+	}
+#endif
+}
+
+#if WITH_EDITOR
+void UPCGSettingsInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	// Some setting in the instance has changed. We don't have a flag for that yet (to add if needed)
+	// However, we can make it behave like a standard change
+	OnSettingsChangedDelegate.Broadcast(Settings, EPCGChangeType::Settings);
+}
+
+void UPCGSettingsInstance::OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType)
+{
+	if (InSettings == Settings)
+	{
+		OnSettingsChangedDelegate.Broadcast(InSettings, ChangeType);
+	}
+}
+#endif
 
 FPCGElementPtr UPCGTrivialSettings::CreateElement() const
 {

@@ -23,14 +23,14 @@ namespace PCGDebugElement
 			return;
 		}
 
-		const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
+		const UPCGSettingsInterface* SettingsInterface = Context->GetInputSettingsInterface();
 
-		if (!Settings)
+		if (!SettingsInterface)
 		{
 			return;
 		}
 
-		const FPCGDebugVisualizationSettings& DebugSettings = Settings->DebugSettings;
+		const FPCGDebugVisualizationSettings& DebugSettings = SettingsInterface->DebugSettings;
 
 		UStaticMesh* Mesh = DebugSettings.PointMesh.LoadSynchronous();
 

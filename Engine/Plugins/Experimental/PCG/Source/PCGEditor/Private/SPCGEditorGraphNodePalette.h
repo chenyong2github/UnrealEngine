@@ -33,6 +33,7 @@ public:
 protected:
 	//~ Begin SGraphPalette Interface
 	virtual TSharedRef<SWidget> OnCreateWidgetForAction(FCreateWidgetForActionData* const InCreateData) override;
+	virtual FReply OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent) override;
 	virtual void CollectAllActions(FGraphActionListBuilderBase& OutAllActions) override;
 	//~ End SGraphPalette Interface
 

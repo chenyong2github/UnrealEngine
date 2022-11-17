@@ -47,13 +47,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bLandscapeUsesMetadata = true;
 
+	/** Creates a node using the given settings interface. Does not manage ownership - done outside of this method. */
+	UPCGNode* AddNode(UPCGSettingsInterface* InSettings);
+
 	/** Creates a default node based on the settings class wanted. Returns the newly created node. */
 	UFUNCTION(BlueprintCallable, Category = Graph, meta=(DeterminesOutputType = "InSettingsClass", DynamicOutputParam = "DefaultNodeSettings"))
 	UPCGNode* AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass, UPCGSettings*& DefaultNodeSettings);
 
-	/** Creates a node and assigns it in the input settings (settings are not owned by node). Returns the created node. */
+	/** Creates a node containing an instance to the given settings. Returns the created node. */
 	UFUNCTION(BlueprintCallable, Category = Graph)
-	UPCGNode* AddNode(UPCGSettings* InSettings);
+	UPCGNode* AddNodeInstance(UPCGSettings* InSettings);
 
 	/** Creates a node and copies the input settings. Returns the created node. */
 	UFUNCTION(BlueprintCallable, Category = Graph, meta = (DeterminesOutputType = "InSettings", DynamicOutputParam = "OutCopiedSettings"))

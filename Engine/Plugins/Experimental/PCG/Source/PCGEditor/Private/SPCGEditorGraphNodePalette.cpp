@@ -2,15 +2,18 @@
 
 #include "SPCGEditorGraphNodePalette.h"
 
-#include "Elements/PCGExecuteBlueprint.h"
-#include "PCGEditorGraphSchema.h"
-#include "PCGEditorUtils.h"
 #include "PCGGraph.h"
+#include "Elements/PCGExecuteBlueprint.h"
 
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Modules/ModuleManager.h"
+#include "PCGEditorGraphSchema.h"
+#include "PCGEditorGraphSchemaActions.h"
+#include "PCGEditorUtils.h"
+#include "PCGSettingsDragDropAction.h"
+
 #include "SEnumCombo.h"
 #include "SGraphActionMenu.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "SPCGEditorGraphNodePalette"
 
@@ -100,6 +103,21 @@ SPCGEditorGraphNodePalette::~SPCGEditorGraphNodePalette()
 TSharedRef<SWidget> SPCGEditorGraphNodePalette::OnCreateWidgetForAction(FCreateWidgetForActionData* const InCreateData)
 {
 	return SNew(SPCGEditorGraphNodePaletteItem, InCreateData);
+}
+
+FReply SPCGEditorGraphNodePalette::OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent)
+{
+	if (InActions.Num() > 0 && InActions[0].IsValid())
+	{
+		TSharedPtr<FEdGraphSchemaAction> InAction = InActions[0];
+		if (InAction->GetTypeId() == FPCGEditorGraphSchemaAction_NewSettingsElement::StaticGetTypeId())
+		{
+			FPCGEditorGraphSchemaAction_NewSettingsElement* SettingsAction = static_cast<FPCGEditorGraphSchemaAction_NewSettingsElement*>(InAction.Get());
+			return FReply::Handled().BeginDragDrop(FPCGSettingsDragDropAction::New(InAction, SettingsAction->SettingsObjectPath));
+		}
+	}
+
+	return SGraphPalette::OnActionDragged(InActions, MouseEvent);
 }
 
 void SPCGEditorGraphNodePalette::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)

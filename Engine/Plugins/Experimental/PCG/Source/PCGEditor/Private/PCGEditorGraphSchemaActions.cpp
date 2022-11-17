@@ -82,12 +82,128 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewSettingsElement::PerformAction(UEdG
 		return nullptr;
 	}
 
+	bool bCreateInstance = false;
+
+	if(Behavior != EPCGEditorNewSettingsBehavior::Normal)
+	{
+		bCreateInstance = (Behavior == EPCGEditorNewSettingsBehavior::ForceInstance);
+	}
+	else
+	{
+		FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
+		bCreateInstance = ModifierKeys.IsAltDown();
+	}
+
+	return MakeSettingsNode(EditorGraph, FromPin, Settings, Location, bSelectNewNode, bCreateInstance);
+}
+
+void FPCGEditorGraphSchemaAction_NewSettingsElement::MakeSettingsNodesOrContextualMenu(const TSharedRef<class SWidget>& InPanel, FVector2D InScreenPosition, UEdGraph* InGraph, const TArray<FSoftObjectPath>& InSettingsPaths, const TArray<FVector2D>& InLocations, bool bInSelectNewNodes)
+{
+	UPCGEditorGraph* EditorGraph = Cast<UPCGEditorGraph>(InGraph);
+
+	if (!EditorGraph)
+	{
+		return;
+	}
+
+	TArray<UPCGSettings*> Settings;
+	TArray<FVector2D> SettingsLocations;
+	check(InSettingsPaths.Num() == InLocations.Num());
+
+	for(int32 PathIndex = 0; PathIndex < InSettingsPaths.Num(); ++PathIndex)
+	{
+		const FSoftObjectPath& SettingsPath = InSettingsPaths[PathIndex];
+		if (UPCGSettings* LoadedSettings = Cast<UPCGSettings>(SettingsPath.TryLoad()))
+		{
+			Settings.Add(LoadedSettings);
+			SettingsLocations.Add(InLocations[PathIndex]);
+		}
+	}
+
+	FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
+	const bool bModifiedKeysActive = ModifierKeys.IsControlDown() || ModifierKeys.IsAltDown();
+
+	if (bModifiedKeysActive)
+	{
+		MakeSettingsNodes(EditorGraph, Settings, SettingsLocations, bInSelectNewNodes, ModifierKeys.IsAltDown());
+	}
+	else if(!Settings.IsEmpty())
+	{
+		FMenuBuilder MenuBuilder(true, nullptr);
+		const FText SettingsTextName = ((Settings.Num() == 1) ? FText::FromName(Settings[0]->GetFName()) : LOCTEXT("ManySettings", "Settings"));
+
+		MenuBuilder.BeginSection("SettingsDroppedOn", SettingsTextName);
+
+		MenuBuilder.AddMenuEntry(
+			FText::Format(LOCTEXT("CopySettings", "Copy {0}"), SettingsTextName),
+			FText::Format(LOCTEXT("CopySettingsToolTip", "Copy the settings asset {0}, and keeps no reference to the original\n(Ctrl-drop to automatically create a copy)"), SettingsTextName),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateStatic(&FPCGEditorGraphSchemaAction_NewSettingsElement::MakeSettingsNodes, EditorGraph, Settings, SettingsLocations, bInSelectNewNodes, false), 
+				FCanExecuteAction()
+			)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			FText::Format(LOCTEXT("InstanceSettings", "Instance {0}"), SettingsTextName),
+			FText::Format(LOCTEXT("InstanceSettingsToolTip", "Instance the settings asset {0}\n(Alt-drop to automatically create an instance)"), SettingsTextName),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateStatic(&FPCGEditorGraphSchemaAction_NewSettingsElement::MakeSettingsNodes, EditorGraph, Settings, SettingsLocations, bInSelectNewNodes, true), 
+				FCanExecuteAction()
+			)
+		);
+
+		TSharedRef<SWidget> PanelWidget = InPanel;
+		// Show dialog to choose getter vs setter
+		FSlateApplication::Get().PushMenu(
+			PanelWidget,
+			FWidgetPath(),
+			MenuBuilder.MakeWidget(),
+			InScreenPosition,
+			FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
+		);
+
+		MenuBuilder.EndSection();
+	}
+}
+
+void FPCGEditorGraphSchemaAction_NewSettingsElement::MakeSettingsNodes(UPCGEditorGraph* InEditorGraph, TArray<UPCGSettings*> InSettings, TArray<FVector2D> InSettingsLocations, bool bInSelectNewNodes, bool bInCreateInstances)
+{
+	check(InSettings.Num() == InSettingsLocations.Num());
+	for (int32 SettingsIndex = 0; SettingsIndex < InSettings.Num(); ++SettingsIndex)
+	{
+		FPCGEditorGraphSchemaAction_NewSettingsElement::MakeSettingsNode(InEditorGraph, nullptr, InSettings[SettingsIndex], InSettingsLocations[SettingsIndex], bInSelectNewNodes, bInCreateInstances);
+	}
+}
+
+UEdGraphNode* FPCGEditorGraphSchemaAction_NewSettingsElement::MakeSettingsNode(UPCGEditorGraph* InEditorGraph, UEdGraphPin* InFromPin, UPCGSettings* InSettings, FVector2D InLocation, bool bInSelectNewNode, bool bInCreateInstance)
+{
+	if (!InEditorGraph || !InSettings)
+	{
+		return nullptr;
+	}
+
+	UPCGGraph* PCGGraph = InEditorGraph->GetPCGGraph();
+	if (!PCGGraph)
+	{
+		return nullptr;
+	}
+
 	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorNewSettingsElement", "PCG Editor: New Settings Element"), nullptr);
-	EditorGraph->Modify();
+	InEditorGraph->Modify();
 
 	UPCGNode* NewPCGNode = nullptr;
-	UPCGSettings* NewSettings = nullptr;
-	NewPCGNode = PCGGraph->AddNodeCopy(Settings, NewSettings);
+
+	if (bInCreateInstance)
+	{
+		NewPCGNode = PCGGraph->AddNodeInstance(InSettings);
+	}
+	else
+	{
+		UPCGSettings* NewSettings = nullptr;
+		NewPCGNode = PCGGraph->AddNodeCopy(InSettings, NewSettings);
+	}
 
 	if (!NewPCGNode)
 	{
@@ -95,19 +211,19 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewSettingsElement::PerformAction(UEdG
 		return nullptr;
 	}
 
-	FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*EditorGraph);
-	UPCGEditorGraphNode* NewNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);
+	FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*InEditorGraph);
+	UPCGEditorGraphNode* NewNode = NodeCreator.CreateUserInvokedNode(bInSelectNewNode);
 	NewNode->Construct(NewPCGNode);
-	NewNode->NodePosX = Location.X;
-	NewNode->NodePosY = Location.Y;
+	NewNode->NodePosX = InLocation.X;
+	NewNode->NodePosY = InLocation.Y;
 	NodeCreator.Finalize();
 
-	NewPCGNode->PositionX = Location.X;
-	NewPCGNode->PositionY = Location.Y;
+	NewPCGNode->PositionX = InLocation.X;
+	NewPCGNode->PositionY = InLocation.Y;
 
-	if (FromPin)
+	if (InFromPin)
 	{
-		NewNode->AutowireNewNode(FromPin);
+		NewNode->AutowireNewNode(InFromPin);
 	}
 
 	return NewNode;

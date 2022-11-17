@@ -41,6 +41,9 @@ public:
 	/** Returns true if the element, in its current phase can be executed only from the main thread */
 	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const { return false; }
 
+	/** Returns true if the node can be cached - also checks for instance flags, if any. */
+	bool IsCacheableInstance(const UPCGSettingsInterface* InSettingsInterface) const;
+
 	/** Returns true if the node can be cached (e.g. does not create artifacts & does not depend on untracked data */
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
 

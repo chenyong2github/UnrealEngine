@@ -78,6 +78,9 @@ public:
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 	// ~End FAssetEditorToolkit interface
 
+	// Methods used by schema actions
+	UEdGraphNode* AddNode(UPCGSettings* InSettings, bool bIsInstance, const FVector2D& InLocation);
+
 	FOnDebugObjectChanged OnDebugObjectChangedDelegate;
 	FOnInspectedNodeChanged OnInspectedNodeChangedDelegate;
 
@@ -228,6 +231,12 @@ private:
 
 	/** To be called everytime we need to replicate our extra nodes to the underlying PCGGraph */
 	void ReplicateExtraNodes() const;
+
+	/** Returns whether a property should be readonly (used for instances) */
+	bool IsReadOnlyProperty(const FPropertyAndParent& InPropertyAndParent, IDetailsView* InDetailsView) const;
+
+	/** Returns whether a property should be visible (used for instance vs. settings properties) */
+	bool IsVisibleProperty(const FPropertyAndParent& InPropertyAndParent, IDetailsView* InDetailsView) const;
 
 	TSharedRef<SDockTab> SpawnTab_GraphEditor(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PropertyDetails(const FSpawnTabArgs& Args);

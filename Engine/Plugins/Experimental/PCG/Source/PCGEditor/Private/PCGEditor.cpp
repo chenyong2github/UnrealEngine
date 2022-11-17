@@ -90,6 +90,10 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	PropertyDetailsWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	PropertyDetailsWidget->SetObject(PCGGraphBeingEdited);
 
+	IDetailsView* RawPropertyDetailsPtr = PropertyDetailsWidget.Get();
+	PropertyDetailsWidget->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateRaw(this, &FPCGEditor::IsReadOnlyProperty, RawPropertyDetailsPtr));
+	PropertyDetailsWidget->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateRaw(this, &FPCGEditor::IsVisibleProperty, RawPropertyDetailsPtr));
+
 	GraphEditorWidget = CreateGraphEditorWidget();
 	PaletteWidget = CreatePaletteWidget();
 	FindWidget = CreateFindWidget();
@@ -513,17 +517,17 @@ void FPCGEditor::OnDeterminismNodeTest()
 			if (const UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<const UPCGEditorGraphNodeBase>(Object))
 			{
 				const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
-				check(PCGNode && PCGNode->DefaultSettings);
+				check(PCGNode && PCGNode->GetSettings());
 
 				TSharedPtr<FDeterminismTestResult> NodeResult = MakeShared<FDeterminismTestResult>();
 				NodeResult->TestResultTitle = PCGNode->GetNodeTitle();
 				NodeResult->TestResultName = PCGNode->GetName();
-				NodeResult->Seed = PCGNode->DefaultSettings->Seed;
+				NodeResult->Seed = PCGNode->GetSettings()->Seed;
 
-				if (PCGNode->DefaultSettings->DeterminismSettings.bNativeTests)
+				if (PCGNode->GetSettings()->DeterminismSettings.bNativeTests)
 				{
 					// If the settings has a native test suite
-					if (TFunction<bool()> NativeTestSuite = PCGDeterminismTests::FNativeTestRegistry::GetNativeTestFunction(PCGNode->DefaultSettings))
+					if (TFunction<bool()> NativeTestSuite = PCGDeterminismTests::FNativeTestRegistry::GetNativeTestFunction(PCGNode->GetSettings()))
 					{
 						FName NodeName(PCGNode->GetName());
 
@@ -548,9 +552,9 @@ void FPCGEditor::OnDeterminismNodeTest()
 				}
 
 				// Custom tests
-				if (PCGNode->DefaultSettings->DeterminismSettings.bUseBlueprintDeterminismTest)
+				if (PCGNode->GetSettings()->DeterminismSettings.bUseBlueprintDeterminismTest)
 				{
-					TSubclassOf<UPCGDeterminismTestBlueprintBase> Blueprint = PCGNode->DefaultSettings->DeterminismSettings.DeterminismTestBlueprint;
+					TSubclassOf<UPCGDeterminismTestBlueprintBase> Blueprint = PCGNode->GetSettings()->DeterminismSettings.DeterminismTestBlueprint;
 					Blueprint.GetDefaultObject()->ExecuteTest(PCGNode, *NodeResult);
 					FName BlueprintName(Blueprint->GetName());
 
@@ -805,10 +809,10 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 		TObjectPtr<UPCGNode> InputOutputNode = bIsInput ? PCGGraph->GetInputNode() : PCGGraph->GetOutputNode();
 		TObjectPtr<UPCGNode> NewInputOutputNode = bIsInput ? NewPCGGraph->GetInputNode() : NewPCGGraph->GetOutputNode();
 
-		TObjectPtr<UPCGGraphInputOutputSettings> InputOutputSettings = CastChecked<UPCGGraphInputOutputSettings>(InputOutputNode->DefaultSettings);
+		TObjectPtr<UPCGGraphInputOutputSettings> InputOutputSettings = CastChecked<UPCGGraphInputOutputSettings>(InputOutputNode->GetSettings());
 		if (InputOutputSettings->IsPinAdvanced(Pin))
 		{
-			TObjectPtr<UPCGGraphInputOutputSettings> NewInputOutputSettings = CastChecked<UPCGGraphInputOutputSettings>(NewInputOutputNode->DefaultSettings);
+			TObjectPtr<UPCGGraphInputOutputSettings> NewInputOutputSettings = CastChecked<UPCGGraphInputOutputSettings>(NewInputOutputNode->GetSettings());
 			NewInputOutputSettings->SetShowAdvancedPins(true);
 			NewInputOutputNode->UpdateAfterSettingsChangeDuringCreation();
 
@@ -825,7 +829,7 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 	auto CreateNewCustomPin = [&NewPCGGraph, &NameCollisionMapping](UPCGPin* Pin, bool bIsInput)
 	{
 		TObjectPtr<UPCGNode> NewInputOutputNode = bIsInput ? NewPCGGraph->GetInputNode() : NewPCGGraph->GetOutputNode();
-		TObjectPtr<UPCGGraphInputOutputSettings> NewInputOutputSettings = CastChecked<UPCGGraphInputOutputSettings>(NewInputOutputNode->DefaultSettings);
+		TObjectPtr<UPCGGraphInputOutputSettings> NewInputOutputSettings = CastChecked<UPCGGraphInputOutputSettings>(NewInputOutputNode->GetSettings());
 		FString NewName = Pin->Node->GetNodeTitle().ToString() + " " + Pin->Properties.Label.ToString();
 		if (NameCollisionMapping.Contains(NewName))
 		{
@@ -1062,7 +1066,7 @@ void FPCGEditor::OnExportNodes()
 		{
 			UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
 			check(PCGNode);
-			Settings = PCGNode->DefaultSettings;
+			Settings = PCGNode->GetSettings();
 		}
 
 		if (!Settings)
@@ -1147,13 +1151,13 @@ bool FPCGEditor::IsExecutionModeActive(EPCGSettingsExecutionMode InExecutionMode
 				continue;
 			}
 
-			const UPCGSettings* PCGSettings = PCGNode->DefaultSettings;
-			if (!PCGSettings)
+			const UPCGSettingsInterface* PCGSettingsInterface = PCGNode->GetSettingsInterface();
+			if (!PCGSettingsInterface)
 			{
 				continue;
 			}
 
-			if (PCGSettings->ExecutionMode == InExecutionMode)
+			if (PCGSettingsInterface->ExecutionMode == InExecutionMode)
 			{
 				return true;
 			}
@@ -1184,17 +1188,17 @@ void FPCGEditor::OnSetExecutionMode(EPCGSettingsExecutionMode InExecutionMode)
 				continue;
 			}
 
-			UPCGSettings* PCGSettings = PCGNode->DefaultSettings;
-			if (!PCGSettings)
+			UPCGSettingsInterface* PCGSettingsInterface = PCGNode->GetSettingsInterface();
+			if (!PCGSettingsInterface)
 			{
 				continue;
 			}
 
-			if (PCGSettings->ExecutionMode != InExecutionMode)
+			if (PCGSettingsInterface->ExecutionMode != InExecutionMode)
 			{
-				PCGSettings->Modify();
-				PCGSettings->ExecutionMode = InExecutionMode;
-				PCGSettings->OnSettingsChangedDelegate.Broadcast(PCGSettings, EPCGChangeType::Settings);
+				PCGSettingsInterface->Modify();
+				PCGSettingsInterface->ExecutionMode = InExecutionMode;
+				PCGNode->OnNodeChangedDelegate.Broadcast(PCGNode, EPCGChangeType::Settings);
 			}
 		}
 	}
@@ -1696,7 +1700,14 @@ void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 		{
 			if (UPCGNode* PCGNode = PCGGraphNode->GetPCGNode())
 			{
-				SelectedObjects.Add(PCGNode->DefaultSettings);
+				if (PCGNode->IsInstance())
+				{
+					SelectedObjects.Add(Cast<UPCGSettingsInstance>(PCGNode->GetSettingsInterface()));
+				}
+				else
+				{
+					SelectedObjects.Add(PCGNode->GetSettings());
+				}
 			}
 		}
 		else if (UEdGraphNode* GraphNode = Cast<UEdGraphNode>(Object))
@@ -1770,6 +1781,54 @@ void FPCGEditor::JumpToDefinition(const UClass* Class) const
 			FSlateNotificationManager::Get().AddNotification(Info);
 		}
 	}
+}
+
+bool FPCGEditor::IsReadOnlyProperty(const FPropertyAndParent& InPropertyAndParent, IDetailsView* InDetailsView) const
+{
+	// Everything is writeable when not in an instance
+	if (!InDetailsView || 
+		InPropertyAndParent.ParentProperties.IsEmpty() || 
+		InPropertyAndParent.ParentProperties.Last()->GetFName() != GET_MEMBER_NAME_CHECKED(UPCGSettingsInstance, Settings))
+	{
+		return false;
+	}
+
+	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InDetailsView->GetSelectedObjects();
+	for (const TWeakObjectPtr<UObject>& SelectedObject : SelectedObjects)
+	{
+		if (!SelectedObject.IsValid())
+		{
+			continue;
+		}
+		
+		if (UPCGSettingsInstance* Instance = Cast<UPCGSettingsInstance>(SelectedObject.Get()))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FPCGEditor::IsVisibleProperty(const FPropertyAndParent& InPropertyAndParent, IDetailsView* InDetailsView) const
+{
+	// Everything is visible when not in an instance
+	if (!InDetailsView ||
+		InPropertyAndParent.ParentProperties.IsEmpty() ||
+		InPropertyAndParent.ParentProperties.Last()->GetFName() != GET_MEMBER_NAME_CHECKED(UPCGSettingsInstance, Settings))
+	{
+		return true;
+	}
+
+	// Hide debug settings from the setting when showing the instance settings.
+	if (InPropertyAndParent.Property.GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, ExecutionMode) ||
+		(InPropertyAndParent.ParentProperties.Num() >= 2 && 
+			InPropertyAndParent.ParentProperties[InPropertyAndParent.ParentProperties.Num() - 2]->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DebugSettings)))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 TSharedRef<SDockTab> FPCGEditor::SpawnTab_GraphEditor(const FSpawnTabArgs& Args)

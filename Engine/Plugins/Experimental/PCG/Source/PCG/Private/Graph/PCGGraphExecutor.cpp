@@ -430,7 +430,7 @@ void FPCGGraphExecutor::Execute()
 				{
 					// Get appropriate settings
 					check(Task.Node);
-					const UPCGSettings* Settings = TaskInput.GetSettings(Task.Node->DefaultSettings);
+					const UPCGSettings* Settings = TaskInput.GetSettings(Task.Node->GetSettings());
 
 					if (Settings)
 					{
@@ -448,11 +448,12 @@ void FPCGGraphExecutor::Execute()
 
 				// If a task is cacheable and has been cached, then we don't need to create an active task for it unless
 				// there is an execution mode that would prevent us from doing so.
-				const UPCGSettings* TaskSettings = PCGContextHelpers::GetInputSettings<UPCGSettings>(Task.Node, TaskInput);
+				const UPCGSettingsInterface* TaskSettingsInterface = TaskInput.GetSettingsInterface(Task.Node ? Task.Node->GetSettingsInterface() : nullptr);
+				const UPCGSettings* TaskSettings = TaskSettingsInterface ? TaskSettingsInterface->GetSettings() : nullptr;
 				FPCGDataCollection CachedOutput;
-				const bool bResultAlreadyInCache = Task.Element->IsCacheable(TaskSettings) && GraphCache.GetFromCache(Task.Element.Get(), TaskInput, TaskSettings, Task.SourceComponent.Get(), CachedOutput);
+				const bool bResultAlreadyInCache = Task.Element->IsCacheableInstance(TaskSettingsInterface) && GraphCache.GetFromCache(Task.Element.Get(), TaskInput, TaskSettings, Task.SourceComponent.Get(), CachedOutput);
 #if WITH_EDITOR
-				const bool bNeedsToCreateActiveTask = !bResultAlreadyInCache || TaskSettings->ExecutionMode == EPCGSettingsExecutionMode::Debug || TaskSettings->ExecutionMode == EPCGSettingsExecutionMode::Isolated;
+				const bool bNeedsToCreateActiveTask = !bResultAlreadyInCache || TaskSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Debug || TaskSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated;
 #else
 				const bool bNeedsToCreateActiveTask = !bResultAlreadyInCache;
 #endif
@@ -577,9 +578,10 @@ void FPCGGraphExecutor::Execute()
 #endif
 			{
 				// Store result in cache as needed - done here because it needs to be done on the main thread
-				const UPCGSettings* ActiveTaskSettings = ActiveTask.Context->GetInputSettings<UPCGSettings>();
-				if (ActiveTaskSettings && ActiveTask.Element->IsCacheable(ActiveTaskSettings))
+				const UPCGSettingsInterface* ActiveTaskSettingsInterface = ActiveTask.Context->GetInputSettingsInterface();
+				if (ActiveTaskSettingsInterface && ActiveTask.Element->IsCacheableInstance(ActiveTaskSettingsInterface))
 				{
+					const UPCGSettings* ActiveTaskSettings = ActiveTaskSettingsInterface ? ActiveTaskSettingsInterface->GetSettings() : nullptr;
 					GraphCache.StoreInCache(ActiveTask.Element.Get(), ActiveTask.Context->InputData, ActiveTaskSettings, ActiveTask.Context->SourceComponent.Get(), ActiveTask.Context->OutputData);
 				}
 			}

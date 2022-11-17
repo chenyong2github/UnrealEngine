@@ -8,6 +8,7 @@
 #include "PCGNode.generated.h"
 
 class UPCGSettings;
+class UPCGSettingsInterface;
 class UPCGGraph;
 class UPCGEdge;
 class IPCGElement;
@@ -74,8 +75,18 @@ public:
 	/** Returns true if the output pin is connected */
 	bool IsOutputPinConnected(const FName& Label) const;
 
+	/** Returns true if the node has an instance of the settings (e.g. does not own the settings) */
+	bool IsInstance() const;
+
+	/** Returns the settings interface (settings or instance of settings) on this node */
+	UPCGSettingsInterface* GetSettingsInterface() const { return SettingsInterface.Get(); }
+
 	/** Changes the default settings in the node */
-	void SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings, bool bUpdatePins = true);
+	void SetSettingsInterface(UPCGSettingsInterface* InSettingsInterface, bool bUpdatePins = true);
+
+	/** Returns the settings this node holds (either directly or through an instance) */
+	UFUNCTION(BlueprintCallable, Category = Node)
+	UPCGSettings* GetSettings() const;
 
 	/** Triggers some uppdates after creating a new node and changing its settings */
 	void UpdateAfterSettingsChangeDuringCreation();
@@ -102,9 +113,10 @@ public:
 	void SetNodePosition(int32 InPositionX, int32 InPositionY);
 #endif
 
-	/** Note: do not set this property directly from code, use SetDefaultSettings instead */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node, meta=(EditInline))
-	TObjectPtr<UPCGSettings> DefaultSettings;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TObjectPtr<UPCGSettings> DefaultSettings_DEPRECATED; 
+#endif
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node)
 	FName NodeTitle = NAME_None;
@@ -140,10 +152,12 @@ protected:
 	bool UpdatePins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator);
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	void OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType);
 #endif
+
+	/** Note: do not set this property directly from code, use SetSettingsInterface instead */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Node)
+	TObjectPtr<UPCGSettingsInterface> SettingsInterface;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UPCGNode>> OutboundNodes_DEPRECATED;

@@ -135,7 +135,7 @@ FPCGElementPtr UPCGSubgraphSettings::CreateElement() const
 
 TObjectPtr<UPCGGraph> UPCGSubgraphNode::GetSubgraph() const
 {
-	TObjectPtr<UPCGSubgraphSettings> Settings = Cast<UPCGSubgraphSettings>(DefaultSettings);
+	TObjectPtr<UPCGSubgraphSettings> Settings = Cast<UPCGSubgraphSettings>(GetSettings());
 	return Settings ? Settings->Subgraph : nullptr;
 }
 

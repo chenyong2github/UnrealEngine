@@ -3,22 +3,24 @@
 #include "PCGEditorGraphSchema.h"
 
 #include "Elements/PCGExecuteBlueprint.h"
+#include "PCGGraph.h"
+#include "PCGSettings.h"
+
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNodeBase.h"
 #include "PCGEditorGraphSchemaActions.h"
 #include "PCGEditorSettings.h"
-#include "PCGGraph.h"
-#include "PCGSettings.h"
+#include "PCGEditorUtils.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Blueprint.h"
 #include "ScopedTransaction.h"
 #include "UObject/UObjectIterator.h"
-#include "PCGEditorUtils.h"
+
+#include "SGraphPanel.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphSchema"
-
 
 void UPCGEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder, const EPCGElementType InPCGElementTypeFilter) const
 {
@@ -36,7 +38,7 @@ void UPCGEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMen
 	}
 	if (!!(InPCGElementTypeFilter & EPCGElementType::Settings))
 	{
-		GetSettingsElementActions(ActionMenuBuilder);
+		GetSettingsElementActions(ActionMenuBuilder, /*bIsContextual=*/false);
 	}
 	if (!!(InPCGElementTypeFilter & EPCGElementType::Other))
 	{
@@ -51,7 +53,7 @@ void UPCGEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Con
 	GetNativeElementActions(ContextMenuBuilder);
 	GetSubgraphElementActions(ContextMenuBuilder);
 	GetBlueprintElementActions(ContextMenuBuilder);
-	GetSettingsElementActions(ContextMenuBuilder);
+	GetSettingsElementActions(ContextMenuBuilder, /*bIsContextual=*/true);
 	GetExtraElementActions(ContextMenuBuilder);
 }
 
@@ -255,7 +257,7 @@ void UPCGEditorGraphSchema::GetBlueprintElementActions(FGraphActionMenuBuilder& 
 	}
 }
 
-void UPCGEditorGraphSchema::GetSettingsElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
+void UPCGEditorGraphSchema::GetSettingsElementActions(FGraphActionMenuBuilder& ActionMenuBuilder, bool bIsContextual) const
 {
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
@@ -268,9 +270,26 @@ void UPCGEditorGraphSchema::GetSettingsElementActions(FGraphActionMenuBuilder& A
 		const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
 		const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
 
-		TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsAction(new FPCGEditorGraphSchemaAction_NewSettingsElement(Category, MenuDesc, Description, 0));
-		NewSettingsAction->SettingsObjectPath = AssetData.GetSoftObjectPath();
-		ActionMenuBuilder.AddAction(NewSettingsAction);
+		if (!bIsContextual)
+		{
+			TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsAction(new FPCGEditorGraphSchemaAction_NewSettingsElement(Category, MenuDesc, Description, 0));
+			NewSettingsAction->SettingsObjectPath = AssetData.GetSoftObjectPath();
+			ActionMenuBuilder.AddAction(NewSettingsAction);
+		}
+		else
+		{
+			const FText MenuAndSubCategory = FText::Join(LOCTEXT("MenuDelimiter", "|"), Category, MenuDesc);
+
+			TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsActionCopy(new FPCGEditorGraphSchemaAction_NewSettingsElement(MenuAndSubCategory, LOCTEXT("ContextMenuCopySettings", "Copy"), Description, 0));
+			NewSettingsActionCopy->SettingsObjectPath = AssetData.GetSoftObjectPath();
+			NewSettingsActionCopy->Behavior = EPCGEditorNewSettingsBehavior::ForceCopy;
+			ActionMenuBuilder.AddAction(NewSettingsActionCopy);
+
+			TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsActionInstance(new FPCGEditorGraphSchemaAction_NewSettingsElement(MenuAndSubCategory, LOCTEXT("ContextMenuCopySettings", "Instance"), Description, 0));
+			NewSettingsActionInstance->SettingsObjectPath = AssetData.GetSoftObjectPath();
+			NewSettingsActionInstance->Behavior = EPCGEditorNewSettingsBehavior::ForceInstance;
+			ActionMenuBuilder.AddAction(NewSettingsActionInstance);
+		}
 	}
 }
 
@@ -314,6 +333,9 @@ void UPCGEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Asset
 	constexpr float PositionOffsetIncrementY = 50.f;
 	UEdGraphPin* NullFromPin = nullptr;
 
+	TArray<FSoftObjectPath> SettingsPaths;
+	TArray<FVector2D> GraphPositions;
+
 	for (const FAssetData& AssetData : Assets)
 	{
 		if (const UObject* Asset = AssetData.GetAsset())
@@ -336,12 +358,24 @@ void UPCGEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Asset
 			}
 			else if (Asset->IsA<UPCGSettings>())
 			{
-				FPCGEditorGraphSchemaAction_NewSettingsElement NewNodeAction;
-				NewNodeAction.SettingsObjectPath = AssetData.GetSoftObjectPath();
-				NewNodeAction.PerformAction(Graph, NullFromPin, GraphPositionOffset);
+				// Delay creation so we can open a menu, once, if needed.
+				SettingsPaths.Add(AssetData.GetSoftObjectPath());
+				GraphPositions.Add(GraphPositionOffset);
 				GraphPositionOffset.Y += PositionOffsetIncrementY;
 			}
 		}
+	}
+
+	// If we've dragged settings assets, we might want to open a menu (ergo this call)
+	if (!SettingsPaths.IsEmpty())
+	{
+		UPCGEditorGraph* EditorGraph = CastChecked<UPCGEditorGraph>(Graph);
+		
+		TSharedPtr<SGraphEditor> GraphEditor = SGraphEditor::FindGraphEditorForGraph(EditorGraph);
+		const FVector2D MouseCursorLocation = FSlateApplication::Get().GetCursorPos();
+
+		check(SettingsPaths.Num() == GraphPositions.Num());
+		FPCGEditorGraphSchemaAction_NewSettingsElement::MakeSettingsNodesOrContextualMenu(GraphEditor->GetGraphPanel()->AsShared(), MouseCursorLocation, Graph, SettingsPaths, GraphPositions, /*bSelectNewNodes=*/true);
 	}
 }
 

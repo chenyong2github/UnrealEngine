@@ -12,6 +12,15 @@ class UEdGraph;
 class UEdGraphPin;
 class UPCGBlueprintElement;
 class UPCGSettings;
+class UPCGEditorGraph;
+
+UENUM()
+enum class EPCGEditorNewSettingsBehavior : uint8
+{
+	Normal = 0,
+	ForceCopy,
+	ForceInstance
+};
 
 USTRUCT()
 struct FPCGEditorGraphSchemaAction_NewNativeElement : public FEdGraphSchemaAction
@@ -40,9 +49,16 @@ struct FPCGEditorGraphSchemaAction_NewSettingsElement : public FEdGraphSchemaAct
 	UPROPERTY()
 	FSoftObjectPath SettingsObjectPath;
 
+	UPROPERTY()
+	EPCGEditorNewSettingsBehavior Behavior = EPCGEditorNewSettingsBehavior::Normal;
+
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
+
+	static void MakeSettingsNodesOrContextualMenu(const TSharedRef<class SWidget>& InPanel, FVector2D InScreenPosition, UEdGraph* InGraph, const TArray<FSoftObjectPath>& InSettingsPaths, const TArray<FVector2D>& InLocations, bool bInSelectNewNodes);
+	static void MakeSettingsNodes(UPCGEditorGraph* InEditorGraph, TArray<UPCGSettings*> InSettings, TArray<FVector2D> InSettingsLocations, bool bInSelectNewNodes, bool bInCreateInstances);
+	static UEdGraphNode* MakeSettingsNode(UPCGEditorGraph* InEditorGraph, UEdGraphPin* InFromPin, UPCGSettings* InSettings, FVector2D InLocation, bool bInSelectNewNode, bool bInCreateInstance);
 };
 
 USTRUCT()

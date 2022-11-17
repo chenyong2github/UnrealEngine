@@ -11,7 +11,7 @@
 UPCGNode::UPCGNode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	DefaultSettings = ObjectInitializer.CreateDefaultSubobject<UPCGTrivialSettings>(this, TEXT("DefaultNodeSettings"));
+	SettingsInterface = ObjectInitializer.CreateDefaultSubobject<UPCGTrivialSettings>(this, TEXT("DefaultNodeSettings"));
 }
 
 void UPCGNode::PostLoad()
@@ -19,10 +19,16 @@ void UPCGNode::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	if (DefaultSettings)
+	if (DefaultSettings_DEPRECATED)
 	{
-		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
-		DefaultSettings->ConditionalPostLoad();
+		SettingsInterface = DefaultSettings_DEPRECATED;
+		DefaultSettings_DEPRECATED = nullptr;
+	}
+
+	if (SettingsInterface)
+	{
+		SettingsInterface->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
+		SettingsInterface->ConditionalPostLoad();
 	}
 
 	// Make sure legacy nodes support transactions.
@@ -117,9 +123,9 @@ void UPCGNode::ApplyDeprecation()
 	}
 	OutboundEdges_DEPRECATED.Reset();
 
-	if (DefaultSettings)
+	if (UPCGSettings* Settings = GetSettings())
 	{
-		DefaultSettings->ApplyDeprecation(this);
+		Settings->ApplyDeprecation(this);
 	}
 }
 #endif
@@ -128,17 +134,17 @@ void UPCGNode::ApplyDeprecation()
 void UPCGNode::PostEditImport()
 {
 	Super::PostEditImport();
-	if (DefaultSettings)
+	if (SettingsInterface)
 	{
-		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
+		SettingsInterface->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
 }
 
 void UPCGNode::PreEditUndo()
 {
-	if (DefaultSettings)
+	if (SettingsInterface)
 	{
-		DefaultSettings->OnSettingsChangedDelegate.RemoveAll(this);
+		SettingsInterface->OnSettingsChangedDelegate.RemoveAll(this);
 	}
 
 	UObject* Outer = GetOuter();
@@ -154,9 +160,9 @@ void UPCGNode::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	if (DefaultSettings)
+	if (SettingsInterface)
 	{
-		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
+		SettingsInterface->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
 
  	UObject* Outer = GetOuter();
@@ -170,9 +176,9 @@ void UPCGNode::PostEditUndo()
 void UPCGNode::BeginDestroy()
 {
 #if WITH_EDITOR
-	if (DefaultSettings)
+	if (SettingsInterface)
 	{
-		DefaultSettings->OnSettingsChangedDelegate.RemoveAll(this);
+		SettingsInterface->OnSettingsChangedDelegate.RemoveAll(this);
 	}
 #endif
 
@@ -214,16 +220,16 @@ FName UPCGNode::GetNodeTitle() const
 	{
 		return NodeTitle;
 	}
-	else if (DefaultSettings)
+	else if (UPCGSettings* Settings = GetSettings())
 	{
-		if (DefaultSettings->AdditionalTaskName() != NAME_None)
+		if (Settings->AdditionalTaskName() != NAME_None)
 		{
-			return DefaultSettings->AdditionalTaskName();
+			return Settings->AdditionalTaskName();
 		}
 #if WITH_EDITOR
 		else
 		{
-			return DefaultSettings->GetDefaultNodeName();
+			return Settings->GetDefaultNodeName();
 		}
 #endif
 	}
@@ -234,9 +240,21 @@ FName UPCGNode::GetNodeTitle() const
 #if WITH_EDITOR
 FText UPCGNode::GetNodeTooltipText() const
 {
-	return DefaultSettings ? DefaultSettings->GetNodeTooltipText() : FText::GetEmpty();
+	if (UPCGSettings* Settings = GetSettings())
+	{
+		return Settings->GetNodeTooltipText();
+	}
+	else
+	{
+		return FText::GetEmpty();
+	}
 }
 #endif
+
+bool UPCGNode::IsInstance() const
+{
+	return SettingsInterface && SettingsInterface->IsInstance();
+}
 
 TArray<FPCGPinProperties> UPCGNode::InputPinProperties() const
 {
@@ -344,22 +362,23 @@ bool UPCGNode::HasInboundEdges() const
 	return false;
 }
 
-void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings, bool bUpdatePins)
+void UPCGNode::SetSettingsInterface(UPCGSettingsInterface* InSettingsInterface, bool bUpdatePins)
 {
 #if WITH_EDITOR
-	const bool bDifferentSettings = (DefaultSettings != InSettings);
-	if (bDifferentSettings && DefaultSettings)
+	const bool bDifferentInterface = (SettingsInterface.Get() != InSettingsInterface);
+	if (bDifferentInterface && SettingsInterface)
 	{
-		DefaultSettings->OnSettingsChangedDelegate.RemoveAll(this);
+		SettingsInterface->OnSettingsChangedDelegate.RemoveAll(this);
 	}
 #endif
 
-	DefaultSettings = InSettings;
+	SettingsInterface = InSettingsInterface;
 
 #if WITH_EDITOR
-	if (bDifferentSettings && DefaultSettings)
+	if (bDifferentInterface && SettingsInterface)
 	{
-		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
+		check(SettingsInterface->GetSettings());
+		SettingsInterface->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
 #endif
 
@@ -369,44 +388,22 @@ void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings, bool bUpd
 	}
 }
 
+UPCGSettings* UPCGNode::GetSettings() const
+{
+	if (SettingsInterface)
+	{
+		return SettingsInterface->GetSettings();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 #if WITH_EDITOR
-
-void UPCGNode::PreEditChange(FProperty* PropertyAboutToChange)
-{
-	// To properly clean up old callbacks during paste we clear during null call since the Settings property doesn't get a specific call.
-	if (!PropertyAboutToChange || (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, DefaultSettings)))
-	{
-		if (DefaultSettings)
-		{
-			DefaultSettings->OnSettingsChangedDelegate.RemoveAll(this);
-		}
-	}
-
-	Super::PreEditChange(PropertyAboutToChange);
-}
-
-void UPCGNode::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, DefaultSettings))
-	{
-		if (DefaultSettings)
-		{
-			DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
-			UpdatePins();
-			OnNodeChangedDelegate.Broadcast(this, ((Cast<UPCGBaseSubgraphSettings>(DefaultSettings) ? EPCGChangeType::Structural : EPCGChangeType::None) | EPCGChangeType::Settings));
-		}
-	}
-	else if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, NodeTitle))
-	{
-		OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Cosmetic);
-	}
-}
-
 void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType)
 {
-	if (InSettings == DefaultSettings)
+	if (InSettings == GetSettings())
 	{
 		const bool bUpdatedPins = UpdatePins();
 		OnNodeChangedDelegate.Broadcast(this, ((bUpdatedPins ? EPCGChangeType::Edge : EPCGChangeType::None) | ChangeType));
@@ -436,7 +433,7 @@ bool UPCGNode::UpdatePins()
 
 bool UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator)
 {
-	if (!DefaultSettings)
+	if (!GetSettings())
 	{
 		bool bChanged = !InputPins.IsEmpty() || !OutputPins.IsEmpty();
 
@@ -467,8 +464,9 @@ bool UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator)
 		return bChanged;
 	}
 
-	TArray<FPCGPinProperties> InboundPinProperties = DefaultSettings->InputPinProperties();
-	TArray<FPCGPinProperties> OutboundPinProperties = DefaultSettings->OutputPinProperties();
+	UPCGSettings* Settings = GetSettings();
+	TArray<FPCGPinProperties> InboundPinProperties = Settings->InputPinProperties();
+	TArray<FPCGPinProperties> OutboundPinProperties = Settings->OutputPinProperties();
 
 	auto UpdatePins = [this, &PinAllocator](TArray<UPCGPin*>& Pins, const TArray<FPCGPinProperties>& PinProperties)
 	{

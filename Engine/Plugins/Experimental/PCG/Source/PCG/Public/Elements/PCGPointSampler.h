@@ -34,7 +34,7 @@ public:
 	float Ratio = 0.1f;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Debug)
+	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = "Settings|Debug")
 	bool bKeepZeroDensityPoints = false;
 #endif
 };

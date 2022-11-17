@@ -38,7 +38,7 @@ public:
 	bool bInvertFilter = false;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Debug)
+	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = "Settings|Debug")
 	bool bKeepZeroDensityPoints = false;
 #endif
 };

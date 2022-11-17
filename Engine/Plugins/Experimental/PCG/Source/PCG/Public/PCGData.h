@@ -11,6 +11,7 @@
 #include "PCGData.generated.h"
 
 class UPCGSettings;
+class UPCGSettingsInterface;
 class UPCGParamData;
 
 /**
@@ -68,6 +69,9 @@ struct PCG_API FPCGDataCollection
 	TArray<FPCGTaggedData> GetTaggedParams(const FString& InTag) const;
 	TArray<FPCGTaggedData> GetParamsByPin(const FName& InPinLabel) const;
 	UPCGParamData* GetParams() const;
+
+	const UPCGSettingsInterface* GetSettingsInterface() const;
+	const UPCGSettingsInterface* GetSettingsInterface(const UPCGSettingsInterface* InDefaultSettingsInterface) const;
 
 	template<typename SettingsType>
 	const SettingsType* GetSettings() const;

@@ -7,6 +7,6 @@ void UPCGDeterminismTestBlueprintBase::ExecuteTest_Implementation(const UPCGNode
 	// The default case if the user tries to run the blueprint test unimplemented
 	InOutTestResult.TestResultTitle = InPCGNode->GetNodeTitle();
 	InOutTestResult.TestResultName = InPCGNode->GetName();
-	InOutTestResult.Seed = InPCGNode->DefaultSettings->Seed;
+	InOutTestResult.Seed = InPCGNode->GetSettings()->Seed;
 	PCGDeterminismTests::RunDeterminismTest(InPCGNode, InOutTestResult, PCGDeterminismTests::Defaults::DeterminismBasicTestInfo);
 }

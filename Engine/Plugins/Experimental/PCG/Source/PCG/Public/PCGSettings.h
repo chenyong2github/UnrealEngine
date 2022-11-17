@@ -46,11 +46,35 @@ enum class EPCGSettingsType : uint8
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGSettingsChanged, UPCGSettings*, EPCGChangeType);
 #endif
 
+UCLASS(Abstract, MinimalAPI)
+class UPCGSettingsInterface : public UPCGData
+{
+	GENERATED_BODY()
+
+public:
+	virtual UPCGSettings* GetSettings() PURE_VIRTUAL(UPCGSettingsInterface::GetSettings, return nullptr;);
+	virtual const UPCGSettings* GetSettings() const PURE_VIRTUAL(UPCGSettingsInterface::GetSettings, return nullptr;);
+
+	bool IsInstance() const;
+
+#if WITH_EDITOR
+	FOnPCGSettingsChanged OnSettingsChangedDelegate;
+#endif
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+	EPCGSettingsExecutionMode ExecutionMode = EPCGSettingsExecutionMode::Enabled;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug, meta = (ShowOnlyInnerProperties))
+	FPCGDebugVisualizationSettings DebugSettings;
+#endif
+};
+
 /**
 * Base class for settings-as-data in the PCG framework
 */
 UCLASS(Abstract, BlueprintType, ClassGroup = (Procedural))
-class PCG_API UPCGSettings : public UPCGData
+class PCG_API UPCGSettings : public UPCGSettingsInterface
 {
 	GENERATED_BODY()
 
@@ -59,8 +83,15 @@ public:
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Settings | Super::GetDataType(); }
 	// ~End UPCGData interface
 
+	// ~Begin UPCGSettingsInterface interface
+	virtual UPCGSettings* GetSettings() { return this; }
+	virtual const UPCGSettings* GetSettings() const { return this; }
+	// ~End UPCGSettingsInterface interface
+
 	//~Begin UObject interface
+	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
 	//~End UObject interface
 
 	// TODO: check if we need this to be virtual, we don't really need if we're always caching
@@ -108,19 +139,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Tags")
 	TSet<FString> TagsAppliedOnOutput;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
-	EPCGSettingsExecutionMode ExecutionMode = EPCGSettingsExecutionMode::Enabled;
-
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug, meta = (ShowOnlyInnerProperties))
-	FPCGDebugVisualizationSettings DebugSettings;
+	UPROPERTY()
+	EPCGSettingsExecutionMode ExecutionMode_DEPRECATED = EPCGSettingsExecutionMode::Enabled;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Determinism, meta = (ShowOnlyInnerProperties))
 	FPCGDeterminismSettings DeterminismSettings;
-#endif
-
-#if WITH_EDITOR
-	FOnPCGSettingsChanged OnSettingsChangedDelegate;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -164,6 +188,41 @@ protected:
 private:
 	mutable FPCGElementPtr CachedElement;
 	mutable FCriticalSection CacheLock;
+};
+
+UCLASS(BlueprintType, ClassGroup = (Procedural))
+class PCG_API UPCGSettingsInstance : public UPCGSettingsInterface
+{
+	GENERATED_BODY()
+
+public:
+	// ~Begin UPCGSettingsInterface
+	virtual UPCGSettings* GetSettings() { return Settings.Get(); }
+	virtual const UPCGSettings* GetSettings() const { return Settings.Get(); }
+	// ~End UPCGSettingsInterface
+
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	// ~End UObject interface
+
+	void SetSettings(UPCGSettings* InSettings);
+
+#if WITH_EDITOR
+	void OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType);
+#endif
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, VisibleAnywhere, Category = Instance)
+	TObjectPtr<UPCGSettings> OriginalSettings = nullptr; // Transient just for display
+#endif
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Instance, meta = (EditInline))
+	TObjectPtr<UPCGSettings> Settings = nullptr;
 };
 
 /** Trivial / Pass-through settings used for input/output nodes */

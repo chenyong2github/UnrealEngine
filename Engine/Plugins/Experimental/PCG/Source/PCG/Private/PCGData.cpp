@@ -133,12 +133,40 @@ const UPCGSettings* FPCGDataCollection::GetSettings(const UPCGSettings* InDefaul
 	else
 	{
 		const FPCGTaggedData* MatchingData = TaggedData.FindByPredicate([InDefaultSettings](const FPCGTaggedData& Data) {
-			return Data.Data && 
+			return Data.Data &&
 				(Data.Data->GetClass() == InDefaultSettings->GetClass() ||
 					Data.Data->GetClass()->IsChildOf(InDefaultSettings->GetClass()));
 			});
 
 		return MatchingData ? Cast<const UPCGSettings>(MatchingData->Data) : InDefaultSettings;
+	}
+}
+
+const UPCGSettingsInterface* FPCGDataCollection::GetSettingsInterface() const
+{
+	return GetSettings<UPCGSettingsInterface>();
+}
+
+const UPCGSettingsInterface* FPCGDataCollection::GetSettingsInterface(const UPCGSettingsInterface* InDefaultSettingsInterface) const
+{
+	if (!InDefaultSettingsInterface || InDefaultSettingsInterface->GetSettings() == nullptr)
+	{
+		return GetSettingsInterface();
+	}
+	else
+	{
+		const FPCGTaggedData* MatchingData = TaggedData.FindByPredicate([InDefaultSettingsInterface](const FPCGTaggedData& Data) {
+			if (UPCGSettingsInterface* DataSettingsInterface = Cast<UPCGSettingsInterface>(Data.Data))
+			{
+				// Compare settings classes
+				return DataSettingsInterface->GetSettings()->GetClass() == InDefaultSettingsInterface->GetSettings()->GetClass() ||
+					DataSettingsInterface->GetSettings()->GetClass()->IsChildOf(InDefaultSettingsInterface->GetSettings()->GetClass());
+			}
+
+			return false;
+		});
+
+		return MatchingData ? Cast<const UPCGSettingsInterface>(MatchingData->Data) : InDefaultSettingsInterface;
 	}
 }
 

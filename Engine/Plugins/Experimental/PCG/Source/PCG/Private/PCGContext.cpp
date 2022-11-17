@@ -48,3 +48,15 @@ bool FPCGContext::IsOutputConnectedOrInspecting(FName PinLabel) const
 	return bOutputConnected;
 #endif // WITH_EDITOR
 }
+
+const UPCGSettingsInterface* FPCGContext::GetInputSettingsInterface() const
+{
+	if (Node)
+	{
+		return InputData.GetSettingsInterface(Node->GetSettingsInterface());
+	}
+	else
+	{
+		return InputData.GetSettingsInterface();
+	}
+}

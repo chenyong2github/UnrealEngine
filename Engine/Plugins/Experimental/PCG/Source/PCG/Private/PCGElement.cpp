@@ -98,13 +98,15 @@ void IPCGElement::PreExecute(FPCGContext* Context) const
 	// Prepare to move to prepare data phase
 	Context->CurrentPhase = EPCGExecutionPhase::PrepareData;
 
-	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
-	if (!Settings)
+	const UPCGSettingsInterface* SettingsInterface = Context->GetInputSettingsInterface();
+	const UPCGSettings* Settings = SettingsInterface ? SettingsInterface->GetSettings() : nullptr;
+
+	if (!SettingsInterface || !Settings)
 	{
 		return;
 	}
 
-	if (Settings->ExecutionMode == EPCGSettingsExecutionMode::Disabled)
+	if (SettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Disabled)
 	{
 		//Pass-through - no execution
 		Context->OutputData = Context->InputData;
@@ -154,7 +156,8 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 	PCGE_LOG(Log, "Executed in (%f)s and (%d) call(s)", Context->ElapsedTime, Context->ExecutionCount);
 #endif
 
-	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
+	const UPCGSettingsInterface* SettingsInterface = Context->GetInputSettingsInterface();
+	const UPCGSettings* Settings = SettingsInterface ? SettingsInterface->GetSettings() : nullptr;
 
 	// Apply tags on output
 	/** TODO - Placeholder feature */
@@ -168,7 +171,7 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 
 	// Additional debug things (check for duplicates),
 #if WITH_EDITOR
-	if (Settings && Settings->DebugSettings.bCheckForDuplicates)
+	if (SettingsInterface && SettingsInterface->DebugSettings.bCheckForDuplicates)
 	{
 		FPCGDataCollection ElementInputs = Context->InputData;
 		FPCGDataCollection ElementOutputs = Context->OutputData;
@@ -190,8 +193,8 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 #if WITH_EDITOR
 void IPCGElement::DebugDisplay(FPCGContext* Context) const
 {
-	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
-	if (Settings && (Settings->ExecutionMode == EPCGSettingsExecutionMode::Debug || Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated))
+	const UPCGSettingsInterface* SettingsInterface = Context->GetInputSettingsInterface();
+	if (SettingsInterface && (SettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Debug || SettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated))
 	{
 		FPCGDataCollection ElementInputs = Context->InputData;
 		FPCGDataCollection ElementOutputs = Context->OutputData;
@@ -205,7 +208,7 @@ void IPCGElement::DebugDisplay(FPCGContext* Context) const
 		Context->OutputData = ElementOutputs;
 
 		// Null out the output if this node is executed in isolation
-		if (Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+		if (SettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
 		{
 			Context->OutputData.bCancelExecution = true;
 		}
@@ -224,7 +227,8 @@ void IPCGElement::ResetTimers()
 void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 {
 	check(Context);
-	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
+	const UPCGSettingsInterface* SettingsInterface = Context->GetInputSettingsInterface();
+	const UPCGSettings* Settings = SettingsInterface ? SettingsInterface->GetSettings() : nullptr;
 
 	if (!IsPassthrough() && Settings)
 	{
@@ -241,7 +245,7 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 
 		// Validate all out data for errors in labels
 #if WITH_EDITOR
-		if (Settings->ExecutionMode != EPCGSettingsExecutionMode::Disabled)
+		if (SettingsInterface->ExecutionMode != EPCGSettingsExecutionMode::Disabled)
 		{
 			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
 			{
@@ -258,6 +262,25 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 			}
 		}
 #endif
+	}
+}
+
+bool IPCGElement::IsCacheableInstance(const UPCGSettingsInterface* InSettingsInterface) const
+{
+	if (InSettingsInterface)
+	{
+		if (InSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Disabled)
+		{
+			return false;
+		}
+		else
+		{
+			return IsCacheable(InSettingsInterface->GetSettings());
+		}
+	}
+	else
+	{
+		return false;
 	}
 }
 

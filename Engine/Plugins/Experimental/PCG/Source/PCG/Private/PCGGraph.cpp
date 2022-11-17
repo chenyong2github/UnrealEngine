@@ -28,7 +28,7 @@ UPCGGraph::UPCGGraph(const FObjectInitializer& ObjectInitializer)
 
 	UPCGGraphInputOutputSettings* InputSettings = ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings"));
 	InputSettings->SetInput(true);
-	InputNode->SetDefaultSettings(InputSettings, /*bUpdatePins=*/false);
+	InputNode->SetSettingsInterface(InputSettings, /*bUpdatePins=*/false);
 	InputNode->UpdatePins(PinAllocator);
 	
 	OutputNode = ObjectInitializer.CreateDefaultSubobject<UPCGNode>(this, TEXT("DefaultOutputNode"));
@@ -36,7 +36,7 @@ UPCGGraph::UPCGGraph(const FObjectInitializer& ObjectInitializer)
 
 	UPCGGraphInputOutputSettings* OutputSettings = ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultOutputNodeSettings"));
 	OutputSettings->SetInput(false);
-	OutputNode->SetDefaultSettings(OutputSettings, /*bUpdatePins=*/false);
+	OutputNode->SetSettingsInterface(OutputSettings, /*bUpdatePins=*/false);
 	OutputNode->UpdatePins(PinAllocator);
 	
 #if WITH_EDITORONLY_DATA
@@ -64,21 +64,21 @@ void UPCGGraph::PostLoad()
 	// Deprecation
 	InputNode->ConditionalPostLoad();
 
-	if (!Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings))
+	if (!Cast<UPCGGraphInputOutputSettings>(InputNode->GetSettings()))
 	{
-		InputNode->DefaultSettings = NewObject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings"));
+		InputNode->SetSettingsInterface(NewObject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings")));
 	}
 
-	Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings)->SetInput(true);
+	Cast<UPCGGraphInputOutputSettings>(InputNode->GetSettings())->SetInput(true);
 
 	OutputNode->ConditionalPostLoad();
 
-	if (!Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings))
+	if (!Cast<UPCGGraphInputOutputSettings>(OutputNode->GetSettings()))
 	{
-		OutputNode->DefaultSettings = NewObject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultOutputNodeSettings"));
+		OutputNode->SetSettingsInterface(NewObject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultOutputNodeSettings")));
 	}
 
-	Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings)->SetInput(false);
+	Cast<UPCGGraphInputOutputSettings>(OutputNode->GetSettings())->SetInput(false);
 
 	// Ensure that all nodes are loaded (& updated their deprecated data)
 	for (UPCGNode* Node : Nodes)
@@ -117,7 +117,7 @@ void UPCGGraph::PostLoad()
 	// We remove it at the end, to let the nodes that have null settings to clean up their pins and edges.
 	for (int32 i = Nodes.Num() - 1; i >= 0; --i)
 	{
-		if (!Nodes[i]->DefaultSettings)
+		if (!Nodes[i]->GetSettings())
 		{
 			Nodes.RemoveAtSwap(i);
 		}
@@ -165,47 +165,26 @@ UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsCla
 		return nullptr;
 	}
 
-	UPCGNode* Node = Settings->CreateNode();
+	UPCGNode* Node = AddNode(Settings);
 
 	if (Node)
 	{
-		Node->SetFlags(RF_Transactional);
-
-		Modify();
-
-		// Assign settings to node
-		Node->SetDefaultSettings(Settings);
 		Settings->Rename(nullptr, Node);
 		Settings->SetFlags(RF_Transactional);
-
-		// Reparent node to this graph
-		Node->Rename(nullptr, this);
-
-#if WITH_EDITOR
-		const FName DefaultNodeName = Settings->GetDefaultNodeName();
-		if (DefaultNodeName != NAME_None)
-		{
-			FName NodeName = MakeUniqueObjectName(this, UPCGNode::StaticClass(), DefaultNodeName);
-			Node->Rename(*NodeName.ToString());
-		}
-#endif
-
-		Nodes.Add(Node);
-		OnNodeAdded(Node);
 	}
 
 	OutDefaultNodeSettings = Settings;
 	return Node;
 }
 
-UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
+UPCGNode* UPCGGraph::AddNode(UPCGSettingsInterface* InSettingsInterface)
 {
-	if (!InSettings)
+	if (!InSettingsInterface || !InSettingsInterface->GetSettings())
 	{
 		return nullptr;
 	}
 
-	UPCGNode* Node = InSettings->CreateNode();
+	UPCGNode* Node = InSettingsInterface->GetSettings()->CreateNode();
 
 	if (Node)
 	{
@@ -214,13 +193,13 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 		Modify();
 
 		// Assign settings to node & reparent
-		Node->SetDefaultSettings(InSettings);
+		Node->SetSettingsInterface(InSettingsInterface);
 
 		// Reparent node to this graph
 		Node->Rename(nullptr, this);
 
 #if WITH_EDITOR
-		const FName DefaultNodeName = InSettings->GetDefaultNodeName();
+		const FName DefaultNodeName = InSettingsInterface->GetSettings()->GetDefaultNodeName();
 		if (DefaultNodeName != NAME_None)
 		{
 			FName NodeName = MakeUniqueObjectName(this, UPCGNode::StaticClass(), DefaultNodeName);
@@ -235,15 +214,42 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 	return Node;
 }
 
+UPCGNode* UPCGGraph::AddNodeInstance(UPCGSettings* InSettings)
+{
+	if (!InSettings)
+	{
+		return nullptr;
+	}
+
+	UPCGSettingsInstance* SettingsInstance = NewObject<UPCGSettingsInstance>();
+	SettingsInstance->SetSettings(InSettings);
+
+	UPCGNode* Node = AddNode(SettingsInstance);
+
+	if (Node)
+	{
+		SettingsInstance->Rename(nullptr, Node);
+		SettingsInstance->SetFlags(RF_Transactional);
+	}
+
+	return Node;
+}
+
 UPCGNode* UPCGGraph::AddNodeCopy(UPCGSettings* InSettings, UPCGSettings*& DefaultNodeSettings)
 {
+	if (!InSettings)
+	{
+		return nullptr;
+	}
+
 	UPCGSettings* SettingsCopy = DuplicateObject(InSettings, nullptr);
 	UPCGNode* NewNode = AddNode(SettingsCopy);
 
 	if (SettingsCopy)
 	{
 		SettingsCopy->Rename(nullptr, NewNode);
-	}	
+		SettingsCopy->SetFlags(RF_Transactional);
+	}
 
 	DefaultNodeSettings = SettingsCopy;
 	return NewNode;
@@ -319,7 +325,7 @@ bool UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& FromPinLabel, UPCGNo
 TObjectPtr<UPCGNode> UPCGGraph::ReconstructNewNode(const UPCGNode* InNode)
 {
 	UPCGSettings* NewSettings = nullptr;
-	TObjectPtr<UPCGNode> NewNode = AddNodeCopy(InNode->DefaultSettings, NewSettings);
+	TObjectPtr<UPCGNode> NewNode = AddNodeCopy(InNode->GetSettings(), NewSettings);
 
 #if WITH_EDITOR
 	InNode->TransferEditorProperties(NewNode);
@@ -342,7 +348,7 @@ void UPCGGraph::AddNode(UPCGNode* InNode)
 	InNode->Rename(nullptr, this);
 
 #if WITH_EDITOR
-	const FName DefaultNodeName = InNode->DefaultSettings->GetDefaultNodeName();
+	const FName DefaultNodeName = InNode->GetSettings()->GetDefaultNodeName();
 	if (DefaultNodeName != NAME_None)
 	{
 		FName NodeName = MakeUniqueObjectName(this, UPCGNode::StaticClass(), DefaultNodeName);
@@ -569,9 +575,9 @@ void UPCGGraph::GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings
 
 	for (UPCGNode* Node : Nodes)
 	{
-		if (Node && Node->DefaultSettings)
+		if (Node && Node->GetSettings())
 		{
-			Node->DefaultSettings->GetTrackedActorTags(OutTagsToSettings, OutVisitedGraphs);
+			Node->GetSettings()->GetTrackedActorTags(OutTagsToSettings, OutVisitedGraphs);
 		}
 	}
 }

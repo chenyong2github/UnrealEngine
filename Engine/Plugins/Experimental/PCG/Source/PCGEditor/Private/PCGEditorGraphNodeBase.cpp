@@ -36,9 +36,9 @@ void UPCGEditorGraphNodeBase::Construct(UPCGNode* InPCGNode)
 	bCommentBubblePinned = InPCGNode->bCommentBubblePinned;
 	bCommentBubbleVisible = InPCGNode->bCommentBubbleVisible;
 
-	if (const UPCGSettings* PCGSettings = InPCGNode->DefaultSettings)
+	if (const UPCGSettingsInterface* PCGSettingsInterface = InPCGNode->GetSettingsInterface())
 	{
-		const ENodeEnabledState NewEnabledState = (PCGSettings->ExecutionMode == EPCGSettingsExecutionMode::Disabled) ? ENodeEnabledState::Disabled : ENodeEnabledState::Enabled;
+		const ENodeEnabledState NewEnabledState = (PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Disabled) ? ENodeEnabledState::Disabled : ENodeEnabledState::Enabled;
 		SetEnabledState(NewEnabledState);
 	}
 }
@@ -250,9 +250,9 @@ void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType Cha
 	{
 		if (!!(ChangeType & EPCGChangeType::Settings))
 		{
-			if (const UPCGSettings* PCGSettings = InNode->DefaultSettings)
+			if (const UPCGSettingsInterface* PCGSettingsInterface = InNode->GetSettingsInterface())
 			{
-				const ENodeEnabledState NewEnabledState = (PCGSettings->ExecutionMode == EPCGSettingsExecutionMode::Disabled) ? ENodeEnabledState::Disabled : ENodeEnabledState::Enabled;
+				const ENodeEnabledState NewEnabledState = (PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Disabled) ? ENodeEnabledState::Disabled : ENodeEnabledState::Enabled;
 				if (NewEnabledState != GetDesiredEnabledState())
 				{
 					SetEnabledState(NewEnabledState);
@@ -322,8 +322,10 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeTitleColor() const
 {
 	if (PCGNode)
 	{
-		const UPCGSettings* PCGSettings = PCGNode->DefaultSettings;
-		if (PCGSettings && PCGSettings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+		const UPCGSettingsInterface* PCGSettingsInterface = PCGNode->GetSettingsInterface();
+		const UPCGSettings* PCGSettings = PCGSettingsInterface->GetSettings();
+
+		if (PCGSettingsInterface && PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
 		{
 			return GetDefault<UPCGEditorSettings>()->IsolatedNodeColor;
 		}
@@ -334,10 +336,10 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeTitleColor() const
 		}
 		else if (PCGSettings)
 		{
-			FLinearColor SettingsColor = PCGNode->DefaultSettings->GetNodeTitleColor();
+			FLinearColor SettingsColor = PCGNode->GetSettings()->GetNodeTitleColor();
 			if (SettingsColor == FLinearColor::White)
 			{
-				SettingsColor = GetDefault<UPCGEditorSettings>()->GetColor(PCGNode->DefaultSettings);
+				SettingsColor = GetDefault<UPCGEditorSettings>()->GetColor(PCGNode->GetSettings());
 			}
 
 			if (SettingsColor != FLinearColor::White)
@@ -354,8 +356,8 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeBodyTintColor() const
 {
 	if (PCGNode)
 	{
-		const UPCGSettings* PCGSettings = PCGNode->DefaultSettings;
-		if (PCGSettings && PCGSettings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+		const UPCGSettingsInterface* PCGSettingsInterface = PCGNode->GetSettingsInterface();
+		if (PCGSettingsInterface && PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
 		{
 			return GetDefault<UPCGEditorSettings>()->IsolatedNodeColor;
 		}
@@ -500,7 +502,7 @@ UObject* UPCGEditorGraphNodeBase::GetJumpTargetForDoubleClick() const
 {
 	if (PCGNode)
 	{
-		if (UPCGSettings* Settings = PCGNode->DefaultSettings)
+		if (UPCGSettings* Settings = PCGNode->GetSettings())
 		{
 			return Settings->GetJumpTargetForDoubleClick();
 		}
