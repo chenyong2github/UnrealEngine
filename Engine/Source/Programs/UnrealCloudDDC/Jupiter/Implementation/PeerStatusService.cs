@@ -7,7 +7,6 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Jupiter;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Log = Serilog.Log;

@@ -6,9 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Controllers;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
-using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Jupiter.Implementation
 {

@@ -3,7 +3,6 @@
 using System;
 using System.Threading.Tasks;
 using Jupiter.Common.Implementation;
-using Jupiter.Implementation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 

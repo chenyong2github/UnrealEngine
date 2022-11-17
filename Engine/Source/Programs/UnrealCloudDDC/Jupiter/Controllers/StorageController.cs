@@ -13,7 +13,6 @@ using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Jupiter.Implementation;
-using Jupiter;
 using Jupiter.Common.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;

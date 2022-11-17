@@ -10,12 +10,9 @@ using System.Net.Mime;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Controllers;
-using Jupiter.Implementation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Jupiter;
-using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Jupiter.Implementation
 {

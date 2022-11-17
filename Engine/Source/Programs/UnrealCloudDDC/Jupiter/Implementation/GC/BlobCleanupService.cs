@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Jupiter;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;

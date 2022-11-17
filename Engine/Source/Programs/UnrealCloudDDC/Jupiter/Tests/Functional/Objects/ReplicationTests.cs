@@ -14,7 +14,6 @@ using Dasync.Collections;
 using Jupiter.Controllers;
 using Jupiter.Implementation;
 using Jupiter.Implementation.TransactionLog;
-using Jupiter;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;

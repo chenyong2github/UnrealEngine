@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
 using System;
 using System.Threading.Tasks;
-using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Jupiter.Implementation
 {

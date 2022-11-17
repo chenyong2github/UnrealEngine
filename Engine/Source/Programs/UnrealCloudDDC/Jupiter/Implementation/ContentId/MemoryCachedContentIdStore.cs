@@ -4,10 +4,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Jupiter.Implementation
 {

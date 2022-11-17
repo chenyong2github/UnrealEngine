@@ -6,7 +6,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using EpicGames.Horde.Storage;
-using Jupiter;
 using Jupiter.Common;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;

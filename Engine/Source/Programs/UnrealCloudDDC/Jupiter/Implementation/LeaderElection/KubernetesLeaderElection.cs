@@ -5,7 +5,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Jupiter;
 using k8s;
 using k8s.LeaderElection;
 using k8s.LeaderElection.ResourceLock;

@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using Jupiter.Implementation.Blob;
-using Jupiter;
 using Jupiter.Common;
 using Jupiter.Common.Implementation;
 using Microsoft.AspNetCore.Http;

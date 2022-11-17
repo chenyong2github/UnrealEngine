@@ -9,10 +9,8 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
-using Jupiter;
 using Jupiter.Common;
 using Jupiter.Common.Implementation;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using KeyNotFoundException = System.Collections.Generic.KeyNotFoundException;
 

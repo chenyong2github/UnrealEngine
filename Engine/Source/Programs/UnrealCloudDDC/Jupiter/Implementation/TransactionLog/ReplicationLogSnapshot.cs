@@ -5,11 +5,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
-using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using JetBrains.Annotations;
 using Jupiter.Common.Implementation;
-using Jupiter.Implementation;
 using Newtonsoft.Json;
 using OpenTelemetry.Trace;
 

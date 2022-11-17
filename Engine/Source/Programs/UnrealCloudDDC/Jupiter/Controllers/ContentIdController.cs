@@ -4,7 +4,6 @@ using System.Net.Mime;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
-using Jupiter;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ContentId = Jupiter.Implementation.ContentId;

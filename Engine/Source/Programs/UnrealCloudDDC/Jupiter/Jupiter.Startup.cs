@@ -18,7 +18,6 @@ using Jupiter.Controllers;
 using Jupiter.Implementation;
 using Jupiter.Implementation.Blob;
 using Jupiter.Implementation.LeaderElection;
-using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation.TransactionLog;
 using Jupiter.Utils;
