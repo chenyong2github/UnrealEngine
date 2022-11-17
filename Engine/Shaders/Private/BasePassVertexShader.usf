@@ -108,7 +108,7 @@ void Main(
 			Output.Position, WorldPosition.xyz, ResolvedView.TranslatedWorldCameraOrigin,
 			TranslucentBasePass.VolumetricCloudColor, TranslucentBasePass.VolumetricCloudColorSampler,
 			TranslucentBasePass.VolumetricCloudDepth, TranslucentBasePass.VolumetricCloudDepthSampler,
-			OneOverPreExposure, Output.BasePassInterpolants.VertexFog);
+			OneOverPreExposure, Output.BasePassInterpolants.VertexFog, TranslucentBasePass.SoftBlendingDistanceKm);
 	}
 #endif
 

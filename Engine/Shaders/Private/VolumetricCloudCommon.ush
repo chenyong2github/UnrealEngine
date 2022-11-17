@@ -77,7 +77,7 @@ float4 GetCloudLuminanceTransmittanceOverFog(
 	float4 NDC, float3 SampledWorldPos, float3 CameraWorldPos,
 	Texture2D<float4> VolumetricCloudColor, SamplerState VolumetricCloudColorSampler,
 	Texture2D<float4> VolumetricCloudDepth, SamplerState VolumetricCloudDepthSampler,
-	float OneOverPreExposure, float4 CurrentVertexFog)
+	float OneOverPreExposure, float4 CurrentVertexFog, float SoftBlendingDistanceKm)
 {
 	float2 ScreenUv = (NDC.xy / NDC.ww) * float2(0.5f, -0.5f) + 0.5f;
 
@@ -99,7 +99,6 @@ float4 GetCloudLuminanceTransmittanceOverFog(
 		float4 CloudFog = Texture2DSample(VolumetricCloudColor, VolumetricCloudColorSampler, ScreenUv);
 		CloudFog.rgb *= OneOverPreExposure;
 
-		const float SoftBlendingDistanceKm = 0.5f;// 500 meters
 		const float BlendFactor = saturate(DepthInsideKm / SoftBlendingDistanceKm);
 		const float4 FogToApplyUnder = CurrentVertexFog;
 		const float4 FogToApplyOver = lerp(float4(0.0, 0.0, 0.0, 1.0), CloudFog, BlendFactor);

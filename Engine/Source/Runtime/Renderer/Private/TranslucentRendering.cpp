@@ -81,6 +81,10 @@ static TAutoConsoleVariable<int32> CVarTranslucencyUpperBoundQuantization(
 	TEXT("Only recommended for use with the transient allocator (on supported platforms) with a large transient texture cache (e.g RHI.TransientAllocator.TextureCacheSize=512)"),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
+static TAutoConsoleVariable<float> CVarVolumetricCloudSoftBlendingDistanceOnTranslucent(
+	TEXT("r.VolumetricCloud.SoftBlendingDistanceOnTranslucent"), 0.5,
+	TEXT("The soft blending in distance in kilometer used to soft blend in cloud over translucent from the evaluated start depth."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 int32 GSeparateTranslucencyUpsampleMode = 1;
 static FAutoConsoleVariableRef CVarSeparateTranslucencyUpsampleMode(
@@ -876,6 +880,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 			BasePassParameters.PrevSceneColorBilinearUVMax = FVector2f(1.0f, 1.0f);
 		}
 
+		BasePassParameters.SoftBlendingDistanceKm = FMath::Max(0.0001f, CVarVolumetricCloudSoftBlendingDistanceOnTranslucent.GetValueOnRenderThread());
 		BasePassParameters.ApplyVolumetricCloudOnTransparent = 0.0f;
 		BasePassParameters.VolumetricCloudColor = nullptr;
 		BasePassParameters.VolumetricCloudDepth = nullptr;

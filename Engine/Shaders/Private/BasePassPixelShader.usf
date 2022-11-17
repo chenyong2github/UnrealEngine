@@ -1338,7 +1338,7 @@ void FPixelShaderInOut_MainPS(
 			NDCPosition, LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition), LWCHackToFloat(ResolvedView.WorldCameraOrigin),
 			TranslucentBasePass.VolumetricCloudColor, TranslucentBasePass.VolumetricCloudColorSampler,
 			TranslucentBasePass.VolumetricCloudDepth, TranslucentBasePass.VolumetricCloudDepthSampler,
-			OneOverPreExposure, Fogging);
+			OneOverPreExposure, Fogging, TranslucentBasePass.SoftBlendingDistanceKm);
 	}
 
 #endif
