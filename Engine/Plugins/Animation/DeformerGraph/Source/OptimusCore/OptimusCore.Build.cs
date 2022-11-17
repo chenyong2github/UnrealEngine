@@ -5,8 +5,10 @@ namespace UnrealBuildTool.Rules
     public class OptimusCore : ModuleRules
     {
         public OptimusCore(ReadOnlyTargetRules Target) : base(Target)
-        {
-            PrivateIncludePaths.AddRange(
+		{
+			NumIncludedBytesPerUnityCPPOverride = 688128; // best unity size found from using UBT ProfileUnitySizes mode
+
+			PrivateIncludePaths.AddRange(
                 new string[] {
                     "OptimusCore/Private",
 				}

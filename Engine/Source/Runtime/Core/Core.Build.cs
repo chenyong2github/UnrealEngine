@@ -8,6 +8,8 @@ public class Core : ModuleRules
 {
 	public Core(ReadOnlyTargetRules Target) : base(Target)
 	{
+		NumIncludedBytesPerUnityCPPOverride = 491520; // best unity size found from using UBT ProfileUnitySizes mode
+
 		PrivatePCHHeaderFile = "Private/CorePrivatePCH.h";
 
 		SharedPCHHeaderFile = "Public/CoreSharedPCH.h";

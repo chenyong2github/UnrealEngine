@@ -7,6 +7,8 @@ public class Engine : ModuleRules
 {
 	public Engine(ReadOnlyTargetRules Target) : base(Target)
 	{
+		NumIncludedBytesPerUnityCPPOverride = 589824; // best unity size found from using UBT ProfileUnitySizes mode
+
 		PublicIncludePaths.Add("../Shaders/Shared");
 		
 		PrivatePCHHeaderFile = "Private/EnginePrivatePCH.h";

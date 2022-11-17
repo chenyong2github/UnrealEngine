@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public GameplayAbilities(ReadOnlyTargetRules Target) : base(Target)
 		{
+			NumIncludedBytesPerUnityCPPOverride = 491520; // best unity size found from using UBT ProfileUnitySizes mode
+
 			PrivateIncludePaths.Add("GameplayAbilities/Private");
 			
 			PublicDependencyModuleNames.AddRange(

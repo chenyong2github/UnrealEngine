@@ -11,7 +11,7 @@ namespace UnrealBuildTool.Rules
         {
 			NumIncludedBytesPerUnityCPPOverride = 192 * 1024; // This is half of the default unity size(NumIncludedBytesPerUnityCPP) specified in TargetRules.cs
 
-            PublicIncludePaths.Add("Runtime/Experimental/Chaos/Public");
+			PublicIncludePaths.Add("Runtime/Experimental/Chaos/Public");
 
             PublicDependencyModuleNames.AddRange(
                 new string[] {

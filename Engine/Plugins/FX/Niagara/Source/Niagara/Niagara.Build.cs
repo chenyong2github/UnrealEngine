@@ -6,8 +6,10 @@ using UnrealBuildTool;
 public class Niagara : ModuleRules
 {
     public Niagara(ReadOnlyTargetRules Target) : base(Target)
-    {
-        PrivateIncludePaths.Add("../../../../Shaders/Shared");
+	{
+		NumIncludedBytesPerUnityCPPOverride = 491520; // best unity size found from using UBT ProfileUnitySizes mode
+
+		PrivateIncludePaths.Add("../../../../Shaders/Shared");
 
 		// Specific to OpenVDB support
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
