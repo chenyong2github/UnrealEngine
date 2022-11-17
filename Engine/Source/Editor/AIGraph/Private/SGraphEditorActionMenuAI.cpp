@@ -35,11 +35,11 @@ void SGraphEditorActionMenuAI::Construct( const FArguments& InArgs )
 	// Build the widget layout
 	SBorder::Construct( SBorder::FArguments()
 		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
-		.Padding(5)
+		.Padding(5.f)
 		[
 			// Achieving fixed width by nesting items within a fixed width box.
 			SNew(SBox)
-			.WidthOverride(400)
+			.WidthOverride(400.f)
 			[
 				SAssignNew(GraphActionMenu, SGraphActionMenu)
 				.OnActionSelected(this, &SGraphEditorActionMenuAI::OnActionSelected)

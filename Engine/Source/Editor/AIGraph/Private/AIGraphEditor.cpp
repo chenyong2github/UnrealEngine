@@ -410,8 +410,11 @@ void FAIGraphEditor::PasteNodesHere(const FVector2D& Location)
 			// Select the newly pasted stuff
 			CurrentGraphEditor->SetNodeSelection(PasteNode, true);
 
-			PasteNode->NodePosX = (PasteNode->NodePosX - AvgNodePosition.X) + Location.X;
-			PasteNode->NodePosY = (PasteNode->NodePosY - AvgNodePosition.Y) + Location.Y;
+			const FVector::FReal NodePosX = (PasteNode->NodePosX - AvgNodePosition.X) + Location.X;
+			const FVector::FReal NodePosY = (PasteNode->NodePosY - AvgNodePosition.Y) + Location.Y;
+
+			PasteNode->NodePosX = static_cast<int32>(NodePosX);
+			PasteNode->NodePosY = static_cast<int32>(NodePosY);
 
 			PasteNode->SnapToGrid(16);
 
