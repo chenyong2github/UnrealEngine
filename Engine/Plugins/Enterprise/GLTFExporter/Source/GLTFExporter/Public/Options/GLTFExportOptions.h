@@ -17,19 +17,6 @@ enum class EGLTFTextureImageFormat : uint8
 	JPEG UMETA(DisplayName = "JPEG (if no alpha)")
 };
 
-UENUM(BlueprintType, Meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
-enum class EGLTFSceneMobility : uint8
-{
-	None = 0 UMETA(Hidden),
-
-	Static = 1 << 0,
-	Stationary = 1 << 1,
-	Movable = 1 << 2,
-
-	All = Static | Stationary | Movable UMETA(Hidden)
-};
-ENUM_CLASS_FLAGS(EGLTFSceneMobility);
-
 UENUM(BlueprintType)
 enum class EGLTFMaterialVariantMode : uint8
 {
@@ -134,9 +121,9 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportHiddenInGame;
 
-	/** Mobility of directional, point, and spot light components that will be exported. Uses extension KHR_lights_punctual. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta = (Bitmask, BitmaskEnum = "/Script/GLTFExporter.EGLTFSceneMobility"))
-	int32 ExportLights; // Bitmask combined from EGLTFSceneMobility
+	/** If enabled, export directional, point, and spot light components. Uses extension KHR_lights_punctual. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
+	bool bExportLights;
 
 	/** If enabled, export camera components. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)

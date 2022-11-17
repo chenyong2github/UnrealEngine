@@ -76,13 +76,6 @@ TextureAddress FGLTFBuilder::GetBakeTilingForMaterialProperty(const UMaterialInt
 	return UGLTFMaterialExportOptions::GetBakeTilingForPropertyGroup(Material, PropertyGroup, DefaultValue);
 }
 
-bool FGLTFBuilder::ShouldExportLight(EComponentMobility::Type LightMobility) const
-{
-	const EGLTFSceneMobility AllowedMobility = static_cast<EGLTFSceneMobility>(ExportOptions->ExportLights);
-	const EGLTFSceneMobility QueriedMobility = GetSceneMobility(LightMobility);
-	return EnumHasAllFlags(AllowedMobility, QueriedMobility);
-}
-
 int32 FGLTFBuilder::SanitizeLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex) const
 {
 	return LODIndex > 0
@@ -119,17 +112,4 @@ const UGLTFExportOptions* FGLTFBuilder::SanitizeExportOptions(const UGLTFExportO
 	}
 
 	return Options;
-}
-
-EGLTFSceneMobility FGLTFBuilder::GetSceneMobility(EComponentMobility::Type Mobility)
-{
-	switch (Mobility)
-	{
-		case EComponentMobility::Static:     return EGLTFSceneMobility::Static;
-		case EComponentMobility::Stationary: return EGLTFSceneMobility::Stationary;
-		case EComponentMobility::Movable:    return EGLTFSceneMobility::Movable;
-		default:
-			checkNoEntry();
-			return EGLTFSceneMobility::None;
-	}
 }

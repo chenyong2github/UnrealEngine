@@ -31,7 +31,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportTextureTransforms = true;
 	bAdjustNormalmaps = true;
 	bExportHiddenInGame = false;
-	ExportLights = static_cast<int32>(EGLTFSceneMobility::Stationary | EGLTFSceneMobility::Movable);
+	bExportLights = true;
 	bExportCameras = true;
 	ExportMaterialVariants = EGLTFMaterialVariantMode::UseMeshData;
 }
