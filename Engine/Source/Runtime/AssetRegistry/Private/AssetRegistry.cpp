@@ -6250,12 +6250,6 @@ void FAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 #endif
 										](FDependsNode* ReferencingNode, FDependsNode* TargetNode, EDependencyCategory DependencyType, EDependencyProperty DependencyProperties)
 			{
-				if (SourceNode->GetPackageName() == "/Game/__ExternalActors__/Athena/Asteria/Maps/Asteria_Terrain/A/QR/6H7UW5BIERI1NOCMWXXDZ2" ||
-					(ReferencingNode && ReferencingNode->GetPackageName() == "/Game/__ExternalActors__/Athena/Asteria/Maps/Asteria_Terrain/A/QR/6H7UW5BIERI1NOCMWXXDZ2"))
-				{
-					UE_LOG(LogAssetRegistry, Log, TEXT("Blablabla"));
-				}
-
 				// Only recurse if we haven't already visited, and this node passes recursion test
 				if (!Visited.Contains(TargetNode))
 				{
