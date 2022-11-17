@@ -2119,16 +2119,26 @@ UMeshDeformer* USkinnedMeshComponent::GetActiveMeshDeformer() const
 	return nullptr;
 }
 
-void USkinnedMeshComponent::SetMeshDeformer(UMeshDeformer* InMeshDeformer)
+void USkinnedMeshComponent::SetMeshDeformer(bool bInSetMeshDeformer, UMeshDeformer* InMeshDeformer)
 {
-	bSetMeshDeformer = true;
+	bSetMeshDeformer = bInSetMeshDeformer;
 	MeshDeformer = InMeshDeformer;
-	
+
 	UMeshDeformer* ActiveMeshDeformer = GetActiveMeshDeformer();
 	MeshDeformerInstanceSettings = ActiveMeshDeformer ? ActiveMeshDeformer->CreateSettingsInstance(this) : nullptr;
 	MeshDeformerInstance = ActiveMeshDeformer ? ActiveMeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
 
 	MarkRenderDynamicDataDirty();
+}
+
+void USkinnedMeshComponent::SetMeshDeformer(UMeshDeformer* InMeshDeformer)
+{
+	SetMeshDeformer(true, InMeshDeformer);
+}
+
+void USkinnedMeshComponent::UnsetMeshDeformer()
+{
+	SetMeshDeformer(false, nullptr);
 }
 
 FSkeletalMeshRenderData* USkinnedMeshComponent::GetSkeletalMeshRenderData() const

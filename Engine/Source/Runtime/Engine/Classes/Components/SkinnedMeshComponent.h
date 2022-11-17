@@ -247,6 +247,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer", meta = (editcondition = "bSetMeshDeformer"))
 	TObjectPtr<UMeshDeformer> MeshDeformer;
 
+	/** Set the MeshDeformer and update the internal MeshDeformerInstance. */
+	void SetMeshDeformer(bool bInSetMeshDeformer, UMeshDeformer* InMeshDeformer);
+
 	/** Get the currently active MeshDeformer. This may come from the SkeletalMesh default or the Component override. */
 	UMeshDeformer* GetActiveMeshDeformer() const;
 
@@ -933,6 +936,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	void SetMeshDeformer(UMeshDeformer* InMeshDeformer);
+
+	/**
+	 * Unset any MeshDeformer applied to this Component.
+	 *
+	 * @param InMeshDeformer New mesh deformer to set for this component
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void UnsetMeshDeformer();
 
 	/** 
 	 * Get Parent Bone of the input bone
