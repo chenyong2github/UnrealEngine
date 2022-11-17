@@ -166,25 +166,38 @@ namespace Horde.Build.Tests
 			IJobStep step = job.Batches[0].Steps[0];
 			IJob job2 = CreateJob(_releaseStreamId, 105, "Test Build", _graph);
 			IJobStep step2 = job2.Batches[0].Steps[0];
+			IJob job3 = CreateJob(_releaseStreamId, 105, "Test Build", _graph);
+			IJobStep step3 = job3.Batches[0].Steps[0];
 
-			BsonDocument testData = BsonDocument.Parse(String.Join('\n', _simpleTestDataLines));
+			BsonDocument testData1 = BsonDocument.Parse(String.Join('\n', _simpleTestDataLines));
 
-			List<(string key, BsonDocument)> data = new List<(string key, BsonDocument)>();
-			BsonArray items = testData.GetValue("Items").AsBsonArray;
+			List<(string key, BsonDocument)> data1 = new List<(string key, BsonDocument)>();
+			BsonArray items = testData1.GetValue("Items").AsBsonArray;
 			foreach (BsonValue item in items.ToList())
 			{
 				BsonDocument value = item.AsBsonDocument.GetValue("Data").AsBsonDocument;
-				data.Add(("Simple Report Key", value));
+				data1.Add(("Simple Report Key", value));
 			}
 
-			await TestDataCollection.AddAsync(job, step, data.ToArray());
-			await TestDataCollection.AddAsync(job2, step2, data.ToArray());
+			BsonDocument testData2 = BsonDocument.Parse(String.Join('\n', _simpleTestDataLines2));
+
+			List<(string key, BsonDocument)> data2 = new List<(string key, BsonDocument)>();
+			items = testData2.GetValue("Items").AsBsonArray;
+			foreach (BsonValue item in items.ToList())
+			{
+				BsonDocument value = item.AsBsonDocument.GetValue("Data").AsBsonDocument;
+				data2.Add(("Simple Report Key", value));
+			}
+
+			await TestDataCollection.AddAsync(job, step, data1.ToArray());
+			await TestDataCollection.AddAsync(job2, step2, data1.ToArray());
+			await TestDataCollection.AddAsync(job3, step3, data2.ToArray());
 
 			ActionResult<List<GetTestMetaResponse>> metaResult = await TestDataController.GetTestMetaAsync();
 			Assert.IsNotNull(metaResult);
 			Assert.IsNotNull(metaResult.Value);
 			List<GetTestMetaResponse> meta = metaResult.Value;
-			Assert.AreEqual(1, meta.Count);
+			Assert.AreEqual(2, meta.Count);
 
 			ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
 			Assert.IsNotNull(streamResult);
@@ -193,10 +206,10 @@ namespace Horde.Build.Tests
 
 			Assert.AreEqual(2, streams.Count);
 			Assert.AreEqual(1, streams[0].Tests.Count);
-			Assert.AreEqual(1, streams[0].TestMetadata.Count);
+			Assert.AreEqual(2, streams[0].TestMetadata.Count);
 			Assert.AreEqual(0, streams[0].TestSuites.Count);
 			Assert.AreEqual(1, streams[1].Tests.Count);
-			Assert.AreEqual(1, streams[1].TestMetadata.Count);
+			Assert.AreEqual(2, streams[1].TestMetadata.Count);
 			Assert.AreEqual(0, streams[1].TestSuites.Count);
 
 			Assert.AreEqual(streams[0].TestMetadata[0].Id, streams[1].TestMetadata[0].Id);
@@ -206,7 +219,7 @@ namespace Horde.Build.Tests
 			Assert.IsNotNull(refResult.Value);
 			List<GetTestDataRefResponse> refs = refResult.Value;
 
-			Assert.AreEqual(2, refs.Count);
+			Assert.AreEqual(3, refs.Count);
 
 			GetTestsRequest request = new GetTestsRequest() { testIds = streams[0].Tests.Select(x => x.Id.ToString()).ToList() };
 			ActionResult<List<GetTestResponse>> testResults = await TestDataController.GetTestsAsync(request);
@@ -230,6 +243,8 @@ namespace Horde.Build.Tests
 			IJobStep step = job.Batches[0].Steps[0];
 			IJob job2 = CreateJob(_releaseStreamId, 105, "Test Build", _graph);
 			IJobStep step2 = job2.Batches[0].Steps[0];
+			IJob job3 = CreateJob(_releaseStreamId, 105, "Test Build", _graph);
+			IJobStep step3 = job3.Batches[0].Steps[0];
 
 			BsonDocument testData = BsonDocument.Parse(String.Join('\n', _testSessionDataLines));
 
@@ -241,18 +256,36 @@ namespace Horde.Build.Tests
 				data.Add(("Session Report Key", value));
 			}
 
+			List<string> dataLines2 = new List<string>();
+			for (int i = 0; i < _testSessionDataLines.Length; i++)
+			{
+				dataLines2.Add(_testSessionDataLines[i].Replace("Win64", "Android", StringComparison.OrdinalIgnoreCase));
+			}
+
+			BsonDocument testData2 = BsonDocument.Parse(String.Join('\n', dataLines2));
+
+			List<(string key, BsonDocument)> data2 = new List<(string key, BsonDocument)>();
+			items = testData2.GetValue("Items").AsBsonArray;
+			foreach (BsonValue item in items.ToList())
+			{
+				BsonDocument value = item.AsBsonDocument.GetValue("Data").AsBsonDocument;
+				data2.Add(("Session Report Key", value));
+			}
+
 			await TestDataCollection.AddAsync(job, step, data.ToArray());
 			await TestDataCollection.AddAsync(job2, step2, data.ToArray());
+			await TestDataCollection.AddAsync(job3, step3, data2.ToArray());
 
 			ActionResult<List<GetTestMetaResponse>> metaResult = await TestDataController.GetTestMetaAsync();
 			Assert.IsNotNull(metaResult);
 			Assert.IsNotNull(metaResult.Value);
 			List<GetTestMetaResponse> meta = metaResult.Value;
-			Assert.AreEqual(1, meta.Count);
+			Assert.AreEqual(2, meta.Count);
 			Assert.AreEqual(1, meta[0].BuildTargets.Count);
 			Assert.AreEqual("Client", meta[0].BuildTargets[0]);
 			Assert.AreEqual(1, meta[0].Platforms.Count);
 			Assert.AreEqual("Win64", meta[0].Platforms[0]);
+			Assert.AreEqual("Android", meta[1].Platforms[0]);
 			Assert.AreEqual(1, meta[0].Configurations.Count);
 			Assert.AreEqual("Development", meta[0].Configurations[0]);
 			Assert.AreEqual("EngineTest", meta[0].ProjectName);
@@ -266,11 +299,11 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(2, streams.Count);
 
 			Assert.AreEqual(0, streams[0].Tests.Count);				
-			Assert.AreEqual(1, streams[0].TestMetadata.Count);
+			Assert.AreEqual(2, streams[0].TestMetadata.Count);
 			Assert.AreEqual(1, streams[0].TestSuites.Count);
 
 			Assert.AreEqual(0, streams[1].Tests.Count);
-			Assert.AreEqual(1, streams[1].TestMetadata.Count);
+			Assert.AreEqual(2, streams[1].TestMetadata.Count);
 			Assert.AreEqual(1, streams[1].TestSuites.Count);			
 
 			//Assert.AreEqual(streams[0].TestMetadata[0].Id, streams[1].TestMetadata[0].Id);
@@ -280,7 +313,7 @@ namespace Horde.Build.Tests
 			Assert.IsNotNull(refResult.Value);
 			List<GetTestDataRefResponse> refs = refResult.Value;
 
-			Assert.AreEqual(2, refs.Count);
+			Assert.AreEqual(3, refs.Count);
 
 			Assert.AreEqual(1, refs[0].SuiteSkipCount);
 			Assert.AreEqual(1, refs[0].SuiteWarningCount);
@@ -323,6 +356,51 @@ namespace Horde.Build.Tests
 			@"        ""Metadata"": {",
 			@"          ""Platform"": ""Win64"",",
 			@"          ""BuildTarget"": ""Editor"",",
+			@"          ""Configuration"": ""Development"",",
+			@"          ""Project"": ""EngineTest""",
+			@"        }",
+			@"      }",
+			@"    }",
+			@"  ],",
+			@"}"
+		};
+
+		private readonly string[] _simpleTestDataLines2 =
+		{
+			@"{",
+			@"  ""Items"": [",
+			@"    {",
+			@"      ""Key"": ""Simple Report::UE.BootTest EngineTest Editor Win64"",",
+			@"      ""Data"": {",
+			@"  	  ""Version"" : 1,",
+			@"        ""Type"": ""Simple Report"",",
+			@"        ""TestName"": ""EditorBootTest"",",
+			@"        ""Description"": ""Win64 Development EditorGame"",",
+			@"        ""ReportCreatedOn"": ""10/31/2022 11:44:56 AM"",",
+			@"        ""TotalDurationSeconds"": 35.33694,",
+			@"        ""HasSucceeded"": true,",
+			@"        ""Status"": ""Passed"",",
+			@"        ""URLLink"": """",",
+			@"        ""BuildChangeList"": 22815797,",
+			@"        ""MainRole"": {",
+			@"          ""Type"": ""Client"",",
+			@"          ""Platform"": ""Android"",",
+			@"          ""Configuration"": ""Development""",
+			@"        },",
+			@"        ""Roles"": [",
+			@"          {",
+			@"            ""Type"": ""Client"",",
+			@"            ""Platform"": ""Android"",",
+			@"            ""Configuration"": ""Development""",
+			@"          }",
+			@"        ],",
+			@"        ""TestResult"": ""Passed"",",
+			@"        ""Logs"": [],",
+			@"        ""Errors"": [],",
+			@"        ""Warnings"": [],",
+			@"        ""Metadata"": {",
+			@"          ""Platform"": ""Android"",",
+			@"          ""BuildTarget"": ""Client"",",
 			@"          ""Configuration"": ""Development"",",
 			@"          ""Project"": ""EngineTest""",
 			@"        }",

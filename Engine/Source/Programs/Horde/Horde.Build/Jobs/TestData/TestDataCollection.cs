@@ -723,11 +723,31 @@ namespace Horde.Build.Jobs.TestData
 			return await _tests.Find(filter).ToListAsync();
 		}
 
-		private async Task<List<TestSuiteDocument>> FindTestSuites(string[] suiteNames, TestMetaId[] metaIds)
+		private async Task<List<TestSuiteDocument>> FindTestSuites(string[] suiteNames, TestMetaId[]? metaIds = null, string[]? projectNames = null)
 		{
+			List<ITestMeta> metaData = new List<ITestMeta>();
+
+			if ((projectNames != null && projectNames.Length > 0) || (metaIds != null && metaIds.Length > 0))
+			{
+				metaData = await FindTestMeta(projectNames, metaIds: metaIds);
+			}
+
+			TestMetaId[] queryIds = metaData.Select(x => x.Id).ToArray();
 
 			FilterDefinitionBuilder<TestSuiteDocument> filterBuilder = Builders<TestSuiteDocument>.Filter;
 			FilterDefinition<TestSuiteDocument> filter = FilterDefinition<TestSuiteDocument>.Empty;
+
+			if (queryIds.Length > 0)
+			{
+				if (queryIds.Length == 1)
+				{
+					filter &= filterBuilder.AnyEq(x => x.Metadata, queryIds[0]);
+				}
+				else
+				{
+					filter &= filterBuilder.AnyIn(x => x.Metadata, queryIds);
+				}
+			}
 
 			if (suiteNames.Length == 1)
 			{
@@ -737,16 +757,6 @@ namespace Horde.Build.Jobs.TestData
 			{
 				filter &= filterBuilder.In(x => x.Name, suiteNames);
 			}
-
-			if (metaIds.Length == 1)
-			{
-				filter &= filterBuilder.AnyEq(x => x.Metadata, metaIds[0]);
-			}
-			else
-			{
-				filter &= filterBuilder.AnyIn(x => x.Metadata, metaIds);
-			}
-
 
 			return await _testSuites.Find(filter).ToListAsync();
 		}
@@ -822,7 +832,7 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="step"></param>
 		/// <param name="testName"></param>
 		/// <returns></returns>
-		private async Task<TestMetaId?> AddTestMeta(Dictionary<string, string> metaData, IJob job, IJobStep step, string testName)
+		private async Task<ITestMeta?> AddTestMeta(Dictionary<string, string> metaData, IJob job, IJobStep step, string testName)
 		{
 			string? platform;
 			if (!metaData.TryGetValue("Platform", out platform))
@@ -879,43 +889,43 @@ namespace Horde.Build.Jobs.TestData
 				await _testMeta.InsertOneAsync(result);
 			}
 			
-			return result.Id;
+			return result;
 
 		}
 
-		async Task<TestDocument?> AddOrUpdateTest(TestMetaId metaId, string testName, string? suiteName = null,  string? displayName = null)
+		async Task<TestDocument?> AddOrUpdateTest(ITestMeta metaData, string testName, string? suiteName = null,  string? displayName = null)
 		{
 
 			List<TestDocument> tests;
 
 			if (suiteName != null)
 			{
-				tests = await FindTests(true, metaIds: new TestMetaId[] { metaId }, testNames: new string[] { testName }, suiteNames: new string[] {suiteName});
+				tests = await FindTests(true, projectNames: new string[] { metaData.ProjectName }, testNames: new string[] { testName }, suiteNames: new string[] {suiteName});
 			}
 			else
 			{
-				tests = await FindTests(false, metaIds: new TestMetaId[] { metaId }, testNames: new string[] { testName });
+				tests = await FindTests(false, projectNames: new string[] { metaData.ProjectName }, testNames: new string[] { testName });
 			}
 
 			if (tests.Count > 1)
 			{
-				throw new Exception($"Duplicate tests found for MetaId: {metaId}, TestName: {testName}, SuiteName: {suiteName}, Count: {tests.Count}");
+				throw new Exception($"Duplicate tests found for MetaId: {metaData.Id}, TestName: {testName}, SuiteName: {suiteName}, Count: {tests.Count}");
 			}
 
 			TestDocument? test;
 
 			if (tests.Count == 0)
 			{
-				test = new TestDocument( testName, new List<TestMetaId>() { metaId }, suiteName, displayName);
+				test = new TestDocument( testName, new List<TestMetaId>() { metaData.Id }, suiteName, displayName);
 				await _tests.InsertOneAsync(test);
 			}
 			else
 			{
 				test = tests[0];
 
-				if (!test.Metadata.Contains(metaId))
+				if (!test.Metadata.Contains(metaData.Id))
 				{
-					test.Metadata.Add(metaId);
+					test.Metadata.Add(metaData.Id);
 
 					FilterDefinitionBuilder<TestDocument> ebuilder = Builders<TestDocument>.Filter;
 					FilterDefinition<TestDocument> efilter = ebuilder.Eq(x => x.Id, test.Id);
@@ -929,22 +939,21 @@ namespace Horde.Build.Jobs.TestData
 			return test;
 		}
 
-		private async Task<TestSuiteDocument?> AddOrUpdateTestSuite(string suiteName, TestMetaId metaId, List<TestId> testIds)
+		private async Task<TestSuiteDocument?> AddOrUpdateTestSuite(string suiteName, ITestMeta metaData, List<TestId> testIds)
 		{
-
 			TestSuiteDocument? suite;
 
-			List<TestSuiteDocument> suiteTests = await FindTestSuites(suiteNames: new string[] { suiteName }, metaIds: new TestMetaId[] {metaId});
+			List<TestSuiteDocument> suiteTests = await FindTestSuites(suiteNames: new string[] { suiteName }, projectNames: new string[] {metaData.ProjectName});
 
 			if (suiteTests.Count > 1)
 			{
-				throw new Exception($"Duplicate tests found for MetaId: {metaId}, SuiteName: {suiteName}, Count: {suiteTests.Count}");
+				throw new Exception($"Duplicate tests found for MetaId: {metaData.Id}, SuiteName: {suiteName}, Count: {suiteTests.Count}");
 			}
 
 
 			if (suiteTests.Count == 0)
 			{
-				suite = new TestSuiteDocument(suiteName, new List<TestMetaId> { metaId }, testIds);
+				suite = new TestSuiteDocument(suiteName, new List<TestMetaId> { metaData.Id }, testIds);
 				await _testSuites.InsertOneAsync(suite);
 			}
 			else
@@ -953,7 +962,7 @@ namespace Horde.Build.Jobs.TestData
 
 				List<TestId> newIds = suite.Tests.Union(testIds).ToList();
 
-				if (newIds.Count != suite.Tests.Count || !suite.Metadata.Contains(metaId))
+				if (newIds.Count != suite.Tests.Count || !suite.Metadata.Contains(metaData.Id))
 				{
 					List<UpdateDefinition<TestSuiteDocument>> updates = new List<UpdateDefinition<TestSuiteDocument>>();
 					FilterDefinitionBuilder<TestSuiteDocument> ebuilder = Builders<TestSuiteDocument>.Filter;
@@ -967,9 +976,9 @@ namespace Horde.Build.Jobs.TestData
 						updates.Add(updateBuilder.Set(x => x.Tests, suite.Tests));
 					}
 
-					if (!suite.Metadata.Contains(metaId))
+					if (!suite.Metadata.Contains(metaData.Id))
 					{
-						suite.Metadata.Add(metaId);
+						suite.Metadata.Add(metaData.Id);
 						updates.Add(updateBuilder.Set(x => x.Metadata, suite.Metadata));
 					}
 
@@ -1123,14 +1132,14 @@ namespace Horde.Build.Jobs.TestData
 			{
 				SimpleTestData testData = BsonSerializer.Deserialize<SimpleTestData>(testDoc);
 
-				TestMetaId? metaId = await AddTestMeta(testData.Metadata, job, step, testData.TestName);
+				ITestMeta? metaData = await AddTestMeta(testData.Metadata, job, step, testData.TestName);
 
-				if (metaId == null)
+				if (metaData == null)
 				{
 					throw new Exception($"Unable to add or update simple test report for {testData.TestName}, unable to generate meta data");
 				}
 
-				TestDocument? test = await AddOrUpdateTest(metaId.Value, testData.TestName);
+				TestDocument? test = await AddOrUpdateTest(metaData!, testData.TestName);
 
 				if (test == null)
 				{
@@ -1139,7 +1148,7 @@ namespace Horde.Build.Jobs.TestData
 
 				TestDataRefDocument testRef = new TestDataRefDocument(job.StreamId);
 				testRef.StreamId = job.StreamId;
-				testRef.Metadata = metaId.Value;
+				testRef.Metadata = metaData.Id;
 				testRef.BuildChangeList = testData.BuildChangeList <= 0 ? job.Change : testData.BuildChangeList;
 				testRef.Duration = TimeSpan.FromSeconds(testData.TotalDurationSeconds);
 				testRef.TestId = test.Id;
@@ -1214,9 +1223,9 @@ namespace Horde.Build.Jobs.TestData
 						continue;
 					}
 
-					TestMetaId? metaId = await AddTestMeta(session.Metadata, job, step, "Automated Test Session");
+					ITestMeta? metaData = await AddTestMeta(session.Metadata, job, step, "Automated Test Session");
 
-					if (metaId == null)
+					if (metaData == null)
 					{
 						throw new Exception($"Unable to add or update simple test report for automated test session, unable to generate meta data");
 					}
@@ -1248,11 +1257,11 @@ namespace Horde.Build.Jobs.TestData
 								displayName = utest.TestDisplayName;
 							}
 
-							TestDocument? testDoc = await AddOrUpdateTest(metaId!.Value, test.Name, suite, displayName);
+							TestDocument? testDoc = await AddOrUpdateTest(metaData, test.Name, suite, displayName);
 
 							if (testDoc == null)
 							{
-								_logger.LogWarning("Skipping adding suite test {TestName} metaId: {MetaId} jobId: {JobId} stepId: {StepId}", test.Name, metaId!.Value, job.Id, step.Id);
+								_logger.LogWarning("Skipping adding suite test {TestName} metaId: {MetaId} jobId: {JobId} stepId: {StepId}", test.Name, metaData.Id, job.Id, step.Id);
 								continue;
 							}
 
@@ -1264,7 +1273,7 @@ namespace Horde.Build.Jobs.TestData
 					// register test suite
 					if (suiteTestIds.Count > 0)
 					{
-						TestSuiteDocument? testSuite = await AddOrUpdateTestSuite(suite, metaId.Value, suiteTestIds.ToList());
+						TestSuiteDocument? testSuite = await AddOrUpdateTestSuite(suite, metaData, suiteTestIds.ToList());
 
 						if (testSuite == null)
 						{
@@ -1273,7 +1282,7 @@ namespace Horde.Build.Jobs.TestData
 
 						TestDataRefDocument testRef = new TestDataRefDocument(job.StreamId);
 						testRef.StreamId = job.StreamId;
-						testRef.Metadata = metaId.Value;
+						testRef.Metadata = metaData.Id;
 						testRef.BuildChangeList = job.Change;
 						testRef.Duration = TimeSpan.FromSeconds(session.TestSessionInfo!.TimeElapseSec);
 						testRef.Outcome = TestOutcome.Unspecified;
