@@ -645,7 +645,7 @@ void FNiagaraOpInfo::Init()
 		Op->Keywords = FText::FromString(TEXT("ArcSine"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_One));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(TEXT("Period"), PeriodType, PeriodFriendlyNameText, PeriodDescText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("asin({0})*({1}/TWO_PI)")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("asin(clamp({0}, -1.0f, 1.0f))*({1}/TWO_PI)")));
 		Op->BuildName(TEXT("ArcSine"), CategoryName);
 		Op->InputTypeValidationFunction.BindLambda(NoPositionTypeCheck);
 		OpInfoMap.Add(Op->Name) = Idx;
@@ -657,7 +657,7 @@ void FNiagaraOpInfo::Init()
 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "ArcSineRad Desc", "Result = asin(A)");
 		Op->Keywords = FText::FromString(TEXT("ArcSine"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("asin({0})")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("asin(clamp({0}, -1.0f, 1.0f))")));
 		Op->BuildName(TEXT("ArcSine(Radians)"), CategoryName);
 		Op->InputTypeValidationFunction.BindLambda(NoPositionTypeCheck);
 		OpInfoMap.Add(Op->Name) = Idx;
@@ -669,7 +669,7 @@ void FNiagaraOpInfo::Init()
 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "ArcSineDeg Desc", "Result = asin(A)*RadiansToDegrees");
 		Op->Keywords = FText::FromString(TEXT("ArcSine"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("(180.0f/PI)*asin({0})")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("(180.0f/PI)*asin(clamp({0}, -1.0f, 1.0f))")));
 		Op->BuildName(TEXT("ArcSine(Degrees)"), CategoryName);
 		Op->InputTypeValidationFunction.BindLambda(NoPositionTypeCheck);
 		OpInfoMap.Add(Op->Name) = Idx;
@@ -703,7 +703,7 @@ void FNiagaraOpInfo::Init()
 		Op->Keywords = FText::FromString(TEXT("ArcCosine"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_One));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(TEXT("Period"), PeriodType, PeriodFriendlyNameText, PeriodDescText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("acos({0})*({1}/TWO_PI)")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("acos(clamp({0}, -1.0f, 1.0f))*({1}/TWO_PI)")));
 		Op->BuildName(TEXT("ArcCosine"), CategoryName);
 		Op->InputTypeValidationFunction.BindLambda(NoPositionTypeCheck);
 		OpInfoMap.Add(Op->Name) = Idx;
@@ -715,7 +715,7 @@ void FNiagaraOpInfo::Init()
 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "ArcCosineRad Desc", "Result = acos(A)");
 		Op->Keywords = FText::FromString(TEXT("ArcCosine"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("acos({0})")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("acos(clamp({0}, -1.0f, 1.0f))")));
 		Op->BuildName(TEXT("ArcCosine(Radians)"), CategoryName);
 		Op->InputTypeValidationFunction.BindLambda(NoPositionTypeCheck);
 		OpInfoMap.Add(Op->Name) = Idx;
@@ -727,7 +727,7 @@ void FNiagaraOpInfo::Init()
 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "ArcCosineDeg Desc", "Result = acos(A)*RadiansToDegrees");
 		Op->Keywords = FText::FromString(TEXT("ArcCosine"));
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, NumericType, AText, AText, DefaultStr_One));
-		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("(180.0f/PI)*acos({0})")));
+		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, NumericType, ResultText, ResultText, DefaultStr_One, TEXT("(180.0f/PI)*acos(clamp({0}, -1.0f, 1.0f))")));
 		Op->BuildName(TEXT("ArcCosine(Degrees)"), CategoryName);
 		Op->InputTypeValidationFunction.BindLambda(NoPositionTypeCheck);
 		OpInfoMap.Add(Op->Name) = Idx;
