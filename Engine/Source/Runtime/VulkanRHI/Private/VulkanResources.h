@@ -110,8 +110,6 @@ public:
 
 	void PurgeShaderModules();
 
-	void Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 InShaderKey);
-
 	TRefCountPtr<FVulkanShaderModule> GetOrCreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
 	{
 		FScopeLock Lock(&VulkanShaderModulesMapCS);
@@ -209,6 +207,7 @@ private:
 	static FSpirvCode PatchSpirvInputAttachments(FSpirvCode& SpirvCode);
 
 protected:
+	void Setup(FVulkanShaderHeader&& InCodeHeader, FSpirvContainer&& InSpirvContainer, uint64 InShaderKey);
 
 	FVulkanDevice*					Device;
 
@@ -277,7 +276,7 @@ public:
 	{
 		if (ShaderKey)
 		{
-			FRWScopeLock ScopedLock(Lock, SLT_ReadOnly);
+			FRWScopeLock ScopedLock(RWLock[ShaderType::StaticFrequency], SLT_ReadOnly);
 			FVulkanShader* const * FoundShaderPtr = ShaderMap[ShaderType::StaticFrequency].Find(ShaderKey);
 			if (FoundShaderPtr)
 			{
@@ -292,7 +291,7 @@ public:
 	void OnDeleteShader(const FVulkanShader& Shader);
 
 private:
-	mutable FRWLock Lock;
+	mutable FRWLock RWLock[SF_NumFrequencies];
 	TMap<uint64, FVulkanShader*> ShaderMap[SF_NumFrequencies];
 };
 
