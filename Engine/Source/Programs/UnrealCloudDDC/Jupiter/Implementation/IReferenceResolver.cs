@@ -266,7 +266,9 @@ namespace Jupiter.Implementation
 
         private async Task<(ContentId, BlobIdentifier[]?)> ResolveContentId(NamespaceId ns, ContentId contentId)
         {
-            using TelemetrySpan scope = _tracer.StartActiveSpan("ReferenceResolver.ResolveContentId").SetAttribute("resource.name", contentId.ToString());
+            using TelemetrySpan scope = _tracer.StartActiveSpan("ReferenceResolver.ResolveContentId")
+                .SetAttribute("operation.name", "ReferenceResolver.ResolveContentId")
+                .SetAttribute("resource.name", contentId.ToString());
             BlobIdentifier[]? resolvedBlobs = await _contentIdStore.Resolve(ns, contentId);
             return (contentId, resolvedBlobs);
         }

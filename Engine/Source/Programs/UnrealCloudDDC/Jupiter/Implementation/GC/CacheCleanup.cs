@@ -86,7 +86,10 @@ namespace Jupiter.Implementation
                     _logger.Information(
                         "Attempting to delete object {Namespace} {Bucket} {Name} as it was last updated {LastAccessTime} which is older then {CutoffTime}",
                         ns, bucket, name, lastAccessTime, cutoffTime);
-                    using TelemetrySpan scope = _tracer.StartActiveSpan("gc.ref").SetAttribute("resource.name", $"{ns}:{bucket}.{name}").SetAttribute("namespace", ns.ToString());
+                    using TelemetrySpan scope = _tracer.StartActiveSpan("gc.ref")
+                        .SetAttribute("operation.name", "gc.ref")
+                        .SetAttribute("resource.name", $"{ns}:{bucket}.{name}")
+                        .SetAttribute("namespace", ns.ToString());
                     // delete the old record from the ref refs
 
                     bool storeDelete = false;

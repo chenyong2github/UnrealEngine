@@ -253,8 +253,11 @@ namespace Jupiter
                     {
                         activity.AddTag("service.name", otelServiceName + "-http-client");
                         activity.AddTag("operation.name", "http-request");
+
                         string url = $"{message.Method} {message.Headers.Host}{message.RequestUri?.LocalPath}";
                         activity.DisplayName = url;
+
+                        activity.AddTag("resource.name", url);
                     };
                 });
                 builder.AddAspNetCoreInstrumentation();

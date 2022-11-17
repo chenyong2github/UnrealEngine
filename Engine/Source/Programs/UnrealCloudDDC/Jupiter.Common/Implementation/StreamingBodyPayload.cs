@@ -30,8 +30,9 @@ namespace Jupiter.Common.Implementation
 
         public static async Task<MemoryBufferedPayload> Create(Tracer tracer, Stream s)
         {
-            using TelemetrySpan scope = tracer.StartActiveSpan("payload.buffer");
-            scope.SetAttribute("bufferType", "Memory");
+            using TelemetrySpan scope = tracer.StartActiveSpan("payload.buffer")
+                .SetAttribute("operation.name", "payload.buffer")
+                .SetAttribute("bufferType", "Memory");
             MemoryBufferedPayload payload = new MemoryBufferedPayload(await s.ToByteArray());
 
             return payload;
@@ -68,8 +69,9 @@ namespace Jupiter.Common.Implementation
             FilesystemBufferedPayload payload = new FilesystemBufferedPayload();
 
             {
-                using TelemetrySpan? scope = tracer.StartActiveSpan("payload.buffer");
-                scope.SetAttribute("bufferType", "Filesystem");
+                using TelemetrySpan? scope = tracer.StartActiveSpan("payload.buffer")
+                    .SetAttribute("operation.name", "payload.buffer")
+                    .SetAttribute("bufferType", "Filesystem");
                 await using FileStream fs = payload._tempFile.OpenWrite();
                 await s.CopyToAsync(fs);
             }

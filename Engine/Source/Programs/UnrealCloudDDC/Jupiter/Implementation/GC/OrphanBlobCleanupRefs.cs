@@ -115,7 +115,9 @@ namespace Jupiter.Implementation
         private async Task<bool> GCBlob(string storagePool, List<NamespaceId> namespacesThatSharePool, BlobIdentifier blob, DateTime lastModifiedTime, CancellationToken cancellationToken)
         {
             string storagePoolName = string.IsNullOrEmpty(storagePool) ? "default" : storagePool; 
-            using TelemetrySpan removeBlobScope = _tracer.StartActiveSpan("gc.blob").SetAttribute("resource.name", $"{storagePoolName}.{blob}");
+            using TelemetrySpan removeBlobScope = _tracer.StartActiveSpan("gc.blob")
+                .SetAttribute("operation.name", "gc.blob")
+                .SetAttribute("resource.name", $"{storagePoolName}.{blob}");
 
             bool found = false;
 

@@ -229,7 +229,7 @@ namespace Jupiter.Implementation
             }
 
             {
-                using TelemetrySpan _ = _tracer.StartActiveSpan("web.hash");
+                using TelemetrySpan _ = _tracer.StartActiveSpan("web.hash").SetAttribute("operation.name", "web.hash");
 
                 // only read the first 20 bytes of the hash field as IoHashes are 20 bytes and not 32 bytes
                 byte[] slicedHash = new byte[20];

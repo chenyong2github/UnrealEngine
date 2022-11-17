@@ -309,8 +309,9 @@ namespace Jupiter.Implementation
             {
                 try
                 {
-                    using TelemetrySpan? scope = _tracer.StartActiveSpan("replicator.replicate_op_snapshot");
-                    scope.SetAttribute("resource.name", $"{ns}.{snapshotLiveObject.Blob}");
+                    using TelemetrySpan? scope = _tracer.StartActiveSpan("replicator.replicate_op_snapshot")
+                        .SetAttribute("operation.name", "replicator.replicate_op_snapshot")
+                        .SetAttribute("resource.name", $"{ns}.{snapshotLiveObject.Blob}");
                     Interlocked.Increment(ref countOfObjectsCurrentlyReplicating);
                     LogReplicationHeartbeat(countOfObjectsCurrentlyReplicating);
 
@@ -376,6 +377,7 @@ namespace Jupiter.Implementation
             await GetRefEvents(ns, lastBucket, lastEvent, replicationToken).ParallelForEachAsync(async (ReplicationLogEvent @event) =>
             {
                 using TelemetrySpan? scope = _tracer.StartActiveSpan("replicator.replicate_op_incremental")
+                    .SetAttribute("operation.name", "replicator.replicate_op_incremental")
                     .SetAttribute("resource.name", $"{ns}.{@event.Bucket}.{@event.Key}")
                     .SetAttribute("time-bucket", @event.Timestamp.ToString(CultureInfo.InvariantCulture));
 
@@ -454,7 +456,9 @@ namespace Jupiter.Implementation
 
         private async Task<bool> ReplicateOp(NamespaceId ns, BlobIdentifier objectToReplicate, CancellationToken cancellationToken)
         {
-            using TelemetrySpan scope = _tracer.StartActiveSpan("replicator.replicate_op").SetAttribute("resource.name", $"{ns}.{objectToReplicate}");
+            using TelemetrySpan scope = _tracer.StartActiveSpan("replicator.replicate_op")
+                .SetAttribute("operation.name", "replicator.replicate_op")
+                .SetAttribute("resource.name", $"{ns}.{objectToReplicate}");
 
             _logger.Information("Attempting to replicate object {Blob} in {Namespace}.", objectToReplicate, ns);
 

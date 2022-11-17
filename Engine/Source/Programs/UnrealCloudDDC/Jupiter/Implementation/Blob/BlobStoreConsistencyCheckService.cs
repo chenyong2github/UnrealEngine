@@ -91,6 +91,7 @@ namespace Jupiter.Implementation
                     await foreach ((BlobIdentifier blob, DateTime lastModified) in blobStore.ListObjects(ns))
                     {
                         using TelemetrySpan scope = _tracer.StartActiveSpan("consistency_check.blob_store")
+                            .SetAttribute("operation.name", "consistency_check.blob_store")
                             .SetAttribute("resource.name", $"{ns}.{blob}")
                             .SetAttribute("BlobStore", blobStoreName);
 

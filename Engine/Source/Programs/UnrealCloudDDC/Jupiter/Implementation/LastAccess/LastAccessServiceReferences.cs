@@ -81,7 +81,9 @@ namespace Jupiter.Implementation
                     continue;
                 }
 
-                using TelemetrySpan scope = _tracer.StartActiveSpan("lastAccess.update").SetAttribute("resource.name", $"{record.Namespace}:{record.Bucket}.{record.Key}");
+                using TelemetrySpan scope = _tracer.StartActiveSpan("lastAccess.update")
+                    .SetAttribute("operation.name", "lastAccess.update")
+                    .SetAttribute("resource.name", $"{record.Namespace}:{record.Bucket}.{record.Key}");
                 _logger.Debug("Updating last access time to {LastAccessTime} for {Record}", lastAccessTime, record);
                 await _referencesStore.UpdateLastAccessTime(record.Namespace, record.Bucket, record.Key, lastAccessTime);
                 // delay 10ms between each record to distribute the load more evenly for the db

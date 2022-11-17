@@ -21,8 +21,9 @@ namespace Jupiter
             }
 
             Tracer? tracer = request.HttpContext.RequestServices.GetService<Tracer>();
-            using TelemetrySpan? scope = tracer?.StartActiveSpan("readbody");
-            scope?.SetAttribute("Content-Length", contentLength.Value);
+            using TelemetrySpan? scope = tracer?.StartActiveSpan("readbody")
+                .SetAttribute("operation.name", "readbody")
+                .SetAttribute("Content-Length", contentLength.Value);
 
             await using MemoryStream ms = new MemoryStream((int)contentLength);
             DateTime readStart = DateTime.Now;

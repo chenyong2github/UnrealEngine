@@ -81,7 +81,7 @@ namespace Jupiter.Implementation
                         _logger.Information("Consistency check running on blob index, count of blobs processed so far: {CountOfBlobs}", countOfBlobsChecked);
                     }
 
-                    using TelemetrySpan scope = _tracer.StartActiveSpan("consistency_check.blob_index").SetAttribute("resource.name", $"{blobInfo.Namespace}.{blobInfo.BlobIdentifier}");
+                    using TelemetrySpan scope = _tracer.StartActiveSpan("consistency_check.blob_index").SetAttribute("resource.name", $"{blobInfo.Namespace}.{blobInfo.BlobIdentifier}").SetAttribute("operation.name", "consistency_check.blob_index");
 
                     bool issueFound = false;
                     bool deleted = false;

@@ -141,7 +141,7 @@ namespace Jupiter.Controllers
                     using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("body.write", "Time spent writing body");
 
                     long contentLength = blobContents.Length;
-                    using TelemetrySpan scope = _tracer.StartActiveSpan("body.write");
+                    using TelemetrySpan scope = _tracer.StartActiveSpan("body.write").SetAttribute("operation.name", "body.write");
                     scope.SetAttribute("content-length", contentLength);
                     const int BufferSize = 64 * 1024;
                     Stream outputStream = Response.Body;
@@ -217,7 +217,7 @@ namespace Jupiter.Controllers
                     {
                         byte[] blobMemory;
                         {
-                            using TelemetrySpan scope = _tracer.StartActiveSpan("json.readblob");
+                            using TelemetrySpan scope = _tracer.StartActiveSpan("json.readblob").SetAttribute("operation.name", "authorize");
                             blobMemory = await blob.Stream.ToByteArray();
                         }
                         CbObject cb = new CbObject(blobMemory);

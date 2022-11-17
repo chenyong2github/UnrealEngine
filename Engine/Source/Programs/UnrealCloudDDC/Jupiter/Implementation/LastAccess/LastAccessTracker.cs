@@ -67,7 +67,7 @@ namespace Jupiter.Implementation
 
             return Task.Run(() =>
             {
-                using TelemetrySpan _ = _tracer.StartActiveSpan("lastAccessTracker.track");
+                using TelemetrySpan _ = _tracer.StartActiveSpan("lastAccessTracker.track").SetAttribute("operation.name", "lastAccessTracker.track");
                 try
                 {
                     _rwLock.AcquireReaderLock(-1);

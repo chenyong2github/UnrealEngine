@@ -190,7 +190,7 @@ namespace Jupiter.Implementation
             bool hasReferences = HasAttachments(payload);
             if (hasReferences)
             {
-                using TelemetrySpan _ = _tracer.StartActiveSpan("ObjectService.ResolveReferences");
+                using TelemetrySpan _ = _tracer.StartActiveSpan("ObjectService.ResolveReferences").SetAttribute("operation.name", "ObjectService.ResolveReferences");
                 try
                 {
                     IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.GetReferencedBlobs(ns, payload);
