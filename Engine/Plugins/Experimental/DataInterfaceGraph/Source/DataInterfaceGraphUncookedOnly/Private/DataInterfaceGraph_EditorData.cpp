@@ -19,8 +19,8 @@ UDataInterfaceGraph_EditorData::UDataInterfaceGraph_EditorData(const FObjectInit
 	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(UDataInterfaceGraph_EditorData, RigVMClient));
 	{
 		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
-		RigVMClient.AddModel(TEXT("RigVMGraph"), false);
-		RigVMClient.GetOrCreateFunctionLibrary(false);
+		RigVMClient.AddModel(TEXT("RigVMGraph"), false, &ObjectInitializer);
+		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer);
 	}
 	
 	auto MakeEdGraph = [this, &ObjectInitializer](FName InName) -> UDataInterfaceGraph_EdGraph*
@@ -28,7 +28,7 @@ UDataInterfaceGraph_EditorData::UDataInterfaceGraph_EditorData(const FObjectInit
 		UDataInterfaceGraph_EdGraph* EdGraph = ObjectInitializer.CreateDefaultSubobject<UDataInterfaceGraph_EdGraph>(this, InName);
 		EdGraph->Schema = UDataInterfaceGraph_EdGraphSchema::StaticClass();
 		EdGraph->bAllowRenaming = false;
-		EdGraph->bEditable = false;
+		EdGraph->bEditable = true;
 		EdGraph->bAllowDeletion = false;
 		EdGraph->bIsFunctionDefinition = false;
 		EdGraph->Initialize(this);
@@ -243,9 +243,32 @@ void UDataInterfaceGraph_EditorData::HandleModifiedEvent(ERigVMGraphNotifType In
 	case ERigVMGraphNotifType::LinkRemoved:
 	case ERigVMGraphNotifType::PinArraySizeChanged:
 	case ERigVMGraphNotifType::PinDirectionChanged:
+		{
+			if (InGraph)
+			{
+				InGraph->ClearAST();
+			}
+			break;
+		}
+
 	case ERigVMGraphNotifType::PinDefaultValueChanged:
 		{
-			RequestAutoVMRecompilation();
+			if (InGraph->GetRuntimeAST().IsValid())
+			{
+				URigVMPin* RootPin = CastChecked<URigVMPin>(InSubject)->GetRootPin();
+				FRigVMASTProxy RootPinProxy = FRigVMASTProxy::MakeFromUObject(RootPin);
+				const FRigVMExprAST* Expression = InGraph->GetRuntimeAST()->GetExprForSubject(RootPinProxy);
+				if (Expression == nullptr)
+				{
+					InGraph->ClearAST();
+					break;
+				}
+				else if (Expression->NumParents() > 1)
+				{
+					InGraph->ClearAST();
+					break;
+				}
+			}
 			break;
 		}
 	}
