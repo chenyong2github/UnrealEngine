@@ -1390,6 +1390,11 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 
 void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData)
 {
+#if STATS
+	FScopeCycleCounter SystemCounterStat(InstanceData.Context->SystemStatID);
+	FScopeCycleCounter EmitterCounterStat(InstanceData.Context->EmitterStatID);
+#endif
+
 	// Setup source buffer
 	if ( SimStageData.Source != nullptr )
 	{

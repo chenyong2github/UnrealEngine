@@ -97,6 +97,11 @@ struct FNiagaraComputeExecutionContext
 	void SetDebugSimName(const TCHAR*) { }
 #endif
 
+#if STATS
+	TStatId SystemStatID;
+	TStatId EmitterStatID;
+#endif
+
 //-TOOD:private:
 	void ResetInternal(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface);
 

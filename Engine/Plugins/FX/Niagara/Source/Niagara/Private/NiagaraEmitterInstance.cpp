@@ -416,6 +416,10 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			GPUExecContext->ProfilingEmitterPtr = CachedEmitter.ToWeakPtr();
 			GPUExecContext->MainDataSet = ParticleDataSet;
 			GPUExecContext->GPUScript_RT = EmitterData->GetGPUComputeScript()->GetRenderThreadScript();
+		#if STATS
+			GPUExecContext->SystemStatID = ParentSystemInstance->GetSystem()->GetStatID(false, false);
+			GPUExecContext->EmitterStatID = CachedEmitter.Emitter->GetStatID(false, false);
+		#endif
 		}
 	}
 
