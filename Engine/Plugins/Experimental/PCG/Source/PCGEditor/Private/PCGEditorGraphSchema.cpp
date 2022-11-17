@@ -15,6 +15,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Blueprint.h"
+#include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
 #include "UObject/UObjectIterator.h"
 
