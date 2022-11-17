@@ -67,14 +67,9 @@ void GetKeyablePropertyPaths(UClass* Class, void* ValuePtr, UStruct* PropertySou
 		{
 			PropertyPath.AddProperty(FPropertyInfo(Property));
 
-			bool bIsPropertyKeyable = Sequencer.CanKeyProperty(FCanKeyPropertyParams(Class, PropertyPath));
-			if (bIsPropertyKeyable)
-			{
-				KeyablePropertyPaths.Add(PropertyPath);
-			}
-
+			bool bIsPropertyKeyable = false;
 			FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
-			if (!bIsPropertyKeyable && ArrayProperty)
+			if (ArrayProperty)
 			{
 				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(ValuePtr));
 				for (int32 Index = 0; Index < ArrayHelper.Num(); ++Index)
@@ -92,6 +87,15 @@ void GetKeyablePropertyPaths(UClass* Class, void* ValuePtr, UStruct* PropertySou
 					}
 
 					PropertyPath = *PropertyPath.TrimPath(1);
+				}
+			}
+
+			if (!bIsPropertyKeyable)
+			{
+				bIsPropertyKeyable = Sequencer.CanKeyProperty(FCanKeyPropertyParams(Class, PropertyPath));
+				if (bIsPropertyKeyable)
+				{
+					KeyablePropertyPaths.Add(PropertyPath);
 				}
 			}
 

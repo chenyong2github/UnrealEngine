@@ -98,6 +98,19 @@ public:
 				int32 ArrayIndex = FMath::Max(0, PropertyInfo.ArrayIndex);
 				if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property))
 				{
+					// Sometimes property paths have the array property twice, first with no array index,
+					// then a second so we skip over this property if that's the case
+					if (PropertyInfo.ArrayIndex == INDEX_NONE && i < PropertyPath.GetNumProperties()-1)
+					{
+						const FPropertyInfo& InnerPropertyInfo = PropertyPath.GetPropertyInfo(i+1);
+						FProperty* InnerProperty = InnerPropertyInfo.Property.Get();
+						if (InnerProperty && InnerProperty->GetOwner<FProperty>() == ArrayProp)
+						{
+							ArrayIndex = InnerPropertyInfo.ArrayIndex;
+							++i;
+						}
+					}
+
 					FScriptArrayHelper ParentArrayHelper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(ContainerPtr));
 					if (!ParentArrayHelper.IsValidIndex(ArrayIndex))
 					{
