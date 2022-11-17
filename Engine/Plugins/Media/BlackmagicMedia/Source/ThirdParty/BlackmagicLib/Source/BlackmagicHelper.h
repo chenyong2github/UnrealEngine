@@ -26,7 +26,7 @@ namespace BlackmagicDesign
 		public:
 			static bool EPixelFormatToBMDPixelFormat(EPixelFormat InPixelFormat, BMDPixelFormat& OutPixelFormat);
 			static bool ETimecodeFormatToBMDTimecodeFormat(ETimecodeFormat InTimecodeFormat, BMDTimecodeFormat& OutTimecodeFormat);
-			static bool BMDPixelFormatToEPixelFormat(BMDPixelFormat InPixelFormat, EPixelFormat& OutPixelFormat);
+			static bool BMDPixelFormatToEPixelFormat(BMDPixelFormat InPixelFormat, EPixelFormat& OutPixelFormat, EFullPixelFormat& OutFullPixelFormat);
 			static bool EFieldDominanceToBMDFieldDominance(EFieldDominance InFieldDominance, BMDFieldDominance& OutFieldDominance);
 			static bool BMDFieldDominanceToEFieldDominance(BMDFieldDominance InFieldDominance, EFieldDominance & OutFieldDominance);
 			static bool Is8Bits(BMDPixelFormat InPixelFormat);

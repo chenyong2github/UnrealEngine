@@ -34,6 +34,7 @@ namespace BlackmagicDesign
 			, DeckLinkStatus(InDeckLinkStatus)
 			, RefCount(1)
 			, FrameNumber(0)
+			, HDRLogCount(0)
 		{
 		}
 
@@ -164,6 +165,8 @@ namespace BlackmagicDesign
 				}
 			}
 
+			HDRLogCount = 0;
+
 			return S_OK;
 		}
 
@@ -212,6 +215,8 @@ namespace BlackmagicDesign
 						InputChannel->PreviousReceivedTimecode = ReadTimecode;
 					}
 				}
+
+				GetHDRMetaData(FrameInfo, InVideoFrame);
 			}
 
 			if (FrameInfo.bHasInputSource && InputChannel->ReadVideoCounter > 0)
@@ -222,7 +227,8 @@ namespace BlackmagicDesign
 
 				IDeckLinkVideoFrame* VideoFrame = InVideoFrame;
 
-				if (!Helpers::BMDPixelFormatToEPixelFormat(VideoFrame->GetPixelFormat(), FrameInfo.PixelFormat))
+				if (!Helpers::BMDPixelFormatToEPixelFormat(VideoFrame->GetPixelFormat(),
+					FrameInfo.PixelFormat, FrameInfo.FullPixelFormat))
 				{
 					return RS_VideoInputFrameArrived_BMDPixelFormatToEPixelFormat;
 				}
@@ -311,6 +317,135 @@ namespace BlackmagicDesign
 			return S_OK;
 		}
 
+		void FInputChannelNotificationCallback::GetHDRMetaData(IInputEventCallback::FFrameReceivedInfo& FrameInfo, IDeckLinkVideoInputFrame* InVideoFrame)
+		{
+			FrameInfo.HDRMetaData.bIsAvailable = (InVideoFrame->GetFlags() & bmdFrameContainsHDRMetadata) != 0;
+			if ((FrameInfo.HDRMetaData.bIsAvailable) && (FrameInfo.bHasInputSource))
+			{
+				IDeckLinkVideoFrameMetadataExtensions* MetadataExtensions = nullptr;
+				HRESULT Result = InVideoFrame->QueryInterface(
+					IID_IDeckLinkVideoFrameMetadataExtensions,
+					(void**)&MetadataExtensions);
+				if (Result == S_OK)
+				{
+					int64_t EOTF = 0;
+					if (MetadataExtensions->GetInt(
+						bmdDeckLinkFrameMetadataHDRElectroOpticalTransferFunc, &EOTF) == S_OK)
+					{
+						FrameInfo.HDRMetaData.EOTF = (EHDRMetaDataEOTF)EOTF;
+					}
+					else if (IsHDRLoggingOK())
+					{
+						LOG_WARNING(TEXT("Could not get meta data HDR EOTF for device '%d'."),
+							InputChannel->ChannelInfo.DeviceIndex);
+					}
+
+					int64_t Colourspace = 0;
+					if (MetadataExtensions->GetInt(
+						bmdDeckLinkFrameMetadataColorspace, &Colourspace) == S_OK)
+					{
+						switch (Colourspace)
+						{
+						case bmdColorspaceRec601:
+							FrameInfo.HDRMetaData.ColorSpace = EHDRMetaDataColorspace::Rec601;
+							break;
+						case bmdColorspaceRec709:
+							FrameInfo.HDRMetaData.ColorSpace = EHDRMetaDataColorspace::Rec709;
+							break;
+						case bmdColorspaceRec2020:
+							FrameInfo.HDRMetaData.ColorSpace = EHDRMetaDataColorspace::Rec2020;
+							break;
+						}
+					}
+					else if (IsHDRLoggingOK())
+					{
+						LOG_WARNING(TEXT("Could not get meta data HDR colourspace for device '%d'."),
+							InputChannel->ChannelInfo.DeviceIndex);
+					}
+
+					FrameInfo.HDRMetaData.WhitePointX = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRWhitePointX);
+					FrameInfo.HDRMetaData.WhitePointY = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRWhitePointY);
+					
+					FrameInfo.HDRMetaData.DisplayPrimariesRedX = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRDisplayPrimariesRedX);
+					FrameInfo.HDRMetaData.DisplayPrimariesRedY = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRDisplayPrimariesRedY);
+					FrameInfo.HDRMetaData.DisplayPrimariesGreenX = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRDisplayPrimariesGreenX);
+					FrameInfo.HDRMetaData.DisplayPrimariesGreenY = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRDisplayPrimariesGreenY);
+					FrameInfo.HDRMetaData.DisplayPrimariesBlueX = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRDisplayPrimariesBlueX);
+					FrameInfo.HDRMetaData.DisplayPrimariesBlueY = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRDisplayPrimariesBlueY);
+
+					MetadataExtensions->Release();
+				}
+			}
+		}
+
+		double FInputChannelNotificationCallback::GetFloatMetaData(IDeckLinkVideoFrameMetadataExtensions* MetadataExtensions, BMDDeckLinkFrameMetadataID MetaDataID)
+		{
+			double MetaDataValue = 0.0f;
+
+			if (MetadataExtensions->GetFloat(MetaDataID, &MetaDataValue) != S_OK)
+			{
+				if (IsHDRLoggingOK())
+				{
+					switch (MetaDataID)
+					{
+						case bmdDeckLinkFrameMetadataHDRDisplayPrimariesRedX:
+							LOG_WARNING(TEXT("Could not get meta data HDR display primaries red X."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRDisplayPrimariesRedY:
+							LOG_WARNING(TEXT("Could not get meta data HDR display primaries red Y."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRDisplayPrimariesGreenX:
+							LOG_WARNING(TEXT("Could not get meta data HDR display primaries green X."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRDisplayPrimariesGreenY:
+							LOG_WARNING(TEXT("Could not get meta data HDR display primaries green Y."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRDisplayPrimariesBlueX:
+							LOG_WARNING(TEXT("Could not get meta data HDR display primaries blue X."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRDisplayPrimariesBlueY:
+							LOG_WARNING(TEXT("Could not get meta data HDR display primaries blue Y."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRWhitePointX:
+							LOG_WARNING(TEXT("Could not get meta data HDR white point X."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRWhitePointY:
+							LOG_WARNING(TEXT("Could not get meta data HDR white point Y."));
+							break;
+					}
+				}
+			}
+
+			return MetaDataValue;
+		}
+
+		bool FInputChannelNotificationCallback::IsHDRLoggingOK()
+		{
+			// Reset log count after a few seconds.
+			if (std::chrono::system_clock::now() > HDRLogResetCountTime)
+			{
+				HDRLogCount = 0;
+			}
+			
+			bool bIsOK = HDRLogCount < 30;
+
+			if (bIsOK)
+			{
+				HDRLogCount++;
+				HDRLogResetCountTime = std::chrono::system_clock::now() + std::chrono::seconds(2);
+			}
+
+			return bIsOK;
+		}
+		
 
 		FInputChannel::FInputChannel(const FChannelInfo& InChannelInfo)
 			: ChannelInfo(InChannelInfo)

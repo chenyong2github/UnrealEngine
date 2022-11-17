@@ -36,6 +36,16 @@ namespace BlackmagicDesign
 		pf_10Bits
 	};
 
+	enum class EFullPixelFormat
+	{
+		pf_8BitBGRA,
+		pf_8BitYUV,
+		pf_10BitRGB,
+		pf_10BitRGBXLE,
+		pf_10BitYUV,
+		pf_10BitRGBX,
+	};
+
 	enum class EPixelColor
 	{
 		YCbCr,
@@ -47,6 +57,20 @@ namespace BlackmagicDesign
 		Progressive,
 		Interlaced,
 		ProgressiveSegmentedFrame,
+	};
+
+	enum class EHDRMetaDataColorspace
+	{
+		Rec601,
+		Rec709,
+		Rec2020,
+	};
+	enum class EHDRMetaDataEOTF
+	{
+		SDR,
+		HDR,
+		PQ,
+		HLG,
 	};
 
 	enum class EAudioBitDepth
@@ -235,7 +259,27 @@ namespace BlackmagicDesign
 			int32_t VideoHeight;
 			int32_t VideoPitch;
 			EPixelFormat PixelFormat;
+			EFullPixelFormat FullPixelFormat;
 			EFieldDominance FieldDominance;
+
+			// HDR
+			struct UEBLACKMAGICDESIGN_API FHDRMetaData
+			{
+				FHDRMetaData();
+
+				bool bIsAvailable;
+				EHDRMetaDataColorspace ColorSpace;
+				EHDRMetaDataEOTF EOTF;
+				double WhitePointX;
+				double WhitePointY;
+				double DisplayPrimariesRedX;
+				double DisplayPrimariesRedY;
+				double DisplayPrimariesGreenX;
+				double DisplayPrimariesGreenY;
+				double DisplayPrimariesBlueX;
+				double DisplayPrimariesBlueY;
+			};
+			FHDRMetaData HDRMetaData;
 
 			// Audio
 			void* AudioBuffer;

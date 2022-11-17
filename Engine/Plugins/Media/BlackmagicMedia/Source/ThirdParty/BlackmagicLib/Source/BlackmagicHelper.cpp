@@ -51,16 +51,16 @@ namespace BlackmagicDesign
 			return false;
 		}
 
-		bool Helpers::BMDPixelFormatToEPixelFormat(BMDPixelFormat InPixelFormat, EPixelFormat& OutPixelFormat)
+		bool Helpers::BMDPixelFormatToEPixelFormat(BMDPixelFormat InPixelFormat, EPixelFormat& OutPixelFormat, EFullPixelFormat& OutFullPixelFormat)
 		{
 			switch (InPixelFormat)
 			{
-			case ENUM(BMDPixelFormat)::bmdFormat8BitBGRA:		OutPixelFormat = EPixelFormat::pf_8Bits;	return true;
-			case ENUM(BMDPixelFormat)::bmdFormat8BitYUV:		OutPixelFormat = EPixelFormat::pf_8Bits;	return true;
-			case ENUM(BMDPixelFormat)::bmdFormat10BitRGB:		OutPixelFormat = EPixelFormat::pf_10Bits;	return true;
-			case ENUM(BMDPixelFormat)::bmdFormat10BitRGBXLE:	OutPixelFormat = EPixelFormat::pf_10Bits;	return true;
-			case ENUM(BMDPixelFormat)::bmdFormat10BitYUV:		OutPixelFormat = EPixelFormat::pf_10Bits;	return true;
-			case ENUM(BMDPixelFormat)::bmdFormat10BitRGBX:	OutPixelFormat = EPixelFormat::pf_10Bits;	return true;
+			case ENUM(BMDPixelFormat)::bmdFormat8BitBGRA:		OutPixelFormat = EPixelFormat::pf_8Bits;	OutFullPixelFormat = EFullPixelFormat::pf_8BitBGRA;		return true;
+			case ENUM(BMDPixelFormat)::bmdFormat8BitYUV:		OutPixelFormat = EPixelFormat::pf_8Bits;	OutFullPixelFormat = EFullPixelFormat::pf_8BitYUV;		return true;
+			case ENUM(BMDPixelFormat)::bmdFormat10BitRGB:		OutPixelFormat = EPixelFormat::pf_10Bits;	OutFullPixelFormat = EFullPixelFormat::pf_10BitRGB;		return true;
+			case ENUM(BMDPixelFormat)::bmdFormat10BitRGBXLE:	OutPixelFormat = EPixelFormat::pf_10Bits;	OutFullPixelFormat = EFullPixelFormat::pf_10BitRGBXLE;	return true;
+			case ENUM(BMDPixelFormat)::bmdFormat10BitYUV:		OutPixelFormat = EPixelFormat::pf_10Bits;	OutFullPixelFormat = EFullPixelFormat::pf_10BitYUV;		return true;
+			case ENUM(BMDPixelFormat)::bmdFormat10BitRGBX:	OutPixelFormat = EPixelFormat::pf_10Bits;		OutFullPixelFormat = EFullPixelFormat::pf_10BitRGBX;	return true;
 			}
 			return false;
 		}

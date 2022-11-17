@@ -106,6 +106,20 @@ namespace BlackmagicDesign
 		, AudioBuffer(nullptr)
 	{ }
 
+	IInputEventCallback::FFrameReceivedInfo::FHDRMetaData::FHDRMetaData()
+		: bIsAvailable(false)
+		, ColorSpace(EHDRMetaDataColorspace::Rec601)
+		, EOTF(EHDRMetaDataEOTF::SDR)
+		, WhitePointX(0.0)
+		, WhitePointY(0.0)
+		, DisplayPrimariesRedX(0.0)
+		, DisplayPrimariesRedY(0.0)
+		, DisplayPrimariesGreenX(0.0)
+		, DisplayPrimariesGreenY(0.0)
+		, DisplayPrimariesBlueX(0.0)
+		, DisplayPrimariesBlueY(0.0)
+	{ }
+
 	/* IOutputEventCallback 
 	*****************************************************************************/
 	IOutputEventCallback::~IOutputEventCallback()

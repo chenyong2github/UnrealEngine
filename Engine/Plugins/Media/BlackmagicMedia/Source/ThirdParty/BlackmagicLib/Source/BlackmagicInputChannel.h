@@ -22,12 +22,18 @@ namespace BlackmagicDesign
 			HRESULT STDMETHODCALLTYPE VideoInputFrameArrived(IDeckLinkVideoInputFrame* InVideoFrame, IDeckLinkAudioInputPacket* InAudioPacket);
 
 		private:
+			void GetHDRMetaData(IInputEventCallback::FFrameReceivedInfo& FrameInfo, IDeckLinkVideoInputFrame* InVideoFrame);
+			double GetFloatMetaData(IDeckLinkVideoFrameMetadataExtensions* MetadataExtensions, BMDDeckLinkFrameMetadataID MetaDataID);
+			bool IsHDRLoggingOK();
+
 			FInputChannel* InputChannel;
 			IDeckLinkInput* DeckLinkInput;
 			IDeckLinkStatus* DeckLinkStatus;
 			std::atomic_char32_t RefCount;
 			int64_t FrameNumber;
 			bool bHasProcessedVideoInput = false;
+			int32_t HDRLogCount;
+			std::chrono::time_point<std::chrono::system_clock> HDRLogResetCountTime;
 		};
 
 		class FInputChannel
