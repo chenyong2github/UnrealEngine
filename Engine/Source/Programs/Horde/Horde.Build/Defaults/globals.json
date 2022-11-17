@@ -12,9 +12,17 @@
 		}
 	],
 	"storage": {
+		"backends": [
+			{
+				"id": "default-backend",
+				"type":"FileSystem",
+				"baseDir": "Storage" // Default base directory is C:\ProgramData\HordeServer
+			}
+		],
 		"namespaces": [
 			{
-				"id": "default"
+				"id": "default",
+				"backend": "default-backend"
 			}
 		]
 	},
