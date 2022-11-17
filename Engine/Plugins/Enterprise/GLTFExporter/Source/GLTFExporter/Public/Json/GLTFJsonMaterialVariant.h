@@ -4,12 +4,12 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonKhrMaterialVariantMapping : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonMaterialVariantMapping : IGLTFJsonObject
 {
 	FGLTFJsonMaterial* Material;
-	TArray<FGLTFJsonKhrMaterialVariant*> Variants;
+	TArray<FGLTFJsonMaterialVariant*> Variants;
 
-	FGLTFJsonKhrMaterialVariantMapping()
+	FGLTFJsonMaterialVariantMapping()
 		: Material(nullptr)
 	{
 	}
@@ -17,7 +17,7 @@ struct GLTFEXPORTER_API FGLTFJsonKhrMaterialVariantMapping : IGLTFJsonObject
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct GLTFEXPORTER_API FGLTFJsonKhrMaterialVariant : IGLTFJsonIndexedObject
+struct GLTFEXPORTER_API FGLTFJsonMaterialVariant : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -25,9 +25,9 @@ struct GLTFEXPORTER_API FGLTFJsonKhrMaterialVariant : IGLTFJsonIndexedObject
 
 protected:
 
-	friend TGLTFJsonIndexedObjectArray<FGLTFJsonKhrMaterialVariant, void>;
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonMaterialVariant, void>;
 
-	FGLTFJsonKhrMaterialVariant(int32 Index)
+	FGLTFJsonMaterialVariant(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 	{
 	}

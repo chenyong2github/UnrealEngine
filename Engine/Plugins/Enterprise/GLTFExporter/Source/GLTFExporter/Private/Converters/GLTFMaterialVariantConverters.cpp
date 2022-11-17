@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFKhrVariantConverters.h"
+#include "Converters/GLTFMaterialVariantConverters.h"
 #include "Converters/GLTFVariantUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Components/MeshComponent.h"
@@ -9,7 +9,7 @@
 #include "PropertyValue.h"
 #include "Variant.h"
 
-FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVariant* Variant)
+FGLTFJsonMaterialVariant* FGLTFMaterialVariantConverter::Convert(const UVariant* Variant)
 {
 	if (Variant == nullptr || Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::None)
 	{
@@ -48,7 +48,7 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 		return nullptr;
 	}
 
-	FGLTFJsonKhrMaterialVariant* MaterialVariant = Builder.AddKhrMaterialVariant();
+	FGLTFJsonMaterialVariant* MaterialVariant = Builder.AddMaterialVariant();
 	// TODO: add warning if the variant name is not unique, i.e it's already used?
 	// While material variants are technically allowed to use the same name, it may
 	// cause confusion when trying to select the correct variant in a viewer.
@@ -59,8 +59,8 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 		FGLTFJsonPrimitive* Primitive = PrimitiveMaterial.Key;
 		FGLTFJsonMaterial* Material = PrimitiveMaterial.Value;
 
-		FGLTFJsonKhrMaterialVariantMapping* ExistingMapping = Primitive->KhrMaterialVariantMappings.FindByPredicate(
-			[Material](const FGLTFJsonKhrMaterialVariantMapping& Mapping)
+		FGLTFJsonMaterialVariantMapping* ExistingMapping = Primitive->MaterialVariantMappings.FindByPredicate(
+			[Material](const FGLTFJsonMaterialVariantMapping& Mapping)
 			{
 				return Mapping.Material == Material;
 			});
@@ -71,18 +71,18 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 		}
 		else
 		{
-			FGLTFJsonKhrMaterialVariantMapping Mapping;
+			FGLTFJsonMaterialVariantMapping Mapping;
 			Mapping.Material = Material;
 			Mapping.Variants.Add(MaterialVariant);
 
-			Primitive->KhrMaterialVariantMappings.Add(Mapping);
+			Primitive->MaterialVariantMappings.Add(Mapping);
 		}
 	}
 
 	return MaterialVariant;
 }
 
-bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterial*& OutMaterial, const UPropertyValueMaterial* Property) const
+bool FGLTFMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterial*& OutMaterial, const UPropertyValueMaterial* Property) const
 {
 	const UMeshComponent* Target = static_cast<UMeshComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)

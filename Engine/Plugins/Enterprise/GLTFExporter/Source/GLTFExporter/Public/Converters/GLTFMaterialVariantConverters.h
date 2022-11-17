@@ -10,9 +10,9 @@
 class UVariant;
 class UPropertyValueMaterial;
 
-typedef TGLTFConverter<FGLTFJsonKhrMaterialVariant*, const UVariant*> IGLTFKhrMaterialVariantConverter;
+typedef TGLTFConverter<FGLTFJsonMaterialVariant*, const UVariant*> IGLTFMaterialVariantConverter;
 
-class GLTFEXPORTER_API FGLTFKhrMaterialVariantConverter : public FGLTFBuilderContext, public IGLTFKhrMaterialVariantConverter
+class GLTFEXPORTER_API FGLTFMaterialVariantConverter : public FGLTFBuilderContext, public IGLTFMaterialVariantConverter
 {
 public:
 
@@ -20,7 +20,7 @@ public:
 
 protected:
 
-	virtual FGLTFJsonKhrMaterialVariant* Convert(const UVariant* Variant) override;
+	virtual FGLTFJsonMaterialVariant* Convert(const UVariant* Variant) override;
 
 private:
 

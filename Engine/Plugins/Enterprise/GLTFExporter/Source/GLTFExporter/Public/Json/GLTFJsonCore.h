@@ -35,4 +35,4 @@ struct FGLTFJsonLight;
 struct FGLTFJsonLightMap;
 struct FGLTFJsonSkySphere;
 struct FGLTFJsonEpicLevelVariantSets;
-struct FGLTFJsonKhrMaterialVariant;
+struct FGLTFJsonMaterialVariant;

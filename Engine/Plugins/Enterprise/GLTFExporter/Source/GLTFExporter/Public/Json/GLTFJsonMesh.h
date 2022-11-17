@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonCore.h"
-#include "Json/GLTFJsonKhrMaterialVariant.h"
+#include "Json/GLTFJsonMaterialVariant.h"
 
 struct GLTFEXPORTER_API FGLTFJsonAttributes : IGLTFJsonObject
 {
@@ -34,7 +34,7 @@ struct GLTFEXPORTER_API FGLTFJsonPrimitive : IGLTFJsonObject
 	FGLTFJsonMaterial* Material;
 	EGLTFJsonPrimitiveMode Mode;
 
-	TArray<FGLTFJsonKhrMaterialVariantMapping> KhrMaterialVariantMappings;
+	TArray<FGLTFJsonMaterialVariantMapping> MaterialVariantMappings;
 
 	FGLTFJsonPrimitive()
 		: Indices(nullptr)

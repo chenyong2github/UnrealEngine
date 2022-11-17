@@ -25,14 +25,14 @@ void FGLTFJsonRoot::WriteObject(IGLTFJsonWriter& Writer) const
 	if (Skins.Num() > 0) Writer.Write(TEXT("skins"), Skins);
 	if (Textures.Num() > 0) Writer.Write(TEXT("textures"), Textures);
 
-	if (Lights.Num() > 0 || KhrMaterialVariants.Num() > 0)
+	if (Lights.Num() > 0 || MaterialVariants.Num() > 0)
 	{
 		Writer.StartExtensions();
 
-		if (KhrMaterialVariants.Num() > 0)
+		if (MaterialVariants.Num() > 0)
 		{
 			Writer.StartExtension(EGLTFJsonExtension::KHR_MaterialsVariants);
-			Writer.Write(TEXT("variants"), KhrMaterialVariants);
+			Writer.Write(TEXT("variants"), MaterialVariants);
 			Writer.EndExtension();
 		}
 

@@ -52,7 +52,7 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	if (Builder.GetRoot().KhrMaterialVariants.Num() < 1)
+	if (Builder.GetRoot().MaterialVariants.Num() < 1)
 	{
 		Builder.LogError(
 			FString::Printf(TEXT("Failed to export any supported variant from level variant sets %s"),

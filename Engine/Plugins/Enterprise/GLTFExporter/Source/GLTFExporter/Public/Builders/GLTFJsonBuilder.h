@@ -29,7 +29,7 @@ public:
 	FGLTFJsonSkin* AddSkin();
 	FGLTFJsonTexture* AddTexture();
 	FGLTFJsonLight* AddLight();
-	FGLTFJsonKhrMaterialVariant* AddKhrMaterialVariant();
+	FGLTFJsonMaterialVariant* AddMaterialVariant();
 
 	const FGLTFJsonRoot& GetRoot() const;
 

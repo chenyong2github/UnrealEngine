@@ -16,7 +16,7 @@
 #include "Converters/GLTFSceneConverters.h"
 #include "Converters/GLTFCameraConverters.h"
 #include "Converters/GLTFLightConverters.h"
-#include "Converters/GLTFKhrVariantConverters.h"
+#include "Converters/GLTFMaterialVariantConverters.h"
 
 class UMeshComponent;
 class UPropertyValue;
@@ -84,7 +84,7 @@ public:
 	FGLTFJsonCamera* AddUniqueCamera(const UCameraComponent* CameraComponent);
 	FGLTFJsonLight* AddUniqueLight(const ULightComponent* LightComponent);
 
-	FGLTFJsonKhrMaterialVariant* AddUniqueKhrMaterialVariant(const UVariant* Variant);
+	FGLTFJsonMaterialVariant* AddUniqueMaterialVariant(const UVariant* Variant);
 
 	void RegisterObjectVariant(const UObject* Object, const UPropertyValue* Property);
 	const TArray<const UPropertyValue*>* GetObjectVariants(const UObject* Object) const;
@@ -126,7 +126,7 @@ public:
 
 	TUniquePtr<IGLTFCameraConverter> CameraConverter = MakeUnique<FGLTFCameraConverter>(*this);
 	TUniquePtr<IGLTFLightConverter> LightConverter = MakeUnique<FGLTFLightConverter>(*this);
-	TUniquePtr<IGLTFKhrMaterialVariantConverter> KhrMaterialVariantConverter = MakeUnique<FGLTFKhrMaterialVariantConverter>(*this);
+	TUniquePtr<IGLTFMaterialVariantConverter> MaterialVariantConverter = MakeUnique<FGLTFMaterialVariantConverter>(*this);
 
 private:
 

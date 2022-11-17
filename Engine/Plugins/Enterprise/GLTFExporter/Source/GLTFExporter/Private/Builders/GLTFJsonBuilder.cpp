@@ -96,9 +96,9 @@ FGLTFJsonLight* FGLTFJsonBuilder::AddLight()
 	return JsonRoot.Lights.Add();
 }
 
-FGLTFJsonKhrMaterialVariant* FGLTFJsonBuilder::AddKhrMaterialVariant()
+FGLTFJsonMaterialVariant* FGLTFJsonBuilder::AddMaterialVariant()
 {
-	return JsonRoot.KhrMaterialVariants.Add();
+	return JsonRoot.MaterialVariants.Add();
 }
 
 const FGLTFJsonRoot& FGLTFJsonBuilder::GetRoot() const

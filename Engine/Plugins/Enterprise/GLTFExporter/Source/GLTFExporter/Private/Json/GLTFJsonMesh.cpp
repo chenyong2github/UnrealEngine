@@ -49,12 +49,12 @@ void FGLTFJsonPrimitive::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("mode"), Mode);
 	}
 
-	if (KhrMaterialVariantMappings.Num() > 0)
+	if (MaterialVariantMappings.Num() > 0)
 	{
 		Writer.StartExtensions();
 
 		Writer.StartExtension(EGLTFJsonExtension::KHR_MaterialsVariants);
-		Writer.Write(TEXT("mappings"), KhrMaterialVariantMappings);
+		Writer.Write(TEXT("mappings"), MaterialVariantMappings);
 		Writer.EndExtension();
 
 		Writer.EndExtensions();

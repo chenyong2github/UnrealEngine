@@ -18,7 +18,7 @@
 #include "Json/GLTFJsonSkin.h"
 #include "Json/GLTFJsonTexture.h"
 #include "Json/GLTFJsonLight.h"
-#include "Json/GLTFJsonKhrMaterialVariant.h"
+#include "Json/GLTFJsonMaterialVariant.h"
 
 struct GLTFEXPORTER_API FGLTFJsonRoot : IGLTFJsonObject
 {
@@ -42,7 +42,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot : IGLTFJsonObject
 	TGLTFJsonIndexedObjectArray<FGLTFJsonSkin>       Skins;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonTexture>    Textures;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonLight>      Lights;
-	TGLTFJsonIndexedObjectArray<FGLTFJsonKhrMaterialVariant>   KhrMaterialVariants;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonMaterialVariant>   MaterialVariants;
 
 	FGLTFJsonRoot()
 		: DefaultScene(nullptr)

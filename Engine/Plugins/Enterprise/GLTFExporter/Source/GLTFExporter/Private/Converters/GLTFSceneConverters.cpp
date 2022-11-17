@@ -42,7 +42,7 @@ FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 							{
 								for (const UVariant* Variant: VariantSet->GetVariants())
 								{
-									Builder.AddUniqueKhrMaterialVariant(Variant);
+									Builder.AddUniqueMaterialVariant(Variant);
 								}
 							}
 						}

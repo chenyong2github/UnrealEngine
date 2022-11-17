@@ -462,14 +462,14 @@ FGLTFJsonLight* FGLTFConvertBuilder::AddUniqueLight(const ULightComponent* Light
 	return LightConverter->GetOrAdd(LightComponent);
 }
 
-FGLTFJsonKhrMaterialVariant* FGLTFConvertBuilder::AddUniqueKhrMaterialVariant(const UVariant* Variant)
+FGLTFJsonMaterialVariant* FGLTFConvertBuilder::AddUniqueMaterialVariant(const UVariant* Variant)
 {
 	if (Variant == nullptr)
 	{
 		return nullptr;
 	}
 
-	return KhrMaterialVariantConverter->GetOrAdd(Variant);
+	return MaterialVariantConverter->GetOrAdd(Variant);
 }
 
 void FGLTFConvertBuilder::RegisterObjectVariant(const UObject* Object, const UPropertyValue* Property)
