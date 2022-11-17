@@ -725,6 +725,7 @@ namespace Horde.Build
 
 		public static void ConfigureJsonSerializer(JsonSerializerOptions options)
 		{
+			options.ReadCommentHandling = JsonCommentHandling.Skip;
 			options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 			options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 			options.PropertyNameCaseInsensitive = true;
