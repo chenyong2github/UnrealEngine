@@ -37,14 +37,13 @@ namespace VTConversionWorkerUtil
 		for (auto Data : OutAssetDatas)
 		{
 			SlowTask.EnterProgressFrame();
-			UObject *MaybeOk = Data.GetAsset();
-
-			// It's a material?
-			T *IsOk = Cast<T>(MaybeOk);
-
-			if (IsOk != nullptr)
+			if (Data.IsInstanceOf(T::StaticClass()))
 			{
-				OutObjects.Add(IsOk);
+				T *IsOk = Cast<T>(Data.GetAsset());
+				if (IsOk != nullptr)
+				{
+					OutObjects.Add(IsOk);
+				}
 			}
 		}
 	}
