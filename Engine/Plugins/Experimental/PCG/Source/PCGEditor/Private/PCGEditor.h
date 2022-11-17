@@ -8,6 +8,7 @@
 #include "EditorUndoClient.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
+struct FPropertyAndParent;
 class FUICommandList;
 class IDetailsView;
 class SGraphEditor;

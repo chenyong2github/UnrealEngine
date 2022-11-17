@@ -11,11 +11,15 @@
 #include "PCGSettings.h"
 #include "PCGSubgraph.h"
 
-#include "EdGraph/EdGraph.h"
-#include "Engine/Blueprint.h"
-#include "ScopedTransaction.h"
 #include "EdGraphNode_Comment.h"
 #include "GraphEditor.h"
+#include "ScopedTransaction.h"
+#include "EdGraph/EdGraph.h"
+#include "Engine/Blueprint.h"
+#include "Framework/Application/MenuStack.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Layout/WidgetPath.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphSchemaActions"
 

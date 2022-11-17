@@ -51,6 +51,7 @@
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "Preferences/UnrealEdOptions.h"
+#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "SNodePanel.h"
 #include "Misc/ITransaction.h"
