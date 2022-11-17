@@ -10,7 +10,7 @@
 struct FGeometryCollectionStatistics
 {
 	TArray<uint32> CountsPerLevel;
-	uint32 EmbeddedCount;
+	uint32 EmbeddedCount = 0;
 };
 
 class SGeometryCollectionStatistics : public SCompoundWidget
