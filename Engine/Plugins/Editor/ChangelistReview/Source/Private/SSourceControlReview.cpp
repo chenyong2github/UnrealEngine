@@ -665,7 +665,7 @@ SHeaderRow::FColumn::FArguments SSourceControlReview::HeaderColumn(FName HeaderN
 
 FString SSourceControlReview::AsAssetPath(const FString& FullCLPath)
 {
-	const FString ProjectName = FApp::GetProjectName();
+	const FString ProjectName = FString::Format(TEXT("/{0}/"), {FApp::GetProjectName()});
 	return UKismetSystemLibrary::GetProjectDirectory() / FullCLPath.RightChop(FullCLPath.Find(ProjectName) + ProjectName.Len());
 }
 

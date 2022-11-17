@@ -219,6 +219,13 @@ void SSourceControlReviewEntry::TryBindUAssetDiff()
 			{
 				DiffMethod.BindLambda([this, PreviousAsset, ReviewAsset]
 				{
+					const UBlueprint* ReviewBlueprint = Cast<UBlueprint>(ReviewAsset);
+					const UBlueprint* PreviousBlueprint = Cast<UBlueprint>(PreviousAsset);
+					if ((ReviewBlueprint && !ReviewBlueprint->ParentClass) || (PreviousBlueprint && !PreviousBlueprint->ParentClass))
+					{
+						FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangelistNotFoundError", "This Blueprint is missing its parent class. Diff results may be incomplete.\n\nDo you need to load this file's plugin/module?\nFor more details, search 'Can't find file.' in the log"));
+					}
+					
 					FAssetToolsModule::GetModule().Get().DiffAssets(
 						PreviousAsset,
 						ReviewAsset,

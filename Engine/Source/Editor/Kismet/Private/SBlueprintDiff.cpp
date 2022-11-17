@@ -849,7 +849,10 @@ void SBlueprintDiff::GenerateDifferencesList()
 	// Now that we have done the diffs, create the panel widgets
 	ModePanels.Add(MyBlueprintMode, GenerateMyBlueprintPanel());
 	ModePanels.Add(GraphMode, GenerateGraphPanel());
-	ModePanels.Add(DefaultsMode, GenerateDefaultsPanel());
+	if (PanelOld.Blueprint->ParentClass && PanelNew.Blueprint->ParentClass)
+	{
+		ModePanels.Add(DefaultsMode, GenerateDefaultsPanel());
+	}
 	ModePanels.Add(ClassSettingsMode, GenerateClassSettingsPanel());
 	if (bHasComponents)
 	{
