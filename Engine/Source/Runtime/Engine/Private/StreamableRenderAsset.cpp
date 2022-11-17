@@ -350,7 +350,7 @@ bool UStreamableRenderAsset::IsFullyStreamedIn()
 	if (Package
 		&& Package->bIsCookedForEditor
 		&& CachedSRRState.NumNonOptionalLODs < CachedSRRState.MaxNumLODs
-		&& IStreamingManager::Get().IsRenderAssetStreamingEnabled())
+		&& IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::None))
 	{
 		return IStreamingManager::Get().GetRenderAssetStreamingManager().IsFullyStreamedIn(this);
 	}
