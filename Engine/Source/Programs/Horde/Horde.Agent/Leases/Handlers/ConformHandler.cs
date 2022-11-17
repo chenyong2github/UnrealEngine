@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Horde.Agent.Execution;
@@ -19,21 +20,21 @@ namespace Horde.Agent.Leases.Handlers
 	class ConformHandler : LeaseHandler<ConformTask>
 	{
 		readonly AgentSettings _settings;
-		readonly ILogger _defaultLogger;
+		readonly IServerLoggerFactory _serverLoggerFactory;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConformHandler(IOptions<AgentSettings> settings, ILogger<ConformHandler> defaultLogger)
+		public ConformHandler(IOptions<AgentSettings> settings, IServerLoggerFactory serverLoggerFactory)
 		{
 			_settings = settings.Value;
-			_defaultLogger = defaultLogger;
+			_serverLoggerFactory = serverLoggerFactory;
 		}
 
 		/// <inheritdoc/>
 		public override async Task<LeaseResult> ExecuteAsync(ISession session, string leaseId, ConformTask conformTask, CancellationToken cancellationToken)
 		{
-			await using JsonRpcLogger conformLogger = new JsonRpcLogger(session.RpcConnection, conformTask.LogId, _defaultLogger);
+			await using IServerLogger conformLogger = _serverLoggerFactory.CreateLogger(session, conformTask.LogId, null);
 
 			conformLogger.LogInformation("Conforming, lease {LeaseId}", leaseId);
 			await session.TerminateProcessesAsync(conformLogger, cancellationToken);

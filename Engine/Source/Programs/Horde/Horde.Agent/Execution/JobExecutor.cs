@@ -36,8 +36,6 @@ namespace Horde.Agent.Execution
 {
 	abstract class JobExecutor
 	{
-		public const string StorageHttpClientName = "Storage";
-
 		protected class ExportedNode
 		{
 			public string Name { get; set; } = String.Empty;
@@ -666,11 +664,11 @@ namespace Horde.Agent.Execution
 			// Create the storage client
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions { });
 
-			using HttpClient httpClient = _httpClientFactory.CreateClient(StorageHttpClientName);
+			using HttpClient httpClient = _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
 			httpClient.BaseAddress = new Uri($"{_session.ServerUrl}/api/v1/storage/default");
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _session.Token);
 
-			using HttpClient redirectHttpClient = _httpClientFactory.CreateClient(StorageHttpClientName);
+			using HttpClient redirectHttpClient = _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
 
 			HttpStorageClient storage = new HttpStorageClient(CreateHttpClient, CreateHttpRedirectClient, logger);
 			//			FileStorageClient storage = new FileStorageClient(DirectoryReference.Combine(sharedStorageDir, "bundles"), cache, logger);
@@ -914,7 +912,7 @@ namespace Horde.Agent.Execution
 
 		HttpClient CreateHttpClient()
 		{
-			HttpClient httpClient = _httpClientFactory.CreateClient(StorageHttpClientName);
+			HttpClient httpClient = _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
 			httpClient.BaseAddress = new Uri($"{_session.ServerUrl}/api/v1/storage/default");
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _session.Token);
 			return httpClient;
@@ -922,7 +920,7 @@ namespace Horde.Agent.Execution
 
 		HttpClient CreateHttpRedirectClient()
 		{
-			return _httpClientFactory.CreateClient(StorageHttpClientName);
+			return _httpClientFactory.CreateClient(HttpStorageClient.HttpClientName);
 		}
 
 		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse step, DirectoryReference workspaceDir, string arguments, IStorageClient? store, ILogger logger, CancellationToken cancellationToken)

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,22 +35,24 @@ namespace Horde.Agent.Leases.Handlers
 
 		readonly IEnumerable<JobExecutorFactory> _executorFactories;
 		readonly AgentSettings _settings;
+		readonly IServerLoggerFactory _serverLoggerFactory;
 		readonly ILogger _defaultLogger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobHandler(IEnumerable<JobExecutorFactory> executorFactories, IOptions<AgentSettings> settings, ILogger<JobHandler> defaultLogger)
+		public JobHandler(IEnumerable<JobExecutorFactory> executorFactories, IOptions<AgentSettings> settings, IServerLoggerFactory serverLoggerFactory, ILogger<JobHandler> defaultLogger)
 		{
 			_executorFactories = executorFactories;
 			_settings = settings.Value;
+			_serverLoggerFactory = serverLoggerFactory;
 			_defaultLogger = defaultLogger;
 		}
 
 		/// <inheritdoc/>
 		public override async Task<LeaseResult> ExecuteAsync(ISession session, string leaseId, ExecuteJobTask executeTask, CancellationToken cancellationToken)
 		{
-			await using JsonRpcLogger logger = new JsonRpcLogger(session.RpcConnection, executeTask.LogId, executeTask.JobId, executeTask.BatchId, null, null, _defaultLogger);
+			await using IServerLogger logger = _serverLoggerFactory.CreateLogger(session, executeTask.LogId, executeTask.JobId, executeTask.BatchId, null);
 
 			logger.LogInformation("Executing job \"{JobName}\", jobId {JobId}, batchId {BatchId}, leaseId {LeaseId}", executeTask.JobName, executeTask.JobId, executeTask.BatchId, leaseId);
 			GlobalTracer.Instance.ActiveSpan?.SetTag("jobId", executeTask.JobId.ToString());
@@ -187,7 +190,7 @@ namespace Horde.Agent.Leases.Handlers
 					{
 						// Start writing to the log file
 #pragma warning disable CA2000 // Dispose objects before losing scope
-						await using (JsonRpcLogger stepLogger = new JsonRpcLogger(rpcClient, step.LogId, executeTask.JobId, executeTask.BatchId, step.StepId, step.Warnings, _defaultLogger))
+						await using (IServerLogger stepLogger = _serverLoggerFactory.CreateLogger(session, step.LogId, executeTask.JobId, executeTask.BatchId, step.StepId, step.Warnings))
 						{
 							// Execute the task
 							ILogger forwardingLogger = new DefaultLoggerIndentHandler(stepLogger);

@@ -13,6 +13,7 @@ using Datadog.Trace.Configuration;
 using Datadog.Trace.OpenTracing;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
 using Horde.Agent.Execution;
 using Horde.Agent.Leases;
 using Horde.Agent.Leases.Handlers;
@@ -170,7 +171,7 @@ namespace Horde.Agent
 				return builder.WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) });
 			});
 
-			services.AddHttpClient(JobExecutor.StorageHttpClientName)
+			services.AddHttpClient(HttpStorageClient.HttpClientName)
 				.AddTransientHttpErrorPolicy(builder =>
 				{
 					return builder.WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) });
@@ -193,6 +194,7 @@ namespace Horde.Agent
 
 			services.AddSingleton<CapabilitiesService>();
 			services.AddSingleton<SessionFactoryService>();
+			services.AddSingleton<IServerLoggerFactory, ServerLoggerFactory>();
 			services.AddHostedService<WorkerService>();
 
 			// Allow commands to augment the service collection for their own DI service providers

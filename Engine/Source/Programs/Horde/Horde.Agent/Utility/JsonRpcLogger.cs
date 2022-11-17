@@ -5,18 +5,20 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using EpicGames.Core;
 using EpicGames.Horde.Logs;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
 using Google.Protobuf;
 using Grpc.Core;
+using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using Horde.Common.Rpc;
 using HordeCommon;
@@ -29,7 +31,7 @@ namespace Horde.Agent.Parser
 {
 	using JsonObject = System.Text.Json.Nodes.JsonObject;
 
-	interface IJsonRpcLogSink
+	interface IJsonRpcLogSink : IAsyncDisposable
 	{
 		Task WriteEventsAsync(List<CreateEventRequest> events, CancellationToken cancellationToken);
 		Task WriteOutputAsync(WriteOutputRequest request, CancellationToken cancellationToken);
@@ -52,6 +54,8 @@ namespace Horde.Agent.Parser
 			_jobStepId = jobStepId;
 			_logger = logger;
 		}
+
+		public ValueTask DisposeAsync() => new ValueTask();
 
 		/// <inheritdoc/>
 		public async Task WriteEventsAsync(List<CreateEventRequest> events, CancellationToken cancellationToken)
@@ -90,7 +94,7 @@ namespace Horde.Agent.Parser
 		readonly IRpcConnection _connection;
 		readonly string _logId;
 		readonly LogBuilder _builder;
-		readonly IJsonRpcLogSink _inner;
+		readonly IJsonRpcLogSink? _inner;
 		readonly TreeWriter _writer;
 		readonly ILogger _logger;
 
@@ -100,11 +104,11 @@ namespace Horde.Agent.Parser
 		readonly object _lockObject = new object();
 
 		// Tailing task
-		readonly CancellationTokenSource _tailCancellationSource;
+		CancellationTokenSource _tailCancellationSource;
 		readonly Task _tailTask;
 		AsyncEvent _newTailDataEvent = new AsyncEvent();
 
-		public JsonRpcAndStorageLogSink(IRpcConnection connection, string logId, IJsonRpcLogSink inner, IStorageClient store, ILogger logger)
+		public JsonRpcAndStorageLogSink(IRpcConnection connection, string logId, IJsonRpcLogSink? inner, IStorageClient store, ILogger logger)
 		{
 			_connection = connection;
 			_logId = logId;
@@ -119,19 +123,28 @@ namespace Horde.Agent.Parser
 
 		public async ValueTask DisposeAsync()
 		{
-			_tailCancellationSource.Cancel();
-			try
+			if(_tailCancellationSource != null)
 			{
-				await _tailTask;
+				_tailCancellationSource.Cancel();
+				try
+				{
+					await _tailTask;
+				}
+				catch (OperationCanceledException)
+				{
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Exception on log tailing task ({LogId}): {Message}", _logId, ex.Message);
+				}
+				_tailCancellationSource.Dispose();
+				_tailCancellationSource = null!;
 			}
-			catch (OperationCanceledException)
+
+			if (_inner != null)
 			{
+				await _inner.DisposeAsync();
 			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Exception on log tailing task ({LogId}): {Message}", _logId, ex.Message);
-			}
-			_tailCancellationSource.Dispose();
 		}
 
 		async Task TickTailAsync(CancellationToken cancellationToken)
@@ -173,18 +186,30 @@ namespace Horde.Agent.Parser
 		}
 
 		/// <inheritdoc/>
-		public Task SetOutcomeAsync(JobStepOutcome outcome, CancellationToken cancellationToken) => _inner.SetOutcomeAsync(outcome, cancellationToken);
+		public async Task SetOutcomeAsync(JobStepOutcome outcome, CancellationToken cancellationToken)
+		{
+			if (_inner != null)
+			{
+				await _inner.SetOutcomeAsync(outcome, cancellationToken);
+			}
+		}
 
 		/// <inheritdoc/>
 		public async Task WriteEventsAsync(List<CreateEventRequest> events, CancellationToken cancellationToken)
 		{
-			await _inner.WriteEventsAsync(events, cancellationToken);
+			if (_inner != null)
+			{
+				await _inner.WriteEventsAsync(events, cancellationToken);
+			}
 		}
 
 		/// <inheritdoc/>
 		public async Task WriteOutputAsync(WriteOutputRequest request, CancellationToken cancellationToken)
 		{
-			await _inner.WriteOutputAsync(request, cancellationToken);
+			if (_inner != null)
+			{
+				await _inner.WriteOutputAsync(request, cancellationToken);
+			}
 
 			_builder.WriteData(request.Data.Memory);
 			_bufferLength += request.Data.Length;
@@ -206,6 +231,7 @@ namespace Horde.Agent.Parser
 			_logger.LogDebug("Updating log {LogId} to line {LineCount}, blob {Locator}", _logId, lineCount, locator);
 
 			UpdateLogRequest request = new UpdateLogRequest();
+			request.LogId = _logId;
 			request.LineCount = lineCount;
 			request.BlobLocator = locator.ToString();
 			await _connection.InvokeAsync((LogRpcClient client) => client.UpdateLogAsync(request, cancellationToken: cancellationToken), cancellationToken);
@@ -252,9 +278,25 @@ namespace Horde.Agent.Parser
 	}
 
 	/// <summary>
+	/// Interface for a log device
+	/// </summary>
+	public interface IServerLogger : ILogger, IAsyncDisposable
+	{
+		/// <summary>
+		/// Outcome of the job step, including any warnings/errors
+		/// </summary>
+		JobStepOutcome Outcome { get; }
+
+		/// <summary>
+		/// Flushes the logger with the server and stops the background work
+		/// </summary>
+		Task StopAsync();
+	}
+
+	/// <summary>
 	/// Class to handle uploading log data to the server in the background
 	/// </summary>
-	sealed class JsonRpcLogger : ILogger, IAsyncDisposable
+	sealed class JsonRpcLogger : IServerLogger
 	{
 		class QueueItem
 		{
@@ -306,44 +348,6 @@ namespace Horde.Agent.Parser
 			_dataWriter = Task.Run(() => RunDataWriter());
 
 			Outcome = JobStepOutcome.Success;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="rpcClient">RPC client to use for server requests</param>
-		/// <param name="logId">The log id to write to</param>
-		/// <param name="inner">Additional logger to write to</param>
-		public JsonRpcLogger(IRpcConnection rpcClient, string logId, ILogger inner)
-			: this(rpcClient, logId, null, null, null, null, inner)
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="rpcClient">RPC client to use for server requests</param>
-		/// <param name="logId">The log id to write to</param>
-		/// <param name="warnings">Whether to include warnings in the output</param>
-		/// <param name="inner">Additional logger to write to</param>
-		public JsonRpcLogger(IRpcConnection rpcClient, string logId, bool? warnings, ILogger inner)
-			: this(rpcClient, logId, null, null, null, warnings, inner)
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="rpcClient">RPC client to use for server requests</param>
-		/// <param name="logId">The log id to write to</param>
-		/// <param name="jobId">Id of the job being executed</param>
-		/// <param name="jobBatchId">Batch being executed</param>
-		/// <param name="jobStepId">Id of the step being executed</param>
-		/// <param name="warnings">Whether to include warnings in the output</param>
-		/// <param name="inner">Additional logger to write to</param>
-		public JsonRpcLogger(IRpcConnection rpcClient, string logId, string? jobId, string? jobBatchId, string? jobStepId, bool? warnings, ILogger inner)
-			: this(new JsonRpcLogSink(rpcClient, jobId, jobBatchId, jobStepId, inner), logId, warnings, inner)
-		{
 		}
 
 		/// <inheritdoc/>
@@ -405,6 +409,7 @@ namespace Horde.Agent.Parser
 		public async ValueTask DisposeAsync()
 		{
 			await StopAsync();
+			await _sink.DisposeAsync();
 		}
 
 		/// <summary>

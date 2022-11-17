@@ -23,7 +23,7 @@ namespace Horde.Agent.Commands.Utilities
 	[Command("BuildGraph", "Executes a BuildGraph script with the given arguments using a build of UAT within the current branch, and runs the output through the log processor")]
 	class BuildGraphCommand : Command
 	{
-		sealed class LogSink : IJsonRpcLogSink, IDisposable
+		sealed class LogSink : IJsonRpcLogSink, IAsyncDisposable, IDisposable
 		{
 			readonly ILogger _inner;
 			readonly FileStream _eventStream;
@@ -40,6 +40,12 @@ namespace Horde.Agent.Commands.Utilities
 				FileReference outputFile = FileReference.Combine(baseDir, "horde-output.txt");
 				_outputStream = FileReference.Open(outputFile, FileMode.Create);
 				inner.LogInformation("Writing output to {File}", outputFile);
+			}
+
+			public ValueTask DisposeAsync()
+			{
+				Dispose();
+				return new ValueTask();
 			}
 
 			public void Dispose()

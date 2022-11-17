@@ -126,6 +126,8 @@ namespace Horde.Agent.Tests
 
 		class FakeLogSink : IJsonRpcLogSink
 		{
+			public ValueTask DisposeAsync() => new ValueTask();
+
 			public Task SetOutcomeAsync(JobStepOutcome outcome, CancellationToken cancellationToken) => Task.CompletedTask;
 
 			public Task WriteEventsAsync(List<CreateEventRequest> events, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -141,7 +143,7 @@ namespace Horde.Agent.Tests
 
 			TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
 
-			FakeLogSink innerSink = new FakeLogSink();
+			await using FakeLogSink innerSink = new FakeLogSink();
 
 			const int Count = 20000;
 

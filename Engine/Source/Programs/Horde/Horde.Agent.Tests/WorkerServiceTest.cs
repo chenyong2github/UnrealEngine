@@ -16,6 +16,7 @@ using Grpc.Net.Client;
 using Horde.Agent.Execution;
 using Horde.Agent.Leases;
 using Horde.Agent.Leases.Handlers;
+using Horde.Agent.Parser;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using HordeCommon;
@@ -26,7 +27,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel.DataCollection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 
@@ -36,6 +36,26 @@ namespace Horde.Agent.Tests
 	public class WorkerServiceTest
 	{
 		private readonly ServiceCollection _serviceCollection;
+
+		class FakeServerLogger : IServerLogger
+		{
+			public JobStepOutcome Outcome => JobStepOutcome.Success;
+
+			public IDisposable BeginScope<TState>(TState state) => NullLogger.Instance.BeginScope<TState>(state);
+
+			public ValueTask DisposeAsync() => new ValueTask();
+
+			public bool IsEnabled(LogLevel logLevel) => true;
+
+			public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) { }
+
+			public Task StopAsync() => Task.CompletedTask;
+		}
+
+		class FakeServerLoggerFactory : IServerLoggerFactory
+		{
+			public IServerLogger CreateLogger(ISession session, string logId, string? jobId, string? batchId, string? stepId, bool? warnings = null) => new FakeServerLogger();
+		}
 
 		internal static JobExecutor NullExecutor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
 		{
@@ -47,6 +67,7 @@ namespace Horde.Agent.Tests
 		{
 			_serviceCollection = new ServiceCollection();
 			_serviceCollection.AddLogging();
+			_serviceCollection.AddSingleton<IServerLoggerFactory, FakeServerLoggerFactory>();
 
 			_serviceCollection.Configure<AgentSettings>(settings =>
 			{
@@ -147,17 +168,13 @@ namespace Horde.Agent.Tests
 				token)).Outcome;
 
 			Assert.AreEqual(LeaseOutcome.Success, outcome);
-			Assert.AreEqual(4, client.UpdateStepRequests.Count);
-			// An extra UpdateStep request is sent by JsonRpcLogger on failures which is why four requests
-			// are returned instead of three.
+			Assert.AreEqual(3, client.UpdateStepRequests.Count);
 			Assert.AreEqual(JobStepOutcome.Success, client.UpdateStepRequests[0].Outcome);
 			Assert.AreEqual(JobStepState.Completed, client.UpdateStepRequests[0].State);
 			Assert.AreEqual(JobStepOutcome.Failure, client.UpdateStepRequests[1].Outcome);
-			Assert.AreEqual(JobStepState.Unspecified, client.UpdateStepRequests[1].State);
-			Assert.AreEqual(JobStepOutcome.Failure, client.UpdateStepRequests[2].Outcome);
-			Assert.AreEqual(JobStepState.Aborted, client.UpdateStepRequests[2].State);
-			Assert.AreEqual(JobStepOutcome.Success, client.UpdateStepRequests[3].Outcome);
-			Assert.AreEqual(JobStepState.Completed, client.UpdateStepRequests[3].State);
+			Assert.AreEqual(JobStepState.Aborted, client.UpdateStepRequests[1].State);
+			Assert.AreEqual(JobStepOutcome.Success, client.UpdateStepRequests[2].Outcome);
+			Assert.AreEqual(JobStepState.Completed, client.UpdateStepRequests[2].State);
 		}
 		
 		[TestMethod]
@@ -239,7 +256,7 @@ namespace Horde.Agent.Tests
 
 		public static ISession CreateSession(IRpcConnection rpcConnection)
 		{
-			Mock<ISession> fakeSession = new Mock<ISession>();
+			Mock<ISession> fakeSession = new Mock<ISession>(MockBehavior.Strict);
 			fakeSession.Setup(x => x.AgentId).Returns("LocalAgent");
 			fakeSession.Setup(x => x.SessionId).Returns("Session");
 			fakeSession.Setup(x => x.RpcConnection).Returns(rpcConnection);

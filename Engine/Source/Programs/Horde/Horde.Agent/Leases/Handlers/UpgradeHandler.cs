@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -22,17 +23,17 @@ namespace Horde.Agent.Leases.Handlers
 {
 	class UpgradeHandler : LeaseHandler<UpgradeTask>
 	{
-		readonly ILogger _defaultLogger;
+		readonly IServerLoggerFactory _serverLoggerFactory;
 
-		public UpgradeHandler(ILogger<UpgradeHandler> defaultLogger)
+		public UpgradeHandler(IServerLoggerFactory serverLoggerFactory)
 		{
-			_defaultLogger = defaultLogger;
+			_serverLoggerFactory = serverLoggerFactory;
 		}
 
 		/// <inheritdoc/>
 		public override async Task<LeaseResult> ExecuteAsync(ISession session, string leaseId, UpgradeTask task, CancellationToken cancellationToken)
 		{
-			await using JsonRpcLogger logger = new JsonRpcLogger(session.RpcConnection, task.LogId, _defaultLogger);
+			await using IServerLogger logger = _serverLoggerFactory.CreateLogger(session, task.LogId);
 
 			string requiredVersion = task.SoftwareId;
 

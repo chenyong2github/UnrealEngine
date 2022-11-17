@@ -21,6 +21,11 @@ namespace EpicGames.Horde.Storage.Backends
 	/// </summary>
 	public class HttpStorageClient : StorageClientBase
 	{
+		/// <summary>
+		/// Name of clients created from the http client factory
+		/// </summary>
+		public const string HttpClientName = "Horde.HttpStorageClient";
+
 		class WriteBlobResponse
 		{
 			public BlobLocator Locator { get; set; }
@@ -47,6 +52,36 @@ namespace EpicGames.Horde.Storage.Backends
 			_createClient = createClient;
 			_createRedirectClient = createRedirectClient;
 			_logger = logger;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public HttpStorageClient(IHttpClientFactory httpClientFactory, Uri baseAddress, string? bearerToken, ILogger logger)
+			: this(() => CreateAuthenticatedClient(httpClientFactory, baseAddress, bearerToken), () => CreateClient(httpClientFactory), logger)
+		{
+		}
+
+		/// <summary>
+		/// Helper method to create an HTTP client from the given factory
+		/// </summary>
+		static HttpClient CreateClient(IHttpClientFactory httpClientFactory)
+		{
+			return httpClientFactory.CreateClient(HttpClientName);
+		}
+
+		/// <summary>
+		/// Helper method to add the base address and auth header to an HTTP client
+		/// </summary>
+		static HttpClient CreateAuthenticatedClient(IHttpClientFactory httpClientFactory, Uri baseAddress, string? bearerToken)
+		{
+			HttpClient httpClient = CreateClient(httpClientFactory);
+			httpClient.BaseAddress = baseAddress;
+			if (bearerToken != null)
+			{
+				httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+			}
+			return httpClient;
 		}
 
 		#region Blobs
