@@ -100,7 +100,7 @@ public:
 	
 	/**
 	 * Recalculates this device property's duration. This should be called whenever there are changes made
-	 * to things like curves, or other time sensative properties.
+	 * to things like curves, or other time sensitive properties.
 	 */
 	virtual float RecalculateDuration();
 
@@ -119,14 +119,45 @@ protected:
 	float PropertyDuration = 0.1f;
 };
 
-/** 
-* A property that can be used to change the color of an input device's light 
+/**
+* Set the color of an Input Device to a static color. 
 * 
 * NOTE: This property has platform specific implementations and may behave differently per platform.
 * See the docs for more details on each platform.
 */
 UCLASS(Blueprintable, BlueprintType)
 class UColorInputDeviceProperty : public UInputDeviceProperty
+{
+	GENERATED_BODY()
+
+public:
+
+	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration) override;
+	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser) override;
+	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
+
+	/** True if the light should be enabled at all */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	bool bEnable = true;
+
+	/** The color to set the light on  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	FColor LightColor = FColor::White;
+
+private:
+
+	/** The internal light color property that this represents; */
+	FInputDeviceLightColorProperty InternalProperty;
+};
+
+/** 
+* A property that can be used to change the color of an input device's light over time with a curve
+* 
+* NOTE: This property has platform specific implementations and may behave differently per platform.
+* See the docs for more details on each platform.
+*/
+UCLASS(Blueprintable, BlueprintType)
+class UColorInputDeviceCurveProperty : public UInputDeviceProperty
 {
 	GENERATED_BODY()
 
