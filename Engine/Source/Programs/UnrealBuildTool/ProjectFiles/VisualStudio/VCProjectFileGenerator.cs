@@ -268,19 +268,19 @@ namespace UnrealBuildTool
 			base.SetupSupportedPlatformsAndConfigurations(IncludeAllPlatforms, Logger, out SupportedPlatformNames);
 
 			// If we have a non-default setting for visual studio, check the compiler exists. If not, revert to the default.
-			if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2019)
-			{
-				if (!WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2019, WindowsArchitecture.x64, Logger))
-				{
-					Logger.LogWarning("Visual Studio C++ 2019 installation not found - ignoring preferred project file format.");
-					Settings.ProjectFileFormat = VCProjectFileFormat.Default;
-				}
-			}
-			else if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2022)
+			if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2022)
 			{
 				if (!WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2022, WindowsArchitecture.x64, Logger))
 				{
 					Logger.LogWarning("Visual Studio C++ 2022 installation not found - ignoring preferred project file format.");
+					Settings.ProjectFileFormat = VCProjectFileFormat.Default;
+				}
+			}
+			else if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2019)
+			{
+				if (!WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2019, WindowsArchitecture.x64, Logger))
+				{
+					Logger.LogWarning("Visual Studio C++ 2019 installation not found - ignoring preferred project file format.");
 					Settings.ProjectFileFormat = VCProjectFileFormat.Default;
 				}
 			}
