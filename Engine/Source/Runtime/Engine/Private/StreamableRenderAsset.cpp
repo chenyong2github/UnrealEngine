@@ -345,6 +345,17 @@ bool UStreamableRenderAsset::IsFullyStreamedIn()
 		return true;
 	}
 
+#if WITH_EDITOR
+	UPackage* Package = GetOutermost();
+	if (Package
+		&& Package->bIsCookedForEditor
+		&& CachedSRRState.NumNonOptionalLODs < CachedSRRState.MaxNumLODs
+		&& IStreamingManager::Get().IsRenderAssetStreamingEnabled())
+	{
+		return IStreamingManager::Get().GetRenderAssetStreamingManager().IsFullyStreamedIn(this);
+	}
+#endif	
+
 	// IsFullyStreamedIn() might be used incorrectly if any logic waits on it to be true.
 	// there could be optional mips which are not available to be loaded, so waiting on IsFullyStreamedIn would never finish
 	ensureMsgf(CachedSRRState.NumResidentLODs != CachedSRRState.NumNonOptionalLODs, TEXT("IsFullyStreamedIn() is being called on (%s) which might not have optional LODs mounted."), *GetFName().ToString());

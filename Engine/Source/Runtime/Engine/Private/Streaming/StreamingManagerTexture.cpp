@@ -869,6 +869,29 @@ void FRenderAssetStreamingManager::RemoveStreamingRenderAsset( UStreamableRender
 	STAT(GatheredStats.CallbacksCycles += FPlatformTime::Cycles();)
 }
 
+bool FRenderAssetStreamingManager::IsFullyStreamedIn(UStreamableRenderAsset* RenderAsset)
+{
+	check(RenderAsset);
+
+	const FStreamingRenderAsset* StreamingAsset = GetStreamingRenderAsset(RenderAsset);
+	const FStreamableRenderResourceState& AssetState = RenderAsset->GetStreamableResourceState();
+	
+	if (StreamingAsset)
+	{
+		const FStreamingRenderAsset::EOptionalMipsState OptionalLODState = StreamingAsset->OptionalMipsState;
+		int32 NumLODsToConsiderAsFull = AssetState.MaxNumLODs - RenderAsset->GetCachedLODBias();
+		
+		if (OptionalLODState == FStreamingRenderAsset::OMS_NoOptionalMips)
+		{
+			NumLODsToConsiderAsFull = FMath::Min(NumLODsToConsiderAsFull, (int32)AssetState.NumNonOptionalLODs);
+		}
+
+		return AssetState.NumResidentLODs >= NumLODsToConsiderAsFull;
+	}
+
+	return false;
+}
+
 /** Called when a spawned primitive is deleted, or when an actor is destroyed in the editor. */
 void FRenderAssetStreamingManager::NotifyActorDestroyed( AActor* Actor )
 {

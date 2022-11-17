@@ -454,6 +454,9 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	/** Removes a texture/mesh from the streaming manager. */
 	virtual void RemoveStreamingRenderAsset(UStreamableRenderAsset* RenderAsset) = 0;
 
+	/** Check whether all runtime-allowed LODs have been loaded. */
+	virtual bool IsFullyStreamedIn(UStreamableRenderAsset* RenderAsset) = 0;
+
 	virtual int64 GetMemoryOverBudget() const = 0;
 
 	/** Pool size for streaming. */
