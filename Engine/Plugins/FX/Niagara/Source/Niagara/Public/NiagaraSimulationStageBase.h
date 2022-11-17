@@ -117,18 +117,18 @@ public:
 	/**
 	Controls when the simulation stage should execute, only valid for data interface iteration stages
 	*/
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (EditCondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	ENiagaraSimStageExecuteBehavior ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
 
 	/**
 	Disables the ability to read / write from the same particle buffer, i.e. only update position and no other attributes.
 	By default this should not be changed, but can be used to debug issues.
 	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stage", meta = (EditCondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stage")
 	uint32 bDisablePartialParticleUpdate : 1;
 
 	/** Source data interface to use for the simulation stage. The data interface needs to be a subclass of UNiagaraDataInterfaceRWBase, for example the Grid2D and Grid3D data interfaces. */
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FNiagaraVariableDataInterfaceBinding DataInterface;
 
 	/**
@@ -136,29 +136,29 @@ public:
 	For example, if the binding was set to Particles.MyStateIndex and the range was 1-3 only the particles
 	with values of 1, 2 or 3 for Particles.MyStateIndex would run the script, all others would be ignored.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	uint32 bParticleIterationStateEnabled : 1;
 
 	/** Particle state attribute binding, when enabled we will only allow particles who pass the state range check to be processed. */
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FNiagaraVariableAttributeBinding ParticleIterationStateBinding;
 
 	/** The inclusive range used to check particle state binding against when enabled. */
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FIntPoint ParticleIterationStateRange = FIntPoint(0, 0);
 
 	/**
 	When enabled we force the dispatch to be linear (i.e. one dimension is used).
 	NOTE: Cannot be used with OverrideGpuDispatchType.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "!bOverrideGpuDispatchType"))
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	uint32 bGpuDispatchForceLinear : 1;
 
 	/**
 	When enabled we use a custom number of element count for the dispatch.
 	NOTE: Cannot be used with GpuDispatchForceLinear.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "!bGpuDispatchForceLinear"))
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	uint32 bOverrideGpuDispatchType : 1;
 
 	/** Dimensions to use for dispatch. */
