@@ -257,6 +257,11 @@ void ULiveLinkComponentController::PostLoad()
 {
 	Super::PostLoad();
 
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		return;
+	}
+
 #if WITH_EDITOR
  	const int32 Version = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID);
  	if (Version < FUE5MainStreamObjectVersion::LiveLinkComponentPickerPerController)
