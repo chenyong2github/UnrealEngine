@@ -43,14 +43,8 @@ FNiagaraDrawIndirectArgsGenCS::FNiagaraDrawIndirectArgsGenCS(const ShaderMetaTyp
 void FNiagaraDrawIndirectArgsGenCS::SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* DrawIndirectArgsUAV, FRHIUnorderedAccessView* InstanceCountsUAV)
 {
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-	if (DrawIndirectArgsParam.IsBound())
-	{
-		RHICmdList.SetUAVParameter(ComputeShaderRHI, DrawIndirectArgsParam.GetUAVIndex(), DrawIndirectArgsUAV);
-	}
-	if (InstanceCountsParam.IsBound())
-	{
-		RHICmdList.SetUAVParameter(ComputeShaderRHI, InstanceCountsParam.GetUAVIndex(), InstanceCountsUAV);
-	}
+	DrawIndirectArgsParam.SetUAV(RHICmdList, ComputeShaderRHI, DrawIndirectArgsUAV);
+	InstanceCountsParam.SetUAV(RHICmdList, ComputeShaderRHI, DrawIndirectArgsUAV);
 }
 
 void FNiagaraDrawIndirectArgsGenCS::SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, FRHIShaderResourceView* CulledInstanceCountsBuffer, int32 ArgGenTaskOffset, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks)
@@ -69,14 +63,8 @@ void FNiagaraDrawIndirectArgsGenCS::UnbindBuffers(FRHICommandList& RHICmdList)
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, TaskInfosParam, nullptr);
-	if (DrawIndirectArgsParam.IsBound())
-	{
-		RHICmdList.SetUAVParameter(ComputeShaderRHI, DrawIndirectArgsParam.GetUAVIndex(), nullptr);
-	}
-	if (InstanceCountsParam.IsBound())
-	{
-		RHICmdList.SetUAVParameter(ComputeShaderRHI, InstanceCountsParam.GetUAVIndex(), nullptr);
-	}
+	DrawIndirectArgsParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
+	InstanceCountsParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
 }
 void FNiagaraDrawIndirectResetCountsCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
@@ -97,11 +85,7 @@ FNiagaraDrawIndirectResetCountsCS::FNiagaraDrawIndirectResetCountsCS(const Shade
 void FNiagaraDrawIndirectResetCountsCS::SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* InstanceCountsUAV)
 {
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-
-	if (InstanceCountsParam.IsBound())
-	{
-		RHICmdList.SetUAVParameter(ComputeShaderRHI, InstanceCountsParam.GetUAVIndex(), InstanceCountsUAV);
-	}
+	InstanceCountsParam.SetUAV(RHICmdList, ComputeShaderRHI, InstanceCountsUAV);
 }
 
 void FNiagaraDrawIndirectResetCountsCS::SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks)
@@ -119,9 +103,5 @@ void FNiagaraDrawIndirectResetCountsCS::UnbindBuffers(FRHICommandList& RHICmdLis
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, TaskInfosParam, nullptr);
-
-	if (InstanceCountsParam.IsBound())
-	{
-		RHICmdList.SetUAVParameter(ComputeShaderRHI, InstanceCountsParam.GetUAVIndex(), nullptr);
-	}
+	InstanceCountsParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
 }

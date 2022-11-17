@@ -948,10 +948,7 @@ public:
 	void SetParameters(FRHICommandList& RHICmdList, FParticleShaderParamRef TileOffsetsRef)
 	{
 		FRHIVertexShader* VertexShaderRHI = RHICmdList.GetBoundVertexShader();
-		if (TileOffsets.IsBound())
-		{
-			RHICmdList.SetShaderResourceViewParameter(VertexShaderRHI, TileOffsets.GetBaseIndex(), TileOffsetsRef);
-		}
+		SetSRVParameter(RHICmdList, VertexShaderRHI, TileOffsets, TileOffsetsRef);
 		SetShaderValue(RHICmdList, VertexShaderRHI, TileSizeX, (float)GParticleSimulationTileSize / (float)GParticleSimulationTextureSizeX);
 		SetShaderValue(RHICmdList, VertexShaderRHI, TileSizeY, (float)GParticleSimulationTileSize / (float)GParticleSimulationTextureSizeY);
 	}
@@ -1078,9 +1075,9 @@ public:
 	void SetVectorFieldParameters(FRHICommandList& RHICmdList, const FVectorFieldUniformBufferRef& UniformBuffer, FRHITexture3D* const* VolumeTexturesRHI)
 	{
 		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
-			SetUniformBufferParameter(RHICmdList, PixelShaderRHI, GetUniformBufferParameter<FVectorFieldUniformParameters>(), UniformBuffer);
+		SetUniformBufferParameter(RHICmdList, PixelShaderRHI, GetUniformBufferParameter<FVectorFieldUniformParameters>(), UniformBuffer);
 		
-			FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
+		FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 
 		for (int32 i = 0; i < MAX_VECTOR_FIELDS; ++i)
 		{
@@ -1108,10 +1105,7 @@ public:
 		FRHIShaderResourceView* NullSRV = nullptr;
 		for (int32 i = 0; i < MAX_VECTOR_FIELDS; ++i)
 		{
-			if (VectorFieldTextures[i].IsBound())
-			{
-				RHICmdList.SetShaderResourceViewParameter(PixelShaderRHI, VectorFieldTextures[i].GetBaseIndex(), NullSRV);
-			}
+			SetSRVParameter(RHICmdList, PixelShaderRHI, VectorFieldTextures[i], NullSRV);
 		}
 	}
 
@@ -2107,10 +2101,7 @@ public:
 	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* OutBoundsUAV )
 	{
 		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		if ( OutBounds.IsBound() )
-		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutBounds.GetBaseIndex(), OutBoundsUAV);
-		}
+		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutBounds, OutBoundsUAV);
 	}
 
 	/**
@@ -2125,14 +2116,9 @@ public:
 	{
 		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, GetUniformBufferParameter<FParticleBoundsParameters>(), UniformBuffer );
-		if ( InParticleIndices.IsBound() )
-		{
-			RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, InParticleIndices.GetBaseIndex(), InIndicesSRV);
-		}
-		if ( PositionTexture.IsBound() )
-		{
-			RHICmdList.SetShaderTexture(ComputeShaderRHI, PositionTexture.GetBaseIndex(), PositionTextureRHI);
-		}
+
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, InParticleIndices, InIndicesSRV);
+		SetTextureParameter(RHICmdList, ComputeShaderRHI, PositionTexture, PositionTextureRHI);
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, TextureSizeX, GParticleSimulationTextureSizeX);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, TextureSizeY, GParticleSimulationTextureSizeY);
@@ -2144,14 +2130,8 @@ public:
 	void UnbindBuffers(FRHICommandList& RHICmdList)
 	{
 		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		if ( InParticleIndices.IsBound() )
-		{
-			RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, InParticleIndices.GetBaseIndex(), nullptr);
-		}
-		if ( OutBounds.IsBound() )
-		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutBounds.GetBaseIndex(), nullptr);
-		}
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, InParticleIndices, nullptr);
+		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutBounds, nullptr);
 	}
 
 private:

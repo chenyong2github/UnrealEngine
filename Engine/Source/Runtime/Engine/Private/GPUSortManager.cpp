@@ -154,7 +154,7 @@ void FCopyUIntBufferCS::SetParameters(
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	check(DestCount > 0 && DestCount <= COPYUINTCS_BUFFER_COUNT);
 
-	RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, SourceData.GetBaseIndex(), InSourceData);
+	SetSRVParameter(RHICmdList, ComputeShaderRHI, SourceData, InSourceData);
 
 	FUintVector4 CopyParamsValue(StartingIndex, 0, 0, 0);
 	for (int32 Index = 0; Index < DestCount; ++Index)

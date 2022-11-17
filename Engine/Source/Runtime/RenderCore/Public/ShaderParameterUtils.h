@@ -270,55 +270,53 @@ FORCEINLINE void SetSRVParameter(
 {
 	if (Parameter.IsBound())
 	{
-		RHICmdList.SetShaderResourceViewParameter(Shader, Parameter.GetBaseIndex(), NewShaderResourceViewRHI);
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
+		{
+			const FRHIDescriptorHandle Handle = NewShaderResourceViewRHI ? NewShaderResourceViewRHI->GetBindlessHandle() : FRHIDescriptorHandle();
+			SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
+		}
+		else
+#endif
+		{
+			RHICmdList.SetShaderResourceViewParameter(Shader, Parameter.GetBaseIndex(), NewShaderResourceViewRHI);
+		}
 	}
 }
-
 
 template<typename TRHIShader, typename TRHICmdList>
-FORCEINLINE void SetSRVParameter(
-	TRHICmdList& RHICmdList,
-	const TRefCountPtr<TRHIShader>& Shader,
-	const FShaderResourceParameter& Parameter,
-	FRHIShaderResourceView* NewShaderResourceViewRHI
-)
+FORCEINLINE void SetSRVParameter(TRHICmdList& RHICmdList, const TRefCountPtr<TRHIShader>& Shader, const FShaderResourceParameter& Parameter, FRHIShaderResourceView* NewShaderResourceViewRHI)
+{
+	SetSRVParameter(RHICmdList, Shader.GetReference(), Parameter, NewShaderResourceViewRHI);
+}
+
+template<typename TRHIShader, typename TRHICmdList>
+FORCEINLINE void SetUAVParameterSafeShader(TRHICmdList& RHICmdList, TRHIShader* Shader, const FShaderResourceParameter& Parameter, FRHIUnorderedAccessView* UAV)
 {
 	if (Parameter.IsBound())
 	{
-		RHICmdList.SetShaderResourceViewParameter(Shader.GetReference(), Parameter.GetBaseIndex(), NewShaderResourceViewRHI);
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
+		{
+			const FRHIDescriptorHandle Handle = UAV ? UAV->GetBindlessHandle() : FRHIDescriptorHandle();
+			SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
+		}
+		else
+#endif
+		{
+			RHICmdList.SetUAVParameter(Shader, Parameter.GetBaseIndex(), UAV);
+		}
 	}
 }
 
-/**
- * Sets the value of a unordered access view parameter
- */
-FORCEINLINE void SetUAVParameter(
-	FRHIComputeCommandList& RHICmdList,
-	FRHIComputeShader* ComputeShader,
-	const FShaderResourceParameter& Parameter,
-	FRHIUnorderedAccessView* NewUnorderedAccessViewRHI
-	)
+FORCEINLINE void SetUAVParameter(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader, const FShaderResourceParameter& Parameter, FRHIUnorderedAccessView* UAV)
 {
-	if (Parameter.IsBound())
-	{
-		RHICmdList.SetUAVParameter(ComputeShader, Parameter.GetBaseIndex(), NewUnorderedAccessViewRHI);
-	}
+	SetUAVParameterSafeShader(RHICmdList, Shader, Parameter, UAV);
 }
 
-/**
- * Sets the value of a unordered access view parameter
- */
-FORCEINLINE void SetUAVParameter(
-	FRHICommandList& RHICmdList,
-	FRHIPixelShader* PixelShader,
-	const FShaderResourceParameter& Parameter,
-	FRHIUnorderedAccessView* NewUnorderedAccessViewRHI
-)
+FORCEINLINE void SetUAVParameter(FRHICommandList& RHICmdList, FRHIPixelShader* Shader, const FShaderResourceParameter& Parameter, FRHIUnorderedAccessView* UAV)
 {
-	if (Parameter.IsBound())
-	{
-		RHICmdList.SetUAVParameter(PixelShader, Parameter.GetBaseIndex(), NewUnorderedAccessViewRHI);
-	}
+	SetUAVParameterSafeShader(RHICmdList, Shader, Parameter, UAV);
 }
 
 
@@ -373,6 +371,12 @@ inline void FRWShaderParameter::SetTexture(TRHICmdList& RHICmdList, const TShade
 	{
 		SetTextureParameter(RHICmdList, Shader, SRVParameter, Texture);
 	}
+}
+
+template<typename TRHICmdList>
+inline void FRWShaderParameter::SetUAV(TRHICmdList& RHICmdList, FRHIComputeShader* ComputeShader, FRHIUnorderedAccessView* UAV) const
+{
+	SetUAVParameter(RHICmdList, ComputeShader, UAVParameter, UAV);
 }
 
 template<typename TRHICmdList>

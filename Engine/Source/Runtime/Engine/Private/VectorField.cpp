@@ -1017,10 +1017,7 @@ public:
 	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* VolumeTextureUAV)
 	{
 		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		if ( OutVolumeTexture.IsBound() )
-		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutVolumeTexture.GetBaseIndex(), VolumeTextureUAV);
-		}
+		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutVolumeTexture, VolumeTextureUAV);
 	}
 
 	/**
@@ -1029,10 +1026,7 @@ public:
 	void UnbindBuffers(FRHICommandList& RHICmdList)
 	{
 		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-		if ( OutVolumeTexture.IsBound() )
-		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutVolumeTexture.GetBaseIndex(), nullptr);
-		}
+		SetUAVParameter(RHICmdList, ComputeShaderRHI, OutVolumeTexture, nullptr);
 	}
 
 private:
