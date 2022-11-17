@@ -116,7 +116,7 @@
 					"description": "Name of the attribute"
 				},
 				"value": {
-					"type": "number",
+					"type": [ "number", "string", "array" ],
 					"description": "Value of the attribute"
 				},
 				"type": {

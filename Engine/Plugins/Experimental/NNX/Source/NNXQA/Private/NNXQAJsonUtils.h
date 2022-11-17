@@ -97,6 +97,20 @@ namespace Json
 					Value = FNNEAttributeValue(TmpValue);
 					break;
 				}
+				case ENNEAttributeDataType::Int32Array:
+				{
+					TArray<int32> TmpValue;
+					JSON_SERIALIZE_ARRAY("value", TmpValue);
+					Value = FNNEAttributeValue(TmpValue);
+					break;
+				}
+				case ENNEAttributeDataType::String:
+				{
+					FString TmpValue;
+					JSON_SERIALIZE("value", TmpValue);
+					Value = FNNEAttributeValue(TmpValue);
+					break;
+				}
 				default:
 					check(Type == ENNEAttributeDataType::None);
 			}

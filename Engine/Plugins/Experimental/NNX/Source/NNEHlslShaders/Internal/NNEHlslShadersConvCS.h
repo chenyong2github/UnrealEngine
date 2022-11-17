@@ -105,5 +105,7 @@ namespace UE::NNEHlslShaders::Internal
 		static FIntVector GetGroupCount(TArrayView<const int32> YShape, TArrayView<const int32> GroupShape);
 
 		static EConvGroupSize GetMinimalGroupSize(TArrayView<const int32> WShape);
+
+		static void LexFromString(EConvAutoPad& OutValue, const TCHAR* StringVal);
 	};
 } // UE::NNEHlslShaders::Internal

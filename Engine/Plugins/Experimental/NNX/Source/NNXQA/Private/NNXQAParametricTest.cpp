@@ -213,6 +213,17 @@ namespace Test
 				{
 					case ENNEAttributeDataType::Float: return FString::SanitizeFloat(Value.GetValue<float>());
 					case ENNEAttributeDataType::Int32: return FString::FromInt(Value.GetValue<int32>());
+					case ENNEAttributeDataType::Int32Array:
+					{
+						TArray<FString> ArrayStrings;
+						for (int32 Val : Value.GetValue<TArray<int32>>())
+						{
+							ArrayStrings.Add(FString::FromInt(Val));
+						}
+
+						return TEXT("[") + FString::Join(ArrayStrings, TEXT(",")) + TEXT("]");
+					}
+					case ENNEAttributeDataType::String: return Value.GetValue<FString>();
 				}
 				return TEXT("-");
 			};

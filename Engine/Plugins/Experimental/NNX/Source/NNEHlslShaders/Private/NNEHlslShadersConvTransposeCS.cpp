@@ -281,5 +281,14 @@ namespace UE::NNEHlslShaders::Internal
 		return Result;
 	}
 
+	void FConvTransposeCS::LexFromString(EConvTransposeAutoPad& OutValue, const TCHAR* StringVal)
+	{
+		OutValue = EConvTransposeAutoPad::NOTSET;
+		if (FCString::Stricmp(StringVal, TEXT("NOTSET")) == 0) OutValue = EConvTransposeAutoPad::NOTSET;
+		else if (FCString::Stricmp(StringVal, TEXT("SAME_UPPER")) == 0) OutValue = EConvTransposeAutoPad::SAME_UPPER;
+		else if (FCString::Stricmp(StringVal, TEXT("SAME_LOWER")) == 0) OutValue = EConvTransposeAutoPad::SAME_LOWER;
+		else if (FCString::Stricmp(StringVal, TEXT("VALID")) == 0) OutValue = EConvTransposeAutoPad::VALID;
+	}
+
 	IMPLEMENT_GLOBAL_SHADER(FConvTransposeCS, "/NNE/NNEHlslShadersConvTranspose.usf", "ConvTranspose", SF_Compute);
 } // UE::NNEHlslShaders::Internal

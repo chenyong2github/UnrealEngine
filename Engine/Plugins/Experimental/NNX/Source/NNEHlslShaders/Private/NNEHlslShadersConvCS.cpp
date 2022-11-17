@@ -288,5 +288,14 @@ namespace UE::NNEHlslShaders::Internal
 		return EConvGroupSize::MAX;
 	}
 
+	void FConvCS::LexFromString(EConvAutoPad& OutValue, const TCHAR* StringVal)
+	{
+		OutValue = EConvAutoPad::NOTSET;
+		if (FCString::Stricmp(StringVal, TEXT("NOTSET")) == 0) OutValue = EConvAutoPad::NOTSET;
+		else if (FCString::Stricmp(StringVal, TEXT("SAME_UPPER")) == 0) OutValue = EConvAutoPad::SAME_UPPER;
+		else if (FCString::Stricmp(StringVal, TEXT("SAME_LOWER")) == 0) OutValue = EConvAutoPad::SAME_LOWER;
+		else if (FCString::Stricmp(StringVal, TEXT("VALID")) == 0) OutValue = EConvAutoPad::VALID;
+	}
+
 	IMPLEMENT_GLOBAL_SHADER(FConvCS, "/NNE/NNEHlslShadersConv.usf", "Conv", SF_Compute);
 } // UE::NNEHlslShaders::Internal

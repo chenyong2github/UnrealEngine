@@ -95,6 +95,8 @@ namespace UE::NNEHlslShaders::Internal
 
 		static EConvTransposeGroupSize GetMinimalGroupSize(TArrayView<const uint32> WShape);
 
+		static void LexFromString(EConvTransposeAutoPad& OutValue, const TCHAR* StringVal);
+		
 	private:
 
 		static TArray<int32> GetXBlockShape(TArrayView<const int32> GroupShape, TArrayView<const uint32> WShape, TArrayView<const int32> Dilations, TArrayView<const int32> Strides);

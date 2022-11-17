@@ -548,7 +548,23 @@ private:
 				}
 				else if (AttrInfo.type == Ort::GraphAttributeType::kInt)
 				{
-					Builder->AddOperatorAttribute(Op, AttrInfo.name, FNNEAttributeValue((int)AttrValue.i));
+					Builder->AddOperatorAttribute(Op, AttrInfo.name, FNNEAttributeValue((int32)AttrValue.i));
+				}
+				else if (AttrInfo.type == Ort::GraphAttributeType::kInts)
+				{
+					TArray<int32> Values;
+					Values.SetNumUninitialized(AttrValue.count);
+
+					for (int i = 0; i < AttrValue.count; i++)
+					{
+						Values[i] = (int32)AttrValue.ints[i];
+					}
+
+					Builder->AddOperatorAttribute(Op, AttrInfo.name, FNNEAttributeValue(Values));
+				}
+				else if (AttrInfo.type == Ort::GraphAttributeType::kString)
+				{
+					Builder->AddOperatorAttribute(Op, AttrInfo.name, FNNEAttributeValue(FString(AttrValue.s)));
 				}
 				else
 				{

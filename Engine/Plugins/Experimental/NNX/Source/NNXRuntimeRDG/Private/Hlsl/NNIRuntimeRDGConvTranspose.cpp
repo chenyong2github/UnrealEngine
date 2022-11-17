@@ -36,18 +36,19 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		int NumDimensions = 0;
 		bool HasBias = false;
 
-		// Hard coded parameters, until we accept them from JSON
+		EConvTransposeAutoPad AutoPad = EConvTransposeAutoPad::NOTSET;
+		TArray<int32> Dilations;
 		int32 Group = 1;
-		EConvTransposeAutoPad AutoPad = EConvTransposeAutoPad::VALID;
-		TArray<int32> Dilations = {1};
-		TArray<int32> Strides = {1};
-		TArray<int32> Pads = {0, 0};
-		TArray<int32> OutputPadding = {0};
+		TArray<int32> OutputPadding;
+		TArray<int32> Pads;
+		TArray<int32> Strides;
 
 	public:
 
 		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
 		{
+			using namespace UE::NNEHlslShaders::Internal;
+
 			TArray<NNX::FTensor> InputTensors;
 			TArray<NNX::FTensor> OutputTensors;
 			if (!NNX::ConvertConcreteTensorDescsToTensors(InputTensorDescs, InputTensors) ||
@@ -78,6 +79,26 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			}
 
 			NumDimensions = Input.GetShape().Rank() - 2;
+
+			TArray<int32> DilationsOrStridesDefault;
+			DilationsOrStridesDefault.Init(1, NumDimensions);
+
+			FConvTransposeCS::LexFromString(AutoPad, *Attributes.GetValue<FString>(TEXT("auto_pad")));
+			Dilations = Attributes.GetValueOrDefault<TArray<int32>>(TEXT("dilations"), DilationsOrStridesDefault);
+			Group = Attributes.GetValueOrDefault<int>(TEXT("group"), 1);
+			
+			TArray<int32> OutputPaddingDefault;
+			OutputPaddingDefault.Init(0, NumDimensions);
+			OutputPadding = Attributes.GetValueOrDefault<TArray<int32>>(TEXT("output_padding"), OutputPaddingDefault);
+			
+			if (AutoPad == EConvTransposeAutoPad::NOTSET)
+			{
+				TArray<int32> PadsDefault;
+				PadsDefault.Init(1, 2 * NumDimensions);
+
+				Pads = Attributes.GetValueOrDefault<TArray<int32>>(TEXT("pads"), PadsDefault);
+			}
+			Strides = Attributes.GetValueOrDefault<TArray<int32>>(TEXT("strides"), DilationsOrStridesDefault);
 
 			return true;
 		}

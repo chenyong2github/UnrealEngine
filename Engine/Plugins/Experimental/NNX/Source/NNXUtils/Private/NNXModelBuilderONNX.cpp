@@ -97,6 +97,8 @@ public:
 		// Validate model
 		if (res)
 		{
+			UE_LOG(LogNNX, Display, TEXT("OrtValidateModelFromMemory... (note: might abort if i.e. shapes are not correct!)"));
+
 			OrtStatusPtr status = OrtValidateModelFromMemory(Data.GetData(), Data.Num());
 
 			if (status)
@@ -217,6 +219,19 @@ public:
 		{
 			Attribute->set_type(onnx::AttributeProto::INT);
 			Attribute->set_i(Value.GetValue<int32>());
+		}
+		else if (Value.GetType() == ENNEAttributeDataType::Int32Array)
+		{
+			Attribute->set_type(onnx::AttributeProto::INTS);
+			for (int32 Val : Value.GetValue<TArray<int32>>())
+			{
+				Attribute->add_ints(Val);
+			}
+		}
+		else if (Value.GetType() == ENNEAttributeDataType::String)
+		{
+			Attribute->set_type(onnx::AttributeProto::STRING);
+			Attribute->set_s(TCHAR_TO_ANSI(*Value.GetValue<FString>()));
 		}
 		else
 		{

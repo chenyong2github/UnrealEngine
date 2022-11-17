@@ -262,9 +262,23 @@
 		},
 		{
 			"category": "Convolution",
-			"runtimes": [	{	"name": "NNXRuntimeDml", "skip": true	}	],
+			"runtimes": [
+				{ "name": "NNXRuntimeDml", "skip": true	},
+				{ "name": "NNXRuntimeORTDml", "relative_error": 3.5e-2 },
+				{ "name": "NNXRuntimeHlsl",   "relative_error": 3.5e-2 }
+			],
 			"targets": [
-				{ "target": "Conv" },
+				{ "target": "Conv" }
+			]
+		},
+		{
+			"category": "ConvTranspose",
+			"runtimes": [
+				{ "name": "NNXRuntimeDml", "skip": true	},
+				{ "name": "NNXRuntimeORTDml", "relative_error": 3.5e-2 },
+				{ "name": "NNXRuntimeHlsl",   "relative_error": 3.5e-2 }
+			],
+			"targets": [
 				{ "target": "ConvTranspose" }
 			]
 		},
@@ -454,11 +468,33 @@
 				{ "inputs": [ { "shape": [ 1, 1 ] }, { "shape": [ 5, 1 ] }, { "shape": [ 5 ] } ], "outputs": [ { "shape": [ 1, 5 ] } ]}
 			]
 		},
-		{
-			"name": "Convolution",
+		{ 
+			"name": "Convolution.DefaultPadding",
 			"datasets": [
-				{	"inputs": [	{ "shape": [ 1, 1, 1 ] },	{ "shape": [ 1, 1, 1 ] } ],	"outputs": [ { "shape": [ 1, 1, 1 ] } ]},
-				{	"inputs": [	{ "shape": [ 1, 1, 1 ] },	{ "shape": [ 1, 1, 1 ] },	{ "shape": [ 1 ] } ],	"outputs": [ { "shape": [ 1, 1, 1 ] } ]}
+				{ "inputs": [ { "shape": [ 1, 1, 5, 5 ] }, { "shape": [ 1, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 1, 5, 5 ] } ] },
+				{ "inputs": [ { "shape": [ 1, 3, 5, 5 ] }, { "shape": [ 1, 3, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 1, 5, 5 ] } ], "comment": "With channels" },
+				{ "inputs": [ { "shape": [ 1, 1, 5, 5 ] }, { "shape": [ 3, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 3, 5, 5 ] } ], "comment": "With out-channels" },
+				{ "inputs": [ { "shape": [ 1, 1, 5, 5 ] }, { "shape": [ 3, 1, 3, 3 ] }, { "shape": [ 3 ] } ], "outputs": [ { "shape": [ 1, 3, 5, 5 ] } ], "comment": "With bias" },
+				{ "inputs": [ { "shape": [ 3, 1, 5, 5 ] }, { "shape": [ 1, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 3, 1, 5, 5 ] } ], "comment": "Batches" }
+			]
+		},
+		{ "name": "Convolution.WithoutOrAutoPadding", 			"datasets": [ { "inputs": [ { "shape": [ 1, 1, 5, 5 ] }, { "shape": [ 1, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 1, 3, 3 ] } ] } ] },
+		{ "name": "Convolution.WithStridesAndPadding", 			"datasets": [ { "inputs": [ { "shape": [ 1, 1, 7, 5 ] }, { "shape": [ 1, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 1, 4, 3 ] } ] } ] },
+		{ "name": "Convolution.WithoutPaddingAndStrides", 		"datasets": [ { "inputs": [ { "shape": [ 1, 1, 7, 5 ] }, { "shape": [ 1, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 1, 3, 2 ] } ] } ] },
+		{ "name": "Convolution.AsymmetricPaddingAndStrides", 	"datasets": [ { "inputs": [ { "shape": [ 1, 1, 7, 5 ] }, { "shape": [ 1, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 1, 4, 2 ] } ] } ] },
+		{ "name": "Convolution.WithGroups", 					"datasets": [ { "inputs": [ { "shape": [ 1, 3, 5, 5 ] }, { "shape": [ 3, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 3, 5, 5 ] } ] } ] },
+		{ "name": "Convolution.Large1", 						"datasets": [ { "inputs": [ { "shape": [ 1, 1, 17, 17 ] }, { "shape": [ 1, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 1, 17, 17 ] } ] } ] },
+		{ "name": "Convolution.Large2", 						"datasets": [ { "inputs": [ { "shape": [ 1, 1, 37, 37 ] }, { "shape": [ 1, 1, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 1, 17, 17 ] } ] } ] },
+		{ "name": "ConvTranspose.Default", 		"datasets": [ { "inputs": [ { "shape": [ 1, 1, 3, 3 ] }, { "shape": [ 1, 2, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 2, 5, 5 ] } ] } ] },
+		{ "name": "ConvTranspose.1D", 			"datasets": [ { "inputs": [ { "shape": [ 1, 1, 3 ] }, { "shape": [ 1, 2, 3 ] } ], "outputs": [ { "shape": [ 1, 2, 5 ] } ] } ] },
+		{ "name": "ConvTranspose.3D", 			"datasets": [ { "inputs": [ { "shape": [ 1, 1, 3, 4, 5 ] }, { "shape": [ 1, 2, 3, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 2, 5, 6, 7 ] } ] } ] },
+		{ "name": "ConvTranspose.Attributes", 	"datasets": [ { "inputs": [ { "shape": [ 1, 1, 3, 3 ] }, { "shape": [ 1, 2, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 2, 10, 8 ] } ] } ] },
+		{
+			"name": "ConvTranspose.Autopad",
+			"datasets": [ { "inputs": [ { "shape": [ 1, 1, 3, 3 ] }, { "shape": [ 1, 2, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 2, 6, 6 ] } ] } ],
+			"runtimes": [
+				{ "name": "NNXRuntimeORTDml", "skip": true, "comment": "TODO INVESTIGATE Returns 'The parameter is incorrect'" },
+				{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "Fails until ORT 1.13, because they implemented 'auto_pad' differently (they flipped 'SAME_LOWER' and 'SAME_UPPER')" }
 			]
 		},
 		{
@@ -549,6 +585,179 @@
 			"name": "Gemm.AllTransposed",
 			"attribute_maps": [
 				{ "attributes": [ { "name": "transA", "value": 1, "type": "Int32" }, { "name": "transB", "value": 1, "type": "Int32" } ] }
+			]
+		},
+		{
+			"name": "Convolution.DefaultPadding",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "pads", "value": [ 1, 1, 1, 1 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 1, 1 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "Convolution.WithoutOrAutoPadding.WithoutPadding",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "pads", "value": [ 0, 0, 0, 0 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 1, 1 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "Convolution.WithoutOrAutoPadding.AutoPaddingAndStrides",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "SAME_LOWER", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "strides", "value": [ 2, 2 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "Convolution.WithStridesAndPadding",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "pads", "value": [ 1, 1, 1, 1 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 2, 2 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "Convolution.WithoutPaddingAndStrides",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "pads", "value": [ 0, 0, 0, 0 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 2, 2 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "Convolution.AsymmetricPaddingAndStrides",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "pads", "value": [ 1, 0, 1, 0 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 2, 2 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "Convolution.WithGroups",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 3, "type": "Int32" },
+					{ "name": "pads", "value": [ 1, 1, 1, 1 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 1, 1 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "Convolution.Large1",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "SAME_UPPER", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "strides", "value": [ 1, 1 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "Convolution.Large2",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 2, 2 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "pads", "value": [ 0, 0, 0, 0 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 2, 2 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "ConvTranspose.Default",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "pads", "value": [ 0, 0, 0, 0 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 1, 1 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "ConvTranspose.1D",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "pads", "value": [ 0, 0 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 1 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "ConvTranspose.3D",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "pads", "value": [ 0, 0, 0, 0, 0, 0 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 1, 1, 1 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "ConvTranspose.Attributes",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "NOTSET", "type": "String" },
+					{ "name": "dilations", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "group", "value": 1, "type": "Int32" },
+					{ "name": "output_padding", "value": [ 1, 1 ], "type": "Int32Array" },
+					{ "name": "pads", "value": [ 0, 0, 0, 0 ], "type": "Int32Array" },
+					{ "name": "strides", "value": [ 3, 2 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "ConvTranspose.Autopad.SameLower",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "SAME_LOWER", "type": "String" },
+					{ "name": "strides", "value": [ 2, 2 ], "type": "Int32Array"}
+				] }
+			]
+		},
+		{
+			"name": "ConvTranspose.Autopad.SameUpper",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "auto_pad", "value": "SAME_UPPER", "type": "String" },
+					{ "name": "strides", "value": [ 2, 2 ], "type": "Int32Array"}
+				] }
 			]
 		}
 	]
