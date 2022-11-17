@@ -487,15 +487,6 @@ namespace AJA
 				{
 					bool bDo4TSI = true;
 
-					if (InTransportType == ETransportType::TT_SdiSingle4kTSI)
-					{
-						bool bIs12Gb = false;
-						InCard->GetSDIInput12GPresent(bIs12Gb, InChannel);
-						bool bIs6Gb = false;
-						InCard->GetSDIInput6GPresent(bIs6Gb, InChannel);
-						bDo4TSI = bIs12Gb || bIs6Gb;
-					}
-
 					for (int32_t ChannelIndex = 0; ChannelIndex < NumberOfLinkChannel; ++ChannelIndex)
 					{
 						const NTV2Channel Channel = NTV2Channel(int32_t(InChannel) + ChannelIndex);

@@ -31,8 +31,6 @@ namespace AJA
 		bool DeviceScanner::GetDeviceTextId(int32_t InDeviceIndex, AJADeviceScanner::FormatedTextType& OutTextId) const
 		{
 			NTV2DeviceInfo DeviceInfo;
-			memset(&DeviceInfo, 0, sizeof(DeviceInfo));
-
 			if (!Scanner->GetDeviceInfo(InDeviceIndex, DeviceInfo, false))
 			{
 				OutTextId[0] = TEXT('\0');

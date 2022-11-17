@@ -69,9 +69,9 @@ namespace AJA
 
 #ifdef NDEBUG
 //#define AJA_CHECK(FUNCTION) { if (!(FUNCTION)) { *reinterpret_cast<char*>(0) = 0; } }
-#define AJA_CHECK
+#define AJA_CHECK ensure
 #else
-#define AJA_CHECK assert
+#define AJA_CHECK check
 #endif
 
 #define AJA_TEST_MEMORY_BUFFER  0

@@ -652,6 +652,7 @@ namespace AJA
 				if (Counter * SleepMilli > TimeoutMilli)
 				{
 					UE_LOG(LogTemp, Warning,  TEXT("Device: Can't get the device initialized.\n"));
+					delete Result;
 					return nullptr;
 				}
 				++Counter;
