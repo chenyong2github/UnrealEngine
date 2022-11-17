@@ -14,7 +14,6 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportPreviewMesh = true;
 	bStrictCompliance = true;
 	bSkipNearDefaultValues = true;
-	bIncludeGeneratorVersion = true;
 	bExportProxyMaterials = true;
 	bExportUnlitMaterials = true;
 	bExportClearCoatMaterials = true;

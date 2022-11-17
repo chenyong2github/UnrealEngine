@@ -39,7 +39,7 @@ protected:
 
 private:
 
-	FString GetGeneratorString() const;
+	static const TCHAR* GetGeneratorString();
 
 	FGLTFJsonRoot JsonRoot;
 };
