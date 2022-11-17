@@ -946,7 +946,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		
 		TSharedRef<SDockTab> SceneOutlinerTab = SNew( SDockTab )
 			.Label( Label )
-			.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/LevelEditor", "SceneOutlinerTab" ) )
+			.ToolTip( IDocumentation::Get()->CreateToolTip(NSLOCTEXT("LevelEditor", "OutlinerTabTooltip", "The Outliner lists all actors in the level by name, organized in a tree view."), nullptr, "Shared/LevelEditor", "SceneOutlinerTab" ) )
 			.OnExtendContextMenu(this, &SLevelEditor::OnExtendSceneOutlinerTabContextMenu)
 			[
 				SNew(SBorder)
