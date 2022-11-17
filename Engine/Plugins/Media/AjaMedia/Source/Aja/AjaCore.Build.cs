@@ -39,7 +39,8 @@ public class AjaCore : ModuleRules
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug)
 			{
-				LibName = "libajantv2d.lib";
+				// Disable for now to fix clang build, to reproduce: compile in Debug Editor with -stresstestunity -nodebuginfo flags
+				//LibName = "libajantv2d.lib";
 			}
 
 			string LibPath = Path.Combine(AjaThirdPartyPath, "ntv2lib-deploy", "lib", LibName);
