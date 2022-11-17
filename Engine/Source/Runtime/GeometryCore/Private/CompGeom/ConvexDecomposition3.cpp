@@ -1199,9 +1199,13 @@ int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTole
 
 	TMap<int32, TUniquePtr<FConvexPart>> ProximityComputedParts;
 
-	TFunctionRef<bool(const FConvexPart&)> IsPartBelowSizeTolerance = MinThicknessTolerance > 0 ? 
-	(TFunctionRef<bool(const FConvexPart&)>)[MinThicknessTolerance](const FConvexPart& Part) -> bool
-	{ // Check the part vs the thickness tolerance
+	auto IsPartBelowSizeTolerance = [MinThicknessTolerance](const FConvexPart& Part) -> bool
+	{ 
+		if (MinThicknessTolerance <= 0) // tolerance is disabled
+		{
+			return false;
+		}
+		// Check the part vs the thickness tolerance
 		// First check the already-computed AABB
 		if (Part.Bounds.MinDim() < MinThicknessTolerance)
 		{
@@ -1236,10 +1240,6 @@ int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTole
 			SmallAxisInterval.Contain(V.Dot(SmallDir));
 		}
 		return SmallAxisInterval.Extent() < MinThicknessTolerance;
-	} : // No tolerance set: Always return false
-	(TFunctionRef<bool(const FConvexPart&)>)[](const FConvexPart& Part) -> bool
-	{
-		return false;
 	};
 
 	int32 MustMergeCount = 0;

@@ -47,11 +47,11 @@ namespace Geometry
 	template <typename RealType>
 	TOrientedBox3<RealType> FitOrientedBox3Points(TArrayView<const TVector<RealType>> Points, EBox3FitCriteria FitMethod = EBox3FitCriteria::Volume, RealType SameNormalTolerance = 0, FProgressCancel* ProgressCancel = nullptr)
 	{
-		TFunctionRef<TVector<RealType>(int32)> GetPtFn = [&Points](int32 Idx)
+		auto GetPtFn = [&Points](int32 Idx)
 		{
 			return Points[Idx];
 		};
-		return FitOrientedBox3Points(Points.Num(), GetPtFn, [](int32 Idx) {return true;}, FitMethod, SameNormalTolerance, ProgressCancel);
+		return FitOrientedBox3Points(Points.Num(), (TFunctionRef<TVector<RealType>(int32)>)GetPtFn, [](int32 Idx) {return true;}, FitMethod, SameNormalTolerance, ProgressCancel);
 	}
 
 
