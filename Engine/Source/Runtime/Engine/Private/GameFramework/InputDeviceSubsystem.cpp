@@ -74,7 +74,57 @@ public:
 };
 
 ////////////////////////////////////////////////////////
-// UInputDeviceSubsystem
+// FInputDevicePropertyHandle
+
+FInputDevicePropertyHandle FInputDevicePropertyHandle::InvalidHandle(0);
+
+FInputDevicePropertyHandle::FInputDevicePropertyHandle()
+	: InternalId(0)
+{
+
+}
+
+FInputDevicePropertyHandle::FInputDevicePropertyHandle(uint32 InInternalID)
+	: InternalId(InInternalID)
+{
+
+}
+
+bool FInputDevicePropertyHandle::operator==(const FInputDevicePropertyHandle& Other) const
+{
+	return InternalId == Other.InternalId;
+}
+
+bool FInputDevicePropertyHandle::operator!=(const FInputDevicePropertyHandle& Other) const
+{
+	return InternalId != Other.InternalId;
+}
+
+uint32 GetTypeHash(const FInputDevicePropertyHandle& InHandle)
+{
+	return GetTypeHash(InHandle.InternalId);
+}
+
+FString FInputDevicePropertyHandle::ToString() const
+{
+	return IsValid() ? FString::FromInt(InternalId) : TEXT("Invalid");
+}
+
+bool FInputDevicePropertyHandle::IsValid() const
+{
+	return InternalId != FInputDevicePropertyHandle::InvalidHandle.InternalId;
+}
+
+FInputDevicePropertyHandle FInputDevicePropertyHandle::AcquireValidHandle()
+{
+	// 0 is the "Invalid" index for these handles. Start them at 1
+	static uint32 GHandleIndex = 1;
+
+	return FInputDevicePropertyHandle(++GHandleIndex);
+}
+
+////////////////////////////////////////////////////////
+// FSetDevicePropertyParams
 
 FSetDevicePropertyParams::FSetDevicePropertyParams()
 	: UserId(FSlateApplicationBase::SlateAppPrimaryPlatformUser)
@@ -82,13 +132,16 @@ FSetDevicePropertyParams::FSetDevicePropertyParams()
 
 }
 
-FSetDevicePropertyParams::FSetDevicePropertyParams(TSubclassOf<UInputDeviceProperty> InClass, const FPlatformUserId InUserId, const bool bInResetUponCompletion /* = true */)
-	: DevicePropertyClass(InClass)
+FSetDevicePropertyParams::FSetDevicePropertyParams(TObjectPtr<UInputDeviceProperty> InProperty, const FPlatformUserId InUserId, const bool bInRemoveAfterEvaluationTime /* = true */)
+	: DeviceProperty(InProperty)
 	, UserId(InUserId)
-	, bResetUponCompletion(bInResetUponCompletion)
+	, bRemoveAfterEvaluationTime(bInRemoveAfterEvaluationTime)
 {
 	
 }
+
+////////////////////////////////////////////////////////
+// UInputDeviceSubsystem
 
 UInputDeviceSubsystem* UInputDeviceSubsystem::Get()
 {
@@ -203,14 +256,12 @@ void UInputDeviceSubsystem::Tick(float DeltaTime)
 		ActiveProperties[Index].EvaluatedDuration += DeltaTime;
 
 		// If the property has run past it's duration, reset it and remove it from our active properties
-		if (ActiveProperties[Index].EvaluatedDuration > ActiveProperties[Index].Property->GetDuration())
+		// Only do this if it is marked as 'bRemoveAfterEvaluationTime' so that you can keep device properties set
+		// without having to worry about duration. 
+		if (ActiveProperties[Index].bRemoveAfterEvaluationTime && ActiveProperties[Index].EvaluatedDuration > ActiveProperties[Index].Property->GetDuration())
 		{
-			// Evaluation complete, mark this one for removal
-			if (ActiveProperties[Index].bResetUponCompletion)
-			{
-				ActiveProperties[Index].Property->ResetDeviceProperty(ActiveProperties[Index].PlatformUser);
-			}			
-			ActiveProperties.RemoveAtSwap(Index);
+			ActiveProperties[Index].Property->ResetDeviceProperty(ActiveProperties[Index].PlatformUser);
+			ActiveProperties.RemoveAtSwap(Index);			
 		}
 		// Otherwise, we can evaluate and apply it as normal
 		else
@@ -221,27 +272,35 @@ void UInputDeviceSubsystem::Tick(float DeltaTime)
 	}
 }
 
-void UInputDeviceSubsystem::SetDeviceProperty(const FSetDevicePropertyParams& Params)
+FInputDevicePropertyHandle UInputDeviceSubsystem::SetDeviceProperty(const FSetDevicePropertyParams& Params)
 {
-	if (!Params.DevicePropertyClass)
+	if (!Params.DeviceProperty)
 	{
 		UE_LOG(LogInputDeviceProperties, Error, TEXT("Invalid DevicePropertyClass passed into SetDeviceProperty! Nothing will happen."));
-		return;
+		return FInputDevicePropertyHandle::InvalidHandle;
 	}
-	
-	FActiveDeviceProperty ActiveProp = {};
+		
+	FInputDevicePropertyHandle OutHandle = FInputDevicePropertyHandle::AcquireValidHandle();
 
-	// Spawn an instance of this device property
-	ActiveProp.Property = NewObject<UInputDeviceProperty>(/* Outer = */ this, /* Class */ Params.DevicePropertyClass);
-	ensure(ActiveProp.Property);
+	if (ensureAlwaysMsgf(OutHandle.IsValid(), TEXT("Unable to acquire a valid input device property handle!")))
+	{
+		FActiveDeviceProperty ActiveProp = {};
 
-	ActiveProp.PlatformUser = Params.UserId;
-	ActiveProp.bResetUponCompletion = Params.bResetUponCompletion;
-	
-	ActiveProperties.Emplace(ActiveProp);
+		// Spawn an instance of this device property
+		ActiveProp.Property = DuplicateObject<UInputDeviceProperty>(Params.DeviceProperty, /* Outer = */ this);
+		ensure(ActiveProp.Property);
+
+		ActiveProp.PlatformUser = Params.UserId;
+		ActiveProp.bRemoveAfterEvaluationTime = Params.bRemoveAfterEvaluationTime;
+		ActiveProp.PropertyHandle = OutHandle;
+
+		ActiveProperties.Add(ActiveProp);
+	}
+
+	return OutHandle;
 }
 
-int32 UInputDeviceSubsystem::RemoveDeviceProperty(const FPlatformUserId UserId, TSubclassOf<UInputDeviceProperty> DevicePropertyClass)
+int32 UInputDeviceSubsystem::RemoveDevicePropertiesOfClass(const FPlatformUserId UserId, TSubclassOf<UInputDeviceProperty> DevicePropertyClass)
 {
 	int32 NumRemoved = 0;
 
@@ -264,6 +323,34 @@ int32 UInputDeviceSubsystem::RemoveDeviceProperty(const FPlatformUserId UserId, 
 	}
 
 	return NumRemoved;
+}
+
+int32 UInputDeviceSubsystem::RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove)
+{
+	int32 NumRemoved = 0;
+
+	for (int32 Index = ActiveProperties.Num() - 1; Index >= 0; --Index)
+	{
+		if (ActiveProperties[Index].PropertyHandle == HandleToRemove)
+		{
+			ActiveProperties[Index].Property->ResetDeviceProperty(ActiveProperties[Index].PlatformUser);
+			ActiveProperties.RemoveAtSwap(Index);
+			++NumRemoved;
+			break;
+		}
+	}
+
+	if (NumRemoved <= 0)
+	{
+		UE_LOG(LogInputDeviceProperties, Warning, TEXT("Unable to remove a device property with handle '%s'"), *HandleToRemove.ToString());
+	}
+
+	return NumRemoved;
+}
+
+bool UInputDeviceSubsystem::IsDevicePropertyHandleValid(const FInputDevicePropertyHandle& InHandle)
+{
+	return InHandle.IsValid();
 }
 
 void UInputDeviceSubsystem::RemoveAllDeviceProperties()
