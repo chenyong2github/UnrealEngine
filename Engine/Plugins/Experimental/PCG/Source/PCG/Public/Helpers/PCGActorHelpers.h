@@ -6,20 +6,20 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
-#include "Engine/CollisionProfile.h"
 
 #include <type_traits>
 
 #include "PCGActorHelpers.generated.h"
 
 class AActor;
-class UInstancedStaticMeshComponent;
-class UStaticMesh;
-class UPCGComponent;
-class UMaterialInterface;
 class UActorComponent;
+class UInstancedStaticMeshComponent;
 class ULevel;
+class UMaterialInterface;
+class UPCGComponent;
+class UStaticMesh;
 class UWorld;
+struct FISMComponentDescriptor;
 
 struct FPCGISMCBuilderParameters
 {
@@ -38,7 +38,8 @@ class PCG_API UPCGActorHelpers : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
-	static UInstancedStaticMeshComponent* GetOrCreateISMC(AActor* InActor, UPCGComponent* SourceComponent, const FPCGISMCBuilderParameters& Params);
+	static UInstancedStaticMeshComponent* GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FISMComponentDescriptor& InISMCDescriptor);
+	static UInstancedStaticMeshComponent* GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* SourceComponent, const FPCGISMCBuilderParameters& Params);
 	static bool DeleteActors(UWorld* World, const TArray<TSoftObjectPtr<AActor>>& ActorsToDelete);
 
 	/**

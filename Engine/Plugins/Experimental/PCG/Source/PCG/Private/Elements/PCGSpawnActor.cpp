@@ -15,6 +15,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
+#include "ISMPartition/ISMComponentDescriptor.h"
 
 UPCGNode* UPCGSpawnActorSettings::CreateNode() const
 {
@@ -155,54 +156,79 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 		// Spawn actors/populate ISM
 		{
-			UInstancedStaticMeshComponent* ISMC = nullptr;
-			TArray<FTransform> Instances;
-
-			// If we are collapsing actors, we need to get the mesh & prep the ISMC
 			if (Settings->Option == EPCGSpawnActorOption::CollapseActors)
 			{
 				TArray<UActorComponent*> Components;
 				UPCGActorHelpers::GetActorClassDefaultComponents(Settings->TemplateActorClass, Components, UStaticMeshComponent::StaticClass());
-				UStaticMeshComponent* FirstSMC = nullptr;
-				UStaticMesh* Mesh = nullptr;
+				
+				TMap<FISMComponentDescriptor, TArray<FTransform>> MeshDescriptorTransforms;
 
 				for (UActorComponent* Component : Components)
 				{
-					if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Component))
+					if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
 					{
-						FirstSMC = SMC;
-						Mesh = SMC->GetStaticMesh();
-						if (Mesh)
+						FISMComponentDescriptor ISMDescriptor;
+						ISMDescriptor.InitFrom(StaticMeshComponent);
+						ISMDescriptor.ComputeHash();
+
+						TArray<FTransform>& Transforms = MeshDescriptorTransforms.FindOrAdd(ISMDescriptor);
+
+						if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent))
 						{
-							break;
+							const int32 NumInstances = InstancedStaticMeshComponent->GetInstanceCount();
+							Transforms.Reserve(Transforms.Num() + NumInstances);
+							
+							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
+							{
+								FTransform InstanceTransform;
+								if (InstancedStaticMeshComponent->GetInstanceTransform(InstanceIndex, InstanceTransform))
+								{
+									Transforms.Add(InstanceTransform);
+								}
+							}
+						}
+						else
+						{
+							Transforms.Add(StaticMeshComponent->GetRelativeTransform());
 						}
 					}
 				}
-
-				if (Mesh)
+				
+				for (const TPair<FISMComponentDescriptor, TArray<FTransform>>& ISMCDescriptorTransforms : MeshDescriptorTransforms)
 				{
-					FPCGISMCBuilderParameters Params;
-					Params.Mesh = Mesh;
-
-					ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params);
-					UEngine::CopyPropertiesForUnrelatedObjects(FirstSMC, ISMC);
-				}
-				else
-				{
-					PCGE_LOG(Error, "No supported mesh found");
+					const FISMComponentDescriptor& ISMCDescriptor = ISMCDescriptorTransforms.Key;
+					
+					UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), ISMCDescriptor);
+					if (!ISMC)
+					{
+						continue;
+					}
+										
+					const TArray<FTransform>& ISMCTransforms = ISMCDescriptorTransforms.Value;
+					
+					TArray<FTransform> Transforms;
+					Transforms.Reserve(Points.Num() * ISMCTransforms.Num());
+					for (int32 PointIndex = 0; PointIndex < Points.Num(); PointIndex++)
+					{
+						const FPCGPoint& Point = Points[PointIndex];
+						for (int32 TransformIndex = 0; TransformIndex < ISMCTransforms.Num(); TransformIndex++)
+						{
+							const FTransform& Transform = ISMCTransforms[TransformIndex];
+							Transforms.Add(Transform * Point.Transform);
+						}
+					}
+					
+					ISMC->NumCustomDataFloats = 0;
+					ISMC->AddInstances(Transforms, false, true);
+					ISMC->UpdateBounds();
+					
+					PCGE_LOG(Verbose, "Added %d instances of %s to %s in %s", Transforms.Num(), *ISMC->GetStaticMesh().GetName(), *ISMC->GetName(), *TargetActor->GetActorNameOrLabel());
 				}
 			}
 
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSpawnActorElement::ExecuteInternal::SpawnActors);
-				if (Settings->Option == EPCGSpawnActorOption::CollapseActors && ISMC)
-				{
-					for (const FPCGPoint& Point : Points)
-					{
-						Instances.Add(Point.Transform);
-					}
-				}
-				else if (Settings->Option != EPCGSpawnActorOption::CollapseActors && (bHasAuthority || !bSpawnedActorsRequireAuthority))
+				if (Settings->Option != EPCGSpawnActorOption::CollapseActors && (bHasAuthority || !bSpawnedActorsRequireAuthority))
 				{
 					FActorSpawnParameters SpawnParams;
 					SpawnParams.Owner = TargetActor;
@@ -265,16 +291,6 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 					PCGE_LOG(Verbose, "Generated %d actors", Points.Num());
 				}
-			}
-
-			// Finalize
-			if (ISMC && Instances.Num() > 0)
-			{
-				ISMC->NumCustomDataFloats = 0;
-				ISMC->AddInstances(Instances, false, true);
-				ISMC->UpdateBounds();
-
-				PCGE_LOG(Verbose, "Added %d ISM instances", Instances.Num());
 			}
 		}
 

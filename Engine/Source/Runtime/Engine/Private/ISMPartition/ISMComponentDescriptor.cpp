@@ -4,23 +4,15 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ISMComponentDescriptor)
 
-#if WITH_EDITOR
-
 #include "Serialization/ArchiveCrc32.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 
-#endif
-
 FISMComponentDescriptor::FISMComponentDescriptor()
 {
-#if WITH_EDITORONLY_DATA
 	// Make sure we have proper defaults
 	InitFrom(UHierarchicalInstancedStaticMeshComponent::StaticClass()->GetDefaultObject<UHierarchicalInstancedStaticMeshComponent>());
-#endif
 }
-
-#if WITH_EDITOR
 
 FISMComponentDescriptor FISMComponentDescriptor::CreateFrom(const TSubclassOf<UStaticMeshComponent>& From)
 {
@@ -51,7 +43,6 @@ void FISMComponentDescriptor::InitFrom(const UStaticMeshComponent* Template, boo
 	TranslucencySortPriority = Template->TranslucencySortPriority;
 	OverriddenLightMapRes = Template->OverriddenLightMapRes;
 	CustomDepthStencilValue = Template->CustomDepthStencilValue;
-	HLODBatchingPolicy = Template->HLODBatchingPolicy;
 	bCastShadow = Template->CastShadow;
 	bCastStaticShadow = Template->bCastStaticShadow;
 	bCastDynamicShadow = Template->bCastDynamicShadow;
@@ -63,14 +54,18 @@ void FISMComponentDescriptor::InitFrom(const UStaticMeshComponent* Template, boo
 	bOverrideLightMapRes = Template->bOverrideLightMapRes;
 	bUseAsOccluder = Template->bUseAsOccluder;
 	bRenderCustomDepth = Template->bRenderCustomDepth;
-	bIncludeInHLOD = Template->bEnableAutoLODGeneration;
 	bHiddenInGame = Template->bHiddenInGame;
 	bIsEditorOnly = Template->bIsEditorOnly;
 	bVisible = Template->GetVisibleFlag();
 	bVisibleInRayTracing = Template->bVisibleInRayTracing;
-	bConsiderForActorPlacementWhenHidden = Template->bConsiderForActorPlacementWhenHidden;
 	bEvaluateWorldPositionOffset = Template->bEvaluateWorldPositionOffset;
 	bIsLocalToWorldDeterminantNegative = Template->GetRenderMatrix().Determinant() < 0;
+
+#if WITH_EDITORONLY_DATA
+	HLODBatchingPolicy = Template->HLODBatchingPolicy;
+	bIncludeInHLOD = Template->bEnableAutoLODGeneration;
+	bConsiderForActorPlacementWhenHidden = Template->bConsiderForActorPlacementWhenHidden;
+#endif
 
 	if (const UInstancedStaticMeshComponent* ISMTemplate = Cast<UInstancedStaticMeshComponent>(Template))
 	{
@@ -116,7 +111,6 @@ bool FISMComponentDescriptor::operator==(const FISMComponentDescriptor& Other) c
 	TranslucencySortPriority == Other.TranslucencySortPriority &&
 	OverriddenLightMapRes == Other.OverriddenLightMapRes &&
 	CustomDepthStencilValue == Other.CustomDepthStencilValue &&
-	HLODBatchingPolicy == Other.HLODBatchingPolicy &&
 	bCastShadow == Other.bCastShadow &&
 	bCastStaticShadow == Other.bCastStaticShadow &&
 	bCastDynamicShadow == Other.bCastDynamicShadow &&
@@ -128,15 +122,18 @@ bool FISMComponentDescriptor::operator==(const FISMComponentDescriptor& Other) c
 	bOverrideLightMapRes == Other.bOverrideLightMapRes &&
 	bUseAsOccluder == Other.bUseAsOccluder &&
 	bRenderCustomDepth == Other.bRenderCustomDepth &&
-	bIncludeInHLOD == Other.bIncludeInHLOD &&
 	bEnableDiscardOnLoad == Other.bEnableDiscardOnLoad &&
 	bHiddenInGame == Other.bHiddenInGame &&
 	bIsEditorOnly == Other.bIsEditorOnly &&
 	bVisible == Other.bVisible &&
 	bVisibleInRayTracing == Other.bVisibleInRayTracing &&
-	bConsiderForActorPlacementWhenHidden == Other.bConsiderForActorPlacementWhenHidden &&
 	bEvaluateWorldPositionOffset == Other.bEvaluateWorldPositionOffset &&
 	bIsLocalToWorldDeterminantNegative == Other.bIsLocalToWorldDeterminantNegative &&
+#if WITH_EDITORONLY_DATA
+	HLODBatchingPolicy == Other.HLODBatchingPolicy &&
+	bIncludeInHLOD == Other.bIncludeInHLOD &&
+	bConsiderForActorPlacementWhenHidden == Other.bConsiderForActorPlacementWhenHidden &&
+#endif // WITH_EDITORONLY_DATA
 	BodyInstance.GetCollisionEnabled() == Other.BodyInstance.GetCollisionEnabled() && 
 	BodyInstance.GetCollisionResponse() == Other.BodyInstance.GetCollisionResponse() &&
 	BodyInstance.DoesUseCollisionProfile() == Other.BodyInstance.DoesUseCollisionProfile() &&
@@ -196,7 +193,6 @@ void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMCo
 	ISMComponent->TranslucencySortPriority = TranslucencySortPriority;
 	ISMComponent->OverriddenLightMapRes = OverriddenLightMapRes;
 	ISMComponent->CustomDepthStencilValue = CustomDepthStencilValue;
-	ISMComponent->HLODBatchingPolicy = HLODBatchingPolicy;
 	ISMComponent->CastShadow = bCastShadow;
 	ISMComponent->bCastStaticShadow = bCastStaticShadow;
 	ISMComponent->bCastDynamicShadow = bCastDynamicShadow;
@@ -208,14 +204,18 @@ void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMCo
 	ISMComponent->bOverrideLightMapRes = bOverrideLightMapRes;
 	ISMComponent->bUseAsOccluder = bUseAsOccluder;
 	ISMComponent->bRenderCustomDepth = bRenderCustomDepth;
-	ISMComponent->bEnableAutoLODGeneration = bIncludeInHLOD;;
 	ISMComponent->bHiddenInGame = bHiddenInGame;
 	ISMComponent->bIsEditorOnly = bIsEditorOnly;
 	ISMComponent->SetVisibleFlag(bVisible);
 	ISMComponent->bVisibleInRayTracing = bVisibleInRayTracing;
-	ISMComponent->bConsiderForActorPlacementWhenHidden = bConsiderForActorPlacementWhenHidden;
 	ISMComponent->bEvaluateWorldPositionOffset = bEvaluateWorldPositionOffset;
 	ISMComponent->bReverseCulling = bIsLocalToWorldDeterminantNegative;
+	
+#if WITH_EDITORONLY_DATA
+	ISMComponent->HLODBatchingPolicy = HLODBatchingPolicy;
+	ISMComponent->bEnableAutoLODGeneration = bIncludeInHLOD;
+	ISMComponent->bConsiderForActorPlacementWhenHidden = bConsiderForActorPlacementWhenHidden;
+#endif // WITH_EDITORONLY_DATA
 
 	// HISM Specific
 	if (UHierarchicalInstancedStaticMeshComponent* HISMComponent = Cast<UHierarchicalInstancedStaticMeshComponent>(ISMComponent))
@@ -223,6 +223,3 @@ void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMCo
 		HISMComponent->bEnableDensityScaling = bEnableDensityScaling;
 	}
 }
-
-#endif
-

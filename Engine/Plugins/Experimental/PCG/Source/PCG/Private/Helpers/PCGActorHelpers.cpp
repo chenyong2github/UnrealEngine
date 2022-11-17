@@ -16,6 +16,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "WorldPartition/WorldPartition.h"
+#include "ISMPartition/ISMComponentDescriptor.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -25,6 +26,73 @@
 #include "ObjectTools.h"
 #endif
 
+UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FISMComponentDescriptor& InISMCDescriptor)
+{
+	check(InTargetActor);
+	check(InSourceComponent);
+
+	const UStaticMesh* StaticMesh = InISMCDescriptor.StaticMesh;
+	if (!StaticMesh)
+	{
+		return nullptr;
+	}
+	
+	TArray<UPCGManagedISMComponent*> MISMCs;
+	InSourceComponent->ForEachManagedResource([&MISMCs](UPCGManagedResource* InResource)
+	{
+		if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
+		{
+			MISMCs.Add(Resource);
+		}
+	});
+
+	for (UPCGManagedISMComponent* MISMC : MISMCs)
+	{
+		UInstancedStaticMeshComponent* ISMC = MISMC->GetComponent();
+		if (ISMC)
+		{
+			FISMComponentDescriptor ManagedDescriptor;
+			ManagedDescriptor.InitFrom(MISMC->GetComponent());
+			ManagedDescriptor.ComputeHash();
+			
+			if (ManagedDescriptor == InISMCDescriptor)
+			{
+				MISMC->MarkAsUsed();
+				return ISMC;
+			}
+		}
+	}
+
+	InTargetActor->Modify();
+	
+	// Done as in InstancedStaticMesh.cpp
+#if WITH_EDITOR
+	const bool bMeshHasNaniteData = StaticMesh->NaniteSettings.bEnabled;
+#else
+	const bool bMeshHasNaniteData = StaticMesh->GetRenderData()->NaniteResources.PageStreamingStates.Num() > 0;
+#endif
+
+	const TSubclassOf<UInstancedStaticMeshComponent> ComponentClass = bMeshHasNaniteData ? UInstancedStaticMeshComponent::StaticClass() : UHierarchicalInstancedStaticMeshComponent::StaticClass();
+	
+	UInstancedStaticMeshComponent* ISMC = NewObject<UInstancedStaticMeshComponent>(InTargetActor, ComponentClass);
+	InISMCDescriptor.InitComponent(ISMC);
+		
+	ISMC->RegisterComponent();
+
+	InTargetActor->AddInstanceComponent(ISMC);
+	
+	ISMC->AttachToComponent(InTargetActor->GetRootComponent(), FAttachmentTransformRules(EAttachmentRule::KeepRelative, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, false));
+	ISMC->ComponentTags.Add(InSourceComponent->GetFName());
+	ISMC->ComponentTags.Add(PCGHelpers::DefaultPCGTag);
+
+	// Create managed resource on source component
+	UPCGManagedISMComponent* Resource = NewObject<UPCGManagedISMComponent>(InSourceComponent);
+	Resource->GeneratedComponent = ISMC;
+	InSourceComponent->AddToManagedResources(Resource);
+
+	return ISMC;
+}
+
 UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
 {
 	UStaticMesh* InMesh = InParams.Mesh;
@@ -33,11 +101,6 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 
 	check(InTargetActor != nullptr && InMesh != nullptr);
 	check(InSourceComponent);
-
-	if (!InSourceComponent)
-	{
-		return nullptr;
-	}
 
 	TArray<UPCGManagedISMComponent*> MISMCs;
 	InSourceComponent->ForEachManagedResource([&MISMCs](UPCGManagedResource* InResource)

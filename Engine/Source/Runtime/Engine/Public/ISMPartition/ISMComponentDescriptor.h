@@ -20,7 +20,6 @@ struct ENGINE_API FISMComponentDescriptor
 	GENERATED_USTRUCT_BODY()
 
 	FISMComponentDescriptor();
-#if WITH_EDITOR
 	static FISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
 	void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
 
@@ -44,11 +43,8 @@ struct ENGINE_API FISMComponentDescriptor
 	{
 		return Lhs.Hash < Rhs.Hash;
 	}
-#endif
 
 public:
-
-#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	mutable uint32 Hash = 0;
 
@@ -109,8 +105,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 CustomDepthStencilValue;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	EHLODBatchingPolicy HLODBatchingPolicy;
+#endif
 	
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bCastShadow : 1;
@@ -152,9 +150,6 @@ public:
 	uint8 bRenderCustomDepth : 1;
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
-	uint8 bIncludeInHLOD : 1;
-
-	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bVisibleInRayTracing : 1;
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
@@ -165,14 +160,18 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bVisible : 1;
-
-	UPROPERTY(EditAnywhere, Category = "Component Settings")
-	uint8 bConsiderForActorPlacementWhenHidden : 1;
-
+	
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bEvaluateWorldPositionOffset : 1;
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bIsLocalToWorldDeterminantNegative : 1;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
+	uint8 bIncludeInHLOD : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
+	uint8 bConsiderForActorPlacementWhenHidden : 1;
 #endif
 };
