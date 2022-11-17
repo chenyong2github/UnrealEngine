@@ -171,6 +171,7 @@ UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FMetasoundAssetBase()
 {
+	bProcedural = true;
 	bRequiresStopFade = true;
 	NumChannels = 1;
 
