@@ -424,7 +424,7 @@ namespace NiagaraDebugLocal
 	#if WITH_EDITORONLY_DATA
 		// Remove any static variables we found that are used inside renderer bindings to avoid doubling up
 		CachedVariables->StaticVariables.RemoveAll(
-			[&](const FNiagaraVariable& StaticVariable)
+			[&](const FNiagaraVariableBase& StaticVariable)
 			{
 				return CachedVariables->ParameterStoreVariables.ContainsByPredicate(
 						[&](const FParameterStoreVariable& Existing)
