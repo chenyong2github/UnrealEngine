@@ -35,7 +35,7 @@ namespace ForkInternal
 	bool IsRealForkRequested()
 	{
 		// We cache the value since only the master process might receive -WaitAndFork
-		static const bool bRealForkRequested = FParse::Param(FCommandLine::Get(), TEXT("WaitAndFork"));
+		static const bool bRealForkRequested = FParse::Param(FCommandLine::IsInitialized() ? FCommandLine::Get() : TEXT(""), TEXT("WaitAndFork"));
 		return bRealForkRequested;
 	}
 
