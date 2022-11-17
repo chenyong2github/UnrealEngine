@@ -307,6 +307,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::Equals(const UNiagaraDataInterface* Ot
 		OtherTyped->MipMapGeneration == MipMapGeneration &&
 		OtherTyped->MipMapGenerationType == MipMapGenerationType &&
 		OtherTyped->OverrideRenderTargetFormat == OverrideRenderTargetFormat &&
+		OtherTyped->OverrideRenderTargetFilter == OverrideRenderTargetFilter &&
 		OtherTyped->bInheritUserParameterSettings == bInheritUserParameterSettings &&
 		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
@@ -328,6 +329,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::CopyToInternal(UNiagaraDataInterface* 
 	DestinationTyped->MipMapGeneration = MipMapGeneration;
 	DestinationTyped->MipMapGenerationType = MipMapGenerationType;
 	DestinationTyped->OverrideRenderTargetFormat = OverrideRenderTargetFormat;
+	DestinationTyped->OverrideRenderTargetFilter = OverrideRenderTargetFilter;
 	DestinationTyped->bInheritUserParameterSettings = bInheritUserParameterSettings;
 	DestinationTyped->bOverrideFormat = bOverrideFormat;
 #if WITH_EDITORONLY_DATA
@@ -472,6 +474,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 	InstanceData->MipMapGeneration = MipMapGeneration;
 	InstanceData->MipMapGenerationType = MipMapGenerationType;
 	InstanceData->Format = RenderTargetFormat;
+	InstanceData->Filter = OverrideRenderTargetFilter;
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
@@ -638,6 +641,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTick(void* PerInstanceData,
 				InstanceData->MipMapGenerationType = ENiagaraMipMapGenerationType::Unfiltered;
 			}
 			InstanceData->Format = InstanceData->TargetTexture->RenderTargetFormat;
+			InstanceData->Filter = InstanceData->TargetTexture->Filter;
 		}
 		else
 		{
@@ -670,6 +674,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 		InstanceData->TargetTexture->bAutoGenerateMips = InstanceData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled;
 		InstanceData->TargetTexture->RenderTargetFormat = InstanceData->Format;
 		InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
+		InstanceData->TargetTexture->Filter = InstanceData->Filter;
 		InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
 		InstanceData->TargetTexture->UpdateResourceImmediate(true);
 
@@ -682,6 +687,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 		const bool bAutoGenerateMips = InstanceData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled;
 		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) ||
 			(InstanceData->TargetTexture->RenderTargetFormat != InstanceData->Format) ||
+			(InstanceData->TargetTexture->Filter != InstanceData->Filter) ||
 			!InstanceData->TargetTexture->bCanCreateUAV ||
 			(InstanceData->TargetTexture->bAutoGenerateMips != bAutoGenerateMips) ||
 			!InstanceData->TargetTexture->GetResource())
@@ -690,6 +696,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 			InstanceData->TargetTexture->bCanCreateUAV = true;
 			InstanceData->TargetTexture->bAutoGenerateMips = bAutoGenerateMips;
 			InstanceData->TargetTexture->RenderTargetFormat = InstanceData->Format;
+			InstanceData->TargetTexture->Filter = InstanceData->Filter;
 			InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
 			InstanceData->TargetTexture->UpdateResourceImmediate(true);
 		}

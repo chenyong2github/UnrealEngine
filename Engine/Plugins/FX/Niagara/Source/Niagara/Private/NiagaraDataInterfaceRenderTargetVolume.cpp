@@ -323,6 +323,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::Equals(const UNiagaraDataInterface
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
 		OtherTyped->Size == Size &&
 		OtherTyped->OverrideRenderTargetFormat == OverrideRenderTargetFormat &&
+		OtherTyped->OverrideRenderTargetFilter == OverrideRenderTargetFilter &&
 		OtherTyped->bInheritUserParameterSettings == bInheritUserParameterSettings &&
 		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
@@ -342,6 +343,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::CopyToInternal(UNiagaraDataInterfa
 
 	DestinationTyped->Size = Size;
 	DestinationTyped->OverrideRenderTargetFormat = OverrideRenderTargetFormat;
+	DestinationTyped->OverrideRenderTargetFilter = OverrideRenderTargetFilter;
 	DestinationTyped->bInheritUserParameterSettings = bInheritUserParameterSettings;
 	DestinationTyped->bOverrideFormat = bOverrideFormat;
 #if WITH_EDITORONLY_DATA
@@ -477,6 +479,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 	InstanceData->Size.Y = FMath::Clamp<int>(int(float(Size.Y) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
 	InstanceData->Size.Z = FMath::Clamp<int>(int(float(Size.Z) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
 	InstanceData->Format = GetPixelFormatFromRenderTargetFormat(RenderTargetFormat);
+	InstanceData->Filter = OverrideRenderTargetFilter;
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
@@ -644,6 +647,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 	FRenderTargetVolumeRWInstanceData_GameThread* InstanceData_GT = reinterpret_cast<FRenderTargetVolumeRWInstanceData_GameThread*>(OptionalPerInstanceData);
 	InstanceData_GT->Size = CacheFrame->Size;
 	InstanceData_GT->Format = CacheFrame->Format;
+	InstanceData_GT->Filter = TextureFilter::TF_Default;
 
 	PerInstanceTick(InstanceData_GT, SystemInstance, 0.0f);
 	PerInstanceTickPostSimulate(InstanceData_GT, SystemInstance, 0.0f);
@@ -781,6 +785,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTick(void* PerInstanceD
 			//	InstanceData->MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
 			//}
 			InstanceData->Format = InstanceData->TargetTexture->OverrideFormat;
+			InstanceData->Filter = InstanceData->TargetTexture->Filter;
 		}
 		else
 		{
@@ -812,6 +817,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 		InstanceData->TargetTexture->bCanCreateUAV = true;
 		//InstanceData->TargetTexture->bAutoGenerateMips = InstanceData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled;
 		InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
+		InstanceData->TargetTexture->Filter = InstanceData->Filter;
 		InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
 		InstanceData->TargetTexture->UpdateResourceImmediate(true);
 
@@ -824,6 +830,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 		//const bool bAutoGenerateMips = InstanceData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled;
 		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) || (InstanceData->TargetTexture->SizeZ != InstanceData->Size.Z) ||
 			(InstanceData->TargetTexture->OverrideFormat != InstanceData->Format) ||
+			(InstanceData->TargetTexture->Filter != InstanceData->Filter) ||
 			!InstanceData->TargetTexture->bCanCreateUAV ||
 			//(InstanceData->TargetTexture->bAutoGenerateMips != bAutoGenerateMips) ||
 			!InstanceData->TargetTexture->GetResource())
@@ -831,6 +838,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 			// resize RT to match what we need for the output
 			InstanceData->TargetTexture->bCanCreateUAV = true;
 			//InstanceData->TargetTexture->bAutoGenerateMips = bAutoGenerateMips;
+			InstanceData->TargetTexture->Filter = InstanceData->Filter;
 			InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
 			InstanceData->TargetTexture->UpdateResourceImmediate(true);
 		}

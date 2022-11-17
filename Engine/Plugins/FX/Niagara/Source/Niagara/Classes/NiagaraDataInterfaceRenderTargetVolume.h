@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Engine/TextureDefines.h"
+#include "RenderGraphDefinitions.h"
+
 #include "NiagaraDataInterfaceRW.h"
-#include "ClearQuad.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceRenderTargetVolume.generated.h"
 
@@ -20,6 +22,7 @@ struct FRenderTargetVolumeRWInstanceData_GameThread
 
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	EPixelFormat Format = EPixelFormat::PF_A16B16G16R16;
+	TextureFilter Filter = TextureFilter::TF_Default;
 
 	UTextureRenderTargetVolume* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
@@ -131,6 +134,10 @@ public:
 	/** When enabled overrides the format of the render target, otherwise uses the project default setting. */
 	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings && bOverrideFormat"))
 	TEnumAsByte<ETextureRenderTargetFormat> OverrideRenderTargetFormat;
+
+	/** When enabled overrides the filter of the render target, otherwise uses the project default setting. */
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings"))
+	TEnumAsByte<TextureFilter> OverrideRenderTargetFilter = TextureFilter::TF_Default;
 
 	/**
 	When enabled texture parameters (size / etc) are taken from the user provided render target.

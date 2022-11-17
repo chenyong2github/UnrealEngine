@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Engine/TextureDefines.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "RenderGraphDefinitions.h"
+
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceRW.h"
-#include "ClearQuad.h"
-#include "Engine/TextureRenderTarget2D.h"
 #include "NiagaraComponent.h"
 #include "NiagaraGenerateMips.h"
 #include "NiagaraDataInterfaceRenderTarget2D.generated.h"
@@ -23,6 +25,7 @@ struct FRenderTarget2DRWInstanceData_GameThread
 
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	ETextureRenderTargetFormat Format = RTF_RGBA16f;
+	TextureFilter Filter = TextureFilter::TF_Default;
 	ENiagaraMipMapGeneration MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
 	ENiagaraMipMapGenerationType MipMapGenerationType = ENiagaraMipMapGenerationType::Linear;
 	
@@ -145,6 +148,10 @@ public:
 	/** When enabled overrides the format of the render target, otherwise uses the project default setting. */
 	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings && bOverrideFormat"))
 	TEnumAsByte<ETextureRenderTargetFormat> OverrideRenderTargetFormat;
+
+	/** When enabled overrides the filter of the render target, otherwise uses the project default setting. */
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings"))
+	TEnumAsByte<TextureFilter> OverrideRenderTargetFilter = TextureFilter::TF_Default;
 
 	/**
 	When enabled texture parameters (size / etc) are taken from the user provided render target.
