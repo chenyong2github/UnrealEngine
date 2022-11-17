@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "RHIDefinitions.h"
+#include "Materials/MaterialInterface.h"
+
 #include "MaterialOverrideNanite.generated.h"
 
 class ITargetPlatform;
