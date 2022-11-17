@@ -25,7 +25,6 @@ struct FGLTFBufferUtility
 
 	static const void* GetCPUBuffer(const FRawStaticIndexBuffer* IndexBuffer);
 	static const void* GetCPUBuffer(const FRawStaticIndexBuffer16or32Interface* IndexBuffer);
-	static const void* GetCPUBuffer(const FSkinWeightLookupVertexBuffer* VertexBuffer);
 
 	static void ReadRHIBuffer(FRHIBuffer* SourceBuffer, TArray<uint8>& OutData);
 };

@@ -67,21 +67,6 @@ const void* FGLTFBufferUtility::GetCPUBuffer(const FRawStaticIndexBuffer16or32In
 	return IndexBuffer->GetResourceDataSize() > 0 ? const_cast<FRawStaticIndexBuffer16or32Interface*>(IndexBuffer)->GetPointerTo(0) : nullptr;
 }
 
-const void* FGLTFBufferUtility::GetCPUBuffer(const FSkinWeightLookupVertexBuffer* VertexBuffer)
-{
-	struct FSkinWeightLookupVertexBufferHack : FVertexBuffer
-	{
-		FShaderResourceViewRHIRef SRVValue;
-		bool bNeedsCPUAccess;
-		FStaticMeshVertexDataInterface* LookupData;
-		uint8* Data;
-		uint32 NumVertices;
-	};
-
-	static_assert(sizeof(FSkinWeightLookupVertexBufferHack) == sizeof(FSkinWeightLookupVertexBuffer), "FSkinWeightLookupVertexBufferHack memory layout doesn't match FSkinWeightLookupVertexBuffer");
-	return reinterpret_cast<const FSkinWeightLookupVertexBufferHack*>(VertexBuffer)->Data;
-}
-
 void FGLTFBufferUtility::ReadRHIBuffer(FRHIBuffer* SourceBuffer, TArray<uint8>& OutData)
 {
 	OutData.Empty();
