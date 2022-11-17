@@ -95,6 +95,6 @@ private:
 	bool bRenderMesh = false;
 	TArray<uint32> IndexBuffer;
 	TArray<FDynamicMeshVertex> VertexBuffer;
-	TUniquePtr<FDynamicMeshBuilder> MeshBuilder = nullptr;
+	TUniquePtr<FDynamicMeshBuilder> MeshBuilder;
 
 };
