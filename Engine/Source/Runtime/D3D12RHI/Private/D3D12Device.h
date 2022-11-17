@@ -305,7 +305,7 @@ public:
 	inline FD3D12OnlineDescriptorManager&   GetOnlineDescriptorManager  () { return OnlineDescriptorManager;   }
 	inline FD3D12OfflineDescriptorManager&  GetOfflineDescriptorManager (ERHIDescriptorHeapType InType)
 	{
-		check(InType < ERHIDescriptorHeapType::count);
+		check(InType < ERHIDescriptorHeapType::Count);
 		return OfflineDescriptorManagers[static_cast<int>(InType)];
 	}
 
@@ -367,7 +367,7 @@ private:
 
 	FD3D12DescriptorHeapManager     DescriptorHeapManager;
 	FD3D12BindlessDescriptorManager BindlessDescriptorManager;
-	TArray<FD3D12OfflineDescriptorManager, TInlineAllocator<(uint32)ERHIDescriptorHeapType::count>> OfflineDescriptorManagers;
+	TArray<FD3D12OfflineDescriptorManager, TInlineAllocator<(uint32)ERHIDescriptorHeapType::Count>> OfflineDescriptorManagers;
 
 	FD3D12GlobalOnlineSamplerHeap GlobalSamplerHeap;
 	FD3D12OnlineDescriptorManager OnlineDescriptorManager;

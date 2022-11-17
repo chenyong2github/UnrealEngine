@@ -118,7 +118,7 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter)
 {
 	check(IsInGameThread());
 
-	for (uint32 HeapType = 0; HeapType < (uint32)ERHIDescriptorHeapType::count; ++HeapType)
+	for (uint32 HeapType = 0; HeapType < (uint32)ERHIDescriptorHeapType::Count; ++HeapType)
 	{
 		OfflineDescriptorManagers.Emplace(this, (ERHIDescriptorHeapType)HeapType);
 	}

@@ -2066,7 +2066,8 @@ enum class ERHIDescriptorHeapType : uint8
 	Sampler,
 	RenderTarget,
 	DepthStencil,
-	count
+	Count,
+	Invalid = MAX_uint8
 };
 
 struct FRHIDescriptorHandle
@@ -2074,18 +2075,24 @@ struct FRHIDescriptorHandle
 	FRHIDescriptorHandle() = default;
 	FRHIDescriptorHandle(ERHIDescriptorHeapType InType, uint32 InIndex)
 		: Index(InIndex)
+		, Type((uint8)InType)
+	{
+	}
+	FRHIDescriptorHandle(uint8 InType, uint32 InIndex)
+		: Index(InIndex)
 		, Type(InType)
 	{
 	}
 
-	inline uint32                GetIndex() const { return Index; }
-	inline ERHIDescriptorHeapType GetType() const { return Type; }
+	inline uint32                 GetIndex() const { return Index; }
+	inline ERHIDescriptorHeapType GetType() const { return (ERHIDescriptorHeapType)Type; }
+	inline uint8                  GetRawType() const { return Type; }
 
-	inline bool IsValid() const { return Index != UINT_MAX && Type != ERHIDescriptorHeapType::count; }
+	inline bool IsValid() const { return Index != UINT_MAX && Type != (uint8)ERHIDescriptorHeapType::Invalid; }
 
 private:
-	uint32                 Index{ UINT_MAX };
-	ERHIDescriptorHeapType Type{ ERHIDescriptorHeapType::count };
+	uint32    Index{ UINT_MAX };
+	uint8     Type{ (uint8)ERHIDescriptorHeapType::Invalid };
 };
 
 using FDisplayInformationArray = TArray<struct FDisplayInformation>;
