@@ -83,6 +83,13 @@ namespace Metasound
 #if WITH_EDITORONLY_DATA
 			using namespace Metasound::Frontend;
 
+			// Do not call asset manager on CDO objects which may be loaded before asset 
+			// manager is set.
+			if (IMetaSoundAssetManager* AssetManager = IMetaSoundAssetManager::Get())
+			{
+				AssetManager->WaitUntilAsyncLoadReferencedAssetsComplete(InMetaSound);
+			}
+
 			if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 			{
 				// Cooked data must be deterministic, so do not call register graph as this can
@@ -92,13 +99,6 @@ namespace Metasound
 					MetaSoundGraph->RegisterGraphWithFrontend();
 					MetaSoundGraph->GetModifyContext().SetForceRefreshViews();
 				}
-			}
-
-			// Do not call asset manager on CDO objects which may be loaded before asset 
-			// manager is set.
-			if (IMetaSoundAssetManager* AssetManager = IMetaSoundAssetManager::Get())
-			{
-				AssetManager->WaitUntilAsyncLoadReferencedAssetsComplete(InMetaSound);
 			}
 #endif // WITH_EDITORONLY_DATA
 		}

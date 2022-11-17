@@ -419,9 +419,18 @@ void UMetaSoundAssetSubsystem::RequestAsyncLoadReferencedAssets(FMetasoundAssetB
 
 void UMetaSoundAssetSubsystem::WaitUntilAsyncLoadReferencedAssetsComplete(FMetasoundAssetBase& InAssetBase)
 {
-	UObject* OwningAsset = InAssetBase.GetOwningAsset();
-	if (OwningAsset)
+	TSet<FMetasoundAssetBase*> TransitiveReferences;
+	TArray<FMetasoundAssetBase*> TransitiveReferencesQueue;
+	TransitiveReferences.Add(&InAssetBase);
+	TransitiveReferencesQueue.Add(&InAssetBase);
+	while (!TransitiveReferencesQueue.IsEmpty())
 	{
+		FMetasoundAssetBase* Reference = TransitiveReferencesQueue.Pop();
+		UObject* OwningAsset = Reference->GetOwningAsset();
+		if (!OwningAsset)
+		{
+			continue;
+		}
 		while (FMetaSoundAsyncAssetDependencies* LoadingDependency = FindLoadingDependencies(OwningAsset))
 		{
 			// Grab shared ptr to handle as LoadingDependencies may be deleted and have it's shared pointer removed. 
@@ -445,6 +454,16 @@ void UMetaSoundAssetSubsystem::WaitUntilAsyncLoadReferencedAssetsComplete(FMetas
 				// This will prevent OnAssetsLoaded from being called via the streamables
 				// internal delegate complete callback.
 				StreamableHandle->CancelHandle();
+			}
+		}
+
+		for (FMetasoundAssetBase* NextReference : Reference->GetReferencedAssets())
+		{
+			bool bAlreadyInSet;
+			TransitiveReferences.Add(NextReference, &bAlreadyInSet);
+			if (!bAlreadyInSet)
+			{
+				TransitiveReferencesQueue.Add(NextReference);
 			}
 		}
 	}
