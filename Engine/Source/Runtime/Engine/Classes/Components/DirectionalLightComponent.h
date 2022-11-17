@@ -312,6 +312,9 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
 	void SetAtmosphereSunLightIndex(int32 NewValue);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetForwardShadingPriority(int32 NewValue);
+
 	//~ Begin ULightComponent Interface
 	virtual FVector4 GetLightPosition() const override;
 	virtual ELightComponentType GetLightType() const override;

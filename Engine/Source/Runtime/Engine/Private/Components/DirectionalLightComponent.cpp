@@ -1346,6 +1346,16 @@ void UDirectionalLightComponent::SetAtmosphereSunLightIndex(int32 NewValue)
 	}
 }
 
+void UDirectionalLightComponent::SetForwardShadingPriority(int32 NewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& ForwardShadingPriority != NewValue)
+	{
+		ForwardShadingPriority = FMath::Max(0, NewValue);
+		MarkRenderStateDirty();
+	}
+}
+
 void UDirectionalLightComponent::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
