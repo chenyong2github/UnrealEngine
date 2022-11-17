@@ -11,9 +11,10 @@
 #include "Containers/UnrealString.h"
 #include "Factories/FbxAnimSequenceImportData.h"
 #include "Hash/Blake3.h"
-#include "Serialization/ArchiveUObject.h"
+#include "UObject/DevObjectVersion.h"
 #include "UObject/Object.h"
 #include "UObject/UnrealType.h"
+#include "Serialization/ArchiveUObject.h"
 
 namespace UE::PoseSearch
 {
@@ -39,8 +40,10 @@ public:
 	inline static const FName ExcludeFromHashName = FName(TEXT("ExcludeFromHash"));
 	inline static const FName NeverInHashName = FName(TEXT("NeverInHash"));
 
-	FDerivedDataKeyBuilder()
+	FDerivedDataKeyBuilder(UObject* Object)
 	{
+		check(Object);
+
 		ArIgnoreOuterRef = true;
 
 		// Set FDerivedDataKeyBuilder to be a saving archive instead of a reference collector.
@@ -48,6 +51,14 @@ public:
 		// which doesn't give a stable hash.  Serializing these to a saving archive will
 		// use a string reference instead, which is a more meaningful hash value.
 		SetIsSaving(true);
+
+		// used to invalidate the key without having to change POSESEARCHDB_DERIVEDDATA_VER all the times
+		FGuid VersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().POSESEARCHDB_DERIVEDDATA_VER);
+		int32 POSESEARCHDB_DERIVEDDATA_VER_SMALL = 3;
+
+		*this << VersionGuid;
+		*this << POSESEARCHDB_DERIVEDDATA_VER_SMALL;
+		*this << Object;
 	}
 
 	virtual void Seek(int64 InPos) override
@@ -185,7 +196,7 @@ public:
 	}
 	//~ End FArchive Interface
 	
-	HashDigestType Finalize()
+	HashDigestType Finalize() const
 	{
 		return Hasher.Finalize();
 	}
