@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
+#include "ISourceControlOperation.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Delegates/DelegateCombinations.h"
@@ -11,6 +12,7 @@
 #include "UObject/ObjectSaveContext.h"
 
 class FUnsavedAssetsTracker;
+class FUnsavedAssetsAutoCheckout;
 class SWidget;
 
 /** Invoked when an asset was modified in memory and added to the tracker list. */
@@ -19,6 +21,11 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnUnsavedAssetAdded, const FString& /*FileA
 /** Invoked when an asset modified in memory was saved and removed from the tracker list. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnUnsavedAssetRemoved, const FString& /*FileAbsPathname*/);
 
+/** Invoked before an asset is potentially automatically checked out of source control */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FPreUnsavedAssetAutoCheckout, const FString& /*FileAbsPathname*/, FSourceControlOperationRef& /*CheckoutOperation*/);
+
+/** Invoked after an asset has been checked out of source control */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FPostUnsavedAssetAutoCheckout, const FString& /*FileAbsPathname*/, FSourceControlOperationRef const& /*CheckoutOperation*/);
 
 /**
  * Tracks assets that has in-memory modification not saved to disk yet and checks
@@ -55,8 +62,18 @@ public:
 	FOnUnsavedAssetAdded OnUnsavedAssetAdded;
 
 	/** Invoked when a file is removed from the unsaved list. */
-	FOnUnsavedAssetAdded OnUnsavedAssetRemoved;
+	FOnUnsavedAssetRemoved OnUnsavedAssetRemoved;
 
+	/** Invoked before an asset is potentially automatically checked out of source control */
+	FPreUnsavedAssetAutoCheckout PreUnsavedAssetAutoCheckout;
+	
+	/** Invoked after an asset has been checked out of source control */
+	FPostUnsavedAssetAutoCheckout PostUnsavedAssetAutoCheckout;
+
+	/** Invoked after an asset failed to be checked out of source control */
+	FPostUnsavedAssetAutoCheckout PostUnsavedAssetAutoCheckoutFailure;
+	
 private:
 	TSharedPtr<FUnsavedAssetsTracker> UnsavedAssetTracker;
+	TSharedPtr<FUnsavedAssetsAutoCheckout> UnsavedAssetAutoCheckout;
 };

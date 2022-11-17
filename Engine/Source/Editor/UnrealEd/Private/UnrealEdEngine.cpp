@@ -578,7 +578,7 @@ void UUnrealEdEngine::OnPackageDirtyStateUpdated( UPackage* Pkg)
 
 			const UEditorLoadingSavingSettings* Settings = GetDefault<UEditorLoadingSavingSettings>();
 			if (!bAlreadyAsked && // Don't ask if we already asked once!
-				(Settings->bPromptForCheckoutOnAssetModification || Settings->bAutomaticallyCheckoutOnAssetModification))
+				Settings->bPromptForCheckoutOnAssetModification)
 			{
 				PackageToNotifyState.Add(Package, NS_Updating);
 			}
