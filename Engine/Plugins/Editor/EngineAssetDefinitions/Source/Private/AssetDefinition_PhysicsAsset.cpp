@@ -11,7 +11,7 @@ UThumbnailInfo* UAssetDefinition_PhysicsAsset::LoadThumbnailInfo(const FAssetDat
 {
 	UPhysicsAsset* PhysicsAsset = CastChecked<UPhysicsAsset>(InAsset.GetAsset());
 	UThumbnailInfo* ThumbnailInfo = PhysicsAsset->ThumbnailInfo;
-	if (ThumbnailInfo == NULL)
+	if (ThumbnailInfo == nullptr)
 	{
 		ThumbnailInfo = NewObject<USceneThumbnailInfo>(PhysicsAsset, NAME_None, RF_Transactional);
 		PhysicsAsset->ThumbnailInfo = ThumbnailInfo;

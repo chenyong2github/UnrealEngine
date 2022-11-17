@@ -43,7 +43,7 @@ public:
 	// We don't need to implement GetSourceFiles, the default one will / should work for any existing type.
 	// virtual EAssetCommandResult GetSourceFiles(const FAssetSourceFileArgs& SourceFileArgs, TArray<FAssetSourceFile>& OutSourceAssets) const override;
 
-	virtual FText GetObjectDisplayText(UObject* Object) const override;
+	virtual FText GetObjectDisplayNameText(UObject* Object) const override;
 	virtual EAssetCommandResult PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const override;
 	
 	virtual UThumbnailInfo* LoadThumbnailInfo(const FAssetData& Asset) const override;

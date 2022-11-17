@@ -343,7 +343,7 @@ public:
 
 	
 	// Extras
-	virtual FText GetObjectDisplayText(UObject* Object) const
+	virtual FText GetObjectDisplayNameText(UObject* Object) const
 	{
 		return FText::FromString(Object->GetName());
 	}

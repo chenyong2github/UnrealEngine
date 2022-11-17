@@ -205,7 +205,7 @@ EAssetCommandResult UAssetDefinition_AssetTypeActionsProxy::GetFilters(TArray<FA
 	return EAssetCommandResult::Unhandled;
 }
 
-FText UAssetDefinition_AssetTypeActionsProxy::GetObjectDisplayText(UObject* Object) const
+FText UAssetDefinition_AssetTypeActionsProxy::GetObjectDisplayNameText(UObject* Object) const
 {
 	return FText::FromString(AssetType->GetObjectDisplayName(Object));
 }

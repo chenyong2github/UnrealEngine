@@ -31,6 +31,7 @@ public class EngineAssetDefinitions : ModuleRules
 				"Kismet",
 				"DesktopPlatform",
 				"Foliage",
+				"Landscape",
 				"PhysicsCore",
 			}
 		);
