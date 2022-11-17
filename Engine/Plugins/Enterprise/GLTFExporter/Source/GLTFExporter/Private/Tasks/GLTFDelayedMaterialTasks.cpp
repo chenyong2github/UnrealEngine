@@ -255,7 +255,7 @@ void FGLTFDelayedMaterialTask::GetProxyParameter(const TGLTFProxyMaterialParamet
 	FLinearColor Value;
 	if (ParameterInfo.Get(Material, Value, true))
 	{
-		OutValue = FGLTFCoreUtilities::ConvertColor3(Value, false);
+		OutValue = FGLTFCoreUtilities::ConvertColor3(Value);
 	}
 }
 
@@ -264,7 +264,7 @@ void FGLTFDelayedMaterialTask::GetProxyParameter(const TGLTFProxyMaterialParamet
 	FLinearColor Value;
 	if (ParameterInfo.Get(Material, Value, true))
 	{
-		OutValue = FGLTFCoreUtilities::ConvertColor(Value, false);
+		OutValue = FGLTFCoreUtilities::ConvertColor(Value);
 	}
 }
 
@@ -523,7 +523,7 @@ bool FGLTFDelayedMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRou
 		FLinearColor BaseColorFactor(BaseColorBakeOutput.ConstantValue * BaseColorScale);
 		BaseColorFactor.A = OpacityBakeOutput.ConstantValue.R;
 
-		OutPBRParams.BaseColorFactor = FGLTFCoreUtilities::ConvertColor(BaseColorFactor, Builder.ExportOptions->bStrictCompliance);
+		OutPBRParams.BaseColorFactor = FGLTFCoreUtilities::ConvertColor(BaseColorFactor);
 		return true;
 	}
 
@@ -573,7 +573,9 @@ bool FGLTFDelayedMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRou
 
 	OutPBRParams.BaseColorTexture.TexCoord = CombinedTexCoord;
 	OutPBRParams.BaseColorTexture.Index = CombinedTexture;
-	OutPBRParams.BaseColorFactor = FGLTFCoreUtilities::ConvertColor({ BaseColorScale, BaseColorScale, BaseColorScale }, Builder.ExportOptions->bStrictCompliance);
+
+	// TODO: add support for KHR_materials_emissive_strength
+	OutPBRParams.BaseColorFactor = FGLTFCoreUtilities::ConvertColor(FLinearColor(BaseColorScale, BaseColorScale, BaseColorScale));
 
 	return true;
 }
@@ -855,7 +857,7 @@ bool FGLTFDelayedMaterialTask::TryGetEmissive(FGLTFJsonMaterial& OutMaterial, co
 	if (PropertyBakeOutput.bIsConstant)
 	{
 		const FLinearColor EmissiveColor = PropertyBakeOutput.ConstantValue;
-		OutMaterial.EmissiveFactor = FGLTFCoreUtilities::ConvertColor3(EmissiveColor * EmissiveScale, Builder.ExportOptions->bStrictCompliance);
+		OutMaterial.EmissiveFactor = FGLTFCoreUtilities::ConvertColor3(EmissiveColor * EmissiveScale);
 	}
 	else
 	{
@@ -906,7 +908,7 @@ bool FGLTFDelayedMaterialTask::TryGetConstantColor(FGLTFJsonColor3& OutValue, co
 	FLinearColor Value;
 	if (TryGetConstantColor(Value, Property))
 	{
-		OutValue = FGLTFCoreUtilities::ConvertColor3(Value, Builder.ExportOptions->bStrictCompliance);
+		OutValue = FGLTFCoreUtilities::ConvertColor3(Value);
 		return true;
 	}
 
@@ -918,7 +920,7 @@ bool FGLTFDelayedMaterialTask::TryGetConstantColor(FGLTFJsonColor4& OutValue, co
 	FLinearColor Value;
 	if (TryGetConstantColor(Value, Property))
 	{
-		OutValue = FGLTFCoreUtilities::ConvertColor(Value, Builder.ExportOptions->bStrictCompliance);
+		OutValue = FGLTFCoreUtilities::ConvertColor(Value);
 		return true;
 	}
 
@@ -1288,7 +1290,7 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
-		OutConstant = FGLTFCoreUtilities::ConvertColor3(PropertyBakeOutput.ConstantValue, Builder.ExportOptions->bStrictCompliance);
+		OutConstant = FGLTFCoreUtilities::ConvertColor3(PropertyBakeOutput.ConstantValue);
 		return true;
 	}
 
@@ -1322,7 +1324,7 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
-		OutConstant = FGLTFCoreUtilities::ConvertColor(PropertyBakeOutput.ConstantValue, Builder.ExportOptions->bStrictCompliance);
+		OutConstant = FGLTFCoreUtilities::ConvertColor(PropertyBakeOutput.ConstantValue);
 		return true;
 	}
 

@@ -27,7 +27,7 @@ FGLTFJsonLight* FGLTFLightConverter::Convert(const ULightComponent* LightCompone
 	const FLinearColor Color = ColorBrightness / Brightness;
 
 	Light->Intensity = Brightness;
-	Light->Color = FGLTFCoreUtilities::ConvertColor3(Color, false);
+	Light->Color = FGLTFCoreUtilities::ConvertColor3(Color);
 
 	if (const UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent))
 	{
@@ -39,11 +39,10 @@ FGLTFJsonLight* FGLTFLightConverter::Convert(const ULightComponent* LightCompone
 		Light->Spot.InnerConeAngle = FGLTFCoreUtilities::ConvertLightAngle(SpotLightComponent->InnerConeAngle);
 		Light->Spot.OuterConeAngle = FGLTFCoreUtilities::ConvertLightAngle(SpotLightComponent->OuterConeAngle);
 
-		if (Builder.ExportOptions->bStrictCompliance)
-		{
-			Light->Spot.InnerConeAngle = FMath::Clamp(Light->Spot.InnerConeAngle, 0.0f, nextafterf(Light->Spot.OuterConeAngle, 0.0f));
-			Light->Spot.OuterConeAngle = FMath::Clamp(Light->Spot.OuterConeAngle, nextafterf(Light->Spot.InnerConeAngle, HALF_PI), HALF_PI);
-		}
+		// KHR_lights_punctual requires that InnerConeAngle must be greater than or equal to 0 and less than OuterConeAngle.
+		Light->Spot.InnerConeAngle = FMath::Clamp(Light->Spot.InnerConeAngle, 0.0f, nextafterf(Light->Spot.OuterConeAngle, 0.0f));
+		// KHR_lights_punctual requires that OuterConeAngle must be greater than InnerConeAngle and less than or equal to PI / 2.0.
+		Light->Spot.OuterConeAngle = FMath::Clamp(Light->Spot.OuterConeAngle, nextafterf(Light->Spot.InnerConeAngle, HALF_PI), HALF_PI);
 	}
 
 	return Light;

@@ -36,8 +36,8 @@ struct GLTFEXPORTER_API FGLTFCoreUtilities
 	static FGLTFVector2 ConvertUV(const FVector2f& UV);
 	static FGLTFVector2 ConvertUV(const FVector2DHalf& UV);
 
-	static FGLTFColor4 ConvertColor(const FLinearColor& Color, bool bForceLDR);
-	static FGLTFColor3 ConvertColor3(const FLinearColor& Color, bool bForceLDR);
+	static FGLTFColor4 ConvertColor(const FLinearColor& Color);
+	static FGLTFColor3 ConvertColor3(const FLinearColor& Color);
 	static FGLTFUInt8Color4 ConvertColor(const FColor& Color);
 
 	static FGLTFQuaternion ConvertRotation(const FRotator3f& Rotation);

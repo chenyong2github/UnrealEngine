@@ -67,43 +67,24 @@ FGLTFVector2 FGLTFCoreUtilities::ConvertUV(const FVector2DHalf& UV)
 	return ConvertUV(FVector2f(UV));
 }
 
-FGLTFColor4 FGLTFCoreUtilities::ConvertColor(const FLinearColor& Color, bool bForceLDR)
+FGLTFColor4 FGLTFCoreUtilities::ConvertColor(const FLinearColor& Color)
 {
-	if (bForceLDR)
-	{
-		return {
-			FMath::Clamp(Color.R, 0.0f, 1.0f),
-			FMath::Clamp(Color.G, 0.0f, 1.0f),
-			FMath::Clamp(Color.B, 0.0f, 1.0f),
-			FMath::Clamp(Color.A, 0.0f, 1.0f)
-		};
-	}
-
-	// Just make sure its non-negative (which can happen when using MakeFromColorTemperature).
+	// glTF requires that color components are in the range 0.0 - 1.0
 	return {
-		FMath::Max(Color.R, 0.0f),
-		FMath::Max(Color.G, 0.0f),
-		FMath::Max(Color.B, 0.0f),
-		FMath::Max(Color.A, 0.0f)
+		FMath::Clamp(Color.R, 0.0f, 1.0f),
+		FMath::Clamp(Color.G, 0.0f, 1.0f),
+		FMath::Clamp(Color.B, 0.0f, 1.0f),
+		FMath::Clamp(Color.A, 0.0f, 1.0f)
 	};
 }
 
-FGLTFColor3 FGLTFCoreUtilities::ConvertColor3(const FLinearColor& Color, bool bForceLDR)
+FGLTFColor3 FGLTFCoreUtilities::ConvertColor3(const FLinearColor& Color)
 {
-	if (bForceLDR)
-	{
-		return {
-			FMath::Clamp(Color.R, 0.0f, 1.0f),
-			FMath::Clamp(Color.G, 0.0f, 1.0f),
-			FMath::Clamp(Color.B, 0.0f, 1.0f)
-		};
-	}
-
-	// Just make sure its non-negative (which can happen when using MakeFromColorTemperature).
+	// glTF requires that color components are in the range 0.0 - 1.0
 	return {
-		FMath::Max(Color.R, 0.0f),
-		FMath::Max(Color.G, 0.0f),
-		FMath::Max(Color.B, 0.0f)
+		FMath::Clamp(Color.R, 0.0f, 1.0f),
+		FMath::Clamp(Color.G, 0.0f, 1.0f),
+		FMath::Clamp(Color.B, 0.0f, 1.0f)
 	};
 }
 

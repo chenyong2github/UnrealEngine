@@ -12,7 +12,6 @@ void UGLTFExportOptions::ResetToDefault()
 {
 	ExportUniformScale = 0.01;
 	bExportPreviewMesh = true;
-	bStrictCompliance = true;
 	bSkipNearDefaultValues = true;
 	bExportProxyMaterials = true;
 	bExportUnlitMaterials = true;
