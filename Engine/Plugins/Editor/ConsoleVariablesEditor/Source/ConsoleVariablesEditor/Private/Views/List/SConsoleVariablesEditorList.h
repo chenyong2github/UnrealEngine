@@ -72,6 +72,9 @@ public:
 	/** Updates the saved values in a UConsoleVariablesAsset so that the command/value map can be saved to disk */
 	void UpdatePresetValuesForSave(const TObjectPtr<UConsoleVariablesAsset> InAsset) const;
 
+	/** Update the cached value stored for the given command. */
+	void UpdateCachedValue(const FString& InCommand, const FString& InValue);
+
 	FString GetSearchStringFromSearchInputField() const;
 	void SetSearchStringInSearchInputField(const FString InSearchString) const;
 	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);

@@ -375,7 +375,7 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 			// If not yet tracked and we want to track variable changes from outside the dialogue,
 			// Check if the changed value differs from the startup value before tracking it
 			if (Settings->bAddAllChangedConsoleVariablesToCurrentPreset &&
-				!Settings->ChangedConsoleVariableSkipList.Contains(Key) && 
+				!Settings->ChangedConsoleVariableSkipList.Contains(Key) &&
 				PinnedCommand->IsCurrentValueDifferentFromInputValue(PinnedCommand->StartupValueAsString))
 			{
 				if (MainPanel.IsValid())
@@ -403,6 +403,11 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 		// If the variable is already tracked or was just added to tracking, run the following code
 		if (bIsVariableCurrentlyTracked)
 		{
+			if (MainPanel.IsValid())
+			{
+				MainPanel->UpdateCachedValue(Key, ChangedVariable->GetString());
+			}
+
 			/**
 			 * Here we check the map of recently received variables from other nodes
 			 * If the command is in the map and the value is similar, we won't send the value to other nodes

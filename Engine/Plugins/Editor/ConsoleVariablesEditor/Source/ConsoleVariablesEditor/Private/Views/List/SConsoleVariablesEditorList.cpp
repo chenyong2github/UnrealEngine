@@ -518,6 +518,22 @@ void SConsoleVariablesEditorList::UpdatePresetValuesForSave(const TObjectPtr<UCo
 	InAsset->ReplaceSavedCommands(NewSavedCommands);
 }
 
+void SConsoleVariablesEditorList::UpdateCachedValue(const FString& InCommand, const FString& InValue)
+{
+	const TArray<FConsoleVariablesEditorListRowPtr>& Items =
+		ListModelPtr.IsValid() && ListModelPtr.Pin()->GetListMode() ==
+			FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset ? TreeViewRootObjects : LastPresetObjects;
+	const FConsoleVariablesEditorListRowPtr* Item = Algo::FindByPredicate(Items, [InCommand](const FConsoleVariablesEditorListRowPtr& Item)
+	{
+		TSharedPtr<FConsoleVariablesEditorCommandInfo> CommandInfo = Item->GetCommandInfo().Pin();
+		return CommandInfo ? CommandInfo->Command == InCommand : false;
+	});
+	if (Item && (*Item)->IsRowChecked())
+	{
+		(*Item)->SetCachedValue(InValue);
+	}
+}
+
 FString SConsoleVariablesEditorList::GetSearchStringFromSearchInputField() const
 {
 	return ensureAlwaysMsgf(ListSearchBoxPtr.IsValid(),

@@ -27,6 +27,8 @@ public:
 		const FString InConsoleCommand, const FString InValue,
 		const bool bScrollToNewRow = false) const;
 
+	void UpdateCachedValue(const FString& InConsoleVar, const FString& Value);
+
 	FReply ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const;
 
 	/*

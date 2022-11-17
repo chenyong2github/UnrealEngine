@@ -88,6 +88,14 @@ void FConsoleVariablesEditorMainPanel::AddConsoleObjectToCurrentPreset(
 	}
 }
 
+void FConsoleVariablesEditorMainPanel::UpdateCachedValue(const FString& InConsoleVariable, const FString& InValue)
+{
+	if (TSharedPtr<FConsoleVariablesEditorList> TheEditorList = GetEditorList().Pin())
+	{
+		TheEditorList->UpdateCachedValue(InConsoleVariable, InValue);
+	}
+}
+
 FReply FConsoleVariablesEditorMainPanel::ValidateConsoleInputAndAddToCurrentPreset(const FText& CommittedText) const
 {
 	// Clear Search

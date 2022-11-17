@@ -47,3 +47,11 @@ void FConsoleVariablesEditorList::UpdatePresetValuesForSave(TObjectPtr<UConsoleV
 		ListWidget->UpdatePresetValuesForSave(InAsset);
 	}
 }
+void FConsoleVariablesEditorList::UpdateCachedValue(const FString& InCommand, const FString& InValue)
+{
+	if (ListWidget.IsValid())
+	{
+		ListWidget->UpdateCachedValue(InCommand, InValue);
+	}
+}
+
