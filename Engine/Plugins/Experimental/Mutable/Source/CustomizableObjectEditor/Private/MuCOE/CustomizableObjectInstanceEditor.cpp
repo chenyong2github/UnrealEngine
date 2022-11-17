@@ -350,7 +350,6 @@ void FCustomizableObjectInstanceEditor::CreatePreviewInstance()
 
 				if (PreviewSkeletalMeshComponents[ComponentIndex])
 				{
-					PreviewSkeletalMeshComponents[ComponentIndex]->UseInGameBounds(true);
 					PreviewCustomizableSkeletalComponents[ComponentIndex]->AttachToComponent(PreviewSkeletalMeshComponents[ComponentIndex], FAttachmentTransformRules::KeepRelativeTransform);
 				}
 				else
