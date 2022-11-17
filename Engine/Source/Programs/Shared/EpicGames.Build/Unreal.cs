@@ -93,7 +93,15 @@ namespace UnrealBuildBase
 			string HostDotNetDirectoryName;
 			switch (HostPlatform)
 			{
-				case RuntimePlatform.Type.Windows: HostDotNetDirectoryName = "windows"; break;
+				case RuntimePlatform.Type.Windows:
+					{
+						HostDotNetDirectoryName = "windows";
+						if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+						{
+							HostDotNetDirectoryName = "win-arm64";
+						}
+						break;
+					}
 				case RuntimePlatform.Type.Mac:
 					{
 						HostDotNetDirectoryName = "mac-x64";
