@@ -23,7 +23,7 @@ UWidget* FWidgetTemplateImageClass::Create(UWidgetTree* WidgetTree)
 		UImage* ImageWidget = Cast<UImage>(Widget);
 
 		UObject* ImageResource = FindObject<UObject>(nullptr, *WidgetAssetData.GetObjectPathString());
-		ImageWidget->Brush.SetResourceObject(ImageResource);
+		ImageWidget->SetBrushResourceObject(ImageResource);
 	}
 
 	return Widget;

@@ -66,8 +66,14 @@ public:
 	/** Set the Image attribute */
 	void SetImage(TAttribute<const FSlateBrush*> InImage);
 
+	/** Invalidate the Image */
+	void InvalidateImage();
+
 	/** Set SizeOverride attribute */
 	void SetDesiredSizeOverride(TAttribute<TOptional<FVector2D>> InDesiredSizeOverride);
+
+	/** Set FlipForRightToLeftFlowDirection */
+	void FlipForRightToLeftFlowDirection(bool InbFlipForRightToLeftFlowDirection);
 
 public:
 

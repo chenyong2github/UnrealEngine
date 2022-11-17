@@ -88,7 +88,7 @@ bool UCommonLazyImage::IsLoading() const
 
 void UCommonLazyImage::SetMaterialTextureParamName(FName TextureParamName)
 {
-	if (Cast<UMaterialInterface>(Brush.GetResourceObject()) != nullptr)
+	if (Cast<UMaterialInterface>(GetBrush().GetResourceObject()) != nullptr)
 	{
 		MaterialTextureParamName = TextureParamName;
 	}
@@ -185,7 +185,7 @@ bool UCommonLazyImage::CanEditChange(const FProperty* InProperty) const
 	if (InProperty->GetFName().IsEqual(GET_MEMBER_NAME_CHECKED(UCommonLazyImage, MaterialTextureParamName)))
 	{
 		// The param name is only relevant when the brush uses a material
-		return Cast<UMaterialInterface>(Brush.GetResourceObject()) != nullptr;
+		return Cast<UMaterialInterface>(GetBrush().GetResourceObject()) != nullptr;
 	}
 	return Super::CanEditChange(InProperty);
 }
@@ -237,16 +237,18 @@ void UCommonLazyImage::SetBrushObjectInternal(UTexture* Texture, bool bMatchSize
 			BrushMID->SetTextureParameterValue(MaterialTextureParamName, Texture);
 			if (bMatchSize)
 			{
+				FSlateBrush CurrentBrush = GetBrush();
 				if (UTexture2DDynamic* AsDynamicTexture = Cast<UTexture2DDynamic>(Texture))
 				{
-					Brush.ImageSize.X = AsDynamicTexture->SizeX;
-					Brush.ImageSize.Y = AsDynamicTexture->SizeY;
+					CurrentBrush.ImageSize.X = AsDynamicTexture->SizeX;
+					CurrentBrush.ImageSize.Y = AsDynamicTexture->SizeY;
 				}
 				else if (UTexture2D* AsTexture2D = Cast<UTexture2D>(Texture))
 				{
-					Brush.ImageSize.X = AsTexture2D->GetSizeX();
-					Brush.ImageSize.Y = AsTexture2D->GetSizeY();
+					CurrentBrush.ImageSize.X = AsTexture2D->GetSizeX();
+					CurrentBrush.ImageSize.Y = AsTexture2D->GetSizeY();
 				}
+				Super::SetBrush(CurrentBrush);
 			}
 		}
 	}

@@ -34,7 +34,8 @@ class UMG_API UImage : public UWidget
 public:
 
 	/** Image to draw */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
+	UE_DEPRECATED(5.2, "Direct access to Brush is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetBrush", FieldNotify, Category=Appearance)
 	FSlateBrush Brush;
 
 	/** A bindable delegate for the Image. */
@@ -42,7 +43,8 @@ public:
 	FGetSlateBrush BrushDelegate;
 
 	/** Color and opacity */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=( sRGB="true") )
+	UE_DEPRECATED(5.2, "Direct access to ColorAndOpacity is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetColorAndOpacity", Category=Appearance, meta=( sRGB="true") )
 	FLinearColor ColorAndOpacity;
 
 	/** A bindable delegate for the ColorAndOpacity. */
@@ -50,7 +52,8 @@ public:
 	FGetLinearColor ColorAndOpacityDelegate;
 
 	/** Flips the image if the localization's flow direction is RightToLeft */
-	UPROPERTY(EditAnywhere, Category = "Localization")
+	UE_DEPRECATED(5.2, "Direct access to bFlipForRightToLeftFlowDirection is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "ShouldFlipForRightToLeftFlowDirection", Setter = "SetFlipForRightToLeftFlowDirection", Category = "Localization")
 	bool bFlipForRightToLeftFlowDirection;
 
 public:
@@ -63,6 +66,8 @@ public:
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetColorAndOpacity(FLinearColor InColorAndOpacity);
+
+	const FLinearColor& GetColorAndOpacity() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
@@ -86,6 +91,8 @@ public:
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	virtual void SetBrush(const FSlateBrush& InBrush);
+
+	const FSlateBrush& GetBrush() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
@@ -139,6 +146,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	UMaterialInstanceDynamic* GetDynamicMaterial();
 
+	void SetFlipForRightToLeftFlowDirection(bool InbFlipForRightToLeftFlowDirection);
+
+	bool ShouldFlipForRightToLeftFlowDirection() const;
+
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
@@ -189,5 +200,7 @@ protected:
 
 protected:
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PROPERTY_BINDING_IMPLEMENTATION(FSlateColor, ColorAndOpacity);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };

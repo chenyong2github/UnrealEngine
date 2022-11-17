@@ -91,9 +91,24 @@ void SImage::SetImage(TAttribute<const FSlateBrush*> InImage)
 	ImageAttribute.Assign(*this, MoveTemp(InImage));
 }
 
+
+void SImage::InvalidateImage()
+{
+	Invalidate(EInvalidateWidgetReason::Layout);
+}
+
 void SImage::SetDesiredSizeOverride(TAttribute<TOptional<FVector2D>> InDesiredSizeOverride)
 {
 	DesiredSizeOverrideAttribute.Assign(*this, MoveTemp(InDesiredSizeOverride));
+}
+
+void SImage::FlipForRightToLeftFlowDirection(bool InbFlipForRightToLeftFlowDirection)
+{
+	if (InbFlipForRightToLeftFlowDirection != bFlipForRightToLeftFlowDirection)
+	{
+		bFlipForRightToLeftFlowDirection = InbFlipForRightToLeftFlowDirection;
+		Invalidate(EInvalidateWidgetReason::Paint);
+	}
 }
 
 #if WITH_ACCESSIBILITY
