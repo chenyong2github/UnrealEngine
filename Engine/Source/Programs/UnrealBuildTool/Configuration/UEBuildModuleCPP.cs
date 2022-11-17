@@ -630,7 +630,7 @@ namespace UnrealBuildTool
 			}
 
 			// Set up the NumIncludedBytesPerUnityCPP for this particular module
-			int NumIncludedBytesPerUnityCPP = (Rules.NumIncludedBytesPerUnityCPPOverride != 0) ? Rules.NumIncludedBytesPerUnityCPPOverride : Target.NumIncludedBytesPerUnityCPP;
+			int NumIncludedBytesPerUnityCPP = Rules.GetNumIncludedBytesPerUnityCPP();
 
 			// Should we use unity build mode for this module?
 			bool bModuleUsesUnityBuild = false;

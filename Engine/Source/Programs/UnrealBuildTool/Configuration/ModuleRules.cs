@@ -831,6 +831,14 @@ namespace UnrealBuildTool
 		public int NumIncludedBytesPerUnityCPPOverride = 0;
 
 		/// <summary>
+		/// Helper function to get the number of byes per unity cpp file
+		/// </summary>
+		public int GetNumIncludedBytesPerUnityCPP()
+		{
+			return (NumIncludedBytesPerUnityCPPOverride != 0 && !Target.bDisableModuleNumIncludedBytesPerUnityCPPOverride) ? NumIncludedBytesPerUnityCPPOverride : Target.NumIncludedBytesPerUnityCPP;
+		}
+
+		/// <summary>
 		/// Module uses a #import so must be built locally when compiling with SN-DBS
 		/// </summary>
 		public bool bBuildLocallyWithSNDBS = false;

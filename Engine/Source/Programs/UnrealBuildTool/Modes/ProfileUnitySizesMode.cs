@@ -140,6 +140,8 @@ namespace UnrealBuildTool
 			{
 				List<UEBuildModule> ModuleList = new();
 
+				TargetDescriptor.AdditionalArguments = TargetDescriptor.AdditionalArguments.Append(new string[] { "-NoSNDBS", "-NoXGE" });
+
 				// Create a makefile for the target
 				TimingLogger TimingLogger = new(Logger);
 				UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, TimingLogger);
@@ -186,7 +188,7 @@ namespace UnrealBuildTool
 
 			Logger.LogInformation($"{Module.Name}:");
 
-			int CurrentModuleUnitySize = (Module.Rules.NumIncludedBytesPerUnityCPPOverride != 0) ? Module.Rules.NumIncludedBytesPerUnityCPPOverride : Target.Rules.NumIncludedBytesPerUnityCPP;
+			int CurrentModuleUnitySize = Module.Rules.GetNumIncludedBytesPerUnityCPP();
 			int TargetUnitySize = Target.Rules.NumIncludedBytesPerUnityCPP;
 
 			int BuildNum = 1;
@@ -319,7 +321,7 @@ namespace UnrealBuildTool
 					}
 
 					// Add the module name to the cmdline
-					TargetDescriptor.AdditionalArguments = TargetDescriptor.AdditionalArguments.Append(new string[] { $"-BytesPerUnityCPP={UnitySize}" });
+					TargetDescriptor.AdditionalArguments = TargetDescriptor.AdditionalArguments.Append(new string[] { $"-BytesPerUnityCPP={UnitySize}", "-DisableModuleNumIncludedBytesPerUnityCPPOverride" });
 
 					if (bDisableUnity)
 					{

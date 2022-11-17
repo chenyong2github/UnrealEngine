@@ -1445,6 +1445,13 @@ namespace UnrealBuildTool
 		public int NumIncludedBytesPerUnityCPP = 384 * 1024;
 
 		/// <summary>
+		/// Disables overrides that are set by the module
+		/// </summary>
+		[CommandLine("-DisableModuleNumIncludedBytesPerUnityCPPOverride", Value = "true")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bDisableModuleNumIncludedBytesPerUnityCPPOverride = false;
+
+		/// <summary>
 		/// Whether to stress test the C++ unity build robustness by including all C++ files files in a project from a single unified file.
 		/// </summary>
 		[CommandLine("-StressTestUnity")]
@@ -3192,6 +3199,11 @@ namespace UnrealBuildTool
 		public int NumIncludedBytesPerUnityCPP
 		{
 			get { return Inner.NumIncludedBytesPerUnityCPP; }
+		}
+
+		public bool bDisableModuleNumIncludedBytesPerUnityCPPOverride
+		{
+			get { return Inner.bDisableModuleNumIncludedBytesPerUnityCPPOverride; }
 		}
 
 		public bool bStressTestUnity
