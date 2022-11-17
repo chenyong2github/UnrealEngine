@@ -115,13 +115,14 @@ void SEasingFunctionGridWidget::Construct(const FArguments& InArgs)
 
 			Grid->AddSlot(ColumnIndex, RowIndex)
 				[
-					SNew(SBox)
-					.WidthOverride(100.f)
-					.HeightOverride(50.f)
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+					.OnClicked(this, &SEasingFunctionGridWidget::OnTypeButtonClicked, Value)
 					[
-						SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-						.OnClicked(this, &SEasingFunctionGridWidget::OnTypeButtonClicked, Value)
+						SNew(SBox)
+						.WidthOverride(100.f)
+						.HeightOverride(50.f)
 						[
 							SNew(SBuiltInFunctionVisualizer, Value)
 						]

@@ -68,6 +68,7 @@ void FAlphaBlendPropertyCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 	FilterExclude.Add(EMovieSceneBuiltInEasing::SinOut);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::QuadIn);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::QuadOut);
+	FilterExclude.Add(EMovieSceneBuiltInEasing::CubicIn);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::CubicOut);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::QuartIn);
 	FilterExclude.Add(EMovieSceneBuiltInEasing::QuartOut);
@@ -115,11 +116,11 @@ EMovieSceneBuiltInEasing FAlphaBlendPropertyCustomization::ConvertToEasingType(E
 	switch (in)
 	{
 	case EAlphaBlendOption::Linear: return EMovieSceneBuiltInEasing::Linear;
-	case EAlphaBlendOption::Cubic: return EMovieSceneBuiltInEasing::CubicIn;
+	case EAlphaBlendOption::Cubic: return EMovieSceneBuiltInEasing::Cubic;
+	case EAlphaBlendOption::CubicInOut: return EMovieSceneBuiltInEasing::CubicInOut;
 	case EAlphaBlendOption::HermiteCubic: return EMovieSceneBuiltInEasing::HermiteCubicInOut;
 	case EAlphaBlendOption::Sinusoidal: return EMovieSceneBuiltInEasing::SinInOut;
 	case EAlphaBlendOption::QuadraticInOut: return EMovieSceneBuiltInEasing::QuadInOut;
-	case EAlphaBlendOption::CubicInOut: return EMovieSceneBuiltInEasing::CubicInOut;
 	case EAlphaBlendOption::QuarticInOut: return EMovieSceneBuiltInEasing::QuartInOut;
 	case EAlphaBlendOption::QuinticInOut: return EMovieSceneBuiltInEasing::QuintInOut;
 	case EAlphaBlendOption::CircularIn: return EMovieSceneBuiltInEasing::CircIn;
@@ -139,11 +140,11 @@ EAlphaBlendOption FAlphaBlendPropertyCustomization::ConvertFromEasingType(EMovie
 	switch (in)
 	{
 	case EMovieSceneBuiltInEasing::Linear: return EAlphaBlendOption::Linear;
-	case EMovieSceneBuiltInEasing::CubicIn: return EAlphaBlendOption::Cubic;
+	case EMovieSceneBuiltInEasing::Cubic: return EAlphaBlendOption::Cubic;
+	case EMovieSceneBuiltInEasing::CubicInOut: return EAlphaBlendOption::CubicInOut;
 	case EMovieSceneBuiltInEasing::HermiteCubicInOut: return EAlphaBlendOption::HermiteCubic;
 	case EMovieSceneBuiltInEasing::SinInOut: return EAlphaBlendOption::Sinusoidal;
 	case EMovieSceneBuiltInEasing::QuadInOut: return EAlphaBlendOption::QuadraticInOut;
-	case EMovieSceneBuiltInEasing::CubicInOut: return EAlphaBlendOption::CubicInOut;
 	case EMovieSceneBuiltInEasing::QuartInOut: return EAlphaBlendOption::QuarticInOut;
 	case EMovieSceneBuiltInEasing::QuintInOut: return EAlphaBlendOption::QuinticInOut;
 	case EMovieSceneBuiltInEasing::CircIn: return EAlphaBlendOption::CircularIn;

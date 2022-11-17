@@ -58,6 +58,7 @@ void FMovieSceneBuiltInEasingFunctionCustomization::CustomizeDetails(IDetailLayo
 
 	TSet<EMovieSceneBuiltInEasing> FilterExclude;
 	FilterExclude.Add(EMovieSceneBuiltInEasing::Custom);
+	FilterExclude.Add(EMovieSceneBuiltInEasing::Cubic);
 
 	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("Easing");
 	DetailBuilder.HideProperty(TypeProperty);

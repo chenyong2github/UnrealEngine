@@ -65,7 +65,7 @@ void SBuiltInFunctionVisualizer::SetType(EMovieSceneBuiltInEasing InValue)
 	while (Interp <= 1.f)
 	{
 		Samples.Add(FVector2D(Interp, DefaultObject->Evaluate(Interp)));
-		Interp += 0.05f;
+		Interp += 0.01f;
 	}
 
 	DefaultObject->Type = DefaultType;
