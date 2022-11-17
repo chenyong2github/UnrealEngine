@@ -1311,6 +1311,18 @@ void PopulateReferenceSkeletalMeshesData(FMutableGraphGenerationContext& Generat
 		// Additional Settings
 		Data.Settings.bEnablePerPolyCollision = RefSkeletalMesh->GetEnablePerPolyCollision();
 
+		const TArray<FSkeletalMaterial>& Materials = RefSkeletalMesh->GetMaterials();
+		for (const FSkeletalMaterial& Material : Materials)
+		{
+			if (Material.UVChannelData.bInitialized)
+			{
+				for (int32 UVIndex = 0; UVIndex < TEXSTREAM_MAX_NUM_UVCHANNELS; ++UVIndex)
+				{
+					Data.Settings.DefaultUVChannelDensity = FMath::Max(Data.Settings.DefaultUVChannelDensity, Material.UVChannelData.LocalUVDensities[UVIndex]);
+				}
+			}
+		}
+
 		// Skeleton
 		if(const USkeleton* Skeleton = RefSkeletalMesh->GetSkeleton())
 		{

@@ -826,24 +826,6 @@ void UCustomizableInstancePrivateData::PostEditChangePropertyWithoutEditor(USkel
 		// reinitialize resource
 		InSkeletalMesh->InitResources();
 	}
-
-	{
-		MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh_LocalUVDensities);
-
-		for (int32 MaterialIndex = 0; MaterialIndex < InSkeletalMesh->GetMaterials().Num(); ++MaterialIndex)
-		{
-			FMeshUVChannelInfo& UVChannelData = InSkeletalMesh->GetMaterials()[MaterialIndex].UVChannelData;
-
-			UVChannelData.bInitialized = true;
-			UVChannelData.bOverrideDensities = false;
-
-			for (int32 i = 0; i < TEXSTREAM_MAX_NUM_UVCHANNELS; ++i)
-			{
-				// TODO
-				UVChannelData.LocalUVDensities[i] = 200.f;
-			}
-		}
-	}
 }
 
 
@@ -2939,6 +2921,20 @@ void UCustomizableInstancePrivateData::ConvertImage(UTexture2D* Texture, mu::Ima
 }
 
 
+void SetMeshUVChannelDensity(FMeshUVChannelInfo& UVChannelInfo, float Density = 0.f)
+{
+	Density = Density > 0.f ? Density : 150.f;
+
+	UVChannelInfo.bInitialized = true;
+	UVChannelInfo.bOverrideDensities = false;
+
+	for (int32 i = 0; i < TEXSTREAM_MAX_NUM_UVCHANNELS; ++i)
+	{
+		UVChannelInfo.LocalUVDensities[i] = Density;
+	}
+}
+
+
 void UCustomizableInstancePrivateData::BuildSkeletalMeshElementData(const TSharedPtr<FMutableOperationData>& OperationData, USkeletalMesh* SkeletalMesh, UCustomizableObjectInstance* CustomizableObjectInstance, int32 ComponentIndex)
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::BuildSkeletalMeshElementData);
@@ -2947,6 +2943,9 @@ void UCustomizableInstancePrivateData::BuildSkeletalMeshElementData(const TShare
 	UMaterialInterface* UnrealMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 	SkeletalMesh->GetMaterials().SetNum(1);
 	SkeletalMesh->GetMaterials()[0] = UnrealMaterial;
+
+	// Default density
+	SetMeshUVChannelDensity(SkeletalMesh->GetMaterials()[0].UVChannelData);
 
 	int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : OperationData->CurrentMinLOD;
 
@@ -4706,14 +4705,9 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 	for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
 	{
 		USkeletalMesh* SkeletalMesh = Public->SkeletalMeshes[ComponentIndex];
-
+		if (SkeletalMesh)
 		{
-			MUTABLE_CPUPROFILER_SCOPE(Init);
-
-			if (SkeletalMesh)
-			{
-				SkeletalMesh->GetMaterials().Reset();
-			}
+			SkeletalMesh->GetMaterials().Reset();
 		}
 
 		// Maps serializations of FMutableMaterialPlaceholder to Created Dynamic Material instances, used to reuse materials across LODs
@@ -4745,6 +4739,9 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 					// In theory this is checked earlier, and the LOD is removed.
 					continue;
 				}
+
+				const FMutableRefSkeletalMeshData* RefSkeletalMeshData = CustomizableObject->GetRefSkeletalMeshData(Component.Id);
+				check(RefSkeletalMeshData);
 
 				for (int32 SurfaceIndex = 0; SurfaceIndex < Component.SurfaceCount; ++SurfaceIndex)
 				{
@@ -5066,12 +5063,16 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 
 							if (SkeletalMesh)
 							{
-								int32 MatIndex = SkeletalMesh->GetMaterials().Add(ActualMaterialInterface);
-								SkeletalMesh->GetMaterials()[MatIndex].MaterialSlotName = CustomizableObject->ReferencedMaterialSlotNames[Surface.MaterialIndex];
-								int32 LODMaterialIndex = Helper_GetLODInfoArray(SkeletalMesh)[MeshLODIndex].LODMaterialMap.Add(MatIndex);
-								Helper_GetLODRenderSections(SkeletalMesh, MeshLODIndex)[SurfaceIndex].MaterialIndex = LODMaterialIndex;
-
+								const int32 MatIndex = SkeletalMesh->GetMaterials().Num();
 								MutableMaterialPlaceholder.MatIndex = MatIndex;
+
+								// Set up SkeletalMaterial data
+								FSkeletalMaterial& SkeletalMaterial = SkeletalMesh->GetMaterials().Add_GetRef(ActualMaterialInterface);
+								SkeletalMaterial.MaterialSlotName = CustomizableObject->ReferencedMaterialSlotNames[Surface.MaterialIndex];
+								SetMeshUVChannelDensity(SkeletalMaterial.UVChannelData, RefSkeletalMeshData->Settings.DefaultUVChannelDensity);
+
+								const int32 LODMaterialIndex = Helper_GetLODInfoArray(SkeletalMesh)[MeshLODIndex].LODMaterialMap.Add(MatIndex);
+								Helper_GetLODRenderSections(SkeletalMesh, MeshLODIndex)[SurfaceIndex].MaterialIndex = LODMaterialIndex;
 							}
 
 							if (MaterialInstance)
