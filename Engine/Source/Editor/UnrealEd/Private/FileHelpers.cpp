@@ -4620,8 +4620,8 @@ void FEditorFileUtils::FindAllSubmittableProjectFiles(TMap<FString, FSourceContr
 
 			if (SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd()))
 			{
-				FString PackageName;
-				if (!FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))
+				FString Ext = FPaths::GetExtension(Filename);
+				if (!FPackageName::IsPackageExtension(*Ext) && !FPackageName::IsTextPackageExtension(*Ext))
 				{
 					OutProjectFiles.Add(Filename, MoveTemp(SourceControlState));
 				}
