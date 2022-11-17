@@ -124,19 +124,6 @@ TSharedPtr<FContentBundleEditor> FContentBundleContainer::GetEditorContentBundle
 	return nullptr;
 }
 
-TSharedPtr<FContentBundleEditor> FContentBundleContainer::GetEditorContentBundle(const FGuid& ContentBundleGuid) const
-{
-	for (const TSharedPtr<FContentBundleEditor>& ContentBundle : GetEditorContentBundles())
-	{
-		if (ContentBundle->GetDescriptor()->GetGuid() == ContentBundleGuid)
-		{
-			return ContentBundle;
-		}
-	}
-
-	return nullptr;
-}
-
 const TArray<TSharedPtr<FContentBundleEditor>>& FContentBundleContainer::GetEditorContentBundles() const
 {
 	check(UseEditorContentBundle());

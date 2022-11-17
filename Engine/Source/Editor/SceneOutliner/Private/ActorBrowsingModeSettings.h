@@ -31,10 +31,6 @@ public:
 	UPROPERTY()
 	bool bShowOnlyActorsInCurrentDataLayers = false;
 
-	/** True when the Scene Outliner is showing only Actors that exist in the current content bundle */
-	UPROPERTY()
-	bool bShowOnlyActorsInCurrentContentBundle = false;
-
 	/** True when the Scene Outliner is only displaying selected Actors */
 	UPROPERTY()
 	bool bShowOnlySelectedActors = false;

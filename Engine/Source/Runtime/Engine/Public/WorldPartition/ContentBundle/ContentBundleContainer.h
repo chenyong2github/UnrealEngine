@@ -50,7 +50,6 @@ public:
 
 #if WITH_EDITOR
 	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const UContentBundleDescriptor* Descriptor) const;
-	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const FGuid& ContentBundleGuid) const;
 
 	const TArray<TSharedPtr<FContentBundleEditor>>& GetEditorContentBundles() const;
 	TArray<TSharedPtr<FContentBundleEditor>>& GetEditorContentBundles();

@@ -40,8 +40,6 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
-#include "WorldPartition/ContentBundle/ContentBundleEditorSubsystem.h"
-#include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 #include "Subsystems/ActorEditorContextSubsystem.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
@@ -166,41 +164,6 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 						}
 					}
 				}
-				return false;
-			}
-			return true;
-		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
-
-	FSceneOutlinerFilterInfo OnlyCurrentContentBundleInfo(LOCTEXT("ToggleShowOnlyCurrentContentBundle", "Only in Current Content Bundle"), LOCTEXT("ToggleShowOnlyCurrentContentBundleToolTip", "When enabled, only shows Actors that are in the Current Content Bundle."), LocalSettings.bShowOnlyActorsInCurrentContentBundle, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateIsInCurrentContentBundleFilter));
-	OnlyCurrentContentBundleInfo.OnToggle().AddLambda([this](bool bIsActive)
-		{
-			FActorBrowsingModeConfig* Settings = GetMutableConfig();
-			if (Settings)
-			{
-				Settings->bShowOnlyActorsInCurrentContentBundle = bIsActive;
-				SaveConfig();
-			}
-		});
-	FilterInfoMap.Add(TEXT("ShowOnlyCurrentContentBundle"), OnlyCurrentContentBundleInfo);
-
-	// Add a filter for unloaded actors to properly reflect the bShowOnlyActorsInCurrentContentBundle flag.
-	SceneOutliner->AddFilter(MakeShared<FActorDescFilter>(FActorDescTreeItem::FFilterPredicate::CreateLambda([this](const FWorldPartitionActorDesc* ActorDesc)
-		{
-			FActorBrowsingModeConfig* Settings = GetMutableConfig();
-			if (Settings && Settings->bShowOnlyActorsInCurrentContentBundle)
-			{
-				UContentBundleEditorSubsystem* ContentBundleEditorSubsystem = UContentBundleEditorSubsystem::Get();
-				if (!ContentBundleEditorSubsystem || !ContentBundleEditorSubsystem->IsEditingContentBundle())
-				{
-					return true;
-				}
-
-				if (ActorDesc->GetContentBundleGuid().IsValid())
-				{
-					TSharedPtr<FContentBundleEditor> ContentBundleEditor = ContentBundleEditorSubsystem->GetEditorContentBundle(ActorDesc->GetContentBundleGuid());
-					return ContentBundleEditor && ContentBundleEditorSubsystem->IsContentBundleEditingActivated(ContentBundleEditor);
-				}
-
 				return false;
 			}
 			return true;
@@ -515,25 +478,6 @@ TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateIsInCurrentDataLayers
 				}
 			}
 
-			return false;
-		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
-}
-
-TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateIsInCurrentContentBundleFilter()
-{
-	return MakeShareable(new FActorFilter(FActorTreeItem::FFilterPredicate::CreateStatic([](const AActor* InActor)
-		{
-			UContentBundleEditorSubsystem* ContentBundleEditorSubsystem = UContentBundleEditorSubsystem::Get();
-			if (!ContentBundleEditorSubsystem || !ContentBundleEditorSubsystem->IsEditingContentBundle())
-			{
-				return true;
-			}
-
-			if (InActor->GetContentBundleGuid().IsValid())
-			{
-				TSharedPtr<FContentBundleEditor> ContentBundleEditor = ContentBundleEditorSubsystem->GetEditorContentBundle(InActor->GetContentBundleGuid());
-				return ContentBundleEditor && ContentBundleEditorSubsystem->IsContentBundleEditingActivated(ContentBundleEditor);
-			}
 			return false;
 		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
