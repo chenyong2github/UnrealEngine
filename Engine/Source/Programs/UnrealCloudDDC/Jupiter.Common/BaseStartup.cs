@@ -31,6 +31,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Okta.AspNet.Abstractions;
 using Okta.AspNetCore;
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -74,8 +75,6 @@ namespace Jupiter
 
             services.AddOptions<JupiterSettings>().Bind(Configuration.GetSection("Jupiter")).ValidateDataAnnotations();
             services.AddOptions<NamespaceSettings>().Bind(Configuration.GetSection("Namespaces")).ValidateDataAnnotations();
-
-            services.AddOptions<TracerSettings>().Bind(Configuration.GetSection("Tracer")).ValidateDataAnnotations();
 
             services.AddSingleton(typeof(INamespacePolicyResolver), typeof(NamespacePolicyResolver));
 
@@ -244,38 +243,31 @@ namespace Jupiter
             services.AddSingleton<IAuthorizationHandler, NamespaceAuthorizationHandler>();
             services.AddSingleton<IAuthorizationHandler, GlobalAuthorizationHandler>();
 
+            string otelServiceName = Configuration["OTEL_SERVICE_NAME"] ?? "unreal-cloud-ddc";
+            string otelServiceVersion = Configuration["OTEL_SERVICE_VERSION"];
             services.AddOpenTelemetryTracing(builder =>
             {
                 builder.AddHttpClientInstrumentation(options =>
                 {
                     options.EnrichWithHttpRequestMessage = (activity, message) =>
                     {
-                        activity.AddTag("service.name", activity.Source.Name + "-http-client");
+                        activity.AddTag("service.name", otelServiceName + "-http-client");
                         activity.AddTag("operation.name", "http-request");
-                    };
-
-                    options.EnrichWithHttpResponseMessage = (activity, message) =>
-                    {
-                        activity.AddTag("service.name", activity.Source.Name + "-http-client");
-                        activity.AddTag("operation.name", "http-response");
+                        string url = $"{message.Method} {message.Headers.Host}{message.RequestUri?.LocalPath}";
+                        activity.DisplayName = url;
                     };
                 });
                 builder.AddAspNetCoreInstrumentation();
 
                 builder.AddOtlpExporter();
 
-                builder.ConfigureBuilder((provider, _) =>
+                builder.ConfigureResource(resourceBuilder =>
                 {
-                    IOptionsMonitor<TracerSettings> settings = provider.GetService<IOptionsMonitor<TracerSettings>>()!;
-                    string tracerServiceName = settings.CurrentValue.TracerServiceName ?? "UnrealCloudDDC";
-
-                    builder.AddSource(tracerServiceName, "ScyllaDB");
-
-                    builder.SetResourceBuilder(ResourceBuilder.CreateEmpty()
-                        .AddService(tracerServiceName, serviceNamespace: "Jupiter", serviceVersion: settings.CurrentValue.TracerServiceVersion)
-                        .AddEnvironmentVariableDetector()
-                    );
+                    resourceBuilder.AddService("UnrealCloudDDC", serviceNamespace: "Jupiter", serviceVersion: otelServiceVersion);
+                    resourceBuilder.AddEnvironmentVariableDetector();
                 });
+
+                builder.AddSource("UnrealCloudDDC", "ScyllaDB");
             });
             services.Configure<OpenTelemetryLoggerOptions>(opt =>
             {
@@ -679,12 +671,6 @@ namespace Jupiter
         [Required]
         [Key]
         public string CurrentSite { get; set; } = "";
-    }
-
-    public class TracerSettings
-    {
-        public string? TracerServiceName { get; set; } = null;
-        public string? TracerServiceVersion { get; set; } = null;
     }
 
     public class NamespaceSettings

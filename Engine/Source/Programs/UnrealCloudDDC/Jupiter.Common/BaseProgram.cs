@@ -6,9 +6,6 @@ using System.IO;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using OpenTelemetry.Trace;
-using OpenTracing;
-using OpenTracing.Util;
 using Serilog;
 using Serilog.Core;
 
