@@ -156,7 +156,10 @@ float ComputeFilmGrainIntensity(float3 LinearColorRGBGamut)
 #endif 
 SamplerState        ColorGradingLUTSampler;
 
-static const float LUTSize = 32;
+float LUTSize;
+float InvLUTSize; // 1 / LUTSize
+float LUTScale; // (LUTSize - 1) / LUTSize
+float LUTOffset; // 0.5 / LUTSize
 
 half3 ColorLookupTable( half3 LinearColor )
 {
@@ -171,12 +174,12 @@ half3 ColorLookupTable( half3 LinearColor )
 
 	#endif
 
-	float3 UVW = LUTEncodedColor * ((LUTSize - 1) / LUTSize) + (0.5f / LUTSize);
+	float3 UVW = LUTEncodedColor * LUTScale + LUTOffset;
 
 #if USE_VOLUME_LUT == 1
 	half3 OutDeviceColor = Texture3DSample( ColorGradingLUT, ColorGradingLUTSampler, UVW ).rgb;
 #else
-	half3 OutDeviceColor = UnwrappedTexture3DSample( ColorGradingLUT, ColorGradingLUTSampler, UVW, LUTSize ).rgb;
+	half3 OutDeviceColor = UnwrappedTexture3DSample( ColorGradingLUT, ColorGradingLUTSampler, UVW, LUTSize, InvLUTSize ).rgb;
 #endif
 	
 	return OutDeviceColor * 1.05;

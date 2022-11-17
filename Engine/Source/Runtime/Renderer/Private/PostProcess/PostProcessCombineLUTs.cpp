@@ -30,10 +30,9 @@ TAutoConsoleVariable<float> CVarColorMax(
 	TEXT("Value should be around 1, smaller values darken the highlights, larger values move more colors towards white, Default: 1"),
 	ECVF_RenderThreadSafe);
 
-int32 GLUTSize = 32;
-FAutoConsoleVariableRef CVarLUTSize(
+TAutoConsoleVariable<int32> CVarLUTSize(
 	TEXT("r.LUT.Size"),
-	GLUTSize,
+	32,
 	TEXT("Size of film LUT"),
 	ECVF_RenderThreadSafe);
 
@@ -65,7 +64,7 @@ struct FColorTransform
 };
 } //! namespace
 
-// false:use 256x16 texture / true:use volume texture (faster, requires geometry shader)
+// false:use 1024x32 texture / true:use volume texture (faster, requires geometry shader)
 // USE_VOLUME_LUT: needs to be the same for C++ and HLSL.
 // Safe to use at pipeline and run time.
 bool PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(EShaderPlatform Platform)
@@ -131,6 +130,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCombineLUTParameters, )
 	SHADER_PARAMETER(FVector4f, ColorGammaHighlights)
 	SHADER_PARAMETER(FVector4f, ColorGainHighlights)
 	SHADER_PARAMETER(FVector4f, ColorOffsetHighlights)
+	SHADER_PARAMETER(float, LUTSize)
 	SHADER_PARAMETER(float, WhiteTemp)
 	SHADER_PARAMETER(float, WhiteTint)
 	SHADER_PARAMETER(float, ColorCorrectionShadowsMax)
@@ -192,6 +192,7 @@ void GetCombineLUTParameters(
 
 	// White balance
 	Parameters.bIsTemperatureWhiteBalance = Settings.TemperatureType == ETemperatureMethod::TEMP_WhiteBalance;
+	Parameters.LUTSize = (float)CVarLUTSize->GetInt();
 	Parameters.WhiteTemp = Settings.WhiteTemp;
 	Parameters.WhiteTint = Settings.WhiteTint;
 
@@ -427,8 +428,9 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 	const bool bUseFloatOutput = ViewFamily.SceneCaptureSource == SCS_FinalColorHDR || ViewFamily.SceneCaptureSource == SCS_FinalToneCurveHDR;
 
 	// Attempt to register the persistent view LUT texture.
+	const int32 LUTSize = CVarLUTSize->GetInt();
 	FRDGTextureRef OutputTexture = TryRegisterExternalTexture(GraphBuilder,
-		View.GetTonemappingLUT(GraphBuilder.RHICmdList, GLUTSize, bUseVolumeTextureLUT, bUseComputePass, bUseFloatOutput));
+		View.GetTonemappingLUT(GraphBuilder.RHICmdList, LUTSize, bUseVolumeTextureLUT, bUseComputePass, bUseFloatOutput));
 
 	View.SetValidTonemappingLUT();
 
@@ -436,14 +438,14 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 	if (!OutputTexture)
 	{
 		OutputTexture = GraphBuilder.CreateTexture(
-			Translate(FSceneViewState::CreateLUTRenderTarget(GLUTSize, bUseVolumeTextureLUT, bUseComputePass, bUseFloatOutput)),
+			Translate(FSceneViewState::CreateLUTRenderTarget(LUTSize, bUseVolumeTextureLUT, bUseComputePass, bUseFloatOutput)),
 			TEXT("CombineLUT"));
 	}
 
 	check(OutputTexture);
 
-	// For a 3D texture, the viewport is 16x16 (per slice); for a 2D texture, it's unwrapped to 256x16.
-	const FIntPoint OutputViewSize(bUseVolumeTextureLUT ? GLUTSize : GLUTSize * GLUTSize, GLUTSize);
+	// For a 3D texture, the viewport defaults to 32x32 (per slice); for a 2D texture, it's unwrapped to 1024x32.
+	const FIntPoint OutputViewSize(bUseVolumeTextureLUT ? LUTSize : LUTSize * LUTSize, LUTSize);
 
 	FLUTBlenderShader::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FLUTBlenderShader::FBlendCount>(LocalCount);
@@ -468,7 +470,7 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("CombineLUTs (CS)"),
+			RDG_EVENT_NAME("CombineLUTs %d (CS)", LUTSize),
 			ComputeShader,
 			PassParameters,
 			FIntVector(GroupSizeXY, GroupSizeXY, GroupSizeZ));
@@ -485,10 +487,10 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 		TShaderMapRef<FLUTBlenderPS> PixelShader(View.ShaderMap, PermutationVector);
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("CombineLUTS (PS)"),
+			RDG_EVENT_NAME("CombineLUTS %d (PS)", LUTSize),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View, PixelShader, PassParameters, bUseVolumeTextureLUT] (FRHICommandList& RHICmdList)
+			[&View, PixelShader, PassParameters, bUseVolumeTextureLUT, LUTSize] (FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -498,7 +500,7 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 
 			if (bUseVolumeTextureLUT)
 			{
-				const FVolumeBounds VolumeBounds(GLUTSize);
+				const FVolumeBounds VolumeBounds(LUTSize);
 
 				TShaderMapRef<FWriteToSliceVS> VertexShader(View.ShaderMap);
 				TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader(View.ShaderMap);
@@ -531,11 +533,11 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 				DrawRectangle(
 					RHICmdList,
 					0, 0,										// XY
-					GLUTSize * GLUTSize, GLUTSize,				// SizeXY
+					LUTSize * LUTSize, LUTSize,				// SizeXY
 					0, 0,										// UV
-					GLUTSize * GLUTSize, GLUTSize,				// SizeUV
-					FIntPoint(GLUTSize * GLUTSize, GLUTSize),	// TargetSize
-					FIntPoint(GLUTSize * GLUTSize, GLUTSize),	// TextureSize
+					LUTSize * LUTSize, LUTSize,				// SizeUV
+					FIntPoint(LUTSize * LUTSize, LUTSize),	// TargetSize
+					FIntPoint(LUTSize * LUTSize, LUTSize),	// TextureSize
 					VertexShader,
 					EDRF_UseTriangleOptimization);
 			}

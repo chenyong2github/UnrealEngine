@@ -34,7 +34,7 @@ half4 OverlayColor;
 uint bUseMobileTonemapper;
 uint bIsTemperatureWhiteBalance;
 
-static const float LUTSize = 32;
+float LUTSize;
 
 float WhiteTemp;
 float WhiteTint;
@@ -284,19 +284,19 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 		// BLENDCOUNT is the number of LUT that are blended together including the neutral one
 	#if BLENDCOUNT >= 2
-		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 1) * UnwrappedTexture3DSample( Textures_1, Samplers_1, UVW, 16 ).rgb;
+		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 1) * UnwrappedTexture3DSample( Textures_1, Samplers_1, UVW, 16, 1 / 16.0 ).rgb;
 	#endif
 
 	#if BLENDCOUNT >= 3
-		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 2) * UnwrappedTexture3DSample( Textures_2, Samplers_2, UVW, 16 ).rgb;
+		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 2) * UnwrappedTexture3DSample( Textures_2, Samplers_2, UVW, 16, 1 / 16.0 ).rgb;
 	#endif
 
 	#if BLENDCOUNT >= 4
-		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 3) * UnwrappedTexture3DSample( Textures_3, Samplers_3, UVW, 16 ).rgb;
+		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 3) * UnwrappedTexture3DSample( Textures_3, Samplers_3, UVW, 16, 1 / 16.0 ).rgb;
 	#endif
 
 	#if BLENDCOUNT >= 5
-		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 4) * UnwrappedTexture3DSample( Textures_4, Samplers_4, UVW, 16 ).rgb;
+		GammaColor += GET_SCALAR_ARRAY_ELEMENT(LUTWeights, 4) * UnwrappedTexture3DSample( Textures_4, Samplers_4, UVW, 16, 1 / 16.0 ).rgb;
 	#endif
 
 		// Back to linear space, AP1 gamut

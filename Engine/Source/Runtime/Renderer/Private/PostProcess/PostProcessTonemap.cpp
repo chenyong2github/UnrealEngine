@@ -318,6 +318,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER(FVector4f, TonemapperParams)
 	SHADER_PARAMETER(FVector4f, LensPrincipalPointOffsetScale)
 	SHADER_PARAMETER(FVector4f, LensPrincipalPointOffsetScaleInverse)
+	SHADER_PARAMETER(float, LUTSize)
+	SHADER_PARAMETER(float, InvLUTSize)
+	SHADER_PARAMETER(float, LUTScale)
+	SHADER_PARAMETER(float, LUTOffset)
 	SHADER_PARAMETER(float, DefaultEyeExposure)
 	SHADER_PARAMETER(float, EditorNITLevel)
 	SHADER_PARAMETER(uint32, bOutputInHDR)
@@ -726,6 +730,8 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 			CommonParameters.FilmGrain.FilmGrainTextureConstants = nullptr;
 		}
 	}
+	
+	const float LUTSize = Inputs.ColorGradingTexture ? (float)Inputs.ColorGradingTexture->Desc.Extent.Y : /* unused (default): */ 32.0f;
 
 	CommonParameters.OutputDevice = GetTonemapperOutputDeviceParameters(ViewFamily);
 	CommonParameters.Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
@@ -746,6 +752,10 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	CommonParameters.DefaultEyeExposure = DefaultEyeExposure;
 	CommonParameters.EditorNITLevel = EditorNITLevel;
 	CommonParameters.bOutputInHDR = ViewFamily.bIsHDR;
+	CommonParameters.LUTSize = LUTSize;
+	CommonParameters.InvLUTSize = 1.0f / LUTSize;
+	CommonParameters.LUTScale = (LUTSize - 1.0f) / LUTSize;
+	CommonParameters.LUTOffset = 0.5f / LUTSize;
 	CommonParameters.LensPrincipalPointOffsetScale = View.LensPrincipalPointOffsetScale;
 
 	// TODO: PostProcessSettings.BloomDirtMask->GetResource() is not thread safe
