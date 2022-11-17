@@ -588,7 +588,11 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	{
 		AddDrawScreenPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("PostProcessMaterial"),
+#if RDG_EVENTS == RDG_EVENTS_NONE
+			RDG_EVENT_NAME(""),
+#else
+			FRDGEventName(*Material->GetAssetName()),
+#endif
 			View,
 			OutputViewport,
 			SceneColorViewport,
