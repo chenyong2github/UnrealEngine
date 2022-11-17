@@ -56,7 +56,7 @@ void FAudioComponentGroupDebug::DebugPrint(const UAudioComponentGroup* Component
 		return;
 	}
 	
-	if(LIKELY(PrintSoundParams <= 0 && PrintActiveSounds >= 0))
+	if(LIKELY(PrintSoundParams <= 0 && PrintActiveSounds <= 0))
 	{
 		return;
 	}
