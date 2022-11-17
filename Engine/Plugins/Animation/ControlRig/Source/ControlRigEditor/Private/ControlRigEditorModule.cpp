@@ -1175,8 +1175,9 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	}
 
-	FArrayProperty* PublicFunctionsProperty = CastField<FArrayProperty>(UControlRigBlueprint::StaticClass()->FindPropertyByName(TEXT("PublicGraphFunctions")));
-	if(PublicFunctionsProperty)
+	FArrayProperty* PublicGraphFunctionsProperty = CastField<FArrayProperty>(UControlRigBlueprint::StaticClass()->FindPropertyByName(TEXT("PublicGraphFunctions")));
+	FArrayProperty* PublicFunctionsProperty = CastField<FArrayProperty>(UControlRigBlueprint::StaticClass()->FindPropertyByName(TEXT("PublicFunctions")));
+	if(PublicGraphFunctionsProperty || PublicFunctionsProperty)
 	{
 		// find all control rigs in the project
 		TArray<FAssetData> ControlRigAssetDatas;
@@ -1197,19 +1198,34 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 			PackagesProcessed.Add(ControlRigAssetData.PackageName);
 			
 			const FString PublicFunctionsString = ControlRigAssetData.GetTagValueRef<FString>(PublicFunctionsProperty->GetFName());
-			if(PublicFunctionsString.IsEmpty())
+			const FString PublicGraphFunctionsString = ControlRigAssetData.GetTagValueRef<FString>(PublicGraphFunctionsProperty->GetFName());
+			if(PublicFunctionsString.IsEmpty() && PublicGraphFunctionsString.IsEmpty())
 			{
 				continue;
 			}
 
-			TArray<FRigVMGraphFunctionHeader> PublicFunctions;
-			PublicFunctionsProperty->ImportText_Direct(*PublicFunctionsString, &PublicFunctions, nullptr, EPropertyPortFlags::PPF_None);
-
-			for(const FRigVMGraphFunctionHeader& PublicFunction : PublicFunctions)
+			if (!PublicFunctionsString.IsEmpty())
 			{
-				UBlueprintNodeSpawner* NodeSpawner = UControlRigFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
-				check(NodeSpawner != nullptr);
-				ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
+				TArray<FControlRigPublicFunctionData> PublicFunctions;
+				PublicFunctionsProperty->ImportText_Direct(*PublicFunctionsString, &PublicFunctions, nullptr, EPropertyPortFlags::PPF_None);
+				for(const FControlRigPublicFunctionData& PublicFunction : PublicFunctions)
+				{
+					UBlueprintNodeSpawner* NodeSpawner = UControlRigFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
+					check(NodeSpawner != nullptr);
+					ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);						
+				}
+			}
+
+			if (!PublicGraphFunctionsString.IsEmpty())
+			{
+				TArray<FRigVMGraphFunctionHeader> PublicFunctions;
+				PublicGraphFunctionsProperty->ImportText_Direct(*PublicGraphFunctionsString, &PublicFunctions, nullptr, EPropertyPortFlags::PPF_None);
+				for(const FRigVMGraphFunctionHeader& PublicFunction : PublicFunctions)
+				{
+					UBlueprintNodeSpawner* NodeSpawner = UControlRigFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
+					check(NodeSpawner != nullptr);
+					ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
+				}
 			}
 		}
 	}

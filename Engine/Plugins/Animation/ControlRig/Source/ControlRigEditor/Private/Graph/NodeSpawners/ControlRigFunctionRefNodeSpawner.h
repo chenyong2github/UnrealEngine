@@ -28,20 +28,19 @@ class CONTROLRIGEDITOR_API UControlRigFunctionRefNodeSpawner : public UBlueprint
 public:
 
 	/**
-	 * Creates a new UControlRigVariableNodeSpawner, charged with spawning 
-	 * a new member-variable node
+	 * Creates a new UControlRigFunctionRefNodeSpawner, charged with spawning a function reference
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
 	static UControlRigFunctionRefNodeSpawner* CreateFromFunction(URigVMLibraryNode* InFunction);
 
 	/**
-	 * Creates a new UControlRigVariableNodeSpawner, charged with spawning 
-	 * a new member-variable node
+	 * Creates a new UControlRigFunctionRefNodeSpawner, charged with spawning a function reference
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
 	static UControlRigFunctionRefNodeSpawner* CreateFromAssetData(const FAssetData& InAssetData, const FRigVMGraphFunctionHeader& InPublicFunction);
+	static UControlRigFunctionRefNodeSpawner* CreateFromAssetData(const FAssetData& InAssetData, const FControlRigPublicFunctionData& InPublicFunction);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -64,6 +63,9 @@ private:
 	/** Marked as true for local function definitions */
 	UPROPERTY(Transient)
 	bool bIsLocalFunction;
+
+	UPROPERTY()
+	FSoftObjectPath AssetPath;
 
 	static UControlRigGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, FRigVMGraphFunctionHeader& InFunction, FVector2D const Location);
 

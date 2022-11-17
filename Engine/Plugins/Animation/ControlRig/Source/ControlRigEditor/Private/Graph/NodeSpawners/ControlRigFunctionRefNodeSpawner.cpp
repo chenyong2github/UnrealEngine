@@ -132,6 +132,69 @@ UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFrom
 	return NodeSpawner;
 }
 
+UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFromAssetData(const FAssetData& InAssetData, const FControlRigPublicFunctionData& InPublicFunction)
+{
+	UControlRigFunctionRefNodeSpawner* NodeSpawner = NewObject<UControlRigFunctionRefNodeSpawner>(GetTransientPackage());
+	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
+	NodeSpawner->bIsLocalFunction = false;
+
+	NodeSpawner->ReferencedPublicFunctionHeader.Name = InPublicFunction.Name;
+	NodeSpawner->AssetPath = InAssetData.ToSoftObjectPath();
+
+	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
+
+	const FString Category = InPublicFunction.Category;
+
+	MenuSignature.MenuName = FText::FromName(InPublicFunction.Name);
+	MenuSignature.Category = FText::FromString(Category);
+	MenuSignature.Keywords = FText::FromString(InPublicFunction.Keywords);
+
+	if(const UControlRigBlueprint* ReferencedBlueprint = Cast<UControlRigBlueprint>(InAssetData.FastGetAsset(false)))
+	{
+		if(const URigVMFunctionLibrary* FunctionLibrary = ReferencedBlueprint->GetLocalFunctionLibrary())
+		{
+			if(const URigVMLibraryNode* FunctionNode = FunctionLibrary->FindFunction(InPublicFunction.Name))
+			{
+				MenuSignature.Tooltip = FunctionNode->GetToolTipText();
+			}
+		}
+	}
+
+	const FString ObjectPathString = InAssetData.GetObjectPathString();
+	if(MenuSignature.Tooltip.IsEmpty())
+	{
+		MenuSignature.Tooltip = FText::FromString(ObjectPathString);
+	}
+	else
+	{
+		static constexpr TCHAR Format[] = TEXT("%s\n\n%s");
+		MenuSignature.Tooltip = FText::FromString(FString::Printf(Format, *MenuSignature.Tooltip.ToString(), *ObjectPathString));
+	}
+
+	// add at least one character, so that PrimeDefaultUiSpec() doesn't 
+	// attempt to query the template node
+	if (MenuSignature.Keywords.IsEmpty())
+	{
+		// want to set it to something so we won't end up back in this condition
+		MenuSignature.Keywords = FText::FromString(TEXT(" "));
+	}
+
+	MenuSignature.Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.AllClasses.FunctionIcon");
+
+#if WITH_EDITOR
+	if (InPublicFunction.IsMutable())
+	{
+		MenuSignature.IconTint = GetDefault<UGraphEditorSettings>()->FunctionCallNodeTitleColor;
+	}
+	else
+	{
+		MenuSignature.IconTint = GetDefault<UGraphEditorSettings>()->PureFunctionCallNodeTitleColor;
+	}
+#endif
+	
+	return NodeSpawner;
+}
+
 void UControlRigFunctionRefNodeSpawner::Prime()
 {
 	// we expect that you don't need a node template to construct menu entries
@@ -141,11 +204,24 @@ void UControlRigFunctionRefNodeSpawner::Prime()
 FBlueprintNodeSignature UControlRigFunctionRefNodeSpawner::GetSpawnerSignature() const
 {
 	FString SignatureString = TEXT("Invalid RigFunction");
-	if (!ReferencedPublicFunctionHeader.IsValid())
+	if (ReferencedPublicFunctionHeader.IsValid())
 	{
 		SignatureString = 
 			FString::Printf(TEXT("RigFunction=%s"),
 			*ReferencedPublicFunctionHeader.GetHash());
+	}
+	else if (ReferencedFunctionPtr.IsValid())
+	{
+		SignatureString = 
+			FString::Printf(TEXT("RigFunction=%s"),
+			*ReferencedFunctionPtr->GetPathName());
+	}
+	else
+	{
+		SignatureString = 
+			FString::Printf(TEXT("RigFunction=%s:%s"),
+			*AssetPath.ToString(),
+			*ReferencedPublicFunctionHeader.Name.ToString());
 	}
 
 	if(bIsLocalFunction)
@@ -169,6 +245,14 @@ UEdGraphNode* UControlRigFunctionRefNodeSpawner::Invoke(UEdGraph* ParentGraph, F
 {
 	UControlRigGraphNode* NewNode = nullptr;
 
+	if (!ReferencedPublicFunctionHeader.IsValid() && !ReferencedFunctionPtr.IsValid() && AssetPath.IsValid())
+	{
+		if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(AssetPath.TryLoad()))
+		{
+			ReferencedFunctionPtr = Blueprint->GetLocalFunctionLibrary()->FindFunction(ReferencedPublicFunctionHeader.Name);			
+		}
+	}
+	
 	if (!ReferencedFunctionPtr.ToString().IsEmpty())
 	{
 		if (URigVMLibraryNode* LibraryNode = ReferencedFunctionPtr.LoadSynchronous())
