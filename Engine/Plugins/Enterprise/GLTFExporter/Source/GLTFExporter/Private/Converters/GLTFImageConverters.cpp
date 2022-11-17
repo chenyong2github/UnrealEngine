@@ -5,11 +5,11 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Misc/FileHelper.h"
 
-FGLTFJsonImage* FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name, EGLTFTextureType Type, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels)
+FGLTFJsonImage* FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels)
 {
 	const TSharedPtr<FGLTFMemoryArchive> CompressedData = MakeShared<FGLTFMemoryArchive>();
 
-	const EGLTFJsonMimeType MimeType = GetMimeType(Pixels->GetData(), Size, bIgnoreAlpha, Type);
+	const EGLTFJsonMimeType MimeType = GetMimeType(Pixels->GetData(), Size, bIgnoreAlpha);
 	switch (MimeType)
 	{
 		case EGLTFJsonMimeType::None:
@@ -45,24 +45,15 @@ FGLTFJsonImage* FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name, EGL
 	return JsonImage;
 }
 
-EGLTFJsonMimeType FGLTFImageConverter::GetMimeType(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type) const
+EGLTFJsonMimeType FGLTFImageConverter::GetMimeType(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha) const
 {
 	switch (Builder.ExportOptions->TextureImageFormat)
 	{
-		case EGLTFTextureImageFormat::None:
-			return EGLTFJsonMimeType::None;
-
-		case EGLTFTextureImageFormat::PNG:
-			return EGLTFJsonMimeType::PNG;
-
-		case EGLTFTextureImageFormat::JPEG:
-			return
-				(Type == EGLTFTextureType::None || !EnumHasAllFlags(static_cast<EGLTFTextureType>(Builder.ExportOptions->NoLossyImageFormatFor), Type)) &&
-				(bIgnoreAlpha || FGLTFImageUtility::NoAlphaNeeded(Pixels, Size)) ?
-				EGLTFJsonMimeType::JPEG : EGLTFJsonMimeType::PNG;
-
+		case EGLTFTextureImageFormat::None: return EGLTFJsonMimeType::None;
+		case EGLTFTextureImageFormat::PNG: return EGLTFJsonMimeType::PNG;
+		case EGLTFTextureImageFormat::JPEG: return bIgnoreAlpha || FGLTFImageUtility::NoAlphaNeeded(Pixels, Size) ? EGLTFJsonMimeType::JPEG : EGLTFJsonMimeType::PNG;
 		default:
 			checkNoEntry();
-		return EGLTFJsonMimeType::None;
+			return EGLTFJsonMimeType::None;
 	}
 }

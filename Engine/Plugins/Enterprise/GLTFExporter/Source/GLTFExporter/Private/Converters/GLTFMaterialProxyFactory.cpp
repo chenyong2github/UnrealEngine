@@ -269,13 +269,13 @@ TUniquePtr<IGLTFImageConverter> FGLTFMaterialProxyFactory::CreateImageConverter(
 
 	protected:
 
-		virtual FGLTFJsonImage* Convert(TGLTFSuperfluous<FString> Name, EGLTFTextureType Type, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels) override
+		virtual FGLTFJsonImage* Convert(TGLTFSuperfluous<FString> Name, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels) override
 		{
 			const FString Filename = FGLTFImageUtility::GetUniqueFilename(Name, TEXT(""), UniqueFilenames);
 			UniqueFilenames.Add(Filename);
 
 			FGLTFJsonImage* Image = Factory.Builder.AddImage();
-			Factory.Images.Add(Image, { Filename, Type, bIgnoreAlpha, Size, Pixels });
+			Factory.Images.Add(Image, { Filename, bIgnoreAlpha, Size, Pixels });
 			return Image;
 		}
 	};

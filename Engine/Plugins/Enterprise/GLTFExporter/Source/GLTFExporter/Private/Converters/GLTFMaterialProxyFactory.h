@@ -27,7 +27,6 @@ private:
 	struct FGLTFImageData
 	{
 		FString Filename;
-		EGLTFTextureType Type;
 		bool bIgnoreAlpha;
 		FIntPoint Size;
 		TGLTFSharedArray<FColor> Pixels;

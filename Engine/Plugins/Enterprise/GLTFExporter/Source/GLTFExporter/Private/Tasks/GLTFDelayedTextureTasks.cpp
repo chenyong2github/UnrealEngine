@@ -45,9 +45,8 @@ void FGLTFDelayedTexture2DTask::Process()
 	FGLTFTextureUtility::TransformColorSpace(*Pixels, bFromSRGB, bToSRGB);
 
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(Texture2D->GetPixelFormat());
-	const EGLTFTextureType Type = Texture2D->IsNormalMap() ? EGLTFTextureType::Normalmaps : EGLTFTextureType::None;
 
-	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, JsonTexture->Name);
 	JsonTexture->Sampler = Builder.AddUniqueSampler(Texture2D);
 }
 
@@ -67,9 +66,6 @@ void FGLTFDelayedTextureRenderTarget2DTask::Process()
 		JsonTexture->Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
 	}
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTarget2D);
-	const FIntPoint Size = { RenderTarget2D->SizeX, RenderTarget2D->SizeY };
-
 	TGLTFSharedArray<FColor> Pixels;
 	if (!FGLTFTextureUtility::ReadPixels(RenderTarget2D, *Pixels))
 	{
@@ -79,9 +75,9 @@ void FGLTFDelayedTextureRenderTarget2DTask::Process()
 
 	FGLTFTextureUtility::TransformColorSpace(*Pixels, bFromSRGB, bToSRGB);
 
+	const FIntPoint Size = { RenderTarget2D->SizeX, RenderTarget2D->SizeY };
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTarget2D->GetFormat());
-	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
-	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, JsonTexture->Name);
 	JsonTexture->Sampler = Builder.AddUniqueSampler(RenderTarget2D);
 }

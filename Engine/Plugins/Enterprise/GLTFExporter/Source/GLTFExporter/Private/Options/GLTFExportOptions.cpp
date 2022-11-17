@@ -30,7 +30,6 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportAnimationSequences = true;
 	TextureImageFormat = EGLTFTextureImageFormat::PNG;
 	TextureImageQuality = 0;
-	NoLossyImageFormatFor = static_cast<int32>(EGLTFTextureType::All);
 	bExportTextureTransforms = true;
 	bAdjustNormalmaps = true;
 	bExportHiddenInGame = false;

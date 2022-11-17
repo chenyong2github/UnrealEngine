@@ -18,19 +18,6 @@ enum class EGLTFTextureImageFormat : uint8
 };
 
 UENUM(BlueprintType, Meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
-enum class EGLTFTextureType : uint8
-{
-	None = 0 UMETA(Hidden),
-
-	HDR = 1 << 0,
-	Normalmaps = 1 << 1,
-	Lightmaps = 1 << 2,
-
-	All = HDR | Normalmaps | Lightmaps UMETA(Hidden)
-};
-ENUM_CLASS_FLAGS(EGLTFTextureType);
-
-UENUM(BlueprintType, Meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EGLTFSceneMobility : uint8
 {
 	None = 0 UMETA(Hidden),
