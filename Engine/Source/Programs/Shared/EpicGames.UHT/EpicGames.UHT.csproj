@@ -12,7 +12,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <DebugType Condition="'$(OS)' != 'Windows_NT' or '$(PROCESSOR_ARCHITECTURE)' != 'ARM64'">pdbonly</DebugType> <!-- https://github.com/dotnet/roslyn/issues/59421 -->
+    <DebugType>pdbonly</DebugType>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <ProduceReferenceAssemblyInOutDir>true</ProduceReferenceAssemblyInOutDir>
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>

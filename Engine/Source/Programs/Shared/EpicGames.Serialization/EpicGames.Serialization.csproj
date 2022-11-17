@@ -9,7 +9,7 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <Configurations>Debug;Release;Development;Analyze</Configurations>
     <Nullable>enable</Nullable>
-    <DebugType Condition="'$(OS)' != 'Windows_NT' or '$(PROCESSOR_ARCHITECTURE)' != 'ARM64'">pdbonly</DebugType> <!-- https://github.com/dotnet/roslyn/issues/59421 -->
+    <DebugType>pdbonly</DebugType>
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">

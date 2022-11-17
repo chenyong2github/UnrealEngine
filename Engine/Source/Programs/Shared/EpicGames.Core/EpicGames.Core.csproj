@@ -10,7 +10,7 @@
     <Configurations>Debug;Release;Development;Analyze</Configurations>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DebugType Condition="'$(OS)' != 'Windows_NT' or '$(PROCESSOR_ARCHITECTURE)' != 'ARM64'">pdbonly</DebugType>
+    <DebugType>pdbonly</DebugType>
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">

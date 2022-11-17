@@ -9,7 +9,8 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <Configurations>Debug;Release;Development</Configurations>
     <Nullable>enable</Nullable>
-    <DebugType Condition="'$(OS)' != 'Windows_NT' or '$(PROCESSOR_ARCHITECTURE)' != 'ARM64'">pdbonly</DebugType>
+    <DebugType>full</DebugType>
+    <DebugType>pdbonly</DebugType>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DocumentationFile></DocumentationFile>
