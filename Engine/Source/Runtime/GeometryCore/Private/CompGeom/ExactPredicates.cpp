@@ -19,104 +19,104 @@ void GlobalInit()
 	ShewchukExactPredicatesFloat::exactinit();
 }
 
-double Orient2DInexact(double* pa, double* pb, double* pc)
+double Orient2DInexact(const double* pa, const double* pb, const double* pc)
 {
 	return ShewchukExactPredicates::orient2dfast(pa, pb, pc);
 }
 
-double Orient2D(double* pa, double* pb, double* pc)
+double Orient2D(const double* pa, const double* pb, const double* pc)
 {
 	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicates::orient2d(pa, pb, pc);
 }
 
-double Orient3DInexact(double* PA, double* PB, double* PC, double* PD)
+double Orient3DInexact(const double* PA, const double* PB, const double* PC, const double* PD)
 {
 	return ShewchukExactPredicates::orient3dfast(PA, PB, PC, PD);
 }
 
-double Orient3D(double* PA, double* PB, double* PC, double* PD)
+double Orient3D(const double* PA, const double* PB, const double* PC, const double* PD)
 {
 	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicates::orient3d(PA, PB, PC, PD);
 }
 
-double Facing3D(double* PA, double* PB, double* PC, double* Direction)
+double Facing3D(const double* PA, const double* PB, const double* PC, const double* Direction)
 {
 	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicates::facing3d(PA, PB, PC, Direction);
 }
 
-double Facing2D(double* PA, double* PB, double* Direction)
+double Facing2D(const double* PA, const double* PB, const double* Direction)
 {
 	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicates::facing2d(PA, PB, Direction);
 }
 
-double InCircleInexact(double* PA, double* PB, double* PC, double* PD)
+double InCircleInexact(const double* PA, const double* PB, const double* PC, const double* PD)
 {
 	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicates::incirclefast(PA, PB, PC, PD);
 }
 
-double InCircle(double* PA, double* PB, double* PC, double* PD)
+double InCircle(const double* PA, const double* PB, const double* PC, const double* PD)
 {
 	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicates::incircle(PA, PB, PC, PD);
 }
 
-double InSphereInexact(double* PA, double* PB, double* PC, double* PD, double* PE)
+double InSphereInexact(const double* PA, const double* PB, const double* PC, const double* PD, const double* PE)
 {
 	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicates::inspherefast(PA, PB, PC, PD, PE);
 }
-double InSphere(double* PA, double* PB, double* PC, double* PD, double* PE)
+double InSphere(const double* PA, const double* PB, const double* PC, const double* PD, const double* PE)
 {
 	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicates::insphere(PA, PB, PC, PD, PE);
 }
 
-float Orient2DInexact(float* pa, float* pb, float* pc)
+float Orient2DInexact(const float* pa, const float* pb, const float* pc)
 {
 	return ShewchukExactPredicatesFloat::orient2dfast(pa, pb, pc);
 }
 
-float Orient2D(float* pa, float* pb, float* pc)
+float Orient2D(const float* pa, const float* pb, const float* pc)
 {
 	checkSlow(ShewchukExactPredicatesFloat::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicatesFloat::orient2d(pa, pb, pc);
 }
 
-float Orient3DInexact(float* PA, float* PB, float* PC, float* PD)
+float Orient3DInexact(const float* PA, const float* PB, const float* PC, const float* PD)
 {
 	return ShewchukExactPredicatesFloat::orient3dfast(PA, PB, PC, PD);
 }
 
-float Orient3D(float* PA, float* PB, float* PC, float* PD)
+float Orient3D(const float* PA, const float* PB, const float* PC, const float* PD)
 {
 	checkSlow(ShewchukExactPredicatesFloat::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicatesFloat::orient3d(PA, PB, PC, PD);
 }
 
-float Facing3D(float* PA, float* PB, float* PC, float* Direction)
+float Facing3D(const float* PA, const float* PB, const float* PC, const float* Direction)
 {
 	checkSlow(ShewchukExactPredicatesFloat::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicatesFloat::facing3d(PA, PB, PC, Direction);
 }
 
-float Facing2D(float* PA, float* PB, float* Direction)
+float Facing2D(const float* PA, const float* PB, const float* Direction)
 {
 	checkSlow(ShewchukExactPredicatesFloat::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicatesFloat::facing2d(PA, PB, Direction);
 }
 
-float InCircleInexact(float* PA, float* PB, float* PC, float* PD)
+float InCircleInexact(const float* PA, const float* PB, const float* PC, const float* PD)
 {
 	checkSlow(ShewchukExactPredicatesFloat::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicatesFloat::incirclefast(PA, PB, PC, PD);
 }
 
-float InCircle(float* PA, float* PB, float* PC, float* PD)
+float InCircle(const float* PA, const float* PB, const float* PC, const float* PD)
 {
 	checkSlow(ShewchukExactPredicatesFloat::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicatesFloat::incircle(PA, PB, PC, PD);

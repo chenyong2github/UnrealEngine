@@ -15,16 +15,16 @@ namespace ShewchukExactPredicates
 	/** must be called before running any exact predicate function.  called by module startup. */
 	void exactinit();
 
-	double orient2dfast(double* pa, double* pb, double* pc);
-	double orient2d(double* pa, double* pb, double* pc);
-	double orient3dfast(double* pa, double* pb, double* pc, double* pd);
-	double orient3d(double* pa, double* pb, double* pc, double* pd);
-	double facing3d(double* pa, double* pb, double* pc, double* dir);
-	double facing2d(double* pa, double* pb, double* dir);
-	double incirclefast(double* pa, double* pb, double* pc, double* pd);
-	double incircle(double* pa, double* pb, double* pc, double* pd);
-	double inspherefast(double* pa, double* pb, double* pc, double* pd, double* pe);
-	double insphere(double* pa, double* pb, double* pc, double* pd, double* pe);
+	double orient2dfast(const double* pa, const double* pb, const double* pc);
+	double orient2d(const double* pa, const double* pb, const double* pc);
+	double orient3dfast(const double* pa, const double* pb, const double* pc, const double* pd);
+	double orient3d(const double* pa, const double* pb, const double* pc, const double* pd);
+	double facing3d(const double* pa, const double* pb, const double* pc, const double* dir);
+	double facing2d(const double* pa, const double* pb, const double* dir);
+	double incirclefast(const double* pa, const double* pb, const double* pc, const double* pd);
+	double incircle(const double* pa, const double* pb, const double* pc, const double* pd);
+	double inspherefast(const double* pa, const double* pb, const double* pc, const double* pd, const double* pe);
+	double insphere(const double* pa, const double* pb, const double* pc, const double* pd, const double* pe);
 } // namespace ExactPredicates
 
 namespace ShewchukExactPredicatesFloat
@@ -35,14 +35,14 @@ namespace ShewchukExactPredicatesFloat
 	/** must be called before running any exact predicate function.  called by module startup. */
 	void exactinit();
 
-	float orient2dfast(float* pa, float* pb, float* pc);
-	float orient2d(float* pa, float* pb, float* pc);
-	float orient3dfast(float* pa, float* pb, float* pc, float* pd);
-	float orient3d(float* pa, float* pb, float* pc, float* pd);
-	float facing3d(float* pa, float* pb, float* pc, float* dir);
-	float facing2d(float* pa, float* pb, float* dir);
-	float incirclefast(float* pa, float* pb, float* pc, float* pd);
-	float incircle(float* pa, float* pb, float* pc, float* pd);
-	float inspherefast(float* pa, float* pb, float* pc, float* pd, float* pe);
-	float insphere(float* pa, float* pb, float* pc, float* pd, float* pe);
+	float orient2dfast(const float* pa, const float* pb, const float* pc);
+	float orient2d(const float* pa, const float* pb, const float* pc);
+	float orient3dfast(const float* pa, const float* pb, const float* pc, const float* pd);
+	float orient3d(const float* pa, const float* pb, const float* pc, const float* pd);
+	float facing3d(const float* pa, const float* pb, const float* pc, const float* dir);
+	float facing2d(const float* pa, const float* pb, const float* dir);
+	float incirclefast(const float* pa, const float* pb, const float* pc, const float* pd);
+	float incircle(const float* pa, const float* pb, const float* pc, const float* pd);
+	float inspherefast(const float* pa, const float* pb, const float* pc, const float* pd, const float* pe);
+	float insphere(const float* pa, const float* pb, const float* pc, const float* pd, const float* pe);
 } // namespace ExactPredicatesFloat
