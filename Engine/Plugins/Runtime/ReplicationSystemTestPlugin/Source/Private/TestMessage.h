@@ -9,6 +9,11 @@
 
 namespace UE::Net
 {
+	class FNetHandle;
+}
+
+namespace UE::Net
+{
 
 class FTestMessage
 {
@@ -19,6 +24,7 @@ public:
 	inline FTestMessage& operator<<(const FString& InString) { String.Append(InString); return *this; }
 	inline FTestMessage& operator<<(const TCHAR* InString) { String.Append(InString); return *this; }
 	inline FTestMessage& operator<<(TCHAR Char) { String.AppendChar(Char); return *this; }
+	inline FTestMessage& operator<<(FStringBuilderBase& StringBuilder) { String.Append(StringBuilder); return *this; }
 
 	inline FTestMessage& operator<<(const FTestMessage& Message) { String.Append(Message.String); return *this; }
 
@@ -33,7 +39,7 @@ inline FTestMessage& operator<<(FTestMessage& Message, int Value)
 
 inline FTestMessage& operator<<(FTestMessage& Message, unsigned Value)
 {
-	return Message << TStringBuilder<32>().Appendf(TEXT("%u"), Value).ToString();
+	return Message << TStringBuilder<32>().Appendf(TEXT("%u"), Value);
 }
 
 inline FTestMessage& operator<<(FTestMessage& Message, int8 Value)
@@ -124,6 +130,8 @@ inline FTestMessage& operator<<(FTestMessage& Message, const FVector& Vector)
 {
 	return Message << Vector.ToString();
 }
+
+FTestMessage& operator<<(FTestMessage& Message, const FNetHandle& NetHandle);
 
 #if defined(_WIN32) && !defined(_WIN64)
 inline FTestMessage& operator<<(FTestMessage& Message, SIZE_T Value)

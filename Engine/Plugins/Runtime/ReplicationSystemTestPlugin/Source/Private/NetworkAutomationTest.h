@@ -4,7 +4,6 @@
 
 #include "CoreTypes.h"
 #include "Misc/AutomationTest.h"
-#include "ReplicationSystemTestPlugin/NetworkAutomationTest.h"
 
 namespace UE::Net
 {
