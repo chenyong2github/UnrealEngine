@@ -225,7 +225,7 @@ bool FWorldConditionQueryDefinition::Initialize()
 	}
 	if (ValidConditions.IsEmpty())
 	{
-		UE_LOG(LogWorldCondition, Error, TEXT("World condition requires at least one valid condition."));
+		UE_LOG(LogWorldCondition, Log, TEXT("World condition requires at least one valid condition."));
 		return false;
 	}
 	
