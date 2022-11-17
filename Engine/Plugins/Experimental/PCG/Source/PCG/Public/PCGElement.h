@@ -5,6 +5,7 @@
 #include "Templates/SharedPointer.h"
 #include "PCGContext.h"
 #include "PCGData.h"
+#include "Math/NumericLimits.h"
 
 class IPCGElement;
 class UPCGComponent;
@@ -54,8 +55,20 @@ public:
 
 	/** Note: the following methods must be called from the main thread */
 #if WITH_EDITOR
+	struct FCallTime
+	{
+		// sum of all frames
+		double ExecutionTime = 0;
+		// how many frames
+		int32 ExecutionFrameCount = 0;
+		double MinExecutionFrameTime = MAX_dbl;
+		double MaxExecutionFrameTime = 0.0;
+		double PrepareDataTime = 0.0;
+		double PostExecuteTime = 0.0;
+	};
+
 	void DebugDisplay(FPCGContext* Context) const;
-	const TArray<double>& GetTimers() const { return Timers; }
+	const TArray<FCallTime>& GetTimers() const { return Timers; }
 	void ResetTimers();
 #endif
 
@@ -90,13 +103,15 @@ private:
 		const IPCGElement& Owner;
 		FPCGContext* Context;
 		double StartTime;
+		EPCGExecutionPhase Phase;
 	};
 
 	// Set mutable because we need to modify them in the execute call, which is const
 	// TODO: Should be a map with PCG Components. We need a mechanism to make sure that this map is cleaned up when component doesn't exist anymore.
 	// For now, it will track all calls to execute (excluding call where the result is already in cache).
-	mutable TArray<double> Timers;
-	mutable int CurrentTimerIndex = 0;
+	mutable TArray<FCallTime> Timers;
+	mutable int32 CurrentTimerIndex = 0;
+
 	// Perhaps overkill but there is a slight chance that we need to protect the timers array. If we call reset from the UI while an element is executing,
 	// it could crash while writing to the timers array.
 	mutable FCriticalSection TimersLock;
@@ -104,6 +119,7 @@ private:
 	struct FScopedCallTimer
 	{
 		FScopedCallTimer(const IPCGElement& InOwner, FPCGContext* InContext) {}
+		void AdvanceTimerIndex() {}
 	};
 #endif // WITH_EDITOR
 };
