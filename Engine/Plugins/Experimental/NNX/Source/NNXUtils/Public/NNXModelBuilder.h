@@ -52,7 +52,7 @@ public:
 	virtual bool End(TArray<uint8>& Data) = 0;
 
 	/** Add tensor */
-	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape) = 0;
+	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape, const void* Data = nullptr, uint64 DataSize = 0) = 0;
 
 	/** Add model input */
 	virtual bool AddInput(HTensor InTensor) = 0;

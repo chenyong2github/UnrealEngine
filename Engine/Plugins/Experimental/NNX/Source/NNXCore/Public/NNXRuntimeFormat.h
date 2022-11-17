@@ -68,23 +68,6 @@ struct FMLFormatOperatorDesc
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	TArray<FMLFormatAttributeDesc> Attributes;
-
-	//UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	//FString InstanceName;		//!< For example "Relu1"
-
-	/*
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	uint32 InTensorStart;
-
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	uint32 InTensorCount;
-
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	uint32 OutTensorStart;
-
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	uint32 OutTensorCount;
-	*/
 };
 
 USTRUCT()

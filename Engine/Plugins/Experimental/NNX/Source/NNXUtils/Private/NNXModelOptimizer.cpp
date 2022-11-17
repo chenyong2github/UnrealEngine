@@ -530,6 +530,8 @@ private:
 		}
 
 		// Traverse all the nodes get their inputs, outputs and tensor data
+		TArray<uint8> TensorDataBlob;
+
 		for (int Idx = 0; Idx < GraphInfo.nodeCount; ++Idx)
 		{
 			Ort::GraphNode		Node = Graph->GetNode(Idx);
@@ -576,22 +578,33 @@ private:
 			for (int InIdx = 0; InIdx < NodeInfo.inputCount; ++InIdx)
 			{
 				Ort::GraphTensorInfo		TensorInfo = Graph->GetNodeInput(Node, InIdx);
-				Ort::GraphTensorInitializer	Init = Graph->GetTensorInitializer(TensorInfo.name);
+				Ort::GraphTensorInitializer	TensorInit = Graph->GetTensorInitializer(TensorInfo.name);
 				EMLTensorDataType			DataType = GetDataTypeFromGraphTensor(TensorInfo.dataType);
 				const void*					Data = nullptr;
 				uint64						DataSize = 0;
 
-				// TODO: Use tensor initializer data
-				if (!Init)
+				if (TensorInit)
 				{
-					 
+					DataSize = Graph->GetTensorDataSize(TensorInit);
+
+					if (DataSize)
+					{
+						if (TensorDataBlob.Num() < DataSize)
+						{
+							TensorDataBlob.SetNumUninitialized(DataSize);
+						}
+
+						Graph->GetTensorData(TensorInit, TensorDataBlob.GetData(), DataSize, 0);
+						Data = TensorDataBlob.GetData();
+					}
 				}
-				
+
 				auto Tensor =
 					Builder->AddTensor(
 						ANSI_TO_TCHAR(TensorInfo.name),
 						DataType,
-						MakeArrayView(TensorInfo.shape, TensorInfo.shapeLen)
+						MakeArrayView(TensorInfo.shape, TensorInfo.shapeLen),
+						Data, DataSize
 					);
 
 				Builder->AddOperatorInput(Op, Tensor);
@@ -612,14 +625,6 @@ private:
 				Builder->AddOperatorOutput(Op, Tensor);
 			}
 		}
-
-		//// Traverse all tensor initializers
-		//for (int Idx = 0; Idx < GraphInfo.tensorInitializerCount; ++Idx)
-		//{
-		//	Ort::GraphTensorInitializer TensorInit = Graph->GetTensorInitializer(Idx);
-
-		//	Builder.AddTensor();
-		//}
 
 		return Builder->End(NNXData);
 	}

@@ -109,7 +109,7 @@ public:
 		return !Data.IsEmpty();
 	}
 
-	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape)
+	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape, const void* Data, uint64 DataSize)
 	{
 		TArray<int32, TInlineAllocator<FTensorShape::MaxRank>> NNIShape;
 		for (int i = 0; i < Shape.Num(); ++i)
@@ -118,8 +118,8 @@ public:
 			NNIShape.Emplace(Shape[i] == 0 ? -1 : Shape[i]);
 		}
 		
-		int Idx = AddTensor(Name, NNIShape, DataType, EMLFormatTensorType::None);
-		
+		int Idx = AddTensor(Name, NNIShape, DataType, Data, DataSize);
+
 		return MakeTensorHandle(reinterpret_cast<void*>((int64) Idx));
 	}
 
@@ -239,7 +239,7 @@ public:
 
 private:
 
-	int AddTensor(const FString& InName, TArrayView<const int32> InShape, EMLTensorDataType InDataType, EMLFormatTensorType InType)
+	int AddTensor(const FString& InName, TArrayView<const int32> InShape, EMLTensorDataType InDataType, const void* Data, uint64 DataSize)
 	{
 		int Idx = -1;
 
@@ -255,10 +255,21 @@ private:
 
 			Desc.Name = InName;
 			Desc.Shape = InShape;
-			Desc.Type = InType;
+			Desc.Type = EMLFormatTensorType::None;
 			Desc.DataType = InDataType;
-			Desc.DataOffset = 0;
-			Desc.DataSize = 0;
+			
+			if (Data)
+			{
+				Desc.DataOffset = Format.TensorData.AddUninitialized(DataSize);
+				Desc.DataSize = DataSize;
+
+				FMemory::Memcpy(Format.TensorData.GetData() + Desc.DataOffset, Data, DataSize);
+			}
+			else
+			{
+				Desc.DataOffset = 0;
+				Desc.DataSize = 0;
+			}
 
 			Format.Tensors.Add(Desc);
 			Idx = Format.Tensors.Num() - 1;

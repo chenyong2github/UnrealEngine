@@ -112,13 +112,18 @@ public:
 	}
 
 	/** Add tensor */
-	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape) override
+	virtual HTensor AddTensor(const FString& Name, EMLTensorDataType DataType, TArrayView<const int32> Shape, const void* Data, uint64 DataSize) override
 	{
 		auto Value = onnx::ValueInfoProto().New(Graph->GetArena());
 		
 		if (!SetValue(Value, Name, DataType, Shape))
 		{
 			return HTensor();
+		}
+
+		if (Data)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("ONNX ModelBuilder currently doesn't support tensors with data"));
 		}
 
 		return MakeTensorHandle(Value);
