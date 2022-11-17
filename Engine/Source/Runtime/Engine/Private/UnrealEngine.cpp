@@ -16638,6 +16638,7 @@ UEngine::FCopyPropertiesForUnrelatedObjectsParams::FCopyPropertiesForUnrelatedOb
 	, bNotifyObjectReplacement(false)
 	, bClearReferences(true)
 	, SourceObjectArchetype(nullptr)
+	, OptionalReplacementMappings(nullptr)
 {}
 UEngine::FCopyPropertiesForUnrelatedObjectsParams::FCopyPropertiesForUnrelatedObjectsParams(const FCopyPropertiesForUnrelatedObjectsParams&) = default;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -16770,6 +16771,10 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 		ReferenceReplacementMap.Add(OldObject->GetClass(), NewObject->GetClass());
 	}
 	ReferenceReplacementMap.Add(OldObject->GetClass()->GetDefaultObject(), NewObject->GetClass()->GetDefaultObject());
+	if (Params.OptionalReplacementMappings)
+	{
+		ReferenceReplacementMap.Append(*Params.OptionalReplacementMappings);
+	}
 
 	TArray<UObject*> ComponentsOnNewObject;
 	TMap<UObject*, UObject*> AggressiveReplaceReferences;
