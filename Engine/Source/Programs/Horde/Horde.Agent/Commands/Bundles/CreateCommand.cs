@@ -42,22 +42,16 @@ namespace Horde.Agent.Commands.Bundles
 		class HttpStorageClientOwner : IStorageClientOwner
 		{
 			public IMemoryCache Cache { get; }
-			readonly HttpClient _httpClient;
-			readonly HttpClient _redirectHttpClient;
 			public IStorageClient Store { get; }
 
-			public HttpStorageClientOwner(NamespaceId namespaceId, Uri baseUri, ILogger logger)
+			public HttpStorageClientOwner(Uri baseUri, ILogger logger)
 			{
 				Cache = new MemoryCache(new MemoryCacheOptions());
-				_httpClient = new HttpClient { BaseAddress = baseUri };
-				_redirectHttpClient = new HttpClient();
-				Store = new HttpStorageClient(namespaceId, _httpClient, _redirectHttpClient, logger);
+				Store = new HttpStorageClient(() => new HttpClient { BaseAddress = baseUri }, () => new HttpClient(), logger);
 			}
 
 			public void Dispose()
 			{
-				_redirectHttpClient.Dispose();
-				_httpClient.Dispose();
 				Cache.Dispose();
 			}
 		}
@@ -80,7 +74,7 @@ namespace Horde.Agent.Commands.Bundles
 		{
 			if (Http)
 			{
-				return new HttpStorageClientOwner(NamespaceId, new Uri(Server), logger);
+				return new HttpStorageClientOwner(new Uri($"{Server}/api/v1/storage/{NamespaceId}/"), logger);
 			}
 			else
 			{

@@ -73,8 +73,15 @@ namespace EpicGames.Horde.Storage
 		/// <param name="inner"></param>
 		public BlobLocator(Utf8String inner)
 		{
-			Inner = inner;
-			ValidateArgument(nameof(inner), inner);
+			if (inner.Length == 0)
+			{
+				Inner = default;
+			}
+			else
+			{
+				Inner = inner;
+				ValidateArgument(nameof(inner), inner);
+			}
 		}
 
 		/// <summary>

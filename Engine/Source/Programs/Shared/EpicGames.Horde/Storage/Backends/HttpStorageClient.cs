@@ -34,20 +34,18 @@ namespace EpicGames.Horde.Storage.Backends
 			public int ExportIdx { get; set; }
 		}
 
-		readonly NamespaceId _namespaceId;
-		readonly HttpClient _httpClient;
-		readonly HttpClient _redirectHttpClient;
+		readonly Func<HttpClient> _createClient;
+		readonly Func<HttpClient> _createRedirectClient;
 		readonly ILogger _logger;
 		bool _supportsUploadRedirects = true;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public HttpStorageClient(NamespaceId namespaceId, HttpClient httpClient, HttpClient redirectHttpClient, ILogger logger) 
+		public HttpStorageClient(Func<HttpClient> createClient, Func<HttpClient> createRedirectClient, ILogger logger) 
 		{
-			_namespaceId = namespaceId;
-			_httpClient = httpClient;
-			_redirectHttpClient = redirectHttpClient;
+			_createClient = createClient;
+			_createRedirectClient = createRedirectClient;
 			_logger = logger;
 		}
 
@@ -57,11 +55,14 @@ namespace EpicGames.Horde.Storage.Backends
 		public override async Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
 			_logger.LogDebug("Reading {Locator}", locator);
-			using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/storage/{_namespaceId}/blobs/{locator}"))
+			using (HttpClient httpClient = _createClient())
 			{
-				HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
-				response.EnsureSuccessStatusCode();
-				return await response.Content.ReadAsStreamAsync(cancellationToken);
+				using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"blobs/{locator}"))
+				{
+					HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+					response.EnsureSuccessStatusCode();
+					return await response.Content.ReadAsStreamAsync(cancellationToken);
+				}
 			}
 		}
 
@@ -69,11 +70,14 @@ namespace EpicGames.Horde.Storage.Backends
 		public override async Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default)
 		{
 			_logger.LogDebug("Reading {Locator} ({Offset}+{Length})", locator, offset, length);
-			using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/storage/{_namespaceId}/blobs/{locator}?offset={offset}&length={length}"))
+			using (HttpClient httpClient = _createClient())
 			{
-				HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
-				response.EnsureSuccessStatusCode();
-				return await response.Content.ReadAsStreamAsync(cancellationToken);
+				using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"blobs/{locator}?offset={offset}&length={length}"))
+				{
+					HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+					response.EnsureSuccessStatusCode();
+					return await response.Content.ReadAsStreamAsync(cancellationToken);
+				}
 			}
 		}
 
@@ -84,19 +88,22 @@ namespace EpicGames.Horde.Storage.Backends
 
 			if (_supportsUploadRedirects)
 			{
-				WriteBlobResponse redirectResponse = await SendWriteRequestAsync(null, prefix, cancellationToken);
-				if (redirectResponse.UploadUrl != null)
+				using (HttpClient redirectHttpClient = _createRedirectClient())
 				{
-					using (HttpResponseMessage uploadResponse = await _redirectHttpClient.PutAsync(redirectResponse.UploadUrl, streamContent, cancellationToken))
+					WriteBlobResponse redirectResponse = await SendWriteRequestAsync(null, prefix, cancellationToken);
+					if (redirectResponse.UploadUrl != null)
 					{
-						if (!uploadResponse.IsSuccessStatusCode)
+						using (HttpResponseMessage uploadResponse = await redirectHttpClient.PutAsync(redirectResponse.UploadUrl, streamContent, cancellationToken))
 						{
-							string body = await uploadResponse.Content.ReadAsStringAsync(cancellationToken);
-							throw new StorageException($"Unable to upload data to redirected URL: {body}", null);
+							if (!uploadResponse.IsSuccessStatusCode)
+							{
+								string body = await uploadResponse.Content.ReadAsStringAsync(cancellationToken);
+								throw new StorageException($"Unable to upload data to redirected URL: {body}", null);
+							}
 						}
+						_logger.LogDebug("Written {Locator} (using redirect)", redirectResponse.Locator);
+						return redirectResponse.Locator;
 					}
-					_logger.LogDebug("Written {Locator} (using redirect)", redirectResponse.Locator);
-					return redirectResponse.Locator;
 				}
 			}
 
@@ -108,23 +115,26 @@ namespace EpicGames.Horde.Storage.Backends
 
 		async Task<WriteBlobResponse> SendWriteRequestAsync(StreamContent? streamContent, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
-			using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/storage/{_namespaceId}/blobs"))
+			using (HttpClient httpClient = _createClient())
 			{
-				using StringContent stringContent = new StringContent(prefix.ToString());
-
-				MultipartFormDataContent form = new MultipartFormDataContent();
-				if (streamContent != null)
+				using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"blobs"))
 				{
-					form.Add(streamContent, "file", "filename");
-				}
-				form.Add(stringContent, "prefix");
+					using StringContent stringContent = new StringContent(prefix.ToString());
 
-				request.Content = form;
-				using (HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken))
-				{
-					response.EnsureSuccessStatusCode();
-					WriteBlobResponse? data = await response.Content.ReadFromJsonAsync<WriteBlobResponse>(cancellationToken: cancellationToken);
-					return data!;
+					MultipartFormDataContent form = new MultipartFormDataContent();
+					if (streamContent != null)
+					{
+						form.Add(streamContent, "file", "filename");
+					}
+					form.Add(stringContent, "prefix");
+
+					request.Content = form;
+					using (HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken))
+					{
+						response.EnsureSuccessStatusCode();
+						WriteBlobResponse? data = await response.Content.ReadFromJsonAsync<WriteBlobResponse>(cancellationToken: cancellationToken);
+						return data!;
+					}
 				}
 			}
 		}
@@ -137,11 +147,14 @@ namespace EpicGames.Horde.Storage.Backends
 		public override async Task DeleteRefAsync(RefName name, CancellationToken cancellationToken)
 		{
 			_logger.LogDebug("Deleting ref {RefName}", name);
-			using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Delete, $"api/v1/storage/{_namespaceId}/refs/{name}"))
+			using (HttpClient httpClient = _createClient())
 			{
-				using (HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken))
+				using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Delete, $"refs/{name}"))
 				{
-					response.EnsureSuccessStatusCode();
+					using (HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken))
+					{
+						response.EnsureSuccessStatusCode();
+					}
 				}
 			}
 		}
@@ -149,26 +162,29 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <inheritdoc/>
 		public override async Task<NodeLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/storage/{_namespaceId}/refs/{name}"))
+			using (HttpClient httpClient = _createClient())
 			{
-				using (HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken))
+				using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"refs/{name}"))
 				{
-					if (response.StatusCode == HttpStatusCode.NotFound)
+					using (HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken))
 					{
-						_logger.LogDebug("Read ref {RefName} -> None", name);
-						return default;
-					}
-					else if (!response.IsSuccessStatusCode)
-					{
-						_logger.LogError("Unable to read ref {RefName} (status: {StatusCode}, body: {Body})", name, response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
-						throw new StorageException($"Unable to read ref '{name}'", null);
-					}
-					else
-					{
-						response.EnsureSuccessStatusCode();
-						ReadRefResponse? data = await response.Content.ReadFromJsonAsync<ReadRefResponse>(cancellationToken: cancellationToken);
-						_logger.LogDebug("Read ref {RefName} -> {Blob}#{ExportIdx}", name, data!.Blob, data!.ExportIdx);
-						return new NodeLocator(data!.Blob, data!.ExportIdx);
+						if (response.StatusCode == HttpStatusCode.NotFound)
+						{
+							_logger.LogDebug("Read ref {RefName} -> None", name);
+							return default;
+						}
+						else if (!response.IsSuccessStatusCode)
+						{
+							_logger.LogError("Unable to read ref {RefName} (status: {StatusCode}, body: {Body})", name, response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
+							throw new StorageException($"Unable to read ref '{name}'", null);
+						}
+						else
+						{
+							response.EnsureSuccessStatusCode();
+							ReadRefResponse? data = await response.Content.ReadFromJsonAsync<ReadRefResponse>(cancellationToken: cancellationToken);
+							_logger.LogDebug("Read ref {RefName} -> {Blob}#{ExportIdx}", name, data!.Blob, data!.ExportIdx);
+							return new NodeLocator(data!.Blob, data!.ExportIdx);
+						}
 					}
 				}
 			}
@@ -178,9 +194,12 @@ namespace EpicGames.Horde.Storage.Backends
 		public override async Task WriteRefTargetAsync(RefName name, NodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
 			_logger.LogDebug("Writing ref {RefName} -> {Blob}#{ExportIdx}", name, target.Blob, target.ExportIdx);
-			using (HttpResponseMessage response = await _httpClient.PutAsync($"api/v1/storage/{_namespaceId}/refs/{name}", new { locator = target.Blob, exportIdx = target.ExportIdx, options }, cancellationToken))
+			using (HttpClient httpClient = _createClient())
 			{
-				response.EnsureSuccessStatusCode();
+				using (HttpResponseMessage response = await httpClient.PutAsync($"refs/{name}", new { locator = target.Blob, exportIdx = target.ExportIdx, options }, cancellationToken))
+				{
+					response.EnsureSuccessStatusCode();
+				}
 			}
 		}
 

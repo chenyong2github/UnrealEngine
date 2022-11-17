@@ -667,12 +667,12 @@ namespace Horde.Agent.Execution
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions { });
 
 			using HttpClient httpClient = _httpClientFactory.CreateClient(StorageHttpClientName);
-			httpClient.BaseAddress = _session.ServerUrl;
+			httpClient.BaseAddress = new Uri($"{_session.ServerUrl}/api/v1/storage/default");
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _session.Token);
 
 			using HttpClient redirectHttpClient = _httpClientFactory.CreateClient(StorageHttpClientName);
 
-			HttpStorageClient storage = new HttpStorageClient(new NamespaceId("default"), httpClient, redirectHttpClient, logger);
+			HttpStorageClient storage = new HttpStorageClient(CreateHttpClient, CreateHttpRedirectClient, logger);
 			//			FileStorageClient storage = new FileStorageClient(DirectoryReference.Combine(sharedStorageDir, "bundles"), cache, logger);
 			TreeReader reader = new TreeReader(storage, cache, logger);
 			logger.LogInformation("Using Horde-managed shared storage via {SharedStorageDir}", sharedStorageDir);
@@ -910,6 +910,19 @@ namespace Horde.Agent.Execution
 			}
 
 			return true;
+		}
+
+		HttpClient CreateHttpClient()
+		{
+			HttpClient httpClient = _httpClientFactory.CreateClient(StorageHttpClientName);
+			httpClient.BaseAddress = new Uri($"{_session.ServerUrl}/api/v1/storage/default");
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _session.Token);
+			return httpClient;
+		}
+
+		HttpClient CreateHttpRedirectClient()
+		{
+			return _httpClientFactory.CreateClient(StorageHttpClientName);
 		}
 
 		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse step, DirectoryReference workspaceDir, string arguments, IStorageClient? store, ILogger logger, CancellationToken cancellationToken)
