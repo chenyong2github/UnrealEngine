@@ -954,6 +954,15 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel));
 	}
 
+	// Sort objects' triangles
+	for (FViewInfo& View : Views)
+	{
+		if (View.ShouldRenderView() && OIT::IsEnabled(EOITSortingType::SortedTriangles, View))
+		{
+			OIT::AddSortTrianglesPass(GraphBuilder, View, Scene->OITSceneData, FTriangleSortingOrder::BackToFront);
+		}
+	}
+
 	FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, ViewFamily);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
