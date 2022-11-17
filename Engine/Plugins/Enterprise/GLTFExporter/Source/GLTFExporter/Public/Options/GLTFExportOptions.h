@@ -30,15 +30,6 @@ enum class EGLTFTextureType : uint8
 };
 ENUM_CLASS_FLAGS(EGLTFTextureType);
 
-UENUM(BlueprintType)
-enum class EGLTFTextureHDREncoding : uint8
-{
-	/** Clamp HDR colors to standard 8-bit per channel. */
-	None,
-	/** Encode HDR colors to RGBM (will discard alpha). */
-	RGBM
-};
-
 UENUM(BlueprintType, Meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EGLTFSceneMobility : uint8
 {

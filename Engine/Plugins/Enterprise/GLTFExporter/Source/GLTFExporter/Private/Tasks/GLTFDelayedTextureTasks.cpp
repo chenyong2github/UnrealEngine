@@ -4,12 +4,8 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFTextureUtility.h"
-#include "Converters/GLTFNameUtility.h"
 #include "Engine/Texture2D.h"
-#include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Engine/TextureRenderTargetCube.h"
-#include "Engine/LightMapTexture2D.h"
 
 FString FGLTFDelayedTexture2DTask::GetName()
 {
@@ -27,12 +23,11 @@ void FGLTFDelayedTexture2DTask::Process()
 		JsonTexture->Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
 	}
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D);
 	const FIntPoint Size = FGLTFTextureUtility::GetInGameSize(Texture2D);
-	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
+	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, false);
 
 	// TODO: preserve maximum image quality (avoid compression artifacts) by copying source data (and adjustments) to a temp texture
-	FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D, FVector2D::ZeroVector, Size);
+	FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
 
 	TGLTFSharedArray<FColor> Pixels;
 	if (!FGLTFTextureUtility::ReadPixels(RenderTarget, *Pixels))
@@ -50,9 +45,7 @@ void FGLTFDelayedTexture2DTask::Process()
 	FGLTFTextureUtility::TransformColorSpace(*Pixels, bFromSRGB, bToSRGB);
 
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(Texture2D->GetPixelFormat());
-	const EGLTFTextureType Type =
-		Texture2D->IsNormalMap() ? EGLTFTextureType::Normalmaps :
-		bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
+	const EGLTFTextureType Type = Texture2D->IsNormalMap() ? EGLTFTextureType::Normalmaps : EGLTFTextureType::None;
 
 	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
 	JsonTexture->Sampler = Builder.AddUniqueSampler(Texture2D);

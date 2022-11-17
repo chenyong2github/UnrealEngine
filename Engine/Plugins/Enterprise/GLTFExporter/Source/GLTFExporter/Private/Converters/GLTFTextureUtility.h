@@ -2,15 +2,12 @@
 
 #pragma once
 
-#include "Json/GLTFJsonEnums.h"
-#include "Engine/Texture.h"
 #include "PixelFormat.h"
-#include "RHIDefinitions.h"
+#include "Engine/TextureDefines.h"
 
-class UTextureCube;
-class UTextureRenderTarget2D;
-class UTextureRenderTargetCube;
+class UTexture;
 class UTexture2D;
+class UTextureRenderTarget2D;
 
 struct FGLTFTextureUtility
 {
@@ -21,8 +18,6 @@ struct FGLTFTextureUtility
 	static bool IsHDR(const UTexture* Texture);
 	static bool IsCubemap(const UTexture* Texture);
 
-	static float GetCubeFaceRotation(ECubeFace CubeFace);
-
 	static TextureFilter GetDefaultFilter(TextureGroup Group);
 
 	static int32 GetMipBias(const UTexture* Texture);
@@ -31,12 +26,9 @@ struct FGLTFTextureUtility
 
 	static TTuple<TextureAddress, TextureAddress> GetAddressXY(const UTexture* Texture);
 
-	static UTexture2D* CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bSRGB = false);
-
 	static UTextureRenderTarget2D* CreateRenderTarget(const FIntPoint& Size, bool bIsHDR);
 
-	static bool DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, const FMatrix& InTransform = FMatrix::Identity);
-	static bool RotateTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, float InDegrees);
+	static bool DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource);
 
 	static bool ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels);
 

@@ -64,20 +64,6 @@ bool FGLTFTextureUtility::IsCubemap(const UTexture* Texture)
 	return Texture->IsA<UTextureCube>() || Texture->IsA<UTextureRenderTargetCube>();
 }
 
-float FGLTFTextureUtility::GetCubeFaceRotation(ECubeFace CubeFace)
-{
-	switch (CubeFace)
-	{
-		case CubeFace_PosX: return 90;
-		case CubeFace_NegX: return -90;
-		case CubeFace_PosY: return 180;
-		case CubeFace_NegY: return 0;
-		case CubeFace_PosZ: return 180;
-		case CubeFace_NegZ: return 0;
-		default:            return 0;
-	}
-}
-
 TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
 {
 	const UTextureLODSettings* TextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
@@ -141,28 +127,6 @@ TTuple<TextureAddress, TextureAddress> FGLTFTextureUtility::GetAddressXY(const U
 	return MakeTuple(AddressX, AddressY);
 }
 
-UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bSRGB)
-{
-	check(CalculateImageBytes(Size.X, Size.Y, 0, Format) == ByteLength);
-
-	// TODO: do these temp textures need to be part of the root set to avoid garbage collection?
-	UTexture2D* Texture = UTexture2D::CreateTransient(Size.X, Size.Y, Format);
-
-	void* MipData = Texture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-	FMemory::Memcpy(MipData, RawData, ByteLength);
-	Texture->GetPlatformData()->Mips[0].BulkData.Unlock();
-
-	Texture->SRGB = bSRGB ? 1 : 0;
-	Texture->CompressionSettings = TC_VectorDisplacementmap; // best quality
-#if WITH_EDITOR
-	Texture->CompressionNone = true;
-	Texture->MipGenSettings = TMGS_NoMipmaps;
-#endif
-
-	Texture->UpdateResource();
-	return Texture;
-}
-
 UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint& Size, bool bHDR)
 {
 	// TODO: instead of PF_FloatRGBA (i.e. RTF_RGBA16f) use PF_A32B32G32R32F (i.e. RTF_RGBA32f) to avoid accuracy loss
@@ -170,8 +134,8 @@ UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint&
 
 	// NOTE: both bForceLinearGamma and TargetGamma=2.2 seem necessary for exported images to match their source data.
 	// It's not entirely clear why gamma must be 2.2 (instead of 0.0) and why bInForceLinearGamma must also be true.
-	const bool bForceLinearGamma = true;
-	const float TargetGamma = 2.2f;
+	constexpr bool bForceLinearGamma = true;
+	constexpr float TargetGamma = 2.2f;
 
 	UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
 	RenderTarget->InitCustomFormat(Size.X, Size.Y, PixelFormat, bForceLinearGamma);
@@ -180,7 +144,7 @@ UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint&
 	return RenderTarget;
 }
 
-bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, const FMatrix& InTransform)
+bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource)
 {
 	FRenderTarget* RenderTarget = OutTarget->GameThread_GetRenderTargetResource();
 	if (RenderTarget == nullptr)
@@ -202,12 +166,10 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	}
 
 	FCanvas Canvas(RenderTarget, nullptr, FGameTime::CreateDilated(0.0f, 0.0f, 0.0f, 0.0f), GMaxRHIFeatureLevel);
-	FCanvasTileItem TileItem(InPosition, InSource->GetResource(), InSize, FLinearColor::White);
-	TileItem.BatchedElementParameters = BatchedElementParameters;
+	FCanvasTileItem TileItem(FVector2D::ZeroVector, InSource->GetResource(), FLinearColor::White);
 
-	Canvas.PushAbsoluteTransform(InTransform);
+	TileItem.BatchedElementParameters = BatchedElementParameters;
 	TileItem.Draw(&Canvas);
-	Canvas.PopTransform();
 
 	Canvas.Flush_GameThread();
 	FlushRenderingCommands();
@@ -215,18 +177,6 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	FlushRenderingCommands();
 
 	return true;
-}
-
-bool FGLTFTextureUtility::RotateTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, float InDegrees)
-{
-	FMatrix Transform = FMatrix::Identity;
-	if (InDegrees != 0)
-	{
-		const FVector Center = FVector(InSize.X / 2.0f, InSize.Y / 2.0f, 0);
-		Transform = FTranslationMatrix(-Center) * FRotationMatrix({ 0, InDegrees, 0 }) * FTranslationMatrix(Center);
-	}
-
-	return DrawTexture(OutTarget, InSource, InPosition, InSize, Transform);
 }
 
 bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels)
