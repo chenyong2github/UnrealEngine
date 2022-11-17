@@ -29,6 +29,7 @@ public:
 	bool FindSession(const FPartyPlatformSessionInfo& SessionInfo, const FOnFindSessionAttemptComplete& OnAttemptComplete);
 
 	IOnlineSessionPtr GetSessionInterface();
+	IOnlineFriendsPtr GetFriendsInterface();
 	FUniqueNetIdRepl GetLocalUserPlatformId() const;
 
 private:
@@ -92,6 +93,10 @@ private:
 	void SetIsSessionMissing(bool bIsMissing);
 
 	void ProcessJoinFailure();
+
+	bool ShouldRecordAsRecentPlayer(const FUniqueNetId& LocalUserId, const UPartyMember* PartyMember);
+	void UpdateRecentPlayersOfLocalMembers(const TArray<UPartyMember*>& RecentPlayers);
+	void UpdateRecentPlayersOfLocalUser(const FUniqueNetId& LocalUserId, const TArray<UPartyMember*>& Members);
 
 private:
 	void HandlePlatformSessionsChanged();
