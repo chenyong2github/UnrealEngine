@@ -9,7 +9,7 @@
 
 #include "ContentBrowserMenuContexts.h"
 #include "EditorModeManager.h"
-#include "EditorModeRegistry.h"
+#include "Engine/SkeletalMesh.h"
 #include "ISkeletalMeshEditor.h"
 #include "ISkeletalMeshEditorModule.h"
 #include "Modules/ModuleManager.h"
