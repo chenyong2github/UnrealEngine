@@ -282,6 +282,7 @@ void UMeshInspectorTool::Precompute()
 	UVSeamEdges.Reset();
 	UVBowties.Reset();
 	NormalSeamEdges.Reset();
+	TangentSeamEdges.Reset();
 	GroupBoundaryEdges.Reset();
 	MissingUVTriangleEdges.Reset();
 
@@ -290,10 +291,15 @@ void UMeshInspectorTool::Precompute()
 		TargetMesh->HasAttributes() ? TargetMesh->Attributes()->PrimaryUV() : nullptr;
 	const FDynamicMeshNormalOverlay* NormalOverlay =
 		TargetMesh->HasAttributes() ? TargetMesh->Attributes()->PrimaryNormals() : nullptr;
+	const FDynamicMeshNormalOverlay* TangentXOverlay =
+		(TargetMesh->HasAttributes() && TargetMesh->Attributes()->HasTangentSpace()) ? TargetMesh->Attributes()->PrimaryTangents() : nullptr;
+	const FDynamicMeshNormalOverlay* TangentYOverlay =
+		(TargetMesh->HasAttributes() && TargetMesh->Attributes()->HasTangentSpace()) ? TargetMesh->Attributes()->PrimaryBiTangents() : nullptr;
 
 	for (int eid : TargetMesh->EdgeIndicesItr())
 	{
-		if (TargetMesh->IsBoundaryEdge(eid))
+		bool bIsBoundaryEdge = TargetMesh->IsBoundaryEdge(eid);
+		if (bIsBoundaryEdge)
 		{
 			BoundaryEdges.Add(eid);
 		}
@@ -301,9 +307,13 @@ void UMeshInspectorTool::Precompute()
 		{
 			UVSeamEdges.Add(eid);
 		}
-		if (NormalOverlay != nullptr && NormalOverlay->IsSeamEdge(eid))
+		if (bIsBoundaryEdge == false && NormalOverlay != nullptr && NormalOverlay->IsSeamEdge(eid))
 		{
 			NormalSeamEdges.Add(eid);
+		}
+		if (bIsBoundaryEdge == false && TangentXOverlay != nullptr && (TangentXOverlay->IsSeamEdge(eid) || TangentYOverlay->IsSeamEdge(eid)) )
+		{
+			TangentSeamEdges.Add(eid);
 		}
 		if (TargetMesh->IsGroupBoundaryEdge(eid))
 		{
@@ -558,6 +568,8 @@ void UMeshInspectorTool::UpdateVisualization()
 	const float MissingUVThickness = LineWidthMultiplier * 2.0;
 	FColor NormalSeamColor(15, 240, 240);
 	float NormalSeamThickness = LineWidthMultiplier * 2.0;
+	FColor TangentSeamColor(64, 240, 240);
+	float TangentSeamThickness = LineWidthMultiplier * 2.0;
 	FColor PolygonBorderColor(240, 15, 240);
 	float PolygonBorderThickness = LineWidthMultiplier * 2.0;
 	FColor NormalColor(15, 15, 240);
@@ -570,6 +582,7 @@ void UMeshInspectorTool::UpdateVisualization()
 	float UVSeamDepthBias = 0.3f;
 	const float MissingUVDepthBias = 0.3f;
 	float NormalSeamDepthBias = 0.3f;
+	float TangentSeamDepthBias = 0.3f;
 	float PolygonBorderDepthBias = 0.2f;
 	float NormalDepthBias = 0.0f;
 	float TangentDepthBias = 0.35f;
@@ -615,6 +628,15 @@ void UMeshInspectorTool::UpdateVisualization()
 		{
 			TargetMesh->GetEdgeV(eid, A, B);
 			DrawnLineSet->AddLine((FVector)A, (FVector)B, NormalSeamColor, NormalSeamThickness, NormalSeamDepthBias);
+		}
+	}
+
+	if (Settings->bTangentSeams)
+	{
+		for (int eid : TangentSeamEdges)
+		{
+			TargetMesh->GetEdgeV(eid, A, B);
+			DrawnLineSet->AddLine((FVector)A, (FVector)B, TangentSeamColor, TangentSeamThickness, TangentSeamDepthBias);
 		}
 	}
 

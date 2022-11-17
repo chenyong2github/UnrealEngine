@@ -90,6 +90,7 @@ enum class EAttributeEditorToolActions
 	NoAction,
 
 	ClearNormals,
+	DiscardTangents,
 	ClearAllUVs,
 	ClearSelectedUVs,
 	AddUVSet,
@@ -128,11 +129,18 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorNormalsActions : public
 {
 	GENERATED_BODY()
 public:
-	/** Remove any hard edges / split normals, setting all normals to a single vertex normal */
+	/** Remove any hard edges / split normals, setting all normals to a single averaged vertex normal */
 	UFUNCTION(CallInEditor, Category = Normals, meta = (DisplayPriority = 1))
 	void ResetHardNormals()
 	{
 		PostAction(EAttributeEditorToolActions::ClearNormals);
+	}
+
+	/** Clear Tangents from the mesh */
+	UFUNCTION(CallInEditor, Category = Normals, meta = (DisplayPriority = 2))
+	void DiscardTangents()
+	{
+		PostAction(EAttributeEditorToolActions::DiscardTangents);
 	}
 };
 
@@ -372,6 +380,7 @@ protected:
 
 	EAttributeEditorToolActions PendingAction = EAttributeEditorToolActions::NoAction;
 	void ClearNormals();
+	void DiscardTangents();
 	void ClearUVs();
 	void DeleteSelectedUVSet();
 	void DuplicateSelectedUVSet();

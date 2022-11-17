@@ -209,6 +209,48 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::ComputeSplitNormals(
 
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::GetMeshHasTangents(
+	UDynamicMesh* TargetMesh,
+	bool& bHasTangents,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetMeshHasTangents_InvalidInput", "GetMeshHasTangents: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	bHasTangents = false;
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+	{
+		if (ReadMesh.HasAttributes() && ReadMesh.Attributes()->HasTangentSpace())
+		{
+			bHasTangents = true;
+		}
+	});
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::DiscardTangents(
+	UDynamicMesh* TargetMesh,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("DiscardTangents_InvalidInput", "DiscardTangents: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		if (EditMesh.HasAttributes() && EditMesh.Attributes()->HasTangentSpace())
+		{
+			EditMesh.Attributes()->DisableTangents();
+		}
+	});
+	return TargetMesh;
+}
+
+
 UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::ComputeTangents( 
 	UDynamicMesh* TargetMesh, 
 	FGeometryScriptTangentsOptions Options,
@@ -282,6 +324,57 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::SetMeshTriangleNormal
 
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::SetMeshPerVertexNormals(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptVectorList VertexNormalList,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexNormals_InvalidMesh", "SetMeshPerVertexNormals: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (VertexNormalList.List.IsValid() == false || VertexNormalList.List->Num() == 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexNormals_InvalidList", "SetMeshPerVertexNormals: List is empty"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		const TArray<FVector>& VertexNormals = *VertexNormalList.List;
+		if (VertexNormals.Num() < EditMesh.MaxVertexID())
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexNormals_IncorrectCount", "SetMeshPerVertexNormals: size of provided VertexNormalList is smaller than MaxVertexID of Mesh"));
+		}
+		else
+		{
+			if (EditMesh.HasAttributes() == false)
+			{
+				EditMesh.EnableAttributes();
+			}
+			FDynamicMeshNormalOverlay* Normals = EditMesh.Attributes()->PrimaryNormals();
+			Normals->ClearElements();
+			TArray<int32> ElemIDs;
+			ElemIDs.SetNum(EditMesh.MaxVertexID());
+			for (int32 VertexID : EditMesh.VertexIndicesItr())
+			{
+				const FVector& Normal = VertexNormals[VertexID];
+				ElemIDs[VertexID] = Normals->AppendElement((FVector3f)Normal);
+			}
+			for (int32 TriangleID : EditMesh.TriangleIndicesItr())
+			{
+				FIndex3i Triangle = EditMesh.GetTriangle(TriangleID);
+				Normals->SetTriangle(TriangleID, FIndex3i(ElemIDs[Triangle.A], ElemIDs[Triangle.B], ElemIDs[Triangle.C]) );
+			}
+		}
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+
 
 
 UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::GetMeshPerVertexNormals(
@@ -291,69 +384,355 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::GetMeshPerVertexNorma
 	bool& bHasVertexIDGaps,
 	bool bAverageSplitVertexValues)
 {
+	if (TargetMesh == nullptr)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("GetMeshPerVertexNormals: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
 	NormalList.Reset();
 	TArray<FVector>& Normals = *NormalList.List;
 	bHasVertexIDGaps = false;
 	bIsValidNormalSet = false;
-	if (TargetMesh)
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
 	{
-		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		bHasVertexIDGaps = ! ReadMesh.IsCompactV();
+
+		if (ReadMesh.HasAttributes() && ReadMesh.Attributes()->NumNormalLayers() > 0 )
 		{
-			bHasVertexIDGaps = ! ReadMesh.IsCompactV();
+			const FDynamicMeshNormalOverlay* NormalOverlay = ReadMesh.Attributes()->PrimaryNormals();
 
-			if (ReadMesh.HasAttributes() && ReadMesh.Attributes()->NumNormalLayers() > 0 )
+			if (bAverageSplitVertexValues)
 			{
-				const FDynamicMeshNormalOverlay* NormalOverlay = ReadMesh.Attributes()->PrimaryNormals();
-
-				if (bAverageSplitVertexValues)
+				Normals.Init(FVector::Zero(), ReadMesh.MaxVertexID());
+				for (int32 tid : ReadMesh.TriangleIndicesItr())
 				{
-					Normals.Init(FVector::Zero(), ReadMesh.MaxVertexID());
-					for (int32 tid : ReadMesh.TriangleIndicesItr())
+					if (NormalOverlay->IsSetTriangle(tid))
 					{
-						if (NormalOverlay->IsSetTriangle(tid))
-						{
-							FIndex3i TriV = ReadMesh.GetTriangle(tid);
-							FVector3f A, B, C;
-							NormalOverlay->GetTriElements(tid, A, B, C);
-							Normals[TriV.A] += (FVector)A;
-							Normals[TriV.B] += (FVector)B;
-							Normals[TriV.C] += (FVector)C;
-						}
-					}
-
-					for (int32 k = 0; k < Normals.Num(); ++k)
-					{
-						if (Normals[k].SquaredLength() > 0)
-						{
-							Normalize(Normals[k]);
-						}
-					}
-				}
-				else
-				{
-					Normals.Init(FVector::UnitZ(), ReadMesh.MaxVertexID());
-					for (int32 tid : ReadMesh.TriangleIndicesItr())
-					{
-						if (NormalOverlay->IsSetTriangle(tid))
-						{
-							FIndex3i TriV = ReadMesh.GetTriangle(tid);
-							FVector3f A, B, C;
-							NormalOverlay->GetTriElements(tid, A, B, C);
-							Normals[TriV.A] = (FVector)A;
-							Normals[TriV.B] = (FVector)B;
-							Normals[TriV.C] = (FVector)C;
-						}
+						FIndex3i TriV = ReadMesh.GetTriangle(tid);
+						FVector3f A, B, C;
+						NormalOverlay->GetTriElements(tid, A, B, C);
+						Normals[TriV.A] += (FVector)A;
+						Normals[TriV.B] += (FVector)B;
+						Normals[TriV.C] += (FVector)C;
 					}
 				}
 
-				bIsValidNormalSet = true;
+				for (int32 k = 0; k < Normals.Num(); ++k)
+				{
+					if (Normals[k].SquaredLength() > 0)
+					{
+						Normalize(Normals[k]);
+					}
+				}
 			}
-		});
-	}
+			else
+			{
+				Normals.Init(FVector::UnitZ(), ReadMesh.MaxVertexID());
+				for (int32 tid : ReadMesh.TriangleIndicesItr())
+				{
+					if (NormalOverlay->IsSetTriangle(tid))
+					{
+						FIndex3i TriV = ReadMesh.GetTriangle(tid);
+						FVector3f A, B, C;
+						NormalOverlay->GetTriElements(tid, A, B, C);
+						Normals[TriV.A] = (FVector)A;
+						Normals[TriV.B] = (FVector)B;
+						Normals[TriV.C] = (FVector)C;
+					}
+				}
+			}
+
+			bIsValidNormalSet = true;
+		}
+	});
 
 	return TargetMesh;
 }
 
+
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::SetMeshPerVertexTangents(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptVectorList TangentXList,
+	FGeometryScriptVectorList TangentYList,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexTangents_InvalidMesh", "SetMeshPerVertexTangents: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (TangentXList.List.IsValid() == false || TangentXList.List->Num() == 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexTangents_InvalidList", "SetMeshPerVertexTangents: TangentXList is empty"));
+		return TargetMesh;
+	}
+	if (TangentYList.List.IsValid() == false || TangentYList.List->Num() != TangentXList.List->Num())
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexTangents_InvalidListY", "SetMeshPerVertexTangents: TangentYList must be the same size as TangentXList"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		const TArray<FVector>& TangentsX = *TangentXList.List;
+		const TArray<FVector>& TangentsY = *TangentYList.List;
+		if (TangentsX.Num() < EditMesh.MaxVertexID() )
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexTangents_IncorrectCount", "SetMeshPerVertexTangents: size of provided TangentXList is smaller than MaxVertexID of Mesh"));
+		}
+		else
+		{
+			if (EditMesh.HasAttributes() == false)
+			{
+				EditMesh.EnableAttributes();
+			}
+			if (EditMesh.Attributes()->HasTangentSpace() == false)
+			{
+				EditMesh.Attributes()->EnableTangents();
+			}
+			FDynamicMeshNormalOverlay* TangentsOverlayX = EditMesh.Attributes()->PrimaryTangents();
+			FDynamicMeshNormalOverlay* TangentsOverlayY = EditMesh.Attributes()->PrimaryBiTangents();
+			TangentsOverlayX->ClearElements();
+			TangentsOverlayY->ClearElements();
+			TArray<int32> ElemIDs;
+			ElemIDs.SetNum(EditMesh.MaxVertexID());
+			for (int32 k = 0; k < 2; ++k)
+			{
+				const TArray<FVector>& UseList = (k == 0) ? TangentsX : TangentsY;
+				FDynamicMeshNormalOverlay* UseOverlay = (k == 0) ? TangentsOverlayX : TangentsOverlayY;
+				for (int32 VertexID : EditMesh.VertexIndicesItr())
+				{
+					const FVector& Tangent = UseList[VertexID];
+					ElemIDs[VertexID] = UseOverlay->AppendElement((FVector3f)Tangent);
+				}
+				for (int32 TriangleID : EditMesh.TriangleIndicesItr())
+				{
+					FIndex3i Triangle = EditMesh.GetTriangle(TriangleID);
+					UseOverlay->SetTriangle(TriangleID, FIndex3i(ElemIDs[Triangle.A], ElemIDs[Triangle.B], ElemIDs[Triangle.C]));
+				}
+			}
+		}
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::GetMeshPerVertexTangents(
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptVectorList& TangentXList,
+	FGeometryScriptVectorList& TangentYList,
+	bool& bIsValidTangentSet,
+	bool& bHasVertexIDGaps,
+	bool bAverageSplitVertexValues)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("GetMeshPerVertexTangents: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TangentXList.Reset();
+	TangentYList.Reset();
+	TArray<FVector>& TangentsX = *TangentXList.List;
+	TArray<FVector>& TangentsY = *TangentYList.List;
+	bHasVertexIDGaps = false;
+	bIsValidTangentSet = false;
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+	{
+		bHasVertexIDGaps = ! ReadMesh.IsCompactV();
+
+		if (ReadMesh.HasAttributes() && ReadMesh.Attributes()->HasTangentSpace() )
+		{
+			const FDynamicMeshNormalOverlay* TangentXOverlay = ReadMesh.Attributes()->PrimaryTangents();
+			const FDynamicMeshNormalOverlay* TangentYOverlay = ReadMesh.Attributes()->PrimaryBiTangents();
+
+			if (bAverageSplitVertexValues)
+			{
+				TangentsX.Init(FVector::Zero(), ReadMesh.MaxVertexID());
+				TangentsY.Init(FVector::Zero(), ReadMesh.MaxVertexID());
+				for (int32 tid : ReadMesh.TriangleIndicesItr())
+				{
+					if (TangentXOverlay->IsSetTriangle(tid) && TangentYOverlay->IsSetTriangle(tid))
+					{
+						FIndex3i TriV = ReadMesh.GetTriangle(tid);
+						FVector3f A, B, C;
+						TangentXOverlay->GetTriElements(tid, A, B, C);
+						TangentsX[TriV.A] += (FVector)A;
+						TangentsX[TriV.B] += (FVector)B;
+						TangentsX[TriV.C] += (FVector)C;
+						TangentYOverlay->GetTriElements(tid, A, B, C);
+						TangentsY[TriV.A] += (FVector)A;
+						TangentsY[TriV.B] += (FVector)B;
+						TangentsY[TriV.C] += (FVector)C;
+					}
+				}
+
+				for (int32 k = 0; k < TangentsX.Num(); ++k)
+				{
+					if (TangentsX[k].SquaredLength() > 0)
+					{
+						Normalize(TangentsX[k]);
+					}
+					if (TangentsY[k].SquaredLength() > 0)
+					{
+						Normalize(TangentsY[k]);
+					}
+				}
+			}
+			else
+			{
+				TangentsX.Init(FVector::UnitZ(), ReadMesh.MaxVertexID());
+				TangentsY.Init(FVector::UnitZ(), ReadMesh.MaxVertexID());
+				for (int32 tid : ReadMesh.TriangleIndicesItr())
+				{
+					if (TangentXOverlay->IsSetTriangle(tid) && TangentYOverlay->IsSetTriangle(tid))
+					{
+						FIndex3i TriV = ReadMesh.GetTriangle(tid);
+						FVector3f A, B, C;
+						TangentXOverlay->GetTriElements(tid, A, B, C);
+						TangentsX[TriV.A] = (FVector)A;
+						TangentsX[TriV.B] = (FVector)B;
+						TangentsX[TriV.C] = (FVector)C;
+						TangentYOverlay->GetTriElements(tid, A, B, C);
+						TangentsY[TriV.A] = (FVector)A;
+						TangentsY[TriV.B] = (FVector)B;
+						TangentsY[TriV.C] = (FVector)C;
+					}
+				}
+			}
+
+			bIsValidTangentSet = true;
+		}
+	});
+
+	return TargetMesh;
+}
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::UpdateVertexNormal(
+	UDynamicMesh* TargetMesh,
+	int VertexID,
+	bool bUpdateNormal,
+	FVector NewNormal,
+	bool bUpdateTangents,
+	FVector NewTangentX,
+	FVector NewTangentY,
+	bool& bIsValidVertex,
+	bool bMergeSplitNormals,
+	bool bDeferChangeNotifications)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TArray<FIndex3i> TriVtxElements;
+	TArray<int32> UniqueElementIDs;
+	TriVtxElements.Reserve(16);
+	UniqueElementIDs.Reserve(16);
+
+	// Updates VertexID's associated elements in Overlay with NewValue. 
+	// Returns false if there were no elements to update (ie all "unset" triangles)
+	auto UpdateOverlay = [VertexID, &TriVtxElements, &UniqueElementIDs, bMergeSplitNormals](FDynamicMesh3& EditMesh, FDynamicMeshNormalOverlay* Overlay, FVector NewValue)
+	{
+		TriVtxElements.Reset(); UniqueElementIDs.Reset();
+		EditMesh.EnumerateVertexTriangles(VertexID, [&](int32 TriangleID)
+		{
+			if (Overlay->IsSetTriangle(TriangleID))
+			{
+				FIndex3i Tri = EditMesh.GetTriangle(TriangleID);
+				int32 Index = Tri.IndexOf(VertexID);
+				FIndex3i OverlayTri = Overlay->GetTriangle(TriangleID);
+				TriVtxElements.Add(FIndex3i(TriangleID, Index, OverlayTri[Index]));
+				UniqueElementIDs.AddUnique(OverlayTri[Index]);
+			}
+		});
+		if (TriVtxElements.IsEmpty())
+		{
+			return false;
+		}
+		if (UniqueElementIDs.Num() == 1 || bMergeSplitNormals == false)
+		{
+			// just update existing elements to new normal
+			for (int32 ElementID : UniqueElementIDs)
+			{
+				Overlay->SetElement(ElementID, (FVector3f)NewValue);
+			}
+		}
+		else   // bMergeSplitNormals == true && UniqueElementIDs.Num() > 1
+		{
+			Overlay->SetElement(UniqueElementIDs[0], (FVector3f)NewValue);
+			for (FIndex3i TriInfo : TriVtxElements)
+			{
+				FIndex3i OverlayTri = Overlay->GetTriangle(TriInfo.A);
+				OverlayTri[TriInfo.B] = UniqueElementIDs[0];
+				Overlay->SetTriangle(TriInfo.A, OverlayTri);
+			}
+		}
+		return true;
+	};
+
+	bIsValidVertex = false;
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		if (EditMesh.HasAttributes() == false 
+			|| (EditMesh.HasAttributes() && EditMesh.Attributes()->PrimaryNormals() == nullptr) 
+			|| (EditMesh.HasAttributes() && EditMesh.Attributes()->PrimaryNormals()->ElementCount() == 0) )
+		{
+			UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: TargetMesh does not have valid Normals attributes. Try computing Vertex Normals before using UpdateVertexNormal."));
+			return;
+		}
+		if (bUpdateTangents && EditMesh.Attributes()->HasTangentSpace() == false)
+		{
+			UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: TargetMesh does not have valid Tangents attributes. Try computing Tangents before using UpdateVertexNormal."));
+			return;
+		}
+		if (EditMesh.IsVertex(VertexID) == false)
+		{
+			UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: VertexID %d is not a valid vertex in TargetMesh"));
+			return;
+		}
+		bIsValidVertex = true;
+
+		if (bUpdateNormal)
+		{
+			FDynamicMeshNormalOverlay* Normals = EditMesh.Attributes()->PrimaryNormals();
+			if (UpdateOverlay(EditMesh, Normals, NewNormal) == false)
+			{
+				UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: VertexID %d has no existing normals in Normal Overlay. Try computing Vertex Normals before using UpdateVertexNormal."));
+				bIsValidVertex = false;
+			}
+		}
+		if (bUpdateTangents)
+		{
+			FDynamicMeshNormalOverlay* TangentX = EditMesh.Attributes()->PrimaryTangents();
+			FDynamicMeshNormalOverlay* TangentY = EditMesh.Attributes()->PrimaryBiTangents();
+			bool bTangentXOK = UpdateOverlay(EditMesh, TangentX, NewTangentX);
+			bool bTangentYOK = UpdateOverlay(EditMesh, TangentY, NewTangentY);
+			if (bTangentXOK == false || bTangentYOK == false)
+			{
+				UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: VertexID %d has no existing tangents in Tangent Overlay. Try computing Tangents before using UpdateVertexNormal."));
+				bIsValidVertex = false;
+			}
+		}
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+
+	return TargetMesh;
+}
 
 
 

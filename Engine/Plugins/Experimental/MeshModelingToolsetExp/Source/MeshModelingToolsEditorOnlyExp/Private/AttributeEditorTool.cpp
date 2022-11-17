@@ -396,6 +396,9 @@ void UAttributeEditorTool::OnTick(float DeltaTime)
 	case EAttributeEditorToolActions::ClearNormals:
 		ClearNormals();
 		break;
+	case EAttributeEditorToolActions::DiscardTangents:
+		DiscardTangents();
+		break;
 	case EAttributeEditorToolActions::ClearAllUVs:
 		ClearUVs();
 		break;
@@ -468,6 +471,38 @@ void UAttributeEditorTool::ClearNormals()
 	GetToolManager()->EndUndoTransaction();
 }
 
+
+
+void UAttributeEditorTool::DiscardTangents()
+{
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("DiscardTangentsTransactionMessage", "Discard Tangents"));
+
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
+	{
+		FMeshDescription EditedMesh = UE::ToolTarget::GetMeshDescriptionCopy(Targets[ComponentIdx]);
+
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = EditedMesh.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Tangent);
+		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = EditedMesh.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+		const FVertexInstanceArray& Instances = EditedMesh.VertexInstances();
+		if (VertexInstanceTangents.IsValid())
+		{
+			for (const FVertexInstanceID InstanceID : Instances.GetElementIDs())
+			{
+				VertexInstanceTangents.Set(InstanceID, FVector3f::ZeroVector);
+			}
+		}
+		if (VertexInstanceBinormalSigns.IsValid())
+		{
+			for (const FVertexInstanceID InstanceID : Instances.GetElementIDs())
+			{
+				VertexInstanceBinormalSigns.Set(InstanceID, 1.0f);
+			}
+		}
+
+		UE::ToolTarget::CommitMeshDescriptionUpdate(Targets[ComponentIdx], MoveTemp(EditedMesh));
+	}
+	GetToolManager()->EndUndoTransaction();
+}
 
 
 

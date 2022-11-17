@@ -84,6 +84,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bNormalSeams = false;
 
+	/** Toggle visibility of Tangent seam edges */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bTangentSeams = false;
+
 	/** Toggle visibility of normal vectors */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bNormalVectors = false;
@@ -270,6 +274,7 @@ protected:
 	TArray<int> UVSeamEdges;
 	TArray<int> UVBowties;
 	TArray<int> NormalSeamEdges;
+	TArray<int> TangentSeamEdges;
 	TArray<int> GroupBoundaryEdges;
 	TArray<int> MissingUVTriangleEdges;
 
