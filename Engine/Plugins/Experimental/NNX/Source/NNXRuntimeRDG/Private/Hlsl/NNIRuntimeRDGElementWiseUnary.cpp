@@ -28,7 +28,6 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		float Alpha = 0.0f;
 		float Beta = 0.0f;
 		float Gamma = 0.0f;
-		int32 ElemByteSize = 0;
 
 	public:
 
@@ -47,41 +46,15 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			Alpha = Attributes.GetValueOrDefault(TEXT("alpha"), Alpha);
 			Beta = Attributes.GetValueOrDefault(TEXT("beta"), Beta);
 			Gamma = Attributes.GetValueOrDefault(TEXT("gamma"), Gamma);
-			ElemByteSize = InputTensorDescs[0].GetElemByteSize();
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InInputTensors, TConstArrayView<NNX::FTensorRDG> InOutputTensors) override
 		{
-            //struct RDGTensor
-            //{
-            //    RDGBuffer*
-            //    TensorShape ? Do we need the type? aka TensorDesc?
-            //}
-
-			//Dispatch(FRDGBuilder & GraphBuilder, 
-			         //TConstArrayView<NNX::RDGTensor> InputBuffers,
-					 //TConstArrayView<NNX::RDGTensor> OutputBuffers) override
-
-            //or 
-            //Dispatch(FRDGBuilder & GraphBuilder, 
-                     //TConstArrayView<NNX::FConcreteShape> InputShapes,
-			         //TConstArrayView<NNX::RDGTensor*> InputBuffers,
-                     //TConstArrayView<NNX::FConcreteShape> OutputShapes,
-					 //TConstArrayView<NNX::RDGTensor*> OutputBuffers) override
-
-            //or 
-            //Dispatch(FRDGBuilder & GraphBuilder, 
-                     //TConstArrayView<NNX::RDGTensor*> Buffers,
-                     //TConstArrayView<NNX::FConcreteShape> Shapes,
-			         //TConstArrayView<uint32> InputIndices,
-                     //TConstArrayView<uint32> OutputIndices) override
-
-			// HACK: This only works for single layer networks
-			FRDGBufferSRVRef InputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
-			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
+			FRDGBufferSRVRef InputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputTensors[0].GetBuffer(), PF_R32_FLOAT));
+			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(InOutputTensors[0].GetBuffer(), PF_R32_FLOAT));
 		
-			int32 NumElements = OutOutputBindings[0].SizeInBytes / ElemByteSize;//TODO jira 169354: Use shape from Dispatch instead
+			int32 NumElements = InOutputTensors[0].GetVolume();
 			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(NumElements, FElementWiseUnaryConstants::NUM_GROUP_THREADS);
 
 			// Set parameters

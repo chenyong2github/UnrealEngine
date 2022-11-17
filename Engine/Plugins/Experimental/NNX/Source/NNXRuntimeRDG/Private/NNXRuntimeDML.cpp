@@ -334,8 +334,7 @@ class FMLOperatorDml : public FMLOperatorRDG
 public:
 
 	virtual bool Initialize(FDeviceContextDml* DevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) = 0;
-
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) = 0;
+	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDG> InInputTensors, TConstArrayView<FTensorRDG> InOutputTensors) = 0;
 
 protected:
 
@@ -647,15 +646,14 @@ public:
 	//
 	//
 	//
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) override
+	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDG> InInputTensors, TConstArrayView<FTensorRDG> InOutputTensors) override
 	{
 		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
 
 		FMLElementWiseUnaryParameters* Params = GraphBuilder.AllocParameters<FMLElementWiseUnaryParameters>();
 
-		// HACK: This only works for single layer networks
-		Params->Input = InInputBindings[0].Buffer;
-		Params->Output = OutOutputBindings[0].Buffer;
+		Params->Input = InInputTensors[0].GetBuffer();
+		Params->Output = InOutputTensors[0].GetBuffer();
 		Params->Alpha = Alpha;
 		Params->Beta = Beta;
 		Params->Gamma = Gamma;
@@ -886,15 +884,15 @@ public:
 	//
 	//
 	//
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) override
+	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDG> InInputTensors, TConstArrayView<FTensorRDG> InOutputTensors) override
 	{
 		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
 
 		FMLElementWiseBinaryParameters* Params = GraphBuilder.AllocParameters<FMLElementWiseBinaryParameters>();
 
-		Params->LHSInput = InInputBindings[0].Buffer;
-		Params->RHSInput = InInputBindings[1].Buffer;
-		Params->Output = OutOutputBindings[0].Buffer;
+		Params->LHSInput = InInputTensors[0].GetBuffer();
+		Params->RHSInput = InInputTensors[1].GetBuffer();
+		Params->Output = InOutputTensors[0].GetBuffer();
 		Params->Num = Num;
 
 		GraphBuilder.AddPass(
@@ -1069,19 +1067,19 @@ public:
 	//
 	//
 	//
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) override
+	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDG> InInputTensors, TConstArrayView<FTensorRDG> InOutputTensors) override
 	{
 		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
 
-		const int32 NumInputs = InInputBindings.Num();
+		const int32 NumInputs = InInputTensors.Num();
 		const bool bIsUsingBias = NumInputs > 2;
 
 		FMLGemmParameters* Params = GraphBuilder.AllocParameters<FMLGemmParameters>();
 
-		Params->A = InInputBindings[0].Buffer;
-		Params->B = InInputBindings[1].Buffer;
-		Params->C = bIsUsingBias ? InInputBindings[2].Buffer : nullptr;
-		Params->Y = OutOutputBindings[0].Buffer;
+		Params->A = InInputTensors[0].GetBuffer();
+		Params->B = InInputTensors[1].GetBuffer();
+		Params->C = bIsUsingBias ? InInputTensors[2].GetBuffer() : nullptr;
+		Params->Y = InOutputTensors[0].GetBuffer();
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("FMLGemmDml_Transition"),
@@ -1491,13 +1489,13 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
-			FTensorDesc SymbolicTensorDesc = AllSymbolicTensors[InputTensorIndex];
+			FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[InputTensorIndex];
 			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
 			OpInputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 		}
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			FTensorDesc SymbolicTensorDesc = AllSymbolicTensors[OutputTensorIndex];
+			FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[OutputTensorIndex];
 			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
 			OpOutputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 		}
@@ -1527,38 +1525,31 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 //
 void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
-	check(AllTensorBindings.Num() == AllTensors.Num());
-	checkCode(
-		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
-		{
-			check(AllTensors[i].GetDataSize() <= AllTensorBindings[i].SizeInBytes);
-		}
-	);
+	check(AllTensorRDGs.Num() == AllShapes.Num());
 
 	static constexpr int32 MaxExpectedInput = 10;
-	TArray<FMLTensorBinding, TInlineAllocator<MaxExpectedInput>> InputBindings;
-	
+	TArray<FTensorRDG, TInlineAllocator<MaxExpectedInput>> InputTensors;
+
 	static constexpr int32 MaxExpectedOutput = 2;
-	TArray<FMLTensorBinding, TInlineAllocator<MaxExpectedOutput>> OutputBindings;
-	
+	TArray<FTensorRDG, TInlineAllocator<MaxExpectedOutput>> OutputTensors;
+
 	// Add passes for all operators
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
 	{
-		InputBindings.Empty();
+		InputTensors.Empty();
 		for (int32 i : OperatorInputTensorIndices[Idx])
 		{
-			InputBindings.Emplace(AllTensorBindings[i]);
+			InputTensors.Emplace(AllTensorRDGs[i]);
 		}
-		OutputBindings.Empty();
+		OutputTensors.Empty();
 		for (int32 i : OperatorOutputTensorIndices[Idx])
 		{
-			OutputBindings.Emplace(AllTensorBindings[i]);
+			OutputTensors.Emplace(AllTensorRDGs[i]);
 		}
 
 		FMLOperatorDml* Op = Operators[Idx];
 
-		//TODO jira 169354 pass shape information to Op.Dispatch probably via an object containing both mem info and shape (from AllTensors).
-		Op->Dispatch(GraphBuilder, InputBindings, OutputBindings);
+		Op->Dispatch(GraphBuilder, InputTensors, OutputTensors);
 	}
 }
 
@@ -1595,19 +1586,19 @@ FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView
 //
 int FMLInferenceModelDml::RunShapeInference()
 {
-	AllTensors.Empty();
+	AllShapes.Empty();
 
-	for (FTensorDesc SymbolicTensorDesc : AllSymbolicTensors)
+	for (FTensorDesc SymbolicTensorDesc : AllSymbolicTensorDescs)
 	{
 		if (SymbolicTensorDesc.IsConcrete())
 		{
-			FTensor Tensor = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
-			AllTensors.Emplace(Tensor);
+			FTensorShape TensorShape = FTensorShape::MakeFromSymbolic(SymbolicTensorDesc.GetShape());
+			AllShapes.Emplace(TensorShape);
 		}
 	}
-	if (AllTensors.Num() != AllSymbolicTensors.Num())
+	if (AllShapes.Num() != AllSymbolicTensorDescs.Num())
 	{
-		AllTensors.Empty();
+		AllShapes.Empty();
 		UE_LOG(LogNNX, Warning, TEXT("DML engine does not support model with variable shapes yet."));
 		return -1;
 	}

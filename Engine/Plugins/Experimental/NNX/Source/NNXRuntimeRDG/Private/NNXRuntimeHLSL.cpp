@@ -84,11 +84,11 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
-			Inputs.Emplace(AllSymbolicTensors[InputTensorIndex]);
+			Inputs.Emplace(AllSymbolicTensorDescs[InputTensorIndex]);
 		}
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			Outputs.Emplace(AllSymbolicTensors[OutputTensorIndex]);
+			Outputs.Emplace(AllSymbolicTensorDescs[OutputTensorIndex]);
 		}
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
@@ -138,7 +138,7 @@ FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TConstAr
 
 int FMLInferenceModelHlsl::RunShapeInference()
 {
-	AllTensors.Empty();
+	AllShapes.Empty();
 
 	if (Operators.Num() == 0)
 	{
@@ -149,11 +149,10 @@ int FMLInferenceModelHlsl::RunShapeInference()
 	static constexpr int32 MaxExpectedInput = 10;
 	TArray<FTensorShape, TInlineAllocator<MaxExpectedInput>> InputShapes;
 	TArray<FTensorShape> OutputShapes;
-	TArray<FTensorShape> AllShapes;
 	TArray<bool> AllInitializedShapes;
 
-	checkCode(AllInitializedShapes.SetNum(AllSymbolicTensors.Num(), false););
-	AllShapes.SetNum(AllSymbolicTensors.Num());
+	checkCode(AllInitializedShapes.SetNum(AllSymbolicTensorDescs.Num(), false););
+	AllShapes.SetNum(AllSymbolicTensorDescs.Num());
 
 	//Prime shape inference with model inputs
 	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
@@ -182,12 +181,12 @@ int FMLInferenceModelHlsl::RunShapeInference()
 		{
 			const int32 OutputTensorIndex = OperatorOutputTensorIndices[Idx][i];
 
-			if (!OutputSymbolicTensors[i].IsConcrete())
+			if (!AllSymbolicTensorDescs[OutputTensorIndex].IsConcrete())
 			{
 				bShouldRunShapeInferenceForOperator = true;
 				continue;
 			}
-			OutputShapes.Emplace(FTensorShape::MakeFromSymbolic(OutputSymbolicTensors[i].GetShape()));
+			OutputShapes.Emplace(FTensorShape::MakeFromSymbolic(AllSymbolicTensorDescs[OutputTensorIndex].GetShape()));
 		}
 
 		//Otherwise we need to run shape inference for the operator
@@ -202,7 +201,7 @@ int FMLInferenceModelHlsl::RunShapeInference()
 				//Operator could not compute output shapes, meaning we can't allocate
 				//output buffer before running the model. This engine does not support this.
 				UE_LOG(LogNNX, Warning, TEXT("Could not deduce tensor shapes for this model during shape inference, HLSL engine wont support the model as it need to precompute all shapes for performance reasons."));
-				AllTensors.Empty();
+				AllShapes.Empty();
 				OutputTensorShapes.Empty();
 				return -1;
 			}
@@ -224,15 +223,7 @@ int FMLInferenceModelHlsl::RunShapeInference()
 		};
 	);
 
-	AllTensors.Reserve(AllShapes.Num());
-	for (int i = 0; i < AllShapes.Num(); ++i)
-	{
-		FTensor Tensor = FTensor::Make(AllSymbolicTensors[i].GetName(), AllShapes[i], AllSymbolicTensors[i].GetDataType());
-		AllTensors.Emplace(Tensor);
-	}
-
-	check(AllShapes.Num() == AllSymbolicTensors.Num());
-	check(AllShapes.Num() == AllTensors.Num());
+	check(AllShapes.Num() == AllSymbolicTensorDescs.Num());
 
 	return 0;
 }
@@ -242,38 +233,31 @@ int FMLInferenceModelHlsl::RunShapeInference()
 //
 void FMLInferenceModelHlsl::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
-	check(AllTensorBindings.Num() == AllTensors.Num());
-	checkCode(
-		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
-		{
-			check(AllTensors[i].GetDataSize() <= AllTensorBindings[i].SizeInBytes);
-		}
-	);
+	check(AllTensorRDGs.Num() == AllShapes.Num());
 
 	static constexpr int32 MaxExpectedInput = 10;
-	TArray<FMLTensorBinding, TInlineAllocator<MaxExpectedInput>> InputBindings;
+	TArray<FTensorRDG, TInlineAllocator<MaxExpectedInput>> InputTensors;
 
 	static constexpr int32 MaxExpectedOutput = 2;
-	TArray<FMLTensorBinding, TInlineAllocator<MaxExpectedOutput>> OutputBindings;
+	TArray<FTensorRDG, TInlineAllocator<MaxExpectedOutput>> OutputTensors;
 
 	// Add passes for all operators
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
 	{
-		InputBindings.Empty();
+		InputTensors.Empty();
 		for (int32 i : OperatorInputTensorIndices[Idx])
 		{
-			InputBindings.Emplace(AllTensorBindings[i]);
+			InputTensors.Emplace(AllTensorRDGs[i]);
 		}
-		OutputBindings.Empty();
+		OutputTensors.Empty();
 		for (int32 i : OperatorOutputTensorIndices[Idx])
 		{
-			OutputBindings.Emplace(AllTensorBindings[i]);
+			OutputTensors.Emplace(AllTensorRDGs[i]);
 		}
 
 		FMLOperatorHlsl* Op = Operators[Idx];
 
-		//TODO jira 169354 pass shape information to Op.Dispatch probably via an object containing both mem info and shape (from AllTensors).
-		Op->Dispatch(GraphBuilder, InputBindings, OutputBindings);
+		Op->Dispatch(GraphBuilder, InputTensors, OutputTensors);
 	}
 }
 

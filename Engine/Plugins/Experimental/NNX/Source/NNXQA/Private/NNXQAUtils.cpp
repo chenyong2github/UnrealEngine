@@ -45,7 +45,7 @@ namespace Test
 			const EMLTensorDataType DataType = TensorDesc.GetDataType();
 
 			TArray<char> CurInputBuffer;
-	        CurInputBuffer.SetNum(BufferSize);
+			CurInputBuffer.SetNum(BufferSize);
 			char* DestinationPtr = CurInputBuffer.GetData();
 			for (uint32 i = 0; i != NumberOfElements; ++i)
 			{
@@ -74,7 +74,7 @@ namespace Test
 				DestinationPtr += ElementByteSize;
 			}
 
-            OutMemBuffers.Emplace(CurInputBuffer);
+			OutMemBuffers.Emplace(CurInputBuffer);
 			OutBindings.Emplace(
 				FMLTensorBinding::FromCPU(OutMemBuffers[Index].GetData(), BufferSize)
 			);

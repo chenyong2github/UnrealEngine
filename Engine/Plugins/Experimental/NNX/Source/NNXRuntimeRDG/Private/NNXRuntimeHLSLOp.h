@@ -14,7 +14,7 @@ namespace NNX
 	{
 		virtual ~FMLOperatorHlsl() = default;
 		virtual bool Initialize(TConstArrayView<FTensorDesc> InputTensorDescs, TConstArrayView<FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) = 0;
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) = 0;
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDG> InInputTensors, TConstArrayView<FTensorRDG> InOutputTensors) = 0;
 		virtual int ComputeOutputShape(TConstArrayView<FTensorShape> InputShapes, TArray<FTensorShape>& OutputShapes) const { return -1; };
 	};
 

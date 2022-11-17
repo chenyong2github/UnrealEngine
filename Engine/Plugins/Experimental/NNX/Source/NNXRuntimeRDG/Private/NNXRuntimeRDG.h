@@ -8,6 +8,7 @@
 #include "NNXModelOptimizerInterface.h"
 #include "NNXRuntime.h"
 #include "NNXRuntimeFormat.h"
+#include "RenderGraphResources.h"
 #include "RHIGPUReadback.h"
 #include "Serialization/MemoryReader.h"
 #include "ShaderParameterUtils.h"
@@ -43,8 +44,30 @@ struct FMLOperatorRDG
 	virtual ~FMLOperatorRDG() = default;
 };
 
-using FMLTensorBindingArray = TArray<FMLTensorBinding, TInlineAllocator<16>>;
-using FMLIntArray = TArray<int32, TInlineAllocator<16>>;
+class FTensorRDG : public FTensor
+{
+	FRDGBufferRef Buffer;
+	
+public:
+	static FTensorRDG Make(const FTensorDesc& TensorDesc, const FTensorShape& Shape, FRDGBufferRef Buffer)
+	{
+		check(Shape.IsCompatibleWith(TensorDesc.GetShape()));
+		FTensorRDG TensorRDG;
+		TensorRDG.Name = TensorDesc.GetName();
+		TensorRDG.DataType = TensorDesc.GetDataType();
+		TensorRDG.Shape = Shape;
+		TensorRDG.Volume = Shape.Volume();
+		TensorRDG.DataSize = (uint64)GetTensorDataTypeSizeInBytes(TensorRDG.DataType) * TensorRDG.Volume;
+		check(TensorRDG.Volume <= TNumericLimits<uint32>::Max());
+		return TensorRDG;
+	}
+
+	void SetBuffer(FRDGBufferRef Inbuffer){ Buffer = Inbuffer; }
+	FRDGBufferRef GetBuffer() const { return Buffer; }
+};
+
+using FTensorRDGArray = TArray<FTensorRDG, TInlineAllocator<16>>;
+using FIntArray = TArray<int32, TInlineAllocator<16>>;
 
 /** 
  * RDG inference model base class
@@ -73,20 +96,18 @@ protected:
 
 	bool LoadModel(const FNNIModelRaw& InModel, FMLRuntimeFormat& Format);
 
-	int SetTensors(FRDGBuilder& GraphBuilder, FMLTensorBindingArray& OutRDGBindings, FMLIntArray& OutIndices, TArrayView<const FMLTensorBinding> InBindings, TArrayView<const FTensor> InTensors);
+	int SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& OutTensorRDGs, FIntArray& OutIndices, TConstArrayView<FMLTensorBinding> InBindings, TConstArrayView<FTensorDesc> InTensorDescs, TConstArrayView<FTensorShape> InTensorShapes);
 	
 	virtual int RunShapeInference() = 0;
 	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) = 0;
 
-	virtual void AddTensorUploads_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const int32> InUploadIndices, TArrayView<FMLTensorBinding> InRDGBindings, TArrayView<const FMLTensorBinding> InBindings);
-	virtual void AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const int32> InReadbackIndices, TArrayView<const FMLTensorBinding> InRDGBindings, TArrayView<const FMLTensorBinding> InBindings);
+	virtual void AddTensorUploads_RenderThread(FRDGBuilder& GraphBuilder, TConstArrayView<int32> InUploadIndices, TConstArrayView<FTensorRDG> InRDGBindings, TConstArrayView<FMLTensorBinding> InBindings);
+	virtual void AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBuilder, TConstArrayView<int32> InReadbackIndices, TConstArrayView<FTensorRDG> InRDGBindings, TConstArrayView<FMLTensorBinding> InBindings);
 
-	//Tensors
-	TArray<FTensor>		AllTensors;
-	TArray<FTensorDesc>	AllSymbolicTensors;
-	TArray<FTensor>		InputTensors;
-	TArray<FTensor>		OutputTensors;
-
+	//Tensor descriptor
+	TArray<FTensorDesc>			AllSymbolicTensorDescs;
+	TArray<FTensorShape>		AllShapes;
+		
 	//Tensor indices for models
 	TArray<int32>				IntermediateTensorIndices;
 	TArray<int32>				InputTensorIndices;
@@ -96,7 +117,9 @@ protected:
 	TArray<TArray<uint32>>		OperatorInputTensorIndices;
 	TArray<TArray<uint32>>		OperatorOutputTensorIndices;
 	
-	FMLTensorBindingArray       AllTensorBindings;
+	//RDG Tensors
+	TArray<FTensorRDG, TInlineAllocator<16>> AllTensorRDGs;
+	
 	FReadbackEntry				Readback;
 	bool						bUseManualTransitions;
 };

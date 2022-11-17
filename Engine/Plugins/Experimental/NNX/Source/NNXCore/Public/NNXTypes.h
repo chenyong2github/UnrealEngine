@@ -211,6 +211,7 @@ public:
 /** Concrete tensor backed by data */
 class FTensor : public FTensorDescBase
 {
+protected:
 	FTensorShape Shape;
 	uint32 Volume = 0;
 	uint64 DataSize = 0;

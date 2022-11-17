@@ -198,7 +198,7 @@ bool FMLInferenceModelRDG::LoadModel(const FNNIModelRaw& InModel, FMLRuntimeForm
 	OutputSymbolicTensors.Empty();
 	
 	// Data for RDG
-	AllSymbolicTensors.Empty();
+	AllSymbolicTensorDescs.Empty();
 	IntermediateTensorIndices.Empty();
 	InputTensorIndices.Empty();
 	OutputTensorIndices.Empty();
@@ -212,7 +212,7 @@ bool FMLInferenceModelRDG::LoadModel(const FNNIModelRaw& InModel, FMLRuntimeForm
 
 		FSymbolicTensorShape SymbolicShape = FSymbolicTensorShape::Make(FormatTensorDesc.Shape);
 		FTensorDesc SymbolicTensor = FTensorDesc::Make(FormatTensorDesc.Name, SymbolicShape, FormatTensorDesc.DataType);
-		AllSymbolicTensors.Emplace(SymbolicTensor);
+		AllSymbolicTensorDescs.Emplace(SymbolicTensor);
 		
 		if (FormatTensorDesc.Type == EMLFormatTensorType::Input)
 		{
@@ -307,8 +307,6 @@ int FMLInferenceModelRDG::Run(TConstArrayView<FMLTensorBinding> InInputBindings,
 
 int FMLInferenceModelRDG::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 {
-	InputTensors.Empty();
-	OutputTensors.Empty();
 	OutputTensorShapes.Empty();
 	
 	//Verify input shape are valid for the model and set InputTensorShapes
@@ -323,33 +321,25 @@ int FMLInferenceModelRDG::SetInputTensorShapes(TConstArrayView<FTensorShape> InI
 		return -1;
 	}
 
-	// Setup concrete input tensor
-	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
-	{
-		const int32 TensorIndice = InputTensorIndices[i];
-		const FTensor& InputTensor = AllTensors[TensorIndice];
-
-		InputTensors.Emplace(InputTensor);
-		check(InputTensor.GetShape().Data == InputTensorShapes[i].Data);
-	}
-
 	//Set OutputTensorShapes for the model from shape inference result
 	for (int32 OutputIndices : OutputTensorIndices)
 	{
-		OutputTensors.Emplace(AllTensors[OutputIndices]);
-		OutputTensorShapes.Emplace(AllTensors[OutputIndices].GetShape());
+		OutputTensorShapes.Emplace(AllShapes[OutputIndices]);
 	}
-	check(InputTensorIndices.Num() + OutputTensorIndices.Num() + IntermediateTensorIndices.Num() == AllTensors.Num());
-	check(InputTensors.Num() + OutputTensors.Num() + IntermediateTensorIndices.Num() == AllSymbolicTensors.Num());
+
+	check(InputTensorIndices.Num() + OutputTensorIndices.Num() + IntermediateTensorIndices.Num() == AllShapes.Num());
+	check(InputTensorShapes.Num() == InputSymbolicTensors.Num());
+	check(OutputTensorShapes.Num() == OutputSymbolicTensors.Num());
+	check(AllShapes.Num() == AllSymbolicTensorDescs.Num());
 	
 	return 0;
 }
 
-FRDGBufferDesc CreateRDGBufferDescFromTensorDesc(const FTensor& TensorDesc)
+FRDGBufferDesc CreateRDGBufferDescForTensorRDG(const FTensorRDG& Tensor)
 {
 	// FIXME: CreateStructuredDesc() creates a crash on VulkanRHI
-	//FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(TensorDesc.GetElemByteSize(), TensorDesc.GetVolume());
-	FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(TensorDesc.GetElemByteSize(), TensorDesc.GetVolume());
+	//FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(Tensor.GetElemByteSize(), Tensor.GetVolume());
+	FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(Tensor.GetElemByteSize(), Tensor.GetVolume());
 
 	return Desc;
 }
@@ -370,11 +360,11 @@ int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FM
 		return -1;
 	}
 
-	// Process input tensors, and if required, allocate RDG buffers
-	FMLTensorBindingArray	RDGInputBindings;
-	FMLIntArray				RDGUploadIndices;
+	// Process input binding, and if required, allocate RDG buffers
+	FTensorRDGArray	InputTensorRDGs;
+	FIntArray		InputUploadIndices;
 
-	Res = SetTensors(RDGBuilder, RDGInputBindings, RDGUploadIndices, InInputBindings, InputTensors);
+	Res = SetTensors(RDGBuilder, InputTensorRDGs, InputUploadIndices, InInputBindings, InputSymbolicTensors, InputTensorShapes);
 	if (Res != 0)
 	{
 		UE_LOG(LogNNX, Warning, TEXT("Invalid input tensor binding type for tensor index:%d"), Res);
@@ -382,10 +372,10 @@ int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FM
 	}
 
 	// Process output tensors, and if required, allocate RDG buffers
-	FMLTensorBindingArray	RDGOutputBindings;
-	FMLIntArray				RDGReadbackIndices;
+	FTensorRDGArray	OutputTensorRDGs;
+	FIntArray		OutputReadbackIndices;
 
-	Res = SetTensors(RDGBuilder, RDGOutputBindings, RDGReadbackIndices, InOutputBindings, OutputTensors);
+	Res = SetTensors(RDGBuilder, OutputTensorRDGs, OutputReadbackIndices, InOutputBindings, OutputSymbolicTensors, OutputTensorShapes);
 	if (Res != 0)
 	{
 		UE_LOG(LogNNX, Warning, TEXT("Invalid output tensor binding type for tensor index:%d"), Res);
@@ -393,86 +383,81 @@ int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FM
 	}
 
 	// If required, upload input tensors to GPU
-	if (!RDGUploadIndices.IsEmpty())
-	{
-		AddTensorUploads_RenderThread(RDGBuilder, RDGUploadIndices, RDGInputBindings, InInputBindings);
-	}
+	AddTensorUploads_RenderThread(RDGBuilder, InputUploadIndices, InputTensorRDGs, InInputBindings);
 
-	AllTensorBindings.Empty();
-	AllTensorBindings.SetNumUninitialized(AllTensors.Num());
-	checkCode(
-		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
-		{
-			AllTensorBindings[i].SizeInBytes = 0;
-		}
-	);
+	AllTensorRDGs.Empty();
+	AllTensorRDGs.SetNum(AllShapes.Num());
+	checkCode( for (FTensorRDG& TensorRDG : AllTensorRDGs) { TensorRDG.SetBuffer(nullptr); } );
 	
 	//Create intermediate tensors bindings
 	for (int32 Idx : IntermediateTensorIndices)
 	{
-		const FTensor& TensorDesc = AllTensors[Idx];
-		FRDGBufferDesc Desc = CreateRDGBufferDescFromTensorDesc(TensorDesc);
-		FRDGBufferRef TensorBuffer = RDGBuilder.CreateBuffer(Desc, *TensorDesc.GetName(), ERDGBufferFlags::None);
-		AllTensorBindings[Idx] = FMLTensorBinding::FromRDG(TensorBuffer, TensorDesc.GetDataSize());
+		const FTensorDesc& TensorDesc = AllSymbolicTensorDescs[Idx];
+		const FTensorShape& TensorShape = AllShapes[Idx];
+		FTensorRDG TensorRDG = FTensorRDG::Make(TensorDesc, TensorShape, nullptr);
+		const FRDGBufferDesc BufferDesc = CreateRDGBufferDescForTensorRDG(TensorRDG);
+		const FRDGBufferRef TensorBuffer = RDGBuilder.CreateBuffer(BufferDesc, *TensorRDG.GetName(), ERDGBufferFlags::None);
+		
+		TensorRDG.SetBuffer(TensorBuffer);
+		AllTensorRDGs[Idx] = TensorRDG;
 	}
 
 	//Insert input tensors bindings
 	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
 	{
-		AllTensorBindings[InputTensorIndices[i]] = RDGInputBindings[i];
+		AllTensorRDGs[InputTensorIndices[i]] = InputTensorRDGs[i];
 	}
 
 	//Insert output tensors bindings
 	for (int32 i = 0; i < OutputTensorIndices.Num(); ++i)
 	{
-		AllTensorBindings[OutputTensorIndices[i]] = RDGOutputBindings[i];
+		AllTensorRDGs[OutputTensorIndices[i]] = OutputTensorRDGs[i];
 	}
-
-	checkCode(
-		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
-		{
-			check(AllTensorBindings[i].SizeInBytes != 0);
-		}
-	);
+	checkCode(for (const FTensorRDG& TensorRDG : AllTensorRDGs) { check(TensorRDG.GetBuffer() != nullptr); });
 	
 	// We can now dispatch operators
 	AddDispatchOps_RenderThread(RDGBuilder);
 
 	// If required, readback the output tensors to CPU
-	if (!RDGReadbackIndices.IsEmpty())
-	{
-		AddTensorReadbacks_RenderThread(RDGBuilder, RDGReadbackIndices, RDGOutputBindings, InOutputBindings);
-	}
+	AddTensorReadbacks_RenderThread(RDGBuilder, OutputReadbackIndices, OutputTensorRDGs, InOutputBindings);
 
 	return 0;
 }
 
 /** 
- * Process tensor bindings and check if we need to create RDG Buffer for CPU binding 
- * Returns 0 on success, or index of a tensor binding if the tensor binding type is not supported.
+ * Process binding and check if we need to create RDG Buffer for CPU binding 
+ * Returns 0 on success, or index of a tensor if the tensor type is not supported.
  */
-int FMLInferenceModelRDG::SetTensors(FRDGBuilder& GraphBuilder, FMLTensorBindingArray& OutBindings, FMLIntArray& OutIndices, TArrayView<const FMLTensorBinding> InBindings, TArrayView<const FTensor> InTensors)
+int FMLInferenceModelRDG::SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& OutTensorRDGs, FIntArray& OutIndices, 
+	TConstArrayView<FMLTensorBinding> InBindings, TConstArrayView<FTensorDesc> InTensorDescs, TConstArrayView<FTensorShape> InTensorShapes)
 {
+	check(InBindings.Num() == InTensorDescs.Num());
+	check(InBindings.Num() == InTensorShapes.Num());
+	
 	for (int32 Idx = 0; Idx < InBindings.Num(); ++Idx)
 	{
 		const FMLTensorBinding& Binding = InBindings[Idx];
-		const FTensor& TensorDesc = InTensors[Idx];
+		const FTensorDesc& TensorDesc = InTensorDescs[Idx];
+		const FTensorShape& TensorShape = InTensorShapes[Idx];
 
 		if (Binding.BindingType == EMLTensorBindingDataType::CPUMemory)
 		{
-			FRDGBufferDesc Desc = CreateRDGBufferDescFromTensorDesc(InTensors[Idx]);
-
+			FTensorRDG TensorRDG = FTensorRDG::Make(TensorDesc, TensorShape, nullptr);
+			FRDGBufferDesc Desc = CreateRDGBufferDescForTensorRDG(TensorRDG);
+			
 			// FIXME: We should use BUF_SourceCopy for only output buffers (GPU readback)
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy);
-
+			
 			FRDGBufferRef TensorBuffer = GraphBuilder.CreateBuffer(Desc, *TensorDesc.GetName(), ERDGBufferFlags::None);
 			
-			OutBindings.Emplace(FMLTensorBinding::FromRDG(TensorBuffer, InTensors[Idx].GetDataSize()));
+			TensorRDG.SetBuffer(TensorBuffer);
+			OutTensorRDGs.Add(TensorRDG);
 			OutIndices.Add(Idx);
 		}
 		else if (Binding.BindingType == EMLTensorBindingDataType::RDGBuffer)
 		{
-			OutBindings.Add(Binding);
+			FTensorRDG TensorRDG = FTensorRDG::Make(TensorDesc, TensorShape, Binding.Buffer);
+			OutTensorRDGs.Add(TensorRDG);
 		}
 		else
 		{
@@ -487,40 +472,45 @@ int FMLInferenceModelRDG::SetTensors(FRDGBuilder& GraphBuilder, FMLTensorBinding
 //
 //
 //
-void FMLInferenceModelRDG::AddTensorUploads_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const int32> InUploadIndices, TArrayView<FMLTensorBinding> InRDGBindings, TArrayView<const FMLTensorBinding> InBindings)
+void FMLInferenceModelRDG::AddTensorUploads_RenderThread(FRDGBuilder& GraphBuilder, TConstArrayView<int32> InUploadIndices, 
+	TConstArrayView<FTensorRDG> InTensorRDGs, TConstArrayView<FMLTensorBinding> InBindings)
 {
+	check(InTensorRDGs.Num() == InBindings.Num());
+	
 	for (int32 Idx = 0; Idx < InUploadIndices.Num(); ++Idx)
 	{
-		const int32				TensorIdx = InUploadIndices[Idx];
-		const FMLTensorBinding& RDGBinding = InRDGBindings[TensorIdx];
-		const FMLTensorBinding& InBinding = InBindings[TensorIdx];
-		const FTensor&	TensorDesc = InputTensors[TensorIdx];
-
-		GraphBuilder.QueueBufferUpload(RDGBinding.Buffer, InBinding.CpuMemory, TensorDesc.GetDataSize(), ERDGInitialDataFlags::NoCopy);
+		const int32			TensorIdx = InUploadIndices[Idx];
+		const FTensorRDG&	TensorRDG = InTensorRDGs[TensorIdx];
+		const FMLTensorBinding& Binding = InBindings[TensorIdx];
+		check(Binding.BindingType == EMLTensorBindingDataType::CPUMemory);
+		GraphBuilder.QueueBufferUpload(TensorRDG.GetBuffer(), Binding.CpuMemory, TensorRDG.GetDataSize(), ERDGInitialDataFlags::NoCopy);
 	}
 }
 
 //
 //
 //
-void FMLInferenceModelRDG::AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const int32> InReadbackIndices, TArrayView<const FMLTensorBinding> InRDGBindings, TArrayView<const FMLTensorBinding> InBindings)
-{	
+void FMLInferenceModelRDG::AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBuilder, TConstArrayView<int32> InReadbackIndices,
+	TConstArrayView<FTensorRDG> InTensorRDGs, TConstArrayView<FMLTensorBinding> InBindings)
+{
+	check(InTensorRDGs.Num() == InBindings.Num());
+	
 	for (int32 Idx = 0; Idx < InReadbackIndices.Num(); ++Idx)
 	{
-		const int32				TensorIdx = InReadbackIndices[Idx];
-		const FMLTensorBinding& RDGBinding = InRDGBindings[TensorIdx];
+		const int32			TensorIdx = InReadbackIndices[Idx];
+		const FTensorRDG&	TensorRDG = InTensorRDGs[TensorIdx];
 		const FMLTensorBinding& Binding = InBindings[TensorIdx];
-		const FTensor&	TensorDesc = OutputTensors[TensorIdx];
-
+		check(Binding.BindingType == EMLTensorBindingDataType::CPUMemory);
+		
 		FMLTensorReadbackParameters* TensorReadbackParams = GraphBuilder.AllocParameters<FMLTensorReadbackParameters>();
 
-		TensorReadbackParams->Buffer = RDGBinding.Buffer;
+		TensorReadbackParams->Buffer = TensorRDG.GetBuffer();
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("FMLInferenceModelAddTensorReadback:%s", *TensorDesc.GetName()),
+			RDG_EVENT_NAME("FMLInferenceModelAddTensorReadback:%s", *TensorRDG.GetName()),
 			TensorReadbackParams,
 			ERDGPassFlags::Readback | ERDGPassFlags::NeverCull,
-			[this, Binding, TensorDesc, TensorReadbackParams](FRHICommandListImmediate& RHICmdList)
+			[this, Binding, TensorRDG, TensorReadbackParams](FRHICommandListImmediate& RHICmdList)
 			{
 				FRHIBuffer* OutputBuffer = TensorReadbackParams->Buffer->GetRHI();
 
@@ -536,10 +526,10 @@ void FMLInferenceModelRDG::AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBui
 					RHICmdList.SubmitCommandsHint();
 				}
 
-				Readback.RHI->EnqueueCopy(RHICmdList, OutputBuffer, TensorDesc.GetDataSize());
+				Readback.RHI->EnqueueCopy(RHICmdList, OutputBuffer, TensorRDG.GetDataSize());
 				Readback.CpuMemory = Binding.CpuMemory;
 				Readback.Offset = 0;
-				Readback.Size = TensorDesc.GetDataSize();
+				Readback.Size = TensorRDG.GetDataSize();
 			}
 		);
 	}
