@@ -78,6 +78,9 @@ class UNiagaraValidationRule_BannedDataInterfaces : public UNiagaraValidationRul
 
 public:
 	UPROPERTY(EditAnywhere, Category = Validation)
+	ENiagaraValidationSeverity Severity = ENiagaraValidationSeverity::Warning;
+
+	UPROPERTY(EditAnywhere, Category = Validation)
 	bool bBanOnGpu = true;
 
 	UPROPERTY(EditAnywhere, Category = Validation)
@@ -145,6 +148,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Validation)
 	bool bMaxTotalIterationsEnabled = false;
+
+	/** How do we want to repro the error in the stack */
+	UPROPERTY(EditAnywhere, Category = Validation)
+	ENiagaraValidationSeverity Severity = ENiagaraValidationSeverity::Warning;
 
 	/** Maximum number of simulation stages allowed, where 0 means no simulation stages. */
 	UPROPERTY(EditAnywhere, Category = Validation, meta=(EditCondition="bMaxSimulationStagesEnabled"))
