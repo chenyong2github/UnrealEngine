@@ -6,6 +6,7 @@
 #include "ContentStreaming.h"
 #include "RenderAssetUpdate.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StreamableRenderAsset)
 
