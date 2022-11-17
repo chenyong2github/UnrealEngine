@@ -22,6 +22,8 @@ void FSmartObjectSlotDefinitionDetails::CustomizeHeader(TSharedRef<class IProper
 	StructProperty = StructPropertyHandle;
 	PropUtils = StructCustomizationUtils.GetPropertyUtilities().Get();
 
+	CacheOuterDefinition();
+	
 	HeaderRow
 		.NameContent()
 		[
@@ -35,10 +37,24 @@ void FSmartObjectSlotDefinitionDetails::CustomizeHeader(TSharedRef<class IProper
 		.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FSmartObjectSlotDefinitionDetails::OnPaste)));
 }
 
+void FSmartObjectSlotDefinitionDetails::CacheOuterDefinition()
+{
+	TArray<UObject*> OuterObjects;
+	StructProperty->GetOuterObjects(OuterObjects);
+	for (int32 ObjectIdx = 0; ObjectIdx < OuterObjects.Num(); ObjectIdx++)
+	{
+		if (USmartObjectDefinition* OuterDefinition = OuterObjects[ObjectIdx]->GetTypedOuter<USmartObjectDefinition>())
+		{
+			Definition = OuterDefinition;
+			break;
+		}
+	}
+}
+
 void FSmartObjectSlotDefinitionDetails::OnCopy() const
 {
 	FString Value;
-	if (StructProperty->GetValueAsFormattedString(Value) == FPropertyAccess::Success)
+	if (StructProperty->GetValueAsFormattedString(Value, PPF_Copy) == FPropertyAccess::Success)
 	{
 		FPlatformApplicationMisc::ClipboardCopy(*Value);
 	}
@@ -46,6 +62,11 @@ void FSmartObjectSlotDefinitionDetails::OnCopy() const
 
 void FSmartObjectSlotDefinitionDetails::OnPaste() const
 {
+	if (Definition == nullptr)
+	{
+		return;
+	}
+	
 	FString PastedText;
 	FPlatformApplicationMisc::ClipboardPaste(PastedText);
 
@@ -53,7 +74,7 @@ void FSmartObjectSlotDefinitionDetails::OnPaste() const
 
 	StructProperty->NotifyPreChange();
 
-	if (StructProperty->SetValueFromFormattedString(PastedText) == FPropertyAccess::Success)
+	if (StructProperty->SetValueFromFormattedString(PastedText, EPropertyValueSetFlags::InstanceObjects) == FPropertyAccess::Success)
 	{
 		// Reset GUIDs on paste
 		TArray<void*> RawNodeData;
@@ -63,6 +84,8 @@ void FSmartObjectSlotDefinitionDetails::OnPaste() const
 			if (FSmartObjectSlotDefinition* Slot = static_cast<FSmartObjectSlotDefinition*>(Data))
 			{
 				Slot->ID = FGuid::NewGuid();
+				Slot->SelectionPreconditions.SchemaClass = Definition->GetWorldConditionSchemaClass();
+				Slot->SelectionPreconditions.Initialize();
 			}
 		}
 		

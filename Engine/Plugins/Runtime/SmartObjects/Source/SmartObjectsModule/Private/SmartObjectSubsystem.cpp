@@ -11,6 +11,9 @@
 #include "SmartObjectHashGrid.h"
 #include "VisualLogger/VisualLogger.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "WorldConditionQuery.h"
+#include "WorldConditionContext.h"
+#include "WorldConditions/SmartObjectWorldConditionSchema.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSubsystem)
 
@@ -184,6 +187,10 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 	Runtime.Bounds = Bounds;
 #endif
 
+
+	const USmartObjectWorldConditionSchema* DefaultWorldConditionSchema = GetDefault<USmartObjectWorldConditionSchema>();
+	FWorldConditionContextData ConditionContextData(*Definition.GetWorldConditionSchema());
+	
 	// Create runtime data and entity for each slot
 	int32 SlotIndex = 0;
 	for (const FSmartObjectSlotDefinition& SlotDefinition : Definition.GetSlots())
@@ -209,6 +216,26 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 		// Setup initial state from slot definition
 		Slot.bEnabled = SlotDefinition.bEnabled;
 		Slot.Tags = SlotDefinition.RuntimeTags;
+
+		// Activate slot Preconditions
+		if (SlotDefinition.SelectionPreconditions.IsValid())
+		{
+			if (!Slot.PreconditionState.Initialize(*this, SlotDefinition.SelectionPreconditions))
+			{
+				UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Failed to initialize Preconditions on SmartObject '%s' slot '%s'."), *LexToString(Handle), *LexToString(SlotHandle));
+			}
+			else
+			{
+				check(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectHandleRef(), &Handle));
+				check(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSlotHandleRef(), &SlotHandle));
+
+				const FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, Slot.PreconditionState, ConditionContextData);
+				if (!Context.Activate())
+				{
+					UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Failed to activate Preconditions on SmartObject '%s' slot '%s'."), *LexToString(Handle), *LexToString(SlotHandle));
+				}
+			}
+		}
 		
 		Runtime.SlotHandles[SlotIndex] = SlotHandle;
 		SlotIndex++;
@@ -273,16 +300,56 @@ void USmartObjectSubsystem::DestroyRuntimeInstanceInternal(const FSmartObjectHan
 	checkfSlow(SpacePartition != nullptr, TEXT("Space partition is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
 	SpacePartition->Remove(Handle, SmartObjectRuntime.SpatialEntryData);
 
+	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
+	const USmartObjectWorldConditionSchema* DefaultWorldConditionSchema = GetDefault<USmartObjectWorldConditionSchema>();
+	FWorldConditionContextData ConditionContextData(*Definition.GetWorldConditionSchema());
+
 	// Destroy entities associated to slots
 	TArray<FMassEntityHandle> EntitiesToDestroy;
 	EntitiesToDestroy.Reserve(SmartObjectRuntime.SlotHandles.Num());
 	for (const FSmartObjectSlotHandle SlotHandle : SmartObjectRuntime.SlotHandles)
 	{
+		// Deactivate slot Preconditions
+		const FSmartObjectRuntimeSlot& RuntimeSlot = RuntimeSlots.FindChecked(SlotHandle);
+		if (RuntimeSlot.PreconditionState.IsValid() && ConditionContextData.IsValid())
+		{
+			const FSmartObjectSlotDefinition& SlotDefinition = Definition.GetSlot(RuntimeSlot.SlotIndex);
+
+			check(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectHandleRef(), &Handle));
+			check(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSlotHandleRef(), &SlotHandle));
+
+			const FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, RuntimeSlot.PreconditionState, ConditionContextData);
+			Context.Deactivate();
+		}
+		
 		RuntimeSlots.Remove(SlotHandle);
 		EntitiesToDestroy.Add(SlotHandle);
 	}
 
 	EntityManagerRef.Defer().DestroyEntities(EntitiesToDestroy);
+}
+
+void USmartObjectSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	USmartObjectSubsystem* This = CastChecked<USmartObjectSubsystem>(InThis);
+	check(This);
+	Super::AddReferencedObjects(This, Collector);
+
+	// @todo: This can get slow, need to figure out a way to prune this.
+	
+	for (auto It(This->RuntimeSlots.CreateConstIterator()); It; ++It)
+	{
+		const FSmartObjectRuntimeSlot& RuntimeSlot = It.Value();
+		if (RuntimeSlot.PreconditionState.HasPerConditionState())
+		{
+			if (const FSmartObjectRuntime* SmartObjectRuntime = This->RuntimeSmartObjects.Find(RuntimeSlot.GetOwnerRuntimeObject()))
+			{
+				const USmartObjectDefinition& Definition = SmartObjectRuntime->GetDefinition();
+				const FSmartObjectSlotDefinition& SlotDefinition = Definition.GetSlot(RuntimeSlot.SlotIndex);
+				RuntimeSlot.PreconditionState.AddReferencedObjects(SlotDefinition.SelectionPreconditions, Collector);
+			}
+		}
+	}
 }
 
 bool USmartObjectSubsystem::RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry)
@@ -1121,19 +1188,56 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 		return;
 	}
 
+	// If the Smart Object does not support the provided world condition schema, bail out.
+	if (Filter.ConditionContextData.IsValid())
+	{
+		if (!Filter.ConditionContextData.IsSchemaChildOf(Definition.GetWorldConditionSchema()))
+		{
+			return;
+		}
+	}
+	
 	// Apply definition level filtering (Tags and BehaviorDefinition)
 	// This could be improved to cache results between a single query against multiple instances of the same definition
 	TArray<int32> ValidSlotIndices;
 	FindMatchingSlotDefinitionIndices(Definition, Filter, ValidSlotIndices);
 
+	FWorldConditionContextData ConditionContextData = Filter.ConditionContextData;
+	if (!ConditionContextData.IsValid())
+	{
+		ConditionContextData.SetSchema(Definition.GetWorldConditionSchema());
+	}
+
+	const USmartObjectWorldConditionSchema* DefaultSchema = GetDefault<USmartObjectWorldConditionSchema>();
+	check(ConditionContextData.SetContextData(DefaultSchema->GetUserActorRef(), Filter.UserActor.Get()));
+	check(ConditionContextData.SetContextData(DefaultSchema->GetUserTagsRef(), &Filter.UserTags));
+	
 	// Build list of available slot indices (filter out occupied or reserved slots or disabled slots)
 	for (const int32 SlotIndex : ValidSlotIndices)
 	{
-		const FSmartObjectRuntimeSlot& RuntimeSlot = RuntimeSlots.FindChecked(SmartObjectRuntime.SlotHandles[SlotIndex]);
-		if (RuntimeSlot.IsEnabled() && RuntimeSlot.GetState() == ESmartObjectSlotState::Free)
+		const FSmartObjectRuntimeSlot& RuntimeSlot = RuntimeSlots.FindChecked(SmartObjectRuntime.SlotHandles[SlotIndex]); 
+		if (!RuntimeSlot.IsEnabled() || RuntimeSlot.State != ESmartObjectSlotState::Free)
 		{
-			OutResults.Add(SmartObjectRuntime.SlotHandles[SlotIndex]);
+			continue;
 		}
+
+		const FSmartObjectSlotHandle SlotHandle = SmartObjectRuntime.SlotHandles[SlotIndex];
+		
+		// Check conditions.
+		const FSmartObjectSlotDefinition& SlotDefinition = Definition.GetSlot(SlotIndex);
+		if (RuntimeSlot.PreconditionState.IsValid())
+		{
+			check(ConditionContextData.SetContextData(DefaultSchema->GetSmartObjectHandleRef(), &SmartObjectRuntime.RegisteredHandle));
+			check(ConditionContextData.SetContextData(DefaultSchema->GetSlotHandleRef(), &SlotHandle));
+
+			FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, RuntimeSlot.PreconditionState, ConditionContextData);
+			if (!Context.IsTrue())
+			{
+				continue;
+			}
+		}
+			
+		OutResults.Add(SmartObjectRuntime.SlotHandles[SlotIndex]);
 	}
 }
 

@@ -7,6 +7,8 @@
 #include "MassEntityTypes.h"
 #include "Engine/DataAsset.h"
 #include "SmartObjectTypes.h"
+#include "WorldConditionQuery.h"
+#include "WorldConditions/SmartObjectWorldConditionSchema.h"
 #include "SmartObjectDefinition.generated.h"
 
 class UGameplayBehaviorConfig;
@@ -32,26 +34,26 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 	GENERATED_BODY()
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FName Name;
 
-	UPROPERTY(EditAnywhere, Category = SmartObject, meta = (DisplayName = "Color"))
+	UPROPERTY(EditAnywhere, Category = "SmartObject", meta = (DisplayName = "Color"))
 	FColor DEBUG_DrawColor = FColor::Yellow;
 
-	UPROPERTY(EditAnywhere, Category = SmartObject, meta = (Hidden))
+	UPROPERTY(EditAnywhere, Category = "SmartObject", meta = (Hidden))
 	FGuid ID;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Whether the slot is enable initially. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	bool bEnabled = true;
 
 	/** Initial runtime tags. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FGameplayTagContainer RuntimeTags;
 
 	/** This slot is available only for users matching this query. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FGameplayTagQuery UserTagFilter;
 
 	/**
@@ -59,15 +61,19 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 	 * Depending on the tag filtering policy these tags can override the parent object's tags
 	 * or be combined with them while applying filters from requests.
 	 */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FGameplayTagContainer ActivityTags;
 
+	/** Preconditions that must pass for the slot to be selected. */
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
+	FWorldConditionQueryDefinition SelectionPreconditions;
+
 	/** Offset relative to the parent object where the slot is located. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FVector Offset = FVector::ZeroVector;
 
 	/** Rotation relative to the parent object. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FRotator Rotation = FRotator::ZeroRotator;
 
 	/** Custom data (struct inheriting from SmartObjectSlotDefinitionData) that can be added to the slot definition and accessed through a FSmartObjectSlotView */
@@ -79,7 +85,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 	 * This allows multiple frameworks to provide their specific behavior definition to the slot.
 	 * Note that there should be only one definition of each type since the first one will be selected.
 	 */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", Instanced)
 	TArray<TObjectPtr<USmartObjectBehaviorDefinition>> BehaviorDefinitions;
 };
 
@@ -108,6 +114,9 @@ public:
 
 	/** @return a view on all the slot definitions */
 	TConstArrayView<FSmartObjectSlotDefinition> GetSlots() const { return Slots; }
+
+	const FSmartObjectSlotDefinition& GetSlot(const int32 Index) const { return Slots[Index]; }
+	FSmartObjectSlotDefinition& GetMutableSlot(const int32 Index) { return Slots[Index]; }
 
 	/** @return True if specified slot index is valie. */
 	bool IsValidSlotIndex(const int32 SlotIndex) const { return Slots.IsValidIndex(SlotIndex); } 
@@ -207,6 +216,9 @@ public:
 	FSoftObjectPath PreviewMeshPath;
 #endif // WITH_EDITORONLY_DATA
 
+	const USmartObjectWorldConditionSchema* GetWorldConditionSchema() const { return WorldConditionSchemaClass.GetDefaultObject(); }
+	const TSubclassOf<USmartObjectWorldConditionSchema>& GetWorldConditionSchemaClass() const { return WorldConditionSchemaClass; }
+	
 protected:
 
 #if WITH_EDITOR
@@ -216,9 +228,10 @@ protected:
 	void UpdateSlotReferences();
 
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual void PostLoad() override;
 	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
 #endif // WITH_EDITOR
+
+	virtual void PostLoad() override;
 
 private:
 	/** Finds first behavior definition of a given class in the provided list of definitions. */
@@ -247,6 +260,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FGameplayTagContainer ActivityTags;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", AdvancedDisplay)
+	TSubclassOf<USmartObjectWorldConditionSchema> WorldConditionSchemaClass;
+	
 	/** Indicates how Tags from slots and parent object are combined to be evaluated by a TagQuery from a find request. */
 	UPROPERTY(EditAnywhere, Category = "SmartObject", AdvancedDisplay)
 	ESmartObjectTagMergingPolicy ActivityTagsMergingPolicy;
@@ -254,7 +270,7 @@ private:
 	/** Indicates how TagQueries from slots and parent object will be processed against User Tags from a find request. */
 	UPROPERTY(EditAnywhere, Category = "SmartObject", AdvancedDisplay)
 	ESmartObjectTagFilteringPolicy UserTagsFilteringPolicy;
-
+	
 	mutable TOptional<bool> bValid;
 
 	friend class FSmartObjectSlotReferenceDetails;

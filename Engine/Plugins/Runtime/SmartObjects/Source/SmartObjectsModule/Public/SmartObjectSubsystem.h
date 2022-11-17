@@ -7,6 +7,7 @@
 #include "SmartObjectTypes.h"
 #include "SmartObjectRuntime.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "WorldConditionContext.h"
 #include "SmartObjectSubsystem.generated.h"
 
 class USmartObjectComponent;
@@ -37,9 +38,15 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FSmartObjectRequestFilter& operator=(FSmartObjectRequestFilter&&) = default;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	/** Pointer to the Actor requesting the Smart Object slot (Optional). */
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> UserActor = nullptr;
+
+	/** Gameplay tags of the Actor or Entity requesting the Smart Object slot. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	FGameplayTagContainer UserTags;
 
+	/** Only return slots whose activity tags are matching this query. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	FGameplayTagQuery ActivityRequirements;
 
@@ -47,11 +54,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use BehaviorDefinitionClasses instead"))
 	TSubclassOf<USmartObjectBehaviorDefinition> BehaviorDefinitionClass;
 
-	/** If set will filter out any SmartObject that uses different BehaviorDefinition classes. */
+	/** If set, will filter out any SmartObject that uses different BehaviorDefinition classes. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	TArray<TSubclassOf<USmartObjectBehaviorDefinition>> BehaviorDefinitionClasses;
 
+	/** Is set, will filter out any SmartObject that does not pass the predicate. */
 	TFunction<bool(FSmartObjectHandle)> Predicate;
+
+	/**
+	 * If set, will pass the context data for the selection preconditions.
+	 * Any SmartObject that has selection preconditions but does not match the schema set the in the context data will be skipped.
+	 */
+	FWorldConditionContextData ConditionContextData;
 };
 
 /**
@@ -674,6 +688,8 @@ protected:
 
 	/** Destroy SmartObjectRuntime contents as Handle's representation. */
 	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, const FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef);
+
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	/**
 	 * Name of the Space partition class to use.

@@ -19,6 +19,7 @@ USmartObjectDefinition::USmartObjectDefinition(const FObjectInitializer& ObjectI
 {
 	UserTagsFilteringPolicy = GetDefault<USmartObjectSettings>()->DefaultUserTagsFilteringPolicy;
 	ActivityTagsMergingPolicy = GetDefault<USmartObjectSettings>()->DefaultActivityTagsMergingPolicy;
+	WorldConditionSchemaClass = GetDefault<USmartObjectSettings>()->DefaultWorldConditionSchemaClass;
 }
 
 bool USmartObjectDefinition::Validate() const
@@ -180,6 +181,7 @@ void USmartObjectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEv
 			{
 				FSmartObjectSlotDefinition& Slot = Slots[ArrayIndex];
 				Slot.ID = FGuid::NewGuid();
+				Slot.SelectionPreconditions.SchemaClass = WorldConditionSchemaClass;
 			}
 		}
 	}
@@ -190,29 +192,26 @@ void USmartObjectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEv
 		UpdateSlotReferences();
 	}
 
-	Validate();
-}
-
-void USmartObjectDefinition::PostLoad()
-{
-	Super::PostLoad();
-
-	// Fill in missing slot ID for old data.
-	for (FSmartObjectSlotDefinition& Slot : Slots)
+	// If schema changes, update preconditions too.
+	if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(USmartObjectDefinition, WorldConditionSchemaClass))
 	{
-		if (!Slot.ID.IsValid())
+		for (FSmartObjectSlotDefinition& Slot : Slots)
 		{
-			Slot.ID = FGuid::NewGuid();
+			Slot.SelectionPreconditions.SchemaClass = WorldConditionSchemaClass;
+			Slot.SelectionPreconditions.Initialize();
 		}
 	}
-	
-	UpdateSlotReferences();
 
 	Validate();
 }
 
 void USmartObjectDefinition::PreSave(FObjectPreSaveContext SaveContext)
 {
+	for (FSmartObjectSlotDefinition& Slot : Slots)
+	{
+		Slot.SelectionPreconditions.Initialize();
+	}
+
 	UpdateSlotReferences();
 	Super::PreSave(SaveContext);
 }
@@ -247,3 +246,38 @@ void USmartObjectDefinition::UpdateSlotReferences()
 }
 
 #endif // WITH_EDITOR
+
+void USmartObjectDefinition::PostLoad()
+{
+	Super::PostLoad();
+
+	// Fill in missing world condition schema for old data.
+	if (!WorldConditionSchemaClass)
+	{
+		WorldConditionSchemaClass = GetDefault<USmartObjectSettings>()->DefaultWorldConditionSchemaClass;
+	}
+	
+	for (FSmartObjectSlotDefinition& Slot : Slots)
+	{
+#if WITH_EDITOR
+		// Fill in missing slot ID for old data.
+		if (!Slot.ID.IsValid())
+		{
+			Slot.ID = FGuid::NewGuid();
+		}
+#endif
+		// Fill in missing world condition schema for old data.
+		if (!Slot.SelectionPreconditions.SchemaClass)
+		{
+			Slot.SelectionPreconditions.SchemaClass = WorldConditionSchemaClass;
+		}
+
+		Slot.SelectionPreconditions.Initialize();
+	}
+	
+#if WITH_EDITOR
+	UpdateSlotReferences();
+
+	Validate();
+#endif	
+}

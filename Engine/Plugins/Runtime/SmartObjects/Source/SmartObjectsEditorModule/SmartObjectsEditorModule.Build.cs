@@ -29,6 +29,7 @@ namespace UnrealBuildTool.Rules
 				"SourceControl",
 				"UnrealEd",
 				"StructUtils",
+				"WorldConditions"
 			}
 			);
 
@@ -36,6 +37,7 @@ namespace UnrealBuildTool.Rules
 			new string[] {
 				"RenderCore",
 				"ApplicationCore",
+				"StructUtilsEditor",
 			}
 			);
 		}

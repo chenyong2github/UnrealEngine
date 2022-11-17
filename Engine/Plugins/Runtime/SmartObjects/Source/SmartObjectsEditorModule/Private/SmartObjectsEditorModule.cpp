@@ -10,6 +10,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Customizations/SmartObjectSlotDefinitionDetails.h"
 #include "Customizations/SmartObjectSlotReferenceDetails.h"
+#include "Customizations/SmartObjectDefinitionDetails.h"
 
 #define LOCTEXT_NAMESPACE "SmartObjects"
 
@@ -46,6 +47,7 @@ void FSmartObjectsEditorModule::StartupModule()
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomPropertyTypeLayout("SmartObjectSlotDefinition", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSmartObjectSlotDefinitionDetails::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout("SmartObjectSlotReference", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSmartObjectSlotReferenceDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout("SmartObjectDefinition", FOnGetDetailCustomizationInstance::CreateStatic(&FSmartObjectDefinitionDetails::MakeInstance));
 
 	PropertyModule.NotifyCustomizationModuleChanged();
 
@@ -75,6 +77,7 @@ void FSmartObjectsEditorModule::ShutdownModule()
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("SmartObjectSlotDefinition");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("SmartObjectSlotReference");
+		PropertyModule.UnregisterCustomClassLayout("SmartObjectDefinition");
 	}
 	
 	// Unregister all component visualizers

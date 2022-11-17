@@ -7,6 +7,7 @@
 #include "Delegates/DelegateCombinations.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectDefinition.h"
+#include "WorldConditionQuery.h"
 #include "SmartObjectRuntime.generated.h"
 
 /** Delegate fired when a given tag is added or removed. Tags on smart object are not using reference counting so count will be 0 or 1 */
@@ -185,6 +186,9 @@ protected:
 	/** Current availability state of the slot */
 	ESmartObjectSlotState State = ESmartObjectSlotState::Free;
 
+	/** World condition runtime state. */
+	mutable FWorldConditionQueryState PreconditionState;
+	
 	/** Index of the slot in the definition. */
 	uint8 SlotIndex = 0;
 

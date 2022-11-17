@@ -11,7 +11,7 @@ class FWorldConditionsModule : public IWorldConditionsModule
 	virtual void ShutdownModule() override;
 };
 
-IMPLEMENT_MODULE(FWorldConditionsModule, WorldConditionsModule)
+IMPLEMENT_MODULE(FWorldConditionsModule, WorldConditions)
 
 void FWorldConditionsModule::StartupModule()
 {

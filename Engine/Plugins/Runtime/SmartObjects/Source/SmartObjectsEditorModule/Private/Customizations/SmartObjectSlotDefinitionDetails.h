@@ -6,6 +6,7 @@
 
 class IPropertyHandle;
 class IPropertyUtilities;
+class USmartObjectDefinition;
 
 /**
  * Type customization for FSmartObjectSlotDefinition.
@@ -25,7 +26,9 @@ private:
 
 	void OnCopy() const;
 	void OnPaste() const;
-	
+	void CacheOuterDefinition();
+
+	USmartObjectDefinition* Definition = nullptr;
 	IPropertyUtilities* PropUtils = nullptr;
 	TSharedPtr<IPropertyHandle> StructProperty;
 };

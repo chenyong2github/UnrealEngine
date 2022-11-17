@@ -45,6 +45,10 @@
 		{
 			"Name": "StructUtils",
 			"Enabled": true
+		},
+		{
+			"Name": "WorldConditions",
+			"Enabled": true
 		}
 	]
 }

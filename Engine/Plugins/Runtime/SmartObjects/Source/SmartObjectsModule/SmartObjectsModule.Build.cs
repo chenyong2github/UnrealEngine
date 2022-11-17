@@ -22,7 +22,8 @@ namespace UnrealBuildTool.Rules
 				"GameplayAbilities",
 				"MassEntity",
 				"RHI",
-				"StructUtils"
+				"StructUtils",
+				"WorldConditions"
 			}
 			);
 
