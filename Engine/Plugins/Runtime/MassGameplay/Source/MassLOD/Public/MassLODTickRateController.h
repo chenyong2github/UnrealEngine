@@ -44,7 +44,7 @@ public:
 	 * @return bool return if the chunk should be tick this frame
 	 */
 	template <typename TLODFragment, typename TVariableTickRateFragment>
-	bool UpdateTickRateFromLOD(FMassExecutionContext& Context, TConstArrayView<TLODFragment> LODList, TArrayView<TVariableTickRateFragment> TickRateList, const float Time);
+	bool UpdateTickRateFromLOD(FMassExecutionContext& Context, TConstArrayView<TLODFragment> LODList, TArrayView<TVariableTickRateFragment> TickRateList, const double Time);
 
 protected:
 
@@ -87,7 +87,7 @@ bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::ShouldAd
 
 template <typename TVariableTickChunkFragment, typename FLODLogic>
 template <typename TLODFragment, typename TVariableTickRateFragment>
-bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::UpdateTickRateFromLOD(FMassExecutionContext& Context, TConstArrayView<TLODFragment> LODList, TArrayView<TVariableTickRateFragment> TickRateList, const float Time)
+bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::UpdateTickRateFromLOD(FMassExecutionContext& Context, TConstArrayView<TLODFragment> LODList, TArrayView<TVariableTickRateFragment> TickRateList, const double Time)
 {
 	bool bShouldTickThisFrame = true;
 	bool bWasChunkTicked = true;
@@ -148,7 +148,7 @@ bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::UpdateTi
 		{
 			const TLODFragment& EntityLOD = LODList[Index];
 			TVariableTickRateFragment& TickRate = TickRateList[Index];
-			TickRate.DeltaTime = TickRate.LastTickedTime != 0.0f ? Time - TickRate.LastTickedTime : DeltaTime;
+			TickRate.DeltaTime = TickRate.LastTickedTime != 0.0 ? static_cast<float>(Time - TickRate.LastTickedTime) : DeltaTime;
 			TickRate.LastTickedTime = Time;
 			if (EntityLOD.LOD != ChunkLOD)
 			{

@@ -20,7 +20,7 @@ struct FMassHitResult
 
 	FMassHitResult() = default;
 
-	FMassHitResult(const FMassEntityHandle OtherEntity, const float Time)
+	FMassHitResult(const FMassEntityHandle OtherEntity, const double Time)
 		: OtherEntity(OtherEntity)
 		, HitTime(Time)
 		, LastFilteredHitTime(Time)
@@ -32,8 +32,8 @@ struct FMassHitResult
 	FMassEntityHandle OtherEntity;
 
 	/** Time when first hit was received. */
-	float HitTime = 0.f;
+	double HitTime = 0.;
 
 	/** Time used for filtering frequent hits. */
-	float LastFilteredHitTime = 0.f;
+	double LastFilteredHitTime = 0.;
 };

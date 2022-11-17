@@ -91,16 +91,16 @@ void UMassComponentHitSubsystem::OnHitCallback(UPrimitiveComponent* HitComp, AAc
 		bProcessHit = (HitActorAsPawn != nullptr && HitActorAsPawn->IsPlayerControlled()) || (OtherAsPawn != nullptr && OtherAsPawn->IsPlayerControlled());
 	}
 
-	const float CurrentTime = World->GetTimeSeconds();
+	const double CurrentTime = World->GetTimeSeconds();
 
 	// If new hit result comes during this duration, it will be merged to existing one.
-	constexpr float HitResultMergeDuration = 1.0f;
+	constexpr double HitResultMergeDuration = 1.;
 	if (bProcessHit)
 	{
 		FMassHitResult* ExistingHitResult = HitResults.Find(Entity);
 		if (ExistingHitResult)
 		{
-			const float TimeSinceLastHit = CurrentTime - ExistingHitResult->LastFilteredHitTime;
+			const double TimeSinceLastHit = CurrentTime - ExistingHitResult->LastFilteredHitTime;
 			if (TimeSinceLastHit < HitResultMergeDuration)
 			{
 				ExistingHitResult->LastFilteredHitTime = CurrentTime;
@@ -128,13 +128,13 @@ void UMassComponentHitSubsystem::Tick(float DeltaTime)
 	const UWorld* World = GetWorld();
 	check(World);
 
-	const float CurrentTime = World->GetTimeSeconds();
-	constexpr float HitResultDecayDuration = 1.0f;
+	const double CurrentTime = World->GetTimeSeconds();
+	constexpr double HitResultDecayDuration = 1.;
 	
 	for (auto Iter = HitResults.CreateIterator(); Iter; ++Iter)
 	{
 		const FMassHitResult& HitResult = Iter.Value();
-		const float ElapsedTime = CurrentTime - HitResult.LastFilteredHitTime;
+		const double ElapsedTime = CurrentTime - HitResult.LastFilteredHitTime;
 		if (ElapsedTime > HitResultDecayDuration)
 		{
 			Iter.RemoveCurrent();

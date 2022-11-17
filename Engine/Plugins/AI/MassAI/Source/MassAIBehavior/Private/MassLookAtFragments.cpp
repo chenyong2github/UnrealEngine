@@ -64,7 +64,7 @@ FVector FMassLookAtTrajectoryFragment::GetPointAtDistanceExtrapolated(const floa
 	const float T = FMath::Clamp((DistanceAlongPath - SegStartDistance) * InvSegLength, 0.0f, 1.0f);
 
 	// 1/3 third is used to create smooth bezier curve. On linear segments 1/3 will result linear interpolation.
-	const float TangentDistance = FVector::Dist(StartPoint.Position, EndPoint.Position) / 3.0f;
+	const FVector::FReal TangentDistance = FVector::Dist(StartPoint.Position, EndPoint.Position) / 3.;
 	const FVector StartControlPoint = StartPoint.Position + StartPoint.Tangent.GetVector() * TangentDistance;
 	const FVector EndControlPoint = EndPoint.Position - EndPoint.Tangent.GetVector() * TangentDistance;
 

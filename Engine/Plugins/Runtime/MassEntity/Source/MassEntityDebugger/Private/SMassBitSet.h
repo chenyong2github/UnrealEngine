@@ -60,7 +60,7 @@ public:
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.MinDesiredWidth(150)
+				.MinDesiredWidth(150.0f)
 				.Padding(FMargin(0.0f, InArgs._SlotPadding.Get().Top, 0.0f, InArgs._SlotPadding.Get().Bottom))
 				[
 					SNew(STextBlock)
@@ -134,7 +134,7 @@ public:
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.MinDesiredWidth(150)
+				.MinDesiredWidth(150.0f)
 				.Padding(FMargin(0.0f, InArgs._SlotPadding.Get().Top, 0.0f, InArgs._SlotPadding.Get().Bottom))
 				[
 					SNew(STextBlock)
@@ -261,7 +261,7 @@ namespace UE::Mass::Debugger::UI
 			[
 				SNew(SMassBitSet<TBitSet>, Label, BitSetAccess)
 				.BackgroundBrush(Brush)
-				.SlotPadding(5)
+				.SlotPadding(5.0f)
 			];
 		}
 	}
@@ -277,7 +277,7 @@ namespace UE::Mass::Debugger::UI
 			[
 				SNew(SMassBitSetDiff<TBitSet>, Label, BaseBitSet, BitSet, Prune)
 				.BackgroundBrush(Brush)
-				.SlotPadding(5)
+				.SlotPadding(5.0f)
 			];
 		}
 	}

@@ -18,29 +18,29 @@ namespace UE::MassNavigation
 	/*
 	* Calculates speed scale based on agent's forward direction and desired steering direction.
 	*/
-	static float CalcDirectionalSpeedScale(const FVector ForwardDirection, const FVector SteerDirection)
+	static FVector::FReal CalcDirectionalSpeedScale(const FVector ForwardDirection, const FVector SteerDirection)
 	{
 		// @todo: make these configurable
-		constexpr float ForwardSpeedScale = 1.0f;
-		constexpr float BackwardSpeedScale = 0.25f;
-		constexpr float SideSpeedScale = 0.5f;
+		constexpr FVector::FReal ForwardSpeedScale = 1.;
+		constexpr FVector::FReal BackwardSpeedScale = 0.25;
+		constexpr FVector::FReal SideSpeedScale = 0.5;
 
 		const FVector LeftDirection = FVector::CrossProduct(ForwardDirection, FVector::UpVector);
-		const float DirX = FVector::DotProduct(LeftDirection, SteerDirection);
-		const float DirY = FVector::DotProduct(ForwardDirection, SteerDirection);
+		const FVector::FReal DirX = FVector::DotProduct(LeftDirection, SteerDirection);
+		const FVector::FReal DirY = FVector::DotProduct(ForwardDirection, SteerDirection);
 
 		// Calculate intersection between a direction vector and ellipse, where A & B are the size of the ellipse.
 		// The direction vector is starting from the center of the ellipse.
-		constexpr float SideA = SideSpeedScale;
-		const float SideB = DirY > 0.0f ? ForwardSpeedScale : BackwardSpeedScale;
-		const float Disc = FMath::Square(SideA) * FMath::Square(DirY) + FMath::Square(SideB) * FMath::Square(DirX);
-		const float Speed = (Disc > SMALL_NUMBER) ? (SideA * SideB / FMath::Sqrt(Disc)) : 0.0f;;
+		constexpr FVector::FReal SideA = SideSpeedScale;
+		const FVector::FReal SideB = DirY > 0. ? ForwardSpeedScale : BackwardSpeedScale;
+		const FVector::FReal Disc = FMath::Square(SideA) * FMath::Square(DirY) + FMath::Square(SideB) * FMath::Square(DirX);
+		const FVector::FReal Speed = (Disc > SMALL_NUMBER) ? (SideA * SideB / FMath::Sqrt(Disc)) : 0.;
 
 		return Speed;
 	}
 
 	/** Speed envelope when approaching a point. NormalizedDistance in range [0..1] */
-	static float ArrivalSpeedEnvelope(const float NormalizedDistance)
+	static FVector::FReal ArrivalSpeedEnvelope(const FVector::FReal NormalizedDistance)
 	{
 		return FMath::Sqrt(NormalizedDistance);
 	}
@@ -91,7 +91,7 @@ void UMassSteerToMoveTargetProcessor::Execute(FMassEntityManager& EntityManager,
 		const FMassMovingSteeringParameters& MovingSteeringParams = Context.GetConstSharedFragment<FMassMovingSteeringParameters>();
 		const FMassStandingSteeringParameters& StandingSteeringParams = Context.GetConstSharedFragment<FMassStandingSteeringParameters>();
 
-		const float SteerK = 1.f / MovingSteeringParams.ReactionTime;
+		const FVector::FReal SteerK = 1. / MovingSteeringParams.ReactionTime;
 		const float DeltaTime = Context.GetDeltaTimeSeconds();
 
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
@@ -111,71 +111,71 @@ void UMassSteerToMoveTargetProcessor::Execute(FMassEntityManager& EntityManager,
 			const FVector CurrentLocation = Transform.GetLocation();
 			const FVector CurrentForward = Transform.GetRotation().GetForwardVector();
 
-			const float LookAheadDistance = FMath::Max(1.0f, MovingSteeringParams.LookAheadTime * MoveTarget.DesiredSpeed.Get());
+			const FVector::FReal LookAheadDistance = FMath::Max(1.0f, MovingSteeringParams.LookAheadTime * MoveTarget.DesiredSpeed.Get());
 
 			if (MoveTarget.GetCurrentAction() == EMassMovementAction::Move)
 			{
 				// Tune down avoidance and speed when arriving at goal.
-				float ArrivalFade = 1.0f;
+				FVector::FReal ArrivalFade = 1.;
 				if (MoveTarget.IntentAtGoal == EMassMovementAction::Stand)
 				{
-					ArrivalFade = FMath::Clamp(MoveTarget.DistanceToGoal / LookAheadDistance, 0.0f, 1.0f);
+					ArrivalFade = FMath::Clamp(MoveTarget.DistanceToGoal / LookAheadDistance, 0., 1.);
 				}
-				const float SteeringPredictionDistance = LookAheadDistance * ArrivalFade;
+				const FVector::FReal SteeringPredictionDistance = LookAheadDistance * ArrivalFade;
 
 				// Steer towards and along the move target.
 				const FVector TargetSide = FVector::CrossProduct(MoveTarget.Forward, FVector::UpVector);
 				const FVector Delta = CurrentLocation - MoveTarget.Center;
 
-				const float ForwardOffset = FVector::DotProduct(MoveTarget.Forward, Delta);
+				const FVector::FReal ForwardOffset = FVector::DotProduct(MoveTarget.Forward, Delta);
 
 				// Calculate steering direction. When far away from the line defined by TargetPosition and TargetTangent,
 				// the steering direction is towards the line, the close we get, the more it aligns with the line.
-				const float SidewaysOffset = FVector::DotProduct(TargetSide, Delta);
-				const float SteerForward = FMath::Sqrt(FMath::Max(0.0f, FMath::Square(SteeringPredictionDistance) - FMath::Square(SidewaysOffset)));
+				const FVector::FReal SidewaysOffset = FVector::DotProduct(TargetSide, Delta);
+				const FVector::FReal SteerForward = FMath::Sqrt(FMath::Max(0., FMath::Square(SteeringPredictionDistance) - FMath::Square(SidewaysOffset)));
 
 				// The Max() here makes the steering directions behind the TargetPosition to steer towards it directly.
-				FVector SteerTarget = MoveTarget.Center + MoveTarget.Forward * FMath::Clamp(ForwardOffset + SteerForward, 0.0f, SteeringPredictionDistance);
+				FVector SteerTarget = MoveTarget.Center + MoveTarget.Forward * FMath::Clamp(ForwardOffset + SteerForward, 0., SteeringPredictionDistance);
 
 				FVector SteerDirection = SteerTarget - CurrentLocation;
-				SteerDirection.Z = 0.0f;
-				const float DistanceToSteerTarget = SteerDirection.Length();
+				SteerDirection.Z = 0.;
+				const FVector::FReal DistanceToSteerTarget = SteerDirection.Length();
 				if (DistanceToSteerTarget > KINDA_SMALL_NUMBER)
 				{
-					SteerDirection *= 1.0f / DistanceToSteerTarget;
+					SteerDirection *= 1. / DistanceToSteerTarget;
 				}
 				
-				const float DirSpeedScale = UE::MassNavigation::CalcDirectionalSpeedScale(CurrentForward, SteerDirection);
-				float DesiredSpeed = MoveTarget.DesiredSpeed.Get() * DirSpeedScale;
+				const FVector::FReal DirSpeedScale = UE::MassNavigation::CalcDirectionalSpeedScale(CurrentForward, SteerDirection);
+				FVector::FReal DesiredSpeed = MoveTarget.DesiredSpeed.Get() * DirSpeedScale;
 
 				// Control speed based relation to the forward axis of the move target.
-				float CatchupDesiredSpeed = DesiredSpeed;
-				if (ForwardOffset < 0.0f)
+				FVector::FReal CatchupDesiredSpeed = DesiredSpeed;
+				if (ForwardOffset < 0.)
 				{
 					// Falling behind, catch up
-					const float T = FMath::Min(-ForwardOffset / LookAheadDistance, 1.0f);
+					const FVector::FReal T = FMath::Min(-ForwardOffset / LookAheadDistance, 1.);
 					CatchupDesiredSpeed = FMath::Lerp(DesiredSpeed, MovementParams.MaxSpeed, T);
 				}
-				else if (ForwardOffset > 0.0f)
+				else if (ForwardOffset > 0.)
 				{
 					// Ahead, slow down.
-					const float T = FMath::Min(ForwardOffset / LookAheadDistance, 1.0f);
-					CatchupDesiredSpeed = FMath::Lerp(DesiredSpeed, DesiredSpeed * 0.0f, 1.0f - FMath::Square(1.0f - T));
+					const FVector::FReal T = FMath::Min(ForwardOffset / LookAheadDistance, 1.);
+					CatchupDesiredSpeed = FMath::Lerp(DesiredSpeed, DesiredSpeed * 0., 1. - FMath::Square(1. - T));
 				}
 
 				// Control speed based on distance to move target. This allows to catch up even if speed above reaches zero.
-				const float DeviantSpeed = FMath::Min(FMath::Abs(SidewaysOffset) / LookAheadDistance, 1.0f) * DesiredSpeed;
+				const FVector::FReal DeviantSpeed = FMath::Min(FMath::Abs(SidewaysOffset) / LookAheadDistance, 1.) * DesiredSpeed;
 
 				DesiredSpeed = FMath::Max(CatchupDesiredSpeed, DeviantSpeed);
 
 				// Slow down towards the end of path.
 				if (MoveTarget.IntentAtGoal == EMassMovementAction::Stand)
 				{
-					const float NormalizedDistanceToSteerTarget = FMath::Clamp(DistanceToSteerTarget / LookAheadDistance, 0.0f, 1.0f);
+					const FVector::FReal NormalizedDistanceToSteerTarget = FMath::Clamp(DistanceToSteerTarget / LookAheadDistance, 0., 1.);
 					DesiredSpeed *= UE::MassNavigation::ArrivalSpeedEnvelope(FMath::Max(ArrivalFade, NormalizedDistanceToSteerTarget));
 				}
 
-				MoveTarget.bSteeringFallingBehind = ForwardOffset < -LookAheadDistance * 0.8f;
+				MoveTarget.bSteeringFallingBehind = ForwardOffset < -LookAheadDistance * 0.8;
 
 				// @todo: This current completely overrides steering, we probably should have one processor that resets the steering at the beginning of the frame.
 				Steering.DesiredVelocity = SteerDirection * DesiredSpeed;
@@ -184,8 +184,8 @@ void UMassSteerToMoveTargetProcessor::Execute(FMassEntityManager& EntityManager,
 			else if (MoveTarget.GetCurrentAction() == EMassMovementAction::Stand)
 			{
 				// Calculate unique target move threshold so that different agents react a bit differently.
-				const float PerEntityScale = UE::RandomSequence::FRand(Entity.Index);
-				const float TargetMoveThreshold = StandingSteeringParams.TargetMoveThreshold * (1.0f - StandingSteeringParams.TargetMoveThresholdVariance + PerEntityScale * StandingSteeringParams.TargetMoveThresholdVariance * 2.0f);
+				const FVector::FReal PerEntityScale = UE::RandomSequence::FRand(Entity.Index);
+				const FVector::FReal TargetMoveThreshold = StandingSteeringParams.TargetMoveThreshold * (1. - StandingSteeringParams.TargetMoveThresholdVariance + PerEntityScale * StandingSteeringParams.TargetMoveThresholdVariance * 2.);
 				
 				if (Ghost.LastSeenActionID != MoveTarget.GetCurrentActionID())
 				{
@@ -197,7 +197,7 @@ void UMassSteerToMoveTargetProcessor::Execute(FMassEntityManager& EntityManager,
 					StandingSteering.TargetLocation = MoveTarget.Center;
 					StandingSteering.TrackedTargetSpeed = 0.0f;
 					StandingSteering.bIsUpdatingTarget = false;
-					StandingSteering.TargetSelectionCooldown = StandingSteeringParams.TargetSelectionCooldown * FMath::RandRange(1.0f - StandingSteeringParams.TargetSelectionCooldownVariance, 1.0f + StandingSteeringParams.TargetSelectionCooldownVariance);
+					StandingSteering.TargetSelectionCooldown = StandingSteeringParams.TargetSelectionCooldown * FMath::RandRange(1.f - StandingSteeringParams.TargetSelectionCooldownVariance, 1.f + StandingSteeringParams.TargetSelectionCooldownVariance);
 					StandingSteering.bEnteredFromMoveAction = MoveTarget.GetPreviousAction() == EMassMovementAction::Move;
 				}
 
@@ -219,10 +219,12 @@ void UMassSteerToMoveTargetProcessor::Execute(FMassEntityManager& EntityManager,
 				{
 					// Updating target
 					StandingSteering.TargetLocation = Ghost.Location;
-					const float GhostSpeed = Ghost.Velocity.Length();
+					const FVector::FReal GhostSpeed = Ghost.Velocity.Length();
+
 					if (GhostSpeed > (StandingSteering.TrackedTargetSpeed * StandingSteeringParams.TargetSpeedHysteresisScale))
 					{
-						StandingSteering.TrackedTargetSpeed = FMath::Max(StandingSteering.TrackedTargetSpeed, GhostSpeed);
+						const FVector::FReal TrackedTargetSpeed = FMath::Max(StandingSteering.TrackedTargetSpeed, GhostSpeed);
+						StandingSteering.TrackedTargetSpeed = static_cast<float>(TrackedTargetSpeed);
 					}
 					else
 					{
@@ -234,25 +236,25 @@ void UMassSteerToMoveTargetProcessor::Execute(FMassEntityManager& EntityManager,
 				
 				// Move directly towards the move target when standing.
 				FVector SteerDirection = FVector::ZeroVector;
-				float DesiredSpeed = 0.0f;
+				FVector::FReal DesiredSpeed = 0.;
 
 				FVector Delta = StandingSteering.TargetLocation - CurrentLocation;
-				Delta.Z = 0.0f;
-				const float Distance = Delta.Size();
+				Delta.Z = 0.;
+				const FVector::FReal Distance = Delta.Size();
 				if (Distance > StandingSteeringParams.DeadZoneRadius)
 				{
 					SteerDirection = Delta / Distance;
 					if (StandingSteering.bEnteredFromMoveAction)
 					{
 						// If the current steering target is from approaching a move target, use the same speed logic as movement to ensure smooth transition.
-						const float Range = FMath::Max(1.0f, LookAheadDistance - StandingSteeringParams.DeadZoneRadius);
-						const float SpeedFade = FMath::Clamp((Distance - StandingSteeringParams.DeadZoneRadius) / Range, 0.0f, 1.0f);
+						const FVector::FReal Range = FMath::Max(1., LookAheadDistance - StandingSteeringParams.DeadZoneRadius);
+						const FVector::FReal SpeedFade = FMath::Clamp((Distance - StandingSteeringParams.DeadZoneRadius) / Range, 0., 1.);
 						DesiredSpeed = MoveTarget.DesiredSpeed.Get() * UE::MassNavigation::CalcDirectionalSpeedScale(CurrentForward, SteerDirection) * UE::MassNavigation::ArrivalSpeedEnvelope(SpeedFade);
 					}
 					else
 					{
-						const float Range = FMath::Max(1.0f, LookAheadDistance - StandingSteeringParams.DeadZoneRadius);
-						const float SpeedFade = FMath::Clamp((Distance - StandingSteeringParams.DeadZoneRadius) / Range, 0.0f, 1.0f);
+						const FVector::FReal Range = FMath::Max(1., LookAheadDistance - StandingSteeringParams.DeadZoneRadius);
+						const FVector::FReal SpeedFade = FMath::Clamp((Distance - StandingSteeringParams.DeadZoneRadius) / Range, 0., 1.);
 						// Not using the directional scaling so that the steps we take to avoid are done quickly, and the behavior is reactive.
 						DesiredSpeed = MoveTarget.DesiredSpeed.Get() * UE::MassNavigation::ArrivalSpeedEnvelope(SpeedFade);
 					}

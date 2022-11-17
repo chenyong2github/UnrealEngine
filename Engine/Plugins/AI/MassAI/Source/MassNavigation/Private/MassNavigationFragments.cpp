@@ -17,7 +17,7 @@ void FMassMoveTargetFragment::CreateNewAction(const EMassMovementAction InAction
 	MarkNetDirty();
 }
 
-void FMassMoveTargetFragment::CreateReplicatedAction(const EMassMovementAction InAction, const uint16 InActionID, const float InWorldStartTime, const float InServerStartTime)
+void FMassMoveTargetFragment::CreateReplicatedAction(const EMassMovementAction InAction, const uint16 InActionID, const double InWorldStartTime, const double InServerStartTime)
 {
 	CurrentAction = InAction;
 	CurrentActionID = InActionID;

@@ -32,9 +32,9 @@ void FMassComponentHitEvaluator::Tick(FStateTreeExecutionContext &Context, const
 		// @todo: This is a bit of a kludge to expose an event to StateTree.
 		const UWorld* World = Context.GetWorld();
 		check(World);
-		const float CurrentTime = World->GetTimeSeconds();
-		const float TimeSinceHit = CurrentTime - HitResult->HitTime;
-		constexpr float HitEventDuration = 0.1f;
+		const double CurrentTime = World->GetTimeSeconds();
+		const double TimeSinceHit = CurrentTime - HitResult->HitTime;
+		constexpr double HitEventDuration = 0.1;
 		if (TimeSinceHit < HitEventDuration)
 		{
 			MASSBEHAVIOR_LOG(VeryVerbose, TEXT("Got hit"));

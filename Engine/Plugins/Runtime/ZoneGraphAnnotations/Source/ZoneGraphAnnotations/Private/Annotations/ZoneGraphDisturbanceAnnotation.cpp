@@ -274,14 +274,14 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 			for (const FZoneGraphDisturbanceArea& Danger : Dangers)
 			{
 				const FVector ClosestPoint = FMath::ClosestPointOnSegment(Danger.Position, PrevPosition, LaneLocation.Position);
-				const float DangerCost = 1.0f - FMath::Min(FVector::Dist2D(Danger.Position, ClosestPoint) / Danger.Radius, 1.0f);
+				const float DangerCost = FloatCastChecked<float>(1. - FMath::Min(FVector::Dist2D(Danger.Position, ClosestPoint) / Danger.Radius, 1.), UE::LWC::DefaultFloatPrecision);
 				Span.Danger = FMath::Max(Span.Danger, DangerCost);
 			}
 
 			for (const FZoneGraphObstacleDisturbanceArea& Obstacle : Obstacles)
 			{
 				const FVector ClosestPoint = FMath::ClosestPointOnSegment(Obstacle.Position, PrevPosition, LaneLocation.Position);
-				const float DangerCost = 1.0f - FMath::Min(FVector::Dist2D(Obstacle.Position, ClosestPoint) / Obstacle.Radius, 1.0f);
+				const float DangerCost = FloatCastChecked<float>(1. - FMath::Min(FVector::Dist2D(Obstacle.Position, ClosestPoint) / Obstacle.Radius, 1.), UE::LWC::DefaultFloatPrecision);
 				Span.Danger = FMath::Max(Span.Danger, DangerCost);
 			}
 
@@ -369,7 +369,7 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 				const uint8 NextSpanIndex = Node.ExitLinkType == EZoneLaneLinkType::Incoming ? (Node.SpanIndex + 1) : (Node.SpanIndex - 1);
 				FZoneGraphEscapeLaneSpan& NextSpan = EscapeLane.Spans[NextSpanIndex];
 				const float Danger = (Span.Danger + NextSpan.Danger) * 0.5f;
-				const float Distance = FVector::Distance(Span.Position, NextSpan.Position);
+				const float Distance = FloatCastChecked<float>(FVector::Distance(Span.Position, NextSpan.Position), UE::LWC::DefaultFloatPrecision);
 				const float NextCost = UE::ZoneGraphAnnotations::CalculateCost(Node.EscapeCost, Distance, Danger * DangerPenalty);
 				if (NextCost < NextSpan.EscapeCost)
 				{
@@ -394,7 +394,7 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 				const uint8 NextSpanIndex = Node.SpanIndex - 1;
 				FZoneGraphEscapeLaneSpan& NextSpan = EscapeLane.Spans[NextSpanIndex];
 				const float Danger = (Span.Danger + NextSpan.Danger) * 0.5f;
-				const float Distance = FVector::Distance(Span.Position, NextSpan.Position);
+				const float Distance = FloatCastChecked<float>(FVector::Distance(Span.Position, NextSpan.Position), UE::LWC::DefaultFloatPrecision);
 				const float NextCost = UE::ZoneGraphAnnotations::CalculateCost(Node.EscapeCost, Distance, Danger * DangerPenalty);
 				if (NextCost < NextSpan.EscapeCost)
 				{
@@ -411,7 +411,7 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 				const uint8 NextSpanIndex = Node.SpanIndex + 1;
 				FZoneGraphEscapeLaneSpan& NextSpan = EscapeLane.Spans[NextSpanIndex];
 				const float Danger = (Span.Danger + NextSpan.Danger) * 0.5f;
-				const float Distance = FVector::Distance(Span.Position, NextSpan.Position);
+				const float Distance = FloatCastChecked<float>(FVector::Distance(Span.Position, NextSpan.Position), UE::LWC::DefaultFloatPrecision);
 				const float NextCost = UE::ZoneGraphAnnotations::CalculateCost(Node.EscapeCost, Distance, Danger * DangerPenalty);
 				if (NextCost < NextSpan.EscapeCost)
 				{
@@ -461,7 +461,7 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 						FZoneGraphEscapeLaneSpan& NextSpan = DestEscapeLane.Spans[NextSpanIndex];
 
 						const float Danger = (Span.Danger + NextSpan.Danger) * 0.5f;
-						const float Distance = FVector::Distance(Span.Position, NextSpan.Position);
+						const float Distance = FloatCastChecked<float>(FVector::Distance(Span.Position, NextSpan.Position), UE::LWC::DefaultFloatPrecision);
 						const float NextCost = UE::ZoneGraphAnnotations::CalculateCost(Node.EscapeCost, Distance, Danger * DangerPenalty);
 						if (NextCost < NextSpan.EscapeCost)
 						{
@@ -496,7 +496,7 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 						FZoneGraphEscapeLaneSpan& NextSpan = DestEscapeLane.Spans[NextSpanIndex];
 
 						const float Danger = (Span.Danger + NextSpan.Danger) * 0.5f;
-						const float Distance = FVector::Distance(Span.Position, NextSpan.Position);
+						const float Distance = FloatCastChecked<float>(FVector::Distance(Span.Position, NextSpan.Position), UE::LWC::DefaultFloatPrecision);
 						const float NextCost = UE::ZoneGraphAnnotations::CalculateCost(Node.EscapeCost, Distance, Danger * DangerPenalty + AdjacentPenalty);
 						if (NextCost < NextSpan.EscapeCost)
 						{
@@ -698,7 +698,7 @@ void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* 
 				{
 					continue;
 				}
-				const float DistanceSq = FVector::DistSquared(ViewLocation, EscapeLane.Spans[EscapeLane.SpanCount/2].Position);
+				const float DistanceSq = FloatCastChecked<float>(FVector::DistSquared(ViewLocation, EscapeLane.Spans[EscapeLane.SpanCount/2].Position), UE::LWC::DefaultFloatPrecision);
 				if (DistanceSq > DrawDistanceSq)
 				{
 					continue;
@@ -787,7 +787,7 @@ void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* 
 
 	for (const FZoneGraphDisturbanceArea& Danger : Dangers)
 	{
-		const float DistanceSq = FVector::DistSquared(ViewLocation, Danger.Position);
+		const float DistanceSq = FloatCastChecked<float>(FVector::DistSquared(ViewLocation, Danger.Position), UE::LWC::DefaultFloatPrecision);
 		if (DistanceSq > DrawDistanceSq)
 		{
 			continue;
@@ -802,7 +802,7 @@ void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* 
 
 	for (const FZoneGraphObstacleDisturbanceArea& Obstacle : Obstacles)
 	{
-		const float DistanceSq = FVector::DistSquared(ViewLocation, Obstacle.Position);
+		const float DistanceSq = FloatCastChecked<float>(FVector::DistSquared(ViewLocation, Obstacle.Position), UE::LWC::DefaultFloatPrecision);
 		if (DistanceSq > DrawDistanceSq)
 		{
 			continue;

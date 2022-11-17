@@ -471,8 +471,8 @@ void UMassZoneGraphLaneCacheBoundaryProcessor::Execute(FMassEntityManager& Entit
 			const FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 
 			// First check if we moved enough for an update
-			const float DeltaDistSquared = FVector::DistSquared(MovementTarget.Center, LaneCacheBoundary.LastUpdatePosition);
-			const float UpdateDistanceThresholdSquared = FMath::Square(50.f);
+			const FVector::FReal DeltaDistSquared = FVector::DistSquared(MovementTarget.Center, LaneCacheBoundary.LastUpdatePosition);
+			const FVector::FReal UpdateDistanceThresholdSquared = FMath::Square(50.);
 
 #if WITH_MASSGAMEPLAY_DEBUG && 0
 			const FDebugContext ObstacleDebugContext(this, LogAvoidanceObstacles, World, Entity);

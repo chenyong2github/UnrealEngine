@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,51 +8,51 @@
 namespace UE::MassNavigation
 {
 	// Calculates yaw angle from direction vector.
-	inline float GetYawFromQuat(const FQuat Rotation)
+	inline FQuat::FReal GetYawFromQuat(const FQuat Rotation)
 	{
-		const float YawY = 2.f * (Rotation.W * Rotation.Z + Rotation.X * Rotation.Y);
-		const float YawX = (1.f - 2.f * (FMath::Square(Rotation.Y) + FMath::Square(Rotation.Z)));
+		const FQuat::FReal YawY = 2. * (Rotation.W * Rotation.Z + Rotation.X * Rotation.Y);
+		const FQuat::FReal YawX = (1. - 2. * (FMath::Square(Rotation.Y) + FMath::Square(Rotation.Z)));
 		return FMath::Atan2(YawY, YawX);
 	}
 
-	inline float GetYawFromDirection(const FVector Direction)
+	inline FVector::FReal GetYawFromDirection(const FVector Direction)
 	{
 		return FMath::Atan2(Direction.Y, Direction.X);
 	}
 
 	// Wraps and angle to range -PI..PI. Angle in radians.
-	inline float WrapAngle(const float Angle)
+	inline FVector::FReal WrapAngle(const FVector::FReal Angle)
 	{
-		float WrappedAngle = FMath::Fmod(Angle, PI*2.0f);
-		WrappedAngle = (WrappedAngle > PI) ? WrappedAngle - PI*2.0f : WrappedAngle;
-		WrappedAngle = (WrappedAngle < -PI) ? WrappedAngle + PI*2.0f : WrappedAngle;
+		FVector::FReal WrappedAngle = FMath::Fmod(Angle, UE_DOUBLE_PI*2.);
+		WrappedAngle = (WrappedAngle > UE_DOUBLE_PI) ? WrappedAngle - UE_DOUBLE_PI * 2. : WrappedAngle;
+		WrappedAngle = (WrappedAngle < -UE_DOUBLE_PI) ? WrappedAngle + UE_DOUBLE_PI * 2. : WrappedAngle;
 		return WrappedAngle;
 	}
 
 	// Linearly interpolates between two angles (in Radians).
-	inline float LerpAngle(const float AngleA, const float AngleB, const float T)
+	inline FVector::FReal LerpAngle(const FVector::FReal AngleA, const FVector::FReal AngleB, const FVector::FReal T)
 	{
-		const float DeltaAngle = WrapAngle(AngleB - AngleA);
+		const FVector::FReal DeltaAngle = WrapAngle(AngleB - AngleA);
 		return AngleA + DeltaAngle * T;
 	}
 
 	// Exponential smooth from current angle to target angle. Angles in radians.
-	inline float ExponentialSmoothingAngle(const float Angle, const float TargetAngle, const float DeltaTime, const float SmoothingTime)
+	inline FVector::FReal ExponentialSmoothingAngle(const FVector::FReal Angle, const FVector::FReal TargetAngle, const FVector::FReal DeltaTime, const FVector::FReal SmoothingTime)
 	{
 		// Note: based on FMath::ExponentialSmoothingApprox().
 		if (SmoothingTime < KINDA_SMALL_NUMBER)
 		{
 			return TargetAngle;
 		}
-		const float A = DeltaTime / SmoothingTime;
-		const float Exp = FMath::InvExpApprox(A);
+		const FVector::FReal A = DeltaTime / SmoothingTime;
+		const FVector::FReal Exp = FMath::InvExpApprox(A);
 		return TargetAngle + WrapAngle(Angle - TargetAngle) * Exp;
 	}
 
 	// Clamps vectors magnitude to Mag.
-	inline FVector ClampVector(const FVector Vec, const float Mag)
+	inline FVector ClampVector(const FVector Vec, const FVector::FReal Mag)
 	{
-		const float Len = Vec.SizeSquared();
+		const FVector::FReal Len = Vec.SizeSquared();
 		if (Len > FMath::Square(Mag)) {
 			return Vec * Mag / FMath::Sqrt(Len);
 		}
@@ -60,21 +60,36 @@ namespace UE::MassNavigation
 	}
 
 	// Projects a point to segment and returns the time interpolation value.
-	inline float ProjectPtSeg(const FVector2D Point, const FVector2D Start, const FVector2D End)
+	inline FVector::FReal ProjectPtSeg(const FVector2D Point, const FVector2D Start, const FVector2D End)
 	{
 		const FVector2D Seg = End - Start;
 		const FVector2D Dir = Point - Start;
-		const float d = Seg.SizeSquared();
-		const float t = FVector2D::DotProduct(Seg, Dir);
-		if (t < 0.f) return 0;
-		if (t > d) return 1;
-		return d > 0.f ? (t / d) : 0.f;
+		const FVector::FReal SegSizeSquared = Seg.SizeSquared();
+		const FVector::FReal SegDirDot = FVector2D::DotProduct(Seg, Dir);
+
+		if (SegDirDot < 0.)
+		{
+			return 0.;
+		}
+
+		if (SegDirDot > SegSizeSquared)
+		{
+			return 1.;
+		}
+
+		return SegSizeSquared > 0. ? (SegDirDot / SegSizeSquared) : 0.;
 	}
 
 	// Returns the SmoothStep curve for X in range [0..1]. 
 	inline float Smooth(const float X)
 	{
-		return X * X * (3 - 2 * X);
+		return X * X * (3.f - 2.f * X);
+	}
+
+	// Returns the SmoothStep curve for X in range [0..1]. 
+	inline double Smooth(const double X)
+	{
+		return X * X * (3. - 2. * X);
 	}
 
 	// Returns left direction from forward and up directions.
@@ -86,11 +101,11 @@ namespace UE::MassNavigation
 	// Computes miter normal in XY plane from two neighbour edge normals.
 	inline FVector ComputeMiterNormal(const FVector NormalA, const FVector NormalB)
 	{
-		FVector Mid = 0.5f * (NormalA + NormalB);
-		const float MidSquared = FVector::DotProduct(Mid, Mid);
+		FVector Mid = 0.5 * (NormalA + NormalB);
+		const FVector::FReal MidSquared = FVector::DotProduct(Mid, Mid);
 		if (MidSquared > KINDA_SMALL_NUMBER)
 		{
-			const float Scale = FMath::Min(1.f / MidSquared, 20.f);
+			const FVector::FReal Scale = FMath::Min(1. / MidSquared, 20.);
 			Mid *= Scale;
 		}
 		return Mid;

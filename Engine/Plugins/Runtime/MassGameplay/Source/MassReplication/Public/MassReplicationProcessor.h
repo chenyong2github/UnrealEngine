@@ -104,7 +104,7 @@ void UMassReplicatorBase::CalculateClientReplication(FMassExecutionContext& Cont
 
 	CacheViews(Context);
 
-	const float Time = ReplicationContext.World.GetRealTimeSeconds();
+	const double Time = ReplicationContext.World.GetRealTimeSeconds();
 
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{

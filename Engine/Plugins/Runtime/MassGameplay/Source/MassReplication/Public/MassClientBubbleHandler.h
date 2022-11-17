@@ -80,11 +80,11 @@ struct FMassAgentLookupData
 struct FMassAgentRemoveData
 {
 	FMassAgentRemoveData() = default;
-	FMassAgentRemoveData(float InTimeLastRemoved)
+	FMassAgentRemoveData(double InTimeLastRemoved)
 		: TimeLastRemoved(InTimeLastRemoved)
 	{}
 
-	float TimeLastRemoved = 0.f;
+	double TimeLastRemoved = 0.;
 };
 
 /**
@@ -357,7 +357,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::UpdateAgentsToRemove()
 	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
 	check(ReplicationSubsystem);
 
-	const float TimeRemove = Serializer->GetWorld()->GetRealTimeSeconds() - UE::Mass::Replication::AgentRemoveInterval;
+	const double TimeRemove = Serializer->GetWorld()->GetRealTimeSeconds() - UE::Mass::Replication::AgentRemoveInterval;
 
 	// @todo do this in a more efficient way, we may potentially be able to use ACK's and FReplicatedAgentBase::bRemovedFromServeSim
 	// Check to see if we should free any EntityInfoMap entries, this is to avoid gradually growing EntityInfoMap perpetually

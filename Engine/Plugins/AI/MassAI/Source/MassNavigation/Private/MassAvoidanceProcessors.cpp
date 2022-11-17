@@ -44,11 +44,11 @@ namespace UE::MassAvoidance
 	constexpr int32 MinTouchingCellCount = 4;
 	constexpr int32 MaxObstacleResults = MaxExpectedAgentsPerCell * MinTouchingCellCount;
 
-	static void FindCloseObstacles(const FVector& Center, const float SearchRadius, const FNavigationObstacleHashGrid2D& AvoidanceObstacleGrid,
+	static void FindCloseObstacles(const FVector& Center, const FVector::FReal SearchRadius, const FNavigationObstacleHashGrid2D& AvoidanceObstacleGrid,
 									TArray<FMassNavigationObstacleItem, TFixedAllocator<MaxObstacleResults>>& OutCloseEntities, const int32 MaxResults)
 	{
 		OutCloseEntities.Reset();
-		const FVector Extent(SearchRadius, SearchRadius, 0.f);
+		const FVector Extent(SearchRadius, SearchRadius, 0.);
 		const FBox QueryBox = FBox(Center - Extent, Center + Extent);
 
 		struct FSortingCell
@@ -56,24 +56,24 @@ namespace UE::MassAvoidance
 			int32 X;
 			int32 Y;
 			int32 Level;
-			float SqDist;
+			FVector::FReal SqDist;
 		};
 		TArray<FSortingCell, TInlineAllocator<64>> Cells;
 		const FVector QueryCenter = QueryBox.GetCenter();
 		
 		for (int32 Level = 0; Level < AvoidanceObstacleGrid.NumLevels; Level++)
 		{
-			const float CellSize = AvoidanceObstacleGrid.GetCellSize(Level);
+			const FVector::FReal CellSize = AvoidanceObstacleGrid.GetCellSize(Level);
 			const FNavigationObstacleHashGrid2D::FCellRect Rect = AvoidanceObstacleGrid.CalcQueryBounds(QueryBox, Level);
 			for (int32 Y = Rect.MinY; Y <= Rect.MaxY; Y++)
 			{
 				for (int32 X = Rect.MinX; X <= Rect.MaxX; X++)
 				{
-					const float CenterX = (X + 0.5f) * CellSize;
-					const float CenterY = (Y + 0.5f) * CellSize;
-					const float DX = CenterX - QueryCenter.X;
-					const float DY = CenterY - QueryCenter.Y;
-					const float SqDist = DX * DX + DY * DY;
+					const FVector::FReal CenterX = (X + 0.5) * CellSize;
+					const FVector::FReal CenterY = (Y + 0.5) * CellSize;
+					const FVector::FReal DX = CenterX - QueryCenter.X;
+					const FVector::FReal DY = CenterY - QueryCenter.Y;
+					const FVector::FReal SqDist = DX * DX + DY * DY;
 					FSortingCell SortCell;
 					SortCell.X = X;
 					SortCell.Y = Y;
@@ -104,50 +104,50 @@ namespace UE::MassAvoidance
 	}
 
 	// Adapted from ray-capsule intersection: https://iquilezles.org/www/articles/intersectors/intersectors.htm
-	static float ComputeClosestPointOfApproach(const FVector2D Pos, const FVector2D Vel, const float Rad, const FVector2D SegStart, const FVector2D SegEnd, const float TimeHoriz)
+	static FVector::FReal ComputeClosestPointOfApproach(const FVector2D Pos, const FVector2D Vel, const FVector::FReal Rad, const FVector2D SegStart, const FVector2D SegEnd, const FVector::FReal TimeHoriz)
 	{
 		const FVector2D SegDir = SegEnd - SegStart;
 		const FVector2D RelPos = Pos - SegStart;
-		const float VelSq = FVector2D::DotProduct(Vel, Vel);
-		const float SegDirSq = FVector2D::DotProduct(SegDir, SegDir);
-		const float DirVelSq = FVector2D::DotProduct(SegDir, Vel);
-		const float DirRelPosSq = FVector2D::DotProduct(SegDir, RelPos);
-		const float VelRelPosSq = FVector2D::DotProduct(Vel, RelPos);
-		const float RelPosSq = FVector2D::DotProduct(RelPos, RelPos);
-		const float A = SegDirSq * VelSq - DirVelSq * DirVelSq;
-		const float B = SegDirSq * VelRelPosSq - DirRelPosSq * DirVelSq;
-		const float C = SegDirSq * RelPosSq - DirRelPosSq * DirRelPosSq - FMath::Square(Rad) * SegDirSq;
-		const float H = FMath::Max<float>(0.f, B*B - A*C); // b^2 - ac, Using max for closest point of arrival result when no hit.
-		const float T = FMath::Abs(A) > SMALL_NUMBER ? (-B - FMath::Sqrt(H)) / A : 0.f;
-		const float Y = DirRelPosSq + T * DirVelSq;
+		const FVector::FReal VelSq = FVector2D::DotProduct(Vel, Vel);
+		const FVector::FReal SegDirSq = FVector2D::DotProduct(SegDir, SegDir);
+		const FVector::FReal DirVelSq = FVector2D::DotProduct(SegDir, Vel);
+		const FVector::FReal DirRelPosSq = FVector2D::DotProduct(SegDir, RelPos);
+		const FVector::FReal VelRelPosSq = FVector2D::DotProduct(Vel, RelPos);
+		const FVector::FReal RelPosSq = FVector2D::DotProduct(RelPos, RelPos);
+		const FVector::FReal A = SegDirSq * VelSq - DirVelSq * DirVelSq;
+		const FVector::FReal B = SegDirSq * VelRelPosSq - DirRelPosSq * DirVelSq;
+		const FVector::FReal C = SegDirSq * RelPosSq - DirRelPosSq * DirRelPosSq - FMath::Square(Rad) * SegDirSq;
+		const FVector::FReal H = FMath::Max(0., B*B - A*C); // b^2 - ac, Using max for closest point of arrival result when no hit.
+		const FVector::FReal T = FMath::Abs(A) > SMALL_NUMBER ? (-B - FMath::Sqrt(H)) / A : 0.;
+		const FVector::FReal Y = DirRelPosSq + T * DirVelSq;
 		
-		if (Y > 0.f && Y < SegDirSq) 
+		if (Y > 0. && Y < SegDirSq) 
 		{
-			return FMath::Clamp(T, 0.f, TimeHoriz);
+			return FMath::Clamp(T, 0., TimeHoriz);
 		}
 		else 
 		{
 			// caps
-			const FVector2D CapRelPos = (Y <= 0.f) ? RelPos : Pos - SegEnd;
-			const float Cb = FVector2D::DotProduct(Vel, CapRelPos);
-			const float Cc = FVector2D::DotProduct(CapRelPos, CapRelPos) - FMath::Square(Rad);
-			const float Ch = FMath::Max<float>(0.0f, Cb * Cb - VelSq * Cc);
-			const float T1 = VelSq > SMALL_NUMBER ? (-Cb - FMath::Sqrt(Ch)) / VelSq : 0.f;
-			return FMath::Clamp(T1, 0.f, TimeHoriz);
+			const FVector2D CapRelPos = (Y <= 0.) ? RelPos : Pos - SegEnd;
+			const FVector::FReal Cb = FVector2D::DotProduct(Vel, CapRelPos);
+			const FVector::FReal Cc = FVector2D::DotProduct(CapRelPos, CapRelPos) - FMath::Square(Rad);
+			const FVector::FReal Ch = FMath::Max(0., Cb * Cb - VelSq * Cc);
+			const FVector::FReal T1 = VelSq > SMALL_NUMBER ? (-Cb - FMath::Sqrt(Ch)) / VelSq : 0.;
+			return FMath::Clamp(T1, 0., TimeHoriz);
 		}
 	}
 
-	static float ComputeClosestPointOfApproach(const FVector RelPos, const FVector RelVel, const float TotalRadius, const float TimeHoriz)
+	static FVector::FReal ComputeClosestPointOfApproach(const FVector RelPos, const FVector RelVel, const FVector::FReal TotalRadius, const FVector::FReal TimeHoriz)
 	{
 		// Calculate time of impact based on relative agent positions and velocities.
-		const float A = FVector::DotProduct(RelVel, RelVel);
-		const float Inv2A = A > SMALL_NUMBER ? 1.f / (2.f * A) : 0.f;
-		const float B = FMath::Min(0.f, 2.f * FVector::DotProduct(RelVel, RelPos));
-		const float C = FVector::DotProduct(RelPos, RelPos) - FMath::Square(TotalRadius);
+		const FVector::FReal A = FVector::DotProduct(RelVel, RelVel);
+		const FVector::FReal Inv2A = A > SMALL_NUMBER ? 1. / (2. * A) : 0.;
+		const FVector::FReal B = FMath::Min(0., 2. * FVector::DotProduct(RelVel, RelPos));
+		const FVector::FReal C = FVector::DotProduct(RelPos, RelPos) - FMath::Square(TotalRadius);
 		// Using max() here gives us CPA (closest point on arrival) when there is no hit.
-		const float Discr = FMath::Sqrt(FMath::Max(0.f, B * B - 4.f * A * C));
-		const float T = (-B - Discr) * Inv2A;
-		return FMath::Clamp(T, 0.f, TimeHoriz);
+		const FVector::FReal Discr = FMath::Sqrt(FMath::Max(0., B * B - 4. * A * C));
+		const FVector::FReal T = (-B - Discr) * Inv2A;
+		return FMath::Clamp(T, 0., TimeHoriz);
 	}
 
 	static bool UseDrawDebugHelper()
@@ -178,8 +178,8 @@ namespace UE::MassAvoidance
 	static const FColor ObstacleAvoidForceColor = FColor::Magenta;
 	static const FColor ObstacleSeparationForceColor = FColor(255, 66, 66);	// Bright red
 	
-	static const FVector DebugAgentHeightOffset = FVector(0.f, 0.f, 185.f);
-	static const FVector DebugLowCylinderOffset = FVector(0.f, 0.f, 20.f);
+	static const FVector DebugAgentHeightOffset = FVector(0., 0., 185.);
+	static const FVector DebugLowCylinderOffset = FVector(0., 0., 20.);
 
 	//----------------------------------------------------------------------//
 	// Begin MassDebugUtils
@@ -228,7 +228,7 @@ namespace UE::MassAvoidance
 			return;
 		}
 
-		const float Pointyness = 1.8f;
+		const FVector::FReal Pointyness = 1.8;
 		const FVector Line = End - Start;
 		const FVector UnitV = Line.GetSafeNormal();
 		const FVector Perp = FVector::CrossProduct(UnitV, FVector::UpVector);
@@ -305,13 +305,13 @@ namespace UE::MassAvoidance
 		}
 
 		const float Thickness = 3.f;
-		const float Pointyness = 1.8f;
+		const FVector::FReal Pointyness = 1.8;
 		const FVector Line = End - Start;
 		const FVector UnitV = Line.GetSafeNormal();
 		const FVector Perp = FVector::CrossProduct(UnitV, FVector::UpVector);
 		const FVector Left = Perp - (Pointyness * UnitV);
 		const FVector Right = -Perp - (Pointyness * UnitV);
-		const float HeadSize = 0.08f * Line.Size();
+		const FVector::FReal HeadSize = 0.08 * Line.Size();
 		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, Start, End, Color, (int16)Thickness, TEXT(""));
 		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Left, Color, (int16)Thickness, TEXT(""));
 		UE_VLOG_SEGMENT_THICK(Context.LogOwner, Context.Category, Log, End, End + HeadSize * Right, Color, (int16)Thickness, TEXT(""));
@@ -333,7 +333,7 @@ namespace UE::MassAvoidance
 
 	static void DebugDrawSummedForce(const FDebugContext& Context, const FVector& Start, const FVector& End, const FColor& Color)
 	{
-		DebugDrawArrow(Context, Start + FVector(0.f,0.f,1.f), End + FVector(0.f, 0.f, 1.f), Color, /*HeadSize*/8.f, /*Thickness*/6.f);
+		DebugDrawArrow(Context, Start + FVector(0.,0.,1.), End + FVector(0., 0., 1.), Color, /*HeadSize*/8.f, /*Thickness*/6.f);
 	}
 
 #endif // WITH_MASSGAMEPLAY_DEBUG
@@ -388,7 +388,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager](FMassExecutionContext& Context)
 	{
 		const float DeltaTime = Context.GetDeltaTimeSeconds();
-		const float CurrentTime = World->GetTimeSeconds();
+		const double CurrentTime = World->GetTimeSeconds();
 		const int32 NumEntities = Context.GetNumEntities();
 		
 		const TArrayView<FMassForceFragment> ForceList = Context.GetMutableFragmentView<FMassForceFragment>();
@@ -400,7 +400,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 		const FMassMovingAvoidanceParameters& MovingAvoidanceParams = Context.GetConstSharedFragment<FMassMovingAvoidanceParameters>();
 		const FMassMovementParameters& MovementParams = Context.GetConstSharedFragment<FMassMovementParameters>();
 
-		const float InvPredictiveAvoidanceTime = 1.0f / MovingAvoidanceParams.PredictiveAvoidanceTime;
+		const FVector::FReal InvPredictiveAvoidanceTime = 1. / MovingAvoidanceParams.PredictiveAvoidanceTime;
 
 		// Arrays used to store close obstacles
 		TArray<FMassNavigationObstacleItem, TFixedAllocator<UE::MassAvoidance::MaxObstacleResults>> CloseEntities;
@@ -411,7 +411,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 			FVector LocationCached;
 			FVector Forward;
 			FMassNavigationObstacleItem ObstacleItem;
-			float SqDist;
+			FVector::FReal SqDist;
 		};
 		TArray<FSortedObstacle, TFixedAllocator<UE::MassAvoidance::MaxObstacleResults>> ClosestObstacles;
 
@@ -420,7 +420,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 		{
 			FVector Position = FVector::ZeroVector;
 			FVector Normal = FVector::ZeroVector;
-			float Distance = 0.f;
+			FVector::FReal Distance = 0.;
 		};
 		TArray<FEnvironmentContact, TInlineAllocator<16>> Contacts;
 
@@ -453,39 +453,39 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 
 			// Smaller steering max accel makes the steering more "calm" but less opportunistic, may not find solution, or gets stuck.
 			// Max contact accel should be quite a big bigger than steering so that collision response is firm. 
-			const float MaxSteerAccel = MovementParams.MaxAcceleration;
-			const float MaximumSpeed = MovementParams.MaxSpeed;
+			const FVector::FReal MaxSteerAccel = MovementParams.MaxAcceleration;
+			const FVector::FReal MaximumSpeed = MovementParams.MaxSpeed;
 
 			const FVector AgentLocation = Location.GetTransform().GetTranslation();
-			const FVector AgentVelocity = FVector(Velocity.Value.X, Velocity.Value.Y, 0.0f);
+			const FVector AgentVelocity = FVector(Velocity.Value.X, Velocity.Value.Y, 0.);
 			
-			const float AgentRadius = Radius.Radius;
-			const float SeparationAgentRadius = Radius.Radius * MovingAvoidanceParams.SeparationRadiusScale;
-			const float PredictiveAvoidanceAgentRadius = Radius.Radius * MovingAvoidanceParams.PredictiveAvoidanceRadiusScale;
+			const FVector::FReal AgentRadius = Radius.Radius;
+			const FVector::FReal SeparationAgentRadius = Radius.Radius * MovingAvoidanceParams.SeparationRadiusScale;
+			const FVector::FReal PredictiveAvoidanceAgentRadius = Radius.Radius * MovingAvoidanceParams.PredictiveAvoidanceRadiusScale;
 			
 			FVector SteeringForce = Force.Value;
 
 			// Near start and end fades are used to subdue the avoidance at the start and end of the path.
-			float NearStartFade = 1.0f;
-			float NearEndFade = 1.0f;
+			FVector::FReal NearStartFade = 1.;
+			FVector::FReal NearEndFade = 1.;
 
 			if (MoveTarget.GetPreviousAction() != EMassMovementAction::Move)
 			{
 				// Fade in avoidance when transitioning from other than move action.
 				// I.e. the standing behavior may move the agents so close to each,
 				// and that causes the separation to push them out quickly when avoidance is activated. 
-				NearStartFade = FMath::Min((CurrentTime - MoveTarget.GetCurrentActionStartTime()) / MovingAvoidanceParams.StartOfPathDuration, 1.0f);
+				NearStartFade = FMath::Min((CurrentTime - MoveTarget.GetCurrentActionStartTime()) / MovingAvoidanceParams.StartOfPathDuration, 1.);
 			}
 
 			if (MoveTarget.IntentAtGoal == EMassMovementAction::Stand)
 			{
 				// Estimate approach based on current desired speed.
-				const float ApproachDistance = FMath::Max(1.0f, MovingAvoidanceParams.EndOfPathDuration * MoveTarget.DesiredSpeed.Get());
-				NearEndFade = FMath::Clamp(MoveTarget.DistanceToGoal / ApproachDistance, 0.f, 1.f);
+				const FVector::FReal ApproachDistance = FMath::Max<FVector::FReal>(1., MovingAvoidanceParams.EndOfPathDuration * MoveTarget.DesiredSpeed.Get());
+				NearEndFade = FMath::Clamp(MoveTarget.DistanceToGoal / ApproachDistance, 0., 1.);
 			}
 			
-			const float NearStartScaling = FMath::Lerp(MovingAvoidanceParams.StartOfPathAvoidanceScale, 1.0f, NearStartFade);
-			const float NearEndScaling = FMath::Lerp(MovingAvoidanceParams.EndOfPathAvoidanceScale, 1.0f, NearEndFade);
+			const FVector::FReal NearStartScaling = FMath::Lerp<FVector::FReal>(MovingAvoidanceParams.StartOfPathAvoidanceScale, 1., NearStartFade);
+			const FVector::FReal NearEndScaling = FMath::Lerp<FVector::FReal>(MovingAvoidanceParams.EndOfPathAvoidanceScale, 1., NearEndFade);
 			
 #if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 			const UE::MassAvoidance::FDebugContext BaseDebugContext(this, LogAvoidance, World, Entity);
@@ -497,7 +497,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 			{
 				// Draw agent
 				const FString Text = FString::Printf(TEXT("%i"), Entity.Index);
-				DebugDrawCylinder(BaseDebugContext, AgentLocation, AgentLocation + UE::MassAvoidance::DebugAgentHeightOffset, AgentRadius+1.f, UE::MassAvoidance::CurrentAgentColor, Text);
+				DebugDrawCylinder(BaseDebugContext, AgentLocation, AgentLocation + UE::MassAvoidance::DebugAgentHeightOffset, static_cast<float>(AgentRadius+1.), UE::MassAvoidance::CurrentAgentColor, Text);
 
 				DebugDrawSphere(BaseDebugContext, AgentLocation, 10.f, UE::MassAvoidance::CurrentAgentColor);
 
@@ -539,22 +539,22 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 				{
 					const FVector EdgeDiff = Edge.End - Edge.Start;
 					FVector EdgeDir = FVector::ZeroVector;
-					float EdgeLength = 0.0f;
+					FVector::FReal EdgeLength = 0.;
 					EdgeDiff.ToDirectionAndLength(EdgeDir, EdgeLength);
 
 					const FVector AgentToEdgeStart = AgentLocation - Edge.Start;
-					const float DistAlongEdge = FVector::DotProduct(EdgeDir, AgentToEdgeStart);
-					const float DistAwayFromEdge = FVector::DotProduct(Edge.LeftDir, AgentToEdgeStart);
+					const FVector::FReal DistAlongEdge = FVector::DotProduct(EdgeDir, AgentToEdgeStart);
+					const FVector::FReal DistAwayFromEdge = FVector::DotProduct(Edge.LeftDir, AgentToEdgeStart);
 
-					float ConDist = 0.0f;
+					FVector::FReal ConDist = 0.;
 					FVector ConNorm = FVector::ForwardVector;
 					FVector ConPos = FVector::ZeroVector;
 					bool bDirectlyBehindEdge = false;
 					
-					if (DistAwayFromEdge < 0.0f)
+					if (DistAwayFromEdge < 0.)
 					{
 						// Inside or behind the edge
-						if (DistAlongEdge < 0.0f)
+						if (DistAlongEdge < 0.)
 						{
 							ConPos = Edge.Start;
 							ConNorm = -EdgeDir;
@@ -570,13 +570,13 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 						{
 							ConPos = Edge.Start + EdgeDir * DistAlongEdge;
 							ConNorm = Edge.LeftDir;
-							ConDist = 0.0f;
+							ConDist = 0.;
 							bDirectlyBehindEdge = true;
 						}
 					}
 					else
 					{
-						if (DistAlongEdge < 0.0f)
+						if (DistAlongEdge < 0.)
 						{
 							// Start Corner
 							ConPos = Edge.Start;
@@ -601,7 +601,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 					bool bAdd = true;
 					for (int ContactIndex = 0; ContactIndex < Contacts.Num(); ContactIndex++)
 					{
-						if (FVector::DotProduct(Contacts[ContactIndex].Normal, ConNorm) > 0.f && FMath::Abs(FVector::DotProduct(ConNorm, Contacts[ContactIndex].Position - ConPos)) < (10.f/*cm*/))
+						if (FVector::DotProduct(Contacts[ContactIndex].Normal, ConNorm) > 0. && FMath::Abs(FVector::DotProduct(ConNorm, Contacts[ContactIndex].Position - ConPos)) < (10./*cm*/))
 						{
 							// Contacts are on same place, merge
 							if (ConDist < Contacts[ContactIndex].Distance)
@@ -630,33 +630,33 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 					if (!bDirectlyBehindEdge)
 					{
 						// Avoid edges
-						const float CPA = UE::MassAvoidance::ComputeClosestPointOfApproach(FVector2D(AgentLocation), FVector2D(DesiredVelocity), AgentRadius,
+						const FVector::FReal CPA = UE::MassAvoidance::ComputeClosestPointOfApproach(FVector2D(AgentLocation), FVector2D(DesiredVelocity), AgentRadius,
 							FVector2D(Edge.Start), FVector2D(Edge.End), MovingAvoidanceParams.PredictiveAvoidanceTime);
 						const FVector HitAgentPos = AgentLocation + DesiredVelocity * CPA;
-						const float EdgeT = UE::MassNavigation::ProjectPtSeg(FVector2D(HitAgentPos), FVector2D(Edge.Start), FVector2D(Edge.End));
+						const FVector::FReal EdgeT = UE::MassNavigation::ProjectPtSeg(FVector2D(HitAgentPos), FVector2D(Edge.Start), FVector2D(Edge.End));
 						const FVector HitObPos = FMath::Lerp(Edge.Start, Edge.End, EdgeT);
 
 						// Calculate penetration at CPA
 						FVector AvoidRelPos = HitAgentPos - HitObPos;
-						AvoidRelPos.Z = 0.f;	// @todo AT: ignore the z component for now until we clamp the height of obstacles
-						const float AvoidDist = AvoidRelPos.Size();
-						const FVector AvoidNormal = AvoidDist > 0.0f ? (AvoidRelPos / AvoidDist) : FVector::ForwardVector;
+						AvoidRelPos.Z = 0.;	// @todo AT: ignore the z component for now until we clamp the height of obstacles
+						const FVector::FReal AvoidDist = AvoidRelPos.Size();
+						const FVector AvoidNormal = AvoidDist > 0. ? (AvoidRelPos / AvoidDist) : FVector::ForwardVector;
 
-						const float AvoidPen = (PredictiveAvoidanceAgentRadius + MovingAvoidanceParams.PredictiveAvoidanceDistance) - AvoidDist;
-						const float AvoidMag = FMath::Square(FMath::Clamp(AvoidPen / MovingAvoidanceParams.PredictiveAvoidanceDistance, 0.f, 1.f));
-						const float AvoidMagDist = 1.f + FMath::Square(1.f - CPA * InvPredictiveAvoidanceTime);
+						const FVector::FReal AvoidPen = (PredictiveAvoidanceAgentRadius + MovingAvoidanceParams.PredictiveAvoidanceDistance) - AvoidDist;
+						const FVector::FReal AvoidMag = FMath::Square(FMath::Clamp(AvoidPen / MovingAvoidanceParams.PredictiveAvoidanceDistance, 0., 1.));
+						const FVector::FReal AvoidMagDist = 1. + FMath::Square(1. - CPA * InvPredictiveAvoidanceTime);
 						const FVector AvoidForce = AvoidNormal * AvoidMag * AvoidMagDist * MovingAvoidanceParams.EnvironmentPredictiveAvoidanceStiffness * NearEndScaling; // Predictive avoidance against environment is tuned down towards the end of the path
 
 						SteeringForce += AvoidForce;
 
 #if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 						// Draw contact normal
-						UE::MassAvoidance::DebugDrawArrow(ObstacleDebugContext, ConPos, ConPos + 50.f * ConNorm, UE::MassAvoidance::ObstacleContactNormalColor, /*HeadSize=*/ 5.f);
+						UE::MassAvoidance::DebugDrawArrow(ObstacleDebugContext, ConPos, ConPos + 50. * ConNorm, UE::MassAvoidance::ObstacleContactNormalColor, /*HeadSize=*/ 5.f);
 						UE::MassAvoidance::DebugDrawSphere(ObstacleDebugContext, ConPos, 2.5f, UE::MassAvoidance::ObstacleContactNormalColor);
 
 						// Draw hit pos with edge
 						UE::MassAvoidance::DebugDrawLine(ObstacleDebugContext, AgentLocation, HitAgentPos, UE::MassAvoidance::ObstacleAvoidForceColor);
-						UE::MassAvoidance::DebugDrawCylinder(ObstacleDebugContext, HitAgentPos, HitAgentPos + UE::MassAvoidance::DebugAgentHeightOffset, AgentRadius, UE::MassAvoidance::ObstacleAvoidForceColor);
+						UE::MassAvoidance::DebugDrawCylinder(ObstacleDebugContext, HitAgentPos, HitAgentPos + UE::MassAvoidance::DebugAgentHeightOffset, static_cast<float>(AgentRadius), UE::MassAvoidance::ObstacleAvoidForceColor);
 
 						// Draw avoid obstacle force
 						UE::MassAvoidance::DebugDrawForce(ObstacleDebugContext, HitObPos, HitObPos + AvoidForce, UE::MassAvoidance::ObstacleAvoidForceColor);
@@ -678,11 +678,11 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 				for (int ContactIndex = 0; ContactIndex < Contacts.Num(); ContactIndex++) 
 				{
 					const FVector ConNorm = Contacts[ContactIndex].Normal.GetSafeNormal();
-					const float ContactDist = Contacts[ContactIndex].Distance;
+					const FVector::FReal ContactDist = Contacts[ContactIndex].Distance;
 
 					// Separation force (stay away from obstacles if possible)
-					const float SeparationPenalty = (SeparationAgentRadius + MovingAvoidanceParams.EnvironmentSeparationDistance) - ContactDist;
-					const float SeparationMag = UE::MassNavigation::Smooth(FMath::Clamp(SeparationPenalty / MovingAvoidanceParams.EnvironmentSeparationDistance, 0.f, 1.f));
+					const FVector::FReal SeparationPenalty = (SeparationAgentRadius + MovingAvoidanceParams.EnvironmentSeparationDistance) - ContactDist;
+					const FVector::FReal SeparationMag = UE::MassNavigation::Smooth(FMath::Clamp(SeparationPenalty / MovingAvoidanceParams.EnvironmentSeparationDistance, 0., 1.));
 					const FVector SeparationForce = ConNorm * MovingAvoidanceParams.EnvironmentSeparationStiffness * SeparationMag;
 
 					SteeringForce += SeparationForce;
@@ -710,7 +710,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 						DebugDrawLine(ObstacleDebugContext, UE::MassAvoidance::DebugAgentHeightOffset + Edge.Start,
 							UE::MassAvoidance::DebugAgentHeightOffset + Edge.End, UE::MassAvoidance::ObstacleColor, /*Thickness=*/2.f);
 						const FVector Middle = UE::MassAvoidance::DebugAgentHeightOffset + 0.5f * (Edge.Start + Edge.End);
-						DebugDrawArrow(ObstacleDebugContext, Middle, Middle + 10.f * FVector::CrossProduct((Edge.End - Edge.Start), FVector::UpVector).GetSafeNormal(), UE::MassAvoidance::ObstacleColor, /*HeadSize=*/2.f);
+						DebugDrawArrow(ObstacleDebugContext, Middle, Middle + 10. * FVector::CrossProduct((Edge.End - Edge.Start), FVector::UpVector).GetSafeNormal(), UE::MassAvoidance::ObstacleColor, /*HeadSize=*/2.f);
 					}
 				}
 #endif // WITH_MASSGAMEPLAY_DEBUG
@@ -728,7 +728,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 			UE::MassAvoidance::FindCloseObstacles(AgentLocation, MovingAvoidanceParams.ObstacleDetectionDistance, AvoidanceObstacleGrid, CloseEntities, UE::MassAvoidance::MaxObstacleResults);
 
 			// Remove unwanted and find the closests in the CloseEntities
-			const float DistanceCutOffSqr = FMath::Square(MovingAvoidanceParams.ObstacleDetectionDistance);
+			const FVector::FReal DistanceCutOffSqr = FMath::Square(MovingAvoidanceParams.ObstacleDetectionDistance);
 			ClosestObstacles.Reset();
 			for (const FNavigationObstacleHashGrid2D::ItemIDType OtherEntity : CloseEntities)
 			{
@@ -749,7 +749,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 				const FTransform& Transform = EntityManager.GetFragmentDataChecked<FTransformFragment>(OtherEntity.Entity).GetTransform();
 				const FVector OtherLocation = Transform.GetLocation();
 				
-				const float SqDist = FVector::DistSquared(AgentLocation, OtherLocation);
+				const FVector::FReal SqDist = FVector::DistSquared(AgentLocation, OtherLocation);
 				if (SqDist > DistanceCutOffSqr)
 				{
 					continue;
@@ -849,22 +849,22 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 				{
 					// If the other obstacle cannot avoid us, try to avoid the local minima they create between the wall and their collider.
 					// If the space between edge and collider is less than MinClearance, make the agent to avoid the gap.
-					const float MinClearance = 2.f * AgentRadius * MovingAvoidanceParams. StaticObstacleClearanceScale;
+					const FVector::FReal MinClearance = 2. * AgentRadius * MovingAvoidanceParams.StaticObstacleClearanceScale;
 					
 					// Find the maximum distance from edges that are too close.
-					float MaxDist = -1.f;
+					FVector::FReal MaxDist = -1.;
 					FVector ClosestPoint = FVector::ZeroVector;
 					for (const FNavigationAvoidanceEdge& Edge : NavEdges.AvoidanceEdges)
 					{
 						const FVector Point = FMath::ClosestPointOnSegment(Collider.Location, Edge.Start, Edge.End);
 						const FVector Offset = Collider.Location - Point;
-						if (FVector::DotProduct(Offset, Edge.LeftDir) < 0.f)
+						if (FVector::DotProduct(Offset, Edge.LeftDir) < 0.)
 						{
 							// Behind the edge, ignore.
 							continue;
 						}
 
-						const float OffsetLength = Offset.Length();
+						const FVector::FReal OffsetLength = Offset.Length();
 						const bool bTooNarrow = (OffsetLength - Collider.Radius) < MinClearance; 
 						if (bTooNarrow)
 						{
@@ -876,7 +876,7 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 						}
 					}
 
-					if (MaxDist != -1.f)
+					if (MaxDist != -1.)
 					{
 						// Set up forced normal to avoid the gap between collider and edge.
 						ForcedNormal = (Collider.Location - ClosestPoint).GetSafeNormal();
@@ -885,25 +885,25 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 				}
 
 				FVector RelPos = AgentLocation - Collider.Location;
-				RelPos.Z = 0.f; // we assume we work on a flat plane for now
+				RelPos.Z = 0.; // we assume we work on a flat plane for now
 				const FVector RelVel = DesVel - Collider.Velocity;
-				const float ConDist = RelPos.Size();
-				const FVector ConNorm = ConDist > 0.f ? RelPos / ConDist : FVector::ForwardVector;
+				const FVector::FReal ConDist = RelPos.Size();
+				const FVector ConNorm = ConDist > 0. ? RelPos / ConDist : FVector::ForwardVector;
 
 				FVector SeparationNormal = ConNorm;
 				if (bHasForcedNormal)
 				{
 					// The more head on the collisions is, the more we should avoid towards the forced direction.
 					const FVector RelVelNorm = RelVel.GetSafeNormal();
-					const float Blend = FMath::Max(0.0f, -FVector::DotProduct(ConNorm, RelVelNorm));
+					const FVector::FReal Blend = FMath::Max(0., -FVector::DotProduct(ConNorm, RelVelNorm));
 					SeparationNormal = FMath::Lerp(ConNorm, ForcedNormal, Blend).GetSafeNormal();
 				}
 				
-				const float StandingScaling = Collider.bIsMoving ? 1.0f : MovingAvoidanceParams.StandingObstacleAvoidanceScale; // Care less about standing agents so that we can push through standing crowd.
+				const FVector::FReal StandingScaling = Collider.bIsMoving ? 1. : MovingAvoidanceParams.StandingObstacleAvoidanceScale; // Care less about standing agents so that we can push through standing crowd.
 				
 				// Separation force (stay away from agents if possible)
-				const float PenSep = (SeparationAgentRadius + Collider.Radius + MovingAvoidanceParams.ObstacleSeparationDistance) - ConDist;
-				const float SeparationMag = FMath::Square(FMath::Clamp(PenSep / MovingAvoidanceParams.ObstacleSeparationDistance, 0.f, 1.f));
+				const FVector::FReal PenSep = (SeparationAgentRadius + Collider.Radius + MovingAvoidanceParams.ObstacleSeparationDistance) - ConDist;
+				const FVector::FReal SeparationMag = FMath::Square(FMath::Clamp(PenSep / MovingAvoidanceParams.ObstacleSeparationDistance, 0., 1.));
 				const FVector SepForce = SeparationNormal * MovingAvoidanceParams.ObstacleSeparationStiffness;
 				const FVector SeparationForce = SepForce * SeparationMag * StandingScaling;
 
@@ -911,25 +911,25 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 				TotalAgentSeparationForce += SeparationForce;
 
 				// Calculate closest point of approach based on relative agent positions and velocities.
-				const float CPA = UE::MassAvoidance::ComputeClosestPointOfApproach(RelPos, RelVel, PredictiveAvoidanceAgentRadius + Collider.Radius, MovingAvoidanceParams.PredictiveAvoidanceTime);
+				const FVector::FReal CPA = UE::MassAvoidance::ComputeClosestPointOfApproach(RelPos, RelVel, PredictiveAvoidanceAgentRadius + Collider.Radius, MovingAvoidanceParams.PredictiveAvoidanceTime);
 
 				// Calculate penetration at CPA
 				const FVector AvoidRelPos = RelPos + RelVel * CPA;
-				const float AvoidDist = AvoidRelPos.Size();
-				const FVector AvoidConNormal = AvoidDist > 0.0f ? (AvoidRelPos / AvoidDist) : FVector::ForwardVector;
+				const FVector::FReal AvoidDist = AvoidRelPos.Size();
+				const FVector AvoidConNormal = AvoidDist > 0. ? (AvoidRelPos / AvoidDist) : FVector::ForwardVector;
 
 				FVector AvoidNormal = AvoidConNormal;
 				if (bHasForcedNormal)
 				{
 					// The more head on the predicted collisions is, the more we should avoid towards the forced direction.
 					const FVector RelVelNorm = RelVel.GetSafeNormal();
-					const float Blend = FMath::Max(0.0f, -FVector::DotProduct(AvoidConNormal, RelVelNorm));
+					const FVector::FReal Blend = FMath::Max(0., -FVector::DotProduct(AvoidConNormal, RelVelNorm));
 					AvoidNormal = FMath::Lerp(AvoidConNormal, ForcedNormal, Blend).GetSafeNormal();
 				}
 				
-				const float AvoidPenetration = (PredictiveAvoidanceAgentRadius + Collider.Radius + MovingAvoidanceParams.PredictiveAvoidanceDistance) - AvoidDist; // Based on future agents distance
-				const float AvoidMag = FMath::Square(FMath::Clamp(AvoidPenetration / MovingAvoidanceParams.PredictiveAvoidanceDistance, 0.f, 1.f));
-				const float AvoidMagDist = (1.f - (CPA * InvPredictiveAvoidanceTime)); // No clamp, CPA is between 0 and PredictiveAvoidanceTime
+				const FVector::FReal AvoidPenetration = (PredictiveAvoidanceAgentRadius + Collider.Radius + MovingAvoidanceParams.PredictiveAvoidanceDistance) - AvoidDist; // Based on future agents distance
+				const FVector::FReal AvoidMag = FMath::Square(FMath::Clamp(AvoidPenetration / MovingAvoidanceParams.PredictiveAvoidanceDistance, 0., 1.));
+				const FVector::FReal AvoidMagDist = (1. - (CPA * InvPredictiveAvoidanceTime)); // No clamp, CPA is between 0 and PredictiveAvoidanceTime
 				const FVector AvoidForce = AvoidNormal * AvoidMag * AvoidMagDist * MovingAvoidanceParams.ObstaclePredictiveAvoidanceStiffness * StandingScaling;
 
 				SteeringForce += AvoidForce;
@@ -949,14 +949,14 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 					Collider.Location + UE::MassAvoidance::DebugAgentHeightOffset + SeparationForce,
 					UE::MassAvoidance::AgentSeparationForceColor); 
 				
-				if (AvoidForce.Size() > 0.f)
+				if (AvoidForce.Size() > 0.)
 				{
 					// Draw agent vs agent hit positions
 					const FVector HitPosition = AgentLocation + (DesVel * CPA);
 					const FVector LeftOffset = PredictiveAvoidanceAgentRadius * UE::MassNavigation::GetLeftDirection(DesVel.GetSafeNormal(), FVector::UpVector);
 					UE::MassAvoidance::DebugDrawLine(AgentDebugContext, AgentLocation + UE::MassAvoidance::DebugAgentHeightOffset + LeftOffset, HitPosition + UE::MassAvoidance::DebugAgentHeightOffset + LeftOffset, UE::MassAvoidance::CurrentAgentColor, 1.5f);
 					UE::MassAvoidance::DebugDrawLine(AgentDebugContext, AgentLocation + UE::MassAvoidance::DebugAgentHeightOffset - LeftOffset, HitPosition + UE::MassAvoidance::DebugAgentHeightOffset - LeftOffset, UE::MassAvoidance::CurrentAgentColor, 1.5f);
-					UE::MassAvoidance::DebugDrawCylinder(AgentDebugContext, HitPosition, HitPosition + UE::MassAvoidance::DebugAgentHeightOffset, PredictiveAvoidanceAgentRadius, UE::MassAvoidance::CurrentAgentColor);
+					UE::MassAvoidance::DebugDrawCylinder(AgentDebugContext, HitPosition, HitPosition + UE::MassAvoidance::DebugAgentHeightOffset, static_cast<float>(PredictiveAvoidanceAgentRadius), UE::MassAvoidance::CurrentAgentColor);
 
 					const FVector OtherHitPosition = Collider.Location + (Collider.Velocity * CPA);
 					const FVector OtherLeftOffset = Collider.Radius * UE::MassNavigation::GetLeftDirection(Collider.Velocity.GetSafeNormal(), FVector::UpVector);
@@ -964,8 +964,8 @@ void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, F
 					const FVector Right = UE::MassAvoidance::DebugAgentHeightOffset - OtherLeftOffset;
 					UE::MassAvoidance::DebugDrawLine(AgentDebugContext, Collider.Location + Left, OtherHitPosition + Left, UE::MassAvoidance::AgentsColor, 1.5f);
 					UE::MassAvoidance::DebugDrawLine(AgentDebugContext, Collider.Location + Right, OtherHitPosition + Right, UE::MassAvoidance::AgentsColor, 1.5f);
-					UE::MassAvoidance::DebugDrawCylinder(AgentDebugContext, Collider.Location, Collider.Location + UE::MassAvoidance::DebugAgentHeightOffset, AgentRadius, UE::MassAvoidance::AgentsColor);
-					UE::MassAvoidance::DebugDrawCylinder(AgentDebugContext, OtherHitPosition, OtherHitPosition + UE::MassAvoidance::DebugAgentHeightOffset, AgentRadius, UE::MassAvoidance::AgentsColor);
+					UE::MassAvoidance::DebugDrawCylinder(AgentDebugContext, Collider.Location, Collider.Location + UE::MassAvoidance::DebugAgentHeightOffset, static_cast<float>(AgentRadius), UE::MassAvoidance::AgentsColor);
+					UE::MassAvoidance::DebugDrawCylinder(AgentDebugContext, OtherHitPosition, OtherHitPosition + UE::MassAvoidance::DebugAgentHeightOffset, static_cast<float>(AgentRadius), UE::MassAvoidance::AgentsColor);
 
 					// Draw agent avoid force
 					UE::MassAvoidance::DebugDrawForce(AgentDebugContext,
@@ -1060,11 +1060,11 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 		const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
 		const FMassStandingAvoidanceParameters& StandingParams = Context.GetConstSharedFragment<FMassStandingAvoidanceParameters>();
 
-		const float GhostSeparationDistance = StandingParams.GhostSeparationDistance;
-		const float GhostSeparationStiffness = StandingParams.GhostSeparationStiffness;
+		const FVector::FReal GhostSeparationDistance = StandingParams.GhostSeparationDistance;
+		const FVector::FReal GhostSeparationStiffness = StandingParams.GhostSeparationStiffness;
 
-		const float MovingSeparationDistance = StandingParams.GhostSeparationDistance * StandingParams.MovingObstacleAvoidanceScale;
-		const float MovingSeparationStiffness = StandingParams.GhostSeparationStiffness * StandingParams.MovingObstacleAvoidanceScale;
+		const FVector::FReal MovingSeparationDistance = StandingParams.GhostSeparationDistance * StandingParams.MovingObstacleAvoidanceScale;
+		const FVector::FReal MovingSeparationStiffness = StandingParams.GhostSeparationStiffness * StandingParams.MovingObstacleAvoidanceScale;
 
 		// Arrays used to store close agents
 		TArray<FMassNavigationObstacleItem, TFixedAllocator<UE::MassAvoidance::MaxObstacleResults>> CloseEntities;
@@ -1072,12 +1072,12 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 		struct FSortedObstacle
 		{
 			FSortedObstacle() = default;
-			FSortedObstacle(const FMassEntityHandle InEntity, const FVector InLocation, const FVector InForward, const float InDistSq) : Entity(InEntity), Location(InLocation), Forward(InForward), DistSq(InDistSq) {}
+			FSortedObstacle(const FMassEntityHandle InEntity, const FVector InLocation, const FVector InForward, const FVector::FReal InDistSq) : Entity(InEntity), Location(InLocation), Forward(InForward), DistSq(InDistSq) {}
 			
 			FMassEntityHandle Entity;
 			FVector Location = FVector::ZeroVector;
 			FVector Forward = FVector::ForwardVector;
-			float DistSq = 0.0f;
+			FVector::FReal DistSq = 0.;
 		};
 		TArray<FSortedObstacle, TFixedAllocator<UE::MassAvoidance::MaxObstacleResults>> ClosestObstacles;
 
@@ -1102,21 +1102,21 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 
 			FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 			const FVector AgentLocation = Location.GetTransform().GetTranslation();
-			const float AgentRadius = Radius.Radius;
+			const FVector::FReal AgentRadius = Radius.Radius;
 
 			// Steer ghost to move target.
-			const float SteerK = 1.f / StandingParams.GhostSteeringReactionTime;
-			constexpr float SteeringMinDistance = 1.0f; // Do not bother to steer if the distance is less than this.
+			const FVector::FReal SteerK = 1. / StandingParams.GhostSteeringReactionTime;
+			constexpr FVector::FReal SteeringMinDistance = 1.; // Do not bother to steer if the distance is less than this.
 
 			FVector SteerDirection = FVector::ZeroVector;
 			FVector Delta = MoveTarget.Center - Ghost.Location;
-			Delta.Z = 0.0f;
-			const float Distance = Delta.Size();
-			float SpeedFade = 0.0;
+			Delta.Z = 0.;
+			const FVector::FReal Distance = Delta.Size();
+			FVector::FReal SpeedFade = 0.;
 			if (Distance > SteeringMinDistance)
 			{
 				SteerDirection = Delta / Distance;
-				SpeedFade = FMath::Clamp(Distance / FMath::Max(KINDA_SMALL_NUMBER, StandingParams.GhostStandSlowdownRadius), 0.0f, 1.0f);
+				SpeedFade = FMath::Clamp(Distance / FMath::Max(KINDA_SMALL_NUMBER, StandingParams.GhostStandSlowdownRadius), 0., 1.);
 			}
 
 			const FVector GhostDesiredVelocity = SteerDirection * StandingParams.GhostMaxSpeed * SpeedFade;
@@ -1128,7 +1128,7 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 			UE::MassAvoidance::FindCloseObstacles(AgentLocation, StandingParams.GhostObstacleDetectionDistance, ObstacleGrid, CloseEntities, UE::MassAvoidance::MaxObstacleResults);
 
 			// Remove unwanted and find the closest in the CloseEntities
-			const float DistanceCutOffSqr = FMath::Square(StandingParams.GhostObstacleDetectionDistance);
+			const FVector::FReal DistanceCutOffSqr = FMath::Square(StandingParams.GhostObstacleDetectionDistance);
 			ClosestObstacles.Reset();
 			for (const FNavigationObstacleHashGrid2D::ItemIDType OtherEntity : CloseEntities)
 			{
@@ -1148,7 +1148,7 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 				// Skip too far
 				const FTransformFragment& OtherTransform = EntityManager.GetFragmentDataChecked<FTransformFragment>(OtherEntity.Entity);
 				const FVector OtherLocation = OtherTransform.GetTransform().GetLocation();
-				const float DistSq = FVector::DistSquared(AgentLocation, OtherLocation);
+				const FVector::FReal DistSq = FVector::DistSquared(AgentLocation, OtherLocation);
 				if (DistSq > DistanceCutOffSqr)
 				{
 					continue;
@@ -1158,7 +1158,7 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 			}
 			ClosestObstacles.Sort([](const FSortedObstacle& A, const FSortedObstacle& B) { return A.DistSq < B.DistSq; });
 
-			const float GhostRadius = AgentRadius * StandingParams.GhostSeparationRadiusScale;
+			const FVector::FReal GhostRadius = AgentRadius * StandingParams.GhostSeparationRadiusScale;
 			
 			// Compute forces
 			constexpr int32 MaxCloseObstacleTreated = 6;
@@ -1168,8 +1168,8 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 				FSortedObstacle& OtherAgent = ClosestObstacles[Index];
 				FMassEntityView OtherEntityView(EntityManager, OtherAgent.Entity);
 
-				const float OtherRadius = OtherEntityView.GetFragmentData<FAgentRadiusFragment>().Radius;
-				const float TotalRadius = GhostRadius + OtherRadius;
+				const FVector::FReal OtherRadius = OtherEntityView.GetFragmentData<FAgentRadiusFragment>().Radius;
+				const FVector::FReal TotalRadius = GhostRadius + OtherRadius;
 
 				// @todo: this is heavy fragment to access, see if we could handle this differently.
 				const FMassMoveTargetFragment* OtherMoveTarget = OtherEntityView.GetFragmentDataPtr<FMassMoveTargetFragment>();
@@ -1183,19 +1183,19 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 				if (bOtherHasGhost)
 				{
 					// Avoid the other agent more, when it is further away from it's goal location.
-					const float OtherDistanceToGoal = FVector::Distance(OtherGhost->Location, OtherMoveTarget->Center);
-					const float OtherSteerFade = FMath::Clamp(OtherDistanceToGoal / StandingParams.GhostToTargetMaxDeviation, 0.0f, 1.0f);
-					const float SeparationStiffness = FMath::Lerp(GhostSeparationStiffness, MovingSeparationStiffness, OtherSteerFade);
+					const FVector::FReal OtherDistanceToGoal = FVector::Distance(OtherGhost->Location, OtherMoveTarget->Center);
+					const FVector::FReal OtherSteerFade = FMath::Clamp(OtherDistanceToGoal / StandingParams.GhostToTargetMaxDeviation, 0., 1.);
+					const FVector::FReal SeparationStiffness = FMath::Lerp(GhostSeparationStiffness, MovingSeparationStiffness, OtherSteerFade);
 
 					// Ghost separation
 					FVector RelPos = Ghost.Location - OtherGhost->Location;
-					RelPos.Z = 0.f; // we assume we work on a flat plane for now
-					const float ConDist = RelPos.Size();
-					const FVector ConNorm = ConDist > 0.f ? RelPos / ConDist : FVector::ForwardVector;
+					RelPos.Z = 0.; // we assume we work on a flat plane for now
+					const FVector::FReal ConDist = RelPos.Size();
+					const FVector ConNorm = ConDist > 0. ? RelPos / ConDist : FVector::ForwardVector;
 
 					// Separation force (stay away from obstacles if possible)
-					const float PenSep = (TotalRadius + GhostSeparationDistance) - ConDist;
-					const float SeparationMag = UE::MassNavigation::Smooth(FMath::Clamp(PenSep / GhostSeparationDistance, 0.f, 1.f));
+					const FVector::FReal PenSep = (TotalRadius + GhostSeparationDistance) - ConDist;
+					const FVector::FReal SeparationMag = UE::MassNavigation::Smooth(FMath::Clamp(PenSep / GhostSeparationDistance, 0., 1.));
 					const FVector SeparationForce = ConNorm * SeparationStiffness * SeparationMag;
 
 					GhostSteeringForce += SeparationForce;
@@ -1204,8 +1204,8 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 				{
 					// Avoid more when the avoidance other is in front,
 					const FVector DirToOther = (OtherAgent.Location - Ghost.Location).GetSafeNormal();
-					const float DirectionalFade = FMath::Square(FMath::Max(0.0f, FVector::DotProduct(MoveTarget.Forward, DirToOther)));
-					const float DirectionScale = FMath::Lerp(StandingParams.MovingObstacleDirectionalScale, 1.0f, DirectionalFade);
+					const FVector::FReal DirectionalFade = FMath::Square(FMath::Max(0., FVector::DotProduct(MoveTarget.Forward, DirToOther)));
+					const FVector::FReal DirectionScale = FMath::Lerp(StandingParams.MovingObstacleDirectionalScale, 1., DirectionalFade);
 
 					// Treat the other agent as a 2D capsule protruding towards forward.
  					const FVector OtherBasePosition = OtherAgent.Location;
@@ -1213,23 +1213,23 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 					const FVector OtherLocation = FMath::ClosestPointOnSegment(Ghost.Location, OtherBasePosition, OtherPersonalSpacePosition);
 
 					FVector RelPos = Ghost.Location - OtherLocation;
-					RelPos.Z = 0.f;
-					const float ConDist = RelPos.Size();
-					const FVector ConNorm = ConDist > 0.f ? RelPos / ConDist : FVector::ForwardVector;
+					RelPos.Z = 0.;
+					const FVector::FReal ConDist = RelPos.Size();
+					const FVector ConNorm = ConDist > 0. ? RelPos / ConDist : FVector::ForwardVector;
 
 					// Separation force (stay away from obstacles if possible)
-					const float PenSep = (TotalRadius + MovingSeparationDistance) - ConDist;
-					const float SeparationMag = UE::MassNavigation::Smooth(FMath::Clamp(PenSep / MovingSeparationDistance, 0.f, 1.f));
+					const FVector::FReal PenSep = (TotalRadius + MovingSeparationDistance) - ConDist;
+					const FVector::FReal SeparationMag = UE::MassNavigation::Smooth(FMath::Clamp(PenSep / MovingSeparationDistance, 0., 1.));
 					const FVector SeparationForce = ConNorm * MovingSeparationStiffness * SeparationMag;
 
 					GhostSteeringForce += SeparationForce;
 				}
 			}
 
-			GhostSteeringForce.Z = 0.0f;
+			GhostSteeringForce.Z = 0.;
 			GhostSteeringForce = UE::MassNavigation::ClampVector(GhostSteeringForce, StandingParams.GhostMaxAcceleration); // Assume unit mass
 			Ghost.Velocity += GhostSteeringForce * DeltaTime;
-			Ghost.Velocity.Z = 0.0f;
+			Ghost.Velocity.Z = 0.;
 			
 			// Damping
 			FMath::ExponentialSmoothingApprox(Ghost.Velocity, FVector::ZeroVector, DeltaTime, StandingParams.GhostVelocityDampingTime);
@@ -1238,12 +1238,11 @@ void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager,
 
 			// Dont let the ghost location too far from move target center.
 			const FVector DirToCenter = Ghost.Location - MoveTarget.Center;
-			const float DistToCenter = DirToCenter.Length();
+			const FVector::FReal DistToCenter = DirToCenter.Length();
 			if (DistToCenter > StandingParams.GhostToTargetMaxDeviation)
 			{
 				Ghost.Location = MoveTarget.Center + DirToCenter * (StandingParams.GhostToTargetMaxDeviation / DistToCenter);
 			}
-
 		}
 	});
 	

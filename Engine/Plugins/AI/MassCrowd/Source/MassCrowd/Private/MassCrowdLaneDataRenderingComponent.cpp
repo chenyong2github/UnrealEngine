@@ -259,11 +259,15 @@ void UMassCrowdLaneDataRenderingComponent::DebugDrawOnCanvas(UCanvas* Canvas, AP
 
 			if (WaitAreaData != nullptr)
 			{
-				Canvas->DrawText(Font, FString::Printf(TEXT("        %d/%d"), TrackingLaneData->NumEntitiesOnLane, WaitAreaData->GetNumSlots()), ScreenLoc.X, ScreenLoc.Y);
+				Canvas->DrawText(Font, FString::Printf(TEXT("        %d/%d"), TrackingLaneData->NumEntitiesOnLane, WaitAreaData->GetNumSlots())
+					, FloatCastChecked<float>(ScreenLoc.X, UE::LWC::DefaultFloatPrecision)
+					, FloatCastChecked<float>(ScreenLoc.Y, UE::LWC::DefaultFloatPrecision));
 			}
 			else
 			{
-				Canvas->DrawText(Font, FString::Printf(TEXT(" %d"), TrackingLaneData->NumEntitiesOnLane), ScreenLoc.X, ScreenLoc.Y);
+				Canvas->DrawText(Font, FString::Printf(TEXT(" %d"), TrackingLaneData->NumEntitiesOnLane)
+					, FloatCastChecked<float>(ScreenLoc.X, UE::LWC::DefaultFloatPrecision)
+					, FloatCastChecked<float>(ScreenLoc.Y, UE::LWC::DefaultFloatPrecision));
 			}
 		}
 	}

@@ -29,7 +29,7 @@ namespace UE::Mass::Debugger::UI::Private
 			.AutoHeight()
 			[
 				SNew(SMassBitSet<TBitSet>, Label, BitSetAccess.AsArrayView(), RequiredAccessBrushes)
-				.SlotPadding(5)
+				.SlotPadding(5.0f)
 			];
 		}
 	}

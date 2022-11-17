@@ -585,13 +585,13 @@ int32 UMassCrowdSubsystem::AcquireWaitingSlot(const FMassEntityHandle Entity, co
 			
 			// Find best vacant slot
 			// The most distant slot is used so that later arrivals are less likely to need passing between already standing agents. 
-			float BestDistanceSq = 0;
+			FVector::FReal BestDistanceSq = 0.;
 			for (int32 SlotIndex = 0; SlotIndex < WaitArea.Slots.Num(); SlotIndex++)
 			{
 				const FCrowdWaitSlot& Slot = WaitArea.Slots[SlotIndex];
 				if (!Slot.bOccupied)
 				{
-					const float DistanceToSlotSq = FVector::DistSquared(EntityPosition, Slot.Position);
+					const FVector::FReal DistanceToSlotSq = FVector::DistSquared(EntityPosition, Slot.Position);
 					if (DistanceToSlotSq > BestDistanceSq)
 					{
 						BestDistanceSq = DistanceToSlotSq;

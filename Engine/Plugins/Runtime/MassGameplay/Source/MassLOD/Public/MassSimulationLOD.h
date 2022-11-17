@@ -33,7 +33,7 @@ struct MASSLOD_API FMassSimulationVariableTickFragment : public FMassFragment
 	GENERATED_BODY()
 
 	/** Accumulated delta time to use upon next tick */
-	float LastTickedTime = 0.0f;
+	double LastTickedTime = 0.;
 	float DeltaTime = 0.0f;
 };
 

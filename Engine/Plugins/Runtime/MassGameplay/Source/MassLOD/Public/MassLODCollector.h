@@ -118,7 +118,7 @@ void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context
 			{
 				const FVector& EntityLocation = EntityTransform.GetTransform().GetLocation();
 				const FVector ViewerToEntity = EntityLocation - Viewer.Location;
-				const float DistanceToViewerSq = ViewerToEntity.SizeSquared();
+				const float DistanceToViewerSq = static_cast<float>(ViewerToEntity.SizeSquared()); // float precision is acceptable for LOD
 				if (ClosestViewerDistanceSq > DistanceToViewerSq)
 				{
 					ClosestViewerDistanceSq = DistanceToViewerSq;

@@ -46,7 +46,7 @@ struct MASSAIREPLICATION_API FReplicatedAgentPathData
 
 	/** Server time in seconds when the action started. */
 	UPROPERTY(Transient)
-	float ActionServerStartTime = 0.0f;
+	double ActionServerStartTime = 0.;
 
 	/** Distance along current lane. */
 	UPROPERTY(Transient)

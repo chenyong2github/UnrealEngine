@@ -207,8 +207,8 @@ bool FMassZoneGraphShortPathFragment::RequestPath(const FMassZoneGraphCachedLane
 	// Calculate start point's relation to the start point location on lane.
 	const FVector StartDelta = StartPosition - StartLanePosition;
 	const FVector StartLeftDir = FVector::CrossProduct(StartLaneTangent, FVector::UpVector);
-	float StartLaneOffset = FVector::DotProduct(StartLeftDir, StartDelta);
-	float StartLaneForwardOffset = FVector::DotProduct(StartLaneTangent, StartDelta) * TangentSign;
+	float StartLaneOffset = FloatCastChecked<float>(FVector::DotProduct(StartLeftDir, StartDelta), UE::LWC::DefaultFloatPrecision);
+	float StartLaneForwardOffset = FloatCastChecked<float>(FVector::DotProduct(StartLaneTangent, StartDelta) * TangentSign, UE::LWC::DefaultFloatPrecision);
 	// The point is off-lane if behind the start, or beyond the boundary.
 	const bool bStartOffLane = StartLaneForwardOffset < -OffLaneCapSlop
 								|| StartLaneOffset < -(DeflatedLaneRight + OffLaneEdgeSlop)
@@ -237,8 +237,8 @@ bool FMassZoneGraphShortPathFragment::RequestPath(const FMassZoneGraphCachedLane
 		const FVector EndPosition = Request.EndOfPathPosition;
 		const FVector EndDelta = EndPosition - EndLanePosition;
 		const FVector LeftDir = FVector::CrossProduct(EndLaneTangent, FVector::UpVector);
-		EndLaneOffset = FVector::DotProduct(LeftDir, EndDelta);
-		const float EndLaneForwardOffset = FVector::DotProduct(EndLaneTangent, EndDelta) * TangentSign;
+		EndLaneOffset = FloatCastChecked<float>(FVector::DotProduct(LeftDir, EndDelta), UE::LWC::DefaultFloatPrecision);
+		const float EndLaneForwardOffset = FloatCastChecked<float>(FVector::DotProduct(EndLaneTangent, EndDelta) * TangentSign, UE::LWC::DefaultFloatPrecision);
 		// The point is off-lane if further than the, or beyond the boundary.
 		bEndOffLane = EndLaneForwardOffset > OffLaneCapSlop
 						|| EndLaneOffset < -(DeflatedLaneRight + OffLaneEdgeSlop)
@@ -417,7 +417,7 @@ bool FMassZoneGraphShortPathFragment::RequestPath(const FMassZoneGraphCachedLane
 		FMassZoneGraphPathPoint& Point = Points[PointIndex];
 		const FVector PrevPosition = PrevPoint.Position;
 		const FVector Position = Point.Position;
-		const float DeltaDistance = FVector::Dist(PrevPosition, Position);
+		const float DeltaDistance = FloatCastChecked<float>(FVector::Dist(PrevPosition, Position), UE::LWC::DefaultFloatPrecision);
 		PathDistance += DeltaDistance;
 		Point.Distance.Set(PathDistance);
 	}

@@ -14,21 +14,21 @@ float ClosestTimeOnSegment(const FVector& Point, const FVector& StartPoint, cons
 	const FVector VectToPoint = Point - StartPoint;
 
 	// See if closest point is before StartPoint
-	const float Dot1 = VectToPoint | Segment;
-	if (Dot1 <= 0.0f)
+	const FVector::FReal Dot1 = VectToPoint | Segment;
+	if (Dot1 <= 0.0)
 	{
 		return 0.0f;
 	}
 
 	// See if closest point is beyond EndPoint
-	const float Dot2 = Segment | Segment;
+	const FVector::FReal Dot2 = Segment | Segment;
 	if (Dot2 <= Dot1)
 	{
 		return 1.0f;
 	}
 
 	// Closest Point is within segment
-	return (Dot1 / Dot2);
+	return FloatCastChecked<float>(Dot1 / Dot2, /* Precision */ 1./128.);
 }
 
 static bool EnsureLaneHandle(const FZoneGraphStorage& Storage, const FZoneGraphLaneHandle LaneHandle, const char* Function)

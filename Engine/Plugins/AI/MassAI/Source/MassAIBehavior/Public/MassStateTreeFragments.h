@@ -18,7 +18,7 @@ struct MASSAIBEHAVIOR_API FMassStateTreeInstanceFragment : public FMassFragment
 	FMassStateTreeInstanceHandle InstanceHandle;
 
 	/** The last update time use to calculate ticking delta time. */
-	float LastUpdateTimeInSeconds = 0.0f;
+	double LastUpdateTimeInSeconds = 0.;
 };
 
 

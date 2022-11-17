@@ -135,7 +135,7 @@ void UMassEntityZoneGraphSpawnPointsGenerator::GeneratePointsForZoneGraphData(co
 			float LaneLength = 0.0f;
 			UE::ZoneGraph::Query::GetLaneLength(ZoneGraphStorage, LaneIndex, LaneLength);
 
-			float Distance = RandomStream.FRandRange(MinGap, MaxGap); // ..initially
+			float Distance = static_cast<float>(RandomStream.FRandRange(MinGap, MaxGap)); // ..initially
 			while (Distance <= LaneLength)
 			{
 				// Add location at the center of this space.
@@ -145,7 +145,7 @@ void UMassEntityZoneGraphSpawnPointsGenerator::GeneratePointsForZoneGraphData(co
 				Locations.Add(LaneLocation.Position + Perp * RandomStream.FRandRange(-LaneHalfWidth, LaneHalfWidth));
 
 				// Advance ahead past the space we just consumed, plus a random gap.
-				Distance += RandomStream.FRandRange(MinGap, MaxGap);
+				Distance += static_cast<float>(RandomStream.FRandRange(MinGap, MaxGap));
 			}
 		}
 	}

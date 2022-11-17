@@ -22,7 +22,7 @@ struct MASSNAVIGATION_API FMassMoveTargetFragment : public FMassFragment
 	void CreateNewAction(const EMassMovementAction InAction, const UWorld& InWorld);
 
 	/** To setup current action from replicated data */
-	void CreateReplicatedAction(const EMassMovementAction InAction, const uint16 InActionID, const float InWorldStartTime, const float InServerStartTime);
+	void CreateReplicatedAction(const EMassMovementAction InAction, const uint16 InActionID, const double InWorldStartTime, const double InServerStartTime);
 
 	void MarkNetDirty() { bNetDirty = true; }
 	bool GetNetDirty() const { return bNetDirty; }
@@ -33,8 +33,8 @@ public:
 
 	EMassMovementAction GetPreviousAction() const { return PreviousAction; }
 	EMassMovementAction GetCurrentAction() const { return CurrentAction; }
-	float GetCurrentActionStartTime() const { return CurrentActionWorldStartTime; }
-	float GetCurrentActionServerStartTime() const { return CurrentActionServerStartTime; }
+	double GetCurrentActionStartTime() const { return CurrentActionWorldStartTime; }
+	double GetCurrentActionServerStartTime() const { return CurrentActionServerStartTime; }
 	uint16 GetCurrentActionID() const { return CurrentActionID; }
 
 	/** Center of the move target. */
@@ -51,10 +51,10 @@ public:
 
 private:
 	/** World time in seconds when the action started. */
-	float CurrentActionWorldStartTime = 0.0f;
+	double CurrentActionWorldStartTime = 0.0;
 
 	/** Server time in seconds when the action started. */
-	float CurrentActionServerStartTime = 0.0f;
+	double CurrentActionServerStartTime = 0.0;
 
 	/** Number incremented each time new action (i.e move, stand, animation) is started. */
 	uint16 CurrentActionID = 0;

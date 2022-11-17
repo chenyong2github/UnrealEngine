@@ -79,7 +79,7 @@ struct MASSAIBEHAVIOR_API FMassLookAtFragment : public FMassFragment
 
 	/** Start time of the current gaze. */
 	UPROPERTY(Transient)
-	float GazeStartTime = 0.0f;
+	double GazeStartTime = 0.;
 
 	/** Duration of the current gaze. */
 	UPROPERTY(Transient)

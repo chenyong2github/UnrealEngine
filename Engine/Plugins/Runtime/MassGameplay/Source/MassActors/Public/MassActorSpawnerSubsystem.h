@@ -87,7 +87,7 @@ public:
 	uint32 SerialNumber = 0;
 
 	/** Requested world time seconds */
-	float RequestedTime = 0.0f;
+	double RequestedTime = 0.;
 
 	void Reset()
 	{

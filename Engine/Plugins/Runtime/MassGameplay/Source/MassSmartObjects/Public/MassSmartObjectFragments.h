@@ -31,7 +31,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectUserFragment : public FMassFragment
 	 * won't look for new interactions (value of 0 indicates no cooldown).
 	 */
 	UPROPERTY(Transient)
-	float InteractionCooldownEndTime = 0.f;
+	double InteractionCooldownEndTime = 0.;
 };
 
 /** Fragment used to process time based smartobject interactions */

@@ -131,7 +131,7 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(FMassEntityManager& Enti
 			for (const FSmartObjectRequestResult& QueryResult : QueryResults)
 			{
 				const FVector SlotLocation = SmartObjectSubsystem.GetSlotLocation(QueryResult.SlotHandle).GetValue();
-				SortedCandidateSlots.Emplace(QueryResult, FVector::DistSquared(SearchOrigin, SlotLocation));
+				SortedCandidateSlots.Emplace(QueryResult, UE_REAL_TO_FLOAT_CLAMPED_MAX(FVector::DistSquared(SearchOrigin, SlotLocation)));
 
 #if WITH_MASSGAMEPLAY_DEBUG
 				if (bDisplayDebug)
@@ -144,7 +144,7 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(FMassEntityManager& Enti
 			}
 			SortedCandidateSlots.Sort([](const FSmartObjectCandidateSlot& First, const FSmartObjectCandidateSlot& Second){ return First.Cost < Second.Cost; });
 
-			Result.Candidates.NumSlots = FMath::Min<uint8>(FMassSmartObjectCandidateSlots::MaxNumCandidates, SortedCandidateSlots.Num());
+			Result.Candidates.NumSlots = IntCastChecked<uint8>(FMath::Min(FMassSmartObjectCandidateSlots::MaxNumCandidates, (uint32)SortedCandidateSlots.Num()));
 			for (int ResultIndex = 0; ResultIndex < Result.Candidates.NumSlots; ResultIndex++)
 			{
 				Result.Candidates.Slots[ResultIndex] = SortedCandidateSlots[ResultIndex];

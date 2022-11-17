@@ -48,12 +48,12 @@ namespace UE::Mass::Debug
 	FMassEntityHandle GetBestEntity(const FVector ViewLocation, const FVector ViewDirection, const TConstArrayView<FMassEntityHandle> Entities, const TConstArrayView<FVector> Locations, const bool bLimitAngle)
 	{
 		// Reusing similar algorithm as UGameplayDebuggerLocalController for now 
-		constexpr float MaxScanDistanceSq = 25000.0f * 25000.0f;
-		constexpr float MinViewDirDot = 0.707f; // 45 degrees
+		constexpr FVector::FReal MaxScanDistanceSq = 25000. * 25000.;
+		constexpr FVector::FReal MinViewDirDot = 0.707; // 45 degrees
 
 		checkf(Entities.Num() == Locations.Num(), TEXT("Both Entities and Locations lists are expected to be of the same size: %d vs %d"), Entities.Num(), Locations.Num());
 		
-		float BestScore = bLimitAngle ? MinViewDirDot : (-1.f - KINDA_SMALL_NUMBER);	
+		FVector::FReal BestScore = bLimitAngle ? MinViewDirDot : (-1. - KINDA_SMALL_NUMBER);
 		FMassEntityHandle BestEntity;
 
 		for (int i = 0; i < Entities.Num(); ++i)
@@ -64,14 +64,14 @@ namespace UE::Mass::Debug
 			}
 			
 			const FVector DirToEntity = (Locations[i] - ViewLocation);
-			const float DistToEntitySq = DirToEntity.SizeSquared();
+			const FVector::FReal DistToEntitySq = DirToEntity.SizeSquared();
 			if (DistToEntitySq > MaxScanDistanceSq)
 			{
 				continue;
 			}
 
 			const FVector DirToEntityNormal = (FMath::IsNearlyZero(DistToEntitySq)) ? ViewDirection : (DirToEntity / FMath::Sqrt(DistToEntitySq));
-			const float ViewDot = FVector::DotProduct(ViewDirection, DirToEntityNormal);
+			const FVector::FReal ViewDot = FVector::DotProduct(ViewDirection, DirToEntityNormal);
 			if (ViewDot > BestScore)
 			{
 				BestScore = ViewDot;
@@ -381,7 +381,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		EntityQuery.AddRequirement<FMassZoneGraphShortPathFragment>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FMassSmartObjectUserFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 
-		const float CurrentTime = World->GetTimeSeconds();
+		const double CurrentTime = World->GetTimeSeconds();
 		
 		UMassStateTreeSubsystem* MassStateTreeSubsystem = World->GetSubsystem<UMassStateTreeSubsystem>();
 		UMassSignalSubsystem* SignalSubsystem = World->GetSubsystem<UMassSignalSubsystem>();
@@ -416,8 +416,8 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 				const bool bHasSOUser = (SOUserList.Num() > 0);
 
 				const UGameplayDebuggerUserSettings* Settings = GetDefault<UGameplayDebuggerUserSettings>();
-				const float MaxViewDistance = Settings->MaxViewDistance;
-				const float MinViewDirDot = FMath::Cos(FMath::DegreesToRadians(Settings->MaxViewAngle));
+				const FVector::FReal MaxViewDistance = Settings->MaxViewDistance;
+				const FVector::FReal MinViewDirDot = FMath::Cos(FMath::DegreesToRadians(Settings->MaxViewAngle));
 
 				const UStateTree* StateTree = SharedStateTree.StateTree;
 
@@ -428,12 +428,12 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 					
 					// Cull entities
 					const FVector DirToEntity = EntityLocation - ViewLocation;
-					const float DistanceToEntitySq = DirToEntity.SquaredLength();
+					const FVector::FReal DistanceToEntitySq = DirToEntity.SquaredLength();
 					if (DistanceToEntitySq > FMath::Square(MaxViewDistance))
 					{
 						continue;
 					}
-					const float ViewDot = FVector::DotProduct(DirToEntity.GetSafeNormal(), ViewDirection);
+					const FVector::FReal ViewDot = FVector::DotProduct(DirToEntity.GetSafeNormal(), ViewDirection);
 					if (ViewDot < MinViewDirDot)
 					{
 						continue;
@@ -471,7 +471,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 					AddShape(FGameplayDebuggerShape::MakeArrow(MoveBasePos - MoveTarget.Forward * Radius.Radius, MoveBasePos + MoveTarget.Forward * Radius.Radius, 10.0f, 2.0f, FColorList::MediumVioletRed));
 
 					// Look at
-					constexpr float LookArrowLength = 100.0f;
+					constexpr FVector::FReal LookArrowLength = 100.;
 					BasePos = EntityLocation + FVector(0,0,EyeHeight);
 
 					if (bHasLookAt)
@@ -487,7 +487,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 								TargetPosition.Z = BasePos.Z;
 								AddShape(FGameplayDebuggerShape::MakeCircle(TargetPosition, FVector::UpVector, Radius.Radius, FColor::Red));
 
-								const float TargetDistance = FMath::Max(LookArrowLength, FVector::DotProduct(WorldLookDirection, TargetPosition - BasePos));
+								const FVector::FReal TargetDistance = FMath::Max(LookArrowLength, FVector::DotProduct(WorldLookDirection, TargetPosition - BasePos));
 								AddShape(FGameplayDebuggerShape::MakeSegment(BasePos, BasePos + WorldLookDirection * TargetDistance, FColorList::LightGrey));
 								bLookArrowDrawn = true;
 							}
@@ -613,7 +613,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 						if (bHasLookAt)
 						{
 							const FMassLookAtFragment& LookAt = LookAtList[EntityIndex];
-							const float RemainingTime = LookAt.GazeDuration - (CurrentTime - LookAt.GazeStartTime);
+							const double RemainingTime = LookAt.GazeDuration - (CurrentTime - LookAt.GazeStartTime);
 							Status += FString::Printf(TEXT("{turquoise}%s/%s {lightgrey}%.1f\n"),
 								*UEnum::GetDisplayValueAsText(LookAt.LookAtMode).ToString(), *UEnum::GetDisplayValueAsText(LookAt.RandomGazeMode).ToString(), RemainingTime);
 						}
@@ -621,9 +621,9 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 						if (!Status.IsEmpty())
 						{
 							BasePos += FVector(0,0,50);
-							constexpr float ViewWeight = 0.6f; // Higher the number the more the view angle affects the score.
-							const float ViewScale = 1.f - (ViewDot / MinViewDirDot); // Zero at center of screen
-							NearEntityDescriptions.Emplace(DistanceToEntitySq * ((1.0f - ViewWeight) + ViewScale * ViewWeight), BasePos, Status);
+							constexpr FVector::FReal ViewWeight = 0.6f; // Higher the number the more the view angle affects the score.
+							const FVector::FReal ViewScale = 1. - (ViewDot / MinViewDirDot); // Zero at center of screen
+							NearEntityDescriptions.Emplace(FloatCastChecked<float>(DistanceToEntitySq * ((1. - ViewWeight) + ViewScale * ViewWeight), UE::LWC::DefaultFloatPrecision), BasePos, Status);
 						}
 					}
 				}
@@ -732,24 +732,24 @@ void FGameplayDebuggerCategory_Mass::DrawData(APlayerController* OwnerPC, FGamep
 			Rect.Alpha = 0.0f;
 
 			// Calculate transparency based on how much more important rects are overlapping the new rect.
-			const float Area = FMath::Max(0.0f, Rect.Max.X - Rect.Min.X) * FMath::Max(0.0f, Rect.Max.Y - Rect.Min.Y);
-			const float InvArea = Area > KINDA_SMALL_NUMBER ? 1.0f / Area : 0.0f;
-			float Coverage = 0.0;
+			const FVector::FReal Area = FMath::Max(0.0, Rect.Max.X - Rect.Min.X) * FMath::Max(0.0, Rect.Max.Y - Rect.Min.Y);
+			const FVector::FReal InvArea = Area > KINDA_SMALL_NUMBER ? 1.0 / Area : 0.0;
+			FVector::FReal Coverage = 0.0;
 
 			for (const FEntityLayoutRect& Other : Layout)
 			{
 				// Calculate rect intersection
-				const float MinX = FMath::Max(Rect.Min.X, Other.Min.X);
-				const float MinY = FMath::Max(Rect.Min.Y, Other.Min.Y);
-				const float MaxX = FMath::Min(Rect.Max.X, Other.Max.X);
-				const float MaxY = FMath::Min(Rect.Max.Y, Other.Max.Y);
+				const FVector::FReal MinX = FMath::Max(Rect.Min.X, Other.Min.X);
+				const FVector::FReal MinY = FMath::Max(Rect.Min.Y, Other.Min.Y);
+				const FVector::FReal MaxX = FMath::Min(Rect.Max.X, Other.Max.X);
+				const FVector::FReal MaxY = FMath::Min(Rect.Max.Y, Other.Max.Y);
 
 				// return zero area if not overlapping
-				const float IntersectingArea = FMath::Max(0.0f, MaxX - MinX) * FMath::Max(0.0f, MaxY - MinY);
+				const FVector::FReal IntersectingArea = FMath::Max(0.0, MaxX - MinX) * FMath::Max(0.0, MaxY - MinY);
 				Coverage += (IntersectingArea * InvArea) * Other.Alpha;
 			}
 
-			Rect.Alpha = FMath::Square(1.0f - FMath::Min(Coverage, 1.0f));
+			Rect.Alpha = FloatCastChecked<float>(FMath::Square(1.0 - FMath::Min(Coverage, 1.0)), UE::LWC::DefaultFloatPrecision);
 			
 			if (Rect.Alpha > KINDA_SMALL_NUMBER)
 			{
@@ -768,9 +768,13 @@ void FGameplayDebuggerCategory_Mass::DrawData(APlayerController* OwnerPC, FGamep
 		const FVector2D BackgroundPosition(Rect.Min - Padding);
 		FCanvasTileItem Background(Rect.Min - Padding, Rect.Max - Rect.Min + Padding * 2.0f, FLinearColor(0.0f, 0.0f, 0.0f, 0.35f * Rect.Alpha));
 		Background.BlendMode = SE_BLEND_TranslucentAlphaOnly;
-		CanvasContext.DrawItem(Background, BackgroundPosition.X, BackgroundPosition.Y);
-		
-		CanvasContext.PrintAt(Rect.Min.X, Rect.Min.Y, FColor::White, Rect.Alpha, Desc.Description);
+		CanvasContext.DrawItem(Background
+			, FloatCastChecked<float>(BackgroundPosition.X, UE::LWC::DefaultFloatPrecision)
+			, FloatCastChecked<float>(BackgroundPosition.Y, UE::LWC::DefaultFloatPrecision));
+
+		CanvasContext.PrintAt(FloatCastChecked<float>(Rect.Min.X, UE::LWC::DefaultFloatPrecision)
+			, FloatCastChecked<float>(Rect.Min.Y, UE::LWC::DefaultFloatPrecision)
+			, FColor::White, Rect.Alpha, Desc.Description);
 	}
 
 	FGameplayDebuggerCategory::DrawData(OwnerPC, CanvasContext);

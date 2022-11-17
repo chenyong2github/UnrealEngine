@@ -71,12 +71,12 @@ void UMassSmoothOrientationProcessor::Execute(FMassEntityManager& EntityManager,
 				const FMassVelocityFragment& CurrentVelocity = VelocityList[EntityIndex];
 				FTransform& CurrentTransform = LocationList[EntityIndex].GetMutableTransform();
 				const FVector CurrentForward = CurrentTransform.GetRotation().GetForwardVector();
-				const float CurrentHeading = UE::MassNavigation::GetYawFromDirection(CurrentForward);
+				const FVector::FReal CurrentHeading = UE::MassNavigation::GetYawFromDirection(CurrentForward);
 
 				const float EndOfPathAnticipationDistance = OrientationParams.EndOfPathDuration * MoveTarget.DesiredSpeed.Get();
 				
-				float MoveTargetWeight = 0.5f;
-				float VelocityWeight = 0.5f;
+				FVector::FReal MoveTargetWeight = 0.5;
+				FVector::FReal VelocityWeight = 0.5;
 				
 				if (MoveTarget.GetCurrentAction() == EMassMovementAction::Move)
 				{
@@ -100,13 +100,13 @@ void UMassSmoothOrientationProcessor::Execute(FMassEntityManager& EntityManager,
 					VelocityWeight = OrientationParams.Standing.VelocityWeight;
 				}
 				
-				const float VelocityHeading = UE::MassNavigation::GetYawFromDirection(CurrentVelocity.Value);
-				const float MovementHeading = UE::MassNavigation::GetYawFromDirection(MoveTarget.Forward);
+				const FVector::FReal VelocityHeading = UE::MassNavigation::GetYawFromDirection(CurrentVelocity.Value);
+				const FVector::FReal MovementHeading = UE::MassNavigation::GetYawFromDirection(MoveTarget.Forward);
 
-				const float Ratio = MoveTargetWeight / (MoveTargetWeight + VelocityWeight);
-				const float DesiredHeading = UE::MassNavigation::LerpAngle(VelocityHeading, MovementHeading,Ratio);
+				const FVector::FReal Ratio = MoveTargetWeight / (MoveTargetWeight + VelocityWeight);
+				const FVector::FReal DesiredHeading = UE::MassNavigation::LerpAngle(VelocityHeading, MovementHeading,Ratio);
 				
-				const float NewHeading = UE::MassNavigation::ExponentialSmoothingAngle(CurrentHeading, DesiredHeading, DeltaTime, OrientationParams.OrientationSmoothingTime);
+				const FVector::FReal NewHeading = UE::MassNavigation::ExponentialSmoothingAngle(CurrentHeading, DesiredHeading, DeltaTime, OrientationParams.OrientationSmoothingTime);
 
 				FQuat Rotation(FVector::UpVector, NewHeading);
 				CurrentTransform.SetRotation(Rotation);

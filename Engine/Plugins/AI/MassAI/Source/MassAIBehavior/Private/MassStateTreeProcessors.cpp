@@ -289,7 +289,7 @@ void UMassStateTreeActivationProcessor::Execute(FMassEntityManager& EntityManage
 	// StateTree processor relies on signals to be ticked but we need an 'initial tick' to set the tree in the proper state.
 	// The initializer provides that by sending a signal to all new entities that use StateTree.
 	UE::MassBehavior::FCachedExternalData CachedExternalData;
-	const float TimeInSeconds = EntityManager.GetWorld()->GetTimeSeconds();
+	const double TimeInSeconds = EntityManager.GetWorld()->GetTimeSeconds();
 
 	TArray<FMassEntityHandle> EntitiesToSignal;
 	int32 ActivationCounts[EMassLOD::Max] {0,0,0,0};
@@ -411,7 +411,7 @@ void UMassStateTreeProcessor::SignalEntities(FMassEntityManager& EntityManager, 
 	QUICK_SCOPE_CYCLE_COUNTER(StateTreeProcessor_Run);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExecute);
 
-	const float TimeInSeconds = EntityManager.GetWorld()->GetTimeSeconds();
+	const double TimeInSeconds = EntityManager.GetWorld()->GetTimeSeconds();
 
 	UE::MassBehavior::FCachedExternalData CachedExternalData;
 	TArray<FMassEntityHandle> EntitiesToSignal;
@@ -429,7 +429,7 @@ void UMassStateTreeProcessor::SignalEntities(FMassEntityManager& EntityManager, 
 				(FMassStateTreeExecutionContext& StateTreeExecutionContext, FMassStateTreeInstanceFragment& StateTreeFragment)
 				{
 					// Compute adjusted delta time
-					const float AdjustedDeltaTime = TimeInSeconds - StateTreeFragment.LastUpdateTimeInSeconds;
+					const float AdjustedDeltaTime = FloatCastChecked<float>(TimeInSeconds - StateTreeFragment.LastUpdateTimeInSeconds, /* Precision */ 1./256.);
 					StateTreeFragment.LastUpdateTimeInSeconds = TimeInSeconds;
 
 #if WITH_MASSGAMEPLAY_DEBUG

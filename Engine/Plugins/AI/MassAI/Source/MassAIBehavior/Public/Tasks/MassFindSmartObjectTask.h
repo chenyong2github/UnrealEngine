@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "MassStateTreeTypes.h"
@@ -29,7 +29,7 @@ struct MASSAIBEHAVIOR_API FMassFindSmartObjectTaskInstanceData
 
 	/** Next update time; task will not do anything when Tick gets called before that time */
 	UPROPERTY()
-	float NextUpdate = 0.f;
+	double NextUpdate = 0.;
 
 	/** Last lane where the smart objects were searched. */
 	UPROPERTY()

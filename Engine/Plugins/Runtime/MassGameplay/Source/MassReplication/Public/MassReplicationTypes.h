@@ -148,12 +148,12 @@ struct FMassReplicatedAgentData
 	void Invalidate()
 	{
 		Handle.Invalidate();
-		LastUpdateTime = 0.f;
+		LastUpdateTime = 0.;
 		LOD = EMassLOD::Off;
 	}
 
 	FMassReplicatedAgentHandle Handle;
-	float LastUpdateTime = 0.f;
+	double LastUpdateTime = 0.;
 	EMassLOD::Type LOD = EMassLOD::Off;
 };
 
