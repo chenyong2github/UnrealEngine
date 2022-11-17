@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "VectorField/VectorFieldAnimated.h"
-#include "AssetDefinitionDefault.h"
+#include "AssetDefinition_VectorField.h"
 
 #include "AssetDefinition_VectorFieldAnimated.generated.h"
 
