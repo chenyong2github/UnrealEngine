@@ -37,8 +37,8 @@ struct FScriptInterfaceNetSerializerConfig : public FNetSerializerConfig
 namespace UE::Net
 {
 
-IRISCORE_API FNetHandle ReadNetHandle(FNetSerializationContext& Context);
-IRISCORE_API void WriteNetHandle(FNetSerializationContext& Context, const FNetHandle Handle);
+IRISCORE_API FNetRefHandle ReadNetRefHandle(FNetSerializationContext& Context);
+IRISCORE_API void WriteNetRefHandle(FNetSerializationContext& Context, const FNetRefHandle Handle);
 
 IRISCORE_API void ReadFullNetObjectReference(FNetSerializationContext& Context, FNetObjectReference& Reference);
 IRISCORE_API void WriteFullNetObjectReference(FNetSerializationContext& Context, const FNetObjectReference& Reference);

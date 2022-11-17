@@ -13,8 +13,8 @@ namespace UE::Net
 	namespace Private
 	{
 		class FDeltaCompressionBaselineInvalidationTracker;
-		typedef uint32 FInternalNetHandle;
-		class FNetHandleManager;
+		typedef uint32 FInternalNetRefIndex;
+		class FNetRefHandleManager;
 		class FReplicationConnections;
 		class FReplicationFiltering;
 		class FNetObjectGroups;
@@ -26,7 +26,7 @@ namespace UE::Net::Private
 
 struct FReplicationConditionalsInitParams
 {
-	const FNetHandleManager* NetHandleManager = nullptr;
+	const FNetRefHandleManager* NetRefHandleManager = nullptr;
 	const FReplicationFiltering* ReplicationFiltering = nullptr;
 	const FReplicationConnections* ReplicationConnections = nullptr;
 	const FNetObjectGroups* NetObjectGroups = nullptr;
@@ -53,19 +53,19 @@ public:
 	void AddConnection(uint32 ConnectionId);
 	void RemoveConnection(uint32 ConnectionId);
 
-	bool SetConditionConnectionFilter(FInternalNetHandle ObjectIndex, EReplicationCondition Condition, uint32 ConnectionId, bool bEnable);
-	bool SetCondition(FInternalNetHandle ObjectIndex, EReplicationCondition Condition, bool bEnable);
+	bool SetConditionConnectionFilter(FInternalNetRefIndex ObjectIndex, EReplicationCondition Condition, uint32 ConnectionId, bool bEnable);
+	bool SetCondition(FInternalNetRefIndex ObjectIndex, EReplicationCondition Condition, bool bEnable);
 
 	// For property custom conditions only
-	void InitPropertyCustomConditions(FInternalNetHandle ObjectIndex);
-	bool SetPropertyCustomCondition(FInternalNetHandle ObjectIndex, const void* Owner, uint16 RepIndex, bool bIsActive);
+	void InitPropertyCustomConditions(FInternalNetRefIndex ObjectIndex);
+	bool SetPropertyCustomCondition(FInternalNetRefIndex ObjectIndex, const void* Owner, uint16 RepIndex, bool bIsActive);
 
 	void Update();
 
-	bool ApplyConditionalsToChangeMask(uint32 ReplicatingConnectionId, FInternalNetHandle ParentObjectIndex, FInternalNetHandle ObjectIndex, uint32* ChangeMaskData, const uint32* ConditionalChangeMaskData, const FReplicationProtocol* Protocol);
+	bool ApplyConditionalsToChangeMask(uint32 ReplicatingConnectionId, FInternalNetRefIndex ParentObjectIndex, FInternalNetRefIndex ObjectIndex, uint32* ChangeMaskData, const uint32* ConditionalChangeMaskData, const FReplicationProtocol* Protocol);
 
-	using FSubObjectsToReplicateArray = TArray<FInternalNetHandle, TInlineAllocator<32>>;
-	void GetSubObjectsToReplicate(uint32 ReplicationConnectionId, FInternalNetHandle ParentObjectIndex, FSubObjectsToReplicateArray& OutSubObjectsToReplicate);
+	using FSubObjectsToReplicateArray = TArray<FInternalNetRefIndex, TInlineAllocator<32>>;
+	void GetSubObjectsToReplicate(uint32 ReplicationConnectionId, FInternalNetRefIndex ParentObjectIndex, FSubObjectsToReplicateArray& OutSubObjectsToReplicate);
 
 private:
 	struct FPerObjectInfo
@@ -99,18 +99,18 @@ private:
 private:
 	void UpdateObjectsInScope();
 
-	FConditionalsMask GetLifetimeConditionals(uint32 ReplicatingConnectionId, FInternalNetHandle ParentObjectIndex) const;
-	bool ObjectHasLifetimeConditionals(FInternalNetHandle ObjectIndex) const;	
+	FConditionalsMask GetLifetimeConditionals(uint32 ReplicatingConnectionId, FInternalNetRefIndex ParentObjectIndex) const;
+	bool ObjectHasLifetimeConditionals(FInternalNetRefIndex ObjectIndex) const;	
 
-	FPerObjectInfo* GetPerObjectInfo(FInternalNetHandle ObjectIndex);
-	const FPerObjectInfo* GetPerObjectInfo(FInternalNetHandle ObjectIndex) const;
-	void ClearPerObjectInfo(FInternalNetHandle ObjectIndex);
-	void ClearConnectionInfosForObject(const FNetBitArray& ValidConnections, uint32 MaxConnectionId, FInternalNetHandle ObjectIndex);
+	FPerObjectInfo* GetPerObjectInfo(FInternalNetRefIndex ObjectIndex);
+	const FPerObjectInfo* GetPerObjectInfo(FInternalNetRefIndex ObjectIndex) const;
+	void ClearPerObjectInfo(FInternalNetRefIndex ObjectIndex);
+	void ClearConnectionInfosForObject(const FNetBitArray& ValidConnections, uint32 MaxConnectionId, FInternalNetRefIndex ObjectIndex);
 
-	void GetChildSubObjectsToReplicate(uint32 ReplicatingConnectionId, const FConditionalsMask& LifetimeConditionals,  const FInternalNetHandle ParentObjectIndex, FSubObjectsToReplicateArray& OutSubObjectsToReplicate);
+	void GetChildSubObjectsToReplicate(uint32 ReplicatingConnectionId, const FConditionalsMask& LifetimeConditionals,  const FInternalNetRefIndex ParentObjectIndex, FSubObjectsToReplicateArray& OutSubObjectsToReplicate);
 
 private:
-	const FNetHandleManager* NetHandleManager = nullptr;
+	const FNetRefHandleManager* NetRefHandleManager = nullptr;
 	const FReplicationFiltering* ReplicationFiltering = nullptr;
 	const FReplicationConnections* ReplicationConnections = nullptr;
 	FDeltaCompressionBaselineInvalidationTracker* BaselineInvalidationTracker = nullptr;
@@ -123,12 +123,12 @@ private:
 	TArray<FPerConnectionInfo> ConnectionInfos;
 };
 
-inline FReplicationConditionals::FPerObjectInfo* FReplicationConditionals::GetPerObjectInfo(FInternalNetHandle ObjectIndex)
+inline FReplicationConditionals::FPerObjectInfo* FReplicationConditionals::GetPerObjectInfo(FInternalNetRefIndex ObjectIndex)
 {
 	return PerObjectInfos.GetData() + ObjectIndex;
 }
 
-inline const FReplicationConditionals::FPerObjectInfo* FReplicationConditionals::GetPerObjectInfo(FInternalNetHandle ObjectIndex) const
+inline const FReplicationConditionals::FPerObjectInfo* FReplicationConditionals::GetPerObjectInfo(FInternalNetRefIndex ObjectIndex) const
 {
 	return PerObjectInfos.GetData() + ObjectIndex;
 }

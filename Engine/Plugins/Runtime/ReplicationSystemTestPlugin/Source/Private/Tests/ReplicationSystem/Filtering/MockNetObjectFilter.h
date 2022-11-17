@@ -9,7 +9,7 @@
 
 namespace UE::Net::Private
 {
-	typedef uint32 FInternalNetHandle;
+	typedef uint32 FInternalNetRefIndex;
 }
 
 const UE::Net::FRepTag RepTag_NetTest_FilterOut = 0x521855F5DFA298B7ULL;

@@ -24,8 +24,8 @@ private:
 			constexpr uint32 PropertyComponentCount = 1;
 			constexpr uint32 IrisComponentCount = 2;
 			UTestReplicatedIrisObject* TestObject = CreateObject(PropertyComponentCount, IrisComponentCount);
-			const FNetHandle NetHandle = ReplicationBridge->BeginReplication(TestObject);
-			ReplicationProtocol = ReplicationSystem->GetReplicationProtocol(NetHandle);
+			const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(TestObject);
+			ReplicationProtocol = ReplicationSystem->GetReplicationProtocol(NetRefHandle);
 
 			StateDescriptorWithTag = PropertyComponentCount + 2U;
 			RepTagToFind = ReplicationProtocol->ReplicationStateDescriptors[StateDescriptorWithTag]->MemberTagDescriptors[0].Tag;

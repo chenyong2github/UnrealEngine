@@ -75,7 +75,7 @@ protected:
 		return Object;
 	}
 
-	UTestReplicatedIrisObject* CreateSubObject(FReplicationSystemTestNode* Node, FNetHandle Parent)
+	UTestReplicatedIrisObject* CreateSubObject(FReplicationSystemTestNode* Node, FNetRefHandle Parent)
 	{
 		UTestReplicatedIrisObject::FComponents Components;
 		Components.DynamicStateComponentCount = 1;
@@ -124,7 +124,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitHugeObjectOnCreation)
 	Server->PostSendUpdate();
 
 	// As the payload is huge we don't expect the whole payload to arrive the first frame
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_EQ(ClientObject, nullptr);
 
 	for (uint32 RetryIt = 0; RetryIt != HugeObjectMaxNetTickCountToArrive && ClientObject == nullptr; ++RetryIt)
@@ -132,7 +132,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitHugeObjectOnCreation)
 		Server->PreSendUpdate();
 		Server->SendAndDeliverTo(Client, DeliverPacket);
 		Server->PostSendUpdate();
-		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	}
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 }
@@ -149,7 +149,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitHugeObjectAfterCreation)
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	SetObjectPayloadByteCount(ServerObject, HugeObjectPayloadByteCount);
@@ -177,7 +177,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithHugeSubObjectsOnCrea
 	UTestReplicatedIrisObject* ServerSubObjects[SubObjectCount];
 	for (uint32 SubObjectIt=0; SubObjectIt != SubObjectCount; ++SubObjectIt)
 	{
-		ServerSubObjects[SubObjectIt] = CreateSubObject(Server, ServerObject->NetHandle);
+		ServerSubObjects[SubObjectIt] = CreateSubObject(Server, ServerObject->NetRefHandle);
 		SetObjectPayloadByteCount(ServerSubObjects[SubObjectIt], 4096U);
 	}
 
@@ -187,7 +187,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithHugeSubObjectsOnCrea
 	Server->PostSendUpdate();
 
 	// As the payload is huge we don't expect the whole payload to arrive the first frame
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_EQ(ClientObject, nullptr);
 
 	for (uint32 RetryIt = 0; RetryIt != HugeObjectMaxNetTickCountToArrive && ClientObject == nullptr; ++RetryIt)
@@ -195,14 +195,14 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithHugeSubObjectsOnCrea
 		Server->PreSendUpdate();
 		Server->SendAndDeliverTo(Client, DeliverPacket);
 		Server->PostSendUpdate();
-		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	}
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Verify the subobjects made it through as well.
 	for (uint32 SubObjectIt=0; SubObjectIt != SubObjectCount; ++SubObjectIt)
 	{
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectIt]->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectIt]->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubObject, nullptr);
 	}
 }
@@ -222,7 +222,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithSubObjectsWithHugeAt
 
 	for (uint32 SubObjectIt=0; SubObjectIt != SubObjectCount; ++SubObjectIt)
 	{
-		UTestReplicatedIrisObject* ServerSubObject = CreateSubObject(Server, ServerObject->NetHandle);
+		UTestReplicatedIrisObject* ServerSubObject = CreateSubObject(Server, ServerObject->NetRefHandle);
 		ServerSubObjects[SubObjectIt] = ServerSubObject;
 		SetObjectPayloadByteCount(ServerSubObject, SubObjectPayloadByteCount);
 
@@ -237,7 +237,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithSubObjectsWithHugeAt
 			Attachment = ServerMockNetObjectAttachmentHandler->CreateUnreliableNetObjectAttachment(SubObjectPayloadByteCount*8U);
 		}
 
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
@@ -247,7 +247,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithSubObjectsWithHugeAt
 	Server->PostSendUpdate();
 
 	// As the payload is huge we don't expect the whole payload to arrive the first frame
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_EQ(ClientObject, nullptr);
 
 	for (uint32 RetryIt = 0; RetryIt != HugeObjectMaxNetTickCountToArrive && ClientObject == nullptr; ++RetryIt)
@@ -255,14 +255,14 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithSubObjectsWithHugeAt
 		Server->PreSendUpdate();
 		Server->SendAndDeliverTo(Client, DeliverPacket);
 		Server->PostSendUpdate();
-		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	}
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Verify the subobjects made it through.
 	for (uint32 SubObjectIt=0; SubObjectIt != SubObjectCount; ++SubObjectIt)
 	{
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectIt]->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectIt]->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubObject, nullptr);
 	}
 
@@ -294,7 +294,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithSubObjectsWithHugeAt
 
 	for (uint32 SubObjectIt=0; SubObjectIt != SubObjectCount; ++SubObjectIt)
 	{
-		UTestReplicatedIrisObject* ServerSubObject = CreateSubObject(Server, ServerObject->NetHandle);
+		UTestReplicatedIrisObject* ServerSubObject = CreateSubObject(Server, ServerObject->NetRefHandle);
 		ServerSubObjects[SubObjectIt] = ServerSubObject;
 	}
 
@@ -304,13 +304,13 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithSubObjectsWithHugeAt
 	Server->PostSendUpdate();
 
 	// As the payload is huge we don't expect the whole payload to arrive the first frame
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Verify the subobjects made it through.
 	for (uint32 SubObjectIt=0; SubObjectIt != SubObjectCount; ++SubObjectIt)
 	{
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectIt]->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectIt]->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubObject, nullptr);
 	}
 
@@ -331,7 +331,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithSubObjectsWithHugeAt
 			Attachment = ServerMockNetObjectAttachmentHandler->CreateUnreliableNetObjectAttachment(SubObjectPayloadByteCount*8U);
 		}
 
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
@@ -343,7 +343,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectWithSubObjectsWithHugeAt
 		Server->PostSendUpdate();
 
 		// Assume that if one subobject has received its huge state then all of them have
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectCount - 1U]->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectCount - 1U]->NetRefHandle));
 		if (ClientSubObject->DynamicStateComponents[0]->IntArray.Num() > 0)
 		{
 			bHasReceivedHugeState = true;
@@ -371,7 +371,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, HugeObjectStateCanBeSentBackToBack)
 
 	for (uint32 SubObjectIt=0; SubObjectIt != SubObjectCount; ++SubObjectIt)
 	{
-		UTestReplicatedIrisObject* ServerSubObject = CreateSubObject(Server, ServerObject->NetHandle);
+		UTestReplicatedIrisObject* ServerSubObject = CreateSubObject(Server, ServerObject->NetRefHandle);
 		ServerSubObjects[SubObjectIt] = ServerSubObject;
 	}
 
@@ -381,13 +381,13 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, HugeObjectStateCanBeSentBackToBack)
 	Server->PostSendUpdate();
 
 	// As the payload is huge we don't expect the whole payload to arrive the first frame
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Verify the subobjects made it through.
 	for (uint32 SubObjectIt=0; SubObjectIt != SubObjectCount; ++SubObjectIt)
 	{
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectIt]->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectIt]->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubObject, nullptr);
 	}
 
@@ -408,7 +408,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, HugeObjectStateCanBeSentBackToBack)
 			Attachment = ServerMockNetObjectAttachmentHandler->CreateUnreliableNetObjectAttachment(SubObjectPayloadByteCount*8U);
 		}
 
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
@@ -420,7 +420,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, HugeObjectStateCanBeSentBackToBack)
 		Server->PostSendUpdate();
 
 		// Assume that if one subobject has received its huge state then all of them have
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectCount - 1U]->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObjects[SubObjectCount - 1U]->NetRefHandle));
 		if (ClientSubObject->DynamicStateComponents[0]->IntArray.Num() > 0)
 		{
 			bHasReceivedHugeState = true;
@@ -446,7 +446,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectCanBeSentBackToBack)
 	Server->PostSendUpdate();
 
 	// As the payload is huge we don't expect the whole payload to arrive the first frame
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_EQ(ClientObject, nullptr);
 
 	const int OriginalArrayCount = ServerObject->DynamicStateComponents[0]->IntArray.Num();
@@ -459,7 +459,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectCanBeSentBackToBack)
 		Server->PreSendUpdate();
 		Server->SendAndDeliverTo(Client, DeliverPacket);
 		Server->PostSendUpdate();
-		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	}
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 	UE_NET_ASSERT_EQ(ClientObject->DynamicStateComponents[0]->IntArray.Num(), OriginalArrayCount);
@@ -485,7 +485,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectIsDeletedAfterBeingCreat
 	FReplicationSystemTestClient* Client = CreateClient();
 
 	UTestReplicatedIrisObject* ServerObject = CreateHugeObject(Server);
-	const FNetHandle ServerNetHandle = ServerObject->NetHandle;
+	const FNetRefHandle ServerNetRefHandle = ServerObject->NetRefHandle;
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -493,7 +493,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectIsDeletedAfterBeingCreat
 	Server->PostSendUpdate();
 
 	// As the payload is huge we don't expect the whole payload to arrive the first frame
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerNetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerNetRefHandle));
 	UE_NET_ASSERT_EQ(ClientObject, nullptr);
 
 	Server->DestroyObject(ServerObject);
@@ -503,7 +503,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectIsDeletedAfterBeingCreat
 		Server->PreSendUpdate();
 		Server->SendAndDeliverTo(Client, DeliverPacket);
 		Server->PostSendUpdate();
-		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerNetHandle));
+		ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerNetRefHandle));
 	}
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
@@ -512,7 +512,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SplitObjectIsDeletedAfterBeingCreat
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerNetHandle));
+	ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerNetRefHandle));
 	UE_NET_ASSERT_EQ(ClientObject, nullptr);
 }
 
@@ -526,7 +526,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SubObjectToHugeObjectCanBeDeleted)
 	UTestReplicatedIrisObject* ServerSubObjects[SubObjectCount];
 	for (uint32 SubObjectIt=0; SubObjectIt != SubObjectCount; ++SubObjectIt)
 	{
-		ServerSubObjects[SubObjectIt] = CreateSubObject(Server, ServerObject->NetHandle);
+		ServerSubObjects[SubObjectIt] = CreateSubObject(Server, ServerObject->NetRefHandle);
 	}
 
 	// Send and deliver packet
@@ -534,11 +534,11 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SubObjectToHugeObjectCanBeDeleted)
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
-	const FNetHandle SubObjectNetHandle = ServerSubObjects[0]->NetHandle;
-	const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const FNetRefHandle SubObjectNetRefHandle = ServerSubObjects[0]->NetRefHandle;
+	const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientSubObject, nullptr);
 
 	// Make subobject payloads huge
@@ -563,7 +563,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SubObjectToHugeObjectCanBeDeleted)
 		Server->PostSendUpdate();
 
 		// Assume that if one subobject has received its huge state then all of them have
-		ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(SubObjectNetHandle));
+		ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(SubObjectNetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubObject, nullptr);
 		if (ClientSubObject->DynamicStateComponents[0]->IntArray.Num() > 0)
 		{
@@ -577,7 +577,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, SubObjectToHugeObjectCanBeDeleted)
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(SubObjectNetHandle));
+	ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(SubObjectNetRefHandle));
 	UE_NET_ASSERT_EQ(ClientSubObject, nullptr);
 }
 
@@ -610,7 +610,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TearOffOnCreation)
 	// Verify that ClientObject is torn-off and that the final state was applied
 	UTestReplicatedIrisObject* ClientObjectThatWasTornOff = Cast<UTestReplicatedIrisObject>(Client->CreatedObjects[NumObjectsCreatedOnClientBeforeReplication].Get());
 	UE_NET_ASSERT_EQ(ClientObjectThatWasTornOff->DynamicStateComponents[0]->IntArray.Num(), ServerObject->DynamicStateComponents[0]->IntArray.Num());
-	UE_NET_ASSERT_EQ(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)), nullptr);
+	UE_NET_ASSERT_EQ(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)), nullptr);
 }
 
 // Test TearOff for existing confirmed object during huge object state send
@@ -626,7 +626,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TearOffCreatedObjectWithHugePayload
 	Server->PostSendUpdate();
 
 	// Store client object while it can still be found using the server net handle.
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObjectThatWillBeTornOff, nullptr);
 
 	// Set huge payload and TearOff the object
@@ -647,7 +647,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TearOffCreatedObjectWithHugePayload
 	}
 
 	// Verify that ClientObject is torn-off and that the final state was applied
-	UE_NET_ASSERT_EQ(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)), nullptr);
+	UE_NET_ASSERT_EQ(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)), nullptr);
 	UE_NET_ASSERT_EQ(ClientObjectThatWillBeTornOff->DynamicStateComponents[0]->IntArray.Num(), ServerObject->DynamicStateComponents[0]->IntArray.Num());
 }
 
@@ -684,7 +684,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TearOffWhileHugeObjectStateIsSendin
 	UE_NET_ASSERT_EQ(Client->CreatedObjects.Num(), NumObjectsCreatedOnClientBeforeReplication + 1);
 
 	// Verify we have the previous state
-	const UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_EQ(ClientObjectThatWillBeTornOff->IntA ^ 1, ServerObject->IntA);
 
 	Server->PreSendUpdate();
@@ -692,7 +692,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TearOffWhileHugeObjectStateIsSendin
 	Server->PostSendUpdate();
 
 	// Verify that ClientObject is torn-off and that the final state was applied
-	UE_NET_ASSERT_EQ(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)), nullptr);
+	UE_NET_ASSERT_EQ(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)), nullptr);
 	UE_NET_ASSERT_EQ(ClientObjectThatWillBeTornOff->IntA, ServerObject->IntA);
 }
 
@@ -713,12 +713,12 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TestCancelPendingDestroyOfHugeObjec
 	}
 
 	// Filter out object to cause a PendingDestroy
-	Server->GetReplicationSystem()->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetHandle);
+	Server->GetReplicationSystem()->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetRefHandle);
 	Server->PreSendUpdate();
 	Server->PostSendUpdate();
 
 	// Remove object from filter to cause object to end up in CancelPendingDestroy
-	Server->GetReplicationSystem()->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetHandle);
+	Server->GetReplicationSystem()->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetRefHandle);
 	Server->PreSendUpdate();
 	Server->PostSendUpdate();
 
@@ -734,7 +734,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TestCancelPendingDestroyOfHugeObjec
 	}
 
 	// Verify that the object now exists on client
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
 
 	// Modify a property on the object and make sure it's replicated as the object should now be confirmed created
 	ServerObject->IntA ^= 1;
@@ -743,7 +743,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TestCancelPendingDestroyOfHugeObjec
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 	UE_NET_ASSERT_EQ(ClientObject->IntA, ServerObject->IntA);
 }
@@ -766,12 +766,12 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TestCancelPendingDestroyOfHugeObjec
 	}
 
 	// Filter out object to cause a PendingDestroy
-	Server->GetReplicationSystem()->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetHandle);
+	Server->GetReplicationSystem()->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetRefHandle);
 	Server->PreSendUpdate();
 	Server->PostSendUpdate();
 
 	// Remove object from filter to cause object to end up in CancelPendingDestroy
-	Server->GetReplicationSystem()->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetHandle);
+	Server->GetReplicationSystem()->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetRefHandle);
 	Server->PreSendUpdate();
 	Server->PostSendUpdate();
 
@@ -803,7 +803,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TestCancelPendingDestroyOfHugeObjec
 		}
 	}
 
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TestCancelPendingDestroyDuringHugeObjectStateUpdate)
@@ -831,12 +831,12 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TestCancelPendingDestroyDuringHugeO
 	}
 
 	// Filter out object to cause a PendingDestroy
-	Server->GetReplicationSystem()->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetHandle);
+	Server->GetReplicationSystem()->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetRefHandle);
 	Server->PreSendUpdate();
 	Server->PostSendUpdate();
 
 	// Remove object from filter to cause object to end up in CancelPendingDestroy
-	Server->GetReplicationSystem()->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetHandle);
+	Server->GetReplicationSystem()->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerObject->NetRefHandle);
 	Server->PreSendUpdate();
 	Server->PostSendUpdate();
 
@@ -859,7 +859,7 @@ UE_NET_TEST_FIXTURE(FSplitObjectTestFixture, TestCancelPendingDestroyDuringHugeO
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 	UE_NET_ASSERT_EQ(ClientObject->IntA, ServerObject->IntA);
 }

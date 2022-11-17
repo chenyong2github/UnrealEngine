@@ -67,12 +67,12 @@ void FNetBlob::DeserializeCreationInfo(FNetSerializationContext& Context, FNetBl
 	OutCreationInfo.Flags = ENetBlobFlags::None;
 }
 
-void FNetBlob::SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const
+void FNetBlob::SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const
 {
 	SerializeBlob(Context);
 }
 
-void FNetBlob::DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle)
+void FNetBlob::DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle)
 {
 	check(BlobDescriptor.IsValid());
 	DeserializeBlob(Context);
@@ -149,14 +149,14 @@ void FNetObjectAttachment::DeserializeObjectReference(FNetSerializationContext& 
 	ReadFullNetObjectReference(Context, TargetObjectReference);
 }
 
-void FNetObjectAttachment::SerializeSubObjectReference(FNetSerializationContext& Context, FNetHandle NetHandle) const
+void FNetObjectAttachment::SerializeSubObjectReference(FNetSerializationContext& Context, FNetRefHandle RefHandle) const
 {
 	WriteFullNetObjectReference(Context, TargetObjectReference);
 }
 
-void FNetObjectAttachment::DeserializeSubObjectReference(FNetSerializationContext& Context, FNetHandle NetHandle)
+void FNetObjectAttachment::DeserializeSubObjectReference(FNetSerializationContext& Context, FNetRefHandle RefHandle)
 {
-	NetObjectReference = Private::FObjectReferenceCache::MakeNetObjectReference(NetHandle);
+	NetObjectReference = Private::FObjectReferenceCache::MakeNetObjectReference(RefHandle);
 	ReadFullNetObjectReference(Context, TargetObjectReference);
 }
 

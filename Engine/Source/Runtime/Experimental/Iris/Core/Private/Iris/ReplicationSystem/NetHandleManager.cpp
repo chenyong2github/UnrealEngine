@@ -8,6 +8,7 @@
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Serialization/InternalNetSerializationContext.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "UObject/CoreNetTypes.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/CoreNetTypes.h"
@@ -15,7 +16,7 @@
 namespace UE::Net::Private
 {
 
-FNetHandleManager::FNetHandleManager(FReplicationProtocolManager& InReplicationProtocolManager, uint32 InReplicationSystemId, uint32 InMaxActiveObjectCount)
+FNetRefHandleManager::FNetRefHandleManager(FReplicationProtocolManager& InReplicationProtocolManager, uint32 InReplicationSystemId, uint32 InMaxActiveObjectCount)
 : ActiveObjectCount(0)
 , MaxActiveObjectCount(InMaxActiveObjectCount)
 , ReplicationSystemId(InReplicationSystemId)
@@ -31,7 +32,8 @@ FNetHandleManager::FNetHandleManager(FReplicationProtocolManager& InReplicationP
 , NextDynamicHandleIndex(1U)
 , ReplicationProtocolManager(InReplicationProtocolManager)
 {
-	// first is reserved for invalid handle
+	static_assert(InvalidInternalIndex == 0, "FNetRefHandleManager::InvalidInternalIndex has an unexpected value");
+	// Mark the invalid index as used
 	AssignedInternalIndices.SetBit(0);
 
 	ReplicatedObjectData.SetNumUninitialized(MaxActiveObjectCount);
@@ -44,10 +46,10 @@ FNetHandleManager::FNetHandleManager(FReplicationProtocolManager& InReplicationP
 	ReplicatedObjectData[InvalidInternalIndex] = FReplicatedObjectData();
 }
 
-uint32 FNetHandleManager::GetNextHandleId(uint32 HandleId) const
+uint32 FNetRefHandleManager::GetNextNetRefHandleId(uint32 HandleId) const
 {
 	// Since we use the lowest bit in the index to indicate if the handle is static or dynamic we can not use all bits as the index
-	constexpr uint32 NetHandleIdIndexBitMask = (1U << (FNetHandle::IdBits - 1U)) - 1U;
+	constexpr uint32 NetHandleIdIndexBitMask = (1U << (FNetRefHandle::IdBits - 1U)) - 1U;
 
 	uint32 NextHandleId = (HandleId + 1) & NetHandleIdIndexBitMask;
 	if (NextHandleId == 0)
@@ -57,23 +59,23 @@ uint32 FNetHandleManager::GetNextHandleId(uint32 HandleId) const
 	return NextHandleId;
 }
 
-FInternalNetHandle FNetHandleManager::GetNextFreeInternalIndex() const
+FInternalNetRefIndex FNetRefHandleManager::GetNextFreeInternalIndex() const
 {
 	const uint32 NextFreeIndex = AssignedInternalIndices.FindFirstZero();
 	return NextFreeIndex != FNetBitArray::InvalidIndex ? NextFreeIndex : InvalidInternalIndex;
 }
 
-uint32 FNetHandleManager::InternalCreateNetObject(const FNetHandle NetHandle, const FReplicationProtocol* ReplicationProtocol)
+FInternalNetRefIndex FNetRefHandleManager::InternalCreateNetObject(const FNetRefHandle NetRefHandle, const FNetHandle GlobalHandle, const FReplicationProtocol* ReplicationProtocol)
 {
 	if (ActiveObjectCount >= MaxActiveObjectCount)
 	{
 		return InvalidInternalIndex;
 	}
 
-	// verify that the handle is free
-	if (HandleMap.Contains(NetHandle))
+	// Verify that the handle is free
+	if (RefHandleToInternalIndex.Contains(NetRefHandle))
 	{
-		ensureAlwaysMsgf(false, TEXT("NetHandleManager::InternalCreateNetObject %s already exists"), *NetHandle.ToString());
+		ensureAlwaysMsgf(false, TEXT("NetRefHandleManager::InternalCreateNetObject %s already exists"), *NetRefHandle.ToString());
 		return InvalidInternalIndex;
 	}
 
@@ -85,7 +87,8 @@ uint32 FNetHandleManager::InternalCreateNetObject(const FNetHandle NetHandle, co
 
 		Data = FReplicatedObjectData();
 
-		Data.Handle = NetHandle;
+		Data.RefHandle = NetRefHandle;
+		Data.NetHandle = GlobalHandle;
 		Data.Protocol = ReplicationProtocol;
 		Data.InstanceProtocol = nullptr;
 		ReplicatedObjectStateBuffers.GetData()[InternalIndex] = nullptr;
@@ -94,8 +97,14 @@ uint32 FNetHandleManager::InternalCreateNetObject(const FNetHandle NetHandle, co
 
 		++ActiveObjectCount;
 
-		// Add map entry so that we can map from NetHandle to InternalIndex
-		HandleMap.Add(Data.Handle, InternalIndex);
+		// Add map entry so that we can map from NetRefHandle to InternalIndex
+		RefHandleToInternalIndex.Add(NetRefHandle, InternalIndex);
+		
+		// Add mapping from global handle to InternalIndex to speed up lookups for ReplicationSystem public API
+		if (GlobalHandle.IsValid())
+		{
+			NetHandleToInternalIndex.Add(GlobalHandle, InternalIndex);
+		}
 
 		// Mark Handle index as assigned and scopable for now
 		AssignedInternalIndices.SetBit(InternalIndex);
@@ -112,7 +121,7 @@ uint32 FNetHandleManager::InternalCreateNetObject(const FNetHandle NetHandle, co
 	return InvalidInternalIndex;
 }
 
-void FNetHandleManager::AttachInstanceProtocol(FInternalNetHandle InternalIndex, const FReplicationInstanceProtocol* InstanceProtocol, UObject* Instance)
+void FNetRefHandleManager::AttachInstanceProtocol(FInternalNetRefIndex InternalIndex, const FReplicationInstanceProtocol* InstanceProtocol, UObject* Instance)
 {
 	if (ensureAlways((InternalIndex != InvalidInternalIndex) && InstanceProtocol))
 	{
@@ -124,7 +133,7 @@ void FNetHandleManager::AttachInstanceProtocol(FInternalNetHandle InternalIndex,
 	}
 }
 
-const FReplicationInstanceProtocol* FNetHandleManager::DetachInstanceProtocol(FInternalNetHandle InternalIndex)
+const FReplicationInstanceProtocol* FNetRefHandleManager::DetachInstanceProtocol(FInternalNetRefIndex InternalIndex)
 {
 	if (ensure(InternalIndex != InvalidInternalIndex))
 	{
@@ -139,40 +148,38 @@ const FReplicationInstanceProtocol* FNetHandleManager::DetachInstanceProtocol(FI
 	return nullptr;
 }
 
-FNetHandle FNetHandleManager::AllocateNetHandle(bool bIsStatic)
+FNetRefHandle FNetRefHandleManager::AllocateNetRefHandle(bool bIsStatic)
 {
 	uint32& NextHandleId = bIsStatic ? NextStaticHandleIndex : NextDynamicHandleIndex;
 
-	const uint32 NewHandleId = MakeNetHandleId(NextHandleId, bIsStatic);
-	FNetHandle NewHandle = MakeNetHandle(NewHandleId, ReplicationSystemId);
+	const uint32 NewHandleId = MakeNetRefHandleId(NextHandleId, bIsStatic);
+	FNetRefHandle NewHandle = MakeNetRefHandle(NewHandleId, ReplicationSystemId);
 
 	// Verify that the handle is free
-	if (HandleMap.Contains(NewHandle))
+	if (RefHandleToInternalIndex.Contains(NewHandle))
 	{
-		checkf(false, TEXT("FNetHandleManager::AllocateNetHandle - Handle %s already exists!"), *NewHandle.ToString());
+		checkf(false, TEXT("FNetRefHandleManager::AllocateNetHandle - Handle %s already exists!"), *NewHandle.ToString());
 
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	// Bump NextHandleId
-	NextHandleId = GetNextHandleId(NextHandleId);
+	NextHandleId = GetNextNetRefHandleId(NextHandleId);
 
 	return NewHandle;
 }
 
-FNetHandle FNetHandleManager::CreateNetObject(FNetHandle WantedHandle, const FReplicationProtocol* ReplicationProtocol)
+FNetRefHandle FNetRefHandleManager::CreateNetObject(FNetRefHandle WantedHandle, FNetHandle GlobalHandle, const FReplicationProtocol* ReplicationProtocol)
 {
-	FNetHandle NetHandle = WantedHandle;
+	FNetRefHandle NetRefHandle = WantedHandle;
 
-	const FInternalNetHandle InternalIndex = InternalCreateNetObject(NetHandle, ReplicationProtocol);
+	const FInternalNetRefIndex InternalIndex = InternalCreateNetObject(NetRefHandle, GlobalHandle, ReplicationProtocol);
 	if (InternalIndex != InvalidInternalIndex)
 	{
 		FReplicatedObjectData& Data = ReplicatedObjectData[InternalIndex];
 		
 		// Allocate storage for outgoing data. We need a valid pointer even if the size is zero.
-		uint8* StateBuffer = (uint8*)FMemory::Malloc(FPlatformMath::Max(ReplicationProtocol->InternalTotalSize, 1U), ReplicationProtocol->InternalTotalAlignment);
-		// Clear state buffer.
-		FMemory::Memzero(StateBuffer, ReplicationProtocol->InternalTotalSize);
+		uint8* StateBuffer = (uint8*)FMemory::MallocZeroed(FPlatformMath::Max(ReplicationProtocol->InternalTotalSize, 1U), ReplicationProtocol->InternalTotalAlignment);
 		if (EnumHasAnyFlags(ReplicationProtocol->ProtocolTraits, EReplicationProtocolTraits::HasConditionalChangeMask))
 		{
 			// Enable all conditions by default. This is to be compatible with the implementation of FRepChangedPropertyTracker where we have hooks into ReplicationSystem.
@@ -185,25 +192,25 @@ FNetHandle FNetHandleManager::CreateNetObject(FNetHandle WantedHandle, const FRe
 		// Bump protocol refcount
 		ReplicationProtocol->AddRef();
 
-		return NetHandle;
+		return NetRefHandle;
 	}
 	else
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 }
 
-// Create NetHandle not owned by us
-FNetHandle FNetHandleManager::CreateNetObjectFromRemote(FNetHandle WantedHandle, const FReplicationProtocol* ReplicationProtocol)
+// Create NetRefHandle not owned by us
+FNetRefHandle FNetRefHandleManager::CreateNetObjectFromRemote(FNetRefHandle WantedHandle, const FReplicationProtocol* ReplicationProtocol)
 {
-	if (!ensureAlwaysMsgf(WantedHandle.IsValid() && !WantedHandle.IsCompleteHandle(), TEXT("FNetHandleManager::CreateNetObjectFromRemote Expected WantedHandle %s to be valid and incomplete"), *WantedHandle.ToString()))
+	if (!ensureAlwaysMsgf(WantedHandle.IsValid() && !WantedHandle.IsCompleteHandle(), TEXT("FNetRefHandleManager::CreateNetObjectFromRemote Expected WantedHandle %s to be valid and incomplete"), *WantedHandle.ToString()))
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
-	FNetHandle NetHandle = MakeNetHandle(WantedHandle.GetId(), ReplicationSystemId);
+	FNetRefHandle NetRefHandle = MakeNetRefHandle(WantedHandle.GetId(), ReplicationSystemId);
 
-	const FInternalNetHandle InternalIndex = InternalCreateNetObject(NetHandle, ReplicationProtocol);
+	const FInternalNetRefIndex InternalIndex = InternalCreateNetObject(NetRefHandle, FNetHandle(), ReplicationProtocol);
 	if (InternalIndex != InvalidInternalIndex)
 	{
 		FReplicatedObjectData& Data = ReplicatedObjectData[InternalIndex];
@@ -222,19 +229,19 @@ FNetHandle FNetHandleManager::CreateNetObjectFromRemote(FNetHandle WantedHandle,
 		// Bump protocol refcount
 		ReplicationProtocol->AddRef();
 
-		return NetHandle;
+		return NetRefHandle;
 	}
 	else
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 }
 
-void FNetHandleManager::InternalDestroyNetObject(FInternalNetHandle InternalIndex)
+void FNetRefHandleManager::InternalDestroyNetObject(FInternalNetRefIndex InternalIndex)
 {
 	FReplicatedObjectData& Data = ReplicatedObjectData[InternalIndex];
 
-	UE_LOG(LogIris, Verbose, TEXT("FNetHandleManager::InternalDestroyNetObject ( InternalIndex: %u ) %s"), InternalIndex, *Data.Handle.ToString());
+	UE_LOG(LogIris, Verbose, TEXT("FNetRefHandleManager::InternalDestroyNetObject ( InternalIndex: %u ) %s"), InternalIndex, *Data.RefHandle.ToString());
 
 	uint8* StateBuffer = ReplicatedObjectStateBuffers.GetData()[InternalIndex];
 	// Free any allocated resources
@@ -254,16 +261,16 @@ void FNetHandleManager::InternalDestroyNetObject(FInternalNetHandle InternalInde
 	}
 	
 	// If we have subobjects remove them from our list
-	if (FNetDependencyData::FInternalNetHandleArray* SubObjectArray = SubObjects.GetInternalHandleArray<FNetDependencyData::EArrayType::SubObjects>(InternalIndex))
+	if (FNetDependencyData::FInternalNetRefIndexArray* SubObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::SubObjects>(InternalIndex))
 	{
-		for (FInternalNetHandle SubObjectInternalHandle : *SubObjectArray)
+		for (FInternalNetRefIndex SubObjectInternalIndex : *SubObjectArray)
 		{
-			InternalRemoveSubObject(InternalIndex, SubObjectInternalHandle, false);
+			InternalRemoveSubObject(InternalIndex, SubObjectInternalIndex, false);
 		}
 		SubObjectArray->Reset(0U);
 	}
 	// Clear ChildSubObjectArray
-	if (FNetDependencyData::FInternalNetHandleArray* ChildSubObjectArray = SubObjects.GetInternalHandleArray<FNetDependencyData::EArrayType::ChildSubObjects>(InternalIndex))
+	if (FNetDependencyData::FInternalNetRefIndexArray* ChildSubObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::ChildSubObjects>(InternalIndex))
 	{
 		ChildSubObjectArray->Reset(0U);
 	}
@@ -293,7 +300,7 @@ void FNetHandleManager::InternalDestroyNetObject(FInternalNetHandle InternalInde
 	// Clear pointer to state buffer
 	ReplicatedObjectStateBuffers.GetData()[InternalIndex] = nullptr;
 
-	UE_NET_TRACE_NETHANDLE_DESTROYED(Data.Handle);
+	UE_NET_TRACE_NETHANDLE_DESTROYED(Data.RefHandle);
 
 	Data = FReplicatedObjectData();
 
@@ -319,11 +326,12 @@ void FNetHandleManager::InternalDestroyNetObject(FInternalNetHandle InternalInde
 	--ActiveObjectCount;
 }
 
-FNetHandle FNetHandleManager::CreateHandleForDestructionInfo(FNetHandle Handle, const FReplicationProtocol* DestroydObjectProtocol)
+FNetRefHandle FNetRefHandleManager::CreateHandleForDestructionInfo(FNetRefHandle Handle, const FReplicationProtocol* DestroyedObjectProtocol)
 {
 	// Create destruction info handle carrying destruction info
-	FNetHandle AllocatedHandle = AllocateNetHandle(false);
-	FNetHandle DestructionInfoHandle = CreateNetObject(AllocatedHandle, DestroydObjectProtocol);
+	constexpr bool bIsStaticHandle = false;
+	FNetRefHandle AllocatedHandle = AllocateNetRefHandle(bIsStaticHandle);
+	FNetRefHandle DestructionInfoHandle = CreateNetObject(AllocatedHandle, FNetHandle(), DestroyedObjectProtocol);
 
 	if (DestructionInfoHandle.IsValid())
 	{
@@ -347,7 +355,7 @@ FNetHandle FNetHandleManager::CreateHandleForDestructionInfo(FNetHandle Handle, 
 	return DestructionInfoHandle;
 }
 
-void FNetHandleManager::RemoveFromScope(FInternalNetHandle InternalIndex)
+void FNetRefHandleManager::RemoveFromScope(FInternalNetRefIndex InternalIndex)
 {
 	// Can only remove an object from scope if it is assignable
 	if (ensure(AssignedInternalIndices.GetBit(InternalIndex)))
@@ -356,13 +364,16 @@ void FNetHandleManager::RemoveFromScope(FInternalNetHandle InternalIndex)
 	}
 }
 
-void FNetHandleManager::DestroyNetObject(FNetHandle Handle)
+void FNetRefHandleManager::DestroyNetObject(FNetRefHandle RefHandle)
 {
-	FInternalNetHandle InternalIndex = HandleMap.FindAndRemoveChecked(Handle);
+	FInternalNetRefIndex InternalIndex = RefHandleToInternalIndex.FindAndRemoveChecked(RefHandle);
 	if (ensure(AssignedInternalIndices.GetBit(InternalIndex)))
 	{
 		FReplicatedObjectData& Data = ReplicatedObjectData[InternalIndex];
-		check(Data.Handle == Handle);
+		check(Data.RefHandle == RefHandle);
+
+		// Remove mapping from global handle to internal index
+		NetHandleToInternalIndex.Remove(Data.NetHandle);
 
 		// Remove from scopable objects if not already done
 		ScopableInternalIndices.ClearBit(InternalIndex);
@@ -372,12 +383,12 @@ void FNetHandleManager::DestroyNetObject(FNetHandle Handle)
 	}
 }
 
-void FNetHandleManager::DestroyObjectsPendingDestroy()
+void FNetRefHandleManager::DestroyObjectsPendingDestroy()
 {
 	// Destroy Objects pending destroy
-	for (int32 It = PendingDestroyInternalIndices.Num() -1; It >= 0; --It)
+	for (int32 It = PendingDestroyInternalIndices.Num() - 1; It >= 0; --It)
 	{
-		const FInternalNetHandle InternalIndex = PendingDestroyInternalIndices[It];
+		const FInternalNetRefIndex InternalIndex = PendingDestroyInternalIndices[It];
 		if (ReplicatedObjectRefCount[InternalIndex] == 0)
 		{
 			InternalDestroyNetObject(InternalIndex);
@@ -386,13 +397,13 @@ void FNetHandleManager::DestroyObjectsPendingDestroy()
 	}
 }
 
-bool FNetHandleManager::AddSubObject(FNetHandle OwnerHandle, FNetHandle SubObjectHandle, FNetHandle RelativeOtherSubObjectHandle, EAddSubObjectFlags Flags)
+bool FNetRefHandleManager::AddSubObject(FNetRefHandle OwnerHandle, FNetRefHandle SubObjectHandle, FNetRefHandle RelativeOtherSubObjectHandle, EAddSubObjectFlags Flags)
 {
 	check(OwnerHandle != SubObjectHandle);
 
 	// validate objects
-	const FInternalNetHandle OwnerInternalIndex = GetInternalIndex(OwnerHandle);
-	const FInternalNetHandle SubObjectInternalIndex = GetInternalIndex(SubObjectHandle);
+	const FInternalNetRefIndex OwnerInternalIndex = GetInternalIndex(OwnerHandle);
+	const FInternalNetRefIndex SubObjectInternalIndex = GetInternalIndex(SubObjectHandle);
 
 	const bool bIsValidOwner = ensure(OwnerInternalIndex != InvalidInternalIndex);
 	const bool bIsValidSubObejct = ensure(SubObjectInternalIndex != InvalidInternalIndex);
@@ -402,25 +413,32 @@ bool FNetHandleManager::AddSubObject(FNetHandle OwnerHandle, FNetHandle SubObjec
 		return false;
 	}
 
+	const FInternalNetRefIndex RelativeOtherSubObjectInternalIndex = EnumHasAnyFlags(Flags, EAddSubObjectFlags::ReplicateWithSubObject) ? GetInternalIndex(RelativeOtherSubObjectHandle) : InvalidInternalIndex;
+	return InternalAddSubObject(OwnerInternalIndex, SubObjectInternalIndex, RelativeOtherSubObjectInternalIndex, Flags);
+}
+
+bool FNetRefHandleManager::InternalAddSubObject(FInternalNetRefIndex OwnerInternalIndex, FInternalNetRefIndex SubObjectInternalIndex, FInternalNetRefIndex RelativeOtherSubObjectInternalIndex, EAddSubObjectFlags Flags)
+{
+	using namespace UE::Net::Private;
+
 	FReplicatedObjectData& SubObjectData = GetReplicatedObjectDataNoCheck(SubObjectInternalIndex);
-	if (!ensureAlwaysMsgf(SubObjectData.SubObjectRootIndex == InvalidInternalIndex, TEXT("FNetHandleManager::AddSubObject %s is already marked as a subobject"), *SubObjectHandle.ToString()))
+	if (!ensureAlwaysMsgf(SubObjectData.SubObjectRootIndex == InvalidInternalIndex, TEXT("FNetRefHandleManager::AddSubObject %s is already marked as a subobject"), ToCStr(SubObjectData.RefHandle.ToString())))
 	{
 		return false;
 	}
 
-	FNetDependencyData::FInternalNetHandleArray& SubObjectArray = SubObjects.GetOrCreateInternalHandleArray<FNetDependencyData::SubObjects>(OwnerInternalIndex);
+	FNetDependencyData::FInternalNetRefIndexArray& SubObjectArray = SubObjects.GetOrCreateInternalIndexArray<FNetDependencyData::SubObjects>(OwnerInternalIndex);
 	SubObjectArray.Add(SubObjectInternalIndex);
 	SubObjectData.SubObjectRootIndex = OwnerInternalIndex;
 	SubObjectData.bDestroySubObjectWithOwner = EnumHasAnyFlags(Flags, EAddSubObjectFlags::DestroyWithOwner);
 	// Mark the object as a subobject
 	SetIsSubObject(SubObjectInternalIndex, true);
 
-	const FInternalNetHandle RelativeOtherSubObjectInternalIndex = EnumHasAnyFlags(Flags, EAddSubObjectFlags::ReplicateWithSubObject) ? GetInternalIndex(RelativeOtherSubObjectHandle) : InvalidInternalIndex;
-	if (RelativeOtherSubObjectInternalIndex != InvalidInternalIndex && ensureAlwaysMsgf(SubObjectArray.Find(RelativeOtherSubObjectInternalIndex) != INDEX_NONE, TEXT("RelativeOtherSubObjectHandle %s Must be a Subobject of %s"), *RelativeOtherSubObjectHandle.ToString(), *OwnerHandle.ToString()))
+	if (RelativeOtherSubObjectInternalIndex != InvalidInternalIndex && ensureAlwaysMsgf(SubObjectArray.Find(RelativeOtherSubObjectInternalIndex) != INDEX_NONE, TEXT("RelativeOtherSubObjectHandle %s Must be a Subobject of %s"), ToCStr(GetNetRefHandleFromInternalIndex(RelativeOtherSubObjectInternalIndex).ToString()), ToCStr(GetNetRefHandleFromInternalIndex(OwnerInternalIndex).ToString())))
 	{
 		// Add to child array of RelativeOtherSubObjectRelativeIndex for hierarchical replication order
 		FNetDependencyData::FSubObjectConditionalsArray* SubObjectConditionalsArray = nullptr;
-		FNetDependencyData::FInternalNetHandleArray& ChildSubObjectArray = SubObjects.GetOrCreateInternalChildSubObjectsArray(RelativeOtherSubObjectInternalIndex, SubObjectConditionalsArray);
+		FNetDependencyData::FInternalNetRefIndexArray& ChildSubObjectArray = SubObjects.GetOrCreateInternalChildSubObjectsArray(RelativeOtherSubObjectInternalIndex, SubObjectConditionalsArray);
 		ChildSubObjectArray.Add(SubObjectInternalIndex);
 		if (SubObjectConditionalsArray)
 		{
@@ -432,7 +450,7 @@ bool FNetHandleManager::AddSubObject(FNetHandle OwnerHandle, FNetHandle SubObjec
 	{
 		// Add to child array of root
 		FNetDependencyData::FSubObjectConditionalsArray* SubObjectConditionalsArray = nullptr;
-		FNetDependencyData::FInternalNetHandleArray& ChildSubObjectArray = SubObjects.GetOrCreateInternalChildSubObjectsArray(OwnerInternalIndex, SubObjectConditionalsArray);
+		FNetDependencyData::FInternalNetRefIndexArray& ChildSubObjectArray = SubObjects.GetOrCreateInternalChildSubObjectsArray(OwnerInternalIndex, SubObjectConditionalsArray);
 		ChildSubObjectArray.Add(SubObjectInternalIndex);
 		if (SubObjectConditionalsArray)
 		{
@@ -444,7 +462,7 @@ bool FNetHandleManager::AddSubObject(FNetHandle OwnerHandle, FNetHandle SubObjec
 	return true;
 }
 
-void FNetHandleManager::InternalRemoveSubObject(FInternalNetHandle OwnerInternalIndex, FInternalNetHandle SubObjectInternalIndex, bool bRemoveFromSubObjectArray)
+void FNetRefHandleManager::InternalRemoveSubObject(FInternalNetRefIndex OwnerInternalIndex, FInternalNetRefIndex SubObjectInternalIndex, bool bRemoveFromSubObjectArray)
 {
 	// both must be valid
 	if (OwnerInternalIndex != InvalidInternalIndex && SubObjectInternalIndex != InvalidInternalIndex)
@@ -455,14 +473,14 @@ void FNetHandleManager::InternalRemoveSubObject(FInternalNetHandle OwnerInternal
 		if (bRemoveFromSubObjectArray)
 		{
 			// Remove from root parent
-			if (FNetDependencyData::FInternalNetHandleArray* SubObjectArray = SubObjects.GetInternalHandleArray<FNetDependencyData::EArrayType::SubObjects>(OwnerInternalIndex))
+			if (FNetDependencyData::FInternalNetRefIndexArray* SubObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::SubObjects>(OwnerInternalIndex))
 			{
 				SubObjectArray->Remove(SubObjectInternalIndex);
 			}
 			// Remove from parents ChildSubObjectArray
 			if (SubObjectData.SubObjectParentIndex != InvalidInternalIndex)
 			{
-				FNetDependencyData::FInternalNetHandleArray* ChildSubObjectArray;
+				FNetDependencyData::FInternalNetRefIndexArray* ChildSubObjectArray;
 				FNetDependencyData::FSubObjectConditionalsArray* SubObjectConditionsArray;
 
 				if (SubObjects.GetInternalChildSubObjectAndConditionalArrays(SubObjectData.SubObjectParentIndex, ChildSubObjectArray, SubObjectConditionsArray))
@@ -488,9 +506,9 @@ void FNetHandleManager::InternalRemoveSubObject(FInternalNetHandle OwnerInternal
 	}
 }
 
-void FNetHandleManager::RemoveSubObject(FNetHandle Handle)
+void FNetRefHandleManager::RemoveSubObject(FNetRefHandle Handle)
 {
-	FInternalNetHandle SubObjectInternalIndex = GetInternalIndex(Handle);
+	FInternalNetRefIndex SubObjectInternalIndex = GetInternalIndex(Handle);
 	checkSlow(SubObjectInternalIndex);
 
 	if (SubObjectInternalIndex != InvalidInternalIndex)
@@ -503,14 +521,14 @@ void FNetHandleManager::RemoveSubObject(FNetHandle Handle)
 	}
 }
 
-bool FNetHandleManager::SetSubObjectNetCondition(FInternalNetHandle SubObjectInternalIndex, FLifeTimeConditionStorage SubObjectCondition)
+bool FNetRefHandleManager::SetSubObjectNetCondition(FInternalNetRefIndex SubObjectInternalIndex, FLifeTimeConditionStorage SubObjectCondition)
 {
 	if (ensure(SubObjectInternalIndex != InvalidInternalIndex))
 	{
-		const FInternalNetHandle SubObjectParentIndex = ReplicatedObjectData[SubObjectInternalIndex].SubObjectParentIndex;
+		const FInternalNetRefIndex SubObjectParentIndex = ReplicatedObjectData[SubObjectInternalIndex].SubObjectParentIndex;
 		if (ensure(SubObjectParentIndex != InvalidInternalIndex))
 		{
-			FNetDependencyData::FInternalNetHandleArray* SubObjectsArray;
+			FNetDependencyData::FInternalNetRefIndexArray* SubObjectsArray;
 			FNetDependencyData::FSubObjectConditionalsArray* SubObjectConditionals;
 			
 			if (SubObjects.GetInternalChildSubObjectAndConditionalArrays(SubObjectParentIndex, SubObjectsArray, SubObjectConditionals))
@@ -536,21 +554,21 @@ bool FNetHandleManager::SetSubObjectNetCondition(FInternalNetHandle SubObjectInt
 	return false;
 }
 
-FNetHandle FNetHandleManager::GetSubObjectOwner(FNetHandle SubObjectHandle) const
+FNetRefHandle FNetRefHandleManager::GetSubObjectOwner(FNetRefHandle SubObjectRefHandle) const
 {
-	const FInternalNetHandle SubObjectInternalIndex = GetInternalIndex(SubObjectHandle);
-	const FInternalNetHandle OwnerInternalIndex = SubObjectInternalIndex != InvalidInternalIndex ? ReplicatedObjectData[SubObjectInternalIndex].SubObjectRootIndex : InvalidInternalIndex;
+	const FInternalNetRefIndex SubObjectInternalIndex = GetInternalIndex(SubObjectRefHandle);
+	const FInternalNetRefIndex OwnerInternalIndex = SubObjectInternalIndex != InvalidInternalIndex ? ReplicatedObjectData[SubObjectInternalIndex].SubObjectRootIndex : InvalidInternalIndex;
 
-	return OwnerInternalIndex != InvalidInternalIndex ? ReplicatedObjectData[OwnerInternalIndex].Handle : FNetHandle();
+	return OwnerInternalIndex != InvalidInternalIndex ? ReplicatedObjectData[OwnerInternalIndex].RefHandle : FNetRefHandle();
 }
 
-bool FNetHandleManager::AddDependentObject(FNetHandle ParentHandle, FNetHandle DependentObjectHandle, EAddDependentObjectFlags Flags)
+bool FNetRefHandleManager::AddDependentObject(FNetRefHandle ParentRefHandle, FNetRefHandle DependentObjectRefHandle, EAddDependentObjectFlags Flags)
 {
-	check(ParentHandle != DependentObjectHandle);
+	check(ParentRefHandle != DependentObjectRefHandle);
 
 	// validate objects
-	FInternalNetHandle ParentInternalIndex = GetInternalIndex(ParentHandle);
-	FInternalNetHandle DependentObjectInternalIndex = GetInternalIndex(DependentObjectHandle);
+	FInternalNetRefIndex ParentInternalIndex = GetInternalIndex(ParentRefHandle);
+	FInternalNetRefIndex DependentObjectInternalIndex = GetInternalIndex(DependentObjectRefHandle);
 
 	const bool bIsValidOwner = ensure(ParentInternalIndex != InvalidInternalIndex);
 	const bool bIsValidDependentObject = ensure(DependentObjectInternalIndex != InvalidInternalIndex);
@@ -569,14 +587,14 @@ bool FNetHandleManager::AddDependentObject(FNetHandle ParentHandle, FNetHandle D
 	check(!SubObjectInternalIndices.GetBit(ParentInternalIndex));
 
 	// Add dependent to parents dependent object list
-	FNetDependencyData::FInternalNetHandleArray& ParentDependentObjectArray = SubObjects.GetOrCreateInternalHandleArray<FNetDependencyData::DependentObjects>(ParentInternalIndex);
+	FNetDependencyData::FInternalNetRefIndexArray& ParentDependentObjectArray = SubObjects.GetOrCreateInternalIndexArray<FNetDependencyData::DependentObjects>(ParentInternalIndex);
 	const bool bDependentIsAlreadyDependant = ParentDependentObjectArray.Find(DependentObjectInternalIndex) != INDEX_NONE;
 	if (!bDependentIsAlreadyDependant)
 	{
 		ParentDependentObjectArray.Add(DependentObjectInternalIndex);
 	}
 
-	FNetDependencyData::FInternalNetHandleArray& DependentParentObjectArray = SubObjects.GetOrCreateInternalHandleArray<FNetDependencyData::ParentObjects>(DependentObjectInternalIndex);
+	FNetDependencyData::FInternalNetRefIndexArray& DependentParentObjectArray = SubObjects.GetOrCreateInternalIndexArray<FNetDependencyData::ParentObjects>(DependentObjectInternalIndex);
 	const bool bDependentHadParentAlready = DependentParentObjectArray.Find(ParentInternalIndex) != INDEX_NONE;
 	if (!bDependentHadParentAlready)
 	{
@@ -593,15 +611,15 @@ bool FNetHandleManager::AddDependentObject(FNetHandle ParentHandle, FNetHandle D
 	{
 		// If this gets out of sync something is messed up
 		check(bDependentHadParentAlready == bDependentIsAlreadyDependant);
-		ensureAlwaysMsgf(false, TEXT("FNetHandleManager::AddDependentObject %s already is a child of %s parent %s"), *DependentObjectHandle.ToString(), *GetReplicatedObjectDataNoCheck(DependentObjectData.SubObjectRootIndex).Handle.ToString(), *ParentHandle.ToString());
+		ensureAlwaysMsgf(false, TEXT("FNetRefHandleManager::AddDependentObject %s already is a child of %s parent %s"), *DependentObjectRefHandle.ToString(), *GetReplicatedObjectDataNoCheck(DependentObjectData.SubObjectRootIndex).RefHandle.ToString(), *ParentRefHandle.ToString());
 	}
 
 	return true;
 }
 
-void FNetHandleManager::RemoveDependentObject(FNetHandle DependentHandle)
+void FNetRefHandleManager::RemoveDependentObject(FNetRefHandle DependentHandle)
 {
-	FInternalNetHandle DependentInternalIndex = GetInternalIndex(DependentHandle);
+	FInternalNetRefIndex DependentInternalIndex = GetInternalIndex(DependentHandle);
 
 	if (DependentInternalIndex != InvalidInternalIndex)
 	{
@@ -609,11 +627,11 @@ void FNetHandleManager::RemoveDependentObject(FNetHandle DependentHandle)
 	}
 }
 
-void FNetHandleManager::InternalRemoveDependentObject(FInternalNetHandle ParentInternalIndex, FInternalNetHandle DependentInternalIndex, ERemoveDependentObjectFlags Flags)
+void FNetRefHandleManager::InternalRemoveDependentObject(FInternalNetRefIndex ParentInternalIndex, FInternalNetRefIndex DependentInternalIndex, ERemoveDependentObjectFlags Flags)
 {
 	if (EnumHasAnyFlags(Flags, ERemoveDependentObjectFlags::RemoveFromDependentParentObjects))
 	{
-		if (FNetDependencyData::FInternalNetHandleArray* ParentObjectArray = SubObjects.GetInternalHandleArray<FNetDependencyData::ParentObjects>(DependentInternalIndex))
+		if (FNetDependencyData::FInternalNetRefIndexArray* ParentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::ParentObjects>(DependentInternalIndex))
 		{
 			ParentObjectArray->Remove(ParentInternalIndex);
 			if (ParentObjectArray->Num() == 0)
@@ -627,7 +645,7 @@ void FNetHandleManager::InternalRemoveDependentObject(FInternalNetHandle ParentI
 
 	if (EnumHasAnyFlags(Flags, ERemoveDependentObjectFlags::RemoveFromParentDependentObjects))
 	{
-		if (FNetDependencyData::FInternalNetHandleArray* ParentDependentObjectArray = SubObjects.GetInternalHandleArray<FNetDependencyData::DependentObjects>(ParentInternalIndex))
+		if (FNetDependencyData::FInternalNetRefIndexArray* ParentDependentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::DependentObjects>(ParentInternalIndex))
 		{
 			ParentDependentObjectArray->Remove(DependentInternalIndex);
 			if (ParentDependentObjectArray->Num() == 0)
@@ -640,12 +658,12 @@ void FNetHandleManager::InternalRemoveDependentObject(FInternalNetHandle ParentI
 	}
 }
 
-void FNetHandleManager::InternalRemoveDependentObject(FInternalNetHandle DependentInternalIndex)
+void FNetRefHandleManager::InternalRemoveDependentObject(FInternalNetRefIndex DependentInternalIndex)
 {
 	// Remove from all parents
-	if (FNetDependencyData::FInternalNetHandleArray* ParentObjectArray = SubObjects.GetInternalHandleArray<FNetDependencyData::ParentObjects>(DependentInternalIndex))
+	if (FNetDependencyData::FInternalNetRefIndexArray* ParentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::ParentObjects>(DependentInternalIndex))
 	{
-		for (FInternalNetHandle ParentInternalIndex : *ParentObjectArray)
+		for (FInternalNetRefIndex ParentInternalIndex : *ParentObjectArray)
 		{
 			// Flag is set to only update data on the parent to avoid modifying the array we iterate over
 			InternalRemoveDependentObject(ParentInternalIndex, DependentInternalIndex, ERemoveDependentObjectFlags::RemoveFromParentDependentObjects);
@@ -654,9 +672,9 @@ void FNetHandleManager::InternalRemoveDependentObject(FInternalNetHandle Depende
 	}
 
 	// Remove from our dependents
-	if (FNetDependencyData::FInternalNetHandleArray* DependentObjectArray = SubObjects.GetInternalHandleArray<FNetDependencyData::DependentObjects>(DependentInternalIndex))
+	if (FNetDependencyData::FInternalNetRefIndexArray* DependentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::DependentObjects>(DependentInternalIndex))
 	{
-		for (FInternalNetHandle ChildDepedentInternalIndex : *DependentObjectArray)
+		for (FInternalNetRefIndex ChildDepedentInternalIndex : *DependentObjectArray)
 		{
 			// Flag is set to only update data on the childDependentObject to avoid modifying the array we iterate over
 			InternalRemoveDependentObject(DependentInternalIndex, ChildDepedentInternalIndex, ERemoveDependentObjectFlags::RemoveFromDependentParentObjects);
@@ -673,11 +691,11 @@ void FNetHandleManager::InternalRemoveDependentObject(FInternalNetHandle Depende
 	DependentObjectInternalIndices.ClearBit(DependentInternalIndex);
 }
 
-void FNetHandleManager::RemoveDependentObject(FNetHandle ParentHandle, FNetHandle DependentHandle)
+void FNetRefHandleManager::RemoveDependentObject(FNetRefHandle ParentHandle, FNetRefHandle DependentHandle)
 {
 	// Validate objects
-	FInternalNetHandle ParentInternalIndex = GetInternalIndex(ParentHandle);
-	FInternalNetHandle DependentInternalIndex = GetInternalIndex(DependentHandle);
+	FInternalNetRefIndex ParentInternalIndex = GetInternalIndex(ParentHandle);
+	FInternalNetRefIndex DependentInternalIndex = GetInternalIndex(DependentHandle);
 
 	if ((ParentInternalIndex == InvalidInternalIndex) || (DependentInternalIndex == InvalidInternalIndex))
 	{
@@ -687,7 +705,7 @@ void FNetHandleManager::RemoveDependentObject(FNetHandle ParentHandle, FNetHandl
 	InternalRemoveDependentObject(ParentInternalIndex, DependentInternalIndex);
 }
 
-void FNetHandleManager::SetShouldPropagateChangedStates(FInternalNetHandle ObjectInternalIndex, bool bShouldPropagateChangedStates)
+void FNetRefHandleManager::SetShouldPropagateChangedStates(FInternalNetRefIndex ObjectInternalIndex, bool bShouldPropagateChangedStates)
 {
 	if (ObjectInternalIndex != InvalidInternalIndex)
 	{
@@ -705,28 +723,28 @@ void FNetHandleManager::SetShouldPropagateChangedStates(FInternalNetHandle Objec
 	}
 }
 
-void FNetHandleManager::SetShouldPropagateChangedStates(FNetHandle Handle, bool bShouldPropagateChangedStates)
+void FNetRefHandleManager::SetShouldPropagateChangedStates(FNetRefHandle Handle, bool bShouldPropagateChangedStates)
 {
-	FInternalNetHandle ObjectInternalIndex = GetInternalIndex(Handle);
+	FInternalNetRefIndex ObjectInternalIndex = GetInternalIndex(Handle);
 	return SetShouldPropagateChangedStates(ObjectInternalIndex, bShouldPropagateChangedStates);
 }
 
-void FNetHandleManager::AddReferencedObjects(FReferenceCollector& Collector)
+void FNetRefHandleManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObjects(ReplicatedInstances);
 }
 
-uint32 FNetHandleManager::MakeNetHandleId(uint32 Id, bool bIsStatic)
+uint32 FNetRefHandleManager::MakeNetRefHandleId(uint32 Id, bool bIsStatic)
 {
 	return (Id << 1U) | (bIsStatic ? 1U : 0U);
 }
 
-FNetHandle FNetHandleManager::MakeNetHandle(uint32 Id, uint32 ReplicationSystemId)
+FNetRefHandle FNetRefHandleManager::MakeNetRefHandle(uint32 Id, uint32 ReplicationSystemId)
 {
-	check((Id & FNetHandle::IdMask) == Id);
-	check(ReplicationSystemId < FNetHandle::MaxReplicationSystemId);
+	check((Id & FNetRefHandle::IdMask) == Id);
+	check(ReplicationSystemId < FNetRefHandle::MaxReplicationSystemId);
 
-	FNetHandle Handle;
+	FNetRefHandle Handle;
 
 	Handle.Id = Id;
 	Handle.ReplicationSystemId = ReplicationSystemId + 1U;
@@ -734,11 +752,11 @@ FNetHandle FNetHandleManager::MakeNetHandle(uint32 Id, uint32 ReplicationSystemI
 	return Handle;
 }
 
-FNetHandle FNetHandleManager::MakeNetHandleFromId(uint32 Id)
+FNetRefHandle FNetRefHandleManager::MakeNetRefHandleFromId(uint32 Id)
 {
-	check((Id & FNetHandle::IdMask) == Id);
+	check((Id & FNetRefHandle::IdMask) == Id);
 
-	FNetHandle Handle;
+	FNetRefHandle Handle;
 
 	Handle.Id = Id;
 	Handle.ReplicationSystemId = 0U;

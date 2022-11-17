@@ -9,7 +9,7 @@ namespace UE::Net
 
 /**
  * Helper class for stateless data, such as when arbitrary data has been serialized to a bitstream.
- * The serialization will simply serialize the raw data regardless of whether a NetHandle is provided or not.
+ * The serialization will simply serialize the raw data regardless of whether a NetRefHandle is provided or not.
  * Things like splitting and assembling have optimized code paths for this type of blob.
  * You can inherit from this blob type but you cannot override the serialization functions.
  * @note Sending huge blobs that require splitting and assembling is strongly discouraged. 
@@ -51,8 +51,8 @@ protected:
 	IRISCORE_API void InternalDeserialize(FNetSerializationContext& Context);
 
 private:
-	virtual void SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const override final;
-	virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) override final;
+	virtual void SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const override final;
+	virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) override final;
 
 	virtual void Serialize(FNetSerializationContext& Context) const override final;
 	virtual void Deserialize(FNetSerializationContext& Context) override final;

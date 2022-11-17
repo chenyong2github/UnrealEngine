@@ -226,8 +226,8 @@ public:
 		FReplicationInstanceProtocol const** InstanceProtocols;
 	};
 
-	FUpdateDirtyObjectsBatchHelper(const FNetHandleManager* InNetHandleManager, uint32 PrioritizerCount)
-	: NetHandleManager(InNetHandleManager)
+	FUpdateDirtyObjectsBatchHelper(const FNetRefHandleManager* InNetRefHandleManager, uint32 PrioritizerCount)
+	: NetRefHandleManager(InNetRefHandleManager)
 	{
 		PerPrioritizerInfos.SetNumUninitialized(PrioritizerCount);
 		ObjectIndicesStorage.SetNumUninitialized(PrioritizerCount*MaxObjectCountPerBatch);
@@ -255,7 +255,7 @@ public:
 				continue;
 			}
 
-			if (const FReplicationInstanceProtocol* InstanceProtocol = NetHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex).InstanceProtocol)
+			if (const FReplicationInstanceProtocol* InstanceProtocol = NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex).InstanceProtocol)
 			{
 				FPerPrioritizerInfo& PerPrioritizerInfo = PerPrioritizerInfosData[PrioritizerIndex];
 				PerPrioritizerInfo.ObjectIndices[PerPrioritizerInfo.ObjectCount] = ObjectIndex;
@@ -278,7 +278,7 @@ private:
 
 	TArray<uint32> ObjectIndicesStorage;
 	TArray<const FReplicationInstanceProtocol*> InstanceProtocolsStorage;
-	const FNetHandleManager* NetHandleManager;
+	const FNetRefHandleManager* NetRefHandleManager;
 };
 
 FReplicationPrioritization::FReplicationPrioritization()
@@ -289,12 +289,12 @@ FReplicationPrioritization::FReplicationPrioritization()
 void FReplicationPrioritization::Init(FReplicationPrioritizationInitParams& Params)
 {
 	check(Params.Connections != nullptr);
-	check(Params.NetHandleManager != nullptr);
+	check(Params.NetRefHandleManager != nullptr);
 
 	ReplicationSystem = Params.ReplicationSystem;
 
 	Connections = Params.Connections;
-	NetHandleManager = Params.NetHandleManager;
+	NetRefHandleManager = Params.NetRefHandleManager;
 
 	MaxObjectCount = Params.MaxObjectCount;
 
@@ -383,10 +383,10 @@ bool FReplicationPrioritization::SetPrioritizer(uint32 ObjectIndex, FNetObjectPr
 
 	// Register object with new prioritizer
 	{
-		const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex);
+		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex);
 
 		NetObjectPrioritizationInfo = FNetObjectPrioritizationInfo{};
-		FNetObjectPrioritizerAddObjectParams AddParams = {NetObjectPrioritizationInfo, ObjectData.InstanceProtocol, ObjectData.Protocol, NetHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex)};
+		FNetObjectPrioritizerAddObjectParams AddParams = {NetObjectPrioritizationInfo, ObjectData.InstanceProtocol, ObjectData.Protocol, NetRefHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex)};
 		FPrioritizerInfo& PrioritizerInfo = PrioritizerInfos[NewPrioritizer];
 		if (PrioritizerInfo.Prioritizer->AddObject(ObjectIndex, AddParams))
 		{
@@ -596,8 +596,8 @@ void FReplicationPrioritization::UpdatePrioritiesForNewAndDeletedObjects()
 {
 	IRIS_PROFILER_SCOPE(FReplicationPrioritization_UpdatePrioritiesForNewAndDeletedObjects);
 
-	const FNetBitArray& PrevScopedIndices = NetHandleManager->GetPrevFrameScopableInternalIndices();
-	const FNetBitArray& ScopedIndices = NetHandleManager->GetScopableInternalIndices();
+	const FNetBitArray& PrevScopedIndices = NetRefHandleManager->GetPrevFrameScopableInternalIndices();
+	const FNetBitArray& ScopedIndices = NetRefHandleManager->GetScopableInternalIndices();
 
 	auto ForEachRemovedObject = [this](uint32 ObjectIndex)
 	{
@@ -677,7 +677,7 @@ void FReplicationPrioritization::PrioritizeForConnection(uint32 ConnId, FPriorit
 	{
 		PrioParameters.Priorities = ConnInfo.Priorities.GetData();
 		PrioParameters.PrioritizationInfos = NetObjectPrioritizationInfos.GetData();
-		PrioParameters.StateBuffers = NetHandleManager->GetReplicatedObjectStateBuffers().GetData();
+		PrioParameters.StateBuffers = NetRefHandleManager->GetReplicatedObjectStateBuffers().GetData();
 		PrioParameters.ConnectionId = ConnId;
 		PrioParameters.View = Connections->GetReplicationView(ConnId);
 	}
@@ -741,7 +741,7 @@ void FReplicationPrioritization::PrioritizeForConnection(uint32 ConnId, FPriorit
  */
 void FReplicationPrioritization::NotifyPrioritizersOfDirtyObjects(const FNetBitArrayView& DirtyObjects)
 {
-	FUpdateDirtyObjectsBatchHelper BatchHelper(NetHandleManager, PrioritizerInfos.Num());
+	FUpdateDirtyObjectsBatchHelper BatchHelper(NetRefHandleManager, PrioritizerInfos.Num());
 
 	constexpr SIZE_T MaxBatchObjectCount = FUpdateDirtyObjectsBatchHelper::Constants::MaxObjectCountPerBatch;
 	uint32 ObjectIndices[MaxBatchObjectCount];
@@ -764,7 +764,7 @@ void FReplicationPrioritization::BatchNotifyPrioritizersOfDirtyObjects(FUpdateDi
 	BatchHelper.PrepareBatch(ObjectIndices, ObjectCount, ObjectIndexToPrioritizer.GetData());
 
 	FNetObjectPrioritizerUpdateParams UpdateParameters;
-	UpdateParameters.StateBuffers = NetHandleManager->GetReplicatedObjectStateBuffers().GetData();
+	UpdateParameters.StateBuffers = NetRefHandleManager->GetReplicatedObjectStateBuffers().GetData();
 	UpdateParameters.PrioritizationInfos = NetObjectPrioritizationInfos.GetData();
 
 	for (const FUpdateDirtyObjectsBatchHelper::FPerPrioritizerInfo& PerPrioritizerInfo : BatchHelper.PerPrioritizerInfos)

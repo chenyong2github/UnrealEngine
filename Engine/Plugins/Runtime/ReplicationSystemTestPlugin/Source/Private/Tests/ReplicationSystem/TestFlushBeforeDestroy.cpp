@@ -19,19 +19,19 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestReliableAttachmentFlushe
 	RegisterNetBlobHandlers(Client);
 
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
-	FNetHandle ObjectHandle = ServerObject->NetHandle;
+	FNetRefHandle ObjectHandle = ServerObject->NetRefHandle;
 
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
 
 	// Create attachment
 	{
 		constexpr uint32 PayloadBitCount = 24;
 		const TRefCountPtr<FNetObjectAttachment>& Attachment = MockNetObjectAttachmentHandler->CreateReliableNetObjectAttachment(PayloadBitCount);
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
@@ -62,19 +62,19 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestReliableAttachmentFlushe
 	RegisterNetBlobHandlers(Client);
 
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
-	FNetHandle ObjectHandle = ServerObject->NetHandle;
+	FNetRefHandle ObjectHandle = ServerObject->NetRefHandle;
 
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
 
 	// Create attachment
 	{
 		constexpr uint32 PayloadBitCount = 24;
 		const TRefCountPtr<FNetObjectAttachment>& Attachment = MockNetObjectAttachmentHandler->CreateReliableNetObjectAttachment(PayloadBitCount);
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
@@ -112,21 +112,21 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestReliableAttachmentSubObj
 	RegisterNetBlobHandlers(Client);
 
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
-	FNetHandle ObjectHandle = ServerObject->NetHandle;
+	FNetRefHandle ObjectHandle = ServerObject->NetRefHandle;
 	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ObjectHandle, 0, 0);
-	FNetHandle SubObjectHandle = ServerSubObject->NetHandle;
+	FNetRefHandle SubObjectHandle = ServerSubObject->NetRefHandle;
 	
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
 
 	// Create attachment
 	{
 		constexpr uint32 PayloadBitCount = 24;
 		const TRefCountPtr<FNetObjectAttachment>& Attachment = MockNetObjectAttachmentHandler->CreateReliableNetObjectAttachment(PayloadBitCount);
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
@@ -156,21 +156,21 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestReliableAttachmentSubObj
 	RegisterNetBlobHandlers(Client);
 
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
-	FNetHandle ObjectHandle = ServerObject->NetHandle;
+	FNetRefHandle ObjectHandle = ServerObject->NetRefHandle;
 	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ObjectHandle, 0, 0);
-	FNetHandle SubObjectHandle = ServerSubObject->NetHandle;
+	FNetRefHandle SubObjectHandle = ServerSubObject->NetRefHandle;
 	
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
 
 	// Create attachment
 	{
 		constexpr uint32 PayloadBitCount = 24;
 		const TRefCountPtr<FNetObjectAttachment>& Attachment = MockNetObjectAttachmentHandler->CreateReliableNetObjectAttachment(PayloadBitCount);
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
@@ -201,7 +201,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestStateFlushedBeforeDestro
 	RegisterNetBlobHandlers(Client);
 
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
-	FNetHandle ObjectHandle = ServerObject->NetHandle;
+	FNetRefHandle ObjectHandle = ServerObject->NetRefHandle;
 	
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
@@ -244,7 +244,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestStateInFlightFlushedBefo
 	RegisterNetBlobHandlers(Client);
 
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
-	FNetHandle ObjectHandle = ServerObject->NetHandle;
+	FNetRefHandle ObjectHandle = ServerObject->NetRefHandle;
 	
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
@@ -298,9 +298,9 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestSubObjectStateFlushedBef
 	RegisterNetBlobHandlers(Client);
 
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
-	FNetHandle ObjectHandle = ServerObject->NetHandle;
+	FNetRefHandle ObjectHandle = ServerObject->NetRefHandle;
 	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ObjectHandle, 0, 0);
-	FNetHandle SubObjectHandle = ServerSubObject->NetHandle;
+	FNetRefHandle SubObjectHandle = ServerSubObject->NetRefHandle;
 
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
@@ -347,9 +347,9 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestSubObjectStateFlushedBef
 	RegisterNetBlobHandlers(Client);
 
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
-	FNetHandle ObjectHandle = ServerObject->NetHandle;
+	FNetRefHandle ObjectHandle = ServerObject->NetRefHandle;
 	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ObjectHandle, 0, 0);
-	FNetHandle SubObjectHandle = ServerSubObject->NetHandle;
+	FNetRefHandle SubObjectHandle = ServerSubObject->NetRefHandle;
 
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
@@ -407,7 +407,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestTearOffNewObjectWithReli
 	{
 		constexpr uint32 PayloadBitCount = 24;
 		const TRefCountPtr<FNetObjectAttachment>& Attachment = MockNetObjectAttachmentHandler->CreateReliableNetObjectAttachment(PayloadBitCount);
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
@@ -420,7 +420,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestTearOffNewObjectWithReli
 	Server->PostSendUpdate();
 
 	// Verify that object got created
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 
@@ -434,7 +434,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestTearOffNewObjectWithReli
 	Server->PostSendUpdate();
 
 	// Verify that ClientObject now has been teared off
-	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) == nullptr);
+	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) == nullptr);
 }
 
 // Test TearOff for existing confirmed object
@@ -459,12 +459,12 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestTearOffExistingObjectWit
 	{
 		constexpr uint32 PayloadBitCount = 24;
 		const TRefCountPtr<FNetObjectAttachment>& Attachment = MockNetObjectAttachmentHandler->CreateReliableNetObjectAttachment(PayloadBitCount);
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
 	// Store Pointer to object 
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
@@ -485,7 +485,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestTearOffExistingObjectWit
 	UE_NET_ASSERT_EQ(ClientMockNetObjectAttachmentHandler->GetFunctionCallCounts().OnNetBlobReceived, 1U);
 
 	// Verify that ClientObject still is around (from a network perspective)
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) != nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) != nullptr);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -493,7 +493,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestTearOffExistingObjectWit
 	Server->PostSendUpdate();
 
 	// Verify that ClientObject now has been teared off
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
 }
 
 // Test TearOff and SubObjects, SubObjects must apply state?
@@ -509,7 +509,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestImmediateTearOffExisting
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0,0);
 
 	// Spawn second object on server as a subobject
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Trigger replication
 	ServerObject->IntA = 1;
@@ -521,11 +521,11 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestImmediateTearOffExisting
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
 
-	UTestReplicatedIrisObject* ClientSubObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+	UTestReplicatedIrisObject* ClientSubObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 	UE_NET_ASSERT_TRUE(ClientSubObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObjectThatWillBeTornOff->IntA);
 
@@ -536,7 +536,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestImmediateTearOffExisting
 	{
 		constexpr uint32 PayloadBitCount = 24;
 		const TRefCountPtr<FNetObjectAttachment>& Attachment = MockNetObjectAttachmentHandler->CreateReliableNetObjectAttachment(PayloadBitCount);
-		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetHandle);
+		FNetObjectReference AttachmentTarget = FObjectReferenceCache::MakeNetObjectReference(ServerSubObject->NetRefHandle);
 		Server->GetReplicationSystem()->QueueNetObjectAttachment(Client->ConnectionIdOnServer, AttachmentTarget, Attachment);
 	}
 
@@ -558,7 +558,7 @@ UE_NET_TEST_FIXTURE(FTestFlushBeforeDestroyFixture, TestImmediateTearOffExisting
 	Server->PostSendUpdate();
 
 	// Verify that ClientObject is torn-off
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle)) == nullptr);
 }
 
 

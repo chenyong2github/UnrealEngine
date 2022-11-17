@@ -37,12 +37,12 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestObjectReferen
 	Server->SendAndDeliverTo(Client, true);
 	Server->PostSendUpdate();
 
-	// Check state, we cheat a bit and use the server nethandle for lookup
+	// Check state, we cheat a bit and use the server NetRefHandle for lookup
 	// THIS will fail if we start using full handle compares
-	auto ClientObjectA = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectA->NetHandle);
-	auto ClientObjectB = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectB->NetHandle);
-	auto ClientObjectC = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectC->NetHandle);
-	auto ClientObjectD = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectD->NetHandle);
+	auto ClientObjectA = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectA->NetRefHandle);
+	auto ClientObjectB = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectB->NetRefHandle);
+	auto ClientObjectC = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectC->NetRefHandle);
+	auto ClientObjectD = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectD->NetRefHandle);
 	
 	UE_NET_ASSERT_TRUE(ClientObjectA != nullptr);
 	UE_NET_ASSERT_TRUE(ClientObjectB != nullptr);
@@ -77,12 +77,12 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestCircularRefer
 	Server->SendAndDeliverTo(Client, true);
 	Server->PostSendUpdate();
 
-	// Check state, we cheat a bit and use the server nethandle for lookup
+	// Check state, we cheat a bit and use the server NetRefHandle for lookup
 	// THIS will fail if we start using full handle compares
-	auto ClientObjectA = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectA->NetHandle);
-	auto ClientObjectB = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectB->NetHandle);
-	auto ClientObjectC = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectC->NetHandle);
-	auto ClientObjectD = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectD->NetHandle);
+	auto ClientObjectA = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectA->NetRefHandle);
+	auto ClientObjectB = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectB->NetRefHandle);
+	auto ClientObjectC = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectC->NetRefHandle);
+	auto ClientObjectD = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectD->NetRefHandle);
 	
 	UE_NET_ASSERT_TRUE(ClientObjectA != nullptr);
 	UE_NET_ASSERT_TRUE(ClientObjectB != nullptr);
@@ -140,12 +140,12 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestCircularRefer
 	Server->SendAndDeliverTo(Client, true);
 	Server->PostSendUpdate();
 
-	// Check state, we cheat a bit and use the server nethandle for lookup
+	// Check state, we cheat a bit and use the server NetRefHandle for lookup
 	// THIS will fail if we start using full handle compares
-	auto ClientObjectA = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectA->NetHandle);
-	auto ClientObjectB = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectB->NetHandle);
-	auto ClientObjectC = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectC->NetHandle);
-	auto ClientObjectD = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectD->NetHandle);
+	auto ClientObjectA = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectA->NetRefHandle);
+	auto ClientObjectB = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectB->NetRefHandle);
+	auto ClientObjectC = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectC->NetRefHandle);
+	auto ClientObjectD = Client->GetObjectAs<UTestReplicatedIrisObjectWithObjectReference>(ObjectD->NetRefHandle);
 	
 	UE_NET_ASSERT_TRUE(ClientObjectA != nullptr);
 	UE_NET_ASSERT_TRUE(ClientObjectB != nullptr);

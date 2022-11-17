@@ -21,11 +21,11 @@ TArrayView<const FNetObjectReference> FShrinkWrapNetBlob::GetExports() const
 	return OriginalBlob->CallGetExports();
 }
 
-void FShrinkWrapNetBlob::SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const
+void FShrinkWrapNetBlob::SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const
 {
 	if (Context.GetTraceCollector() != nullptr && OriginalBlob.IsValid())
 	{
-		OriginalBlob->SerializeWithObject(Context, NetHandle);
+		OriginalBlob->SerializeWithObject(Context, RefHandle);
 	}
 	else
 	{
@@ -33,7 +33,7 @@ void FShrinkWrapNetBlob::SerializeWithObject(FNetSerializationContext& Context, 
 	}
 }
 
-void FShrinkWrapNetBlob::DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle)
+void FShrinkWrapNetBlob::DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle)
 {
 	checkf(false, TEXT("%s"), TEXT("This function should not be called. Contact the networking team."));
 }

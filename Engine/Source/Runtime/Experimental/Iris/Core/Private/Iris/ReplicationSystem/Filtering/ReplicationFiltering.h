@@ -16,9 +16,10 @@ namespace UE::Net
 	namespace Private
 	{
 		class FDeltaCompressionBaselineInvalidationTracker;
-		class FNetHandleManager;
+		class FNetRefHandleManager;
 		class FNetObjectGroups;
 		class FReplicationConnections;
+		typedef uint32 FInternalNetRefIndex;
 	}
 }
 
@@ -28,7 +29,7 @@ namespace UE::Net::Private
 struct FReplicationFilteringInitParams
 {
 	TObjectPtr<UReplicationSystem> ReplicationSystem;
-	const FNetHandleManager* NetHandleManager = nullptr;
+	const FNetRefHandleManager* NetRefHandleManager = nullptr;
 	FNetObjectGroups* Groups = nullptr;
 	FDeltaCompressionBaselineInvalidationTracker* BaselineInvalidationTracker = nullptr;
 	FReplicationConnections* Connections = nullptr;
@@ -54,14 +55,14 @@ public:
 	FNetBitArrayView GetGroupFilteredOutObjects(uint32 ConnectionId) const;
 
 	// Who owns what?
-	void SetOwningConnection(uint32 ObjectIndex, uint32 ConnectionId);
-	uint32 GetOwningConnection(uint32 ObjectIndex) const { return !bHasDirtyOwner ? ObjectIndexToOwningConnection[ObjectIndex] : GetOwningConnectionIfDirty(ObjectIndex); }
+	void SetOwningConnection(FInternalNetRefIndex ObjectIndex, uint32 ConnectionId);
+	uint32 GetOwningConnection(FInternalNetRefIndex ObjectIndex) const { return !bHasDirtyOwner ? ObjectIndexToOwningConnection[ObjectIndex] : GetOwningConnectionIfDirty(ObjectIndex); }
 
 	// Various filters
-	bool SetFilter(uint32 ObjectIndex, FNetObjectFilterHandle Filter);
+	bool SetFilter(FInternalNetRefIndex ObjectIndex, FNetObjectFilterHandle Filter);
 
 	// Set whether an object is allowed to be replicated to certain connections or not.
-	bool SetConnectionFilter(uint32 ObjectIndex, const FNetBitArrayView& ConnectionIndices, ENetFilterStatus ReplicationStatus);
+	bool SetConnectionFilter(FInternalNetRefIndex ObjectIndex, const FNetBitArrayView& ConnectionIndices, ENetFilterStatus ReplicationStatus);
 
 	FNetObjectFilterHandle GetFilterHandle(const FName FilterName) const;
 	UNetObjectFilter* GetFilter(const FName FilterName) const;
@@ -80,11 +81,11 @@ public:
 	void SetGroupFilterStatus(FNetObjectGroupHandle GroupHandle, uint32 ConnectionId, ENetFilterStatus ReplicationStatus);
 	bool GetGroupFilterStatus(FNetObjectGroupHandle GroupHandle, uint32 ConnectionId, ENetFilterStatus& OutReplicationStatus) const;
 
-	void NotifyObjectAddedToGroup(FNetObjectGroupHandle GroupHandle, uint32 ObjectIndex);
-	void NotifyObjectRemovedFromGroup(FNetObjectGroupHandle GroupHandle, uint32 ObjectIndex);
+	void NotifyObjectAddedToGroup(FNetObjectGroupHandle GroupHandle, FInternalNetRefIndex ObjectIndex);
+	void NotifyObjectRemovedFromGroup(FNetObjectGroupHandle GroupHandle, FInternalNetRefIndex ObjectIndex);
 
-	void NotifyAddedDependentObject(uint32 ObjectIndex);
-	void NotifyRemovedDependentObject(uint32 ObjectIndex);
+	void NotifyAddedDependentObject(FInternalNetRefIndex ObjectIndex);
+	void NotifyRemovedDependentObject(FInternalNetRefIndex ObjectIndex);
 	
 	// SubObjectFilter status
 	void AddSubObjectFilter(FNetObjectGroupHandle GroupHandle);
@@ -190,7 +191,7 @@ private:
 
 	// General
 	TObjectPtr<UReplicationSystem> ReplicationSystem;
-	const FNetHandleManager* NetHandleManager = nullptr;
+	const FNetRefHandleManager* NetRefHandleManager = nullptr;
 
 	// Groups
 	FNetObjectGroups* Groups = nullptr;

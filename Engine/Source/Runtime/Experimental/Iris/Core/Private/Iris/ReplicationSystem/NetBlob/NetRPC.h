@@ -32,8 +32,8 @@ private:
 
 	virtual TArrayView<const FNetObjectReference> GetExports() const override final;
 
-	virtual void SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const override;
-	virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) override;
+	virtual void SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const override;
+	virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) override;
 
 	virtual void Serialize(FNetSerializationContext& Context) const override;
 	virtual void Deserialize(FNetSerializationContext& Context) override;
@@ -47,8 +47,8 @@ private:
 	void InternalSerializeObjectReference(FNetSerializationContext& Context) const;
 	void InternalDeserializeObjectReference(FNetSerializationContext& Context);
 
-	void InternalSerializeSubObjectReference(FNetSerializationContext& Context, FNetHandle NetHandle) const;
-	void InternalDeserializeSubObjectReference(FNetSerializationContext& Context, FNetHandle NetHandle);
+	void InternalSerializeSubObjectReference(FNetSerializationContext& Context, FNetRefHandle RefHandle) const;
+	void InternalDeserializeSubObjectReference(FNetSerializationContext& Context, FNetRefHandle RefHandle);
 
 	void InternalSerializeBlob(FNetSerializationContext& Context) const;
 	void InternalDeserializeBlob(FNetSerializationContext& Context);

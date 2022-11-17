@@ -19,7 +19,7 @@ FMockNetBlob::FMockNetBlob(const FNetBlobCreationInfo& CreationInfo)
 {
 }
 
-void FMockNetBlob::SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const
+void FMockNetBlob::SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const
 {
 	FNetBitStreamWriter* Writer = Context.GetBitStreamWriter();
 
@@ -29,7 +29,7 @@ void FMockNetBlob::SerializeWithObject(FNetSerializationContext& Context, FNetHa
 	Writer->WriteBits(UE_MAKEFOURCC('C', 'N', 'R', 'Y'), 32U);
 }
 
-void FMockNetBlob::DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle)
+void FMockNetBlob::DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle)
 {
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
 	
@@ -162,7 +162,7 @@ TRefCountPtr<UE::Net::FNetBlob> UMockSequentialPartialNetBlobHandler::CreateNetB
 void UMockSequentialPartialNetBlobHandler::OnNetBlobReceived(UE::Net::FNetSerializationContext& Context, const TRefCountPtr<FNetBlob>& NetBlob)
 {
 	++CallCounts.OnNetBlobReceived;
-	Assembler.AddPartialNetBlob(Context, UE::Net::FNetHandle(), reinterpret_cast<const TRefCountPtr<UE::Net::FPartialNetBlob>&>(NetBlob));
+	Assembler.AddPartialNetBlob(Context, UE::Net::FNetRefHandle(), reinterpret_cast<const TRefCountPtr<UE::Net::FPartialNetBlob>&>(NetBlob));
 	if (Assembler.IsReadyToAssemble())
 	{
 		const TRefCountPtr<FNetBlob>& AssembledBlob = Assembler.Assemble(Context);

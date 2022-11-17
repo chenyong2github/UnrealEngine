@@ -31,7 +31,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, ToOwnerStateIsReplicatedToOwner)
 	ServerObject->ConnectionFilteredComponents[0]->ToOwnerB = 37;
 
 	// Set owner
-	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetHandle, Client->ConnectionIdOnServer);
+	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetRefHandle, Client->ConnectionIdOnServer);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -39,7 +39,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, ToOwnerStateIsReplicatedToOwner)
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the To Owner members have the same values as on the sending side.
@@ -70,7 +70,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, ToOwnerStateIsNotReplicatedToNonOw
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the To Owner members haven't been modified
@@ -94,7 +94,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SkipOwnerStateIsNotReplicatedToOwn
 	ServerObject->ConnectionFilteredComponents[0]->SkipOwnerB = 37;
 
 	// Set owner
-	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetHandle, Client->ConnectionIdOnServer);
+	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetRefHandle, Client->ConnectionIdOnServer);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -102,7 +102,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SkipOwnerStateIsNotReplicatedToOwn
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the SkipOwner members haven't been modified
@@ -133,7 +133,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SkipOwnerStateIsReplicatedToNonOwn
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the SkipOwner members have been modified
@@ -166,7 +166,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SimulatedIsReplicatedToSimulated)
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the various Simulated members have been modified
@@ -194,7 +194,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SimulatedIsNotReplicatedToAutonomo
 	ServerObject->ConnectionFilteredComponents[0]->SimulatedOrPhysicsNoReplayInt = 11;
 
 	// Set this connection to be autonomous.
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -202,7 +202,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SimulatedIsNotReplicatedToAutonomo
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the various Simulated members have not been modified
@@ -227,7 +227,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, AutonomousIsReplicatedToAutonomous
 	ServerObject->ConnectionFilteredComponents[0]->AutonomousOnlyInt = 13;
 
 	// Set this connection to be autonomous.
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -235,7 +235,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, AutonomousIsReplicatedToAutonomous
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the Autonomous member has been modified
@@ -259,7 +259,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, AutonomousIsNotReplicatedToSimulat
 	ServerObject->ConnectionFilteredComponents[0]->AutonomousOnlyInt = 13;
 
 	// Set other connection to be autonomous.
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, AutonomousClient->ConnectionIdOnServer, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, AutonomousClient->ConnectionIdOnServer, true);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -267,7 +267,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, AutonomousIsNotReplicatedToSimulat
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the Autonomous member has not been modified
@@ -290,9 +290,9 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SimulatedOrPhysicsIsReplicatedWhen
 	ServerObject->ConnectionFilteredComponents[0]->SimulatedOrPhysicsNoReplayInt = 11;
 
 	// Set this connection to be autonomous so we know that only the Physics condition is at play
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
 	// Enable ReplicatePhysics condition
-	Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetHandle, EReplicationCondition::ReplicatePhysics, true);
+	Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetRefHandle, EReplicationCondition::ReplicatePhysics, true);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -300,7 +300,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SimulatedOrPhysicsIsReplicatedWhen
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the various Physics members have been modified
@@ -324,9 +324,9 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SimulatedOrPhysicsIsNotReplicatedW
 	ServerObject->ConnectionFilteredComponents[0]->SimulatedOrPhysicsNoReplayInt = 11;
 
 	// Set this connection to be autonomous so we know that only the Physics condition is at play
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
 	// Disable ReplicatePhysics condition, though that is expected to be the default
-	Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetHandle, EReplicationCondition::ReplicatePhysics, false);
+	Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetRefHandle, EReplicationCondition::ReplicatePhysics, false);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -334,7 +334,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SimulatedOrPhysicsIsNotReplicatedW
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the various Physics members have not been modified
@@ -357,7 +357,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, CanToggleAutonomous)
 	ServerObject->ConnectionFilteredComponents[0]->AutonomousOnlyInt = 13;
 
 	// Set this connection to be autonomous.
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -365,14 +365,14 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, CanToggleAutonomous)
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the Autonomous member has been modified
 	UE_NET_ASSERT_EQ(ClientObject->ConnectionFilteredComponents[0]->AutonomousOnlyInt, ServerObject->ConnectionFilteredComponents[0]->AutonomousOnlyInt);
 
 	// Set this connection to not be autonomous (one could also pass ConnectionId 0)
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, false);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, false);
 
 	// Set values that should be replicated for autonomous objects
 	ServerObject->ConnectionFilteredComponents[0]->AutonomousOnlyInt = 37;
@@ -414,7 +414,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, CanToggleSimulated)
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the various Simulated members have been modified
@@ -424,7 +424,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, CanToggleSimulated)
 	UE_NET_ASSERT_EQ(ClientObject->ConnectionFilteredComponents[0]->SimulatedOrPhysicsNoReplayInt, ServerObject->ConnectionFilteredComponents[0]->SimulatedOrPhysicsNoReplayInt);
 
 	// Set this connection to be autonomous.
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
 
 	// Set values that should be replicated for simulated objects
 	ServerObject->ConnectionFilteredComponents[0]->SimulatedOnlyInt = 47;
@@ -464,9 +464,9 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, CanMixConditions)
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
 
 	// Set Autonomous connection
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, AutonomousClientConnectionId, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, AutonomousClientConnectionId, true);
 	// Enable ReplicatePhysics condition
-	Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetHandle, EReplicationCondition::ReplicatePhysics, true);
+	Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetRefHandle, EReplicationCondition::ReplicatePhysics, true);
 
 	// Set all the values
 	ServerObject->ConnectionFilteredComponents[0]->AutonomousOnlyInt = 1;
@@ -488,7 +488,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, CanMixConditions)
 	for (FReplicationSystemTestClient*& Client : ClientArray)
 	{
 		const uint32 ClientIndex = &Client - ClientArray;
-		ClientObjectArray[ClientIndex] = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		ClientObjectArray[ClientIndex] = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientObjectArray[ClientIndex], nullptr);
 	}
 
@@ -530,7 +530,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, CanSwitchAutonmousConnection)
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
 
 	// Set Autonomous connection
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, AutonomousClientConnectionId, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, AutonomousClientConnectionId, true);
 
 	// Set all the values
 	ServerObject->ConnectionFilteredComponents[0]->AutonomousOnlyInt = 1;
@@ -552,14 +552,14 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, CanSwitchAutonmousConnection)
 	for (FReplicationSystemTestClient*& Client : ClientArray)
 	{
 		const uint32 ClientIndex = &Client - ClientArray;
-		ClientObjectArray[ClientIndex] = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		ClientObjectArray[ClientIndex] = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientObjectArray[ClientIndex], nullptr);
 	}
 
 	// Switch Autonomous connection
 	AutonomousClientIndex = (AutonomousClientIndex + 1)  % UE_ARRAY_COUNT(ClientArray);
 	AutonomousClientConnectionId = ClientArray[AutonomousClientIndex]->ConnectionIdOnServer;
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, AutonomousClientConnectionId, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, AutonomousClientConnectionId, true);
 
 	// Set all the values
 	ServerObject->ConnectionFilteredComponents[0]->AutonomousOnlyInt = 1+1;
@@ -620,13 +620,13 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SubObjectConditionsMatchesParentOb
 	UTestReplicatedIrisObject::FComponents ObjectComponents;
 	ObjectComponents.ConnectionFilteredComponentCount = ConnectionFilteredComponentCount;
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, ObjectComponents);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, ObjectComponents);
 
 
 	// Set Autonomous connection
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, AutonomousClientConnectionId, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, AutonomousClientConnectionId, true);
 	// Enable ReplicatePhysics condition
-	Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetHandle, EReplicationCondition::ReplicatePhysics, true);
+	Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetRefHandle, EReplicationCondition::ReplicatePhysics, true);
 
 	// Set all the values
 	for (UTestReplicatedIrisObject* Object : {ServerObject, ServerSubObject})
@@ -652,9 +652,9 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, SubObjectConditionsMatchesParentOb
 	for (FReplicationSystemTestClient*& Client : ClientArray)
 	{
 		const uint32 ClientIndex = &Client - ClientArray;
-		ClientObjectArray[ClientIndex] = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		ClientObjectArray[ClientIndex] = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientObjectArray[ClientIndex], nullptr);
-		ClientSubObjectArray[ClientIndex] = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+		ClientSubObjectArray[ClientIndex] = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubObjectArray[ClientIndex], nullptr);
 	}
 
@@ -695,12 +695,12 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, WithSkipOwnerSubObjectIsNotReplica
 
 	// Spawn object + subobject on server
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
-	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetHandle, ELifetimeCondition::COND_SkipOwner);
+	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetRefHandle, ELifetimeCondition::COND_SkipOwner);
 
 	// Set owner
-	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetHandle, Client->ConnectionIdOnServer);
+	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetRefHandle, Client->ConnectionIdOnServer);
 
 	// Set some values
 	ServerSubObject->IntA = 13; 
@@ -711,11 +711,11 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, WithSkipOwnerSubObjectIsNotReplica
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// SubObject should not have been created on client
-	const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 	UE_NET_ASSERT_EQ(ClientSubObject, nullptr);
 }
 
@@ -727,12 +727,12 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, WithSkipOwnerSubObjectReplicatedTo
 
 	// Spawn object + subobject on server
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
-	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetHandle, ELifetimeCondition::COND_SkipOwner);
+	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetRefHandle, ELifetimeCondition::COND_SkipOwner);
 
 	// Set owner
-	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetHandle, Client->ConnectionIdOnServer);
+	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetRefHandle, Client->ConnectionIdOnServer);
 
 	// Set some values
 	ServerSubObject->IntA = 13; 
@@ -748,19 +748,19 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, WithSkipOwnerSubObjectReplicatedTo
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* OtherClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* OtherClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(OtherClientObject, nullptr);
 
 	// SubObject should not ahve been created on client
-	const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 	UE_NET_ASSERT_EQ(ClientSubObject, nullptr);
 
 	// SubObject should not ahve been created on client
-	const UTestReplicatedIrisObject* OtherClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+	const UTestReplicatedIrisObject* OtherClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 	UE_NET_ASSERT_EQ(OtherClientSubObject, nullptr);
 }
 
@@ -771,12 +771,12 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, WithSkipOwnerSubObjectReplicatedTo
 
 	// Spawn object + subobject on server
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
-	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetHandle, ELifetimeCondition::COND_SkipOwner);
+	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetRefHandle, ELifetimeCondition::COND_SkipOwner);
 
 	// Set owner
-	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetHandle, Client->ConnectionIdOnServer);
+	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetRefHandle, Client->ConnectionIdOnServer);
 
 	// Set some values
 	ServerSubObject->IntA = 13; 
@@ -787,17 +787,17 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, WithSkipOwnerSubObjectReplicatedTo
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// SubObject should not have been created on client
 	{
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 		UE_NET_ASSERT_EQ(ClientSubObject, nullptr);
 	}
 
 	// Remove condition
-	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetHandle, ELifetimeCondition::COND_None);
+	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetRefHandle, ELifetimeCondition::COND_None);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -806,7 +806,7 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, WithSkipOwnerSubObjectReplicatedTo
 
 	// SubObject should now have been created on client
 	{
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubObject, nullptr);
 
 		UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObject->IntA);
@@ -820,14 +820,14 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, HierarchicalSubObjectIsNotReplicat
 
 	// Spawn object + subobjects on server
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
-	UTestReplicatedIrisObject* ServerSubSubObject = Server->CreateSubObject<UTestReplicatedIrisObject>(ServerObject->NetHandle, ServerSubObject->NetHandle, UReplicationBridge::ESubObjectInsertionOrder::ReplicateWith);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
+	UTestReplicatedIrisObject* ServerSubSubObject = Server->CreateSubObject<UTestReplicatedIrisObject>(ServerObject->NetRefHandle, ServerSubObject->NetRefHandle, UReplicationBridge::ESubObjectInsertionOrder::ReplicateWith);
 
 	// Set condition to only replicate if root is the owning connection
-	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetHandle, ELifetimeCondition::COND_SkipOwner);
+	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetRefHandle, ELifetimeCondition::COND_SkipOwner);
 
 	// Set owner
-	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetHandle, Client->ConnectionIdOnServer);
+	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetRefHandle, Client->ConnectionIdOnServer);
 
 	// Set some values
 	ServerSubObject->IntA = 13; 
@@ -838,22 +838,22 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, HierarchicalSubObjectIsNotReplicat
 	Server->PostSendUpdate();
 	
 	// Object should have been created on the client
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// SubObject and SubSubObject should not have been created on client
 	{
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 		UE_NET_ASSERT_EQ(ClientSubObject, nullptr);
 
-		const UTestReplicatedIrisObject* ClientSubSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubSubObject->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubSubObject->NetRefHandle));
 		UE_NET_ASSERT_EQ(ClientSubSubObject, nullptr);
 	}
 
 	// Remove condition on ParentSubObject
-	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetHandle, ELifetimeCondition::COND_None);
+	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubObject->NetRefHandle, ELifetimeCondition::COND_None);
 	// Add condtion on SubSubObject
-	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubSubObject->NetHandle, ELifetimeCondition::COND_SkipOwner);
+	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubSubObject->NetRefHandle, ELifetimeCondition::COND_SkipOwner);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -862,15 +862,15 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, HierarchicalSubObjectIsNotReplicat
 
 	// SubObject should now be replicated while SubSubObject should not
 	{
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubObject, nullptr);
 
-		const UTestReplicatedIrisObject* ClientSubSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubSubObject->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubSubObject->NetRefHandle));
 		UE_NET_ASSERT_EQ(ClientSubSubObject, nullptr);
 	}
 
 	// Remove condition on SubSubObject
-	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubSubObject->NetHandle, ELifetimeCondition::COND_None);
+	Server->ReplicationBridge->SetSubObjectNetCondition(ServerSubSubObject->NetRefHandle, ELifetimeCondition::COND_None);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -879,10 +879,10 @@ UE_NET_TEST_FIXTURE(FTestConditionalsFixture, HierarchicalSubObjectIsNotReplicat
 
 	// SubObject and SubSubObject should now both be replicated
 	{
-		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubObject, nullptr);
 
-		const UTestReplicatedIrisObject* ClientSubSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubSubObject->NetHandle));
+		const UTestReplicatedIrisObject* ClientSubSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubSubObject->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientSubSubObject, nullptr);
 	}
 

@@ -52,10 +52,10 @@ protected:
 		}
 	}
 
-	void VerifyObjectFilterStatus(FNetHandle Handle, uint32 ConnectionId, bool bExpectedReplicationAllowed)
+	void VerifyObjectFilterStatus(FNetRefHandle Handle, uint32 ConnectionId, bool bExpectedReplicationAllowed)
 	{
-		const uint32 InternalIndex = Server->GetReplicationSystem()->GetReplicationSystemInternal()->GetNetHandleManager().GetInternalIndex(Handle);
-		UE_NET_ASSERT_NE((uint32)FNetHandleManager::InvalidInternalIndex, InternalIndex);
+		const uint32 InternalIndex = Server->GetReplicationSystem()->GetReplicationSystemInternal()->GetNetRefHandleManager().GetInternalIndex(Handle);
+		UE_NET_ASSERT_NE((uint32)FNetRefHandleManager::InvalidInternalIndex, InternalIndex);
 
 		// Verify expected filter status
 		const FNetBitArrayView ObjectGroupFilter = ServerFiltering->GetGroupFilteredOutObjects(ConnectionId);
@@ -90,19 +90,19 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, PublicGroupAPI)
 
 		FNetObjectGroupHandle GroupHandle = ReplicationSystem->CreateGroup();
 
-		UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle, ServerObject->NetHandle));
+		UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle, ServerObject->NetRefHandle));
 
-		ReplicationSystem->AddToGroup(GroupHandle, ServerObject->NetHandle);
+		ReplicationSystem->AddToGroup(GroupHandle, ServerObject->NetRefHandle);
 
-		UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle, ServerObject->NetHandle));
+		UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle, ServerObject->NetRefHandle));
 
-		ReplicationSystem->RemoveFromGroup(GroupHandle, ServerObject->NetHandle);
+		ReplicationSystem->RemoveFromGroup(GroupHandle, ServerObject->NetRefHandle);
 
-		UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle, ServerObject->NetHandle));
+		UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle, ServerObject->NetRefHandle));
 
 		ReplicationSystem->DestroyGroup(GroupHandle);
 
-		UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle, ServerObject->NetHandle));
+		UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle, ServerObject->NetRefHandle));
 	}
 }
 
@@ -118,28 +118,28 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, PublicGroupAPIMemberOfMultipleGroups)
 
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
 
-	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetHandle));
-	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetHandle));
+	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetRefHandle));
+	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetRefHandle));
 
-	ReplicationSystem->AddToGroup(GroupHandle0, ServerObject->NetHandle);
+	ReplicationSystem->AddToGroup(GroupHandle0, ServerObject->NetRefHandle);
 
-	UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetHandle));
-	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetHandle));
+	UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetRefHandle));
+	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetRefHandle));
 
-	ReplicationSystem->AddToGroup(GroupHandle1, ServerObject->NetHandle);
+	ReplicationSystem->AddToGroup(GroupHandle1, ServerObject->NetRefHandle);
 
-	UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetHandle));
-	UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetHandle));
+	UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetRefHandle));
+	UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetRefHandle));
 
-	ReplicationSystem->RemoveFromGroup(GroupHandle0, ServerObject->NetHandle);
+	ReplicationSystem->RemoveFromGroup(GroupHandle0, ServerObject->NetRefHandle);
 
-	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetHandle));
-	UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetHandle));
+	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetRefHandle));
+	UE_NET_ASSERT_TRUE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetRefHandle));
 
-	ReplicationSystem->RemoveFromGroup(GroupHandle1, ServerObject->NetHandle);
+	ReplicationSystem->RemoveFromGroup(GroupHandle1, ServerObject->NetRefHandle);
 
-	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetHandle));
-	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetHandle));
+	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle0, ServerObject->NetRefHandle));
+	UE_NET_ASSERT_FALSE(ReplicationSystem->IsInGroup(GroupHandle1, ServerObject->NetRefHandle));
 }
 
 // Group filtering tests
@@ -155,9 +155,9 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPI)
 	UE_NET_ASSERT_NE(0U, (uint32)GroupHandle);	
 
 	// Add Objects to group
-	Server->ReplicationSystem->AddToGroup(GroupHandle, ServerObject0->NetHandle);
-	Server->ReplicationSystem->AddToGroup(GroupHandle, ServerObject1->NetHandle);
-	Server->ReplicationSystem->AddToGroup(GroupHandle, ServerObject2->NetHandle);
+	Server->ReplicationSystem->AddToGroup(GroupHandle, ServerObject0->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(GroupHandle, ServerObject1->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(GroupHandle, ServerObject2->NetRefHandle);
 	
 	UReplicatedTestObject* ServerObject3 = Server->CreateObject(0, 0);
 	UReplicatedTestObject* ServerObject4 = Server->CreateObject(0, 0);
@@ -168,9 +168,9 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPI)
 	UE_NET_ASSERT_NE(0U, (uint32)GroupHandle2);	
 
 	// Add Objects to group
-	Server->ReplicationSystem->AddToGroup(GroupHandle2, ServerObject3->NetHandle);
-	Server->ReplicationSystem->AddToGroup(GroupHandle2, ServerObject4->NetHandle);
-	Server->ReplicationSystem->AddToGroup(GroupHandle2, ServerObject5->NetHandle);
+	Server->ReplicationSystem->AddToGroup(GroupHandle2, ServerObject3->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(GroupHandle2, ServerObject4->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(GroupHandle2, ServerObject5->NetRefHandle);
 													 
 	UReplicatedTestObject* ServerObject6 = Server->CreateObject(0, 0);
 
@@ -227,7 +227,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPI)
 	UE_NET_ASSERT_TRUE(ObjectGroupFilter.IsNoBitSet());
 
 	// Add Object to group 3 which is set, which should filter out the object
-	Server->ReplicationSystem->AddToGroup(GroupHandle3, ServerObject6->NetHandle);
+	Server->ReplicationSystem->AddToGroup(GroupHandle3, ServerObject6->NetRefHandle);
 
 	// Update filters
 	Filter();
@@ -239,7 +239,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPI)
 	UE_NET_ASSERT_TRUE(ObjectGroupFilter.IsAnyBitSet());
 
 	// Add Object to group 3 which is set, which should filter out the object
-	Server->ReplicationSystem->RemoveFromGroup(GroupHandle3, ServerObject6->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(GroupHandle3, ServerObject6->NetRefHandle);
 
 	// Update filters
 	Filter();
@@ -283,7 +283,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPIObjectMemberOfMoreThanOneG
 {
 	// Spawn object on server
 	UReplicatedTestObject* ServerObject0 = Server->CreateObject(0, 0);
-	const FNetHandle ServerHandle = ServerObject0->NetHandle;
+	const FNetRefHandle ServerHandle = ServerObject0->NetRefHandle;
 
 	// Create groups
 	FNetObjectGroupHandle GroupHandle0 = Server->ReplicationSystem->CreateGroup();
@@ -348,7 +348,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPINotFilteredGroup)
 	UReplicatedTestObject* ServerObject2 = Server->CreateObject(0, 0);
 
 	// Add Objects to NotFilteredGroup
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerObject0->NetHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerObject0->NetRefHandle);
 
 	// Add client
 	FReplicationSystemTestClient* Client = CreateClient();
@@ -362,7 +362,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPINotFilteredGroup)
 	UE_NET_ASSERT_TRUE(ObjectGroupFilter.IsAnyBitSet());
 
 	// Remove object from NotReplicatedNetObjectGroup
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerObject0->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerObject0->NetRefHandle);
 
 	// Update filters
 	Filter();
@@ -376,10 +376,10 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPISubObjects)
 {
 	// Spawn object on server
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
-	const FNetHandle ServerHandle = ServerObject->NetHandle;
+	const FNetRefHandle ServerHandle = ServerObject->NetRefHandle;
 
 	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerHandle, 0, 0);	
-	const FNetHandle ServerSubObjectHandle = ServerSubObject->NetHandle;
+	const FNetRefHandle ServerSubObjectHandle = ServerSubObject->NetRefHandle;
 	
 	// Create groups
 	FNetObjectGroupHandle GroupHandle = Server->ReplicationSystem->CreateGroup();
@@ -417,7 +417,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPIRemovingSubObjectsRestores
 
 	// Spawn object on server
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
-	const FNetHandle ServerHandle = ServerObject->NetHandle;
+	const FNetRefHandle ServerHandle = ServerObject->NetRefHandle;
 
 	// Add Object to group
 	Server->ReplicationSystem->AddToGroup(GroupHandle, ServerHandle);
@@ -425,7 +425,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPIRemovingSubObjectsRestores
 
 	// Create sub object
 	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerHandle, 0, 0);
-	const FNetHandle ServerSubObjectHandle = ServerSubObject->NetHandle;
+	const FNetRefHandle ServerSubObjectHandle = ServerSubObject->NetRefHandle;
 
 	// destroy subobject in the same frame
 	Server->DestroyObject(ServerSubObject);
@@ -446,7 +446,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPILateAddedSubObjectIsFilter
 {
 	// Spawn object on server
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
-	const FNetHandle ServerHandle = ServerObject->NetHandle;
+	const FNetRefHandle ServerHandle = ServerObject->NetRefHandle;
 	
 	// Create groups
 	FNetObjectGroupHandle GroupHandle = Server->ReplicationSystem->CreateGroup();
@@ -463,7 +463,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPILateAddedSubObjectIsFilter
 
 	// Add subobject
 	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerHandle, 0, 0);	
-	const FNetHandle ServerSubObjectHandle = ServerSubObject->NetHandle;
+	const FNetRefHandle ServerSubObjectHandle = ServerSubObject->NetRefHandle;
 
 	// Update filters
 	Filter();
@@ -480,11 +480,11 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPISubObjectIsFilteredOutIfOw
 {
 	// Spawn object on server
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
-	const FNetHandle ServerHandle = ServerObject->NetHandle;
+	const FNetRefHandle ServerHandle = ServerObject->NetRefHandle;
 
 	// Add subobject
 	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerHandle, 0, 0);	
-	const FNetHandle ServerSubObjectHandle = ServerSubObject->NetHandle;
+	const FNetRefHandle ServerSubObjectHandle = ServerSubObject->NetRefHandle;
 	
 	// Create groups
 	FNetObjectGroupHandle GroupHandle = Server->ReplicationSystem->CreateGroup();
@@ -527,11 +527,11 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPISubObjectIsFilteredOutWith
 {
 	// Spawn object on server
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
-	const FNetHandle ServerHandle = ServerObject->NetHandle;
+	const FNetRefHandle ServerHandle = ServerObject->NetRefHandle;
 
 	// Add subobject
 	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerHandle, 0, 0);	
-	const FNetHandle ServerSubObjectHandle = ServerSubObject->NetHandle;
+	const FNetRefHandle ServerSubObjectHandle = ServerSubObject->NetRefHandle;
 	
 	// Create groups
 	FNetObjectGroupHandle GroupHandle = Server->ReplicationSystem->CreateGroup();

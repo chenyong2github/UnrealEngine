@@ -768,12 +768,16 @@ FNetworkObjectInfo* UNetDriver::FindNetworkObjectInfo(const AActor* InActor)
 #if UE_WITH_IRIS
 	if (ReplicationSystem)
 	{
-		// Return default initialized NetworkObjectInfo so the presence of a pointer can at least indicate whether the actor is replicated or not.
-		const UE::Net::FNetHandle NetHandle = UE::Net::FReplicationSystemUtil::GetNetHandle(InActor);
-		if (NetHandle.IsValid())
+		if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
 		{
-			*DummyNetworkObjectInfo = FNetworkObjectInfo();
-			return DummyNetworkObjectInfo.Get();
+			const UE::Net::FNetRefHandle ActorRefHandle = Bridge->GetReplicatedRefHandle(InActor);
+			
+			// Return default initialized NetworkObjectInfo so the presence of a pointer can at least indicate whether the actor is replicated or not.
+			if (ActorRefHandle.IsValid())
+			{
+				*DummyNetworkObjectInfo = FNetworkObjectInfo();
+				return DummyNetworkObjectInfo.Get();
+			}
 		}
 
 		return nullptr;
@@ -940,13 +944,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 		{
 			Connection->Tick(DeltaSeconds);
 		}
-
-#if UE_WITH_IRIS
-		if (ReplicationSystem && (ServerConnection != nullptr || ClientConnections.Num() > 0))
-		{
-			ReplicationSystem->PostSendUpdate();
-		}
-#endif // UE_WITH_IRIS
 	}
 
 	if (ConnectionlessHandler.IsValid())
@@ -1315,6 +1312,13 @@ void UNetDriver::ProcessLocalClientPackets()
 
 void UNetDriver::PostTickFlush()
 {
+#if UE_WITH_IRIS
+	if (ReplicationSystem && (ServerConnection != nullptr || ClientConnections.Num() > 0))
+	{
+		ReplicationSystem->PostSendUpdate();
+	}
+#endif // UE_WITH_IRIS
+
 	if (World && !bSkipClearVoicePackets)
 	{
 		UOnlineEngineInterface::Get()->ClearVoicePackets(World);
@@ -3532,8 +3536,12 @@ void UNetDriver::NotifyActorTearOff(AActor* Actor)
 #if UE_WITH_IRIS
 	if (ReplicationSystem)
 	{
-		// Set the actor to be torn-off during the next update of the replication systeem
-		ReplicationSystem->TearOffNextUpdate(UE::Net::FReplicationSystemUtil::GetNetHandle(Actor));
+		if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
+		{
+			// Set the actor to be torn-off during the next update of the replication systeem
+			const UE::Net::FNetRefHandle ActorRefHandle = Bridge->GetReplicatedRefHandle(Actor);
+			ReplicationSystem->TearOffNextUpdate(ActorRefHandle);
+		}
 	}
 #endif // UE_WITH_IRIS
 }
@@ -3550,7 +3558,11 @@ void UNetDriver::ForceNetUpdate(AActor* Actor)
 #if UE_WITH_IRIS
 	if (ReplicationSystem)
 	{
-		ReplicationSystem->MarkDirty(UE::Net::FReplicationSystemUtil::GetNetHandle(Actor));
+		if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
+		{
+			const UE::Net::FNetRefHandle ActorRefHandle = Bridge->GetReplicatedRefHandle(Actor);
+			ReplicationSystem->MarkDirty(ActorRefHandle);
+		}
 		return;
 	}
 #endif // UE_WITH_IRIS

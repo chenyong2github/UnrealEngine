@@ -25,7 +25,7 @@ private:
 		FReplicationSystemTestFixture::SetUp();
 		InitMockNetObjectPrioritizer();
 
-		NetHandleManager = &ReplicationSystem->GetReplicationSystemInternal()->GetNetHandleManager();
+		NetRefHandleManager = &ReplicationSystem->GetReplicationSystemInternal()->GetNetRefHandleManager();
 	}
 
 	virtual void TearDown() override
@@ -33,7 +33,7 @@ private:
 		FReplicationSystemTestFixture::TearDown();
 		RestoreNetObjectPrioritizerDefinitions();
 
-		NetHandleManager = nullptr;
+		NetRefHandleManager = nullptr;
 	}
 
 	void InitNetObjectPrioritizerDefinitions()
@@ -77,7 +77,7 @@ private:
 protected:
 	UMockNetObjectPrioritizer* MockNetObjectPrioritizer = nullptr;
 	FNetObjectPrioritizerHandle MockPrioritizerHandle = InvalidNetObjectPrioritizerHandle;
-	FNetHandleManager* NetHandleManager = nullptr;
+	FNetRefHandleManager* NetRefHandleManager = nullptr;
 	static constexpr float FakeDeltaTime = 0.0334f;
 
 private:
@@ -112,8 +112,8 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, PrioritizerAddObjectSucceedsAndR
 			MockNetObjectPrioritizer->SetFunctionCallSetup(CallSetup);
 		}
 
-		const FNetHandle NetHandle = ReplicationBridge->BeginReplication(TestObject);
-		ReplicationSystem->SetPrioritizer(NetHandle, MockPrioritizerHandle);
+		const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(TestObject);
+		ReplicationSystem->SetPrioritizer(NetRefHandle, MockPrioritizerHandle);
 
 		// We don't know if prioritizer changes are batched, but we assume everything is setup correctly in PreSendUpdate at least.
 		ReplicationSystem->PreSendUpdate(FakeDeltaTime);
@@ -158,8 +158,8 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, PrioritizerAddObjectFailsAndRemo
 			MockNetObjectPrioritizer->SetFunctionCallSetup(CallSetup);
 		}
 
-		const FNetHandle NetHandle = ReplicationBridge->BeginReplication(TestObject);
-		ReplicationSystem->SetPrioritizer(NetHandle, MockPrioritizerHandle);
+		const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(TestObject);
+		ReplicationSystem->SetPrioritizer(NetRefHandle, MockPrioritizerHandle);
 
 		// We don't know if prioritizer changes are batched, but we assume everything is setup correctly in PreSendUpdate at least.
 		ReplicationSystem->PreSendUpdate(FakeDeltaTime);
@@ -202,8 +202,8 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, SwitchingPrioritizersCallsRemove
 			MockNetObjectPrioritizer->SetFunctionCallSetup(CallSetup);
 		}
 
-		const FNetHandle NetHandle = ReplicationBridge->BeginReplication(TestObject);
-		ReplicationSystem->SetPrioritizer(NetHandle, MockPrioritizerHandle);
+		const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(TestObject);
+		ReplicationSystem->SetPrioritizer(NetRefHandle, MockPrioritizerHandle);
 
 		// We don't know if prioritizer changes are batched, but we assume everything is setup correctly in PreSendUpdate at least.
 		ReplicationSystem->PreSendUpdate(FakeDeltaTime);
@@ -219,7 +219,7 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, SwitchingPrioritizersCallsRemove
 	{
 		MockNetObjectPrioritizer->ResetFunctionCallStatus();
 
-		ReplicationSystem->SetStaticPriority(TestObject->NetHandle, 1.0f);
+		ReplicationSystem->SetStaticPriority(TestObject->NetRefHandle, 1.0f);
 
 		ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 
@@ -239,8 +239,8 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, PrioritizeIsNotCalledWhenNoObjec
 	{
 		MockNetObjectPrioritizer->ResetFunctionCallStatus();
 
-		const FNetHandle NetHandle = ReplicationBridge->BeginReplication(TestObject);
-		ReplicationSystem->SetStaticPriority(NetHandle, 1.0f);
+		const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(TestObject);
+		ReplicationSystem->SetStaticPriority(NetRefHandle, 1.0f);
 
 		ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 
@@ -267,8 +267,8 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, PrioritizeIsNotCalledWhenThereAr
 			MockNetObjectPrioritizer->SetFunctionCallSetup(CallSetup);
 		}
 
-		const FNetHandle NetHandle = ReplicationBridge->BeginReplication(TestObject);
-		ReplicationSystem->SetPrioritizer(NetHandle, MockPrioritizerHandle);
+		const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(TestObject);
+		ReplicationSystem->SetPrioritizer(NetRefHandle, MockPrioritizerHandle);
 
 		ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 
@@ -308,11 +308,11 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, PrioritizeIsCalledWhenThereAreCo
 			MockNetObjectPrioritizer->SetFunctionCallSetup(CallSetup);
 		}
 
-		const FNetHandle NetHandle1 = ReplicationBridge->BeginReplication(TestObject1);
-		ReplicationSystem->SetPrioritizer(NetHandle1, MockPrioritizerHandle);
+		const FNetRefHandle NetRefHandle1 = ReplicationBridge->BeginReplication(TestObject1);
+		ReplicationSystem->SetPrioritizer(NetRefHandle1, MockPrioritizerHandle);
 
-		const FNetHandle NetHandle2 = ReplicationBridge->BeginReplication(TestObject2);
-		ReplicationSystem->SetPrioritizer(NetHandle2, MockPrioritizerHandle);
+		const FNetRefHandle NetRefHandle2 = ReplicationBridge->BeginReplication(TestObject2);
+		ReplicationSystem->SetPrioritizer(NetRefHandle2, MockPrioritizerHandle);
 
 		ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 
@@ -344,8 +344,8 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, UpdateObjectsIsCalledForDirtyObj
 			MockNetObjectPrioritizer->SetFunctionCallSetup(CallSetup);
 		}
 
-		const FNetHandle NetHandle1 = ReplicationBridge->BeginReplication(TestObject1);
-		ReplicationSystem->SetPrioritizer(NetHandle1, MockPrioritizerHandle);
+		const FNetRefHandle NetRefHandle1 = ReplicationBridge->BeginReplication(TestObject1);
+		ReplicationSystem->SetPrioritizer(NetRefHandle1, MockPrioritizerHandle);
 
 		ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 		ReplicationSystem->PostSendUpdate();
@@ -382,8 +382,8 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, UpdateObjectsIsNotCalledWhenNoOb
 			MockNetObjectPrioritizer->SetFunctionCallSetup(CallSetup);
 		}
 
-		const FNetHandle NetHandle1 = ReplicationBridge->BeginReplication(TestObject1);
-		ReplicationSystem->SetPrioritizer(NetHandle1, MockPrioritizerHandle);
+		const FNetRefHandle NetRefHandle1 = ReplicationBridge->BeginReplication(TestObject1);
+		ReplicationSystem->SetPrioritizer(NetRefHandle1, MockPrioritizerHandle);
 
 		ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 		ReplicationSystem->PostSendUpdate();
@@ -416,13 +416,13 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, NativeIrisObjectGetsPriorityFrom
 	constexpr float ObjectPriority = 1.3056640625E10f;
 	Object->SetPriority(ObjectPriority);
 
-	const FNetHandle NetHandle = ReplicationBridge->BeginReplication(Object);
-	ReplicationSystem->SetPrioritizer(NetHandle, MockPrioritizerHandle);
+	const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(Object);
+	ReplicationSystem->SetPrioritizer(NetRefHandle, MockPrioritizerHandle);
 
 	ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 	ReplicationSystem->PostSendUpdate();
 
-	UE::Net::Private::FInternalNetHandle InternalIndex = NetHandleManager->GetInternalIndex(NetHandle);
+	UE::Net::Private::FInternalNetRefIndex InternalIndex = NetRefHandleManager->GetInternalIndex(NetRefHandle);
 	const float Priority = MockNetObjectPrioritizer->GetPriority(InternalIndex);
 	UE_NET_ASSERT_EQ(Priority, ObjectPriority);
 }
@@ -439,8 +439,8 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, NativeIrisObjectGetsUpdatedPrior
 
 	Object->SetPriority(2.0f);
 
-	const FNetHandle NetHandle = ReplicationBridge->BeginReplication(Object);
-	ReplicationSystem->SetPrioritizer(NetHandle, MockPrioritizerHandle);
+	const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(Object);
+	ReplicationSystem->SetPrioritizer(NetRefHandle, MockPrioritizerHandle);
 
 	// Update priority
 	constexpr float UpdatedPriority = 4711;
@@ -449,7 +449,7 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, NativeIrisObjectGetsUpdatedPrior
 	ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 	ReplicationSystem->PostSendUpdate();
 
-	UE::Net::Private::FInternalNetHandle InternalIndex = NetHandleManager->GetInternalIndex(NetHandle);
+	UE::Net::Private::FInternalNetRefIndex InternalIndex = NetRefHandleManager->GetInternalIndex(NetRefHandle);
 	const float Priority = MockNetObjectPrioritizer->GetPriority(InternalIndex);
 	UE_NET_ASSERT_EQ(Priority, UpdatedPriority);
 }
@@ -467,13 +467,13 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, ObjectGetsPriorityFromStart)
 	constexpr float ObjectPriority = 1.3056640625E10f;
 	Object->SetPriority(ObjectPriority);
 
-	const FNetHandle NetHandle = ReplicationBridge->BeginReplication(Object);
-	ReplicationSystem->SetPrioritizer(NetHandle, MockPrioritizerHandle);
+	const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(Object);
+	ReplicationSystem->SetPrioritizer(NetRefHandle, MockPrioritizerHandle);
 
 	ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 	ReplicationSystem->PostSendUpdate();
 
-	UE::Net::Private::FInternalNetHandle InternalIndex = NetHandleManager->GetInternalIndex(NetHandle);
+	UE::Net::Private::FInternalNetRefIndex InternalIndex = NetRefHandleManager->GetInternalIndex(NetRefHandle);
 	const float Priority = MockNetObjectPrioritizer->GetPriority(InternalIndex);
 	UE_NET_ASSERT_EQ(Priority, ObjectPriority);
 }
@@ -490,8 +490,8 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, ObjectGetsUpdatedPriority)
 
 	Object->SetPriority(2.0f);
 
-	const FNetHandle NetHandle = ReplicationBridge->BeginReplication(Object);
-	ReplicationSystem->SetPrioritizer(NetHandle, MockPrioritizerHandle);
+	const FNetRefHandle NetRefHandle = ReplicationBridge->BeginReplication(Object);
+	ReplicationSystem->SetPrioritizer(NetRefHandle, MockPrioritizerHandle);
 
 	// Update priority
 	constexpr float UpdatedPriority = 4711;
@@ -500,7 +500,7 @@ UE_NET_TEST_FIXTURE(FTestNetPrioritizerFixture, ObjectGetsUpdatedPriority)
 	ReplicationSystem->PreSendUpdate(FakeDeltaTime);
 	ReplicationSystem->PostSendUpdate();
 
-	UE::Net::Private::FInternalNetHandle InternalIndex = NetHandleManager->GetInternalIndex(NetHandle);
+	UE::Net::Private::FInternalNetRefIndex InternalIndex = NetRefHandleManager->GetInternalIndex(NetRefHandle);
 	const float Priority = MockNetObjectPrioritizer->GetPriority(InternalIndex);
 	UE_NET_ASSERT_EQ(Priority, UpdatedPriority);
 }

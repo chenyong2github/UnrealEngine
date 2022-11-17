@@ -4,6 +4,7 @@
 
 #include "HAL/Platform.h"
 #include "Iris/ReplicationSystem/NetHandle.h"
+#include "Net/Core/NetHandle/NetHandle.h"
 
 class UReplicationSystem;
 namespace UE::Net
@@ -23,14 +24,14 @@ IRISCORE_API uint64 Init();
 /** Trigger a breakpoint and return true if the object contains the current debug name */
 bool BreakOnObjectName(UObject* Object);
 
-/** Trigger a breakpoint and return true if the NetHandle is the current debug nethandle */
-bool BreakOnNetHandle(FNetHandle NetHandle);
+/** Trigger a breakpoint and return true if the NetRefHandle is the current debug NetRefHandle */
+bool BreakOnNetRefHandle(FNetRefHandle NetRefHandle);
 
 /** Trigger a breakpoint and return true if the name contains the debug RPC string */
 bool BreakOnRPCName(FName RPCName);
 
 /** Output state data to StringBuilder for the specified Handle */
-void NetObjectStateToString(FStringBuilderBase& StringBuilder, FNetHandle NetHandle);
+void NetObjectStateToString(FStringBuilderBase& StringBuilder, FNetRefHandle RefHandle);
 
 /** Find all handles references registered for a protocol and output to StringBuilder */
 void NetObjectProtocolReferencesToString(FStringBuilderBase& StringBuilder, uint64 ProtocolId, uint32 ReplicationSystemId);
@@ -40,14 +41,14 @@ void NetObjectProtocolReferencesToString(FStringBuilderBase& StringBuilder, uint
 /** Get the ReplicationSystem with the Id */
 extern "C" IRISCORE_API UReplicationSystem* GetReplicationSystemForDebug(uint32 Id);
 
-/** DebugOutputObject state for Handle specified by NetHandleId and ReplicationSystemId and */
-extern "C" IRISCORE_API void DebugOutputNetObjectState(uint32 NetHandleId, uint32 ReplicationSystemId);
+/** DebugOutputObject state for Handle specified by NetRefHandleId and ReplicationSystemId. */
+extern "C" IRISCORE_API void DebugOutputNetObjectState(uint32 NetRefHandleId, uint32 ReplicationSystemId);
 
 /**
-	Variant of NetObjectStateToString that can be used from breakpoints and in watch window to print the current state of a NetHandle
-	NOTE: Use only for debugging as this variant uses a static buffer which is not thread safe	
-*/
-extern "C" IRISCORE_API const TCHAR* DebugNetObjectStateToString(uint32 NetHandleId, uint32 ReplicationSystemId);
+ * Variant of NetObjectStateToString that can be used from breakpoints and in watch window to print the current state of a NetRefHandle.
+ * NOTE: Use only for debugging as this variant uses a static buffer which is not thread safe.
+ */
+extern "C" IRISCORE_API const TCHAR* DebugNetObjectStateToString(uint32 NetRefHandleId, uint32 ReplicationSystemId);
 
 /** Find all handles references registered for a protocol and output to DebugOutput in debugger */
 extern "C" IRISCORE_API void DebugOutputNetObjectProtocolReferences(uint64 ProtocolId, uint32 ReplicationSystemId);
@@ -55,24 +56,24 @@ extern "C" IRISCORE_API void DebugOutputNetObjectProtocolReferences(uint64 Proto
 /** Get info about replicated object */
 struct FNetReplicatedObjectDebugInfo
 {
-	const FNetHandle* Handle;
-	uint32 InternalNetHandleIndex;
+	const FNetRefHandle* RefHandle;
+	uint32 InternalNetRefIndex;
 	const UReplicationSystem* ReplicationSystem;
 	const FReplicationProtocol* Protocol;
 	const FReplicationInstanceProtocol* InstanceProtocol;
 };
 
-/** Look up replicated NetHandle from Instance pointer and return debug information, this variant searches all active replication systems */
+/** Look up replicated handle from Instance pointer and return debug information. This variant searches all active replication systems and returns information for the first one replicating the Instance. */
 extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetObject(UObject* Instance);
 
-/** Look up replicated NetHandle from Instance pointer and return debug information, this variant only searches the replicatioSystem with the specified id */
+/** Look up replicated handle from Instance pointer and return debug information. This variant only searches the ReplicationSystem with the specified id. */
 extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetObjectById(UObject* Instance, uint32 ReplicationSystemId);
 
 /** Look up replicated handle and return debug information */
-extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetHandle(FNetHandle Handle);
+extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetRefHandle(FNetRefHandle Handle);
 
 /** Look up replicated handle specified by handle id and replicationsystem id and return debug information */
-extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetHandleById(uint32 NetHandleId, uint32 ReplicationSystemId);
+extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetRefHandleById(uint32 NetRefHandleId, uint32 ReplicationSystemId);
 
 /** Variant of DebugOutputNetObjectProtocolReferences that can be used from breakpoints or in watch window to find all handles references registered for a protocol and output to DebugOutput in debugger
  * NOTE: Use only for debugging as this variant uses a static buffer which is not thread safe	

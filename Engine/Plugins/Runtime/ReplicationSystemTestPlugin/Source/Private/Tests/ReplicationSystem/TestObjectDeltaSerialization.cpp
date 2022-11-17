@@ -38,14 +38,14 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, ClientReceivesLatestValuesWit
 	UTestReplicatedIrisObject::FComponents ObjectComponents;
 	ObjectComponents.PropertyComponentCount = PropertyComponentCount;
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
-	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetHandle, ENetObjectDeltaCompressionStatus::Allow);
+	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetRefHandle, ENetObjectDeltaCompressionStatus::Allow);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Set value on object and component
@@ -74,14 +74,14 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, ClientReceivesLatestValuesWit
 	UTestReplicatedIrisObject::FComponents ObjectComponents;
 	ObjectComponents.PropertyComponentCount = PropertyComponentCount;
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
-	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetHandle, ENetObjectDeltaCompressionStatus::Allow);
+	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetRefHandle, ENetObjectDeltaCompressionStatus::Allow);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Set value on object and component
@@ -124,7 +124,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, AllClientsReceivesLatestValue
 	UTestReplicatedIrisObject::FComponents ObjectComponents;
 	ObjectComponents.PropertyComponentCount = PropertyComponentCount;
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
-	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetHandle, ENetObjectDeltaCompressionStatus::Allow);
+	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetRefHandle, ENetObjectDeltaCompressionStatus::Allow);
 
 	// Send and deliver packets
 	Server->PreSendUpdate();
@@ -151,7 +151,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, AllClientsReceivesLatestValue
 	// Check that the server modified members have their final values on all clients.
 	for (FReplicationSystemTestClient* Client : Clients)
 	{
-		const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 		UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 		UE_NET_ASSERT_EQ(ClientObject->IntA, ServerObject->IntA);
@@ -173,10 +173,10 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, SimulatedIsProperlyReplicated
 	UTestReplicatedIrisObject::FComponents ObjectComponents;
 	ObjectComponents.ConnectionFilteredComponentCount = ConnectionFilteredComponentCount;
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
-	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetHandle, ENetObjectDeltaCompressionStatus::Allow);
+	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetRefHandle, ENetObjectDeltaCompressionStatus::Allow);
 
 	// Set the client to be autonomous.
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Clients[0]->ConnectionIdOnServer, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Clients[0]->ConnectionIdOnServer, true);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -186,7 +186,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, SimulatedIsProperlyReplicated
 	}
 	Server->PostSendUpdate();
 
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Clients[0]->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Clients[0]->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Set some values that should be replicated for simulated objects
@@ -210,7 +210,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, SimulatedIsProperlyReplicated
 	UE_NET_ASSERT_EQ(ClientObject->ConnectionFilteredComponents[0]->SimulatedOrPhysicsNoReplayInt, 0);
 	
 	// Set the client to no longer be autonomous, meaning it should be "simulated".
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Clients[0]->ConnectionIdOnServer, false);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Clients[0]->ConnectionIdOnServer, false);
 
 	// Change arbitrary property to trigger replication
 	ServerObject->IntA ^= 1;
@@ -243,17 +243,17 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, SimulatedIsProperlyReplicated
 	UTestReplicatedIrisObject::FComponents ObjectComponents;
 	ObjectComponents.ConnectionFilteredComponentCount = ConnectionFilteredComponentCount;
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
-	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetHandle, ENetObjectDeltaCompressionStatus::Allow);
+	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetRefHandle, ENetObjectDeltaCompressionStatus::Allow);
 
 	// Set the client to be autonomous.
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Set some values that should be replicated for simulated objects
@@ -274,7 +274,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, SimulatedIsProperlyReplicated
 	UE_NET_ASSERT_EQ(ClientObject->ConnectionFilteredComponents[0]->SimulatedOrPhysicsNoReplayInt, 0);
 	
 	// Set the client to no longer be autonomous, meaning it should be "simulated".
-	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, false);
+	Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, false);
 
 	// Change arbitrary property to trigger replication
 	ServerObject->IntA ^= 1;
@@ -314,7 +314,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, ToOwnerStateIsReplicatedToOwn
 	UTestReplicatedIrisObject::FComponents ObjectComponents;
 	ObjectComponents.ConnectionFilteredComponentCount = ConnectionFilteredComponentCount;
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
-	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetHandle, ENetObjectDeltaCompressionStatus::Allow);
+	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetRefHandle, ENetObjectDeltaCompressionStatus::Allow);
 
 	// Set some values in ToOwner only state
 	ServerObject->ConnectionFilteredComponents[0]->ToOwnerA = 13;
@@ -325,7 +325,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, ToOwnerStateIsReplicatedToOwn
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 	
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the server modified ToOwner members are still in the default state
@@ -333,7 +333,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, ToOwnerStateIsReplicatedToOwn
 	UE_NET_ASSERT_EQ(ClientObject->ConnectionFilteredComponents[0]->ToOwnerB, 0);
 
 	// Set owner
-	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetHandle, Client->ConnectionIdOnServer);
+	Server->ReplicationSystem->SetOwningNetConnection(ServerObject->NetRefHandle, Client->ConnectionIdOnServer);
 
 	// Change arbitrary property to trigger replication
 	ServerObject->IntA ^= 1;
@@ -357,17 +357,17 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, InFlightChangesForDisabledCon
 	UTestReplicatedIrisObject::FComponents ObjectComponents;
 	ObjectComponents.ConnectionFilteredComponentCount = ConnectionFilteredComponentCount;
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(ObjectComponents);
-	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetHandle, ENetObjectDeltaCompressionStatus::Allow);
+	Server->ReplicationSystem->SetDeltaCompressionStatus(ServerObject->NetRefHandle, ENetObjectDeltaCompressionStatus::Allow);
 
 	// Set autonomous role for our client. This is due to there not being a COND_Physics condition, but there is a COND_SimulatedOrPhysics.
 	{
-		Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
+		Server->ReplicationSystem->SetReplicationConditionConnectionFilter(ServerObject->NetRefHandle, EReplicationCondition::RoleAutonomous, Client->ConnectionIdOnServer, true);
 	}
 
 	// Enable replicating physics
 	{
 		constexpr bool bIsPhysicsReplicationAllowed = true;
-		Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetHandle, EReplicationCondition::ReplicatePhysics, bIsPhysicsReplicationAllowed);
+		Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetRefHandle, EReplicationCondition::ReplicatePhysics, bIsPhysicsReplicationAllowed);
 	}
 
 	// Set value for SimulatedOrPhysics condition.
@@ -379,7 +379,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, InFlightChangesForDisabledCon
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 	
-	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	const UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Check that the server modified SimulatedOrPhysics has been replicated properly.
@@ -401,7 +401,7 @@ UE_NET_TEST_FIXTURE(FTestObjectDeltaSerialization, InFlightChangesForDisabledCon
 	// Disable replicating physics
 	{
 		constexpr bool bIsPhysicsReplicationAllowed = false;
-		Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetHandle, EReplicationCondition::ReplicatePhysics, bIsPhysicsReplicationAllowed);
+		Server->ReplicationSystem->SetReplicationCondition(ServerObject->NetRefHandle, EReplicationCondition::ReplicatePhysics, bIsPhysicsReplicationAllowed);
 	}
 
 	// Allow a new baseline to be created

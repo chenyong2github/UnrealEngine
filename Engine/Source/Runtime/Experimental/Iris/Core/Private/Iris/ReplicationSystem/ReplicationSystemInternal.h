@@ -38,7 +38,7 @@ class FReplicationSystemInternal
 {
 public:
 	explicit FReplicationSystemInternal(const FReplicationSystemInternalInitParams& Params)
-	: NetHandleManager(ReplicationProtocolManager, Params.ReplicationSystemId, Params.MaxReplicatedObjectCount)
+	: NetRefHandleManager(ReplicationProtocolManager, Params.ReplicationSystemId, Params.MaxReplicatedObjectCount)
 	, DirtyNetObjectTracker()
 	, StringTokenStore(NetTokenStore)
 	, Id(Params.ReplicationSystemId)
@@ -46,8 +46,8 @@ public:
 
 	FReplicationProtocolManager& GetReplicationProtocolManager() { return ReplicationProtocolManager; }
 
-	FNetHandleManager& GetNetHandleManager() { return NetHandleManager; }
-	const FNetHandleManager& GetNetHandleManager() const { return NetHandleManager; }
+	FNetRefHandleManager& GetNetRefHandleManager() { return NetRefHandleManager; }
+	const FNetRefHandleManager& GetNetRefHandleManager() const { return NetRefHandleManager; }
 
 	FDirtyNetObjectTracker& GetDirtyNetObjectTracker() { return DirtyNetObjectTracker; }
 
@@ -59,7 +59,7 @@ public:
 
 	void SetReplicationBridge(UReplicationBridge* InReplicationBridge) { ReplicationBridge = InReplicationBridge; }
 	UReplicationBridge* GetReplicationBridge() const { return ReplicationBridge; }
-	UReplicationBridge* GetReplicationBridge(FNetHandle Handle) const { return ReplicationBridge; }
+	UReplicationBridge* GetReplicationBridge(FNetRefHandle Handle) const { return ReplicationBridge; }
 
 	FChangeMaskCache& GetChangeMaskCache() { return ChangeMaskCache; }
 
@@ -95,7 +95,7 @@ public:
 
 private:
 	FReplicationProtocolManager ReplicationProtocolManager;
-	FNetHandleManager NetHandleManager;
+	FNetRefHandleManager NetRefHandleManager;
 	FDirtyNetObjectTracker DirtyNetObjectTracker;
 	FReplicationStateStorage ReplicationStateStorage;
 	FReplicationStateDescriptorRegistry ReplicationStateDescriptorRegistry;

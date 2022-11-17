@@ -18,11 +18,11 @@ FMockNetObjectAttachment::FMockNetObjectAttachment(const FNetBlobCreationInfo& C
 {
 }
 
-void FMockNetObjectAttachment::SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const
+void FMockNetObjectAttachment::SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const
 {
 	FNetBitStreamWriter* Writer = Context.GetBitStreamWriter();
 
-	SerializeSubObjectReference(Context, NetHandle);
+	SerializeSubObjectReference(Context, RefHandle);
 
 	Writer->WriteBits(UE_MAKEFOURCC('O', 'B', 'J', ' '), 32U);
 	Writer->WriteBits(BlobBitCount, 32U);
@@ -30,11 +30,11 @@ void FMockNetObjectAttachment::SerializeWithObject(FNetSerializationContext& Con
 	Writer->WriteBits(UE_MAKEFOURCC('C', 'N', 'R', 'Y'), 32U);
 }
 
-void FMockNetObjectAttachment::DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle)
+void FMockNetObjectAttachment::DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle)
 {
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
 	
-	DeserializeSubObjectReference(Context, NetHandle);
+	DeserializeSubObjectReference(Context, RefHandle);
 
 	const uint32 Header = Reader->ReadBits(32U);
 	if (Header != UE_MAKEFOURCC('O', 'B', 'J', ' '))

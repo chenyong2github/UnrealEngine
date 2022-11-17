@@ -34,55 +34,55 @@ UReplicatedTestObjectBridge::UReplicatedTestObjectBridge()
 {
 }
 
-const UE::Net::FReplicationInstanceProtocol* UReplicatedTestObjectBridge::GetReplicationInstanceProtocol(FNetHandle Handle) const
+const UE::Net::FReplicationInstanceProtocol* UReplicatedTestObjectBridge::GetReplicationInstanceProtocol(FNetRefHandle Handle) const
 {
-	const UE::Net::Private::FNetHandleManager* LocalNetHandleManager = &GetReplicationSystem()->GetReplicationSystemInternal()->GetNetHandleManager();
+	const UE::Net::Private::FNetRefHandleManager* LocalNetRefHandleManager = &GetReplicationSystem()->GetReplicationSystemInternal()->GetNetRefHandleManager();
 
-	if (uint32 InternalObjectIndex = LocalNetHandleManager->GetInternalIndex(Handle))
+	if (uint32 InternalObjectIndex = LocalNetRefHandleManager->GetInternalIndex(Handle))
 	{
-		return LocalNetHandleManager->GetReplicatedObjectDataNoCheck(InternalObjectIndex).InstanceProtocol;
+		return LocalNetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalObjectIndex).InstanceProtocol;
 	}
 
 	return nullptr;
 };
 
-UE::Net::FNetHandle UReplicatedTestObjectBridge::BeginReplication(UReplicatedTestObject* Instance)
+UE::Net::FNetRefHandle UReplicatedTestObjectBridge::BeginReplication(UReplicatedTestObject* Instance)
 {
-	// Create NetHandle for the registered fragments
-	Super::FCreateNetHandleParams Params = Super::DefaultCreateNetHandleParams;
+	// Create NetRefHandle for the registered fragments
+	Super::FCreateNetRefHandleParams Params = Super::DefaultCreateNetRefHandleParams;
 	Params.bCanReceive = true;
 
-	FNetHandle Handle = Super::BeginReplication(Instance, Params);
+	FNetRefHandle Handle = Super::BeginReplication(Instance, Params);
 
-	// This is optional but typically we want to cache at least the NetHandle in the game instance to avoid doing map lookups to find it
+	// This is optional but typically we want to cache at least the NetRefHandle in the game instance to avoid doing map lookups to find it
 	if (Handle.IsValid())
 	{
-		Instance->NetHandle = Handle;
+		Instance->NetRefHandle = Handle;
 	}
 
 	return Handle;
 }
 
-UE::Net::FNetHandle UReplicatedTestObjectBridge::BeginReplication(FNetHandle OwnerHandle, UReplicatedTestObject* Instance, FNetHandle InsertRelativeToSubObjectHandle, ESubObjectInsertionOrder InsertionOrder)
+UE::Net::FNetRefHandle UReplicatedTestObjectBridge::BeginReplication(FNetRefHandle OwnerHandle, UReplicatedTestObject* Instance, FNetRefHandle InsertRelativeToSubObjectHandle, ESubObjectInsertionOrder InsertionOrder)
 {
-	// Create NetHandle for the registered fragments
-	Super::FCreateNetHandleParams Params = Super::DefaultCreateNetHandleParams;
+	// Create NetRefHandle for the registered fragments
+	Super::FCreateNetRefHandleParams Params = Super::DefaultCreateNetRefHandleParams;
 	Params.bCanReceive = true;
 
-	// Create NetHandle for the registered fragments
-	FNetHandle Handle = Super::BeginReplication(OwnerHandle, Instance, InsertRelativeToSubObjectHandle, InsertionOrder, Params);
+	// Create NetRefHandle for the registered fragments
+	FNetRefHandle Handle = Super::BeginReplication(OwnerHandle, Instance, InsertRelativeToSubObjectHandle, InsertionOrder, Params);
 
 	if (Handle.IsValid())
 	{
-		// This is optional but typically we want to cache at least the NetHandle in the game instance to avoid doing map lookups to find it
-		Instance->NetHandle = Handle;
+		// This is optional but typically we want to cache at least the NetRefHandle in the game instance to avoid doing map lookups to find it
+		Instance->NetRefHandle = Handle;
 	}
 	
 	return Handle;
 }
 
 
-bool UReplicatedTestObjectBridge::WriteCreationHeader(UE::Net::FNetSerializationContext& Context, FNetHandle Handle)
+bool UReplicatedTestObjectBridge::WriteCreationHeader(UE::Net::FNetSerializationContext& Context, FNetRefHandle Handle)
 {
 	UE::Net::FNetBitStreamWriter& Writer = *Context.GetBitStreamWriter();
 
@@ -135,7 +135,7 @@ UObjectReplicationBridge::FCreationHeader* UReplicatedTestObjectBridge::ReadCrea
 	return Header.Release();
 }
 
-UObject* UReplicatedTestObjectBridge::BeginInstantiateFromRemote(FNetHandle SubObjectOwnerHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* InHeader)
+UObject* UReplicatedTestObjectBridge::BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* InHeader)
 {
 	const FReplicationTestObjectCreationHeader* Header = static_cast<const FReplicationTestObjectCreationHeader*>(InHeader);
 
@@ -166,11 +166,11 @@ UObject* UReplicatedTestObjectBridge::BeginInstantiateFromRemote(FNetHandle SubO
 	return CreatedObject;
 }
 
-void UReplicatedTestObjectBridge::EndInstantiateFromRemote(FNetHandle Handle)
+void UReplicatedTestObjectBridge::EndInstantiateFromRemote(FNetRefHandle Handle)
 {
 	UReplicatedTestObject* Instance = CastChecked<UReplicatedTestObject>(GetReplicatedObject(Handle));
 
-	Instance->NetHandle = Handle;
+	Instance->NetRefHandle = Handle;
 }
 
 void UReplicatedTestObjectBridge::DestroyInstanceFromRemote(UObject* Instance, bool bTearOff)
@@ -197,9 +197,9 @@ void UReplicatedTestObjectBridge::SetPollFramePeriod(UReplicatedTestObject* Inst
 	{
 		return;
 	}
-	const FNetHandleManager* LocalNetHandleManager = &GetReplicationSystem()->GetReplicationSystemInternal()->GetNetHandleManager();
-	const uint32 InternalObjectIndex = LocalNetHandleManager->GetInternalIndex(Instance->NetHandle);
-	if (InternalObjectIndex != FNetHandleManager::InvalidInternalIndex)
+	const FNetRefHandleManager* LocalNetRefHandleManager = &GetReplicationSystem()->GetReplicationSystemInternal()->GetNetRefHandleManager();
+	const uint32 InternalObjectIndex = LocalNetRefHandleManager->GetInternalIndex(Instance->NetRefHandle);
+	if (InternalObjectIndex != FNetRefHandleManager::InvalidInternalIndex)
 	{
 		UObjectReplicationBridge::SetPollFramePeriod(InternalObjectIndex, FramePeriod);
 	}
@@ -298,7 +298,7 @@ UTestReplicatedIrisObject::UTestReplicatedIrisObject()
 
 void UTestReplicatedIrisObject::AddComponents(const UTestReplicatedIrisObject::FComponents& InComponents)
 {
-	check(!NetHandle.IsValid())
+	check(!NetRefHandle.IsValid())
 	for (uint32 It = 0; It < InComponents.PropertyComponentCount; ++It)
 	{
 		Components.Emplace(NewObject<UTestReplicatedIrisPropertyComponent>());
@@ -327,7 +327,7 @@ void UTestReplicatedIrisObject::AddComponents(const UTestReplicatedIrisObject::F
 
 void UTestReplicatedIrisObject::AddComponents(uint32 PropertyComponentCount, uint32 IrisComponentCount)
 {
-	check(!NetHandle.IsValid())
+	check(!NetRefHandle.IsValid())
 	// Setup a few components
 	for (uint32 It = 0; It < PropertyComponentCount; ++It)
 	{
@@ -343,7 +343,7 @@ void UTestReplicatedIrisObject::AddComponents(uint32 PropertyComponentCount, uin
 
 void UTestReplicatedIrisObject::AddDynamicStateComponents(uint32 DynamicStateComponentCount)
 {
-	check(!NetHandle.IsValid())
+	check(!NetRefHandle.IsValid())
 	for (uint32 It = 0; It < DynamicStateComponentCount; ++It)
 	{
 		DynamicStateComponents.Emplace(NewObject<UTestReplicatedIrisDynamicStatePropertyComponent>());

@@ -55,7 +55,7 @@ FDeltaCompressionBaselineManager::FDeltaCompressionBaselineManager()
 {
 	// If alignment of storage type for FPerObjectInfo is too small then it's totally unsafe to cast such pointers to FPerObjectInfo.
 	static_assert(InvalidObjectInfoIndex == 0, "InvalidObjectInfoIndex needs to be zero in order for current code to function properly.");
-	static_assert(InvalidInternalIndex == FNetHandleManager::InvalidInternalIndex, "InvalidInternalIndex differs from FNetHandleManager::InvalidInternalIndex");
+	static_assert(InvalidInternalIndex == FNetRefHandleManager::InvalidInternalIndex, "InvalidInternalIndex differs from FNetRefHandleManager::InvalidInternalIndex");
 }
 
 FDeltaCompressionBaselineManager::~FDeltaCompressionBaselineManager()
@@ -66,7 +66,7 @@ FDeltaCompressionBaselineManager::~FDeltaCompressionBaselineManager()
 void FDeltaCompressionBaselineManager::Init(FDeltaCompressionBaselineManagerInitParams& InitParams)
 {
 	Connections = InitParams.Connections;
-	NetHandleManager = InitParams.NetHandleManager;
+	NetRefHandleManager = InitParams.NetRefHandleManager;
 	BaselineInvalidationTracker = InitParams.BaselineInvalidationTracker;
 	ReplicationSystem = InitParams.ReplicationSystem;
 	MaxConnectionCount = InitParams.Connections->GetMaxConnectionCount();
@@ -135,12 +135,12 @@ void FDeltaCompressionBaselineManager::RemoveConnection(uint32 ConnectionId)
 	ReleaseBaselinesForConnection(ConnectionId);
 }
 
-ENetObjectDeltaCompressionStatus FDeltaCompressionBaselineManager::GetDeltaCompressionStatus(FInternalNetHandle Index) const
+ENetObjectDeltaCompressionStatus FDeltaCompressionBaselineManager::GetDeltaCompressionStatus(FInternalNetRefIndex Index) const
 {
 	return DeltaCompressionEnabledObjects.GetBit(Index) ? ENetObjectDeltaCompressionStatus::Allow : ENetObjectDeltaCompressionStatus::Disallow;
 }
 
-void FDeltaCompressionBaselineManager::SetDeltaCompressionStatus(FInternalNetHandle ObjectIndex, ENetObjectDeltaCompressionStatus Status)
+void FDeltaCompressionBaselineManager::SetDeltaCompressionStatus(FInternalNetRefIndex ObjectIndex, ENetObjectDeltaCompressionStatus Status)
 {
 	// If DC is disabled or the object doesn't support it then mark the object as not DC enabled, regardless of the user's wishes.
 	bool bEnableDCForObject = (Status == ENetObjectDeltaCompressionStatus::Allow ? true : false);
@@ -158,8 +158,8 @@ void FDeltaCompressionBaselineManager::UpdateScope()
 	using SignedWordType = TSignedIntType<sizeof(WordType)>::Type;
 	constexpr SIZE_T BitsPerWord = sizeof(WordType)*8U;
 
-	const FNetBitArray& ObjectsInScope = NetHandleManager->GetScopableInternalIndices();
-	const FNetBitArray& PrevObjectsInScope = NetHandleManager->GetPrevFrameScopableInternalIndices();
+	const FNetBitArray& ObjectsInScope = NetRefHandleManager->GetScopableInternalIndices();
+	const FNetBitArray& PrevObjectsInScope = NetRefHandleManager->GetPrevFrameScopableInternalIndices();
 
 	const WordType* ObjectsInScopeStorage = ObjectsInScope.GetData();
 	const WordType* PrevObjectsInScopeStorage = PrevObjectsInScope.GetData();
@@ -288,7 +288,7 @@ FDeltaCompressionBaselineManager::FPerObjectInfo* FDeltaCompressionBaselineManag
 		ObjectInfo->ObjectIndex = ObjectIndex;
 		
 		// Allocate storage for changemasks for all connections
-		const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex);
+		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex);
 		const FReplicationProtocol* Protocol = ObjectData.Protocol;
 		const uint32 ChangeMaskStride = Align(Protocol->ChangeMaskBitCount, sizeof(ChangeMaskStorageType)*8U)/(sizeof(ChangeMaskStorageType)*8U);
 		if (ChangeMaskStride > 0)
@@ -588,7 +588,7 @@ void FDeltaCompressionBaselineManager::DestructBaselineSharingContext(FBaselineS
 
 bool FDeltaCompressionBaselineManager::DoesObjectSupportDeltaCompression(uint32 ObjectIndex) const
 {
-	const FNetHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex);
+	const FNetRefHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex);
 	const FReplicationProtocol* Protocol = ReplicatedObjectData.Protocol;
 	return EnumHasAnyFlags(Protocol->ProtocolTraits, EReplicationProtocolTraits::SupportsDeltaCompression);
 }

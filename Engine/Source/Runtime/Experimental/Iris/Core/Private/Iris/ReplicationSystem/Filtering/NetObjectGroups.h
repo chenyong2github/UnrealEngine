@@ -13,7 +13,7 @@ namespace UE::Net
 	typedef uint16 FNetObjectGroupHandle;
 	namespace Private
 	{
-		typedef uint32 FInternalNetHandle;
+		typedef uint32 FInternalNetRefIndex;
 	}
 }
 
@@ -63,13 +63,13 @@ public:
 
 	inline bool IsValidGroup(FNetObjectGroupHandle GroupHandle) const { return GroupHandle && Groups.IsValidIndex(GroupHandle); }
 
-	bool Contains(FNetObjectGroupHandle GroupHandle, FInternalNetHandle InternalIndex) const;
-	void AddToGroup(FNetObjectGroupHandle GroupHandle, FInternalNetHandle InternalIndex);
-	void RemoveFromGroup(FNetObjectGroupHandle GroupHandle, FInternalNetHandle InternalIndex);
+	bool Contains(FNetObjectGroupHandle GroupHandle, FInternalNetRefIndex InternalIndex) const;
+	void AddToGroup(FNetObjectGroupHandle GroupHandle, FInternalNetRefIndex InternalIndex);
+	void RemoveFromGroup(FNetObjectGroupHandle GroupHandle, FInternalNetRefIndex InternalIndex);
 
 	// Returns how many groups the given handle is a member of
-	uint32 GetNumGroupMemberships(FInternalNetHandle InternalIndex) const;
-	const FNetObjectGroupHandle* GetGroupMemberships(FInternalNetHandle InternalIndex, uint32& GroupCount) const;
+	uint32 GetNumGroupMemberships(FInternalNetRefIndex InternalIndex) const;
+	const FNetObjectGroupHandle* GetGroupMemberships(FInternalNetRefIndex InternalIndex, uint32& GroupCount) const;
 
 	// Create and manage named groups, only groups created as a named group will be findable by name
 	FNetObjectGroupHandle CreateNamedGroup(FName GroupName);

@@ -23,8 +23,8 @@ public:
 
 private:
 	virtual TArrayView<const FNetObjectReference> GetExports() const override final;
-	virtual void SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const override final;
-	virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) override final;
+	virtual void SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const override final;
+	virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) override final;
 
 	virtual void Serialize(FNetSerializationContext& Context) const override final;
 	virtual void Deserialize(FNetSerializationContext& Context) override final;

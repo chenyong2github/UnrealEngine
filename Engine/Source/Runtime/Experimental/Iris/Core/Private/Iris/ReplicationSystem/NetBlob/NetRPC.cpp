@@ -50,7 +50,7 @@ TArrayView<const FNetObjectReference> FNetRPC::GetExports() const
 	return ReferencesToExport.IsValid() ? MakeArrayView(*ReferencesToExport) : MakeArrayView<const FNetObjectReference>(nullptr, 0);
 }
 
-void FNetRPC::SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const
+void FNetRPC::SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const
 {
 	UE_NET_TRACE_DYNAMIC_NAME_SCOPE(BlobDescriptor->DebugName, *Context.GetBitStreamWriter(), Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
 
@@ -69,7 +69,7 @@ void FNetRPC::SerializeWithObject(FNetSerializationContext& Context, FNetHandle 
 		return;
 	}
 
-	InternalSerializeSubObjectReference(Context, NetHandle);
+	InternalSerializeSubObjectReference(Context, RefHandle);
 	if (Context.HasError())
 	{
 		return;
@@ -90,7 +90,7 @@ void FNetRPC::SerializeWithObject(FNetSerializationContext& Context, FNetHandle 
 	}
 }
 
-void FNetRPC::DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle)
+void FNetRPC::DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle)
 {
 	// We don't know the function name until much later.
 	UE_NET_TRACE_NAMED_SCOPE(TraceScope, RPC, *Context.GetBitStreamReader(), Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
@@ -110,7 +110,7 @@ void FNetRPC::DeserializeWithObject(FNetSerializationContext& Context, FNetHandl
 	}
 
 	// $IRIS TODO Fix. May need to send subobject information
-	InternalDeserializeSubObjectReference(Context, NetHandle);
+	InternalDeserializeSubObjectReference(Context, RefHandle);
 	if (Context.HasErrorOrOverflow())
 	{
 		return;
@@ -289,16 +289,16 @@ void FNetRPC::InternalDeserializeObjectReference(FNetSerializationContext& Conte
 	DeserializeObjectReference(Context);
 }
 
-void FNetRPC::InternalSerializeSubObjectReference(FNetSerializationContext& Context, FNetHandle NetHandle) const
+void FNetRPC::InternalSerializeSubObjectReference(FNetSerializationContext& Context, FNetRefHandle RefHandle) const
 {
 	UE_NET_TRACE_SCOPE(TargetObject, *(Context.GetBitStreamWriter()), Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
-	SerializeSubObjectReference(Context, NetHandle);
+	SerializeSubObjectReference(Context, RefHandle);
 }
 
-void FNetRPC::InternalDeserializeSubObjectReference(FNetSerializationContext& Context, FNetHandle NetHandle)
+void FNetRPC::InternalDeserializeSubObjectReference(FNetSerializationContext& Context, FNetRefHandle RefHandle)
 {
 	UE_NET_TRACE_SCOPE(TargetObject, *(Context.GetBitStreamReader()), Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
-	DeserializeSubObjectReference(Context, NetHandle);
+	DeserializeSubObjectReference(Context, RefHandle);
 }
 
 void FNetRPC::InternalSerializeBlob(FNetSerializationContext& Context) const
@@ -315,7 +315,7 @@ void FNetRPC::InternalDeserializeBlob(FNetSerializationContext& Context)
 
 bool FNetRPC::ResolveFunctionAndObject(FNetSerializationContext& Context)
 {
-	// At this point we need a valid NetHandle and FunctionLocator
+	// At this point we need a valid handle and FunctionLocator
 	if (!NetObjectReference.GetRefHandle().IsValid())
 	{
 		// This can occur if sending side had queued up rpcs to object being invalidated
@@ -524,7 +524,7 @@ void FNetRPC::CallFunction(FNetSerializationContext& Context)
 
 bool FNetRPC::IsServerAllowedToExecuteRPC(FNetSerializationContext& Context) const
 {
-	const FNetHandle Handle = NetObjectReference.GetRefHandle();
+	const FNetRefHandle Handle = NetObjectReference.GetRefHandle();
 	const UReplicationSystem* ReplicationSystem = Context.GetInternalContext()->ReplicationSystem;
 
 	const uint32 OwningConnectionId = ReplicationSystem->GetOwningNetConnection(Handle);

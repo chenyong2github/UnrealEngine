@@ -18,8 +18,8 @@ namespace UE::Net::Private
 {
 	struct FChangeMaskCache;
 	class FDeltaCompressionBaselineInvalidationTracker;
-	typedef uint32 FInternalNetHandle;
-	class FNetHandleManager;
+	typedef uint32 FInternalNetRefIndex;
+	class FNetRefHandleManager;
 	class FReplicationConnections;
 }
 
@@ -33,7 +33,7 @@ struct FDeltaCompressionBaselineManagerInitParams
 {
 	const FDeltaCompressionBaselineInvalidationTracker* BaselineInvalidationTracker = nullptr;
 	FReplicationConnections* Connections = nullptr;
-	const FNetHandleManager* NetHandleManager = nullptr;
+	const FNetRefHandleManager* NetRefHandleManager = nullptr;
 	FReplicationStateStorage* ReplicationStateStorage = nullptr;
 	UReplicationSystem* ReplicationSystem = nullptr;
 	uint32 MaxObjectCount = 0;
@@ -67,8 +67,8 @@ public:
 	void AddConnection(uint32 ConnectionId);
 	void RemoveConnection(uint32 ConnectionId);
 
-	void SetDeltaCompressionStatus(FInternalNetHandle Index, ENetObjectDeltaCompressionStatus Status);
-	ENetObjectDeltaCompressionStatus GetDeltaCompressionStatus(FInternalNetHandle Index) const;
+	void SetDeltaCompressionStatus(FInternalNetRefIndex Index, ENetObjectDeltaCompressionStatus Status);
+	ENetObjectDeltaCompressionStatus GetDeltaCompressionStatus(FInternalNetRefIndex Index) const;
 
 	uint32 GetMaxDeltaCompressedObjectCount() const;
 
@@ -103,7 +103,7 @@ private:
 		InvalidObjectInfoIndex = 0,
 		InvalidBaselineStateInfoIndex = 0,
 
-		// Must match NetHandleManager::InvalidInternalIndex
+		// Must match NetRefHandleManager::InvalidInternalIndex
 		InvalidInternalIndex = 0,
 
 		ObjectInfoGrowCount = 128,
@@ -227,7 +227,7 @@ private:
 	FGlobalChangeMaskAllocator ChangeMaskAllocator;
 
 	FReplicationConnections* Connections = nullptr;
-	const FNetHandleManager* NetHandleManager = nullptr;
+	const FNetRefHandleManager* NetRefHandleManager = nullptr;
 	UReplicationSystem* ReplicationSystem = nullptr;
 	const FDeltaCompressionBaselineInvalidationTracker* BaselineInvalidationTracker = nullptr;
 	uint32 MaxConnectionCount = 0;

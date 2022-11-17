@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "HAL/Platform.h"
 #include "UObject/ObjectMacros.h"
 #include "ReplicationBridge.generated.h"
 

@@ -36,24 +36,24 @@ namespace IrisDebugHelperInternal
 	FAutoConsoleVariableRef NetRPCSetDebugRPCName(
 		TEXT("Net.Iris.DebugRPCName"),
 		GIrisDebugRPCName,
-		TEXT("Set the Name of an RPC to break on."),
+		TEXT("Set the name of an RPC to break on."),
 		ECVF_Default);
 
-	static FNetHandle GIrisDebugNetHandle;
-	static FAutoConsoleCommand NetIrisDebugNetHandle(
-		TEXT("Net.Iris.DebugNetHandle"), 
-		TEXT("Specify an handle index that we will break on (or none to turn off)."), 
+	static FNetRefHandle GIrisDebugNetRefHandle;
+	static FAutoConsoleCommand NetIrisDebugNetRefHandle(
+		TEXT("Net.Iris.DebugNetRefHandle"), 
+		TEXT("Specify a NetRefHandle ID that we will break on (or none to turn off)."), 
 		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 		{
 			if (Args.Num() > 0)
 			{
 				uint32 NetId = 0;
 				LexFromString(NetId, *Args[0]);
-				GIrisDebugNetHandle = Private::FNetHandleManager::MakeNetHandleFromId(NetId);
+				GIrisDebugNetRefHandle = Private::FNetRefHandleManager::MakeNetRefHandleFromId(NetId);
 			}
 			else
 			{
-				GIrisDebugNetHandle = FNetHandle();
+				GIrisDebugNetRefHandle = FNetRefHandle();
 			}
 		}));
 }; // namespace IrisDebugHelperInternal
@@ -69,9 +69,9 @@ bool BreakOnObjectName(UObject* Object)
 	return false;
 }
 
-bool BreakOnNetHandle(FNetHandle NetHandle)
+bool BreakOnNetRefHandle(FNetRefHandle NetRefHandle)
 {
-	if (IrisDebugHelperInternal::GIrisDebugNetHandle.IsValid() && IrisDebugHelperInternal::GIrisDebugNetHandle == NetHandle)
+	if (IrisDebugHelperInternal::GIrisDebugNetRefHandle.IsValid() && IrisDebugHelperInternal::GIrisDebugNetRefHandle == NetRefHandle)
 	{
 		UE_DEBUG_BREAK();
 		return true;
@@ -103,9 +103,9 @@ void SetIrisDebugObjectName(const ANSICHAR* NameBuffer)
 	}
 }
 
-void SetIrisDebugNetHandle(uint32 NetHandleId)
+void SetIrisDebugNetRefHandle(uint32 NetRefHandleId)
 {
-	IrisDebugHelperInternal::GIrisDebugNetHandle = Private::FNetHandleManager::MakeNetHandleFromId(NetHandleId);
+	IrisDebugHelperInternal::GIrisDebugNetRefHandle = Private::FNetRefHandleManager::MakeNetRefHandleFromId(NetRefHandleId);
 }
 
 void SetIrisDebugRPCName(const ANSICHAR* NameBuffer)
@@ -137,11 +137,11 @@ uint64 Init()
 	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(DebugOutputNetObjectProtocolReferences);
 	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(DebugNetObject);
 	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(DebugNetObjectById);
-	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(DebugNetHandle);
-	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(DebugNetHandleById);
+	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(DebugNetRefHandle);
+	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(DebugNetRefHandleById);
 	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(DebugNetObjectProtocolReferencesToString);
 	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(SetIrisDebugObjectName);
-	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(SetIrisDebugNetHandle);
+	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(SetIrisDebugNetRefHandle);
 	UE_NET_FORCE_REFERENCE_DEBUGFUNCTION(SetIrisDebugRPCName);
 	
 	return FunctionReferenceAccumulator;
@@ -149,33 +149,33 @@ uint64 Init()
 
 #undef UE_NET_FORCE_REFERENCE_DEBUGFUNCTION
 
-void NetObjectStateToString(FStringBuilderBase& StringBuilder, FNetHandle NetHandle)
+void NetObjectStateToString(FStringBuilderBase& StringBuilder, FNetRefHandle RefHandle)
 {
 	using namespace UE::Net::Private;
 
-	if (!NetHandle.IsValid())
+	if (!RefHandle.IsValid())
 	{
 		return;
 	}
 
-	UReplicationSystem* ReplicationSystem = GetReplicationSystem(NetHandle.GetReplicationSystemId());
+	UReplicationSystem* ReplicationSystem = GetReplicationSystem(RefHandle.GetReplicationSystemId());
 	if (!ReplicationSystem)
 	{
 		return;
 	}
 
 	FReplicationSystemInternal* ReplicationSystemInternal = ReplicationSystem->GetReplicationSystemInternal();
-	const FNetHandleManager& NetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+	const FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 
-	const uint32 NetObjectInternalIndex = NetHandleManager.GetInternalIndex(NetHandle);
-	if (!NetObjectInternalIndex)
+	const FInternalNetRefIndex InternalNetRefIndex = NetRefHandleManager.GetInternalIndex(RefHandle);
+	if (!InternalNetRefIndex)
 	{
 		return;
 	}
 
 	const bool bIsServer = ReplicationSystem->IsServer();
-	const FNetHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetHandleManager.GetReplicatedObjectDataNoCheck(NetObjectInternalIndex);	
-	const uint8* InternalStateBuffer = bIsServer ? NetHandleManager.GetReplicatedObjectStateBufferNoCheck(NetObjectInternalIndex) : ReplicatedObjectData.ReceiveStateBuffer;
+	const FNetRefHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalNetRefIndex);	
+	const uint8* InternalStateBuffer = bIsServer ? NetRefHandleManager.GetReplicatedObjectStateBufferNoCheck(InternalNetRefIndex) : ReplicatedObjectData.ReceiveStateBuffer;
 	if (ReplicatedObjectData.InstanceProtocol == nullptr || InternalStateBuffer == nullptr)
 	{
 		return;
@@ -201,30 +201,30 @@ void NetObjectStateToString(FStringBuilderBase& StringBuilder, FNetHandle NetHan
 	NetSerializationContext.SetInternalContext(&InternalContext);
 	NetSerializationContext.SetLocalConnectionId(InternalContextInitParams.ObjectResolveContext.ConnectionId);
 
-	StringBuilder << TEXT("State for ") << NetHandle;
+	StringBuilder << TEXT("State for ") << RefHandle;
 	StringBuilder.Appendf(TEXT(" of type %s\n"), Protocol->DebugName->Name);
 
 	FReplicationInstanceOperations::OutputInternalStateToString(NetSerializationContext, StringBuilder, nullptr, InternalStateBuffer, ReplicatedObjectData.InstanceProtocol, ReplicatedObjectData.Protocol);
 }
 
-void DebugOutputNetObjectState(uint32 NetHandleId, uint32 ReplicationSystemId)
+void DebugOutputNetObjectState(uint32 NetRefHandleId, uint32 ReplicationSystemId)
 {
-	const FNetHandle NetHandle = Private::FNetHandleManager::MakeNetHandle(NetHandleId, ReplicationSystemId);
+	const FNetRefHandle RefHandle = Private::FNetRefHandleManager::MakeNetRefHandle(NetRefHandleId, ReplicationSystemId);
 
 	TStringBuilder<4096> StringBuilder;
 
-	NetObjectStateToString(StringBuilder, NetHandle);
+	NetObjectStateToString(StringBuilder, RefHandle);
 
 	FPlatformMisc::LowLevelOutputDebugString(StringBuilder.ToString());
 }
 
-const TCHAR* DebugNetObjectStateToString(uint32 NetHandleId, uint32 ReplicationSystemId)
+const TCHAR* DebugNetObjectStateToString(uint32 NetRefHandleId, uint32 ReplicationSystemId)
 {
 	static TStringBuilder<4096> StringBuilder;
 
 	StringBuilder.Reset();
-	const FNetHandle NetHandle = Private::FNetHandleManager::MakeNetHandle(NetHandleId, ReplicationSystemId);
-	NetObjectStateToString(StringBuilder, NetHandle);
+	const FNetRefHandle RefHandle = Private::FNetRefHandleManager::MakeNetRefHandle(NetRefHandleId, ReplicationSystemId);
+	NetObjectStateToString(StringBuilder, RefHandle);
 
 	return StringBuilder.ToString();
 }
@@ -242,15 +242,15 @@ FNetReplicatedObjectDebugInfo DebugNetObject(UObject* Instance)
 		{
 			if (const UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
 			{
-				FNetHandle Handle = Bridge->GetReplicatedHandle(Instance);
+				FNetRefHandle Handle = Bridge->GetReplicatedRefHandle(Instance);
 				if (Handle.IsValid())
 				{
-					const FNetHandleManager& NetHandleManager = ReplicationSystem->GetReplicationSystemInternal()->GetNetHandleManager();
-					Info.InternalNetHandleIndex = NetHandleManager.GetInternalIndex(Handle);
+					const FNetRefHandleManager& NetRefHandleManager = ReplicationSystem->GetReplicationSystemInternal()->GetNetRefHandleManager();
+					Info.InternalNetRefIndex = NetRefHandleManager.GetInternalIndex(Handle);
 
-					const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager.GetReplicatedObjectDataNoCheck(Info.InternalNetHandleIndex);				
+					const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager.GetReplicatedObjectDataNoCheck(Info.InternalNetRefIndex);				
 
-					Info.Handle = &ObjectData.Handle;
+					Info.RefHandle = &ObjectData.RefHandle;
 					Info.Protocol = ObjectData.Protocol;
 					Info.InstanceProtocol = ObjectData.InstanceProtocol;
 					Info.ReplicationSystem = ReplicationSystem;
@@ -274,15 +274,15 @@ FNetReplicatedObjectDebugInfo DebugNetObjectById(UObject* Instance, uint32 Repli
 	{
 		if (const UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
 		{
-			FNetHandle Handle = Bridge->GetReplicatedHandle(Instance);
+			FNetRefHandle Handle = Bridge->GetReplicatedRefHandle(Instance);
 			if (Handle.IsValid())
 			{
-				const FNetHandleManager& NetHandleManager = ReplicationSystem->GetReplicationSystemInternal()->GetNetHandleManager();
-				Info.InternalNetHandleIndex = NetHandleManager.GetInternalIndex(Handle);
+				const FNetRefHandleManager& NetRefHandleManager = ReplicationSystem->GetReplicationSystemInternal()->GetNetRefHandleManager();
+				Info.InternalNetRefIndex = NetRefHandleManager.GetInternalIndex(Handle);
 
-				const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager.GetReplicatedObjectDataNoCheck(Info.InternalNetHandleIndex);
+				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager.GetReplicatedObjectDataNoCheck(Info.InternalNetRefIndex);
 
-				Info.Handle = &ObjectData.Handle;
+				Info.RefHandle = &ObjectData.RefHandle;
 				Info.Protocol = ObjectData.Protocol;
 				Info.InstanceProtocol = ObjectData.InstanceProtocol;
 				Info.ReplicationSystem = ReplicationSystem;
@@ -295,12 +295,12 @@ FNetReplicatedObjectDebugInfo DebugNetObjectById(UObject* Instance, uint32 Repli
 	return Info;
 }
 
-FNetReplicatedObjectDebugInfo DebugNetHandle(FNetHandle Handle)
+FNetReplicatedObjectDebugInfo DebugNetRefHandle(FNetRefHandle Handle)
 {
-	return DebugNetHandleById(Handle.GetId(), Handle.GetReplicationSystemId());
+	return DebugNetRefHandleById(Handle.GetId(), Handle.GetReplicationSystemId());
 }
 
-FNetReplicatedObjectDebugInfo DebugNetHandleById(uint32 NetHandleId, uint32 ReplicationSystemId)
+FNetReplicatedObjectDebugInfo DebugNetRefHandleById(uint32 NetRefHandleId, uint32 ReplicationSystemId)
 {
 	using namespace UE::Net::Private;
 	FNetReplicatedObjectDebugInfo Info = {};
@@ -310,16 +310,16 @@ FNetReplicatedObjectDebugInfo DebugNetHandleById(uint32 NetHandleId, uint32 Repl
 		const UReplicationSystem* ReplicationSystem = GetReplicationSystemForDebug(ReplicationSystemId);
 		if (ReplicationSystem)
 		{
-			const FNetHandleManager& NetHandleManager = ReplicationSystem->GetReplicationSystemInternal()->GetNetHandleManager();
-			FNetHandle IncompleteHandle = FNetHandleManager::MakeNetHandle(NetHandleId, ReplicationSystemId);
-			const uint32 InternalNetHandleIndex = Info.InternalNetHandleIndex = NetHandleManager.GetInternalIndex(IncompleteHandle);
-			if (InternalNetHandleIndex != FNetHandleManager::InvalidInternalIndex)
+			const FNetRefHandleManager& NetRefHandleManager = ReplicationSystem->GetReplicationSystemInternal()->GetNetRefHandleManager();
+			FNetRefHandle IncompleteHandle = FNetRefHandleManager::MakeNetRefHandle(NetRefHandleId, ReplicationSystemId);
+			const uint32 InternalNetRefIndex = Info.InternalNetRefIndex = NetRefHandleManager.GetInternalIndex(IncompleteHandle);
+			if (InternalNetRefIndex != FNetRefHandleManager::InvalidInternalIndex)
 			{
-				const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager.GetReplicatedObjectDataNoCheck(InternalNetHandleIndex);
-				if (ObjectData.Handle == IncompleteHandle)
+				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalNetRefIndex);
+				if (ObjectData.RefHandle == IncompleteHandle)
 				{
-					Info.Handle = &ObjectData.Handle;
-					Info.InternalNetHandleIndex = InternalNetHandleIndex;
+					Info.RefHandle = &ObjectData.RefHandle;
+					Info.InternalNetRefIndex = InternalNetRefIndex;
 					Info.Protocol = ObjectData.Protocol;
 					Info.InstanceProtocol = ObjectData.InstanceProtocol;
 					Info.ReplicationSystem = ReplicationSystem;
@@ -344,25 +344,25 @@ void NetObjectProtocolReferencesToString(FStringBuilderBase& StringBuilder, uint
 	}
 
 	FReplicationSystemInternal* ReplicationSystemInternal = ReplicationSystem->GetReplicationSystemInternal();
-	const FNetHandleManager& NetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+	const FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 	const FReplicationProtocolManager& ProtocolManager = ReplicationSystemInternal->GetReplicationProtocolManager();
 
 	// As there might be multiple protocols sharing the same identifier
-	ProtocolManager.ForEachProtocol(ProtocolId, [&StringBuilder, &NetHandleManager](const FReplicationProtocol* Protocol, const UObject* ArchetypeOrCDOUsedAsKey)
+	ProtocolManager.ForEachProtocol(ProtocolId, [&StringBuilder, &NetRefHandleManager](const FReplicationProtocol* Protocol, const UObject* ArchetypeOrCDOUsedAsKey)
 		{
 			StringBuilder << TEXT("Protocol: ") << ToCStr(Protocol->DebugName);
 			StringBuilder.Appendf(TEXT("Id: 0x%" UINT64_x_FMT " Created From : 0x%p"), Protocol->ProtocolIdentifier, ArchetypeOrCDOUsedAsKey) << TEXT(" Used by : \n");
 
-			auto FindMatchingProtocol = [&StringBuilder, &Protocol, &NetHandleManager](uint32 InternalObjectIndex)
+			auto FindMatchingProtocol = [&StringBuilder, &Protocol, &NetRefHandleManager](uint32 InternalObjectIndex)
 			{
-				const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 				if (ObjectData.Protocol == Protocol)
 				{
-					StringBuilder << ObjectData.Handle << TEXT(" ( InternalIndex: ") << InternalObjectIndex << TEXT(", )\n");
+					StringBuilder << ObjectData.RefHandle << TEXT(" ( InternalIndex: ") << InternalObjectIndex << TEXT(", )\n");
 				}
 			};
 			
-			NetHandleManager.GetAssignedInternalIndices().ForAllSetBits(FindMatchingProtocol);
+			NetRefHandleManager.GetAssignedInternalIndices().ForAllSetBits(FindMatchingProtocol);
 		}
 	);
 }

@@ -53,6 +53,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Engine/AutoDestroySubsystem.h"
 #if UE_WITH_IRIS
+#include "Iris/ReplicationSystem/ObjectReplicationBridge.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
 #include "Iris/ReplicationSystem/Conditionals/ReplicationCondition.h"
 #include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
@@ -3985,12 +3986,15 @@ void AActor::SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllow
 			// Update autonomous role condition
 			if (UReplicationSystem* ReplicationSystem = UE::Net::FReplicationSystemUtil::GetReplicationSystem(GetNetOwner()))
 			{
-				const UE::Net::FNetHandle NetHandle = UE::Net::FReplicationSystemUtil::GetNetHandle(this);
-				if (NetHandle.IsValid())
+				if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
 				{
-					const uint32 OwningNetConnectionId = ReplicationSystem->GetOwningNetConnection(NetHandle);
-					const bool bEnableAutonomousCondition = RemoteRole == ROLE_AutonomousProxy;
-					ReplicationSystem->SetReplicationConditionConnectionFilter(NetHandle, UE::Net::EReplicationCondition::RoleAutonomous, OwningNetConnectionId, bEnableAutonomousCondition);
+					const UE::Net::FNetRefHandle RefHandle = Bridge->GetReplicatedRefHandle(this);
+					if (RefHandle.IsValid())
+					{
+						const uint32 OwningNetConnectionId = ReplicationSystem->GetOwningNetConnection(RefHandle);
+						const bool bEnableAutonomousCondition = RemoteRole == ROLE_AutonomousProxy;
+						ReplicationSystem->SetReplicationConditionConnectionFilter(RefHandle, UE::Net::EReplicationCondition::RoleAutonomous, OwningNetConnectionId, bEnableAutonomousCondition);
+					}
 				}
 			}
 #endif // UE_WITH_IRIS

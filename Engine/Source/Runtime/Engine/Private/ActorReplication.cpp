@@ -893,12 +893,8 @@ void AActor::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext&
 
 void AActor::BeginReplication(const FActorBeginReplicationParams& Params)
 {
-	// If we do not have a handle we create one
-	UE::Net::FNetHandle ActorHandle = UE::Net::FReplicationSystemUtil::BeginReplication(this, Params);
-	if (ActorHandle.IsValid())
-	{
-		UpdateOwningNetConnection();
-	}
+	UE::Net::FReplicationSystemUtil::BeginReplication(this, Params);
+	UpdateOwningNetConnection();
 }
 
 void AActor::BeginReplication()
@@ -918,7 +914,8 @@ void AActor::UpdateOwningNetConnection() const
 	using namespace UE::Net;
 
 	UReplicationSystem* ReplicationSystem = FReplicationSystemUtil::GetReplicationSystem(GetNetOwner());
-	if (ReplicationSystem == nullptr)
+	UObjectReplicationBridge* ObjectReplicationBridge = (ReplicationSystem ? ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>() : nullptr);
+	if (ObjectReplicationBridge == nullptr)
 	{
 		return;
 	}
@@ -942,8 +939,7 @@ void AActor::UpdateOwningNetConnection() const
 #endif
 
 		FNetHandle NetHandle = FReplicationSystemUtil::GetNetHandle(this);
-		const uint32 CurrentOwningNetConnectionId = NetHandle.IsValid() ? ReplicationSystem->GetOwningNetConnection(NetHandle) : 0U;
-		bUpdateChildren = (NewOwningNetConnectionId != CurrentOwningNetConnectionId);
+		bUpdateChildren = NetHandle.IsValid();
 	}
 
 	if (!bUpdateChildren)
@@ -966,15 +962,15 @@ void AActor::UpdateOwningNetConnection() const
 
 		if (Actor->GetIsReplicated())
 		{
-			const FNetHandle NetHandle = FReplicationSystemUtil::GetNetHandle(Actor);
-			if (NetHandle.IsValid())
+			const UE::Net::FNetRefHandle RefHandle = ObjectReplicationBridge->GetReplicatedRefHandle(this);
+			if (RefHandle.IsValid())
 			{
-				ReplicationSystem->SetOwningNetConnection(NetHandle, NewOwningNetConnectionId);
+				ReplicationSystem->SetOwningNetConnection(RefHandle, NewOwningNetConnectionId);
 				// Update autonomous proxy condition
 				if (Actor->GetRemoteRole() == ROLE_AutonomousProxy)
 				{
 					const bool bEnableAutonomousCondition = true;
-					ReplicationSystem->SetReplicationConditionConnectionFilter(NetHandle, EReplicationCondition::RoleAutonomous, NewOwningNetConnectionId, bEnableAutonomousCondition);
+					ReplicationSystem->SetReplicationConditionConnectionFilter(RefHandle, EReplicationCondition::RoleAutonomous, NewOwningNetConnectionId, bEnableAutonomousCondition);
 				}
 			}
 		}
@@ -990,8 +986,7 @@ void AActor::UpdateReplicatePhysicsCondition()
 	const FNetHandle NetHandle = FReplicationSystemUtil::GetNetHandle(this);
 	if (NetHandle.IsValid())
 	{
-		UReplicationSystem* ReplicationSystem = FReplicationSystemUtil::GetReplicationSystem(this);
-		ReplicationSystem->SetReplicationCondition(NetHandle, EReplicationCondition::ReplicatePhysics, GetReplicatedMovement().bRepPhysics);
+		FReplicationSystemUtil::SetReplicationCondition(NetHandle, EReplicationCondition::ReplicatePhysics, GetReplicatedMovement().bRepPhysics);
 	}
 #endif // UE_WITH_IRIS
 }

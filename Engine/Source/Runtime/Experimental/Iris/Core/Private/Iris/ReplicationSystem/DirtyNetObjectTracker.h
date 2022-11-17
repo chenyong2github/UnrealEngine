@@ -3,6 +3,12 @@
 #pragma once
 
 #include "Net/Core/NetBitArray.h"
+#include "Net/Core/DirtyNetObjectTracker/GlobalDirtyNetObjectTracker.h"
+
+namespace UE::Net::Private
+{
+	class FNetRefHandleManager;
+}
 
 namespace UE::Net::Private
 {
@@ -11,9 +17,10 @@ IRISCORE_API void MarkNetObjectStateDirty(uint32 ReplicationSystemId, uint32 Net
 
 struct FDirtyNetObjectTrackerInitParams
 {
-	uint32 ReplicationSystemId;
-	uint32 NetObjectIndexRangeStart;
-	uint32 NetObjectIndexRangeEnd;
+	const FNetRefHandleManager* NetRefHandleManager = nullptr;
+	uint32 ReplicationSystemId = 0;
+	uint32 NetObjectIndexRangeStart = 0;
+	uint32 NetObjectIndexRangeEnd = 0;
 };
 
 class FDirtyNetObjectTracker
@@ -23,6 +30,9 @@ public:
 	~FDirtyNetObjectTracker();
 
 	void Init(const FDirtyNetObjectTrackerInitParams& Params);
+
+	/* Update dirty objects with the set of globally marked dirty objects. **/
+	void UpdateDirtyNetObjects();
 
 	// N.B. These methods do not use atomics.
 	// It's up to the user to determine whether it's safe to call the functions or not.
@@ -35,15 +45,18 @@ private:
 	using StorageType = FNetBitArrayView::StorageWordType;
 	static constexpr uint32 StorageTypeBitCount = FNetBitArrayView::WordBitCount;
 
-	void Shutdown();
+	void Deinit();
 	void MarkNetObjectDirty(uint32 NetObjectIndex);
 
-	uint32 ReplicationSystemId;
+	const FNetRefHandleManager* NetRefHandleManager;
 	StorageType* DirtyNetObjectContainer;
+	FGlobalDirtyNetObjectTracker::FPollHandle GlobalDirtyTrackerPollHandle;
+	uint32 ReplicationSystemId;
 	uint32 DirtyNetObjectWordCount;
 	uint32 NetObjectIdRangeStart;
 	uint32 NetObjectIdRangeEnd;
 	uint32 NetObjectIdCount;
+	bool bHasPolledGlobalDirtyTracker;
 };
 
 }

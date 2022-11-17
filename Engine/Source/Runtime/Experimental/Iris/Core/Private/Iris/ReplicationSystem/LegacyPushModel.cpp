@@ -7,6 +7,7 @@
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
 #include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
 #include "Iris/ReplicationSystem/NetHandleManager.h"
+#include "Net/Core/DirtyNetObjectTracker/GlobalDirtyNetObjectTracker.h"
 #include "Containers/ArrayView.h"
 
 #if WITH_PUSH_MODEL
@@ -47,9 +48,9 @@ void FNetHandleLegacyPushModelHelper::ShutdownPushModel()
 	UE_NET_SET_IRIS_MARK_PROPERTIES_DIRTY_DELEGATE({});
 }
 
-void FNetHandleLegacyPushModelHelper::SetNetPushID(UObject* Object, FNetPushObjectHandle NetHandle)
+void FNetHandleLegacyPushModelHelper::SetNetPushID(UObject* Object, FNetPushObjectHandle Handle)
 {
-	FObjectNetPushIdHelper::SetNetPushIdDynamic(Object, UEPushModelPrivate::FNetPushObjectId(NetHandle.GetValue()).GetValue());
+	FObjectNetPushIdHelper::SetNetPushIdDynamic(Object, UEPushModelPrivate::FNetPushObjectId(Handle.GetPushObjectId()).GetValue());
 }
 
 void FNetHandleLegacyPushModelHelper::ClearNetPushID(UObject* Object)
@@ -60,13 +61,13 @@ void FNetHandleLegacyPushModelHelper::ClearNetPushID(UObject* Object)
 void FNetHandleLegacyPushModelHelper::MarkPropertyOwnerDirty(const UObject* Object, UEPushModelPrivate::FNetIrisPushObjectId PushId, const int32 RepIndex)
 {
 	const FNetPushObjectHandle Handle(PushId);
-	MarkNetObjectStateDirty(Handle.GetReplicationSystemId(), Handle.GetInternalIndex());
+	MarkNetObjectStateDirty(Handle.GetNetHandle());
 }
 
 void FNetHandleLegacyPushModelHelper::MarkPropertiesOwnerDirty(const UObject* Object, UEPushModelPrivate::FNetIrisPushObjectId PushId, const int32 StartRepIndex, const int32 EndRepIndex)
 {
 	const FNetPushObjectHandle Handle(PushId);
-	MarkNetObjectStateDirty(Handle.GetReplicationSystemId(), Handle.GetInternalIndex());
+	MarkNetObjectStateDirty(Handle.GetNetHandle());
 }
 
 void FNetHandleLegacyPushModelHelper::OptionallyMarkPropertyOwnerDirty(const UObject* Object, UEPushModelPrivate::FNetIrisPushObjectId PushId, const int32 RepIndex)
@@ -74,7 +75,7 @@ void FNetHandleLegacyPushModelHelper::OptionallyMarkPropertyOwnerDirty(const UOb
 	if (IsIrisPushModelEnabled(true))
 	{
 		const FNetPushObjectHandle Handle(PushId);
-		MarkNetObjectStateDirty(Handle.GetReplicationSystemId(), Handle.GetInternalIndex());
+		MarkNetObjectStateDirty(Handle.GetNetHandle());
 	}
 }
 
@@ -83,7 +84,7 @@ void FNetHandleLegacyPushModelHelper::OptionallyMarkPropertiesOwnerDirty(const U
 	if (IsIrisPushModelEnabled(true))
 	{
 		const FNetPushObjectHandle Handle(PushId);
-		MarkNetObjectStateDirty(Handle.GetReplicationSystemId(), Handle.GetInternalIndex());
+		MarkNetObjectStateDirty(Handle.GetNetHandle());
 	}
 }	
 

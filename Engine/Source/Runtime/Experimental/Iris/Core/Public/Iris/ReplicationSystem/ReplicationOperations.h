@@ -77,19 +77,19 @@ struct FReplicationInstanceOperations
 	/** Update object references in fragments that has object references and additional required traits. */
 	static IRISCORE_API void PollAndRefreshCachedObjectReferences(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentTraits RequiredTraits);
 
-	/** Quantize the state for a replicated object with a given NetHandle using the ReplicationProtocol, DstObjectStateBuffer does need to be cleared */
+	/** Quantize the state for a replicated object with a given InstanceProtocol using the ReplicationProtocol. DstObjectStateBuffer needs to be cleared before calling this function. */
 	static IRISCORE_API void CopyAndQuantize(FNetSerializationContext& Context, uint8* DstObjectStateBuffer, FNetBitStreamWriter* OutChangeMaskWriter, const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
 
-	/** Dequantize the state for a replicated object with a given NetHandle using the ReplicationProtocol, Data will be pushed out by using the ReplicationFragments */
+	/** Dequantize the state for a replicated object with a given protocol. Data will be pushed out by using the ReplicationFragments. */
 	static IRISCORE_API void DequantizeAndApply(FNetSerializationContext& Context, const FDequantizeAndApplyParameters& Parameters);
 
-	/** Dequantize the state for a replicated object with a given NetHandle using the ReplicationProtocol, Data will be pushed out by using the ReplicationFragments */
+	/** Dequantize the state for a replicated object with a given protocol. Data will be pushed out by using the ReplicationFragments. */
 	static IRISCORE_API void DequantizeAndApply(FNetSerializationContext& Context, FMemStackBase& InAllocator, const uint32* ChangeMaskData, const FReplicationInstanceProtocol* InstanceProtocol, const uint8* SrcObjectStateBuffer, const FReplicationProtocol* Protocol);
 
-	/** Dequantize the state for a replicated object with a given NetHandle using the ReplicationProtocol and output state to string */
+	/** Dequantize the state for a replicated object with a given protocol and output the state to string. */
 	static IRISCORE_API void OutputInternalStateToString(FNetSerializationContext& Context, FStringBuilderBase& StringBuilder, const uint32* ChangeMaskData, const uint8* SrcInternalObjectStateBuffer, const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
 
-	/** Dequantize the state for a replicated object with a given NetHandle using the ReplicationProtocol and output state to string */
+	/** Dequantize the default state for a replicated object with a given protocol and output the state to string. */
 	static IRISCORE_API void OutputInternalDefaultStateToString(FNetSerializationContext& Context, FStringBuilderBase& StringBuilder, const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
 };
 
@@ -104,28 +104,28 @@ struct FReplicationProtocolOperations
 	/** Serialize the state of all dirty members a NetObject and changemask to Bitstream */
 	static IRISCORE_API void SerializeWithMask(FNetSerializationContext& Context, const uint32* ChangeMaskData, const uint8* RESTRICT SrcObjectStateBuffer, const FReplicationProtocol* Protocol);
 
-	/** Deserialize changemask and the state of a NetObjectfrom from a BitStream to a ObjectStateBuffer large enough to fit all data */
+	/** Deserialize changemask and the state of an object from a BitStream to a ObjectStateBuffer large enough to fit all data */
 	static IRISCORE_API void DeserializeWithMask(FNetSerializationContext& Context, uint32* DstChangeMaskData, uint8* RESTRICT DstObjectStateBuffer, const FReplicationProtocol* Protocol);
 
-	/** Compare two quantized states return false if they are different */
+	/** Compare two quantized states and return whether they're equal or not. */
 	static IRISCORE_API bool IsEqualQuantizedState(FNetSerializationContext& Context, const uint8* RESTRICT Source0, const uint8* RESTRICT Source1, const FReplicationProtocol* Protocol);
 
-	/** Free dynamic state for a full NetObject */
+	/** Free dynamic state for the entire protocol. */
 	static IRISCORE_API void FreeDynamicState(FNetSerializationContext& Context, uint8* RESTRICT SrcObjectStateBuffer, const FReplicationProtocol* Protocol);
 
 	/** Initialize from default state */
 	static IRISCORE_API void InitializeFromDefaultState(FNetSerializationContext& Context, uint8* RESTRICT StateBuffer, const FReplicationProtocol* Protocol);
 
-	/** Serialize the initial state of all dirty members a NetObject and changemask to Bitstream compressed against the default state */
+	/** Serialize the initial state of all dirty members a NetObject and changemask to a Bitstream, delta compressed against the default state. */
 	static IRISCORE_API void SerializeInitialStateWithMask(FNetSerializationContext& Context, const uint32* ChangeMaskData, const uint8* RESTRICT SrcObjectStateBuffer, const FReplicationProtocol* Protocol);
 
-	/** Deserialize changemask and the state of a NetObjectfrom from a BitStream to a ObjectStateBuffer large enough to fit all data compressed against default state */
+	/** Deserialize changemask and the state of an object from a BitStream to an ObjectStateBuffer large enough to fit all data delta compressed against default state. */
 	static IRISCORE_API void DeserializeInitialStateWithMask(FNetSerializationContext& Context, uint32* DstChangeMaskData, uint8* RESTRICT DstObjectStateBuffer, const FReplicationProtocol* Protocol);
 
-	/** Serialize the state of all dirty members a NetObject and changemask to Bitstream, delta compressed against the PrevObjectStateBuffer */
+	/** Serialize the state of all dirty members of an object and changemask to a Bitstream, delta compressed against the PrevObjectStateBuffer. */
 	static IRISCORE_API void SerializeWithMaskDelta(FNetSerializationContext& Context, const uint32* ChangeMaskData, const uint8* RESTRICT SrcObjectStateBuffer, const uint8* RESTRICT PrevObjectStateBuffer, const FReplicationProtocol* Protocol);
 
-	/** Deserialize changemask and the state of a NetObjectfrom from a BitStream to a ObjectStateBuffer large enough to fit all data, delta compressed against the PrevObjectStateBuffer */
+	/** Deserialize changemask and the state of an object from a BitStream to an ObjectStateBuffer large enough to fit all data, delta compressed against the PrevObjectStateBuffer. */
 	static IRISCORE_API void DeserializeWithMaskDelta(FNetSerializationContext& Context, uint32* DstChangeMaskData, uint8* RESTRICT DstObjectStateBuffer, const uint8* RESTRICT PrevObjectStateBuffer, const FReplicationProtocol* Protocol);
 };
 

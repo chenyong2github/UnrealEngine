@@ -12,7 +12,7 @@
 namespace UE::Net::Private
 {
 	class FDeltaCompressionBaselineManager;
-	typedef uint32 FInternalNetHandle;
+	typedef uint32 FInternalNetRefIndex;
 }
 
 namespace UE::Net::Private
@@ -35,7 +35,7 @@ public:
 	struct FInvalidationInfo
 	{
 		uint32 ConnId = InvalidateBaselineForAllConnections;
-		FInternalNetHandle ObjectIndex = 0U;
+		FInternalNetRefIndex ObjectIndex = 0U;
 	};
 
 public:
@@ -44,7 +44,7 @@ public:
 
 	void Init(FDeltaCompressionBaselineInvalidationTrackerInitParams& InitParams);
 
-	void InvalidateBaselines(FInternalNetHandle ObjectIndex, uint32 ConnId);
+	void InvalidateBaselines(FInternalNetRefIndex ObjectIndex, uint32 ConnId);
 
 	// Returns an array of objects with enabled conditions such that DC baselines need to be invalidated.
 	TArrayView<const FInvalidationInfo> GetBaselineInvalidationInfos() const;

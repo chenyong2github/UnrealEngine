@@ -76,10 +76,10 @@ public:
 	IRISCORE_API static void DeserializeCreationInfo(FNetSerializationContext& Context, FNetBlobCreationInfo& OutCreationInfo);
 
 	/** Serialize the blob together with/targeting a specific object knowing the NetHandle has already been serialized. */
-	IRISCORE_API virtual void SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const;
+	IRISCORE_API virtual void SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const;
 
 	/** Deserialize a blob that was serialized with SerializeWithObject. */
-	IRISCORE_API virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle);
+	IRISCORE_API virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle);
 
 	/** Serialize the blob. */
 	IRISCORE_API virtual void Serialize(FNetSerializationContext& Context) const;
@@ -155,10 +155,10 @@ protected:
 	IRISCORE_API void DeserializeObjectReference(FNetSerializationContext& Context);
 
 	/** Serializes only the subobject reference and assumes the passed NetHandle is the owner. */
-	IRISCORE_API void SerializeSubObjectReference(FNetSerializationContext& Context, FNetHandle NetHandle) const;
+	IRISCORE_API void SerializeSubObjectReference(FNetSerializationContext& Context, FNetRefHandle RefHandle) const;
 
 	/** Deserializes a subobject reference that was serialized using SerializeSubObjectReference with the same NetHandle. */
-	IRISCORE_API void DeserializeSubObjectReference(FNetSerializationContext& Context, FNetHandle NetHandle);
+	IRISCORE_API void DeserializeSubObjectReference(FNetSerializationContext& Context, FNetRefHandle RefHandle);
 
 	/** Set the owner and subobject references. */
 	void SetNetObjectReference(const FNetObjectReference& InQueueOwnerReference, const FNetObjectReference& InTargetObjectReference);

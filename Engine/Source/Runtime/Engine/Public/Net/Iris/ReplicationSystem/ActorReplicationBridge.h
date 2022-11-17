@@ -59,7 +59,7 @@ public:
 	inline UNetDriver* GetNetDriver() const { return NetDriver; }
 
 	/** Begin replication of an actor and its registered ActorComponents and SubObjects. */
-	ENGINE_API FNetHandle BeginReplication(AActor* Instance, const FActorBeginReplicationParams& Params);
+	ENGINE_API FNetRefHandle BeginReplication(AActor* Instance, const FActorBeginReplicationParams& Params);
 
 	/** Stop replicating an actor. Will destroy handle for actor and registered subobjects. */
 	ENGINE_API void EndReplication(AActor* Actor, EEndPlayReason::Type EndPlayReason);
@@ -68,24 +68,27 @@ public:
 	 * Begin replication of an ActorComponent and its registered SubObjects, 
 	 * if the ActorComponent already is replicated any set NetObjectConditions will be updated.
 	*/
-	ENGINE_API FNetHandle BeginReplication(FNetHandle OwnerHandle, UActorComponent* ActorComponent);
+	ENGINE_API FNetRefHandle BeginReplication(FNetRefHandle OwnerHandle, UActorComponent* ActorComponent);
 
 	/** Stop replicating an ActorComponent and its associated SubObjects. */
-	ENGINE_API void EndReplicationForActorComponent(UActorComponent* ActorComponent);
+	ENGINE_API void EndReplicationForActorComponent(UActorComponent* ActorComponent, EEndReplicationFlags EndReplicationFlags = EEndReplicationFlags::None);
 	
 	/** Get object reference packagemap. Used in special cases where serialization hasn't been converted to use NetSerializers.  */
 	ENGINE_API UIrisObjectReferencePackageMap* GetObjectReferencePackageMap() const { return ObjectReferencePackageMap; }
 	
+	using UObjectReplicationBridge::EndReplication;
+
 protected:
+
 	// UObjectReplicationBridge
 	virtual void Initialize(UReplicationSystem* ReplicationSystem) override;
-	virtual bool WriteCreationHeader(UE::Net::FNetSerializationContext& Context, FNetHandle Handle) override;
+	virtual bool WriteCreationHeader(UE::Net::FNetSerializationContext& Context, FNetRefHandle Handle) override;
 	virtual FCreationHeader* ReadCreationHeader(UE::Net::FNetSerializationContext& Context) override;
-	virtual UObject* BeginInstantiateFromRemote(FNetHandle SubObjectOwnerNetHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* InHeader) override;
+	virtual UObject* BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerNetHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* InHeader) override;
 	virtual bool OnInstantiatedFromRemote(UObject* Instance, const FCreationHeader* InHeader, uint32 ConnectionId) const override;
-	virtual void EndInstantiateFromRemote(FNetHandle Handle) override;
+	virtual void EndInstantiateFromRemote(FNetRefHandle Handle) override;
 	virtual void DestroyInstanceFromRemote(UObject* Instance, bool bTearOff) override;
-	virtual void GetInitialDependencies(FNetHandle Handle, FNetDependencyInfoArray& OutDependencies) const override;
+	virtual void GetInitialDependencies(FNetRefHandle Handle, FNetDependencyInfoArray& OutDependencies) const override;
 	virtual bool RemapPathForPIE(uint32 ConnectionId, FString& Path, bool bReading) const override;
 	virtual bool ObjectLevelHasFinishedLoading(UObject* Object) const override;
 

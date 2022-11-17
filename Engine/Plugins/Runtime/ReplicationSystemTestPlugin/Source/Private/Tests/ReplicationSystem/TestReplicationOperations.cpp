@@ -68,8 +68,8 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanPollAndRefreshProperty
 
 	UTestReplicatedIrisObject* TestObject = CreateObjectWithDynamicState(PropertyComponentCount, IrisComponentCount, DynamicStateComponentCount);
 
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Create NetRefHandle for the CreatedHandle,
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 
 	auto&& GetPropertyReplicationStateChecked = [](const FReplicationFragment* Fragment)
 	{ 
@@ -108,7 +108,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanPollAndRefreshProperty
 	TestObject->DynamicStateComponents[DynamicStateComponentIndex]->IntStaticArray[5] = 43;
 
 	// Poll data to update property replication state
-	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle));
+	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle));
 
 	// Verify values after poll
 	VerifyAs<int32>(1, State, 0);
@@ -136,8 +136,8 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanQuantizeAndDequantize)
 
 	UTestReplicatedIrisObject* TestObject = CreateObjectWithDynamicState(PropertyComponentCount, IrisComponentCount, DynamicStateComponentCount);
 	
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Create NetRefHandle for the CreatedHandle,
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* ProtocolA = ReplicationSystem->GetReplicationProtocol(CreatedHandle);
 
 	// Set some values
@@ -156,7 +156,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanQuantizeAndDequantize)
 	TestObject->DynamicStateComponents[DynamicStateComponentCount - 1]->IntStaticArray[4] = 127;
 
 	// Poll data to update property replication state
-	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle));
+	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle));
 
 	// Quantize to buffer
 	const uint32 BufferSize = 1024;
@@ -177,7 +177,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanQuantizeAndDequantize)
 	SerializationContext.SetIsInitState(true);
 
 	// Copy data from test object to buffer
-	FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, AlignedBuffer, GetChangeMaskWriter(ProtocolA->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle), ProtocolA);
+	FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, AlignedBuffer, GetChangeMaskWriter(ProtocolA->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle), ProtocolA);
 
 	// Verify that we did not overshoot
 	UE_NET_ASSERT_EQ(ValueToSet, AlignedBuffer[ProtocolA->InternalTotalSize]);
@@ -185,11 +185,11 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanQuantizeAndDequantize)
 	// Create second object 
 	UTestReplicatedIrisObject* TestObjectB = CreateObjectWithDynamicState(PropertyComponentCount, IrisComponentCount, DynamicStateComponentCount);
 	ReplicationBridge->BeginReplication(TestObjectB);
-	const FReplicationProtocol* ProtocolB = ReplicationSystem->GetReplicationProtocol(TestObjectB->NetHandle);
+	const FReplicationProtocol* ProtocolB = ReplicationSystem->GetReplicationProtocol(TestObjectB->NetRefHandle);
 	UE_NET_ASSERT_EQ(ProtocolA, ProtocolB);
 
 	// Push state data to ObjectB
-	FReplicationInstanceOperations::DequantizeAndApply(SerializationContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetHandle), AlignedBuffer, ProtocolB);
+	FReplicationInstanceOperations::DequantizeAndApply(SerializationContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetRefHandle), AlignedBuffer, ProtocolB);
 
 	// check if we did get the expected values
 	UE_NET_ASSERT_EQ(1, TestObjectB->IntA);
@@ -233,8 +233,8 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanSerializeAndDeserializ
 
 	UTestReplicatedIrisObject* TestObject = CreateObjectWithDynamicState(PropertyComponentCount, IrisComponentCount, DynamicStateComponentCount);
 	
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Create NetRefHandle for the CreatedHandle,
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* ProtocolA = ReplicationSystem->GetReplicationProtocol(CreatedHandle);
 
 	// Set some values
@@ -251,7 +251,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanSerializeAndDeserializ
 	TestObject->DynamicStateComponents[DynamicStateComponentCount - 1]->IntStaticArray[4] = 127;
 
 	// Poll data to update property replication state
-	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle));
+	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle));
 
 	// Quantize to buffer
 	const uint32 BufferSize = 1024;
@@ -271,7 +271,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanSerializeAndDeserializ
 	FInternalNetSerializationContext InternalContext;
 	SerializationContext.SetInternalContext(&InternalContext);
 	SerializationContext.SetIsInitState(true);
-	FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, AlignedBuffer, GetChangeMaskWriter(ProtocolA->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle), ProtocolA);
+	FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, AlignedBuffer, GetChangeMaskWriter(ProtocolA->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle), ProtocolA);
 
 	// Verify that we did not overshoot
 	UE_NET_ASSERT_EQ(ValueToSet, AlignedBuffer[ProtocolA->InternalTotalSize]);
@@ -279,7 +279,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanSerializeAndDeserializ
 	// Create second object 
 	UTestReplicatedIrisObject* TestObjectB = CreateObjectWithDynamicState(PropertyComponentCount, IrisComponentCount, DynamicStateComponentCount);
 	ReplicationBridge->BeginReplication(TestObjectB);
-	const FReplicationProtocol* ProtocolB = ReplicationSystem->GetReplicationProtocol(TestObjectB->NetHandle);
+	const FReplicationProtocol* ProtocolB = ReplicationSystem->GetReplicationProtocol(TestObjectB->NetRefHandle);
 	UE_NET_ASSERT_EQ(ProtocolA, ProtocolB);
 
 
@@ -318,7 +318,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, CanSerializeAndDeserializ
 		FReplicationProtocolOperations::DeserializeWithMask(Context, GetChangeMaskStorage(), AlignedBufferB, ProtocolB);
 
 		// Push deserialized state data to ObjectB 
-		FReplicationInstanceOperations::DequantizeAndApply(Context, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetHandle), AlignedBufferB, ProtocolB);
+		FReplicationInstanceOperations::DequantizeAndApply(Context, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetRefHandle), AlignedBufferB, ProtocolB);
 	}
 
 	// check if we did get the expected values
@@ -351,8 +351,8 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, PreAndPostNetReceivedOnly
 {
 	UTestReplicatedIrisObject* TestObject = CreateObject(1, 0);
 	
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Create NetRefHandle for the CreatedHandle,
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* ProtocolA = ReplicationSystem->GetReplicationProtocol(CreatedHandle);
 
 	UE_NET_ASSERT_EQ(3U, ProtocolA->ReplicationStateCount);
@@ -362,7 +362,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, PreAndPostNetReceivedOnly
 	TestObject->Components[0]->IntB = 3;
 
 	// Poll data to update property replication state
-	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle));
+	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle));
 
 	// Quantize to buffer
 	uint8* AlignedBuffer = (uint8*)(GetTempAllocator()).Alloc(ProtocolA->InternalTotalSize, ProtocolA->InternalTotalAlignment);
@@ -370,12 +370,12 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, PreAndPostNetReceivedOnly
 	// Copy data from test object to buffer
 	FNetSerializationContext NetContext;
 	NetContext.SetIsInitState(true);
-	FReplicationInstanceOperations::CopyAndQuantize(NetContext, AlignedBuffer, GetChangeMaskWriter(ProtocolA->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle), ProtocolA);
+	FReplicationInstanceOperations::CopyAndQuantize(NetContext, AlignedBuffer, GetChangeMaskWriter(ProtocolA->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle), ProtocolA);
 
 	// Create second object 
 	UTestReplicatedIrisObject* TestObjectB = CreateObject(1, 0);
 	ReplicationBridge->BeginReplication(TestObjectB);
-	const FReplicationProtocol* ProtocolB = ReplicationSystem->GetReplicationProtocol(TestObjectB->NetHandle);
+	const FReplicationProtocol* ProtocolB = ReplicationSystem->GetReplicationProtocol(TestObjectB->NetRefHandle);
 	UE_NET_ASSERT_EQ(ProtocolA, ProtocolB);
 
 	// Check values before we try to apply data
@@ -383,7 +383,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, PreAndPostNetReceivedOnly
 	UE_NET_ASSERT_EQ(0U, TestObjectB->Components[0]->CallCounts.PostNetReceiveCounter);
 
 	// Push state data to ObjectB
-	FReplicationInstanceOperations::DequantizeAndApply(NetContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetHandle), AlignedBuffer, ProtocolB);
+	FReplicationInstanceOperations::DequantizeAndApply(NetContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetRefHandle), AlignedBuffer, ProtocolB);
 
 	// Check value after apply
 	UE_NET_ASSERT_EQ(1U, TestObjectB->Components[0]->CallCounts.PreNetReceiveCounter);
@@ -398,15 +398,15 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, RepNotifyIsCalledForSimpl
 	constexpr uint32 PropertyComponentCount = 1;
 	UTestReplicatedIrisObject* TestObject = CreateObject(PropertyComponentCount, 0);
 	
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Create NetRefHandle for the CreatedHandle,
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(CreatedHandle);
 
 	// Set some values
 	TestObject->Components[0]->IntB ^= 1;
 
 	// Poll data to update property replication state
-	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle));
+	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle));
 
 	// Quantize to buffer
 	uint8* AlignedBuffer = (uint8*)(GetTempAllocator()).Alloc(Protocol->InternalTotalSize, Protocol->InternalTotalAlignment);
@@ -414,7 +414,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, RepNotifyIsCalledForSimpl
 	// Copy data from test object to buffer
 	FNetSerializationContext NetContext;
 	NetContext.SetIsInitState(true);
-	FReplicationInstanceOperations::CopyAndQuantize(NetContext, AlignedBuffer, GetChangeMaskWriter(Protocol->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle), Protocol);
+	FReplicationInstanceOperations::CopyAndQuantize(NetContext, AlignedBuffer, GetChangeMaskWriter(Protocol->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle), Protocol);
 
 	// Create second object 
 	UTestReplicatedIrisObject* TestObjectB = CreateObject(PropertyComponentCount, 0);
@@ -424,7 +424,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, RepNotifyIsCalledForSimpl
 	UE_NET_ASSERT_EQ(TestObjectB->Components[0]->CallCounts.IntBRepNotifyCounter, 0U);
 
 	// Push state data to ObjectB
-	FReplicationInstanceOperations::DequantizeAndApply(NetContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetHandle), AlignedBuffer, Protocol);
+	FReplicationInstanceOperations::DequantizeAndApply(NetContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetRefHandle), AlignedBuffer, Protocol);
 
 	// Check that we got exactly one RepNotify call
 	UE_NET_ASSERT_EQ(TestObjectB->Components[0]->CallCounts.IntBRepNotifyCounter, 1U);
@@ -438,15 +438,15 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, InitPropertyIsNotUpdatedW
 	constexpr uint32 PropertyComponentCount = 1;
 	UTestReplicatedIrisObject* TestObject = CreateObject(PropertyComponentCount, 0);
 	
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Create NetRefHandle for the CreatedHandle,
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(CreatedHandle);
 
 	// Set some values
 	TestObject->Components[0]->IntB ^= 1;
 
 	// Poll data to update property replication state
-	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle));
+	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle));
 
 	// Quantize to buffer
 	uint8* AlignedBuffer = (uint8*)(GetTempAllocator()).Alloc(Protocol->InternalTotalSize, Protocol->InternalTotalAlignment);
@@ -454,7 +454,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, InitPropertyIsNotUpdatedW
 	// Copy data from test object to buffer
 	FNetSerializationContext NetContext;
 	NetContext.SetIsInitState(false);
-	FReplicationInstanceOperations::CopyAndQuantize(NetContext, AlignedBuffer, GetChangeMaskWriter(Protocol->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle), Protocol);
+	FReplicationInstanceOperations::CopyAndQuantize(NetContext, AlignedBuffer, GetChangeMaskWriter(Protocol->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle), Protocol);
 
 	// Create second object 
 	UTestReplicatedIrisObject* TestObjectB = CreateObject(PropertyComponentCount, 0);
@@ -464,7 +464,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, InitPropertyIsNotUpdatedW
 	UE_NET_ASSERT_EQ(TestObjectB->Components[0]->CallCounts.IntBRepNotifyCounter, 0U);
 
 	// Push state data to ObjectB
-	FReplicationInstanceOperations::DequantizeAndApply(NetContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetHandle), AlignedBuffer, Protocol);
+	FReplicationInstanceOperations::DequantizeAndApply(NetContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetRefHandle), AlignedBuffer, Protocol);
 
 	// Check that the IntB property has not been modified
 	UE_NET_ASSERT_EQ(TestObjectB->Components[0]->IntB, 0);
@@ -481,8 +481,8 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, RepNotifyIsCalledExactlyO
 	constexpr uint32 DynamicStateComponentCount = 1;
 	UTestReplicatedIrisObject* TestObject = CreateObjectWithDynamicState(0, 0, DynamicStateComponentCount);
 	
-	// Create NetHandle for the TestObject
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Create NetRefHandle for the TestObject
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(CreatedHandle);
 
 	// Set some values
@@ -496,7 +496,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, RepNotifyIsCalledExactlyO
 	TestObject->DynamicStateComponents[0]->IntStaticArray[5] = 1;
 
 	// Poll data to update property replication state
-	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle));
+	FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle));
 
 	// Quantize to buffer
 	uint8* AlignedBuffer = (uint8*)(GetTempAllocator()).Alloc(Protocol->InternalTotalSize, Protocol->InternalTotalAlignment);
@@ -507,7 +507,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, RepNotifyIsCalledExactlyO
 	FInternalNetSerializationContext InternalContext;
 	SerializationContext.SetInternalContext(&InternalContext);
 	SerializationContext.SetIsInitState(true);
-	FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, AlignedBuffer, GetChangeMaskWriter(Protocol->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetHandle), Protocol);
+	FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, AlignedBuffer, GetChangeMaskWriter(Protocol->ChangeMaskBitCount), ReplicationBridge->GetReplicationInstanceProtocol(TestObject->NetRefHandle), Protocol);
 
 	// Create second object 
 	UTestReplicatedIrisObject* TestObjectB = CreateObjectWithDynamicState(0, 0, DynamicStateComponentCount);
@@ -518,7 +518,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsFixture, RepNotifyIsCalledExactlyO
 	UE_NET_ASSERT_EQ(TestObjectB->DynamicStateComponents[0]->CallCounts.IntStaticArrayRepNotifyCounter, 0U);
 
 	// Push state data to ObjectB
-	FReplicationInstanceOperations::DequantizeAndApply(SerializationContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetHandle), AlignedBuffer, Protocol);
+	FReplicationInstanceOperations::DequantizeAndApply(SerializationContext, GetTempAllocator(), GetChangeMaskStorage(), ReplicationBridge->GetReplicationInstanceProtocol(TestObjectB->NetRefHandle), AlignedBuffer, Protocol);
 
 	// Check that we got exactly one RepNotify call per array
 	UE_NET_ASSERT_EQ(TestObjectB->DynamicStateComponents[0]->CallCounts.IntArrayRepNotifyCounter, 1U);
@@ -559,13 +559,13 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsForObjectsFixture, StaleObjectPoin
 {
 	// Create two objects, one which is referencing the other. Verify reference gets updated when first object is destroyed.
 	UTestReplicatedIrisObject* Object0 = CreateObject();
-	FNetHandle HandleToObject0 = ReplicationBridge->BeginReplication(Object0);
+	FNetRefHandle HandleToObject0 = ReplicationBridge->BeginReplication(Object0);
 
 	UTestReplicatedIrisObject* Object1 = CreateObject();
 	constexpr uint32 ObjectReferenceComponentCount = 1;
 	Object1->AddComponents(UTestReplicatedIrisObject::FComponents{0,0,0,0,ObjectReferenceComponentCount});
 	Object1->ObjectReferenceComponents[0]->RawObjectPtrRef = Object0;
-	FNetHandle HandleToObject1 = ReplicationBridge->BeginReplication(Object1);
+	FNetRefHandle HandleToObject1 = ReplicationBridge->BeginReplication(Object1);
 
 	const FReplicationInstanceProtocol* InstanceProtocol1 = ReplicationBridge->GetReplicationInstanceProtocol(HandleToObject1);
 	const FReplicationProtocol* Protocol1 = ReplicationSystem->GetReplicationProtocol(HandleToObject1);
@@ -626,7 +626,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsOnInitStateFixture, StateWithInitT
 	constexpr uint32 PropertyComponentCount = 2;
 	UTestReplicatedIrisObject* TestObject = CreateObject(PropertyComponentCount, 0);
 
-	const FNetHandle Handle = ReplicationBridge->BeginReplication(TestObject);
+	const FNetRefHandle Handle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(Handle);
 	uint32 InitStateCount = 0;
 	for (const FReplicationStateDescriptor* StateDescriptor : MakeArrayView(Protocol->ReplicationStateDescriptors, Protocol->ReplicationStateCount))
@@ -642,7 +642,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsOnInitStateFixture, InitStateHasNo
 	constexpr uint32 PropertyComponentCount = 1;
 	UTestReplicatedIrisObject* TestObject = CreateObject(PropertyComponentCount, 0);
 
-	const FNetHandle Handle = ReplicationBridge->BeginReplication(TestObject);
+	const FNetRefHandle Handle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(Handle);
 	const FReplicationStateDescriptor* InitStateDescriptor = GetFirstInitStateDescriptor(Protocol);
 
@@ -663,7 +663,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsOnConnectionFilterStateFixture, Pr
 	UTestReplicatedIrisObject* TestObject = CreateObject();
 	TestObject->AddComponents(Components);
 
-	const FNetHandle Handle = ReplicationBridge->BeginReplication(TestObject);
+	const FNetRefHandle Handle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(Handle);
 
 	UE_NET_ASSERT_TRUE(EnumHasAnyFlags(Protocol->ProtocolTraits, EReplicationProtocolTraits::HasLifetimeConditionals));
@@ -678,7 +678,7 @@ UE_NET_TEST_FIXTURE(FTestReplicationOperationsOnConnectionFilterStateFixture, St
 	UTestReplicatedIrisObject* TestObject = CreateObject();
 	TestObject->AddComponents(Components);
 
-	const FNetHandle Handle = ReplicationBridge->BeginReplication(TestObject);
+	const FNetRefHandle Handle = ReplicationBridge->BeginReplication(TestObject);
 	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(Handle);
 	uint32 LifetimeConditionalsStateCount = 0;
 	for (const FReplicationStateDescriptor* StateDescriptor : MakeArrayView(Protocol->ReplicationStateDescriptors, Protocol->ReplicationStateCount))

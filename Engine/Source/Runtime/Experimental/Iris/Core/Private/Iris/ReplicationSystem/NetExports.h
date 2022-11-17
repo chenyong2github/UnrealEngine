@@ -65,7 +65,7 @@ private:
 private:
 
 	TResizableCircularQueue<FExportInfo> ExportRecord;
-	TResizableCircularQueue<FNetHandle> NetHandleExports;
+	TResizableCircularQueue<FNetRefHandle> NetHandleExports;
 	TResizableCircularQueue<FNetToken> NetTokenExports;
 
 	FExportInfo CurrentExportInfo;

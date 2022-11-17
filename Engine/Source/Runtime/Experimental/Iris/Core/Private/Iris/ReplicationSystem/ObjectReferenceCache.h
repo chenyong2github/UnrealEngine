@@ -16,7 +16,7 @@ namespace UE::Net
 	class FNetSerializationContext;
 	namespace Private
 	{
-		class FNetHandleManager;
+		class FNetRefHandleManager;
 		class FNetExportContext;
 	}
 }
@@ -41,16 +41,16 @@ public:
 	bool IsAuthority() const;
 
 	// Create and assign a new NetHandle to the object
-	FNetHandle CreateObjectReferenceHandle(const UObject* Object);
+	FNetRefHandle CreateObjectReferenceHandle(const UObject* Object);
 
 	// Get existing handle for object
-	FNetHandle GetObjectReferenceHandleFromObject(const UObject* Object) const;
+	FNetRefHandle GetObjectReferenceHandleFromObject(const UObject* Object) const;
 
 	// Get object from handle, only if the object is in the cache.
-	UObject* GetObjectFromReferenceHandle(FNetHandle RefHandle);
+	UObject* GetObjectFromReferenceHandle(FNetRefHandle RefHandle);
 
 	// Try to resolve the object reference and try to load it if the object cannot be found
-	UObject* ResolveObjectReferenceHandle(FNetHandle RefHandle, const FNetObjectResolveContext& ResolveContext);
+	UObject* ResolveObjectReferenceHandle(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext);
 
 	UObject* ResolveObjectReference(const FNetObjectReference& ObjectRef, const FNetObjectResolveContext& ResolveContext);
 	ENetObjectReferenceResolveResult ResolveObjectReference(const FNetObjectReference& ObjectRef, const FNetObjectResolveContext& ResolveContext, UObject*& OutResolvedObject);
@@ -65,10 +65,10 @@ public:
 	FNetObjectReference GetOrCreateObjectReference(const FString& ObjectPath, const UObject* Outer);
 
 	// Add reference for dynamically spawned object
-	void AddRemoteReference(FNetHandle RefHandle, const UObject* Object);
+	void AddRemoteReference(FNetRefHandle RefHandle, const UObject* Object);
 
 	// Remove references to dynamic objects
-	void RemoveReference(FNetHandle RefHandle, const UObject* Object);
+	void RemoveReference(FNetRefHandle RefHandle, const UObject* Object);
 
 	// Write full chain of object references for RefHandle
 	void WriteFullReference(FNetSerializationContext& Context, FNetObjectReference Ref) const;
@@ -88,23 +88,23 @@ public:
 
 	bool ReadExports(FNetSerializationContext& Context);
 
-	static FNetObjectReference MakeNetObjectReference(FNetHandle Handle) { return FNetObjectReference(Handle); }
+	static FNetObjectReference MakeNetObjectReference(FNetRefHandle Handle);
 
 private:
 
 	struct FCachedNetObjectReference
 	{
 		TWeakObjectPtr<UObject> Object;
-		const UObject* ObjectKey;
+		const UObject* ObjectKey = nullptr;
 
-		// NetHandle
-		FNetHandle NetHandle;
+		// NetRefHandle
+		FNetRefHandle NetRefHandle;
 
 		// RelativePath to outer
 		FNetToken RelativePath;
 
 		// Ref to outer
-		FNetHandle OuterNetHandle;
+		FNetRefHandle OuterNetRefHandle;
 
 		// Flags
 		uint8 bNoLoad : 1;				// Don't load this, only do a find
@@ -121,46 +121,46 @@ private:
 
 	void ReadFullReferenceInternal(FNetSerializationContext& Context, FNetObjectReference& OutRef, uint32 RecursionCount);
 	void WriteFullReferenceInternal(FNetSerializationContext& Context, const FNetObjectReference& Ref) const;
-	UObject* ResolveObjectReferenceHandleInternal(FNetHandle RefHandle, const FNetObjectResolveContext& ResolveContext, bool& bOutMustBeMapped);
+	UObject* ResolveObjectReferenceHandleInternal(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext, bool& bOutMustBeMapped);
 	bool IsDynamicInternal(const UObject* Object) const;
 	bool SupportsObjectInternal(const UObject* Object) const;
 	bool CanClientLoadObjectInternal(const UObject* Object, bool bIsDynamic) const;
-	bool ShouldIgnoreWhenMissing(FNetHandle RefHandle) const;
+	bool ShouldIgnoreWhenMissing(FNetRefHandle RefHandle) const;
 	bool RenamePathForPie(uint32 ConnectionId, FString& Str, bool bReading);
 
 	// Get the string path of RefHandle
-	FString FullPath(FNetHandle RefHandle, const FNetObjectResolveContext& ResolveContext) const;
-	void GenerateFullPath_r(FNetHandle RefHandle, const FNetObjectResolveContext& ResolveContext, FString& OutFullPath) const;
+	FString FullPath(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext) const;
+	void GenerateFullPath_r(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext, FString& OutFullPath) const;
 
 	// Find dynamic root
-	FNetHandle GetDynamicRoot(const FNetHandle Handle) const;
+	FNetRefHandle GetDynamicRoot(const FNetRefHandle Handle) const;
 
-	static FNetObjectReference MakeNetObjectReference(FNetHandle NetHandle, FNetToken RelativePath) { return FNetObjectReference(NetHandle, RelativePath, RelativePath.IsValid() ? ENetObjectReferenceTraits::CanBeExported : ENetObjectReferenceTraits::None); }
-	static FNetObjectReference MakeNetObjectReference(const FCachedNetObjectReference& CachedReference) { return FNetObjectReference(CachedReference.NetHandle, FNetToken(), CachedReference.RelativePath.IsValid() ? ENetObjectReferenceTraits::CanBeExported : ENetObjectReferenceTraits::None); }
+	static FNetObjectReference MakeNetObjectReference(FNetRefHandle RefHandle, FNetToken RelativePath);
+	static FNetObjectReference MakeNetObjectReference(const FCachedNetObjectReference& CachedReference);
 
 private:
 
 	// Map raw UObject pointer -> Handle
 	// To verify that the reference is valid we need to check the weakpointer stored in the cache
-	TMap<const UObject*, FNetHandle> ObjectToNetReferenceHandle;
+	TMap<const UObject*, FNetRefHandle> ObjectToNetReferenceHandle;
 
 	// Map ReferenceHandle -> CachedReference
-	TMap<FNetHandle, FCachedNetObjectReference> ReferenceHandleToCachedReference;
+	TMap<FNetRefHandle, FCachedNetObjectReference> ReferenceHandleToCachedReference;
 
 	// To properly clean up stale references referencing dynamic objects we need to track them
-	TMultiMap<FNetHandle, FNetHandle> HandleToDynamicOuter;
+	TMultiMap<FNetRefHandle, FNetRefHandle> HandleToDynamicOuter;
 	
 	UReplicationSystem* ReplicationSystem;
 	UObjectReplicationBridge* ReplicationBridge;
 	FNetTokenStore* NetTokenStore;
 	FStringTokenStore* StringTokenStore;
-	FNetHandleManager* NetHandleManager;
+	FNetRefHandleManager* NetRefHandleManager;
 	
 	// Do we have authority to create references?
 	uint32 bIsAuthority : 1;
 };
 
-inline UObject* FObjectReferenceCache::ResolveObjectReferenceHandle(FNetHandle RefHandle, const FNetObjectResolveContext& ResolveContext)
+inline UObject* FObjectReferenceCache::ResolveObjectReferenceHandle(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext)
 {
 	bool bMustBeMapped;
 	return ResolveObjectReferenceHandleInternal(RefHandle, ResolveContext, bMustBeMapped);
@@ -171,6 +171,23 @@ inline UObject* FObjectReferenceCache::ResolveObjectReference(const FNetObjectRe
 	UObject* ResolvedObject = nullptr;
 	ResolveObjectReference(ObjectRef, ResolveContext, ResolvedObject);
 	return ResolvedObject;
+}
+
+inline FNetObjectReference FObjectReferenceCache::MakeNetObjectReference(FNetRefHandle Handle)
+{
+	return FNetObjectReference(Handle);
+}
+
+inline FNetObjectReference FObjectReferenceCache::MakeNetObjectReference(FNetRefHandle RefHandle, FNetToken RelativePath)
+{
+	const ENetObjectReferenceTraits Traits = RelativePath.IsValid() ? ENetObjectReferenceTraits::CanBeExported : ENetObjectReferenceTraits::None;
+	return FNetObjectReference(RefHandle, RelativePath, Traits);
+}
+
+inline FNetObjectReference FObjectReferenceCache::MakeNetObjectReference(const FCachedNetObjectReference& CachedReference)
+{
+	const ENetObjectReferenceTraits Traits = CachedReference.RelativePath.IsValid() ? ENetObjectReferenceTraits::CanBeExported : ENetObjectReferenceTraits::None;
+	return FNetObjectReference(CachedReference.NetRefHandle, FNetToken(), Traits);
 }
 
 }

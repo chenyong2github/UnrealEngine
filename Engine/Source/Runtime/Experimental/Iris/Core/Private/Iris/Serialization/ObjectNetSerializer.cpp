@@ -15,7 +15,7 @@
 namespace UE::Net
 {
 
-void WriteNetHandle(FNetSerializationContext& Context, const FNetHandle Handle)
+void WriteNetRefHandle(FNetSerializationContext& Context, const FNetRefHandle Handle)
 {
 	FNetBitStreamWriter* Writer = Context.GetBitStreamWriter();
 
@@ -30,7 +30,7 @@ void WriteNetHandle(FNetSerializationContext& Context, const FNetHandle Handle)
 	}
 }
 
-FNetHandle ReadNetHandle(FNetSerializationContext& Context)
+FNetRefHandle ReadNetRefHandle(FNetSerializationContext& Context)
 {
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
 
@@ -39,10 +39,10 @@ FNetHandle ReadNetHandle(FNetSerializationContext& Context)
 		const uint32 NetId = ReadPackedUint32(Reader);
 		if (!Reader->IsOverflown())
 		{
-			return Private::FNetHandleManager::MakeNetHandleFromId(NetId);
+			return Private::FNetRefHandleManager::MakeNetRefHandleFromId(NetId);
 		}
 	}
-	return FNetHandle();
+	return FNetRefHandle();
 }
 
 void ReadFullNetObjectReference(FNetSerializationContext& Context, FNetObjectReference& Reference)
@@ -180,7 +180,7 @@ template<typename T>
 void FObjectNetSerializerBase<T>::Quantize(FNetSerializationContext& Context, const FNetQuantizeArgs& Args)
 {
 	QuantizedType& Target = *reinterpret_cast<QuantizedType*>(Args.Target);
-	const UObject* Source = GetValue(*reinterpret_cast<const T*>(Args.Source));
+	UObject* Source = GetValue(*reinterpret_cast<T*>(Args.Source));
 
 	const FInternalNetSerializationContext* InternalContext = Context.GetInternalContext();
 	Target = InternalContext->ObjectReferenceCache ? InternalContext->ObjectReferenceCache->GetOrCreateObjectReference(Source) : QuantizedType();

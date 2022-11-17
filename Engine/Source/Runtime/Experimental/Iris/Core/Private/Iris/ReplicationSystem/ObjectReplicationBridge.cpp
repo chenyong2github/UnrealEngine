@@ -9,9 +9,10 @@
 #include "Iris/Core/IrisMemoryTracker.h"
 #include "Iris/Core/IrisProfiler.h"
 
+#include "Net/Core/NetHandle/NetHandleManager.h"
+#include "Net/Core/PropertyConditions/PropertyConditionsDelegates.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Net/Core/Trace/NetDebugName.h"
-#include "Net/Core/PropertyConditions/PropertyConditionsDelegates.h"
 
 #include "Iris/ReplicationSystem/LegacyPushModel.h"
 #include "Iris/ReplicationSystem/ObjectPollFrequencyLimiter.h"
@@ -31,11 +32,7 @@
 #include "Iris/Serialization/InternalNetSerializationContext.h"
 #include "Iris/Serialization/NetBitStreamUtil.h"
 
-#if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
 #define UE_LOG_OBJECTREPLICATIONBRIDGE(Category, Format, ...)  UE_LOG(LogIrisBridge, Category, TEXT("ObjectReplicationBridge(%u)::") Format, GetReplicationSystem()->GetId(), ##__VA_ARGS__)
-#else
-#define UE_LOG_OBJECTREPLICATIONBRIDGE(Category, Format, ...)  UE_LOG(LogIrisBridge, Category, TEXT("ObjectReplicationBridge::") Format, ##__VA_ARGS__)
-#endif
 
 static bool bUseFrequencyBasedPolling = true;
 static FAutoConsoleVariableRef CVarUseFrequencyBasedPolling(
@@ -65,7 +62,7 @@ static FAutoConsoleVariableRef CVarEnableFilterMappings(
 		TEXT("Whether we honor filter mappings set in ObjectReplicationBridgeConfig. If filter mappings are enabled then objects may also be assigned the default spatial filter even if there aren't any specific mappings. Default is true.")
 		);
 
-UObjectReplicationBridge::FCreateNetHandleParams UObjectReplicationBridge::DefaultCreateNetHandleParams =
+UObjectReplicationBridge::FCreateNetRefHandleParams UObjectReplicationBridge::DefaultCreateNetRefHandleParams =
 {
 	0U, // bCanReceive
 	0U, // bNeedsPreUpdate
@@ -117,7 +114,7 @@ void UObjectReplicationBridge::Initialize(UReplicationSystem* InReplicationSyste
 
 	Super::Initialize(InReplicationSystem);
 
-	const uint32 MaxActiveObjectCount = NetHandleManager->GetMaxActiveObjectCount();
+	const uint32 MaxActiveObjectCount = NetRefHandleManager->GetMaxActiveObjectCount();
 	PollFrequencyLimiter->Init(MaxActiveObjectCount);
 	ObjectsWithObjectReferences.Init(MaxActiveObjectCount);
 	GarbageCollectionAffectedObjects.Init(MaxActiveObjectCount);
@@ -125,19 +122,19 @@ void UObjectReplicationBridge::Initialize(UReplicationSystem* InReplicationSyste
 	LoadConfig();
 
 	// Hookup delegate when a property custom conditions is changed
-	OnCustomConditionChangedHandle = UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyCustomConditionChangedDelegate().AddLambda([this, InReplicationSystem](const UObject* Owner, uint16 RepIndex, bool bEnable)
+	OnCustomConditionChangedHandle = UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyCustomConditionChangedDelegate().AddLambda([this](const UObject* Owner, uint16 RepIndex, bool bEnable)
 	{
 		using namespace UE::Net;
 		using namespace UE::Net::Private;
 
-		const FNetHandle Handle = this->GetReplicatedHandle(Owner);
-		if (Handle.IsValid())
+		const FNetRefHandle RefHandle = this->GetReplicatedRefHandle(Owner);
+		if (RefHandle.IsValid())
 		{
-			FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
-			const FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+			FReplicationSystemInternal* ReplicationSystemInternal = this->GetReplicationSystem()->GetReplicationSystemInternal();
+			const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 			FReplicationConditionals& Conditionals = ReplicationSystemInternal->GetConditionals();
 
-			Conditionals.SetPropertyCustomCondition(LocalNetHandleManager.GetInternalIndex(Handle), Owner, RepIndex, bEnable);
+			Conditionals.SetPropertyCustomCondition(LocalNetRefHandleManager.GetInternalIndex(RefHandle), Owner, RepIndex, bEnable);
 		}
 	});
 }
@@ -150,9 +147,9 @@ void UObjectReplicationBridge::Deinitialize()
 	Super::Deinitialize();
 }
 
-UObject* UObjectReplicationBridge::GetObjectFromReferenceHandle(FNetHandle NetHandle) const
+UObject* UObjectReplicationBridge::GetObjectFromReferenceHandle(FNetRefHandle RefHandle) const
 {
-	return GetObjectReferenceCache()->GetObjectFromReferenceHandle(NetHandle);
+	return GetObjectReferenceCache()->GetObjectFromReferenceHandle(RefHandle);
 }
 
 UObject* UObjectReplicationBridge::ResolveObjectReference(const UE::Net::FNetObjectReference& Reference, const UE::Net::FNetObjectResolveContext& ResolveContext)
@@ -179,31 +176,52 @@ void UObjectReplicationBridge::AddStaticDestructionInfo(const FString& ObjectPat
 	}
 }
 
-UE::Net::FNetHandle UObjectReplicationBridge::GetReplicatedHandle(const UObject* Object) const
-{
-	FNetHandle Handle = GetObjectReferenceCache()->GetObjectReferenceHandleFromObject(Object);
-
-	return IsReplicatedHandle(Handle) ? Handle : FNetHandle();
-}
-
-UObject* UObjectReplicationBridge::GetReplicatedObject(FNetHandle Handle) const
+UObject* UObjectReplicationBridge::GetReplicatedObject(FNetRefHandle Handle) const
 {
 	return IsReplicatedHandle(Handle) ? GetObjectFromReferenceHandle(Handle) : nullptr;
 };
 
-UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance, const FCreateNetHandleParams& Params)
+UE::Net::FNetRefHandle UObjectReplicationBridge::GetReplicatedRefHandle(const UObject* Object) const
+{
+	FNetRefHandle Handle = GetObjectReferenceCache()->GetObjectReferenceHandleFromObject(Object);
+
+	return IsReplicatedHandle(Handle) ? Handle : FNetRefHandle();
+}
+
+UE::Net::FNetRefHandle UObjectReplicationBridge::GetReplicatedRefHandle(FNetHandle Handle) const
+{
+	using namespace UE::Net;
+	using namespace UE::Net::Private;
+
+	// If the object is replicated by the owning ReplicationSystem the internal handle should be valid.
+	FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager->GetInternalIndexFromNetHandle(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
+	{
+		return FNetRefHandle();
+	}
+
+	const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectInternalIndex);
+	return ObjectData.RefHandle;
+}
+
+UE::Net::FNetRefHandle UObjectReplicationBridge::BeginReplication(UObject* Instance, const FCreateNetRefHandleParams& Params)
 {
 	LLM_SCOPE_BYTAG(IrisState);
 
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
 
-	FNetHandle AllocatedHandle = GetObjectReferenceCache()->CreateObjectReferenceHandle(Instance);
+	FNetRefHandle AllocatedRefHandle = ObjectReferenceCache->CreateObjectReferenceHandle(Instance);
 
 	// If we failed to assign a handle, or if the Handle already is replicating, just return the handle
-	if (!AllocatedHandle.IsValid() || IsReplicatedHandle(AllocatedHandle))
+	if (!AllocatedRefHandle.IsValid())
 	{
-		return AllocatedHandle;
+		return FNetRefHandle();
+	}
+
+	if (IsReplicatedHandle(AllocatedRefHandle))
+	{
+		return AllocatedRefHandle;
 	}
 
 	// Register fragments
@@ -214,7 +232,7 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance
 	
 	FFragmentRegistrationContext FragmentRegistrationContext(GetReplicationStateDescriptorRegistry(), Traits);
 
-	// For everything derived from UObject we can call the virtual function call RegisterReplicationFragments	
+	// For everything derived from UObject we can call the virtual function RegisterReplicationFragments	
 	CallRegisterReplicationFragments(Instance, FragmentRegistrationContext, EFragmentRegistrationFlags::None);
 
 	const FReplicationFragments& RegisteredFragments = FFragmentRegistrationContextPrivateAccessor::GetReplicationFragments(FragmentRegistrationContext);
@@ -240,7 +258,7 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance
 		if (!bIsValidProtocol)
 		{
 			UE_LOG_OBJECTREPLICATIONBRIDGE(Error, TEXT("BeginReplication Found invalid protocol ProtocolId:0x%" UINT64_x_FMT " for Object named %s"), ReplicationProtocol->ProtocolIdentifier, *Instance->GetName());
-			return FNetHandle();
+			return FNetRefHandle();
 		}
 	}
 #endif
@@ -248,15 +266,18 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance
 	if (ReplicationProtocol)
 	{
 		// Create NetHandle and bind instance
-		// $TODO: Rename to BeginReplication 
-		FNetHandle Handle = InternalCreateNetObject(AllocatedHandle, ReplicationProtocol);
-		if (Handle.IsValid())
+		FNetHandle NetHandle = FNetHandleManager::GetOrCreateNetHandle(Instance);
+		FNetRefHandle RefHandle = InternalCreateNetObject(AllocatedRefHandle, NetHandle, ReplicationProtocol);
+		if (RefHandle.IsValid())
 		{
 			// Attach the instance and Bind the Instance protocol to dirty tracking
 			constexpr bool bBindInstanceProtocol = true;
-			InternalAttachInstanceToNetHandle(Handle, bBindInstanceProtocol, InstanceProtocol.Get(), Instance);
-			
-			const FInternalNetHandle InternalReplicationIndex = NetHandleManager->GetInternalIndex(Handle);
+			InternalAttachInstanceToNetHandle(RefHandle, bBindInstanceProtocol, InstanceProtocol.Get(), Instance);
+#if WITH_PUSH_MODEL
+			SetNetPushIdOnInstance(InstanceProtocol.Get(), NetHandle);
+#endif
+
+			const FInternalNetRefIndex InternalReplicationIndex = NetRefHandleManager->GetInternalIndex(RefHandle);
 
 			// Initialize conditionals
 			FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
@@ -270,7 +291,7 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance
 			FindPollInfo(Instance->GetClass(), PollFramePeriod);
 			SetPollFramePeriod(InternalReplicationIndex, PollFramePeriod);
 
-			UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("BeginReplication Created %s with ProtocolId:0x%" UINT64_x_FMT " for Object named %s"), *Handle.ToString(), ReplicationProtocol->ProtocolIdentifier, *Instance->GetName());
+			UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("BeginReplication Created %s with ProtocolId:0x%" UINT64_x_FMT " for Object named %s"), *RefHandle.ToString(), ReplicationProtocol->ProtocolIdentifier, *Instance->GetName());
 
 			{
 				FWorldLocations& WorldLocations = ReplicationSystem->GetReplicationSystemInternal()->GetWorldLocations();
@@ -280,18 +301,18 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance
 			// Set prioritizer
 			if (Params.StaticPriority > 0.0f)
 			{
-				ReplicationSystem->SetStaticPriority(Handle, Params.StaticPriority);
+				ReplicationSystem->SetStaticPriority(RefHandle, Params.StaticPriority);
 			}
 			else
 			{
 				const FNetObjectPrioritizerHandle PrioritizerHandle = GetPrioritizer(Instance->GetClass());
 				if (PrioritizerHandle != InvalidNetObjectPrioritizerHandle)
 				{
-					ReplicationSystem->SetPrioritizer(Handle, PrioritizerHandle);
+					ReplicationSystem->SetPrioritizer(RefHandle, PrioritizerHandle);
 				}
 				else if (Params.bNeedsWorldLocationUpdate || HasRepTag(ReplicationProtocol, RepTag_WorldLocation))
 				{
-					ReplicationSystem->SetPrioritizer(Handle, DefaultSpatialNetObjectPrioritizerHandle);
+					ReplicationSystem->SetPrioritizer(RefHandle, DefaultSpatialNetObjectPrioritizerHandle);
 				}
 			}
 
@@ -300,31 +321,30 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance
 				const FNetObjectFilterHandle FilterHandle = GetDynamicFilter(Instance->GetClass());
 				if (FilterHandle != InvalidNetObjectFilterHandle)
 				{
-					ReplicationSystem->SetFilter(Handle, FilterHandle);
+					ReplicationSystem->SetFilter(RefHandle, FilterHandle);
 				}
 			}
 
 			if (ShouldClassBeDeltaCompressed(Instance->GetClass()))
 			{
-				ReplicationSystem->SetDeltaCompressionStatus(Handle, ENetObjectDeltaCompressionStatus::Allow);
+				ReplicationSystem->SetDeltaCompressionStatus(RefHandle, ENetObjectDeltaCompressionStatus::Allow);
 			}
 
 			// Release instance protocol from the uniquePtr as it is now successfully bound to the handle
 			InstanceProtocol.Release();
 
-			return Handle;
+			return RefHandle;
 		}
-		UE_LOG_OBJECTREPLICATIONBRIDGE(Warning, TEXT("BeginReplication Failed to create Handle with ProtocolId:0x%" UINT64_x_FMT " for Object named %s"), (ReplicationProtocol != nullptr ? ReplicationProtocol->ProtocolIdentifier : FReplicationProtocolIdentifier(0)), *Instance->GetName());
-
+		UE_LOG_OBJECTREPLICATIONBRIDGE(Warning, TEXT("BeginReplication Failed to create NetRefHandle with ProtocolId:0x%" UINT64_x_FMT " for Object named %s"), (ReplicationProtocol != nullptr ? ReplicationProtocol->ProtocolIdentifier : FReplicationProtocolIdentifier(0)), *Instance->GetName());
 	}
 
-	// If we get here, it means that we failed to assign an internal handle for the object, we probably have ran out of handles which currently is a fatal error.
-	UE_LOG(LogIris, Error, TEXT("UObjectReplicationBridge::CreateNetHandle - Failed to create NetHandle for object %s"), ToCStr(Instance->GetPathName()));
+	// If we get here, it means that we failed to assign an internal handle for the object. We've probably run out of handles which currently is a fatal error.
+	UE_LOG(LogIris, Error, TEXT("UObjectReplicationBridge::BeginReplication - Failed to create NetRefHandle for object %s"), ToCStr(Instance->GetPathName()));
 
-	return FNetHandle();
+	return FNetRefHandle();
 }
 
-UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(FNetHandle OwnerHandle, UObject* Instance, FNetHandle InsertRelativeToSubObjectHandle, ESubObjectInsertionOrder InsertionOrder, const FCreateNetHandleParams& Params)
+UE::Net::FNetRefHandle UObjectReplicationBridge::BeginReplication(FNetRefHandle OwnerRefHandle, UObject* Instance, FNetRefHandle InsertRelativeToSubObjectRefHandle, ESubObjectInsertionOrder InsertionOrder, const FCreateNetRefHandleParams& Params)
 {
 	LLM_SCOPE_BYTAG(IrisState);
 
@@ -332,48 +352,48 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(FNetHandle OwnerH
 	using namespace UE::Net::Private;
 
 	const FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
-	const FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+	const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 
 	// Owner must be replicated
-	check(IsReplicatedHandle(OwnerHandle));
-	// verify assumptions
+	check(IsReplicatedHandle(OwnerRefHandle));
+	// Verify assumptions
 	check(!Instance->HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject));
 
-	FNetHandle SubObjectHandle = GetReplicatedHandle(Instance);
-	if (SubObjectHandle.IsValid())
+	FNetRefHandle SubObjectRefHandle = GetReplicatedRefHandle(Instance);
+	if (SubObjectRefHandle.IsValid())
 	{
 		// Verify that the existing object is a subobject of the owner
-		check(OwnerHandle == LocalNetHandleManager.GetSubObjectOwner(SubObjectHandle));
-		return SubObjectHandle;
+		check(OwnerRefHandle == LocalNetRefHandleManager.GetSubObjectOwner(SubObjectRefHandle));
+		return SubObjectRefHandle;
 	}
 	else
 	{
-		FCreateNetHandleParams SubObjectCreateParams = Params;
+		FCreateNetRefHandleParams SubObjectCreateParams = Params;
 		// The filtering system ignores subobjects so let's not waste cycles figuring out which filter to use.
 		SubObjectCreateParams.bAllowDynamicFilter = 0U;
-		SubObjectHandle = BeginReplication(Instance, SubObjectCreateParams);
+		SubObjectRefHandle = BeginReplication(Instance, SubObjectCreateParams);
 	}
 
-	if (SubObjectHandle.IsValid())
+	if (SubObjectRefHandle.IsValid())
 	{
 		// Add subobject
-		UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("BeginReplication Added SubObject %s to Owner %s RelativeToSubObjectHandle %s"), *SubObjectHandle.ToString(), *OwnerHandle.ToString(), *InsertRelativeToSubObjectHandle.ToString());
+		UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("BeginReplication Added SubObject %s to Owner %s RelativeToSubObjectHandle %s"), *SubObjectRefHandle.ToString(), *OwnerRefHandle.ToString(), *InsertRelativeToSubObjectRefHandle.ToString());
 
-		InternalAddSubObject(OwnerHandle, SubObjectHandle, InsertRelativeToSubObjectHandle, InsertionOrder);
+		InternalAddSubObject(OwnerRefHandle, SubObjectRefHandle, InsertRelativeToSubObjectRefHandle, InsertionOrder);
 
 		// SubObjects should always poll with owner
-		SetPollWithObject(OwnerHandle, SubObjectHandle);
+		SetPollWithObject(OwnerRefHandle, SubObjectRefHandle);
 
 		// Copy pending dormancy from owner
-		SetObjectWantsToBeDormant(SubObjectHandle, GetObjectWantsToBeDormant(OwnerHandle));
+		SetObjectWantsToBeDormant(SubObjectRefHandle, GetObjectWantsToBeDormant(OwnerRefHandle));
 	
-		return SubObjectHandle;
+		return SubObjectRefHandle;
 	}
 
-	return FNetHandle();
+	return FNetRefHandle();
 }
 
-void UObjectReplicationBridge::SetSubObjectNetCondition(FNetHandle SubObjectHandle, ELifetimeCondition Condition)
+void UObjectReplicationBridge::SetSubObjectNetCondition(FNetRefHandle SubObjectRefHandle, ELifetimeCondition Condition)
 {
 	using namespace UE::Net::Private;
 
@@ -381,32 +401,32 @@ void UObjectReplicationBridge::SetSubObjectNetCondition(FNetHandle SubObjectHand
 	static_assert(ELifetimeCondition::COND_Max <= 127);
 
 	FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
-	FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+	FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 
-	const FInternalNetHandle SubObjectInternalIndex = LocalNetHandleManager.GetInternalIndex(SubObjectHandle);
-	if (LocalNetHandleManager.SetSubObjectNetCondition(SubObjectInternalIndex, (int8)Condition))
+	const FInternalNetRefIndex SubObjectInternalIndex = LocalNetRefHandleManager.GetInternalIndex(SubObjectRefHandle);
+	if (LocalNetRefHandleManager.SetSubObjectNetCondition(SubObjectInternalIndex, (int8)Condition))
 	{
-		UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("SetSubObjectNetCondition for SubObject %s Condition %s"), *SubObjectHandle.ToString(), *UEnum::GetValueAsString<ELifetimeCondition>(Condition));
+		UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("SetSubObjectNetCondition for SubObject %s Condition %s"), *SubObjectRefHandle.ToString(), *UEnum::GetValueAsString<ELifetimeCondition>(Condition));
 		MarkNetObjectStateDirty(ReplicationSystem->GetId(), SubObjectInternalIndex);
 	}
 	else
 	{
-		UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("Failed to SetSubObjectNetCondition for SubObject %s Condition %s"), *SubObjectHandle.ToString(), *UEnum::GetValueAsString<ELifetimeCondition>(Condition));
+		UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("Failed to SetSubObjectNetCondition for SubObject %s Condition %s"), *SubObjectRefHandle.ToString(), *UEnum::GetValueAsString<ELifetimeCondition>(Condition));
 	}
 }
 
-void UObjectReplicationBridge::AddDependentObject(FNetHandle ParentHandle, FNetHandle DependentHandle, EDependentWarnFlags WarnFlags)
+void UObjectReplicationBridge::AddDependentObject(FNetRefHandle ParentHandle, FNetRefHandle DependentHandle, EDependentWarnFlags WarnFlags)
 {
 	using namespace UE::Net::Private;
 
 	FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
-	FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+	FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 
 	// New logic to treat Dependent objects 
-	if (LocalNetHandleManager.AddDependentObject(ParentHandle, DependentHandle))
+	if (LocalNetRefHandleManager.AddDependentObject(ParentHandle, DependentHandle))
 	{
 		FReplicationFiltering& Filtering = ReplicationSystemInternal->GetFiltering();
-		const FInternalNetHandle DependentInternalIndex = LocalNetHandleManager.GetInternalIndex(DependentHandle);
+		const FInternalNetRefIndex DependentInternalIndex = LocalNetRefHandleManager.GetInternalIndex(DependentHandle);
 		Filtering.NotifyAddedDependentObject(DependentInternalIndex);
 
 		UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("AddDependentObject Added dependent object %s to parent %s"), *DependentHandle.ToString(), *ParentHandle.ToString());
@@ -417,7 +437,7 @@ void UObjectReplicationBridge::AddDependentObject(FNetHandle ParentHandle, FNetH
 	}
 }
 
-void UObjectReplicationBridge::RemoveDependentObject(FNetHandle ParentHandle, FNetHandle DependentHandle)
+void UObjectReplicationBridge::RemoveDependentObject(FNetRefHandle ParentHandle, FNetRefHandle DependentHandle)
 {
 	using namespace UE::Net::Private;
 
@@ -426,18 +446,18 @@ void UObjectReplicationBridge::RemoveDependentObject(FNetHandle ParentHandle, FN
 	FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
 
 	// Remove dependent object
-	FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
-	LocalNetHandleManager.RemoveDependentObject(ParentHandle, DependentHandle);
+	FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
+	LocalNetRefHandleManager.RemoveDependentObject(ParentHandle, DependentHandle);
 
-	const FInternalNetHandle DependentInternalIndex = LocalNetHandleManager.GetInternalIndex(DependentHandle);
-	if (DependentInternalIndex != FNetHandleManager::InvalidInternalIndex)
+	const FInternalNetRefIndex DependentInternalIndex = LocalNetRefHandleManager.GetInternalIndex(DependentHandle);
+	if (DependentInternalIndex != FNetRefHandleManager::InvalidInternalIndex)
 	{
 		FReplicationFiltering& Filtering = ReplicationSystemInternal->GetFiltering();
 		Filtering.NotifyRemovedDependentObject(DependentInternalIndex);
 	}
 }
 
-bool UObjectReplicationBridge::WriteNetHandleCreationInfo(FReplicationBridgeSerializationContext& Context, FNetHandle Handle)
+bool UObjectReplicationBridge::WriteNetRefHandleCreationInfo(FReplicationBridgeSerializationContext& Context, FNetRefHandle Handle)
 {
 	// Write ProtocolId
 	const UE::Net::FReplicationProtocol* Protocol = GetReplicationSystem()->GetReplicationProtocol(Handle);
@@ -449,22 +469,24 @@ bool UObjectReplicationBridge::WriteNetHandleCreationInfo(FReplicationBridgeSeri
 
 void UObjectReplicationBridge::EndReplication(UObject* Instance, EEndReplicationFlags EndReplicationFlags, FEndReplicationParameters* Parameters)
 {
-	const FNetHandle Handle = GetReplicatedHandle(Instance);
+	const FNetRefHandle Handle = GetReplicatedRefHandle(Instance);
 	UReplicationBridge::EndReplication(Handle, EndReplicationFlags, Parameters);
 }
 
-void UObjectReplicationBridge::DetachInstanceFromRemote(FNetHandle Handle, bool bTearOff, bool bShouldDestroyInstance)
+void UObjectReplicationBridge::DetachInstanceFromRemote(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance)
 {
-	UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("OnDetachInstanceFromRemote %s TearOff: %u BShouldDestroy: %u"), *Handle.ToString(), (uint32)bTearOff, (uint32)bShouldDestroyInstance);
+	UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("OnDetachInstanceFromRemote %s TearOff: %u bShouldDestroyInstance: %u"), *Handle.ToString(), (uint32)bTearOff, (uint32)bShouldDestroyInstance);
 	UnregisterRemoteInstance(Handle, bTearOff, bShouldDestroyInstance);
 }
 
-void UObjectReplicationBridge::DetachInstance(FNetHandle Handle)
+void UObjectReplicationBridge::DetachInstance(FNetRefHandle Handle)
 {
-	UnregisterRemoteInstance(Handle, false, false);
+	constexpr bool bTearOff = false;
+	constexpr bool bShouldDestroyInstance = false;
+	UnregisterRemoteInstance(Handle, bTearOff, bShouldDestroyInstance);
 }
 
-void UObjectReplicationBridge::RegisterRemoteInstance(FNetHandle Handle, UObject* Instance, const UE::Net::FReplicationProtocol* Protocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, const FCreationHeader* Header, uint32 ConnectionId)
+void UObjectReplicationBridge::RegisterRemoteInstance(FNetRefHandle Handle, UObject* Instance, const UE::Net::FReplicationProtocol* Protocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, const FCreationHeader* Header, uint32 ConnectionId)
 {
 	// Attach the instance protocol and instance to the Handle
 	constexpr bool bBindInstanceProtocol = false;
@@ -479,7 +501,7 @@ void UObjectReplicationBridge::RegisterRemoteInstance(FNetHandle Handle, UObject
 	UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("RegisterRemoteInstance %s %s with ProtocolId:0x%" UINT64_x_FMT), *Handle.ToString(), ToCStr(Instance->GetName()), Protocol->ProtocolIdentifier);
 }
 
-void UObjectReplicationBridge::UnregisterRemoteInstance(FNetHandle Handle, bool bTearOff, bool bShouldDestroyInstance)
+void UObjectReplicationBridge::UnregisterRemoteInstance(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance)
 {
 	// Lookup the instance and remove it	
 	UObject* Instance = GetObjectFromReferenceHandle(Handle);
@@ -499,7 +521,7 @@ void UObjectReplicationBridge::UnregisterRemoteInstance(FNetHandle Handle, bool 
 	// $TODO: Cleanup any pending creation data if we have not yet instantiated the instance
 }
 	
-UE::Net::FNetHandle UObjectReplicationBridge::CreateNetHandleFromRemote(FNetHandle SubObjectOwnerNetHandle, FNetHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context)
+UE::Net::FNetRefHandle UObjectReplicationBridge::CreateNetRefHandleFromRemote(FNetRefHandle SubObjectOwnerNetHandle, FNetRefHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context)
 {
 	LLM_SCOPE_BYTAG(IrisState);
 
@@ -514,7 +536,7 @@ UE::Net::FNetHandle UObjectReplicationBridge::CreateNetHandleFromRemote(FNetHand
 	TUniquePtr<FCreationHeader> Header(ReadCreationHeader(Context.SerializationContext));
 	if (Context.SerializationContext.HasErrorOrOverflow())
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	// Currently remote objects can only receive replicated data
@@ -532,7 +554,7 @@ UE::Net::FNetHandle UObjectReplicationBridge::CreateNetHandleFromRemote(FNetHand
 	UObject* InstancePtr = BeginInstantiateFromRemote(SubObjectOwnerNetHandle, Context.SerializationContext.GetInternalContext()->ResolveContext, Header.Get());
 	if (!ensureAlwaysMsgf(InstancePtr, TEXT("Failed to instantiate Handle: %s"), *WantedNetHandle.ToString()))
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	// Register all fragments
@@ -557,14 +579,14 @@ UE::Net::FNetHandle UObjectReplicationBridge::CreateNetHandleFromRemote(FNetHand
 	{
 		if (!ensureAlways(!bVerifyExistingProtocol || ProtocolManager->ValidateReplicationProtocol(ReplicationProtocol, RegisteredFragments)))
 		{
-			return FNetHandle();
+			return FNetRefHandle();
 		}
 	}
 
 	if (ReplicationProtocol)
 	{
 		// Create NetHandle
-		FNetHandle Handle = InternalCreateNetObjectFromRemote(WantedNetHandle, ReplicationProtocol);
+		FNetRefHandle Handle = InternalCreateNetObjectFromRemote(WantedNetHandle, ReplicationProtocol);
 		if (Handle.IsValid())
 		{
 			RegisterRemoteInstance(Handle, InstancePtr, ReplicationProtocol, InstanceProtocol.Get(), Header.Get(), Context.ConnectionId);
@@ -579,15 +601,15 @@ UE::Net::FNetHandle UObjectReplicationBridge::CreateNetHandleFromRemote(FNetHand
 		}
 	}
 
-	return FNetHandle();
+	return FNetRefHandle();
 }
 
-void UObjectReplicationBridge::PostApplyInitialState(FNetHandle Handle)
+void UObjectReplicationBridge::PostApplyInitialState(FNetRefHandle Handle)
 {
 	EndInstantiateFromRemote(Handle);
 }
 
-void UObjectReplicationBridge::PreSendUpdateSingleHandle(FNetHandle Handle)
+void UObjectReplicationBridge::PreSendUpdateSingleHandle(FNetRefHandle Handle)
 {
 	PreUpdateAndPollImpl(Handle);
 }
@@ -597,7 +619,7 @@ void UObjectReplicationBridge::PreSendUpdate()
 	IRIS_PROFILER_SCOPE(UObjectReplicationBridge_OnPreSendUpdate);
 
 	// Invalid Handle means update all objects
-	FNetHandle Handle;
+	FNetRefHandle Handle;
 	PreUpdateAndPollImpl(Handle);
 }
 
@@ -612,36 +634,36 @@ void UObjectReplicationBridge::PruneStaleObjects()
 	// Mark all objects with object references as potentially affected by GC
 	GarbageCollectionAffectedObjects = ObjectsWithObjectReferences;
 
-	FNetHandleManager& LocalNetHandleManager = GetReplicationSystem()->GetReplicationSystemInternal()->GetNetHandleManager();
-	const TArray<UObject*>& ReplicatedInstances = LocalNetHandleManager.GetReplicatedInstances();
+	FNetRefHandleManager& LocalNetRefHandleManager = GetReplicationSystem()->GetReplicationSystemInternal()->GetNetRefHandleManager();
+	const TArray<UObject*>& ReplicatedInstances = LocalNetRefHandleManager.GetReplicatedInstances();
 
-	TArray<FNetHandle> StaleObjects;
+	TArray<FNetRefHandle> StaleObjects;
 
 	// Detect stale references and try to kill/report them
-	auto DetectStaleObjectsFunc = [&LocalNetHandleManager, &StaleObjects, &ReplicatedInstances](uint32 InternalNetHandleIndex)
+	auto DetectStaleObjectsFunc = [&LocalNetRefHandleManager, &StaleObjects, &ReplicatedInstances](uint32 InternalNetHandleIndex)
 	{
 		if (ReplicatedInstances[InternalNetHandleIndex] == nullptr)
 		{
-			const FNetHandleManager::FReplicatedObjectData& ObjectData = LocalNetHandleManager.GetReplicatedObjectDataNoCheck(InternalNetHandleIndex);
+			const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalNetHandleIndex);
 			if (ObjectData.InstanceProtocol)
 			{
 				const FReplicationProtocol* Protocol = ObjectData.Protocol;
 				const FNetDebugName* DebugName = Protocol ? Protocol->DebugName : nullptr;
-				UE_LOG(LogIrisBridge, Warning, TEXT("UObjectReplicationBridge::PruneStaleObjects ObjectInstance replicated as: %s of Type named:%s has been destroyed without notifying the ReplicationSystem %u"), *ObjectData.Handle.ToString(), ToCStr(DebugName), ObjectData.Handle.GetReplicationSystemId());
+				UE_LOG(LogIrisBridge, Warning, TEXT("UObjectReplicationBridge::PruneStaleObjects ObjectInstance replicated as: %s of Type named:%s has been destroyed without notifying the ReplicationSystem %u"), *ObjectData.RefHandle.ToString(), ToCStr(DebugName), ObjectData.RefHandle.GetReplicationSystemId());
 
 				// If the instance protocol is bound, then this is an error and we cannot safely cleanup as unbinding abound instance protocol will modify bound states
-				checkf(!EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::IsBound), TEXT("UObjectReplicationBridge::PruneStaleObjects Bound ObjectInstance replicated as: %s has been destroyed without notifying the ReplicationSystem."), *ObjectData.Handle.ToString(), ToCStr(DebugName), ObjectData.Handle.GetReplicationSystemId());
+				checkf(!EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::IsBound), TEXT("UObjectReplicationBridge::PruneStaleObjects Bound ObjectInstance replicated as: %s has been destroyed without notifying the ReplicationSystem."), *ObjectData.RefHandle.ToString(), ToCStr(DebugName), ObjectData.RefHandle.GetReplicationSystemId());
 
-				StaleObjects.Push(ObjectData.Handle);
+				StaleObjects.Push(ObjectData.RefHandle);
 			}
 		}
 	};
 
 	// Iterate over assigned indices and detect if any of the replicated instances has been garbagecollected (excluding DestroyedStartupObjectInternalIndices) as they never have an instance
-	FNetBitArray::ForAllSetBits(LocalNetHandleManager.GetAssignedInternalIndices(), LocalNetHandleManager.GetDestroyedStartupObjectInternalIndices(), FNetBitArray::AndNotOp, DetectStaleObjectsFunc);
+	FNetBitArray::ForAllSetBits(LocalNetRefHandleManager.GetAssignedInternalIndices(), LocalNetRefHandleManager.GetDestroyedStartupObjectInternalIndices(), FNetBitArray::AndNotOp, DetectStaleObjectsFunc);
 
 	// EndReplication/detach stale instances
-	for (FNetHandle Handle : MakeArrayView(StaleObjects.GetData(), StaleObjects.Num()))
+	for (FNetRefHandle Handle : MakeArrayView(StaleObjects.GetData(), StaleObjects.Num()))
 	{
 		UReplicationBridge::EndReplication(Handle);
 	}
@@ -660,14 +682,14 @@ void UObjectReplicationBridge::SetInstanceGetWorldLocationFunction(FInstanceGetW
 	GetInstanceWorldLocationFunction = InGetWorldLocationFunction;
 }
 
-void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
+void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 {
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
 
 	FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
-	const FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
-	const TArray<UObject*>& ReplicatedInstances = LocalNetHandleManager.GetReplicatedInstances();
+	const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
+	const TArray<UObject*>& ReplicatedInstances = LocalNetRefHandleManager.GetReplicatedInstances();
 	const bool bIsUsingPushModel = IsIrisPushModelEnabled();
 	const FNetBitArrayView DirtyObjects = ReplicationSystemInternal->GetDirtyNetObjectTracker().GetDirtyNetObjects();
 
@@ -680,9 +702,9 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 
 	FPreUpdateAndPollStats Stats;
 
-	auto UpdateAndPollFunction = [&ReplicatedInstances, this, &LocalNetHandleManager, &Stats](uint32 InternalObjectIndex)
+	auto UpdateAndPollFunction = [&ReplicatedInstances, this, &LocalNetRefHandleManager, &Stats](uint32 InternalObjectIndex)
 	{
-		const FNetHandleManager::FReplicatedObjectData& ObjectData = LocalNetHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 		if (ObjectData.InstanceProtocol)
 		{
 			// Call per-instance PreUpdate function
@@ -692,7 +714,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 				IRIS_PROFILER_SCOPE(PreReplicationUpdate);
 				IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
 #endif
-				(*PreUpdateInstanceFunction)(ObjectData.Handle, ReplicatedInstances[InternalObjectIndex], this);
+				(*PreUpdateInstanceFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], this);
 				++Stats.PreUpdatedObjectCount;
 			}
 
@@ -717,11 +739,11 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 		}
 	};
 
-	const FNetBitArray& PrevScopableObjects = LocalNetHandleManager.GetPrevFrameScopableInternalIndices();
+	const FNetBitArray& PrevScopableObjects = LocalNetRefHandleManager.GetPrevFrameScopableInternalIndices();
 
-	auto PushModelUpdateAndPollFunction = [&ReplicatedInstances, this, &LocalNetHandleManager, &DirtyObjects, &PrevScopableObjects, &Stats](uint32 InternalObjectIndex)
+	auto PushModelUpdateAndPollFunction = [&ReplicatedInstances, this, &LocalNetRefHandleManager, &DirtyObjects, &PrevScopableObjects, &Stats](uint32 InternalObjectIndex)
 	{
-		const FNetHandleManager::FReplicatedObjectData& ObjectData = LocalNetHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 		if (const FReplicationInstanceProtocol* InstanceProtocol = ObjectData.InstanceProtocol)
 		{
 			const EReplicationInstanceProtocolTraits InstanceTraits = InstanceProtocol->InstanceTraits;
@@ -732,7 +754,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 				IRIS_PROFILER_SCOPE(PreReplicationUpdate);
 				IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
 #endif
-				(*PreUpdateInstanceFunction)(ObjectData.Handle, ReplicatedInstances[InternalObjectIndex], this);
+				(*PreUpdateInstanceFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], this);
 				++Stats.PreUpdatedObjectCount;
 			}
 
@@ -800,12 +822,12 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 	// Update all objects
 	if (!Handle.IsValid())
 	{
-		const FNetBitArray& ScopableObjects = LocalNetHandleManager.GetScopableInternalIndices();
-		const FNetBitArray& WantToBeDormantObjects = LocalNetHandleManager.GetWantToBeDormantInternalIndices();
+		const FNetBitArray& ScopableObjects = LocalNetRefHandleManager.GetScopableInternalIndices();
+		const FNetBitArray& WantToBeDormantObjects = LocalNetRefHandleManager.GetWantToBeDormantInternalIndices();
 
 		// Filter the set of objects considered for pre-update and polling
 		// We always want to consider objects marked as dirty and their subobjects
-		FNetBitArray ObjectsConsideredForPolling(LocalNetHandleManager.GetMaxActiveObjectCount());
+		FNetBitArray ObjectsConsideredForPolling(LocalNetRefHandleManager.GetMaxActiveObjectCount());
 		if (bUseFrequencyBasedPolling)
 		{
 			FNetBitArrayView FrequencyBasedObjectsToPollView = MakeNetBitArrayView(ObjectsConsideredForPolling);
@@ -825,9 +847,9 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 			ObjectsConsideredForPolling.Combine(WantToBeDormantObjects, FNetBitArrayView::AndNotOp);
 
 			// Add objects that have requested to flush dormancy
-			for (FNetHandle HandlePendingFlush : MakeArrayView(DormantHandlesPendingFlush))
+			for (FNetRefHandle HandlePendingFlush : MakeArrayView(DormantHandlesPendingFlush))
 			{
-				if (const uint32 InternalObjectIndex = LocalNetHandleManager.GetInternalIndex(HandlePendingFlush))
+				if (const uint32 InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(HandlePendingFlush))
 				{
 					if (ObjectsConsideredForPolling.GetBit(InternalObjectIndex))
 					{
@@ -835,7 +857,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 					}
 
 					ObjectsConsideredForPolling.SetBit(InternalObjectIndex);
-					for (const FInternalNetHandle SubObjectIndex : LocalNetHandleManager.GetSubObjects(InternalObjectIndex))
+					for (const FInternalNetRefIndex SubObjectIndex : LocalNetRefHandleManager.GetSubObjects(InternalObjectIndex))
 					{
 						ObjectsConsideredForPolling.SetBit(SubObjectIndex);
 					}
@@ -852,27 +874,27 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 		{
 			IRIS_PROFILER_SCOPE(UObjectReplicationBridge_PreUpdateAndPollImpl_PropagateDirtyness);
 
-			auto PropagateSubObjectDirtinessToOwner = [&LocalNetHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
+			auto PropagateSubObjectDirtinessToOwner = [&LocalNetRefHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
 			{
-				const FNetHandleManager::FReplicatedObjectData& ObjectData = LocalNetHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 				ObjectsConsideredForPolling.SetBit(ObjectData.SubObjectRootIndex);
 			};
 
-			auto PropagateOwnerDirtinessToSubObjectsAndDependentObjects = [&LocalNetHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
+			auto PropagateOwnerDirtinessToSubObjectsAndDependentObjects = [&LocalNetRefHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
 			{
-				const FNetHandleManager::FReplicatedObjectData& ObjectData = LocalNetHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 
 				// Mark owner as well as we might have masked it out in the dormancy pass
 				ObjectsConsideredForPolling.SetBit(InternalObjectIndex);
 
-				for (const FInternalNetHandle SubObjectInternalIndex : LocalNetHandleManager.GetSubObjects(InternalObjectIndex))
+				for (const FInternalNetRefIndex SubObjectInternalIndex : LocalNetRefHandleManager.GetSubObjects(InternalObjectIndex))
 				{
 					ObjectsConsideredForPolling.SetBit(SubObjectInternalIndex);
 				}
 			};
 
 			// Update subobjects' owner first and owners' subobjects second. It's the only way to properly mark all groups of objects in two passes.
-			const FNetBitArrayView SubObjects = MakeNetBitArrayView(LocalNetHandleManager.GetSubObjectInternalIndices());
+			const FNetBitArrayView SubObjects = MakeNetBitArrayView(LocalNetRefHandleManager.GetSubObjectInternalIndices());
 			FNetBitArrayView::ForAllSetBits(DirtyObjects, SubObjects, FNetBitArray::AndOp, PropagateSubObjectDirtinessToOwner);
 			FNetBitArrayView::ForAllSetBits(DirtyObjects, SubObjects, FNetBitArray::AndNotOp, PropagateOwnerDirtinessToSubObjectsAndDependentObjects);
 			
@@ -881,10 +903,10 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 				IRIS_PROFILER_SCOPE(UObjectReplicationBridge_PreUpdateAndPollImpl Patch in depedent objects);
 
 				FNetBitArray TempObjectsConsideredForPolling(ObjectsConsideredForPolling);
-				FNetBitArray::ForAllSetBits(TempObjectsConsideredForPolling, NetHandleManager->GetObjectsWithDependentObjectsInternalIndices(), FNetBitArray::AndOp,
-					[&LocalNetHandleManager, &ObjectsConsideredForPolling](FInternalNetHandle ObjectIndex) 
+				FNetBitArray::ForAllSetBits(TempObjectsConsideredForPolling, NetRefHandleManager->GetObjectsWithDependentObjectsInternalIndices(), FNetBitArray::AndOp,
+					[&LocalNetRefHandleManager, &ObjectsConsideredForPolling](FInternalNetRefIndex ObjectIndex) 
 					{
-						LocalNetHandleManager.ForAllDependentObjectsRecursive(ObjectIndex, [&ObjectsConsideredForPolling, ObjectIndex](FInternalNetHandle DependentObjectIndex) { ObjectsConsideredForPolling.SetBit(DependentObjectIndex); });
+						LocalNetRefHandleManager.ForAllDependentObjectsRecursive(ObjectIndex, [&ObjectsConsideredForPolling, ObjectIndex](FInternalNetRefIndex DependentObjectIndex) { ObjectsConsideredForPolling.SetBit(DependentObjectIndex); });
 					}
 				);
 			}
@@ -899,7 +921,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 			ObjectsConsideredForPolling.ForAllSetBits(UpdateAndPollFunction);
 		}
 	}
-	else if (uint32 InternalObjectIndex = LocalNetHandleManager.GetInternalIndex(Handle))
+	else if (uint32 InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(Handle))
 	{
 		UpdateAndPollFunction(InternalObjectIndex);
 	}
@@ -921,18 +943,18 @@ void UObjectReplicationBridge::UpdateInstancesWorldLocation()
 	}
 
 	FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
-	const FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+	const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 	FWorldLocations& WorldLocations = ReplicationSystemInternal->GetWorldLocations();
-	const TArray<UObject*>& ReplicatedInstances = LocalNetHandleManager.GetReplicatedInstances();
+	const TArray<UObject*>& ReplicatedInstances = LocalNetRefHandleManager.GetReplicatedInstances();
 
 
 	// Retrieve the world location for instances that supports it. Only dirty objects are considered.
-	auto UpdateInstanceWorldLocation = [this, &ReplicatedInstances, &LocalNetHandleManager, &WorldLocations](uint32 InternalObjectIndex)
+	auto UpdateInstanceWorldLocation = [this, &ReplicatedInstances, &LocalNetRefHandleManager, &WorldLocations](uint32 InternalObjectIndex)
 	{
-		const FNetHandleManager::FReplicatedObjectData& ObjectData = LocalNetHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 		if (ObjectData.InstanceProtocol && EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsWorldLocationUpdate))
 		{
-			FVector WorldLocation = (*GetInstanceWorldLocationFunction)(ObjectData.Handle, ReplicatedInstances[InternalObjectIndex]);
+			FVector WorldLocation = (*GetInstanceWorldLocationFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex]);
 			WorldLocations.SetWorldLocation(InternalObjectIndex, WorldLocation);
 		}
 	};
@@ -942,43 +964,43 @@ void UObjectReplicationBridge::UpdateInstancesWorldLocation()
 
 }
 
-void UObjectReplicationBridge::SetPollFramePeriod(UE::Net::Private::FInternalNetHandle InternalReplicationIndex, uint8 PollFramePeriod)
+void UObjectReplicationBridge::SetPollFramePeriod(UE::Net::Private::FInternalNetRefIndex InternalReplicationIndex, uint8 PollFramePeriod)
 {
 	PollFrequencyLimiter->SetPollFramePeriod(InternalReplicationIndex, PollFramePeriod);
 }
 
-void UObjectReplicationBridge::SetPollWithObject(FNetHandle ObjectToPollWithHandle, FNetHandle ObjectHandle)
+void UObjectReplicationBridge::SetPollWithObject(FNetRefHandle ObjectToPollWithHandle, FNetRefHandle ObjectHandle)
 {
-	const UE::Net::Private::FInternalNetHandle PollWithInternalReplicationIndex = NetHandleManager->GetInternalIndex(ObjectToPollWithHandle);
-	const UE::Net::Private::FInternalNetHandle InternalReplicationIndex = NetHandleManager->GetInternalIndex(ObjectHandle);
+	const UE::Net::Private::FInternalNetRefIndex PollWithInternalReplicationIndex = NetRefHandleManager->GetInternalIndex(ObjectToPollWithHandle);
+	const UE::Net::Private::FInternalNetRefIndex InternalReplicationIndex = NetRefHandleManager->GetInternalIndex(ObjectHandle);
 	PollFrequencyLimiter->SetPollWithObject(PollWithInternalReplicationIndex, InternalReplicationIndex);
 }
 
-bool UObjectReplicationBridge::GetObjectWantsToBeDormant(FNetHandle Handle) const
+bool UObjectReplicationBridge::GetObjectWantsToBeDormant(FNetRefHandle Handle) const
 {
 	using namespace UE::Net::Private;
 
 	const FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
-	const FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+	const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 
-	if (const FInternalNetHandle InternalObjectIndex = LocalNetHandleManager.GetInternalIndex(Handle))
+	if (const FInternalNetRefIndex InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(Handle))
 	{
-		return LocalNetHandleManager.GetWantToBeDormantInternalIndices().GetBit(InternalObjectIndex);
+		return LocalNetRefHandleManager.GetWantToBeDormantInternalIndices().GetBit(InternalObjectIndex);
 	}
 
 	return false;
 }
 
-void UObjectReplicationBridge::SetObjectWantsToBeDormant(FNetHandle Handle, bool bWantsToBeDormant)
+void UObjectReplicationBridge::SetObjectWantsToBeDormant(FNetRefHandle Handle, bool bWantsToBeDormant)
 {
 	using namespace UE::Net::Private;
 
 	FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
-	FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+	FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 
-	if (const FInternalNetHandle InternalObjectIndex = LocalNetHandleManager.GetInternalIndex(Handle))
+	if (const FInternalNetRefIndex InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(Handle))
 	{
-		UE::Net::FNetBitArray& WantToBeDormantObjects = LocalNetHandleManager.GetWantToBeDormantInternalIndices();
+		UE::Net::FNetBitArray& WantToBeDormantObjects = LocalNetRefHandleManager.GetWantToBeDormantInternalIndices();
 
 		// Update pending dormancy status
 		WantToBeDormantObjects.SetBitValue(InternalObjectIndex, bWantsToBeDormant);
@@ -993,16 +1015,31 @@ void UObjectReplicationBridge::SetObjectWantsToBeDormant(FNetHandle Handle, bool
 
 		// Since we use this as a mask when updating objects we must include subobjects as well
 		// Subobjects added later will copy status from owner when they are added
-		for (const FInternalNetHandle SubObjectInternalIndex : LocalNetHandleManager.GetSubObjects(InternalObjectIndex))
+		for (const FInternalNetRefIndex SubObjectInternalIndex : LocalNetRefHandleManager.GetSubObjects(InternalObjectIndex))
 		{
 			WantToBeDormantObjects.SetBitValue(SubObjectInternalIndex, bWantsToBeDormant);
 		}
 	}
 }
 
-void UObjectReplicationBridge::ForceUpdateWantsToBeDormantObject(FNetHandle Handle)
+void UObjectReplicationBridge::ForceUpdateWantsToBeDormantObject(FNetRefHandle Handle)
 {
 	DormantHandlesPendingFlush.Add(Handle);
+}
+
+void UObjectReplicationBridge::SetNetPushIdOnInstance(UE::Net::FReplicationInstanceProtocol* InstanceProtocol, FNetHandle NetHandle)
+{
+#if WITH_PUSH_MODEL
+	using namespace UE::Net;
+
+	// Set push ID only if any state supports it. If no state supports it then we might crash if setting the ID.
+	if (EnumHasAnyFlags(InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::HasPartialPushBasedDirtiness | EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness))
+	{
+		const Private::FNetPushObjectHandle PushHandle(NetHandle);
+		TArrayView<const FReplicationFragment* const> Fragments(InstanceProtocol->Fragments, InstanceProtocol->FragmentCount);
+		SetNetPushIdOnFragments(Fragments, PushHandle);
+	}
+#endif
 }
 
 bool UObjectReplicationBridge::FindPollInfo(const UClass* Class, uint8& OutPollPeriod)

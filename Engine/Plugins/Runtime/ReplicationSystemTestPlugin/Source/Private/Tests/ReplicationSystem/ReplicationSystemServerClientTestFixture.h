@@ -73,7 +73,7 @@ public:
 	};
 
 public:
-	explicit FReplicationSystemTestNode(bool bIsServer, const TCHAR* Name);
+	FReplicationSystemTestNode(bool bIsServer, const TCHAR* Name);
 	~FReplicationSystemTestNode();
 
 	template<typename T>
@@ -93,7 +93,7 @@ public:
 	}
 
 	template<typename T>
-	T* CreateSubObject(FNetHandle OwnerHandle, FNetHandle InsertRelativeToSubObjectHandle = FNetHandle(), UReplicationBridge::ESubObjectInsertionOrder InsertionOrder = UReplicationBridge::ESubObjectInsertionOrder::None)
+	T* CreateSubObject(FNetRefHandle OwnerHandle, FNetRefHandle InsertRelativeToSubObjectHandle = FNetRefHandle(), UReplicationBridge::ESubObjectInsertionOrder InsertionOrder = UReplicationBridge::ESubObjectInsertionOrder::None)
 	{
 		T* CreatedObject = NewObject<T>();
 		if (Cast<UReplicatedTestObject>(CreatedObject))
@@ -109,15 +109,15 @@ public:
 	}
 
 	template <typename T>
-	T* GetObjectAs(FNetHandle Handle)
+	T* GetObjectAs(FNetRefHandle Handle)
 	{
 		return static_cast<T*>(ReplicationBridge->GetReplicatedObject(Handle));
 	}
 
 	UTestReplicatedIrisObject* CreateObject(uint32 NumComponents, uint32 NumIrisComponents);
-	UTestReplicatedIrisObject* CreateSubObject(FNetHandle Owner, uint32 NumComponents, uint32 NumIrisComponents);
+	UTestReplicatedIrisObject* CreateSubObject(FNetRefHandle Owner, uint32 NumComponents, uint32 NumIrisComponents);
 	UTestReplicatedIrisObject* CreateObject(const UTestReplicatedIrisObject::FComponents& Components);
-	UTestReplicatedIrisObject* CreateSubObject(FNetHandle Owner, const UTestReplicatedIrisObject::FComponents& Components);
+	UTestReplicatedIrisObject* CreateSubObject(FNetRefHandle Owner, const UTestReplicatedIrisObject::FComponents& Components);
 	UTestReplicatedIrisObject* CreateObjectWithDynamicState(uint32 NumComponents, uint32 NumIrisComponents, uint32 NumDynamicStateComponents);
 	void DestroyObject(UReplicatedTestObject*, EEndReplicationFlags EndReplicationFlags = EEndReplicationFlags::Destroy);
 
@@ -138,6 +138,7 @@ public:
 
 	UReplicatedTestObjectBridge* GetReplicationBridge() { return ReplicationBridge; }
 	UReplicationSystem* GetReplicationSystem() { return ReplicationSystem; }
+	uint32 GetReplicationSystemId() const;
 
 	void SetMaxSendPacketSize(uint32 InMaxSendPacketSize) { MaxSendPacketSize = InMaxSendPacketSize; }
 
@@ -158,7 +159,7 @@ private:
 class FReplicationSystemTestClient : public FReplicationSystemTestNode
 {
 public:
-	FReplicationSystemTestClient(uint32 ReplicationSystemId, const TCHAR* Name);
+	FReplicationSystemTestClient(const TCHAR* Name);
 
 	uint32 ConnectionIdOnServer;
 	uint32 LocalConnectionId;

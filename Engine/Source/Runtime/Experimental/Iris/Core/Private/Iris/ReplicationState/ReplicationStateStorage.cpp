@@ -30,7 +30,7 @@ void FReplicationStateStorage::Init(FReplicationStateStorageInitParams& InitPara
 	// Make sure the MaxObjectInfoCount calculation can't overflow.
 	static_assert(std::numeric_limits<decltype(MaxObjectInfoCount)>::max() > std::numeric_limits<ObjectInfoIndexType>::max(), "");
 
-	NetHandleManager = InitParams.NetHandleManager;
+	NetRefHandleManager = InitParams.NetRefHandleManager;
 
 	UsedPerObjectInfos.Init(MaxObjectInfoCount);
 	UsedPerObjectInfos.SetBit(InvalidObjectInfoIndex);
@@ -79,11 +79,11 @@ const uint8* FReplicationStateStorage::GetState(uint32 ObjectIndex, EReplication
 	{
 		case EReplicationStateType::CurrentSendState:
 		{
-			return NetHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex);
+			return NetRefHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex);
 		}
 		case EReplicationStateType::CurrentRecvState:
 		{
-			const Private::FNetHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetHandleManager->GetReplicatedObjectData(ObjectIndex);
+			const Private::FNetRefHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetRefHandleManager->GetReplicatedObjectData(ObjectIndex);
 			return ReplicatedObjectData.ReceiveStateBuffer;
 		}
 		default:
@@ -332,10 +332,10 @@ FReplicationStateStorage::FPerObjectInfo* FReplicationStateStorage::GetOrCreateP
 		FPerObjectInfo& ObjectInfo = ObjectInfos[NewInfoIndex];
 		
 		// Cache some info
-		const Private::FNetHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetHandleManager->GetReplicatedObjectData(ObjectIndex);
+		const Private::FNetRefHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetRefHandleManager->GetReplicatedObjectData(ObjectIndex);
 		const FReplicationProtocol* Protocol = ReplicatedObjectData.Protocol;
 		ObjectInfo.Protocol = Protocol;
-		ObjectInfo.StateBuffers[(unsigned)EStateBufferType::SendState] = NetHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex);
+		ObjectInfo.StateBuffers[(unsigned)EStateBufferType::SendState] = NetRefHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex);
 		ObjectInfo.StateBuffers[(unsigned)EStateBufferType::RecvState] = ReplicatedObjectData.ReceiveStateBuffer;
 		return &ObjectInfo;
 	}

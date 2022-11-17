@@ -77,20 +77,25 @@ public:
 
 		const uint32 ReplicationSystemId = ReplicationSystem->GetId();
 
-		// $IRIS TODO: Need object ID range. Currently abusing hardcoded values from FNetHandleManager
-		FDirtyNetObjectTrackerInitParams DirtyNetObjectTrackerInitParams = {};
-		DirtyNetObjectTrackerInitParams.ReplicationSystemId = ReplicationSystemId;
-		DirtyNetObjectTrackerInitParams.NetObjectIndexRangeStart = 1;
-		DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd = ReplicationSystemInternal.GetNetHandleManager().GetMaxActiveObjectCount() - 1U;
-		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
+		FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal.GetNetRefHandleManager();
 
-		DirtyNetObjectTracker.Init(DirtyNetObjectTrackerInitParams);
+		// $IRIS TODO: Need object ID range. Currently abusing hardcoded values from FNetRefHandleManager
+		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
+		FDirtyNetObjectTrackerInitParams DirtyNetObjectTrackerInitParams;
+		{
+			DirtyNetObjectTrackerInitParams.NetRefHandleManager = &NetRefHandleManager;
+			DirtyNetObjectTrackerInitParams.ReplicationSystemId = ReplicationSystemId;
+			DirtyNetObjectTrackerInitParams.NetObjectIndexRangeStart = 1;
+			DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd = NetRefHandleManager.GetMaxActiveObjectCount() - 1U;
+
+			DirtyNetObjectTracker.Init(DirtyNetObjectTrackerInitParams);
+		}
 
 		FReplicationStateStorage& StateStorage = ReplicationSystemInternal.GetReplicationStateStorage();
 		{
 			FReplicationStateStorageInitParams InitParams;
 			InitParams.ReplicationSystem = ReplicationSystem;
-			InitParams.NetHandleManager = &ReplicationSystemInternal.GetNetHandleManager();
+			InitParams.NetRefHandleManager = &NetRefHandleManager;
 			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
 			InitParams.MaxConnectionCount = ReplicationSystemInternal.GetConnections().GetMaxConnectionCount();
 			InitParams.MaxDeltaCompressedObjectCount = Params.MaxDeltaCompressedObjectCount;
@@ -133,7 +138,7 @@ public:
 			FDeltaCompressionBaselineManagerInitParams InitParams;
 			InitParams.BaselineInvalidationTracker = &DeltaCompressionBaselineInvalidationTracker;
 			InitParams.Connections = &ReplicationSystemInternal.GetConnections();
-			InitParams.NetHandleManager = &ReplicationSystemInternal.GetNetHandleManager();
+			InitParams.NetRefHandleManager = &NetRefHandleManager;
 			InitParams.ReplicationStateStorage = &StateStorage;
 			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
 			InitParams.MaxDeltaCompressedObjectCount = Params.MaxDeltaCompressedObjectCount;
@@ -146,7 +151,7 @@ public:
 			FReplicationFilteringInitParams InitParams;
 			InitParams.ReplicationSystem = ReplicationSystem;
 			InitParams.Connections = &ReplicationSystemInternal.GetConnections();
-			InitParams.NetHandleManager = &ReplicationSystemInternal.GetNetHandleManager();
+			InitParams.NetRefHandleManager = &NetRefHandleManager;
 			InitParams.Groups = &Groups;
 			InitParams.BaselineInvalidationTracker = &ReplicationSystemInternal.GetDeltaCompressionBaselineInvalidationTracker();
 			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
@@ -159,7 +164,7 @@ public:
 		FReplicationConditionals& ReplicationConditionals = ReplicationSystemInternal.GetConditionals();
 		{
 			FReplicationConditionalsInitParams InitParams = {};
-			InitParams.NetHandleManager = &ReplicationSystemInternal.GetNetHandleManager();
+			InitParams.NetRefHandleManager = &NetRefHandleManager;
 			InitParams.ReplicationConnections = &ReplicationSystemInternal.GetConnections();
 			InitParams.ReplicationFiltering = &ReplicationFiltering;
 			InitParams.NetObjectGroups = &Groups;
@@ -174,7 +179,7 @@ public:
 			FReplicationPrioritizationInitParams InitParams;
 			InitParams.ReplicationSystem = ReplicationSystem;
 			InitParams.Connections = &ReplicationSystemInternal.GetConnections();
-			InitParams.NetHandleManager = &ReplicationSystemInternal.GetNetHandleManager();
+			InitParams.NetRefHandleManager = &NetRefHandleManager;
 			InitParams.MaxObjectCount = DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd + 1U;
 			ReplicationPrioritization.Init(InitParams);
 		}
@@ -203,14 +208,14 @@ public:
 		ReplicationSystemInternal.GetReplicationBridge()->Deinitialize();
 	}
 
-	/**
-	 * Due to objects having been marked as dirty and later removed we must make sure
-	 * that all dirty objects are still in scope.
-	 */
 	void UpdateDirtyObjectList()
 	{
-		FNetBitArrayView DirtyObjects = ReplicationSystemInternal.GetDirtyNetObjectTracker().GetDirtyNetObjects();
-		const FNetBitArrayView ScopableInternalIndices = MakeNetBitArrayView(ReplicationSystemInternal.GetNetHandleManager().GetScopableInternalIndices());
+		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
+		DirtyNetObjectTracker.UpdateDirtyNetObjects();
+		FNetBitArrayView DirtyObjects = DirtyNetObjectTracker.GetDirtyNetObjects();
+
+		// Due to objects having been marked as dirty and later removed we must make sure that all dirty objects are still in scope.
+		const FNetBitArrayView ScopableInternalIndices = MakeNetBitArrayView(ReplicationSystemInternal.GetNetRefHandleManager().GetScopableInternalIndices());
 		DirtyObjects.Combine(ScopableInternalIndices, FNetBitArrayView::AndOp);
 	}
 
@@ -282,7 +287,7 @@ public:
 		IRIS_PROFILER_SCOPE(FReplicationSystem_CopyDirtyStateData);
 		LLM_SCOPE_BYTAG(IrisState);
 
-		FNetHandleManager& NetHandleManager = ReplicationSystemInternal.GetNetHandleManager();
+		FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal.GetNetRefHandleManager();
 		FChangeMaskCache& Cache = ReplicationSystemInternal.GetChangeMaskCache();
 
 		const uint32 ReplicationSystemId = ReplicationSystem->GetId();
@@ -302,9 +307,9 @@ public:
 
 		SerializationContext.SetInternalContext(&InternalContext);
 
-		auto CopyFunction = [&ChangeMaskWriter, &Cache, &NetHandleManager, &CopiedObjectCount, &SerializationContext, ReplicationSystemId](uint32 DirtyIndex)
+		auto CopyFunction = [&ChangeMaskWriter, &Cache, &NetRefHandleManager, &CopiedObjectCount, &SerializationContext, ReplicationSystemId](uint32 DirtyIndex)
 		{
-			CopiedObjectCount += FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, Cache, NetHandleManager, SerializationContext, DirtyIndex);
+			CopiedObjectCount += FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, Cache, NetRefHandleManager, SerializationContext, DirtyIndex);
 		};
 
 		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
@@ -351,7 +356,7 @@ public:
 			Params.ReplicationSystem = ReplicationSystem;
 			Params.PacketSendWindowSize = 256;
 			Params.ConnectionId = ConnectionId;
-			Params.MaxActiveReplicatedObjectCount = ReplicationSystemInternal.GetNetHandleManager().GetMaxActiveObjectCount();
+			Params.MaxActiveReplicatedObjectCount = ReplicationSystemInternal.GetNetRefHandleManager().GetMaxActiveObjectCount();
 			/** 
 			  * Currently we expect all objects to be replicated from server to client.
 			  * That means we will have to support sending attachments such as RPCs from
@@ -515,7 +520,7 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 
 	if (bAllowObjectReplication)
 	{
-		UE_NET_TRACE_FRAME_STATSCOUNTER(GetId(), ReplicationSystem.ReplicatedObjectCount, InternalSys.GetNetHandleManager().GetActiveObjectCount(), ENetTraceVerbosity::Verbose);
+		UE_NET_TRACE_FRAME_STATSCOUNTER(GetId(), ReplicationSystem.ReplicatedObjectCount, InternalSys.GetNetRefHandleManager().GetActiveObjectCount(), ENetTraceVerbosity::Verbose);
 
 		// Refresh dirty object list
 		Impl->UpdateDirtyObjectList();
@@ -566,7 +571,7 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 	// Destroy objects pending destroy
 	{
 		Impl->UpdateUnresolvableReferenceTracking();
-		InternalSys.GetNetHandleManager().DestroyObjectsPendingDestroy();
+		InternalSys.GetNetRefHandleManager().DestroyObjectsPendingDestroy();
 	}
 }
 
@@ -588,7 +593,7 @@ void UReplicationSystem::PostSendUpdate()
 	InternalSys.GetChangeMaskCache().ResetCache();
 
 	// Store the state of the previous frames scopable objects
-	InternalSys.GetNetHandleManager().SetPrevFrameScopableInternalIndicesToCurrent();
+	InternalSys.GetNetRefHandleManager().SetPrevFrameScopableInternalIndicesToCurrent();
 
 	// Update handles pending tear-off
 	InternalSys.GetReplicationBridge()->UpdateHandlesPendingTearOff();
@@ -668,26 +673,34 @@ void UReplicationSystem::SetReplicationView(uint32 ConnectionId, const UE::Net::
 	Connections.SetReplicationView(ConnectionId, View);
 }
 
-void UReplicationSystem::SetStaticPriority(FNetHandle Handle, float Priority)
+void UReplicationSystem::SetStaticPriority(FNetRefHandle Handle, float Priority)
 {
-	const uint32 ObjectIndex = Impl->ReplicationSystemInternal.GetNetHandleManager().GetInternalIndex(Handle);
-	if (ObjectIndex == UE::Net::Private::FNetHandleManager::InvalidInternalIndex)
+	const UE::Net::Private::FInternalNetRefIndex ObjectInternalIndex = Impl->ReplicationSystemInternal.GetNetRefHandleManager().GetInternalIndex(Handle);
+	if (ObjectInternalIndex == UE::Net::Private::FNetRefHandleManager::InvalidInternalIndex)
 	{
 		return;
 	}
 
-	return Impl->ReplicationSystemInternal.GetPrioritization().SetStaticPriority(ObjectIndex, Priority);
+	return Impl->ReplicationSystemInternal.GetPrioritization().SetStaticPriority(ObjectInternalIndex, Priority);
 }
 
-bool UReplicationSystem::SetPrioritizer(FNetHandle Handle, FNetObjectPrioritizerHandle Prioritizer)
+bool UReplicationSystem::SetPrioritizer(FNetRefHandle Handle, FNetObjectPrioritizerHandle Prioritizer)
 {
-	const uint32 ObjectIndex = Impl->ReplicationSystemInternal.GetNetHandleManager().GetInternalIndex(Handle);
-	if (ObjectIndex == UE::Net::Private::FNetHandleManager::InvalidInternalIndex)
+	using namespace UE::Net::Private;
+
+	if (!Handle.IsValid())
 	{
 		return false;
 	}
 
-	return Impl->ReplicationSystemInternal.GetPrioritization().SetPrioritizer(ObjectIndex, Prioritizer);
+	FReplicationSystemInternal& ReplicationSystemInternal = Impl->ReplicationSystemInternal;
+	const FInternalNetRefIndex ObjectInternalIndex = ReplicationSystemInternal.GetNetRefHandleManager().GetInternalIndex(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
+	{
+		return false;
+	}
+
+	return ReplicationSystemInternal.GetPrioritization().SetPrioritizer(ObjectInternalIndex, Prioritizer);
 }
 
 FNetObjectPrioritizerHandle UReplicationSystem::GetPrioritizerHandle(const FName PrioritizerName) const
@@ -699,13 +712,6 @@ UNetObjectPrioritizer* UReplicationSystem::GetPrioritizer(const FName Prioritize
 {
 	return Impl->ReplicationSystemInternal.GetPrioritization().GetPrioritizer(PrioritizerName);
 }
-
-#if 0
-UNetObjectPrioritizer* UReplicationSystem::GetPrioritizer(const FName PrioritizerName)
-{
-	return Impl->ReplicationSystemInternal.GetPrioritization().GetPrioritizer(PrioritizerName);
-}
-#endif
 
 const UE::Net::FStringTokenStore* UReplicationSystem::GetStringTokenStore() const
 {
@@ -777,33 +783,33 @@ UReplicationBridge* UReplicationSystem::GetReplicationBridge() const
 	return Impl->ReplicationSystemInternal.GetReplicationBridge();
 }
 
-bool UReplicationSystem::IsValidHandle(FNetHandle Handle) const
+bool UReplicationSystem::IsValidHandle(FNetRefHandle Handle) const
 {
-	return Handle.IsValid() && Impl->ReplicationSystemInternal.GetNetHandleManager().IsValidNetHandle(Handle);
+	return Handle.IsValid() && Impl->ReplicationSystemInternal.GetNetRefHandleManager().IsValidNetRefHandle(Handle);
 }
 
-const UE::Net::FReplicationProtocol* UReplicationSystem::GetReplicationProtocol(FNetHandle Handle) const
+const UE::Net::FReplicationProtocol* UReplicationSystem::GetReplicationProtocol(FNetRefHandle Handle) const
 {
 	using namespace UE::Net::Private;
 
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
 
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
-	if (ObjectInternalIndex == FNetHandleManager::InvalidInternalIndex)
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
 	{
 		return nullptr;
 	}
 
-	return NetHandleManager.GetReplicatedObjectDataNoCheck(ObjectInternalIndex).Protocol;
+	return NetRefHandleManager.GetReplicatedObjectDataNoCheck(ObjectInternalIndex).Protocol;
 }
 
-void UReplicationSystem::SetOwningNetConnection(FNetHandle Handle, uint32 ConnectionId)
+void UReplicationSystem::SetOwningNetConnection(FNetRefHandle Handle, uint32 ConnectionId)
 {
 	using namespace UE::Net::Private;
 
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
-	if (ObjectInternalIndex == FNetHandleManager::InvalidInternalIndex)
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
 	{
 		return;
 	}
@@ -812,28 +818,28 @@ void UReplicationSystem::SetOwningNetConnection(FNetHandle Handle, uint32 Connec
 	Filtering.SetOwningConnection(ObjectInternalIndex, ConnectionId);
 }
 
-uint32 UReplicationSystem::GetOwningNetConnection(FNetHandle Handle) const
+uint32 UReplicationSystem::GetOwningNetConnection(FNetRefHandle Handle) const
 {
 	using namespace UE::Net::Private;
 
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
-	if (ObjectInternalIndex == FNetHandleManager::InvalidInternalIndex)
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
 	{
-		return 0U;
+		return UE::Net::InvalidConnectionId;
 	}
 
 	const FReplicationFiltering& Filtering = Impl->ReplicationSystemInternal.GetFiltering();
 	return Filtering.GetOwningConnection(ObjectInternalIndex);
 }
 
-bool UReplicationSystem::SetFilter(FNetHandle Handle, UE::Net::FNetObjectFilterHandle Filter)
+bool UReplicationSystem::SetFilter(FNetRefHandle Handle, UE::Net::FNetObjectFilterHandle Filter)
 {
 	using namespace UE::Net::Private;
 
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
-	if (ObjectInternalIndex == FNetHandleManager::InvalidInternalIndex)
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
 	{
 		return false;
 	}
@@ -852,14 +858,14 @@ UNetObjectFilter* UReplicationSystem::GetFilter(const FName FilterName) const
 	return Impl->ReplicationSystemInternal.GetFiltering().GetFilter(FilterName);
 }
 
-bool UReplicationSystem::SetConnectionFilter(FNetHandle Handle, const TBitArray<>& Connections, UE::Net::ENetFilterStatus ReplicationStatus)
+bool UReplicationSystem::SetConnectionFilter(FNetRefHandle Handle, const TBitArray<>& Connections, UE::Net::ENetFilterStatus ReplicationStatus)
 {
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
 
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
-	if (ObjectInternalIndex == FNetHandleManager::InvalidInternalIndex)
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
 	{
 		return false;
 	}
@@ -952,17 +958,17 @@ UE::Net::FNetObjectGroupHandle UReplicationSystem::CreateGroup()
 	return Impl->ReplicationSystemInternal.GetGroups().CreateGroup();
 }
 
-void UReplicationSystem::AddToGroup(FNetObjectGroupHandle GroupHandle, FNetHandle Handle)
+void UReplicationSystem::AddToGroup(FNetObjectGroupHandle GroupHandle, FNetRefHandle Handle)
 {
 	LLM_SCOPE_BYTAG(Iris);
 
 	using namespace UE::Net::Private;
 
 	FNetObjectGroups& Groups = Impl->ReplicationSystemInternal.GetGroups();
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
 	FReplicationFiltering& Filtering = Impl->ReplicationSystemInternal.GetFiltering();	
 
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
 
 	if (GroupHandle && ObjectInternalIndex)
 	{
@@ -971,13 +977,13 @@ void UReplicationSystem::AddToGroup(FNetObjectGroupHandle GroupHandle, FNetHandl
 	}
 }
 
-void UReplicationSystem::RemoveFromGroup(FNetObjectGroupHandle GroupHandle, FNetHandle Handle)
+void UReplicationSystem::RemoveFromGroup(FNetObjectGroupHandle GroupHandle, FNetRefHandle Handle)
 {	
 	using namespace UE::Net::Private;
 
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
 
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
 	if (GroupHandle && ObjectInternalIndex)
 	{
 		FNetObjectGroups& Groups = Impl->ReplicationSystemInternal.GetGroups();
@@ -988,16 +994,16 @@ void UReplicationSystem::RemoveFromGroup(FNetObjectGroupHandle GroupHandle, FNet
 	}
 }
 
-void UReplicationSystem::RemoveFromAllGroups(FNetHandle Handle)
+void UReplicationSystem::RemoveFromAllGroups(FNetRefHandle Handle)
 {
 	using namespace UE::Net::Private;
 
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
 	FNetObjectGroups& Groups = Impl->ReplicationSystemInternal.GetGroups();
 	FReplicationFiltering& Filtering = Impl->ReplicationSystemInternal.GetFiltering();
 
 	uint32 NumGroupMemberShips;
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
 	if (const FNetObjectGroupHandle* GroupHandles = Groups.GetGroupMemberships(ObjectInternalIndex, NumGroupMemberShips))
 	{
 		// We copy the membership array as it is modified during removal
@@ -1010,12 +1016,14 @@ void UReplicationSystem::RemoveFromAllGroups(FNetHandle Handle)
 	}	
 }
 
-bool UReplicationSystem::IsInGroup(FNetObjectGroupHandle GroupHandle, FNetHandle Handle) const
+bool UReplicationSystem::IsInGroup(FNetObjectGroupHandle GroupHandle, FNetRefHandle Handle) const
 {
-	const UE::Net::Private::FNetObjectGroups& Groups = Impl->ReplicationSystemInternal.GetGroups();
-	const UE::Net::Private::FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
+	using namespace UE::Net::Private;
 
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
+	const FNetObjectGroups& Groups = Impl->ReplicationSystemInternal.GetGroups();
+	const FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
+
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
 
 	return Groups.Contains(GroupHandle, ObjectInternalIndex);
 }
@@ -1078,13 +1086,13 @@ void UReplicationSystem::SetGroupFilterStatus(FNetObjectGroupHandle GroupHandle,
 	Filtering.SetGroupFilterStatus(GroupHandle, ReplicationStatus);
 }
 
-bool UReplicationSystem::SetReplicationConditionConnectionFilter(FNetHandle Handle, UE::Net::EReplicationCondition Condition, uint32 ConnectionId, bool bEnable)
+bool UReplicationSystem::SetReplicationConditionConnectionFilter(FNetRefHandle Handle, UE::Net::EReplicationCondition Condition, uint32 ConnectionId, bool bEnable)
 {
 	using namespace UE::Net::Private;
 
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
-	if (ObjectInternalIndex == FNetHandleManager::InvalidInternalIndex)
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
 	{
 		return false;
 	}
@@ -1093,13 +1101,13 @@ bool UReplicationSystem::SetReplicationConditionConnectionFilter(FNetHandle Hand
 	return Conditionals.SetConditionConnectionFilter(ObjectInternalIndex, Condition, ConnectionId, bEnable);
 }
 
-bool UReplicationSystem::SetReplicationCondition(FNetHandle Handle, UE::Net::EReplicationCondition Condition, bool bEnable)
+bool UReplicationSystem::SetReplicationCondition(FNetRefHandle Handle, UE::Net::EReplicationCondition Condition, bool bEnable)
 {
 	using namespace UE::Net::Private;
 
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
-	if (ObjectInternalIndex == FNetHandleManager::InvalidInternalIndex)
+	FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
 	{
 		return false;
 	}
@@ -1108,14 +1116,14 @@ bool UReplicationSystem::SetReplicationCondition(FNetHandle Handle, UE::Net::ERe
 	return Conditionals.SetCondition(ObjectInternalIndex, Condition, bEnable);
 }
 
-void UReplicationSystem::SetDeltaCompressionStatus(FNetHandle Handle, UE::Net::ENetObjectDeltaCompressionStatus Status)
+void UReplicationSystem::SetDeltaCompressionStatus(FNetRefHandle Handle, UE::Net::ENetObjectDeltaCompressionStatus Status)
 {
 	using namespace UE::Net::Private;
 
 	FReplicationSystemInternal& InternalSys = Impl->ReplicationSystemInternal;
-	FNetHandleManager& NetHandleManager = InternalSys.GetNetHandleManager();
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
-	if (ObjectInternalIndex == FNetHandleManager::InvalidInternalIndex)
+	FNetRefHandleManager& NetRefHandleManager = InternalSys.GetNetRefHandleManager();
+	const FInternalNetRefIndex ObjectInternalIndex = NetRefHandleManager.GetInternalIndex(Handle);
+	if (ObjectInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
 	{
 		return;
 	}
@@ -1124,24 +1132,25 @@ void UReplicationSystem::SetDeltaCompressionStatus(FNetHandle Handle, UE::Net::E
 	return DC.SetDeltaCompressionStatus(ObjectInternalIndex, Status);
 }
 
-void UReplicationSystem::SetIsNetTemporary(FNetHandle Handle)
+void UReplicationSystem::SetIsNetTemporary(FNetRefHandle Handle)
 {
-	UE::Net::Private::FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
-	if (ensure(NetHandleManager.IsLocalNetHandle(Handle)))
+	UE::Net::Private::FNetRefHandleManager& NetRefHandleManager = Impl->ReplicationSystemInternal.GetNetRefHandleManager();
+	if (ensure(NetRefHandleManager.IsLocalNetRefHandle(Handle)))
 	{
 		// Set the object to not propagate changed states
-		NetHandleManager.SetShouldPropagateChangedStates(Handle, false);
+		NetRefHandleManager.SetShouldPropagateChangedStates(Handle, false);
 	}
 }
 
-void UReplicationSystem::TearOffNextUpdate(FNetHandle Handle)
+void UReplicationSystem::TearOffNextUpdate(FNetRefHandle Handle)
 {
-	Impl->ReplicationSystemInternal.GetReplicationBridge()->TearOff(Handle, false);
+	constexpr EEndReplicationFlags DestroyFlags = EEndReplicationFlags::DestroyNetHandle | EEndReplicationFlags::ClearNetPushId;
+	Impl->ReplicationSystemInternal.GetReplicationBridge()->TearOff(Handle, DestroyFlags, false);
 }
 
-void UReplicationSystem::MarkDirty(FNetHandle Handle)
+void UReplicationSystem::MarkDirty(FNetRefHandle Handle)
 {
-	if (const uint32 InternalObjectIndex = Impl->ReplicationSystemInternal.GetNetHandleManager().GetInternalIndex(Handle))
+	if (const uint32 InternalObjectIndex = Impl->ReplicationSystemInternal.GetNetRefHandleManager().GetInternalIndex(Handle))
 	{
 		 UE::Net::Private::MarkNetObjectStateDirty(GetId(), InternalObjectIndex);
 	}
@@ -1157,7 +1166,7 @@ void UReplicationSystem::AddReferencedObjects(UObject* InThis, FReferenceCollect
 	UReplicationSystem* This = CastChecked<UReplicationSystem>(InThis);
 	if (This->Impl.IsValid())
 	{
-		This->Impl->ReplicationSystemInternal.GetNetHandleManager().AddReferencedObjects(Collector);
+		This->Impl->ReplicationSystemInternal.GetNetRefHandleManager().AddReferencedObjects(Collector);
 	}
 	Super::AddReferencedObjects(InThis, Collector);
 }
@@ -1169,10 +1178,6 @@ const UE::Net::FWorldLocations& UReplicationSystem::GetWorldLocations() const
 
 namespace UE::Net
 {
-
-#if !UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
-	UReplicationSystem* FReplicationSystemFactory::ReplicationSystem = nullptr;
-#endif
 
 FReplicationSystemCreatedDelegate& FReplicationSystemFactory::GetReplicationSystemCreatedDelegate()
 {
@@ -1187,20 +1192,17 @@ FReplicationSystemDestroyedDelegate& FReplicationSystemFactory::GetReplicationSy
 }
 
 // FReplicationSystemFactory
-#if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
 UReplicationSystem* FReplicationSystemFactory::ReplicationSystems[MaxReplicationSystemCount];
-#endif
+uint32 FReplicationSystemFactory::MaxReplicationSystemId = 0;
 
 UReplicationSystem* FReplicationSystemFactory::CreateReplicationSystem(const UReplicationSystem::FReplicationSystemParams& Params)
 {
 	if (!Params.ReplicationBridge)
 	{
 		UE_LOG(LogIris, Error, TEXT("Cannot create ReplicationSystem without a ReplicationBridge"));
-
 		return nullptr;
 	}
 
-#if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
 	for (uint32 It = 0, EndIt = MaxReplicationSystemCount; It != EndIt; ++It)
 	{
 		if (ReplicationSystems[It] != nullptr)
@@ -1210,9 +1212,15 @@ UReplicationSystem* FReplicationSystemFactory::CreateReplicationSystem(const URe
 
 		UReplicationSystem* ReplicationSystem = NewObject<UReplicationSystem>();
 		ReplicationSystems[It] = ReplicationSystem;
-
 		ReplicationSystem->AddToRoot();
-		ReplicationSystem->Init(It, Params);
+
+		const uint32 ReplicationSystemId = It;
+		if (ReplicationSystemId > MaxReplicationSystemId)
+		{
+			MaxReplicationSystemId = ReplicationSystemId;
+		}
+
+		ReplicationSystem->Init(ReplicationSystemId, Params);
 
 		if (GetReplicationSystemCreatedDelegate().IsBound())
 		{
@@ -1224,42 +1232,30 @@ UReplicationSystem* FReplicationSystemFactory::CreateReplicationSystem(const URe
 
 	LowLevelFatalError(TEXT("Too many ReplicationSystems have already been created (%u)"), MaxReplicationSystemCount);
 	return nullptr;
-#else
-	if (ReplicationSystem != nullptr)
-	{
-		LowLevelFatalError(TEXT("There can only be one ReplicationSystem"));
-	}
-
-	ReplicationSystem = NewObject<UReplicationSystem>();
-	ReplicationSystem->AddToRoot();
-	ReplicationSystem->Init(0, Params);
-
-	if (GetReplicationSystemCreatedDelegate().IsBound())
-	{
-		GetReplicationSystemCreatedDelegate().Broadcast(ReplicationSystem);
-	}
-	
-	return ReplicationSystem;
-#endif
 }
 
 void FReplicationSystemFactory::DestroyReplicationSystem(UReplicationSystem* System)
 {
 	if (System == nullptr)
+	{
 		return;
+	}
 
-#if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
 	const uint32 Id = System->GetId();
 	if (Id < MaxReplicationSystemCount)
 	{
 		ReplicationSystems[Id] = nullptr;
+
+		uint32 NewMaxReplicationSystemId = 0;
+		for (uint32 It = 0, EndIt = MaxReplicationSystemCount; It != EndIt; ++It)
+		{
+			if (ReplicationSystems[It] != nullptr)
+			{
+				NewMaxReplicationSystemId = Id;
+			}
+		}
+		MaxReplicationSystemId = NewMaxReplicationSystemId;
 	}
-#else
-	if (System == ReplicationSystem)
-	{
-		ReplicationSystem = nullptr;
-	}
-#endif
 
 	if (GetReplicationSystemDestroyedDelegate().IsBound())
 	{
@@ -1269,6 +1265,11 @@ void FReplicationSystemFactory::DestroyReplicationSystem(UReplicationSystem* Sys
 	System->Shutdown();
 	System->RemoveFromRoot();
 	System->MarkAsGarbage();
+}
+
+TArrayView<UReplicationSystem*> FReplicationSystemFactory::GetAllReplicationSystems()
+{
+	return MakeArrayView(ReplicationSystems, MaxReplicationSystemId + 1);
 }
 
 }

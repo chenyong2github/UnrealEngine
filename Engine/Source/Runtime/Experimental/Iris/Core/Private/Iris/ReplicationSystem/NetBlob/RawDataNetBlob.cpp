@@ -44,12 +44,12 @@ void FRawDataNetBlob::InternalDeserialize(FNetSerializationContext& Context)
 	Reader->ReadBitStream(RawData.GetData(), RawDataBitCount);
 }
 
-void FRawDataNetBlob::SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const
+void FRawDataNetBlob::SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const
 {
 	InternalSerialize(Context);
 }
 
-void FRawDataNetBlob::DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle)
+void FRawDataNetBlob::DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle)
 {
 	InternalDeserialize(Context);
 }

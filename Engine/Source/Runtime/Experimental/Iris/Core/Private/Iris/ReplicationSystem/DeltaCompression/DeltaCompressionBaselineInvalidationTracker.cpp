@@ -21,7 +21,7 @@ void FDeltaCompressionBaselineInvalidationTracker::Init(FDeltaCompressionBaselin
 	InvalidatedObjects.Init(InitParams.MaxObjectCount);
 }
 
-void FDeltaCompressionBaselineInvalidationTracker::InvalidateBaselines(FInternalNetHandle ObjectIndex, uint32 ConnId)
+void FDeltaCompressionBaselineInvalidationTracker::InvalidateBaselines(FInternalNetRefIndex ObjectIndex, uint32 ConnId)
 {
 	if (InvalidatedObjects.GetBit(ObjectIndex))
 	{

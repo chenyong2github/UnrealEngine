@@ -11,9 +11,9 @@ FNetDependencyData::FNetDependencyData()
 {
 }
 
-void FNetDependencyData::FreeStoredDependencyDataForObject(FInternalNetHandle InternalHandle)
+void FNetDependencyData::FreeStoredDependencyDataForObject(FInternalNetRefIndex InternalIndex)
 {
-	if (FDependencyInfo* Entry = DependencyInfos.Find(InternalHandle))
+	if (FDependencyInfo* Entry = DependencyInfos.Find(InternalIndex))
 	{
 		for (const uint32 ArrayIndex : Entry->ArrayIndices)
 		{
@@ -29,26 +29,26 @@ void FNetDependencyData::FreeStoredDependencyDataForObject(FInternalNetHandle In
 			SubObjectConditionalsStorage.RemoveAt(Entry->SubObjectConditionalArrayIndex);
 		}
 
-		DependencyInfos.Remove(InternalHandle);
+		DependencyInfos.Remove(InternalIndex);
 	}
 }
 
-FNetDependencyData::FDependencyInfo& FNetDependencyData::GetOrCreateCacheEntry(FInternalNetHandle InternalHandle)
+FNetDependencyData::FDependencyInfo& FNetDependencyData::GetOrCreateCacheEntry(FInternalNetRefIndex InternalIndex)
 {
-	FDependencyInfo* Entry = DependencyInfos.Find(InternalHandle);
+	FDependencyInfo* Entry = DependencyInfos.Find(InternalIndex);
 
 	if (!Entry)
 	{
-		Entry = &DependencyInfos.Add(InternalHandle);
+		Entry = &DependencyInfos.Add(InternalIndex);
 		*Entry = FDependencyInfo();
 	}
 
 	return *Entry;
 }
 
-FNetDependencyData::FSubObjectConditionalsArray& FNetDependencyData::GetOrCreateSubObjectConditionalsArray(FInternalNetHandle OwnerHandle)
+FNetDependencyData::FSubObjectConditionalsArray& FNetDependencyData::GetOrCreateSubObjectConditionalsArray(FInternalNetRefIndex OwnerIndex)
 {
-	FDependencyInfo& Entry = GetOrCreateCacheEntry(OwnerHandle);
+	FDependencyInfo& Entry = GetOrCreateCacheEntry(OwnerIndex);
 	check(Entry.ArrayIndices[EArrayType::ChildSubObjects] != FDependencyInfo::InvalidCacheIndex);
 	
 	if (Entry.SubObjectConditionalArrayIndex == FDependencyInfo::InvalidCacheIndex)
@@ -70,18 +70,18 @@ FNetDependencyData::FSubObjectConditionalsArray& FNetDependencyData::GetOrCreate
 	}
 }
 
-FNetDependencyData::FInternalNetHandleArray& FNetDependencyData::GetOrCreateInternalChildSubObjectsArray(FInternalNetHandle OwnerHandle, FSubObjectConditionalsArray*& OutSubObjectConditionals)
+FNetDependencyData::FInternalNetRefIndexArray& FNetDependencyData::GetOrCreateInternalChildSubObjectsArray(FInternalNetRefIndex OwnerIndex, FSubObjectConditionalsArray*& OutSubObjectConditionals)
 {
-	FDependencyInfo& Entry = GetOrCreateCacheEntry(OwnerHandle);
+	FDependencyInfo& Entry = GetOrCreateCacheEntry(OwnerIndex);
 	if (Entry.ArrayIndices[ChildSubObjects] == FDependencyInfo::InvalidCacheIndex)
 	{
 		// Allocate storage for subobjects / atomic dependencies
 		FSparseArrayAllocationInfo AllocInfo = DependentObjectsStorage.AddUninitialized();
 		Entry.ArrayIndices[ChildSubObjects] = AllocInfo.Index;
 
-		FInternalNetHandleArray* InternalHandleArray = new (AllocInfo.Pointer) FInternalNetHandleArray();
+		FInternalNetRefIndexArray* InternalIndexArray = new (AllocInfo.Pointer) FInternalNetRefIndexArray();
 		OutSubObjectConditionals = nullptr;
-		return *InternalHandleArray;
+		return *InternalIndexArray;
 	}
 	else
 	{
@@ -90,18 +90,18 @@ FNetDependencyData::FInternalNetHandleArray& FNetDependencyData::GetOrCreateInte
 	}
 }
 
-FNetDependencyData::FInternalNetHandleArray& FNetDependencyData::GetOrCreateInternalHandleArray(FInternalNetHandle OwnerHandle, EArrayType ArrayType)
+FNetDependencyData::FInternalNetRefIndexArray& FNetDependencyData::GetOrCreateInternalIndexArray(FInternalNetRefIndex OwnerIndex, EArrayType ArrayType)
 {
-	FDependencyInfo& Entry = GetOrCreateCacheEntry(OwnerHandle);
+	FDependencyInfo& Entry = GetOrCreateCacheEntry(OwnerIndex);
 	if (Entry.ArrayIndices[ArrayType] == FDependencyInfo::InvalidCacheIndex)
 	{
 		// Allocate storage for subobjects / atomic dependencies
 		FSparseArrayAllocationInfo AllocInfo = DependentObjectsStorage.AddUninitialized();
 		Entry.ArrayIndices[ArrayType] = AllocInfo.Index;
 
-		FInternalNetHandleArray* InternalHandleArray = new (AllocInfo.Pointer) FInternalNetHandleArray();
+		FInternalNetRefIndexArray* InternalIndexArray = new (AllocInfo.Pointer) FInternalNetRefIndexArray();
 
-		return *InternalHandleArray;
+		return *InternalIndexArray;
 	}
 	else
 	{

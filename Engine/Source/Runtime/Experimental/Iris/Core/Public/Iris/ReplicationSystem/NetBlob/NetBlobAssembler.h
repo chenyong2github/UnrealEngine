@@ -31,7 +31,7 @@ public:
 	 * @param Context FNetSerializationContext for error reporting. Call HasError() on it afterwards to check whether something went wrong.
 	 * @param NetHandle The NetHandle needs to remain constant for every call until the original blob has been assembled or the first part of a new blob is added.
 	 */
-	IRISCORE_API void AddPartialNetBlob(FNetSerializationContext& Context, FNetHandle NetHandle, const TRefCountPtr<FPartialNetBlob>& PartialNetBlob);
+	IRISCORE_API void AddPartialNetBlob(FNetSerializationContext& Context, FNetRefHandle RefHandle, const TRefCountPtr<FPartialNetBlob>& PartialNetBlob);
 
 	/** Returns true if all parts of the split blob have been added and is ready to be assembled. */
 	bool IsReadyToAssemble() const { return bIsReadyToAssemble; }
@@ -49,7 +49,7 @@ private:
 	FNetBlobCreationInfo NetBlobCreationInfo;
 	TArray<uint32> Payload;
 	FNetBitStreamWriter BitWriter;
-	FNetHandle NetHandle;
+	FNetRefHandle RefHandle;
 	uint32 NextPartIndex = 0;
 	uint32 PartCount = 0;
 	uint32 FirstPayloadBitCount = 0;

@@ -12,17 +12,16 @@ class FString;
 
 namespace UE::Net::Private
 {
-	class FNetHandleManager;
+	class FNetRefHandleManager;
 }
 
 namespace UE::Net
 {
 
 /**
-* FNetHandle
-*/
-
-class FNetHandle
+ * FNetRefHandle
+ */
+class FNetRefHandle
 {
 public:
 	enum { Invalid = 0 };
@@ -30,7 +29,7 @@ public:
 	enum { ReplicationSystemIdBits = 4 };
 
 public:
-	FNetHandle() : Value(Invalid) {}
+	FNetRefHandle() : Value(Invalid) {}
 
 	uint32 GetId() const { return Id; }
 	uint32 GetReplicationSystemId() const { check(ReplicationSystemId != 0U); return ReplicationSystemId - 1U; }
@@ -41,21 +40,17 @@ public:
 	bool IsStatic() const { return Id & StaticIdMask; }
 	bool IsDynamic() const { return IsValid() && !IsStatic(); }
 
-	bool operator==(const FNetHandle& Other)const { return Id == Other.Id; }
-	bool operator<(const FNetHandle& Other)const { return Id < Other.Id; }
-	bool operator!=(const FNetHandle& Other)const { return Id != Other.Id; }
+	bool operator==(const FNetRefHandle& Other)const { return Id == Other.Id; }
+	bool operator<(const FNetRefHandle& Other)const { return Id < Other.Id; }
+	bool operator!=(const FNetRefHandle& Other)const { return Id != Other.Id; }
 
 	IRISCORE_API FString ToString() const;
 
-	static bool FullCompare(FNetHandle A, FNetHandle B) { return A.Value == B.Value; }
+	static bool FullCompare(FNetRefHandle A, FNetRefHandle B) { return A.Value == B.Value; }
 	
 private:
-	static uint32 MakeNetHandleId(uint32 Seed, bool bIsStatic);
-	static FNetHandle MakeNetHandle(uint32 Id, uint32 ReplicationSystemId);
-	static FNetHandle MakeNetHandleFromId(uint32 Id);
-
-	friend uint32 GetTypeHash(const FNetHandle& Handle);
-	friend Private::FNetHandleManager;
+	friend uint32 GetTypeHash(const FNetRefHandle& Handle);
+	friend Private::FNetRefHandleManager;
 
 	static constexpr uint32 StaticIdMask = 1U;
 	static constexpr uint32 IdMask = ~0U;
@@ -72,18 +67,17 @@ private:
 	};
 };
 
-FORCEINLINE uint32 GetTypeHash(const FNetHandle& Handle)
+FORCEINLINE uint32 GetTypeHash(const FNetRefHandle& Handle)
 {
-	// Id and type is relevant
 	return ::GetTypeHash(Handle.GetId());
 }
 
-FORCEINLINE uint32 GetObjectIdForNetTrace(const FNetHandle& Handle)
+FORCEINLINE uint32 GetObjectIdForNetTrace(const FNetRefHandle& Handle)
 {
 	return Handle.GetId();
 }
 
 }
 
-FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const UE::Net::FNetHandle& NetHandle);
-FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const UE::Net::FNetHandle& NetHandle);
+IRISCORE_API FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const UE::Net::FNetRefHandle& NetHandle);
+IRISCORE_API FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const UE::Net::FNetRefHandle& NetHandle);

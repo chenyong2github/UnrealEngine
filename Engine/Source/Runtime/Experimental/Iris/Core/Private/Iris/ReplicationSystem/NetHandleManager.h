@@ -7,6 +7,7 @@
 #include "Containers/Map.h"
 #include "Containers/ArrayView.h"
 #include "Net/Core/NetBitArray.h"
+#include "Net/Core/NetHandle/NetHandle.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptor.h"
 #include "Iris/ReplicationSystem/NetHandle.h"
 #include "Iris/ReplicationSystem/NetDependencyData.h"
@@ -26,7 +27,7 @@ namespace UE::Net
 namespace UE::Net::Private
 {
 
-typedef uint32 FInternalNetHandle;
+typedef uint32 FInternalNetRefIndex;
 
 enum class EAddSubObjectFlags : uint32
 {
@@ -56,10 +57,10 @@ enum class ERemoveDependentObjectFlags : uint32
 ENUM_CLASS_FLAGS(ERemoveDependentObjectFlags);
 
 // Internal class to manage NetHandles and their internal data
-class FNetHandleManager
+class FNetRefHandleManager
 {
 public:
-	// We will never assign index 0
+	// We will never assign InvalidInternalIndex
 	enum { InvalidInternalIndex = 0U };
 
 	// We need to store some internal data for Replicated objects
@@ -76,7 +77,8 @@ public:
 		{
 		}
 
-		FNetHandle Handle;
+		FNetRefHandle RefHandle;
+		FNetHandle NetHandle;
 		const FReplicationProtocol* Protocol;
 		const FReplicationInstanceProtocol* InstanceProtocol;
 		uint8* ReceiveStateBuffer;
@@ -105,77 +107,81 @@ public:
 	};
 
 	// We want to handle both actual Networked and "network addressable" handles in the same way
-	// As we expect the number of FNetHandles to be much greater than the actual number of Replicated Objects we
+	// As we expect the number of FNetRefHandles to be much greater than the actual number of Replicated Objects we
 	// use a map to map from Handle to InternalIndex, only Replicated Objects will ever be assigned an InternalNetHandle
-	typedef TMap<FNetHandle, FInternalNetHandle> FHandleMap;
+	typedef TMap<FNetRefHandle, FInternalNetRefIndex> FRefHandleMap;
+	typedef TMap<FNetHandle, FInternalNetRefIndex> FNetHandleMap;
 
 public:
-	FNetHandleManager(FReplicationProtocolManager& InReplicationProtocolManager, uint32 InReplicationSystemId, uint32 MaxActiveObjects);
+	FNetRefHandleManager(FReplicationProtocolManager& InReplicationProtocolManager, uint32 InReplicationSystemId, uint32 MaxActiveObjects);
 
 	// Return true if this is a scopable index
-	bool IsScopableIndex(FInternalNetHandle InternalIndex) const { return ScopableInternalIndices.GetBit(InternalIndex); }
+	bool IsScopableIndex(FInternalNetRefIndex InternalIndex) const { return ScopableInternalIndices.GetBit(InternalIndex); }
 
 	// Return true if this index is assigned
-	bool IsAssignedIndex(FInternalNetHandle InternalIndex) const { return InternalIndex && ScopableInternalIndices.GetBit(InternalIndex); }
+	bool IsAssignedIndex(FInternalNetRefIndex InternalIndex) const { return InternalIndex && ScopableInternalIndices.GetBit(InternalIndex); }
 
-	static FNetHandle MakeNetHandle(uint32 Id, uint32 ReplicationSystemId);
-	static FNetHandle MakeNetHandleFromId(uint32 Id);
+	static FNetRefHandle MakeNetRefHandle(uint32 Id, uint32 ReplicationSystemId);
+	static FNetRefHandle MakeNetRefHandleFromId(uint32 Id);
 
 	// Returns a valid handle if the wanted handle can be allocated
-	FNetHandle AllocateNetHandle(bool bIsStatic);
+	FNetRefHandle AllocateNetRefHandle(bool bIsStatic);
 
 	// Create local Net Object
-	FNetHandle CreateNetObject(FNetHandle WantedHandle, const FReplicationProtocol* ReplicationProtocol);
+	FNetRefHandle CreateNetObject(FNetRefHandle WantedHandle, FNetHandle GlobalHandle, const FReplicationProtocol* ReplicationProtocol);
 
 	// Create NetObject on request from remote
-	FNetHandle CreateNetObjectFromRemote(FNetHandle WantedHandle, const FReplicationProtocol* ReplicationProtocol);
+	FNetRefHandle CreateNetObjectFromRemote(FNetRefHandle WantedHandle, const FReplicationProtocol* ReplicationProtocol);
 
 	// Attach Instance protocol to handle
 	// Instance can be null, we only track the Instance for legacy support
-	void AttachInstanceProtocol(FInternalNetHandle InternalIndex, const FReplicationInstanceProtocol* InstanceProtocol, UObject* Instance);
+	void AttachInstanceProtocol(FInternalNetRefIndex InternalIndex, const FReplicationInstanceProtocol* InstanceProtocol, UObject* Instance);
 
 	// Used when we want to detach the instance protocol due to async destroy
-	const FReplicationInstanceProtocol* DetachInstanceProtocol(FInternalNetHandle InternalIndex);
+	const FReplicationInstanceProtocol* DetachInstanceProtocol(FInternalNetRefIndex InternalIndex);
 
 	// Creates a DestructionInfo Handle which is used to replicate persistently destroyed static objects when late joining or streaming in levels with static objects that already has been destroyed
 	// Returns a new handle used to replicate the destruction info, and adds a cross-reference to the original handle being destroyed if that still exists 
 	// Handle is a reference to an already replicated Handle that is about to be destroyed
-	FNetHandle CreateHandleForDestructionInfo(FNetHandle Handle, const FReplicationProtocol* DestroydObjectProtocol);
+	FNetRefHandle CreateHandleForDestructionInfo(FNetRefHandle Handle, const FReplicationProtocol* DestroydObjectProtocol);
 	
-	void DestroyNetObject(FNetHandle Handle);
+	void DestroyNetObject(FNetRefHandle Handle);
 
 	// Mark object as no longer scopable, object will be removed from scope for all connections
-	void RemoveFromScope(FInternalNetHandle InternalIndex);
+	void RemoveFromScope(FInternalNetRefIndex InternalIndex);
 
-	TArrayView<const FInternalNetHandle> GetObjectsPendingDestroy() const { return MakeArrayView(PendingDestroyInternalIndices); }
+	TArrayView<const FInternalNetRefIndex> GetObjectsPendingDestroy() const { return MakeArrayView(PendingDestroyInternalIndices); }
 	void DestroyObjectsPendingDestroy();
 
-	const FReplicatedObjectData& GetReplicatedObjectDataNoCheck(FInternalNetHandle InternalIndex) const { return ReplicatedObjectData[InternalIndex]; }
-	FReplicatedObjectData& GetReplicatedObjectDataNoCheck(FInternalNetHandle InternalIndex) { return ReplicatedObjectData[InternalIndex]; }
+	const FReplicatedObjectData& GetReplicatedObjectDataNoCheck(FInternalNetRefIndex InternalIndex) const { return ReplicatedObjectData[InternalIndex]; }
+	FReplicatedObjectData& GetReplicatedObjectDataNoCheck(FInternalNetRefIndex InternalIndex) { return ReplicatedObjectData[InternalIndex]; }
 
-	inline const FReplicatedObjectData& GetReplicatedObjectData(FInternalNetHandle InternalIndex) const;
+	inline const FReplicatedObjectData& GetReplicatedObjectData(FInternalNetRefIndex InternalIndex) const;
 
-	inline const uint8* GetReplicatedObjectStateBufferNoCheck(FInternalNetHandle InternalObjectIndex) const { return ReplicatedObjectStateBuffers.GetData()[InternalObjectIndex]; }
-	inline uint8* GetReplicatedObjectStateBufferNoCheck(FInternalNetHandle InternalObjectIndex) { return ReplicatedObjectStateBuffers.GetData()[InternalObjectIndex]; }
+	inline const uint8* GetReplicatedObjectStateBufferNoCheck(FInternalNetRefIndex InternalObjectIndex) const { return ReplicatedObjectStateBuffers.GetData()[InternalObjectIndex]; }
+	inline uint8* GetReplicatedObjectStateBufferNoCheck(FInternalNetRefIndex InternalObjectIndex) { return ReplicatedObjectStateBuffers.GetData()[InternalObjectIndex]; }
 	inline const TArray<uint8*>& GetReplicatedObjectStateBuffers() const { return ReplicatedObjectStateBuffers; }
 
-	// Verify a handle against internal handle, A handle is valid if it matches internal storage
-	inline bool IsValidNetHandle(FNetHandle Handle) const;
+	/** Verify a handle against internal handle. A handle is valid if it matches internal storage. */
+	inline bool IsValidNetRefHandle(FNetRefHandle Handle) const;
 
-	// Returns true if the handle is for local replicated object
-	inline bool IsLocalNetHandle(FNetHandle Handle) const;
+	/** Returns true if the handle is for a local replicated object. */
+	inline bool IsLocalNetRefHandle(FNetRefHandle Handle) const;
 
-	// Returns true if the handle is for a remote replicated object
-	inline bool IsRemoteNetHandle(FNetHandle Handle) const;
+	/** Returns true if the handle is for a remote replicated object. */
+	inline bool IsRemoteNetRefHandle(FNetRefHandle Handle) const;
 
-	// Extract an Full handle from an incomplete one, a incomplete handle is a handle with only an index
-	inline FNetHandle GetCompleteNetHandle(FNetHandle IncompleteHandle) const;
+	/** Extract a full handle from an incomplete one consisting of only an index. */
+	inline FNetRefHandle GetCompleteNetRefHandle(FNetRefHandle IncompleteHandle) const;
 	
 	// Get Handle from internal index
-	inline FNetHandle GetNetHandleFromInternalIndex(FInternalNetHandle InternalIndex) const;
+	inline FNetRefHandle GetNetRefHandleFromInternalIndex(FInternalNetRefIndex InternalIndex) const;
 
 	// Get internal index from handle
-	inline FInternalNetHandle GetInternalIndex(FNetHandle Handle) const;
+	inline FInternalNetRefIndex GetInternalIndex(FNetRefHandle Handle) const;
+
+	// Get internal index from NetHandle
+	inline FInternalNetRefIndex GetInternalIndexFromNetHandle(FNetHandle Handle) const;
 
 	// Get bitarray for all currently scopable internal indices
 	const FNetBitArray& GetScopableInternalIndices() const { return ScopableInternalIndices; }
@@ -189,56 +195,57 @@ public:
 
 	// SubObjects
 	const FNetBitArray& GetSubObjectInternalIndices() const { return SubObjectInternalIndices; }	
-	bool AddSubObject(FNetHandle OwnerHandle, FNetHandle SubObjectHandle, FNetHandle RelativeOtherSubObjectHandle, EAddSubObjectFlags Flags = EAddSubObjectFlags::Default);
-	inline bool AddSubObject(FNetHandle OwnerHandle, FNetHandle SubObjectHandle, EAddSubObjectFlags Flags = EAddSubObjectFlags::Default) { return AddSubObject(OwnerHandle, SubObjectHandle, FNetHandle(), Flags); }
-	void RemoveSubObject(FNetHandle SubObjectHandle);
-	FNetHandle GetSubObjectOwner(FNetHandle SubObjectHandle) const;
-	bool SetSubObjectNetCondition(FInternalNetHandle SubObjectInternalIndex, FLifeTimeConditionStorage SubObjectCondition);
+
+	bool AddSubObject(FNetRefHandle OwnerHandle, FNetRefHandle SubObjectHandle, FNetRefHandle RelativeOtherSubObjectHandle, EAddSubObjectFlags Flags = EAddSubObjectFlags::Default);
+	bool AddSubObject(FNetRefHandle OwnerHandle, FNetRefHandle SubObjectHandle, EAddSubObjectFlags Flags = EAddSubObjectFlags::Default);
+	void RemoveSubObject(FNetRefHandle SubObjectHandle);
+	FNetRefHandle GetSubObjectOwner(FNetRefHandle SubObjectHandle) const;
+	bool SetSubObjectNetCondition(FInternalNetRefIndex SubObjectInternalIndex, FLifeTimeConditionStorage SubObjectCondition);
 
 	// DependentObjects
 	const FNetBitArray& GetDependentObjectInternalIndices() const { return DependentObjectInternalIndices; }
 	const FNetBitArray& GetObjectsWithDependentObjectsInternalIndices() const { return ObjectsWithDependentObjectsInternalIndices; }
-	bool AddDependentObject(FNetHandle ParentHandle, FNetHandle DependentHandle, EAddDependentObjectFlags Flags = EAddDependentObjectFlags::WarnIfAlreadyDependentObject);
-	void RemoveDependentObject(FNetHandle ParentHandle, FNetHandle DependentHandle);
+	bool AddDependentObject(FNetRefHandle ParentHandle, FNetRefHandle DependentHandle, EAddDependentObjectFlags Flags = EAddDependentObjectFlags::WarnIfAlreadyDependentObject);
+	void RemoveDependentObject(FNetRefHandle ParentHandle, FNetRefHandle DependentHandle);
 
 	// Remove DependentHandles from all dependent object tracking
 	// $TODO: This might need a pass ObjectReplicationBridge as well since most likely also must restore filter/polling logic
-	void RemoveDependentObject(FNetHandle DependentHandle);
+	void RemoveDependentObject(FNetRefHandle DependentHandle);
 	
-	void SetShouldPropagateChangedStates(FNetHandle Handle, bool bShouldPropagateChangedStates);
-	void SetShouldPropagateChangedStates(FInternalNetHandle ObjectInternalIndex, bool bShouldPropagateChangedStates);
+	void SetShouldPropagateChangedStates(FNetRefHandle Handle, bool bShouldPropagateChangedStates);
+	void SetShouldPropagateChangedStates(FInternalNetRefIndex ObjectInternalIndex, bool bShouldPropagateChangedStates);
 
 	uint32 GetMaxActiveObjectCount() const { return MaxActiveObjectCount; }
 	uint32 GetActiveObjectCount() const { return ActiveObjectCount; }
 
 	// We do refcount objects tracked by each connection in order to know when it is safe to reuse an InternalIndex
-	void AddNetObjectRef(FInternalNetHandle InternalIndex) { ++ReplicatedObjectRefCount[InternalIndex]; }
-	void ReleaseNetObjectRef(FInternalNetHandle InternalIndex) { check(ReplicatedObjectRefCount[InternalIndex] > 0); --ReplicatedObjectRefCount[InternalIndex]; }
-	uint16 GetNetObjectRefCount(FInternalNetHandle ObjectInternalIndex) const { return ReplicatedObjectRefCount[ObjectInternalIndex]; }
+	void AddNetObjectRef(FInternalNetRefIndex InternalIndex) { ++ReplicatedObjectRefCount[InternalIndex]; }
+	void ReleaseNetObjectRef(FInternalNetRefIndex InternalIndex) { check(ReplicatedObjectRefCount[InternalIndex] > 0); --ReplicatedObjectRefCount[InternalIndex]; }
+	uint16 GetNetObjectRefCount(FInternalNetRefIndex ObjectInternalIndex) const { return ReplicatedObjectRefCount[ObjectInternalIndex]; }
 
 	// Get dependent objects for the given ParentIndex
-	inline TArrayView<const FInternalNetHandle> GetDependentObjects(FInternalNetHandle ParentIndex) const;
+	inline TArrayView<const FInternalNetRefIndex> GetDependentObjects(FInternalNetRefIndex ParentIndex) const;
 
 	// Get all parents of the given DependentIndex
-	inline TArrayView<const FInternalNetHandle> GetDependentObjectParents(FInternalNetHandle DependentIndex) const;
+	inline TArrayView<const FInternalNetRefIndex> GetDependentObjectParents(FInternalNetRefIndex DependentIndex) const;
 
 	// Get all subobjects for the given OwnerIndex, Note: only valid for the root
-	inline TArrayView<const FInternalNetHandle> GetSubObjects(FInternalNetHandle OwnerIndex) const;
+	inline TArrayView<const FInternalNetRefIndex> GetSubObjects(FInternalNetRefIndex OwnerIndex) const;
 
 	// Get child subobjects for a object, used when we do hierarchical operations such as conditional serialization
-	inline TArrayView<const FInternalNetHandle> GetChildSubObjects(FInternalNetHandle ParentObjectIndex) const;
+	inline TArrayView<const FInternalNetRefIndex> GetChildSubObjects(FInternalNetRefIndex ParentObjectIndex) const;
 
 	// Get child subobjects and condtionals array if one exists, if there are no child subobjects the method returns false
-	inline bool GetChildSubObjects(FInternalNetHandle OwnerIndex, FChildSubObjectsInfo& OutInfo) const;
+	inline bool GetChildSubObjects(FInternalNetRefIndex OwnerIndex, FChildSubObjectsInfo& OutInfo) const;
 
-	const FHandleMap& GetReplicatedHandles() const { return HandleMap; }
+	const FRefHandleMap& GetReplicatedHandles() const { return RefHandleToInternalIndex; }
 
 	const TArray<UObject*>& GetReplicatedInstances() const { return ReplicatedInstances; }
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
-	bool GetIsDestroyedStartupObject(FInternalNetHandle InternalIndex) const { return DestroyedStartupObjectInternalIndices.GetBit(InternalIndex); }
-	inline uint32 GetOriginalDestroyedStartupObjectIndex(FInternalNetHandle InternalIndex) const;
+	bool GetIsDestroyedStartupObject(FInternalNetRefIndex InternalIndex) const { return DestroyedStartupObjectInternalIndices.GetBit(InternalIndex); }
+	inline uint32 GetOriginalDestroyedStartupObjectIndex(FInternalNetRefIndex InternalIndex) const;
 
 	const FNetBitArray& GetDestroyedStartupObjectInternalIndices() const { return DestroyedStartupObjectInternalIndices; }
 
@@ -247,11 +254,11 @@ public:
 
 	// Iterate over all dependent objects and their dependent objects
 	template <typename T>
-	void ForAllDependentObjectsRecursive(FInternalNetHandle ObjectIndex, T&& Functor) const
+	void ForAllDependentObjectsRecursive(FInternalNetRefIndex ObjectIndex, T&& Functor) const
 	{
 		if (ObjectsWithDependentObjectsInternalIndices.GetBit(ObjectIndex))
 		{
-			for (const FInternalNetHandle DependentObjectIndex : GetDependentObjects(ObjectIndex))
+			for (const FInternalNetRefIndex DependentObjectIndex : GetDependentObjects(ObjectIndex))
 			{
 				Functor(DependentObjectIndex);
 				ForAllDependentObjectsRecursive(DependentObjectIndex, Functor);
@@ -261,20 +268,22 @@ public:
 	};
 
 private:
-	FInternalNetHandle InternalCreateNetObject(const FNetHandle NetHandle, const FReplicationProtocol* ReplicationProtocol);
-	void InternalDestroyNetObject(FInternalNetHandle InternalIndex);
+	FInternalNetRefIndex InternalCreateNetObject(const FNetRefHandle NetRefHandle, const FNetHandle GlobalHandle, const FReplicationProtocol* ReplicationProtocol);
+	void InternalDestroyNetObject(FInternalNetRefIndex InternalIndex);
 
-	static uint32 MakeNetHandleId(uint32 Seed, bool bIsStatic);
-	uint32 GetNextHandleId(uint32 HandleIndex) const;
+	static uint32 MakeNetRefHandleId(uint32 Seed, bool bIsStatic);
+	uint32 GetNextNetRefHandleId(uint32 HandleIndex) const;
 
 	// Get the next free internal index, returns InvalidInternalIndex if a free one cannot be found
-	FInternalNetHandle GetNextFreeInternalIndex() const;
+	FInternalNetRefIndex GetNextFreeInternalIndex() const;
 
-	inline void SetIsSubObject(FInternalNetHandle InternalIndex, bool IsSubObject) { SubObjectInternalIndices.SetBitValue(InternalIndex, IsSubObject); }
-	void InternalRemoveSubObject(FInternalNetHandle OwnerInternalIndex, FInternalNetHandle SubObjectInternalIndex, bool bRemoveFromSubObjectArray = true);
+	bool InternalAddSubObject(FInternalNetRefIndex OwnerInternalIndex, FInternalNetRefIndex SubObjectInternalIndex, FInternalNetRefIndex RelativeOtherSubObjectInternalIndex, EAddSubObjectFlags Flags);
 
-	void InternalRemoveDependentObject(FInternalNetHandle ParentInternalIndex, FInternalNetHandle DependentInternalIndex, ERemoveDependentObjectFlags Flags = ERemoveDependentObjectFlags::All);
-	void InternalRemoveDependentObject(FInternalNetHandle DependentInternalIndex);
+	inline void SetIsSubObject(FInternalNetRefIndex InternalIndex, bool IsSubObject) { SubObjectInternalIndices.SetBitValue(InternalIndex, IsSubObject); }
+	void InternalRemoveSubObject(FInternalNetRefIndex OwnerInternalIndex, FInternalNetRefIndex SubObjectInternalIndex, bool bRemoveFromSubObjectArray = true);
+
+	void InternalRemoveDependentObject(FInternalNetRefIndex ParentInternalIndex, FInternalNetRefIndex DependentInternalIndex, ERemoveDependentObjectFlags Flags = ERemoveDependentObjectFlags::All);
+	void InternalRemoveDependentObject(FInternalNetRefIndex DependentInternalIndex);
 
 	// The current replicated object count
 	uint32 ActiveObjectCount;
@@ -284,7 +293,8 @@ private:
 
 	uint32 ReplicationSystemId;
 
-	FHandleMap HandleMap;
+	FRefHandleMap RefHandleToInternalIndex;
+	FNetHandleMap NetHandleToInternalIndex;
 
 	// Bitset used in order to track assigned internal which are scopable
 	FNetBitArray ScopableInternalIndices;
@@ -316,10 +326,11 @@ private:
 	// Map OriginalIndex -> DestructionInfoIndex
 	// Map DestructionInfoIndex -> Orignal
 	TMap<uint32, uint32> DestroyedStartupObject;
+
 private:
 
 	// Array used in order to track objects pending destroy
-	TArray<FInternalNetHandle> PendingDestroyInternalIndices;
+	TArray<FInternalNetRefIndex> PendingDestroyInternalIndices;
 
 	// Just an array containing data about our replicated objects
 	TArray<FReplicatedObjectData> ReplicatedObjectData;
@@ -342,44 +353,50 @@ private:
 	FReplicationProtocolManager& ReplicationProtocolManager;
 };
 
-const FNetHandleManager::FReplicatedObjectData& FNetHandleManager::GetReplicatedObjectData(FInternalNetHandle InternalIndex) const
+const FNetRefHandleManager::FReplicatedObjectData& FNetRefHandleManager::GetReplicatedObjectData(FInternalNetRefIndex InternalIndex) const
 {
 	check(AssignedInternalIndices.GetBit(InternalIndex));
 	return GetReplicatedObjectDataNoCheck(InternalIndex);
 }
 
-FInternalNetHandle FNetHandleManager::GetInternalIndex(FNetHandle Handle) const
+FInternalNetRefIndex FNetRefHandleManager::GetInternalIndex(FNetRefHandle Handle) const
 {
-	const FInternalNetHandle* InternalIndex = HandleMap.Find(Handle);
-	return InternalIndex ? *InternalIndex : FNetHandleManager::InvalidInternalIndex;
+	const FInternalNetRefIndex* InternalIndex = RefHandleToInternalIndex.Find(Handle);
+	return InternalIndex ? *InternalIndex : FNetRefHandleManager::InvalidInternalIndex;
 }
 
-FNetHandle FNetHandleManager::GetNetHandleFromInternalIndex(FInternalNetHandle InternalIndex) const
+FInternalNetRefIndex FNetRefHandleManager::GetInternalIndexFromNetHandle(FNetHandle Handle) const
+{
+	const FInternalNetRefIndex* InternalIndex = NetHandleToInternalIndex.Find(Handle);
+	return InternalIndex ? *InternalIndex : FNetRefHandleManager::InvalidInternalIndex;
+}
+
+FNetRefHandle FNetRefHandleManager::GetNetRefHandleFromInternalIndex(FInternalNetRefIndex InternalIndex) const
 {
 	check(AssignedInternalIndices.GetBit(InternalIndex));
-	return GetReplicatedObjectDataNoCheck(InternalIndex).Handle;
+	return GetReplicatedObjectDataNoCheck(InternalIndex).RefHandle;
 }
 
-FNetHandle FNetHandleManager::GetCompleteNetHandle(FNetHandle IncompleteHandle) const
+FNetRefHandle FNetRefHandleManager::GetCompleteNetRefHandle(FNetRefHandle IncompleteHandle) const
 {
-	if (const FInternalNetHandle* InternalIndex = HandleMap.Find(IncompleteHandle))
+	if (const FInternalNetRefIndex* InternalIndex = RefHandleToInternalIndex.Find(IncompleteHandle))
 	{
-		return GetReplicatedObjectDataNoCheck(*InternalIndex).Handle;
+		return GetReplicatedObjectDataNoCheck(*InternalIndex).RefHandle;
 	}
 	else
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 }
 
-bool FNetHandleManager::IsValidNetHandle(FNetHandle Handle) const
+bool FNetRefHandleManager::IsValidNetRefHandle(FNetRefHandle Handle) const
 {
-	return HandleMap.Contains(Handle);
+	return RefHandleToInternalIndex.Contains(Handle);
 }
 
-bool FNetHandleManager::IsLocalNetHandle(FNetHandle Handle) const
+bool FNetRefHandleManager::IsLocalNetRefHandle(FNetRefHandle Handle) const
 {
-	if (const uint32 InternalIndex = GetInternalIndex(Handle))
+	if (const FInternalNetRefIndex InternalIndex = GetInternalIndex(Handle))
 	{
 		// For the time being only replicated objects owned by this peer has a state buffer
 		return ReplicatedObjectStateBuffers[InternalIndex] != nullptr;
@@ -388,7 +405,7 @@ bool FNetHandleManager::IsLocalNetHandle(FNetHandle Handle) const
 	return false;
 }
 
-bool FNetHandleManager::IsRemoteNetHandle(FNetHandle Handle) const
+bool FNetRefHandleManager::IsRemoteNetRefHandle(FNetRefHandle Handle) const
 {
 	if (const uint32 InternalIndex = GetInternalIndex(Handle))
 	{
@@ -399,35 +416,40 @@ bool FNetHandleManager::IsRemoteNetHandle(FNetHandle Handle) const
 	return false;
 }
 
-uint32 FNetHandleManager::GetOriginalDestroyedStartupObjectIndex(FInternalNetHandle InternalIndex) const
+uint32 FNetRefHandleManager::GetOriginalDestroyedStartupObjectIndex(FInternalNetRefIndex InternalIndex) const
 {
 	const uint32* FoundOriginalInternalIndex = DestroyedStartupObject.Find(InternalIndex);
 	return FoundOriginalInternalIndex ? *FoundOriginalInternalIndex : 0U;
 }
 
-TArrayView<const FInternalNetHandle> FNetHandleManager::GetSubObjects(FInternalNetHandle OwnerIndex) const
+inline bool FNetRefHandleManager::AddSubObject(FNetRefHandle OwnerHandle, FNetRefHandle SubObjectHandle, EAddSubObjectFlags Flags)
 {
-	return SubObjects.GetInternalHandleArray<FNetDependencyData::EArrayType::SubObjects>(OwnerIndex);
+	return AddSubObject(OwnerHandle, SubObjectHandle, FNetRefHandle(), Flags);
 }
 
-bool FNetHandleManager::GetChildSubObjects(FInternalNetHandle OwnerIndex, FChildSubObjectsInfo& OutInfo) const
+TArrayView<const FInternalNetRefIndex> FNetRefHandleManager::GetSubObjects(FInternalNetRefIndex OwnerIndex) const
+{
+	return SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::SubObjects>(OwnerIndex);
+}
+
+bool FNetRefHandleManager::GetChildSubObjects(FInternalNetRefIndex OwnerIndex, FChildSubObjectsInfo& OutInfo) const
 {
 	return SubObjects.GetChildSubObjects(OwnerIndex, OutInfo);
 }
 
-TArrayView<const FInternalNetHandle> FNetHandleManager::GetChildSubObjects(FInternalNetHandle OwnerIndex) const
+TArrayView<const FInternalNetRefIndex> FNetRefHandleManager::GetChildSubObjects(FInternalNetRefIndex OwnerIndex) const
 {
-	return SubObjects.GetInternalHandleArray<FNetDependencyData::EArrayType::ChildSubObjects>(OwnerIndex);
+	return SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::ChildSubObjects>(OwnerIndex);
 }
 
-TArrayView<const FInternalNetHandle> FNetHandleManager::GetDependentObjects(FInternalNetHandle ParentIndex) const
+TArrayView<const FInternalNetRefIndex> FNetRefHandleManager::GetDependentObjects(FInternalNetRefIndex ParentIndex) const
 {
-	return SubObjects.GetInternalHandleArray<FNetDependencyData::EArrayType::DependentObjects>(ParentIndex);
+	return SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::DependentObjects>(ParentIndex);
 }
 
-TArrayView<const FInternalNetHandle> FNetHandleManager::GetDependentObjectParents(FInternalNetHandle DependentIndex) const
+TArrayView<const FInternalNetRefIndex> FNetRefHandleManager::GetDependentObjectParents(FInternalNetRefIndex DependentIndex) const
 {
-	return SubObjects.GetInternalHandleArray<FNetDependencyData::EArrayType::ParentObjects>(DependentIndex);
+	return SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::ParentObjects>(DependentIndex);
 }
 	
 }

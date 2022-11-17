@@ -15,12 +15,12 @@ namespace UE::Net::Private
 class FNetExportContext
 {
 public:
-	typedef TArray<FNetHandle, TInlineAllocator<32>> FExportsArray;
+	typedef TArray<FNetRefHandle, TInlineAllocator<32>> FExportsArray;
 	typedef TArray<FNetToken, TInlineAllocator<32>> FNetTokenExportsArray;
 
 	struct FAcknowledgedExports
 	{
-		TSet<FNetHandle> AcknowledgedExportedHandles;
+		TSet<FNetRefHandle> AcknowledgedExportedHandles;
 		TSet<FNetToken> AcknowledgedExportedNetTokens;
 	};
 
@@ -42,13 +42,13 @@ public:
 	FNetExportContext(const FAcknowledgedExports& InAcknowledgedExports, FBatchExports& BatchExports);
 
 	// Returns true if the Handle is acknowledged as delivered or if it is exported in the current batch
-	bool IsExported(FNetHandle Handle) const;
+	bool IsExported(FNetRefHandle Handle) const;
 
 	// Returns true if the Handle is acknowledged as delivered or if it is exported in the current batch
 	bool IsExported(FNetToken Token) const;
 
 	// Add a Handle to the current export batch
-	void AddExported(FNetHandle Handle);
+	void AddExported(FNetRefHandle Handle);
 
 	// Add a Handle to the current export batch
 	void AddExported(FNetToken Token);
@@ -114,12 +114,12 @@ inline FNetExportContext::FNetExportContext(const FAcknowledgedExports& InAcknow
 {
 }
 
-inline bool FNetExportContext::IsExported(FNetHandle Handle) const
+inline bool FNetExportContext::IsExported(FNetRefHandle Handle) const
 {
 	return AcknowledgedExports.AcknowledgedExportedHandles.Contains(Handle) || (BatchExports.HandlesExportedInCurrentBatch.Find(Handle) != INDEX_NONE);
 }
 
-inline void FNetExportContext::AddExported(FNetHandle Handle)
+inline void FNetExportContext::AddExported(FNetRefHandle Handle)
 {
 	BatchExports.HandlesExportedInCurrentBatch.Add(Handle);
 }

@@ -24,6 +24,7 @@
 #include "Engine/Level.h"
 #include "Engine/NetConnection.h"
 #include "Engine/NetDriver.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Net/DataBunch.h"
@@ -33,11 +34,7 @@
 #include "UObject/Package.h"
 #include <limits>
 
-#if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
 #define UE_LOG_ACTORREPLICATIONBRIDGE(Category, Format, ...)	UE_LOG(LogIrisBridge, Category, TEXT("ActorReplicationBridge(%u)::") Format, GetReplicationSystem()->GetId(), ##__VA_ARGS__)
-#else
-#define UE_LOG_ACTORREPLICATIONBRIDGE(Category, Format, ...)	UE_LOG(LogIrisBridge, Category, TEXT("ActorReplicationBridge::") Format, ##__VA_ARGS__)
-#endif
 
 extern bool GDefaultUseSubObjectReplicationList;
 
@@ -71,7 +68,7 @@ bool IsActorValidForIrisReplication(const AActor* Actor)
 	return IsValid(Actor) && !Actor->IsActorBeingDestroyed() && !Actor->IsUnreachable();
 }
 
-void ActorReplicationBridgePreUpdateFunction(FNetHandle Handle, UObject* Instance, const UReplicationBridge* Bridge)
+void ActorReplicationBridgePreUpdateFunction(FNetRefHandle Handle, UObject* Instance, const UReplicationBridge* Bridge)
 {
 	AActor* Actor = Cast<AActor>(Instance);
 	if (IsActorValidForIrisReplication(Actor))
@@ -85,7 +82,7 @@ void ActorReplicationBridgePreUpdateFunction(FNetHandle Handle, UObject* Instanc
 	}
 }
 
-FVector ActorReplicationBridgeGetActorWorldLocation(FNetHandle Handle, const UObject* Instance)
+FVector ActorReplicationBridgeGetActorWorldLocation(FNetRefHandle Handle, const UObject* Instance)
 {
 	if (const AActor* Actor = Cast<AActor>(Instance))
 	{
@@ -165,78 +162,78 @@ UActorReplicationBridge::~UActorReplicationBridge()
 	}
 }
 
-UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(AActor* Actor, const FActorBeginReplicationParams& Params)
+UE::Net::FNetRefHandle UActorReplicationBridge::BeginReplication(AActor* Actor, const FActorBeginReplicationParams& Params)
 {
 	using namespace UE::Net;
 
 	if (!ShouldUseIrisReplication(Actor))
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	if (!ensureMsgf(Actor == nullptr || !(Actor->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)), TEXT("Actor %s is a CDO or Archetype and should not be replicated."), ToCStr(GetFullNameSafe(Actor))))
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	const bool bIsNetActor = ULevel::IsNetActor(Actor);
 	if (!bIsNetActor)
 	{
 		UE_LOG_ACTORREPLICATIONBRIDGE(VeryVerbose, TEXT("Actor %s doesn't have a NetRole."), ToCStr(GetFullNameSafe(Actor)));
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	if (Actor->GetLocalRole() != ROLE_Authority)
 	{
 		UE_LOG_ACTORREPLICATIONBRIDGE(VeryVerbose, TEXT("Actor %s NetRole isn't Authority."), ToCStr(GetFullNameSafe(Actor)));
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	if (Actor->IsActorBeingDestroyed() || !IsValid(Actor) || Actor->IsUnreachable())
 	{
 		UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("Actor %s is being destroyed or unreachable and can't be replicated."), ToCStr(GetFullNameSafe(Actor)));
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	if (!Actor->GetIsReplicated())
 	{
 		UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("Actor %s is not supposed to be replicated."), ToCStr(GetFullNameSafe(Actor)));
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	if (Actor->GetTearOff())
 	{
 		UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("Actor %s is torn off and should not be replicated."), ToCStr(GetFullNameSafe(Actor)));
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	if (!Actor->IsActorInitialized())
 	{
 		UE_LOG_ACTORREPLICATIONBRIDGE(Warning, TEXT("Actor %s is not initialized and won't be replicated."), ToCStr(GetFullNameSafe(Actor)));
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	if (!NetDriver)
 	{
 		UE_LOG_ACTORREPLICATIONBRIDGE(VeryVerbose, TEXT("There's no NetDriver so nothing can be replicated."));
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 
 	if (!NetDriver->ShouldReplicateActor(Actor))
 	{
-		UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("Actor %s doesn't want to replicate with NetDriver %s."), ToCStr(GetFullNameSafe(Actor)), ToCStr(NetDriver->GetName()));
-		return FNetHandle();
+		UE_LOG_ACTORREPLICATIONBRIDGE(VeryVerbose, TEXT("Actor %s doesn't want to replicate with NetDriver %s."), ToCStr(GetFullNameSafe(Actor)), ToCStr(NetDriver->GetName()));
+		return FNetRefHandle();
 	}
 
 	// Initially dormant actors begin replication when their dormancy is flushed
 	const ENetDormancy Dormancy = Actor->NetDormancy;	
 	if (Actor->IsNetStartupActor() && (Dormancy == DORM_Initial))
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
-	FNetHandle ExistingHandle = GetReplicatedHandle(Actor);
+	FNetRefHandle ExistingHandle = GetReplicatedRefHandle(Actor);
 	if (ExistingHandle.IsValid())
 	{
 		return ExistingHandle;
@@ -249,32 +246,32 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(AActor* Actor, con
 		UE_LOG_ACTORREPLICATIONBRIDGE(Warning, TEXT("Actor %s does not replicate subobjects using the registered SubObjectsLists, SubObjects will not replicate properly"), ToCStr(GetFullNameSafe(Actor)));
 	}
 
-	// Create NetHandle for the registered fragments
-	Super::FCreateNetHandleParams CreateNetHandleParams = DefaultCreateNetHandleParams;
-	CreateNetHandleParams.bNeedsPreUpdate = 1U;
-	CreateNetHandleParams.bNeedsWorldLocationUpdate = 1U;
-	CreateNetHandleParams.StaticPriority = (Actor->bAlwaysRelevant || Actor->bOnlyRelevantToOwner) ? Actor->NetPriority : 0.0f;
+	// Create handles for the registered fragments
+	Super::FCreateNetRefHandleParams CreateNetRefHandleParams = DefaultCreateNetRefHandleParams;
+	CreateNetRefHandleParams.bNeedsPreUpdate = 1U;
+	CreateNetRefHandleParams.bNeedsWorldLocationUpdate = 1U;
+	CreateNetRefHandleParams.StaticPriority = (Actor->bAlwaysRelevant || Actor->bOnlyRelevantToOwner) ? Actor->NetPriority : 0.0f;
 	const uint32 UnclampedPollPeriod = GetPollFramePeriod(Actor->NetUpdateFrequency);
 	const uint32 ClampedPollPeriod = FMath::Clamp<uint32>(UnclampedPollPeriod, 1U, static_cast<uint32>(std::numeric_limits<uint8>::max()) + 1U);
-	CreateNetHandleParams.PollFramePeriod = (ClampedPollPeriod - 1U) & 255U;
+	CreateNetRefHandleParams.PollFramePeriod = (ClampedPollPeriod - 1U) & 255U;
 #if !UE_BUILD_SHIPPING
 	ensureAlwaysMsgf(!UE::Net::Private::bIrisEnableLowNetUpdateFrequencyEnsure || (ClampedPollPeriod >= UnclampedPollPeriod), TEXT("Very low NetUpdateFrequency %f for Actor %s. Suggest setting it to %f or higher."), Actor->NetUpdateFrequency, ToCStr(Actor->GetName()), GetMinSupportedNetUpdateFrequency());
-	ensureAlwaysMsgf(!(Actor->bAlwaysRelevant || Actor->bOnlyRelevantToOwner) || CreateNetHandleParams.StaticPriority >= 1.0f, TEXT("Very low NetPriority %.02f for always relevant or owner relevant Actor %s. Set it to 1.0f or higher."), Actor->NetPriority, ToCStr(Actor->GetName()));
+	ensureAlwaysMsgf(!(Actor->bAlwaysRelevant || Actor->bOnlyRelevantToOwner) || CreateNetRefHandleParams.StaticPriority >= 1.0f, TEXT("Very low NetPriority %.02f for always relevant or owner relevant Actor %s. Set it to 1.0f or higher."), Actor->NetPriority, ToCStr(Actor->GetName()));
 #endif
 
-	FNetHandle ActorHandle = Super::BeginReplication(Actor, CreateNetHandleParams);
+	FNetRefHandle ActorRefHandle = Super::BeginReplication(Actor, CreateNetRefHandleParams);
 
-	if (!ActorHandle.IsValid())
+	if (!ActorRefHandle.IsValid())
 	{
-		ensureMsgf(false, TEXT("Failed to create NetHandle for Actor Named %s"), ToCStr(Actor->GetName()));
-		return FNetHandle();
+		ensureMsgf(false, TEXT("Failed to create NetRefHandle for Actor Named %s"), ToCStr(Actor->GetName()));
+		return FNetRefHandle();
 	}
 
 	// Set owning connection filtering if actor is only relevant to owner
 	{
 		if (Actor->bOnlyRelevantToOwner && !Actor->bAlwaysRelevant)
 		{
-			GetReplicationSystem()->SetFilter(ActorHandle, ToOwnerFilterHandle);
+			GetReplicationSystem()->SetFilter(ActorRefHandle, ToOwnerFilterHandle);
 		}
 	}
 
@@ -282,7 +279,7 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(AActor* Actor, con
 	{
 		if (Actor->bNetTemporary)
 		{
-			GetReplicationSystem()->SetIsNetTemporary(ActorHandle);
+			GetReplicationSystem()->SetIsNetTemporary(ActorRefHandle);
 		}
 	}
 
@@ -290,7 +287,7 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(AActor* Actor, con
 	{
 		if (Dormancy > DORM_Awake)
 		{
-			SetObjectWantsToBeDormant(ActorHandle, true);
+			SetObjectWantsToBeDormant(ActorRefHandle, true);
 		}
 	}
 
@@ -314,8 +311,8 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(AActor* Actor, con
 			}
 
 			// Add object to group
-			UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("Added %s to GroupIndex: %u Level: %s"), *ActorHandle.ToString(), LevelGroup, ToCStr(PackageName.ToString()));
-			GetReplicationSystem()->AddToGroup(LevelGroup, ActorHandle);	
+			UE_LOG_ACTORREPLICATIONBRIDGE(Verbose, TEXT("Added %s to GroupIndex: %u Level: %s"), *ActorRefHandle.ToString(), LevelGroup, ToCStr(PackageName.ToString()));
+			GetReplicationSystem()->AddToGroup(LevelGroup, ActorRefHandle);	
 		}
 	}
 
@@ -330,10 +327,10 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(AActor* Actor, con
 		{
 			if (IsValid(SubObjectInfo.SubObject) && SubObjectInfo.NetCondition != ELifetimeCondition::COND_Never)
 			{
-				FNetHandle SubObjectHandle = UObjectReplicationBridge::BeginReplication(ActorHandle, SubObjectInfo.SubObject);
-				if (SubObjectHandle.IsValid() && SubObjectInfo.NetCondition != ELifetimeCondition::COND_None)
+				FNetRefHandle SubObjectRefHandle = UObjectReplicationBridge::BeginReplication(ActorRefHandle, SubObjectInfo.SubObject);
+				if (SubObjectRefHandle.IsValid() && SubObjectInfo.NetCondition != ELifetimeCondition::COND_None)
 				{
-					UObjectReplicationBridge::SetSubObjectNetCondition(SubObjectHandle, SubObjectInfo.NetCondition);
+					UObjectReplicationBridge::SetSubObjectNetCondition(SubObjectRefHandle, SubObjectInfo.NetCondition);
 				}
 			}
 		}
@@ -350,21 +347,21 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(AActor* Actor, con
 		}
 	}
 
-	return ActorHandle;
+	return ActorRefHandle;
 }
 
-UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(FNetHandle OwnerHandle, UActorComponent* SubObject)
+UE::Net::FNetRefHandle UActorReplicationBridge::BeginReplication(FNetRefHandle OwnerHandle, UActorComponent* SubObject)
 {
 	using namespace UE::Net;
 
 	if (!OwnerHandle.IsValid() || !ShouldUseIrisReplication(SubObject))
 	{
-		return FNetHandle();
+		return FNetRefHandle();
 	}
 
 	AActor* Owner = SubObject->GetOwner();
 
-	FNetHandle ReplicatedComponentHandle = GetReplicatedHandle(SubObject);
+	FNetRefHandle ReplicatedComponentHandle = GetReplicatedRefHandle(SubObject);
 	const FReplicatedComponentInfo* RepComponentInfo = FSubObjectRegistryGetter::GetReplicatedComponentInfoForComponent(Owner, SubObject);
 
 	if (!ReplicatedComponentHandle.IsValid())
@@ -375,7 +372,7 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(FNetHandle OwnerHa
 			|| SubObject->HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject)
 		)
 		{
-			return FNetHandle();
+			return FNetRefHandle();
 		}
 
 		if (!SubObject->IsUsingRegisteredSubObjectList())
@@ -385,17 +382,17 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(FNetHandle OwnerHa
 
 		if (RepComponentInfo == nullptr || RepComponentInfo->NetCondition == ELifetimeCondition::COND_Never)
 		{
-			return FNetHandle();
+			return FNetRefHandle();
 		}
 
-		// Create NetHandle and attach for the sub object
+		// Start replicating the subobject with its owner.
 		ReplicatedComponentHandle = Super::BeginReplication(OwnerHandle, SubObject);
 	}
 
 	if (!ReplicatedComponentHandle.IsValid())
 	{
-		ensureMsgf(false, TEXT("Failed to create or find NetHandle for ActorComponent Named %s"), ToCStr(SubObject->GetName()));
-		return FNetHandle();
+		ensureMsgf(false, TEXT("Failed to create or find NetRefHandle for ActorComponent Named %s"), ToCStr(SubObject->GetName()));
+		return FNetRefHandle();
 	}
 
 	// Update or set any conditionals
@@ -409,7 +406,7 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(FNetHandle OwnerHa
 	{
 		if (IsValid(SubObjectInfo.SubObject) && SubObjectInfo.NetCondition != ELifetimeCondition::COND_Never)
 		{
-			FNetHandle SubObjectHandle = UObjectReplicationBridge::BeginReplication(OwnerHandle, SubObjectInfo.SubObject, ReplicatedComponentHandle, UReplicationBridge::ESubObjectInsertionOrder::ReplicateWith);
+			FNetRefHandle SubObjectHandle = UObjectReplicationBridge::BeginReplication(OwnerHandle, SubObjectInfo.SubObject, ReplicatedComponentHandle, UReplicationBridge::ESubObjectInsertionOrder::ReplicateWith);
 			if (SubObjectHandle.IsValid() && SubObjectInfo.NetCondition != ELifetimeCondition::COND_None)
 			{
 				SetSubObjectNetCondition(SubObjectHandle, SubObjectInfo.NetCondition);
@@ -424,19 +421,19 @@ void UActorReplicationBridge::EndReplication(AActor* Actor, EEndPlayReason::Type
 {
 	using namespace UE::Net;
 
-	FNetHandle NetHandle = GetReplicatedHandle(Actor);
-	if (NetHandle.IsValid())
+	FNetRefHandle RefHandle = GetReplicatedRefHandle(Actor);
+	if (RefHandle.IsValid())
 	{
-		UE_LOG(LogIrisBridge, Verbose, TEXT("EndReplication for %s %s. Reason %s "), *Actor->GetName(), *NetHandle.ToString(), *UEnum::GetValueAsString(TEXT("Engine.EEndPlayReason"), EndPlayReason));
+		UE_LOG(LogIrisBridge, Verbose, TEXT("EndReplication for %s %s. Reason %s "), *Actor->GetName(), *RefHandle.ToString(), *UEnum::GetValueAsString(TEXT("Engine.EEndPlayReason"), EndPlayReason));
 	
 		EEndReplicationFlags Flags = EEndReplicationFlags::None;
 		const bool bShouldDestroyObject = EndPlayReason == EEndPlayReason::Destroyed;		
 		if (bShouldDestroyObject)
 		{ 
-			Flags |= EEndReplicationFlags::Destroy;
+			Flags |= EEndReplicationFlags::Destroy | EEndReplicationFlags::DestroyNetHandle | EEndReplicationFlags::ClearNetPushId;
 		}
 					
-		const bool bShouldCreateDestructionInfo = NetHandle.IsStatic() && bShouldDestroyObject && GetReplicationSystem()->IsServer();
+		const bool bShouldCreateDestructionInfo = RefHandle.IsStatic() && bShouldDestroyObject && GetReplicationSystem()->IsServer();
 		if (bShouldCreateDestructionInfo)
 		{
 			UObjectReplicationBridge::FEndReplicationParameters EndReplicationParameters;
@@ -445,36 +442,36 @@ void UActorReplicationBridge::EndReplication(AActor* Actor, EEndPlayReason::Type
 			EndReplicationParameters.Level = Actor->GetLevel();
 			EndReplicationParameters.bUseDistanceBasedPrioritization = Actor->bAlwaysRelevant == false;
 
-			UObjectReplicationBridge::EndReplication(NetHandle, Flags, &EndReplicationParameters);		
+			UObjectReplicationBridge::EndReplication(RefHandle, Flags, &EndReplicationParameters);		
 		}
 		else
 		{
-			UObjectReplicationBridge::EndReplication(NetHandle, Flags, nullptr);
+			UObjectReplicationBridge::EndReplication(RefHandle, Flags, nullptr);
 		}
 	}
 }
 
-void UActorReplicationBridge::EndReplicationForActorComponent(UActorComponent* ActorComponent)
+void UActorReplicationBridge::EndReplicationForActorComponent(UActorComponent* ActorComponent, EEndReplicationFlags EndReplicationFlags)
 {
 	using namespace UE::Net;
 
-	FNetHandle ComponentHandle = GetReplicatedHandle(ActorComponent);
-	AActor* Actor = ActorComponent->GetOwner();
+	FNetRefHandle ComponentHandle = GetReplicatedRefHandle(ActorComponent);
+	const AActor* Actor = ActorComponent->GetOwner();
 	if (ComponentHandle.IsValid() && Actor)
 	{
 		UE_LOG(LogIrisBridge, Verbose, TEXT("EndReplicationForActorComponent for %s %s."), *ActorComponent->GetName(), *ComponentHandle.ToString());
 		
-		UObjectReplicationBridge::EndReplication(ComponentHandle, EEndReplicationFlags::None, nullptr);
+		UObjectReplicationBridge::EndReplication(ComponentHandle, EndReplicationFlags, nullptr);
 	}
 }
 
-bool UActorReplicationBridge::WriteCreationHeader(UE::Net::FNetSerializationContext& Context, FNetHandle Handle)
+bool UActorReplicationBridge::WriteCreationHeader(UE::Net::FNetSerializationContext& Context, FNetRefHandle Handle)
 {
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
 
 	FNetBitStreamWriter* Writer = Context.GetBitStreamWriter();
-
+	ensureAlways(IsReplicatedHandle(Handle));
 	const UObject* Object = GetReplicatedObject(Handle);
 	if (const AActor* Actor = Cast<AActor>(Object))
 	{
@@ -503,7 +500,7 @@ bool UActorReplicationBridge::WriteCreationHeader(UE::Net::FNetSerializationCont
 		return !Writer->IsOverflown();
 	}
 
-	ensureAlwaysMsgf(false, TEXT("UActorReplicationBridge::WriteCreationHeader Failed to write creationHeader for NetHandleIndex: %u"), Handle.GetId());
+	ensureAlwaysMsgf(false, TEXT("UActorReplicationBridge::WriteCreationHeader Failed to write creationHeader for NetRefHandle (Id=%u)"), Handle.GetId());
 
 	return false;
 }
@@ -539,7 +536,7 @@ UObjectReplicationBridge::FCreationHeader* UActorReplicationBridge::ReadCreation
 	return nullptr;
 }
 
-UObject* UActorReplicationBridge::BeginInstantiateFromRemote(FNetHandle SubObjectOwnerNetHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const UObjectReplicationBridge::FCreationHeader* InHeader)
+UObject* UActorReplicationBridge::BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerNetHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const UObjectReplicationBridge::FCreationHeader* InHeader)
 {
 	using namespace UE::Net::Private;
 
@@ -718,7 +715,7 @@ bool UActorReplicationBridge::OnInstantiatedFromRemote(UObject* Instance, const 
 	return true;
 }
 
-void UActorReplicationBridge::EndInstantiateFromRemote(FNetHandle Handle)
+void UActorReplicationBridge::EndInstantiateFromRemote(FNetRefHandle Handle)
 {
 	if (AActor* Actor = Cast<AActor>(GetReplicatedObject(Handle)))
 	{
@@ -771,7 +768,7 @@ void UActorReplicationBridge::DestroyInstanceFromRemote(UObject* Instance, bool 
 	}
 }
 
-void UActorReplicationBridge::GetInitialDependencies(FNetHandle Handle, FNetDependencyInfoArray& OutDependencies) const
+void UActorReplicationBridge::GetInitialDependencies(FNetRefHandle Handle, FNetDependencyInfoArray& OutDependencies) const
 {
 	using namespace UE::Net;
 

@@ -20,7 +20,7 @@ namespace UE::Net
 	namespace Private
 	{
 		struct FChangeMaskCache;
-		class FNetHandleManager;
+		class FNetRefHandleManager;
 	}
 }
 
@@ -36,7 +36,7 @@ struct FReplicationInstanceOperationsInternal
 	static IRISCORE_API void UnbindInstanceProtocol(FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
 
 	/** Copy state data for a single instance */
-	static IRISCORE_API uint32 CopyObjectStateData(FNetBitStreamWriter& ChangeMaskWriter, FChangeMaskCache& Cache, FNetHandleManager& NetHandleManager, FNetSerializationContext& SerializationContext, uint32 InternalIndex);
+	static IRISCORE_API uint32 CopyObjectStateData(FNetBitStreamWriter& ChangeMaskWriter, FChangeMaskCache& Cache, FNetRefHandleManager& NetRefHandleManager, FNetSerializationContext& SerializationContext, uint32 InternalIndex);
 };
 
 struct FReplicationStateOperationsInternal

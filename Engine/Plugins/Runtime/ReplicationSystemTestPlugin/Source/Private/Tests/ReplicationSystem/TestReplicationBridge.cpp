@@ -20,16 +20,16 @@ UE_NET_TEST_FIXTURE(FReplicationBridgeTestFixture, CreateObjectWithSingleFragmen
 {
 	UTestReplicatedIrisObject* TestObject = CreateObject(0, 0);
 
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Start replicating the object.
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 
-	// Verify that we managed to create a valid NetHandle	
+	// Verify that we managed to create a valid handle	
 	UE_NET_ASSERT_TRUE(CreatedHandle.IsValid());
-	UE_NET_ASSERT_TRUE(CreatedHandle == TestObject->NetHandle);
-	UE_NET_ASSERT_TRUE(CreatedHandle == ReplicationBridge->GetReplicatedHandle(TestObject));
+	UE_NET_ASSERT_TRUE(CreatedHandle == TestObject->NetRefHandle);
+	UE_NET_ASSERT_TRUE(CreatedHandle == ReplicationBridge->GetReplicatedRefHandle(TestObject));
 
 	// Verify ReplicationProtocol
-	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(TestObject->NetHandle);
+	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(TestObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(Protocol != nullptr);
 	UE_NET_ASSERT_TRUE(Protocol->ProtocolIdentifier != 0);
 	UE_NET_ASSERT_EQ(1u, Protocol->ReplicationStateCount);
@@ -49,16 +49,16 @@ UE_NET_TEST_FIXTURE(FReplicationBridgeTestFixture, CreateObjectWithMultipleFragm
 	constexpr uint32 IrisComponentCount = 0;
 	UTestReplicatedIrisObject* TestObject = CreateObject(PropertyComponentCount, IrisComponentCount);
 
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Start replicating the object.
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 
-	// Verify that we managed to create a valid NetHandle	
+	// Verify that we managed to create a valid handle	
 	UE_NET_ASSERT_TRUE(CreatedHandle.IsValid());
-	UE_NET_ASSERT_TRUE(CreatedHandle == TestObject->NetHandle);
-	UE_NET_ASSERT_TRUE(CreatedHandle == ReplicationBridge->GetReplicatedHandle(TestObject));
+	UE_NET_ASSERT_TRUE(CreatedHandle == TestObject->NetRefHandle);
+	UE_NET_ASSERT_TRUE(CreatedHandle == ReplicationBridge->GetReplicatedRefHandle(TestObject));
 
 	// Verify ReplicationProtocol
-	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(TestObject->NetHandle);
+	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(TestObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(Protocol != nullptr);
 	UE_NET_ASSERT_EQ(25u, Protocol->ReplicationStateCount);
 	UE_NET_ASSERT_EQ(8u, Protocol->InternalTotalAlignment);
@@ -77,16 +77,16 @@ UE_NET_TEST_FIXTURE(FReplicationBridgeTestFixture, CreateObjectWithMixedFragment
 	constexpr uint32 IrisComponentCount = 3;
 	UTestReplicatedIrisObject* TestObject = CreateObject(PropertyComponentCount, IrisComponentCount);
 
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Start replicating the object.
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 
-	// Verify that we managed to create a valid NetHandle	
+	// Verify that we managed to create a valid handle	
 	UE_NET_ASSERT_TRUE(CreatedHandle.IsValid());
-	UE_NET_ASSERT_TRUE(CreatedHandle == TestObject->NetHandle);
-	UE_NET_ASSERT_TRUE(CreatedHandle == ReplicationBridge->GetReplicatedHandle(TestObject));
+	UE_NET_ASSERT_TRUE(CreatedHandle == TestObject->NetRefHandle);
+	UE_NET_ASSERT_TRUE(CreatedHandle == ReplicationBridge->GetReplicatedRefHandle(TestObject));
 
 	// Verify ReplicationProtocol
-	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(TestObject->NetHandle);;
+	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(TestObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(Protocol != nullptr);
 	UE_NET_ASSERT_EQ(28u, Protocol->ReplicationStateCount);
 	UE_NET_ASSERT_EQ(8u, Protocol->InternalTotalAlignment);
@@ -104,16 +104,16 @@ UE_NET_TEST_FIXTURE(FReplicationBridgeTestFixture, CreateObjectWithDynamicStateC
 	constexpr uint32 DynamicStateComponentCount = 1U;
 	UTestReplicatedIrisObject* TestObject = CreateObjectWithDynamicState(0, 0, DynamicStateComponentCount);
 
-	// Create NetHandle for the CreatedHandle,
-	FNetHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
+	// Start replicating the object.
+	FNetRefHandle CreatedHandle = ReplicationBridge->BeginReplication(TestObject);
 
-	// Verify that we managed to create a valid NetHandle	
+	// Verify that we managed to create a valid handle	
 	UE_NET_ASSERT_TRUE(CreatedHandle.IsValid());
-	UE_NET_ASSERT_TRUE(CreatedHandle == TestObject->NetHandle);
-	UE_NET_ASSERT_TRUE(CreatedHandle == ReplicationBridge->GetReplicatedHandle(TestObject));
+	UE_NET_ASSERT_TRUE(CreatedHandle == TestObject->NetRefHandle);
+	UE_NET_ASSERT_TRUE(CreatedHandle == ReplicationBridge->GetReplicatedRefHandle(TestObject));
 
 	// Verify ReplicationProtocol
-	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(TestObject->NetHandle);
+	const FReplicationProtocol* Protocol = ReplicationSystem->GetReplicationProtocol(TestObject->NetRefHandle);
 	UE_NET_ASSERT_NE(Protocol, nullptr);
 	UE_NET_ASSERT_NE(Protocol->ProtocolIdentifier, FReplicationProtocolIdentifier(0));
 	UE_NET_ASSERT_EQ(Protocol->ReplicationStateCount, 1U + DynamicStateComponentCount);

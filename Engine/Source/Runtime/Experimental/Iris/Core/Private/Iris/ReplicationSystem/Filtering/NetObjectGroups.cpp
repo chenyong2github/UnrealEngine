@@ -179,7 +179,7 @@ FNetObjectGroup* FNetObjectGroups::GetGroup(FNetObjectGroupHandle GroupHandle)
 	return Groups.IsValidIndex(GroupHandle) ? &Groups[GroupHandle] : nullptr;
 }
 
-bool FNetObjectGroups::Contains(FNetObjectGroupHandle GroupHandle, FInternalNetHandle InternalIndex) const
+bool FNetObjectGroups::Contains(FNetObjectGroupHandle GroupHandle, FInternalNetRefIndex InternalIndex) const
 {
 	// If the group does not exist we cannot be in it..
 	const FNetObjectGroup* Group = GetGroup(GroupHandle);
@@ -193,10 +193,10 @@ bool FNetObjectGroups::Contains(FNetObjectGroupHandle GroupHandle, FInternalNetH
 	return InternalIndex ? IsMemberOf(GroupMemberships[InternalIndex], GroupHandle) : false;
 }
 
-void FNetObjectGroups::AddToGroup(FNetObjectGroupHandle GroupHandle, FInternalNetHandle InternalIndex)
+void FNetObjectGroups::AddToGroup(FNetObjectGroupHandle GroupHandle, FInternalNetRefIndex InternalIndex)
 {
 	FNetObjectGroup* Group = GetGroup(GroupHandle);
-	if (InternalIndex != FNetHandleManager::InvalidInternalIndex && Group)
+	if (InternalIndex != FNetRefHandleManager::InvalidInternalIndex && Group)
 	{
 		if (AddGroupMembership(GroupMemberships[InternalIndex], GroupHandle))
 		{
@@ -209,10 +209,10 @@ void FNetObjectGroups::AddToGroup(FNetObjectGroupHandle GroupHandle, FInternalNe
 	}
 }
 
-void FNetObjectGroups::RemoveFromGroup(FNetObjectGroupHandle GroupHandle, FInternalNetHandle InternalIndex)
+void FNetObjectGroups::RemoveFromGroup(FNetObjectGroupHandle GroupHandle, FInternalNetRefIndex InternalIndex)
 {
 	FNetObjectGroup* Group = GetGroup(GroupHandle);
-	if (InternalIndex != FNetHandleManager::InvalidInternalIndex && Group)
+	if (InternalIndex != FNetRefHandleManager::InvalidInternalIndex && Group)
 	{
 		checkSlow(IsMemberOf(GroupMemberships[InternalIndex], GroupHandle));
 
@@ -221,7 +221,7 @@ void FNetObjectGroups::RemoveFromGroup(FNetObjectGroupHandle GroupHandle, FInter
 	}
 }
 
-uint32 FNetObjectGroups::GetNumGroupMemberships(FInternalNetHandle InternalIndex) const
+uint32 FNetObjectGroups::GetNumGroupMemberships(FInternalNetRefIndex InternalIndex) const
 {
 	if (InternalIndex >= (uint32)GroupMemberships.Num())
 	{
@@ -237,7 +237,7 @@ uint32 FNetObjectGroups::GetNumGroupMemberships(FInternalNetHandle InternalIndex
 	return Count;
 }
 
-const FNetObjectGroupHandle* FNetObjectGroups::GetGroupMemberships(FInternalNetHandle InternalIndex, uint32& GroupCount) const
+const FNetObjectGroupHandle* FNetObjectGroups::GetGroupMemberships(FInternalNetRefIndex InternalIndex, uint32& GroupCount) const
 {
 	GroupCount = GetNumGroupMemberships(InternalIndex);
 	if (GroupCount)

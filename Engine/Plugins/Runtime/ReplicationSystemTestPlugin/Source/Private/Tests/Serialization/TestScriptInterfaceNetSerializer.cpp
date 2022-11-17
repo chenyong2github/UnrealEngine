@@ -34,7 +34,7 @@ UE_NET_TEST_FIXTURE(FTestScriptInterfaceNetSerializer, TestNoScriptInterface)
 	Server->PostSendUpdate();
 
 	// Verify object was created
-	UTestObjectReferencingScriptInterface* ClientObject = Client->GetObjectAs<UTestObjectReferencingScriptInterface>(Object->NetHandle);	
+	UTestObjectReferencingScriptInterface* ClientObject = Client->GetObjectAs<UTestObjectReferencingScriptInterface>(Object->NetRefHandle);	
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Verify the interface objects are identical, i.e. not set.
@@ -61,11 +61,11 @@ UE_NET_TEST_FIXTURE(FTestScriptInterfaceNetSerializer, TestInterfaceToReplicated
 	Server->PostSendUpdate();
 
 	// Verify object was created
-	UTestObjectReferencingScriptInterface* ClientObject = Client->GetObjectAs<UTestObjectReferencingScriptInterface>(Object->NetHandle);
+	UTestObjectReferencingScriptInterface* ClientObject = Client->GetObjectAs<UTestObjectReferencingScriptInterface>(Object->NetRefHandle);
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Verify interface object was created
-	UTestScriptInterfaceReplicatedObject* ClientInterfaceObject = Client->GetObjectAs<UTestScriptInterfaceReplicatedObject>(InterfaceObject->NetHandle);
+	UTestScriptInterfaceReplicatedObject* ClientInterfaceObject = Client->GetObjectAs<UTestScriptInterfaceReplicatedObject>(InterfaceObject->NetRefHandle);
 	UE_NET_ASSERT_NE(ClientInterfaceObject, nullptr);
 
 	// Verify the interface object is set
@@ -93,11 +93,11 @@ UE_NET_TEST_FIXTURE(FTestScriptInterfaceNetSerializer, TestInterfaceToNamedObjec
 	Server->PostSendUpdate();
 
 	// Verify object was created
-	UTestObjectReferencingScriptInterface* ClientObject = Client->GetObjectAs<UTestObjectReferencingScriptInterface>(Object->NetHandle);
+	UTestObjectReferencingScriptInterface* ClientObject = Client->GetObjectAs<UTestObjectReferencingScriptInterface>(Object->NetRefHandle);
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Verify the object with the interface subobject was created
-	UTestScriptInterfaceReplicatedObjectWithDefaultSubobject* ClientObjectWithInterfaceSubObject = Client->GetObjectAs<UTestScriptInterfaceReplicatedObjectWithDefaultSubobject>(ObjectWithInterfaceSubObject->NetHandle);
+	UTestScriptInterfaceReplicatedObjectWithDefaultSubobject* ClientObjectWithInterfaceSubObject = Client->GetObjectAs<UTestScriptInterfaceReplicatedObjectWithDefaultSubobject>(ObjectWithInterfaceSubObject->NetRefHandle);
 	UE_NET_ASSERT_NE(ClientObjectWithInterfaceSubObject, nullptr);
 
 	// Verify the interface object is set

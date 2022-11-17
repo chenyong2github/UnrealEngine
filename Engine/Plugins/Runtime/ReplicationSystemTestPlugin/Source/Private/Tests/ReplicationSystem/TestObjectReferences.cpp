@@ -150,9 +150,9 @@ struct FTestObjectReferencesFixture : public FReplicationSystemServerClientTestF
 		// Create test object
 		TestObject = Server->CreateObject<UTestObjectReferences_TestClassWithReferences>();
 		
-		uint32 ObjectIndex = Server->GetReplicationSystem()->GetReplicationSystemInternal()->GetNetHandleManager().GetInternalIndex(TestObject->NetHandle);
-		TestObjectStateBuffer = Server->GetReplicationSystem()->GetReplicationSystemInternal()->GetNetHandleManager().GetReplicatedObjectStateBufferNoCheck(ObjectIndex);
-		TestObjectProtocol = Server->GetReplicationSystem()->GetReplicationProtocol(TestObject->NetHandle);
+		uint32 ObjectIndex = Server->GetReplicationSystem()->GetReplicationSystemInternal()->GetNetRefHandleManager().GetInternalIndex(TestObject->NetRefHandle);
+		TestObjectStateBuffer = Server->GetReplicationSystem()->GetReplicationSystemInternal()->GetNetRefHandleManager().GetReplicatedObjectStateBufferNoCheck(ObjectIndex);
+		TestObjectProtocol = Server->GetReplicationSystem()->GetReplicationProtocol(TestObject->NetRefHandle);
 
 		// InitCollectors
 		CollectOnlyValidCollector.bCollectAll = false;
@@ -160,6 +160,7 @@ struct FTestObjectReferencesFixture : public FReplicationSystemServerClientTestF
 
 		// To trigger copy of data so we have valid data in buffers
 		Server->PreSendUpdate();
+		Server->PostSendUpdate();
 	}
 };
 
@@ -167,6 +168,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_NoRef)
 {
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 
 	FNetSerializationContext Context;
 
@@ -190,6 +192,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_SingleRef
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -197,7 +200,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_SingleRef
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_ObjectRef)
@@ -207,14 +210,15 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_ObjectRef
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
-	
+	Server->PostSendUpdate();
+
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
 	// Collect 
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWithRef)
@@ -224,6 +228,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -231,7 +236,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWithRefCArray)
@@ -241,6 +246,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -248,7 +254,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWithRefCArrayMulti)
@@ -260,6 +266,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -267,9 +274,9 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWithRefTArray)
@@ -279,6 +286,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -286,7 +294,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWithRefTArrayMulti)
@@ -298,6 +306,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -305,9 +314,9 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefCArray)
@@ -317,6 +326,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefCArray
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -324,7 +334,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefCArray
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefCArrayMulti)
@@ -336,6 +346,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefCArray
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -343,9 +354,9 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefCArray
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefTArray)
@@ -355,6 +366,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefTArray
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -362,7 +374,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefTArray
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefTArrayMulti)
@@ -374,6 +386,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefTArray
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -381,9 +394,9 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_RefTArray
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWithRef_CArray)
@@ -393,6 +406,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -400,7 +414,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWithRef_CArrayMulti)
@@ -412,16 +426,17 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
-	
+	Server->PostSendUpdate();
+
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
 	// Collect 
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWithRef_TArray)
@@ -432,6 +447,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -439,7 +455,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWithRef_TArrayMulti)
@@ -452,16 +468,17 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestReferenceVisitor_StructWit
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
-	
+	Server->PostSendUpdate();
+
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
 	// Collect 
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefCArray_CArray)
@@ -471,6 +488,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefCArray_
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -478,7 +496,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefCArray_
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefCArray_CArrayMulti)
@@ -490,6 +508,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefCArray_
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -497,9 +516,9 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefCArray_
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefTArray_TArray)
@@ -512,6 +531,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefTArray_
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -519,7 +539,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefTArray_
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 1);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefTArray_TArrayMulti)
@@ -538,6 +558,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefTArray_
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -545,9 +566,9 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefTArray_
 	VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 	UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
-	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetHandle);
-	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[1].GetRefHandle() == TestReferences[1]->NetRefHandle);
+	UE_NET_ASSERT_TRUE(Collector.References[2].GetRefHandle() == TestReferences[2]->NetRefHandle);
 }
 
 UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefTArray_Combo)
@@ -601,6 +622,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefTArray_
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
+	Server->PostSendUpdate();
 	
 	FReferenceCollector& Collector = CollectOnlyValidCollector;
 
@@ -610,7 +632,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestStructWithNestedRefTArray_
 	UE_NET_ASSERT_EQ((uint32)Collector.References.Num(), CurrentReferenceIndex);
 	for (int32 It = 0; It < Collector.References.Num(); ++It)
 	{
-		UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It]->NetHandle);
+		UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It]->NetRefHandle);
 	}	
 }
 
@@ -669,10 +691,9 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestVisitAllDirty)
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
-	
-	
+	Server->PostSendUpdate();
+		
 	// Collect with empty changemask
-	
 	{
 		FCollectValidReferenceCollector Collector(false, ChangeMask);
 
@@ -686,7 +707,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestVisitAllDirty)
 
 		VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 		UE_NET_ASSERT_EQ((uint32)Collector.References.Num(), 1U);
-		UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetHandle);
+		UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
 	}
 
 	// Partial
@@ -699,10 +720,9 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestVisitAllDirty)
 		UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
 		for (int32 It = 0; It < Collector.References.Num(); ++It)
 		{
-			UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It + 20]->NetHandle);
+			UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It + 20]->NetRefHandle);
 		}
 	}
-
 
 	// Mark dirty
 	{
@@ -713,7 +733,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestVisitAllDirty)
 		UE_NET_ASSERT_EQ((uint32)Collector.References.Num(), CurrentReferenceIndex);
 		for (int32 It = 0; It < Collector.References.Num(); ++It)
 		{
-			UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It]->NetHandle);
+			UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It]->NetRefHandle);
 		}
 	}
 
@@ -726,7 +746,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestVisitAllDirty)
 		UE_NET_ASSERT_EQ((uint32)Collector.References.Num(), CurrentReferenceIndex - 1);
 		for (int32 It = 0; It < Collector.References.Num(); ++It)
 		{
-			UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It + 1]->NetHandle);
+			UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It + 1]->NetRefHandle);
 		}
 	}
 }
@@ -750,7 +770,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestInlinedSubObj
 	Server->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithDefaultSubObject>(Object->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithDefaultSubObject>(Object->NetRefHandle);
 
 	// Verify that default subobject is created
 	UE_NET_ASSERT_TRUE(ClientObject->CreatedSubObjectRef != nullptr);
@@ -783,7 +803,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestExternalSubOb
 	UE_NET_ASSERT_TRUE(Object->CreatedSubObjectRef->HasAnyFlags(RF_DefaultSubObject) || Object->IsDefaultSubobject());
 
 	// Create external subobject
-	UTestObjectReferences_TestClassWithDefaultSubObject* ExternalSubObject = Server->CreateSubObject<UTestObjectReferences_TestClassWithDefaultSubObject>(Object->NetHandle);
+	UTestObjectReferences_TestClassWithDefaultSubObject* ExternalSubObject = Server->CreateSubObject<UTestObjectReferences_TestClassWithDefaultSubObject>(Object->NetRefHandle);
 
 	// Replicate object
 	Server->PreSendUpdate();
@@ -791,8 +811,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestExternalSubOb
 	Server->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithDefaultSubObject>(Object->NetHandle);
-	auto ClientExternalSubObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithDefaultSubObject>(ExternalSubObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithDefaultSubObject>(Object->NetRefHandle);
+	auto ClientExternalSubObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithDefaultSubObject>(ExternalSubObject->NetRefHandle);
 
 	// Verify that default subobject is created
 	UE_NET_ASSERT_TRUE(ClientObject->CreatedSubObjectRef != nullptr);
@@ -832,9 +852,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestPartialResolv
 	ServerObject->Ref_TArray.Add(ServerReferencedObjectC);
 
 	// Make sure that references are not replicated to client
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetRefHandle);
 	
 	// Replicate
 	Server->PreSendUpdate();
@@ -842,7 +862,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestPartialResolv
 	Server->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 
 	// Verify that array has been replicated
@@ -854,7 +874,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestPartialResolv
 	UE_NET_ASSERT_TRUE(ClientObject->Ref_TArray[2] == nullptr);
 
 	// Enable replication for ServerReferenceObjectA
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -867,7 +887,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestPartialResolv
 	UE_NET_ASSERT_TRUE(ClientObject->Ref_TArray[2] == nullptr);
 
 	// Enable replication for ServerReferenceObjectB 
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -880,7 +900,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestPartialResolv
 	UE_NET_ASSERT_TRUE(ClientObject->Ref_TArray[2] == nullptr);
 
 	// Enable replication for ServerReferenceObjectB 
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -922,12 +942,12 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	Item.ObjectRef = ServerReferencedObjectC;
 	ServerFastArray.Items.Add(Item);
 	ServerFastArray.MarkItemDirty(ServerFastArray.Items[2]);
-	UE::Net::IrisDebugHelper::DebugOutputNetObjectState(ServerObject->NetHandle.GetId(), ServerObject->NetHandle.GetReplicationSystemId());
+	UE::Net::IrisDebugHelper::DebugOutputNetObjectState(ServerObject->NetRefHandle.GetId(), ServerObject->NetRefHandle.GetReplicationSystemId());
 
 	// Make sure that references are not replicated to client
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetRefHandle);
 	
 	// Replicate
 	Server->PreSendUpdate();
@@ -935,7 +955,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	Server->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 
 	auto& ClientFastArray = ClientObject->Ref_FastArray;
@@ -949,14 +969,14 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[2].ObjectRef == nullptr);
 
 	// Enable replication for ServerReferenceObjectA
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, true);
 	Server->PostSendUpdate();
 
-	UE::Net::IrisDebugHelper::DebugOutputNetObjectState(ClientObject->NetHandle.GetId(), ClientObject->NetHandle.GetReplicationSystemId());
+	UE::Net::IrisDebugHelper::DebugOutputNetObjectState(ClientObject->NetRefHandle.GetId(), ClientObject->NetRefHandle.GetReplicationSystemId());
 
 	// Verify that we managed to resolve objectA even though we have other unresolved objects in the array
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[0].ObjectRef != nullptr);
@@ -964,7 +984,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[2].ObjectRef == nullptr);
 
 	// Enable replication for ServerReferenceObjectB 
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -977,7 +997,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[2].ObjectRef == nullptr);
 
 	// Enable replication for ServerReferenceObjectC
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1018,9 +1038,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	ServerFastArrayEditor.Add(Item);
 
 	// Make sure that references are not replicated to client
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetRefHandle);
 	
 	// Replicate
 	Server->PreSendUpdate();
@@ -1028,7 +1048,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	Server->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 
 	auto& ClientFastArray = ClientObject->Ref_NativeFastArray;
@@ -1042,7 +1062,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[2].ObjectRef == nullptr);
 
 	// Enable replication for ServerReferenceObjectA
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1055,7 +1075,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[2].ObjectRef == nullptr);
 
 	// Enable replication for ServerReferenceObjectB 
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1068,7 +1088,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[2].ObjectRef == nullptr);
 
 	// Enable replication for ServerReferenceObjectC
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1113,9 +1133,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	ServerFastArrayEditor.Add(Item);
 
 	// Make sure that references are not replicated to client
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetRefHandle);
 	
 	// Replicate
 	Server->PreSendUpdate();
@@ -1127,7 +1147,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	//ServerFastArrayEditor.Add(Item);
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 
 	auto& ClientFastArray = ClientObject->Ref_NativeFastArray;
@@ -1144,7 +1164,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[2].Ref_TArray[0] == nullptr);
 
 	// Enable replication for ServerReferenceObjectA
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1157,7 +1177,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[2].Ref_TArray[0] == nullptr);
 
 	// Enable replication for ServerReferenceObjectB 
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1170,7 +1190,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[2].Ref_TArray[0] == nullptr);
 
 	// Enable replication for ServerReferenceObjectC
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectC->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1204,14 +1224,14 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	Server->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 
 	// Verify that object can be resolved
 	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Disable replication for ServerReferenceObjectA
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
 
 	// Replicate to make sure object is destroyed on client
 	Server->PreSendUpdate();
@@ -1230,7 +1250,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	UE_NET_ASSERT_EQ(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Enable replication for ServerReferenceObjectA
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1271,7 +1291,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	Client->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 
 	// Verify that object can be resolved
@@ -1279,7 +1299,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	UE_NET_ASSERT_NE(ClientObject->StructWithRef_CArray[0].ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Disable replication for ServerReferenceObjectA
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
 
 	// Replicate to make sure object is destroyed on client
 	Server->PreSendUpdate();
@@ -1300,7 +1320,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	UE_NET_ASSERT_EQ(ClientObject->StructWithRef_CArray[0].ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Enable replication for ServerReferenceObjectA
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1354,7 +1374,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovingRefer
 	Server->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetRefHandle);
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 	auto& ClientTArray = ClientObject->StructWithRef_TArray;
 
@@ -1365,9 +1385,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovingRefer
 	UE_NET_ASSERT_NE(ClientTArray[3].ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Disable replication for ServerReferenceObjectA, B and D.
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectD->NetHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectD->NetRefHandle);
 
 	// Replicate to make sure objects are destroyed on client
 	Server->PreSendUpdate();
@@ -1400,9 +1420,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovingRefer
 	UE_NET_ASSERT_EQ(ClientTArray[3].ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Enable replication for ServerReferenceObjectA, B and D.
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectD->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectD->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -1445,7 +1465,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffDoesIn
 	Client->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestObjectReferences_TestClassWithReferences>(ServerObject->NetRefHandle);
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Verify that object can be resolved

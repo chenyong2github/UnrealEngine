@@ -23,7 +23,7 @@ namespace UE::Net
 		class FReplicationSystemInternal;
 		class FResolveAndCollectUnresolvedAndResolvedReferenceCollector;
 		class FNetBlobHandlerManager;
-		class FNetHandleManager;
+		class FNetRefHandleManager;
 	}
 }
 
@@ -53,7 +53,7 @@ public:
 	void Read(FNetSerializationContext& Context);
 
 	// Read index part of handle
-	FNetHandle ReadNetHandleId(FNetBitStreamReader& Reader) const;
+	FNetRefHandle ReadNetRefHandleId(FNetBitStreamReader& Reader) const;
 
 	void SetRemoteNetTokenStoreState(FNetTokenStoreState* RemoteTokenStoreState);
 	
@@ -61,12 +61,12 @@ public:
 	void UpdateUnresolvableReferenceTracking();
 
 private:
-	// ChangeMaskOffset -> FNetHandle
+	// ChangeMaskOffset -> FNetRefHandle
 	enum EConstants : uint32
 	{
 		FakeInitChangeMaskOffset = 0xFFFFFFFFU,
 	};
-	typedef TMultiMap<uint32, FNetHandle> FObjectReferenceTracker;
+	typedef TMultiMap<uint32, FNetRefHandle> FObjectReferenceTracker;
 
 	struct FReplicatedObjectInfo
 	{
@@ -179,14 +179,14 @@ private:
 	// Update ReplicationInfo and OutUnresolvedChangeMask based on data collected by the Collector
 	void BuildUnresolvedChangeMaskAndUpdateObjectReferenceTracking(const FResolveAndCollectUnresolvedAndResolvedReferenceCollector& Collector, FNetBitArrayView CollectorChangeMask, FReplicatedObjectInfo* ReplicationInfo, FNetBitArrayView& OutUnresolvedChangeMask);
 
-	void RemoveUnresolvedObjectReferenceInReplicationInfo(FReplicatedObjectInfo* ReplicationInfo, FNetHandle Handle);
-	void RemoveResolvedObjectReferenceInReplicationInfo(FReplicatedObjectInfo* ReplicationInfo, FNetHandle Handle);
+	void RemoveUnresolvedObjectReferenceInReplicationInfo(FReplicatedObjectInfo* ReplicationInfo, FNetRefHandle Handle);
+	void RemoveResolvedObjectReferenceInReplicationInfo(FReplicatedObjectInfo* ReplicationInfo, FNetRefHandle Handle);
 
 	// A previously resolved dynamic reference is now unresolvable. The ReplicationInfo needs to be updated to reflect this.
 	// Returns true if the reference was found.
-	bool MoveResolvedObjectReferenceToUnresolvedInReplicationInfo(FReplicatedObjectInfo* ReplicationInfo, FNetHandle UnresolvableHandle);
+	bool MoveResolvedObjectReferenceToUnresolvedInReplicationInfo(FReplicatedObjectInfo* ReplicationInfo, FNetRefHandle UnresolvableHandle);
 
-	void DeserializeObjectStateDelta(FNetSerializationContext& Context, uint32 InternalIndex, FDispatchObjectInfo& Info, FReplicatedObjectInfo& ObjectInfo, const FNetHandleManager::FReplicatedObjectData& ObjectData, uint32& OutNewBaselineIndex);
+	void DeserializeObjectStateDelta(FNetSerializationContext& Context, uint32 InternalIndex, FDispatchObjectInfo& Info, FReplicatedObjectInfo& ObjectInfo, const FNetRefHandleManager::FReplicatedObjectData& ObjectData, uint32& OutNewBaselineIndex);
 
 private:
 	FReplicationParameters Parameters;
@@ -197,7 +197,7 @@ private:
 	FGlobalChangeMaskAllocator PersistentChangeMaskAllocator;
 
 	FReplicationSystemInternal* ReplicationSystemInternal;
-	FNetHandleManager* NetHandleManager;
+	FNetRefHandleManager* NetRefHandleManager;
 	FReplicationStateStorage* StateStorage;
 	UReplicationBridge* ReplicationBridge;
 
@@ -215,10 +215,10 @@ private:
 	TArray<uint32> ObjectsWithAttachmentPendingResolve;
 
 	// Track all objects waiting for this handle to be resolvable
-	TMultiMap<FNetHandle, uint32> UnresolvedHandleToDependents;
+	TMultiMap<FNetRefHandle, uint32> UnresolvedHandleToDependents;
 	
 	// Track all objects with a dynamic handle in case it becomes unresolvable
-	TMultiMap<FNetHandle, uint32> ResolvedDynamicHandleToDependents;
+	TMultiMap<FNetRefHandle, uint32> ResolvedDynamicHandleToDependents;
 
 	FNetBlobHandlerManager* NetBlobHandlerManager;
 	FNetBlobType NetObjectBlobType;

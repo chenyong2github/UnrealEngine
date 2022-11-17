@@ -9,7 +9,7 @@
 
 namespace UE::Net::Private
 {
-	typedef uint32 FInternalNetHandle;
+	typedef uint32 FInternalNetRefIndex;
 }
 
 const UE::Net::FRepTag RepTag_NetTest_Priority = 0x22C6880A98E628EDULL;
@@ -56,7 +56,7 @@ public:
 	inline const FFunctionCallStatus& GetFunctionCallStatus() const { return CallStatus; }
 	inline void ResetFunctionCallStatus() { CallStatus = FFunctionCallStatus({}); }
 
-	float GetPriority(UE::Net::Private::FInternalNetHandle ObjectIndex) const;
+	float GetPriority(UE::Net::Private::FInternalNetRefIndex ObjectIndex) const;
 
 protected:
 	virtual void Init(FNetObjectPrioritizerInitParams& Params) override;

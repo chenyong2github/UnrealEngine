@@ -85,6 +85,16 @@ FReplicationSystemTestNode::FReplicationSystemTestNode(bool bIsServer, const TCH
 	UE_NET_TRACE_UPDATE_INSTANCE(GetNetTraceId(), bIsServer, Name);
 }
 
+FReplicationSystemTestNode::~FReplicationSystemTestNode()
+{
+	const uint32 NetTraceId = ReplicationSystem->GetId();
+	FReplicationSystemFactory::DestroyReplicationSystem(ReplicationSystem);
+	CreatedObjects.Empty();
+
+	// End NetTrace session for this instance
+	UE_NET_TRACE_END_SESSION(NetTraceId);
+}
+
 uint32 FReplicationSystemTestNode::GetNetTraceId() const
 { 
 	return ReplicationSystem ? ReplicationSystem->GetId() : ~0U;
@@ -115,7 +125,7 @@ UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObject(const UTestR
 	return CreatedObject;
 }
 
-UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateSubObject(FNetHandle Owner, const UTestReplicatedIrisObject::FComponents& Components)
+UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateSubObject(FNetRefHandle Owner, const UTestReplicatedIrisObject::FComponents& Components)
 {
 	UTestReplicatedIrisObject* CreatedObject = NewObject<UTestReplicatedIrisObject>();
 	CreatedObjects.Add(TStrongObjectPtr<UObject>(CreatedObject));
@@ -127,7 +137,7 @@ UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateSubObject(FNetHandl
 	return CreatedObject;
 }
 
-UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateSubObject(FNetHandle Owner, uint32 NumComponents, uint32 NumIrisComponents)
+UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateSubObject(FNetRefHandle Owner, uint32 NumComponents, uint32 NumIrisComponents)
 {
 	UTestReplicatedIrisObject* CreatedObject = NewObject<UTestReplicatedIrisObject>();
 	CreatedObjects.Add(TStrongObjectPtr<UObject>(CreatedObject));
@@ -153,7 +163,7 @@ UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObjectWithDynamicSt
 void FReplicationSystemTestNode::DestroyObject(UReplicatedTestObject* Object, EEndReplicationFlags EndReplicationFlags)
 {
 	// Destroy handle
-	check(Object && Object->NetHandle.IsValid());
+	check(Object && Object->NetRefHandle.IsValid());
 
 	// End replication for the handle
 	ReplicationBridge->EndReplication(Object, EndReplicationFlags);
@@ -296,18 +306,13 @@ void FReplicationSystemTestNode::RecvUpdate(uint32 ConnectionId, FNetSerializati
 	check(Context.GetBitStreamReader()->GetBitsLeft() == 0U);
 }
 
-FReplicationSystemTestNode::~FReplicationSystemTestNode()
+uint32 FReplicationSystemTestNode::GetReplicationSystemId() const
 {
-	const uint32 NetTraceId = ReplicationSystem->GetId();
-	FReplicationSystemFactory::DestroyReplicationSystem(ReplicationSystem);
-	CreatedObjects.Empty();
-
-	// End NetTrace session for this instance
-	UE_NET_TRACE_END_SESSION(NetTraceId);
+	return ReplicationSystem ? ReplicationSystem->GetId() : uint32(~0U);
 }
 
 // FReplicationSystemTestClient implementation
-FReplicationSystemTestClient::FReplicationSystemTestClient(uint32 ReplicationSystemId, const TCHAR* Name)
+FReplicationSystemTestClient::FReplicationSystemTestClient(const TCHAR* Name)
 : FReplicationSystemTestNode(false, Name)
 , ConnectionIdOnServer(~0U)
 {
@@ -358,21 +363,7 @@ void FReplicationSystemServerClientTestFixture::SetUp()
 	Server = new FReplicationSystemTestServer(GetName());
 }
 
-FReplicationSystemTestClient* FReplicationSystemServerClientTestFixture::CreateClient()
-{
-	FReplicationSystemTestClient* Client = new FReplicationSystemTestClient(Clients.Num() + 1U, GetName());
-	Clients.Add(Client);
-
-	// The client needs a connection
-	Client->LocalConnectionId = Client->AddConnection();
-
-	// Auto connect to server
-	Client->ConnectionIdOnServer = Server->AddConnection();
-
-	return Client;
-}
-
- void FReplicationSystemServerClientTestFixture::TearDown()
+void FReplicationSystemServerClientTestFixture::TearDown()
 {
 	delete Server;
 	for (FReplicationSystemTestClient* Client : Clients)
@@ -383,6 +374,20 @@ FReplicationSystemTestClient* FReplicationSystemServerClientTestFixture::CreateC
 	DataStreamUtil.TearDown();
 
 	FNetworkAutomationTestSuiteFixture::TearDown();
+}
+
+FReplicationSystemTestClient* FReplicationSystemServerClientTestFixture::CreateClient()
+{
+	FReplicationSystemTestClient* Client = new FReplicationSystemTestClient(GetName());
+	Clients.Add(Client);
+
+	// The client needs a connection
+	Client->LocalConnectionId = Client->AddConnection();
+
+	// Auto connect to server
+	Client->ConnectionIdOnServer = Server->AddConnection();
+
+	return Client;
 }
 
 }

@@ -31,6 +31,9 @@ private:
 
 	virtual void StartupModule() override
 	{
+		// Iris requires NetCore
+		FModuleManager::LoadModuleChecked<IModuleInterface>("NetCore");
+
 		// Check command line for whether we should override the net.Iris.UseIrisReplication cvar, as we need to do that early
 		int32 UseIrisReplication;
 		if(FParse::Value(FCommandLine::Get(), TEXT("UseIrisReplication="), UseIrisReplication))

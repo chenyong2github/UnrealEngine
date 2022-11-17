@@ -86,9 +86,9 @@ private:
 		FInternalRecord() { CombinedRecord = InvalidReplicationRecord; };
 	};
 
-	EAttachmentWriteStatus Serialize(FNetSerializationContext& Context, FNetHandle NetHandle, ReplicationRecord& OutRecord, bool& bOutHasUnprocessedAttachments);
-	uint32 SerializeReliable(FNetSerializationContext& Context, FNetHandle NetHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord);
-	uint32 SerializeUnreliable(FNetSerializationContext& Context, FNetHandle NetHandle, uint32& OutRecord);
+	EAttachmentWriteStatus Serialize(FNetSerializationContext& Context, FNetRefHandle RefHandle, ReplicationRecord& OutRecord, bool& bOutHasUnprocessedAttachments);
+	uint32 SerializeReliable(FNetSerializationContext& Context, FNetRefHandle RefHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord);
+	uint32 SerializeUnreliable(FNetSerializationContext& Context, FNetRefHandle RefHandle, uint32& OutRecord);
 
 	void CommitReplicationRecord(ReplicationRecord Record);
 
@@ -121,7 +121,7 @@ public:
 	void DropAllAttachments(ENetObjectAttachmentType Type, uint32 ObjectIndex);
 	void DropUnreliableAttachments(ENetObjectAttachmentType Type, uint32 ObjectIndex, bool& bOutHasUnsentAttachments);
 
-	EAttachmentWriteStatus Serialize(FNetSerializationContext& Context, ENetObjectAttachmentType Type, uint32 ObjectIndex, FNetHandle NetHandle, ReplicationRecord& OutRecord, bool& bOutHasUnsentAttachments);
+	EAttachmentWriteStatus Serialize(FNetSerializationContext& Context, ENetObjectAttachmentType Type, uint32 ObjectIndex, FNetRefHandle RefHandle, ReplicationRecord& OutRecord, bool& bOutHasUnsentAttachments);
 
 	void CommitReplicationRecord(ENetObjectAttachmentType Type, uint32 ObjectIndex, ReplicationRecord Record);
 
@@ -173,9 +173,9 @@ private:
 	bool HasDeferredProcessingQueueUnprocessed() const;
 	bool IsPartialNetBlob(const TRefCountPtr<FNetBlob>& Blob) const;
 
-	void Deserialize(FNetSerializationContext& Context, FNetHandle NetHandle);
-	uint32 DeserializeReliable(FNetSerializationContext& Context, FNetHandle NetHandle);
-	uint32 DeserializeUnreliable(FNetSerializationContext& Context, FNetHandle NetHandle);
+	void Deserialize(FNetSerializationContext& Context, FNetRefHandle RefHandle);
+	uint32 DeserializeReliable(FNetSerializationContext& Context, FNetRefHandle RefHandle);
+	uint32 DeserializeUnreliable(FNetSerializationContext& Context, FNetRefHandle RefHandle);
 
 	TResizableCircularQueue<TRefCountPtr<FNetBlob>> UnreliableQueue;
 	FReliableNetBlobQueue* ReliableQueue;
@@ -202,7 +202,7 @@ public:
 
 	void DropAllAttachments(ENetObjectAttachmentType Type, uint32 ObjectIndex);
 
-	void Deserialize(FNetSerializationContext& Context, ENetObjectAttachmentType Type, uint32 ObjectIndex, FNetHandle NetHandle);
+	void Deserialize(FNetSerializationContext& Context, ENetObjectAttachmentType Type, uint32 ObjectIndex, FNetRefHandle RefHandle);
 
 	FNetObjectAttachmentReceiveQueue* GetQueue(ENetObjectAttachmentType Type, uint32 ObjectIndex);
 

@@ -4,7 +4,9 @@
 #include "HAL/PlatformAtomics.h"
 #include "Iris/IrisConstants.h"
 #include "Iris/Core/IrisLog.h"
+#include "Iris/Core/IrisProfiler.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
+#include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
 #include "Traits/IntType.h"
 #include <atomic>
 
@@ -25,39 +27,30 @@
 namespace UE::Net::Private
 {
 
-#if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
-constexpr uint32 DirtyNetObjectTrackerCount = FReplicationSystemFactory::MaxReplicationSystemCount;
-#else
-constexpr uint32 DirtyNetObjectTrackerCount = 1;
-#endif
-static FDirtyNetObjectTracker* DirtyNetObjectTrackers[DirtyNetObjectTrackerCount + 1]; // nullptr as last tracker
-
 FDirtyNetObjectTracker::FDirtyNetObjectTracker()
-: ReplicationSystemId(InvalidReplicationSystemId)
+: NetRefHandleManager(nullptr)
 , DirtyNetObjectContainer(nullptr)
+, ReplicationSystemId(InvalidReplicationSystemId)
 , DirtyNetObjectWordCount(0)
 , NetObjectIdRangeStart(0U)
 , NetObjectIdRangeEnd(0U)
 , NetObjectIdCount(0)
+, bHasPolledGlobalDirtyTracker(false)
 {
 }
 
 FDirtyNetObjectTracker::~FDirtyNetObjectTracker()
 {
-	if (ReplicationSystemId < DirtyNetObjectTrackerCount && DirtyNetObjectTrackers[ReplicationSystemId] == this)
-	{
-		DirtyNetObjectTrackers[ReplicationSystemId] = nullptr;
-	}
-
-	Shutdown();
+	Deinit();
 }
 
 void FDirtyNetObjectTracker::Init(const FDirtyNetObjectTrackerInitParams& Params)
 {
-	check(Params.ReplicationSystemId < DirtyNetObjectTrackerCount);
 	check(Params.NetObjectIndexRangeEnd >= Params.NetObjectIndexRangeStart);
+	check(Params.NetRefHandleManager != nullptr);
 	check(DirtyNetObjectContainer == nullptr);
 
+	NetRefHandleManager = Params.NetRefHandleManager;
 	ReplicationSystemId = Params.ReplicationSystemId;
 	NetObjectIdRangeStart = Params.NetObjectIndexRangeStart;
 	NetObjectIdRangeEnd = Params.NetObjectIndexRangeEnd;
@@ -67,24 +60,45 @@ void FDirtyNetObjectTracker::Init(const FDirtyNetObjectTrackerInitParams& Params
 	 */
 	NetObjectIdCount = NetObjectIdRangeEnd + 1;
 
+	GlobalDirtyTrackerPollHandle = FGlobalDirtyNetObjectTracker::CreatePoller();
+
 	DirtyNetObjectWordCount = (NetObjectIdCount + StorageTypeBitCount - 1)/StorageTypeBitCount;
 	DirtyNetObjectContainer = new StorageType[DirtyNetObjectWordCount];
 	ClearDirtyNetObjects();
 
-	if (DirtyNetObjectTrackers[ReplicationSystemId] != nullptr)
-	{
-		LowLevelFatalError(TEXT("DirtyNetObjectTrackerAlready initialized for ReplicationSystemId %u"), ReplicationSystemId);
-	}
-	
-	DirtyNetObjectTrackers[ReplicationSystemId] = this;
-
 	UE_LOG_DIRTYOBJECTTRACKER(TEXT("FDirtyNetObjectTracker::Init %u Id, Start:%u, End: %u"), ReplicationSystemId, NetObjectIdRangeStart, NetObjectIdRangeEnd);
 }
 
-void FDirtyNetObjectTracker::Shutdown()
+void FDirtyNetObjectTracker::Deinit()
 {
+	GlobalDirtyTrackerPollHandle.Destroy();
+	bHasPolledGlobalDirtyTracker = false;
+
 	delete[] DirtyNetObjectContainer;
 	DirtyNetObjectContainer = nullptr;
+}
+
+void FDirtyNetObjectTracker::UpdateDirtyNetObjects()
+{
+	if (!GlobalDirtyTrackerPollHandle.IsValid())
+	{
+		return;
+	}
+
+	IRIS_PROFILER_SCOPE(FDirtyNetObjectTracker_UpdateDirtyNetObjects)
+
+	bHasPolledGlobalDirtyTracker = true;
+	const TSet<FNetHandle>& GlobalDirtyNetObjects = FGlobalDirtyNetObjectTracker::GetDirtyNetObjects(GlobalDirtyTrackerPollHandle);
+	for (FNetHandle NetHandle : GlobalDirtyNetObjects)
+	{
+		const FInternalNetRefIndex NetObjectIndex = NetRefHandleManager->GetInternalIndexFromNetHandle(NetHandle);
+		if (NetObjectIndex != FNetRefHandleManager::InvalidInternalIndex)
+		{
+			const uint32 BitOffset = NetObjectIndex;
+			const StorageType BitMask = StorageType(1) << (BitOffset & (StorageTypeBitCount - 1));
+			DirtyNetObjectContainer[BitOffset/StorageTypeBitCount] |= BitMask;
+		}
+	}
 }
 
 void FDirtyNetObjectTracker::MarkNetObjectDirty(uint32 NetObjectIndex)
@@ -108,6 +122,12 @@ FNetBitArrayView FDirtyNetObjectTracker::GetDirtyNetObjects() const
 
 void FDirtyNetObjectTracker::ClearDirtyNetObjects()
 {
+	if (bHasPolledGlobalDirtyTracker)
+	{
+		bHasPolledGlobalDirtyTracker = false;
+		FGlobalDirtyNetObjectTracker::ResetDirtyNetObjects(GlobalDirtyTrackerPollHandle);
+	}
+
 	FMemory::Memset(DirtyNetObjectContainer, 0, DirtyNetObjectWordCount*sizeof(StorageType));
 
 	std::atomic_thread_fence(std::memory_order_seq_cst);
@@ -115,9 +135,10 @@ void FDirtyNetObjectTracker::ClearDirtyNetObjects()
 
 void MarkNetObjectStateDirty(uint32 ReplicationSystemId, uint32 NetObjectIndex)
 {
-	if (FDirtyNetObjectTracker* DirtyNetObjectTracker = DirtyNetObjectTrackers[FMath::Min(ReplicationSystemId, DirtyNetObjectTrackerCount)])
+	if (UReplicationSystem* ReplicationSystem = GetReplicationSystem(ReplicationSystemId))
 	{
-		DirtyNetObjectTracker->MarkNetObjectDirty(NetObjectIndex);
+		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker();
+		DirtyNetObjectTracker.MarkNetObjectDirty(NetObjectIndex);
 	}
 }
 

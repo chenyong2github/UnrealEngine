@@ -49,16 +49,16 @@ bool FReliableNetBlobQueue::IsSafeToDestroy() const
 
 uint32 FReliableNetBlobQueue::Serialize(FNetSerializationContext& Context, FReliableNetBlobQueue::ReplicationRecord& OutRecord)
 {
-	FNetHandle InvalidNetHandle;
+	FNetRefHandle InvalidNetHandle;
 	return SerializeInternal(Context, InvalidNetHandle, OutRecord, false);
 }
 
-uint32 FReliableNetBlobQueue::SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord)
+uint32 FReliableNetBlobQueue::SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord)
 {
-	return SerializeInternal(Context, NetHandle, OutRecord, true);
+	return SerializeInternal(Context, RefHandle, OutRecord, true);
 }
 
-uint32 FReliableNetBlobQueue::SerializeInternal(FNetSerializationContext& Context, FNetHandle NetHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord, const bool bSerializeWithObject)
+uint32 FReliableNetBlobQueue::SerializeInternal(FNetSerializationContext& Context, FNetRefHandle RefHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord, const bool bSerializeWithObject)
 {
 	FNetBitStreamWriter* Writer = Context.GetBitStreamWriter();
 	const FObjectReferenceCache* ObjectReferenceCache = Context.GetInternalContext()->ObjectReferenceCache;
@@ -113,7 +113,7 @@ uint32 FReliableNetBlobQueue::SerializeInternal(FNetSerializationContext& Contex
 		Attachment->SerializeCreationInfo(Context, Attachment->GetCreationInfo());
 		if (bSerializeWithObject)
 		{
-			Attachment->SerializeWithObject(Context, NetHandle);
+			Attachment->SerializeWithObject(Context, RefHandle);
 		}
 		else
 		{
@@ -179,16 +179,16 @@ void FReliableNetBlobQueue::CommitReplicationRecord(FReliableNetBlobQueue::Repli
 
 uint32 FReliableNetBlobQueue::Deserialize(FNetSerializationContext& Context)
 {
-	FNetHandle InvalidNetHandle;
+	FNetRefHandle InvalidNetHandle;
 	return DeserializeInternal(Context, InvalidNetHandle, false);
 }
 
-uint32 FReliableNetBlobQueue::DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle)
+uint32 FReliableNetBlobQueue::DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle)
 {
-	return DeserializeInternal(Context, NetHandle, true);
+	return DeserializeInternal(Context, RefHandle, true);
 }
 
-uint32 FReliableNetBlobQueue::DeserializeInternal(FNetSerializationContext& Context, FNetHandle NetHandle, const bool bSerializeWithObject)
+uint32 FReliableNetBlobQueue::DeserializeInternal(FNetSerializationContext& Context, FNetRefHandle RefHandle, const bool bSerializeWithObject)
 {
 	INetBlobReceiver* BlobReceiver = Context.GetNetBlobReceiver();
 	checkSlow(BlobReceiver != nullptr);
@@ -241,7 +241,7 @@ uint32 FReliableNetBlobQueue::DeserializeInternal(FNetSerializationContext& Cont
 
 		if (bSerializeWithObject)
 		{
-			Blob->DeserializeWithObject(Context, NetHandle);
+			Blob->DeserializeWithObject(Context, RefHandle);
 		}
 		else
 		{
@@ -253,7 +253,7 @@ uint32 FReliableNetBlobQueue::DeserializeInternal(FNetSerializationContext& Cont
 		// Break if something went wrong with deserialization.
 		if (Context.HasErrorOrOverflow())
 		{
-			UE_LOG(LogIris, Warning, TEXT("Failed to deserialize reliable attachments for %s"), *NetHandle.ToString());
+			UE_LOG(LogIris, Warning, TEXT("Failed to deserialize reliable attachments for %s"), *RefHandle.ToString());
 			break;
 		}
 

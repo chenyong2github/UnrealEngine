@@ -57,22 +57,22 @@ public:
 	IRISCORE_API void Pop();
 
 	/**
-	 * Serializes as many blobs as possible using their respective SerializeWithObject() method. It is assumed the NetHandle will be 
+	 * Serializes as many blobs as possible using their respective SerializeWithObject() method. It is assumed the NetRefHandle will be 
 	 * reconstructed somehow on the receiving end and passed to DeserializeWithObject().
-	 * This provides an opportunity fot FNetObjectAttachments, such as FNetRPCs, to avoid serializing the same NetHandle redundantly.
+	 * This provides an opportunity fot FNetObjectAttachments, such as FNetRPCs, to avoid serializing the same NetRefHandle redundantly.
 	 * @param Context A FNetSerializationContext.
-	 * @param NetHandle The handle for the blobs' target object.
+	 * @param RefHandle The handle for the blobs' target object.
 	 * @param OutRecord The record to pass to CommitReplicationRecord() if a packet containing the serialized data was sent.
 	 * @return The number of blobs that were serialized.
 	 */
-	IRISCORE_API uint32 SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle, ReplicationRecord& OutRecord);
+	IRISCORE_API uint32 SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle, ReplicationRecord& OutRecord);
 
 	/**
 	 * Deserializes blobs with object using their respective DeserializeWithObject() method.
 	 * @return The number of blobs that were deserialized.
 	 * @see SerializeWithObject
 	 */
-	IRISCORE_API uint32 DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle);
+	IRISCORE_API uint32 DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle);
 
 	/**
 	 * Serializes as many blobs as possible using their respective Serialize() method.
@@ -129,8 +129,8 @@ private:
 
 	bool IsValidReceiveSequence(uint32 Seq) const;
 
-	uint32 SerializeInternal(FNetSerializationContext& Context, FNetHandle NetHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord, const bool bSerializeWithObject);
-	uint32 DeserializeInternal(FNetSerializationContext& Context, FNetHandle NetHandle, const bool bSerializeWithObject);
+	uint32 SerializeInternal(FNetSerializationContext& Context, FNetRefHandle RefHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord, const bool bSerializeWithObject);
+	uint32 DeserializeInternal(FNetSerializationContext& Context, FNetRefHandle RefHandle, const bool bSerializeWithObject);
 
 	void OnPacketDelivered(ReplicationRecord Record);
 	void OnPacketDropped(ReplicationRecord Record);

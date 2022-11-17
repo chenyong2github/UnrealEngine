@@ -14,7 +14,7 @@ namespace UE::Net
 	class FNetBitArrayView;
 	namespace Private
 	{
-		class FNetHandleManager;
+		class FNetRefHandleManager;
 		class FReplicationConnections;
 	}
 }
@@ -25,7 +25,7 @@ namespace UE::Net::Private
 struct FReplicationPrioritizationInitParams
 {
 	TObjectPtr<const UReplicationSystem> ReplicationSystem;
-	const FNetHandleManager* NetHandleManager = nullptr;
+	const FNetRefHandleManager* NetRefHandleManager = nullptr;
 	FReplicationConnections* Connections = nullptr;
 	uint32 MaxObjectCount = 0;
 };
@@ -78,7 +78,7 @@ private:
 
 	TObjectPtr<const UReplicationSystem> ReplicationSystem;
 	FReplicationConnections* Connections = nullptr;
-	const FNetHandleManager* NetHandleManager = nullptr;
+	const FNetRefHandleManager* NetRefHandleManager = nullptr;
 	TStrongObjectPtr<UNetObjectPrioritizerDefinitions> PrioritizerDefinitions;
 	TArray<FNetObjectPrioritizationInfo> NetObjectPrioritizationInfos;
 	TArray<uint8> ObjectIndexToPrioritizer;

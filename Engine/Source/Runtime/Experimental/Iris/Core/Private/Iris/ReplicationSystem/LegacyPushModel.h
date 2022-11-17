@@ -5,7 +5,7 @@
 #if WITH_PUSH_MODEL
 
 #include "CoreTypes.h"
-#include "Iris/ReplicationSystem/NetHandle.h"
+#include "Net/Core/NetHandle/NetHandle.h"
 #include "Net/Core/PushModel/PushModel.h"
 
 namespace UE::Net
@@ -21,34 +21,21 @@ extern IRISCORE_API bool bIsIrisPushModelForceEnabled;
 extern IRISCORE_API int IrisPushModelMode;
 inline bool IsIrisPushModelEnabled(bool bIsPushModelEnabled = IS_PUSH_MODEL_ENABLED()) { return (bIsIrisPushModelForceEnabled | (IrisPushModelMode > 0)) & bIsPushModelEnabled; }
 
-struct FNetPushObjectHandle
+class FNetPushObjectHandle
 {
 public:
-	FNetPushObjectHandle() : Value(Invalid) {}
-	FNetPushObjectHandle(uint32 InIndex, uint32 InReplicationSystemId) : Index(InIndex), ReplicationSystemId(InReplicationSystemId + 1U), ZeroPadding(0) {}
+	FNetPushObjectHandle(FNetHandle InNetHandle);
 
-	uint32 GetInternalIndex() const { return Index; }
-	uint32 GetReplicationSystemId() const { check(ReplicationSystemId != 0U); return ReplicationSystemId - 1U; }
-	bool IsValid() const { return Value != Invalid; }
+	bool IsValid() const;
 
 private:
 	friend struct FNetHandleLegacyPushModelHelper;
 
-	enum : uint64 { Invalid = 0 };
+	explicit FNetPushObjectHandle(UEPushModelPrivate::FNetIrisPushObjectId PushId);
+	FNetHandle GetNetHandle() const;
+	UEPushModelPrivate::FNetIrisPushObjectId GetPushObjectId() const;
 
-	explicit FNetPushObjectHandle(UEPushModelPrivate::FNetIrisPushObjectId PushId) : Value(PushId) {}
-	uint64 GetValue() const { return Value; }
-
-	union 
-	{
-		struct
-		{
-			uint64 Index : FNetHandle::IdBits;								// Ever increasing index, we use different indices for static and dynamic object
-			uint64 ReplicationSystemId : FNetHandle::ReplicationSystemIdBits;	// ReplicationSystemId, when running in pie, we track the owning instance
-			uint64 ZeroPadding : (64 - FNetHandle::IdBits - FNetHandle::ReplicationSystemIdBits);
-		};
-		uint64 Value : 64;
-	};
+	FNetHandle NetHandle;
 };
 
 struct FNetHandleLegacyPushModelHelper
@@ -69,6 +56,32 @@ private:
 	static void OptionallyMarkPropertyOwnerDirty(const UObject* Object, UEPushModelPrivate::FNetIrisPushObjectId PushId, const int32 RepIndex);
 	static void OptionallyMarkPropertiesOwnerDirty(const UObject* Object, UEPushModelPrivate::FNetIrisPushObjectId PushId, const int32 StartRepIndex, const int32 EndRepIndex);
 };
+
+
+inline FNetPushObjectHandle::FNetPushObjectHandle(FNetHandle InNetHandle)
+: NetHandle(InNetHandle)
+{
+}
+
+inline FNetPushObjectHandle::FNetPushObjectHandle(UEPushModelPrivate::FNetIrisPushObjectId PushId)
+: NetHandle(static_cast<uint64>(PushId))
+{
+}
+
+inline bool FNetPushObjectHandle::IsValid() const
+{
+	return NetHandle.IsValid();
+}
+
+inline FNetHandle FNetPushObjectHandle::GetNetHandle() const
+{
+	return NetHandle;
+}
+
+inline UEPushModelPrivate::FNetIrisPushObjectId FNetPushObjectHandle::GetPushObjectId() const
+{
+	return NetHandle.GetInternalValue();
+}
 
 }
 

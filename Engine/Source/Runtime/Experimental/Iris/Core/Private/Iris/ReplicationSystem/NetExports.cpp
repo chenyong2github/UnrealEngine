@@ -15,7 +15,7 @@ void FNetExports::InitExportRecordForPacket()
 void FNetExports::CommitExportsToRecord(FExportScope& ExportScope)
 {
 	const FNetExportContext::FBatchExports& BatchExports = ExportScope.ExportContext.GetBatchExports();
-	for (FNetHandle Handle : BatchExports.HandlesExportedInCurrentBatch)
+	for (FNetRefHandle Handle : BatchExports.HandlesExportedInCurrentBatch)
 	{
 		NetHandleExports.Enqueue(Handle);
 	}
@@ -57,7 +57,7 @@ void FNetExports::ProcessPacketDeliveryStatus(UE::Net::EPacketDeliveryStatus Sta
 		uint32 NetHandleExportCount = ExportInfo.NetHandleExportCount;
 		while (NetHandleExportCount)
 		{
-			FNetHandle Handle = NetHandleExports.PeekNoCheck();
+			FNetRefHandle Handle = NetHandleExports.PeekNoCheck();
 			AcknowledgedExports.AcknowledgedExportedHandles.Add(Handle);
 			NetHandleExports.PopNoCheck();
 			--NetHandleExportCount;

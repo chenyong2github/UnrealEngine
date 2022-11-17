@@ -299,7 +299,7 @@ bool FReplicationWriter::IsReplicationEnabled() const
 
 // $IRIS TODO : May need to introduce queue and send behaviors. For example one may want to send only with object.
 // One may not want to send unless the object is replicated very soon etc.
-void FReplicationWriter::QueueNetObjectAttachments(FInternalNetHandle OwnerInternalIndex, FInternalNetHandle SubObjectInternalIndex, TArrayView<const TRefCountPtr<FNetBlob>> InAttachments)
+void FReplicationWriter::QueueNetObjectAttachments(FInternalNetRefIndex OwnerInternalIndex, FInternalNetRefIndex SubObjectInternalIndex, TArrayView<const TRefCountPtr<FNetBlob>> InAttachments)
 {
 	if (InAttachments.Num() <= 0)
 	{
@@ -314,7 +314,7 @@ void FReplicationWriter::QueueNetObjectAttachments(FInternalNetHandle OwnerInter
 		return;
 	}
 
-	const uint32 TargetIndex = bObjectInScope ? (SubObjectInternalIndex != FNetHandleManager::InvalidInternalIndex ? SubObjectInternalIndex : OwnerInternalIndex) : ObjectIndexForOOBAttachment;
+	const uint32 TargetIndex = bObjectInScope ? (SubObjectInternalIndex != FNetRefHandleManager::InvalidInternalIndex ? SubObjectInternalIndex : OwnerInternalIndex) : ObjectIndexForOOBAttachment;
 	ENetObjectAttachmentType AttachmentType = (bObjectInScope ? ENetObjectAttachmentType::Normal : ENetObjectAttachmentType::OutOfBand);
 	if (!Attachments.Enqueue(AttachmentType, TargetIndex, InAttachments))
 	{
@@ -354,7 +354,7 @@ void FReplicationWriter::Init(const FReplicationParameters& InParameters)
 
 	// Cache internal systems
 	ReplicationSystemInternal = Parameters.ReplicationSystem->GetReplicationSystemInternal();
-	NetHandleManager = &ReplicationSystemInternal->GetNetHandleManager();
+	NetRefHandleManager = &ReplicationSystemInternal->GetNetRefHandleManager();
 	ReplicationBridge = Parameters.ReplicationSystem->GetReplicationBridge();
 	BaselineManager = &ReplicationSystemInternal->GetDeltaCompressionBaselineManager();
 	ObjectReferenceCache = &ReplicationSystemInternal->GetObjectReferenceCache();
@@ -399,11 +399,11 @@ void FReplicationWriter::StartReplication(uint32 InternalIndex)
 	Info.LastAckedBaselineIndex = FDeltaCompressionBaselineManager::InvalidBaselineIndex;
 	Info.PendingBaselineIndex = FDeltaCompressionBaselineManager::InvalidBaselineIndex;
 
-	const uint32 bIsDestructionInfo = NetHandleManager->GetIsDestroyedStartupObject(InternalIndex) ? 1U : 0U;	
+	const uint32 bIsDestructionInfo = NetRefHandleManager->GetIsDestroyedStartupObject(InternalIndex) ? 1U : 0U;	
 	if (bIsDestructionInfo)
 	{
 		// Check status of original object about to be destroyed, if it has been confirmed as created we do not replicate the destruction info object at all
-		if (const uint32 OriginalInternalIndex = NetHandleManager->GetOriginalDestroyedStartupObjectIndex(InternalIndex))
+		if (const uint32 OriginalInternalIndex = NetRefHandleManager->GetOriginalDestroyedStartupObjectIndex(InternalIndex))
 		{
 			const FReplicationInfo& OriginalInfo = GetReplicationInfo(OriginalInternalIndex);
 			if (OriginalInfo.GetState() != EReplicatedObjectState::Invalid && OriginalInfo.IsCreationConfirmed)
@@ -414,7 +414,7 @@ void FReplicationWriter::StartReplication(uint32 InternalIndex)
 				Info.IsDestructionInfo = bIsDestructionInfo;
 				Info.IsCreationConfirmed = 1U;
 
-				NetHandleManager->AddNetObjectRef(InternalIndex);
+				NetRefHandleManager->AddNetObjectRef(InternalIndex);
 
 				return;
 			}
@@ -424,12 +424,12 @@ void FReplicationWriter::StartReplication(uint32 InternalIndex)
 	// Pending create
 	SetState(InternalIndex, EReplicatedObjectState::PendingCreate);
 
-	const FNetHandleManager::FReplicatedObjectData& Data = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
-	NetHandleManager->AddNetObjectRef(InternalIndex);
+	const FNetRefHandleManager::FReplicatedObjectData& Data = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+	NetRefHandleManager->AddNetObjectRef(InternalIndex);
 
 	Info.ChangeMaskBitCount = Data.Protocol->ChangeMaskBitCount;
 	Info.HasDirtySubObjects = 1U;
-	Info.IsSubObject = NetHandleManager->GetSubObjectInternalIndices().GetBit(InternalIndex);
+	Info.IsSubObject = NetRefHandleManager->GetSubObjectInternalIndices().GetBit(InternalIndex);
 	Info.HasDirtyChangeMask = 1U;
 	Info.HasAttachments = 0U;
 	Info.HasChangemaskFilter = EnumHasAnyFlags(Data.Protocol->ProtocolTraits, EReplicationProtocolTraits::HasConditionalChangeMask);
@@ -483,7 +483,7 @@ void FReplicationWriter::StopReplication(uint32 InternalIndex)
 	ObjectsInScope.ClearBit(InternalIndex);
 
 	UE_LOG_REPLICATIONWRITER_CONN(TEXT("ReplicationWriter.StopReplication for ( InternalIndex: %u )"), InternalIndex);
-	NetHandleManager->ReleaseNetObjectRef(InternalIndex);
+	NetRefHandleManager->ReleaseNetObjectRef(InternalIndex);
 
 	Attachments.DropAllAttachments(ENetObjectAttachmentType::Normal, InternalIndex);
 
@@ -510,9 +510,9 @@ const FReplicationWriter::FReplicationInfo& FReplicationWriter::GetReplicationIn
 	return ReplicatedObjects[InternalIndex];
 }
 
-void FReplicationWriter::WriteNetHandleId(FNetBitStreamWriter& Writer, FNetHandle Handle)
+void FReplicationWriter::WriteNetRefHandleId(FNetBitStreamWriter& Writer, FNetRefHandle Handle)
 {
-	Writer.WriteBits(Handle.GetId(), FNetHandle::IdBits);
+	Writer.WriteBits(Handle.GetId(), FNetRefHandle::IdBits);
 }
 
 uint32 FReplicationWriter::GetDefaultFlushFlags() const
@@ -543,7 +543,7 @@ uint32 FReplicationWriter::GetFlushStatus(uint32 InternalIndex, const FReplicati
 	if (!Info.IsSubObject && FlushFlags != FlushFlags_All)
 	{
 		// Check status of SubObjects as well.
-		for (uint32 SubObjectIndex : NetHandleManager->GetSubObjects(InternalIndex))
+		for (uint32 SubObjectIndex : NetRefHandleManager->GetSubObjects(InternalIndex))
 		{
 			const FReplicationInfo& SubObjectInfo = GetReplicationInfo(SubObjectIndex);
 			FlushFlags |= GetFlushStatus(SubObjectIndex, SubObjectInfo, InFlushFlags);
@@ -563,7 +563,7 @@ void FReplicationWriter::SetPendingDestroyOrSubObjectPendingDestroyState(uint32 
 	if (Info.IsSubObject)
 	{
 		// Subobject destroyed before its owner is explicitly replicated as state data.
-		FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+		FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
 		if (ObjectData.IsSubObject())
 		{
 			// If owner is not pending destroy we mark the state of the SubObject to SubObjectPendingDestroy and mark owner as having dirty subobjects which will 
@@ -584,7 +584,7 @@ void FReplicationWriter::SetPendingDestroyOrSubObjectPendingDestroyState(uint32 
 	else if (Info.HasDirtySubObjects)
 	{
 		// If the owner is destroyed, all subobjects in the EReplicatedObjectState::SubObjectPendingDestroy state must also be marked as PendingDestroy as owner no longer will be replicated
-		for (uint32 SubObjectIndex : NetHandleManager->GetSubObjects(InternalIndex))
+		for (uint32 SubObjectIndex : NetRefHandleManager->GetSubObjects(InternalIndex))
 		{
 			FReplicationInfo& SubObjectInfo = GetReplicationInfo(SubObjectIndex);
 			if (SubObjectInfo.GetState() == EReplicatedObjectState::SubObjectPendingDestroy)
@@ -647,7 +647,7 @@ void FReplicationWriter::UpdateScope(const FNetBitArrayView& UpdatedScope)
 			if (State == EReplicatedObjectState::SubObjectPendingDestroy)
 			{
 				// If owner is not pending destroy we mark it as dirty as appropriate
-				FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(Index);
+				FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(Index);
 				FReplicationInfo& OwnerInfo = ReplicatedObjects[ObjectData.SubObjectRootIndex];
 				if (OwnerInfo.GetState() < EReplicatedObjectState::PendingDestroy)
 				{
@@ -773,7 +773,7 @@ void FReplicationWriter::InternalUpdateDirtyChangeMasks(const FChangeMaskCache& 
 	//UE_LOG_REPLICATIONWRITER(TEXT("FReplicationWriter::UpdateDirtyChangeMasks() Updated %u Objects for ConnectionId:%u, ReplicationSystemId: %u."), CachedChangeMasks.Indices.Num(), Parameters.ConnectionId, Parameters.ReplicationSystem->GetId());	
 }
 
-void FReplicationWriter::NotifyDestroyedObjectPendingTearOff(FInternalNetHandle ObjectInternalIndex)
+void FReplicationWriter::NotifyDestroyedObjectPendingTearOff(FInternalNetRefIndex ObjectInternalIndex)
 {
 	const FReplicationInfo& ReplicationInfo = GetReplicationInfo(ObjectInternalIndex);
 	if (ReplicationInfo.GetState() == EReplicatedObjectState::PendingCreate)
@@ -812,7 +812,7 @@ uint32 FReplicationWriter::ScheduleObjects(FScheduleObjectInfo* OutScheduledObje
 	ObjectsWithDirtyChanges.ClearBit(ObjectIndexForOOBAttachment);
 
 	const FNetBitArray& UpdatedObjects = ObjectsWithDirtyChanges;
-	const FNetBitArray& SubObjects = NetHandleManager->GetSubObjectInternalIndices();
+	const FNetBitArray& SubObjects = NetRefHandleManager->GetSubObjectInternalIndices();
 
 	// Fill IndexList with all objects with dirty state that have positive priority excluding subobjects
 	auto FillIndexListFunc = [&LocalPriorities, &ScheduledObjectIndices, &ScheduledObjectCount](uint32 Index)
@@ -990,7 +990,7 @@ void FReplicationWriter::HandleDeliveredRecord(const FReplicationRecord::FRecord
 		if (!bStillPendingFlush && !Info.IsSubObject)
 		{
 			// Check status of SubObjects as well.
-			for (uint32 SubObjectIndex : NetHandleManager->GetSubObjects(InternalIndex))
+			for (uint32 SubObjectIndex : NetRefHandleManager->GetSubObjects(InternalIndex))
 			{
 				const FReplicationInfo& SubObjectInfo = GetReplicationInfo(SubObjectIndex);
 				if (GetFlushStatus(SubObjectIndex, SubObjectInfo, Info.FlushFlags) != FlushFlags_None)
@@ -1011,7 +1011,7 @@ void FReplicationWriter::HandleDeliveredRecord(const FReplicationRecord::FRecord
 				// Must also mark owner dirty to make sure that we send the tearoff
 				if (Info.IsSubObject)
 				{
-					FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+					FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
 					if (ObjectData.IsSubObject())
 					{
 						FReplicationInfo& OwnerInfo = ReplicatedObjects[ObjectData.SubObjectRootIndex];
@@ -1162,7 +1162,7 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 			if (Info.IsSubObject)
 			{
 				// Mark owner dirty as well as subobjects only are scheduled together with owner
-				const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectData(InternalIndex);
+				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectData(InternalIndex);
 				uint32 SubObjectOwnerInternalIndex = ObjectData.SubObjectRootIndex;
 
 				FReplicationInfo& SubObjectOwnerReplicationInfo = GetReplicationInfo(SubObjectOwnerInternalIndex);
@@ -1193,12 +1193,12 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 	// If we want to cancel the destroy and lost the destroy packet we can resume normal replication.
 	if (CurrentState == EReplicatedObjectState::CancelPendingDestroy)
 	{
-		checkfSlow(!RecordInfo.WroteTearOff, TEXT("Torn off objects can't cancel destroy. ( InternalIndex: %u ) %s"), InternalIndex, ToCStr(NetHandleManager->GetReplicatedObjectData(InternalIndex).Handle.ToString()));
+		checkfSlow(!RecordInfo.WroteTearOff, TEXT("Torn off objects can't cancel destroy. ( InternalIndex: %u ) %s"), InternalIndex, ToCStr(NetRefHandleManager->GetReplicatedObjectData(InternalIndex).RefHandle.ToString()));
 
 		if (RecordInfo.WroteDestroySubObject && Info.SubObjectPendingDestroy)
 		{
 			// If the subobject owner still is replicated and valid
-			FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+			FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
 			check(ObjectData.IsSubObject());
 
 			// If owner is not pending destroy we mark it as dirty as appropriate.
@@ -1263,7 +1263,7 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 		else if (RecordInfo.WroteDestroySubObject && Info.SubObjectPendingDestroy)
 		{
 			// If the subobject owner still is replicated and valid
-			FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+			FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
 			check(ObjectData.IsSubObject());
 
 			// If owner is not pending destroy we mark it as dirty so that we can replicate subobject destruction properly
@@ -1298,7 +1298,7 @@ void FReplicationWriter::HandleDroppedRecord(const FReplicationRecord::FRecordIn
 
 	check(CurrentState != EReplicatedObjectState::Invalid);
 
-	UE_LOG_REPLICATIONWRITER_CONN(TEXT("Handle dropped data for ( InternalIndex: %u ) %s, LostState %s, CurrentState is %s"), InternalIndex, *(NetHandleManager->GetReplicatedObjectData(InternalIndex).Handle.ToString()), LexToString(LostObjectState), LexToString(CurrentState));
+	UE_LOG_REPLICATIONWRITER_CONN(TEXT("Handle dropped data for ( InternalIndex: %u ) %s, LostState %s, CurrentState is %s"), InternalIndex, *(NetRefHandleManager->GetReplicatedObjectData(InternalIndex).Handle.ToString()), LexToString(LostObjectState), LexToString(CurrentState));
 
 	// If we loose a baseline we must notify the BaselineManager and invalidate our pendingbaselineindex
 	if (RecordInfo.NewBaselineIndex != FDeltaCompressionBaselineManager::InvalidBaselineIndex)
@@ -1475,10 +1475,10 @@ uint32 FReplicationWriter::WriteObjectsPendingDestroy(FNetSerializationContext& 
 
 	bool bWroteAllDestroyedObjects = true;
 
-	for (uint32 InternalIndex = 0U; (InternalIndex = ObjectsPendingDestroy.FindFirstOne(InternalIndex + 1U)) != ~0U; )
+	for (uint32 InternalIndex = 0U; (InternalIndex = ObjectsPendingDestroy.FindFirstOne(InternalIndex + 1U)) != FNetBitArray::InvalidIndex; )
 	{
 		FReplicationInfo& Info = GetReplicationInfo(InternalIndex);
-		const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
 
 		// Already waiting on destroy confirmation
 		if (Info.GetState() == EReplicatedObjectState::WaitOnDestroyConfirmation)
@@ -1504,7 +1504,7 @@ uint32 FReplicationWriter::WriteObjectsPendingDestroy(FNetSerializationContext& 
 				// If the owner is pending destroy then we need to replicate the destruction for the subobject here.
 				if (ObjectsPendingDestroy.GetBit(ObjectData.SubObjectRootIndex))
 				{
-					//			UE_LOG(LogTemp, Warning, TEXT("Object %s was a subobject but owner was destroyed so we need to destroy object normally"), ToCStr(ObjectData.Handle.ToString()));
+					//			UE_LOG(LogTemp, Warning, TEXT("Object %s was a subobject but owner was destroyed so we need to destroy object normally"), ToCStr(ObjectData.RefHandle.ToString()));
 					SetState(InternalIndex, EReplicatedObjectState::PendingDestroy);
 					Info.SubObjectPendingDestroy = 0U;
 				}
@@ -1522,7 +1522,7 @@ uint32 FReplicationWriter::WriteObjectsPendingDestroy(FNetSerializationContext& 
 					FReplicationInfo& OwnerInfo = GetReplicationInfo(ObjectData.SubObjectRootIndex);
 					if (OwnerInfo.GetState() != EReplicatedObjectState::Invalid && OwnerInfo.GetState() < EReplicatedObjectState::PendingDestroy)
 					{
-						//			UE_LOG(LogTemp, Warning, TEXT("SubObject %s Should be destroyed by replicating owner"), ToCStr(ObjectData.Handle.ToString()));
+						//			UE_LOG(LogTemp, Warning, TEXT("SubObject %s Should be destroyed by replicating owner"), ToCStr(ObjectData.RefHandle.ToString()));
 
 						SetState(InternalIndex, EReplicatedObjectState::SubObjectPendingDestroy);
 						Info.SubObjectPendingDestroy = 1U;
@@ -1546,15 +1546,15 @@ uint32 FReplicationWriter::WriteObjectsPendingDestroy(FNetSerializationContext& 
 			continue;
 		}
 
-		UE_NET_TRACE_OBJECT_SCOPE(ObjectData.Handle,  Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
+		UE_NET_TRACE_OBJECT_SCOPE(ObjectData.RefHandle,  Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 
 		FNetBitStreamRollbackScope RollbackScope(Writer);
 
-		// Write NetObjectHandle with the needed bitCount
-		WriteNetHandleId(Writer, ObjectData.Handle);
+		// Write handle with the needed bitCount
+		WriteNetRefHandleId(Writer, ObjectData.RefHandle);
 
 		// Write bit indicating if the static instance should be destroyed or not (could skip the bit for dynamic objects)
-		const bool bShouldDestroyInstance = ObjectData.Handle.IsDynamic() || NetHandleManager->GetIsDestroyedStartupObject(InternalIndex);
+		const bool bShouldDestroyInstance = ObjectData.RefHandle.IsDynamic() || NetRefHandleManager->GetIsDestroyedStartupObject(InternalIndex);
 		Writer.WriteBool(bShouldDestroyInstance);
 
 		if (!Writer.IsOverflown())
@@ -1616,7 +1616,7 @@ bool FReplicationWriter::CanSendObject(uint32 InternalIndex) const
 
 	if (Info.HasDirtySubObjects)
 	{
-		for (FInternalNetHandle SubObjectInternalIndex : NetHandleManager->GetSubObjects(InternalIndex))
+		for (FInternalNetRefIndex SubObjectInternalIndex : NetRefHandleManager->GetSubObjects(InternalIndex))
 		{
 			if (!CanSendObject(SubObjectInternalIndex))
 			{
@@ -1626,7 +1626,7 @@ bool FReplicationWriter::CanSendObject(uint32 InternalIndex) const
 	}
 
 	// Currently we need to enforce a strict dependency on the initial dependencies
-	for (FInternalNetHandle DependentInternalIndex : NetHandleManager->GetDependentObjects(InternalIndex))
+	for (FInternalNetRefIndex DependentInternalIndex : NetRefHandleManager->GetDependentObjects(InternalIndex))
 	{
 		const FReplicationInfo& DependentInfo = GetReplicationInfo(DependentInternalIndex);
 		const bool bIsDependentObjectInitialState = IsInitialState(DependentInfo.GetState());
@@ -1641,7 +1641,7 @@ bool FReplicationWriter::CanSendObject(uint32 InternalIndex) const
 	return true;
 }
 
-void FReplicationWriter::SerializeObjectStateDelta(FNetSerializationContext& Context, uint32 InternalIndex, const FReplicationInfo& Info, const FNetHandleManager::FReplicatedObjectData& ObjectData, const uint8* ReplicatedObjectStateBuffer, FDeltaCompressionBaseline& CurrentBaseline, uint32 CreatedBaselineIndex)
+void FReplicationWriter::SerializeObjectStateDelta(FNetSerializationContext& Context, uint32 InternalIndex, const FReplicationInfo& Info, const FNetRefHandleManager::FReplicatedObjectData& ObjectData, const uint8* ReplicatedObjectStateBuffer, FDeltaCompressionBaseline& CurrentBaseline, uint32 CreatedBaselineIndex)
 {
 	FNetBitStreamWriter& Writer = *Context.GetBitStreamWriter();
 
@@ -1710,8 +1710,8 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 	};
 
 	// Only write data for the object if we have data to write
-	const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
-	uint8* ReplicatedObjectStateBuffer = NetHandleManager->GetReplicatedObjectStateBufferNoCheck(InternalIndex);
+	const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+	uint8* ReplicatedObjectStateBuffer = NetRefHandleManager->GetReplicatedObjectStateBufferNoCheck(InternalIndex);
 
 	// Filter out changemasks that are not supposed to be replicated to this connection
 	const bool bNeedToFilterChangeMask = (bIsInitialState || Info.HasDirtyChangeMask) && Info.HasChangemaskFilter;
@@ -1736,10 +1736,10 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 
 	if (bHasState | bWriteAttachments | bSentTearOff | Info.SubObjectPendingDestroy)
 	{
-		const FNetHandle NetHandle = ObjectData.Handle;
+		const FNetRefHandle NetRefHandle = ObjectData.RefHandle;
 #if UE_NET_TRACE_ENABLED
-		const FNetHandle NetHandleForTraceScope = (WriteObjectFlags & EWriteObjectFlag::WriteObjectFlag_HugeObject ? NetHandleManager->GetReplicatedObjectDataNoCheck(HugeObjectContext.InternalIndex).Handle : NetHandle);
-		UE_NET_TRACE_OBJECT_SCOPE(NetHandleForTraceScope, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
+		const FNetRefHandle NetRefHandleForTraceScope = (WriteObjectFlags & EWriteObjectFlag::WriteObjectFlag_HugeObject ? NetRefHandleManager->GetReplicatedObjectDataNoCheck(HugeObjectContext.InternalIndex).RefHandle : NetRefHandle);
+		UE_NET_TRACE_OBJECT_SCOPE(NetRefHandleForTraceScope, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 #endif
 		FNetBitStreamRollbackScope ObjectRollbackScope(Writer);
 
@@ -1754,7 +1754,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 		// $IRIS: $TODO: consider sending the internal index instead to save bits and only send handle when we create the object, https://jira.it.epicgames.com/browse/UE-127373
 		{
 			UE_NET_TRACE_SCOPE(Handle, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
-			WriteNetHandleId(Writer, NetHandle);
+			WriteNetRefHandleId(Writer, NetRefHandle);
 		}
 
 		// Store position of header bits
@@ -1845,18 +1845,18 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 					// Warn if we cannot replicate this object
 					if (!ObjectData.InstanceProtocol)
 					{
-						UE_LOG_REPLICATIONWRITER_WARNING(TEXT("Failed to replicate ( InternalIndex: %u ) %s, ProtocolName: %s, Currently we do not support creating a remote instance when the instance has been detached."), InternalIndex, *NetHandle.ToString(), ToCStr(ObjectData.Protocol->DebugName));
+						UE_LOG_REPLICATIONWRITER_WARNING(TEXT("Failed to replicate ( InternalIndex: %u ) %s, ProtocolName: %s, Currently we do not support creating a remote instance when the instance has been detached."), InternalIndex, *NetRefHandle.ToString(), ToCStr(ObjectData.Protocol->DebugName));
 						return EWriteObjectStatus::NoInstanceProtocol;
 					}
 
 					// Real SubObjects needs to be tracked on client as well
 					if (Writer.WriteBool(ObjectData.IsSubObject()))
 					{
-						const FNetHandle& OwnerHandle = NetHandleManager->GetReplicatedObjectDataNoCheck(ObjectData.SubObjectRootIndex).Handle;
-						WriteNetHandleId(Writer, OwnerHandle);
-						if (!OwnerHandle.IsValid() || Writer.IsOverflown())
+						const FNetRefHandle OwnerRefHandle = NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectData.SubObjectRootIndex).RefHandle;
+						WriteNetRefHandleId(Writer, OwnerRefHandle);
+						if (!OwnerRefHandle.IsValid() || Writer.IsOverflown())
 						{
-							return OwnerHandle.IsValid() ? EWriteObjectStatus::BitStreamOverflow : EWriteObjectStatus::InvalidOwner;
+							return OwnerRefHandle.IsValid() ? EWriteObjectStatus::BitStreamOverflow : EWriteObjectStatus::InvalidOwner;
 						}
 					}
 
@@ -1869,7 +1869,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 					FReplicationBridgeSerializationContext BridgeContext(Context, Parameters.ConnectionId, Info.IsDestructionInfo == 1U);
 
 					// We need to send creation info, if we fail, we skip this object for now
-					if (!ReplicationBridge->CallWriteNetHandleCreationInfo(BridgeContext, NetHandle))
+					if (!ReplicationBridge->CallWriteNetRefHandleCreationInfo(BridgeContext, NetRefHandle))
 					{
 						return BridgeContext.SerializationContext.HasError() ? EWriteObjectStatus::Error : EWriteObjectStatus::BitStreamOverflow;
 					}
@@ -1910,7 +1910,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 					AttachmentWriter.WriteBool(BatchEntry.AttachmentType == ENetObjectAttachmentType::HugeObject);
 				}
 
-				const EAttachmentWriteStatus AttachmentWriteStatus = Attachments.Serialize(AttachmentContext, BatchEntry.AttachmentType, InternalIndex, NetHandle, BatchEntry.AttachmentRecord, BatchEntry.bHasUnsentAttachments);
+				const EAttachmentWriteStatus AttachmentWriteStatus = Attachments.Serialize(AttachmentContext, BatchEntry.AttachmentType, InternalIndex, NetRefHandle, BatchEntry.AttachmentRecord, BatchEntry.bHasUnsentAttachments);
 				if (BatchEntry.AttachmentType == ENetObjectAttachmentType::HugeObject)
 				{
 					if (AttachmentWriteStatus == EAttachmentWriteStatus::ReliableWindowFull)
@@ -1944,7 +1944,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 					const bool bFallbackToHugeObjectPath = BatchEntry.AttachmentType != ENetObjectAttachmentType::HugeObject && BatchEntry.bHasUnsentAttachments && (BitsThatWasAvailableForAttachements >= SplitThreshold);
 					if (bFallbackToHugeObjectPath)
 					{
-						UE_LOG(LogIris, Verbose, TEXT("Failed to write huge attachment for object %s ( InternalIndex: %u ), forcing fallback on hugeobject for attachments"), *NetHandle.ToString(), InternalIndex);
+						UE_LOG(LogIris, Verbose, TEXT("Failed to write huge attachment for object %s ( InternalIndex: %u ), forcing fallback on hugeobject for attachments"), *NetRefHandle.ToString(), InternalIndex);
 						Writer.DoOverflow();
 					}
 					else if (!BatchEntry.bSentState)
@@ -1984,7 +1984,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 				if (Info.SubObjectPendingDestroy)
 				{
 					ReplicatedDestroyHeaderFlags |= ReplicatedDestroyHeaderFlags_EndReplication;
-					const bool bShouldDestroyInstance = ObjectData.Handle.IsDynamic() || NetHandleManager->GetIsDestroyedStartupObject(InternalIndex);					
+					const bool bShouldDestroyInstance = ObjectData.RefHandle.IsDynamic() || NetRefHandleManager->GetIsDestroyedStartupObject(InternalIndex);					
 					ReplicatedDestroyHeaderFlags |= bShouldDestroyInstance ? ReplicatedDestroyHeaderFlags_DestroyInstance : ReplicatedDestroyHeaderFlags_None;
 				}
 
@@ -2019,7 +2019,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 		FReplicationConditionals::FSubObjectsToReplicateArray SubObjectsToReplicate;
 		ReplicationConditionals->GetSubObjectsToReplicate(Parameters.ConnectionId, InternalIndex, SubObjectsToReplicate);		
 
-		for (FInternalNetHandle SubObjectInternalIndex : SubObjectsToReplicate)
+		for (FInternalNetRefIndex SubObjectInternalIndex : SubObjectsToReplicate)
 		{
 			const int BatchObjectInfoCount = OutBatchInfo.ObjectInfos.Num();
 			EWriteObjectStatus SubObjectWriteStatus = WriteObjectInBatch(Context, SubObjectInternalIndex, WriteObjectFlags, OutBatchInfo);
@@ -2047,7 +2047,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 
 	// If we have any dependent objects pending creation we currently include them in the batch in order to guarantee that they get sent in the same packet
 	// When we implement support for proper dependencies this can be changed.
-	for (FInternalNetHandle DependentInternalIndex : NetHandleManager->GetDependentObjects(InternalIndex))
+	for (FInternalNetRefIndex DependentInternalIndex : NetRefHandleManager->GetDependentObjects(InternalIndex))
 	{
 		const bool bIsDependentInitialState = IsInitialState(GetReplicationInfo(DependentInternalIndex).GetState());
 		if (bIsDependentInitialState && !WriteContext.ObjectsWrittenThisTick.GetBit(DependentInternalIndex))
@@ -2174,7 +2174,7 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 		FNetBitStreamRollbackScope RollbackScope(Writer);
 		
 		FBatchInfo HugeObjectBatchInfo;
-		HugeObjectBatchInfo.ParentInternalIndex = FNetHandleManager::InvalidInternalIndex;
+		HugeObjectBatchInfo.ParentInternalIndex = FNetRefHandleManager::InvalidInternalIndex;
 		const uint32 WriteHugeObjectFlags = WriteObjectFlag_Attachments | WriteObjectFlag_HugeObject;
 		const EWriteObjectStatus HugeObjectStatus = WriteObjectInBatch(Context, ObjectIndexForOOBAttachment, WriteHugeObjectFlags, HugeObjectBatchInfo);
 		if (!IsWriteObjectSuccess(HugeObjectStatus))
@@ -2299,14 +2299,14 @@ int FReplicationWriter::WriteDestructionInfo(FNetSerializationContext& Context, 
 	FNetExportRollbackScope ExportRollbackScope(Context);
 
 	// Only write data for the object if we have data to write
-	const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+	const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
 
 	// Special case for static objects that should be destroyed on the client but we have not replicated
 	Writer.WriteBool(true);
 
 	FReplicationBridgeSerializationContext BridgeContext(Context, Parameters.ConnectionId, true);
 
-	if (!ReplicationBridge->CallWriteNetHandleCreationInfo(BridgeContext, ObjectData.Handle))
+	if (!ReplicationBridge->CallWriteNetRefHandleCreationInfo(BridgeContext, ObjectData.RefHandle))
 	{
 		// Trigger Rollback
 		Writer.DoOverflow();
@@ -2395,7 +2395,7 @@ uint32 FReplicationWriter::WriteObjects(FNetSerializationContext& Context)
 
 	bool bContinue = WriteContext.bHasUpdatedObjectsToSend;
 
-	auto SendObjectFunction = [this, &Context, &WrittenObjectCount](FInternalNetHandle InternalIndex)
+	auto SendObjectFunction = [this, &Context, &WrittenObjectCount](FInternalNetRefIndex InternalIndex)
 	{
 		if (!this->WriteContext.ObjectsWrittenThisTick.GetBit(InternalIndex) && this->CanSendObject(InternalIndex))
 		{
@@ -2486,7 +2486,7 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 	OutRecord.ObjectReplicationRecords.Reserve(BatchInfo.ObjectInfos.Num());
 	for (const FBatchObjectInfo& BatchObjectInfo : BatchInfo.ObjectInfos)
 	{
-		//UE_LOG_REPLICATIONWRITER(TEXT("FReplicationWriter::Wrote Object with %s InitialState: %u"), *NetHandleManager->NetHandle.ToString(), bIsInitialState ? 1u : 0u);
+		//UE_LOG_REPLICATIONWRITER(TEXT("FReplicationWriter::Wrote Object with %s InitialState: %u"), *NetRefHandleManager->NetHandle.ToString(), bIsInitialState ? 1u : 0u);
 		FReplicationInfo& Info = GetReplicationInfo(BatchObjectInfo.InternalIndex);
 
 		// We did write the initial state, change the state to WaitOnCreateConfirmation
@@ -2534,7 +2534,7 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 		}
 
 		// Schedule rest of dependent objects for replication, note there is no guarantee that they will replicate in same packet
-		for (FInternalNetHandle DependentInternalIndex : NetHandleManager->GetDependentObjects(BatchObjectInfo.InternalIndex))
+		for (FInternalNetRefIndex DependentInternalIndex : NetRefHandleManager->GetDependentObjects(BatchObjectInfo.InternalIndex))
 		{
 			if (ObjectsWithDirtyChanges.GetBit(DependentInternalIndex) && !WriteContext.ObjectsWrittenThisTick.GetBit(DependentInternalIndex))
 			{
@@ -3038,7 +3038,7 @@ void FReplicationWriter::StopAllReplication()
 
 		// Release object reference
 		const uint32 InternalIndex = &Info - FirstInfo;
-		NetHandleManager->ReleaseNetObjectRef(InternalIndex);
+		NetRefHandleManager->ReleaseNetObjectRef(InternalIndex);
 	}
 }
 

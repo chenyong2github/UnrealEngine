@@ -53,11 +53,11 @@ void FReplicationInstanceOperationsInternal::UnbindInstanceProtocol(FReplication
 	}
 }
 
-uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStreamWriter& ChangeMaskWriter, FChangeMaskCache& Cache, FNetHandleManager& NetHandleManager, FNetSerializationContext& SerializationContext, uint32 InternalIndex)
+uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStreamWriter& ChangeMaskWriter, FChangeMaskCache& Cache, FNetRefHandleManager& NetRefHandleManager, FNetSerializationContext& SerializationContext, uint32 InternalIndex)
 {
-	if (NetHandleManager.IsScopableIndex(InternalIndex))
+	if (NetRefHandleManager.IsScopableIndex(InternalIndex))
 	{
-		const FNetHandleManager::FReplicatedObjectData& Object = NetHandleManager.GetReplicatedObjectDataNoCheck(InternalIndex);
+		const FNetRefHandleManager::FReplicatedObjectData& Object = NetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalIndex);
 
 		// We cannot copy state data for zero sized objects or objects that no longer has an instance protocol.
 		if (Object.InstanceProtocol && Object.Protocol->InternalTotalSize > 0U)
@@ -72,8 +72,8 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 				ChangeMaskStorageType* ChangeMaskData = Cache.GetChangeMaskStorage(Info);
 				ChangeMaskWriter.InitBytes(ChangeMaskData, ChangeMaskByteCount);
 
-				//UE_LOG(LogIris, Log, TEXT("Copying state data for ( InternalIndex: %u ) NethHandleIndex: %u"), InternalIndex, Object.Handle.GetIndex());
-				FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, NetHandleManager.GetReplicatedObjectStateBufferNoCheck(InternalIndex), &ChangeMaskWriter, Object.InstanceProtocol, Object.Protocol);
+				//UE_LOG(LogIris, Log, TEXT("Copying state data for ( InternalIndex: %u ) with NetRefHandle (Id=%u)"), InternalIndex, Object.RefHandle.GetId());
+				FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, NetRefHandleManager.GetReplicatedObjectStateBufferNoCheck(InternalIndex), &ChangeMaskWriter, Object.InstanceProtocol, Object.Protocol);
 
 				Info.bHasDirtyChangeMask = MakeNetBitArrayView(ChangeMaskData, ChangeMaskByteCount * 8U).FindFirstOne() != FNetBitArrayView::InvalidIndex;
 			}
@@ -81,17 +81,17 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 			// Mark subobject owner as dirty if this is a subobject
 			if (const uint32 SubObjectOwnerIndex = Object.SubObjectRootIndex)
 			{
-				const bool bIsOwnerScopable = NetHandleManager.IsScopableIndex(SubObjectOwnerIndex);
+				const bool bIsOwnerScopable = NetRefHandleManager.IsScopableIndex(SubObjectOwnerIndex);
 				// Dependent objects should not ensure if the owner isn't scopable.
-				ensureMsgf(bIsOwnerScopable || Object.IsDependentObject(), TEXT("SubObject ( InternaIndex: %u ) with NetHandleIndex: %u is trying to dirty parent ( InternalIndex: %u ) not in scope."), InternalIndex, Object.Handle.GetId(), SubObjectOwnerIndex);
+				ensureMsgf(bIsOwnerScopable || Object.IsDependentObject(), TEXT("SubObject ( InternaIndex: %u ) with NetRefHandle (Id=%u) is trying to dirty parent ( InternalIndex: %u ) not in scope."), InternalIndex, Object.RefHandle.GetId(), SubObjectOwnerIndex);
 				if (bIsOwnerScopable)
 				{
 					// Do we want to control this separately for subobjects? Or should they respect the setting on the owner?
 					// For now, we do and will not mark owner as dirty if owner should not propagate statechanges
-					bShouldPropagateChangedStates = bShouldPropagateChangedStates && NetHandleManager.GetReplicatedObjectDataNoCheck(SubObjectOwnerIndex).bShouldPropagateChangedStates;
+					bShouldPropagateChangedStates = bShouldPropagateChangedStates && NetRefHandleManager.GetReplicatedObjectDataNoCheck(SubObjectOwnerIndex).bShouldPropagateChangedStates;
 					if (bShouldPropagateChangedStates)
 					{
-						//UE_LOG(LogIris, Log, TEXT("Marking SubObjectOwner( InternalIndex: %u ) as dirty for ( InternalIndex: %u ) NethHandleIndex: %u"), InternalIndex, Object.Handle.GetIndex());
+						//UE_LOG(LogIris, Log, TEXT("Marking SubObjectOwner( InternalIndex: %u ) as dirty for ( InternalIndex: %u ) with NetRefHandle (Id=%u)"), SubObjectOwnerIndex, InternalIndex, Object.RefHandle.GetId());
 						Cache.AddSubObjectOwnerDirty(SubObjectOwnerIndex);
 					}
 				}
@@ -107,13 +107,13 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 		}
 		else if (const uint32 SubObjectOwnerIndex = Object.SubObjectRootIndex)
 		{
-			if (Object.bShouldPropagateChangedStates && ensure(NetHandleManager.IsScopableIndex(SubObjectOwnerIndex)))
+			if (Object.bShouldPropagateChangedStates && ensure(NetRefHandleManager.IsScopableIndex(SubObjectOwnerIndex)))
 			{	
 				// Do we want to control this separately for subobjects? Or should they respect the setting on the owner?
 				// For now, we do and will not mark owner as dirty if owner should not propagate statechanges
-				if (NetHandleManager.GetReplicatedObjectDataNoCheck(SubObjectOwnerIndex).bShouldPropagateChangedStates)
+				if (NetRefHandleManager.GetReplicatedObjectDataNoCheck(SubObjectOwnerIndex).bShouldPropagateChangedStates)
 				{
-					//UE_LOG(LogIris, Log, TEXT("Marking SubObjectOwner( InternalIndex: %u ) as dirty for ( InternalIndex: %u ) NethHandleIndex: %u"), InternalIndex, Object.Handle.GetIndex());
+					//UE_LOG(LogIris, Log, TEXT("Marking SubObjectOwner( InternalIndex: %u ) as dirty for ( InternalIndex: %u ) with NetRefHandle (Id=%u)"), SubObjectOwnerIndex, InternalIndex, Object.Handle.GetIndex());
 					Cache.AddSubObjectOwnerDirty(SubObjectOwnerIndex);
 				}
 			}			

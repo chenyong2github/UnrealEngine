@@ -17,7 +17,7 @@ namespace UE::Net
 	struct FReplicationProtocol;
 	namespace Private
 	{
-		class FNetHandleManager;
+		class FNetRefHandleManager;
 	};
 }
 
@@ -27,7 +27,7 @@ namespace UE::Net
 struct FReplicationStateStorageInitParams
 {
 	UReplicationSystem* ReplicationSystem = nullptr;
-	const Private::FNetHandleManager* NetHandleManager = nullptr;
+	const Private::FNetRefHandleManager* NetRefHandleManager = nullptr;
 	uint32 MaxObjectCount = 0;
 	uint32 MaxConnectionCount = 0;
 	uint32 MaxDeltaCompressedObjectCount = 0;
@@ -140,7 +140,7 @@ private:
 	TMultiMap<uint32, const void*> BaselineStorageValidation;
 #endif
 
-	const Private::FNetHandleManager* NetHandleManager = nullptr;
+	const Private::FNetRefHandleManager* NetRefHandleManager = nullptr;
 
 	FNetSerializationContext SerializationContext;
 	Private::FInternalNetSerializationContext InternalSerializationContext;

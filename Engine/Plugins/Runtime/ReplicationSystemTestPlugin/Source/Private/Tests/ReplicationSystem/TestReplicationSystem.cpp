@@ -25,7 +25,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that created server handle now also exists on client
-	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) != nullptr);
 
 	// Destroy the spawned object on server
 	Server->DestroyObject(ServerObject);
@@ -36,7 +36,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that object now is destroyed on client as well
-	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) != nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDroppedDestroyed)
@@ -53,7 +53,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDroppedDestro
 	Server->PostSendUpdate();
 
 	// Verify that created server handle now also exists on client
-	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) != nullptr);
 
 	// Destroy the spawned object on server
 	Server->DestroyObject(ServerObject);
@@ -69,7 +69,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDroppedDestro
 	Server->PostSendUpdate();
 
 	// Verify that object now is destroyed on client
-	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) != nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDestroyWhilePendingCreate)
@@ -90,7 +90,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDestroyWhileP
 	Server->DestroyObject(ServerObject);
 
 	// Verify that created server handle does not exists on client
-	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) != nullptr);
 
 	// Send and drop packet
 	Server->PreSendUpdate();
@@ -103,7 +103,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDestroyWhileP
 	Server->PostSendUpdate();
 
 	// Verify that object now is destroyed on client
-	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) != nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDestroyWhileWaitingOnCreate)
@@ -141,7 +141,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDestroyWithDa
 
 	// Spawn object on server
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0,0);
-	Server->GetReplicationSystem()->SetStaticPriority(ServerObject->NetHandle, 1.f);
+	Server->GetReplicationSystem()->SetStaticPriority(ServerObject->NetRefHandle, 1.f);
 
 	// Send packet with create
 	Server->PreSendUpdate();
@@ -180,7 +180,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0,0);
 
 	// Spawn second object on server as a subobject
-	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -188,8 +188,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that created server handles now also exists on client
-	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) != nullptr);
-	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) != nullptr);
+	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle) != nullptr);
 
 	// Destroy the spawned subobject on server
 	Server->DestroyObject(ServerSubObject);
@@ -200,7 +200,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that object now is destroyed on client as well
-	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_FALSE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle) != nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestroyMultipleSubObjects)
@@ -212,7 +212,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
 
 	// Spawn second object on server as a subobject
-	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -220,8 +220,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that created server handles now also exists on client
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 
 	// Destroy the spawned subobject on server
 	Server->DestroyObject(ServerSubObject);
@@ -232,10 +232,10 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that subobject now is destroyed on client as well
-	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 
 	// Spawn second object on server as a subobject
-	ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -243,7 +243,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that second subobject replicated properly to server
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 
 	// Destroy the spawned object on server
 	Server->DestroyObject(ServerSubObject);
@@ -254,7 +254,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that object now is destroyed on client as well
-	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestroySubObjectAndDestroyOwner)
@@ -266,7 +266,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
 
 	// Spawn second object on server as a subobject
-	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -274,8 +274,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that created server handles now also exists on client
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 
 	// Destroy the spawned subobject on server
 	Server->DestroyObject(ServerSubObject);
@@ -289,7 +289,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that subobject now is destroyed on client as well
-	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestroySubObjectAndDestroyOwnerWithDataInFlight)
@@ -301,7 +301,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
 
 	// Spawn second object on server as a subobject
-	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -309,8 +309,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that created server handles now also exists on client
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 
 	// Destroy the spawned subobject on server
 	Server->DestroyObject(ServerSubObject);
@@ -329,7 +329,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that subobject now is destroyed on client as well
-	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestroySubObjectWithLostData)
@@ -341,7 +341,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
 
 	// Spawn second object on server as a subobject
-	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -349,8 +349,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that created server handles now also exists on client
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle), nullptr);
-	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle), nullptr);
+	UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 
 	// Destroy the spawned subobject on server
 	Server->DestroyObject(ServerSubObject);
@@ -366,7 +366,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that subobject now is destroyed on client as well
-	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestroySubObjectPendingCreateConfirmation)
@@ -378,7 +378,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
 
 	// Spawn second object on server as a subobject
-	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UReplicatedTestObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	uint32 NumUnAcknowledgedPackets = 0;
 	// Send and deliver packet
@@ -408,7 +408,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, ReplicateAndDestr
 	Server->PostSendUpdate();
 
 	// Verify that subobject now is destroyed on client as well
-	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle), nullptr);
+	UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle), nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestSubObjectDefaultReplicationOrder)
@@ -420,9 +420,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestSubObjectDefa
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
 
 	// Spawn some subobjects
-	UReplicatedSubObjectOrderObject* ServerSubObject0 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetHandle);
-	UReplicatedSubObjectOrderObject* ServerSubObject1 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetHandle);
-	UReplicatedSubObjectOrderObject* ServerSubObject2 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetHandle);
+	UReplicatedSubObjectOrderObject* ServerSubObject0 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetRefHandle);
+	UReplicatedSubObjectOrderObject* ServerSubObject1 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetRefHandle);
+	UReplicatedSubObjectOrderObject* ServerSubObject2 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetRefHandle);
 
 	UReplicatedSubObjectOrderObject::RepOrderCounter = 0U;
 
@@ -432,9 +432,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestSubObjectDefa
 	Server->PostSendUpdate();
 
 	// Verify that objects have replicated
-	UReplicatedSubObjectOrderObject* ClientSubObject0 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject0->NetHandle));
-	UReplicatedSubObjectOrderObject* ClientSubObject1 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject1->NetHandle));
-	UReplicatedSubObjectOrderObject* ClientSubObject2 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject2->NetHandle));
+	UReplicatedSubObjectOrderObject* ClientSubObject0 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject0->NetRefHandle));
+	UReplicatedSubObjectOrderObject* ClientSubObject1 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject1->NetRefHandle));
+	UReplicatedSubObjectOrderObject* ClientSubObject2 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject2->NetRefHandle));
 
 	UE_NET_ASSERT_NE(ClientSubObject0, nullptr);
 	UE_NET_ASSERT_NE(ClientSubObject1, nullptr);
@@ -455,11 +455,11 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestSubObjectSpec
 	UReplicatedTestObject* ServerObject = Server->CreateObject(0, 0);
 
 	// Spawn some subobjects
-	UReplicatedSubObjectOrderObject* ServerSubObject0 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetHandle);
+	UReplicatedSubObjectOrderObject* ServerSubObject0 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetRefHandle);
 	// Specify Subobject1 to replicate with SubObject0, which means that it will replicate before Subobjet0 is replicated
-	UReplicatedSubObjectOrderObject* ServerSubObject1 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetHandle, ServerSubObject0->NetHandle, UReplicationBridge::ESubObjectInsertionOrder::ReplicateWith);
+	UReplicatedSubObjectOrderObject* ServerSubObject1 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetRefHandle, ServerSubObject0->NetRefHandle, UReplicationBridge::ESubObjectInsertionOrder::ReplicateWith);
 	// Specify SubObect 2 to replicate with no specific order (it will be added to the owner and thus replicate last)
-	UReplicatedSubObjectOrderObject* ServerSubObject2 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetHandle, ServerSubObject1->NetHandle, UReplicationBridge::ESubObjectInsertionOrder::None);
+	UReplicatedSubObjectOrderObject* ServerSubObject2 = Server->CreateSubObject<UReplicatedSubObjectOrderObject>(ServerObject->NetRefHandle, ServerSubObject1->NetRefHandle, UReplicationBridge::ESubObjectInsertionOrder::None);
 
 	UReplicatedSubObjectOrderObject::RepOrderCounter = 0U;
 
@@ -469,9 +469,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestSubObjectSpec
 	Server->PostSendUpdate();
 
 	// Verify that objects have replicated
-	UReplicatedSubObjectOrderObject* ClientSubObject0 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject0->NetHandle));
-	UReplicatedSubObjectOrderObject* ClientSubObject1 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject1->NetHandle));
-	UReplicatedSubObjectOrderObject* ClientSubObject2 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject2->NetHandle));
+	UReplicatedSubObjectOrderObject* ClientSubObject0 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject0->NetRefHandle));
+	UReplicatedSubObjectOrderObject* ClientSubObject1 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject1->NetRefHandle));
+	UReplicatedSubObjectOrderObject* ClientSubObject2 = Cast<UReplicatedSubObjectOrderObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject2->NetRefHandle));
 
 	UE_NET_ASSERT_NE(ClientSubObject0, nullptr);
 	UE_NET_ASSERT_NE(ClientSubObject1, nullptr);
@@ -713,7 +713,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, AddRemoveFromConn
 
 	// Add to group
 	FNetObjectGroupHandle Group = ReplicationSystem->CreateGroup();
-	ReplicationSystem->AddToGroup(Group, ServerObject->NetHandle);
+	ReplicationSystem->AddToGroup(Group, ServerObject->NetRefHandle);
 
 	ReplicationSystem->AddGroupFilter(Group);
 	ReplicationSystem->SetGroupFilterStatus(Group, ENetFilterStatus::Allow);
@@ -743,11 +743,11 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, AddRemoveFromConn
 
 	// Expect client to create object
 	Server->DeliverTo(Client, true);
-	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) != nullptr);
 
 	// Expect client to destroy object and server to move to Destroyed state
 	Server->DeliverTo(Client, true);
-	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) == nullptr);
+	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) == nullptr);
 
 	// Trigger replication
 	++ServerObject->IntA;
@@ -760,7 +760,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, AddRemoveFromConn
 	Server->PostSendUpdate();
 
 	// Verify that the object got created again
-	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle) != nullptr);
+	UE_NET_ASSERT_TRUE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle) != nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestNetTemporary)
@@ -785,14 +785,14 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestNetTemporary)
 
 	// Verify that client has received the data
 	{
-		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 		UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 		UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObject->IntA);
 	}
 
 	{
-		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject1->NetHandle));
+		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject1->NetRefHandle));
 
 		UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 		UE_NET_ASSERT_EQ(ServerObject1->IntA, ClientObject->IntA);
@@ -800,7 +800,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestNetTemporary)
 	}
 
 	// Mark the object as a net temporary
-	ReplicationSystem->SetIsNetTemporary(ServerObject->NetHandle);
+	ReplicationSystem->SetIsNetTemporary(ServerObject->NetRefHandle);
 
 	// Modify the value
 	ServerObject->IntA = 2;
@@ -813,7 +813,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestNetTemporary)
 
 	// Verify that client has not received the data for changed temporary
 	{
-		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 		UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 		UE_NET_ASSERT_NE(ServerObject->IntA, ClientObject->IntA);
@@ -821,7 +821,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestNetTemporary)
 
 	// Verify that client has received the data for normal object
 	{
-		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject1->NetHandle));
+		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject1->NetRefHandle));
 
 		UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 		UE_NET_ASSERT_EQ(ServerObject1->IntA, ClientObject->IntA);
@@ -838,7 +838,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestNetTemporary)
 
 	// We should now have the latest state for both objects
 	{
-		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client2->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client2->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 		UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 		UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObject->IntA);
@@ -846,7 +846,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestNetTemporary)
 
 	// Verify that client has received the data for normal object
 	{
-		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client2->GetReplicationBridge()->GetReplicatedObject(ServerObject1->NetHandle));
+		UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client2->GetReplicationBridge()->GetReplicatedObject(ServerObject1->NetRefHandle));
 
 		UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 		UE_NET_ASSERT_EQ(ServerObject1->IntA, ClientObject->IntA);
@@ -875,7 +875,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffExisti
 	Server->PostSendUpdate();
 
 	// Store Pointer to object 
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
@@ -893,7 +893,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffExisti
 
 	// Verify that ClientObject is torn-off and that the final state was applied
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
 }
 
 // Test TearOff for new object
@@ -924,7 +924,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffOnNewl
 	// Client should have created a object
 	UE_NET_ASSERT_EQ(NumObjectsCreatedOnClientBeforeReplication + 1, Client->CreatedObjects.Num());
 
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
 
 	// We should be able to get the object from the created objects array to validate the state
 	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->CreatedObjects[NumObjectsCreatedOnClientBeforeReplication].Get());
@@ -953,7 +953,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffResend
 	Server->PostSendUpdate();
 
 	// Store Pointer to object 
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	UE_NET_ASSERT_NE(ClientObjectThatWillBeTornOff, nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
@@ -966,15 +966,15 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffResend
 	Server->SendAndDeliverTo(Client, DoNotDeliverPacket);
 	Server->PostSendUpdate();
 
-	// The ClientObject should still be found using the NetHandle
-	UE_NET_ASSERT_NE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)), nullptr);
+	// The ClientObject should still be found using the NetRefHandle
+	UE_NET_ASSERT_NE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)), nullptr);
 
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, DeliverPacket);
 	Server->PostSendUpdate();
 
 	// Verify that ClientObject is torn-off
-	UE_NET_ASSERT_EQ(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)), nullptr);
+	UE_NET_ASSERT_EQ(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)), nullptr);
 }
 
 // Test TearOff for new object and resend (should not work or is this what we want?)
@@ -1011,7 +1011,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffImmedi
 	// Client should have created a object
 	UE_NET_ASSERT_EQ(NumObjectsCreatedOnClientBeforeReplication + 1, Client->CreatedObjects.Num());
 
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
 
 	// We should be able to get the object from the created objects array to validate the state
 	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->CreatedObjects[NumObjectsCreatedOnClientBeforeReplication].Get());
@@ -1039,7 +1039,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDefferedTearO
 	ServerObject->IntA = 1;
 
 	// TearOff the object before first replication
-	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetHandle);
+	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetRefHandle);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -1057,7 +1057,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDefferedTearO
 	// Client should have created a object
 	UE_NET_ASSERT_EQ(NumObjectsCreatedOnClientBeforeReplication + 1, Client->CreatedObjects.Num());
 
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
 
 	// We should be able to get the object from the created objects array to validate the state
 	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->CreatedObjects[NumObjectsCreatedOnClientBeforeReplication].Get());
@@ -1092,7 +1092,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffObject
 	Server->DeliverTo(Client, true);
 
 	// Store Pointer to object and verify initial state
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
@@ -1104,7 +1104,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffObject
 
 	// Verify that ClientObject is TornOFf and that the final state was applied
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
 }
 
 // Test TearOff for existing object pending destroy (should do nothing)
@@ -1127,7 +1127,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffExisti
 	Server->PostSendUpdate();
 
 	// Store Pointer to object 
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
@@ -1148,7 +1148,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffExisti
 
 	// Verify that ClientObject is not tornOff and that the final state was not applied as we issued tearoff after ending replication
 	UE_NET_ASSERT_NE(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
 }
 
 // Test TearOff resend 
@@ -1171,7 +1171,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffResend
 	Server->PostSendUpdate();
 
 	// Store Pointer to object 
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
@@ -1180,7 +1180,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffResend
 	ServerObject->IntA = 2;
 
 	// TearOff the object
-	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetHandle);
+	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetRefHandle);
 
 	// Send and deliver packet, in this case the packet containing 2 was lost, but, we did not know that when we 
 	Server->PreSendUpdate();
@@ -1197,7 +1197,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffResend
 
 	// Verify that ClientObject is torn-off and that the expected final state was applied
 	UE_NET_ASSERT_EQ(2, ClientObjectThatWillBeTornOff->IntA);
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
 }
 
 // Test TearOff does not pickup statechanges after tear off
@@ -1220,7 +1220,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTornedOffObje
 	Server->PostSendUpdate();
 
 	// Store Pointer to object 
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
@@ -1229,7 +1229,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTornedOffObje
 	ServerObject->IntA = 2;
 
 	// TearOff the object
-	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetHandle);
+	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetRefHandle);
 
 	// Send and drop packet containing the value 2
 	Server->PreSendUpdate();
@@ -1246,7 +1246,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTornedOffObje
 
 	// Verify that ClientObject is TornOFf and that the expected final state was applied
 	UE_NET_ASSERT_EQ(2, ClientObjectThatWillBeTornOff->IntA);
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle)) == nullptr);
 }
 
 // Test TearOff and SubObjects, SubObjects must apply state?
@@ -1261,7 +1261,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestImmediateTear
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0,0);
 
 	// Spawn second object on server as a subobject
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Trigger replication
 	ServerObject->IntA = 1;
@@ -1273,11 +1273,11 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestImmediateTear
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
 
-	UTestReplicatedIrisObject* ClientSubObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+	UTestReplicatedIrisObject* ClientSubObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 	UE_NET_ASSERT_TRUE(ClientSubObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObjectThatWillBeTornOff->IntA);
 
@@ -1294,7 +1294,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestImmediateTear
 
 	// Verify that ClientObject is torn-off and that the final state was applied to subObject 
 	UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObjectThatWillBeTornOff->IntA);
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle)) == nullptr);
 }
 
 // Test TearOff and SubObjects, SubObjects must apply state?
@@ -1309,7 +1309,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestImmediateTear
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0,0);
 
 	// Spawn second object on server as a subobject
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Trigger replication
 	ServerObject->IntA = 1;
@@ -1321,11 +1321,11 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestImmediateTear
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
 
-	UTestReplicatedIrisObject* ClientSubObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+	UTestReplicatedIrisObject* ClientSubObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 	UE_NET_ASSERT_TRUE(ClientSubObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObjectThatWillBeTornOff->IntA);
 
@@ -1347,7 +1347,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestImmediateTear
 
 	// Verify that ClientObject is torn-off and that the final state was applied to subObject 
 	UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObjectThatWillBeTornOff->IntA);
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle)) == nullptr);
 }
 
 // Test TearOff and SubObjects, SubObjects must apply state?
@@ -1362,7 +1362,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffNextUp
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0,0);
 
 	// Spawn second object on server as a subobject
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Trigger replication
 	ServerObject->IntA = 1;
@@ -1374,11 +1374,11 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffNextUp
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestReplicatedIrisObject* ClientObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 	UE_NET_ASSERT_TRUE(ClientObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerObject->IntA, ClientObjectThatWillBeTornOff->IntA);
 
-	UTestReplicatedIrisObject* ClientSubObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle));
+	UTestReplicatedIrisObject* ClientSubObjectThatWillBeTornOff = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
 	UE_NET_ASSERT_TRUE(ClientSubObjectThatWillBeTornOff != nullptr);
 	UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObjectThatWillBeTornOff->IntA);
 
@@ -1386,7 +1386,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffNextUp
 	ServerSubObject->IntA = 2;
 
 	// TearOff the object using immediate tear-off
-	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetHandle);
+	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetRefHandle);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -1395,14 +1395,14 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffNextUp
 
 	// Verify that ClientObject is torn-off and that the final state was applied to subObject 
 	UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObjectThatWillBeTornOff->IntA);
-	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetHandle)) == nullptr);
+	UE_NET_ASSERT_TRUE(Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle)) == nullptr);
 }
 
 // Test TearOff and destroy of SubObjects that are still pending create/tearoff
 UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffNextUpdateExistingObjectWithSubObjectPendingCreation)
 {
 	UReplicationSystem* ReplicationSystem = Server->ReplicationSystem;
-	FNetHandleManager* NetHandleManager = &ReplicationSystem->GetReplicationSystemInternal()->GetNetHandleManager();
+	FNetRefHandleManager* NetRefHandleManager = &ReplicationSystem->GetReplicationSystemInternal()->GetNetRefHandleManager();
 
 	// Add a client
 	FReplicationSystemTestClient* Client = CreateClient();
@@ -1411,36 +1411,36 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffNextUp
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0,0);
 
 	// Spawn second object on server as a subobject
-	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetHandle, 0, 0);
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerObject->NetRefHandle, 0, 0);
 
 	// Trigger replication
 	ServerObject->IntA = 1;
 	ServerSubObject->IntA = 1;
 
-	const FInternalNetHandle ServerObjectInternalIndex = NetHandleManager->GetInternalIndex(ServerObject->NetHandle);
-	const FInternalNetHandle SubObjectObjectInternalIndex = NetHandleManager->GetInternalIndex(ServerSubObject->NetHandle);
+	const FInternalNetRefIndex ServerObjectInternalIndex = NetRefHandleManager->GetInternalIndex(ServerObject->NetRefHandle);
+	const FInternalNetRefIndex SubObjectObjectInternalIndex = NetRefHandleManager->GetInternalIndex(ServerSubObject->NetRefHandle);
 
 	// Trigger presend without send to add the objects to scope
 	Server->PreSendUpdate();
 
-	UE_NET_ASSERT_EQ(uint16(1), NetHandleManager->GetNetObjectRefCount(ServerObjectInternalIndex));
-	UE_NET_ASSERT_EQ(uint16(1), NetHandleManager->GetNetObjectRefCount(SubObjectObjectInternalIndex));
+	UE_NET_ASSERT_EQ(uint16(1), NetRefHandleManager->GetNetObjectRefCount(ServerObjectInternalIndex));
+	UE_NET_ASSERT_EQ(uint16(1), NetRefHandleManager->GetNetObjectRefCount(SubObjectObjectInternalIndex));
 
 	// TearOff the object this will also tear-off subobject
-	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetHandle);
+	Server->ReplicationSystem->TearOffNextUpdate(ServerObject->NetRefHandle);
 
 	// Update logic, object should be removed from scope but still exist as pending create in
 	Server->PreSendUpdate();
 
-	UE_NET_ASSERT_EQ(uint16(1), NetHandleManager->GetNetObjectRefCount(ServerObjectInternalIndex));
-	UE_NET_ASSERT_EQ(uint16(1), NetHandleManager->GetNetObjectRefCount(SubObjectObjectInternalIndex));
+	UE_NET_ASSERT_EQ(uint16(1), NetRefHandleManager->GetNetObjectRefCount(ServerObjectInternalIndex));
+	UE_NET_ASSERT_EQ(uint16(1), NetRefHandleManager->GetNetObjectRefCount(SubObjectObjectInternalIndex));
 
 	// Destroy the object
 	Server->DestroyObject(ServerObject);
 
 	// Verify that we no longer have any references to the object
-	UE_NET_ASSERT_EQ(uint16(0), NetHandleManager->GetNetObjectRefCount(ServerObjectInternalIndex));
-	UE_NET_ASSERT_EQ(uint16(0), NetHandleManager->GetNetObjectRefCount(SubObjectObjectInternalIndex));
+	UE_NET_ASSERT_EQ(uint16(0), NetRefHandleManager->GetNetObjectRefCount(ServerObjectInternalIndex));
+	UE_NET_ASSERT_EQ(uint16(0), NetRefHandleManager->GetNetObjectRefCount(SubObjectObjectInternalIndex));
 	
 	Server->SendAndDeliverTo(Client, true);
 	Server->PostSendUpdate();
@@ -1456,7 +1456,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestReplicatedObj
 
 	// Spawn object on server
 	UTestReplicatedIrisObjectWithNoReplicatedMembers* ServerObject = Server->CreateObject<UTestReplicatedIrisObjectWithNoReplicatedMembers>();
-	const FNetHandle ServerHandle = ServerObject->NetHandle;
+	const FNetRefHandle ServerHandle = ServerObject->NetRefHandle;
 
 	UE_NET_ASSERT_TRUE(ServerHandle.IsValid());
 
@@ -1500,8 +1500,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestObjectPollFra
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects and verify state after initial replication
-	UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
-	UTestReplicatedIrisObject* ClientObjectPolledEveryOtherFrame = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectPolledEveryOtherFrame->NetHandle));
+	UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
+	UTestReplicatedIrisObject* ClientObjectPolledEveryOtherFrame = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectPolledEveryOtherFrame->NetRefHandle));
 
 	UE_NET_ASSERT_NE(ClientObjectPolledEveryOtherFrame, nullptr);
 	UE_NET_ASSERT_NE(ClientObject, nullptr);

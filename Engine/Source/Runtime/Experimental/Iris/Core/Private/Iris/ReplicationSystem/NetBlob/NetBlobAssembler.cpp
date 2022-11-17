@@ -21,7 +21,7 @@ void FNetBlobAssembler::Init(const FNetBlobAssemblerInitParams& InitParams)
 	ensureMsgf(PartialNetBlobHandlerConfig != nullptr, TEXT("NetBlobAssembler requires a PartialNetBlobHandlerConfig"));
 }
 
-void FNetBlobAssembler::AddPartialNetBlob(FNetSerializationContext& Context, FNetHandle InNetHandle, const TRefCountPtr<FPartialNetBlob>& PartialNetBlob)
+void FNetBlobAssembler::AddPartialNetBlob(FNetSerializationContext& Context, FNetRefHandle InRefHandle, const TRefCountPtr<FPartialNetBlob>& PartialNetBlob)
 {
 	bIsReadyToAssemble = false;
 
@@ -61,7 +61,7 @@ void FNetBlobAssembler::AddPartialNetBlob(FNetSerializationContext& Context, FNe
 			return;
 		}
 
-		NetHandle = InNetHandle;
+		RefHandle = InRefHandle;
 
 		NetBlobCreationInfo = PartialNetBlob->GetOriginalCreationInfo();
 
@@ -78,7 +78,7 @@ void FNetBlobAssembler::AddPartialNetBlob(FNetSerializationContext& Context, FNe
 	}
 	else
 	{
-		if (InNetHandle != NetHandle)
+		if (InRefHandle != RefHandle)
 		{
 			Context.SetError(NetError_PartialNetBlobSequenceError);
 			return;
@@ -139,9 +139,9 @@ TRefCountPtr<FNetBlob> FNetBlobAssembler::Assemble(FNetSerializationContext& Con
 		FNetSerializationContext ReadContext = Context.MakeSubContext(&BitReader);
 		ReadContext.SetTraceCollector(nullptr);
 
-		if (NetHandle.IsValid())
+		if (RefHandle.IsValid())
 		{
-			NetBlob->DeserializeWithObject(ReadContext, NetHandle);
+			NetBlob->DeserializeWithObject(ReadContext, RefHandle);
 		}
 		else
 		{

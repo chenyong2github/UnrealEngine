@@ -132,7 +132,7 @@ void UMockNetObjectPrioritizer::Prioritize(FNetObjectPrioritizationParams& Param
 	CallStatus.SuccessfulCallCounts.Prioritize += bIsProperCall;
 }
 
-float UMockNetObjectPrioritizer::GetPriority(UE::Net::Private::FInternalNetHandle ObjectIndex) const
+float UMockNetObjectPrioritizer::GetPriority(UE::Net::Private::FInternalNetRefIndex ObjectIndex) const
 {
 	check(AddedIndices[ObjectIndex]);
 	if (const float* Priority = ObjectToPriority.Find(ObjectIndex))

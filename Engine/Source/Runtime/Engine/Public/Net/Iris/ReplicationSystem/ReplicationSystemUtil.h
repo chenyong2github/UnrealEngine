@@ -6,7 +6,8 @@
 
 #if UE_WITH_IRIS
 
-#include "Iris/ReplicationSystem/NetHandle.h"
+#include "Iris/ReplicationSystem/Conditionals/ReplicationCondition.h"
+#include "Net/Core/NetHandle/NetHandle.h"
 #include "Engine/EngineTypes.h"
 
 class AActor;
@@ -25,51 +26,47 @@ namespace UE::Net
 // Helper methods to interact with ReplicationSystem from engine code
 struct FReplicationSystemUtil
 {
-	/** Returns the UReplicationSystem the actor is replicated by, or null if it isn't. */
+	/** Returns the UReplicationSystem for the main NetDriver assigned to the Actor. Note that an Actor may be replicated by multiple ReplicationSystems. May return null. */
 	ENGINE_API static UReplicationSystem* GetReplicationSystem(const AActor* Actor);
 
-	/** Returns the UActorReplicationBridge of the UReplicationSystem the actor is replicated by, or null if it isn't. */
+	/** Returns the UActorReplicationBridge of the UReplicationSystem belogning to the main NetDriver assigned to the Actor. May return null. */
 	ENGINE_API static UActorReplicationBridge* GetActorReplicationBridge(const AActor* Actor);
 
 	/** Returns the UReplicationSystem of the UNetDriver the UNetConnection belongs to. */
 	ENGINE_API static UActorReplicationBridge* GetActorReplicationBridge(const UNetConnection* NetConnection);
 
-	/** Get the NetHandle for the actor. */
+	/** Returns the NetHandle for the actor. The returned handle may be invalid. */
 	ENGINE_API static FNetHandle GetNetHandle(const AActor* Actor);
 
-	/** Get the NetHandle for an actor component. */
+	/** Returns the NetHandle for an actor component. The returned handle may be invalid. */
 	ENGINE_API static FNetHandle GetNetHandle(const UActorComponent* SubObject);
 
-	/** 
-		Begins replication an actor and all of its registered subobjects returns a NetHandle for the actor if it succeeds. 
-	*/
-	ENGINE_API static FNetHandle BeginReplication(AActor* Actor, const FActorBeginReplicationParams& Params);
+	/** Begins replication of an actor and all of its registered subobjects. If any ReplicationSystem wants to replicate the actor a NetHandle will be created. */
+	ENGINE_API static void BeginReplication(AActor* Actor, const FActorBeginReplicationParams& Params);
 
-	/** 
-		Begins replication an actor and all of its registered subobjects returns a NetHandle for the actor if it succeeds. 
-	*/
-	ENGINE_API static FNetHandle BeginReplication(AActor* Actor);
+	/** Begins replication of an actor and all of its registered subobjects. If any ReplicationSystem wants to replicate the actor a NetHandle will be created. */
+	ENGINE_API static void BeginReplication(AActor* Actor);
 	
 	/** Stop replicating an actor. Will destroy handle for actor and registered subobjects. */
 	ENGINE_API static void EndReplication(AActor* Actor, EEndPlayReason::Type EndPlayReason);
 
 	/** Create NetHandle for actor component and add it as a subobject to the actor handle. */
-	ENGINE_API static FNetHandle BeginReplicationForActorComponent(FNetHandle ActorHandle, UActorComponent* ActorComponent);
+	ENGINE_API static void BeginReplicationForActorComponent(FNetHandle ActorHandle, UActorComponent* ActorComponent);
 
 	/** Create NetHandle for actor component and add it as a subobject to the actor. */
-	ENGINE_API static FNetHandle BeginReplicationForActorComponent(const AActor* Actor, UActorComponent* ActorComponent);
+	ENGINE_API static void BeginReplicationForActorComponent(const AActor* Actor, UActorComponent* ActorComponent);
 
 	/** Stop replicating an ActorComponent and its associated SubObjects. */
 	ENGINE_API static void EndReplicationForActorComponent(UActorComponent* SubObject);
 
 	/** Create NetHandle for SubObject and add it as a subobject to the actor. */
-	ENGINE_API static FNetHandle BeginReplicationForActorSubObject(const AActor* Actor, UObject* SubObject, ELifetimeCondition NetCondition);
+	ENGINE_API static void BeginReplicationForActorSubObject(const AActor* Actor, UObject* SubObject, ELifetimeCondition NetCondition);
 
 	/** Stop replicating a SubObject ActorComponent and its associated SubObjects. */
 	ENGINE_API static void EndReplicationForActorSubObject(const AActor* Actor, UObject* SubObject);
 
-	/** Create NetHandle for SubObject and add it as a subobject to the actor but only replicated if the ActorComponent replicates. */
-	ENGINE_API static FNetHandle BeginReplicationForActorComponentSubObject(UActorComponent* ActorComponent, UObject* SubObject, ELifetimeCondition Condition);
+	/** Create NetHandle for SubObject and add it as a subobject to the actor component, but only replicated if the ActorComponent replicates. */
+	ENGINE_API static void BeginReplicationForActorComponentSubObject(UActorComponent* ActorComponent, UObject* SubObject, ELifetimeCondition Condition);
 
 	/** Stop replicating an ActorComponent and its associated SubObjects. */
 	ENGINE_API static void EndReplicationForActorComponentSubObject(UActorComponent* ActorComponent, UObject* SubObject);
@@ -108,6 +105,9 @@ struct FReplicationSystemUtil
 
 	/** Trigger replication of dirty state for actor wanting to be dormant. */
 	ENGINE_API static void FlushNetDormancy(AActor* Actor, bool bWasDormInitial);
+
+	/** Enable or disable a replication condition. This will affect the replication of properties with conditions. */
+	ENGINE_API static void SetReplicationCondition(FNetHandle NetHandle, EReplicationCondition Condition, bool bEnableCondition);
 };
 
 }

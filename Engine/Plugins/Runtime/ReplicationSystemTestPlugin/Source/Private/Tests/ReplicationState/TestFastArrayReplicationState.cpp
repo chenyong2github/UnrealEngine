@@ -138,7 +138,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestAddItem)
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	// Verify initial replication
 	UE_NET_ASSERT_TRUE(ClientObject!= nullptr);
@@ -190,7 +190,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemoveItem)
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	// Verify initial replication
 	UE_NET_ASSERT_TRUE(ClientObject!= nullptr);
@@ -258,7 +258,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestLocalItemAreP
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	// Verify initial replication
 	UE_NET_ASSERT_TRUE(ClientObject!= nullptr);
@@ -341,7 +341,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestModifyItem)
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	// Verify initial replication
 	UE_NET_ASSERT_TRUE(ClientObject!= nullptr);
@@ -414,7 +414,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestInsertItem)
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	// Verify initial replication
 	UE_NET_ASSERT_TRUE(ClientObject!= nullptr);
@@ -496,7 +496,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestModifyItemDoe
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	// Verify initial replication
 	UE_NET_ASSERT_TRUE(ClientObject!= nullptr);
@@ -599,7 +599,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestAddItemWithou
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	// Verify that we received the data
 	UE_NET_ASSERT_TRUE(ClientObject!= nullptr);
@@ -622,7 +622,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestChangeMaskWra
 	Server->PostSendUpdate();
 
 	// Store Pointer to objects
-	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetHandle));
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
 
 	// Verify initial replication
 	UE_NET_ASSERT_TRUE(ClientObject!= nullptr);
@@ -736,8 +736,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestPostReplicate
 	FastArrayEditor.Add(Item);
 
 	// Make sure that references are not replicated to client
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
-	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
+	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
 	
 	// Replicate
 	Server->PreSendUpdate();
@@ -745,7 +745,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestPostReplicate
 	Server->PostSendUpdate();
 
 	// Verify that object has been spawned on client
-	auto ClientObject = Client->GetObjectAs<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(ServerObject->NetHandle);
+	auto ClientObject = Client->GetObjectAs<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(ServerObject->NetRefHandle);
 	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 
 	auto& ClientFastArray = ClientObject->FastArray;
@@ -766,7 +766,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestPostReplicate
 	ClientFastArray.bPostReplicatedReceiveWasHitWithUnresolvedReferences = false;
 
 	// Enable replication for ServerReferenceObjectA
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();
@@ -785,7 +785,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestPostReplicate
 	ClientFastArray.bPostReplicatedReceiveWasHitWithUnresolvedReferences = false;
 
 	// Enable replication for ServerReferenceObjectB 
-	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetHandle);
+	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectB->NetRefHandle);
 
 	// Replicate
 	Server->PreSendUpdate();

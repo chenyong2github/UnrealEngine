@@ -34,7 +34,7 @@ namespace UE::Net
 	namespace Private
 	{
 		struct FChangeMaskCache;
-		class FNetHandleManager;
+		class FNetRefHandleManager;
 		class FReliableNetBlobQueue;
 		class FReplicationConditionals;
 		class FReplicationFiltering;
@@ -155,7 +155,7 @@ public:
 	void ForceUpdateDirtyChangeMasks(const FChangeMaskCache& CachedChangeMasks, EFlushFlags ExtraFlushFlags, bool bMarkForTearOff) { InternalUpdateDirtyChangeMasks(CachedChangeMasks, ExtraFlushFlags, bMarkForTearOff); }
 
 	// Called if an object first being teared off and then explicitly destroyed before it has been removed from scope
-	void NotifyDestroyedObjectPendingTearOff(FInternalNetHandle ObjectInternalIndex);
+	void NotifyDestroyedObjectPendingTearOff(FInternalNetRefIndex ObjectInternalIndex);
 
 	// Propagate dirty changemasks
 	void UpdateDirtyChangeMasks(const FChangeMaskCache& CachedChangeMasks) { InternalUpdateDirtyChangeMasks(CachedChangeMasks, EFlushFlags::FlushFlags_None, false); }
@@ -182,7 +182,7 @@ public:
 	void SetNetExports(FNetExports& InNetExports);
 
 	// Attachments
-	void QueueNetObjectAttachments(FInternalNetHandle OwnerInternalIndex, FInternalNetHandle SubObjectInternalIndex, TArrayView<const TRefCountPtr<FNetBlob>> Attachments);
+	void QueueNetObjectAttachments(FInternalNetRefIndex OwnerInternalIndex, FInternalNetRefIndex SubObjectInternalIndex, TArrayView<const TRefCountPtr<FNetBlob>> Attachments);
 
 private:
 	// Various types
@@ -236,7 +236,7 @@ private:
 
 	struct FBatchObjectInfo
 	{
-		FNetHandle Handle;
+		FNetRefHandle Handle;
 		uint32 InternalIndex;
 		FNetObjectAttachmentsWriter::ReplicationRecord AttachmentRecord;
 		ENetObjectAttachmentType AttachmentType;
@@ -359,7 +359,7 @@ private:
 	void SetState(uint32 InternalIndex, EReplicatedObjectState NewState);
 
 	// Write index part of handle
-	void WriteNetHandleId(FNetBitStreamWriter& Writer, FNetHandle Handle);
+	void WriteNetRefHandleId(FNetBitStreamWriter& Writer, FNetRefHandle RefHandle);
 		
 	// Create new ObjectRecord
 	// Note: be aware that it will allocate a copy of the ChangeMask that needs to be handled if the record is not Committed
@@ -448,7 +448,7 @@ private:
 
 	bool IsWriteObjectSuccess(EWriteObjectStatus Status) const;
 
-	void SerializeObjectStateDelta(FNetSerializationContext& Context, uint32 InternalIndex, const FReplicationInfo& Info, const FNetHandleManager::FReplicatedObjectData& ObjectData, const uint8* RESTRICT ReplicatedObjectStateBuffer, FDeltaCompressionBaseline& CurrentBaseline, uint32 CreatedBaselineIndex);
+	void SerializeObjectStateDelta(FNetSerializationContext& Context, uint32 InternalIndex, const FReplicationInfo& Info, const FNetRefHandleManager::FReplicatedObjectData& ObjectData, const uint8* RESTRICT ReplicatedObjectStateBuffer, FDeltaCompressionBaseline& CurrentBaseline, uint32 CreatedBaselineIndex);
 
 	void DiscardAllRecords();
 	void StopAllReplication();
@@ -483,7 +483,7 @@ private:
 
 	// Cached internal systems
 	FReplicationSystemInternal* ReplicationSystemInternal = nullptr;
-	FNetHandleManager* NetHandleManager = nullptr;
+	FNetRefHandleManager* NetRefHandleManager = nullptr;
 	UReplicationBridge* ReplicationBridge = nullptr;
 	FDeltaCompressionBaselineManager* BaselineManager = nullptr;
 	FObjectReferenceCache* ObjectReferenceCache = nullptr;

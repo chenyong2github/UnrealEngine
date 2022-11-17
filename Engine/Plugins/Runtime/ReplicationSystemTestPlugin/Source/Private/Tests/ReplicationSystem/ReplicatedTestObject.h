@@ -32,11 +32,10 @@ class UReplicatedTestObject : public UObject
 public:
 	// Register the fragments for this object
 	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override {}
-	bool IsReplicating() const { return NetHandle.IsValid(); }
 	virtual bool IsSupportedForNetworking() const override { return true; }
 
-	// Currently we carry around some cached data, this could be stored in the bridge and be accessed through handle resolve.
-	UE::Net::FNetHandle NetHandle;
+	/** Cached NetRefHandle to simplify testing. DO NOT use this for multi-system tests. */
+	UE::Net::FNetRefHandle NetRefHandle;
 };
 
 USTRUCT()
@@ -408,11 +407,11 @@ public:
 
 	// This is the local Interface, it is up to each bridge implementation to define the interface for that type
 	// In this example we have methods that directly uses UReplicatedTestObject;
-	FNetHandle BeginReplication(UReplicatedTestObject* Instance);
-	FNetHandle BeginReplication(FNetHandle OwnerHandle, UReplicatedTestObject* Instance, FNetHandle InsertRelativeToSubObjectHandle = FNetHandle(), ESubObjectInsertionOrder InsertionOrder = UReplicationBridge::ESubObjectInsertionOrder::None);
+	FNetRefHandle BeginReplication(UReplicatedTestObject* Instance);
+	FNetRefHandle BeginReplication(FNetRefHandle OwnerHandle, UReplicatedTestObject* Instance, FNetRefHandle InsertRelativeToSubObjectHandle = FNetRefHandle(), ESubObjectInsertionOrder InsertionOrder = UReplicationBridge::ESubObjectInsertionOrder::None);
 
 	// For testing we expose some things that normally are not accessible
-	const UE::Net::FReplicationInstanceProtocol* GetReplicationInstanceProtocol(FNetHandle Handle) const;
+	const UE::Net::FReplicationInstanceProtocol* GetReplicationInstanceProtocol(FNetRefHandle Handle) const;
 
 	void SetPollFramePeriod(UReplicatedTestObject* Instance, uint8 FramePeriod);
 
@@ -429,11 +428,11 @@ protected:
 		uint32 NumConnectionFilteredComponentsToSpawn;
 	};
 
-	virtual bool WriteCreationHeader(UE::Net::FNetSerializationContext& Context, FNetHandle Handle) override;
+	virtual bool WriteCreationHeader(UE::Net::FNetSerializationContext& Context, FNetRefHandle Handle) override;
 	virtual FCreationHeader* ReadCreationHeader(UE::Net::FNetSerializationContext& Context) override;
 
-	virtual UObject* BeginInstantiateFromRemote(FNetHandle SubObjectOwnerHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* InHeader) override;
-	virtual void EndInstantiateFromRemote(FNetHandle Handle) override;
+	virtual UObject* BeginInstantiateFromRemote(FNetRefHandle SubObjectOwnerHandle, const UE::Net::FNetObjectResolveContext& ResolveContext, const FCreationHeader* InHeader) override;
+	virtual void EndInstantiateFromRemote(FNetRefHandle Handle) override;
 	virtual void DestroyInstanceFromRemote(UObject* Instance, bool bTearOff);
 
 	TArray<TStrongObjectPtr<UObject>>* CreatedObjectsOnNode;

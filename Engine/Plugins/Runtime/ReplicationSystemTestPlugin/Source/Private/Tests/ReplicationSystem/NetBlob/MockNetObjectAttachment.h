@@ -19,8 +19,8 @@ public:
 	void SetPayloadBitCount(uint32 BitCount) { BlobBitCount = BitCount; }
 
 private:
-	virtual void SerializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) const override;
-	virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetHandle NetHandle) override;
+	virtual void SerializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) const override;
+	virtual void DeserializeWithObject(FNetSerializationContext& Context, FNetRefHandle RefHandle) override;
 
 	virtual void Serialize(FNetSerializationContext& Context) const override;
 	virtual void Deserialize(FNetSerializationContext& Context) override;

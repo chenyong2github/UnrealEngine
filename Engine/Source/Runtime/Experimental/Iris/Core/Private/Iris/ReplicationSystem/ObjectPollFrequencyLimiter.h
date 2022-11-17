@@ -8,7 +8,7 @@
 
 namespace UE::Net::Private
 {
-	typedef uint32 FInternalNetHandle;
+	typedef uint32 FInternalNetRefIndex;
 }
 
 namespace UE::Net::Private
@@ -25,9 +25,9 @@ public:
 	void Init(uint32 MaxActiveObjectCount);
 	void Deinit();
 
-	void SetPollFramePeriod(FInternalNetHandle InternalHandle, uint8 PollFramePeriod);
+	void SetPollFramePeriod(FInternalNetRefIndex InternalIndex, uint8 PollFramePeriod);
 
-	void SetPollWithObject(FInternalNetHandle ObjectToPollWithInternalHandle, FInternalNetHandle InternalHandle);
+	void SetPollWithObject(FInternalNetRefIndex ObjectToPollWithInternalIndex, FInternalNetRefIndex InternalIndex);
 
 	void Update(const FNetBitArrayView& ScopableObjects, const FNetBitArrayView& DirtyObjects, FNetBitArrayView& OutObjectsToPoll);
 
@@ -44,23 +44,23 @@ private:
 };
 
 
-inline void FObjectPollFrequencyLimiter::SetPollFramePeriod(FInternalNetHandle InternalHandle, uint8 PollFramePeriod)
+inline void FObjectPollFrequencyLimiter::SetPollFramePeriod(FInternalNetRefIndex InternalIndex, uint8 PollFramePeriod)
 {
-	MaxInternalHandle = FPlatformMath::Max(MaxInternalHandle, InternalHandle);
+	MaxInternalHandle = FPlatformMath::Max(MaxInternalHandle, InternalIndex);
 
-	FramesBetweenUpdates[InternalHandle] = PollFramePeriod;
+	FramesBetweenUpdates[InternalIndex] = PollFramePeriod;
 	// Spread the polling of objects with the same frequency so that if you add lots of objects the same frame they won't be polled at the same time.
 	const uint32 FrameOffset = FrameIndexOffsets[PollFramePeriod]++;
-	FrameCounters[InternalHandle] = FrameOffset % (uint32(PollFramePeriod) + 1U);
+	FrameCounters[InternalIndex] = FrameOffset % (uint32(PollFramePeriod) + 1U);
 }
 
-inline void FObjectPollFrequencyLimiter::SetPollWithObject(FInternalNetHandle ObjectToPollWithInternalHandle, FInternalNetHandle InternalHandle)
+inline void FObjectPollFrequencyLimiter::SetPollWithObject(FInternalNetRefIndex ObjectToPollWithInternalIndex, FInternalNetRefIndex InternalIndex)
 {
-	MaxInternalHandle = FPlatformMath::Max(MaxInternalHandle, InternalHandle);
+	MaxInternalHandle = FPlatformMath::Max(MaxInternalHandle, InternalIndex);
 
 	// Copy state from object to poll with
-	FramesBetweenUpdates[InternalHandle] = FramesBetweenUpdates[ObjectToPollWithInternalHandle];
-	FrameCounters[InternalHandle] = FrameCounters[ObjectToPollWithInternalHandle];
+	FramesBetweenUpdates[InternalIndex] = FramesBetweenUpdates[ObjectToPollWithInternalIndex];
+	FrameCounters[InternalIndex] = FrameCounters[ObjectToPollWithInternalIndex];
 }
 
 }
