@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "VectorField/VectorFieldStatic.h"
-#include "AssetDefinitionDefault.h"
+#include "AssetDefinition_VectorField.h"
 
 #include "AssetDefinition_VectorFieldStatic.generated.h"
 
