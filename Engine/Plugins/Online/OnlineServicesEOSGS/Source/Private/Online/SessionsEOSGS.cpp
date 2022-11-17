@@ -326,22 +326,6 @@ TFuture<TOnlineResult<FCreateSession>> FSessionsEOSGS::CreateSessionImpl(const F
 	TPromise<TOnlineResult<FCreateSession>> Promise;
 	TFuture<TOnlineResult<FCreateSession>> Future = Promise.GetFuture();
 
-	if (!Params.SessionIdOverride.IsEmpty())
-	{
-		int32 Length = Params.SessionIdOverride.Len();
-
-		if (Length < EOS_SESSIONMODIFICATION_MIN_SESSIONIDOVERRIDE_LENGTH || Length > EOS_SESSIONMODIFICATION_MAX_SESSIONIDOVERRIDE_LENGTH)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::CreateSession] Could not create session with SessionIdOverride [%s] of size [%d]. SessionIdOverride size must be between [%d] and [%d] characters long"), *Params.SessionIdOverride, Length, EOS_SESSIONMODIFICATION_MIN_SESSIONIDOVERRIDE_LENGTH, EOS_SESSIONMODIFICATION_MAX_SESSIONIDOVERRIDE_LENGTH);
-
-			Promise.EmplaceValue(Errors::InvalidParams());
-
-			return Future;
-		}
-	}
-
-	// After all initial checks, we start the session creation operations
-
 	EOS_Sessions_CreateSessionModificationOptions CreateSessionModificationOptions = {};
 	CreateSessionModificationOptions.ApiVersion = EOS_SESSIONS_CREATESESSIONMODIFICATION_API_LATEST;
 	static_assert(EOS_SESSIONS_CREATESESSIONMODIFICATION_API_LATEST == 4, "EOS_Sessions_CreateSessionModificationOptions updated, check new fields");
@@ -423,6 +407,28 @@ TFuture<TOnlineResult<FCreateSession>> FSessionsEOSGS::CreateSessionImpl(const F
 			});
 
 	return Future;
+}
+
+TOptional<FOnlineError> FSessionsEOSGS::CheckState(const FCreateSession::Params& Params) const
+{
+	if (TOptional<FOnlineError> BaseCheck = Super::CheckState(Params))
+	{
+		return BaseCheck;
+	}
+	
+	if (!Params.bIsLANSession && !Params.SessionIdOverride.IsEmpty())
+	{
+		int32 Length = Params.SessionIdOverride.Len();
+
+		if (Length < EOS_SESSIONMODIFICATION_MIN_SESSIONIDOVERRIDE_LENGTH || Length > EOS_SESSIONMODIFICATION_MAX_SESSIONIDOVERRIDE_LENGTH)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Could not create session with SessionIdOverride [%s] of size [%d]. SessionIdOverride size must be between [%d] and [%d] characters long"), UTF8_TO_TCHAR(__FUNCTION__), *Params.SessionIdOverride, Length, EOS_SESSIONMODIFICATION_MIN_SESSIONIDOVERRIDE_LENGTH, EOS_SESSIONMODIFICATION_MAX_SESSIONIDOVERRIDE_LENGTH);
+
+			return TOptional<FOnlineError>(Errors::InvalidParams());
+		}
+	}
+
+	return TOptional<FOnlineError>();
 }
 
 void FSessionsEOSGS::SetHostAddress(EOS_HSessionModification& SessionModHandle, FString HostAddress)
@@ -1214,16 +1220,6 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsEOSGS::JoinSessionImpl(const FJoin
 
 	// EOSGS Sessions
 
-	// We check that the passed session has a valid details handle
-	const FSessionEOSGS& SessionEOSGS = FSessionEOSGS::Cast(*FoundSession);
-	if (!SessionEOSGS.SessionDetailsHandle.IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[%s] Could not join session with invalid session details handle in session with id [%s]"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
-
-		Promise.EmplaceValue(Errors::InvalidState());
-		return Future;
-	}
-
 	// We start setup for the API call
 	EOS_Sessions_JoinSessionOptions JoinSessionOptions = { };
 	JoinSessionOptions.ApiVersion = EOS_SESSIONS_JOINSESSION_API_LATEST;
@@ -1236,6 +1232,7 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsEOSGS::JoinSessionImpl(const FJoin
 	const FTCHARToUTF8 SessionNameUtf8(*Params.SessionName.ToString());
 	JoinSessionOptions.SessionName = SessionNameUtf8.Get();
 
+	const FSessionEOSGS& SessionEOSGS = FSessionEOSGS::Cast(*FoundSession);
 	JoinSessionOptions.SessionHandle = SessionEOSGS.SessionDetailsHandle->SessionDetailsHandle;
 
 	EOS_Async(EOS_Sessions_JoinSession, SessionsHandle, JoinSessionOptions, 
@@ -1278,6 +1275,35 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsEOSGS::JoinSessionImpl(const FJoin
 		});
 
 	return Future;
+}
+
+TOptional<FOnlineError> FSessionsEOSGS::CheckState(const FJoinSession::Params& Params) const
+{
+	if (TOptional<FOnlineError> BaseCheck = Super::CheckState(Params))
+	{
+		return BaseCheck;
+	}
+
+	TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ Params.SessionId });
+	if (GetSessionByIdResult.IsOk())
+	{
+		const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
+
+		// We check that the passed session has a valid details handle
+		const FSessionEOSGS& SessionEOSGS = FSessionEOSGS::Cast(*FoundSession);
+		if (!FoundSession->GetSessionInfo().bIsLANSession && !SessionEOSGS.SessionDetailsHandle.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Could not join session with invalid session details handle in session with id [%s]"), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.SessionId));
+
+			return TOptional<FOnlineError>(Errors::InvalidState());
+		}
+	}
+	else
+	{
+		return TOptional<FOnlineError>(GetSessionByIdResult.GetErrorValue());
+	}
+
+	return TOptional<FOnlineError>();
 }
 
 TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessionFromInvite(const FAccountId& LocalAccountId, const FString& InInviteId)

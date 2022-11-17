@@ -77,6 +77,11 @@ public:
 
 	TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(const FGetResolvedConnectString::Params& Params);
 
+protected:
+	virtual TOptional<FOnlineError> CheckState(const FFindSessions::Params& Params) const override;
+	virtual TOptional<FOnlineError> CheckState(const FJoinSession::Params& Params) const override;
+	virtual TOptional<FOnlineError> CheckState(const FSendSessionInvite::Params& Params) const override;
+
 private:
 	/** Updates a local session's state by retrieving the equivalent from the OSS */
 	bool UpdateV2Session(const FName& SessionName);

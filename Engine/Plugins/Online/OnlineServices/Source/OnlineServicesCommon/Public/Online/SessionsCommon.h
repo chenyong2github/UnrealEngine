@@ -285,26 +285,46 @@ protected:
 	// FSessionsCommon internal interface
 
 	virtual TFuture<TOnlineResult<FCreateSession>> CreateSessionImpl(const FCreateSession::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FCreateSession::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FCreateSession::Params& Params) const;
 
 	virtual TFuture<TOnlineResult<FUpdateSessionSettings>> UpdateSessionSettingsImpl(const FUpdateSessionSettings::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FUpdateSessionSettings::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FUpdateSessionSettings::Params& Params) const;
 
 	virtual TFuture<TOnlineResult<FLeaveSession>> LeaveSessionImpl(const FLeaveSession::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FLeaveSession::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FLeaveSession::Params& Params) const;
 
 	virtual TFuture<TOnlineResult<FFindSessions>> FindSessionsImpl(const FFindSessions::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FFindSessions::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FFindSessions::Params& Params) const;
 
 	virtual TFuture<TOnlineResult<FStartMatchmaking>> StartMatchmakingImpl(const FStartMatchmaking::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FStartMatchmaking::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FStartMatchmaking::Params& Params) const;
 
 	virtual TFuture<TOnlineResult<FJoinSession>> JoinSessionImpl(const FJoinSession::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FJoinSession::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FJoinSession::Params& Params) const;
 
 	virtual TFuture<TOnlineResult<FAddSessionMember>> AddSessionMemberImpl(const FAddSessionMember::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FAddSessionMember::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FAddSessionMember::Params& Params) const;
 	TOnlineResult<FAddSessionMember> AddSessionMemberInternal(const FAddSessionMember::Params& Params);
 
 	virtual TFuture<TOnlineResult<FRemoveSessionMember>> RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FRemoveSessionMember::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FRemoveSessionMember::Params& Params) const;
 	TOnlineResult<FRemoveSessionMember> RemoveSessionMemberInternal(const FRemoveSessionMember::Params& Params);
 
 	virtual TFuture<TOnlineResult<FSendSessionInvite>> SendSessionInviteImpl(const FSendSessionInvite::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FSendSessionInvite::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FSendSessionInvite::Params& Params) const;
 
 	virtual TFuture<TOnlineResult<FRejectSessionInvite>> RejectSessionInviteImpl(const FRejectSessionInvite::Params& Params);
+	virtual TOptional<FOnlineError> CheckParams(const FRejectSessionInvite::Params& Params) const;
+	virtual TOptional<FOnlineError> CheckState(const FRejectSessionInvite::Params& Params) const;
 
 private:
 	template<typename MethodStruct>
@@ -312,36 +332,6 @@ private:
 
 	void ClearSessionByName(const FName& SessionName);
 	void ClearSessionById(const FOnlineSessionId& SessionId);
-
-	TOptional<FOnlineError> CheckParams(const FCreateSession::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FCreateSession::Params& Params) const;
-
-	TOptional<FOnlineError> CheckParams(const FUpdateSessionSettings::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FUpdateSessionSettings::Params& Params) const;
-
-	TOptional<FOnlineError> CheckParams(const FLeaveSession::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FLeaveSession::Params& Params) const;
-
-	TOptional<FOnlineError> CheckParams(const FFindSessions::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FFindSessions::Params& Params) const;
-
-	TOptional<FOnlineError> CheckParams(const FStartMatchmaking::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FStartMatchmaking::Params& Params) const;
-
-	TOptional<FOnlineError> CheckParams(const FJoinSession::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FJoinSession::Params& Params) const;
-
-	TOptional<FOnlineError> CheckParams(const FAddSessionMember::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FAddSessionMember::Params& Params) const;
-
-	TOptional<FOnlineError> CheckParams(const FRemoveSessionMember::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FRemoveSessionMember::Params& Params) const;
-
-	TOptional<FOnlineError> CheckParams(const FSendSessionInvite::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FSendSessionInvite::Params& Params) const;
-
-	TOptional<FOnlineError> CheckParams(const FRejectSessionInvite::Params& Params) const;
-	TOptional<FOnlineError> CheckState(const FRejectSessionInvite::Params& Params) const;
 
 protected:
 

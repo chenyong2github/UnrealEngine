@@ -203,6 +203,9 @@ public:
 	virtual TFuture<TOnlineResult<FRejectSessionInvite>> RejectSessionInviteImpl(const FRejectSessionInvite::Params& Params) override;
 
 protected:
+	virtual TOptional<FOnlineError> CheckState(const FCreateSession::Params& Params) const override;
+	virtual TOptional<FOnlineError> CheckState(const FJoinSession::Params& Params) const override;
+
 	void RegisterEventHandlers();
 	void UnregisterEventHandlers();
 	void HandleSessionInviteReceived(const EOS_Sessions_SessionInviteReceivedCallbackInfo* Data);
