@@ -21,19 +21,12 @@ struct FPCGProfilingListViewItem
 	const UPCGEditorGraphNode* EditorNode = nullptr;
 
 	FName Name = NAME_None;
-	double PrepareDataTime = 0.0;
-	double ExecutionTime = 0.0;
-	double AvgExecutionTime = 0.0;
-	double MinExecutionTime = 0.0;
-	double MaxExecutionTime = 0.0;
-	double MinExecutionFrameTime = 0.0;
-	double MaxExecutionFrameTime = 0.0;
-	double StdExecutionTime = 0.0;
-	double PostExecuteTime = 0.0;
+	double AvgTime = 0.0;
+	double MinTime = 0.0;
+	double MaxTime = 0.0;
+	double StdTime = 0.0;
+	double TotalTime = 0.0;
 	int32 NbCalls = 0;
-	int32 NbExecutionFrames = 0;
-	int32 MaxNbExecutionFrames = 0;
-	int32 MinNbExecutionFrames = 0;
 	bool HasData = false;
 };
 
