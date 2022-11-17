@@ -32,7 +32,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="General")
 	TObjectPtr<AActor> TransformOriginActor;
 
-	/** Specifies a transform that offsets all absolute transform sections in this sequence. Will compound with attach tracks. Scale is ignored. Not applied to Relative or Additive sections. */
+	/** Specifies a transform that offsets all absolute transform sections in this sequence. Scale is ignored. Not applied to Relative or Additive sections. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="General")
 	FTransform TransformOrigin;
 };
