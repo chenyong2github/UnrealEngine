@@ -355,6 +355,9 @@ protected:
 	const FDetailsViewConfig* GetConstViewConfig() const;
 	void SaveViewConfig();
 
+	/** Clear the keyboard focus if it's inside the given widget. */
+	void ClearKeyboardFocusIfWithin(const TSharedRef<SWidget>& Widget) const;
+
 protected:
 	/** The user defined args for the details view */
 	FDetailsViewArgs DetailsViewArgs;

@@ -70,21 +70,25 @@ TSharedRef<ITableRow> SDetailsViewBase::OnGenerateRowForDetailTree(TSharedRef<FD
 	return InTreeNode->GenerateWidgetForTableView(OwnerTable, DetailsViewArgs.bAllowFavoriteSystem);
 }
 
-void SDetailsViewBase::OnRowReleasedForDetailTree(const TSharedRef<ITableRow>& TableRow)
+void SDetailsViewBase::ClearKeyboardFocusIfWithin(const TSharedRef<SWidget>& Widget) const
 {
 	// search upwards from the current keyboard-focused widget to see if it's contained in our row
 	TSharedPtr<SWidget> CurrentWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
 	while (CurrentWidget.IsValid())
 	{
-		if (CurrentWidget == TableRow->AsWidget())
+		if (CurrentWidget == Widget)
 		{
 			// if so, clear focus so that any pending value changes are committed
 			FSlateApplication::Get().ClearKeyboardFocus();
 			return;
 		}
-
 		CurrentWidget = CurrentWidget->GetParentWidget();
 	}
+}
+
+void SDetailsViewBase::OnRowReleasedForDetailTree(const TSharedRef<ITableRow>& TableRow)
+{
+	ClearKeyboardFocusIfWithin(TableRow->AsWidget());
 }
 
 void SDetailsViewBase::SetRootExpansionStates(const bool bExpand, const bool bRecurse)
@@ -406,6 +410,8 @@ void SDetailsViewBase::SetColorPropertyFromColorPicker(FLinearColor NewColor)
 
 void SDetailsViewBase::UpdatePropertyMaps()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDetailsView::UpdatePropertyMaps);
+
 	RootTreeNodes.Empty();
 
 	for(FDetailLayoutData& LayoutData : DetailLayouts)
@@ -938,6 +944,8 @@ void SDetailsViewBase::HandlePendingCleanup()
 /** Ticks the property view.  This function performs a data consistency check */
 void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDetailsViewBase::Tick);
+
 	HandlePendingCleanup();
 
 	FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
@@ -1254,6 +1262,8 @@ void SDetailsViewBase::RestorePreSearchExpandedItems()
 
 void SDetailsViewBase::SaveExpandedItems(TSharedRef<FPropertyNode> StartNode)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDetailsView::SaveExpandedItems);
+
 	if (bRunningDeferredActions)
 	{
 		// Deferred actions can manipulate the tree, eg. Add Item
@@ -1323,6 +1333,8 @@ void SDetailsViewBase::SaveExpandedItems(TSharedRef<FPropertyNode> StartNode)
 
 void SDetailsViewBase::RestoreAllExpandedItems()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDetailsViewBase::RestoreAllExpandedItems);
+
 	if (bRunningDeferredActions)
 	{
 		// Deferred actions can manipulate the tree, eg. Add Item
@@ -1425,6 +1437,8 @@ void SDetailsViewBase::FilterRootNode(const TSharedPtr<FComplexPropertyNode>& Ro
 
 void SDetailsViewBase::UpdateFilteredDetails()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDetailsViewBase::UpdateFilteredDetails);
+
 	RootTreeNodes.Reset();
 
 	FDetailNodeList InitialRootNodeList;

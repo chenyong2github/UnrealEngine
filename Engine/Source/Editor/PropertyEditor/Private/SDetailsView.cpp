@@ -696,6 +696,8 @@ void SDetailsView::SetObjectArrayPrivate(const TArray<UObject*>& InObjects)
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDetailsView::SetObjectArrayPrivate);
+
 	TGuardValue<bool> RefreshGuard(bIsRefreshing, true);
 
 	double StartTime = FPlatformTime::Seconds();
@@ -861,6 +863,8 @@ void SDetailsView::RemoveDeletedObjects(const TArray<UObject*>& DeletedObjects)
 /** Called before during SetObjectArray before we change the objects being observed */
 void SDetailsView::PreSetObject(int32 InNewNumObjects)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDetailsView::PreSetObject);
+
 	TSharedPtr<SColorPicker> ExistingColorPicker = GetColorPicker();
 	if (ExistingColorPicker.IsValid()
 		&& ExistingColorPicker->GetOptionalOwningDetailsView().IsValid()
@@ -868,6 +872,8 @@ void SDetailsView::PreSetObject(int32 InNewNumObjects)
 	{
 		DestroyColorPicker();
 	}
+
+	ClearKeyboardFocusIfWithin(AsShared());
 
 	// Save existing expanded items first
 	for(TSharedPtr<FComplexPropertyNode>& RootNode : RootPropertyNodes)
@@ -911,6 +917,8 @@ void SDetailsView::PreSetObject(int32 InNewNumObjects)
 /** Called at the end of SetObjectArray after we change the objects being observed */
 void SDetailsView::PostSetObject(const TArray<FDetailsViewObjectRoot>& Roots)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDetailsView::PostSetObject);
+
 	TSharedPtr<SColorPicker> ExistingColorPicker = GetColorPicker();
 	if (ExistingColorPicker.IsValid()
 		&& (!ExistingColorPicker->GetOptionalOwningDetailsView().IsValid()
@@ -968,7 +976,7 @@ void SDetailsView::PostSetObject(const TArray<FDetailsViewObjectRoot>& Roots)
 		InitParams.bCreateDisableEditOnInstanceNodes = HasClassDefaultObject();
 		break;
 	default:
-		check(false);
+		checkNoEntry();
 	}
 
 	for( TSharedPtr<FComplexPropertyNode>& ComplexRootNode : RootPropertyNodes )
