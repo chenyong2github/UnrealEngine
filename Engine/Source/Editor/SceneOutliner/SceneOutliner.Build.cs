@@ -25,6 +25,7 @@ public class SceneOutliner : ModuleRules
 				"UncontrolledChangelists",
 				"EditorWidgets",
 				"ToolWidgets",
+				"WorldPartitionEditor",
 				"UnsavedAssetsTracker",
 				"UncontrolledChangelists"
 			}

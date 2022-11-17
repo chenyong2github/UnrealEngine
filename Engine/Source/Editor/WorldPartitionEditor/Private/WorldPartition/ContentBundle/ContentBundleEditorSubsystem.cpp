@@ -264,6 +264,16 @@ TSharedPtr<FContentBundleEditor> UContentBundleEditorSubsystem::GetEditorContent
 	return nullptr;
 }
 
+TSharedPtr<FContentBundleEditor> UContentBundleEditorSubsystem::GetEditorContentBundle(const FGuid& ContentBundleGuid) const
+{
+	if (UContentBundleManager* ContentBundleManager = GetWorld()->ContentBundleManager)
+	{
+		return ContentBundleManager->GetEditorContentBundle(ContentBundleGuid);
+	}
+
+	return nullptr;
+}
+
 bool UContentBundleEditorSubsystem::HasContentBundle(const UContentBundleDescriptor* ContentBundleDescriptor) const
 {
 	return GetEditorContentBundle(ContentBundleDescriptor) != nullptr;
@@ -287,6 +297,11 @@ void UContentBundleEditorSubsystem::ReferenceAllActors(FContentBundleEditor& Edi
 void UContentBundleEditorSubsystem::UnreferenceAllActors(FContentBundleEditor& EditorContentBundle)
 {
 	EditorContentBundle.UnreferenceAllActors();
+}
+
+bool UContentBundleEditorSubsystem::IsEditingContentBundle() const
+{
+	return ContentBundleEditionSubModule->IsEditingContentBundle();
 }
 
 bool UContentBundleEditorSubsystem::ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor)  const

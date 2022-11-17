@@ -146,6 +146,20 @@ TSharedPtr<FContentBundleEditor> UContentBundleManager::GetEditorContentBundle(c
 	return nullptr;
 }
 
+TSharedPtr<FContentBundleEditor> UContentBundleManager::GetEditorContentBundle(const FGuid& ContentBundleGuid) const
+{
+	for (const TUniquePtr<FContentBundleContainer>& ContentBundleContainer : ContentBundleContainers)
+	{
+		TSharedPtr<FContentBundleEditor> ContentBundleEditor = ContentBundleContainer->GetEditorContentBundle(ContentBundleGuid);
+		if (ContentBundleEditor)
+		{
+			return ContentBundleEditor;
+		}
+	}
+
+	return nullptr;
+}
+
 #endif
 
 uint32 UContentBundleManager::GetContentBundleContainerIndex(const UWorld* InjectedWorld) const
