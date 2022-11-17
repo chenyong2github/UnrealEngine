@@ -127,7 +127,7 @@ void SCustomizableInstanceProperties::Construct(const FArguments& InArgs)
 
 		// Store the texture parameters data required for the ui.
 		TextureParameterValueNames.Add(MakeShareable(new FString("None")));
-		TextureParameterValues.Add(-1);
+		TextureParameterValues.Add(UINT64_MAX);
 		TArray<FCustomizableObjectExternalTexture> Textures = UCustomizableObjectSystem::GetInstance()->GetTextureParameterValues();
 		for (int i = 0; i < Textures.Num(); ++i)
 		{
@@ -844,28 +844,17 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 
 	case EMutableParameterType::Texture:
 	{
-		TArray<FCustomizableObjectTextureParameterValue>& TextureParameters = CustomInstance->GetTextureParameters();
-		TSharedPtr<FString> InitiallySelected = TextureParameterValueNames[0];
-		for (int i = 0; i < TextureParameters.Num(); ++i)
+		const TArray<FCustomizableObjectTextureParameterValue>& TextureParameters = CustomInstance->GetTextureParameters();
+		TSharedPtr<FString> InitiallySelected = TextureParameterValueNames[0]; // First index is always the None option.
+
+		const uint64 ParameterValue = CustomInstance->GetTextureParameterSelectedOption(ParamName);
+		
+		// Look for the value index
+		for (int32 ValueIndex = 0; ValueIndex < TextureParameterValueNames.Num(); ++ValueIndex)
 		{
-			FString LocalParamName = TextureParameters[i].ParameterName;
-			uint64 ParamValue = TextureParameters[i].ParameterValue;
-			if (TextureParameters[i].ParameterName == LocalParamName)
+			if (ParameterValue == TextureParameterValues[ValueIndex])
 			{
-				// Look for the value index
-				for (int ValueIndex = 0; ValueIndex < TextureParameterValueNames.Num(); ++ValueIndex)
-				{
-					if (TextureParameterValues[ValueIndex] == ParamValue)
-					{
-						InitiallySelected = TextureParameterValueNames[ValueIndex];
-
-						/*if (CustomInstance->ProfileParameterDat.)
-						{
-							CustomInstance->ProfileParameterDat->TextureParameters[i].ParameterValue = ParamValue;
-						}*/	
-					}
-				}
-
+				InitiallySelected = TextureParameterValueNames[ValueIndex];
 				break;
 			}
 		}

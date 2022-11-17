@@ -110,7 +110,7 @@ private:
 	// These arrays store the textures available for texture parameters of the model.
 	// These come from the texture generators registered in the CustomizableObjectSystem
 	TArray< TSharedPtr<FString> > TextureParameterValueNames;
-	TArray< int64_t > TextureParameterValues;
+	TArray< uint64_t > TextureParameterValues;
 
 	struct FSliderData
 	{
