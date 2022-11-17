@@ -55,19 +55,49 @@ namespace Private
 		{
 			if (FieldVariant.IsFunction())
 			{
-				if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Writable) && !Binding.IsWritable())
-				{
-					return TOptional<FFieldVariant>();
-				}
-
-				if (!GetDefault<UMVVMDeveloperProjectSettings>()->IsFunctionAllowed(FieldVariant.GetFunction()))
-				{
-					return TOptional<FFieldVariant>();
-				}
-
 				const UFunction* Function = FieldVariant.GetFunction();
-				if (Function != nullptr && AssignableTo != nullptr && 
-					!BindingHelper::ArePropertiesCompatible(BindingHelper::GetReturnProperty(Function), AssignableTo))
+				if (Function == nullptr)
+				{
+					return TOptional<FFieldVariant>();
+				}
+
+				const FProperty* ReturnProperty = BindingHelper::GetReturnProperty(Function);
+				bool bDoCompatibleTest = ReturnProperty == nullptr || AssignableTo != nullptr;
+				bool bDoWritableTest = true;
+				// Do we allow walking up the tree
+				if (CastField<FObjectPropertyBase>(ReturnProperty))
+				{
+					bDoCompatibleTest = bDoCompatibleTest && bDoObjectProperty;
+					bDoWritableTest = bDoObjectProperty;
+				}
+
+				if (bDoWritableTest)
+				{
+					if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Writable) && !Binding.IsWritable())
+					{
+						return TOptional<FFieldVariant>();
+					}
+				}
+
+				if (bDoCompatibleTest)
+				{
+					if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Writable))
+					{
+						if (!BindingHelper::ArePropertiesCompatible(AssignableTo, BindingHelper::GetFirstArgumentProperty(Function)))
+						{
+							return TOptional<FFieldVariant>();
+						}
+					}
+					if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Readable))
+					{
+						if (!BindingHelper::ArePropertiesCompatible(ReturnProperty, AssignableTo))
+						{
+							return TOptional<FFieldVariant>();
+						}
+					}
+				}
+
+				if (!GetDefault<UMVVMDeveloperProjectSettings>()->IsFunctionAllowed(Function))
 				{
 					return TOptional<FFieldVariant>();
 				}
@@ -76,25 +106,51 @@ namespace Private
 			}
 			else if (FieldVariant.IsProperty())
 			{
-				if (!GetDefault<UMVVMDeveloperProjectSettings>()->IsPropertyAllowed(FieldVariant.GetProperty()))
+				const FProperty* Property = FieldVariant.GetProperty();
+				if (Property == nullptr)
 				{
 					return TOptional<FFieldVariant>();
 				}
 
-				const FProperty* Property = FieldVariant.GetProperty();
-				if (Property != nullptr && AssignableTo != nullptr && 
-					!BindingHelper::ArePropertiesCompatible(Property, AssignableTo))
+				bool bDoCompatibleTest = AssignableTo != nullptr;
+				bool bDoWritableTest = true;
+				// Do we allow walking up the tree
+				if (CastField<FObjectPropertyBase>(Property))
 				{
-					return TOptional<FFieldVariant>();
+					bDoCompatibleTest = bDoCompatibleTest && bDoObjectProperty;
+					bDoWritableTest = bDoObjectProperty;
 				}
 
 				// If the path ends with the object property, then it needs to follow the writable rule
-				if (bDoObjectProperty || !CastField<FObjectPropertyBase>(FieldVariant.GetProperty()))
+				if (bDoWritableTest)
 				{
 					if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Writable) && !Binding.IsWritable())
 					{
 						return TOptional<FFieldVariant>();
 					}
+				}
+
+				if (bDoCompatibleTest)
+				{
+					if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Writable))
+					{
+						if (!BindingHelper::ArePropertiesCompatible(AssignableTo, Property))
+						{
+							return TOptional<FFieldVariant>();
+						}
+					}
+					if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Readable))
+					{
+						if (!BindingHelper::ArePropertiesCompatible(Property, AssignableTo))
+						{
+							return TOptional<FFieldVariant>();
+						}
+					}
+				}
+
+				if (!GetDefault<UMVVMDeveloperProjectSettings>()->IsPropertyAllowed(Property))
+				{
+					return TOptional<FFieldVariant>();
 				}
 
 				return FFieldVariant(Property);
@@ -177,14 +233,30 @@ TArray<FFieldVariant> FFieldIterator_Bindable::GetFields(const UStruct* Struct) 
 }
 
 /** */
+FFieldExpander_Bindable::FFieldExpander_Bindable()
+{
+	SetExpandObject(UE::PropertyViewer::FFieldExpander_Default::EObjectExpandFlag::UseInstanceClass);
+	SetExpandScriptStruct(true);
+	SetExpandFunction(UE::PropertyViewer::FFieldExpander_Default::EFunctionExpand::FunctionProperties);
+}
+
+TOptional<const UStruct*> FFieldExpander_Bindable::GetExpandedFunction(const UFunction* Function) const
+{
+	const FProperty* ReturnProperty = Function ? BindingHelper::GetReturnProperty(Function) : nullptr;
+	if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(ReturnProperty))
+	{
+		return ObjectProperty->PropertyClass;
+	}
+	return TOptional<const UStruct*>();
+}
+
+/** */
 void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint)
 {
 	WidgetBlueprint = InWidgetBlueprint;
 	FieldIterator = MakeUnique<FFieldIterator_Bindable>(InWidgetBlueprint, InArgs._FieldVisibilityFlags, InArgs._AssignableTo);
-	FieldExpander = MakeUnique<UE::PropertyViewer::FFieldExpander_Default>();
-	FieldExpander->SetExpandObject(UE::PropertyViewer::FFieldExpander_Default::EObjectExpandFlag::UseInstanceClass);
-	FieldExpander->SetExpandScriptStruct(true);
-	FieldExpander->SetExpandFunction(false);
+	FieldExpander = MakeUnique<FFieldExpander_Bindable>();
+
 
 	OnDoubleClicked = InArgs._OnDoubleClicked;
 

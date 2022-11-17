@@ -14,7 +14,7 @@ FText UMVVMDeveloperProjectSettings::GetSectionText() const
 	return LOCTEXT("MVVMProjectSettings", "Model View Viewmodel");
 }
 
-bool UMVVMDeveloperProjectSettings::IsPropertyAllowed(FProperty* Property) const
+bool UMVVMDeveloperProjectSettings::IsPropertyAllowed(const FProperty* Property) const
 {
 	check(Property);
 	TStringBuilder<256> StringBuilder;
@@ -28,7 +28,7 @@ bool UMVVMDeveloperProjectSettings::IsPropertyAllowed(FProperty* Property) const
 	return true;
 }
 
-bool UMVVMDeveloperProjectSettings::IsFunctionAllowed(UFunction* Function) const
+bool UMVVMDeveloperProjectSettings::IsFunctionAllowed(const UFunction* Function) const
 {
 	check(Function);
 	TStringBuilder<256> StringBuilder;

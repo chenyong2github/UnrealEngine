@@ -163,11 +163,15 @@ FPropertyPath FTreeNode::GetPropertyPath() const
 
 		if (TSharedPtr<FTreeNode> ParentNodePin = CurrentNode->ParentNode.Pin())
 		{
+			// The property path are temporary for function
+			if (ParentNodePin->GetField().Get<UFunction>())
+			{
+				return FPropertyPath();
+			}
 			CurrentNode = ParentNodePin.Get();
 		}
 		else if (ContainerPin == nullptr)
 		{
-			ensureMsgf(false, TEXT("The tree is not owned by a container"));
 			return FPropertyPath();
 		}
 	}
@@ -304,9 +308,10 @@ void FTreeNode::BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldEx
 	}
 	else if (const UFunction* FunctionPtr = Function.Get())
 	{
-		if (FieldExpander.CanExpandFunction(FunctionPtr))
+		TOptional<const UStruct*> StructToExpand = FieldExpander.GetExpandedFunction(FunctionPtr);
+		if (StructToExpand.IsSet())
 		{
-			ChildStructType = FunctionPtr;
+			ChildStructType = StructToExpand.GetValue();
 		}
 	}
 	else if (const TSharedPtr<FContainer> ContainerPin = Container.Pin())

@@ -130,7 +130,6 @@ bool UMVVMView::SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldV
 			const TArrayView<const FMVVMViewClass_CompiledBinding> CompiledBindings = ClassExtension->GetCompiledBindings();
 
 			// Unregister any from that source
-			if (PreviousValue)
 			{
 				BindingToReenabled.Reserve(CompiledBindings.Num());
 
@@ -419,6 +418,7 @@ void UMVVMView::EnableLibraryBinding(const FMVVMViewClass_CompiledBinding& Bindi
 void UMVVMView::DisableLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding, int32 BindingIndex)
 {
 	check(IsLibraryBindingEnabled(BindingIndex));
+
 
 	EMVVMExecutionMode ExecutionMode = Binding.GetExecuteMode();
 	EnabledLibraryBindings[BindingIndex] = false;

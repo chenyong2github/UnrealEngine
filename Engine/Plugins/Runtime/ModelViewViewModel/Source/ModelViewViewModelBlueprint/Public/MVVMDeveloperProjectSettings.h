@@ -38,8 +38,8 @@ public:
 	virtual FName GetCategoryName() const override;
 	virtual FText GetSectionText() const override;
 
-	bool IsPropertyAllowed(FProperty* Property) const;
-	bool IsFunctionAllowed(UFunction* Function) const;
+	bool IsPropertyAllowed(const FProperty* Property) const;
+	bool IsFunctionAllowed(const UFunction* Function) const;
 
 private:
 	/** Permission list for filtering which properties are visible in UI. */

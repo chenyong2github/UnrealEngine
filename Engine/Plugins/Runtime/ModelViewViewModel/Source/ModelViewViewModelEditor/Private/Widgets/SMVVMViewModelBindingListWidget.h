@@ -55,6 +55,16 @@ namespace UE::MVVM
 		const FProperty* AssignableTo = nullptr;
 	};
 
+	/**
+ *
+ */
+	class FFieldExpander_Bindable : public UE::PropertyViewer::FFieldExpander_Default
+	{
+	public:
+		FFieldExpander_Bindable();
+		virtual TOptional<const UStruct*> GetExpandedFunction(const UFunction* Function) const override;
+	};
+
 	/** 
 	 * 
 	 */
