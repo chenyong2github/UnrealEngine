@@ -1392,6 +1392,14 @@ bool FFileIoStore::Resolve(FIoRequestImpl* Request)
 			else
 			{
 				// Nothing to read
+				if (RequestedOffset > OffsetAndLength->GetLength())
+				{
+					ResolvedRequest->bFailed = true;
+				}
+				else
+				{
+					ResolvedRequest->CreateBuffer(0);
+				}
 				CompleteDispatcherRequest(ResolvedRequest);
 				RequestTracker.ReleaseIoRequestReferences(*ResolvedRequest);
 			}

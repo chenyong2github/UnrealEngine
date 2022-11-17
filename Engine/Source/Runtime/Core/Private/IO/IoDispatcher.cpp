@@ -625,6 +625,7 @@ private:
 				}
 				else
 				{
+					UE_CLOG(!CompletedRequestsHead->HasBuffer(), LogStreaming, Fatal, TEXT("Backend provided a completed request without an IoBuiffer. Requests that are not failed or cancelled must have an IoBuffer"));
 					FPlatformAtomics::InterlockedAdd(&TotalLoaded, CompletedRequestsHead->GetBuffer().DataSize());
 					CompleteRequest(CompletedRequestsHead, EIoErrorCode::Ok);
 				}
