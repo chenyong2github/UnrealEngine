@@ -101,8 +101,11 @@ public:
 			SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture0, GBlackTexture->TextureRHI);
 			SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture1, GBlackTexture->TextureRHI);
 
-			FRHISamplerState* SamplerState = bInUsePointSampling ? TStaticSamplerState<SF_Point>::GetRHI() : InTextureValue->SamplerStateRHI.GetReference();
-			SetTextureParameter(InRHICmdList, ShaderRHI, InTexture, InTextureSampler, SamplerState, InTextureValue->TextureRHI);
+			if (InTextureValue != nullptr)
+			{
+				FRHISamplerState* SamplerState = bInUsePointSampling ? TStaticSamplerState<SF_Point>::GetRHI() : InTextureValue->SamplerStateRHI.GetReference();
+				SetTextureParameter(InRHICmdList, ShaderRHI, InTexture, InTextureSampler, SamplerState, InTextureValue->TextureRHI);
+			}
 		}
 		
 		SetShaderValue(InRHICmdList, ShaderRHI,ColorWeights,InColorWeightsValue);
@@ -112,7 +115,7 @@ public:
 		// Store slice count and selected slice index for texture array
 		if (bInIsTextureArray)
 		{
-			const float NumSlicesData = InTextureValue ? static_cast<float>(InTextureValue->GetSizeZ()) : 1.0f;
+			const float NumSlicesData = InTextureValue != nullptr ? static_cast<float>(InTextureValue->GetSizeZ()) : 1.0f;
 			SetShaderValue(InRHICmdList, ShaderRHI, NumSlices, NumSlicesData);
 			SetShaderValue(InRHICmdList, ShaderRHI, SliceIndex, InSliceIndex);
 		}
