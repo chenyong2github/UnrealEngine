@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/CollisionProfile.h"
 
 #include <type_traits>
 
