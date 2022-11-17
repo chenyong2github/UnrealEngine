@@ -111,7 +111,7 @@ export class Slack {
 		if (users instanceof Array) {
 			users = users.join(',')
 		}
-		return (await this.post('conversations.open', {token: this.channel.botToken, users})).channel.id
+		return (await this.post('conversations.open', {users})).channel.id
 	}
 
 	/*private*/ async post(command: string, args: any, canFail? : boolean) {
