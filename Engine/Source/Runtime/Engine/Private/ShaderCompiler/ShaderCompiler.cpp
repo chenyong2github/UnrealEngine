@@ -5421,7 +5421,7 @@ void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool
 	}
 
 
-	if (bBlockOnGlobalShaderCompletion && !bLimitExecutionTime)
+	if (bBlockOnGlobalShaderCompletion && !bLimitExecutionTime && !IsRunningCookCommandlet())
 	{
 		check(PendingFinalizeShaderMaps.Num() == 0);
 
