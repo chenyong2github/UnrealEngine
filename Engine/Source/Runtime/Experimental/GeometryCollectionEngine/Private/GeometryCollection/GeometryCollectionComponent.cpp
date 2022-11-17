@@ -1064,6 +1064,12 @@ UPhysicalMaterial* UGeometryCollectionComponent::GetPhysicalMaterial() const
 
 void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 {
+	const int32 ExemplarCount = EmbeddedGeometryComponents.Num();
+	if (ExemplarCount == 0)
+	{
+		return;
+	}
+
 	const TManagedArray<int32>& ExemplarIndexArray = GetExemplarIndexArray();
 	const int32 TransformCount = GlobalMatrices.Num();
 	if (!ensureMsgf(TransformCount == ExemplarIndexArray.Num(), TEXT("GlobalMatrices (Num=%d) cached on GeometryCollectionComponent are not in sync with ExemplarIndexArray (Num=%d) on underlying GeometryCollection; likely missed a dynamic data update"), TransformCount, ExemplarIndexArray.Num()))
@@ -1081,7 +1087,6 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 	EmbeddedInstanceIndex.Init(INDEX_NONE, RestCollection->GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup));
 #endif
 
-	const int32 ExemplarCount = EmbeddedGeometryComponents.Num();
 	for (int32 ExemplarIndex = 0; ExemplarIndex < ExemplarCount; ++ExemplarIndex)
 	{		
 #if WITH_EDITOR
@@ -2214,8 +2219,11 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 		// In editor mode we have no DynamicCollection so this test is necessary
 		if(DynamicCollection) //, TEXT("No dynamic collection available for component %s during tick."), *GetName()))
 		{
-			IncrementSleepTimer(DeltaTime);
-			IncrementBreakTimer(DeltaTime);
+			if (IsRootBroken())
+			{
+				IncrementSleepTimer(DeltaTime);
+				IncrementBreakTimer(DeltaTime);
+			}
 
 			// todo(chaos) : find a way to only update that of transform have changed
 			// right now this does not work properly because the dirty flags may not be updated at the right time
@@ -4071,6 +4079,18 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 	}
 }
 
+bool UGeometryCollectionComponent::IsRootBroken() const
+{
+	if (DynamicCollection && DynamicCollection->Active.Num() > 0)
+	{
+		const int32 RootIndex = GetRootIndex();
+		if (RootIndex != INDEX_NONE)
+		{
+			return !DynamicCollection->Active[RootIndex];
+		}
+	}
+	return false;
+}
 
 struct FGeometryCollectionDecayContext
 {
@@ -4421,7 +4441,7 @@ int32 UGeometryCollectionComponent::GetInitialLevel(int32 ItemIndex)
 	return Level;
 }
 
-int32 UGeometryCollectionComponent::GetRootIndex()
+int32 UGeometryCollectionComponent::GetRootIndex() const
 {
 	if (RestCollection && RestCollection->GetGeometryCollection())
 	{

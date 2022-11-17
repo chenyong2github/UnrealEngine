@@ -149,12 +149,12 @@ TArray<FName> FManagedArrayCollection::AttributeNames(FName Group) const
 	return AttributeNames;
 }
 
-int32 FManagedArrayCollection::NumElements(FName Group) const
+int32 FManagedArrayCollection::NumElements(FName GroupName) const
 {
 	int32 Num = 0;
-	if (GroupInfo.Contains(Group))
+	if (const FGroupInfo* Group = GroupInfo.Find(GroupName))
 	{
-		Num = GroupInfo[Group].Size;
+		Num = Group->Size;
 	}
 	return Num;
 }

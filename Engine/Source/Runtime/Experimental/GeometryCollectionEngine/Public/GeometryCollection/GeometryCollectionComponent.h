@@ -616,7 +616,7 @@ public:
 	
 	/** Get the root item index of the hierarchy */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	int32 GetRootIndex();
+	int32 GetRootIndex() const;
 
 	/**
 	* Get mass and extent of a specific piece
@@ -1169,6 +1169,8 @@ private:
 	/** update ISM transforms */
 	void RefreshISMPoolInstances();
 
+	/** return true if the root cluster is not longer active at runtime */
+	bool IsRootBroken() const;
 
 	void IncrementSleepTimer(float DeltaTime);
 	void IncrementBreakTimer(float DeltaTime);

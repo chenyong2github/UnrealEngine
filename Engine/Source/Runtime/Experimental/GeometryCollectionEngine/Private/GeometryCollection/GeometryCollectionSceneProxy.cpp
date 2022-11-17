@@ -86,6 +86,22 @@ FAutoConsoleVariableRef CVarRayTracingGeometryCollectionProxyMeshes(
 	ECVF_RenderThreadSafe
 );
 
+static int32 GeometryCollectionBuildGeometryParallelVertexProcessingMinBatch = 5000;
+FAutoConsoleVariableRef CVarGeometryCollectionBuildGeometryParallelVertexProcessingMinBatch(
+	TEXT("r.GeometryCollectionBuildGeometry.ParallelVertexProcessingMinBatch"),
+	GeometryCollectionBuildGeometryParallelVertexProcessingMinBatch,
+	TEXT("When building geometry collection rendering geometry, minimum number of vertices to batch for parallel processing performance tuning"),
+	ECVF_RenderThreadSafe
+);
+
+static int32 GeometryCollectionBuildGeometryParallelIndexProcessingMinBatch = 5000;
+FAutoConsoleVariableRef CVarGeometryCollectionBuildGeometryParallelIndexProcessingMinBatch(
+	TEXT("r.GeometryCollectionBuildGeometry.ParallelIndexProcessingMinBatch"),
+	GeometryCollectionBuildGeometryParallelIndexProcessingMinBatch,
+	TEXT("When building geometry collection rendering geometry, minimum number of indices to batch for parallel processing performance tuning"),
+	ECVF_RenderThreadSafe
+);
+
 #if !defined(CHAOS_GEOMETRY_COLLECTION_SET_DYNAMIC_DATA_ISPC_ENABLED_DEFAULT)
 #define CHAOS_GEOMETRY_COLLECTION_SET_DYNAMIC_DATA_ISPC_ENABLED_DEFAULT 1
 #endif
@@ -440,20 +456,28 @@ void FGeometryCollectionSceneProxy::ReleaseResources()
 	VertexFactory.ReleaseResource();
 }
 
+inline static FColor GetOnlyVertexColors(const FGeometryCollectionConstantData* ConstantDataIn, int32 PointIdx, bool bShowBoneColors)
+{
+	return ConstantDataIn->Colors[PointIdx].ToFColor(true);
+};
+
+inline static FColor GetBonesColors(const FGeometryCollectionConstantData* ConstantDataIn, int32 PointIdx, bool bShowBoneColors)
+{
+	return bShowBoneColors
+		? ConstantDataIn->BoneColors[PointIdx].ToFColor(true)
+		: (ConstantDataIn->BoneColors[PointIdx] * ConstantDataIn->Colors[PointIdx]).ToFColor(true);
+};
+
 void FGeometryCollectionSceneProxy::BuildGeometry( const FGeometryCollectionConstantData* ConstantDataIn, TArray<FDynamicMeshVertex>& OutVertices, TArray<int32>& OutIndices, TArray<int32> &OutOriginalMeshIndices)
 {
-	OutVertices.SetNumUninitialized(ConstantDataIn->Vertices.Num());
-	ParallelFor(ConstantData->Vertices.Num(), [&](int32 PointIdx)
+	const bool bCapturedShowBoneColors = this->bShowBoneColors;
+	const auto SetOutVertex = [&OutVertices, &ConstantDataIn, bCapturedShowBoneColors](int32 PointIdx, FColor (*GetColorFunc)(const FGeometryCollectionConstantData*, int32, bool) )
 	{
 		OutVertices[PointIdx] =
 			FDynamicMeshVertex(
 				ConstantDataIn->Vertices[PointIdx],
 				ConstantDataIn->UVs[PointIdx][0],
-				(bShowBoneColors||bEnableBoneSelection) 
-					? bShowBoneColors 
-						? ConstantDataIn->BoneColors[PointIdx].ToFColor(true)
-						: (ConstantDataIn->BoneColors[PointIdx] * ConstantDataIn->Colors[PointIdx]).ToFColor(true)
-					: ConstantDataIn->Colors[PointIdx].ToFColor(true)
+				GetColorFunc(ConstantDataIn, PointIdx, bCapturedShowBoneColors)
 			);
 		OutVertices[PointIdx].SetTangents(ConstantDataIn->TangentU[PointIdx], ConstantDataIn->TangentV[PointIdx], ConstantDataIn->Normals[PointIdx]);
 
@@ -464,25 +488,47 @@ void FGeometryCollectionSceneProxy::BuildGeometry( const FGeometryCollectionCons
 				OutVertices[PointIdx].TextureCoordinate[UVLayerIdx] = ConstantDataIn->UVs[PointIdx][UVLayerIdx];
 			}
 		}
-	});
+	};
 
+	OutVertices.SetNumUninitialized(ConstantDataIn->Vertices.Num());
+	const int32 MinVertexBatchSize = GeometryCollectionBuildGeometryParallelVertexProcessingMinBatch;
+	if (bShowBoneColors || bEnableBoneSelection)
+	{
+		ParallelFor(TEXT("GCSceneProxy::BuildGeometry(Vertices)"), ConstantData->Vertices.Num(), MinVertexBatchSize,
+			[&SetOutVertex](int32 PointIdx)
+			{
+				SetOutVertex(PointIdx, GetBonesColors);
+			});
+	}
+	else
+	{
+		ParallelFor(TEXT("GCSceneProxy::BuildGeometry(Vertices)"), ConstantData->Vertices.Num(), MinVertexBatchSize,
+			[&SetOutVertex](int32 PointIdx)
+			{
+				SetOutVertex(PointIdx, GetOnlyVertexColors);
+			});
+	}
 	check(ConstantDataIn->Indices.Num() * 3 == NumIndices);
 
+	const int32 MinIndexBatchSize = GeometryCollectionBuildGeometryParallelIndexProcessingMinBatch;
+
 	OutIndices.SetNumUninitialized(NumIndices);
-	ParallelFor(ConstantDataIn->Indices.Num(), [&](int32 IndexIdx)
-	{
-		OutIndices[IndexIdx * 3 ]    = ConstantDataIn->Indices[IndexIdx].X;
-		OutIndices[IndexIdx * 3 + 1] = ConstantDataIn->Indices[IndexIdx].Y;
-		OutIndices[IndexIdx * 3 + 2] = ConstantDataIn->Indices[IndexIdx].Z;
-	});
+	ParallelFor(TEXT("GCSceneProxy::BuildGeometry(Indices)"), ConstantDataIn->Indices.Num(), MinIndexBatchSize, 
+		[&OutIndices, &ConstantDataIn](int32 IndexIdx)
+		{
+			OutIndices[IndexIdx * 3 ]    = ConstantDataIn->Indices[IndexIdx].X;
+			OutIndices[IndexIdx * 3 + 1] = ConstantDataIn->Indices[IndexIdx].Y;
+			OutIndices[IndexIdx * 3 + 2] = ConstantDataIn->Indices[IndexIdx].Z;
+		});
 	
 	OutOriginalMeshIndices.SetNumUninitialized(ConstantDataIn->OriginalMeshIndices.Num() * 3);
-	ParallelFor(ConstantDataIn->OriginalMeshIndices.Num(), [&](int32 IndexIdx)
-	{
-		OutOriginalMeshIndices[IndexIdx * 3] = ConstantDataIn->OriginalMeshIndices[IndexIdx].X;
-		OutOriginalMeshIndices[IndexIdx * 3 + 1] = ConstantDataIn->OriginalMeshIndices[IndexIdx].Y;
-		OutOriginalMeshIndices[IndexIdx * 3 + 2] = ConstantDataIn->OriginalMeshIndices[IndexIdx].Z;
-	});
+	ParallelFor(TEXT("GCSceneProxy::BuildGeometry(OriginalMeshIndices)"), ConstantDataIn->OriginalMeshIndices.Num(), MinIndexBatchSize, 
+		[&OutOriginalMeshIndices, &ConstantDataIn](int32 IndexIdx)
+		{
+			OutOriginalMeshIndices[IndexIdx * 3] = ConstantDataIn->OriginalMeshIndices[IndexIdx].X;
+			OutOriginalMeshIndices[IndexIdx * 3 + 1] = ConstantDataIn->OriginalMeshIndices[IndexIdx].Y;
+			OutOriginalMeshIndices[IndexIdx * 3 + 2] = ConstantDataIn->OriginalMeshIndices[IndexIdx].Z;
+		});
 }
 
 void FGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit)
