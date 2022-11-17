@@ -13,6 +13,20 @@
 class FUIFrameworkModule;
 
 /**
+ *
+ */
+UINTERFACE(MinimalAPI)
+class UUIFrameworkWidgetWrapperInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class IUIFrameworkWidgetWrapperInterface
+{
+	GENERATED_BODY()
+};
+
+/**
  * 
  */
 UCLASS(Abstract, BlueprintType)
@@ -38,6 +52,16 @@ public:
 	virtual bool CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack) override;
 	//~ End UObject
 
+	TScriptInterface<IUIFrameworkWidgetWrapperInterface> AuthorityGetWrapper() const
+	{
+		return Wrapper;
+	}
+
+	void AuthoritySetWrapper(TScriptInterface<IUIFrameworkWidgetWrapperInterface> InWrapper)
+	{
+		Wrapper = InWrapper;
+	}
+
 	FUIFrameworkWidgetId GetWidgetId() const
 	{
 		return Id;
@@ -59,7 +83,9 @@ public:
 		return AuthorityParent;
 	}
 
-	virtual void AuthorityForEachChildren(const TFunctionRef<void(UUIFrameworkWidget*)>& Func) {}
+	virtual void AuthorityForEachChildren(const TFunctionRef<void(UUIFrameworkWidget*)>& Func)
+	{
+	}
 
 	//~ Local functions
 	UWidget* LocalGetUMGWidget() const
@@ -79,8 +105,12 @@ public:
 	void SetEnabled(bool bEnabled);
 
 protected:
-	virtual void AuthorityRemoveChild(UUIFrameworkWidget* Widget) {}
-	virtual void LocalOnUMGWidgetCreated() { }
+	virtual void AuthorityRemoveChild(UUIFrameworkWidget* Widget)
+	{
+	}
+	virtual void LocalOnUMGWidgetCreated()
+	{
+	}
 
 private:
 	UFUNCTION()
@@ -96,6 +126,10 @@ private:
 	//~ Authority and Local
 	UPROPERTY(Replicated, Transient, DuplicateTransient)
 	FUIFrameworkWidgetId Id = FUIFrameworkWidgetId::MakeNew();
+
+	//~ Authority
+	UPROPERTY(Transient, DuplicateTransient)
+	TScriptInterface<IUIFrameworkWidgetWrapperInterface> Wrapper;
 
 	//~ Authority and Local
 	UPROPERTY(Transient)

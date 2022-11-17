@@ -89,6 +89,7 @@ public:
 	void AddEntry(FUIFrameworkGameLayerSlot Entry);
 	bool RemoveEntry(UUIFrameworkWidget* Layer);
 	FUIFrameworkGameLayerSlot* FindEntry(FUIFrameworkWidgetId WidgetId);
+	const FUIFrameworkGameLayerSlot* FindEntry(FUIFrameworkWidgetId WidgetId) const;
 
 private:
 	UPROPERTY()
@@ -128,6 +129,11 @@ public:
 	{
 		return WidgetTree;
 	}
+	
+	const FUIFrameworkGameLayerSlotList& GetRootList() const
+	{
+		return RootList;
+	}
 
 	/** Gets the controller that owns the component, this will always be valid during gameplay but can return null in the editor */
 	template <class T = APlayerController>
@@ -155,8 +161,12 @@ public:
 
 	virtual void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry) override;
 	virtual void LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry) override;
+	virtual void LocalRemoveWidgetRootFromTree(const UUIFrameworkWidget* Widget) override;
 
 private:
+	UFUNCTION(Server, Reliable)
+	void ServerRemoveWidgetRootFromTree(FUIFrameworkWidgetId WidgetId);
+
 	void LocalOnClassLoaded(TSoftClassPtr<UWidget> WidgetClass);
 	void LocalAddChild(FUIFrameworkWidgetId WidgetId);
 

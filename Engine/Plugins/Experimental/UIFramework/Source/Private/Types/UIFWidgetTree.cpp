@@ -61,6 +61,7 @@ FUIFrameworkWidgetTree::FUIFrameworkWidgetTree(AActor* InReplicatedOwner, IUIFra
 	: ReplicatedOwner(InReplicatedOwner)
 	, Owner(InOwner)
 {
+	check(Owner);
 #if UE_UIFRAMEWORK_WITH_DEBUG
 	UE::UIFramework::Private::GTrees.Add(this);
 #endif
@@ -132,6 +133,9 @@ void FUIFrameworkWidgetTree::PostReplicatedChange(const TArrayView<int32>& Chang
 	}
 }
 
+void FUIFrameworkWidgetTree::PostReplicatedReceive(FPostReplicatedReceiveParameters Param)
+{}
+
 bool FUIFrameworkWidgetTree::ReplicateSubWidgets(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
 {
 	bool bWroteSomething = false;
@@ -158,17 +162,17 @@ bool FUIFrameworkWidgetTree::ReplicateSubWidgets(UActorChannel* Channel, FOutBun
 void FUIFrameworkWidgetTree::AuthorityAddRoot(UUIFrameworkWidget* Widget)
 {
 	check(Widget);
-	AuthorityAddChildInternal(nullptr, Widget);
+	AuthorityAddChildInternal(nullptr, Widget, true);
 }
 
 void FUIFrameworkWidgetTree::AuthorityAddWidget(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child)
 {
 	check(Parent);
 	check(Child);
-	AuthorityAddChildInternal(Parent, Child);
+	AuthorityAddChildInternal(Parent, Child, true);
 }
 
-void FUIFrameworkWidgetTree::AuthorityAddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child)
+void FUIFrameworkWidgetTree::AuthorityAddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child, bool bFirst)
 {
 	if (int32* PreviousEntryIndexPtr = AuthorityIndexByWidgetMap.Find(Child))
 	{
@@ -197,6 +201,10 @@ void FUIFrameworkWidgetTree::AuthorityAddChildInternal(UUIFrameworkWidget* Paren
 		}
 
 		AuthorityAddChildRecursiveInternal(Child);
+		if (bFirst)
+		{
+			AuthorityOnWidgetAdded.Broadcast(Child);
+		}
 	}
 }
 
@@ -207,7 +215,7 @@ void FUIFrameworkWidgetTree::AuthorityAddChildRecursiveInternal(UUIFrameworkWidg
 		{
 			if (ChildWidget != nullptr)
 			{
-				Self->AuthorityAddChildInternal(InParentWidget, ChildWidget);
+				Self->AuthorityAddChildInternal(InParentWidget, ChildWidget, false);
 			}
 		});
 }
@@ -219,6 +227,17 @@ void FUIFrameworkWidgetTree::AuthorityRemoveWidget(UUIFrameworkWidget* Widget)
 	if (AuthorityRemoveChildRecursiveInternal(Widget))
 	{
 		MarkArrayDirty();
+		AuthorityOnWidgetRemoved.Broadcast(Widget);
+	}
+}
+
+void FUIFrameworkWidgetTree::LocalRemoveRoot(const UUIFrameworkWidget* Widget)
+{
+	check(Widget);
+
+	if (ensure(Owner))
+	{
+		Owner->LocalRemoveWidgetRootFromTree(Widget);
 	}
 }
 

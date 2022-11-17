@@ -24,9 +24,19 @@ class IUIFrameworkWidgetTreeOwner
 {
 public:
 	/** A widget was added to the tree. */
-	virtual void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry) {};
+	virtual void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry)
+	{
+	}
+
 	/** A widget was removed to the tree. */
-	virtual void LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry) {};
+	virtual void LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry)
+	{
+	}
+
+	/** Remove the widget (and the child) from the server. */
+	virtual void LocalRemoveWidgetRootFromTree(const UUIFrameworkWidget* Widget)
+	{
+	}
 };
 
 /**
@@ -77,6 +87,7 @@ public:
 	void PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize);
 	void PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize);
 	void PostReplicatedChange(const TArrayView<int32>& ChangedIndices, int32 FinalSize);
+	void PostReplicatedReceive(FPostReplicatedReceiveParameters Param);
 	//~ End of FFastArraySerializer
 
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
@@ -99,6 +110,11 @@ public:
 	 */
 	void AuthorityRemoveWidget(UUIFrameworkWidget* Widget);
 
+	/**
+	 * The widget was removed from the client and the Authority is not aware of it.
+	 */
+	void LocalRemoveRoot(const UUIFrameworkWidget* Widget);
+
 	//~ It is not safe to use the ReplicationId on the Authority because any add or remove would clear the ItemMap.
 	FUIFrameworkWidgetTreeEntry* LocalGetEntryByReplicationId(int32 WidgetId);
 	const FUIFrameworkWidgetTreeEntry* LocalGetEntryByReplicationId(int32 WidgetId) const;
@@ -117,8 +133,12 @@ public:
 	void AuthorityTest() const;
 #endif
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FUIFrameworkWidgetDelegate, UUIFrameworkWidget*);
+	FUIFrameworkWidgetDelegate AuthorityOnWidgetAdded;
+	FUIFrameworkWidgetDelegate AuthorityOnWidgetRemoved;
+
 private:
-	void AuthorityAddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child);
+	void AuthorityAddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child, bool bFirst);
 	void AuthorityAddChildRecursiveInternal(UUIFrameworkWidget* Widget);
 	bool AuthorityRemoveChildRecursiveInternal(UUIFrameworkWidget* Widget);
 

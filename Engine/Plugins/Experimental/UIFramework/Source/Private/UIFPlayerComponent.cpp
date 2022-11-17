@@ -56,6 +56,11 @@ FUIFrameworkGameLayerSlot* FUIFrameworkGameLayerSlotList::FindEntry(FUIFramework
 	return Entries.FindByPredicate([WidgetId](const FUIFrameworkGameLayerSlot& Entry) { return Entry.GetWidgetId() == WidgetId; });
 }
 
+const FUIFrameworkGameLayerSlot* FUIFrameworkGameLayerSlotList::FindEntry(FUIFrameworkWidgetId WidgetId) const
+{
+	return Entries.FindByPredicate([WidgetId](const FUIFrameworkGameLayerSlot& Entry) { return Entry.GetWidgetId() == WidgetId; });
+}
+
 
 /**
  *
@@ -310,6 +315,20 @@ void UUIFrameworkPlayerComponent::LocalWidgetRemovedFromTree(const FUIFrameworkW
 	AddPending.Remove(Entry.ReplicationID);
 
 	PrimaryComponentTick.SetTickFunctionEnable(NetReplicationPending.Num() > 0 || AddPending.Num() > 0 || ClassesToLoad.Num() > 0);
+}
+
+void UUIFrameworkPlayerComponent::LocalRemoveWidgetRootFromTree(const UUIFrameworkWidget* Widget)
+{
+	check(Widget);
+	ServerRemoveWidgetRootFromTree(Widget->GetWidgetId());
+}
+
+void UUIFrameworkPlayerComponent::ServerRemoveWidgetRootFromTree_Implementation(FUIFrameworkWidgetId WidgetId)
+{
+	if (UUIFrameworkWidget* Widget = GetWidgetTree().FindWidgetById(WidgetId))
+	{
+		GetWidgetTree().AuthorityRemoveWidget(Widget);
+	}
 }
 
 void UUIFrameworkPlayerComponent::LocalOnClassLoaded(TSoftClassPtr<UWidget> WidgetClass)
