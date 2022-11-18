@@ -227,7 +227,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			.Padding(8)
 			[
 				SNew(SHorizontalBox)
-				.Visibility_Lambda([this]() { return ( Settings->GetFindPathEnabled() ? EVisibility::Collapsed : EVisibility::Visible); })
+				.Visibility_Lambda([this]() { return ( Settings->GetFindPathEnabled() ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible); })
 
 				+SHorizontalBox::Slot()
 				.AutoWidth()
