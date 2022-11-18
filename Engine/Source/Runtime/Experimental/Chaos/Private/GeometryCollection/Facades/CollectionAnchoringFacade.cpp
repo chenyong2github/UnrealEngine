@@ -15,6 +15,11 @@ namespace Chaos::Facades
 		, AnchoredAttribute(InCollection, "Anchored", FTransformCollection::TransformGroup)
 	{}
 
+	bool FCollectionAnchoringFacade::IsValid() const
+	{
+		return InitialDynamicStateAttribute.IsValid() && AnchoredAttribute.IsValid();
+	}
+
 	bool FCollectionAnchoringFacade::HasInitialDynamicStateAttribute() const
 	{
 		return InitialDynamicStateAttribute.IsValid();

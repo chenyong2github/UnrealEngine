@@ -23,6 +23,9 @@ namespace Chaos::Facades
 		FCollectionHierarchyFacade(FManagedArrayCollection& InCollection);
 		FCollectionHierarchyFacade(const FManagedArrayCollection& InCollection);
 
+		/** Create the facade attributes. */
+		void DefineSchema() {}
+
 		/** Valid if parent and children arrays are available */
 		bool IsValid() const;
 
