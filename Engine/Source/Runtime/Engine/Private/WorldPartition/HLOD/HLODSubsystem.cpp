@@ -113,11 +113,115 @@ public:
 
 UHLODSubsystem::UHLODSubsystem()
 	: UWorldSubsystem()
+	, HLODAlwaysLoadedCullDistance(-1)
 {
 }
 
 UHLODSubsystem::~UHLODSubsystem()
 {
+}
+
+void UHLODSubsystem::SetHLODAlwaysLoadedCullDistance(int32 InCullDistance)
+{
+	HLODAlwaysLoadedCullDistance = InCullDistance;
+}
+
+void UHLODSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+	Super::OnWorldBeginPlay(InWorld);
+
+	check(InWorld.IsGameWorld());
+
+	HLODAlwaysLoadedCullDistance = -1;
+	AlwaysLoadedHLODActors.Reset();
+	CulledAlwaysLoadedHLODActors.Reset();
+
+	// Cache always loaded HLODs with their Bounds
+	for (AActor* Actor : InWorld.PersistentLevel->Actors)
+	{
+		if (AWorldPartitionHLOD* HLODActor = Cast<AWorldPartitionHLOD>(Actor))
+		{
+			FBox Bounds = HLODActor->GetComponentsBoundingBox(true);
+			AlwaysLoadedHLODActors.Add(HLODActor, Bounds);
+		}
+	}
+}
+
+void UHLODSubsystem::UpdateStreamingState()
+{
+	Super::UpdateStreamingState();
+
+	UWorld* World = GetWorld();
+	if (!World || !World->IsGameWorld())
+	{
+		return;
+	}
+
+	UWorldPartition* WorldPartition = World->GetWorldPartition();
+	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = (WorldPartition && WorldPartition->IsStreamingEnabled()) ? WorldPartitionsHLODRuntimeData.Find(WorldPartition) : nullptr;
+	if (!WorldPartitionHLODRuntimeData)
+	{
+		return;
+	}
+
+	TSet<AWorldPartitionHLOD*> FrameCulled;
+	TSet<AWorldPartitionHLOD*> FrameAlreadyHidden;
+	if (HLODAlwaysLoadedCullDistance > 0)
+	{
+		const TArray<FWorldPartitionStreamingSource>& StreamingSources = WorldPartition->GetStreamingSources();
+		double SquaredCullDistance = (double)HLODAlwaysLoadedCullDistance * (double)HLODAlwaysLoadedCullDistance;
+		for (const auto& Pair : AlwaysLoadedHLODActors)
+		{
+			if (AWorldPartitionHLOD* HLODActor = Pair.Key)
+			{
+				const FName CellName = HLODActor->GetSourceCellName();
+				if (FCellData* CellData = WorldPartitionHLODRuntimeData->CellsData.Find(CellName))
+				{
+					// If source cell is visible, hlod actor is already hidden
+					if (!CellData->bIsCellVisible)
+					{
+						if (!StreamingSources.IsEmpty())
+						{
+							bool bIsCulled = true;
+							for (const FWorldPartitionStreamingSource& Source : StreamingSources)
+							{
+								const FBox& Bounds = Pair.Value;
+								double Distance = Bounds.ComputeSquaredDistanceToPoint(Source.Location);
+								if (Distance < SquaredCullDistance)
+								{
+									bIsCulled = false;
+									break;
+								}
+							}
+							if (bIsCulled)
+							{
+								FrameCulled.Add(HLODActor);
+							}
+						}
+					}
+					else
+					{
+						FrameAlreadyHidden.Add(HLODActor);
+					}
+				}
+			}
+		}
+	}
+
+	TSet<AWorldPartitionHLOD*> ToCull = FrameCulled.Difference(CulledAlwaysLoadedHLODActors);
+	TSet<AWorldPartitionHLOD*> ToShow = CulledAlwaysLoadedHLODActors.Difference(FrameCulled.Union(FrameAlreadyHidden));
+
+	for (AWorldPartitionHLOD* HLODActor : ToCull)
+	{
+		HLODActor->SetVisibility(false);
+	}
+
+	for (AWorldPartitionHLOD* HLODActor : ToShow)
+	{
+		HLODActor->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled);
+	}
+
+	CulledAlwaysLoadedHLODActors = MoveTemp(FrameCulled);
 }
 
 bool UHLODSubsystem::WorldPartitionHLODEnabled = true;

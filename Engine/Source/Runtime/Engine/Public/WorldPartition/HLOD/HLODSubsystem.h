@@ -12,7 +12,7 @@ class FSceneViewFamily;
 class FHLODResourcesResidencySceneViewExtension;
 class UWorldPartition;
 class UWorldPartitionRuntimeCell;
-
+class UWorld;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionHLODActorRegisteredEvent, AWorldPartitionHLOD* /* InHLODActor */);
 DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionHLODActorUnregisteredEvent, AWorldPartitionHLOD* /* InHLODActor */);
@@ -37,6 +37,8 @@ public:
 
 	//~ Begin UWorldSubsystem Interface.
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
+	virtual void UpdateStreamingState() override;
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	//~ End UWorldSubsystem Interface.
 
 	void RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD);
@@ -53,6 +55,8 @@ public:
 
 	FWorldPartitionHLODActorRegisteredEvent& OnHLODActorRegisteredEvent() { return HLODActorRegisteredEvent; }
 	FWorldPartitionHLODActorUnregisteredEvent& OnHLODActorUnregisteredEvent() { return HLODActorUnregisteredEvent; }
+
+	void SetHLODAlwaysLoadedCullDistance(int32 InCullDistance);
 	
 private:
 	struct FCellData
@@ -77,7 +81,11 @@ private:
 	};
 	
 	TMap<TObjectPtr<UWorldPartition>, FWorldPartitionHLODRuntimeData> WorldPartitionsHLODRuntimeData;
-		
+
+	TMap<AWorldPartitionHLOD*, FBox> AlwaysLoadedHLODActors;
+	TSet<AWorldPartitionHLOD*> CulledAlwaysLoadedHLODActors;
+	int32 HLODAlwaysLoadedCullDistance;
+
 	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
 	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
 	void OnBeginRenderViews(const FSceneViewFamily& InViewFamily);
