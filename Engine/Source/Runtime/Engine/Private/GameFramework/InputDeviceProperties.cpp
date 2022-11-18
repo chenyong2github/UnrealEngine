@@ -128,6 +128,11 @@ float UColorInputDeviceCurveProperty::RecalculateDuration()
 ///////////////////////////////////////////////////////////////////////
 // UInputDeviceTriggerEffect
 
+FInputDeviceProperty* UInputDeviceTriggerEffect::GetInternalDeviceProperty()
+{
+	return &ResetProperty;
+}
+
 void UInputDeviceTriggerEffect::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
 {
 	if (bResetUponCompletion)

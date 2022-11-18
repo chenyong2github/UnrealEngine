@@ -185,13 +185,14 @@ private:
 };
 
 /** A property that effect the triggers on a gamepad */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Blueprintable, meta = (DisplayName = "Reset Trigger Device Properties"))
 class ENGINE_API UInputDeviceTriggerEffect : public UInputDeviceProperty
 {
 	GENERATED_BODY()
 
 public:	
 
+	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser) override;
 
 	/** Which trigger this property should effect */
