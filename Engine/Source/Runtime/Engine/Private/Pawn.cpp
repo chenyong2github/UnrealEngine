@@ -248,6 +248,16 @@ bool APawn::IsLocallyControlled() const
 {
 	return ( Controller && Controller->IsLocalController() );
 }
+
+FPlatformUserId APawn::GetPlatformUserId() const
+{
+	if (const APlayerController* PC = Cast<APlayerController>(Controller))
+	{
+		return PC->GetPlatformUserId();
+	}
+	return PLATFORMUSERID_NONE;
+}
+
 bool APawn::IsPlayerControlled() const
 {
 	return PlayerState && !PlayerState->IsABot();

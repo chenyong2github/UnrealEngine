@@ -389,6 +389,14 @@ public:
 	/** Returns true if controlled by a local (not network) Controller.	 */
 	UFUNCTION(BlueprintPure, Category=Pawn)
 	virtual bool IsLocallyControlled() const;
+
+	/**
+	 * Returns the Platform User ID of the PlayerController that is controlling this character.
+	 *
+	 * Returns an invalid Platform User ID if this character is not controlled by a local player.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Pawn)
+	FPlatformUserId GetPlatformUserId() const;
   
 	/** Returns true if controlled by a human player (possessed by a PlayerController).	This returns true for players controlled by remote clients */
 	UFUNCTION(BlueprintPure, Category=Pawn)
