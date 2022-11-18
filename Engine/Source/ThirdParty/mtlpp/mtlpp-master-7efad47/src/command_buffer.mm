@@ -23,7 +23,9 @@
 #include "compute_command_encoder.hpp"
 #include "parallel_render_command_encoder.hpp"
 #include "render_pass.hpp"
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 #include "acceleration_structure_command_encoder.hpp" // EPIC MOD - MetalRT Support
+#endif
 
 MTLPP_BEGIN
 
@@ -337,6 +339,7 @@ namespace mtlpp
     }
 
 // EPIC MOD - BEGIN - MetalRT Support
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 	AccelerationStructureCommandEncoder CommandBuffer::AccelerationStructureCommandEncoder()
 	{
 		Validate();
@@ -348,6 +351,7 @@ namespace mtlpp
 
 		return Encoder;
 	}
+#endif
 // EPIC MOD - END - MetalRT Support
 
     BlitCommandEncoder CommandBuffer::BlitCommandEncoder()

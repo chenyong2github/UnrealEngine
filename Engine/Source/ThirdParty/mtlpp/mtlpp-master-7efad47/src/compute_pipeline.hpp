@@ -14,7 +14,7 @@
 #include "argument.hpp"
 #include "pipeline.hpp"
 #include "stage_input_output_descriptor.hpp"
-#if __TV_OS_VERSION_MAX_ALLOWED >= 160000 // EPIC MOD - BEGIN - MetalRT Support
+#if MTLPP_OS_VERSION_SUPPORTS_RT // EPIC MOD - BEGIN - MetalRT Support
 #include "intersection_function_table.hpp"
 #endif                                       // EPIC MOD - END - MetalRT Support
 #include <Metal/MTLLinkedFunctions.h>
@@ -120,7 +120,7 @@ public:
 		
 		NSUInteger GetImageblockMemoryLengthForDimensions(Size const& imageblockDimensions) MTLPP_AVAILABLE_IOS(11_0);
 // EPIC MOD - BEGIN - MetalRT Support
-#if __TV_OS_VERSION_MAX_ALLOWED >= 160000
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 		FunctionHandle GetFunctionHandleWithFunction(Function& function) const MTLPP_AVAILABLE(11_00, 14_0);
 		ComputePipelineState NewComputePipelineState(ns::Array<Function> const& AdditionalBinaryFunctions, ns::AutoReleasedError* error);
 		IntersectionFunctionTable NewIntersectionFunctionTableWithDescriptor(IntersectionFunctionTableDescriptor const& Descriptor);

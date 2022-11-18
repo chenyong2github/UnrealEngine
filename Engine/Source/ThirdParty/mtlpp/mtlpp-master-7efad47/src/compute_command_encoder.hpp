@@ -20,7 +20,7 @@
 #include "texture.hpp"
 #include "buffer.hpp"
 // EPIC MOD - BEGIN - MetalRT Support
-#if __TV_OS_VERSION_MAX_ALLOWED >= 160000
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 #include "intersection_function_table.hpp"
 #include "acceleration_structure.hpp"
 #endif
@@ -79,11 +79,11 @@ namespace mtlpp
 		void UseHeap(const Heap& heap) MTLPP_AVAILABLE(10_13, 11_0);
 		void UseHeaps(const Heap::Type* heap, NSUInteger count) MTLPP_AVAILABLE(10_13, 11_0);
 		// EPIC MOD - BEGIN - MetalRT Support
-		#if __TV_OS_VERSION_MAX_ALLOWED >= 160000
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 		void SetIntersectionFunctionTable(IntersectionFunctionTable& funcTable, NSUInteger bufferIndex) MTLPP_AVAILABLE(11_00, 14_0);
 		void SetVisibleFunctionTable(VisibleFunctionTable& funcTable, NSUInteger bufferIndex) MTLPP_AVAILABLE(11_00, 14_0);
 		void SetAccelerationStructure(AccelerationStructure& accelerationStructure, NSUInteger bufferIndex) MTLPP_AVAILABLE(11_00, 14_0);
-		#endif
+#endif
 		// EPIC MOD - END - MetalRT Support
     }
     MTLPP_AVAILABLE(10_11, 8_0);

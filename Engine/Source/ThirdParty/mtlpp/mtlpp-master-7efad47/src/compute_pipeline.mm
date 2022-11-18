@@ -126,10 +126,12 @@ namespace mtlpp
 	}
 
 // EPIC MOD - BEGIN - MetalRT Support
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 	void ComputePipelineDescriptor::SetSupportAddingBinaryFunctions(bool value)
 	{
 		[(MTLComputePipelineDescriptor*)m_ptr setSupportAddingBinaryFunctions:value];
 	}
+#endif
 // EPIC MOD - END - MetalRT Support
 
     void ComputePipelineDescriptor::SetLabel(const ns::String& label)
@@ -259,6 +261,7 @@ namespace mtlpp
 #endif
 	}
 // EPIC MOD - BEGIN - MetalRT Support
+#if MTLPP_OS_VERSION_SUPPORTS_RT
     FunctionHandle ComputePipelineState::GetFunctionHandleWithFunction(Function& function) const
     {
         Validate();
@@ -280,6 +283,7 @@ namespace mtlpp
         NSError** nsError = error ? (NSError**)error->GetInnerPtr() : nullptr;
         return ComputePipelineState([(id<MTLComputePipelineState>)m_ptr newComputePipelineStateWithAdditionalBinaryFunctions:AdditionalBinaryFunctions.GetPtr() error:nsError]);
     }
+#endif
 // EPIC MOD - END - MetalRT Support
 }
 

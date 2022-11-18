@@ -54,6 +54,10 @@
 #define MTLPP_EXPORT __attribute__ ((visibility("default")))
 #endif
 
+#ifndef MTLPP_OS_VERSION_SUPPORTS_RT
+#define MTLPP_OS_VERSION_SUPPORTS_RT __TV_OS_VERSION_MAX_ALLOWED >= 160000 && __MAC_OS_X_VERSION_MAX_ALLOWED >= 110000 && __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000
+#endif
+
 #if MTLPP_CONFIG_USE_AVAILABILITY
 #   if __has_feature(attribute_availability_with_version_underscores) || (__has_feature(attribute_availability_with_message) && __clang__ && __clang_major__ >= 7)
 #		define MTLPP_AVAILABILITY(_os, _vers) 						__attribute__((availability(_os,introduced=_vers)))

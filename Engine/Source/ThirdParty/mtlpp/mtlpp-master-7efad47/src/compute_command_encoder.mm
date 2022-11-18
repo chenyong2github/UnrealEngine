@@ -15,7 +15,9 @@
 #include "compute_pipeline.hpp"
 #include "sampler.hpp"
 #include "heap.hpp"
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 #include "acceleration_structure.hpp" // EPIC MOD - MetalRT Support
+#endif
 
 MTLPP_BEGIN
 
@@ -327,6 +329,7 @@ namespace mtlpp
 	}
 
 // EPIC MOD - BEGIN - MetalRT Support
+#if MTLPP_OS_VERSION_SUPPORTS_RT
     void ComputeCommandEncoder::SetIntersectionFunctionTable(IntersectionFunctionTable& funcTable, NSUInteger bufferIndex)
     {
         [m_ptr setIntersectionFunctionTable:funcTable.GetPtr() atBufferIndex:bufferIndex];
@@ -341,6 +344,7 @@ namespace mtlpp
     {
         [m_ptr setAccelerationStructure:accelerationStructure.GetPtr() atBufferIndex:bufferIndex];
     }
+#endif
 // EPIC MOD - END - MetalRT Support
 
 #if MTLPP_CONFIG_VALIDATE

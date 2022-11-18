@@ -20,9 +20,11 @@
 #include "parallel_render_command_encoder.hpp"
 #include "capture_scope.hpp"
 // EPIC MOD - BEGIN - MetalRT Support
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 #include "acceleration_structure.hpp"
 #include "acceleration_structure_command_encoder.hpp"
 #include "intersection_function_table.hpp"
+#endif
 // EPIC MOD - END - MetalRT Support
 
 namespace UE
@@ -46,7 +48,9 @@ namespace UE
 	
 	ITable<id<MTLArgumentEncoder>, void>* ITableCache::GetArgumentEncoder(id<MTLArgumentEncoder> Obj) { return GetITable(this, Obj, &ArgumentEncoder); }
 	ITable<id<MTLBlitCommandEncoder>, void>* ITableCache::GetBlitCommandEncoder(id<MTLBlitCommandEncoder> Obj)  { return GetITable(this, Obj, &BlitCommandEncoder); }
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 	ITable<id<MTLAccelerationStructureCommandEncoder>, void>* ITableCache::GetAccelerationStructureCommandEncoder(id<MTLAccelerationStructureCommandEncoder> Obj)  { return GetITable(this, Obj, &AccelerationStructureCommandEncoder); } // EPIC MOD - MetalRT Support
+#endif
 	ITable<id<MTLBuffer>, void>* ITableCache::GetBuffer(id<MTLBuffer> Obj)  { return GetITable(this, Obj, &Buffer); }
 	ITable<id<MTLCommandQueue>, void>* ITableCache::GetCommandQueue(id<MTLCommandQueue> Obj)  { return GetITable(this, Obj, &CommandQueue); }
 	ITable<id<MTLCommandBuffer>, void>* ITableCache::GetCommandBuffer(id<MTLCommandBuffer> Obj)  { return GetITable(this, Obj, &CommandBuffer); }
@@ -62,18 +66,24 @@ namespace UE
 	ITable<id<MTLRenderCommandEncoder>, void>* ITableCache::GetRenderCommandEncoder(id<MTLRenderCommandEncoder> Obj)  { return GetITable(this, Obj, &RenderCommandEncoder); }
 	ITable<id<MTLRenderPipelineState>, void>* ITableCache::GetRenderPipelineState(id<MTLRenderPipelineState> Obj)  { return GetITable(this, Obj, &RenderPipelineState); }
 	ITable<id<MTLSamplerState>, void>* ITableCache::GetSamplerState(id<MTLSamplerState> Obj)  { return GetITable(this, Obj, &SamplerState); }
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 	ITable<id<MTLAccelerationStructure>, void>* ITableCache::GetAccelerationStructure(id<MTLAccelerationStructure> Obj)  { return GetITable(this, Obj, &AccelerationStructure); } // EPIC MOD - MetalRT Support
+#endif
 	ITable<id<MTLTexture>, void>* ITableCache::GetTexture(id<MTLTexture> Obj)  { return GetITable(this, Obj, &Texture); }
 	ITable<id<MTLCaptureScope>, void>* ITableCache::GetCaptureScope(id<MTLCaptureScope> Obj)  { return GetITable(this, Obj, &CaptureScope); }
 // EPIC MOD - BEGIN - MetalRT Support
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 	ITable<id<MTLFunctionHandle>, void>* ITableCache::GetFunctionHandle(id<MTLFunctionHandle> Obj)  { return GetITable(this, Obj, &FunctionHandle); }
 	ITable<id<MTLVisibleFunctionTable>, void>* ITableCache::GetVisibleFunctionTable(id<MTLVisibleFunctionTable> Obj)  { return GetITable(this, Obj, &VisibleFunctionTable); }
 	ITable<id<MTLIntersectionFunctionTable>, void>* ITableCache::GetIntersectionFunctionTable(id<MTLIntersectionFunctionTable> Obj)  { return GetITable(this, Obj, &IntersectionFunctionTable); }
+#endif
 // EPIC MOD - END - MetalRT Support
 
 	ITable<id<MTLArgumentEncoder>, void>* ITableCacheRef::GetArgumentEncoder(id<MTLArgumentEncoder> Obj) { return (Obj && TableCache) ? TableCache->GetArgumentEncoder(Obj) : nullptr; }
 	ITable<id<MTLBlitCommandEncoder>, void>* ITableCacheRef::GetBlitCommandEncoder(id<MTLBlitCommandEncoder> Obj)  { return (Obj && TableCache) ? TableCache->GetBlitCommandEncoder(Obj) : nullptr; }
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 	ITable<id<MTLAccelerationStructureCommandEncoder>, void>* ITableCacheRef::GetAccelerationStructureCommandEncoder(id<MTLAccelerationStructureCommandEncoder> Obj)  { return (Obj && TableCache) ? TableCache->GetAccelerationStructureCommandEncoder(Obj) : nullptr; } // EPIC MOD - MetalRT Support
+#endif
 	ITable<id<MTLBuffer>, void>* ITableCacheRef::GetBuffer(id<MTLBuffer> Obj)  { return (Obj && TableCache) ? TableCache->GetBuffer(Obj) : nullptr; }
 	ITable<id<MTLCommandQueue>, void>* ITableCacheRef::GetCommandQueue(id<MTLCommandQueue> Obj)  { return (Obj && TableCache) ? TableCache->GetCommandQueue(Obj) : nullptr; }
 	ITable<id<MTLCommandBuffer>, void>* ITableCacheRef::GetCommandBuffer(id<MTLCommandBuffer> Obj)  { return (Obj && TableCache) ? TableCache->GetCommandBuffer(Obj) : nullptr; }
@@ -89,10 +99,14 @@ namespace UE
 	ITable<id<MTLRenderCommandEncoder>, void>* ITableCacheRef::GetRenderCommandEncoder(id<MTLRenderCommandEncoder> Obj)  { return (Obj && TableCache) ? TableCache->GetRenderCommandEncoder(Obj) : nullptr; }
 	ITable<id<MTLRenderPipelineState>, void>* ITableCacheRef::GetRenderPipelineState(id<MTLRenderPipelineState> Obj)  { return (Obj && TableCache) ? TableCache->GetRenderPipelineState(Obj) : nullptr; }
 	ITable<id<MTLSamplerState>, void>* ITableCacheRef::GetSamplerState(id<MTLSamplerState> Obj)  { return (Obj && TableCache) ? TableCache->GetSamplerState(Obj) : nullptr; }
+#if MTLPP_OS_VERSION_SUPPORTS_RT
 	ITable<id<MTLAccelerationStructure>, void>* ITableCacheRef::GetAccelerationStructure(id<MTLAccelerationStructure> Obj)  { return (Obj && TableCache) ? TableCache->GetAccelerationStructure(Obj) : nullptr; } // EPIC MOD - MetalRT Support
+#endif
 	ITable<id<MTLTexture>, void>* ITableCacheRef::GetTexture(id<MTLTexture> Obj)  { return (Obj && TableCache) ? TableCache->GetTexture(Obj) : nullptr; }
 	ITable<id<MTLCaptureScope>, void>* ITableCacheRef::GetCaptureScope(id<MTLCaptureScope> Obj)  { return (Obj && TableCache) ? TableCache->GetCaptureScope(Obj) : nullptr; }
+#if MTLPP_OS_VERSION_SUPPORTS_RT // EPIC MOD - MetalRT Support - BEGIN
 	ITable<id<MTLVisibleFunctionTable>, void>* ITableCacheRef::GetVisibleFunctionTable(id<MTLVisibleFunctionTable> Obj)  { return (Obj && TableCache) ? TableCache->GetVisibleFunctionTable(Obj) : nullptr; }
 	ITable<id<MTLIntersectionFunctionTable>, void>* ITableCacheRef::GetIntersectionFunctionTable(id<MTLIntersectionFunctionTable> Obj)  { return (Obj && TableCache) ? TableCache->GetIntersectionFunctionTable(Obj) : nullptr; }
 	ITable<id<MTLFunctionHandle>, void>* ITableCacheRef::GetFunctionHandle(id<MTLFunctionHandle> Obj)  { return (Obj && TableCache) ? TableCache->GetFunctionHandle(Obj) : nullptr; }
+#endif // EPIC MOD - MetalRT Support - END
 }

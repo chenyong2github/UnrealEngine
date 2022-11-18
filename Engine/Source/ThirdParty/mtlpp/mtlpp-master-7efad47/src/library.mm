@@ -462,6 +462,7 @@ namespace mtlpp
 #endif
     }
 // EPIC MOD - BEGIN - MetalRT Support
+#if MTLPP_OS_VERSION_SUPPORTS_RT
     Function Library::NewFunction(FunctionDescriptor& descriptor, ns::AutoReleasedError* error)
     {
         Validate();
@@ -524,6 +525,7 @@ namespace mtlpp
         Validate();
         return ns::AutoReleased<ns::String>([(id<MTLFunctionHandle>)m_ptr name]);
     }
+#endif
 // EPIC MOD - END - MetalRT Support
 
 }
