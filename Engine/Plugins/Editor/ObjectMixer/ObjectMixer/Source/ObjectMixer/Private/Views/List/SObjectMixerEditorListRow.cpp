@@ -976,8 +976,10 @@ void SObjectMixerEditorListRow::OnPropertyChanged(const FPropertyChangedEvent& E
 			 Event.ChangeType == EPropertyChangeType::Interactive ?
 			 	EPropertyValueSetFlags::InteractiveChange : EPropertyValueSetFlags::DefaultFlags;
 
-		const FObjectMixerEditorListRow::FPropertyPropagationInfo PropagationInfo(
-			{PinnedItem->GetUniqueIdentifier(), PropertyName, Flag});
+		FObjectMixerEditorListRow::FPropertyPropagationInfo PropagationInfo; 
+		PropagationInfo.RowIdentifier = PinnedItem->GetUniqueIdentifier();
+		PropagationInfo.PropertyName = PropertyName;
+		PropagationInfo.PropertyValueSetFlags = Flag;
 		
 		if (Flag == EPropertyValueSetFlags::InteractiveChange)
 		{
