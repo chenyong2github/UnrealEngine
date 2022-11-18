@@ -50,7 +50,7 @@ namespace UE::RHICore
 		, TConstArrayView<FRHIShaderParameter> InParameters
 		, TConstArrayView<FRHIShaderParameterResource> InResourceParameters
 		, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters
-		, bool bBindUAVsFirst = false // UE TODO: investigate where this is absolutely necessary
+		, bool bBindUAVsFirst = true // UE TODO: investigate where this is absolutely necessary
 	)
 	{
 		if (InParameters.Num())
