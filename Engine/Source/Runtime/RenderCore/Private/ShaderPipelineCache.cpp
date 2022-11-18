@@ -1638,6 +1638,7 @@ void FShaderPipelineCache::ClearPendingPrecompileTaskQueue()
 		CurrentPrecompilingPSOFCKey.Empty();
 	}
 	PendingPrecompilePSOCacheKeys.Reset();
+	bHasShaderPipelineTask = false;
 }
 
 void FShaderPipelineCache::EnqueuePendingPrecompileTask(const FString& PSOCacheKey)
