@@ -118,9 +118,6 @@ public:
 	// Return true if this is a scopable index
 	bool IsScopableIndex(FInternalNetRefIndex InternalIndex) const { return ScopableInternalIndices.GetBit(InternalIndex); }
 
-	// Return true if this index is assigned
-	bool IsAssignedIndex(FInternalNetRefIndex InternalIndex) const { return InternalIndex && ScopableInternalIndices.GetBit(InternalIndex); }
-
 	static FNetRefHandle MakeNetRefHandle(uint32 Id, uint32 ReplicationSystemId);
 	static FNetRefHandle MakeNetRefHandleFromId(uint32 Id);
 
