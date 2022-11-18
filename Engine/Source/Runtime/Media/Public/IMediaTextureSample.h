@@ -124,6 +124,7 @@ enum class EMediaOrientation
 	CW270
 };
 
+static constexpr float kMediaSample_HDR_NitsNormalizationFactor = 1.0f / 100.0f;
 
 /**
  * Interface for media texture samples.
