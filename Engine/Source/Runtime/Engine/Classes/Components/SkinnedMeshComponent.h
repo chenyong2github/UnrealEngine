@@ -715,6 +715,14 @@ private:
 	UPROPERTY(transient)
 	uint8 bForceMeshObjectUpdate:1;
 
+	/**
+	   Whether to update dynamic bone & cloth sim data immediately, not to wait until GDME or defer update to RHIThread.
+	   When set to true, it is the equivalent of r.DeferSkeletalDynamicDataUpdateUntilGDME=0 and r.RHICmdDeferSkeletalLockAndFillToRHIThread=0.
+	   When set to false, r.DeferSkeletalDynamicDataUpdateUntilGDME and r.RHICmdDeferSkeletalLockAndFillToRHIThread values are respected.
+	 */
+	UPROPERTY(transient)
+	uint8 bForceUpdateDynamicDataImmediately : 1;
+
 protected:
 	/** Whether we are externally controlling tick rate */
 	uint8 bExternalTickRateControlled:1;
@@ -985,6 +993,9 @@ public:
 	bool IsSkinCacheAllowed(int32 LodIdx) const;
 
 	bool HasMeshDeformer() const { return GetActiveMeshDeformer() != nullptr; }
+
+	bool GetForceUpdateDynamicDataImmediately() const { return bForceUpdateDynamicDataImmediately; }
+	void SetForceUpdateDynamicDataImmediately(bool bForceUpdateImmediately) { bForceUpdateDynamicDataImmediately = bForceUpdateImmediately; }
 
 	/**
 	 *	Compute SkeletalMesh MinLOD that will be used by this component

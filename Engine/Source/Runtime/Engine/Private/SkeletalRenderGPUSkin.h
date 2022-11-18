@@ -144,6 +144,11 @@ public:
 	// Whether animation is done with a mesh deformer.
 	uint8 bHasMeshDeformer : 1;
 
+	// Whether to update dynamic bone & cloth sim data immediately, not to wait until GDME or defer update to RHIThread.
+	// When set to true, it is the equivalent of r.DeferSkeletalDynamicDataUpdateUntilGDME=0 and r.RHICmdDeferSkeletalLockAndFillToRHIThread=0.
+	// When set to false, r.DeferSkeletalDynamicDataUpdateUntilGDME and r.RHICmdDeferSkeletalLockAndFillToRHIThread values are respected.
+	uint8 bForceUpdateDynamicDataImmediately : 1;
+
 #if RHI_RAYTRACING
 	uint8 bAnySegmentUsesWorldPositionOffset : 1;
 #endif
