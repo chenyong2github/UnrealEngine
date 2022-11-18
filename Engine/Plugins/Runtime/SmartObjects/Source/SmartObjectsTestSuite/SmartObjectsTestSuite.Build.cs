@@ -20,7 +20,8 @@ namespace UnrealBuildTool.Rules
 					"GameplayTags",
 					"MassEntity",
 					"SmartObjectsModule",
-					"StructUtils"
+					"StructUtils",
+					"WorldConditions"
 				}
 			);
 
