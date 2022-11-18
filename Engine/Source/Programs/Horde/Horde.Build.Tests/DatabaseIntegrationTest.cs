@@ -14,6 +14,13 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Tests
 {
+	// Stub for fulfilling IOptions interface during testing
+	public sealed class TestOptions<T> : IOptions<T> where T : class
+	{
+		public TestOptions(T options) => Value = options;
+		public T Value { get; }
+	}
+
 	// Stub for fulfilling IOptionsMonitor interface during testing
 	public sealed class TestOptionsMonitor<T> : IOptionsMonitor<T>
         where T : class, new()

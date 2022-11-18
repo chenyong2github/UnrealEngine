@@ -693,6 +693,38 @@ namespace EpicGames.Horde.Logs
 	public static class LogChunkExtensions
 	{
 		/// <summary>
+		/// Gets the chunk index containing the given offset.
+		/// </summary>
+		/// <param name="chunks">The chunks to search</param>
+		/// <param name="offset">The offset to search for</param>
+		/// <returns>The chunk index containing the given offset</returns>
+		public static int GetChunkForOffset(this IReadOnlyList<LogChunkRef> chunks, long offset)
+		{
+			int chunkIndex = chunks.BinarySearch(x => x.Offset, offset);
+			if (chunkIndex < 0)
+			{
+				chunkIndex = ~chunkIndex - 1;
+			}
+			return chunkIndex;
+		}
+
+		/// <summary>
+		/// Gets the starting chunk index for the given line
+		/// </summary>
+		/// <param name="chunks">The chunks to search</param>
+		/// <param name="lineIndex">Index of the line to query</param>
+		/// <returns>Index of the chunk to fetch</returns>
+		public static int GetChunkForLine(this IReadOnlyList<LogChunkRef> chunks, int lineIndex)
+		{
+			int chunkIndex = chunks.BinarySearch(x => x.LineIndex, lineIndex);
+			if (chunkIndex < 0)
+			{
+				chunkIndex = ~chunkIndex - 1;
+			}
+			return chunkIndex;
+		}
+
+		/// <summary>
 		/// Converts a log text instance to plain text
 		/// </summary>
 		/// <param name="logText">The text to convert</param>

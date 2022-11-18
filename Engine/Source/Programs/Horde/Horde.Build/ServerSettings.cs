@@ -180,6 +180,10 @@ namespace Horde.Build
 		/// </summary>
 		public bool LimitConcurrentLogChunkWriting { get; set; } = false;
 
+		/// <summary>
+		/// Whether to use the new log storage backend
+		/// </summary>
+		public bool EnableNewLogger { get; set; } = false;
 	}
 
 	/// <summary>

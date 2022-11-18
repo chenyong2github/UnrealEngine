@@ -46,8 +46,8 @@ namespace Horde.Build.Tests
 			ILogBuilder logBuilder = new RedisLogBuilder(GetRedisServiceSingleton().ConnectionPool, NullLogger.Instance);
 			_logStorage = new PersistentLogStorage(new MemoryStorageBackend().ForType<PersistentLogStorage>(), NullLogger<PersistentLogStorage>.Instance);
 			_clock = new FakeClock();
-			TestOptionsMonitor<ServerSettings> settingsOpts = new (new ServerSettings());
-			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, _clock, settingsOpts, logger);
+			TestOptions<ServerSettings> settingsOpts = new (new ServerSettings());
+			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, _clock, null!, settingsOpts, logger);
         }
 
 		protected override void Dispose(bool disposing)
