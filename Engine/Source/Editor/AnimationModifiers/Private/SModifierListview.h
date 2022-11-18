@@ -39,6 +39,7 @@ struct FModifierListviewItem
 	TWeakObjectPtr<UAnimationModifier> Instance;
 	int32 Index;
 	UClass* OuterClass;
+	bool OutOfDate;
 };
 
 typedef TSharedPtr<FModifierListviewItem> ModifierListviewItem;

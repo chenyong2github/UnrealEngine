@@ -63,7 +63,7 @@ FText SModifierItemRow::GetInstanceText() const
 	// Ensure we remove the modifier class postfix
 	LabelString.RemoveFromEnd(Postfix);
 
-	if (InternalItem->Instance.IsValid() && !InternalItem->Instance->IsLatestRevisionApplied())
+	if (InternalItem->OutOfDate)
 	{
 		LabelString.Append(" (Out of Date)");
 	}

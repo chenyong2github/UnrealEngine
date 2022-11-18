@@ -59,6 +59,9 @@ void FAnimationModifiersModule::StartupModule()
 			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddRaw(this, &FAnimationModifiersModule::OnAssetPostReimport);
 		}
 	});
+
+	// Register extra asset registry tags for UAnimSequence
+	OnGetExtraObjectTagsHandle = UObject::FAssetRegistryTag::OnGetExtraObjectTags.AddStatic(&UAnimationModifier::GetAssetRegistryTagsForAppliedModifiersFromSkeleton);
 }
 
 TSharedRef<FApplicationMode> FAnimationModifiersModule::ExtendApplicationMode(const FName ModeName, TSharedRef<FApplicationMode> InMode)
@@ -142,6 +145,7 @@ void FAnimationModifiersModule::ShutdownModule()
 	if (GEditor)
 	{
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
+		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.RemoveAll(this);
 	}
 }
 
@@ -170,6 +174,7 @@ void FAnimationModifiersModule::ShowAddAnimationModifierWindow(const TArray<UAni
 	}
 
 	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+	UObject::FAssetRegistryTag::OnGetExtraObjectTags.Remove(OnGetExtraObjectTagsHandle);
 }
 
 void FAnimationModifiersModule::ApplyAnimationModifiers(const TArray<UAnimSequence*>& InSequences, bool bForceApply /*= true*/)
@@ -186,11 +191,10 @@ void FAnimationModifiersModule::ApplyAnimationModifiers(const TArray<UAnimSequen
 			UAnimationModifiersAssetUserData* UserData = AnimationSequence->GetAssetUserData<UAnimationModifiersAssetUserData>();
 			if (UserData)
 			{
-				AnimationSequence->Modify();
 				const TArray<UAnimationModifier*>& ModifierInstances = UserData->GetAnimationModifierInstances();
 				for (UAnimationModifier* Modifier : ModifierInstances)
 				{
-					if (bForceApply || !Modifier->IsLatestRevisionApplied())
+					if (bForceApply || !Modifier->IsLatestRevisionApplied(AnimationSequence))
 					{
 						Modifier->ApplyToAnimationSequence(AnimationSequence);
 					}

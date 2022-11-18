@@ -11,6 +11,7 @@
 #include "ClassViewerFilter.h"
 #include "AnimationModifier.h"
 #include "AnimationModifiersAssetUserData.h"
+#include "AnimationModifier.h"
 
 class FAnimationModifierHelpers
 {
@@ -75,4 +76,42 @@ public:
 		return AssetUserData;
 	}
 
+	//! @brief Enumerate the List[ModifierName,RevisionGuid] formed tag
+	//! @param[in] Tag The tag to parse
+	//! @param[in] Callback (FStringView, FGuid) -> bool, the function to apply to each modifier=revision pair, return false to _break_ from enumeration
+	template<typename Func>
+	static void EnumerateAnimationModifierTags(FStringView Tag, Func&& Callback)
+	{
+		static_assert(std::is_invocable_r_v<bool, Func, FStringView, FGuid>, "Func must be invocable (FStringView, FGuid) -> bool");
+		int Begin = 0;
+		int Mid = -1;
+		int End = -1;
+		for (size_t I = 0; I <= Tag.Len(); I++)
+		{
+			if (I == Tag.Len() || Tag[I] == UAnimationModifier::AnimationModifiersDelimiter)
+			{
+				if (I <= Begin)
+				{
+					continue; // Skip empty pair
+				}
+				End = I;
+				ensure(Mid >= Begin && End > Mid);
+				FStringView Name = Tag.SubStr(Begin, Mid - Begin);
+				FStringView Revision = Tag.SubStr(Mid + 1, End - Mid - 1);
+				FGuid RevisionGuid;
+				FGuid::Parse(FString{Revision}, RevisionGuid);
+
+				bool Break = !Invoke(Callback, Name, RevisionGuid);
+				if (Break)
+				{
+					break;
+				}
+				Begin = End + 1;
+			}
+			else if (Tag[I] == UAnimationModifier::AnimationModifiersAssignment)
+			{
+				Mid = I;
+			}
+		}
+	}
 };

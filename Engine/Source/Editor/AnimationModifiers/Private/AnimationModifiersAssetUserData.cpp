@@ -19,6 +19,7 @@ void UAnimationModifiersAssetUserData::RemoveAnimationModifierInstance(UAnimatio
 {
 	checkf(AnimationModifierInstances.Contains(Instance), TEXT("Instance suppose to be removed is not found"));
 	AnimationModifierInstances.Remove(Instance);
+	AppliedModifiers.Remove(Instance);
 }
 
 const TArray<UAnimationModifier*>& UAnimationModifiersAssetUserData::GetAnimationModifierInstances() const
@@ -87,4 +88,35 @@ void UAnimationModifiersAssetUserData::RemoveInvalidModifiers()
 {
 	// This will catch force-deleted blueprints to be removed from our stored array
 	AnimationModifierInstances.RemoveAll([](UAnimationModifier* Modifier) { return Modifier == nullptr; });
+
+	// The AssetUserData on this animation's skeleton
+	UAnimationModifiersAssetUserData* SkeletonAssetUserData = nullptr;
+	if (const UObject* OwnerAsset = GetOuter())
+	{
+		if (const UAnimSequence* Sequence = Cast<UAnimSequence>(OwnerAsset->GetOuter()))
+		{
+			if (USkeleton* Skeleton = Sequence->GetSkeleton())
+			{
+				SkeletonAssetUserData = Skeleton->GetAssetUserData< UAnimationModifiersAssetUserData>();
+			}
+		}
+	}
+
+	auto IsAppliedModifierValid = [this, SkeletonAssetUserData](const decltype(AppliedModifiers)::ElementType& Pair)
+	{
+		// The key (template modifier) from both animation sequence or skeleton should be loaded before this object
+		if (const UObject* MasterModifier = Pair.Key.ResolveObject())
+		{
+			if (const UObject* AssetData = MasterModifier->GetOuter())
+			{
+				// If the MasterModifier is not owned by us or the skeleton
+				// This asset user data must been re-parented
+				// Remove those stale applied-modifier information
+				return AssetData == this || AssetData == SkeletonAssetUserData;
+			}
+		}
+		return false;
+	};
+	// Remove all applied modifier instances of deleted modifier
+	AppliedModifiers = AppliedModifiers.FilterByPredicate([](const decltype(AppliedModifiers)::ElementType& Pair) { return Pair.Key.ResolveObject() != nullptr; });
 }

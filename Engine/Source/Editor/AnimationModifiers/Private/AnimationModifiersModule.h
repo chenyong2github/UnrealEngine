@@ -38,6 +38,8 @@ protected:
 
 	FWorkflowApplicationModeExtender Extender;
 
+	FDelegateHandle OnGetExtraObjectTagsHandle;
+
 	/** Callbacks used to add and apply default animation modifier classes */
 	void OnAssetPostImport(UFactory* ImportFactory, UObject* ImportedObject);
 	void OnAssetPostReimport(UObject* ReimportedObject);
