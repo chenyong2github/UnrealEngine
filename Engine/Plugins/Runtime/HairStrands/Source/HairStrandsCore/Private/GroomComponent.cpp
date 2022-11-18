@@ -2539,6 +2539,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				LocalBindingAsset = nullptr;
 			}
 		}
+
+		// When a groom is attached to a skinned mesh, skin dynamic data needs to be update immediately and not deferred 
+		// until drawing. This ensures that skin data are ready/available for simulation.
+		if (USkinnedMeshComponent* SkinnedMesh = Cast<USkinnedMeshComponent>(RegisteredMeshComponent))
+		{
+			SkinnedMesh->SetForceUpdateDynamicDataImmediately(true);
+		}
 	}
 
 	// Update requirement based on binding asset availability
