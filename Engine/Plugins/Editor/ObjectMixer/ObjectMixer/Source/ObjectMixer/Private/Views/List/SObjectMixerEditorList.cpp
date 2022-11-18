@@ -885,9 +885,9 @@ TSharedRef<SWidget> SObjectMixerEditorList::GenerateHeaderRowContextMenu() const
 
 					if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
 					{
-						if (const TSubclassOf<UObjectMixerObjectFilter> Filter = PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilterClass())
+						for (const TSubclassOf<UObjectMixerObjectFilter>& FilterClass : PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilterClasses())
 						{
-							const FName FilterName = Filter->GetFName();
+							const FName FilterName = FilterClass->GetFName();
 							SerializedData->SetShouldShowColumn(FilterName, PropertyName, bNewColumnEnabled);
 						}
 					}
@@ -1019,9 +1019,15 @@ TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 	HeaderRow->ClearColumns();
 	ListViewColumns.Empty(ListViewColumns.Num());
 	
-	TSet<UClass*> SpecifiedClasses =
-		PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilter()->GetParentAndChildClassesFromSpecifiedClasses(
-			ObjectClassesToFilterCache, PropertyInheritanceInclusionOptionsCache);
+	TSet<UClass*> SpecifiedClasses;
+	for (const TObjectPtr<UObjectMixerObjectFilter>& Instance : PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilterInstances())
+	{
+		SpecifiedClasses.Append(
+			Instance->GetParentAndChildClassesFromSpecifiedClasses(
+				ObjectClassesToFilterCache, PropertyInheritanceInclusionOptionsCache
+			)
+		);
+	}
 	
 	for (const UClass* Class : SpecifiedClasses)
 	{
@@ -1146,12 +1152,17 @@ TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 			// Then load visible columns from SerializedData
 			if (UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>())
 			{
-				if (const TSubclassOf<UObjectMixerObjectFilter> Filter = PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilterClass())
+				for (const TSubclassOf<UObjectMixerObjectFilter>& Filter : PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilterClasses())
 				{
 					const FName FilterName = Filter->GetFName();
 					if (SerializedData->IsColumnDataSerialized(FilterName, ColumnInfo.PropertyName))
 					{
-						bShouldShowColumn = SerializedData->ShouldShowColumn(FilterName, ColumnInfo.PropertyName);
+						if (SerializedData->ShouldShowColumn(FilterName, ColumnInfo.PropertyName))
+						{
+							// If any filter's serialized data says we should show a column, show it and stomp other filters' saved setting.
+							bShouldShowColumn = true;
+							break;
+						}
 					}
 				}
 			}
@@ -1360,77 +1371,82 @@ void SObjectMixerEditorList::PropagatePropertyChangesToSelectedRows()
 void SObjectMixerEditorList::BuildPerformanceCacheAndGenerateHeaderIfNeeded()
 {
 	TSharedPtr<FObjectMixerEditorList> PinnedListModel = ListModelPtr.Pin();
-	check(PinnedListModel && PinnedListModel->GetMainPanelModel().IsValid());
-	
-	// If any of the following overrides change, we need to regenerate the header row. Otherwise skip regeneration for performance reasons.
+	check(PinnedListModel);
+	TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanelModel = PinnedListModel->GetMainPanelModel().Pin();
+	check(PinnedMainPanelModel);
+
+	// If any of the following overrides change, we need to regenerate the header row. Otherwise skip regeneration for performance reasons.	
 	// GetObjectClassesToFilter, GetColumnsToShowByDefault, GetColumnsToExclude,
 	// GetForceAddedColumns, GetObjectMixerPropertyInheritanceInclusionOptions, ShouldIncludeUnsupportedProperties
 	bool bNeedToGenerateHeaders = false;
 	
-	const TObjectPtr<UObjectMixerObjectFilter> SelectedFilter = PinnedListModel->GetMainPanelModel().Pin()->GetObjectFilter();
-	if (!SelectedFilter)
+	TSet<UClass*> LocalObjectClassesToFilterCache;
+	TSet<FName> LocalColumnsToShowByDefaultCache;
+	TSet<FName> LocalColumnsToExcludeCache;
+	TSet<FName> LocalForceAddedColumnsCache;
+	
+	for (const TObjectPtr<UObjectMixerObjectFilter>& FilterInstance : PinnedMainPanelModel->GetObjectFilterInstances())
 	{
-		UE_LOG(LogObjectMixerEditor, Display, TEXT("%hs: No classes defined in UObjectMixerObjectFilter class."), __FUNCTION__);
-		return;
+		if (!FilterInstance)
+		{
+			UE_LOG(LogObjectMixerEditor, Display, TEXT("%hs: UObjectMixerObjectFilter instance not valid."), __FUNCTION__);
+			continue;
+		}
+
+		LocalObjectClassesToFilterCache.Append(FilterInstance->GetObjectClassesToFilter());
+		LocalColumnsToShowByDefaultCache.Append(FilterInstance->GetColumnsToShowByDefault());
+		LocalColumnsToExcludeCache.Append(FilterInstance->GetColumnsToExclude());
+		LocalForceAddedColumnsCache.Append(FilterInstance->GetForceAddedColumns());
 	}
 
-	if (const TSet<UClass*> ObjectClassesToFilter = SelectedFilter->GetObjectClassesToFilter();
-		ObjectClassesToFilter.Num() != ObjectClassesToFilterCache.Num() ||
-		ObjectClassesToFilter.Difference(ObjectClassesToFilterCache).Num() > 0 || ObjectClassesToFilterCache.Difference(ObjectClassesToFilter).Num() > 0)
+	if (LocalObjectClassesToFilterCache.Difference(ObjectClassesToFilterCache).Num() > 0 || 
+		ObjectClassesToFilterCache.Difference(LocalObjectClassesToFilterCache).Num() > 0)
 	{
-		ObjectClassesToFilterCache = ObjectClassesToFilter;
-		if (!bNeedToGenerateHeaders)
+		ObjectClassesToFilterCache = LocalObjectClassesToFilterCache;
+		bNeedToGenerateHeaders = true;
+	}
+
+	if (LocalColumnsToShowByDefaultCache.Difference(ColumnsToShowByDefaultCache).Num() > 0 || 
+		ColumnsToShowByDefaultCache.Difference(LocalColumnsToShowByDefaultCache).Num() > 0)
+	{
+		ColumnsToShowByDefaultCache = LocalColumnsToShowByDefaultCache;
+		bNeedToGenerateHeaders = true;
+	}
+
+	if (LocalColumnsToExcludeCache.Difference(ColumnsToExcludeCache).Num() > 0 || 
+		ColumnsToExcludeCache.Difference(LocalColumnsToExcludeCache).Num() > 0)
+	{
+		ColumnsToExcludeCache = LocalColumnsToExcludeCache;
+		bNeedToGenerateHeaders = true;
+	}
+
+	if (LocalForceAddedColumnsCache.Difference(ForceAddedColumnsCache).Num() > 0 || 
+		ForceAddedColumnsCache.Difference(LocalForceAddedColumnsCache).Num() > 0)
+	{
+		ForceAddedColumnsCache = LocalForceAddedColumnsCache;
+		bNeedToGenerateHeaders = true;
+	}
+
+	// These properties should be governed by the Main instance
+	if (const UObjectMixerObjectFilter* FilterInstance = PinnedMainPanelModel->GetMainObjectFilterInstance())
+	{
+		if (const EObjectMixerInheritanceInclusionOptions PropertyInheritanceInclusionOptions =
+			FilterInstance->GetObjectMixerPropertyInheritanceInclusionOptions(); 
+			PropertyInheritanceInclusionOptions != PropertyInheritanceInclusionOptionsCache)
 		{
+			PropertyInheritanceInclusionOptionsCache = PropertyInheritanceInclusionOptions;
+			bNeedToGenerateHeaders = true;
+		}
+		if (const bool bShouldIncludeUnsupportedProperties = FilterInstance->ShouldIncludeUnsupportedProperties(); 
+			bShouldIncludeUnsupportedProperties != bShouldIncludeUnsupportedPropertiesCache)
+		{
+			bShouldIncludeUnsupportedPropertiesCache = bShouldIncludeUnsupportedProperties;
 			bNeedToGenerateHeaders = true;
 		}
 	}
-	if (const TSet<FName> ColumnsToShowByDefault = SelectedFilter->GetColumnsToShowByDefault();
-		ColumnsToShowByDefault.Num() != ColumnsToShowByDefaultCache.Num() ||
-		ColumnsToShowByDefault.Difference(ColumnsToShowByDefaultCache).Num() > 0 || ColumnsToShowByDefaultCache.Difference(ColumnsToShowByDefault).Num() > 0)
+	else
 	{
-		ColumnsToShowByDefaultCache = ColumnsToShowByDefault;
-		if (!bNeedToGenerateHeaders)
-		{
-			bNeedToGenerateHeaders = true;
-		}
-	}
-	if (const TSet<FName> ColumnsToExclude = SelectedFilter->GetColumnsToExclude();
-		ColumnsToExclude.Num() != ColumnsToExcludeCache.Num() ||
-		ColumnsToExclude.Difference(ColumnsToExcludeCache).Num() > 0 || ColumnsToExcludeCache.Difference(ColumnsToExclude).Num() > 0)
-	{
-		ColumnsToExcludeCache = ColumnsToExclude;
-		if (!bNeedToGenerateHeaders)
-		{
-			bNeedToGenerateHeaders = true;
-		}
-	}
-	if (const TSet<FName> ForceAddedColumns = SelectedFilter->GetForceAddedColumns();
-		ForceAddedColumns.Num() != ForceAddedColumnsCache.Num() ||
-		ForceAddedColumns.Difference(ForceAddedColumnsCache).Num() > 0 || ForceAddedColumnsCache.Difference(ForceAddedColumns).Num() > 0)
-	{
-		ForceAddedColumnsCache = ForceAddedColumns;
-		if (!bNeedToGenerateHeaders)
-		{
-			bNeedToGenerateHeaders = true;
-		}
-	}
-	if (const EObjectMixerInheritanceInclusionOptions PropertyInheritanceInclusionOptions = SelectedFilter->GetObjectMixerPropertyInheritanceInclusionOptions(); 
-		PropertyInheritanceInclusionOptions != PropertyInheritanceInclusionOptionsCache)
-	{
-		PropertyInheritanceInclusionOptionsCache = PropertyInheritanceInclusionOptions;
-		if (!bNeedToGenerateHeaders)
-		{
-			bNeedToGenerateHeaders = true;
-		}
-	}
-	if (const bool bShouldIncludeUnsupportedProperties = SelectedFilter->ShouldIncludeUnsupportedProperties(); 
-		bShouldIncludeUnsupportedProperties != bShouldIncludeUnsupportedPropertiesCache)
-	{
-		bShouldIncludeUnsupportedPropertiesCache = bShouldIncludeUnsupportedProperties;
-		if (!bNeedToGenerateHeaders)
-		{
-			bNeedToGenerateHeaders = true;
-		}
+		UE_LOG(LogObjectMixerEditor, Display, TEXT("%hs: No Main UObjectMixerObjectFilter instance found."), __FUNCTION__);
 	}
 	
 	if (bNeedToGenerateHeaders)

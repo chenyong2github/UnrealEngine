@@ -2,6 +2,7 @@
 
 #include "Views/MainPanel/SObjectMixerEditorMainPanel.h"
 
+#include "ContentBrowserModule.h"
 #include "Engine/Blueprint.h"
 #include "ObjectMixerEditorLog.h"
 #include "ObjectMixerEditorModule.h"
@@ -17,6 +18,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Framework/Application/SlateApplication.h"
 #include "EditorActorFolders.h"
+#include "IContentBrowserSingleton.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IPlacementModeModule.h"
 #include "Kismet2/SClassPickerDialog.h"
@@ -29,6 +31,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"
@@ -214,15 +217,23 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::GenerateToolbar()
 
 TSharedRef<SWidget> SObjectMixerEditorMainPanel::OnGenerateAddObjectButtonMenu() const
 {
-	const TSet<TSubclassOf<AActor>> SubclassesOfActor = MainPanelModel.Pin()->GetObjectClassesToPlace();
-
-	if (SubclassesOfActor.Num() > 0)
+	TSet<UClass*> ClassesToPlace;
+	for (const TObjectPtr<UObjectMixerObjectFilter>& Instance : MainPanelModel.Pin()->GetObjectFilterInstances())
 	{
-		TSet<UClass*> ClassesToPlace =
-		   MainPanelModel.Pin()->GetObjectFilter()->GetParentAndChildClassesFromSpecifiedClasses(
-			   SubclassesOfActor,
-			   MainPanelModel.Pin()->GetObjectFilter()->GetObjectMixerPlacementClassInclusionOptions());
-	
+		const TSet<TSubclassOf<AActor>> SubclassesOfActor = Instance->GetObjectClassesToPlace();
+		if (SubclassesOfActor.Num() > 0)
+		{
+			ClassesToPlace.Append(
+				Instance->GetParentAndChildClassesFromSpecifiedClasses(
+					SubclassesOfActor,
+					Instance->GetObjectMixerPlacementClassInclusionOptions()
+				)
+			);
+		}
+	}
+
+	if (ClassesToPlace.Num() > 0)
+	{
 		FMenuBuilder AddObjectButtonMenuBuilder = FMenuBuilder(true, nullptr);
 
 		for (const UClass* Class : ClassesToPlace)
@@ -263,9 +274,27 @@ bool IsBlueprintFilter(const FAssetData& BlueprintClassData)
 	return bInheritsFromBlueprintFilter;
 }
 
+struct FAssetClassMap
+{
+	TObjectPtr<UClass> Class = nullptr;
+	FAssetData AssetData;
+
+	bool operator==(const FAssetClassMap& Other) const
+	{
+		return Class == Other.Class;
+	}
+};
+
 TSharedRef<SWidget> SObjectMixerEditorMainPanel::OnGenerateFilterClassMenu()
 {
-	FMenuBuilder MenuBuilder(true, nullptr);
+	TSharedRef<SVerticalBox> VerticalBox = SNew(SVerticalBox);
+
+	TSharedRef<SBox> OuterBox =
+		SNew(SBox)
+		.Padding(8)
+		[
+			VerticalBox
+		];
 
 	// Get C++ Derivatives (and maybe Blueprint derivatives)
 	TArray<UClass*> DerivedClasses;
@@ -273,6 +302,13 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::OnGenerateFilterClassMenu()
 
 	DerivedClasses.Remove(UObjectMixerObjectFilter::StaticClass());
 	DerivedClasses.Remove(UObjectMixerBlueprintObjectFilter::StaticClass());
+
+	TArray<FAssetClassMap> AssetClassMaps;
+
+	for (UClass* Class : DerivedClasses)
+	{
+		AssetClassMaps.Add({Class});
+	}
 
 	// Get remaining Blueprint derivatives
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked< FAssetRegistryModule >(FName("AssetRegistry"));
@@ -284,75 +320,121 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::OnGenerateFilterClassMenu()
 	{
 		if (IsBlueprintFilter(Asset))
 		{
-			if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(Asset.GetAsset()))
+			if (const UBlueprint* BlueprintAsset = Cast<UBlueprint>(Asset.GetAsset()))
 			{
 				UClass* LoadedClass = BlueprintAsset->GeneratedClass;
 				if (ensure(LoadedClass && BlueprintAsset->ParentClass))
 				{
-					DerivedClasses.AddUnique(LoadedClass);
+					if (FAssetClassMap* Match = Algo::FindByPredicate(
+						AssetClassMaps,
+						[LoadedClass](const FAssetClassMap& ClassMap)
+						{
+							return ClassMap.Class == LoadedClass;
+						}))
+					{
+						Match->AssetData = Asset;
+					}
+					else
+					{
+						AssetClassMaps.Add({LoadedClass, Asset});
+					}
 				}
 			}
 		}
 	}
 
-	DerivedClasses.Sort([](UClass& A, UClass& B)
-	{
-		return A.GetFName().LexicalLess(B.GetFName());
-	});
-
-	if (DerivedClasses.Num())
+	if (AssetClassMaps.Num())
 	{
 		check(MainPanelModel.Pin());
-		
-		MenuBuilder.BeginSection(NAME_None, LOCTEXT("SelectClassMenuSection", "Select Class"));
-		{
-			for (UClass* DerivedClass : DerivedClasses)
-			{
-				if (IsValid(DerivedClass))
-				{
-					if (DerivedClass->GetName().StartsWith(TEXT("SKEL_")) || DerivedClass->GetName().StartsWith(TEXT("REINST_")))
-					{
-						continue;
-					}
 
-					if (DerivedClass->HasAnyClassFlags(CLASS_Abstract | CLASS_HideDropDown | CLASS_Deprecated))
-					{
-						continue;
-					}
-					
-					MenuBuilder.AddMenuEntry(
-					   FText::FromString(DerivedClass->GetName().EndsWith(TEXT("_C")) ? DerivedClass->GetName().LeftChop(2) : DerivedClass->GetName()),
-					   FText::FromString(DerivedClass->GetClassPathName().ToString()),
-					   FSlateIcon(),
-					   FUIAction(
-						   FExecuteAction::CreateSP(MainPanelModel.Pin().ToSharedRef(), &FObjectMixerEditorMainPanel::SetObjectFilterClass, DerivedClass),
-						   FCanExecuteAction::CreateLambda([](){ return true; }),
-						   FIsActionChecked::CreateSP(MainPanelModel.Pin().ToSharedRef(), &FObjectMixerEditorMainPanel::IsClassSelected, DerivedClass)
-					   ),
-					   NAME_None,
-					   EUserInterfaceActionType::RadioButton
-				   );
+		AssetClassMaps.Sort([](const FAssetClassMap& A, const FAssetClassMap& B)
+		{
+			return A.Class.GetFName().LexicalLess(B.Class.GetFName());
+		});
+		
+		FilterClassSelectionInfos.Empty(FilterClassSelectionInfos.Num());
+		for (const FAssetClassMap& AssetClassMap : AssetClassMaps)
+		{
+			if (IsValid(AssetClassMap.Class))
+			{
+				if (AssetClassMap.Class->GetName().StartsWith(TEXT("SKEL_")) || AssetClassMap.Class->GetName().StartsWith(TEXT("REINST_")))
+				{
+					continue;
 				}
+
+				if (AssetClassMap.Class->HasAnyClassFlags(CLASS_Abstract | CLASS_HideDropDown | CLASS_Deprecated))
+				{
+					continue;
+				}
+
+				const bool bIsDefaultClass = MainPanelModel.Pin()->GetDefaultFilterClass() == AssetClassMap.Class;
+				
+				const FText TooltipText = bIsDefaultClass ?
+					FText::Format(
+						LOCTEXT("DefaultClassDisclaimer","This class explicitly cannot be disabled in {0}"), 
+						FText::FromName(MainPanelModel.Pin()->GetModuleName())) :
+					FText::FromString(AssetClassMap.Class->GetClassPathName().ToString()
+				);
+
+				FilterClassSelectionInfos.Add({AssetClassMap.Class, MainPanelModel.Pin()->IsClassSelected(AssetClassMap.Class)});
+
+				VerticalBox->AddSlot()
+				.Padding(FMargin(0, 0, 0, 8))
+				.AutoHeight()
+				[
+					SNew(SFilterClassMenuItem, AssetClassMap, bIsDefaultClass, FilterClassSelectionInfos, TooltipText)
+				];
 			}
 		}
-		MenuBuilder.EndSection();
+
+		VerticalBox->AddSlot()
+		.HAlign(HAlign_Fill)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("SelectFilterClassMenu_ApplyButton", "Apply"))
+			.HAlign(HAlign_Center)
+			.OnClicked(FOnClicked::CreateLambda([this]()
+			   {
+					if (const TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanel = MainPanelModel.Pin())
+					{
+						PinnedMainPanel->ResetObjectFilterClasses(false);
+						for (const FFilterClassSelectionInfo& Info : FilterClassSelectionInfos)
+						{
+							if (Info.bIsUserSelected)
+							{
+								PinnedMainPanel->AddObjectFilterClass(Info.Class, false);
+							}
+						}
+
+						PinnedMainPanel->CacheAndRebuildFilters();
+					}
+
+					return FReply::Handled();
+			   })
+			)
+		];
 	}
 	else
 	{
-		MenuBuilder.AddMenuEntry(LOCTEXT("NoFilterClassesAvailable", "No filter classes available."), FText::GetEmpty(), FSlateIcon(), FUIAction());
+		VerticalBox->AddSlot()
+		.HAlign(HAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("NoFilterClassesAvailable", "No filter classes available."))
+		];
 	}
 
-	TSharedRef<SWidget> Widget = MenuBuilder.MakeWidget();
-	FChildren* ChildWidgets = Widget->GetChildren();
+	FChildren* ChildWidgets = VerticalBox->GetChildren();
 	for (int32 ChildItr = 0; ChildItr < ChildWidgets->Num(); ChildItr++)
 	{
 		const TSharedRef<SWidget>& Child = ChildWidgets->GetChildAt(ChildItr);
 
 		Child->EnableToolTipForceField(false);
 	}
-	Widget->EnableToolTipForceField(false);
+	VerticalBox->EnableToolTipForceField(false);
+	OuterBox->EnableToolTipForceField(false);
 	
-	return Widget;
+	return OuterBox;
 }
 
 TSharedRef<SWidget> SObjectMixerEditorMainPanel::BuildShowOptionsMenu()
@@ -360,49 +442,46 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::BuildShowOptionsMenu()
 	FMenuBuilder ShowOptionsMenuBuilder = FMenuBuilder(true, nullptr);
 
 	// No need to select filter class from outside generic instance
-	if (MainPanelModel.Pin()->GetModuleName() == FObjectMixerEditorModule::BaseObjectMixerModuleName)
+	ShowOptionsMenuBuilder.BeginSection("ListViewOptions", LOCTEXT("FilterClassManagementSection", "Filter Class Management"));
 	{
-		ShowOptionsMenuBuilder.BeginSection("ListViewOptions", LOCTEXT("FilterClassManagementSection", "Filter Class Management"));
-		{
-			// Filter Class Management Button
-			const TSharedRef<SWidget> FilterClassManagementButton =
-				SNew(SBox)
-				.Padding(8, 0)
+		// Filter Class Management Button
+		const TSharedRef<SWidget> FilterClassManagementButton =
+			SNew(SBox)
+			.Padding(8, 0)
+			[
+				SNew(SComboButton)
+				.ToolTipText(LOCTEXT("FilterClassManagementButton_Tooltip", "Select a filter class"))
+				.ContentPadding(FMargin(4, 0.5f))
+				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+				.OnGetMenuContent(this, &SObjectMixerEditorMainPanel::OnGenerateFilterClassMenu)
+				.ForegroundColor(FStyleColors::Foreground)
+				.MenuPlacement(EMenuPlacement::MenuPlacement_MenuRight)
+				.ButtonContent()
 				[
-					SNew(SComboButton)
-					.ToolTipText(LOCTEXT("FilterClassManagementButton_Tooltip", "Select a filter class"))
-					.ContentPadding(FMargin(4, 0.5f))
-					.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
-					.OnGetMenuContent(this, &SObjectMixerEditorMainPanel::OnGenerateFilterClassMenu)
-					.ForegroundColor(FStyleColors::Foreground)
-					.MenuPlacement(EMenuPlacement::MenuPlacement_MenuRight)
-					.ButtonContent()
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.Padding(0, 1, 4, 0)
+					.AutoWidth()
 					[
-						SNew(SHorizontalBox)
-
-						+ SHorizontalBox::Slot()
-						.Padding(0, 1, 4, 0)
-						.AutoWidth()
-						[
-							SNew(SImage)
-							.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
-							.ColorAndOpacity(FSlateColor::UseForeground())
-						]
-
-						+ SHorizontalBox::Slot()
-						.Padding(0, 1, 0, 0)
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("FilterClassToolbarButton", "Object Filter Class"))
-						]
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
-				];
 
-			ShowOptionsMenuBuilder.AddWidget(FilterClassManagementButton, FText::GetEmpty());
-		}
-		ShowOptionsMenuBuilder.EndSection();
+					+ SHorizontalBox::Slot()
+					.Padding(0, 1, 0, 0)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FilterClassToolbarButton", "Object Filter Class"))
+					]
+				]
+			];
+
+		ShowOptionsMenuBuilder.AddWidget(FilterClassManagementButton, FText::GetEmpty());
 	}
+	ShowOptionsMenuBuilder.EndSection();
 
 	// Add List View Mode Options
 	ShowOptionsMenuBuilder.BeginSection("ListViewOptions", LOCTEXT("ListViewOptionsSection", "List View Options"));
@@ -551,6 +630,88 @@ void SObjectMixerEditorMainPanel::SetSingleCollectionSelection(const FName& Coll
 			CollectionFilter->SetFilterActive(bIsAllCollectionFilter);
 		}
 	}
+}
+
+void SFilterClassMenuItem::Construct(const FArguments& InArgs, FAssetClassMap AssetClassMap, const bool bIsDefaultClass,
+	TArray<SObjectMixerEditorMainPanel::FFilterClassSelectionInfo>& FilterClassSelectionInfos, const FText TooltipText)
+{
+	const bool bHasValidAssetData = AssetClassMap.AssetData.IsValid();
+	ChildSlot
+	[
+		SNew(SHorizontalBox)
+		.ToolTipText(TooltipText)
+		.IsEnabled(!bIsDefaultClass)
+
+		+SHorizontalBox::Slot()
+		.Padding(FMargin(0, 0, 8, 0))
+		.AutoWidth()
+		[
+			SNew(SCheckBox)
+			.OnCheckStateChanged_Lambda([this, AssetClassMap, &FilterClassSelectionInfos](ECheckBoxState NewState)
+		   {
+				if (SObjectMixerEditorMainPanel::FFilterClassSelectionInfo* Match =
+					Algo::FindByPredicate(FilterClassSelectionInfos,
+						[AssetClassMap](const SObjectMixerEditorMainPanel::FFilterClassSelectionInfo& Other)
+						{
+							return Other.Class == AssetClassMap.Class;
+						}))
+				{
+					   Match->bIsUserSelected = !Match->bIsUserSelected;
+				}
+		   })
+		   .IsChecked_Lambda([this, AssetClassMap, &FilterClassSelectionInfos]()
+		   {
+		   		bool bShouldBeChecked = false;
+		   	
+				if (const SObjectMixerEditorMainPanel::FFilterClassSelectionInfo* Match =
+			   		Algo::FindByPredicate(FilterClassSelectionInfos,
+						[AssetClassMap](const SObjectMixerEditorMainPanel::FFilterClassSelectionInfo& Other)
+						{
+							return Other.Class == AssetClassMap.Class;
+						}))
+			   {
+				   bShouldBeChecked = Match->bIsUserSelected;
+			   }
+			   return bShouldBeChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		   })
+		]
+
+		+SHorizontalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(0, 0, 8, 0))
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(
+				AssetClassMap.Class->GetName().EndsWith(TEXT("_C")) ? AssetClassMap.Class->GetName().LeftChop(2) : AssetClassMap.Class->GetName()))
+		]
+
+		+SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		.AutoWidth()	
+		[
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ContentPadding(FMargin(2))
+			.IsEnabled(bHasValidAssetData)
+			.ToolTipText(bHasValidAssetData ?
+				LOCTEXT("BrowseTooltip", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)")
+					: LOCTEXT("NoBlueprintFilterFound", "This filter class is not a Blueprint class."))
+			.OnClicked_Lambda([AssetClassMap]()
+			{
+				const FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+				ContentBrowserModule.Get().SyncBrowserToAssets({AssetClassMap.AssetData});
+
+				return FReply::Handled();
+			})
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("SystemWideCommands.FindInContentBrowser.Small"))
+			]
+		]
+	];
 }
 
 FText SObjectMixerEditorMainPanel::GetSearchTextFromSearchInputField() const

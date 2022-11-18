@@ -92,7 +92,7 @@ public:
 
 			if (bRowObjectIsValid)
 			{
-				if (const UObjectMixerObjectFilter* Filter = InRow->GetObjectFilter())
+				if (const UObjectMixerObjectFilter* Filter = InRow->GetMainObjectFilterInstance())
 				{
 					TooltipText = Filter->GetRowTooltipText(RowObject, HybridChild.IsValid());
 				}

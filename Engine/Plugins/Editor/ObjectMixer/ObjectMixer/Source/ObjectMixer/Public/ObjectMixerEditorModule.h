@@ -66,6 +66,12 @@ public:
 
 	TSharedPtr<FWorkspaceItem> GetWorkspaceGroup();
 
+	/**
+	 * This is the filter class used to initialize the MainPanel.
+	 * This filter class cannot be turned off by the end user.
+	 */
+	const TSubclassOf<UObjectMixerObjectFilter>& GetDefaultFilterClass() const;
+
 	const static FName BaseObjectMixerModuleName;
 
 protected:
@@ -86,7 +92,10 @@ protected:
 	FText MenuItemTooltip;
 	ETabSpawnerMenuType::Type TabSpawnerType = ETabSpawnerMenuType::Enabled;
 
-	// If set, this is the filter class used to initialize the MainPanel
+	/**
+	 * If set, this is the filter class used to initialize the MainPanel.
+	 * This filter class cannot be turned off by the end user.
+	 */
 	TSubclassOf<UObjectMixerObjectFilter> DefaultFilterClass;
 	
 	TSet<FDelegateHandle> DelegateHandles;

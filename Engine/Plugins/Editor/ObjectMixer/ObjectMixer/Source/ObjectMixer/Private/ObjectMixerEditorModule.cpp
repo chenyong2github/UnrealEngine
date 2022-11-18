@@ -292,7 +292,7 @@ TSharedRef<SDockTab> FObjectMixerEditorModule::SpawnMainPanelTab()
 
 	if (DefaultFilterClass)
 	{
-		MainPanel->OnClassSelectionChanged(DefaultFilterClass);
+		MainPanel->SetDefaultFilterClass(DefaultFilterClass);
 	}
 			
 	return DockTab;
@@ -384,6 +384,11 @@ void FObjectMixerEditorModule::BindDelegates()
 	{
 		RequestRebuildList();
 	});
+}
+
+const TSubclassOf<UObjectMixerObjectFilter>& FObjectMixerEditorModule::GetDefaultFilterClass() const
+{
+	return DefaultFilterClass;
 }
 
 #undef LOCTEXT_NAMESPACE

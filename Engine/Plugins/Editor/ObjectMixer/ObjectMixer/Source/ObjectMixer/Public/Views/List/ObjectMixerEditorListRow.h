@@ -14,6 +14,7 @@
 #include "PropertyHandle.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
+#include "UObject/StrongObjectPtr.h"
 
 class SObjectMixerEditorList;
 class UObjectMixerObjectFilter;
@@ -179,7 +180,9 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow : TSharedFromThis<FObject
 		return FolderRef.GetPath();
 	}
 
-	UObjectMixerObjectFilter* GetObjectFilter() const;
+	const TArray<TObjectPtr<UObjectMixerObjectFilter>>& GetObjectFilterInstances() const;
+
+	const UObjectMixerObjectFilter* GetMainObjectFilterInstance() const;
 
 	bool IsObjectRefInCollection(const FName& CollectionName) const;
 

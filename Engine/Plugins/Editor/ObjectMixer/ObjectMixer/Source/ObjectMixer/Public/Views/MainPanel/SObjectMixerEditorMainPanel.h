@@ -12,8 +12,13 @@ class FObjectMixerEditorMainPanel;
 
 class OBJECTMIXEREDITOR_API SObjectMixerEditorMainPanel final : public SCompoundWidget
 {
-
 public:
+	
+	struct FFilterClassSelectionInfo
+	{
+		UClass* Class;
+		bool bIsUserSelected;
+	};
 
 	SLATE_BEGIN_ARGS(SObjectMixerEditorMainPanel)
 	{}
@@ -81,7 +86,9 @@ private:
 	TSharedRef<SWidget> GenerateToolbar();
 	TSharedRef<SWidget> OnGenerateAddObjectButtonMenu() const;
 
+	TArray<FFilterClassSelectionInfo> FilterClassSelectionInfos;
 	TSharedRef<SWidget> OnGenerateFilterClassMenu();
+	
 	TSharedRef<SWidget> BuildShowOptionsMenu();
 
 	void OnSearchTextChanged(const FText& Text);
@@ -95,4 +102,19 @@ private:
 
 	/** Disable all collection filters except CollectionToEnableName */
 	void SetSingleCollectionSelection(const FName& CollectionToEnableName = UObjectMixerEditorSerializedData::AllCollectionName);
+};
+
+
+
+class SFilterClassMenuItem : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(SObjectMixerEditorMainPanel)
+	{}
+
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, struct FAssetClassMap AssetClassMap, const bool bIsDefaultClass,
+		TArray<SObjectMixerEditorMainPanel::FFilterClassSelectionInfo>& FilterClassSelectionInfos, const FText TooltipText);
 };

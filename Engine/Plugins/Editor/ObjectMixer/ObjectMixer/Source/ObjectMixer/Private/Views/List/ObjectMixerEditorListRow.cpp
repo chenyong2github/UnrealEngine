@@ -52,7 +52,18 @@ void FObjectMixerEditorListRow::FlushReferences()
 	}
 }
 
-UObjectMixerObjectFilter* FObjectMixerEditorListRow::GetObjectFilter() const
+const TArray<TObjectPtr<UObjectMixerObjectFilter>>& FObjectMixerEditorListRow::GetObjectFilterInstances() const
+{
+	const TSharedPtr<SObjectMixerEditorList> PinnedListView = GetListViewPtr().Pin();
+	const TSharedPtr<FObjectMixerEditorList> PinnedListModel = PinnedListView->GetListModelPtr().Pin();
+	const TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanel = PinnedListModel->GetMainPanelModel().Pin();
+	check (PinnedMainPanel);
+
+
+	return PinnedMainPanel->GetObjectFilterInstances();
+}
+
+const UObjectMixerObjectFilter* FObjectMixerEditorListRow::GetMainObjectFilterInstance() const
 {
 	if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = GetListViewPtr().Pin())
 	{
@@ -60,13 +71,11 @@ UObjectMixerObjectFilter* FObjectMixerEditorListRow::GetObjectFilter() const
 		{
 			if (const TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanel = PinnedListModel->GetMainPanelModel().Pin())
 			{
-				if (UObjectMixerObjectFilter* Filter = PinnedMainPanel->GetObjectFilter())
-				{
-					return Filter;
-				}
+				return PinnedMainPanel->GetMainObjectFilterInstance();
 			}
 		}
 	}
+
 
 	return nullptr;
 }
@@ -79,14 +88,11 @@ bool FObjectMixerEditorListRow::IsObjectRefInCollection(const FName& CollectionN
 		{
 			return true;
 		}
-		
-		UObjectMixerEditorSerializedData* SerializedData = GetMutableDefault<UObjectMixerEditorSerializedData>();
-		check(SerializedData);
-		
-		if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
+
+		if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel =
+			GetListViewPtr().Pin()->GetListModelPtr().Pin()->GetMainPanelModel().Pin())
 		{
-			return SerializedData->IsObjectInCollection(
-				Filter->GetClass()->GetFName(), CollectionName, GetObject());
+			return MainPanel->IsObjectInCollection(CollectionName, GetObject());
 		}
 	}
 	
@@ -261,9 +267,9 @@ bool FObjectMixerEditorListRow::MatchSearchTokensToSearchTerms(
 
 		if (const TObjectPtr<UObject> Object = GetObject())
 		{			
-			if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
+			for (const TObjectPtr<UObjectMixerObjectFilter>& Filter : GetObjectFilterInstances())
 			{
-				CachedSearchTerms += Filter->GetRowDisplayName(Object).ToString();
+				CachedSearchTerms = CachedSearchTerms + " " + Filter->GetRowDisplayName(Object).ToString();
 			}
 		}
 	}
@@ -406,7 +412,7 @@ FText FObjectMixerEditorListRow::GetDisplayName(const bool bIsHybridRow) const
 		return Override;
 	}
 
-	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
+	if (const UObjectMixerObjectFilter* Filter = GetMainObjectFilterInstance())
 	{
 		if (const TObjectPtr<UObject> Object = GetObject())
 		{
@@ -491,7 +497,7 @@ bool FObjectMixerEditorListRow::GetCurrentEditorObjectVisibility()
 		return false;
 	}
 	
-	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
+	if (const UObjectMixerObjectFilter* Filter = GetMainObjectFilterInstance())
 	{
 		return Filter->GetRowEditorVisibility(GetObject());
 	}
@@ -501,7 +507,7 @@ bool FObjectMixerEditorListRow::GetCurrentEditorObjectVisibility()
 
 void FObjectMixerEditorListRow::SetCurrentEditorObjectVisibility(const bool bNewIsVisible, const bool bIsRecursive)
 {
-	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
+	if (const UObjectMixerObjectFilter* Filter = GetMainObjectFilterInstance())
 	{
 		Filter->OnSetRowEditorVisibility(GetObject(), bNewIsVisible);
 

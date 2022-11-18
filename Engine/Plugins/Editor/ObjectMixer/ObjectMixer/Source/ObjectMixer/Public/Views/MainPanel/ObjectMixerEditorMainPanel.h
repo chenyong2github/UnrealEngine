@@ -4,8 +4,9 @@
 
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 
+#include "ObjectMixerEditorModule.h"
+
 #include "Folder.h"
-#include "UObject/StrongObjectPtr.h"
 #include "Widgets/SWidget.h"
 
 class FObjectMixerEditorList;
@@ -21,7 +22,7 @@ struct FObjectMixerEditorListRow;
 DECLARE_MULTICAST_DELEGATE(FOnPreFilterChange)
 DECLARE_MULTICAST_DELEGATE(FOnPostFilterChange)
 
-class OBJECTMIXEREDITOR_API FObjectMixerEditorMainPanel : public TSharedFromThis<FObjectMixerEditorMainPanel>
+class OBJECTMIXEREDITOR_API FObjectMixerEditorMainPanel : public TSharedFromThis<FObjectMixerEditorMainPanel>, public FGCObject
 {
 public:
 	FObjectMixerEditorMainPanel(const FName InModuleName)
@@ -68,13 +69,14 @@ public:
 	FText GetSearchTextFromSearchInputField() const;
 	FString GetSearchStringFromSearchInputField() const;
 
-	void OnClassSelectionChanged(UClass* InNewClass);
-	TObjectPtr<UClass> GetClassSelection() const;
-	bool IsClassSelected(UClass* InNewClass) const;
+	void SetDefaultFilterClass(UClass* InNewClass);
+	bool IsClassSelected(UClass* InClass) const;
 
-	UObjectMixerObjectFilter* GetObjectFilter();
+	const TArray<TObjectPtr<UObjectMixerObjectFilter>>& GetObjectFilterInstances();
 
-	void CacheObjectFilterObject();
+	const UObjectMixerObjectFilter* GetMainObjectFilterInstance();
+
+	void CacheObjectFilterObjects();
 
 	/**
 	 * Get the style of the tree (flat list or hierarchy)
@@ -95,47 +97,39 @@ public:
 	/**
 	 * Returns result from Filter->GetObjectClassesToFilter.
 	 */
-	TSet<UClass*> GetObjectClassesToFilter()
-	{
-		if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
-		{
-			return Filter->GetObjectClassesToFilter();
-		}
-		
-		return {};
-	}
+	TSet<UClass*> GetObjectClassesToFilter();
 
 	/**
 	 * Returns result from Filter->GetObjectClassesToPlace.
 	 */
-	TSet<TSubclassOf<AActor>> GetObjectClassesToPlace()
-	{
-		TSet<TSubclassOf<AActor>> ReturnValue;
-
-		if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
-		{
-			ReturnValue = Filter->GetObjectClassesToPlace();
-		}
-		
-		return ReturnValue;
-	}
+	TSet<TSubclassOf<AActor>> GetObjectClassesToPlace();
 
 	const TArray<TSharedRef<IObjectMixerEditorListFilter>>& GetListFilters() const;
 	TArray<TWeakPtr<IObjectMixerEditorListFilter>> GetWeakActiveListFiltersSortedByName() const;
 
-	TSubclassOf<UObjectMixerObjectFilter> GetObjectFilterClass() const
+	const TArray<TSubclassOf<UObjectMixerObjectFilter>>& GetObjectFilterClasses() const
 	{
-		return ObjectFilterClass;
+		return ObjectFilterClasses;
 	}
 
-	void SetObjectFilterClass(UClass* InObjectFilterClass)
+	void AddObjectFilterClass(UClass* InObjectFilterClass, const bool bCacheAndRebuild = true);
+
+	void RemoveObjectFilterClass(UClass* InObjectFilterClass, const bool bCacheAndRebuild = true);
+
+	void ResetObjectFilterClasses(const bool bCacheAndRebuild = true)
 	{
-		if (ensureAlwaysMsgf(InObjectFilterClass->IsChildOf(UObjectMixerObjectFilter::StaticClass()), TEXT("%hs: Class '%s' is not a child of UObjectMixerObjectFilter."), __FUNCTION__, *InObjectFilterClass->GetName()))
+		ObjectFilterClasses.Empty(ObjectFilterClasses.Num());
+
+		if (bCacheAndRebuild)
 		{
-			ObjectFilterClass = InObjectFilterClass;
-			CacheObjectFilterObject();
-			RequestRebuildList();
+			CacheAndRebuildFilters();
 		}
+	}
+
+	void CacheAndRebuildFilters()
+	{
+		CacheObjectFilterObjects();
+		RequestRebuildList();
 	}
 
 	FName GetModuleName() const
@@ -148,7 +142,7 @@ public:
 	/**
 	 * Get a pointer to the UObjectMixerEditorSerializedData object along with the name of the filter represented by this MainPanel instance.
 	 */
-	UObjectMixerEditorSerializedData* GetSerializedDataOutputtingFilterName(FName& OutFilterName) const;
+	UObjectMixerEditorSerializedData* GetSerializedData() const;
 	bool RequestAddObjectsToCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd) const;
 	bool RequestRemoveObjectsFromCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove) const;
 	bool RequestRemoveCollection(const FName& CollectionName) const;
@@ -165,11 +159,28 @@ public:
 	 */
 	TSet<TSharedRef<FObjectMixerEditorListFilter_Collection>> GetCurrentCollectionSelection() const;
 
+	/**
+	 * This is the filter class used to initialize the MainPanel.
+	 * This filter class cannot be turned off by the end user.
+	 */
+	const TSubclassOf<UObjectMixerObjectFilter>& GetDefaultFilterClass() const;
+
 	FOnPreFilterChange OnPreFilterChange;
 	FOnPostFilterChange OnPostFilterChange;
 
 	TSharedPtr<FUICommandList> ObjectMixerElementEditCommands;
 	TSharedPtr<FUICommandList> ObjectMixerFolderEditCommands;
+
+protected:
+
+	virtual void AddReferencedObjects( FReferenceCollector& Collector )  override
+	{
+		Collector.AddReferencedObjects(ObjectFilterInstances);
+	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FObjectMixerEditorMainPanel");
+	}
 
 private:
 
@@ -177,12 +188,23 @@ private:
 
 	TSharedPtr<FObjectMixerEditorList> EditorListModel;
 
-	TStrongObjectPtr<UObjectMixerObjectFilter> ObjectFilterPtr;
+	TArray<TObjectPtr<UObjectMixerObjectFilter>> ObjectFilterInstances;
 
 	/**
-	 * The class used to generate property edit columns
+	 * The classes used to generate property edit columns
 	 */
-	TSubclassOf<UObjectMixerObjectFilter> ObjectFilterClass;
+	TArray<TSubclassOf<UObjectMixerObjectFilter>> ObjectFilterClasses;
+
+	/**
+	 * The FObjectMixerEditorModule subclass that created this instance.
+	 */
+	TWeakPtr<FObjectMixerEditorModule> SpawningModulePtr;
+
+	/**
+	 * If set, this is the filter class used to initialize the MainPanel.
+	 * This filter class cannot be turned off by the end user.
+	 */
+	TSubclassOf<UObjectMixerObjectFilter> DefaultFilterClass;
 
 	/**
 	 * Determines the style of the tree (flat list or hierarchy)
