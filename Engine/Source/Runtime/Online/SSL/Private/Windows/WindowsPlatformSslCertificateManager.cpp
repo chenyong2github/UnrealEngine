@@ -12,9 +12,11 @@
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 
+THIRD_PARTY_INCLUDES_START
 #include <wincrypt.h>
 #include <openssl/x509.h>
 #include <openssl/err.h>
+THIRD_PARTY_INCLUDES_END
 
 #include "Windows/HideWindowsPlatformTypes.h"
 

@@ -19,10 +19,12 @@
 
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_START
 	#include <DbgHelp.h>
 	#include <Shlwapi.h>
 	#include <TlHelp32.h>
 	#include <Psapi.h>
+THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #include "Modules/ModuleManager.h"
@@ -761,7 +763,7 @@ void LoadSymbolsForModule(HMODULE ModuleHandle, const FString& RemoteStorage)
 	SymSetSearchPathW(ProcessHandle, *SearchPathList);
 
 	// Load module.
-	const DWORD64 BaseAddress = SymLoadModuleExW(ProcessHandle, ModuleHandle, ImageName, ModuleName, (DWORD64)ModuleInfo.lpBaseOfDll, (uint32)ModuleInfo.SizeOfImage, NULL, 0);
+	const DWORD64 BaseAddress = SymLoadModuleExW(ProcessHandle, ModuleHandle, ImageName, ModuleName, (DWORD64)ModuleInfo.lpBaseOfDll, ModuleInfo.SizeOfImage, NULL, 0);
 	if (!BaseAddress)
 	{
 		ErrorCode = GetLastError();

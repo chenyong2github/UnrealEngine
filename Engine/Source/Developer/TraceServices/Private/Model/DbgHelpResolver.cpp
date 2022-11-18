@@ -21,7 +21,9 @@
 #include <atomic>
 
 #include "Windows/AllowWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_START
 #include <dbghelp.h>
+THIRD_PARTY_INCLUDES_END
 
 /////////////////////////////////////////////////////////////////////
 DEFINE_LOG_CATEGORY_STATIC(LogDbgHelp, Log, All);

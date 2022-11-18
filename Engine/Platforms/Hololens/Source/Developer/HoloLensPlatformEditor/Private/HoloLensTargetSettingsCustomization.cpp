@@ -28,7 +28,9 @@
 #include "HoloLensLocalizedResourcesCustomization.h"
 #include "Styling/AppStyle.h"
 
+THIRD_PARTY_INCLUDES_START
 #include <winreg.h>
+THIRD_PARTY_INCLUDES_END
 
 #pragma comment( lib, "Advapi32.lib" )
 
