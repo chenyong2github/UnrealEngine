@@ -5,7 +5,6 @@
 #include "Modules/ModuleInterface.h"
 
 class IGeometryProcessing_ApproximateActors;
-class IGeometryProcessing_UVEditorAssetEditor;
 
 /**
  * Abstract interface to a Module that provides functions to access
@@ -28,10 +27,5 @@ public:
 	 * @return implementation of IGeometryProcessing_ApproximateActors, if available
 	 */
 	virtual IGeometryProcessing_ApproximateActors* GetApproximateActorsImplementation() = 0;
-
-	/**
-	 * @return implementation of IGeometryProcessing_UVEditorAssetEditor, if available
-	*/
-	virtual IGeometryProcessing_UVEditorAssetEditor* GetUVEditorAssetEditorImplementation() = 0;
 
 };

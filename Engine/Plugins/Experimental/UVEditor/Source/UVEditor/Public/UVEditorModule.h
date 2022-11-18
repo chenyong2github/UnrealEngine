@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-#include "UVEditorAssetEditorImpl.h"
+#include "UVEditorModularFeature.h"
 
 class FLayoutExtender;
 
@@ -33,5 +33,5 @@ private:
 	/** StaticClass is not safe on shutdown, so we cache the name, and use this to unregister on shut down */
 	TArray<FName> ClassesToUnregisterOnShutdown;
 
-	TSharedPtr<UE::Geometry::FUVEditorAssetEditorImpl> UVEditorAssetEditor;
+	TSharedPtr<UE::Geometry::FUVEditorModularFeature> UVEditorAssetEditor;
 };

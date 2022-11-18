@@ -21,11 +21,11 @@
 
 void FUVEditorModule::StartupModule()
 {
-	UVEditorAssetEditor = MakeShared<UE::Geometry::FUVEditorAssetEditorImpl>();
+	UVEditorAssetEditor = MakeShared<UE::Geometry::FUVEditorModularFeature>();
 
 	if (UVEditorAssetEditor.IsValid())
 	{
-		IModularFeatures::Get().RegisterModularFeature(IGeometryProcessing_UVEditorAssetEditor::GetModularFeatureName(), UVEditorAssetEditor.Get());
+		IModularFeatures::Get().RegisterModularFeature(IUVEditorModularFeature::GetModularFeatureName(), UVEditorAssetEditor.Get());
 	}
 
 	FUVEditorStyle::Get(); // Causes the constructor to be called
@@ -48,7 +48,7 @@ void FUVEditorModule::ShutdownModule()
 {
 	if (UVEditorAssetEditor.IsValid())
 	{
-		IModularFeatures::Get().UnregisterModularFeature(IGeometryProcessing_UVEditorAssetEditor::GetModularFeatureName(), UVEditorAssetEditor.Get());
+		IModularFeatures::Get().UnregisterModularFeature(IUVEditorModularFeature::GetModularFeatureName(), UVEditorAssetEditor.Get());
 		UVEditorAssetEditor = nullptr;
 	}
 

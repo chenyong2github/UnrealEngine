@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "UVEditorAssetEditorImpl.h"
+#include "UVEditorModularFeature.h"
 
 #include "CoreMinimal.h"
 #include "UVEditorSubsystem.h"
@@ -11,7 +11,7 @@ namespace UE
 {
 namespace Geometry
 {
-	void FUVEditorAssetEditorImpl::LaunchUVEditor(const TArray<TObjectPtr<UObject>>& ObjectsIn)
+	void FUVEditorModularFeature::LaunchUVEditor(const TArray<TObjectPtr<UObject>>& ObjectsIn)
 	{
 		UUVEditorSubsystem* UVSubsystem = GEditor->GetEditorSubsystem<UUVEditorSubsystem>();
 		check(UVSubsystem);
@@ -20,7 +20,7 @@ namespace Geometry
 		UVSubsystem->StartUVEditor(ProcessedObjects);
 	}
 
-	bool FUVEditorAssetEditorImpl::CanLaunchUVEditor(const TArray<TObjectPtr<UObject>>& ObjectsIn)
+	bool FUVEditorModularFeature::CanLaunchUVEditor(const TArray<TObjectPtr<UObject>>& ObjectsIn)
 	{
 		UUVEditorSubsystem* UVSubsystem = GEditor->GetEditorSubsystem<UUVEditorSubsystem>();
 		check(UVSubsystem);
@@ -29,7 +29,7 @@ namespace Geometry
 		return UVSubsystem->AreObjectsValidTargets(ProcessedObjects);
 	}
 
-	void FUVEditorAssetEditorImpl::ConvertInputArgsToValidTargets(const TArray<TObjectPtr<UObject>>& ObjectsIn, TArray<TObjectPtr<UObject>>& ObjectsOut) const
+	void FUVEditorModularFeature::ConvertInputArgsToValidTargets(const TArray<TObjectPtr<UObject>>& ObjectsIn, TArray<TObjectPtr<UObject>>& ObjectsOut) const
 	{
 		for (const TObjectPtr<UObject>& Object : ObjectsIn)
 		{

@@ -2,7 +2,7 @@
 
 #include "ModelingToolsEditorMode.h"
 #include "IGeometryProcessingInterfacesModule.h"
-#include "GeometryProcessingInterfaces/UVEditorAssetEditor.h"
+#include "GeometryProcessingInterfaces/IUVEditorModularFeature.h"
 #include "InteractiveTool.h"
 #include "ModelingToolsEditorModeToolkit.h"
 #include "ModelingToolsEditorModeSettings.h"
@@ -877,13 +877,17 @@ void UModelingToolsEditorMode::Enter()
 
 void UModelingToolsEditorMode::RegisterUVEditor()
 {
-	// Handle the inclusion of the optional UVEditor button if the UVEditor plugin has been found
-	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
-	IGeometryProcessing_UVEditorAssetEditor* UVEditorAPI = GeomProcInterfaces.GetUVEditorAssetEditorImplementation();
-	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
+	IUVEditorModularFeature* UVEditorAPI = nullptr;
+	// We should be allowed to do GetModularFeatureImplementation directly without the check, but currently there is an assert
+	// there (despite what the header for that function promises).
+	if (IModularFeatures::Get().IsModularFeatureAvailable(IUVEditorModularFeature::GetModularFeatureName()))
+	{
+		UVEditorAPI = static_cast<IUVEditorModularFeature*>(IModularFeatures::Get().GetModularFeatureImplementation(IUVEditorModularFeature::GetModularFeatureName(), 0));
+	}
 
 	if (UVEditorAPI)
 	{
+		const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
 		const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 		CommandList->MapAction(ToolManagerCommands.LaunchUVEditor,
 			FExecuteAction::CreateLambda([this, UVEditorAPI]() 

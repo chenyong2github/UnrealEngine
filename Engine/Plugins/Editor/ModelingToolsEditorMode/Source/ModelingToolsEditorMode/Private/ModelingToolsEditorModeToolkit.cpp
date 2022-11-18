@@ -2,7 +2,7 @@
 
 #include "ModelingToolsEditorModeToolkit.h"
 #include "IGeometryProcessingInterfacesModule.h"
-#include "GeometryProcessingInterfaces/UVEditorAssetEditor.h"
+#include "GeometryProcessingInterfaces/IUVEditorModularFeature.h"
 #include "ModelingToolsEditorMode.h"
 #include "ModelingToolsManagerActions.h"
 #include "ModelingToolsEditorModeSettings.h"
@@ -783,10 +783,9 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 		ToolbarBuilder.AddToolBarButton(Commands.BeginUVSeamEditTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformUVIslandsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginUVLayoutTool);
+
 		// Handle the inclusion of the optional UVEditor button if the UVEditor plugin has been found
-		IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
-		IGeometryProcessing_UVEditorAssetEditor* UVEditorAPI = GeomProcInterfaces.GetUVEditorAssetEditorImplementation();
-		if (UVEditorAPI)
+		if (IModularFeatures::Get().IsModularFeatureAvailable(IUVEditorModularFeature::GetModularFeatureName()))
 		{
 			ToolbarBuilder.AddToolBarButton(Commands.LaunchUVEditor);
 		}

@@ -3,16 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GeometryProcessingInterfaces/UVEditorAssetEditor.h"
+#include "GeometryProcessingInterfaces/IUVEditorModularFeature.h"
 
 namespace UE
 {
 namespace Geometry
 {
 
-/** * Implementation of IGeometryProcessing_UVEditorAssetEditor
+/** 
+ * Connector class that allows other plugins to look for the UV Editor to see if the plugin is present,
+ * (via IModularFeatures::Get().GetModularFeature and related methods), and then launch it if so.
  */
-class UVEDITOR_API FUVEditorAssetEditorImpl : public IGeometryProcessing_UVEditorAssetEditor
+class UVEDITOR_API FUVEditorModularFeature : public IUVEditorModularFeature
 {
 public:
 	virtual void LaunchUVEditor(const TArray<TObjectPtr<UObject>>& Objects) override;
