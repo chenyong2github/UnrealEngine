@@ -173,7 +173,7 @@ FTransform UMotionWarpingUtilities::CalculateRootTransformRelativeToWarpPointAtT
 		{
 			const FBoneContainer& FullBoneContainer = AnimInstance->GetRequiredBones();
 			const int32 BoneIndex = FullBoneContainer.GetPoseBoneIndexForBoneName(WarpPointBoneName);
-			if (ensure(BoneIndex != INDEX_NONE))
+			if (BoneIndex != INDEX_NONE)
 			{
 				TArray<FBoneIndexType> RequiredBoneIndexArray = { 0, (FBoneIndexType)BoneIndex };
 				FullBoneContainer.GetReferenceSkeleton().EnsureParentsExistAndSort(RequiredBoneIndexArray);
