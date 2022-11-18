@@ -106,6 +106,7 @@ public:
 	FFileIoStore(TUniquePtr<IPlatformFileIoStore>&& PlatformImpl);
 	~FFileIoStore();
 	void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) override;
+	void Shutdown() override;
 	TIoStatusOr<FIoContainerHeader> Mount(const TCHAR* InTocPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey);
 	bool Unmount(const TCHAR* InTocPath);
 	bool Resolve(FIoRequestImpl* Request) override;
@@ -164,6 +165,7 @@ private:
 	void ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bool bIsAsync);
 	void CompleteDispatcherRequest(FFileIoStoreResolvedRequest* ResolvedRequest);
 	void FinalizeCompressedBlock(FFileIoStoreCompressedBlock* CompressedBlock);
+	void StopThread();
 
 	uint64 ReadBufferSize = 0;
 	TSharedPtr<const FIoDispatcherBackendContext> BackendContext;

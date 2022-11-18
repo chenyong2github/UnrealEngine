@@ -1215,7 +1215,7 @@ FFileIoStore::FFileIoStore(TUniquePtr<IPlatformFileIoStore>&& InPlatformImpl)
 
 FFileIoStore::~FFileIoStore()
 {
-	delete Thread;
+	StopThread();
 }
 
 void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InContext)
@@ -1252,6 +1252,20 @@ void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InCo
 	}
 
 	Thread = FRunnableThread::Create(this, TEXT("IoService"), 0, TPri_AboveNormal);
+}
+
+void FFileIoStore::StopThread()
+{
+	if (Thread)
+	{
+		delete Thread;
+		Thread = nullptr;
+	}
+}
+
+void FFileIoStore::Shutdown()
+{
+	StopThread();
 }
 
 TIoStatusOr<FIoContainerHeader> FFileIoStore::Mount(const TCHAR* InTocPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)

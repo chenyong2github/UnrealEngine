@@ -338,7 +338,7 @@ public:
 		DispatcherEvent = FPlatformProcess::GetSynchEventFromPool(false);
 		BackendContext->WakeUpDispatcherThreadDelegate.BindRaw(this, &FIoDispatcherImpl::WakeUpDispatcherThread);
 		BackendContext->bIsMultiThreaded = bInIsMultithreaded;
-		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
+		MemoryTrimDelegateHandle = FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
 		{
 			RequestAllocator->Trim();
 			BatchAllocator.Trim();
@@ -350,6 +350,12 @@ public:
 		delete Thread;
 		FPlatformProcess::ReturnSynchEventToPool(DispatcherEvent);
 		RequestAllocator->ReleaseRef();
+		for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
+		{
+			Backend->Shutdown();
+		}
+		FCoreDelegates::GetMemoryTrimDelegate().Remove(MemoryTrimDelegateHandle);
+		BackendContext->WakeUpDispatcherThreadDelegate.Unbind();
 	}
 
 	void Initialize()
@@ -832,6 +838,7 @@ private:
 	using FBatchAllocator = TBlockAllocator<FIoBatchImpl, 4096>;
 
 	TSharedRef<FIoDispatcherBackendContext> BackendContext;
+	FDelegateHandle MemoryTrimDelegateHandle;
 	TArray<TSharedRef<IIoDispatcherBackend>> Backends;
 	FIoRequestAllocator* RequestAllocator = nullptr;
 	FBatchAllocator BatchAllocator;

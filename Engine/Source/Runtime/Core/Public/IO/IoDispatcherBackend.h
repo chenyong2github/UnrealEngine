@@ -101,6 +101,7 @@ struct FIoDispatcherBackendContext
 struct IIoDispatcherBackend
 {
 	virtual void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) = 0;
+	virtual void Shutdown() {};
 	virtual bool Resolve(FIoRequestImpl* Request) = 0;
 	virtual void CancelIoRequest(FIoRequestImpl* Request) = 0;
 	virtual void UpdatePriorityForIoRequest(FIoRequestImpl* Request) = 0;
