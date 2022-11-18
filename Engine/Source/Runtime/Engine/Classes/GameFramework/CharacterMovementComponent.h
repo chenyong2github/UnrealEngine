@@ -751,6 +751,15 @@ public:
 	float MaxDepenetrationWithPawnAsProxy;
 
 	/**
+	 * Option to handle moves as relative to the current movement base. If disabled, moves are handled in world space. 
+	 * Enabling this can be produce better motion sync when walking on highly dynamic / unpredictable movement bases, such as vehicles. However, there is the potential for larger corrections when landing on or jumping off if the base is not well-sync'd.
+	 * This also may be a good option if using dynamic movement bases that become the player's primary frame of visual reference, such as when walking on a large boat or airship.
+	 * Not compatible with deprecated move RPCs. @see NetUsePackedMovementRPCs
+	 */
+	UPROPERTY(Category = "Character Movement (General Settings)", EditDefaultsOnly)
+	bool bUseMovementBaseRelativeMoves = false;
+
+	/**
 	 * How long to take to smoothly interpolate from the old pawn position on the client to the corrected one sent by the server. Not used by Linear smoothing.
 	 */
 	UPROPERTY(Category="Character Movement (Networking)", EditDefaultsOnly, AdvancedDisplay, meta=(ClampMin="0.0", ClampMax="1.0", UIMin="0.0", UIMax="1.0", ForceUnits=s))
@@ -2836,6 +2845,7 @@ public:
 	FRotator SavedRotation;
 	FVector SavedVelocity;
 	FVector SavedRelativeLocation;
+	FVector SavedRelativeAcceleration;
 	FRotator SavedControlRotation;
 	TWeakObjectPtr<UPrimitiveComponent> EndBase;
 	FName EndBoneName;

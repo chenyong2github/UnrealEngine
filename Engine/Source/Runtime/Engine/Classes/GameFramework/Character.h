@@ -154,6 +154,12 @@ namespace MovementBaseUtility
 
 	/** Get the local space location for a given MovementBase, optionally at the location of a bone. Returns false if MovementBase is nullptr, or if BoneName is not a valid bone. Scaling is ignored. */
 	ENGINE_API bool GetLocalMovementBaseLocation(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& WorldSpaceLocation, FVector& OutLocalLocation);
+
+	/** Get the world space acceleration from a local space acceleration for a given MovementBase. Returns false if MovementBase is nullptr, or if BoneName is not a valid bone. Scaling is ignored. */
+	ENGINE_API bool GetLocalMovementBaseAccelerationInWorldSpace(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& LocalAccel, FVector& OutAccelWorldSpace);
+
+	/** Get the local space acceleration for a given MovementBase, optionally relative to the orientation of a bone. Returns false if MovementBase is nullptr, or if BoneName is not a valid bone. Scaling is ignored. */
+	ENGINE_API bool GetLocalMovementBaseAcceleration(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& WorldSpaceAcceleration, FVector& OutLocalAcceleration);
 }
 
 /** Struct to hold information about the "base" object the character is standing on. */

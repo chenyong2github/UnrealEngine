@@ -709,6 +709,25 @@ namespace MovementBaseUtility
 		OutLocalLocation = FTransform(OutQuat, OutLocation).InverseTransformPositionNoScale(WorldSpaceLocation);
 		return bResult;
 	}
+
+	bool GetLocalMovementBaseAccelerationInWorldSpace(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& LocalAccel, FVector& OutAccelWorldSpace)
+	{
+		FVector IgnoredLocation;
+		FQuat OutQuat;
+		const bool bResult = GetMovementBaseTransform(MovementBase, BoneName, IgnoredLocation, OutQuat);
+		OutAccelWorldSpace = OutQuat.RotateVector(LocalAccel);
+		return bResult;
+	}
+
+	bool GetLocalMovementBaseAcceleration(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& WorldSpaceAcceleration, FVector& OutLocalAcceleration)
+	{
+		FVector IgnoredLocation;
+		FQuat OutQuat;
+		const bool bResult = GetMovementBaseTransform(MovementBase, BoneName, IgnoredLocation, OutQuat);
+		OutLocalAcceleration = OutQuat.Inverse().RotateVector(WorldSpaceAcceleration);
+		return bResult;
+	}
+
 }
 
 
