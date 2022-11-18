@@ -252,12 +252,8 @@ bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 		}
 	}
 
-	if (UNiagaraComponentSettings::ShouldSuppressEmitterActivation(this))
-	{
-		return false;
-	}
-
-	return true;
+	// Do we allow the emitter to run or not?
+	return FNiagaraComponentSettings::IsEmitterAllowedToRun(this);
 }
 
 void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID InSystemInstanceID)

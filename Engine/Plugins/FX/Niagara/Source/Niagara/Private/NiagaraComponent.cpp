@@ -1069,8 +1069,8 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
-	// Should we force activation to fail?
-	if (UNiagaraComponentSettings::ShouldSuppressActivation(Asset))
+	// Is the system allowed to run or not?
+	if (FNiagaraComponentSettings::IsSystemAllowedToRun(Asset) == false)
 	{
 		return;
 	}
