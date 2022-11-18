@@ -206,15 +206,28 @@ namespace EpicGames.Horde.Logs
 		public int LineCount { get; }
 
 		/// <summary>
+		/// Offset within the entire log file
+		/// </summary>
+		public long Offset { get; }
+
+		/// <summary>
+		/// Length of this chunk
+		/// </summary>
+		public int Length { get; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="lineIndex">Index of the first line within this block</param>
+		/// <param name="offset">Offset within the log file</param>
 		/// <param name="target">Referenced log text</param>
-		public LogChunkRef(int lineIndex, LogChunkNode target)
+		public LogChunkRef(int lineIndex, long offset, LogChunkNode target)
 			: base(target)
 		{
 			LineIndex = lineIndex;
 			LineCount = target.LineCount;
+			Offset = offset;
+			Length = target.Length;
 		}
 
 		/// <summary>
@@ -226,6 +239,8 @@ namespace EpicGames.Horde.Logs
 		{
 			LineIndex = (int)reader.ReadUnsignedVarInt();
 			LineCount = (int)reader.ReadUnsignedVarInt();
+			Offset = (long)reader.ReadUnsignedVarInt();
+			Length = (int)reader.ReadUnsignedVarInt();
 		}
 
 		/// <inheritdoc/>
@@ -235,6 +250,8 @@ namespace EpicGames.Horde.Logs
 
 			writer.WriteUnsignedVarInt(LineIndex);
 			writer.WriteUnsignedVarInt(LineCount);
+			writer.WriteUnsignedVarInt((ulong)Offset);
+			writer.WriteUnsignedVarInt(Length);
 		}
 	}
 

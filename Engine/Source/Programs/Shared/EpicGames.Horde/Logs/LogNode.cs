@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Logs
 		/// <summary>
 		/// Default value for an empty log file
 		/// </summary>
-		public static LogNode Empty { get; } = new LogNode(LogFormat.Json, 0, Array.Empty<LogChunkRef>(), new TreeNodeRef<LogIndexNode>(LogIndexNode.Empty));
+		public static LogNode Empty { get; } = new LogNode(LogFormat.Json, 0, 0, Array.Empty<LogChunkRef>(), new TreeNodeRef<LogIndexNode>(LogIndexNode.Empty));
 
 		/// <summary>
 		/// Format for this log file
@@ -52,6 +52,11 @@ namespace EpicGames.Horde.Logs
 		/// Total number of lines
 		/// </summary>
 		public int LineCount { get; }
+
+		/// <summary>
+		/// Length of the log file
+		/// </summary>
+		public long Length { get; }
 
 		/// <summary>
 		/// Text blocks for this chunk
@@ -66,10 +71,11 @@ namespace EpicGames.Horde.Logs
 		/// <summary>
 		/// Deserializing constructor
 		/// </summary>
-		public LogNode(LogFormat format, int lineCount, IReadOnlyList<LogChunkRef> textChunkRefs, TreeNodeRef<LogIndexNode> indexRef)
+		public LogNode(LogFormat format, int lineCount, long length, IReadOnlyList<LogChunkRef> textChunkRefs, TreeNodeRef<LogIndexNode> indexRef)
 		{
 			Format = format;
 			LineCount = lineCount;
+			Length = length;
 			TextChunkRefs = textChunkRefs.ToArray();
 			IndexRef = indexRef;
 		}
@@ -82,6 +88,7 @@ namespace EpicGames.Horde.Logs
 		{
 			Format = (LogFormat)reader.ReadUInt8();
 			LineCount = (int)reader.ReadUnsignedVarInt();
+			Length = (long)reader.ReadUnsignedVarInt();
 			IndexRef = reader.ReadRef<LogIndexNode>();
 			TextChunkRefs = reader.ReadList(() => new LogChunkRef(reader));
 		}
@@ -91,6 +98,7 @@ namespace EpicGames.Horde.Logs
 		{
 			writer.WriteUInt8((byte)Format);
 			writer.WriteUnsignedVarInt(LineCount);
+			writer.WriteUnsignedVarInt((ulong)Length);
 			writer.WriteRef(IndexRef);
 			writer.WriteList(TextChunkRefs, x => x.Serialize(writer));
 		}
@@ -272,13 +280,15 @@ namespace EpicGames.Horde.Logs
 
 			List<LogChunkRef> newJsonChunkRefs = new List<LogChunkRef>(_root.TextChunkRefs);
 			int lineCount = _root.LineCount;
+			long length = _root.Length;
 			foreach (LogChunkNode writeTextChunk in writeTextChunks)
 			{
-				newJsonChunkRefs.Add(new LogChunkRef(lineCount, writeTextChunk));
+				newJsonChunkRefs.Add(new LogChunkRef(lineCount, length, writeTextChunk));
 				lineCount += writeTextChunk.LineCount;
+				length += writeTextChunk.Length;
 			}
 
-			LogNode newRoot = new LogNode(_format, newIndex.LineCount, newJsonChunkRefs, new TreeNodeRef<LogIndexNode>(newIndex));
+			LogNode newRoot = new LogNode(_format, lineCount, length, newJsonChunkRefs, new TreeNodeRef<LogIndexNode>(newIndex));
 
 			IoHash newRootHash = await writer.WriteAsync(new TreeNodeRef(newRoot), cancellationToken);
 			await writer.FlushAsync(cancellationToken);

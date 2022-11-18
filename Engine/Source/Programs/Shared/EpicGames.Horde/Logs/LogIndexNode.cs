@@ -66,6 +66,11 @@ namespace EpicGames.Horde.Logs
 		public int LineCount => (_plainTextChunkRefs.Length > 0) ? (_plainTextChunkRefs[^1].LineIndex + _plainTextChunkRefs[^1].LineCount) : 0;
 
 		/// <summary>
+		/// Length of the text data
+		/// </summary>
+		public long Length => (_plainTextChunkRefs.Length > 0) ? (_plainTextChunkRefs[^1].Offset + _plainTextChunkRefs[^1].Length) : 0;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ngramSet">Index into the text chunks</param>
@@ -124,11 +129,13 @@ namespace EpicGames.Horde.Logs
 			}
 
 			int lineIndex = LineCount;
+			long offset = Length;
 			for (int idx = 0; idx < appendPlainTextChunks.Count; idx++)
 			{
 				LogChunkNode appendBlock = appendPlainTextChunks[idx];
-				newChunks[_plainTextChunkRefs.Length + idx] = new LogChunkRef(lineIndex, appendPlainTextChunks[idx]);
+				newChunks[_plainTextChunkRefs.Length + idx] = new LogChunkRef(lineIndex, offset, appendPlainTextChunks[idx]);
 				lineIndex += appendBlock.LineCount;
+				offset += appendBlock.Length;
 			}
 
 			// Figure out how many bits to devote to the block size
