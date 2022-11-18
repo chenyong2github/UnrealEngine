@@ -223,6 +223,18 @@ TSharedRef<SWidget> FWorldPartitionEditorModule::CreateContentBundleBrowser()
 	return NewDataLayerBrowser;
 }
 
+bool FWorldPartitionEditorModule::IsEditingContentBundle() const
+{
+	UContentBundleEditorSubsystem* ContentBundleEditorSubsystem = UContentBundleEditorSubsystem::Get();
+	return ContentBundleEditorSubsystem && ContentBundleEditorSubsystem->IsEditingContentBundle();
+}
+
+bool FWorldPartitionEditorModule::IsEditingContentBundle(const FGuid& ContentBundleGuid) const
+{
+	UContentBundleEditorSubsystem* ContentBundleEditorSubsystem = UContentBundleEditorSubsystem::Get();
+	return ContentBundleEditorSubsystem && ContentBundleEditorSubsystem->IsEditingContentBundle(ContentBundleGuid);
+}
+
 int32 FWorldPartitionEditorModule::GetPlacementGridSize() const
 {
 	// Currently shares setting with Foliage. Can be changed when exposed.

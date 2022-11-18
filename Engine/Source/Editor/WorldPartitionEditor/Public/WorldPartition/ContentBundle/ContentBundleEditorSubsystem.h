@@ -58,6 +58,7 @@ public:
 	bool DeactivateCurrentContentBundleEditing();
 	bool IsEditingContentBundle() const { return EditingContentBundle.IsValid(); }
 	bool IsEditingContentBundle(const FContentBundleEditor* ContentBundleEditor) const { return EditingContentBundle.Pin().Get() == ContentBundleEditor; }
+	bool IsEditingContentBundle(const FGuid& ContentBundleGuid) const;
 
 protected:
 	//~ Begin UContentBundleEditorSubsystemModule interface
@@ -116,6 +117,8 @@ public:
 	void ReferenceAllActors(FContentBundleEditor& EditorContentBundle);
 	void UnreferenceAllActors(FContentBundleEditor& EditorContentBundle);
 
+	bool IsEditingContentBundle() const;
+	bool IsEditingContentBundle(const FGuid& ContentBundleGuid) const;
 	bool ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
 	bool DeactivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
 	bool IsContentBundleEditingActivated(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;

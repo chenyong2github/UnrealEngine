@@ -5,6 +5,7 @@
 #include "ActorModeInteractive.h"
 
 class UActorBrowsingModeSettings;
+class IWorldPartitionEditorModule;
 
 class FActorBrowsingMode : public FActorModeInteractive
 {
@@ -129,6 +130,7 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateHideLevelInstancesFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideUnloadedActorsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideEmptyFoldersFilter();
+	TSharedRef<FSceneOutlinerFilter> CreateIsInCurrentContentBundleFilter();
 
 	/** Functions to expose selection framing to the UI */
 	void OnToggleAlwaysFrameSelection();
@@ -152,6 +154,8 @@ private:
 	void SaveConfig();
 	
 private:
+
+	IWorldPartitionEditorModule* WorldPartitionEditorModule;
 	/** Number of actors (including unloaded) which have passed through the filters */
 	uint32 FilteredActorCount = 0;
 	/** Number of unloaded actors which have passed through all the filters */

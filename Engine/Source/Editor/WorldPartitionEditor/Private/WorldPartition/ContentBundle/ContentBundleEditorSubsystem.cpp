@@ -187,6 +187,12 @@ void UContentBundleEditionSubmodule::PopContentBundleEditing()
 	}
 }
 
+bool UContentBundleEditionSubmodule::IsEditingContentBundle(const FGuid& ContentBundleGuid) const
+{
+	TSharedPtr<FContentBundleEditor> ContentBundleEditorPin = EditingContentBundle.Pin();
+	return ContentBundleEditorPin && (ContentBundleEditorPin->GetDescriptor()->GetGuid() == ContentBundleGuid);
+}
+
 UContentBundleEditorSubsystem::UContentBundleEditorSubsystem()
 {
 	
@@ -262,6 +268,16 @@ TSharedPtr<FContentBundleEditor> UContentBundleEditorSubsystem::GetEditorContent
 	}
 
 	return nullptr;
+}
+
+bool UContentBundleEditorSubsystem::IsEditingContentBundle() const
+{
+	return ContentBundleEditionSubModule->IsEditingContentBundle();
+}
+
+bool UContentBundleEditorSubsystem::IsEditingContentBundle(const FGuid& ContentBundleGuid) const
+{
+	return ContentBundleEditionSubModule->IsEditingContentBundle(ContentBundleGuid);
 }
 
 bool UContentBundleEditorSubsystem::HasContentBundle(const UContentBundleDescriptor* ContentBundleDescriptor) const

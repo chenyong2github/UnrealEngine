@@ -86,6 +86,16 @@ public:
 	 */
 	TSharedRef<class SWidget> CreateContentBundleBrowser();
 
+	/**
+	 * Returns if there's a content bundle in editing mode.
+	 */
+	bool IsEditingContentBundle() const;
+
+	/**
+	 * Returns if the content bundle is in editing mode.
+	 */
+	bool IsEditingContentBundle(const FGuid& ContentBundleGuid) const;
+
 private:
 	/** Register menus */
 	void RegisterMenus();

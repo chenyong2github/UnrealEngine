@@ -44,6 +44,9 @@ public:
 	virtual bool GetDisableBugIt() const = 0;
 	virtual void SetDisableBugIt(bool bInDisableBugIt) = 0;
 
+	virtual bool IsEditingContentBundle() const = 0;
+	virtual bool IsEditingContentBundle(const FGuid& ContentBundleGuid) const = 0;
+
 	/** Triggered when a world is added. */
 	DECLARE_EVENT_OneParam(IWorldPartitionEditorModule, FWorldPartitionCreated, UWorld*);
 
