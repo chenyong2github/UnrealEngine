@@ -26,7 +26,7 @@ namespace AnimToTexture_Private
 		static constexpr EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
 		static constexpr ETextureSourceFormat TextureSourceFormat = ETextureSourceFormat::TSF_BGRA8;
 		static constexpr TextureCompressionSettings CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
-		static constexpr ColorType DefaultColor = FColor(0, 0, 0);
+		static constexpr ColorType DefaultColor = FColor(0, 0, 0);		
 	};
 
 	struct FHighPrecision
@@ -185,7 +185,7 @@ FORCEINLINE bool AnimToTexture_Private::WriteVectorsToTexture(const TArray<V>& V
 	for (int32 Frame = 0; Frame < NumFrames; ++Frame)
 	{
 		const int32 BlockStart = RowsPerFrame * Width * Frame;
-		
+
 		// Set Data.
 		for (int32 Index = 0; Index < NumElements; ++Index)
 		{
@@ -202,9 +202,9 @@ FORCEINLINE bool AnimToTexture_Private::WriteVectorsToTexture(const TArray<V>& V
 
 template<class TextureSettings>
 FORCEINLINE bool AnimToTexture_Private::WriteToTexture(
-	UTexture2D* Texture, 
-	const uint32 Height, 
-	const uint32 Width, 
+	UTexture2D* Texture,
+	const uint32 Height,
+	const uint32 Width,
 	const TArray<typename TextureSettings::ColorType>& Pixels)
 {
 	if (!Texture)
@@ -237,9 +237,11 @@ FORCEINLINE bool AnimToTexture_Private::WriteToTexture(
 	else
 	{
 		Mip = &PlatformData->Mips[0];
+
 	}
 	Mip->SizeX = Width;
 	Mip->SizeY = Height;
+	Mip->SizeZ = 1;
 	
 	// ------------------------------------------------------------------------
 	// Lock the Mipmap data so it can be modified

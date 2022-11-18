@@ -261,58 +261,6 @@ void ReduceSkinWeightsData(const TArray<TVertexSkinWeight<MAX_TOTAL_INFLUENCES>>
 	}
 }
 
-void GetFollowerBoneMap(const USkeletalMesh* LeaderSkeletalMesh, const USkeletalMesh* FollowerSkeletalMesh, TArray<int32>& FollowerBoneMap)
-{
-	const TArray<FMeshBoneInfo>& LeaderBoneInfo = LeaderSkeletalMesh->GetRefSkeleton().GetRawRefBoneInfo();
-	const TArray<FMeshBoneInfo>& FollowerBoneInfo = FollowerSkeletalMesh->GetRefSkeleton().GetRawRefBoneInfo();
-
-	// Initialize Array
-	const int32 LeaderNumBones = LeaderBoneInfo.Num();
-	const int32 FollowerNumBones = FollowerBoneInfo.Num();
-	FollowerBoneMap.Init(INDEX_NONE, FollowerNumBones);
-
-	for (int32 FollowerBoneIndex = 0; FollowerBoneIndex < FollowerNumBones; ++FollowerBoneIndex)
-	{
-		// Search by name-matching
-		for (int32 LeaderBoneIndex = 0; LeaderBoneIndex < LeaderNumBones; ++LeaderBoneIndex)
-		{
-			// found by name-matching
-			if (FollowerBoneInfo[FollowerBoneIndex].Name == LeaderBoneInfo[LeaderBoneIndex].Name)
-			{
-				FollowerBoneMap[FollowerBoneIndex] = LeaderBoneIndex;
-				break;
-			}
-		}
-
-		// Search in upstream hierarchy
-		if (FollowerBoneMap[FollowerBoneIndex] == INDEX_NONE)
-		{
-			bool FoundLeaderBone = false;
-			int32 ParentIndex = FollowerBoneInfo[FollowerBoneIndex].ParentIndex;
-			while (!FoundLeaderBone && ParentIndex != INDEX_NONE)
-			{
-				for (int32 LeaderBoneIndex = 0; LeaderBoneIndex < LeaderNumBones; ++LeaderBoneIndex)
-				{
-					if (FollowerBoneInfo[ParentIndex].Name == LeaderBoneInfo[LeaderBoneIndex].Name)
-					{
-						FollowerBoneMap[FollowerBoneIndex] = LeaderBoneIndex;
-						FoundLeaderBone = true;
-						break;
-					}
-				}
-
-				ParentIndex = FollowerBoneInfo[ParentIndex].ParentIndex;
-			}
-		}	
-
-		// FollowerBone not found in Leader
-		if (FollowerBoneMap[FollowerBoneIndex] == INDEX_NONE)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Unable to find BoneMapping for: %s"), *FollowerBoneInfo[FollowerBoneIndex].Name.ToString())
-		}
-	}
-}
-
 void DecomposeTransformation(const FTransform& Transform, FVector3f& Translation, FVector4& Rotation)
 {
 	// Get Translation
@@ -417,29 +365,10 @@ void GetReducedSkinWeightsData(
 	OutSkinWeights.SetNumUninitialized(StaticToSkelMapping.Num());
 
 	// Loop thru SkeletalMesh Weights
-	//uint16 InvalidMeshBoneIndex;
-	//bool bIsValidMeshBoneIndex = true;
 	for (int32 VertexIndex = 0; VertexIndex < StaticToSkelMapping.Num(); ++VertexIndex)
 	{
 		const int32 SkelVertexIndex = StaticToSkelMapping[VertexIndex];
 		OutSkinWeights[VertexIndex] = ReducedSkinWeights[SkelVertexIndex];
-
-		// MeshBoneIndex can not be higher than 255
-		/*for (uint16 MeshBoneIndex: OutSkinWeights[VertexIndex].MeshBoneIndices)
-		{
-			if (MeshBoneIndex > 255)
-			{
-				InvalidMeshBoneIndex = MeshBoneIndex;
-				bIsValidMeshBoneIndex = false;
-				break;
-			}
-		}
-
-		if (!bIsValidMeshBoneIndex)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Invalid SkinWeights on Vertex: %i. MeshBoneIndex: %i > 255"), VertexIndex, InvalidMeshBoneIndex)
-			break;
-		}*/
 	}
 }
 

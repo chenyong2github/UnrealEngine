@@ -41,19 +41,8 @@ class UAnimToTextureBPLibrary : public UBlueprintFunctionLibrary
 	*/
 	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
 	static void UpdateMaterialInstanceFromDataAsset(UAnimToTextureDataAsset* DataAsset, class UMaterialInstanceConstant* MaterialInstance, 
-		const FAnimToTextureMaterialParamNames& ParamNames, const EMaterialParameterAssociation MaterialParameterAssociation = EMaterialParameterAssociation::GlobalParameter);
-
-	/**
-	 * Replaces material layer function
-	 */
-	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
-	static void UpdateMaterialLayerFunction(
-		class UMaterialInstanceConstant* MaterialInstance, 
-		class UMaterialFunctionInterface* OldMaterialFunction, 
-		class UMaterialFunctionInterface* NewMaterialFunction);
-
-	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
-	static void SetStaticMeshBoundsExtensions(UStaticMesh* StaticMesh, const FVector& PositiveBoundsExtension, const FVector& NegativeBoundsExtension);
+		const bool bAnimate=false, const EAnimToTextureNumBoneInfluences NumBoneInfluences = EAnimToTextureNumBoneInfluences::One,
+		const EMaterialParameterAssociation MaterialParameterAssociation = EMaterialParameterAssociation::LayerParameter);
 
 #endif // WITH_EDITOR
 
@@ -77,7 +66,10 @@ private:
 								   const int32 MaxHeight = 4096, const int32 MaxWidth = 4096, bool bEnforcePowerOfTwo = false);
 
 	/* Sets Static Mesh FullPrecisionUVs Property*/
-	static void SetFullPrecisionUVs(UStaticMesh* StaticMesh, bool bFullPrecision);
+	static void SetFullPrecisionUVs(UStaticMesh* StaticMesh, const int32 LODIndex, bool bFullPrecision=true);
+
+	/* Sets Static Mesh Bound Extensions */
+	static void SetBoundsExtensions(UStaticMesh* StaticMesh, const FVector& MinBBox, const FVector& SizeBBox);
 
 	/* Creates UV Coord with vertices */
 	static bool CreateUVChannel(UStaticMesh* StaticMesh, const int32 LODIndex, const int32 UVChannelIndex,

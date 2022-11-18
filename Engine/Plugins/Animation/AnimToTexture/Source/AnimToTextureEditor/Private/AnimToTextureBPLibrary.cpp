@@ -40,8 +40,8 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		return;
 	}
 
-	// Reset DataAsset Values
-	DataAsset->Reset();
+	// Reset DataAsset Info Values
+	DataAsset->ResetInfo();
 
 	if (!DataAsset->GetSkeletalMesh() || !DataAsset->GetStaticMesh())
 	{
@@ -356,12 +356,22 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 			NormalizedVertexDeltas, NormalizedVertexNormals);
 
 		// Write Textures
-		AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FLowPrecision>(NormalizedVertexDeltas, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexPositionTexture());
-		AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FLowPrecision>(NormalizedVertexNormals, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexNormalTexture());
-
-	
+		if (DataAsset->Precision == EAnimToTexturePrecision::SixteenBits && DataAsset->bEnforcePowerOfTwo)
+		{
+			AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FHighPrecision>(NormalizedVertexDeltas, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexPositionTexture());
+			AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FHighPrecision>(NormalizedVertexNormals, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexNormalTexture());
+		}
+		else
+		{
+			AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FLowPrecision>(NormalizedVertexDeltas, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexPositionTexture());
+			AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FLowPrecision>(NormalizedVertexNormals, DataAsset->NumFrames, DataAsset->VertexRowsPerFrame, Height, Width, DataAsset->GetVertexNormalTexture());
+		}
+			
 		// Add Vertex UVChannel
 		CreateUVChannel(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->UVChannel, Height, Width);
+		
+		// Update Bounds
+		SetBoundsExtensions(DataAsset->GetStaticMesh(), DataAsset->VertexMinBBox, DataAsset->VertexSizeBBox);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -393,7 +403,7 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 				NormalizedBonePositions, NormalizedBoneRotations);
 
 			// Write Textures
-			if (DataAsset->BonePrecision == EAnimToTextureBonePrecision::SixteenBits)
+			if (DataAsset->Precision == EAnimToTexturePrecision::SixteenBits && DataAsset->bEnforcePowerOfTwo)
 			{
 				AnimToTexture_Private::WriteVectorsToTexture<FVector3f, AnimToTexture_Private::FHighPrecision>(NormalizedBonePositions, DataAsset->NumFrames + 1, DataAsset->BoneRowsPerFrame, Height, Width, DataAsset->GetBonePositionTexture());
 				AnimToTexture_Private::WriteVectorsToTexture<FVector4, AnimToTexture_Private::FHighPrecision>(NormalizedBoneRotations, DataAsset->NumFrames + 1, DataAsset->BoneRowsPerFrame, Height, Width, DataAsset->GetBoneRotationTexture());
@@ -448,6 +458,9 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 
 		// Add Vertex UVChannel
 		CreateUVChannel(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->UVChannel, Height, Width);
+
+		// Update Bounds
+		SetBoundsExtensions(DataAsset->GetStaticMesh(), DataAsset->BoneMinBBox, DataAsset->BoneSizeBBox);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -458,102 +471,117 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 
 
 void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTextureDataAsset* DataAsset, UMaterialInstanceConstant* MaterialInstance, 
-	const FAnimToTextureMaterialParamNames& ParamNames, const EMaterialParameterAssociation MaterialParameterAssociation)
+	const bool bAnimate, const EAnimToTextureNumBoneInfluences NumBoneInfluences, const EMaterialParameterAssociation MaterialParameterAssociation)
 {
 	if (!MaterialInstance || !DataAsset)
 	{
 		return;
 	}
-	
-	// Set Preview Mesh
-	if (DataAsset->GetStaticMesh())
+
+	// Set UVChannel
+	switch (DataAsset->UVChannel)
 	{
-		MaterialInstance->PreviewMesh = DataAsset->GetStaticMesh();
+		case 0:
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV0, true, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV1, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV2, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV3, false, MaterialParameterAssociation);
+			break;
+		case 1:
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV0, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV1, true, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV2, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV3, false, MaterialParameterAssociation);
+			break;
+		case 2:
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV0, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV1, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV2, true, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV3, false, MaterialParameterAssociation);
+			break;
+		case 3:
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV0, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV1, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV2, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV3, true, MaterialParameterAssociation);
+			break;
+		default:
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV0, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV1, true, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV2, false, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseUV3, false, MaterialParameterAssociation);
+			break;
 	}
 
+	// Update Vertex Params
 	if (DataAsset->Mode == EAnimToTextureMode::Vertex)
 	{
 		FLinearColor VectorParameter;
 		VectorParameter = FLinearColor(DataAsset->VertexMinBBox);
-		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, ParamNames.BoundingBoxMin, VectorParameter, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, AnimToTextureParamNames::BoundingBoxMin, VectorParameter, MaterialParameterAssociation);
 		
 		VectorParameter = FLinearColor(DataAsset->VertexSizeBBox);
-		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, ParamNames.BoundingBoxScale, VectorParameter, MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, ParamNames.NumFrames, DataAsset->NumFrames, MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, ParamNames.RowsPerFrame, DataAsset->VertexRowsPerFrame, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, AnimToTextureParamNames::BoundingBoxScale, VectorParameter, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::NumFrames, DataAsset->NumFrames, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::RowsPerFrame, DataAsset->VertexRowsPerFrame, MaterialParameterAssociation);
 
-		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, ParamNames.VertexPositionTexture, DataAsset->GetVertexPositionTexture(), MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, ParamNames.VertexNormalTexture, DataAsset->GetVertexNormalTexture(), MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, AnimToTextureParamNames::VertexPositionTexture, DataAsset->GetVertexPositionTexture(), MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, AnimToTextureParamNames::VertexNormalTexture, DataAsset->GetVertexNormalTexture(), MaterialParameterAssociation);
 
 	}
+
+	// Update Bone Params
 	else if (DataAsset->Mode == EAnimToTextureMode::Bone)
 	{
 		FLinearColor VectorParameter;
 		VectorParameter = FLinearColor(DataAsset->BoneMinBBox);
-		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, ParamNames.BoundingBoxMin, VectorParameter, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, AnimToTextureParamNames::BoundingBoxMin, VectorParameter, MaterialParameterAssociation);
 
 		VectorParameter = FLinearColor(DataAsset->BoneSizeBBox);
-		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, ParamNames.BoundingBoxScale, VectorParameter, MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, ParamNames.NumFrames, DataAsset->NumFrames, MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, ParamNames.RowsPerFrame, DataAsset->BoneRowsPerFrame, MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, ParamNames.BoneWeightRowsPerFrame, DataAsset->BoneWeightRowsPerFrame, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(MaterialInstance, AnimToTextureParamNames::BoundingBoxScale, VectorParameter, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::NumFrames, DataAsset->NumFrames, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::RowsPerFrame, DataAsset->BoneRowsPerFrame, MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::BoneWeightRowsPerFrame, DataAsset->BoneWeightRowsPerFrame, MaterialParameterAssociation);
 
-		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, ParamNames.BonePositionTexture, DataAsset->GetBonePositionTexture(), MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, ParamNames.BoneRotationTexture, DataAsset->GetBoneRotationTexture(), MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, ParamNames.BoneWeightsTexture, DataAsset->GetBoneWeightTexture(), MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, AnimToTextureParamNames::BonePositionTexture, DataAsset->GetBonePositionTexture(), MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, AnimToTextureParamNames::BoneRotationTexture, DataAsset->GetBoneRotationTexture(), MaterialParameterAssociation);
+		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, AnimToTextureParamNames::BoneWeightsTexture, DataAsset->GetBoneWeightTexture(), MaterialParameterAssociation);
+
+		// Num Influences
+		switch (NumBoneInfluences)
+		{
+			case EAnimToTextureNumBoneInfluences::One:
+				UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseTwoInfluences, false, MaterialParameterAssociation);
+				UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseFourInfluences, false, MaterialParameterAssociation);
+				break;
+			case EAnimToTextureNumBoneInfluences::Two:
+				UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseTwoInfluences, true, MaterialParameterAssociation);
+				UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseFourInfluences, false, MaterialParameterAssociation);
+				break;
+			case EAnimToTextureNumBoneInfluences::Four:
+				UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseTwoInfluences, false, MaterialParameterAssociation);
+				UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseFourInfluences, true, MaterialParameterAssociation);
+				break;
+		}
+
 	}
+
+	// Animate
+	UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::Animate, bAnimate, MaterialParameterAssociation);
 
 	// Update Material
 	UMaterialEditingLibrary::UpdateMaterialInstance(MaterialInstance);
 
 	// Rebuild Material
 	UMaterialEditingLibrary::RebuildMaterialInstanceEditors(MaterialInstance->GetMaterial());
-}
 
-void UAnimToTextureBPLibrary::UpdateMaterialLayerFunction(
-	UMaterialInstanceConstant* MaterialInstance,
-	UMaterialFunctionInterface* OldMaterialFunction,
-	UMaterialFunctionInterface* NewMaterialFunction)
-{
-	if (!IsValid(MaterialInstance))
+	// Set Preview Mesh
+	if (DataAsset->GetStaticMesh())
 	{
-		return;
+		MaterialInstance->PreviewMesh = DataAsset->GetStaticMesh();
 	}
 
-	const FMaterialParameterInfo ParameterInfo(TEXT("BoneAnimation"), EMaterialParameterAssociation::GlobalParameter);
-
-	FMaterialLayersFunctions LayersValue;
-	FGuid TempGuid(0, 0, 0, 0);
-
-	// TODO: Ben.Ingram / Cesar.Castro verify this.
-	bool bMaterialLayerReplaced = false;
-	if (MaterialInstance->GetMaterialLayers(LayersValue))
-	{
-		for (int32 LayerIdx = 0; LayerIdx < LayersValue.Layers.Num(); ++LayerIdx)
-		{
-			TObjectPtr<UMaterialFunctionInterface>& MaterialFunction = LayersValue.Layers[LayerIdx];
-			if (MaterialFunction.Get() == OldMaterialFunction)
-			{
-				MaterialFunction = NewMaterialFunction;
-				LayersValue.EditorOnly.LayerLinkStates[LayerIdx] = EMaterialLayerLinkState::UnlinkedFromParent;
-				bMaterialLayerReplaced = true;
-				break;
-			}
-
-		}
-	}
-
-	if (bMaterialLayerReplaced)
-	{
-		// TODO: Ben.Ingram / Cesar.Castro verify this.
-		MaterialInstance->SetMaterialLayers(LayersValue);
-
-		// Update Material
-		UMaterialEditingLibrary::UpdateMaterialInstance(MaterialInstance);
-
-		// Rebuild Material
-		UMaterialEditingLibrary::RebuildMaterialInstanceEditors(MaterialInstance->GetMaterial());
-	}
+	MaterialInstance->MarkPackageDirty();
 }
 
 
@@ -811,11 +839,16 @@ bool UAnimToTextureBPLibrary::CreateUVChannel(
 	check(MeshDescription);
 
 	// Check if UVChannel is being used by the Lightmap UV
-	/*if (StaticMesh->GetLightMapCoordinateIndex() == UVChannelIndex)
+	if (StaticMesh->IsSourceModelValid(LODIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid UVChannel: %i. Already used by LightMap"), UVChannelIndex);
-		return false;
-	}*/
+		const FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LODIndex);
+		if (SourceModel.BuildSettings.bGenerateLightmapUVs &&
+			SourceModel.BuildSettings.DstLightmapIndex == UVChannelIndex)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Invalid UVChannel: %i. Already used by LightMap"), UVChannelIndex);
+			return false;
+		}
+	}
 
 	// Add New UVChannel.
 	// UE_LOG(LogTemp, Warning, TEXT("UVChannel: %i. Number of existing UVChannels: %i"), UVChannelIndex, StaticMesh->GetNumUVChannels(LODIndex));
@@ -849,7 +882,7 @@ bool UAnimToTextureBPLibrary::CreateUVChannel(
 	}
 
 	// Set Full Precision UVs
-	SetFullPrecisionUVs(StaticMesh, true);
+	SetFullPrecisionUVs(StaticMesh, LODIndex, true);
 
 	if (StaticMesh->SetUVChannel(LODIndex, UVChannelIndex, TexCoords))
 	{		
@@ -899,24 +932,55 @@ bool UAnimToTextureBPLibrary::FindBestResolution(
 	return bValidResolution;
 };
 
-void UAnimToTextureBPLibrary::SetFullPrecisionUVs(UStaticMesh* StaticMesh, bool bFullPrecision)
+void UAnimToTextureBPLibrary::SetFullPrecisionUVs(UStaticMesh* StaticMesh, int32 LODIndex, bool bFullPrecision)
 {
-	int32 NumSourceModels = StaticMesh->GetNumSourceModels();
-	for (int32 LodIndex = 0; LodIndex < NumSourceModels; LodIndex++)
+	if (StaticMesh->IsSourceModelValid(LODIndex))
 	{
-		FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LodIndex);
+		FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LODIndex);
 		SourceModel.BuildSettings.bUseFullPrecisionUVs = bFullPrecision;
 	}
 }
 
-void UAnimToTextureBPLibrary::SetStaticMeshBoundsExtensions(
-	UStaticMesh* StaticMesh, 
-	const FVector& PositiveBoundsExtension, 
-	const FVector& NegativeBoundsExtension)
+void UAnimToTextureBPLibrary::SetBoundsExtensions(UStaticMesh* StaticMesh, const FVector& MinBBox, const FVector& SizeBBox)
 {
+	// Calculate MaxBBox
+	const FVector MaxBBox = SizeBBox + MinBBox;
+
 	if (IsValid(StaticMesh))
 	{
-		StaticMesh->SetPositiveBoundsExtension(PositiveBoundsExtension);
-		StaticMesh->SetNegativeBoundsExtension(NegativeBoundsExtension);
+		// Reset current extension bounds
+		const FVector PositiveBoundsExtension = StaticMesh->GetPositiveBoundsExtension();
+		const FVector NegativeBoundsExtension = StaticMesh->GetNegativeBoundsExtension();
+		
+		// Get current BoundingBox including extensions
+		FBox BoundingBox = StaticMesh->GetBoundingBox();
+		
+		// Remove extensions from BoundingBox
+		BoundingBox.Max -= PositiveBoundsExtension;
+		BoundingBox.Min += NegativeBoundsExtension;
+		
+		// Calculate New BoundingBox
+		FVector NewMaxBBox(
+			FMath::Max(BoundingBox.Max.X, MaxBBox.X),
+			FMath::Max(BoundingBox.Max.Y, MaxBBox.Y),
+			FMath::Max(BoundingBox.Max.Z, MaxBBox.Z)
+		);
+		
+		FVector NewMinBBox(
+			FMath::Min(BoundingBox.Min.X, MinBBox.X),
+			FMath::Min(BoundingBox.Min.Y, MinBBox.Y),
+			FMath::Min(BoundingBox.Min.Z, MinBBox.Z)
+		);
+
+		// Calculate New Extensions
+		FVector NewPositiveBoundsExtension = NewMaxBBox - BoundingBox.Max;
+		FVector NewNegativeBoundsExtension = BoundingBox.Min - NewMinBBox;
+				
+		// Update StaticMesh
+		StaticMesh->SetPositiveBoundsExtension(NewPositiveBoundsExtension);
+		StaticMesh->SetNegativeBoundsExtension(NewNegativeBoundsExtension);
+		StaticMesh->CalculateExtendedBounds();
+		StaticMesh->PostEditChange();		
+		StaticMesh->MarkPackageDirty();
 	}
 }

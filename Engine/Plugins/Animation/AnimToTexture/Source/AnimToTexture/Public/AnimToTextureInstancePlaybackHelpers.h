@@ -75,24 +75,24 @@ class ANIMTOTEXTURE_API UAnimToTextureInstancePlaybackLibrary : public UBlueprin
 
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "Anim Texture Playback")
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
 	static void SetupInstancedMeshComponent(UInstancedStaticMeshComponent* InstancedMeshComponent, UPARAM(ref) FAnimToTextureInstanceData& InstanceData, int32 NumInstances);
 
-	UFUNCTION(BlueprintCallable, Category = "Anim Texture Playback")
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
 	static void BatchUpdateInstancedMeshComponent(UInstancedStaticMeshComponent* InstancedMeshComponent, UPARAM(ref) FAnimToTextureInstanceData& InstanceData);
 
-	UFUNCTION(BlueprintCallable, Category = "Anim Texture Playback")
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
 	static void AllocateInstanceData(UPARAM(ref) FAnimToTextureInstanceData& InstanceData, int32 Count);
 
-	UFUNCTION(BlueprintCallable, Category = "Anim Texture Playback")
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
 	static bool UpdateInstanceData(UPARAM(ref) FAnimToTextureInstanceData& InstanceData, int32 InstanceIndex, const FAnimToTextureInstancePlaybackData& PlaybackData, const FTransform& Transform);
 
-	UFUNCTION(BlueprintCallable, Category = "Anim Texture Playback")
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
 	static bool GetInstancePlaybackData(UPARAM(ref) const FAnimToTextureInstanceData& InstanceData, int32 InstanceIndex, FAnimToTextureInstancePlaybackData& InstancePlaybackData);
 
-	UFUNCTION(BlueprintCallable, Category = "Anim Texture Playback")
+	UFUNCTION(BlueprintCallable, Category = "AnimToTexture|Playback")
 	static bool GetInstanceTransform(UPARAM(ref) const FAnimToTextureInstanceData& InstanceData, int32 InstanceIndex, FTransform& InstanceTransform);
 
-	UFUNCTION(BlueprintPure, BlueprintCallable, Category = "Anim Texture Playback")
+	UFUNCTION(BlueprintPure, BlueprintCallable, Category = "AnimToTexture|Playback")
 	static bool AnimStateFromDataAsset(const UAnimToTextureDataAsset* DataAsset, int32 StateIndex, FAnimToTextureAnimState& AnimState);
 };

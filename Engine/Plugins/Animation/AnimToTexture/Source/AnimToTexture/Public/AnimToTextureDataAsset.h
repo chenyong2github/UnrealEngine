@@ -13,56 +13,26 @@ class USkeletalMesh;
 class UStaticMesh;
 class UTexture2D;
 
-USTRUCT(Blueprintable)
-struct ANIMTOTEXTURE_API FAnimToTextureMaterialParamNames
+namespace AnimToTextureParamNames
 {
-	GENERATED_BODY()
-
-	//
-	// Scalar Parameters
-	//
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName RowsPerFrame;
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName BoneWeightRowsPerFrame;
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName NumFrames;
-
-	//
-	// Vector Parameters
-	//
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName BoundingBoxMin;
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName BoundingBoxScale;
-
-	//
-	// Texture Parameters
-	//
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName VertexPositionTexture;
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName VertexNormalTexture;
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName BonePositionTexture;
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName BoneRotationTexture;
-
-	UPROPERTY(BlueprintReadWrite, Category = Default, EditAnywhere)
-	FName BoneWeightsTexture;
-
-	// Initialize Names
-	FAnimToTextureMaterialParamNames();
-};
+	static const FName Animate = TEXT("Animate");
+	static const FName BoundingBoxMin = TEXT("MinBBox");
+	static const FName BoundingBoxScale = TEXT("SizeBBox");
+	static const FName RowsPerFrame = TEXT("RowsPerFrame");
+	static const FName BoneWeightRowsPerFrame = TEXT("BoneWeightsRowsPerFrame");
+	static const FName NumFrames = TEXT("NumFrames");
+	static const FName VertexPositionTexture = TEXT("PositionTexture");
+	static const FName VertexNormalTexture = TEXT("NormalTexture");
+	static const FName BonePositionTexture = TEXT("BonePositionTexture");
+	static const FName BoneRotationTexture = TEXT("BoneRotationTexture");
+	static const FName BoneWeightsTexture = TEXT("BoneWeightsTexture");
+	static const FName UseUV0 = TEXT("UseUV0");
+	static const FName UseUV1 = TEXT("UseUV1");
+	static const FName UseUV2 = TEXT("UseUV2");
+	static const FName UseUV3 = TEXT("UseUV3");
+	static const FName UseTwoInfluences = TEXT("UseTwoInfluences");
+	static const FName UseFourInfluences = TEXT("UseFourInfluences");
+}
 
 UENUM(Blueprintable)
 enum class EAnimToTextureMode : uint8
@@ -74,12 +44,23 @@ enum class EAnimToTextureMode : uint8
 };
 
 UENUM(Blueprintable)
-enum class EAnimToTextureBonePrecision : uint8
+enum class EAnimToTexturePrecision : uint8
 {
-	/* Bone positions and rotations stored in 8 bits */
+	/* 8 bits */
 	EightBits,
-	/* Bone positions and rotations stored in 16 bits */
+	/* 16 bits */
 	SixteenBits,
+};
+
+UENUM(Blueprintable)
+enum class EAnimToTextureNumBoneInfluences : uint8
+{
+	/* Single bone influence */
+	One,
+	/* Blend between two influences */
+	Two,
+	/* Blend between four influences */
+	Four,
 };
 
 USTRUCT(Blueprintable)
@@ -90,19 +71,19 @@ struct FAnimSequenceInfo
 	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite)
 	bool bEnabled = true;
 
-	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled", EditConditionHides))
 	TObjectPtr<UAnimSequence> AnimSequence = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled", EditConditionHides))
 	bool bLooping = true;
 
-	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled", EditConditionHides))
 	bool bUseCustomRange = false;
 
-	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bUseCustomRange"))
+	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled && bUseCustomRange", EditConditionHides))
 	int32 StartFrame = 0;
 
-	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bUseCustomRange"))
+	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled && bUseCustomRange", EditConditionHides))
 	int32 EndFrame = 1;
 
 };
@@ -183,6 +164,13 @@ public:
 	bool bEnforcePowerOfTwo = false;
 
 	/**
+	* Texture Precision
+	* 16 bits is only supported for power-of-2 resolutions.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (EditCondition="bEnforcePowerOfTwo"))
+	EAnimToTexturePrecision Precision = EAnimToTexturePrecision::EightBits;
+
+	/**
 	* Storage Mode.
 	* Vertex: will store per-vertex position and normal.
 	* Bone: Will store per-bone position and rotation and per-vertex bone weight. 
@@ -195,41 +183,35 @@ public:
 	* Texture for storing vertex positions
 	* This is only used on Vertex Mode
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Vertex", meta = (EditCondition = "Mode == EAnimToTextureMode::Vertex"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (EditCondition = "Mode == EAnimToTextureMode::Vertex", EditConditionHides))
 	TSoftObjectPtr<UTexture2D> VertexPositionTexture;
 
 	/**
 	* Texture for storing vertex normals
 	* This is only used on Vertex Mode
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Vertex", meta = (EditCondition = "Mode == EAnimToTextureMode::Vertex"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (EditCondition = "Mode == EAnimToTextureMode::Vertex", EditConditionHides))
 	TSoftObjectPtr<UTexture2D> VertexNormalTexture;
-
-	/**
-	* Texture Precision for: BonePosition and BoneRotations.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
-	EAnimToTextureBonePrecision BonePrecision = EAnimToTextureBonePrecision::EightBits;
 
 	/**
 	* Texture for storing bone positions
 	* This is only used on Bone Mode
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
 	TSoftObjectPtr<UTexture2D> BonePositionTexture;
 
 	/**
 	* Texture for storing bone rotations
 	* This is only used on Bone Mode
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
 	TSoftObjectPtr<UTexture2D> BoneRotationTexture;
 
 	/**
 	* Texture for storing vertex/bone weighting
 	* This is only used on Bone Mode
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Bone", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
 	TSoftObjectPtr<UTexture2D> BoneWeightTexture;
 
 	// ------------------------------------------------------
@@ -255,25 +237,25 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info")
 	int32 NumFrames = 0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info|Vertex", Meta = (DisplayName = "RowsPerFrame"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (EditCondition = "Mode == EAnimToTextureMode::Vertex", EditConditionHides))
 	int32 VertexRowsPerFrame = 1;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info|Vertex", Meta = (DisplayName = "MinBBox"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (DisplayName = "MinBBox", EditCondition = "Mode == EAnimToTextureMode::Vertex", EditConditionHides))
 	FVector VertexMinBBox;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info|Vertex", Meta = (DisplayName = "SizeBBox"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (DisplayName = "SizeBBox", EditCondition = "Mode == EAnimToTextureMode::Vertex", EditConditionHides))
 	FVector VertexSizeBBox;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info|Bone")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
 	int32 BoneWeightRowsPerFrame = 1;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info|Bone")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
 	int32 BoneRowsPerFrame = 1;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info|Bone", Meta = (DisplayName = "MinBBox"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (DisplayName = "MinBBox", EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
 	FVector BoneMinBBox;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info|Bone", Meta = (DisplayName = "SizeBBox"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (DisplayName = "SizeBBox", EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
 	FVector BoneSizeBBox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info")
@@ -283,7 +265,7 @@ public:
 	int32 GetIndexFromAnimSequence(const UAnimSequence* Sequence);
 
 	UFUNCTION()
-	void Reset();
+	void ResetInfo();
 
 	// If we weren't in a plugin, we could unify this in a base class
 	template<typename AssetType>
@@ -330,22 +312,4 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = Default, meta = (DisplayName = "Get Bone Weight Texture"))
 	UTexture2D* BP_GetBoneWeightTexture() { return GetBoneWeightTexture(); }
-};
-
-FORCEINLINE void UAnimToTextureDataAsset::Reset()
-{
-	// Common Info.
-	this->NumFrames = 0;
-	this->Animations.Reset();
-
-	// Vertex Info
-	this->VertexRowsPerFrame = 1;
-	this->VertexMinBBox = FVector::ZeroVector;
-	this->VertexSizeBBox = FVector::ZeroVector;
-
-	// Bone Info
-	this->BoneRowsPerFrame = 1;
-	this->BoneWeightRowsPerFrame = 1;
-	this->BoneMinBBox = FVector::ZeroVector; 
-	this->BoneSizeBBox = FVector::ZeroVector;
 };

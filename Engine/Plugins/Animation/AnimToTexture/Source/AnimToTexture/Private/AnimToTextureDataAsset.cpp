@@ -22,30 +22,20 @@ int32 UAnimToTextureDataAsset::GetIndexFromAnimSequence(const UAnimSequence* Seq
 	return OutIndex;
 }
 
-namespace AnimToTextureParamNames
+void UAnimToTextureDataAsset::ResetInfo()
 {
-	static const FName BoundingBoxMin = TEXT("MinBBox");
-	static const FName BoundingBoxScale = TEXT("SizeBBox");
-	static const FName RowsPerFrame = TEXT("RowsPerFrame");
-	static const FName BoneWeightRowsPerFrame = TEXT("BoneWeightsRowsPerFrame");
-	static const FName NumFrames = TEXT("NumFrames (S)");
-	static const FName VertexPositionTexture = TEXT("PositionTexture");
-	static const FName VertexNormalTexture = TEXT("NormalTexture");
-	static const FName BonePositionTexture = TEXT("BonePositionTexture");
-	static const FName BoneRotationTexture = TEXT("BoneRotationTexture");
-	static const FName BoneWeightsTexture = TEXT("BoneWeightsTexture");
-}
+	// Common Info.
+	NumFrames = 0;
+	Animations.Reset();
 
-FAnimToTextureMaterialParamNames::FAnimToTextureMaterialParamNames()
-{
-	BoundingBoxMin = AnimToTextureParamNames::BoundingBoxMin;
-	BoundingBoxScale = AnimToTextureParamNames::BoundingBoxScale;
-	RowsPerFrame = AnimToTextureParamNames::RowsPerFrame;
-	BoneWeightRowsPerFrame = AnimToTextureParamNames::BoneWeightRowsPerFrame;
-	NumFrames = AnimToTextureParamNames::NumFrames;
-	VertexPositionTexture = AnimToTextureParamNames::VertexPositionTexture;
-	VertexNormalTexture = AnimToTextureParamNames::VertexNormalTexture;
-	BonePositionTexture = AnimToTextureParamNames::BonePositionTexture;
-	BoneRotationTexture = AnimToTextureParamNames::BoneRotationTexture;
-	BoneWeightsTexture = AnimToTextureParamNames::BoneWeightsTexture;
-}
+	// Vertex Info
+	VertexRowsPerFrame = 1;
+	VertexMinBBox = FVector::ZeroVector;
+	VertexSizeBBox = FVector::ZeroVector;
+
+	// Bone Info
+	BoneRowsPerFrame = 1;
+	BoneWeightRowsPerFrame = 1;
+	BoneMinBBox = FVector::ZeroVector;
+	BoneSizeBBox = FVector::ZeroVector;
+};

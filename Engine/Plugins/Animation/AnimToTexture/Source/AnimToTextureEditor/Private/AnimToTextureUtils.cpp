@@ -55,8 +55,8 @@ namespace AnimToTexture_Private
 		const int32 NumVertices = SkinWeights.Num();
 
 		// Allocate PixelData.
-		TArray<FColor> Pixels;
-		Pixels.Init(FColor::Black, Height * Width);
+		TArray<FLowPrecision::ColorType> Pixels;
+		Pixels.Init(FLowPrecision::ColorType::Black, Height * Width);
 
 		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 		{

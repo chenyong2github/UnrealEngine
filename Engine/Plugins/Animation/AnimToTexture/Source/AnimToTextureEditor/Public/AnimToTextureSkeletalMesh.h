@@ -69,85 +69,11 @@ bool HasBone(const USkeletalMesh* SkeletalMesh, const FName& Bone);
    Only the RawBones are returned (no virtual bones) */
 void GetBoneNames(const USkeletalMesh* SkeletalMesh, TArray<FName>& OutNames);
 
-/** Returns a Mapping between Follower and Leader. The hierarchy is traversed upstream until a matching Bone is found. */
-void GetFollowerBoneMap(const USkeletalMesh* LeaderSkeletalMesh, const USkeletalMesh* FollowerSkeletalMesh, TArray<int32>& FollowerBoneMap);
-
 /* Decomposes Transform in Translation and AxisAndAngle */
 void DecomposeTransformation(const FTransform& Transform, FVector3f& Translation, FVector4& Rotation);
 void DecomposeTransformations(const TArray<FTransform>& Transforms, TArray<FVector3f>& Translations, TArray<FVector4>& Rotations);
 
 // ----------------------------------------------------------------------------
-
-//template<>
-//FORCEINLINE void GetMaxInfluences<1>(
-//	const TVertexSkinWeight<MAX_TOTAL_INFLUENCES>& InSkinWeights, TVertexSkinWeight<4>& OutSkinWeights)
-//{
-//	// Reset Values
-//	for (int32 Index = 0; Index < 4; ++Index)
-//	{
-//		OutSkinWeights.BoneWeights[Index] = 0;
-//		OutSkinWeights.BoneIndices[Index] = 0;
-//		OutSkinWeights.MeshBoneIndices[Index] = 0;
-//	}
-//
-//	// Set first influence to 1
-//	OutSkinWeights.BoneWeights[0] = 255; // TNumericLimits<uint8>::Max();
-//
-//	// Find 1st Influence (Highest)
-//	uint8 MaxWeight = TNumericLimits<uint8>::Min();
-//	for (int32 Index = 0; Index < MAX_TOTAL_INFLUENCES; ++Index)
-//	{
-//		if (InSkinWeights.BoneWeights[Index] > MaxWeight)
-//		{
-//			MaxWeight = InSkinWeights.BoneWeights[Index];
-//			OutSkinWeights.BoneIndices[0] = InSkinWeights.BoneIndices[Index];
-//			OutSkinWeights.MeshBoneIndices[0] = InSkinWeights.MeshBoneIndices[Index];
-//		}
-//	}
-//}
-//
-//template<>
-//FORCEINLINE void GetMaxInfluences<2>(
-//	const TVertexSkinWeight<MAX_TOTAL_INFLUENCES>& InSkinWeights, TVertexSkinWeight<4>& OutSkinWeights)
-//{
-//	// Reset Values
-//	for (int32 Index = 0; Index < 4; ++Index)
-//	{
-//		OutSkinWeights.BoneIndices[Index] = 0;
-//		OutSkinWeights.BoneWeights[Index] = 0; 
-//		OutSkinWeights.MeshBoneIndices[Index] = 0;
-//	}
-//	
-//	// Find 1st Influence (Highest)
-//	for (int32 Index = 0; Index < MAX_TOTAL_INFLUENCES; ++Index)
-//	{
-//		if (InSkinWeights.BoneWeights[Index] > OutSkinWeights.BoneWeights[0])
-//		{
-//			OutSkinWeights.BoneWeights[0] = InSkinWeights.BoneWeights[Index];
-//			OutSkinWeights.BoneIndices[0] = InSkinWeights.BoneIndices[Index];
-//			OutSkinWeights.MeshBoneIndices[0] = InSkinWeights.MeshBoneIndices[Index];
-//		}
-//	}
-//
-//	// Find 2nd Influence
-//	for (int32 Index = 0; Index < MAX_TOTAL_INFLUENCES; ++Index)
-//	{
-//		if (InSkinWeights.BoneIndices[Index] != OutSkinWeights.BoneIndices[0])
-//		{
-//			if (InSkinWeights.BoneWeights[Index] > OutSkinWeights.BoneWeights[1])
-//			{
-//				OutSkinWeights.BoneWeights[1] = InSkinWeights.BoneWeights[Index];
-//				OutSkinWeights.BoneIndices[1] = InSkinWeights.BoneIndices[Index];
-//				OutSkinWeights.MeshBoneIndices[1] = InSkinWeights.MeshBoneIndices[Index];
-//			}
-//		}
-//	}
-//
-//	// Normalize Weighs
-//	const float NormFactor = 255.0f / (OutSkinWeights.BoneWeights[0] + OutSkinWeights.BoneWeights[1]);
-//	OutSkinWeights.BoneWeights[0] = FMath::RoundToInt(OutSkinWeights.BoneWeights[0] * NormFactor);
-//	OutSkinWeights.BoneWeights[1] = FMath::RoundToInt(OutSkinWeights.BoneWeights[1] * NormFactor);
-//}
 
 FORCEINLINE void GetMaxFourInfluences(
 	const TVertexSkinWeight<MAX_TOTAL_INFLUENCES>& InSkinWeights, TVertexSkinWeight<4>& OutSkinWeights)
