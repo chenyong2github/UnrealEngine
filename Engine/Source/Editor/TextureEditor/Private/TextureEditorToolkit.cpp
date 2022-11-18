@@ -510,7 +510,8 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	FTexturePlatformData** PlatformDataPtr = Texture->GetRunningPlatformData();
 	if (PlatformDataPtr && PlatformDataPtr[0]) // Can be null if we haven't had a chance to call CachePlatformData on the texture (brand new)
 	{
-		FTexturePlatformData::FTextureEncodeResultMetadata const& ResultMetadata = PlatformDataPtr[0]->ResultMetadata;
+		FTexturePlatformData* PlatformData = PlatformDataPtr[0];
+		FTexturePlatformData::FTextureEncodeResultMetadata const& ResultMetadata = PlatformData->ResultMetadata;
 		if (ResultMetadata.bIsValid == false)
 		{
 			EncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_NA", "Encode Speed: N/A"));
@@ -539,8 +540,6 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 			// Check if we need to compress new Oodle preview once we know we have
 			// valid results.
 			//
-			FTexturePlatformData* PlatformData = PlatformDataPtr[0];
-
 			bool AlreadyHaveResults = false;
 			if (PlatformData->DerivedDataKey.GetIndex() == OodleCompressedPreviewDDCKey.GetIndex())
 			{
@@ -703,6 +702,9 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 				OodleTilingText->SetText(FText::AsCultureInvariant(UniversalTilingEnum->GetNameStringByValue(ResultMetadata.OodleUniversalTiling)));
 			} // end if encode speed supported
 		} // end if results metadata valid
+
+		SourceMipsAlphaDetectedText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_SourceAlphaDetected", "Source Alpha Detected: {0}"),
+			PlatformData->bSourceMipsAlphaDetectedValid ? (PlatformData->bSourceMipsAlphaDetected ? NSLOCTEXT("TextureEditor", "True", "True") : NSLOCTEXT("TextureEditor", "False", "False")) : NSLOCTEXT("TextureEditor", "Unknown", "Unknown")));
 	} // end if valid platform data
 
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
@@ -1682,6 +1684,14 @@ void FTextureEditorToolkit::CreateInternalWidgets()
 			.Padding(4.0f)
 			[
 				SAssignNew(HasAlphaChannelText, STextBlock)
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(SourceMipsAlphaDetectedText, STextBlock)
 			]
 
 			+ SVerticalBox::Slot()

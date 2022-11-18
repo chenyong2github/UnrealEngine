@@ -83,7 +83,37 @@ static TAutoConsoleVariable<int32> CVarForceRetileTextures(
 	TEXT("however the linear texture is allowed to fetch from cache.")
 );
 
+static TAutoConsoleVariable<int32> CVarSharedLinearTextureEncoding(
+	TEXT("r.SharedLinearTextureEncoding"),
+	0,
+	TEXT("If set to 1, textures for platforms that tile will reuse a host linear texture instead of reencoding.")
+);
+
+
 void GetTextureDerivedDataKeyFromSuffix(const FString& KeySuffix, FString& OutKey);
+UE::DerivedData::FCacheKey GetTextureDerivedMetadataKeyFromSuffix(const FString& KeySuffix);
+static void PackTextureBuildMetadataInPlatformData(FTexturePlatformData* PlatformData, const UE::TextureBuildUtilities::FTextureBuildMetadata& BuildMetadata)
+{
+	PlatformData->bSourceMipsAlphaDetectedValid = true;
+	PlatformData->bSourceMipsAlphaDetected = BuildMetadata.bSourceMipsAlphaDetected;
+	PlatformData->PreEncodeMipsHash = BuildMetadata.PreEncodeMipsHash;
+	PlatformData->PostEncodeMipsHash = BuildMetadata.PostEncodeMipsHash;
+	PlatformData->PostTileMipsHash = BuildMetadata.PostTileMipsHash;
+}
+void UnpackTextureBuildMetadataFromPlatformData(UE::TextureBuildUtilities::FTextureBuildMetadata* BuildMetadata, const FTexturePlatformData* PlatformData)
+{
+	if (PlatformData->bSourceMipsAlphaDetectedValid)
+	{
+		BuildMetadata->bSourceMipsAlphaDetected = PlatformData->bSourceMipsAlphaDetected;
+	}
+	else
+	{
+		BuildMetadata->bSourceMipsAlphaDetected = false;
+	}
+	BuildMetadata->PreEncodeMipsHash = PlatformData->PreEncodeMipsHash;
+	BuildMetadata->PostEncodeMipsHash = PlatformData->PostEncodeMipsHash;
+	BuildMetadata->PostTileMipsHash = PlatformData->PostTileMipsHash;
+}
 
 static FTextureEngineParameters GenerateTextureEngineParameters()
 {
@@ -721,8 +751,9 @@ static void DDC1_BuildTexture(
 		uint32 NumMipsInTail;
 		uint32 ExtData;
 
+		UE::TextureBuildUtilities::FTextureBuildMetadata BuildMetadata;
+
 		// Compress the texture by calling texture compressor directly.
-		bool bImageHasAlphaChannel = false;
 		TArray<FCompressedImage2D> CompressedMips;
 		if (Compressor->BuildTexture(TextureData.Blocks[0].MipsPerLayer[0],
 			((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
@@ -731,9 +762,11 @@ static void DDC1_BuildTexture(
 			CompressedMips,
 			NumMipsInTail,
 			ExtData,
-			&bImageHasAlphaChannel))
+			&BuildMetadata))
 		{
 			check(CompressedMips.Num());
+
+			PackTextureBuildMetadataInPlatformData(DerivedData, BuildMetadata);
 
 			DDC1_StoreClassicTextureInDerivedData(
 				CompressedMips, DerivedData, InBuildSettingsPerLayer[0].bVolume, InBuildSettingsPerLayer[0].bTextureArray, InBuildSettingsPerLayer[0].bCubemap, 
@@ -1237,6 +1270,7 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 		delete DerivedData->VTData;
 		DerivedData->VTData = nullptr;
 	}
+	DerivedData->bSourceMipsAlphaDetectedValid = false;
 	UTexture::GetPixelFormatEnum();
 		
 	const bool bAllowAsyncBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::AllowAsyncBuild);
@@ -1344,6 +1378,7 @@ static void DDC1_FetchAndFillDerivedData(
 	bool bForVirtualTextureStreamingBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForVirtualTextureStreamingBuild);
 
 	FSharedBuffer RawDerivedData;
+	const FSharedString SharedTexturePathName(TexturePathName);
 
 	FString LocalDerivedDataKeySuffix;
 	FString LocalDerivedDataKey;
@@ -1363,16 +1398,34 @@ static void DDC1_FetchAndFillDerivedData(
 			FString FetchFirstKey;
 			GetTextureDerivedDataKeyFromSuffix(FetchFirstKeySuffix, FetchFirstKey);
 
+			TArray<FCacheGetValueRequest, TInlineAllocator<2>> Requests;
+			Requests.Add({ SharedTexturePathName, ConvertLegacyCacheKey(FetchFirstKey), ECachePolicy::Default, 0 /* UserData */});
+			Requests.Add({ SharedTexturePathName, GetTextureDerivedMetadataKeyFromSuffix(FetchFirstKeySuffix), ECachePolicy::Default, 1 /* UserData */});
+
 			FRequestOwner BlockingOwner(EPriority::Blocking);
-			GetCache().GetValue({ {{TexturePathName}, ConvertLegacyCacheKey(FetchFirstKey)} }, BlockingOwner, [&RawDerivedData](FCacheGetValueResponse&& Response)
+			FSharedBuffer MetadataBuffer;
+
+			GetCache().GetValue(Requests, BlockingOwner, [&MetadataBuffer, &RawDerivedData](FCacheGetValueResponse&& Response)
 			{
-				RawDerivedData = Response.Value.GetData().Decompress();
+				if (Response.UserData == 0)
+				{
+					RawDerivedData = Response.Value.GetData().Decompress();
+				}
+				else
+				{
+					MetadataBuffer = Response.Value.GetData().Decompress();
+				}
 			});
 			BlockingOwner.Wait();
 
 			bLoadedFromDDC = !RawDerivedData.IsNull();
 			if (bLoadedFromDDC)
 			{
+				// We don't necessarily get the metadata until we force a texture rebuild.
+				if (MetadataBuffer.IsNull() == false)
+				{
+					PackTextureBuildMetadataInPlatformData(DerivedData, FCbObject(MetadataBuffer));
+				}
 				bUsedFetchFirst = true;
 				LocalDerivedDataKey = MoveTemp(FetchFirstKey);
 				LocalDerivedDataKeySuffix = MoveTemp(FetchFirstKeySuffix);
@@ -1386,17 +1439,36 @@ static void DDC1_FetchAndFillDerivedData(
 		LocalDerivedDataKeySuffix = MoveTemp(FetchOrBuildKeySuffix);
 		GetTextureDerivedDataKeyFromSuffix(LocalDerivedDataKeySuffix, LocalDerivedDataKey);
 
-		if (bForceRebuild == false)
+		TArray<FCacheGetValueRequest, TInlineAllocator<2>> Requests;
+		Requests.Add({ SharedTexturePathName, ConvertLegacyCacheKey(LocalDerivedDataKey), ECachePolicy::Default, 0 /* UserData */ });
+		Requests.Add({ SharedTexturePathName, GetTextureDerivedMetadataKeyFromSuffix(LocalDerivedDataKeySuffix), ECachePolicy::Default, 1 /* UserData */ });
+
+		FRequestOwner BlockingOwner(EPriority::Blocking);
+		FSharedBuffer MetadataBuffer;
+
+		GetCache().GetValue(Requests, BlockingOwner, [&MetadataBuffer, &RawDerivedData](FCacheGetValueResponse&& Response)
 		{
-			FRequestOwner BlockingOwner(EPriority::Blocking);
-			GetCache().GetValue({ {{TexturePathName}, ConvertLegacyCacheKey(LocalDerivedDataKey)} }, BlockingOwner, [&RawDerivedData](FCacheGetValueResponse&& Response)
+			if (Response.UserData == 0)
 			{
 				RawDerivedData = Response.Value.GetData().Decompress();
-			});
-			BlockingOwner.Wait();
-		}
+			}
+			else
+			{
+				MetadataBuffer = Response.Value.GetData().Decompress();
+			}
+		});
+		BlockingOwner.Wait();
 
 		bLoadedFromDDC = !RawDerivedData.IsNull();
+		if (bLoadedFromDDC)
+		{
+			// Only read the metadata if we actually got the main data.
+			// We don't necessarily get the metadata until we force a texture rebuild.
+			if (MetadataBuffer.IsNull() == false)
+			{
+				PackTextureBuildMetadataInPlatformData(DerivedData, FCbObject(MetadataBuffer));
+			}
+		}
 	}
 
 	KeySuffix = LocalDerivedDataKeySuffix;
@@ -1691,6 +1763,9 @@ bool DDC1_BuildTiledClassicTexture(
 
 	check(LinearDerivedData.GetNumMipsInTail() == 0);
 
+	UE::TextureBuildUtilities::FTextureBuildMetadata BuildMetadata;
+	UnpackTextureBuildMetadataFromPlatformData(&BuildMetadata, &LinearDerivedData);
+
 	// The linear bits are built - need to fetch
 	void* LinearMipData[MAX_TEXTURE_MIP_COUNT] = {};
 	int64 LinearMipSizes[MAX_TEXTURE_MIP_COUNT];
@@ -1748,6 +1823,7 @@ bool DDC1_BuildTiledClassicTexture(
 	TextureDescription.GetEncodedMipIterators(&TextureExtendedData, MipTailIndex, MipsInTail);
 
 	UE_LOG(LogTexture, Display, TEXT("Tiling %s"), *TexturePathName);
+	FIoHashBuilder TiledMipsHash;
 
 	// Do the actual tiling.
 	for (int32 EncodedMipIndex = 0; EncodedMipIndex < MipTailIndex + 1; EncodedMipIndex++)
@@ -1776,8 +1852,12 @@ bool DDC1_BuildTiledClassicTexture(
 		// \todo try and Move this data rather than copying? We use FSharedBuffer as that's the future way,
 		// but we're interacting with older systems that didn't have it, and we can't Move() from an FSharedBuffer.
 		TiledMip.RawData.AddUninitialized(MipData.GetSize());
+		TiledMipsHash.Update(MipData.GetData(), MipData.GetSize());
 		FMemory::Memcpy(TiledMip.RawData.GetData(), MipData.GetData(), MipData.GetSize());
 	} // end for each mip
+
+	BuildMetadata.PostTileMipsHash = TiledMipsHash.Finalize();
+	PackTextureBuildMetadataInPlatformData(DerivedData, BuildMetadata);
 
 	for (int32 MipIndex = 0; MipIndex < TextureDescription.NumMips; ++MipIndex)
 	{
@@ -1839,7 +1919,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 	{
 		if (CVarForceRetileTextures.GetValueOnAnyThread())
 		{
-			// We do this after the fetch so it can fill out the metadata nad key suffix that gets used.
+			// We do this after the fetch so it can fill out the metadata and key suffix that gets used.
 			bSucceeded = false;
 			bLoadedFromDDC = false;
 
@@ -1968,6 +2048,11 @@ static bool UnpackPlatformDataFromBuild(FTexturePlatformData& OutPlatformData, U
 {
 	using namespace UE::DerivedData;
 	UE::DerivedData::FBuildOutput& BuildOutput = InBuildCompleteParams.Output;
+
+	{
+		const FValueWithId& Value = BuildOutput.GetValue(FValueId::FromName(UTF8TEXTVIEW("TextureBuildMetadata")));
+		PackTextureBuildMetadataInPlatformData(&OutPlatformData, FCbObject(Value.GetData().Decompress()));
+	}
 
 	// We take this as a build output, however in ideal (future) situations, this is generated prior to build launch and
 	// just routed through the build. Since we currently handle several varying situations, we just always consume it from
@@ -2123,7 +2208,7 @@ static bool UnpackPlatformDataFromBuild(FTexturePlatformData& OutPlatformData, U
 	return true;
 }
 
-void HandleBuildOutputThenUnpack(FTexturePlatformData& OutPlatformData, UE::DerivedData::FBuildCompleteParams&& InBuildCompleteParams, FBuildResultOptions InBuildResultOptions)
+static void HandleBuildOutputThenUnpack(FTexturePlatformData& OutPlatformData, UE::DerivedData::FBuildCompleteParams&& InBuildCompleteParams, FBuildResultOptions InBuildResultOptions)
 {
 	using namespace UE::DerivedData;
 
@@ -2550,6 +2635,7 @@ private:
 			FetchFirstBuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("EncodedTextureDescription")), EBuildPolicy::Cache);
 			FetchFirstBuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("EncodedTextureExtendedData")), EBuildPolicy::Cache);
 			FetchFirstBuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("MipTail")), EBuildPolicy::Cache);
+			FetchFirstBuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("TextureBuildMetadata")), EBuildPolicy::Cache);
 			return FetchFirstBuildPolicyBuilder.Build();
 		}		
 	}
@@ -2572,6 +2658,7 @@ private:
 			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("EncodedTextureDescription")), EBuildPolicy::Cache);
 			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("EncodedTextureExtendedData")), EBuildPolicy::Cache);
 			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("MipTail")), EBuildPolicy::Default);
+			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("TextureBuildMetadata")), EBuildPolicy::Cache);
 			return BuildPolicyBuilder.Build();
 		}
 	}
@@ -2779,6 +2866,8 @@ public:
 			DefinitionBuilder.AddConstant(UTF8TEXTVIEW("EncodedTextureExtendedDataConstant"), UE::TextureBuildUtilities::EncodedTextureExtendedData::ToCompactBinary(*InTextureExtendedData));
 		}
 		
+		DefinitionBuilder.AddInputBuild(UTF8TEXTVIEW("TextureBuildMetadata"), { InParentBuildKey, UE::DerivedData::FValueId::FromName(UTF8TEXTVIEW("TextureBuildMetadata")) });
+
 		if (InputTextureNumMips > InputTextureNumStreamingMips)
 		{
 			DefinitionBuilder.AddInputBuild(UTF8TEXTVIEW("MipTail"), { InParentBuildKey, UE::DerivedData::FValueId::FromName(UTF8TEXTVIEW("MipTail")) });

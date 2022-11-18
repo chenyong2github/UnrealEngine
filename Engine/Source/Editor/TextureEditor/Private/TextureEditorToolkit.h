@@ -413,6 +413,7 @@ private:
 	TSharedPtr<STextBlock> FormatText;
 	TSharedPtr<STextBlock> LODBiasText;
 	TSharedPtr<STextBlock> HasAlphaChannelText;
+	TSharedPtr<STextBlock> SourceMipsAlphaDetectedText;
 	TSharedPtr<STextBlock> NumMipsText;
 	TSharedPtr<STextBlock> MipLevelTextBlock;
 	TSharedPtr<STextBlock> EncodeSpeedText;

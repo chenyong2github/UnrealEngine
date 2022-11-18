@@ -492,6 +492,18 @@ void GetTextureDerivedMipKey(
 		);
 }
 
+// Get the ddc key for the texture metadata (old build flow).
+UE::DerivedData::FCacheKey GetTextureDerivedMetadataKeyFromSuffix(
+	const FString& KeySuffix
+)
+{
+	FString Key = FDerivedDataCacheInterface::BuildCacheKey(
+		TEXT("TEXTURE"),
+		TEXTURE_DERIVEDDATA_VER,
+		*(KeySuffix + FString(TEXT("_METADATA"))));
+	return UE::DerivedData::ConvertLegacyCacheKey(Key);
+}
+
 /**
  * Computes the derived data key for a texture with the specified compression settings.
  * @param Texture - The texture for which to compute the derived data key.
@@ -1191,6 +1203,8 @@ static void GetBuildSettingsPerFormat(
 	}
 }
 
+void UnpackTextureBuildMetadataFromPlatformData(UE::TextureBuildUtilities::FTextureBuildMetadata* BuildMetadata, const FTexturePlatformData* PlatformData);
+
 /**
  * Stores derived data in the DDC.
  * After this returns, all bulk data from streaming (non-inline) mips will be sent separately to the DDC and the BulkData for those mips removed.
@@ -1207,6 +1221,20 @@ int64 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& De
 
 	// Build the key with which to cache derived data.
 	GetTextureDerivedDataKeyFromSuffix(DerivedDataKeySuffix, DerivedDataKey);
+
+	{
+		// Store the metadata.
+		UE::TextureBuildUtilities::FTextureBuildMetadata BuildMetadata;
+		UnpackTextureBuildMetadataFromPlatformData(&BuildMetadata, DerivedData);
+		FCbObject MetadataObject = BuildMetadata.ToCompactBinaryWithDefaults();
+		UE::DerivedData::FValue Value = UE::DerivedData::FValue::Compress(MetadataObject.GetBuffer());
+
+		const UE::DerivedData::FSharedString Name = TextureName;
+		UE::DerivedData::FRequestOwner AsyncOwner(UE::DerivedData::EPriority::Normal);
+		const UE::DerivedData::ECachePolicy Policy = bReplaceExistingDDC ? UE::DerivedData::ECachePolicy::Store : UE::DerivedData::ECachePolicy::Default;
+		UE::DerivedData::GetCache().PutValue({ {Name, GetTextureDerivedMetadataKeyFromSuffix(DerivedDataKeySuffix), MoveTemp(Value), Policy} }, AsyncOwner);
+		AsyncOwner.KeepAlive();
+	}
 
 	FString LogString;
 
@@ -2559,6 +2587,22 @@ static void SerializePlatformData(
 			else if (const FString* DDK = PlatformData->DerivedDataKey.TryGet<FString>())
 			{
 				CookTags->Add(Texture, "Diff_20_Tex2D_DDK", FString(*DDK));
+			}
+
+			// Did something in the image processing change?
+			// We haven't yet forced a rebuild of textures, so this hash might not exist in the
+			// platform data.
+			if (PlatformData->PreEncodeMipsHash.IsZero() == false)
+			{
+				CookTags->Add(Texture, "Diff_30_Tex2D_PreEncodeHash", LexToString(PlatformData->PreEncodeMipsHash));
+			}
+			if (PlatformData->PostEncodeMipsHash.IsZero() == false)
+			{
+				CookTags->Add(Texture, "Diff_40_Tex2D_PostEncodeHash", LexToString(PlatformData->PostEncodeMipsHash));
+			}
+			if (PlatformData->PostTileMipsHash.IsZero() == false) // won't have this one if not a tiled texture
+			{
+				CookTags->Add(Texture, "Diff_50_Tex2D_PostTileHash", LexToString(PlatformData->PostTileMipsHash));
 			}
 		}
 	}

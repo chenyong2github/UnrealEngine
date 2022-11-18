@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IO/IoHash.h"
 #include "ImageCore.h"
-#include "TextureCompressorModule.h" // for FTextureBuildSettings
 #include "Interfaces/ITextureFormat.h"
+
+struct FTextureBuildSettings;
 
 /***
 
@@ -39,6 +41,24 @@ namespace TextureEngineParameters
 	TEXTUREBUILDUTILITIES_API FCbObject ToCompactBinaryWithDefaults(const FTextureEngineParameters& InEngineParameters);
 	TEXTUREBUILDUTILITIES_API bool FromCompactBinary(FTextureEngineParameters& OutEngineParameters, FCbObject InCbObject);
 }
+
+// Carries information out of the build that we don't want to cook or save off in the runtime
+struct TEXTUREBUILDUTILITIES_API FTextureBuildMetadata
+{
+	// Whether or not the first mip level of the source has alpha detected. This is used e.g.
+	// picking between BC1 and BC3
+	bool bSourceMipsAlphaDetected = false;
+	
+	// Digests of the data at various processing stages so we can track down determinism issues
+	// that arise.
+	FIoHash PreEncodeMipsHash;
+	FIoHash PostEncodeMipsHash;
+	FIoHash PostTileMipsHash;
+
+	FCbObject ToCompactBinaryWithDefaults() const;
+	FTextureBuildMetadata(FCbObject InCbObject);
+	FTextureBuildMetadata() = default;
+};
 
 TEXTUREBUILDUTILITIES_API bool TextureFormatIsHdr(FName const& InName);
 

@@ -13,6 +13,7 @@ class ITextureFormat;
 class ITextureTiler;
 struct FTextureEngineParameters;
 enum EPixelFormat : uint8;
+namespace UE::TextureBuildUtilities { struct FTextureBuildMetadata; };
 
 /**
  * Compressed image data.
@@ -317,6 +318,23 @@ struct FTextureBuildSettings
 		return GetDestGammaSpace();
 	}
 
+	// If there is a choice to be had between two formats: one with alpha and one without, this returns which
+	// one the texture expects.
+	bool GetTextureExpectsAlphaInPixelFormat(bool bInSourceMipsAlphaDetected) const
+	{
+		// note the order of operations! ( ForceNo takes precedence )
+		if (bForceNoAlphaChannel)
+		{
+			return false;
+		}
+		if (bForceAlphaChannel)
+		{
+			return true;
+		}
+		return bInSourceMipsAlphaDetected;
+	}
+
+
 	/*
 	* Convert the build settings to an actual texture description containing enough information to describe the texture
 	* to hardware APIs.
@@ -350,7 +368,7 @@ public:
 		TArray<FCompressedImage2D>& OutTextureMips,
 		uint32& OutNumMipsInTail,
 		uint32& OutExtData,
-		bool* bOutImageHasAlpha // If desired, this will report whether the mip processing determined an alpha channel is necessary in the encoded texture.		
+		UE::TextureBuildUtilities::FTextureBuildMetadata* OutMetadata
 		) = 0;
 
 	

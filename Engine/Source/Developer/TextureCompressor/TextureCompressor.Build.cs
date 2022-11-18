@@ -16,6 +16,7 @@ public class TextureCompressor : ModuleRules
 			new string[] {
 				"Core",
 				"ImageCore",
+				"TextureBuildUtilities",
 				"TextureFormat",
 			}
 			);

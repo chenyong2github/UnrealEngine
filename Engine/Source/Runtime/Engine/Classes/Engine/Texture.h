@@ -740,6 +740,21 @@ struct FTexturePlatformData
 	struct FVirtualTextureBuiltData* VTData;
 
 #if WITH_EDITORONLY_DATA
+
+	// When in the editor we have some data that is stored in the derived data
+	// that we don't want to save in the runtime cooked data:
+	// 1. bSourceMipsAlphaDetected - this is part of the calculation for whether to choose
+	//		e.g. BC1 or BC3.
+	// 2. Interim hash data for cook diff tags - this is used for diff tracking for hunting down
+	//		determinism issues.
+	// We only have this data if the textures were rebuilt after adding it (I didn't invalidate the ddc for this),
+	// hence bSourceMipsAlphaDetectedValid. The Hashes are zero if the data isn't present. 
+	FIoHash PreEncodeMipsHash;
+	FIoHash PostEncodeMipsHash;
+	FIoHash PostTileMipsHash;
+	bool bSourceMipsAlphaDetectedValid=false;
+	bool bSourceMipsAlphaDetected=false;
+
 	/** The key associated with this derived data. */
 	TVariant<FString, UE::DerivedData::FCacheKeyProxy> DerivedDataKey;
 

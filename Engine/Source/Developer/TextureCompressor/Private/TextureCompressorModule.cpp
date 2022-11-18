@@ -10,6 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "Engine/TextureDefines.h"
 #include "TextureFormatManager.h"
+#include "TextureBuildUtilities.h"
 #include "Interfaces/ITextureFormat.h"
 #include "Misc/Paths.h"
 #include "Tasks/Task.h"
@@ -3462,9 +3463,9 @@ public:
 		TArray<FCompressedImage2D>& OutTextureMips,
 		uint32& OutNumMipsInTail,
 		uint32& OutExtData,
-		bool* bOutImageHasAlpha
+		UE::TextureBuildUtilities::FTextureBuildMetadata* OutMetadata
 	)
-	{		
+	{
 		//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.BuildTexture);
 
 		const ITextureFormat* TextureFormat = nullptr;
@@ -3491,6 +3492,11 @@ public:
 
 		TArray<FImage> IntermediateMipChain;
 
+		bool bSourceMipsAlphaDetected = false;
+		if (OutMetadata)
+		{
+			bSourceMipsAlphaDetected = FImageCore::DetectAlphaChannel(SourceMips[0]);
+		}
 
 		// allow to leave texture in sRGB in case compressor accepts other than non-F32 input source
 		// otherwise linearizing will force format to be RGBA32F
@@ -3546,18 +3552,49 @@ public:
 		}
 
 		
-		// DetectAlphaChannel on the top mip of the generated mip chain
-		//	BuildSettings could have programatically introduced alpha that was not in the source
-		// note the order of operations in bForceAlphaChannel and bForceNoAlphaChannel ( ForceNo takes precedence )
-		const bool bImageHasAlphaChannel = !BuildSettings.bForceNoAlphaChannel  && (BuildSettings.bForceAlphaChannel || FImageCore::DetectAlphaChannel(IntermediateMipChain[0]));
-
-		if (bOutImageHasAlpha)
+		// DetectAlphaChannel on the top mip of the generated mip chain. SoonTM this will use the source mip chain. Testing has
+		// shown this to be 99.9% the same, and allows us to get the pixel format earlier.
+		const bool bImageHasAlphaChannel = BuildSettings.GetTextureExpectsAlphaInPixelFormat(FImageCore::DetectAlphaChannel(IntermediateMipChain[0]));
+		
+		if (OutMetadata)
 		{
-			*bOutImageHasAlpha = bImageHasAlphaChannel;
+			// The metadata is about trying to determine bImageHasAlphaChannel _before_ we launch a task, which 
+			// means it must be on the actual source mips, not the post-processed mips. At some point enough textures
+			// will have this saved as part of the creation process and we can rely on it - but for now we route it
+			// back out so that when textures happen to get saved, it goes with it.
+			OutMetadata->bSourceMipsAlphaDetected = bSourceMipsAlphaDetected;
+
+			// Hash the mips before we compress them. This gets saved as part of the derived data and then added to the
+			// diff tags during cook so we can catch determinism issues.
+			FIoHashBuilder MipHashBuilder;
+			for (const FImage& Mip : IntermediateMipChain)
+			{
+				const FImageInfo* Info = &Mip;
+				// Can't just hash FImageInfo due to struct padding RNG making the hash non-deterministic.
+				MipHashBuilder.Update(&Info->SizeX, sizeof(Info->SizeX));
+				MipHashBuilder.Update(&Info->SizeY, sizeof(Info->SizeY));
+				MipHashBuilder.Update(&Info->NumSlices, sizeof(Info->NumSlices));
+				MipHashBuilder.Update(&Info->Format, sizeof(Info->Format));
+				MipHashBuilder.Update(&Info->GammaSpace, sizeof(Info->GammaSpace));
+				MipHashBuilder.Update(Mip.RawData.GetData(), Mip.RawData.Num());
+			}
+			OutMetadata->PreEncodeMipsHash = MipHashBuilder.Finalize();
 		}
 		
-		return CompressMipChain(TextureFormat, IntermediateMipChain, BuildSettings, bImageHasAlphaChannel, DebugTexturePathName,
+		bool bCompressSucceeded = CompressMipChain(TextureFormat, IntermediateMipChain, BuildSettings, bImageHasAlphaChannel, DebugTexturePathName,
 					OutTextureMips, OutNumMipsInTail, OutExtData);
+
+		if (OutMetadata)
+		{
+			FIoHashBuilder MipHashBuilder;
+			for (const FCompressedImage2D& Mip : OutTextureMips)
+			{
+				MipHashBuilder.Update(Mip.RawData.GetData(), Mip.RawData.Num());
+			}
+			OutMetadata->PostEncodeMipsHash = MipHashBuilder.Finalize();
+		}
+
+		return bCompressSucceeded;
 	}
 
 	// IModuleInterface implementation.

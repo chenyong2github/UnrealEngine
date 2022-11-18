@@ -13,6 +13,7 @@ public class TextureBuildUtilities : ModuleRules
 		{
 			"CoreUObject",
 			"Engine",
+			"TextureCompressor"
 		});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -21,7 +22,6 @@ public class TextureBuildUtilities : ModuleRules
 				"DerivedDataCache",
 				"ImageCore",
 				"ImageWrapper",
-				"TextureCompressor",
 				"TextureFormat",
 			}
 			);
