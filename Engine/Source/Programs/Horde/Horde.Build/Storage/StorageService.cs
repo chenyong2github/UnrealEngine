@@ -94,6 +94,7 @@ namespace Horde.Build.Storage
 		sealed class StorageClient : StorageClientBase, IStorageClientImpl, IDisposable
 		{
 			readonly StorageService _outer;
+			readonly string _prefix;
 
 			public NamespaceConfig Config { get; }
 
@@ -109,6 +110,12 @@ namespace Horde.Build.Storage
 				Config = config;
 				Backend = backend;
 				SupportsRedirects = backend is IStorageBackendWithRedirects;
+
+				_prefix = config.Prefix;
+				if (_prefix.Length > 0 && !_prefix.EndsWith("/", StringComparison.Ordinal))
+				{
+					_prefix += "/";
+				}
 			}
 
 			public void Dispose()
@@ -119,7 +126,7 @@ namespace Horde.Build.Storage
 				}
 			}
 
-			static string GetBlobPath(BlobId blobId) => $"{blobId}.blob";
+			string GetBlobPath(BlobId blobId) => $"{_prefix}{blobId}.blob";
 
 			#region Blobs
 

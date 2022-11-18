@@ -144,6 +144,40 @@ namespace Horde.Build.Storage
 		}
 
 		/// <summary>
+		/// Writes a blob to storage. Exposed as a public utility method to allow other routes with their own authentication methods to wrap their own authentication/redirection.
+		/// </summary>
+		/// <param name="storageService">The storage service</param>
+		/// <param name="namespaceId">Namespace to write the blob to</param>
+		/// <param name="file">File to be written</param>
+		/// <param name="prefix">Prefix for uploaded blobs</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		/// <returns>Information about the written blob, or redirect information</returns>
+		public static async Task<ActionResult<WriteBlobResponse>> WriteBlobAsync(StorageService storageService, NamespaceId namespaceId, IFormFile? file, [FromForm] string? prefix = default, CancellationToken cancellationToken = default)
+		{
+			IStorageClientImpl client = await storageService.GetClientAsync(namespaceId, cancellationToken);
+			if (file == null)
+			{
+				(BlobLocator Locator, Uri UploadUrl)? result = await client.GetWriteRedirectAsync(prefix ?? String.Empty, cancellationToken);
+				if (result == null)
+				{
+					return new WriteBlobResponse { SupportsRedirects = false };
+				}
+				else
+				{
+					return new WriteBlobResponse { Locator = result.Value.Locator, UploadUrl = result.Value.UploadUrl };
+				}
+			}
+			else
+			{
+				using (Stream stream = file.OpenReadStream())
+				{
+					BlobLocator locator = await client.WriteBlobAsync(stream, prefix: (prefix == null) ? Utf8String.Empty : new Utf8String(prefix), cancellationToken: cancellationToken);
+					return new WriteBlobResponse { Locator = locator, SupportsRedirects = client.SupportsRedirects ? (bool?)true : null };
+				}
+			}
+		}
+
+		/// <summary>
 		/// Retrieves data from the storage service. 
 		/// </summary>
 		/// <param name="namespaceId">Namespace to fetch from</param>

@@ -7,13 +7,17 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Issues;
 using Horde.Build.Jobs;
 using Horde.Build.Logs.Data;
+using Horde.Build.Storage;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 
 namespace Horde.Build.Logs
@@ -49,17 +53,21 @@ namespace Horde.Build.Logs
 		private readonly IIssueCollection _issueCollection;
 		private readonly AclService _aclService;
 		private readonly JobService _jobService;
+		private readonly StorageService _storageService;
+		private readonly IOptions<ServerSettings> _settings;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogsController(ILogFileService logFileService, IIssueCollection issueCollection, AclService aclService, JobService jobService)
+		public LogsController(ILogFileService logFileService, IIssueCollection issueCollection, AclService aclService, JobService jobService, StorageService storageService, IOptions<ServerSettings> settings)
 		{
 			_logFileService = logFileService;
 			_issueCollection = issueCollection;
 			_aclService = aclService;
 			_jobService = jobService;
-		}
+			_storageService = storageService;
+			_settings = settings;
+ 		}
 
 		/// <summary>
 		/// Retrieve metadata about a specific log file
@@ -85,6 +93,31 @@ namespace Horde.Build.Logs
 
 			LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile, cancellationToken);
 			return new GetLogFileResponse(logFile, metadata).ApplyFilter(filter);       
+		}
+
+		/// <summary>
+		/// Uploads a blob for a log file. See /api/v1/storage/XXX/blobs.
+		/// </summary>
+		/// <param name="logFileId">Id of the log file to get information about</param>
+		/// <param name="file">Data for the blob</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
+		/// <returns>Information about the requested project</returns>
+		[HttpPost]
+		[Route("/api/v1/logs/{logFileId}/blobs")]
+		[ProducesResponseType(typeof(WriteBlobResponse), 200)]
+		public async Task<ActionResult<WriteBlobResponse>> WriteLogBlob(LogId logFileId, IFormFile? file, CancellationToken cancellationToken = default)
+		{
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId, cancellationToken);
+			if (logFile == null)
+			{
+				return NotFound();
+			}
+			if (!await AuthorizeAsync(logFile, AclAction.WriteLogData, User, null))
+			{
+				return Forbid();
+			}
+
+			return await StorageController.WriteBlobAsync(_storageService, Namespace.Logs, file, $"{logFile.RefName}", cancellationToken);
 		}
 
 		/// <summary>

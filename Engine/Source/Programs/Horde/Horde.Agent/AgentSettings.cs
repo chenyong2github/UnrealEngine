@@ -6,7 +6,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
-using Horde.Agent.Execution;
 using Microsoft.Extensions.Configuration;
 
 namespace Horde.Agent
@@ -186,6 +185,11 @@ namespace Horde.Agent
 		/// Queries information about the current agent through the AWS EC2 interface
 		/// </summary>
 		public bool EnableAwsEc2Support { get; set; } = true;
+
+		/// <summary>
+		/// Whether to enable the new storage-API based log system 
+		/// </summary>
+		public bool EnableNewLogger { get; set; }
 
 		/// <summary>
 		/// Key/value properties in addition to those set internally by the agent

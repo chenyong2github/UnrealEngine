@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using EpicGames.Horde.Storage;
@@ -25,6 +26,16 @@ namespace Horde.Build.Storage
 		/// Replicated Perforce data
 		/// </summary>
 		public static NamespaceId Perforce { get; } = new NamespaceId("horde-perforce");
+
+		/// <summary>
+		/// Log data
+		/// </summary>
+		public static NamespaceId Logs { get; } = new NamespaceId("horde-logs");
+
+		/// <summary>
+		/// Storage of tool data
+		/// </summary>
+		public static NamespaceId Tools { get; } = new NamespaceId("horde-tools");
 	}
 
 	/// <summary>
@@ -106,6 +117,11 @@ namespace Horde.Build.Storage
 		/// </summary>
 		[Required]
 		public BackendId Backend { get; set; }
+
+		/// <summary>
+		/// Prefix for items within this namespace
+		/// </summary>
+		public string Prefix { get; set; } = String.Empty;
 
 		/// <summary>
 		/// How frequently to run garbage collection, in hours.

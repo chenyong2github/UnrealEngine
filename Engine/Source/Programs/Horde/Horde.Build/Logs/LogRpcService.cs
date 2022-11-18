@@ -46,7 +46,7 @@ namespace Horde.Build.Logs
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access denied");
 			}
 
-			IStorageClient store = await _storageService.GetClientAsync(new NamespaceId("default"), context.CancellationToken);
+			IStorageClient store = await _storageService.GetClientAsync(Namespace.Logs, context.CancellationToken);
 			_logger.LogInformation("Updating {LogId} to node {Locator}", request.LogId, request.BlobLocator);
 			await store.WriteRefTargetAsync(new RefName(request.LogId), NodeLocator.Parse(request.BlobLocator));
 			return new UpdateLogResponse();

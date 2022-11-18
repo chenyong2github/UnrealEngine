@@ -5,6 +5,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Build.Acls;
 using Horde.Build.Server;
+using Horde.Build.Storage;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
@@ -74,7 +75,7 @@ namespace Horde.Build.Tools
 			_tools = new VersionedCollection<ToolId, Tool>(mongoService, "Tools", redisService, s_baseKey, s_types);
 			_storage = storage;
 			_clock = clock;
-			_namespaceId = options.Value.ToolNamespaceId;
+			_namespaceId = Namespace.Tools;
 			_logger = logger;
 		}
 

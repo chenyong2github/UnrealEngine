@@ -594,11 +594,6 @@ namespace Horde.Build
 		public StorageOptions? Storage { get; set; }
 
 		/// <summary>
-		/// Namespace to use for storing tools
-		/// </summary>
-		public NamespaceId ToolNamespaceId { get; set; } = new NamespaceId("horde.p4");
-
-		/// <summary>
 		/// Whether to use the local Perforce environment
 		/// </summary>
 		public bool UseLocalPerforceEnv { get; set; }

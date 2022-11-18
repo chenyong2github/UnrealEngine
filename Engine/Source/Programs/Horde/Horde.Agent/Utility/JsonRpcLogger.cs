@@ -104,8 +104,8 @@ namespace Horde.Agent.Parser
 		readonly object _lockObject = new object();
 
 		// Tailing task
-		CancellationTokenSource _tailCancellationSource;
 		readonly Task _tailTask;
+		AsyncEvent _tailTaskStop;
 		AsyncEvent _newTailDataEvent = new AsyncEvent();
 
 		public JsonRpcAndStorageLogSink(IRpcConnection connection, string logId, IJsonRpcLogSink? inner, IStorageClient store, ILogger logger)
@@ -117,15 +117,15 @@ namespace Horde.Agent.Parser
 			_writer = new TreeWriter(store, prefix: $"logs/{logId}");
 			_logger = logger;
 
-			_tailCancellationSource = new CancellationTokenSource();
-			_tailTask = Task.Run(() => TickTailAsync(_tailCancellationSource.Token));
+			_tailTaskStop = new AsyncEvent();
+			_tailTask = Task.Run(() => TickTailAsync());
 		}
 
 		public async ValueTask DisposeAsync()
 		{
-			if(_tailCancellationSource != null)
+			if(_tailTaskStop != null)
 			{
-				_tailCancellationSource.Cancel();
+				_tailTaskStop.Latch();
 				try
 				{
 					await _tailTask;
@@ -137,8 +137,7 @@ namespace Horde.Agent.Parser
 				{
 					_logger.LogError(ex, "Exception on log tailing task ({LogId}): {Message}", _logId, ex.Message);
 				}
-				_tailCancellationSource.Dispose();
-				_tailCancellationSource = null!;
+				_tailTaskStop = null!;
 			}
 
 			if (_inner != null)
@@ -147,10 +146,10 @@ namespace Horde.Agent.Parser
 			}
 		}
 
-		async Task TickTailAsync(CancellationToken cancellationToken)
+		async Task TickTailAsync()
 		{
 			int tailNext = -1;
-			for (; ;)
+			while (!_tailTaskStop.IsSet())
 			{
 				Task newTailDataTask;
 
@@ -176,7 +175,7 @@ namespace Horde.Agent.Parser
 				}
 
 				// Update the next tailing position
-				int newTailNext = await UpdateLogTailAsync(tailNext, tailData, cancellationToken);
+				int newTailNext = await UpdateLogTailAsync(tailNext, tailData);
 				if (newTailNext != tailNext)
 				{
 					tailNext = newTailNext;
@@ -237,26 +236,30 @@ namespace Horde.Agent.Parser
 			await _connection.InvokeAsync((LogRpcClient client) => client.UpdateLogAsync(request, cancellationToken: cancellationToken), cancellationToken);
 		}
 
-		protected virtual async Task<int> UpdateLogTailAsync(int tailNext, ReadOnlyMemory<byte> tailData, CancellationToken cancellationToken)
+		protected virtual async Task<int> UpdateLogTailAsync(int tailNext, ReadOnlyMemory<byte> tailData)
 		{
 			DateTime deadline = DateTime.UtcNow.AddMinutes(2.0);
-			using (IRpcClientRef<LogRpcClient> clientRef = await _connection.GetClientRefAsync<LogRpcClient>(cancellationToken))
+			using (IRpcClientRef<LogRpcClient> clientRef = await _connection.GetClientRefAsync<LogRpcClient>(CancellationToken.None))
 			{
-				using (AsyncDuplexStreamingCall<UpdateLogTailRequest, UpdateLogTailResponse> call = clientRef.Client.UpdateLogTail(deadline: deadline, cancellationToken: cancellationToken))
+				using (AsyncDuplexStreamingCall<UpdateLogTailRequest, UpdateLogTailResponse> call = clientRef.Client.UpdateLogTail(deadline: deadline))
 				{
 					// Write the request to the server
 					UpdateLogTailRequest request = new UpdateLogTailRequest();
 					request.TailNext = tailNext;
 					request.TailData = UnsafeByteOperations.UnsafeWrap(tailData);
-					await call.RequestStream.WriteAsync(request, cancellationToken);
+					await call.RequestStream.WriteAsync(request);
 
 					// Wait until the server responds or we need to trigger a new update
 					Task<bool> moveNextAsync = call.ResponseStream.MoveNext();
 
-					Task task = await Task.WhenAny(moveNextAsync, clientRef.DisposingTask, Task.Delay(TimeSpan.FromMinutes(1.0), CancellationToken.None));
+					Task task = await Task.WhenAny(moveNextAsync, clientRef.DisposingTask, _tailTaskStop.Task, Task.Delay(TimeSpan.FromMinutes(1.0), CancellationToken.None));
 					if (task == clientRef.DisposingTask)
 					{
 						_logger.LogDebug("Cancelling long poll from client side (server migration)");
+					}
+					else if (task == _tailTaskStop.Task)
+					{
+						_logger.LogDebug("Cancelling long poll from client side (complete)");
 					}
 
 					// Close the request stream to indicate that we're finished

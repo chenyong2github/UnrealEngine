@@ -5,9 +5,11 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde.Storage;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs;
 using Horde.Build.Server;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -17,6 +19,7 @@ namespace Horde.Build.Logs
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using SessionId = ObjectId<ISession>;
+	using StreamId = StringId<IStream>;
 
 	/// <summary>
 	/// Wrapper around the jobs collection in a mongo DB
@@ -70,6 +73,8 @@ namespace Horde.Build.Logs
 
 			public List<LogChunkDocument> Chunks { get; set; } = new List<LogChunkDocument>();
 
+			public RefName RefName { get; set; }
+
 			[BsonRequired]
 			public int UpdateIndex { get; set; }
 
@@ -87,6 +92,7 @@ namespace Horde.Build.Logs
 				SessionId = sessionId;
 				Type = type;
 				MaxLineIndex = 0;
+				RefName = new RefName(Id.ToString());
 			}
 
 			public LogFileDocument Clone()

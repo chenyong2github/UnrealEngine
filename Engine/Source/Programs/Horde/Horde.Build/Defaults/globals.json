@@ -23,6 +23,26 @@
 			{
 				"id": "default",
 				"backend": "default-backend"
+			},
+			{
+				"id": "horde-artifacts",
+				"prefix": "Artifacts/",
+				"backend": "default-backend"
+			},
+			{
+				"id": "horde-perforce",
+				"prefix": "Perforce/",
+				"backend": "default-backend"
+			},
+			{
+				"id": "horde-logs",
+				"prefix": "Logs/",
+				"backend": "default-backend"
+			},
+			{
+				"id": "horde-tools",
+				"prefix": "Tools/",
+				"backend": "default-backend"
 			}
 		]
 	},

@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using Horde.Agent.Parser;
 using Microsoft.Extensions.Logging;
+using EpicGames.Horde.Storage.Backends;
+using System.Net.Http;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Services
 {
@@ -47,13 +51,17 @@ namespace Horde.Agent.Services
 	/// </summary>
 	class ServerLoggerFactory : IServerLoggerFactory
 	{
+		readonly IHttpClientFactory _httpClientFactory;
+		readonly IOptions<AgentSettings> _settings;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ServerLoggerFactory(ILogger<ServerLoggerFactory> logger)
+		public ServerLoggerFactory(IHttpClientFactory httpClientFactory, IOptions<AgentSettings> settings, ILogger<ServerLoggerFactory> logger)
 		{
+			_httpClientFactory = httpClientFactory;
+			_settings = settings;
 			_logger = logger;
 		}
 
@@ -62,6 +70,11 @@ namespace Horde.Agent.Services
 		{
 #pragma warning disable CA2000 // Dispose objects before losing scope
 			IJsonRpcLogSink sink = new JsonRpcLogSink(session.RpcConnection, jobId, batchId, stepId, _logger);
+			if (_settings.Value.EnableNewLogger)
+			{
+				HttpStorageClient storageClient = new HttpStorageClient(_httpClientFactory,  new Uri(session.ServerUrl, $"api/v1/logs/{logId}/"), session.Token, _logger);
+				sink = new JsonRpcAndStorageLogSink(session.RpcConnection, logId, sink, storageClient, _logger);
+			}
 			return new JsonRpcLogger(sink, logId, warnings, _logger);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 		}

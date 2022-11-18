@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs;
 using Horde.Build.Utilities;
@@ -78,6 +79,11 @@ namespace Horde.Build.Logs
 		/// Chunks within this file
 		/// </summary>
 		public IReadOnlyList<ILogChunk> Chunks { get; }
+
+		/// <summary>
+		/// Name of the ref used to store data for this log
+		/// </summary>
+		public RefName RefName { get; }
 	}
 
 	/// <summary>
