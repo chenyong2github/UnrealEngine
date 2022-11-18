@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "OnlineSubsystemEOSTypesPublic.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "Interfaces/OnlineUserInterface.h"
@@ -27,7 +28,7 @@ typedef TSharedRef<const class FUniqueNetIdEOS> FUniqueNetIdEOSRef;
 /**
  * Unique net id wrapper for a EOS account ids.
  */
-class FUniqueNetIdEOS : public FUniqueNetId
+class FUniqueNetIdEOS : public IUniqueNetIdEOS
 {
 public:
 	static const FUniqueNetIdEOS& Cast(const FUniqueNetId& NetId);
@@ -45,12 +46,12 @@ public:
 	virtual FString ToString() const override;
 	virtual FString ToDebugString() const override;
 
-	const EOS_EpicAccountId GetEpicAccountId() const
+	virtual const EOS_EpicAccountId GetEpicAccountId() const override
 	{
 		return EpicAccountId;
 	}
 
-	const EOS_ProductUserId GetProductUserId() const
+	virtual const EOS_ProductUserId GetProductUserId() const override
 	{
 		return ProductUserId;
 	}

@@ -11,7 +11,7 @@ public class OnlineSubsystemEOS : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"OnlineSubsystemUtils"
+				"EOSSDK",
 			}
 		);
 
@@ -21,12 +21,12 @@ public class OnlineSubsystemEOS : ModuleRules
 				"CoreOnline",
 				"CoreUObject",
 				"Engine",
-				"EOSSDK",
 				"EOSShared",
 				"EOSVoiceChat",
 				"Json",
 				"OnlineBase",
 				"OnlineSubsystem",
+				"OnlineSubsystemUtils",
 				"Sockets",
 				"SocketSubsystemEOS",
 				"VoiceChat",
