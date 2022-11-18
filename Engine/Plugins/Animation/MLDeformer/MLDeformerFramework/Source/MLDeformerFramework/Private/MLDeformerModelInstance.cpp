@@ -170,9 +170,11 @@ void UMLDeformerModelInstance::UpdateBoneTransforms()
 		for (int32 Index = 0; Index < NumTrainingBones; ++Index)
 		{
 			const int32 ComponentBoneIndex = AssetBonesToSkelMeshMappings[Index];
+			check(LeaderTransforms.IsValidIndex(ComponentBoneIndex));
+			
 			const FTransform& ComponentSpaceTransform = LeaderTransforms[ComponentBoneIndex];
 			const int32 ParentIndex = SkinnedAsset->GetRefSkeleton().GetParentIndex(ComponentBoneIndex);
-			if (ParentIndex != INDEX_NONE)
+			if (LeaderTransforms.IsValidIndex(ParentIndex))
 			{
 				TrainingBoneTransforms[Index] = ComponentSpaceTransform.GetRelativeTransform(LeaderTransforms[ParentIndex]);
 			}
