@@ -939,16 +939,25 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 		}
 
 #if PLATFORM_SUPPORTS_MESH_SHADERS
-		if (GraphicsDesc.VertexShader != FSHAHash() && GraphicsDesc.MeshShader != FSHAHash())
+		if (GraphicsDesc.MeshShader != FSHAHash())
 		{
-			// Vertex shader and mesh shader are mutually exclusive
-			return false;
-		}
+			if (!GRHISupportsMeshShadersTier0)
+			{
+				// do not allow precompilation of mesh shaders if runtime doesn't support them
+				return false;
+			}
 
-		if (GraphicsDesc.MeshShader != FSHAHash() && GraphicsDesc.VertexDescriptor.Num() > 0)
-		{
-			// mesh shader should not have descriptors
-			return false;
+			if (GraphicsDesc.VertexShader != FSHAHash())
+			{
+				// Vertex shader and mesh shader are mutually exclusive
+				return false;
+			}
+
+			if (GraphicsDesc.VertexDescriptor.Num() > 0)
+			{
+				// mesh shader should not have descriptors
+				return false;
+			}
 		}
 #endif
 		

@@ -1383,23 +1383,32 @@ public:
 			}
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(PSOPrecacheResultString);
 
+			bool bSkipCreation = false;
 			if (GRHISupportsMeshShadersTier0)
 			{
 				if (!Initializer.BoundShaderState.VertexShaderRHI && !Initializer.BoundShaderState.GetMeshShader())
 				{
-					UE_LOG(LogRHI, Fatal, TEXT("Tried to create a Gfx Pipeline State without Vertex or Mesh Shader"));
+					UE_LOG(LogRHI, Error, TEXT("Tried to create a Gfx Pipeline State without Vertex or Mesh Shader"));
+					bSkipCreation = true;
 				}
 			}
 			else
 			{
+				if (Initializer.BoundShaderState.GetMeshShader())
+				{
+					UE_LOG(LogRHI, Error, TEXT("Tried to create a Gfx Pipeline State with Mesh Shader on hardware without mesh shader support."));
+					bSkipCreation = true;
+				}
+
 				if (!Initializer.BoundShaderState.VertexShaderRHI)
 				{
-					UE_LOG(LogRHI, Fatal, TEXT("Tried to create a Gfx Pipeline State without Vertex Shader"));
+					UE_LOG(LogRHI, Error, TEXT("Tried to create a Gfx Pipeline State without Vertex Shader"));
+					bSkipCreation = true;
 				}
 			}
 
 			FGraphicsPipelineState* GfxPipeline = static_cast<FGraphicsPipelineState*>(Pipeline);
-			GfxPipeline->RHIPipeline = RHICreateGraphicsPipelineState(Initializer);
+			GfxPipeline->RHIPipeline = bSkipCreation ? nullptr : RHICreateGraphicsPipelineState(Initializer);
 
 			if (GfxPipeline->RHIPipeline)
 			{
