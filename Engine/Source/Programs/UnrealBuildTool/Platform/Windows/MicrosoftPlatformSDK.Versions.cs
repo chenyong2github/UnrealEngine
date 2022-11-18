@@ -21,7 +21,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly VersionNumberRange[] PreferredClangVersions =
 		{
-			VersionNumberRange.Parse("13.0.0", "13.999"),
+			VersionNumberRange.Parse("14.0.0", "14.999"), // VS2022 17.4.x runtime requires Clang 14
+			VersionNumberRange.Parse("13.0.0", "13.999"), // VS2019 16.11 runtime requires Clang 13
 		};
 
 		static readonly VersionNumber MinimumClangVersion = new VersionNumber(13, 0, 0);
