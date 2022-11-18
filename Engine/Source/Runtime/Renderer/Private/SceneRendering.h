@@ -2597,6 +2597,13 @@ inline FRHITexture* OrBlack2DIfNull(FRHITexture* Tex)
 	return Result;
 }
 
+inline FRHITexture* OrBlack2DArrayIfNull(FRHITexture* Tex)
+{
+	FRHITexture* Result = Tex ? Tex : GBlackArrayTexture->TextureRHI.GetReference();
+	check(Result);
+	return Result;
+}
+
 inline FRHITexture* OrBlack3DIfNull(FRHITexture* Tex)
 {
 	// we fall back to 2D which are unbound mobile parameters

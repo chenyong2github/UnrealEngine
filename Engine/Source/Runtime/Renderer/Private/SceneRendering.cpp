@@ -1873,9 +1873,9 @@ void FViewInfo::SetupUniformBufferParameters(
 	// IES atlas
 	{
 		FRHITexture* AtlasTexture = IESAtlas::GetAtlasTexture();
-		if (!AtlasTexture && GSystemTextures.BlackDummy.IsValid())
+		if (!AtlasTexture && GSystemTextures.BlackArrayDummy.IsValid())
 		{
-			AtlasTexture = GSystemTextures.BlackDummy->GetRHI();
+			AtlasTexture = GSystemTextures.BlackArrayDummy->GetRHI();
 		}
 				
 		if (AtlasTexture)
@@ -1885,7 +1885,7 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.IESAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			ViewUniformShaderParameters.IESAtlasSizeAndInvSize = FVector4f(AtlasSize.X, AtlasSize.Y, 1.0f / AtlasSize.X, 1.0f / AtlasSize.Y);
 		}
-		ViewUniformShaderParameters.IESAtlasTexture = OrBlack2DIfNull(ViewUniformShaderParameters.IESAtlasTexture);
+		ViewUniformShaderParameters.IESAtlasTexture = OrBlack2DArrayIfNull(ViewUniformShaderParameters.IESAtlasTexture);
 	}
 
 	// Hair global resources 
