@@ -447,6 +447,27 @@ void UOpenColorIOConfiguration::PostLoad()
 	}
 }
 
+void UOpenColorIOConfiguration::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+
+	FString Description;
+	if (ConfigurationFile.FilePath.IsEmpty())
+	{
+		Description = TEXT("No configuration selected.");
+	}
+	else if (!Validate())
+	{
+		Description = TEXT("Warning: Configuration is invalid. Verify the selected configuration file.");
+	}
+	else
+	{
+		Description = TEXT("Configuration: ") + ConfigurationFile.FilePath;
+	}
+
+	OutTags.Add(FAssetRegistryTag(TEXT("ConfigurationFile"), Description, FAssetRegistryTag::TT_Hidden));
+}
+
 #if WITH_EDITORONLY_DATA
 void UOpenColorIOConfiguration::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
 {

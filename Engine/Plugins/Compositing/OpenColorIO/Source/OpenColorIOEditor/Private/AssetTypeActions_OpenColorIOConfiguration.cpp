@@ -12,30 +12,7 @@
 
 FText FAssetTypeActions_OpenColorIOConfiguration::GetAssetDescription(const struct FAssetData& AssetData) const
 {
-	UOpenColorIOConfiguration* Asset = Cast<UOpenColorIOConfiguration>(AssetData.GetAsset());
-
-	FString Description;
-	if (Asset != nullptr)
-	{
-		const FString AssociatedFile = Asset->ConfigurationFile.FilePath;
-
-		if (AssociatedFile.IsEmpty())
-		{
-			Description = TEXT("No configuration file selected.");
-		}
-		else if (!Asset->Validate())
-		{
-			Description = TEXT("Warning: Configuration asset is invalid. Verify the selected configuration file.");
-		}
-		else
-		{
-			Description = TEXT("Configuration file: ") + AssociatedFile;
-		}
-
-		
-	}
-
-	return FText::Format(LOCTEXT("AssetTypeActions_OpenColorIOConfiguration_Description", "{0}"), FText::FromString(MoveTemp(Description)));
+	return FText::FromString(AssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UOpenColorIOConfiguration, ConfigurationFile)));
 }
 
 
