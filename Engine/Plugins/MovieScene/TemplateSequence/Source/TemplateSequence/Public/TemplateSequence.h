@@ -67,8 +67,5 @@ public:
 	TSoftClassPtr<AActor> BoundActorClass;
 
 	UPROPERTY()
-	TSoftObjectPtr<AActor> BoundPreviewActor;
-
-	UPROPERTY()
 	TMap<FGuid, FName> BoundActorComponents;
 };
