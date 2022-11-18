@@ -97,8 +97,6 @@ static void PackTextureBuildMetadataInPlatformData(FTexturePlatformData* Platfor
 	PlatformData->bSourceMipsAlphaDetectedValid = true;
 	PlatformData->bSourceMipsAlphaDetected = BuildMetadata.bSourceMipsAlphaDetected;
 	PlatformData->PreEncodeMipsHash = BuildMetadata.PreEncodeMipsHash;
-	PlatformData->PostEncodeMipsHash = BuildMetadata.PostEncodeMipsHash;
-	PlatformData->PostTileMipsHash = BuildMetadata.PostTileMipsHash;
 }
 void UnpackTextureBuildMetadataFromPlatformData(UE::TextureBuildUtilities::FTextureBuildMetadata* BuildMetadata, const FTexturePlatformData* PlatformData)
 {
@@ -111,8 +109,6 @@ void UnpackTextureBuildMetadataFromPlatformData(UE::TextureBuildUtilities::FText
 		BuildMetadata->bSourceMipsAlphaDetected = false;
 	}
 	BuildMetadata->PreEncodeMipsHash = PlatformData->PreEncodeMipsHash;
-	BuildMetadata->PostEncodeMipsHash = PlatformData->PostEncodeMipsHash;
-	BuildMetadata->PostTileMipsHash = PlatformData->PostTileMipsHash;
 }
 
 static FTextureEngineParameters GenerateTextureEngineParameters()
@@ -1823,7 +1819,6 @@ bool DDC1_BuildTiledClassicTexture(
 	TextureDescription.GetEncodedMipIterators(&TextureExtendedData, MipTailIndex, MipsInTail);
 
 	UE_LOG(LogTexture, Display, TEXT("Tiling %s"), *TexturePathName);
-	FIoHashBuilder TiledMipsHash;
 
 	// Do the actual tiling.
 	for (int32 EncodedMipIndex = 0; EncodedMipIndex < MipTailIndex + 1; EncodedMipIndex++)
@@ -1852,11 +1847,9 @@ bool DDC1_BuildTiledClassicTexture(
 		// \todo try and Move this data rather than copying? We use FSharedBuffer as that's the future way,
 		// but we're interacting with older systems that didn't have it, and we can't Move() from an FSharedBuffer.
 		TiledMip.RawData.AddUninitialized(MipData.GetSize());
-		TiledMipsHash.Update(MipData.GetData(), MipData.GetSize());
 		FMemory::Memcpy(TiledMip.RawData.GetData(), MipData.GetData(), MipData.GetSize());
 	} // end for each mip
 
-	BuildMetadata.PostTileMipsHash = TiledMipsHash.Finalize();
 	PackTextureBuildMetadataInPlatformData(DerivedData, BuildMetadata);
 
 	for (int32 MipIndex = 0; MipIndex < TextureDescription.NumMips; ++MipIndex)

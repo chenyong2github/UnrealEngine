@@ -223,14 +223,6 @@ FCbObject FTextureBuildMetadata::ToCompactBinaryWithDefaults() const
 	{
 		Writer.AddHash("PreEncodeMipsHash", PreEncodeMipsHash);
 	}
-	if (PostEncodeMipsHash != Defaults.PostEncodeMipsHash)
-	{
-		Writer.AddHash("PostEncodeMipsHash", PostEncodeMipsHash);
-	}
-	if (PostTileMipsHash != Defaults.PostTileMipsHash)
-	{
-		Writer.AddHash("PostTileMipsHash", PostTileMipsHash);
-	}
 	Writer.EndObject();
 	return Writer.Save().AsObject();
 }
@@ -239,8 +231,6 @@ FTextureBuildMetadata::FTextureBuildMetadata(FCbObject InCbObject)
 {
 	bSourceMipsAlphaDetected = InCbObject["bSourceMipsAlphaDetected"].AsBool(bSourceMipsAlphaDetected);
 	PreEncodeMipsHash = InCbObject["PreEncodeMipsHash"].AsHash(PreEncodeMipsHash);
-	PostEncodeMipsHash = InCbObject["PostEncodeMipsHash"].AsHash(PostEncodeMipsHash);
-	PostTileMipsHash = InCbObject["PostTileMipsHash"].AsHash(PostTileMipsHash);
 }
 
 

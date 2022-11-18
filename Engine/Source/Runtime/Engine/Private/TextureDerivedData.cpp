@@ -2596,14 +2596,6 @@ static void SerializePlatformData(
 			{
 				CookTags->Add(Texture, "Diff_30_Tex2D_PreEncodeHash", LexToString(PlatformData->PreEncodeMipsHash));
 			}
-			if (PlatformData->PostEncodeMipsHash.IsZero() == false)
-			{
-				CookTags->Add(Texture, "Diff_40_Tex2D_PostEncodeHash", LexToString(PlatformData->PostEncodeMipsHash));
-			}
-			if (PlatformData->PostTileMipsHash.IsZero() == false) // won't have this one if not a tiled texture
-			{
-				CookTags->Add(Texture, "Diff_50_Tex2D_PostTileHash", LexToString(PlatformData->PostTileMipsHash));
-			}
 		}
 	}
 #endif

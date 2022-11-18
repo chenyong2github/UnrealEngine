@@ -3584,16 +3584,6 @@ public:
 		bool bCompressSucceeded = CompressMipChain(TextureFormat, IntermediateMipChain, BuildSettings, bImageHasAlphaChannel, DebugTexturePathName,
 					OutTextureMips, OutNumMipsInTail, OutExtData);
 
-		if (OutMetadata)
-		{
-			FIoHashBuilder MipHashBuilder;
-			for (const FCompressedImage2D& Mip : OutTextureMips)
-			{
-				MipHashBuilder.Update(Mip.RawData.GetData(), Mip.RawData.Num());
-			}
-			OutMetadata->PostEncodeMipsHash = MipHashBuilder.Finalize();
-		}
-
 		return bCompressSucceeded;
 	}
 

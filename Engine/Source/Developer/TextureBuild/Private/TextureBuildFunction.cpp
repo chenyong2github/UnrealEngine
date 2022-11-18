@@ -539,7 +539,6 @@ void GenericTextureTilingBuildFunction(UE::DerivedData::FBuildContext& Context, 
 	}
 
 	// Process the mips
-	FIoHashBuilder PostTileHashBuilder;
 	TArray<FSharedBuffer> MipTailBuffers;
 	for (int32 MipIndex = 0; MipIndex < FirstMipTailIndex + 1; MipIndex++)
 	{
@@ -552,8 +551,6 @@ void GenericTextureTilingBuildFunction(UE::DerivedData::FBuildContext& Context, 
 			MipsForLevel = MakeArrayView(InputTextureMipViews.GetData() + MipIndex, MipTailCount);
 		}
 		FSharedBuffer MipData = Tiler->ProcessMipLevel(TextureDescription, TextureExtendedData, MipsForLevel, MipIndex);
-
-		PostTileHashBuilder.Update(MipData.GetData(), MipData.GetSize());
 
 		// Make sure we got the size we advertised prior to the build. If this ever fires then we
 		// have a critical mismatch!
@@ -569,8 +566,6 @@ void GenericTextureTilingBuildFunction(UE::DerivedData::FBuildContext& Context, 
 			MipTailBuffers.Add(MipData);
 		}
 	} // end for each mip
-
-	BuildMetadata.PostTileMipsHash = PostTileHashBuilder.Finalize();
 
 	// The mip tail is a bunch of mips all together in one "Value", so assemble them here.
 	FCompositeBuffer MipTail(MipTailBuffers);

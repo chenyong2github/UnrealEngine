@@ -750,8 +750,6 @@ struct FTexturePlatformData
 	// We only have this data if the textures were rebuilt after adding it (I didn't invalidate the ddc for this),
 	// hence bSourceMipsAlphaDetectedValid. The Hashes are zero if the data isn't present. 
 	FIoHash PreEncodeMipsHash;
-	FIoHash PostEncodeMipsHash;
-	FIoHash PostTileMipsHash;
 	bool bSourceMipsAlphaDetectedValid=false;
 	bool bSourceMipsAlphaDetected=false;
 

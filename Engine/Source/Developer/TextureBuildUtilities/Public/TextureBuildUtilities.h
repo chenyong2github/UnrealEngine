@@ -52,8 +52,6 @@ struct TEXTUREBUILDUTILITIES_API FTextureBuildMetadata
 	// Digests of the data at various processing stages so we can track down determinism issues
 	// that arise.
 	FIoHash PreEncodeMipsHash;
-	FIoHash PostEncodeMipsHash;
-	FIoHash PostTileMipsHash;
 
 	FCbObject ToCompactBinaryWithDefaults() const;
 	FTextureBuildMetadata(FCbObject InCbObject);
