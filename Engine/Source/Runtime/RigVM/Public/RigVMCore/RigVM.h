@@ -732,10 +732,10 @@ private:
 	FORCEINLINE TArray<FName>& GetFunctionNames() { return *FunctionNamesPtr; }
 	FORCEINLINE const TArray<FName>& GetFunctionNames() const { return *FunctionNamesPtr; }
 
-	TArray<FRigVMFunctionPtr> FunctionsStorage;
-	TArray<FRigVMFunctionPtr>* FunctionsPtr;
-	FORCEINLINE TArray<FRigVMFunctionPtr>& GetFunctions() { return *FunctionsPtr; }
-	FORCEINLINE const TArray<FRigVMFunctionPtr>& GetFunctions() const { return *FunctionsPtr; }
+	TArray<const FRigVMFunction*> FunctionsStorage;
+	TArray<const FRigVMFunction*>* FunctionsPtr;
+	FORCEINLINE TArray<const FRigVMFunction*>& GetFunctions() { return *FunctionsPtr; }
+	FORCEINLINE const TArray<const FRigVMFunction*>& GetFunctions() const { return *FunctionsPtr; }
 
 	TArray<const FRigVMDispatchFactory*> FactoriesStorage;
 	TArray<const FRigVMDispatchFactory*>* FactoriesPtr;

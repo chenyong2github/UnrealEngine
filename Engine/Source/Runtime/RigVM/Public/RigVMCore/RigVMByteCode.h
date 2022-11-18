@@ -53,6 +53,11 @@ struct FRigVMBranchInfoKey
 		, Label(InLabel)
 	{}
 
+	bool IsValid() const
+	{
+		return InstructionIndex != INDEX_NONE && ArgumentIndex != INDEX_NONE && !Label.IsNone();
+	}
+
 	friend uint32 GetTypeHash(const FRigVMBranchInfoKey& InKey)
 	{
 		return HashCombine(

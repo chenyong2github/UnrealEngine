@@ -32,6 +32,13 @@ FString FRigVMFunction::GetModuleName() const
 			return Package->GetName();
 		}
 	}
+	if (Factory)
+	{
+		if (UPackage* Package = Factory->GetScriptStruct()->GetPackage())
+		{
+			return Package->GetName();
+		}
+	}
 #endif
 	return FString();
 }

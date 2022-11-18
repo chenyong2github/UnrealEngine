@@ -2888,7 +2888,9 @@ FString FRigVMParserAST::DumpDot() const
 					if(SubGraphIndex == INDEX_NONE)
 					{
 						const int32 ASTGraphIndex = OutGraph.FindSubGraph(TEXT("AST"));
-						SubGraphIndex = OutGraph.AddSubGraph(InExpr->GetName(), InExpr->GetName(), ASTGraphIndex);
+						FString SanitizedNameString = InExpr->GetName().ToString();
+						SanitizedNameString.RemoveSpacesInline();
+						SubGraphIndex = OutGraph.AddSubGraph(*SanitizedNameString, InExpr->GetName(), ASTGraphIndex);
 					}
 					break;
 				}

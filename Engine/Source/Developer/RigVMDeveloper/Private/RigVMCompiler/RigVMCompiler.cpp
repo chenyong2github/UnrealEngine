@@ -1174,19 +1174,17 @@ void URigVMCompiler::TraverseBlock(const FRigVMBlockExprAST* InExpr, FRigVMCompi
 								// to step over them as well here.
 								else if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(CallExternNode))
 								{
-									int32 ArgumentIndex = 0;
-									for(const URigVMPin* NodePin : UnitNode->GetPins())
+									if(const FRigVMFunction* Function = UnitNode->GetResolvedFunction())
 									{
-										if(NodePin->IsExecuteContext())
+										for(int32 ArgumentIndex = 0; ArgumentIndex != Function->Arguments.Num(); ArgumentIndex++)
 										{
-											continue;
+											const FRigVMFunctionArgument& Argument = Function->Arguments[ArgumentIndex];
+											if(Argument.Name == Pin->GetFName())
+											{
+												BranchInfo.ArgumentIndex = ArgumentIndex;
+												break;
+											}
 										}
-										if(NodePin->GetFName() == Pin->GetFName())
-										{
-											BranchInfo.ArgumentIndex = ArgumentIndex;
-											break;
-										}
-										ArgumentIndex++;
 									}
 								}	
 							}
