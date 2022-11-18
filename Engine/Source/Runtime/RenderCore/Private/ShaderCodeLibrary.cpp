@@ -2580,9 +2580,13 @@ public:
 	{
 		if (IsLibraryInitializedForRuntime())
 		{
-			FRWScopeLock WriteLock(NamedLibrariesMutex, SLT_Write);
 			TUniquePtr<UE::ShaderLibrary::Private::FNamedShaderLibrary> RemovedLibrary = nullptr;
-			NamedLibrariesStack.RemoveAndCopyValue(Name, RemovedLibrary);
+
+			{
+				FRWScopeLock WriteLock(NamedLibrariesMutex, SLT_Write);
+				NamedLibrariesStack.RemoveAndCopyValue(Name, RemovedLibrary);
+			}
+
 			if (RemovedLibrary)
 			{
 				UE_LOG(LogShaderLibrary, Display, TEXT("Closing logical shader library '%s' with %d components"), *Name, RemovedLibrary->GetNumComponents());
