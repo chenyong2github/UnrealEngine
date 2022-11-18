@@ -267,29 +267,33 @@ void UPCGEditorGraphSchema::GetSettingsElementActions(FGraphActionMenuBuilder& A
 
 	for (const FAssetData& AssetData : AssetDataList)
 	{
-		const FText MenuDesc = FText::FromName(AssetData.AssetName);
-		const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
-		const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
-
-		if (!bIsContextual)
+		const bool bExposeToLibrary = AssetData.GetTagValueRef<bool>(TEXT("bExposeToLibrary"));
+		if (bExposeToLibrary)
 		{
-			TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsAction(new FPCGEditorGraphSchemaAction_NewSettingsElement(Category, MenuDesc, Description, 0));
-			NewSettingsAction->SettingsObjectPath = AssetData.GetSoftObjectPath();
-			ActionMenuBuilder.AddAction(NewSettingsAction);
-		}
-		else
-		{
-			const FText MenuAndSubCategory = FText::Join(LOCTEXT("MenuDelimiter", "|"), Category, MenuDesc);
+			const FText MenuDesc = FText::FromName(AssetData.AssetName);
+			const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
+			const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
 
-			TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsActionCopy(new FPCGEditorGraphSchemaAction_NewSettingsElement(MenuAndSubCategory, LOCTEXT("ContextMenuCopySettings", "Copy"), Description, 0));
-			NewSettingsActionCopy->SettingsObjectPath = AssetData.GetSoftObjectPath();
-			NewSettingsActionCopy->Behavior = EPCGEditorNewSettingsBehavior::ForceCopy;
-			ActionMenuBuilder.AddAction(NewSettingsActionCopy);
+			if (!bIsContextual)
+			{
+				TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsAction(new FPCGEditorGraphSchemaAction_NewSettingsElement(Category, MenuDesc, Description, 0));
+				NewSettingsAction->SettingsObjectPath = AssetData.GetSoftObjectPath();
+				ActionMenuBuilder.AddAction(NewSettingsAction);
+			}
+			else
+			{
+				const FText MenuAndSubCategory = FText::Join(LOCTEXT("MenuDelimiter", "|"), Category, MenuDesc);
 
-			TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsActionInstance(new FPCGEditorGraphSchemaAction_NewSettingsElement(MenuAndSubCategory, LOCTEXT("ContextMenuCopySettings", "Instance"), Description, 0));
-			NewSettingsActionInstance->SettingsObjectPath = AssetData.GetSoftObjectPath();
-			NewSettingsActionInstance->Behavior = EPCGEditorNewSettingsBehavior::ForceInstance;
-			ActionMenuBuilder.AddAction(NewSettingsActionInstance);
+				TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsActionCopy(new FPCGEditorGraphSchemaAction_NewSettingsElement(MenuAndSubCategory, LOCTEXT("ContextMenuCopySettings", "Copy"), Description, 0));
+				NewSettingsActionCopy->SettingsObjectPath = AssetData.GetSoftObjectPath();
+				NewSettingsActionCopy->Behavior = EPCGEditorNewSettingsBehavior::ForceCopy;
+				ActionMenuBuilder.AddAction(NewSettingsActionCopy);
+
+				TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsActionInstance(new FPCGEditorGraphSchemaAction_NewSettingsElement(MenuAndSubCategory, LOCTEXT("ContextMenuCopySettings", "Instance"), Description, 0));
+				NewSettingsActionInstance->SettingsObjectPath = AssetData.GetSoftObjectPath();
+				NewSettingsActionInstance->Behavior = EPCGEditorNewSettingsBehavior::ForceInstance;
+				ActionMenuBuilder.AddAction(NewSettingsActionInstance);
+			}
 		}
 	}
 }

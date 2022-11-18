@@ -401,6 +401,16 @@ UPCGSettings* UPCGNode::GetSettings() const
 }
 
 #if WITH_EDITOR
+void UPCGNode::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, NodeTitle))
+	{
+		OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Cosmetic);
+	}
+}
+
 void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType ChangeType)
 {
 	if (InSettings == GetSettings())

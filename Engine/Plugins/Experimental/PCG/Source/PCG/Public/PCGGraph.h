@@ -34,13 +34,13 @@ public:
 	/** ~End UObject interface */
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
 	bool bExposeToLibrary = false;
 
-	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
 	FText Category;
 
-	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
 	FText Description;
 #endif
 

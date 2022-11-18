@@ -41,6 +41,7 @@ void UPCGBlueprintElement::PostLoad()
 	Super::PostLoad();
 	Initialize();
 
+#if WITH_EDITORONLY_DATA
 	if (!InputPinLabels_DEPRECATED.IsEmpty())
 	{
 		for (const FName& Label : InputPinLabels_DEPRECATED)
@@ -60,6 +61,7 @@ void UPCGBlueprintElement::PostLoad()
 
 		OutputPinLabels_DEPRECATED.Reset();
 	}
+#endif
 }
 
 void UPCGBlueprintElement::BeginDestroy()
@@ -208,11 +210,13 @@ void UPCGBlueprintSettings::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
 	if (BlueprintElement_DEPRECATED && !BlueprintElementType)
 	{
 		BlueprintElementType = BlueprintElement_DEPRECATED;
 		BlueprintElement_DEPRECATED = nullptr;
 	}
+#endif
 
 	SetupBlueprintEvent();
 
@@ -228,12 +232,16 @@ void UPCGBlueprintSettings::PostLoad()
 	if (BlueprintElementInstance)
 	{
 		BlueprintElementInstance->ConditionalPostLoad();
+#if WITH_EDITORONLY_DATA
 		BlueprintElementInstance->bCreatesArtifacts |= bCreatesArtifacts_DEPRECATED;
 		BlueprintElementInstance->bCanBeMultithreaded |= bCanBeMultithreaded_DEPRECATED;
+#endif
 	}
 
+#if WITH_EDITORONLY_DATA
 	bCreatesArtifacts_DEPRECATED = false;
 	bCanBeMultithreaded_DEPRECATED = false;
+#endif
 }
 
 void UPCGBlueprintSettings::BeginDestroy()

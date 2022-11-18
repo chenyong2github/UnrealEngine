@@ -16,8 +16,10 @@ public:
 	void Construct(const FArguments& InArgs, UPCGEditorGraphNodeBase* InNode);
 
 	//~ Begin SGraphNode Interface
+	virtual const FSlateBrush* GetNodeBodyBrush() const override;
 	virtual void RequestRenameOnSpawn() override { /* Empty to avoid the default behavior to rename on node spawn */ }
 	virtual void AddPin(const TSharedRef<SGraphPin>& PinToAdd) override;
+	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle) override;
 	//~ End SGraphNode Interface
 
 	//~ Begin SNodePanel::SNode Interface

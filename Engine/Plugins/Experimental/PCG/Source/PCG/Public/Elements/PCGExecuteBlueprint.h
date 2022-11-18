@@ -104,41 +104,43 @@ public:
 	FOnPCGBlueprintChanged OnBlueprintChangedDelegate;
 #endif
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = Settings)
 	bool bCreatesArtifacts = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = Settings)
 	bool bCanBeMultithreaded = false;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(BlueprintGetter=InputLabels, Category = "Settings|Input & Output", meta = (DeprecatedProperty, DeprecatedMessage = "Input Pin Labels are deprecated - use Input Labels instead."))
 	TSet<FName> InputPinLabels_DEPRECATED;
 
 	UPROPERTY(BlueprintGetter=OutputLabels, Category = "Settings|Input & Output")
 	TSet<FName> OutputPinLabels_DEPRECATED;
+#endif
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Settings|Input & Output")
 	TArray<FPCGPinProperties> CustomInputPins;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Settings|Input & Output")
 	TArray<FPCGPinProperties> CustomOutputPins;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Settings|Input & Output")
 	bool bHasDefaultInPin = true;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Settings|Input & Output")
 	bool bHasDefaultOutPin = true;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = AssetInfo, AssetRegistrySearchable)
 	bool bExposeToLibrary = false;
 
-	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = AssetInfo, AssetRegistrySearchable)
 	FText Category;
 
-	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = AssetInfo, AssetRegistrySearchable)
 	FText Description;
 
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Settings|Advanced")
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Settings|Advanced")
 	int32 DependencyParsingDepth = 1;
 #endif
 
@@ -197,8 +199,10 @@ public:
 	TSubclassOf<UPCGBlueprintElement> GetElementType() const { return BlueprintElementType; }
 
 protected:
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TSubclassOf<UPCGBlueprintElement> BlueprintElement_DEPRECATED;
+#endif
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Template)
 	TSubclassOf<UPCGBlueprintElement> BlueprintElementType;
@@ -209,13 +213,13 @@ protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TArray<FName> TrackedActorTags;
-#endif
 
 	UPROPERTY()
 	bool bCreatesArtifacts_DEPRECATED = false;
 
 	UPROPERTY()
 	bool bCanBeMultithreaded_DEPRECATED = false;
+#endif
 
 protected:
 #if WITH_EDITOR

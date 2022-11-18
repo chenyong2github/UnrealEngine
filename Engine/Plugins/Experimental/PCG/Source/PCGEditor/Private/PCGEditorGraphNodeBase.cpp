@@ -93,6 +93,7 @@ void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class U
 		}));
 
 		Section.AddMenuEntry(FPCGEditorCommands::Get().ExportNodes);
+		Section.AddMenuEntry(FPCGEditorCommands::Get().ConvertToStandaloneNodes);
 	}
 
 	{
@@ -357,9 +358,16 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeBodyTintColor() const
 	if (PCGNode)
 	{
 		const UPCGSettingsInterface* PCGSettingsInterface = PCGNode->GetSettingsInterface();
-		if (PCGSettingsInterface && PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+		if (PCGSettingsInterface)
 		{
-			return GetDefault<UPCGEditorSettings>()->IsolatedNodeColor;
+			if (PCGSettingsInterface->IsInstance())
+			{
+				return GetDefault<UPCGEditorSettings>()->InstancedNodeBodyTintColor;
+			}
+			else if (PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+			{
+				return GetDefault<UPCGEditorSettings>()->IsolatedNodeColor;
+			}
 		}
 	}
 

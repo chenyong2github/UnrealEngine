@@ -9,6 +9,7 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer)
 {
 	DefaultNodeColor = FLinearColor(0.4f, 0.62f, 1.0f);
+	InstancedNodeBodyTintColor = FLinearColor(0.5f, 0.5f, 0.5f);
 	IsolatedNodeColor = FLinearColor(0.0f, 0.0f, 1.0f);
 	InputOutputNodeColor = FLinearColor(1.0f, 0.0f, 0.0f);
 	SetOperationNodeColor = FLinearColor(0.8f, 0.2f, 0.8f);

@@ -16,12 +16,13 @@ public:
 
 	TSharedPtr<FUICommandInfo> CollapseNodes;
 	TSharedPtr<FUICommandInfo> ExportNodes;
+	TSharedPtr<FUICommandInfo> ConvertToStandaloneNodes;
 	TSharedPtr<FUICommandInfo> Find;
 	TSharedPtr<FUICommandInfo> PauseAutoRegeneration;
 	TSharedPtr<FUICommandInfo> ForceGraphRegeneration;
 	TSharedPtr<FUICommandInfo> RunDeterminismNodeTest;
 	TSharedPtr<FUICommandInfo> RunDeterminismGraphTest;
-	TSharedPtr<FUICommandInfo> EditClassDefaults;
+	TSharedPtr<FUICommandInfo> EditGraphSettings;
 	TSharedPtr<FUICommandInfo> StartInspectNode;
 	TSharedPtr<FUICommandInfo> StopInspectNode;
 	TSharedPtr<FUICommandInfo> ExecutionModeEnabled;

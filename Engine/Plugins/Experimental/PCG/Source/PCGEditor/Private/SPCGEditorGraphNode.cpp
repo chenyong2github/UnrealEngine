@@ -10,6 +10,7 @@
 
 #include "SGraphPin.h"
 #include "Styling/SlateBrush.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNodeBase* InNode)
 {
@@ -22,6 +23,35 @@ void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNod
 	}
 
 	UpdateGraphNode();
+}
+
+const FSlateBrush* SPCGEditorGraphNode::GetNodeBodyBrush() const
+{
+	if (PCGEditorGraphNode && PCGEditorGraphNode->GetPCGNode() && PCGEditorGraphNode->GetPCGNode()->IsInstance())
+	{
+		return FAppStyle::GetBrush("Graph.Node.TintedBody");
+	}
+	else
+	{
+		return FAppStyle::GetBrush("Graph.Node.Body");
+	}
+}
+
+TSharedRef<SWidget> SPCGEditorGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle)
+{
+	// Reimplementation of the SGraphNode::CreateTitleWidget so we can control the style
+	const bool bIsInstanceNode = (PCGEditorGraphNode && PCGEditorGraphNode->GetPCGNode() && PCGEditorGraphNode->GetPCGNode()->IsInstance());
+
+	SAssignNew(InlineEditableText, SInlineEditableTextBlock)
+		.Style(FPCGEditorStyle::Get(), bIsInstanceNode ? "PCG.Node.InstancedNodeTitleInlineEditableText" : "PCG.Node.NodeTitleInlineEditableText")
+		.Text(InNodeTitle.Get(), &SNodeTitle::GetHeadTitle)
+		.OnVerifyTextChanged(this, &SPCGEditorGraphNode::OnVerifyNameTextChanged)
+		.OnTextCommitted(this, &SPCGEditorGraphNode::OnNameTextCommited)
+		.IsReadOnly(this, &SPCGEditorGraphNode::IsNameReadOnly)
+		.IsSelected(this, &SPCGEditorGraphNode::IsSelectedExclusively);
+	InlineEditableText->SetColorAndOpacity(TAttribute<FLinearColor>::Create(TAttribute<FLinearColor>::FGetter::CreateSP(this, &SPCGEditorGraphNode::GetNodeTitleTextColor)));
+
+	return InlineEditableText.ToSharedRef();
 }
 
 void SPCGEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)

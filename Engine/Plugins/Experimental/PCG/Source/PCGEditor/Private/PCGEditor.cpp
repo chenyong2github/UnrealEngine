@@ -88,6 +88,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.bHideSelectionTip = true;
+	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
 	PropertyDetailsWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	PropertyDetailsWidget->SetObject(PCGGraphBeingEdited);
 
@@ -342,7 +343,7 @@ void FPCGEditor::RegisterToolbar() const
 
 		Section.AddSeparator(NAME_None);
 		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
-			 PCGEditorCommands.EditClassDefaults,
+			 PCGEditorCommands.EditGraphSettings,
 			 TAttribute<FText>(),
 			 TAttribute<FText>(),
 			 FSlateIcon(FAppStyle::GetAppStyleSetName(), "FullBlueprintEditor.EditClassDefaults")));
@@ -377,10 +378,10 @@ void FPCGEditor::BindCommands()
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanRunDeterminismGraphTest));
 
 	ToolkitCommands->MapAction(
-		PCGEditorCommands.EditClassDefaults,
-		FExecuteAction::CreateSP(this, &FPCGEditor::OnEditClassDefaults),
+		PCGEditorCommands.EditGraphSettings,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnEditGraphSettings),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FPCGEditor::IsEditClassDefaultsToggled));
+		FIsActionChecked::CreateSP(this, &FPCGEditor::IsEditGraphSettingsToggled));
 	
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.CollapseNodes,
@@ -391,6 +392,11 @@ void FPCGEditor::BindCommands()
 		PCGEditorCommands.ExportNodes,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnExportNodes),
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanExportNodes));
+
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.ConvertToStandaloneNodes,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnConvertToStandaloneNodes),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanConvertToStandaloneNodes));
 
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.StartInspectNode,
@@ -627,12 +633,12 @@ void FPCGEditor::OnDeterminismGraphTest()
 	}
 }
 
-void FPCGEditor::OnEditClassDefaults() const
+void FPCGEditor::OnEditGraphSettings() const
 {
 	PropertyDetailsWidget->SetObject(PCGGraphBeingEdited);
 }
 
-bool FPCGEditor::IsEditClassDefaultsToggled() const
+bool FPCGEditor::IsEditGraphSettingsToggled() const
 {
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyDetailsWidget->GetSelectedObjects();
 	return SelectedObjects.Num() == 1 && SelectedObjects[0] == PCGGraphBeingEdited;
@@ -1088,6 +1094,75 @@ void FPCGEditor::OnExportNodes()
 			return;
 		}
 	}
+}
+
+void FPCGEditor::OnConvertToStandaloneNodes()
+{
+	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorCollapseInSubgraphMessage", "PCG Editor: Converting instanced nodes to standalone"), nullptr);
+
+	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
+	{
+		check(Object);
+		// Exclude input and output nodes from the subgraph.
+		if (Object->IsA<UPCGEditorGraphNodeInput>() || Object->IsA<UPCGEditorGraphNodeOutput>())
+		{
+			continue;
+		}
+
+		if (UPCGEditorGraphNodeBase* Node = Cast<UPCGEditorGraphNodeBase>(Object))
+		{
+			if (UPCGNode* PCGNode = Node->GetPCGNode())
+			{
+				if (PCGNode->IsInstance())
+				{
+					PCGNode->Modify();
+
+					UPCGSettings* SourceSettings = PCGNode->GetSettings();
+					check(SourceSettings);
+
+					UPCGSettings* SettingsCopy = DuplicateObject(SourceSettings, PCGNode);
+					SettingsCopy->SetFlags(RF_Transactional);
+
+					PCGNode->SetSettingsInterface(SettingsCopy);
+				}
+			}
+
+			Node->ReconstructNode();
+		}
+	}
+
+	// Notify the widget
+	if (GraphEditorWidget)
+	{
+		GraphEditorWidget->NotifyGraphChanged();
+	}
+}
+
+bool FPCGEditor::CanConvertToStandaloneNodes() const
+{
+	for (const UObject* Object : GraphEditorWidget->GetSelectedNodes())
+	{
+		check(Object);
+
+		// Exclude input and output nodes from the subgraph.
+		if (Object->IsA<UPCGEditorGraphNodeInput>() || Object->IsA<UPCGEditorGraphNodeOutput>())
+		{
+			continue;
+		}
+
+		if (const UPCGEditorGraphNodeBase* Node = Cast<const UPCGEditorGraphNodeBase>(Object))
+		{
+			if (const UPCGNode* PCGNode = Node->GetPCGNode())
+			{
+				if (PCGNode->IsInstance())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 void FPCGEditor::OnStartInspectNode()
@@ -1813,9 +1888,20 @@ bool FPCGEditor::IsReadOnlyProperty(const FPropertyAndParent& InPropertyAndParen
 
 bool FPCGEditor::IsVisibleProperty(const FPropertyAndParent& InPropertyAndParent, IDetailsView* InDetailsView) const
 {
-	// Everything is visible when not in an instance
-	if (!InDetailsView ||
-		InPropertyAndParent.ParentProperties.IsEmpty() ||
+	if (!InDetailsView)
+	{
+		return true;
+	}
+
+	// Always hide asset info information
+	if (InPropertyAndParent.Property.HasMetaData(TEXT("Category")) &&
+		InPropertyAndParent.Property.GetMetaData(TEXT("Category")) == TEXT("AssetInfo"))
+	{
+		return false;
+	}
+
+	// Otherwise, everything is visible when not in an instance
+	if(	InPropertyAndParent.ParentProperties.IsEmpty() ||
 		InPropertyAndParent.ParentProperties.Last()->GetFName() != GET_MEMBER_NAME_CHECKED(UPCGSettingsInstance, Settings))
 	{
 		return true;

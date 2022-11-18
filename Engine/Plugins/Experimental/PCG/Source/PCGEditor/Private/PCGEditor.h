@@ -128,9 +128,9 @@ private:
 	void OnDeterminismGraphTest();
 
 	/** Open details view for the PCG object being edited */
-	void OnEditClassDefaults() const;
+	void OnEditGraphSettings() const;
 	/** Whether the PCG object being edited is opened in details view or not */
-	bool IsEditClassDefaultsToggled() const;
+	bool IsEditGraphSettingsToggled() const;
 
 	/** Whether or not an execution mode is active for the selected nodes */
 	bool IsExecutionModeActive(EPCGSettingsExecutionMode InExecutionMode) const;
@@ -175,6 +175,12 @@ private:
 
 	/** Whether we are able to export the currently selected nodes */
 	bool CanExportNodes() const;
+
+	/** Converts instanced nodes to independent nodes */
+	void OnConvertToStandaloneNodes();
+
+	/** Whether we are able to convert the selected nodes to standalone */
+	bool CanConvertToStandaloneNodes() const;
 
 	/** Collapse the currently selected nodes in a subgraph */
 	void OnCollapseNodesInSubgraph();

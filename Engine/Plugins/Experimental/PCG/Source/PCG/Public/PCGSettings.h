@@ -46,8 +46,8 @@ enum class EPCGSettingsType : uint8
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGSettingsChanged, UPCGSettings*, EPCGChangeType);
 #endif
 
-UCLASS(Abstract, MinimalAPI)
-class UPCGSettingsInterface : public UPCGData
+UCLASS(Abstract)
+class PCG_API UPCGSettingsInterface : public UPCGData
 {
 	GENERATED_BODY()
 
@@ -148,10 +148,13 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	bool bExposeToLibrary = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
 	FText Category;
 
-	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
 	FText Description;
 #endif
 
