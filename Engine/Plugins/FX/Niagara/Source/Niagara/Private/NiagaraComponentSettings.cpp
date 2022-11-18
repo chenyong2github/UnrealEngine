@@ -6,6 +6,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
+#include "UObject/UObjectIterator.h"
 
 namespace FNiagaraComponentSettings
 {

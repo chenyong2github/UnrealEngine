@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "NiagaraCommon.h"
+
 class UNiagaraSystem;
 class FNiagaraEmitterInstance;
 
