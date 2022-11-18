@@ -35,6 +35,13 @@ void SIKRigAssetBrowser::Construct(
 void SIKRigAssetBrowser::RefreshView()
 {
 	FAssetPickerConfig AssetPickerConfig;
+
+	// assign "referencer" asset for project filtering
+	if (EditorController.IsValid())
+	{
+		const TObjectPtr<UObject> Referencer = EditorController.Pin()->AssetController->GetAsset();
+		AssetPickerConfig.AdditionalReferencingAssets.Add(FAssetData(Referencer));
+	}
 	
 	// setup filtering
 	AssetPickerConfig.Filter.ClassPaths.Add(UAnimSequence::StaticClass()->GetClassPathName());

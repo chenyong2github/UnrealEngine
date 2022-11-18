@@ -1004,7 +1004,7 @@ void FRetargetChainSettingsCustomization::AddSettingsSection(
 				.OnCheckStateChanged_Lambda([this, IsEnabledProperty](ECheckBoxState State)
 				{
 					IsEnabledProperty->SetValue(State == ECheckBoxState::Checked);
-					Controller->HandleRetargeterNeedsInitialized(Controller->AssetController->GetAsset());
+					Controller->HandleRetargeterNeedsInitialized();
 				})
 			];
 	}

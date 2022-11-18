@@ -51,7 +51,7 @@ enum class ERetargetSelectionType : uint8
 
 struct FBoundIKRig
 {
-	FBoundIKRig(UIKRigDefinition* InIKRig, FIKRetargetEditorController& InController);
+	FBoundIKRig(UIKRigDefinition* InIKRig, const FIKRetargetEditorController& InController);
 	void UnBind() const;
 	
 	UIKRigDefinition* IKRig;
@@ -59,6 +59,22 @@ struct FBoundIKRig
 	FDelegateHandle AddedChainDelegateHandle;
 	FDelegateHandle RenameChainDelegateHandle;
 	FDelegateHandle RemoveChainDelegateHandle;
+};
+
+struct FRetargetPlaybackManager : public TSharedFromThis<FRetargetPlaybackManager>
+{
+	FRetargetPlaybackManager(TWeakPtr<FIKRetargetEditorController> InEditorController);
+	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
+	void StopPlayback() const;
+	void PausePlayback();
+	void ResumePlayback() const;
+	
+private:
+
+	TWeakPtr<FIKRetargetEditorController> EditorController;
+	UAnimationAsset* AnimThatWasPlaying = nullptr;
+	float TimeWhenPaused = 0.0f;
+	bool bWasPlayingAnim = false;
 };
 
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */
@@ -72,10 +88,14 @@ public:
 	void Initialize(TSharedPtr<FIKRetargetEditor> InEditor, UIKRetargeter* InAsset);
 	/** Close the editor */
 	void Close();
+	
+	// prompt user to assign an IK Rig to this retargeter (either source or target), returns true if an IK Rig was assigned
+	void PromptUserToAssignIKRig(const ERetargetSourceOrTarget SourceOrTarget);
+	
 	/** Bind callbacks to this IK Rig */
-	void BindToIKRigAssets(UIKRetargeter* InAsset);
+	void BindToIKRigAssets();
 	/** callback when IK Rig asset requires reinitialization */
-	void HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig);
+	void HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const;
 	/** callback when IK Rig asset's retarget chain's have been added or removed*/
 	void HandleRetargetChainAdded(UIKRigDefinition* ModifiedIKRig) const;
 	/** callback when IK Rig asset's retarget chain has been renamed */
@@ -83,8 +103,14 @@ public:
 	/** callback when IK Rig asset's retarget chain has been removed */
 	void HandleRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const;
 	/** callback when IK Retargeter asset requires reinitialization */
-	void HandleRetargeterNeedsInitialized(UIKRetargeter* Retargeter);
+	void HandleRetargeterNeedsInitialized() const;
 	FDelegateHandle RetargeterReInitDelegateHandle;
+	/** callback when IK Rig asset has been swapped out */
+	void HandleIKRigReplaced(ERetargetSourceOrTarget SourceOrTarget);
+	FDelegateHandle IKRigReplacedDelegateHandle;
+	/** callback when Preview Mesh asset has been swapped out */
+	void HandlePreviewMeshReplaced(ERetargetSourceOrTarget SourceOrTarget);
+	FDelegateHandle PreviewMeshReplacedDelegateHandle;
 	
 	/** all modifications to the data model should go through this controller */
 	TObjectPtr<UIKRetargeterController> AssetController;
@@ -95,13 +121,16 @@ public:
 	/** import / export retarget poses */
 	TSharedPtr<FIKRetargetPoseExporter> PoseExporter;
 
+	/** manage playback of animation in the editor */
+	TUniquePtr<FRetargetPlaybackManager> PlaybackManager;
+
 	/** viewport skeletal mesh */
-	UDebugSkelMeshComponent* GetSkeletalMeshComponent(const ERetargetSourceOrTarget& SourceOrTarget) const;
+	UDebugSkelMeshComponent* GetSkeletalMeshComponent(const ERetargetSourceOrTarget SourceOrTarget) const;
 	UDebugSkelMeshComponent* SourceSkelMeshComponent;
 	UDebugSkelMeshComponent* TargetSkelMeshComponent;
 
 	/** viewport anim instance */
-	UIKRetargetAnimInstance* GetAnimInstance(const ERetargetSourceOrTarget& SourceOrTarget) const;
+	UIKRetargetAnimInstance* GetAnimInstance(const ERetargetSourceOrTarget SourceOrTarget) const;
 	UPROPERTY(transient, NonTransactional)
 	TWeakObjectPtr<class UIKRetargetAnimInstance> SourceAnimInstance;
 	UPROPERTY(transient, NonTransactional)
@@ -158,16 +187,6 @@ public:
 	/** Reset the planting state of the IK (when scrubbing or animation loops over) */
 	void ResetIKPlantingState() const;
 
-	/** Sequence Browser**/
-	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
-	void StopPlayback();
-	void PausePlayback();
-	void ResumePlayback();
-	UAnimationAsset* AnimThatWasPlaying = nullptr;
-	float TimeWhenPaused = 0.0f;
-	bool bWasPlayingAnim = false;
-	/** END Sequence Browser */
-
 	/** Set viewport / editor tool mode */
 	void SetRetargeterMode(ERetargeterOutputMode Mode);
 	ERetargeterOutputMode GetRetargeterMode() const { return OutputMode; }
@@ -207,13 +226,12 @@ public:
 	void SetRootSelected(const bool bIsSelected);
 	bool GetRootSelected() const { return bIsRootSelected; };
 
-	/* remove selected elements that no longer exist after swapping input assets */
 	void CleanSelection(ERetargetSourceOrTarget SourceOrTarget);
-	/* set selection to nothing */
 	void ClearSelection(const bool bKeepBoneSelection=false);
 	ERetargetSelectionType GetLastSelectedItemType() const { return LastSelectedItem; };
 
-	bool GetCameraTargetForSelection(FSphere& OutTarget) const; 
+	/** to frame selection when pressing "f" in viewport */
+	bool GetCameraTargetForSelection(FSphere& OutTarget) const;
 
 	/** ------------------------- END SELECTION -----------------------------*/
 
@@ -299,6 +317,9 @@ private:
 	TSharedPtr<SIKRigOutputLog> OutputLogView;
 	/** hierarchy view */
 	TSharedPtr<SIKRetargetHierarchy> HierarchyView;
+
+	/** when prompting user to assign an IK Rig */
+	TSharedPtr<SWindow> IKRigPickerWindow;
 
 	/** the current output mode of the retargeter */
 	ERetargeterOutputMode OutputMode;

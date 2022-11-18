@@ -88,6 +88,10 @@ void FIKRetargetEditor::InitAssetEditor(
 
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
+	
+	// initial setup, ignored if IK Rig is already assigned
+	EditorController->PromptUserToAssignIKRig(ERetargetSourceOrTarget::Source);
+	EditorController->PromptUserToAssignIKRig(ERetargetSourceOrTarget::Target);
 }
 
 void FIKRetargetEditor::OnClose()
@@ -269,12 +273,14 @@ TStatId FIKRetargetEditor::GetStatId() const
 
 void FIKRetargetEditor::PostUndo(bool bSuccess)
 {
-	EditorController->HandleRetargeterNeedsInitialized(EditorController->AssetController->GetAsset());
+	EditorController->HandlePreviewMeshReplaced(ERetargetSourceOrTarget::Source);
+	EditorController->HandleRetargeterNeedsInitialized();
 }
 
 void FIKRetargetEditor::PostRedo(bool bSuccess)
 {
-	EditorController->HandleRetargeterNeedsInitialized(EditorController->AssetController->GetAsset());
+	EditorController->HandlePreviewMeshReplaced(ERetargetSourceOrTarget::Source);
+	EditorController->HandleRetargeterNeedsInitialized();
 }
 
 void FIKRetargetEditor::HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport)
@@ -332,7 +338,7 @@ void FIKRetargetEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 }
 
 void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
-{
+{	
 	AAnimationEditorPreviewActor* Actor = InPersonaPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);
 	Actor->SetFlags(RF_Transient);
 	InPersonaPreviewScene->SetActor(Actor);
@@ -368,7 +374,7 @@ void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 	
 	InPersonaPreviewScene->AddComponent(EditorController->SourceSkelMeshComponent, FTransform::Identity);
 	InPersonaPreviewScene->AddComponent(EditorController->TargetSkelMeshComponent, FTransform::Identity);
-
+	
 	EditorController->FixZeroHeightRetargetRoot(ERetargetSourceOrTarget::Source);
 	EditorController->FixZeroHeightRetargetRoot(ERetargetSourceOrTarget::Target);
 }
@@ -379,7 +385,7 @@ void FIKRetargetEditor::SetupAnimInstance()
 	
 	// configure SOURCE anim instance (will only output retarget pose)
 	EditorController->SourceAnimInstance->ConfigureAnimInstance(ERetargetSourceOrTarget::Source, Asset, nullptr);
-	// configure TARGET anim instance (will output retarget pose AND retargeted pose from source skel mesh component)
+	// configure TARGET anim instance (will output retarget pose AND retarget pose from source skel mesh component)
 	EditorController->TargetAnimInstance->ConfigureAnimInstance(ERetargetSourceOrTarget::Target, Asset, EditorController->SourceSkelMeshComponent);
 
 	EditorController->SourceSkelMeshComponent->PreviewInstance = EditorController->SourceAnimInstance.Get();
@@ -406,7 +412,7 @@ void FIKRetargetEditor::HandleDetailsCreated(const TSharedRef<class IDetailsView
 
 void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const UIKRetargeterController* AssetController = EditorController->AssetController;
+	UIKRetargeterController* AssetController = EditorController->AssetController;
 
 	// determine which properties were modified
 	const bool bSourceIKRigChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetSourceIKRigPropertyName();
@@ -417,29 +423,28 @@ void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& P
 	// if no override target mesh has been specified, update the override to reflect the mesh in the ik rig asset
 	if (bTargetIKRigChanged)
 	{
-		AssetController->OnIKRigChanged(ERetargetSourceOrTarget::Target);
+		UIKRigDefinition* NewIKRig = AssetController->GetIKRigWriteable(ERetargetSourceOrTarget::Target);
+		AssetController->SetIKRig(ERetargetSourceOrTarget::Target, NewIKRig);
 	}
 
 	// if no override source mesh has been specified, update the override to reflect the mesh in the ik rig asset
 	if (bSourceIKRigChanged)
 	{
-		AssetController->OnIKRigChanged(ERetargetSourceOrTarget::Source);
-	}
-
-	// if either IK Rig asset has been modified, rebind and refresh UI
-	if (bTargetIKRigChanged || bSourceIKRigChanged)
-	{
-		EditorController->ClearOutputLog();
-		EditorController->BindToIKRigAssets(AssetController->GetAsset());
-		EditorController->AssetController->CleanChainMapping();
-		constexpr bool bForceRemap = false;
-		EditorController->AssetController->AutoMapChains(EAutoMapChainType::Fuzzy, bForceRemap);
+		UIKRigDefinition* NewIKRig = AssetController->GetIKRigWriteable(ERetargetSourceOrTarget::Source);
+		AssetController->SetIKRig(ERetargetSourceOrTarget::Source, NewIKRig);
 	}
 
 	// if either the source or target meshes are possibly modified, update scene components, anim instance and UI
-	if (bTargetIKRigChanged || bSourceIKRigChanged || bTargetPreviewChanged || bSourcePreviewChanged)
+	if (bSourcePreviewChanged)
 	{
-		AssetController->BroadcastNeedsReinitialized();
+		USkeletalMesh* Mesh = AssetController->GetPreviewMesh(ERetargetSourceOrTarget::Source);
+		AssetController->SetPreviewMesh(ERetargetSourceOrTarget::Source, Mesh);
+	}
+	
+	if (bTargetPreviewChanged)
+	{
+		USkeletalMesh* Mesh = AssetController->GetPreviewMesh(ERetargetSourceOrTarget::Target);
+		AssetController->SetPreviewMesh(ERetargetSourceOrTarget::Target, Mesh);
 	}
 }
 

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IKRetargetAnimInstanceProxy.h"
 #include "UObject/Object.h"
 
 #include "IKRetargeterController.generated.h"
@@ -35,34 +36,36 @@ public:
 	/** Get access to the retargeter asset.
 	 *@warning Do not make modifications to the asset directly. Use this API instead. */
 	UIKRetargeter* GetAsset() const;
+	
 
 	/** SOURCE / TARGET
 	* 
 	*/
-	/** Set the IK Rig to use as the source (to copy animation FROM) */
-	void SetSourceIKRig(UIKRigDefinition* SourceIKRig);
+	/** Set the IK Rig to use as the source or target (to copy animation FROM/TO) */
+	void SetIKRig(const ERetargetSourceOrTarget SourceOrTarget, UIKRigDefinition* IKRig) const;
+	/** Get either source or target IK Rig */
+	const UIKRigDefinition* GetIKRig(const ERetargetSourceOrTarget SourceOrTarget) const;
+	/** Get either source or target IK Rig */
+	UIKRigDefinition* GetIKRigWriteable(const ERetargetSourceOrTarget SourceOrTarget) const;
+	/** Set the preview skeletal mesh for either source or target */
+	void SetPreviewMesh(const ERetargetSourceOrTarget SourceOrTarget, USkeletalMesh* PreviewMesh);
 	/** Get the preview skeletal mesh */
-	USkeletalMesh* GetPreviewMesh(const ERetargetSourceOrTarget& SourceOrTarget) const;
-	/** Get either source or target IK Rig */
-	const UIKRigDefinition* GetIKRig(const ERetargetSourceOrTarget& SourceOrTarget) const;
-	/** Get either source or target IK Rig */
-	UIKRigDefinition* GetIKRigWriteable(const ERetargetSourceOrTarget& SourceOrTarget) const;
-	/** Set the SOURCE or TARGET preview mesh based on the mesh in the corresponding IK Rig asset */
-	void OnIKRigChanged(const ERetargetSourceOrTarget& SourceOrTarget) const;
+	USkeletalMesh* GetPreviewMesh(const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Get if we've already asked to fix the root height for the given skeletal mesh */
 	bool GetAskedToFixRootHeightForMesh(USkeletalMesh* Mesh) const;
 	/** Set if we've asked to fix the root height for the given skeletal mesh */
 	void SetAskedToFixRootHeightForMesh(USkeletalMesh* Mesh, bool InAsked) const;
 	/** Get name of the Root bone used for retargeting. */
-	FName GetRetargetRootBone(const ERetargetSourceOrTarget& SourceOrTarget) const;
+	FName GetRetargetRootBone(const ERetargetSourceOrTarget SourceOrTarget) const;
 
 	/** RETARGET CHAIN MAPPING
 	* 
 	*/
 	/** Get names of all the bone chains. */
-	void GetChainNames(const ERetargetSourceOrTarget& SourceOrTarget, TArray<FName>& OutNames) const;
-	/** Remove invalid chain mappings (no longer existing in currently referenced source/target IK Rig assets) */
-	void CleanChainMapping(const bool bForceReinitialization=true) const;
+	void GetChainNames(const ERetargetSourceOrTarget SourceOrTarget, TArray<FName>& OutNames) const;
+	/** Remove invalid chain mappings (no longer existing in currently referenced source/target IK Rig assets)
+	 * NOTE: be sure to reinitialize any running processors after chain mappings are cleaned! */
+	void CleanChainMapping() const;
 	/** Use fuzzy string search to find "best" Source chain to map to each Target chain */
 	void AutoMapChains(const EAutoMapChainType AutoMapType, const bool bForceRemap) const;
 	/** Callback when IK Rig chain is added or removed. */
@@ -87,68 +90,87 @@ public:
 	 * 
 	 */
 	/** Remove bones from retarget poses that are no longer in skeleton */
-	void CleanPoseLists(const bool bForceReinitialization=true) const;
+	void CleanPoseLists() const;
 	/** Remove bones from retarget poses that are no longer in skeleton */
-	void CleanPoseList(const ERetargetSourceOrTarget& SourceOrTarget) const;
+	void CleanPoseList(const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Add new retarget pose. */
 	void AddRetargetPose(
 		const FName& NewPoseName,
 		const FIKRetargetPose* ToDuplicate,
-		const ERetargetSourceOrTarget& SourceOrTarget) const;
+		const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Rename current retarget pose. */
 	void RenameCurrentRetargetPose(
 		const FName& NewPoseName,
-		const ERetargetSourceOrTarget& SourceOrTarget) const;
+		const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Remove a retarget pose. */
 	void RemoveRetargetPose(
 	const FName& PoseToRemove, 
-	const ERetargetSourceOrTarget& SourceOrTarget) const;
+	const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Reset a retarget pose for the specified bones.
 	 *If BonesToReset is Empty, will removes all stored deltas, returning pose to reference pose */
 	void ResetRetargetPose(
 		const FName& PoseToReset,
 		const TArray<FName>& BonesToReset,
-		const ERetargetSourceOrTarget& SourceOrTarget) const;
+		const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Get the current retarget pose */
-    FName GetCurrentRetargetPoseName(const ERetargetSourceOrTarget& SourceOrTarget) const;
+    FName GetCurrentRetargetPoseName(const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Change which retarget pose is used by the retargeter at runtime */
-	void SetCurrentRetargetPose(FName CurrentPose, const ERetargetSourceOrTarget& SourceOrTarget) const;
+	void SetCurrentRetargetPose(FName CurrentPose, const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Get access to array of retarget poses */
-	TMap<FName, FIKRetargetPose>& GetRetargetPoses(const ERetargetSourceOrTarget& SourceOrTarget) const;
+	TMap<FName, FIKRetargetPose>& GetRetargetPoses(const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Get the current retarget pose */
-	FIKRetargetPose& GetCurrentRetargetPose(const ERetargetSourceOrTarget& SourceOrTarget) const;
+	FIKRetargetPose& GetCurrentRetargetPose(const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Set a delta rotation for a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
 	void SetRotationOffsetForRetargetPoseBone(
 		const FName& BoneName,
 		const FQuat& RotationOffset,
-		const ERetargetSourceOrTarget& SkeletonMode) const;
+		const ERetargetSourceOrTarget SkeletonMode) const;
 	/** Get a delta rotation for a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
 	FQuat GetRotationOffsetForRetargetPoseBone(
 		const FName& BoneName,
-		const ERetargetSourceOrTarget& SourceOrTarget) const;
+		const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Add a delta translation to the root bone (used in Edit Mode in the retarget editor) */
 	void AddTranslationOffsetToRetargetRootBone(
 		const FVector& TranslationOffset,
-		const ERetargetSourceOrTarget& SourceOrTarget) const;
+		const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** Add a numbered suffix to the given pose name to make it unique. */
 	FName MakePoseNameUnique(
 		const FString& PoseName,
-		const ERetargetSourceOrTarget& SourceOrTarget) const;
+		const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** END RETARGET POSE EDITING */
 
 private:
 	
 	/** Called whenever the retargeter is modified in such a way that would require re-initialization by dependent systems.*/
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRetargeterNeedsInitialized, UIKRetargeter*);
+	DECLARE_MULTICAST_DELEGATE(FOnRetargeterNeedsInitialized);
 	FOnRetargeterNeedsInitialized RetargeterNeedsInitialized;
+
+	/** Called whenever either the source or target IK Rig asset's are swapped out.*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnIKRigReplaced, ERetargetSourceOrTarget);
+	FOnIKRigReplaced IKRigReplaced;
+	
+	/** Called whenever either the source or target Preview Mesh asset's are swapped out.*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreviewMeshReplaced, ERetargetSourceOrTarget);
+	FOnPreviewMeshReplaced PreviewMeshReplaced;
 	
 public:
 	
-	FOnRetargeterNeedsInitialized& OnRetargeterNeedsInitialized(){ return RetargeterNeedsInitialized; };
+	FOnPreviewMeshReplaced& OnPreviewMeshReplaced(){ return PreviewMeshReplaced; };
+	void BroadcastPreviewMeshReplaced(ERetargetSourceOrTarget SourceOrTarget) const
+	{
+		PreviewMeshReplaced.Broadcast(SourceOrTarget);
+	}
 
+	FOnIKRigReplaced& OnIKRigReplaced(){ return IKRigReplaced; };
+	void BroadcastIKRigReplaced(ERetargetSourceOrTarget SourceOrTarget) const
+	{
+		IKRigReplaced.Broadcast(SourceOrTarget);
+	}
+	
+	FOnRetargeterNeedsInitialized& OnRetargeterNeedsInitialized(){ return RetargeterNeedsInitialized; };
 	void BroadcastNeedsReinitialized() const
 	{
-		RetargeterNeedsInitialized.Broadcast(GetAsset());
+		RetargeterNeedsInitialized.Broadcast();
 	}
 	
 private:

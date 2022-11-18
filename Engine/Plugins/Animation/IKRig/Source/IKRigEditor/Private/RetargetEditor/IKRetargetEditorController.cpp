@@ -4,6 +4,7 @@
 
 #include "AnimPose.h"
 #include "AssetToolsModule.h"
+#include "ContentBrowserModule.h"
 #include "EditorModeManager.h"
 #include "IContentBrowserSingleton.h"
 #include "SkeletalDebugRendering.h"
@@ -27,7 +28,7 @@
 #define LOCTEXT_NAMESPACE "IKRetargetEditorController"
 
 
-FBoundIKRig::FBoundIKRig(UIKRigDefinition* InIKRig, FIKRetargetEditorController& InController)
+FBoundIKRig::FBoundIKRig(UIKRigDefinition* InIKRig, const FIKRetargetEditorController& InController)
 {
 	check(InIKRig);
 	IKRig = InIKRig;
@@ -48,6 +49,80 @@ void FBoundIKRig::UnBind() const
 	IKRigController->OnRetargetChainRenamed().Remove(RenameChainDelegateHandle);
 }
 
+FRetargetPlaybackManager::FRetargetPlaybackManager(TWeakPtr<FIKRetargetEditorController> InEditorController)
+{
+	check(InEditorController.Pin())
+	EditorController = InEditorController;
+}
+
+void FRetargetPlaybackManager::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
+{
+	UIKRetargetAnimInstance* AnimInstance = EditorController.Pin()->SourceAnimInstance.Get();
+	if (!AnimInstance)
+	{
+		return;
+	}
+	
+	if (AssetToPlay)
+	{
+		AnimInstance->SetAnimationAsset(AssetToPlay);
+		AnimInstance->SetPlaying(true);
+		AnimThatWasPlaying = AssetToPlay;
+		// ensure we are running the retargeter so you can see the animation
+		if (FIKRetargetEditorController* Controller = EditorController.Pin().Get())
+		{
+			Controller->SetRetargeterMode(ERetargeterOutputMode::RunRetarget);
+		}
+	}
+}
+
+void FRetargetPlaybackManager::StopPlayback() const
+{
+	UIKRetargetAnimInstance* AnimInstance = EditorController.Pin()->SourceAnimInstance.Get();
+	if (!AnimInstance)
+	{
+		return;
+	}
+	
+	AnimInstance->SetPlaying(false);
+	AnimInstance->SetAnimationAsset(nullptr);
+}
+
+void FRetargetPlaybackManager::PausePlayback()
+{
+	UIKRetargetAnimInstance* AnimInstance = EditorController.Pin()->SourceAnimInstance.Get();
+	if (!AnimInstance)
+	{
+		return;
+	}
+	
+	AnimThatWasPlaying = AnimInstance->GetAnimationAsset();
+	
+	if (AnimThatWasPlaying)
+	{
+		TimeWhenPaused = AnimInstance->GetCurrentTime();
+	}
+	
+	AnimInstance->SetPlaying(false);
+	AnimInstance->SetAnimationAsset(nullptr);
+}
+
+void FRetargetPlaybackManager::ResumePlayback() const
+{
+	UIKRetargetAnimInstance* AnimInstance = EditorController.Pin()->SourceAnimInstance.Get();
+	if (!AnimInstance)
+	{
+		return;
+	}
+	
+	if (AnimThatWasPlaying)
+	{
+		AnimInstance->SetAnimationAsset(AnimThatWasPlaying);
+		AnimInstance->SetPlaying(true);
+		AnimInstance->SetPosition(TimeWhenPaused);	
+	}
+}
+
 void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEditor, UIKRetargeter* InAsset)
 {
 	Editor = InEditor;
@@ -58,25 +133,31 @@ void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEdi
 	PoseExporter = MakeShared<FIKRetargetPoseExporter>();
 	PoseExporter->Initialize(SharedThis(this));
 
+	PlaybackManager = MakeUnique<FRetargetPlaybackManager>(SharedThis(this));
+
 	SelectedBoneNames.Add(ERetargetSourceOrTarget::Source);
 	SelectedBoneNames.Add(ERetargetSourceOrTarget::Target);
 	LastSelectedItem = ERetargetSelectionType::NONE;
 
 	// clean the asset before editing
-	const bool bForceReinitialization = false;
-	AssetController->CleanChainMapping(bForceReinitialization);
-	AssetController->CleanPoseLists(bForceReinitialization);
+	AssetController->CleanChainMapping();
+	AssetController->CleanPoseLists();
 
 	// bind callbacks when SOURCE or TARGET IK Rigs are modified
-	BindToIKRigAssets(AssetController->GetAsset());
+	BindToIKRigAssets();
 
 	// bind callback when retargeter needs reinitialized
 	RetargeterReInitDelegateHandle = AssetController->OnRetargeterNeedsInitialized().AddSP(this, &FIKRetargetEditorController::HandleRetargeterNeedsInitialized);
+	// bind callback when IK Rig asset is replaced with a different asset
+	IKRigReplacedDelegateHandle = AssetController->OnIKRigReplaced().AddSP(this, &FIKRetargetEditorController::HandleIKRigReplaced);
+	// bind callback when Preview Mesh asset is replaced with a different asset
+	PreviewMeshReplacedDelegateHandle = AssetController->OnPreviewMeshReplaced().AddSP(this, &FIKRetargetEditorController::HandlePreviewMeshReplaced);
 }
 
 void FIKRetargetEditorController::Close()
 {
 	AssetController->OnRetargeterNeedsInitialized().Remove(RetargeterReInitDelegateHandle);
+	AssetController->OnIKRigReplaced().Remove(IKRigReplacedDelegateHandle);
 
 	for (const FBoundIKRig& BoundIKRig : BoundIKRigs)
 	{
@@ -84,8 +165,72 @@ void FIKRetargetEditorController::Close()
 	}
 }
 
-void FIKRetargetEditorController::BindToIKRigAssets(UIKRetargeter* InAsset)
+void FIKRetargetEditorController::PromptUserToAssignIKRig(const ERetargetSourceOrTarget SourceOrTarget)
 {
+	// early out if we already have an IK Rig assigned
+	if (AssetController->GetIKRig(SourceOrTarget))
+	{
+		return;
+	}
+	
+	// Load the content browser module to display an asset picker
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	FAssetPickerConfig AssetPickerConfig;
+	// must set the parent UObject so that the resulting list filters correctly in multi-project environments
+	AssetPickerConfig.AdditionalReferencingAssets.Add(AssetController->GetAsset());
+	/** The asset picker will only show skeletal meshes */
+	AssetPickerConfig.Filter.ClassPaths.Add(UIKRigDefinition::StaticClass()->GetClassPathName());
+	AssetPickerConfig.Filter.bRecursiveClasses = true;
+	/** The delegate that fires when an asset was selected */
+	AssetPickerConfig.OnAssetSelected =  FOnAssetSelected::CreateLambda([this, &SourceOrTarget](const FAssetData& AssetData)
+	{
+		IKRigPickerWindow->RequestDestroyWindow();
+
+		// set the IK Rig
+		if (const TObjectPtr<UIKRigDefinition> IKRigAsset = Cast<UIKRigDefinition>(AssetData.GetAsset()))
+		{
+			AssetController->SetIKRig(SourceOrTarget, IKRigAsset.Get());
+		}
+	});
+	/** The default view mode should be a list view */
+	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+
+	// change title depending on if we're picking a source or target IK Rig
+	FText TitleText;
+	if (SourceOrTarget == ERetargetSourceOrTarget::Source)
+	{
+		TitleText = LOCTEXT("SelectSourceIKRig", "Select Source IK Rig (To Copy Animation From)");
+	}
+	else
+	{
+		TitleText = LOCTEXT("SelectTargetIKRig", "Select Target IK Rig (To Copy Animation To)");
+	}
+
+	// show an asset browser in a pop-up modal dialog
+	IKRigPickerWindow = SNew(SWindow)
+	.Title(TitleText)
+	.ClientSize(FVector2D(500, 600))
+	.SupportsMinimize(false).SupportsMaximize(false)
+	[
+		SNew(SBorder)
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
+		[
+			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+		]
+	];
+
+	GEditor->EditorAddModalWindow(IKRigPickerWindow.ToSharedRef());
+	IKRigPickerWindow.Reset();
+}
+
+void FIKRetargetEditorController::BindToIKRigAssets()
+{
+	const UIKRetargeter* Asset = AssetController->GetAsset();
+	if (!Asset)
+	{
+		return;
+	}
+	
 	// unbind previously bound IK Rigs
 	for (const FBoundIKRig& BoundIKRig : BoundIKRigs)
 	{
@@ -93,19 +238,19 @@ void FIKRetargetEditorController::BindToIKRigAssets(UIKRetargeter* InAsset)
 	}
 
 	BoundIKRigs.Empty();
-
-	if (InAsset->GetSourceIKRigWriteable())
+	
+	if (Asset->GetSourceIKRigWriteable())
 	{
-		BoundIKRigs.Emplace(FBoundIKRig(InAsset->GetSourceIKRigWriteable(), *this));
+		BoundIKRigs.Emplace(FBoundIKRig(Asset->GetSourceIKRigWriteable(), *this));
 	}
 
-	if (InAsset->GetTargetIKRigWriteable())
+	if (Asset->GetTargetIKRigWriteable())
 	{
-		BoundIKRigs.Emplace(FBoundIKRig(InAsset->GetTargetIKRigWriteable(), *this));
+		BoundIKRigs.Emplace(FBoundIKRig(Asset->GetTargetIKRigWriteable(), *this));
 	}
 }
 
-void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig)
+void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const
 {
 	UIKRetargeter* Retargeter = AssetController->GetAsset();
 	check(ModifiedIKRig && Retargeter)
@@ -115,7 +260,7 @@ void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* 
 	check(bIsSource || bIsTarget);
 
 	// the target anim instance has the RetargetPoseFromMesh node which needs reinitialized with new asset version
-	HandleRetargeterNeedsInitialized(Retargeter);
+	HandleRetargeterNeedsInitialized();
 }
 
 void FIKRetargetEditorController::HandleRetargetChainAdded(UIKRigDefinition* ModifiedIKRig) const
@@ -138,37 +283,10 @@ void FIKRetargetEditorController::HandleRetargetChainRemoved(UIKRigDefinition* M
 	RefreshAllViews();
 }
 
-void FIKRetargetEditorController::HandleRetargeterNeedsInitialized(UIKRetargeter* Retargeter)
+void FIKRetargetEditorController::HandleRetargeterNeedsInitialized() const
 {
-	// record status of animation playback so we can restore it after initialization
-	const bool bWasPlayingAnimation = SourceAnimInstance->IsPlaying();
-	UAnimationAsset* AnimToRestore = SourceAnimInstance->GetAnimationAsset();
-	const float PlaybackTimeToRestore = SourceAnimInstance->GetCurrentTime();
-	
 	// clear the output log
 	ClearOutputLog();
-
-	// ensure source and target meshes are setup in case they were modified
-	{
-		// set the source and target skeletal meshes on the component
-		// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
-		USkeletalMesh* SourceMesh = GetSkeletalMesh(ERetargetSourceOrTarget::Source);
-		USkeletalMesh* TargetMesh = GetSkeletalMesh(ERetargetSourceOrTarget::Target);
-		SourceSkelMeshComponent->SetSkeletalMesh(SourceMesh);
-		TargetSkelMeshComponent->SetSkeletalMesh(TargetMesh);
-	
-		// apply mesh to the preview scene
-		TSharedRef<IPersonaPreviewScene> PreviewScene = Editor.Pin()->GetPersonaToolkit()->GetPreviewScene();
-		if (PreviewScene->GetPreviewMesh() != SourceMesh)
-		{
-			PreviewScene->SetPreviewMeshComponent(SourceSkelMeshComponent);
-			PreviewScene->SetPreviewMesh(SourceMesh);
-			SourceSkelMeshComponent->bCanHighlightSelectedSections = false;
-		}
-	
-		SourceAnimInstance->InitializeAnimation();
-		TargetAnimInstance->InitializeAnimation();
-	}
 
 	// check for "zero height" retarget roots, and prompt user to fix
 	FixZeroHeightRetargetRoot(ERetargetSourceOrTarget::Source);
@@ -181,39 +299,59 @@ void FIKRetargetEditorController::HandleRetargeterNeedsInitialized(UIKRetargeter
 		Processor->Initialize(
 			GetSkeletalMesh(ERetargetSourceOrTarget::Source),
 			GetSkeletalMesh(ERetargetSourceOrTarget::Target),
-			Retargeter,
+			AssetController->GetAsset(),
 			bSuppressWarnings);
 	}
-
-	// reset bone selections in case of incompatible indices
-	CleanSelection(ERetargetSourceOrTarget::Source);
-	CleanSelection(ERetargetSourceOrTarget::Target);
 	
 	// refresh all the UI views
 	RefreshAllViews();
+}
 
-	// restore animation playback
-	if (bWasPlayingAnimation && AnimToRestore)
+void FIKRetargetEditorController::HandleIKRigReplaced(ERetargetSourceOrTarget SourceOrTarget)
+{
+	BindToIKRigAssets();
+}
+
+void FIKRetargetEditorController::HandlePreviewMeshReplaced(ERetargetSourceOrTarget SourceOrTarget)
+{
+	// pause playback so we can resume after mesh swapped out
+	PlaybackManager->PausePlayback();
+	
+	// set the source and target skeletal meshes on the component
+	// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
+	USkeletalMesh* SourceMesh = GetSkeletalMesh(ERetargetSourceOrTarget::Source);
+	USkeletalMesh* TargetMesh = GetSkeletalMesh(ERetargetSourceOrTarget::Target);
+	SourceSkelMeshComponent->SetSkeletalMesh(SourceMesh);
+	TargetSkelMeshComponent->SetSkeletalMesh(TargetMesh);
+
+	// clean bone selections in case of incompatible indices
+	CleanSelection(ERetargetSourceOrTarget::Source);
+	CleanSelection(ERetargetSourceOrTarget::Target);
+
+	// apply mesh to the preview scene
+	TSharedRef<IPersonaPreviewScene> PreviewScene = Editor.Pin()->GetPersonaToolkit()->GetPreviewScene();
+	if (PreviewScene->GetPreviewMesh() != SourceMesh)
 	{
-		// verify that animation is compatible with (potentially) new source mesh
-		USkeletalMesh* NewSourceMesh = GetSkeletalMesh(ERetargetSourceOrTarget::Source);
-		if (AnimThatWasPlaying->GetSkeleton()->IsCompatibleForEditor(NewSourceMesh->GetSkeleton()))
-		{
-			SourceAnimInstance->SetAnimationAsset(AnimToRestore);
-			SourceAnimInstance->SetPlaying(true);
-			SourceAnimInstance->SetPosition(PlaybackTimeToRestore);	
-		}
+		PreviewScene->SetPreviewMeshComponent(SourceSkelMeshComponent);
+		PreviewScene->SetPreviewMesh(SourceMesh);
+		SourceSkelMeshComponent->bCanHighlightSelectedSections = false;
 	}
+
+	// re-initializes the anim instances running in the viewport
+	Editor.Pin()->SetupAnimInstance();
+
+	// continue playing where we left off
+	PlaybackManager->ResumePlayback();
 }
 
 UDebugSkelMeshComponent* FIKRetargetEditorController::GetSkeletalMeshComponent(
-	const ERetargetSourceOrTarget& SourceOrTarget) const
+	const ERetargetSourceOrTarget SourceOrTarget) const
 {
 	return SourceOrTarget == ERetargetSourceOrTarget::Source ? SourceSkelMeshComponent : TargetSkelMeshComponent;
 }
 
 UIKRetargetAnimInstance* FIKRetargetEditorController::GetAnimInstance(
-	const ERetargetSourceOrTarget& SourceOrTarget) const
+	const ERetargetSourceOrTarget SourceOrTarget) const
 {
 	return SourceOrTarget == ERetargetSourceOrTarget::Source ? SourceAnimInstance.Get() : TargetAnimInstance.Get();
 }
@@ -601,43 +739,6 @@ void FIKRetargetEditorController::SetDetailsObjects(const TArray<UObject*>& Deta
 	}
 }
 
-void FIKRetargetEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
-{
-	if (AssetToPlay && SourceAnimInstance.IsValid())
-	{
-		SourceAnimInstance->SetAnimationAsset(AssetToPlay);
-		SourceAnimInstance->SetPlaying(true);
-		AnimThatWasPlaying = AssetToPlay;
-		// ensure we are running the retargeter so you can see the animation
-		SetRetargeterMode(ERetargeterOutputMode::RunRetarget);
-	}
-}
-
-void FIKRetargetEditorController::StopPlayback()
-{
-	SourceAnimInstance->SetPlaying(false);
-	SourceAnimInstance->SetAnimationAsset(nullptr);
-}
-
-void FIKRetargetEditorController::PausePlayback()
-{
-	if (UAnimationAsset* CurrentAnim = SourceAnimInstance->GetAnimationAsset())
-	{
-		AnimThatWasPlaying = CurrentAnim;
-		TimeWhenPaused = SourceAnimInstance->GetCurrentTime();
-	}
-	
-	SourceAnimInstance->SetPlaying(false);
-	SourceAnimInstance->SetAnimationAsset(nullptr);
-}
-
-void FIKRetargetEditorController::ResumePlayback()
-{
-	SourceAnimInstance->SetAnimationAsset(AnimThatWasPlaying);
-	SourceAnimInstance->SetPlaying(true);
-	SourceAnimInstance->SetPosition(TimeWhenPaused);
-}
-
 float FIKRetargetEditorController::GetRetargetPoseAmount() const
 {
 	return RetargetPosePreviewBlend;
@@ -938,7 +1039,7 @@ void FIKRetargetEditorController::SetRetargeterMode(ERetargeterOutputMode Mode)
 			OutputMode = ERetargeterOutputMode::EditRetargetPose;
 			SourceAnimInstance->SetRetargetMode(ERetargeterOutputMode::EditRetargetPose);
 			TargetAnimInstance->SetRetargetMode(ERetargeterOutputMode::EditRetargetPose);
-			PausePlayback();
+			PlaybackManager->PausePlayback();
 			SetRetargetPoseAmount(1.0f);
 			break;
 		
@@ -950,7 +1051,7 @@ void FIKRetargetEditorController::SetRetargeterMode(ERetargeterOutputMode Mode)
 			TargetAnimInstance->SetRetargetMode(ERetargeterOutputMode::RunRetarget);
 			// force a reinitialization in case retarget pose was edited
 			AssetController->BroadcastNeedsReinitialized();
-			ResumePlayback();
+			PlaybackManager->ResumePlayback();
 			break;
 
 		case ERetargeterOutputMode::ShowRetargetPose:
@@ -960,7 +1061,7 @@ void FIKRetargetEditorController::SetRetargeterMode(ERetargeterOutputMode Mode)
 			// show retarget pose
 			SourceAnimInstance->SetRetargetMode(ERetargeterOutputMode::ShowRetargetPose);
 			TargetAnimInstance->SetRetargetMode(ERetargeterOutputMode::ShowRetargetPose);
-			PausePlayback();
+			PlaybackManager->PausePlayback();
 			SetRetargetPoseAmount(1.0f);
 			break;
 

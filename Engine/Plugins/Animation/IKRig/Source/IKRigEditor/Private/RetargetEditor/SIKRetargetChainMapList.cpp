@@ -764,12 +764,10 @@ void SIKRetargetChainMapList::AutoMapChains(const EAutoMapChainType AutoMapType,
 		return;
 	}
 
-	// clear output log
 	Controller->ClearOutputLog();
-	// run the chain mapping
+	RetargeterController->CleanChainMapping();
 	RetargeterController->AutoMapChains(AutoMapType, bForceRemap);
-	// refresh the UI to show new mapping
-	RefreshView();
+	Controller->HandleRetargeterNeedsInitialized();
 }
 
 FReply SIKRetargetChainMapList::OnGlobalSettingsButtonClicked() const
@@ -817,3 +815,4 @@ FReply SIKRetargetChainMapList::OnRootSettingsButtonClicked() const
 
 
 #undef LOCTEXT_NAMESPACE
+

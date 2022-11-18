@@ -483,7 +483,7 @@ FName UIKRigController::GetRetargetChainFromGoal(const FName& GoalName) const
 // SKELETON
 //
 
-bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh) const
+bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bTransact) const
 {
 	if (!SkeletalMesh)
 	{
@@ -497,15 +497,21 @@ bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh) const
 		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. {0}"), *Asset->GetName());
 		return false;
 	}
-	
+
+	FScopedTransaction Transaction(LOCTEXT("SetSkeletalMesh_Label", "Set Skeletal Mesh"));
+	if (bTransact)
+	{	
+		Asset->Modify();
+	}
+
 	// update stored skeletal mesh used for previewing results
 	Asset->PreviewSkeletalMesh = SkeletalMesh;
-
 	// copy skeleton data from the actual skeleton we want to run on
 	Asset->Skeleton.SetInputSkeleton(InputSkeleton, GetAsset()->Skeleton.ExcludedBones);
-
 	// update goal's initial transforms to reflect new skeleton
 	ResetInitialGoalTransforms();
+
+	BroadcastNeedsReinitialized();
 
 	return true;
 }
@@ -897,8 +903,8 @@ bool UIKRigController::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 	
 	FScopedTransaction Transaction(LOCTEXT("SetGoalBone_Label", "Set Goal Bone"));
 
-	// update goal with new bone
-	TObjectPtr<UIKRigEffectorGoal> Goal = Asset->Goals[GoalIndex];
+	// update goal's bone name and it's initial transform
+	TObjectPtr<UIKRigEffectorGoal> Goal = Asset->Goals[GoalIndex]; 
 	Goal->Modify();
 	Goal->BoneName = NewBoneName;
 	Goal->InitialTransform = GetRefPoseTransformOfBone(NewBoneName);
@@ -1066,14 +1072,16 @@ void UIKRigController::SetGoalCurrentTransform(const FName& GoalName, const FTra
 	Goal->CurrentTransform = Transform;
 }
 
-void UIKRigController::ResetCurrentGoalTransforms() const
+void UIKRigController::ResetGoalTransforms() const
 {
-	FScopedTransaction Transaction(LOCTEXT("ResetCurrentGoalTransforms", "Reset All Goal Transforms"));
+	FScopedTransaction Transaction(LOCTEXT("ResetGoalTransforms", "Reset All Goal Transforms"));
 	
 	for (UIKRigEffectorGoal* Goal : Asset->Goals)
     {
 		Goal->Modify();
-    	Goal->CurrentTransform = Goal->InitialTransform;
+    	const FTransform InitialTransform = GetRefPoseTransformOfBone(Goal->BoneName);
+    	Goal->InitialTransform = InitialTransform;
+		Goal->CurrentTransform = InitialTransform;
     }
 }
 

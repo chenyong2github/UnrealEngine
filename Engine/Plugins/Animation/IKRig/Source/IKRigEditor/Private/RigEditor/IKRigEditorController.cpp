@@ -2,6 +2,8 @@
 
 #include "RigEditor/IKRigEditorController.h"
 
+#include "ContentBrowserModule.h"
+#include "IContentBrowserSingleton.h"
 #include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -303,7 +305,7 @@ void FIKRigEditorController::Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit,
 	if (!AssetController->OnIKRigNeedsInitialized().IsBoundToObject(this))
 	{
 		ReinitializeDelegateHandle = AssetController->OnIKRigNeedsInitialized().AddSP(
-			this, &FIKRigEditorController::OnIKRigNeedsInitialized);
+			this, &FIKRigEditorController::HandleIKRigNeedsInitialized);
 
 		// Initialize editor's instances at first initialization
 		InitializeSolvers();
@@ -313,6 +315,60 @@ void FIKRigEditorController::Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit,
 void FIKRigEditorController::Close() const
 {
 	AssetController->OnIKRigNeedsInitialized().Remove(ReinitializeDelegateHandle);
+}
+
+void FIKRigEditorController::PromptUserToAssignMesh()
+{
+	// do we already have a skeletal mesh assigned?
+	if (AssetController->GetAsset()->PreviewSkeletalMesh)
+	{
+		return;
+	}
+
+	// is there already an imported hierarchy of bones?
+	if (!AssetController->GetIKRigSkeleton().BoneNames.IsEmpty())
+	{
+		return;
+	}
+
+	// no skeletal mesh imported yet... so let's prompt the user to pick one...
+	
+	// Load the content browser module to display an asset picker
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	FAssetPickerConfig AssetPickerConfig;
+	// must set the parent UObject so that the resulting list filters correctly in multi-project environments
+	AssetPickerConfig.AdditionalReferencingAssets.Add(AssetController->GetAsset());
+	// the asset picker will only show skeletal meshes
+	AssetPickerConfig.Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
+	// the delegate that fires when an asset is selected
+	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateLambda([this](const FAssetData& AssetData)
+	{
+		MeshPickerWindow->RequestDestroyWindow();
+		
+		if (const TObjectPtr<USkeletalMesh> SkeletalMesh = Cast<USkeletalMesh>(AssetData.GetAsset()))
+		{
+			// import the skeleton data into the IK Rig
+			AssetController->SetSkeletalMesh(SkeletalMesh.Get());
+		}
+		
+	});
+	// the default view mode should be a list view
+	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+
+	MeshPickerWindow = SNew(SWindow)
+	.Title(LOCTEXT("CreateIKRigOptions", "Assign Skeletal Mesh to IK Rig"))
+	.ClientSize(FVector2D(500, 600))
+	.SupportsMinimize(false) .SupportsMaximize(false)
+	[
+		SNew(SBorder)
+		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
+		[
+			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+		]
+	];
+
+	GEditor->EditorAddModalWindow(MeshPickerWindow.ToSharedRef());
+	MeshPickerWindow.Reset();
 }
 
 UIKRigProcessor* FIKRigEditorController::GetIKRigProcessor() const
@@ -338,7 +394,7 @@ const FIKRigSkeleton* FIKRigEditorController::GetCurrentIKRigSkeleton() const
 	return nullptr;
 }
 
-void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig)
+void FIKRigEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const
 {
 	if (ModifiedIKRig != AssetController->GetAsset())
 	{
@@ -346,11 +402,6 @@ void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedI
 	}
 
 	ClearOutputLog();
-
-	// anim instance needs reinitialized
-	InitializeSolvers();
-	AnimInstance->SetProcessorNeedsInitialized();
-	AnimInstance->InitializeAnimation();
 	
 	// in case the skeletal mesh was swapped out, we need to ensure the preview scene is up-to-date
 	{
@@ -362,6 +413,11 @@ void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedI
 		AssetController->ResetInitialGoalTransforms();
 	}
 
+	// anim instance needs reinitialized
+	InitializeSolvers();
+	AnimInstance->SetProcessorNeedsInitialized();
+	AnimInstance->InitializeAnimation();
+
 	// update the bone details so it can pull on the current data
 	BoneDetails->AnimInstancePtr = AnimInstance;
 	BoneDetails->AssetPtr = ModifiedIKRig;
@@ -372,7 +428,7 @@ void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedI
 void FIKRigEditorController::Reset() const
 {
 	SkelMeshComponent->ShowReferencePose(true);
-	AssetController->ResetCurrentGoalTransforms();
+	AssetController->ResetGoalTransforms();
 }
 
 void FIKRigEditorController::RefreshAllViews() const
@@ -817,13 +873,10 @@ void FIKRigEditorController::ShowDetailsForElements(const TArray<TSharedPtr<FIKR
 
 void FIKRigEditorController::OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent) const
 {
-	// if user swapped in a different skeletal mesh, then trigger a total reinitialization
-	const bool bPreviewChanged = PropertyChangedEvent.GetPropertyName() == UIKRigDefinition::GetPreviewMeshPropertyName();
-	if (bPreviewChanged)
+	const bool bPreviewMeshChanged = PropertyChangedEvent.GetPropertyName() == UIKRigDefinition::GetPreviewMeshPropertyName();
+	if (bPreviewMeshChanged)
 	{
-		USkeletalMesh* NewMesh = AssetController->GetAsset()->GetPreviewMesh();
-		AssetController->SetSkeletalMesh(NewMesh);
-		AssetController->BroadcastNeedsReinitialized();
+		HandleIKRigNeedsInitialized(AssetController->GetAsset());
 	}
 }
 
