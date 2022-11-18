@@ -44,7 +44,7 @@ void FNiagaraDrawIndirectArgsGenCS::SetOutput(FRHICommandList& RHICmdList, FRHIU
 {
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	DrawIndirectArgsParam.SetUAV(RHICmdList, ComputeShaderRHI, DrawIndirectArgsUAV);
-	InstanceCountsParam.SetUAV(RHICmdList, ComputeShaderRHI, DrawIndirectArgsUAV);
+	InstanceCountsParam.SetUAV(RHICmdList, ComputeShaderRHI, InstanceCountsUAV);
 }
 
 void FNiagaraDrawIndirectArgsGenCS::SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, FRHIShaderResourceView* CulledInstanceCountsBuffer, int32 ArgGenTaskOffset, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks)
