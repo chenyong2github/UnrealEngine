@@ -472,6 +472,11 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 			UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
 			if (AnimSection)
 			{
+				if (AnimSection->StartLocationOffset.IsNearlyZero() == false || AnimSection->StartRotationOffset.IsNearlyZero() == false ||
+					AnimSection->MatchedLocationOffset.IsNearlyZero() == false || AnimSection->MatchedRotationOffset.IsNearlyZero() == false)
+				{
+					bAnySectionsHaveOffset = true;
+				}
 				if (ValidAnimSequence == nullptr)
 				{
 					ValidAnimSequence = AnimSection->Params.Animation;
@@ -484,7 +489,6 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 							AnimSection->MatchedLocationOffset.IsNearlyZero() == false || AnimSection->MatchedRotationOffset.IsNearlyZero() == false)
 						{ 
 							RootMotionParams.RootMotionStartOffset = AnimSection->GetRootMotionStartOffset();
-							bAnySectionsHaveOffset = true;
 							FMemMark Mark(FMemStack::Get());
 							FCompactPose OutPose;
 							TArray<FBoneIndexType> RequiredBoneIndexArray;

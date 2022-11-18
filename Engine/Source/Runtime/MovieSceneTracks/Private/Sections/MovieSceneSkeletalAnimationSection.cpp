@@ -652,7 +652,7 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FAnimationPoseD
 		if (!InOutParams.bOutIsAdditive)
 		{
 			const bool bStartTransformOffsetInBoneSpace = CVarStartTransformOffsetInBoneSpace.GetValueOnGameThread();
-			if (TempRootBoneIndex.IsSet() && TempRootBoneIndex.GetValue() != 0 && bStartTransformOffsetInBoneSpace)
+			if (bStartTransformOffsetInBoneSpace)
 			{
 				FTransform StartMatchedInRoot = StartBoneTransform * MatchedTransform;
 				FTransform LocalToRoot = (InOutParams.OutPoseTransform * StartBoneTransform.Inverse());

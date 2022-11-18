@@ -467,7 +467,7 @@ bool FSkeletalAnimationTrackEditMode::GetTransformAtFirstSectionStart(FTransform
 		int32 NumSelected = 0;
 		for (FSelectedRootData Data : SelectedRootData)
 		{
-			if (Data.SelectedMeshComp.IsValid() && Data.SelectedSection.IsValid() && Data.SelectedSection->GetRange().Contains(CurrentTime.Time.GetFrame()))
+			if (Data.SelectedMeshComp.IsValid() && Data.SelectedMeshComp->GetAnimInstance() && Data.SelectedSection.IsValid() && Data.SelectedSection->GetRange().Contains(CurrentTime.Time.GetFrame()))
 			{
 				FTransform ComponentTransform = Data.SelectedMeshComp->GetComponentTransform();
 				FTransform PivotTransform, PivotParentTransform;
@@ -536,7 +536,7 @@ void FSelectedRootData::CalcTransform(const FFrameTime& FrameTime, FTransform& O
 	USkeletalMeshComponent* Comp = SelectedMeshComp.Get();
 	OutTransform =  FTransform(FTransform::Identity);
 	OutParentTransform = FTransform(FTransform::Identity);
-	if (Section && Comp)
+	if (Section && Comp && Comp->GetAnimInstance())
 	{
 		if (UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>())
 		{
