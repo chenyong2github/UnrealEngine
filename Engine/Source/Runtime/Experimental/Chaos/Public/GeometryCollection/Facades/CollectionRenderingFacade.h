@@ -4,6 +4,7 @@
 #include "Containers/UnrealString.h"
 #include "Containers/Array.h"
 #include "Math/MathFwd.h"
+#include "GeometryCollection/ManagedArrayAccessor.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/Facades/CollectionSelectionFacade.h"
 #include "Chaos/Triangle.h"
@@ -16,91 +17,60 @@ namespace GeometryCollection::Facades
 	*
 	* Defines common API for storing rendering data.
 	*
-	* Usage:
-	*    FRenderingFacade::AddTriangle(this, FTriangle(...) );
-	*
-	* Then arrays can be accessed later by:
-	*	const TManagedArray< FIntVector >* FaceIndices = FRenderingFacade::GetIndices(this);
-	*	const TManagedArray< FVector3f >* Vertices = FRenderingFacade::GetVertices(this);
-	*
-	* The following attributes are created on the collection:
-	*
-	*	- FindAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
-	*	- FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-	*
 	*/
 	class CHAOS_API FRenderingFacade
 	{
-		FManagedArrayCollection* Self;
-
 	public:
-		// Groups 
-		static const FName VerticesGroup;
-		static const FName FacesGroup;
-
-		// Attributes
-		static const FName VertexAttribute;
-		static const FName IndicesAttribute;
+		typedef FGeometryCollectionSection FTriangleSection;
 
 		/**
 		* FRenderingFacade Constuctor
 		* @param VertixDependencyGroup : GroupName the index attribute is dependent on.
 		*/
-		FRenderingFacade(FManagedArrayCollection* InSelf);
+		FRenderingFacade(FManagedArrayCollection& InSelf);
+		FRenderingFacade(const FManagedArrayCollection& InSelf);
 
-		/**
-		*  Create the facade.
-		*/
-		static void DefineSchema(FManagedArrayCollection* InCollection);
-		void DefineSchema() { return DefineSchema(Self); }
+		/**Create the facade.*/
+		void DefineSchema();
 
+		/** Is the facade defined constant. */
+		bool IsConst() const { return Collection==nullptr; }
 
-		/**
-		*  Is the Facade defined on the collection?
-		*/
-		static bool IsValid(const FManagedArrayCollection* InCollection);
-		bool IsValid() { return IsValid(Self); }
+		/**Is the Facade defined on the collection?*/
+		bool IsValid() const;
 
+		/**Does it support rendering surfaces.*/
+		bool CanRenderSurface() const;
 
-		/**
-		*  Does it support rendering surfaces.
-		*/
-		static bool CanRenderSurface(const FManagedArrayCollection* InCollection);
-		bool CanRenderSurface() { return CanRenderSurface(Self); }
+		/**Add a triangle to the rendering view.*/
+		void AddTriangle(const Chaos::FTriangle& InTriangle);
 
+		/** Add a surface to the rendering view.*/
+		void AddSurface(TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices);
+		
+		/** GetIndices */
+		const TManagedArray< FIntVector >& GetIndices() const { return IndicesAttribute.Get(); }
 
-		/**
-		* Add a triangle to the rendering view. 
-		* @param FManagedArrayCollection : Collection
-		* @param FSelectionFacade::FSelectionKey : Key for weights in the FSelectionFacade
-		*/
-		static void AddTriangle(FManagedArrayCollection* InCollection, const Chaos::FTriangle& InTriangle);
-		void AddTriangle(const Chaos::FTriangle& InTriangle) { AddTriangle(Self, InTriangle); }
+		/** GetVertices */
+		const TManagedArray< FVector3f >& GetVertices() const { return VertexAttribute.Get(); }
 
-		/**
-		* Add a surface to the rendering view.
-		* @param FManagedArrayCollection : Collection
-		* @param FSelectionFacade::FSelectionKey : Key for weights in the FSelectionFacade
-		*/
-		static void AddSurface(FManagedArrayCollection* InCollection, TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices);
-		void AddSurface(TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices) { AddSurface(Self, MoveTemp(InVertices), MoveTemp(InIndices) ); }
+		/** GetMaterialID */
+		const TManagedArray< int32 >& GetMaterialID() const { return MaterialIDAttribute.Get(); }
 
+		/** GetTriangleSections */
+		const TManagedArray< FTriangleSection >& GetTriangleSections() const { return TriangleSectionAttribute.Get(); }
 
-		/**
-		* Return the render indices from the collection. Null if not initialized.
-		* @param FManagedArrayCollection : Collection
-		*/
-		static const TManagedArray< FIntVector >* GetIndices(const FManagedArrayCollection* InCollection);
-		const TManagedArray< FIntVector >* GetIndices() const { return GetIndices(Self); }
+		/** BuildMeshSections */
+		TArray<FTriangleSection> BuildMeshSections(const TArray<FIntVector>& Indices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices) const;
+		
+	private : 
+		const FManagedArrayCollection& ConstCollection;
+		FManagedArrayCollection* Collection = nullptr;
 
-
-		/**
-		* Return the vertex positions from the collection. Null if not initialized.
-		* @param FManagedArrayCollection : Collection
-		*/
-		static const TManagedArray< FVector3f >* GetVertices(const FManagedArrayCollection* InCollection);
-		const TManagedArray< FVector3f >* GetVertices() const { return GetVertices(Self); }
-
+		TManagedArrayAccessor<FVector3f> VertexAttribute;
+		TManagedArrayAccessor<FIntVector> IndicesAttribute;
+		TManagedArrayAccessor<int32> MaterialIDAttribute;
+		TManagedArrayAccessor<FTriangleSection> TriangleSectionAttribute;
 
 	};
 

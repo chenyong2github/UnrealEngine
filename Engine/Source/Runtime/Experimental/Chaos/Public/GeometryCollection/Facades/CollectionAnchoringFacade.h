@@ -15,6 +15,10 @@ namespace Chaos::Facades
 	{
 	public:
 		FCollectionAnchoringFacade(FManagedArrayCollection& InCollection);
+		FCollectionAnchoringFacade(const FManagedArrayCollection& InCollection);
+
+		/** Is the facade defined constant. */
+		bool IsConst() const { return InitialDynamicStateAttribute.IsConst(); }
 
 		bool HasInitialDynamicStateAttribute() const;
 		

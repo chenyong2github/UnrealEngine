@@ -10,69 +10,53 @@
 namespace GeometryCollection::Facades
 {
 
-	// Attributes
-	const FName FBoundsFacade::AAAAttribute = "AAA";
-
 	FBoundsFacade::FBoundsFacade(FManagedArrayCollection& InCollection)
-		: Self(InCollection)
-		, BoundingBox(InCollection,"BoundingBox", FGeometryCollection::GeometryGroup)
-		, Vertex(InCollection,"Vertex", FGeometryCollection::VerticesGroup)
-		, BoneMap(InCollection,"BoneMap", FGeometryCollection::VerticesGroup)
-		, TransformToGeometryIndex(InCollection,"TransformToGeometryIndex", FTransformCollection::TransformGroup)
-	{
-		DefineSchema(Self);
-	}
+		: BoundingBoxAttribute(InCollection,"BoundingBox", FGeometryCollection::GeometryGroup)
+		, VertexAttribute(InCollection,"Vertex", FGeometryCollection::VerticesGroup, FGeometryCollection::VerticesGroup)
+		, BoneMapAttribute(InCollection,"BoneMap", FGeometryCollection::VerticesGroup)
+		, TransformToGeometryIndexAttribute(InCollection,"TransformToGeometryIndex", FTransformCollection::TransformGroup)
+	{}
+
+	FBoundsFacade::FBoundsFacade(const FManagedArrayCollection& InCollection)
+		: BoundingBoxAttribute(InCollection, "BoundingBox", FGeometryCollection::GeometryGroup)
+		, VertexAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup, FGeometryCollection::VerticesGroup)
+		, BoneMapAttribute(InCollection, "BoneMap", FGeometryCollection::VerticesGroup)
+		, TransformToGeometryIndexAttribute(InCollection, "TransformToGeometryIndex", FTransformCollection::TransformGroup)
+	{}
 
 	//
 	//  Initialization
 	//
 
-		//
-	//  Initialization
-	//
-
-	void FBoundsFacade::DefineSchema(FManagedArrayCollection& InCollection)
+	void FBoundsFacade::DefineSchema()
 	{
-		FManagedArrayCollection::FConstructionParameters VertexDependency(FGeometryCollection::VerticesGroup);
-
-		// surface rendering attributes
-		if(!InCollection.HasGroup(FGeometryCollection::VerticesGroup))
-		{
-			InCollection.AddGroup(FGeometryCollection::VerticesGroup);
-		}
-		if( !InCollection.HasGroup(FGeometryCollection::FacesGroup) )
-		{
-			InCollection.AddGroup(FGeometryCollection::FacesGroup);
-		}
-
-		InCollection.AddAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-		InCollection.AddAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup, VertexDependency);
-
-		ensure(InCollection.FindAttributeTyped<FVector3f>("Vertex", FGeometryCollection::VerticesGroup) != nullptr);
-		ensure(InCollection.FindAttributeTyped<FIntVector>("Indices", FGeometryCollection::FacesGroup) != nullptr);
+		check(!IsConst());
+		BoundingBoxAttribute.Add();
+		VertexAttribute.Add();
+		BoneMapAttribute.Add();
+		TransformToGeometryIndexAttribute.Add();
 	}
 
-	bool FBoundsFacade::IsValid(const FManagedArrayCollection& InCollection)
+	bool FBoundsFacade::IsValid() const
 	{
-		return InCollection.HasAttribute("BoundingBox", FGeometryCollection::GeometryGroup)
-			&& InCollection.HasAttribute("Vertex", FGeometryCollection::VerticesGroup)
-			&& InCollection.HasAttribute("BoneMap", FGeometryCollection::VerticesGroup)
-			&& InCollection.HasAttribute("TransformToGeometryIndex", FTransformCollection::TransformGroup);
+		return BoundingBoxAttribute.IsValid() && VertexAttribute.IsValid() 
+			&& BoneMapAttribute.IsValid() && TransformToGeometryIndexAttribute.IsValid();
 	}
 
 
-
-	void FBoundsFacade::UpdateBoundingBox(FManagedArrayCollection& InCollection, bool bSkipCheck)
+	void FBoundsFacade::UpdateBoundingBox(bool bSkipCheck)
 	{
-		if (!bSkipCheck || !IsValid(InCollection))
+		check(!IsConst());
+
+		if (!bSkipCheck || !IsValid())
 		{
 			return;
 		}
 
-		TManagedArray<FBox>& BoundingBox = InCollection.ModifyAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
-		const TManagedArray<FVector3f>& Vertex = InCollection.GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-		const TManagedArray<int32>& BoneMap = InCollection.GetAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup);
-		const TManagedArray<int32>& TransformToGeometryIndex = InCollection.GetAttribute<int32>("TransformToGeometryIndex", FTransformCollection::TransformGroup);
+		TManagedArray<FBox>& BoundingBox = BoundingBoxAttribute.Modify();
+		const TManagedArray<FVector3f>& Vertex = VertexAttribute.Get();
+		const TManagedArray<int32>& BoneMap = BoneMapAttribute.Get();
+		const TManagedArray<int32>& TransformToGeometryIndex = TransformToGeometryIndexAttribute.Get();
 
 		if (BoundingBox.Num())
 		{
@@ -90,17 +74,6 @@ namespace GeometryCollection::Facades
 			}
 		}
 	}
-
-	//
-	//  GetAttributes
-	//
-
-	const TManagedArray< FBox >* FBoundsFacade::GetBoundingBoxes(const FManagedArrayCollection& InCollection)
-	{
-		return InCollection.FindAttributeTyped <FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
-	}
-
-
 }; // GeometryCollection::Facades
 
 

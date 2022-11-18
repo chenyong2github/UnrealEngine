@@ -20,16 +20,24 @@ namespace GeometryCollection::Facades
 	const FName FSelectionFacade::WeightAttribute = "Weights";
 	const FName FSelectionFacade::BoneIndexAttribute = "BoneIndex";
 
-	FSelectionFacade::FSelectionFacade(FManagedArrayCollection* InCollection)
-		: Self(InCollection)
+	FSelectionFacade::FSelectionFacade(FManagedArrayCollection& InCollection)
+		: ConstCollection(InCollection)
+		, Collection(&InCollection) 
+	{}
+
+	FSelectionFacade::FSelectionFacade(const FManagedArrayCollection& InCollection)
+		: ConstCollection(InCollection)
+		, Collection(nullptr)
 	{}
 
 	//
 	//  Initialization
 	//
 
-	void FSelectionFacade::InitUnboundedGroup(FManagedArrayCollection* Collection, FName GroupName, FName DependencyGroup)
+	void FSelectionFacade::InitUnboundedGroup(FName GroupName, FName DependencyGroup)
 	{
+		check(!IsConst());
+
 		if (!Collection->HasGroup(GroupName))
 		{
 			Collection->AddAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, GroupName, { DependencyGroup });
@@ -37,8 +45,10 @@ namespace GeometryCollection::Facades
 		ensure(Collection->FindAttributeTyped<TArray<int32>>(FSelectionFacade::IndexAttribute, GroupName) != nullptr);
 	}
 
-	void FSelectionFacade::InitWeightedUnboundedGroup(FManagedArrayCollection* Collection, FName GroupName, FName DependencyGroup)
+	void FSelectionFacade::InitWeightedUnboundedGroup(FName GroupName, FName DependencyGroup)
 	{
+		check(!IsConst());
+
 		if (!Collection->HasGroup(GroupName))
 		{
 			Collection->AddAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, GroupName, { DependencyGroup });
@@ -48,8 +58,10 @@ namespace GeometryCollection::Facades
 		ensure(Collection->FindAttributeTyped<TArray<float>>(FSelectionFacade::WeightAttribute, GroupName) != nullptr);
 	}
 
-	void FSelectionFacade::InitBoundedGroup(FManagedArrayCollection* Collection, FName GroupName, FName DependencyGroup, FName BoneDependencyGroup)
+	void FSelectionFacade::InitBoundedGroup(FName GroupName, FName DependencyGroup, FName BoneDependencyGroup)
 	{
+		check(!IsConst());
+
 		if (!Collection->HasGroup(GroupName))
 		{
 			Collection->AddAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, GroupName, { DependencyGroup });
@@ -59,8 +71,10 @@ namespace GeometryCollection::Facades
 		ensure(Collection->FindAttributeTyped<int32>(FSelectionFacade::BoneIndexAttribute, GroupName) != nullptr);
 	}
 
-	void FSelectionFacade::InitWeightedBoundedGroup(FManagedArrayCollection* Collection, FName GroupName, FName DependencyGroup, FName BoneDependencyGroup)
+	void FSelectionFacade::InitWeightedBoundedGroup(FName GroupName, FName DependencyGroup, FName BoneDependencyGroup)
 	{
+		check(!IsConst());
+
 		if (!Collection->HasGroup(GroupName))
 		{
 			Collection->AddAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, GroupName, { DependencyGroup });
@@ -77,20 +91,24 @@ namespace GeometryCollection::Facades
 	//  AddSelection
 	//
 
-	FSelectionFacade::FSelectionKey FSelectionFacade::AddSelection(FManagedArrayCollection* Collection, const TArray<int32>& InIndices, FName DependencyGroup)
+	FSelectionFacade::FSelectionKey FSelectionFacade::AddSelection(const TArray<int32>& InIndices, FName DependencyGroup)
 	{
+		check(!IsConst());
+
 		FName GroupName(FSelectionFacade::UnboundGroup.ToString() + "_" + DependencyGroup.ToString());
-		InitUnboundedGroup(Collection, GroupName, DependencyGroup);
+		InitUnboundedGroup(GroupName, DependencyGroup);
 
 		int Idx = Collection->AddElements(1, GroupName);
 		Collection->ModifyAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, GroupName)[Idx] = InIndices;
 		return FSelectionKey(Idx, FSelectionFacade::UnboundGroup);
 	}
 
-	FSelectionFacade::FSelectionKey FSelectionFacade::AddSelection(FManagedArrayCollection* Collection, const TArray<int32>& InIndices, const TArray<float>& InWeights, FName DependencyGroup)
+	FSelectionFacade::FSelectionKey FSelectionFacade::AddSelection(const TArray<int32>& InIndices, const TArray<float>& InWeights, FName DependencyGroup)
 	{
+		check(!IsConst());
+
 		FName GroupName(FSelectionFacade::WeightedUnboundGroup.ToString() + "_" + DependencyGroup.ToString());
-		InitWeightedUnboundedGroup(Collection, GroupName, DependencyGroup);
+		InitWeightedUnboundedGroup(GroupName, DependencyGroup);
 
 		int Idx = Collection->AddElements(1, GroupName);
 		Collection->ModifyAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, GroupName)[Idx] = InIndices;
@@ -98,10 +116,12 @@ namespace GeometryCollection::Facades
 		return FSelectionKey(Idx, GroupName);
 	}
 
-	FSelectionFacade::FSelectionKey FSelectionFacade::AddSelection(FManagedArrayCollection* Collection, const int32 InBoneIndex, const TArray<int32>& InIndices, FName DependencyGroup, FName BoneDependencyGroup)
+	FSelectionFacade::FSelectionKey FSelectionFacade::AddSelection(const int32 InBoneIndex, const TArray<int32>& InIndices, FName DependencyGroup, FName BoneDependencyGroup)
 	{
+		check(!IsConst());
+
 		FName GroupName(FSelectionFacade::BoundGroup.ToString() + "_" + DependencyGroup.ToString());
-		InitBoundedGroup(Collection, GroupName, DependencyGroup, BoneDependencyGroup);
+		InitBoundedGroup(GroupName, DependencyGroup, BoneDependencyGroup);
 
 		int Idx = Collection->AddElements(1, GroupName);
 		Collection->ModifyAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, GroupName)[Idx] = InIndices;
@@ -109,10 +129,12 @@ namespace GeometryCollection::Facades
 		return FSelectionKey(Idx, GroupName);
 	}
 
-	FSelectionFacade::FSelectionKey FSelectionFacade::AddSelection(FManagedArrayCollection* Collection, const int32 InBoneIndex, const TArray<int32>& InIndices, const TArray<float>& InWeights, FName DependencyGroup, FName BoneDependencyGroup)
+	FSelectionFacade::FSelectionKey FSelectionFacade::AddSelection(const int32 InBoneIndex, const TArray<int32>& InIndices, const TArray<float>& InWeights, FName DependencyGroup, FName BoneDependencyGroup)
 	{
+		check(!IsConst());
+
 		FName GroupName(FSelectionFacade::WeightedBoundGroup.ToString() + "_" + DependencyGroup.ToString());
-		InitWeightedBoundedGroup(Collection, GroupName, DependencyGroup, BoneDependencyGroup);
+		InitWeightedBoundedGroup(GroupName, DependencyGroup, BoneDependencyGroup);
 
 		int Idx = Collection->AddElements(1, GroupName);
 		Collection->ModifyAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, GroupName)[Idx] = InIndices;
@@ -124,49 +146,47 @@ namespace GeometryCollection::Facades
 	//
 	//  GetSelection
 	//
-
-
-	void FSelectionFacade::GetSelection(const FManagedArrayCollection* Collection, const FSelectionFacade::FSelectionKey& Key, TArray<int32>& OutIndices)
+	void FSelectionFacade::GetSelection(const FSelectionFacade::FSelectionKey& Key, TArray<int32>& OutIndices) const
 	{
-		if (Collection->HasGroup(Key.GroupName) && 0 <= Key.Index && Key.Index < Collection->NumElements(Key.GroupName))
+		if (ConstCollection.HasGroup(Key.GroupName) && 0 <= Key.Index && Key.Index < ConstCollection.NumElements(Key.GroupName))
 		{
-			if (Collection->FindAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName))
-				OutIndices = Collection->GetAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName)[Key.Index];
+			if (ConstCollection.FindAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName))
+				OutIndices = ConstCollection.GetAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName)[Key.Index];
 		}
 	}
 
-	void FSelectionFacade::GetSelection(const FManagedArrayCollection* Collection, const FSelectionFacade::FSelectionKey& Key, TArray<int32>& OutIndices, TArray<float>& OutWeights)
+	void FSelectionFacade::GetSelection(const FSelectionFacade::FSelectionKey& Key, TArray<int32>& OutIndices, TArray<float>& OutWeights) const
 	{
-		if (Collection->HasGroup(Key.GroupName) && 0 <= Key.Index && Key.Index < Collection->NumElements(Key.GroupName))
+		if (ConstCollection.HasGroup(Key.GroupName) && 0 <= Key.Index && Key.Index < ConstCollection.NumElements(Key.GroupName))
 		{
-			if (Collection->FindAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName))
-				OutIndices = Collection->GetAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName)[Key.Index];
-			if (Collection->FindAttribute<TArray<float>>(FSelectionFacade::WeightAttribute, Key.GroupName))
-				OutWeights = Collection->GetAttribute<TArray<float>>(FSelectionFacade::WeightAttribute, Key.GroupName)[Key.Index];
+			if (ConstCollection.FindAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName))
+				OutIndices = ConstCollection.GetAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName)[Key.Index];
+			if (ConstCollection.FindAttribute<TArray<float>>(FSelectionFacade::WeightAttribute, Key.GroupName))
+				OutWeights = ConstCollection.GetAttribute<TArray<float>>(FSelectionFacade::WeightAttribute, Key.GroupName)[Key.Index];
 		}
 	}
 
-	void FSelectionFacade::GetSelection(const FManagedArrayCollection* Collection, const FSelectionFacade::FSelectionKey& Key, int32& OutBoneIndex, TArray<int32>& OutIndices)
+	void FSelectionFacade::GetSelection(const FSelectionFacade::FSelectionKey& Key, int32& OutBoneIndex, TArray<int32>& OutIndices) const
 	{
-		if (Collection->HasGroup(Key.GroupName) && 0 <= Key.Index && Key.Index < Collection->NumElements(Key.GroupName))
+		if (ConstCollection.HasGroup(Key.GroupName) && 0 <= Key.Index && Key.Index < ConstCollection.NumElements(Key.GroupName))
 		{
-			if (Collection->FindAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName))
-				OutIndices = Collection->GetAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName)[Key.Index];
-			if (Collection->FindAttribute<int32>(FSelectionFacade::BoneIndexAttribute, Key.GroupName))
-				OutBoneIndex = Collection->GetAttribute<int32>(FSelectionFacade::BoneIndexAttribute, Key.GroupName)[Key.Index];
+			if (ConstCollection.FindAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName))
+				OutIndices = ConstCollection.GetAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName)[Key.Index];
+			if (ConstCollection.FindAttribute<int32>(FSelectionFacade::BoneIndexAttribute, Key.GroupName))
+				OutBoneIndex = ConstCollection.GetAttribute<int32>(FSelectionFacade::BoneIndexAttribute, Key.GroupName)[Key.Index];
 		}
 	}
 
-	void FSelectionFacade::GetSelection(const FManagedArrayCollection* Collection, const FSelectionFacade::FSelectionKey& Key, int32& OutBoneIndex, TArray<int32>& OutIndices, TArray<float>& OutWeights)
+	void FSelectionFacade::GetSelection(const FSelectionFacade::FSelectionKey& Key, int32& OutBoneIndex, TArray<int32>& OutIndices, TArray<float>& OutWeights) const
 	{
-		if (Collection->HasGroup(Key.GroupName) && 0 <= Key.Index && Key.Index < Collection->NumElements(Key.GroupName))
+		if (ConstCollection.HasGroup(Key.GroupName) && 0 <= Key.Index && Key.Index < ConstCollection.NumElements(Key.GroupName))
 		{
-			if (Collection->FindAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName))
-				OutIndices = Collection->GetAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName)[Key.Index];
-			if (Collection->FindAttribute<TArray<float>>(FSelectionFacade::WeightAttribute, Key.GroupName))
-				OutWeights = Collection->GetAttribute<TArray<float>>(FSelectionFacade::WeightAttribute, Key.GroupName)[Key.Index];
-			if (Collection->FindAttribute<int32>(FSelectionFacade::BoneIndexAttribute, Key.GroupName))
-				OutBoneIndex = Collection->GetAttribute<int32>(FSelectionFacade::BoneIndexAttribute, Key.GroupName)[Key.Index];
+			if (ConstCollection.FindAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName))
+				OutIndices = ConstCollection.GetAttribute<TArray<int32>>(FSelectionFacade::IndexAttribute, Key.GroupName)[Key.Index];
+			if (ConstCollection.FindAttribute<TArray<float>>(FSelectionFacade::WeightAttribute, Key.GroupName))
+				OutWeights = ConstCollection.GetAttribute<TArray<float>>(FSelectionFacade::WeightAttribute, Key.GroupName)[Key.Index];
+			if (ConstCollection.FindAttribute<int32>(FSelectionFacade::BoneIndexAttribute, Key.GroupName))
+				OutBoneIndex = ConstCollection.GetAttribute<int32>(FSelectionFacade::BoneIndexAttribute, Key.GroupName)[Key.Index];
 		}
 	}
 

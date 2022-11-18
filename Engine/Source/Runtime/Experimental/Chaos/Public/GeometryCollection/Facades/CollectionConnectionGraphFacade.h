@@ -15,15 +15,16 @@ namespace GeometryCollection::Facades
 	{
 	public:
 		FCollectionConnectionGraphFacade(FManagedArrayCollection& InCollection);
+		FCollectionConnectionGraphFacade(const FManagedArrayCollection& InCollection);
 
-		/**
-		 * returns true if all the necessary attributes are present
-		 * if not, then the API can be used to create them
-		 */
+		/** Does the collection support the facade. */
 		bool IsValid() const;
 
-		/** Add the necessary attributes if they are missing and initialize them if necessary */
-		void AddAttributes();
+		/** Is the facade defined constant. */
+		bool IsConst() const { return ConnectionsAttribute.IsConst(); }
+
+		/** Create the facade attributes. */
+		void DefineSchema();
 
 		/** Remove the attributes */
 		void ClearAttributes();
@@ -31,7 +32,7 @@ namespace GeometryCollection::Facades
 		/** Connect two bones */
 		void Connect(int32 BoneA, int32 BoneB);
 
-		/** Connections between bones that have the same parent in the hierarchy */
+		/**  Connections between bones that have the same parent in the hierarchy */
 		TManagedArrayAccessor<TSet<int32>> ConnectionsAttribute;
 
 #if UE_BUILD_DEBUG

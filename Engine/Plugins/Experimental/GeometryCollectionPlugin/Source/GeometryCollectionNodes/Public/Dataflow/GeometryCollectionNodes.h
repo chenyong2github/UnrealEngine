@@ -99,7 +99,7 @@ struct FAppendCollectionAssetsDataflowNode : public FDataflowNode
 public:
 	typedef FManagedArrayCollection DataType;
 
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection1"))
 	FManagedArrayCollection Collection1;
 
 	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))
@@ -109,9 +109,9 @@ public:
 	FAppendCollectionAssetsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterOutputConnection(&Collection1, &Collection1);
 		RegisterInputConnection(&Collection1);
 		RegisterInputConnection(&Collection2);
+		RegisterOutputConnection(&Collection1, &Collection1);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;

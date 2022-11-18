@@ -3,28 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GeometryCollection/ManagedArrayAccessor.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/Facades/CollectionSelectionFacade.h"
 
-namespace Chaos::Facades
+namespace GeometryCollection::Facades
 {
 	/** Kinematic Facade */
 	class CHAOS_API FKinematicBindingFacade
 	{
-		FManagedArrayCollection& Collection;
-
 	public:
+
 		typedef GeometryCollection::Facades::FSelectionFacade::FSelectionKey FBindingKey;
-
-		FKinematicBindingFacade(FManagedArrayCollection& InCollection) : Collection(InCollection) {}
-
-		void Init();
-
-		//
-		//  Skeletal Mesh Bone Bindings
-		//
-		static FBindingKey SetBoneBindings(FManagedArrayCollection*, const int32 BoneIndex, const TArray<int32>& Vertices, const TArray<float>& Weights);
-		static void GetBoneBindings(const FManagedArrayCollection*, const FBindingKey& Key, int32& OutBoneIndex, TArray<int32>& OutBoneVerts, TArray<float>& OutBoneWeights);
 
 		//
 		// Kinematics
@@ -33,9 +23,33 @@ namespace Chaos::Facades
 		static const FName KinematicBoneBindingIndex;
 		static const FName KinematicBoneBindingToGroup;
 
-		static int32 AddKinematicBinding(FManagedArrayCollection*, const FBindingKey& Key);
-		static int32 NumKinematicBindings(const FManagedArrayCollection* Collection) { return Collection->NumElements(KinematicGroup); }
-		static FBindingKey GetKinematicBindingKey(const FManagedArrayCollection* InCollection, int Index);
+		FKinematicBindingFacade(FManagedArrayCollection& InCollection);
+		FKinematicBindingFacade(const FManagedArrayCollection& InCollection);
 
+		/** Create the facade attributes. */
+		void DefineSchema();
+
+		/** Is the facade defined constant. */
+		bool IsConst() const { return Collection==nullptr; }
+
+		/** Is the Facade defined on the collection? */
+		bool IsValid() const;
+
+		//
+		//  Skeletal Mesh Bone Bindings
+		//
+		FBindingKey SetBoneBindings(const int32 BoneIndex, const TArray<int32>& Vertices, const TArray<float>& Weights);
+		void GetBoneBindings(const FBindingKey& Key, int32& OutBoneIndex, TArray<int32>& OutBoneVerts, TArray<float>& OutBoneWeights) const;
+
+		int32 AddKinematicBinding(const FBindingKey& Key);
+		int32 NumKinematicBindings() const { return KinemaitcBoneBindingAttribute.Num(); }
+		FBindingKey GetKinematicBindingKey(int Index) const;
+
+	private:
+		const FManagedArrayCollection& ConstCollection;
+		FManagedArrayCollection* Collection = nullptr;
+
+		TManagedArrayAccessor<int32> KinemaitcBoneBindingAttribute;
+		TManagedArrayAccessor<FString> KinemaitcBoneBindingToGroupAttribute;
 	};
 }

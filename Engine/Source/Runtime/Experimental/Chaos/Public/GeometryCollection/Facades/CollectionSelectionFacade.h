@@ -39,12 +39,10 @@ namespace GeometryCollection::Facades
 	*/
 	class CHAOS_API FSelectionFacade
  	{
-		FManagedArrayCollection* Self;
-
-		static void InitUnboundedGroup(FManagedArrayCollection* Self, FName GroupName, FName DependencyGroup);
-		static void InitWeightedUnboundedGroup(FManagedArrayCollection* Self, FName GroupName, FName DependencyGroup);
-		static void InitBoundedGroup(FManagedArrayCollection* Self, FName GroupName, FName DependencyGroup, FName BoneDependencyGroup);
-		static void InitWeightedBoundedGroup(FManagedArrayCollection* Self, FName GroupName, FName DependencyGroup, FName BoneDependencyGroup);
+		void InitUnboundedGroup(FName GroupName, FName DependencyGroup);
+		void InitWeightedUnboundedGroup(FName GroupName, FName DependencyGroup);
+		void InitBoundedGroup(FName GroupName, FName DependencyGroup, FName BoneDependencyGroup);
+		void InitWeightedBoundedGroup(FName GroupName, FName DependencyGroup, FName BoneDependencyGroup);
 
 	public:
 
@@ -68,43 +66,39 @@ namespace GeometryCollection::Facades
 
 		/**
 		* FSelectionFacade Constuctor
-		* @param VertixDependencyGroup : GroupName the index attribute is dependent on. 
 		*/
-		FSelectionFacade(FManagedArrayCollection* InSelf);
+		FSelectionFacade(FManagedArrayCollection& InSelf);
+		FSelectionFacade(const FManagedArrayCollection& InSelf);
+
+		/** Is the facade defined constant. */
+		bool IsConst() const { return Collection==nullptr; }
 
 		/**
 		* Add the indices to the FVertexSetInterface::UnboundGroup 
-		* @param Indices : Array of indices to add. 
 		*/
-		static FSelectionKey AddSelection(FManagedArrayCollection* Self, const TArray<int32>& Indices, FName DependencyGroup);
+		FSelectionKey AddSelection(const TArray<int32>& Indices, FName DependencyGroup);
 
 		/**
 		* Add the indices to the FVertexSetInterface::WeightedUnboundGroup
-		* @param Indices : Array of indices to add.
-		* @param Indices : Array of indices to add.
 		*/
-		static FSelectionKey AddSelection(FManagedArrayCollection* Self, const TArray<int32>& Indices, const TArray<float>& Weights, FName DependencyGroup);
+		FSelectionKey AddSelection(const TArray<int32>& Indices, const TArray<float>& Weights, FName DependencyGroup);
 
 		/**
 		* Add the indices to the FVertexSetInterface::BoundGroup
-		* @param Indices : Array of indices to add.
-		* @param Indices : Array of indices to add.
 		*/
-		static FSelectionKey AddSelection(FManagedArrayCollection* Self, const int32 BoneIndex, const TArray<int32>& Indices, FName DependencyGroup, FName BoneDependencyGroup = FName(""));
+		FSelectionKey AddSelection(const int32 BoneIndex, const TArray<int32>& Indices, FName DependencyGroup, FName BoneDependencyGroup = FName(""));
 
 		/**
 		* Add the indices to the FVertexSetInterface::BoundGroup
-		* @param Indices : Array of indices to add.
-		* @param Indices : Array of indices to add.
 		*/
-		static FSelectionKey AddSelection(FManagedArrayCollection* Self, const int32 BoneIndex, const TArray<int32>& Indices, const TArray<float>& Weights, FName DependencyGroup, FName BoneDependencyGroup = FName(""));
+		FSelectionKey AddSelection(const int32 BoneIndex, const TArray<int32>& Indices, const TArray<float>& Weights, FName DependencyGroup, FName BoneDependencyGroup = FName(""));
 
 		/**
 		* Return the vertex list from the given key 
 		* @param Key : <GroupName and Index>
 		* @param Indices : Return indices, empty if not found. 
 		*/
-		static void GetSelection(const FManagedArrayCollection* Self, const FSelectionKey& Key, TArray<int32>& Indices);
+		void GetSelection(const FSelectionKey& Key, TArray<int32>& Indices) const;
 
 		/**
 		* Return the vertex list, bone index, and weights from the given key
@@ -113,7 +107,7 @@ namespace GeometryCollection::Facades
 		* @param Indices : Return indices, empty if not found.
 		* @param Weights : Return vertex weights, empty if not found.
 		*/
-		static void GetSelection(const FManagedArrayCollection* Self, const FSelectionKey& Key, TArray<int32>& Indices, TArray<float>& Weights);
+		void GetSelection(const FSelectionKey& Key, TArray<int32>& Indices, TArray<float>& Weights) const;
 
 		/**
 		* Return the vertex list and bone index from the given key
@@ -121,7 +115,7 @@ namespace GeometryCollection::Facades
 		* @param BoneIndex : Return BoneIndex, INDEX_NONE if not found.
 		* @param Indices : Return indices, empty if not found.
 		*/
-		static void GetSelection(const FManagedArrayCollection* Self, const FSelectionKey& Key, int32& BoneIndex, TArray<int32>& Indices);
+		void GetSelection(const FSelectionKey& Key, int32& BoneIndex, TArray<int32>& Indices) const;
 
 		/**
 		* Return the vertex list, bone index, and weights from the given key
@@ -130,7 +124,14 @@ namespace GeometryCollection::Facades
 		* @param Indices : Return indices, empty if not found.
 		* @param Weights : Return vertex weights, empty if not found.
 		*/
-		static void GetSelection(const FManagedArrayCollection* Self, const FSelectionKey& Key, int32& BoneIndex, TArray<int32>& Indices, TArray<float>& Weights);
+		void GetSelection(const FSelectionKey& Key, int32& BoneIndex, TArray<int32>& Indices, TArray<float>& Weights) const;
+
+	private:
+
+		// const collection will be a null pointer, 
+		// while non-const will be valid.
+		const FManagedArrayCollection& ConstCollection;
+		FManagedArrayCollection* Collection = nullptr;
 	};
 
 }

@@ -15,23 +15,37 @@ namespace GeometryCollection::Facades
 	{
 	}
 
+	FCollectionConnectionGraphFacade::FCollectionConnectionGraphFacade(const FManagedArrayCollection& InCollection)
+		: ConnectionsAttribute(InCollection, "Connections", FTransformCollection::TransformGroup)
+#if UE_BUILD_DEBUG
+		, ParentAttribute(InCollection, "Parent", FTransformCollection::TransformGroup)
+#endif
+	{
+	}
+
 	bool FCollectionConnectionGraphFacade::IsValid() const
 	{
 		return ConnectionsAttribute.IsValid();
 	}
 
-	void FCollectionConnectionGraphFacade::AddAttributes()
+	void FCollectionConnectionGraphFacade::DefineSchema()
 	{
+		check(!IsConst());
+
 		ConnectionsAttribute.Add();
 	}
 	
 	void FCollectionConnectionGraphFacade::ClearAttributes()
 	{
+		check(!IsConst());
+
 		ConnectionsAttribute.Remove();
 	}
 
 	void FCollectionConnectionGraphFacade::Connect(int32 BoneA, int32 BoneB)
 	{
+		check(!IsConst());
+
 #if UE_BUILD_DEBUG
 		// Expect to always have a parent array and connected bones should always have the same parent
 		checkSlow(ParentAttribute.IsValid() && ParentAttribute.Get()[BoneA] == ParentAttribute.Get()[BoneB]);

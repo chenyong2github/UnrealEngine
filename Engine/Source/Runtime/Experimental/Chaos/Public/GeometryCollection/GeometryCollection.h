@@ -356,36 +356,3 @@ FORCEINLINE Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FGeometry
 	return Ar;
 }
 
-class CHAOS_API FGeometryCollectionMeshFacade
-{
-public:
-	FGeometryCollectionMeshFacade(FManagedArrayCollection& InCollection);
-
-	/** 
-	 * returns true if all the necessary attributes are present
-	 * if not then the API can be used to create  
-	 */
-	bool IsValid() const;	
-
-	/**
-	 * Add the necessary attributes if they are missing
-	 */
-	void AddAttributes();
-
-	TManagedArrayAccessor<FVector3f> Vertex;
-	TManagedArrayAccessor<FVector3f> TangentU;
-	TManagedArrayAccessor<FVector3f> TangentV;
-	TManagedArrayAccessor<FVector3f> Normal;
-	TManagedArrayAccessor<TArray<FVector2f>> UVs;
-	TManagedArrayAccessor<FLinearColor> Color;
-	TManagedArrayAccessor<int32> BoneMap;
-	TManagedArrayAccessor<int32> VertexStart;
-	TManagedArrayAccessor<int32> VertexCount;
-
-	TManagedArrayAccessor<FIntVector> Indices;
-	TManagedArrayAccessor<bool> Visible;
-	TManagedArrayAccessor<int32> MaterialIndex;
-	TManagedArrayAccessor<int32> MaterialID;
-	TManagedArrayAccessor<int32> FaceStart;
-	TManagedArrayAccessor<int32> FaceCount;
-};

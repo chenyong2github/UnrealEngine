@@ -12,6 +12,7 @@
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
 #include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
+#include "GeometryCollection/Facades/CollectionRenderingFacade.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
 
 #include <iostream>
@@ -508,76 +509,10 @@ void FGeometryCollection::ReindexMaterials(FManagedArrayCollection& InCollection
 	}
 }
 
-TArray<FGeometryCollectionSection> FGeometryCollection::BuildMeshSections(const TArray<FIntVector> &InputIndices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector> &RetIndices) const
-{	
+TArray<FGeometryCollectionSection> FGeometryCollection::BuildMeshSections(const TArray<FIntVector>& InputIndices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices) const
+{
 
-	TArray<FGeometryCollectionSection> TmpSections;
-	TArray<FGeometryCollectionSection> RetSections;		
-
-	// count the number of triangles for each material section, adding a new section if the material ID is higher than the current number of sections
-	for (int FaceElement = 0; FaceElement < InputIndices.Num(); ++FaceElement)
-	{
-		int32 Section = MaterialID[BaseMeshOriginalIndicesIndex[FaceElement]];		
-
-		while (Section + 1 > TmpSections.Num())
-		{
-			// add a new material section
-			int32 Element = TmpSections.AddZeroed();
-
-			TmpSections[Element].MaterialID = Element;
-			TmpSections[Element].FirstIndex = -1;
-			TmpSections[Element].NumTriangles = 0;
-			TmpSections[Element].MinVertexIndex = 0;
-			TmpSections[Element].MaxVertexIndex = 0;
-		}
-
-		TmpSections[Section].NumTriangles++;
-	}
-
-	// fixup the section FirstIndex and MaxVertexIndex
-	for (int SectionElement = 0; SectionElement < TmpSections.Num(); SectionElement++)
-	{
-		if (SectionElement == 0)
-		{
-			TmpSections[SectionElement].FirstIndex = 0;
-		}
-		else
-		{
-			// Each subsequent section has an index that starts after the last one
-			// note the NumTriangles*3 - this is because indices are sent to the renderer in a flat array
-			TmpSections[SectionElement].FirstIndex = TmpSections[SectionElement - 1].FirstIndex + TmpSections[SectionElement - 1].NumTriangles * 3;
-		}
-
-		TmpSections[SectionElement].MaxVertexIndex = NumElements(FGeometryCollection::VerticesGroup) - 1;
-	}
-
-	// remap indices so the materials appear to be grouped
-	RetIndices.AddUninitialized(InputIndices.Num());
-	int Idx = 0;
-	for (int Section = 0; Section < TmpSections.Num(); Section++)
-	{
-		for (int FaceElement = 0; FaceElement < InputIndices.Num(); FaceElement++)
-		{
-			int32 ID = (MaterialID)[BaseMeshOriginalIndicesIndex[FaceElement]];
-
-			if (Section == ID)
-			{
-				RetIndices[Idx++] = InputIndices[FaceElement];				
-			}
-		}
-	}
-
-	// if a material group no longer has any triangles in it then add material section for removal
-	RetSections.Reserve(TmpSections.Num());
-	for (int SectionElement = 0; SectionElement < TmpSections.Num(); SectionElement++)
-	{
-		if (TmpSections[SectionElement].NumTriangles > 0)
-		{
-			RetSections.Push(TmpSections[SectionElement]);
-		}
-	}
-
-	return MoveTemp(RetSections);
+	return FGeometryCollectionSection::BuildMeshSections(*this, InputIndices, BaseMeshOriginalIndicesIndex, RetIndices);
 }
 
 
@@ -2074,61 +2009,5 @@ void FGeometryCollection::UpdateOldAttributeNames()
 	this->RemoveGroup("Structure");
 }
 
-FGeometryCollectionMeshFacade::FGeometryCollectionMeshFacade(FManagedArrayCollection& InCollection)
-	: Vertex(InCollection, "Vertex", FGeometryCollection::VerticesGroup)
-	, TangentU(InCollection, "TangentU", FGeometryCollection::VerticesGroup)
-	, TangentV(InCollection, "TangentV", FGeometryCollection::VerticesGroup)
-	, Normal(InCollection, "Normal", FGeometryCollection::VerticesGroup)
-	, UVs(InCollection, "UVs", FGeometryCollection::VerticesGroup)
-	, Color(InCollection, "Color", FGeometryCollection::VerticesGroup)
-	, BoneMap(InCollection, "BoneMap", FGeometryCollection::VerticesGroup)
-	, VertexStart(InCollection, "VertexStart", FGeometryCollection::GeometryGroup)
-	, VertexCount(InCollection, "VertexCount", FGeometryCollection::GeometryGroup)
-	, Indices(InCollection, "Indices", FGeometryCollection::FacesGroup)
-	, Visible(InCollection, "Visible", FGeometryCollection::FacesGroup)
-	, MaterialIndex(InCollection, "MaterialIndex", FGeometryCollection::FacesGroup)
-	, MaterialID(InCollection, "MaterialID", FGeometryCollection::FacesGroup)
-	, FaceStart(InCollection, "FaceStart", FGeometryCollection::GeometryGroup)
-	, FaceCount(InCollection, "FaceCount", FGeometryCollection::GeometryGroup)
-{
-}
 
-bool FGeometryCollectionMeshFacade::IsValid() const
-{
-	return Vertex.IsValid()
-		&& TangentU.IsValid()
-		&& TangentV.IsValid()
-		&& Normal.IsValid()
-		&& UVs.IsValid()
-		&& Color.IsValid()
-		&& BoneMap.IsValid()
-		&& VertexStart.IsValid()
-		&& VertexCount.IsValid()
-		&& Indices.IsValid()
-		&& Visible.IsValid()
-		&& MaterialIndex.IsValid()
-		&& MaterialID.IsValid()
-		&& FaceStart.IsValid()
-		&& FaceCount.IsValid()
-	;
-}
-
-void FGeometryCollectionMeshFacade::AddAttributes()
-{
-	Vertex.Add();
-	TangentU.Add();
-	TangentV.Add();
-	Normal.Add();
-	UVs.Add();
-	Color.Add();
-	BoneMap.Add();
-	VertexStart.Add();
-	VertexCount.Add();
-	Indices.Add();
-	Visible.Add();
-	MaterialIndex.Add();
-	MaterialID.Add();
-	FaceStart.Add();
-	FaceCount.Add();
-}
 

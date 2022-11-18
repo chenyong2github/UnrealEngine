@@ -117,9 +117,9 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 		{
 			if (const FFleshCollection* Rest = FleshAsset->GetCollection())
 			{
-				if (FTransformSource::HasFacade(Rest))
+				FTransformSource TransformSource(*Rest);
+				if (TransformSource.IsValid())
 				{
-
 					TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
 					GetOwner()->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
 
@@ -134,7 +134,7 @@ UDeformablePhysicsComponent::FDataMapValue UFleshComponent::NewDeformableData()
 							{
 								if (const USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 								{
-									TSet<int32> Roots = FTransformSource::GetTransformSource(Rest, Skeleton->GetName(), Skeleton->GetGuid().ToString());
+									TSet<int32> Roots = TransformSource.GetTransformSource(Skeleton->GetName(), Skeleton->GetGuid().ToString());
 									if (!Roots.IsEmpty() && ensureMsgf(Roots.Num() == 1, TEXT("Error: Only supports a single root per skeleton.(%s)"), *Skeleton->GetName()))
 									{
 										TArray<FTransform> ComponentLocalPose;

@@ -7,68 +7,85 @@
 #include "GeometryCollection/Facades/CollectionKinematicBindingFacade.h"
 #include "GeometryCollection/GeometryCollection.h"
 
-namespace Chaos::Facades
+namespace GeometryCollection::Facades
 {
 	// Attributes
 	const FName FKinematicBindingFacade::KinematicGroup("Kinematics");
 	const FName FKinematicBindingFacade::KinematicBoneBindingIndex("Binding");
 	const FName FKinematicBindingFacade::KinematicBoneBindingToGroup("BindingToGroup");
 
+	FKinematicBindingFacade::FKinematicBindingFacade(FManagedArrayCollection & InCollection)
+		: ConstCollection(InCollection)
+		, Collection(&InCollection)
+		, KinemaitcBoneBindingAttribute(InCollection, KinematicBoneBindingIndex, KinematicGroup)
+		, KinemaitcBoneBindingToGroupAttribute(InCollection, KinematicBoneBindingToGroup, KinematicGroup)
+	{}
 
-	void FKinematicBindingFacade::Init()
+	FKinematicBindingFacade::FKinematicBindingFacade(const FManagedArrayCollection& InCollection)
+		: ConstCollection(InCollection)
+		, Collection(nullptr)
+		, KinemaitcBoneBindingAttribute(InCollection, KinematicBoneBindingIndex, KinematicGroup)
+		, KinemaitcBoneBindingToGroupAttribute(InCollection, KinematicBoneBindingToGroup, KinematicGroup)
+	{}
+
+	bool FKinematicBindingFacade::IsValid() const
 	{
+		return KinemaitcBoneBindingAttribute.IsValid() && KinemaitcBoneBindingToGroupAttribute.IsValid();
+	}
+
+	void FKinematicBindingFacade::DefineSchema()
+	{
+		check(!IsConst());
 		FName SelectionGroup1 = FName(GeometryCollection::Facades::FSelectionFacade::BoundGroup.ToString() + "_" + FGeometryCollection::VerticesGroup.ToString());
-		FManagedArrayCollection::FConstructionParameters BindingGroupDependency(SelectionGroup1);
-
-		// Kinematic Bindings
-		Collection.AddAttribute<int32>(FKinematicBindingFacade::KinematicBoneBindingIndex, FKinematicBindingFacade::KinematicGroup, BindingGroupDependency);
-		Collection.AddAttribute<FString>(FKinematicBindingFacade::KinematicBoneBindingToGroup, FKinematicBindingFacade::KinematicGroup);
+		KinemaitcBoneBindingAttribute.Add(ManageArrayAccessor::EPersistencePolicy::MakePersistent,SelectionGroup1);
+		KinemaitcBoneBindingToGroupAttribute.Add();
 	}
 
-	FKinematicBindingFacade::FBindingKey FKinematicBindingFacade::SetBoneBindings(FManagedArrayCollection* InCollection, const int32 InBoneIndex, const TArray<int32>& InBoneVerts, const TArray<float>& InBoneWeights)
+	FKinematicBindingFacade::FBindingKey 
+	FKinematicBindingFacade::SetBoneBindings(const int32 InBoneIndex, const TArray<int32>& InBoneVerts, const TArray<float>& InBoneWeights)
 	{
-		return GeometryCollection::Facades::FSelectionFacade::AddSelection(InCollection, InBoneIndex, InBoneVerts, InBoneWeights, FGeometryCollection::VerticesGroup);
+		check(!IsConst());
+		return GeometryCollection::Facades::FSelectionFacade(*Collection).AddSelection(InBoneIndex, InBoneVerts, InBoneWeights, FGeometryCollection::VerticesGroup);
 	}
 
-	void FKinematicBindingFacade::GetBoneBindings(const FManagedArrayCollection* InCollection, const FKinematicBindingFacade::FBindingKey& Key, int32& OutBoneIndex, TArray<int32>& OutBoneVerts, TArray<float>& OutBoneWeights)
+	void FKinematicBindingFacade::GetBoneBindings(const FKinematicBindingFacade::FBindingKey& Key, int32& OutBoneIndex, TArray<int32>& OutBoneVerts, TArray<float>& OutBoneWeights) const
 	{
-		GeometryCollection::Facades::FSelectionFacade::GetSelection(InCollection, Key, OutBoneIndex, OutBoneVerts, OutBoneWeights);
+		GeometryCollection::Facades::FSelectionFacade(ConstCollection).GetSelection(Key, OutBoneIndex, OutBoneVerts, OutBoneWeights);
 	}
 
 
-	int32 FKinematicBindingFacade::AddKinematicBinding(FManagedArrayCollection* InCollection, const FKinematicBindingFacade::FBindingKey& Key)
+	int32 FKinematicBindingFacade::AddKinematicBinding(const FKinematicBindingFacade::FBindingKey& Key)
 	{
-		if (InCollection && InCollection->HasGroup(KinematicGroup))
+		check(!IsConst());
+		if (IsValid())
 		{
-			int32 NewIndex = InCollection->AddElements(1, KinematicGroup);
-			TManagedArray<int32>* KinemaitcBoneBinding = InCollection->FindAttribute<int32>(KinematicBoneBindingIndex, KinematicGroup);
-			TManagedArray<FString>* KinemaitcBoneBindingToGroup = InCollection->FindAttribute<FString>(KinematicBoneBindingToGroup, KinematicGroup);
-
-			(*KinemaitcBoneBinding)[NewIndex] = Key.Index;
-			(*KinemaitcBoneBindingToGroup)[NewIndex] = Key.GroupName.ToString();
+			int32 NewIndex = KinemaitcBoneBindingAttribute.AddElements(1);
+			TManagedArray<int32>& KinemaitcBoneBinding = KinemaitcBoneBindingAttribute.Modify();
+			TManagedArray<FString>& KinemaitcBoneBindingToGroup = KinemaitcBoneBindingToGroupAttribute.Modify();
+			
+			KinemaitcBoneBinding[NewIndex] = Key.Index;
+			KinemaitcBoneBindingToGroup[NewIndex] = Key.GroupName.ToString();
 
 			return NewIndex;
 		}
 		return INDEX_NONE;
 	}
 
-	FKinematicBindingFacade::FBindingKey FKinematicBindingFacade::GetKinematicBindingKey(const FManagedArrayCollection* InCollection, int Index)
+	FKinematicBindingFacade::FBindingKey FKinematicBindingFacade::GetKinematicBindingKey(int Index) const
 	{
 		FKinematicBindingFacade::FBindingKey Key;
-		if (InCollection && InCollection->HasGroup(KinematicGroup))
+		if (IsValid())
 		{
-			const TManagedArray<int32>* KinemaitcBoneBinding = InCollection->FindAttribute<int32>(KinematicBoneBindingIndex, KinematicGroup);
-			const TManagedArray<FString>* KinemaitcBoneBindingToGroup = InCollection->FindAttribute<FString>(KinematicBoneBindingToGroup, KinematicGroup);
-			if (KinemaitcBoneBinding && KinemaitcBoneBindingToGroup)
+			const TManagedArray<int32>& KinemaitcBoneBinding = KinemaitcBoneBindingAttribute.Get();
+			const TManagedArray<FString>& KinemaitcBoneBindingToGroup = KinemaitcBoneBindingToGroupAttribute.Get();
+
+			if (0 <= Index && Index < ConstCollection.NumElements(KinematicGroup))
 			{
-				if (0 <= Index && Index < InCollection->NumElements(KinematicGroup))
-				{
-					Key.GroupName = FName((*KinemaitcBoneBindingToGroup)[Index]);
-					Key.Index = (*KinemaitcBoneBinding)[Index];
-				}
+				Key.GroupName = FName(KinemaitcBoneBindingToGroup[Index]);
+				Key.Index = KinemaitcBoneBinding[Index];
 			}
+
 		}
 		return Key;
 	}
-
 }

@@ -1068,9 +1068,9 @@ void FGetBoundingBoxesDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		const TManagedArray<FBox>* BoundingBoxesArr = GeometryCollection::Facades::FBoundsFacade::GetBoundingBoxes(InCollection);
+		const TManagedArray<FBox>& BoundingBoxesArr = GeometryCollection::Facades::FBoundsFacade(InCollection).GetBoundingBoxes();
 
-		SetValue<TArray<FBox>>(Context, BoundingBoxesArr->GetConstArray(), &BoundingBoxes);
+		SetValue<TArray<FBox>>(Context, BoundingBoxesArr.GetConstArray(), &BoundingBoxes);
 	}
 }
 
@@ -1081,12 +1081,12 @@ void FGetCentroidsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		const TManagedArray<FBox>* BoundingBoxes = GeometryCollection::Facades::FBoundsFacade::GetBoundingBoxes(InCollection);
+		const TManagedArray<FBox>& BoundingBoxes = GeometryCollection::Facades::FBoundsFacade(InCollection).GetBoundingBoxes();
 
 		TArray<FVector> CentroidsArr;
-		for (int32 Idx = 0; Idx < BoundingBoxes->Num(); ++Idx)
+		for (int32 Idx = 0; Idx < BoundingBoxes.Num(); ++Idx)
 		{
-			const FBox& BoundingBox = (*BoundingBoxes)[Idx];
+			const FBox& BoundingBox = BoundingBoxes[Idx];
 			if (BoundingBox.IsValid)
 			{
 				if (InTransformSelection.Num() > 0)

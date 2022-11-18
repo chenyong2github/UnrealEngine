@@ -104,7 +104,7 @@ int32 FInternalSurfaceMaterials::GetDefaultMaterialIDForGeometry(const FGeometry
 	return InternalMaterialID;
 }
 
-void FInternalSurfaceMaterials::SetUVScaleFromCollection(const FGeometryCollectionMeshFacade& CollectionMesh, int32 GeometryIdx)
+void FInternalSurfaceMaterials::SetUVScaleFromCollection(const GeometryCollection::Facades::FMeshFacade& CollectionMesh, int32 GeometryIdx)
 {
 	const auto& VertexArray = CollectionMesh.Vertex.Get();
 	const auto& UVsArray = CollectionMesh.UVs.Get();
@@ -756,7 +756,7 @@ int32 CutMultipleWithMultiplePlanes(
 	int32 OrigNumGeom = Collection.FaceCount.Num();
 	int32 CurNumGeom = OrigNumGeom;
 
-	FGeometryCollectionMeshFacade CollectionMesh(Collection);
+	GeometryCollection::Facades::FMeshFacade CollectionMesh(Collection);
 	if (!CollectionMesh.IsValid())
 	{
 		return -1;

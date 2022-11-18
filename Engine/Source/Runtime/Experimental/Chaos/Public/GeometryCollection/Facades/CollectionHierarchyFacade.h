@@ -20,11 +20,14 @@ namespace Chaos::Facades
 			MustBePersistent
 		};
 
-	public:
 		FCollectionHierarchyFacade(FManagedArrayCollection& InCollection);
+		FCollectionHierarchyFacade(const FManagedArrayCollection& InCollection);
 
 		/** Valid if parent and children arrays are available */
 		bool IsValid() const;
+
+		/** Is this facade const access */
+		bool IsConst() const { return ParentAttribute.IsConst(); }
 
 		/** whether the level attribute is available */
 		bool HasLevelAttribute() const;

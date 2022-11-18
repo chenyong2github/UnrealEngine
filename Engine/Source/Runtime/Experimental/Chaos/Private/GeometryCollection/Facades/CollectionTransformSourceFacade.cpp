@@ -6,84 +6,77 @@
 
 #include "GeometryCollection/Facades/CollectionTransformSourceFacade.h"
 #include "GeometryCollection/TransformCollection.h"
+#include "GeometryCollection/ManagedArrayAccessor.h"
 
 namespace GeometryCollection::Facades
 {
-
 	// Groups 
-	const FName FTransformSource::TransformSourceGroup = "TransformSource";
-
+	const FName FTransformSource::TransformSourceGroupName = "TransformSource";
 
 	// Attributes
-	const FName FTransformSource::SourceNameAttribute = "Name";
-	const FName FTransformSource::SourceGuidAttribute = "GuidID";
-	const FName FTransformSource::SourceRootsAttribute = "Roots";
+	const FName FTransformSource::SourceNameAttributeName = "Name";
+	const FName FTransformSource::SourceGuidAttributeName = "GuidID";
+	const FName FTransformSource::SourceRootsAttributeName = "Roots";
 
-	FTransformSource::FTransformSource(FManagedArrayCollection* InCollection)
-		: Self(InCollection)
-	{
-		DefineSchema(Self);
-	}
+	FTransformSource::FTransformSource(FManagedArrayCollection& InCollection)
+		: SourceNameAttribute(InCollection, SourceNameAttributeName, TransformSourceGroupName)
+		, SourceGuidAttribute(InCollection, SourceGuidAttributeName, TransformSourceGroupName)
+		, SourceRootsAttribute(InCollection, SourceRootsAttributeName, TransformSourceGroupName, FTransformCollection::TransformGroup)
+	{}
 
+	FTransformSource::FTransformSource(const FManagedArrayCollection& InCollection)
+		: SourceNameAttribute(InCollection, SourceNameAttributeName, TransformSourceGroupName)
+		, SourceGuidAttribute(InCollection, SourceGuidAttributeName, TransformSourceGroupName)
+		, SourceRootsAttribute(InCollection, SourceRootsAttributeName, TransformSourceGroupName, FTransformCollection::TransformGroup)
+	{}
 	//
 	//  Initialization
 	//
 
-	void FTransformSource::DefineSchema(FManagedArrayCollection* Collection)
+	void FTransformSource::DefineSchema()
 	{
-		FManagedArrayCollection::FConstructionParameters TransformDependency(FTransformCollection::TransformGroup);
-
-		if (!Collection->HasGroup(TransformSourceGroup))
-		{
-			Collection->AddGroup(TransformSourceGroup);
-		}
-		Collection->AddAttribute<FString>(SourceNameAttribute, TransformSourceGroup);
-		Collection->AddAttribute<FString>(SourceGuidAttribute, TransformSourceGroup);
-		Collection->AddAttribute<TSet<int32>>(SourceRootsAttribute, TransformSourceGroup, TransformDependency);
+		check(!IsConst());
+		SourceNameAttribute.Add();
+		SourceGuidAttribute.Add();
+		SourceRootsAttribute.Add();
 	}
 
-	bool FTransformSource::HasFacade(const FManagedArrayCollection* Collection)
+	bool FTransformSource::IsValid() const
 	{
-		return Collection->HasGroup(TransformSourceGroup) &&
-			Collection->FindAttribute<FString>(SourceNameAttribute, TransformSourceGroup) &&
-			Collection->FindAttribute<FString>(SourceGuidAttribute, TransformSourceGroup) &&
-			Collection->FindAttribute<TSet<int32>>(SourceRootsAttribute, TransformSourceGroup);
+		return SourceNameAttribute.IsValid() && SourceGuidAttribute.IsValid() && SourceRootsAttribute.IsValid(); 
 	}
 
 	//
 	//  Add Data
 	//
-	void FTransformSource::AddTransformSource(FManagedArrayCollection* Collection, const FString& InName, const FString& InGuid, const TSet<int32>& InRoots)
+	void FTransformSource::AddTransformSource(const FString& InName, const FString& InGuid, const TSet<int32>& InRoots)
 	{
-		DefineSchema(Collection);
+		check(!IsConst());
+		DefineSchema();
 
-		int Idx = Collection->AddElements(1, TransformSourceGroup);
-		Collection->ModifyAttribute<FString>(FTransformSource::SourceNameAttribute, TransformSourceGroup)[Idx] = InName;
-		Collection->ModifyAttribute<FString>(FTransformSource::SourceGuidAttribute, TransformSourceGroup)[Idx] = InGuid;
-		Collection->ModifyAttribute<TSet<int32>>(FTransformSource::SourceRootsAttribute, TransformSourceGroup)[Idx] = InRoots;
+		int Idx = SourceNameAttribute.AddElements(1);
+		SourceNameAttribute.Modify()[Idx] = InName;
+		SourceGuidAttribute.Modify()[Idx] = InGuid;
+		SourceRootsAttribute.Modify()[Idx] = InRoots;
 	}
 
 	//
 	//  Get Data
 	//
-
-
-	TSet<int32> FTransformSource::GetTransformSource(const FManagedArrayCollection* Collection, const FString& InName, const FString& InGuid)
+	TSet<int32> FTransformSource::GetTransformSource(const FString& InName, const FString& InGuid) const
 	{
-		if (Collection->HasGroup(TransformSourceGroup))
+		if (IsValid())
 		{
-			const TManagedArray<TSet<int32>>* Roots = Collection->FindAttribute<TSet<int32>>(SourceRootsAttribute, TransformSourceGroup);
-			const TManagedArray<FString>* Guids = Collection->FindAttribute<FString>(SourceGuidAttribute, TransformSourceGroup);
-			const TManagedArray<FString>* Names = Collection->FindAttribute<FString>(SourceNameAttribute, TransformSourceGroup);
-			if (Roots && Guids && Names)
+			const TManagedArray<TSet<int32>>& Roots = SourceRootsAttribute.Get();
+			const TManagedArray<FString>& Guids = SourceGuidAttribute.Get();
+			const TManagedArray<FString>&Names = SourceNameAttribute.Get();
+
+			int32 GroupNum = SourceNameAttribute.Num();
+			for (int i = 0; i < GroupNum; i++)
 			{
-				int32 GroupNum = Collection->NumElements(TransformSourceGroup);
-				for (int i = 0; i < GroupNum; i++)
+				if (Guids[i] == InGuid && Names[i].Equals(InName))
 				{
-					if ((*Guids)[i]==InGuid && (*Names)[i].Equals(InName))
-					{
-						return (*Roots)[i];
-					}
+					return Roots[i];
 				}
 			}
 		}

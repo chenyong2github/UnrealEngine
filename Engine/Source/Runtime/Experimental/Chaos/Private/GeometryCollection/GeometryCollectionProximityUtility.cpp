@@ -537,7 +537,7 @@ void FGeometryCollectionProximityUtility::CopyProximityToConnectionGraph()
 
 	const TManagedArray<TSet<int32>>& Proximity = Collection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 	GeometryCollection::Facades::FCollectionConnectionGraphFacade ConnectionsFacade(*Collection);
-	ConnectionsFacade.AddAttributes();
+	ConnectionsFacade.DefineSchema();
 	TManagedArray<TSet<int32>>& Connections = ConnectionsFacade.ConnectionsAttribute.Modify();
 	Connections.Fill(TSet<int32>());
 

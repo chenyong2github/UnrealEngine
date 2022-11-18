@@ -104,23 +104,27 @@ void FKinematicTetrahedralBindingsDataflowNode::Evaluate(Dataflow::FContext& Con
 						BoundWeights.Init(float(1), BoundVerts.Num());
 						
 						//get local coords of bound verts
-						typedef Chaos::Facades::FKinematicBindingFacade Kinematics;
-						Kinematics::FBindingKey Binding = Kinematics::SetBoneBindings(&InCollection, b, BoundVerts, BoundWeights);
-						TManagedArray<TArray<FVector3f>>& LocalPos = InCollection.AddAttribute<TArray<FVector3f>>("LocalPosition", Binding.GroupName);
-						Kinematics::AddKinematicBinding(&InCollection, Binding);
+						typedef GeometryCollection::Facades::FKinematicBindingFacade FKinematics;
+						FKinematics Kinematics(InCollection); Kinematics.DefineSchema();
+						if (Kinematics.IsValid())
+						{
+							FKinematics::FBindingKey Binding = Kinematics.SetBoneBindings(b, BoundVerts, BoundWeights);
+							TManagedArray<TArray<FVector3f>>& LocalPos = InCollection.AddAttribute<TArray<FVector3f>>("LocalPosition", Binding.GroupName);
+							Kinematics.AddKinematicBinding(Binding);
 
-						auto FloatVert = [](FVector3d V) { return FVector3f(V.X, V.Y, V.Z); };
-						auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
-						LocalPos[Binding.Index].SetNum(BoundVerts.Num());
-						for (int32 i = 0; i < BoundVerts.Num(); i++)
-						{	
-							FVector3f Temp = (*Vertex)[BoundVerts[i]];
-							LocalPos[Binding.Index][i] = FloatVert(ComponentPose[b].InverseTransformPosition(DoubleVert(Temp)));
+							auto FloatVert = [](FVector3d V) { return FVector3f(V.X, V.Y, V.Z); };
+							auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+							LocalPos[Binding.Index].SetNum(BoundVerts.Num());
+							for (int32 i = 0; i < BoundVerts.Num(); i++)
+							{
+								FVector3f Temp = (*Vertex)[BoundVerts[i]];
+								LocalPos[Binding.Index][i] = FloatVert(ComponentPose[b].InverseTransformPosition(DoubleVert(Temp)));
+							}
 						}
 					}
 				}
 			}
-			GeometryCollection::Facades::FVertexBoneWeightsFacade::AddBoneWeightsFromKinematicBindings(&InCollection);
+			GeometryCollection::Facades::FVertexBoneWeightsFacade(InCollection).AddBoneWeightsFromKinematicBindings();
 		}
 
 		SetValue<DataType>(Context, InCollection, &Collection);
@@ -173,8 +177,8 @@ void FKinematicInitializationDataflowNode::Evaluate(Dataflow::FContext& Context,
 							}
 						}
 					}
-					typedef Chaos::Facades::FKinematicBindingFacade Kinematics;
-					Kinematics::AddKinematicBinding(&InCollection, Kinematics::SetBoneBindings(&InCollection, Index, BoundVerts, BoundWeights));
+					GeometryCollection::Facades::FKinematicBindingFacade Kinematics(InCollection);
+					Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(Index, BoundVerts, BoundWeights));
 				}
 			}
 		}
@@ -226,8 +230,8 @@ void FSetVerticesKinematicDataflowNode::Evaluate(Dataflow::FContext& Context, co
 			}
 			if (BoundVerts.Num() > 0)
 			{
-				typedef Chaos::Facades::FKinematicBindingFacade Kinematics;
-				Kinematics::AddKinematicBinding(&InCollection, Kinematics::SetBoneBindings(&InCollection, INDEX_NONE, BoundVerts, BoundWeights));
+				GeometryCollection::Facades::FKinematicBindingFacade Kinematics(InCollection);
+				Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(INDEX_NONE, BoundVerts, BoundWeights));
 			}	
 		}
 		SetValue<DataType>(Context, InCollection, &Collection);

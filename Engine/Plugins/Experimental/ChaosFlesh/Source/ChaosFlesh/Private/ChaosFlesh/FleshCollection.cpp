@@ -35,7 +35,7 @@ void FFleshCollection::Construct()
 	for (float& m : Mass) { m = (float)1; }
 
 	// Kinematic Bindings
-	Chaos::Facades::FKinematicBindingFacade(*this).Init();
+	GeometryCollection::Facades::FKinematicBindingFacade(*this).DefineSchema();
 }
 
 

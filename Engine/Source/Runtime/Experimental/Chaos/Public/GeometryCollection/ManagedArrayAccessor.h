@@ -19,52 +19,95 @@ template <typename T>
 struct TManagedArrayAccessor
 {
 public:
-	TManagedArrayAccessor(FManagedArrayCollection& InCollection, const FName& AttributeName, const FName& AttributeGroup)
-		: Collection(InCollection)
-		, Name(AttributeName)
-		, Group(AttributeGroup)
-	{
-		AttributeArray = InCollection.FindAttributeTyped<T>(AttributeName, AttributeGroup);
+	TManagedArrayAccessor(FManagedArrayCollection& InCollection, const FName& InAttributeName, const FName& InAttributeGroup,  const FName& InGroupDependency = FName(""))
+		: ConstCollection(InCollection)
+		, Collection(&InCollection)
+		, Name(InAttributeName)
+		, Group(InAttributeGroup)
+		, GroupDependency(InGroupDependency)
+		, AttributeArray(InCollection.FindAttributeTyped<T>(InAttributeName, InAttributeGroup))
+		, ConstAttributeArray(AttributeArray)
+	{}
 
+	TManagedArrayAccessor(const FManagedArrayCollection& InCollection, const FName& InAttributeName, const FName& InAttributeGroup, const FName& InGroupDependency = FName(""))
+		: ConstCollection(InCollection)
+		, Collection(nullptr)
+		, Name(InAttributeName)
+		, Group(InAttributeGroup)
+		, GroupDependency(InGroupDependency)
+		, AttributeArray(nullptr)
+		, ConstAttributeArray(InCollection.FindAttributeTyped<T>(InAttributeName, InAttributeGroup))
+	{}
+
+	bool IsConst() const { return Collection == nullptr; }
+
+	bool IsValid() const { return ConstAttributeArray != nullptr; }
+
+	bool IsPersistent() const { return ConstCollection.IsAttributePersistent(Name, Group); }
+
+	int32 AddElements(int32 NumElements) const 
+	{ 
+		check(!IsConst());
+		return Collection->AddElements(NumElements, Group);
 	}
-	bool IsValid() const { return AttributeArray != nullptr; }
-
-	bool IsPersistent() const { return Collection.IsAttributePersistent(Name, Group); }
 
 	/** get the attribute for read only */
 	const TManagedArray<T>& Get() const
 	{
 		check(IsValid());
-		return *AttributeArray;
+		return *ConstAttributeArray;
+	}
+
+	/** find the attribute for read only */
+	const TManagedArray<T>* Find() const
+	{
+		return ConstAttributeArray;
 	}
 
 	/** get the attribute for modification */
-	TManagedArray<T>& Modify() const
+	TManagedArray<T>& Modify() 
 	{
-		check(IsValid());
+		check(AttributeArray!=nullptr && !IsConst());
 		AttributeArray->MarkDirty();
 		return *AttributeArray;
 	}
 
 	/** add the attribute if it does not exists yet */
-	TManagedArray<T>& Add(ManageArrayAccessor::EPersistencePolicy PersistencePolicy = ManageArrayAccessor::EPersistencePolicy::MakePersistent)
+	TManagedArray<T>& Add(ManageArrayAccessor::EPersistencePolicy PersistencePolicy = ManageArrayAccessor::EPersistencePolicy::MakePersistent,
+		FName InGroupDependency = FName(NAME_None))
 	{
+		check(!IsConst());
 		if (PersistencePolicy == ManageArrayAccessor::EPersistencePolicy::MakePersistent && !IsPersistent())
 		{
 			Remove();
 		}
-		const bool bSaved = (PersistencePolicy == ManageArrayAccessor::EPersistencePolicy::MakePersistent);
-		FManagedArrayCollection::FConstructionParameters Params(FName(), bSaved);
-		AttributeArray = &Collection.AddAttribute<T>(Name, Group, Params);
+
+		if (!Collection->HasGroup(Group))
+		{
+			Collection->AddGroup(Group);
+		}
+
+		FName LocalGroupDependency = GroupDependency;
+		if (!InGroupDependency.IsNone())
+		{
+			LocalGroupDependency = InGroupDependency;
+		}
+
+		bool bSaved = (PersistencePolicy == ManageArrayAccessor::EPersistencePolicy::MakePersistent);
+		FManagedArrayCollection::FConstructionParameters Params(LocalGroupDependency, bSaved);
+		ConstAttributeArray = AttributeArray = &Collection->AddAttribute<T>(Name, Group, Params);
 		return *AttributeArray;
 	}
 
 	/** add and fill the attribute if it does not exist yet */
-	void AddAndFill(const T& Value, ManageArrayAccessor::EPersistencePolicy PersistencePolicy = ManageArrayAccessor::EPersistencePolicy::MakePersistent)
+	void AddAndFill(const T& Value, 
+		ManageArrayAccessor::EPersistencePolicy PersistencePolicy = ManageArrayAccessor::EPersistencePolicy::MakePersistent,
+		FName InGroupDependency = FName(NAME_None))
 	{
-		if (!Collection.HasAttribute(Name, Group))
+		check(!IsConst());
+		if (!Collection->HasAttribute(Name, Group))
 		{
-			Add(PersistencePolicy);
+			Add(PersistencePolicy, InGroupDependency);
 			AttributeArray->Fill(Value);
 		}
 	}
@@ -72,6 +115,7 @@ public:
 	/** Fill the attribute with a specific value */
 	void Fill(const T& Value)
 	{
+		check(!IsConst());
 		if (AttributeArray)
 		{
 			AttributeArray->Fill(Value);
@@ -81,18 +125,32 @@ public:
 	/** copy from another attribute ( create if necessary ) */
 	void Copy(const TManagedArrayAccessor<T>& FromAttribute )
 	{
-		Collection.CopyAttribute(FromAttribute.Collection, Name, Group);
+		check(!IsConst());
+		Collection->CopyAttribute(*FromAttribute.Collection, Name, Group);
 	}
 
 	void Remove()
 	{
-		Collection.RemoveAttribute(Name, Group);
-		AttributeArray = nullptr;
+		check(!IsConst());
+		Collection->RemoveAttribute(Name, Group);
+		ConstAttributeArray = AttributeArray = nullptr;
+	}
+
+	int32 Num() const
+	{
+		return ConstCollection.NumElements(Group);
 	}
 
 private:
-	FManagedArrayCollection& Collection;
+
+	// const collection will be a null pointer, 
+	// while non-const will be valid.
+	const FManagedArrayCollection& ConstCollection;
+	FManagedArrayCollection* Collection = nullptr;
+
 	FName Name;
 	FName Group;
+	FName GroupDependency;
 	TManagedArray<T>* AttributeArray;
+	const TManagedArray<T>* ConstAttributeArray;
 };

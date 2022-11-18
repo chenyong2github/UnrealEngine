@@ -17,67 +17,41 @@ namespace GeometryCollection::Facades
 	* 
 	* Defines common API for calculating the bounding box on a collection
 	* 
-	* Usage:
-	*    FBoundsFacade::UpdateBoundingBox(this);
-	* 
-	* Then arrays can be accessed later by:
-	*	const TManagedArray< FIntVector >* FaceIndices = FRenderingFacade::GetIndices(this);
-	*	const TManagedArray< FVector3f >* Vertices = FRenderingFacade::GetVertices(this);
-	*
-	* The following attributes are created on the collection:
-	*
-	*	- FindAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
-	*	- FindAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-	* 
 	*/
 	class CHAOS_API FBoundsFacade
 	{
-		FManagedArrayCollection& Self;
-
 	public:
-
-		// Attributes
-		static const FName AAAAttribute;
 
 		/**
 		* FBoundsFacade Constuctor
-		* @param VertixDependencyGroup : GroupName the index attribute is dependent on.
+		* @param FManagedArrayCollection : Collection input
 		*/
 		FBoundsFacade(FManagedArrayCollection& InSelf);
+		FBoundsFacade(const FManagedArrayCollection& InSelf);
 
-		/**
-		*  Create the facade.
-		*/
-		static void DefineSchema(FManagedArrayCollection& InCollection);
-		void DefineSchema() { return DefineSchema(Self); }
+		/** Create the facade attributes. */
+		void DefineSchema();
 
+		/** Is the facade defined constant. */
+		bool IsConst() const { return BoundingBoxAttribute.IsConst(); }
 
-		/**
-		*  Is the Facade defined on the collection?
-		*/
-		static bool IsValid(const FManagedArrayCollection& InCollection);
-		bool IsValid() { return IsValid(Self); }
+		/** Is the Facade defined on the collection? */
+		bool IsValid() const;		
 
+		/** UpdateBoundingBox */
+		void UpdateBoundingBox(bool bSkipCheck = false);
 
-		/**
-		*  Does it support rendering surfaces. 
-		*/
-		static void UpdateBoundingBox(FManagedArrayCollection& InCollection, bool bSkipCheck = false);
-		void UpdateBoundingBox(bool bSkipCheck = false) { UpdateBoundingBox(Self); }
+		/** BoundingBox access */
+		const TManagedArray< FBox >& GetBoundingBoxes() const { return BoundingBoxAttribute.Get(); }
 
-
-		/**
-		* Return the vertex positions from the collection. Null if not initialized.
-		* @param FManagedArrayCollection : Collection
-		*/
-		static const TManagedArray< FBox >* GetBoundingBoxes(const FManagedArrayCollection& InCollection);
-		const TManagedArray< FBox >* GetBoundingBoxes() const { return GetBoundingBoxes(Self); }
+		/** TransformToGeometryIndex Access */
+		const TManagedArray< int32 >& GetTransformToGeometryIndex() const { return TransformToGeometryIndexAttribute.Get(); }
 
 private:
-		TManagedArrayAccessor<FBox> BoundingBox;
-		TManagedArrayAccessor<FVector3f> Vertex;
-		TManagedArrayAccessor<int32> BoneMap;
-		TManagedArrayAccessor<int32> TransformToGeometryIndex;
+		TManagedArrayAccessor<FBox> BoundingBoxAttribute;
+		TManagedArrayAccessor<FVector3f> VertexAttribute;
+		TManagedArrayAccessor<int32> BoneMapAttribute;
+		TManagedArrayAccessor<int32> TransformToGeometryIndexAttribute;
 	};
 
 }

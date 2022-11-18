@@ -1213,7 +1213,7 @@ void FGeometryCollectionEngineConversion::AppendSkeleton(const USkeleton* InSkel
 		return;
 	}
 	FGeometryCollection::DefineTransformSchema(*InCollection);
-	GeometryCollection::Facades::FTransformSource TransformSourceFacade(InCollection);
+	GeometryCollection::Facades::FTransformSource TransformSourceFacade(*InCollection);
 
 	TManagedArray<FTransform>& Transform = InCollection->ModifyAttribute<FTransform>(FTransformCollection::TransformAttribute, FTransformCollection::TransformGroup);
 	TManagedArray<FLinearColor>& BoneColor = InCollection->ModifyAttribute<FLinearColor>("BoneColor", FTransformCollection::TransformGroup);
@@ -1247,7 +1247,7 @@ void FGeometryCollectionEngineConversion::AppendSkeleton(const USkeleton* InSkel
 		}
 
 		ensure(Roots.Num());
-		TransformSourceFacade.AddTransformSource(InCollection, InSkeleton->GetName(), InSkeleton->GetGuid().ToString(), Roots);
+		TransformSourceFacade.AddTransformSource(InSkeleton->GetName(), InSkeleton->GetGuid().ToString(), Roots);
 	}
 }
 

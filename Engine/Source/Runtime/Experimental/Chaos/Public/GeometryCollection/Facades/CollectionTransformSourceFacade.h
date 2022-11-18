@@ -4,6 +4,7 @@
 #include "Containers/UnrealString.h"
 #include "Containers/Array.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "GeometryCollection/ManagedArrayAccessor.h"
 
 namespace GeometryCollection::Facades
 {
@@ -30,33 +31,31 @@ namespace GeometryCollection::Facades
 	*/
 	class CHAOS_API FTransformSource
  	{
-		FManagedArrayCollection* Self;
-
 	public:
 
 		// groups
-		static const FName TransformSourceGroup;
+		static const FName TransformSourceGroupName;
 
 		// Attributes
-		static const FName SourceNameAttribute;
-		static const FName SourceGuidAttribute;
-		static const FName SourceRootsAttribute;
+		static const FName SourceNameAttributeName;
+		static const FName SourceGuidAttributeName;
+		static const FName SourceRootsAttributeName;
 
 		/**
 		* FSelectionFacade Constuctor
 		* @param VertixDependencyGroup : GroupName the index attribute is dependent on. 
 		*/
-		FTransformSource(FManagedArrayCollection* InSelf);
+		FTransformSource(FManagedArrayCollection& InSelf);
+		FTransformSource(const FManagedArrayCollection& InSelf);
 
-		/**
-		*  Create the facade.
-		*/
-		static void DefineSchema(FManagedArrayCollection* Self);
+		/** Create the facade. */
+		void DefineSchema();
 
-		/**
-		*  Is the Facade defined on the collection?
-		*/
-		static bool HasFacade(const FManagedArrayCollection* Collection);
+		/** Is the facade defined constant. */
+		bool IsConst() const { return SourceNameAttribute.IsConst(); }
+
+		/** Is the Facade defined on the collection? */
+		bool IsValid() const;
 
 		/**
 		* Add a transform root mapping.
@@ -64,16 +63,20 @@ namespace GeometryCollection::Facades
 		* @param Guid : Guid of the owner of the transform set.
 		* @param Roots : Root indices of the transform set.
 		*/
-		static void AddTransformSource(FManagedArrayCollection* Collection, const FString& Name, const FString& Guid, const TSet<int32>& Roots);
+		void AddTransformSource(const FString& Name, const FString& Guid, const TSet<int32>& Roots);
 
 		/**
 		* Query for root indices.  
 		* @param Name : Name of the owner of the transform set.  
 		* @param Guid : Guid of the owner of the transform set.
 		*/
-		static TSet<int32> GetTransformSource(const FManagedArrayCollection* Collection, const FString& Name, const FString& Guid);
+		TSet<int32> GetTransformSource(const FString& Name, const FString& Guid) const;
 
-
+	private:
+		TManagedArrayAccessor<FString> SourceNameAttribute;
+		TManagedArrayAccessor<FString> SourceGuidAttribute;
+		TManagedArrayAccessor< TSet<int32 > > SourceRootsAttribute;
+		
 	};
 
 }

@@ -109,7 +109,7 @@ void FDataflowEditorViewportClient::Draw(const FSceneView* View, FPrimitiveDrawI
 	Super::Draw(View, PDI);
 	if (bEnableDataflowClientDrawing)
 	{
-		GeometryCollection::Facades::FRenderingFacade Facade(&RenderCollection);
+		GeometryCollection::Facades::FRenderingFacade Facade(RenderCollection);
 		if (Facade.IsValid())
 		{
 			if (bRenderMesh)
@@ -169,7 +169,7 @@ void FDataflowEditorViewportClient::ReleaseRenderStructures()
 
 void FDataflowEditorViewportClient::RenderIntoStructures()
 {
-	GeometryCollection::Facades::FRenderingFacade Facade(&RenderCollection);
+	GeometryCollection::Facades::FRenderingFacade Facade(RenderCollection);
 	if (bEnableDataflowClientDrawing)
 	{
 		if (Facade.IsValid())
@@ -184,8 +184,8 @@ void FDataflowEditorViewportClient::RenderIntoStructures()
 			//        we still need to rely on Component rendering through
 			//        a scene proxy as the primary rendering path. 
 			{
-				const TManagedArray< FIntVector >& Indices = *Facade.GetIndices();
-				const TManagedArray< FVector3f >& Vertices = *Facade.GetVertices();
+				const TManagedArray< FIntVector >& Indices = Facade.GetIndices();
+				const TManagedArray< FVector3f >& Vertices = Facade.GetVertices();
 				if (Vertices.Num() && Indices.Num())
 				{
 					IndexBuffer.SetNum(Indices.Num() * 3);
@@ -237,7 +237,7 @@ void FDataflowEditorViewportClient::Tick(float DeltaSeconds)
 
 						if (Dataflow->GetRenderTargets().Num())
 						{
-							GeometryCollection::Facades::FRenderingFacade Facade(&RenderCollection);
+							GeometryCollection::Facades::FRenderingFacade Facade(RenderCollection);
 							for (const UDataflowEdNode* Target : Dataflow->GetRenderTargets())
 							{
 								Target->Render(Facade, Context);

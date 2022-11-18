@@ -54,7 +54,7 @@ void UDataflowRenderingComponent::UpdateLocalBounds()
 {
 	if (bBoundsNeedsUpdate)
 	{
-		GeometryCollection::Facades::FBoundsFacade::UpdateBoundingBox(RenderCollection);
+		GeometryCollection::Facades::FBoundsFacade(RenderCollection).UpdateBoundingBox();
 		bBoundsNeedsUpdate = false;
 	}
 }
@@ -95,7 +95,8 @@ void UDataflowRenderingComponent::RenderProceduralMesh()
 	if (bUpdateRender)
 	{
 		RenderCollection = FManagedArrayCollection();
-		GeometryCollection::Facades::FRenderingFacade Facade(&RenderCollection);
+		GeometryCollection::Facades::FRenderingFacade Facade(RenderCollection);
+		Facade.DefineSchema();
 
 		bool bNeedsRefresh = false;
 		if (Context && Dataflow)
@@ -107,9 +108,10 @@ void UDataflowRenderingComponent::RenderProceduralMesh()
 		}
 		bUpdateRender = false;
 	}
-		
+	
+
 	bool bCanRender = false;	
-	if (GeometryCollection::Facades::FRenderingFacade::IsValid(&RenderCollection))
+	if (GeometryCollection::Facades::FRenderingFacade(RenderCollection).IsValid())
 	{
 		int32 NumVertices = RenderCollection.NumElements(FGeometryCollection::VerticesGroup);
 		int32 NumFaces = RenderCollection.NumElements(FGeometryCollection::FacesGroup);

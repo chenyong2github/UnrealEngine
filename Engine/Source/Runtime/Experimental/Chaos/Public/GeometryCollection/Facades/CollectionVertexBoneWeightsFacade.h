@@ -3,8 +3,9 @@
 #pragma once
 #include "Containers/UnrealString.h"
 #include "Containers/Array.h"
-#include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/Facades/CollectionSelectionFacade.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
+#include "GeometryCollection/ManagedArrayAccessor.h"
 
 namespace GeometryCollection::Facades
 {
@@ -30,56 +31,46 @@ namespace GeometryCollection::Facades
 	*/
 	class CHAOS_API FVertexBoneWeightsFacade
 	{
-		FManagedArrayCollection* Self;
-
 	public:
 
 		// Attributes
-		static const FName IndexAttribute;
-		static const FName WeightAttribute;
+		static const FName BoneIndexAttributeName;
+		static const FName BoneWeightAttributeName;
 
 		/**
 		* FVertexBoneWeightsFacade Constuctor
-		* @param VertixDependencyGroup : GroupName the index attribute is dependent on.
 		*/
-		FVertexBoneWeightsFacade(FManagedArrayCollection* InSelf);
+		FVertexBoneWeightsFacade(FManagedArrayCollection& InSelf);
+		FVertexBoneWeightsFacade(const FManagedArrayCollection& InSelf);
 
-		/**
-		*  Create the facade.
-		*/
-		static void DefineSchema(FManagedArrayCollection* Collection);
-		void DefineSchema() { return DefineSchema(Self); }
+		/** Define the facade */
+		void DefineSchema();
 
+		/** Is the Facade const */
+		bool IsConst() const { return Collection == nullptr; }
 
-		/**
-		*  Is the Facade defined on the collection?
-		*/
-		static bool HasFacade(const FManagedArrayCollection* Collection);
-		bool HasFacade() { return HasFacade(Self); }
+		/** Is the Facade defined on the collection? */
+		bool IsValid() const;
 
-		/**
-		* Using a FSelectionFacade::FSelectionKey, create indexes from the vertices to the driving bones. 
-		* @param FManagedArrayCollection : Collection
-		* @param FSelectionFacade::FSelectionKey : Key for weights in the FSelectionFacade
-		*/
-		static void AddBoneWeightsFromKinematicBindings(FManagedArrayCollection* Collection);
-		void AddBoneWeightsFromKinematicBindings() { AddBoneWeightsFromKinematicBindings(Self); }
+		/** Add bone weight based on the kinematic bindings. */
+		void AddBoneWeightsFromKinematicBindings();
 
-		/**
-		* Return the vertex bone indices from the collection. Null if not initialized. 
-		* @param FManagedArrayCollection : Collection
-		*/
-		static const TManagedArray< TArray<int32> >* GetBoneIndices(const FManagedArrayCollection* Collection);
-		const TManagedArray< TArray<int32> >* GetBoneIndices() const { return GetBoneIndices(Self); }
+		/** Return the vertex bone indices from the collection. Null if not initialized.  */
+		const TManagedArray< TArray<int32> >* FindBoneIndices()  const { return BoneIndexAttribute.Find(); }
+		const TManagedArray< TArray<int32> >& GetBoneIndices() const { return BoneIndexAttribute.Get(); }
 
 
-		/**
-		* Return the vertex bone weights from the collection. Null if not initialized.
-		* @param FManagedArrayCollection : Collection
-		*/
-		static const TManagedArray< TArray<float> >* GetBoneWeights(const FManagedArrayCollection* Collection);
-		const TManagedArray< TArray<float> >* GetBoneWeights() const { return GetBoneWeights(Self); }
+		/** Return the vertex bone weights from the collection. Null if not initialized. */
+		const TManagedArray< TArray<float> >* FindBoneWeights()  const { return BoneWeightAttribute.Find(); }
+		const TManagedArray< TArray<float> >& GetBoneWeights() const { return BoneWeightAttribute.Get(); }
 
+	private:
+		const FManagedArrayCollection& ConstCollection;
+		FManagedArrayCollection* Collection = nullptr;
+
+		TManagedArrayAccessor<TArray<int32>> BoneIndexAttribute;
+		TManagedArrayAccessor<TArray<float>> BoneWeightAttribute;
+		TManagedArrayAccessor<int32> ParentAttribute;
 
 	};
 

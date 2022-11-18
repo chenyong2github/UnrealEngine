@@ -12,78 +12,64 @@ namespace GeometryCollection::Facades
 {
 
 	// Attributes
-	const FName FVertexBoneWeightsFacade::WeightAttribute = "BoneWeights";
-	const FName FVertexBoneWeightsFacade::IndexAttribute = "BoneWeightsIndex";
+	const FName FVertexBoneWeightsFacade::BoneWeightAttributeName = "BoneWeights";
+	const FName FVertexBoneWeightsFacade::BoneIndexAttributeName = "BoneWeightsIndex";
 
-	FVertexBoneWeightsFacade::FVertexBoneWeightsFacade(FManagedArrayCollection* InCollection)
-		: Self(InCollection)
+	FVertexBoneWeightsFacade::FVertexBoneWeightsFacade(FManagedArrayCollection& InCollection)
+		: ConstCollection(InCollection)
+		, Collection(&InCollection)
+		, BoneIndexAttribute(InCollection, BoneIndexAttributeName, FGeometryCollection::VerticesGroup, FTransformCollection::TransformGroup)
+		, BoneWeightAttribute(InCollection, BoneWeightAttributeName, FGeometryCollection::VerticesGroup, FTransformCollection::TransformGroup)
+		, ParentAttribute(InCollection, FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup)
 	{
-		DefineSchema(Self);
+		DefineSchema();
 	}
+
+	FVertexBoneWeightsFacade::FVertexBoneWeightsFacade(const FManagedArrayCollection& InCollection)
+		: ConstCollection(InCollection)
+		, Collection(nullptr)
+		, BoneIndexAttribute(InCollection, BoneIndexAttributeName, FGeometryCollection::VerticesGroup, FTransformCollection::TransformGroup)
+		, BoneWeightAttribute(InCollection, BoneWeightAttributeName, FGeometryCollection::VerticesGroup, FTransformCollection::TransformGroup)
+		, ParentAttribute(InCollection, FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup)
+	{
+	}
+
 
 	//
 	//  Initialization
 	//
 
-		//
-	//  Initialization
-	//
-
-	void FVertexBoneWeightsFacade::DefineSchema(FManagedArrayCollection* Collection)
+	void FVertexBoneWeightsFacade::DefineSchema()
 	{
-		FManagedArrayCollection::FConstructionParameters TransformDependency(FTransformCollection::TransformGroup);
-
-		if (!Collection->HasGroup(FGeometryCollection::VerticesGroup))
-		{
-			return;
-		}
-
-		Collection->AddAttribute<TArray<int32>>(FVertexBoneWeightsFacade::IndexAttribute, FGeometryCollection::VerticesGroup, TransformDependency);
-		Collection->AddAttribute<TArray<float>>(FVertexBoneWeightsFacade::WeightAttribute, FGeometryCollection::VerticesGroup, TransformDependency);
-
-		ensure(Collection->FindAttributeTyped<TArray<int32>>(FVertexBoneWeightsFacade::IndexAttribute, FGeometryCollection::VerticesGroup) != nullptr);
-		ensure(Collection->FindAttributeTyped<TArray<float>>(FVertexBoneWeightsFacade::WeightAttribute, FGeometryCollection::VerticesGroup) != nullptr);
+		check(!IsConst());
+		BoneIndexAttribute.Add();
+		BoneWeightAttribute.Add();
+		ParentAttribute.Add();
 	}
 
-	bool FVertexBoneWeightsFacade::HasFacade(const FManagedArrayCollection* Collection)
+	bool FVertexBoneWeightsFacade::IsValid() const
 	{
-		return Collection->HasGroup(FGeometryCollection::VerticesGroup) &&
-			Collection->FindAttributeTyped<TArray<int32>>(FVertexBoneWeightsFacade::IndexAttribute, FGeometryCollection::VerticesGroup) &&
-			Collection->FindAttributeTyped<TArray<float>>(FVertexBoneWeightsFacade::WeightAttribute, FGeometryCollection::VerticesGroup);
+		return BoneIndexAttribute.IsValid() && BoneWeightAttribute.IsValid() && ParentAttribute.IsValid();
 	}
-
 
 	//
 	//  Add Weights from Selection 
 	//  ... ... (Impressionist physbam)
 	//
 
-	void FVertexBoneWeightsFacade::AddBoneWeightsFromKinematicBindings(FManagedArrayCollection* InCollection) {
-		if (InCollection && InCollection->HasGroup(FGeometryCollection::VerticesGroup)) {
-			DefineSchema(InCollection); TArray<float> Weights; TArray<int32> Indices;
-			int32 NumBones = InCollection->NumElements(FTransformCollection::TransformGroup), NumVertices = InCollection->NumElements(FGeometryCollection::VerticesGroup);
-			TManagedArray< TArray<int32> >& IndicesArray = InCollection->ModifyAttribute<TArray<int32>>(FVertexBoneWeightsFacade::IndexAttribute, FGeometryCollection::VerticesGroup);
-			TManagedArray< TArray<float> >& WeightsArray = InCollection->ModifyAttribute<TArray<float>>(FVertexBoneWeightsFacade::WeightAttribute, FGeometryCollection::VerticesGroup);
-			for (int32 Kdx = Chaos::Facades::FKinematicBindingFacade::NumKinematicBindings(InCollection) - 1; 0 <= Kdx; Kdx--) {
+	void FVertexBoneWeightsFacade::AddBoneWeightsFromKinematicBindings() {
+		check(!IsConst()); DefineSchema(); if (IsValid()) {
+			TArray<float> Weights; TArray<int32> Indices;
+			int32 NumBones = ParentAttribute.Num(), NumVertices = BoneIndexAttribute.Num();
+			TManagedArray< TArray<int32> >& IndicesArray = BoneIndexAttribute.Modify();
+			TManagedArray< TArray<float> >& WeightsArray = BoneWeightAttribute.Modify();
+			GeometryCollection::Facades::FKinematicBindingFacade BindingFacade(ConstCollection);
+			for (int32 Kdx = BindingFacade.NumKinematicBindings() - 1; 0 <= Kdx; Kdx--) {
 				int32 Bone; TArray<int32> OutBoneVerts; TArray<float> OutBoneWeights;
-				Chaos::Facades::FKinematicBindingFacade::GetBoneBindings(InCollection, Chaos::Facades::FKinematicBindingFacade::GetKinematicBindingKey(InCollection, Kdx), Bone, OutBoneVerts, OutBoneWeights);
-				if (0 <= Bone && Bone < NumBones) for (int32 Vdx = 0; Vdx < OutBoneVerts.Num(); Vdx++) { int32 Vert = OutBoneVerts[Vdx]; float Weight = OutBoneWeights[Vdx];
+				BindingFacade.GetBoneBindings(BindingFacade.GetKinematicBindingKey(Kdx), Bone, OutBoneVerts, OutBoneWeights);
+				if (0 <= Bone && Bone < NumBones) for (int32 Vdx = 0; Vdx < OutBoneVerts.Num(); Vdx++) {
+					int32 Vert = OutBoneVerts[Vdx]; float Weight = OutBoneWeights[Vdx];
 					if (0 <= Vert && Vert < NumVertices && !IndicesArray[Vert].Contains(Bone)) { IndicesArray[Vert].Add(Bone); WeightsArray[Vert].Add(Weight); }}}}}
-
-	//
-	//  GetAttributes
-	//
-
-	const TManagedArray< TArray<int32> >* FVertexBoneWeightsFacade::GetBoneIndices(const FManagedArrayCollection* Collection)
-	{
-		return Collection->FindAttribute<TArray<int32>>(FVertexBoneWeightsFacade::IndexAttribute, FGeometryCollection::VerticesGroup);
-	}
-
-	const TManagedArray< TArray<float> >* FVertexBoneWeightsFacade::GetBoneWeights(const FManagedArrayCollection* Collection)
-	{
-		return Collection->FindAttribute<TArray<float>>(FVertexBoneWeightsFacade::WeightAttribute, FGeometryCollection::VerticesGroup);
-	}
-
 
 };
 

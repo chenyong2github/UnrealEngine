@@ -189,17 +189,18 @@ namespace Chaos::Softs
 
 		if (Property.bEnableKinematics)
 		{
-			typedef Chaos::Facades::FKinematicBindingFacade Kinematics;
+			typedef GeometryCollection::Facades::FKinematicBindingFacade FKinematics;
+			FKinematics Kinematics(Rest);
 
 			// Add Kinematics Node
-			for (int i = Kinematics::NumKinematicBindings(&Rest) - 1; i >= 0; i--)
+			for (int i = Kinematics.NumKinematicBindings() - 1; i >= 0; i--)
 			{
-				Kinematics::FBindingKey Key = Kinematics::GetKinematicBindingKey(&Rest, i);
+				FKinematics::FBindingKey Key = Kinematics.GetKinematicBindingKey(i);
 
 				int32 BoneIndex = INDEX_NONE;
 				TArray<int32> BoundVerts;
 				TArray<float> BoundWeights;
-				Kinematics::GetBoneBindings(&Rest, Key, BoneIndex, BoundVerts, BoundWeights);
+				Kinematics.GetBoneBindings(Key, BoneIndex, BoundVerts, BoundWeights);
 
 				for (int32 vdx : BoundVerts)
 				{
@@ -326,8 +327,9 @@ namespace Chaos::Softs
 							GlobalTransform = FleshInputBuffer->GlobalTransform;
 						}
 
-						typedef GeometryCollection::Facades::FVertexBoneWeightsFacade WeightsFacade;
-						if (WeightsFacade::HasFacade(&Rest))
+						typedef GeometryCollection::Facades::FVertexBoneWeightsFacade FWeightsFacade;
+						FWeightsFacade WeightsFacade(Rest);
+						if (WeightsFacade.IsValid())
 						{
 							int32 NumObjectVertices = Rest.NumElements(FGeometryCollection::VerticesGroup);
 							int32 ObjectVertexIndex = SolverParticleToObjectVertexIndex(Index);
@@ -335,8 +337,8 @@ namespace Chaos::Softs
 							{
 								if(FleshInputBuffer)
 								{
-									TArray<int32> BoneIndices = (*WeightsFacade::GetBoneIndices(&Rest))[ObjectVertexIndex];
-									TArray<float> BoneWeights = (*WeightsFacade::GetBoneWeights(&Rest))[ObjectVertexIndex];
+									TArray<int32> BoneIndices = WeightsFacade.GetBoneIndices()[ObjectVertexIndex];
+									TArray<float> BoneWeights = WeightsFacade.GetBoneWeights()[ObjectVertexIndex];
 
 									FFleshThreadingProxy::FFleshInputBuffer* PreviousFleshBuffer = nullptr;
 									if (this->PreviousInputPackage && this->PreviousInputPackage->ObjectMap.Contains(Owner))
