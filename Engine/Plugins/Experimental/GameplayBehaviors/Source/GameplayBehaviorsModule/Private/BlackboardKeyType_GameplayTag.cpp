@@ -56,3 +56,29 @@ bool UBlackboardKeyType_GameplayTag::TestTextOperation(const UBlackboardComponen
 
 	return false;
 }
+
+void UBlackboardKeyType_GameplayTag::CopyValues(UBlackboardComponent& OwnerComp, uint8* MemoryBlock, const UBlackboardKeyType* SourceKeyOb, const uint8* SourceBlock)
+{
+	const UBlackboardKeyType_GameplayTag* GameplayTagSourceKeyOb = Cast<const UBlackboardKeyType_GameplayTag>(SourceKeyOb);
+	if (GameplayTagSourceKeyOb != nullptr)
+	{
+		SetValue(this, MemoryBlock, GetValue(GameplayTagSourceKeyOb, SourceBlock));
+	}
+}
+
+void UBlackboardKeyType_GameplayTag::InitializeMemory(UBlackboardComponent& OwnerComp, uint8* MemoryBlock)
+{
+	SetValue(this, MemoryBlock, InvalidValue);
+}
+
+void UBlackboardKeyType_GameplayTag::Clear(UBlackboardComponent& OwnerComp, uint8* MemoryBlock)
+{
+	SetValue(this, MemoryBlock, InvalidValue);
+}
+
+bool UBlackboardKeyType_GameplayTag::IsEmpty(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const
+{
+	const FDataType TagContainer = GetValue(this, MemoryBlock);
+
+	return TagContainer.IsEmpty();
+}
