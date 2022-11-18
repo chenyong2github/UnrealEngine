@@ -298,6 +298,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Added support for the RigVM to run branches lazily
 		RigVMLazyEvaluation,
 
+		// Adding additional object version to defer out-of-date pose asset warning until next resaves
+		PoseAssetRawDataGUIDUpdate,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

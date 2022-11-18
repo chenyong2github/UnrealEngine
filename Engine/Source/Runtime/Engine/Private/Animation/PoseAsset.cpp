@@ -16,6 +16,7 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
@@ -893,7 +894,7 @@ void UPoseAsset::PostLoad()
 		PostProcessData();
     }
 
-	if (GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::PoseAssetRawDataGUID)
+	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::PoseAssetRawDataGUIDUpdate)
 	{
 		if (SourceAnimation)
 		{

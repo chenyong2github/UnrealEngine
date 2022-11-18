@@ -425,7 +425,8 @@ FGuid UAnimDataModel::GenerateGuid() const
 
 	for (const FFloatCurve& Curve : CurveData.FloatCurves)
 	{
-		UpdateWithData(Curve.Name.UID);
+		const FString CurveName = Curve.Name.DisplayName.ToString();
+		UpdateSHAWithArray(CurveName.GetCharArray()),
 		UpdateWithFloatCurve(Curve.FloatCurve);
 	}
 
