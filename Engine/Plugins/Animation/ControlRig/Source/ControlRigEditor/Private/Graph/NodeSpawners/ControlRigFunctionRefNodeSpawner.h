@@ -52,10 +52,6 @@ public:
 
 private:
 
-	/** The unit type we will spawn [optional] */
-	UPROPERTY(Transient)
-	mutable TSoftObjectPtr<URigVMLibraryNode> ReferencedFunctionPtr;
-
 	/** The public function definition we will spawn from [optional] */
 	UPROPERTY(Transient)
 	mutable FRigVMGraphFunctionHeader ReferencedPublicFunctionHeader;
