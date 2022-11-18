@@ -288,11 +288,7 @@ FSlateColor SDataLayerTreeLabel::GetForegroundColor() const
 	{
 		return FLinearColor(0.2f, 0.2f, 0.25f);
 	}
-	if (ShouldBeHighlighted())
-	{
-		return FAppStyle::Get().GetSlateColor("Colors.AccentBlue");
-	}
-	else if (IsInActorEditorContext())
+	if (IsInActorEditorContext())
 	{
 		return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
 	}
