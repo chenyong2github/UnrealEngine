@@ -888,20 +888,32 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 		BasePassParameters.VolumetricCloudDepthSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		if (IsVolumetricRenderTargetEnabled() && View.ViewState)
 		{
-			TRefCountPtr<IPooledRenderTarget> VolumetricReconstructRT = View.ViewState->VolumetricCloudRenderTarget.GetDstVolumetricReconstructRT();
-			if (VolumetricReconstructRT.IsValid())
+			if (View.ViewState->VolumetricCloudRenderTarget.GetMode() == 1)
 			{
-				TRefCountPtr<IPooledRenderTarget> VolumetricReconstructRTDepth = View.ViewState->VolumetricCloudRenderTarget.GetDstVolumetricReconstructRTDepth();
-
-				BasePassParameters.VolumetricCloudColor = VolumetricReconstructRT->GetRHI();
-				BasePassParameters.VolumetricCloudDepth = VolumetricReconstructRTDepth->GetRHI();
-				BasePassParameters.ApplyVolumetricCloudOnTransparent = 1.0f;
+				FRDGTextureRef VolumetricReconstructRT = View.ViewState->VolumetricCloudRenderTarget.GetOrCreateVolumetricTracingRT(GraphBuilder);
+				if (VolumetricReconstructRT)
+				{
+					BasePassParameters.VolumetricCloudColor = VolumetricReconstructRT;
+					BasePassParameters.VolumetricCloudDepth = View.ViewState->VolumetricCloudRenderTarget.GetOrCreateVolumetricTracingRTDepth(GraphBuilder);
+					BasePassParameters.ApplyVolumetricCloudOnTransparent = 1.0f;
+				}
+			}
+			else
+			{
+				TRefCountPtr<IPooledRenderTarget> VolumetricReconstructRT = View.ViewState->VolumetricCloudRenderTarget.GetDstVolumetricReconstructRT();
+				if (VolumetricReconstructRT.IsValid())
+				{
+					TRefCountPtr<IPooledRenderTarget> VolumetricReconstructRTDepth = View.ViewState->VolumetricCloudRenderTarget.GetDstVolumetricReconstructRTDepth();
+					BasePassParameters.VolumetricCloudColor = GraphBuilder.RegisterExternalTexture(VolumetricReconstructRT);
+					BasePassParameters.VolumetricCloudDepth = GraphBuilder.RegisterExternalTexture(VolumetricReconstructRTDepth);
+					BasePassParameters.ApplyVolumetricCloudOnTransparent = 1.0f;
+				}
 			}
 		}
 		if (BasePassParameters.VolumetricCloudColor == nullptr)
 		{
-			BasePassParameters.VolumetricCloudColor = GSystemTextures.BlackAlphaOneDummy->GetRHI();
-			BasePassParameters.VolumetricCloudDepth = GSystemTextures.BlackDummy->GetRHI();
+			BasePassParameters.VolumetricCloudColor = GSystemTextures.GetBlackAlphaOneDummy(GraphBuilder);
+			BasePassParameters.VolumetricCloudDepth = GSystemTextures.GetBlackDummy(GraphBuilder);
 		}
 
 		FIntPoint ViewportOffset = View.ViewRect.Min;
