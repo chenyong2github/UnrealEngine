@@ -37,12 +37,30 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	UWorld* World = Context->SourceComponent.IsValid() ? Context->SourceComponent->GetWorld() : nullptr;
-	AActor* FoundActor = PCGActorSelector::FindActor(Settings->ActorSelector, World, nullptr);
+	TArray<AActor*> FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, World, nullptr);
 
-	if (!FoundActor)
+	if (FoundActors.IsEmpty())
 	{
 		PCGE_LOG(Warning, "No matching actor was found.");
 		return true;
+	}
+
+	for (AActor* Actor : FoundActors)
+	{
+		ProcessActor(Context, Settings, Actor);
+	}
+
+	return true;
+}
+
+void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, AActor* FoundActor) const
+{
+	check(Context);
+	check(Settings);
+
+	if (!FoundActor)
+	{
+		return;
 	}
 
 	TArray<UPCGComponent*> PCGComponents;
@@ -70,12 +88,12 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* Context) const
 	if (Settings->Mode == EPCGGetDataFromActorMode::GetDataFromPCGComponent && !bHasGeneratedPCGData)
 	{
 		PCGE_LOG(Warning, "Actor (%s) does not have any previously generated data.", *FoundActor->GetFName().ToString());
-		return true;
+		return;
 	}
 	else if (Settings->Mode == EPCGGetDataFromActorMode::GetDataFromProperty && !FoundProperty)
 	{
 		PCGE_LOG(Warning, "Actor (%s) does not have a property name (%s)", *FoundActor->GetFName().ToString(), *Settings->PropertyName.ToString());
-		return true;
+		return;
 	}
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
@@ -138,6 +156,4 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* Context) const
 			}
 		}
 	}
-
-	return true;
 }

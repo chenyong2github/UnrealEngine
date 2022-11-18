@@ -8,41 +8,43 @@
 namespace PCGActorSelector
 {
 	// Need to pass a pointer of pointer to the found actor. The lambda will capture this pointer and modify its value when an actor is found.
-	TFunction<bool(AActor*)> GetFilteringFunction(const FPCGActorSelectorSettings& InSettings, AActor*& InFoundActor)
+	TFunction<bool(AActor*)> GetFilteringFunction(const FPCGActorSelectorSettings& InSettings, TArray<AActor*>& InFoundActors)
 	{
+		const bool bMultiSelect = InSettings.bSelectMultiple;
+
 		switch (InSettings.ActorSelection)
 		{
 		case EPCGActorSelection::ByTag:
-			return[ActorSelectionTag = InSettings.ActorSelectionTag, &InFoundActor](AActor* Actor) -> bool
+			return[ActorSelectionTag = InSettings.ActorSelectionTag, &InFoundActors, bMultiSelect](AActor* Actor) -> bool
 			{
 				if (Actor->ActorHasTag(ActorSelectionTag))
 				{
-					InFoundActor = Actor;
-					return false;
+					InFoundActors.Add(Actor);
+					return bMultiSelect;
 				}
 
 				return true;
 			};
 
 		case EPCGActorSelection::ByName:
-			return[ActorSelectionName = InSettings.ActorSelectionName, &InFoundActor](AActor* Actor) -> bool
+			return[ActorSelectionName = InSettings.ActorSelectionName, &InFoundActors, bMultiSelect](AActor* Actor) -> bool
 			{
 				if (Actor->GetFName().IsEqual(ActorSelectionName, ENameCase::IgnoreCase, /*bCompareNumber=*/ false))
 				{
-					InFoundActor = Actor;
-					return false;
+					InFoundActors.Add(Actor);
+					return bMultiSelect;
 				}
 
 				return true;
 			};
 
 		case EPCGActorSelection::ByClass:
-			return[ActorSelectionClass = InSettings.ActorSelectionClass, &InFoundActor](AActor* Actor) -> bool
+			return[ActorSelectionClass = InSettings.ActorSelectionClass, &InFoundActors, bMultiSelect](AActor* Actor) -> bool
 			{
 				if (Actor->IsA(ActorSelectionClass))
 				{
-					InFoundActor = Actor;
-					return false;
+					InFoundActors.Add(Actor);
+					return bMultiSelect;
 				}
 
 				return true;
@@ -55,15 +57,15 @@ namespace PCGActorSelector
 		return [](AActor* Actor) -> bool { return false; };
 	}
 
-	AActor* FindActor(const FPCGActorSelectorSettings& Settings, UWorld* World, AActor* Self)
+	TArray<AActor*> FindActors(const FPCGActorSelectorSettings& Settings, UWorld* World, AActor* Self)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGActorSelector::FindActor);
 
-		AActor* FoundActor = nullptr;
+		TArray<AActor*> FoundActors;
 
 		if (!World)
 		{
-			return FoundActor;
+			return FoundActors;
 		}
 
 		// Early out if we have not the information necessary
@@ -71,12 +73,12 @@ namespace PCGActorSelector
 			(Settings.ActorSelection == EPCGActorSelection::ByName && Settings.ActorSelectionName == NAME_None) ||
 			(Settings.ActorSelection == EPCGActorSelection::ByClass && !Settings.ActorSelectionClass))
 		{
-			return FoundActor;
+			return FoundActors;
 		}
 
 		// We pass FoundActor ref, that will be captured by the FilteringFunction
 		// It will modify the FoundActor pointer to the found actor, if found.
-		TFunction<bool(AActor*)> FilteringFunction = PCGActorSelector::GetFilteringFunction(Settings, FoundActor);
+		TFunction<bool(AActor*)> FilteringFunction = PCGActorSelector::GetFilteringFunction(Settings, FoundActors);
 
 		// In case of iterating over all actors in the world, call our filtering function and get out.
 		if (Settings.ActorFilter == EPCGActorFilter::AllWorldActors)
@@ -84,7 +86,7 @@ namespace PCGActorSelector
 			UPCGActorHelpers::ForEachActorInWorld<AActor>(World, FilteringFunction);
 
 			// FoundActor is set by the FilteringFunction (captured)
-			return FoundActor;
+			return FoundActors;
 		}
 
 		// Otherwise, gather all the actors we need to check
@@ -156,6 +158,16 @@ namespace PCGActorSelector
 			}
 		}
 
-		return FoundActor;
+		return FoundActors;
+	}
+
+	AActor* FindActor(const FPCGActorSelectorSettings& InSettings, UWorld* World, AActor* Self)
+	{
+		// In order to make sure we don't try to select multiple, we'll do a copy of the settings here.
+		FPCGActorSelectorSettings Settings = InSettings;
+		Settings.bSelectMultiple = false;
+
+		TArray<AActor*> Actors = FindActors(Settings, World, Self);
+		return Actors.IsEmpty() ? nullptr : Actors[0];
 	}
 }

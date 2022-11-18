@@ -50,9 +50,13 @@ struct FPCGActorSelectorSettings
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ActorFilter!=EPCGActorFilter::AllWorldActors", EditConditionHides))
 	bool bIncludeChildren = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ActorSelection!=EPCGActorSelection::ByName"))
+	bool bSelectMultiple = false;
 };
 
 namespace PCGActorSelector
 {
+	TArray<AActor*> FindActors(const FPCGActorSelectorSettings& Settings, UWorld* World, AActor* Self);
 	AActor* FindActor(const FPCGActorSelectorSettings& Settings, UWorld* World, AActor* Self);
 }
