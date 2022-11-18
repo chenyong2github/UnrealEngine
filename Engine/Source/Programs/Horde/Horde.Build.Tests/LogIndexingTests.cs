@@ -93,7 +93,7 @@ namespace Horde.Build.Tests
 
 			// Read the data back out and check it's the same
 			byte[] readData = new byte[_data.Length];
-			using (Stream stream = await _logFileService.OpenRawStreamAsync(logFile, 0, _data.Length))
+			using (Stream stream = await _logFileService.OpenRawStreamAsync(logFile))
 			{
 				int readSize = await stream.ReadAsync(readData, 0, readData.Length);
 				Assert.AreEqual(readData.Length, readSize);

@@ -94,6 +94,16 @@ namespace Horde.Build.Logs
 		Task<List<ILogFile>> GetLogFilesAsync(int? index = null, int? count = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
+		/// Read a set of lines from the given log file
+		/// </summary>
+		/// <param name="logFile">Log file to read</param>
+		/// <param name="index">Index of the first line to read</param>
+		/// <param name="count">Maximum number of lines to return</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>List of lines</returns>
+		Task<List<Utf8String>> ReadLinesAsync(ILogFile logFile, int index, int? count, CancellationToken cancellationToken = default);
+
+		/// <summary>
 		/// Writes out chunk data and assigns to a file
 		/// </summary>
 		/// <param name="logFile">The log file</param>
@@ -168,31 +178,18 @@ namespace Horde.Build.Logs
 		/// Gets lines from the given log 
 		/// </summary>
 		/// <param name="logFile">The log file</param>
-		/// <param name="offset">Offset of the data to return</param>
-		/// <param name="length">Length of the data to return</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>Data for the requested range</returns>
-		Task<Stream> OpenRawStreamAsync(ILogFile logFile, long offset, long length, CancellationToken cancellationToken = default);
+		Task<Stream> OpenRawStreamAsync(ILogFile logFile, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Parses a stream of json text and outputs plain text
 		/// </summary>
 		/// <param name="logFile">The log file to query</param>
-		/// <param name="offset">Offset within the data to copy from</param>
-		/// <param name="length">Length of the data to copy</param>
 		/// <param name="outputStream">Output stream to receive the text data</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>Async text</returns>
-		Task CopyPlainTextStreamAsync(ILogFile logFile, long offset, long length, Stream outputStream, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Gets the offset of the given line number
-		/// </summary>
-		/// <param name="logFile">The log file to search</param>
-		/// <param name="lineIdx">The line index to retrieve the offset for</param>
-		/// <param name="cancellationToken">Cancellation token for the call</param>
-		/// <returns>The actual clamped line number and offset</returns>
-		Task<(int, long)> GetLineOffsetAsync(ILogFile logFile, int lineIdx, CancellationToken cancellationToken);
+		Task CopyPlainTextStreamAsync(ILogFile logFile, Stream outputStream, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Search for the specified text in a log file
@@ -217,14 +214,12 @@ namespace Horde.Build.Logs
 		/// </summary>
 		/// <param name="logFileService">The log file service</param>
 		/// <param name="logFile">The log file to query</param>
-		/// <param name="offset">Offset within the log file to copy</param>
-		/// <param name="length">Length of the data to copy</param>
 		/// <param name="outputStream">Output stream to receive the text data</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>Async text</returns>
-		public static async Task CopyRawStreamAsync(this ILogFileService logFileService, ILogFile logFile, long offset, long length, Stream outputStream, CancellationToken cancellationToken)
+		public static async Task CopyRawStreamAsync(this ILogFileService logFileService, ILogFile logFile, Stream outputStream, CancellationToken cancellationToken)
 		{
-			await using Stream stream = await logFileService.OpenRawStreamAsync(logFile, offset, length, cancellationToken);
+			await using Stream stream = await logFileService.OpenRawStreamAsync(logFile, cancellationToken);
 			await stream.CopyToAsync(outputStream, cancellationToken);
 		}
 	}
@@ -646,6 +641,34 @@ namespace Horde.Build.Logs
 			return _logFiles.GetLogFilesAsync(index, count, cancellationToken);
 		}
 
+		/// <inheritdoc/>
+		public async Task<List<Utf8String>> ReadLinesAsync(ILogFile logFile, int index, int? count, CancellationToken cancellationToken)
+		{
+			(_, long minOffset) = await GetLineOffsetAsync(logFile, index, cancellationToken);
+			(_, long maxOffset) = await GetLineOffsetAsync(logFile, (count == null) ? Int32.MaxValue : (index + Math.Min(count.Value, Int32.MaxValue - index)), cancellationToken);
+
+			byte[] result;
+			using (System.IO.Stream stream = await OpenRawStreamAsync(logFile, minOffset, maxOffset - minOffset, cancellationToken))
+			{
+				result = new byte[stream.Length];
+				await stream.ReadFixedSizeDataAsync(result, 0, result.Length);
+			}
+
+			List<Utf8String> lines = new List<Utf8String>();
+
+			int offset = 0;
+			for (int idx = 0; idx < result.Length; idx++)
+			{
+				if (result[idx] == (byte)'\n')
+				{
+					lines.Add(new Utf8String(result.AsMemory(offset, idx - offset)));
+					offset = idx + 1;
+				}
+			}
+
+			return lines;
+		}
+
 		class WriteState
 		{
 			public long _offset;
@@ -971,52 +994,28 @@ namespace Horde.Build.Logs
 			scope.Span.SetTag("LineIndex", lineIndex.ToString(CultureInfo.InvariantCulture));
 			scope.Span.SetTag("LineCount", lineCount.ToString(CultureInfo.InvariantCulture));
 
-			(_, long minOffset) = await GetLineOffsetAsync(logFile, lineIndex, cancellationToken);
-			(_, long maxOffset) = await GetLineOffsetAsync(logFile, lineIndex + lineCount, cancellationToken);
+			List<Utf8String> lines = await ReadLinesAsync(logFile, lineIndex, lineCount, cancellationToken);
+			List<LogEventLine> eventLines = new List<LogEventLine>(lines.Count);
 
-			byte[] data = new byte[maxOffset - minOffset];
-			using (Stream stream = await OpenRawStreamAsync(logFile, minOffset, maxOffset - minOffset, cancellationToken))
+			foreach (Utf8String line in lines)
 			{
-				int length = await stream.ReadAsync(data.AsMemory(), cancellationToken);
-				if(length != data.Length)
-				{
-					_logger.LogWarning("Read less than expected from log stream (Expected {Expected}, Got {Got})", data.Length, length);
-				}
-				return ParseEventData(data.AsSpan(0, length));
-			}
-		}
-
-		/// <summary>
-		/// Parses event data from a buffer
-		/// </summary>
-		/// <param name="data">Data to parse</param>
-		/// <returns>Parsed event data</returns>
-		private ILogEventData ParseEventData(ReadOnlySpan<byte> data)
-		{
-			List<LogEventLine> lines = new List<LogEventLine>();
-
-			ReadOnlySpan<byte> remainingData = data;
-			while(remainingData.Length > 0)
-			{
-				int endOfLine = remainingData.IndexOf((byte)'\n');
-				if(endOfLine == -1)
-				{
-					break;
-				}
-
-				ReadOnlySpan<byte> lineData = remainingData.Slice(0, endOfLine);
 				try
 				{
-					lines.Add(new LogEventLine(lineData));
+					eventLines.Add(new LogEventLine(line.Span));
 				}
-				catch(JsonException ex)
+				catch (JsonException ex)
 				{
-					_logger.LogWarning(ex, "Unable to parse line from log file: {Line}", Encoding.UTF8.GetString(lineData));
+					_logger.LogWarning(ex, "Unable to parse line from log file: {Line}", line);
 				}
-				remainingData = remainingData.Slice(endOfLine + 1);
 			}
 
-			return new LogEventData(lines);
+			return new LogEventData(eventLines);
+		}
+
+		/// <inheritdoc/>
+		public Task<Stream> OpenRawStreamAsync(ILogFile logFile, CancellationToken cancellationToken)
+		{
+			return OpenRawStreamAsync(logFile, 0, Int64.MaxValue, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -1099,8 +1098,11 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task CopyPlainTextStreamAsync(ILogFile logFile, long offset, long length, Stream outputStream, CancellationToken cancellationToken)
+		public async Task CopyPlainTextStreamAsync(ILogFile logFile, Stream outputStream, CancellationToken cancellationToken)
 		{
+			long offset = 0;
+			long length = Int64.MaxValue;
+
 			using (Stream stream = await OpenRawStreamAsync(logFile, 0, Int64.MaxValue, cancellationToken))
 			{
 				byte[] readBuffer = new byte[4096];

@@ -3,10 +3,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Issues;
@@ -125,8 +127,6 @@ namespace Horde.Build.Logs
 		/// </summary>
 		/// <param name="logFileId">Id of the log file to get information about</param>
 		/// <param name="format">Format for the returned data</param>
-		/// <param name="offset">The log offset in bytes</param>
-		/// <param name="length">Number of bytes to return</param>
 		/// <param name="fileName">Name of the default filename to download</param>
 		/// <param name="download">Whether to download the file rather than display in the browser</param>
 		/// <param name="cancellationToken">Cancellation token for the request</param>
@@ -136,8 +136,6 @@ namespace Horde.Build.Logs
 		public async Task<ActionResult> GetLogData(
 			LogId logFileId,
 			[FromQuery] LogOutputFormat format = LogOutputFormat.Raw,
-			[FromQuery] long offset = 0,
-			[FromQuery] long length = Int64.MaxValue,
 			[FromQuery] string? fileName = null,
 			[FromQuery] bool download = false,
 			CancellationToken cancellationToken = default)
@@ -155,11 +153,11 @@ namespace Horde.Build.Logs
 			Func<Stream, ActionContext, Task> copyTask;
 			if (format == LogOutputFormat.Text && logFile.Type == LogType.Json)
 			{
-				copyTask = (outputStream, context) => _logFileService.CopyPlainTextStreamAsync(logFile, offset, length, outputStream, cancellationToken);
+				copyTask = (outputStream, context) => _logFileService.CopyPlainTextStreamAsync(logFile, outputStream, cancellationToken);
 			}
 			else
 			{
-				copyTask = (outputStream, context) => _logFileService.CopyRawStreamAsync(logFile, offset, length, outputStream, cancellationToken);
+				copyTask = (outputStream, context) => _logFileService.CopyRawStreamAsync(logFile, outputStream, cancellationToken);
 			}
 
 			return new CustomFileCallbackResult(fileName ?? $"log-{logFileId}.txt", "text/plain", !download, copyTask);
@@ -175,7 +173,7 @@ namespace Horde.Build.Logs
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{logFileId}/lines")]
-		public async Task<ActionResult> GetLogLines(LogId logFileId, [FromQuery] int index = 0, [FromQuery] int count = Int32.MaxValue, CancellationToken cancellationToken = default)
+		public async Task<ActionResult> GetLogLines(LogId logFileId, [FromQuery] int index = 0, [FromQuery] int? count = null, CancellationToken cancellationToken = default)
 		{
 			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId, cancellationToken);
 			if (logFile == null)
@@ -189,19 +187,8 @@ namespace Horde.Build.Logs
 
 			LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile, cancellationToken);
 
-			(int minIndex, long minOffset) = await _logFileService.GetLineOffsetAsync(logFile, index, cancellationToken);
-			(int maxIndex, long maxOffset) = await _logFileService.GetLineOffsetAsync(logFile, index + Math.Min(count, Int32.MaxValue - index), cancellationToken);
-			index = minIndex;
-			count = maxIndex - minIndex;
-
-			byte[] result;
-			using (System.IO.Stream stream = await _logFileService.OpenRawStreamAsync(logFile, minOffset, maxOffset - minOffset, cancellationToken))
-			{
-				result = new byte[stream.Length];
-				await stream.ReadFixedSizeDataAsync(result, 0, result.Length);
-			}
-
-			using (MemoryStream stream = new MemoryStream(result.Length + (count * 20)))
+			List<Utf8String> lines = await _logFileService.ReadLinesAsync(logFile, index, count, cancellationToken);
+			using (MemoryStream stream = new MemoryStream(lines.Sum(x => x.Length) + (lines.Count * 20)))
 			{
 				stream.WriteByte((byte)'{');
 
@@ -210,69 +197,39 @@ namespace Horde.Build.Logs
 				stream.Write(Encoding.UTF8.GetBytes($"\"maxLineIndex\":{metadata.MaxLineIndex},"));
 				stream.Write(Encoding.UTF8.GetBytes($"\"format\":{ (logFile.Type == LogType.Json ? "\"JSON\"" : "\"TEXT\"")},"));
 
-//				Stream.Write(Encoding.UTF8.GetBytes($"\"minIndex\":{MinIndex},"));
-//				Stream.Write(Encoding.UTF8.GetBytes($"\"minOffset\":{MinOffset},"));
-//				Stream.Write(Encoding.UTF8.GetBytes($"\"maxIndex\":{MaxIndex},"));
-//				Stream.Write(Encoding.UTF8.GetBytes($"\"maxOffset\":{MaxOffset},"));
-//				Stream.Write(Encoding.UTF8.GetBytes($"\"length\":{Result.Length},"));
-
 				stream.Write(Encoding.UTF8.GetBytes($"\"lines\":["));
 				stream.WriteByte((byte)'\n');
 
-				int offset = 0;
-				for (int line = index; line < index + count; line++)
+				for (int lineIdx = 0; lineIdx < lines.Count; lineIdx++)
 				{
+					Utf8String line = lines[lineIdx];
+
 					stream.WriteByte((byte)' ');
 					stream.WriteByte((byte)' ');
 
 					if (logFile.Type == LogType.Json)
 					{
-						// Find the end of the line and output it as an opaque blob
-						int startOffset = offset;
-						for (; ; offset++)
-						{
-							if (offset == result.Length)
-							{
-								stream.WriteByte((byte)'{');
-								stream.WriteByte((byte)'}');
-								break;
-							}
-							else if (result[offset] == (byte)'\n')
-							{
-								await stream.WriteAsync(result.AsMemory(startOffset, offset - startOffset), cancellationToken);
-								offset++;
-								break;
-							}
-						}
+						await stream.WriteAsync(line.Memory, cancellationToken);
 					}
 					else
 					{
 						stream.WriteByte((byte)'\"');
-						for (; offset < result.Length; offset++)
+						for (int idx = 0; idx < line.Length; idx++)
 						{
-							if (result[offset] == '\\' || result[offset] == '\"')
+							byte character = line[idx];
+							if (character >= 32 && character <= 126 && character != '\\' && character != '\"')
 							{
-								stream.WriteByte((byte)'\\');
-								stream.WriteByte(result[offset]);
-							}
-							else if (result[offset] == (byte)'\n')
-							{
-								offset++;
-								break;
-							}
-							else if (result[offset] >= 32 && result[offset] <= 126)
-							{
-								stream.WriteByte(result[offset]);
+								stream.WriteByte(character);
 							}
 							else
 							{
-								stream.Write(Encoding.UTF8.GetBytes($"\\x{result[offset]:x2}"));
+								stream.Write(Encoding.UTF8.GetBytes($"\\x{character:x2}"));
 							}
 						}
 						stream.WriteByte((byte)'\"');
 					}
 
-					if (line + 1 < index + count)
+					if (lineIdx + 1 < lines.Count)
 					{
 						stream.WriteByte((byte)',');
 					}

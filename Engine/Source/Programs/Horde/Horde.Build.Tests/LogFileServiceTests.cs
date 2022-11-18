@@ -8,6 +8,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs;
 using Horde.Build.Logs;
@@ -91,10 +92,11 @@ namespace Horde.Build.Tests
             Assert.AreEqual(6 + 8 + 4, metadata.Length);
             Assert.AreEqual(4, metadata.MaxLineIndex);
 
-            Assert.AreEqual((0, 0), await _logFileService.GetLineOffsetAsync(logFile, 0, CancellationToken.None));
-            Assert.AreEqual((1, 6), await _logFileService.GetLineOffsetAsync(logFile, 1, CancellationToken.None));
-            Assert.AreEqual((2, 10), await _logFileService.GetLineOffsetAsync(logFile, 2, CancellationToken.None));
-            Assert.AreEqual((3, 14), await _logFileService.GetLineOffsetAsync(logFile, 3, CancellationToken.None));
+			List<Utf8String> lines = await _logFileService.ReadLinesAsync(logFile, 0, null, CancellationToken.None);
+			Assert.AreEqual("hello", lines[0].ToString());
+			Assert.AreEqual("foo", lines[1].ToString());
+			Assert.AreEqual("bar", lines[2].ToString());
+			Assert.AreEqual("baz", lines[3].ToString());
         }
         
         [TestMethod]
@@ -126,14 +128,23 @@ namespace Horde.Build.Tests
         private static async Task AssertLineOffset(ILogFileService logFileService, LogId logFileId, int lineIndex, int clampedLineIndex, long offset)
         {
 	        ILogFile? logFile = await logFileService.GetLogFileAsync(logFileId, CancellationToken.None);
-	        Assert.AreEqual((clampedLineIndex, offset), await logFileService.GetLineOffsetAsync(logFile!, lineIndex, CancellationToken.None));
+
+			List<Utf8String> lines = await logFileService.ReadLinesAsync(logFile!, 0, lineIndex + 1, CancellationToken.None);
+			Assert.AreEqual(clampedLineIndex, Math.Min(lineIndex, lines.Count));
+			Assert.AreEqual(offset, lines.Take(lineIndex).Sum(x => x.Length + 1));
         }
         
         protected static async Task<string> ReadLogFile(ILogFileService logFileService, ILogFile logFile, long offset, long length)
         {
-	        using Stream stream = await logFileService.OpenRawStreamAsync(logFile, offset, length);
-			using StreamReader streamReader = new StreamReader(stream);
-	        return await streamReader.ReadToEndAsync();
+			using Stream stream = await logFileService.OpenRawStreamAsync(logFile);
+
+			byte[] prefix = new byte[(int)offset];
+			await stream.ReadGreedyAsync(prefix);
+
+			byte[] data = new byte[(int)length];
+			int actualLength = await stream.ReadGreedyAsync(data);
+
+			return Encoding.UTF8.GetString(data.AsSpan(0, actualLength));
         }
         
         public async Task WriteLogLifecycle(ILogFileService lfs, int maxChunkLength)
