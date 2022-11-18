@@ -15,6 +15,7 @@ UMovieSceneSectionChannelOverrideRegistry::UMovieSceneSectionChannelOverrideRegi
 
 void UMovieSceneSectionChannelOverrideRegistry::AddChannel(FName ChannelName, UMovieSceneChannelOverrideContainer* ChannelContainer)
 {
+	Modify();
 	Overrides.Emplace(ChannelName, ChannelContainer);
 }
 
@@ -35,6 +36,7 @@ UMovieSceneChannelOverrideContainer* UMovieSceneSectionChannelOverrideRegistry::
 
 void UMovieSceneSectionChannelOverrideRegistry::RemoveChannel(FName ChannelName)
 {
+	Modify();
 	Overrides.Remove(ChannelName);
 }
 

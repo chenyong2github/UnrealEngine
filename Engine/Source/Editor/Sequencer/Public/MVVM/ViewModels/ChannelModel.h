@@ -44,6 +44,7 @@ namespace Sequencer
 {
 
 class FSectionModel;
+class FSequenceModel;
 
 /**
  * Model for a single channel inside a section.
@@ -164,6 +165,9 @@ public:
 	/** Gets a serial number representing if the list of channels has changed */
 	uint32 GetChannelsSerialNumber() const;
 
+	/** Notifies this view-model that the list of channels has changed */
+	void OnChannelOverridesChanged();
+
 public:
 
 	/*~ ITrackAreaExtension */
@@ -179,12 +183,6 @@ public:
 	void BuildChannelOverrideMenu(FMenuBuilder& MenuBuilder);
 
 	void CleanupChannels();
-
-private:
-
-	void BuildChannelOverrideMenu(FMenuBuilder& MenuBuilder, UMovieSceneChannelOverrideContainer::FOverrideCandidates OverrideCandidates);
-	void OverrideChannels(TSubclassOf<UMovieSceneChannelOverrideContainer> OverrideClass);
-	void RemoveChannelOverrides();
 
 protected:
 
@@ -240,6 +238,23 @@ private:
 private:
 
 	FOutlinerSizing ComputedSizing;
+};
+
+
+/**
+ * Utility class for building menus that add, edit, and remove channel overrides.
+ */
+class SEQUENCER_API FChannelGroupOverrideHelper
+{
+public:
+
+	static void BuildChannelOverrideMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FSequenceModel> SequenceModel);
+
+private:
+
+	static void BuildChannelOverrideMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FSequenceModel> SequenceModel, UMovieSceneChannelOverrideContainer::FOverrideCandidates OverrideCandidates);
+	static void OverrideChannels(TSharedPtr<FSequenceModel> SequenceModel, TSubclassOf<UMovieSceneChannelOverrideContainer> OverrideClass);
+	static void RemoveChannelOverrides(TSharedPtr<FSequenceModel> SequenceModel);
 };
 
 } // namespace Sequencer

@@ -76,7 +76,7 @@ UMovieSceneSectionChannelOverrideRegistry* UMovieSceneFloatSection::GetChannelOv
 {
 	if (bCreateIfMissing && OverrideRegistry == nullptr)
 	{
-		OverrideRegistry = NewObject<UMovieSceneSectionChannelOverrideRegistry>(this);
+		OverrideRegistry = NewObject<UMovieSceneSectionChannelOverrideRegistry>(this, NAME_None, RF_Transactional);
 	}
 	return OverrideRegistry;
 }
