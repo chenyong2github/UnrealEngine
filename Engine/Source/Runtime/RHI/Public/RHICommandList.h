@@ -456,6 +456,9 @@ public:
 	void PreDispatch(class FRHIComputeCommandList& InCommandList);
 	void PreDraw(class FRHICommandList& InCommandList);
 
+	void FlushAllParameters(class FRHIComputeCommandList& InCommandList);
+	void FlushAllParameters(class FRHICommandList& InCommandList);
+
 	void FlushPendingParameters(class FRHIComputeCommandList& InCommandList, FRHIComputeShader* InShader);
 	void FlushPendingParameters(class FRHICommandList& InCommandList, FRHIGraphicsShader* InShader);
 

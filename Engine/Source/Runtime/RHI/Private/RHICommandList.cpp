@@ -138,7 +138,13 @@ static std::atomic<int32> GRHIThreadStallRequestCount;
 
 FRHIParameterBatcher::FRHIParameterBatcher() = default;
 FRHIParameterBatcher::FRHIParameterBatcher(FRHIParameterBatcher&&) = default;
-FRHIParameterBatcher::~FRHIParameterBatcher() = default;
+FRHIParameterBatcher::~FRHIParameterBatcher()
+{
+	for (int32 Index = 0; Index < SF_NumStandardFrequencies; Index++)
+	{
+		checkSlow(AllBatchedShaderParameters[Index].HasParameters() == false);
+	}
+}
 
 void FRHIParameterBatcher::OnBoundShaderChanged(FRHICommandList& InCommandList, const FBoundShaderStateInput& InBoundShaderStateInput)
 {
@@ -176,6 +182,17 @@ void FRHIParameterBatcher::PreDraw(FRHICommandList& InCommandList)
 		InCommandList.SetBatchedShaderParameters(GetBatchedGraphicsShader(Index), AllBatchedShaderParameters[Index]);
 		AllBatchedShaderParameters[Index].Reset();
 	}
+}
+
+void FRHIParameterBatcher::FlushAllParameters(class FRHIComputeCommandList& InCommandList)
+{
+	PreDispatch(InCommandList);
+}
+
+void FRHIParameterBatcher::FlushAllParameters(class FRHICommandList& InCommandList)
+{
+	PreDraw(InCommandList);
+	PreDispatch(InCommandList);
 }
 
 void FRHIParameterBatcher::FlushPendingParameters(FRHIComputeCommandList& InCommandList, FRHIComputeShader* InShader)
@@ -328,6 +345,9 @@ void FRHICommandListBase::AddDispatchPrerequisite(const FGraphEventRef& Prereq)
 void FRHICommandListBase::FinishRecording()
 {
 	checkf(!IsImmediate(), TEXT("Do not call FinishRecording() on the immediate RHI command list."));
+
+	// Make sure the batcher is cleared out. If there are pending graphics parameters, this cast is safe.
+	ParameterBatcher.FlushAllParameters(static_cast<FRHICommandList&>(*this));
 
 	PersistentState.FenceCandidate->Fence = PersistentState.RHIThreadBufferLockFence;
 
@@ -759,6 +779,8 @@ void FRHICommandListImmediate::ExecuteAndReset()
 
 	// Always reset the immediate command list when we're done.
 	ON_SCOPE_EXIT { Reset(); };
+
+	ParameterBatcher.FlushAllParameters(*this);
 
 	//
 	// In bypass mode, the immediate command list will never contain recorded commands (since these were forwarded directly into the immediate RHI contexts).
