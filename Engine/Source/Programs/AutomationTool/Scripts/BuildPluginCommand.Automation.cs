@@ -314,10 +314,6 @@ public sealed class BuildPlugin : BuildCommand
 				ManifestFileNames.Add(ManifestFileName);
 				
 				string Arguments = String.Format("-plugin={0} -iwyu -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
-				if (Platform == UnrealTargetPlatform.Android)
-				{
-					Arguments += String.Format(" -architectures={0}", AndroidArchitectures);
-				}
 
 				if (!String.IsNullOrEmpty(InAdditionalArgs))
 				{
@@ -366,10 +362,6 @@ public sealed class BuildPlugin : BuildCommand
 				if (PlatformToArchitectureMap.TryGetValue(Platform, out string SpecifiedArchitecture) && !string.IsNullOrEmpty(SpecifiedArchitecture))
 				{
 					Arguments += String.Format(" -architecture={0}", SpecifiedArchitecture);
-				}
-				else if (Platform == UnrealTargetPlatform.Android)
-				{
-					Arguments += String.Format(" -architecture={0}", AndroidArchitectures);
 				}
 
 				if (!String.IsNullOrEmpty(InAdditionalArgs))
