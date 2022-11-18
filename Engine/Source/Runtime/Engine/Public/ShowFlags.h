@@ -388,6 +388,7 @@ private:
 		SetPhysicalMaterialMasks(false);
 		SetVisualizeMotionBlur(false);
 		SetVisualizeMotionVectors(false);
+		SetVisualizeReprojection(false);
 		SetEditingLevelInstance(false);
 		SetSelectionOutline(false);
 		SetDebugAI(false);
