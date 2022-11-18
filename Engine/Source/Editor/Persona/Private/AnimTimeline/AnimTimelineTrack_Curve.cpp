@@ -254,7 +254,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curve::MakeCurveWidget()
 			.Visibility_Lambda([this]()
 			{  
 				// Dont show curves in parent tracks when children are expanded
-				return !IsExpanded() || GetChildren().Num() == 0 ? EVisibility::Visible : EVisibility::Hidden;
+				return ShowCurves() ? EVisibility::Visible : EVisibility::Hidden;
 			})
 			.CurveThickness_Lambda([this]()
 			{
@@ -268,7 +268,7 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curve::MakeCurveWidget()
 			.Visibility_Lambda([this]()
 			{  
 				// Dont show curves in parent tracks when children are expanded
-				return (!IsExpanded() || GetChildren().Num() == 0) && IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
+				return ShowCurves() && IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
 			})
 		];
 }
@@ -299,6 +299,12 @@ void FAnimTimelineTrack_Curve::AddCurveTrackButton(TSharedPtr<SHorizontalBox> In
 	[
 		PersonaUtils::MakeTrackButton(LOCTEXT("EditCurveButtonText", "Curve"), FOnGetContent::CreateSP(this, &FAnimTimelineTrack_Curve::BuildCurveTrackMenu), MakeAttributeSP(this, &FAnimTimelineTrack_Curve::IsHovered))
 	];
+}
+
+bool FAnimTimelineTrack_Curve::ShowCurves() const
+{
+	// Dont show curves in parent tracks when children are expanded
+	return !IsExpanded() || Children.Num() == 0;
 }
 
 TSharedRef<SWidget> FAnimTimelineTrack_Curve::BuildCurveTrackMenu()

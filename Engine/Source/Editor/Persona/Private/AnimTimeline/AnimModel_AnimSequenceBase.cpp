@@ -7,6 +7,7 @@
 #include "AnimTimeline/AnimTimelineTrack_NotifiesPanel.h"
 #include "AnimTimeline/AnimTimelineTrack_Curves.h"
 #include "AnimTimeline/AnimTimelineTrack_Curve.h"
+#include "AnimTimeline/AnimTimelineTrack_CompoundCurve.h"
 #include "AnimTimeline/AnimTimelineTrack_FloatCurve.h"
 #include "AnimTimeline/AnimTimelineTrack_VectorCurve.h"
 #include "AnimTimeline/AnimTimelineTrack_TransformCurve.h"
@@ -224,9 +225,17 @@ void FAnimModel_AnimSequenceBase::RefreshCurveTracks()
 
 	// Next add a track for each float curve
 	const FAnimationCurveData& AnimationModelCurveData = AnimSequenceBase->GetDataModel()->GetCurveData();
-	for(const FFloatCurve& FloatCurve : AnimationModelCurveData.FloatCurves)
+	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
+	if (!PersonaOptions || !PersonaOptions->bUseTreeViewForAnimationCurves)
 	{
-		CurveRoot->AddChild(MakeShared<FAnimTimelineTrack_FloatCurve>(&FloatCurve, SharedThis(this)));
+		for (const FFloatCurve& FloatCurve : AnimationModelCurveData.FloatCurves)
+		{
+			CurveRoot->AddChild(MakeShared<FAnimTimelineTrack_FloatCurve>(&FloatCurve, SharedThis(this)));
+		}
+	}
+	else
+	{
+		FAnimTimelineTrack_CompoundCurve::AddGroupedCurveTracks(AnimationModelCurveData.FloatCurves, *CurveRoot, SharedThis(this), PersonaOptions->AnimationCurveGroupingDelimiters);
 	}
 
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceBase);
@@ -465,6 +474,26 @@ void FAnimModel_AnimSequenceBase::RemoveSelectedCurves()
 					bDeletedCurve = true;
 				}
 			}	
+		}
+		else if (SelectedTrack->IsA<FAnimTimelineTrack_CompoundCurve>())
+		{
+			// Lowest priority for base class delete, ERawCurveTrackTypes::RCT_Transform must take priority
+			TSharedRef<FAnimTimelineTrack_CompoundCurve> CurveTrack = StaticCastSharedRef<FAnimTimelineTrack_CompoundCurve>(SelectedTrack);
+
+			// Find all editable curves in this track
+			for (const FSmartName CurveName : CurveTrack->GetCurveNames())
+			{
+				const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
+				if (AnimSequenceBase->GetDataModel()->FindCurve(CurveId))
+				{
+					FSmartName TrackName;
+					if (AnimSequenceBase->GetSkeleton()->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveName.UID, TrackName))
+					{
+						Controller.RemoveCurve(CurveId);
+						bDeletedCurve = true;
+					}
+				}
+			}
 		}
 	}
 

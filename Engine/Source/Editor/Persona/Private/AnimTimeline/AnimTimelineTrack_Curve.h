@@ -66,6 +66,9 @@ protected:
 	/** Helper function for building outliner widget */
 	virtual void AddCurveTrackButton(TSharedPtr<SHorizontalBox> InnerHorizontalBox);
 
+	/** Should this track draw its curves, by default, hide curves in parent tracks when children are expanded. */
+	virtual bool ShowCurves() const;
+
 	/** Edit this curve when double clicked */
 	FReply HandleDoubleClicked(const FGeometry& InGeometry, const FPointerEvent& InPointerEvent);
 
