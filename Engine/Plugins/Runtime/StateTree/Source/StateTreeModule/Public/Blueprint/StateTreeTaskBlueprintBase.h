@@ -61,6 +61,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Default")
 	uint8 bShouldCallTickOnlyOnEvents : 1;
 
+	/** If set to true, copy the values of bound properties before calling Tick(). Default true. */
+	UPROPERTY(EditDefaultsOnly, Category="Default")
+	uint8 bShouldCopyBoundPropertiesOnTick : 1;
+	
+	/** If set to true, copy the values of bound properties before calling ExitState(). Default true. */
+	UPROPERTY(EditDefaultsOnly, Category="Default")
+	uint8 bShouldCopyBoundPropertiesOnExitState : 1;
+	
 	uint8 bHasEnterState : 1;
 	uint8 bHasExitState : 1;
 	uint8 bHasStateCompleted : 1;
@@ -78,6 +86,7 @@ struct STATETREEMODULE_API FStateTreeBlueprintTaskWrapper : public FStateTreeTas
 	GENERATED_BODY()
 
 	virtual const UStruct* GetInstanceDataType() const override { return TaskClass; };
+	virtual EDataValidationResult Compile(FStateTreeDataView InstanceDataView, TArray<FText>& ValidationMessages) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const override;

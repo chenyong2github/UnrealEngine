@@ -6,8 +6,7 @@
 #include "StateTreeLinker.h"
 #include "VisualLogger/VisualLogger.h"
 
-#define ST_INTERACTION_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, Verbosity, TEXT("[%s] ") Format, *StaticStruct()->GetName(), ##__VA_ARGS__)
-#define ST_INTERACTION_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), Context.GetOwner(), LogStateTree, Verbosity, TEXT("[%s] ") Format, *StaticStruct()->GetName(), ##__VA_ARGS__)
+#define LOCTEXT_NAMESPACE "GameplayInteractions"
 
 FGameplayInteractionSyncSlotTagStateTask::FGameplayInteractionSyncSlotTagStateTask()
 {
@@ -24,6 +23,25 @@ bool FGameplayInteractionSyncSlotTagStateTask::Link(FStateTreeLinker& Linker)
 	return true;
 }
 
+EDataValidationResult FGameplayInteractionSyncSlotTagStateTask::Compile(FStateTreeDataView InstanceDataView, TArray<FText>& ValidationMessages)
+{
+	EDataValidationResult Result = EDataValidationResult::Valid;
+
+	if (!TagToMonitor.IsValid())
+	{
+		ValidationMessages.Add(LOCTEXT("MissingTagToMonitor", "TagToMonitor property is empty, expecting valid tag."));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	if (!BreakEventTag.IsValid())
+	{
+		ValidationMessages.Add(LOCTEXT("MissingBreakEventTag", "BreakEventTag property is empty, expecting valid tag."));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	return Result;
+}
+
 EStateTreeRunStatus FGameplayInteractionSyncSlotTagStateTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
@@ -31,13 +49,6 @@ EStateTreeRunStatus FGameplayInteractionSyncSlotTagStateTask::EnterState(FStateT
 	
 	InstanceData.OnEventHandle.Reset();
 
-	// @todo: should validate this during compile.
-	if (!TagToMonitor.IsValid() || !BreakEventTag.IsValid())
-	{
-		UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, Error, TEXT("[GameplayInteractionSyncSlotTagStateTask] Expected valid TagToMonitor and BreakEventTag."));
-		return EStateTreeRunStatus::Failed;
-	}
-	
 	if (!InstanceData.TargetSlot.IsValid())
 	{
 		UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, Error, TEXT("[GameplayInteractionSyncSlotTagStateTask] Expected valid TargetSlot handle."));
@@ -119,3 +130,5 @@ void FGameplayInteractionSyncSlotTagStateTask::ExitState(FStateTreeExecutionCont
 		InstanceData.bBreakSignalled = true;
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -6,6 +6,8 @@
 #include "StateTreeLinker.h"
 #include "VisualLogger/VisualLogger.h"
 
+#define LOCTEXT_NAMESPACE "GameplayInteractions"
+
 FGameplayInteractionSendSlotEventTask::FGameplayInteractionSendSlotEventTask()
 {
 	// No tick needed.
@@ -21,6 +23,19 @@ bool FGameplayInteractionSendSlotEventTask::Link(FStateTreeLinker& Linker)
 	bShouldCopyBoundPropertiesOnExitState = (Trigger == EGameplayInteractionTaskTrigger::OnExitState);
 
 	return true;
+}
+
+EDataValidationResult FGameplayInteractionSendSlotEventTask::Compile(FStateTreeDataView InstanceDataView, TArray<FText>& ValidationMessages)
+{
+	EDataValidationResult Result = EDataValidationResult::Valid;
+	
+	if (!EventTag.IsValid() && !Payload.IsValid())
+	{
+		ValidationMessages.Add(LOCTEXT("MissingEventData", "EventTag and Payload properties are empty, expecting valid tag."));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	return Result;
 }
 
 EStateTreeRunStatus FGameplayInteractionSendSlotEventTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
@@ -66,3 +81,5 @@ void FGameplayInteractionSendSlotEventTask::ExitState(FStateTreeExecutionContext
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

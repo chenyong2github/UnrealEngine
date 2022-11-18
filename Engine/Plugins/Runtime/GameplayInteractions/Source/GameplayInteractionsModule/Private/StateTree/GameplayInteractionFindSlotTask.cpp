@@ -24,7 +24,7 @@ bool FGameplayInteractionFindSlotTask::Link(FStateTreeLinker& Linker)
 
 bool FGameplayInteractionFindSlotTask::UpdateResult(const FStateTreeExecutionContext& Context) const
 {
-	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
+	const USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	if (!InstanceData.ReferenceSlot.IsValid())

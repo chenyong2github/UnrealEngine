@@ -6,6 +6,8 @@
 #include "StateTreeLinker.h"
 #include "VisualLogger/VisualLogger.h"
 
+#define LOCTEXT_NAMESPACE "GameplayInteractions"
+
 FGameplayInteractionSyncSlotTagTransitionTask::FGameplayInteractionSyncSlotTagTransitionTask()
 {
 	// No tick needed.
@@ -21,17 +23,35 @@ bool FGameplayInteractionSyncSlotTagTransitionTask::Link(FStateTreeLinker& Linke
 	return true;
 }
 
+EDataValidationResult FGameplayInteractionSyncSlotTagTransitionTask::Compile(FStateTreeDataView InstanceDataView, TArray<FText>& ValidationMessages)
+{
+	EDataValidationResult Result = EDataValidationResult::Valid;
+
+	if (!TransitionFromTag.IsValid())
+	{
+		ValidationMessages.Add(LOCTEXT("MissingTransitionFromTag", "TransitionFromTag property is empty, expecting valid tag."));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	if (!TransitionToTag.IsValid())
+	{
+		ValidationMessages.Add(LOCTEXT("MissingTransitionToTag", "TransitionToTag property is empty, expecting valid tag."));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	if (!TransitionEventTag.IsValid())
+	{
+		ValidationMessages.Add(LOCTEXT("MissingTransitionEventTag", "TransitionEventTag property is empty, expecting valid tag."));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	return Result;
+}
+
 EStateTreeRunStatus FGameplayInteractionSyncSlotTagTransitionTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
-
-	// @todo: should validate this during compile.
-	if (!TransitionFromTag.IsValid() || !TransitionToTag.IsValid() || !TransitionEventTag.IsValid())
-	{
-		UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, Error, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Expected valid TransitionFromTag, TransitionToTag, and TransitionEventTag."));
-		return EStateTreeRunStatus::Failed;
-	}
 
 	InstanceData.OnEventHandle.Reset();
 	
@@ -139,3 +159,5 @@ void FGameplayInteractionSyncSlotTagTransitionTask::ExitState(FStateTreeExecutio
 
 	InstanceData.OnEventHandle.Reset();
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -6,6 +6,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "StateTreeLinker.h"
 
+#define LOCTEXT_NAMESPACE "GameplayInteractions"
+
 FGameplayInteractionModifySlotTagTask::FGameplayInteractionModifySlotTagTask()
 {
 	// No tick needed.
@@ -21,6 +23,19 @@ bool FGameplayInteractionModifySlotTagTask::Link(FStateTreeLinker& Linker)
 	bShouldCopyBoundPropertiesOnExitState = (Modify == EGameplayInteractionTaskModify::OnExitState);
 	
 	return true;
+}
+
+EDataValidationResult FGameplayInteractionModifySlotTagTask::Compile(FStateTreeDataView InstanceDataView, TArray<FText>& ValidationMessages)
+{
+	EDataValidationResult Result = EDataValidationResult::Valid;
+
+	if (!Tag.IsValid())
+	{
+		ValidationMessages.Add(LOCTEXT("MissingTag", "Tag property is empty, expecting valid tag."));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	return Result;
 }
 
 EStateTreeRunStatus FGameplayInteractionModifySlotTagTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
@@ -100,3 +115,5 @@ void FGameplayInteractionModifySlotTagTask::ExitState(FStateTreeExecutionContext
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

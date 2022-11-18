@@ -30,6 +30,15 @@ struct STATETREEMODULE_API FStateTreeNodeBase
 	 */
 	[[nodiscard]] virtual bool Link(FStateTreeLinker& Linker) { return true; }
 
+	/**
+	 * Called during State Tree compilation, allows to modify and validate the node and instance data.
+	 * The method is called with node and instance that is duplicated during compilation and used at runtime (it's different than the data used in editor).  
+	 * @param InstanceDataView Pointer to the instance data.
+	 * @param ValidationMessages Any messages to report during validation. Displayed as errors if the validation result is Invalid, else as warnings.
+	 * @return Validation result based on if the validation succeeded or not. Returning Invalid will fail compilation and messages will be displayed as errors.
+	 */
+	virtual EDataValidationResult Compile(FStateTreeDataView InstanceDataView, TArray<FText>& ValidationMessages) { return EDataValidationResult::NotValidated; }
+	
 	/** Name of the node. */
 	UPROPERTY(EditDefaultsOnly, Category = "", meta=(EditCondition = "false", EditConditionHides))
 	FName Name;

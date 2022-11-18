@@ -12,6 +12,7 @@ class UStateTreeState;
 class UStateTreeEditorData;
 struct FStateTreeEditorNode;
 struct FStateTreeStateLink;
+struct FStateTreeNodeBase;
 
 /**
  * Helper class to convert StateTree editor representation into a compact data.
@@ -49,6 +50,7 @@ private:
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;
 	bool ValidateStructRef(const FStateTreeBindableStructDesc& SourceStruct, FStateTreeEditorPropertyPath SourcePath,
 							const FStateTreeBindableStructDesc& TargetStruct, FStateTreeEditorPropertyPath TargetPath) const;
+	bool CompileAndValidateNode(const FStateTreeBindableStructDesc& NodeDesc, FStateTreeNodeBase& Node, const FStateTreeDataView InstanceData) const;
 
 	FStateTreeCompilerLog& Log;
 	UStateTree* StateTree = nullptr;

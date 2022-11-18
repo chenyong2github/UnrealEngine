@@ -15,6 +15,8 @@ UStateTreeTaskBlueprintBase::UStateTreeTaskBlueprintBase(const FObjectInitialize
 	: Super(ObjectInitializer)
 	, bShouldStateChangeOnReselect(true)
 	, bShouldCallTickOnlyOnEvents(false)
+	, bShouldCopyBoundPropertiesOnTick(true)
+	, bShouldCopyBoundPropertiesOnExitState(true)
 {
 	bHasEnterState = BlueprintNodeHelpers::HasBlueprintFunction(TEXT("ReceiveEnterState"), *this, *StaticClass());
 	bHasExitState = BlueprintNodeHelpers::HasBlueprintFunction(TEXT("ReceiveExitState"), *this, *StaticClass());
@@ -64,37 +66,32 @@ EStateTreeRunStatus UStateTreeTaskBlueprintBase::Tick(FStateTreeExecutionContext
 //  FStateTreeBlueprintTaskWrapper
 //----------------------------------------------------------------------//
 
+EDataValidationResult FStateTreeBlueprintTaskWrapper::Compile(FStateTreeDataView InstanceDataView, TArray<FText>& ValidationMessages)
+{
+	const UStateTreeTaskBlueprintBase& InstanceData = InstanceDataView.Get<UStateTreeTaskBlueprintBase>();
+	
+	// Copy over ticking related options.
+	bShouldStateChangeOnReselect = InstanceData.bShouldStateChangeOnReselect;
+	bShouldCallTick = InstanceData.bHasTick;
+	bShouldCallTickOnlyOnEvents = InstanceData.bShouldCallTickOnlyOnEvents;
+	bShouldCopyBoundPropertiesOnTick = InstanceData.bShouldCopyBoundPropertiesOnTick;
+	bShouldCopyBoundPropertiesOnExitState = InstanceData.bShouldCopyBoundPropertiesOnExitState;
+
+	return EDataValidationResult::Valid;
+}
+
 EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-
-	// @todo: remove this and copy bShouldStateChangeOnReselect from the instance instead.
-	// This is not currently possible todo. Maybe we should have some kind of pre-compile validation pass where this could be done.
-	const bool bShouldCallStateChange = Transition.ChangeType == EStateTreeStateChangeType::Changed
-			|| (Transition.ChangeType == EStateTreeStateChangeType::Sustained && Instance->bShouldStateChangeOnReselect);
-	
-	if (bShouldCallStateChange)
-	{
-		return Instance->EnterState(Context, Transition);
-	}
-	return EStateTreeRunStatus::Running;
+	return Instance->EnterState(Context, Transition);
 }
 
 void FStateTreeBlueprintTaskWrapper::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-
-	// @todo: remove this and copy bShouldStateChangeOnReselect from the instance instead.
-	// This is not currently possible todo. Maybe we should have some kind of pre-compile validation pass where this could be done.
-	const bool bShouldCallStateChange = Transition.ChangeType == EStateTreeStateChangeType::Changed
-		|| (Transition.ChangeType == EStateTreeStateChangeType::Sustained && Instance->bShouldStateChangeOnReselect);
-	
-	if (bShouldCallStateChange)
-	{
-		Instance->ExitState(Context, Transition);
-	}
+	Instance->ExitState(Context, Transition);
 }
 
 void FStateTreeBlueprintTaskWrapper::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const
@@ -108,16 +105,6 @@ EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::Tick(FStateTreeExecutionCont
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-
-	// @todo: reflect this value into the node.
-	const bool bNeedsTick = !Instance->bShouldCallTickOnlyOnEvents
-		|| (Instance->bShouldCallTickOnlyOnEvents && !Context.GetEventsToProcess().IsEmpty());
-	
-	if (bNeedsTick)
-	{
-		return Instance->Tick(Context, DeltaTime);
-	}
-	
-	return EStateTreeRunStatus::Running;
+	return Instance->Tick(Context, DeltaTime);
 }
 

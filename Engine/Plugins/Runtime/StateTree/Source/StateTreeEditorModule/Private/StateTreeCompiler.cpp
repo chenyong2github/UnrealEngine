@@ -686,6 +686,11 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 		}
 		Cond.InstanceIndex = FStateTreeIndex16(InstanceIndex);
 		Cond.bInstanceIsObject = false;
+
+		if (!CompileAndValidateNode(StructDesc, Node.GetMutable<FStateTreeNodeBase>(),  FStateTreeDataView(InstanceStructs[InstanceIndex])))
+		{
+			return false;
+		}
 	}
 	else
 	{
@@ -706,6 +711,11 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 		}
 		Cond.InstanceIndex = FStateTreeIndex16(InstanceIndex);
 		Cond.bInstanceIsObject = true;
+
+		if (!CompileAndValidateNode(StructDesc, Node.GetMutable<FStateTreeNodeBase>(),  FStateTreeDataView(Instance)))
+		{
+			return false;
+		}
 	}
 
 	// Mark the struct as binding source.
@@ -740,6 +750,29 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 	Cond.DataViewIndex = FStateTreeIndex16(SourceStructIndex);
 	
 	return true;
+}
+
+bool FStateTreeCompiler::CompileAndValidateNode(const FStateTreeBindableStructDesc& NodeDesc, FStateTreeNodeBase& Node, const FStateTreeDataView InstanceData) const
+{
+	check(InstanceData.IsValid());
+	
+	TArray<FText> ValidationErrors;
+	const EDataValidationResult Result = Node.Compile(InstanceData, ValidationErrors);
+
+	if (Result == EDataValidationResult::Invalid && ValidationErrors.IsEmpty())
+	{
+		Log.Report(EMessageSeverity::Error, NodeDesc, TEXT("Node validation failed."));
+	}
+	else
+	{
+		const EMessageSeverity::Type Severity = Result == EDataValidationResult::Invalid ? EMessageSeverity::Error : EMessageSeverity::Warning;
+		for (const FText& Error : ValidationErrors)
+		{
+			Log.Report(Severity, NodeDesc, Error.ToString());
+		}
+	}
+
+	return Result != EDataValidationResult::Invalid;
 }
 
 bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEditorNode& TaskNode)
@@ -784,6 +817,11 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEdit
 		}
 		Task.InstanceIndex = FStateTreeIndex16(InstanceIndex);
 		Task.bInstanceIsObject = false;
+
+		if (!CompileAndValidateNode(StructDesc, Node.GetMutable<FStateTreeNodeBase>(),  FStateTreeDataView(InstanceStructs[InstanceIndex])))
+		{
+			return false;
+		}
 	}
 	else
 	{
@@ -804,6 +842,11 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEdit
 		}
 		Task.InstanceIndex = FStateTreeIndex16(InstanceIndex);
 		Task.bInstanceIsObject = true;
+
+		if (!CompileAndValidateNode(StructDesc, Node.GetMutable<FStateTreeNodeBase>(),  FStateTreeDataView(Instance)))
+		{
+			return false;
+		}
 	}
 
 	// Mark the instance as binding source.
@@ -882,6 +925,11 @@ bool FStateTreeCompiler::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
 		}
 		Eval.InstanceIndex = FStateTreeIndex16(InstanceIndex);
 		Eval.bInstanceIsObject = false;
+
+		if (!CompileAndValidateNode(StructDesc, Node.GetMutable<FStateTreeNodeBase>(),  FStateTreeDataView(InstanceStructs[InstanceIndex])))
+		{
+			return false;
+		}
 	}
 	else
 	{
@@ -902,6 +950,11 @@ bool FStateTreeCompiler::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
 		}
 		Eval.InstanceIndex = FStateTreeIndex16(InstanceIndex);
 		Eval.bInstanceIsObject = true;
+
+		if (!CompileAndValidateNode(StructDesc, Node.GetMutable<FStateTreeNodeBase>(),  FStateTreeDataView(Instance)))
+		{
+			return false;
+		}
 	}
 		
 	// Mark the instance as binding source.
