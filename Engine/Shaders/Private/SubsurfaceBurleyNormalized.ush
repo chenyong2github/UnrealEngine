@@ -307,7 +307,7 @@ FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathFo
 FStrataTopLayerData LoadStrataTopLayerData(float2 UV)
 {
 	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy;
-	return StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
+	return StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
 }
 #endif
 
@@ -697,7 +697,7 @@ float3 GetBilateralNormal(float2 ClampedUV, float2 Extent)
 #if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 	#if STRATA_ENABLED
 	const uint2 BufferPos = ClampedUV * Extent;
-	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(BufferPos, 0)));
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(BufferPos, 0)));
 	return TopLayerData.WorldNormal;
 	#else
 	return GetScreenSpaceData(ClampedUV).GBuffer.WorldNormal;

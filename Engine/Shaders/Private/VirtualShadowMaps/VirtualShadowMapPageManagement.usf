@@ -238,7 +238,7 @@ void GeneratePageFlagsFromPixels(
 	{
 		DeviceZ = LookupDeviceZ(PixelPos);
 #if STRATA_ENABLED
-		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
+		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
 		WorldNormal = TopLayerData.WorldNormal;
 		bIsValid = IsStrataMaterial(TopLayerData);
 		// bBackfaceCull = bBackfaceCull && !IsSubsurfaceModel(GBuffer.ShadingModelID); STRATA_TODO
