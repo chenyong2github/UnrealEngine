@@ -20,7 +20,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("Camera Animation Eval"), CameraAnimationEval_Total, STATGROUP_CameraAnimation);
 
-FCameraAnimationHandle FCameraAnimationHandle::Invalid(MAX_int16, 0);
+FCameraAnimationHandle FCameraAnimationHandle::Invalid(MAX_uint16, 0);
 
 FActiveCameraAnimationInfo::FActiveCameraAnimationInfo()
 	: Sequence(nullptr)

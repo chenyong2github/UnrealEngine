@@ -99,7 +99,7 @@ struct FCameraAnimationHandle
 
 	bool IsValid() const
 	{
-		return InstanceID != MAX_int16;
+		return InstanceID != MAX_uint16;
 	}
 
 	friend bool operator==(FCameraAnimationHandle A, FCameraAnimationHandle B)
