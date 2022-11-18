@@ -2009,6 +2009,18 @@ namespace Chaos
 					X1 = VectorLoadFloat3(&X1f.X);
 					X2 = VectorLoadFloat3(&X2f.X);
 				}
+				if constexpr (std::is_same<QueryGeomType, Chaos::FSphere>::value)
+				{
+					Radius = FRealSingle(QueryGeom.GetRadius());
+					const FVec3f X1f = QueryGeom.GetCenter();
+					X1 = VectorLoadFloat3(&X1f.X);
+				}
+				else if constexpr (std::is_same<QueryGeomType, TImplicitObjectScaled < Chaos::FSphere>>::value)
+				{
+					Radius = FRealSingle(QueryGeom.GetRadius());
+					const FVec3f X1f = QueryGeom.GetUnscaledObject()->GetCenter() * QueryGeom.GetScale();
+					X1 = VectorLoadFloat3(&X1f.X);
+				}
 
 				VectorRegister4Float Points[4];
 				const UE::Math::TQuat<FReal>& RotationDouble = QueryTM.GetRotation();
@@ -2041,6 +2053,17 @@ namespace Chaos
 								return true;
 							}
 							if (ComputeCapsuleTriangleOverlapSimd(Points[0], Points[3], Points[2], X1, X2, Radius))
+							{
+								return true;
+							}
+						}
+						else if constexpr (std::is_same<QueryGeomType, Chaos::FSphere>::value || std::is_same<QueryGeomType, TImplicitObjectScaled < Chaos::FSphere>>::value)
+						{
+							if (ComputeSphereTriangleOverlapSimd(Points[0], Points[1], Points[3], X1, Radius))
+							{
+								return true;
+							}
+							if (ComputeSphereTriangleOverlapSimd(Points[0], Points[3], Points[2], X1, Radius))
 							{
 								return true;
 							}

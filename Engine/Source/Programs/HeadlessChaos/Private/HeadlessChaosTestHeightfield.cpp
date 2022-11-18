@@ -938,8 +938,6 @@ namespace ChaosTest {
 		const int32 Columns = 10;
 		const int32 Rows = 10;
 
-		
-
 		TArray<FReal> Heights = CreateMountain(Columns, Rows);
 
 		TArray<FReal> HeightsCopy = Heights;
@@ -950,6 +948,8 @@ namespace ChaosTest {
 		{
 			TBox<FReal, 3> Box(FVec3(-1.0, -1.0, -1.0), FVec3(1.0, 1.0, 10.0));
 			FCapsule Capsule(FVec3(0.0, 0.0, 0.0), FVec3(0.0, 0.0, 9.0), 1.14);
+			Chaos::FSphere Sphere1(FVec3(0.0, 0.0, -2.0), 0.6);
+
 			for (int32 Row = 0; Row < Rows; ++Row)
 			{
 				for (int32 Col = 0; Col < Columns; ++Col)
@@ -959,11 +959,14 @@ namespace ChaosTest {
 					FVec3 Dir(1, 0, 0);
 					bool BoxResult = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
 					bool CapsuleResult = Heightfield.OverlapGeom(Capsule, QueryTM, 0.0, nullptr);
+					bool SphereResult = Heightfield.OverlapGeom(Sphere1, QueryTM, 0.0, nullptr);
 					// No collision on the side of the mountain
 					if ((Col < 3 || Col > 7) && (Row < 3 || Row > 7))
 					{
 						EXPECT_FALSE(BoxResult);
 						EXPECT_FALSE(CapsuleResult);
+						// Sphere on the floor
+						EXPECT_TRUE(SphereResult);
 					}
 					// Collision with the mountain
 					else if ((Col >= 3 && Col <= 7) && (Row >= 3 && Row <= 7))
@@ -974,6 +977,11 @@ namespace ChaosTest {
 					else
 					{
 						EXPECT_FALSE(BoxResult);
+					}
+					// Inside the mountain the sphere shouldn't collide
+					if ((Col > 3 && Col < 7) && (Row > 3 && Row < 7))
+					{
+						EXPECT_FALSE(SphereResult);
 					}
 				}
 			}
