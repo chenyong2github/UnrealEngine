@@ -109,7 +109,7 @@ struct ENGINE_API FSetDevicePropertyParams
  *
  * @param UserId		The Platform user whose device has changed
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHardwareInputDeviceChanged, const FPlatformUserId, UserId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHardwareInputDeviceChanged, const FPlatformUserId, UserId, const FInputDeviceId, DeviceId);
 
 /**
 * The input device subsystem provides an interface to allow users to set Input Device Properties
@@ -144,6 +144,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (AutoCreateRefTerm = "Params"))
 	FInputDevicePropertyHandle SetDeviceProperty(const FSetDevicePropertyParams& Params);
 
+	/** Returns a pointer to the active input device property with the given handle. Returns null if the property doesn't exist */
+	TObjectPtr<UInputDeviceProperty> GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle);
+
 	/** 
 	* Remove any active device properties that have the same class as the one given.
 	* 
@@ -174,12 +177,12 @@ public:
 	static bool IsDevicePropertyHandleValid(const FInputDevicePropertyHandle& InHandle);
 
 	/** Gets the most recently used hardware input device for the given platform user */
+	UFUNCTION(BlueprintCallable, Category = "Input Devices")
 	FHardwareDeviceIdentifier GetMostRecentlyUsedHardwareDevice(const FPlatformUserId InUserId) const;
 
-	/** A delegate that is fired when a platform user changes what Hardware Input device they are using */
-	DECLARE_EVENT_OneParam(UInputDeviceSubsystem, FHardwareInputDeviceChanged, const FPlatformUserId);
-	FHardwareInputDeviceChanged OnInputHardwareDeviceChangedNative;
-	
+	UFUNCTION(BlueprintCallable, Category = "Input Devices")
+	FHardwareDeviceIdentifier GetInputDeviceHardwareIdentifier(const FInputDeviceId InputDevice) const;
+
 	/** A delegate that is fired when a platform user changes what Hardware Input device they are using */
 	UPROPERTY(BlueprintAssignable, Category = "Input Device")
 	FHardwareInputDeviceChanged OnInputHardwareDeviceChanged;
@@ -195,8 +198,11 @@ protected:
 	UPROPERTY(Transient)
 	TArray<FActiveDeviceProperty> ActiveProperties;
 	
+	/** A map of an input device to it's most recent hardware device identifier */
+	TMap<FInputDeviceId, FHardwareDeviceIdentifier> LatestInputDeviceIdentifiers;
+
 	/** A map of platform user's to their most recent hardware device identifier */
-	TMap<FPlatformUserId, FHardwareDeviceIdentifier> LatestInputDeviceIdentifiers;
+	TMap<FPlatformUserId, FHardwareDeviceIdentifier> LatestUserDeviceIdentifiers;
 
 	/** An input processor that is used to determine the current hardware input device */
 	TSharedPtr<class FInputDeviceSubsystemProcessor> InputPreprocessor;

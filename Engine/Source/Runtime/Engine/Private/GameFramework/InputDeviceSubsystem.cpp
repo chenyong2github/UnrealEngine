@@ -300,6 +300,18 @@ FInputDevicePropertyHandle UInputDeviceSubsystem::SetDeviceProperty(const FSetDe
 	return OutHandle;
 }
 
+TObjectPtr<UInputDeviceProperty> UInputDeviceSubsystem::GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle)
+{
+	for (const FActiveDeviceProperty& ActiveProp : ActiveProperties)
+	{
+		if (ActiveProp.PropertyHandle == Handle)
+		{
+			return ActiveProp.Property;
+		}
+	}
+	return nullptr;
+}
+
 int32 UInputDeviceSubsystem::RemoveDevicePropertiesOfClass(const FPlatformUserId UserId, TSubclassOf<UInputDeviceProperty> DevicePropertyClass)
 {
 	int32 NumRemoved = 0;
@@ -360,7 +372,7 @@ void UInputDeviceSubsystem::RemoveAllDeviceProperties()
 
 FHardwareDeviceIdentifier UInputDeviceSubsystem::GetMostRecentlyUsedHardwareDevice(const FPlatformUserId InUserId) const
 {
-	if (const FHardwareDeviceIdentifier* FoundDevice = LatestInputDeviceIdentifiers.Find(InUserId))
+	if (const FHardwareDeviceIdentifier* FoundDevice = LatestUserDeviceIdentifiers.Find(InUserId))
 	{
 		return *FoundDevice;
 	}
@@ -368,19 +380,28 @@ FHardwareDeviceIdentifier UInputDeviceSubsystem::GetMostRecentlyUsedHardwareDevi
 	return FHardwareDeviceIdentifier::Invalid;
 }
 
+FHardwareDeviceIdentifier UInputDeviceSubsystem::GetInputDeviceHardwareIdentifier(const FInputDeviceId InputDevice) const
+{
+	if (const FHardwareDeviceIdentifier* FoundDevice = LatestInputDeviceIdentifiers.Find(InputDevice))
+	{
+		return *FoundDevice;
+	}
+
+	return FHardwareDeviceIdentifier::Invalid;
+}
+
 void UInputDeviceSubsystem::SetMostRecentlyUsedHardwareDevice(const FInputDeviceId InDeviceId, const FHardwareDeviceIdentifier& InHardwareId)
 {
-	FPlatformUserId OwningUserId = IPlatformInputDeviceMapper::Get().GetUserForInputDevice(InDeviceId); 
+	FPlatformUserId OwningUserId = IPlatformInputDeviceMapper::Get().GetUserForInputDevice(InDeviceId);
 
-	LatestInputDeviceIdentifiers.Add(OwningUserId, InHardwareId);
+	// Keep track of each input device's latest hardware id
+	LatestInputDeviceIdentifiers.Add(InDeviceId, InHardwareId);
+
+	// Keep a map to platform users so that we can easily get their most recent hardware
+	LatestUserDeviceIdentifiers.Add(OwningUserId, InHardwareId);
 
 	if (OnInputHardwareDeviceChanged.IsBound())
 	{
-		OnInputHardwareDeviceChanged.Broadcast(OwningUserId);
-	}
-
-	if (OnInputHardwareDeviceChangedNative.IsBound())
-	{
-		OnInputHardwareDeviceChangedNative.Broadcast(OwningUserId);
+		OnInputHardwareDeviceChanged.Broadcast(OwningUserId, InDeviceId);
 	}
 }
