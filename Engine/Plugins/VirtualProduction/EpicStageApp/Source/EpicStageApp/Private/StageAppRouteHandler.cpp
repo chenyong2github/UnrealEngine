@@ -819,7 +819,10 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorCreate(const FRem
 
 	if (!Body.TemplatePath.IsEmpty())
 	{
-		Template = Cast<UDisplayClusterStageActorTemplate>(StaticLoadObject(UDisplayClusterStageActorTemplate::StaticClass(), nullptr, *Body.TemplatePath));
+		if (Body.TemplatePath != TEXT("None"))
+		{
+			Template = Cast<UDisplayClusterStageActorTemplate>(StaticLoadObject(UDisplayClusterStageActorTemplate::StaticClass(), nullptr, *Body.TemplatePath));
+		}
 	}
 #if WITH_EDITOR
 	else if (ActorClass == ADisplayClusterLightCardActor::StaticClass())
@@ -847,6 +850,14 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorCreate(const FRem
 	if (!NewActor)
 	{
 		return;
+	}
+
+	if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(NewActor))
+	{
+		if (Body.OverrideColor)
+		{
+			LightCard->Color = Body.Color;
+		}
 	}
 
 	// Override the location

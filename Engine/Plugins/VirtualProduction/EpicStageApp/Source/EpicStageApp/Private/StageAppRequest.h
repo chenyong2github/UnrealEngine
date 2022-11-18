@@ -365,7 +365,9 @@ struct FRCWebSocketNDisplayPreviewActorCreateBody : public FRCRequest
 	FString ActorClass = "";
 
 	/**
-	 * The path of the template to use for the lightcard. If empty, a lightcard will be created with default settings.
+	 * The path of the template to use for the lightcard.
+	 * If empty, a lightcard will be created using the default template.
+	 * If "None", a lightcard will be created with default settings regardless of whether there's a default template.
 	 */
 	UPROPERTY()
 	FString TemplatePath = "";
@@ -383,6 +385,19 @@ struct FRCWebSocketNDisplayPreviewActorCreateBody : public FRCRequest
 	 */
 	UPROPERTY()
 	FVector2D Position = FVector2D::ZeroVector;
+
+	/**
+	 * If true, override the default/template color for the actor if it's a lightcard.
+	 */
+	UPROPERTY()
+	bool OverrideColor = false;
+
+	/**
+	 * If OverrideColor is true and PreviewRendererId points to a valid preview renderer, use this color when creating
+	 * a lightcard.
+	 */
+	UPROPERTY()
+	FLinearColor Color = FLinearColor::White;
 
 	/**
 	 * An optional number that will be passed back in the RequestedActorsCreated response to tell apart
