@@ -41,7 +41,6 @@ public:
 		, bForceLQReflections(false)
 		, bForceDisablePreintegratedGF(false)
 		, bDisableMaterialNormalCalculation(false)
-		, bVolumetricFogCalculation(false)
 		, MobileShadowQuality(EMobileShadowQuality::PCF_2x2)
 	{
 	}
@@ -69,9 +68,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Disable material normal calculation"), Category = "Quality")
 	bool bDisableMaterialNormalCalculation;
-
-	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Volumetric fog calculation"), Category = "Quality")
-	bool bVolumetricFogCalculation;
 
 	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Mobile shadow mapping quality"), Category = "Quality")
 	EMobileShadowQuality MobileShadowQuality;

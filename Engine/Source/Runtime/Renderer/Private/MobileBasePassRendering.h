@@ -424,6 +424,7 @@ public:
 		}
 
 		OutEnvironment.SetDefine(TEXT("ENABLE_AMBIENT_OCCLUSION"), IsMobileAmbientOcclusionEnabled(Parameters.Platform) ? 1u : 0u);
+		OutEnvironment.SetDefine(TEXT("MOBILE_SUPPORT_VOLUMETRIC_FOG"), MobileSupportVolumetricFog(Parameters.Platform) ? 1u : 0u);
 	}
 	
 	/** Initialization constructor. */

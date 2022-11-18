@@ -1519,6 +1519,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 
 		{
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.VolumetricFog"));
+			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobVolFog") : TEXT("");
+		}
+
+		{
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.GPUSkin.UseBonesBufferSRV"));
 			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobBSRV") : TEXT("");
 		}

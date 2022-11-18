@@ -811,6 +811,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bMobileAmbientOcclusion : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
+		ConsoleVariable = "r.Mobile.VolumetricFog", DisplayName = "Mobile Volumetric Fog",
+		ToolTip = "Mobile Volumetric Fog. Causion: An extra sampler will be occupied in mobile base pass pixel shader after enable the mobile volumetric fog. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+		uint32 bMobileVolumetricFog : 1;
+
 	UPROPERTY(config, EditAnywhere, Category = Skinning, meta = (
 		ConsoleVariable = "r.GPUSkin.UnlimitedBoneInfluences", DisplayName = "Use Unlimited Bone Influences",
 		ToolTip = "If enabled, a new mesh imported will use unlimited bone buffer instead of fixed MaxBoneInfluences for rendering.",
