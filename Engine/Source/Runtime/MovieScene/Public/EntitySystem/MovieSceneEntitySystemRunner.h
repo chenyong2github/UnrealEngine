@@ -147,6 +147,13 @@ public:
 	 */
 	bool IsCurrentlyEvaluating() const;
 
+	/**
+	 * Run a single evaluation phase
+	 *
+	 * @return Whether the phase was run
+	 */
+	bool FlushSingleEvaluationPhase();
+
 public:
 
 	UMovieSceneEntitySystemLinker* GetLinker() const;

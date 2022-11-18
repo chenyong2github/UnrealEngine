@@ -4,6 +4,7 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntityMutations.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "IMovieScenePlayer.h"
@@ -1073,5 +1074,39 @@ FMovieSceneEntitySystemEventTriggers& FMovieSceneEntitySystemRunner::GetQueuedEv
 {
 	checkf(bCanQueueEventTriggers, TEXT("Can't queue event triggers at this point in the update loop."));
 	return EventTriggers;
+}
+
+bool FMovieSceneEntitySystemRunner::FlushSingleEvaluationPhase()
+{
+	using namespace UE::MovieScene;
+
+	if (!ensureMsgf(
+			!IsCurrentlyEvaluating() && CurrentPhase == ESystemPhase::None,
+			TEXT("Can't run nested flush phase while the runner is evaluating and no re-entrancy window is open")))
+	{
+		return false;
+	}
+
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+	if (!ensureMsgf(Linker, TEXT("Runner isn't attached to a valid linker")))
+	{
+		return false;
+	}
+
+	TGuardValue<ESystemPhase> PhaseGuard(CurrentPhase, ESystemPhase::Evaluation);
+
+	Linker->EntityManager.LockDown();
+
+	FGraphEventArray AllTasks;
+	Linker->SystemGraph.ExecutePhase(ESystemPhase::Evaluation, Linker, AllTasks);
+
+	if (AllTasks.Num() != 0)
+	{
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(AllTasks, ENamedThreads::GameThread_Local);
+	}
+
+	Linker->EntityManager.ReleaseLockDown();
+
+	return true;
 }
 

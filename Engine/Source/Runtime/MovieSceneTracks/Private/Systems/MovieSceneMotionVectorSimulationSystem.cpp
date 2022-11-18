@@ -135,18 +135,10 @@ void UMovieSceneMotionVectorSimulationSystem::ComputeSimulatedMotion()
 
 	// --------------------------------------------------------------------------------------------------------------------------------------------
 	// Re-execute the evaluation phase to flush the new transforms
+	FMovieSceneEntitySystemRunner* ActiveRunner = Linker->GetActiveRunner();
+	if (ensure(ActiveRunner))
 	{
-		Linker->EntityManager.LockDown();
-
-		FGraphEventArray AllTasks;
-		Linker->SystemGraph.ExecutePhase(ESystemPhase::Evaluation, Linker, AllTasks);
-
-		if (AllTasks.Num() != 0)
-		{
-			FTaskGraphInterface::Get().WaitUntilTasksComplete(AllTasks, ENamedThreads::GameThread_Local);
-		}
-
-		Linker->EntityManager.ReleaseLockDown();
+		ActiveRunner->FlushSingleEvaluationPhase();
 	}
 
 	// --------------------------------------------------------------------------------------------------------------------------------------------
