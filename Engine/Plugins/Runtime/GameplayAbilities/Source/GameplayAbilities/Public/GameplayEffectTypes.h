@@ -100,7 +100,7 @@ UENUM(BlueprintType)
 namespace EGameplayModOp
 {
 	/** Defines the ways that mods will modify attributes. Numeric ones operate on the existing value, override ignores it */
-	enum Type
+	enum Type : int
 	{		
 		/** Numeric. */
 		Additive = 0		UMETA(DisplayName="Add"),
@@ -976,7 +976,7 @@ UENUM(BlueprintType)
 namespace EGameplayCueEvent
 {
 	/** Indicates what type of action happened to a specific gameplay cue tag. Sometimes you will get multiple events at once */
-	enum Type
+	enum Type : int
 	{
 		/** Called when a GameplayCue with duration is first activated, this will only be called if the client witnessed the activation */
 		OnActive,
@@ -1043,7 +1043,7 @@ UENUM(BlueprintType)
 namespace EGameplayTagEventType
 {
 	/** Rather a tag was added or removed, used in callbacks */
-	enum Type
+	enum Type : int
 	{		
 		/** Event only happens when tag is new or completely removed */
 		NewOrRemoved,

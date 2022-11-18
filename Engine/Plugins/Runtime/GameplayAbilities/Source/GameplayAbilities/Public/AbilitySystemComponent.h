@@ -7,23 +7,27 @@
 #include "Templates/SubclassOf.h"
 #include "Engine/NetSerialization.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/TimerHandle.h"
 #include "GameplayTagContainer.h"
 #include "AttributeSet.h"
 #include "EngineDefines.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "GameplayEffectTypes.h"
-#endif
 #include "GameplayPrediction.h"
 #include "GameplayCueInterface.h"
 #include "GameplayTagAssetInterface.h"
 #include "GameplayAbilitySpec.h"
 #include "GameplayEffect.h"
-#include "Abilities/GameplayAbilityTypes.h"
 #include "GameplayTasksComponent.h"
+#include "Abilities/GameplayAbilityRepAnimMontage.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "Abilities/GameplayAbility.h"
 #include "AbilitySystemReplicationProxyInterface.h"
 #include "Net/Core/PushModel/PushModel.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Abilities/GameplayAbilityTypes.h"
+#include "GameplayEffectTypes.h"
+#endif
+
 #include "AbilitySystemComponent.generated.h"
 
 class AGameplayAbilityTargetActor;
