@@ -116,7 +116,7 @@ private:
 			do
 			{
 				Next = Node->Next.load(std::memory_order_relaxed);
-			} while (Next == nullptr);
+			} while (Next == nullptr); // <- This loop has the potential for live locking if enqueue was not completed (e.g was running at lower priority)
 
 			return Next;
 		};
