@@ -11,11 +11,11 @@
 
 class UGeometryCollection;
 
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection, DataflowTerminal))
 struct FGeometryCollectionTerminalDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FGeometryCollectionTerminalDataflowNode, "GeometryCollectionTerminal", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGeometryCollectionTerminalDataflowNode, "GeometryCollectionTerminal", "Terminal", "")
 	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
 
 public:
@@ -46,7 +46,7 @@ public:
  * Get Current geometry collection asset 
  * Note : Use with caution as this may get replaced in a near future for a more generic getAsset node
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FGetGeometryCollectionAssetDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -65,7 +65,7 @@ public:
  * Get the list of the original mesh information used to create a specific geometryc collection asset
  * each entry contains a mesh, a transform and a list of override materials
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FGetGeometryCollectionSourcesDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -87,7 +87,7 @@ public:
 /**
  * create a geometry collection from a set of geometry sources    
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCreateGeometryCollectionFromSourcesDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

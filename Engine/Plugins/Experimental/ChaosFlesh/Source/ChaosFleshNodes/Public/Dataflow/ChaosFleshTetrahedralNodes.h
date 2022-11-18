@@ -11,7 +11,7 @@
 class UStaticMesh;
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FGenerateTetrahedralCollectionDataflowNodes : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

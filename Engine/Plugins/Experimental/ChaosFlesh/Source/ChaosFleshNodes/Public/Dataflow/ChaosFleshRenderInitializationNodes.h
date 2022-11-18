@@ -11,7 +11,7 @@
 class USkeletalMesh;
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FBindForRenderToSkeletalMeshDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

@@ -64,18 +64,21 @@ namespace Dataflow
 
 void FCollectionTransformSelectionAllDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FManagedArrayCollection>(&Collection) ||
-		Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		int32 NumElems = InCollection.NumElements(FGeometryCollection::TransformGroup);
+		int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
 
 		FDataflowTransformSelection NewTransformSelection;
-		NewTransformSelection.Initialize(NumElems, true);
+		NewTransformSelection.Initialize(NumTransforms, true);
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
 
@@ -84,8 +87,8 @@ void FCollectionTransformSelectionSetOperationDataflowNode::Evaluate(Dataflow::F
 {
 	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FDataflowTransformSelection InTransformSelectionA = GetValue<FDataflowTransformSelection>(Context, &TransformSelectionA);
-		FDataflowTransformSelection InTransformSelectionB = GetValue<FDataflowTransformSelection>(Context, &TransformSelectionB);
+		const FDataflowTransformSelection& InTransformSelectionA = GetValue<FDataflowTransformSelection>(Context, &TransformSelectionA);
+		const FDataflowTransformSelection& InTransformSelectionB = GetValue<FDataflowTransformSelection>(Context, &TransformSelectionB);
 
 		FDataflowTransformSelection NewTransformSelection;
 
@@ -137,11 +140,10 @@ static void ExpandRecursive(const int32 BoneIndex, int32 Level, const TManagedAr
 	}
 }
 
-
 static void BuildHierarchicalOutput(const TManagedArray<int32>& Parents, 
 	const TManagedArray<TSet<int32>>& Children, 
 	const TManagedArray<FString>& BoneNames,
-	FDataflowTransformSelection& TransformSelection, 
+	const FDataflowTransformSelection& TransformSelection, 
 	FString& OutputStr)
 {
 	TArray<BoneInfo> BoneHierarchy;
@@ -210,8 +212,8 @@ void FCollectionTransformSelectionInfoDataflowNode::Evaluate(Dataflow::FContext&
 {
 	if (Out->IsA<FString>(&String))
 	{
-		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
 		FString OutputStr;
 
@@ -257,18 +259,21 @@ void FCollectionTransformSelectionInfoDataflowNode::Evaluate(Dataflow::FContext&
 
 void FCollectionTransformSelectionNoneDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FManagedArrayCollection>(&Collection) ||
-		Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		const int32 NumElems = InCollection.NumElements(FGeometryCollection::TransformGroup);
+		int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
 
 		FDataflowTransformSelection NewTransformSelection;
-		NewTransformSelection.Initialize(NumElems, false);
+		NewTransformSelection.Initialize(NumTransforms, false);
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
 
@@ -288,22 +293,21 @@ void FCollectionTransformSelectionInvertDataflowNode::Evaluate(Dataflow::FContex
 
 void FCollectionTransformSelectionRandomDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FManagedArrayCollection>(&Collection) ||
-		Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		int32 NumElems = InCollection.NumElements(FGeometryCollection::TransformGroup);
+		int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
 
 		FDataflowTransformSelection NewTransformSelection;
-		NewTransformSelection.Initialize(NumElems, false);
+		NewTransformSelection.Initialize(NumTransforms, false);
 
 		float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 		float RandomThresholdVal = GetValue<float>(Context, &RandomThreshold);
 
 		FRandomStream Stream(RandomSeedVal);
 
-		for (int32 Idx = 0; Idx < NumElems; ++Idx)
+		for (int32 Idx = 0; Idx < NumTransforms; ++Idx)
 		{
 			if (Deterministic)
 			{
@@ -325,36 +329,33 @@ void FCollectionTransformSelectionRandomDataflowNode::Evaluate(Dataflow::FContex
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
 
 
 void FCollectionTransformSelectionRootDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FManagedArrayCollection>(&Collection) ||
-		Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
 		if (InCollection.HasGroup(FGeometryCollection::TransformGroup) &&
 			InCollection.HasAttribute("Parent", FGeometryCollection::TransformGroup))
 		{
-			const TManagedArray<int32>& Parent = InCollection.GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+			TArray<int32> RootBones;
+			FFractureEngineSelection::GetRootBones(InCollection, RootBones);
 
-			int32 NumElems = InCollection.NumElements(FGeometryCollection::TransformGroup);
+			int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
 
 			FDataflowTransformSelection NewTransformSelection;
-			NewTransformSelection.Initialize(NumElems, false);
-
-			for (int32 Idx = 0; Idx < NumElems; ++Idx)
-			{
-				if (Parent[Idx] == FGeometryCollection::Invalid)
-				{
-					NewTransformSelection.SetSelected(Idx);
-				}
-			}
+			NewTransformSelection.Initialize(NumTransforms, false);
+			NewTransformSelection.SetFromArray(RootBones);
 
 			SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
 		}
@@ -362,7 +363,10 @@ void FCollectionTransformSelectionRootDataflowNode::Evaluate(Dataflow::FContext&
 		{
 			SetValue<FDataflowTransformSelection>(Context, FDataflowTransformSelection(), &TransformSelection);
 		}
-
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
@@ -370,17 +374,16 @@ void FCollectionTransformSelectionRootDataflowNode::Evaluate(Dataflow::FContext&
 
 void FCollectionTransformSelectionCustomDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FManagedArrayCollection>(&Collection) ||
-		Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
 		if (InCollection.HasGroup(FGeometryCollection::TransformGroup))
 		{
-			const int32 NumElems = InCollection.NumElements(FGeometryCollection::TransformGroup);
+			const int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
 
 			FDataflowTransformSelection NewTransformSelection;
-			NewTransformSelection.Initialize(NumElems, false);
+			NewTransformSelection.Initialize(NumTransforms, false);
 
 			const FString InBoneIndices = GetValue<FString>(Context, &BoneIndicies);
 
@@ -392,7 +395,7 @@ void FCollectionTransformSelectionCustomDataflowNode::Evaluate(Dataflow::FContex
 				if (IndexStr.IsNumeric())
 				{
 					int32 Index = FCString::Atoi(*IndexStr);
-					if (Index > 0 && Index < NumElems)
+					if (Index >= 0 && Index < NumTransforms)
 					{
 						NewTransformSelection.SetSelected(Index);
 					}
@@ -411,7 +414,10 @@ void FCollectionTransformSelectionCustomDataflowNode::Evaluate(Dataflow::FContex
 		{
 			SetValue<FDataflowTransformSelection>(Context, FDataflowTransformSelection(), &TransformSelection);
 		}
-
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
@@ -419,18 +425,18 @@ void FCollectionTransformSelectionCustomDataflowNode::Evaluate(Dataflow::FContex
 
 void FCollectionTransformSelectionParentDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
-		{
-			FFractureEngineSelection::SelectParent(*GeomCollection, InTransformSelection);
-		}
+		FFractureEngineSelection::SelectParent(InCollection, InTransformSelection);
 		
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
@@ -438,40 +444,34 @@ void FCollectionTransformSelectionParentDataflowNode::Evaluate(Dataflow::FContex
 
 void FCollectionTransformSelectionByPercentageDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
 		int32 InPercentage = GetValue<int32>(Context, &Percentage);
 		float InRandomSeed = GetValue<float>(Context, &RandomSeed);
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
-		{
-			FFractureEngineSelection::SelectByPercentage(*GeomCollection, InTransformSelection, InPercentage, Deterministic, InRandomSeed);
-		}
+		FFractureEngineSelection::SelectByPercentage(InTransformSelection, InPercentage, Deterministic, InRandomSeed);
 
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
 
 
 void FCollectionTransformSelectionChildrenDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
-		{
-			FFractureEngineSelection::SelectChildren(*GeomCollection, InTransformSelection);
-		}
+		FFractureEngineSelection::SelectChildren(InCollection, InTransformSelection);
 
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
@@ -479,18 +479,18 @@ void FCollectionTransformSelectionChildrenDataflowNode::Evaluate(Dataflow::FCont
 
 void FCollectionTransformSelectionSiblingsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
-		{
-			FFractureEngineSelection::SelectSiblings(*GeomCollection, InTransformSelection);
-		}
+		FFractureEngineSelection::SelectSiblings(InCollection, InTransformSelection);
 
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
@@ -498,18 +498,18 @@ void FCollectionTransformSelectionSiblingsDataflowNode::Evaluate(Dataflow::FCont
 
 void FCollectionTransformSelectionLevelDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
-		{
-			FFractureEngineSelection::SelectLevel(*GeomCollection, InTransformSelection);
-		}
+		FFractureEngineSelection::SelectLevel(InCollection, InTransformSelection);
 
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
@@ -517,13 +517,12 @@ void FCollectionTransformSelectionLevelDataflowNode::Evaluate(Dataflow::FContext
 
 void FCollectionTransformSelectionContactDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
 			FFractureEngineSelection::SelectContact(*GeomCollection, InTransformSelection);
 		}
@@ -531,24 +530,32 @@ void FCollectionTransformSelectionContactDataflowNode::Evaluate(Dataflow::FConte
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
 }
 
 
 void FCollectionTransformSelectionLeafDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
 		FDataflowTransformSelection NewTransformSelection;
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
 			FFractureEngineSelection::SelectLeaf(*GeomCollection, NewTransformSelection);
 		}
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
@@ -556,19 +563,26 @@ void FCollectionTransformSelectionLeafDataflowNode::Evaluate(Dataflow::FContext&
 
 void FCollectionTransformSelectionClusterDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
+		const int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
+
+		// TODO: Convert FractureEngine API to use only FManagedArrayCollection
 		FDataflowTransformSelection NewTransformSelection;
+		NewTransformSelection.Initialize(NumTransforms, false);
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
-			FFractureEngineSelection::SelectCluster(*GeomCollection, NewTransformSelection);
+			FFractureEngineSelection::SelectCluster(*GeomCollection, NewTransformSelection);			
 		}
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
@@ -576,21 +590,24 @@ void FCollectionTransformSelectionClusterDataflowNode::Evaluate(Dataflow::FConte
 
 void FCollectionTransformSelectionBySizeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		float InSizeMin = GetValue<float>(Context, &SizeMin);
 		float InSizeMax = GetValue<float>(Context, &SizeMax);
 
 		FDataflowTransformSelection NewTransformSelection;
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
 			FFractureEngineSelection::SelectBySize(*GeomCollection, NewTransformSelection, InSizeMin, InSizeMax);
 		}
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
@@ -598,21 +615,24 @@ void FCollectionTransformSelectionBySizeDataflowNode::Evaluate(Dataflow::FContex
 
 void FCollectionTransformSelectionByVolumeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection) ||
-		Out->IsA<FManagedArrayCollection>(&Collection))
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		float InVolumeMin = GetValue<float>(Context, &VolumeMin);
 		float InVolumeMax = GetValue<float>(Context, &VolumeMax);
 
 		FDataflowTransformSelection NewTransformSelection;
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
 			FFractureEngineSelection::SelectByVolume(*GeomCollection, NewTransformSelection, InVolumeMin, InVolumeMax);
 		}
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }

@@ -10,7 +10,7 @@
 
 class USkeletalMesh;
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FKinematicTetrahedralBindingsDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -41,7 +41,7 @@ public:
 };
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FKinematicInitializationDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -84,7 +84,7 @@ public:
 
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FSelectionSetDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -110,7 +110,7 @@ public:
 
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FSetVerticesKinematicDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -136,7 +136,7 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FBinVerticesDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

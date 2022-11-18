@@ -10,7 +10,7 @@
 
 class USkeletalMesh;
 
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FSkeletonToCollectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

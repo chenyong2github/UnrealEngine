@@ -13,6 +13,9 @@ const FName FDataflowNode::DataflowOutput = TEXT("DataflowOutput");
 const FName FDataflowNode::DataflowPassthrough = TEXT("DataflowPassthrough");
 const FName FDataflowNode::DataflowIntrinsic = TEXT("DataflowIntrinsic");
 
+const FLinearColor FDataflowNode::DefaultNodeTitleColor = FLinearColor(1.f, 1.f, 0.8f);
+const FLinearColor FDataflowNode::DefaultNodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f, 0.5f);
+
 //
 // Inputs
 //

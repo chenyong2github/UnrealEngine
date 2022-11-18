@@ -10,6 +10,9 @@
 #include "Dataflow/GeometryCollectionProcessingNodes.h"
 #include "Dataflow/GeometryCollectionSkeletalMeshNodes.h"
 #include "Dataflow/GeometryCollectionSelectionNodes.h"
+#include "Dataflow/GeometryCollectionMeshNodes.h"
+#include "Dataflow/GeometryCollectionClusteringNodes.h"
+#include "Dataflow/GeometryCollectionFracturingNodes.h"
 
 #define LOCTEXT_NAMESPACE "DataflowNodes"
 
@@ -21,6 +24,9 @@ void IGeometryCollectionNodesPlugin::StartupModule()
 	Dataflow::GeometryCollectionProcessingNodes();
 	Dataflow::GeometryCollectionSkeletalMeshNodes();
 	Dataflow::GeometryCollectionSelectionNodes();
+	Dataflow::GeometryCollectionMeshNodes();
+	Dataflow::GeometryCollectionClusteringNodes();
+	Dataflow::GeometryCollectionFracturingNodes();
 }
 
 void IGeometryCollectionNodesPlugin::ShutdownModule()

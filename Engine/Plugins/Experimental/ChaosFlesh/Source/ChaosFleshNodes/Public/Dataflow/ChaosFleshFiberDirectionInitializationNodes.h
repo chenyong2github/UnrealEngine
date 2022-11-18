@@ -8,7 +8,7 @@
 
 #include "ChaosFleshFiberDirectionInitializationNodes.generated.h"
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FGenerateFiberDirectionsDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

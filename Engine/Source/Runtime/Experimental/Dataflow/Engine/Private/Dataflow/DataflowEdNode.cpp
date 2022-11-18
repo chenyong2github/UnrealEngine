@@ -181,7 +181,7 @@ FLinearColor UDataflowEdNode::GetNodeTitleColor() const
 			}
 		}
 	}
-	return FLinearColor(0.f, 0.f, 0.f);
+	return FDataflowNode::DefaultNodeTitleColor;
 }
 
 FLinearColor UDataflowEdNode::GetNodeBodyTintColor() const
@@ -196,7 +196,7 @@ FLinearColor UDataflowEdNode::GetNodeBodyTintColor() const
 			}
 		}
 	}
-	return FLinearColor(0.f, 0.f, 0.f);
+	return FDataflowNode::DefaultNodeBodyTintColor;
 }
 
 FText UDataflowEdNode::GetTooltipText() const

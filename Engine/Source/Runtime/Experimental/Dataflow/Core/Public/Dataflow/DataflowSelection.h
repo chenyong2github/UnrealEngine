@@ -23,7 +23,7 @@ struct DATAFLOWCORE_API FDataflowSelection
 	void OR(const FDataflowSelection& Other, FDataflowSelection& Result) const;
 	void XOR(const FDataflowSelection& Other, FDataflowSelection& Result) const;
 	void Invert() { SelectionArray.BitwiseNOT(); }
-
+	void SetWithMask(const bool Value, const FDataflowSelection& Mask);
 private:
 	TBitArray<> SelectionArray;
 };

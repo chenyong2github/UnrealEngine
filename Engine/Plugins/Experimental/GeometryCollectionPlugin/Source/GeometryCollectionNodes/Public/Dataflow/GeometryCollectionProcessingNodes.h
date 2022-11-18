@@ -9,7 +9,7 @@
 #include "GeometryCollectionProcessingNodes.generated.h"
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCloseGeometryOnCollectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

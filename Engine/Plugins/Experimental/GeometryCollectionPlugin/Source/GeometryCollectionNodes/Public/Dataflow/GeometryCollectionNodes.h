@@ -15,7 +15,12 @@
 class FGeometryCollection;
 class UStaticMesh;
 
-USTRUCT()
+/**
+ *
+ * Description for this node
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FGetCollectionAssetDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -37,10 +42,13 @@ public:
 
 };
 
+
 /**
-	Description for this node
-*/
-USTRUCT()
+ *
+ * Description for this node
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FExampleCollectionEditDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -67,11 +75,17 @@ public:
 
 };
 
-USTRUCT()
+
+/**
+ *
+ * Description for this node
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection, DataflowTerminal))
 struct FSetCollectionAssetDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FSetCollectionAssetDataflowNode, "SetCollectionAsset", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSetCollectionAssetDataflowNode, "SetCollectionAsset", "Terminal", "")
 
 public:
 	typedef FManagedArrayCollection DataType;
@@ -90,7 +104,12 @@ public:
 };
 
 
-USTRUCT()
+/**
+ *
+ * Description for this node
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FAppendCollectionAssetsDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -118,7 +137,12 @@ public:
 
 };
 
-USTRUCT()
+/**
+ *
+ * Description for this node
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FResetGeometryCollectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -141,6 +165,11 @@ public:
 };
 
 
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FPrintStringDataflowNode : public FDataflowNode
 {
@@ -174,6 +203,11 @@ public:
 };
 
 
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FLogStringDataflowNode : public FDataflowNode
 {
@@ -198,6 +232,11 @@ public:
 };
 
 
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FMakeLiteralStringDataflowNode : public FDataflowNode
 {
@@ -221,15 +260,19 @@ public:
 
 };
 
-USTRUCT()
+
+/**
+ *
+ * Description for this node
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FBoundingBoxDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FBoundingBoxDataflowNode, "BoundingBox", "Utilities|Box", "")
 
 public:
-	typedef FManagedArrayCollection DataType;
-
 	UPROPERTY(meta = (DataflowInput))
 	FManagedArrayCollection Collection;
 
@@ -247,6 +290,12 @@ public:
 
 };
 
+
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FExpandBoundingBoxDataflowNode : public FDataflowNode
 {
@@ -287,6 +336,12 @@ public:
 
 };
 
+
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FVectorToStringDataflowNode : public FDataflowNode
 {
@@ -311,6 +366,12 @@ public:
 
 };
 
+
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FFloatToStringDataflowNode : public FDataflowNode
 {
@@ -335,6 +396,12 @@ public:
 
 };
 
+
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FMakePointsDataflowNode : public FDataflowNode
 {
@@ -358,6 +425,7 @@ public:
 
 };
 
+
 UENUM(BlueprintType)
 enum class EMakeBoxDataTypeEnum : uint8
 {
@@ -368,6 +436,11 @@ enum class EMakeBoxDataTypeEnum : uint8
 	Dataflow_Max                UMETA(Hidden)
 };
 
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FMakeBoxDataflowNode : public FDataflowNode
 {
@@ -407,101 +480,12 @@ public:
 
 };
 
-USTRUCT()
-struct FUniformScatterPointsDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FUniformScatterPointsDataflowNode, "UniformScatterPoints", "Generators|Point", "")
 
-public:
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput));
-	int32 MinNumberOfPoints = 20;
-
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput));
-	int32 MaxNumberOfPoints = 20;
-
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput));
-	float RandomSeed = -1.f;
-
-	UPROPERTY(meta = (DataflowInput))
-	FBox BoundingBox = FBox(ForceInit);
-
-	UPROPERTY(meta = (DataflowOutput))
-	TArray<FVector> Points;
-
-	FUniformScatterPointsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&BoundingBox);
-		RegisterInputConnection(&MinNumberOfPoints);
-		RegisterInputConnection(&MaxNumberOfPoints);
-		RegisterInputConnection(&RandomSeed);
-		RegisterOutputConnection(&Points);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-USTRUCT()
-struct FRadialScatterPointsDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FRadialScatterPointsDataflowNode, "RadialScatterPoints", "Generators|Point", "")
-
-public:
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput));
-	FVector Center = FVector(0.0);
-
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput));
-	FVector Normal = FVector(0.0, 0.0, 1.0);
-
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput, UIMin = 0.01f));
-	float Radius = 50.f;
-
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput, UIMin = 1, UIMax = 50));
-	int32 AngularSteps = 5;
-
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput, UIMin = 1, UIMax = 50));
-	int32 RadialSteps = 5;
-
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput));
-	float AngleOffset = 0.f;
-
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput, UIMin = 0.f));
-	float Variability = 0.f;
-
-	UPROPERTY(EditAnywhere, Category = "Scatter", meta = (DataflowInput));
-	float RandomSeed = -1.f;
-
-	UPROPERTY(meta = (DataflowOutput))
-	TArray<FVector> Points;
-
-	FRadialScatterPointsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Center);
-		RegisterInputConnection(&Normal);
-		RegisterInputConnection(&Radius);
-		RegisterInputConnection(&AngularSteps);
-		RegisterInputConnection(&RadialSteps);
-		RegisterInputConnection(&AngleOffset);
-		RegisterInputConnection(&Variability);
-		RegisterInputConnection(&RandomSeed);
-		RegisterOutputConnection(&Points);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-//
-// GridScatterPoints
-//
-
-
-
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FMakeLiteralFloatDataflowNode : public FDataflowNode
 {
@@ -525,6 +509,12 @@ public:
 
 };
 
+
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FMakeLiteralIntDataflowNode : public FDataflowNode
 {
@@ -548,6 +538,11 @@ public:
 
 };
 
+/**
+ *
+ * Description for this node
+ *
+ */
 USTRUCT()
 struct FMakeLiteralBoolDataflowNode : public FDataflowNode
 {
@@ -581,7 +576,7 @@ USTRUCT()
 struct FMakeLiteralVectorDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FMakeLiteralVectorDataflowNode, "MakeLiteralVector", "Math|Vector", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeLiteralVectorDataflowNode, "MakeLiteralVector", "Math|Vector", "")
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Vector");
@@ -610,7 +605,7 @@ USTRUCT()
 struct FIntToStringDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FIntToStringDataflowNode, "IntToString", "Utilities|String", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FIntToStringDataflowNode, "IntToString", "Utilities|String", "")
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Int", meta = (DataflowInput))
@@ -732,83 +727,6 @@ public:
 
 /**
  *
- * Generates a Voronoi fracture
- *
- */
-USTRUCT()
-struct FVoronoiFractureDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FVoronoiFractureDataflowNode, "VoronoiFracture", "Fracture", "")
-
-public:
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection"))
-	FManagedArrayCollection Collection;
-
-	UPROPERTY(meta = (DataflowInput))
-	TArray<FVector> Points;
-
-	UPROPERTY(EditAnywhere, Category = "Fracture", meta = (DataflowInput));
-	float RandomSeed = -1.f;
-
-	UPROPERTY(EditAnywhere, Category = "Fracture", meta = (DataflowInput, UIMin = 0.f, UIMax = 1.f));
-	float ChanceToFracture = 1.f;
-
-	UPROPERTY(EditAnywhere, Category = "Fracture");
-	bool GroupFracture = true;
-
-	UPROPERTY(EditAnywhere, Category = "Fracture", meta = (DataflowInput, UIMin = 0.f));
-	float Grout = 0.f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	float Amplitude = 0.f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.00001f));
-	float Frequency = 0.1f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	float Persistence = 0.5f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	float Lacunarity = 2.f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	int32 OctaveNumber = 4;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	float PointSpacing = 10.f;
-
-	UPROPERTY(EditAnywhere, Category = "Collision");
-	bool AddSamplesForCollision = false;
-
-	UPROPERTY(EditAnywhere, Category = "Collision", meta = (DataflowInput, UIMin = 0.f));
-	float CollisionSampleSpacing = 50.f;
-
-	FVoronoiFractureDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterInputConnection(&Points);
-		RegisterInputConnection(&RandomSeed);
-		RegisterInputConnection(&ChanceToFracture);
-		RegisterInputConnection(&Grout);
-		RegisterInputConnection(&Amplitude);
-		RegisterInputConnection(&Frequency);
-		RegisterInputConnection(&Persistence);
-		RegisterInputConnection(&Lacunarity);
-		RegisterInputConnection(&OctaveNumber);
-		RegisterInputConnection(&PointSpacing);
-		RegisterInputConnection(&CollisionSampleSpacing);
-		RegisterOutputConnection(&Collection);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
  * Concatenates two strings together to make a new string
  *
  */
@@ -850,7 +768,7 @@ USTRUCT()
 struct FRandomFloatDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FRandomFloatDataflowNode, "RandomFloat", "Math|Random", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FRandomFloatDataflowNode, "RandomFloat", "Math|Random", "")
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Seed")
@@ -883,7 +801,7 @@ USTRUCT()
 struct FRandomFloatInRangeDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FRandomFloatInRangeDataflowNode, "RandomFloatInRange", "Math|Random", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FRandomFloatInRangeDataflowNode, "RandomFloatInRange", "Math|Random", "")
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Seed")
@@ -1059,7 +977,7 @@ public:
  * "Explodes" the pieces from the Collection for better visualization
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FExplodedViewDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -1098,11 +1016,11 @@ private:
  * Generates convex hull representation for the bones for simulation
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCreateNonOverlappingConvexHullsDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FCreateNonOverlappingConvexHullsDataflowNode, "CreateNonOverlappingConvexHulls", "Fracture|Utilities", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCreateNonOverlappingConvexHullsDataflowNode, "CreateNonOverlappingConvexHulls", "GeometryCollection|Utilities", "")
 
 public:
 	UPROPERTY(meta = (DataflowInput, DataflowOutput))
@@ -1134,80 +1052,6 @@ public:
 
 /**
  *
- * Cuts geometry using a set of noised up planes
- *
- */
-USTRUCT()
-struct FPlaneCutterDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FPlaneCutterDataflowNode, "PlaneCutter", "Fracture", "")
-
-public:
-	UPROPERTY(meta = (DataflowInput, DataflowOutput))
-	FManagedArrayCollection Collection;
-
-	UPROPERTY(meta = (DataflowInput))
-	FBox BoundingBox = FBox(ForceInit);
-
-	UPROPERTY(EditAnywhere, Category = "Fracture", meta = (DataflowInput, UIMin = 1))
-	int32 NumPlanes = 1;
-
-	UPROPERTY(EditAnywhere, Category = "Fracture", meta = (DataflowInput))
-	float RandomSeed = -1.f;
-
-	UPROPERTY(EditAnywhere, Category = "Fracture", meta = (DataflowInput, UIMin = 0.f))
-	float Grout = 0.f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	float Amplitude = 0.f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.00001f));
-	float Frequency = 0.1f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	float Persistence = 0.5f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	float Lacunarity = 2.f;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	int32 OctaveNumber = 4;
-
-	UPROPERTY(EditAnywhere, Category = "Noise", meta = (DataflowInput, UIMin = 0.f));
-	float PointSpacing = 10.f;
-
-	UPROPERTY(EditAnywhere, Category = "Collision");
-	bool AddSamplesForCollision = false;
-
-	UPROPERTY(EditAnywhere, Category = "Collision", meta = (DataflowInput, UIMin = 0.f));
-	float CollisionSampleSpacing = 50.f;
-
-	FPlaneCutterDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterInputConnection(&BoundingBox);
-		RegisterInputConnection(&NumPlanes);
-		RegisterInputConnection(&RandomSeed);
-		RegisterInputConnection(&Grout);
-		RegisterInputConnection(&Amplitude);
-		RegisterInputConnection(&Frequency);
-		RegisterInputConnection(&Persistence);
-		RegisterInputConnection(&Lacunarity);
-		RegisterInputConnection(&OctaveNumber);
-		RegisterInputConnection(&PointSpacing);
-		RegisterInputConnection(&CollisionSampleSpacing);
-		RegisterOutputConnection(&Collection);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
  * Generates a hash value from a string
  *
  */
@@ -1215,7 +1059,7 @@ USTRUCT()
 struct FHashStringDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FHashStringDataflowNode, "HashString", "Utilities|String", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FHashStringDataflowNode, "HashString", "Utilities|String", "")
 
 public:
 	/** String to hash */
@@ -1446,7 +1290,7 @@ public:
  * Gets BoundingBoxes of pieces from a Collection
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FGetBoundingBoxesDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -1483,7 +1327,7 @@ public:
  * Gets centroids of pieces from a Collection
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FGetCentroidsDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -1508,183 +1352,6 @@ public:
 		RegisterInputConnection(&Collection);
 		RegisterInputConnection(&TransformSelection);
 		RegisterOutputConnection(&Centroids);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Converts points into a DynamicMesh
- *
- */
-USTRUCT()
-struct FPointsToMeshDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FPointsToMeshDataflowNode, "PointsToMesh", "Mesh|Utilities", "")
-
-public:
-	/** Points input */
-	UPROPERTY(meta = (DataflowInput))
-	TArray<FVector> Points;
-
-	/** Mesh output */
-	UPROPERTY(meta = (DataflowOutput))
-	TObjectPtr<UDynamicMesh> Mesh;
-
-	/** Mesh triangle count */
-	UPROPERTY(meta = (DataflowOutput))
-	int32 TriangleCount = 0;
-
-	FPointsToMeshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Points);
-		RegisterOutputConnection(&Mesh);
-		RegisterOutputConnection(&TriangleCount);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Converts a BoundingBox into a DynamicMesh
- *
- */
-USTRUCT()
-struct FBoxToMeshDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FBoxToMeshDataflowNode, "BoxToMesh", "Mesh|Utilities", "")
-
-public:
-	/** BoundingBox input */
-	UPROPERTY(meta = (DataflowInput))
-	FBox Box = FBox(ForceInit);
-
-	/** Mesh output */
-	UPROPERTY(meta = (DataflowOutput))
-	TObjectPtr<UDynamicMesh> Mesh;
-
-	/** Mesh triangle count */
-	UPROPERTY(meta = (DataflowOutput))
-	int32 TriangleCount = 0;
-
-	FBoxToMeshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Box);
-		RegisterOutputConnection(&Mesh);
-		RegisterOutputConnection(&TriangleCount);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Collects information from the DynamicMesh and outputs it into a formatted string
- *
- */
-USTRUCT()
-struct FMeshInfoDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FMeshInfoDataflowNode, "MeshInfo", "Mesh|Utilities", "")
-
-public:
-	/** DynamicMesh for the information */
-	UPROPERTY(meta = (DataflowInput))
-	TObjectPtr<UDynamicMesh> Mesh;
-
-	/** Formatted output string */
-	UPROPERTY(meta = (DataflowOutput))
-	FString InfoString = FString("");
-
-	FMeshInfoDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Mesh);
-		RegisterOutputConnection(&InfoString);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Converts a DynamicMesh to a Collection
- *
- */
-USTRUCT()
-struct FMeshToCollectionDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FMeshToCollectionDataflowNode, "MeshToCollection", "Mesh|Utilities", "")
-
-public:
-	/** DynamicMesh to convert */
-	UPROPERTY(meta = (DataflowInput))
-	TObjectPtr<UDynamicMesh> Mesh;
-
-	/** Output Collection */
-	UPROPERTY(meta = (DataflowOutput))
-	FManagedArrayCollection Collection;
-
-	FMeshToCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Mesh);
-		RegisterOutputConnection(&Collection);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Converts a StaticMesh into a DynamicMesh
- *
- */
-USTRUCT()
-struct FStaticMeshToMeshDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FStaticMeshToMeshDataflowNode, "StaticMeshToMesh", "Mesh|Utilities", "")
-
-public:
-	/** StaticMesh to convert */
-	UPROPERTY(EditAnywhere, Category = "StaticMesh");
-	TObjectPtr<UStaticMesh> StaticMesh;
-
-	/** Output the HiRes representation, if set to true and HiRes doesn't exist it will output empty mesh */
-	UPROPERTY(EditAnywhere, Category = "StaticMesh", meta = (DisplayName = "Use HiRes"));
-	bool UseHiRes = true;
-
-	/** Specifies the LOD level to use */
-	UPROPERTY(EditAnywhere, Category = "StaticMesh", meta = (DisplayName = "LOD Level"));
-	int32 LODLevel = 0;
-
-	/** Output mesh */
-	UPROPERTY(meta = (DataflowOutput))
-	TObjectPtr<UDynamicMesh> Mesh;
-
-	FStaticMeshToMeshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterOutputConnection(&Mesh);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -1744,136 +1411,6 @@ public:
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Mesh);
-		RegisterOutputConnection(&Mesh);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Appends two meshes
- *
- */
-USTRUCT()
-struct FMeshAppendDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FMeshAppendDataflowNode, "MeshAppend", "Mesh|Utilities", "")
-
-public:
-	/** Mesh input */
-	UPROPERTY(meta = (DataflowInput))
-	TObjectPtr<UDynamicMesh> Mesh1;
-
-	/** Mesh input */
-	UPROPERTY(meta = (DataflowInput))
-	TObjectPtr<UDynamicMesh> Mesh2;
-
-	/** Output mesh */
-	UPROPERTY(meta = (DataflowOutput))
-	TObjectPtr<UDynamicMesh> Mesh;
-
-	FMeshAppendDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Mesh1);
-		RegisterInputConnection(&Mesh2);
-		RegisterOutputConnection(&Mesh);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-UENUM(BlueprintType)
-enum class EMeshBooleanOperationEnum : uint8
-{
-	Dataflow_MeshBoolean_Union UMETA(DisplayName = "Union"),
-	Dataflow_MeshBoolean_Intersect UMETA(DisplayName = "Intersect"),
-	Dataflow_MeshBoolean_Difference UMETA(DisplayName = "Difference"),
-	//~~~
-	//256th entry
-	Dataflow_Max                UMETA(Hidden)
-};
-
-/**
- *
- * Mesh boolean (Union, Intersect, Difference) between two meshes
- *
- */
-USTRUCT()
-struct FMeshBooleanDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FMeshBooleanDataflowNode, "MeshBoolean", "Mesh|Utilities", "")
-
-public:
-	/** Boolean operation */
-	UPROPERTY(EditAnywhere, Category = "Boolean");
-	EMeshBooleanOperationEnum Operation = EMeshBooleanOperationEnum::Dataflow_MeshBoolean_Intersect;
-
-	/** Mesh input */
-	UPROPERTY(meta = (DataflowInput))
-	TObjectPtr<UDynamicMesh> Mesh1;
-
-	/** Mesh input */
-	UPROPERTY(meta = (DataflowInput))
-	TObjectPtr<UDynamicMesh> Mesh2;
-
-	/** Output mesh */
-	UPROPERTY(meta = (DataflowOutput))
-	TObjectPtr<UDynamicMesh> Mesh;
-
-	FMeshBooleanDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Mesh1);
-		RegisterInputConnection(&Mesh2);
-		RegisterOutputConnection(&Mesh);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Copies the same mesh with scale onto points
- *
- */
-USTRUCT()
-struct FMeshCopyToPointsDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FMeshCopyToPointsDataflowNode, "MeshCopyToPoints", "Mesh|Utilities", "")
-
-public:
-	/** Points to copy meshes onto */
-	UPROPERTY(meta = (DataflowInput))
-	TArray<FVector> Points;
-
-	/** Mesh to copy onto points */
-	UPROPERTY(meta = (DataflowInput))
-	TObjectPtr<UDynamicMesh> MeshToCopy;
-
-	/** Scale appied to the mesh */
-	UPROPERTY(EditAnywhere, Category = "Copy");
-	float Scale = 1.f;
-
-	/** Copied meshes */
-	UPROPERTY(meta = (DataflowOutput))
-	TObjectPtr<UDynamicMesh> Mesh;
-
-	FMeshCopyToPointsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Points);
-		RegisterInputConnection(&MeshToCopy);
 		RegisterOutputConnection(&Mesh);
 	}
 
@@ -1980,52 +1517,10 @@ public:
 
 /**
  *
- * Outputs Mesh data
- *
- */
-USTRUCT()
-struct FGetMeshDataDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FGetMeshDataDataflowNode, "GetMeshData", "Mesh|Utilities", "")
-
-public:
-	/** Mesh for the data */
-	UPROPERTY(meta = (DataflowInput))
-	TObjectPtr<UDynamicMesh> Mesh;
-
-	/** Number of vertices */
-	UPROPERTY(meta = (DataflowOutput))
-	int32 VertexCount = 0;
-
-	/** Number of edges */
-	UPROPERTY(meta = (DataflowOutput))
-	int32 EdgeCount = 0;
-
-	/** Number of triangles */
-	UPROPERTY(meta = (DataflowOutput))
-	int32 TriangleCount = 0;
-
-	FGetMeshDataDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Mesh);
-		RegisterOutputConnection(&VertexCount);
-		RegisterOutputConnection(&EdgeCount);
-		RegisterOutputConnection(&TriangleCount);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
  * Collects grooup and attribute information from the Collection and outputs it into a formatted string
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FGetSchemaDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -2052,106 +1547,11 @@ public:
 };
 
 
-UENUM(BlueprintType)
-enum class EClusterSizeMethodEnum : uint8
-{
-	Dataflow_ClusterSizeMethod_ByNumber UMETA(DisplayName = "By Number"),
-	Dataflow_ClusterSizeMethod_ByFractionOfInput UMETA(DisplayName = "By Fraction Of Input"),
-	Dataflow_ClusterSizeMethod_BySize UMETA(DisplayName = "By Size"),
-	//~~~
-	//256th entry
-	Dataflow_Max                UMETA(Hidden)
-};
-
-/**
- *
- * Automatically group pieces of a fractured Collection into a specified number of clusters
- *
- */
-USTRUCT()
-struct FAutoClusterDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FAutoClusterDataflowNode, "AutoCluster", "GeometryCollection|Cluster", "")
-
-public:
-	/** How to choose the size of the clusters to create */
-	UPROPERTY(EditAnywhere, Category = "Cluster Size");
-	EClusterSizeMethodEnum ClusterSizeMethod = EClusterSizeMethodEnum::Dataflow_ClusterSizeMethod_ByNumber;
-
-	/** Use a Voronoi diagram with this many Voronoi sites as a guide for deciding cluster boundaries */
-	UPROPERTY(EditAnywhere, Category = "Cluster Size", meta = (DataflowInput, UIMin = 2, UIMax = 5000, EditCondition = "ClusterSizeMethod == EClusterSizeMethodEnum::Dataflow_ClusterSizeMethod_ByNumber"))
-	int32 ClusterSites = 10;
-
-	/** Choose the number of Voronoi sites used for clustering as a fraction of the number of child bones to process */
-	UPROPERTY(EditAnywhere, Category = "Cluster Size", meta = (DataflowInput, UIMin = 0.f, UIMax = 0.5f, EditCondition = "ClusterSizeMethod == EClusterSizeMethodEnum::Dataflow_ClusterSizeMethod_ByFractionOfInput"))
-	float ClusterFraction = 0.25;
-
-	/** Choose the Edge-Size of the cube used to groups bones under a cluster (in cm). */
-	UPROPERTY(EditAnywhere, Category = "ClusterSize", meta = (DataflowInput, DisplayName = "Cluster Size", UIMin = ".01", UIMax = "100", ClampMin = ".0001", ClampMax = "10000", EditCondition = "ClusterSizeMethod == EClusterSizeMethodEnum::Dataflow_ClusterSizeMethod_BySize"))
-	float SiteSize = 1;
-
-	/** If true, bones will only be added to the same cluster if they are physically connected (either directly, or via other bones in the same cluster) */
-	UPROPERTY(EditAnywhere, Category = "Auto Cluster")
-	bool AutoCluster = true;
-
-	/** If true, prevent the creation of clusters with only a single child. Either by merging into a neighboring cluster, or not creating the cluster. */
-	UPROPERTY(EditAnywhere, Category = "Auto Cluster")
-	bool AvoidIsolated = true;
-
-	/** Fractured GeometryCollection to cluster */
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
-	FManagedArrayCollection Collection;
-
-	/** Bone selection for the clustering */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "TransformSelection"))
-	FDataflowTransformSelection TransformSelection;
-
-	FAutoClusterDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterInputConnection(&TransformSelection);
-		RegisterInputConnection(&ClusterSites);
-		RegisterInputConnection(&ClusterFraction);
-		RegisterInputConnection(&SiteSize);
-		RegisterOutputConnection(&Collection, &Collection);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-USTRUCT()
-struct FClusterFlattenDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FClusterFlattenDataflowNode, "Flatten", "GeometryCollection|Cluster", "")
-
-public:
-	// @todo(harsha) Support Selections
-
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
-	FManagedArrayCollection Collection;
-
-	FClusterFlattenDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterOutputConnection(&Collection, &Collection);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FRemoveOnBreakDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FRemoveOnBreakDataflowNode, "RemoveOnBreak", "Fracture|Utilities", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FRemoveOnBreakDataflowNode, "RemoveOnBreak", "GeometryCollection", "")
 
 public:
 	// @todo(harsha) Support Selections
@@ -2198,7 +1598,7 @@ enum class EAnchorStateEnum : uint8
  * Sets the anchored state on the selected bones in a Collection
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FSetAnchorStateDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -2251,7 +1651,7 @@ enum class EProximityMethodEnum : uint8
  * Update the proximity (contact) graph for the bones in a Collection
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FProximityDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -2290,4 +1690,3 @@ namespace Dataflow
 {
 	void GeometryCollectionEngineNodes();
 }
-

@@ -18,7 +18,7 @@ class FGeometryCollection;
  * Selects all the bones for the Collection
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionAllDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -62,7 +62,7 @@ enum class ESetOperationEnum : uint8
  * Runs boolean operation on incoming TransformSelections
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionSetOperationDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -103,7 +103,7 @@ public:
  * Generates a formatted string of the bones and the selection
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionInfoDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -140,7 +140,7 @@ public:
  * Generates an empty bone selection for the Collection
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionNoneDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -173,7 +173,7 @@ public:
  * Inverts the incoming selection of bones
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionInvertDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -201,7 +201,7 @@ public:
  * Selects bones randomly in the Collection
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionRandomDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -249,7 +249,7 @@ public:
  * Selects the root bones in the Collection
  *
  */
-USTRUCT()
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionRootDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -283,7 +283,7 @@ public:
  * space separated list
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionCustomDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -321,7 +321,7 @@ public:
  * Selects the parents of the currently selected bones
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionParentDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -355,7 +355,7 @@ public:
  * Outputs the specified percentage of the incoming bone selection
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionByPercentageDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -365,10 +365,6 @@ public:
 	/** Array of the selected bone indicies */
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "TransformSelection", DataflowPassthrough = "TransformSelection", DataflowIntrinsic))
 	FDataflowTransformSelection TransformSelection;
-
-	/** GeometryCollection for the selection */
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
-	FManagedArrayCollection Collection;
 
 	/** Percentage to keep from the original selection */
 	UPROPERTY(EditAnywhere, Category = "Selection", meta = (UIMin = 0, UIMax = 100))
@@ -387,11 +383,9 @@ public:
 	{
 		RandomSeed = FMath::RandRange(-100000, 100000);
 		RegisterInputConnection(&TransformSelection);
-		RegisterInputConnection(&Collection);
 		RegisterInputConnection(&Percentage);
 		RegisterInputConnection(&RandomSeed);
 		RegisterOutputConnection(&TransformSelection, &TransformSelection);
-		RegisterOutputConnection(&Collection, &Collection);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -404,7 +398,7 @@ public:
  * Selects the children of the incoming bone selection
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionChildrenDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -438,7 +432,7 @@ public:
  * Selects the siblings of the incoming bone selection
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionSiblingsDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -472,7 +466,7 @@ public:
  * Selects the level of the incoming bone selection
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionLevelDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -506,7 +500,7 @@ public:
  * Selects the contact(s) of the incoming bone selection
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionContactDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -540,7 +534,7 @@ public:
  * Selects the leaves in the GeometryCollection
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionLeafDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -573,7 +567,7 @@ public:
  * Selects the clusters in the GeometryCollection
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionClusterDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -606,7 +600,7 @@ public:
  * Selects pieces based on their size
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionBySizeDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -649,7 +643,7 @@ public:
  * Selects pieces based on their volume
  *
  */
-USTRUCT(meta = (DataflowDeprecated, DataflowTerminal))
+USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionByVolumeDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

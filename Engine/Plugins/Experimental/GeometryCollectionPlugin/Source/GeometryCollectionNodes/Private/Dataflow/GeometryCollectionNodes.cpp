@@ -55,8 +55,6 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatToStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakePointsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeBoxDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FUniformScatterPointsDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRadialScatterPointsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeLiteralFloatDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeLiteralIntDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeLiteralBoolDataflowNode);
@@ -65,7 +63,6 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoolToStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExpandVectorDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FIntToFloatDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FVoronoiFractureDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FStringAppendDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRandomFloatDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRandomFloatInRangeDataflowNode);
@@ -75,7 +72,6 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FDegreesToRadiansDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExplodedViewDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateNonOverlappingConvexHullsDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FPlaneCutterDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FHashStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FHashVectorDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatToIntDataflowNode);
@@ -84,21 +80,10 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetNumArrayElementsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetBoundingBoxesDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCentroidsDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FPointsToMeshDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoxToMeshDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMeshInfoDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMeshToCollectionDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FStaticMeshToMeshDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FTransformDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMeshAppendDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMeshBooleanDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMeshCopyToPointsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCompareIntDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBranchDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetMeshDataDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetSchemaDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FAutoClusterDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FClusterFlattenDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRemoveOnBreakDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetAnchorStateDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FProximityDataflowNode);
@@ -117,8 +102,6 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Math", FLinearColor(0.f, 0.4f, 0.8f), CDefaultNodeBodyTintColor);
 		// Generators
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Generators", FLinearColor(.7f, 0.7f, 0.7f), CDefaultNodeBodyTintColor);
-		// Mesh
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("Mesh", FLinearColor(1.f, 0.16f, 0.05f), CDefaultNodeBodyTintColor);
 	}
 }
 
@@ -176,8 +159,9 @@ void FAppendCollectionAssetsDataflowNode::Evaluate(Dataflow::FContext& Context, 
 {
 	if (Out->IsA<DataType>(&Collection1))
 	{
-		DataType InCollection1 = GetValue<DataType>(Context, &Collection1);
-		DataType InCollection2 = GetValue<DataType>(Context, &Collection2);
+		FManagedArrayCollection InCollection1 = GetValue<DataType>(Context, &Collection1);
+		const FManagedArrayCollection& InCollection2 = GetValue<DataType>(Context, &Collection2);
+
 		InCollection1.Append(InCollection2);
 		SetValue<DataType>(Context, InCollection1, &Collection1);
 	}
@@ -280,7 +264,7 @@ void FMakeLiteralStringDataflowNode::Evaluate(Dataflow::FContext& Context, const
 	}
 }
 
-void ComputeBoundingBox(FBoundingBoxDataflowNode::DataType& Collection, FBox& BoundingBox)
+void ComputeBoundingBox(const FManagedArrayCollection& Collection, FBox& BoundingBox)
 {
 	if (Collection.HasAttribute("Transform", FGeometryCollection::TransformGroup) &&
 		Collection.HasAttribute("Parent", FGeometryCollection::TransformGroup) &&
@@ -310,7 +294,7 @@ void FBoundingBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 {
 	if (Out->IsA<FBox>(&BoundingBox))
 	{
-		DataType InCollection = GetValue<DataType>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
 		FBox BBox(ForceInit);
 
@@ -393,59 +377,6 @@ void FMakeBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflow
 	}
 }
 
-void FUniformScatterPointsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TArray<FVector>>(&Points))
-	{
-		FBox BBox = GetValue<FBox>(Context, &BoundingBox);
-		if (BBox.GetVolume() > 0.f)
-		{
-			FRandomStream RandStream(GetValue<float>(Context, &RandomSeed));
-
-			const FVector Extent(BBox.Max - BBox.Min);
-			const int32 NumPoints = RandStream.RandRange(GetValue<int32>(Context, &MinNumberOfPoints), GetValue<int32>(Context, &MaxNumberOfPoints));
-
-			TArray<FVector> PointsArr;
-			PointsArr.Reserve(NumPoints);
-			for (int32 Idx = 0; Idx < NumPoints; ++Idx)
-			{
-				PointsArr.Emplace(BBox.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
-			}
-
-			SetValue<TArray<FVector>>(Context, PointsArr, &Points);
-		}
-	}
-}
-
-void FRadialScatterPointsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TArray<FVector>>(&Points))
-	{
-		const FVector::FReal RadialStep = GetValue<float>(Context, &Radius) / GetValue<int32>(Context, &RadialSteps);
-		const FVector::FReal AngularStep = 2 * PI / GetValue<int32>(Context, &AngularSteps);
-
-		FRandomStream RandStream(GetValue<float>(Context, &RandomSeed));
-		FVector UpVector(GetValue<FVector>(Context, &Normal));
-		UpVector.Normalize();
-		FVector BasisX, BasisY;
-		UpVector.FindBestAxisVectors(BasisX, BasisY);
-
-		TArray<FVector> PointsArr;
-
-		FVector::FReal Len = RadialStep * .5;
-		for (int32 ii = 0; ii < GetValue<int32>(Context, &RadialSteps); ++ii, Len += RadialStep)
-		{
-			FVector::FReal Angle = FMath::DegreesToRadians(GetValue<float>(Context, &AngleOffset));
-			for (int32 kk = 0; kk < AngularSteps; ++kk, Angle += AngularStep)
-			{
-				FVector RotatingOffset = Len * (FMath::Cos(Angle) * BasisX + FMath::Sin(Angle) * BasisY);
-				PointsArr.Emplace(GetValue<FVector>(Context, &Center) + RotatingOffset + (RandStream.VRand() * RandStream.FRand() * Variability));
-			}
-		}
-
-		SetValue<TArray<FVector>>(Context, PointsArr, &Points);
-	}
-}
 
 void FMakeLiteralFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -524,96 +455,6 @@ void FIntToFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 	}
 }
 
-float GetMaxVertexMovement(float Grout, float Amplitude, int OctaveNumber, float Persistence)
-{
-	float MaxDisp = Grout;
-	float AmplitudeScaled = Amplitude;
-	for (int32 OctaveIdx = 0; OctaveIdx < OctaveNumber; OctaveIdx++, AmplitudeScaled *= Persistence)
-	{
-		MaxDisp += FMath::Abs(AmplitudeScaled);
-	}
-	return MaxDisp;
-}
-
-void FVoronoiFractureDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FManagedArrayCollection>(&Collection))
-	{
-		FManagedArrayCollection CollectionPtr = GetValue<FManagedArrayCollection>(Context, &Collection);
-		if (FGeometryCollection* GeomCollection = CollectionPtr.NewCopy<FGeometryCollection>())
-		{
-			TArray<FVector> Sites = GetValue<TArray<FVector>>(Context, &Points);
-			if (Sites.Num() > 0)
-			{
-				//
-				// Compute BoundingBox for ManagedArrayIn
-				//
-				FBox BoundingBox(ForceInit);
-
-				if (GeomCollection->HasAttribute("Transform", FGeometryCollection::TransformGroup) &&
-					GeomCollection->HasAttribute("Parent", FGeometryCollection::TransformGroup) &&
-					GeomCollection->HasAttribute("TransformIndex", FGeometryCollection::GeometryGroup) &&
-					GeomCollection->HasAttribute("BoundingBox", FGeometryCollection::GeometryGroup))
-				{
-					const TManagedArray<FTransform>& Transforms = GeomCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-					const TManagedArray<int32>& ParentIndices = GeomCollection->GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
-					const TManagedArray<int32>& TransformIndices = GeomCollection->GetAttribute<int32>("TransformIndex", FGeometryCollection::GeometryGroup);
-					const TManagedArray<FBox>& BoundingBoxes = GeomCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
-
-					TArray<FMatrix> TmpGlobalMatrices;
-					GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
-
-					if (TmpGlobalMatrices.Num() > 0)
-					{
-						for (int32 BoxIdx = 0; BoxIdx < BoundingBoxes.Num(); ++BoxIdx)
-						{
-							const int32 TransformIndex = TransformIndices[BoxIdx];
-							BoundingBox += BoundingBoxes[BoxIdx].TransformBy(TmpGlobalMatrices[TransformIndex]);
-						}
-					}
-
-					//
-					// Compute Voronoi Bounds
-					//
-					FBox VoronoiBounds = BoundingBox;
-					VoronoiBounds += FBox(Sites);
-
-					float GroutVal = GetValue<float>(Context, &Grout);
-					float AmplitudeVal = GetValue<float>(Context, &Amplitude);
-					int32 OctaveNumberVal = GetValue<int32>(Context, &OctaveNumber);
-					float PersistenceVal = GetValue<float>(Context, &Persistence);
-
-					VoronoiBounds = VoronoiBounds.ExpandBy(GetMaxVertexMovement(GroutVal, AmplitudeVal, OctaveNumberVal, PersistenceVal) + KINDA_SMALL_NUMBER);
-
-					//
-					// Voronoi Fracture
-					//
-					FNoiseSettings NoiseSettings;
-					NoiseSettings.Amplitude = AmplitudeVal;
-					NoiseSettings.Frequency = GetValue<float>(Context, &Frequency);
-					NoiseSettings.Octaves = OctaveNumberVal;
-					NoiseSettings.PointSpacing = GetValue<float>(Context, &PointSpacing);
-					NoiseSettings.Lacunarity = GetValue<float>(Context, &Lacunarity);
-					NoiseSettings.Persistence = GetValue<float>(Context, &Persistence);;
-
-					FVoronoiDiagram Voronoi(Sites, VoronoiBounds, .1f);
-
-					FPlanarCells VoronoiPlanarCells = FPlanarCells(Sites, Voronoi);
-					VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
-
-					const TArrayView<const int32>& TransformIndicesArray(TransformIndices.GetConstArray());
-
-					float CollisionSampleSpacingVal = GetValue<float>(Context, &CollisionSampleSpacing);
-					float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
-
-					int ResultGeometryIndex = CutMultipleWithPlanarCells(VoronoiPlanarCells, *GeomCollection, TransformIndicesArray, GroutVal, CollisionSampleSpacingVal, RandomSeedVal, FTransform().Identity);
-
-					SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
-				}
-			}
-		}
-	}
-}
 
 void FStringAppendDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -780,8 +621,9 @@ void FExplodedViewDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		FManagedArrayCollection CollectionPtr = GetValue<FManagedArrayCollection>(Context, &Collection);
-		if (FGeometryCollection* GeomCollection = CollectionPtr.NewCopy<FGeometryCollection>())
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
 			GeomCollection->AddAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup, FManagedArrayCollection::FConstructionParameters(FName()));
 			check(GeomCollection->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup));
@@ -792,7 +634,7 @@ void FExplodedViewDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 			const TManagedArray<FBox>& BoundingBox = GeomCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
 
 			// Make sure we have valid "Level"
-			AddAdditionalAttributesIfRequired(GeomCollection);
+			AddAdditionalAttributesIfRequired(GeomCollection.Get());
 
 			const TManagedArray<int32>& Levels = GeomCollection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
 			const TManagedArray<int32>& Parent = GeomCollection->GetAttribute<int32>("Parent", FTransformCollection::TransformGroup);
@@ -820,7 +662,7 @@ void FExplodedViewDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 				ExplodedVectors[Idx] = FVector3f::ZeroVector;
 				FVector GeoCenter;
 
-				if (GetValidGeoCenter(GeomCollection, TransformToGeometryIndex, Transforms, Children, BoundingBox, Idx, GeoCenter))
+				if (GetValidGeoCenter(GeomCollection.Get(), TransformToGeometryIndex, Transforms, Children, BoundingBox, Idx, GeoCenter))
 				{
 					TransformedCenters[Idx] = GeoCenter;
 					if ((ViewFractureLevel < 0) || Levels[Idx] == ViewFractureLevel)
@@ -864,79 +706,21 @@ void FCreateNonOverlappingConvexHullsDataflowNode::Evaluate(Dataflow::FContext& 
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		FManagedArrayCollection CollectionPtr = GetValue<FManagedArrayCollection>(Context, &Collection);
-		if (FGeometryCollection* GeomCollection = CollectionPtr.NewCopy<FGeometryCollection>())
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
 			float CanRemoveFractionVal = GetValue<float>(Context, &CanRemoveFraction);
 			float CanExceedFractionVal = GetValue<float>(Context, &CanExceedFraction);
 			float SimplificationDistanceThresholdVal = GetValue<float>(Context, &SimplificationDistanceThreshold);
 
-			FGeometryCollectionConvexUtility::FGeometryCollectionConvexData ConvexData = FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(GeomCollection, CanRemoveFractionVal, SimplificationDistanceThresholdVal, CanExceedFractionVal);
+			FGeometryCollectionConvexUtility::FGeometryCollectionConvexData ConvexData = FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(GeomCollection.Get(), CanRemoveFractionVal, SimplificationDistanceThresholdVal, CanExceedFractionVal);
 
 			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
 		}
 	}
 }
 
-void FPlaneCutterDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FManagedArrayCollection>(&Collection))
-	{
-		FManagedArrayCollection CollectionPtr = GetValue<FManagedArrayCollection>(Context, &Collection);
-		if (FGeometryCollection* GeomCollection = CollectionPtr.NewCopy<FGeometryCollection>())
-		{
-			TArray<FPlane> CuttingPlanes;
-			TArray<FTransform> CuttingPlaneTransforms;
-
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
-			FRandomStream RandStream(RandomSeedVal);
-
-			FBox Bounds = GetValue<FBox>(Context, &BoundingBox);
-			const FVector Extent(Bounds.Max - Bounds.Min);
-
-			CuttingPlaneTransforms.Reserve(CuttingPlaneTransforms.Num() + NumPlanes);
-			for (int32 ii = 0; ii < NumPlanes; ++ii)
-			{
-				FVector Position(Bounds.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
-				CuttingPlaneTransforms.Emplace(FTransform(FRotator(RandStream.FRand() * 360.0f, RandStream.FRand() * 360.0f, 0.0f), Position));
-			}
-
-			for (const FTransform& Transform : CuttingPlaneTransforms)
-			{
-				CuttingPlanes.Add(FPlane(Transform.GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
-			}
-
-			FInternalSurfaceMaterials InternalSurfaceMaterials;
-			FNoiseSettings NoiseSettings;
-
-			float AmplitudeVal = GetValue<float>(Context, &Amplitude);
-			if (AmplitudeVal > 0.0f)
-			{
-				NoiseSettings.Amplitude = AmplitudeVal;
-				NoiseSettings.Frequency = GetValue<float>(Context, &Frequency);
-				NoiseSettings.Lacunarity = GetValue<float>(Context, &Lacunarity);
-				NoiseSettings.Persistence = GetValue<float>(Context, &Persistence);
-				NoiseSettings.Octaves = GetValue<int32>(Context, &OctaveNumber);
-				NoiseSettings.PointSpacing = GetValue<float>(Context, &PointSpacing);
-
-				InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
-			}
-
-			if (GeomCollection->HasAttribute("TransformIndex", "Geometry"))
-			{
-				const TManagedArray<int32>& TransformIndices = GeomCollection->GetAttribute<int32>("TransformIndex", "Geometry");
-				const TArrayView<const int32>& TransformIndicesArray(TransformIndices.GetConstArray());
-
-				float CollisionSampleSpacingVal = GetValue<float>(Context, &CollisionSampleSpacing);
-				float GroutVal = GetValue<float>(Context, &Grout);
-
-				int ResultGeometryIndex = CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *GeomCollection, TransformIndicesArray, GroutVal, CollisionSampleSpacingVal, RandomSeedVal, FTransform().Identity);
-
-				SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
-			}
-		}
-	}
-}
 
 void FHashStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -1065,12 +849,28 @@ void FGetBoundingBoxesDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 {
 	if (Out->IsA<TArray<FBox>>(&BoundingBoxes))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		const TManagedArray<FBox>& BoundingBoxesArr = GeometryCollection::Facades::FBoundsFacade(InCollection).GetBoundingBoxes();
+		const TManagedArray<FBox>& InBoundingBoxes = GeometryCollection::Facades::FBoundsFacade(InCollection).GetBoundingBoxes();
 
-		SetValue<TArray<FBox>>(Context, BoundingBoxesArr.GetConstArray(), &BoundingBoxes);
+		TArray<FBox> BoundingBoxesArr;
+		for (int32 Idx = 0; Idx < InBoundingBoxes.Num(); ++Idx)
+		{
+			if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
+			{
+				if (InTransformSelection.IsSelected(Idx))
+				{
+					BoundingBoxesArr.Add(InBoundingBoxes[Idx]);
+				}
+			}
+			else
+			{
+				BoundingBoxesArr.Add(InBoundingBoxes[Idx]);
+			}
+
+		}
+		SetValue<TArray<FBox>>(Context, BoundingBoxesArr, &BoundingBoxes);
 	}
 }
 
@@ -1078,171 +878,31 @@ void FGetCentroidsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 {
 	if (Out->IsA<TArray<FVector>>(&Centroids))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		const TManagedArray<FBox>& BoundingBoxes = GeometryCollection::Facades::FBoundsFacade(InCollection).GetBoundingBoxes();
+		const TManagedArray<FBox>& InBoundingBoxes = GeometryCollection::Facades::FBoundsFacade(InCollection).GetBoundingBoxes();
 
 		TArray<FVector> CentroidsArr;
-		for (int32 Idx = 0; Idx < BoundingBoxes.Num(); ++Idx)
+		for (int32 Idx = 0; Idx < InBoundingBoxes.Num(); ++Idx)
 		{
-			const FBox& BoundingBox = BoundingBoxes[Idx];
-			if (BoundingBox.IsValid)
+			const FBox& BoundingBox = InBoundingBoxes[Idx];
+			if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
 			{
-				if (InTransformSelection.Num() > 0)
-				{
-					if (InTransformSelection.IsSelected(Idx))
-					{
-						CentroidsArr.Add(BoundingBox.GetCenter());
-					}
-				}
-				else
+				if (InTransformSelection.IsSelected(Idx))
 				{
 					CentroidsArr.Add(BoundingBox.GetCenter());
 				}
+			}
+			else
+			{
+				CentroidsArr.Add(BoundingBox.GetCenter());
 			}
 		}
 		SetValue<TArray<FVector>>(Context, CentroidsArr, &Centroids);
 	}
 }
 
-void FPointsToMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh) || Out->IsA<int32>(&TriangleCount))
-	{
-		TArray<FVector> PointsArr = GetValue<TArray<FVector>>(Context, &Points);
-		if (PointsArr.Num() > 0)
-		{
-			TObjectPtr<UDynamicMesh> DynamicMesh = NewObject<UDynamicMesh>();
-			DynamicMesh->Reset();
-
-			UE::Geometry::FDynamicMesh3& DynMesh = DynamicMesh->GetMeshRef();
-
-			for (auto& Point : PointsArr)
-			{
-				DynMesh.AppendVertex(Point);
-			}
-
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, DynamicMesh, &Mesh);
-			SetValue<int32>(Context, DynamicMesh->GetTriangleCount(), &TriangleCount);
-		}
-		else
-		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
-			SetValue<int32>(Context, 0, &TriangleCount);
-		}
-	}
-}
-
-void FBoxToMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh) || Out->IsA<int32>(&TriangleCount))
-	{
-		TObjectPtr<UDynamicMesh> DynamicMesh = NewObject<UDynamicMesh>();
-		DynamicMesh->Reset();
-
-		UE::Geometry::FDynamicMesh3& DynMesh = DynamicMesh->GetMeshRef();
-
-		FBox InBox = GetValue<FBox>(Context, &Box);
-		FVector Min = InBox.Min;
-		FVector Max = InBox.Max;
-
-		// Add vertices
-		int Vertex0 = DynMesh.AppendVertex(Min);
-		int Vertex1 = DynMesh.AppendVertex(FVector(Min.X, Max.Y, Min.Z));
-		int Vertex2 = DynMesh.AppendVertex(FVector(Max.X, Max.Y, Min.Z));
-		int Vertex3 = DynMesh.AppendVertex(FVector(Max.X, Min.Y, Min.Z));
-		int Vertex4 = DynMesh.AppendVertex(FVector(Min.X, Min.Y, Max.Z));
-		int Vertex5 = DynMesh.AppendVertex(FVector(Min.X, Max.Y, Max.Z));
-		int Vertex6 = DynMesh.AppendVertex(Max);
-		int Vertex7 = DynMesh.AppendVertex(FVector(Max.X, Min.Y, Max.Z));
-
-		// Add triangles
-		int GroupID = 0;
-		DynMesh.AppendTriangle(Vertex0, Vertex1, Vertex3, GroupID);
-		DynMesh.AppendTriangle(Vertex1, Vertex2, Vertex3, GroupID);
-		DynMesh.AppendTriangle(Vertex3, Vertex6, Vertex7, GroupID);
-		DynMesh.AppendTriangle(Vertex3, Vertex2, Vertex6, GroupID);
-		DynMesh.AppendTriangle(Vertex7, Vertex4, Vertex0, GroupID);
-		DynMesh.AppendTriangle(Vertex0, Vertex3, Vertex7, GroupID);
-		DynMesh.AppendTriangle(Vertex0, Vertex4, Vertex5, GroupID);
-		DynMesh.AppendTriangle(Vertex0, Vertex5, Vertex1, GroupID);
-		DynMesh.AppendTriangle(Vertex1, Vertex5, Vertex6, GroupID);
-		DynMesh.AppendTriangle(Vertex6, Vertex2, Vertex1, GroupID);
-		DynMesh.AppendTriangle(Vertex4, Vertex6, Vertex5, GroupID);
-		DynMesh.AppendTriangle(Vertex4, Vertex7, Vertex6, GroupID);
-
-		SetValue<TObjectPtr<UDynamicMesh>>(Context, DynamicMesh, &Mesh);
-		SetValue<int32>(Context, DynamicMesh->GetTriangleCount(), &TriangleCount);
-	}
-}
-
-void FMeshInfoDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FString>(&InfoString))
-	{
-		UE::Geometry::FDynamicMesh3& DynMesh = (GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh))->GetMeshRef();
-
-		SetValue<FString>(Context, DynMesh.MeshInfoString(), &InfoString);
-	}
-}
-
-void FMeshToCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FManagedArrayCollection>(&Collection))
-	{
-		UE::Geometry::FDynamicMesh3& DynMesh = (GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh))->GetMeshRef();
-		if (DynMesh.VertexCount() > 0)
-		{
-			FMeshDescription MeshDescription;
-			FStaticMeshAttributes Attributes(MeshDescription);
-			Attributes.Register();
-
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(&DynMesh, MeshDescription, true);
-
-			FGeometryCollection NewGeometryCollection = FGeometryCollection();
-			FGeometryCollectionEngineConversion::AppendMeshDescription(&MeshDescription, FString(TEXT("TEST")), 0, FTransform().Identity, &NewGeometryCollection);
-
-			FManagedArrayCollection Col = FManagedArrayCollection();
-			NewGeometryCollection.CopyTo(&Col);
-
-			SetValue<FManagedArrayCollection>(Context, Col, &Collection);
-		}
-		else
-		{
-			SetValue<FManagedArrayCollection>(Context, FManagedArrayCollection(), &Collection);
-		}
-	}
-}
-
-void FStaticMeshToMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-#if WITH_EDITORONLY_DATA
-	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh))
-	{
-#if WITH_EDITORONLY_DATA
-		if (FMeshDescription* MeshDescription = UseHiRes ? StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription(LODLevel))
-		{
-			TObjectPtr<UDynamicMesh> DynamicMesh = NewObject<UDynamicMesh>();
-			DynamicMesh->Reset();
-
-			UE::Geometry::FDynamicMesh3& DynMesh = DynamicMesh->GetMeshRef();
-			{
-				FMeshDescriptionToDynamicMesh ConverterToDynamicMesh;
-				ConverterToDynamicMesh.Convert(MeshDescription, DynMesh);
-			}
-
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, DynamicMesh, &Mesh);
-		}
-		else
-#endif
-		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
-		}
-	}
-#endif
-}
 
 void FTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -1252,126 +912,6 @@ void FTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 	}
 }
 
-void FMeshAppendDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh))
-	{
-		UE::Geometry::FDynamicMesh3& DynMesh1 = (GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh1))->GetMeshRef();
-		UE::Geometry::FDynamicMesh3& DynMesh2 = (GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh2))->GetMeshRef();
-
-		if (DynMesh1.VertexCount() > 0 || DynMesh2.VertexCount() > 0)
-		{
-			TObjectPtr<UDynamicMesh> DynamicMesh = NewObject<UDynamicMesh>();
-			DynamicMesh->Reset();
-
-			UE::Geometry::FDynamicMesh3& ResultDynMesh = DynamicMesh->GetMeshRef();
-
-			UE::Geometry::FDynamicMeshEditor MeshEditor(&ResultDynMesh);
-
-			UE::Geometry::FMeshIndexMappings IndexMaps1;
-			MeshEditor.AppendMesh(&DynMesh1, IndexMaps1);
-
-			UE::Geometry::FMeshIndexMappings IndexMaps2;
-			MeshEditor.AppendMesh(&DynMesh2, IndexMaps2);
-
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, DynamicMesh, &Mesh);
-		}
-		else
-		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
-		}
-	}
-}
-
-void FMeshBooleanDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh))
-	{
-		UE::Geometry::FDynamicMesh3& DynMesh1 = (GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh1))->GetMeshRef();
-		UE::Geometry::FDynamicMesh3& DynMesh2 = (GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh2))->GetMeshRef();
-
-		if (DynMesh1.VertexCount() > 0 && DynMesh2.VertexCount() > 0)
-		{
-			// Get output
-			TObjectPtr<UDynamicMesh> DynamicMesh = NewObject<UDynamicMesh>();
-			DynamicMesh->Reset();
-			UE::Geometry::FDynamicMesh3& ResultDynMesh = DynamicMesh->GetMeshRef();
-
-			UE::Geometry::FMeshBoolean::EBooleanOp BoolOp = UE::Geometry::FMeshBoolean::EBooleanOp::Intersect;
-			if (Operation == EMeshBooleanOperationEnum::Dataflow_MeshBoolean_Intersect)
-			{
-				BoolOp = UE::Geometry::FMeshBoolean::EBooleanOp::Intersect;
-			}
-			else if (Operation == EMeshBooleanOperationEnum::Dataflow_MeshBoolean_Union)
-			{
-				BoolOp = UE::Geometry::FMeshBoolean::EBooleanOp::Union;
-			}
-			else if (Operation == EMeshBooleanOperationEnum::Dataflow_MeshBoolean_Difference)
-			{
-				BoolOp = UE::Geometry::FMeshBoolean::EBooleanOp::Difference;
-			}
-
-			UE::Geometry::FMeshBoolean Boolean(&DynMesh1, &DynMesh2, &ResultDynMesh, BoolOp);
-			Boolean.bSimplifyAlongNewEdges = true;
-			Boolean.PreserveUVsOnlyForMesh = 0; // slight warping of the autogenerated cell UVs generally doesn't matter
-			Boolean.bWeldSharedEdges = false;
-			Boolean.bTrackAllNewEdges = true;
-			if (!Boolean.Compute())
-			{
-				SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
-				return;
-			}
-
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, DynamicMesh, &Mesh);
-		}
-		else
-		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
-		}
-	}
-}
-
-void FMeshCopyToPointsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TObjectPtr<UDynamicMesh>>(&Mesh))
-	{
-		TArray<FVector> InPoints = GetValue<TArray<FVector>>(Context, &Points);
-		UE::Geometry::FDynamicMesh3& InDynMeshToCopy = (GetValue<TObjectPtr<UDynamicMesh>>(Context, &MeshToCopy))->GetMeshRef();
-
-		if (InPoints.Num() > 0 && InDynMeshToCopy.VertexCount() > 0)
-		{
-			TObjectPtr<UDynamicMesh> DynamicMesh = NewObject<UDynamicMesh>();
-			DynamicMesh->Reset();
-
-			UE::Geometry::FDynamicMesh3& ResultDynMesh = DynamicMesh->GetMeshRef();
-			UE::Geometry::FDynamicMeshEditor MeshEditor(&ResultDynMesh);
-
-			for (auto& Point : InPoints)
-			{
-				UE::Geometry::FDynamicMesh3 DynMeshTemp(InDynMeshToCopy);
-				UE::Geometry::FRefCountVector VertexRefCounts = DynMeshTemp.GetVerticesRefCounts();
-
-				UE::Geometry::FRefCountVector::IndexIterator ItVertexID = VertexRefCounts.BeginIndices();
-				const UE::Geometry::FRefCountVector::IndexIterator ItEndVertexID = VertexRefCounts.EndIndices();
-
-				while (ItVertexID != ItEndVertexID)
-				{
-					DynMeshTemp.SetVertex(*ItVertexID, Scale * DynMeshTemp.GetVertex(*ItVertexID) + Point);
-					++ItVertexID;
-				}
-
-				UE::Geometry::FMeshIndexMappings IndexMaps;
-				MeshEditor.AppendMesh(&DynMeshTemp, IndexMaps);
-			}
-
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, DynamicMesh, &Mesh);
-		}
-		else
-		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
-		}
-	}
-}
 
 void FCompareIntDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -1421,20 +961,6 @@ void FBranchDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 	}
 }
 
-void FGetMeshDataDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<int32>(&VertexCount) ||
-		Out->IsA<int32>(&EdgeCount) ||
-		Out->IsA<int32>(&TriangleCount))
-	{
-		TObjectPtr<UDynamicMesh> DynamicMesh = GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh);
-		UE::Geometry::FDynamicMesh3& DynMesh = DynamicMesh->GetMeshRef();
-
-		SetValue<int32>(Context, DynMesh.VertexCount(), &VertexCount);
-		SetValue<int32>(Context, DynMesh.EdgeCount(), &EdgeCount);
-		SetValue<int32>(Context, DynMesh.TriangleCount(), &TriangleCount);
-	}
-}
 
 namespace {
 	inline FName GetArrayTypeString(FManagedArrayCollection::EArrayType ArrayType)
@@ -1454,7 +980,7 @@ void FGetSchemaDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 {
 	if (Out->IsA<FString>(&String))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
 		FString OutputStr;
 		OutputStr.Appendf(TEXT("\n----------------------------------------\n"));
@@ -1485,88 +1011,26 @@ void FGetSchemaDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 	}
 }
 
-void FAutoClusterDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FManagedArrayCollection>(&Collection))
-	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
-
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
-		{
-			EClusterSizeMethodEnum InClusterSizeMethod = ClusterSizeMethod;
-			int32 InClusterSites = GetValue<int32>(Context, &ClusterSites);
-			float InClusterFraction = GetValue<float>(Context, &ClusterFraction);
-			float InSiteSize = GetValue<float>(Context, &SiteSize);
-			bool InAutoCluster = AutoCluster;
-			bool InAvoidIsolated = AvoidIsolated;
-
-			TArray<int32> SelectedBones;
-			InTransformSelection.AsArray(SelectedBones);
-
-			FFractureEngineClustering::AutoCluster(*GeomCollection, 
-				SelectedBones, 
-				(EFractureEngineClusterSizeMethod)InClusterSizeMethod, 
-				InClusterSites,
-				InClusterFraction,
-				InSiteSize,
-				InAutoCluster,
-				InAvoidIsolated);
-
-			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
-		}
-	}
-}
-
-
-void FClusterFlattenDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FManagedArrayCollection>(&Collection))
-	{
-		FManagedArrayCollection CollectionPtr = GetValue<FManagedArrayCollection>(Context, &Collection);
-		if (FGeometryCollection* GeomCollection = CollectionPtr.NewCopy<FGeometryCollection>())
-		{
-			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeomCollection, -1);
-
-			const TManagedArray<int32>& Levels = GeomCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
-
-			// Populate Selected Bones in an Array
-			// @todo(harsha) Implement with Selection
-			// For every bone in selected array: [ClusterIndex]
-			int32 ClusterIndex = 0;
-			TArray<int32> LeafBones;
-			FGeometryCollectionClusteringUtility::GetLeafBones(GeomCollection, ClusterIndex, true, LeafBones);
-			FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(GeomCollection, ClusterIndex, LeafBones);
-			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(GeomCollection);
-			// End for
-
-			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeomCollection, -1);
-			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
-		}
-	}
-}
-
 
 void FRemoveOnBreakDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		FManagedArrayCollection CollectionPtr = GetValue<FManagedArrayCollection>(Context, &Collection);
-		if (FGeometryCollection* GeometryCollection = CollectionPtr.NewCopy<FGeometryCollection>())
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		if (!InCollection.HasAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup))
 		{
-			if (!GeometryCollection->HasAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<FVector4f>& NewRemoveOnBreak = GeometryCollection->AddAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
-				NewRemoveOnBreak.Fill(FRemoveOnBreakData::DisabledPackedData);
-			}
+			TManagedArray<FVector4f>& NewRemoveOnBreak = InCollection.AddAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
+			NewRemoveOnBreak.Fill(FRemoveOnBreakData::DisabledPackedData);
+		}
 
-			TManagedArray<FVector4f>& RemoveOnBreak = GeometryCollection->ModifyAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
+		TManagedArray<FVector4f>& RemoveOnBreak = InCollection.ModifyAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
 
-			const FVector2f PostBreakTimerData = GetValue<FVector2f>(Context, &PostBreakTimer);
-			const FVector2f RemovalTimerData = GetValue<FVector2f>(Context, &RemovalTimer);
-			const bool ClusterCrumblingData = GetValue<bool>(Context, &ClusterCrumbling);
+		const FVector2f PostBreakTimerData = GetValue<FVector2f>(Context, &PostBreakTimer);
+		const FVector2f RemovalTimerData = GetValue<FVector2f>(Context, &RemovalTimer);
+		const bool ClusterCrumblingData = GetValue<bool>(Context, &ClusterCrumbling);
 
-			RemoveOnBreak.Fill(FVector4f{ PostBreakTimerData.X, PostBreakTimerData.Y, RemovalTimerData.X, RemovalTimerData.Y });
+		RemoveOnBreak.Fill(FVector4f{ PostBreakTimerData.X, PostBreakTimerData.Y, RemovalTimerData.X, RemovalTimerData.Y });
 
 			// @todo(harsha) Implement with Selection
 			// const FRemoveOnBreakData RemoveOnBreakData(true, PostBreakTimerData, ClusterCrumblingData, RemovalTimerData);
@@ -1583,8 +1047,7 @@ void FRemoveOnBreakDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 				// }
 			// }
 
-			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeometryCollection), &Collection);
-		}
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
 
@@ -1593,10 +1056,10 @@ void FSetAnchorStateDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
 			Chaos::Facades::FCollectionAnchoringFacade AnchoringFacade(*GeomCollection);
 			if (!AnchoringFacade.HasAnchoredAttribute())
@@ -1626,9 +1089,9 @@ void FProximityDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		if (FGeometryCollection* GeomCollection = InCollection.NewCopy<FGeometryCollection>())
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
 			FGeometryCollectionProximityPropertiesInterface::FProximityProperties Properties = GeomCollection->GetProximityProperties();
 
@@ -1639,7 +1102,7 @@ void FProximityDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 			GeomCollection->SetProximityProperties(Properties);
 
 			// Invalidate proximity
-			FGeometryCollectionProximityUtility ProximityUtility(GeomCollection);
+			FGeometryCollectionProximityUtility ProximityUtility(GeomCollection.Get());
 			ProximityUtility.InvalidateProximity();
 
 			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);

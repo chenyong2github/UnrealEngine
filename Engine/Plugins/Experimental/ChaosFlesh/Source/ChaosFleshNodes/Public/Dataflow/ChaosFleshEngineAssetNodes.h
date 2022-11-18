@@ -12,7 +12,7 @@
 
 #include "ChaosFleshEngineAssetNodes.generated.h"
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FGetFleshAssetDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -34,11 +34,11 @@ public:
 };
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh, DataflowTerminal))
 struct FFleshAssetTerminalDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FFleshAssetTerminalDataflowNode, "FleshAssetTerminal", "Flesh", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FFleshAssetTerminalDataflowNode, "FleshAssetTerminal", "Terminal", "")
 	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
 
 public:
@@ -60,7 +60,7 @@ public:
 
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FImportFleshDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -85,7 +85,7 @@ public:
 };
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FConstructTetGridNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -114,7 +114,7 @@ public:
 
 
 
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FComputeFleshMassNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
@@ -144,7 +144,7 @@ public:
 * vertices, and origin & insertion vertex fields.  Fiber directions should smoothly follow the geometry
 * oriented from the origin vertices pointing to the insertion vertices.
 */
-USTRUCT()
+USTRUCT(meta = (DataflowFlesh))
 struct FComputeFiberFieldNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

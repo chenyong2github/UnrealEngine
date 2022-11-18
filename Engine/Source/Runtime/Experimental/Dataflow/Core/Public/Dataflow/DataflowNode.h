@@ -111,6 +111,9 @@ struct DATAFLOWCORE_API FDataflowNode
 	static const FName DataflowPassthrough;
 	static const FName DataflowIntrinsic;
 
+	static const FLinearColor DefaultNodeTitleColor;
+	static const FLinearColor DefaultNodeBodyTintColor;
+
 	//
 	//  Struct Support
 	//

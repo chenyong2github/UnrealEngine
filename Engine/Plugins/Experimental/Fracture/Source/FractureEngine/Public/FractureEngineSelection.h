@@ -8,17 +8,20 @@
 class FRACTUREENGINE_API FFractureEngineSelection
 {
 public:
-	static void SelectParent(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones);
-	static void SelectParent(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection);
+	static void GetRootBones(const FManagedArrayCollection& Collection, TArray<int32>& RootBonesOut);
+	static void GetRootBones(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection);
 
-	static void SelectChildren(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones);
-	static void SelectChildren(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection);
+	static void SelectParent(const FManagedArrayCollection& Collection, TArray<int32>& SelectedBones);
+	static void SelectParent(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection);
 
-	static void SelectSiblings(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones);
-	static void SelectSiblings(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection);
+	static void SelectChildren(const FManagedArrayCollection& Collection, TArray<int32>& SelectedBones);
+	static void SelectChildren(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection);
 
-	static void SelectLevel(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones);
-	static void SelectLevel(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection);
+	static void SelectSiblings(const FManagedArrayCollection& Collection, TArray<int32>& SelectedBones);
+	static void SelectSiblings(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection);
+
+	static void SelectLevel(const FManagedArrayCollection& Collection, TArray<int32>& SelectedBones);
+	static void SelectLevel(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection);
 
 	static void SelectContact(FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones);
 	static void SelectContact(FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection);
@@ -29,8 +32,8 @@ public:
 	static void SelectCluster(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones);
 	static void SelectCluster(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection);
 
-	static void SelectByPercentage(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones, const int32 Percentage, const bool Deterministic, const float RandomSeed);
-	static void SelectByPercentage(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection, const int32 Percentage, const bool Deterministic, const float RandomSeed);
+	static void SelectByPercentage(TArray<int32>& SelectedBones, const int32 Percentage, const bool Deterministic, const float RandomSeed);
+	static void SelectByPercentage(FDataflowTransformSelection& TransformSelection, const int32 Percentage, const bool Deterministic, const float RandomSeed);
 
 	static void SelectBySize(FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones, const float SizeMin, const float SizeMax);
 	static void SelectBySize(FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection, const float SizeMin, const float SizeMax);

@@ -16,12 +16,46 @@ static void ConvertSelectionSetToSelectionArr(const TSet<int32>& SelectionSet, T
 	}
 }
 
-void FFractureEngineSelection::SelectParent(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones)
+void FFractureEngineSelection::GetRootBones(const FManagedArrayCollection& Collection, TArray<int32>& RootBonesOut)
 {
-	if (GeometryCollection.HasGroup(FGeometryCollection::TransformGroup) &&
-		GeometryCollection.HasAttribute("Parent", FGeometryCollection::TransformGroup))
+	if (Collection.HasGroup(FGeometryCollection::TransformGroup) &&
+		Collection.HasAttribute("Parent", FGeometryCollection::TransformGroup))
 	{
-		const TManagedArray<int32>& Parents = GeometryCollection.GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& Parents = Collection.GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+
+		for (int32 Idx = 0; Idx < Parents.Num(); ++Idx)
+		{
+			if (Parents[Idx] == FGeometryCollection::Invalid)
+			{
+				RootBonesOut.Add(Idx);
+			}
+		}
+	}
+}
+
+void FFractureEngineSelection::GetRootBones(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection)
+{
+	if (Collection.HasGroup(FGeometryCollection::TransformGroup) &&
+		Collection.HasAttribute("Parent", FGeometryCollection::TransformGroup))
+	{
+		const TManagedArray<int32>& Parents = Collection.GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+
+		for (int32 Idx = 0; Idx < Parents.Num(); ++Idx)
+		{
+			if (Parents[Idx] == FGeometryCollection::Invalid)
+			{
+				TransformSelection.SetSelected(Idx);
+			}
+		}
+	}
+}
+
+void FFractureEngineSelection::SelectParent(const FManagedArrayCollection& Collection, TArray<int32>& SelectedBones)
+{
+	if (Collection.HasGroup(FGeometryCollection::TransformGroup) &&
+		Collection.HasAttribute("Parent", FGeometryCollection::TransformGroup))
+	{
+		const TManagedArray<int32>& Parents = Collection.GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
 
 		TSet<int32> NewSelection;
 		for (int32 Bone : SelectedBones)
@@ -37,22 +71,22 @@ void FFractureEngineSelection::SelectParent(const FGeometryCollection& GeometryC
 	}
 }
 
-void FFractureEngineSelection::SelectParent(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection)
+void FFractureEngineSelection::SelectParent(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection)
 {
 	TArray<int32> SelectionArr;
 	TransformSelection.AsArray(SelectionArr);
 
-	SelectParent(GeometryCollection, SelectionArr);
+	SelectParent(Collection, SelectionArr);
 
 	TransformSelection.SetFromArray(SelectionArr);
 }
 
-void FFractureEngineSelection::SelectChildren(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones)
+void FFractureEngineSelection::SelectChildren(const FManagedArrayCollection& Collection, TArray<int32>& SelectedBones)
 {
-	if (GeometryCollection.HasGroup(FGeometryCollection::TransformGroup) &&
-		GeometryCollection.HasAttribute("Children", FGeometryCollection::TransformGroup))
+	if (Collection.HasGroup(FGeometryCollection::TransformGroup) &&
+		Collection.HasAttribute("Children", FGeometryCollection::TransformGroup))
 	{
-		const TManagedArray<TSet<int32>>& Children = GeometryCollection.GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+		const TManagedArray<TSet<int32>>& Children = Collection.GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
 
 		TSet<int32> NewSelection;
 		for (int32 Bone : SelectedBones)
@@ -72,24 +106,24 @@ void FFractureEngineSelection::SelectChildren(const FGeometryCollection& Geometr
 	}
 }
 
-void FFractureEngineSelection::SelectChildren(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection)
+void FFractureEngineSelection::SelectChildren(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection)
 {
 	TArray<int32> SelectionArr;
 	TransformSelection.AsArray(SelectionArr);
 
-	SelectChildren(GeometryCollection, SelectionArr);
+	SelectChildren(Collection, SelectionArr);
 
 	TransformSelection.SetFromArray(SelectionArr);
 }
 
-void FFractureEngineSelection::SelectSiblings(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones)
+void FFractureEngineSelection::SelectSiblings(const FManagedArrayCollection& Collection, TArray<int32>& SelectedBones)
 {
-	if (GeometryCollection.HasGroup(FGeometryCollection::TransformGroup) &&
-		GeometryCollection.HasAttribute("Parent", FGeometryCollection::TransformGroup) &&
-		GeometryCollection.HasAttribute("Children", FGeometryCollection::TransformGroup))
+	if (Collection.HasGroup(FGeometryCollection::TransformGroup) &&
+		Collection.HasAttribute("Parent", FGeometryCollection::TransformGroup) &&
+		Collection.HasAttribute("Children", FGeometryCollection::TransformGroup))
 	{
-		const TManagedArray<int32>& Parents = GeometryCollection.GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
-		const TManagedArray<TSet<int32>>& Children = GeometryCollection.GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& Parents = Collection.GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+		const TManagedArray<TSet<int32>>& Children = Collection.GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
 
 		TSet<int32> NewSelection;
 		for (int32 Bone : SelectedBones)
@@ -108,28 +142,28 @@ void FFractureEngineSelection::SelectSiblings(const FGeometryCollection& Geometr
 	}
 }
 
-void FFractureEngineSelection::SelectSiblings(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection)
+void FFractureEngineSelection::SelectSiblings(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection)
 {
 	TArray<int32> SelectionArr;
 	TransformSelection.AsArray(SelectionArr);
 
-	SelectSiblings(GeometryCollection, SelectionArr);
+	SelectSiblings(Collection, SelectionArr);
 
 	TransformSelection.SetFromArray(SelectionArr);
 }
 
-void FFractureEngineSelection::SelectLevel(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones)
+void FFractureEngineSelection::SelectLevel(const FManagedArrayCollection& Collection, TArray<int32>& SelectedBones)
 {
-	if (GeometryCollection.HasGroup(FGeometryCollection::TransformGroup) &&
-		GeometryCollection.HasAttribute("Level", FGeometryCollection::TransformGroup))
+	if (Collection.HasGroup(FGeometryCollection::TransformGroup) &&
+		Collection.HasAttribute("Level", FGeometryCollection::TransformGroup))
 	{
-		const TManagedArray<int32>& Levels = GeometryCollection.GetAttribute<int32>("Levels", FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& Levels = Collection.GetAttribute<int32>("Levels", FGeometryCollection::TransformGroup);
 
 		TSet<int32> NewSelection;
 		for (int32 Bone : SelectedBones)
 		{
 			int32 Level = Levels[Bone];
-			for (int32 TransformIdx = 0; TransformIdx < GeometryCollection.NumElements(FTransformCollection::TransformGroup); ++TransformIdx)
+			for (int32 TransformIdx = 0; TransformIdx < Collection.NumElements(FTransformCollection::TransformGroup); ++TransformIdx)
 			{
 				if (Levels[TransformIdx] == Level)
 				{
@@ -142,12 +176,12 @@ void FFractureEngineSelection::SelectLevel(const FGeometryCollection& GeometryCo
 	}
 }
 
-void FFractureEngineSelection::SelectLevel(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection)
+void FFractureEngineSelection::SelectLevel(const FManagedArrayCollection& Collection, FDataflowTransformSelection& TransformSelection)
 {
 	TArray<int32> SelectionArr;
 	TransformSelection.AsArray(SelectionArr);
 
-	SelectLevel(GeometryCollection, SelectionArr);
+	SelectLevel(Collection, SelectionArr);
 
 	TransformSelection.SetFromArray(SelectionArr);
 }
@@ -293,7 +327,7 @@ static void RandomShuffleArray(TArray<int32>& InArray, const bool Deterministic,
 	}
 }
 
-void FFractureEngineSelection::SelectByPercentage(const FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones, const int32 Percentage, const bool Deterministic, const float RandomSeed)
+void FFractureEngineSelection::SelectByPercentage(TArray<int32>& SelectedBones, const int32 Percentage, const bool Deterministic, const float RandomSeed)
 {
 	RandomShuffleArray(SelectedBones, Deterministic, RandomSeed);
 
@@ -301,12 +335,12 @@ void FFractureEngineSelection::SelectByPercentage(const FGeometryCollection& Geo
 	SelectedBones.SetNum(NewNumElements);
 }
 
-void FFractureEngineSelection::SelectByPercentage(const FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection, const int32 Percentage, const bool Deterministic, const float RandomSeed)
+void FFractureEngineSelection::SelectByPercentage(FDataflowTransformSelection& TransformSelection, const int32 Percentage, const bool Deterministic, const float RandomSeed)
 {
 	TArray<int32> SelectionArr;
 	TransformSelection.AsArray(SelectionArr);
 
-	SelectByPercentage(GeometryCollection, SelectionArr, Percentage, Deterministic, RandomSeed);
+	SelectByPercentage(SelectionArr, Percentage, Deterministic, RandomSeed);
 
 	TransformSelection.SetFromArray(SelectionArr);
 }
