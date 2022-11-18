@@ -941,7 +941,8 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 #if PLATFORM_SUPPORTS_MESH_SHADERS
 		if (GraphicsDesc.MeshShader != FSHAHash())
 		{
-			if (!GRHISupportsMeshShadersTier0)
+			// this check is also done in commandlets, which don't set RHI settings properly. Exempt them.
+			if (!IsRunningCommandlet() && !GRHISupportsMeshShadersTier0)
 			{
 				// do not allow precompilation of mesh shaders if runtime doesn't support them
 				return false;
