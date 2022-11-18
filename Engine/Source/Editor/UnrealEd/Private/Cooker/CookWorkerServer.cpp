@@ -203,6 +203,8 @@ bool FCookWorkerServer::TryHandleConnectMessage(FWorkerConnectMessage& Message, 
 	Socket = InSocket;
 
 	SendToState(EConnectStatus::Connected);
+	UE_LOG(LogCook, Display, TEXT("CookWorker %d connected after %.3fs."), WorkerId.GetRemoteIndex(),
+		static_cast<float>(FPlatformTime::Seconds() - ConnectStartTimeSeconds));
 	for (UE::CompactBinaryTCP::FMarshalledMessage& OtherMessage : OtherPacketMessages)
 	{
 		ReceiveMessages.Add(MoveTemp(OtherMessage));

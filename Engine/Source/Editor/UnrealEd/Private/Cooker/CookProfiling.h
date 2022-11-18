@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/ArrayView.h"
+#include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CoreTypes.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Stats/Stats.h"
@@ -123,26 +124,46 @@ inline void ClearHierarchyTimers() {}
 #if ENABLE_COOK_STATS
 namespace DetailedCookStats
 {
-	extern double TickCookOnTheSideTimeSec;
-	extern double TickCookOnTheSideLoadPackagesTimeSec;
-	extern double TickCookOnTheSideResolveRedirectorsTimeSec;
-	extern double TickCookOnTheSideSaveCookedPackageTimeSec;
-	extern double TickCookOnTheSidePrepareSaveTimeSec;
-	extern double BlockOnAssetRegistryTimeSec;
-	extern double GameCookModificationDelegateTimeSec;
-	extern double TickLoopShaderProcessAsyncResultsTimeSec;
-	extern double TickLoopProcessDeferredCommandsTimeSec;
-	extern double TickLoopTickCommandletStatsTimeSec;
-	extern double TickLoopFlushRenderingCommandsTimeSec;
 
-	// Stats tracked through FAutoRegisterCallback
-	extern uint32 NumPreloadedDependencies;
-	extern uint32 NumPackagesIterativelySkipped;
-	/** Tracks the number of packages cooked - counted only once even if multiple platforms cooked. */
-	extern uint32 NumPackagesSavedForCook;
-	extern int32 PeakRequestQueueSize;
-	extern int32 PeakLoadQueueSize;
-	extern int32 PeakSaveQueueSize;
+extern FString CookProject;
+extern FString CookCultures;
+extern FString CookLabel;
+extern FString TargetPlatforms;
+extern double CookStartTime;
+extern double CookWallTimeSec;
+extern double StartupWallTimeSec;
+extern double CookByTheBookTimeSec;
+extern double StartCookByTheBookTimeSec;
+extern double TickCookOnTheSideTimeSec;
+extern double TickCookOnTheSideLoadPackagesTimeSec;
+extern double TickCookOnTheSideResolveRedirectorsTimeSec;
+extern double TickCookOnTheSideSaveCookedPackageTimeSec;
+extern double TickCookOnTheSidePrepareSaveTimeSec;
+extern double BlockOnAssetRegistryTimeSec;
+extern double GameCookModificationDelegateTimeSec;
+extern double TickLoopGCTimeSec;
+extern double TickLoopRecompileShaderRequestsTimeSec;
+extern double TickLoopShaderProcessAsyncResultsTimeSec;
+extern double TickLoopProcessDeferredCommandsTimeSec;
+extern double TickLoopTickCommandletStatsTimeSec;
+extern double TickLoopFlushRenderingCommandsTimeSec;
+extern bool IsCookAll;
+extern bool IsCookOnTheFly;
+extern bool IsIterativeCook;
+extern bool IsFastCook;
+extern bool IsUnversioned;
+
+// Stats tracked through FAutoRegisterCallback
+extern uint32 NumPreloadedDependencies;
+extern uint32 NumPackagesIterativelySkipped;
+/** Tracks the number of packages cooked - counted only once even if multiple platforms cooked. */
+extern uint32 NumPackagesSavedForCook;
+extern int32 PeakRequestQueueSize;
+extern int32 PeakLoadQueueSize;
+extern int32 PeakSaveQueueSize;
+
+void LogCookStats(ECookMode::Type CookMode);
+
 }
 #endif
 

@@ -112,6 +112,26 @@ namespace ECookMode
 		CookWorker,
 	};
 }
+inline bool IsCookByTheBookMode(ECookMode::Type CookMode)
+{
+	return CookMode == ECookMode::CookByTheBookFromTheEditor || CookMode == ECookMode::CookByTheBook;
+}
+inline bool IsRealtimeMode(ECookMode::Type CookMode)
+{
+	return CookMode == ECookMode::CookByTheBookFromTheEditor || CookMode == ECookMode::CookOnTheFlyFromTheEditor;
+}
+inline bool IsCookingInEditor(ECookMode::Type CookMode)
+{
+	return CookMode == ECookMode::CookByTheBookFromTheEditor || CookMode == ECookMode::CookOnTheFlyFromTheEditor;
+}
+inline bool IsCookOnTheFlyMode(ECookMode::Type CookMode)
+{
+	return CookMode == ECookMode::CookOnTheFly || CookMode == ECookMode::CookOnTheFlyFromTheEditor;
+}
+inline bool IsCookWorkerMode(ECookMode::Type CookMode)
+{
+	return CookMode == ECookMode::CookWorker;
+}
 
 UENUM()
 enum class ECookTickFlags : uint8
@@ -629,6 +649,9 @@ public:
 	/** Connect to the CookDirector host, Initialize this UCOTFS, and start the CookWorker session */
 	bool TryInitializeCookWorker();
 
+	/** Log stats for the CookWorker; this is called before the connection to the director is terminated. */
+	void LogCookWorkerStats();
+
 	/** Terminate the CookWorker session */
 	void ShutdownCookAsCookWorker();
 
@@ -871,6 +894,9 @@ public:
 	/** Calculate the ShaderLibrary codedir and metadatadir */
 	void GetShaderLibraryPaths(const ITargetPlatform* TargetPlatform, FString& OutShaderCodeDir,
 		FString& OutMetaDataPath, bool bUseProjectDirForDLC=false);
+
+	/** Print detailed stats from the cook. */
+	void PrintDetailedCookStats();
 
 private:
 

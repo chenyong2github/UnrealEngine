@@ -1070,22 +1070,22 @@ bool UCookOnTheFlyServer::ContainsRedirector(const FName& PackageName, TMap<FSof
 
 bool UCookOnTheFlyServer::IsCookingInEditor() const
 {
-	return CurrentCookMode == ECookMode::CookByTheBookFromTheEditor || CurrentCookMode == ECookMode::CookOnTheFlyFromTheEditor;
+	return ::IsCookingInEditor(CurrentCookMode);
 }
 
 bool UCookOnTheFlyServer::IsRealtimeMode() const 
 {
-	return CurrentCookMode == ECookMode::CookByTheBookFromTheEditor || CurrentCookMode == ECookMode::CookOnTheFlyFromTheEditor;
+	return ::IsRealtimeMode(CurrentCookMode);
 }
 
 bool UCookOnTheFlyServer::IsCookByTheBookMode() const
 {
-	return CurrentCookMode == ECookMode::CookByTheBookFromTheEditor || CurrentCookMode == ECookMode::CookByTheBook;
+	return ::IsCookByTheBookMode(CurrentCookMode);
 }
 
 bool UCookOnTheFlyServer::IsDirectorCookByTheBook() const
 {
-	return DirectorCookMode == ECookMode::CookByTheBookFromTheEditor || DirectorCookMode == ECookMode::CookByTheBook;
+	return ::IsCookByTheBookMode(DirectorCookMode);
 }
 
 bool UCookOnTheFlyServer::IsUsingShaderCodeLibrary() const
@@ -1101,14 +1101,18 @@ bool UCookOnTheFlyServer::IsUsingZenStore() const
 
 bool UCookOnTheFlyServer::IsCookOnTheFlyMode() const
 {
-	return CurrentCookMode == ECookMode::CookOnTheFly || CurrentCookMode == ECookMode::CookOnTheFlyFromTheEditor; 
+	return ::IsCookOnTheFlyMode(CurrentCookMode);
 }
 
 bool UCookOnTheFlyServer::IsDirectorCookOnTheFly() const
 {
-	return DirectorCookMode == ECookMode::CookOnTheFly || DirectorCookMode == ECookMode::CookOnTheFlyFromTheEditor;
+	return ::IsCookOnTheFlyMode(DirectorCookMode);
 }
 
+bool UCookOnTheFlyServer::IsCookWorkerMode() const
+{
+	return ::IsCookWorkerMode(CurrentCookMode);
+}
 
 bool UCookOnTheFlyServer::IsUsingLegacyCookOnTheFlyScheduling() const
 {
@@ -1293,7 +1297,6 @@ uint32 UCookOnTheFlyServer::TickCookWorker()
 	check(IsCookWorkerMode());
 
 	LLM_SCOPE_BYTAG(Cooker);
-	COOK_STAT(FScopedDurationTimer TickTimer(DetailedCookStats::TickCookOnTheSideTimeSec));
 	UE::Cook::FTickStackData StackData(MAX_flt, ECookTickFlags::None);
 
 	TickMainCookLoop(StackData);
@@ -3419,6 +3422,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSave(UE::Cook::FPackageData& P
 	{
 		return EPollStatus::Error;
 	}
+	UE_SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(PrepareSave, DetailedCookStats::TickCookOnTheSidePrepareSaveTimeSec);
 	EPollStatus Result = PrepareSaveInternal(PackageData, Timer, bPrecaching);
 	if (Result == EPollStatus::Error)
 	{
@@ -3432,7 +3436,6 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveInternal(UE::Cook::FPackag
 {
 	using namespace UE::Cook;
 
-	UE_SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(PrepareSave, DetailedCookStats::TickCookOnTheSidePrepareSaveTimeSec);
 #if DEBUG_COOKONTHEFLY 
 	UE_LOG(LogCook, Display, TEXT("Caching objects for package %s"), *PackageData.GetPackageName().ToString());
 #endif
@@ -8622,13 +8625,41 @@ void UCookOnTheFlyServer::ShutdownCookSession()
 void UCookOnTheFlyServer::PrintFinishStats()
 {
 	const float TotalCookTime = (float)(FPlatformTime::Seconds() - CookByTheBookOptions->CookStartTime);
-	UE_LOG(LogCook, Display, TEXT("Cook by the book total time in tick %fs total time %f"), CookByTheBookOptions->CookTime, TotalCookTime);
+	if (IsCookByTheBookMode())
+	{
+		UE_LOG(LogCook, Display, TEXT("Cook by the book total time in tick %fs total time %f"), CookByTheBookOptions->CookTime, TotalCookTime);
+	}
+	else if (IsCookWorkerMode())
+	{
+		UE_LOG(LogCook, Display, TEXT("CookWorker total time %f"), TotalCookTime);
+	}
+
 
 	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
 	UE_LOG(LogCook, Display, TEXT("Peak Used virtual %u MiB Peak Used physical %u MiB"), MemStats.PeakUsedVirtual / 1024 / 1024, MemStats.PeakUsedPhysical / 1024 / 1024);
 
 	COOK_STAT(UE_LOG(LogCook, Display, TEXT("Packages Cooked: %d, Packages Iteratively Skipped: %d, Total Packages: %d"),
 		DetailedCookStats::NumPackagesSavedForCook, DetailedCookStats::NumPackagesIterativelySkipped, PackageDatas->GetNumCooked()));
+}
+
+void UCookOnTheFlyServer::PrintDetailedCookStats()
+{
+	if (GShaderCompilerStats)
+	{
+		GShaderCompilerStats->WriteStats();
+	}
+
+	COOK_STAT(
+		{
+			double Now = FPlatformTime::Seconds();
+			if (DetailedCookStats::CookStartTime <= 0.)
+			{
+				DetailedCookStats::CookStartTime = GStartTime;
+			}
+			DetailedCookStats::CookWallTimeSec = Now - GStartTime;
+			DetailedCookStats::StartupWallTimeSec = DetailedCookStats::CookStartTime - GStartTime;
+			DetailedCookStats::LogCookStats(CurrentCookMode);
+		});
 }
 
 TMap<FName, TSet<FName>> UCookOnTheFlyServer::BuildMapDependencyGraph(const ITargetPlatform* TargetPlatform)
@@ -9501,6 +9532,16 @@ void UCookOnTheFlyServer::StartCookAsCookWorker()
 	}
 }
 
+void UCookOnTheFlyServer::LogCookWorkerStats()
+{
+	if (IsDirectorCookByTheBook())
+	{
+		PrintFinishStats();
+		OutputHierarchyTimers();
+		PrintDetailedCookStats();
+	}
+}
+
 void UCookOnTheFlyServer::ShutdownCookAsCookWorker()
 {
 	if (IsDirectorCookByTheBook())
@@ -9538,11 +9579,6 @@ FBeginCookContext UCookOnTheFlyServer::CreateCookWorkerContext()
 	}
 
 	return BeginContext;
-}
-
-bool UCookOnTheFlyServer::IsCookWorkerMode() const
-{
-	return CurrentCookMode == ECookMode::CookWorker;
 }
 
 void UCookOnTheFlyServer::GenerateInitialRequests(FBeginCookContext& BeginContext)
