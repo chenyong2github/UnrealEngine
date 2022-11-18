@@ -316,7 +316,7 @@ private:
 	// referenced by multiple cached poses (pesky DAG)
 	struct FMessageEntry
 	{
-		TSharedRef<IGraphMessage> Message;
+		TSharedPtr<IGraphMessage> Message;
 		FNodeInfo NodeInfo;
 	};
 

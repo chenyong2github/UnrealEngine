@@ -91,7 +91,7 @@ void FMessageStack::ForEachMessage(FName InMessageType, TFunctionRef<EEnumerate(
 			const FMessageEntry& MessageEntry = StackEntry[MessageIndex];
 			if(MessageEntry.Message->GetTypeName() == InMessageType)
 			{
-				if(InFunction(MessageEntry.Message.Get()) == EEnumerate::Stop)
+				if(InFunction(*MessageEntry.Message) == EEnumerate::Stop)
 				{
 					return;
 				}
@@ -110,7 +110,7 @@ void FMessageStack::TopMessage(FName InMessageType, TFunctionRef<void(IGraphMess
 			const FMessageEntry& MessageEntry = StackEntry.Top();
 			if(MessageEntry.Message->GetTypeName() == InMessageType)
 			{
-				InFunction(MessageEntry.Message.Get());
+				InFunction(*MessageEntry.Message);
 			}
 		}
 	}
@@ -126,7 +126,7 @@ void FMessageStack::BottomMessage(FName InMessageType, TFunctionRef<void(IGraphM
 			const FMessageEntry& MessageEntry = StackEntry[0];
 			if(MessageEntry.Message->GetTypeName() == InMessageType)
 			{
-				InFunction(MessageEntry.Message.Get());
+				InFunction(*MessageEntry.Message);
 			}
 		}
 	}
