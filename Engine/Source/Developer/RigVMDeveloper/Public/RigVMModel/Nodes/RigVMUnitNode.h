@@ -29,7 +29,8 @@ public:
 	virtual bool IsDefinedAsVarying() const override;
 	virtual FName GetEventName() const override;
 	virtual bool CanOnlyExistOnce() const override;
-	virtual bool IsLoopNode() const override;
+	virtual const TArray<FName>& GetControlFlowBlocks() const override;
+	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const override;
 	virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const override;
 	virtual TArray<URigVMPin*> GetAggregateInputs() const override;
 	virtual TArray<URigVMPin*> GetAggregateOutputs() const override;

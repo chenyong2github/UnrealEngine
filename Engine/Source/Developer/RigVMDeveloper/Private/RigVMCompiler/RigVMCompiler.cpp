@@ -1019,15 +1019,6 @@ void URigVMCompiler::TraverseExpression(const FRigVMExprAST* InExpr, FRigVMCompi
 		case FRigVMExprAST::EType::CallExtern:
 		{
 			const FRigVMCallExternExprAST* CallExternExpr = InExpr->To<FRigVMCallExternExprAST>();
-			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(CallExternExpr->GetNode()))
-			{
-				if (UnitNode->IsLoopNode())
-				{
-					TraverseForLoop(CallExternExpr, WorkData);
-					break;
-				}
-			}
-
 			TraverseCallExtern(CallExternExpr, WorkData);
 			break;
 		}
@@ -1374,7 +1365,8 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		}
 	}
 
-	int32 InstructionIndex = INDEX_NONE;
+	int32 CallExternInstructionIndex = INDEX_NONE;
+	const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();
 
 	if (WorkData.bSetupMemory)
 	{
@@ -1397,7 +1389,10 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		}
 			
 		check(Function);
-		
+
+		FRigVMOperand CountOperand;
+		FRigVMOperand IndexOperand;
+		FRigVMOperand BlockToRunOperand;
 		for(const FRigVMFunctionArgument& Argument : Function->GetArguments())
 		{
 			const FRigVMExprAST* ChildExpr = InExpr->FindExprWithPinName(Argument.Name);
@@ -1418,6 +1413,36 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			else
 			{
 				break;
+			}
+
+			if(Argument.Name == FRigVMStruct::ControlFlowBlockToRunName)
+			{
+				BlockToRunOperand = Operands.Last();
+			}
+			else if(Argument.Name == FRigVMStruct::ControlFlowCountName)
+			{
+				CountOperand = Operands.Last();
+			}
+			else if(Argument.Name == FRigVMStruct::ControlFlowIndexName)
+			{
+				IndexOperand = Operands.Last();
+			}
+		}
+
+		// make sure to skip the output blocks while we are traversing this call extern
+		TArray<const FRigVMExprAST*> ExpressionsToSkip;
+		TArray<int32> BranchIndices;
+		if(Node->IsControlFlowNode())
+		{
+			const TArray<FName>& BlockNames = Node->GetControlFlowBlocks();
+			BranchIndices.Reserve(BlockNames.Num());
+			
+			for(const FName& BlockName : BlockNames)
+			{
+				const FRigVMVarExprAST* BlockExpr = InExpr->FindVarWithPinName(BlockName);
+				check(BlockExpr);
+				WorkData.ExprToSkip.AddUnique(BlockExpr);
+				BranchIndices.Add(WorkData.VM->GetByteCode().AddBranchInfo(FRigVMBranchInfo()));
 			}
 		}
 
@@ -1471,11 +1496,17 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpOp>(JumpToCallExternByte).InstructionIndex = InstructionsToJump;
 		}
 
+		if(Node->IsControlFlowNode())
+		{
+			check(BlockToRunOperand.IsValid());
+			WorkData.VM->GetByteCode().AddZeroOp(BlockToRunOperand);
+		}
+
 		// setup the instruction
 		const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(Function->GetName());
 		check(FunctionIndex != INDEX_NONE);
 		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
-		InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+		CallExternInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 
 		// setup the branch infos for this call extern instruction
 		if(const TArray<FRigVMBranchInfo>* BranchInfosPtr = WorkData.BranchInfos.Find(Node))
@@ -1483,8 +1514,8 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			const TArray<FRigVMBranchInfo>& BranchInfos = *BranchInfosPtr;
 			for(FRigVMBranchInfo BranchInfo : BranchInfos)
 			{
-				BranchInfo.InstructionIndex = InstructionIndex;
-				WorkData.VM->GetByteCode().AddBranchInfo(BranchInfo);
+				BranchInfo.InstructionIndex = CallExternInstructionIndex;
+				(void)WorkData.VM->GetByteCode().AddBranchInfo(BranchInfo);
 			}
 		}
 
@@ -1522,7 +1553,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		}
 
 		WorkData.VM->GetByteCode().SetOperandsForInstruction(
-			InstructionIndex,
+			CallExternInstructionIndex,
 			FRigVMOperandArray(InputsOperands.GetData(), InputsOperands.Num()),
 			FRigVMOperandArray(OutputOperands.GetData(), OutputOperands.Num()));
 
@@ -1530,12 +1561,76 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		
 		if (Settings.SetupNodeInstructionIndex)
 		{
-			const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();
-			WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+			WorkData.VM->GetByteCode().SetSubject(CallExternInstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+		}
+
+		if(Node->IsControlFlowNode())
+		{
+			// add an operator to jump to the right branch
+			const int32 JumpToBranchInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions();
+
+			// use the index of the first branch info relating to this control flow node.
+			// branches are stored on the bytecode in order for each control flow node - so the
+			// VM needs to know which branch to start to look at then evaluating the JumpToBranchOp.
+			// Branches are stored in order - similar to this example representing two JumpBranchOps
+			// with BranchIndices [0, 1] and [2, 3]
+			// [
+			//    0 = {ExecuteContext, InstructionIndex 2, First 3, Last 5},
+			//    1 = {Completed, InstructionIndex 2, First 6, Last 12},
+			//    2 = {ExecuteContext, InstructionIndex 17, First 18, Last 21},
+			//    3 = {Completed, InstructionIndex 17, First 22, Last 28},
+			// ]
+			// The first index of the branch in the overall list of branches is stored in the operator (BranchIndices[0])
+			WorkData.VM->GetByteCode().AddJumpToBranchOp(BlockToRunOperand, BranchIndices[0]);
+
+			const TArray<FName>& BlockNames = Node->GetControlFlowBlocks();
+
+			// traverse all of the blocks now
+			for(int32 BlockIndex = 0; BlockIndex < BlockNames.Num(); BlockIndex++)
+			{
+				const FName& BlockName = BlockNames[BlockIndex];
+
+				FRigVMBranchInfo& BranchInfo = WorkData.VM->GetByteCode().BranchInfos[BranchIndices[BlockIndex]];
+				BranchInfo.Label = BlockName;
+				BranchInfo.InstructionIndex = JumpToBranchInstructionIndex;
+				BranchInfo.FirstInstruction = WorkData.VM->GetByteCode().GetNumInstructions();
+
+				// check if the block requires slicing or not.
+				// (do we want the private state of the nodes to be unique per run of the block)
+				if(Node->IsControlFlowBlockSliced(BlockName))
+				{
+					check(BlockName != FRigVMStruct::ControlFlowCompletedName);
+					check(CountOperand.IsValid());
+					check(IndexOperand.IsValid());
+					
+					WorkData.VM->GetByteCode().AddBeginBlockOp(CountOperand, IndexOperand);
+				}
+
+				// traverse the body of the block
+				const FRigVMVarExprAST* BlockExpr = InExpr->FindVarWithPinName(BlockName);
+				check(BlockExpr);
+				WorkData.ExprToSkip.Remove(BlockExpr);
+				TraverseExpression(BlockExpr, WorkData);
+
+				// end the block if necessary
+				if(Node->IsControlFlowBlockSliced(BlockName))
+				{
+					WorkData.VM->GetByteCode().AddEndBlockOp();
+				}
+
+				// if this is not the completed block - we need to jump back to the control flow instruction
+				if(BlockName != FRigVMStruct::ControlFlowCompletedName)
+				{
+					const int32 JumpToCallExternInstruction = WorkData.VM->GetByteCode().GetNumInstructions();
+					WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpBackward, JumpToCallExternInstruction - CallExternInstructionIndex);
+				}
+
+				BranchInfo.LastInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+			}
 		}
 	}
 
-	return InstructionIndex;
+	return CallExternInstructionIndex;
 }
 
 int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
@@ -1811,103 +1906,6 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 	}
 
 	return InstructionIndexEnd;
-}
-
-void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
-{
-	if (WorkData.bSetupMemory)
-	{
-		TraverseCallExtern(InExpr, WorkData);
-		return;
-	}
-
-	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InExpr->GetNode());
-	if(!ValidateNode(UnitNode))
-	{
-		return;
-	}
-
-	const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();
-
-	const FRigVMVarExprAST* CompletedExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopCompletedPinName);
-	check(CompletedExpr);
-	const FRigVMVarExprAST* ExecuteExpr = InExpr->FindVarWithPinName(FRigVMStruct::ExecuteContextName);
-	check(ExecuteExpr);
-	WorkData.ExprToSkip.AddUnique(CompletedExpr);
-	WorkData.ExprToSkip.AddUnique(ExecuteExpr);
-
-	// set the index to 0
-	const FRigVMVarExprAST* IndexExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopIndexPinName);
-	check(IndexExpr);
-	FRigVMOperand IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(IndexExpr));
-	WorkData.VM->GetByteCode().AddZeroOp(IndexOperand);
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// call the for loop compute
-	int32 ForLoopInstructionIndex = TraverseCallExtern(InExpr, WorkData);
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(ForLoopInstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// set up the jump forward (jump out of the loop)
-	const FRigVMVarExprAST* ContinueLoopExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopContinuePinName);
-	check(ContinueLoopExpr);
-	FRigVMOperand ContinueLoopOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ContinueLoopExpr));
-
-	uint64 JumpToEndByte = WorkData.VM->GetByteCode().AddJumpIfOp(ERigVMOpCode::JumpForwardIf, 0, ContinueLoopOperand, false);
-	int32 JumpToEndInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// begin the loop's block
-	const FRigVMVarExprAST* CountExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopCountPinName);
-	check(CountExpr);
-	FRigVMOperand CountOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(CountExpr));
-	WorkData.VM->GetByteCode().AddBeginBlockOp(CountOperand, IndexOperand);
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// traverse the body of the loop
-	WorkData.ExprToSkip.Remove(ExecuteExpr);
-	TraverseExpression(ExecuteExpr, WorkData);
-
-	// end the loop's block
-	WorkData.VM->GetByteCode().AddEndBlockOp();
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// increment the index
-	WorkData.VM->GetByteCode().AddIncrementOp(IndexOperand);
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// jump to the beginning of the loop
-	int32 JumpToStartInstruction = WorkData.VM->GetByteCode().GetNumInstructions();
-	WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpBackward, JumpToStartInstruction - ForLoopInstructionIndex);
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// update the jump operator with the right address
-	int32 InstructionsToEnd = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToEndInstruction;
-	WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpIfOp>(JumpToEndByte).InstructionIndex = InstructionsToEnd;
-
-	// now traverse everything else connected to the completed pin
-	WorkData.ExprToSkip.Remove(CompletedExpr);
-	TraverseExpression(CompletedExpr, WorkData);
 }
 
 void URigVMCompiler::TraverseNoOp(const FRigVMNoOpExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
@@ -2773,7 +2771,7 @@ void URigVMCompiler::AddCopyOperator(const FRigVMCopyOp& InOp, const FRigVMAssig
 		bDelayCopyOperations = false;
 	}
 
-	// loop up a potentially delayed copy operation which needs to happen
+	// look up a potentially delayed copy operation which needs to happen
 	// just prior to this one and inject it as well.
 	if(!bDelayCopyOperations)
 	{

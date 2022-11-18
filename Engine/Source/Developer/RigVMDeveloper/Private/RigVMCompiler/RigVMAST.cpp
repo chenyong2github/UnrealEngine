@@ -600,17 +600,14 @@ bool FRigVMVarExprAST::SupportsSoftLinks() const
 {
 	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetPin()->GetNode()))
 	{
-		if (UnitNode->IsLoopNode())
+		if (UnitNode->IsControlFlowNode())
 		{
-			if (GetPin()->GetFName() != FRigVMStruct::ExecuteContextName &&
-				GetPin()->GetFName() != FRigVMStruct::ForLoopCompletedPinName)
-			{
-				return true;
-			}
+			return !UnitNode->GetControlFlowBlocks().Contains(GetPin()->GetFName());
 		}
 	}
 	else if(URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(GetPin()->GetNode()))
 	{
+		// this is still using is loop node - but that's to be deprecated soon
 		if(ArrayNode->IsLoopNode())
 		{
 			if (GetPin()->GetFName() != FRigVMStruct::ExecuteContextName &&
@@ -971,7 +968,7 @@ FRigVMExprAST* FRigVMParserAST::TraverseMutableNode(const FRigVMASTProxy& InNode
 					FRigVMASTProxy SourcePinProxy = InNodeProxy.GetSibling(SourcePin);
 
 					FRigVMExprAST* ParentExpr = InParentExpr;
-					if (NodeExpr->IsA(FRigVMExprAST::Branch) || Node->IsLoopNode())
+					if (NodeExpr->IsA(FRigVMExprAST::Branch) || Node->IsControlFlowNode())
 					{
 						if (FRigVMExprAST** PinExpr = SubjectToExpression.Find(SourcePinProxy))
 						{
@@ -1852,7 +1849,7 @@ void FRigVMParserAST::FoldAssignments()
 		// if this node is a loop node - let's skip the folding
 		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(TargetPin->GetNode()))
 		{
-			if (UnitNode->IsLoopNode())
+			if (UnitNode->IsControlFlowNode())
 			{
 				continue;
 			}
@@ -1870,6 +1867,7 @@ void FRigVMParserAST::FoldAssignments()
 		// if this node is an array iterator node - let's skip the folding
 		if (URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(TargetPin->GetNode()))
 		{
+			// still using IsLoopNode - but to be deprecated soon 
 			if (ArrayNode->IsLoopNode())
 			{
 				continue;

@@ -134,6 +134,13 @@ void FRigVMInvokeEntryOp::Serialize(FArchive& Ar)
 	}
 }
 
+void FRigVMJumpToBranchOp::Serialize(FArchive& Ar)
+{
+	Ar << OpCode;
+	Ar << Arg;
+	Ar << FirstBranchInfoIndex;
+}
+
 FRigVMInstructionArray::FRigVMInstructionArray()
 {
 }
@@ -431,6 +438,12 @@ void FRigVMByteCode::Save(FArchive& Ar) const
 				Ar << Op;
 				break;
 			}
+			case ERigVMOpCode::JumpToBranch:
+			{
+				FRigVMJumpToBranchOp Op = GetOpAt<FRigVMJumpToBranchOp>(Instruction.ByteCodeIndex);
+				Ar << Op;
+				break;
+			}
 			default:
 			{
 				ensure(false);
@@ -663,6 +676,13 @@ void FRigVMByteCode::Load(FArchive& Ar)
 				FRigVMInvokeEntryOp Op;
 				Ar << Op;
 				AddOp<FRigVMInvokeEntryOp>(Op);
+				break;
+			}
+			case ERigVMOpCode::JumpToBranch:
+			{
+				FRigVMJumpToBranchOp Op;
+				Ar << Op;
+				AddOp<FRigVMJumpToBranchOp>(Op);
 				break;
 			}
 			default:
@@ -921,6 +941,10 @@ uint32 FRigVMByteCode::GetOperatorHash(const FRigVMInstruction& InInstruction) c
 		{
 			return GetTypeHash(GetOpAt<FRigVMInvokeEntryOp>(InInstruction));
 		}
+		case ERigVMOpCode::JumpToBranch:
+		{
+			return GetTypeHash(GetOpAt<FRigVMJumpToBranchOp>(InInstruction));
+		}
 		case ERigVMOpCode::Invalid:
 		{
 			ensure(false);
@@ -1127,6 +1151,10 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeOper
 		case ERigVMOpCode::InvokeEntry:
 		{
 			return (uint64)sizeof(FRigVMInvokeEntryOp);
+		}
+		case ERigVMOpCode::JumpToBranch:
+		{
+			return (uint64)sizeof(FRigVMJumpToBranchOp);
 		}
 		case ERigVMOpCode::Invalid:
 		{
@@ -1496,6 +1524,28 @@ FString FRigVMByteCode::DumpToText() const
 				Line += FString::Printf(TEXT(", Entry '%s'"), *Op.EntryName.ToString());
 				break;
 			}
+			case ERigVMOpCode::JumpToBranch:
+			{
+				const FRigVMJumpToBranchOp& Op = GetOpAt<FRigVMJumpToBranchOp>(Instruction.ByteCodeIndex);
+				FString Arg;
+				FRigVMOperand::StaticStruct()->ExportText(Arg, &Op.Arg, &Op.Arg, nullptr, PPF_None, nullptr);
+				Line += TEXT(" BlockToRun ");
+				Line += Arg;
+				Line += TEXT(" for branches ");
+
+				TArray<FString> BranchInfoTexts;
+				for(int32 BranchIndex = Op.FirstBranchInfoIndex; BranchIndex < BranchInfos.Num(); BranchIndex++)
+				{
+					const FRigVMBranchInfo& BranchInfo = BranchInfos[BranchIndex];
+					if(BranchInfo.InstructionIndex != InstructionIndex)
+					{
+						break;
+					}
+					BranchInfoTexts.Add(FString::Printf(TEXT("%s (%d)"), *BranchInfo.Label.ToString(), (int32)BranchInfo.FirstInstruction));
+				}
+				Line += FString::Join(BranchInfoTexts, TEXT(", "));
+				break;
+			}
 			case ERigVMOpCode::Invalid:
 			{
 				ensure(false);
@@ -1614,15 +1664,21 @@ uint64 FRigVMByteCode::AddInvokeEntryOp(const FName& InEntryName)
 	return AddOp(FRigVMInvokeEntryOp(InEntryName));
 }
 
-void FRigVMByteCode::AddBranchInfo(const FRigVMBranchInfo& InBranchInfo)
+uint64 FRigVMByteCode::AddJumpToBranchOp(FRigVMOperand InBranchNameArg, int32 InFirstBranchInfoIndex)
+{
+	return AddOp(FRigVMJumpToBranchOp(InBranchNameArg, InFirstBranchInfoIndex));
+}
+
+int32 FRigVMByteCode::AddBranchInfo(const FRigVMBranchInfo& InBranchInfo)
 {
 	FRigVMBranchInfo BranchInfo = InBranchInfo;
 	BranchInfo.Index = BranchInfos.Num();
 	BranchInfos.Add(BranchInfo);
 	BranchInfoLookup.Reset();
+	return BranchInfo.Index;
 }
 
-void FRigVMByteCode::AddBranchInfo(const FName& InBranchLabel, int32 InInstructionIndex, int32 InArgumentIndex,
+int32 FRigVMByteCode::AddBranchInfo(const FName& InBranchLabel, int32 InInstructionIndex, int32 InArgumentIndex,
 	int32 InFirstBranchInstruction, int32 InLastBranchInstruction)
 {
 	FRigVMBranchInfo BranchInfo;
@@ -1631,7 +1687,7 @@ void FRigVMByteCode::AddBranchInfo(const FName& InBranchLabel, int32 InInstructi
 	BranchInfo.ArgumentIndex = InArgumentIndex;
 	BranchInfo.FirstInstruction = InFirstBranchInstruction;
 	BranchInfo.LastInstruction = InLastBranchInstruction;
-	AddBranchInfo(BranchInfo);
+	return AddBranchInfo(BranchInfo);
 }
 
 FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InInstruction) const
@@ -2044,6 +2100,11 @@ uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
 		case ERigVMOpCode::InvokeEntry:
 		{
 			static const uint64 Alignment = FRigVMInvokeEntryOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::JumpToBranch:
+		{
+			static const uint64 Alignment = FRigVMJumpToBranchOp::StaticStruct()->GetCppStructOps()->GetAlignment();
 			return Alignment;
 		}
 		case ERigVMOpCode::Invalid:

@@ -729,6 +729,11 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	
 	LatestExecutedState = InState;
 
+	FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
+	FRigVMExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicData<>();
+	PublicContext.SetDeltaTime(DeltaTime);
+	PublicContext.SetAbsoluteTime(AbsoluteTime);
+
 	if (VM)
 	{
 		if (VM->GetOuter() != this)
@@ -752,8 +757,8 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			{
 				HierarchyController->LogFunction = [this](EMessageSeverity::Type InSeverity, const FString& Message)
 				{
-					const FRigVMExtendedExecuteContext& Context = GetVM()->GetContext();
-					const FRigVMExecuteContext& PublicContext = Context.GetPublicData<>(); 
+					const FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
+					const FRigVMExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicData<>(); 
 					if(ControlRigLog)
 					{
 						ControlRigLog->Report(InSeverity,PublicContext.FunctionName,PublicContext.InstructionIndex, Message);

@@ -50,6 +50,24 @@ bool URigVMDispatchNode::IsDefinedAsVarying() const
 	return false;
 }
 
+const TArray<FName>& URigVMDispatchNode::GetControlFlowBlocks() const
+{
+	if (const FRigVMDispatchFactory* Factory = GetFactory())
+	{
+		return Factory->GetControlFlowBlocks();
+	}
+	return Super::GetControlFlowBlocks();
+}
+
+const bool URigVMDispatchNode::IsControlFlowBlockSliced(const FName& InBlockName) const
+{
+	if (const FRigVMDispatchFactory* Factory = GetFactory())
+	{
+		return Factory->IsControlFlowBlockSliced(InBlockName);
+	}
+	return Super::IsControlFlowBlockSliced(InBlockName);
+}
+
 FText URigVMDispatchNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 {
 	if (const FRigVMDispatchFactory* Factory = GetFactory())

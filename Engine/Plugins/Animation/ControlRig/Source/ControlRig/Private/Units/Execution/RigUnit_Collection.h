@@ -603,18 +603,26 @@ struct CONTROLRIG_API FRigUnit_CollectionLoop : public FRigUnit_CollectionBaseMu
 
 	FRigUnit_CollectionLoop()
 	{
+		BlockToRun = NAME_None;
 		Count = 0;
 		Index = 0;
 		Ratio = 0.f;
-		Continue = false;
 	}
 
 	// FRigVMStruct overrides
-	FORCEINLINE virtual bool IsForLoop() const override { return true; }
+	virtual const TArray<FName>& GetControlFlowBlocks_Impl() const override
+	{
+		static const TArray<FName> Blocks = {ExecuteContextName, ForLoopCompletedPinName};
+		return Blocks;
+	}
+	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const { return InBlockName == ExecuteContextName; }
 	FORCEINLINE virtual int32 GetNumSlices() const override { return Count; }
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Singleton))
+	FName BlockToRun;
 
 	UPROPERTY(meta = (Input))
 	FRigElementKeyCollection Collection;
@@ -635,9 +643,6 @@ struct CONTROLRIG_API FRigUnit_CollectionLoop : public FRigUnit_CollectionBaseMu
 	 */
 	UPROPERTY(meta = (Singleton, Output))
 	float Ratio;
-
-	UPROPERTY(meta = (Singleton))
-	bool Continue;
 
 	UPROPERTY(meta = (Output))
 	FControlRigExecuteContext Completed;

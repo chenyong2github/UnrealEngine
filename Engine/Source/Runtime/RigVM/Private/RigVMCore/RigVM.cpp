@@ -541,6 +541,12 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 				CheckOperandValidity(Op.ArgF);
 				break;
 			}
+			case ERigVMOpCode::JumpToBranch:
+			{
+				const FRigVMJumpToBranchOp& Op = ByteCodeStorage.GetOpAt<FRigVMJumpToBranchOp>(ByteCodeInstruction);
+				CheckOperandValidity(Op.Arg);
+				break;
+			}
 			case ERigVMOpCode::Invalid:
 			{
 				ensure(false);
@@ -1248,6 +1254,13 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 				{
 					break;
 				}
+			case ERigVMOpCode::JumpToBranch:
+				{
+					const FRigVMJumpToBranchOp& Op = ByteCode.GetOpAt<FRigVMJumpToBranchOp>(Instructions[InstructionIndex]);
+					const FRigVMOperand& Arg = Op.Arg;
+					InOpFunc(InHandleBaseIndex, {InstructionIndex, 0}, Arg);
+					break;
+				}
 			case ERigVMOpCode::Invalid:
 			default:
 				{
@@ -1700,6 +1713,7 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 			case ERigVMOpCode::ArrayIntersection:
 			case ERigVMOpCode::ArrayReverse:
 			case ERigVMOpCode::InvokeEntry:
+			case ERigVMOpCode::JumpToBranch:
 			{
 				break;
 			}
@@ -2056,6 +2070,12 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 				Context.Factory = Factories[Op.FunctionIndex];
 				(*Functions[Op.FunctionIndex])(Context, Handles);
 
+				// todo: if this is a control flow node - we may need to jump
+				// this should likely be done with a control flow jump op - which can
+				// loop up the branch based on additional branch infos for it.
+				// we should also make sure to ignore the first branch - since that's the default
+				// we'll just automatically continue to...
+
 #if WITH_EDITOR
 
 				if(DebugMemoryStorageObject->Num() > 0)
@@ -2073,7 +2093,15 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 			}
 			case ERigVMOpCode::Zero:
 			{
-				*((int32*)CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]].GetData()) = 0;
+				const FRigVMMemoryHandle& Handle = CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]];
+				if(Handle.GetProperty()->IsA<FIntProperty>())
+				{
+					*((int32*)CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]].GetData()) = 0;
+				}
+				else if(Handle.GetProperty()->IsA<FNameProperty>())
+				{
+					*((FName*)CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]].GetData()) = NAME_None;
+				}
 #if WITH_EDITOR
 				if(DebugMemoryStorageObject->Num() > 0)
 				{
@@ -2824,6 +2852,39 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 				ContextPublicData.InstructionIndex++;
 				break;
 			}
+			case ERigVMOpCode::JumpToBranch:
+			{
+				const FRigVMJumpToBranchOp& Op = ByteCode.GetOpAt<FRigVMJumpToBranchOp>(Instruction);
+				// BranchLabel = Op.Arg
+				const FName& BranchLabel = *(FName*)CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]].GetData();
+
+				// iterate over the branches stored in the bytecode,
+				// starting at the first branch index stored in the operator.
+				// look over all branches matching this instruction index and
+				// find the one with the right label - then jump to the branch.
+				bool bBranchFound = false;
+				const TArray<FRigVMBranchInfo>& Branches = ByteCode.BranchInfos;
+				for(int32 BranchIndex = Op.FirstBranchInfoIndex // start at the first branch known to this jump op
+					; BranchIndex < Branches.Num(); BranchIndex++)
+				{
+					const FRigVMBranchInfo& Branch = Branches[BranchIndex];
+					if(Branch.InstructionIndex != ContextPublicData.InstructionIndex)
+					{
+						break;
+					}
+					if(Branch.Label == BranchLabel)
+					{
+						ContextPublicData.InstructionIndex = Branch.FirstInstruction;
+						bBranchFound = true;
+						break;
+					}
+				}
+				if (!bBranchFound)
+				{
+					ContextPublicData.InstructionIndex++;
+				}
+				break;
+			}
 			case ERigVMOpCode::Invalid:
 			{
 				ensure(false);
@@ -3281,6 +3342,12 @@ TArray<FString> URigVM::DumpByteCodeAsTextArray(const TArray<int32>& InInstructi
 			{
 				const FRigVMInvokeEntryOp& Op = ByteCode.GetOpAt<FRigVMInvokeEntryOp>(Instructions[InstructionIndex]);
 				ResultLine = FString::Printf(TEXT("Invoke entry %s"), *Op.EntryName.ToString());
+				break;
+			}
+			case ERigVMOpCode::JumpToBranch:
+			{
+				const FRigVMJumpToBranchOp& Op = ByteCode.GetOpAt<FRigVMJumpToBranchOp>(Instructions[InstructionIndex]);
+				ResultLine = FString::Printf(TEXT("Jump To Branch %s"), *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				break;
 			}
 			default:

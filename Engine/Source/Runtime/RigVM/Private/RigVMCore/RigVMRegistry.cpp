@@ -978,6 +978,15 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 		return;
 	}
 
+#if WITH_EDITOR
+	FString StructureError;
+	if (!FRigVMStruct::ValidateStruct(InStruct, &StructureError))
+	{
+		UE_LOG(LogRigVM, Error, TEXT("Failed to validate struct '%s': %s"), *InStruct->GetName(), *StructureError);
+		return;
+	}
+#endif
+
 	const FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num(), InArguments);
 	Functions.AddElement(Function);
 	FunctionNameToIndex.Add(InName, Function.Index);

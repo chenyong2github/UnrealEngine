@@ -88,6 +88,15 @@ public:
 
 #endif
 
+	// returns true if the dispatch is a control flow dispatch
+	FORCEINLINE bool IsControlFlowDispatch() const { return !GetControlFlowBlocks().IsEmpty(); }
+
+	// returns the control flow blocks of this dispatch
+	const TArray<FName>& GetControlFlowBlocks() const;
+
+	// returns true if a given control flow block needs to be sliced
+	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const { return false; }
+
 	// Returns the execute context support for this dispatch factory
 	FORCEINLINE virtual UScriptStruct* GetExecuteContextStruct() const { return FRigVMExecuteContext::StaticStruct(); }
 
@@ -166,6 +175,8 @@ protected:
 		return bCondition;
 	}
 #endif
+
+	virtual const TArray<FName>& GetControlFlowBlocks_Impl() const;
 
 	static const FString DispatchPrefix;
 

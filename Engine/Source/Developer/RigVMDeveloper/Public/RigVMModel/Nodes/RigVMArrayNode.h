@@ -56,8 +56,8 @@ public:
 	// Override of node color
 	virtual bool IsDefinedAsVarying() const override { return true; }
 
-	// Override loop node
-	virtual bool IsLoopNode() const override;
+	// Override control flow
+	virtual const TArray<FName>& GetControlFlowBlocks() const override;
 
 protected:
 

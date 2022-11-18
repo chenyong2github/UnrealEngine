@@ -628,6 +628,12 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 						Label = FString::Printf(TEXT("Run %s Event"), *Op.EntryName.ToString());
 						break;
 					}
+					case ERigVMOpCode::JumpToBranch:
+					{
+						const FRigVMJumpToBranchOp& Op = ByteCode.GetOpAt<FRigVMJumpToBranchOp>(Instructions[InstructionIndex]);
+						Label = TEXT("Jump To Branch");
+						break;
+					}
 					case ERigVMOpCode::Exit:
 					{
 						Label = TEXT("Exit");

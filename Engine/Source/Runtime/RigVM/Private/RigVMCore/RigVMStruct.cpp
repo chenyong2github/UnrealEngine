@@ -307,6 +307,10 @@ const FName FRigVMStruct::ForLoopContinuePinName("Continue");
 const FName FRigVMStruct::ForLoopCompletedPinName("Completed");
 const FName FRigVMStruct::ForLoopIndexPinName("Index");
 const FName FRigVMStruct::ComputeLazilyMetaName("Lazy");
+const FName FRigVMStruct::ControlFlowBlockToRunName("BlockToRun");
+const FName FRigVMStruct::ControlFlowCompletedName("Completed");
+const FName FRigVMStruct::ControlFlowCountName("Count");
+const FName FRigVMStruct::ControlFlowIndexName("Index");
 
 float FRigVMStruct::GetRatioFromIndex(int32 InIndex, int32 InCount)
 {
@@ -315,6 +319,37 @@ float FRigVMStruct::GetRatioFromIndex(int32 InIndex, int32 InCount)
 		return 0.f;
 	}
 	return ((float)FMath::Clamp<int32>(InIndex, 0, InCount - 1)) / ((float)(InCount - 1));
+}
+
+bool FRigVMStruct::IsForLoop() const
+{
+	UE_LOG(LogRigVM, Warning, TEXT("FRigVMStruct::IsForLoop is deprecated. Please call FRigVMStruct::IsControlFlowNode instead."));
+	
+	if(IsControlFlowNode())
+	{
+		static const TArray<FName> ExpectedLoopBlocks = {ExecuteContextName, ForLoopCompletedPinName};
+		const TArray<FName>& Blocks = GetControlFlowBlocks();
+		if(Blocks.Num() == ExpectedLoopBlocks.Num())
+		{
+			return Blocks[0] == ExpectedLoopBlocks[0] && Blocks[1] == ExpectedLoopBlocks[1];
+		}
+	}
+	
+	return false;
+}
+
+bool FRigVMStruct::IsControlFlowNode() const
+{
+	return !GetControlFlowBlocks().IsEmpty();
+}
+
+const TArray<FName>& FRigVMStruct::GetControlFlowBlocks() const
+{
+	const TArray<FName>& Blocks = GetControlFlowBlocks_Impl();
+#if WITH_EDITOR
+	ValidateControlFlowBlocks(Blocks);
+#endif
+	return Blocks;
 }
 
 TArray<FRigVMUserWorkflow> FRigVMStruct::GetWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const
@@ -342,100 +377,88 @@ bool FRigVMStruct::ValidateStruct(UScriptStruct* InStruct, FString* OutErrorMess
 	FStructOnScope StructOnScope(InStruct);
 	FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope.GetStructMemory();
 
-	if (StructMemory->IsForLoop())
+	if (StructMemory->IsControlFlowNode())
 	{
-		if (!CheckPinExists(InStruct, ForLoopCountPinName, TEXT("int32"), OutErrorMessage))
+		// first check that the Block To Run pin exists
+		if (!CheckPinExists(InStruct, ControlFlowBlockToRunName, TEXT("FName"), OutErrorMessage))
 		{
 			return false;
-		}
-		else
-		{
-			if (!CheckPinDirection(InStruct, ForLoopCountPinName, InputMetaName) &&
-				!CheckPinDirection(InStruct, ForLoopCountPinName, OutputMetaName) &&
-				!CheckPinDirection(InStruct, ForLoopCountPinName, HiddenMetaName))
-			{
-				if (OutErrorMessage)
-				{
-					*OutErrorMessage = FString::Printf(TEXT("The '%s' pin needs to be either hidden, an input or an output."), *ForLoopCountPinName.ToString());
-				}
-				return false;
-			}
-			if (!CheckMetadata(InStruct, ForLoopCountPinName, SingletonMetaName, OutErrorMessage))
-			{
-				return false;
-			}
 		}
 
-		if (!CheckPinExists(InStruct, ForLoopContinuePinName, TEXT("bool"), OutErrorMessage))
+		// check that the block to run name is marked up as a singleton
+		if (!CheckMetadata(InStruct, ControlFlowBlockToRunName, SingletonMetaName, OutErrorMessage))
 		{
 			return false;
-		}
-		else
-		{
-			if (!CheckPinDirection(InStruct, ForLoopContinuePinName, HiddenMetaName))
-			{
-				if (OutErrorMessage)
-				{
-					*OutErrorMessage = FString::Printf(TEXT("The '%s' pin needs to be hidden."), *ForLoopContinuePinName.ToString());
-				}
-				return false;
-			}
-			if (!CheckMetadata(InStruct, ForLoopContinuePinName, SingletonMetaName, OutErrorMessage))
-			{
-				return false;
-			}
 		}
 
-		if (!CheckPinExists(InStruct, ForLoopIndexPinName, TEXT("int32"), OutErrorMessage))
+		if (!CheckPinDirection(InStruct, ControlFlowBlockToRunName, HiddenMetaName))
 		{
+			if (OutErrorMessage)
+			{
+				*OutErrorMessage = FString::Printf(TEXT("The '%s' pin needs to be hidden (not an input nor an output)."), *ControlFlowBlockToRunName.ToString());
+			}
 			return false;
-		}
-		else
-		{
-			if (!CheckPinDirection(InStruct, ForLoopIndexPinName, HiddenMetaName) &&
-				!CheckPinDirection(InStruct, ForLoopIndexPinName, OutputMetaName))
-			{
-				if (OutErrorMessage)
-				{
-					*OutErrorMessage = FString::Printf(TEXT("The '%s' pin needs to be hidden or an output."), *ForLoopIndexPinName.ToString());
-				}
-				return false;
-			}
-			if (!CheckMetadata(InStruct, ForLoopContinuePinName, SingletonMetaName, OutErrorMessage))
-			{
-				return false;
-			}
-		}
-		
-		if (!CheckPinExists(InStruct, ExecuteContextName, FString(), OutErrorMessage))
-		{
-			return false;
-		}
-		else
-		{
-			if (!CheckPinDirection(InStruct, ExecuteContextName, IOMetaName))
-			{
-				if (OutErrorMessage)
-				{
-					*OutErrorMessage = FString::Printf(TEXT("The '%s' pin needs to be IO."), *ExecuteContextName.ToString());
-				}
-				return false;
-			}
 		}
 
-		if (!CheckPinExists(InStruct, ForLoopCompletedPinName, FString(), OutErrorMessage))
+		// the call to GetControlFlowBlocks will already ensure that the block names
+		// themselves are valid.
+		const TArray<FName>& Blocks = StructMemory->GetControlFlowBlocks();
+		for(const FName& Block : Blocks)
 		{
-			return false;
-		}
-		else
-		{
-			if (!CheckPinDirection(InStruct, ForLoopCompletedPinName, OutputMetaName))
+			if (!CheckPinExists(InStruct, Block, FRigVMExecuteContext::StaticStruct()->GetStructCPPName(), OutErrorMessage))
+			{
+				return false;
+			}
+			if (!CheckPinDirection(InStruct, Block, OutputMetaName) &&
+				!CheckPinDirection(InStruct, Block, IOMetaName))
 			{
 				if (OutErrorMessage)
 				{
-					*OutErrorMessage = FString::Printf(TEXT("The '%s' pin needs to be an output."), *ForLoopCompletedPinName.ToString());
+					*OutErrorMessage = FString::Printf(TEXT("The '%s' pin needs to be either an IO or an output."), *Block.ToString());
 				}
 				return false;
+			}
+
+			if(StructMemory->IsControlFlowBlockSliced(Block))
+			{
+				if(Block == ControlFlowCompletedName)
+				{
+					if (OutErrorMessage)
+					{
+						*OutErrorMessage = FString::Printf(TEXT("The '%s' control flow block cannot be sliced."), *Block.ToString());
+					}
+					return false;
+				}
+				if (!CheckPinExists(InStruct, ControlFlowCountName, TEXT("int32"), OutErrorMessage))
+				{
+					return false;
+				}
+				if (!CheckPinDirection(InStruct, ControlFlowCountName, OutputMetaName) &&
+					!CheckPinDirection(InStruct, ControlFlowCountName, IOMetaName) &&
+					!CheckPinDirection(InStruct, ControlFlowCountName, HiddenMetaName) &&
+					!CheckPinDirection(InStruct, ControlFlowCountName, InputMetaName))
+				{
+					if (OutErrorMessage)
+					{
+						*OutErrorMessage = FString::Printf(TEXT("The '%s' pin needs to be either an IO, input, output or hidden."), *ControlFlowCountName.ToString());
+					}
+					return false;
+				}
+
+				if (!CheckPinExists(InStruct, ControlFlowIndexName, TEXT("int32"), OutErrorMessage))
+				{
+					return false;
+				}
+				if (!CheckPinDirection(InStruct, ControlFlowIndexName, OutputMetaName) &&
+					!CheckPinDirection(InStruct, ControlFlowIndexName, IOMetaName) &&
+					!CheckPinDirection(InStruct, ControlFlowIndexName, HiddenMetaName))
+				{
+					if (OutErrorMessage)
+					{
+						*OutErrorMessage = FString::Printf(TEXT("The '%s' pin needs to be either an IO, an output or hidden."), *ControlFlowIndexName.ToString());
+					}
+					return false;
+				}
 			}
 		}
 	}
@@ -462,13 +485,23 @@ bool FRigVMStruct::CheckPinDirection(UScriptStruct* InStruct, const FName& PinNa
 
 bool FRigVMStruct::CheckPinType(UScriptStruct* InStruct, const FName& PinName, const FString& ExpectedType, FString* OutErrorMessage)
 {
-	if (FProperty* Property = InStruct->FindPropertyByName(PinName))
+	if (const FProperty* Property = InStruct->FindPropertyByName(PinName))
 	{
 		if (Property->GetCPPType() != ExpectedType)
 		{
+			if(ExpectedType == FRigVMExecuteContext::StaticStruct()->GetStructCPPName())
+			{
+				if(const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+				{
+					if(StructProperty->Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+					{
+						return true;
+					}
+				}
+			}
 			if (OutErrorMessage)
 			{
-				*OutErrorMessage = FString::Printf(TEXT("The '%s' property needs to be of type '%s'."), *ForLoopCountPinName.ToString(), *ExpectedType);;
+				*OutErrorMessage = FString::Printf(TEXT("The '%s' property needs to be of type '%s'."), *PinName.ToString(), *ExpectedType);;
 			}
 			return false;
 		}
@@ -479,16 +512,12 @@ bool FRigVMStruct::CheckPinType(UScriptStruct* InStruct, const FName& PinName, c
 
 bool FRigVMStruct::CheckPinExists(UScriptStruct* InStruct, const FName& PinName, const FString& ExpectedType, FString* OutErrorMessage)
 {
-	if (FProperty* Property = InStruct->FindPropertyByName(PinName))
+	if (InStruct->FindPropertyByName(PinName))
 	{
 		if (!ExpectedType.IsEmpty())
 		{
-			if (Property->GetCPPType() != ExpectedType)
+			if(!CheckPinType(InStruct, PinName, ExpectedType, OutErrorMessage))
 			{
-				if (OutErrorMessage)
-				{
-					*OutErrorMessage = FString::Printf(TEXT("The '%s' property needs to be of type '%s'."), *ForLoopCountPinName.ToString(), *ExpectedType);;
-				}
 				return false;
 			}
 		}
@@ -499,11 +528,11 @@ bool FRigVMStruct::CheckPinExists(UScriptStruct* InStruct, const FName& PinName,
 		{
 			if (ExpectedType.IsEmpty())
 			{
-				*OutErrorMessage = FString::Printf(TEXT("Struct requires a '%s' property."), *ForLoopCountPinName.ToString());;
+				*OutErrorMessage = FString::Printf(TEXT("Struct requires a '%s' property."), *PinName.ToString());;
 			}
 			else
 			{
-				*OutErrorMessage = FString::Printf(TEXT("Struct requires a '%s' property of type '%s'."), *ForLoopCountPinName.ToString(), *ExpectedType);;
+				*OutErrorMessage = FString::Printf(TEXT("Struct requires a '%s' property of type '%s'."), *PinName.ToString(), *ExpectedType);;
 			}
 		}
 		return false;
@@ -811,3 +840,29 @@ bool FRigVMStruct::ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo
 	return true;
 }
 
+const TArray<FName>& FRigVMStruct::GetControlFlowBlocks_Impl() const
+{
+	static const TArray<FName> EmptyArray;
+	return EmptyArray;
+}
+
+#if WITH_EDITOR
+
+void FRigVMStruct::ValidateControlFlowBlocks(const TArray<FName>& InBlocks)
+{
+	if(!InBlocks.IsEmpty())
+	{
+		check(InBlocks.Num() > 1);
+		check(InBlocks.Last() == ControlFlowCompletedName);
+
+		TArray<FName> UniqueBlocks;
+		UniqueBlocks.Reserve(InBlocks.Num());
+		for(const FName& Block : InBlocks)
+		{
+			UniqueBlocks.AddUnique(Block);
+		}
+		check(UniqueBlocks.Num() == InBlocks.Num());
+	}
+}
+
+#endif

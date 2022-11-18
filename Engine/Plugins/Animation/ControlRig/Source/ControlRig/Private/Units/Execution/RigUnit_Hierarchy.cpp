@@ -581,11 +581,26 @@ FRigUnit_PoseGetCurve_Execute()
 FRigUnit_PoseLoop_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	Count = Pose.Num();
-	Continue = Pose.IsValidIndex(Index);
-	Ratio = GetRatioFromIndex(Index, Count);
 
-	if(Continue)
+	if(BlockToRun.IsNone())
+	{
+		Count = Pose.Num();
+		Index = 0;
+		BlockToRun = ExecuteContextName;
+	}
+	else if(BlockToRun == ExecuteContextName)
+	{
+		Index++;
+	}
+
+	if(Index == Count)
+	{
+		Item = FRigElementKey();
+		GlobalTransform = LocalTransform = FTransform::Identity;
+		CurveValue = 0.f;
+		BlockToRun = ControlFlowCompletedName;
+	}
+	else
 	{
 		const FRigPoseElement& PoseElement = Pose.Elements[Index];
 		Item = PoseElement.Index.GetKey();
@@ -593,11 +608,7 @@ FRigUnit_PoseLoop_Execute()
 		LocalTransform = PoseElement.LocalTransform;
 		CurveValue = PoseElement.CurveValue;
 	}
-	else
-	{
-		Item = FRigElementKey();
-		GlobalTransform = LocalTransform = FTransform::Identity;
-		CurveValue = 0.f;
-	}
+
+	Ratio = GetRatioFromIndex(Index, Count);
 }
 

@@ -549,9 +549,14 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 	return CachedTemplate;
 }
 
-bool URigVMArrayNode::IsLoopNode() const
+const TArray<FName>& URigVMArrayNode::GetControlFlowBlocks() const
 {
-	return GetOpCode() == ERigVMOpCode::ArrayIterator;
+	if(GetOpCode() == ERigVMOpCode::ArrayIterator)
+	{
+		static const TArray<FName> LoopBlocks = {FRigVMStruct::ExecuteContextName, FRigVMStruct::ForLoopCompletedPinName};
+		return LoopBlocks;
+	}
+	return Super::GetControlFlowBlocks();
 }
 
 FText URigVMArrayNode::GetToolTipTextForPin(const URigVMPin* InPin) const

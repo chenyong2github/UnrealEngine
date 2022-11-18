@@ -212,7 +212,17 @@ public:
 
 	// return true if this node is a loop node
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
-	virtual bool IsLoopNode() const { return false; }
+	bool IsLoopNode() const;
+
+	// return true if this node is a control flow node
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
+	bool IsControlFlowNode() const;
+
+	// returns the names of the control flow blocks of this node
+	virtual const TArray<FName>& GetControlFlowBlocks() const;
+
+	// returns true if a control flow block requires slicing
+	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const;
 
 	// returns true if the node can be upgraded
 	UFUNCTION(BlueprintPure, Category = RigVMNode)

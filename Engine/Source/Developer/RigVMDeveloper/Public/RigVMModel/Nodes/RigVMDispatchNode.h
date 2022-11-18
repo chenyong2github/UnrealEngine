@@ -39,6 +39,8 @@ public:
 	virtual FLinearColor GetNodeColor() const override;
 	virtual bool IsDefinedAsConstant() const override;
 	virtual bool IsDefinedAsVarying() const override;
+	virtual const TArray<FName>& GetControlFlowBlocks() const override;
+	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const override;
 	virtual TArray<URigVMPin*> GetAggregateInputs() const override;
 	virtual TArray<URigVMPin*> GetAggregateOutputs() const override;
 	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const override;

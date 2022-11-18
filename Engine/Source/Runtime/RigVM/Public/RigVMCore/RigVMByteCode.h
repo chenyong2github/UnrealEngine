@@ -194,6 +194,7 @@ enum class ERigVMOpCode : uint8
 	ArrayIntersection, // returns a new array containing elements found in both of the input arrays (ternary op, in array, in array, out result)
 	ArrayReverse, // returns the reverse of the input array (unary op, in out array)
 	InvokeEntry, // invokes an entry from the entry list
+	JumpToBranch, // jumps to a branch based on a name operand
 	Invalid,
 	FirstArrayOpCode = ArrayReset,
 	LastArrayOpCode = ArrayReverse,
@@ -281,7 +282,8 @@ struct RIGVM_API FRigVMUnaryOp : public FRigVMBaseOp
 			uint8(InOpCode) == uint8(ERigVMOpCode::JumpBackwardIf) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::ChangeType) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayReset) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayReverse)
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayReverse) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::JumpToBranch)
 		);
 	}
 
@@ -752,7 +754,7 @@ struct RIGVM_API FRigVMJumpIfOp : public FRigVMUnaryOp
 
 	friend FORCEINLINE uint32 GetTypeHash(const FRigVMJumpIfOp& Op)
 	{
-		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		uint32 Hash = GetTypeHash((const FRigVMUnaryOp&)Op);
 		Hash = HashCombine(Hash, GetTypeHash(Op.InstructionIndex));
 		Hash = HashCombine(Hash, GetTypeHash(Op.Condition));
 		return Hash;
@@ -810,6 +812,42 @@ struct RIGVM_API FRigVMInvokeEntryOp : public FRigVMBaseOp
 		return Ar;
 	}
 };
+
+// jump into a branch based on a name argument
+USTRUCT()
+struct RIGVM_API FRigVMJumpToBranchOp : public FRigVMUnaryOp
+{
+	GENERATED_USTRUCT_BODY()
+
+	FRigVMJumpToBranchOp()
+		: FRigVMUnaryOp()
+		, FirstBranchInfoIndex(INDEX_NONE)
+	{
+	}
+
+	FRigVMJumpToBranchOp(FRigVMOperand InBranchNameArg, int32 InFirstBranchInfoIndex)
+		: FRigVMUnaryOp(ERigVMOpCode::JumpToBranch, InBranchNameArg)
+		, FirstBranchInfoIndex(InFirstBranchInfoIndex)
+	{
+	}
+
+	int32 FirstBranchInfoIndex;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMJumpToBranchOp& Op)
+	{
+		uint32 Hash = GetTypeHash((const FRigVMBaseOp&)Op);
+		Hash = HashCombine(Hash, GetTypeHash(Op.FirstBranchInfoIndex));
+		return Hash;
+	}
+
+	void Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMJumpToBranchOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+};
+
 
 /**
  * The FRigVMInstruction represents
@@ -1055,9 +1093,12 @@ public:
 	// adds an invoke entry operator
 	uint64 AddInvokeEntryOp(const FName& InEntryName);
 
+	// adds a jump to branch operator
+	uint64 AddJumpToBranchOp(FRigVMOperand InBranchNameArg, int32 InFirstBranchInfoIndex);
+
 	// adds information about a branch for an instruction's argument
-	void AddBranchInfo(const FRigVMBranchInfo& InBranchInfo);
-	void AddBranchInfo(const FName& InBranchLabel, int32 InInstructionIndex, int32 InArgumentIndex, int32 InFirstBranchInstruction, int32 InLastBranchInstruction);
+	int32 AddBranchInfo(const FRigVMBranchInfo& InBranchInfo);
+	int32 AddBranchInfo(const FName& InBranchLabel, int32 InInstructionIndex, int32 InArgumentIndex, int32 InFirstBranchInstruction, int32 InLastBranchInstruction);
 
 	// returns an instruction array for iterating over all operators
 	FORCEINLINE FRigVMInstructionArray GetInstructions() const
@@ -1290,4 +1331,5 @@ private:
 	friend class FRigVMByteCodeTest;
 	friend class FRigVMInvokeEntryTest;
 	friend class URigVM;
+	friend struct FRigVMCodeGenerator;
 };

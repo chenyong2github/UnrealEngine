@@ -97,6 +97,28 @@ bool URigVMUnitNode::CanOnlyExistOnce() const
 	return Super::CanOnlyExistOnce();
 }
 
+const TArray<FName>& URigVMUnitNode::GetControlFlowBlocks() const
+{
+	const TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
+	if (StructOnScope.IsValid())
+	{
+		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
+		return StructMemory->GetControlFlowBlocks();
+	}
+	return Super::GetControlFlowBlocks();
+}
+
+const bool URigVMUnitNode::IsControlFlowBlockSliced(const FName& InBlockName) const
+{
+	const TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
+	if (StructOnScope.IsValid())
+	{
+		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
+		return StructMemory->IsControlFlowBlockSliced(InBlockName);
+	}
+	return Super::IsControlFlowBlockSliced(InBlockName);
+}
+
 FText URigVMUnitNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 {
 	if(UScriptStruct* Struct = GetScriptStruct())
@@ -276,17 +298,6 @@ UScriptStruct* URigVMUnitNode::GetScriptStruct() const
 		return ResolvedStruct;
 	}
 	return ScriptStruct_DEPRECATED;
-}
-
-bool URigVMUnitNode::IsLoopNode() const
-{
-	const TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
-	if (StructOnScope.IsValid())
-	{
-		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
-		return StructMemory->IsForLoop();
-	}
-	return false;
 }
 
 FName URigVMUnitNode::GetMethodName() const

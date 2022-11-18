@@ -126,6 +126,21 @@ FString FRigVMDispatchFactory::GetKeywords() const
 
 #endif
 
+const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks() const
+{
+	const TArray<FName>& Blocks = GetControlFlowBlocks_Impl();
+#if WITH_EDITOR
+	FRigVMStruct::ValidateControlFlowBlocks(Blocks);
+#endif
+	return Blocks;
+}
+
+const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks_Impl() const
+{
+	static const TArray<FName> EmptyArray;
+	return EmptyArray;
+}
+
 TArray<FRigVMExecuteArgument> FRigVMDispatchFactory::GetExecuteArguments() const
 {
 	TArray<FRigVMExecuteArgument> Arguments = GetExecuteArguments_Impl();

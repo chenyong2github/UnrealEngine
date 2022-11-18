@@ -492,18 +492,29 @@ FRigVMStructUpgradeInfo FRigUnit_CollectionItemAtIndex::GetUpgradeInfo() const
 FRigUnit_CollectionLoop_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-    Count = Collection.Num();
-   	Continue = Collection.IsValidIndex(Index);
-	Ratio = GetRatioFromIndex(Index, Count);
+	
+	if(BlockToRun.IsNone())
+	{
+	    Count = Collection.Num();
+		Index = 0;
+		BlockToRun = ExecuteContextName;
+	}
+	else if(BlockToRun == ExecuteContextName)
+	{
+		Index++;
+	}
 
-	if(Continue)
+	if(Collection.IsValidIndex(Index))
 	{
 		Item = Collection[Index];
 	}
 	else
 	{
 		Item = FRigElementKey();
+		BlockToRun = ControlFlowCompletedName;
 	}
+	
+	Ratio = GetRatioFromIndex(Index, Count);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionLoop::GetUpgradeInfo() const

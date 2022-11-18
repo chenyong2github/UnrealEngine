@@ -224,6 +224,8 @@ struct RIGVM_API FRigVMExecuteContext
 		: EventName(NAME_None)
 		, FunctionName(NAME_None)
 		, InstructionIndex(0)
+		, DeltaTime(0.0)
+		, AbsoluteTime(0.0)
 		, RuntimeSettings()
 		, NameCache(nullptr)
 	{
@@ -266,6 +268,12 @@ struct RIGVM_API FRigVMExecuteContext
 	
 	FORCEINLINE FName GetEventName() const { return EventName; }
 
+	FORCEINLINE double GetDeltaTime() const { return DeltaTime; }
+	FORCEINLINE void SetDeltaTime(double InDeltaTime) { DeltaTime = InDeltaTime; }
+
+	FORCEINLINE double GetAbsoluteTime() const { return AbsoluteTime; } 
+	FORCEINLINE void SetAbsoluteTime(double InAbsoluteTime) { AbsoluteTime = InAbsoluteTime; }
+	
 	FORCEINLINE FRigVMNameCache* GetNameCache() const { return NameCache; }
 
 	virtual void Initialize()
@@ -298,6 +306,10 @@ protected:
 	FName FunctionName;
 	
 	uint16 InstructionIndex;
+
+	double DeltaTime;
+
+	double AbsoluteTime;
 
 	FRigVMRuntimeSettings RuntimeSettings;
 

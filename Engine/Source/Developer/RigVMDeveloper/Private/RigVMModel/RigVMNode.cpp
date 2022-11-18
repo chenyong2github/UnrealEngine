@@ -569,6 +569,37 @@ double URigVMNode::GetInstructionMicroSeconds(URigVM* InVM, const FRigVMASTProxy
 	return -1.0;
 }
 
+bool URigVMNode::IsLoopNode() const
+{
+	if(IsControlFlowNode())
+	{
+		static const TArray<FName> ExpectedLoopBlocks = {FRigVMStruct::ExecuteContextName, FRigVMStruct::ForLoopCompletedPinName};
+		const TArray<FName>& Blocks = GetControlFlowBlocks();
+		if(Blocks.Num() == ExpectedLoopBlocks.Num())
+		{
+			return Blocks[0] == ExpectedLoopBlocks[0] && Blocks[1] == ExpectedLoopBlocks[1];
+		}
+	}
+
+	return false;
+}
+
+bool URigVMNode::IsControlFlowNode() const
+{
+	return !GetControlFlowBlocks().IsEmpty();
+}
+
+const TArray<FName>& URigVMNode::GetControlFlowBlocks() const
+{
+	static const TArray<FName> EmptyArray;
+	return EmptyArray;
+}
+
+const bool URigVMNode::IsControlFlowBlockSliced(const FName& InBlockName) const
+{
+	return false;
+}
+
 TArray<FRigVMUserWorkflow> URigVMNode::GetSupportedWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const
 {
 	if(InSubject == nullptr)

@@ -1095,6 +1095,11 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		Struct->GetStringMetaDataHierarchical(FRigVMStruct::CategoryMetaName, &CategoryMetadata);
 		Struct->GetStringMetaDataHierarchical(FRigVMStruct::DisplayNameMetaName, &DisplayNameMetadata);
 		Struct->GetStringMetaDataHierarchical(FRigVMStruct::MenuDescSuffixMetaName, &MenuDescSuffixMetadata);
+
+		if(DisplayNameMetadata.IsEmpty())
+		{
+			DisplayNameMetadata = Struct->GetDisplayNameText().ToString();
+		}
 		if (!MenuDescSuffixMetadata.IsEmpty())
 		{
 			MenuDescSuffixMetadata = TEXT(" ") + MenuDescSuffixMetadata;
