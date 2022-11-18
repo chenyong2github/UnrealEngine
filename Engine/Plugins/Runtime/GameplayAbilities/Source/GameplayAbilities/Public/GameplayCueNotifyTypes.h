@@ -17,6 +17,7 @@ class USoundBase;
 class UCameraShakeBase;
 class ICameraLensEffectInterface;
 class UForceFeedbackEffect;
+class UInputDeviceProperty;
 class UForceFeedbackAttenuation;
 class UForceFeedbackComponent;
 class UDecalComponent;
@@ -612,6 +613,27 @@ public:
 
 
 /**
+ * FGameplayCueNotify_InputDevicePropertyInfo
+ *
+ * Properties that specify how to set input device properties during a gameplay cue notify
+ */
+USTRUCT(BlueprintType)
+struct FGameplayCueNotify_InputDevicePropertyInfo
+{
+	GENERATED_BODY()
+
+	/** Set the device properties on specified on this struct on the Input Device Subsystem. */
+	bool SetDeviceProperties(const FGameplayCueNotify_SpawnContext& SpawnContext, FGameplayCueNotify_SpawnResult& OutSpawnResult) const;
+
+	/** Validate that the device properties in this effect are usable */
+	void ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const;
+	
+	/** Input Device properties to apply */
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly, Category = GameplayCueNotify)
+	TArray<TObjectPtr<UInputDeviceProperty>> DeviceProperties;
+};
+
+/**
  * FGameplayCueNotify_DecalInfo
  *
  *	Properties that specify how to spawn a decal.
@@ -707,6 +729,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
 	FGameplayCueNotify_ForceFeedbackInfo BurstForceFeedback;
 
+	// Input device properties to be applied on gameplay cue execution
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = GameplayCueNotify)
+	FGameplayCueNotify_InputDevicePropertyInfo BurstDevicePropertyEffect;
+
 	// Decal to be spawned on gameplay cue execution.  Actor should have fade out time or override should be set so it will clean up properly.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
 	FGameplayCueNotify_DecalInfo BurstDecal;
@@ -753,4 +779,8 @@ protected:
 	// Force feedback to be played on gameplay cue loop start.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
 	FGameplayCueNotify_ForceFeedbackInfo LoopingForceFeedback;
+
+	// Input device properties to be applied on gameplay cue loop start.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = GameplayCueNotify)
+	FGameplayCueNotify_InputDevicePropertyInfo LoopingInputDevicePropertyEffect;
 };
