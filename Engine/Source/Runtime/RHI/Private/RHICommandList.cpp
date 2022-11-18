@@ -136,6 +136,68 @@ static TStatId GCurrentExecuteStat;
 static FCriticalSection GRHIThreadOnTasksCritical;
 static std::atomic<int32> GRHIThreadStallRequestCount;
 
+FRHIParameterBatcher::FRHIParameterBatcher() = default;
+FRHIParameterBatcher::FRHIParameterBatcher(FRHIParameterBatcher&&) = default;
+FRHIParameterBatcher::~FRHIParameterBatcher() = default;
+
+void FRHIParameterBatcher::OnBoundShaderChanged(FRHICommandList& InCommandList, const FBoundShaderStateInput& InBoundShaderStateInput)
+{
+	for (int32 Index = 0; Index < SF_NumGraphicsFrequencies; Index++)
+	{
+		InCommandList.SetBatchedShaderParameters(GetBatchedGraphicsShader(Index), AllBatchedShaderParameters[Index]);
+		AllBatchedShaderParameters[Index].Reset();
+	}
+
+	AllBatchedShaders[SF_Vertex]        = InBoundShaderStateInput.GetVertexShader();
+	AllBatchedShaders[SF_Mesh]          = InBoundShaderStateInput.GetMeshShader();
+	AllBatchedShaders[SF_Amplification] = InBoundShaderStateInput.GetAmplificationShader();
+	AllBatchedShaders[SF_Pixel]         = InBoundShaderStateInput.GetPixelShader();
+	AllBatchedShaders[SF_Geometry]      = InBoundShaderStateInput.GetGeometryShader();
+}
+
+void FRHIParameterBatcher::OnBoundShaderChanged(FRHIComputeCommandList& InCommandList, FRHIComputeShader* InBoundComputeShaderRHI)
+{
+	InCommandList.SetBatchedShaderParameters(GetBatchedComputeShader(), AllBatchedShaderParameters[SF_Compute]);
+	AllBatchedShaderParameters[SF_Compute].Reset();
+
+	AllBatchedShaders[SF_Compute] = InBoundComputeShaderRHI;
+}
+
+void FRHIParameterBatcher::PreDispatch(FRHIComputeCommandList& InCommandList)
+{
+	InCommandList.SetBatchedShaderParameters(GetBatchedComputeShader(), AllBatchedShaderParameters[SF_Compute]);
+	AllBatchedShaderParameters[SF_Compute].Reset();
+}
+
+void FRHIParameterBatcher::PreDraw(FRHICommandList& InCommandList)
+{
+	for (uint32 Index = 0; Index < SF_NumGraphicsFrequencies; Index++)
+	{
+		InCommandList.SetBatchedShaderParameters(GetBatchedGraphicsShader(Index), AllBatchedShaderParameters[Index]);
+		AllBatchedShaderParameters[Index].Reset();
+	}
+}
+
+void FRHIParameterBatcher::FlushPendingParameters(FRHIComputeCommandList& InCommandList, FRHIComputeShader* InShader)
+{
+	const EShaderFrequency Frequency = InShader->GetFrequency();
+	if (Frequency == SF_Compute)
+	{
+		InCommandList.SetBatchedShaderParameters(GetBatchedComputeShader(), AllBatchedShaderParameters[SF_Compute]);
+		AllBatchedShaderParameters[SF_Compute].Reset();
+	}
+}
+
+void FRHIParameterBatcher::FlushPendingParameters(FRHICommandList& InCommandList, FRHIGraphicsShader* InShader)
+{
+	const EShaderFrequency Frequency = InShader->GetFrequency();
+	if (Frequency < SF_NumGraphicsFrequencies)
+	{
+		InCommandList.SetBatchedShaderParameters(GetBatchedGraphicsShader(Frequency), AllBatchedShaderParameters[Frequency]);
+		AllBatchedShaderParameters[Frequency].Reset();
+	}
+}
+
 FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask, ERecordingThread InRecordingThread)
 	: FRHICommandListBase(FPersistentState(InGPUMask, InRecordingThread))
 {}
@@ -172,6 +234,7 @@ FRHICommandListBase::FRHICommandListBase(FRHICommandListBase&& Other)
     , GraphicsContext (MoveTemp(Other.GraphicsContext))
     , ComputeContext  (MoveTemp(Other.ComputeContext))
     , Contexts        (MoveTemp(Other.Contexts))
+	, ParameterBatcher(MoveTemp(Other.ParameterBatcher))
 #if RHI_COUNT_COMMANDS
     , NumCommands     (MoveTemp(Other.NumCommands))
 #endif				  
@@ -1370,6 +1433,7 @@ void FRHIComputeCommandList::BuildAccelerationStructures(const TArrayView<const 
 	BuildAccelerationStructures(Params, ScratchBufferRange);
 }
 #endif
+
 FBufferRHIRef FDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateBuffer_RenderThread);
