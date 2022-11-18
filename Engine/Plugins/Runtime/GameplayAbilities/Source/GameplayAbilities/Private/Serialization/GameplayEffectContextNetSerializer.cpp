@@ -37,7 +37,9 @@ struct FGameplayEffectContextNetSerializer
 	{
 		ReplicateWorldOrigin = 1U,
 		ReplicateSourceObject = ReplicateWorldOrigin << 1U,
-		ReplicateHitResult =  ReplicateSourceObject << 1U,
+		ReplicateInstigator = ReplicateSourceObject << 1U,
+		ReplicateEffectCauser = ReplicateInstigator << 1U,
+		ReplicateHitResult =  ReplicateEffectCauser << 1U,
 	};
 
 	struct FQuantizedType
@@ -110,7 +112,7 @@ void FGameplayEffectContextNetSerializer::Serialize(FNetSerializationContext& Co
 	FNetBitStreamWriter* Writer = Context.GetBitStreamWriter();
 
 	const uint32 ReplicationFlags = Value.ReplicationFlags;
-	Writer->WriteBits(ReplicationFlags, 3U);
+	Writer->WriteBits(ReplicationFlags, 5U);
 
 	// We need to manually serialize the properties as there are some replicated properties that don't need to be replicated,
 	// as is the case with some of the bools that are covered by the ReplicationFlags.
@@ -122,6 +124,8 @@ void FGameplayEffectContextNetSerializer::Serialize(FNetSerializationContext& Co
 		
 		uint32 MemberMaskStorage = ~0U;
 		FNetBitArrayView MemberMask(&MemberMaskStorage, FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_ReplicatedPropertyCount, FNetBitArrayView::NoResetNoValidate);
+		MemberMask.SetBitValue(FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_Instigator, (ReplicationFlags & EReplicationFlags::ReplicateInstigator) != 0);
+		MemberMask.SetBitValue(FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_EffectCauser, (ReplicationFlags & EReplicationFlags::ReplicateEffectCauser) != 0);
 		MemberMask.SetBitValue(FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_SourceObject, (ReplicationFlags & EReplicationFlags::ReplicateSourceObject) != 0);
 		MemberMask.SetBitValue(FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_WorldOrigin, (ReplicationFlags & EReplicationFlags::ReplicateWorldOrigin) != 0);
 		for (uint32 PropertyIt = 0, PropertyEndIt = FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_ReplicatedPropertyCount; PropertyIt != PropertyEndIt; ++PropertyIt)
@@ -160,7 +164,7 @@ void FGameplayEffectContextNetSerializer::Deserialize(FNetSerializationContext& 
 
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
 
-	const uint32 ReplicationFlags = Reader->ReadBits(3U);
+	const uint32 ReplicationFlags = Reader->ReadBits(5U);
 	Target.ReplicationFlags = ReplicationFlags;
 
 	// We need to manually deserialize the properties as there are some replicated properties that don't need to be replicated,
@@ -173,6 +177,8 @@ void FGameplayEffectContextNetSerializer::Deserialize(FNetSerializationContext& 
 		
 		uint32 MemberMaskStorage = ~0U;
 		FNetBitArrayView MemberMask(&MemberMaskStorage, FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_ReplicatedPropertyCount, FNetBitArrayView::NoResetNoValidate);
+		MemberMask.SetBitValue(FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_Instigator, (ReplicationFlags & EReplicationFlags::ReplicateInstigator) != 0);
+		MemberMask.SetBitValue(FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_EffectCauser, (ReplicationFlags & EReplicationFlags::ReplicateEffectCauser) != 0);
 		MemberMask.SetBitValue(FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_SourceObject, (ReplicationFlags & EReplicationFlags::ReplicateSourceObject) != 0);
 		MemberMask.SetBitValue(FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_WorldOrigin, (ReplicationFlags & EReplicationFlags::ReplicateWorldOrigin) != 0);
 		for (uint32 PropertyIt = 0, PropertyEndIt = FGameplayEffectContextAccessorForNetSerializer::EPropertyName::PropertyName_ReplicatedPropertyCount; PropertyIt != PropertyEndIt; ++PropertyIt)
@@ -226,6 +232,9 @@ void FGameplayEffectContextNetSerializer::Quantize(FNetSerializationContext& Con
 	TempGE.CopyReplicatedFieldsFrom(SourceValue);
 
 	const FHitResult* HitResult = SourceValue.GetHitResult();
+	
+	ReplicationFlags |= (TempGE.ShouldReplicateInstigator() ? EReplicationFlags::ReplicateInstigator : 0);
+	ReplicationFlags |= (TempGE.ShouldReplicateEffectCauser() ? EReplicationFlags::ReplicateEffectCauser : 0);
 	ReplicationFlags |= (TempGE.ShouldReplicateWorldOrigin() ? EReplicationFlags::ReplicateWorldOrigin : 0);
 	ReplicationFlags |= (TempGE.ShouldReplicateSourceObject() ? EReplicationFlags::ReplicateSourceObject : 0);
 	ReplicationFlags |= (HitResult != nullptr ? EReplicationFlags::ReplicateHitResult : 0);
@@ -268,6 +277,8 @@ void FGameplayEffectContextNetSerializer::Dequantize(FNetSerializationContext& C
 		GEDequantizeArgs.Source = NetSerializerValuePointer(&SourceValue.EffectContext);
 		GEDequantizeArgs.Target = NetSerializerValuePointer(&TempGE);
 		StructNetSerializer->Dequantize(Context, GEDequantizeArgs);
+		TempGE.SetShouldReplicateInstigator((ReplicationFlags & EReplicationFlags::ReplicateInstigator) != 0);
+		TempGE.SetShouldReplicateEffectCauser((ReplicationFlags & EReplicationFlags::ReplicateEffectCauser) != 0);
 		TempGE.SetShouldReplicateWorldOrigin((ReplicationFlags & EReplicationFlags::ReplicateWorldOrigin) != 0);
 		TempGE.SetShouldReplicateSourceObject((ReplicationFlags & EReplicationFlags::ReplicateSourceObject) != 0);
 	}
@@ -584,14 +595,25 @@ void FGameplayEffectContextAccessorForNetSerializer::CopyReplicatedFieldsFrom(co
 	this->AbilityCDO = GE.AbilityCDO;
 	this->AbilityLevel = GE.AbilityLevel;
 	this->Actors = GE.Actors;
-	this->EffectCauser = GE.EffectCauser;
-	this->Instigator = GE.Instigator;
+	if (GE.bReplicateEffectCauser)
+	{
+		this->EffectCauser = GE.EffectCauser;
+	}
+
+	if (GE.bReplicateInstigator)
+	{
+		this->Instigator = GE.Instigator;
+	}
+
 	this->bHasWorldOrigin = GE.bHasWorldOrigin;
 	if (GE.bHasWorldOrigin)
 	{
 		this->WorldOrigin = GE.WorldOrigin;
 	}
 	this->bReplicateSourceObject = GE.bReplicateSourceObject;
+	this->bReplicateInstigator = GE.bReplicateInstigator;
+	this->bReplicateEffectCauser = GE.bReplicateEffectCauser;
+
 	if (GE.bReplicateSourceObject)
 	{
 		this->SourceObject = GE.SourceObject;

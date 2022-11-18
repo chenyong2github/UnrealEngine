@@ -283,6 +283,8 @@ struct GAMEPLAYABILITIES_API FGameplayEffectContext
 	, WorldOrigin(ForceInitToZero)
 	, bHasWorldOrigin(false)
 	, bReplicateSourceObject(false)
+	, bReplicateInstigator(false)
+	, bReplicateEffectCauser(false)
 	{
 	}
 
@@ -291,6 +293,8 @@ struct GAMEPLAYABILITIES_API FGameplayEffectContext
 	, WorldOrigin(ForceInitToZero)
 	, bHasWorldOrigin(false)
 	, bReplicateSourceObject(false)
+	, bReplicateInstigator(false)
+	, bReplicateEffectCauser(false)
 	{
 		FGameplayEffectContext::AddInstigator(InInstigator, InEffectCauser);
 	}
@@ -342,6 +346,7 @@ struct GAMEPLAYABILITIES_API FGameplayEffectContext
 	void SetEffectCauser(AActor* InEffectCauser)
 	{
 		EffectCauser = InEffectCauser;
+		bReplicateEffectCauser = CanActorReferenceBeReplicated(InEffectCauser);
 	}
 
 	/** Should always return the original instigator that started the whole chain. Subclasses can override what this does */
@@ -440,6 +445,8 @@ struct GAMEPLAYABILITIES_API FGameplayEffectContext
 	virtual bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 protected:
+	static bool CanActorReferenceBeReplicated(const AActor* Actor);
+
 	// The object pointers here have to be weak because contexts aren't necessarily tracked by GC in all cases
 
 	/** Instigator actor, the actor that owns the ability system component */
@@ -485,8 +492,16 @@ protected:
 	uint8 bHasWorldOrigin:1;
 
 	/** True if the SourceObject can be replicated. This bool is not replicated itself. */
-	UPROPERTY()
+	UPROPERTY(NotReplicated)
 	uint8 bReplicateSourceObject:1;
+	
+	/** True if the Instigator can be replicated. This bool is not replicated itself. */
+	UPROPERTY(NotReplicated)	
+	uint8 bReplicateInstigator:1;
+
+	/** True if the Instigator can be replicated. This bool is not replicated itself. */
+	UPROPERTY(NotReplicated)	
+	uint8 bReplicateEffectCauser:1;
 };
 
 template<>
@@ -566,7 +581,7 @@ struct GAMEPLAYABILITIES_API FGameplayEffectContextHandle
 		}
 	}
 
-	/** Sets Abilit instance and CDO parameters on context */
+	/** Sets Ability instance and CDO parameters on context */
 	void SetAbility(const UGameplayAbility* InGameplayAbility)
 	{
 		if (IsValid())

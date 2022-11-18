@@ -14,6 +14,12 @@ public:
 	void CopyReplicatedFieldsFrom(const FGameplayEffectContextAccessorForNetSerializer& GE);	
 	void AssignReplicatedFieldsTo(FGameplayEffectContextAccessorForNetSerializer& GE) const;
 
+	void SetShouldReplicateInstigator(bool bShouldReplicateInstigator) { bReplicateInstigator = bShouldReplicateInstigator; }
+	bool ShouldReplicateInstigator() const { return bReplicateInstigator; }
+
+	void SetShouldReplicateEffectCauser(bool bShouldReplicateEffectCauser) { bReplicateEffectCauser = bShouldReplicateEffectCauser; }
+	bool ShouldReplicateEffectCauser() const { return bReplicateEffectCauser; }
+
 	void SetShouldReplicateWorldOrigin(bool bShouldReplicateWorldOrigin) { bHasWorldOrigin = bShouldReplicateWorldOrigin; }
 	bool ShouldReplicateWorldOrigin() const { return bHasWorldOrigin; }
 

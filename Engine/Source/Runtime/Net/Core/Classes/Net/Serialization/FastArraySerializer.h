@@ -1226,8 +1226,6 @@ bool FFastArraySerializer::FastArrayDeltaSerialize(TArray<Type> &Items, FNetDelt
 			}
 		}
 
-		Helper.CallPostReplicatedReceiveOrNot(Items.Num());
-
 		return true;
 	}
 
@@ -1352,9 +1350,8 @@ bool FFastArraySerializer::FastArrayDeltaSerialize(TArray<Type> &Items, FNetDelt
 		if (Parms.bOutSomeObjectsWereMapped)
 		{
 			ArraySerializer.PostReplicatedChange(ChangedIndices, Items.Num());
+			Helper.CallPostReplicatedReceiveOrNot(Items.Num());
 		}
-		Helper.CallPostReplicatedReceiveOrNot(Items.Num());
-
 		return true;
 	}
 
@@ -1673,8 +1670,6 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 	{
 		UE_LOG(LogNetFastTArray, Log, TEXT("FastArrayDeltaSerialize_DeltaSerializeStruct for %s. %s. GatherGuidReferences"), *InnerStruct->GetName(), *InnerStruct->GetOwnerStruct()->GetName());
 		Parms.NetSerializeCB->GatherGuidReferencesForFastArray(DeltaSerializeParams);
-		Helper.CallPostReplicatedReceiveOrNot(Items.Num());
-
 		return true;
 	}
 	else if (Parms.MoveGuidToUnmapped)
@@ -1695,8 +1690,8 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 		if (Parms.bOutSomeObjectsWereMapped)
 		{
 			ArraySerializer.PostReplicatedChange(ChangedIndices, Items.Num());
+			Helper.CallPostReplicatedReceiveOrNot(Items.Num());
 		}
-		Helper.CallPostReplicatedReceiveOrNot(Items.Num());
 
 		return true;
 	}
