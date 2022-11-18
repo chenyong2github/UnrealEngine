@@ -882,7 +882,7 @@ void AActor::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext&
 
 		if (ActorComp->HasAnyFlags(RF_DefaultSubObject) || ActorComp->IsDefaultSubobject())
 		{
-			if (!ActorComp->GetIsReplicated())
+			if (!ActorComp->GetIsReplicated() || ActorComp->GetReplicationCondition() == COND_Never)
 			{
 				// Register RPC functions for not replicated default subobjects
 				ActorComp->RegisterReplicationFragments(Context, EFragmentRegistrationFlags::RegisterRPCsOnly);
