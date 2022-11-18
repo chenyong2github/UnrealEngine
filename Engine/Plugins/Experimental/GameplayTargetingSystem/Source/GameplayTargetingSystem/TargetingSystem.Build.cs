@@ -21,6 +21,7 @@ public class TargetingSystem : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"GameplayTasks",
 				"GameplayAbilities",
 				"GameplayTags",
 			}
