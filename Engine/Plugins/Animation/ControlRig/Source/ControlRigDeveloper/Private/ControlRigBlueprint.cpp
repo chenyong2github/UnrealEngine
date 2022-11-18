@@ -1374,7 +1374,15 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 				{
 					if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(LibraryNode))
 					{
-						continue;
+						if (FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.GetLongPackageName() != GetPackage()->GetPathName())
+						{							
+							continue;
+						}
+						if (URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->LoadReferencedNode())
+						{
+							ContainedGraphs.Add(ReferencedNode->GetContainedGraph());
+							continue;
+						}
 					}
 
 					if (URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
@@ -4084,6 +4092,16 @@ void UControlRigBlueprint::PatchFunctionReferencesOnLoad()
 						}
 					}
 				}
+
+				if (FunctionReferenceNode->ReferencedNodePtr_DEPRECATED.IsValid())
+				{
+					FunctionReferenceNode->ReferencedFunctionHeader = FunctionReferenceNode->ReferencedNodePtr_DEPRECATED->GetFunctionHeader();					
+				}
+				else
+				{
+					// At least lets make sure we store the path in the header
+					FunctionReferenceNode->ReferencedFunctionHeader.LibraryPointer.LibraryNode = FunctionReferenceNode->ReferencedNodePtr_DEPRECATED.ToSoftObjectPath();
+				}
 			}
 		}
 	}
@@ -4576,13 +4594,7 @@ void UControlRigBlueprint::PatchFunctionsOnLoad()
 					TSoftObjectPtr<URigVMLibraryNode> ReferencedLibraryNode = FuncRefNode->ReferencedNodePtr_DEPRECATED;
 					if (ReferencedLibraryNode.IsValid())
 					{
-						if (URigVMLibraryNode* LibraryNode = ReferencedLibraryNode.LoadSynchronous())
-						{
-							if (URigVMFunctionLibrary* FunctionLibrary = LibraryNode->GetGraph()->GetDefaultFunctionLibrary())
-							{
-								FuncRefNode->ReferencedFunctionHeader = LibraryNode->GetFunctionHeader();
-							}
-						}
+						FuncRefNode->ReferencedFunctionHeader = ReferencedLibraryNode->GetFunctionHeader();
 					}
 				}
 

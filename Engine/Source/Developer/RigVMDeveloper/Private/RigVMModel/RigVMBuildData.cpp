@@ -165,14 +165,22 @@ void URigVMBuildData::RegisterFunctionReference(FRigVMReferenceNodeData InRefere
 	{
 		return RegisterFunctionReference(InReferenceNodeData.ReferencedHeader.LibraryPointer, InReferenceNodeData.GetReferenceNodeObjectPath());
 	}
-	
-	check(!InReferenceNodeData.ReferencedFunctionPath_DEPRECATED.IsEmpty());
 
-	TSoftObjectPtr<URigVMLibraryNode> LibraryNodePtr = TSoftObjectPtr<URigVMLibraryNode>(InReferenceNodeData.ReferencedFunctionPath_DEPRECATED);
+	if (!InReferenceNodeData.ReferencedHeader.LibraryPointer.LibraryNode.IsValid())
+	{
+		InReferenceNodeData.ReferencedHeader.LibraryPointer.LibraryNode = InReferenceNodeData.ReferencedFunctionPath_DEPRECATED;
+	}
+	
+	check(InReferenceNodeData.ReferencedHeader.LibraryPointer.LibraryNode.IsValid());
+
+	FSoftObjectPath LibraryNodePath = InReferenceNodeData.ReferencedHeader.LibraryPointer.LibraryNode;
+	TSoftObjectPtr<URigVMLibraryNode> LibraryNodePtr = TSoftObjectPtr<URigVMLibraryNode>(LibraryNodePath);
+
+	// Try to find a FunctionIdentifier with the same LibraryNodePath
 	bool bFound = false;
 	for (TPair< FRigVMGraphFunctionIdentifier, FRigVMFunctionReferenceArray >& Pair : GraphFunctionReferences)
 	{
-		if (Pair.Key.LibraryNode == LibraryNodePtr.ToSoftObjectPath())
+		if (Pair.Key.LibraryNode == LibraryNodePath)
 		{
 			Pair.Value.FunctionReferences.Add(InReferenceNodeData.GetReferenceNodeObjectPath());
 			bFound = true;
@@ -180,9 +188,10 @@ void URigVMBuildData::RegisterFunctionReference(FRigVMReferenceNodeData InRefere
 		}
 	}
 
+	// Otherwise, lets add a new identifier, even if it has no function host
 	if (!bFound)
 	{
-		FRigVMGraphFunctionIdentifier Pointer(nullptr, LibraryNodePtr.ToSoftObjectPath());
+		FRigVMGraphFunctionIdentifier Pointer(nullptr, LibraryNodePath);
 		if (LibraryNodePtr.IsValid())
 		{
 			Pointer.HostObject = Cast<UObject>(LibraryNodePtr.Get()->GetFunctionHeader().GetFunctionHost());
