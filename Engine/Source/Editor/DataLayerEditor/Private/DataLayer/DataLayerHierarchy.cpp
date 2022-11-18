@@ -112,8 +112,11 @@ FDataLayerHierarchy::~FDataLayerHierarchy()
 		}
 	}
 
-	UDataLayerEditorSubsystem::Get()->OnDataLayerChanged().RemoveAll(this);
-	UDataLayerEditorSubsystem::Get()->OnActorDataLayersChanged().RemoveAll(this);
+	if (UDataLayerEditorSubsystem* DataLayerEditorSubSystem = UDataLayerEditorSubsystem::Get())
+	{
+		DataLayerEditorSubSystem->OnDataLayerChanged().RemoveAll(this);
+		DataLayerEditorSubSystem->OnActorDataLayersChanged().RemoveAll(this);
+	}
 	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
 	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
 }
