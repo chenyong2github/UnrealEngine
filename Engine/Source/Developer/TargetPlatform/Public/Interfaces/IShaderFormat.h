@@ -113,6 +113,9 @@ public:
 	 */
 	virtual void NotifyShaderCompiled(const TConstArrayView<uint8>& PlatformDebugData, FName Format) const { }
 
+	/** Called at the end of a cook to free resources and finalize artifacts created during the cook. */
+	virtual void NotifyShaderCompilersShutdown(FName Format) const { }
+
 	/**
 	 * Appends shader key text to the provided key string for use in DDC unique key construction.
 	 * @param KeyString String that will get shader key text appended to.

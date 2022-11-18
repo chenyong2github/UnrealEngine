@@ -4,14 +4,15 @@
 #include "ShaderParameterParser.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Modules/ModuleManager.h"
 #include "HlslccDefinitions.h"
 #include "HAL/FileManager.h"
 #include "String/RemoveFrom.h"
+#include "ShaderSymbolExport.h"
 #include "ShaderMinifier.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, ShaderCompilerCommon);
-
 
 int16 GetNumUniformBuffersUsed(const FShaderCompilerResourceTable& InSRT)
 {
@@ -2564,3 +2565,73 @@ namespace CrossCompiler
 	}
 
 } // namespace CrossCompiler
+
+#if WITH_ENGINE
+
+const TCHAR* FShaderSymbolExport::ZipFileBaseLeafName = TEXT("ShaderSymbols");
+const TCHAR* FShaderSymbolExport::ZipFileExtension = TEXT(".zip");
+
+inline void FShaderSymbolExport::NotifyShaderCompilersShutdown()
+{
+	constexpr bool bMergingEnabled = false; // TODO: Add ability to read zip files and turn this on
+	if (bMultiprocessOwner && ZipWriter && bMergingEnabled)
+	{
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		TArray<FString> ZipsToMergeIn;
+		PlatformFile.FindFiles(ZipsToMergeIn, *ExportPath, ZipFileExtension);
+		ZipsToMergeIn.RemoveAll([](const FString& FileName)
+			{
+				return FPathViews::GetBaseFilename(FileName) == ZipFileBaseLeafName;
+			});
+		for (const FString& ZipFile : ZipsToMergeIn)
+		{
+			struct FZipArchiveReader
+			{
+				FZipArchiveReader(IFileHandle* InFileHandle) : FileHandle(InFileHandle) {}
+				bool IsValid() { return false; }
+				TConstArrayView<FString> GetEmbeddedFileNames() const { return TConstArrayView<FString>(); }
+				bool TryReadFile(FStringView FileName, TArray<uint8>& OutData) { return false; }
+				TUniquePtr<IFileHandle> FileHandle;
+			};
+			FZipArchiveReader Reader(PlatformFile.OpenRead(*ZipFile));
+			bool bAllValid = false;
+			if (Reader.IsValid())
+			{
+				bAllValid = true;
+				for (const FString& EmbeddedFileName : Reader.GetEmbeddedFileNames())
+				{
+					TArray<uint8> Contents;
+					if (!Reader.TryReadFile(EmbeddedFileName, Contents))
+					{
+						bAllValid = false;
+						continue;
+					}
+					ZipWriter->AddFile(EmbeddedFileName, Contents, FDateTime::Now());
+				}
+			}
+			if (!bAllValid)
+			{
+				UE_LOG(LogShaderSymbolExport, Error,
+					TEXT("Failed to read from CookWorker shader symbols output file \"%s\". Some shader symbols will be missing."),
+					*ZipFile);
+			}
+			PlatformFile.DeleteFile(*ZipFile);
+		}
+	}
+	ZipWriter.Reset();
+}
+
+void FShaderSymbolExport::DeleteExistingShaderZips(IPlatformFile& PlatformFile, const FString& Directory)
+{
+	TArray<FString> ExistingZips;
+	PlatformFile.FindFiles(ExistingZips, *Directory, ZipFileExtension);
+	for (const FString& ZipFile : ExistingZips)
+	{
+		if (FPathViews::GetPathLeaf(ZipFile).StartsWith(ZipFileBaseLeafName))
+		{
+			PlatformFile.DeleteFile(*ZipFile);
+		}
+	}
+}
+
+#endif

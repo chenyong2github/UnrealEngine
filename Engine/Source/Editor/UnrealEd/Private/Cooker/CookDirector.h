@@ -132,7 +132,7 @@ private:
 
 private:
 	/** Helper for constructor parsing. */
-	void ParseConfig(int32 CookProcessCount);
+	void ParseConfig(int32 CookProcessCount, bool& bOutValid);
 	/** Initialization helper: create the listen socket. */
 	bool TryCreateWorkerConnectSocket();
 	/**

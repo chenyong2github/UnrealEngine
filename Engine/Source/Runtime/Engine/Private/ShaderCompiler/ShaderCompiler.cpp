@@ -8068,6 +8068,25 @@ void RecompileShadersForRemote(
 	// Restore compilation state.
 	GShaderCompilingManager->SkipShaderCompilation(bPreviousState);
 }
+
+void ShutdownShaderCompilers(TConstArrayView<const ITargetPlatform*> TargetPlatforms)
+{
+	ITargetPlatformManagerModule& PlatformManager = GetTargetPlatformManagerRef();
+	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+	{
+		TArray<FName> DesiredShaderFormats;
+		TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
+		for (FName FormatName : DesiredShaderFormats)
+		{
+			const IShaderFormat* ShaderFormat = PlatformManager.FindShaderFormat(FormatName);
+			if (ShaderFormat)
+			{
+				ShaderFormat->NotifyShaderCompilersShutdown(FormatName);
+			}
+		}
+	}
+}
+
 #endif // WITH_EDITOR
 
 void BeginRecompileGlobalShaders(const TArray<const FShaderType*>& OutdatedShaderTypes, const TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, EShaderPlatform ShaderPlatform, const ITargetPlatform* TargetPlatform)

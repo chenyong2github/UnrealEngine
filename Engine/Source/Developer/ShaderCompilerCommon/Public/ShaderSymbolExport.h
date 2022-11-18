@@ -27,6 +27,9 @@ public:
 	template<typename TPlatformShaderSymbolData>
 	void NotifyShaderCompiled(const TConstArrayView<uint8>& PlatformSymbolData);
 
+	/** Called at the end of a cook to free resources and finalize artifacts created during the cook. */
+	SHADERCOMPILERCOMMON_API void NotifyShaderCompilersShutdown();
+
 private:
 	void Initialize();
 
@@ -39,6 +42,15 @@ private:
 	uint64 TotalSymbolDataBytes{ 0 };
 	uint64 TotalSymbolData{ 0 };
 	bool bExportShaderSymbols{ false };
+	/**
+	 * If true, the current process is the first process in a multiprocess group, or is not in a group,
+	 * and should combine artifacts produced by the other processes. Will also be false if no combination
+	 * is necessary for given settings.
+	 */
+	bool bMultiprocessOwner{ false };
+	SHADERCOMPILERCOMMON_API static void DeleteExistingShaderZips(IPlatformFile& PlatformFile, const FString& Directory);
+	SHADERCOMPILERCOMMON_API static const TCHAR* ZipFileBaseLeafName;
+	SHADERCOMPILERCOMMON_API static const TCHAR* ZipFileExtension;
 };
 
 inline FShaderSymbolExport::FShaderSymbolExport(FName InShaderFormat)
@@ -82,7 +94,20 @@ inline void FShaderSymbolExport::Initialize()
 			bool bExportAsZip = ShouldWriteShaderSymbolsAsZip(ShaderFormat);
 			if (bExportAsZip || FParse::Param(FCommandLine::Get(), TEXT("ShaderSymbolsExportZip")))
 			{
-				FString SingleFilePath = ExportPath / TEXT("ShaderSymbols.zip");
+				uint32 MultiprocessId = 0;
+				FParse::Value(FCommandLine::Get(), TEXT("-MultiprocessId="), MultiprocessId);
+				FString LeafName;
+				bMultiprocessOwner = MultiprocessId == 0;
+				if (bMultiprocessOwner)
+				{
+					DeleteExistingShaderZips(PlatformFile, ExportPath);
+					LeafName = FString::Printf(TEXT("%s%s"), ZipFileBaseLeafName, ZipFileExtension);
+				}
+				else
+				{
+					LeafName = FString::Printf(TEXT("%s_%d%s"), ZipFileBaseLeafName, MultiprocessId, ZipFileExtension);
+				}
+				FString SingleFilePath = ExportPath / LeafName;
 
 				IFileHandle* OutputZipFile = PlatformFile.OpenWrite(*SingleFilePath);
 				if (!OutputZipFile)

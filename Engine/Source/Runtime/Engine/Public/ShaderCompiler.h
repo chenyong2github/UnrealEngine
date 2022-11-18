@@ -1387,6 +1387,9 @@ struct FShaderRecompileData
 **/
 extern ENGINE_API void RecompileShadersForRemote(FShaderRecompileData& Args, const FString& OutputDirectory);
 
+/** Frees resources and finalizes artifacts created during the cook of the given platforms. */
+extern ENGINE_API void ShutdownShaderCompilers(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
+
 #endif // WITH_EDITOR
 
 extern ENGINE_API void CompileGlobalShaderMap(bool bRefreshShaderMap=false);

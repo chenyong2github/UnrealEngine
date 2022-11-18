@@ -13,6 +13,14 @@ public class ShaderCompilerCommon : ModuleRules
 				"RenderCore",
 			}
 			);
+		if (Target.bCompileAgainstEngine)
+		{
+			PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"FileUtilities",
+			}
+			);
+		}
 
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux)
 		{

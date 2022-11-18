@@ -38,7 +38,14 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS, int32 CookProcessCoun
 	WorkersStalledWarnTimeSeconds = MAX_flt;
 	ShutdownEvent->Reset();
 
-	ParseConfig(CookProcessCount);
+	bool bConfigValid;
+	ParseConfig(CookProcessCount, bConfigValid);
+	if (!bConfigValid)
+	{
+		UE_LOG(LogCook, Error, TEXT("CookDirector initialization failure: config settings are invalid for multiprocess. CookMultiprocess is disabled and the cooker is running as a single process."));
+		bMultiprocessAvailable = false;
+		return;
+	}
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
 	if (!SocketSubsystem)
 	{
@@ -59,8 +66,9 @@ bool FCookDirector::IsMultiprocessAvailable() const
 	return bMultiprocessAvailable;
 }
 
-void FCookDirector::ParseConfig(int32 CookProcessCount)
+void FCookDirector::ParseConfig(int32 CookProcessCount, bool& bOutValid)
 {
+	bOutValid = true;
 	const TCHAR* CommandLine = FCommandLine::Get();
 	FString Text;
 
@@ -102,6 +110,13 @@ void FCookDirector::ParseConfig(int32 CookProcessCount)
 		{
 			UE_LOG(LogCook, Warning, TEXT("Invalid selection \"%s\" for -CookLoadBalance."), *Text);
 		}
+	}
+
+	int32 MultiprocessId;
+	if (FParse::Value(CommandLine, TEXT("-MultiprocessId="), MultiprocessId))
+	{
+		bOutValid = false;
+		UE_LOG(LogCook, Error, TEXT("CookMultiprocess is incompatible with -MultiprocessId on the CookDirector's commandline. The CookDirector needs to be able to specify all MultiprocessIds."));
 	}
 }
 
@@ -865,7 +880,7 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId)
 				Token.StartsWith(TEXT("-CookCultures")) ||
 				Token.StartsWith(TEXT("-CookDirectorCount=")) ||
 				Token.StartsWith(TEXT("-CookDirectorHost=")) ||
-				Token.StartsWith(TEXT("-CookWorkerId=")) ||
+				Token.StartsWith(TEXT("-MultiprocessId=")) ||
 				Token.StartsWith(TEXT("-ShowCookWorker")) ||
 				Token.StartsWith(TEXT("-CoreLimit")) ||
 				Token.StartsWith(TEXT("-PhysicalCoreLimit")) ||
@@ -884,7 +899,7 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId)
 	Tokens.Insert(TEXT("-cookworker"), 2);
 	check(!WorkerConnectAuthority.IsEmpty()); // This should have been constructed in TryCreateWorkerConnectSocket before any CookWorkerServers could exist to call GetWorkerCommandLine
 	Tokens.Add(FString::Printf(TEXT("-CookDirectorHost=%s"), *WorkerConnectAuthority));
-	Tokens.Add(FString::Printf(TEXT("-CookWorkerId=%d"), WorkerId.GetRemoteIndex()));
+	Tokens.Add(FString::Printf(TEXT("-MultiprocessId=%d"), WorkerId.GetRemoteIndex() + 1));
 	if (CoreLimit > 0)
 	{
 		Tokens.Add(FString::Printf(TEXT("-PhysicalCoreLimit=%d"), CoreLimit));
@@ -900,11 +915,19 @@ bool FDirectorConnectionInfo::TryParseCommandLine()
 		UE_LOG(LogCook, Error, TEXT("CookWorker startup failed: no CookDirector specified on commandline."));
 		return false;
 	}
-	if (!FParse::Value(FCommandLine::Get(), TEXT("-CookWorkerId="), RemoteIndex))
+	uint32 MultiprocessId;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("-MultiprocessId="), MultiprocessId))
 	{
-		UE_LOG(LogCook, Error, TEXT("CookWorker startup failed: no CookWorkerId specified on commandline."));
+		UE_LOG(LogCook, Error, TEXT("CookWorker startup failed: no MultiprocessId specified on commandline."));
 		return false;
 	}
+	if (MultiprocessId < 1 || 257 <= MultiprocessId)
+	{
+		UE_LOG(LogCook, Error, TEXT("CookWorker startup failed: commandline had invalid -MultiprocessId=%d; MultiprocessId must be in the range [1, 256]."),
+			MultiprocessId);
+		return false;
+	}
+	RemoteIndex = static_cast<int32>(MultiprocessId - 1);
 	return true;
 }
 

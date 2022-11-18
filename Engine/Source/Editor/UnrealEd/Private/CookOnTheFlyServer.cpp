@@ -8581,6 +8581,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	FString ActualLibraryName = GenerateShaderCodeLibraryName(LibraryName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
 	FShaderLibraryCooker::EndCookingLibrary(ActualLibraryName);
 	FShaderLibraryCooker::Shutdown();
+	ShutdownShaderCompilers(PlatformManager->GetSessionPlatforms());
 
 	if (CookByTheBookOptions->bGenerateDependenciesForMaps)
 	{
@@ -9548,15 +9549,17 @@ void UCookOnTheFlyServer::ShutdownCookAsCookWorker()
 	{
 		UnregisterCookByTheBookDelegates();
 	}
-	ShutdownCookSession();
 	FString LibraryName = GetProjectShaderLibraryName();
 	FString ActualLibraryName = GenerateShaderCodeLibraryName(LibraryName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
 	FShaderLibraryCooker::EndCookingLibrary(ActualLibraryName);
 	FShaderLibraryCooker::Shutdown();
+	ShutdownShaderCompilers(PlatformManager->GetSessionPlatforms());
+
 	if (IsDirectorCookOnTheFly())
 	{
 		GShaderCompilingManager->SkipShaderCompilation(false);
 	}
+	ShutdownCookSession();
 }
 
 FBeginCookContext UCookOnTheFlyServer::CreateCookWorkerContext()
