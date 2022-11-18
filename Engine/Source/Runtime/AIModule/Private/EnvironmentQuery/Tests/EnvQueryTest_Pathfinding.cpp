@@ -192,7 +192,8 @@ float UEnvQueryTest_Pathfinding::FindPathCostFrom(const FVector& ItemPos, const 
 	Query.SetAllowPartialPaths(false);
 
 	FPathFindingResult Result = NavSys.FindPathSync(Query, Mode);
-	return (Result.IsSuccessful()) ? Result.Path->GetCost() : BIG_NUMBER;
+	// Static cast this to a float, for EQS scoring purposes float precision is OK.
+	return (Result.IsSuccessful()) ? static_cast<float>(Result.Path->GetCost()) : BIG_NUMBER;
 }
 
 float UEnvQueryTest_Pathfinding::FindPathCostTo(const FVector& ItemPos, const FVector& ContextPos, EPathFindingMode::Type Mode, const ANavigationData& NavData, UNavigationSystemV1& NavSys, FSharedConstNavQueryFilter NavFilter, const UObject* PathOwner) const
@@ -201,7 +202,8 @@ float UEnvQueryTest_Pathfinding::FindPathCostTo(const FVector& ItemPos, const FV
 	Query.SetAllowPartialPaths(false);
 
 	FPathFindingResult Result = NavSys.FindPathSync(Query, Mode);
-	return (Result.IsSuccessful()) ? Result.Path->GetCost() : BIG_NUMBER;
+	// Static cast this to a float, for EQS scoring purposes float precision is OK.
+	return (Result.IsSuccessful()) ? static_cast<float>(Result.Path->GetCost()) : BIG_NUMBER;
 }
 
 float UEnvQueryTest_Pathfinding::FindPathLengthFrom(const FVector& ItemPos, const FVector& ContextPos, EPathFindingMode::Type Mode, const ANavigationData& NavData, UNavigationSystemV1& NavSys, FSharedConstNavQueryFilter NavFilter, const UObject* PathOwner) const
@@ -210,7 +212,8 @@ float UEnvQueryTest_Pathfinding::FindPathLengthFrom(const FVector& ItemPos, cons
 	Query.SetAllowPartialPaths(false);
 
 	FPathFindingResult Result = NavSys.FindPathSync(Query, Mode);
-	return (Result.IsSuccessful()) ? Result.Path->GetLength() : BIG_NUMBER;
+	// Static cast this to a float, for EQS scoring purposes float precision is OK.
+	return (Result.IsSuccessful()) ? static_cast<float>(Result.Path->GetLength()) : BIG_NUMBER;
 }
 
 float UEnvQueryTest_Pathfinding::FindPathLengthTo(const FVector& ItemPos, const FVector& ContextPos, EPathFindingMode::Type Mode, const ANavigationData& NavData, UNavigationSystemV1& NavSys, FSharedConstNavQueryFilter NavFilter, const UObject* PathOwner) const
@@ -219,7 +222,8 @@ float UEnvQueryTest_Pathfinding::FindPathLengthTo(const FVector& ItemPos, const 
 	Query.SetAllowPartialPaths(false);
 
 	FPathFindingResult Result = NavSys.FindPathSync(Query, Mode);
-	return (Result.IsSuccessful()) ? Result.Path->GetLength() : BIG_NUMBER;
+	// Static cast this to a float, for EQS scoring purposes float precision is OK.
+	return (Result.IsSuccessful()) ? static_cast<float>(Result.Path->GetLength()) : BIG_NUMBER;
 }
 
 ANavigationData* UEnvQueryTest_Pathfinding::FindNavigationData(UNavigationSystemV1& NavSys, UObject* Owner) const

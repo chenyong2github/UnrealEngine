@@ -12,22 +12,26 @@ namespace
 {
 	FORCEINLINE float CalcDistance3D(const FVector& PosA, const FVector& PosB)
 	{
-		return (PosB - PosA).Size();
+		// Static cast this to a float, for EQS scoring purposes float precision is OK.
+		return static_cast<float>(FVector::Distance(PosA, PosB));
 	}
 
 	FORCEINLINE float CalcDistance2D(const FVector& PosA, const FVector& PosB)
 	{
-		return (PosB - PosA).Size2D();
+		// Static cast this to a float, for EQS scoring purposes float precision is OK.
+		return static_cast<float>(FVector::Dist2D(PosA, PosB));
 	}
 
 	FORCEINLINE float CalcDistanceZ(const FVector& PosA, const FVector& PosB)
 	{
-		return PosB.Z - PosA.Z;
+		// Static cast this to a float, for EQS scoring purposes float precision is OK.
+		return static_cast<float>(PosB.Z - PosA.Z);
 	}
 
 	FORCEINLINE float CalcDistanceAbsoluteZ(const FVector& PosA, const FVector& PosB)
 	{
-		return FMath::Abs(PosB.Z - PosA.Z);
+		// Static cast this to a float, for EQS scoring purposes float precision is OK.
+		return static_cast<float>(FMath::Abs(PosB.Z - PosA.Z));
 	}
 
 	FORCEINLINE void CheckItemLocationForNaN(const FVector& ItemLocation, UObject* QueryOwner, int32 Index, uint8 TestMode)

@@ -31,8 +31,9 @@ namespace NodePoolHelpers
 		const FRecastDebugPathfindingNode* MyNode = NodePool.Nodes.Find(SearchKey);
 		if (MyNode)
 		{
-			float LastSegmentLength = FVector::Dist(MyNode->NodePos, TestPt.OutLocation.Location);
-			return MyNode->Length + LastSegmentLength;
+			const FVector::FReal LastSegmentLength = FVector::Dist(MyNode->NodePos, TestPt.OutLocation.Location);
+			// Static cast this to a float, for EQS scoring purposes float precision is OK.
+			return static_cast<float>(MyNode->Length + LastSegmentLength);
 		}
 
 		return BIG_NUMBER;
@@ -44,7 +45,8 @@ namespace NodePoolHelpers
 		const FRecastDebugPathfindingNode* MyNode = NodePool.Nodes.Find(SearchKey);
 		if (MyNode)
 		{
-			return MyNode->TotalCost;
+			// Static cast this to a float, for EQS scoring purposes float precision is OK.
+			return static_cast<float>(MyNode->TotalCost);
 		}
 
 		return BIG_NUMBER;
@@ -90,7 +92,7 @@ void UEnvQueryTest_PathfindingBatch::RunTest(FEnvQueryInstance& QueryInstance) c
 	}
 
 	TArray<FNavigationProjectionWork> TestPoints;
-	TArray<float> CollectDistanceSq;
+	TArray<FVector::FReal> CollectDistanceSq;
 	CollectDistanceSq.Init(0.0f, ContextLocations.Num());
 
 	TSubclassOf<UNavigationQueryFilter> NavFilterToUse = GetNavFilterClass(QueryInstance);
@@ -115,7 +117,7 @@ void UEnvQueryTest_PathfindingBatch::RunTest(FEnvQueryInstance& QueryInstance) c
 
 				for (int32 ContextIdx = 0; ContextIdx < ContextLocations.Num(); ContextIdx++)
 				{
-					const float TestDistanceSq = FVector::DistSquared(ItemLocation, ContextLocations[ContextIdx]);
+					const FVector::FReal TestDistanceSq = FVector::DistSquared(ItemLocation, ContextLocations[ContextIdx]);
 					CollectDistanceSq[ContextIdx] = FMath::Max(CollectDistanceSq[ContextIdx], TestDistanceSq);
 				}
 			}
@@ -133,7 +135,7 @@ void UEnvQueryTest_PathfindingBatch::RunTest(FEnvQueryInstance& QueryInstance) c
 		TArray<NavNodeRef> Polys;
 		for (int32 ContextIdx = 0; ContextIdx < ContextLocations.Num(); ContextIdx++)
 		{
-			const float MaxPathDistance = FMath::Sqrt(CollectDistanceSq[ContextIdx]) * RangeMultiplierValue;
+			const FVector::FReal MaxPathDistance = FMath::Sqrt(CollectDistanceSq[ContextIdx]) * RangeMultiplierValue;
 
 			Polys.Reset();
 			NodePoolData[ContextIdx].Flags = ERecastDebugPathfindingFlags::PathLength;
