@@ -18,10 +18,10 @@ bool FHeuristicSettings::IsEnabled() const
 	return BudgetMs > 0.0f;
 }
 
-float FHeuristicSettings::GetTargetedMs() const
+float FHeuristicSettings::GetTargetedMs(float InBudgetMs) const
 {
 	check(IsEnabled());
-	return BudgetMs * (1.0f - TargetedHeadRoom);
+	return InBudgetMs * (1.0f - TargetedHeadRoom);
 }
 
 float FHeuristicSettings::EstimateCostScale(float ResolutionFraction) const
@@ -42,10 +42,8 @@ float FHeuristicSettings::EstimateCostScale(float ResolutionFraction) const
 	return Cost;
 }
 
-float FHeuristicSettings::EstimateResolutionFactor(float TimingMs) const
+float FHeuristicSettings::EstimateResolutionFactor(float TargetedMS, float TimingMs) const
 {
-	float TargetedMS = GetTargetedMs();
-
 	float S = 1.0f;
 	if (Model == EHeuristicModel::Linear)
 	{

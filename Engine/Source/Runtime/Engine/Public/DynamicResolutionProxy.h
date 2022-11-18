@@ -19,7 +19,11 @@ public:
 	void Reset_RenderThread();
 
 	/** Create a new previous frame and feeds its timings and returns history's unique id. */
-	uint64 CreateNewPreviousFrameTimings_RenderThread(float GameThreadTimeMs, float RenderThreadTimeMs);
+	uint64 CreateNewPreviousFrameTimings_RenderThread(float FrameTime, float GameThreadTimeMs, float RenderThreadTimeMs, float RHIThreadTime);
+	FORCEINLINE uint64 CreateNewPreviousFrameTimings_RenderThread(float GameThreadTimeMs, float RenderThreadTimeMs)
+	{
+		return CreateNewPreviousFrameTimings_RenderThread(/* FrameTime = */ 0.0f, GameThreadTimeMs, RenderThreadTimeMs, /* RHIThreadTime = */ 0.0f);
+	}
 
 	/** Commit GPU busy times */
 	void CommitPreviousFrameGPUTimings_RenderThread(
@@ -55,14 +59,16 @@ private:
 	struct FrameHistoryEntry
 	{
 		// Thread timings in milliseconds.
-		float GameThreadTimeMs;
-		float RenderThreadTimeMs;
+		float FrameTimeMs = -1.0f;
+		float GameThreadTimeMs = -1.0f;
+		float RenderThreadTimeMs = -1.0f;
+		float RHIThreadTimeMs = -1.0f;
 
 		// Total GPU busy time for the entire frame in milliseconds.
-		float TotalFrameGPUBusyTimeMs;
+		float TotalFrameGPUBusyTimeMs = -1.0f;
 
 		// Total GPU busy time for the render thread commands that perform dynamic resolutions.
-		float GlobalDynamicResolutionTimeMs;
+		float GlobalDynamicResolutionTimeMs = -1.0f;
 
 		// Time for each individual timings
 		DynamicRenderScaling::TMap<float> BudgetTimingMs;
@@ -71,10 +77,6 @@ private:
 		DynamicRenderScaling::TMap<float> ResolutionFractions;
 
 		inline FrameHistoryEntry()
-			: GameThreadTimeMs(-1.0f)
-			, RenderThreadTimeMs(-1.0f)
-			, TotalFrameGPUBusyTimeMs(-1.0f)
-			, GlobalDynamicResolutionTimeMs(-1.0f)
 		{
 			ResolutionFractions.SetAll(1.0f);
 			BudgetTimingMs.SetAll(-1.0f);
@@ -92,6 +94,12 @@ private:
 	TArray<FrameHistoryEntry> History;
 	int32 PreviousFrameIndex;
 	int32 HistorySize;
+
+	// Exponential average of the CPU frame time.
+	float DynamicFrameTimeBudgetMs;
+
+	// Multiple of the VSync used.
+	int32 DynamicFrameTimeVSyncFactor = 0.0f;
 
 	// Counts the number of frame since the last screen percentage change.
 	int32 NumberOfFramesSinceScreenPercentageChange;

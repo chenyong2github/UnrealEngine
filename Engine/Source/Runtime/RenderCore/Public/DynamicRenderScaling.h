@@ -57,13 +57,13 @@ struct RENDERCORE_API FHeuristicSettings final
 	bool IsEnabled() const;
 
 	/** Returns the desired GPU cost to be targeted to have head room left to not go over budget. */
-	float GetTargetedMs() const;
+	float GetTargetedMs(float BudgetMs) const;
 
 	/** Returns how much the GPU cost scales for a given ResolutionFraction. */
 	float EstimateCostScale(float ResolutionFraction) const;
 
 	/** Returns how much the ResolutionFraction should scale for a GPU timing to fit to target. */
-	float EstimateResolutionFactor(float TimingMs) const;
+	float EstimateResolutionFactor(float TargetMs, float TimingMs) const;
 
 	/** Returns how much the GPU time should scale between two different resolution fraction. */
 	float EstimateTimeFactor(float CurrentResolutionFraction, float NewResolutionFraction) const;
