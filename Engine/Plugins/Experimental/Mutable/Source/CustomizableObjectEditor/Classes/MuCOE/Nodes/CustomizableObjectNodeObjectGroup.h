@@ -54,6 +54,7 @@ public:
 
 	// UCustomizableObjectNode interface
 	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
+	bool IsSingleOutputNode() const override;
 
 	// Own interface
 	UEdGraphPin* ObjectsPin() const

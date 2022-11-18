@@ -122,4 +122,10 @@ FText UCustomizableObjectNodeObjectGroup::GetTooltipText() const
 }
 
 
+bool UCustomizableObjectNodeObjectGroup::IsSingleOutputNode() const
+{
+	return true;
+}
+
+
 #undef LOCTEXT_NAMESPACE
