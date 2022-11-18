@@ -3044,7 +3044,7 @@ void FScene::GetLightIESAtlasSlot(const FLightSceneProxy* Proxy, FLightRenderPar
 {
 	if (Proxy)
 	{
-		check(IsInRenderingThread());
+		check(!IsInGameThread());
 		Out->IESAtlasIndex = IESAtlas::GetAtlasSlot(Proxy->IESAtlasId);
 	}
 }
