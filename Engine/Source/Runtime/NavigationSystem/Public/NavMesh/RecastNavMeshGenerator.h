@@ -478,7 +478,7 @@ protected:
 	/** Tile's bounding box, Unreal coords */
 	FBox TileBB;
 
-	/** Tile's bounding box expanded by Agent's radius *2 + CellSize, Unreal coords */
+	/** Tile's bounding box expanded by Agent's radius horizontally, Unreal coords */
 	FBox TileBBExpandedForAgent;
 	
 	/** Layers dirty flags */
