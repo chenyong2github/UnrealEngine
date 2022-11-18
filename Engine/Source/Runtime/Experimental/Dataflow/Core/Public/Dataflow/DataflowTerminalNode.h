@@ -37,6 +37,14 @@ struct DATAFLOWCORE_API FDataflowTerminalNode : public FDataflowNode
 
 	virtual ~FDataflowTerminalNode() { }
 
+	static FName StaticType() { return FName("FDataflowTerminalNode"); }
+
+	virtual bool IsA(FName InType) const override 
+	{ 
+		return InType.ToString().Equals(StaticType().ToString()) 
+			|| Super::IsA(InType); 
+	} 
+
 	//
 	// Error Checking
 	//
