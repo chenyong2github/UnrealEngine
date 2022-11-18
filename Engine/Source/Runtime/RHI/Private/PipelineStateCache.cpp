@@ -908,7 +908,7 @@ public:
 		if (Contains(Initializer))
 		{
 			return nullptr;
-		}
+		}		
 
 		FGraphicsPipelineState* NewState = nullptr;
 
@@ -2189,7 +2189,7 @@ bool PipelineStateCache::IsPSOPrecachingEnabled()
 	// Disables in the editor for now by default untill more testing is done - still WIP
 	return false;
 #else
-	return GPSOPrecaching != 0;
+	return GPSOPrecaching != 0 && GRHISupportsPipelineFileCache;
 #endif // WITH_EDITOR
 }
 
