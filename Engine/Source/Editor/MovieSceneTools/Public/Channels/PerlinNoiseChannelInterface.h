@@ -167,7 +167,7 @@ struct TPerlinNoiseChannelInterface : ISequencerChannelInterface
 		{
 			double Seconds = PaintArgs.TimeToPixel.PixelToSeconds(X);
 			double Y = (double)TypedChannel->Evaluate(Seconds);
-			CurvePoints.Add(FVector2D(X, (Y * YScale) + YOffset));
+			CurvePoints.Add(FVector2D(X, YOffset - (Y * YScale)));
 		}
 
 		FSlateDrawElement::MakeLines(
