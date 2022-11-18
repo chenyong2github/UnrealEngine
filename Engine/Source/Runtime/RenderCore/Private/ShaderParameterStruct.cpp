@@ -623,40 +623,7 @@ static void ExtractShaderParameters(
 	}
 }
 
-/** Utility class to populate FRHIShaderParameterResource based on types */
-struct FRHIShaderParameterResourceEx : public FRHIShaderParameterResource
-{
-	FRHIShaderParameterResourceEx()
-		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::Texture, nullptr, 0)
-	{
-	}
-	FRHIShaderParameterResourceEx(FRHITexture* InTexture, uint16 InIndex)
-		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::Texture, InTexture, InIndex)
-	{
-	}
-	FRHIShaderParameterResourceEx(FRHIShaderResourceView* InView, uint16 InIndex)
-		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::ResourceView, InView, InIndex)
-	{
-	}
-	FRHIShaderParameterResourceEx(FRHIUnorderedAccessView* InUAV, uint16 InIndex)
-		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::UnorderedAccessView, InUAV, InIndex)
-	{
-	}
-	FRHIShaderParameterResourceEx(FRHISamplerState* InSamplerState, uint16 InIndex)
-		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::Sampler, InSamplerState, InIndex)
-	{
-	}
-	FRHIShaderParameterResourceEx(FRHIUniformBuffer* InUniformBuffer, uint16 InIndex)
-		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::UniformBuffer, InUniformBuffer, InIndex)
-	{
-	}
-};
-
 #define UE_SINGLE_SHADER_PARAMETERS_COMMAND_INCLUDE_UB (0)
-
-inline int16 GetParameterIndex(const FShaderParameterBindings::FResourceParameter& Parameter) { return Parameter.BaseIndex; }
-inline int16 GetParameterIndex(const FShaderParameterBindings::FBindlessResourceParameter& Parameter) { return Parameter.GlobalConstantOffset; }
-inline int16 GetParameterIndex(const FShaderParameterBindings::FParameterStructReference& Parameter) { return Parameter.BufferIndex; }
 
 template<typename BindingParameterType>
 FRHIShaderParameterResource ExtractShaderParameterResource(FShaderParameterReader Reader, const BindingParameterType& Parameter)
@@ -669,32 +636,32 @@ FRHIShaderParameterResource ExtractShaderParameterResource(FShaderParameterReade
 	{
 		FRHITexture* Texture = Reader.Read<FRHITexture*>(Parameter);
 		checkSlow(Texture);
-		return FRHIShaderParameterResourceEx(Texture, GetParameterIndex(Parameter));
+		return FRHIShaderParameterResource(Texture, GetParameterIndex(Parameter));
 	}
 	case UBMT_SRV:
 	{
 		FRHIShaderResourceView* ShaderResourceView = Reader.Read<FRHIShaderResourceView*>(Parameter);
 		checkSlow(ShaderResourceView);
-		return FRHIShaderParameterResourceEx(ShaderResourceView, GetParameterIndex(Parameter));
+		return FRHIShaderParameterResource(ShaderResourceView, GetParameterIndex(Parameter));
 	}
 	case UBMT_UAV:
 	{
 		FRHIUnorderedAccessView* UnorderedAccessView = Reader.Read<FRHIUnorderedAccessView*>(Parameter);
 		checkSlow(UnorderedAccessView);
-		return FRHIShaderParameterResourceEx(UnorderedAccessView, GetParameterIndex(Parameter));
+		return FRHIShaderParameterResource(UnorderedAccessView, GetParameterIndex(Parameter));
 	}
 	case UBMT_SAMPLER:
 	{
 		FRHISamplerState* SamplerState = Reader.Read<FRHISamplerState*>(Parameter);
 		checkSlow(SamplerState);
-		return FRHIShaderParameterResourceEx(SamplerState, GetParameterIndex(Parameter));
+		return FRHIShaderParameterResource(SamplerState, GetParameterIndex(Parameter));
 	}
 	case UBMT_RDG_TEXTURE:
 	{
 		FRDGTexture* RDGTexture = Reader.Read<FRDGTexture*>(Parameter);
 		checkSlow(RDGTexture);
 		RDGTexture->MarkResourceAsUsed();
-		return FRHIShaderParameterResourceEx(RDGTexture->GetRHI(), GetParameterIndex(Parameter));
+		return FRHIShaderParameterResource(RDGTexture->GetRHI(), GetParameterIndex(Parameter));
 	}
 	case UBMT_RDG_TEXTURE_SRV:
 	case UBMT_RDG_BUFFER_SRV:
@@ -702,7 +669,7 @@ FRHIShaderParameterResource ExtractShaderParameterResource(FShaderParameterReade
 		FRDGShaderResourceView* RDGShaderResourceView = Reader.Read<FRDGShaderResourceView*>(Parameter);
 		checkSlow(RDGShaderResourceView);
 		RDGShaderResourceView->MarkResourceAsUsed();
-		return FRHIShaderParameterResourceEx(RDGShaderResourceView->GetRHI(), GetParameterIndex(Parameter));
+		return FRHIShaderParameterResource(RDGShaderResourceView->GetRHI(), GetParameterIndex(Parameter));
 	}
 	case UBMT_RDG_TEXTURE_UAV:
 	case UBMT_RDG_BUFFER_UAV:
@@ -710,11 +677,11 @@ FRHIShaderParameterResource ExtractShaderParameterResource(FShaderParameterReade
 		FRDGUnorderedAccessView* RDGUnorderedAccessView = Reader.Read<FRDGUnorderedAccessView*>(Parameter);
 		checkSlow(RDGUnorderedAccessView);
 		RDGUnorderedAccessView->MarkResourceAsUsed();
-		return FRHIShaderParameterResourceEx(RDGUnorderedAccessView->GetRHI(), GetParameterIndex(Parameter));
+		return FRHIShaderParameterResource(RDGUnorderedAccessView->GetRHI(), GetParameterIndex(Parameter));
 	}
 	default:
 		checkf(false, TEXT("Unhandled resource type?"));
-		return FRHIShaderParameterResourceEx();
+		return FRHIShaderParameterResource();
 	}
 }
 
@@ -763,8 +730,7 @@ static void ExtractShaderParameterResources(
 			{
 				UniformBufferBinding->MarkResourceAsUsed();
 
-				FRHIShaderParameterResourceEx Binding(UniformBufferBinding->GetRHI(), GetParameterIndex(Parameter));
-				OutResourceParameters.Emplace(Binding);
+				OutResourceParameters.Emplace(UniformBufferBinding->GetRHI(), GetParameterIndex(Parameter));
 			}
 		}
 
@@ -773,8 +739,7 @@ static void ExtractShaderParameterResources(
 			const FUniformBufferBinding& UniformBufferBinding = Reader.Read<FUniformBufferBinding>(Parameter);
 			if (UniformBufferBinding.IsShader())
 			{
-				FRHIShaderParameterResourceEx Binding(UniformBufferBinding.GetUniformBuffer(), GetParameterIndex(Parameter));
-				OutResourceParameters.Emplace(Binding);
+				OutResourceParameters.Emplace(UniformBufferBinding.GetUniformBuffer(), GetParameterIndex(Parameter));
 			}
 		}
 #endif // UE_SINGLE_SHADER_PARAMETERS_COMMAND_INCLUDE_UB

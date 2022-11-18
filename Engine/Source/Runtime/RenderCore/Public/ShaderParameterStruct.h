@@ -128,43 +128,69 @@ FORCEINLINE void ValidateShaderParameters(const TShaderRef<TShaderClass>& Shader
 	return ValidateShaderParameters(Shader, TShaderClass::FParameters::FTypeInfo::GetStructMetadata(), &Parameters);
 }
 
+template<typename TParameterType>
+inline void CollectUAVsToUnset(TArray<FRHIShaderParameterResource, TInlineAllocator<16>>& UAVsToUnset, const TMemoryImageArray<TParameterType>& InParameters)
+{
+	FRHIUnorderedAccessView* NullUAV = nullptr;
+	for (const TParameterType& Parameter : InParameters)
+	{
+		if (Parameter.BaseType == UBMT_UAV ||
+			Parameter.BaseType == UBMT_RDG_TEXTURE_UAV ||
+			Parameter.BaseType == UBMT_RDG_BUFFER_UAV)
+		{
+			UAVsToUnset.Emplace(NullUAV, GetParameterIndex(Parameter));
+		}
+	}
+}
+
+template<typename TParameterType>
+inline void CollectSRVsToUnset(TArray<FRHIShaderParameterResource, TInlineAllocator<16>>& SRVsToUnset, const TMemoryImageArray<TParameterType>& InParameters)
+{
+	FRHIShaderResourceView* NullSRV = nullptr;
+	for (const TParameterType& Parameter : InParameters)
+	{
+		if (Parameter.BaseType == UBMT_SRV ||
+			Parameter.BaseType == UBMT_RDG_TEXTURE_SRV ||
+			Parameter.BaseType == UBMT_RDG_BUFFER_SRV)
+		{
+			SRVsToUnset.Emplace(NullSRV, GetParameterIndex(Parameter));
+		}
+	}
+}
+
 /** Unset compute shader UAVs. */
 template<typename TRHICmdList, typename TShaderClass>
-inline void UnsetShaderUAVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIComputeShader* ShadeRHI)
+inline void UnsetShaderUAVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIComputeShader* ShaderRHI)
 {
 	// TODO(RDG): Once all shader sets their parameter through this, can refactor RHI so all UAVs of a shader get unset through a single RHI function call.
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
 
 	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use UnsetShaderUAVs() for root parameter buffer index."));
 
-	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.ResourceParameters)
-	{
-		if (ParameterBinding.BaseType == UBMT_UAV ||
-			ParameterBinding.BaseType == UBMT_RDG_TEXTURE_UAV ||
-			ParameterBinding.BaseType == UBMT_RDG_BUFFER_UAV)
-		{
-			RHICmdList.SetUAVParameter(ShadeRHI, ParameterBinding.BaseIndex, nullptr);
-		}
-	}
+	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> ResourceUAVsToUnset;
+	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> BindlessUAVsToUnset;
+
+	CollectUAVsToUnset(ResourceUAVsToUnset, Bindings.ResourceParameters);
+	CollectUAVsToUnset(BindlessUAVsToUnset, Bindings.BindlessResourceParameters);
+
+	RHICmdList.SetShaderParameters(ShaderRHI, {}, {}, ResourceUAVsToUnset, BindlessUAVsToUnset);
 }
 
 /** Unset compute shader SRVs. */
 template<typename TRHICmdList, typename TShaderClass>
-inline void UnsetShaderSRVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIComputeShader* ShadeRHI)
+inline void UnsetShaderSRVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIComputeShader* ShaderRHI)
 {
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
 
 	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use UnsetShaderSRVs() for root parameter buffer index."));
 
-	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.ResourceParameters)
-	{
-		if (ParameterBinding.BaseType == UBMT_SRV ||
-			ParameterBinding.BaseType == UBMT_RDG_TEXTURE_SRV ||
-			ParameterBinding.BaseType == UBMT_RDG_BUFFER_SRV)
-		{
-			RHICmdList.SetShaderResourceViewParameter(ShadeRHI, ParameterBinding.BaseIndex, nullptr);
-		}
-	}
+	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> ResourceSRVsToUnset;
+	TArray<FRHIShaderParameterResource, TInlineAllocator<16>> BindlessSRVsToUnset;
+
+	CollectSRVsToUnset(ResourceSRVsToUnset, Bindings.ResourceParameters);
+	CollectSRVsToUnset(BindlessSRVsToUnset, Bindings.BindlessResourceParameters);
+
+	RHICmdList.SetShaderParameters(ShaderRHI, {}, {}, ResourceSRVsToUnset, BindlessSRVsToUnset);
 }
 
 RENDERCORE_API void SetShaderParameters(

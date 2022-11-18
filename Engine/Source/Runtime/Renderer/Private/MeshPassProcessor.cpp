@@ -111,130 +111,70 @@ private:
 	const uint8* Data;
 };
 
-template<typename TRHICmdList, typename TRHIShader>
-FORCEINLINE void SetBindlessParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, FShaderResourceParameterInfo Parameter, FRHIDescriptorHandle Handle)
+struct FAllShaderParameters
 {
-	if (Handle.IsValid())
-	{
-		const uint32 BindlessIndex = Handle.GetIndex();
-		RHICmdList.SetShaderParameter(Shader, Parameter.BufferIndex, Parameter.BaseIndex, sizeof(BindlessIndex), &BindlessIndex);
-	}
-}
+	TArray<uint8> ParametersData;
+	TArray<FRHIShaderParameter> Parameters;
+	TArray<FRHIShaderParameterResource> ResourceParameters;
+	TArray<FRHIShaderParameterResource> BindlessParameters;
+};
 
-template<class TRHICmdList, class TRHIShader>
-inline void SetTextureParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, FShaderBindingState& RESTRICT ShaderBindingState, FShaderResourceParameterInfo Parameter, FRHITexture* TextureRHI)
+inline void SetTextureParameter(FAllShaderParameters& AllParameters, const FShaderResourceParameterInfo& Parameter, FRHITexture* TextureRHI)
 {
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	if (Parameter.Type == EShaderParameterType::BindlessResourceIndex)
 	{
-		const FRHIDescriptorHandle Handle = TextureRHI ? TextureRHI->GetDefaultBindlessHandle() : FRHIDescriptorHandle();
-		SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
+		check(Parameter.BufferIndex == 0);
+		AllParameters.BindlessParameters.Emplace(TextureRHI, Parameter.BaseIndex);
 	}
 	else
 #endif
 	{
-		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(ShaderBindingState.Textures));
-		if (TextureRHI != ShaderBindingState.Textures[Parameter.BaseIndex])
-		{
-			RHICmdList.SetShaderTexture(Shader, Parameter.BaseIndex, TextureRHI);
-
-			ShaderBindingState.Textures[Parameter.BaseIndex] = TextureRHI;
-			ShaderBindingState.MaxTextureUsed = FMath::Max((int32)Parameter.BaseIndex, ShaderBindingState.MaxTextureUsed);
-		}
+		AllParameters.ResourceParameters.Emplace(TextureRHI, Parameter.BaseIndex);
 	}
 }
 
-template<class TRHICmdList, class TRHIShader>
-inline void SetTextureParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, FShaderResourceParameterInfo Parameter, FRHITexture* TextureRHI)
+inline void SetSrvParameter(FAllShaderParameters& AllParameters, const FShaderResourceParameterInfo& Parameter, FRHIShaderResourceView* SrvRHI)
 {
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	if (Parameter.Type == EShaderParameterType::BindlessResourceIndex)
 	{
-		const FRHIDescriptorHandle Handle = TextureRHI ? TextureRHI->GetDefaultBindlessHandle() : FRHIDescriptorHandle();
-		SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
+		check(Parameter.BufferIndex == 0);
+		AllParameters.BindlessParameters.Emplace(SrvRHI, Parameter.BaseIndex);
 	}
 	else
 #endif
 	{
-		RHICmdList.SetShaderTexture(Shader, Parameter.BaseIndex, TextureRHI);
+		AllParameters.ResourceParameters.Emplace(SrvRHI, Parameter.BaseIndex);
 	}
 }
 
-template<class TRHICmdList, class TRHIShader>
-inline void SetSrvParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, FShaderBindingState& RESTRICT ShaderBindingState, FShaderResourceParameterInfo Parameter, FRHIShaderResourceView* SrvRHI)
-{
-#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
-	if (Parameter.Type == EShaderParameterType::BindlessResourceIndex)
-	{
-		const FRHIDescriptorHandle Handle = SrvRHI ? SrvRHI->GetBindlessHandle() : FRHIDescriptorHandle();
-		SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
-	}
-	else
-#endif
-	{
-		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(ShaderBindingState.SRVs));
-		if (SrvRHI != ShaderBindingState.SRVs[Parameter.BaseIndex])
-		{
-			RHICmdList.SetShaderResourceViewParameter(Shader, Parameter.BaseIndex, SrvRHI);
-
-			ShaderBindingState.SRVs[Parameter.BaseIndex] = SrvRHI;
-			ShaderBindingState.MaxSRVUsed = FMath::Max((int32)Parameter.BaseIndex, ShaderBindingState.MaxSRVUsed);
-		}
-	}
-}
-
-template<class TRHICmdList, class TRHIShader>
-inline void SetSrvParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, FShaderResourceParameterInfo Parameter, FRHIShaderResourceView* SrvRHI)
-{
-#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
-	if (Parameter.Type == EShaderParameterType::BindlessResourceIndex)
-	{
-		const FRHIDescriptorHandle Handle = SrvRHI ? SrvRHI->GetBindlessHandle() : FRHIDescriptorHandle();
-		SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
-	}
-	else
-#endif
-	{
-		RHICmdList.SetShaderResourceViewParameter(Shader, Parameter.BaseIndex, SrvRHI);
-	}
-}
-
-template<class TRHICmdList, class TRHIShader>
-inline void SetSamplerParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, FShaderBindingState& RESTRICT ShaderBindingState, FShaderResourceParameterInfo Parameter, FRHISamplerState* SamplerStateRHI)
+inline void SetSamplerParameter(FAllShaderParameters& AllParameters, const FShaderResourceParameterInfo& Parameter, FRHISamplerState* SamplerStateRHI)
 {
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	if (Parameter.Type == EShaderParameterType::BindlessSamplerIndex)
 	{
-		const FRHIDescriptorHandle Handle = SamplerStateRHI ? SamplerStateRHI->GetBindlessHandle() : FRHIDescriptorHandle();
-		SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
+		AllParameters.BindlessParameters.Emplace(SamplerStateRHI, Parameter.BaseIndex);
 	}
 	else
 #endif
 	{
-		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(ShaderBindingState.Samplers));
-		if (SamplerStateRHI != ShaderBindingState.Samplers[Parameter.BaseIndex])
-		{
-			RHICmdList.SetShaderSampler(Shader, Parameter.BaseIndex, SamplerStateRHI);
-
-			ShaderBindingState.Samplers[Parameter.BaseIndex] = SamplerStateRHI;
-			ShaderBindingState.MaxSamplerUsed = FMath::Max((int32)Parameter.BaseIndex, ShaderBindingState.MaxSamplerUsed);
-		}
+		AllParameters.ResourceParameters.Emplace(SamplerStateRHI, Parameter.BaseIndex);
 	}
 }
 
-template<class TRHICmdList, class TRHIShader>
-inline void SetSamplerParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, FShaderResourceParameterInfo Parameter, FRHISamplerState* SamplerStateRHI)
+inline void SetLooseParameters(FAllShaderParameters& AllParameters, const FShaderParameterMapInfo& ParameterMapInfo, const uint8* LooseDataStart)
 {
-#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
-	if (Parameter.Type == EShaderParameterType::BindlessSamplerIndex)
+	for (const FShaderLooseParameterBufferInfo& LooseParameterBuffer : ParameterMapInfo.LooseParameterBuffers)
 	{
-		const FRHIDescriptorHandle Handle = SamplerStateRHI ? SamplerStateRHI->GetBindlessHandle() : FRHIDescriptorHandle();
-		SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
-	}
-	else
-#endif
-	{
-		RHICmdList.SetShaderSampler(Shader, Parameter.BaseIndex, SamplerStateRHI);
+		for (const FShaderLooseParameterInfo& Parameter : LooseParameterBuffer.Parameters)
+		{
+			const int32 DataOffset = AllParameters.ParametersData.Num();
+			AllParameters.ParametersData.Append((const uint8*)LooseDataStart, Parameter.Size);
+			AllParameters.Parameters.Emplace(LooseParameterBuffer.BaseIndex, Parameter.BaseIndex, DataOffset, Parameter.Size);
+
+			LooseDataStart += Parameter.Size;
+		}
 	}
 }
 
@@ -248,6 +188,8 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 	FRHIUniformBuffer* const* RESTRICT UniformBufferBindings = SingleShaderBindings.GetUniformBufferStart();
 	const FShaderUniformBufferParameterInfo* RESTRICT UniformBufferParameters = SingleShaderBindings.ParameterMapInfo.UniformBuffers.GetData();
 	const int32 NumUniformBuffers = SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num();
+
+	FAllShaderParameters AllParameters;
 
 	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
 	{
@@ -272,7 +214,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		FShaderResourceParameterInfo Parameter = TextureSamplerParameters[SamplerIndex];
 		FRHISamplerState* Sampler = (FRHISamplerState*)SamplerBindings[SamplerIndex];
 
-		SetSamplerParameter(RHICmdList, Shader, ShaderBindingState, Parameter, Sampler);
+		SetSamplerParameter(AllParameters, Parameter, Sampler);
 	}
 
 	const uint8* RESTRICT SRVType = SingleShaderBindings.GetSRVTypeStart();
@@ -290,32 +232,24 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
 			FRHIShaderResourceView* SRV = (FRHIShaderResourceView*)SRVBindings[SRVIndex];
-			SetSrvParameter(RHICmdList, Shader, ShaderBindingState, Parameter, SRV);
+			SetSrvParameter(AllParameters, Parameter, SRV);
 		}
 		else
 		{
 			FRHITexture* Texture = (FRHITexture*)SRVBindings[SRVIndex];
-			SetTextureParameter(RHICmdList, Shader, ShaderBindingState, Parameter, Texture);
+			SetTextureParameter(AllParameters, Parameter, Texture);
 		}
 	}
 
-	const uint8* LooseDataStart = SingleShaderBindings.GetLooseDataStart();
+	SetLooseParameters(AllParameters, SingleShaderBindings.ParameterMapInfo, SingleShaderBindings.GetLooseDataStart());
 
-	for (const FShaderLooseParameterBufferInfo& LooseParameterBuffer : SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers)
-	{
-		for (FShaderLooseParameterInfo Parameter : LooseParameterBuffer.Parameters)
-		{
-			RHICmdList.SetShaderParameter(
-				Shader,
-				LooseParameterBuffer.BaseIndex,
-				Parameter.BaseIndex,
-				Parameter.Size,
-				LooseDataStart
-			);
-
-			LooseDataStart += Parameter.Size;
-		}
-	}
+	RHICmdList.SetShaderParameters(
+		Shader
+		, AllParameters.ParametersData
+		, AllParameters.Parameters
+		, AllParameters.ResourceParameters
+		, AllParameters.BindlessParameters
+	);
 }
 
 template<class RHICmdListType, class RHIShaderType>
@@ -327,6 +261,8 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 	FRHIUniformBuffer* const* RESTRICT UniformBufferBindings = SingleShaderBindings.GetUniformBufferStart();
 	const FShaderUniformBufferParameterInfo* RESTRICT UniformBufferParameters = SingleShaderBindings.ParameterMapInfo.UniformBuffers.GetData();
 	const int32 NumUniformBuffers = SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num();
+
+	FAllShaderParameters AllParameters;
 
 	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
 	{
@@ -350,7 +286,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 
 		if (Sampler)
 		{
-			SetSamplerParameter(RHICmdList, Shader, Parameter, Sampler);
+			SetSamplerParameter(AllParameters, Parameter, Sampler);
 		}
 	}
 
@@ -369,32 +305,24 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
 			FRHIShaderResourceView* SRV = (FRHIShaderResourceView*)SRVBindings[SRVIndex];
-			SetSrvParameter(RHICmdList, Shader, Parameter, SRV);
+			SetSrvParameter(AllParameters, Parameter, SRV);
 		}
 		else
 		{
 			FRHITexture* Texture = (FRHITexture*)SRVBindings[SRVIndex];
-			SetTextureParameter(RHICmdList, Shader, Parameter, Texture);
+			SetTextureParameter(AllParameters, Parameter, Texture);
 		}
 	}
-	
-	const uint8* LooseDataStart = SingleShaderBindings.GetLooseDataStart();
 
-	for (const FShaderLooseParameterBufferInfo& LooseParameterBuffer : SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers)
-	{
-		for (FShaderLooseParameterInfo Parameter : LooseParameterBuffer.Parameters)
-		{
-			RHICmdList.SetShaderParameter(
-				Shader,
-				LooseParameterBuffer.BaseIndex,
-				Parameter.BaseIndex,
-				Parameter.Size,
-				LooseDataStart
-			);
+	SetLooseParameters(AllParameters, SingleShaderBindings.ParameterMapInfo, SingleShaderBindings.GetLooseDataStart());
 
-			LooseDataStart += Parameter.Size;
-		}
-	}
+	RHICmdList.SetShaderParameters(
+		Shader
+		, AllParameters.ParametersData
+		, AllParameters.Parameters
+		, AllParameters.ResourceParameters
+		, AllParameters.BindlessParameters
+	);
 }
 
 #if RHI_RAYTRACING

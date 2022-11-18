@@ -771,6 +771,10 @@ public:
 
 }; // FShaderParameterBindings
 
+inline int16 GetParameterIndex(const FShaderParameterBindings::FResourceParameter& Parameter) { return Parameter.BaseIndex; }
+inline int16 GetParameterIndex(const FShaderParameterBindings::FBindlessResourceParameter& Parameter) { return Parameter.GlobalConstantOffset; }
+inline int16 GetParameterIndex(const FShaderParameterBindings::FParameterStructReference& Parameter) { return Parameter.BufferIndex; }
+
 // Flags that can specialize shader permutations compiled for specific platforms
 enum class EShaderPermutationFlags : uint32
 {

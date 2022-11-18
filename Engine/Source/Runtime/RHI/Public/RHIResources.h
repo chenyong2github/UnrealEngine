@@ -4355,14 +4355,35 @@ struct FRHIShaderParameterResource
 		UniformBuffer,
 	};
 
+	FRHIShaderParameterResource() = default;
 	FRHIShaderParameterResource(EType InType, FRHIResource* InResource, uint16 InIndex)
 		: Resource(InResource)
 		, Index(InIndex)
 		, Type(InType)
 	{
 	}
+	FRHIShaderParameterResource(FRHITexture* InTexture, uint16 InIndex)
+		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::Texture, InTexture, InIndex)
+	{
+	}
+	FRHIShaderParameterResource(FRHIShaderResourceView* InView, uint16 InIndex)
+		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::ResourceView, InView, InIndex)
+	{
+	}
+	FRHIShaderParameterResource(FRHIUnorderedAccessView* InUAV, uint16 InIndex)
+		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::UnorderedAccessView, InUAV, InIndex)
+	{
+	}
+	FRHIShaderParameterResource(FRHISamplerState* InSamplerState, uint16 InIndex)
+		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::Sampler, InSamplerState, InIndex)
+	{
+	}
+	FRHIShaderParameterResource(FRHIUniformBuffer* InUniformBuffer, uint16 InIndex)
+		: FRHIShaderParameterResource(FRHIShaderParameterResource::EType::UniformBuffer, InUniformBuffer, InIndex)
+	{
+	}
 
-	FRHIResource* Resource;
-	uint16        Index;
-	EType         Type;
+	FRHIResource* Resource = nullptr;
+	uint16        Index = 0;
+	EType         Type = EType::Texture;
 };

@@ -615,19 +615,11 @@ private:
 
 class FShaderBindingState
 {
-	enum { MAX_SRVS_PER_STAGE = 128 };
 	enum { MAX_UNIFORM_BUFFERS_PER_STAGE = 14 };
-	enum { MAX_SAMPLERS_PER_STAGE = 32 };
 
 public:
-	int32 MaxSRVUsed = -1;
-	FRHIShaderResourceView* SRVs[MAX_SRVS_PER_STAGE] = {};
 	int32 MaxUniformBufferUsed = -1;
 	FRHIUniformBuffer* UniformBuffers[MAX_UNIFORM_BUFFERS_PER_STAGE] = {};
-	int32 MaxTextureUsed = -1;
-	FRHITexture* Textures[MAX_SRVS_PER_STAGE] = {};
-	int32 MaxSamplerUsed = -1;
-	FRHISamplerState* Samplers[MAX_SAMPLERS_PER_STAGE] = {};
 };
 
 struct FMeshProcessorShaders
@@ -732,33 +724,12 @@ public:
 		{
 			FShaderBindingState& RESTRICT ShaderBinding = ShaderBindings[FrequencyIndex];
 
-			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxSRVUsed; SlotIndex++)
-			{
-				ShaderBinding.SRVs[SlotIndex] = nullptr;
-			}
-
-			ShaderBinding.MaxSRVUsed = -1;
-
 			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxUniformBufferUsed; SlotIndex++)
 			{
 				ShaderBinding.UniformBuffers[SlotIndex] = nullptr;
 			}
 
 			ShaderBinding.MaxUniformBufferUsed = -1;
-			
-			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxTextureUsed; SlotIndex++)
-			{
-				ShaderBinding.Textures[SlotIndex] = nullptr;
-			}
-
-			ShaderBinding.MaxTextureUsed = -1;
-
-			for (int32 SlotIndex = 0; SlotIndex <= ShaderBinding.MaxSamplerUsed; SlotIndex++)
-			{
-				ShaderBinding.Samplers[SlotIndex] = nullptr;
-			}
-
-			ShaderBinding.MaxSamplerUsed = -1;
 		}
 	}
 
