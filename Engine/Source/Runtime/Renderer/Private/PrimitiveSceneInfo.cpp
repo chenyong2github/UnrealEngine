@@ -232,6 +232,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 
 #if RHI_RAYTRACING
 	RayTracingGeometries = InComponent->SceneProxy->MoveRayTracingGeometries();
+	CachedRayTracingGeometry = nullptr;
 #endif
 }
 
@@ -266,6 +267,11 @@ FRHIRayTracingGeometry* FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstance
 	}
 	else
 	{
+		if (LodLevel == 0 && CachedRayTracingGeometry && CachedRayTracingGeometry->IsValid())
+		{
+			return CachedRayTracingGeometry->RayTracingGeometryRHI;
+		}
+
 		return nullptr;
 	}
 }
@@ -991,6 +997,8 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* Sc
 		SceneInfo->UpdateCachedRayTracingInstanceWorldBounds(SceneProxy->GetLocalToWorld());
 
 		SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
+
+		SceneInfo->CachedRayTracingGeometry = CachedRayTracingInstance.Geometry;
 
 		if (Nanite::GetRayTracingMode() != Nanite::ERayTracingMode::Fallback && SceneProxy->IsNaniteMesh())
 		{

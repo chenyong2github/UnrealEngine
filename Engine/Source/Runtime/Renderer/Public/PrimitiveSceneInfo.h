@@ -695,6 +695,10 @@ private:
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometry*> RayTracingGeometries;
 
+	// Cache pointer to FRayTracingGeometry used by cached ray tracing instance
+	// since primitives using ERayTracingPrimitiveFlags::CacheInstances don't fill the RayTracingGeometries array above
+	const FRayTracingGeometry* CachedRayTracingGeometry;
+
 	/** Creates cached ray tracing representations for all meshes. */
 	static void CacheRayTracingPrimitives(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 
