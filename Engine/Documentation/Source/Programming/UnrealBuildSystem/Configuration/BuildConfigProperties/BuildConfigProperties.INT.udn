@@ -86,6 +86,8 @@ $ bUseFastMonoCalls : New Monolithic Graphics drivers have optional "fast calls"
 
 $ NumIncludedBytesPerUnityCPP : An approximate number of bytes of C++ code to target for inclusion in a single unified C++ file.
 
+$ bDisableModuleNumIncludedBytesPerUnityCPPOverride : Disables overrides that are set by the module
+
 $ bStressTestUnity : Whether to stress test the C++ unity build robustness by including all C++ files files in a project from a single unified file.
 
 $ bDetailedUnityFiles : Whether to add additional information to the unity files, such as '_of_X' in the file name.
