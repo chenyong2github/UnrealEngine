@@ -214,8 +214,8 @@ namespace Horde.Build.Logs
 				stream.WriteByte((byte)'{');
 
 				stream.Write(Encoding.UTF8.GetBytes($"\"index\":{index},"));
-				stream.Write(Encoding.UTF8.GetBytes($"\"count\":{count},"));
-				stream.Write(Encoding.UTF8.GetBytes($"\"maxLineIndex\":{metadata.MaxLineIndex},"));
+				stream.Write(Encoding.UTF8.GetBytes($"\"count\":{lines.Count},"));
+				stream.Write(Encoding.UTF8.GetBytes($"\"maxLineIndex\":{Math.Max(metadata.MaxLineIndex, index + lines.Count)},"));
 				stream.Write(Encoding.UTF8.GetBytes($"\"format\":{ (logFile.Type == LogType.Json ? "\"JSON\"" : "\"TEXT\"")},"));
 
 				stream.Write(Encoding.UTF8.GetBytes($"\"lines\":["));

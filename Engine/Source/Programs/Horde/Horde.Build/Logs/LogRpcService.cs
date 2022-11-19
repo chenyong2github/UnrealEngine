@@ -21,6 +21,7 @@ namespace Horde.Build.Logs
 	public class LogRpcService : LogRpc.LogRpcBase
 	{
 		readonly ILogFileService _logFileService;
+		readonly ILogFileCollection _logFileCollection;
 		readonly LogTailService _logTailService;
 		readonly StorageService _storageService;
 		readonly ILogger<LogRpcService> _logger;
@@ -28,9 +29,10 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogRpcService(ILogFileService logFileService, LogTailService logTailService, StorageService storageService, ILogger<LogRpcService> logger)
+		public LogRpcService(ILogFileService logFileService, ILogFileCollection logFileCollection, LogTailService logTailService, StorageService storageService, ILogger<LogRpcService> logger)
 		{
 			_logFileService = logFileService;
+			_logFileCollection = logFileCollection;
 			_logTailService = logTailService;
 			_storageService = storageService;
 			_logger = logger;
@@ -52,6 +54,8 @@ namespace Horde.Build.Logs
 			IStorageClient store = await _storageService.GetClientAsync(Namespace.Logs, context.CancellationToken);
 			_logger.LogInformation("Updating {LogId} to node {Locator}", request.LogId, request.BlobLocator);
 			await store.WriteRefTargetAsync(new RefName(request.LogId), NodeLocator.Parse(request.BlobLocator));
+
+			await _logFileCollection.UpdateLineCountAsync(logFile, request.LineCount, CancellationToken.None);
 
 			await _logTailService.FlushAsync(logFile.Id, request.LineCount);
 

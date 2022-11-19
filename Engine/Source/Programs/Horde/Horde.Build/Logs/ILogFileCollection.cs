@@ -64,6 +64,15 @@ namespace Horde.Build.Logs
 		Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, LogId? logId = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
+		/// Updates the line count for a log file (v2 backend only)
+		/// </summary>
+		/// <param name="logFileInterface">The current log file</param>
+		/// <param name="lineCount">New line count for the log file</param>
+		/// <param name="cancellationToken">Cancellation token for the call</param>
+		/// <returns>The updated log file document</returns>
+		Task<ILogFile> UpdateLineCountAsync(ILogFile logFileInterface, int lineCount, CancellationToken cancellationToken);
+
+		/// <summary>
 		/// Adds a new chunk
 		/// </summary>
 		/// <param name="logFileInterface">The current log file</param>

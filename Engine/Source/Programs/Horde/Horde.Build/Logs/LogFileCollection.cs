@@ -73,6 +73,7 @@ namespace Horde.Build.Logs
 
 			public List<LogChunkDocument> Chunks { get; set; } = new List<LogChunkDocument>();
 
+			public int LineCount { get; set; }
 			public RefName RefName { get; set; }
 
 			[BsonRequired]
@@ -129,6 +130,14 @@ namespace Horde.Build.Logs
 			LogFileDocument newLogFile = new (jobId, sessionId, type, logId);
 			await _logFiles.InsertOneAsync(newLogFile, null, cancellationToken);
 			return newLogFile;
+		}
+
+		/// <inheritdoc/>
+		public async Task<ILogFile> UpdateLineCountAsync(ILogFile logFileInterface, int lineCount, CancellationToken cancellationToken)
+		{
+			FilterDefinition<LogFileDocument> filter = Builders<LogFileDocument>.Filter.Eq(x => x.Id, logFileInterface.Id);
+			UpdateDefinition<LogFileDocument> update = Builders<LogFileDocument>.Update.Set(x => x.LineCount, lineCount).Inc(x => x.UpdateIndex, 1);
+			return await _logFiles.FindOneAndUpdateAsync(filter, update, new FindOneAndUpdateOptions<LogFileDocument, ILogFile> { ReturnDocument = ReturnDocument.After }, cancellationToken);
 		}
 
 		/// <inheritdoc/>

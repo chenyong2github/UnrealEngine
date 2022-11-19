@@ -65,11 +65,6 @@ namespace Horde.Build.Logs
 		public LogType Type { get; set; }
 
 		/// <summary>
-        /// Length of the log, in bytes
-        /// </summary>
-        public long Length { get; set; }
-
-		/// <summary>
         /// Number of lines in the file
         /// </summary>
         public int LineCount { get; set; }
@@ -84,7 +79,6 @@ namespace Horde.Build.Logs
             Id = logFile.Id.ToString();
             JobId = logFile.JobId.ToString();
 			Type = logFile.Type;
-            Length = metadata.Length;
             LineCount = metadata.MaxLineIndex;
 		}
 	}

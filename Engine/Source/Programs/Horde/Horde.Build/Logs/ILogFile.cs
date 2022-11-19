@@ -84,6 +84,11 @@ namespace Horde.Build.Logs
 		/// Name of the ref used to store data for this log
 		/// </summary>
 		public RefName RefName { get; }
+
+		/// <summary>
+		/// Number of lines (V2 storage backend)
+		/// </summary>
+		public int LineCount { get; }
 	}
 
 	/// <summary>

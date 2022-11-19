@@ -925,19 +925,32 @@ namespace Horde.Build.Logs
 		public async Task<LogMetadata> GetMetadataAsync(ILogFile logFile, CancellationToken cancellationToken)
 		{
 			LogMetadata metadata = new LogMetadata();
-			if (logFile.Chunks.Count > 0)
+			if (_settings.Value.FeatureFlags.EnableNewLogger)
 			{
-				ILogChunk chunk = logFile.Chunks[logFile.Chunks.Count - 1];
-				if (logFile.MaxLineIndex == null || chunk.Length == 0)
+				metadata.MaxLineIndex = logFile.LineCount;
+
+				int nextIdx = await _logTailService.GetTailNext(logFile.Id);
+				if (nextIdx != -1)
 				{
-					LogChunkData chunkData = await ReadChunkAsync(logFile, logFile.Chunks.Count - 1);
-					metadata.Length = chunk.Offset + chunkData.Length;
-					metadata.MaxLineIndex = chunk.LineIndex + chunkData.LineCount;
+					metadata.MaxLineIndex = nextIdx;
 				}
-				else
+			}
+			else
+			{
+				if (logFile.Chunks.Count > 0)
 				{
-					metadata.Length = chunk.Offset + chunk.Length;
-					metadata.MaxLineIndex = logFile.MaxLineIndex.Value;
+					ILogChunk chunk = logFile.Chunks[logFile.Chunks.Count - 1];
+					if (logFile.MaxLineIndex == null || chunk.Length == 0)
+					{
+						LogChunkData chunkData = await ReadChunkAsync(logFile, logFile.Chunks.Count - 1);
+						metadata.Length = chunk.Offset + chunkData.Length;
+						metadata.MaxLineIndex = chunk.LineIndex + chunkData.LineCount;
+					}
+					else
+					{
+						metadata.Length = chunk.Offset + chunk.Length;
+						metadata.MaxLineIndex = logFile.MaxLineIndex.Value;
+					}
 				}
 			}
 			return metadata;
