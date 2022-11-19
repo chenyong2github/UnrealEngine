@@ -1098,7 +1098,7 @@ void FPCGEditor::OnExportNodes()
 
 void FPCGEditor::OnConvertToStandaloneNodes()
 {
-	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorCollapseInSubgraphMessage", "PCG Editor: Converting instanced nodes to standalone"), nullptr);
+	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorConvertToStandaloneMessage", "PCG Editor: Converting instanced nodes to standalone"), nullptr);
 
 	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 	{

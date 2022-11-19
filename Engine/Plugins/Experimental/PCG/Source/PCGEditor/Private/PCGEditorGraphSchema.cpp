@@ -289,7 +289,7 @@ void UPCGEditorGraphSchema::GetSettingsElementActions(FGraphActionMenuBuilder& A
 				NewSettingsActionCopy->Behavior = EPCGEditorNewSettingsBehavior::ForceCopy;
 				ActionMenuBuilder.AddAction(NewSettingsActionCopy);
 
-				TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsActionInstance(new FPCGEditorGraphSchemaAction_NewSettingsElement(MenuAndSubCategory, LOCTEXT("ContextMenuCopySettings", "Instance"), Description, 0));
+				TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsActionInstance(new FPCGEditorGraphSchemaAction_NewSettingsElement(MenuAndSubCategory, LOCTEXT("ContextMenuInstanceSettings", "Instance"), Description, 0));
 				NewSettingsActionInstance->SettingsObjectPath = AssetData.GetSoftObjectPath();
 				NewSettingsActionInstance->Behavior = EPCGEditorNewSettingsBehavior::ForceInstance;
 				ActionMenuBuilder.AddAction(NewSettingsActionInstance);
