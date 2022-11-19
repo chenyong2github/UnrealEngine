@@ -75,21 +75,29 @@ void FLiveLinkModule::OnEngineLoopInitComplete()
 {
 	ULiveLinkPreset* StartupPreset = nullptr;
 	const FString& CommandLine = FCommandLine::Get();
-	const TCHAR* PresetStr = TEXT("LiveLink.Preset.Apply Preset=");
-	const int32 FoundElement = CommandLine.Find(PresetStr);
-	if (FoundElement != INDEX_NONE)
+	const TCHAR* PresetStr = TEXT("LiveLink.Preset.Apply Preset="); // expected inside an -ExecCmds="" argument. So our command should end either on ',' or '"'.
+	const int32 CommandStartPos = CommandLine.Find(PresetStr);
+
+	if (CommandStartPos != INDEX_NONE)
 	{
-		int32 LiveLinkArgumentEnd = CommandLine.Find(",", ESearchCase::IgnoreCase, ESearchDir::FromStart, FoundElement);
-		if (LiveLinkArgumentEnd == INDEX_NONE)
+		int32 PresetEndPos = CommandLine.Find(",", ESearchCase::IgnoreCase, ESearchDir::FromStart, CommandStartPos);
+		const int32 NextDoubleQuotesPos = CommandLine.Find("\"", ESearchCase::IgnoreCase, ESearchDir::FromStart, CommandStartPos);
+
+		if ((PresetEndPos != INDEX_NONE) && (NextDoubleQuotesPos != INDEX_NONE))
 		{
-			LiveLinkArgumentEnd = CommandLine.Find("\"", ESearchCase::IgnoreCase, ESearchDir::FromStart, FoundElement);
+			PresetEndPos = FMath::Min(PresetEndPos, NextDoubleQuotesPos);
 		}
-		if (LiveLinkArgumentEnd != INDEX_NONE)
+		else if (NextDoubleQuotesPos != INDEX_NONE)
 		{
-			const int32 StartIndex = FoundElement + FCString::Strlen(PresetStr);
-			if (CommandLine.IsValidIndex(StartIndex) && CommandLine.IsValidIndex(LiveLinkArgumentEnd))
+			PresetEndPos = NextDoubleQuotesPos;
+		}
+
+		if (PresetEndPos != INDEX_NONE)
+		{
+			const int32 PresetStartPos = CommandStartPos + FCString::Strlen(PresetStr);
+			if (CommandLine.IsValidIndex(PresetStartPos) && CommandLine.IsValidIndex(PresetEndPos))
 			{
-				const FString LiveLinkPresetName = CommandLine.Mid(StartIndex, LiveLinkArgumentEnd - StartIndex);
+				const FString LiveLinkPresetName = CommandLine.Mid(PresetStartPos, PresetEndPos - PresetStartPos);
 				StartupPreset = Cast<ULiveLinkPreset>(StaticLoadObject(ULiveLinkPreset::StaticClass(), nullptr, *LiveLinkPresetName));
 			}
 		}

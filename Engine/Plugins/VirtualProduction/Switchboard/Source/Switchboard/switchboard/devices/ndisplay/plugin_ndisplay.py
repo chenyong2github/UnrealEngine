@@ -21,7 +21,7 @@ from switchboard.config import CONFIG, BoolSetting, FilePathSetting, \
     StringListSetting, migrate_comma_separated_string_to_list
 from switchboard.devices.device_widget_base import AddDeviceDialog
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, \
-    DeviceWidgetUnreal
+    DeviceWidgetUnreal, LiveLinkPresetSetting
 from switchboard.devices.unreal.uassetparser import UassetParser
 from switchboard.switchboard_logging import LOGGER
 
@@ -96,16 +96,32 @@ class AddnDisplayDialog(AddDeviceDialog):
         Populate the config combobox with the already found configs, avoiding
         having to re-find every time.
         '''
+
+         # cache the current value of the combo box (currently selected preset for this device)
+        cur_item = self.cbConfigs.currentData()
+
         self.cbConfigs.clear()
 
-        itemDatas = DevicenDisplay.csettings[
-            'populated_config_itemDatas'].get_value()
+        itemDatas = DeviceUnreal.csettings['asset_itemDatas'].get_value()
+
+        def asset_is_nDisplay_config(itemData:dict) -> bool:
+            ''' Convenience function to filter the nDisplay configs '''
+
+            # Only return assets of the correct class
+            return itemData['classname'] in DeviceUnreal.NDISPLAY_CLASS_NAMES
 
         try:
-            for itemData in itemDatas:
+            for itemData in [itemData for itemData in itemDatas if asset_is_nDisplay_config(itemData)]:
                 self.cbConfigs.addItem(itemData['name'], itemData)
         except Exception:
             LOGGER.error('Error recalling config itemDatas')
+
+        # restore selected item
+        for item_idx in range(self.cbConfigs.count()):
+            if cur_item and (cur_item['name'] == self.cbConfigs.itemData(item_idx)['name']):
+                self.cbConfigs.setCurrentIndex(item_idx)
+                break
+
 
     def current_config_path(self):
         ''' Get currently selected config path in the combobox '''
@@ -159,127 +175,7 @@ class AddnDisplayDialog(AddDeviceDialog):
     def on_clicked_btnFindConfigs(self):
         ''' Finds and populates config combobox '''
 
-        project_configs_path = os.path.normpath(
-            CONFIG.get_project_content_dir())
-
-        # search_paths stores a list of tuples of the form
-        # (unreal_plugin, directory_path). This allows us to differentiate
-        # between nDisplay configs in the project (unreal_plugin is None in
-        # that case) and configs in a plugin.
-        search_paths = [(None, project_configs_path)]
-
-        for unreal_content_plugin in CONFIG.get_unreal_content_plugins():
-            search_paths.append(
-                (unreal_content_plugin,
-                 unreal_content_plugin.plugin_content_path))
-
-        config_names = []
-        config_paths = []
-        config_plugins = []
-
-        assets = []
-
-        for (unreal_content_plugin, configs_path) in search_paths:
-            for dirpath, _, file_names in os.walk(configs_path):
-                for file_name in file_names:
-                    if not file_name.lower().endswith(
-                            ('.uasset', '.ndisplay')):
-                        continue
-
-                    if file_name not in config_names:
-                        config_path = os.path.join(dirpath, file_name)
-                        ext = os.path.splitext(file_name)[1]
-
-                        # Since .uasset is a generic asset container, only add
-                        # assets of the right config class.
-                        if ext.lower() == '.uasset':
-                            assets.append({
-                                'name': file_name,
-                                'path': config_path,
-                                'plugin': unreal_content_plugin
-                            })
-                        else:
-                            config_names.append(file_name)
-                            config_paths.append(config_path)
-                            config_plugins.append(unreal_content_plugin)
-
-        # process the assets in a multi-threaded fashion
-
-        # show a progress bar if it is taking more a trivial amount of time
-        progressDiag = QtWidgets.QProgressDialog(
-            'Parsing assets...', 'Cancel', 0, 0, parent=self)
-        progressDiag.setWindowTitle('nDisplay Config Finder')
-        progressDiag.setModal(True)
-        progressDiag.setMinimumDuration(1000)  # time before it shows up
-        progressDiag.setRange(0, len(assets))
-        progressDiag.setCancelButton(None)
-        # Looks much better without the window frame.
-        progressDiag.setWindowFlag(QtCore.Qt.FramelessWindowHint)
-
-        ''' Returns the asset if it is an nDisplay config '''
-        def validateConfigAsset(asset):
-
-            with open(asset['path'], 'rb') as file:
-
-                aparser = UassetParser(file, allowUnversioned=True)
-
-                for assetdata in aparser.aregdata:
-                    if assetdata.ObjectClassName in DisplayConfig.VALID_CLASS_NAMES:
-                        return asset
-
-            raise ValueError
-
-        numThreads = 8
-        doneAssetCount = 0
-
-        with concurrent.futures.ThreadPoolExecutor(
-                max_workers=numThreads) as executor:
-            futures = [
-                executor.submit(validateConfigAsset, asset)
-                for asset in assets]
-
-            for future in concurrent.futures.as_completed(futures):
-
-                # Update progress bar.
-                doneAssetCount += 1
-                progressDiag.setValue(doneAssetCount)
-
-                # Get the future result and add to list of config names and
-                # paths.
-                try:
-                    asset = future.result()
-                    config_names.append(asset['name'])
-                    config_paths.append(asset['path'])
-                    config_plugins.append(asset['plugin'])
-                except Exception:
-                    pass
-
-        config_names, _ = sb_dialog.SwitchboardDialog.generate_disambiguated_names(config_paths, AddnDisplayDialog.generate_short_unique_config_name)
-
-        # close progress bar window
-        progressDiag.close()
-
-        # collect the found config files into the itemDatas list
-
-        itemDatas = []
-
-        for idx, config_name in enumerate(config_names):
-            config_plugin = config_plugins[idx]
-            uplugin_file_path = (
-                str(config_plugin.uplugin_file_path) if config_plugin
-                else None)
-            itemData = {
-                'name': config_name,
-                'path': config_paths[idx],
-                'uplugin_file_path': uplugin_file_path}
-            itemDatas.append(itemData)
-
-        # sort by name
-        itemDatas.sort(key=lambda itemData: itemData['name'])
-
-        # update settings that should survive device removal and addition
-        DevicenDisplay.csettings['populated_config_itemDatas'].update_value(
-            itemDatas)
+        DeviceUnreal.analyze_project_assets()
 
         # update the combo box with the items.
         self.recall_config_itemDatas()
@@ -368,11 +264,6 @@ class DeviceWidgetnDisplay(DeviceWidgetUnreal):
 
 class DisplayConfig(object):
     ''' Encapsulates nDisplay config'''
-
-    VALID_CLASS_NAMES = (
-        'DisplayClusterBlueprint',
-        '/Script/DisplayCluster.DisplayClusterBlueprint'
-    )
 
     def __init__(self):
         self.nodes = []
@@ -553,6 +444,13 @@ class DevicenDisplay(DeviceUnreal):
             value=True,
             tool_tip="When checked, adds DisableAllScreenMessages to ExecCmds"
         ),
+        'livelink_preset': LiveLinkPresetSetting(
+            attr_name='livelink_preset',
+            nice_name='LiveLink Preset',
+            value='',
+            tool_tip=(
+                'Adds the selected LiveLink preset to the command line \n')
+        ),
     }
 
     ndisplay_monitor_ui = None
@@ -681,6 +579,7 @@ class DevicenDisplay(DeviceUnreal):
             DevicenDisplay.csettings['priority_modifier'],
             DevicenDisplay.csettings['udpmessaging_unicast_endpoint'],
             DevicenDisplay.csettings['udpmessaging_extra_static_endpoints'],
+            DevicenDisplay.csettings['livelink_preset'],
             CONFIG.ENGINE_DIR,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
             CONFIG.UPROJECT_PATH,
@@ -875,7 +774,23 @@ class DevicenDisplay(DeviceUnreal):
 
         if DevicenDisplay.csettings['disable_all_screen_messages'].get_value() and 'DisableAllScreenMessages' not in exec_cmds:
             exec_cmds.append('DisableAllScreenMessages')
+        
+        # LiveLink presets can be applied as ExecCmds
+        # e.g. of command:
+        #   "LiveLink.Preset.Apply Preset=/Game/Folder/MyLiveLinkPreset.MyLiveLinkPreset"
+
+        livelink_preset_gamepath = DeviceUnreal.csettings["livelink_preset"].get_value(self.name)
+
+        if livelink_preset_gamepath:
+
+            ext = '.uasset'
+
+            if livelink_preset_gamepath.endswith(ext):
+                livelink_preset_gamepath = livelink_preset_gamepath[:len(livelink_preset_gamepath)-len(ext)]
             
+            preset_name = os.path.basename(os.path.normpath(livelink_preset_gamepath))
+            exec_cmds.append(f"LiveLink.Preset.Apply Preset={livelink_preset_gamepath}.{preset_name}")
+
         exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
 
         if len(exec_cmds):
@@ -1063,7 +978,7 @@ class DevicenDisplay(DeviceUnreal):
             # ConfigExport tag and parse it.
 
             for assetdata in aparser.aregdata:
-                if assetdata.ObjectClassName in DisplayConfig.VALID_CLASS_NAMES:
+                if assetdata.ObjectClassName in DeviceUnreal.NDISPLAY_CLASS_NAMES:
                     return assetdata.tags['ConfigExport']
 
         raise ValueError('Invalid nDisplay config .uasset')
