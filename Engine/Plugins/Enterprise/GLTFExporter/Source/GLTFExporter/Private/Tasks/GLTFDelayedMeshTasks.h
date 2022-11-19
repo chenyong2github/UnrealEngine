@@ -29,10 +29,7 @@ public:
 	{
 	}
 
-	virtual FString GetName() override
-	{
-		return StaticMeshComponent != nullptr ? FGLTFNameUtility::GetName(StaticMeshComponent) : StaticMesh->GetName();
-	}
+	virtual FString GetName() override;
 
 	virtual void Process() override;
 
@@ -63,10 +60,7 @@ public:
 	{
 	}
 
-	virtual FString GetName() override
-	{
-		return SkeletalMeshComponent != nullptr ? FGLTFNameUtility::GetName(SkeletalMeshComponent) : SkeletalMesh->GetName();
-	}
+	virtual FString GetName() override;
 
 	virtual void Process() override;
 

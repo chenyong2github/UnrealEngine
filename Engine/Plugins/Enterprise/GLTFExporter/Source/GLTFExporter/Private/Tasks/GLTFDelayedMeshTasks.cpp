@@ -109,6 +109,11 @@ namespace
 	}
 }
 
+FString FGLTFDelayedStaticMeshTask::GetName()
+{
+	return StaticMeshComponent != nullptr ? FGLTFNameUtility::GetName(StaticMeshComponent) : StaticMesh->GetName();
+}
+
 void FGLTFDelayedStaticMeshTask::Process()
 {
 	FGLTFMeshUtility::FullyLoad(StaticMesh);
@@ -205,6 +210,11 @@ void FGLTFDelayedStaticMeshTask::Process()
 		const UMaterialInterface* Material = Materials[MaterialIndex];
 		JsonPrimitive.Material =  Builder.AddUniqueMaterial(Material, MeshData, SectionIndices);
 	}
+}
+
+FString FGLTFDelayedSkeletalMeshTask::GetName()
+{
+	return SkeletalMeshComponent != nullptr ? FGLTFNameUtility::GetName(SkeletalMeshComponent) : SkeletalMesh->GetName();
 }
 
 void FGLTFDelayedSkeletalMeshTask::Process()
