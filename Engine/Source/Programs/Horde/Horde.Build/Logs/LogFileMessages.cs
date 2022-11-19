@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using Horde.Build.Logs.Data;
 
@@ -19,6 +20,28 @@ namespace Horde.Build.Logs
 		/// Structured json objects, output as one object per line (without trailing commas)
 		/// </summary>
 		Json
+	}
+
+	/// <summary>
+	/// Creates a new log file
+	/// </summary>
+	public class CreateLogFileRequest
+	{
+		/// <summary>
+		/// Type of the log file
+		/// </summary>
+		public LogType Type { get; set; } = LogType.Json;
+	}
+
+	/// <summary>
+	/// Response from creating a log file
+	/// </summary>
+	public class CreateLogFileResponse
+	{
+		/// <summary>
+		/// Identifier for the created log file
+		/// </summary>
+		public string Id { get; set; } = String.Empty;
 	}
 
 	/// <summary>

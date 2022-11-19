@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Logs
 		/// <summary>
 		/// Default value for an empty log file
 		/// </summary>
-		public static LogNode Empty { get; } = new LogNode(LogFormat.Json, 0, 0, Array.Empty<LogChunkRef>(), new TreeNodeRef<LogIndexNode>(LogIndexNode.Empty));
+		public static LogNode Empty { get; } = new LogNode(LogFormat.Json, 0, 0, Array.Empty<LogChunkRef>(), new TreeNodeRef<LogIndexNode>(LogIndexNode.Empty), false);
 
 		/// <summary>
 		/// Format for this log file
@@ -69,15 +69,21 @@ namespace EpicGames.Horde.Logs
 		public TreeNodeRef<LogIndexNode> IndexRef { get; }
 
 		/// <summary>
+		/// Whether this log is complete
+		/// </summary>
+		public bool Complete { get; }
+
+		/// <summary>
 		/// Deserializing constructor
 		/// </summary>
-		public LogNode(LogFormat format, int lineCount, long length, IReadOnlyList<LogChunkRef> textChunkRefs, TreeNodeRef<LogIndexNode> indexRef)
+		public LogNode(LogFormat format, int lineCount, long length, IReadOnlyList<LogChunkRef> textChunkRefs, TreeNodeRef<LogIndexNode> indexRef, bool complete)
 		{
 			Format = format;
 			LineCount = lineCount;
 			Length = length;
 			TextChunkRefs = textChunkRefs.ToArray();
 			IndexRef = indexRef;
+			Complete = complete;
 		}
 
 		/// <summary>
@@ -91,6 +97,7 @@ namespace EpicGames.Horde.Logs
 			Length = (long)reader.ReadUnsignedVarInt();
 			IndexRef = reader.ReadRef<LogIndexNode>();
 			TextChunkRefs = reader.ReadList(() => new LogChunkRef(reader));
+			Complete = reader.ReadBoolean();
 		}
 
 		/// <inheritdoc/>
@@ -101,6 +108,7 @@ namespace EpicGames.Horde.Logs
 			writer.WriteUnsignedVarInt((ulong)Length);
 			writer.WriteRef(IndexRef);
 			writer.WriteList(TextChunkRefs, x => x.Serialize(writer));
+			writer.WriteBoolean(Complete);
 		}
 
 		/// <inheritdoc/>
@@ -259,8 +267,9 @@ namespace EpicGames.Horde.Logs
 		/// Flushes the written data to the log
 		/// </summary>
 		/// <param name="writer">Writer for the output nodes</param>
+		/// <param name="complete">Whether the log is complete</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<NodeLocator> FlushAsync(TreeWriter writer, CancellationToken cancellationToken)
+		public async Task<NodeLocator> FlushAsync(TreeWriter writer, bool complete, CancellationToken cancellationToken)
 		{
 			// Capture the new data that needs to be written
 			IReadOnlyList<LogChunkNode> writeTextChunks;
@@ -288,7 +297,7 @@ namespace EpicGames.Horde.Logs
 				length += writeTextChunk.Length;
 			}
 
-			LogNode newRoot = new LogNode(_format, lineCount, length, newJsonChunkRefs, new TreeNodeRef<LogIndexNode>(newIndex));
+			LogNode newRoot = new LogNode(_format, lineCount, length, newJsonChunkRefs, new TreeNodeRef<LogIndexNode>(newIndex), complete);
 
 			IoHash newRootHash = await writer.WriteAsync(new TreeNodeRef(newRoot), cancellationToken);
 			await writer.FlushAsync(cancellationToken);

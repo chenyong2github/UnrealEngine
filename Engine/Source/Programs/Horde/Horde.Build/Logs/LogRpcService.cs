@@ -8,6 +8,7 @@ using Horde.Build.Utilities;
 using EpicGames.Horde.Storage;
 using Horde.Build.Storage;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace Horde.Build.Logs
 {
@@ -20,15 +21,17 @@ namespace Horde.Build.Logs
 	public class LogRpcService : LogRpc.LogRpcBase
 	{
 		readonly ILogFileService _logFileService;
+		readonly LogTailService _logTailService;
 		readonly StorageService _storageService;
 		readonly ILogger<LogRpcService> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogRpcService(ILogFileService logFileService, StorageService storageService, ILogger<LogRpcService> logger)
+		public LogRpcService(ILogFileService logFileService, LogTailService logTailService, StorageService storageService, ILogger<LogRpcService> logger)
 		{
 			_logFileService = logFileService;
+			_logTailService = logTailService;
 			_storageService = storageService;
 			_logger = logger;
 		}
@@ -49,17 +52,45 @@ namespace Horde.Build.Logs
 			IStorageClient store = await _storageService.GetClientAsync(Namespace.Logs, context.CancellationToken);
 			_logger.LogInformation("Updating {LogId} to node {Locator}", request.LogId, request.BlobLocator);
 			await store.WriteRefTargetAsync(new RefName(request.LogId), NodeLocator.Parse(request.BlobLocator));
+
+			await _logTailService.FlushAsync(logFile.Id, request.LineCount);
+
 			return new UpdateLogResponse();
 		}
 
 		/// <inheritdoc/>
 		public override async Task UpdateLogTail(IAsyncStreamReader<UpdateLogTailRequest> requestStream, IServerStreamWriter<UpdateLogTailResponse> responseStream, ServerCallContext context)
 		{
-			while (await requestStream.MoveNext())
+			UpdateLogTailResponse response = new UpdateLogTailResponse();
+			response.TailNext = -1;
+
+			Task<bool> moveNextTask = requestStream.MoveNext();
+			while (await moveNextTask)
 			{
-				// TODO: request tail data if log has been read recently
+				UpdateLogTailRequest request = requestStream.Current;
+				LogId logId = new LogId(request.LogId);
+
+				if (request.TailData.Length > 0)
+				{
+					await _logTailService.AppendAsync(logId, request.TailNext, request.TailData.Memory);
+				}
+
+				moveNextTask = requestStream.MoveNext();
+
+				using (CancellationTokenSource cancellationSource = new CancellationTokenSource())
+				{
+					Task<int> waitTask = _logTailService.WaitForTailNext(logId, cancellationSource.Token);
+
+					await Task.WhenAny(waitTask, moveNextTask);
+					cancellationSource.Cancel();
+
+					response.TailNext = await waitTask;
+				}
+
+				await responseStream.WriteAsync(response);
 			}
-			await responseStream.WriteAsync(new UpdateLogTailResponse { TailNext = -1 }); 
+
+			await responseStream.WriteAsync(response);
 		}
 	}
 }

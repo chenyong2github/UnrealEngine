@@ -101,7 +101,7 @@ namespace Horde.Build.Logs
 		/// <param name="count">Maximum number of lines to return</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>List of lines</returns>
-		Task<List<Utf8String>> ReadLinesAsync(ILogFile logFile, int index, int? count, CancellationToken cancellationToken = default);
+		Task<List<Utf8String>> ReadLinesAsync(ILogFile logFile, int index, int count, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes out chunk data and assigns to a file
@@ -555,12 +555,13 @@ namespace Horde.Build.Logs
 			public override void Write(byte[] buffer, int offset, int count) => throw new NotImplementedException();
 		}
 
+		readonly LogTailService _logTailService;
 		readonly ITicker _ticker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogFileService(ILogFileCollection logFiles, ILogEventCollection logEvents, ILogBuilder builder, ILogStorage storage, IClock clock, StorageService storageService, IOptions<ServerSettings> settings, ILogger<LogFileService> logger)
+		public LogFileService(ILogFileCollection logFiles, ILogEventCollection logEvents, ILogBuilder builder, ILogStorage storage, IClock clock, LogTailService logTailService, StorageService storageService, IOptions<ServerSettings> settings, ILogger<LogFileService> logger)
 		{
 			_logFiles = logFiles;
 			_logEvents = logEvents;
@@ -568,6 +569,7 @@ namespace Horde.Build.Logs
 			_builder = builder;
 			_storage = storage;
 			_ticker = clock.AddSharedTicker<LogFileService>(TimeSpan.FromSeconds(30.0), TickAsync, logger);
+			_logTailService = logTailService;
 			_storageService = storageService;
 			_settings = settings;
 			_logger = logger;
@@ -642,27 +644,66 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<Utf8String>> ReadLinesAsync(ILogFile logFile, int index, int? count, CancellationToken cancellationToken)
+		public async Task<List<Utf8String>> ReadLinesAsync(ILogFile logFile, int index, int count, CancellationToken cancellationToken)
 		{
-			(_, long minOffset) = await GetLineOffsetAsync(logFile, index, cancellationToken);
-			(_, long maxOffset) = await GetLineOffsetAsync(logFile, (count == null) ? Int32.MaxValue : (index + Math.Min(count.Value, Int32.MaxValue - index)), cancellationToken);
-
-			byte[] result;
-			using (System.IO.Stream stream = await OpenRawStreamAsync(logFile, minOffset, maxOffset - minOffset, cancellationToken))
-			{
-				result = new byte[stream.Length];
-				await stream.ReadFixedSizeDataAsync(result, 0, result.Length);
-			}
-
 			List<Utf8String> lines = new List<Utf8String>();
 
-			int offset = 0;
-			for (int idx = 0; idx < result.Length; idx++)
+			if (_settings.Value.FeatureFlags.EnableNewLogger)
 			{
-				if (result[idx] == (byte)'\n')
+				TreeReader reader = await GetTreeReaderAsync(cancellationToken);
+
+				int maxIndex = index + count;
+
+				LogNode? root = await reader.TryReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
+				if (root != null)
 				{
-					lines.Add(new Utf8String(result.AsMemory(offset, idx - offset)));
-					offset = idx + 1;
+					int chunkIdx = root.TextChunkRefs.GetChunkForLine(index);
+					for (; index < maxIndex && chunkIdx < root.TextChunkRefs.Count; chunkIdx++)
+					{
+						LogChunkRef chunk = root.TextChunkRefs[chunkIdx];
+						LogChunkNode chunkData = await chunk.ExpandAsync(reader, cancellationToken);
+
+						for (; index < maxIndex && index < chunk.LineIndex; index++)
+						{
+							lines.Add($"Internal error; missing data for line {index}\n");
+						}
+
+						for (; index < maxIndex && index < chunk.LineIndex + chunk.LineCount; index++)
+						{
+							lines.Add(chunkData.GetLine(index - chunk.LineIndex));
+						}
+					}
+				}
+
+				if (root == null || !root.Complete)
+				{
+					await _logTailService.EnableTailingAsync(logFile.Id, root?.LineCount ?? 0);
+					if (index < maxIndex)
+					{
+						await _logTailService.ReadAsync(logFile.Id, index, maxIndex - index, lines);
+					}
+				}
+			}
+			else
+			{
+				(_, long minOffset) = await GetLineOffsetAsync(logFile, index, cancellationToken);
+				(_, long maxOffset) = await GetLineOffsetAsync(logFile, index + Math.Min(count, Int32.MaxValue - index), cancellationToken);
+
+				byte[] result;
+				using (System.IO.Stream stream = await OpenRawStreamAsync(logFile, minOffset, maxOffset - minOffset, cancellationToken))
+				{
+					result = new byte[stream.Length];
+					await stream.ReadFixedSizeDataAsync(result, 0, result.Length);
+				}
+
+				int offset = 0;
+				for (int idx = 0; idx < result.Length; idx++)
+				{
+					if (result[idx] == (byte)'\n')
+					{
+						lines.Add(new Utf8String(result.AsMemory(offset, idx - offset)));
+						offset = idx + 1;
+					}
 				}
 			}
 

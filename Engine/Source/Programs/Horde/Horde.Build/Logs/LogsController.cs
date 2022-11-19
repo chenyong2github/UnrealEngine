@@ -72,6 +72,27 @@ namespace Horde.Build.Logs
  		}
 
 		/// <summary>
+		/// Creates a new log file. This endpoint is used mainly for debugging; log documents for specific uses are usually 
+		/// created by the server and have their id passed into clients to append to.
+		/// </summary>
+		/// <param name="request">Request to create the log</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
+		/// <returns>Information about the requested project</returns>
+		[HttpPost]
+		[Route("/api/v1/logs")]
+		[ProducesResponseType(typeof(GetLogFileResponse), 200)]
+		public async Task<ActionResult<object>> CreateLog(CreateLogFileRequest request, CancellationToken cancellationToken = default)
+		{
+			if (!await _aclService.AuthorizeAsync(AclAction.CreateLog, User, null))
+			{
+				return Forbid();
+			}
+
+			ILogFile logFile = await _logFileService.CreateLogFileAsync(JobId.Empty, null, request.Type, cancellationToken: cancellationToken);
+			return new CreateLogFileResponse { Id = logFile.Id.ToString() };
+		}
+
+		/// <summary>
 		/// Retrieve metadata about a specific log file
 		/// </summary>
 		/// <param name="logFileId">Id of the log file to get information about</param>
@@ -173,7 +194,7 @@ namespace Horde.Build.Logs
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{logFileId}/lines")]
-		public async Task<ActionResult> GetLogLines(LogId logFileId, [FromQuery] int index = 0, [FromQuery] int? count = null, CancellationToken cancellationToken = default)
+		public async Task<ActionResult> GetLogLines(LogId logFileId, [FromQuery] int index = 0, [FromQuery] int count = 100, CancellationToken cancellationToken = default)
 		{
 			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId, cancellationToken);
 			if (logFile == null)

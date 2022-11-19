@@ -408,6 +408,7 @@ namespace Horde.Build
 			services.AddSingleton<JobService>();
 			services.AddSingleton<LifetimeService>();
 			services.AddSingleton<ILogFileService, LogFileService>();
+			services.AddSingleton<LogTailService>();
 			services.AddSingleton<INotificationService, NotificationService>();
 			services.AddSingleton<PerforceServiceCache>();
 			services.AddSingleton<IPerforceService>(sp => sp.GetRequiredService<PerforceServiceCache>());
@@ -612,6 +613,7 @@ namespace Horde.Build
 				services.AddHostedService(provider => provider.GetRequiredService<IssueService>());
 				services.AddHostedService<IssueReportService>();
 				services.AddHostedService(provider => (LogFileService)provider.GetRequiredService<ILogFileService>());
+				services.AddHostedService(provider => provider.GetRequiredService<LogTailService>());
 				services.AddHostedService(provider => (NotificationService)provider.GetRequiredService<INotificationService>());
 				services.AddHostedService(provider => provider.GetRequiredService<ReplicationService>());
 				if (!settings.DisableSchedules)

@@ -95,7 +95,7 @@ namespace EpicGames.Redis
 			RedisValue value = await str.GetDatabase().StringGetAsync(str.Key, flags);
 			if (value.IsNullOrEmpty)
 			{
-				return default(TElement);
+				return null;
 			}
 			return RedisSerializer.Deserialize<TElement>(value);
 		}

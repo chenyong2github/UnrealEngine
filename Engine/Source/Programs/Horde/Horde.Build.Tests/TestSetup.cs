@@ -231,6 +231,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ILogStorage, NullLogStorage>();
 			services.AddSingleton<ILogBuilder, LocalLogBuilder>();
 			services.AddSingleton<ILogFileService, LogFileService>();
+			services.AddSingleton<LogTailService>();
 			services.AddSingleton<INotificationService, NotificationService>();
 			services.AddSingleton<IPerforceService, PerforceServiceStub>();
 			services.AddSingleton<PerforceLoadBalancer>();

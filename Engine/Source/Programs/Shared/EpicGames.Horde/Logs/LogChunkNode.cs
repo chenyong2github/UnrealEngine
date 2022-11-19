@@ -331,6 +331,13 @@ namespace EpicGames.Horde.Logs
 		}
 
 		/// <summary>
+		/// Gets a line at the given index
+		/// </summary>
+		/// <param name="index">Index of the line</param>
+		/// <returns>Text for the line</returns>
+		public Utf8String GetLine(int index) => new Utf8String(_data.AsMemory(_lineOffsets[index], _lineOffsets[index + 1] - _lineOffsets[index]));
+
+		/// <summary>
 		/// Create a new chunk data object with the given data appended. The internal buffers are reused, with the assumption that
 		/// there is no contention over writing to the same location in the chunk.
 		/// </summary>
@@ -398,7 +405,7 @@ namespace EpicGames.Horde.Logs
 		/// </summary>
 		/// <param name="input">The input data</param>
 		/// <returns>True if the given text is empty</returns>
-		public static bool IsEmptyOrWhitespace(ReadOnlySpan<byte> input)
+		static bool IsEmptyOrWhitespace(ReadOnlySpan<byte> input)
 		{
 			for (int idx = 0; idx < input.Length; idx++)
 			{
@@ -418,7 +425,7 @@ namespace EpicGames.Horde.Logs
 		/// <param name="output">Output buffer for the converted line</param>
 		/// <param name="outputOffset">Offset within the buffer to write the converted data</param>
 		/// <returns></returns>
-		public static int ConvertToPlainText(ReadOnlySpan<byte> input, byte[] output, int outputOffset)
+		static int ConvertToPlainText(ReadOnlySpan<byte> input, byte[] output, int outputOffset)
 		{
 			if (IsEmptyOrWhitespace(input))
 			{
@@ -671,6 +678,10 @@ namespace EpicGames.Horde.Logs
 					yield return chunk.GetLine(lineIdx);
 				}
 				lineIdx -= chunk.LineCount;
+			}
+			for (; lineIdx < _nextChunkBuilder.LineCount; lineIdx++)
+			{
+				yield return _nextChunkBuilder.GetLine(lineIdx);
 			}
 		}
 

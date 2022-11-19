@@ -48,7 +48,7 @@ namespace Horde.Build.Tests
 			_logStorage = new PersistentLogStorage(new MemoryStorageBackend().ForType<PersistentLogStorage>(), NullLogger<PersistentLogStorage>.Instance);
 			_clock = new FakeClock();
 			TestOptions<ServerSettings> settingsOpts = new (new ServerSettings());
-			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, _clock, null!, settingsOpts, logger);
+			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, _clock, null!, null!, settingsOpts, logger);
         }
 
 		protected override void Dispose(bool disposing)
@@ -92,7 +92,7 @@ namespace Horde.Build.Tests
             Assert.AreEqual(6 + 8 + 4, metadata.Length);
             Assert.AreEqual(4, metadata.MaxLineIndex);
 
-			List<Utf8String> lines = await _logFileService.ReadLinesAsync(logFile, 0, null, CancellationToken.None);
+			List<Utf8String> lines = await _logFileService.ReadLinesAsync(logFile, 0, 100, CancellationToken.None);
 			Assert.AreEqual("hello", lines[0].ToString());
 			Assert.AreEqual("foo", lines[1].ToString());
 			Assert.AreEqual("bar", lines[2].ToString());

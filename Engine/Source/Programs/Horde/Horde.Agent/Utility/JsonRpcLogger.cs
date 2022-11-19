@@ -106,7 +106,7 @@ namespace Horde.Agent.Parser
 		// Tailing task
 		readonly Task _tailTask;
 		AsyncEvent _tailTaskStop;
-		AsyncEvent _newTailDataEvent = new AsyncEvent();
+		readonly AsyncEvent _newTailDataEvent = new AsyncEvent();
 
 		public JsonRpcAndStorageLogSink(IRpcConnection connection, string logId, IJsonRpcLogSink? inner, IStorageClient store, ILogger logger)
 		{
@@ -114,7 +114,7 @@ namespace Horde.Agent.Parser
 			_logId = logId;
 			_builder = new LogBuilder(LogFormat.Json, logger);
 			_inner = inner;
-			_writer = new TreeWriter(store, prefix: $"logs/{logId}");
+			_writer = new TreeWriter(store);
 			_logger = logger;
 
 			_tailTaskStop = new AsyncEvent();
@@ -159,12 +159,10 @@ namespace Horde.Agent.Parser
 				{
 					if (tailNext != -1)
 					{
-						tailNext = Math.Max(tailNext, _builder.LineCount);
+						tailNext = Math.Max(tailNext, _builder.FlushedLineCount);
 						tailData = _builder.ReadTailData(tailNext, 16 * 1024);
 					}
-
 					newTailDataTask = _newTailDataEvent.Task;
-					_newTailDataEvent = new AsyncEvent();
 				}
 
 				// If we don't have any updates for the server, wait until we do.
@@ -215,7 +213,7 @@ namespace Horde.Agent.Parser
 
 			if (request.Flush || _bufferLength > FlushLength)
 			{
-				NodeLocator locator = await _builder.FlushAsync(_writer, cancellationToken);
+				NodeLocator locator = await _builder.FlushAsync(_writer, request.Flush, cancellationToken);
 				await UpdateLogAsync(locator, _builder.LineCount, cancellationToken);
 				_bufferLength = 0;
 			}
@@ -245,6 +243,7 @@ namespace Horde.Agent.Parser
 				{
 					// Write the request to the server
 					UpdateLogTailRequest request = new UpdateLogTailRequest();
+					request.LogId = _logId;
 					request.TailNext = tailNext;
 					request.TailData = UnsafeByteOperations.UnsafeWrap(tailData);
 					await call.RequestStream.WriteAsync(request);
