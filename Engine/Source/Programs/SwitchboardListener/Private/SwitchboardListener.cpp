@@ -940,7 +940,14 @@ bool FSwitchboardListener::Task_ReceiveFileFromClient(const FSwitchboardReceiveF
 
 	if (Destination.Contains(TEXT("%TEMP%")))
 	{
-		Destination.ReplaceInline(TEXT("%TEMP%"), FPlatformProcess::UserTempDir());
+		FString TempDir = FPlatformProcess::UserTempDir();
+
+		if (TempDir.EndsWith(TEXT("/")) || TempDir.EndsWith(TEXT("\\")))
+		{
+			TempDir.LeftChopInline(1, false);
+		}
+
+		Destination.ReplaceInline(TEXT("%TEMP%"), *TempDir);
 	}
 	if (Destination.Contains(TEXT("%RANDOM%")))
 	{
