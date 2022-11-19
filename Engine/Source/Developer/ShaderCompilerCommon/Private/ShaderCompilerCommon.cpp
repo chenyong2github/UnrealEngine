@@ -2571,7 +2571,7 @@ namespace CrossCompiler
 const TCHAR* FShaderSymbolExport::ZipFileBaseLeafName = TEXT("ShaderSymbols");
 const TCHAR* FShaderSymbolExport::ZipFileExtension = TEXT(".zip");
 
-inline void FShaderSymbolExport::NotifyShaderCompilersShutdown()
+void FShaderSymbolExport::NotifyShaderCompilersShutdown()
 {
 	constexpr bool bMergingEnabled = false; // TODO: Add ability to read zip files and turn this on
 	if (bMultiprocessOwner && ZipWriter && bMergingEnabled)
