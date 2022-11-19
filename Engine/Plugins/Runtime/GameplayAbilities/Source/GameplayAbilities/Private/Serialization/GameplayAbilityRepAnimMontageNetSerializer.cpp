@@ -5,6 +5,7 @@
 #if UE_WITH_IRIS
 
 #include "Abilities/GameplayAbilityTypes.h"
+#include "Abilities/GameplayAbilityRepAnimMontage.h"
 #include "Net/Core/NetBitArray.h"
 #include "Iris/Serialization/NetBitStreamReader.h"
 #include "Iris/Serialization/NetBitStreamWriter.h"
