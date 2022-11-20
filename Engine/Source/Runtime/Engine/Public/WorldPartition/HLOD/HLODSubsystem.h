@@ -37,7 +37,6 @@ public:
 
 	//~ Begin UWorldSubsystem Interface.
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
-	virtual void UpdateStreamingState() override;
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	//~ End UWorldSubsystem Interface.
 
@@ -82,9 +81,7 @@ private:
 	
 	TMap<TObjectPtr<UWorldPartition>, FWorldPartitionHLODRuntimeData> WorldPartitionsHLODRuntimeData;
 
-	TMap<AWorldPartitionHLOD*, FBox> AlwaysLoadedHLODActors;
-	TSet<AWorldPartitionHLOD*> CulledAlwaysLoadedHLODActors;
-	int32 HLODAlwaysLoadedCullDistance;
+	TArray<AWorldPartitionHLOD*> AlwaysLoadedHLODActors;
 
 	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
 	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
