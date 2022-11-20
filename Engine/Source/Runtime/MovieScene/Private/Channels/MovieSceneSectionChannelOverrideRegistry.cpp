@@ -6,6 +6,7 @@
 #include "Channels/MovieSceneChannelOverrideContainer.h"
 #include "Channels/IMovieSceneChannelOverrideProvider.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
+#include "MovieSceneSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSectionChannelOverrideRegistry)
 
@@ -116,6 +117,19 @@ void UMovieSceneSectionChannelOverrideRegistry::OnPostPaste()
 		if (ensure(Pair.Value))
 		{
 			Pair.Value->ClearFlags(RF_Transient);
+		}
+	}
+}
+
+void UMovieSceneSectionChannelOverrideRegistry::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	if (UMovieSceneSection* Section = GetTypedOuter<UMovieSceneSection>())
+	{
+		if (IMovieSceneChannelOverrideProvider* OverrideProvider = Cast<IMovieSceneChannelOverrideProvider>(Section))
+		{
+			OverrideProvider->OnChannelOverridesChanged();
 		}
 	}
 }

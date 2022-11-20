@@ -113,6 +113,11 @@ public:
 	 */
 	void OnPostPaste();
 
+	/**
+	 * Called when an undo/redo operation has affected this override registry.
+	 */
+	virtual void PostEditUndo() override;
+
 #endif
 
 private:
