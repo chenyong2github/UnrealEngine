@@ -180,6 +180,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bIsRayTracingRelevant(InComponent->SceneProxy->IsRayTracingRelevant()),
 	bIsRayTracingStaticRelevant(InComponent->SceneProxy->IsRayTracingStaticRelevant()),
 	bIsVisibleInRayTracing(InComponent->SceneProxy->IsVisibleInRayTracing()),
+	bCachedRaytracingDataDirty(false),
 	CoarseMeshStreamingHandle(INDEX_NONE),
 #endif
 	PackedIndex(INDEX_NONE),
