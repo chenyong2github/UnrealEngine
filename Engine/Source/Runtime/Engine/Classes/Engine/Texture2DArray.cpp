@@ -32,6 +32,11 @@
 
 // Externed global switch to control whether streaming is enabled for texture2darray. 
 bool GSupportsTexture2DArrayStreaming = true;
+static FAutoConsoleVariableRef CVarSupportsTexture2DArrayStreaming(
+	TEXT("r.SupportsTexture2DArrayStreaming"),
+	GSupportsTexture2DArrayStreaming,
+	TEXT("Enable Support of Texture2DArray Streaming\n")
+);
 
 static TAutoConsoleVariable<int32> CVarAllowTexture2DArrayAssetCreation(
 	TEXT("r.AllowTexture2DArrayCreation"),

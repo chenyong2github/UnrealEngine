@@ -31,6 +31,11 @@
 
 // Externed global switch to control whether streaming is enabled for volume texture. 
 bool GSupportsVolumeTextureStreaming = true;
+static FAutoConsoleVariableRef CVarSupportsVolumeTextureStreaming(
+	TEXT("r.SupportsVolumeTextureStreaming"),
+	GSupportsVolumeTextureStreaming,
+	TEXT("Enable Support of VolumeTexture Streaming\n")
+);
 
 // Limit the possible depth of volume texture otherwise when the user converts 2D textures, they can crash the engine.
 const int32 MAX_VOLUME_TEXTURE_DEPTH = 512;
