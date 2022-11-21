@@ -24,6 +24,20 @@
 	],
 	"Modules": [
 		{
+			"Name": "PixelStreamingVCam",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [ "Win64", "Linux" ],
+			"TargetDenyList": [ "Server" ]
+		},
+		{
+			"Name": "VCamBlueprintNodes",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [ "Win64", "Linux" ],
+			"TargetDenyList": [ "Server" ]
+		},
+		{
 			"Name": "VCamCore",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
@@ -60,13 +74,6 @@
 			"Name": "VirtualCameraEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
-		},
-		{
-			"Name": "PixelStreamingVCam",
-			"Type": "Editor",
-			"LoadingPhase": "PostEngineInit",
-			"PlatformAllowList": [ "Win64", "Linux" ],
-			"TargetDenyList": [ "Server" ]
 		}
 	],
 	"Plugins": [
