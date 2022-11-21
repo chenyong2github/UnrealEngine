@@ -103,6 +103,26 @@ void FObjectMixerEditorList::RequestSyncEditorSelectionToListSelection() const
 	}
 }
 
+TArray<FObjectMixerEditorListRowPtr> FObjectMixerEditorList::GetSelectedTreeViewItems() const
+{
+	if (ListWidget.IsValid())
+	{
+		return ListWidget->GetSelectedTreeViewItems();
+	}
+
+	return {};
+}
+
+int32 FObjectMixerEditorList::GetSelectedTreeViewItemCount() const
+{
+	if (ListWidget.IsValid())
+	{
+		return ListWidget->GetSelectedTreeViewItemCount();
+	}
+
+	return INDEX_NONE;
+}
+
 void FObjectMixerEditorList::OnRequestNewFolder(TOptional<FFolder> ExplicitParentFolder)
 {
 	if (ListWidget.IsValid())

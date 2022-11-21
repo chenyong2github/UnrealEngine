@@ -123,19 +123,28 @@ void FObjectMixerEditorModule::OpenProjectSettings()
 		.ShowViewer("Editor", "Plugins", "Object Mixer");
 }
 
-FName FObjectMixerEditorModule::GetModuleName()
+FName FObjectMixerEditorModule::GetModuleName() const
 {
 	return "ObjectMixerEditor";
 }
 
-TSharedPtr<SWidget> FObjectMixerEditorModule::MakeObjectMixerDialog() const
+TSharedPtr<SWidget> FObjectMixerEditorModule::MakeObjectMixerDialog(
+	TSubclassOf<UObjectMixerObjectFilter> InDefaultFilterClass)
 {
-	if (MainPanel.IsValid())
+	if (!MainPanel.IsValid())
 	{
-		return MainPanel->GetOrCreateWidget();
+		MainPanel = MakeShared<FObjectMixerEditorMainPanel>(GetModuleName());
+		MainPanel->Init();
+	}
+	
+	const TSharedPtr<SWidget> ObjectMixerDialog = MainPanel->GetOrCreateWidget();
+
+	if (InDefaultFilterClass)
+	{
+		MainPanel->SetDefaultFilterClass(InDefaultFilterClass);
 	}
 
-	return nullptr;
+	return ObjectMixerDialog;
 }
 
 void FObjectMixerEditorModule::RequestRebuildList() const
@@ -269,33 +278,21 @@ void FObjectMixerEditorModule::UnregisterSettings() const
 
 TSharedRef<SDockTab> FObjectMixerEditorModule::SpawnTab(const FSpawnTabArgs& Args)
 {
-	 return SpawnMainPanelTab();
-}
-
-TSharedPtr<FWorkspaceItem> FObjectMixerEditorModule::GetWorkspaceGroup()
-{
-	return WorkspaceGroup;
-}
-
-TSharedRef<SDockTab> FObjectMixerEditorModule::SpawnMainPanelTab()
-{
-	MainPanel = MakeShared<FObjectMixerEditorMainPanel>(GetModuleName());
-	MainPanel->Init();
-	
 	const TSharedRef<SDockTab> DockTab =
 		SNew(SDockTab)
 		.Label(TabLabel)
 		.TabRole(ETabRole::NomadTab)
 	;
-	const TSharedPtr<SWidget> ObjectMixerDialog = MakeObjectMixerDialog();
-	DockTab->SetContent(ObjectMixerDialog ? ObjectMixerDialog.ToSharedRef() : SNullWidget::NullWidget);
 
-	if (DefaultFilterClass)
-	{
-		MainPanel->SetDefaultFilterClass(DefaultFilterClass);
-	}
+	const TSharedPtr<SWidget> ObjectMixerDialog = MakeObjectMixerDialog(DefaultFilterClass);
+	DockTab->SetContent(ObjectMixerDialog ? ObjectMixerDialog.ToSharedRef() : SNullWidget::NullWidget);
 			
 	return DockTab;
+}
+
+TSharedPtr<FWorkspaceItem> FObjectMixerEditorModule::GetWorkspaceGroup()
+{
+	return WorkspaceGroup;
 }
 
 void FObjectMixerEditorModule::BindDelegates()

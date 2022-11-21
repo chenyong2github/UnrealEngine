@@ -46,7 +46,7 @@ void FLightMixerModule::Initialize()
 	DefaultFilterClass = ULightMixerObjectFilter::StaticClass();	
 }
 
-FName FLightMixerModule::GetModuleName()
+FName FLightMixerModule::GetModuleName() const
 {
 	return "LightMixer";
 }

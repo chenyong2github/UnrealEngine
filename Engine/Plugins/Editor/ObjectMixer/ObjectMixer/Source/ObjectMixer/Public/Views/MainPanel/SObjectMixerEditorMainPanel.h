@@ -29,7 +29,7 @@ public:
 
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 
-	TWeakPtr<FObjectMixerEditorMainPanel> GetMainPanelModel()
+	TWeakPtr<FObjectMixerEditorMainPanel> GetMainPanelModel() const
 	{
 		return MainPanelModel;
 	}
@@ -84,6 +84,7 @@ private:
 	TSharedPtr<class SComboButton> ViewOptionsComboButton;
 
 	TSharedRef<SWidget> GenerateToolbar();
+	bool CanCreateFolder() const;
 	TSharedRef<SWidget> OnGenerateAddObjectButtonMenu() const;
 
 	TArray<FFilterClassSelectionInfo> FilterClassSelectionInfos;

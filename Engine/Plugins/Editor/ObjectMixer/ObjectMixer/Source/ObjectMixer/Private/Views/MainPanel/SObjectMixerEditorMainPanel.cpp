@@ -172,18 +172,26 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::GenerateToolbar()
 	[
 		SNew(SButton)
 		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-		.ToolTipText(LOCTEXT("CreateFolderToolTip", "Create a new folder containing the current selection"))
+		.ToolTipText_Lambda([this] ()
+		{
+			return CanCreateFolder() ? LOCTEXT("CreateFolderToolTip", "Create a new folder containing the current selection") :
+				LOCTEXT("CannotCreateFolder","Please select an item in the tree view in order to create a folder.");
+		})
 		.OnClicked_Lambda([this] ()
 		{
-			if (TSharedPtr<FObjectMixerEditorList> PinnedList = GetMainPanelModel().Pin()->GetEditorListModel().Pin())
+			if (CanCreateFolder())
 			{
-				PinnedList->OnRequestNewFolder();
+				if (const TSharedPtr<FObjectMixerEditorList> PinnedList = GetMainPanelModel().Pin()->GetEditorListModel().Pin())
+				{
+					PinnedList->OnRequestNewFolder();
 
-				return FReply::Handled();
+					return FReply::Handled();
+				}
 			}
 
 			return FReply::Unhandled();
 		})
+		.IsEnabled(this, &SObjectMixerEditorMainPanel::CanCreateFolder)
 		[
 			SNew(SImage)
 			.ColorAndOpacity(FSlateColor::UseForeground())
@@ -213,6 +221,16 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::GenerateToolbar()
 	];
 
 	return ToolbarBox;
+}
+
+bool SObjectMixerEditorMainPanel::CanCreateFolder() const
+{
+	if (TSharedPtr<FObjectMixerEditorList> PinnedList = GetMainPanelModel().Pin()->GetEditorListModel().Pin())
+	{
+		return PinnedList->GetSelectedTreeViewItemCount() > 0;
+	}
+
+	return false;
 }
 
 TSharedRef<SWidget> SObjectMixerEditorMainPanel::OnGenerateAddObjectButtonMenu() const
@@ -367,7 +385,10 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::OnGenerateFilterClassMenu()
 					continue;
 				}
 
-				const bool bIsDefaultClass = MainPanelModel.Pin()->GetDefaultFilterClass() == AssetClassMap.Class;
+				const bool bIsDefaultClass =
+					// If this is a made-to-purpose sub-plugin of Object Mixer, don't allow default class to be disabled
+					GetMainPanelModel().Pin()->GetModuleName() != FObjectMixerEditorModule::BaseObjectMixerModuleName &&
+					MainPanelModel.Pin()->GetDefaultFilterClass() == AssetClassMap.Class;
 				
 				const FText TooltipText = bIsDefaultClass ?
 					FText::Format(

@@ -26,9 +26,10 @@ public:
 
 	static void OpenProjectSettings();
 
-	virtual FName GetModuleName();
+	virtual FName GetModuleName() const;
 	
-	virtual TSharedPtr<SWidget> MakeObjectMixerDialog() const;
+	virtual TSharedPtr<SWidget> MakeObjectMixerDialog(
+		TSubclassOf<UObjectMixerObjectFilter> InDefaultFilterClass = nullptr);
 
 	/**
 	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
@@ -75,8 +76,6 @@ public:
 	const static FName BaseObjectMixerModuleName;
 
 protected:
-
-	virtual TSharedRef<SDockTab> SpawnMainPanelTab();
 
 	virtual void BindDelegates();
 	

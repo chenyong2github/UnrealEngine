@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ObjectMixerEditorListRow.h"
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
 #include "Templates/SharedPointer.h"
@@ -43,6 +44,9 @@ public:
 	void OnRenameCommand();
 
 	void RequestSyncEditorSelectionToListSelection() const;
+
+	[[nodiscard]] TArray<FObjectMixerEditorListRowPtr> GetSelectedTreeViewItems() const;
+	int32 GetSelectedTreeViewItemCount() const;
 
 	void OnRequestNewFolder(TOptional<FFolder> ExplicitParentFolder = TOptional<FFolder>());
 

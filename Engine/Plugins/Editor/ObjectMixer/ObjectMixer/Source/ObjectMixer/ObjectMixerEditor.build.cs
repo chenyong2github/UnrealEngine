@@ -47,6 +47,7 @@ public class ObjectMixerEditor : ModuleRules
 				"ToolWidgets",
 				"TypedElementFramework",
 				"TypedElementRuntime",
+				"UMG",
 				"UnrealEd",
 				"WorkspaceMenuStructure"
 			}
