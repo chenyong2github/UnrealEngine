@@ -23,7 +23,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Serialization/MemoryImage.h"
 #include "Experimental/Containers/HazardPointer.h"
-#include "Containers/ClosableMpscQueue.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 #include "Misc/CoreDelegates.h"
 
 // RHI_WANT_RESOURCE_INFO should be controlled by the RHI module.
@@ -85,15 +85,7 @@ private:
 	{
 		if (!AtomicFlags.MarkForDelete(std::memory_order_release))
 		{
-			while (true)
-			{
-				auto HP = MakeHazardPointer(PendingDeletes, PendingDeletesHPC);
-				TClosableMpscQueue<FRHIResource*>* PendingDeletesPtr = HP.Get();
-				if (PendingDeletesPtr->Enqueue(const_cast<FRHIResource*>(this)))
-				{
-					break;
-				}
-			}
+			PendingDeletes.ProduceItem(const_cast<FRHIResource*>(this));
 		}
 	}
 
@@ -231,8 +223,7 @@ private:
 	uint8 bBeingTracked : 1;
 #endif
 
-	static std::atomic<TClosableMpscQueue<FRHIResource*>*> PendingDeletes;
-	static FHazardPointerCollection PendingDeletesHPC;
+	static UE::TConsumeAllMpmcQueue<FRHIResource*, FConcurrentLinearAllocator> PendingDeletes;
 	static FRHIResource* CurrentlyDeleting;
 
 	// Some APIs don't do internal reference counting, so we have to wait an extra couple of frames before deleting resources
