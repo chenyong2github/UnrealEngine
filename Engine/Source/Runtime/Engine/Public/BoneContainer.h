@@ -661,7 +661,7 @@ public:
 	void CacheRequiredAnimCurveUids(const FCurveEvaluationOption& CurveEvalOption);
 
 	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InRetargetSource) const;
-	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InSourceName, const TArray<FTransform>& InRetargetTransforms) const;
+	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InSourceName, const FSkeletonRemapping& InRemapping, const TArray<FTransform>& InRetargetTransforms) const;
 
 #if DO_CHECK
 	/** Get the LOD that we calculated required bones when regenerated */
