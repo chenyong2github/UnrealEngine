@@ -2,8 +2,6 @@
 
 #include "PoseSearch/PoseSearchDerivedData.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PoseSearchDerivedData)
-
 #if WITH_EDITOR
 #include "Animation/BlendSpace.h"
 #include "AssetRegistry/ARFilter.h"
