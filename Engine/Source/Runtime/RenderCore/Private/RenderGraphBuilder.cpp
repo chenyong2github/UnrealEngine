@@ -2500,8 +2500,14 @@ void FRDGBuilder::SetupParallelExecute()
 			continue;
 		}
 
+		bool bPassHasParallelTranslate = EnumHasAnyFlags(Pass->Flags, ERDGPassFlags::ParallelTranslate);
+		if (bParallelTranslate != bPassHasParallelTranslate)
+		{
+			FlushParallelPassCandidates();
+		}
+
 		bDispatchAfterExecute |= Pass->bDispatchAfterExecute;
-		bParallelTranslate |= EnumHasAnyFlags(Pass->Flags, ERDGPassFlags::ParallelTranslate);
+		bParallelTranslate |= bPassHasParallelTranslate;
 
 		ParallelPassCandidates.Emplace(Pass);
 		ParallelPassCandidatesWorkload += Pass->Workload;
