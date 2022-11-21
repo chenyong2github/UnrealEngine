@@ -553,6 +553,11 @@ bool FOpenXRHandTracking::GetAllKeypointStates(EControllerHand Hand, TArray<FVec
 		return false;
 	}
 
+	if (Hand != EControllerHand::Left && Hand != EControllerHand::Right)
+	{
+		return false;
+	}
+
 	const FOpenXRHandTracking::FHandState& HandState = (Hand == EControllerHand::Left) ? GetLeftHandState() : GetRightHandState();
 
 	if (!HandState.ReceivedJointPoses)

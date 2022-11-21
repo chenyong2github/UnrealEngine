@@ -152,6 +152,7 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 	MotionControllerData.DeviceVisualType = EXRVisualType::Controller;
 	MotionControllerData.TrackingStatus = ETrackingStatus::NotTracked;
 	MotionControllerData.HandIndex = Hand;
+	MotionControllerData.bValid = false;
 
 	TArray<int32> Devices;
 	if (EnumerateTrackedDevices(Devices, EXRTrackedDeviceType::Controller) && Devices.IsValidIndex((int32)Hand))
@@ -180,53 +181,57 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 		}
 	}
 
-	FName MotionControllerName("OpenXR");
-	TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
-	IMotionController* MotionController = nullptr;
-	for (auto Itr : MotionControllers)
+	if ((Hand == EControllerHand::Left) || (Hand == EControllerHand::Right))
 	{
-		if (Itr->GetMotionControllerDeviceTypeName() == MotionControllerName)
+		FName MotionControllerName("OpenXR");
+		TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+		IMotionController* MotionController = nullptr;
+		for (auto Itr : MotionControllers)
 		{
-			MotionController = Itr;
-			break;
+			if (Itr->GetMotionControllerDeviceTypeName() == MotionControllerName)
+			{
+				MotionController = Itr;
+				break;
+			}
 		}
-	}
 
-	if (MotionController)
-	{
-		const float WorldToMeters = GetWorldToMetersScale();
-
-		bool bSuccess = false;
-		FVector Position = FVector::ZeroVector;
-		FRotator Rotation = FRotator::ZeroRotator;
-		FTransform trackingToWorld = GetTrackingToWorldTransform();
-		FName AimSource = Hand == EControllerHand::Left ? FName("LeftAim") : FName("RightAim");
-		bSuccess = MotionController->GetControllerOrientationAndPosition(0, AimSource, Rotation, Position, WorldToMeters);
-		if (bSuccess)
+		if (MotionController)
 		{
-			MotionControllerData.AimPosition = trackingToWorld.TransformPosition(Position);
-			MotionControllerData.AimRotation = trackingToWorld.TransformRotation(FQuat(Rotation));
-		}
-		MotionControllerData.bValid |= bSuccess;
+			const float WorldToMeters = GetWorldToMetersScale();
 
-		FName GripSource = Hand == EControllerHand::Left ? FName("LeftGrip") : FName("RightGrip");
-		bSuccess = MotionController->GetControllerOrientationAndPosition(0, GripSource, Rotation, Position, WorldToMeters);
-		if (bSuccess)
+			bool bSuccess = false;
+			FVector Position = FVector::ZeroVector;
+			FRotator Rotation = FRotator::ZeroRotator;
+			FTransform trackingToWorld = GetTrackingToWorldTransform();
+			FName AimSource = Hand == EControllerHand::Left ? FName("LeftAim") : FName("RightAim");
+			bSuccess = MotionController->GetControllerOrientationAndPosition(0, AimSource, Rotation, Position, WorldToMeters);
+			if (bSuccess)
+			{
+				MotionControllerData.AimPosition = trackingToWorld.TransformPosition(Position);
+				MotionControllerData.AimRotation = trackingToWorld.TransformRotation(FQuat(Rotation));
+			}
+			MotionControllerData.bValid |= bSuccess;
+
+			FName GripSource = Hand == EControllerHand::Left ? FName("LeftGrip") : FName("RightGrip");
+			bSuccess = MotionController->GetControllerOrientationAndPosition(0, GripSource, Rotation, Position, WorldToMeters);
+			if (bSuccess)
+			{
+				MotionControllerData.GripPosition = trackingToWorld.TransformPosition(Position);
+				MotionControllerData.GripRotation = trackingToWorld.TransformRotation(FQuat(Rotation));
+			}
+			MotionControllerData.bValid |= bSuccess;
+
+			MotionControllerData.TrackingStatus = MotionController->GetControllerTrackingStatus(0, GripSource);
+		}
+
+
+		if (HandTracker && HandTracker->IsHandTrackingStateValid())
 		{
-			MotionControllerData.GripPosition = trackingToWorld.TransformPosition(Position);
-			MotionControllerData.GripRotation = trackingToWorld.TransformRotation(FQuat(Rotation));
-		}
-		MotionControllerData.bValid |= bSuccess;
+			MotionControllerData.DeviceVisualType = EXRVisualType::Hand;
 
-		MotionControllerData.TrackingStatus = MotionController->GetControllerTrackingStatus(0, GripSource);
-	}
-
-	if (HandTracker && HandTracker->IsHandTrackingStateValid())
-	{
-		MotionControllerData.DeviceVisualType = EXRVisualType::Hand;
-
-		MotionControllerData.bValid = HandTracker->GetAllKeypointStates(Hand, MotionControllerData.HandKeyPositions, MotionControllerData.HandKeyRotations, MotionControllerData.HandKeyRadii);
-		check(!MotionControllerData.bValid || (MotionControllerData.HandKeyPositions.Num() == EHandKeypointCount && MotionControllerData.HandKeyRotations.Num() == EHandKeypointCount && MotionControllerData.HandKeyRadii.Num() == EHandKeypointCount));
+			MotionControllerData.bValid = HandTracker->GetAllKeypointStates(Hand, MotionControllerData.HandKeyPositions, MotionControllerData.HandKeyRotations, MotionControllerData.HandKeyRadii);
+			check(!MotionControllerData.bValid || (MotionControllerData.HandKeyPositions.Num() == EHandKeypointCount && MotionControllerData.HandKeyRotations.Num() == EHandKeypointCount && MotionControllerData.HandKeyRadii.Num() == EHandKeypointCount));
+		}	
 	}
 
 	//TODO: this is reportedly a wmr specific convenience function for rapid prototyping.  Not sure it is useful for openxr.
