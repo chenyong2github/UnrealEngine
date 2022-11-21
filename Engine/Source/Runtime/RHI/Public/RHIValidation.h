@@ -594,9 +594,9 @@ public:
 	* @param SrcTexture2D - source texture
 	*/
 	// FlushType: Flush RHI Thread
-	virtual void RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) override final
+	virtual void RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) override final
 	{
-		RHI->RHICopySharedMips(DestTexture2D, SrcTexture2D);
+		RHI->RHICopySharedMips(RHICmdList, DestTexture2D, SrcTexture2D);
 	}
 
 	void RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer) override final

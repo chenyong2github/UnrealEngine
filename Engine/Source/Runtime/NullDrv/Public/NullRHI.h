@@ -227,7 +227,7 @@ public:
 		return this->RHICreateTexture(Desc);
 	}
 
-	virtual void RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) final override
+	virtual void RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) final override
 	{
 	}
 

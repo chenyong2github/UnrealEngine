@@ -1169,7 +1169,7 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 }
 
 
-void FD3D12DynamicRHI::RHICopySharedMips(FRHITexture2D* DestTexture2DRHI, FRHITexture2D* SrcTexture2DRHI)
+void FD3D12DynamicRHI::RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2DRHI, FRHITexture2D* SrcTexture2DRHI)
 {
 	FD3D12Texture*  DestTexture2D = GetD3D12TextureFromRHITexture(DestTexture2DRHI);
 	FD3D12Texture*  SrcTexture2D = GetD3D12TextureFromRHITexture(SrcTexture2DRHI);

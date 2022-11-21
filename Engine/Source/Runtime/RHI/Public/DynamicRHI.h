@@ -547,7 +547,7 @@ public:
 	* @param SrcTexture2D - source texture
 	*/
 	// FlushType: Flush RHI Thread
-	virtual void RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) = 0;
+	virtual void RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) = 0;
 
 	/**
 	* Creates a shader resource view for a texture

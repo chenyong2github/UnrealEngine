@@ -3199,3 +3199,54 @@ void FDebugName::AppendString(FStringBuilderBase& Builder) const
 		Builder << '_' << Number;
 	}
 }
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------
+// 
+// @todo move these functions into RHICore when the RHICmdList.CopySharedMips and RHICopySharedMips functions are removed (currently deprecated).
+//
+RHI_API void RHICopySharedMips_PRIVATE(FRHICommandList& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture)
+{
+	FRHITextureDesc const& Desc = DstTexture->GetNumMips() < SrcTexture->GetNumMips()
+		? DstTexture->GetDesc()
+		: SrcTexture->GetDesc();
+
+	FRHICopyTextureInfo CopyInfo;
+	CopyInfo.Size.X         = Desc.Extent.X;
+	CopyInfo.Size.Y         = Desc.Extent.Y;
+	CopyInfo.Size.Z         = Desc.Depth;
+	CopyInfo.NumSlices      = Desc.ArraySize;
+	CopyInfo.NumMips        = Desc.NumMips;
+	CopyInfo.SourceMipIndex = SrcTexture->GetNumMips() - CopyInfo.NumMips;
+	CopyInfo.DestMipIndex   = DstTexture->GetNumMips() - CopyInfo.NumMips;
+
+	RHICmdList.CopyTexture(SrcTexture, DstTexture, CopyInfo);
+}
+
+RHI_API void RHICopySharedMips_AssumeSRVMaskState_PRIVATE(FRHICommandList& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture)
+{
+	// Transition to copy source and dest
+	{
+		FRHITransitionInfo TransitionsBefore[] =
+		{
+			FRHITransitionInfo(SrcTexture, ERHIAccess::SRVMask, ERHIAccess::CopySrc ),
+			FRHITransitionInfo(DstTexture, ERHIAccess::SRVMask, ERHIAccess::CopyDest)
+		};
+		RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
+	}
+
+	RHICopySharedMips_PRIVATE(RHICmdList, SrcTexture, DstTexture);
+
+	// Transition to SRV
+	{
+		FRHITransitionInfo TransitionsAfter[] =
+		{
+			FRHITransitionInfo(SrcTexture, ERHIAccess::CopySrc , ERHIAccess::SRVMask),
+			FRHITransitionInfo(DstTexture, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
+		};
+		RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
+	}
+}
+//
+// @todo move these functions into RHICore when the RHICmdList.CopySharedMips and RHICopySharedMips functions are removed (currently deprecated).
+// 
+// ------------------------------------------------------------------------------------------------------------------------------------------------

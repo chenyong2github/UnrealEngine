@@ -1521,7 +1521,7 @@ FTexture2DRHIRef FMetalDynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 	return FTexture2DRHIRef();
 }
 
-void FMetalDynamicRHI::RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D)
+void FMetalDynamicRHI::RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D)
 {
 	NOT_SUPPORTED("RHICopySharedMips");
 }

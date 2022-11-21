@@ -4542,11 +4542,11 @@ public:
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_CopySharedMips_Flush);
 		DestTexture->AddRef();
 		SrcTexture->AddRef();
-		EnqueueLambda([DestTexture, SrcTexture](FRHICommandList&)
+		EnqueueLambda([DestTexture, SrcTexture](FRHICommandList& ExecutingCmdList)
 		{
 			LLM_SCOPE(ELLMTag::Textures);
 			//@todo move this function onto the IRHIComputeCommandContext
-			GDynamicRHI->RHICopySharedMips(DestTexture, SrcTexture);
+			GDynamicRHI->RHICopySharedMips(ExecutingCmdList, DestTexture, SrcTexture);
 			DestTexture->Release();
 			SrcTexture->Release();
 		});
