@@ -430,6 +430,11 @@ namespace Horde.Build.Streams
 		public Dictionary<string, string>? Environment { get; set; }
 
 		/// <summary>
+		/// Tokens to allocate for this agent type
+		/// </summary>
+		public List<TokenConfig>? Tokens { get; set; }
+
+		/// <summary>
 		/// Creates an API response object from this stream
 		/// </summary>
 		/// <returns>The response object</returns>

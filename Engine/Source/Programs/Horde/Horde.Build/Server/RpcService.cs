@@ -692,7 +692,15 @@ namespace Horde.Build.Server
 				IStream? stream = await _streamService.GetStreamAsync(job.StreamId);
 				if (stream != null)
 				{
-					foreach (TokenConfig tokenConfig in stream.Config.Tokens)
+					List<TokenConfig> tokenConfigs = new List<TokenConfig>(stream.Config.Tokens);
+
+					INodeGroup group = graph.Groups[batch.GroupIdx];
+					if (stream.Config.AgentTypes.TryGetValue(group.AgentType, out AgentConfig? agentConfig) && agentConfig.Tokens != null)
+					{
+						tokenConfigs.AddRange(agentConfig.Tokens);
+					}
+
+					foreach (TokenConfig tokenConfig in tokenConfigs)
 					{
 						string? value = await AllocateTokenAsync(tokenConfig, context.CancellationToken);
 						if (value == null)
