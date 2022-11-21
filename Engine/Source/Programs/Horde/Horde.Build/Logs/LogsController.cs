@@ -397,7 +397,7 @@ namespace Horde.Build.Logs
 			{
 				return true;
 			}
-			if (logFile.SessionId != null && await _aclService.AuthorizeAsync(AclAction.ViewSession, user, permissionsCache))
+			if (action == AclAction.ViewLog && logFile.SessionId != null && await _aclService.AuthorizeAsync(AclAction.ViewSession, user, permissionsCache))
 			{
 				return true;
 			}
