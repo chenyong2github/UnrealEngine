@@ -364,6 +364,7 @@ private:
 	FDelegateHandle DeviceProfileManagerUpdatedHandle;
 
 	FDelegateHandle PreviewPlatformChangedHandle;
+	FDelegateHandle PreviewFeatureLevelChangedHandle;
 
 	USequencerSettings* SequencerSettings;
 

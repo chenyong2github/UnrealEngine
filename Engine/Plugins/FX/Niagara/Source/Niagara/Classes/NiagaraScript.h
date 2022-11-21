@@ -982,6 +982,9 @@ public:
 	NIAGARA_API bool CanBeRunOnGpu() const;
 	NIAGARA_API bool IsReadyToRun(ENiagaraSimTarget SimTarget) const;
 	NIAGARA_API bool ShouldCacheShadersForCooking(const ITargetPlatform* TargetPlatform) const;
+#if WITH_EDITORONLY_DATA
+	NIAGARA_API static void SetPreviewFeatureLevel(ERHIFeatureLevel::Type PreviewFeatureLevel);
+#endif
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API class UNiagaraScriptSourceBase* GetLatestSource();

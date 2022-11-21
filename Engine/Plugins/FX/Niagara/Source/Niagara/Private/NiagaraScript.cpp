@@ -118,10 +118,16 @@ static FAutoConsoleVariableRef CVarNiagaraEventSpawnsUpdateInitialAttributeValue
 	ECVF_Default
 );
 
+namespace NiagaraScriptLocal
+{
+#if WITH_EDITORONLY_DATA
+	TOptional<ERHIFeatureLevel::Type> PreviewFeatureLevel;
+#endif
+}
+
 FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo() : bWaitForGPU(false), Usage(ENiagaraScriptUsage::Function), FrameLastWriteId(-1), bWritten(false)
 {
 }
-
 
 FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo(FName InName, ENiagaraScriptUsage InUsage, const FGuid& InUsageId) : HandleName(InName), Usage(InUsage), UsageId(InUsageId), FrameLastWriteId(-1), bWritten(false)
 {
@@ -2229,6 +2235,46 @@ bool UNiagaraScript::ShouldCacheShadersForCooking(const ITargetPlatform* TargetP
 	return false;
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraScript::SetPreviewFeatureLevel(ERHIFeatureLevel::Type InPreviewFeatureLevel)
+{
+	// Anything to do?
+	if ( NiagaraScriptLocal::PreviewFeatureLevel.Get(GMaxRHIFeatureLevel) == InPreviewFeatureLevel )
+	{
+		return;
+	}
+
+	// Either Set of Clear the Preview Feature Level
+	if ( InPreviewFeatureLevel == GMaxRHIFeatureLevel )
+	{
+		NiagaraScriptLocal::PreviewFeatureLevel.Reset();
+	}
+	else
+	{
+		NiagaraScriptLocal::PreviewFeatureLevel = InPreviewFeatureLevel;
+	}
+
+	// Force scripts to recache that can run on the GPU and already have a script resource
+	for (TObjectIterator<UNiagaraScript> It; It; ++It)
+	{
+		UNiagaraScript* Script = *It;
+		if ( Script == nullptr || !Script->OwnerCanBeRunOnGpu() || Script->ScriptResource == nullptr )
+		{
+			continue;
+		}
+
+		for ( FNiagaraShaderScript* ExistingScript : Script->ScriptResourcesByFeatureLevel )
+		{
+			if (ExistingScript == Script->ScriptResource.Get())
+			{
+				Script->CacheResourceShadersForRendering(true, false);
+				break;
+			}
+		}
+	}
+}
+#endif
+
 void UNiagaraScript::GenerateStatIDs()
 {
 #if STATS
@@ -3290,7 +3336,11 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 		UNiagaraScriptSourceBase* Source = GetLatestScriptData()->Source;
 		if (Source && OwnerCanBeRunOnGpu())
 		{
-			ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
+		#if WITH_EDITORONLY_DATA
+			const ERHIFeatureLevel::Type CacheFeatureLevel = NiagaraScriptLocal::PreviewFeatureLevel.Get(GMaxRHIFeatureLevel);
+		#else
+			const ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
+		#endif
 			const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[CacheFeatureLevel];
 
 			ScriptResource->SetScript(this, CacheFeatureLevel, ShaderPlatform, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
@@ -3300,9 +3350,9 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 
 			ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.ShaderScriptParametersMetadata);
 
-				CacheShadersForResources(ScriptResource.Get(), true);
-				ScriptResourcesByFeatureLevel[CacheFeatureLevel] = ScriptResource.Get();
-			}
+			CacheShadersForResources(ScriptResource.Get(), true);
+			ScriptResourcesByFeatureLevel[CacheFeatureLevel] = ScriptResource.Get();
+		}
 		else
 		{
 			ScriptResource->Invalidate();
