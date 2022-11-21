@@ -107,7 +107,8 @@ namespace mu
 	//! List of supported modes in generic image layering operations.
 	enum class EBlendType
 	{
-		BT_SOFTLIGHT = 0,
+		BT_NONE = 0,
+		BT_SOFTLIGHT,
 		BT_HARDLIGHT,
 		BT_BURN,
 		BT_DODGE,
@@ -115,7 +116,7 @@ namespace mu
 		BT_OVERLAY,
 		BT_BLEND,
 		BT_MULTIPLY,
-		BT_ALPHA_OVERLAY, // TODO: This name is not descriptive.
+		BT_LIGHTEN,				// Increase the channel value by a given proportion of what is missing from white 
 		BT_NORMAL_COMBINE,
 		_BT_COUNT
 	};

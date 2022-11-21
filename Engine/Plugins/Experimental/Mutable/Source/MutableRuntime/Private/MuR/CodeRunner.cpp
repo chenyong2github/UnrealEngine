@@ -22,34 +22,26 @@
 #include "MuR/MutableString.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/OpEvalCurve.h"
-#include "MuR/OpImageAlphaOverlay.h"
 #include "MuR/OpImageApplyComposite.h"
 #include "MuR/OpImageBinarise.h"
 #include "MuR/OpImageBlend.h"
-#include "MuR/OpImageBurn.h"
 #include "MuR/OpImageColourMap.h"
 #include "MuR/OpImageCompose.h"
 #include "MuR/OpImageCrop.h"
 #include "MuR/OpImageDifference.h"
 #include "MuR/OpImageDisplace.h"
-#include "MuR/OpImageDodge.h"
 #include "MuR/OpImageGradient.h"
-#include "MuR/OpImageHardLight.h"
 #include "MuR/OpImageInterpolate.h"
 #include "MuR/OpImageInvert.h"
 #include "MuR/OpImageLuminance.h"
 #include "MuR/OpImageMipmap.h"
-#include "MuR/OpImageMultiply.h"
 #include "MuR/OpImageNormalCombine.h"
-#include "MuR/OpImageOverlay.h"
 #include "MuR/OpImagePixelFormat.h"
 #include "MuR/OpImageProject.h"
 #include "MuR/OpImageRasterMesh.h"
 #include "MuR/OpImageResize.h"
 #include "MuR/OpImageSaturate.h"
-#include "MuR/OpImageScreen.h"
 #include "MuR/OpImageSelectColour.h"
-#include "MuR/OpImageSoftLight.h"
 #include "MuR/OpImageTransform.h"
 #include "MuR/OpLayoutPack.h"
 #include "MuR/OpLayoutRemoveBlocks.h"
@@ -1040,7 +1032,7 @@ namespace mu
 
                 if (baseValid)
                 {
-                    SCHEDULED_OP_DATA HeapData;
+                    FScheduledOpData HeapData;
 					HeapData.bifactor = bifactor;
 					HeapData.min = FMath::Clamp(min, 0, NumTargets - 1);
 					HeapData.max = FMath::Clamp(max, 0, NumTargets - 1);
@@ -1081,7 +1073,7 @@ namespace mu
                 Ptr<const Mesh> pBase = GetMemory().GetMesh( CACHE_ADDRESS(BaseAt,item) );
 
                 // Factor from 0 to 1 between the two targets
-                const SCHEDULED_OP_DATA& HeapData = m_heapData[ (size_t)item.customState ];
+                const FScheduledOpData& HeapData = m_heapData[ (size_t)item.customState ];
                 float bifactor = HeapData.bifactor;
                 int min = HeapData.min;
                 int max = HeapData.max;
@@ -1249,7 +1241,7 @@ namespace mu
                 // Factor from 0 to 1 between the two targets
                 float bifactor = factor/delta - min;
 
-                SCHEDULED_OP_DATA data;
+                FScheduledOpData data;
                 data.bifactor = bifactor;
 				data.min = FMath::Clamp(min, 0, count - 1);
 				data.max = FMath::Clamp(max, 0, count - 1);
@@ -1318,7 +1310,7 @@ namespace mu
                     count++;
                 }
 
-                const SCHEDULED_OP_DATA& data = m_heapData[ (size_t)item.customState ];
+                const FScheduledOpData& data = m_heapData[ (size_t)item.customState ];
 
                 // Factor from 0 to 1 between the two targets
                 float bifactor = data.bifactor;
@@ -2453,49 +2445,48 @@ namespace mu
             {
             case 0:
                 AddOp( SCHEDULED_OP( item.at, item, 1),
-                       SCHEDULED_OP( args.rangeSize, item ),
-                       SCHEDULED_OP( args.base, item) );
+                       SCHEDULED_OP( args.rangeSize, item ) );
                 break;
 
             case 1:
             {
                 // We now know the number of iterations
-                int iterations = 0;
+                int32 Iterations = 0;
                 if (args.rangeSize)
                 {
-                    CACHE_ADDRESS address(args.rangeSize,item);
+                    CACHE_ADDRESS RangeAddress(args.rangeSize,item);
 
                     // We support both integers and scalars here, which is not common.
                     // \todo: review if this is necessary or we can enforce it at compile time.
-                    DATATYPE rangeSizeType = GetOpDataType( pModel->GetPrivate()->m_program.GetOpType(args.rangeSize) );
-                    if (rangeSizeType==DT_INT)
+                    DATATYPE RangeSizeType = GetOpDataType( pModel->GetPrivate()->m_program.GetOpType(args.rangeSize) );
+                    if (RangeSizeType == DT_INT)
                     {
-                        iterations = GetMemory().GetInt( address );
+						Iterations = GetMemory().GetInt(RangeAddress);
                     }
-                    else if (rangeSizeType==DT_SCALAR)
+                    else if (RangeSizeType == DT_SCALAR)
                     {
-                        iterations = int( GetMemory().GetScalar( address ) );
+						Iterations = int32( GetMemory().GetScalar(RangeAddress) );
                     }
                 }
 
                 // \todo Check that we are not overwriting the index (it shouldn't be set when we reach here)
-                SCHEDULED_OP itemCopy = item;
-                ExecutionIndex index = GetMemory().GetRageIndex( item.executionIndex );
+                SCHEDULED_OP ItemCopy = item;
+                ExecutionIndex Index = GetMemory().GetRageIndex( item.executionIndex );
 
-				TArray<SCHEDULED_OP> deps;
-				deps.SetNumUninitialized(iterations * 2 + 1);
-                int d=0;
-                deps[d++] = SCHEDULED_OP( args.base, item );
-                for (int i=0; i<iterations; ++i)
+				TArray<SCHEDULED_OP, TInlineAllocator<48>> Deps;
+				Deps.SetNumUninitialized(Iterations * 2 + 1);
+                int32 d=0;
+				Deps[d++] = SCHEDULED_OP( args.base, item );
+                for (int i=0; i< Iterations; ++i)
                 {
-                    index.SetFromModelRangeIndex( args.rangeId, i );
+					Index.SetFromModelRangeIndex( args.rangeId, i );
 
-                    itemCopy.executionIndex = GetMemory().GetRageIndexIndex(index);
+					ItemCopy.executionIndex = GetMemory().GetRageIndexIndex(Index);
 
-                    deps[d++] = SCHEDULED_OP( args.blended, itemCopy );
-                    deps[d++] = SCHEDULED_OP( args.mask, itemCopy );
+					Deps[d++] = SCHEDULED_OP( args.blended, ItemCopy);
+					Deps[d++] = SCHEDULED_OP( args.mask, ItemCopy);
                 }
-                AddOp( SCHEDULED_OP( item.at, item, 2, iterations), deps );
+                AddOp( SCHEDULED_OP( item.at, item, 2, Iterations), Deps);
 
                 break;
             }
@@ -2504,12 +2495,11 @@ namespace mu
             {
                 MUTABLE_CPUPROFILER_SCOPE(ImageMultiLayer);
 
-				int32 iterations = item.customState;
+				int32 Iterations = item.customState;
 
-                // TODO: Reuse base if possible
                 Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
 
-                if (iterations==0)
+                if (Iterations ==0)
                 {
 					// Early out
 					GetMemory().SetImage(item, pBase);
@@ -2537,7 +2527,7 @@ namespace mu
 				// This could happen in the base image has mips, but one of the blended one doesn't.
 				bool bBlendOnlyOneMip = false;
 
-                for (int i=0; i<iterations; ++i)
+                for (int i=0; i< Iterations; ++i)
                 {
                     index.SetFromModelRangeIndex( args.rangeId, i );
                     itemCopy.executionIndex = GetMemory().GetRageIndexIndex(index);
@@ -2566,7 +2556,28 @@ namespace mu
 						bBlendOnlyOneMip = true;
 					}
 
-                    if (args.mask)
+					bool bApplyColorBlendToAlpha = false;
+
+					bool bDone = false;
+
+					if (!args.mask && args.bUseMaskFromBlended
+						&&
+						args.blendType == uint8(EBlendType::BT_BLEND)
+						&&
+						args.blendTypeAlpha == uint8(EBlendType::BT_LIGHTEN) )
+					{
+						// This is a frequent critical-path case because of multilayer projectors.
+						bDone = true;
+						
+						if (pBlended->GetLODCount() < pBase->GetLODCount())
+						{
+							bBlendOnlyOneMip = true;
+						}
+
+						BufferLayerComposite<BlendChannelMasked, LightenChannel, false>(pNew.get(), pBlended.get(), bBlendOnlyOneMip);
+					}
+
+                    if (!bDone && args.mask)
                     {
                         Ptr<const Image> pMask = GetMemory().GetImage( CACHE_ADDRESS(args.mask,itemCopy) );
 
@@ -2577,7 +2588,7 @@ namespace mu
 							pMask = ImageResizeLinear(0, pMask.get(), ResultSize);
 						}
 
-                        if (pMask->GetLODCount()<pBase->GetLODCount())
+                        if (pMask->GetLODCount()<pBase->GetLODCount() || pBlended->GetLODCount() < pBase->GetLODCount())
                         {
 							bBlendOnlyOneMip = true;
 						}
@@ -2591,20 +2602,44 @@ namespace mu
 							pBase = pNew;
 							pNew = new Image(pBase->GetSizeX(), pBase->GetSizeY(), pBase->GetLODCount(), pBase->GetFormat());
 							break;
-                        case EBlendType::BT_SOFTLIGHT: ImageLayerOnBase<SoftLightChannelMasked, SoftLightChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_HARDLIGHT: ImageLayerOnBase<HardLightChannelMasked, HardLightChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_BURN: ImageLayerOnBase<BurnChannelMasked, BurnChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_DODGE: ImageLayerOnBase<DodgeChannelMasked, DodgeChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_SCREEN: ImageLayerOnBase<ScreenChannelMasked, ScreenChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_OVERLAY: ImageLayerOnBase<OverlayChannelMasked, OverlayChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_ALPHA_OVERLAY: ImageLayerOnBase<AlphaOverlayChannelMasked, AlphaOverlayChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_MULTIPLY: ImageLayerOnBase<MultiplyChannelMasked, MultiplyChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_BLEND: ImageLayerOnBase<BlendChannelMasked, BlendChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_SOFTLIGHT: BufferLayer<SoftLightChannelMasked, SoftLightChannel, false>( pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_HARDLIGHT: BufferLayer<HardLightChannelMasked, HardLightChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BURN: BufferLayer<BurnChannelMasked, BurnChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_DODGE: BufferLayer<DodgeChannelMasked, DodgeChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_SCREEN: BufferLayer<ScreenChannelMasked, ScreenChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_OVERLAY: BufferLayer<OverlayChannelMasked, OverlayChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_LIGHTEN: BufferLayer<LightenChannelMasked, LightenChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_MULTIPLY: BufferLayer<MultiplyChannelMasked, MultiplyChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BLEND: BufferLayer<BlendChannelMasked, BlendChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
                         default: check(false);
                         }
 
                     }
-                    else
+					else if (!bDone && args.bUseMaskFromBlended)
+					{
+						if (pBlended->GetLODCount() < pBase->GetLODCount())
+						{
+							bBlendOnlyOneMip = true;
+						}
+
+						switch (EBlendType(args.blendType))
+						{
+						case EBlendType::BT_NORMAL_COMBINE:
+							check(false);
+							break;
+						case EBlendType::BT_SOFTLIGHT: BufferLayerEmbeddedMask<SoftLightChannelMasked, SoftLightChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_HARDLIGHT: BufferLayerEmbeddedMask<HardLightChannelMasked, HardLightChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_BURN: BufferLayerEmbeddedMask<BurnChannelMasked, BurnChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_DODGE: BufferLayerEmbeddedMask<DodgeChannelMasked, DodgeChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_SCREEN: BufferLayerEmbeddedMask<ScreenChannelMasked, ScreenChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_OVERLAY: BufferLayerEmbeddedMask<OverlayChannelMasked, OverlayChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_LIGHTEN: BufferLayerEmbeddedMask<LightenChannelMasked, LightenChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_MULTIPLY: BufferLayerEmbeddedMask<MultiplyChannelMasked, MultiplyChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_BLEND: BufferLayerEmbeddedMask<BlendChannelMasked, BlendChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						default: check(false);
+						}
+					}
+                    else if (!bDone)
                     {
                         switch (EBlendType(args.blendType))
                         {
@@ -2615,18 +2650,37 @@ namespace mu
 							pBase = pNew;
 							pNew = new Image(pBase->GetSizeX(), pBase->GetSizeY(), pBase->GetLODCount(), pBase->GetFormat());
 							break;
-                        case EBlendType::BT_SOFTLIGHT: ImageLayerOnBase<SoftLightChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_HARDLIGHT: ImageLayerOnBase<HardLightChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_BURN: ImageLayerOnBase<BurnChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_DODGE: ImageLayerOnBase<DodgeChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_SCREEN: ImageLayerOnBase<ScreenChannel, false>( pNew.get(),  pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_OVERLAY: ImageLayerOnBase<OverlayChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_ALPHA_OVERLAY: ImageLayerOnBase<AlphaOverlayChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_MULTIPLY: ImageLayerOnBase<MultiplyChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_BLEND: pNew = pBlended->Clone(); break;
+                        case EBlendType::BT_SOFTLIGHT: BufferLayer<SoftLightChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_HARDLIGHT: BufferLayer<HardLightChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BURN: BufferLayer<BurnChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_DODGE: BufferLayer<DodgeChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_SCREEN: BufferLayer<ScreenChannel, false>(pNew.get(), pNew.get(),  pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_OVERLAY: BufferLayer<OverlayChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_LIGHTEN: BufferLayer<LightenChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_MULTIPLY: BufferLayer<MultiplyChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BLEND: BufferLayer<BlendChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
                         default: check(false);
                         }
                     }
+
+					// Apply the separate blend operation for alpha
+					if (!bDone && !bApplyColorBlendToAlpha && args.blendTypeAlpha != uint8(EBlendType::BT_NONE) )
+					{
+						// Separate alpha operation ignores the mask.
+						switch (EBlendType(args.blendTypeAlpha))
+						{
+						case EBlendType::BT_SOFTLIGHT: BufferLayerInPlace<SoftLightChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_HARDLIGHT: BufferLayerInPlace<HardLightChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_BURN: BufferLayerInPlace<BurnChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_DODGE: BufferLayerInPlace<DodgeChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_SCREEN: BufferLayerInPlace<ScreenChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_OVERLAY: BufferLayerInPlace<OverlayChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_LIGHTEN: BufferLayerInPlace<LightenChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_MULTIPLY: BufferLayerInPlace<MultiplyChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_BLEND: BufferLayerInPlace<BlendChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						default: check(false);
+						}
+					}
 				}
 
 				if (bBlendOnlyOneMip)
@@ -3060,7 +3114,7 @@ namespace mu
                 Ptr<const Layout> pLayout =
                     GetMemory().GetLayout( CACHE_ADDRESS( args.layout, SCHEDULED_OP::FromOpAndOptions(args.layout, item, 0)) );
 
-                SCHEDULED_OP_DATA data;
+                FScheduledOpData data;
                 data.layout = pLayout;
 				int32 dataPos = m_heapData.Add( data );
 
@@ -3121,7 +3175,7 @@ namespace mu
 
                 float bifactor = factor/delta - min;
 
-                SCHEDULED_OP_DATA data;
+                FScheduledOpData data;
                 data.bifactor = bifactor;
 				data.min = FMath::Clamp(min, 0, count - 1);
 				data.max = FMath::Clamp(max, 0, count - 1);
@@ -3158,7 +3212,7 @@ namespace mu
                 }
 
                 // Factor from 0 to 1 between the two targets
-                const SCHEDULED_OP_DATA& data = m_heapData[(size_t)item.customState];
+                const FScheduledOpData& data = m_heapData[(size_t)item.customState];
                 float bifactor = data.bifactor;
                 int min = data.min;
                 int max = data.max;
@@ -5475,7 +5529,7 @@ namespace mu
 
 			case 1:
 			{
-				const SCHEDULED_OP_DATA& SecondStageData = m_heapData[ item.customState ];
+				const FScheduledOpData& SecondStageData = m_heapData[ item.customState ];
 				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[SecondStageData.min];
 				const FImageDesc& SourceDesc = m_heapImageDesc[SecondStageData.max];
 				ResultAndBaseDesc.m_size = SourceDesc.m_size;

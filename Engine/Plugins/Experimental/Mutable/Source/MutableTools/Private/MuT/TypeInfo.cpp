@@ -132,6 +132,7 @@ namespace mu
 
 	const char* TypeInfo::s_blendModeName[uint32(EBlendType::_BT_COUNT)] =
 	{
+		"None",
 		"SoftLight",
 		"HardLight",
 		"Burn",
@@ -140,7 +141,7 @@ namespace mu
 		"Overlay",
 		"Blend",
 		"Multiply",
-		"AlphaOverlay", // TODO: This name is not descriptive.
+		"Lighten", // TODO: This name is not descriptive.
 		"NormalCombine",
 	};
 

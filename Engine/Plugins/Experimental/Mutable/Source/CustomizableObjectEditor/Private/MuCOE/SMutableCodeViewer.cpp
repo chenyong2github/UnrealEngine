@@ -156,9 +156,15 @@ public:
 			case mu::OP_TYPE::IM_MULTILAYER:
 			{
 				mu::OP::ImageMultiLayerArgs Args = Program.GetOpArgs<mu::OP::ImageMultiLayerArgs>(RowItem->MutableOperation);
-				OpName += TEXT(" ");
+				OpName += TEXT(" rgb: ");
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
-				OpName += FString::Printf(TEXT(" range-id %d"), Args.rangeId);
+				if (Args.blendTypeAlpha != int8(mu::EBlendType::BT_NONE))
+				{
+					OpName += TEXT(", a: ");
+					OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
+				}
+				OpName += FString::Printf(TEXT(" range-id: %d"), Args.rangeId);
+				OpName += FString::Printf(TEXT(" mask-from-alpha: %d"), int32(Args.bUseMaskFromBlended));
 				break;
 			}
 
@@ -174,8 +180,10 @@ public:
 			case mu::OP_TYPE::IM_LAYERCOLOUR:
 			{
 				mu::OP::ImageLayerColourArgs Args = Program.GetOpArgs<mu::OP::ImageLayerColourArgs>(RowItem->MutableOperation);
-				OpName += TEXT(" ");
+				OpName += TEXT(" rgb: ");
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
+				OpName += TEXT(" a: ");
+				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
 				break;
 			}
 
@@ -1245,6 +1253,17 @@ void SMutableCodeViewer::GenerateElementRecursive(mu::OP::ADDRESS InParentAddres
 	case mu::OP_TYPE::IM_SWIZZLE:
 	{
 		mu::OP::ImageSwizzleArgs Args = InProgram.GetOpArgs<mu::OP::ImageSwizzleArgs>(InParentAddress);
+		for (int32 Channel = 0; Channel < 4; ++Channel)
+		{
+			FString Caption = FString::Printf(TEXT("%d is %d from "), Channel, Args.sourceChannels[Channel]);
+			AddOpFunc(Args.sources[Channel], Caption);
+		}
+		break;
+	}
+
+	case mu::OP_TYPE::CO_SWIZZLE:
+	{
+		mu::OP::ColourSwizzleArgs Args = InProgram.GetOpArgs<mu::OP::ColourSwizzleArgs>(InParentAddress);
 		for (int32 Channel = 0; Channel < 4; ++Channel)
 		{
 			FString Caption = FString::Printf(TEXT("%d is %d from "), Channel, Args.sourceChannels[Channel]);

@@ -64,8 +64,6 @@ namespace mu
 		NodeImagePtr GetBlended() const;
 		void SetBlended( NodeImagePtr );
 
-		static const char* s_blendTypeName[int32(EBlendType::_BT_COUNT)];
-
 		//!
 		EBlendType GetBlendType() const;
 		void SetBlendType(EBlendType);

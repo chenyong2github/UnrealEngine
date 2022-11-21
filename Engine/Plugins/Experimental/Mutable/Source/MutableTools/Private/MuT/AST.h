@@ -1052,10 +1052,7 @@ namespace mu
             }
         }
 
-        //! \todo move to ast swizzle op class when created
-        Ptr<ASTOp> OptimiseSwizzle( const FModelOptimizationOptions& ) const;
     };
-
 
 
     //---------------------------------------------------------------------------------------------

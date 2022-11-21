@@ -26,21 +26,6 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	const char* NodeImageLayer::s_blendTypeName[] =
-	{
-		"SoftLight",
-		"HardLight",
-		"Burn",
-		"Dodge",
-		"Screen",
-		"Overlay",
-		"Blend",
-        "Multiply",
-        "AlphaOverlay"
-	};
-
-
-	//---------------------------------------------------------------------------------------------
 	// Node Interface
 	//---------------------------------------------------------------------------------------------
 	int NodeImageLayer::GetInputCount() const

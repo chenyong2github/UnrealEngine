@@ -304,13 +304,6 @@ namespace mu
             f(&op.args.ImageInterpolate3.target2 );
             break;
 
-        case OP_TYPE::IM_SWIZZLE:
-            for (int t=0;t<MUTABLE_OP_MAX_SWIZZLE_CHANNELS;++t)
-            {
-                f(&op.args.ImageSwizzle.sources[t] );
-            }
-            break;
-
         case OP_TYPE::IM_SATURATE:
             f(&op.args.ImageSaturate.base );
             f(&op.args.ImageSaturate.factor );

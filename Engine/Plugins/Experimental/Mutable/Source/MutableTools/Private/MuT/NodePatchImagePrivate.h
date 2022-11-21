@@ -36,7 +36,7 @@ namespace mu
         //!
         void Serialise( OutputArchive& arch ) const
         {
-            uint32_t ver = 2;
+            uint32_t ver = 3;
             arch << ver;
 
             arch << m_pImage;
@@ -51,7 +51,7 @@ namespace mu
         {
             uint32_t ver;
             arch >> ver;
-            check(ver==2);
+            check(ver>=2 && ver<=3);
 
             arch >> m_pImage;
             arch >> m_pMask;
@@ -59,6 +59,10 @@ namespace mu
 
 			uint32_t t;
             arch >> t;
+			if (ver <= 2)
+			{
+				++t;
+			}
             m_blendType=(EBlendType)t;
 
             arch >> m_applyToAlpha;

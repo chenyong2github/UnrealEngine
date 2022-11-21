@@ -1792,7 +1792,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 	projectedPositions.SetNum(vertexCount);
 
     // Iterate the faces and trace a ray to find the origin face of the projection
-    const float maxDist = 100000.f;
+    const float maxDist = 100000.f; // TODO: This should be proportional to the mesh bounding box size.
     float min_t = maxDist;
     float rayLength = maxDist;
     int intersectedFace = -1;

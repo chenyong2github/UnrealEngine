@@ -54,7 +54,7 @@ class RangeIndex;
 
         //! Type of data sometimes stored in the code runner heap to pass info between
         //! operation stages.
-        struct SCHEDULED_OP_DATA
+        struct FScheduledOpData
         {
             float bifactor=0.0f;
             int32 min=0, max=0;
@@ -92,7 +92,7 @@ class RangeIndex;
 
         //! Heap of intermediate data pushed by some instructions and referred by others.
         //! It is not released until no operations are pending.
-		TArray< SCHEDULED_OP_DATA > m_heapData;
+		TArray< FScheduledOpData > m_heapData;
 		TArray< FImageDesc > m_heapImageDesc;
 
 	public:

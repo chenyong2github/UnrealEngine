@@ -25,7 +25,15 @@ struct FProgram;
 		ASTChild blend;
 		ASTChild mask;
 		FRangeData range;
-		EBlendType blendType;
+
+		/** Blend type used for the colour channels. */
+		EBlendType blendType = EBlendType::BT_NONE;
+
+		/** Blend type used for the alpha channel if any. */
+		EBlendType blendTypeAlpha = EBlendType::BT_NONE;
+
+		/** If true, use the alpha channel of the blended image as mask. Mask should be null.*/
+		bool bUseMaskFromBlended = false;
 
 	public:
 

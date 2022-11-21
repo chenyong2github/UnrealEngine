@@ -384,7 +384,7 @@ mu::NodeImagePtr GenerateMutableGroupProjection(const int32 NodeLOD, const int32
 
 		mu::NodeImageMultiLayerPtr BaseAlphaMultiLayerNode = new mu::NodeImageMultiLayer;
 		BaseAlphaMultiLayerNode->SetRange(ImageNodes_ProjectorTempData[i].NodeRange);
-		BaseAlphaMultiLayerNode->SetBlendType(mu::EBlendType::BT_ALPHA_OVERLAY);
+		BaseAlphaMultiLayerNode->SetBlendType(mu::EBlendType::BT_LIGHTEN);
 		BaseAlphaMultiLayerNode->SetBase(ResultAlpha);
 		BaseAlphaMultiLayerNode->SetBlended(MultiplySwizzleNode);
 		//BaseAlphaMultiLayerNode->SetMask(MultiplySwizzleNode); // No mask needed

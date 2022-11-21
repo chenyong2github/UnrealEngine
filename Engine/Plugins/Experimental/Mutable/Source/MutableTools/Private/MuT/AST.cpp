@@ -1205,12 +1205,6 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext
         }
         break;
 
-    case OP_TYPE::IM_SWIZZLE:
-        res = GetImageDesc( op.args.ImageSwizzle.sources[0], returnBestOption, context );
-        res.m_format = op.args.ImageSwizzle.format;
-        check( res.m_format != EImageFormat::IF_NONE );
-        break;
-
     case OP_TYPE::IM_SELECTCOLOUR:
         res = GetImageDesc( op.args.ImageSelectColour.base, returnBestOption, context );
         res.m_format = EImageFormat::IF_L_UBYTE;
@@ -1308,12 +1302,6 @@ void ASTOpFixed::GetLayoutBlockSize( int* pBlockX, int* pBlockY )
 
 		break;
 	}
-
-    case OP_TYPE::IM_SWIZZLE:
-    {
-        GetLayoutBlockSize( op.args.ImageSwizzle.sources[0], pBlockX, pBlockY );
-        break;
-    }
 
     case OP_TYPE::IM_LAYER:
     {
@@ -1751,13 +1739,6 @@ mu::Ptr<ImageSizeExpression> ASTOpFixed::GetImageSizeExpression() const
         if ( children[op.args.ImageSelectColour.colour] )
         {
             pRes = children[op.args.ImageSelectColour.colour].child()->GetImageSizeExpression();
-        }
-        break;
-
-    case OP_TYPE::IM_SWIZZLE:
-        if ( children[op.args.ImageSwizzle.sources[0]] )
-        {
-            pRes = children[op.args.ImageSwizzle.sources[0]].child()->GetImageSizeExpression();
         }
         break;
 

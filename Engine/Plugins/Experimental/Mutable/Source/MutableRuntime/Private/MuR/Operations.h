@@ -546,16 +546,19 @@ namespace mu
             ADDRESS blended;
             ADDRESS rangeSize;
             uint16 rangeId;
-            uint16 blendType; // One of BLEND_TYPE
-        };
+			uint8 blendType;		// One of BLEND_TYPE
+			uint8 blendTypeAlpha;	// One of BLEND_TYPE
+			uint8 bUseMaskFromBlended;	
+		};
 
         struct ImageLayerColourArgs
         {
             ADDRESS base;
             ADDRESS mask;
             ADDRESS colour;
-			uint8 blendType;	// One of BLEND_TYPE
-        };
+			uint8 blendType;		// One of BLEND_TYPE
+			uint8 blendTypeAlpha;	// One of BLEND_TYPE
+		};
 
         struct ImagePixelFormatArgs
         {
@@ -1084,7 +1087,6 @@ namespace mu
             ImageInterpolate3Args ImageInterpolate3;
             ImageSaturateArgs ImageSaturate;
             ImageLuminanceArgs ImageLuminance;
-            ImageSwizzleArgs ImageSwizzle;
             ImageSelectColourArgs ImageSelectColour;
             ImageColourMapArgs ImageColourMap;
             ImageGradientArgs ImageGradient;

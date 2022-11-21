@@ -329,7 +329,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 				case COTLE_BURN: Type = mu::EBlendType::BT_BURN; break;
 				case COTLE_SCREEN: Type = mu::EBlendType::BT_SCREEN; break;
 				case COTLE_OVERLAY: Type = mu::EBlendType::BT_OVERLAY; break;
-				case COTLE_ALPHA_OVERLAY: Type = mu::EBlendType::BT_ALPHA_OVERLAY; break;
+				case COTLE_LIGHTEN: Type = mu::EBlendType::BT_LIGHTEN; break;
 				case COTLE_NORMAL_COMBINE: Type = mu::EBlendType::BT_NORMAL_COMBINE; break;
 				default:
 					GenerationContext.Compiler->CompilerLog(LOCTEXT("UnsupportedImageEffect", "Texture layer effect not supported. Setting to 'Blend'."), Node);

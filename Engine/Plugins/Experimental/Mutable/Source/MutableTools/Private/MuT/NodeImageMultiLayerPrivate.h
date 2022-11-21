@@ -32,7 +32,7 @@ namespace mu
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 0;
+            uint32_t ver = 1;
 			arch << ver;
             arch << uint32_t(m_type);
 
@@ -47,10 +47,14 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver==0);
+			check(ver<=1);
 
             uint32_t t;
             arch >> t;
+			if (ver < 1)
+			{
+				++t;
+			}
             m_type=(EBlendType)t;
 
             arch >> m_pBase;

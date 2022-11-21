@@ -27,6 +27,7 @@
 #include "MuT/ASTOpImagePixelFormat.h"
 #include "MuT/ASTOpImageTransform.h"
 #include "MuT/ASTOpImageMakeGrowMap.h"
+#include "MuT/ASTOpImageSwizzle.h"
 #include "MuT/ASTOpMeshExtractLayoutBlocks.h"
 #include "MuT/ASTOpMeshFormat.h"
 #include "MuT/ASTOpParameter.h"
@@ -762,8 +763,7 @@ namespace mu
 
         // This node always produces a swizzle operation and sometimes it may produce a pixelformat
 		// operation to compress the result
-        Ptr<ASTOpFixed> op = new ASTOpFixed();
-        op->op.type = OP_TYPE::IM_SWIZZLE;
+        Ptr<ASTOpImageSwizzle> op = new ASTOpImageSwizzle();
 
 		// Format
 		EImageFormat compressedFormat = EImageFormat::IF_NONE;
@@ -773,7 +773,7 @@ namespace mu
         case EImageFormat::IF_BC1:
         case EImageFormat::IF_ASTC_4x4_RGB_LDR:
             compressedFormat = node.m_format;
-            op->op.args.ImageSwizzle.format = node.m_sources[3] ? EImageFormat::IF_RGBA_UBYTE : EImageFormat::IF_RGB_UBYTE;
+            op->Format = node.m_sources[3] ? EImageFormat::IF_RGBA_UBYTE : EImageFormat::IF_RGB_UBYTE;
 			break;
 
 		case EImageFormat::IF_BC2:
@@ -782,23 +782,23 @@ namespace mu
         case EImageFormat::IF_BC7:
         case EImageFormat::IF_ASTC_4x4_RGBA_LDR:
             compressedFormat = node.m_format;
-             op->op.args.ImageSwizzle.format = EImageFormat::IF_RGBA_UBYTE;
+             op->Format = EImageFormat::IF_RGBA_UBYTE;
 			break;
 
 		case EImageFormat::IF_BC4:
 			compressedFormat = node.m_format;
-            op->op.args.ImageSwizzle.format = EImageFormat::IF_L_UBYTE;
+            op->Format = EImageFormat::IF_L_UBYTE;
 			break;
 
 		case EImageFormat::IF_BC5:
         case EImageFormat::IF_ASTC_4x4_RG_LDR:
             compressedFormat = node.m_format;
 			// TODO: Should be RG
-            op->op.args.ImageSwizzle.format = EImageFormat::IF_RGB_UBYTE;
+            op->Format = EImageFormat::IF_RGB_UBYTE;
 			break;
 
 		default:
-            op->op.args.ImageSwizzle.format = node.m_format;
+            op->Format = node.m_format;
 			break;
 
 		}
@@ -809,8 +809,8 @@ namespace mu
 		check(node.m_sources.Num() == node.m_sourceChannels.Num());
 
 		// First source, for reference in the size
-        Ptr<ASTOp> first = 0;
-		for (std::size_t t = 0; t< node.m_sources.Num(); ++t)
+        Ptr<ASTOp> first;
+		for (int32 t = 0; t<node.m_sources.Num(); ++t)
 		{
 			if (Node* pChannel = node.m_sources[t].get())
 			{
@@ -820,8 +820,7 @@ namespace mu
 				if (!source)
 				{
 					// TODO: Warn?
-					source = GenerateMissingImageCode("Swizzle channel", EImageFormat::IF_L_UBYTE,
-						node.m_errorContext);
+					source = GenerateMissingImageCode("Swizzle channel", EImageFormat::IF_L_UBYTE, node.m_errorContext);
 				}
 
                 Ptr<ASTOp> sizedSource;
@@ -839,17 +838,16 @@ namespace mu
 					sizedSource = source;
 				}
 
-                op->SetChild( op->op.args.ImageSwizzle.sources[t], sizedSource);
-                op->op.args.ImageSwizzle.sourceChannels[t] = (uint8_t)node.m_sourceChannels[t];
+                op->Sources[t] = sizedSource;
+                op->SourceChannels[t] = (uint8)node.m_sourceChannels[t];
 			}
 		}
 
 		// At least one source is required
-        if (!op->op.args.ImageSwizzle.sources[0])
+        if (!op->Sources[0])
 		{
-            Ptr<ASTOp> source = GenerateMissingImageCode("First swizzle image", EImageFormat::IF_RGBA_UBYTE,
-				node.m_errorContext);
-            op->SetChild( op->op.args.ImageSwizzle.sources[0], source);
+            Ptr<ASTOp> source = GenerateMissingImageCode("First swizzle image", EImageFormat::IF_RGBA_UBYTE, node.m_errorContext);
+            op->Sources[0] = source;
 		}
 
         Ptr<ASTOp> resultOp = op;

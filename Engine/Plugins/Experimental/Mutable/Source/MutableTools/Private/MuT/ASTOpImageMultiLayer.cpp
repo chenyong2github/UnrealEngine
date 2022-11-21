@@ -23,7 +23,6 @@ namespace mu
 		, blend(this)
 		, mask(this)
 		, range(this, nullptr, string(), string())
-		, blendType(EBlendType::BT_BLEND)
 	{
 	}
 
@@ -37,15 +36,17 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	bool ASTOpImageMultiLayer::IsEqual(const ASTOp& otherUntyped) const
+	bool ASTOpImageMultiLayer::IsEqual(const ASTOp& InOtherUntyped) const
 	{
-		if (auto other = dynamic_cast<const ASTOpImageMultiLayer*>(&otherUntyped))
+		if (const ASTOpImageMultiLayer* Other = dynamic_cast<const ASTOpImageMultiLayer*>(&InOtherUntyped))
 		{
-			return base == other->base &&
-				blend == other->blend &&
-				mask == other->mask &&
-				range == other->range &&
-				blendType == other->blendType;
+			return base == Other->base &&
+				blend == Other->blend &&
+				mask == Other->mask &&
+				range == Other->range &&
+				blendType == Other->blendType &&
+				blendTypeAlpha == Other->blendTypeAlpha &&
+				bUseMaskFromBlended == Other->bUseMaskFromBlended;
 		}
 		return false;
 	}
@@ -73,6 +74,8 @@ namespace mu
 		n->range.rangeUID = range.rangeUID;
 		n->range.rangeSize = mapChild(range.rangeSize.child());
 		n->blendType = blendType;
+		n->blendTypeAlpha = blendTypeAlpha;
+		n->bUseMaskFromBlended = bUseMaskFromBlended;
 		return n;
 	}
 
@@ -96,7 +99,9 @@ namespace mu
 			OP::ImageMultiLayerArgs args;
 			memset(&args, 0, sizeof(args));
 
-			args.blendType = (uint16)blendType;
+			args.blendType = (uint8)blendType;
+			args.blendTypeAlpha = (uint8)blendTypeAlpha;
+			args.bUseMaskFromBlended = bUseMaskFromBlended;
 
 			if (base) args.base = base->linkedAddress;
 			if (blend) args.blended = blend->linkedAddress;
