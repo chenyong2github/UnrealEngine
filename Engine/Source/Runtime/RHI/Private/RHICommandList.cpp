@@ -136,7 +136,18 @@ static TStatId GCurrentExecuteStat;
 static FCriticalSection GRHIThreadOnTasksCritical;
 static std::atomic<int32> GRHIThreadStallRequestCount;
 
-FRHIParameterBatcher::FRHIParameterBatcher() = default;
+int32 GRHICommandParameterBatching = 0;
+static FAutoConsoleVariableRef CVarRHICommandParameterBatching(
+	TEXT("r.RHICmdParamBatching"),
+	GRHICommandParameterBatching,
+	TEXT("Controls if parameters can be batched in RHI command lists."),
+	ECVF_ReadOnly
+);
+
+FRHIParameterBatcher::FRHIParameterBatcher()
+{
+	bEnabled = GRHICommandParameterBatching != 0;
+}
 FRHIParameterBatcher::FRHIParameterBatcher(FRHIParameterBatcher&&) = default;
 FRHIParameterBatcher::~FRHIParameterBatcher()
 {
