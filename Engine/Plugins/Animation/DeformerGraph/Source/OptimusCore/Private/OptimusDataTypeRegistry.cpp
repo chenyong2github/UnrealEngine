@@ -1436,17 +1436,17 @@ FOptimusDataTypeRegistry::PropertyValueConvertFuncT FOptimusDataTypeRegistry::Fi
 	return InfoPtr->PropertyValueConvertFunc;
 }
 
-const TArray<FOptimusDataTypeRegistry::FArrayMetadata>* FOptimusDataTypeRegistry::FindArrayMetadata(
+TArray<FOptimusDataTypeRegistry::FArrayMetadata> FOptimusDataTypeRegistry::FindArrayMetadata(
 	FName InTypeName) const
 {
 	const FTypeInfo* InfoPtr = RegisteredTypes.Find(InTypeName);
 	if (!InfoPtr)
 	{
 		UE_LOG(LogOptimusCore, Fatal, TEXT("CreateProperty: Invalid type name."));
-		return nullptr;
+		return {};
 	}
 
-	return &InfoPtr->ArrayMetadata;
+	return InfoPtr->ArrayMetadata;
 }
 
 UScriptStruct* FOptimusDataTypeRegistry::FindAttributeType(FName InTypeName) const

@@ -118,25 +118,20 @@ bool FOptimusDataType::CanCreateProperty() const
 
 int32 FOptimusDataType::GetNumArrays() const
 {
-	const TArray<FOptimusDataTypeRegistry::FArrayMetadata>* ArrayMetadata =
+	const TArray<FOptimusDataTypeRegistry::FArrayMetadata> ArrayMetadata =
 		FOptimusDataTypeRegistry::Get().FindArrayMetadata(TypeName);
 	
-	if (ensure(ArrayMetadata))
-	{
-		return ArrayMetadata->Num();
-	}
-
-	return 0;
+	return ArrayMetadata.Num();
 }
 
 int32 FOptimusDataType::GetArrayShaderValueOffset(int32 InArrayIndex) const
 {
-	const TArray<FOptimusDataTypeRegistry::FArrayMetadata>* ArrayMetadata =
+	const TArray<FOptimusDataTypeRegistry::FArrayMetadata> ArrayMetadata =
 		FOptimusDataTypeRegistry::Get().FindArrayMetadata(TypeName);
 
-	if (ensure(ArrayMetadata) && ensure(ArrayMetadata->IsValidIndex(InArrayIndex)))
+	if (ensure(ArrayMetadata.IsValidIndex(InArrayIndex)))
 	{
-		return (*ArrayMetadata)[InArrayIndex].ShaderValueOffset;
+		return ArrayMetadata[InArrayIndex].ShaderValueOffset;
 	}
 
 	return INDEX_NONE;
@@ -144,12 +139,12 @@ int32 FOptimusDataType::GetArrayShaderValueOffset(int32 InArrayIndex) const
 
 int32 FOptimusDataType::GetArrayElementShaderValueSize(int32 InArrayIndex) const
 {
-	const TArray<FOptimusDataTypeRegistry::FArrayMetadata>* ArrayMetadata =
+	const TArray<FOptimusDataTypeRegistry::FArrayMetadata> ArrayMetadata =
 		FOptimusDataTypeRegistry::Get().FindArrayMetadata(TypeName);
 
-	if (ensure(ArrayMetadata && ArrayMetadata->IsValidIndex(InArrayIndex)))
+	if (ensure(ArrayMetadata.IsValidIndex(InArrayIndex)))
 	{
-		return (*ArrayMetadata)[InArrayIndex].ElementShaderValueSize;
+		return ArrayMetadata[InArrayIndex].ElementShaderValueSize;
 	}
 
 	return INDEX_NONE;

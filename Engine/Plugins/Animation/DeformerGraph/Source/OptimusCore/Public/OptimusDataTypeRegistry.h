@@ -165,7 +165,7 @@ public:
 	PropertyValueConvertFuncT FindPropertyValueConvertFunc(FName InTypeName) const;
 
 	/** A helper function to return the array metadata. */
-	const TArray<FArrayMetadata>* FindArrayMetadata(FName InTypeName) const;
+	TArray<FArrayMetadata> FindArrayMetadata(FName InTypeName) const;
 
 	/** A helper function to return the corresponding animation attribute type. */
 	UScriptStruct* FindAttributeType(FName InTypeName) const;

@@ -165,7 +165,7 @@ struct FOptimusAnimAttributeRuntimeData
 
 	FOptimusDataTypeRegistry::PropertyValueConvertFuncT	ConvertFunc = nullptr;
 
-	const TArray<FOptimusDataTypeRegistry::FArrayMetadata>* ArrayMetadata = nullptr;
+	TArray<FOptimusDataTypeRegistry::FArrayMetadata> ArrayMetadata;
 
 	UScriptStruct* AttributeType = nullptr;
 

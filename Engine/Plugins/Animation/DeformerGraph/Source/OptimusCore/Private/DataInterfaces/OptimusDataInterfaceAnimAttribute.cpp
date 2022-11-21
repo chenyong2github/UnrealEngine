@@ -602,11 +602,8 @@ void UOptimusAnimAttributeDataProvider::Init(
 		
 		RuntimeData.Offset = Members[Index].GetOffset();
 
-		if (RuntimeData.ArrayMetadata)
-		{
-			RuntimeData.ArrayIndexStart = TotalNumArrays;
-			TotalNumArrays += RuntimeData.ArrayMetadata->Num();
-		}
+		RuntimeData.ArrayIndexStart = TotalNumArrays;
+		TotalNumArrays += RuntimeData.ArrayMetadata.Num();
 	}
 
 	AttributeBufferSize = ShaderParameterMetadata->GetSize();
@@ -634,10 +631,10 @@ FComputeDataProviderRenderProxy* UOptimusAnimAttributeDataProvider::GetRenderPro
 	{
 		const FOptimusAnimAttributeRuntimeData& AttributeData = AttributeRuntimeData[Index];
 
-		for (int32 ArrayIndex = 0; AttributeData.ArrayMetadata && ArrayIndex < AttributeData.ArrayMetadata->Num(); ArrayIndex++)
+		for (int32 ArrayIndex = 0; ArrayIndex < AttributeData.ArrayMetadata.Num(); ArrayIndex++)
 		{
 			int32 ToplevelArrayIndex = AttributeData.ArrayIndexStart + ArrayIndex;
-			const FOptimusDataTypeRegistry::FArrayMetadata& Metadata = (*AttributeData.ArrayMetadata)[ArrayIndex];
+			const FOptimusDataTypeRegistry::FArrayMetadata& Metadata = AttributeData.ArrayMetadata[ArrayIndex];
 			if (ensure(Proxy->AttributeArrayMetadata.IsValidIndex(ToplevelArrayIndex)))
 			{
 				Proxy->AttributeArrayMetadata[ToplevelArrayIndex].Offset = AttributeData.Offset + Metadata.ShaderValueOffset;
@@ -670,7 +667,7 @@ FComputeDataProviderRenderProxy* UOptimusAnimAttributeDataProvider::GetRenderPro
 					{ValuePtr, ValueSize},
 					{
 						{Proxy->AttributeBuffer.GetData() + AttributeData.Offset, AttributeData.Size},
-						{Proxy->AttributeArrayData.GetData() + AttributeData.ArrayIndexStart, AttributeData.ArrayMetadata ? AttributeData.ArrayMetadata->Num() : 0}	
+						{Proxy->AttributeArrayData.GetData() + AttributeData.ArrayIndexStart, AttributeData.ArrayMetadata.Num()}	
 					});
 			}
 		
@@ -682,20 +679,17 @@ FComputeDataProviderRenderProxy* UOptimusAnimAttributeDataProvider::GetRenderPro
 
 				FMemory::Memcpy(&Proxy->AttributeBuffer[AttributeData.Offset], DefaultValuePtr, DefaultValueSize);
 
-				if (AttributeData.ArrayMetadata)
+				if (ensure(AttributeData.ArrayMetadata.Num() == AttributeData.CachedDefaultValue.ArrayList.Num()))
 				{
-					if (ensure(AttributeData.ArrayMetadata->Num() == AttributeData.CachedDefaultValue.ArrayList.Num()))
+					for (int32 ArrayIndex = 0; ArrayIndex < AttributeData.CachedDefaultValue.ArrayList.Num(); ArrayIndex++)
 					{
-						for (int32 ArrayIndex = 0; ArrayIndex < AttributeData.CachedDefaultValue.ArrayList.Num(); ArrayIndex++)
+						const int32 ToplevelArrayIndex = AttributeData.ArrayIndexStart + ArrayIndex;
+						if (ensure(Proxy->AttributeArrayData.IsValidIndex(ToplevelArrayIndex)))
 						{
-							const int32 ToplevelArrayIndex = AttributeData.ArrayIndexStart + ArrayIndex;
-							if (ensure(Proxy->AttributeArrayData.IsValidIndex(ToplevelArrayIndex)))
-							{
-								Proxy->AttributeArrayData[ToplevelArrayIndex] = AttributeData.CachedDefaultValue.ArrayList[ArrayIndex];
-							}
+							Proxy->AttributeArrayData[ToplevelArrayIndex] = AttributeData.CachedDefaultValue.ArrayList[ArrayIndex];
 						}
-					}	
-				}
+					}
+				}	
 			}
 		}
 	}
