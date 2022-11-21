@@ -344,7 +344,8 @@ void SObjectMixerEditorList::OnRequestNewFolder(TOptional<FFolder> ExplicitParen
 				if (SelectedRow->GetRowType() == FObjectMixerEditorListRow::MatchingObject ||
 					SelectedRow->GetRowType() == FObjectMixerEditorListRow::ContainerObject)
 				{
-					if (FObjectMixerEditorListRowPtr PinnedParent = SelectedRow->GetDirectParentRow().Pin();
+					FObjectMixerEditorListRowPtr PinnedParent = SelectedRow->GetDirectParentRow().Pin();
+					if (PinnedParent.IsValid() &&
 						PinnedParent->GetRowType() == FObjectMixerEditorListRow::Folder &&
 						SelectedTreeItems.Contains(PinnedParent))
 					{
