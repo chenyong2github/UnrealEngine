@@ -195,7 +195,7 @@ struct DATAFLOWCORE_API FDataflowNode
 	template<class T> bool IsConnected(const T* Reference) const
 	{
 		checkSlow(FindInput(Reference));
-		return FindInput(Reference) != nullptr;
+		return (FindInput(Reference)->GetConnection() != nullptr);
 	}
 
 	void Invalidate();
