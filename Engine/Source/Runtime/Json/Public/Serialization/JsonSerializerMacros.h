@@ -1056,6 +1056,7 @@ struct FJsonSerializable
 			Serialize(Serializer, false);
 			return true;
 		}
+		UE_LOG(LogJson, Warning, TEXT("Failed to parse Json from a string: %s"), *JsonReader->GetErrorMessage());
 		return false;
 	}
 
