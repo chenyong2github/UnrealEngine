@@ -57,10 +57,14 @@ namespace UE::PixelStreaming
 
 	void FAudioInputMixer::StopMixing()
 	{
-		if (MixerThread.IsValid())
+		if (MixerThread.IsValid() && bIsMixing)
 		{
 			MixerThread->Kill();
 			bIsMixing = false;
+		}
+		if (Runnable.IsValid())
+		{
+			Runnable->Stop();
 		}
 	}
 
