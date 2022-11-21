@@ -1336,6 +1336,7 @@ void GetDDCBuiltData(FByteBulkData* OutResult, DDCBuilderType& InBuilder, UBodyS
 		{
 			bDataWasBuilt = true;
 			InBuilder.Build(OutData);
+			COOK_STAT(Timer.TrackCyclesOnly());
 		}
 	}
 
