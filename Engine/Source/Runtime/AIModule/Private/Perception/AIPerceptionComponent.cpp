@@ -607,6 +607,15 @@ void UAIPerceptionComponent::ProcessStimuli()
 		ForgetActor(ActorToForget);
 	}
 
+	// notify anyone interested
+	if (OnTargetPerceptionForgotten.IsBound())
+	{
+		for (AActor* ActorToForget : ActorsToForget)
+		{
+			OnTargetPerceptionForgotten.Broadcast(ActorToForget);
+		}
+	}
+
 	// remove perceptual info related to stale actors
 	for (const TObjectKey<AActor>& SourceKey : DataToRemove)
 	{
