@@ -4,6 +4,8 @@
 
 #include "Async/TaskGraphInterfaces.h"
 
+struct FMessageAddress;
+
 enum class EMessageBusNotification : uint8
 {
 	Registered = 0,

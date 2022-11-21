@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/IndirectArray.h"
 #include "VectorTypes.h"
 
 

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include <atomic>
 
 #if PLATFORM_CPU_X86_FAMILY

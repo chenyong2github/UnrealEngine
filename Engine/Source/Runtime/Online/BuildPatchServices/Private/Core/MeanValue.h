@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Math/UnrealMathUtility.h"
 
 namespace BuildPatchServices
 {

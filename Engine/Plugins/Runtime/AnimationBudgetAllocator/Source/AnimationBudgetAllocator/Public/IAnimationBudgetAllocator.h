@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 class USkeletalMeshComponentBudgeted;
 class UWorld;
 struct FAnimationBudgetAllocatorParameters;

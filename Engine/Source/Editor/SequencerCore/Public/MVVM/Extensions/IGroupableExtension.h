@@ -2,8 +2,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "Misc/StringBuilder.h"
 #include "MVVM/ViewModelTypeID.h"
-#include "Containers/StringFwd.h"
 
 struct FGuid;
 

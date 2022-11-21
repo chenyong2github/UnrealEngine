@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "MovieSceneSequence.h"
 #include "MovieSceneSequenceEditor.h"
 #include "Tracks/MovieSceneEventTrack.h"
 #include "Engine/Blueprint.h"

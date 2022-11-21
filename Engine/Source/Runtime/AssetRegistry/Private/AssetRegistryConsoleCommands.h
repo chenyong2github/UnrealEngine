@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistryPrivate.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/FileManager.h"

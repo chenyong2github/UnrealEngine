@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Spatial/SpatialInterfaces.h"
 #include "Util/DynamicVector.h"
 #include "SegmentTypes.h"
 #include "BoxTypes.h"

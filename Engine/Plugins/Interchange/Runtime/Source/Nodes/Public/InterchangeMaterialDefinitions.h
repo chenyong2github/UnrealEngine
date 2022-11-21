@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Internationalization/Text.h"
+
 namespace UE
 {
 namespace Interchange

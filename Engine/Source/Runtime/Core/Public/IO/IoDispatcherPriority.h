@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
+#include "CoreTypes.h"
+#include <stdint.h>
 
 enum EIoDispatcherPriority : int32
 {

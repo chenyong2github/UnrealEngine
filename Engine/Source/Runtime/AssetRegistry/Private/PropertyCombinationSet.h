@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Algo/IsSorted.h"
+#include "Containers/ArrayView.h"
 #include "Containers/BitArray.h"
 #include "HAL/UnrealMemory.h"
 #include "Misc/AssertionMacros.h"

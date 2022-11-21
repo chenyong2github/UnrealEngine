@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 #if UE_BUILD_DEBUG && WITH_EDITOR
 #define UE_POSE_SEARCH_EIGEN_DEBUG 1
 #endif

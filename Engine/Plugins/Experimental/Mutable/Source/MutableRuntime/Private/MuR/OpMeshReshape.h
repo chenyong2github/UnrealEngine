@@ -4,6 +4,7 @@
 
 #include "MuR/ConvertData.h"
 #include "MuR/MeshPrivate.h"
+#include "MuR/Operations.h"
 #include "MuR/OpMeshBind.h"
 
 #include "Math/Plane.h"

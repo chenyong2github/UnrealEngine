@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "Particles/ParticlePerfStats.h"
 #include "PrimitiveSceneProxy.h"
 
+class FNiagaraGpuComputeDispatchInterface;
 class FNiagaraSystemRenderData;
+class UNiagaraComponent;
 
 /**
 * Scene proxy for drawing niagara particle simulations.

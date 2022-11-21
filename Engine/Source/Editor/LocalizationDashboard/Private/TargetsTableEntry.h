@@ -2,9 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LocalizationTargetTypes.h"
 #include "PropertyHandle.h"
-
-class ULocalizationTarget;
 
 struct FTargetsTableEntry
 {

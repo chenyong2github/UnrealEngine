@@ -5,6 +5,7 @@
 #include <atomic>
 
 #include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 
 namespace UE
 {

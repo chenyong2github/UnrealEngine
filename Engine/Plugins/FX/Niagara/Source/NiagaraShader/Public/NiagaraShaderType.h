@@ -11,6 +11,8 @@
 #include "GlobalShader.h"
 #include "Engine/EngineTypes.h"
 
+struct FNiagaraShaderScriptParametersMetadata;
+
 /** A macro to implement Niagara shaders. */
 #define IMPLEMENT_NIAGARA_SHADER_TYPE(TemplatePrefix,ShaderClass,SourceFilename,FunctionName,Frequency) \
 	IMPLEMENT_SHADER_TYPE( \

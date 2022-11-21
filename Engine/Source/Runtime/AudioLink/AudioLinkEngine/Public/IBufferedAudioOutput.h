@@ -2,6 +2,11 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+
+class FAudioDevice;
+
 class IPushableAudioOutput
 {
 public:

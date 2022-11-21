@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 // Unique server assigned ID for a network sim instance
 struct FNetworkPredictionID
 {

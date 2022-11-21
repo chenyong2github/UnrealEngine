@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 template <typename T, int32 Size = 64>
 struct TFixedCircularBuffer
 {

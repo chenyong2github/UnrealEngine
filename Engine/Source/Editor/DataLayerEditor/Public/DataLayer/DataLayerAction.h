@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 enum class EDataLayerAction : uint8
 {
 	Add,

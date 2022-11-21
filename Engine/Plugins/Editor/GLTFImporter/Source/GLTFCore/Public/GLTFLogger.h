@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Templates/Tuple.h"
 
 namespace GLTF

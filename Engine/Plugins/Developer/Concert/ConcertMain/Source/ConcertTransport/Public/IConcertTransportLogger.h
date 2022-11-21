@@ -9,6 +9,7 @@ class IConcertMessage;
 struct FConcertMessageContext;
 
 struct FConcertAckData;
+struct FConcertEndpointClosedData;
 struct FConcertReliableHandshakeData;
 
 /**

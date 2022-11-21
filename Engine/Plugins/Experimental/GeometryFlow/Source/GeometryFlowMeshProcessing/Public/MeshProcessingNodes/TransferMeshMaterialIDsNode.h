@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 #include "Operations/MeshAttributeTransfer.h"

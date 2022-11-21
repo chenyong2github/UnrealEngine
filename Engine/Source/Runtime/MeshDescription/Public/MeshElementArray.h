@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
+#include "MeshTypes.h"
 
 /**
  * This defines the container used to hold mesh elements.

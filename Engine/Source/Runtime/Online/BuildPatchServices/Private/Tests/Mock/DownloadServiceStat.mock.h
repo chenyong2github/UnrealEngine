@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Common/StatsCollector.h"
 #include "Installer/DownloadService.h"
 
 #if WITH_DEV_AUTOMATION_TESTS

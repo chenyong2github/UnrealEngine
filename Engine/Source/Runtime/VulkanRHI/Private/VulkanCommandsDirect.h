@@ -6,6 +6,8 @@
 
 #pragma once 
 
+#include "VulkanConfiguration.h"
+
 #if VULKAN_COMMANDWRAPPERS_ENABLE
 	#error "VulkanCommandsDirect should not be used when CommandWrappers are enabled."
 #endif

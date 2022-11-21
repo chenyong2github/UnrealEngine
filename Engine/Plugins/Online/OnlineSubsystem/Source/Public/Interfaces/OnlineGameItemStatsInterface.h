@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "OnlineError.h"
 #include "OnlineEventsInterface.h"
 
 class FUniqueNetId;

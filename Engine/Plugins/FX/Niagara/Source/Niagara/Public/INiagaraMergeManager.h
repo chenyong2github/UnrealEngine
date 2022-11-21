@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "Internationalization/Text.h"
+
+class FProperty;
+class UNiagaraEmitter;
 class UNiagaraMessageDataBase;
+struct FVersionedNiagaraEmitter;
 
 class INiagaraMergeManager
 {

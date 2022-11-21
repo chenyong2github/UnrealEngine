@@ -13,6 +13,7 @@
 #include "MuT/NodeImage.h"
 
 #include "MuR/MemoryPrivate.h"
+#include "MuT/NodeSurface.h"
 
 
 namespace mu

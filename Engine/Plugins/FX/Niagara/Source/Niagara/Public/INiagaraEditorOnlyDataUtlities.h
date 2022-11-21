@@ -4,6 +4,8 @@
 
 class UNiagaraScriptSourceBase;
 class UNiagaraEditorParametersAdapterBase;
+class UNiagaraEditorDataBase;
+class UObject;
 
 /** Defines utility methods for creating editor only data which is stored on runtime objects. */
 class INiagaraEditorOnlyDataUtilities

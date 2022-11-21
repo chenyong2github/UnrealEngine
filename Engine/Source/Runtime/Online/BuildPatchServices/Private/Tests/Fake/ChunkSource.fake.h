@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Map.h"
 #include "Installer/ChunkSource.h"
 
 #if WITH_DEV_AUTOMATION_TESTS

@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "Shader.h"
+
 // Whether to assert when mesh command shader bindings were not set by the pass processor.
 // Enabled by default in debug
 #define VALIDATE_MESH_COMMAND_BINDINGS DO_GUARD_SLOW

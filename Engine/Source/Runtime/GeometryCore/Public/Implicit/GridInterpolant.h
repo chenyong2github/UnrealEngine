@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BoxTypes.h"
 #include "MathUtil.h"
 #include "VectorTypes.h"
 #include "IntVectorTypes.h"

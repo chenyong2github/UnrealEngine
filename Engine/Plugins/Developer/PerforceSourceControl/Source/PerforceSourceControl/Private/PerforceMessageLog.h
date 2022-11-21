@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Internationalization/Text.h"
+#include "ISourceControlModule.h"
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"
 #include "Templates/SharedPointer.h"

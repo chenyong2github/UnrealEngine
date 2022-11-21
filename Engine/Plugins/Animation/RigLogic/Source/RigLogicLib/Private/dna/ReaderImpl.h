@@ -4,6 +4,9 @@
 
 #include "dna/BaseImpl.h"
 #include "dna/DenormalizedData.h"
+#include "dna/layers/DefinitionReader.h"
+#include "dna/layers/Descriptor.h"
+#include "dna/layers/Geometry.h"
 #include "dna/TypeDefs.h"
 
 #ifdef _MSC_VER

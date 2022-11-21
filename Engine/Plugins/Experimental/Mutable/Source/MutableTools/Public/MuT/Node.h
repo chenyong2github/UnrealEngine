@@ -3,7 +3,6 @@
 #pragma once
 
 #include "HAL/Platform.h"
-#include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 
 namespace mu { class InputArchive; }

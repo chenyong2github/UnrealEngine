@@ -7,6 +7,8 @@
 #	define OVERRIDE override
 #endif //OVERRIDE
 
+#include "HAL/Platform.h"
+
 #if PLATFORM_WINDOWS
 #	include "Windows/WindowsHWrapper.h"
 #	include "Windows/AllowWindowsPlatformTypes.h"

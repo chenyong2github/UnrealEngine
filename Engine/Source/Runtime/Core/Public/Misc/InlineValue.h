@@ -9,6 +9,7 @@
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Templates/Decay.h"
 #include "Templates/TypeCompatibleBytes.h"
+#include "Templates/UnrealTemplate.h"
 
 /**
  * A container type that houses an instance of BaseType in inline memory where it is <= MaxInlineSize,

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 namespace GlobalDistanceField
 {
 	/** Must match global distance field shaders. */

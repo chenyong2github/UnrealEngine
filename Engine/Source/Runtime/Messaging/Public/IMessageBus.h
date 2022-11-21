@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "Math/Range.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/TopLevelAssetPath.h"

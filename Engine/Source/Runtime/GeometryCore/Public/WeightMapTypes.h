@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BoxTypes.h"
 #include "CoreMinimal.h"
 #include "VectorTypes.h"
 #include "IndexTypes.h"

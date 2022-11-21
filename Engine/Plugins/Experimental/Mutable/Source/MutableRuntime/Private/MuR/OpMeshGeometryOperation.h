@@ -4,6 +4,7 @@
 
 #include "MuR/MeshPrivate.h"
 #include "MuR/ConvertData.h"
+#include "MuR/MutableTrace.h"
 #include "MuR/Platform.h"
 #include "DynamicMesh/DynamicMesh3.h"
 

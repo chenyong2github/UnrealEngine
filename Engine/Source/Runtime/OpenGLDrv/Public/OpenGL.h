@@ -5,7 +5,10 @@
 =============================================================================*/
 #pragma once
 
+// HEADER_UNIT_SKIP - REVISIT
+
 #include "Containers/ContainersFwd.h"
+#include "Logging/LogMacros.h"
 
 struct FPlatformOpenGLContext;
 struct FPlatformOpenGLDevice;

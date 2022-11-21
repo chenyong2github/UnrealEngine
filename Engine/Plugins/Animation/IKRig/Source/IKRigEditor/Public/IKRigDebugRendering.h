@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IKRigDefinition.h"
+#include "SceneManagement.h"
 #include "SkeletalDebugRendering.h"
 
 namespace IKRigDebugRendering

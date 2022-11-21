@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "IntVectorTypes.h"
 #include "MathUtil.h"
 #include "VectorTypes.h"
 

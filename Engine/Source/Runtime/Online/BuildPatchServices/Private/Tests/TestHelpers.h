@@ -4,6 +4,7 @@
 #include "BuildPatchServicesPrivate.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
+#include "Misc/AutomationTest.h"
 
 namespace BuildPatchTestHelpers
 {

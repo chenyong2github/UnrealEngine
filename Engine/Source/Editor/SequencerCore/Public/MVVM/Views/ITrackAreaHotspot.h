@@ -9,10 +9,10 @@
 
 #include "MVVM/ICastable.h"
 
-struct FPointerEvent;
-
-class FMenuBuilder;
 class FExtender;
+class FMenuBuilder;
+struct FGeometry;
+struct FPointerEvent;
 
 namespace UE
 {

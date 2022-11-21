@@ -1,6 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
+#include "Math/Quat.h"
+#include "Math/RotationMatrix.h"
 
 // given a set of points in an initial configuration and the same set of points in a deformed configuration,
 // this function outputs a quaternion that represents the "best fit" rotation that rotates the initial points to the

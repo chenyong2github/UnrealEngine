@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Data/ChunkData.h"
 #include "Installer/ChunkStore.h"
 #include "Common/StatsCollector.h"
+#include "Tests/TestHelpers.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

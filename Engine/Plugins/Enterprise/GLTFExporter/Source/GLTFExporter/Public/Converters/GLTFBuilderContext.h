@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 class FGLTFConvertBuilder;
 
 class GLTFEXPORTER_API FGLTFBuilderContext

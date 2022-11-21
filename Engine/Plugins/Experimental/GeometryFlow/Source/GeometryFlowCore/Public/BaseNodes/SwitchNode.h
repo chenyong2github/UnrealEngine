@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GeometryFlowMovableData.h"
 #include "GeometryFlowNode.h"
 
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GameFeatureTypesFwd.h"
+#include "Misc/EnumRange.h"
 
 #define GAME_FEATURE_PLUGIN_STATE_LIST(XSTATE)	\
 	XSTATE(Uninitialized,				NSLOCTEXT("GameFeatures", "UninitializedStateDisplayName", "Uninitialized"))								/* Unset. Not yet been set up. */ \

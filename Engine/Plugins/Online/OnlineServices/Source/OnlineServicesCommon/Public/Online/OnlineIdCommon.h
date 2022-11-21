@@ -3,8 +3,11 @@
 #pragma once
 
 #include "Misc/ScopeRWLock.h"
+#include "Online/CoreOnline.h"
 
 namespace UE::Online {
+
+enum class EOnlineServices : uint8;
 
 /**
  * A net id registry suitable for use with trivial immutable keys

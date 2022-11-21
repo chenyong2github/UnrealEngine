@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "ZenGlobals.h"
+
 #if UE_WITH_ZEN
 
 namespace UE::Zen {

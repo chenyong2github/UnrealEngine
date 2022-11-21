@@ -4,6 +4,13 @@
 
 #if RHI_RAYTRACING
 
+#include "RHI.h"
+
+class FPrimitiveSceneProxy;
+class FScene;
+class FSceneView;
+struct FRayTracingDynamicGeometryUpdateParams;
+
 class RENDERER_API FRayTracingDynamicGeometryCollection
 {
 public:

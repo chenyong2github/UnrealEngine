@@ -2,6 +2,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IDetailsView.h"
+#include "SGraphActionMenu.h"
+#include "SMetasoundPalette.h"
 #include "Styling/AppStyle.h"
 #include "Framework/Docking/TabManager.h"
 #include "Internationalization/Internationalization.h"

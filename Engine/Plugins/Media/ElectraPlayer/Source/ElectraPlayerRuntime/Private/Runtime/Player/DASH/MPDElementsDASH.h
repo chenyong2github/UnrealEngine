@@ -4,6 +4,7 @@
 
 #include "Containers/ChunkedArray.h"
 #include "OptionalValue.h"
+#include "Runtime/ErrorDetail.h"
 
 namespace Electra
 {

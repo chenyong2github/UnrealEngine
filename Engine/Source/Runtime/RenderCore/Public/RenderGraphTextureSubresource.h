@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RHIResources.h"
+#include "RHI.h"
 
 template <typename InElementType, typename InAllocatorType = FDefaultAllocator>
 using TRDGTextureSubresourceArray = TArray<InElementType, TInlineAllocator<1, InAllocatorType>>;

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/ParallelFor.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/Platform.h"
 #include "MuR/MeshPrivate.h"

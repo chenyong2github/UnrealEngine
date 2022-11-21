@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 #define VK_NO_PROTOTYPES
 #include "vulkan.h"
 

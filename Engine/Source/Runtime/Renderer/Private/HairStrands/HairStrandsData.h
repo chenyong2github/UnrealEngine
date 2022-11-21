@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
+#include "RenderGraphResources.h"
 #include "RHIGPUReadback.h"
 #include "Shader.h"
 #include "ConvexVolume.h"

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MeshBuild.h"
 
 // Example vertex type for TMeshSimplifier
 template< uint32 NumTexCoords >

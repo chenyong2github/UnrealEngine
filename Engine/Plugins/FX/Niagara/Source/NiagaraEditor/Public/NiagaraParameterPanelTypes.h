@@ -8,6 +8,7 @@
 #include "Misc/Guid.h"
 #include "NiagaraScriptVariable.h"
 
+enum class EParameterDefinitionMatchState : uint8;
 
 struct FNiagaraParameterPanelItemBase
 {

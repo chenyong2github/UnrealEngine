@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Math/Vector2D.h"
 #include "MathUtil.h"
 
 namespace UE

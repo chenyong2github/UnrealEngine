@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PhysicsCore.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
 #include "Chaos/PBDRigidsEvolutionGBF.h"

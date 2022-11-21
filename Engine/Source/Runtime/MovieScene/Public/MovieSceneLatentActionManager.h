@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "Templates/Function.h"
 #include "Containers/ContainersFwd.h"
 

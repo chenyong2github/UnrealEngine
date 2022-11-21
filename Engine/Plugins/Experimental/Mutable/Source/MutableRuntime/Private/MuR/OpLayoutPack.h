@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MuR/Layout.h"
+#include "MuR/MutableTrace.h"
 #include "MuR/Platform.h"
 
 #include <limits>

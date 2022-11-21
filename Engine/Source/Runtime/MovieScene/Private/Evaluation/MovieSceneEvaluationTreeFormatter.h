@@ -4,9 +4,11 @@
 
 #include "Containers/Map.h"
 #include "Containers/StringFwd.h"
+#include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Evaluation/MovieSceneEvaluationTree.h"
 #include "Misc/StringBuilder.h"
+#include "MovieSceneFwd.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Templates/Tuple.h"
 

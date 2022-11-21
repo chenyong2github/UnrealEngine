@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 #ifndef WANTS_MRMESH_UVS
 	#if PLATFORM_WINDOWS
 		#define WANTS_MRMESH_UVS 1

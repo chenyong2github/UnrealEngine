@@ -4,6 +4,7 @@
 
 #include "MuCOP/CustomizableObjectPopulationSamplers.h"
 
+class UCustomizableObjectInstance;
 using namespace CustomizableObjectPopulation;
 
 class FCustomizableObjectPopulationClassGenerator

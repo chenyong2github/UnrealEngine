@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreTypes.h"
+#include "Misc/Guid.h"
+#include "UObject/NameTypes.h"
 
 /** Project specific configuration for content encryption */
 class FContentEncryptionConfig

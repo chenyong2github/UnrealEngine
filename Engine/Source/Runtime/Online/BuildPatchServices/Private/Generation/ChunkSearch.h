@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Core/BlockRange.h"
+#include "Core/BlockStructure.h"
 #include "CoreMinimal.h"
 #include "Containers/List.h"
 

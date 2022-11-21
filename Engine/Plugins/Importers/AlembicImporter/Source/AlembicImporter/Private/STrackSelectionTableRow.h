@@ -7,6 +7,8 @@
 #include "SlateOptMacros.h"
 #include "AbcPolyMesh.h"
 #include "AlembicImportOptions.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableViewBase.h"
 
 struct FAbcTrackInformation;
 

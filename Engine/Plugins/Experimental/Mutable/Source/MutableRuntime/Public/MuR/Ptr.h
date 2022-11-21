@@ -2,10 +2,10 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Included through RefCounted
+
 namespace mu
 {
-
-
     //! \brief Intrusive smart pointer similar to the one in the boost libraries (intrusive_ptr<>)
     //!
     //! Some of the objects used by the runtime use reference counting to control their life-cycle.

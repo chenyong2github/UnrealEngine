@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "Math/UnrealMath.h"
 #include "Misc/CoreMiscDefines.h"
 
 struct FNiagaraSimStageData

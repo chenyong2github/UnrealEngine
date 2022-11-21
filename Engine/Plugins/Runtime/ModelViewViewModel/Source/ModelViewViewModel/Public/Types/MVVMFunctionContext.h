@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Templates/Casts.h"
+#include "Types/MVVMObjectVariant.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include <type_traits>

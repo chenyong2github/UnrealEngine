@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Delegates/IntegerSequence.h"
+#include "Templates/UnrealTemplate.h"
+
 template<typename... T> struct TTuple;
 
 namespace UE

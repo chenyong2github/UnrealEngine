@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
+
 namespace Audio
 {
 	/** GetInterpolationParametersAtTimestamp

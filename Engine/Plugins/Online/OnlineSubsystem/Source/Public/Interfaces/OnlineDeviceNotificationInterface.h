@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Online/CoreOnline.h"
 
 struct FOnlineError;
 

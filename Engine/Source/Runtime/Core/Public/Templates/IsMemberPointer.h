@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/IsPointer.h"
 
 /**
  * Traits class which tests if a type is a pointer to member (data member or member function).

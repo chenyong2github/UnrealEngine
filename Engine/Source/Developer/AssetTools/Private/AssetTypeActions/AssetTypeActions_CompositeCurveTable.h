@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetTypeActions/AssetTypeActions_CurveTable.h"
 #include "CoreMinimal.h"
 #include "Toolkits/IToolkitHost.h"
 #include "Engine/CompositeCurveTable.h"

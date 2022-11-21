@@ -4,6 +4,8 @@
 
 //#include "CoreMinimal.h"
 #include "Elements/Framework/TypedElementLimits.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/TypeHash.h"
 
 /**
  * The most minimal representation of an element - its ID!

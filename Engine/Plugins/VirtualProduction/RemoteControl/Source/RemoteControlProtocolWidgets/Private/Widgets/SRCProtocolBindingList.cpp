@@ -2,13 +2,13 @@
 
 #include "SRCProtocolBindingList.h"
 
+#include "Delegates/Delegate.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "Styling/AppStyle.h"
 #include "IRemoteControlProtocolModule.h"
 #include "RemoteControlProtocolWidgetsModule.h"
 #include "SRCProtocolBinding.h"
-#include "Delegates/DelegateSignatureImpl.inl"
 #include "Types/ISlateMetaData.h"
 #include "ViewModels/ProtocolEntityViewModel.h"
 #include "ViewModels/RCViewModelCommon.h"

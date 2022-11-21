@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Components/SceneComponent.h"
+#include "GameFramework/Actor.h"
 #include "Layout/SlateRect.h"
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

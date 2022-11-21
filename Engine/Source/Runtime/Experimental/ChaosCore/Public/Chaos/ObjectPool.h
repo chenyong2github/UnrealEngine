@@ -3,8 +3,11 @@
 #pragma once
 
 #include <type_traits>
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
+#include "Templates/AlignmentTemplates.h"
 #include "Templates/IsTriviallyDestructible.h"
-#include "HAL/Platform.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace Chaos
 {

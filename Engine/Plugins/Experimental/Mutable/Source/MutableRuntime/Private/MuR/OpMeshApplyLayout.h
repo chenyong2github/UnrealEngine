@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MuR/MeshPrivate.h"
+#include "MuR/MutableTrace.h"
 #include "MuR/Platform.h"
 
 namespace mu

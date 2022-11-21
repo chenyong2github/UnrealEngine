@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetRegistry/AssetData.h"
 #include "Filters/FilterBase.h"
 
 #include "Internationalization/Text.h"

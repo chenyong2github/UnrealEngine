@@ -1,5 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+
 namespace UE::Online::Errors {
 using ErrorCodeType = uint64;
 

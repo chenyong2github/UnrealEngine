@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Engine/SkinnedAssetCommon.h"
+#include "NiagaraDataInterfaceSkeletalMesh.h"
 
 // These are to help readability of template specializations
 using TNDISkelMesh_FilterModeNone = TIntegralConstant<ENDISkeletalMesh_FilterMode, ENDISkeletalMesh_FilterMode::None>;

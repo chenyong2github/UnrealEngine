@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/UnrealTypeTraits.h"
 
 /**
  * Temporary compatibility mechanism to be used solely for the purpose of raw pointers to wrapped pointers.

@@ -4,6 +4,7 @@
 
 #include "Misc/Build.h"
 #include "HAL/CriticalSection.h"
+#include "Runtime/Core/MediaNoncopyable.h"
 
 /**
  * Empty lock class.

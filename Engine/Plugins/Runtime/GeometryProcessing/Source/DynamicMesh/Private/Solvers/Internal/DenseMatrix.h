@@ -6,6 +6,8 @@
 #define EIGEN_MPL2_ONLY
 #endif
 
+#include "Math/RandomStream.h"
+
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(push)
 #pragma warning(disable : 6011)
@@ -21,8 +23,6 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(pop)
 #endif
-
-#include "Math/RandomStream.h"
 
 namespace UE
 {

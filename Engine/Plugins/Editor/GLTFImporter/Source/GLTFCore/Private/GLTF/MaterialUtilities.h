@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GLTFLogger.h"
 #include "GLTFMaterial.h"
 #include "JsonUtilities.h"
 

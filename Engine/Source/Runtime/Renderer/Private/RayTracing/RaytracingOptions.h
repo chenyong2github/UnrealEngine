@@ -13,6 +13,10 @@ class FSkyLightSceneProxy;
 class FViewInfo;
 class FLightSceneInfoCompact;
 class FLightSceneInfo;
+class FScene;
+class FSceneView;
+class FSceneViewFamily;
+class FLightSceneProxy;
 
 // be sure to also update the definition in the `RayTracingPrimaryRays.usf`
 enum class ERayTracingPrimaryRaysFlag: uint32 

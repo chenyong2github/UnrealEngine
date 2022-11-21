@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "LevelSequence.h"
 #include "MovieSceneSequenceEditor.h"
 #include "LevelSequenceDirector.h"
 #include "EdGraphSchema_K2.h"

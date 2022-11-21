@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DetailLayoutBuilder.h"
+#include "IDetailCustomization.h"
 #include "WaterBodyActor.h"
 
 class FWaterBodyActorDetailCustomization : public IDetailCustomization

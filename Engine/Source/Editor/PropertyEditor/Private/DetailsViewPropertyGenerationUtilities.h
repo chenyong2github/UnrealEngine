@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IPropertyGenerationUtilities.h"
+#include "SDetailsViewBase.h"
 
 /** Property generation utilities for widgets derived from SDetailsViewBase. */
 class FDetailsViewPropertyGenerationUtilities : public IPropertyGenerationUtilities

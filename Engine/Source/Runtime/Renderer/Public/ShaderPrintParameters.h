@@ -11,6 +11,7 @@
 
 #include "CoreMinimal.h"
 #include "RenderGraphDefinitions.h"
+#include "RenderGraphResources.h"
 #include "ShaderParameterMacros.h"
 #include "ShaderParameters.h"
 

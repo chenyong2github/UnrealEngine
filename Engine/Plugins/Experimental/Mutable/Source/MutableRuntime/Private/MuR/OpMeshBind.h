@@ -10,6 +10,8 @@
 #include "Math/NumericLimits.h"
 
 #include "IndexTypes.h"
+#include "MuR/MutableTrace.h"
+#include "MuR/Operations.h"
 #include "Spatial/MeshAABBTree3.h"
 
 

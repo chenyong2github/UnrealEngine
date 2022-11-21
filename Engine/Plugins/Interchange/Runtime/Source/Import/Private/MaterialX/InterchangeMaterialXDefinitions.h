@@ -5,7 +5,7 @@
 // define its namespace macros ourselves otherwise.
 #if WITH_EDITOR
 
-#include "HAL/Platform.h"
+#include "Math/Color.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "MaterialXCore/Library.h"

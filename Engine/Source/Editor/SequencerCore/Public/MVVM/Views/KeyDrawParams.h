@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Math/Color.h"
+#include "Math/Vector2D.h"
 
 struct FSlateBrush;
 

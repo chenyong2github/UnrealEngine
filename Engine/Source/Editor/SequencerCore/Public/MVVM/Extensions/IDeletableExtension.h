@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Internationalization/Text.h"
 #include "MVVM/ViewModelTypeID.h"
 
 namespace UE

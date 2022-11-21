@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 
 #define LOCTEXT_NAMESPACE "VectorTextBox"

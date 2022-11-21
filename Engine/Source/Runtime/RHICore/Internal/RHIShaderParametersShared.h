@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "RHI.h"
+
 namespace UE::RHICore
 {
 	inline FRHIDescriptorHandle GetBindlessParameterHandle(const FRHIShaderParameterResource& Parameter)

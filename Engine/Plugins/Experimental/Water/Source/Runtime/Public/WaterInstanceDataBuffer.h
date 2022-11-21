@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "RenderingThread.h"
 
 template <bool bWithWaterSelectionSupport>
 class TWaterInstanceDataBuffers

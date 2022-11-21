@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 struct FNetSimCueDispatcher;
 
 // Generic view into a managed instance's state

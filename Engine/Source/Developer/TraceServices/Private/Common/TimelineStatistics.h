@@ -2,6 +2,11 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "CoreTypes.h"
+#include <cfloat>
+#include "TraceServices/Containers/Timelines.h"
+
 namespace TraceServices
 {
 

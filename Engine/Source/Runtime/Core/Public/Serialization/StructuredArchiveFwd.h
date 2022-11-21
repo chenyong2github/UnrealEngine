@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Misc/CoreMiscDefines.h"
+#include "CoreTypes.h"
 #include "Misc/Build.h"
 #include <type_traits>
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MuR/ConvertData.h"
+#include "MuR/ParametersPrivate.h"
 #include "MuR/Platform.h"
 
 

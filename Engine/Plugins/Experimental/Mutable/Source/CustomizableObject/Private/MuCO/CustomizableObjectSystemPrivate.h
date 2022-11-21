@@ -8,6 +8,8 @@
 #include "HAL/ThreadSafeBool.h"
 #include "Containers/Ticker.h"
 
+#include "MuR/Mesh.h"
+#include "MuR/Parameters.h"
 #include "MuR/System.h"
 #include "MuR/Image.h"
 

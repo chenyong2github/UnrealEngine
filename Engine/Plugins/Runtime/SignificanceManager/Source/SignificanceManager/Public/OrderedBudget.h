@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+
 // Manages how to allocate a budget of levels to an ordered list of items (e.g., how to distribute minimum LOD levels to the N closest characters)
 struct FOrderedBudget
 {

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <algorithm>
+
 namespace trimd {
 
 namespace fallback {

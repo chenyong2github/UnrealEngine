@@ -3,12 +3,14 @@
 #pragma once
 
 #include "BaseOps/SimpleMeshProcessingBaseOp.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMeshEditor.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "MeshWeights.h"
 #include "MeshBoundaryLoops.h"
 #include "Operations/JoinMeshLoops.h"
 #include "Solvers/ConstrainedMeshDeformer.h"
+#include "WeightMapTypes.h"
 
 
 

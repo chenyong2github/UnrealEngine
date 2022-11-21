@@ -2,13 +2,13 @@
 
 #pragma once
 
+#include "Animation/AnimSlotEvaluationPose.h"
 #include "CoreMinimal.h"
 #include "HAL/ThreadSingleton.h"
 
 struct FCompactPose;
 struct FBlendedCurve;
 namespace UE { namespace Anim { struct FStackAttributeContainer; } }
-struct FSlotEvaluationPose;
 
 /**
  * Temporary data that we use during blending of anim montages that use blend profiles.

@@ -8,7 +8,10 @@
 
 #pragma once
 
+#include "HAL/LowLevelMemTracker.h"
 #include "VulkanCommon.h"
+
+struct VkAllocationCallbacks;
 
 // API version we want to target.
 #ifndef UE_VK_API_VERSION

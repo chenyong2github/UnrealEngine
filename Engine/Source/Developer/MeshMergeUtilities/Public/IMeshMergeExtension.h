@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+
 struct FMeshDescription;
 class UMaterialInterface;
+class UStaticMeshComponent;
 
 class IMeshMergeExtension
 {

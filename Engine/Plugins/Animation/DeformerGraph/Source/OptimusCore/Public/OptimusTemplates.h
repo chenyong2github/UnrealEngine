@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+
 // FIXME: This should really be a part of Array.h
 template<typename T, typename Allocator>
 static inline uint32 GetTypeHash(const TArray<T, Allocator>& A)

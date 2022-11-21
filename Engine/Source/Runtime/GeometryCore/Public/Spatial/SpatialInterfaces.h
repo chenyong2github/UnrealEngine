@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "Math/Ray.h"
 #include "VectorTypes.h"
 
 namespace UE

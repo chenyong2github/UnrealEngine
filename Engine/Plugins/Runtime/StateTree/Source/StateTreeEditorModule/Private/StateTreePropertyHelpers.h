@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PropertyEditorModule.h"
 #include "Editor.h"
+#include "PropertyHandle.h"
 
 struct FGuid;
 struct FSlateBrush;

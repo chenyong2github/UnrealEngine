@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "PropertyEditorDelegates.h"
+
 /** Defines internal utilities for generating property layouts. */
 class IPropertyGenerationUtilities
 {

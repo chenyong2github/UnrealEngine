@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Math/MathFwd.h"
+#include "Math/Vector2D.h"
+
 namespace UE
 {
 namespace Geometry

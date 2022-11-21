@@ -8,13 +8,14 @@
 
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "Interfaces/ITargetDevice.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Templates/SharedPointer.h"
 #include "CoreMinimal.h"
 #include "HAL/PlatformProcess.h"
 
 class FAndroidTargetDevice;
 class FTargetDeviceId;
-class ITargetDevice;
 class ITargetPlatform;
 struct FTargetDeviceProcessInfo;
 enum class ETargetDeviceFeatures;

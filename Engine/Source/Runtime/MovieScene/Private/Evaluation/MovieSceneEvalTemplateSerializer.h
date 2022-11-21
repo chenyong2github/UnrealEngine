@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/InlineValue.h"
 #include "MovieSceneFwd.h"
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "Evaluation/MovieSceneEvalTemplateBase.h"

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/UnrealType.h"
 
 class FCompilerResultsLog;
 class UAnimBlueprint;

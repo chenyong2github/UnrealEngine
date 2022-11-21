@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "UObject/Class.h"
 
 namespace StructSerializationUtilities
 {

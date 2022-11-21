@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SGraphActionMenu.h"
 #include "Widgets/Views/SExpanderArrow.h"
 
 class SNiagaraActionMenuExpander : public SExpanderArrow

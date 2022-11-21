@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
 
 class FName;
 class IMessageInterceptor;

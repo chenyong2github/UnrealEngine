@@ -2,6 +2,7 @@
 #pragma once
 
 #include "HAL/ThreadSingleton.h"
+#include "Math/RandomStream.h"
 #include "VectorVMCommon.h"
 
 #if VECTORVM_SUPPORTS_LEGACY

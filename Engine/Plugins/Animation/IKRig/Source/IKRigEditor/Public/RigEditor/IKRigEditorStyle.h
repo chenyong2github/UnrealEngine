@@ -7,6 +7,7 @@
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
 
 class FIKRigEditorStyle	final : public FSlateStyleSet
 {

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BoxTypes.h"
 #include "Sculpting/MeshBrushOpBase.h"
 
 

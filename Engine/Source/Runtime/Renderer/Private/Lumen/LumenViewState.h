@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include "RenderGraphResources.h"
+#include "SceneTexturesConfig.h"
+
 const static int32 NumLumenDiffuseIndirectTextures = 2;
 // Must match shader
 const static int32 MaxVoxelClipmapLevels = 8;

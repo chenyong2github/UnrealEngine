@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "RenderResource.h"
+
 class FTileTexCoordVertexBuffer : public FVertexBuffer
 {
 public:

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Math/UnrealMath.h"
+
 struct GeometyCacheHelpers 
 {
 	/**

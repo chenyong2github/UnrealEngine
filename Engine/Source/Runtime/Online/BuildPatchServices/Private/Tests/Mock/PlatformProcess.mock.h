@@ -3,6 +3,8 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "CoreTypes.h"
+
 namespace BuildPatchServices
 {
 	class FMockPlatformProcess

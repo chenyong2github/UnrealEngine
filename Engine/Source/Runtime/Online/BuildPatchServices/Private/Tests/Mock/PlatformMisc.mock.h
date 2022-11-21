@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreTypes.h"
+
 #if WITH_DEV_AUTOMATION_TESTS
 
 namespace BuildPatchServices

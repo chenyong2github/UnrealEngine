@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "PixelStreamingPlayerId.h"
 #include "PixelStreamingDataChannel.h"
 #include "Containers/UnrealString.h"
-#include "Delegates/DelegateSignatureImpl.inl"
 #include "PixelStreamingDelegates.generated.h"
 
 namespace webrtc

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 struct GAMEPLAYTAGSEDITOR_API FGameplayTagContainerCustomizationOptions
 {
 	// If true, any Gameplay Tag Widget created should not offer an 'Add Tag' option 

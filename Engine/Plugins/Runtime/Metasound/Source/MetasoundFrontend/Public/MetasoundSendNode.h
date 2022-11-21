@@ -4,6 +4,7 @@
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundExecutableOperator.h"

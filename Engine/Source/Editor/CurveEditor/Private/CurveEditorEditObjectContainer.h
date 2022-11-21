@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CurveEditorTypes.h"
 #include "UObject/GCObject.h"
 #include "CurveEditorKeyProxy.h"
 

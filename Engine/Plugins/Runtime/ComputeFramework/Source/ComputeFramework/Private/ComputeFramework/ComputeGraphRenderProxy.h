@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "CoreMinimal.h"
 
 struct FComputeKernelPermutationVector;

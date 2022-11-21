@@ -4,6 +4,7 @@
 
 struct FGuid;
 class FArchive;
+class UScriptStruct;
 
 namespace UE
 {

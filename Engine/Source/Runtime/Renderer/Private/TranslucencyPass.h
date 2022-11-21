@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Misc/EnumClassFlags.h"
+
 // enum instead of bool to get better visibility when we pass around multiple bools, also allows for easier extensions
 namespace ETranslucencyPass
 {

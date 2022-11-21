@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Online/Auth.h"
 #include "Online/CoreOnline.h"
 #include "Online/OnlineAsyncOpHandle.h"
 #include "Online/OnlineMeta.h"

@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "ObjectPropertyNode.h"
 #include "PropertyPath.h"
 #include "IPropertyTableColumn.h"
 #include "IPropertyTable.h"

@@ -2,6 +2,12 @@
 
 #pragma  once
 
+#include "NiagaraClearCounts.h"
+#include "NiagaraComponent.h"
+#include "NiagaraComputeExecutionContext.h"
+#include "NiagaraConstants.h"
+#include "NiagaraDataSetReadback.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSimCache.h"
 #include "NiagaraSystemInstanceController.h"
 

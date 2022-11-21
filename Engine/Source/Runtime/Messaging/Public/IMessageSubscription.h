@@ -5,6 +5,7 @@
 #include "Math/Range.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
+#include "UObject/TopLevelAssetPath.h"
 
 class IMessageReceiver;
 enum class EMessageScope : uint8;

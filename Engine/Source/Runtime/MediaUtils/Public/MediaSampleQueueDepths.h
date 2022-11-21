@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 struct FMediaPlayerQueueDepths
 {
 	static const int32 MaxAudioSinkDepth = 512;

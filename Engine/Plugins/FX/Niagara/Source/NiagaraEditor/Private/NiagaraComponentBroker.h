@@ -4,6 +4,7 @@
 
 #include "ComponentAssetBroker.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 
 class FNiagaraComponentBroker : public IComponentAssetBroker
 {

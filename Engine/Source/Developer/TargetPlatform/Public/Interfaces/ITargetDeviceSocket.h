@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Interface for target device sockets.

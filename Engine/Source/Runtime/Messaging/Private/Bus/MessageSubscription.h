@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IMessageContext.h"
 #include "IMessageSubscription.h"
 
 class IMessageReceiver;

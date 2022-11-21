@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "Widgets/IReflectionDataProvider.h"
 
 class FUndoHistoryUtils
 {

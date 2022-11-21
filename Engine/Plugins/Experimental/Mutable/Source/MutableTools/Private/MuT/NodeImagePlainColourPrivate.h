@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "MuT/NodeColour.h"
 #include "MuT/NodeImagePrivate.h"
 #include "MuT/NodeImagePlainColour.h"
 #include "MuT/AST.h"

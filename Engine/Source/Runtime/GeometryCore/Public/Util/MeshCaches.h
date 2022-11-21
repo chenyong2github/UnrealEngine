@@ -5,6 +5,7 @@
 #include "DynamicVector.h"
 
 #include "Async/ParallelFor.h"
+#include "MeshQueries.h"
 
 namespace UE
 {

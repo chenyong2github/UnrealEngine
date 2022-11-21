@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 
 /**
 * EMeshLODIdentifier is used to identify the LOD of a mesh for reading/writing.

@@ -8,6 +8,7 @@
 #include "Core/MediaLock.h"
 
 #include "Core/MediaInterlocked.h"
+#include "Runtime/Core/MediaNoncopyable.h"
 
 
 

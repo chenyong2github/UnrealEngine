@@ -5,6 +5,7 @@
 #if ELECTRA_HTTPSTREAM_LIBCURL
 
 #include "CoreMinimal.h"
+#include "ElectraHTTPStream.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/Runnable.h"
@@ -13,6 +14,7 @@
 
 #include "Curl/CurlElectraHTTPStreamConfig.h"
 #include "Curl/CurlElectra.h"
+#include "ParameterDictionary.h"
 #include "Utilities/TimeWaitableSignal.h"
 
 class FElectraHTTPStreamRequestLibCurl;

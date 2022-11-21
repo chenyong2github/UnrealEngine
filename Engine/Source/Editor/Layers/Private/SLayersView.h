@@ -2,6 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DragAndDrop/CompositeDragDropOp.h"
+#include "DragAndDrop/FolderDragDropOp.h"
 #include "Misc/Attribute.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "Templates/SharedPointer.h"
 
 class IOnlineSubsystem;

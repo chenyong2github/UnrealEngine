@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "Misc/OutputDeviceHelper.h"
+#include "UObject/NameTypes.h"
 
 class FCategoryLogOutputFilter : public FStringOutputDevice
 {

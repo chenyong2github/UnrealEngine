@@ -5,6 +5,7 @@
 #if WITH_TENCENTSDK
 
 #include "Interfaces/OnlineIdentityInterface.h"
+#include "Online/CoreOnline.h"
 #include "OnlineSubsystemTencentPackage.h"
 #include "OnlineSubsystemTencentTypes.h"
 #include "Serialization/JsonSerializerMacros.h"
@@ -75,11 +76,10 @@ public:
 	/**
 	 * Init/default constructor
 	 */
-#if WITH_TENCENT_RAIL_SDK
 	FUserOnlineAccountTencent(const FUniqueNetIdRef InUserId)
 		: UserId(InUserId)
 	{ }
-#endif
+
 	/**
 	 * Destructor
 	 */

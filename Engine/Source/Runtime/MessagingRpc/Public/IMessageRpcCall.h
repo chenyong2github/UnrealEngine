@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Misc/DateTime.h"
+#include "Templates/SharedPointer.h"
 
 class FText;
 class IMessageContext;

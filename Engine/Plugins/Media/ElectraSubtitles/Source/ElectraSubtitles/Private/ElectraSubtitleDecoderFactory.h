@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+class IElectraSubtitleDecoder;
 
 class IElectraSubtitleDecoderFactory
 {

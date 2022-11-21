@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ShaderCore.h"
 
 struct FShaderCompilerEnvironment;
 

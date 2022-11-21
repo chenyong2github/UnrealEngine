@@ -893,7 +893,7 @@ enum { NumExtraFilterBits = 6 };
  * Enum indicating different type of objects for rigid-body collision purposes. 
  */
 UENUM(BlueprintType)
-enum ECollisionChannel
+enum ECollisionChannel : int
 {
 
 	ECC_WorldStatic UMETA(DisplayName="WorldStatic"),
