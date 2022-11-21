@@ -57,7 +57,7 @@ namespace
 		TArray<float> ExpectedCustomData, 
 		int NumCustomDataFloats)
 	{
-		TUniquePtr<FPCGContext> Context = MakeUnique<FPCGContext>(*StaticMeshSpawnerElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
+		TUniquePtr<FPCGContext> Context(StaticMeshSpawnerElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
 		Context->NumAvailableTasks = 1;
 
 		while (!StaticMeshSpawnerElement->Execute(Context.Get()))

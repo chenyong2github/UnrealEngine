@@ -60,7 +60,7 @@ struct PCG_API FPCGContext
 	int32 BypassedOutputCount = 0;
 
 	double EndTime = 0.0;
-	bool bIsRunningOnMainThread = false;
+	bool bIsRunningOnMainThread = true;
 
 	/** True if currently inside a PCGAsync scope - will prevent further async processing */
 	bool bIsRunningAsyncCall = false;

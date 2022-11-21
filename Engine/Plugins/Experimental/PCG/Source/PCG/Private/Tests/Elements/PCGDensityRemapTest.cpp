@@ -35,7 +35,7 @@ bool FPCGDensityRemapTest::RunTest(const FString& Parameters)
 
 	auto ValidateDensityRemap = [this, &TestData, DensityRemapElement, Settings](TArray<float> CorrectDensities) -> bool
 	{
-		TUniquePtr<FPCGContext> Context = MakeUnique<FPCGContext>(*DensityRemapElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
+		TUniquePtr<FPCGContext> Context(DensityRemapElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
 		Context->NumAvailableTasks = 1;
 
 		while (!DensityRemapElement->Execute(Context.Get()))

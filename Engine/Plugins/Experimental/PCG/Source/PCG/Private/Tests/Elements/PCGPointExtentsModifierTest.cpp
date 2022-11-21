@@ -43,7 +43,7 @@ bool FPCGPointsBoundsModiferTest::RunTest(const FString& Parameters)
 
 	auto ValidateBounds = [this, &TestData, BoundsModifierElement, Settings](TArray<FVector> ExpectedOutput) -> bool
 	{
-		TUniquePtr<FPCGContext> Context = MakeUnique<FPCGContext>(*BoundsModifierElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
+		TUniquePtr<FPCGContext> Context(BoundsModifierElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
 		Context->NumAvailableTasks = 1;
 
 		while (!BoundsModifierElement->Execute(Context.Get()))

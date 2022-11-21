@@ -68,7 +68,7 @@ bool FPCGCopyPointsTest::RunTest(const FString& Parameters)
 	// Test only supports float attributes for simplicity
 	auto ValidateCopyPointsPoints = [this, &TestData, CopyPointsElement, Settings]() -> bool
 	{
-		TUniquePtr<FPCGContext> Context = MakeUnique<FPCGContext>(*CopyPointsElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
+		TUniquePtr<FPCGContext> Context(CopyPointsElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
 		Context->NumAvailableTasks = 1;
 
 		while (!CopyPointsElement->Execute(Context.Get()))
