@@ -50,7 +50,8 @@ bool FStringConvertTest::RunTest(const FString& Parameters)
 
 		TestTrue(FString::Printf(TEXT("%s converted length matches"), TestName), End == Ptr + 4 + ConvertedLength);
 
-		for (int i = 0; i != 4 * sizeof(ToType); ++i)
+		// != changed to < because of false positive in MSVC's static analyzer: warning C6295: Ill-defined for-loop.  Loop executes infinitely.
+		for (int i = 0; i < 4 * sizeof(ToType); ++i)
 		{
 			TestTrue(FString::Printf(TEXT("%s guard block is preserved"), TestName), ((unsigned char*)Ptr)[i] == 0xCD && ((unsigned char*)End)[i] == 0xCD);
 		}

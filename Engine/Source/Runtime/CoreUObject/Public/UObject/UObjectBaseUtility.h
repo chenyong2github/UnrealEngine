@@ -922,7 +922,8 @@ FORCEINLINE bool IsPossiblyAllocatedUObjectPointer(UObject* Ptr)
 	{
 		int32 Result = 0;
 
-		for (int32 I = 0; I != sizeof(UPTRINT); ++I)
+		// != changed to < because of false positive in MSVC's static analyzer: warning C6295: Ill-defined for-loop.  Loop executes infinitely.
+		for (int32 I = 0; I < sizeof(UPTRINT); ++I)
 		{
 			if ((Val & 0xFF) == ByteVal)
 			{
