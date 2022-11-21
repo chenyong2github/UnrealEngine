@@ -106,7 +106,8 @@ namespace UE::MLDeformer
 		// Turn the delta buffer in a set of engine morph targets.
 		UMLDeformerMorphModel* MorphModel = GetMorphModel();
 		TArray<UMorphTarget*> MorphTargets;	// These will be garbage collected.
-		CreateEngineMorphTargets(MorphTargets, Deltas, TEXT("MLDeformerMorph_"), LOD, MorphModel->GetMorphTargetDeltaThreshold());
+		const bool bIncludeNormals = MorphModel->GetIncludeMorphTargetNormals();
+		CreateEngineMorphTargets(MorphTargets, Deltas, TEXT("MLDeformerMorph_"), LOD, MorphModel->GetMorphTargetDeltaThreshold(), bIncludeNormals);
 
 		// Now compress the morph targets to GPU friendly buffers.
 		check(MorphModel->GetMorphTargetSet().IsValid());

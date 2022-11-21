@@ -32,13 +32,16 @@ public:
 #if WITH_EDITORONLY_DATA
 	float GetMorphTargetDeltaThreshold() const				{ return MorphTargetDeltaThreshold; }
 	float GetMorphTargetErrorTolerance() const				{ return MorphTargetErrorTolerance; }
+	bool GetIncludeMorphTargetNormals() const				{ return bIncludeNormals; }
 
 	void SetMorphTargetDeltaThreshold(float Threshold)		{ MorphTargetDeltaThreshold = Threshold; }
 	void SetMorphTargetErrorTolerance(float Tolerance)		{ MorphTargetErrorTolerance = Tolerance; }
+	void SetIncludeMorphTargetNormals(bool bInclude)		{ bIncludeNormals = bInclude; }
 
 	// Get property names.
 	static FName GetMorphTargetDeltaThresholdPropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, MorphTargetDeltaThreshold); }
 	static FName GetMorphTargetErrorTolerancePropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, MorphTargetErrorTolerance); }
+	static FName GetIncludeMorphTargetNormalsPropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, bIncludeNormals); }
 #endif
 
 	/**
@@ -95,6 +98,14 @@ private:
 	TArray<FVector3f> MorphTargetDeltas;
 
 #if WITH_EDITORONLY_DATA
+	/**
+	 * Include vertex normals in the morph targets?
+	 * The advantage of this can be that it is higher performance than recomputing the normals.
+	 * The disadvantage is it can result in lower quality and uses more memory for the stored morph targets.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Morph Targets")
+	bool bIncludeNormals = false;
+
 	/**
 	 * Morph target delta values that are smaller than or equal to this threshold will be zeroed out.
 	 * This essentially removes small deltas from morph targets, which will lower the memory usage at runtime, however when set too high it can also introduce visual artifacts.

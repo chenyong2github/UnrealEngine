@@ -1589,7 +1589,77 @@ namespace UE::MLDeformer
 		}
 	}
 
-	void FMLDeformerEditorModel::CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix, int32 LOD, float DeltaThreshold)
+	void FMLDeformerEditorModel::CalcMeshNormals(TArrayView<const FVector3f> VertexPositions, TArrayView<const uint32> IndexArray, TArrayView<const int32> VertexMap, TArray<FVector3f>& OutNormals) const
+	{
+		const int32 NumVertices = VertexPositions.Num();
+		OutNormals.Reset();
+		OutNormals.SetNumZeroed(NumVertices);
+
+		checkf(IndexArray.Num() % 3 == 0, TEXT("Expecting a triangle mesh!"));
+		const int32 NumTriangles = IndexArray.Num() / 3;
+		for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
+		{
+			const int32 ImportedIndices[3]	{ VertexMap[IndexArray[TriangleIndex * 3]], VertexMap[IndexArray[TriangleIndex * 3 + 1]], VertexMap[IndexArray[TriangleIndex * 3 + 2]] };
+			const FVector3f Positions[3]	{ VertexPositions[ImportedIndices[0]], VertexPositions[ImportedIndices[1]], VertexPositions[ImportedIndices[2]] };
+
+			const FVector3f EdgeA = (Positions[1] - Positions[0]).GetSafeNormal();
+			const FVector3f EdgeB = (Positions[2] - Positions[0]).GetSafeNormal();
+			if (EdgeA.SquaredLength() > 0.00001f && EdgeB.SquaredLength() > 0.00001f)
+			{	
+				const FVector3f FaceNormal = EdgeB.Cross(EdgeA);
+				OutNormals[ImportedIndices[0]] += FaceNormal;
+				OutNormals[ImportedIndices[1]] += FaceNormal;
+				OutNormals[ImportedIndices[2]] += FaceNormal;
+			}
+		}
+
+		// Renormalize.
+		for (int32 Index = 0; Index < NumVertices; ++Index)
+		{
+			OutNormals[Index] = OutNormals[Index].GetSafeNormal();
+		}
+	}
+
+	void FMLDeformerEditorModel::GenerateNormalsForMorphTarget(int32 LOD, USkeletalMesh* SkelMesh, int32 MorphTargetIndex, TArrayView<const FVector3f> Deltas, TArrayView<const FVector3f> BaseVertexPositions, TArrayView<FVector3f> BaseNormals, TArray<FVector3f>& OutDeltaNormals)
+	{
+		const FSkeletalMeshModel* ImportedModel = SkelMesh->GetImportedModel();
+		if (ImportedModel == nullptr || !ImportedModel->LODModels.IsValidIndex(LOD))
+		{
+			OutDeltaNormals.Reset();
+			OutDeltaNormals.SetNumZeroed(Model->GetNumBaseMeshVerts());
+			return;
+		}
+		const TArrayView<const uint32> IndexArray = ImportedModel->LODModels[LOD].IndexBuffer;
+		const TArrayView<const int32> VertexMap = ImportedModel->LODModels[LOD].MeshToImportVertexMap;
+
+		// Build the array of displaced vertex positions.
+		TArray<FVector3f> MorphedVertexPositions;
+		const int32 NumBaseMeshVerts = Model->GetNumBaseMeshVerts();
+		MorphedVertexPositions.SetNumUninitialized(NumBaseMeshVerts);
+		for (int32 VertexIndex = 0; VertexIndex < NumBaseMeshVerts; ++VertexIndex)
+		{
+			const int32 DeltaIndex = (MorphTargetIndex * NumBaseMeshVerts) + VertexIndex;
+			MorphedVertexPositions[VertexIndex] = BaseVertexPositions[VertexIndex] + Deltas[DeltaIndex];
+		}
+
+		// Calculate the normals of that displaced mesh.
+		TArray<FVector3f> MorphedNormals;
+		CalcMeshNormals(MorphedVertexPositions, IndexArray, VertexMap, MorphedNormals);
+
+		// Calculate and output the difference between the morphed normal and base normal.
+		OutDeltaNormals.Reset();
+		OutDeltaNormals.SetNumUninitialized(NumBaseMeshVerts);
+		for (int32 VertexIndex = 0; VertexIndex < NumBaseMeshVerts; ++VertexIndex)
+		{
+			OutDeltaNormals[VertexIndex] = MorphedNormals[VertexIndex] - BaseNormals[VertexIndex];
+			if (OutDeltaNormals[VertexIndex].SquaredLength() < 0.00001f)
+			{
+				OutDeltaNormals[VertexIndex] = FVector3f::ZeroVector;
+			}
+		}
+	}
+
+	void FMLDeformerEditorModel::CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix, int32 LOD, float DeltaThreshold, bool bIncludeNormals)
 	{
 		OutMorphTargets.Reset();
 		if (Deltas.IsEmpty())
@@ -1609,10 +1679,21 @@ namespace UE::MLDeformer
 		check(!RenderData->LODRenderData.IsEmpty());
 		const int32 NumRenderVertices = RenderData->LODRenderData[LOD].GetNumVertices();
 
+		// Calculate the normals for the base mesh.
+		const FSkeletalMeshModel* ImportedModel = SkelMesh->GetImportedModel();
+		const TArrayView<const uint32> IndexArray = ImportedModel->LODModels[LOD].IndexBuffer;
+		const TArrayView<const int32> VertexMap = ImportedModel->LODModels[LOD].MeshToImportVertexMap;
+		const TArrayView<const FVector3f> BaseVertexPositions = Sampler->GetUnskinnedVertexPositions();
+		TArray<FVector3f> BaseNormals;
+		CalcMeshNormals(BaseVertexPositions, IndexArray, VertexMap, BaseNormals);
+
 		// Initialize an engine morph target for each model morph target.
 		UE_LOG(LogMLDeformer, Display, TEXT("Initializing %d engine morph targets of %d vertices each"), NumMorphTargets, Deltas.Num() / NumMorphTargets);
+		TArray<FVector3f> DeltaNormals;
 		for (int32 MorphTargetIndex = 0; MorphTargetIndex < NumMorphTargets; ++MorphTargetIndex)
 		{
+			GenerateNormalsForMorphTarget(LOD, SkelMesh, MorphTargetIndex, Deltas, BaseVertexPositions, BaseNormals, DeltaNormals);
+
 			const FName MorphName = *FString::Printf(TEXT("%s%.3d"), *NamePrefix, MorphTargetIndex);
 			UMorphTarget* MorphTarget = NewObject<UMorphTarget>(SkelMesh, MorphName);
 			MorphTarget->BaseSkelMesh = SkelMesh;
@@ -1638,7 +1719,6 @@ namespace UE::MLDeformer
 			}
 
 			// Init deltas for this morph target.
-			const TArray<int32>& VertexMap = Model->GetVertexMap();
 			MorphLODModel.Vertices.Reserve(NumRenderVertices);
 			for (int32 VertexIndex = 0; VertexIndex < NumRenderVertices; ++VertexIndex)
 			{
@@ -1652,12 +1732,13 @@ namespace UE::MLDeformer
 						FMorphTargetDelta& MorphTargetDelta = MorphLODModel.Vertices.Last();
 						MorphTargetDelta.PositionDelta = Delta;
 						MorphTargetDelta.SourceIdx = VertexIndex;
-						MorphTargetDelta.TangentZDelta = FVector3f::ZeroVector;
+						MorphTargetDelta.TangentZDelta = bIncludeNormals ? DeltaNormals[ImportedVertexNumber] : FVector3f::ZeroVector;
 					}
 				}
 			}
 
 			MorphLODModel.Vertices.Shrink();
+			UE_LOG(LogMLDeformer, Display, TEXT("Morph #%d: %d deltas"), MorphTargetIndex, MorphLODModel.Vertices.Num());
 		}
 	}
 
@@ -1699,8 +1780,8 @@ namespace UE::MLDeformer
 			const int32 NumVerts = Model->GetNumBaseMeshVerts();
 			check(MorphDeltas.Num() % NumVerts == 0);
 
-			const TArray<FVector3f>& SkinnedPositions = Sampler->GetUnskinnedVertexPositions();
-			check(NumVerts == SkinnedPositions.Num());
+			const TArray<FVector3f>& UnskinnedPositions = Sampler->GetUnskinnedVertexPositions();
+			check(NumVerts == UnskinnedPositions.Num());
 
 			// Draw all deltas.			
 			const int32 NumMorphTargets = MorphDeltas.Num() / NumVerts;
@@ -1709,7 +1790,7 @@ namespace UE::MLDeformer
 			const FLinearColor ExcludedColor(0.1f, 0.1f, 0.1f);
 			for (int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
 			{
-				const FVector StartPoint = FVector(SkinnedPositions[VertexIndex].X, SkinnedPositions[VertexIndex].Y, SkinnedPositions[VertexIndex].Z) + DrawOffset;
+				const FVector StartPoint = FVector(UnskinnedPositions[VertexIndex]) + DrawOffset;
 				const int32 DeltaArrayOffset = NumVerts * FinalMorphTargetIndex + VertexIndex;
 				const FVector Delta(MorphDeltas[DeltaArrayOffset]);
 

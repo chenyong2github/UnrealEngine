@@ -551,6 +551,17 @@ namespace UE::MLDeformer
 		 */
 		virtual FString GetHeatMapDeformerGraphPath() const;
 
+		/**
+		 * Generate the normals for a given morph target.
+		 * @param LOD The LOD level.
+		 * @param SkelMesh The skeletal mesh to get the mesh data from.
+		 * @param Deltas The per vertex deltas. The number of elements in this array is NumMorphTargets * NumImportedVertices.
+		 * @param BaseVertexPositions The positions of the base/neutral mesh, basically the unskinned vertices.
+		 * @param BaseNormals The normals of the base mesh.
+		 * @param OutDeltaNormals The array that we will write the generated normals to. This will automatically be resized by this method.
+		 */
+		virtual void GenerateNormalsForMorphTarget(int32 LOD, USkeletalMesh* SkelMesh, int32 MorphTargetIndex, TArrayView<const FVector3f> Deltas, TArrayView<const FVector3f> BaseVertexPositions, TArrayView<FVector3f> BaseNormals, TArray<FVector3f>& OutDeltaNormals);
+
 		/** Get the current view range. */
 		TRange<double> GetViewRange() const;
 
@@ -783,8 +794,10 @@ namespace UE::MLDeformer
 		 * @param NamePrefix The morph target name prefix. If set to "MorphTarget_" the names will be "MorphTarget_000", "MorphTarget_001", "MorphTarget_002", etc.
 		 * @param LOD The LOD index to generate the morphs for.
 		 * @param DeltaThreshold Only include deltas with a length larger than this threshold in the morph targets.
+		 * @param bIncludeNormals Include normals inside the morph targets? This can be an alternative to recalculating normals at the end, although setting this to true and not 
+		 *        recomputing normals can lead to lower quality results, in trade for faster performance.
 		 */
-		void CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix = TEXT("MorphTarget_"), int32 LOD = 0, float DeltaThreshold = 0.01f);
+		void CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix = TEXT("MorphTarget_"), int32 LOD = 0, float DeltaThreshold = 0.01f, bool bIncludeNormals=false);
 
 		/** 
 		 * Compress morph targets into GPU based morph buffers.
@@ -820,6 +833,16 @@ namespace UE::MLDeformer
 		 * Update the timeline related ranges, based on the length of the training or testing data.
 		 */
 		void UpdateRanges();
+
+		/**
+		 * Calculate the normals for each vertex, given the triangle data and positions.
+		 * It computes this by summing up the face normals for each vertex using that face, and normalizing them at the end.
+		 * @param VertexPositions The buffer with vertex positions. This is the size of the number of imported vertices.
+		 * @param IndexArray The index buffer, which contains NumTriangles * 3 number of integers.
+		 * @param VertexMap For each render vertex, an imported vertex number. For example, for a cube these indices go from 0..7.
+		 * @param OutNormals The array that will contain the normals. This will automatically be resized internally by this method.
+		 */
+		void CalcMeshNormals(TArrayView<const FVector3f> VertexPositions, TArrayView<const uint32> IndexArray, TArrayView<const int32> VertexMap, TArray<FVector3f>& OutNormals) const;
 
 	protected:
 		/** The runtime model associated with this editor model. */
