@@ -1554,7 +1554,7 @@ namespace EpicGames.UHT.Types
 			}
 
 			// Shadowing checks are done at this level, not in the properties themselves
-			if (options.HasAnyFlags(UhtValidationOptions.Shadowing))
+			if (options.HasAnyFlags(UhtValidationOptions.Shadowing) && PropertyCategory != UhtPropertyCategory.Return)
 			{
 
 				// First check for duplicate name in self and then duplicate name in parents

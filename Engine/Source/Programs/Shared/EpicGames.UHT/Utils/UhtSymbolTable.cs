@@ -148,6 +148,28 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <summary>
+		/// Hide the given type in the symbol table
+		/// </summary>
+		/// <param name="typeToHide">Type to be hidden</param>
+		/// <param name="name">The name of the type.</param>
+		/// <exception cref="UhtIceException">Thrown if the symbol wasn't found.</exception>
+		public void Hide(UhtType typeToHide, string name)
+		{
+			if (_caselessDictionary.TryGetValue(name, out int symbolIndex))
+			{
+				for (; symbolIndex != 0; symbolIndex = _symbols[symbolIndex].NextIndex)
+				{
+					if (_symbols[symbolIndex].Type == typeToHide)
+					{
+						_symbols[symbolIndex].MatchOptions = 0;
+						return;
+					}
+				}
+			}
+			throw new UhtIceException("Attempt to hide a type that wasn't found");
+		}
+
+		/// <summary>
 		/// Lookup the given name using cased string compare.
 		/// </summary>
 		/// <param name="startingType">Starting type used to limit the scope of the search.</param>
@@ -378,7 +400,6 @@ namespace EpicGames.UHT.Utils
 		private bool IsMatch(UhtFindOptions options, int symbolIndex, int casedIndex)
 		{
 			return (casedIndex == 0 || casedIndex == _symbols[symbolIndex].CasedIndex) &&
-				_symbols[symbolIndex].Type.VisibleType &&
 				(_symbols[symbolIndex].MatchOptions & options) != 0;
 		}
 	}

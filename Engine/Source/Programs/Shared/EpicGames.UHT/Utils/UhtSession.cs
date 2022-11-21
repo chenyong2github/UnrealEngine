@@ -1605,6 +1605,19 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <summary>
+		/// Hide the given type in the symbol table
+		/// </summary>
+		/// <param name="typeToHide"></param>
+		public void HideTypeInSymbolTable(UhtType typeToHide)
+		{
+			_sourceNameSymbolTable.Hide(typeToHide, typeToHide.SourceName);
+			if (typeToHide.EngineType.HasEngineName())
+			{
+				_engineNameSymbolTable.Hide(typeToHide, typeToHide.EngineName);
+			}
+		}
+
+		/// <summary>
 		/// Return an ordered enumeration of all messages.
 		/// </summary>
 		/// <returns>Enumerator</returns>
@@ -2115,13 +2128,10 @@ namespace EpicGames.UHT.Utils
 					}
 				}
 
-				if (type.VisibleType)
+				_sourceNameSymbolTable.Add(type, type.SourceName);
+				if (engineExtendedType.HasEngineName())
 				{
-					_sourceNameSymbolTable.Add(type, type.SourceName);
-					if (engineExtendedType.HasEngineName())
-					{
-						_engineNameSymbolTable.Add(type, type.EngineName);
-					}
+					_engineNameSymbolTable.Add(type, type.EngineName);
 				}
 			}
 

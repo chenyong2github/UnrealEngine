@@ -781,7 +781,7 @@ namespace EpicGames.UHT.Types
 									}
 									else
 									{
-										VisibleType = false;
+										Session.HideTypeInSymbolTable(this);
 										result = false;
 									}
 								}

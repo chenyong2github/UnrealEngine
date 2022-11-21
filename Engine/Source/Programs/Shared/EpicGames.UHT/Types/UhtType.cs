@@ -741,12 +741,6 @@ namespace EpicGames.UHT.Types
 		public abstract string EngineClassName { get; }
 
 		/// <summary>
-		/// If true, then this type is visible to the symbol table.
-		/// </summary>
-		[JsonIgnore]
-		public bool VisibleType { get; set; } = true;
-
-		/// <summary>
 		/// Return true if the type has been deprecated
 		/// </summary>
 		[JsonIgnore]
