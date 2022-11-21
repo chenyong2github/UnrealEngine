@@ -104,6 +104,7 @@ namespace NiagaraDebugVisHelper
 	const FNiagaraTypeRegistry*& GTypeRegistrySingletonPtr = GCoreTypeRegistrySingletonPtr;
 }
 
+FNiagaraVariable INiagaraModule::Engine_WorldDeltaTime;
 FNiagaraVariable INiagaraModule::Engine_DeltaTime;
 FNiagaraVariable INiagaraModule::Engine_InvDeltaTime;
 FNiagaraVariable INiagaraModule::Engine_Time;
@@ -141,6 +142,10 @@ FNiagaraVariable INiagaraModule::Engine_System_TickCount;
 FNiagaraVariable INiagaraModule::Engine_System_NumEmittersAlive;
 FNiagaraVariable INiagaraModule::Engine_System_SignificanceIndex;
 FNiagaraVariable INiagaraModule::Engine_System_RandomSeed;
+FNiagaraVariable INiagaraModule::Engine_System_CurrentTimeStep;
+FNiagaraVariable INiagaraModule::Engine_System_NumTimeSteps;
+FNiagaraVariable INiagaraModule::Engine_System_TimeStepFraction;
+
 FNiagaraVariable INiagaraModule::Engine_System_NumEmitters;
 FNiagaraVariable INiagaraModule::Engine_NumSystemInstances;
 
@@ -216,7 +221,7 @@ void INiagaraModule::StartupModule()
 #endif
 	LLM_SCOPE(ELLMTag::Niagara);
 	FNiagaraTypeDefinition::Init();
-	
+
 #if PLATFORM_WINDOWS
 	// Global registration of  the vdb types.
 	openvdb::initialize();
@@ -248,6 +253,7 @@ void INiagaraModule::StartupModule()
 
 	//Init commonly used FNiagaraVariables
 
+	Engine_WorldDeltaTime = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.WorldDeltaTime"));
 	Engine_DeltaTime = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.DeltaTime"));
 	Engine_InvDeltaTime = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.InverseDeltaTime"));
 	
@@ -287,6 +293,11 @@ void INiagaraModule::StartupModule()
 	Engine_System_NumEmittersAlive = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.NumEmittersAlive"));
 	Engine_System_SignificanceIndex = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.SignificanceIndex"));
 	Engine_System_RandomSeed = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.RandomSeed"));
+
+	Engine_System_CurrentTimeStep = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.CurrentTimeStep"));
+	Engine_System_NumTimeSteps = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.NumTimeSteps"));
+	Engine_System_TimeStepFraction = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.System.TimeStepFraction"));
+
 	Engine_System_NumEmitters = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.NumEmitters"));
 	Engine_NumSystemInstances = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.NumSystemInstances"));
 
@@ -1580,10 +1591,10 @@ const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()
 {
 	static const FName NAME_NiagaraStructPadding0 = "Engine.PaddingInt32_0";
 	static const FName NAME_NiagaraStructPadding1 = "Engine.PaddingInt32_1";
-	static const FName NAME_NiagaraStructPadding2 = "Engine.PaddingInt32_2";
 
 	static const TArray<FNiagaraVariable> Variables =
 	{
+		SYS_PARAM_ENGINE_WORLD_DELTA_TIME,
 		SYS_PARAM_ENGINE_DELTA_TIME,
 		SYS_PARAM_ENGINE_INV_DELTA_TIME,
 		SYS_PARAM_ENGINE_TIME,
@@ -1591,7 +1602,6 @@ const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()
 		SYS_PARAM_ENGINE_QUALITY_LEVEL,
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
-		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
 	};
 
 	return Variables;
@@ -1601,6 +1611,7 @@ const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
 {
 	static const FName NAME_NiagaraStructPadding0 = "Engine.System.PaddingInt32_0";
 	static const FName NAME_NiagaraStructPadding1 = "Engine.System.PaddingInt32_1";
+	static const FName NAME_NiagaraStructPadding2 = "Engine.System.PaddingInt32_2";
 
 	static const TArray<FNiagaraVariable> Variables =
 	{
@@ -1614,8 +1625,12 @@ const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
 		SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE,
 		SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX,
 		SYS_PARAM_ENGINE_SYSTEM_RANDOM_SEED,
+		SYS_PARAM_ENGINE_SYSTEM_CURRENT_TIME_STEP,
+		SYS_PARAM_ENGINE_SYSTEM_NUM_TIME_STEPS,
+		SYS_PARAM_ENGINE_SYSTEM_TIME_STEP_FRACTION,			
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
 	};
 
 	return Variables;

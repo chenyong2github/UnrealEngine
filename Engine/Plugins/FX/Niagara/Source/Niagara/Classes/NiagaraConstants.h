@@ -32,6 +32,7 @@
 #define TRANSLATOR_SET_VARIABLES_STR TEXT("SetVariables")
 #define TRANSLATOR_SET_VARIABLES_UNDERSCORE_STR TEXT("SetVariables_")
 
+#define SYS_PARAM_ENGINE_WORLD_DELTA_TIME                INiagaraModule::GetVar_Engine_WorldDeltaTime()
 #define SYS_PARAM_ENGINE_DELTA_TIME                      INiagaraModule::GetVar_Engine_DeltaTime()
 #define SYS_PARAM_ENGINE_INV_DELTA_TIME                  INiagaraModule::GetVar_Engine_InvDeltaTime()
 #define SYS_PARAM_ENGINE_TIME                            INiagaraModule::GetVar_Engine_Time()
@@ -70,6 +71,12 @@
 #define SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE       INiagaraModule::GetVar_Engine_System_NumEmittersAlive()
 #define SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX		 INiagaraModule::GetVar_Engine_System_SignificanceIndex()
 #define SYS_PARAM_ENGINE_SYSTEM_RANDOM_SEED				INiagaraModule::GetVar_Engine_System_RandomSeed()
+
+#define SYS_PARAM_ENGINE_SYSTEM_CURRENT_TIME_STEP		 INiagaraModule::GetVar_Engine_System_CurrentTimeStep()
+#define SYS_PARAM_ENGINE_SYSTEM_NUM_TIME_STEPS			 INiagaraModule::GetVar_Engine_System_NumTimeSteps()
+#define SYS_PARAM_ENGINE_SYSTEM_TIME_STEP_FRACTION			 INiagaraModule::GetVar_Engine_System_TimeStepFraction()
+
+
 #define SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS             INiagaraModule::GetVar_Engine_System_NumEmitters()
 #define SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES            INiagaraModule::GetVar_Engine_NumSystemInstances()
 

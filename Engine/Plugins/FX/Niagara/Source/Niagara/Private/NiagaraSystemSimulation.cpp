@@ -681,11 +681,11 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 
 		{
 			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_ExecContexts);
-			SpawnExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Spawn);
-			UpdateExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Update);
-			bCanExecute &= SpawnExecContext->Init(SpawnScript, ENiagaraSimTarget::CPUSim);
-			bCanExecute &= UpdateExecContext->Init(UpdateScript, ENiagaraSimTarget::CPUSim);
-		}
+				SpawnExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Spawn);
+				UpdateExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Update);
+				bCanExecute &= SpawnExecContext->Init(SpawnScript, ENiagaraSimTarget::CPUSim);
+				bCanExecute &= UpdateExecContext->Init(UpdateScript, ENiagaraSimTarget::CPUSim);
+			}
 
 		{
 			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_BindParams);
@@ -1120,8 +1120,24 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 		float FixedDelta = System->GetFixedTickDeltaTime();
 		float Budget = FixedDelta > 0 ? FMath::Fmod(FixedDeltaTickAge, FixedDelta) + DeltaSeconds : 0;
 		int32 Ticks = FixedDelta > 0 ? FMath::Min(Budget / FixedDelta, GNiagaraSystemSimulationMaxTickSubsteps) : 0;
+
+		TickInfo.UsesFixedTick = true;
+		TickInfo.EngineTick = DeltaSeconds;
+		TickInfo.SystemTick = FixedDelta;
+		TickInfo.TickCount = Ticks;
+		TickInfo.TickNumber = -1;
+		TickInfo.TimeStepFraction = 0;
+		
 		for (int i = 0; i < Ticks; i++)
 		{
+			TickInfo.TickNumber = i;
+
+			// Fraction of the total number of ticks we are evaluating
+			// @note: I'd prefer if this were the fraction of the requested timestep, but
+			// the implementation of budget doesn't readily allow it since time fraction could be
+			// greater than 1
+			TickInfo.TimeStepFraction = 1.0f * (i + 1) / Ticks;
+
 			//Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
 			Tick_GameThread_Internal(FixedDelta, nullptr);
 			Budget -= FixedDelta;
@@ -1130,6 +1146,13 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	}
 	else
 	{
+		TickInfo.UsesFixedTick = false;
+		TickInfo.EngineTick = DeltaSeconds;
+		TickInfo.SystemTick = DeltaSeconds;
+		TickInfo.TickCount = 1;
+		TickInfo.TickNumber = 0;
+		TickInfo.TimeStepFraction = 1;
+
 		Tick_GameThread_Internal(DeltaSeconds, MyCompletionGraphEvent);
 	}
 }
@@ -1183,6 +1206,9 @@ void FNiagaraSystemSimulation::Tick_GameThread_Internal(float DeltaSeconds, cons
 	if (MaxDeltaTime.IsSet() && !System->HasFixedTickDelta())
 	{
 		DeltaSeconds = FMath::Clamp(DeltaSeconds, 0.0f, MaxDeltaTime.GetValue());
+
+		TickInfo.SystemTick = DeltaSeconds;
+		TickInfo.TimeStepFraction = DeltaSeconds / TickInfo.EngineTick;
 	}
 
 	UNiagaraScript* SystemSpawnScript = System->GetSystemSpawnScript();

@@ -32,6 +32,7 @@ public:
 
 	// This structure is a replication of FNiagaraGlobalParameters with interpolated parameters includes
 	BEGIN_SHADER_PARAMETER_STRUCT(FGlobalParameters, )
+		SHADER_PARAMETER(float,		Engine_WorldDeltaTime)
 		SHADER_PARAMETER(float,		Engine_DeltaTime)
 		SHADER_PARAMETER(float,		Engine_InverseDeltaTime)
 		SHADER_PARAMETER(float,		Engine_Time)
@@ -39,8 +40,8 @@ public:
 		SHADER_PARAMETER(int32,		Engine_QualityLevel)
 		SHADER_PARAMETER(int32,		Engine_Pad0)
 		SHADER_PARAMETER(int32,		Engine_Pad1)
-		SHADER_PARAMETER(int32,		Engine_Pad2)
 
+		SHADER_PARAMETER(float,		PREV_Engine_WorldDeltaTime)
 		SHADER_PARAMETER(float,		PREV_Engine_DeltaTime)
 		SHADER_PARAMETER(float,		PREV_Engine_InverseDeltaTime)
 		SHADER_PARAMETER(float,		PREV_Engine_Time)
@@ -48,7 +49,6 @@ public:
 		SHADER_PARAMETER(int32,		PREV_Engine_QualityLevel)
 		SHADER_PARAMETER(int32,		PREV_Engine_Pad0)
 		SHADER_PARAMETER(int32,		PREV_Engine_Pad1)
-		SHADER_PARAMETER(int32,		PREV_Engine_Pad2)
 	END_SHADER_PARAMETER_STRUCT()
 
 	// This structure is a replication of FNiagaraSystemParameters with interpolated parameters includes
@@ -63,8 +63,12 @@ public:
 		SHADER_PARAMETER(int32,		Engine_System_NumEmittersAlive)
 		SHADER_PARAMETER(int32,		Engine_System_SignificanceIndex)
 		SHADER_PARAMETER(int32,		Engine_System_RandomSeed)
+		SHADER_PARAMETER(int32,		Engine_System_CurrentTimeStep)
+		SHADER_PARAMETER(int32,		Engine_System_NumTimeSteps)
+		SHADER_PARAMETER(float,		Engine_System_TimeStepFraction)
 		SHADER_PARAMETER(int32,		System_Pad0)
 		SHADER_PARAMETER(int32,		System_Pad1)
+		SHADER_PARAMETER(int32,		System_Pad2)
 
 		SHADER_PARAMETER(float,		PREV_Engine_Owner_TimeSinceRendered)
 		SHADER_PARAMETER(float,		PREV_Engine_Owner_LODDistance)
@@ -76,8 +80,12 @@ public:
 		SHADER_PARAMETER(int32,		PREV_Engine_System_NumEmittersAlive)
 		SHADER_PARAMETER(int32,		PREV_Engine_System_SignificanceIndex)
 		SHADER_PARAMETER(int32,		PREV_Engine_System_RandomSeed)
+		SHADER_PARAMETER(int32,		PREV_CurrentTimeStep)
+		SHADER_PARAMETER(int32,		PREV_NumTimeSteps)
+		SHADER_PARAMETER(float,		PREV_TimeStepFraction)
 		SHADER_PARAMETER(int32,		PREV_System_Pad0)
 		SHADER_PARAMETER(int32,		PREV_System_Pad1)
+		SHADER_PARAMETER(int32,		PREV_System_Pad2)
 	END_SHADER_PARAMETER_STRUCT()
 
 	// This structure is a replication of FNiagaraOwnerParameters with interpolated parameters includes

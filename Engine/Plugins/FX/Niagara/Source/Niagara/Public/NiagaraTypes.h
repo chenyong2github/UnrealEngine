@@ -1969,6 +1969,7 @@ struct alignas(16) FNiagaraGlobalParameters
 	NIAGARA_API static const TArray<FNiagaraVariable>& GetVariables();
 #endif
 
+	float WorldDeltaTime = 0.0f;
 	float EngineDeltaTime =  0.0f;
 	float EngineInvDeltaTime = 0.0f;
 	float EngineTime = 0.0f;
@@ -1977,7 +1978,6 @@ struct alignas(16) FNiagaraGlobalParameters
 
 	int32 _Pad0;
 	int32 _Pad1;
-	int32 _Pad2;
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
@@ -2000,6 +2000,11 @@ struct alignas(16) FNiagaraSystemParameters
 	int32 SignificanceIndex = 0;
 	int32 RandomSeed = 0;
 
+	int32 CurrentTimeStep = 0;
+	int32 NumTimeSteps = 0;
+	float TimeStepFraction = 0.0f;
+
+	int32 _Pad0;
 	int32 _Pad1;
 	int32 _Pad2;
 };
@@ -2119,7 +2124,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterWeakPtr
 	FGuid Version;
 
 	friend inline uint32 GetTypeHash(const FVersionedNiagaraEmitterWeakPtr& Item)
-	{
-		return GetTypeHash(Item.Emitter);
-	}
+{
+	return GetTypeHash(Item.Emitter);
+}
 };

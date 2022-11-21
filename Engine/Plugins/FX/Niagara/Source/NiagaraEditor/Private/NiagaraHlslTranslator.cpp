@@ -1069,6 +1069,9 @@ static void ConvertFloatToHalf(const FNiagaraCompileOptions& InCompileOptions, T
 			SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE,
 			SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS,
 			SYS_PARAM_ENGINE_SYSTEM_RANDOM_SEED,
+			SYS_PARAM_ENGINE_SYSTEM_NUM_TIME_STEPS,
+			SYS_PARAM_ENGINE_SYSTEM_TIME_STEP_FRACTION,
+			SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS,
 			SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES,
 			SYS_PARAM_ENGINE_EMITTER_NUM_PARTICLES,
 			SYS_PARAM_ENGINE_EMITTER_SIMULATION_POSITION,
@@ -1722,6 +1725,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 				int32 OutputIdx = 0;
 				//ensure the interpolated spawn constants are part of the parameter set.
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_TIME, nullptr, 0, OutputIdx, nullptr);
+				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_WORLD_DELTA_TIME, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_DELTA_TIME, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_INV_DELTA_TIME, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_EXEC_COUNT, nullptr, 0, OutputIdx, nullptr);
@@ -3347,8 +3351,8 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	#if NIAGARA_DISPATCH_TYPE >= NIAGARA_DISPATCH_TYPE_THREE_D\n"
 			"		GLinearThreadId += GDispatchThreadId.z * DispatchThreadIdToLinear.z;\n"
 			"	#endif\n"
-			"	GEmitterTickCounter	= EmitterTickCounter;\n"
-			"	GRandomSeedOffset	= 0;\n"
+			"	GEmitterTickCounter = EmitterTickCounter;\n"
+			"	GRandomSeedOffset = 0;\n"
 			"\n"
 		);
 
@@ -4417,7 +4421,8 @@ bool FHlslNiagaraTranslator::ShouldInterpolateParameter(const FNiagaraVariable& 
 	}
 
 	//Skip interpolation for some system constants.
-	if (Parameter == SYS_PARAM_ENGINE_DELTA_TIME ||
+	if (Parameter == SYS_PARAM_ENGINE_WORLD_DELTA_TIME ||
+		Parameter == SYS_PARAM_ENGINE_DELTA_TIME ||
 		Parameter == SYS_PARAM_ENGINE_INV_DELTA_TIME ||
 		Parameter == SYS_PARAM_ENGINE_EXEC_COUNT ||
 		Parameter == SYS_PARAM_EMITTER_SPAWNRATE ||
@@ -4426,6 +4431,9 @@ bool FHlslNiagaraTranslator::ShouldInterpolateParameter(const FNiagaraVariable& 
 		Parameter == SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES ||
 		Parameter == SYS_PARAM_ENGINE_EMITTER_SPAWN_COUNT_SCALE ||
 		Parameter == SYS_PARAM_EMITTER_RANDOM_SEED ||
+		Parameter == SYS_PARAM_ENGINE_SYSTEM_NUM_TIME_STEPS ||
+		Parameter == SYS_PARAM_ENGINE_SYSTEM_TIME_STEP_FRACTION ||
+		Parameter == SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS ||
 		Parameter == SYS_PARAM_ENGINE_EMITTER_INSTANCE_SEED ||
 		Parameter == SYS_PARAM_ENGINE_SYSTEM_TICK_COUNT ||
 		Parameter == SYS_PARAM_ENGINE_SYSTEM_RANDOM_SEED)

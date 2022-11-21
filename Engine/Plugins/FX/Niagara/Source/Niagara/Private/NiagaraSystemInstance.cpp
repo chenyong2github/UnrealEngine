@@ -1479,8 +1479,8 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	};
 
 	CalcInstDataSize(InstanceParameters, false, false, false);//This probably should be a proper exec context.
-	CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, true, false, true);
-	CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, true, false, true);
+		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, true, false, true);
+		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, true, false, true);
 
 	//Iterate over interfaces to get size for table and clear their interface bindings.
 	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Simulation : Emitters)
@@ -1679,8 +1679,8 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 				Complete(true);
 			}
 		}
+		}
 	}
-}
 
 float FNiagaraSystemInstance::GetLODDistance()
 {
@@ -1865,6 +1865,9 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 
 	GatheredInstanceParameters.EmitterCount = Emitters.Num();
 	GatheredInstanceParameters.DeltaSeconds = DeltaSeconds;
+	
+	GatheredInstanceParameters.WorldDeltaSeconds = GetSystemSimulation()->GetTickInfo().EngineTick;	
+	
 	GatheredInstanceParameters.NumAlive = 0;
 
 	//Bias the LastRenderTime slightly to account for any delay as it's written by the RT.
@@ -1906,6 +1909,10 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	CurrentSystemParameters.EngineLodDistanceFraction = CurrentSystemParameters.EngineLodDistance / MaxLODDistance;
 	CurrentSystemParameters.SignificanceIndex = SignificanceIndex;
 	CurrentSystemParameters.RandomSeed = RandomSeed + RandomSeedOffset;
+
+	CurrentSystemParameters.CurrentTimeStep = GetSystemSimulation()->GetTickInfo().TickNumber;
+	CurrentSystemParameters.NumTimeSteps = GetSystemSimulation()->GetTickInfo().TickCount;
+	CurrentSystemParameters.TimeStepFraction = GetSystemSimulation()->GetTickInfo().TimeStepFraction;	
 
 	if (OverrideParameters)
 	{
@@ -1951,7 +1958,12 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 	CurrentSystemParameters.SignificanceIndex = SignificanceIndex;
 	CurrentSystemParameters.RandomSeed = RandomSeed + RandomSeedOffset;
 
+	CurrentSystemParameters.CurrentTimeStep = GetSystemSimulation()->GetTickInfo().TickNumber;
+	CurrentSystemParameters.NumTimeSteps = GetSystemSimulation()->GetTickInfo().TickCount;
+	CurrentSystemParameters.TimeStepFraction = GetSystemSimulation()->GetTickInfo().TimeStepFraction;
+
 	FNiagaraGlobalParameters& CurrentGlobalParameter = GlobalParameters[ParameterIndex];
+	CurrentGlobalParameter.WorldDeltaTime = GatheredInstanceParameters.WorldDeltaSeconds;
 	CurrentGlobalParameter.EngineDeltaTime = GatheredInstanceParameters.DeltaSeconds;
 	CurrentGlobalParameter.EngineInvDeltaTime = GatheredInstanceParameters.DeltaSeconds > 0.0f ? 1.0f / GatheredInstanceParameters.DeltaSeconds : 0.0f;
 	CurrentGlobalParameter.EngineRealTime = GatheredInstanceParameters.RealTimeSeconds;
