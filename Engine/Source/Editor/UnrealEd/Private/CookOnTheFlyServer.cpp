@@ -8605,6 +8605,11 @@ void UCookOnTheFlyServer::ShutdownCookSession()
 	{
 		CookDirector->ShutdownCookSession();
 	}
+	if (CookWorkerClient)
+	{
+		CookAsCookWorkerFinished();
+	}
+
 	for (UE::Cook::FPackageData* PackageData : *PackageDatas)
 	{
 		PackageData->DestroyGeneratorPackage();
@@ -9543,12 +9548,8 @@ void UCookOnTheFlyServer::LogCookWorkerStats()
 	}
 }
 
-void UCookOnTheFlyServer::ShutdownCookAsCookWorker()
+void UCookOnTheFlyServer::CookAsCookWorkerFinished()
 {
-	if (IsDirectorCookByTheBook())
-	{
-		UnregisterCookByTheBookDelegates();
-	}
 	FString LibraryName = GetProjectShaderLibraryName();
 	FString ActualLibraryName = GenerateShaderCodeLibraryName(LibraryName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
 	FShaderLibraryCooker::EndCookingLibrary(ActualLibraryName);
@@ -9559,13 +9560,26 @@ void UCookOnTheFlyServer::ShutdownCookAsCookWorker()
 	{
 		GShaderCompilingManager->SkipShaderCompilation(false);
 	}
-	ShutdownCookSession();
+}
+
+void UCookOnTheFlyServer::ShutdownCookAsCookWorker()
+{
+	if (IsDirectorCookByTheBook())
+	{
+		UnregisterCookByTheBookDelegates();
+	}
+	if (IsInSession())
+	{
+		ShutdownCookSession();
+	}
 }
 
 FBeginCookContext UCookOnTheFlyServer::CreateCookWorkerContext()
 {
 	FBeginCookContext BeginContext(*this);
 	*CookByTheBookOptions = CookWorkerClient->ConsumeCookByTheBookOptions();
+	CookByTheBookOptions->CookTime = 0.0f;
+	CookByTheBookOptions->CookStartTime = FPlatformTime::Seconds();
 	*CookOnTheFlyOptions = CookWorkerClient->ConsumeCookOnTheFlyOptions();
 	BeginContext.TargetPlatforms = CookWorkerClient->GetTargetPlatforms();
 

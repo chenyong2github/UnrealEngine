@@ -498,14 +498,20 @@ void FCookWorkerClient::PumpDisconnect(FTickStackData& StackData)
 					UE_LOG(LogCook, Warning, TEXT("Timedout after %.0fs waiting to send disconnect message to CookDirector."),
 						WaitForDisconnectTimeout);
 					SendToState(EConnectStatus::LostConnection);
-					return;
+					check(ConnectStatus == EConnectStatus::LostConnection);
+					// Fall through to LostConnection
+					break;
 				}
-				return; // Exit the Pump loop for now and keep waiting
+				else
+				{
+					return; // Exit the Pump loop for now and keep waiting
+				}
 			}
 			else
 			{
 				check(ConnectStatus == EConnectStatus::LostConnection);
-				return;
+				// Fall through to LostConnection
+				break;
 			}
 		}
 		case EConnectStatus::LostConnection:

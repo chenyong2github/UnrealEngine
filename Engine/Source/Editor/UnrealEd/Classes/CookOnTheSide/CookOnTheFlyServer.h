@@ -1043,6 +1043,7 @@ private:
 	void StartCookAsCookWorker();
 	/** Construct the on-stack data for StartCook functions, based on the CookWorker's configuration */
 	FBeginCookContext CreateCookWorkerContext();
+	void CookAsCookWorkerFinished();
 
 	//////////////////////////////////////////////////////////////////////////
 	// general functions
