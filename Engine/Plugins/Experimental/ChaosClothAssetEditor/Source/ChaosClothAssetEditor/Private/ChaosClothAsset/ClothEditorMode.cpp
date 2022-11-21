@@ -55,18 +55,62 @@
 
 const FEditorModeID UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId = TEXT("EM_ChaosClothAssetEditorMode");
 
-namespace ChaosClothAssetEditorModeLocals
-{
-	void LogAndToastWarning(const FText& Error)
-	{
-		FNotificationInfo Info(Error);
-		Info.ExpireDuration = 5.0f;
-		FSlateNotificationManager::Get().AddNotification(Info);
 
-		// TODO: use a non-temp category
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Error.ToString());
+namespace ChaosClothAssetEditorModeHelpers
+{
+	TArray<FName> GetClothAssetWeightMapNames(const UE::Chaos::ClothAsset::FClothAdapter& ClothAdapter)
+	{
+		const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAdapter.FClothConstAdapter::GetClothCollection();
+
+		TArray<FName> OutWeightMapNames;
+		const TArray<FName> SimVerticesAttributeNames = ClothCollection->AttributeNames(UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup);
+		for (const FName& AttributeName : SimVerticesAttributeNames)
+		{
+			if (ClothCollection->FindAttributeTyped<float>(AttributeName, UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup))
+			{
+				OutWeightMapNames.Add(AttributeName);
+			}
+		}
+
+		return OutWeightMapNames;
 	}
-}		// namespace ChaosClothAssetEditorModeLocals
+
+	void RemoveClothWeightMaps(UE::Chaos::ClothAsset::FClothAdapter& ClothAdapter, const TArray<FName>& WeightMapNames)
+	{
+		const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAdapter.GetClothCollection();
+		for (const FName& RemovedMap : WeightMapNames)
+		{
+			if (ClothCollection->FindAttributeTyped<float>(RemovedMap, UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup))
+			{
+				ClothAdapter.RemoveWeightMap(RemovedMap);
+			}
+		}
+	}
+
+	TArray<FName> GetDynamicMeshWeightMapNames(const UE::Geometry::FDynamicMesh3& DynamicMesh)
+	{
+		TArray<FName> OutWeightMapNames;
+
+		for (int32 DynamicMeshWeightMapIndex = 0; DynamicMeshWeightMapIndex < DynamicMesh.Attributes()->NumWeightLayers(); ++DynamicMeshWeightMapIndex)
+		{
+			const UE::Geometry::FDynamicMeshWeightAttribute* const WeightMapAttribute = DynamicMesh.Attributes()->GetWeightLayer(DynamicMeshWeightMapIndex);
+			const FName WeightMapName = WeightMapAttribute->GetName();
+			OutWeightMapNames.Add(WeightMapName);
+		}
+
+		return OutWeightMapNames;
+	}
+}
+
+
+UChaosClothAssetEditorMode::UChaosClothAssetEditorMode()
+{
+	Info = FEditorModeInfo(
+		EM_ChaosClothAssetEditorModeId,
+		LOCTEXT("ChaosClothAssetEditorModeName", "Cloth"),
+		FSlateIcon(),
+		false);
+}
 
 const FToolTargetTypeRequirements& UChaosClothAssetEditorMode::GetToolTargetRequirements()
 {
@@ -77,15 +121,6 @@ const FToolTargetTypeRequirements& UChaosClothAssetEditorMode::GetToolTargetRequ
 			UDynamicMeshProvider::StaticClass()
 			});
 	return ToolTargetRequirements;
-}
-
-UChaosClothAssetEditorMode::UChaosClothAssetEditorMode()
-{
-	Info = FEditorModeInfo(
-		EM_ChaosClothAssetEditorModeId,
-		LOCTEXT("ChaosClothAssetEditorModeName", "Cloth"),
-		FSlateIcon(),
-		false);
 }
 
 void UChaosClothAssetEditorMode::Enter()
@@ -225,78 +260,10 @@ void UChaosClothAssetEditorMode::Exit()
 	Super::Exit();
 }
 
-void UChaosClothAssetEditorMode::InitializeContexts(FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager)
+void UChaosClothAssetEditorMode::SetPreviewWorld(TObjectPtr<UWorld> InWorld)
 {
-	PreviewWorld = LivePreviewModeManager.GetPreviewScene()->GetWorld();
-
-	// UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
-
-	// TODO: If we are going to support tools that operate on the 3D sim mesh, we'll need something like this to pass into those tools:
-	//UClothToolLivePreviewAPI* LivePreviewAPI = NewObject<UClothToolLivePreviewAPI>();
-	//LivePreviewAPI->Initialize(
-	//	LivePreviewWorld,
-	//	LivePreviewModeManager.GetInteractiveToolsContext()->InputRouter,
-	//	[this, LivePreviewViewportClientPtr = &LivePreviewViewportClient](FViewCameraState& CameraStateOut) {
-	//		GetCameraState(*LivePreviewViewportClientPtr, CameraStateOut); 
-	//	});
-	//ContextStore->AddContextObject(LivePreviewAPI);
-
-	// TODO: If we add buttons to the viewport that the tools will need to interact with (e.g. selection of triangles, edges, etc.), we will need something like this:
-	//ContextStore->AddContextObject(&ViewportButtonsAPI);
+	PreviewWorld = InWorld;
 }
-
-void UChaosClothAssetEditorMode::GetRestSpaceMesh(UToolTarget* ToolTarget, UE::Geometry::FDynamicMesh3& RestSpaceMesh)
-{
-	// TODO: Get the actual rest-space mesh. NOTE: Currently full 3D mesh (not 2D projection)
-	RestSpaceMesh = UE::ToolTarget::GetDynamicMeshCopy(ToolTarget);
-}
-
-namespace ChaosClothAssetEditorModeHelpers
-{
-	TArray<FName> GetClothAssetWeightMapNames(const UE::Chaos::ClothAsset::FClothAdapter& ClothAdapter)
-	{
-		const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAdapter.FClothConstAdapter::GetClothCollection();
-
-		TArray<FName> OutWeightMapNames;
-		const TArray<FName> SimVerticesAttributeNames = ClothCollection->AttributeNames(UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup);
-		for (const FName& AttributeName : SimVerticesAttributeNames)
-		{
-			if (ClothCollection->FindAttributeTyped<float>(AttributeName, UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup))
-			{
-				OutWeightMapNames.Add(AttributeName);
-			}
-		}
-
-		return OutWeightMapNames;
-	}
-
-	void RemoveClothWeightMaps(UE::Chaos::ClothAsset::FClothAdapter& ClothAdapter, const TArray<FName>& WeightMapNames)
-	{
-		const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAdapter.GetClothCollection();
-		for (const FName& RemovedMap : WeightMapNames)
-		{
-			if (ClothCollection->FindAttributeTyped<float>(RemovedMap, UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup))
-			{
-				ClothAdapter.RemoveWeightMap(RemovedMap);
-			}
-		}
-	}
-
-	TArray<FName> GetDynamicMeshWeightMapNames(const UE::Geometry::FDynamicMesh3& DynamicMesh)
-	{
-		TArray<FName> OutWeightMapNames;
-
-		for (int32 DynamicMeshWeightMapIndex = 0; DynamicMeshWeightMapIndex < DynamicMesh.Attributes()->NumWeightLayers(); ++DynamicMeshWeightMapIndex)
-		{
-			const UE::Geometry::FDynamicMeshWeightAttribute* const WeightMapAttribute = DynamicMesh.Attributes()->GetWeightLayer(DynamicMeshWeightMapIndex);
-			const FName WeightMapName = WeightMapAttribute->GetName();
-			OutWeightMapNames.Add(WeightMapName);
-		}
-
-		return OutWeightMapNames;
-	}
-}
-
 
 void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 {
@@ -582,7 +549,7 @@ void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
 		PinnedVC->ToggleOrbitCamera(false);
 
 		const FBox SceneBounds = SceneBoundingBox();
-		if (IsPattern2DModeActive())
+		if (bPattern2DMode)
 		{
 			// 2D pattern
 			PinnedVC->SetInitialViewTransform(ELevelViewportType::LVT_OrthoXY, FVector(0, 0, 0), FRotator(0, 0, 0), DEFAULT_ORTHOZOOM);
@@ -604,9 +571,6 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 	check(PreviewWorld);
 
 	OriginalObjectsToEdit = AssetsIn;
-
-	// TODO: If we have multiple objects to initialize, position them relative to each other somehow
-	Transforms.Init(FTransform::Identity, AssetsIn.Num());
 
 	CreateToolTargets(AssetsIn);
 
@@ -634,35 +598,7 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 
 	ReinitializeDynamicMeshComponents();
 	bShouldFocusRestSpaceView = true;
-
-	// Prep things for layer/channel selection
-	AssetNames.Reset(ToolTargets.Num());
-	for (const TObjectPtr<UToolTarget>& ToolTarget : ToolTargets)
-	{
-		AssetNames.Add(UE::ToolTarget::GetHumanReadableName(ToolTarget));
-	}
 }
-
-bool UChaosClothAssetEditorMode::HaveUnappliedChanges()
-{
-	return ModifiedAssetIDs.Num() > 0;
-}
-
-void UChaosClothAssetEditorMode::GetAssetsWithUnappliedChanges(TArray<TObjectPtr<UObject>> UnappliedAssetsOut)
-{
-	for (int32 AssetID : ModifiedAssetIDs)
-	{
-		// The asset ID corresponds to the index into OriginalObjectsToEdit
-		UnappliedAssetsOut.Add(OriginalObjectsToEdit[AssetID]);
-	}
-}
-
-void UChaosClothAssetEditorMode::ApplyChanges()
-{
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("ChaosClothAssetEditorApplyChangesTransaction", "Cloth Editor Apply Changes"));
-	GetToolManager()->EndUndoTransaction();
-}
-
 
 void UChaosClothAssetEditorMode::SoftResetSimulation()
 {
@@ -833,11 +769,6 @@ FBox UChaosClothAssetEditorMode::PreviewBoundingBox() const
 	}
 
 	return FBox(ForceInitToZero);
-}
-
-bool UChaosClothAssetEditorMode::IsPattern2DModeActive() const
-{
-	return bPattern2DMode;
 }
 
 void UChaosClothAssetEditorMode::TogglePatternMode()

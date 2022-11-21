@@ -227,31 +227,6 @@ bool FChaosClothAssetEditorToolkit::OnRequestClose()
 		return true; 
 	}
 
-	// Warn the user of any unapplied changes.
-	if (ClothEdMode->HaveUnappliedChanges())
-	{
-		TArray<TObjectPtr<UObject>> UnappliedAssets;
-		ClothEdMode->GetAssetsWithUnappliedChanges(UnappliedAssets);
-
-		EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel,
-			NSLOCTEXT("ChaosClothAssetEditor", "Prompt_ChaosClothAssetEditorClose", "At least one of the assets has unapplied changes. Would you like to apply them? (Selecting 'No' will cause all changes to be lost!)"));
-
-		switch (YesNoCancelReply)
-		{
-		case EAppReturnType::Yes:
-			ClothEdMode->ApplyChanges();
-			break;
-
-		case EAppReturnType::No:
-			// exit
-			break;
-
-		case EAppReturnType::Cancel:
-			// don't exit
-			return false;
-		}
-	}
-
 	// Give any active modes a chance to shutdown while the toolkit host is still alive
     // This is super important to do, otherwise currently opened tabs won't be marked as "closed".
     // This results in tabs not being properly recycled upon reopening the editor and tab
@@ -481,13 +456,13 @@ void FChaosClothAssetEditorToolkit::InitializeEdMode(UBaseCharacterFXEditorMode*
 	UChaosClothAssetEditorMode* ClothMode = Cast<UChaosClothAssetEditorMode>(EdMode);
 	check(ClothMode);
 
-	// The mode will need to be able to get to the live preview world, camera, input router, and viewport buttons.
-	ClothMode->InitializeContexts(*ClothPreviewViewportClient, *ClothPreviewEditorModeManager);
+	// The mode will need to be able to get to the live preview world
+	ClothMode->SetPreviewWorld(ClothPreviewEditorModeManager->GetWorld());
 
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
 	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
 
-	EdMode->InitializeTargets(ObjectsToEdit);
+	ClothMode->InitializeTargets(ObjectsToEdit);
 }
 
 void FChaosClothAssetEditorToolkit::CreateEditorModeUILayer()

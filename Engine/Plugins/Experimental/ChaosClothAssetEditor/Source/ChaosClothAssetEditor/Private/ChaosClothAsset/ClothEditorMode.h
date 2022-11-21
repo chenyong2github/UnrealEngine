@@ -33,56 +33,23 @@ class FViewport;
  * in multiple asset editors.
  */
 UCLASS(Transient)
-class CHAOSCLOTHASSETEDITOR_API UChaosClothAssetEditorMode : public UBaseCharacterFXEditorMode
+class CHAOSCLOTHASSETEDITOR_API UChaosClothAssetEditorMode final : public UBaseCharacterFXEditorMode
 {
 	GENERATED_BODY()
+
 public:
+
 	const static FEditorModeID EM_ChaosClothAssetEditorModeId;
 
 	UChaosClothAssetEditorMode();
 
-	virtual void Enter() override;
+	// Bounding box for selected rest space mesh components
+	FBox SelectionBoundingBox() const;
 
-	/**
-	 * Gets the tool target requirements for the mode. The resulting targets undergo further processing
-	 * to turn them into the input objects that tools get (since these need preview meshes, etc).
-	 */
-	static const FToolTargetTypeRequirements& GetToolTargetRequirements();
-
-	// Both initialization functions must be called for things to function properly. InitializeContexts should
-	// be done first so that the 3d preview world is ready for creating meshes in InitializeTargets.
-	void InitializeContexts(FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager);
-
-	virtual void InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn);
-
-	// Asset management
-	bool HaveUnappliedChanges();
-	void GetAssetsWithUnappliedChanges(TArray<TObjectPtr<UObject>> UnappliedAssetsOut);
-	void ApplyChanges();
-
-	/** @return List of asset names, indexed by AssetID */
-	const TArray<FString>& GetAssetNames() const { return AssetNames; }
-
-	// UEdMode overrides
-	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const override;
-	virtual void Exit() override;
-	virtual void ModeTick(float DeltaTime) override;
-	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
-	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
-	virtual void PostUndo() override;
-
-	// We don't actually override MouseEnter, etc, because things get forwarded to the input
-	// router via FEditorModeTools, and we don't have any additional input handling to do at the mode level.
-
-	// Bounding box for rest-space meshes
-	virtual FBox SceneBoundingBox() const override;
-	FBox SelectionBoundingBox() const;		// only selected mesh components
-
-	// Bounding box for sim-space meshes
+	// Bounding box for sim space meshes
 	FBox PreviewBoundingBox() const;
 
 	// Toggle between 2D pattern and 3D rest space mesh view
-	bool IsPattern2DModeActive() const;
 	void TogglePatternMode();
 	bool CanTogglePatternMode() const;
 
@@ -96,36 +63,48 @@ public:
 private:
 
 	friend class FChaosClothAssetEditorToolkit;
-	void SetRestSpaceViewportClient(TWeakPtr<FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> ViewportClient);
-	void RefocusRestSpaceViewportClient();
+
+	// UEdMode
+	virtual void Enter() final;
+	virtual void Exit() override;
+	virtual void ModeTick(float DeltaTime) override;
+	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const override;
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	virtual void PostUndo() override;
+	virtual void CreateToolkit() override;
+	virtual void BindCommands() override;
+
+	// (We don't actually override MouseEnter, etc, because things get forwarded to the input
+	// router via FEditorModeTools, and we don't have any additional input handling to do at the mode level.)
 
 	// UBaseCharacterFXEditorMode
 	virtual void AddToolTargetFactories() override;
 	virtual void RegisterTools() override;
-	virtual void CreateToolTargets(const TArray<TObjectPtr<UObject>>& AssetsIn);
+	virtual void CreateToolTargets(const TArray<TObjectPtr<UObject>>& AssetsIn) override;
+	virtual void InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn) override;
 
-	// UEdMode overrides
-	virtual void CreateToolkit() override;
-	// Not sure whether we need these yet
-	virtual void BindCommands() override;
-	
-	// Transforms that should be used for the 3D previews, 1:1 with OriginalObjectsToEdit
-	// and ToolTargets.
-	TArray<FTransform> Transforms;
+	// Gets the tool target requirements for the mode. The resulting targets undergo further processing
+	// to turn them into the input objects that tools get (since these need preview meshes, etc).
+	static const FToolTargetTypeRequirements& GetToolTargetRequirements();
+
+	// Both SetPreviewWorld and InitializeTargets functions must be called for things to function properly. SetPreviewWorld should
+	// be done first so that the 3d preview world is ready for creating meshes in InitializeTargets.
+	void SetPreviewWorld(TObjectPtr<UWorld> InWorld);
+
+	// Bounding box for rest space meshes
+	virtual FBox SceneBoundingBox() const override;
+
+	void SetRestSpaceViewportClient(TWeakPtr<FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> ViewportClient);
+	void RefocusRestSpaceViewportClient();
 
 	// Preview simulation mesh
 	UPROPERTY()
 	TObjectPtr<UChaosClothComponent> ClothComponent;
 
-	// Rest-space wireframes. They have to get ticked to be able to respond to setting changes. 
+	// Rest space wireframes. They have to get ticked to be able to respond to setting changes. 
 	UPROPERTY()
 	TArray<TObjectPtr<UMeshElementsVisualizer>> WireframesToTick;
-
-	// Authoritative list of targets that have changes that have not been baked back yet.
-	TSet<int32> ModifiedAssetIDs;
-
-	// 1:1 with ToolTargets, indexed by AssetID
-	TArray<FString> AssetNames;
 
 	// Here largely for convenience to avoid having to pass it around functions.
 	UPROPERTY()
@@ -135,32 +114,35 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UInteractiveToolPropertySet>> PropertyObjectsToTick;
 
+	// Rest space editable meshes
 	UPROPERTY()
 	TArray<TObjectPtr<UDynamicMeshComponent>> DynamicMeshComponents;
 
+	// Actors required for hit testing DynamicMeshComponents
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> DynamicMeshComponentParentActors;
 
+	// Map back to original asset location for each DynamicMeshComponent
 	struct FDynamicMeshSourceInfo
 	{
 		int32 LodIndex;
 		int32 PatternIndex;
 	};
-
 	TArray<FDynamicMeshSourceInfo> DynamicMeshSourceInfos;
 
 	TWeakPtr<FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> RestSpaceViewportClient;
 
+	// Handle to a callback triggered when the current selection changes
 	FDelegateHandle SelectionModifiedEventHandle;
 
-	// Whether to display the 2D pattern or 3D rest configuration in the left viewport
+	// Whether to display the 2D pattern or 3D assembly in the rest space viewport
 	bool bPattern2DMode = true;
 
-	// If we can switch between 2D and 3D rest configuration
+	// Whether we can switch between 2D and 3D rest configuration
 	bool bCanTogglePattern2DMode = true;
 
+	// Whether the rest space viewport should focus on the rest space mesh on the next tick
 	bool bShouldFocusRestSpaceView = true;
-
 	void RestSpaceViewportResized(FViewport* RestspaceViewport, uint32 Unused);
 
 	// Whether to combine all patterns into a single DynamicMeshComponent, or have separate components for each pattern
@@ -170,12 +152,10 @@ private:
 	// Create dynamic mesh components from the cloth component's rest space info
 	void ReinitializeDynamicMeshComponents();
 
-	// Extract the rest space mesh from the given tool target
-	void GetRestSpaceMesh(UToolTarget* ToolTarget, UE::Geometry::FDynamicMesh3& RestSpaceMesh);
-
 	// Set up the preview simulation mesh from the given rest-space mesh
 	void UpdateSimulationMeshes();
 
+	// Simulation controls
 	bool bIsSimulationSuspended = false;
 	bool bShouldResetSimulation = false;
 	bool bHardReset = false;
