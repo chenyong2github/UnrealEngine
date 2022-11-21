@@ -14,7 +14,8 @@ enum class EMLFormatTensorType : uint8
 	None,	
 	Input,
 	Output,
-	Intermediate
+	Intermediate,
+	Initializer
 };
 
 //TODO jira 167589: convert EMLInferenceFormat to a CCCC for easier extension of the framework

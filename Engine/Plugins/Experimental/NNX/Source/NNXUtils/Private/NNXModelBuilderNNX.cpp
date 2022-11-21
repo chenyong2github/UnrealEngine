@@ -260,6 +260,7 @@ private:
 			
 			if (Data)
 			{
+				Desc.Type = EMLFormatTensorType::Initializer;
 				Desc.DataOffset = Format.TensorData.AddUninitialized(DataSize);
 				Desc.DataSize = DataSize;
 
