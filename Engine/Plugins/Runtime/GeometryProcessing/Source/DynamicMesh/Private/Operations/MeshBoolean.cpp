@@ -737,7 +737,8 @@ bool FMeshBoolean::Compute()
 			}
 		}
 	}
-	else
+	// For NewGroupInside and NewGroupOutside, the cut doesn't create boundary edges.
+	else if (Operation != EBooleanOp::NewGroupInside && Operation != EBooleanOp::NewGroupOutside)
 	{
 		CreatedBoundaryEdges = CutBoundaryEdges[0];
 	}
