@@ -31,6 +31,7 @@
 #include "FractureEngineSelection.h"
 #include "GeometryCollection/Facades/CollectionBoundsFacade.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
+#include "GeometryCollection/Facades/CollectionRemoveOnBreakFacade.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionNodes)
 
@@ -993,41 +994,40 @@ void FRemoveOnBreakDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
+		const bool& InEnableRemoval = GetValue(Context, &EnabledRemoval, true);
+		const FVector2f& InPostBreakTimer = GetValue(Context, &PostBreakTimer);
+		const FVector2f& InRemovalTimer = GetValue(Context, &RemovalTimer);
+		const bool& InClusterCrumbling = GetValue(Context, &ClusterCrumbling);
+
+		// we are making a copy of the collection because we are modifying it 
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		if (!InCollection.HasAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup))
+		GeometryCollection::Facades::FCollectionRemoveOnBreakFacade RemoveOnBreakFacade(InCollection);
+		RemoveOnBreakFacade.DefineSchema();
+
+		GeometryCollection::Facades::FRemoveOnBreakData Data;
+		Data.SetBreakTimer(InPostBreakTimer.X, InPostBreakTimer.Y);
+		Data.SetRemovalTimer(InRemovalTimer.X, InRemovalTimer.Y);
+		Data.SetEnabled(InEnableRemoval);
+		Data.SetClusterCrumbling(InClusterCrumbling);
+
+		// selection is optional
+		if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
 		{
-			TManagedArray<FVector4f>& NewRemoveOnBreak = InCollection.AddAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
-			NewRemoveOnBreak.Fill(FRemoveOnBreakData::DisabledPackedData);
+			const FDataflowTransformSelection& InTransformSelection = GetValue(Context, &TransformSelection);
+			TArray<int32> TransformIndices;
+			InTransformSelection.AsArray(TransformIndices);
+			RemoveOnBreakFacade.SetFromIndexArray(TransformIndices, Data);
+		}
+		else
+		{
+			RemoveOnBreakFacade.SetToAll(Data);
 		}
 
-		TManagedArray<FVector4f>& RemoveOnBreak = InCollection.ModifyAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
-
-		const FVector2f PostBreakTimerData = GetValue<FVector2f>(Context, &PostBreakTimer);
-		const FVector2f RemovalTimerData = GetValue<FVector2f>(Context, &RemovalTimer);
-		const bool ClusterCrumblingData = GetValue<bool>(Context, &ClusterCrumbling);
-
-		RemoveOnBreak.Fill(FVector4f{ PostBreakTimerData.X, PostBreakTimerData.Y, RemovalTimerData.X, RemovalTimerData.Y });
-
-			// @todo(harsha) Implement with Selection
-			// const FRemoveOnBreakData RemoveOnBreakData(true, PostBreakTimerData, ClusterCrumblingData, RemovalTimerData);
-			// for (int32 Index : SelectedBones)
-			// {
-				// // if root bone, then do not set 
-				// if (GeometryCollection->Parent[Index] == INDEX_NONE)
-				// {
-				// 	RemoveOnBreak[Index] = FRemoveOnBreakData::DisabledPackedData;
-				// }
-				// else
-				// {
-				// 	RemoveOnBreak[Index] = RemoveOnBreakData.GetPackedData();
-				// }
-			// }
-
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		// move the collection to the output to avoid making another copy
+		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
 	}
 }
-
 
 void FSetAnchorStateDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {

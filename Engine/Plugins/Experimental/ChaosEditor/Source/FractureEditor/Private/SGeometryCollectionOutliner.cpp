@@ -811,7 +811,7 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 	InitialState = INDEX_NONE;
 	Anchored = false;
 	RemoveOnBreakAvailable = false;
-	RemoveOnBreak = FVector4f{-1};
+	RemoveOnBreak = FRemoveOnBreakData::DisabledPackedData;
 	ImportedCollisionsAvailable = false;
 	ImportedCollisionsUsed = false;
 	
@@ -835,7 +835,7 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 			const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
 			const TManagedArray<float>* RelativeSizes = GeometryCollectionPtr->FindAttribute<float>("Size", FTransformCollection::TransformGroup);
 			const TManagedArray<float>* Volumes = GeometryCollectionPtr->FindAttribute<float>("Volume", FTransformCollection::TransformGroup);
-			const TManagedArray<FVector4f>* RemoveOnBreakArray = GeometryCollectionPtr->FindAttribute<FVector4f>("RemoveOnBreak", FTransformCollection::TransformGroup);
+			GeometryCollection::Facades::FCollectionRemoveOnBreakFacade RemoveOnBreakFacade(*GeometryCollectionPtr);
 
 			using FImplicitGeom = FGeometryDynamicCollection::FSharedImplicit;
 			const TManagedArray<FImplicitGeom>* ExternalCollisions = GeometryCollectionPtr->FindAttribute<FImplicitGeom>("ExternalCollisions", FTransformCollection::TransformGroup);
@@ -901,10 +901,10 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 					DamageThreshold = DamageData.DamageThreshold;
 					Broken = DamageData.bIsBroken;
 				}
-				RemoveOnBreakAvailable = (RemoveOnBreakArray != nullptr); 
+				RemoveOnBreakAvailable = RemoveOnBreakFacade.IsValid();
 				if (RemoveOnBreakAvailable)
 				{
-					RemoveOnBreak = (*RemoveOnBreakArray)[ItemBoneIndex];
+					RemoveOnBreak = RemoveOnBreakFacade.GetData(ItemBoneIndex);
 				}
 
 				ImportedCollisionsUsed = RestCollection->bImportCollisionFromSource;

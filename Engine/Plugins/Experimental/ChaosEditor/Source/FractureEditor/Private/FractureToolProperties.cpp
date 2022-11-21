@@ -6,6 +6,7 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
+#include "GeometryCollection/Facades/CollectionRemoveOnBreakFacade.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolProperties)
@@ -148,30 +149,16 @@ void UFractureToolSetRemoveOnBreak::Execute(TWeakPtr<FFractureEditorModeToolkit>
 	 				TArray<int32> SelectedBones = GeometryCollectionComponent->GetSelectedBones();
 	 				if (SelectedBones.Num())
 	 				{
-	 					if (!GeometryCollection->HasAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup))
-	 					{
-	 						TManagedArray<FVector4f>& NewRemoveOnBreak = GeometryCollection->AddAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
-	 						NewRemoveOnBreak.Fill(FRemoveOnBreakData::DisabledPackedData);
-	 					}
+						GeometryCollection::Facades::FCollectionRemoveOnBreakFacade RemoveOnBreakFacade(*GeometryCollection);
+						RemoveOnBreakFacade.DefineSchema();
 	 					
-	 					TManagedArray<FVector4f>& RemoveOnBreak = GeometryCollection->ModifyAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
+						GeometryCollection::Facades::FRemoveOnBreakData RemoveOnBreakData;
+						RemoveOnBreakData.SetBreakTimer(RemoveOnBreakSettings->PostBreakTimer.X, RemoveOnBreakSettings->PostBreakTimer.Y);
+						RemoveOnBreakData.SetRemovalTimer(RemoveOnBreakSettings->RemovalTimer.X, RemoveOnBreakSettings->RemovalTimer.Y);
+						RemoveOnBreakData.SetEnabled(RemoveOnBreakSettings->Enabled);
+						RemoveOnBreakData.SetClusterCrumbling(RemoveOnBreakSettings->ClusterCrumbling);
 
-	 					const FVector2f BreakTimer{ RemoveOnBreakSettings->PostBreakTimer.X, RemoveOnBreakSettings->PostBreakTimer.Y };
-	 					const FVector2f RemovalTimer{ RemoveOnBreakSettings->RemovalTimer.X, RemoveOnBreakSettings->RemovalTimer.Y };
-	 					const FRemoveOnBreakData RemoveOnBreakData(RemoveOnBreakSettings->Enabled,  BreakTimer, RemoveOnBreakSettings->ClusterCrumbling, RemovalTimer);
-
-	 					for (int32 Index : SelectedBones)
-	 					{
-							// if root bone, then do not set 
-							if (GeometryCollection->Parent[Index] == INDEX_NONE)
-							{
-								RemoveOnBreak[Index] = FRemoveOnBreakData::DisabledPackedData;
-							}
-							else
-							{
-								RemoveOnBreak[Index] = RemoveOnBreakData.GetPackedData();
-							}
-	 					}
+						RemoveOnBreakFacade.SetFromIndexArray(SelectedBones, RemoveOnBreakData);
 	 				}
 	 			}
 	 		}
@@ -192,7 +179,8 @@ void UFractureToolSetRemoveOnBreak::DeleteRemoveOnBreakData()
 			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
 			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 			{
-				GeometryCollection->RemoveAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup);
+				GeometryCollection::Facades::FCollectionRemoveOnBreakFacade RemoveOnBreakFacade(*GeometryCollection);
+				RemoveOnBreakFacade.RemoveSchema();
 			}
 		}
 	}

@@ -16,7 +16,7 @@
 
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
-#include "GeometryCollection/GeometryCollectionEngineRemoval.h"
+#include "GeometryCollection/Facades/CollectionRemoveOnBreakFacade.h"
 
 #include "SGeometryCollectionOutliner.generated.h"
 
@@ -137,6 +137,8 @@ private:
 
 	TArray<int32> HistogramSelection;
 };
+
+using FRemoveOnBreakData = GeometryCollection::Facades::FRemoveOnBreakData;
 
 class FGeometryCollectionTreeItemBone : public FGeometryCollectionTreeItem
 {

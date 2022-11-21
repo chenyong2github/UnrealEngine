@@ -2,6 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/Facades/CollectionRemoveOnBreakFacade.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -9,6 +10,8 @@ FGeometryCollectionRemoveOnBreakDynamicFacade::FGeometryCollectionRemoveOnBreakD
 	: BreakTimerAttribute(InCollection, "BreakTimer", FGeometryCollection::TransformGroup)
 	, PostBreakDurationAttribute(InCollection, "PostBreakDuration", FGeometryCollection::TransformGroup)
 	, BreakRemovalDurationAttribute(InCollection, "BreakRemovalDuration", FGeometryCollection::TransformGroup)
+	, ChildrenAttribute(InCollection, "Children", FTransformCollection::TransformGroup)
+
 {
 }
 
@@ -17,38 +20,52 @@ bool FGeometryCollectionRemoveOnBreakDynamicFacade::IsValid() const
 	return BreakTimerAttribute.IsValid()
 		&& PostBreakDurationAttribute.IsValid()
 		&& BreakRemovalDurationAttribute.IsValid()
+		&& ChildrenAttribute.IsValid();
 	;
 }
 
-void FGeometryCollectionRemoveOnBreakDynamicFacade::AddAttributes(const TManagedArray<FVector4f>& RemoveOnBreakAttribute, const TManagedArray<TSet<int32>>& ChildrenAttribute)
+bool FGeometryCollectionRemoveOnBreakDynamicFacade::IsConst() const
 {
-	BreakTimerAttribute.AddAndFill(DisabledBreakTimer);
+	return BreakTimerAttribute.IsConst();
+}
 
-	if (!PostBreakDurationAttribute.IsValid())
+void FGeometryCollectionRemoveOnBreakDynamicFacade::DefineSchema()
+{
+	check(!IsConst());
+	BreakTimerAttribute.AddAndFill(DisabledBreakTimer);
+	PostBreakDurationAttribute.Add();
+	BreakRemovalDurationAttribute.Add();
+}
+
+void FGeometryCollectionRemoveOnBreakDynamicFacade::SetAttributeValues(const GeometryCollection::Facades::FCollectionRemoveOnBreakFacade& RemoveOnBreakFacade)
+{
+	check(!IsConst());
+	if (IsValid())
 	{
-		TManagedArray<float>& PostBreakDuration = PostBreakDurationAttribute.Add();
+		const TManagedArray<TSet<int32>>& Children = ChildrenAttribute.Get();
+
+		BreakTimerAttribute.Fill(DisabledBreakTimer);
+
+		TManagedArray<float>& PostBreakDuration = PostBreakDurationAttribute.Modify();
 		for (int32 Idx = 0; Idx < PostBreakDuration.Num(); ++Idx)
 		{
-			const FRemoveOnBreakData RemoveOnBreakData{ RemoveOnBreakAttribute[Idx] };
+			const GeometryCollection::Facades::FRemoveOnBreakData RemoveOnBreakData{ RemoveOnBreakFacade.GetData(Idx) };
 			const FVector2f PostBreakTimer = RemoveOnBreakData.GetBreakTimer();
-			const float MinTime = FMath::Max(0.0f, PostBreakTimer.X);
-			const float MaxTime = FMath::Max(MinTime, PostBreakTimer.Y);
-			PostBreakDuration[Idx] = RemoveOnBreakData.IsEnabled()? FMath::RandRange(MinTime, MaxTime): DisabledPostBreakDuration;
+			const float MinBreakTime = FMath::Max(0.0f, PostBreakTimer.X);
+			const float MaxBreakTime = FMath::Max(MinBreakTime, PostBreakTimer.Y);
+			PostBreakDuration[Idx] = RemoveOnBreakData.IsEnabled() ? FMath::RandRange(MinBreakTime, MaxBreakTime) : DisabledPostBreakDuration;
 		}
-	}
 
-	if (!BreakRemovalDurationAttribute.IsValid())
-	{
-		TManagedArray<float>& BreakRemovalDuration = BreakRemovalDurationAttribute.Add();
-		for (int32 Idx = 0; Idx < BreakRemovalDuration.Num(); ++Idx)
+		TManagedArray<float>& BreakRemovalDuration = BreakRemovalDurationAttribute.Modify();
+		for (int32 Idx = 0; Idx < PostBreakDuration.Num(); ++Idx)
 		{
-			const FRemoveOnBreakData RemoveOnBreakData{ RemoveOnBreakAttribute[Idx] };
+			const GeometryCollection::Facades::FRemoveOnBreakData RemoveOnBreakData{ RemoveOnBreakFacade.GetData(Idx) };
 			const FVector2f RemovalTimer = RemoveOnBreakData.GetRemovalTimer();
-			const float MinTime = FMath::Max(0.0f, RemovalTimer.X);
-			const float MaxTime = FMath::Max(MinTime, RemovalTimer.Y);
-			const bool bIsCluster = (ChildrenAttribute[Idx].Num() > 0);
+			const float MinRemovalTime = FMath::Max(0.0f, RemovalTimer.X);
+			const float MaxRemovalTime = FMath::Max(MinRemovalTime, RemovalTimer.Y);
+			const bool bIsCluster = (Children[Idx].Num() > 0);
 			const bool bUseClusterCrumbling = (bIsCluster && RemoveOnBreakData.GetClusterCrumbling());
-			BreakRemovalDuration[Idx] = bUseClusterCrumbling? CrumblingRemovalTimer: FMath::RandRange(MinTime, MaxTime);
+			BreakRemovalDuration[Idx] = bUseClusterCrumbling ? CrumblingRemovalTimer : FMath::RandRange(MinRemovalTime, MaxRemovalTime);
 		}
 	}
 }
@@ -103,31 +120,42 @@ bool FGeometryCollectionRemoveOnSleepDynamicFacade::IsValid() const
 	;
 }
 
-void FGeometryCollectionRemoveOnSleepDynamicFacade::AddAttributes(const FVector2D& MaximumSleepTime, const FVector2D& RemovalDuration)
+bool FGeometryCollectionRemoveOnSleepDynamicFacade::IsConst() const
 {
-	SleepTimerAttribute.AddAndFill(0.0f);
+	return SleepTimerAttribute.IsConst();
+}
 
+void FGeometryCollectionRemoveOnSleepDynamicFacade::DefineSchema()
+{
+	check(!IsConst());
+	SleepTimerAttribute.Add();
+	MaxSleepTimeAttribute.Add();
+	SleepRemovalDurationAttribute.Add();
 	LastPositionAttribute.AddAndFill(FVector::ZeroVector);
-	
-	if (!MaxSleepTimeAttribute.IsValid())
+}
+
+void FGeometryCollectionRemoveOnSleepDynamicFacade::SetAttributeValues(const FVector2D& MaximumSleepTime, const FVector2D& RemovalDuration)
+{
+	check(!IsConst());
+	if (IsValid())
 	{
+		SleepTimerAttribute.Fill(0.0f);
+		LastPositionAttribute.Fill(FVector::ZeroVector);
+
+		TManagedArray<float>& MaxSleepTime = MaxSleepTimeAttribute.Modify();
 		const float MinTime = FMath::Max(0.0f, MaximumSleepTime.X);
 		const float MaxTime = FMath::Max(MinTime, MaximumSleepTime.Y);
-		TManagedArray<float>& MaxSleepTime = MaxSleepTimeAttribute.Add();
 		for (int32 Idx = 0; Idx < MaxSleepTime.Num(); ++Idx)
 		{
 			MaxSleepTime[Idx] = FMath::RandRange(MinTime, MaxTime);
 		}
-	}
 
-	if (!SleepRemovalDurationAttribute.IsValid())
-	{
-		float MinTime = FMath::Max(0.0f, RemovalDuration.X);
-		float MaxTime = FMath::Max(MinTime, RemovalDuration.Y);
-		TManagedArray<float>& SleepRemovalDuration = SleepRemovalDurationAttribute.Add();
+		TManagedArray<float>& SleepRemovalDuration = SleepRemovalDurationAttribute.Modify();
+		float MinRemovalTime = FMath::Max(0.0f, RemovalDuration.X);
+		float MaxRemovalTime = FMath::Max(MinRemovalTime, RemovalDuration.Y);
 		for (int32 Idx = 0; Idx < SleepRemovalDuration.Num(); ++Idx)
 		{
-			SleepRemovalDuration[Idx] = FMath::RandRange(MinTime, MaxTime);
+			SleepRemovalDuration[Idx] = FMath::RandRange(MinRemovalTime, MaxRemovalTime);
 		}
 	}
 }

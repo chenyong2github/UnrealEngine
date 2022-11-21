@@ -53,6 +53,7 @@
 #include "PrimitiveSceneInfo.h"
 #include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
+#include "GeometryCollection/Facades/CollectionRemoveOnBreakFacade.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionComponent)
 
@@ -2326,8 +2327,7 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 		}
 	}
 #endif
-	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::ResetDynamicCollection()"), static_cast<const void*>(this));
-	if (bCreateDynamicCollection && RestCollection)
+	if (bCreateDynamicCollection && RestCollection && RestCollection->GetGeometryCollection())
 	{
 		DynamicCollection = MakeUnique<FGeometryDynamicCollection>();
 		for (const auto DynamicArray : CopyOnWriteAttributeList)
@@ -2349,16 +2349,20 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 			DecayDynamicFacade.AddAttributes();
 
 			FGeometryCollectionRemoveOnSleepDynamicFacade RemoveOnSleepDynamicFacade(*DynamicCollection);
-			RemoveOnSleepDynamicFacade.AddAttributes(RestCollection->MaximumSleepTime, RestCollection->RemovalDuration);
+			RemoveOnSleepDynamicFacade.DefineSchema();
+			RemoveOnSleepDynamicFacade.SetAttributeValues(RestCollection->MaximumSleepTime, RestCollection->RemovalDuration);
 		}
 		
 		// Remove on break feature related dynamic attribute arrays
-		if (const TManagedArray<FVector4f>* RemoveOnBreak = RestCollection->GetGeometryCollection()->FindAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup))
+		// we are not testing for bAllowRemovalOnBreak, so that we can enable it at runtime if necessary
+		GeometryCollection::Facades::FCollectionRemoveOnBreakFacade RemoveOnBreakFacade(*RestCollection->GetGeometryCollection());
+		if (RemoveOnBreakFacade.IsValid())
 		{
 			DecayDynamicFacade.AddAttributes();
 
 			FGeometryCollectionRemoveOnBreakDynamicFacade RemoveOnBreakDynamicFacade(*DynamicCollection);
-			RemoveOnBreakDynamicFacade.AddAttributes(*RemoveOnBreak, DynamicCollection->Children);
+			RemoveOnBreakDynamicFacade.DefineSchema();
+			RemoveOnBreakDynamicFacade.SetAttributeValues(RemoveOnBreakFacade);
 		}
 
 		SetRenderStateDirty();

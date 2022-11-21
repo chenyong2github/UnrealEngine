@@ -7,43 +7,10 @@
 
 struct FManagedArrayCollection;
 
-/**
- * this class helps reading and writing the packed data used in the managed array
- */
-struct FRemoveOnBreakData
+namespace GeometryCollection::Facades
 {
-public:
-	inline static const FVector4f DisabledPackedData{ -1, 0, 0, 0 };   
-	
-	FRemoveOnBreakData()
-		: PackedData(FRemoveOnBreakData::DisabledPackedData)
-	{}
-
-	FRemoveOnBreakData(const FVector4f& InPackedData)
-		: PackedData(InPackedData)
-	{}
-
-	FRemoveOnBreakData(bool bEnable, const FVector2f& BreakTimer, bool bClusterCrumbling, const FVector2f& RemovalTimer)
-	{
-		PackedData.X = FMath::Min(FMath::Abs(BreakTimer.X), FMath::Abs(BreakTimer.Y)); // Min break timer
-		PackedData.Y = FMath::Max(FMath::Abs(BreakTimer.X), FMath::Abs(BreakTimer.Y)); // Max break timer
-		PackedData.Z = FMath::Min(FMath::Abs(RemovalTimer.X), FMath::Abs(RemovalTimer.Y)); // Min removal timer
-		PackedData.W = FMath::Max(FMath::Abs(RemovalTimer.X), FMath::Abs(RemovalTimer.Y)); // Max removal timer
-
-		PackedData.X = bEnable? PackedData.X: -1.0;
-		PackedData.Z = bClusterCrumbling? -1.0: PackedData.Z;
-	}
-	
-	bool IsEnabled() const { return PackedData.X >= 0; }
-	bool GetClusterCrumbling() const { return IsEnabled() && (PackedData.Z < 0); } 
-	FVector2f GetBreakTimer() const	{ return FVector2f(FMath::Abs(PackedData.X), FMath::Abs(PackedData.Y)); }
-	FVector2f GetRemovalTimer() const { return FVector2f(FMath::Abs(PackedData.Z), FMath::Abs(PackedData.W)); }
-
-	const FVector4f& GetPackedData() const { return PackedData; }
-
-private:
-	FVector4f PackedData;
-};
+	class FCollectionRemoveOnBreakFacade;
+}
 
 /**
  * Provides an API for the run time aspect of the remove on break feature
@@ -64,12 +31,17 @@ public:
 	 */
 	bool IsValid() const;	
 
+	/** Is this facade const access */
+	bool IsConst() const;
+
+	/** Add the relevant attributes */
+	void DefineSchema();
+
 	/**
 	 * Add the necessary attributes if they are missing and initialize them if necessary
-	 * @param RemoveOnBreakAttribute remove on break attribute from the rest collection
-	 * @param ChildrenAttribute remove on break attribute from the rest collection
+	 * @param RemoveOnBreakFacade remove on break facade from the rest collection that contain the original user set attributes
 	*/
-	void AddAttributes(const TManagedArray<FVector4f>& RemoveOnBreakAttribute, const TManagedArray<TSet<int32>>& ChildrenAttribute);
+	void SetAttributeValues(const GeometryCollection::Facades::FCollectionRemoveOnBreakFacade& RemoveOnBreakFacade);
 
 	/** true if the removal is active for a specific piece */
 	bool IsRemovalActive(int32 TransformIndex) const;
@@ -94,6 +66,9 @@ private:
 	
 	/** removal duration */
 	TManagedArrayAccessor<float> BreakRemovalDurationAttribute;
+
+	/** utility attribute needed to compute the values and know what's a cluster */
+	TManagedArrayAccessor<TSet<int32>> ChildrenAttribute;
 };
 
 /**
@@ -111,12 +86,18 @@ public:
 	 */
 	bool IsValid() const;	
 
+	/** Is this facade const access */
+	bool IsConst() const;
+
+	/** Add the relevant attributes */
+	void DefineSchema();
+
 	/**
 	 * Add the necessary attributes if they are missing and initialize them if necessary
 	 * @param MaximumSleepTime range of time to initialize the sleep duration
 	 * @param RemovalDuration range of time to initialize the removal duration
 	*/
-	void AddAttributes(const FVector2D& MaximumSleepTime, const FVector2D& RemovalDuration);
+	void SetAttributeValues(const FVector2D& MaximumSleepTime, const FVector2D& RemovalDuration);
 
 	/** true if the removal is active for a specific piece */
 	bool IsRemovalActive(int32 TransformIndex) const;

@@ -1554,17 +1554,27 @@ struct FRemoveOnBreakDataflowNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FRemoveOnBreakDataflowNode, "RemoveOnBreak", "GeometryCollection", "")
 
 public:
-	// @todo(harsha) Support Selections
-
+	/** Collection to set theremoval data on */
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
 	FManagedArrayCollection Collection;
 
+	/** selection to apply the data on ( if not specified the entire collection will be set ) */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "TransformSelection"))
+	FDataflowTransformSelection TransformSelection;
+
+	/** Whether or not to enable the removal on the selection */
+	UPROPERTY(EditAnywhere, Category = "Removal", meta = (DataflowInput))
+	bool EnabledRemoval = true;
+
+	/** How long after the break the removal will start ( Min / Max ) */
 	UPROPERTY(EditAnywhere, Category = "Removal", meta = (DataflowInput))
 	FVector2f PostBreakTimer{0.0, 0.0};
 
+	/** How long removal will last ( Min / Max ) */
 	UPROPERTY(EditAnywhere, Category = "Removal", meta = (DataflowInput))
 	FVector2f RemovalTimer{0.0, 1.0};
 
+	/** If applied to a cluster this will cause the cluster to crumble upon removal, otherwise will have no effect */
 	UPROPERTY(EditAnywhere, Category = "Removal", meta = (DataflowInput))
 	bool ClusterCrumbling = false;
 
@@ -1572,6 +1582,8 @@ public:
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&TransformSelection);
+		RegisterInputConnection(&EnabledRemoval);
 		RegisterInputConnection(&PostBreakTimer);
 		RegisterInputConnection(&RemovalTimer);
 		RegisterInputConnection(&ClusterCrumbling);
