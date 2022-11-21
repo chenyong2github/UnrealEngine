@@ -16,6 +16,16 @@ namespace EpicGames.Horde
 		public Utf8String Text { get; }
 
 		/// <summary>
+		/// Accessor for the string bytes
+		/// </summary>
+		public ReadOnlySpan<byte> Span => Text.Span;
+
+		/// <summary>
+		/// Accessor for the string bytes
+		/// </summary>
+		public ReadOnlyMemory<byte> Memory => Text.Memory;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="text">Unique id for the string</param>

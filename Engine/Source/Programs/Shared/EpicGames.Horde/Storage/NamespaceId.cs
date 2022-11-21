@@ -19,7 +19,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// The text representing this id
 		/// </summary>
-		public Utf8String Text { get; }
+		public StringId Text { get; }
 
 		/// <summary>
 		/// Constructor
@@ -27,7 +27,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="text">Unique id for the namespace</param>
 		public NamespaceId(Utf8String text)
 		{
-			Text = text;
+			Text = new StringId(text);
 		}
 
 		/// <inheritdoc/>
