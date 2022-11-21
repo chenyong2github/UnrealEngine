@@ -31,6 +31,7 @@ class FDragDropEvent;
 class FDragDropOperation;
 class FMenuBuilder;
 class FSceneOutlinerFilter;
+class FUICommandList;
 class ISceneOutlinerHierarchy;
 class SDataLayerBrowser;
 class SWidget;
@@ -131,7 +132,7 @@ protected:
 
 private:
 	/* Private Helpers */
-	static void RegisterContextMenu();
+	void RegisterContextMenu();
 	void ChooseRepresentingWorld();
 	void OnSelectWorld(TWeakObjectPtr<UWorld> World);
 	bool IsWorldChecked(TWeakObjectPtr<UWorld> World) const;
@@ -162,6 +163,12 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateHideUnloadedActorsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideLevelInstancesFilter();
 
+private:
+
+	/** Delegate to handle "Find in Content Browser" context menu option */
+	void FindInContentBrowser();
+	/** Delegate to handle enabling the "Find in Content Browser" context menu option */
+	bool CanFindInContentBrowser() const;
 	/** The world which we are currently representing */
 	TWeakObjectPtr<UWorld> RepresentingWorld;
 	/** The world which the user manually selected */
@@ -178,6 +185,8 @@ private:
 	TSet<TWeakObjectPtr<UDataLayerInstance>> ApplicableDataLayers;
 	/** The path at which the "Pick A Data Layer Asset" will be opened*/
 	mutable FString PickDataLayerDialogPath;
+	/** Command list */
+	TSharedPtr<FUICommandList> Commands;
 
 	TSet<TWeakObjectPtr<const UDataLayerInstance>> SelectedDataLayersSet;
 	typedef TPair<TWeakObjectPtr<const UDataLayerInstance>, TWeakObjectPtr<const AActor>> FSelectedDataLayerActor;
