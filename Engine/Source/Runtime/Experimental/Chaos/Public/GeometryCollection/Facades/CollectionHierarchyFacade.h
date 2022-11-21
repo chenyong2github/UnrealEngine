@@ -47,6 +47,10 @@ namespace Chaos::Facades
 		*/ 
 		void GenerateLevelAttribute();
 
+	public:
+		/** Get the root indicies */
+		static TSet<int32> GetRootIndices(const TManagedArrayAccessor<int32>& ParentAttribute);
+
 	private:
 		TManagedArrayAccessor<int32>		ParentAttribute;
 		TManagedArrayAccessor<TSet<int32>>	ChildrenAttribute;

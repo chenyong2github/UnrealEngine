@@ -102,4 +102,21 @@ namespace Chaos::Facades
 			}
 		}
 	}
+
+	TSet<int32> FCollectionHierarchyFacade::GetRootIndices(const TManagedArrayAccessor<int32>& ParentAttribute)
+	{
+		TSet<int32> Roots;
+		if (ParentAttribute.IsValid())
+		{
+			const TManagedArray<int32>& Parents = ParentAttribute.Get();
+			for (int32 Idx = 0; Idx < Parents.Num(); ++Idx)
+			{
+				if (Parents[Idx] == INDEX_NONE)
+				{
+					Roots.Add(Idx);
+				}
+			}
+		}
+		return Roots;
+	}
 }

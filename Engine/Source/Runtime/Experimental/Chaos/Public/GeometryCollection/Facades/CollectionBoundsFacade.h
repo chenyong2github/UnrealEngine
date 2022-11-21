@@ -44,14 +44,18 @@ namespace GeometryCollection::Facades
 		/** BoundingBox access */
 		const TManagedArray< FBox >& GetBoundingBoxes() const { return BoundingBoxAttribute.Get(); }
 
+		/** BoundingBox for the whole collection */
+		FBox GetBoundingBox();
+
 		/** TransformToGeometryIndex Access */
 		const TManagedArray< int32 >& GetTransformToGeometryIndex() const { return TransformToGeometryIndexAttribute.Get(); }
 
 private:
-		TManagedArrayAccessor<FBox> BoundingBoxAttribute;
-		TManagedArrayAccessor<FVector3f> VertexAttribute;
-		TManagedArrayAccessor<int32> BoneMapAttribute;
-		TManagedArrayAccessor<int32> TransformToGeometryIndexAttribute;
+		TManagedArrayAccessor<FBox>			BoundingBoxAttribute;
+		TManagedArrayAccessor<FVector3f>	VertexAttribute;
+		TManagedArrayAccessor<int32>		BoneMapAttribute;
+		TManagedArrayAccessor<int32>		TransformToGeometryIndexAttribute;
+		TManagedArrayAccessor<int32>		ParentAttribute;
 	};
 
 }

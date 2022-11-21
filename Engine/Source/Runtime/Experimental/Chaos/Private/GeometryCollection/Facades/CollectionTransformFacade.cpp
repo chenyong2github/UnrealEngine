@@ -2,6 +2,7 @@
 
 #include "GeometryCollection/Facades/CollectionTransformFacade.h"
 #include "GeometryCollection/TransformCollection.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 
 namespace GeometryCollection::Facades
 {
@@ -28,16 +29,7 @@ namespace GeometryCollection::Facades
 
 	TSet<int32> FTransformFacade::GetRootIndices() const
 	{
-		TSet<int32> Roots;
-		if (Parent.IsValid())
-		{
-			const TManagedArray<int32>& Parents = Parent.Get();
-			for (int i = 0; i < Parents.Num(); i++)
-			{
-				Roots.Add(i);
-			}
-		}
-		return Roots;
+		return Chaos::Facades::FCollectionHierarchyFacade::GetRootIndices(Parent);
 	}
 
 }

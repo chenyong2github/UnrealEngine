@@ -264,31 +264,6 @@ void FMakeLiteralStringDataflowNode::Evaluate(Dataflow::FContext& Context, const
 	}
 }
 
-void ComputeBoundingBox(const FManagedArrayCollection& Collection, FBox& BoundingBox)
-{
-	if (Collection.HasAttribute("Transform", FGeometryCollection::TransformGroup) &&
-		Collection.HasAttribute("Parent", FGeometryCollection::TransformGroup) &&
-		Collection.HasAttribute("TransformIndex", FGeometryCollection::GeometryGroup) &&
-		Collection.HasAttribute("BoundingBox", FGeometryCollection::GeometryGroup))
-	{
-		const TManagedArray<FTransform>& Transforms = Collection.GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-		const TManagedArray<int32>& ParentIndices = Collection.GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
-		const TManagedArray<int32>& TransformIndices = Collection.GetAttribute<int32>("TransformIndex", FGeometryCollection::GeometryGroup);
-		const TManagedArray<FBox>& BoundingBoxes = Collection.GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
-
-		TArray<FMatrix> TmpGlobalMatrices;
-		GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
-
-		if (TmpGlobalMatrices.Num() > 0)
-		{
-			for (int32 BoxIdx = 0; BoxIdx < BoundingBoxes.Num(); ++BoxIdx)
-			{
-				const int32 TransformIndex = TransformIndices[BoxIdx];
-				BoundingBox += BoundingBoxes[BoxIdx].TransformBy(TmpGlobalMatrices[TransformIndex]);
-			}
-		}
-	}
-}
 
 void FBoundingBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -296,13 +271,13 @@ void FBoundingBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		FBox BBox(ForceInit);
-
-		ComputeBoundingBox(InCollection, BBox);
+		GeometryCollection::Facades::FBoundsFacade BoundsFacade(InCollection);
+		const FBox& BBox = BoundsFacade.GetBoundingBox();
 
 		SetValue<FBox>(Context, BBox, &BoundingBox);
 	}
 }
+
 
 void FExpandBoundingBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -852,7 +827,8 @@ void FGetBoundingBoxesDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		const TManagedArray<FBox>& InBoundingBoxes = GeometryCollection::Facades::FBoundsFacade(InCollection).GetBoundingBoxes();
+		GeometryCollection::Facades::FBoundsFacade BoundsFacade(InCollection);
+		const TManagedArray<FBox>& InBoundingBoxes = BoundsFacade.GetBoundingBoxes();
 
 		TArray<FBox> BoundingBoxesArr;
 		for (int32 Idx = 0; Idx < InBoundingBoxes.Num(); ++Idx)
@@ -881,7 +857,8 @@ void FGetCentroidsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		const TManagedArray<FBox>& InBoundingBoxes = GeometryCollection::Facades::FBoundsFacade(InCollection).GetBoundingBoxes();
+		GeometryCollection::Facades::FBoundsFacade BoundsFacade(InCollection);
+		const TManagedArray<FBox>& InBoundingBoxes = BoundsFacade.GetBoundingBoxes();
 
 		TArray<FVector> CentroidsArr;
 		for (int32 Idx = 0; Idx < InBoundingBoxes.Num(); ++Idx)

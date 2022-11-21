@@ -6,6 +6,7 @@
 
 #include "GeometryCollection/Facades/CollectionBoundsFacade.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 
 namespace GeometryCollection::Facades
 {
@@ -15,6 +16,7 @@ namespace GeometryCollection::Facades
 		, VertexAttribute(InCollection,"Vertex", FGeometryCollection::VerticesGroup, FGeometryCollection::VerticesGroup)
 		, BoneMapAttribute(InCollection,"BoneMap", FGeometryCollection::VerticesGroup)
 		, TransformToGeometryIndexAttribute(InCollection,"TransformToGeometryIndex", FTransformCollection::TransformGroup)
+		, ParentAttribute(InCollection, "Parent", FTransformCollection::TransformGroup)
 	{}
 
 	FBoundsFacade::FBoundsFacade(const FManagedArrayCollection& InCollection)
@@ -22,6 +24,7 @@ namespace GeometryCollection::Facades
 		, VertexAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup, FGeometryCollection::VerticesGroup)
 		, BoneMapAttribute(InCollection, "BoneMap", FGeometryCollection::VerticesGroup)
 		, TransformToGeometryIndexAttribute(InCollection, "TransformToGeometryIndex", FTransformCollection::TransformGroup)
+		, ParentAttribute(InCollection, "Parent", FTransformCollection::TransformGroup)
 	{}
 
 	//
@@ -35,12 +38,14 @@ namespace GeometryCollection::Facades
 		VertexAttribute.Add();
 		BoneMapAttribute.Add();
 		TransformToGeometryIndexAttribute.Add();
+		ParentAttribute.Add();
 	}
 
 	bool FBoundsFacade::IsValid() const
 	{
 		return BoundingBoxAttribute.IsValid() && VertexAttribute.IsValid() 
-			&& BoneMapAttribute.IsValid() && TransformToGeometryIndexAttribute.IsValid();
+			&& BoneMapAttribute.IsValid() && TransformToGeometryIndexAttribute.IsValid()
+			&& ParentAttribute.IsValid();
 	}
 
 
@@ -73,6 +78,23 @@ namespace GeometryCollection::Facades
 				BoundingBox[TransformToGeometryIndex[TransformIndexValue]] += FVector(Vertex[Idx]);
 			}
 		}
+	}
+
+	FBox FBoundsFacade::GetBoundingBox()
+	{
+		const TSet<int32>& RootIndices = Chaos::Facades::FCollectionHierarchyFacade::GetRootIndices(ParentAttribute);
+
+		const TManagedArray<FBox>& BoundingBoxArr = BoundingBoxAttribute.Get();
+
+		FBox BoundingBox;
+		BoundingBox.Init();
+
+		for (auto& Idx : RootIndices)
+		{
+			BoundingBox += BoundingBoxArr[Idx];
+		}
+
+		return BoundingBox;
 	}
 }; // GeometryCollection::Facades
 
