@@ -12,6 +12,7 @@
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowObjectInterface.h"
 #include "Dataflow/DataflowSchema.h"
+#include "DynamicMeshBuilder.h"
 #include "EditorStyleSet.h"
 #include "EditorViewportTabContent.h"
 #include "EditorViewportLayout.h"
