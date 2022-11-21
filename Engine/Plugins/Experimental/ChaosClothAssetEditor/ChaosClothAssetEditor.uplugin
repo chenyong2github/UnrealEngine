@@ -55,6 +55,10 @@
 			"Name": "BaseCharacterFXEditor",
 			"Enabled": true,
 			"TargetAllowList": [ "Editor" ]
+		},
+		{
+			"Name": "Dataflow",
+			"Enabled": true
 		}
 
 	]

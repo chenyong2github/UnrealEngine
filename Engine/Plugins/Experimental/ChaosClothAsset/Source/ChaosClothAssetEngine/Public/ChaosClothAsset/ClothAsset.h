@@ -13,6 +13,7 @@ class FSkeletalMeshRenderData;
 class FSkeletalMeshModel;
 struct FChaosClothSimulationModel;
 struct FSkeletalMeshLODInfo;
+class UDataflow;
 
 UENUM()
 enum class EClothAssetAsyncProperties : uint64
@@ -119,6 +120,16 @@ public:
 
 	/** Set the bone hierachy to use for this cloth. */
 	void SetReferenceSkeleton(const FReferenceSkeleton& InReferenceSkeleton, bool bRebuildClothSimulationModel = true) { RefSkeleton = InReferenceSkeleton; UpdateSkeleton(bRebuildClothSimulationModel); }
+
+	//
+	// Dataflow
+	//
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	TObjectPtr<UDataflow> DataflowAsset;
+
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	FString DataflowTerminal = "ClothAssetTerminal";
+
 
 private:
 	//~ Begin USkinnedAsset interface

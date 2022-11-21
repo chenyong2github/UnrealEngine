@@ -4,6 +4,7 @@
 #include "ChaosClothAsset/ClothEditorMode.h"
 #include "ChaosClothAsset/ClothEditorCommands.h"
 #include "ChaosClothAsset/ClothEditorStyle.h"
+#include "ChaosClothAsset/ClothDataflowNodes.h"
 #include "ContentBrowserMenuContexts.h"
 #include "EditorModeRegistry.h"
 #include "Selection.h"
@@ -33,6 +34,8 @@ void FChaosClothAssetEditorModule::StartupModule()
 
 	AssetTypeActions_ClothPreset = new FAssetTypeActions_ClothPreset();
 	AssetTools.RegisterAssetTypeActions(MakeShareable(AssetTypeActions_ClothPreset));
+
+	Dataflow::RegisterClothDataflowNodes();
 
 	// TODO: Register details view customizations
 }

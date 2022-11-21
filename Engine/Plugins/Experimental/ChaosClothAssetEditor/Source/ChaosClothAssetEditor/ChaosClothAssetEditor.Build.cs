@@ -54,7 +54,10 @@ public class ChaosClothAssetEditor : ModuleRules
 				"ChaosClothAssetEngine",
 				"ClothingSystemEditor",
 				"ChaosClothAssetTools",
-				"ChaosClothAssetEditorTools"
+				"ChaosClothAssetEditorTools",
+				"DataflowCore",
+				"DataflowEditor",
+				"DataflowEngine"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

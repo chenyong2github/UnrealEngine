@@ -3,11 +3,30 @@
 #pragma once
 
 #include "BaseCharacterFXEditorToolkit.h"
+#include "Dataflow/DataflowObjectInterface.h"
 
 class FAdvancedPreviewScene;
 class FChaosClothAssetEditor3DViewportClient;
 template<typename T> class SComboBox;
 class SClothCollectionOutliner;
+class UDataflow;
+class UChaosClothAsset;
+class SGraphEditor;
+class IStructureDetailsView;
+class UEdGraphNode;
+
+namespace Dataflow
+{
+	class CHAOSCLOTHASSETEDITOR_API FClothAssetDataflowContext : public TEngineContext<FContextSingle>
+	{
+	public:
+		DATAFLOW_CONTEXT_INTERNAL(TEngineContext<FContextSingle>, FClothAssetDataflowContext);
+
+		FClothAssetDataflowContext(UObject* InOwner, UDataflow* InGraph, FTimestamp InTimestamp)
+			: Super(InOwner, InGraph, InTimestamp)
+		{}
+	};
+}
 
 /**
  * The toolkit is supposed to act as the UI manager for the asset editor. It's responsible 
@@ -17,7 +36,7 @@ class SClothCollectionOutliner;
  * initializing the Cloth mode.
  * Thus, the FChaosClothAssetEditorToolkit ends up being the central place for the Cloth Asset Editor setup.
  */
-class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditorToolkit : public FBaseCharacterFXEditorToolkit
+class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditorToolkit : public FBaseCharacterFXEditorToolkit, public FTickableEditorObject
 {
 public:
 
@@ -39,14 +58,19 @@ public:
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	virtual bool OnRequestClose() override;
 
-	// TODO: Implement this if we want to apply tool changes before saving an asset
-	//virtual void SaveAsset_Execute() override;
+	// FBaseAssetToolkit
+	virtual void CreateWidgets() override;
 
 	// IAssetEditorInstance
 	// This is important because if this returns true, attempting to edit a static mesh that is
 	// open in the cloth editor may open the cloth editor instead of opening the static mesh editor.
 	// TODO: Change this if we create a dedicated Cloth Asset
 	virtual bool IsPrimaryEditor() const override { return false; };
+
+	// FTickableEditorObject
+	virtual void Tick(float DeltaTime) override;
+	virtual bool IsTickable() const override { return true; }
+	virtual TStatId GetStatId() const override;
 
 protected:
 
@@ -69,8 +93,13 @@ protected:
 
 private:
 
+	// Return the cloth asset held by the Cloth Editor
+	UChaosClothAsset* GetAsset() const;
+
 	TSharedRef<SDockTab> SpawnTab_ClothPreview(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Outliner(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
 
 	/** Scene in which the 3D sim space preview meshes live. */
 	TUniquePtr<FAdvancedPreviewScene> ClothPreviewScene;
@@ -88,6 +117,29 @@ private:
 
 	TSharedPtr<SComboBox<FName>> SelectedGroupNameComboBox;
 	TArray<FName> ClothCollectionGroupNames;		// Data source for SelectedGroupNameComboBox
+
+	//~ Begin Dataflow support
+	 
+	UDataflow* Dataflow = nullptr;
+
+	static const FName GraphCanvasTabId;
+	TSharedPtr<SGraphEditor> GraphEditor;
+	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit, TSharedPtr<IStructureDetailsView> PropertiesEditor);
+
+	static const FName NodeDetailsTabId;
+	TSharedPtr<IStructureDetailsView> NodeDetailsEditor;
+	TSharedPtr<IStructureDetailsView> CreateNodeDetailsEditorWidget(UObject* ObjectToEdit);
+
+	FString DataflowTerminalPath = "";
+	TSharedPtr<Dataflow::FEngineContext> DataflowContext;
+	Dataflow::FTimestamp LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
+
+	// DataflowEditorActions
+	void OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
+	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage) const;
+	void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode) const;
+
+	//~ End Dataflow support
 
 };
 

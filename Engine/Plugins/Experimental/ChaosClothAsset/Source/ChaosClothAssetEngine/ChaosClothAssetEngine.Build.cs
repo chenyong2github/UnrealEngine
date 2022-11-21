@@ -20,7 +20,8 @@ public class ChaosClothAssetEngine : ModuleRules
 				"ChaosClothAsset",
 				"ChaosCloth",
 				"TaskGraph",
-				"ClothingSystemRuntimeInterface"
+				"ClothingSystemRuntimeInterface",
+				"DataflowEngine"
 			}
 		);
 

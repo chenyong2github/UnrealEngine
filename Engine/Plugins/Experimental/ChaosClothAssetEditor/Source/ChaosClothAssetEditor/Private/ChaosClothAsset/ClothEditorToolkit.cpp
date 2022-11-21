@@ -22,11 +22,49 @@
 #include "Styling/AppStyle.h"
 #include "ChaosClothAsset/SClothCollectionOutliner.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Dataflow/DataflowEditorActions.h"
+#include "Dataflow/DataflowGraphEditor.h"
+#include "Dataflow/DataflowObject.h"
+#include "Dataflow/DataflowSchema.h"
+#include "IStructureDetailsView.h"
+#include "Engine/Canvas.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetEditorToolkit"
 
 const FName FChaosClothAssetEditorToolkit::ClothPreviewTabID(TEXT("ChaosClothAssetEditor_ClothPreviewTab"));
 const FName FChaosClothAssetEditorToolkit::OutlinerTabID(TEXT("ChaosClothAssetEditor_OutlinerTab"));
+const FName FChaosClothAssetEditorToolkit::GraphCanvasTabId(TEXT("ChaosClothAssetEditor_GraphCanvas"));
+const FName FChaosClothAssetEditorToolkit::NodeDetailsTabId(TEXT("ChaosClothAssetEditor_NodeDetails"));
+
+
+namespace ClothEditorToolkitHelpers
+{
+	UDataflow* GetDataflowFrom(const UObject* InObject)
+	{
+		if (const UClass* Class = InObject->GetClass())
+		{
+			if (const FProperty* Property = Class->FindPropertyByName(FName("DataflowAsset")))
+			{
+				return *Property->ContainerPtrToValuePtr<UDataflow*>(InObject);
+			}
+		}
+		return nullptr;
+	}
+
+	FString GetDataflowTerminalFrom(const UObject* InObject)
+	{
+		if (const UClass* Class = InObject->GetClass())
+		{
+			if (const FProperty* Property = Class->FindPropertyByName(FName("DataflowTerminal")))
+			{
+				return *Property->ContainerPtrToValuePtr<FString>(InObject);
+			}
+		}
+		return FString();
+	}
+}
+
 
 FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwningAssetEditor)
 	: FBaseCharacterFXEditorToolkit(InOwningAssetEditor, FName("ChaosClothAssetEditor"))
@@ -42,7 +80,7 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 	// Note: Changes to the layout should include a increment to the layout's ID, i.e.
 	// ChaosClothAssetEditorLayout[X] -> ChaosClothAssetEditorLayout[X+1]. Otherwise, layouts may be messed up
 	// without a full reset to layout defaults inside the editor.
-	StandaloneDefaultLayout = FTabManager::NewLayout(FName("ChaosClothAssetEditorLayout3"))
+	StandaloneDefaultLayout = FTabManager::NewLayout(FName("ChaosClothAssetEditorLayout4"))
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -52,33 +90,61 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.15f)
+					->SetSizeCoefficient(0.1f)
 					->SetExtensionId(UChaosClothAssetEditorUISubsystem::EditorSidePanelAreaName)
 					->SetHideTabWell(true)
 				)
 				->Split
 				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.35f)
-					->AddTab(ViewportTabID, ETabState::OpenedTab)
-					->SetExtensionId("RestSpaceViewportArea")
-					->SetHideTabWell(true)
+					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
+					->Split
+					(
+						FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
+						->Split
+						(
+							FTabManager::NewStack()
+							->SetSizeCoefficient(0.5f)
+							->AddTab(ViewportTabID, ETabState::OpenedTab)
+							->SetExtensionId("RestSpaceViewportArea")
+							->SetHideTabWell(true)
+						)
+						->Split
+						(
+							FTabManager::NewStack()
+							->SetSizeCoefficient(0.5f)
+							->AddTab(ClothPreviewTabID, ETabState::OpenedTab)
+							->SetExtensionId("Viewport3DArea")
+							->SetHideTabWell(true)
+						)
+					)
+					->Split
+					(
+						FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
+						->Split
+						(
+							FTabManager::NewStack()
+							->SetSizeCoefficient(0.7f)
+							->AddTab(GraphCanvasTabId, ETabState::OpenedTab)
+							->SetExtensionId("GraphEditorArea")
+							->SetHideTabWell(true)
+						)
+						->Split
+						(
+							FTabManager::NewStack()
+							->SetSizeCoefficient(0.3f)
+							->AddTab(NodeDetailsTabId, ETabState::OpenedTab)
+							->SetExtensionId("NodeDetailsArea")
+							->SetHideTabWell(true)
+						)
+					)
 				)
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.35f)
-					->AddTab(ClothPreviewTabID, ETabState::OpenedTab)
-					->SetExtensionId("Viewport3DArea")
-					->SetHideTabWell(true)
-				)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.15f)
+					->SetSizeCoefficient(0.3f)
 					->AddTab(DetailsTabID, ETabState::OpenedTab)
 					->AddTab(OutlinerTabID, ETabState::OpenedTab)
-					->SetExtensionId("Details")
+					->SetExtensionId("DetailsArea")
 					->SetHideTabWell(true)
 				)
 			)
@@ -128,6 +194,63 @@ FChaosClothAssetEditorToolkit::~FChaosClothAssetEditorToolkit()
 	// will end up getting destroyed before the mode's Exit() function gets to run, and we'll get some
 	// warnings when we destroy any mode actors.
 	EditorModeManager->DestroyMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId);
+}
+
+UChaosClothAsset* FChaosClothAssetEditorToolkit::GetAsset() const
+{
+	TArray<TObjectPtr<UObject>> ObjectsToEdit;
+	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
+	
+	UObject* ObjectToEdit = nullptr;
+	if (ensure(ObjectsToEdit.Num() == 1))
+	{
+		ObjectToEdit = ObjectsToEdit[0];
+	}
+
+	return Cast<UChaosClothAsset>(ObjectToEdit);
+}
+
+void FChaosClothAssetEditorToolkit::CreateWidgets()
+{
+	FBaseCharacterFXEditorToolkit::CreateWidgets();
+
+	UChaosClothAsset* const ClothAsset = GetAsset();
+
+	if (ClothAsset)
+	{
+		Dataflow = ClothEditorToolkitHelpers::GetDataflowFrom(ClothAsset);
+
+		if (Dataflow)
+		{
+			DataflowTerminalPath = ClothEditorToolkitHelpers::GetDataflowTerminalFrom(ClothAsset);
+
+			Dataflow->Schema = UDataflowSchema::StaticClass();
+
+			NodeDetailsEditor = CreateNodeDetailsEditorWidget(ClothAsset);
+			GraphEditor = CreateGraphEditorWidget(Dataflow, NodeDetailsEditor);
+		}
+	}
+}
+
+void FChaosClothAssetEditorToolkit::Tick(float DeltaTime)
+{
+	UChaosClothAsset* const ClothAsset = GetAsset();
+
+	if (Dataflow && ClothAsset)
+	{
+		if (!DataflowContext)
+		{
+			DataflowContext = TSharedPtr<Dataflow::FEngineContext>(new Dataflow::FClothAssetDataflowContext(ClothAsset, Dataflow, Dataflow::FTimestamp::Invalid));
+			LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
+		}
+		DataflowTerminalPath = ClothEditorToolkitHelpers::GetDataflowTerminalFrom(ClothAsset);
+		FDataflowEditorCommands::EvaluateTerminalNode(*DataflowContext.Get(), LastDataflowNodeTimestamp, Dataflow, nullptr, nullptr, ClothAsset, DataflowTerminalPath);
+	}
+}
+
+TStatId FChaosClothAssetEditorToolkit::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(FChaosClothAssetEditorToolkit, STATGROUP_Tickables);
 }
 
 // This gets used to label the editor's tab in the window that opens.
@@ -202,6 +325,16 @@ void FChaosClothAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabMan
 		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
 
+	InTabManager->RegisterTabSpawner(GraphCanvasTabId, FOnSpawnTab::CreateSP(this, &FChaosClothAssetEditorToolkit::SpawnTab_GraphCanvas))
+		.SetDisplayName(LOCTEXT("DataflowTab", "Graph"))
+		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
+
+	InTabManager->RegisterTabSpawner(NodeDetailsTabId, FOnSpawnTab::CreateSP(this, &FChaosClothAssetEditorToolkit::SpawnTab_NodeDetails))
+		.SetDisplayName(LOCTEXT("NodeDetailsTab", "Node Details"))
+		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
+
 }
 
 void FChaosClothAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -211,6 +344,8 @@ void FChaosClothAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabM
 	InTabManager->UnregisterTabSpawner(ClothPreviewTabID);
 	InTabManager->UnregisterTabSpawner(ViewportTabID);
 	InTabManager->UnregisterTabSpawner(DetailsTabID);
+	InTabManager->UnregisterTabSpawner(GraphCanvasTabId);
+	InTabManager->UnregisterTabSpawner(NodeDetailsTabId);
 }
 
 bool FChaosClothAssetEditorToolkit::OnRequestClose()
@@ -319,31 +454,30 @@ TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_Outliner(const FSpa
 	return DockableTab;
 }
 
-//// This is bound in RegisterTabSpawners() to create the panel on the left. The panel is filled in by the mode.
-//TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_InteractiveToolsPanel(const FSpawnTabArgs& Args)
-//{
-//	TSharedRef<SDockTab> ToolsPanel = SNew(SDockTab);
-//
-//	UChaosClothAssetEditorMode* ClothMode = Cast<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
-//	if (!ClothMode)
-//	{
-//		// This is where we will drop out on the first call to this callback, when the mode does not yet
-//		// exist. There is probably a place where we could safely intialize the mode to make sure that
-//		// it is around before the first call, but it seems cleaner to just do the mode initialization 
-//		// in PostInitAssetEditor and fill in the tab at that time.
-//		// Later calls to this callback will occur if the user closes and restores the tab, and they
-//		// will continue past this point to allow the tab to be refilled.
-//		return ToolsPanel;
-//	}
-//	TSharedPtr<FModeToolkit> ClothModeToolkit = ClothMode->GetToolkit().Pin();
-//	if (!ClothModeToolkit.IsValid())
-//	{
-//		return ToolsPanel;
-//	}
-//
-//	ToolsPanel->SetContent(ClothModeToolkit->GetInlineContent().ToSharedRef());
-//	return ToolsPanel;
-//}
+TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_GraphCanvas(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == GraphCanvasTabId);
+
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("DataflowEditor_Dataflow_TabTitle", "Graph"))
+		[
+			GraphEditor.ToSharedRef()
+		];
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_NodeDetails(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == NodeDetailsTabId);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("DataflowEditor_NodeDetails_TabTitle", "Node Details"))
+		[
+			NodeDetailsEditor->GetWidget()->AsShared()
+		];
+}
+
 
 // Called from FBaseAssetToolkit::CreateWidgets to populate ViewportClient, but otherwise only used 
 // in our own viewport delegate.
@@ -506,6 +640,86 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 		ClothCollectionGroupNames = ClothCollection->GroupNames();
 	}
 
+}
+
+TSharedRef<SGraphEditor> FChaosClothAssetEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IStructureDetailsView> InNodeDetailsEditor)
+{
+	ensure(DataflowToEdit);
+	using namespace Dataflow;
+
+	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [this, DataflowToEdit](FDataflowNode* Node, FDataflowOutput* Out)
+	{
+		if (DataflowToEdit)
+		{
+			UObject* const Asset = GetAsset();
+
+			if (!DataflowContext)
+			{
+				DataflowContext = TSharedPtr<Dataflow::FEngineContext>(new Dataflow::FClothAssetDataflowContext(Asset, Dataflow, Dataflow::FTimestamp::Invalid));
+			}
+			LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
+			
+			FDataflowEditorCommands::EvaluateTerminalNode(*DataflowContext.Get(), LastDataflowNodeTimestamp, Dataflow, Node, Out, Asset, DataflowTerminalPath);
+		}
+	};
+
+	SGraphEditor::FGraphEditorEvents InEvents;
+	InEvents.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeVerifyTitleCommit);
+	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeTitleCommitted);
+
+	return SNew(SDataflowGraphEditor, DataflowToEdit)
+		.GraphToEdit(DataflowToEdit)
+		.GraphEvents(InEvents)
+		.DetailsView(InNodeDetailsEditor)
+		.EvaluateGraph(Evaluate);
+
+}
+
+TSharedPtr<IStructureDetailsView> FChaosClothAssetEditorToolkit::CreateNodeDetailsEditorWidget(UObject* ObjectToEdit)
+{
+	ensure(ObjectToEdit);
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+
+	FDetailsViewArgs DetailsViewArgs;
+	{
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.bLockable = false;
+		DetailsViewArgs.bSearchInitialKeyFocus = true;
+		DetailsViewArgs.bUpdatesFromSelection = false;
+		DetailsViewArgs.NotifyHook = nullptr;
+		DetailsViewArgs.bShowOptions = true;
+		DetailsViewArgs.bShowModifiedPropertiesOption = false;
+		DetailsViewArgs.bShowScrollBar = false;
+	}
+
+	FStructureDetailsViewArgs StructureViewArgs;
+	{
+		StructureViewArgs.bShowObjects = true;
+		StructureViewArgs.bShowAssets = true;
+		StructureViewArgs.bShowClasses = true;
+		StructureViewArgs.bShowInterfaces = true;
+	}
+	TSharedPtr<IStructureDetailsView> NodeDetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr);
+	NodeDetailsView->GetDetailsView()->SetObject(ObjectToEdit);
+	NodeDetailsView->GetOnFinishedChangingPropertiesDelegate().AddSP(this, &FChaosClothAssetEditorToolkit::OnPropertyValueChanged);
+
+	return NodeDetailsView;
+}
+
+void FChaosClothAssetEditorToolkit::OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	FDataflowEditorCommands::OnPropertyValueChanged(Dataflow, DataflowContext, LastDataflowNodeTimestamp, PropertyChangedEvent);
+}
+
+bool FChaosClothAssetEditorToolkit::OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage) const
+{
+	return FDataflowEditorCommands::OnNodeVerifyTitleCommit(NewText, GraphNode, OutErrorMessage);
+}
+
+void FChaosClothAssetEditorToolkit::OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode) const
+{
+	FDataflowEditorCommands::OnNodeTitleCommitted(InNewText, InCommitType, GraphNode);
 }
 
 #undef LOCTEXT_NAMESPACE
