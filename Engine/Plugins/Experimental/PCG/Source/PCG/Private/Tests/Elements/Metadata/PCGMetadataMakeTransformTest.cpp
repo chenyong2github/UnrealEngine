@@ -95,7 +95,8 @@ bool FPCGMetadataMakeTransformTest::RunTest(const FString& Parameters)
 		const FName OutputAttributeName = TEXT("Output");
 
 		UPCGMetadataMakeTransformSettings* Settings = CastChecked<UPCGMetadataMakeTransformSettings>(TestData.Settings);
-		Settings->OutputAttributeName = OutputAttributeName;
+		Settings->OutputTarget.Selection = EPCGAttributePropertySelection::Attribute;
+		Settings->OutputTarget.AttributeName = OutputAttributeName;
 		FPCGElementPtr MetadataBreakTransformElement = TestData.Settings->GetElement();
 
 		TUniquePtr<FPCGContext> Context = TUniquePtr<FPCGContext>(MetadataBreakTransformElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
@@ -130,13 +131,13 @@ bool FPCGMetadataMakeTransformTest::RunTest(const FString& Parameters)
 
 		check(SourceMetadata);
 
-		const FPCGMetadataAttributeBase* TranslationAttributeBase = SourceMetadata->GetConstAttribute(Settings->Input1AttributeName);
+		const FPCGMetadataAttributeBase* TranslationAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputSource1.GetName());
 		check(TranslationAttributeBase);
 
-		const FPCGMetadataAttributeBase* RotationAttributeBase = SourceMetadata->GetConstAttribute(Settings->Input2AttributeName);
+		const FPCGMetadataAttributeBase* RotationAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputSource2.GetName());
 		check(RotationAttributeBase);
 
-		const FPCGMetadataAttributeBase* ScaleAttributeBase = SourceMetadata->GetConstAttribute(Settings->Input3AttributeName);
+		const FPCGMetadataAttributeBase* ScaleAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputSource3.GetName());
 		check(ScaleAttributeBase);
 
 		const TArray<FPCGTaggedData> Outputs = Context->OutputData.GetInputsByPin(PCGPinConstants::DefaultOutputLabel);
@@ -171,7 +172,7 @@ bool FPCGMetadataMakeTransformTest::RunTest(const FString& Parameters)
 			return false;
 		}
 
-		const FPCGMetadataAttributeBase* OutAttributeBase = OutMetadata->GetConstAttribute(Settings->OutputAttributeName);
+		const FPCGMetadataAttributeBase* OutAttributeBase = OutMetadata->GetConstAttribute(Settings->OutputTarget.GetName());
 
 		if (!TestNotNull("Valid output attribute", OutAttributeBase))
 		{
@@ -256,9 +257,14 @@ bool FPCGMetadataMakeTransformTest::RunTest(const FString& Parameters)
 		UPCGMetadataMakeTransformSettings* Settings = CastChecked<UPCGMetadataMakeTransformSettings>(TestData->Settings);
 
 		Settings->ForceOutputConnections[0] = true;
-		Settings->Input1AttributeName = Vec3Attribute;
-		Settings->Input2AttributeName = QuatAttribute;
-		Settings->Input3AttributeName = Vec3Attribute;
+		Settings->InputSource1.Selection = EPCGAttributePropertySelection::Attribute;
+		Settings->InputSource1.AttributeName = Vec3Attribute;
+
+		Settings->InputSource2.Selection = EPCGAttributePropertySelection::Attribute;
+		Settings->InputSource2.AttributeName = QuatAttribute;
+
+		Settings->InputSource3.Selection = EPCGAttributePropertySelection::Attribute;
+		Settings->InputSource3.AttributeName = Vec3Attribute;
 
 		bTestPassed &= ValidateMetadataMakeVector(*TestData);
 	}

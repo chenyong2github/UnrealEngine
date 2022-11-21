@@ -10,7 +10,7 @@ namespace PCGMetadataElementCommon
 {
 	void DuplicateTaggedData(const FPCGTaggedData& InTaggedData, FPCGTaggedData& OutTaggedData, UPCGMetadata*& OutMetadata)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(PCGMetadataElementCommonDuplicateTaggedData);
+		TRACE_CPUPROFILER_EVENT_SCOPE(PCGMetadataElementCommon::DuplicateTaggedData);
 
 		if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(InTaggedData.Data))
 		{

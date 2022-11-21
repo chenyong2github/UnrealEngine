@@ -22,13 +22,17 @@ class PCG_API UPCGMetadataMakeTransformSettings : public UPCGMetadataSettingsBas
 	GENERATED_BODY()
 
 public:
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	// ~End UObject interface
+
 #if WITH_EDITOR
 	//~Begin UPCGSettings interface
 	virtual FName GetDefaultNodeName() const override;
 	//~End UPCGSettings interface
 #endif
 
-	virtual FName GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const override;
+	FPCGAttributePropertySelector GetInputSource(uint32 Index) const override;
 
 	virtual FName GetInputPinLabel(uint32 Index) const override;
 	virtual uint32 GetInputPinNum() const override;
@@ -43,13 +47,24 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
-	FName Input1AttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
-	FName Input2AttributeName = NAME_None;
-
+	FPCGAttributePropertySelector InputSource2;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
-	FName Input3AttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource3;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FName Input1AttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	FName Input2AttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	FName Input3AttributeName_DEPRECATED = NAME_None;
+#endif
 };
 
 class FPCGMetadataMakeTransformElement : public FPCGMetadataElementBase

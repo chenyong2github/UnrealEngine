@@ -88,6 +88,31 @@ namespace PCGBreakTransformTest
 			Attribute->SetValue(EntryKey, RandomSource.FRand());
 		}
 	}
+
+	TArray<PCGMetadataEntryKey> GatherEntryKeys(const UPCGData* InData, const FPCGMetadataAttributeBase* InAttribute)
+	{
+		TArray<PCGMetadataEntryKey> Keys;
+		if (const UPCGPointData* PointOutput = Cast<const UPCGPointData>(InData))
+		{
+			for (const FPCGPoint& Point : PointOutput->GetPoints())
+			{
+				Keys.Add(Point.MetadataEntry);
+			}
+		}
+		else
+		{
+			const FPCGMetadataAttributeBase* Current = InAttribute;
+			while (Current)
+			{
+				TArray<PCGMetadataEntryKey> Temp;
+				Current->GetEntryToValueKeyMap_NotThreadSafe().GenerateKeyArray(Temp);
+				Keys.Append(Temp);
+				Current = Current->GetParent();
+			}
+		}
+
+		return Keys;
+	}
 }
 
 
@@ -98,7 +123,8 @@ bool FPCGMetadataBreakTransformTest::RunTest(const FString& Parameters)
 		const FName OutputAttributeName = TEXT("Output");
 
 		UPCGMetadataBreakTransformSettings* Settings = CastChecked<UPCGMetadataBreakTransformSettings>(TestData.Settings);
-		Settings->OutputAttributeName = OutputAttributeName;
+		Settings->OutputTarget.Selection = EPCGAttributePropertySelection::Attribute;
+		Settings->OutputTarget.AttributeName = OutputAttributeName;
 		FPCGElementPtr MetadataBreakTransformElement = TestData.Settings->GetElement();
 
 		TUniquePtr<FPCGContext> Context = TUniquePtr<FPCGContext>(MetadataBreakTransformElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
@@ -140,8 +166,10 @@ bool FPCGMetadataBreakTransformTest::RunTest(const FString& Parameters)
 
 		check(SourceMetadata);
 
-		const FPCGMetadataAttributeBase* SourceAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputAttributeName);
+		const FPCGMetadataAttributeBase* SourceAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputSource.GetName());
 		check(SourceAttributeBase);
+
+		TArray<PCGMetadataEntryKey> InputKeys = PCGBreakTransformTest::GatherEntryKeys(Input.Data, SourceAttributeBase);
 
 		auto ValidateComponentOutput = [&](const FPCGTaggedData& Output, const FName& OutAttributeName, PCGBreakTransformTest::EPCGComponentToCheck ComponentToCheck, auto DummyValue)
 		{
@@ -154,13 +182,13 @@ bool FPCGMetadataBreakTransformTest::RunTest(const FString& Parameters)
 			}
 
 			UPCGMetadata* OutMetadata = nullptr;
-			if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Output.Data))
+			if (const UPCGSpatialData* SpatialOutput = Cast<const UPCGSpatialData>(Output.Data))
 			{
-				OutMetadata = SpatialInput->Metadata;
+				OutMetadata = SpatialOutput->Metadata;
 			}
-			else if (const UPCGParamData* ParamsInput = Cast<const UPCGParamData>(Output.Data))
+			else if (const UPCGParamData* ParamsOutput = Cast<const UPCGParamData>(Output.Data))
 			{
-				OutMetadata = ParamsInput->Metadata;
+				OutMetadata = ParamsOutput->Metadata;
 			}
 			else
 			{
@@ -190,30 +218,18 @@ bool FPCGMetadataBreakTransformTest::RunTest(const FString& Parameters)
 			const FPCGMetadataAttribute<OutType>* OutAttribute = static_cast<const FPCGMetadataAttribute<OutType>*>(OutAttributeBase);
 			check(OutAttribute);
 
-			const PCGMetadataEntryKey InEntryKeyCount = SourceMetadata->GetItemCountForChild();
-			const PCGMetadataEntryKey OutEntryKeyCount = OutMetadata->GetItemCountForChild();
+			TArray<PCGMetadataEntryKey> OutputKeys = PCGBreakTransformTest::GatherEntryKeys(Output.Data, OutAttribute);
 
-			if (!TestEqual("Identical EntryKey counts", InEntryKeyCount, OutEntryKeyCount))
+			if (!TestEqual("Identical EntryKeys count", InputKeys.Num(), OutputKeys.Num()))
 			{
 				bTestPassed = false;
 				return;
 			}
 
-			const PCGMetadataValueKey InValueKeyCount = SourceAttributeBase->GetValueKeyOffsetForChild();
-			const PCGMetadataValueKey OutValueKeyCount = OutAttribute->GetValueKeyOffsetForChild();
-
-			if (!TestEqual("Identical ValueKey counts", InValueKeyCount, OutValueKeyCount))
+			for (int32 i = 0; i < OutputKeys.Num(); ++i)
 			{
-				bTestPassed = false;
-				return;
-			}
-
-			for (PCGMetadataEntryKey EntryKey = 0; EntryKey < InEntryKeyCount; ++EntryKey)
-			{
-				const PCGMetadataValueKey InValueKey = SourceAttributeBase->GetValueKey(EntryKey);
-				const PCGMetadataValueKey OutValueKey = OutAttribute->GetValueKey(EntryKey);
-
-				bTestPassed &= TestEqual("Identical value keys", InValueKey, OutValueKey);
+				const PCGMetadataValueKey InValueKey = SourceAttributeBase->GetValueKey(InputKeys[i]);
+				const PCGMetadataValueKey OutValueKey = OutAttribute->GetValueKey(OutputKeys[i]);
 
 				FTransform SourceValue = static_cast<const FPCGMetadataAttribute<FTransform>*>(SourceAttributeBase)->GetValue(InValueKey);
 
@@ -252,11 +268,11 @@ bool FPCGMetadataBreakTransformTest::RunTest(const FString& Parameters)
 		const TArray<FPCGTaggedData> OutputsRotation = Context->OutputData.GetInputsByPin(PCGMetadataTransformConstants::Rotation);
 		const TArray<FPCGTaggedData> OutputsScale = Context->OutputData.GetInputsByPin(PCGMetadataTransformConstants::Scale);
 
-		const FName DestinationAttributeForTranslation = Settings->GetOutputAttributeName(Settings->OutputAttributeName, 0);
-		const FName DestinationAttributeForRotation = Settings->GetOutputAttributeName(Settings->OutputAttributeName, 1);
-		const FName DestinationAttributeForScale = Settings->GetOutputAttributeName(Settings->OutputAttributeName, 2);
+		const FName DestinationAttributeForTranslation = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 0);
+		const FName DestinationAttributeForRotation = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 1);
+		const FName DestinationAttributeForScale = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 2);
 
-		if (TestEqual("Appropriate number of outputs generated fox Translation", OutputsTranslation.Num(), 1))
+		if (TestEqual("Appropriate number of outputs generated for Translation", OutputsTranslation.Num(), 1))
 		{
 			ValidateComponentOutput(OutputsTranslation[0], DestinationAttributeForTranslation, PCGBreakTransformTest::EPCGComponentToCheck::Translation, FVector{});
 		}
@@ -303,7 +319,7 @@ bool FPCGMetadataBreakTransformTest::RunTest(const FString& Parameters)
 	AllTestData[1] = PairWhatData("Testing with param data as input", &TestDataParams);
 
 	// Setup error catching. This error should happen only twice (invalid type)
-	AddExpectedError(TEXT("Attribute Float is not a supported type for input 0"), EAutomationExpectedErrorFlags::Contains, 2);
+	AddExpectedError(TEXT("Attribute/Property Float is not a supported type for input 0"), EAutomationExpectedErrorFlags::Contains, 2);
 
 	for (PairWhatData& PairTestData : AllTestData)
 	{
@@ -316,15 +332,17 @@ bool FPCGMetadataBreakTransformTest::RunTest(const FString& Parameters)
 		Settings->ForceOutputConnections[1] = true;
 		Settings->ForceOutputConnections[2] = true;
 
+		Settings->InputSource.Selection = EPCGAttributePropertySelection::Attribute;
+
 		{
 			AddInfo(TEXT("Test with Transform as input attribute"));
-			Settings->InputAttributeName = PCGBreakTransformTest::TransformAttribute;
+			Settings->InputSource.AttributeName = PCGBreakTransformTest::TransformAttribute;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
 		{
 			AddInfo(TEXT("Test with Float as input attribute (invalid type)"));
-			Settings->InputAttributeName = PCGBreakTransformTest::InvalidAttribute;
+			Settings->InputSource.AttributeName = PCGBreakTransformTest::InvalidAttribute;
 
 			bTestPassed &= ValidateMetadataBreakVector(*TestData, /*bIsValid=*/false);
 		}

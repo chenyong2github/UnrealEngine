@@ -45,6 +45,27 @@ namespace PCGMetadataTrigSettings
 	}
 }
 
+void UPCGMetadataTrigSettings::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (Input1AttributeName_DEPRECATED != NAME_None)
+	{
+		InputSource1.Selection = EPCGAttributePropertySelection::Attribute;
+		InputSource1.AttributeName = Input1AttributeName_DEPRECATED;
+		Input1AttributeName_DEPRECATED = NAME_None;
+	}
+
+	if (Input2AttributeName_DEPRECATED != NAME_None)
+	{
+		InputSource2.Selection = EPCGAttributePropertySelection::Attribute;
+		InputSource2.AttributeName = Input2AttributeName_DEPRECATED;
+		Input2AttributeName_DEPRECATED = NAME_None;
+	}
+#endif // WITH_EDITOR
+}
+
 FName UPCGMetadataTrigSettings::GetInputPinLabel(uint32 Index) const
 {
 	switch (Index)
@@ -69,16 +90,16 @@ bool UPCGMetadataTrigSettings::IsSupportedInputType(uint16 TypeId, uint32 InputI
 	return PCG::Private::IsOfTypes<int32, int64, float, double>(TypeId);
 }
 
-FName UPCGMetadataTrigSettings::GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const
+FPCGAttributePropertySelector UPCGMetadataTrigSettings::GetInputSource(uint32 Index) const
 {
 	switch (Index)
 	{
 	case 0:
-		return PCG_GET_OVERRIDEN_VALUE(this, Input1AttributeName, Params);
+		return InputSource1;
 	case 1:
-		return PCG_GET_OVERRIDEN_VALUE(this, Input2AttributeName, Params);
+		return InputSource2;
 	default:
-		return NAME_None;
+		return FPCGAttributePropertySelector();
 	}
 }
 

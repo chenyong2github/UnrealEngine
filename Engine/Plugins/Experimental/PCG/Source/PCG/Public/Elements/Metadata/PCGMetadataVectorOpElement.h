@@ -32,6 +32,10 @@ class PCG_API UPCGMetadataVectorSettings : public UPCGMetadataSettingsBase
 	GENERATED_BODY()
 
 public:
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	// ~End UObject interface
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
@@ -40,7 +44,7 @@ public:
 	//~End UPCGSettings interface
 
 	//~Begin UPCGMetadataSettingsBase interface
-	virtual FName GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const override;
+	FPCGAttributePropertySelector GetInputSource(uint32 Index) const override;
 
 	virtual FName GetInputPinLabel(uint32 Index) const override;
 	virtual uint32 GetInputPinNum() const override;
@@ -59,13 +63,24 @@ public:
 	EPCGMedadataVectorOperation Operation = EPCGMedadataVectorOperation::Cross;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
-	FName Input1AttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input, meta = (EditCondition = "Operation != EPCGMedadataVectorOperation::Normalize && Operation != EPCGMedadataVectorOperation::Length", EditConditionHides))
-	FName Input2AttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource2;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input, meta = (EditCondition = "Operation == EPCGMedadataVectorOperation::RotateAroundAxis", EditConditionHides))
-	FName Input3AttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource3;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FName Input1AttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	FName Input2AttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	FName Input3AttributeName_DEPRECATED = NAME_None;
+#endif
 };
 
 class FPCGMetadataVectorElement : public FPCGMetadataElementBase

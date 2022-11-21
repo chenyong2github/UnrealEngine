@@ -110,6 +110,9 @@ namespace PCG
 				PCGMetadataBroadcastable(Integer64, Vector4);
 
 				PCGMetadataBroadcastable(Vector2, Vector);
+				PCGMetadataBroadcastable(Vector2, Vector4);
+
+				PCGMetadataBroadcastable(Vector, Vector4);
 
 				PCGMetadataBroadcastable(Quaternion, Rotator);
 				PCGMetadataBroadcastable(Rotator, Quaternion);
@@ -133,6 +136,77 @@ namespace PCG
 			}
 
 			return BroadcastableTypes[FirstType][SecondType];
+		}
+
+		template <typename FirstType, typename SecondType>
+		constexpr inline bool IsBroadcastable()
+		{
+			return IsBroadcastable(MetadataTypes<FirstType>::Id, MetadataTypes<SecondType>::Id);
+		}
+
+		/**
+		* Generic function to broadcast an InType to an OutType.
+		* Supports only PCG types
+		* @param InValue - The Value to convert
+		* @param OutValue - The converted value
+		* @returns true if the conversion worked, false otherwise.
+		*/
+		template <typename InType, typename OutType>
+		inline bool GetValueWithBroadcast(const InType& InValue, OutType& OutValue)
+		{
+			if constexpr (std::is_same_v<OutType, InType>)
+			{
+				OutValue = InValue;
+				return true;
+			}
+			else
+			{
+				if constexpr (!IsBroadcastable<InType, OutType>())
+				{
+					return false;
+				}
+				else
+				{
+					if constexpr (std::is_same_v<OutType, FVector4>)
+					{
+						// TODO: Should W be 0? 1? Something else? Depending on operation?
+						// For now, we set Z to 0 (for vec 2) and we set W to 1.
+						if constexpr (std::is_same_v<InType, FVector>)
+						{
+							OutValue = FVector4(InValue, 1.0);
+						}
+						else if constexpr (std::is_same_v<InType, FVector2D>)
+						{
+							OutValue = FVector4(InValue.X, InValue.Y, 0.0, 1.0);
+						}
+						else
+						{
+							OutValue = FVector4(InValue, InValue, InValue, InValue);
+						}
+					}
+					else
+					{
+						// Seems like the && condition is not evaluated correctly on Linux, so we cut the condition in two `if constexpr`.
+						if constexpr (std::is_same_v<OutType, FVector>)
+						{
+							if constexpr (std::is_same_v<InType, FVector2D>)
+							{
+								OutValue = FVector(InValue, 0.0);
+							}
+							else
+							{
+								OutValue = OutType(InValue);
+							}
+						}
+						else
+						{
+							OutValue = OutType(InValue);
+						}
+					}
+
+					return true;
+				}
+			}
 		}
 
 		template<typename T>

@@ -117,7 +117,8 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		const FName OutputAttributeName = TEXT("Output");
 
 		UPCGMetadataBreakVectorSettings* Settings = CastChecked<UPCGMetadataBreakVectorSettings>(TestData.Settings);
-		Settings->OutputAttributeName = OutputAttributeName;
+		Settings->OutputTarget.Selection = EPCGAttributePropertySelection::Attribute;
+		Settings->OutputTarget.AttributeName = OutputAttributeName;
 		FPCGElementPtr MetadataBreakVectorElement = TestData.Settings->GetElement();
 
 		TUniquePtr<FPCGContext> Context = TUniquePtr<FPCGContext>(MetadataBreakVectorElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
@@ -159,7 +160,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 		check(SourceMetadata);
 
-		const FPCGMetadataAttributeBase* SourceAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputAttributeName);
+		const FPCGMetadataAttributeBase* SourceAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputSource.GetName());
 		check(SourceAttributeBase);
 
 		auto ValidateComponentOutput = [&](const FPCGTaggedData& Output, const FName& OutAttributeName, PCGBreakVectorTest::EPCGComponentToCheck ComponentToCheck)
@@ -280,10 +281,10 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		const TArray<FPCGTaggedData> OutputsZ = Context->OutputData.GetInputsByPin(PCGMetadataBreakVectorConstants::ZLabel);
 		const TArray<FPCGTaggedData> OutputsW = Context->OutputData.GetInputsByPin(PCGMetadataBreakVectorConstants::WLabel);
 
-		const FName DestinationAttributeForX = Settings->GetOutputAttributeName(Settings->OutputAttributeName, 0);
-		const FName DestinationAttributeForY = Settings->GetOutputAttributeName(Settings->OutputAttributeName, 1);
-		const FName DestinationAttributeForZ = Settings->GetOutputAttributeName(Settings->OutputAttributeName, 2);
-		const FName DestinationAttributeForW = Settings->GetOutputAttributeName(Settings->OutputAttributeName, 3);
+		const FName DestinationAttributeForX = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 0);
+		const FName DestinationAttributeForY = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 1);
+		const FName DestinationAttributeForZ = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 2);
+		const FName DestinationAttributeForW = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 3);
 
 		if (Settings->ForceOutputConnections[0])
 		{
@@ -353,7 +354,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 	AllTestData[1] = PairWhatData("Testing with param data as input", &TestDataParams);
 
 	// Setup error catching. This error should happen only twice (invalid type)
-	AddExpectedError(TEXT("Attribute Float is not a supported type for input 0"), EAutomationExpectedErrorFlags::Contains, 2);
+	AddExpectedError(TEXT("Attribute/Property Float is not a supported type for input 0"), EAutomationExpectedErrorFlags::Contains, 2);
 
 	for (PairWhatData& PairTestData : AllTestData)
 	{
@@ -367,9 +368,11 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		Settings->ForceOutputConnections[2] = false;
 		Settings->ForceOutputConnections[3] = false;
 
+		Settings->InputSource.Selection = EPCGAttributePropertySelection::Attribute;
+
 		{
 			AddInfo(TEXT("Test with FVector2D as input attribute"));
-			Settings->InputAttributeName = PCGBreakVectorTest::Vec2Attribute;
+			Settings->InputSource.AttributeName = PCGBreakVectorTest::Vec2Attribute;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
@@ -377,13 +380,13 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 		{
 			AddInfo(TEXT("Test with FVector as input attribute"));
-			Settings->InputAttributeName = PCGBreakVectorTest::Vec3Attribute;
+			Settings->InputSource.AttributeName = PCGBreakVectorTest::Vec3Attribute;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
 		{
 			AddInfo(TEXT("Test with FVector4 as input attribute"));
-			Settings->InputAttributeName = PCGBreakVectorTest::Vec4Attribute;
+			Settings->InputSource.AttributeName = PCGBreakVectorTest::Vec4Attribute;
 			Settings->ForceOutputConnections[3] = true;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 			Settings->ForceOutputConnections[3] = false;
@@ -391,13 +394,13 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 		{
 			AddInfo(TEXT("Test with FRotator as input attribute"));
-			Settings->InputAttributeName = PCGBreakVectorTest::RotatorAttribute;
+			Settings->InputSource.AttributeName = PCGBreakVectorTest::RotatorAttribute;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
 		{
 			AddInfo(TEXT("Test with Float as input attribute (invalid type)"));
-			Settings->InputAttributeName = PCGBreakVectorTest::FloatAttribute;
+			Settings->InputSource.AttributeName = PCGBreakVectorTest::FloatAttribute;
 
 			bTestPassed &= ValidateMetadataBreakVector(*TestData, /*bIsValid=*/false);
 		}

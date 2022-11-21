@@ -86,7 +86,7 @@ bool UPCGVolumeData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 	}
 }
 
-inline void UPCGVolumeData::CopyBaseVolumeData(UPCGVolumeData* NewVolumeData) const
+void UPCGVolumeData::CopyBaseVolumeData(UPCGVolumeData* NewVolumeData) const
 {
 	NewVolumeData->VoxelSize = VoxelSize;
 	NewVolumeData->Volume = Volume;

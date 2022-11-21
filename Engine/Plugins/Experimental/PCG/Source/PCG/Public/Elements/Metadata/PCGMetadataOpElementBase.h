@@ -7,14 +7,13 @@
 
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadataEntryKeyIterator.h"
+#include "Metadata/PCGMetadataAttributeWrapper.h"
 
 #include "Containers/StaticArray.h"
 
 #include "PCGMetadataOpElementBase.generated.h"
 
 class FPCGMetadataAttributeBase;
-class IPCGMetadataEntryIterator;
 
 namespace PCGMetadataSettingsBaseConstants
 {
@@ -44,15 +43,19 @@ enum class EPCGMetadataSettingsBaseTypes
 };
 
 /**
- * Base class for all Metadata operations
- * A metadata operation can work on 2 different type of inputs: ParamData and SpatialData
- * Each of those inputs can have some metadata.
- * The output will contain the metadata of the first input (all its attributes) + the result of the operation (in a separate attribute)
+ * Base class for all Metadata operations.
+ * Metadata operation can work with attributes or properties. For example you could compute the addition between all points density and a constant from
+ * a param data.
+ * The output will be the duplication of the first input, with the same metadata + the result of the operation (either in an attribute or a property)
  * The new attribute can collide with one of the attributes in the incoming metadata. In this case, the attribute value will be overridden by the result
  * of the operation. It will also override the type of the attribute if it doesn't match the original.
  * 
- * You can specify the name of the attribute for each input and for the output. If they are None, they will take the default attribute.
- * Attribute names can also be overridden by ParamData, just connect the Param pin with some param data that matches exactly the name of the property you want to override.
+ * We only support operations between points and between spatial data. They all need to match (or be a param data)
+ * For example, if input 0 is a point data and input 1 is a spatial data, we fail.
+ * 
+ * You can specify the name of the attribute for each input and for the output.
+ * If the input name is None, it will take the lastest attribute in the input metadata.
+ * If the output name is None, it will take the input name.
  * 
  * Each operation has some requirements for the input types, and can broadcast some values into others (example Vector + Float -> Vector).
  * For example, if the op only accept booleans, all other value types will throw an error.
@@ -69,6 +72,10 @@ class PCG_API UPCGMetadataSettingsBase : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	// ~End UObject interface
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
@@ -78,7 +85,7 @@ public:
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	//~End UPCGSettings interface
 
-	virtual FName GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const { return NAME_None; };
+	virtual FPCGAttributePropertySelector GetInputSource(uint32 Index) const { return FPCGAttributePropertySelector(); };
 
 	virtual FName GetInputPinLabel(uint32 Index) const { return PCGPinConstants::DefaultInputLabel; }
 	virtual uint32 GetInputPinNum() const { return 1; };
@@ -95,11 +102,16 @@ public:
 
 	bool IsMoreComplexType(uint16 FirstType, uint16 SecondType) const;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Output)
-	FName OutputAttributeName = NAME_None;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output")
+	FPCGAttributePropertySelector OutputTarget;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	EPCGMetadataSettingsBaseMode Mode = EPCGMetadataSettingsBaseMode::Inferred;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FName OutputAttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	EPCGMetadataSettingsBaseMode Mode_DEPRECATED = EPCGMetadataSettingsBaseMode::Inferred;
+#endif // WITH_EDITORONLY_DATA
 
 	static constexpr uint32 MaxNumberOfOutputs = 4;
 
@@ -115,13 +127,13 @@ class FPCGMetadataElementBase : public FSimplePCGElement
 public:
 	struct FOperationData
 	{
-		TArray<const FPCGMetadataAttributeBase*> SourceAttributes;
 		int32 NumberOfElementsToProcess = -1;
 		uint16 MostComplexInputType;
 		uint16 OutputType;
-		TArray<FPCGMetadataAttributeBase*> OutputAttributes;
 		const UPCGMetadataSettingsBase* Settings = nullptr;
-		TArray<TUniquePtr<IPCGMetadataEntryIterator>> Iterators;
+
+		TArray<FPCGPropertyAttributeIterator> InputIterators;
+		TArray<FPCGPropertyAttributeIterator> OutputIterators;
 	};
 
 protected:
@@ -149,58 +161,45 @@ protected:
 template <typename InType, typename... Callbacks>
 inline bool FPCGMetadataElementBase::DoUnaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const
 {
-	check(OperationData.SourceAttributes[0]);
+	check(OperationData.InputIterators[0].IsValid());
 
-	const uint32 NumOutputs = OperationData.OutputAttributes.Num();
+	const uint32 NumOutputs = OperationData.OutputIterators.Num();
 	constexpr uint32 NumCallbacks = (uint32)sizeof...(InCallbacks);
 	check(NumOutputs == NumCallbacks);
 
-	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
-	check(OperationData.Iterators[0]);
-	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
-
-	InType DefaultValue = PCGMetadataAttribute::GetValueWithBroadcast<InType>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-
-	// Fold expressions. It will un-roll the packed argument "InCallbacks", and we can use "InCallbacks" as the current unrolled argument.
-	// In this case, we have multiple callbacks that all take "const InType&" as input, but can return different outputs.
-	// We use this return value to know in which type we need to cast our attribute.
-	uint32 j = 0;
-	([&]
+	InType DefaultValue{};
+	if (OperationData.InputIterators[0].GetWrapper().Get<InType>(PCGInvalidEntryKey, DefaultValue))
 	{
-		check(j < NumOutputs);
-		auto OutValue = InCallbacks(DefaultValue);
-		typedef decltype(OutValue) OutType;
-
-		if (FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttributes[j++]))
+		// Fold expressions. It will un-roll the packed argument "InCallbacks", and we can use "InCallbacks" as the current unrolled argument.
+		// In this case, we have multiple callbacks that all take "const InType&" as input, but can return different outputs.
+		// We use this return value to know in which type we need to cast our attribute.
+		uint32 j = 0;
+		([&]
 		{
-			OutputAttribute->SetDefaultValue(OutValue);
-		}
-	} (), ...);
+			check(j < NumOutputs);
+			auto OutValue = InCallbacks(DefaultValue);
+			typedef decltype(OutValue) OutType;
+
+			OperationData.OutputIterators[j++].GetWrapper().Set<OutType>(PCGInvalidEntryKey, OutValue);
+		} (), ...);
+	}
+
+	InType Value{};
 
 	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
 	{
-		PCGMetadataEntryKey EntryKey = *Iterator1;
-
-		// If the entry key is invalid, nothing to do
-		if (EntryKey != PCGInvalidEntryKey)
+		if (OperationData.InputIterators[0].GetAndAdvance<InType>(Value))
 		{
-			InType Value = PCGMetadataAttribute::GetValueWithBroadcast<InType>(OperationData.SourceAttributes[0], EntryKey);
-
-			j = 0;
+			uint32 j = 0;
 			([&]
 			{
 				check(j < NumOutputs);
 				auto OutValue = InCallbacks(Value);
 				typedef decltype(OutValue) OutType;
 
-				if (FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttributes[j++]))
-				{
-					OutputAttribute->SetValue(EntryKey, OutValue);
-				}
+				OperationData.OutputIterators[j++].SetAndAdvance<OutType>(OutValue);
 			} (), ...);
 		}
-
-		++Iterator1;
 	}
 
 	return true;
@@ -209,70 +208,48 @@ inline bool FPCGMetadataElementBase::DoUnaryOp(FOperationData& OperationData, Ca
 template <typename InType1, typename InType2, typename... Callbacks>
 inline bool FPCGMetadataElementBase::DoBinaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const
 {
-	check(OperationData.SourceAttributes[0]);
-	check(OperationData.SourceAttributes[1]);
+	check(OperationData.InputIterators[0].IsValid());
+	check(OperationData.InputIterators[1].IsValid());
 
-	const uint32 NumOutputs = OperationData.OutputAttributes.Num();
+	const uint32 NumOutputs = OperationData.OutputIterators.Num();
 	constexpr uint32 NumCallbacks = (uint32)sizeof...(InCallbacks);
 	check(NumOutputs == NumCallbacks);
 
-	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
-	// Also some iterators can be null, it means they need to use the first iterator (that should never be null).
-	// We just need to make sure to not increment the first iterator multiple times in one loop.
-	check(OperationData.Iterators[0]);
+	InType1 DefaultValue1{};
+	InType2 DefaultValue2{};
 
-	bool bShouldIncrementIterator2 = OperationData.Iterators.Num() >= 2 && OperationData.Iterators[1];
-
-	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
-	IPCGMetadataEntryIterator& Iterator2 = bShouldIncrementIterator2 ? *OperationData.Iterators[1] : Iterator1;
-
-	InType1 DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-	InType2 DefaultValue2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], PCGInvalidEntryKey);
-	
-	// Fold expression, cf. Unary op
-	uint32 j = 0;
-	([&]
+	if (OperationData.InputIterators[0].GetWrapper().Get<InType1>(PCGInvalidEntryKey, DefaultValue1) &&
+		OperationData.InputIterators[1].GetWrapper().Get<InType2>(PCGInvalidEntryKey, DefaultValue2))
 	{
-		check(j < NumOutputs);
-		auto OutValue = InCallbacks(DefaultValue1, DefaultValue2);
-		typedef decltype(OutValue) OutType;
-
-		if (FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttributes[j++]))
+		// Fold expression, cf. Unary op
+		uint32 j = 0;
+		([&]
 		{
-			OutputAttribute->SetDefaultValue(OutValue);
-		}
-	} (), ...);
+			check(j < NumOutputs);
+			auto OutValue = InCallbacks(DefaultValue1, DefaultValue2);
+			typedef decltype(OutValue) OutType;
+
+			OperationData.OutputIterators[j++].GetWrapper().Set<OutType>(PCGInvalidEntryKey, OutValue);
+		} (), ...);
+	}
+
+	InType1 Value1{};
+	InType2 Value2{};
 
 	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
 	{
-		PCGMetadataEntryKey EntryKey1 = *Iterator1;
-
-		// If the entry key is invalid, nothing to do
-		if (EntryKey1 != PCGInvalidEntryKey)
+		if (OperationData.InputIterators[0].GetAndAdvance<InType1>(Value1) &&
+			OperationData.InputIterators[1].GetAndAdvance<InType2>(Value2))
 		{
-			PCGMetadataEntryKey EntryKey2 = *Iterator2;
-
-			InType1 Value1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], EntryKey1);
-			InType2 Value2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], EntryKey2);
-
-			j = 0;
+			uint32 j = 0;
 			([&]
 			{
 				check(j < NumOutputs);
 				auto OutValue = InCallbacks(Value1, Value2);
 				typedef decltype(OutValue) OutType;
 
-				if (FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttributes[j++]))
-				{
-					OutputAttribute->SetValue(EntryKey1, OutValue);
-				}
+				OperationData.OutputIterators[j++].SetAndAdvance<OutType>(OutValue);
 			} (), ...);
-		}
-
-		++Iterator1;
-		if (bShouldIncrementIterator2)
-		{
-			++Iterator2;
 		}
 	}
 
@@ -282,81 +259,53 @@ inline bool FPCGMetadataElementBase::DoBinaryOp(FOperationData& OperationData, C
 template <typename InType1, typename InType2, typename InType3, typename... Callbacks>
 inline bool FPCGMetadataElementBase::DoTernaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const
 {
-	check(OperationData.SourceAttributes[0]);
-	check(OperationData.SourceAttributes[1]);
-	check(OperationData.SourceAttributes[2]);
+	check(OperationData.InputIterators[0].IsValid());
+	check(OperationData.InputIterators[1].IsValid());
+	check(OperationData.InputIterators[2].IsValid());
 
-	const uint32 NumOutputs = OperationData.OutputAttributes.Num();
+	const uint32 NumOutputs = OperationData.OutputIterators.Num();
 	constexpr uint32 NumCallbacks = (uint32)sizeof...(InCallbacks);
 	check(NumOutputs == NumCallbacks);
 
-	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
-	// Also some iterators can be null, it means they need to use the first iterator (that should never be null).
-	// We just need to make sure to not increment the first iterator multiple times in one loop.
-	check(OperationData.Iterators[0]);
+	InType1 DefaultValue1{};
+	InType2 DefaultValue2{};
+	InType3 DefaultValue3{};
 
-	bool bShouldIncrementIterator2 = OperationData.Iterators.Num() >= 2 && OperationData.Iterators[1];
-	bool bShouldIncrementIterator3 = OperationData.Iterators.Num() >= 3 && OperationData.Iterators[2];
-
-	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
-	IPCGMetadataEntryIterator& Iterator2 = bShouldIncrementIterator2 ? *OperationData.Iterators[1] : Iterator1;
-	IPCGMetadataEntryIterator& Iterator3 = bShouldIncrementIterator3 ? *OperationData.Iterators[2] : Iterator1;
-
-	InType1 DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-	InType2 DefaultValue2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], PCGInvalidEntryKey);
-	InType3 DefaultValue3 = PCGMetadataAttribute::GetValueWithBroadcast<InType3>(OperationData.SourceAttributes[2], PCGInvalidEntryKey);
-	
-	// Fold expression, cf. Unary op
-	uint32 j = 0;
-	([&]
+	if (OperationData.InputIterators[0].GetWrapper().Get<InType1>(PCGInvalidEntryKey, DefaultValue1) &&
+		OperationData.InputIterators[1].GetWrapper().Get<InType2>(PCGInvalidEntryKey, DefaultValue2) &&
+		OperationData.InputIterators[2].GetWrapper().Get<InType3>(PCGInvalidEntryKey, DefaultValue3))
 	{
-		check(j < NumOutputs);
-		auto OutValue = InCallbacks(DefaultValue1, DefaultValue2, DefaultValue3);
-		typedef decltype(OutValue) OutType;
-
-		if (FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttributes[j++]))
+		// Fold expression, cf. Unary op
+		uint32 j = 0;
+		([&]
 		{
-			OutputAttribute->SetDefaultValue(OutValue);
-		}
-	} (), ...);
+			check(j < NumOutputs);
+			auto OutValue = InCallbacks(DefaultValue1, DefaultValue2, DefaultValue3);
+			typedef decltype(OutValue) OutType;
+
+			OperationData.OutputIterators[j++].GetWrapper().Set<OutType>(PCGInvalidEntryKey, OutValue);
+		} (), ...);
+	}
+
+	InType1 Value1{};
+	InType2 Value2{};
+	InType3 Value3{};
 
 	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
 	{
-		PCGMetadataEntryKey EntryKey1 = *Iterator1;
-
-		// If the entry key is invalid, nothing to do
-		if (EntryKey1 != PCGInvalidEntryKey)
+		if (OperationData.InputIterators[0].GetAndAdvance<InType1>(Value1) &&
+			OperationData.InputIterators[1].GetAndAdvance<InType2>(Value2) &&
+			OperationData.InputIterators[2].GetAndAdvance<InType3>(Value3))
 		{
-			PCGMetadataEntryKey EntryKey2 = *Iterator2;
-			PCGMetadataEntryKey EntryKey3 = *Iterator3;
-
-			InType1 Value1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], EntryKey1);
-			InType2 Value2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], EntryKey2);
-			InType3 Value3 = PCGMetadataAttribute::GetValueWithBroadcast<InType3>(OperationData.SourceAttributes[2], EntryKey3);
-
-			j = 0;
+			uint32 j = 0;
 			([&]
 			{
 				check(j < NumOutputs);
 				auto OutValue = InCallbacks(Value1, Value2, Value3);
 				typedef decltype(OutValue) OutType;
 
-				if (FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttributes[j++]))
-				{
-					OutputAttribute->SetValue(EntryKey1, OutValue);
-				}
+				OperationData.OutputIterators[j++].SetAndAdvance<OutType>(OutValue);
 			} (), ...);
-		}
-
-		++Iterator1;
-		if (bShouldIncrementIterator2)
-		{
-			++Iterator2;
-		}
-
-		if (bShouldIncrementIterator3)
-		{
-			++Iterator3;
 		}
 	}
 
@@ -366,92 +315,58 @@ inline bool FPCGMetadataElementBase::DoTernaryOp(FOperationData& OperationData, 
 template <typename InType1, typename InType2, typename InType3, typename InType4, typename... Callbacks>
 inline bool FPCGMetadataElementBase::DoQuaternaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const
 {
-	check(OperationData.SourceAttributes[0]);
-	check(OperationData.SourceAttributes[1]);
-	check(OperationData.SourceAttributes[2]);
-	check(OperationData.SourceAttributes[3]);
+	check(OperationData.InputIterators[0].IsValid());
+	check(OperationData.InputIterators[1].IsValid());
+	check(OperationData.InputIterators[2].IsValid());
+	check(OperationData.InputIterators[3].IsValid());
 
-	const uint32 NumOutputs = OperationData.OutputAttributes.Num();
+	const uint32 NumOutputs = OperationData.OutputIterators.Num();
 	constexpr uint32 NumCallbacks = (uint32)sizeof...(InCallbacks);
 	check(NumOutputs == NumCallbacks);
 
-	// All values in OperationData.Iterators are UniquePtr. Dereference them here to make the syntax less cumbersome.
-	// Also some iterators can be null, it means they need to use the first iterator (that should never be null).
-	// We just need to make sure to not increment the first iterator multiple times in one loop.
-	check(OperationData.Iterators[0]);
-
-	bool bShouldIncrementIterator2 = OperationData.Iterators.Num() >= 2 && OperationData.Iterators[1];
-	bool bShouldIncrementIterator3 = OperationData.Iterators.Num() >= 3 && OperationData.Iterators[2];
-	bool bShouldIncrementIterator4 = OperationData.Iterators.Num() >= 4 && OperationData.Iterators[3];
-
-	IPCGMetadataEntryIterator& Iterator1 = *OperationData.Iterators[0];
-	IPCGMetadataEntryIterator& Iterator2 = bShouldIncrementIterator2 ? *OperationData.Iterators[1] : Iterator1;
-	IPCGMetadataEntryIterator& Iterator3 = bShouldIncrementIterator3 ? *OperationData.Iterators[2] : Iterator1;
-	IPCGMetadataEntryIterator& Iterator4 = bShouldIncrementIterator4 ? *OperationData.Iterators[3] : Iterator1;
-
-	InType1 DefaultValue1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], PCGInvalidEntryKey);
-	InType2 DefaultValue2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], PCGInvalidEntryKey);
-	InType3 DefaultValue3 = PCGMetadataAttribute::GetValueWithBroadcast<InType3>(OperationData.SourceAttributes[2], PCGInvalidEntryKey);
-	InType3 DefaultValue4 = PCGMetadataAttribute::GetValueWithBroadcast<InType3>(OperationData.SourceAttributes[3], PCGInvalidEntryKey);
+	InType1 DefaultValue1{};
+	InType2 DefaultValue2{};
+	InType3 DefaultValue3{};
+	InType4 DefaultValue4{};
 	
-	// Fold expression, cf. Unary op
-	uint32 j = 0;
-	([&]
+	if (OperationData.InputIterators[0].GetWrapper().Get<InType1>(PCGInvalidEntryKey, DefaultValue1) &&
+		OperationData.InputIterators[1].GetWrapper().Get<InType2>(PCGInvalidEntryKey, DefaultValue2) &&
+		OperationData.InputIterators[2].GetWrapper().Get<InType3>(PCGInvalidEntryKey, DefaultValue3) &&
+		OperationData.InputIterators[3].GetWrapper().Get<InType4>(PCGInvalidEntryKey, DefaultValue4))
 	{
-		check(j < NumOutputs);
-		auto OutValue = InCallbacks(DefaultValue1, DefaultValue2, DefaultValue3, DefaultValue4);
-		typedef decltype(OutValue) OutType;
-
-		if (FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttributes[j++]))
+		// Fold expression, cf. Unary op
+		uint32 j = 0;
+		([&]
 		{
-			OutputAttribute->SetDefaultValue(OutValue);
-		}
-	} (), ...);
+			check(j < NumOutputs);
+			auto OutValue = InCallbacks(DefaultValue1, DefaultValue2, DefaultValue3, DefaultValue4);
+			typedef decltype(OutValue) OutType;
+
+			OperationData.OutputIterators[j++].GetWrapper().Set<OutType>(PCGInvalidEntryKey, OutValue);
+		} (), ...);
+	}
+
+	InType1 Value1{};
+	InType2 Value2{};
+	InType3 Value3{};
+	InType4 Value4{};
 
 	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
 	{
-		PCGMetadataEntryKey EntryKey1 = *Iterator1;
-
-		// If the entry key is invalid, nothing to do
-		if (EntryKey1 != PCGInvalidEntryKey)
+		if (OperationData.InputIterators[0].GetAndAdvance<InType1>(Value1) &&
+			OperationData.InputIterators[1].GetAndAdvance<InType2>(Value2) &&
+			OperationData.InputIterators[2].GetAndAdvance<InType3>(Value3) &&
+			OperationData.InputIterators[3].GetAndAdvance<InType4>(Value4))
 		{
-			PCGMetadataEntryKey EntryKey2 = *Iterator2;
-			PCGMetadataEntryKey EntryKey3 = *Iterator3;
-			PCGMetadataEntryKey EntryKey4 = *Iterator4;
-
-			InType1 Value1 = PCGMetadataAttribute::GetValueWithBroadcast<InType1>(OperationData.SourceAttributes[0], EntryKey1);
-			InType2 Value2 = PCGMetadataAttribute::GetValueWithBroadcast<InType2>(OperationData.SourceAttributes[1], EntryKey2);
-			InType3 Value3 = PCGMetadataAttribute::GetValueWithBroadcast<InType3>(OperationData.SourceAttributes[2], EntryKey3);
-			InType4 Value4 = PCGMetadataAttribute::GetValueWithBroadcast<InType4>(OperationData.SourceAttributes[3], EntryKey4);
-
-			j = 0;
+			uint32 j = 0;
 			([&]
 			{
 				check(j < NumOutputs);
 				auto OutValue = InCallbacks(Value1, Value2, Value3, Value4);
 				typedef decltype(OutValue) OutType;
 
-				if (FPCGMetadataAttribute<OutType>* OutputAttribute = static_cast<FPCGMetadataAttribute<OutType>*>(OperationData.OutputAttributes[j++]))
-				{
-					OutputAttribute->SetValue(EntryKey1, OutValue);
-				}
+				OperationData.OutputIterators[j++].SetAndAdvance<OutType>(OutValue);
 			} (), ...);
-		}
-
-		++Iterator1;
-		if (bShouldIncrementIterator2)
-		{
-			++Iterator2;
-		}
-
-		if (bShouldIncrementIterator3)
-		{
-			++Iterator3;
-		}
-
-		if (bShouldIncrementIterator4)
-		{
-			++Iterator4;
 		}
 	}
 

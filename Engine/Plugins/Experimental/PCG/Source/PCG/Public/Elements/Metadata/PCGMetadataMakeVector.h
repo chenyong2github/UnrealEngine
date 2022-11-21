@@ -44,13 +44,17 @@ class PCG_API UPCGMetadataMakeVectorSettings : public UPCGMetadataSettingsBase
 	GENERATED_BODY()
 
 public:
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	// ~End UObject interface
+
 #if WITH_EDITOR
 	//~Begin UPCGSettings interface
 	virtual FName GetDefaultNodeName() const override;
 	//~End UPCGSettings interface
 #endif
 
-	virtual FName GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const override;
+	FPCGAttributePropertySelector GetInputSource(uint32 Index) const override;
 
 	virtual FName GetInputPinLabel(uint32 Index) const override;
 	virtual uint32 GetInputPinNum() const override;
@@ -65,16 +69,16 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
-	FName Input1AttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
-	FName Input2AttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource2;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
-	FName Input3AttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource3;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
-	FName Input4AttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource4;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ValidEnumValues = "Vector2, Vector, Vector4"))
 	EPCGMetadataTypes OutputType = EPCGMetadataTypes::Vector2;
@@ -84,6 +88,20 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "OutputType == EPCGMetadataTypes::Vector4", EditConditionHides))
 	EPCGMetadataMakeVector4 MakeVector4Op = EPCGMetadataMakeVector4::FourValues;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FName Input1AttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	FName Input2AttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	FName Input3AttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	FName Input4AttributeName_DEPRECATED = NAME_None;
+#endif
 };
 
 class FPCGMetadataMakeVectorElement : public FPCGMetadataElementBase

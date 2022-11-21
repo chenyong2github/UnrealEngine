@@ -3,7 +3,7 @@
 #include "Metadata/PCGMetadata.h"
 
 #include "Misc/ScopeRWLock.h"
-#include "Helpers/PCGSettingsHelpers.h"
+#include "Metadata/PCGMetadataAttributeWrapper.h"
 
 void UPCGMetadata::Serialize(FArchive& InArchive)
 {
@@ -483,7 +483,7 @@ namespace PCGMetadata
 				});
 		};
 
-		return PCGSettingsHelpers::GetPropertyValueWithCallback(DataPtr, InProperty, CreateAttributeAndSet);
+		return PCGMetadataAttributeWrapper::GetPropertyValueWithCallback(DataPtr, InProperty, CreateAttributeAndSet);
 	}
 }
 

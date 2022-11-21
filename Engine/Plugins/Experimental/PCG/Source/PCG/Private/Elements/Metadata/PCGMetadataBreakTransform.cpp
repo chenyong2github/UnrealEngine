@@ -28,9 +28,23 @@ namespace PCGMetadataBreakTransformSettings
 	}
 }
 
-FName UPCGMetadataBreakTransformSettings::GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const
+void UPCGMetadataBreakTransformSettings::PostLoad()
 {
-	return PCG_GET_OVERRIDEN_VALUE(this, InputAttributeName, Params);
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (InputAttributeName_DEPRECATED != NAME_None)
+	{
+		InputSource.Selection = EPCGAttributePropertySelection::Attribute;
+		InputSource.AttributeName = InputAttributeName_DEPRECATED;
+		InputAttributeName_DEPRECATED = NAME_None;
+	}
+#endif // WITH_EDITOR
+}
+
+FPCGAttributePropertySelector UPCGMetadataBreakTransformSettings::GetInputSource(uint32 Index) const
+{
+	return InputSource;
 }
 
 FName UPCGMetadataBreakTransformSettings::GetOutputPinLabel(uint32 Index) const

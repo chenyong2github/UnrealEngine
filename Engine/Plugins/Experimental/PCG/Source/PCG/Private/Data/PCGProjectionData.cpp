@@ -205,7 +205,7 @@ void UPCGProjectionData::GetIncludeExcludeAttributeNames(TSet<FName>& OutAttribu
 	}
 }
 
-inline void UPCGProjectionData::CopyBaseProjectionClass(UPCGProjectionData* NewProjectionData) const
+void UPCGProjectionData::CopyBaseProjectionClass(UPCGProjectionData* NewProjectionData) const
 {
 	NewProjectionData->Source = Source;
 	NewProjectionData->Target = Target;
