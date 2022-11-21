@@ -109,18 +109,6 @@ bool GetClusterDebugColor(float2 LocalPosition, float SceneDepth, FCulledLightsG
 }
 
 /**
- * Return true is the light is visible, false otherwise
- */
-bool IsLightVisible(const FLocalLightData In, float3 TranslatedWorldPosition)
-{
-	// extra-early out since we know light grid is sloppy and all lights in list are radial (have a range)
-	// appears useless
-	const float InvLightRadiusSq = In.LightPositionAndInvRadius.w * In.LightPositionAndInvRadius.w;
-	return length2(TranslatedWorldPosition - In.LightPositionAndInvRadius.xyz) * InvLightRadiusSq <= 1.0f;
-}
-
-
-/**
  * Adds local lighting of simple lights and returns the index at which non-simple light should starts
  */
 float4 GetSimpleLightLighting(

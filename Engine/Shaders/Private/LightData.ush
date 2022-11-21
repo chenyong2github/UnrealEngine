@@ -430,3 +430,13 @@ FSimpleDeferredLightData ConvertToSimpleLight(FLocalLightData In)
 	Out.bInverseSquared			= Out.FalloffExponent == 0;
 	return Out;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper functions
+
+// Return true if the point is influenced by the light
+bool IsLightVisible(FLocalLightData InLight, float3 TranslatedWorldPosition)
+{
+	float InvLightRadiusSq = InLight.LightPositionAndInvRadius.w * InLight.LightPositionAndInvRadius.w;
+	return length2(TranslatedWorldPosition - InLight.LightPositionAndInvRadius.xyz) * InvLightRadiusSq <= 1.0f;
+}

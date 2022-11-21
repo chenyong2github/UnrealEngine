@@ -442,7 +442,6 @@ float3 ComputeDirectLighting(
 			continue;
 		}
 
-		bool IsLightVisible = false;
 		float ShadowRayLength = 0.0;
 		if (ReflectedShadowsType == 2)
 		{

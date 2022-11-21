@@ -489,13 +489,6 @@ void AccumulateReflection(
 	LightAccumulator_AddSplit(DirectLighting, 0.0f, SpecularIBLLighting, 0.0f, 1.0f, false);
 }
 
-// Return true if the point is influenced by the light
-bool IsLightVisible(FLocalLightData InLight, float3 TranslatedWorldPosition)
-{
-	float InvLightRadiusSq = InLight.LightPositionAndInvRadius.w * InLight.LightPositionAndInvRadius.w;
-	return length2(TranslatedWorldPosition - InLight.LightPositionAndInvRadius.xyz) * InvLightRadiusSq <= 1.0f;
-}
-
 /*------------------------------------------------------------------------------
 	Mobile Local lights.
 ------------------------------------------------------------------------------*/
