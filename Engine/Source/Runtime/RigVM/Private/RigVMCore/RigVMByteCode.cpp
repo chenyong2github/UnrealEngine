@@ -783,6 +783,11 @@ uint32 FRigVMByteCode::GetByteCodeHash() const
 		Hash = HashCombine(Hash, GetOperatorHash(Instruction));
 	}
 
+	for(const FRigVMBranchInfo& BranchInfo : BranchInfos)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(BranchInfo));
+	}
+
 	return Hash;
 }
 
@@ -1822,6 +1827,11 @@ FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InI
 			const FRigVMSenaryOp& Op = GetOpAt<FRigVMSenaryOp>(InInstruction.ByteCodeIndex);
 			return FRigVMOperandArray(&Op.ArgA, 6);
 		}
+		case ERigVMOpCode::JumpToBranch:
+		{
+			const FRigVMJumpToBranchOp& Op = GetOpAt<FRigVMJumpToBranchOp>(InInstruction.ByteCodeIndex);
+			return FRigVMOperandArray(&Op.Arg, 1);
+		}
 		case ERigVMOpCode::JumpAbsolute:
 		case ERigVMOpCode::JumpForward:
 		case ERigVMOpCode::JumpBackward:
@@ -1909,6 +1919,11 @@ uint64 FRigVMByteCode::GetFirstOperandByteIndex(const FRigVMInstruction& InInstr
 		{
 			const FRigVMSenaryOp& Op = GetOpAt<FRigVMSenaryOp>(InInstruction.ByteCodeIndex);
 			return InInstruction.ByteCodeIndex + ((uint64)&Op.ArgA - (uint64)&Op);
+		}
+		case ERigVMOpCode::JumpToBranch:
+		{
+			const FRigVMJumpToBranchOp& Op = GetOpAt<FRigVMJumpToBranchOp>(InInstruction.ByteCodeIndex);
+			return InInstruction.ByteCodeIndex + ((uint64)&Op.Arg - (uint64)&Op);
 		}
 		case ERigVMOpCode::JumpAbsolute:
 		case ERigVMOpCode::JumpForward:

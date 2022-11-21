@@ -74,6 +74,17 @@ struct RIGVM_API FRigVMBranchInfo
 		return Ar;
 	}
 
+	friend uint32 GetTypeHash(const FRigVMBranchInfo& InBranchInfo)
+	{
+		uint32 Hash = GetTypeHash(GetTypeHash(InBranchInfo.Index));
+		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.Label));
+		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.InstructionIndex));
+		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.ArgumentIndex));
+		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.FirstInstruction));
+		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.LastInstruction));
+		return Hash;
+	}
+
 	UPROPERTY()
 	int32 Index;
 

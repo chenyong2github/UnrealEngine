@@ -1642,7 +1642,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 	
 	int32 InstructionIndexStart = INDEX_NONE;
 	int32 InstructionIndexEnd = INDEX_NONE;
-
+	int32 BranchIndexStart = INDEX_NONE;
 	
 	FString FunctionHash = FunctionReferenceNode->GetReferencedFunctionHeader().GetHash();
 	if (!CompiledFunctions.Contains(FunctionHash))
@@ -1769,6 +1769,18 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 		InstructionIndexEnd = ByteCode.GetNumInstructions() - 1;
 		FRigVMCallstack FuncRefCallstack = InExpr->GetProxy().GetCallstack();
 
+		for(const FRigVMBranchInfo& BranchInfo : FunctionByteCode.BranchInfos)
+		{
+			const int32 BranchInfoIndex = ByteCode.AddBranchInfo(BranchInfo);
+			if(BranchIndexStart == INDEX_NONE)
+			{
+				BranchIndexStart = BranchInfoIndex;
+			}
+			ByteCode.BranchInfos[BranchInfoIndex].InstructionIndex += InstructionIndexStart;
+			ByteCode.BranchInfos[BranchInfoIndex].FirstInstruction += (uint16)InstructionIndexStart;
+			ByteCode.BranchInfos[BranchInfoIndex].LastInstruction += (uint16)InstructionIndexStart;
+		}
+
 		// For each instruction, substitute the operand for the one used in the current bytecode
 		const FRigVMInstructionArray FunctionInstructions = FunctionByteCode.GetInstructions();
 		FRigVMInstructionArray Instructions = ByteCode.GetInstructions();
@@ -1852,6 +1864,12 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 				FRigVMExecuteOp& Op = ByteCode.GetOpAt<FRigVMExecuteOp>(Instruction);
 				const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(FunctionCompilationData->FunctionNames[Op.FunctionIndex].ToString());
 				Op.FunctionIndex = FunctionIndex;
+			}
+
+			if (Instruction.OpCode == ERigVMOpCode::JumpToBranch)
+			{
+				FRigVMJumpToBranchOp& Op = ByteCode.GetOpAt<FRigVMJumpToBranchOp>(Instruction);
+				Op.FirstBranchInfoIndex = Op.FirstBranchInfoIndex + BranchIndexStart;
 			}
 
 			if (Settings.SetupNodeInstructionIndex)

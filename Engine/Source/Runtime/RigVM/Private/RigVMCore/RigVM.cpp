@@ -1261,7 +1261,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 				{
 					const FRigVMJumpToBranchOp& Op = ByteCode.GetOpAt<FRigVMJumpToBranchOp>(Instructions[InstructionIndex]);
 					const FRigVMOperand& Arg = Op.Arg;
-					InOpFunc(InHandleBaseIndex, {InstructionIndex, 0}, Arg);
+					InOpFunc(InHandleBaseIndex, {}, Arg);
 					break;
 				}
 			case ERigVMOpCode::Invalid:
@@ -2861,6 +2861,12 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 				// find the one with the right label - then jump to the branch.
 				bool bBranchFound = false;
 				const TArray<FRigVMBranchInfo>& Branches = ByteCode.BranchInfos;
+				if(Branches.IsEmpty())
+				{
+					UE_LOG(LogRigVM, Error, TEXT("No branches in ByteCode - but JumpToBranch instruction %d found. Likely a corrupt VM. Exiting."), ContextPublicData.InstructionIndex);
+					return CurrentExecuteResult = ERigVMExecuteResult::Failed;
+				}
+					
 				for(int32 BranchIndex = Op.FirstBranchInfoIndex // start at the first branch known to this jump op
 					; BranchIndex < Branches.Num(); BranchIndex++)
 				{
@@ -2878,7 +2884,8 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 				}
 				if (!bBranchFound)
 				{
-					ContextPublicData.InstructionIndex++;
+					UE_LOG(LogRigVM, Error, TEXT("Branch '%s' was not found for instruction %d. Exiting."), *BranchLabel.ToString(), ContextPublicData.InstructionIndex);
+					return CurrentExecuteResult = ERigVMExecuteResult::Failed;
 				}
 				break;
 			}
@@ -3482,7 +3489,6 @@ void URigVM::CacheSingleMemoryHandle(int32 InHandleIndex, const FRigVMBranchInfo
 	// if we are lazy executing update the handle to point to a lazy branch
 	if(InBranchInfoKey.IsValid())
 	{
-		UE_LOG(LogRigVM, Warning, TEXT("Looking up branch info key instruction %d, argument %d"), InBranchInfoKey.InstructionIndex, InBranchInfoKey.ArgumentIndex);
 		if(const FRigVMBranchInfo* BranchInfo = GetByteCode().GetBranchInfo(InBranchInfoKey))
 		{
 			FRigVMLazyBranch* LazyBranch = &LazyBranches[BranchInfo->Index];
