@@ -475,6 +475,9 @@ public:
 
 	FLinearColor GetColoredLightBrightness() const;
 
+	/** Get the color temperature in the working color space. */
+	FLinearColor GetColorTemperature() const;
+
 	/** 
 	 * Called when property is modified by InterpPropertyTracks
 	 *

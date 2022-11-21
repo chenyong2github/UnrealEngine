@@ -28,6 +28,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/BillboardComponent.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "ColorSpace.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LightComponent)
 
@@ -1497,10 +1498,15 @@ FLinearColor ULightComponent::GetColoredLightBrightness() const
 	FLinearColor Energy = FLinearColor(LightColor) * LightBrightness;
 	if (bUseTemperature)
 	{
-		Energy *= FLinearColor::MakeFromColorTemperature(Temperature);
+		Energy *= GetColorTemperature();
 	}
 
 	return Energy;
+}
+
+FLinearColor ULightComponent::GetColorTemperature() const
+{
+	return UE::Color::FColorSpace::GetWorking().MakeFromColorTemperature(Temperature);
 }
 
 UMaterialInterface* ULightComponent::GetMaterial(int32 ElementIndex) const

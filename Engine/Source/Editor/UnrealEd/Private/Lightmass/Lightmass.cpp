@@ -214,7 +214,7 @@ void Copy( const ULightComponent* In, Lightmass::FLightData& Out )
 
 	if( In->bUseTemperature )
 	{
-		Out.Color *= FLinearColor::MakeFromColorTemperature(In->Temperature);
+		Out.Color *= In->GetColorTemperature();
 	}
 }
 

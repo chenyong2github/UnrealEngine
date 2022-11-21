@@ -260,6 +260,11 @@ public:
 	 */
 	bool IsSRGB() const;
 
+	/**
+	* Converts temperature in Kelvins of a black body radiator to an RGB color in the current space.
+	*/
+	FLinearColor MakeFromColorTemperature(float Temp) const;
+
 private:
 
 	FMatrix44d CalcRgbToXYZ() const;

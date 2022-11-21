@@ -3800,14 +3800,9 @@ void FScene::UpdateLightColorAndBrightness(ULightComponent* Light)
 		};
 
 		FUpdateLightColorParameters NewParameters;
-		NewParameters.NewColor = FLinearColor(Light->LightColor) * Light->ComputeLightBrightness();
+		NewParameters.NewColor = Light->GetColoredLightBrightness();
 		NewParameters.NewIndirectLightingScale = Light->IndirectLightingIntensity;
 		NewParameters.NewVolumetricScatteringIntensity = Light->VolumetricScatteringIntensity;
-
-		if( Light->bUseTemperature )
-		{
-			 NewParameters.NewColor *= FLinearColor::MakeFromColorTemperature(Light->Temperature);
-		}
 
 		FScene* Scene = this;
 		FLightSceneInfo* LightSceneInfo = Light->SceneProxy->GetLightSceneInfo();

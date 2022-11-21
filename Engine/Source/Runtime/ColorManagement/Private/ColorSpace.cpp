@@ -176,6 +176,25 @@ bool FColorSpace::IsSRGB() const
 	return bIsSRGB;
 }
 
+FLinearColor FColorSpace::MakeFromColorTemperature(float Temp) const
+{
+	Temp = FMath::Clamp(Temp, 1000.0f, 15000.0f);
+
+	// Approximate Planckian locus in CIE 1960 UCS
+	float u = (0.860117757f + 1.54118254e-4f * Temp + 1.28641212e-7f * Temp * Temp) / (1.0f + 8.42420235e-4f * Temp + 7.08145163e-7f * Temp * Temp);
+	float v = (0.317398726f + 4.22806245e-5f * Temp + 4.20481691e-8f * Temp * Temp) / (1.0f - 2.89741816e-5f * Temp + 1.61456053e-7f * Temp * Temp);
+
+	float x = 3.0f * u / (2.0f * u - 8.0f * v + 4.0f);
+	float y = 2.0f * v / (2.0f * u - 8.0f * v + 4.0f);
+	float z = 1.0f - x - y;
+
+	FVector3d XYZ = FVector3d(1.0 / y * x, 1.0, 1.0 / y * z);
+	FVector4d RGB = XYZToRgb.TransformVector(XYZ);
+
+	return FLinearColor((float)RGB.X, (float)RGB.Y, (float)RGB.Z);
+}
+
+
 FMatrix44d FColorSpaceTransform::CalcChromaticAdaptionMatrix(FVector3d SourceXYZ, FVector3d TargetXYZ, EChromaticAdaptationMethod Method)
 {
 	FMatrix44d XyzToRgb;
