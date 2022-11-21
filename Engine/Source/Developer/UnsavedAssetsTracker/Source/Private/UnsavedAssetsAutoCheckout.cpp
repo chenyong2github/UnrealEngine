@@ -15,6 +15,7 @@ FUnsavedAssetsAutoCheckout::FUnsavedAssetsAutoCheckout(FUnsavedAssetsTrackerModu
 
 FUnsavedAssetsAutoCheckout::~FUnsavedAssetsAutoCheckout()
 {
+	FUnsavedAssetsTrackerModule::Get().OnUnsavedAssetAdded.RemoveAll(this);
 }
 
 void FUnsavedAssetsAutoCheckout::AsyncCheckout(const FString& AbsoluteAssetFilepath)
