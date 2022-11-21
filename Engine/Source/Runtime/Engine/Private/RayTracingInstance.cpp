@@ -55,6 +55,19 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 
 	Result.Mask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
 
+	if (Result.Mask & RAY_TRACING_MASK_HAIR_STRANDS)
+	{
+		// For hair strands, opaque/translucent mask should be cleared to make sure geometry is only in the hair group. 
+		// If any segment receives shadow, it should receive only thin shadow instead of shadow.
+
+		Result.Mask &= (~RAY_TRACING_MASK_SHADOW | ~RAY_TRACING_MASK_THIN_SHADOW | ~RAY_TRACING_MASK_TRANSLUCENT | ~RAY_TRACING_MASK_OPAQUE);
+
+		if (bAnySegmentsCastShadow)
+		{
+			Result.Mask |= RAY_TRACING_MASK_THIN_SHADOW;
+		}
+	}
+
 	if (InstanceLayer == ERayTracingInstanceLayer::FarField)
 	{
 		// if far field, set that flag exclusively
