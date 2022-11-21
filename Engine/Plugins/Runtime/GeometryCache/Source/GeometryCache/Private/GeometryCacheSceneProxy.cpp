@@ -745,6 +745,8 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 
 void FGeometryCacheSceneProxy::FrameUpdate() const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGeometryCacheSceneProxy::FrameUpdate);
+
 	for (FGeomCacheTrackProxy* TrackProxy : Tracks)
 	{
 		// Render out stored TrackProxy's
@@ -849,6 +851,8 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 			// Can we interpolate the vertex data?
 			if (bCanInterpolate && (bDifferentInterpolationFactor || bFrameIndicesChanged) && !bDecoderError && CVarInterpolateFrames.GetValueOnRenderThread() != 0)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(FGeometryCacheSceneProxy::FrameUpdate::Interpolate);
+
 				TrackProxy->bNextFrameMeshDataSelected = false;
 
 				SCOPE_CYCLE_COUNTER(STAT_InterpolateFrames);
@@ -1171,6 +1175,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 			else
 			{
 				// We just don't interpolate between frames if we got GPU to burn we could someday render twice and stipple fade between it :-D like with lods
+				TRACE_CPUPROFILER_EVENT_SCOPE(FGeometryCacheSceneProxy::FrameUpdate::NonInterpolate);
 
 				// Only bother uploading if anything changed or when the we failed to decode anything make sure update the gpu buffers regardless
 				if (bFrameIndicesChanged || bDifferentRoundedInterpolationFactor || (bDifferentInterpolationFactor && bExtrapolateFrames) || bDecodedAnything || bDecoderError)

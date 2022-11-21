@@ -25,6 +25,9 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"GeometryCache",
+					"GeometryCacheTracks",
+					"GeometryCacheUSD",
 					"HairStrandsCore",
 					"LevelSequence",
 					"LiveLinkComponents", // For tracking edits to LiveLinkComponentController properties and writing to USD

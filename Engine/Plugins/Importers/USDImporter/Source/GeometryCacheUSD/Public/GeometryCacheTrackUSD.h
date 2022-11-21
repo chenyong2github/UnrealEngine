@@ -43,9 +43,8 @@ public:
 	//~ End UGeometryCacheTrack Interface.
 
 	const int32 FindSampleIndexFromTime(const float Time, const bool bLooping) const;
-
-	int32 GetStartFrameIndex() const { return StartFrameIndex; }
-	int32 GetEndFrameIndex() const { return EndFrameIndex;  }
+	float GetTimeFromSampleIndex(int32 SampleIndex) const;
+	void GetFractionalFrameIndexFromTime(const float Time, const bool bLooping, int& OutFrameIndex, float& OutFraction) const;
 
 	bool GetMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData);
 
@@ -57,6 +56,7 @@ public:
 
 public:
 	FName RenderContext;
+	double FramesPerSecond;
 	int32 StartFrameIndex;
 	int32 EndFrameIndex;
 	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;

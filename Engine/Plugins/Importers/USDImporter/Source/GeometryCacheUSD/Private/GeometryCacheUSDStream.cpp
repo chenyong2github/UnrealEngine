@@ -57,11 +57,11 @@ FGeometryCacheUsdStream::FGeometryCacheUsdStream(UGeometryCacheTrackUsd* InUsdTr
 : FGeometryCacheStreamBase(
 	kUsdReadConcurrency,
 	FGeometryCacheStreamDetails{
-		InUsdTrack->GetEndFrameIndex() - InUsdTrack->GetStartFrameIndex() + 1,
-		float((InUsdTrack->GetEndFrameIndex() - InUsdTrack->GetStartFrameIndex() + 1) / InUsdTrack->CurrentStagePinned.GetFramesPerSecond()),
-		float(1.0f / InUsdTrack->CurrentStagePinned.GetFramesPerSecond()),
-		InUsdTrack->GetStartFrameIndex(),
-		InUsdTrack->GetEndFrameIndex()})
+		InUsdTrack->EndFrameIndex - InUsdTrack->StartFrameIndex + 1,
+		float((InUsdTrack->EndFrameIndex - InUsdTrack->StartFrameIndex + 1) / InUsdTrack->FramesPerSecond),
+		float(1.0f / InUsdTrack->FramesPerSecond),
+		InUsdTrack->StartFrameIndex,
+		InUsdTrack->EndFrameIndex})
 , UsdTrack(InUsdTrack)
 , ReadFunc(InReadFunc)
 {
