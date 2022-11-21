@@ -55,19 +55,30 @@ void FExampleCharacterFXEditorModule::RegisterMenus()
 				// We'll need to get the target objects out of the context
 				if (UContentBrowserAssetContextMenuContext* Context = Section.FindContext<UContentBrowserAssetContextMenuContext>())
 				{
-					TArray<TObjectPtr<UObject>> AssetsToEdit;
-					AssetsToEdit.Append(Context->GetSelectedObjects());
-
 					UExampleCharacterFXEditorSubsystem* ExampleCharacterFXEditorSubsystem = GEditor->GetEditorSubsystem<UExampleCharacterFXEditorSubsystem>();
 					check(ExampleCharacterFXEditorSubsystem);
 
-					if (ExampleCharacterFXEditorSubsystem->AreObjectsValidTargets(AssetsToEdit))
+					// We are deliberately not using Context->GetSelectedObjects() here to avoid triggering a load from right clicking
+					// an asset in the content browser.
+					if (ExampleCharacterFXEditorSubsystem->AreAssetsValidTargets(Context->SelectedAssets))
 					{
 						TSharedPtr<class FUICommandList> CommandListToBind = MakeShared<FUICommandList>();
 
 						CommandListToBind->MapAction(
 							FExampleCharacterFXEditorCommands::Get().OpenCharacterFXEditor,
-							FExecuteAction::CreateUObject(ExampleCharacterFXEditorSubsystem, &UExampleCharacterFXEditorSubsystem::StartExampleCharacterFXEditor, AssetsToEdit));
+							FExecuteAction::CreateWeakLambda(ExampleCharacterFXEditorSubsystem, [Context, ExampleCharacterFXEditorSubsystem]()
+							{
+								// When we actually do want to open the editor, trigger the load to get the objects
+								TArray<TObjectPtr<UObject>> AssetsToEdit;
+								AssetsToEdit.Append(Context->LoadSelectedObjects<UObject>());
+
+								// If we fail the ensure here, then there must be something that we're failing to check properly
+								// in AreAssetsValidTargets that we would need to track down and check in the asset data.
+								if (ensure(ExampleCharacterFXEditorSubsystem->AreObjectsValidTargets(AssetsToEdit)))
+								{
+									ExampleCharacterFXEditorSubsystem->StartExampleCharacterFXEditor(AssetsToEdit);
+								}
+							}));
 
 						Section.AddMenuEntryWithCommandList(FExampleCharacterFXEditorCommands::Get().OpenCharacterFXEditor,
 							CommandListToBind, 

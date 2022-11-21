@@ -42,6 +42,14 @@ public:
 	virtual bool AreObjectsValidTargets(const TArray<UObject*>& InObjects) const;
 
 	/**
+	 * Checks that all of the assets are valid targets for an editor session. This
+	 * is preferable over AreObjectsValidTargets when we have FAssetData because it
+	 * allows us to avoid forcing a load of the underlying UObjects (for instance to
+	 * avoid triggering a load when right clicking an asset in the content browser).
+	 */
+	virtual bool AreAssetsValidTargets(const TArray<FAssetData>& InAssets) const;
+
+	/**
 	 * Either brings to the front an existing editor instance that is editing one of
 	 * these objects, if one exists, or starts up a new instance editing all of these
 	 * objects.

@@ -73,6 +73,40 @@ bool UExampleCharacterFXEditorSubsystem::AreObjectsValidTargets(const TArray<UOb
 	return true;
 }
 
+bool UExampleCharacterFXEditorSubsystem::AreAssetsValidTargets(const TArray<FAssetData>& InAssets) const
+{
+	if (InAssets.IsEmpty())
+	{
+		return false;
+	}
+
+	// Currently our tool target factories don't evaluate FAssetData to figure out whether they can
+	// build a tool target (they only work on UObjects directly), so for now we do corresponding checks
+	// here ourselves according to the tooltargets that we support.
+	auto IsValidStaticMeshAsset = [](const FAssetData& AssetData)
+	{
+		// The static mesh tool target checks GetNumSourceModels, which we can't do directly, hence our check of the LODs tag
+		int32 NumLODs = 0;
+		return AssetData.IsInstanceOf<UStaticMesh>() && AssetData.GetTagValue<int32>("LODs", NumLODs) && NumLODs > 0;
+	};
+	auto IsValidSkeletalMeshAsset = [](const FAssetData& AssetData)
+	{
+		// The skeletal mesh tool targets don't seem to try to check the number of LODs, but the skeletal mesh tool target
+		// uses an exact cast for the class, hence the '==' comparison here.
+		return AssetData.GetClass() == USkeletalMesh::StaticClass();
+	};
+
+	for (const FAssetData& AssetData : InAssets)
+	{
+		if (!IsValidStaticMeshAsset(AssetData) && !IsValidSkeletalMeshAsset(AssetData))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void UExampleCharacterFXEditorSubsystem::StartExampleCharacterFXEditor(TArray<TObjectPtr<UObject>> ObjectsToEdit)
 {
 	// We don't allow opening a new instance if any of the objects are already opened
@@ -93,6 +127,13 @@ void UExampleCharacterFXEditorSubsystem::StartExampleCharacterFXEditor(TArray<TO
 
 	// If we got here, there's not an instance already opened.
 	UExampleCharacterFXEditor* CharacterFXEditor = NewObject<UExampleCharacterFXEditor>();
+
+	// We should have done a check upstream to make sure that all of our targets are valid, but
+	// we'll check again here.
+	if (!ensure(AreObjectsValidTargets(ObjectsToEdit)))
+	{
+		return;
+	}
 
 	// Among other things, this call registers the editor with the asset editor subsystem,
 	// which will prevent it from being garbage collected.
