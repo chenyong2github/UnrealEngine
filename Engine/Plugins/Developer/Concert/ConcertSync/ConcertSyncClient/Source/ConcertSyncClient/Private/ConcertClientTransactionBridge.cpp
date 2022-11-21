@@ -178,7 +178,7 @@ struct FEditorTransactionNotification
 	{
 	}
 
-	bool IsTransactionBufferObjectsInSelection() const
+	bool IsTransactedObjectInSelection() const
 	{
 		if (!TransBuffer || !GEditor)
 		{
@@ -188,7 +188,8 @@ struct FEditorTransactionNotification
 		USelection* SelectedActors = GEditor->GetSelectedActors();
 		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
 		{
-			if (TransBuffer->IsObjectInTransactionBuffer(*Iter))
+			UObject* SelectionObject = *Iter;
+			if (SelectionObject == TransactionContext.PrimaryObject)
 			{
 				return true;
 			}
@@ -204,7 +205,7 @@ struct FEditorTransactionNotification
 			GEditor->bNotifyUndoRedoSelectionChange = true;
 			if (TransBuffer)
 			{
-				if (ConcertSyncClientUtil::IsUserEditing() && !IsTransactionBufferObjectsInSelection())
+				if (ConcertSyncClientUtil::IsUserEditing() && !IsTransactedObjectInSelection())
 				{
 					GEditor->bIgnoreSelectionChange = true;
 					GEditor->bSuspendBroadcastPostUndoRedo = true;
