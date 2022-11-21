@@ -3,6 +3,7 @@
 #pragma once
 
 #include "SimModule/DeferredForcesModular.h"
+#include "SimModule/SimulationModuleBase.h"
 
 class FGeometryCollectionPhysicsProxy;
 
@@ -70,6 +71,11 @@ namespace Chaos
 		const FDeferredForcesModular& GetDeferredForces() const { return DeferredForces; }
 		const TArray<FSimModuleNode>& GetSimulationModuleTree() { return SimulationModuleTree; }
 
+		FControlInputs& GetControlInputs()
+		{
+			return AllInputs.ControlInputs;
+		}
+
 	protected:
 		void SimulateNode(float DeltaTime, FAllInputs& Inputs, int NodeIdx);
 
@@ -85,6 +91,8 @@ namespace Chaos
 		TArray<int> FreeList;
 
 		FDeferredForcesModular DeferredForces;
+
+		Chaos::FAllInputs AllInputs;
 
 	};
 

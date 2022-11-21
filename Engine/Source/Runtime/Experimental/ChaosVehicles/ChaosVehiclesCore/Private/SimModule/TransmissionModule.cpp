@@ -52,17 +52,17 @@ namespace Chaos
 		}
 		else
 		{
-			if (Inputs.ChangeUp)
+			if (Inputs.ControlInputs.ChangeUp)
 			{
 				ChangeUp();
 			}
-			else if (Inputs.ChangeDown)
+			else if (Inputs.ControlInputs.ChangeDown)
 			{
 				ChangeDown();
 			}
-			else if (Inputs.SetGearNumber)
+			else if (Inputs.ControlInputs.SetGearNumber)
 			{
-				TargetGear = Inputs.SetGearNumber;
+				TargetGear = Inputs.ControlInputs.SetGearNumber;
 			}
 		}
 

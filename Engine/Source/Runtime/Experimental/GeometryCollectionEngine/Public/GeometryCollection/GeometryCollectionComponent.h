@@ -385,7 +385,7 @@ struct FGeometryCollectionRepData
 	GENERATED_BODY()
 
 	FGeometryCollectionRepData()
-		: Version(0)
+		: Version(0), ServerFrame(0)
 	{
 
 	}
@@ -399,6 +399,9 @@ struct FGeometryCollectionRepData
 	// Version counter, every write to the rep data is a new state so Identical only references this version
 	// as there's no reason to compare the Poses array.
 	int32 Version;
+
+	// For Network Prediction Mode we require the frame number on the server when the data was gathered
+	int32 ServerFrame;
 
 	// Just test version to skip having to traverse the whole pose array for replication
 	bool Identical(const FGeometryCollectionRepData* Other, uint32 PortFlags) const;
@@ -1043,6 +1046,7 @@ protected:
 	/** Issue a field command for the physics thread */
 	void DispatchFieldCommand(const FFieldSystemCommand& InCommand);
 
+	Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent);
 	void CalculateLocalBounds();
 	void CalculateGlobalMatrices();
 	FBox ComputeBounds(const FMatrix& LocalToWorldWithScale) const;
@@ -1084,10 +1088,13 @@ protected:
 	FGeometryCollectionRepData RepData;
 
 	/** Called post solve to allow authoritative components to update their replication data */
-	void UpdateRepData();
+	virtual void UpdateRepData();
 
 	/** Clear all rep data, this is required if the physics proxy has been recreated */
-	void ResetRepData();
+	virtual void ResetRepData();
+
+	virtual void ProcessRepData();
+	int32 VersionProcessed = INDEX_NONE;
 
 private:
 
@@ -1176,7 +1183,6 @@ private:
 	void IncrementBreakTimer(float DeltaTime);
 	bool CalculateInnerSphere(int32 TransformIndex, UE::Math::TSphere<double>& SphereOut) const;
 	void UpdateDecay(int32 TransformIdx, float UpdatedDecay, bool UseClusterCrumbling, bool HasDynamicInternalClusterParent, FGeometryCollectionDecayContext& ContextInOut);
-	void ProcessRepData();
 
 	void UpdateAttachedChildrenTransform() const;
 	
@@ -1187,7 +1193,6 @@ private:
 
 	/** One off activation is processed in the same order as server so remember the last one we processed */
 	int32 OneOffActivatedProcessed = 0;
-	int32 VersionProcessed = INDEX_NONE;
 	double LastHardsnapTimeInMs = 0;
 
 	/** True if GeometryCollection transforms have changed from previous tick. */

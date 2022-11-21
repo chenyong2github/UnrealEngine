@@ -18,15 +18,15 @@ namespace Chaos
 		switch (Setup().Type)
 		{
 			case EAerofoil::Elevator:
-				ControlSurfaceAngle = Inputs.Pitch * Setup().MaxControlAngle;
+				ControlSurfaceAngle = Inputs.ControlInputs.Pitch * Setup().MaxControlAngle;
 				break;
 
 			case EAerofoil::Rudder:
-				ControlSurfaceAngle = Inputs.Yaw * Setup().MaxControlAngle;
+				ControlSurfaceAngle = Inputs.ControlInputs.Yaw * Setup().MaxControlAngle;
 				break;
 
 			case EAerofoil::Wing:
-				ControlSurfaceAngle = Inputs.Roll * Setup().MaxControlAngle;
+				ControlSurfaceAngle = Inputs.ControlInputs.Roll * Setup().MaxControlAngle;
 			break;
 		}
 

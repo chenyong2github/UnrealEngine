@@ -165,6 +165,8 @@ bool FGeometryCollectionRepData::NetSerialize(FArchive& Ar, class UPackageMap* M
 
 	Ar << OneOffActivated;
 
+	Ar << ServerFrame;
+
 	int32 NumClusters = Clusters.Num();
 	Ar << NumClusters;
 
@@ -350,7 +352,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 
 }
 
-Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
+Chaos::FPhysicsSolver* UGeometryCollectionComponent::GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
 {
 	if(GeometryCollectionComponent.ChaosSolverActor)
 	{
@@ -1621,6 +1623,11 @@ void UGeometryCollectionComponent::UpdateRepData()
 		if (bClustersChanged)
 		{
 			RepData.Clusters = MoveTemp(Clusters);
+			
+			if (Owner->GetWorld() && Owner->GetWorld()->GetPhysicsScene())
+			{
+				RepData.ServerFrame = Owner->GetWorld()->GetPhysicsScene()->ReplicationCache.ServerFrame;
+			}
 
 			INC_DWORD_STAT_BY(STAT_GCReplicatedClusters, RepData.Clusters.Num());
 

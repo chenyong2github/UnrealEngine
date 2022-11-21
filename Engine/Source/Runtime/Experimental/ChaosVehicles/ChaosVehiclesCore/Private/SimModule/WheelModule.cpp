@@ -31,14 +31,14 @@ namespace Chaos
 		float TorqueScaling = 0.00005f;
 		float TractionControlAndABSScaling = 0.98f;	// how close to perfection is the system working
 
-		float HandbrakeTorque = Setup().HandbrakeEnabled ? Inputs.Handbrake * Setup().HandbrakeTorque : 0.0f;
-		SteerAngleDegrees = Setup().SteeringEnabled ? Inputs.Steering * Setup().MaxSteeringAngle : 0.0f;
-		BrakeTorque = Inputs.Brake * Setup().MaxBrakeTorque + HandbrakeTorque;
+		float HandbrakeTorque = Setup().HandbrakeEnabled ? Inputs.ControlInputs.Handbrake * Setup().HandbrakeTorque : 0.0f;
+		SteerAngleDegrees = Setup().SteeringEnabled ? Inputs.ControlInputs.Steering * Setup().MaxSteeringAngle : 0.0f;
+		BrakeTorque = Inputs.ControlInputs.Brake * Setup().MaxBrakeTorque + HandbrakeTorque;
 		LoadTorque = 0.0f;
 
 		// TODO: think about doing this properly, stops vehicles rolling around on their own too much
 		// kindof an auto handbrake
-		if (Inputs.Brake < SMALL_NUMBER && Inputs.Throttle < SMALL_NUMBER && ModuleLocalVelocity.X < 10.0f)
+		if (Inputs.ControlInputs.Brake < SMALL_NUMBER && Inputs.ControlInputs.Throttle < SMALL_NUMBER && ModuleLocalVelocity.X < 10.0f)
 		{
 			BrakeTorque = Setup().HandbrakeTorque;
 		}

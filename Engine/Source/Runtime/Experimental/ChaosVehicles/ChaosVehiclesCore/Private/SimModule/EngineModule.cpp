@@ -19,7 +19,7 @@ namespace Chaos
 		}
 
 		// TODO: Engine braking effect
-		DriveTorque = GetEngineTorque(Inputs.Throttle, GetRPM());
+		DriveTorque = GetEngineTorque(Inputs.ControlInputs.Throttle, GetRPM());
 		
 		float BrakeTorque = 0.f;
 		TransmitTorque(VehicleModuleSystem, DriveTorque, BrakeTorque);

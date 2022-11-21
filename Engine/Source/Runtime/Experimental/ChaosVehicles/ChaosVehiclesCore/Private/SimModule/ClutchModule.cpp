@@ -29,7 +29,7 @@ namespace Chaos
 		//float AngularVelocityDifference = EngineSpeed - TransmissionSpeed;
 
 		// Inputs.Clutch 0 is engaged/locked, 1 is depressed/open
-		ClutchValue = (1.0f - Inputs.Clutch) * Setup().ClutchStrength;
+		ClutchValue = (1.0f - Inputs.ControlInputs.Clutch) * Setup().ClutchStrength;
 
 		FTorqueSimModule* Parent = static_cast<FTorqueSimModule*>(GetParent());
 		FTorqueSimModule* Child = static_cast<FTorqueSimModule*>(GetFirstChild());

@@ -59,10 +59,11 @@ namespace Chaos
 		bool bBlockingHit;
 	};
 
-	struct CHAOSVEHICLESCORE_API FAllInputs : public FControlInputs
+	struct CHAOSVEHICLESCORE_API FAllInputs
 	{
 		FTransform VehicleWorldTransform;
 		TMap<int32, FModuleHitResults> HitResults;
+		FControlInputs ControlInputs;
 	};
 
 	/**

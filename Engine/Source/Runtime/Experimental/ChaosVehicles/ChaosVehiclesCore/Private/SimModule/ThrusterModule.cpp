@@ -20,7 +20,7 @@ namespace Chaos
 	void FThrusterSimModule::Simulate(float DeltaTime, const FAllInputs& Inputs, FSimModuleTree& VehicleModuleSystem)
 	{
 		// applies continuous force
-		FVector Force = Setup().ForceAxis * Setup().MaxThrustForce * Inputs.Throttle;
+		FVector Force = Setup().ForceAxis * Setup().MaxThrustForce * Inputs.ControlInputs.Throttle;
 		AddLocalForceAtPosition(Force, Setup().ForceOffset, true, false, false, FColor::Magenta);
 
 	}

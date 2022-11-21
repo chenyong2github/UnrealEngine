@@ -36,7 +36,7 @@ namespace Chaos
 				NormalizedTorque = -1.0f - FMath::Square(1.0f + 2.0f * NormalizedRPM);
 			}
 
-			DriveTorque = NormalizedTorque * Setup().MaxTorque * Inputs.Throttle;
+			DriveTorque = NormalizedTorque * Setup().MaxTorque * Inputs.ControlInputs.Throttle;
 
 			float BrakeTorque = 0.f;
 			TransmitTorque(VehicleModuleSystem, DriveTorque, BrakeTorque);
