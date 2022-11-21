@@ -2159,43 +2159,55 @@ void UEdGraphSchema_Niagara::GetNumericConversionToSubMenuActionsAll(UToolMenu* 
 	}
 }
 
+TArray<TPair<FString, FString>> UEdGraphSchema_Niagara::GetDataInterfaceFunctionPrototypes(const UEdGraphPin* InGraphPin)
+{
+	TArray<TPair<FString, FString>> FunctionPrototypes;
+	if (InGraphPin)
+	{
+		FNiagaraTypeDefinition GraphPinType = UEdGraphSchema_Niagara::PinToTypeDefinition(InGraphPin);
+		if (GraphPinType.IsDataInterface())
+		{
+			UNiagaraDataInterface* DataInterface = CastChecked<UNiagaraDataInterface>(GraphPinType.GetClass()->GetDefaultObject());
+			
+			// No functions, don't add an option
+			TArray<FNiagaraFunctionSignature> FunctionSignatures;
+			DataInterface->GetFunctions(FunctionSignatures);
+			if (FunctionSignatures.Num() == 0)
+			{
+				return FunctionPrototypes;
+			}
+
+			// Make the data interface name
+			FString DataInterfaceName = InGraphPin->GetName();
+			{
+				int32 LastPinNameDot = 0;
+				if (DataInterfaceName.FindLastChar('.', LastPinNameDot))
+				{
+					DataInterfaceName.RightChopInline(LastPinNameDot + 1);
+				}
+				DataInterfaceName = FHlslNiagaraTranslator::GetSanitizedSymbolName(DataInterfaceName);
+			}
+
+			// Generate all prototypes
+			FunctionPrototypes.Reserve(FunctionSignatures.Num());
+			for (const FNiagaraFunctionSignature& FunctionSignature : FunctionSignatures)
+			{
+				FString Prototype = FHlslNiagaraTranslator::GenerateFunctionHlslPrototype(DataInterfaceName, FunctionSignature);
+				if ( Prototype.Len() > 0 )
+				{
+					Prototype.Append(TEXT("\r\n"));
+					FunctionPrototypes.Emplace(FunctionSignature.GetNameString(), Prototype);
+				}
+			}
+		}
+	}
+	return FunctionPrototypes;
+}
+
 void UEdGraphSchema_Niagara::GenerateDataInterfacePinMenu(UToolMenu* ToolMenu, const FName SectionName, const UEdGraphPin* GraphPin, FNiagaraTypeDefinition TypeDef) const
 {
-	UNiagaraDataInterface* DataInterface = CastChecked<UNiagaraDataInterface>(TypeDef.GetClass()->GetDefaultObject());
-
-	// No functions, don't add an option
-	TArray<FNiagaraFunctionSignature> FunctionSignatures;
-	DataInterface->GetFunctions(FunctionSignatures);
-	if (FunctionSignatures.Num() == 0)
-	{
-		return;
-	}
-
-	// Make the data interface name
-	FString DataInterfaceName = GraphPin->GetName();
-	{
-		int32 LastPinNameDot = 0;
-		if (DataInterfaceName.FindLastChar('.', LastPinNameDot))
-		{
-			DataInterfaceName.RightChopInline(LastPinNameDot + 1);
-		}
-		DataInterfaceName = FHlslNiagaraTranslator::GetSanitizedSymbolName(DataInterfaceName);
-	}
-
-	// Generate all prototypes
-	TArray<TPair<FString, FString>> FunctionPrototypes;
-	FunctionPrototypes.Reserve(FunctionSignatures.Num());
-	for (const FNiagaraFunctionSignature& FunctionSignature : FunctionSignatures)
-	{
-		FString Prototype = FHlslNiagaraTranslator::GenerateFunctionHlslPrototype(DataInterfaceName, FunctionSignature);
-		if ( Prototype.Len() > 0 )
-		{
-			Prototype.Append(TEXT("\r\n"));
-			FunctionPrototypes.Emplace(FunctionSignature.GetNameString(), Prototype);
-		}
-	}
-
-	if ( FunctionPrototypes.Num () == 0 )
+	TArray<TPair<FString, FString>> FunctionPrototypes = GetDataInterfaceFunctionPrototypes(GraphPin);
+	if (FunctionPrototypes.Num () == 0)
 	{
 		return;
 	}

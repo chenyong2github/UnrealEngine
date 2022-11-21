@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraGraphNodeCustomHlsl.h"
+
+#include "EdGraphSchema_Niagara.h"
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraGraph.h"
 #include "Widgets/SBoxPanel.h"
-#include "GraphEditorSettings.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
@@ -112,7 +113,37 @@ void SNiagaraGraphNodeCustomHlsl::CreateBelowPinControls(TSharedPtr<SVerticalBox
 		.OnKeyCharHandler(this, &SNiagaraGraphNodeCustomHlsl::OnShaderTextKeyChar)
 		.OnTextCommitted(TextCommit)
 		.Visibility(this, &SNiagaraGraphNodeCustomHlsl::GetShaderTextVisibility);
-	MainBox->AddSlot()[
+
+	// the menu anchor is a bit of a hack to show the auto-complete window.
+	// Main advantage is that it has all the layout logic inside to place the popup window correctly and auto-closes it.
+	// Disadvantage is that it's always at the bottom of the node and not where the current line cursor is.
+	SAssignNew(MenuAnchor, SMenuAnchor)
+		.Placement(MenuPlacement_BelowAnchor)
+		.Method(EPopupMethod::CreateNewWindow)
+		.Visibility(EVisibility::HitTestInvisible)
+		.OnGetMenuContent_Lambda([this]()
+		{
+			return SNew(STextBlock)
+			.Margin(5)
+			.Text_Lambda([this]()
+			{
+				TStringBuilder<256> Options;
+				for (int i = 0; (i + AutoCompletePageIndex * 9) < FunctionPrototypes.Num() && i < 9; i++)
+				{
+					TPair<FString, FString> Prototype = FunctionPrototypes[i + AutoCompletePageIndex * 9];
+					Options.Appendf(TEXT("\n(%i) %s"), i + 1, *Prototype.Key);
+				}
+				FText HiddenText = FText::GetEmpty();
+				if (FunctionPrototypes.Num() > (AutoCompletePageIndex + 1) * 9)
+				{
+					HiddenText = LOCTEXT("Autocomplete_HiddenFormat", "\n(0) more...");
+				}
+				return FText::Format(LOCTEXT("Autocomplete_Format", "Select auto-complete option:{0}{1}"), FText::FromString(Options.ToString()), HiddenText);
+			});
+		});
+	
+	MainBox->AddSlot()
+	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -121,15 +152,121 @@ void SNiagaraGraphNodeCustomHlsl::CreateBelowPinControls(TSharedPtr<SVerticalBox
 			ShaderTextBox.ToSharedRef()
 		]
 	];
+
+	
+	MainBox->AddSlot()
+	.MaxHeight(0)
+	.AutoHeight()
+	[
+		MenuAnchor.ToSharedRef()
+	];
+}
+
+bool IsValidIdentifierChar(const TCHAR& Char)
+{
+	return ((Char >= TCHAR('0') && Char <= TCHAR('9')) ||
+			(Char >= TCHAR('A') && Char <= TCHAR('Z')) ||
+			(Char >= TCHAR('a') && Char <= TCHAR('z')) ||
+			Char == TCHAR('_'));
+}
+
+FString SNiagaraGraphNodeCustomHlsl::GetIdentifierUnderCursor() const
+{
+	FString CurrentLine;
+	ShaderTextBox->GetCurrentTextLine(CurrentLine);
+	FTextLocation CursorLocation = ShaderTextBox->GetCursorLocation();
+	int32 Offset = CursorLocation.GetOffset();
+	int32 StartIndex = Offset - 1;
+	while (StartIndex >= 0)
+	{
+		if (IsValidIdentifierChar(CurrentLine[StartIndex]))
+		{
+			StartIndex--;
+		}
+		else
+		{
+			break;
+		}
+	}
+	StartIndex++;
+
+	if (StartIndex >= 0 && Offset >= 0 && StartIndex < Offset)
+	{
+		return CurrentLine.Mid(StartIndex, Offset - StartIndex);
+	}
+	return FString();
 }
 
 FReply SNiagaraGraphNodeCustomHlsl::OnShaderTextKeyChar(const FGeometry&, const FCharacterEvent& InCharacterEvent)
 {
 	const TCHAR Character = InCharacterEvent.GetCharacter();
+
+	if (bIsAutoCompleteActive)
+	{
+		if (Character == TCHAR('0') && FunctionPrototypes.Num() > (AutoCompletePageIndex + 1) * 9)
+		{
+			AutoCompletePageIndex++;
+			return FReply::Handled();
+		}
+		if ((Character >= TCHAR('1') && Character <= TCHAR('9')))
+		{
+			int32 SelectedOption = (Character - TCHAR('1')) + AutoCompletePageIndex * 9;
+			if (AutoCompleteOptions.IsValidIndex(SelectedOption))
+			{
+				ShaderTextBox->InsertTextAtCursor(AutoCompleteOptions[SelectedOption]);
+				bIsAutoCompleteActive = false;
+				MenuAnchor->SetIsOpen(false);
+				return FReply::Handled();
+			}
+		}
+	}
+	MenuAnchor->SetIsOpen(false);
+	bIsAutoCompleteActive = false;
+	
 	if (Character == TEXT('\t'))
 	{
 		// Convert tab to four spaces
 		ShaderTextBox->InsertTextAtCursor(TEXT("    "));
+		return FReply::Handled();
+	}
+	if (Character == TEXT('.'))
+	{
+		// Show auto-complete hint for data interfaces
+		FString Identifier = GetIdentifierUnderCursor();
+		if (Identifier.Len() > 0)
+		{
+			UNiagaraNodeCustomHlsl* CustomNode = CastChecked<UNiagaraNodeCustomHlsl>(GraphNode);
+			FPinCollectorArray NodeInputPins;
+			CustomNode->GetInputPins(NodeInputPins);
+			for (UEdGraphPin* Pin : NodeInputPins)
+			{
+				if (Pin->GetName().Equals(Identifier, ESearchCase::IgnoreCase))
+				{
+					FunctionPrototypes = UEdGraphSchema_Niagara::GetDataInterfaceFunctionPrototypes(Pin);
+					if (FunctionPrototypes.Num() > 0)
+					{
+						bIsAutoCompleteActive = true;
+						AutoCompletePageIndex = 0;
+						AutoCompleteOptions.Empty();
+
+						for (int i = 0; i < FunctionPrototypes.Num(); i++)
+						{
+							TPair<FString, FString> Prototype = FunctionPrototypes[i];
+							int32 NameDot = 0;
+							if (Prototype.Value.FindChar('.', NameDot))
+							{
+								Prototype.Value.RightChopInline(NameDot + 1);
+							}
+							Prototype.Value.TrimStartAndEndInline();
+							AutoCompleteOptions.Add(Prototype.Value);
+						}						
+						MenuAnchor->SetIsOpen(true, false);
+						break;
+					}
+				}
+			}
+		}
+		ShaderTextBox->InsertTextAtCursor(TEXT("."));
 		return FReply::Handled();
 	}
 	
