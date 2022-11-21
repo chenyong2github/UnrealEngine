@@ -3205,26 +3205,28 @@ FRasterContext InitRasterContext(
 static void AllocateNodesAndBatchesBuffers(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferRef* MainAndPostNodesAndClusterBatchesBufferRef)
 {
 	const uint32 MaxNodes				=	Nanite::FGlobalResources::GetMaxNodes();
-	const uint32 MaxCullingBatches		=	Nanite::FGlobalResources::GetMaxClusterBatches();
+	const uint32 MaxClusterBatches		=	Nanite::FGlobalResources::GetMaxClusterBatches();
 	check(MainAndPostNodesAndClusterBatchesBufferRef);
 
 	// Initialize node and cluster batch arrays.
 	// They only have to be initialized once as the culling code reverts nodes/batches to their cleared state after they have been consumed.
 	{
-		TRefCountPtr<FRDGPooledBuffer>& MainAndPostNodesAndClusterBatchesBuffer = Nanite::GGlobalResources.GetMainAndPostNodesAndClusterBatchesBuffer();
-		if (MainAndPostNodesAndClusterBatchesBuffer.IsValid())
+		FNodesAndClusterBatchesBuffer& MainAndPostNodesAndClusterBatchesBuffer = Nanite::GGlobalResources.GetMainAndPostNodesAndClusterBatchesBuffer();
+		if (MainAndPostNodesAndClusterBatchesBuffer.Buffer.IsValid() && MaxNodes == MainAndPostNodesAndClusterBatchesBuffer.NumNodes && MaxClusterBatches == MainAndPostNodesAndClusterBatchesBuffer.NumClusterBatches)
 		{
-			*MainAndPostNodesAndClusterBatchesBufferRef = GraphBuilder.RegisterExternalBuffer(MainAndPostNodesAndClusterBatchesBuffer, TEXT("Nanite.MainAndPostNodesAndClusterBatchesBuffer"));
+			*MainAndPostNodesAndClusterBatchesBufferRef = GraphBuilder.RegisterExternalBuffer(MainAndPostNodesAndClusterBatchesBuffer.Buffer, TEXT("Nanite.MainAndPostNodesAndClusterBatchesBuffer"));
 		}
 		else
 		{
 			RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches * 2 + MaxNodes * (2 + 3));
+			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxClusterBatches * 2 + MaxNodes * (2 + 3));
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
 			*MainAndPostNodesAndClusterBatchesBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.MainAndPostNodesAndClusterBatchesBuffer"));
 			AddPassInitNodesAndClusterBatchesUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(*MainAndPostNodesAndClusterBatchesBufferRef));
-			MainAndPostNodesAndClusterBatchesBuffer = GraphBuilder.ConvertToExternalBuffer(*MainAndPostNodesAndClusterBatchesBufferRef);
+			MainAndPostNodesAndClusterBatchesBuffer.Buffer = GraphBuilder.ConvertToExternalBuffer(*MainAndPostNodesAndClusterBatchesBufferRef);
+			MainAndPostNodesAndClusterBatchesBuffer.NumNodes = MaxNodes;
+			MainAndPostNodesAndClusterBatchesBuffer.NumClusterBatches = MaxClusterBatches;
 		}
 	}
 }

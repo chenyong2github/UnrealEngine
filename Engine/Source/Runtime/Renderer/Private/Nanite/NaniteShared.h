@@ -144,6 +144,13 @@ struct FBinningData
 	FRDGBufferRef IndirectArgs = nullptr;
 };
 
+struct FNodesAndClusterBatchesBuffer
+{
+	TRefCountPtr<FRDGPooledBuffer> Buffer;
+	uint32 NumNodes = 0;
+	uint32 NumClusterBatches = 0;
+};
+
 /*
  * GPU side buffers containing Nanite resource data.
  */
@@ -179,7 +186,7 @@ public:
 	inline PassBuffers& GetMainPassBuffers() { return MainPassBuffers; }
 	inline PassBuffers& GetPostPassBuffers() { return PostPassBuffers; }
 
-	TRefCountPtr<FRDGPooledBuffer>& GetMainAndPostNodesAndClusterBatchesBuffer() { return MainAndPostNodesAndClusterBatchesBuffer; };
+	FNodesAndClusterBatchesBuffer& GetMainAndPostNodesAndClusterBatchesBuffer() { return MainAndPostNodesAndClusterBatchesBuffer; };
 
 	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
 
@@ -190,7 +197,7 @@ private:
 	PassBuffers MainPassBuffers;
 	PassBuffers PostPassBuffers;
 
-	TRefCountPtr<FRDGPooledBuffer> MainAndPostNodesAndClusterBatchesBuffer;
+	FNodesAndClusterBatchesBuffer MainAndPostNodesAndClusterBatchesBuffer;
 
 	// Used for statistics
 	TRefCountPtr<FRDGPooledBuffer> StatsBuffer;

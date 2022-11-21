@@ -24,7 +24,8 @@ int32 GNaniteExportDepth = 1;
 static FAutoConsoleVariableRef CVarNaniteExportDepth(
 	TEXT("r.Nanite.ExportDepth"),
 	GNaniteExportDepth,
-	TEXT("")
+	TEXT(""),
+	ECVF_RenderThreadSafe
 );
 
 int32 GNaniteMaxNodes = 2 * 1048576;
@@ -32,7 +33,7 @@ FAutoConsoleVariableRef CVarNaniteMaxNodes(
 	TEXT("r.Nanite.MaxNodes"),
 	GNaniteMaxNodes,
 	TEXT("Maximum number of Nanite nodes traversed during a culling pass."),
-	ECVF_ReadOnly
+	ECVF_RenderThreadSafe
 );
 
 int32 GNaniteMaxCandidateClusters = 16 * 1048576;
@@ -40,7 +41,7 @@ FAutoConsoleVariableRef CVarNaniteMaxCandidateClusters(
 	TEXT("r.Nanite.MaxCandidateClusters"),
 	GNaniteMaxCandidateClusters,
 	TEXT("Maximum number of Nanite clusters before cluster culling."),
-	ECVF_ReadOnly
+	ECVF_RenderThreadSafe
 );
 
 int32 GNaniteMaxVisibleClusters = 4 * 1048576;
@@ -48,7 +49,7 @@ FAutoConsoleVariableRef CVarNaniteMaxVisibleClusters(
 	TEXT("r.Nanite.MaxVisibleClusters"),
 	GNaniteMaxVisibleClusters,
 	TEXT("Maximum number of visible Nanite clusters."),
-	ECVF_ReadOnly
+	ECVF_RenderThreadSafe
 );
 
 #define MAX_CLUSTERS	(16 * 1024 * 1024)
@@ -220,7 +221,7 @@ void FGlobalResources::ReleaseRHI()
 		MainPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
 		PostPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
 
-		MainAndPostNodesAndClusterBatchesBuffer.SafeRelease();
+		MainAndPostNodesAndClusterBatchesBuffer.Buffer.SafeRelease();
 
 		StatsBuffer.SafeRelease();
 
