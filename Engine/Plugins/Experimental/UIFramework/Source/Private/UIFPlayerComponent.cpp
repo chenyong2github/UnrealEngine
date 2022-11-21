@@ -20,6 +20,23 @@
 /**
  *
  */
+
+void FUIFrameworkGameLayerSlotList::PreReplicatedRemove(const TArrayView<int32>& ChangedIndices, int32 FinalSize)
+{
+	check(Owner);
+	for (int32 Index : ChangedIndices)
+	{
+		FUIFrameworkGameLayerSlot& Slot = Entries[Index];
+		if (Slot.LocalIsAquiredWidgetValid())
+		{
+			if (Owner->Presenter)
+			{
+				Owner->Presenter->RemoveFromViewport(Slot.GetWidgetId());
+			}
+		}
+	}
+}
+
 void FUIFrameworkGameLayerSlotList::PostReplicatedChange(const TArrayView<int32>& ChangedIndices, int32 FinalSize)
 {
 	check(Owner);

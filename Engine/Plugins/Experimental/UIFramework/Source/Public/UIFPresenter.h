@@ -4,10 +4,13 @@
 
 #include "UObject/Object.h"
 #include "UIFPlayerComponent.h"
+#include "Types/UIFWidgetId.h"
 
 #include "UIFPresenter.generated.h"
 
+struct FUIFrameworkGameLayerSlot;
 class FUIFrameworkModule;
+class UWidget;
 
 /**
  * 
@@ -19,6 +22,10 @@ class UIFRAMEWORK_API UUIFrameworkPresenter : public UObject
 
 public:
 	virtual void AddToViewport(UWidget* UMGWidget, const FUIFrameworkGameLayerSlot& Slot)
+	{
+
+	}
+	virtual void RemoveFromViewport(FUIFrameworkWidgetId WidgetId)
 	{
 
 	}
@@ -35,4 +42,17 @@ class UIFRAMEWORK_API UUIFrameworkGameViewportPresenter : public UUIFrameworkPre
 
 public:
 	virtual void AddToViewport(UWidget* UMGWidget, const FUIFrameworkGameLayerSlot& Slot) override;
+	virtual void RemoveFromViewport(FUIFrameworkWidgetId WidgetId) override;
+
+	virtual void BeginDestroy() override;
+
+private:
+	struct FWidgetPair
+	{
+		FWidgetPair() = default;
+		FWidgetPair(UWidget* Widget, FUIFrameworkWidgetId WidgetId);
+		TWeakObjectPtr<UWidget> UMGWidget;
+		FUIFrameworkWidgetId WidgetId;
+	};
+	TArray<FWidgetPair> Widgets;
 };

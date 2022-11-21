@@ -78,6 +78,7 @@ struct UIFRAMEWORK_API FUIFrameworkGameLayerSlotList : public FFastArraySerializ
 
 public:
 	//~ Begin of FFastArraySerializer
+	void PreReplicatedRemove(const TArrayView<int32>& RemovedIndices, int32 FinalSize);
 	void PostReplicatedChange(const TArrayView<int32>& ChangedIndices, int32 FinalSize);
 	//~ End of FFastArraySerializer
 

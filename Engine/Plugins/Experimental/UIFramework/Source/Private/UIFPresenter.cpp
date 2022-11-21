@@ -7,6 +7,13 @@
 #include "Components/Widget.h"
 #include "GameFramework/PlayerController.h"
 
+UUIFrameworkGameViewportPresenter::FWidgetPair::FWidgetPair(UWidget* InWidget, FUIFrameworkWidgetId InWidgetId)
+	: UMGWidget(InWidget)
+	, WidgetId(InWidgetId)
+{
+
+}
+
 void UUIFrameworkGameViewportPresenter::AddToViewport(UWidget* UMGWidget, const FUIFrameworkGameLayerSlot& Slot)
 {
 	if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetOuterUUIFrameworkPlayerComponent()->GetWorld()))
@@ -23,5 +30,37 @@ void UUIFrameworkGameViewportPresenter::AddToViewport(UWidget* UMGWidget, const 
 			check(LocalOwner);
 			Subsystem->AddWidgetForPlayer(UMGWidget, LocalOwner->GetLocalPlayer(), GameViewportWidgetSlot);
 		}
+		Widgets.Emplace(UMGWidget, Slot.GetWidgetId());
 	}
+}
+
+void UUIFrameworkGameViewportPresenter::RemoveFromViewport(FUIFrameworkWidgetId WidgetId)
+{
+	int32 IndexOf = Widgets.IndexOfByPredicate([WidgetId](const FWidgetPair& Other) { return Other.WidgetId == WidgetId; });
+	if (IndexOf != INDEX_NONE)
+	{
+		if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetOuterUUIFrameworkPlayerComponent()->GetWorld()))
+		{
+			Subsystem->RemoveWidget(Widgets[IndexOf].UMGWidget.Get());
+		}
+
+		Widgets.RemoveAtSwap(IndexOf);
+	}
+}
+
+void UUIFrameworkGameViewportPresenter::BeginDestroy()
+{
+	if (GetOuter() && !IsTemplate())
+	{
+		if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetOuterUUIFrameworkPlayerComponent()->GetWorld()))
+		{
+			for (FWidgetPair& Pair : Widgets)
+			{
+				Subsystem->RemoveWidget(Pair.UMGWidget.Get());
+			}
+		}
+	}
+	Widgets.Reset();
+
+	Super::BeginDestroy();
 }
