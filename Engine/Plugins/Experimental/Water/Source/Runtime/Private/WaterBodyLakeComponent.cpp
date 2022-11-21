@@ -127,10 +127,15 @@ bool UWaterBodyLakeComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3&
 
 FBoxSphereBounds UWaterBodyLakeComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	FBox BoxExtent = GetWaterSpline()->GetLocalBounds().GetBox();
-	BoxExtent.Max.Z += MaxWaveHeightOffset;
-	BoxExtent.Min.Z -= GetChannelDepth();
-	return FBoxSphereBounds(BoxExtent).TransformBy(LocalToWorld);
+	if (UWaterSplineComponent* WaterSpline = GetWaterSpline())
+	{
+		FBox BoxExtent = WaterSpline->GetLocalBounds().GetBox();
+		BoxExtent.Max.Z += MaxWaveHeightOffset;
+		BoxExtent.Min.Z -= GetChannelDepth();
+		return FBoxSphereBounds(BoxExtent).TransformBy(LocalToWorld);
+	}
+	
+	return FBoxSphereBounds(ForceInit);
 }
 
 void UWaterBodyLakeComponent::Reset()
