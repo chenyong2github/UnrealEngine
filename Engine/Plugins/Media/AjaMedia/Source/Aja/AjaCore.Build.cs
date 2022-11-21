@@ -31,8 +31,8 @@ public class AjaCore : ModuleRules
 				"RHI",
 			});
 
-		StaticAnalyzerDisabledCheckers.Add("all");
-		
+		bDisableStaticAnalysis = true;
+
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string LibName = "libajantv2.lib";
