@@ -2148,7 +2148,7 @@ FNaniteVisibilityQuery* FNaniteVisibility::BeginVisibilityQuery(
 	const uint32 RasterBinCount = RasterPipelines != nullptr ? RasterPipelines->GetBinCount() : 0u;
 	const uint32 ShadingDrawCount = MaterialCommands != nullptr ? MaterialCommands->GetCommands().Num() : 0u;
 
-	if ((RasterBinCount + ShadingDrawCount == 0u) || ViewList.Num() == 0 || GNaniteMaterialVisibility == 0)
+	if ((!bCalledBegin) || (RasterBinCount + ShadingDrawCount == 0u) || ViewList.Num() == 0 || GNaniteMaterialVisibility == 0)
 	{
 		// Nothing to do
 		return nullptr;
@@ -2173,9 +2173,11 @@ FNaniteVisibilityQuery* FNaniteVisibility::BeginVisibilityQuery(
 	VisibilityQueries.Emplace(VisibilityQuery);
 
 	VisibilityQuery->bFinished = false;
-	VisibilityQuery->CompletedEvent = bRunAsync ? TGraphTask<FNaniteVisibilityTask>::CreateTask().ConstructAndDispatchWhenReady(*this, VisibilityQuery, BinIndexTranslator) : nullptr;
-
-	ActiveEvents.Emplace(VisibilityQuery->CompletedEvent);
+	if (bRunAsync)
+	{
+		VisibilityQuery->CompletedEvent = TGraphTask<FNaniteVisibilityTask>::CreateTask().ConstructAndDispatchWhenReady(*this, VisibilityQuery, BinIndexTranslator);
+		ActiveEvents.Emplace(VisibilityQuery->CompletedEvent);
+	}
 	return VisibilityQuery;
 }
 

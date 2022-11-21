@@ -21,13 +21,6 @@
 #include "VirtualShadowMapVisualizationData.h"
 #include "SingleLayerWaterRendering.h"
 
-DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Total Raster Bins"), STAT_VSMNaniteBasePassTotalRasterBins, STATGROUP_ShadowRendering);
-DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Total Shading Draws"), STAT_VSMNaniteBasePassTotalShadingDraws, STATGROUP_ShadowRendering);
-
-DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Visible Raster Bins"), STAT_VSMNaniteBasePassVisibleRasterBins, STATGROUP_ShadowRendering);
-DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Visible Shading Draws"), STAT_VSMNaniteBassPassVisibleShadingDraws, STATGROUP_ShadowRendering);
-
-
 #define DEBUG_ALLOW_STATIC_SEPARATE_WITHOUT_CACHING 0
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(VirtualShadowMapUbSlot);
@@ -2521,7 +2514,7 @@ static void AddRasterPass(
 		});
 }
 
-void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, float ShadowsLODScaleFactor, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, FNaniteVisibilityQuery* NaniteVisibilityQuery)
+void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, float ShadowsLODScaleFactor, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, const FNaniteVisibilityResults &VisibilityResults)
 {
 	bool bCsvLogEnabled = false;
 #if CSV_PROFILER
@@ -2586,27 +2579,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 		CreateMipViews(VirtualShadowViews);
 
 		Nanite::FRasterState RasterState;
-
-		FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
-		if (NaniteVisibilityQuery != nullptr)
-		{
-			Scene.NaniteVisibility[ENaniteMeshPass::BasePass].FinishVisibilityQuery(NaniteVisibilityQuery, VisibilityResults);
-
-			uint32 TotalRasterBins = 0;
-			uint32 VisibleRasterBins = 0;
-			VisibilityResults.GetRasterBinStats(VisibleRasterBins, TotalRasterBins);
-
-			uint32 TotalShadingDraws = 0;
-			uint32 VisibleShadingDraws = 0;
-			VisibilityResults.GetShadingDrawStats(VisibleShadingDraws, TotalShadingDraws);
-
-			SET_DWORD_STAT(STAT_VSMNaniteBasePassTotalRasterBins, TotalRasterBins);
-			SET_DWORD_STAT(STAT_VSMNaniteBasePassTotalShadingDraws, TotalShadingDraws);
-								
-			SET_DWORD_STAT(STAT_VSMNaniteBasePassVisibleRasterBins, VisibleRasterBins);
-			SET_DWORD_STAT(STAT_VSMNaniteBassPassVisibleShadingDraws, VisibleShadingDraws);
-		}
-
 		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = bUpdateNaniteStreaming;
 		CullingConfig.bTwoPassOcclusion = UseTwoPassHzbOcclusion();

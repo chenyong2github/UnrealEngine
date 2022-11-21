@@ -281,7 +281,7 @@ public:
 	/**
 	 * Draw Nanite geometry into the VSMs.
 	 */
-	void RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, float ShadowsLODScaleFactor, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, FNaniteVisibilityQuery* NaniteVisibilityQuery);
+	void RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, float ShadowsLODScaleFactor, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, const FNaniteVisibilityResults& VisibilityResults);
 
 	/**
 	 * Draw Non-Nanite geometry into the VSMs.

@@ -44,6 +44,13 @@ static TAutoConsoleVariable<float> CVarNaniteShadowsLODBias(
 	TEXT("LOD bias for nanite geometry in shadows. 0 = full detail. >0 = reduced detail."),
 	ECVF_RenderThreadSafe);
 
+
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Total Raster Bins"), STAT_VSMNaniteBasePassTotalRasterBins, STATGROUP_ShadowRendering);
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Total Shading Draws"), STAT_VSMNaniteBasePassTotalShadingDraws, STATGROUP_ShadowRendering);
+
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Visible Raster Bins"), STAT_VSMNaniteBasePassVisibleRasterBins, STATGROUP_ShadowRendering);
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Visible Shading Draws"), STAT_VSMNaniteBassPassVisibleShadingDraws, STATGROUP_ShadowRendering);
+
 FShadowSceneRenderer::FShadowSceneRenderer(FDeferredShadingSceneRenderer& InSceneRenderer)
 	: SceneRenderer(InSceneRenderer)
 	, Scene(*InSceneRenderer.Scene)
@@ -151,7 +158,13 @@ void FShadowSceneRenderer::PostInitDynamicShadowsSetup()
 				FProjectedShadowInfo* ProjectedShadowInfo = LocalLightShadowFrameSetup.ProjectedShadowInfo;
 				if (ProjectedShadowInfo->bShouldRenderVSM)
 				{
-					NaniteCullingViewsVolumes.Add(ProjectedShadowInfo->CasterOuterFrustum);
+					FConvexVolume WorldSpaceCasterOuterFrustum = ProjectedShadowInfo->CasterOuterFrustum;
+					for (FPlane& Plane : WorldSpaceCasterOuterFrustum.Planes)
+					{
+						Plane = Plane.TranslateBy(-ProjectedShadowInfo->PreShadowTranslation);
+					}
+					WorldSpaceCasterOuterFrustum.Init();
+					NaniteCullingViewsVolumes.Add(WorldSpaceCasterOuterFrustum);
 				}
 			}
 
@@ -170,6 +183,28 @@ void FShadowSceneRenderer::PostInitDynamicShadowsSetup()
 
 void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster)
 {
+	// Always process an existing query if it exists
+	FNaniteVisibilityResults VisibilityResults;
+	if (NaniteVisibilityQuery != nullptr)
+	{
+		Scene.NaniteVisibility[ENaniteMeshPass::BasePass].FinishVisibilityQuery(NaniteVisibilityQuery, VisibilityResults);
+
+		uint32 TotalRasterBins = 0;
+		uint32 VisibleRasterBins = 0;
+		VisibilityResults.GetRasterBinStats(VisibleRasterBins, TotalRasterBins);
+
+		uint32 TotalShadingDraws = 0;
+		uint32 VisibleShadingDraws = 0;
+		VisibilityResults.GetShadingDrawStats(VisibleShadingDraws, TotalShadingDraws);
+
+		SET_DWORD_STAT(STAT_VSMNaniteBasePassTotalRasterBins, TotalRasterBins);
+		SET_DWORD_STAT(STAT_VSMNaniteBasePassTotalShadingDraws, TotalShadingDraws);
+
+		SET_DWORD_STAT(STAT_VSMNaniteBasePassVisibleRasterBins, VisibleRasterBins);
+		SET_DWORD_STAT(STAT_VSMNaniteBassPassVisibleShadingDraws, VisibleShadingDraws);
+	}
+
+
 	const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualShadowMapShadows = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
 	TArray<TSharedPtr<FVirtualShadowMapClipmap>, SceneRenderingAllocator>& VirtualShadowMapClipmaps = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps;
 
@@ -181,7 +216,7 @@ void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bo
 	if (bNaniteEnabled)
 	{
 		const float ShadowsLODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
-		VirtualShadowMapArray.RenderVirtualShadowMapsNanite(GraphBuilder, SceneRenderer, ShadowsLODScaleFactor, bUpdateNaniteStreaming, bNaniteProgrammableRaster, NaniteVisibilityQuery);
+		VirtualShadowMapArray.RenderVirtualShadowMapsNanite(GraphBuilder, SceneRenderer, ShadowsLODScaleFactor, bUpdateNaniteStreaming, bNaniteProgrammableRaster, VisibilityResults);
 	}
 
 	if (UseNonNaniteVirtualShadowMaps(SceneRenderer.ShaderPlatform, SceneRenderer.FeatureLevel))
