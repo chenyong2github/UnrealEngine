@@ -20,10 +20,8 @@ float3 StrataForwardLightingCommon(
 	float3 BSDFColoredVisibility,
 	FStrataPixelHeader StrataPixelHeader,
 	FStrataBSDFContext StrataBSDFContext,
-	inout bool bEvaluateHasBeenExecuted,
 	inout FStrataEvaluateResult BSDFEvaluate)
 {
-	bEvaluateHasBeenExecuted = false;
 	float3 Color = 0.0;
 
 	if (LightMask > 0.0)
@@ -31,8 +29,9 @@ float3 StrataForwardLightingCommon(
 		// Evaluate the ShadowTerm that can then be used when integrating the lighting
 		FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
 
+		// PrecomputedShadowFactors are not supported on mobile at the moment
 		float4 PrecomputedShadowFactors = HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
-	#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
+	#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING && !SHADING_PATH_MOBILE
 		PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(TranslatedWorldPosition).x;
 	#else
 		PrecomputedShadowFactors.x = 1;
@@ -65,7 +64,6 @@ float3 StrataForwardLightingCommon(
 				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
 				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
 				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
-				bEvaluateHasBeenExecuted = true;
 			}
 			else
 			{
@@ -82,7 +80,6 @@ float3 StrataForwardLightingCommon(
 				{
 					BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
 				}
-				bEvaluateHasBeenExecuted = true;
 			}
 
 			FLATTEN
@@ -105,7 +102,6 @@ float3 StrataForwardLightingCommon(
 				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
 				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
 				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
-				bEvaluateHasBeenExecuted = true;
 			}
 			else
 			{
@@ -121,7 +117,6 @@ float3 StrataForwardLightingCommon(
 				{
 					BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
 				}
-				bEvaluateHasBeenExecuted = true;
 			}
 
 			FLATTEN

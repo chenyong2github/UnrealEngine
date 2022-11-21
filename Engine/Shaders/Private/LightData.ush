@@ -192,6 +192,12 @@ uint UnpackLightingChannelMask(uint In)
 	return (In >> 8) & LIGHTING_CHANNEL_MASK;
 }
 
+uint UnpackLightingChannelMask(FLocalLightData In)
+{
+	const uint LightTypeAndPackedShadowMapChannelMask = asuint(In.LightDirectionAndShadowMask.w);
+	return UnpackLightingChannelMask(LightTypeAndPackedShadowMapChannelMask);
+}
+
 uint UnpackLightType(uint InShadowMapChannelMaskPacked)
 {
 	return (InShadowMapChannelMaskPacked >> 16) & 0x3;

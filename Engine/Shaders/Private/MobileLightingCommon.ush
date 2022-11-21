@@ -172,11 +172,11 @@ half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth, inout fl
 
 		ShadowMap = MobileShadowPCF(ShadowPosition.xy, Settings);
 
-		#if FADE_CSM
-			float Fade = saturate(SceneDepth * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.x + MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.y);
-			// lerp out shadow based on fade params.
-			ShadowMap = lerp(ShadowMap, 1.0, Fade * Fade);
-		#endif
+	#if FADE_CSM
+		float Fade = saturate(SceneDepth * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.x + MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.y);
+		// lerp out shadow based on fade params.
+		ShadowMap = lerp(ShadowMap, 1.0, Fade * Fade);
+	#endif
 	}
 #endif //ENABLE_MOBILE_CSM
 	return ShadowMap;
@@ -230,31 +230,31 @@ FLightAccumulator GetTranslucencySHLighting(FGBufferData GBuffer, FDeferredLight
 	Mobile Directional Light.
 ------------------------------------------------------------------------------*/
 
-void AccumulateDirectionalLighting(FGBufferData GBuffer, float3 TranslatedWorldPosition, half3 CameraVector, float4 ScreenPosition, float4 SvPosition, inout half4 DynamicShadowFactors, inout float OutDirectionalLightShadow, inout FLightAccumulator DirectLighting)
+FDeferredLightData GetDirectionalLightData(float4 ScreenPosition, float4 SvPosition, inout half4 OutDynamicShadowFactors, inout half OutDynamicShadowing)
 {
 #if USE_SHADOWMASKTEXTURE
 	half4 PreviewShadowMapChannelMask = half4(1.0f, 0.0f, 0.0f, 0.0f);
-	DynamicShadowFactors = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition));
-	DynamicShadowFactors = DecodeLightAttenuation(DynamicShadowFactors);
+	OutDynamicShadowFactors = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition));
+	OutDynamicShadowFactors = DecodeLightAttenuation(OutDynamicShadowFactors);
 		
 	PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(MobileDirectionalLight.DirectionalLightShadowMapChannelMask >> 4);
 
-	half DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
+	OutDynamicShadowing = dot(PreviewShadowMapChannelMask, OutDynamicShadowFactors);
 #else
 
 	float  ShadowPositionZ = 0;
 	half ShadowMap = MobileDirectionalLightCSM(ScreenPosition.xy, ScreenPosition.w, ShadowPositionZ);
-	half DynamicShadowing = 1.0f;
+	OutDynamicShadowing = 1.0f;
 
-	#if !MOBILE_DEFERRED_SHADING && DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-		// Cascaded Shadow Map
-		if (IsCSMEnabled())
-		{		
-			DynamicShadowing = ShadowMap;
-		}
-	#elif MOBILE_DEFERRED_SHADING
-		DynamicShadowing = ShadowMap;
-	#endif
+   #if !MOBILE_DEFERRED_SHADING && DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	// Cascaded Shadow Map
+	if (IsCSMEnabled())
+	{		
+		OutDynamicShadowing = ShadowMap;
+	}
+  #elif MOBILE_DEFERRED_SHADING
+	OutDynamicShadowing = ShadowMap;
+  #endif
 #endif
 
 	FDeferredLightData LightData = (FDeferredLightData)0;
@@ -267,6 +267,13 @@ void AccumulateDirectionalLighting(FGBufferData GBuffer, float3 TranslatedWorldP
 	LightData.HairTransmittance = InitHairTransmittanceData();
 	LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(MobileDirectionalLight.DirectionalLightShadowMapChannelMask);
 
+	return LightData;
+}
+
+void AccumulateDirectionalLighting(FGBufferData GBuffer, float3 TranslatedWorldPosition, half3 CameraVector, float4 ScreenPosition, float4 SvPosition, inout half4 DynamicShadowFactors, inout float OutDirectionalLightShadow, inout FLightAccumulator DirectLighting)
+{
+	half DynamicShadowing = 1.0f;
+	FDeferredLightData LightData = GetDirectionalLightData(ScreenPosition, SvPosition, DynamicShadowFactors, DynamicShadowing);
 	half4 LightAttenuation = half4(1, 1, DynamicShadowing, DynamicShadowing);
 
 #if TRANSLUCENCY_SH_LIGHTING
@@ -291,13 +298,14 @@ half3 GetMobileSkyLightReflection(half3 ReflectionVector, half Roughness, half C
 }
 #endif
 
-half3 GetImageBasedReflectionLighting(half3 ReflectionVector
-	, float3 TranslatedWorldPosition
-	, half Roughness
-	, half IndirectIrradiance
-	, half CompositeAlpha
-	, uint GridIndex
-)
+// Common helper function for evaluating reflection probes for mobile
+half3 GetImageBasedReflectionLighting_Mobile(
+	half3 ReflectionVector, 
+	float3 TranslatedWorldPosition, 
+	half Roughness, 
+	half IndirectIrradiance, 
+	half CompositeAlpha, 
+	uint GridIndex)
 {
 	half3 SpecularIBL = (half3)0.0f;
 
@@ -356,13 +364,58 @@ half3 GetImageBasedReflectionLighting(half3 ReflectionVector
 	return SpecularIBL;
 }
 
-void AccumulateReflection(FGBufferData GBuffer
-	, half3 CameraVector
-	, float3 TranslatedWorldPosition
-	, half3 ReflectionVector
-	, half IndirectIrradiance
-	, uint GridIndex
-	, inout FLightAccumulator DirectLighting)
+// Common helper function for evaluating planar reflection for mobile
+half3 GetPlanarReflectionbasedReflectionLighting_Mobile(float3 TranslatedWorldPosition, half3 WorldNormal, half Roughness, half3 InSpecularIBL)
+{
+	half3 Out = InSpecularIBL;
+#if ENABLE_PLANAR_REFLECTION || MATERIAL_PLANAR_FORWARD_REFLECTIONS
+	BRANCH
+	if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
+	{
+		half4 PlanarReflection = GetPlanarReflection(TranslatedWorldPosition, WorldNormal, Roughness);
+		// Planar reflections win over reflection environment
+		Out = lerp(InSpecularIBL, PlanarReflection.rgb, PlanarReflection.a);
+	}
+#endif
+	return Out;
+}
+
+// Version used for Strata
+float3 GetImageBasedReflectionSpecular(
+	  half3 SpecularDirection, 
+	  half Roughness, 
+	  float3 TranslatedWorldPosition, 
+	  half3 WorldNormal, 
+	  FShadingOcclusion Occlusion, 
+	  half IndirectIrradiance, 
+	  uint GridIndex)
+{
+	half3 Out = 0;
+
+	// IBL reflection
+	Out = GetImageBasedReflectionLighting_Mobile(
+		SpecularDirection,
+		TranslatedWorldPosition,
+		Roughness,
+		IndirectIrradiance,
+		Occlusion.SpecOcclusion,
+		GridIndex);
+
+	// Planar reflection
+	Out = GetPlanarReflectionbasedReflectionLighting_Mobile(TranslatedWorldPosition, WorldNormal, Roughness, Out);
+
+	return Out;
+}
+
+// Version used for legacy shading
+void AccumulateReflection(
+	FGBufferData GBuffer, 
+	half3 CameraVector, 
+	float3 TranslatedWorldPosition, 
+	half3 ReflectionVector, 
+	half IndirectIrradiance, 
+	uint GridIndex, 
+	inout FLightAccumulator DirectLighting)
 {
 	half3 SpecularIBLLighting = (half3)0.0f;
 
@@ -381,7 +434,8 @@ void AccumulateReflection(FGBufferData GBuffer
 		SpecularOcclusion = GetSpecularOcclusion(NoV, RoughnessSq, SpecularOcclusion);
 	}
 
-	half3 SpecularIBL = GetImageBasedReflectionLighting(ReflectionVector
+	// IBL reflection (primary)
+	half3 SpecularIBL = GetImageBasedReflectionLighting_Mobile(ReflectionVector
 		, TranslatedWorldPosition
 		, GBuffer.Roughness
 		, IndirectIrradiance
@@ -389,15 +443,8 @@ void AccumulateReflection(FGBufferData GBuffer
 		, GridIndex
 	);
 
-#if ENABLE_PLANAR_REFLECTION || MATERIAL_PLANAR_FORWARD_REFLECTIONS
-	BRANCH
-	if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
-	{
-		half4 PlanarReflection = GetPlanarReflection(TranslatedWorldPosition, GBuffer.WorldNormal, GBuffer.Roughness);
-		// Planar reflections win over reflection environment
-		SpecularIBL = lerp(SpecularIBL, PlanarReflection.rgb, PlanarReflection.a);
-	}
-#endif
+	// Planar reflection
+	SpecularIBL = GetPlanarReflectionbasedReflectionLighting_Mobile(TranslatedWorldPosition, GBuffer.WorldNormal, GBuffer.Roughness, SpecularIBL);
 
 	half3 DiffuseColor = GBuffer.DiffuseColor;
 	half3 SpecularColor = GBuffer.SpecularColor;
@@ -421,7 +468,8 @@ void AccumulateReflection(FGBufferData GBuffer
 	#endif
 		SpecularIBLLighting += SpecularIBL * LayerAttenuation * (SpecularColor * AB.x + AB.y * saturate(50 * SpecularColor.g) * (1 - ClearCoat));
 
-		SpecularIBL = GetImageBasedReflectionLighting(TopLayerR
+		// IBL reflection (secondary)
+		SpecularIBL = GetImageBasedReflectionLighting_Mobile(TopLayerR
 			, TranslatedWorldPosition
 			, ClearCoatRoughness
 			, IndirectIrradiance
@@ -439,6 +487,13 @@ void AccumulateReflection(FGBufferData GBuffer
 		SpecularIBLLighting += SpecularIBL * GetEnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
 	}
 	LightAccumulator_AddSplit(DirectLighting, 0.0f, SpecularIBLLighting, 0.0f, 1.0f, false);
+}
+
+// Return true if the point is influenced by the light
+bool IsLightVisible(FLocalLightData InLight, float3 TranslatedWorldPosition)
+{
+	float InvLightRadiusSq = InLight.LightPositionAndInvRadius.w * InLight.LightPositionAndInvRadius.w;
+	return length2(TranslatedWorldPosition - InLight.LightPositionAndInvRadius.xyz) * InvLightRadiusSq <= 1.0f;
 }
 
 /*------------------------------------------------------------------------------
@@ -480,8 +535,7 @@ void AccumulateLightGridLocalLighting(const FCulledLightsGridData InLightGridDat
 
 		// extra-early out since we know light grid is sloppy and all lights in list are radial (have a range)
 		// appears useless
-		float invLightRadiusSq = LocalLight.LightPositionAndInvRadius.w * LocalLight.LightPositionAndInvRadius.w;
-		if (length2(TranslatedWorldPosition - LocalLight.LightPositionAndInvRadius.xyz) * invLightRadiusSq > 1.0f)
+		if (!IsLightVisible(LocalLight, TranslatedWorldPosition))
 		{
 			continue;
 		}
@@ -490,7 +544,7 @@ void AccumulateLightGridLocalLighting(const FCulledLightsGridData InLightGridDat
 
 #if !MOBILE_DEFERRED_LIGHTING
 		// Check lighting channels for mobile forward
-		if (((LightTypeAndPackedShadowMapChannelMask >> 8) & LightingChannelMask) == 0)
+		if ((UnpackLightingChannelMask(LocalLight) & LightingChannelMask) == 0)
 		{
 			continue;
 		}

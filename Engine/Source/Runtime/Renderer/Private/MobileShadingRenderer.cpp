@@ -850,7 +850,14 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FRDGSystemTextures::Create(GraphBuilder);
 
-	// Strata initialisation is always run even when not enabled.
+	// Strata initialization is always run even when not enabled.
+	if (Strata::IsStrataEnabled())
+	{
+		for (FViewInfo& View : Views)
+		{
+			ShadingEnergyConservation::Init(GraphBuilder, View);
+		}
+	}
 	Strata::InitialiseStrataFrameSceneData(GraphBuilder, *this);
 
 	// Force the subsurface profile texture to be updated.

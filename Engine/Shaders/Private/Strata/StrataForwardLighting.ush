@@ -218,7 +218,7 @@ float3 StrataForwardLighting(
 				if (bEnableSpecular)
 				{
 					// Evaluate specular parameters without bent normal
-					FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular, Settings);
+					FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true/*bEnableSpecular*/, Settings);
 
 					// Evaluate specular lighting for the main lobe
 					if (any(StrataEnvLight.SpecularWeight > 0.0f))
@@ -344,6 +344,8 @@ float3 StrataForwardLighting(
 				////
 				//// Evaluate the single directional light selected for forward lighting.
 				////
+				BRANCH
+				if (DirectionalLightData.HasDirectionalLight)
 				{
 					float3 DirLightL = DirLightData.Direction;	// Already normalized
 					float3 ToDirLight = DirLightL;
@@ -353,36 +355,30 @@ float3 StrataForwardLighting(
 						DirLightMask = GetLocalLightAttenuation(TranslatedWorldPosition, DirLightData, ToDirLight, DirLightL);
 					}
 
-					bool bEvaluateHasBeenExecuted = false;
-					BRANCH
-					if (DirectionalLightData.HasDirectionalLight)
-					{
-						float DirectionalLightCloudShadow = 1.0f;
-					#if NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
-						DirectionalLightCloudShadow = BasePassInterpolants.VertexCloudShadow;
-					#endif
+					float DirectionalLightCloudShadow = 1.0f;
+				#if NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
+					DirectionalLightCloudShadow = BasePassInterpolants.VertexCloudShadow;
+				#endif
 
-						StrataUpdateBSDFContext(StrataBSDFContext, ToDirLight);
+					StrataUpdateBSDFContext(StrataBSDFContext, ToDirLight);
 
-						FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
-						Color += StrataForwardLightingCommon(
-							Dither,
-							Settings,
-							DirLightData,
-							ToDirLight,
-							DirLightMask,
-							DirLightAttenuation,
-							InitRectTexture(),
-							DirLightingChannelMask,
-							PrimitiveLightingChannelMask,
-							TranslatedWorldPosition,
-							SceneDepth,
-							LuminanceWeight(StrataBSDFContext, CurrentBSDF),
-							StrataPixelHeader,
-							StrataBSDFContext,
-							bEvaluateHasBeenExecuted,
-							BSDFEvaluate) * DirectionalLightCloudShadow;
-					}
+					FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
+					Color += StrataForwardLightingCommon(
+						Dither,
+						Settings,
+						DirLightData,
+						ToDirLight,
+						DirLightMask,
+						DirLightAttenuation,
+						InitRectTexture(),
+						DirLightingChannelMask,
+						PrimitiveLightingChannelMask,
+						TranslatedWorldPosition,
+						SceneDepth,
+						LuminanceWeight(StrataBSDFContext, CurrentBSDF),
+						StrataPixelHeader,
+						StrataBSDFContext,
+						BSDFEvaluate) * DirectionalLightCloudShadow;
 				}
 
 				////
@@ -434,7 +430,6 @@ float3 StrataForwardLighting(
 					// Update the strata BSDF context accordgin to the new L
 					StrataUpdateBSDFContext(StrataBSDFContext, ToLight);
 
-					bool bEvaluateHasBeenExecuted = false;
 					FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
 					Color += StrataForwardLightingCommon(
 						Dither,
@@ -451,7 +446,6 @@ float3 StrataForwardLighting(
 						LuminanceWeight(StrataBSDFContext, CurrentBSDF),
 						StrataPixelHeader,
 						StrataBSDFContext,
-						bEvaluateHasBeenExecuted,
 						BSDFEvaluate);
 				}
 

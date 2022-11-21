@@ -1087,7 +1087,6 @@ void EvaluateLighting(
 
 		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, ToLight);
 
-		bool bEvaluateHasBeenExecuted = false;
 		FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
 		float3 DirLightLuminance = StrataForwardLightingCommon(
 			Dither,
@@ -1104,7 +1103,6 @@ void EvaluateLighting(
 			BSDFColoredVisibility,
 			StrataPixelHeader,
 			StrataBSDFContext,
-			bEvaluateHasBeenExecuted,
 			BSDFEvaluate);
 
 		OutColor.rgb += DirLightLuminance * View.PreExposure;

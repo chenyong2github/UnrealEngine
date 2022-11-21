@@ -607,6 +607,23 @@ void BindStrataForwardPasslUniformParameters(FRDGBuilder& GraphBuilder, const FV
 	}
 }
 
+void BindStrataMobileForwardPasslUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FStrataMobileForwardPassUniformParameters& OutStrataUniformParameters)
+{
+	FStrataSceneData* StrataSceneData = View.StrataViewData.SceneData;
+	if (IsStrataEnabled() && StrataSceneData)
+	{
+		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
+		OutStrataUniformParameters.bRoughDiffuse = StrataSceneData->bRoughDiffuse ? 1u : 0u;
+		OutStrataUniformParameters.PeelLayersAboveDepth = StrataSceneData->PeelLayersAboveDepth;
+	}
+	else
+	{
+		OutStrataUniformParameters.MaxBytesPerPixel = 0;
+		OutStrataUniformParameters.bRoughDiffuse = 0;
+		OutStrataUniformParameters.PeelLayersAboveDepth = 0;
+	}
+}
+
 TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParameters(const FViewInfo& View)
 {
 	check(View.StrataViewData.StrataGlobalUniformParameters != nullptr || !IsStrataEnabled());

@@ -252,9 +252,11 @@ float GetLocalLightAttenuation(
 	if (LightData.bInverseSquared)
 	{
 		LightMask = Square( saturate( 1 - Square( DistanceSqr * Square(LightData.InvRadius) ) ) );
-#if SHADING_PATH_MOBILE
+		// This extra attenuation has been added for supporting existing 'legacy' shading model on mobile. 
+		// This is not needed for Strata which unifies all lighting paths
+		#if SHADING_PATH_MOBILE && !STRATA_ENABLED
 		LightMask *= 1.0f / (DistanceSqr + 1.0f);
-#endif
+		#endif
 	}
 	else
 	{

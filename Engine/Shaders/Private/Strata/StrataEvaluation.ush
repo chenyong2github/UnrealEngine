@@ -72,8 +72,14 @@
 // Point lobe in off-specular peak direction
 float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVector, float Roughness)
 {
+	// This function is used for both regular & mobile path. For performance reason, mobile 
+	// version uses (optionally) a simplifed version.
+#if !SHADING_PATH_MOBILE || MOBILE_HIGH_QUALITY_BRDF
 	float a = Square(Roughness);
 	return lerp(Normal, ReflectionVector, (1 - a) * (sqrt(1 - a) + a));
+#else
+	return ReflectionVector;
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -12,10 +12,14 @@
 
 #define ForwardLightData MobileBasePass.Forward
 #define ReflectionStruct MobileBasePass.ReflectionsParameters
+#define StrataStruct MobileBasePass.Strata
 
 #ifndef MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF
 #define MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF 0
 #endif
+
+#define UseBasePassSkylightDiffuse  (1)
+#define UseBasePassSkylightSpecular (MobileBasePass.ReflectionsParameters.SkyLightParameters.y)
 
 #define MOBILE_USE_PREINTEGRATED_GF (MATERIAL_USE_PREINTEGRATED_GF && !MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF)
 
@@ -48,6 +52,12 @@
 	#define SINGLE_LAYER_WATER_SHADING_QUALITY 2
 #endif
 
+// Enable Strata. This define & include need to be defined before certains includes (i.e., DBufferDecalShared which uses them internally)
+#if !MATERIAL_IS_STRATA && STRATA_ENABLED
+#undef STRATA_ENABLED
+#define STRATA_ENABLED 0
+#endif
+
 #ifndef PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHT_SHADOWS
 #define PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHT_SHADOWS 0
 #endif
@@ -67,6 +77,14 @@
 #define FORCE_VERTEX_NORMAL (MOBILE_QL_DISABLE_MATERIAL_NORMAL)
 #define SUPPORT_SPOTLIGHTS_SHADOW (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHT_SHADOWS
 #define DEFERRED_SHADING_PATH (MOBILE_DEFERRED_SHADING && ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER))
+
+// Force FORWARD_SHADING on mobile when MOBILE_DEFERRED_SHADING is disabled
+#ifndef FORWARD_SHADING
+#define FORWARD_SHADING (!MOBILE_DEFERRED_SHADING)
+#elif defined(FORWARD_SHADING)
+#undef  FORWARD_SHADING
+#define FORWARD_SHADING (!MOBILE_DEFERRED_SHADING)
+#endif
 
 // SceneDepthAux always enabled for IOS, on other platforms only enabled when in forward and MobileHDR=true
 #define HAS_SCENE_DEPTH_AUX_OUTPUT (USE_SCENE_DEPTH_AUX && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED))
@@ -92,6 +110,19 @@
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	#include "SingleLayerWaterShading.ush"
+#endif
+
+// STRATA_TODO: Shared with BasePassPixelShader.usf
+#define MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING 0
+
+#if STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING || MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING || STRATA_MATERIAL_EXPORT_EXECUTED
+#include "/Engine/Private/Strata/StrataEvaluation.ush"
+#endif
+#if STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING
+#include "/Engine/Private/Strata/StrataMobileForwardLighting.ush"
+#endif
+#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING || STRATA_MATERIAL_EXPORT_EXECUTED
+#include "/Engine/Private/Strata/StrataExport.ush"
 #endif
 
 half3 FrameBufferBlendOp(half4 Source)
@@ -304,6 +335,17 @@ void Main(
 	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
 #endif
 
+	half MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+#if APPLY_AO
+	{
+		half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, SvPositionToBufferUV(SvPosition));
+		MaterialAO *= lerp(1.0, GatheredAmbientOcclusion.r, AmbientOcclusionStaticFraction);
+	}
+#endif
+
+	half Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	
+#if !STRATA_ENABLED
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 	half Metallic = GetMaterialMetallic(PixelMaterialInputs);
@@ -318,15 +360,13 @@ void Main(
 	half Roughness = max(0.015625f, GetMaterialRoughness(PixelMaterialInputs));
 	half Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
 	uint ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
-	half Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	half MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 	
 	// If we don't use this shading model the color should be black (don't generate shader code for unused data, don't do indirectlighting cache lighting with this color).
 	float3 SubsurfaceColor = 0;
 	// 0..1, SubsurfaceProfileId = int(x * 255)
 	float SubsurfaceProfile = 0;
 
-#if (MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_EYE) 
+	#if (MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_EYE) 
 	if (ShadingModelID == SHADINGMODELID_SUBSURFACE || ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN || ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE || ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || ShadingModelID == SHADINGMODELID_CLOTH || ShadingModelID == SHADINGMODELID_EYE)
 	{
 		half4 SubsurfaceData = GetMaterialSubsurfaceData(PixelMaterialInputs);
@@ -342,14 +382,45 @@ void Main(
 
 		SubsurfaceProfile = SubsurfaceData.a;
 	}
+	#endif
+#endif // !STRATA_ENABLED
+
+
+#if STRATA_ENABLED && !STRATA_OPTIMIZED_UNLIT
+	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
+
+	// Initialise a Strata header with normal in registers
+	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
+	StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
+	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
+	StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
+	StrataPixelHeader.IrradianceAO.MaterialAO = MaterialAO;
+	SetCastContactShadow(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW);
+	SetDynamicIndirectShadowCasterRepresentation(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION);
 #endif
 
-#if APPLY_AO
-	half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, SvPositionToBufferUV(SvPosition));
+#if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER
+	SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_SLWATER);
 
-	MaterialAO *= lerp(1.0, GatheredAmbientOcclusion.r, AmbientOcclusionStaticFraction);
+	// Override GBuffer data with Strata SLW water BSDF to run forward shadfing code.
+	// STRATA_TODO: run the shading through a strata path? (by adding a special BSDF?)
+	SanitizeStrataSingleLayerWater(StrataPixelHeader.StrataTree.BSDFs[0]);
+	FStrataBSDF SLWBSDF = StrataPixelHeader.StrataTree.BSDFs[0];
+
+	half3 BaseColor = SLW_BASECOLOR(SLWBSDF);
+	half Metallic = SLW_METALLIC(SLWBSDF);
+	half Specular = SLW_SPECULAR(SLWBSDF);
+	half Roughness = SLW_ROUGHNESS(SLWBSDF);
+	Opacity = SLW_TOPMATERIALOPACITY(SLWBSDF);
+	MaterialParameters.WorldNormal = normalize(StrataPixelHeader.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(SLWBSDF)]);
+	half Anisotropy = 0.0f;
+	uint ShadingModelID = MATERIAL_SHADINGMODEL_SINGLELAYERWATER;
+	float3 SubsurfaceColor = 0;
+	float SubsurfaceProfile = 0;
 #endif
 
+#if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
 	const half BaseMaterialCoverageOverWater = Opacity;
 	const half WaterVisibility = 1.0 - BaseMaterialCoverageOverWater;
 	// Fade out diffuse as this will be handled by the single scattering lighting. when over the water surface.
@@ -444,6 +515,9 @@ void Main(
 	GBuffer.GBufferAO = AOMultiBounce(Luminance(GBuffer.SpecularColor), ShadingOcclusion.SpecOcclusion).g;
 #endif
 
+#endif // !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
+
+#if !STRATA_ENABLED
 	
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	float TopMaterialCoverage = Opacity;
@@ -471,6 +545,8 @@ void Main(
 	GBuffer.BaseColor *= TopMaterialCoverage;
 #endif
 
+#endif // !STRATA_ENABLED
+
 	VTPageTableResult LightmapVTPageTableResult = (VTPageTableResult)0.0f;
 #if LIGHTMAP_VT_ENABLED
 	{
@@ -486,6 +562,180 @@ void Main(
 	// Lightmap request is always the first VT sample in the shader
 	StoreVirtualTextureFeedback(MaterialParameters.VirtualTextureFeedback, 0, LightmapVTPageTableResult.PackedRequest);
 #endif
+
+#if STRATA_ENABLED && !STRATA_INLINE_SINGLELAYERWATER
+	
+	float3 Color = 0;
+	float3 DualBlendSurfaceLuminancePostCoverage = 0.0f;
+	float3 DualBlendSurfaceTransmittancePreCoverage = 1.0f;
+	float DualBlendSurfaceCoverage = 1.0f;
+
+  #if !STRATA_OPTIMIZED_UNLIT
+
+	// Static shadow mask
+	#if GBUFFER_HAS_PRECSHADOWFACTOR
+	{
+		// Encode shadow mask only if the shadow mask is entirely non-zero and non-one
+	#if WRITES_PRECSHADOWFACTOR_ZERO
+		SetHasPrecShadowMask(StrataPixelHeader, false);
+		SetZeroPrecShadowMask(StrataPixelHeader, true);
+	#else
+	  #if ALLOW_STATIC_LIGHTING
+		const bool bAllZero = all(GBuffer.PrecomputedShadowFactors == 0);
+		const bool bAllOne  = all(GBuffer.PrecomputedShadowFactors == 1);
+		if (!bAllZero && !bAllOne)
+		{
+			SetHasPrecShadowMask(StrataPixelHeader, true);
+		}
+		else if (bAllZero)
+		{
+			SetHasPrecShadowMask(StrataPixelHeader, false);
+			SetZeroPrecShadowMask(StrataPixelHeader, true);
+		}
+		else if (bAllOne)
+	  #endif
+		{
+			SetHasPrecShadowMask(StrataPixelHeader, false);
+			SetZeroPrecShadowMask(StrataPixelHeader, false);
+		}
+	#endif
+	}
+	#endif
+
+
+
+	#if STRATA_INLINE_SHADING
+	// We must normalize each normal and tangent to avoid non normalised vectors due to per vertex interpolation or texture filtering,
+	// for the deferred (our packing relies on normalized normal) and forward (normals are going to be used as-is from registers) paths.
+	#if STRATA_FORCE_SINGLE_BSDF
+	uint i = 0;
+	if (StrataPixelHeader.SharedLocalBases.Count > 0)
+	#else
+	UNROLL
+	for (uint i = 0; i < StrataPixelHeader.SharedLocalBases.Count; ++i)
+	#endif // STRATA_FORCE_SINGLE_BSDF
+	{
+		StrataPixelHeader.SharedLocalBases.Normals[i] = normalize(StrataPixelHeader.SharedLocalBases.Normals[i]);
+		if (StrataGetSharedLocalBasisType(StrataPixelHeader.SharedLocalBases.Types, i) == STRATA_BASIS_TYPE_TANGENT)
+		{
+			StrataPixelHeader.SharedLocalBases.Tangents[i] = normalize(StrataPixelHeader.SharedLocalBases.Tangents[i]);
+		}
+	}
+	#endif // STRATA_INLINE_SHADING
+
+	FLightAccumulator DirectLighting = (FLightAccumulator)0;
+	half3 CameraVector = -MaterialParameters.CameraVector;
+	float2 ScreenUV = ScreenPositionToBufferUV(MaterialParameters.ScreenPosition);
+
+	#define STRATA_DEBUG_ENABLE_LIGHTING 1
+	#if STRATA_DEBUG_ENABLE_LIGHTING
+	if (StrataPixelHeader.BSDFCount > 0)
+	{
+		#if FULLY_ROUGH
+		const bool bForceFullyRough = true;
+		#else
+		const bool bForceFullyRough = View.RenderingReflectionCaptureMask > 0; // Can mobile capture reflection probe? Is this needed for mobile?
+		#endif
+		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(bForceFullyRough, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth);
+
+
+		// TODO: needed? Remove?
+		float3 VolumetricLightmapBrickTextureUVs = 0;
+
+		const float SceneDepth = MaterialParameters.ScreenPosition.w;;
+		const uint EyeIndex = 0;
+		Color = StrataMobileForwardLighting(
+			EyeIndex,
+			SvPosition,
+			Settings,
+			BasePassInterpolants,
+			Interpolants,
+			LightmapVTPageTableResult,
+			VolumetricLightmapBrickTextureUVs,
+			MaterialParameters,
+			SceneDepth,
+			ScreenUV,
+			StrataPixelHeader,
+			StrataData,
+			DualBlendSurfaceTransmittancePreCoverage,
+			DualBlendSurfaceCoverage);
+
+	#if STRATA_TRANSLUCENT_MATERIAL
+		DualBlendSurfaceLuminancePostCoverage = Color;
+		Color = 0.0f;
+		Opacity = 1.0f; // nullify following operation
+	#elif STRATA_FORWARD_SHADING
+		// Color unchanged for opaque materials
+		Opacity = 1.0f;
+	#else
+		#error Unhandled Strata forward shading mode
+	#endif
+	}
+	#endif // STRATA_DEBUG_ENABLE_LIGHTING
+
+  #else // STRATA_OPTIMIZED_UNLIT
+
+	// Unlit forces a single BSDF
+	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
+	DualBlendSurfaceLuminancePostCoverage = BSDF_GETEMISSIVE(UnlitBSDF);
+	DualBlendSurfaceTransmittancePreCoverage = UNLIT_TRANSMITTANCE(UnlitBSDF);
+	DualBlendSurfaceCoverage = UnlitBSDF.Coverage;
+	Color = 0.0f;
+	Opacity = 1.0f;
+
+  #endif // STRATA_OPTIMIZED_UNLIT
+
+	half4 Fogging = half4(0, 0, 0, 1);
+	#if USE_VERTEX_FOG
+	{
+	  #if PACK_INTERPOLANTS
+		Fogging = PackedInterpolants[0];
+	  #else
+		Fogging = BasePassInterpolants.VertexFog;
+	  #endif
+	}
+	#endif
+
+	// Compute final value
+	{
+	#if STRATA_OPTIMIZED_UNLIT
+		OutColor = float4(DualBlendSurfaceLuminancePostCoverage, 1);
+	#elif STRATA_OPAQUE_MATERIAL
+		OutColor = float4(Color, 1);
+	#elif STRATA_TRANSLUCENT_MATERIAL
+			
+	#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE && !STRATA_OPTIMIZED_UNLIT
+		// This data patching is working because DualBlendSurfaceCoverage is always 1 when converting material from legacy to Strata with premultiplied alpha blending.
+		DualBlendSurfaceTransmittancePreCoverage= StrataData.PreMultipliedAlphaOverrideCoverage >= 0.0f ? 0.0f											: DualBlendSurfaceTransmittancePreCoverage;
+		DualBlendSurfaceCoverage				= StrataData.PreMultipliedAlphaOverrideCoverage >= 0.0f ? StrataData.PreMultipliedAlphaOverrideCoverage	: DualBlendSurfaceCoverage;
+	#endif
+
+		// Add fog luminance according to surfacecoverage and reduce surface luminance according to fog coverage.
+		float3 AdjustedDualBlendAdd = DualBlendSurfaceCoverage * Fogging.rgb + Fogging.a * DualBlendSurfaceLuminancePostCoverage;
+		// Fade the surface color transmittance out to 1 according to the surface coverage, and take into account the fog coverage to the surface.
+		float3 AdjustedDualBlendMul = lerp(1.0f, Fogging.a * DualBlendSurfaceTransmittancePreCoverage, DualBlendSurfaceCoverage);
+
+	#if STRATA_BLENDING_COLOREDTRANSMITTANCEONLY
+		// RETURN_COLOR not needed with modulative blending
+		half3 FoggedColor = lerp(float3(1, 1, 1), DualBlendSurfaceTransmittancePreCoverage, Fogging.aaa* DualBlendSurfaceCoverage);
+		OutColor = half4(FoggedColor, 1.0f);
+	#elif STRATA_BLENDING_ALPHAHOLDOUT
+		float AdjustedAlpha = saturate(1 - dot(AdjustedDualBlendMul, float3(1.0f, 1.0f, 1.0f) / 3.0f));
+		OutColor = half4(0.0f.xxx, AdjustedAlpha);
+	#else
+		// Pre multipled alpha blending
+		float AdjustedAlpha = saturate(1 - dot(AdjustedDualBlendMul, float3(1.0f, 1.0f, 1.0f) / 3.0f));
+		#if STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ADDITIVE
+			AdjustedAlpha = 0.0f;
+		#endif
+		// Pre multipled alpha blending
+		OutColor = half4(AdjustedDualBlendAdd, AdjustedAlpha);
+	#endif
+
+	#endif // STRATA_TRANSLUCENT_MATERIAL
+	}
+
+#else // STRATA_ENABLED
 
 	half IndirectIrradiance = 0;
 	half3 DiffuseIndirectLighting = 0;
@@ -621,6 +871,11 @@ void Main(
 
 #endif// DEFERRED_SHADING_PATH
 
+#endif // STRATA_ENABLED
+
+
+#if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
+
 #if !MATERIAL_SHADINGMODEL_UNLIT
 	half3 Color = DirectLighting.TotalLight;
 #else
@@ -673,6 +928,7 @@ void Main(
 			OutColor.a = uint((Mask + 0.25f) * 4.0f) / 4.0f;
 		#endif
 	#endif
+#endif // STRATA_ENABLED
 
 #if HAS_SCENE_DEPTH_AUX_OUTPUT
 	OutSceneDepthAux = SvPosition.z;
