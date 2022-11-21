@@ -60,22 +60,24 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Scene Actor Component")
 	const FContextualAnimIKTarget& GetIKTargetByGoalName(FName GoalName) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
+	bool StartContextualAnimScene(const FContextualAnimSceneBindings& InBindings);
+
 protected:
 
 	/** 
-	 * Replicated version of the bindings for the interaction we are currently playing.
-	 * @TODO: Right now we are replicating the same set of bindings from each actor in the interaction. 
-	 * This is not a big structure so it might be ok, but as an optimization we could replicate it only from the leader of the interaction and set it on the other actors in the OnRep notify
+	 * Replicated copy of the bindings so we can start the action on simulated proxies 
+	 * This gets replicated only from the initiator of the action and then set on all the other members of the interaction
 	 */
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_Bindings)
 	FContextualAnimSceneBindings RepBindings;
 
-	/** 
-	 * Local copy of the bindings for the interaction we are currently playing.
-	 * Used to update IK, keep montage in sync and disable/enable collision between actors on simulated proxies too 
+	/**
+	 * Bindings for the interaction we are currently playing.
+	 * Used to update IK, keep montage in sync, disable/enable collision between actors etc
 	 */
 	UPROPERTY(Transient)
-	FContextualAnimSceneBindings LocalBindings;
+	FContextualAnimSceneBindings Bindings;
 
 	/** List of IKTarget for this frame */
 	UPROPERTY(Transient)
@@ -95,11 +97,22 @@ protected:
 	void OnTickPose(class USkinnedMeshComponent* SkinnedMeshComponent, float DeltaTime, bool bNeedsValidRootMotion);
 
 	UFUNCTION()
-	void OnRep_Bindings();
+	void OnRep_Bindings(const FContextualAnimSceneBindings& LastRepBindings);
 
 	void SetIgnoreCollisionWithOtherActors(bool bValue) const;
+
+	UFUNCTION()
+	void OnMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
+
+	// @TODO: These two functions are going to replace OnJoinedScene and OnLeftScene
+	// main different is that these new functions are taking care of animation playback too
+
+	void JoinScene(const FContextualAnimSceneBindings& InBindings);
+
+	void LeaveScene();
 
 private:
 
 	bool bRegistered = false;
+
 };

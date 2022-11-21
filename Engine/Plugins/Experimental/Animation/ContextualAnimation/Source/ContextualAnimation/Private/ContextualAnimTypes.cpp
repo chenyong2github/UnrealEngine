@@ -288,19 +288,35 @@ void FContextualAnimSceneBinding::SetAnimTrack(const FContextualAnimTrack& InAni
 
 UContextualAnimSceneActorComponent* FContextualAnimSceneBinding::GetSceneActorComponent() const
 {
-	//@TODO: Cache this during the binding
-	AActor* Actor = Context.GetActor();
-	return Actor ? Actor->FindComponentByClass<UContextualAnimSceneActorComponent>() : nullptr;
+	if (CachedSceneActorComp == nullptr)
+	{
+		if (AActor* Actor = Context.GetActor())
+		{
+			CachedSceneActorComp = Actor->FindComponentByClass<UContextualAnimSceneActorComponent>();
+		}
+	}
+
+	return CachedSceneActorComp;
 }
 
 UAnimInstance* FContextualAnimSceneBinding::GetAnimInstance() const
 {
-	return UContextualAnimUtilities::TryGetAnimInstance(GetActor());
+	if (CachedAnimInstance == nullptr)
+	{
+		CachedAnimInstance = UContextualAnimUtilities::TryGetAnimInstance(GetActor());
+	}
+
+	return CachedAnimInstance;
 }
 
 USkeletalMeshComponent* FContextualAnimSceneBinding::GetSkeletalMeshComponent() const
 {
-	return UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetActor());
+	if(CachedSkeletalMesh == nullptr)
+	{
+		CachedSkeletalMesh = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetActor());
+	}
+
+	return CachedSkeletalMesh;
 }
 
 FAnimMontageInstance* FContextualAnimSceneBinding::GetAnimMontageInstance() const
@@ -438,6 +454,19 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 		return false;
 	}
 
+	if(AActor* PrimaryActor = PrimaryPtr->GetActor())
+	{
+		UContextualAnimSceneActorComponent* SceneActorComp = PrimaryActor->FindComponentByClass<UContextualAnimSceneActorComponent>();
+		if(SceneActorComp == nullptr)
+		{
+			UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Missing ContextualAnimSceneActorComp on primary actor. SceneAsset: %s Actor: %s"),
+				*GetNameSafe(&SceneAsset), *GetNameSafe(PrimaryActor));
+
+			OutBindings.Reset();
+			return false;
+		}
+	}
+
 	// First, try to bind primary track. 
 	// @TODO: Revisit this, passing the same data twice (as primary and querier) feels weird, but this allow us to run the selection mechanism even on the primary actor.
 
@@ -462,6 +491,19 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 		FName RoleToBind = Pair.Key;
 		if (RoleToBind != PrimaryRole)
 		{
+			if (AActor* SecondaryActor = Pair.Value.GetActor())
+			{
+				UContextualAnimSceneActorComponent* SceneActorComp = SecondaryActor->FindComponentByClass<UContextualAnimSceneActorComponent>();
+				if (SceneActorComp == nullptr)
+				{
+					UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Missing ContextualAnimSceneActorComp on secondary actor. SceneAsset: %s Actor: %s"),
+						*GetNameSafe(&SceneAsset), *GetNameSafe(SecondaryActor));
+
+					OutBindings.Reset();
+					return false;
+				}
+			}
+
 			const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, RoleToBind);
 			if (AnimTrack && AnimTrack->DoesQuerierPassSelectionCriteria(*PrimaryPtr, Pair.Value))
 			{
@@ -512,6 +554,19 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 		const FName PrimaryRole = SceneAsset.GetPrimaryRole();
 		if(RoleDef.Name == PrimaryRole)
 		{
+			if (AActor* Actor = Primary.GetActor())
+			{
+				UContextualAnimSceneActorComponent* SceneActorComp = Actor->FindComponentByClass<UContextualAnimSceneActorComponent>();
+				if (SceneActorComp == nullptr)
+				{
+					UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Missing ContextualAnimSceneActorComp on primary actor. SceneAsset: %s Actor: %s"),
+						*GetNameSafe(&SceneAsset), *GetNameSafe(Actor));
+
+					OutBindings.Reset();
+					return false;
+				}
+			}
+
 			const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, PrimaryRole);
 			if (AnimTrack && AnimTrack->DoesQuerierPassSelectionCriteria(Primary, Primary))
 			{
@@ -528,6 +583,19 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 		}
 		else // Secondary Role
 		{
+			if (AActor* Actor = Secondary.GetActor())
+			{
+				UContextualAnimSceneActorComponent* SceneActorComp = Actor->FindComponentByClass<UContextualAnimSceneActorComponent>();
+				if (SceneActorComp == nullptr)
+				{
+					UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Missing ContextualAnimSceneActorComp on primary actor. SceneAsset: %s Actor: %s"),
+						*GetNameSafe(&SceneAsset), *GetNameSafe(Actor));
+
+					OutBindings.Reset();
+					return false;
+				}
+			}
+
 			const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, RoleDef.Name);
 			if (AnimTrack && AnimTrack->DoesQuerierPassSelectionCriteria(Primary, Secondary))
 			{

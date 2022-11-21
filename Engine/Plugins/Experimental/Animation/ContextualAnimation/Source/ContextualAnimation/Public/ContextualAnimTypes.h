@@ -365,6 +365,10 @@ private:
 	FContextualAnimSceneBindingContext Context;
 
 	int32 AnimTrackIdx = INDEX_NONE;
+
+	mutable TObjectPtr<UContextualAnimSceneActorComponent> CachedSceneActorComp = nullptr;
+	mutable TObjectPtr<UAnimInstance> CachedAnimInstance = nullptr;
+	mutable TObjectPtr<USkeletalMeshComponent> CachedSkeletalMesh = nullptr;
 };
 
 template<>
