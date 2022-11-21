@@ -19,7 +19,7 @@ public:
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("TransformPointsNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("TransformPoints")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 

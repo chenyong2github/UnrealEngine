@@ -22,7 +22,7 @@ public:
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PropertyToParamDataNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PropertyToParamData")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Param; }
 #endif
 

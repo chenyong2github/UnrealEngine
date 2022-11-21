@@ -48,7 +48,7 @@ public:
 	virtual UPCGNode* CreateNode() const override;
 
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SubgraphNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Subgraph")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Subgraph; }
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
 #endif

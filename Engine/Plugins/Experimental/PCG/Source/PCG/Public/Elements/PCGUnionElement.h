@@ -17,7 +17,7 @@ class PCG_API UPCGUnionSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("UnionNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Union")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 

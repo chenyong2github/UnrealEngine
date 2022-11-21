@@ -24,7 +24,7 @@ class PCG_API UPCGMetadataOperationSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("MetadataOperationNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("MetadataOperation")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 #endif
 

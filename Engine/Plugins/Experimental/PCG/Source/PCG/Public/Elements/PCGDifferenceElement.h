@@ -23,7 +23,7 @@ class PCG_API UPCGDifferenceSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("DifferenceNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Difference")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 

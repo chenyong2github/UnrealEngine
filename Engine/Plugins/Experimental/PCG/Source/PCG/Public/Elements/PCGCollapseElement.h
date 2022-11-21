@@ -15,7 +15,7 @@ class PCG_API UPCGCollapseSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("CollapseNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Collapse")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 

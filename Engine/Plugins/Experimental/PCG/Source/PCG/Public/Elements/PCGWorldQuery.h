@@ -16,7 +16,7 @@ class PCG_API UPCGWorldQuerySettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("WorldVolumetricNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("WorldVolumetric")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 
@@ -47,7 +47,7 @@ class PCG_API UPCGWorldRayHitSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("WorldRayHitNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("WorldRayHit")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 

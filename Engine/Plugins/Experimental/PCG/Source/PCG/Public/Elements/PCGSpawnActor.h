@@ -62,7 +62,7 @@ public:
 	virtual UPCGNode* CreateNode() const override;
 
 #if WITH_EDITOR	
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SpawnActorNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SpawnActor")); }
 	virtual EPCGSettingsType GetType() const override;
 #endif
 protected:

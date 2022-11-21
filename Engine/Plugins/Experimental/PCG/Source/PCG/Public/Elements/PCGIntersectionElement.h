@@ -17,7 +17,7 @@ class PCG_API UPCGIntersectionSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("IntersectionNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Intersection")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 

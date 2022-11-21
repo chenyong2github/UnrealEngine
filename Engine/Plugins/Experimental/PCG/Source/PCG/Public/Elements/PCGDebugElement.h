@@ -20,7 +20,7 @@ class PCG_API UPCGDebugSettings : public UPCGSettings
 public:
 #if WITH_EDITOR
 	// ~Begin UPCGSettings interface
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("DebugNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Debug")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Debug; }
 #endif
 

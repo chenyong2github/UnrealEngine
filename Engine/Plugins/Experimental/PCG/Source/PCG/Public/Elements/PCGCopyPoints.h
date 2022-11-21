@@ -37,7 +37,7 @@ class PCG_API UPCGCopyPointsSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("CopyPointsNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("CopyPoints")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
 #endif
 

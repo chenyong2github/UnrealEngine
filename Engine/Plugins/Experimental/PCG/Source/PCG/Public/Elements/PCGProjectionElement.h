@@ -23,7 +23,7 @@ class PCG_API UPCGProjectionSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("ProjectionNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Projection")); }
 	virtual FText GetNodeTooltipText() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
