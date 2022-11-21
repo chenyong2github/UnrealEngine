@@ -107,7 +107,7 @@ protected:
 	//Tensor descriptor
 	TArray<FTensorDesc>			AllSymbolicTensorDescs;
 	TArray<FTensorShape>		AllShapes;
-		
+
 	//Tensor indices for models
 	TArray<int32>				IntermediateTensorIndices;
 	TArray<int32>				InputTensorIndices;
@@ -118,13 +118,12 @@ protected:
 	TArray<TArray<uint32>>		OperatorOutputTensorIndices;
 	
 	//RDG Tensors
-	TArray<FTensorRDG, TInlineAllocator<16>> AllTensorRDGs;
+	FTensorRDGArray				AllTensorRDGs;
 	
 	FReadbackEntry				Readback;
 	bool						bUseManualTransitions;
 };
 
-//TODO jira 167585 remove default validation and declare contract in all HLSL operator (see HLSL Gemm for current example)
 //TODO jira 167584 remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
 bool AlwaysValidValidationFunction(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<FSymbolicTensorShape> InputShapes);
 

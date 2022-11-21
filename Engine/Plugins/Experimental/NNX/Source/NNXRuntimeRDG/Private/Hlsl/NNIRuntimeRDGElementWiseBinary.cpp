@@ -22,40 +22,60 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		TElementWiseBinary() {}
 		virtual ~TElementWiseBinary() = default;
 
-	private:
-
-		NNX::FTensor LHSInput = {};
-		NNX::FTensor RHSInput = {};
-		NNX::FTensor Output = {};
-
 	public:
 
+		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		{
+			OutputShapes.Empty();
+			check(InputShapes.Num() == 2);
+			
+			const NNX::FTensorShape& LHSInput = InputShapes[0];
+			const NNX::FTensorShape& RHSInput = InputShapes[1];
+			const int32 OutputRank = FMath::Max(LHSInput.Rank(), RHSInput.Rank());
+			NNX::FTensorShape OutputShape;
+			
+			OutputShape.Data.SetNumUninitialized(OutputRank);
+			
+			for (int32 i = 0; i < OutputRank; ++i)
+			{
+				int32 LHSIndex = LHSInput.Rank() - 1 - i;
+				int32 RHSIndex = RHSInput.Rank() - 1 - i;
+				int32 LHSValue = LHSIndex >= 0 ? LHSInput.Data[LHSIndex] : 1;
+				int32 RHSValue = RHSIndex >= 0 ? RHSInput.Data[RHSIndex] : 1;
+				if (LHSValue != RHSValue && LHSValue != 1 && RHSValue != 1)
+				{
+					UE_LOG(LogNNX, Warning, TEXT("Error while computing shape for element wise binary op, input shapes are not compatible"));
+					return -1;
+				}
+				int32 OutputValue = FMath::Max(LHSValue, RHSValue);
+				OutputShape.Data[OutputRank - 1 - i] = OutputValue;
+			}
+
+			OutputShapes.Emplace(OutputShape);
+			
+			return 0;
+		}
+		
 		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
 		{
-			TArray<NNX::FTensor> InputTensors;
-			TArray<NNX::FTensor> OutputTensors;
-			if (!NNX::ConvertConcreteTensorDescsToTensors(InputTensorDescs, InputTensors) ||
-				!NNX::ConvertConcreteTensorDescsToTensors(OutputTensorDescs, OutputTensors))
-			{
-				UE_LOG(LogNNX, Warning, TEXT("Variable input shapes are not supported by this operator"));
-				return false;
-			}
-			
-			check(InputTensors.Num() == 2);
-			check(OutputTensors.Num() == 1);
+			check(InputTensorDescs.Num() == 2);
+			check(OutputTensorDescs.Num() == 1);
 		
-			LHSInput = InputTensors[0];
-			RHSInput = InputTensors[1];
-			Output = OutputTensors[0];
-
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InInputTensors, TConstArrayView<NNX::FTensorRDG> InOutputTensors) override
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InputTensors, TConstArrayView<NNX::FTensorRDG> OutputTensors) override
 		{
-			FRDGBufferSRVRef LHSInputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputTensors[0].GetBuffer(), PF_R32_FLOAT));
-			FRDGBufferSRVRef RHSInputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputTensors[1].GetBuffer(), PF_R32_FLOAT));
-			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(InOutputTensors[0].GetBuffer(), PF_R32_FLOAT));
+			check(InputTensors.Num() == 2);
+			check(OutputTensors.Num() == 1);
+
+			const NNX::FTensorRDG& LHSInput = InputTensors[0];
+			const NNX::FTensorRDG& RHSInput = InputTensors[1];
+			const NNX::FTensorRDG& Output = OutputTensors[0];
+			
+			FRDGBufferSRVRef LHSInputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(LHSInput.GetBuffer(), PF_R32_FLOAT));
+			FRDGBufferSRVRef RHSInputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RHSInput.GetBuffer(), PF_R32_FLOAT));
+			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.GetBuffer(), PF_R32_FLOAT));
 
 			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.GetVolume(), FElementWiseBinaryConstants::NUM_GROUP_THREADS);
 
@@ -90,6 +110,22 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
+	bool ValidateElementWiseBinaryOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	{
+		bool bIsValid = true;
+
+		NNX::FAttributeValidator AttributeValidator;
+		bIsValid &= AttributeValidator.Validate(AttributeMap);
+
+		NNX::FInputValidator InputValidator;
+		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddRequired();
+		InputValidator.AddRequired();
+		bIsValid &= InputValidator.Validate(InputTypes);
+
+		return bIsValid;
+	}
+
 	template<EMLElementWiseBinaryOperatorType OpType>
 	NNX::FMLOperatorHlsl* CreateElementWiseBinaryOperator()
 	{
@@ -98,7 +134,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	bool RegisterElementWiseBinaryOperators(NNX::FMLOperatorRegistryHlsl& Registry)
 	{
-#define OP(Name) Registry.OpAdd(TEXT(#Name), CreateElementWiseBinaryOperator<EMLElementWiseBinaryOperatorType::Name>)
+#define OP(Name) Registry.OpAdd(TEXT(#Name), CreateElementWiseBinaryOperator<EMLElementWiseBinaryOperatorType::Name>, ValidateElementWiseBinaryOperator)
 		OP(Add);
 		//OP(And);
 		OP(Div);

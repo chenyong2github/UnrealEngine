@@ -28,13 +28,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		FConvTranspose() {}
 
-		NNX::FTensor Input = {};
-		NNX::FTensor Weights = {};
-		NNX::FTensor Bias = {};
-		NNX::FTensor Output = {};
-
-		int NumDimensions = 0;
-		bool HasBias = false;
+		int32 NumDimensions = 0;
 
 		EConvTransposeAutoPad AutoPad = EConvTransposeAutoPad::NOTSET;
 		TArray<int32> Dilations;
@@ -45,37 +39,50 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
+		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		{
+			OutputShapes.Empty();
+			check(InputShapes.Num() >= 2 && InputShapes.Num() <= 3);
+			
+			const NNX::FTensorShape& Input = InputShapes[0];
+			const NNX::FTensorShape& Weights = InputShapes[1];
+			NNX::FSymbolicTensorShape OutputShape;
+			
+			OutputShape.Data = UE::NNEHlslShaders::Internal::FConvTransposeCS::GetOutputShape(Input.Data, Weights.Data, AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
+			if (!OutputShape.IsConcrete())
+			{
+				return -1;
+			}
+			OutputShapes.Emplace(NNX::FTensorShape::MakeFromSymbolic(OutputShape));
+
+			return 0;
+		};
+
 		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
-			TArray<NNX::FTensor> InputTensors;
-			TArray<NNX::FTensor> OutputTensors;
-			if (!NNX::ConvertConcreteTensorDescsToTensors(InputTensorDescs, InputTensors) ||
-				!NNX::ConvertConcreteTensorDescsToTensors(OutputTensorDescs, OutputTensors))
+			check(InputTensorDescs.Num() >= 2 && InputTensorDescs.Num() <= 3);
+			check(OutputTensorDescs.Num() == 1);
+
+            const NNX::FTensorDesc& Input = InputTensorDescs[0];
+			const NNX::FTensorDesc& Weights = InputTensorDescs[1];
+			const NNX::FTensorDesc& Output = OutputTensorDescs[0];
+
+			if (Input.GetShape().Rank() < 2)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Variable input shapes are not supported by this operator"));
+				UE_LOG(LogNNX, Warning, TEXT("ConvTranspose first input should be at least of rank 2"));
 				return false;
 			}
-				
-			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
-			check(OutputTensors.Num() == 1);
-
-			Input = InputTensors[0];
-			Weights = InputTensors[1];
-			Output = OutputTensors[0];
-
-			check(Input.GetShape().Rank() > 2);
-			check(Weights.GetShape().Rank()  == Input.GetShape().Rank());
-			check(Output.GetShape().Rank() == Input.GetShape().Rank());
-
-			if (InputTensors.Num() == 3) {
-				HasBias = true;
-				Bias = InputTensors[2];
-			}
-			else
+			if (Weights.GetShape().Rank() != Input.GetShape().Rank())
 			{
-				HasBias = false;
+				UE_LOG(LogNNX, Warning, TEXT("ConvTranspose first and second inputs should be of same ranks"));
+				return false;
+			}
+			if (Output.GetShape().Rank() != Input.GetShape().Rank())
+			{
+				UE_LOG(LogNNX, Warning, TEXT("ConvTranspose first input and output should be of same ranks"));
+				return false;
 			}
 
 			NumDimensions = Input.GetShape().Rank() - 2;
@@ -103,24 +110,43 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InInputTensors, TConstArrayView<NNX::FTensorRDG> InOutputTensors) override
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InputTensors, TConstArrayView<NNX::FTensorRDG> OutputTensors) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
 			constexpr EConvTransposeAlgorithm Algorithm = EConvTransposeAlgorithm::SharedMemory;
 			constexpr EConvTransposeGroupSize GroupSize = EConvTransposeGroupSize::Size256;
 
+			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
+			check(OutputTensors.Num() == 1);
+
+			const NNX::FTensorRDG& Input = InputTensors[0];
+			const NNX::FTensorRDG& Weights = InputTensors[1];
+			const NNX::FTensorRDG& Output = OutputTensors[0];
+			const NNX::FTensorRDG* Bias = nullptr;
+			bool HasBias = false;
+
+			if (InputTensors.Num() == 3) {
+				HasBias = true;
+				Bias = &(InputTensors[2]);
+			}
+
+			check(Input.GetShape().Rank() > 2);
+			check(Weights.GetShape().Rank() == Input.GetShape().Rank());
+			check(Output.GetShape().Rank() == Input.GetShape().Rank());
+			check(NumDimensions == (Input.GetShape().Rank() - 2));
+
 			TArray<int32> OutputShape = FConvTransposeCS::GetOutputShape(Input.GetShape().Data, Weights.GetShape().Data, AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
 
 			// Set parameters
 			FConvTransposeCS::FParameters* Params = GraphBuilder.AllocParameters<FConvTransposeCS::FParameters>();
 			FConvTransposeCS::FillInParameters(GroupSize, Input.GetShape().Data, Weights.GetShape().Data, HasBias, AutoPad, Group, Dilations,Strides, Pads, OutputPadding, *Params);
-			Params->X = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputTensors[0].GetBuffer(), PF_R32_FLOAT));
-			Params->W = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputTensors[1].GetBuffer(), PF_R32_FLOAT));
-			if (InInputTensors.Num() == 3) {
-				Params->B = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputTensors[2].GetBuffer(), PF_R32_FLOAT));
+			Params->X = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Input.GetBuffer(), PF_R32_FLOAT));
+			Params->W = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Weights.GetBuffer(), PF_R32_FLOAT));
+			if (HasBias) {
+				Params->B = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Bias->GetBuffer(), PF_R32_FLOAT));
 			}
-			Params->Y = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(InOutputTensors[0].GetBuffer(), PF_R32_FLOAT));
+			Params->Y = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.GetBuffer(), PF_R32_FLOAT));
 
 			FConvTransposeCS::FPermutationDomain PermutationVector;
 
@@ -144,9 +170,35 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
+	bool ValidateConvTransposeOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	{
+		bool bIsValid = true;
+
+		NNX::FAttributeValidator AttributeValidator;
+		AttributeValidator.AddOptional(TEXT("auto_pad"), ENNEAttributeDataType::String);
+		AttributeValidator.AddOptional(TEXT("dilations"), ENNEAttributeDataType::Int32Array);
+		AttributeValidator.AddOptional(TEXT("group"), ENNEAttributeDataType::Int32);
+		//AttributeValidator.AddOptional(TEXT("kernel_shape"), ENNEAttributeDataType::Int32Array);
+		AttributeValidator.AddOptional(TEXT("output_padding"), ENNEAttributeDataType::Int32Array);
+		//AttributeValidator.AddOptional(TEXT("output_shape"), ENNEAttributeDataType::Int32Array);
+		AttributeValidator.AddOptional(TEXT("pads"), ENNEAttributeDataType::Int32Array);
+		AttributeValidator.AddOptional(TEXT("strides"), ENNEAttributeDataType::Int32Array);
+
+		bIsValid &= AttributeValidator.Validate(AttributeMap);
+
+		NNX::FInputValidator InputValidator;
+		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddRequired();
+		InputValidator.AddRequired();
+		InputValidator.AddOptional();
+		bIsValid &= InputValidator.Validate(InputTypes);
+
+		return bIsValid;
+	}
+
 	bool RegisterConvTransposeOperator(NNX::FMLOperatorRegistryHlsl& Registry)
 	{
-		Registry.OpAdd(TEXT("ConvTranspose"), FConvTranspose::Create);
+		Registry.OpAdd(TEXT("ConvTranspose"), FConvTranspose::Create, ValidateConvTransposeOperator);
 
 		return true;
 	}

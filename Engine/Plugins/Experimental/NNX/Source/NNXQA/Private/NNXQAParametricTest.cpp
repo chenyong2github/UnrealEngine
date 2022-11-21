@@ -399,6 +399,8 @@ namespace Test
 	static bool RunParametricTest(FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 	{
 		FNNIModelRaw ONNXModel;
+		FNNIModelRaw ONNXModelVariadic;
+		ONNXModelVariadic.Format = ENNXInferenceFormat::Invalid;
 
 		if (TestSetup.IsModelTest)
 		{
@@ -415,14 +417,19 @@ namespace Test
 		else
 		{
 			// Operator test, create model in memory
-			if (!CreateONNXModelForOperator(TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.AttributeMap, ONNXModel))
+			if (!CreateONNXModelForOperator(false, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.AttributeMap, ONNXModel))
 			{
-				UE_LOG(LogNNX, Error, TEXT("Failed to create model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
+				UE_LOG(LogNNX, Error, TEXT("Failed to create static model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
+				return false;
+			}
+			if (!CreateONNXModelForOperator(true, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.AttributeMap, ONNXModelVariadic))
+			{
+				UE_LOG(LogNNX, Error, TEXT("Failed to create variadic model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
 				return false;
 			}
 		}
 
-		return CompareONNXModelInferenceAcrossRuntimes(ONNXModel, TestSetup, RuntimeFilter);
+		return CompareONNXModelInferenceAcrossRuntimes(ONNXModel, ONNXModelVariadic, TestSetup, RuntimeFilter);
 	}
 
 	static FString AutomationRuntimeFilter;

@@ -21,55 +21,75 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	private:
 
-		NNX::FTensor InputA = {};
-		NNX::FTensor InputB = {};
-		NNX::FTensor InputC = {};
-		NNX::FTensor Output = {};
-
 		float InputAlpha = 1.0f;
 		float InputBeta = 1.0f;
 		int32 InputTransA = 0;
 		int32 InputTransB = 0;
-		uint32 InputM = 0;
-		uint32 InputN = 0;
-		uint32 InputK = 0;
-		uint32 InputCWidth = 0;
-		uint32 InputCHeight = 0;
 
 		bool bIsCScalar = false;
 		bool bNoBias = true;
 
 	public:
 
+		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		{
+			OutputShapes.Empty();
+			check(InputShapes.Num() >= 2 && InputShapes.Num() <= 3);
+
+			const NNX::FTensorShape& InputA = InputShapes[0];
+			const NNX::FTensorShape& InputB = InputShapes[1];
+			if (InputA.Rank() != 2 || InputB.Rank() != 2)
+			{
+				return -1;
+			}
+
+			uint32 M = InputTransA != 0 ? InputA.Data[1] : InputA.Data[0];
+			uint32 N = InputTransB != 0 ? InputB.Data[0] : InputB.Data[1];
+			NNX::FTensorShape OutputShape;
+			
+			OutputShape.Data.Emplace(M);
+			OutputShape.Data.Emplace(N);
+			OutputShapes.Emplace(OutputShape);
+			return 0;
+		};
+		
 		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
 		{
-			TArray<NNX::FTensor> InputTensors;
-			TArray<NNX::FTensor> OutputTensors;
-			if (!NNX::ConvertConcreteTensorDescsToTensors(InputTensorDescs, InputTensors) ||
-				!NNX::ConvertConcreteTensorDescsToTensors(OutputTensorDescs, OutputTensors))
+			check(InputTensorDescs.Num() >= 2 && InputTensorDescs.Num() <= 3);
+			check(OutputTensorDescs.Num() == 1);
+
+            const NNX::FTensorDesc& InputA = InputTensorDescs[0];
+			const NNX::FTensorDesc& InputB = InputTensorDescs[1];
+
+			if (InputA.GetShape().Rank() != 2)
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Variable input shapes are not supported by this operator"));
+				UE_LOG(LogNNX, Warning, TEXT("Gemm first input should be of rank 2"));
 				return false;
 			}
-			
-			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
-			check(OutputTensors.Num() == 1);
-
-			InputA = InputTensors[0];
-			InputB = InputTensors[1];
-			if (InputTensors.Num() == 3) InputC = InputTensors[2];
-			Output = OutputTensors[0];
-
-			check(InputA.GetShape().Rank() == 2);
-			check(InputB.GetShape().Rank() == 2);
-			check(InputC.GetShape().Rank() < 3);
-
-			check(InputC.GetShape().Rank() != 1 || InputC.GetShape().Data[0] != 1); // TODO scalar version not supported yet
+			if (InputB.GetShape().Rank() != 2)
+			{
+				UE_LOG(LogNNX, Warning, TEXT("Gemm second input should be of rank 2"));
+				return false;
+			}
+			if (InputTensorDescs.Num() == 3)
+			{
+				const NNX::FTensorDesc& InputC = InputTensorDescs[2];
+				if (InputC.GetShape().Rank() > 2)
+				{
+					UE_LOG(LogNNX, Warning, TEXT("Gemm third input should be of rank 2 or less"));
+					return false;
+				}
+				if (InputC.GetShape().Rank() == 1 && InputC.GetShape().Data[0] == 1)
+				{
+					UE_LOG(LogNNX, Warning, TEXT("Gemm third input as scalar not supported"));
+					return false;
+				}
+			}
 
 			// C is treated as a scalar if there is no valid C, either width or height is zero or C dimension is 1x1
 			bIsCScalar = false; // InputTensors.Num() != 3 || InputC.Sizes[0] * InputC.Sizes[1] < 2;
 			// CScalar = C != nullptr ? C[0] : (InElementType)0;
-			bNoBias = InputTensors.Num() != 3 /*|| InputC.Sizes[0] * InputC.Sizes[1] < 1*/;
+			bNoBias = InputTensorDescs.Num() != 3 /*|| InputC.Sizes[0] * InputC.Sizes[1] < 1*/;
 
 			InputAlpha = Attributes.GetValueOrDefault(TEXT("alpha"), InputAlpha);
 			InputBeta = Attributes.GetValueOrDefault(TEXT("beta"), InputBeta);
@@ -79,7 +99,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InInputTensors, TConstArrayView<NNX::FTensorRDG> InOutputTensors) override
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InputTensors, TConstArrayView<NNX::FTensorRDG> OutputTensors) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
@@ -87,15 +107,28 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			const float CScalar = 0.0f;
 
+			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
+			check(OutputTensors.Num() == 1);
+
+			const NNX::FTensorRDG& InputA = InputTensors[0];
+			const NNX::FTensorRDG& InputB = InputTensors[1];
+			const NNX::FTensorRDG& Output = OutputTensors[0];
+			const NNX::FTensorRDG* InputC = nullptr;
+
+			if (InputTensors.Num() == 3)
+			{
+				InputC = &(InputTensors[2]);
+			}
+			
 			// Set parameters
 			TGemmCS::FParameters* Parameters = GraphBuilder.AllocParameters<TGemmCS::FParameters>();
 			TGemmCS::FillInParameters(InputAlpha, InputBeta, InputTransA, InputTransB, InputA, InputB, InputC, CScalar, *Parameters);
-			Parameters->A = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputTensors[0].GetBuffer(), PF_R32_FLOAT));
-			Parameters->B = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputTensors[1].GetBuffer(), PF_R32_FLOAT));
-			if (InInputTensors.Num() == 3) {
-				Parameters->C = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputTensors[2].GetBuffer(), PF_R32_FLOAT));
+			Parameters->A = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InputA.GetBuffer(), PF_R32_FLOAT));
+			Parameters->B = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InputB.GetBuffer(), PF_R32_FLOAT));
+			if (InputTensors.Num() == 3) {
+				Parameters->C = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InputC->GetBuffer(), PF_R32_FLOAT));
 			}
-			Parameters->Y = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(InOutputTensors[0].GetBuffer(), PF_R32_FLOAT));
+			Parameters->Y = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.GetBuffer(), PF_R32_FLOAT));
 
 			TGemmCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<TGemmCS::FGemmCScalar>(bNoBias ? EGemmCScalar::NoBias : (bIsCScalar ? EGemmCScalar::Yes : EGemmCScalar::No));

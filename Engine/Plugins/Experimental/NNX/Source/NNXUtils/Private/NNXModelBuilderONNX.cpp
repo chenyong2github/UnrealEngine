@@ -296,16 +296,33 @@ private:
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, FNNIModelRaw& Model)
+NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, FNNIModelRaw& Model)
 {
 	UE::NNECore::FAttributeMap EmptyAttributeMap;
-	return CreateONNXModelForOperator(OperatorName, InInputTensors, InOutputTensors, EmptyAttributeMap, Model);
+	return CreateONNXModelForOperator(UseVariadicShapeForModel, OperatorName, InInputTensors, InOutputTensors, EmptyAttributeMap, Model);
 }
 
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& Model)
+void BuildShapeForModel(bool ConvertToVariadicShape, const FTensorShape& InShape, TArray<int32>& OutShape)
+{
+	OutShape.Empty();
+	for (int32 Idx = 0; Idx < InShape.Rank(); ++Idx)
+	{
+		int32 Dim = static_cast<int32>(InShape.Data[Idx]);
+		if (ConvertToVariadicShape)
+		{
+			Dim = -1;
+		}
+		OutShape.Emplace(Dim);
+	}
+}
+
+//
+//
+//
+NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& Model)
 {
 	Model = FNNIModelRaw{};
 	
@@ -313,12 +330,14 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConst
 
 	Builder->Begin();
 
-	TArray<IMLModelBuilder::HTensor>	InputTensors;
+	TArray<int32> ShapeForModel;
+	TArray<IMLModelBuilder::HTensor> InputTensors;
 	
 	for (int32 Idx = 0; Idx < InInputTensors.Num(); ++Idx)
 	{
 		const FTensor& Desc = InInputTensors[Idx];
-		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), MakeArrayView((const int32*)Desc.GetShape().Data.GetData(), Desc.GetShape().Rank()));
+		BuildShapeForModel(UseVariadicShapeForModel, Desc.GetShape(), ShapeForModel);
+		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), ShapeForModel);
 
 		InputTensors.Emplace(Tensor);
 		Builder->AddInput(Tensor);
@@ -329,7 +348,8 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConst
 	for (int32 Idx = 0; Idx < InOutputTensors.Num(); ++Idx)
 	{
 		const FTensor& Desc = InOutputTensors[Idx];
-		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), MakeArrayView((const int32*)Desc.GetShape().Data.GetData(), Desc.GetShape().Rank()));
+		BuildShapeForModel(UseVariadicShapeForModel, Desc.GetShape(), ShapeForModel);
+		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), ShapeForModel);
 
 		OutputTensors.Emplace(Tensor);
 		Builder->AddOutput(Tensor);

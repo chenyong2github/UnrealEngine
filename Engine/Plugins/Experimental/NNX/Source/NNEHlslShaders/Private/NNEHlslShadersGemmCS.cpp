@@ -80,7 +80,7 @@ namespace UE::NNEHlslShaders::Internal
 		OutEnvironment.SetDefine(TEXT("MAX_NUM_STACK_DIMENSIONS"), FGemmConstants::MAX_NUM_STACK_DIMENSIONS);
 	}
 
-	void TGemmCS::FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNX::FTensor& InputA, const NNX::FTensor& InputB, const NNX::FTensor& InputC, float CScalar, TGemmCS::FParameters& Parameters)
+	void TGemmCS::FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNX::FTensor& InputA, const NNX::FTensor& InputB, const NNX::FTensor* InputC, float CScalar, TGemmCS::FParameters& Parameters)
 	{
 		check(InputA.GetShape().Rank() == 2);
 		check(InputB.GetShape().Rank() == 2);
@@ -100,8 +100,14 @@ namespace UE::NNEHlslShaders::Internal
 		Parameters.MxK = M * K;
 		Parameters.KxN = K * N;
 		Parameters.MxN = M * N;
-		Parameters.CWidth = InputC.GetShape().Rank() == 0 ? 0 : InputC.GetShape().Data[InputC.GetShape().Rank() - 1];;
-		Parameters.CHeight = InputC.GetShape().Rank() == 0 ? 0 : InputC.GetShape().Rank() == 1 ? 1 : InputC.GetShape().Data[InputC.GetShape().Rank() - 2];
+		Parameters.CWidth = 0;
+		Parameters.CHeight = 0;
+		if (InputC)
+		{
+			Parameters.CWidth = InputC->GetShape().Rank() == 0 ? 0 : InputC->GetShape().Data[InputC->GetShape().Rank() - 1];;
+			Parameters.CHeight = InputC->GetShape().Rank() == 0 ? 0 : InputC->GetShape().Rank() == 1 ? 1 : InputC->GetShape().Data[InputC->GetShape().Rank() - 2];
+		}
+		
 		Parameters.CScalar = CScalar;
 	}
 

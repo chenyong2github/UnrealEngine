@@ -94,7 +94,7 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 				FTensor InputTensor = FTensor::Make(TEXT("in"), FTensorShape::Make({1, 512 }), EMLTensorDataType::Float);
 				FTensor OutputTensor = FTensor::Make(TEXT("out"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
 
-				if (!NNX::CreateONNXModelForOperator(OpName, MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
+				if (!NNX::CreateONNXModelForOperator(true, OpName, MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
 				{
 					UE_LOG(LogNNX, Warning, TEXT("Failed to create model for operator:%s"), *OpName);
 				}
@@ -143,7 +143,7 @@ static FAutoConsoleCommand ConsoleCmdNNXCreateModel(
 				FTensor InputTensor = FTensor::Make(TEXT("in"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
 				FTensor OutputTensor = FTensor::Make(TEXT("out"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
 
-				if (!NNX::CreateONNXModelForOperator(Args[0], MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
+				if (!NNX::CreateONNXModelForOperator(true, Args[0], MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
 				{
 					UE_LOG(LogNNX, Display, TEXT("Failed to create model for operator:%s"), *Args[0]);
 				}

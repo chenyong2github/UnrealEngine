@@ -91,6 +91,44 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
+		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		{
+			OutputShapes.Empty();
+			check(InputShapes.Num() > 0);
+
+			const int32 NumInput = InputShapes.Num();
+			int32 OutputRank = 0;
+			for (int32 i = 0; i < NumInput; ++i)
+			{
+				OutputRank = FMath::Max(OutputRank, InputShapes[i].Rank());
+			}
+
+			NNX::FTensorShape OutputShape;
+
+			OutputShape.Data.SetNumUninitialized(OutputRank);
+
+			for (int32 i = 0; i < OutputRank; ++i)
+			{
+				int32 OutputValue = 1;
+				for (int32 InputIdx = 0; InputIdx < NumInput; ++InputIdx)
+				{
+					int32 InputIndex = InputShapes[InputIdx].Rank() - 1 - i;
+					int32 InputValue = InputIndex >= 0 ? InputShapes[InputIdx].Data[InputIndex] : 1;
+					if (InputValue != OutputValue && InputValue != 1 && OutputValue != 1)
+					{
+						UE_LOG(LogNNX, Warning, TEXT("Error while computing shape for element wise variadic op, input shapes are not compatible"));
+						return -1;
+					}
+					OutputValue = FMath::Max(InputValue, OutputValue);
+				}
+				OutputShape.Data[OutputRank - 1 - i] = OutputValue;
+			}
+
+			OutputShapes.Emplace(OutputShape);
+
+			return 0;
+		}
+		
 		virtual bool Initialize(TConstArrayView<NNX::FTensorDesc> InputTensorDescs, TConstArrayView<NNX::FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() > 0);
@@ -133,6 +171,36 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			}
 		}
 	};
+
+	bool ValidateElementWiseVariadicOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
+	{
+		bool bIsValid = true;
+
+		NNX::FAttributeValidator AttributeValidator;
+		bIsValid &= AttributeValidator.Validate(AttributeMap);
+
+		if (InputTypes.Num() == 0)
+		{
+			UE_LOG(LogNNX, Error, TEXT("Element-wise variadic operator requires at least 1 input"));
+			bIsValid = false;
+		}
+		for (int32 i = 0; i < InputTypes.Num(); ++i)
+		{
+			if (InputTypes[i] != EMLTensorDataType::Float)
+			{
+				UE_LOG(LogNNX, Warning, TEXT("Element-wise variadic operator input '%d' of type '%d' is not supported, should be float at the moment."), i, InputTypes[i]);
+				bIsValid = false;
+			}
+		}
+		
+		NNX::FInputValidator InputValidator;
+		InputValidator.AddSupportedType(EMLTensorDataType::Float);
+		InputValidator.AddRequired();
+		InputValidator.AddRequired();
+		bIsValid &= InputValidator.Validate(InputTypes);
+
+		return bIsValid;
+	}
 
 	template<EMLElementWiseVariadicOperatorType OpType>
 	NNX::FMLOperatorHlsl* CreateElementWiseVariadicOperator()

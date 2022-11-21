@@ -87,8 +87,8 @@ NNXUTILS_API IMLModelBuilder* CreateONNXModelBuilder(int64 IrVersion = OnnxIrVer
 /**
  * Utility functions to create single layer NN for operator testing with optional attributes
  */
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, FNNIModelRaw& ModelData);
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& ModelData);
+NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, FNNIModelRaw& ModelData);
+NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& ModelData);
 
 /**
  * Create an instance of NNX model builder that creates NNX model/format in memory

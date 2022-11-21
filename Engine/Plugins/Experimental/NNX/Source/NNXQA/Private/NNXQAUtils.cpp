@@ -426,7 +426,38 @@ namespace Test
 		return ReturnValue;
 	}
 
-	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
+	bool RunTestInferenceAndCompareToRef(const FTests::FTestSetup& TestSetup, IRuntime* Runtime, const FNNIModelRaw& ONNXModel, 
+		TArrayView<TArray<char>> RefOutputMemBuffers, TArrayView<FTensor> RefOutputTensorDescs)
+	{
+		TArray<TArray<char>> OutputMemBuffers;
+		TArray<FTensor> OutputTensorDescs;
+
+		const FString& RuntimeName = Runtime->GetRuntimeName();
+
+		bool bTestSuceeded = true;
+		float AbsoluteErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RuntimeName);
+		float RelativeErrorPercent = TestSetup.GetRelativeErrorPercentForRuntime(RuntimeName);
+
+		RunTestInference(ONNXModel, TestSetup, Runtime, OutputTensorDescs, OutputMemBuffers);
+		if (OutputTensorDescs.Num() == RefOutputTensorDescs.Num())
+		{
+			for (int i = 0; i < OutputTensorDescs.Num(); ++i)
+			{
+				bTestSuceeded &= VerifyTensorResult(
+					RefOutputTensorDescs[i], RefOutputMemBuffers[i],
+					OutputTensorDescs[i], OutputMemBuffers[i],
+					AbsoluteErrorEpsilon, RelativeErrorPercent);
+			}
+		}
+		else
+		{
+			UE_LOG(LogNNX, Error, TEXT("Expecting %d output tensor(s), got %d."), RefOutputTensorDescs.Num(), OutputTensorDescs.Num());
+			bTestSuceeded = false;
+		}
+		return bTestSuceeded;
+	}
+
+	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FNNIModelRaw& ONNXModelVariadic, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 	{
 		FString CurrentPlatform = UGameplayStatics::GetPlatformName();
 		if (TestSetup.AutomationExcludedPlatform.Contains(CurrentPlatform))
@@ -482,30 +513,26 @@ namespace Test
 			}
 			else
 			{
-				TArray<TArray<char>> OutputMemBuffers;
-				TArray<FTensor> OutputTensorDescs;
-				bool bTestSuceeded = true;
-				float AbsoluteErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RuntimeName);
-				float RelativeErrorPercent = TestSetup.GetRelativeErrorPercentForRuntime(RuntimeName);
+				bool bShouldRunVariadicTest = (ONNXModelVariadic.Format != ENNXInferenceFormat::Invalid);
+				bShouldRunVariadicTest &= !(RuntimeName == "NNXRuntimeDML");
+				bShouldRunVariadicTest &= !(RuntimeName == "NNXRuntimeORTDml");
 
-				RunTestInference(ONNXModel, TestSetup, Runtime, OutputTensorDescs, OutputMemBuffers);
-				if (OutputTensorDescs.Num() == RefOutputTensorDescs.Num())
+				bool bTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime, ONNXModel, RefOutputMemBuffers, RefOutputTensorDescs);
+				
+				if (bShouldRunVariadicTest)
 				{
-					for (int i = 0; i < OutputTensorDescs.Num(); ++i)
+					if (!bTestSuceeded)
 					{
-						bTestSuceeded &= VerifyTensorResult(
-							RefOutputTensorDescs[i], RefOutputMemBuffers[i],
-							OutputTensorDescs[i], OutputMemBuffers[i],
-							AbsoluteErrorEpsilon, RelativeErrorPercent);
+						UE_LOG(LogNNX, Error, TEXT("Failed running static test."));
+					}
+					bool bVariadicTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime, ONNXModelVariadic, RefOutputMemBuffers, RefOutputTensorDescs);
+					if (!bVariadicTestSuceeded)
+					{
+						bTestSuceeded = false;
+						UE_LOG(LogNNX, Error, TEXT("Failed running variadic test."));
 					}
 				}
-				else
-				{
-					UE_LOG(LogNNX, Error, TEXT("Expecting %d output tensor(s), got %d."), RefOutputTensorDescs.Num(), OutputTensorDescs.Num());
-					bTestSuceeded = false;
-				}
 				TestResult = bTestSuceeded ? TEXT("SUCCESS") : TEXT("FAILED");
-				
 				bAllTestsSucceeded &= bTestSuceeded;
 			}
 
