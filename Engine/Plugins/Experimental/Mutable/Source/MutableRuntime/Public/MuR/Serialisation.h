@@ -16,7 +16,7 @@ namespace mu
     //! \brief
     //! \ingroup model
     template<class R>
-    class MUTABLERUNTIME_API ResourceProxy : public RefCounted
+    class ResourceProxy : public RefCounted
     {
     public:
 

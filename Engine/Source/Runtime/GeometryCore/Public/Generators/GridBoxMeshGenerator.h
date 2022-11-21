@@ -210,8 +210,8 @@ public:
 						UV[UVXDim] = float (D0 * Nscale[D[0][Dim]] - .5);
 						UV[UVYDim] = float (D1 * Nscale[D[1][Dim]] - .5);
 						// invert axes to match the desired UV patterns & so the opp faces are not backwards
-						UV.X *= SideSign * Minor1Flip[Dim];
-						UV.Y *= Minor2Flip[Dim];
+						UV.X *= float(SideSign * Minor1Flip[Dim]);
+						UV.Y *= float(Minor2Flip[Dim]);
 						// recenter and scale up
 						UV[UVXDim] = float ( (UV[UVXDim] + .5f) * WidthUVScale);
 						UV[UVYDim] = float ( (UV[UVYDim] + .5f) * HeightUVScale);

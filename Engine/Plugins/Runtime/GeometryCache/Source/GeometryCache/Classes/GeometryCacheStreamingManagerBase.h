@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "ContentStreaming.h"
+
+class UGeometryCacheComponent;
+class UGeometryCacheTrackStreamable;
 
 /**
 * Note IStreamingManager is not really anything like an interface it contains code and members and whatnot.
@@ -12,7 +15,7 @@ struct IGeometryCacheStreamingManager : public IStreamingManager
 	IGeometryCacheStreamingManager() {}
 
 	/** Virtual destructor */
-	virtual ~IStreamingManager() {}
+	virtual ~IGeometryCacheStreamingManager() {}
 
 	/** Getter of the singleton */
 	GEOMETRYCACHE_API static struct IGeometryCacheStreamingManager& Get();
@@ -49,4 +52,4 @@ struct IGeometryCacheStreamingManager : public IStreamingManager
 	*/
 	virtual const uint8* GetLoadedChunk(const UGeometryCacheTrackStreamable* Track, uint32 ChunkIndex, uint32* OutChunkSize = NULL) const = 0;
 
-}
+};

@@ -21,6 +21,8 @@ struct FSomeForwardDeclaredStruct;
 
 struct FDummyTestStruct
 {
+	FDummyTestStruct();
+	~FDummyTestStruct();
 	TPagedArray<FSomeForwardDeclaredStruct> Data;
 };
 

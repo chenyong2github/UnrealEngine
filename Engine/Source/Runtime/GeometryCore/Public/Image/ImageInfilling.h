@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "IntVectorTypes.h"
 #include "Templates/Tuple.h"
+#include "Util/IndexUtil.h"
 #include "VectorTypes.h"
 #include "Image/ImageDimensions.h"
 #include "Image/ImageBuilder.h"
@@ -67,7 +69,7 @@ public:
 					Count++;
 				}
 			}
-			ActiveSetQueue.Insert(k, 8 - Count);
+			ActiveSetQueue.Insert(k, float(8 - Count));
 			PixelToIndexMap.Add(CenterCoords, k);
 		}
 
@@ -120,7 +122,7 @@ public:
 						if (FoundIndex != nullptr && ActiveSetQueue.Contains(*FoundIndex))
 						{
 							float CurPriority = ActiveSetQueue.GetPriority(*FoundIndex);
-							ActiveSetQueue.Update(*FoundIndex, CurPriority - 1.0);
+							ActiveSetQueue.Update(*FoundIndex, CurPriority - 1.0f);
 						}
 					}
 				}

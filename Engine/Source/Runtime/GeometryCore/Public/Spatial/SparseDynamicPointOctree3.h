@@ -955,7 +955,7 @@ void FSparseDynamicPointOctree3::ComputeStatistics(FStatistics& StatsOut) const
 		int ObjCount = CellPointLists.GetCount(CellID);
 		StatsOut.LevelObjCounts[Cell.Level] += ObjCount;
 		StatsOut.LevelMaxObjCounts[Cell.Level] = FMath::Max(StatsOut.LevelMaxObjCounts[Cell.Level], ObjCount);
-		StatsOut.LevelCellSizes[Cell.Level] = GetCellWidth(Cell.Level);
+		StatsOut.LevelCellSizes[Cell.Level] = float(GetCellWidth(Cell.Level));
 	}
 }
 

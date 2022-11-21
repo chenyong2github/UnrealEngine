@@ -101,8 +101,8 @@ private:
 	{
 		// generate the UV's
 		int32 NumPhi = (2 * NumHemisphereArcSteps);
-		const float DUVphi = 1.0 / float(NumPhi - 1);
-		const float DUVtheta = -1.0 / float(NumCircleSteps);
+		const float DUVphi = 1.0f / float(NumPhi - 1);
+		const float DUVtheta = -1.0f / float(NumCircleSteps);
 
 		int32 UVIdx = 0;
 		int32 p,t;

@@ -438,7 +438,7 @@ private:
 
 	float upper_bound(const FVector3i& GridDimensions, float DX) const
 	{
-		return (float)((GridDimensions[0] + GridDimensions[1] + GridDimensions[2]) * DX);
+		return float(GridDimensions[0] + GridDimensions[1] + GridDimensions[2]) * DX;
 	}
 
 	// if provided, uses IsInsideFunction to determine sign, otherwise uses a counting method.

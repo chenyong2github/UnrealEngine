@@ -263,7 +263,7 @@ class CHAOS_API TUniformGridBase
 };
 
 template<class T, int d>
-class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
+class TUniformGrid : public TUniformGridBase<T, d>
 {
 	using TUniformGridBase<T, d>::MCells;
 	using TUniformGridBase<T, d>::MMinCorner;
@@ -311,7 +311,7 @@ class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
 };
 
 template<class T>
-class CHAOS_API TMPMGrid : public TUniformGridBase<T, 3>
+class TMPMGrid : public TUniformGridBase<T, 3>
 {
 	using TUniformGridBase<T, 3>::MCells;
 	using TUniformGridBase<T, 3>::MMinCorner;

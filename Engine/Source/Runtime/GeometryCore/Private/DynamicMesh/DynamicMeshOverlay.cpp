@@ -1789,17 +1789,17 @@ namespace Geometry
 // These are explicit instantiations of the templates that are exported from the shared lib.
 // Only these instantiations of the template can be used.
 // This is necessary because we have placed most of the templated functions in this .cpp file, instead of the header.
-template class TDynamicMeshOverlay<float, 1>;
-template class TDynamicMeshOverlay<double, 1>;
-template class TDynamicMeshOverlay<int, 1>;
-template class TDynamicMeshOverlay<float, 2>;
-template class TDynamicMeshOverlay<double, 2>;
-template class TDynamicMeshOverlay<int, 2>;
-template class TDynamicMeshOverlay<float, 3>;
-template class TDynamicMeshOverlay<double, 3>;
-template class TDynamicMeshOverlay<int, 3>;
-template class TDynamicMeshOverlay<float, 4>;
-template class TDynamicMeshOverlay<double, 4>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<float, 1>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<double, 1>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<int, 1>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<float, 2>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<double, 2>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<int, 2>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<float, 3>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<double, 3>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<int, 3>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<float, 4>;
+template class GEOMETRYCORE_API TDynamicMeshOverlay<double, 4>;
 
 template class TDynamicMeshVectorOverlay<float, 2, FVector2f>;
 template class TDynamicMeshVectorOverlay<double, 2, FVector2d>;

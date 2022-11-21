@@ -58,7 +58,7 @@ public:
 			{
 				Normals[AttribIndex] = FaceNormal;
 				FVector2i CornerUV = IndexUtil::BoxFacesUV[j];
-				UVs[AttribIndex] = FVector2f(WidthUVScale*(float)CornerUV.X, HeightUVScale*(float)CornerUV.Y);
+				UVs[AttribIndex] = FVector2f(float(WidthUVScale*CornerUV.X), float(HeightUVScale*CornerUV.Y));
 				ElementIndices[j] = AttribIndex;
 				AttribIndex++;
 			}

@@ -559,6 +559,10 @@ FTextureRenderTarget2DResource::FTextureRenderTarget2DResource(const class UText
 	
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FTextureRenderTarget2DResource::~FTextureRenderTarget2DResource() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 /**
  * Clamp size of the render target resource to max values
  *

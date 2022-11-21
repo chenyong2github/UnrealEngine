@@ -400,6 +400,7 @@ public:
 	 * @param InOwner - 2d texture object to create a resource for
 	 */
 	FTextureRenderTarget2DResource(const class UTextureRenderTarget2D* InOwner);
+	virtual ~FTextureRenderTarget2DResource();
 
 	FORCEINLINE FLinearColor GetClearColor()
 	{

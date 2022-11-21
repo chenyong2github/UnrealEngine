@@ -13,6 +13,7 @@
 #include "EngineUtils.h"
 #include "Engine/Polys.h"
 #include "DynamicMeshBuilder.h"
+#include "StaticLighting.h"
 
 float UModel::BSPTexelScale = 100.0f;
 
@@ -177,6 +178,8 @@ FArchive& operator<<(FArchive& Ar, FDepecatedModelVertex& V)
 
 	return Ar;
 }
+
+FNodeGroup::~FNodeGroup() = default;
 
 /*---------------------------------------------------------------------------------------
 	UModel object implementation.

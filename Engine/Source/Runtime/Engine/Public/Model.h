@@ -351,6 +351,8 @@ private:
 /** A struct that contains a set of conodes that will be used in one mapping */
 struct FNodeGroup
 {
+	ENGINE_API ~FNodeGroup();
+
 	/** List of nodes in the node group */
 	TArray<int32> Nodes;
 
