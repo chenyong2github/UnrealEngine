@@ -220,20 +220,15 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 		// Activate slot Preconditions
 		if (SlotDefinition.SelectionPreconditions.IsValid())
 		{
-			if (!Slot.PreconditionState.Initialize(*this, SlotDefinition.SelectionPreconditions))
-			{
-				UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Failed to initialize Preconditions on SmartObject '%s' slot '%s'."), *LexToString(Handle), *LexToString(SlotHandle));
-			}
-			else
-			{
-				check(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectHandleRef(), &Handle));
-				check(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSlotHandleRef(), &SlotHandle));
+			Slot.PreconditionState.Initialize(*this, SlotDefinition.SelectionPreconditions);
+			
+			ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectHandleRef(), &Handle), TEXT("Expecting USmartObjectWorldConditionSchema::SmartObjectHandleRef to be valid."));
+			ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSlotHandleRef(), &SlotHandle), TEXT("Expecting USmartObjectWorldConditionSchema::SlotHandleRef to be valid."));
 
-				const FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, Slot.PreconditionState, ConditionContextData);
-				if (!Context.Activate())
-				{
-					UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Failed to activate Preconditions on SmartObject '%s' slot '%s'."), *LexToString(Handle), *LexToString(SlotHandle));
-				}
+			const FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, Slot.PreconditionState, ConditionContextData);
+			if (!Context.Activate())
+			{
+				UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Failed to activate Preconditions on SmartObject '%s' slot '%s'."), *LexToString(Handle), *LexToString(SlotHandle));
 			}
 		}
 		
@@ -311,12 +306,12 @@ void USmartObjectSubsystem::DestroyRuntimeInstanceInternal(const FSmartObjectHan
 	{
 		// Deactivate slot Preconditions
 		const FSmartObjectRuntimeSlot& RuntimeSlot = RuntimeSlots.FindChecked(SlotHandle);
-		if (RuntimeSlot.PreconditionState.IsValid() && ConditionContextData.IsValid())
+		if (RuntimeSlot.PreconditionState.IsInitialized() && ConditionContextData.IsValid())
 		{
 			const FSmartObjectSlotDefinition& SlotDefinition = Definition.GetSlot(RuntimeSlot.SlotIndex);
 
-			check(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectHandleRef(), &Handle));
-			check(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSlotHandleRef(), &SlotHandle));
+			ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectHandleRef(), &Handle), TEXT("Expecting USmartObjectWorldConditionSchema::SmartObjectHandleRef to be valid."));
+			ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSlotHandleRef(), &SlotHandle), TEXT("Expecting USmartObjectWorldConditionSchema::SlotHandleRef to be valid."));
 
 			const FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, RuntimeSlot.PreconditionState, ConditionContextData);
 			Context.Deactivate();
@@ -1209,8 +1204,8 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 	}
 
 	const USmartObjectWorldConditionSchema* DefaultSchema = GetDefault<USmartObjectWorldConditionSchema>();
-	check(ConditionContextData.SetContextData(DefaultSchema->GetUserActorRef(), Filter.UserActor.Get()));
-	check(ConditionContextData.SetContextData(DefaultSchema->GetUserTagsRef(), &Filter.UserTags));
+	ensureMsgf(ConditionContextData.SetContextData(DefaultSchema->GetUserActorRef(), Filter.UserActor.Get()), TEXT("Expecting USmartObjectWorldConditionSchema::UserActorRef to be valid."));
+	ensureMsgf(ConditionContextData.SetContextData(DefaultSchema->GetUserTagsRef(), &Filter.UserTags), TEXT("Expecting USmartObjectWorldConditionSchema::UserTagsRef to be valid."));
 	
 	// Build list of available slot indices (filter out occupied or reserved slots or disabled slots)
 	for (const int32 SlotIndex : ValidSlotIndices)
@@ -1225,10 +1220,10 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 		
 		// Check conditions.
 		const FSmartObjectSlotDefinition& SlotDefinition = Definition.GetSlot(SlotIndex);
-		if (RuntimeSlot.PreconditionState.IsValid())
+		if (RuntimeSlot.PreconditionState.IsInitialized())
 		{
-			check(ConditionContextData.SetContextData(DefaultSchema->GetSmartObjectHandleRef(), &SmartObjectRuntime.RegisteredHandle));
-			check(ConditionContextData.SetContextData(DefaultSchema->GetSlotHandleRef(), &SlotHandle));
+			ensureMsgf(ConditionContextData.SetContextData(DefaultSchema->GetSmartObjectHandleRef(), &SmartObjectRuntime.RegisteredHandle), TEXT("Expecting USmartObjectWorldConditionSchema::SmartObjectHandleRef to be valid."));
+			ensureMsgf(ConditionContextData.SetContextData(DefaultSchema->GetSlotHandleRef(), &SlotHandle), TEXT("Expecting USmartObjectWorldConditionSchema::SlotHandleRef to be valid."));
 
 			FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, RuntimeSlot.PreconditionState, ConditionContextData);
 			if (!Context.IsTrue())

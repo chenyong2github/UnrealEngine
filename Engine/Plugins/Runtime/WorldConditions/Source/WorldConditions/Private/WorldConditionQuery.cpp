@@ -13,21 +13,19 @@ FWorldConditionQueryState::~FWorldConditionQueryState()
 	}
 }
 	
-bool FWorldConditionQueryState::Initialize(const UObject& Owner, const FWorldConditionQueryDefinition& QueryDefinition)
+void FWorldConditionQueryState::Initialize(const UObject& Owner, const FWorldConditionQueryDefinition& QueryDefinition)
 {
-	check(Memory == nullptr);
-
-	if (!QueryDefinition.IsValid())
-	{
-		UE_LOG(LogWorldCondition, Error, TEXT("%s: Trying to intialize world condition with invalid defintion."), *GetFullNameSafe(&Owner));
-		return false;
-	}
-
-	if (IsValid())
+	if (IsInitialized())
 	{
 		Free(QueryDefinition);
 	}
-	
+
+	if (!QueryDefinition.IsValid())
+	{
+		bIsInitialized = true;
+		return;
+	}
+
 	NumConditions = IntCastChecked<uint8>(QueryDefinition.Conditions.Num());
 
 	int32 MinAlignment = 8;
@@ -108,12 +106,19 @@ bool FWorldConditionQueryState::Initialize(const UObject& Owner, const FWorldCon
 		}
 	}
 
-	return true;
+	bIsInitialized = true;
 }
 
 void FWorldConditionQueryState::Free(const FWorldConditionQueryDefinition& QueryDefinition)
 {
-	check(Memory != nullptr);
+	if (Memory == nullptr)
+	{
+		NumConditions = 0;
+		CachedResult = EWorldConditionResult::Invalid;
+		bHasPerConditionState = false;
+		bIsInitialized = false;
+		return;
+	}
 	
 	// Items don't need destructing.
 
@@ -143,6 +148,7 @@ void FWorldConditionQueryState::Free(const FWorldConditionQueryDefinition& Query
 	NumConditions = 0;
 	CachedResult = EWorldConditionResult::Invalid;
 	bHasPerConditionState = false;
+	bIsInitialized = false;
 }
 
 void FWorldConditionQueryState::AddReferencedObjects(const FWorldConditionQueryDefinition& QueryDefinition, class FReferenceCollector& Collector) const
@@ -225,8 +231,7 @@ bool FWorldConditionQueryDefinition::Initialize()
 	}
 	if (ValidConditions.IsEmpty())
 	{
-		UE_LOG(LogWorldCondition, Log, TEXT("World condition requires at least one valid condition."));
-		return false;
+		return true;
 	}
 	
 	Conditions.Append(ValidConditions);
@@ -296,10 +301,7 @@ bool FWorldConditionQuery::Activate(const UObject& InOwner, const FWorldConditio
 {
 	Owner = &InOwner;
 
-	if (!QueryState.Initialize(*Owner, QueryDefinition))
-	{
-		return false;
-	}
+	QueryState.Initialize(*Owner, QueryDefinition);
 	check(QueryState.GetNumConditions() == QueryDefinition.Conditions.Num());
 
 	const FWorldConditionContext Context(*Owner, QueryDefinition, QueryState, ContextData);
@@ -320,12 +322,12 @@ void FWorldConditionQuery::Deactivate(const FWorldConditionContextData& ContextD
 
 bool FWorldConditionQuery::IsActive() const
 {
-	return QueryState.IsValid();
+	return QueryState.IsInitialized();
 }
 
 void FWorldConditionQuery::AddStructReferencedObjects(class FReferenceCollector& Collector) const
 {
-	if (QueryState.IsValid())
+	if (QueryState.IsInitialized())
 	{
 		QueryState.AddReferencedObjects(QueryDefinition, Collector);
 	}

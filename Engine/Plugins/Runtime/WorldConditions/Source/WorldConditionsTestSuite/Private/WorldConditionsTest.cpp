@@ -10,6 +10,8 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_WorldConditionsTest"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 struct FWorldConditionTest_Init : FAITestBase
 {
 	virtual bool InstantTest() override
@@ -23,8 +25,8 @@ struct FWorldConditionTest_Init : FAITestBase
 		AITEST_TRUE("Query definition should get initialized", bInitialized);
 
 		FWorldConditionQueryState State;
-		const bool bStateInitialized = State.Initialize(GetWorld(), Definition);
-		AITEST_TRUE("Query state should get initialized", bStateInitialized);
+		State.Initialize(GetWorld(), Definition);
+		AITEST_TRUE("Query state should get initialized", State.IsInitialized());
 		AITEST_EQUAL("Query state should have 2 conditions", State.GetNumConditions(), 2);
 		AITEST_EQUAL("Query state condition 1 operator should be And", State.GetItem(1).Operator, EWorldConditionOperator::And);
 		
@@ -166,5 +168,72 @@ struct FWorldConditionTest_EvalComplex : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_EvalComplex, "System.WorldConditions.EvalComplex");
+
+struct FWorldConditionTest_Empty : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FWorldConditionQuery Query;
+		const bool bInitialized = Query.DebugInitialize(UWorldConditionTestSchema::StaticClass(),{});
+
+		AITEST_TRUE("Query should get initialized", bInitialized);
+		
+		FWorldConditionTestData TestData(1);
+		const UWorldConditionTestSchema* TestSchema = GetDefault<UWorldConditionTestSchema>();
+		FWorldConditionContextData ContextData(*TestSchema);
+		const bool bContextDataSet = ContextData.SetContextData(TestSchema->GetValueRef(), &TestData);
+		AITEST_TRUE("Query context data should be set", bContextDataSet);
+		
+		const bool bActivated = Query.Activate(GetWorld(), ContextData);
+		AITEST_TRUE("Query should get activated", bActivated);
+		AITEST_TRUE("Query should be active", Query.IsActive());
+		
+		const bool bResult1 = Query.IsTrue(ContextData);
+		AITEST_FALSE("Query result1 should be false", bResult1);
+
+		Query.Deactivate(ContextData);
+		AITEST_FALSE("Query should not be active", Query.IsActive());
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_Empty, "System.WorldConditions.Empty");
+
+struct FWorldConditionTest_FailingActivate : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FWorldConditionQuery Query;
+		const bool bInitialized = Query.DebugInitialize(UWorldConditionTestSchema::StaticClass(),
+			{
+				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(1))),
+				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest(1, false))) // this conditions fails to activate
+			});
+
+		AITEST_TRUE("Query should get initialized", bInitialized);
+		
+		const FWorldConditionTestData TestData(1);
+
+		const UWorldConditionTestSchema* TestSchema = GetDefault<UWorldConditionTestSchema>();
+		FWorldConditionContextData ContextData(*TestSchema);
+		const bool bContextDataSet = ContextData.SetContextData(TestSchema->GetValueRef(), &TestData);
+		AITEST_TRUE("Query context data should be set", bContextDataSet);
+		
+		const bool bActivated = Query.Activate(GetWorld(), ContextData);
+		AITEST_FALSE("Query should not get activated", bActivated);
+		AITEST_FALSE("Query should not be active", Query.IsActive());
+		
+		const bool bResult = Query.IsTrue(ContextData);
+		AITEST_FALSE("Query result should be false", bResult);
+
+		Query.Deactivate(ContextData);
+		AITEST_FALSE("Query should not be active", Query.IsActive());
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_FailingActivate, "System.WorldConditions.FailingActivate");
+
+PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

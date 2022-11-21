@@ -5,7 +5,10 @@
 
 bool FWorldConditionContext::Activate() const
 {
-	check(QueryState.IsValid());
+	if (!QueryState.IsInitialized())
+	{
+		return false;
+	}
 
 	for (int32 Index = 0; Index < QueryDefinition.Conditions.Num(); Index++)
 	{
@@ -25,7 +28,6 @@ bool FWorldConditionContext::Activate() const
 	if (!bSuccess)
 	{
 		Deactivate();
-		QueryState.Free(QueryDefinition);
 	}
 	
 	return bSuccess;
@@ -33,7 +35,7 @@ bool FWorldConditionContext::Activate() const
 
 bool FWorldConditionContext::IsTrue() const
 {
-	if (!QueryState.IsValid())
+	if (!QueryState.IsInitialized())
 	{
 		return false;
 	}
@@ -88,7 +90,10 @@ bool FWorldConditionContext::IsTrue() const
 
 void FWorldConditionContext::Deactivate() const
 {
-	check(QueryState.IsValid());
+	if (!QueryState.IsInitialized())
+	{
+		return;
+	}
 	
 	for (int32 Index = 0; Index < QueryDefinition.Conditions.Num(); Index++)
 	{

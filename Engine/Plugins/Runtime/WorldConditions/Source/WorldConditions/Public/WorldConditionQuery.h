@@ -158,21 +158,21 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 {
 	FWorldConditionQueryState()
 		: bHasPerConditionState(false)
+		, bIsInitialized(false)
 	{
 	}
 	
 	~FWorldConditionQueryState();
 
-	/** @return True if the state is property initialized. */
-	bool IsValid() const { return Memory != nullptr; }
+	/** @return True if the state is properly initialized. */
+	bool IsInitialized() const { return bIsInitialized; }
 
 	/**
 	 * Initialized the state for a specific query definition.
 	 * @param Owner Owner of any objects created during Init().
 	 * @param QueryDefinition definition of the state to initialized.
-	 * @return True if initialization succeeded, false if failed (e.g. invalid definition).
 	 */
-	bool Initialize(const UObject& Owner, const FWorldConditionQueryDefinition& QueryDefinition);
+	void Initialize(const UObject& Owner, const FWorldConditionQueryDefinition& QueryDefinition);
 
 	/**
 	 * Frees the allocated data and objects. The definition must be the same as used in init
@@ -219,6 +219,7 @@ private:
 	EWorldConditionResult CachedResult = EWorldConditionResult::Invalid;
 	uint8 NumConditions = 0;
 	uint8 bHasPerConditionState : 1;
+	uint8 bIsInitialized : 1;
 	uint8* Memory = nullptr;
 
 	friend struct FWorldConditionBase;

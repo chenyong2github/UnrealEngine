@@ -80,7 +80,7 @@ struct FWorldConditionTest : public FWorldConditionBase
 	GENERATED_BODY()
 
 	FWorldConditionTest() = default;
-	explicit FWorldConditionTest(const int32 InTestValue) : TestValue(InTestValue) {}
+	explicit FWorldConditionTest(const int32 InTestValue, const bool bInActivateResult = true) : TestValue(InTestValue), bActivateResult(bInActivateResult) {}
 	
 	virtual const UStruct* GetRuntimeStateType() const override { return nullptr; }
 	
@@ -98,7 +98,7 @@ struct FWorldConditionTest : public FWorldConditionBase
 	
 	virtual bool Activate(const FWorldConditionContext& Context) const override
 	{
-		return true;
+		return bActivateResult;
 	}
 	
 	virtual EWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override
@@ -120,6 +120,7 @@ protected:
 	FWorldConditionContextDataRef ValueRef;
 	
 	int32 TestValue = 0;
+	bool bActivateResult = true;
 };
 
 
