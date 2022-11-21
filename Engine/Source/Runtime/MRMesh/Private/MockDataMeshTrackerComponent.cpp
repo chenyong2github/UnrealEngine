@@ -137,9 +137,15 @@ public:
 		TArray<MRMESH_INDEX_TYPE> Triangles;
 		TArray<float> Confidence;
 
+		// Disconnect this FCachedMeshData so if it is deleted after FMockDataMeshTrackerImpl is deleted it does not try to call back in to add itself to the free list.
+		void Disconnect()
+		{
+			Owner = nullptr;
+		}
+
+		// Reset this FCachedMeshData so that it can be reused later.
 		void Recycle(SharedPtr& MeshData)
 		{
-			check(Owner);
 			FMockDataMeshTrackerImpl* TempOwner = Owner;
 			Owner = nullptr;
 	
@@ -153,7 +159,10 @@ public:
 			Tangents.Reset();
 			Confidence.Reset();
 	
-			TempOwner->FreeMeshDataCache(MeshData);
+			if (TempOwner)
+			{
+				TempOwner->FreeMeshDataCache(MeshData);
+			}
 		}
 
 		void Init(FMockDataMeshTrackerImpl* InOwner)
@@ -210,6 +219,18 @@ public:
 	bool Create(const UMockDataMeshTrackerComponent& MeshTrackerComponent)
 	{
 		return true;
+	}
+
+	void BeginDestroy()
+	{
+		// Drop all the CachedMeshDatas references so that they will be destroyed unless a receipt is still hanging onto them.
+		// Disconnect them so that they do not try to call back into this to be put in the FreeCachedMeshDatas array.
+		for (FCachedMeshData::SharedPtr& Data : CachedMeshDatas)
+		{
+			Data->Disconnect();
+		}
+		CachedMeshDatas.Empty();
+		FreeCachedMeshDatas.Empty();
 	}
 
 	void Destroy()
@@ -605,6 +626,8 @@ void UMockDataMeshTrackerComponent::UpdateBlock(int32 BlockIndex)
 
 void UMockDataMeshTrackerComponent::BeginDestroy()
 {
+	Impl->BeginDestroy();
+
 	if (MRMesh != nullptr)
 	{
 		DisconnectMRMesh(MRMesh);
