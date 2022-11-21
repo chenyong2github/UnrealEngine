@@ -38,15 +38,6 @@ namespace UnrealBuildTool
 		{
 		}
 
-		// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
-		public static string TVOSArchitecture = "";
-
-		// The current architecture - affects everything about how UBT operates on IOS
-		public override string GetDefaultArchitecture(FileReference? ProjectFile)
-		{
-			return TVOSArchitecture;
-		}
-
 		public override void ValidateTarget(TargetRules Target)
 		{
 			base.ValidateTarget(Target);
