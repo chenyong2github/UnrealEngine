@@ -6,6 +6,8 @@
 #include "Data/PCGProjectionData.h"
 #include "Data/PCGUnionData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSpatialData)
+
 UPCGSpatialData::UPCGSpatialData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

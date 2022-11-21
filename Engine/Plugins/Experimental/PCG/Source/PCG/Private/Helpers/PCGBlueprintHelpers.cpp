@@ -15,6 +15,8 @@
 #include "LandscapeProxy.h"
 #include "LandscapeInfo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGBlueprintHelpers)
+
 int UPCGBlueprintHelpers::ComputeSeedFromPosition(const FVector& InPosition)
 {
 	// TODO: should have a config to drive this

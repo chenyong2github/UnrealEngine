@@ -3,6 +3,8 @@
 #include "PCGEdge.h"
 #include "PCGNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGEdge)
+
 bool UPCGEdge::IsValid() const
 {
 	return InputPin.Get() && OutputPin.Get();

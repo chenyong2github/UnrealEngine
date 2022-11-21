@@ -12,6 +12,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UIFWidgetTree)
+
 #if UE_UIFRAMEWORK_WITH_DEBUG
 namespace UE::UIFramework::Private
 {

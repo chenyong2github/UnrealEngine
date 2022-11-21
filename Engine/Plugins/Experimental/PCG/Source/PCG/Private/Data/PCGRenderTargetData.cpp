@@ -4,6 +4,8 @@
 #include "Kismet/KismetRenderingLibrary.h"
 #include "TextureResource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGRenderTargetData)
+
 void UPCGRenderTargetData::Initialize(UTextureRenderTarget2D* InRenderTarget, const FTransform& InTransform)
 {
 	RenderTarget = InRenderTarget;

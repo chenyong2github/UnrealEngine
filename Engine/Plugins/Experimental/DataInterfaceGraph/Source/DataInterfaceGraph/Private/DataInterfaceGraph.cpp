@@ -5,6 +5,8 @@
 #include "RigUnit_DataInterfaceBeginExecution.h"
 #include "DataInterfaceUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataInterfaceGraph)
+
 namespace UE::DataInterfaceGraph
 {
 const FName EntryPointName("GetData");

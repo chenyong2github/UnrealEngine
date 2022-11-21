@@ -5,6 +5,8 @@
 #include "Misc/ScopeRWLock.h"
 #include "Metadata/PCGMetadataAttributeWrapper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadata)
+
 void UPCGMetadata::Serialize(FArchive& InArchive)
 {
 	Super::Serialize(InArchive);
@@ -1017,3 +1019,4 @@ void UPCGMetadata::AccumulatePointWeightedAttributes(const FPCGPoint& InPoint, c
 {
 	AccumulateWeightedAttributes(InPoint.MetadataEntry, InMetadata, Weight, bSetNonInterpolableAttributes, OutPoint.MetadataEntry);
 }
+

@@ -12,6 +12,8 @@
 #include "Components/BrushComponent.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGWorldData)
+
 void UPCGWorldVolumetricData::Initialize(UWorld* InWorld, const FBox& InBounds)
 {
 	Super::Initialize(InBounds, nullptr);

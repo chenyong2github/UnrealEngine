@@ -5,6 +5,8 @@
 #include "Data/PCGSpatialData.h"
 #include "Data/PCGPointData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGCollapseElement)
+
 FPCGElementPtr UPCGCollapseSettings::CreateElement() const
 {
 	return MakeShared<FPCGCollapseElement>();

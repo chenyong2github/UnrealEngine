@@ -13,6 +13,8 @@
 #include "RenderingThread.h"
 #include "RHI.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NeuralNetwork)
+
 
 
 /* FPrivateNeuralNetwork functions

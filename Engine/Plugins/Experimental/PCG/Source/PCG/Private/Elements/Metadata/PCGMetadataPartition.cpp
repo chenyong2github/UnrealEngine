@@ -5,6 +5,8 @@
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataPartition)
+
 FPCGElementPtr UPCGMetadataPartitionSettings::CreateElement() const
 {
 	return MakeShared<FPCGMetadataPartitionElement>();

@@ -4,6 +4,8 @@
 #include "Chaos/CacheCollection.h"
 #include "MovieScene.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneChaosCacheSection)
+
 FMovieSceneChaosCacheParams::FMovieSceneChaosCacheParams() : FMovieSceneBaseCacheParams()
 {
 	CacheCollection = nullptr;

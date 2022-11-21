@@ -8,6 +8,8 @@
 #include "UDynamicMesh.h"
 #include "BoneWeights.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshBoneWeightFunctions)
+
 using namespace UE::Geometry;
 using namespace UE::AnimationCore;
 

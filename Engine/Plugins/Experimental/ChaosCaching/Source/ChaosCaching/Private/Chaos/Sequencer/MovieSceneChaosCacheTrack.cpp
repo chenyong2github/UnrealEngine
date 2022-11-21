@@ -7,6 +7,8 @@
 #include "Chaos/Sequencer/MovieSceneChaosCacheSection.h"
 #include "MovieSceneChaosCacheTemplate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneChaosCacheTrack)
+
 #define LOCTEXT_NAMESPACE "MovieSceneChaosCacheTrack"
 
 /* UMovieSceneChaosCacheTrack constructor

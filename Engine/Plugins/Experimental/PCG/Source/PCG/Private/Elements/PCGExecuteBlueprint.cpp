@@ -12,6 +12,8 @@
 #include "Engine/World.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGExecuteBlueprint)
+
 #if WITH_EDITOR
 namespace PCGBlueprintHelper
 {

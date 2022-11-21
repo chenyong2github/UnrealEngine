@@ -7,6 +7,8 @@
 #include "Helpers/PCGSettingsHelpers.h"
 #include "PCGHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGVolumeSampler)
+
 namespace PCGVolumeSampler
 {
 	UPCGPointData* SampleVolume(FPCGContext* Context, const UPCGSpatialData* SpatialData, const FVolumeSamplerSettings& SamplerSettings)

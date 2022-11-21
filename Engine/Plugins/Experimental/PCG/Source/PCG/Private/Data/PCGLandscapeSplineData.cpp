@@ -11,6 +11,8 @@
 #include "LandscapeSplineSegment.h"
 #include "LandscapeSplineControlPoint.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGLandscapeSplineData)
+
 namespace PCGLandscapeDataHelpers
 {
 	// This function assumes that the A-B segment has a "1" density, while the C-D segment has a "0" density

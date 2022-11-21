@@ -7,6 +7,8 @@
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Math/RandomStream.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityRemap)
+
 UPCGLinearDensityRemapSettings::UPCGLinearDensityRemapSettings()
 {
 	bUseSeed = true;

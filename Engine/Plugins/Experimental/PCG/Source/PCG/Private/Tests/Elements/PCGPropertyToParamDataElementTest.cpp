@@ -10,6 +10,8 @@
 #include "Metadata/PCGMetadataAttributeTpl.h"
 #include "Metadata/PCGMetadataAttributeTraits.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPropertyToParamDataElementTest)
+
 // To run: automation runtest pcg.tests.PropertyToParamData
 
 #if WITH_EDITOR

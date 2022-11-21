@@ -7,6 +7,8 @@
 #include "PCGHelpers.h"
 #include "Math/RandomStream.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSelfPruning)
+
 namespace PCGSelfPruningAlgorithms
 {
 	bool RandomSort(const FPCGPointRef& A, const FPCGPointRef& B)

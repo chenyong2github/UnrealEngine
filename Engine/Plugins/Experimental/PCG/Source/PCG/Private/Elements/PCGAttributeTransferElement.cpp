@@ -8,6 +8,8 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeTransferElement)
+
 #if WITH_EDITOR
 FName UPCGAttributeTransferSettings::GetDefaultNodeName() const
 {

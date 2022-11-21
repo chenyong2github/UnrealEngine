@@ -9,6 +9,8 @@
 #include "Metadata/PCGMetadataAttributeTpl.h"
 #include "Helpers/PCGAsync.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointFilter)
+
 namespace PCGPointFilterConstants
 {
 	const FName DataToFilterLabel = TEXT("In");

@@ -7,6 +7,8 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_BlendStack)
+
 #define LOCTEXT_NAMESPACE "AnimNode_BlendStack"
 
 #if ENABLE_ANIM_DEBUG

@@ -5,6 +5,8 @@
 
 #include "Algo/Transform.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInputOutputSettings)
+
 bool FPCGInputOutputElement::ExecuteInternal(FPCGContext* Context) const
 {
 	// Essentially a pass-through element

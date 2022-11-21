@@ -8,6 +8,8 @@
 #include "Helpers/PCGAsync.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGCopyPoints)
+
 TArray<FPCGPinProperties> UPCGCopyPointsSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
@@ -219,3 +221,4 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+

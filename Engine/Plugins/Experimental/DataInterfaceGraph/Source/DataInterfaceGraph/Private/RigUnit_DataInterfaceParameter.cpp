@@ -7,6 +7,8 @@
 #include "DataInterfaceTypes.h"
 #include "DataInterfaceKernel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DataInterfaceParameter)
+
 bool FRigUnit_DataInterfaceParameter::GetParameterInternal(FName InName, const FDataInterfaceUnitContext& InContext, void* OutResult)
 {
 	return true;

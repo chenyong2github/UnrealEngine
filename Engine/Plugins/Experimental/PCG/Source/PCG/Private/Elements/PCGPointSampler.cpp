@@ -7,6 +7,8 @@
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Math/RandomStream.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointSampler)
+
 UPCGPointSamplerSettings::UPCGPointSamplerSettings()
 {
 	bUseSeed = true;
@@ -136,3 +138,4 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+

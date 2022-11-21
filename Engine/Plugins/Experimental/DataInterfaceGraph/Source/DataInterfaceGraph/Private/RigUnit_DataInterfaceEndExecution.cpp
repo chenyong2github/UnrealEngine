@@ -3,6 +3,8 @@
 #include "RigUnit_DataInterfaceEndExecution.h"
 #include "Units/RigUnitContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DataInterfaceEndExecution)
+
 FRigUnit_DataInterfaceEndExecution_Bool_Execute()
 {
 	if(Context.State == EControlRigState::Update)

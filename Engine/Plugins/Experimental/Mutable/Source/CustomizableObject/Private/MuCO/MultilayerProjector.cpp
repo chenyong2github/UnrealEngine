@@ -10,6 +10,8 @@
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "Templates/Tuple.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MultilayerProjector)
+
 
 void FMultilayerProjectorLayer::Read(const FCustomizableObjectInstanceDescriptor& Descriptor, const FMultilayerProjector& MultilayerProjector, const int32 Index)
 {

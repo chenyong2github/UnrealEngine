@@ -18,6 +18,8 @@
 #include "Net/UnrealNetwork.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UIFStackBox)
+
 
 /**
  *

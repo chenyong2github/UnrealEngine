@@ -8,6 +8,8 @@
 #include "GameFramework/Actor.h"
 #include "Misc/ScopeLock.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointData)
+
 namespace PCGPointHelpers
 {
 	bool GetDistanceRatios(const FPCGPoint& InPoint, const FVector& InPosition, FVector& OutRatios)

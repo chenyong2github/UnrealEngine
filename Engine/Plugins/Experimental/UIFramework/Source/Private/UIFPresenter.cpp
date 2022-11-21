@@ -7,6 +7,8 @@
 #include "Components/Widget.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UIFPresenter)
+
 UUIFrameworkGameViewportPresenter::FWidgetPair::FWidgetPair(UWidget* InWidget, FUIFrameworkWidgetId InWidgetId)
 	: UMGWidget(InWidget)
 	, WidgetId(InWidgetId)

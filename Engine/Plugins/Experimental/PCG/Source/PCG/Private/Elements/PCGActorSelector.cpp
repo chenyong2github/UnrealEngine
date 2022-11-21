@@ -5,6 +5,8 @@
 
 #include "Kismet/GameplayStatics.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGActorSelector)
+
 namespace PCGActorSelector
 {
 	// Need to pass a pointer of pointer to the found actor. The lambda will capture this pointer and modify its value when an actor is found.

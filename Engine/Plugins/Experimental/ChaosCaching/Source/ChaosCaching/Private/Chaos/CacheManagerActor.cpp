@@ -14,6 +14,8 @@
 #include "Features/IModularFeatures.h"
 #include "Algo/Find.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CacheManagerActor)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -754,3 +756,4 @@ AChaosCachePlayer::AChaosCachePlayer(const FObjectInitializer& ObjectInitializer
 }
 
 #undef LOCTEXT_NAMESPACE
+

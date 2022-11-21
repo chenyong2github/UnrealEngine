@@ -9,6 +9,8 @@
 #include "Helpers/PCGBlueprintHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGTextureSampler)
+
 FPCGElementPtr UPCGTextureSamplerSettings::CreateElement() const
 {
 	return MakeShared<FPCGTextureSamplerElement>();

@@ -7,6 +7,8 @@
 #include "Data/PCGUnionData.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDifferenceElement)
+
 TArray<FPCGPinProperties> UPCGDifferenceSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;

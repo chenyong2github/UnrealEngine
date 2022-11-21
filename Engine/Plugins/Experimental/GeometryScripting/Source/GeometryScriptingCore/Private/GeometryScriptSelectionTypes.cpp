@@ -6,6 +6,8 @@
 #include "UDynamicMesh.h"
 #include "Misc/StringBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryScriptSelectionTypes)
+
 using namespace UE::Geometry;
 
 

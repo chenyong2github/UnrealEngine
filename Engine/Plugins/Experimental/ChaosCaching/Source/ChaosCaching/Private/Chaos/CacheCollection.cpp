@@ -5,6 +5,8 @@
 #include "Algo/Find.h"
 #include "Async/ParallelFor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CacheCollection)
+
 void UChaosCacheCollection::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 #if WITH_EDITOR

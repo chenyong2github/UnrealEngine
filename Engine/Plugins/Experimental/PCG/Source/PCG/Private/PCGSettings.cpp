@@ -7,6 +7,8 @@
 #include "Serialization/ArchiveObjectCrc32.h"
 #include "UObject/ObjectSaveContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSettings)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif

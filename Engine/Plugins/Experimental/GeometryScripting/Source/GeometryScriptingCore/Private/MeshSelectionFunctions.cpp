@@ -13,6 +13,8 @@
 #include "Selections/MeshFaceSelection.h"
 #include "Selections/MeshVertexSelection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSelectionFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshSelectionFunctions"

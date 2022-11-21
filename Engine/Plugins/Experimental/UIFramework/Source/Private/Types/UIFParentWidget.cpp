@@ -5,6 +5,8 @@
 #include "UIFWidget.h"
 #include "UIFPlayerComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UIFParentWidget)
+
 /**
  *
  */

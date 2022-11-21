@@ -13,6 +13,8 @@
 #include "Landscape.h"
 #include "LandscapeEdit.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGLandscapeData)
+
 void UPCGLandscapeData::Initialize(const TArray<TWeakObjectPtr<ALandscapeProxy>>& InLandscapes, const FBox& InBounds, bool bInHeightOnly, bool bInUseMetadata)
 {
 	for (TWeakObjectPtr<ALandscapeProxy> InLandscape : InLandscapes)

@@ -6,6 +6,8 @@
 #include "PCGEdge.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGProjectionElement)
+
 #define LOCTEXT_NAMESPACE "PCGProjectionElement"
 
 TArray<FPCGPinProperties> UPCGProjectionSettings::InputPinProperties() const
@@ -142,3 +144,4 @@ void UPCGProjectionSettings::ApplyDeprecation(UPCGNode* InOutNode)
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

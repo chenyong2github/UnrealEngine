@@ -10,6 +10,8 @@
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataBreakVector)
+
 namespace PCGMetadataBreakVectorSettings
 {
 	template <typename InType>
@@ -187,3 +189,4 @@ bool FPCGMetadataBreakVectorElement::DoOperation(FOperationData& OperationData) 
 
 	return PCGMetadataAttribute::CallbackWithRightType(OperationData.MostComplexInputType, BreakFunc);
 }
+

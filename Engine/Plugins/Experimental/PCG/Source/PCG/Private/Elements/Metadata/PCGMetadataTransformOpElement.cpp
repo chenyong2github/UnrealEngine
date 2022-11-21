@@ -12,6 +12,8 @@
 
 #include "Math/DualQuat.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataTransformOpElement)
+
 namespace PCGMetadataTransfromSettings
 {
 	inline bool IsUnaryOp(EPCGMedadataTransformOperation Operation)

@@ -6,6 +6,8 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataRenameElement)
+
 TArray<FPCGPinProperties> UPCGMetadataRenameSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;

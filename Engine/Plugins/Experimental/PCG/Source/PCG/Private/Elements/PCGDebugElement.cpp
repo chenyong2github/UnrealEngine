@@ -11,6 +11,8 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDebugElement)
+
 namespace PCGDebugElement
 {
 	void ExecuteDebugDisplay(FPCGContext* Context)

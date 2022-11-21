@@ -2,6 +2,8 @@
 
 #include "Data/PCGSurfaceData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSurfaceData)
+
 void UPCGSurfaceData::CopyBaseSurfaceData(UPCGSurfaceData* NewSurfaceData) const
 {
 	NewSurfaceData->Transform = Transform;

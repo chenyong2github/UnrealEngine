@@ -3,6 +3,8 @@
 #include "InstancePackers/PCGInstancePackerByAttribute.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstancePackerByAttribute)
+
 void UPCGInstancePackerByAttribute::PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	if (!InSpatialData || !InSpatialData->Metadata)
@@ -36,3 +38,4 @@ void UPCGInstancePackerByAttribute::PackInstances_Implementation(FPCGContext& Co
 
 	PackCustomDataFromAttributes(InstanceList, SelectedAttributes, OutPackedCustomData);
  }
+

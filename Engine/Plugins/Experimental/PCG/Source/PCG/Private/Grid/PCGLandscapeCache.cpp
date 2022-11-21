@@ -24,6 +24,8 @@
 #include "Serialization/BufferReader.h"
 #include "Serialization/BufferWriter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGLandscapeCache)
+
 static TAutoConsoleVariable<float> CVarLandscapeCacheGCFrequency(
 	TEXT("pcg.LandscapeCacheGCFrequency"),
 	10,

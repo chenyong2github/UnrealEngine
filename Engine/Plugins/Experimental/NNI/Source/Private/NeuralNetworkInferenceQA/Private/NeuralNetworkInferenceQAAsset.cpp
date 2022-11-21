@@ -7,6 +7,8 @@
 #include "Misc/Paths.h"
 #include "UObject/SavePackage.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NeuralNetworkInferenceQAAsset)
+
 
 /* FNeuralNetworkInferenceQAOperatorTestAsset public functions
  *****************************************************************************/

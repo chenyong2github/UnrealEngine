@@ -5,6 +5,8 @@
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuR/System.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DefaultImageProvider)
+
 
 namespace UDefaultImageProviderCVars
 {

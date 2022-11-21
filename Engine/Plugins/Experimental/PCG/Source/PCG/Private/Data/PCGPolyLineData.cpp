@@ -2,6 +2,8 @@
 
 #include "Data/PCGPolyLineData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPolyLineData)
+
 FBox UPCGPolyLineData::GetBounds() const
 {
 	FBox Bounds(EForceInit::ForceInit);

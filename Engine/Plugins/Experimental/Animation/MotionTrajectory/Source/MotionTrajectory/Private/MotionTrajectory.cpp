@@ -7,6 +7,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrajectory)
+
 #define LOCTEXT_NAMESPACE "MotionTrajectory"
 
 DEFINE_LOG_CATEGORY(LogMotionTrajectory);

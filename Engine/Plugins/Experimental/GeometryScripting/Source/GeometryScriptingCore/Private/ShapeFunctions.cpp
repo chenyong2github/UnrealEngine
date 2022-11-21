@@ -3,6 +3,8 @@
 #include "GeometryScript/ShapeFunctions.h"
 #include "VectorTypes.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ShapeFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_BoxFunctions"

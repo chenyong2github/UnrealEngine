@@ -5,6 +5,8 @@
 #include "Helpers/PCGAsync.h"
 #include "PCGHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGUnionData)
+
 namespace PCGUnionDataMaths
 {
 	float ComputeDensity(float InDensityToUpdate, float InOtherDensity, EPCGUnionDensityFunction DensityFunction)
@@ -344,3 +346,4 @@ UPCGSpatialData* UPCGUnionData::CopyInternal() const
 
 	return NewUnionData;
 }
+

@@ -9,6 +9,8 @@
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/PCGMetadata.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataOpElementBase)
+
 void UPCGMetadataSettingsBase::PostLoad()
 {
 	Super::PostLoad();
@@ -303,3 +305,4 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+

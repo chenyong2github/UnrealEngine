@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeMessages.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_PoseSearchHistoryCollector)
+
 #define LOCTEXT_NAMESPACE "AnimNode_PoseSearchHistoryCollector"
 
 namespace UE::PoseSearch::Private

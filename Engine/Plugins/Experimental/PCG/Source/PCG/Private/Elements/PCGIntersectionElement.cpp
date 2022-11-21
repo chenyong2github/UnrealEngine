@@ -3,6 +3,8 @@
 #include "Elements/PCGIntersectionElement.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGIntersectionElement)
+
 FPCGElementPtr UPCGIntersectionSettings::CreateElement() const
 {
 	return MakeShared<FPCGIntersectionElement>();

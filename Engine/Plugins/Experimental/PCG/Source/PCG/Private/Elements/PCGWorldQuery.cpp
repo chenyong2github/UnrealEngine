@@ -7,6 +7,8 @@
 
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGWorldQuery)
+
 FPCGElementPtr UPCGWorldQuerySettings::CreateElement() const
 {
 	return MakeShared<FPCGWorldVolumetricQueryElement>();

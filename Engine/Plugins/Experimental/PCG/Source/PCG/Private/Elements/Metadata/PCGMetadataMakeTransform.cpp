@@ -6,6 +6,8 @@
 #include "Metadata/PCGMetadataAttributeTpl.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataMakeTransform)
+
 namespace PCGMetadataMakeTransformSettings
 {
 	template <typename VectorType = FVector4>

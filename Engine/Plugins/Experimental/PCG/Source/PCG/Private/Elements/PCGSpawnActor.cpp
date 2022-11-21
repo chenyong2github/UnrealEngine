@@ -17,6 +17,8 @@
 #include "Engine/World.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSpawnActor)
+
 UPCGNode* UPCGSpawnActorSettings::CreateNode() const
 {
 	return NewObject<UPCGSpawnActorNode>();

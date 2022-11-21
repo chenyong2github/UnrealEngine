@@ -4,6 +4,8 @@
 #include "PCGComponent.h"
 #include "PCGGraph.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGVolume)
+
 APCGVolume::APCGVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

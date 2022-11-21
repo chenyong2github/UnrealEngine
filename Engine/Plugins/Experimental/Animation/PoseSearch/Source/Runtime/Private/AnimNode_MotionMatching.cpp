@@ -14,6 +14,8 @@
 #include "PoseSearch/PoseSearchDerivedData.h"
 #include "Trace/PoseSearchTraceLogger.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_MotionMatching)
+
 #define LOCTEXT_NAMESPACE "AnimNode_MotionMatching"
 
 /////////////////////////////////////////////////////

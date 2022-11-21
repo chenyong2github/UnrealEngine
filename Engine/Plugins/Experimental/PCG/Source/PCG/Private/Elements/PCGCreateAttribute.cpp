@@ -10,6 +10,8 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGCreateAttribute)
+
 namespace PCGCreateAttributeConstants
 {
 	const FName NodeName = TEXT("CreateAttribute");
@@ -304,3 +306,4 @@ PCGMetadataEntryKey FPCGCreateAttributeElement::SetAttribute(const UPCGCreateAtt
 
 	return PCGCreateAttributeElement::Dispatcher(Settings, Params, SetAttribute);
 }
+

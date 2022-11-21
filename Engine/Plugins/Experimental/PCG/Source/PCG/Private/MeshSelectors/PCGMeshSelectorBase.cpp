@@ -4,6 +4,8 @@
 
 #include "Elements/PCGStaticMeshSpawner.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorBase)
+
 int32 UPCGMeshSelectorBase::FindOrAddInstanceList(
 	TArray<FPCGMeshInstanceList>& OutInstanceLists,
 	const TSoftObjectPtr<UStaticMesh>& Mesh,
@@ -41,3 +43,4 @@ int32 UPCGMeshSelectorBase::FindOrAddInstanceList(
 
 	return OutInstanceLists.Emplace(Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, InCullStartDistance, InCullEndDistance);
 }
+

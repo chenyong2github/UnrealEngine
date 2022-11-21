@@ -5,6 +5,8 @@
 #include "Helpers/PCGAsync.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityFilter)
+
 FPCGElementPtr UPCGDensityFilterSettings::CreateElement() const
 {
 	return MakeShared<FPCGDensityFilterElement>();

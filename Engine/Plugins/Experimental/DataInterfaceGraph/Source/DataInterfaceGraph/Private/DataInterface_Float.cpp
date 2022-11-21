@@ -5,6 +5,8 @@
 #include "DataInterfaceTypes.h"
 #include "DataInterfaceKernel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataInterface_Float)
+
 #define LOCTEXT_NAMESPACE "DataInterface"
 
 bool UDataInterface_Float_Multiply::GetDataImpl(const UE::DataInterface::FContext& Context) const

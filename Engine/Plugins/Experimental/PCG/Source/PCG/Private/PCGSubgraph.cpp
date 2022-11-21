@@ -5,6 +5,8 @@
 #include "PCGComponent.h"
 #include "PCGSubsystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSubgraph)
+
 void UPCGBaseSubgraphSettings::PostLoad()
 {
 	Super::PostLoad();

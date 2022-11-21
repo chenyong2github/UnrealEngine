@@ -11,6 +11,8 @@
 #include "Metadata/PCGMetadataEntryKeyIterator.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataBooleanOpElement)
+
 namespace PCGMetadataBooleanSettings
 {
 	inline bool UnaryOp(const bool& Value)

@@ -8,6 +8,8 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeFilterElement)
+
 namespace PCGAttributeFilterConstants
 {
 	const FName NodeName = TEXT("FilterAttribute");
@@ -106,3 +108,4 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+

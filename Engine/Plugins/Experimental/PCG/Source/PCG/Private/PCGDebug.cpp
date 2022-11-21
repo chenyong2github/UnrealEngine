@@ -3,6 +3,8 @@
 #include "PCGDebug.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDebug)
+
 namespace PCGDebugVisConstants
 {
 	const FSoftObjectPath DefaultPointMesh = FSoftObjectPath(TEXT("/PCG/DebugObjects/PCG_Cube.PCG_Cube"));

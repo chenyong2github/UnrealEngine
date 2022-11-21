@@ -11,6 +11,8 @@
 #include "Metadata/PCGMetadataEntryKeyIterator.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataBitwiseOpElement)
+
 namespace PCGMetadataBitwiseSettings
 {
 	inline int64 UnaryOp(const int64& Value)

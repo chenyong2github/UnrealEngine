@@ -3,6 +3,8 @@
 #include "Chaos/CacheEvents.h"
 #include "Logging/MessageLog.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CacheEvents)
+
 FCacheEventTrack::FCacheEventTrack()
 	: Name(NAME_None)
 	, Struct(nullptr)
@@ -180,3 +182,4 @@ bool FCacheEventTrack::FHandle::IsAlive() const
 {
 	return Index != INDEX_NONE && Track && Track->GetTransientVersion() == Version;
 }
+

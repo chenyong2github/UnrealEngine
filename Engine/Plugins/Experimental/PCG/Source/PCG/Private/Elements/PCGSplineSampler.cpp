@@ -13,6 +13,8 @@
 #include "Components/SplineComponent.h"
 #include "Voronoi/Voronoi.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSplineSampler)
+
 namespace PCGSplineSamplerHelpers
 {
 	/**
@@ -951,3 +953,4 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+

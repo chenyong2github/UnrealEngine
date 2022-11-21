@@ -25,6 +25,8 @@
 #include "GameFramework/Actor.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDeterminismTestsCommon)
+
 #define LOCTEXT_NAMESPACE "PCGDeterminism"
 
 static TAutoConsoleVariable<int32> CVarDeterminismPermutationLimit(
@@ -1572,3 +1574,4 @@ namespace PCGDeterminismTests
 }
 
 #undef LOCTEXT_NAMESPACE
+

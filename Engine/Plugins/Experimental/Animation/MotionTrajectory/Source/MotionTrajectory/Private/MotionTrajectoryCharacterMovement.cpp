@@ -9,6 +9,8 @@
 #include "GameFramework/Controller.h"
 #include "KismetAnimationLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrajectoryCharacterMovement)
+
 FTrajectorySample UCharacterMovementTrajectoryComponent::CalcWorldSpacePresentTrajectorySample(float DeltaTime) const
 {
 	FTrajectorySample ReturnValue;

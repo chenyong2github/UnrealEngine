@@ -11,6 +11,8 @@
 #include "Metadata/PCGMetadataEntryKeyIterator.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataVectorOpElement)
+
 namespace PCGMetadataVectorConstants
 {
 	const FName AxisLabel = TEXT("Axis");

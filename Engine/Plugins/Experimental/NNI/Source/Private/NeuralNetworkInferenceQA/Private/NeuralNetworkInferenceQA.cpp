@@ -5,6 +5,8 @@
 #include "UnitTester.h"
 #include "Misc/Paths.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NeuralNetworkInferenceQA)
+
 
 
 /* UNeuralNetworkInferenceQA static functions

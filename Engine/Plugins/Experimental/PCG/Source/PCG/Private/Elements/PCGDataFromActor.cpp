@@ -8,6 +8,8 @@
 #include "GameFramework/Actor.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDataFromActor)
+
 FPCGElementPtr UPCGDataFromActorSettings::CreateElement() const
 {
 	return MakeShared<FPCGDataFromActorElement>();

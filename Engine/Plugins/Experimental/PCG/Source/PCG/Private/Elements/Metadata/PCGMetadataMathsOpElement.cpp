@@ -13,6 +13,8 @@
 
 #include "Elements/Metadata/PCGMetadataMaths.inl"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataMathsOpElement)
+
 namespace PCGMetadataMathsSettings
 {
 	inline constexpr bool IsUnaryOp(EPCGMedadataMathsOperation Operation)

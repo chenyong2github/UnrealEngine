@@ -3,6 +3,8 @@
 #include "Elements/PCGUnionElement.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGUnionElement)
+
 FPCGElementPtr UPCGUnionSettings::CreateElement() const
 {
 	return MakeShared<FPCGUnionElement>();

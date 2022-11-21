@@ -49,6 +49,8 @@
 #include "UObject/UObjectMarks.h"
 #include "UObject/UnrealNames.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObject)
+
 class UMaterialInterface;
 class UPhysicsAsset;
 class USkeletalMesh;

@@ -7,6 +7,8 @@
 #include "Metadata/PCGMetadataAttributeTraits.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstancePackerBase)
+
 bool UPCGInstancePackerBase::AddTypeToPacking(int TypeId, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	if (TypeId == PCG::Private::MetadataTypes<float>::Id)
@@ -136,4 +138,5 @@ void UPCGInstancePackerBase::PackCustomDataFromAttributes(const FPCGMeshInstance
 		}
 	}
 }
+
 

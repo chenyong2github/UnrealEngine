@@ -3,6 +3,8 @@
 #include "NeuralEnumClasses.h"
 #include "NeuralNetworkInferenceUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NeuralEnumClasses)
+
 
 
 /* FNeuralNetworkInferenceUtils public functions

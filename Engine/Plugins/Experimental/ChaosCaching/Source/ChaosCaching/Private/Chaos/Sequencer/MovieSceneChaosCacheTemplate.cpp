@@ -5,6 +5,8 @@
 #include "Chaos/CacheCollection.h"
 #include "Chaos/CacheManagerActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneChaosCacheTemplate)
+
 DECLARE_CYCLE_STAT(TEXT("Chaos Cache Evaluate"), MovieSceneEval_ChaosCache_Evaluate, STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cache Token Execute"), MovieSceneEval_ChaosCache_TokenExecute, STATGROUP_MovieSceneEval);
 

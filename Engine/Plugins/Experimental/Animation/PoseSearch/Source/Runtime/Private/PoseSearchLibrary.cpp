@@ -13,6 +13,8 @@
 #include "MotionTrajectoryLibrary.h"
 #include "PoseSearch/PoseSearchFeatureChannels.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PoseSearchLibrary)
+
 #define LOCTEXT_NAMESPACE "PoseSearchLibrary"
 
 //////////////////////////////////////////////////////////////////////////

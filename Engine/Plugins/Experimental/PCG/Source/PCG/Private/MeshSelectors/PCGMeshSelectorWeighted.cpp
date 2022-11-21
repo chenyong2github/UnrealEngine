@@ -13,6 +13,8 @@
 #include "Engine/StaticMesh.h"
 #include "Math/RandomStream.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorWeighted)
+
 void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
@@ -125,3 +127,4 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 		}
 	}
 }
+

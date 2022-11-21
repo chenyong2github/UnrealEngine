@@ -5,6 +5,8 @@
 #include "PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointExtentsModifier)
+
 FPCGElementPtr UPCGPointExtentsModifierSettings::CreateElement() const
 {
 	return MakeShared<FPCGPointExtentsModifier>();
@@ -86,3 +88,4 @@ bool FPCGPointExtentsModifier::ExecuteInternal(FPCGContext* Context) const
 	
 	return true;
 }
+

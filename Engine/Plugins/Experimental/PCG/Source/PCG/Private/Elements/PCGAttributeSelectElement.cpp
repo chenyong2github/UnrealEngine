@@ -10,6 +10,8 @@
 #include "Metadata/PCGMetadataEntryKeyIterator.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeSelectElement)
+
 namespace PCGAttributeSelectElement
 {
 	// Of course, Dot doesn't exist for FVector4...

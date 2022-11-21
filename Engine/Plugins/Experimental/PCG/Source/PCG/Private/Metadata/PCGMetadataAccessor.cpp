@@ -5,6 +5,8 @@
 #include "Metadata/PCGMetadataAttributeTpl.h"
 #include "PCGModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataAccessor)
+
 /** Key-based implmentations */
 template<typename T>
 T UPCGMetadataAccessorHelpers::GetAttribute(PCGMetadataEntryKey Key, const UPCGMetadata* Metadata, FName AttributeName)

@@ -15,6 +15,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGStaticMeshSpawner)
+
 UPCGStaticMeshSpawnerSettings::UPCGStaticMeshSpawnerSettings(const FObjectInitializer &ObjectInitializer)
 {
 	bUseSeed = true;
@@ -333,3 +335,4 @@ void UPCGStaticMeshSpawnerSettings::RefreshInstancePacker()
 		InstancePackerInstance = nullptr;
 	}
 }
+

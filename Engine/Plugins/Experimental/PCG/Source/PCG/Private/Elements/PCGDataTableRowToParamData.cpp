@@ -6,6 +6,8 @@
 #include "Metadata/PCGMetadata.h"
 #include "Engine/DataTable.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDataTableRowToParamData)
+
 FPCGElementPtr UPCGDataTableRowToParamDataSettings::CreateElement() const
 {
 	return MakeShared<FPCGDataTableRowToParamData>();
@@ -69,3 +71,4 @@ bool FPCGDataTableRowToParamData::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+

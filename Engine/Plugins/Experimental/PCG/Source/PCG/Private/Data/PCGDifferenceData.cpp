@@ -7,6 +7,8 @@
 #include "PCGHelpers.h"
 #include "Metadata/PCGMetadataAccessor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDifferenceData)
+
 namespace PCGDifferenceDataUtils
 {
 	EPCGUnionDensityFunction ToUnionDensityFunction(EPCGDifferenceDensityFunction InDensityFunction)

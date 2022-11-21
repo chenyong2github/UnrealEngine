@@ -8,6 +8,8 @@
 #include "Components/BrushComponent.h"
 #include "GameFramework/Volume.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGVolumeData)
+
 void UPCGVolumeData::Initialize(AVolume* InVolume, AActor* InTargetActor)
 {
 	check(InVolume);

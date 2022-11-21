@@ -24,6 +24,8 @@
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectDGGUI)
+
 void UDGGUI::OpenDGGUI(const int32 SlotID, UCustomizableSkeletalComponent* SelectedCustomizableSkeletalComponent, const UWorld* CurrentWorld, const int32 PlayerIndex)
 {
 #if WITH_EDITOR

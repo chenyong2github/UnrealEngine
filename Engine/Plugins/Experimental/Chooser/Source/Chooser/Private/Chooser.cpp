@@ -3,6 +3,8 @@
 #include "ChooserFunctionLibrary.h"
 #include "ChooserPropertyAccess.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Chooser)
+
 UChooserTable::UChooserTable(const FObjectInitializer& Initializer)
 	:Super(Initializer)
 {

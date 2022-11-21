@@ -13,6 +13,8 @@
 #include "Math/RandomStream.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorWeightedByCategory)
+
 struct FPCGInstancesAndWeights
 {
 	TArray<int> InstanceListIndices;
@@ -220,3 +222,4 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 		}
 	}
 }
+

@@ -18,6 +18,8 @@
 #include "WorldPartition/WorldPartition.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGActorHelpers)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "SourceControlHelpers.h"
@@ -483,3 +485,4 @@ FIntVector UPCGActorHelpers::GetCellCoord(FVector InPosition, int InGridSize, bo
 		bUse2DGrid ? 0 : FMath::FloorToInt(Temp.Z)
 	);
 }
+

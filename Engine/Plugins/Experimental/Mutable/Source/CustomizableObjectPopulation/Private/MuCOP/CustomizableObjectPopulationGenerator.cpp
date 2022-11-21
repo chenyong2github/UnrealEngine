@@ -13,6 +13,8 @@
 #include "MuCOP/CustomizableObjectPopulationSamplers.h"
 #include "Serialization/Archive.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectPopulationGenerator)
+
 class FString;
 
 void FCustomizableObjectPopulationClassGenerator::GenerateParameters(

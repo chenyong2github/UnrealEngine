@@ -5,6 +5,8 @@
 #include "DataInterfaceTypes.h"
 #include "DataInterfaceKernel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataInterface_Bool)
+
 bool UDataInterface_Bool_And::GetDataImpl(const UE::DataInterface::FContext& Context) const
 {
 	using namespace UE::DataInterface;

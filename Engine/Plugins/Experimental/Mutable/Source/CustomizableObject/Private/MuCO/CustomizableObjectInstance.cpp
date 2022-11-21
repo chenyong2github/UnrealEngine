@@ -129,6 +129,8 @@
 #include "MuR/System.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectInstance)
+
 UTexture2D* UCustomizableInstancePrivateData::CreateTexture()
 {
 	UTexture2D* NewTexture = NewObject<UTexture2D>(

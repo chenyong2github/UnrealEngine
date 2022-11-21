@@ -4,6 +4,8 @@
 #include "Helpers/PCGAsync.h"
 #include "Metadata/PCGMetadataAccessor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGProjectionData)
+
 void UPCGProjectionData::Initialize(const UPCGSpatialData* InSource, const UPCGSpatialData* InTarget, const FPCGProjectionParams& InParams)
 {
 	check(InSource && InTarget);

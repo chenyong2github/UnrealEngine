@@ -9,6 +9,8 @@
 #include "Metadata/PCGMetadataAttributeTraits.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorByAttribute)
+
 void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
@@ -96,3 +98,4 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 		OutMeshInstances[Index].Instances.Emplace(Point);
 	}
 }
+

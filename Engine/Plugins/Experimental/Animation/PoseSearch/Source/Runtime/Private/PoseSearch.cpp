@@ -31,6 +31,8 @@
 #include "Animation/AnimRootMotionProvider.h"
 #include "Animation/BlendSpace1D.h"
 
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PoseSearch)
 #if WITH_EDITOR
 #include "DerivedDataRequestOwner.h"
 #endif

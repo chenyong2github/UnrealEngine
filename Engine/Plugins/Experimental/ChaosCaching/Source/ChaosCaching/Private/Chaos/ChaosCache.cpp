@@ -9,6 +9,8 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosCache)
+
 bool bChaosCacheUseInterpolation = true;
 FAutoConsoleVariableRef CVarChaosCacheUseInterpolation(
 	TEXT("p.Chaos.Cache.UseInterpolation"),

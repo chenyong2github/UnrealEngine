@@ -6,6 +6,8 @@
 #include "Elements/PCGVolumeSampler.h"
 #include "Components/PrimitiveComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPrimitiveData)
+
 void UPCGPrimitiveData::Initialize(UPrimitiveComponent* InPrimitive)
 {
 	check(InPrimitive);

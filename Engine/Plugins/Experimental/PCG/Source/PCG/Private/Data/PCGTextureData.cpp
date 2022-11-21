@@ -7,6 +7,8 @@
 #include "Helpers/PCGAsync.h"
 #include "TextureResource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGTextureData)
+
 namespace PCGTextureSampling
 {
 	template<typename ValueType>

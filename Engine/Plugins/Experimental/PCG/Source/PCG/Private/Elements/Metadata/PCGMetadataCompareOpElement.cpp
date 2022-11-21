@@ -9,6 +9,8 @@
 #include "Metadata/PCGMetadataEntryKeyIterator.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataCompareOpElement)
+
 namespace PCGMetadataCompareSettings
 {
 	template <typename T>

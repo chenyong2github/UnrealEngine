@@ -31,6 +31,8 @@
 #include "UObject/ObjectPtr.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableInstanceLODManagement)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/EditorEngine.h"

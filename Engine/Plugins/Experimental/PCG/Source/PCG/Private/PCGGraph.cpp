@@ -7,6 +7,8 @@
 #include "PCGSubsystem.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGGraph)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -634,3 +636,4 @@ void UPCGGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 	}
 }
 #endif // WITH_EDITOR
+

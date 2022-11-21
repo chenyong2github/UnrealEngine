@@ -6,6 +6,8 @@
 #include "PCGHelpers.h"
 #include "Metadata/PCGMetadataAccessor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGIntersectionData)
+
 namespace PCGIntersectionDataMaths
 {
 	float ComputeDensity(float InDensityA, float InDensityB, EPCGIntersectionDensityFunction InDensityFunction)

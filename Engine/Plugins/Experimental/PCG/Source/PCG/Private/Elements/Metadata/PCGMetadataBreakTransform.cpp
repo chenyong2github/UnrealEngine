@@ -10,6 +10,8 @@
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataBreakTransform)
+
 namespace PCGMetadataBreakTransformSettings
 {
 	inline FVector GetTranslation(const FTransform& Transform)
@@ -119,3 +121,4 @@ bool FPCGMetadataBreakTransformElement::DoOperation(FOperationData& OperationDat
 		PCGMetadataBreakTransformSettings::GetRotation,
 		PCGMetadataBreakTransformSettings::GetScale);
 }
+

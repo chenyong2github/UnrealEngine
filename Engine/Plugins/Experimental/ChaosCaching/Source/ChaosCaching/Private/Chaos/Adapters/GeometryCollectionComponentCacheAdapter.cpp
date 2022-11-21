@@ -12,6 +12,8 @@
 #include "Chaos/ChaosSolverActor.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionComponentCacheAdapter)
+
 FName FEnableStateEvent::EventName("GC_Enable");
 FName FBreakingEvent::EventName("GC_Breaking");
 FName FCollisionEvent::EventName("GC_Collision");
@@ -902,3 +904,4 @@ namespace Chaos
 	}
 
 }    // namespace Chaos
+

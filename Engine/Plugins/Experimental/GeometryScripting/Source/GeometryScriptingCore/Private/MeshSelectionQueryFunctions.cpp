@@ -10,6 +10,8 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "MeshRegionBoundaryLoops.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MeshSelectionQueryFunctions)
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshSelectionQueryFunctions"

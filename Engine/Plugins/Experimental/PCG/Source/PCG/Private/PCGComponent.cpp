@@ -34,6 +34,8 @@
 #include "Misc/ScopeLock.h"
 #include "WorldPartition/WorldPartition.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGComponent)
+
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
 #endif

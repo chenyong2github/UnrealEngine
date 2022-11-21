@@ -10,6 +10,8 @@
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeGetFromPointIndexElement)
+
 #if WITH_EDITOR
 FName UPCGAttributeGetFromPointIndexSettings::GetDefaultNodeName() const
 {

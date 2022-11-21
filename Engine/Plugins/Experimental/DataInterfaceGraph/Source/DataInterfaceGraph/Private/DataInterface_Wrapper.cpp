@@ -2,6 +2,8 @@
 
 #include "DataInterface_Wrapper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataInterface_Wrapper)
+
 FName UDataInterface_Wrapper::GetReturnTypeNameImpl() const
 {
 	// We mimic the return type of our output

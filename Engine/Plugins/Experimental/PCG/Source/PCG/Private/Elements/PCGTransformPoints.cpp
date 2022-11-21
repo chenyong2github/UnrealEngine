@@ -5,6 +5,8 @@
 #include "PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGTransformPoints)
+
 UPCGTransformPointsSettings::UPCGTransformPointsSettings()
 {
 	bUseSeed = true;
@@ -119,3 +121,4 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+

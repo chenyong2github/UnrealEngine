@@ -19,6 +19,8 @@
 #include "Templates/TypeHash.h"
 #include "Trace/Detail/Channel.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectInstanceDescriptor)
+
 
 const FString EmptyString;
 

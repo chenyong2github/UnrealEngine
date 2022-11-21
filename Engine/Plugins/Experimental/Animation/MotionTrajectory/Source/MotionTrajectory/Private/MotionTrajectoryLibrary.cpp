@@ -7,6 +7,8 @@
 #include "Algo/Find.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrajectoryLibrary)
+
 static void FlattenTrajectoryPosition(
 	FTrajectorySample& Sample, 
 	const FTrajectorySample& PrevSample, 

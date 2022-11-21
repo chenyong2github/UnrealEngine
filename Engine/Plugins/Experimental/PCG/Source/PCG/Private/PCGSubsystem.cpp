@@ -13,6 +13,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Math/GenericOctree.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSubsystem)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"

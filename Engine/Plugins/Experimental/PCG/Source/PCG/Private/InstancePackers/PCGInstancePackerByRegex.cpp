@@ -4,6 +4,8 @@
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Internationalization/Regex.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstancePackerByRegex)
+
 void UPCGInstancePackerByRegex::PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	if (!InSpatialData || !InSpatialData->Metadata)
@@ -57,3 +59,4 @@ void UPCGInstancePackerByRegex::PackInstances_Implementation(FPCGContext& Contex
 	
 	PackCustomDataFromAttributes(InstanceList, SelectedAttributes, OutPackedCustomData);
 }
+

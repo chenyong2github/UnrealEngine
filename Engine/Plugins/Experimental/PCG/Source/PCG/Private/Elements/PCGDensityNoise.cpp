@@ -7,6 +7,8 @@
 
 #include "Math/RandomStream.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityNoise)
+
 UPCGDensityNoiseSettings::UPCGDensityNoiseSettings()
 {
 	bUseSeed = true;
@@ -79,3 +81,4 @@ bool FPCGDensityNoiseElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+

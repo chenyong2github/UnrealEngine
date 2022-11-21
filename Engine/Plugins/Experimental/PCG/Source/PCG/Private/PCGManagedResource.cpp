@@ -6,6 +6,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGManagedResource)
+
 void UPCGManagedResource::PostApplyToComponent()
 {
 	PostEditImport();

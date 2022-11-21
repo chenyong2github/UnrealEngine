@@ -7,6 +7,8 @@
 
 #include "Math/RandomStream.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityRemapElement)
+
 FPCGElementPtr UPCGDensityRemapSettings::CreateElement() const
 {
 	return MakeShared<FPCGDensityRemapElement>();
@@ -70,3 +72,4 @@ bool FPCGDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+

@@ -7,6 +7,8 @@
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataElement)
+
 namespace PCGMetadataOperations
 {
 	// Getter and setter for properties.
