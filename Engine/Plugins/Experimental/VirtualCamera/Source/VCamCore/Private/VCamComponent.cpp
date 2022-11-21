@@ -910,6 +910,13 @@ void UVCamComponent::GetAllModifiers(TArray<UVCamModifier*>& Modifiers) const
 	}
 }
 
+TArray<FName> UVCamComponent::GetAllModifierNames() const
+{
+	TArray<FName> ModifierNames;
+	Algo::Transform(ModifierStack, ModifierNames, [](const FModifierStackEntry& StackEntry){ return StackEntry.Name; });
+	return ModifierNames;
+}
+
 UVCamModifier* UVCamComponent::GetModifierByIndex(const int32 Index) const
 {
 	if (ModifierStack.IsValidIndex(Index))

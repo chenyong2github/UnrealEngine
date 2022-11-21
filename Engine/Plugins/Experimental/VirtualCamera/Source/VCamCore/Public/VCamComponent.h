@@ -181,6 +181,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	void GetAllModifiers(TArray<UVCamModifier*>& Modifiers) const;
 
+	/** Returns all the modifier names used to identifying connection points. */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
+	TArray<FName> GetAllModifierNames() const;
+
 	// Returns the Modifier in the Stack with the given index if it exist.
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	UVCamModifier* GetModifierByIndex(const int32 Index) const;
@@ -284,22 +288,22 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="VirtualCamera", meta=(ForceUnits=ms, ClampMin = "11.0"), DisplayName="Update Frequencey")
 	float UpdateFrequencyMs = 66.6f;
 
-	// Which viewport to use for this VCam
+	/** Which viewport to use for this VCam */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera")
 	EVCamTargetViewportID TargetViewport = EVCamTargetViewportID::CurrentlySelected;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetInputProfile, Category = "VirtualCamera")
 	FVCamInputProfile InputProfile;
 
-	// Call this after modifying the InputProfile in code to update the player mapped keys
+	/** List of Output Providers (executed in order) */
+	UPROPERTY(EditAnywhere, Instanced, Category="VirtualCamera")
+	TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders;
+
+	/** Call this after modifying the InputProfile in code to update the player mapped keys */
 	void ApplyInputProfile();
 	
 	UFUNCTION(BlueprintCallable, BlueprintInternalUseOnly, Category="VirtualCamera")
 	void SetInputProfile(const FVCamInputProfile& NewInputProfile);
-
-	// List of Output Providers (executed in order)
-	UPROPERTY(EditAnywhere, Instanced, Category="VirtualCamera")
-	TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders;
 
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	void GetLiveLinkDataForCurrentFrame(FLiveLinkCameraBlueprintData& LiveLinkData);
@@ -332,8 +336,7 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera", meta = (AutoCreateRefTerm = "Modifiers,Triggers"))
 	virtual void InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
-
-
+	
 	/**
 	* Injects an input vector for action.
 	*/
