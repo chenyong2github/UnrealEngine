@@ -191,6 +191,17 @@ protected:
 
 	/** Set the most recently used hardware device */
 	void SetMostRecentlyUsedHardwareDevice(const FInputDeviceId InDeviceId, const FHardwareDeviceIdentifier& InHardwareId);
+
+	// Callbacks for when PIE is started/stopped. We will likely want to pause/resume input device properties
+	// when this happens, or just remove all active properties when PIE stops. This will make designer iteration a little easier
+#if WITH_EDITOR
+	void OnPrePIEStarted(bool bSimulating);
+	void OnPIEPaused(bool bSimulating);
+	void OnPIEResumed(bool bSimulating);
+	void OnPIEStopped(bool bSimulating);
+
+	bool bIsPIEPlaying = false;
+#endif
 	
 	/**
 	* Array of currently active input device properties that will be evaluated on tick
