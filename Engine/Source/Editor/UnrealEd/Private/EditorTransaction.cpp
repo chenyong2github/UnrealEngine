@@ -1101,6 +1101,9 @@ int32 UTransBuffer::End()
 {
 	CheckState();
 	const int32 Result = ActiveCount;
+	FGuid TransactionId = FGuid();
+	bool bTransactionFinalized = false;
+
 	// Don't assert as we now purge the buffer when resetting.
 	// So, the active count could be 0, but the code path may still call end.
 	if (ActiveCount >= 1)
@@ -1123,6 +1126,8 @@ int32 UTransBuffer::End()
 				// End the current transaction.
 				GUndo->Finalize();
 				TransactionStateChangedDelegate.Broadcast(GUndo->GetContext(), ETransactionStateEventType::TransactionFinalized);
+				bTransactionFinalized = true;
+				TransactionId = GUndo->GetContext().TransactionId;
 				GUndo->EndOperation();
 
 				// Once the transaction is finalized, remove it from the undo buffer if it's flagged as transient. (i.e contains PIE objects is no-op)
@@ -1138,6 +1143,12 @@ int32 UTransBuffer::End()
 			RemovedTransactions.Reset();
 		}
 		ActiveRecordCounts.Pop();
+		if (bTransactionFinalized)
+		{
+			FTransactionContext Context;
+			Context.TransactionId = TransactionId;
+			TransactionStateChangedDelegate.Broadcast(Context, ETransactionStateEventType::PostTransactionFinalized);
+		}
 		CheckState();
 	}
 	return Result;
