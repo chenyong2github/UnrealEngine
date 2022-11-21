@@ -46,6 +46,11 @@ FRandomStream UPCGBlueprintHelpers::GetRandomStream(const FPCGPoint& InPoint, co
 	return FRandomStream(Seed);
 }
 
+const UPCGSettings* UPCGBlueprintHelpers::GetSettings(FPCGContext& Context)
+{
+	return Context.GetInputSettings<UPCGSettings>();
+}
+
 UPCGData* UPCGBlueprintHelpers::GetActorData(FPCGContext& Context)
 {
 	return Context.SourceComponent.IsValid() ? Context.SourceComponent->GetActorPCGData() : nullptr;

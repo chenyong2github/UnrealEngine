@@ -155,6 +155,34 @@ TSet<FName> UPCGBlueprintElement::OutputLabels() const
 	return Labels;
 }
 
+int UPCGBlueprintElement::GetSeed(FPCGContext& InContext) const 
+{
+	const UPCGComponent* SourceComponent = InContext.SourceComponent.Get();
+	const UPCGBlueprintSettings* Settings = InContext.GetInputSettings<UPCGBlueprintSettings>();
+
+	if (SourceComponent && Settings)
+	{
+		return PCGHelpers::ComputeSeed(Settings->Seed, SourceComponent->Seed);
+	}
+	else if (Settings)
+	{
+		return Settings->Seed;
+	}
+	else if (SourceComponent)
+	{
+		return SourceComponent->Seed;
+	}
+	else
+	{
+		return 42;
+	}
+}
+
+FRandomStream UPCGBlueprintElement::GetRandomStream(FPCGContext& InContext) const
+{
+	return FRandomStream(GetSeed(InContext));
+}
+
 UPCGBlueprintSettings::UPCGBlueprintSettings()
 {
 	bUseSeed = true;

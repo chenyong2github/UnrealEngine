@@ -8,6 +8,7 @@
 #include "Data/PCGPointData.h"
 #include "PCGPoint.h"
 
+#include "Math/RandomStream.h"
 #include "Templates/SubclassOf.h"
 
 #include "PCGExecuteBlueprint.generated.h"
@@ -80,6 +81,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Input & Output")
 	TSet<FName> OutputLabels() const;
+
+	/** Gets the seed from the associated settings & source component */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Random")
+	int GetSeed(UPARAM(ref) FPCGContext& InContext) const;
+
+	/** Creates a random stream from the settings & source component */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "PCG|Random")
+	FRandomStream GetRandomStream(UPARAM(ref) FPCGContext& InContext) const;
 
 	/** Called after object creation to setup the object callbacks */
 	void Initialize();
