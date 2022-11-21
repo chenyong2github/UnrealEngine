@@ -7,6 +7,7 @@
 
 class SSceneOutliner;
 class FContentBundleEditor;
+class FUICommandList;
 
 struct FContentBundleModeCreationParams
 {
@@ -45,4 +46,14 @@ protected:
 
 	void RegisterContextMenu();
 	void UnregisterContextMenu();
+
+private:
+
+	/** Delegate to handle "Find in Content Browser" context menu option */
+	void FindInContentBrowser();
+
+	/** Delegate to handle enabling the "Find in Content Browser" context menu option */
+	bool CanFindInContentBrowser() const;
+
+	TSharedPtr<FUICommandList> Commands;
 };
