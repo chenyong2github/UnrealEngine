@@ -61,7 +61,7 @@ void SControlRigVariableBinding::Construct(const FArguments& InArgs)
 
 FText SControlRigVariableBinding::GetBindingText(URigVMPin* ModelPin) const
 {
-	if (ModelPin)
+	if (ModelPin && ModelPin->GetGraph())
 	{
 		const FString VariablePath = ModelPin->GetBoundVariablePath();
 		return FText::FromString(VariablePath);
