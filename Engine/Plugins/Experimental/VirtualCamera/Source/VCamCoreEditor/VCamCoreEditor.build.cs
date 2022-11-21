@@ -20,19 +20,20 @@ public class VCamCoreEditor : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"CinematicCamera",
 				"Engine",
 				"EditorFramework",
-				"UnrealEd",
+				"EnhancedInput",
+				"InputCore",
+				"LiveLinkInterface",
+				"PropertyEditor",
 				"Slate",
 				"SlateCore",
-				"CinematicCamera",
-				"LiveLinkInterface",
-				"VCamCore",
-				"EnhancedInput",
-				"PropertyEditor",
+				"ToolWidgets",
 				"UMG", 
 				"UMGEditor",
-				"InputCore",
+				"UnrealEd",
+				"VCamCore",
 				"VCamInput"
 			}
 		);

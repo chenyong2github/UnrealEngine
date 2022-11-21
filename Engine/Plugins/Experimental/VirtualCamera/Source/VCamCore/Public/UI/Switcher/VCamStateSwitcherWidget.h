@@ -1,0 +1,67 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UI/VCamWidget.h"
+#include "VCamWidgetConnectionState.h"
+#include "VCamStateSwitcherWidget.generated.h"
+
+class UVCamStateSwitcherWidget;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FChangeConnectionStateEvent, UVCamStateSwitcherWidget*, Widget, FName, OldState, FName, NewState);
+
+DECLARE_LOG_CATEGORY_EXTERN(LogVCamStateSwitcher, Log, All);
+
+/**
+ * A widget that has a set of states you can switch between using SetCurrentState.
+ * A state is a collection of VCamWidgets whose connections should be rebound to new connection points.
+ */
+UCLASS()
+class VCAMCORE_API UVCamStateSwitcherWidget : public UVCamWidget
+{
+	GENERATED_BODY()
+	static FName DefaultState;
+public:
+
+	UFUNCTION(BlueprintCallable, Category = "Connections", meta = (BlueprintInternalUseOnly = "true"))
+	void K2_SetCurrentState(FName NewState) { SetCurrentState(NewState); }
+
+	/**
+	 * Switches to given state - if the state transition is valid, UpdateConnectionTargets will be called.
+	 * If CurrentState == NewState, then this call will be ignored (unless bForceUpdate == true).
+	 * 
+	 * @param NewState The new state to switch to
+	 * @param bForceUpdate Call UpdateConnectionTargets even if the CurrentState == NewState
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Connections")
+	bool SetCurrentState(FName NewState, bool bForceUpdate = false);
+	
+	UFUNCTION(BlueprintPure, Category = "Connections")
+	FName GetCurrentState() const { return CurrentState; }
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+protected:
+
+	//~ Begin UUserWidget Interface
+	virtual void NativePreConstruct() override;
+	//~ End UUserWidget Interface
+	
+private:
+
+	/** Executes when the state is about to be changed */
+	UPROPERTY(BlueprintAssignable, Category = "Connections")
+	FChangeConnectionStateEvent OnPreStateChanged;
+
+	/** Executes when after the state has been changed */
+	UPROPERTY(BlueprintAssignable, Category = "Connections")
+	FChangeConnectionStateEvent OnPostStateChanged;
+	
+	UPROPERTY(EditAnywhere, Category = "Connections")
+	TMap<FName, FVCamWidgetConnectionState> States { { DefaultState, {} } };
+
+	UPROPERTY(EditAnywhere, BlueprintGetter = "GetCurrentState", BlueprintSetter = "K2_SetCurrentState", Category = "Connections")
+	FName CurrentState = DefaultState;
+};
