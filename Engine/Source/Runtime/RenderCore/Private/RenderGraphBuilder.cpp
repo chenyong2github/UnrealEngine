@@ -1778,8 +1778,10 @@ void FRDGBuilder::Execute()
 						// Busy wait until our pass set is ready. This will be set by the dispatch task.
 						while (!FPlatformAtomics::AtomicRead(&ParallelPassSet.bInitialized)) {};
 
+						FRHICommandListImmediate::ETranslatePriority TranslatePriority = ParallelPassSet.bParallelTranslate ? FRHICommandListImmediate::ETranslatePriority::Normal : FRHICommandListImmediate::ETranslatePriority::Disabled;
+
 						check(ParallelPassSet.CmdList != nullptr);
-						RHICmdList.QueueAsyncCommandListSubmit(MakeArrayView<FRHICommandListImmediate::FQueuedCommandList>(&ParallelPassSet, 1));
+						RHICmdList.QueueAsyncCommandListSubmit(MakeArrayView<FRHICommandListImmediate::FQueuedCommandList>(&ParallelPassSet, 1), TranslatePriority);
 
 						IF_RHI_WANT_BREADCRUMB_EVENTS(RHICmdList.ImportBreadcrumbState(*ParallelPassSet.BreadcrumbStateEnd));
 
@@ -2405,6 +2407,7 @@ void FRDGBuilder::SetupParallelExecute()
 	TArray<FRDGPass*, TInlineAllocator<64, FRDGArrayAllocator>> ParallelPassCandidates;
 	uint32 ParallelPassCandidatesWorkload = 0;
 	bool bDispatchAfterExecute = false;
+	bool bParallelTranslate = false;
 
 	const auto FlushParallelPassCandidates = [&]()
 	{
@@ -2468,11 +2471,13 @@ void FRDGBuilder::SetupParallelExecute()
 			FParallelPassSet& ParallelPassSet = ParallelPassSets.Emplace_GetRef();
 			ParallelPassSet.Passes.Append(ParallelPassCandidates.GetData() + PassBeginIndex, ParallelPassCandidateCount);
 			ParallelPassSet.bDispatchAfterExecute = bDispatchAfterExecute;
+			ParallelPassSet.bParallelTranslate = bParallelTranslate;
 		}
 
 		ParallelPassCandidates.Reset();
 		ParallelPassCandidatesWorkload = 0;
 		bDispatchAfterExecute = false;
+		bParallelTranslate = false;
 	};
 
 	ParallelPassSets.Reserve(32);
@@ -2496,6 +2501,7 @@ void FRDGBuilder::SetupParallelExecute()
 		}
 
 		bDispatchAfterExecute |= Pass->bDispatchAfterExecute;
+		bParallelTranslate |= EnumHasAnyFlags(Pass->Flags, ERDGPassFlags::ParallelTranslate);
 
 		ParallelPassCandidates.Emplace(Pass);
 		ParallelPassCandidatesWorkload += Pass->Workload;

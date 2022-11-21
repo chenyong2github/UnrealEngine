@@ -44,6 +44,13 @@ static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
 	TEXT("")
 );
 
+int32 GNaniteParallelRasterTranslateExperimental = 0;
+static FAutoConsoleVariableRef CVarNaniteParallelRasterTranslateExperimental(
+	TEXT("r.Nanite.ParallelRasterTranslateExperimental"),
+	GNaniteParallelRasterTranslateExperimental,
+	TEXT("")
+);
+
 int32 GNaniteAsyncRasterizeShadowDepths = 1;
 static FAutoConsoleVariableRef CVarNaniteAsyncRasterizeShadowDepths(
 	TEXT("r.Nanite.AsyncRasterization.ShadowDepths"),
@@ -2894,10 +2901,21 @@ FBinningData AddPass_Rasterize(
 		RasterPassParameters->VirtualShadowMap = VirtualTargetParameters;
 	}
 
+	uint32 PassWorkload = RasterizerPasses.Num();
+	ERDGPassFlags ParallelTranslateFlag = ERDGPassFlags::None;
+
+	if (GNaniteParallelRasterTranslateExperimental)
+	{
+		// Force the pass onto its own async command list.
+		PassWorkload = 1000;
+		ParallelTranslateFlag = ERDGPassFlags::ParallelTranslate;
+	}
+
+
 	FRDGPass* SWPass = GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HW Rasterize"),
 		RasterPassParameters,
-		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ParallelTranslateFlag,
 		[RasterPassParameters, &RasterizerPasses, ViewRect, &SceneView, FixedMaterialProxy, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("HW Rasterize"));
@@ -2977,14 +2995,14 @@ FBinningData AddPass_Rasterize(
 		RHICmdList.EndRenderPass();
 	});
 
-	GraphBuilder.SetPassWorkload(SWPass, RasterizerPasses.Num());
+	GraphBuilder.SetPassWorkload(SWPass, PassWorkload);
 
 	if (Scheduling != ERasterScheduling::HardwareOnly)
 	{
 		FRDGPass* HWPass = GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SW Rasterize"),
 			RasterPassParameters,
-			ComputePassFlags,
+			ComputePassFlags | ParallelTranslateFlag,
 			[RasterPassParameters, &RasterizerPasses, &SceneView, FixedMaterialProxy](FRHIComputeCommandList& RHICmdList)
 		{
 			FRasterizePassParameters Parameters = *RasterPassParameters;
@@ -3018,7 +3036,7 @@ FBinningData AddPass_Rasterize(
 			}
 		});
 
-		GraphBuilder.SetPassWorkload(HWPass, RasterizerPasses.Num());
+		GraphBuilder.SetPassWorkload(HWPass, PassWorkload);
 	}
 
 	return BinningData;

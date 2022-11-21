@@ -93,7 +93,7 @@ enum class ERDGBuilderFlags
 ENUM_CLASS_FLAGS(ERDGBuilderFlags);
 
 /** Flags to annotate a pass with when calling AddPass. */
-enum class ERDGPassFlags : uint8
+enum class ERDGPassFlags : uint16
 {
 	/** Pass doesn't have any inputs or outputs tracked by the graph. This may only be used by the parameterless AddPass function. */
 	None = 0,
@@ -121,6 +121,8 @@ enum class ERDGPassFlags : uint8
 
 	/** Pass will never run off the render thread. */
 	NeverParallel = 1 << 7,
+
+	ParallelTranslate = 1 << 8,
 
 	/** Pass uses copy commands but writes to a staging resource. */
 	Readback = Copy | NeverCull

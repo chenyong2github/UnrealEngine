@@ -681,6 +681,7 @@ private:
 		IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbStateEnd{});
 		int8 bInitialized = 0;
 		bool bDispatchAfterExecute = false;
+		bool bParallelTranslate = false;
 	};
 
 	TArray<FParallelPassSet, FRDGArrayAllocator> ParallelPassSets;
