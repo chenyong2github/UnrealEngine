@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using EpicGames.Horde.Logs;
 using Horde.Build.Logs.Data;
 
 namespace Horde.Build.Logs
@@ -96,7 +97,7 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Stats for the search
 		/// </summary>
-		public LogSearchStats? Stats { get; set; }
+		public SearchStats? Stats { get; set; }
 	}
 }
 

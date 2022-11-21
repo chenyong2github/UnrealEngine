@@ -95,7 +95,7 @@ namespace EpicGames.Horde.Logs
 		}
 
 		/// <summary>
-		/// Perform a case sensitive search for the next occurerence of the search term in a given buffer
+		/// Perform a case insensitive search for the next occurerence of the search term in a given buffer
 		/// </summary>
 		/// <param name="buffer">The buffer to search</param>
 		/// <param name="offset">Starting offset for the search</param>

@@ -530,6 +530,20 @@ namespace EpicGames.Horde.Logs
 		}
 
 		/// <summary>
+		/// Create an array of lines from the text
+		/// </summary>
+		/// <returns>Array of lines</returns>
+		public Utf8String[] ToArray()
+		{
+			Utf8String[] lines = new Utf8String[LineCount];
+			for (int idx = 0; idx < LineCount; idx++)
+			{
+				lines[idx] = new Utf8String(_data, _lineOffsets[idx], _lineOffsets[idx + 1] - 1).Clone();
+			}
+			return lines;
+		}
+
+		/// <summary>
 		/// Create a <see cref="LogChunkNode"/> object from the current state
 		/// </summary>
 		/// <returns></returns>

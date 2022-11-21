@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Logs;
 using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
 using Horde.Build.Issues;
@@ -302,7 +303,7 @@ namespace Horde.Build.Logs
 			}
 
 			SearchLogFileResponse response = new SearchLogFileResponse();
-			response.Stats = new LogSearchStats();
+			response.Stats = new SearchStats();
 			response.Lines = await _logFileService.SearchLogDataAsync(logFile, text, firstLine, count, response.Stats, cancellationToken);
 			return response;
 		}
@@ -397,6 +398,10 @@ namespace Horde.Build.Logs
 				return true;
 			}
 			if (logFile.SessionId != null && await _aclService.AuthorizeAsync(AclAction.ViewSession, user, permissionsCache))
+			{
+				return true;
+			}
+			if (await _aclService.AuthorizeAsync(action, user, permissionsCache))
 			{
 				return true;
 			}

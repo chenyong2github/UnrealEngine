@@ -83,7 +83,7 @@ namespace Horde.Build.Logs
 
 				using (CancellationTokenSource cancellationSource = new CancellationTokenSource())
 				{
-					Task<int> waitTask = _logTailService.WaitForTailNext(logId, cancellationSource.Token);
+					Task<int> waitTask = _logTailService.WaitForTailNextAsync(logId, cancellationSource.Token);
 
 					await Task.WhenAny(waitTask, moveNextTask);
 					cancellationSource.Cancel();

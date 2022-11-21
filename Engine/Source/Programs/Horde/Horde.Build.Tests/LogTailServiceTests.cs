@@ -176,7 +176,7 @@ namespace Horde.Build.Tests
 
 			LogTailService tailService2 = new LogTailService(ServiceProvider.GetRequiredService<RedisService>(), ServiceProvider.GetRequiredService<IClock>(), 4, ServiceProvider.GetRequiredService<ILogger<LogTailService>>());
 
-			Task<int> task = tailService.WaitForTailNext(_logId, CancellationToken.None);
+			Task<int> task = tailService.WaitForTailNextAsync(_logId, CancellationToken.None);
 			Assert.IsTrue(!task.IsCompleted);
 
 			await tailService2.EnableTailingAsync(_logId, 30);

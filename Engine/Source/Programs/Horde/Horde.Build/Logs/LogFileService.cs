@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -201,7 +202,7 @@ namespace Horde.Build.Logs
 		/// <param name="stats">Receives stats for the search</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>List of line numbers containing the given term</returns>
-		Task<List<int>> SearchLogDataAsync(ILogFile logFile, string text, int firstLine, int count, LogSearchStats stats, CancellationToken cancellationToken);
+		Task<List<int>> SearchLogDataAsync(ILogFile logFile, string text, int firstLine, int count, SearchStats stats, CancellationToken cancellationToken);
 	}
 
 	/// <summary>
@@ -929,7 +930,7 @@ namespace Horde.Build.Logs
 			{
 				metadata.MaxLineIndex = logFile.LineCount;
 
-				int nextIdx = await _logTailService.GetTailNext(logFile.Id);
+				int nextIdx = await _logTailService.GetTailNextAsync(logFile.Id);
 				if (nextIdx != -1)
 				{
 					metadata.MaxLineIndex = nextIdx;
@@ -1863,7 +1864,7 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<int>> SearchLogDataAsync(ILogFile logFile, string text, int firstLine, int count, LogSearchStats searchStats, CancellationToken cancellationToken)
+		public async Task<List<int>> SearchLogDataAsync(ILogFile logFile, string text, int firstLine, int count, SearchStats searchStats, CancellationToken cancellationToken)
 		{
 			Stopwatch timer = Stopwatch.StartNew();
 
@@ -1875,7 +1876,11 @@ namespace Horde.Build.Logs
 			List<int> results = new List<int>();
 			if (count > 0)
 			{
-				await using IAsyncEnumerator<int> enumerator = SearchLogDataInternalAsync(logFile, text, firstLine, searchStats).GetAsyncEnumerator(cancellationToken);
+				IAsyncEnumerable<int> enumerable =_settings.Value.FeatureFlags.EnableNewLogger ?
+						SearchLogDataInternalNewAsync(logFile, text, firstLine, searchStats, cancellationToken) :
+						SearchLogDataInternalAsync(logFile, text, firstLine, searchStats);
+
+				await using IAsyncEnumerator<int> enumerator = enumerable.GetAsyncEnumerator(cancellationToken);
 				while (await enumerator.MoveNextAsync() && results.Count < count)
 				{
 					results.Add(enumerator.Current);
@@ -1886,8 +1891,87 @@ namespace Horde.Build.Logs
 			return results;
 		}
 
-		/// <inheritdoc/>
-		public async IAsyncEnumerable<int> SearchLogDataInternalAsync(ILogFile logFile, string text, int firstLine, LogSearchStats searchStats)
+		async IAsyncEnumerable<int> SearchLogDataInternalNewAsync(ILogFile logFile, string text, int firstLine, SearchStats searchStats, [EnumeratorCancellation] CancellationToken cancellationToken)
+		{
+			SearchTerm searchText = new SearchTerm(text);
+			TreeReader reader = await GetTreeReaderAsync(cancellationToken);
+
+			// Search the index
+			if (logFile.LineCount > 0)
+			{
+				LogNode? root = await reader.ReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
+				if(root != null)
+				{
+					LogIndexNode index = await root.IndexRef.ExpandAsync(reader, cancellationToken);
+					await foreach (int lineIdx in index.Search(reader, firstLine, searchText, searchStats, cancellationToken))
+					{
+						yield return lineIdx;
+					}
+					if (root.Complete)
+					{
+						yield break;
+					}
+					firstLine = root.LineCount;
+				}
+			}
+
+			// Search any tail data we have
+			for (; ; )
+			{
+				Utf8String[] lines = await ReadTailAsync(logFile, firstLine, cancellationToken);
+				if (lines.Length == 0)
+				{
+					break;
+				}
+
+				for (int idx = 0; idx < lines.Length; idx++)
+				{
+					if (SearchTerm.FindNextOcurrence(lines[idx].Span, 0, searchText) != -1)
+					{
+						yield return firstLine + idx;
+					}
+				}
+
+				firstLine += lines.Length;
+			}
+		}
+
+		async Task<Utf8String[]> ReadTailAsync(ILogFile logFile, int index, CancellationToken cancellationToken)
+		{
+			const int BatchSize = 128;
+
+			string cacheKey = $"{logFile.Id}@{index}";
+			if (_logFileCache.TryGetValue(cacheKey, out Utf8String[]? lines))
+			{
+				return lines!;
+			}
+
+			lines = (await _logTailService.ReadAsync(logFile.Id, index, BatchSize)).ToArray();
+			if (logFile.Type == LogType.Json)
+			{
+				LogChunkBuilder builder = new LogChunkBuilder(lines.Sum(x => x.Length));
+				foreach (Utf8String line in lines)
+				{
+					builder.AppendJsonAsPlainText(line.Span, _logger);
+				}
+				lines = lines.ToArray();
+			}
+
+			if (lines.Length == BatchSize)
+			{
+				int length = lines.Sum(x => x.Length);
+				using (ICacheEntry entry = _logFileCache.CreateEntry(cacheKey))
+				{
+					entry.SetSlidingExpiration(TimeSpan.FromMinutes(1.0));
+					entry.SetSize(length);
+					entry.SetValue(lines);
+				}
+			}
+
+			return lines;
+		}
+
+		async IAsyncEnumerable<int> SearchLogDataInternalAsync(ILogFile logFile, string text, int firstLine, SearchStats searchStats)
 		{
 			SearchText searchText = new SearchText(text);
 

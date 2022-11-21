@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using EpicGames.Core;
+using EpicGames.Horde.Logs;
 using Horde.Build.Utilities;
 using OpenTracing;
 using OpenTracing.Util;
@@ -99,37 +100,6 @@ namespace Horde.Build.Logs.Data
 		{
 			return sizeof(int) + sizeof(int) + (sizeof(int) + block.CompressedPlainText.Length);
 		}
-	}
-
-	/// <summary>
-	/// Stats for a search
-	/// </summary>
-	public class LogSearchStats
-	{
-		/// <summary>
-		/// Number of blocks that were scanned
-		/// </summary>
-		public int NumScannedBlocks { get; set; }
-
-		/// <summary>
-		/// Number of bytes that had to be scanned for results
-		/// </summary>
-		public int NumScannedBytes { get; set; }
-
-		/// <summary>
-		/// Number of blocks that were skipped
-		/// </summary>
-		public int NumSkippedBlocks { get; set; }
-
-		/// <summary>
-		/// Number of blocks that had to be decompressed
-		/// </summary>
-		public int NumDecompressedBlocks { get; set; }
-
-		/// <summary>
-		/// Number of blocks that were searched but did not contain the search term
-		/// </summary>
-		public int NumFalsePositiveBlocks { get; set; }
 	}
 
 	/// <summary>
@@ -257,7 +227,7 @@ namespace Horde.Build.Logs.Data
 		/// <param name="text">Text to search for</param>
 		/// <param name="stats">Receives stats for the search</param>
 		/// <returns>List of line numbers for the text</returns>
-		public IEnumerable<int> Search(int firstLineIndex, SearchText text, LogSearchStats stats)
+		public IEnumerable<int> Search(int firstLineIndex, SearchText text, SearchStats stats)
 		{
 			int lastBlockCount = 0;
 			foreach (int blockIdx in EnumeratePossibleBlocks(text.Bytes, firstLineIndex))

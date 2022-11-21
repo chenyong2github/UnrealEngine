@@ -28,8 +28,8 @@ namespace Horde.Build.Logs
 	///   data to a sorted set for that log scored by index of the first line (see <see cref="RedisTailData"/>).
 	/// * Chunks are split on fixed boundaries, in order to allow older entries to be purged by score without having to count the number of lines
 	///   they contain first.
-	/// * Agent polls for requests to provide tail data via <see cref="LogRpcService.UpdateLogTail"/>, which calls <see cref="WaitForTailNext"/>.
-	///   <see cref="WaitForTailNext"/> returns the index of the total line count for this log if it is being tailed (indicating the index of
+	/// * Agent polls for requests to provide tail data via <see cref="LogRpcService.UpdateLogTail"/>, which calls <see cref="WaitForTailNextAsync"/>.
+	///   <see cref="WaitForTailNextAsync"/> returns the index of the total line count for this log if it is being tailed (indicating the index of
 	///   the next line that the agent should send to the server), or blocks until the log is being tailed.
 	/// * Once data is flushed to persistent storage, the number of flushed lines is added to <see cref="_trimQueue"/> and the line data is removed
 	///   from Redis after <see cref="TrimAfter"/>.
@@ -74,7 +74,7 @@ namespace Horde.Build.Logs
 		/// Constructor
 		/// </summary>
 		public LogTailService(RedisService redisService, IClock clock, ILogger<LogTailService> logger)
-			: this(redisService, clock, 4, logger)
+			: this(redisService, clock, 32, logger)
 		{
 		}
 
@@ -275,7 +275,7 @@ namespace Horde.Build.Logs
 		/// </summary>
 		/// <param name="logId">Log to query</param>
 		/// <returns>Number of lines for the log file</returns>
-		public async Task<int> GetTailNext(LogId logId)
+		public async Task<int> GetTailNextAsync(LogId logId)
 		{
 			int? tailNext = await RedisTailNext(logId).GetValueAsync();
 			return tailNext ?? -1;
@@ -287,7 +287,7 @@ namespace Horde.Build.Logs
 		/// <param name="logId">The log file to query</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async Task<int> WaitForTailNext(LogId logId, CancellationToken cancellationToken)
+		public async Task<int> WaitForTailNextAsync(LogId logId, CancellationToken cancellationToken)
 		{
 			AsyncEvent notifyEvent = _notifyLogEvents.GetOrAdd(logId, new AsyncEvent());
 			try
