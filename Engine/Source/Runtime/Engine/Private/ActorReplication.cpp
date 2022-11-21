@@ -962,7 +962,7 @@ void AActor::UpdateOwningNetConnection() const
 
 		if (Actor->GetIsReplicated())
 		{
-			const UE::Net::FNetRefHandle RefHandle = ObjectReplicationBridge->GetReplicatedRefHandle(this);
+			const UE::Net::FNetRefHandle RefHandle = ObjectReplicationBridge->GetReplicatedRefHandle(Actor);
 			if (RefHandle.IsValid())
 			{
 				ReplicationSystem->SetOwningNetConnection(RefHandle, NewOwningNetConnectionId);
