@@ -924,7 +924,7 @@ void USoundscapeSubsystem::UpdateState()
 
 		if (SoundscapePalette && ActiveSoundscapePalette)
 		{
-			if (SoundscapePalette->SoundscapePalettePlaybackConditions.Matches(SubsystemState))
+			if (SoundscapePalette->SoundscapePalettePlaybackConditions.IsEmpty() || SoundscapePalette->SoundscapePalettePlaybackConditions.Matches(SubsystemState))
 			{
 				ActivePalettesToKeep.Add(SoundscapePalette, ActiveSoundscapePalette);
 			}
@@ -947,7 +947,7 @@ void USoundscapeSubsystem::UpdateState()
 		if (USoundscapePalette* SoundscapePalette = *PaletteIterator)
 		{
 			// Evaluate if the Soundscape Palette matches
-			if (SoundscapePalette->SoundscapePalettePlaybackConditions.Matches(SubsystemState) && ActivePalettes.Contains(SoundscapePalette) == false)
+			if ((SoundscapePalette->SoundscapePalettePlaybackConditions.IsEmpty() || SoundscapePalette->SoundscapePalettePlaybackConditions.Matches(SubsystemState)) && ActivePalettes.Contains(SoundscapePalette) == false)
 			{
 				UWorld* World = GetWorld();
 
