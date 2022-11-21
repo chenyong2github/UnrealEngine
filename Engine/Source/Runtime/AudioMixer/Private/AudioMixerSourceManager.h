@@ -8,6 +8,7 @@
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceOutputBuffer.h"
 #include "AudioMixerSubmix.h"
+#include "AudioMixerTrace.h"
 #include "Containers/MpscQueue.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/EnvelopeFollower.h"
@@ -530,8 +531,6 @@ namespace Audio
 			uint8 bEnableSubmixSends : 1;
 			uint8 bIsVorbis:1;
 			uint8 bIsSoundfield:1;
-			uint8 bIsBypassingLPF:1;
-			uint8 bIsBypassingHPF:1;
 			uint8 bHasPreDistanceAttenuationSend:1;
 			uint8 bModFiltersUpdated : 1;
 			uint8 bShouldSourceBufferListenerZeroBuffer : 1;

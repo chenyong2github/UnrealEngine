@@ -174,6 +174,31 @@ UE_TRACE_EVENT_BEGIN(Audio, MixerSourceVolume)
 	UE_TRACE_EVENT_FIELD(int32, SourceId)
 	UE_TRACE_EVENT_FIELD(float, Volume)
 UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Audio, MixerSourceDistanceAttenuation)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(float, DistanceAttenuation)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Audio, MixerSourcePitch)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(float, Pitch)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Audio, MixerSourceFilters)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(float, LPFFrequency)
+	UE_TRACE_EVENT_FIELD(float, HPFFrequency)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Audio, MixerSourceEnvelope)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(int32, SourceId)
+	UE_TRACE_EVENT_FIELD(float, Envelope)
+UE_TRACE_EVENT_END()
 #endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
 
 namespace Audio
@@ -311,8 +336,6 @@ namespace Audio
 			SourceInfo.bEnableBaseSubmix = false;
 			SourceInfo.bEnableSubmixSends = false;
 			SourceInfo.bIsVorbis = false;
-			SourceInfo.bIsBypassingLPF = false;
-			SourceInfo.bIsBypassingHPF = false;
 			SourceInfo.bHasPreDistanceAttenuationSend = false;
 			SourceInfo.bModFiltersUpdated = false;
 
@@ -665,8 +688,6 @@ namespace Audio
 		SourceInfo.bEnableBusSends = false;
 		SourceInfo.bEnableBaseSubmix = false;
 		SourceInfo.bEnableSubmixSends = false;
-		SourceInfo.bIsBypassingLPF = false;
-		SourceInfo.bIsBypassingHPF = false;
 		SourceInfo.bHasPreDistanceAttenuationSend = false;
 		SourceInfo.bModFiltersUpdated = false;
 
@@ -2103,6 +2124,17 @@ namespace Audio
 				const float FinalPitch = FMath::Clamp(TargetPitch * ModPitch, MinModulationPitchRangeFreqCVar, MaxModulationPitchRangeFreqCVar);
 				SourceInfo.PitchSourceParam.SetValue(FinalPitch, NumOutputFrames);
 
+#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+				const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
+				if (bChannelEnabled)
+				{
+					UE_TRACE_LOG(Audio, MixerSourcePitch, AudioMixerChannel)
+						<< MixerSourcePitch.Timestamp(FPlatformTime::Cycles64())
+						<< MixerSourcePitch.SourceId(SourceId)
+						<< MixerSourcePitch.Pitch(TargetPitch);
+				}
+#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+
 				for (int32 Frame = StartFrame; Frame < NumOutputFrames; ++Frame)
 				{
 					// If we've read our last buffer, we're done
@@ -2461,87 +2493,98 @@ namespace Audio
 			TArrayView<float> PreDistanceAttenBufferView(PreDistanceAttenBufferPtr, NumSamples);
 
 			// Update volume fade information if we're stopping
-			if (SourceInfo.bIsStopping)
 			{
-				int32 NumFadeFrames = FMath::Min(SourceInfo.VolumeFadeNumFrames - SourceInfo.VolumeFadeFramePosition, NumOutputFrames);
-
-				SourceInfo.VolumeFadeFramePosition += NumFadeFrames;
-				SourceInfo.VolumeSourceDestination = SourceInfo.VolumeFadeSlope * (float) SourceInfo.VolumeFadeFramePosition + SourceInfo.VolumeFadeStart;
-
-				if (FMath::IsNearlyZero(SourceInfo.VolumeSourceDestination, KINDA_SMALL_NUMBER))
+				float VolumeStart = 1.0f;
+				float VolumeDestination = 1.0f;
+				if (SourceInfo.bIsStopping)
 				{
-					SourceInfo.VolumeSourceDestination = 0.0f;
+					int32 NumFadeFrames = FMath::Min(SourceInfo.VolumeFadeNumFrames - SourceInfo.VolumeFadeFramePosition, NumOutputFrames);
+
+					SourceInfo.VolumeFadeFramePosition += NumFadeFrames;
+					SourceInfo.VolumeSourceDestination = SourceInfo.VolumeFadeSlope * (float)SourceInfo.VolumeFadeFramePosition + SourceInfo.VolumeFadeStart;
+
+					if (FMath::IsNearlyZero(SourceInfo.VolumeSourceDestination, KINDA_SMALL_NUMBER))
+					{
+						SourceInfo.VolumeSourceDestination = 0.0f;
+					}
+
+					const int32 NumFadeSamples = NumFadeFrames * SourceInfo.NumInputChannels;
+
+					VolumeStart = SourceInfo.VolumeSourceStart;
+					VolumeDestination = SourceInfo.VolumeSourceDestination;
+					if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+					{
+						const bool bHasProcessed = SourceInfo.VolumeModulation.GetHasProcessed();
+						const float ModVolumeStart = SourceInfo.VolumeModulation.GetValue();
+						SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
+						const float ModVolumeEnd = SourceInfo.VolumeModulation.GetValue();
+						if (bHasProcessed)
+						{
+							VolumeStart *= ModVolumeStart;
+						}
+						else
+						{
+							VolumeStart *= ModVolumeEnd;
+						}
+						VolumeDestination *= ModVolumeEnd;
+					}
+
+					TArrayView<float> PreDistanceAttenBufferFadeSamplesView(PreDistanceAttenBufferPtr, NumFadeSamples);
+					Audio::ArrayFade(PreDistanceAttenBufferFadeSamplesView, VolumeStart, VolumeDestination);
+
+					// Zero the rest of the buffer
+					if (NumFadeFrames < NumOutputFrames)
+					{
+						int32 SamplesLeft = NumSamples - NumFadeSamples;
+
+						// Protect memzero call with some sanity checking on the inputs.
+						if (SamplesLeft > 0 && NumFadeSamples >= 0 && NumFadeSamples < NumSamples)
+						{
+							FMemory::Memzero(&PreDistanceAttenBufferPtr[NumFadeSamples], sizeof(float) * SamplesLeft);
+						}
+					}
+				}
+				else
+				{
+					VolumeStart = SourceInfo.VolumeSourceStart;
+					VolumeDestination = SourceInfo.VolumeSourceDestination;
+					if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+					{
+						const bool bHasProcessed = SourceInfo.VolumeModulation.GetHasProcessed();
+						const float ModVolumeStart = SourceInfo.VolumeModulation.GetValue();
+						SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
+						const float ModVolumeEnd = SourceInfo.VolumeModulation.GetValue();
+						if (bHasProcessed)
+						{
+							VolumeStart *= ModVolumeStart;
+						}
+						else
+						{
+							VolumeStart *= ModVolumeEnd;
+						}
+						VolumeDestination *= ModVolumeEnd;
+					}
+
+					Audio::ArrayFade(PreDistanceAttenBufferView, VolumeStart, VolumeDestination);
 				}
 
-				const int32 NumFadeSamples = NumFadeFrames * SourceInfo.NumInputChannels;
-
-				float VolumeStart = SourceInfo.VolumeSourceStart;
-				float VolumeDestination = SourceInfo.VolumeSourceDestination;
-				if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
-				{
-					const bool bHasProcessed = SourceInfo.VolumeModulation.GetHasProcessed();
-					const float ModVolumeStart = SourceInfo.VolumeModulation.GetValue();
-					SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
-					const float ModVolumeEnd = SourceInfo.VolumeModulation.GetValue();
-					if (bHasProcessed)
-					{
-						VolumeStart *= ModVolumeStart;
-					}
-					else
-					{
-						VolumeStart *= ModVolumeEnd;
-					}
-					VolumeDestination *= ModVolumeEnd;
-				}
-
-				TArrayView<float> PreDistanceAttenBufferFadeSamplesView(PreDistanceAttenBufferPtr, NumFadeSamples);
-				Audio::ArrayFade(PreDistanceAttenBufferFadeSamplesView, VolumeStart, VolumeDestination);
-
-				// Zero the rest of the buffer
-				if (NumFadeFrames < NumOutputFrames)
-				{
-					int32 SamplesLeft = NumSamples - NumFadeSamples;
-
-					// Protect memzero call with some sanity checking on the inputs.
-					if(SamplesLeft > 0 && NumFadeSamples >= 0 && NumFadeSamples < NumSamples)
-					{
-						FMemory::Memzero(&PreDistanceAttenBufferPtr[NumFadeSamples], sizeof(float) * SamplesLeft);
-					}
-				}
-			}
-			else
-			{
-				float VolumeStart = SourceInfo.VolumeSourceStart;
-				float VolumeDestination = SourceInfo.VolumeSourceDestination;
-				if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
-				{
-					const bool bHasProcessed = SourceInfo.VolumeModulation.GetHasProcessed();
-					const float ModVolumeStart = SourceInfo.VolumeModulation.GetValue();
-					SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
-					const float ModVolumeEnd = SourceInfo.VolumeModulation.GetValue();
-					if (bHasProcessed)
-					{
-						VolumeStart *= ModVolumeStart;
-					}
-					else
-					{
-						VolumeStart *= ModVolumeEnd;
-					}
-					VolumeDestination *= ModVolumeEnd;
-				}
-
-				Audio::ArrayFade(PreDistanceAttenBufferView, VolumeStart, VolumeDestination);
 #if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
-				if (!FMath::IsNearlyEqual(VolumeStart, VolumeDestination))
+				const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
+				if (bChannelEnabled)
 				{
-					const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
 					UE_TRACE_LOG(Audio, MixerSourceVolume, AudioMixerChannel)
 						<< MixerSourceVolume.Timestamp(FPlatformTime::Cycles64())
 						<< MixerSourceVolume.SourceId(SourceId)
 						<< MixerSourceVolume.Volume(VolumeDestination);
+
+					UE_TRACE_LOG(Audio, MixerSourceDistanceAttenuation, AudioMixerChannel)
+						<< MixerSourceDistanceAttenuation.Timestamp(FPlatformTime::Cycles64())
+						<< MixerSourceDistanceAttenuation.SourceId(SourceId)
+						<< MixerSourceDistanceAttenuation.DistanceAttenuation(SourceInfo.DistanceAttenuationSourceDestination);
 				}
 #endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
 			}
+
 			SourceInfo.VolumeSourceStart = SourceInfo.VolumeSourceDestination;
 
 			// Now process the effect chain if it exists
@@ -2610,6 +2653,7 @@ namespace Audio
 
 			const bool bModActive = MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid();
 			bool bUpdateModFilters = bModActive && (SourceInfo.bModFiltersUpdated || SourceInfo.LowpassModulation.IsActive() || SourceInfo.HighpassModulation.IsActive());
+
 			if (SourceInfo.IsRenderingToSubmixes() || bUpdateModFilters)
 			{
 				// Only scale with distance attenuation and send to source audio to plugins if we're not in output-to-bus only mode
@@ -2634,13 +2678,13 @@ namespace Audio
 					SourceInfo.HighPassFilter.StartFrequencyInterpolation(SourceInfo.HighpassModulation.GetValue(), NumOutputFrames);
 				}
 
-				const bool BypassLPF = DisableFilteringCvar || (SourceInfo.LowPassFilter.GetCutoffFrequency() >= (MAX_FILTER_FREQUENCY - KINDA_SMALL_NUMBER));
-				const bool BypassHPF = DisableFilteringCvar || DisableHPFilteringCvar || (SourceInfo.HighPassFilter.GetCutoffFrequency() <= (MIN_FILTER_FREQUENCY + KINDA_SMALL_NUMBER));
+				const bool bBypassLPF = DisableFilteringCvar || (SourceInfo.LowPassFilter.GetCutoffFrequency() >= (MAX_FILTER_FREQUENCY - KINDA_SMALL_NUMBER));
+				const bool bBypassHPF = DisableFilteringCvar || DisableHPFilteringCvar || (SourceInfo.HighPassFilter.GetCutoffFrequency() <= (MIN_FILTER_FREQUENCY + KINDA_SMALL_NUMBER));
 
 				float* SourceBuffer = SourceInfo.SourceBuffer.GetData();
 				float* HpfInputBuffer = PreDistanceAttenBufferPtr; // assume bypassing LPF (HPF uses input buffer as input)
 
-				if (!BypassLPF)
+				if (!bBypassLPF)
 				{
 					// Not bypassing LPF, so tell HPF to use LPF output buffer as input
 					HpfInputBuffer = SourceBuffer;
@@ -2649,17 +2693,45 @@ namespace Audio
 					SourceInfo.LowPassFilter.ProcessAudioBuffer(PreDistanceAttenBufferPtr, SourceBuffer, NumOutputSamplesThisSource);
 				}
 
-				if (!BypassHPF)
+				if (!bBypassHPF)
 				{
 					// process HPF audio block
 					SourceInfo.HighPassFilter.ProcessAudioBuffer(HpfInputBuffer, SourceBuffer, NumOutputSamplesThisSource);
 				}
 
+#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+				const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
+				if (bChannelEnabled)
+				{
+					float LPFFrequency = MAX_FILTER_FREQUENCY;
+					if (!bBypassLPF)
+					{
+						LPFFrequency = SourceInfo.LowpassModulation.GetValue();
+					}
+
+					float HPFFrequency = MIN_FILTER_FREQUENCY;
+					if (!bBypassHPF)
+					{
+						HPFFrequency = SourceInfo.HighpassModulation.GetValue();
+					}
+
+					UE_TRACE_LOG(Audio, MixerSourceFilters, AudioMixerChannel)
+						<< MixerSourceFilters.Timestamp(FPlatformTime::Cycles64())
+						<< MixerSourceFilters.SourceId(SourceId)
+						<< MixerSourceFilters.HPFFrequency(HPFFrequency)
+						<< MixerSourceFilters.LPFFrequency(LPFFrequency);
+					UE_TRACE_LOG(Audio, MixerSourceEnvelope, AudioMixerChannel)
+						<< MixerSourceEnvelope.Timestamp(FPlatformTime::Cycles64())
+						<< MixerSourceEnvelope.SourceId(SourceId)
+						<< MixerSourceEnvelope.Envelope(SourceInfo.SourceEnvelopeValue);
+				}
+#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+
 				// We manually reset interpolation to avoid branches in filter code
 				SourceInfo.LowPassFilter.StopFrequencyInterpolation();
 				SourceInfo.HighPassFilter.StopFrequencyInterpolation();
 
-				if (BypassLPF && BypassHPF)
+				if (bBypassLPF && bBypassHPF)
 				{
 					FMemory::Memcpy(SourceBuffer, PreDistanceAttenBufferPtr, NumSamples * sizeof(float));
 				}
