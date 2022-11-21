@@ -2777,6 +2777,16 @@ FBinningData AddPass_Rasterize(
 
 					ProgrammableRasterProxy = ProgrammableRasterProxy->GetFallback(Scene.GetFeatureLevel());
 				}
+#if !UE_BUILD_SHIPPING
+				if (ProgrammableRasterProxy != nullptr)
+				{
+					const FMaterial* Material = ProgrammableRasterProxy->GetMaterialNoFallback(Scene.GetFeatureLevel());
+					if (Material != nullptr && (Material->MaterialUsesPixelDepthOffset_RenderThread() || Material->IsMasked()))
+					{
+						GGlobalResources.GetFeedbackManager()->ReportMaterialPerformanceWarning(ProgrammableRasterProxy->GetMaterialName());
+					}
+				}
+#endif
 			}
 
 			// Note: The indirect args offset is in bytes

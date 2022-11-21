@@ -536,7 +536,7 @@ FVirtualShadowMapArrayCacheManager::FVirtualShadowMapArrayCacheManager(FScene* I
 				if (RealTimeSeconds - LastLoggedPageOverlapAppTime[PersistentPrimitiveId] > 5.0f)
 				{
 					LastLoggedPageOverlapAppTime[PersistentPrimitiveId] = RealTimeSeconds;
-					UE_LOG(LogRenderer, Warning, TEXT("Non-Nanite VSM page overlap performance Warning: Primitive '%s' overlapped %d Pages (full name: %s)"), *Scene->Primitives[PrimtiveIndex]->GetOwnerActorNameOrLabelForDebuggingOnly(), Overlap, *Scene->Primitives[PrimtiveIndex]->GetFullnameForDebuggingOnly());
+					UE_LOG(LogRenderer, Warning, TEXT("Non-Nanite VSM page overlap performance Warning, %d, %s, %s"), Overlap, *Scene->Primitives[PrimtiveIndex]->GetOwnerActorNameOrLabelForDebuggingOnly(), *Scene->Primitives[PrimtiveIndex]->GetFullnameForDebuggingOnly());
 				}
 				LargePageAreaItems.Add(PersistentPrimitiveId, FLargePageAreaItem{ Overlap, RealTimeSeconds });
 			}

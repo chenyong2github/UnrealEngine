@@ -10,6 +10,13 @@
 
 #define LOCTEXT_NAMESPACE "NaniteFeedbackStatus"
 
+static TAutoConsoleVariable<int32> CVarEmitMaterialPerformanceWarnings(
+	TEXT("r.Nanite.EmitMaterialPerformanceWarnings"),
+	0,
+	TEXT("Emit log and on-screen messages to warn when a Nanite material is both programmable and using either masking or pixel depth offset (PDO)."),
+	ECVF_RenderThreadSafe
+);
+
 namespace Nanite
 {
 
@@ -68,7 +75,11 @@ FFeedbackManager::FFeedbackManager()
 	});
 
 
-	ScreenMessageDelegate = FCoreDelegates::OnGetOnScreenMessages.AddLambda(	// TODO: Should be FRendererOnScreenNotification::Get(). Temporary workaround for singleton initialization issue.
+	// TODO: Should be FRendererOnScreenNotification::Get(). Temporary workaround for singleton initialization issue.
+	//       The problem is that the FFeedbackManager lives inside Nanite::FGlobalResources which is a global resource, released by the system after the 
+	//       FRendererOnScreenNotification singleton is destroyed.
+	// WARNING: FCoreDelegates::OnGetOnScreenMessages is invoked from the Game Thread!
+	ScreenMessageDelegate = FCoreDelegates::OnGetOnScreenMessages.AddLambda(	
 		[this](TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText>& OutMessages)
 	{
 		const uint32 MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
@@ -104,6 +115,32 @@ FFeedbackManager::FFeedbackManager()
 					"Increase r.Nanite.MaxVisibleClusters to prevent potential visual artifacts."),
 					VisibleClusterState.LatestOverflowPeak, MaxVisibleClusters, VisibleClusterState.HighWaterMark));
 		}
+
+		if (CVarEmitMaterialPerformanceWarnings.GetValueOnAnyThread() != 0)
+		{
+			FScopeLock Lock(&DelgateCallbackCS);
+
+			for (const auto& Item : MaterialWarningItems)
+			{
+				if (CurrentTime - Item.Value.LastTimeSeen < 2.5f)
+				{
+					OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::FromString(FString::Printf(TEXT("Performance Warning: Programmable Nanite material '%s' uses PDO or is Masked!"), *Item.Key)));
+				}
+			}
+
+			// Strip old material warning items
+			MaterialWarningItems = MaterialWarningItems.FilterByPredicate([CurrentTime](const TMap<FString, FMaterialWarningItem>::ElementType& Element)
+			{
+				return CurrentTime - Element.Value.LastTimeSeen < 5.0f;
+			});
+		}
+		else
+		{
+			FScopeLock Lock(&DelgateCallbackCS);
+
+			MaterialWarningItems.Empty();
+		}
+
 	});
 }
 
@@ -145,7 +182,34 @@ void FFeedbackManager::Update(FRDGBuilder& GraphBuilder, const FSharedContext& S
 		FIntVector(1, 1, 1)
 	);
 }
-#endif
+
+
+void FFeedbackManager::ReportMaterialPerformanceWarning(const FString &MaterialName)
+{
+	if (CVarEmitMaterialPerformanceWarnings.GetValueOnRenderThread() != 0)
+	{
+		bool bShouldLogNow = false;
+		{
+			FScopeLock Lock(&DelgateCallbackCS);
+			FMaterialWarningItem& Item = MaterialWarningItems.FindOrAdd(MaterialName);
+			const double CurrentTime = FPlatformTime::Seconds();
+			bShouldLogNow = CurrentTime - Item.LastTimeLogged > 5.0f;
+			Item.LastTimeSeen = CurrentTime;
+			if (bShouldLogNow)
+			{
+				Item.LastTimeLogged = CurrentTime;
+			}
+		}
+		// Keep logging outside critical section
+		if (bShouldLogNow)
+		{
+			UE_LOG(LogRenderer, Log, TEXT("Performance Warning: Programmable Nanite material uses PDO or is Masked, %s"), *MaterialName);
+		}
+	}
+}
+
+
+#endif // !UE_BUILD_SHIPPING
 
 }	// namespace Nanite
 

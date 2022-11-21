@@ -25,11 +25,25 @@ class FFeedbackManager
 	FBufferState	NodeState;
 	FBufferState	CandidateClusterState;
 	FBufferState	VisibleClusterState;
+
+	// Must guard the (complex) data as the on-screen feedback delegate is called from the game thread.
+	FCriticalSection DelgateCallbackCS;
+
+	// Map to track non-nanite page area items that are shown on screen
+	struct FMaterialWarningItem
+	{
+		double LastTimeSeen = -MAX_dbl;
+		double LastTimeLogged = -MAX_dbl;
+	};
+	TMap<FString, FMaterialWarningItem> MaterialWarningItems;
 public:
 	FFeedbackManager();
 	~FFeedbackManager();
 	
 	void Update(class FRDGBuilder& GraphBuilder, const struct FSharedContext& SharedContext, struct FCullingContext& CullingContext);
+
+	void ReportMaterialPerformanceWarning(const FString& MaterialName);
+
 };
 #endif
 
