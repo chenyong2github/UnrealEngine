@@ -10,6 +10,7 @@ public class VulkanRHI : ModuleRules
 
 	public VulkanRHI(ReadOnlyTargetRules Target) : base(Target)
 	{
+		bEnforceIWYU = false;
 		bLegalToDistributeObjectCode = true;
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))

@@ -8,6 +8,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public SQLiteCore(ReadOnlyTargetRules Target) : base(Target)
 		{
+			bEnforceIWYU = false;
+
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public Media(ReadOnlyTargetRules Target) : base(Target)
 		{
+			bEnforceIWYU = false;
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

@@ -6,6 +6,8 @@ public class ScreenShotComparison : ModuleRules
 {
 	public ScreenShotComparison(ReadOnlyTargetRules Target) : base(Target)
 	{
+		bEnforceIWYU = false;
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

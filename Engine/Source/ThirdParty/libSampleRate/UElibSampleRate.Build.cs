@@ -6,6 +6,8 @@ public class UELibSampleRate : ModuleRules
 {
 	public UELibSampleRate(ReadOnlyTargetRules Target) : base(Target)
 	{
+		bEnforceIWYU = false;
+
         PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
