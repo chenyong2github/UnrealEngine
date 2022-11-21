@@ -486,33 +486,39 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuCompu
 				continue;
 			}
 
-			SetComputePipelineState(RHICmdList, DrawIndirectArgsGenCS.GetComputeShader());
-			DrawIndirectArgsGenCS->SetOutput(RHICmdList, ArgsUAV, CountsUAV);
-			DrawIndirectArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, CulledCountsSRV, ArgGenTaskOffset, NumArgGenTasks, NumInstanceCountClearTasks);
+			FNiagaraDrawIndirectArgsGenCS::FParameters ArgsGenParameters;
+			ArgsGenParameters.TaskInfos				= TaskInfosBuffer.SRV;
+			ArgsGenParameters.CulledInstanceCounts	= CulledCountsSRV;
+			ArgsGenParameters.RWInstanceCounts		= CountsUAV;
+			ArgsGenParameters.RWDrawIndirectArgs	= ArgsUAV;
+			ArgsGenParameters.TaskCount.X			= ArgGenTaskOffset;
+			ArgsGenParameters.TaskCount.Y			= NumArgGenTasks;
+			ArgsGenParameters.TaskCount.Z			= NumInstanceCountClearTasks;
+			ArgsGenParameters.TaskCount.W			= NumArgGenTasks + NumInstanceCountClearTasks;
 
 			// If the device supports RW Texture buffers then we can use a single compute pass, otherwise we need to split into two passes
 			if (GRHISupportsRWTextureBuffers)
 			{
-				DispatchComputeShader(RHICmdList, DrawIndirectArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumArgGenTasks + NumInstanceCountClearTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
-				DrawIndirectArgsGenCS->UnbindBuffers(RHICmdList);
+				FComputeShaderUtils::Dispatch(RHICmdList, DrawIndirectArgsGenCS, ArgsGenParameters, FIntVector(FMath::DivideAndRoundUp(NumArgGenTasks + NumInstanceCountClearTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1));
 			}
 			else
 			{
 				if (NumArgGenTasks > 0)
 				{
-					DispatchComputeShader(RHICmdList, DrawIndirectArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumArgGenTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
-					DrawIndirectArgsGenCS->UnbindBuffers(RHICmdList);
+					FComputeShaderUtils::Dispatch(RHICmdList, DrawIndirectArgsGenCS, ArgsGenParameters, FIntVector(FMath::DivideAndRoundUp(NumArgGenTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1));
 				}
 
 				if (NumInstanceCountClearTasks > 0)
 				{
+					FNiagaraDrawIndirectResetCountsCS::FParameters ClearCountParameters;
+					ClearCountParameters.TaskInfos			= ArgsGenParameters.TaskInfos;
+					ClearCountParameters.RWInstanceCounts	= ArgsGenParameters.RWInstanceCounts;
+					ClearCountParameters.TaskCount			= ArgsGenParameters.TaskCount;
+					ClearCountParameters.TaskCount.X		= 0;
+
 					FNiagaraDrawIndirectResetCountsCS::FPermutationDomain PermutationVectorResetCounts;
 					TShaderMapRef<FNiagaraDrawIndirectResetCountsCS> DrawIndirectResetCountsArgsGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVectorResetCounts);
-					SetComputePipelineState(RHICmdList, DrawIndirectResetCountsArgsGenCS.GetComputeShader());
-					DrawIndirectResetCountsArgsGenCS->SetOutput(RHICmdList, CountBuffer.UAV);
-					DrawIndirectResetCountsArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, ArgTasks.Num(), NumInstanceCountClearTasks);
-					DispatchComputeShader(RHICmdList, DrawIndirectResetCountsArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumInstanceCountClearTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
-					DrawIndirectResetCountsArgsGenCS->UnbindBuffers(RHICmdList);
+					FComputeShaderUtils::Dispatch(RHICmdList, DrawIndirectResetCountsArgsGenCS, ClearCountParameters, FIntVector(FMath::DivideAndRoundUp(NumInstanceCountClearTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1));
 				}
 			}
 

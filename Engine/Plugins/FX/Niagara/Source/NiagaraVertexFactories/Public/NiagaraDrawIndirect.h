@@ -9,6 +9,7 @@ NiagaraDrawIndirect.h: Niagara shader to generate the draw indirect args for Nia
 #include "CoreMinimal.h"
 #include "GlobalShader.h"
 #include "ShaderPermutation.h"
+#include "ShaderParameterStruct.h"
 #include "ShaderParameterUtils.h"
 
 #define NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT 64
@@ -65,28 +66,23 @@ struct FNiagaraDrawIndirectArgGenTaskInfo
 class NIAGARAVERTEXFACTORIES_API FNiagaraDrawIndirectArgsGenCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNiagaraDrawIndirectArgsGenCS);
+	SHADER_USE_PARAMETER_STRUCT(FNiagaraDrawIndirectArgsGenCS, FGlobalShader);
 
 public:
 	class FSupportsTextureRW : SHADER_PERMUTATION_INT("SUPPORTS_TEXTURE_RW", 2);
 	using FPermutationDomain = TShaderPermutationDomain<FSupportsTextureRW>;
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, NIAGARAVERTEXFACTORIES_API)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		TaskInfos)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		CulledInstanceCounts)
+
+		SHADER_PARAMETER_UAV(RWBuffer<uint>,	RWInstanceCounts)
+		SHADER_PARAMETER_UAV(RWBuffer<uint>,	RWDrawIndirectArgs)
+
+		SHADER_PARAMETER(FUintVector4,			TaskCount)
+	END_SHADER_PARAMETER_STRUCT()
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-
-	FNiagaraDrawIndirectArgsGenCS() {}
-	FNiagaraDrawIndirectArgsGenCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
-
-	//bool Serialize(FArchive& Ar);
-	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* DrawIndirectArgsUAV, FRHIUnorderedAccessView* InstanceCountsUAV);
-	void SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, FRHIShaderResourceView* CulledInstanceCountsBuffer, int32 NumArgGenTaskOffset, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks);
-	void UnbindBuffers(FRHICommandList& RHICmdList);
-
-protected:
-
-	LAYOUT_FIELD(FShaderResourceParameter, TaskInfosParam)
-	LAYOUT_FIELD(FShaderResourceParameter, CulledInstanceCountsParam);
-	LAYOUT_FIELD(FRWShaderParameter, InstanceCountsParam)
-	LAYOUT_FIELD(FRWShaderParameter, DrawIndirectArgsParam)
-	LAYOUT_FIELD(FShaderParameter, TaskCountParam)
 };
 
 /**
@@ -95,23 +91,16 @@ protected:
 class NIAGARAVERTEXFACTORIES_API FNiagaraDrawIndirectResetCountsCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNiagaraDrawIndirectResetCountsCS);
+	SHADER_USE_PARAMETER_STRUCT(FNiagaraDrawIndirectResetCountsCS, FGlobalShader);
 
 public:
 	using FPermutationDomain = TShaderPermutationDomain<>;
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, NIAGARAVERTEXFACTORIES_API)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		TaskInfos)
+		SHADER_PARAMETER_UAV(RWBuffer<uint>,	RWInstanceCounts)
+		SHADER_PARAMETER(FUintVector4,			TaskCount)
+	END_SHADER_PARAMETER_STRUCT()
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-
-	FNiagaraDrawIndirectResetCountsCS() {}
-	FNiagaraDrawIndirectResetCountsCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
-
-	//bool Serialize(FArchive& Ar);
-	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* InstanceCountsUAV);
-	void SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks);
-	void UnbindBuffers(FRHICommandList& RHICmdList);
-
-protected:
-
-	LAYOUT_FIELD(FShaderResourceParameter, TaskInfosParam)
-	LAYOUT_FIELD(FRWShaderParameter, InstanceCountsParam)
-	LAYOUT_FIELD(FShaderParameter, TaskCountParam)
 };
