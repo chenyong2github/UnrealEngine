@@ -47,6 +47,31 @@ FRecorderRelay::FRecorderRelay(asio::ip::tcp::socket& Socket, FAsioWriteable* In
 : Input(Socket)
 , Output(InOutput)
 {
+#if TS_USING(TS_PLATFORM_WINDOWS)
+	// Trace data is a stream and communication is one way. It is implemented
+	// this way to share code between sending trace data over the wire and writing
+	// it to a file. Because there's no ping/pong we can end up with a half-open
+	// TCP connection if the other end doesn't close its socket. So we'll enable
+	// keep-alive on the socket and set a short timeout (default is 2hrs).
+	tcp_keepalive KeepAlive =
+	{
+		1,		// on
+		15000,	// timeout_ms
+		2000,	// interval_ms
+	};
+
+	DWORD BytesReturned;
+	WSAIoctl(
+		Socket.native_handle(),
+		SIO_KEEPALIVE_VALS,
+		&KeepAlive, sizeof(KeepAlive),
+		nullptr, 0,
+		&BytesReturned,
+		nullptr,
+		nullptr
+	);
+#endif
+
 	OnIoComplete(OpStart, 0);
 }
 
@@ -269,31 +294,6 @@ bool FRecorder::OnAccept(asio::ip::tcp::socket& Socket)
 	{
 		return true;
 	}
-
-#if TS_USING(TS_PLATFORM_WINDOWS)
-	// Trace data is a stream and communication is one way. It is implemented
-	// this way to share code between sending trace data over the wire and writing
-	// it to a file. Because there's no ping/pong we can end up with a half-open
-	// TCP connection if the other end doesn't close its socket. So we'll enable
-	// keep-alive on the socket and set a short timeout (default is 2hrs).
-	tcp_keepalive KeepAlive =
-	{
-		1,		// on
-		15000,	// timeout_ms
-		2000,	// interval_ms
-	};
-
-	DWORD BytesReturned;
-	WSAIoctl(
-		Socket.native_handle(),
-		SIO_KEEPALIVE_VALS,
-		&KeepAlive, sizeof(KeepAlive),
-		nullptr, 0,
-		&BytesReturned,
-		nullptr,
-		nullptr
-	);
-#endif
 
 	auto* Relay = new FRecorderRelay(Socket, Trace.Writeable);
 
