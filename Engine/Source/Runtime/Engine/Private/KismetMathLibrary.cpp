@@ -182,7 +182,7 @@ bool UKismetMathLibrary::RandomBoolWithWeight(float Weight)
 
 }
 
-bool UKismetMathLibrary::RandomBoolWithWeightFromStream(float Weight, const FRandomStream& RandomStream)
+bool UKismetMathLibrary::RandomBoolWithWeightFromStream(const FRandomStream& RandomStream, float Weight)
 {
 	//If the Weight equals to 0.0f then always return false
 	if (Weight <= 0.0f)
@@ -1052,12 +1052,12 @@ FRotator UKismetMathLibrary::FindRelativeLookAtRotation(const FTransform& StartT
 	return NormalizedDeltaRotator(FindLookAtRotation(StartTransform.GetLocation(), TargetLocation), StartTransform.GetRotation().Rotator());
 }
 
-int32 UKismetMathLibrary::RandomIntegerFromStream(int32 Max, const FRandomStream& Stream)
+int32 UKismetMathLibrary::RandomIntegerFromStream(const FRandomStream& Stream, int32 Max)
 {
 	return Stream.RandHelper(Max);
 }
 
-int32 UKismetMathLibrary::RandomIntegerInRangeFromStream(int32 Min, int32 Max, const FRandomStream& Stream)
+int32 UKismetMathLibrary::RandomIntegerInRangeFromStream(const FRandomStream& Stream, int32 Min, int32 Max)
 {
 	return Stream.RandRange(Min, Max);
 }
@@ -1082,7 +1082,7 @@ float UKismetMathLibrary::RandomFloatFromStream(const FRandomStream& Stream)
 	return Stream.FRand();
 }
 
-float UKismetMathLibrary::RandomFloatInRangeFromStream(float Min, float Max, const FRandomStream& Stream)
+float UKismetMathLibrary::RandomFloatInRangeFromStream(const FRandomStream& Stream, float Min, float Max)
 {
 	return Min + (Max - Min) * RandomFloatFromStream(Stream);
 }
@@ -1092,19 +1092,19 @@ FVector UKismetMathLibrary::RandomUnitVectorFromStream(const FRandomStream& Stre
 	return Stream.VRand();
 }
 
-FVector UKismetMathLibrary::RandomPointInBoundingBoxFromStream(const FVector Center, const FVector HalfSize, const FRandomStream& Stream)
+FVector UKismetMathLibrary::RandomPointInBoundingBoxFromStream(const FRandomStream& Stream, const FVector Center, const FVector HalfSize)
 {
 	const FVector BoxMin = Center - HalfSize;
 	const FVector BoxMax = Center + HalfSize;
 	return Stream.RandPointInBox(FBox(BoxMin, BoxMax));
 }
 
-FVector UKismetMathLibrary::RandomPointInBoundingBoxFromStream_Box(const FBox Box, const FRandomStream& Stream)
+FVector UKismetMathLibrary::RandomPointInBoundingBoxFromStream_Box(const FRandomStream& Stream, const FBox Box)
 {
 	return Stream.RandPointInBox(Box);
 }
 
-FRotator UKismetMathLibrary::RandomRotatorFromStream(bool bRoll, const FRandomStream& Stream)
+FRotator UKismetMathLibrary::RandomRotatorFromStream(const FRandomStream& Stream, bool bRoll)
 {
 	FRotator RRot;
 	RRot.Yaw = RandomFloatFromStream(Stream) * 360.f;
@@ -1465,12 +1465,12 @@ FRandomStream UKismetMathLibrary::MakeRandomStream(int32 InitialSeed)
 	return FRandomStream(InitialSeed);
 }
 
-FVector UKismetMathLibrary::RandomUnitVectorInConeInRadiansFromStream(const FVector& ConeDir, float ConeHalfAngleInRadians, const FRandomStream& Stream)
+FVector UKismetMathLibrary::RandomUnitVectorInConeInRadiansFromStream(const FRandomStream& Stream, const FVector& ConeDir, float ConeHalfAngleInRadians)
 {
 	return Stream.VRandCone(ConeDir, ConeHalfAngleInRadians);
 }
 
-FVector UKismetMathLibrary::RandomUnitVectorInEllipticalConeInRadiansFromStream(const FVector& ConeDir, float MaxYawInRadians, float MaxPitchInRadians, const FRandomStream& Stream)
+FVector UKismetMathLibrary::RandomUnitVectorInEllipticalConeInRadiansFromStream(const FRandomStream& Stream, const FVector& ConeDir, float MaxYawInRadians, float MaxPitchInRadians)
 {
 	return Stream.VRandCone(ConeDir, MaxYawInRadians, MaxPitchInRadians);
 }
