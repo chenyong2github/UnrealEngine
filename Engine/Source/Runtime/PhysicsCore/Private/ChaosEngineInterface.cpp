@@ -380,13 +380,17 @@ bool FChaosEngineInterface::IsRigidBody(const FPhysicsActorHandle& InActorRefere
 
 bool FChaosEngineInterface::IsDynamic(const FPhysicsActorHandle& InActorReference)
 {
-	// Do this to match the PhysX interface behavior: :( :( :(
 	return !IsStatic(InActorReference);
 }
 
 bool FChaosEngineInterface::IsStatic(const FPhysicsActorHandle& InActorReference)
 {
-	return InActorReference->GetGameThreadAPI().ObjectState() == Chaos::EObjectStateType::Static;
+	if(FChaosEngineInterface::IsValid(InActorReference))
+	{
+		return InActorReference->GetGameThreadAPI().ObjectState() == Chaos::EObjectStateType::Static;
+	}
+
+	return false;
 }
 
 bool FChaosEngineInterface::IsKinematic(const FPhysicsActorHandle& InActorReference)
