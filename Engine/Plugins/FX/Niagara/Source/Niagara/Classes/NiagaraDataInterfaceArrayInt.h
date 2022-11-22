@@ -47,6 +47,11 @@ struct FNDIArrayImplHelper<int32> : public FNDIArrayImplHelperBase<int32>
 		}
 		return PrevValue;
 	}
+
+	static void AppendValueToString(const int32 Value, FString& OutString)
+	{
+		OutString.AppendInt(Value);
+	}
 };
 
 template<>
@@ -86,6 +91,11 @@ struct FNDIArrayImplHelper<uint8> : public FNDIArrayImplHelperBase<uint8>
 			Dest[i] = int32(Src[i]);
 		}
 	}
+
+	static void AppendValueToString(const uint8 Value, FString& OutString)
+	{
+		OutString.AppendInt(Value);
+	}
 };
 
 template<>
@@ -122,6 +132,11 @@ struct FNDIArrayImplHelper<bool> : public FNDIArrayImplHelperBase<bool>
 		{
 			*TypedDest++ = *TypedSrc++ == 0 ? false : true;
 		}
+	}
+
+	static void AppendValueToString(const bool Value, FString& OutString)
+	{
+		OutString.Append(Value ? TEXT("True") : TEXT("False"));
 	}
 };
 

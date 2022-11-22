@@ -22,6 +22,11 @@ struct FNDIArrayImplHelper<float> : public FNDIArrayImplHelperBase<float>
 
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetFloatDef(); }
 	static const float GetDefaultValue() { return 0.0f; }
+
+	static void AppendValueToString(const float Value, FString& OutString)
+	{
+		OutString.Appendf(TEXT("%f"), Value);
+	}
 };
 
 template<>
@@ -60,6 +65,11 @@ struct FNDIArrayImplHelper<FVector2f> : public FNDIArrayImplHelperBase<FVector2f
 		{
 			Dest[i] = FVector2D(Src[i]);
 		}
+	}
+
+	static void AppendValueToString(const FVector2f& Value, FString& OutString)
+	{
+		OutString.Appendf(TEXT("%f, %f"), Value.X, Value.Y);
 	}
 };
 
@@ -100,6 +110,11 @@ struct FNDIArrayImplHelper<FVector3f> : public FNDIArrayImplHelperBase<FVector3f
 			Dest[i] = FVector(Src[i]);
 		}
 	}
+
+	static void AppendValueToString(const FVector3f& Value, FString& OutString)
+	{
+		OutString.Appendf(TEXT("%f, %f, %f"), Value.X, Value.Y, Value.Z);
+	}
 };
 
 template<>
@@ -116,6 +131,11 @@ struct FNDIArrayImplHelper<FNiagaraPosition> : public FNDIArrayImplHelper<FVecto
 		{
 			Dest[i] = Src[i];
 		}
+	}
+
+	static void AppendValueToString(const FVector3f& Value, FString& OutString)
+	{
+		OutString.Appendf(TEXT("%f, %f, %f"), Value.X, Value.Y, Value.Z);
 	}
 };
 
@@ -156,6 +176,11 @@ struct FNDIArrayImplHelper<FVector4f> : public FNDIArrayImplHelperBase<FVector4f
 			Dest[i] = FVector4(Src[i]);
 		}
 	}
+
+	static void AppendValueToString(const FVector4f& Value, FString& OutString)
+	{
+		OutString.Appendf(TEXT("%f, %f, %f, %f"), Value.X, Value.Y, Value.Z, Value.W);
+	}
 };
 
 template<>
@@ -174,6 +199,11 @@ struct FNDIArrayImplHelper<FLinearColor> : public FNDIArrayImplHelperBase<FLinea
 
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetColorDef(); }
 	static const FLinearColor GetDefaultValue() { return FLinearColor::White; }
+
+	static void AppendValueToString(const FLinearColor& Value, FString& OutString)
+	{
+		OutString.Appendf(TEXT("%f, %f, %f, %f"), Value.R, Value.G, Value.B, Value.A);
+	}
 };
 
 template<>
@@ -212,6 +242,11 @@ struct FNDIArrayImplHelper<FQuat4f> : public FNDIArrayImplHelperBase<FQuat4f>
 		{
 			Dest[i] = FQuat(Src[i]);
 		}
+	}
+
+	static void AppendValueToString(const FQuat4f& Value, FString& OutString)
+	{
+		OutString.Appendf(TEXT("%f, %f, %f, %f"), Value.X, Value.Y, Value.Z, Value.W);
 	}
 };
 

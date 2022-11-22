@@ -998,8 +998,29 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 		{
 			return;
 		}
+
 		FReadArrayRef ArrayData(Owner, InstanceData);
-		VariableDataString = FString::Printf(TEXT("ArrayType(%s) CpuLength(%d)"), *FNDIArrayImplHelper<TArrayType>::GetTypeDefinition().GetName(), ArrayData.GetArray().Num());
+		FString CpuValuesString;
+
+		const int32 MaxStringElements = 8;
+		const int32 NumElements = FMath::Min(MaxStringElements, ArrayData.GetArray().Num());
+		for (int32 i=0; i < NumElements; ++i)
+		{
+			CpuValuesString.Append(i > 0 ? TEXT(", [") : TEXT("["));
+			FNDIArrayImplHelper<TArrayType>::AppendValueToString(ArrayData.GetArray()[i], CpuValuesString);
+			CpuValuesString.Append(TEXT("]"));
+		}
+		if (MaxStringElements < ArrayData.GetArray().Num())
+		{
+			CpuValuesString.Append(TEXT(", ..."));
+		}
+
+		VariableDataString = FString::Printf(
+			TEXT("Type(%s) CpuLength(%d) CpuValues(%s)"),
+			*FNDIArrayImplHelper<TArrayType>::GetTypeDefinition().GetName(),
+			ArrayData.GetArray().Num(),
+			*CpuValuesString
+		);
 	}
 #endif
 
