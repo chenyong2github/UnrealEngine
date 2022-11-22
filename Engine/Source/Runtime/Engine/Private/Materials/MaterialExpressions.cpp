@@ -22682,11 +22682,11 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 		}
 		else if (InputIndex == 1)
 		{
-			return TEXT("Specular Color");
+			return TEXT("F0");
 		}
 		else if (InputIndex == 2)
 		{
-			return  TEXT("Edge Specular Color");
+			return  TEXT("F90");
 		}
 	}
 
