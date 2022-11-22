@@ -17,7 +17,7 @@ class UEdGraphNode;
 
 namespace Dataflow
 {
-	class CHAOSCLOTHASSETEDITOR_API FClothAssetDataflowContext : public TEngineContext<FContextSingle>
+	class CHAOSCLOTHASSETEDITOR_API FClothAssetDataflowContext final : public TEngineContext<FContextSingle>
 	{
 	public:
 		DATAFLOW_CONTEXT_INTERNAL(TEngineContext<FContextSingle>, FClothAssetDataflowContext);
@@ -36,62 +36,49 @@ namespace Dataflow
  * initializing the Cloth mode.
  * Thus, the FChaosClothAssetEditorToolkit ends up being the central place for the Cloth Asset Editor setup.
  */
-class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditorToolkit : public FBaseCharacterFXEditorToolkit, public FTickableEditorObject
+class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditorToolkit final : public FBaseCharacterFXEditorToolkit, public FTickableEditorObject
 {
 public:
 
-	FChaosClothAssetEditorToolkit(UAssetEditor* InOwningAssetEditor);
+	explicit FChaosClothAssetEditorToolkit(UAssetEditor* InOwningAssetEditor);
 	virtual ~FChaosClothAssetEditorToolkit();
+
+private:
 
 	static const FName ClothPreviewTabID;
 	static const FName OutlinerTabID;
-
-	// FAssetEditorToolkit
-	virtual void AddViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
-	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
-
-	virtual FText GetToolkitName() const override;
-	virtual FName GetToolkitFName() const override;
-	virtual FText GetBaseToolkitName() const override;
-	virtual FText GetToolkitToolTipText() const override;
-	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
-	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-	virtual bool OnRequestClose() override;
-
-	// FBaseAssetToolkit
-	virtual void CreateWidgets() override;
-
-	// IAssetEditorInstance
-	// This is important because if this returns true, attempting to edit a static mesh that is
-	// open in the cloth editor may open the cloth editor instead of opening the static mesh editor.
-	// TODO: Change this if we create a dedicated Cloth Asset
-	virtual bool IsPrimaryEditor() const override { return false; };
 
 	// FTickableEditorObject
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickable() const override { return true; }
 	virtual TStatId GetStatId() const override;
 
-protected:
-
-	// FBaseAssetToolkit
-	virtual AssetEditorViewportFactoryFunction GetViewportDelegate() override;
-	virtual TSharedPtr<FEditorViewportClient> CreateEditorViewportClient() const override;
-
-	// FAssetEditorToolkit
-	virtual void PostInitAssetEditor() override;
-
 	// FBaseCharacterFXEditorToolkit
 	virtual FEditorModeID GetEditorModeId() const override;
 	virtual void InitializeEdMode(UBaseCharacterFXEditorMode* EdMode) override;
 	virtual void CreateEditorModeUILayer() override;
 
-	// Appearance customization points
-	// TODO: Implement these when we have an FChaosClothAssetEditorStyle class
-	//virtual const FSlateBrush* GetDefaultTabIcon() const override;
-	//virtual FLinearColor GetDefaultTabColor() const override;
+	// FBaseAssetToolkit
+	virtual void CreateWidgets() override;
+	virtual AssetEditorViewportFactoryFunction GetViewportDelegate() override;
+	virtual TSharedPtr<FEditorViewportClient> CreateEditorViewportClient() const override;
 
-private:
+	// FAssetEditorToolkit
+	virtual void AddViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
+	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
+	virtual bool OnRequestClose() override;
+	virtual void PostInitAssetEditor() override;
+
+	// IAssetEditorInstance
+	virtual bool IsPrimaryEditor() const override { return true; };
+
+	// IToolkit
+	virtual FText GetToolkitName() const override;
+	virtual FName GetToolkitFName() const override;
+	virtual FText GetBaseToolkitName() const override;
+	virtual FText GetToolkitToolTipText() const override;
+	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
+	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
 	// Return the cloth asset held by the Cloth Editor
 	UChaosClothAsset* GetAsset() const;
@@ -100,6 +87,8 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Outliner(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
+
+	void InitDetailsViewPanel();
 
 	/** Scene in which the 3D sim space preview meshes live. */
 	TUniquePtr<FAdvancedPreviewScene> ClothPreviewScene;
@@ -111,9 +100,7 @@ private:
 
 	TWeakPtr<SEditorViewport> RestSpaceViewport;
 
-	void InitDetailsViewPanel();
-	
-	TSharedPtr<SClothCollectionOutliner> OutlinerView;
+	TSharedPtr<SClothCollectionOutliner> Outliner;
 
 	TSharedPtr<SComboBox<FName>> SelectedGroupNameComboBox;
 	TArray<FName> ClothCollectionGroupNames;		// Data source for SelectedGroupNameComboBox
