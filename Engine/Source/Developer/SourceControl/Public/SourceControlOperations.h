@@ -605,6 +605,22 @@ public:
 class FGetChangelistDetails : public FSourceControlOperationBase
 {
 public:
+	FGetChangelistDetails() = default;
+
+	explicit FGetChangelistDetails(FString&& InChangelistNumber)
+		: ChangelistNumber(MoveTemp(InChangelistNumber))
+	{
+
+	}
+
+	explicit FGetChangelistDetails(FStringView InChangelistNumber)
+		: ChangelistNumber(InChangelistNumber)
+	{
+
+	}
+
+	virtual ~FGetChangelistDetails() = default;
+
 	// ISourceControlOperation interface
 	virtual FName GetName() const override
 	{
