@@ -12,6 +12,7 @@ class FReferenceCollector;
 class ITypedElementDataStorageInterface;
 class UTypedElementDatabase;
 class UTypedElementDatabaseCompatibility;
+class UTypedElementDatabaseUi;
 
 class FTypedElementsDataStorageModule : public IModuleInterface, public FGCObject
 {
@@ -36,5 +37,6 @@ public:
 private:
 	TObjectPtr<UTypedElementDatabase> Database;
 	TObjectPtr<UTypedElementDatabaseCompatibility> DatabaseCompatibility;
+	TObjectPtr<UTypedElementDatabaseUi> DatabaseUi;
 	bool bInitialized{ false };
 };

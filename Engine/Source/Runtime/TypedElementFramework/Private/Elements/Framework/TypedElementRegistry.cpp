@@ -75,6 +75,7 @@ const ITypedElementDataStorageInterface* UTypedElementRegistry::GetDataStorage()
 void UTypedElementRegistry::SetDataStorage(ITypedElementDataStorageInterface* Storage)
 {
 	DataStorage = Storage;
+	CallDataStorageInterfacesSetDelegateIfNeeded();
 }
 
 ITypedElementDataStorageCompatibilityInterface* UTypedElementRegistry::GetMutableDataStorageCompatibility()
@@ -90,6 +91,28 @@ const ITypedElementDataStorageCompatibilityInterface* UTypedElementRegistry::Get
 void UTypedElementRegistry::SetDataStorageCompatibility(ITypedElementDataStorageCompatibilityInterface* Storage)
 {
 	DataStorageCompatibility = Storage;
+	CallDataStorageInterfacesSetDelegateIfNeeded();
+}
+
+ITypedElementDataStorageUiInterface* UTypedElementRegistry::GetMutableDataStorageUi()
+{
+	return DataStorageUi;
+}
+
+const ITypedElementDataStorageUiInterface* UTypedElementRegistry::GetDataStorageUi() const
+{
+	return DataStorageUi;
+}
+
+void UTypedElementRegistry::SetDataStorageUi(ITypedElementDataStorageUiInterface* Storage)
+{
+	DataStorageUi = Storage;
+	CallDataStorageInterfacesSetDelegateIfNeeded();
+}
+
+bool UTypedElementRegistry::AreDataStorageInterfacesSet() const
+{
+	return DataStorage && DataStorageCompatibility && DataStorageUi;
 }
 
 void UTypedElementRegistry::FinishDestroy()
@@ -379,3 +402,10 @@ void UTypedElementRegistry::OnPostGarbageCollect()
 	}
 }
 
+void UTypedElementRegistry::CallDataStorageInterfacesSetDelegateIfNeeded()
+{
+	if (OnDataStorageInterfacesSetDelegate.IsBound() && AreDataStorageInterfacesSet())
+	{
+		OnDataStorageInterfacesSetDelegate.Broadcast();
+	}
+}
