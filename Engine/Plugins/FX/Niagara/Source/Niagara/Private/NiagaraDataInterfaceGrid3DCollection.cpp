@@ -2494,22 +2494,50 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetVector4AttributeIndexFunctionName)
 	{
-		WriteAttributeGetIndexHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, 4, OutHLSL);
+		if (ParamHelper.UseRGBAGrid())
+		{
+			ParamHelper.WriteAttributeGetIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+		}
+		else
+		{
+			WriteAttributeGetIndexHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, 4, OutHLSL);
+		}
 		return true;
 	}
 	else if (FunctionInfo.DefinitionName == GetVectorAttributeIndexFunctionName)
 	{
-		WriteAttributeGetIndexHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, 3, OutHLSL);
+		if (ParamHelper.UseRGBAGrid())
+		{
+			ParamHelper.WriteAttributeGetIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+		}
+		else
+		{
+			WriteAttributeGetIndexHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, 3, OutHLSL);
+		}
 		return true;
 	}
 	else if (FunctionInfo.DefinitionName == GetVector2DAttributeIndexFunctionName)
 	{
-		WriteAttributeGetIndexHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, 2, OutHLSL);
+		if (ParamHelper.UseRGBAGrid())
+		{
+			ParamHelper.WriteAttributeGetIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+		}
+		else
+		{
+			WriteAttributeGetIndexHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, 2, OutHLSL);
+		}
 		return true;
 	}
 	else if (FunctionInfo.DefinitionName == GetFloatAttributeIndexFunctionName)
 	{
-		WriteAttributeGetIndexHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, 1, OutHLSL);
+		if (ParamHelper.UseRGBAGrid())
+		{
+			ParamHelper.WriteAttributeGetIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+		}
+		else
+		{
+			WriteAttributeGetIndexHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, 1, OutHLSL);
+		}
 		return true;
 	}
 	else if (FunctionInfo.DefinitionName == SampleGridFunctionName || FunctionInfo.DefinitionName == SamplePreviousGridAtIndexFunctionName)

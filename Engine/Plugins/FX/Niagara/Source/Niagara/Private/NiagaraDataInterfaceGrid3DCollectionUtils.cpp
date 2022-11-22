@@ -445,7 +445,7 @@ bool FGrid3DCollectionAttributeHelper::WriteSampleHLSL(AttributeRetrievalMode At
 	return true;
 }
 
-bool FGrid3DCollectionAttributeHelper::WriteAttributeGetIndexHLSL(bool bUseAttributeIndirection, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, FString& OutHLSL)
+bool FGrid3DCollectionAttributeHelper::WriteAttributeGetIndexHLSL(AttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, FString& OutHLSL)
 {
 	const FName* AttributeName = FunctionInfo.FindSpecifierValue(UNiagaraDataInterfaceGrid3DCollection::NAME_Attribute);
 	if (AttributeName == nullptr)
@@ -458,12 +458,24 @@ bool FGrid3DCollectionAttributeHelper::WriteAttributeGetIndexHLSL(bool bUseAttri
 	{
 		return false;
 	}
-
-
-	OutHLSL.Appendf(TEXT("void %s(out int Value)\n"), *FunctionInfo.InstanceName);
-	OutHLSL.Appendf(TEXT("{\n"));
-	OutHLSL.Appendf(TEXT("	Value = %s;\n"), *GetAttributeIndex(bUseAttributeIndirection, AttributeInfo));
-	OutHLSL.Appendf(TEXT("}\n"));
+	
+	// #todo(dmp): for now it is ok to assume rgba grids only store 1 attribute per grid, so
+	// attributes are always stored at index 0.  In the future we might have a way to support
+	// multiple attributes per rgba grid, and this will have to change
+	if (AttributeStorage == AttributeRetrievalMode::RGBAGrid)
+	{
+		OutHLSL.Appendf(TEXT("void %s(out int Value)\n"), *FunctionInfo.InstanceName);
+		OutHLSL.Appendf(TEXT("{\n"));
+		OutHLSL.Appendf(TEXT("	Value = 0;\n"));
+		OutHLSL.Appendf(TEXT("}\n"));
+	}
+	else
+	{	
+		OutHLSL.Appendf(TEXT("void %s(out int Value)\n"), *FunctionInfo.InstanceName);
+		OutHLSL.Appendf(TEXT("{\n"));
+		OutHLSL.Appendf(TEXT("	Value = %s;\n"), *GetAttributeIndex(AttributeStorage == AttributeRetrievalMode::Indirection, AttributeInfo));
+		OutHLSL.Appendf(TEXT("}\n"));
+	}
 
 	return true;
 }
