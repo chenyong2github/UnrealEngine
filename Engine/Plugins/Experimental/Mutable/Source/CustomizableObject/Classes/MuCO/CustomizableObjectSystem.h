@@ -326,6 +326,7 @@ public:
 
 	// Give access to the internal object data.
 	FCustomizableObjectSystemPrivate* GetPrivate() { return Private.Get(); }
+	const FCustomizableObjectSystemPrivate* GetPrivate() const { return Private.Get(); }
 
 	FStreamableManager& GetStreamableManager() { return StreamableManager; }
 
@@ -364,6 +365,8 @@ public:
 	// they are owned by Mutable and will be destroyed without notice
 	UFUNCTION(BlueprintCallable, Category = Status)
 	void SetReleaseMutableTexturesImmediately(bool bReleaseTextures);
+
+	bool IsMutableAnimInfoDebuggingEnabled() const;
 
 #if WITH_EDITOR
 	void RecompileCustomizableObjectAsync(const FAssetData& InAssetData, const UCustomizableObject* InObject);

@@ -480,6 +480,7 @@ public:
 	TQueue<FMutableTask> PendingTasks;
 
 	static int32 EnableMutableProgressiveMipStreaming;
+	static int32 EnableMutableAnimInfoDebugging;
 
 	/** */
 	inline void AddGameThreadTask(const FMutableTask& Task)
@@ -745,6 +746,8 @@ public:
 
 	// Check and update the streaming memory limit. Only safe from game thread and when the mutable thread is idle.
 	void UpdateStreamingLimit();
+
+	bool IsMutableAnimInfoDebuggingEnabled() const;
 
 private:
 

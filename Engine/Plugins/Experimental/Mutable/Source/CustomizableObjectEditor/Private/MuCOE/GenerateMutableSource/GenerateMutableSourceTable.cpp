@@ -24,6 +24,7 @@
 #include "Materials/MaterialInstance.h"
 #include "Math/Color.h"
 #include "Misc/Guid.h"
+#include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObjectUIData.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
@@ -259,6 +260,14 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 						}
 
 						AddSocketTagsToMesh(SkeletalMesh, MutableMesh, GenerationContext);
+
+						if (UCustomizableObjectSystem::GetInstance()->IsMutableAnimInfoDebuggingEnabled())
+						{
+							FString MeshPath;
+							SkeletalMesh->GetOuter()->GetPathName(nullptr, MeshPath);
+							FString MeshTag = FString("__MeshPath:") + MeshPath;
+							AddTagToMutableMeshUnique(*MutableMesh, MeshTag);
+						}
 
 						MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
 					}

@@ -289,6 +289,11 @@ void UCustomizableInstancePrivateData::PrepareForUpdate(const TSharedPtr<FMutabl
 			if (FCustomizableInstanceComponentData* ComponentData = GetComponentData(Component.Id))
 			{
 				ComponentData->AnimSlotToBP.Empty();
+
+#if WITH_EDITORONLY_DATA
+				ComponentData->MeshPartPaths.Empty();
+#endif
+
 				ComponentData->Skeletons.SkeletonsToLoad.Empty();
 				ComponentData->Skeletons.SkeletonsToMerge.Empty();
 				ComponentData->PhysicsAssets.PhysicsAssetToLoad.Empty();
@@ -4249,6 +4254,7 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshRenderData(const TShared
 	return true;
 }
 
+
 FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const TSharedPtr<FMutableOperationData>& OperationData, UCustomizableObjectInstance* Public, FStreamableManager &StreamableManager)
 {
 	UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
@@ -4269,7 +4275,6 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 
 	GatheredAnimBPs.Empty();
 	AnimBPGameplayTags.Reset();
-
 	
 	for (const FInstanceUpdateData::FSurface& Surface : OperationData->InstanceUpdateData.Surfaces)
 	{
@@ -4458,6 +4463,12 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 				{
 					AnimBPGameplayTags.AddTag(FGameplayTag::RequestGameplayTag(*Tag));
 				}
+#if WITH_EDITORONLY_DATA
+				else if (Tag.RemoveFromStart("__MeshPath:"))
+				{
+					ComponentData->MeshPartPaths.Add(Tag);
+				}
+#endif
 			}
 		}
 	}

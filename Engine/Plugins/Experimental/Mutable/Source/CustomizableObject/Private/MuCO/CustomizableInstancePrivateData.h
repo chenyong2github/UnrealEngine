@@ -122,6 +122,11 @@ struct FCustomizableInstanceComponentData
 	UPROPERTY(Transient, Category = CustomizableObjectInstance, editfixedsize, VisibleAnywhere)
 	TMap<int32, TSoftClassPtr<UAnimInstance>> AnimSlotToBP;
 
+#if WITH_EDITORONLY_DATA
+	// Just used for mutable.EnableMutableAnimInfoDebugging command
+	TArray<FString> MeshPartPaths;
+#endif
+
 	/** Skeletons required by the current generated instance. Skeletons to be loaded and merged.*/
 	UPROPERTY(Transient)
 	FReferencedSkeletons Skeletons;
@@ -289,7 +294,6 @@ public:
 
 	// Maximum number of SkeletalMesh LODs to stream
 	uint8 NumMaxLODsToStream;
-	
 	
 	TMap<FString, FTextureCoverageQueryData> TextureCoverageQueries;
 
