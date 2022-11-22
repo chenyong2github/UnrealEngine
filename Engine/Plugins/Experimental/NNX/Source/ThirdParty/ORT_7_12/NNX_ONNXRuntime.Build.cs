@@ -27,6 +27,7 @@ public class NNX_ONNXRuntime : ModuleRules
 		// ThirdParty includes
 		PrivateIncludePaths.AddRange(
 			new string[] {
+				System.IO.Path.Combine(ModuleDirectory, "../Deps"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/dlpack/include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/date/include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Deps/gsl"),
