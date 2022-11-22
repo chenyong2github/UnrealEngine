@@ -5,6 +5,7 @@
 #include "CompGeom/ExactPredicates.h"
 #include "CompGeom/ConvexHull3.h"
 #include "Spatial/ZOrderCurvePoints.h"
+#include "TetUtil.h"
 
 #include "Async/ParallelFor.h"
 
@@ -235,10 +236,7 @@ namespace Delaunay3Internal
 	// Fill an array with the properly-oriented triangle faces of the tet, starting with Tri itself
 	void GetTetFaces(const FIndex4i& Tet, FIndex3i OutFaces[4])
 	{
-		OutFaces[0] = FIndex3i(Tet.A, Tet.B, Tet.C);
-		OutFaces[1] = FIndex3i(Tet.A, Tet.D, Tet.B);
-		OutFaces[2] = FIndex3i(Tet.A, Tet.C, Tet.D);
-		OutFaces[3] = FIndex3i(Tet.B, Tet.D, Tet.C);
+		return TetUtil::GetTetFaces(Tet, OutFaces);
 	}
 
 	// Fill an array with four possible orientations of the given tet, each starting with a different triangle face
