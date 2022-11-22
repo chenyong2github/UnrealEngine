@@ -18,5 +18,7 @@ bool USmartObjectWorldConditionSchema::IsStructAllowed(const UScriptStruct* InSc
 {
 	check(InScriptStruct);
 	return Super::IsStructAllowed(InScriptStruct)
+		|| InScriptStruct->IsChildOf(TBaseStructure<FWorldConditionCommonBase>::Get())
+		|| InScriptStruct->IsChildOf(TBaseStructure<FWorldConditionCommonActorBase>::Get())
 		|| InScriptStruct->IsChildOf(TBaseStructure<FSmartObjectWorldConditionBase>::Get());
 }

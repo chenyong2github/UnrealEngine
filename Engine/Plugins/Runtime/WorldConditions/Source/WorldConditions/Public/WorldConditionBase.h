@@ -23,7 +23,7 @@ class UWorldConditionSchema;
  *		UPROPERTY(EditAnywhere, Category="Default", meta=(BaseStruct="/Script/SmartObjectsModule.SmartObjectSlotHandle"))
  *		FWorldConditionContextDataRef Slot;
  *
- *	EWorldConditionResult FWorldConditionSlotTagQuery::IsTrue(const FWorldConditionContext& Context) const
+ *	EWorldConditionResult FWorldConditionSlotTagQuery::Initialize(const FWorldConditionContext& Context) const
  *	{
  *		if (FSmartObjectSlotHandle* SlotHandle = Context.GetMutableContextDataPtr<FSmartObjectSlotHandle>(Slot))
  *		{
@@ -32,7 +32,7 @@ class UWorldConditionSchema;
  *	}
  *
  * Under the hood a reference is a name that needs to be turned into an index before use. This is done on Init().
- *	bool FWorldConditionSlotTagQuery::Init(const UWorldConditionSchema& Schema)
+ *	bool FWorldConditionSlotTagQuery::Initialize(const UWorldConditionSchema& Schema)
  *	{
  *		if (!Schema.ResolveContextDataRef<FSmartObjectSlotHandle>(Slot))
  *		{
@@ -43,9 +43,9 @@ class UWorldConditionSchema;
  *
  * To speed up query evaluation, the result of a World Condition can be cached by World Condition Query. A condition can be cached, if it is based on
  * globally accessible data, or context data that is marked as Permanent. To indicate that a conditions result can be cached,
- * bCanCacheResult must be set to true. This is done on Init().
+ * bCanCacheResult must be set to true. This is done on Initialize().
  *
- *	bool FWorldConditionSlotTagQuery::Init(const UWorldConditionSchema& Schema)
+ *	bool FWorldConditionSlotTagQuery::Initialize(const UWorldConditionSchema& Schema)
  *	{
  *		...
  *		bCanCacheResult = Schema.GetContextDataTypeByRef(Slot) == EWorldConditionContextDataType::Persistent)
@@ -151,4 +151,23 @@ protected:
 	friend struct FWorldConditionQueryDefinition;
 	friend struct FWorldConditionQueryState;
 	friend struct FWorldConditionContext;
+};
+
+
+/**
+ * Base struct for world conditions that do not need a specific context data to work (e.g. interfaces a subsystem).
+ */
+USTRUCT(meta=(Hidden))
+struct WORLDCONDITIONS_API FWorldConditionCommonBase : public FWorldConditionBase 
+{
+	GENERATED_BODY()
+};
+
+/**
+ * Base struct for world conditions that require just an AActor as a context data to work.
+ */
+USTRUCT(meta=(Hidden))
+struct WORLDCONDITIONS_API FWorldConditionCommonActorBase : public FWorldConditionBase
+{
+	GENERATED_BODY()
 };

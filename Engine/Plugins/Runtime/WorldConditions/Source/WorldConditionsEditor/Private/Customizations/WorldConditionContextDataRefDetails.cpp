@@ -15,6 +15,7 @@
 #include "WorldConditionQuery.h"
 #include "WorldConditionSchema.h"
 #include "Editor.h"
+#include "PropertyEditor/Private/PropertyNode.h"
 
 #define LOCTEXT_NAMESPACE "WorldCondition"
 
@@ -59,14 +60,28 @@ void FWorldConditionContextDataRefDetails::CacheContextData()
 	// Base struct
 	static const FName BaseStructMetaName(TEXT("BaseStruct")); // TODO: move these names into one central place.
 	static const FName BaseClassMetaName(TEXT("BaseClass")); // TODO: move these names into one central place.
-	
+
 	const FString BaseStructName = StructProperty->GetMetaData(BaseStructMetaName);
-	BaseStruct = UClass::TryFindTypeSlow<UScriptStruct>(BaseStructName);
+	const FString BaseClassName = StructProperty->GetMetaData(BaseClassMetaName);
+	
+	if (!BaseStructName.IsEmpty())
+	{
+		BaseStruct = UClass::TryFindTypeSlow<UScriptStruct>(BaseStructName);
+	}
 
 	if (BaseStruct == nullptr)
 	{
-		const FString BaseClassName = StructProperty->GetMetaData(BaseClassMetaName);
-		BaseStruct = UClass::TryFindTypeSlow<UClass>(BaseClassName);
+		if (!BaseClassName.IsEmpty())
+		{
+			BaseStruct = UClass::TryFindTypeSlow<UClass>(BaseClassName);
+		}
+	}
+
+	if (!BaseStruct)
+	{
+		check(StructProperty.IsValid() && StructProperty->GetPropertyNode().IsValid())
+		UE_LOG(LogWorldCondition, Error, TEXT("%s: Could not find BaseStruct '%s' nor BaseClass '%s' based on the property metadata, expecting full struct name."),
+			*StructProperty->GetPropertyNode()->GetPropertyPath(), *BaseStructName, *BaseClassName);
 	}
 
 	// Find schema from outer FWorldConditionQueryDefinition.
@@ -97,7 +112,7 @@ void FWorldConditionContextDataRefDetails::CacheContextData()
 			}
 		}
 
-		CurrentProperty = CurrentProperty->GetParentHandle(); 
+		CurrentProperty = CurrentProperty->GetParentHandle();
 	}
 
 	if (Schema && BaseStruct)
@@ -117,6 +132,14 @@ TSharedRef<SWidget> FWorldConditionContextDataRefDetails::OnGetContent() const
 {
 	FMenuBuilder MenuBuilder(true, NULL);
 
+	FUIAction ClearItemAction(FExecuteAction::CreateSP(const_cast<FWorldConditionContextDataRefDetails*>(this), &FWorldConditionContextDataRefDetails::OnSetContextData, FName()));
+	MenuBuilder.AddMenuEntry(LOCTEXT("None", "None"), FText::GetEmpty(), FSlateIcon(), ClearItemAction);
+
+	if (CachedContextData.Num() > 0)
+	{
+		MenuBuilder.AddSeparator();
+	}
+	
 	for (const FName& ContextDataName : CachedContextData)
 	{
 		FUIAction ItemAction(FExecuteAction::CreateSP(const_cast<FWorldConditionContextDataRefDetails*>(this), &FWorldConditionContextDataRefDetails::OnSetContextData, ContextDataName));
@@ -139,7 +162,7 @@ FText FWorldConditionContextDataRefDetails::GetCurrentDesc() const
 		{
 			return FText::FromName(Desc->Name);
 		}
-		return LOCTEXT("Invalid", "Invalid");
+		return LOCTEXT("None", "None");
 	}
 	
 	return LOCTEXT("MultipleSelected", "Multiple Selected");
@@ -190,8 +213,6 @@ void FWorldConditionContextDataRefDetails::OnSetContextData(const FName ContextD
 	StructProperty->NotifyFinishedChangingProperties();
 
 	GEditor->EndTransaction();
-
 }
-
 
 #undef LOCTEXT_NAMESPACE
