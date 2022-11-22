@@ -674,7 +674,7 @@ bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FStr
 	for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; Index++)
 	{
 		check(PartEnd - PartIt >= 4); //not a very robust parser
-		LexFromString((uint32&)(RenderTargetFormats[Index]), *PartIt++);
+		LexFromString((uint8&)(RenderTargetFormats[Index]), *PartIt++);
 		ETextureCreateFlags RTFlags;
 		LexFromString(RTFlags, *PartIt++);
 		// going forward, the flags will already be reduced when logging the PSOs to disk. However as of 2021-06-17 there are still old stable cache files in existence that have flags recorded as is
