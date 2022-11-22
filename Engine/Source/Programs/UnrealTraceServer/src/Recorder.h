@@ -28,7 +28,6 @@ public:
 		friend				FRecorder;
 		FRecorderRelay*		Relay;
 		uint32				Id;
-		uint32				TraceId;
 	};
 
 							FRecorder(asio::io_context& IoContext, FStore& InStore);
