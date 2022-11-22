@@ -36,6 +36,7 @@ struct FNDIRigidMeshCollisionArrays
 	TArray<FVector4f> PreviousTransform;
 	TArray<FVector4f> PreviousInverse;
 	TArray<FVector4f> ElementExtent;
+	TArray<FVector4f> MeshScale;
 	TArray<uint32> PhysicsType;
 	TArray<int32> ComponentIdIndex;
 	TArray<FPrimitiveComponentId> UniqueCompnentId;
@@ -55,6 +56,7 @@ struct FNDIRigidMeshCollisionArrays
 		PreviousTransform.Init(FVector4f(0, 0, 0, 0), 3 * MaxPrimitives);
 		PreviousInverse.Init(FVector4f(0, 0, 0, 0), 3 * MaxPrimitives);
 		ElementExtent.Init(FVector4f(0, 0, 0, 0), MaxPrimitives);
+		MeshScale.Init(FVector4f(0, 0, 0, 0), MaxPrimitives);
 		PhysicsType.Init(0, MaxPrimitives);
 		ComponentIdIndex.Init(INDEX_NONE, MaxPrimitives);
 		UniqueCompnentId.Reset();
@@ -83,6 +85,9 @@ struct FNDIRigidMeshCollisionBuffer : public FRenderResource
 
 	/** Element extent buffer */
 	FReadBuffer ElementExtentBuffer;
+
+	/** Element extent buffer */
+	FReadBuffer MeshScaleBuffer;
 
 	/** Physics type buffer */
 	FReadBuffer PhysicsTypeBuffer;

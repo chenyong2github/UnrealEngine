@@ -19,6 +19,7 @@ uint			{ParameterName}_PreviousOffset;
 uint4			{ParameterName}_ElementOffsets;
 Buffer<float4>	{ParameterName}_WorldTransformBuffer;
 Buffer<float4>	{ParameterName}_InverseTransformBuffer;
+Buffer<float4>	{ParameterName}_MeshScaleBuffer;
 Buffer<float4>	{ParameterName}_ElementExtentBuffer;
 Buffer<uint>	{ParameterName}_PhysicsTypeBuffer;
 Buffer<uint>	{ParameterName}_DFIndexBuffer;
@@ -73,6 +74,10 @@ float3x4 GetPreviousInverse_{ParameterName}(in int ElementIndex)
     return float3x4({ParameterName}_InverseTransformBuffer[BufferOffset], {ParameterName}_InverseTransformBuffer[BufferOffset+1], {ParameterName}_InverseTransformBuffer[BufferOffset+2]);
 }
 
+float3 GetMeshScale_{ParameterName}(in int ElementIndex)
+{
+	return {ParameterName}_MeshScaleBuffer[ElementIndex].xyz;
+}
 
 /* -----------------------------------------------------------------
  * Collision detection utils
@@ -476,9 +481,7 @@ void GetClosestPointMeshDistanceFieldAccurate_{ParameterName}(in float3 WorldPos
 
 // Given a world space position (WorldPosition) compute the static mesh closest point (position,normal,velocity)
 void GetClosestPointMeshDistanceFieldNoNormal_{ParameterName}(in float3 WorldPosition, in float DeltaTime, in float TimeFraction, in float MaxDistance, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestVelocity)
-{
-	const FLWCVector3 LWCWorldPosition = MakeLWCVector3({ParameterName}_SystemLWCTile, WorldPosition);
-
+{	
 	float3 CollisionPosition = float3(0,0,0);
 	float3 CollisionNormal = float3(0,0,0);
 	OutClosestDistance = MAX_DISTANCE;	
@@ -496,7 +499,34 @@ void GetClosestPointMeshDistanceFieldNoNormal_{ParameterName}(in float3 WorldPos
 		{
 			// #todo(dmp): this does a dynamic branch based on intersecting the bbox.  Maybe we can factor that out due to the broadphase here?
 			MaxDistance = max(.001, MaxDistance);
-			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, LWCWorldPosition, MaxDistance);
+
+			FDFObjectData DFObjectData = LoadDFObjectData(DFIndex);
+
+			float3 WorldExtent = {ParameterName}_ElementExtentBuffer[ElementIndex].xyz;
+
+			float3 LocalPos = GetLocalPosition_{ParameterName}(WorldPosition, ElementIndex, TimeFraction);
+			LocalPos *= GetMeshScale_{ParameterName}(ElementIndex);
+			
+			LocalPos /= DFObjectData.VolumeToWorldScale;
+							
+			float3 VolumePosition = LocalPos;
+
+			float3 ClampedVolumePosition = clamp(VolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
+			float DistanceToBox = length((VolumePosition - ClampedVolumePosition) * DFObjectData.VolumeToWorldScale);
+
+			OutClosestDistance = MaxDistance;
+
+			BRANCH
+			if (DistanceToBox < MaxDistance)
+			{
+				OutClosestDistance = DistanceToMeshSurfaceStandalone(ClampedVolumePosition, DFObjectData) * DFObjectData.VolumeScale + DistanceToBox;
+
+				// Don't allow negative SDF distance to stick out of the bounding box
+				if (DistanceToBox > 0.0f)
+				{
+					OutClosestDistance = max(OutClosestDistance, DistanceToBox);
+				}
+			}		
 		}
 		
 		const float3 PreviousPosition = mul(GetPreviousTransform_{ParameterName}(ElementIndex), float4(CollisionPosition,1.0)).xyz;
