@@ -41,6 +41,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "UObject/LinkerInstancingContext.h"
+#include "LevelEditorViewport.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -1736,8 +1737,33 @@ void AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& Packag
 			return false; // keep package
 		});
 
+		// Syncing may result in a map reload, so we retain the camera views to restore after the reload...
+		struct FCameraView
+		{
+			FVector Location;
+			FRotator Rotation;
+		};
+		TMap<FLevelEditorViewportClient*, FCameraView> CameraViews;
+		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+		{
+			CameraViews.Add(LevelVC, { LevelVC->GetViewLocation(), LevelVC->GetViewRotation() });
+		}
+
 		// Hot-reload the new packages...
 		UPackageTools::ReloadPackages(LoadedPackages);
+
+		// Restore the camera views after a map reload if necessary...
+		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+		{
+			const FCameraView& CameraView = CameraViews.FindChecked(LevelVC);
+			LevelVC->SetViewLocation(CameraView.Location);
+			if (!LevelVC->IsOrtho())
+			{
+				LevelVC->SetViewRotation(CameraView.Rotation);
+			}
+			LevelVC->Invalidate();
+			FEditorDelegates::OnEditorCameraMoved.Broadcast(CameraView.Location, CameraView.Rotation, LevelVC->ViewportType, LevelVC->ViewIndex);
+		}
 
 		// Unload any deleted packages...
 		UPackageTools::UnloadPackages(PackagesToUnload);
