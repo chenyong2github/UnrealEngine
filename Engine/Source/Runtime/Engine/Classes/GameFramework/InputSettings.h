@@ -287,7 +287,7 @@ private:
 * These mappings should match a FInputDeviceScope that is used by an IInputDevice
 */
 USTRUCT(BlueprintType)
-struct FHardwareDeviceIdentifier
+struct ENGINE_API FHardwareDeviceIdentifier
 {
 	GENERATED_BODY()
 
