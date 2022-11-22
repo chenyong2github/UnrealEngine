@@ -3,6 +3,8 @@
 #include "AndroidPermissionCallbackProxy.h"
 #include "AndroidPermission.h"
 
+#include "Async/TaskGraphInterfaces.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AndroidPermissionCallbackProxy)
 
 #if PLATFORM_ANDROID
