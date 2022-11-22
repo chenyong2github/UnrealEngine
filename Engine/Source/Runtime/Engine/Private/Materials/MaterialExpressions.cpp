@@ -12479,6 +12479,12 @@ UMaterialExpressionWorldPosition::UMaterialExpressionWorldPosition(const FObject
 
 	MenuCategories.Add(ConstructorStatics.NAME_Coordinates);
 
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("XYZ"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("XY"), 1, 1, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Z"), 1, 0, 0, 1, 0));
+
+	bShowOutputNameOnPin = true;
 	bShaderInputData = true;
 #endif
 	WorldPositionShaderOffset = WPT_Default;
