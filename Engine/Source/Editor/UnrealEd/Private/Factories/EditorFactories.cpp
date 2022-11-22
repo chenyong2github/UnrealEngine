@@ -6314,6 +6314,9 @@ bool UReimportFbxSkeletalMeshFactory::FactoryCanImport(const FString& Filename)
 bool UReimportFbxSkeletalMeshFactory::CanReimport( UObject* Obj, TArray<FString>& OutFilenames )
 {
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
+	TArray<FString> FactoryExtensions;
+	GetSupportedFileExtensions(FactoryExtensions);
+
 	if (SkeletalMesh && !SkeletalMesh->HasCustomActorReimportFactory())
 	{
 		if (UAssetImportData* AssetImportData = SkeletalMesh->GetAssetImportData())
@@ -6328,6 +6331,11 @@ bool UReimportFbxSkeletalMeshFactory::CanReimport( UObject* Obj, TArray<FString>
 				  && FPaths::GetExtension(AssetImportData->GetFirstFilename()) != TEXT("obj"))
 			{
 				//Fbx factory only support fbx and obj files
+				return false;
+			}
+			else if (!FactoryExtensions.Contains(FPaths::GetExtension(this->PreferredReimportPath)))
+			{
+				// Unsupported extensions shouldnt be considered for reimport
 				return false;
 			}
 			AssetImportData->ExtractFilenames(OutFilenames);

@@ -53,13 +53,47 @@ void UDNAAssetImportFactory::PostInitProperties()
 	ImportUI = NewObject<UDNAAssetImportUI>(this, NAME_None, RF_NoFlags);
 }
 
+bool UDNAAssetImportFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
+{
+	TArray<FString> FactoryExtensions;
+	GetSupportedFileExtensions(FactoryExtensions);
+
+	return FactoryExtensions.Contains(FPaths::GetExtension(PreferredReimportPath));
+}
+
+EReimportResult::Type UDNAAssetImportFactory::Reimport(UObject* Obj, int32 SourceFileIndex)
+{
+	// This is done here in oreder to enable importing of the dna file with the same name as 
+	// skeletal mesh. This is treated as an normal import but engine is recognizing it as an skeletal mesh reimport.
+
+	UPackage* Pkg = Obj->GetPackage();
+	FString Name = FPaths::GetBaseFilename(PreferredReimportPath);
+	bool bImportWasCancelled = false;
+	UObject* Result = ImportObject(SupportedClass, Pkg, FName(*Name), RF_Public | RF_Standalone | RF_Transactional, PreferredReimportPath, nullptr, bImportWasCancelled);
+
+	// Clean up and remove the factories we created from the root set
+	CleanUp();
+
+	if (Result != nullptr)
+	{
+		return EReimportResult::Succeeded;
+	}
+
+	return EReimportResult::Failed;
+}
+
+int32 UDNAAssetImportFactory::GetPriority() const
+{
+	return ImportPriority;
+}
+
 UObject* UDNAAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
 	// this one prints all messages that are stored in FFbxImporter
 	FDNAImporter* DNAImporter = FDNAImporter::GetInstance();
 	FDNAAssetImportOptions* ImportOptions = DNAImporter->GetImportOptions();
 	//Clean up the options
-	FDNAAssetImportOptions::ResetOptions(ImportOptions);	
+	FDNAAssetImportOptions::ResetOptions(ImportOptions);
 
 	struct FRestoreImportUI
 	{
@@ -117,7 +151,7 @@ UObject* UDNAAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 			DNAAssetFullName.Append(DNAAssetFileName);
 
 			GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, *DNAAssetFullName, TEXT("dna"));
-			
+
 			UDNAAsset* DNAAsset = NewObject< UDNAAsset >(SkelMesh, FName(*DNAAssetFileName)); //SkelMesh has to be its outer, otherwise DNAAsset won't be saved			
 			if (DNAAsset->Init(*Filename))
 			{
@@ -139,7 +173,7 @@ UObject* UDNAAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 	}
 
 	// Failed to load file or create DNA stream. Clean and return nullptr.
-	DNAImporter->PartialCleanUp();	
+	DNAImporter->PartialCleanUp();
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
 	return nullptr;
 }
@@ -154,10 +188,6 @@ bool UDNAAssetImportFactory::FactoryCanImport(const FString& Filename)
 	}
 
 	return false;
-}
-
-void UDNAAssetImportFactory::CleanUp()
-{
 }
 
 // DNA Asset Import UI Implementation.
