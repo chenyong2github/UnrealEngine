@@ -21,6 +21,8 @@
 #include "Player/PlayerEntityCache.h"
 #include "Player/AdaptiveStreamingPlayerABR.h"
 
+#include "Utilities/UtilsMP4.h"
+
 #include "ElectraCDM.h"
 
 #include "InfoLog.h"
@@ -564,6 +566,7 @@ struct FMetricEvent
 		PlaybackJumped,
 		PlaybackStopped,
 		SeekCompleted,
+		MediaMetadataChanged,
 		LicenseKey,
 		Errored,
 		LogMessage,
@@ -600,6 +603,10 @@ struct FMetricEvent
 		{
 			bool bWasAlreadyThere;
 		};
+		struct FMediaMedataDataChanged
+		{
+			TSharedPtrTS<UtilsMP4::FMetadataParser> NewMetadata;
+		};
 		FString								URL;
 		Metrics::EBufferingReason			BufferingReason;
 		Metrics::FBufferStats				BufferStats;
@@ -612,6 +619,7 @@ struct FMetricEvent
 		FStreamCodecInformation				CodecFormatChange;
 		FTimeJumped							TimeJump;
 		FSeekComplete						SeekComplete;
+		FMediaMedataDataChanged				MediaMetadataChange;
 		FErrorDetail						ErrorDetail;
 		FLogMessage							LogMessage;
 	};
@@ -783,6 +791,13 @@ struct FMetricEvent
 		TSharedPtrTS<FMetricEvent> Evt = MakeSharedTS<FMetricEvent>();
 		Evt->Type = EType::SeekCompleted;
 		Evt->Param.SeekComplete.bWasAlreadyThere = bWasAlreadyThere;
+		return Evt;
+	}
+	static TSharedPtrTS<FMetricEvent> ReportMediaMetadataChanged(const TSharedPtrTS<UtilsMP4::FMetadataParser>& InNextMetadata)
+	{
+		TSharedPtrTS<FMetricEvent> Evt = MakeSharedTS<FMetricEvent>();
+		Evt->Type = EType::MediaMetadataChanged;
+		Evt->Param.MediaMetadataChange.NewMetadata = InNextMetadata;
 		return Evt;
 	}
 	static TSharedPtrTS<FMetricEvent> ReportError(const FErrorDetail& ErrorDetail)
@@ -1873,6 +1888,42 @@ private:
 	};
 
 
+	struct FMediaMetadataUpdate
+	{
+		FMediaMetadataUpdate()
+		{
+			Reset();
+		}
+		void Reset()
+		{
+			NextEntries.Empty();
+			// Do not reset the active metadata.
+		}
+		void AddEntry(const FTimeValue& InValidFrom, const TSharedPtrTS<UtilsMP4::FMetadataParser>& InMetadata)
+		{
+			FEntry& e = NextEntries.Emplace_GetRef();
+			e.ValidFrom = InValidFrom.IsValid() ? InValidFrom : FTimeValue::GetZero();
+			e.Metadata = InMetadata;
+			NextEntries.StableSort([](const FEntry& a, const FEntry& b)
+			{
+				return a.ValidFrom < b.ValidFrom;
+			});
+		}
+		bool Handle(const FTimeValue& InAtTime);
+		TSharedPtrTS<UtilsMP4::FMetadataParser> GetActive() const
+		{ 
+			return ActiveMetadata; 
+		}
+
+		struct FEntry
+		{
+			FTimeValue ValidFrom;
+			TSharedPtrTS<UtilsMP4::FMetadataParser> Metadata;
+		};
+		TArray<FEntry> NextEntries;
+		TSharedPtrTS<UtilsMP4::FMetadataParser> ActiveMetadata;
+	};
+
 	struct FMetadataHandlingState
 	{
 		FMetadataHandlingState()
@@ -2129,6 +2180,7 @@ private:
 	TArray<FPeriodInformation>											ActivePeriods;
 	TArray<FPeriodInformation>											UpcomingPeriods;
 	FMetadataHandlingState												MetadataHandlingState;
+	FMediaMetadataUpdate												MediaMetadataUpdates;
 	TSharedPtrTS<IManifest::IPlayPeriod>								InitialPlayPeriod;
 	TSharedPtrTS<IManifest::IPlayPeriod>								CurrentPlayPeriodVideo;
 	TSharedPtrTS<IManifest::IPlayPeriod>								CurrentPlayPeriodAudio;

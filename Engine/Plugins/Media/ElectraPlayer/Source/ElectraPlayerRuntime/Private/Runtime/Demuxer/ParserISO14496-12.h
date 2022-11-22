@@ -165,6 +165,17 @@ namespace Electra
 
 		virtual int32 GetNumberOfEventMessages() const = 0;
 
+		class IMetadata
+		{
+		public:
+			virtual uint32 GetHandler() const = 0;
+			virtual uint32 GetReserved(int32 InIndex0to2) const = 0;
+			virtual int32 GetNumChildBoxes() const = 0;
+			virtual uint32 GetChildBoxType(int32 InChildIndex) const = 0;
+			virtual uint32 GetChildBoxDataSize(int32 InChildIndex) const = 0;
+			virtual const void* GetChildBoxData(int32 InChildIndex) const = 0;
+		};
+
 		class ITrackIterator
 		{
 		public:
@@ -299,6 +310,13 @@ namespace Electra
 			virtual const TArray<uint8>& GetMessageData() const = 0;
 		};
 
+		enum class EBaseBoxType
+		{
+			Moov,
+			Moof
+		};
+
+		virtual const IMetadata* GetMetadata(EBaseBoxType InFromBox) const = 0;
 
 		virtual TSharedPtrTS<IAllTrackIterator> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const = 0;
 

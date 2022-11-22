@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
+
 #include "PlayerCore.h"
 #include "PlayerTime.h"
 #include "StreamTypes.h"
@@ -10,7 +10,7 @@
 #include "Player/AdaptiveStreamingPlayerMetrics.h"
 #include "Player/PlayerSessionServices.h"
 #include "ParameterDictionary.h"
-
+#include "Utilities/UtilsMP4.h"
 
 namespace Electra
 {
@@ -510,6 +510,48 @@ namespace Electra
 		virtual FResult FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, TSharedPtrTS<const IStreamSegment> CurrentSegment) = 0;
 	};
 
+
+	/**
+	 * Playlist metadata changed.
+	 */
+	class FPlaylistMetadataUpdateMessage : public IPlayerMessage
+	{
+	public:
+		static TSharedPtrTS<IPlayerMessage> Create(FTimeValue InValidFrom, TSharedPtrTS<UtilsMP4::FMetadataParser> InMetadata)
+		{
+			TSharedPtrTS<FPlaylistMetadataUpdateMessage> p(new FPlaylistMetadataUpdateMessage(InValidFrom, InMetadata));
+			return p;
+		}
+
+		static const FString& Type()
+		{
+			static FString TypeName("PlaylistMetadataUpdate");
+			return TypeName;
+		}
+
+		virtual const FString& GetType() const
+		{
+			return Type();
+		}
+
+		FTimeValue GetValidFrom() const
+		{
+			return ValidFrom;
+		}
+		
+		TSharedPtrTS<UtilsMP4::FMetadataParser> GetMetadata() const
+		{
+			return Metadata;
+		}
+
+	private:
+		FPlaylistMetadataUpdateMessage(FTimeValue InValidFrom, TSharedPtrTS<UtilsMP4::FMetadataParser> InMetadata)
+			: ValidFrom(InValidFrom)
+			, Metadata(MoveTemp(InMetadata))
+		{ }
+		FTimeValue ValidFrom;
+		TSharedPtrTS<UtilsMP4::FMetadataParser> Metadata;
+	};
 
 
 } // namespace Electra

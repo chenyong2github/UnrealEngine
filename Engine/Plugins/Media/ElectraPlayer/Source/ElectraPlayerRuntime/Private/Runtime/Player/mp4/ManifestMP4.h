@@ -12,7 +12,7 @@
 #include "ElectraPlayerPrivate.h"
 #include "Player/PlayerStreamReader.h"
 #include "Utilities/URLParser.h"
-
+#include "Utilities/UtilsMP4.h"
 
 
 namespace Electra
@@ -259,6 +259,8 @@ public:
 		TArray<TSharedPtrTS<FAdaptationSetMP4>>			AudioAdaptationSets;
 		TArray<TSharedPtrTS<FAdaptationSetMP4>>			SubtitleAdaptationSets;
 		FPlayRangeEndInfo								PlayRangeEndInfo;
+		// Metadata from the 'meta' box, if any.
+		TSharedPtrTS<UtilsMP4::FMetadataParser>			MediaMetadata;
 	};
 
 

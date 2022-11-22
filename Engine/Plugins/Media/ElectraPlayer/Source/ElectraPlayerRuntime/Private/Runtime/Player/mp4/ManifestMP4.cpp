@@ -10,6 +10,7 @@
 #include "Utilities/HashFunctions.h"
 #include "Utilities/TimeUtilities.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Utilities/UtilsMP4.h"
 #include "ElectraPlayerPrivate.h"
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
 #include "Player/AdaptivePlayerOptionKeynames.h"
@@ -642,6 +643,7 @@ FErrorDetail FManifestMP4Internal::FTimelineAssetMP4::Build(IPlayerSessionServic
 {
 	PlayerSessionServices = InPlayerSessionServices;
 	MediaURL = URL;
+
 	// Go over the supported tracks and create an internal manifest-like structure for the player to work with.
 	LongestTrackDuration = FTimeValue::GetZero();
 	for(int32 nTrack=0,nMaxTrack=MP4Parser->GetNumberOfTracks(); nTrack < nMaxTrack; ++nTrack)
@@ -701,6 +703,27 @@ FErrorDetail FManifestMP4Internal::FTimelineAssetMP4::Build(IPlayerSessionServic
 	// Hold on to the parsed MOOV box for future reference.
 	MoovBoxParser = MP4Parser;
 
+	// Get the metadata, if any.
+	const IParserISO14496_12::IMetadata* md = MP4Parser->GetMetadata(IParserISO14496_12::EBaseBoxType::Moov);
+	if (md)
+	{
+		uint32 hdlr = md->GetHandler();
+		uint32 res0 = md->GetReserved(0);
+		TArray<UtilsMP4::FMetadataParser::FBoxInfo> Boxes;
+		for(int32 i=0, iMax=md->GetNumChildBoxes(); i<iMax; ++i)
+		{
+			Boxes.Emplace(UtilsMP4::FMetadataParser::FBoxInfo(md->GetChildBoxType(i), md->GetChildBoxData(i), md->GetChildBoxDataSize(i)));
+		}
+		MediaMetadata = MakeSharedTS<UtilsMP4::FMetadataParser>();
+		if (MediaMetadata->Parse(hdlr, res0, Boxes) == UtilsMP4::FMetadataParser::EResult::Success)
+		{
+			PlayerSessionServices->SendMessageToPlayer(FPlaylistMetadataUpdateMessage::Create(FTimeValue(), MediaMetadata));
+		}
+		else
+		{
+			MediaMetadata.Reset();
+		}
+	}
 	return FErrorDetail();
 }
 
@@ -731,6 +754,7 @@ void FManifestMP4Internal::FTimelineAssetMP4::LimitSegmentDownloadSize(TSharedPt
 		uint32 TrackId = ~0U;
 		uint32 TrackTimeScale = 0;
 		int64 TrackDur = 0;
+		int64 TrackDurSoFar = 0;
 		int64 LastTrackOffset = -1;
 		int64 LastSampleSize = 0;
 		int64 TrackDurationLimit = -1;
@@ -753,17 +777,19 @@ void FManifestMP4Internal::FTimelineAssetMP4::LimitSegmentDownloadSize(TSharedPt
 				}
 				if (TrackId == CurrentTrackIt->GetTrack()->GetID())
 				{
+					TrackDurSoFar = TrackDur;
 					TrackDur += CurrentTrackIt->GetDuration();
 				}
 				int64 CurrentTrackOffset = LastTrackOffset;
+				bool bDurationLimitReached = TrackDurationLimit > 0 && TrackDur > TrackDurationLimit;
 				if (CurrentTrackOffset >= EndOffset ||
 					CurrentTrackOffset - StartOffset >= MaxSegmentSize ||
-					(TrackDurationLimit > 0 && TrackDur > TrackDurationLimit))
+					bDurationLimitReached)
 				{
 					// Limit reached.
 					Request->FileEndOffset = CurrentTrackOffset - 1;
 					Request->SegmentInternalSize = CurrentTrackOffset - StartOffset;
-					Request->SegmentDuration.SetFromND(TrackDur, TrackTimeScale);
+					Request->SegmentDuration.SetFromND(bDurationLimitReached ? TrackDurSoFar : TrackDur, TrackTimeScale);
 					Request->bIsLastSegment = CurrentTrackOffset >= EndOffset;
 					break;
 				}
@@ -1254,7 +1280,7 @@ FErrorDetail FManifestMP4Internal::FRepresentationMP4::CreateFrom(const IParserI
 	}
 
 	// Get bitrate from the average or max bitrate as stored in the track. If not stored it will be 0.
-	Bitrate = InTrack->GetBitrateInfo().AvgBitrate ? InTrack->GetBitrateInfo().AvgBitrate : InTrack->GetBitrateInfo().MaxBitrate;
+	Bitrate = InTrack->GetBitrateInfo().MaxBitrate ? InTrack->GetBitrateInfo().MaxBitrate : InTrack->GetBitrateInfo().AvgBitrate;
 
 	// With no bitrate available we set some defaults. This is mainly to avoid a bitrate of 0 from being surfaced that would prevent
 	// events like the initial bitrate change that needs to transition away from 0 to something real.
@@ -1276,6 +1302,10 @@ FErrorDetail FManifestMP4Internal::FRepresentationMP4::CreateFrom(const IParserI
 				Bitrate = 32 * 1024;
 				break;
 		}
+	}
+	if (!CodecInformation.GetBitrate())
+	{
+		CodecInformation.SetBitrate(Bitrate);
 	}
 
 	// Not a whole lot that could have gone wrong here.

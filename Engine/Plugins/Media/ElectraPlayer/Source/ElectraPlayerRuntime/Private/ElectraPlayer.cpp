@@ -1868,6 +1868,12 @@ void FElectraPlayer::HandleDeferredPlayerEvents()
 				HandlePlayerEventSeekCompleted();
 				break;
 			}
+			case FPlayerMetricEventBase::EType::MediaMetadataChanged:
+			{
+				FPlayerMetricEvent_MediaMetadataChange* Ev = static_cast<FPlayerMetricEvent_MediaMetadataChange*>(Event.Get());
+				HandlePlayerMediaMetadataChanged(Ev->NewMetadata);
+				break;
+			}
 			case FPlayerMetricEventBase::EType::Error:
 			{
 				FPlayerMetricEvent_Error* Ev = static_cast<FPlayerMetricEvent_Error*>(Event.Get());
@@ -2584,6 +2590,17 @@ void FElectraPlayer::HandlePlayerEventSeekCompleted()
 	UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Seek completed"), this, CurrentPlayer.Get());
 	bDiscardOutputUntilCleanStart = false;
 	MediaStateOnSeekFinished();
+}
+
+void FElectraPlayer::HandlePlayerMediaMetadataChanged(const FString& InMetadata)
+{
+	TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
+	if (PinnedAdapterDelegate.IsValid())
+	{
+		// Send out the metadata through the option query interface since we have no other means
+		// to deliver it through Media Framework at the moment.
+		/*FVariantValue Result =*/ PinnedAdapterDelegate->QueryOptions(IElectraPlayerAdapterDelegate::EOptionType::MediaMetadataUpdate, FVariantValue(InMetadata));
+	}
 }
 
 void FElectraPlayer::HandlePlayerEventError(const FString& ErrorReason)

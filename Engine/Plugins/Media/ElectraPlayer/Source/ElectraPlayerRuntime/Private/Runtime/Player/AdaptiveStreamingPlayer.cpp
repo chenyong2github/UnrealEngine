@@ -494,6 +494,9 @@ void FAdaptiveStreamingPlayer::FireSyncEvent(TSharedPtrTS<FMetricEvent> Event)
 			case FMetricEvent::EType::SeekCompleted:
 				Listeners[i]->ReportSeekCompleted();
 				break;
+			case FMetricEvent::EType::MediaMetadataChanged:
+				Listeners[i]->ReportMediaMetadataChanged(Event->Param.MediaMetadataChange.NewMetadata);
+				break;
 			case FMetricEvent::EType::Errored:
 				Listeners[i]->ReportError(Event->Param.ErrorDetail.GetPrintable());
 				break;
@@ -1797,6 +1800,12 @@ void FAdaptiveStreamingPlayer::HandleMetadataChanges()
 			}
 		}
 	}
+
+	// Handle media metadata updates.
+	if (MediaMetadataUpdates.Handle(CurrentTime))
+	{
+		DispatchEvent(FMetricEvent::ReportMediaMetadataChanged(MediaMetadataUpdates.GetActive()));
+	}
 }
 
 
@@ -1870,6 +1879,12 @@ void FAdaptiveStreamingPlayer::HandleSessionMessage(TSharedPtrTS<IPlayerMessage>
 				PostError(Result);
 			}
 		}
+	}
+	// Media metadata changed?
+	else if (SessionMessage->GetType() == FPlaylistMetadataUpdateMessage::Type())
+	{
+		FPlaylistMetadataUpdateMessage* pMsg = static_cast<FPlaylistMetadataUpdateMessage*>(SessionMessage.Get());
+		MediaMetadataUpdates.AddEntry(pMsg->GetValidFrom(), pMsg->GetMetadata());
 	}
 	// License key?
 	else if (SessionMessage->GetType() == FLicenseKeyMessage::Type())
@@ -4295,6 +4310,7 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 	ActivePeriodCriticalSection.Unlock();
 	UpcomingPeriods.Empty();
 	MetadataHandlingState.Reset();
+	MediaMetadataUpdates.Reset();
 	NextLoopStates.Empty();
 	SeekVars.Reset();
 

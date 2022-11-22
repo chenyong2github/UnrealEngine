@@ -343,6 +343,37 @@ void FAdaptiveStreamingPlayer::UpdateManifest()
 	}
 }
 
+
+bool FAdaptiveStreamingPlayer::FMediaMetadataUpdate::Handle(const FTimeValue& InAtTime)
+{
+	TSharedPtrTS<UtilsMP4::FMetadataParser> NextMetadata;
+	while(NextEntries.Num())
+	{
+		if (!InAtTime.IsValid() && !ActiveMetadata.IsValid())
+		{
+			NextMetadata = NextEntries[0].Metadata;
+			break;
+		}
+		else if (NextEntries[0].ValidFrom <= InAtTime)
+		{
+			NextMetadata = NextEntries[0].Metadata;
+			NextEntries.RemoveAt(0);
+		}
+		else
+		{
+			break;
+		}
+	}
+	if (NextMetadata.IsValid())
+	{
+		bool bChanged = !ActiveMetadata.IsValid() || ActiveMetadata->IsDifferentFrom(*NextMetadata);
+		ActiveMetadata = MoveTemp(NextMetadata);
+		return bChanged;
+	}
+	return false;
+}
+
+
 } // namespace Electra
 
 

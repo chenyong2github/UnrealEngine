@@ -70,6 +70,7 @@ namespace Electra
 		void ReportJumpInPlayPosition(const FTimeValue& ToNewTime, const FTimeValue& FromTime, Metrics::ETimeJumpReason TimejumpReason) override {}
 		void ReportPlaybackStopped() override {}
 		void ReportSeekCompleted() override {}
+		void ReportMediaMetadataChanged(TSharedPtrTS<UtilsMP4::FMetadataParser> Metadata) override {}
 		void ReportError(const FString& ErrorReason) override {}
 		void ReportLogMessage(IInfoLog::ELevel InLogLevel, const FString& LogMessage, int64 PlayerWallclockMilliseconds) override {}
 		void ReportDroppedVideoFrame() override {}

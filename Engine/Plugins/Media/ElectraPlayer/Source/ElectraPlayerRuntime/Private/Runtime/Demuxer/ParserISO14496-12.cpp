@@ -309,7 +309,6 @@ private:
 			return BoxReader;
 		}
 
-
 		FMP4Box* GetCurrentFtypBox() const
 		{
 			return CurrentFtypBox;
@@ -359,7 +358,7 @@ private:
 			return CurrentMediaHandlerBox;
 		}
 
-		UEMediaError ReadAndParseNextBox(FMP4Box* ParentBox);
+		UEMediaError ReadAndParseNextBox(FMP4Box* ParentBox, bool bWarnIfUnsupported=true);
 
 		const FMP4Box* GetRootBox() const
 		{
@@ -1505,6 +1504,11 @@ private:
 			return HandlerType;
 		}
 
+		uint32 GetReservedValue(int32 Index) const
+		{
+			return Index >=0 && Index <= 2 ? Reserved[Index] : 0;
+		}
+
 		FString GetHandlerName() const
 		{
 			return NameUTF8;
@@ -1523,9 +1527,9 @@ private:
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// pre_defined (in QuickTime this was "Component Type")
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(HandlerType));			// handler_type
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// reserved[0] (In QuickTime this was "Component Manufacturer")
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// reserved[1] (In QuickTime this was "Component Flags")
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// reserved[2] (In QuickTime this was "Component Flags Mask")
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Reserved[0]));			// reserved[0] (In QuickTime this was "Component Manufacturer")
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Reserved[1]));			// reserved[1] (In QuickTime this was "Component Flags")
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Reserved[2]));			// reserved[2] (In QuickTime this was "Component Flags Mask")
 
 			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
 			RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(NameUTF8, BytesRemaining));
@@ -1539,6 +1543,7 @@ private:
 	private:
 		FString			NameUTF8;
 		uint32			HandlerType;
+		uint32			Reserved[3];
 	};
 
 
@@ -4894,30 +4899,11 @@ private:
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 
+			bIsLeafBox = false;
 			int32 BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
-			if (BytesRemaining > 8)
+			if (BytesRemaining >= 8)
 			{
-				// Now that there are additional boxes we ourselves are no longer a leaf box.
-				bIsLeafBox = false;
-				// This will read all the boxes in here and add them as children.
-				for(; BytesRemaining>8; BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset)))
-				{
-					IParserISO14496_12::FBoxType	ChildBoxType;
-					int64							ChildBoxSize;
-					uint8							ChildBoxUUID[16];
-
-					int64 BoxStartOffset = ParseInfo->Reader()->GetCurrentReadOffset();
-					RETURN_IF_ERROR(ParseInfo->ReadBoxTypeAndSize(ChildBoxType, ChildBoxSize, ChildBoxUUID));
-#if MEDIA_DEBUG_HAS_BOX_NAMES
-					char boxName[4];
-					*((uint32*)&boxName) = MEDIA_TO_BIG_ENDIAN(ChildBoxType);
-#endif
-					int64 BoxDataOffset = ParseInfo->Reader()->GetCurrentReadOffset();
-					FMP4Box* NextBox = new FMP4BoxIgnored(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true);
-
-					AddChildBox(NextBox);
-					RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(NextBox));
-				}
+				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this, false));
 			}
 			// If there is still something left that is not a complete box, skip over it.
 			// There may be a 32 bit integer zero value to terminate the list.
@@ -4929,6 +4915,72 @@ private:
 			}
 			return Error;
 		}
+	};
+
+
+	/**
+	 * 'meta' box. ISO/IEC 14496-12:2015 - 8.11.1 Meta Box
+	 */
+	class FMP4BoxMETA : public FMP4BoxFull,	public IParserISO14496_12::IMetadata
+	{
+	public:
+		FMP4BoxMETA(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+		{
+		}
+
+		virtual ~FMP4BoxMETA() = default;
+
+	private:
+		FMP4BoxMETA() = delete;
+		FMP4BoxMETA(const FMP4BoxMETA&) = delete;
+
+
+		uint32 GetHandler() const override
+		{
+			return Handler ? Handler->GetHandlerType() : 0;
+		}
+		uint32 GetReserved(int32 InIndex0to2) const override
+		{
+			return Handler ? Handler->GetReservedValue(InIndex0to2) : 0;
+		}
+		int32 GetNumChildBoxes() const override
+		{
+			return GetNumberOfChildren();
+		}
+		uint32 GetChildBoxType(int32 InChildIndex) const override
+		{
+			const FMP4Box* Child = GetChildBox(InChildIndex);
+			return Child ? (uint32)Child->GetType() : 0;
+		}
+		uint32 GetChildBoxDataSize(int32 InChildIndex) const override
+		{
+			const FMP4Box* Child = GetChildBox(InChildIndex);
+			return Child ? (uint32)Child->GetDataSize() : 0;
+		}
+		const void* GetChildBoxData(int32 InChildIndex) const override
+		{
+			const FMP4Box* Child = GetChildBox(InChildIndex);
+			return Child ? Child->GetFillerData() ? Child->GetFillerData()->Data : nullptr : nullptr;
+		}
+
+	protected:
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+
+			bIsLeafBox = false;
+			int32 BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+			if (BytesRemaining >= 8)
+			{
+				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this, false));
+			}
+			Handler = static_cast<const FMP4BoxHDLR*>(FindBox(kBox_hdlr, 0));
+			return Error;
+		}
+	private:
+		const FMP4BoxHDLR* Handler = nullptr;
 	};
 
 
@@ -5000,7 +5052,7 @@ private:
 	}
 
 
-	UEMediaError FMP4ParseInfo::ReadAndParseNextBox(FMP4Box* ParentBox)
+	UEMediaError FMP4ParseInfo::ReadAndParseNextBox(FMP4Box* ParentBox, bool bWarnIfUnsupported)
 	{
 		IParserISO14496_12::FBoxType	BoxType;
 		int64							BoxSize;
@@ -5249,6 +5301,9 @@ private:
 						case FMP4Box::kBox_udta:
 							NextBox = new FMP4BoxUDTA(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
+						case FMP4Box::kBox_meta:
+							NextBox = new FMP4BoxMETA(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
 						case FMP4Box::kBox_skip:
 						case FMP4Box::kBox_VOID:
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
@@ -5306,7 +5361,10 @@ private:
 
 						default:
 #if MEDIA_DEBUG_HAS_BOX_NAMES
-							UE_LOG(LogElectraMP4Parser, Log, TEXT("Ignoring mp4 box: '%c%c%c%c' %lld B @ %lld"), boxName[0]?boxName[0]:'?', boxName[1]?boxName[1]:'?', boxName[2]?boxName[2]:'?', boxName[3]?boxName[3]:'?', (long long int)BoxSize, (long long int)BoxStartOffset);
+							if (bWarnIfUnsupported)
+							{
+								UE_LOG(LogElectraMP4Parser, Log, TEXT("Ignoring mp4 box: '%c%c%c%c' %lld B @ %lld"), boxName[0]?boxName[0]:'?', boxName[1]?boxName[1]:'?', boxName[2]?boxName[2]:'?', boxName[3]?boxName[3]:'?', (long long int)BoxSize, (long long int)BoxStartOffset);
+							}
 #endif
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
@@ -5316,7 +5374,7 @@ private:
 						++NumTotalBoxesParsed;
 						ParentBox->AddChildBox(NextBox);
 						IncreaseNestingLevel();
-						Error = ReadAndParseNextBox(NextBox);
+						Error = ReadAndParseNextBox(NextBox, bWarnIfUnsupported);
 						DecreaseNestingLevel();
 						if (Error == UEMEDIA_ERROR_OK)
 						{
@@ -5441,6 +5499,7 @@ private:
 		const ITrack* GetTrackByTrackID(int32 TrackID) const override;
 		const ISegmentIndex* GetSegmentIndexByIndex(int32 Index) const override;
 		const IEventMessage* GetEventMessageByIndex(int32 Index) const override;
+		const IMetadata* GetMetadata(EBaseBoxType InFromBox) const override;
 
 		TSharedPtrTS<IAllTrackIterator> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const override;
 
@@ -6843,6 +6902,7 @@ private:
 								Track->BitrateInfo.BufferSizeDB = Track->CodecSpecificDataMP4A.GetBufferSize();
 								Track->BitrateInfo.MaxBitrate = Track->CodecSpecificDataMP4A.GetMaxBitrate();
 								Track->BitrateInfo.AvgBitrate = Track->CodecSpecificDataMP4A.GetAvgBitrate();
+								Track->CodecInformation.SetBitrate(Track->BitrateInfo.MaxBitrate);
 
 								bGotAudioFormat = true;
 
@@ -7510,6 +7570,23 @@ private:
 	const FParserISO14496_12::IEventMessage* FParserISO14496_12::GetEventMessageByIndex(int32 Index) const
 	{
 		return ParsedData ? static_cast<FMP4BoxEMSG*>(ParsedData->GetEMSGBox(Index)) : nullptr;
+	}
+
+	const IParserISO14496_12::IMetadata* FParserISO14496_12::GetMetadata(IParserISO14496_12::EBaseBoxType InFromBox) const
+	{
+		// We need parsed data and a 'moov' box. We do not look at top-level 'meta' boxes here.
+		if (!ParsedData || (InFromBox == EBaseBoxType::Moov && !ParsedData->GetCurrentMoovBox()) || (InFromBox == EBaseBoxType::Moof && !ParsedData->GetCurrentMoofBox()))
+		{
+			return nullptr;
+		}
+		// First try 'udta'->'meta', which is the most common location.
+		const FMP4Box* Box = InFromBox == EBaseBoxType::Moov ? ParsedData->GetCurrentMoovBox() : ParsedData->GetCurrentMoofBox();
+		const FMP4BoxMETA* Meta = Box ? static_cast<const FMP4BoxMETA*>(Box->GetBoxPath(FMP4Box::kBox_udta, FMP4Box::kBox_meta)) : nullptr;
+		if (!Meta)
+		{
+			Meta = Box ? static_cast<const FMP4BoxMETA*>(Box->GetBoxPath(FMP4Box::kBox_meta)) : nullptr;
+		}
+		return Meta;
 	}
 
 	int32 FParserISO14496_12::GetNumberOfBrands() const

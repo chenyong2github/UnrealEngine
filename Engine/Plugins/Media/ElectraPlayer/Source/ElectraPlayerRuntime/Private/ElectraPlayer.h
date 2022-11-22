@@ -202,6 +202,7 @@ private:
 			JumpInPlayPosition,
 			PlaybackStopped,
 			SeekCompleted,
+			MediaMetadataChanged,
 			Error,
 			LogMessage,
 			DroppedVideoFrame,
@@ -282,6 +283,11 @@ private:
 		FTimeValue FromTime;
 		Metrics::ETimeJumpReason TimejumpReason;
 	};
+	struct FPlayerMetricEvent_MediaMetadataChange : public FPlayerMetricEventBase
+	{
+		FPlayerMetricEvent_MediaMetadataChange(const TSharedPtrTS<Electra::UtilsMP4::FMetadataParser>& InMetadata) : FPlayerMetricEventBase(EType::MediaMetadataChanged), NewMetadata(InMetadata->GetAsJSON()) {}
+		FString NewMetadata;
+	};
 	struct FPlayerMetricEvent_Error : public FPlayerMetricEventBase
 	{
 		FPlayerMetricEvent_Error(const FString& InErrorReason) : FPlayerMetricEventBase(EType::Error), ErrorReason(InErrorReason) {}
@@ -358,6 +364,8 @@ private:
 	{ DeferredPlayerEvents.Enqueue(MakeSharedTS<FPlayerMetricEventBase>(FPlayerMetricEventBase::EType::PlaybackStopped)); }
 	virtual void ReportSeekCompleted() override
 	{ DeferredPlayerEvents.Enqueue(MakeSharedTS<FPlayerMetricEventBase>(FPlayerMetricEventBase::EType::SeekCompleted)); }
+	virtual void ReportMediaMetadataChanged(TSharedPtrTS<Electra::UtilsMP4::FMetadataParser> Metadata) override
+	{ DeferredPlayerEvents.Enqueue(MakeSharedTS<FPlayerMetricEvent_MediaMetadataChange>(Metadata)); }
 	virtual void ReportError(const FString& ErrorReason) override
 	{ DeferredPlayerEvents.Enqueue(MakeSharedTS<FPlayerMetricEvent_Error>(ErrorReason)); }
 	virtual void ReportLogMessage(IInfoLog::ELevel InLogLevel, const FString& InLogMessage, int64 InPlayerWallclockMilliseconds) override
@@ -795,6 +803,7 @@ private:
 	void HandlePlayerEventJumpInPlayPosition(const FTimeValue& ToNewTime, const FTimeValue& FromTime, Metrics::ETimeJumpReason TimejumpReason);
 	void HandlePlayerEventPlaybackStopped();
 	void HandlePlayerEventSeekCompleted();
+	void HandlePlayerMediaMetadataChanged(const FString& InMetadata);
 	void HandlePlayerEventError(const FString& ErrorReason);
 	void HandlePlayerEventLogMessage(IInfoLog::ELevel InLogLevel, const FString& InLogMessage, int64 InPlayerWallclockMilliseconds);
 	void HandlePlayerEventDroppedVideoFrame();

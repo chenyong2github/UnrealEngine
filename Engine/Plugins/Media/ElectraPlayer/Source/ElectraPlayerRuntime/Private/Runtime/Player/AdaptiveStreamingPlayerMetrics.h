@@ -8,6 +8,7 @@
 #include "Player/AdaptiveStreamingPlayerABR_State.h"
 #include "Player/Playlist.h"
 #include "ElectraHTTPStream.h"
+#include "Utilities/UtilsMP4.h"
 
 namespace Electra
 {
@@ -329,6 +330,11 @@ public:
 	 * Future data may still be buffering.
 	 */
 	virtual void ReportSeekCompleted() = 0;
+
+	/**
+	 * Called when the media metadata has changed.
+	 */
+	virtual void ReportMediaMetadataChanged(TSharedPtrTS<UtilsMP4::FMetadataParser> Metadata) = 0;
 
 	/**
 	 * Called when an error occurs. Errors always result in termination of playback.
