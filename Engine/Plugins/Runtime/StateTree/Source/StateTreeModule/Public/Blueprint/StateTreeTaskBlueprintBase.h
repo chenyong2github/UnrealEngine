@@ -57,6 +57,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Default")
 	uint8 bShouldStateChangeOnReselect : 1;
 
+	/**
+	 * If set to true, Tick() is called. Not ticking implies no property copy. Default true.
+	 * Note: this is intentionally not a property, should be only set by C++ derived classes when the tick should not be called.
+	 */
+	uint8 bShouldCallTick : 1;
+
 	/** If set to true, Tick() is called. Default false. */
 	UPROPERTY(EditDefaultsOnly, Category="Default")
 	uint8 bShouldCallTickOnlyOnEvents : 1;

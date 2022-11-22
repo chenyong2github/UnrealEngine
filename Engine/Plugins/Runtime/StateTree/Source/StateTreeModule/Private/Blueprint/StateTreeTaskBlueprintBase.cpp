@@ -14,6 +14,7 @@
 UStateTreeTaskBlueprintBase::UStateTreeTaskBlueprintBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bShouldStateChangeOnReselect(true)
+	, bShouldCallTick(true)
 	, bShouldCallTickOnlyOnEvents(false)
 	, bShouldCopyBoundPropertiesOnTick(true)
 	, bShouldCopyBoundPropertiesOnExitState(true)
@@ -72,7 +73,7 @@ EDataValidationResult FStateTreeBlueprintTaskWrapper::Compile(FStateTreeDataView
 	
 	// Copy over ticking related options.
 	bShouldStateChangeOnReselect = InstanceData.bShouldStateChangeOnReselect;
-	bShouldCallTick = InstanceData.bHasTick;
+	bShouldCallTick = InstanceData.bShouldCallTick || InstanceData.bHasTick;
 	bShouldCallTickOnlyOnEvents = InstanceData.bShouldCallTickOnlyOnEvents;
 	bShouldCopyBoundPropertiesOnTick = InstanceData.bShouldCopyBoundPropertiesOnTick;
 	bShouldCopyBoundPropertiesOnExitState = InstanceData.bShouldCopyBoundPropertiesOnExitState;
