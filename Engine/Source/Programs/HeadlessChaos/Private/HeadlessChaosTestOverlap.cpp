@@ -202,6 +202,11 @@ namespace ChaosTest
 					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
 					EXPECT_FALSE(bResult);
 				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(-3.0, 0.0, 9.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
+					EXPECT_FALSE(bResult);
+				}
 			}
 			{
 				const FVec3 X1 = { 0.0, 0.0, -200.0 };
@@ -846,17 +851,17 @@ namespace ChaosTest
 		}
 		{
 			FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
-				{
-					{-10.0, -10.0, 0.0},
-					{10.0, -10.0, 0.0},
-					{-10.0, 10.0, 0.0},
-					{10.0, 10.0, 0.0},
-					{-10.0, -10.0, 10.0},
-					{10.0, -10.0, 10.0},
-					{-10.0, 10.0, 10.0},
-					{10.0, 10.0, 10.0},
+			{
+				{-10.0, -10.0, 0.0},
+				{10.0, -10.0, 0.0},
+				{-10.0, 10.0, 0.0},
+				{10.0, 10.0, 0.0},
+				{-10.0, -10.0, 10.0},
+				{10.0, -10.0, 10.0},
+				{ -10.0, 10.0, 10.0 },
+				{ 10.0, 10.0, 10.0 },
 
-				});
+			});
 
 			TArray<TVec3<int32>> Indices(
 				{
@@ -948,6 +953,53 @@ namespace ChaosTest
 				{
 					const FRigidTransform3 QueryTM(FVec3(5.0, 10.6, 0.0), FQuat::Identity);
 					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+					EXPECT_FALSE(bResult);
+				}
+			}
+		}
+		{
+			FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
+				{
+					{-5.0, 0.0, 0.0},
+					{5.0, 0.0, 0.0},
+					{3.0, 0.0, 100.0},
+				});
+
+			TArray<TVec3<int32>> Indices(
+				{
+					{0, 1, 2},
+				});
+
+			TArray<uint16> Materials;
+			for (int32 i = 0; i < Indices.Num(); ++i)
+			{
+				Materials.Emplace(0);
+			}
+
+			TUniquePtr<FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(TrimeshParticles), MoveTemp(Indices), MoveTemp(Materials));
+			{
+				// Sphere test
+				const FVec3 X = { 0.0, 0.0, 0.0 };
+				const FReal Radius = 1.0;
+				const Chaos::FSphere Sphere = Chaos::FSphere(X, Radius);
+				{
+					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(3.9, 0.0, 100.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(4.0, 0.0, 90.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(4.5, 0.0, 90.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
 					EXPECT_FALSE(bResult);
 				}
 			}
