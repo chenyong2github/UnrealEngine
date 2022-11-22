@@ -179,14 +179,26 @@ void FAnimNode_MirrorBase::Evaluate_AnyThread(FPoseContext& Output)
 	{
 		if (GetBoneMirroring())
 		{
-			const FBoneContainer& BoneContainer = Output.Pose.GetBoneContainer();
-			const TArray<FBoneIndexType>& RequiredBoneIndices = BoneContainer.GetBoneIndicesArray();
-			int32 NumReqBones = RequiredBoneIndices.Num();
-			if (CompactPoseMirrorBones.Num() != NumReqBones)
+			if (Output.ExpectsAdditivePose())
 			{
-				FillCompactPoseAndComponentRefRotations(BoneContainer);
+				FText Message = FText::Format(LOCTEXT("AdditiveMirrorWarning", "Trying to mirror an additive animation pose is not supported in anim instance '{0}'"), FText::FromString(Output.AnimInstanceProxy->GetAnimInstanceName()));
+				Output.LogMessage(EMessageSeverity::Warning, Message);
+
+				// Force a bind pose to make it obvious
+				Output.Pose.ResetToAdditiveIdentity();
 			}
-			FAnimationRuntime::MirrorPose(Output.Pose, MirrorDataTable->MirrorAxis, CompactPoseMirrorBones, ComponentSpaceRefRotations);
+			else
+			{
+				const FBoneContainer& BoneContainer = Output.Pose.GetBoneContainer();
+				const TArray<FBoneIndexType>& RequiredBoneIndices = BoneContainer.GetBoneIndicesArray();
+				int32 NumReqBones = RequiredBoneIndices.Num();
+				if (CompactPoseMirrorBones.Num() != NumReqBones)
+				{
+					FillCompactPoseAndComponentRefRotations(BoneContainer);
+				}
+
+				FAnimationRuntime::MirrorPose(Output.Pose, MirrorDataTable->MirrorAxis, CompactPoseMirrorBones, ComponentSpaceRefRotations);
+			}
 		}
 
 		if (GetCurveMirroring())
