@@ -820,7 +820,7 @@ bool FDateTime::ParseIso8601(const TCHAR* DateTimeString, FDateTime& OutDateTime
 				MillisecondTemp = (MillisecondTemp + (Divisor >> 1 )) / Divisor;
 			}
 			
-			Millisecond = static_cast<int32>(MillisecondTemp);
+			Millisecond = FMath::Min(static_cast<int32>(MillisecondTemp), 999);
 		}
 
 		// see if the timezone offset is included
