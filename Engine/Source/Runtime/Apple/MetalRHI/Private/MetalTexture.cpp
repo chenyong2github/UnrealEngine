@@ -1427,7 +1427,9 @@ uint32 FMetalSurface::GetMemorySize()
 
 uint32 FMetalSurface::GetNumFaces()
 {
-	return GetDesc().Depth * GetDesc().ArraySize;
+	// UE <= 5.0 for Cube Texture FMetalSurface::SizeZ was set to 6
+	// UE >= 5.1 FMetalSurface::SizeZ does not exist and extent.Depth from the create descriptor is set to 1 for cube textures
+	return GetDesc().Depth * GetDesc().ArraySize * (GetDesc().IsTextureCube() ? 6 : 1);
 }
 
 FMetalTexture FMetalSurface::GetDrawableTexture()

@@ -582,7 +582,10 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 		ETextureCreateFlags MemorylessFlag = TexCreate_None;
 		if (IsMobileDeferredShadingEnabled(Config.ShaderPlatform) || (Config.NumSamples > 1 && Config.bMemorylessMSAA))
 		{
+		// hotfix for a crash on a Mac mobile preview, proper fix is in 5.2
+		#if !PLATFORM_MAC
 			MemorylessFlag = TexCreate_Memoryless;
+		#endif
 		}
 
 		EPixelFormat DepthAuxFormat = GetMobileSceneDepthAuxPixelFormat(Config.ShaderPlatform, Config.bPreciseDepthAux);
