@@ -33,7 +33,7 @@ public:
 	const UContentBundleDescriptor* GetContentBundleDescriptor() const { return ContentBundleDescriptor; }
 
 private:
-	UPROPERTY(EditAnywhere, Category = ContentBundle)
+	UPROPERTY(VisibleAnywhere, Category = ContentBundle)
 	TObjectPtr<UContentBundleDescriptor> ContentBundleDescriptor;
 
 	TSharedPtr<FContentBundleClient> ContentBundleClient;

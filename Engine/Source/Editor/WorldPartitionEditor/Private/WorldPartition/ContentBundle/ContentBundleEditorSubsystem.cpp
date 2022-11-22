@@ -76,7 +76,7 @@ TSharedRef<SWidget> UContentBundleEditionSubmodule::GetActorEditorContextWidget(
 
 	TSharedRef<SVerticalBox> OutWidget = SNew(SVerticalBox);
 
-	if (EditingContentBundle != nullptr)
+	if (TSharedPtr<FContentBundleEditor> ContentBundleEditorPin = EditingContentBundle.Pin())
 	{
 		OutWidget->AddSlot().AutoHeight()
 		[
@@ -87,6 +87,14 @@ TSharedRef<SWidget> UContentBundleEditionSubmodule::GetActorEditorContextWidget(
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
+				.ColorAndOpacity_Lambda([this]()
+				{
+					if (TSharedPtr<FContentBundleEditor> ContentBundleEditorPin = EditingContentBundle.Pin())
+					{
+						return ContentBundleEditorPin->GetDebugColor();
+					}
+					return FColor::Black;
+				})
 				.Image(FAppStyle::Get().GetBrush(PLACEHOLDER_ContentBundle_ColorIcon))
 				.DesiredSizeOverride(FVector2D(8, 8))
 			]
@@ -97,12 +105,13 @@ TSharedRef<SWidget> UContentBundleEditionSubmodule::GetActorEditorContextWidget(
 				SNew(STextBlock)
 				.Text_Lambda([this]()
 				{
-					TSharedPtr<FContentBundleEditor> ContentBundleEditorPin = EditingContentBundle.Pin();
-					if (ContentBundleEditorPin != nullptr)
+					if (TSharedPtr<FContentBundleEditor> ContentBundleEditorPin = EditingContentBundle.Pin())
 					{
-						return FText::FromString(ContentBundleEditorPin->GetDisplayName());
+						if (!ContentBundleEditorPin->GetDisplayName().IsEmpty())
+						{
+							return FText::FromString(ContentBundleEditorPin->GetDisplayName());
+						}
 					}
-
 					return FText::FromString(TEXT("Unset Display Name"));
 				})
 					

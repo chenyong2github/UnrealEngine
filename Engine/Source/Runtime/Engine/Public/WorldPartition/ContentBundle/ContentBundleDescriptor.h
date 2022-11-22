@@ -44,7 +44,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = BaseInformation)
 	FString DisplayName;
 
-	UPROPERTY(VisibleAnywhere, Category = BaseInformation)
+	UPROPERTY(EditAnywhere, Category = BaseInformation)
 	FColor DebugColor;
 
 	UPROPERTY(VisibleAnywhere, Category = BaseInformation, AdvancedDisplay)
