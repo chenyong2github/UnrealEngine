@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Collision/CollisionApplyType.h"
+#include "Chaos/Collision/PBDCollisionSolver.h"
 #include "Chaos/Evolution/SolverConstraintContainer.h"
 
 namespace Chaos
@@ -11,9 +12,6 @@ namespace Chaos
 	class FPBDIslandConstraint;
 	class FPBDCollisionConstraint;
 	class FPBDCollisionConstraints;
-	class FPBDCollisionSolver;
-	class FPBDCollisionSolverAdapter;
-	class FPBDCollisionSolverManifoldPoint;
 	class FPBDIsland;
 	class FSolverBody;
 	class FSolverBodyContainer;
@@ -24,6 +22,8 @@ namespace Chaos
 	class FPBDCollisionSolverSettings
 	{
 	public:
+		UE_NONCOPYABLE(FPBDCollisionSolverSettings);
+
 		FPBDCollisionSolverSettings();
 
 		// Maximum speed at which two objects can depenetrate (actually, how much relative velocity can be added
@@ -52,20 +52,16 @@ namespace Chaos
 	class FPBDCollisionContainerSolver : public FConstraintContainerSolver
 	{
 	public:
+		UE_NONCOPYABLE(FPBDCollisionContainerSolver);
+
 		FPBDCollisionContainerSolver(const FPBDCollisionConstraints& InConstraintContainer, const int32 InPriority);
 		~FPBDCollisionContainerSolver();
 
-		int32 NumSolvers() const { return CollisionSolvers.Num(); }
+		int32 NumSolvers() const { return CollisionConstraints.Num(); }
 
 		virtual void Reset(const int32 InMaxCollisions) override final;
 
-		virtual int32 GetNumConstraints() const override final
-		{
-			return NumSolvers();
-		}
-
-		// Set whether we are using deferred collision detection
-		void SetIsDeferredCollisionDetection(const bool bDeferred) { bDeferredCollisionDetection = bDeferred; }
+		virtual int32 GetNumConstraints() const override final { return NumSolvers(); }
 
 		//
 		// IslandGroup API
@@ -82,6 +78,7 @@ namespace Chaos
 		virtual void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
 
 	private:
+		void CachePrefetchSolver(const int32 ConstraintIndex) const;
 		void AddConstraint(FPBDCollisionConstraint& Constraint);
 		void UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
 		void UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
@@ -92,8 +89,10 @@ namespace Chaos
 		void UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex);
 
 		const FPBDCollisionConstraints& ConstraintContainer;
-		TArray<FPBDCollisionSolverAdapter> CollisionSolvers;
+		TArray<Private::FPBDCollisionSolver> CollisionSolvers;
+		TArray<Private::FPBDCollisionSolverManifoldPoint> CollisionSolverManifoldPoints;
+		TArray<FPBDCollisionConstraint*> CollisionConstraints;
+		TArray<bool> bCollisionConstraintPerIterationCollisionDetection;
 		bool bPerIterationCollisionDetection;
-		bool bDeferredCollisionDetection;
 	};
 }

@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDSuspensionConstraints.h"
+#include "Chaos/Collision/PBDCollisionSolver.h"
 #include "Chaos/Island/IslandManager.h"
 #include "Chaos/DebugDrawQueue.h"
-
-// Private includes
-#include "Chaos/Collision/PBDCollisionSolver.h"
 
 bool bChaos_Suspension_Spring_Enabled = true;
 FAutoConsoleVariableRef CVarChaosSuspensionSpringEnabled(TEXT("p.Chaos.Suspension.Spring.Enabled"), bChaos_Suspension_Spring_Enabled, TEXT("Enable/Disable Spring part of suspension constraint"));
@@ -63,7 +61,7 @@ namespace Chaos
 		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 
-	Chaos::FPBDSuspensionConstraints::FConstraintContainerHandle* FPBDSuspensionConstraints::AddConstraint(TGeometryParticleHandle<FReal, 3>* Particle, const FVec3& InSuspensionLocalOffset, const FPBDSuspensionSettings& InConstraintSettings)
+	FPBDSuspensionConstraints::FConstraintContainerHandle* FPBDSuspensionConstraints::AddConstraint(TGeometryParticleHandle<FReal, 3>* Particle, const FVec3& InSuspensionLocalOffset, const FPBDSuspensionSettings& InConstraintSettings)
 	{
 		int32 NewIndex = ConstrainedParticles.Num();
 		ConstrainedParticles.Add(Particle);
@@ -72,8 +70,9 @@ namespace Chaos
 		ConstraintResults.AddDefaulted();
 		ConstraintEnabledStates.Add(true); // Note: assumes always enabled on creation
 		ConstraintSolverBodies.Add(nullptr);
-		StaticCollisionBodies.Add(FSolverBody());
-		CollisionSolvers.Add( new FPBDCollisionSolver() );
+		StaticCollisionBodies.Add(FSolverBody::MakeInitialized());
+		CollisionSolvers.Add(Private::FPBDCollisionSolver());
+		CollisionSolverManifoldPoints.Add(Private::FPBDCollisionSolverManifoldPoint());
 
 		Handles.Add(HandleAllocator.AllocHandle(this, NewIndex));
 		return Handles[NewIndex];
@@ -95,8 +94,6 @@ namespace Chaos
 			Handles[ConstraintIndex] = nullptr;
 		}
 
-		delete CollisionSolvers[ConstraintIndex];
-
 		// Swap the last constraint into the gap to keep the array packed
 		ConstrainedParticles.RemoveAtSwap(ConstraintIndex);
 		SuspensionLocalOffset.RemoveAtSwap(ConstraintIndex);
@@ -105,6 +102,7 @@ namespace Chaos
 		ConstraintEnabledStates.RemoveAtSwap(ConstraintIndex);
 		ConstraintSolverBodies.RemoveAtSwap(ConstraintIndex);
 		CollisionSolvers.RemoveAtSwap(ConstraintIndex);
+		CollisionSolverManifoldPoints.RemoveAtSwap(ConstraintIndex);
 		StaticCollisionBodies.RemoveAtSwap(ConstraintIndex);
 
 		Handles.RemoveAtSwap(ConstraintIndex);
@@ -208,15 +206,17 @@ namespace Chaos
 
 	void FPBDSuspensionConstraints::GatherInput(const int32 ConstraintIndex, const FReal Dt)
 	{
+		using namespace Private;
+
 		ConstraintResults[ConstraintIndex].Reset();
 
 		// Hard-stop Collision Manifold Generation
 		{
-			check(CollisionSolvers[ConstraintIndex] != nullptr);
 			check(ConstraintSolverBodies[ConstraintIndex] != nullptr);
 
-			FPBDCollisionSolver* Solver = CollisionSolvers[ConstraintIndex];
-			Solver->Reset(); // clear previous manifolds
+			FPBDCollisionSolver* Solver = &CollisionSolvers[ConstraintIndex];
+			Solver->SetManifoldPointsBuffer(&CollisionSolverManifoldPoints[ConstraintIndex], 1);
+			Solver->SetStiffness(1);
 
 			FSolverBody* Body0 = ConstraintSolverBodies[ConstraintIndex];	// vehicle chassis			
 			FSolverBody* Body1 = &StaticCollisionBodies[ConstraintIndex];	// Spoofed terrain
@@ -255,7 +255,8 @@ namespace Chaos
 				check(Body1->InvM() == 0);
 
 				Solver->SetSolverBodies(*Body0, *Body1);
-				Solver->SetNumManifoldPoints(1);
+				Solver->SolverBody0().Init();
+				Solver->SolverBody1().Init();
 				Solver->SetFriction(0, 0, 0);
 
 #if CHAOS_DEBUG_DRAW
@@ -272,11 +273,10 @@ namespace Chaos
 #endif
 
 				// inject a manifold for our suspension Hard-stop - behaves like a regular friction-less collision, prevents the vehicle chassis from ever hitting the ground
+				Solver->AddManifoldPoint();
 				Solver->SetManifoldPoint(
 					0,										// ManifoldIndex
 					FSolverReal(Dt),						// Delta Time
-					FSolverReal(0.0f),						// Restitution,
-					FSolverReal(0.1f),						// RestitutionVelocityThreshold,
 					FSolverVec3(WorldArm),					// RelativeContactPosition0,
 					FSolverVec3(0, 0, 0),					// RelativeContactPosition1,
 					FSolverVec3(WorldContactNormal),		// WorldContactNormal
@@ -284,7 +284,8 @@ namespace Chaos
 					FSolverVec3(0, 0, 0),					// WorldContactTangentV,
 					FSolverReal(-WorldContactDeltaNormal),	// WorldContactDeltaNormal
 					FSolverReal(0),							// WorldContactDeltaTangentU,
-					FSolverReal(0)							// WorldContactDeltaTangentV
+					FSolverReal(0),							// WorldContactDeltaTangentV
+					FSolverReal(0)							// WorldTargetContactVelocityNormal
 					);
 
 			}
@@ -294,27 +295,30 @@ namespace Chaos
 
 	void FPBDSuspensionConstraints::ScatterOutput(const int32 ConstraintIndex, FReal Dt)
 	{
-		if ((CollisionSolvers.Num() > 0) && (CollisionSolvers[ConstraintIndex] != nullptr) && (CollisionSolvers[ConstraintIndex]->NumManifoldPoints() > 0))
+		using namespace Private;
+
+		if ((CollisionSolvers.Num() > 0) && (CollisionSolvers[ConstraintIndex].NumManifoldPoints() > 0))
 		{
-			const FPBDCollisionSolver* CollisionSolver = CollisionSolvers[ConstraintIndex];
-			const FPBDCollisionSolverManifoldPoint& ManifoldPoint = CollisionSolver->GetManifoldPoint(0);
-			ConstraintResults[ConstraintIndex].HardStopNetPushOut = ManifoldPoint.NetPushOutNormal * ManifoldPoint.WorldContactNormal;
-			ConstraintResults[ConstraintIndex].HardStopNetImpulse = ManifoldPoint.NetImpulseNormal * ManifoldPoint.WorldContactNormal;
+			const FPBDCollisionSolverManifoldPoint& ManifoldPoint = CollisionSolvers[ConstraintIndex].GetManifoldPoint(0);
+			ConstraintResults[ConstraintIndex].HardStopNetPushOut = ManifoldPoint.NetPushOutNormal * ManifoldPoint.WorldContact.ContactNormal;
+			ConstraintResults[ConstraintIndex].HardStopNetImpulse = ManifoldPoint.NetImpulseNormal * ManifoldPoint.WorldContact.ContactNormal;
 		}
 
 		ConstraintSolverBodies[ConstraintIndex] = nullptr;
-		CollisionSolvers[ConstraintIndex]->ResetSolverBodies();
+		CollisionSolvers[ConstraintIndex].Reset();
 	}
 
 	void FPBDSuspensionConstraints::ApplyPositionConstraint(const int32 ConstraintIndex, const FReal Dt, const int32 It, const int32 NumIts)
 	{
+		using namespace Private;
+			
 		if (bChaos_Suspension_Hardstop_Enabled)
 		{
 			// Suspension Hardstop
 			const FPBDSuspensionSettings& Setting = ConstraintSettings[ConstraintIndex];
 			if (Setting.Enabled)
 			{
-				FPBDCollisionSolver* CollisionSolver = CollisionSolvers[ConstraintIndex];
+				FPBDCollisionSolver* CollisionSolver = &CollisionSolvers[ConstraintIndex];
 				if ((CollisionSolver != nullptr) && (CollisionSolver->NumManifoldPoints() > 0))
 				{
 					FReal MaxPushoutValue = FMath::Min(Chaos_Suspension_MaxPushout, Chaos_Suspension_MaxPushoutVelocity * Dt);
@@ -332,13 +336,15 @@ namespace Chaos
 
 	void FPBDSuspensionConstraints::ApplyVelocityConstraint(const int32 ConstraintIndex, const FReal Dt, const int32 It, const int32 NumIts)
 	{
+		using namespace Private;
+
 		if (bChaos_Suspension_Hardstop_Enabled && bChaos_Suspension_VelocitySolve)
 		{
 			// Suspension Hardstop
 			const FPBDSuspensionSettings& Setting = ConstraintSettings[ConstraintIndex];
 			if (Setting.Enabled)
 			{
-				FPBDCollisionSolver* CollisionSolver = CollisionSolvers[ConstraintIndex];
+				FPBDCollisionSolver* CollisionSolver = &CollisionSolvers[ConstraintIndex];
 				if ((CollisionSolver != nullptr) && (CollisionSolver->NumManifoldPoints() > 0))
 				{
 					CollisionSolver->SolveVelocity(FSolverReal(Dt), false);

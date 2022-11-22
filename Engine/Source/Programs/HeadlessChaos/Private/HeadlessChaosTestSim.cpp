@@ -387,8 +387,11 @@ namespace ChaosTest {
 
 		// Particle 1 should have fallen asleep
 		EXPECT_EQ(SleepData.Num(), 1);
-		EXPECT_EQ(SleepData[0].Particle, Dynamic1);
-		EXPECT_TRUE(SleepData[0].Sleeping);
+		if (SleepData.Num() >= 1)
+		{
+			EXPECT_EQ(SleepData[0].Particle, Dynamic1);
+			EXPECT_TRUE(SleepData[0].Sleeping);
+		}
 
 		// Switch the sleep types and observe state changes and sleep events
 		Dynamic1->SetSleepType(ESleepType::NeverSleep);
@@ -396,15 +399,21 @@ namespace ChaosTest {
 
 		// Particle 1 should have woken up due to the sleep type change
 		EXPECT_EQ(SleepData.Num(), 2);
-		EXPECT_EQ(SleepData[1].Particle, Dynamic1);
-		EXPECT_FALSE(SleepData[1].Sleeping);
+		if (SleepData.Num() >= 2)
+		{
+			EXPECT_EQ(SleepData[1].Particle, Dynamic1);
+			EXPECT_FALSE(SleepData[1].Sleeping);
+		}
 
 		AdvanceSleepStates(Dynamic2, Dynamic1);
 
 		// Particle 2 should have fallen asleep
 		EXPECT_EQ(SleepData.Num(), 3);
-		EXPECT_EQ(SleepData[2].Particle, Dynamic2);
-		EXPECT_TRUE(SleepData[2].Sleeping);
+		if (SleepData.Num() >= 3)
+		{
+			EXPECT_EQ(SleepData[2].Particle, Dynamic2);
+			EXPECT_TRUE(SleepData[2].Sleeping);
+		}
 	}
 }
 

@@ -2,6 +2,7 @@
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/PBDCollisionConstraintHandle.h"
+#include "Chaos/Collision/PBDCollisionSolver.h"
 #include "Chaos/Collision/SolverCollisionContainer.h"
 #include "Chaos/Evolution/SolverBody.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
@@ -9,9 +10,6 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDCollisionConstraints.h"
-
-// Private includes
-#include "PBDCollisionSolver.h"
 
 
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -182,8 +180,6 @@ namespace Chaos
 		, Implicit{ nullptr, nullptr }
 		, Shape{ nullptr, nullptr }
 		, Simplicial{ nullptr, nullptr }
-		, Material()
-		, Stiffness(1)
 		, AccumulatedImpulse(0)
 		, ContainerCookie()
 		, ShapesType(EContactShapesType::Unknown)
@@ -193,13 +189,15 @@ namespace Chaos
 		, CollisionTolerance(0)
 		, ClosestManifoldPointIndex(INDEX_NONE)
 		, ExpectedNumManifoldPoints(0)
-		, Flags()
 		, LastShapeWorldPositionDelta()
 		, LastShapeWorldRotationDelta()
-		, SolverBodies{ nullptr, nullptr }
 		, GJKWarmStartData()
+		, Material()
+		, Stiffness(1)
+		, Flags()
 		, SavedManifoldPoints()
 		, ManifoldPoints()
+		, SolverBodies{ nullptr, nullptr }
 		, CCDTimeOfImpact(0)
 		, CCDEnablePenetration(0)
 		, CCDTargetPenetration(0)
@@ -220,8 +218,6 @@ namespace Chaos
 		, Implicit{ Implicit0, Implicit1 }
 		, Shape{ Shape0, Shape1 }
 		, Simplicial{ Simplicial0, Simplicial1 }
-		, Material()
-		, Stiffness(1)
 		, AccumulatedImpulse(0)
 		, ContainerCookie()
 		, ShapesType(EContactShapesType::Unknown)
@@ -231,13 +227,15 @@ namespace Chaos
 		, CollisionTolerance(0)
 		, ClosestManifoldPointIndex(INDEX_NONE)
 		, ExpectedNumManifoldPoints(0)
-		, Flags()
 		, LastShapeWorldPositionDelta()
 		, LastShapeWorldRotationDelta()
-		, SolverBodies{ nullptr, nullptr }
 		, GJKWarmStartData()
+		, Material()
+		, Stiffness(1)
+		, Flags()
 		, SavedManifoldPoints()
 		, ManifoldPoints()
+		, SolverBodies{ nullptr, nullptr }
 		, CCDTimeOfImpact(0)
 		, CCDEnablePenetration(0)
 		, CCDTargetPenetration(0)
@@ -390,6 +388,24 @@ namespace Chaos
 		const FRealSingle MinBounds = FMath::Max(MinBounds0, MinBounds1);
 		CCDEnablePenetration = MinBounds * CVars::CCDEnableThresholdBoundsScale;
 		CCDTargetPenetration = FMath::Min(MinBounds * CVars::CCDAllowedDepthBoundsScale, CCDEnablePenetration);
+	}
+
+	void FPBDCollisionConstraint::Activate(const FReal Dt)
+	{
+		SetDisabled(false);
+
+		AssignSavedManifoldPoints();
+
+		UpdateMaterialProperties();
+
+		ResetModifications();
+
+		AccumulatedImpulse = FVec3(0);
+	}
+
+	void FPBDCollisionConstraint::UpdateMaterialPropertiesImpl()
+	{
+		ConcreteContainer()->UpdateConstraintMaterialProperties(*this);
 	}
 
 	bool FPBDCollisionConstraint::IsSleeping() const
@@ -575,8 +591,6 @@ namespace Chaos
 
 			UpdateManifoldPointPhi(ManifoldPointIndex);
 
-			ManifoldPoint.Flags.bInsideStaticFrictionCone = false;
-
 			if (ManifoldPoint.ContactPoint.Phi < GetPhi())
 			{
 				ClosestManifoldPointIndex = ManifoldPointIndex;
@@ -617,9 +631,8 @@ namespace Chaos
 		{
 			// We are not using manifolds - reuse the first and only point
 			ManifoldPoints.SetNum(1);
-			ManifoldPoints[0].ContactPoint = ContactPoint;
 
-			InitManifoldPoint(0);
+			InitManifoldPoint(0, ContactPoint);
 
 			ClosestManifoldPointIndex = 0;
 		}
@@ -635,6 +648,7 @@ namespace Chaos
 	{
 		ClosestManifoldPointIndex = INDEX_NONE;
 		ManifoldPoints.Reset();
+		ManifoldPointResults.Reset();
 		ExpectedNumManifoldPoints = 0;
 		Flags.bWasManifoldRestored = false;
 	}
@@ -711,11 +725,24 @@ namespace Chaos
 				{
 					// Recalculate the contact points at the new location
 					// @todo(chaos): we should reproject the contact on the plane owner
-					const FVec3 ShapeContactPoint1 = Contact0In1 - ContactPhi * ContactNormalIn1;
-					ManifoldPoint.ContactPoint.ShapeContactPoints[1] = FVec3f(ShapeContactPoint1);
+					const FVec3f ShapeContactPoint1 = FVec3f(Contact0In1 - ContactPhi * ContactNormalIn1);
+					ManifoldPoint.ContactPoint.ShapeContactPoints[1] = ShapeContactPoint1;
 					ManifoldPoint.ContactPoint.Phi = FRealSingle(ContactPhi);
+
+					// Set the friction anchors.
+					// In principle we should always have the same number of saved manifold points as manifold points 
+					// from the previous frame, but there are ways to break this. E.g., Contact modification resets
+					// friction if positions are changed.
+					if (ManifoldPointIndex < SavedManifoldPoints.Num())
+					{
+						FSavedManifoldPoint& SavedManifoldPoint = SavedManifoldPoints[ManifoldPointIndex];
+						ManifoldPoint.ShapeAnchorPoints[0] = SavedManifoldPoint.ShapeContactPoints[0];
+						ManifoldPoint.ShapeAnchorPoints[1] = SavedManifoldPoint.ShapeContactPoints[1];
+					}
+
 					ManifoldPoint.Flags.bWasRestored = true;
 					ManifoldPoint.Flags.bWasReplaced = false;
+
 					if (ManifoldPoint.ContactPoint.Phi < GetPhi())
 					{
 						ClosestManifoldPointIndex = ManifoldPointIndex;
@@ -993,33 +1020,63 @@ namespace Chaos
 		return TNumericLimits<FReal>::Max();
 	}
 
-	const FSavedManifoldPoint* FPBDCollisionConstraint::FindSavedManifoldPoint(const FManifoldPoint& ManifoldPoint) const
+	int32 FPBDCollisionConstraint::FindSavedManifoldPoint(const int32 ManifoldPointIndex, TCArray<int32, MaxManifoldPoints>& InOutAllowedSavedPointIndices) const
 	{
+		int32 MatchIndex = INDEX_NONE;
+
 		if (bChaos_Manifold_EnableFrictionRestore)
 		{
-			const FReal DistanceToleranceSq = FMath::Square(Chaos_Manifold_FrictionPositionTolerance);
-			FReal BestScore = DistanceToleranceSq;
-			int32 MatchIndex = INDEX_NONE;
-			for (int32 SavedManifoldPointIndex = 0; SavedManifoldPointIndex < SavedManifoldPoints.Num(); ++SavedManifoldPointIndex)
+			const FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+			if (!ManifoldPoint.Flags.bDisabled)
 			{
-				const FSavedManifoldPoint& SavedManifoldPoint = SavedManifoldPoints[SavedManifoldPointIndex];
-				const FReal Score = CalculateSavedManifoldPointScore(SavedManifoldPoint, ManifoldPoint, DistanceToleranceSq);
-				if (Score < BestScore)
-				{
-					BestScore = Score;
-					MatchIndex = SavedManifoldPointIndex;
+				const FReal DistanceToleranceSq = FMath::Square(Chaos_Manifold_FrictionPositionTolerance);
+				FReal BestScore = DistanceToleranceSq;
 
-					// Just take the first match we find
-					break;
+				for (int32 AllowedPointIndex = 0; AllowedPointIndex < InOutAllowedSavedPointIndices.Num(); ++AllowedPointIndex)
+				{
+					const int32 SavedPointIndex = InOutAllowedSavedPointIndices[AllowedPointIndex];
+					const FSavedManifoldPoint& SavedManifoldPoint = SavedManifoldPoints[SavedPointIndex];
+
+					const FReal Score = CalculateSavedManifoldPointScore(SavedManifoldPoint, ManifoldPoint, DistanceToleranceSq);
+					if (Score < BestScore)
+					{
+						BestScore = Score;
+						MatchIndex = SavedPointIndex;
+
+						InOutAllowedSavedPointIndices.RemoveAtSwap(AllowedPointIndex);
+
+						// Just take the first match we find that meets our tolerance
+						break;
+					}
 				}
 			}
-
-			if (MatchIndex != INDEX_NONE)
-			{
-				return &SavedManifoldPoints[MatchIndex];
-			}
 		}
-		return nullptr;
+
+		return MatchIndex;
+	}
+
+	void FPBDCollisionConstraint::AssignSavedManifoldPoints()
+	{
+		TCArray<int32, MaxManifoldPoints> AllowedPointIndices;
+		AllowedPointIndices.SetNum(SavedManifoldPoints.Num());
+		for (int32 PointIndex = 0, PointEndIndex = SavedManifoldPoints.Num(); PointIndex < PointEndIndex; ++PointIndex)
+		{
+			AllowedPointIndices[PointIndex] = PointIndex;
+		}
+
+		for (int32 PointIndex = 0, PointEndIndex = ManifoldPoints.Num(); PointIndex < PointEndIndex; ++PointIndex)
+		{
+			const int32 SavedManifoldPointIndex = FindSavedManifoldPoint(PointIndex, AllowedPointIndices);
+
+			if (SavedManifoldPointIndex != INDEX_NONE)
+			{
+				ManifoldPoints[PointIndex].Flags.bHasStaticFrictionAnchor = true;
+				ManifoldPoints[PointIndex].ShapeAnchorPoints[0] = SavedManifoldPoints[SavedManifoldPointIndex].ShapeContactPoints[0];
+				ManifoldPoints[PointIndex].ShapeAnchorPoints[1] = SavedManifoldPoints[SavedManifoldPointIndex].ShapeContactPoints[1];
+			}
+			// Nothing to do if no saved friction point because we already set the achor to the most recently detected contact point
+			// (See InitManifoldPoint, And UpdateAndTryRestoreManifold)
+		}
 	}
 
 	ECollisionConstraintDirection FPBDCollisionConstraint::GetConstraintDirection(const FReal Dt) const

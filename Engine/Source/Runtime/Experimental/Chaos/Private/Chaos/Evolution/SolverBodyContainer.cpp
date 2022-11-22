@@ -4,32 +4,87 @@
 
 namespace Chaos
 {
-	void FSolverBodyAdapter::ScatterOutput()
+	inline void UpdateSolverBodyFromParticle(FSolverBody& SolverBody, const FGeometryParticleHandle* Particle, const FReal Dt)
 	{
-		if (Particle.IsValid())
-		{
-			// Set the particle state
-			if (SolverBody.IsDynamic())
-			{
-				// Apply DP and DQ to P and Q
-				SolverBody.ApplyCorrections();
+		check(Particle != nullptr);
 
-				FParticleUtilities::SetCoMWorldTransform(Particle, SolverBody.P(), SolverBody.Q());
-				Particle->SetV(SolverBody.V());
-				Particle->SetW(SolverBody.W());
+		SolverBody.Reset();
+		SolverBody.SetLevel(0);
+
+		const FPBDRigidParticleHandle* RigidParticle = Particle->CastToRigidParticle();
+		const FKinematicGeometryParticleHandle* KinematicParticle = Particle->CastToKinematicParticle();
+		if ((RigidParticle != nullptr) && RigidParticle->IsDynamic())
+		{
+			// Dynamic particle
+			SolverBody.SetX(RigidParticle->XCom());
+			SolverBody.SetR(RigidParticle->RCom());
+			SolverBody.SetP(RigidParticle->PCom());
+			SolverBody.SetQ(RigidParticle->QCom());
+			SolverBody.SetCoM(RigidParticle->CenterOfMass());
+			SolverBody.SetRoM(RigidParticle->RotationOfMass());
+			SolverBody.SetV(RigidParticle->V());
+			SolverBody.SetW(RigidParticle->W());
+			SolverBody.SetInvM(RigidParticle->InvM());
+			SolverBody.SetInvILocal(RigidParticle->ConditionedInvI());
+			// Note: SetInvILocal also calculates InvI for dynamic
+		}
+		else
+		{
+			// Static or kinematic particle
+			SolverBody.SetP(Particle->X());
+			SolverBody.SetQ(Particle->R());
+			SolverBody.SetCoM(FVec3(0));
+			SolverBody.SetRoM(FRotation3::FromIdentity());
+			if (KinematicParticle != nullptr)
+			{
+				// Kinematic particle
+				SolverBody.SetX(KinematicParticle->X() - KinematicParticle->V() * Dt);
+				SolverBody.SetR(Particle->R());
+				if (!KinematicParticle->W().IsNearlyZero())
+				{
+					SolverBody.SetR(FRotation3::IntegrateRotationWithAngularVelocity(KinematicParticle->R(), -KinematicParticle->W(), Dt));
+				}
+				SolverBody.SetV(KinematicParticle->V());
+				SolverBody.SetW(KinematicParticle->W());
 			}
+			else
+			{
+				SolverBody.SetX(Particle->X());
+				SolverBody.SetR(Particle->R());
+				SolverBody.SetV(FVec3(0));
+				SolverBody.SetW(FVec3(0));
+			}
+			SolverBody.SetInvM(0);
+			SolverBody.SetInvILocal(FVec3(0));	// Note: does not set InvI for Kinematic
+			SolverBody.SetInvI(FMatrix33(0));
+		}
+	}
+
+	inline void UpdateParticleFromSolverBody(FGeometryParticleHandle* Particle, const FSolverBody& SolverBody)
+	{
+		check(Particle != nullptr);
+		check(SolverBody.IsDynamic());
+
+		// Set the particle state (only dynamics will have changed)
+		if (FPBDRigidParticleHandle* RigidParticle = Particle->CastToRigidParticle())
+		{
+			RigidParticle->SetTransformPQCom(SolverBody.P(), SolverBody.Q());
+			RigidParticle->SetV(SolverBody.V());
+			RigidParticle->SetW(SolverBody.W());
 
 			// Reset SolverBodyIndex cookie every step - it will be reassigned next step
-			Particle->SetSolverBodyIndex(INDEX_NONE);
+			RigidParticle->SetSolverBodyIndex(INDEX_NONE);
 		}
 	}
 
 	int32 FSolverBodyContainer::AddParticle(FGenericParticleHandle InParticle)
 	{
 		// No array resizing allowed (we want fixed pointers)
-		check(NumItems() < MaxItems());
+		check(Num() < Max());
 
-		return SolverBodies.AddElement(FSolverBodyAdapter(InParticle));
+		// NOTE: New solver body is completely uninitialized
+		SolverBodies.Add();
+		return Particles.Add(InParticle->Handle());
 	}
 
 	FSolverBody* FSolverBodyContainer::FindOrAdd(FGenericParticleHandle InParticle)
@@ -67,7 +122,7 @@ namespace Chaos
 	
 		check(ItemIndex != INDEX_NONE);
 		
-		FSolverBody* SolverBody = &SolverBodies[ItemIndex].GetSolverBody();
+		FSolverBody* SolverBody = &SolverBodies[ItemIndex];
 
 		return SolverBody;
 	}
@@ -79,52 +134,46 @@ namespace Chaos
 
 		for (int32 SolverBodyIndex = BeginIndex; SolverBodyIndex < EndIndex; ++SolverBodyIndex)
 		{
-			FSolverBodyAdapter& SolverBody = SolverBodies[SolverBodyIndex];
-			SolverBody.GatherInput(Dt);
-		}
-	}
-
-	void FSolverBodyContainer::ScatterOutput()
-	{
-		for (FSolverBodyAdapter& SolverBody : SolverBodies)
-		{
-			SolverBody.ScatterOutput();
+			UpdateSolverBodyFromParticle(SolverBodies[SolverBodyIndex], Particles[SolverBodyIndex], Dt);
 		}
 	}
 
 	void FSolverBodyContainer::ScatterOutput(const int32 BeginIndex, const int32 EndIndex)
 	{
 		check((BeginIndex >= 0) && (BeginIndex <= EndIndex));
-		check((EndIndex >= 0) && (EndIndex <= SolverBodies.Num()));
+		check((EndIndex >= 0) && (EndIndex <= Num()));
 
 		for (int32 SolverBodyIndex = BeginIndex; SolverBodyIndex < EndIndex; ++SolverBodyIndex)
 		{
-			FSolverBodyAdapter& SolverBody = SolverBodies[SolverBodyIndex];
-			SolverBody.ScatterOutput();
+			if (SolverBodies[SolverBodyIndex].IsDynamic())
+			{
+				SolverBodies[SolverBodyIndex].ApplyCorrections();
+				UpdateParticleFromSolverBody(Particles[SolverBodyIndex], SolverBodies[SolverBodyIndex]);
+			}
 		}
 	}
 
 	void FSolverBodyContainer::SetImplicitVelocities(FReal Dt)
 	{
-		for (FSolverBodyAdapter& SolverBody : SolverBodies)
+		for (FSolverBody& SolverBody : SolverBodies)
 		{
-			SolverBody.GetSolverBody().SetImplicitVelocity(Dt);
+			SolverBody.SetImplicitVelocity(Dt);
 		}
 	}
 
 	void FSolverBodyContainer::ApplyCorrections()
 	{
-		for (FSolverBodyAdapter& SolverBody : SolverBodies)
+		for (FSolverBody& SolverBody : SolverBodies)
 		{
-			SolverBody.GetSolverBody().ApplyCorrections();
+			SolverBody.ApplyCorrections();
 		}
 	}
 
 	void FSolverBodyContainer::UpdateRotationDependentState()
 	{
-		for (FSolverBodyAdapter& SolverBody : SolverBodies)
+		for (FSolverBody& SolverBody : SolverBodies)
 		{
-			SolverBody.GetSolverBody().UpdateRotationDependentState();
+			SolverBody.UpdateRotationDependentState();
 		}
 	}
 

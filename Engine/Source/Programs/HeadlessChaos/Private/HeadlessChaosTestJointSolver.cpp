@@ -45,8 +45,8 @@ namespace ChaosTest
 
 		FJointSolverTest()
 			: Solver()
-			, Body0()
-			, Body1()
+			, Body0(FSolverBody::MakeInitialized())
+			, Body1(FSolverBody::MakeInitialized())
 			, NumPairIts(1)
 			, Gravity(FVec3(0))
 			, Mass0(0)

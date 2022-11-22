@@ -3,6 +3,7 @@
 
 #include "Chaos/Collision/CollisionDetector.h"
 #include "Chaos/Collision/ParticlePairBroadPhase.h"
+#include "Chaos/PBDCollisionConstraints.h"
 
 #include "Chaos/ChaosPerfTest.h"
 #include "ChaosStats.h"
@@ -34,10 +35,8 @@ namespace Chaos
 
 			CollisionContainer.BeginDetectCollisions();
 
-			FCollisionConstraintAllocator& Allocator = GetCollisionContainer().GetConstraintAllocator();
-
 			// Collision detection pipeline: BroadPhase -> MidPhase ->NarrowPhase -> Container
-			BroadPhase.ProduceOverlaps(Dt, &Allocator, GetSettings());
+			BroadPhase.ProduceOverlaps(Dt, &GetCollisionContainer().GetConstraintAllocator(), GetCollisionContainer().GetDetectorSettings());
 
 			CollisionContainer.EndDetectCollisions();
 		}

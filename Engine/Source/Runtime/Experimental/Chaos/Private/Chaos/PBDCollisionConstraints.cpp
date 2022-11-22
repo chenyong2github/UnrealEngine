@@ -7,6 +7,7 @@
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CollisionPruning.h"
+#include "Chaos/Collision/PBDCollisionSolver.h"
 #include "Chaos/Collision/SolverCollisionContainer.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
@@ -20,9 +21,6 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Algo/Sort.h"
 #include "Algo/StableSort.h"
-
-// Private includes
-#include "Collision/PBDCollisionSolver.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -119,6 +117,9 @@ namespace Chaos
 		, GravitySize(980)
 		, SolverSettings()
 	{
+		// Unfortunately, but the collision it creates need to know what container they belong to,
+		// but otherwise the allocator doesn't really need to know about the container...
+		ConstraintAllocator.SetCollisionContainer(this);
 	}
 
 	FPBDCollisionConstraints::~FPBDCollisionConstraints()
@@ -289,25 +290,13 @@ namespace Chaos
 		ConstraintAllocator.EndDetectCollisions();
 
 		// Disable any edge collisions that are hidden by face collisions
+		// (for bodies that have the EdgePruning option enabled)
 		PruneEdgeCollisions();
 
+		// @todo(chaos): this should be required any more - we sort when adding to the graph. Test and remove...
 		if (bIsDeterministic)
 		{
 			ConstraintAllocator.SortConstraintsHandles();
-		}
-
-		// Bind the constraints to this container and initialize other properties
-		// @todo(chaos): this could be set on creation if the midphase knew about the container
-		for (FPBDCollisionConstraint* Contact : GetConstraints())
-		{
-			if (Contact->GetContainer() == nullptr)
-			{
-				Contact->SetContainer(this);
-				UpdateConstraintMaterialProperties(*Contact);
-			}
-
-			// Reset constraint modifications and accumulators
-			Contact->Activate();
 		}
 	}
 

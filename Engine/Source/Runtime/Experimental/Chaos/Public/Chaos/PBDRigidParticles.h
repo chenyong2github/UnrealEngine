@@ -23,17 +23,15 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	friend class TPBDRigidsEvolution<T, d>;
 
   public:
-    using TRigidParticles<T, d>::Sleeping;
+	using TRigidParticles<T, d>::CenterOfMass;
+	using TRigidParticles<T, d>::RotationOfMass;
+	using TRigidParticles<T, d>::Sleeping;
 
 	CHAOS_API TPBDRigidParticles()
 	    : TRigidParticles<T, d>()
 	{
 		this->MParticleType = EParticleType::Rigid;
-		TArrayCollection::AddArray(&MP);
-		TArrayCollection::AddArray(&MQ);
-		TArrayCollection::AddArray(&MPreV);
-		TArrayCollection::AddArray(&MPreW);
-		TArrayCollection::AddArray(&MSolverBodyIndex);
+		RegisterArrays();
 	}
 	TPBDRigidParticles(const TPBDRigidParticles<T, d>& Other) = delete;
 	CHAOS_API TPBDRigidParticles(TPBDRigidParticles<T, d>&& Other)
@@ -45,6 +43,15 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		, MSolverBodyIndex(MoveTemp(Other.MSolverBodyIndex))
 	{
 		this->MParticleType = EParticleType::Rigid;
+		RegisterArrays();
+	}
+
+	CHAOS_API virtual ~TPBDRigidParticles()
+	{
+	}
+
+	void RegisterArrays()
+	{
 		TArrayCollection::AddArray(&MP);
 		TArrayCollection::AddArray(&MQ);
 		TArrayCollection::AddArray(&MPreV);
@@ -52,12 +59,9 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		TArrayCollection::AddArray(&MSolverBodyIndex);
 	}
 
-	CHAOS_API virtual ~TPBDRigidParticles()
-	{}
-
 	FORCEINLINE const TVector<T, d>& P(const int32 index) const { return MP[index]; }
 	FORCEINLINE TVector<T, d>& P(const int32 index) { return MP[index]; }
-	
+
 	FORCEINLINE const TRotation<T, d>& Q(const int32 index) const { return MQ[index]; }
 	FORCEINLINE TRotation<T, d>& Q(const int32 index) { return MQ[index]; }
 
@@ -66,6 +70,20 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 
 	CHAOS_API const TVector<T, d>& PreW(const int32 index) const { return MPreW[index]; }
 	CHAOS_API TVector<T, d>& PreW(const int32 index) { return MPreW[index]; }
+
+	// World-space center of mass location
+	CHAOS_API const TVector<T, d> XCom(const int32 index) const { return this->X(index) + this->R(index).RotateVector(CenterOfMass(index)); }
+	CHAOS_API const TVector<T, d> PCom(const int32 index) const { return this->P(index) + this->Q(index).RotateVector(CenterOfMass(index)); }
+
+	// World-space center of mass rotation
+	CHAOS_API const TRotation<T, d> RCom(const int32 index) const { return this->R(index) * RotationOfMass(index); }
+	CHAOS_API const TRotation<T, d> QCom(const int32 index) const { return this->Q(index) * RotationOfMass(index); }
+
+	void SetTransformPQCom(const int32 index, const TVector<T, d>& InPCom, const TRotation<T, d>& InQCom)
+	{
+		Q(index) = InQCom * RotationOfMass(index).Inverse();
+		P(index) = InPCom - Q(index) * CenterOfMass(index);
+	}
 
 	// The index into an FSolverBodyContainer (for dynamic particles only), or INDEX_NONE.
 	// \see FSolverBodyContainer
@@ -190,9 +208,16 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		Ar << MP << MQ << MPreV << MPreW;
 	}
 
+	UE_DEPRECATED(5.3, "To be removed")
 	FORCEINLINE TArray<TVector<T, d>>& AllP() { return MP; }
+
+	UE_DEPRECATED(5.3, "To be removed")
 	FORCEINLINE TArray<TRotation<T, d>>& AllQ() { return MQ; }
+	
+	UE_DEPRECATED(5.3, "To be removed")
 	FORCEINLINE TArray<TVector<T, d>>& AllPreV() { return MPreV; }
+	
+	UE_DEPRECATED(5.3, "To be removed")
 	FORCEINLINE TArray<TVector<T, d>>& AllPreW() { return MPreW; }
 
   private:

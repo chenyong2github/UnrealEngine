@@ -92,7 +92,7 @@ namespace Chaos
 
 	void FPBDConstraintGroupSolver::GatherBodies(const FReal Dt)
 	{
-		SolverBodyContainer.GatherInput(Dt, 0, SolverBodyContainer.NumItems());
+		SolverBodyContainer.GatherInput(Dt, 0, SolverBodyContainer.Num());
 	}
 
 	void FPBDConstraintGroupSolver::GatherConstraints(const FReal Dt)
@@ -160,7 +160,7 @@ namespace Chaos
 
 	void FPBDConstraintGroupSolver::ScatterBodies(const FReal Dt)
 	{
-		SolverBodyContainer.ScatterOutput();
+		SolverBodyContainer.ScatterOutput(0, SolverBodyContainer.Num());
 	}
 
 	void FPBDConstraintGroupSolver::ScatterConstraints(const FReal Dt)

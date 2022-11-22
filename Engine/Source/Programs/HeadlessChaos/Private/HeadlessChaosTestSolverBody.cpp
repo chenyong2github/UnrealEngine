@@ -25,7 +25,7 @@ namespace ChaosTest
 		const FReal M0 = 100.0f;
 		const FReal I0 = M0 * 1000.0f;
 
-		FSolverBody SolverBody0;
+		FSolverBody SolverBody0 = FSolverBody::MakeInitialized();
 		SolverBody0.SetX(X0);
 		SolverBody0.SetP(X0);
 		SolverBody0.SetInvM(1.0f / M0);

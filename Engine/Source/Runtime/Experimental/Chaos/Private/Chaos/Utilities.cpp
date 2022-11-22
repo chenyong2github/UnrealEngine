@@ -147,6 +147,12 @@ namespace Chaos
 		return R1.GetNormalized();
 	}
 
+	TRotation<FRealSingle, 3> TRotation<FRealSingle, 3>::IntegrateRotationWithAngularVelocity(const TRotation<FRealSingle, 3>& InR0, const TVector<FRealSingle, 3>& InW, const FRealSingle InDt)
+	{
+		TRotation<FRealSingle, 3> R1 = InR0 + (TRotation<FRealSingle, 3>::FromElements(InW.X, InW.Y, InW.Z, 0.f) * InR0) * decltype(InR0.X)(InDt * 0.5f);
+		return R1.GetNormalized();
+	}
+
 namespace Utilities
 {
 	FReal GetSolverPhysicsResultsTime(FPhysicsSolverBase* Solver)

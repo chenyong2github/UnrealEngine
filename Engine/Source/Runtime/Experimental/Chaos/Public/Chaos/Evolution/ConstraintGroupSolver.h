@@ -30,7 +30,7 @@ namespace Chaos
 		*/
 		inline int32 GetNumSolverBodies() const
 		{
-			return SolverBodyContainer.NumItems();
+			return SolverBodyContainer.Num();
 		}
 
 		/**

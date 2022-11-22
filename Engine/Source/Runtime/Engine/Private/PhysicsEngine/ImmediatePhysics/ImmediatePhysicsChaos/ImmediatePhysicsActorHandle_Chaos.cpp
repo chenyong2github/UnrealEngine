@@ -141,11 +141,7 @@ namespace ImmediatePhysics_Chaos
 		AddParams.Scale = Scale;
 		//AddParams.SimpleMaterial = SimpleMaterial;
 		//AddParams.ComplexMaterials = TArrayView<UPhysicalMaterial*>(ComplexMaterials);
-#if CHAOS_PARTICLE_ACTORTRANSFORM
 		AddParams.LocalTransform = FTransform::Identity;
-#else
-		AddParams.LocalTransform = FRigidTransform3(OutCoMTransform.GetRotation().Inverse() * -OutCoMTransform.GetTranslation(), OutCoMTransform.GetRotation().Inverse());
-#endif
 		AddParams.WorldTransform = BodyInstance->GetUnrealWorldTransform();
 		AddParams.Geometry = &BodySetup->AggGeom;
 		AddParams.ChaosTriMeshes = MakeArrayView(BodySetup->ChaosTriMeshes);
@@ -353,7 +349,8 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		FParticleUtilitiesXR::SetActorWorldTransform(FGenericParticleHandle(ParticleHandle), WorldTM);
+		ParticleHandle->X() = WorldTM.GetTranslation();
+		ParticleHandle->R() = WorldTM.GetRotation();
 
 		auto* Dynamic = ParticleHandle->CastToRigidParticle();
 		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)

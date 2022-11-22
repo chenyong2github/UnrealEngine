@@ -62,10 +62,10 @@ namespace Chaos
 		if (FPBDRigidParticleHandle* Rigid = Particle->CastToRigidParticle())
 		{
 			// Use PQ for rigids.
-			return Constraint->GetShapeRelativeTransform(ParticleIdx) * FParticleUtilitiesPQ::GetActorWorldTransform(Rigid);
+			return Constraint->GetShapeRelativeTransform(ParticleIdx) * Rigid->GetTransformPQ();
 		}
 
-		return Constraint->GetShapeRelativeTransform(ParticleIdx) * FParticleUtilitiesXR::GetActorWorldTransform(Particle);
+		return Constraint->GetShapeRelativeTransform(ParticleIdx) * Particle->GetTransformXR();
 	}
 
 	FReal FContactPairModifier::GetSeparation(int32 ContactPointIdx) const
@@ -153,6 +153,8 @@ namespace Chaos
 
 		// Clear the friction data since it will now have the wrong contact positions
 		// @todo(chaos): maybe try to do something better here
+		ManifoldPoint.ShapeAnchorPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
+		ManifoldPoint.ShapeAnchorPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
 		Constraint->ResetSavedManifoldPoints();
 
 		Modifier->MarkConstraintForManifoldUpdate(*Constraint);
@@ -297,8 +299,8 @@ namespace Chaos
 
 	void FContactPairModifier::UpdateConstraintShapeTransforms()
 	{
-		const FRigidTransform3 ShapeWorldTransform0 = Constraint->GetShapeRelativeTransform0() * FParticleUtilitiesPQ::GetActorWorldTransform(FConstGenericParticleHandle(Constraint->GetParticle0()));
-		const FRigidTransform3 ShapeWorldTransform1 = Constraint->GetShapeRelativeTransform1() * FParticleUtilitiesPQ::GetActorWorldTransform(FConstGenericParticleHandle(Constraint->GetParticle1()));
+		const FRigidTransform3 ShapeWorldTransform0 = Constraint->GetShapeRelativeTransform0() * FConstGenericParticleHandle(Constraint->GetParticle0())->GetTransformPQ();
+		const FRigidTransform3 ShapeWorldTransform1 = Constraint->GetShapeRelativeTransform1() * FConstGenericParticleHandle(Constraint->GetParticle1())->GetTransformPQ();
 		Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 	}
 

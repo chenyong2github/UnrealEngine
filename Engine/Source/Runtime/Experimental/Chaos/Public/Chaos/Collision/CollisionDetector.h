@@ -14,39 +14,29 @@ namespace Chaos
 	{
 	public:
 		FCollisionDetector(FPBDCollisionConstraints& InCollisionContainer)
-			: Settings()
-			, CollisionContainer(InCollisionContainer)
+			: CollisionContainer(InCollisionContainer)
 		{
 		}
 
 		virtual ~FCollisionDetector() {}
 
-		const FCollisionDetectorSettings& GetSettings() const
-		{
-			return Settings;
-		}
+		UE_DEPRECATED(5.3, "Moved to FPBDCollisionConstraints")
+		const FCollisionDetectorSettings& GetSettings() const;
 
-		void SetSettings(const FCollisionDetectorSettings& InSettings)
-		{
-			Settings = InSettings;
-		}
+		UE_DEPRECATED(5.3, "Moved to FPBDCollisionConstraints")
+		void SetSettings(const FCollisionDetectorSettings& InSettings);
 
-		void SetBoundsExpansion(const FReal InBoundsExpansion)
-		{
-			Settings.BoundsExpansion = InBoundsExpansion;
-		}
+		UE_DEPRECATED(5.3, "Moved to FPBDCollisionConstraints and renamed to SetCullDistance")
+		void SetBoundsExpansion(const FReal InBoundsExpansion);
 
-		void SetBoundsVelocityInflation(const FReal InBoundsVelocityInflation)
-		{
-			Settings.BoundsVelocityInflation = InBoundsVelocityInflation;
-		}
+		UE_DEPRECATED(5.3, "No longer supported")
+		void SetBoundsVelocityInflation(const FReal InBoundsVelocityInflation) {}
 
 		FPBDCollisionConstraints& GetCollisionContainer() { return CollisionContainer; }
 
 		virtual void DetectCollisions(const FReal Dt, FEvolutionResimCache* ResimCache) = 0;
 
 	protected:
-		FCollisionDetectorSettings Settings;
 		FPBDCollisionConstraints& CollisionContainer;
 	};
 

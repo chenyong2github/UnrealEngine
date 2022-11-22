@@ -14,7 +14,6 @@
 // Set to 1 to force single precision in the constraint solver, even if the default numeric type is double
 #define CHAOS_CONSTRAINTSOLVER_LOWPRECISION 1
 
-
 // Add some NaN checking when CHAOS_CONSTRAINTSOLVER_NAN_DIAGNOSTIC is defined
 #if CHAOS_CONSTRAINTSOLVER_NAN_DIAGNOSTIC
 inline void ChaosSolverCheckNaN(const Chaos::FRealSingle& V) { ensure(!FMath::IsNaN(V)); }
@@ -43,6 +42,7 @@ namespace Chaos
 	using SolverVectorRegister = VectorRegister4;
 #endif
 	using FSolverVec3 = TVec3<FSolverReal>;
+	using FSolverRotation3 = TRotation3<FSolverReal>;
 	using FSolverMatrix33 = TMatrix33<FSolverReal>;
 
 	class FSolverBody;
@@ -100,10 +100,37 @@ namespace Chaos
 	public:
 
 		/**
-		 * @brief Create an empty solver body
-		 * @note This is only used by unit tests
+		 * A factory method to create a safely initialized Solverbody. 
+		 * The defaultconstructor assumes you are going to set all properties manually.
+		 */
+		static FSolverBody MakeInitialized()
+		{
+			FSolverBody SolverBody;
+			SolverBody.State.Init();
+			return SolverBody;
+		}
+
+		/**
+		 * Create an empty solver body. All properties are uninitialized.
 		*/
-		FSolverBody();
+		static FSolverBody MakeUninitialized()
+		{
+			return FSolverBody();
+		}
+
+		/**
+		 * Create an empty solver body. All properties are uninitialized.
+		*/
+		FSolverBody() {}
+
+		/**
+		 * Reset the solver accumulators
+		 */
+		void Reset()
+		{
+			State.DP = FSolverVec3(0);
+			State.DQ = FSolverVec3(0);
+		}
 
 		/**
 		 * @brief Calculate and set the velocity and angular velocity from the net transform delta
@@ -197,21 +224,21 @@ namespace Chaos
 		/**
 		 * @brief World-space center of mass velocity
 		*/
-		inline const FVec3& V() const { return State.V; }
+		inline const FSolverVec3& V() const { return State.V; }
 		inline void SetV(const FVec3& InV)
 		{ 
 			ChaosSolverCheckNaN(InV);
-			State.V = InV;
+			State.V = FSolverVec3(InV);
 		}
 
 		/**
 		 * @brief World-space center of mass angular velocity
 		*/
-		inline const FVec3& W() const { return State.W; }
+		inline const FSolverVec3& W() const { return State.W; }
 		inline void SetW(const FVec3& InW)
 		{
 			ChaosSolverCheckNaN(InW);
-			State.W = InW;
+			State.W = FSolverVec3(InW);
 		}
 
 		inline const FVec3& CoM() const { return State.CoM; }
@@ -258,7 +285,7 @@ namespace Chaos
 		/**
 		 * @brief Get the world-space Actor position 
 		*/
-		inline FVec3 ActorP() const { return P() - ActorQ().RotateVector(CoM()); }
+		inline FVec3 ActorP() const { return P() - FVec3(ActorQ().RotateVector(CoM())); }
 
 		/**
 		 * @brief Get the world-space Actor rotation 
@@ -331,7 +358,7 @@ namespace Chaos
 		inline void ApplyLinearVelocityDelta(const FSolverVec3& DV)
 		{
 			ChaosSolverCheckNaN(DV);
-			State.V += FVec3(DV);
+			State.V += DV;
 		}
 
 		/**
@@ -364,21 +391,25 @@ namespace Chaos
 		struct FState
 		{
 			FState()
-				: InvILocal(0)
-				, InvM(0)
-				, InvI(0)
-				, DP(0)
-				, DQ(0)
-				, Level(0)
-				, X(0)
-				, R(FRotation3::Identity)
-				, P(0)
-				, Q(FRotation3::Identity)
-				, V(0)
-				, W(0)
-				, CoM(0)
-				, RoM(FRotation3::Identity)
 			{}
+
+			void Init()
+			{
+				InvILocal = FSolverVec3(0);
+				InvM = 0;
+				InvI = FSolverMatrix33(0);
+				DP = FSolverVec3(0);
+				DQ = FSolverVec3(0);
+				Level = 0;
+				X = FVec3(0);
+				R = FRotation3::FromIdentity();
+				P = FVec3(0);
+				Q = FRotation3::FromIdentity();
+				V = FSolverVec3(0);
+				W = FSolverVec3(0);
+				CoM = FVec3(0);
+				RoM = FRotation3::FromIdentity();
+			}
 
 			// Local-space inverse inertia (diagonal, so only 3 elements)
 			FSolverVec3 InvILocal;
@@ -412,10 +443,10 @@ namespace Chaos
 			FRotation3 Q;
 
 			// World-space center of mass velocity
-			FVec3 V;
+			FSolverVec3 V;
 
 			// World-space center of mass angular velocity
-			FVec3 W;
+			FSolverVec3 W;
 
 			// Actor-space center of mass location
 			FVec3 CoM;
@@ -452,12 +483,6 @@ namespace Chaos
 		{
 		}
 
-		FConstraintSolverBody(FSolverBody& InBody, FReal InInvMassScale)
-			: Body(&InBody)
-		{
-			SetInvMScale(InInvMassScale);
-		}
-
 		/**
 		 * @brief True if we have been set up to decorate a SolverBody
 		*/
@@ -467,6 +492,20 @@ namespace Chaos
 		 * @brief Invalidate the solver body reference
 		*/
 		inline void Reset() { Body = nullptr; }
+
+		/**
+		 * @brief Initialize all properties to safe values
+		*/
+		void Init() { State.Init(); }
+
+		/**
+		 * @brief Set the inner solver body (hold by reference)
+		 * @note Does not initialize any other properties
+		*/
+		void SetSolverBody(FSolverBody& InSolverBody)
+		{
+			Body = &InSolverBody;
+		}
 
 		/**
 		 * @brief The decorated SolverBody
@@ -527,8 +566,8 @@ namespace Chaos
 		inline const FRotation3 ActorQ() const { return Body->ActorQ(); }
 		inline const FVec3 CorrectedActorP() const { return Body->CorrectedActorP(); }
 		inline const FRotation3 CorrectedActorQ() const { return Body->CorrectedActorQ(); }
-		inline const FVec3& V() const { return Body->V(); }
-		inline const FVec3& W() const { return Body->W(); }
+		inline const FSolverVec3& V() const { return Body->V(); }
+		inline const FSolverVec3& W() const { return Body->W(); }
 		inline int32 Level() const { return Body->Level(); }
 		inline const FSolverVec3& DP() const { return Body->DP(); }
 		inline const FSolverVec3& DQ() const { return Body->DQ(); }
@@ -549,10 +588,16 @@ namespace Chaos
 		struct FState
 		{
 			FState() 
-				: InvMScale(FSolverReal(1))
-				, InvIScale(FSolverReal(1))
-				, ShockPropagationScale(FSolverReal(1))
-			{}
+			{
+			}
+
+			void Init()
+			{
+				InvMScale = FSolverReal(1);
+				InvIScale = FSolverReal(1);
+				ShockPropagationScale = FSolverReal(1);
+			}
+
 			FSolverReal InvMScale;
 			FSolverReal InvIScale;
 			FSolverReal ShockPropagationScale;

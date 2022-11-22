@@ -7,10 +7,6 @@
 namespace Chaos
 {
 
-	FSolverBody::FSolverBody()
-	{
-	}
-
 	void FSolverBody::UpdateRotationDependentState()
 	{
 		if (IsDynamic())

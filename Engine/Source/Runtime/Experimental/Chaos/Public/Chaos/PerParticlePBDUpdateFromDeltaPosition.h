@@ -35,27 +35,19 @@ class FPerParticlePBDUpdateFromDeltaPosition : public FPerParticleRule
 
 	inline void Apply(FPBDRigidParticleHandle* Particle, const FReal Dt) const override //-V762
 	{
-#if CHAOS_PARTICLE_ACTORTRANSFORM
 		const FVec3& CenterOfMass = Particle->CenterOfMass();
-		const FVec3 CenteredX = Particle->X() + Particle->R().RotateVector(CenterOfMass);
-		const FVec3 CenteredP = Particle->P() + Particle->Q().RotateVector(CenterOfMass);
+		const FVec3 CenteredX = Particle->XCom();
+		const FVec3 CenteredP = Particle->PCom();
 		Particle->V() = FVec3::CalculateVelocity(CenteredX, CenteredP, Dt);
-#else
-		Particle->V() = FVec3::CalculateVelocity(Particle->X(), Particle->P(), Dt);
-#endif
 		Particle->W() = FRotation3::CalculateAngularVelocity(Particle->R(), Particle->Q(), Dt);
 	}
 
 	inline void Apply(TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const FReal Dt) const override //-V762
 	{
-#if CHAOS_PARTICLE_ACTORTRANSFORM
 		const FVec3& CenterOfMass = Particle.CenterOfMass();
-		const FVec3 CenteredX = Particle.X() + Particle.R().RotateVector(CenterOfMass);
-		const FVec3 CenteredP = Particle.P() + Particle.Q().RotateVector(CenterOfMass);
+		const FVec3 CenteredX = Particle.XCom();
+		const FVec3 CenteredP = Particle.PCom();
 		Particle.V() = FVec3::CalculateVelocity(CenteredX, CenteredP, Dt);
-#else
-		Particle.V() = FVec3::CalculateVelocity(Particle.X(), Particle.P(), Dt);
-#endif
 		Particle.W() = FRotation3::CalculateAngularVelocity(Particle.R(), Particle.Q(), Dt);
 	}
 };

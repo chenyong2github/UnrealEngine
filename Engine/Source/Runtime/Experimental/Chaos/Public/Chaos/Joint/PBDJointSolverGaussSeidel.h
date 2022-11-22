@@ -92,12 +92,12 @@ namespace Chaos
 			return Body(BodyIndex).CorrectedQ();
 		}
 
-		inline const FVec3& V(int BodyIndex) const
+		inline FVec3 V(int BodyIndex) const
 		{
 			return Body(BodyIndex).V();
 		}
 
-		inline const FVec3& W(int BodyIndex) const
+		inline FVec3 W(int BodyIndex) const
 		{
 			return Body(BodyIndex).W();
 		}

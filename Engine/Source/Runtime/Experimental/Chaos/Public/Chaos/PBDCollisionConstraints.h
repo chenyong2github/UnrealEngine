@@ -253,6 +253,18 @@ public:
 
 	const FPBDCollisionSolverSettings& GetSolverSettings() const { return SolverSettings; }
 
+	const FCollisionDetectorSettings& GetDetectorSettings() const { return DetectorSettings; }
+
+	void SetDetectorSettings(const FCollisionDetectorSettings& InSettings)
+	{
+		DetectorSettings = InSettings;
+	}
+
+	void SetCullDistance(const FReal InCullDistance)
+	{
+		DetectorSettings.BoundsExpansion = InCullDistance;
+	}
+
 protected:
 	FPBDCollisionConstraint& GetConstraint(int32 Index);
 
@@ -290,6 +302,9 @@ private:
 
 	// Settings for the low-level collision solvers
 	FPBDCollisionSolverSettings SolverSettings;
+
+	// Settings for collision detection
+	FCollisionDetectorSettings DetectorSettings;
 };
 
 //

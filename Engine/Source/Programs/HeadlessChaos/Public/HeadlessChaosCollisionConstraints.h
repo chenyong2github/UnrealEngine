@@ -45,7 +45,7 @@ public:
 	{
 		CollisionConstraints.SetContainerId(0);
 
-		CollisionDetector.SetBoundsExpansion(FReal(1));
+		CollisionConstraints.SetCullDistance(FReal(1));
 
 		ConstraintSolver.SetConstraintSolver(CollisionConstraints.GetContainerId(), CollisionConstraints.CreateSceneSolver(0));
 	}
@@ -61,7 +61,7 @@ public:
 	{
 		CollisionConstraints.SetContainerId(0);
 
-		CollisionDetector.SetBoundsExpansion(FReal(1));
+		CollisionConstraints.SetCullDistance(FReal(1));
 
 		ConstraintSolver.SetConstraintSolver(CollisionConstraints.GetContainerId(), CollisionConstraints.CreateSceneSolver(0));
 	}
@@ -72,11 +72,11 @@ public:
 	{
 		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(&SpatialAcceleration);
 
-		FCollisionDetectorSettings DetectorSettings = CollisionDetector.GetSettings();
+		FCollisionDetectorSettings DetectorSettings = CollisionConstraints.GetDetectorSettings();
 		DetectorSettings.bFilteringEnabled = true;
 		DetectorSettings.bDeferNarrowPhase = false;
 		DetectorSettings.bAllowManifolds = true;
-		CollisionDetector.SetSettings(DetectorSettings);
+		CollisionConstraints.SetDetectorSettings(DetectorSettings);
 		
 		CollisionDetector.DetectCollisions(Dt, nullptr);
 		

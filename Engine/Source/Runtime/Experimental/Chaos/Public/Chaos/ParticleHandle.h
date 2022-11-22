@@ -497,6 +497,15 @@ public:
 	TRotation<T, d>& R() { return GeometryParticles->R(ParticleIdx); }
 	void SetR(const TRotation<T, d>& InR, bool bInvalidate = false) { GeometryParticles->R(ParticleIdx) = InR; }
 
+	FRigidTransform3 GetTransformXR() const { return FRigidTransform3(X(), R()); }
+
+	// Initialize the transform
+	void InitTransform(const FVec3& InP, const FRotation3& InQ)
+	{
+		SetX(InP);
+		SetR(InQ);
+	}
+
 	void SetXR(const FParticlePositionRotation& XR);
 	
 	void SetNonFrequentData(const FParticleNonFrequentData& InData)
@@ -830,16 +839,18 @@ template <typename T, int d, bool bPersistent>
 class TPBDRigidParticleHandleImp : public TKinematicGeometryParticleHandleImp<T, d, bPersistent>
 {
 public:
+	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleCollisions;
+	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleConstraints;
 	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleIdx;
 	using TGeometryParticleHandleImp<T, d, bPersistent>::PBDRigidParticles;
-	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleConstraints;
-	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleCollisions;
+	using TGeometryParticleHandleImp<T, d, bPersistent>::SetX;
+	using TGeometryParticleHandleImp<T, d, bPersistent>::SetR;
+	using TGeometryParticleHandleImp<T, d, bPersistent>::Type;
 	using TKinematicGeometryParticleHandleImp<T, d, bPersistent>::V;
 	using TKinematicGeometryParticleHandleImp<T, d, bPersistent>::W;
-	using TGeometryParticleHandleImp<T, d, bPersistent>::Type;
+
 	using TTransientHandle = TTransientPBDRigidParticleHandle<T, d>;
 	using TSOAType = TPBDRigidParticles<T, d>;
-	using TGeometryParticleHandleImp<T, d, bPersistent>::SetXR;
 
 protected:
 	friend class TGeometryParticleHandleImp<T, d, bPersistent>;
@@ -931,6 +942,32 @@ public:
 	const TRotation<T, d>& Q() const { return PBDRigidParticles->Q(ParticleIdx); }
 	TRotation<T, d>& Q() { return PBDRigidParticles->Q(ParticleIdx); }
 	void SetQ(const TRotation<T, d>& InQ) { PBDRigidParticles->Q(ParticleIdx) = InQ; }
+
+	// World-space center of mass position
+	const TVector<T, d> XCom() const { return PBDRigidParticles->XCom(ParticleIdx); }
+	const TVector<T, d> PCom() const { return PBDRigidParticles->PCom(ParticleIdx); }
+
+	// World-space center of mass rotation
+	const TRotation<T, d> RCom() const { return PBDRigidParticles->RCom(ParticleIdx); }
+	const TRotation<T, d> QCom() const { return PBDRigidParticles->QCom(ParticleIdx); }
+
+	// Initialize the transform (sets X,R and  P,Q)
+	void InitTransform(const FVec3& InP, const FRotation3& InQ)
+	{
+		SetX(InP);
+		SetR(InQ);
+		SetP(InP);
+		SetQ(InQ);
+	}
+
+	// Set world-space center of mass transform
+	void SetTransformPQCom(const TVector<T, d>& InPCom, const TRotation<T, d>& InQCom) { PBDRigidParticles->SetTransformPQCom(ParticleIdx, InPCom, InQCom); }
+
+	FRigidTransform3 GetTransformPQ() const { return FRigidTransform3(P(), Q()); }
+
+	FRigidTransform3 GetTransformXRCom() const { return FRigidTransform3(XCom(), RCom()); }
+
+	FRigidTransform3 GetTransformPQCom() const { return FRigidTransform3(PCom(), QCom()); }
 
 	const TVector<T, d>& VSmooth() const { return PBDRigidParticles->VSmooth(ParticleIdx); }
 	TVector<T, d>& VSmooth() { return PBDRigidParticles->VSmooth(ParticleIdx); }
@@ -1532,7 +1569,7 @@ public:
 
 	FVec3& P()
 	{
-		if (IsDynamic())
+		if (MHandle->CastToRigidParticle())
 		{
 			return MHandle->CastToRigidParticle()->P();
 		}
@@ -1542,7 +1579,7 @@ public:
 
 	const FVec3& P() const
 	{
-		if (IsDynamic())
+		if (MHandle->CastToRigidParticle())
 		{
 			return MHandle->CastToRigidParticle()->P();
 		}
@@ -1552,7 +1589,7 @@ public:
 
 	FRotation3& Q()
 	{
-		if (IsDynamic())
+		if (MHandle->CastToRigidParticle())
 		{
 			return MHandle->CastToRigidParticle()->Q();
 		}
@@ -1562,12 +1599,101 @@ public:
 
 	const FRotation3& Q() const
 	{
-		if (IsDynamic())
+		if (MHandle->CastToRigidParticle())
 		{
 			return MHandle->CastToRigidParticle()->Q();
 		}
 
 		return R();
+	}
+
+	// World-space center of mass position
+	const FVec3 XCom() const
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->XCom();
+		}
+		return X();
+	}
+	const FVec3 PCom() const
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->PCom();
+		}
+		return X();
+	}
+
+	// World-space center of mass rotation
+	const FRotation3 RCom() const
+	{ 
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->RCom();
+		}
+		return R();
+	}
+	const FRotation3 QCom() const
+	{ 
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->QCom();
+		}
+		return R();
+	}
+
+	void InitTransform(const FVec3& InP, const FRotation3& InQ)
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			MHandle->CastToRigidParticle()->InitTransform(InP, InQ);
+		}
+		MHandle->InitTransform(InP, InQ);
+	}
+
+	void SetTransformPQCom(const FVec3& InPCom, const FRotation3& InQCom)
+	{ 
+		if (MHandle->CastToRigidParticle())
+		{
+			MHandle->CastToRigidParticle()->SetTransformPQCom(InPCom, InQCom);
+		}
+		else
+		{
+			SetTransform(InPCom, InQCom);
+		}
+	}
+
+	FRigidTransform3 GetTransformXR() const
+	{
+		return MHandle->GetTransformXR();
+	}
+
+	FRigidTransform3 GetTransformPQ() const
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->GetTransformPQ();
+		}
+		return MHandle->GetTransformXR();
+	}
+
+	FRigidTransform3 GetTransformXRCom() const
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->GetTransformXRCom();
+		}
+		return GetTransformXR();
+	}
+
+	FRigidTransform3 GetTransformPQCom() const
+	{
+		if (MHandle->CastToRigidParticle())
+		{
+			return MHandle->CastToRigidParticle()->GetTransformPQCom();
+		}
+		return GetTransformXR();
 	}
 
 	const FVec3& VSmooth() const

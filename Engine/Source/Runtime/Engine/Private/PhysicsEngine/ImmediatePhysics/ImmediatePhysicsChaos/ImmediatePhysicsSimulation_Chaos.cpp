@@ -48,7 +48,6 @@ int32 ChaosImmediate_Evolution_VelocityIterations = -1;
 int32 ChaosImmediate_Evolution_ProjectionIterations = -1;
 int32 ChaosImmediate_Evolution_Iterations = -1;				// Legacy
 int32 ChaosImmediate_Evolution_PushOutIterations = -1;		// Legacy
-Chaos::FRealSingle ChaosImmediate_Evolution_BoundsExtension = 0.0f;
 int32 ChaosImmediate_DisableInactiveByIndex = 1;
 int32 ChaosImmediate_Evolution_NumCollisionsPerBlock = 50;
 FAutoConsoleVariableRef CVarChaosImmPhysStepTime(TEXT("p.Chaos.ImmPhys.StepTime"), ChaosImmediate_Evolution_StepTime, TEXT("Override step time (if not zero)"));
@@ -60,7 +59,6 @@ FAutoConsoleVariableRef CVarChaosImmPhysVelocityIterations(TEXT("p.Chaos.ImmPhys
 FAutoConsoleVariableRef CVarChaosImmPhysProjectionIterations(TEXT("p.Chaos.ImmPhys.ProjectionIterations"), ChaosImmediate_Evolution_ProjectionIterations, TEXT("Override number of projection iteration loops in immediate physics (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysIterations(TEXT("p.Chaos.ImmPhys.Iterations"), ChaosImmediate_Evolution_Iterations, TEXT("[Legacy Solver] Override number of constraint solver loops in immediate physics (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutIterations(TEXT("p.Chaos.ImmPhys.PushOutIterations"), ChaosImmediate_Evolution_PushOutIterations, TEXT("[Legacy Solver] Override number of solver push-out loops (if >= 0)"));
-FAutoConsoleVariableRef CVarChaosImmPhysBoundsExtension(TEXT("p.Chaos.ImmPhys.BoundsExtension"), ChaosImmediate_Evolution_BoundsExtension, TEXT("Bounds are grown by this fraction of their size (should be >= 0.0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysDisableInactiveByIndex(TEXT("p.Chaos.ImmPhys.DisableInactiveByIndex"), ChaosImmediate_DisableInactiveByIndex, TEXT("Disable bodies that are no longer active based on the index, rather than just count."));
 FAutoConsoleVariableRef CVarChaosImmPhysNumCollisionsPerBlock(TEXT("p.Chaos.ImmPhys.NumCollisionsPerBlock"), ChaosImmediate_Evolution_NumCollisionsPerBlock, TEXT("The number of collision in a block in the collision pool. Higher values give better cache efficieny but waste memory if you do not need that many"));
 
@@ -301,7 +299,7 @@ namespace ImmediatePhysics_Chaos
 			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, nullptr, ChaosImmediate_Evolution_NumCollisionsPerBlock, 2000)
 			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr)
 			, CollisionDetector(BroadPhase, Collisions)
-			, Evolution(Particles, ParticlePrevXs, ParticlePrevRs, CollisionDetector, FReal(0))
+			, Evolution(Particles, ParticlePrevXs, ParticlePrevRs, CollisionDetector)
 			, NumActiveDynamicActorHandles(0)
 			, SimulationSpace()
 			, RollingAverageStepTime(ChaosImmediate_Evolution_InitialStepTime)
@@ -377,13 +375,13 @@ namespace ImmediatePhysics_Chaos
 		// RBAN collision customization
 		Implementation->Collisions.DisableHandles();
 
-		FCollisionDetectorSettings DetectorSettings = Implementation->CollisionDetector.GetSettings();
+		FCollisionDetectorSettings DetectorSettings = Implementation->Collisions.GetDetectorSettings();
 		DetectorSettings.bFilteringEnabled = false;
 		DetectorSettings.bAllowManifoldReuse = false;
-		DetectorSettings.bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);;
-		DetectorSettings.bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);;
+		DetectorSettings.bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);
+		DetectorSettings.bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);
 		DetectorSettings.bAllowCCD = false; 
-		Implementation->CollisionDetector.SetSettings(DetectorSettings);
+		Implementation->Collisions.SetDetectorSettings(DetectorSettings);
 	}
 
 	FSimulation::~FSimulation()
@@ -760,7 +758,7 @@ namespace ImmediatePhysics_Chaos
 
 		if (CullDistance >= FReal(0))
 		{
-			Implementation->CollisionDetector.SetBoundsExpansion(CullDistance);
+			Implementation->Collisions.SetCullDistance(CullDistance);
 		}
 
 		if (MaxDepenetrationVelocity >= FReal(0))
@@ -871,14 +869,11 @@ namespace ImmediatePhysics_Chaos
 
 			Implementation->Evolution.SetConstraintContainerPriority(Implementation->Collisions.GetContainerId(), ChaosImmediate_Collision_Priority);
 
-			FCollisionDetectorSettings DetectorSettings = Implementation->CollisionDetector.GetSettings();
+			FCollisionDetectorSettings DetectorSettings = Implementation->Collisions.GetDetectorSettings();
 			DetectorSettings.bAllowManifoldReuse = false;
 			DetectorSettings.bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);;
 			DetectorSettings.bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);;
-			Implementation->CollisionDetector.SetSettings(DetectorSettings);
-
-			Implementation->Evolution.SetBoundsExtension(ChaosImmediate_Evolution_BoundsExtension);
-
+			Implementation->Collisions.SetDetectorSettings(DetectorSettings);
 
 			if (ChaosImmediate_Evolution_StepTime > 0)
 			{

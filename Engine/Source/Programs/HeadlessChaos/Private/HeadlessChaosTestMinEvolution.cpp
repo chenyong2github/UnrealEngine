@@ -48,7 +48,7 @@ namespace ChaosTest
 
 		// Evolution
 		// @todo(ccaulfield): this should start with some reasonable default iterations
-		FPBDMinEvolution Evolution(ParticlesContainer, ParticlePrevXs, ParticlePrevRs, CollisionDetector, 0);
+		FPBDMinEvolution Evolution(ParticlesContainer, ParticlePrevXs, ParticlePrevRs, CollisionDetector);
 		Evolution.SetNumPositionIterations(6);
 		Evolution.SetNumVelocityIterations(1);
 		Evolution.SetNumProjectionIterations(1);

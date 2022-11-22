@@ -101,6 +101,10 @@ namespace Chaos
 		// \todo(chaos): joint should support parent/child in either order
 		SolverBodies[0].SetInvMScale(JointSettings.ParentInvMassScale);
 		SolverBodies[1].SetInvMScale(FReal(1));
+		SolverBodies[0].SetInvIScale(JointSettings.ParentInvMassScale);
+		SolverBodies[1].SetInvIScale(FReal(1));
+		SolverBodies[0].SetShockPropagationScale(FReal(1));
+		SolverBodies[1].SetShockPropagationScale(FReal(1));
 
 		// Set the mass and inertia.
 		// If enabled, adjust the mass so that we limit the maximum mass and inertia ratios

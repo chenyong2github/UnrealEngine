@@ -29,24 +29,24 @@ class FPerParticlePBDEulerStep : public FPerParticleRule
 
 	inline void Apply(TPBDRigidParticles<FReal, 3>& InParticles, const FReal Dt, const int32 Index) const override //-V762
 	{
-		FVec3 PCoM = FParticleUtilitiesXR::GetCoMWorldPosition(InParticles, Index);
-		FRotation3 QCoM = FParticleUtilitiesXR::GetCoMWorldRotation(InParticles, Index);
+		FVec3 PCoM = InParticles.XCom(Index);
+		FRotation3 QCoM = InParticles.RCom(Index);
 
 		PCoM = PCoM + InParticles.V(Index) * Dt;
 		QCoM = FRotation3::IntegrateRotationWithAngularVelocity(QCoM, InParticles.W(Index), Dt);
 
-		FParticleUtilitiesPQ::SetCoMWorldTransform(InParticles, Index, PCoM, QCoM);
+		InParticles.SetTransformPQCom(Index, PCoM, QCoM);
 	}
 
 	inline void Apply(TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const FReal Dt) const override
 	{
-		FVec3 PCoM = FParticleUtilitiesXR::GetCoMWorldPosition(&Particle);
-		FRotation3 QCoM = FParticleUtilitiesXR::GetCoMWorldRotation(&Particle);
+		FVec3 PCoM = Particle.XCom();
+		FRotation3 QCoM = Particle.RCom();
 
 		PCoM = PCoM + Particle.V() * Dt;
 		QCoM = FRotation3::IntegrateRotationWithAngularVelocity(QCoM, Particle.W(), Dt);
 
-		FParticleUtilitiesPQ::SetCoMWorldTransform(&Particle, PCoM, QCoM);
+		Particle.SetTransformPQCom(PCoM, QCoM);
 	}
 };
 

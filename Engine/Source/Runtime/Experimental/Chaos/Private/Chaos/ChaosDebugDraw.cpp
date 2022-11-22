@@ -873,10 +873,13 @@ namespace Chaos
 					return;
 				}
 
-				for (const FManifoldPoint& ManifoldPoint : Contact.GetManifoldPoints())
+				for (int32 PointIndex = 0; PointIndex < Contact.NumManifoldPoints(); ++PointIndex)
 				{
+					const FManifoldPoint& ManifoldPoint = Contact.GetManifoldPoint(PointIndex);
+					const FManifoldPointResult& ManifoldPointResult = Contact.GetManifoldPointResult(PointIndex);
+
 					const bool bIsProbe = Contact.GetIsProbe();
-					const bool bIsActive = !ManifoldPoint.NetPushOut.IsNearlyZero() || !ManifoldPoint.NetImpulse.IsNearlyZero() || (!Contact.GetUseManifold() && !Contact.AccumulatedImpulse.IsNearlyZero());
+					const bool bIsActive = ManifoldPointResult.bIsValid && (!ManifoldPointResult.NetPushOut.IsNearlyZero() || !ManifoldPointResult.NetImpulse.IsNearlyZero() || (!Contact.GetUseManifold() && !Contact.AccumulatedImpulse.IsNearlyZero()));
 					if (!bIsActive && !bChaosDebugDebugDrawInactiveContacts)
 					{
 						continue;
@@ -903,7 +906,7 @@ namespace Chaos
 					FColor ImpulseColor = FColor(0, 0, 200);
 					FColor PushOutColor = FColor(0, 200, 0);
 					FColor PushOutImpusleColor = FColor(0, 200, 200);
-					if (ManifoldPoint.Flags.bInsideStaticFrictionCone)
+					if (ManifoldPointResult.bInsideStaticFrictionCone)
 					{
 						DiscColor = FColor(150, 200, 0);
 					}
@@ -932,15 +935,15 @@ namespace Chaos
 					const FMatrix Axes = FRotationMatrix::MakeFromX(WorldPlaneNormal);
 
 					// Pushout
-					if ((Settings.PushOutScale > 0) && !ManifoldPoint.NetPushOut.IsNearlyZero())
+					if ((Settings.PushOutScale > 0) && ManifoldPointResult.bIsValid && !ManifoldPointResult.NetPushOut.IsNearlyZero())
 					{
 						FColor Color = (ColorScale * PushOutImpusleColor).ToFColor(false);
-						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.PushOutScale * SpaceTransform.TransformVectorNoScale(FVec3(ManifoldPoint.NetPushOut)), Color, false, Duration, Settings.DrawPriority, Settings.LineThickness);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.PushOutScale * SpaceTransform.TransformVectorNoScale(FVec3(ManifoldPointResult.NetPushOut)), Color, false, Duration, Settings.DrawPriority, Settings.LineThickness);
 					}
-					if ((Settings.ImpulseScale > 0) && !ManifoldPoint.NetImpulse.IsNearlyZero())
+					if ((Settings.ImpulseScale > 0) && ManifoldPointResult.bIsValid && !ManifoldPointResult.NetImpulse.IsNearlyZero())
 					{
 						FColor Color = (ColorScale * ImpulseColor).ToFColor(false);
-						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.ImpulseScale * SpaceTransform.TransformVectorNoScale(FVec3(ManifoldPoint.NetImpulse)), Color, false, Duration, Settings.DrawPriority, Settings.LineThickness);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.ImpulseScale * SpaceTransform.TransformVectorNoScale(FVec3(ManifoldPointResult.NetImpulse)), Color, false, Duration, Settings.DrawPriority, Settings.LineThickness);
 					}
 
 					// Manifold plane and normal
@@ -963,15 +966,6 @@ namespace Chaos
 
 					// Manifold point
 					FDebugDrawQueue::GetInstance().DrawDebugCircle(WorldPointLocation, 0.5f * Settings.DrawScale * Settings.ContactWidth, 12, DiscColor, false, Duration, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
-
-					// Previous points
-					if (bIsActive && ManifoldPoint.Flags.bWasFrictionRestored)
-					{
-						const FVec3 WorldPrevPointLocation = SpaceTransform.TransformPosition(PointTransform.TransformPosition(FVec3(ManifoldPoint.ShapeAnchorPoints[ContactPointOwner])));
-						const FVec3 WorldPrevPlaneLocation = SpaceTransform.TransformPosition(PlaneTransform.TransformPosition(FVec3(ManifoldPoint.ShapeAnchorPoints[ContactPlaneOwner])));
-						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPointLocation, WorldPointLocation, FColor::White, false, Duration, Settings.DrawPriority, Settings.LineThickness);
-						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPlaneLocation, WorldPlaneLocation, FColor::White, false, Duration, Settings.DrawPriority, Settings.LineThickness);
-					}
 
 					// Whether restored
 					if (Settings.ContactInfoWidth > 0)
@@ -1039,7 +1033,12 @@ namespace Chaos
 				FConstGenericParticleHandle P0 = CCDParticle->Particle;
 				if (P0->IsDynamic() && P0->CCDEnabled())
 				{
-					const FRigidTransform3 ActorTransform0 = bShowStartPos ? FParticleUtilitiesXR::GetActorWorldTransform(P0): FParticleUtilitiesPQ::GetActorWorldTransform(P0);
+					FRigidTransform3 ActorTransform0 = P0->GetTransformPQ();
+					if (bShowStartPos)
+					{
+						// For CCD we want to see the initial position but with the latest rotation since that's what the sweep uses
+						ActorTransform0.SetTranslation(P0->X());
+					}
 					DrawShapesImpl(P0->Handle(), ActorTransform0 * SpaceTransform, P0->Geometry().Get(), FShapeOrShapesArray(P0->Handle()), 0.0f, ShapeColor, Duration, Settings);
 				}
 			}
@@ -1054,8 +1053,7 @@ namespace Chaos
 				{
 					if (!Impulse.IsNearlyZero() && (Settings.ImpulseScale > 0))
 					{
-						const FRigidTransform3 CoMTransformX0 = FParticleUtilitiesXR::GetCoMWorldTransform(P0);
-						const FVec3 Pos0 = SpaceTransform.TransformPosition(CoMTransformX0.GetTranslation());
+						const FVec3 Pos0 = SpaceTransform.TransformPosition(P0->PCom());
 						FDebugDrawQueue::GetInstance().DrawDebugLine(Pos0, Pos0 + Settings.ImpulseScale * Impulse, FColor::Red, false, Duration, Settings.DrawPriority, Settings.LineThickness * 0.5f);
 					}
 				}
@@ -1322,8 +1320,8 @@ namespace Chaos
 					ContactPos /= (FReal)(2 * Constraint->GetManifoldPoints().Num());
 				}
 
-				const FRigidTransform3 Transform0 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[0])) * SpaceTransform;
-				const FRigidTransform3 Transform1 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[1])) * SpaceTransform;
+				const FRigidTransform3 Transform0 = FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[0])->GetTransformPQCom() * SpaceTransform;
+				const FRigidTransform3 Transform1 = FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[1])->GetTransformPQCom() * SpaceTransform;
 
 				if ((bChaosDebugDebugDrawContactGraphUsed && bIsUsed) || (bChaosDebugDebugDrawContactGraphUnused && !bIsUsed))
 				{
@@ -1527,7 +1525,7 @@ namespace Chaos
 			}
 			
 			const FVec3& PLocal = Constraints.GetConstraintPosition(ConstraintIndex);
-			const FRigidTransform3 ParticleTransform = FParticleUtilitiesPQ::GetActorWorldTransform(Particle);
+			const FRigidTransform3 ParticleTransform = Particle->GetTransformPQ();
 
 			const FVec3 PWorld = ParticleTransform.TransformPosition(PLocal);
 			const FVec3 AxisWorld = ParticleTransform.TransformVector(ConstraintSettings.Axis);

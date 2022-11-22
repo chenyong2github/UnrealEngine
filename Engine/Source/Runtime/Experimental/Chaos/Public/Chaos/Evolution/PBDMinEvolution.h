@@ -33,7 +33,7 @@ namespace Chaos
 		using FEvolutionCallback = TFunction<void()>;
 		using FRigidParticleSOAs = FPBDRigidsSOAs;
 
-		FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension);
+		FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector);
 		~FPBDMinEvolution();
 
 		void AddConstraintContainer(FPBDConstraintContainer& InContainer, const int32 Priority = 0);
@@ -62,10 +62,6 @@ namespace Chaos
 			Gravity = G;
 		}
 
-		void SetBoundsExtension(const FReal InBoundsExtension)
-		{
-			BoundsExtension = InBoundsExtension;
-		}
 
 		void SetSimulationSpace(const FSimulationSpace& InSimulationSpace)
 		{
@@ -85,6 +81,18 @@ namespace Chaos
 		void SetSimulationSpaceSettings(const FSimulationSpaceSettings& InSimulationSpaceSettings)
 		{
 			SimulationSpaceSettings = InSimulationSpaceSettings;
+		}
+
+
+		UE_DEPRECATED(5.3, "InBoundsExtension parameter has been removed")
+		FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
+			: FPBDMinEvolution(InParticles, InPrevX, InPrevR, InCollisionDetector)
+		{
+		}
+
+		UE_DEPRECATED(5.3, "BoundsExtension has been removed")
+		void SetBoudsExtension(const FReal Unused)
+		{
 		}
 
 	private:
@@ -112,7 +120,6 @@ namespace Chaos
 		int32 NumPositionIterations;
 		int32 NumVelocityIterations;
 		int32 NumProjectionIterations;
-		FReal BoundsExtension;
 		FVec3 Gravity;
 		FSimulationSpaceSettings SimulationSpaceSettings;
 		FSimulationSpace SimulationSpace;

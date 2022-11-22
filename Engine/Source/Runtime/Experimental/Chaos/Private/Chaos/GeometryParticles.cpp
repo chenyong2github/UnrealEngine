@@ -257,7 +257,7 @@ namespace Chaos
 			return LeafInfo.LeafWorldTransform;
 		}
 
-		return FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(Particle));
+		return FConstGenericParticleHandle(Particle)->GetTransformPQ();
 	}
 	
 	void FPerShapeData::UpdateLeafWorldTransform(FGeometryParticleHandle* Particle)
@@ -265,7 +265,7 @@ namespace Chaos
 		if (bHasCachedLeafInfo)
 		{
 			FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<FPerShapeDataCachedLeafInfo*>(this);
-			FRigidTransform3 ParticleTransform = FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(Particle));
+			const FRigidTransform3 ParticleTransform = FConstGenericParticleHandle(Particle)->GetTransformPQ();
 			LeafInfo.LeafWorldTransform = FRigidTransform3::MultiplyNoScale(FRigidTransform3(GetLeafRelativeTransform()), ParticleTransform);
 		}
 	}

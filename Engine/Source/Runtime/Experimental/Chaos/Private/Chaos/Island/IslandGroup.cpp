@@ -55,15 +55,8 @@ namespace Chaos
 
 	void FPBDIslandConstraintGroupSolver::AddConstraintsImpl()
 	{
-		// Initialize buffer sizes for solver particles and constraint solvers
+		// Initialize buffer sizes for solver particles
 		SolverBodyContainer.Reset(NumParticles);
-		for (int32 ContainerIndex = 0; ContainerIndex < ConstraintContainerSolvers.Num(); ++ContainerIndex)
-		{
-			if (ConstraintContainerSolvers[ContainerIndex] != nullptr)
-			{
-				ConstraintContainerSolvers[ContainerIndex]->Reset(NumContainerConstraints[ContainerIndex]);
-			}
-		}
 
 		// Add all the constraints to the solvers, but do not collect data from the constraints yet (each constraint type has its own solver). 
 		// This also sets up the SolverBody array, but does not gather the body data.
@@ -71,9 +64,11 @@ namespace Chaos
 		{
 			if (ConstraintContainerSolvers[ContainerIndex] != nullptr)
 			{
+				// Initialize buffer sizes for constraint solvers
+				ConstraintContainerSolvers[ContainerIndex]->Reset(NumContainerConstraints[ContainerIndex]);
+
 				for (FPBDIsland* Island : Islands)
 				{
-					// const_cast is because MakeArrayView doesn't handle a const array of pointers-to-non-const.
 					TArrayView<FPBDIslandConstraint> IslandConstraints = MakeArrayView(Island->GetConstraints(ContainerIndex));
 					ConstraintContainerSolvers[ContainerIndex]->AddConstraints(IslandConstraints);
 				}
@@ -86,9 +81,10 @@ namespace Chaos
 		// @todo(chaos): optimize
 		for (int32 SolverBodyIndex = BeginBodyIndex; SolverBodyIndex < EndBodyIndex; ++SolverBodyIndex)
 		{
-			FSolverBodyAdapter& SolverBody = SolverBodyContainer.GetItem(SolverBodyIndex);
-			const int32 Level = IslandManager.GetParticleLevel(SolverBody.GetParticle()->Handle());
-			SolverBody.GetSolverBody().SetLevel(Level);
+			FSolverBody& SolverBody = SolverBodyContainer.GetSolverBody(SolverBodyIndex);
+			FGeometryParticleHandle* Particle = SolverBodyContainer.GetParticle(SolverBodyIndex);
+			const int32 Level = IslandManager.GetParticleLevel(Particle);
+			SolverBody.SetLevel(Level);
 		}
 	}
 

@@ -81,4 +81,123 @@ namespace Chaos
 			return (Phi != InvalidPhi<FRealType>());
 		}
 	};
+
+	// Explicit types of TContactPoint for float and double. We should use the float version whenever the contacts are in shape-relative
+	// space, which is most of the time (some collision functions may choose to generate world-space contacts which are later converted
+	// to local space, and they should therefore use the double version until the local-space conversion).
+	using FContactPoint = TContactPoint<FReal>;
+	using FContactPointf = TContactPoint<FRealSingle>;
+
+
+	/**
+	 * @brief A single point in a contact manifold.
+	 * Each Collision Constraint will have up to 4 of these.
+	*/
+	class CHAOS_API FManifoldPoint
+	{
+	public:
+		union FFlags
+		{
+			FFlags() { Reset(); }
+
+			void Reset() { Bits = 0; }
+
+			struct
+			{
+				uint8 bDisabled : 1;						// Whether the point was disabled by edge pruning etc
+				uint8 bWasRestored : 1;						// Whether the point was retored from the previous frame due to lack of movement
+				uint8 bWasReplaced : 1;						// @todo(chaos): remove this
+				uint8 bHasStaticFrictionAnchor : 1;			// Whether our static friction anchor was recovered from a prior tick
+			};
+			uint8 Bits;
+		};
+
+		FManifoldPoint()
+			: ContactPoint()
+			, Flags()
+			, TargetPhi(0)
+			, ShapeAnchorPoints{ FVec3f(0), FVec3f(0) }
+			, InitialShapeContactPoints{ FVec3f(0), FVec3f(0) }
+		{}
+
+		FManifoldPoint(const FContactPointf& InContactPoint)
+			: ContactPoint(InContactPoint)
+			, Flags()
+			, TargetPhi(0)
+			, ShapeAnchorPoints{ FVec3f(0), FVec3f(0) }
+			, InitialShapeContactPoints{ FVec3f(0), FVec3f(0) }
+		{}
+
+		FContactPointf ContactPoint;			// Contact point results of low-level collision detection
+		FFlags Flags;							// Various flags
+		FRealSingle TargetPhi;					// Usually 0, but can be used to add padding or penetration (e.g., via a collision modifer)
+		FVec3f ShapeAnchorPoints[2];			// When static friction holds, the contact points on each shape when static friction contact was made
+		FVec3f InitialShapeContactPoints[2];	// ShapeContactPoints when the constraint was first initialized. Used to track reusablility
+	};
+
+	/**
+	 * World-space contact point data
+	 */
+	class CHAOS_API FWorldContactPoint
+	{
+	public:
+		// World-space contact point relative to each particle's center of mass
+		FVec3f RelativeContactPoints[2];
+
+		// World-space contact normal and tangents
+		FVec3f ContactNormal;
+		FVec3f ContactTangentU;
+		FVec3f ContactTangentV;
+
+		// Errors to correct along each of the contact axes
+		FRealSingle ContactDeltaNormal;
+		FRealSingle ContactDeltaTangentU;
+		FRealSingle ContactDeltaTangentV;
+
+		// Target velocity along the normal direction
+		FRealSingle ContactTargetVelocityNormal;
+	};
+
+	/**
+	 * @brief The friction data for a manifold point
+	 * This is the information that needs to be stored between ticks to implement static friction.
+	*/
+	class CHAOS_API FSavedManifoldPoint
+	{
+	public:
+		FSavedManifoldPoint()
+		{
+		}
+
+		void Reset()
+		{
+			ShapeContactPoints[0] = FVec3f(0);
+			ShapeContactPoints[1] = FVec3f(0);
+		}
+
+		FVec3f ShapeContactPoints[2];			// Contact anchor points for friction
+	};
+
+	class CHAOS_API FManifoldPointResult
+	{
+	public:
+		FManifoldPointResult()
+		{
+			Reset();
+		}
+
+		void Reset()
+		{
+			NetPushOut = FVec3f(0);
+			NetImpulse = FVec3f(0);
+			bIsValid = false;
+			bInsideStaticFrictionCone = false;
+		}
+
+		FVec3f NetPushOut;						// Total pushout applied at this contact point
+		FVec3f NetImpulse;						// Total impulse applied by this contact point
+		uint8 bIsValid : 1;
+		uint8 bInsideStaticFrictionCone : 1;
+	};
+
 }

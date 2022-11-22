@@ -878,12 +878,12 @@ namespace Chaos
 	{
 		MEvolution->GetCollisionConstraints().SetCollisionsEnabled(bChaosSolverCollisionEnabled);
 
-		FCollisionDetectorSettings CollisionDetectorSettings = MEvolution->GetCollisionDetector().GetSettings();
+		FCollisionDetectorSettings CollisionDetectorSettings = MEvolution->GetCollisionConstraints().GetDetectorSettings();
 		CollisionDetectorSettings.bAllowManifoldReuse = (ChaosSolverCollisionAllowManifoldUpdate != 0);
 		CollisionDetectorSettings.bDeferNarrowPhase = (ChaosSolverCollisionDeferNarrowPhase != 0);
 		CollisionDetectorSettings.bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);
 		CollisionDetectorSettings.bAllowCCD = bChaosUseCCD;
-		MEvolution->GetCollisionDetector().SetSettings(CollisionDetectorSettings);
+		MEvolution->GetCollisionConstraints().SetDetectorSettings(CollisionDetectorSettings);
 		
 		FPBDJointSolverSettings JointsSettings = MEvolution->GetJointConstraints().GetSettings();
 		JointsSettings.MinSolverStiffness = ChaosSolverJointMinSolverStiffness;
@@ -1569,24 +1569,27 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 		int32 NumUpdatedManifoldPoints = 0;
 		for (const FPBDCollisionConstraintHandle* Collision : GetEvolution()->GetCollisionConstraints().GetConstraints())
 		{
-			if (Collision->GetContact().IsEnabled())
+			const FPBDCollisionConstraint& Contact = Collision->GetContact();
+			if (Contact.IsEnabled())
 			{
-				if (Collision->GetContact().GetManifoldPoints().Num() > 0)
+				if (Contact.GetManifoldPoints().Num() > 0)
 				{
 					++NumValidCollisions;
 				}
-				if (!Collision->GetContact().AccumulatedImpulse.IsNearlyZero())
+				if (!Contact.AccumulatedImpulse.IsNearlyZero())
 				{
 					++NumActiveCollisions;
 				}
-				if (Collision->GetContact().WasManifoldRestored())
+				if (Contact.WasManifoldRestored())
 				{
 					++NumRestoredCollisions;
 				}
-				for (const FManifoldPoint& ManifoldPoint : Collision->GetContact().GetManifoldPoints())
+				for (int32 PointIndex = 0; PointIndex < Contact.NumManifoldPoints(); ++PointIndex)
 				{
+					const FManifoldPoint& ManifoldPoint = Contact.GetManifoldPoint(PointIndex);
+					const FManifoldPointResult& ManifoldPointResult = Contact.GetManifoldPointResult(PointIndex);
 					++NumManifoldPoints;
-					if (ManifoldPoint.Flags.bWasRestored || Collision->GetContact().WasManifoldRestored())
+					if (ManifoldPoint.Flags.bWasRestored || Contact.WasManifoldRestored())
 					{
 						++NumRestoredManifoldPoints;
 					}
@@ -1594,9 +1597,12 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 					{
 						++NumUpdatedManifoldPoints;
 					}
-					if (!ManifoldPoint.NetPushOut.IsNearlyZero())
+					if (ManifoldPointResult.bIsValid)
 					{
-						++NumActiveManifoldPoints;
+						if (!ManifoldPointResult.NetPushOut.IsNearlyZero())
+						{
+							++NumActiveManifoldPoints;
+						}
 					}
 				}
 

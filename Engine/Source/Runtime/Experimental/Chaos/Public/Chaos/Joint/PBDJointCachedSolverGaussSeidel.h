@@ -121,12 +121,12 @@ struct FAxisConstraintDatas
 			return SolverBodies[1];
 		}
 
-		inline const FVec3& X(int BodyIndex) const
+		inline const FVec3 X(int BodyIndex) const
 		{
 			return Body(BodyIndex).X();
 		}
 
-		inline const FRotation3& R(int BodyIndex) const
+		inline const FRotation3 R(int BodyIndex) const
 		{
 			return Body(BodyIndex).R();
 		}
@@ -145,12 +145,12 @@ struct FAxisConstraintDatas
 			return Body(BodyIndex).CorrectedQ();
 		}
 
-		inline const FVec3& V(int BodyIndex) const
+		inline const FVec3 V(int BodyIndex) const
 		{
 			return Body(BodyIndex).V();
 		}
 
-		inline const FVec3& W(int BodyIndex) const
+		inline const FVec3 W(int BodyIndex) const
 		{
 			return Body(BodyIndex).W();
 		}

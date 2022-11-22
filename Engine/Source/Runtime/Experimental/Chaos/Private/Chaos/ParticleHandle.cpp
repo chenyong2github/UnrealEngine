@@ -167,8 +167,7 @@ namespace Chaos
 	template <typename T, int d, bool bPersistent>
 	void TPBDRigidParticleHandleImp<T, d, bPersistent>::AddTorque(const TVector<T, d>& InTorque, bool bInvalidate)
 	{
-		const FRotation3 RCoM = FParticleUtilitiesPQ::GetCoMWorldRotation(this);
-		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, InvI());
+		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(QCom(), InvI());
 		SetAngularAcceleration(AngularAcceleration() + WorldInvI * InTorque);
 	}
 
@@ -176,8 +175,7 @@ namespace Chaos
 	template <typename T, int d, bool bPersistent>
 	void TPBDRigidParticleHandleImp<T, d, bPersistent>::SetTorque(const TVector<T, d>& InTorque, bool bInvalidate)
 	{
-		const FRotation3 RCoM = FParticleUtilitiesPQ::GetCoMWorldRotation(this);
-		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, InvI());
+		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(QCom(), InvI());
 		SetAngularAcceleration(WorldInvI * InTorque);
 	}
 

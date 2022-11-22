@@ -45,9 +45,6 @@ namespace Chaos
 	//
 	//
 
-	bool bChaos_MinEvolution_RewindLerp = true;
-	FAutoConsoleVariableRef CVarChaosMinEvolutionRewindLerp(TEXT("p.Chaos.MinEvolution.RewindLerp"), bChaos_MinEvolution_RewindLerp, TEXT("If rewinding (fixed dt mode) use Backwards-Lerp as opposed to Backwards Velocity"));
-
 	// Forced iteration count to evaluate worst-case behaviour for a given simulation
 	bool Chaos_MinEvolution_ForceMaxConstraintIterations = false;
 	FAutoConsoleVariableRef CVarChaosMinEvolutionForceMaxConstraintIterations(TEXT("p.Chaos.MinEvolution.ForceMaxConstraintIterations"), Chaos_MinEvolution_ForceMaxConstraintIterations, TEXT("Whether to force constraints to always use the worst-case maximum number of iterations"));
@@ -56,7 +53,7 @@ namespace Chaos
 	//
 	//
 
-	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
+	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector)
 		: Particles(InParticles)
 		, CollisionDetector(InCollisionDetector)
 		, ParticlePrevXs(InPrevX)
@@ -64,7 +61,6 @@ namespace Chaos
 		, NumPositionIterations(0)
 		, NumVelocityIterations(0)
 		, NumProjectionIterations(0)
-		, BoundsExtension(InBoundsExtension)
 		, Gravity(FVec3(0))
 		, SimulationSpaceSettings()
 	{
@@ -174,33 +170,14 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Rewind);
 
-		if (bChaos_MinEvolution_RewindLerp)
+		const FReal T = (Dt - RewindDt) / Dt;
+		UE_LOG(LogChaosMinEvolution, Verbose, TEXT("Rewind dt = %f; rt = %f; T = %f"), Dt, RewindDt, T);
+		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
 		{
-			const FReal T = (Dt - RewindDt) / Dt;
-			UE_LOG(LogChaosMinEvolution, Verbose, TEXT("Rewind dt = %f; rt = %f; T = %f"), Dt, RewindDt, T);
-			for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
+			if (Particle.ObjectState() == EObjectStateType::Dynamic)
 			{
-				if (Particle.ObjectState() == EObjectStateType::Dynamic)
-				{
-					Particle.X() = FVec3::Lerp(Particle.Handle()->AuxilaryValue(ParticlePrevXs), Particle.X(), T);
-					Particle.R() = FRotation3::Slerp(Particle.Handle()->AuxilaryValue(ParticlePrevRs), Particle.R(), (decltype(FQuat::X))T);	// LWC_TODO: Remove decltype cast once FQuat supports variants
-				}
-			}
-		}
-		else
-		{
-			for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
-			{
-				if (Particle.ObjectState() == EObjectStateType::Dynamic)
-				{
-					const FVec3 XCoM = FParticleUtilitiesXR::GetCoMWorldPosition(&Particle);
-					const FRotation3 RCoM = FParticleUtilitiesXR::GetCoMWorldRotation(&Particle);
-
-					const FVec3 XCoM2 = XCoM - Particle.V() * RewindDt;
-					const FRotation3 RCoM2 = FRotation3::IntegrateRotationWithAngularVelocity(RCoM, -Particle.W(), RewindDt);
-
-					FParticleUtilitiesXR::SetCoMWorldTransform(&Particle, XCoM2, RCoM2);
-				}
+				Particle.X() = FVec3::Lerp(Particle.Handle()->AuxilaryValue(ParticlePrevXs), Particle.X(), T);
+				Particle.R() = FRotation3::Slerp(Particle.Handle()->AuxilaryValue(ParticlePrevRs), Particle.R(), (decltype(FQuat::X))T);	// LWC_TODO: Remove decltype cast once FQuat supports variants
 			}
 		}
 
@@ -228,6 +205,8 @@ namespace Chaos
 			SpaceB = SimulationSpace.Transform.InverseTransformVector(SimulationSpace.AngularAcceleration);
 		}
 
+		const FVec3 BoundsExpansion = FVec3(CollisionDetector.GetCollisionContainer().GetDetectorSettings().BoundsExpansion);
+
 		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
 		{
 			if (Particle.ObjectState() == EObjectStateType::Dynamic)
@@ -235,9 +214,9 @@ namespace Chaos
 				Particle.PreV() = Particle.V();
 				Particle.PreW() = Particle.W();
 
-				const FVec3 XCoM = FParticleUtilitiesXR::GetCoMWorldPosition(&Particle);
-				const FRotation3 RCoM = FParticleUtilitiesXR::GetCoMWorldRotation(&Particle);
-				
+				const FVec3 XCoM = Particle.XCom();
+				const FRotation3 RCoM = Particle.RCom();
+
 				// Forces and torques
 				const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, Particle.InvI());
 				FVec3 DV = Particle.Acceleration() * Dt + Particle.LinearImpulseVelocity();
@@ -278,7 +257,7 @@ namespace Chaos
 				const FRotation3 QCoM = FRotation3::IntegrateRotationWithAngularVelocity(RCoM, W, Dt);
 
 				// Update particle state (forces are not zeroed until the end of the frame)
-				FParticleUtilitiesPQ::SetCoMWorldTransform(&Particle, PCoM, QCoM);
+				Particle.SetTransformPQCom(PCoM, QCoM);
 				Particle.V() = V;
 				Particle.W() = W;
 				Particle.LinearImpulseVelocity() = FVec3(0);
@@ -287,7 +266,7 @@ namespace Chaos
 				// Update cached world space state, including bounds. We use the Swept bounds update so that the bounds includes P,Q and X,Q.
 				// This is because when we have joints, they often pull bodies back to their original positions, so we need to know if there
 				// are contacts at that location.
-				Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(CollisionDetector.GetSettings().BoundsExpansion), -V * Dt);
+				Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), BoundsExpansion, -V * Dt);
 			}
 		}
 	}
@@ -362,7 +341,8 @@ namespace Chaos
 			}
 			}
 
-			Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.X(), Particle.R()), FVec3(BoundsExtension));
+			// NOTE: we do not expand the bounds of kinematics, only dynamics
+			Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.X(), Particle.R()), FVec3(0));
 		}
 	}
 

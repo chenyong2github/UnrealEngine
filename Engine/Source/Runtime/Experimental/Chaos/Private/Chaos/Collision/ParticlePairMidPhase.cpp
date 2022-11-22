@@ -347,13 +347,15 @@ namespace Chaos
 			{
 				if (Context.GetAllocator()->ActivateConstraint(Constraint.Get()))
 				{
-					// If we had any mods last tick, undo them
-					Constraint->ResetModifications();
+					Constraint->Activate(Dt);
 
 					LastUsedEpoch = CurrentEpoch;
 					return 1;
 				}
 			}
+
+			// If we get here, we did not activate hte constraint and it should be disabled for this tick
+			Constraint->SetDisabled(true);
 		}
 
 		return 0;
@@ -642,8 +644,8 @@ namespace Chaos
 		}
 
 		// @todo(chaos): we already have the shape world transforms at the calling site - pass them in
-		const FRigidTransform3 ParticleTransform0 = FParticleUtilitiesPQ::GetActorWorldTransform(FConstGenericParticleHandle(InParticle0));
-		const FRigidTransform3 ParticleTransform1 = FParticleUtilitiesPQ::GetActorWorldTransform(FConstGenericParticleHandle(InParticle1));
+		const FRigidTransform3 ParticleTransform0 = FConstGenericParticleHandle(InParticle0)->GetTransformPQ();
+		const FRigidTransform3 ParticleTransform1 = FConstGenericParticleHandle(InParticle1)->GetTransformPQ();
 		const FRigidTransform3 ShapeWorldTransform0 = ShapeRelativeTransform0 * ParticleTransform0;
 		const FRigidTransform3 ShapeWorldTransform1 = ShapeRelativeTransform1 * ParticleTransform1;
 		Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
@@ -738,6 +740,10 @@ namespace Chaos
 			{
 				Context.GetAllocator()->ActivateConstraint(Constraint);
 				++NumActiveConstraints;
+			}
+			else
+			{
+				Constraint->SetDisabled(true);
 			}
 		}
 		NewConstraints.Reset();

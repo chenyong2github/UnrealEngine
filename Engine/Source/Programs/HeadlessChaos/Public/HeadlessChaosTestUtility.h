@@ -149,11 +149,11 @@ namespace ChaosTest {
 	{
 		// Settings used for unit tests
 		const float CullDistance = 3.0f;
-		FCollisionDetectorSettings DetectorSettings = Evolution.GetCollisionDetector().GetSettings();
+		FCollisionDetectorSettings DetectorSettings = Evolution.GetCollisionConstraints().GetDetectorSettings();
 		DetectorSettings.BoundsExpansion = CullDistance;
 		DetectorSettings.bDeferNarrowPhase = false;
 		DetectorSettings.bAllowManifolds = true;
-		Evolution.GetCollisionDetector().SetSettings(DetectorSettings);
+		Evolution.GetCollisionConstraints().SetDetectorSettings(DetectorSettings);
 	}
 
 	template<typename T_SOLVER>

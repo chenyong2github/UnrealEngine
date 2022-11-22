@@ -13,8 +13,14 @@
 
 namespace Chaos
 {
+	class FSolverBody;
 	class FPBDSuspensionConstraints;
-	class FPBDCollisionSolver;
+
+	namespace Private
+	{
+		class FPBDCollisionSolver;
+		class FPBDCollisionSolverManifoldPoint;
+	}
 
 	class CHAOS_API FPBDSuspensionConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>
 	{
@@ -273,7 +279,8 @@ namespace Chaos
 		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
 
-		TArray<FPBDCollisionSolver*> CollisionSolvers;
+		TArray<Private::FPBDCollisionSolver> CollisionSolvers;
+		TArray<Private::FPBDCollisionSolverManifoldPoint> CollisionSolverManifoldPoints;
 		TArray<FSolverBody> StaticCollisionBodies;
 	};
 }

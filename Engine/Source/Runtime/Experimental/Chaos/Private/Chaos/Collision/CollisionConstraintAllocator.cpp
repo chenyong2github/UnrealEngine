@@ -1,8 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
+#include "Chaos/PBDCollisionConstraints.h"
 
 namespace Chaos
 {
+	FPBDCollisionConstraintPtr FCollisionContextAllocator::CreateConstraint(
+		FGeometryParticleHandle* Particle0,
+		const FImplicitObject* Implicit0,
+		const FPerShapeData* Shape0,
+		const FBVHParticles* Simplicial0,
+		const FRigidTransform3& ShapeRelativeTransform0,
+		FGeometryParticleHandle* Particle1,
+		const FImplicitObject* Implicit1,
+		const FPerShapeData* Shape1,
+		const FBVHParticles* Simplicial1,
+		const FRigidTransform3& ShapeRelativeTransform1,
+		const FReal CullDistance,
+		const bool bUseManifold,
+		const EContactShapesType ShapePairType)
+	{
+		FPBDCollisionConstraintPtr Constraint = CreateConstraint();
+
+		if (Constraint.IsValid())
+		{
+			Constraint->SetContainer(CollisionContainer);
+			FPBDCollisionConstraint::Make(Particle0, Implicit0, Shape0, Simplicial0, ShapeRelativeTransform0, Particle1, Implicit1, Shape1, Simplicial1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType, *Constraint);
+		}
+
+		return Constraint;
+	}
+
 	void FCollisionContextAllocator::ProcessNewMidPhases(FCollisionConstraintAllocator* Allocator)
 	{
 		// NOTE: Called from the physics thread, and never from a physics task/parallel-for. No need for locks.

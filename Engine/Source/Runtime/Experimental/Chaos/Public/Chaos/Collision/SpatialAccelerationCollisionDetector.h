@@ -35,26 +35,26 @@ namespace Chaos
 				return;
 			}
 
-			CollisionContainer.BeginDetectCollisions();
+			GetCollisionContainer().BeginDetectCollisions();
 
 			// Collision detection pipeline: BroadPhase -[parallel]-> NarrowPhase -[parallel]-> CollisionAllocator -[serial]-> Container
-			BroadPhase.ProduceOverlaps(Dt, &CollisionContainer.GetConstraintAllocator(), Settings, ResimCache);
+			BroadPhase.ProduceOverlaps(Dt, &GetCollisionContainer().GetConstraintAllocator(), GetCollisionContainer().GetDetectorSettings(), ResimCache);
 
-			CollisionContainer.EndDetectCollisions();
+			GetCollisionContainer().EndDetectCollisions();
 
 			// If we have a resim cache restore and save contacts
 			if(ResimCache)
 			{
 				// Ensure we have at least one allocator
-				CollisionContainer.GetConstraintAllocator().SetMaxContexts(1);
+				GetCollisionContainer().GetConstraintAllocator().SetMaxContexts(1);
 
 				FCollisionContext Context;
-				Context.SetSettings(Settings);
-				Context.SetAllocator(CollisionContainer.GetConstraintAllocator().GetContextAllocator(0));
+				Context.SetSettings(GetCollisionContainer().GetDetectorSettings());
+				Context.SetAllocator(GetCollisionContainer().GetConstraintAllocator().GetContextAllocator(0));
 
-				CollisionContainer.GetConstraintAllocator().AddResimConstraints(ResimCache->GetAndSanitizeConstraints(), Context);
+				GetCollisionContainer().GetConstraintAllocator().AddResimConstraints(ResimCache->GetAndSanitizeConstraints(), Context);
 
-				ResimCache->SaveConstraints(CollisionContainer.GetConstraints());
+				ResimCache->SaveConstraints(GetCollisionContainer().GetConstraints());
 			}
 		}
 

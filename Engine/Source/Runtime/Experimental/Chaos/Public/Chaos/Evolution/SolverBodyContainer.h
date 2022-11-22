@@ -16,73 +16,6 @@ namespace Chaos
 	class FSolverBodyContainer;
 
 	/**
-	 * @brief An FSolverBody wrapper that binds the SolverBody to a particle and provides gather/scatter methods from/to the particle
-	 * Solver Bodies are used by the core constraint solvers.
-	 * @see FSolverBody
-	*/
-	class FSolverBodyAdapter
-	{
-	public:
-		FSolverBodyAdapter()
-			: Particle(nullptr)
-		{
-		}
-		
-		FSolverBodyAdapter(const FGenericParticleHandle& InParticle)
-			: Particle(InParticle)
-		{
-		}
-
-		FSolverBody& GetSolverBody() { return SolverBody; }
-		const FGenericParticleHandle& GetParticle() const { return Particle; }
-
-		inline void GatherInput(const FReal Dt)
-		{
-			if (Particle.IsValid())
-			{
-				FRigidTransform3 CoMTransform = FParticleUtilitiesPQ::GetCoMWorldTransform(Particle);
-				SolverBody.SetP(CoMTransform.GetLocation());
-				SolverBody.SetQ(CoMTransform.GetRotation());
-				SolverBody.SetV(Particle->V());
-				SolverBody.SetW(Particle->W());
-				SolverBody.SetCoM(Particle->CenterOfMass());
-				SolverBody.SetRoM(Particle->RotationOfMass());
-
-				if (Particle->IsDynamic())
-				{
-					FRigidTransform3 PrevCoMTransform = FParticleUtilitiesXR::GetCoMWorldTransform(Particle);
-					SolverBody.SetX(PrevCoMTransform.GetLocation());
-					SolverBody.SetR(PrevCoMTransform.GetRotation());
-
-					SolverBody.SetInvM(Particle->InvM());
-					SolverBody.SetInvILocal(Particle->ConditionedInvI());
-				}
-				else
-				{
-					// @todo(chaos): we really need Kinematics to store their initial positions...this keeps coming up
-					SolverBody.SetX(SolverBody.P() - SolverBody.V() * Dt);
-					if (SolverBody.W().IsNearlyZero())
-					{
-						SolverBody.SetR(SolverBody.Q());
-					}
-					else
-					{
-						SolverBody.SetR(FRotation3::IntegrateRotationWithAngularVelocity(SolverBody.Q(), -SolverBody.W(), Dt));
-					}
-				}
-				// No need to update the UpdateRotationDependentState since this function is only
-				// valid for dynamic particle for which the SetInvILocal is already doing the job
-			}
-		}
-
-		void ScatterOutput();
-
-	private:
-		FSolverBody SolverBody;
-		FGenericParticleHandle Particle;
-	};
-
-	/**
 	 * The SolverBodies for a set of particles.
 	 * 
 	 * Each IslandGroup owns a SolverBodyContainer containing the data required for solving the constraints in the 
@@ -104,84 +37,54 @@ namespace Chaos
 	private:
 		// Settings for the Solver Body array.
 		static const int32 NumBodiesPerChunk = 256;
-		static const int32 BodyArrayChunkSize = NumBodiesPerChunk * sizeof(FSolverBodyAdapter);
+		static const int32 BodyArrayChunkSize = NumBodiesPerChunk * sizeof(FSolverBody);
 
 	public:
-		using FSolverBodyArray = TChunkedArray<FSolverBodyAdapter, BodyArrayChunkSize>;
+		using FSolverBodyArray = TChunkedArray<FSolverBody, BodyArrayChunkSize>;
 
 		FSolverBodyContainer()
 			: bLocked(true)
-		{}
-
+		{
+		}
 
 		// Clear the bodies array and allocate enough space for at least MaxBodies bodies.
 		// @param MaxBodies The number of bodies that will get added to the container. The container asserts if we attempt to add more than this.
 		inline void Reset(int MaxBodies)
 		{
 			SolverBodies.Empty(MaxBodies);
+			Particles.Empty(MaxBodies);
 			ParticleToIndexMap.Reset();
 			bLocked = false;
 		}
 
 		// The number of bodies in the container
-		inline int NumItems() const
+		inline int Num() const
 		{
 			return SolverBodies.Num();
 		}
 
 		// The maximum number of bodies the container can hold (until Reset() is called again)
-		inline int MaxItems() const
+		inline int Max() const
 		{
 			return TNumericLimits<int32>::Max();
 		}
 
-		// Get a pointer to the item at the specified index, or null for INDEX_NONE
-		// @param Index The index of the body to return
-		inline FSolverBodyAdapter* TryGetItem(int Index)
+		// Get the particle associated with the solver body at Index
+		inline FGeometryParticleHandle* GetParticle(const int32 Index) const
 		{
-			if (IsValid(Index))
-			{
-				return &SolverBodies[Index];
-			}
-			return nullptr;
+			return Particles[Index];
 		}
 
-		// Get a pointer to the item at the specified index, or null for INDEX_NONE
-		// @param Index The index of the body to return
-		inline const FSolverBodyAdapter* TryGetItem(int Index) const
-		{
-			if (IsValid(Index))
-			{
-				return &SolverBodies[Index];
-			}
-			return nullptr;
-		}
-
-		// Get a reference to the item at the specified index. Asserts on invalid index.
-		// @param Index The index of the body to return
-		inline FSolverBodyAdapter& GetItem(int Index)
+		// Get the solver body at Index
+		inline const FSolverBody& GetSolverBody(const int32 Index) const
 		{
 			return SolverBodies[Index];
 		}
 
-		// Get a reference to the item at the specified index. Asserts on invalid index.
-		// @param Index The index of the body to return
-		inline const FSolverBodyAdapter& GetItem(int Index) const
+		// Get the solver body at Index
+		inline FSolverBody& GetSolverBody(const int32 Index)
 		{
 			return SolverBodies[Index];
-		}
-
-		/** Get all the solver bodies inside the container */
-		inline FSolverBodyArray& GetBodies()
-		{
-			return SolverBodies;
-		}
-
-		// Whether the specified index is valid.
-		// @param Index The index of the body to return
-		inline bool IsValid(int Index) const
-		{
-			return SolverBodies.IsValidIndex(Index);
 		}
 
 		// Add a solver body to represent the solver state of the particle
@@ -193,9 +96,6 @@ namespace Chaos
 
 		// Collect all the data we need from the particles represented by our SolverBodies
 		void GatherInput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex);
-
-		// Scatter the solver results back to the particles represented by our SolverBodies
-		void ScatterOutput();
 
 		// Scatter the solver results back to the particles represented by our SolverBodies. Range version used for parallization.
 		void ScatterOutput(const int32 BeginIndex, const int32 EndIndex);
@@ -219,7 +119,11 @@ namespace Chaos
 	private:
 		int32 AddParticle(FGenericParticleHandle InParticle);
 
+		// All the solver bodies
 		FSolverBodyArray SolverBodies;
+
+		// The particles that map to each solver body
+		TArray<FGeometryParticleHandle*> Particles;
 
 		// Used to determine if a (non-dynamic) body is already present in the container. 
 		// Dynamic bodies are not in this map - the particle stores its index in this case because

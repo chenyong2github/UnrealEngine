@@ -49,9 +49,6 @@ namespace Chaos
 		int CollisionDisableCulledContacts = 0;
 		FAutoConsoleVariableRef CVarDisableCulledContacts(TEXT("p.CollisionDisableCulledContacts"), CollisionDisableCulledContacts, TEXT("Allow the PBDRigidsEvolutionGBF collision constraints to throw out contacts mid solve if they are culled."));
 
-		FRealSingle BoundsThicknessVelocityMultiplier = 0.0f;
-		FAutoConsoleVariableRef CVarBoundsThicknessVelocityMultiplier(TEXT("p.CollisionBoundsVelocityInflation"), BoundsThicknessVelocityMultiplier, TEXT("Collision velocity inflation for speculative contact generation.[def:0.0]"));
-
 		FRealSingle SmoothedPositionLerpRate = 0.1f;
 		FAutoConsoleVariableRef CVarSmoothedPositionLerpRate(TEXT("p.Chaos.SmoothedPositionLerpRate"), SmoothedPositionLerpRate, TEXT("The interpolation rate for the smoothed position calculation. Used for sleeping."));
 
@@ -641,8 +638,7 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 
 	CollisionConstraints.SetCanDisableContacts(!!CollisionDisableCulledContacts);
 
-	CollisionDetector.SetBoundsExpansion(DefaultCollisionCullDistance);
-	CollisionDetector.SetBoundsVelocityInflation(BoundsThicknessVelocityMultiplier);
+	CollisionConstraints.SetCullDistance(DefaultCollisionCullDistance);
 
 	SetParticleUpdatePositionFunction([this](const TParticleView<FPBDRigidParticles>& ParticlesInput, const FReal Dt)
 	{
@@ -926,7 +922,8 @@ void FPBDRigidsEvolutionGBF::ParticleMaterialChanged(FGeometryParticleHandle* Pa
 {
 	Particle->ParticleCollisions().VisitCollisions([this](FPBDCollisionConstraint& Collision)
 	{
-		CollisionConstraints.UpdateConstraintMaterialProperties(Collision);
+		// Reset the material - the material properties will get collected later (collision activation)
+		Collision.ClearMaterialProperties();
 		return ECollisionVisitorResult::Continue;
 	});
 }

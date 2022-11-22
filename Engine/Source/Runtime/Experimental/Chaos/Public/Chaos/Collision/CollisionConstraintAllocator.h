@@ -15,6 +15,8 @@
 
 namespace Chaos
 {
+	class FPBDCollisionConstraints;
+
 	/**
 	 * Container the storage for the FCollisionConstraintAllocator, as well as the API to create new midphases and collision constraints.
 	 * We have one of these objects per thread on which collisions detection is performed to get lock-free allocations and lists.
@@ -22,8 +24,9 @@ namespace Chaos
 	class CHAOS_API FCollisionContextAllocator
 	{
 	public:
-		FCollisionContextAllocator(const int32 InNumCollisionsPerBlock, const int32 InCurrentEpoch)
-			: CurrentEpoch(InCurrentEpoch)
+		FCollisionContextAllocator(FPBDCollisionConstraints* InCollisionContainer, const int32 InNumCollisionsPerBlock, const int32 InCurrentEpoch)
+			: CollisionContainer(InCollisionContainer)
+			, CurrentEpoch(InCurrentEpoch)
 #if CHAOS_COLLISION_OBJECTPOOL_ENABLED
 			, ConstraintPool(InNumCollisionsPerBlock, 0)
 			, MidPhasePool(InNumCollisionsPerBlock, 0)
@@ -55,17 +58,7 @@ namespace Chaos
 			const FRigidTransform3& ShapeRelativeTransform1,
 			const FReal CullDistance,
 			const bool bUseManifold,
-			const EContactShapesType ShapePairType)
-		{
-			FPBDCollisionConstraintPtr Constraint = CreateConstraint();
-
-			if (Constraint.IsValid())
-			{
-				FPBDCollisionConstraint::Make(Particle0, Implicit0, Shape0, Simplicial0, ShapeRelativeTransform0, Particle1, Implicit1, Shape1, Simplicial1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType, *Constraint);
-			}
-
-			return Constraint;
-		}
+			const EContactShapesType ShapePairType);
 
 		/**
 		 * Create an uninitialized collision constraint (public only for use by Resim which overwrites it with a saved constraint)
@@ -180,6 +173,7 @@ namespace Chaos
 			return MidPhase;
 		}
 
+		FPBDCollisionConstraints* CollisionContainer;
 		int32 CurrentEpoch;
 
 		TArray<FPBDCollisionConstraint*> NewActiveConstraints;
@@ -229,7 +223,8 @@ namespace Chaos
 		UE_NONCOPYABLE(FCollisionConstraintAllocator);
 
 		FCollisionConstraintAllocator(const int32 InNumCollisionsPerBlock = 1000)
-			: ContextAllocators()
+			: CollisionContainer(nullptr)
+			, ContextAllocators()
 			, NumCollisionsPerBlock(InNumCollisionsPerBlock)
 			, ParticlePairMidPhases()
 			, ActiveConstraints()
@@ -245,15 +240,24 @@ namespace Chaos
 			Reset();
 		}
 
+		void SetCollisionContainer(FPBDCollisionConstraints* InCollisionContainer)
+		{
+			CollisionContainer = InCollisionContainer;
+		}
+
 		void SetMaxContexts(const int32 MaxContexts)
 		{
+			// Forgot to call SetCollisionContainer after construction
+			// @todo(chaos): this check makes the allocator difficult to unit test - fix this
+			//check(CollisionContainer != nullptr);
+
 			const int32 NumNewContexts = MaxContexts - ContextAllocators.Num();
 			if (NumNewContexts > 0)
 			{
 				ContextAllocators.Reserve(MaxContexts);
 				for (int32 NewIndex = 0; NewIndex < NumNewContexts; ++NewIndex)
 				{
-					TUniquePtr<FCollisionContextAllocator> ContextAllocator = MakeUnique<FCollisionContextAllocator>(NumCollisionsPerBlock, CurrentEpoch);
+					TUniquePtr<FCollisionContextAllocator> ContextAllocator = MakeUnique<FCollisionContextAllocator>(CollisionContainer, NumCollisionsPerBlock, CurrentEpoch);
 					ContextAllocators.Emplace(MoveTemp(ContextAllocator));
 				}
 			}
@@ -550,6 +554,9 @@ namespace Chaos
 			Cookie.LastUsedEpoch = CurrentEpoch;
 		}
 
+		// The container that owns the allocator (only needed because new constraints need to know)
+		FPBDCollisionConstraints* CollisionContainer;
+
 		// Storage for collisins and midphases, one for each thread on which we detect collisions
 		TArray<TUniquePtr<FCollisionContextAllocator>> ContextAllocators;
 		int32 NumCollisionsPerBlock;
@@ -588,8 +595,7 @@ namespace Chaos
 		{
 			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
 
-			// If we only want active constraints, check the we're in the graph
-			if (Constraint.IsValid() && (!bOnlyActive || Constraint->IsInConstraintGraph()))
+			if (Constraint.IsValid() && (!bOnlyActive || !Constraint->GetDisabled()))
 			{
 				if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
 				{
@@ -607,8 +613,7 @@ namespace Chaos
 		{
 			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
 
-			// If we only want active constraints, check the timestamp
-			if (Constraint.IsValid() && (!bOnlyActive || Constraint->IsInConstraintGraph()))
+			if (Constraint.IsValid() && (!bOnlyActive || !Constraint->GetDisabled()))
 			{
 				if (!bOnlyActive || (Visitor(*Constraint) == ECollisionVisitorResult::Stop))
 				{
@@ -624,8 +629,7 @@ namespace Chaos
 	{
 		for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
 		{
-			// If we only want active constraints, check the we're in the graph
-			if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || ShapePair.GetConstraint()->IsInConstraintGraph()))
+			if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || !ShapePair.GetConstraint()->GetDisabled()))
 			{
 				if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
 				{
@@ -651,8 +655,7 @@ namespace Chaos
 	{
 		for (const FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
 		{
-			// If we only want active constraints, check the timestamp
-			if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || ShapePair.GetConstraint()->IsInConstraintGraph()))
+			if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || !ShapePair.GetConstraint()->GetDisabled()))
 			{
 				if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
 				{
