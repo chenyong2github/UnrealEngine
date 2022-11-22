@@ -1164,7 +1164,8 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("CSVtoSVG"),
 			TEXT("GeometryFramework"),
 			TEXT("VirtualizationEditor"),
-			TEXT("AnimationSettings")
+			TEXT("AnimationSettings"),
+			TEXT("RenderResourceViewer"),
 		};
 
 		FScopedSlowTask ModuleSlowTask((float)UE_ARRAY_COUNT(ModuleNames));

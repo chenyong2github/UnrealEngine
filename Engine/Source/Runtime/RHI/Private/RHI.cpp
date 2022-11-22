@@ -16,6 +16,7 @@
 #include "String/ParseTokens.h"
 #include "Misc/BufferedOutputDevice.h"
 #include "Misc/OutputDeviceFile.h"
+#include "Async/ParallelFor.h"
 
 #if RHI_ENABLE_RESOURCE_INFO
 #include "HAL/FileManager.h"
@@ -867,6 +868,212 @@ static FAutoConsoleCommandWithWorldArgsAndOutputDevice GDumpRHIResourceCountsCmd
 	BufferedOutput.RedirectTo(OutputDevice);
 }));
 
+
+namespace RHIInternal
+{
+	struct FResourceEntry
+	{
+		const FRHIResource* Resource;
+		FRHIResourceInfo ResourceInfo;
+	};
+
+	struct FResourceFlags
+	{
+		bool bMarkedForDelete = false;
+		bool bTransient = false;
+		bool bStreaming = false;
+		bool bRT = false;
+		bool bDS = false;
+		bool bUAV = false;
+		bool bRTAS = false;
+		bool bHasFlags = false;
+
+		FString GetString()
+		{
+			FString FlagsString;
+			bool bHasFlag = false;
+			if (bMarkedForDelete)
+			{
+				FlagsString += "MarkedForDelete";
+				bHasFlag = true;
+			}
+			if (bTransient)
+			{
+				FlagsString += bHasFlag ? " | Transient" : "Transient";
+				bHasFlag = true;
+			}
+			if (bStreaming)
+			{
+				FlagsString += bHasFlag ? " | Streaming" : "Streaming";
+				bHasFlag = true;
+			}
+			if (bRT)
+			{
+				FlagsString += bHasFlag ? " | RT" : "RT";
+				bHasFlag = true;
+			}
+			else if (bDS)
+			{
+				FlagsString += bHasFlag ? " | DS" : "DS";
+				bHasFlag = true;
+			}
+			if (bUAV)
+			{
+				FlagsString += bHasFlag ? " | UAV" : "UAV";
+				bHasFlag = true;
+			}
+			if (bRTAS)
+			{
+				FlagsString += bHasFlag ? " | RTAS" : "RTAS";
+				bHasFlag = true;
+			}
+			return FlagsString;
+		}
+	};
+
+	void GetTrackedResourcesInternal(const FString& NameFilter, ERHIResourceType TypeFilter, EBooleanFilter TransientFilter, TArray<FResourceEntry>& OutResources, int32& OutNumberOfResourcesToShow,
+		int32& OutTotalResourcesWithInfo, int32& OutTotalTrackedResources, int64& OutTotalTrackedResourceSize, int64& OutTotalTrackedTransientResourceSize)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(RHIInternal_GetTrackedResourcesInternal);
+
+		TCHAR ResourceNameBuffer[FName::StringBufferSize];
+
+		auto ShouldIncludeResource = [&](const FRHIResource* Resource, const FRHIResourceInfo& ResourceInfo) -> bool
+		{
+			if (!NameFilter.IsEmpty())
+			{
+				if (ResourceInfo.Name.ToString(ResourceNameBuffer) == 0 || UE::String::FindFirst(ResourceNameBuffer, *NameFilter, ESearchCase::IgnoreCase) == INDEX_NONE)
+				{
+					return false;
+				}
+			}
+			if (TypeFilter != RRT_None)
+			{
+				if (TypeFilter == RRT_Texture)
+				{
+					if (ResourceInfo.Type != RRT_Texture2D &&
+						ResourceInfo.Type != RRT_Texture2DArray &&
+						ResourceInfo.Type != RRT_Texture3D &&
+						ResourceInfo.Type != RRT_TextureCube)
+					{
+						return false;
+					}
+				}
+				else if (TypeFilter != ResourceInfo.Type)
+				{
+					return false;
+				}
+			}
+			if (TransientFilter != EBooleanFilter::All)
+			{
+				const bool bAllowedFlag = TransientFilter == EBooleanFilter::Yes ? true : false;
+				if (ResourceInfo.IsTransient != bAllowedFlag)
+				{
+					return false;
+				}
+			}
+			return true;
+		};
+
+		OutResources.Reset();
+
+		{
+			FRHIResourceInfo ResourceInfo;
+			OutTotalTrackedResources = GRHITrackedResources.Num();
+
+			for (const FRHIResource* Resource : GRHITrackedResources)
+			{
+				if (Resource && Resource->GetResourceInfo(ResourceInfo))
+				{
+					ResourceInfo.bValid = Resource->IsValid();
+
+					if (ShouldIncludeResource(Resource, ResourceInfo))
+					{
+						OutResources.Emplace(FResourceEntry{ Resource, ResourceInfo });
+					}
+
+					OutTotalResourcesWithInfo++;
+					if (ResourceInfo.IsTransient)
+					{
+						OutTotalTrackedTransientResourceSize += ResourceInfo.VRamAllocation.AllocationSize;
+					}
+					else
+					{
+						OutTotalTrackedResourceSize += ResourceInfo.VRamAllocation.AllocationSize;
+					}
+				}
+			}
+		}
+
+		if (OutNumberOfResourcesToShow < 0 || OutNumberOfResourcesToShow > OutResources.Num())
+		{
+			OutNumberOfResourcesToShow = OutResources.Num();
+		}
+
+		OutResources.Sort([](const FResourceEntry& EntryA, const FResourceEntry& EntryB)
+		{
+			return EntryA.ResourceInfo.VRamAllocation.AllocationSize > EntryB.ResourceInfo.VRamAllocation.AllocationSize;
+		});
+	}
+
+	FResourceFlags GetResourceFlagsInternal(const FResourceEntry& Resource)
+	{
+		FResourceFlags Flags;
+		Flags.bMarkedForDelete = !Resource.ResourceInfo.bValid;
+		Flags.bTransient = Resource.ResourceInfo.IsTransient;
+
+		bool bIsTexture = Resource.ResourceInfo.Type == RRT_Texture ||
+			Resource.ResourceInfo.Type == RRT_Texture2D ||
+			Resource.ResourceInfo.Type == RRT_Texture2DArray ||
+			Resource.ResourceInfo.Type == RRT_Texture3D ||
+			Resource.ResourceInfo.Type == RRT_TextureCube;
+		if (bIsTexture)
+		{
+			FRHITexture* Texture = (FRHITexture*)Resource.Resource;
+			Flags.bRT = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_RenderTargetable);
+			Flags.bDS = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_DepthStencilTargetable);
+			Flags.bUAV = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_UAV);
+			Flags.bStreaming = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_Streamable);
+		}
+		else if (Resource.ResourceInfo.Type == RRT_Buffer)
+		{
+			FRHIBuffer* Buffer = (FRHIBuffer*)Resource.Resource;
+			Flags.bUAV = EnumHasAnyFlags((EBufferUsageFlags)Buffer->GetUsage(), BUF_UnorderedAccess);
+			Flags.bRTAS = EnumHasAnyFlags((EBufferUsageFlags)Buffer->GetUsage(), BUF_AccelerationStructure);
+		}
+
+		Flags.bHasFlags = Flags.bMarkedForDelete || Flags.bTransient || Flags.bStreaming || Flags.bRT || Flags.bDS || Flags.bUAV || Flags.bRTAS;
+		return Flags;
+	}
+}
+
+void RHIGetTrackedResourceStats(TArray<TSharedPtr<FRHIResourceStats>>& OutResourceStats)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(RHIGetTrackedResourceStats);
+	FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
+
+	TArray<RHIInternal::FResourceEntry> Resources;
+	int32 TotalResourcesWithInfo = 0;
+	int32 TotalTrackedResources = 0;
+	int64 TotalTrackedResourceSize = 0;
+	int64 TotalTrackedTransientResourceSize = 0;
+	int32 NumberOfResourcesToShow = -1;
+
+	RHIInternal::GetTrackedResourcesInternal(TEXT(""), ERHIResourceType::RRT_None, EBooleanFilter::All, Resources, NumberOfResourcesToShow, TotalResourcesWithInfo, TotalTrackedResources, TotalTrackedResourceSize, TotalTrackedTransientResourceSize);
+
+	OutResourceStats.SetNum(Resources.Num());
+	ParallelFor(Resources.Num(), [&](int32 Index)
+	{
+		const FRHIResourceInfo& ResourceInfo = Resources[Index].ResourceInfo;
+		FString ResourceName = ResourceInfo.Name.ToString();
+		const TCHAR* ResourceType = StringFromRHIResourceType(ResourceInfo.Type);
+		const int64 SizeInBytes = ResourceInfo.VRamAllocation.AllocationSize;
+		RHIInternal::FResourceFlags Flags = GetResourceFlagsInternal(Resources[Index]);
+		OutResourceStats[Index] = MakeShared<FRHIResourceStats>(ResourceName, ResourceType, Flags.GetString(), SizeInBytes,
+									Flags.bMarkedForDelete, Flags.bTransient, Flags.bStreaming, Flags.bRT, Flags.bDS, Flags.bUAV, Flags.bRTAS, Flags.bHasFlags);
+	});
+}
+
 void RHIDumpResourceMemory(const FString& NameFilter, ERHIResourceType TypeFilter, EBooleanFilter TransientFilter, int32 NumberOfResourcesToShow, bool bUseCSVOutput, bool bSummaryOutput, bool bOutputToCSVFile, FBufferedOutputDevice& BufferedOutput)
 {	
 	FArchive* CSVFile{ nullptr };
@@ -876,97 +1083,16 @@ void RHIDumpResourceMemory(const FString& NameFilter, ERHIResourceType TypeFilte
 		CSVFile = IFileManager::Get().CreateFileWriter(*Filename, FILEWRITE_AllowRead);
 	}
 
-	TCHAR ResourceNameBuffer[FName::StringBufferSize];
-
-	auto ShouldIncludeResource = [&](const FRHIResource* Resource, const FRHIResourceInfo& ResourceInfo) -> bool
-	{
-		if (!NameFilter.IsEmpty())
-		{
-			if (ResourceInfo.Name.ToString(ResourceNameBuffer) == 0 || UE::String::FindFirst(ResourceNameBuffer, *NameFilter, ESearchCase::IgnoreCase) == INDEX_NONE)
-			{
-				return false;
-			}
-		}
-		if (TypeFilter != RRT_None)
-		{
-			if (TypeFilter == RRT_Texture)
-			{
-				if (ResourceInfo.Type != RRT_Texture2D &&
-					ResourceInfo.Type != RRT_Texture2DArray &&
-					ResourceInfo.Type != RRT_Texture3D &&
-					ResourceInfo.Type != RRT_TextureCube)
-				{
-					return false;
-				}
-			}
-			else if (TypeFilter != ResourceInfo.Type)
-			{
-				return false;
-			}
-		}
-		if (TransientFilter != EBooleanFilter::All)
-		{
-			const bool bAllowedFlag = TransientFilter == EBooleanFilter::Yes ? true : false;
-			if (ResourceInfo.IsTransient != bAllowedFlag)
-			{
-				return false;
-			}
-		}
-		return true;
-	};
-
-	struct FLocalResourceEntry
-	{
-		const FRHIResource* Resource;
-		FRHIResourceInfo ResourceInfo;
-	};
-	TArray<FLocalResourceEntry> Resources;
-
 	FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
 
+	TArray<RHIInternal::FResourceEntry> Resources;
 	int32 TotalResourcesWithInfo = 0;
 	int32 TotalTrackedResources = 0;
 	int64 TotalTrackedResourceSize = 0;
 	int64 TotalTrackedTransientResourceSize = 0;
 
-	{
-		FRHIResourceInfo ResourceInfo;
-		TotalTrackedResources = GRHITrackedResources.Num();
-
-		for (const FRHIResource* Resource : GRHITrackedResources)
-		{
-			if (Resource && Resource->GetResourceInfo(ResourceInfo))
-			{
-				ResourceInfo.bValid = Resource->IsValid();
-
-				if (ShouldIncludeResource(Resource, ResourceInfo))
-				{
-					Resources.Emplace(FLocalResourceEntry{ Resource, ResourceInfo });
-				}
-
-				TotalResourcesWithInfo++;
-				if (ResourceInfo.IsTransient)
-				{
-					TotalTrackedTransientResourceSize += ResourceInfo.VRamAllocation.AllocationSize;
-				}
-				else
-				{
-					TotalTrackedResourceSize += ResourceInfo.VRamAllocation.AllocationSize;
-				}
-			}
-		}
-	}
-
+	RHIInternal::GetTrackedResourcesInternal(NameFilter, TypeFilter, TransientFilter, Resources, NumberOfResourcesToShow, TotalResourcesWithInfo, TotalTrackedResources, TotalTrackedResourceSize, TotalTrackedTransientResourceSize);
 	const int32 NumberOfResourcesBeforeNumberFilter = Resources.Num();
-	if (NumberOfResourcesToShow < 0 || NumberOfResourcesToShow > Resources.Num())
-	{
-		NumberOfResourcesToShow = Resources.Num();
-	}
-
-	Resources.Sort([](const FLocalResourceEntry& EntryA, const FLocalResourceEntry& EntryB)
-	{
-		return EntryA.ResourceInfo.VRamAllocation.AllocationSize > EntryB.ResourceInfo.VRamAllocation.AllocationSize;
-	});
 
 	FName CategoryName(TEXT("RHIResources"));
 
@@ -992,6 +1118,7 @@ void RHIDumpResourceMemory(const FString& NameFilter, ERHIResourceType TypeFilte
 		}
 	}
 
+	TCHAR ResourceNameBuffer[FName::StringBufferSize];
 	int64 TotalShownResourceSize = 0;
 
 	for (int32 Index = 0; Index < Resources.Num(); Index++)
@@ -1004,33 +1131,7 @@ void RHIDumpResourceMemory(const FString& NameFilter, ERHIResourceType TypeFilte
 			const TCHAR* ResourceType = StringFromRHIResourceType(ResourceInfo.Type);
 			const int64 SizeInBytes = ResourceInfo.VRamAllocation.AllocationSize;
 
-			bool bMarkedForDelete = !ResourceInfo.bValid;
-			bool bTransient = ResourceInfo.IsTransient;
-			bool bStreaming = false;
-			bool bRT = false;
-			bool bDS = false;
-			bool bUAV = false;
-			bool bRTAS = false;
-
-			bool bIsTexture = ResourceInfo.Type == RRT_Texture ||
-				ResourceInfo.Type == RRT_Texture2D ||
-				ResourceInfo.Type == RRT_Texture2DArray ||
-				ResourceInfo.Type == RRT_Texture3D ||
-				ResourceInfo.Type == RRT_TextureCube;
-			if (bIsTexture)
-			{
-				FRHITexture* Texture = (FRHITexture*)Resources[Index].Resource;
-				bRT = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_RenderTargetable);
-				bDS = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_DepthStencilTargetable);
-				bUAV = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_UAV);
-				bStreaming = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_Streamable);
-			}
-			else if (ResourceInfo.Type == RRT_Buffer)
-			{
-				FRHIBuffer* Buffer = (FRHIBuffer*)Resources[Index].Resource;
-				bUAV = EnumHasAnyFlags((EBufferUsageFlags)Buffer->GetUsage(), BUF_UnorderedAccess);
-				bRTAS = EnumHasAnyFlags((EBufferUsageFlags)Buffer->GetUsage(), BUF_AccelerationStructure);
-			}
+			RHIInternal::FResourceFlags Flags = GetResourceFlagsInternal(Resources[Index]);
 
 			if (bSummaryOutput == false)
 			{
@@ -1040,12 +1141,12 @@ void RHIDumpResourceMemory(const FString& NameFilter, ERHIResourceType TypeFilte
 						ResourceNameBuffer,
 						ResourceType,
 						SizeInBytes / double(1 << 20),
-						bMarkedForDelete ? TEXT("Yes") : TEXT("No"),
-						bTransient ? TEXT("Yes") : TEXT("No"),
-						bStreaming ? TEXT("Yes") : TEXT("No"),
-						(bRT || bDS) ? TEXT("Yes") : TEXT("No"),
-						bUAV ? TEXT("Yes") : TEXT("No"),
-						bRTAS ? TEXT("Yes") : TEXT("No"));
+						Flags.bMarkedForDelete ? TEXT("Yes") : TEXT("No"),
+						Flags.bTransient ? TEXT("Yes") : TEXT("No"),
+						Flags.bStreaming ? TEXT("Yes") : TEXT("No"),
+						(Flags.bRT || Flags.bDS) ? TEXT("Yes") : TEXT("No"),
+						Flags.bUAV ? TEXT("Yes") : TEXT("No"),
+						Flags.bRTAS ? TEXT("Yes") : TEXT("No"));
 
 					CSVFile->Serialize(TCHAR_TO_ANSI(*Row), Row.Len());
 				}
@@ -1055,54 +1156,21 @@ void RHIDumpResourceMemory(const FString& NameFilter, ERHIResourceType TypeFilte
 						ResourceNameBuffer,
 						ResourceType,
 						SizeInBytes / double(1 << 20),
-						bMarkedForDelete ? TEXT("Yes") : TEXT("No"),
-						bTransient ? TEXT("Yes") : TEXT("No"),
-						bStreaming ? TEXT("Yes") : TEXT("No"),
-						(bRT || bDS) ? TEXT("Yes") : TEXT("No"),
-						bUAV ? TEXT("Yes") : TEXT("No"),
-						bRTAS ? TEXT("Yes") : TEXT("No"));
+						Flags.bMarkedForDelete ? TEXT("Yes") : TEXT("No"),
+						Flags.bTransient ? TEXT("Yes") : TEXT("No"),
+						Flags.bStreaming ? TEXT("Yes") : TEXT("No"),
+						(Flags.bRT || Flags.bDS) ? TEXT("Yes") : TEXT("No"),
+						Flags.bUAV ? TEXT("Yes") : TEXT("No"),
+						Flags.bRTAS ? TEXT("Yes") : TEXT("No"));
 				}
 				else
 				{
-					FString ResoureFlags;
-					bool bHasFlag = false;
-					if (bTransient)
-					{
-						ResoureFlags += "Transient";
-						bHasFlag = true;
-					}
-					if (bStreaming)
-					{
-						ResoureFlags += bHasFlag ? "|Streaming" : "Streaming";
-						bHasFlag = true;
-					}
-					if (bRT)
-					{
-						ResoureFlags += bHasFlag ? "|RT" : "RT";
-						bHasFlag = true;
-					}
-					else if (bDS)
-					{
-						ResoureFlags += bHasFlag ? "|DS" : "DS";
-						bHasFlag = true;
-					}
-					if (bUAV)
-					{
-						ResoureFlags += bHasFlag ? "|UAV" : "UAV";
-						bHasFlag = true;
-					}
-					if (bRTAS)
-					{
-						ResoureFlags += bHasFlag ? "|RTAS" : "RTAS";
-						bHasFlag = true;
-
-					}
-
+					FString ResoureFlags = Flags.GetString();
 					BufferedOutput.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Name: %s - Type: %s - Size: %.9f MB - Flags: %s"),
 						ResourceNameBuffer,
 						ResourceType,
 						SizeInBytes / double(1 << 20),
-						bHasFlag ? *ResoureFlags : TEXT("None"));
+						ResoureFlags.IsEmpty() ? TEXT("None") : *ResoureFlags);
 				}
 			}
 

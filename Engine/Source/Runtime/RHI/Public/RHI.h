@@ -151,6 +151,40 @@ RHI_API int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatf
 // helper to force dump all RHI resource to CSV file
 RHI_API void RHIDumpResourceMemoryToCSV();
 
+struct FRHIResourceStats
+{
+	FString Name;
+	FString Type;
+	FString Flags;
+	uint64	SizeInBytes = 0;
+	bool	bMarkedForDelete = false;
+	bool	bTransient = false;
+	bool	bStreaming = false;
+	bool	bRenderTarget = false;
+	bool	bDepthStencil = false;
+	bool	bUnorderedAccessView = false;
+	bool	bRayTracingAccelerationStructure = false;
+	bool	bHasFlags = false;
+
+	FRHIResourceStats(const FString& InName, const FString& InType, const FString& InFlags, const uint64& InSizeInBytes, 
+						bool bInMarkedForDelete, bool bInTransient, bool bInStreaming, bool bInRT, bool bInDS, bool bInUAV, bool bInRTAS, bool bInHasFlags)
+		: Name(InName)
+		, Type(InType)
+		, Flags(InFlags)
+		, SizeInBytes(InSizeInBytes)
+		, bMarkedForDelete(bInMarkedForDelete)
+		, bTransient(bInTransient)
+		, bStreaming(bInStreaming)
+		, bRenderTarget(bInRT)
+		, bDepthStencil(bInDS)
+		, bUnorderedAccessView(bInUAV)
+		, bRayTracingAccelerationStructure(bInRTAS)
+		, bHasFlags(bInHasFlags)
+	{ }
+};
+
+RHI_API void RHIGetTrackedResourceStats(TArray<TSharedPtr<FRHIResourceStats>>& OutResourceStats);
+
 inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
