@@ -3046,27 +3046,23 @@ bool FLevelEditorViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 
 	bool bHandled = FEditorViewportClient::InputKey(InEventArgs);
 
-	// Handle input for the player height preview mode. 
-	if (!InputState.IsMouseButtonEvent() && IsCommandChordPressed(GetLevelViewportCommands().EnablePreviewMesh, InEventArgs.Key))
+	// Handle input for the height preview mode. 
+	bool bEnablePreviewMeshChordPressed = IsCommandChordPressed(GetLevelViewportCommands().EnablePreviewMesh);
+	bool bCyclePreviewMeshChordPressed = IsCommandChordPressed(GetLevelViewportCommands().CyclePreviewMesh);
+	if (!InputState.IsMouseButtonEvent() && (bEnablePreviewMeshChordPressed || bCyclePreviewMeshChordPressed))
 	{
-		// Holding down the backslash buttons turns on the mode. 
-		if (InEventArgs.Event == IE_Pressed)
-		{
-			GEditor->SetPreviewMeshMode(true);
+		GEditor->SetPreviewMeshMode(true);
 
-			// If shift down, cycle between the preview meshes
-			if (IsCommandChordPressed(GetLevelViewportCommands().CyclePreviewMesh, InEventArgs.Key))
-			{
-				GEditor->CyclePreviewMesh();
-			}
-		}
-		// Releasing backslash turns off the mode. 
-		else if (InEventArgs.Event == IE_Released)
+		if (bCyclePreviewMeshChordPressed && (InEventArgs.Event == IE_Pressed))
 		{
-			GEditor->SetPreviewMeshMode(false);
+			GEditor->CyclePreviewMesh();
 		}
 
 		bHandled = true;
+	}
+	else
+	{
+		GEditor->SetPreviewMeshMode(false);
 	}
 
 	// Clear Duplicate Actors mode when ALT and all mouse buttons are released

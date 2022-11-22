@@ -3239,7 +3239,7 @@ bool FEditorViewportClient::IsCommandChordPressed(const TSharedPtr<FUICommandInf
 			&& (Chord.NeedsAlt() == IsAltPressed())
 			&& (Chord.NeedsShift() == IsShiftPressed())
 			&& (Chord.NeedsCommand() == IsCmdPressed())
-			&& (InOptionalKey.IsValid() ? (Chord.Key == InOptionalKey && Viewport->KeyState(InOptionalKey)) : Viewport->KeyState(Chord.Key));
+			&& (InOptionalKey.IsValid() ? (Chord.Key == InOptionalKey) : Viewport->KeyState(Chord.Key));
 	}
 	return bIsChordPressed;
 }
