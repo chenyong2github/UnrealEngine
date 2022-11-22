@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/Array.h"
+#include "Chaos/Collision/PBDCollisionSolver.h"
 #include "Chaos/Evolution/IndexedConstraintContainer.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDSuspensionConstraintTypes.h"
