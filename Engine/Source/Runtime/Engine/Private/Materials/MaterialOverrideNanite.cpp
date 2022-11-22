@@ -80,6 +80,13 @@ bool FMaterialOverrideNanite::Serialize(FArchive& Ar)
 	return true;
 }
 
+void FMaterialOverrideNanite::InitUnsafe(UMaterialInterface* InMaterial)
+{
+	OverrideMaterialRef = InMaterial;
+	OverrideMaterial = InMaterial;
+	bEnableOverride = true;
+}
+
 void FMaterialOverrideNanite::PostLoad()
 {
 #if WITH_EDITOR

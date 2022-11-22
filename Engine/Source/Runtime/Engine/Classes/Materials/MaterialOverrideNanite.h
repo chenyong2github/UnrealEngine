@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "RHIDefinitions.h"
-#include "Materials/MaterialInterface.h"
 
 #include "MaterialOverrideNanite.generated.h"
 
@@ -69,12 +68,7 @@ struct FMaterialOverrideNanite
 	 * Setup the object directly.
 	 * Beware that this avoids all the protections around keeping the hard pointer unresolved on non-nanite platforms.
 	 */
-	void InitUnsafe(UMaterialInterface* InMaterial)
-	{
-		OverrideMaterialRef = InMaterial;
-		OverrideMaterial = InMaterial;
-		bEnableOverride = true;
-	}
+	void InitUnsafe(UMaterialInterface* InMaterial);
 
 protected:
 	/** Cached hard reference to override material which is only created if necessary. */
