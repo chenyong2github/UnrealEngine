@@ -2,6 +2,7 @@
 #include "AudioMixer.h"
 
 #include "AudioDefines.h"
+#include "AudioMixerTrace.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/FloatArrayMath.h"
 #include "HAL/RunnableThread.h"
@@ -22,9 +23,10 @@
 //
 CSV_DEFINE_CATEGORY_MODULE(AUDIOMIXERCORE_API, Audio, false);
 
-#if ENABLE_AUDIO_TRACE
+#if UE_AUDIO_PROFILERTRACE_ENABLED
+UE_TRACE_CHANNEL_DEFINE(AudioChannel);
 UE_TRACE_CHANNEL_DEFINE(AudioMixerChannel);
-#endif // ENABLE_AUDIO_TRACE
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 
 
 // Command to enable logging to display accurate audio render times

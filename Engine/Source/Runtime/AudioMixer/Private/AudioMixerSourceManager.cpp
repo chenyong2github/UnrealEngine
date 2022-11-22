@@ -168,7 +168,7 @@ DEFINE_STAT(STAT_AudioMixerSourceEffectBuffers);
 DEFINE_STAT(STAT_AudioMixerSourceManagerUpdate);
 DEFINE_STAT(STAT_AudioMixerSourceOutputBuffers);
 
-#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#if UE_AUDIO_PROFILERTRACE_ENABLED
 UE_TRACE_EVENT_BEGIN(Audio, MixerSourceVolume)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
 	UE_TRACE_EVENT_FIELD(int32, SourceId)
@@ -199,7 +199,7 @@ UE_TRACE_EVENT_BEGIN(Audio, MixerSourceEnvelope)
 	UE_TRACE_EVENT_FIELD(int32, SourceId)
 	UE_TRACE_EVENT_FIELD(float, Envelope)
 UE_TRACE_EVENT_END()
-#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 
 namespace Audio
 {
@@ -2124,7 +2124,7 @@ namespace Audio
 				const float FinalPitch = FMath::Clamp(TargetPitch * ModPitch, MinModulationPitchRangeFreqCVar, MaxModulationPitchRangeFreqCVar);
 				SourceInfo.PitchSourceParam.SetValue(FinalPitch, NumOutputFrames);
 
-#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#if UE_AUDIO_PROFILERTRACE_ENABLED
 				const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
 				if (bChannelEnabled)
 				{
@@ -2133,7 +2133,7 @@ namespace Audio
 						<< MixerSourcePitch.SourceId(SourceId)
 						<< MixerSourcePitch.Pitch(TargetPitch);
 				}
-#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 
 				for (int32 Frame = StartFrame; Frame < NumOutputFrames; ++Frame)
 				{
@@ -2568,7 +2568,7 @@ namespace Audio
 					Audio::ArrayFade(PreDistanceAttenBufferView, VolumeStart, VolumeDestination);
 				}
 
-#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#if UE_AUDIO_PROFILERTRACE_ENABLED
 				const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
 				if (bChannelEnabled)
 				{
@@ -2582,7 +2582,7 @@ namespace Audio
 						<< MixerSourceDistanceAttenuation.SourceId(SourceId)
 						<< MixerSourceDistanceAttenuation.DistanceAttenuation(SourceInfo.DistanceAttenuationSourceDestination);
 				}
-#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 			}
 
 			SourceInfo.VolumeSourceStart = SourceInfo.VolumeSourceDestination;
@@ -2699,7 +2699,7 @@ namespace Audio
 					SourceInfo.HighPassFilter.ProcessAudioBuffer(HpfInputBuffer, SourceBuffer, NumOutputSamplesThisSource);
 				}
 
-#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#if UE_AUDIO_PROFILERTRACE_ENABLED
 				const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
 				if (bChannelEnabled)
 				{
@@ -2725,7 +2725,7 @@ namespace Audio
 						<< MixerSourceEnvelope.SourceId(SourceId)
 						<< MixerSourceEnvelope.Envelope(SourceInfo.SourceEnvelopeValue);
 				}
-#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 
 				// We manually reset interpolation to avoid branches in filter code
 				SourceInfo.LowPassFilter.StopFrequencyInterpolation();

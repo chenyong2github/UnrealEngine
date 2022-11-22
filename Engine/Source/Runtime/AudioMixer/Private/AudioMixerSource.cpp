@@ -21,7 +21,7 @@
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
-#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#if UE_AUDIO_PROFILERTRACE_ENABLED
 UE_TRACE_EVENT_BEGIN(Audio, MixerSourceStart)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
 	UE_TRACE_EVENT_FIELD(int32, SourceId)
@@ -32,7 +32,7 @@ UE_TRACE_EVENT_BEGIN(Audio, MixerSourceStop)
 	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
 	UE_TRACE_EVENT_FIELD(int32, SourceId)
 UE_TRACE_EVENT_END()
-#endif // ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 
 
 static int32 UseListenerOverrideForSpreadCVar = 0;
@@ -1242,7 +1242,7 @@ namespace Audio
 		{
 			MixerSourceVoice->Play();
 
-#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#if UE_AUDIO_PROFILERTRACE_ENABLED
 			const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
 			if (bChannelEnabled && WaveInstance)
 			{
@@ -1257,7 +1257,7 @@ namespace Audio
 					<< MixerSourceStart.SourceId(TraceSourceId)
 					<< MixerSourceStart.Name(*WaveInstance->WaveData->GetPathName());
 			}
-#endif // ENABLE_AUDIO_TRACE
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 		}
 
 		bIsStopping = false;
@@ -1342,7 +1342,7 @@ namespace Audio
 		{
 			if (MixerSourceVoice && Playing)
 			{
-#if ENABLE_AUDIO_TRACE && AUDIO_MIXER_CPUPROFILERTRACE_ENABLED
+#if UE_AUDIO_PROFILERTRACE_ENABLED
 				const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioMixerChannel);
 				if (bChannelEnabled)
 				{
@@ -1356,7 +1356,7 @@ namespace Audio
 						<< MixerSourceStop.Timestamp(FPlatformTime::Cycles64())
 						<< MixerSourceStop.SourceId(TraceSourceId);
 				}
-#endif // ENABLE_AUDIO_TRACE
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 
 				MixerSourceVoice->Stop();
 			}

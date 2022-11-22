@@ -2,7 +2,6 @@
 #pragma once
 
 #include "HAL/Platform.h"
-#include "Trace/Trace.h"
 
 
 /**
@@ -56,16 +55,6 @@
  * Debugger is Available on non-shipping builds
  */
 #define ENABLE_AUDIO_DEBUG !UE_BUILD_SHIPPING
-
-
-/**
- * Trace macros specific to audio.
- */
-#define ENABLE_AUDIO_TRACE !UE_BUILD_SHIPPING
-
-#if ENABLE_AUDIO_TRACE
-AUDIOMIXERCORE_API UE_TRACE_CHANNEL_EXTERN(AudioMixerChannel);
-#endif // ENABLE_AUDIO_TRACE
 
 
 /** Common Audio namespace Type Definitions/Identifiers */
