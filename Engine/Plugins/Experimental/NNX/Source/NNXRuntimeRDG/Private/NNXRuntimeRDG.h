@@ -9,7 +9,6 @@
 #include "NNXRuntime.h"
 #include "NNXRuntimeFormat.h"
 #include "RenderGraphResources.h"
-#include "RHIGPUReadback.h"
 #include "Serialization/MemoryReader.h"
 #include "ShaderParameterUtils.h"
 
@@ -74,13 +73,8 @@ using FIntArray = TArray<int32, TInlineAllocator<16>>;
  */
 class FMLInferenceModelRDG : public FMLInferenceModel
 {
-	struct FReadbackEntry
-	{
-		FRHIGPUBufferReadback*	RHI;
-		void*					CpuMemory;
-		size_t					Offset;
-		size_t					Size;
-	};
+
+	struct FReadbackEntry;
 
 public:
 
@@ -120,7 +114,7 @@ protected:
 	//RDG Tensors
 	FTensorRDGArray				AllTensorRDGs;
 	
-	FReadbackEntry				Readback;
+	TArray<FReadbackEntry> 		Readbacks;
 	bool						bUseManualTransitions;
 };
 

@@ -77,6 +77,10 @@
 				{
 					"target": "TwoLayersNoWeight",
 					"tags": [ "SmokeTest" ]
+				},
+				{
+					"target": "MultiOutput",
+					"tags": [ "SmokeTest" ]
 				}
 			]
 		},
