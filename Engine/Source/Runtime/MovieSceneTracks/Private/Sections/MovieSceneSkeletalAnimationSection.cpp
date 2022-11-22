@@ -406,6 +406,15 @@ void UMovieSceneSkeletalAnimationSection::ImportEntityImpl(UMovieSceneEntitySyst
 }
 
 #if WITH_EDITOR
+bool UMovieSceneSkeletalAnimationSection::Modify(bool bAlwaysMarkDirty)
+{
+	if (GetRootMotionParams())
+	{
+		GetRootMotionParams()->bRootMotionsDirty = true;
+	}
+	return Super::Modify(bAlwaysMarkDirty);
+}
+
 void UMovieSceneSkeletalAnimationSection::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	// Store the current play rate so that we can compute the amount to compensate the section end time when the play rate changes

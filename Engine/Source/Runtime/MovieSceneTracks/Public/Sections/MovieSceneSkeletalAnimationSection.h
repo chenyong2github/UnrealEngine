@@ -146,10 +146,11 @@ private:
 	//~ UObject interface
 
 #if WITH_EDITOR
-
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 public:
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	float PreviousPlayRate;
 private:
 	virtual void PostEditImport() override;
