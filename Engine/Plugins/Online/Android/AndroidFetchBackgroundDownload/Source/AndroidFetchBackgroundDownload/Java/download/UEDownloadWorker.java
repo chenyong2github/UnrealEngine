@@ -244,7 +244,7 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 			notificationIntent.putExtra("localNotificationID" , Description.NotificationID);
 			notificationIntent.putExtra("localNotificationAppLaunched" , true);
 
-			pendingNotificationIntent = PendingIntent.getActivity(context, Description.NotificationID, notificationIntent, 0);
+			pendingNotificationIntent = PendingIntent.getActivity(context, Description.NotificationID, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 		}
 
 		Notification notification = new NotificationCompat.Builder(context, Description.NotificationChannelID)

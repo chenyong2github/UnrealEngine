@@ -28,7 +28,7 @@ public class RemoteNotificationsListener extends GcmListenerService
 		{
 			notificationIconID = context.getResources().getIdentifier("icon", "drawable", context.getPackageName());
 		}
-		PendingIntent pendingNotificationIntent = PendingIntent.getActivity(this, notificationIconID, notificationIntent, 0);
+		PendingIntent pendingNotificationIntent = PendingIntent.getActivity(this, notificationIconID, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
 			.setSmallIcon(notificationIconID)

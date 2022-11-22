@@ -212,7 +212,7 @@ public class EpicFirebaseMessagingService extends FirebaseMessagingService {
 
 	@NonNull
 	private PendingIntent getPendingIntentIntent(@NonNull Intent defaultIntent) {
-		return PendingIntent.getActivity(this, 1, defaultIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+		return PendingIntent.getActivity(this, 1, defaultIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 	}
 
 	public void createChannel(@NonNull EpicFirebaseNotificationMeta meta) {

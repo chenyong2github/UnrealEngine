@@ -601,7 +601,7 @@ public class DownloaderActivity extends Activity implements IDownloaderClient {
 					PendingIntent pendingIntent = PendingIntent.getActivity(
 							DownloaderActivity.this,
 							0, intentToLaunchThisActivityFromNotification,
-							PendingIntent.FLAG_UPDATE_CURRENT);
+							PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 					// Request to start the download
 					int startResult = DownloaderClientMarshaller.startDownloadServiceIfRequired(this,
 							pendingIntent, OBBDownloaderService.class);

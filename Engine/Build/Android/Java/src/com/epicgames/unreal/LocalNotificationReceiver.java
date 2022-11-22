@@ -46,7 +46,7 @@ public class LocalNotificationReceiver extends BroadcastReceiver
 		notificationIntent.putExtra("localNotificationLaunchActivationEvent", activationEvent);
 
 		int notificationIconID = getNotificationIconID(context);
-		PendingIntent pendingNotificationIntent = PendingIntent.getActivity(context, notificationID, notificationIntent, 0);
+		PendingIntent pendingNotificationIntent = PendingIntent.getActivity(context, notificationID, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
 		NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 		@SuppressWarnings("deprecation")

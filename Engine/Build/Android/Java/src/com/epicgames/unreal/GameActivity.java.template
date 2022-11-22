@@ -5088,7 +5088,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		notificationIntent.putExtra("local-notification-activationEvent", activationEvent);
 
 		// Designate the callback as a PendingIntent
-		PendingIntent pendingIntent = PendingIntent.getBroadcast(context, notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+		PendingIntent pendingIntent = PendingIntent.getBroadcast(context, notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
 		TimeZone targetTimeZone = TimeZone.getTimeZone("UTC");
 
@@ -5158,7 +5158,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		for(int curID : idList)
 		{
 			AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
-			PendingIntent pendingIntent = PendingIntent.getBroadcast(this, curID, new Intent(this, LocalNotificationReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
+			PendingIntent pendingIntent = PendingIntent.getBroadcast(this, curID, new Intent(this, LocalNotificationReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 			pendingIntent.cancel();
 			alarmManager.cancel(pendingIntent);
 		}
@@ -5186,7 +5186,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 			//Cancel the intent itself as well as from the alarm manager
 			AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
-			PendingIntent pendingIntent = PendingIntent.getBroadcast(this, notificationId, new Intent(this, LocalNotificationReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
+			PendingIntent pendingIntent = PendingIntent.getBroadcast(this, notificationId, new Intent(this, LocalNotificationReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 			pendingIntent.cancel();
 			alarmManager.cancel(pendingIntent);
 			

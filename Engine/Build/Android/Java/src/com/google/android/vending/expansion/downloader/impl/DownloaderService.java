@@ -956,7 +956,7 @@ public abstract class DownloaderService extends CustomIntentService implements I
         intent.setClassName(this.getPackageName(),
                 className);
         mAlarmIntent = PendingIntent.getBroadcast(this, 0, intent,
-                PendingIntent.FLAG_ONE_SHOT);
+                PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE);
         alarms.set(
                 AlarmManager.RTC_WAKEUP,
                 System.currentTimeMillis() + wakeUp, mAlarmIntent
