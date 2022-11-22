@@ -17,6 +17,8 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_StateTreeTest"
 
+UE_DISABLE_OPTIMIZATION_SHIP
+
 std::atomic<int32> FStateTreeTestConditionInstanceData::GlobalCounter = 0;
 
 namespace UE::StateTree::Tests
@@ -154,10 +156,10 @@ struct FStateTreeTest_Select : FAITestBase
 		UStateTreeState& State1A = State1.AddChildState(FName(TEXT("State1A")));
 
 		auto& TaskRoot = Root.AddTask<FTestTask_Stand>(FName(TEXT("TaskRoot")));
-		TaskRoot.GetNode().TicksToCompletion = 2;
+		TaskRoot.GetNode().TicksToCompletion = 3;  // let Task1A to complete first
 
 		auto& Task1 = State1.AddTask<FTestTask_Stand>(FName(TEXT("Task1")));
-		Task1.GetNode().TicksToCompletion = 2;
+		Task1.GetNode().TicksToCompletion = 3; // let Task1A to complete first
 
 		auto& Task1A = State1A.AddTask<FTestTask_Stand>(FName(TEXT("Task1A")));
 		Task1A.GetNode().TicksToCompletion = 2;
@@ -432,6 +434,139 @@ struct FStateTreeTest_SharedInstanceData : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_SharedInstanceData, "System.StateTree.SharedInstanceData");
+
+struct FStateTreeTest_TransitionPriority : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
+		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
+		
+		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		UStateTreeState& State1 = Root.AddChildState(FName(TEXT("State1")));
+		UStateTreeState& State1A = State1.AddChildState(FName(TEXT("State1A")));
+		UStateTreeState& State1B = State1.AddChildState(FName(TEXT("State1B")));
+		UStateTreeState& State1C = State1.AddChildState(FName(TEXT("State1C")));
+
+		auto& Task1 = State1.AddTask<FTestTask_Stand>(FName(TEXT("Task1")));
+		Task1.GetNode().TicksToCompletion = 2;
+		State1.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
+		
+		auto& Task1A = State1A.AddTask<FTestTask_Stand>(FName(TEXT("Task1A")));
+		Task1A.GetNode().TicksToCompletion = 1;
+		State1A.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
+
+		auto& Task1B = State1B.AddTask<FTestTask_Stand>(FName(TEXT("Task1B")));
+		Task1B.GetNode().TicksToCompletion = 2;
+		State1B.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
+
+		auto& Task1C = State1C.AddTask<FTestTask_Stand>(FName(TEXT("Task1C")));
+		Task1C.GetNode().TicksToCompletion = 2;
+		
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+		const FString StateCompletedStr(TEXT("StateCompleted"));
+
+		// Start and enter state
+		Status = Exec.Start();
+		AITEST_TRUE("StateTree Task1 should enter state", Exec.Expect(Task1.GetName(), EnterStateStr));
+		AITEST_TRUE("StateTree Task1A should enter state", Exec.Expect(Task1A.GetName(), EnterStateStr));
+		Exec.LogClear();
+
+		// Transition from Task1A to Task1B
+		Status = Exec.Tick(0.1f);
+		AITEST_TRUE("StateTree Task1A should complete", Exec.Expect(Task1A.GetName(), StateCompletedStr));
+		AITEST_TRUE("StateTree Task1B should enter state", Exec.Expect(Task1B.GetName(), EnterStateStr));
+		Exec.LogClear();
+
+		// Task1 completes, and we should take State1 transition. 
+		Status = Exec.Tick(0.1f);
+		AITEST_TRUE("StateTree Task1 should complete", Exec.Expect(Task1.GetName(), StateCompletedStr));
+		AITEST_EQUAL("Tree execution should stop on success", Status, EStateTreeRunStatus::Succeeded);
+		Exec.LogClear();
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_TransitionPriority, "System.StateTree.TransitionPriority");
+
+struct FStateTreeTest_TransitionPriorityEnterState : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
+		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
+		
+		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		UStateTreeState& State0 = Root.AddChildState(FName(TEXT("State0")));
+		UStateTreeState& State1 = Root.AddChildState(FName(TEXT("State1")));
+		UStateTreeState& State1A = State1.AddChildState(FName(TEXT("State1A")));
+		UStateTreeState& State2 = Root.AddChildState(FName(TEXT("State2")));
+		UStateTreeState& State3 = Root.AddChildState(FName(TEXT("State3")));
+
+		auto& Task0 = State0.AddTask<FTestTask_Stand>(FName(TEXT("Task0")));
+		State0.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &State1);
+
+		auto& Task1 = State1.AddTask<FTestTask_Stand>(FName(TEXT("Task1")));
+		Task1.GetNode().EnterStateResult = EStateTreeRunStatus::Failed;
+		State1.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &State2);
+		
+		auto& Task1A = State1A.AddTask<FTestTask_Stand>(FName(TEXT("Task1A")));
+		State1A.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &State3);
+
+		auto& Task2 = State2.AddTask<FTestTask_Stand>(FName(TEXT("Task2")));
+		State2.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
+
+		auto& Task3 = State3.AddTask<FTestTask_Stand>(FName(TEXT("Task3")));
+		State3.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
+
+		
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+		const FString StateCompletedStr(TEXT("StateCompleted"));
+
+		// Start and enter state
+		Status = Exec.Start();
+		AITEST_TRUE("StateTree Task0 should enter state", Exec.Expect(Task0.GetName(), EnterStateStr));
+		Exec.LogClear();
+
+		// Transition from State0 to State1, it should fail (Task1), and the transition on State1->State2 (and not State1A->State3)
+		Status = Exec.Tick(0.1f);
+		AITEST_TRUE("StateTree Task0 should complete", Exec.Expect(Task0.GetName(), StateCompletedStr));
+		AITEST_TRUE("StateTree Task2 should enter state", Exec.Expect(Task2.GetName(), EnterStateStr));
+		AITEST_FALSE("StateTree Task3 should not enter state", Exec.Expect(Task3.GetName(), EnterStateStr));
+		Exec.LogClear();
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_TransitionPriorityEnterState, "System.StateTree.TransitionPriorityEnterState");
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE
 

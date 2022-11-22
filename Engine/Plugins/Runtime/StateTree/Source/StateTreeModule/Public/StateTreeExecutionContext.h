@@ -40,6 +40,9 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 	/** Delayed transition handle, if exists */
 	FStateTreeIndex16 GatedTransitionIndex = FStateTreeIndex16::Invalid;
 
+	/** Handle of the state that was first to report state completed (success or failure), used to trigger completion transitions. */
+	FStateTreeStateHandle CompletedStateHandle = FStateTreeStateHandle::Invalid;
+
 	/** Number of times a new state has been changed. */
 	uint16 StateChangeCount = 0;
 

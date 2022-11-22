@@ -578,6 +578,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 
 	FStateTreeExecutionState& Exec = GetExecState();
 	Exec.StateChangeCount++;
+	Exec.CompletedStateHandle = FStateTreeStateHandle::Invalid;
 
 	// On target branch means that the state is the target of current transition or child of it.
 	// States which were active before and will remain active, but are not on target branch will not get
@@ -651,12 +652,21 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_EnterState);
 				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_EnterState);
 				const EStateTreeRunStatus Status = Task.EnterState(*this, CurrentTransition);
+
+				if (Status != EStateTreeRunStatus::Running)
+				{
+					// Store the first state that completed, will be used to decide where to trigger transitions.
+					if (!Exec.CompletedStateHandle.IsValid())
+					{
+						Exec.CompletedStateHandle = CurrentHandle;
+					}
+					Result = Status;
+				}
 				
 				if (Status == EStateTreeRunStatus::Failed)
 				{
-					// Store how far in the enter state we got. This will be used to match the ExitState() calls.
+					// Store how far in the enter state we got. This will be used to match the StateCompleted() and ExitState() calls.
 					Exec.EnterStateFailedTaskIndex = FStateTreeIndex16(TaskIndex);
-					Result = Status;
 					break;
 				}
 			}
@@ -918,7 +928,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TickTasks);
 
-	const FStateTreeExecutionState& Exec = GetExecState();
+	FStateTreeExecutionState& Exec = GetExecState();
 
 	if (Exec.ActiveStates.IsEmpty())
 	{
@@ -934,6 +944,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 	int32 InstanceStructIndex = Exec.FirstTaskStructIndex.Get();
 	int32 InstanceObjectIndex = Exec.FirstTaskObjectIndex.Get();
 
+	Exec.CompletedStateHandle = FStateTreeStateHandle::Invalid;
+	
 	// Used to stop ticking tasks after one fails, but we still want to keep updating the data of them
 	bool bShouldTickTasks = true;
 
@@ -983,6 +995,11 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 				// TODO: Add more control over which states can control the failed/succeeded result.
 				if (TaskResult != EStateTreeRunStatus::Running)
 				{
+					// Store the first state that completed, will be used to decide where to trigger transitions.
+					if (!Exec.CompletedStateHandle.IsValid())
+					{
+						Exec.CompletedStateHandle = CurrentHandle;
+					}
 					Result = TaskResult;
 				}
 				
@@ -1101,14 +1118,25 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Shar
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TriggerTransition);
 
 	FStateTreeExecutionState& Exec = GetExecState();
+
+	int32 StateStartIndex = Exec.ActiveStates.Num() - 1;
+
+	// On succeed/failed we will start looking for transition start at the first state that was completed.
+	auto GetLastCompletedStateIndex = [&Exec]() -> int32
+	{
+		const int32 Index = Exec.ActiveStates.IndexOfReverse(Exec.CompletedStateHandle);
+		return Index != INDEX_NONE ? Index : (Exec.ActiveStates.Num() - 1);
+	};
 	
 	EStateTreeTransitionTrigger CompletionTrigger = EStateTreeTransitionTrigger::None;
 	if (Exec.LastTickStatus == EStateTreeRunStatus::Succeeded)
 	{
+		StateStartIndex = GetLastCompletedStateIndex();
 		CompletionTrigger = EStateTreeTransitionTrigger::OnStateSucceeded;
 	}
 	else if (Exec.LastTickStatus == EStateTreeRunStatus::Failed)
 	{
+		StateStartIndex = GetLastCompletedStateIndex();
 		CompletionTrigger = EStateTreeTransitionTrigger::OnStateFailed;
 	}
 
@@ -1128,7 +1156,7 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Shar
 	};
 
 	// Walk towards root and check all transitions along the way.
-	for (int32 StateIndex = Exec.ActiveStates.Num() - 1; StateIndex >= 0; StateIndex--)
+	for (int32 StateIndex = StateStartIndex; StateIndex >= 0; StateIndex--)
 	{
 		const FCompactStateTreeState& State = StateTree.States[Exec.ActiveStates[StateIndex].Index];
 		
@@ -1658,4 +1686,3 @@ TArray<FName> FStateTreeExecutionContext::GetActiveStateNames() const
 
 #undef STATETREE_LOG
 #undef STATETREE_CLOG
-
