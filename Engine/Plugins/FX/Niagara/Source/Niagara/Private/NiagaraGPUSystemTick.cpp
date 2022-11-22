@@ -92,9 +92,6 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 		FMemory::Memcpy(OwnerParamData + sizeof(FNiagaraOwnerParameters), &InSystemInstance->GetOwnerParameters(true), sizeof(FNiagaraOwnerParameters));
 	}
 
-	FNiagaraSystemParameters *Tmp = reinterpret_cast<FNiagaraSystemParameters*>(SystemParamData);
-	FNiagaraSystemParameters Tmp2 = *Tmp;
-
 	ParamDataBufferPtr = OwnerParamData + InterpFactor * sizeof(FNiagaraOwnerParameters);
 
 	// Now we will generate instance data for every GPU simulation we want to run on the render thread.
