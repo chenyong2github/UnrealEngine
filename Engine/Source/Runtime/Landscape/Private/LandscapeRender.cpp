@@ -3107,10 +3107,7 @@ public:
 						}
 						else
 						{
-							if (Platform == EShaderPlatform::SP_PCD3D_SM5)
-							{
-								UE_LOG(LogLandscape, Warning, TEXT("Shader %s unknown by landscape thumbnail material, please add to either AllowedShaderTypes or ExcludedShaderTypes"), ShaderType->GetName());
-							}
+							UE_LOG(LogLandscape, Warning, TEXT("Shader %s unknown by landscape thumbnail material, please add to either AllowedShaderTypes or ExcludedShaderTypes"), ShaderType->GetName());
 							return FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 						}
 					}
