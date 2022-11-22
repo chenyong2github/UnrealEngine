@@ -920,11 +920,6 @@ int FNiagaraRendererRibbons::GetDynamicDataSize()const
 
 	Size += ShapeState.SliceVertexData.GetAllocatedSize();
 
-	if (DynamicDataRender)
-	{
-		const FNiagaraDynamicDataRibbon* RibbonDynamicData = static_cast<FNiagaraDynamicDataRibbon*>(DynamicDataRender);
-		Size += RibbonDynamicData->GetAllocatedSize();
-	}
 	return Size;
 }
 
