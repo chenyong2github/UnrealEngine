@@ -33,48 +33,41 @@ static TAutoConsoleVariable<int32> CVarWaterSingleLayer(
 	TEXT("Enable the single water rendering system."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+//
+// Reflections
+
+namespace ESingleLayerWaterReflections
+{
+	enum Type
+	{
+		Disabled			= 0, // No reflections on water at all.
+		Enabled				= 1, // Same reflection technique as the rest of the scene.
+		ReflectionCaptures	= 2, // Force using reflection captures and skylight (cubemaps) only.
+		SSR					= 3, // Force using SSR (includes cubemaps). Will fall back to cubemaps only if SSR is not supported.
+		MaxValue			= SSR
+	};
+}
+
 static TAutoConsoleVariable<int32> CVarWaterSingleLayerReflection(
 	TEXT("r.Water.SingleLayer.Reflection"), 1,
-	TEXT("Enable reflection rendering on water."),
+	TEXT("Reflection technique to use on single layer water. 0: Disabled, 1: Enabled (same as rest of scene), 2: Force Reflection Captures and Sky, 3: Force SSR"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarWaterSingleLayerTiledComposite(
 	TEXT("r.Water.SingleLayer.TiledComposite"), 1,
-	TEXT("Enable tiled optimisation of the water reflection rendering."),
+	TEXT("Enable tiled optimization of the single layer water reflection rendering system."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-int32 GSingleLayerWaterRefractionDownsampleFactor = 1;
-static FAutoConsoleVariableRef CVarWaterSingleLayerRefractionDownsampleFactor(
-	TEXT("r.Water.SingleLayer.RefractionDownsampleFactor"),
-	GSingleLayerWaterRefractionDownsampleFactor,
-	TEXT("Resolution divider for the water refraction buffer."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarParallelSingleLayerWaterPass(
-	TEXT("r.ParallelSingleLayerWaterPass"),
-	1,
-	TEXT("Toggles parallel single layer water pass rendering. Parallel rendering must be enabled for this to have an effect."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarSingleLayerWaterPassOptimizedClear(
-	TEXT("r.Water.SingleLayer.OptimizedClear"),
-	1,
-	TEXT("Toggles optimized depth clear"),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarWaterSingleLayerSSR(
-	TEXT("r.Water.SingleLayer.SSR"), 1,
-	TEXT("Enable SSR for the single water rendering system."),
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerSSRTAA(
+	TEXT("r.Water.SingleLayer.SSRTAA"), 1,
+	TEXT("Enable SSR denoising using TAA for the single layer water rendering system."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static TAutoConsoleVariable<int32> CVarWaterSingleLayerLumenReflections(
-	TEXT("r.Water.SingleLayer.LumenReflections"), 1,
-	TEXT("Enable Lumen reflections for the single water rendering system."),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
+//
+// Shadows
 
 static TAutoConsoleVariable<int32> CVarWaterSingleLayerShadersSupportDistanceFieldShadow(
-	TEXT("r.Water.SingleLayer.ShadersSupportDistanceFieldShadow"),
-	1,
+	TEXT("r.Water.SingleLayer.ShadersSupportDistanceFieldShadow"), 1,
 	TEXT("Whether or not the single layer water material shaders are compiled with support for distance field shadow, i.e. output main directional light luminance in a separate render target. This is preconditioned on using deferred shading and having distance field support enabled in the project."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
@@ -82,6 +75,11 @@ static TAutoConsoleVariable<int32> CVarWaterSingleLayerDistanceFieldShadow(
 	TEXT("r.Water.SingleLayer.DistanceFieldShadow"), 1,
 	TEXT("When using deferred, distance field shadow tracing is supported on single layer water. This cvar can be used to toggle it on/off at runtime."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+static TAutoConsoleVariable<int32> CVarSupportCloudShadowOnSingleLayerWater(
+	TEXT("r.Water.SingleLayerWater.SupportCloudShadow"), 0,
+	TEXT("Enables cloud shadows on SingleLayerWater materials."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarWaterSingleLayerShadersSupportVSMFiltering(
 	TEXT("r.Water.SingleLayer.ShadersSupportVSMFiltering"), 0,
@@ -93,31 +91,40 @@ static TAutoConsoleVariable<int32> CVarWaterSingleLayerVSMFiltering(
 	TEXT("When using deferred, virtual shadow map filtering is supported on single layer water. This cvar can be used to toggle it on/off at runtime."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-// The project setting for the cloud shadow to affect SingleLayerWater (enable/disable runtime and shader code).  This is not implemented on mobile as VolumetricClouds are not available on these platforms.
-static TAutoConsoleVariable<int32> CVarSupportCloudShadowOnSingleLayerWater(
-	TEXT("r.Water.SingleLayerWater.SupportCloudShadow"),
-	0,
-	TEXT("Enables cloud shadows on SingleLayerWater materials."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+//
+// Misc
 
-static TAutoConsoleVariable<int32> CVarWaterSingleLayerRTR(
-	TEXT("r.Water.SingleLayer.RTR"), 1,
-	TEXT("Enable RTR for the single water renderring system."),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-static TAutoConsoleVariable<int32> CVarWaterSingleLayerSSRTAA(
-	TEXT("r.Water.SingleLayer.SSRTAA"), 1,
-	TEXT("Enable SSR denoising using TAA for the single water renderring system."),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
+int32 GSingleLayerWaterRefractionDownsampleFactor = 1;
+static FAutoConsoleVariableRef CVarWaterSingleLayerRefractionDownsampleFactor(
+	TEXT("r.Water.SingleLayer.RefractionDownsampleFactor"),
+	GSingleLayerWaterRefractionDownsampleFactor,
+	TEXT("Resolution divider for the water refraction buffer."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarParallelSingleLayerWaterPass(
+	TEXT("r.ParallelSingleLayerWaterPass"), 1,
+	TEXT("Toggles parallel single layer water pass rendering. Parallel rendering must be enabled for this to have an effect."),
+	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksSingleLayerWater(
-	TEXT("r.RHICmdFlushRenderThreadTasksSingleLayerWater"),
-	0,
+	TEXT("r.RHICmdFlushRenderThreadTasksSingleLayerWater"), 0,
 	TEXT("Wait for completion of parallel render thread tasks at the end of Single layer water. A more granular version of r.RHICmdFlushRenderThreadTasks. If either r.RHICmdFlushRenderThreadTasks or r.RHICmdFlushRenderThreadTasksSingleLayerWater is > 0 we will flush."));
 
 static TAutoConsoleVariable<int32> CVarWaterSingleLayerDepthPrepass(
 	TEXT("r.Water.SingleLayer.DepthPrepass"), 0,
 	TEXT("Enable a depth prepass for single layer water. Necessary for proper Virtual Shadow Maps support."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarSingleLayerWaterPassOptimizedClear(
+	TEXT("r.Water.SingleLayer.OptimizedClear"), 1,
+	TEXT("Toggles optimized depth clear"),
+	ECVF_RenderThreadSafe);
+
+static int32 GetSingleLayerWaterReflectionTechnique()
+{
+	const int32 Value = CVarWaterSingleLayerReflection.GetValueOnRenderThread();
+	return FMath::Clamp(Value, 0, ESingleLayerWaterReflections::MaxValue);
+}
 
 // This is to have platforms use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
 bool SingleLayerWaterUsesSimpleShading(EShaderPlatform ShaderPlatform)
@@ -162,6 +169,57 @@ bool ShouldRenderSingleLayerWaterDepthPrepass(TArrayView<const FViewInfo> Views)
 	const bool bShouldRenderWater = ShouldRenderSingleLayerWater(Views);
 	
 	return bPrepassEnabled && bShouldRenderWater;
+}
+
+namespace ScreenSpaceRayTracing
+{
+bool ShouldRenderScreenSpaceReflectionsWater(const FViewInfo& View)
+{
+	const int32 ReflectionsMethod = GetSingleLayerWaterReflectionTechnique();
+	const bool bSSROverride = ReflectionsMethod == ESingleLayerWaterReflections::SSR;
+	// Note: intentionally allow falling back to SSR from other reflection methods, which may be disabled by scalability (see ShouldRenderScreenSpaceReflections())
+	const bool bSSRDefault = ReflectionsMethod == ESingleLayerWaterReflections::Enabled && View.FinalPostProcessSettings.ReflectionMethod != EReflectionMethod::None;
+
+	if (!View.Family->EngineShowFlags.ScreenSpaceReflections
+		|| (!bSSROverride && !bSSRDefault)
+		|| HasRayTracedOverlay(*View.Family)
+		|| !View.State /*no view state(e.g.thumbnail rendering ? ), no HZB(no screen space reflections or occlusion culling)*/
+		|| View.bIsReflectionCapture)
+	{
+		return false;
+	}
+
+	static const auto CVarSSRQuality = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SSR.Quality"));
+	int SSRQuality = CVarSSRQuality ? CVarSSRQuality->GetValueOnRenderThread() : 0;
+	if (SSRQuality <= 0 
+		|| View.FinalPostProcessSettings.ScreenSpaceReflectionIntensity < 1.0f 
+		|| IsForwardShadingEnabled(View.GetShaderPlatform()))
+	{
+		return false;
+	}
+
+	return true;
+}
+}
+
+#if RHI_RAYTRACING
+bool ShouldRenderRayTracingReflectionsWater(const FViewInfo& View)
+{
+	// This only returns true if using the default reflections method and having RTR enabled in the scene. It can't be forced with r.Water.SingleLayer.Reflection.
+	const bool bEffectEnabled = !View.bIsReflectionCapture 
+		&& GetSingleLayerWaterReflectionTechnique() == ESingleLayerWaterReflections::Enabled
+		&& ShouldRenderRayTracingReflections(View)
+		&& FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(View.GetShaderPlatform());
+	return ShouldRenderRayTracingEffect(bEffectEnabled, ERayTracingPipelineCompatibilityFlags::FullPipeline, nullptr);
+}
+#endif // RHI_RAYTRACING
+
+bool ShouldRenderLumenReflectionsWater(const FViewInfo& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck)
+{
+	// This only returns true if using the default reflections method and having Lumen enabled in the scene. It can't be forced with r.Water.SingleLayer.Reflection.
+	return !View.bIsReflectionCapture 
+		&& GetSingleLayerWaterReflectionTechnique() == ESingleLayerWaterReflections::Enabled
+		&& ShouldRenderLumenReflections(View, bSkipTracingDataCheck, bSkipProjectCheck);
 }
 
 bool ShouldUseBilinearSamplerForDepthWithoutSingleLayerWater(EPixelFormat DepthTextureFormat)
@@ -325,15 +383,15 @@ class FWaterTileClassificationBuildListsCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FWaterTileClassificationBuildListsCS, "/Engine/Private/SingleLayerWaterComposite.usf", "WaterTileClassificationBuildListsCS", SF_Compute);
 
 bool FWaterTileVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return UseSingleLayerWaterIndirectDraw(Parameters.Platform);
-	}
+{
+	return UseSingleLayerWaterIndirectDraw(Parameters.Platform);
+}
 
 void FWaterTileVS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		OutEnvironment.SetDefine(TEXT("TILE_VERTEX_SHADER"), 1.0f);
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
+{
+	OutEnvironment.SetDefine(TEXT("TILE_VERTEX_SHADER"), 1.0f);
+	FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+}
 
 IMPLEMENT_GLOBAL_SHADER(FWaterTileVS, "/Engine/Private/SingleLayerWaterComposite.usf", "WaterTileVS", SF_Vertex);
 
@@ -765,7 +823,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 	const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult,
 	FLumenSceneFrameTemporaries& LumenFrameTemporaries)
 {
-	if (CVarWaterSingleLayer.GetValueOnRenderThread() <= 0 || CVarWaterSingleLayerReflection.GetValueOnRenderThread() <= 0)
+	if (CVarWaterSingleLayer.GetValueOnRenderThread() <= 0)
 	{
 		return;
 	}
@@ -941,8 +999,15 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			}
 		}
 
-		if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen && CVarWaterSingleLayerLumenReflections.GetValueOnRenderThread() != 0)
+		// ReflectionsMethodWater can also be Disabled when only reflection captures are requested, so check CVarWaterSingleLayerReflection directly before early exiting.
+		if (GetSingleLayerWaterReflectionTechnique() == ESingleLayerWaterReflections::Disabled)
 		{
+			continue;
+		}
+
+		if (ViewPipelineState.ReflectionsMethodWater == EReflectionsMethod::Lumen)
+		{
+			check(ShouldRenderLumenReflectionsWater(View));
 			RDG_EVENT_SCOPE(GraphBuilder, "SLW::LumenReflections");
 
 			FLumenMeshSDFGridParameters MeshSDFGridParameters;
@@ -960,10 +1025,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				nullptr,
 				ERDGPassFlags::Compute);
 		}
-		else if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::RTR 
-			&& CVarWaterSingleLayerRTR.GetValueOnRenderThread() != 0 
-			&& FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(View.GetShaderPlatform()))
+		else if (ViewPipelineState.ReflectionsMethodWater == EReflectionsMethod::RTR)
 		{
+			check(ShouldRenderRayTracingReflectionsWater(View));
 			RDG_EVENT_SCOPE(GraphBuilder, "SLW::RayTracingReflections");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingWaterReflections);
 
@@ -1041,8 +1105,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				ReflectionsColor = DenoiserInputs.Color;
 			}
 		}
-		else if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR && CVarWaterSingleLayerSSR.GetValueOnRenderThread() != 0)
+		else if (ViewPipelineState.ReflectionsMethodWater == EReflectionsMethod::SSR)
 		{
+			check(ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflectionsWater(View));
 			// RUN SSR
 			// Uses the water GBuffer (depth, ABCDEF) to know how to start tracing.
 			// The water scene depth is used to know where to start tracing.

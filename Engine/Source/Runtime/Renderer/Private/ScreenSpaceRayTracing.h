@@ -69,6 +69,7 @@ END_SHADER_PARAMETER_STRUCT()
 bool ShouldKeepBleedFreeSceneColor(const FViewInfo& View);
 
 bool ShouldRenderScreenSpaceReflections(const FViewInfo& View);
+bool ShouldRenderScreenSpaceReflectionsWater(const FViewInfo& View);
 
 
 void ProcessForNextFrameScreenSpaceRayTracing(

@@ -430,6 +430,9 @@ private:
 		// Method to use for reflections. 
 		EReflectionsMethod ReflectionsMethod;
 
+		// Method to use for reflections on water.
+		EReflectionsMethod ReflectionsMethodWater;
+
 		// Whether there is planar reflection to compose to the reflection.
 		bool bComposePlanarReflections;
 

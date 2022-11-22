@@ -384,6 +384,7 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 		EDiffuseIndirectMethod DiffuseIndirectMethod = EDiffuseIndirectMethod::Disabled;
 		EAmbientOcclusionMethod AmbientOcclusionMethod = EAmbientOcclusionMethod::Disabled;
 		EReflectionsMethod ReflectionsMethod = EReflectionsMethod::Disabled;
+		EReflectionsMethod ReflectionsMethodWater = EReflectionsMethod::Disabled;
 		IScreenSpaceDenoiser::EMode DiffuseIndirectDenoiser = IScreenSpaceDenoiser::EMode::Disabled;
 
 		if (ShouldRenderLumenDiffuseGI(Scene, View))
@@ -440,10 +441,24 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 			ReflectionsMethod = EReflectionsMethod::SSR;
 		}
 
+		if (ShouldRenderLumenReflectionsWater(View))
+		{
+			ReflectionsMethodWater = EReflectionsMethod::Lumen;
+		}
+		else if (ShouldRenderRayTracingReflectionsWater(View))
+		{
+			ReflectionsMethodWater = EReflectionsMethod::RTR;
+		}
+		else if (ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflectionsWater(View))
+		{
+			ReflectionsMethodWater = EReflectionsMethod::SSR;
+		}
+
 		ViewPipelineState.Set(&FPerViewPipelineState::DiffuseIndirectMethod, DiffuseIndirectMethod);
 		ViewPipelineState.Set(&FPerViewPipelineState::DiffuseIndirectDenoiser, DiffuseIndirectDenoiser);
 		ViewPipelineState.Set(&FPerViewPipelineState::AmbientOcclusionMethod, AmbientOcclusionMethod);
 		ViewPipelineState.Set(&FPerViewPipelineState::ReflectionsMethod, ReflectionsMethod);
+		ViewPipelineState.Set(&FPerViewPipelineState::ReflectionsMethodWater, ReflectionsMethodWater);
 
 		ViewPipelineState.Set(&FPerViewPipelineState::bComposePlanarReflections,
 			ReflectionsMethod != EReflectionsMethod::RTR && HasDeferredPlanarReflections(View));

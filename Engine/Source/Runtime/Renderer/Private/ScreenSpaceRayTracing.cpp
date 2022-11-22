@@ -168,7 +168,7 @@ bool IsScreenSpaceDiffuseIndirectSupported(const FViewInfo& View)
 
 bool IsSSRTemporalPassRequired(const FViewInfo& View)
 {
-	check(ShouldRenderScreenSpaceReflections(View));
+	check(ShouldRenderScreenSpaceReflections(View) || ShouldRenderScreenSpaceReflectionsWater(View));
 
 	if (!View.State)
 	{
@@ -642,7 +642,7 @@ namespace ScreenSpaceRayTracing
 
 void GetSSRQualityForView(const FViewInfo& View, ESSRQuality* OutQuality, IScreenSpaceDenoiser::FReflectionsRayTracingConfig* OutRayTracingConfigs)
 {
-	check(ShouldRenderScreenSpaceReflections(View));
+	check(ShouldRenderScreenSpaceReflections(View) || ShouldRenderScreenSpaceReflectionsWater(View));
 	
 	int32 SSRQualityCVar = FMath::Clamp(CVarSSRQuality.GetValueOnRenderThread(), 0, int32(ESSRQuality::MAX) - 1);
 	

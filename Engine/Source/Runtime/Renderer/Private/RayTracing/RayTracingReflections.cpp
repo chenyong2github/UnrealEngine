@@ -521,7 +521,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflectionsDeferredMaterial
 
 void FDeferredShadingSceneRenderer::PrepareSingleLayerWaterRayTracingReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (!ShouldRenderRayTracingReflections(View))
+	if (!ShouldRenderRayTracingReflectionsWater(View))
 	{
 		return;
 	}

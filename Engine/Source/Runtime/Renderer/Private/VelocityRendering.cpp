@@ -198,7 +198,9 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 		bool bVisualizeMotionblur = View.Family->EngineShowFlags.VisualizeMotionBlur;
 		bool bDistanceFieldAO = ShouldPrepareForDistanceFieldAO();
 
-		bool bSSRTemporal = ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR && ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View) && ScreenSpaceRayTracing::IsSSRTemporalPassRequired(View);
+		bool bSceneSSREnabled = ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR && ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View);
+		bool bWaterSSREnabled = ViewPipelineState.ReflectionsMethodWater == EReflectionsMethod::SSR && ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflectionsWater(View);
+		bool bSSRTemporal = (bSceneSSREnabled || bWaterSSREnabled) && ScreenSpaceRayTracing::IsSSRTemporalPassRequired(View);
 
 		bool bRayTracing = IsRayTracingEnabled();
 		bool bDenoise = bRayTracing;

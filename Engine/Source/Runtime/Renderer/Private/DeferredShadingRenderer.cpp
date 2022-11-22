@@ -4113,6 +4113,7 @@ bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 		|| Scene->bHasRayTracedLights
 		|| ShouldRenderPluginRayTracingGlobalIllumination(View)
         || Lumen::AnyLumenHardwareRayTracingPassEnabled(Scene, View)
+		|| ShouldRenderRayTracingReflectionsWater(View)
 		|| HasRayTracedOverlay(*View.Family);
 }
 
