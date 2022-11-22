@@ -1,23 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
-namespace UE::Core::Private::IsTriviallyDestructible
-{
-	// We have this specialization for enums to avoid the need to have a full definition of
-	// the type.
-	template <typename T, bool bIsTriviallyTriviallyDestructible = __is_enum(T)>
-	struct TImpl
-	{
-		enum { Value = true };
-	};
-
-	template <typename T>
-	struct TImpl<T, false>
-	{
-		enum { Value = __has_trivial_destructor(T) };
-	};
-}
+#include <type_traits>
 
 /**
  * Traits class which tests if a type has a trivial destructor.
@@ -25,5 +9,5 @@ namespace UE::Core::Private::IsTriviallyDestructible
 template <typename T>
 struct TIsTriviallyDestructible
 {
-	enum { Value = UE::Core::Private::IsTriviallyDestructible::TImpl<T>::Value };
+	enum { Value = std::is_trivially_destructible_v<T> };
 };
