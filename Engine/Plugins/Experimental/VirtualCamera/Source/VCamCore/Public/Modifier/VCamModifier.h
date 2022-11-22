@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CineCameraComponent.h"
 #include "CoreMinimal.h"
+#include "CineCameraComponent.h"
 #include "Roles/LiveLinkCameraTypes.h"
-
 #include "VCamModifier.generated.h"
 
 class UInputAction;

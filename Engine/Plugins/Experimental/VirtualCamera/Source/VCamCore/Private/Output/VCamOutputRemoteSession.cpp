@@ -1,26 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamOutputRemoteSession.h"
+#include "Output/VCamOutputRemoteSession.h"
+
+#include "Output/VCamOutputComposure.h"
+
 #include "Engine/GameInstance.h"
-#include "UObject/Package.h"
-#include "VCamOutputComposure.h"
+#include "Engine/GameEngine.h"
 #include "Channels/RemoteSessionImageChannel.h"
 #include "Channels/RemoteSessionInputChannel.h"
 #include "GameFramework/PlayerController.h"
-#include "Engine/GameEngine.h"
-#include "Widgets/SVirtualWindow.h"
+#include "UObject/Package.h"
 #include "UObject/SoftObjectPath.h"
+#include "Slate/SceneViewport.h"
 #include "VPFullScreenUserWidget.h"
+#include "Widgets/SVirtualWindow.h"
 
 #if WITH_EDITOR
-#include "IAssetViewport.h"
 #include "LevelEditor.h"
 #include "SLevelViewport.h"
 #endif
 
-namespace VCamOutputRemoteSession
+namespace UE::VCamOutputRemoteSession::Private
 {
-	static const FName LevelEditorName(TEXT("LevelEditor"));
 	static const FSoftClassPath EmptyUMGSoftClassPath(TEXT("/VCamCore/Assets/VCam_EmptyVisibleUMG.VCam_EmptyVisibleUMG_C"));
 }
 
@@ -47,7 +48,7 @@ void UVCamOutputRemoteSession::Activate()
 	if (UMGClass == nullptr)
 	{
 		bUsingDummyUMG = true;
-		UMGClass = VCamOutputRemoteSession::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>();
+		UMGClass = UE::VCamOutputRemoteSession::Private::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>();
 	}
 
 	CreateRemoteSession();

@@ -3,13 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "EVCamTargetViewportID.h"
+#include "Modifier//ModifierStackEntry.h"
+#include "Output/VCamOutputProviderBase.h"
+
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputSubsystemInterface.h"
-#include "VCamTypes.h"
-#include "VCamInputSettings.h"
-#include "Roles/LiveLinkCameraTypes.h"
-#include "VCamOutputProviderBase.h"
 #include "GameplayTagContainer.h"
+#include "Roles/LiveLinkCameraTypes.h"
+#include "VCamInputSettings.h"
 
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
@@ -31,16 +34,6 @@ class FLevelEditorViewportClient;
 #endif
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnComponentReplaced, UVCamComponent*, NewComponent);
-
-UENUM(BlueprintType, meta=(DisplayName = "VCam Target Viewport ID"))
-enum class EVCamTargetViewportID : uint8
-{
-	CurrentlySelected = 0,
-	Viewport1 = 1,
-	Viewport2 = 2,
-	Viewport3 = 3,
-	Viewport4 = 4
-};
 
 UCLASS(Blueprintable, ClassGroup = VCam, HideCategories=(Mobility), meta=(BlueprintSpawnableComponent))
 class VCAMCORE_API UVCamComponent : public USceneComponent

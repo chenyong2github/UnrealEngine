@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "VCamOutputProviderBase.h"
 #include "ImageProviders/RemoteSessionMediaOutput.h"
 #include "IRemoteSessionRole.h"
 #include "RemoteSession.h"
-#include "Slate/SceneViewport.h"
-#include "Engine/TextureRenderTarget2D.h"
 
 #if WITH_EDITOR
 #include "LevelEditorViewport.h"

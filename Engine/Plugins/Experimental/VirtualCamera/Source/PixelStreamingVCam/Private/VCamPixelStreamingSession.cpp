@@ -1,32 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VCamPixelStreamingSession.h"
-#include "VCamOutputComposure.h"
-#include "PixelStreamingServers.h"
-#include "Editor/EditorPerformanceSettings.h"
-#include "Containers/UnrealString.h"
+
+#include "Output/VCamOutputComposure.h"
+
 #include "Async/Async.h"
+#include "Containers/UnrealString.h"
+#include "Editor/EditorPerformanceSettings.h"
+#include "IPixelStreamingInputHandler.h"
+#include "IPixelStreamingModule.h"
 #include "Modules/ModuleManager.h"
-#include "Math/Vector4.h"
 #include "Math/Matrix.h"
-#include "Math/TransformNonVectorized.h"
+#include "PixelStreamingEditorModule.h"
+#include "PixelStreamingVCamLog.h"
+#include "PixelStreamingProtocol.h"
+#include "PixelStreamingServers.h"
 #include "Serialization/MemoryReader.h"
+#include "VCamComponent.h"
 #include "VCamPixelStreamingSubsystem.h"
 #include "VCamPixelStreamingLiveLink.h"
-#include "PixelStreamingVCamLog.h"
-#include "IPixelStreamingModule.h"
-#include "PixelStreamingProtocol.h"
-#include "PixelStreamingEditorModule.h"
-#include "VCamComponent.h"
-#include "Input/HittestGrid.h"
-#include "Widgets/SVirtualWindow.h"
 #include "VPFullScreenUserWidget.h"
-#include "InputCoreTypes.h"
-#include "IPixelStreamingInputHandler.h"
+#include "Widgets/SVirtualWindow.h"
 
-namespace VCamPixelStreamingSession
+namespace UE::VCamPixelStreamingSession::Private
 {
-	static const FName LevelEditorName(TEXT("LevelEditor"));
 	static const FSoftClassPath EmptyUMGSoftClassPath(TEXT("/VCamCore/Assets/VCam_EmptyVisibleUMG.VCam_EmptyVisibleUMG_C"));
 } // namespace VCamPixelStreamingSession
 
@@ -72,7 +69,7 @@ void UVCamPixelStreamingSession::Activate()
 	if (UMGClass == nullptr)
 	{
 		bUsingDummyUMG = true;
-		UMGClass = VCamPixelStreamingSession::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>();
+		UMGClass = UE::VCamPixelStreamingSession::Private::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>();
 	}
 
 	if (MediaOutput == nullptr)

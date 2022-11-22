@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamOutputViewport.h"
-
+#include "Output/VCamOutputViewport.h"
 
 void UVCamOutputViewport::CreateUMG()
 {

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "VCamOutputProviderBase.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CompositingElement.h"

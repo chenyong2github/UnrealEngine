@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamOutputComposure.h"
+#include "Output/VCamOutputComposure.h"
 
 void UVCamOutputComposure::CreateUMG()
 {

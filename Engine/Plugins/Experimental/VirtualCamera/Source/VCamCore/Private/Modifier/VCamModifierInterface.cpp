@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
-#include "VCamModifierInterface.h"
+#include "Modifier/VCamModifierInterface.h"
 #include "VCamComponent.h"
 
 // Default fallback implementation

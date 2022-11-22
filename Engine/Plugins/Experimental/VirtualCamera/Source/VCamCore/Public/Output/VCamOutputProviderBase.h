@@ -3,10 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UnrealClient.h"
 #include "CineCameraComponent.h"
 #include "VPFullScreenUserWidget.h"
-
 #include "VCamOutputProviderBase.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVCamOutputProvider, Log, All);
@@ -24,10 +22,7 @@ UCLASS(BlueprintType, Abstract, EditInlineNew)
 class VCAMCORE_API UVCamOutputProviderBase : public UObject
 {
 	GENERATED_BODY()
-
 public:
-	UVCamOutputProviderBase();
-	~UVCamOutputProviderBase();
 
 	virtual void BeginDestroy() override;
 

@@ -10,7 +10,7 @@
 #include "UI/Switcher/WidgetConnectionConfig.h"
 #include "VCamBaseActor.h"
 #include "VCamComponent.h"
-#include "VCamModifier.h"
+#include "Modifier/VCamModifier.h"
 
 #include "Interfaces/IPluginManager.h"
 #include "Kismet2/KismetEditorUtilities.h"

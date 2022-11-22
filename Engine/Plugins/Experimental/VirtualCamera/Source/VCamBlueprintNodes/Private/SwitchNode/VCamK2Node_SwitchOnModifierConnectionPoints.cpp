@@ -2,7 +2,7 @@
 
 #include "VCamK2Node_SwitchOnModifierConnectionPoints.h"
 
-#include "VCamModifier.h"
+#include "Modifier/VCamModifier.h"
 
 #include "Engine/Blueprint.h"
 

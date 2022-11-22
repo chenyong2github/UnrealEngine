@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamOutputMediaOutput.h"
-#include "VCamOutputComposure.h"
+#include "Output/VCamOutputMediaOutput.h"
+
+#include "Output/VCamOutputComposure.h"
 
 void UVCamOutputMediaOutput::Activate()
 {

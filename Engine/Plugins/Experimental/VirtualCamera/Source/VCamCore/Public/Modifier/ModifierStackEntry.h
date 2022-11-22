@@ -3,11 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Input/Events.h"
 #include "VCamModifier.h"
-
-#include "VCamTypes.generated.h"
+#include "ModifierStackEntry.generated.h"
 
 class UVCamModifier;
 

@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamModifier.h"
+#include "Modifier/VCamModifier.h"
+
+#include "Modifier/ModifierStackEntry.h"
 #include "VCamComponent.h"
-#include "VCamTypes.h"
+
 #include "EnhancedInputComponent.h"
 #include "Engine/InputDelegateBinding.h"
-
 
 void UVCamBlueprintModifier::Initialize(UVCamModifierContext* Context, UInputComponent* InputComponent)
 {

@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/VCamModifierFactory.h"
-#include "VCamModifier.h"
+
+#include "Modifier/VCamModifier.h"
 
 #include "AssetToolsModule.h"
 #include "Kismet2/BlueprintEditorUtils.h"

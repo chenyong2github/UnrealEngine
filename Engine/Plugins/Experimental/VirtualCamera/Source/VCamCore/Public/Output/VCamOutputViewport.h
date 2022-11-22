@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "VCamOutputProviderBase.h"
-
 #include "VCamOutputViewport.generated.h"
 
 UCLASS(meta = (DisplayName = "Viewport Output Provider"))

@@ -1,32 +1,22 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamOutputProviderBase.h"
+#include "Output/VCamOutputProviderBase.h"
+
+#include "Modifier/VCamModifierInterface.h"
+#include "VCamComponent.h"
+#include "UI/VCamWidget.h"
 
 #include "Engine/Engine.h"
-#include "VCamModifierInterface.h"
-#include "VCamComponent.h"
 #include "UObject/UObjectBaseUtility.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
-#include "UI/VCamWidget.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "UnrealClient.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
-
-UVCamOutputProviderBase::UVCamOutputProviderBase()
-	: bIsActive(false)
-	, bInitialized(false)
-{
-
-}
-
-UVCamOutputProviderBase::~UVCamOutputProviderBase()
-{
-	// Deinitialize can't be done here since the destruction order isn't guaranteed
-}
 
 void UVCamOutputProviderBase::BeginDestroy()
 {

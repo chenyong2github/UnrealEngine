@@ -2,24 +2,23 @@
 
 #include "VCamComponent.h"
 
+#include "Modifier/VCamModifier.h"
+#include "Modifier/VCamModifierContext.h"
+
 #include "CineCameraComponent.h"
 #include "Engine/GameInstance.h"
-#include "Features/IModularFeatures.h"
-#include "Framework/Application/SlateApplication.h"
-#include "ILiveLinkClient.h"
-#include "VCamModifier.h"
-#include "VCamModifierContext.h"
-#include "Roles/LiveLinkCameraRole.h"
-#include "Roles/LiveLinkTransformRole.h"
-#include "GameDelegates.h"
 #include "Engine/GameEngine.h"
+#include "Engine/InputDelegateBinding.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "Engine/InputDelegateBinding.h"
+#include "Features/IModularFeatures.h"
+#include "Framework/Application/SlateApplication.h"
+#include "GameFramework/InputSettings.h"
+#include "ILiveLinkClient.h"
 #include "InputMappingContext.h"
 #include "PlayerMappableKeySettings.h"
-
-#include "GameFramework/InputSettings.h"
+#include "Roles/LiveLinkCameraRole.h"
+#include "Roles/LiveLinkTransformRole.h"
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"

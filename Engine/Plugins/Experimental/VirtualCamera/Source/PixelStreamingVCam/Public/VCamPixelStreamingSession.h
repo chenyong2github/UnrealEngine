@@ -2,14 +2,13 @@
 
 #pragma once
 
-#include "VCamOutputProviderBase.h"
+#include "Output/VCamOutputProviderBase.h"
 #include "PixelStreamingMediaCapture.h"
 #include "PixelStreamingMediaOutput.h"
 #include "PixelStreamingServers.h"
 #include "Slate/SceneViewport.h"
-#include "Engine/TextureRenderTarget2D.h"
 #if WITH_EDITOR
-	#include "LevelEditorViewport.h"
+#include "LevelEditorViewport.h"
 #endif
 #include "VCamPixelStreamingSession.generated.h"
 
