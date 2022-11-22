@@ -22,6 +22,7 @@
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSimStageData.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraSystemSimulation.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "ShaderParameterUtils.h"
 
