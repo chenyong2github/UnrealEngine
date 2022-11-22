@@ -1038,7 +1038,7 @@ bool UNiagaraDataInterfaceRigidMeshCollisionQuery::PerInstanceTick(void* PerInst
 	FNDIRigidMeshCollisionData* InstanceData = static_cast<FNDIRigidMeshCollisionData*>(PerInstanceData);
 	if (InstanceData && SystemInstance)
 	{
-		const FTickInfo &TickInfo = SystemInstance->GetSystemSimulation()->GetTickInfo();
+		const FNiagaraTickInfo &TickInfo = SystemInstance->GetSystemSimulation()->GetTickInfo();
 
 		// only update on the first tick
 		if (TickInfo.TickNumber == 0)

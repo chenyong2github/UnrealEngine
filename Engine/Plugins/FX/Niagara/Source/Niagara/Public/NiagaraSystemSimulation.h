@@ -27,7 +27,7 @@ enum class ENiagaraGPUTickHandlingMode
 	ConcurrentBatched,/** Systems can submit their GPU ticks in batches during concurrent tick. */
 };
 
-struct FTickInfo
+struct FNiagaraTickInfo
 {
 	bool UsesFixedTick = false;
 	float EngineTick = 0.0;
@@ -327,7 +327,7 @@ public:
 
 	FORCEINLINE UWorld* GetWorld()const{return World;}
 
-	const FTickInfo& GetTickInfo() { return TickInfo; }
+	const FNiagaraTickInfo& GetTickInfo() { return TickInfo; }
 
 protected:
 	void DumpStalledInfo();
@@ -447,5 +447,5 @@ protected:
 
 	float FixedDeltaTickAge = 0;
 
-	FTickInfo TickInfo;
+	FNiagaraTickInfo TickInfo;
 };
