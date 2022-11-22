@@ -224,8 +224,8 @@ void SImgMediaProcessEXR::ProcessAllImages()
 	PlatformFile.CreateDirectoryTree(*OutPath);
 
 	// Get source files.
-	FString SequencePath = FPaths::GetPath(Options->InputPath.FilePath);
-	
+	FString SequencePath = FPaths::ConvertRelativePathToFull(FPaths::GetPath(Options->InputPath.FilePath));
+
 	TArray<FString> FoundFiles;
 	IFileManager::Get().FindFiles(FoundFiles, *SequencePath, TEXT("*"));
 	FoundFiles.RemoveAll([](const FString& FileName) { return FileName.StartsWith(TEXT(".")); });
