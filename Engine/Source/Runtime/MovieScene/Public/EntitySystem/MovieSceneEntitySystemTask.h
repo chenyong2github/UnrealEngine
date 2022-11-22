@@ -243,6 +243,8 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 	template<typename TaskImpl, typename... TaskConstructionArgs>
 	FGraphEventRef Dispatch(FEntityManager* EntityManager, const FSystemTaskPrerequisites& Prerequisites, FSystemSubsequentTasks* Subsequents, TaskConstructionArgs&&... InArgs) const
 	{
+		static_assert(sizeof...(T) == 0, "Dispatch() is only for non-structured logic, which means that any call to Read or Write (or their variants) won't do anything -- please remove them");
+
 		checkfSlow(IsInGameThread(), TEXT("Tasks can only be dispatched from the game thread."));
 
 		const bool bRunInline = !ensure(EntityManager->IsLockedDown()) || EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading;
@@ -307,6 +309,14 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 			return nullptr;
 		}
 
+		// Quick check to prevent dispatching a task that might not have any work to do. We only check the accessors
+		// here, so the task could still early-return with no work done if some custom filters end up matching
+		// nothing. Callers should in this case do their best to prevent useless tasks being dispatched.
+		if (!this->HasAnyWork(EntityManager))
+		{
+			return nullptr;
+		}
+
 		// If this ensure triggers, we are not in the evaluation phase - the callee should be using RunInline_ or Iterate_ variants
 		const bool bRunInline = !ensure(EntityManager->IsLockedDown()) || EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading;
 		if (bRunInline)
@@ -317,7 +327,6 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 		}
 		else
 		{
-
 			FGraphEventArray GatheredPrereqs;
 			this->PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
 
@@ -376,6 +385,12 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 		checkfSlow(IsInGameThread(), TEXT("Tasks can only be dispatched from the game thread."));
 
 		if (!this->IsValid())
+		{
+			return nullptr;
+		}
+
+		// See comment in Dispatch_PerAllocation()
+		if (!this->HasAnyWork(EntityManager))
 		{
 			return nullptr;
 		}
@@ -591,6 +606,19 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 		(void)Temp;
 
 		return bAllValid;
+	}
+
+	/**
+	 * Check whether all required accessors correspond to component types that are present in the given entity manager.
+	 */
+	bool HasAnyWork(const FEntityManager* EntityManager) const
+	{
+		bool bAllHaveWork = true;
+
+		int Temp[] = { ( bAllHaveWork &= HasAccessorWork(EntityManager, &Accessors.template Get<Indices>()), 0)..., 0 };
+		(void)Temp;
+
+		return bAllHaveWork;
 	}
 
 	/** Utility function called when the task is dispatched to populate the filter based on our component typs */
@@ -988,6 +1016,12 @@ struct TFilteredEntityTask
 			return nullptr;
 		}
 
+		// See comment in TEntityTaskComponents' Dispatch_PerAllocation()
+		if (!Components.HasAnyWork(EntityManager))
+		{
+			return nullptr;
+		}
+
 		// If this ensure triggers, we are not in the evaluation phase - the callee should be using RunInline_ or Iterate_ variants
 		const bool bRunInline = !ensure(EntityManager->IsLockedDown()) || EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading;
 		if (bRunInline)
@@ -1056,6 +1090,12 @@ struct TFilteredEntityTask
 		checkfSlow(IsInGameThread(), TEXT("Tasks can only be dispatched from the game thread."));
 
 		if (!Components.IsValid())
+		{
+			return nullptr;
+		}
+
+		// See comment in TEntityTaskComponents' Dispatch_PerAllocation()
+		if (!Components.HasAnyWork(EntityManager))
 		{
 			return nullptr;
 		}

@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "EntitySystem/EntityAllocationIterator.h"
 #include "EntitySystem/MovieSceneComponentPtr.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieSceneSystemTaskDependencies.h"
 #include "HAL/Platform.h"
@@ -343,6 +344,35 @@ inline bool IsAccessorValid(const TReadOneOrMoreOfAccessor<T...>* In)
 	bool bValid = false;
 	VisitTupleElements([&bValid](FOptionalReadAccess It) { bValid |= IsAccessorValid(&It); }, In->ComponentTypes);
 	return bValid;
+}
+
+
+
+inline bool HasAccessorWork(const FEntityManager*, const FEntityIDAccess*)
+{
+	return true;
+}
+inline bool HasAccessorWork(const FEntityManager* EntityManager, const FComponentAccess* In)
+{
+	return EntityManager->ContainsComponent(In->ComponentType);
+}
+inline bool HasAccessorWork(const FEntityManager* EntityManager, const FOptionalComponentAccess* In)
+{
+	return true;
+}
+template<typename... T>
+inline bool HasAccessorWork(const FEntityManager* EntityManager, const TReadOneOfAccessor<T...>* In)
+{
+	bool bAnyWork = false;
+	VisitTupleElements([&bAnyWork, EntityManager](FOptionalReadAccess It){ bAnyWork |= HasAccessorWork(EntityManager , &It); }, In->ComponentTypes);
+	return bAnyWork;
+}
+template<typename... T>
+inline bool HasAccessorWork(const FEntityManager* EntityManager, const TReadOneOrMoreOfAccessor<T...>* In)
+{
+	bool bAnyWork = false;
+	VisitTupleElements([&bAnyWork, EntityManager](FOptionalReadAccess It) { bAnyWork |= HasAccessorWork(EntityManager , &It); }, In->ComponentTypes);
+	return bAnyWork;
 }
 
 #if UE_MOVIESCENE_ENTITY_DEBUG
