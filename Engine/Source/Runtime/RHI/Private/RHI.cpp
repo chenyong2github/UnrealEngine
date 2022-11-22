@@ -295,7 +295,7 @@ const FClearValueBinding FClearValueBinding::Green(FLinearColor(0.0f, 1.0f, 0.0f
 // Note: this is used as the default normal for DBuffer decals.  It must decode to a value of 0 in DecodeDBufferData.
 const FClearValueBinding FClearValueBinding::DefaultNormal8Bit(FLinearColor(128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1.0f));
 
-UE::TConsumeAllMpmcQueue<FRHIResource*, FConcurrentLinearAllocator> FRHIResource::PendingDeletes;
+UE::TConsumeAllMpmcQueue<FRHIResource*> FRHIResource::PendingDeletes;
 FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
 
 #if HAS_GPU_STATS

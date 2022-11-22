@@ -223,7 +223,7 @@ private:
 	uint8 bBeingTracked : 1;
 #endif
 
-	static UE::TConsumeAllMpmcQueue<FRHIResource*, FConcurrentLinearAllocator> PendingDeletes;
+	static UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletes;
 	static FRHIResource* CurrentlyDeleting;
 
 	// Some APIs don't do internal reference counting, so we have to wait an extra couple of frames before deleting resources
