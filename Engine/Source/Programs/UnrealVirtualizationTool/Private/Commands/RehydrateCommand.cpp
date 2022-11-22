@@ -2,7 +2,6 @@
 
 #include "Commands/RehydrateCommand.h"
 
-#include "HAL/FileManager.h"
 #include "ISourceControlProvider.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageName.h"
@@ -15,48 +14,24 @@
 namespace UE::Virtualization
 {
 
-// Taken from UCommandlet
-static void ParseCommandLine(const TCHAR* CmdLine, TArray<FString>& Tokens, TArray<FString>& Switches)
-{
-	FString NextToken;
-	while (FParse::Token(CmdLine, NextToken, false))
-	{
-		if (**NextToken == TCHAR('-'))
-		{
-			new(Switches) FString(NextToken.Mid(1));
-		}
-		else
-		{
-			new(Tokens) FString(NextToken);
-		}
-	}
-}
-
 FRehydrateCommand::FRehydrateCommand(FStringView CommandName)
 	: FCommand(CommandName)
 {
 
 }
 
-FRehydrateCommand::~FRehydrateCommand()
-{
-
-}
-
 void FRehydrateCommand::PrintCmdLineHelp()
 {
-	UE_LOG(LogVirtualizationTool, Display, TEXT("UnrealVirtualizationTool -ClientSpecName=<name> [optional] -Mode=Rehydrate -Package=<string> [global options]"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("\tRehyrates the given package"));
-
-	UE_LOG(LogVirtualizationTool, Display, TEXT("UnrealVirtualizationTool -ClientSpecName=<name> [optional] -Mode=Rehydrate -PackageDir=<string> [global options]"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("\tRehyrates all packages in the given directory and its subdirectories"));
-
-	UE_LOG(LogVirtualizationTool, Display, TEXT("UnrealVirtualizationTool -ClientSpecName=<name> [optional] -Mode=Rehydrate -Changelist=<number> [global options]"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("\tRehyrates all packages in the given changelist"));
+	UE_LOG(LogVirtualizationTool, Display, TEXT(""));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Rehydrate -Package=<string>"));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Rehydrate -PackageDir=<string>"));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Rehydrate -Changelist=<number>"));
 }
 
 bool FRehydrateCommand::Initialize(const TCHAR* CmdLine)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRehydrateCommand::Initialize);
+
 	// Note that we haven't loaded any projects config files and so don't really have
 	// any valid project mount points so we cannot use FPackagePath or FPackageName
 	// and expect to find anything!
@@ -65,62 +40,28 @@ bool FRehydrateCommand::Initialize(const TCHAR* CmdLine)
 	TArray<FString> Switches;
 
 	ParseCommandLine(CmdLine, Tokens, Switches);
-
-	Packages.Reserve(32);
-
+	
+	FString SwitchValue;
 	for (const FString& Switch :  Switches)
 	{
-		FString Path;
-		FString ChangelistNumber;
-
-		if (FParse::Value(*Switch, TEXT("ClientSpecName="), ClientSpecName))
+		EPathResult Result = ParseSwitchForPaths(Switch, Packages);
+		if (Result == EPathResult::Error)
 		{
+			return false;
+		}
+		else if (Result == EPathResult::Success)
+		{
+			continue; // If we already matched the switch we don't need to check against any others
+		}
+
+		if (FParse::Value(*Switch, TEXT("ClientSpecName="), SwitchValue))
+		{
+			ClientSpecName = SwitchValue;
 			UE_LOG(LogVirtualizationTool, Display, TEXT("\tWorkspace name provided '%s'"), *ClientSpecName);
 		}
-		else if (FParse::Value(*Switch, TEXT("Package="), Path))
+		else if (FParse::Value(*Switch, TEXT("Changelist="), SwitchValue))
 		{
-			FPaths::NormalizeFilename(Path);
-
-			if (IFileManager::Get().FileExists(*Path))
-			{
-				Packages.Add(Path);
-			}
-			else
-			{
-				UE_LOG(LogVirtualizationTool, Error, TEXT("Could not find the requested package file '%s'"), *Path);
-				return false;
-			}
-		}
-		else if (FParse::Value(*Switch, TEXT("PackageDir="), Path) || FParse::Value(*Switch, TEXT("PackageFolder="), Path))
-		{
-			// Note that 'PackageFolder' is the switch used by the resave commandlet, so allowing it here for compatibility purposes
-			FPaths::NormalizeFilename(Path);
-			if (IFileManager::Get().DirectoryExists(*Path))
-			{
-				IFileManager::Get().IterateDirectoryRecursively(*Path, [this](const TCHAR* Path, bool bIsDirectory)
-					{
-						if (!bIsDirectory && FPackageName::IsPackageFilename(Path))
-						{
-							FString FilePath(Path);
-							FPaths::NormalizeFilename(FilePath);
-
-							this->Packages.Add(MoveTemp(FilePath));
-						}
-
-						return true; // Continue
-					});
-
-				return true;
-			}
-			else
-			{
-				UE_LOG(LogVirtualizationTool, Error, TEXT("Could not find the requested directory '%s'"), *Path);
-				return false;
-			}
-		}
-		else if (FParse::Value(*Switch, TEXT("Changelist="), ChangelistNumber))
-		{
-			return TryParseChangelist(ClientSpecName, ChangelistNumber, Packages);
+			return TryParseChangelist(ClientSpecName, SwitchValue, Packages, nullptr);
 		}
 	}
 
@@ -129,6 +70,8 @@ bool FRehydrateCommand::Initialize(const TCHAR* CmdLine)
 
 bool FRehydrateCommand::Run(const TArray<FProject>& Projects)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRehydrateCommand::Run);
+
 	for (const FProject& Project : Projects)
 	{
 		TStringBuilder<128> ProjectName;
@@ -180,6 +123,11 @@ bool FRehydrateCommand::Run(const TArray<FProject>& Projects)
 	}
 
 	return true;
+}
+
+const TArray<FString>& FRehydrateCommand::GetPackages() const
+{
+	return Packages;
 }
 
 } // namespace UE::Virtualization

@@ -4,12 +4,11 @@
 
 #include "Commands/CommandBase.h"
 #include "Commands/RehydrateCommand.h"
+#include "Commands/VirtualizeCommand.h"
 #include "GenericPlatform/GenericPlatformOutputDevices.h"
 #include "HAL/FeedbackContextAnsi.h"
 #include "HAL/FileManager.h"
 #include "Interfaces/IPluginManager.h"
-#include "ISourceControlModule.h"
-#include "ISourceControlProvider.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
@@ -17,40 +16,12 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
-#include "SourceControlInitSettings.h"
-#include "SourceControlOperations.h"
+#include "Modules/ModuleManager.h"
 #include "UnrealVirtualizationTool.h"
 #include "Virtualization/VirtualizationSystem.h"
 
 namespace
 {
-
-/** Utility for testing if a file path resolves to a valid package file or not */
-bool IsPackageFile(const FString FilePath)
-{
-	// ::IsPackageExtension requires a TCHAR so we cannot use FPathViews here
-	const FString Extension = FPaths::GetExtension(FilePath);
-
-	// Currently we don't virtualize text based assets so no call to FPackageName::IsTextPackageExtension
-	return FPackageName::IsPackageExtension(*Extension);
-}
-
-/**
- * Utility to clean up the tags we got from the virtualization system. Convert the FText to FString and
- * discard any duplicate entries.
- */
-TArray<FString> BuildFinalTagDescriptions(TArray<FText>& DescriptionTags)
-{
-	TArray<FString> CleanedDescriptions;
-	CleanedDescriptions.Reserve(DescriptionTags.Num());
-
-	for (const FText& Tag : DescriptionTags)
-	{
-		CleanedDescriptions.AddUnique(Tag.ToString());
-	}
-
-	return CleanedDescriptions;
-}
 
 /** Utility to get EMode from a string */
 void LexFromString(UE::Virtualization::EMode& OutValue, const FStringView& InString)
@@ -62,6 +33,10 @@ void LexFromString(UE::Virtualization::EMode& OutValue, const FStringView& InStr
 	else if (InString == TEXT("PackageList"))
 	{
 		OutValue = UE::Virtualization::EMode::PackageList;
+	}
+	else if (InString == TEXT("Virtualize"))
+	{
+		OutValue = UE::Virtualization::EMode::Virtualize;
 	}
 	else if (InString == TEXT("Rehydrate"))
 	{
@@ -167,36 +142,7 @@ EInitResult FUnrealVirtualizationToolApp::Initialize()
 		return CmdLineResult;
 	}
 
-	TArray<FString> Packages;
-	if (!CurrentCommand.IsValid())
-	{
-		// Legacy code path for virtualization (which has not yet been ported to a command)	
-		switch (Mode)
-		{
-			case EMode::Changelist:
-				if (!TryParseChangelist(Packages))
-				{
-					return EInitResult::Error;
-				}
-				break;
-
-			case EMode::PackageList:
-				if (!TryParsePackageList(Packages))
-				{
-					return EInitResult::Error;
-				}
-				break;
-
-			default:
-				UE_LOG(LogVirtualizationTool, Display, TEXT("Unknown mode, cannot find packages!"));
-				return EInitResult::Error;
-				break;
-		}
-	}
-	else
-	{
-		Packages = CurrentCommand->GetPackages();
-	}
+	TArray<FString> Packages = CurrentCommand->GetPackages();
 
 	UE_LOG(LogVirtualizationTool, Display, TEXT("\tFound '%d' package file(s)"), Packages.Num());
 
@@ -214,163 +160,36 @@ bool FUnrealVirtualizationToolApp::Run()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Run);
 
-	if (!CurrentCommand.IsValid())
+	UE_LOG(LogVirtualizationTool, Display, TEXT("Running the '%s' command..."), *CurrentCommand->GetName());
+
+	if (CurrentCommand->Run(Projects))
 	{
-		// Legacy code path for virtualization (which has not yet been ported to a command)	
-		TArray<FString> FinalDescriptionTags;
-
-		if (EnumHasAllFlags(ProcessOptions, EProcessOptions::Virtualize))
-		{
-			UE_LOG(LogVirtualizationTool, Display, TEXT("Running the virtualization process..."));
-
-			TArray<FText> DescriptionTags;
-
-			for (const FProject& Project : Projects)
-			{
-				TStringBuilder<128> ProjectName;
-				ProjectName << Project.GetProjectName();
-
-				UE_LOG(LogVirtualizationTool, Display, TEXT("\tChecking package(s) for the project '%s'..."), ProjectName.ToString());
-
-				FConfigFile EngineConfigWithProject;
-				if (!Project.TryLoadConfig(EngineConfigWithProject))
-				{
-					return false;
-				}
-
-				Project.RegisterMountPoints();
-
-				UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
-				UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
-
-				TArray<FString> Packages = Project.GetAllPackages();
-
-				TArray<FText> Errors;
-				UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(Packages, DescriptionTags, Errors);
-
-				if (!Errors.IsEmpty())
-				{
-					UE_LOG(LogVirtualizationTool, Error, TEXT("The virtualization process failed with the following errors:"));
-					for (const FText& Error : Errors)
-					{
-						UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
-					}
-					return false;
-				}
-
-				UE_LOG(LogVirtualizationTool, Display, TEXT("\tCheck complete"));
-
-				UE::Virtualization::Shutdown();
-				Project.UnRegisterMountPoints();
-			}
-
-			FinalDescriptionTags = BuildFinalTagDescriptions(DescriptionTags);
-		}
-		else
-		{
-			UE_LOG(LogVirtualizationTool, Display, TEXT("Skipping the virtualization process"));
-		}
-
-		if (Mode == EMode::Changelist)
-		{
-			if (!TrySubmitChangelist(FinalDescriptionTags))
-			{
-				return false;
-			}
-		}
-
+		UE_LOG(LogVirtualizationTool, Display, TEXT("Command '%s' succeeded!"), *CurrentCommand->GetName());
 		return true;
 	}
 	else
 	{
-		UE_LOG(LogVirtualizationTool, Display, TEXT("Running the '%s' command..."), *CurrentCommand->GetName());
-
-		if (CurrentCommand->Run(Projects))
-		{
-			UE_LOG(LogVirtualizationTool, Display, TEXT("Command '%s' suceeeded!"), *CurrentCommand->GetName());
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogVirtualizationTool, Error, TEXT("Command '%s' failed!"), *CurrentCommand->GetName());
-			return false;
-		}
+		UE_LOG(LogVirtualizationTool, Error, TEXT("Command '%s' failed!"), *CurrentCommand->GetName());
+		return false;
 	}
 }
 
 void FUnrealVirtualizationToolApp::PrintCmdLineHelp() const
 {
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Usage:"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("UnrealVirtualizationTool -ClientSpecName=<name> -Mode=Changelist -Changelist=<number> [-nosubmit] [global options]"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("\t[optional]-nosubmit (the changelist will be virtualized but not submitted)"));
-	UE_LOG(LogVirtualizationTool, Display, TEXT("UnrealVirtualizationTool -ClientSpecName=<name> -Mode=PackageList -Path=<string> [global options]"));
 
 	// TODO: If the commands were registered in some way we could automate this
+	FVirtualizeCommand::PrintCmdLineHelp(); 
 	FRehydrateCommand::PrintCmdLineHelp();
 
+	UE_LOG(LogVirtualizationTool, Display, TEXT(""));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("Legacy Commands:"));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=Changelist -ClientSpecName=<name> [optional] -Changelist=<number> -nosubmit [optional]"));
+	UE_LOG(LogVirtualizationTool, Display, TEXT("-Mode=PackageList -Path=<string>"));
+	
+	UE_LOG(LogVirtualizationTool, Display, TEXT(""));
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Global Options:"));
 	UE_LOG(LogVirtualizationTool, Display, TEXT("\t-verbose (all log messages with display verbosity will be displayed, not just LogVirtualizationTool)"));
-}
-
-bool FUnrealVirtualizationToolApp::TrySubmitChangelist(const TArray<FString>& DescriptionTags)
-{
-	if (!EnumHasAllFlags(ProcessOptions, EProcessOptions::Submit))
-	{
-		UE_LOG(LogVirtualizationTool, Display, TEXT("Skipping submit of changelist '%s' due to cmdline options"), *ChangelistNumber);
-		return true;
-	}
-
-	UE_LOG(LogVirtualizationTool, Display, TEXT("Attempting to submit the changelist '%s'"), *ChangelistNumber);
-
-	if (!TryConnectToSourceControl())
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Submit failed, cannot find a valid source control provider"));
-		return false;
-	}
-
-	if (!ChangelistToSubmit.IsValid())
-	{
-		// This should not be possible, the check and error message is to guard against potential future problems only.
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Submit failed, could not find the changelist"));
-		return false;
-	}
-
-	FSourceControlChangelistRef Changelist = ChangelistToSubmit.ToSharedRef();
-	FSourceControlChangelistStatePtr ChangelistState = SCCProvider->GetState(Changelist, EStateCacheUsage::Use);
-
-	if (!ChangelistState.IsValid())
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Submit failed, failed to find the state for the changelist"));
-		return false;
-	}
-
-	TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
-
-	// Grab the original changelist description then append our tags afterwards
-	TStringBuilder<512> Description;
-	Description << ChangelistState->GetDescriptionText().ToString();
-
-	for (const FString& Tag : DescriptionTags)
-	{
-		Description << TEXT("\n") << Tag;
-	}
-
-	CheckInOperation->SetDescription(FText::FromString(Description.ToString()));
-
-	if (SCCProvider->Execute(CheckInOperation, Changelist) == ECommandResult::Succeeded)
-	{
-		UE_LOG(LogVirtualizationTool, Display, TEXT("%s"), *CheckInOperation->GetSuccessMessage().ToString());	
-		return true;
-	}
-	else
-	{
-		// Even when log suppression is active we still show errors to the users and as the source control
-		// operation should have logged the problem as an error the user will see it. This means we don't 
-		// have to extract it from CheckInOperation .
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Submit failed, please check the log!"));
-
-		return false;
-	}
 }
 
 bool FUnrealVirtualizationToolApp::TryLoadModules()
@@ -411,33 +230,6 @@ bool FUnrealVirtualizationToolApp::TryInitEnginePlugins()
 	return true;
 }
 
-bool FUnrealVirtualizationToolApp::TryConnectToSourceControl()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(TryConnectToSourceControl);
-
-	if (SCCProvider.IsValid())
-	{
-		// Already connected so just return
-		return true;
-	}
-
-	UE_LOG(LogVirtualizationTool, Log, TEXT("Trying to connect to source control..."));
-
-	FSourceControlInitSettings SCCSettings(FSourceControlInitSettings::EBehavior::OverrideAll);
-	SCCSettings.AddSetting(TEXT("P4Client"), ClientSpecName);
-
-	SCCProvider = ISourceControlModule::Get().CreateProvider(FName("Perforce"), TEXT("UnrealVirtualizationTool"), SCCSettings);
-	if (SCCProvider.IsValid())
-	{
-		return true;
-	}
-	else
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to create a perforce connection"));
-		return false;
-	}
-}
-
 EInitResult FUnrealVirtualizationToolApp::TryParseCmdLine()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TryParseCmdLine);
@@ -458,15 +250,6 @@ EInitResult FUnrealVirtualizationToolApp::TryParseCmdLine()
 		UE_LOG(LogVirtualizationTool, Display, TEXT("Commandline help requested"));
 		PrintCmdLineHelp();
 		return EInitResult::EarlyOut;
-	}
-
-	// First parse the command line options that can apply to all modes
-
-	if (!FParse::Value(CmdLine, TEXT("-ClientSpecName="), ClientSpecName))
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to find cmdline switch 'ClientSpecName', this is a required parameter!"));
-		PrintCmdLineHelp();
-		return EInitResult::Error;
 	}
 
 	if (FParse::Param(CmdLine, TEXT("Verbose")))
@@ -494,10 +277,16 @@ EInitResult FUnrealVirtualizationToolApp::TryParseCmdLine()
 	switch (Mode)
 	{
 		case EMode::Changelist:
-			return TryParseChangelistCmdLine(CmdLine);
+			CurrentCommand = CreateCommand<FVirtualizeLegacyChangeListCommand>(ModeAsString, CmdLine);
+			return CurrentCommand.IsValid() ? EInitResult::Success : EInitResult::Error;
 			break;
 		case EMode::PackageList:
-			return TryParsePackageListCmdLine(CmdLine);
+			CurrentCommand = CreateCommand<FVirtualizeLegacyPackageListCommand>(ModeAsString, CmdLine);
+			return CurrentCommand.IsValid() ? EInitResult::Success : EInitResult::Error;
+			break;
+		case EMode::Virtualize:
+			CurrentCommand = CreateCommand<FVirtualizeCommand>(ModeAsString, CmdLine);
+			return CurrentCommand.IsValid() ? EInitResult::Success : EInitResult::Error;
 			break;
 		case EMode::Rehydrate:
 			CurrentCommand = CreateCommand<FRehydrateCommand>(ModeAsString, CmdLine);
@@ -510,163 +299,6 @@ EInitResult FUnrealVirtualizationToolApp::TryParseCmdLine()
 			return EInitResult::Error;
 
 			break;
-	}
-}
-
-EInitResult	FUnrealVirtualizationToolApp::TryParseChangelistCmdLine(const TCHAR* CmdLine)
-{
-	if (FParse::Value(CmdLine, TEXT("-Changelist="), ChangelistNumber))
-	{
-		// Optional switches
-		if (FParse::Param(CmdLine, TEXT("NoSubmit")))
-		{
-			UE_LOG(LogVirtualizationTool, Display, TEXT("Cmdline parameter '-NoSubmit' found, the changelist will be virtualized but not submitted!"));
-		}
-		else
-		{
-			ProcessOptions |= EProcessOptions::Submit;
-		}
-
-		UE_LOG(LogVirtualizationTool, Display, TEXT("Attempting to virtualize changelist '%s'"), *ChangelistNumber);
-		
-		return EInitResult::Success;
-	}
-	else
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to find cmdline switch 'Changelist', this is a required parameter for the 'Changelist' mode!"));
-		PrintCmdLineHelp();
-		return EInitResult::Error;
-	}
-}
-
-EInitResult FUnrealVirtualizationToolApp::TryParsePackageListCmdLine(const TCHAR* CmdLine)
-{
-	if (FParse::Value(CmdLine, TEXT("-Path="), PackageListPath))
-	{
-		UE_LOG(LogVirtualizationTool, Display, TEXT("Virtualizing packages found in package list: '%s'"), *PackageListPath);
-		return EInitResult::Success;
-	}
-	else
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to find cmdline switch 'Path', this is a required parameter for the 'PackageList mode!"));
-		PrintCmdLineHelp();
-		return EInitResult::Error;
-	}	
-}
-
-bool FUnrealVirtualizationToolApp::TryParseChangelist(TArray<FString>& OutPackages)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(TryParseChangelist);
-
-	if (!TryConnectToSourceControl())
-	{
-		return false;
-	}
-
-	UE_LOG(LogVirtualizationTool, Display, TEXT("Attempting to parse changelist '%s' in workspace '%s'"), *ChangelistNumber, *ClientSpecName);
-
-	if (!SCCProvider.IsValid())
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("No valid source control connection found!"));
-		return false;
-	}
-
-	SCCProvider->Init(true);
-
-	if (!SCCProvider->UsesChangelists())
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("The source control provider does not support the use of changelists"));
-		return false;
-	}
-
-	TArray<FSourceControlChangelistRef> Changelists = SCCProvider->GetChangelists(EStateCacheUsage::ForceUpdate);
-	if (Changelists.IsEmpty())
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to find any changelists"));
-		return false;
-	}
-
-	TArray<FSourceControlChangelistStateRef> ChangelistsStates;
-	if (SCCProvider->GetState(Changelists, ChangelistsStates, EStateCacheUsage::Use) != ECommandResult::Succeeded)
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to find changelist data"));
-		return false;
-	}
-
-	for (FSourceControlChangelistStateRef& ChangelistState : ChangelistsStates)
-	{
-		const FText DisplayText = ChangelistState->GetDisplayText();
-
-		if (ChangelistNumber == DisplayText.ToString())
-		{
-			TSharedRef<FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> Operation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
-
-			// TODO: Updating only the CL we want does not currently work and even if it did we still end up with a pointless
-			// p4 changes command before updating the files. Given we know the changelist number via FSourceControlChangelistRef
-			// we should be able to just request the file states be updated.
-			// This is also a lot of code to write for a simple "give me all files in a changelist" operation, if we don't add
-			// support directly in the API we should move this to a utility namespace in the source control module.
-
-			FSourceControlChangelistRef Changelist = ChangelistState->GetChangelist();
-			Operation->SetChangelistsToUpdate(MakeArrayView(&Changelist, 1));
-			Operation->SetUpdateFilesStates(true);
-			
-			if (SCCProvider->Execute(Operation, EConcurrency::Synchronous) != ECommandResult::Succeeded)
-			{
-				UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to find the files in changelist '%s'"), *ChangelistNumber);
-				return false;
-			}
-
-			const TArray<FSourceControlStateRef>& FilesinChangelist = ChangelistState->GetFilesStates();
-			for (const FSourceControlStateRef& FileState : FilesinChangelist)
-			{
-				if (::IsPackageFile(FileState->GetFilename()))
-				{
-					OutPackages.Add(FileState->GetFilename());
-				}
-				else
-				{
-					UE_LOG(LogVirtualizationTool, Log, TEXT("Ignoring non-package file '%s'"), *FileState->GetFilename());
-				}
-			}
-
-			ChangelistToSubmit = Changelist;
-
-			return true;
-		}
-	}
-
-	UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to find the changelist '%s'"), *ChangelistNumber);
-	return false;
-}
-
-bool FUnrealVirtualizationToolApp::TryParsePackageList(TArray<FString>& OutPackages)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(TrySortFilesByProject);
-
-	UE_LOG(LogVirtualizationTool, Display, TEXT("Parsing the package list..."));
-
-	if (!IFileManager::Get().FileExists(*PackageListPath))
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("\tThe package list '%s' does not exist"), *PackageListPath);
-		return false;
-	}
-
-	if (FFileHelper::LoadFileToStringArray(OutPackages, *PackageListPath))
-	{
-		// We don't have control over how the package list was generated so make sure that the paths
-		// are in the format that we want.
-		for (FString& PackagePath : OutPackages)
-		{
-			FPaths::NormalizeFilename(PackagePath);
-		}
-
-		return true;
-	}
-	else
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("\tFailed to parse the package list '%s'"), *PackageListPath);
-		return false;
 	}
 }
 

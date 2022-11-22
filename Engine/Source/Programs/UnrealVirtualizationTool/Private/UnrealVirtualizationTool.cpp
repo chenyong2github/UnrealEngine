@@ -17,6 +17,15 @@ bool UnrealVirtualizationToolMain(int32 ArgC, TCHAR* ArgV[])
 	GEngineLoop.PreInit(ArgC, ArgV);
 	check(GConfig && GConfig->IsReadyForUse());
 
+#if 0
+	while (!FPlatformMisc::IsDebuggerPresent())
+	{
+		FPlatformProcess::SleepNoStats(0.0f);
+	}
+
+	PLATFORM_BREAK();
+#endif
+
 	FModuleManager::Get().StartProcessingNewlyLoadedObjects();
 
 	bool bRanSuccessfully = true;

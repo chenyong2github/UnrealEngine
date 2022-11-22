@@ -4,11 +4,8 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "ISourceControlChangelist.h" // TODO
 #include "ProjectFiles.h"
 #include "Templates/UniquePtr.h"
-
-class ISourceControlProvider;
 
 namespace UE::Virtualization
 {
@@ -21,33 +18,21 @@ enum class EMode :uint32
 	/** Error condition */
 	Unknown = 0,
 
-	/// Virtualization
+	// Legacy (should be phased out)
 
 	/** Virtualize and submit a given changelist */
 	Changelist,
 	/** Virtualize a list of packages provided by text file */
 	PackageList,
 
-	/// Rehydration
+	/// New Style Commands
+
+	/** Virtualize one or more packages */
+	Virtualize,
 
 	/** Rehydrate one or more packages */
-	Rehydrate,
+	Rehydrate
 };
-
-// Note that the enum doesn't give us huge value right now, it has been provided
-// in case that we expand with additional functionality in the future.
-
-/** A bitfield of the various operations that the virtualization process supports */
-enum class EProcessOptions : uint32
-{
-	/** No options */
-	None = 0,
-	/** Virtualize the packages in the provided changelist */
-	Virtualize = 1 << 0,
-	/** Submit the changelist */
-	Submit = 1 << 1
-};
-ENUM_CLASS_FLAGS(EProcessOptions);
 
 /** The result of FUnrealVirtualizationToolApp initialization */
 enum class EInitResult
@@ -73,18 +58,10 @@ private:
 
 	void PrintCmdLineHelp() const;
 
-	bool TrySubmitChangelist(const TArray<FString>& DescriptionTags);
-
 	bool TryLoadModules();
 	bool TryInitEnginePlugins();
-	bool TryConnectToSourceControl();
-
+	
 	EInitResult TryParseCmdLine();
-	EInitResult TryParseChangelistCmdLine(const TCHAR* CmdLine);
-	EInitResult	TryParsePackageListCmdLine(const TCHAR* CmdLine);
-
-	bool TryParseChangelist(TArray<FString>& OutPackages);
-	bool TryParsePackageList(TArray<FString>& OutPackages);
 
 	bool TrySortFilesByProject(const TArray<FString>& Packages);
 
@@ -97,30 +74,13 @@ private:
 	/** Override used to suppress log messages */
 	TUniquePtr<FFeedbackContext> OutputDeviceOverride;
 
-	/** The source control provider that the tool uses */
-	TUniquePtr<ISourceControlProvider> SCCProvider;
-
-	/** Pointer to the changelist that should be submitted */
-	FSourceControlChangelistPtr ChangelistToSubmit;
-
 	/** Data structure holding the files in the changelist sorted by project and then by plugin*/
 	TArray<FProject> Projects;
-
-	/** Name of the client spec (workspace) passed in on the command line*/
-	FString ClientSpecName;
 
 	/** The mode for the application to run */
 	EMode Mode = EMode::Unknown;
 
-	/** Bitfield control the various options that should be run */
-	EProcessOptions ProcessOptions = EProcessOptions::Virtualize;
-
-	/** The number of the changelist being submitted, used with EMode::Changelist  */
-	FString ChangelistNumber;
-
-	/** The path to the list of packages to virtualized, used with EMode::PackageList */
-	FString PackageListPath;
-
+	/** The command being processed */
 	TUniquePtr<FCommand> CurrentCommand;
 };
 
