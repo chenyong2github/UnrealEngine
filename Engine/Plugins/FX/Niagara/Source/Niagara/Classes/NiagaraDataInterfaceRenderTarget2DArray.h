@@ -127,15 +127,15 @@ public:
 	void VMGetSize(FVectorVMExternalFunctionContext& Context); 
 	void VMSetSize(FVectorVMExternalFunctionContext& Context);
 
-	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings"))
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 2, EditCondition = "!bInheritUserParameterSettings", EditConditionHides))
 	FIntVector Size;
 
 	/** When enabled overrides the format of the render target, otherwise uses the project default setting. */
-	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings && bOverrideFormat"))
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 11, EditCondition = "!bInheritUserParameterSettings && bOverrideFormat", EditConditionHides))
 	TEnumAsByte<ETextureRenderTargetFormat> OverrideRenderTargetFormat;
 
 	/** When enabled overrides the filter of the render target, otherwise uses the project default setting. */
-	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings"))
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 12, EditCondition = "!bInheritUserParameterSettings", EditConditionHides))
 	TEnumAsByte<TextureFilter> OverrideRenderTargetFilter = TextureFilter::TF_Default;
 
 	/**
@@ -143,18 +143,18 @@ public:
 	If no valid user parameter is set the system will be invalid.
 	Note: The resource will be recreated if UAV access is not available, which will reset the contents.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Render Target")
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 0))
 	uint8 bInheritUserParameterSettings : 1;
 
-	UPROPERTY(EditAnywhere, Category = "Render Target")
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 10, EditCondition = "!bInheritUserParameterSettings", EditConditionHides))
 	uint8 bOverrideFormat : 1;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = "Render Target")
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 20))
 	uint8 bPreviewRenderTarget : 1;
 #endif
 
-	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (ToolTip = "When valid the user parameter is used as the render target rather than creating one internal, note that the input render target will be adjusted by the Niagara simulation"))
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 1, ToolTip = "When valid the user parameter is used as the render target rather than creating one internal, note that the input render target will be adjusted by the Niagara simulation"))
 	FNiagaraUserParameterBinding RenderTargetUserParameter;
 
 protected:

@@ -59,19 +59,19 @@ public:
 	void VMGetSize(FVectorVMExternalFunctionContext& Context);
 	void VMSetSize(FVectorVMExternalFunctionContext& Context);
 
-	UPROPERTY(EditAnywhere, Category = "Render Target")
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 1))
 	FIntPoint Size = FIntPoint::ZeroValue;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = "Render Target")
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 2))
 	uint8 bPreviewRenderTarget : 1;
 
 	/* The range to normaliez the preview display to. */
-	UPROPERTY(EditAnywhere, Category = "Render Target")
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "bPreviewRenderTarget", EditConditionHides, DisplayPriority = 3))
 	FVector2D PreviewDisplayRange = FVector2D(0.0f, 255.0f);
 #endif
 
-	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (ToolTip = "When valid the user parameter is used as the render target rather than creating one internal, note that the input render target will be adjusted by the Niagara simulation"))
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 0, ToolTip = "When valid the user parameter is used as the render target rather than creating one internal, note that the input render target will be adjusted by the Niagara simulation"))
 	FNiagaraUserParameterBinding RenderTargetUserParameter;
 
 protected:
