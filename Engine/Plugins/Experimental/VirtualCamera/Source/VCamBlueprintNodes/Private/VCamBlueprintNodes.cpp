@@ -10,15 +10,11 @@ namespace UE::VCamBlueprintNodes::Private
 	public:
 
 		virtual void StartupModule() override
-		{
-			
-		}
+		{}
 	
 		virtual void ShutdownModule() override
-		{
-			
-		}
+		{}
 	};
 }
 
-IMPLEMENT_MODULE(UE::VCamBlueprintNodes::Private::FVCamBlueprintNodesModule, VCamCoreEditor);
+IMPLEMENT_MODULE(UE::VCamBlueprintNodes::Private::FVCamBlueprintNodesModule, VCamBlueprintNodes);
