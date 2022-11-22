@@ -142,10 +142,21 @@ bool FSourceControlWindows::CanChoosePackagesToCheckIn()
 {
 	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
 	
-	return ISourceControlModule::Get().IsEnabled() &&
+	if (ISourceControlModule::Get().IsEnabled() &&
 		ISourceControlModule::Get().GetProvider().IsAvailable() &&
-		!ChoosePackagesToCheckInNotification.IsValid()
-		;
+		!ChoosePackagesToCheckInNotification.IsValid())
+	{
+		if (SourceControlModule.GetProvider().GetNumLocalChanges().IsSet())
+		{
+			return SourceControlModule.GetProvider().GetNumLocalChanges().GetValue() > 0;
+		}
+		else
+		{
+			return true;
+		}
+	}
+ 
+	return false;
 }
 
 bool FSourceControlWindows::ShouldChoosePackagesToCheckBeVisible()
