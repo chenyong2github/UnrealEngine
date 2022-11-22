@@ -238,7 +238,7 @@ bool UInputDeviceSubsystem::IsAllowedToTick() const
 {
 #if WITH_EDITOR
 	// If we are PIE'ing, then check if PIE is paused
-	if (GEditor->bIsSimulatingInEditor || GEditor->PlayWorld)
+	if (GEditor && (GEditor->bIsSimulatingInEditor || GEditor->PlayWorld))
 	{
 		return bIsPIEPlaying && !ActiveProperties.IsEmpty();
 	}	
