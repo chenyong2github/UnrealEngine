@@ -7,7 +7,9 @@
 #include "Containers/StringConv.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "HAL/PlatformString.h"
+#include "Logging/LogMacros.h"
 #include "Memory/MemoryView.h"
 #include "Misc/AsciiSet.h"
 #include "Misc/AssertionMacros.h"
@@ -26,6 +28,18 @@
 #include "Templates/RemoveReference.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace UE::Serialization::Private
+{
+
+void LogFieldTooLargeForArrayWarning(uint64 FieldLength)
+{
+	UE_LOG(LogSerialization, Warning, TEXT("Attempting to load a FCbFieldView that has too many entries (%" UINT64_FMT ") to fit in a TArray "), FieldLength);
+}
+
+} // namespace UE::Serialization::Private
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

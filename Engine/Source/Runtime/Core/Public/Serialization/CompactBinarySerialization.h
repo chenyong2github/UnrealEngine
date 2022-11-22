@@ -18,6 +18,16 @@ struct FGuid;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+namespace UE::Serialization::Private
+{
+
+/** Utility for logging problems with FCbField. For internal use only */
+CORE_API void LogFieldTooLargeForArrayWarning(uint64 FieldLength);
+
+} // namespace UE::Serialization::Private
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /**
  * Determine the size in bytes of the compact binary field at the start of the view.
  *
@@ -181,13 +191,22 @@ inline bool LoadFromCompactBinary(FCbFieldView Field, FCbObjectId& OutValue, con
 template <typename T, typename Allocator>
 inline bool LoadFromCompactBinary(FCbFieldView Field, TArray<T, Allocator>& OutValue)
 {
-	OutValue.Reset(Field.AsArrayView().Num());
-	bool bOk = !Field.HasError();
-	for (const FCbFieldView& ElementField : Field)
+	const uint64 Length = Field.AsArrayView().Num();
+	if (Length <= MAX_int32)
 	{
-		bOk = LoadFromCompactBinary(ElementField, OutValue.Emplace_GetRef()) & bOk;
+		OutValue.Reset((int32)Length);
+		bool bOk = !Field.HasError();
+		for (const FCbFieldView& ElementField : Field)
+		{
+			bOk = LoadFromCompactBinary(ElementField, OutValue.Emplace_GetRef()) & bOk;
+		}
+		return bOk;
 	}
-	return bOk;
+	else
+	{
+		UE::Serialization::Private::LogFieldTooLargeForArrayWarning(Length);
+		return false;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
