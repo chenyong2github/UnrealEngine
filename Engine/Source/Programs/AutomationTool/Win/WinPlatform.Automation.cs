@@ -719,7 +719,7 @@ public class Win64Platform : Platform
 		{
 			lock (State)
 			{
-				CommandUtils.LogWarning("Skipping indexing of {0} because it would make the file larger than 4GB (not supported by pdbstr.exe tool).", PdbFile.GetFileName());
+				CommandUtils.LogInformation("Skipping indexing of {0} because it would make the file larger than 4GB (not supported by pdbstr.exe tool).", PdbFile.GetFileName());
 			}
 
 			return;
