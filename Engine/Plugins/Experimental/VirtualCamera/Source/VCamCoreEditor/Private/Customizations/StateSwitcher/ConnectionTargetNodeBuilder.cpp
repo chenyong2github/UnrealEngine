@@ -2,7 +2,7 @@
 
 #include "ConnectionTargetNodeBuilder.h"
 
-#include "Customizations/StateSwitcher//SStringSelectionComboBox.h"
+#include "Customizations/StateSwitcher/SStringSelectionComboBox.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
