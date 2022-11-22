@@ -436,7 +436,7 @@ bool FLevelSimplificationDetails::operator == (const FLevelSimplificationDetails
 static bool IsActorFolderObjectsFeatureAvailable()
 {
 #if WITH_EDITOR
-	return !IsRunningCookCommandlet() && !IsRunningGame();
+	return !IsRunningCookCommandlet() && !IsRunningGame() && GIsEditor;
 #else
 	return false;
 #endif
