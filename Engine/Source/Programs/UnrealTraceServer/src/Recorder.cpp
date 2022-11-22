@@ -34,6 +34,7 @@ public:
 private:
 	virtual void		OnIoComplete(uint32 Id, int32 Size) override;
 	bool				CreateTrace();
+	bool				ReadMagic(uint32 Magic);
 	bool				ReadMetadata(int32 Size);
 	static const uint32	BufferSize = 64 * 1024;
 	FAsioSocket			Input;
@@ -144,6 +145,29 @@ bool FRecorderRelay::CreateTrace()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool FRecorderRelay::ReadMagic(uint32 Magic)
+{
+	switch (Magic)
+	{
+	/* trace with metadata data */
+	case FourCc('T', 'R', 'C', '2'):
+		break;
+
+	/* valid, but to old or wrong endian for us */
+	case FourCc('T', 'R', 'C', 'E'):
+	case FourCc('E', 'C', 'R', 'T'):
+	case FourCc('2', 'C', 'R', 'T'):
+		return true;
+
+	/* unexpected magic */
+	default:
+		return false;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FRecorderRelay::ReadMetadata(int32 Size)
 {
 	const uint8* Cursor = Buffer;
@@ -163,20 +187,8 @@ bool FRecorderRelay::ReadMetadata(int32 Size)
 	}
 
 	Magic = *(const uint32*)(Read(sizeof(Magic)));
-	switch (Magic)
+	if (!ReadMagic(Magic))
 	{
-	/* trace with metadata data */
-	case FourCc('T', 'R', 'C', '2'):
-		break;
-
-	/* valid, but to old or wrong endian for us */
-	case FourCc('T', 'R', 'C', 'E'):
-	case FourCc('E', 'C', 'R', 'T'):
-	case FourCc('2', 'C', 'R', 'T'):
-		return true;
-
-	/* unexpected magic */
-	default:
 		return false;
 	}
 
