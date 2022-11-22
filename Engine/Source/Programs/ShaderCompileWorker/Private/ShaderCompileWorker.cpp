@@ -301,6 +301,7 @@ class FWorkLoop
 public:
 	// If we have been idle for 20 seconds then exit. Can be overriden from the cmd line with -TimeToLive=N where N is in seconds (and a float value)
 	float TimeToLive = 20.0f;
+	bool DisableFileWrite = false;
 
 	FWorkLoop(const TCHAR* ParentProcessIdText,const TCHAR* InWorkingDirectory,const TCHAR* InInputFilename,const TCHAR* InOutputFilename, TMap<FString, uint32>& InFormatVersionMap)
 	:	ParentProcessId(FCString::Atoi(ParentProcessIdText))
@@ -317,12 +318,11 @@ public:
 		{
 			if (Switch.StartsWith(TEXT("TimeToLive=")))
 			{
-				float TokenTime = FCString::Atof(Switch.GetCharArray().GetData() + 11);
-				if (TokenTime > 0)
-				{
-					TimeToLive = TokenTime;
-					break;
-				}
+				TimeToLive = FCString::Atof(Switch.GetCharArray().GetData() + 11);
+			}
+			else if (Switch.Equals(TEXT("DisableFileWrite")))
+			{
+				DisableFileWrite = true;
 			}
 		}
 	}
@@ -358,23 +358,24 @@ public:
 			}
 
 			// Prepare for output
-#if UE_BUILD_DEBUG
-			TArray<uint8> MemBlock;
-			FMemoryWriter MemWriter(MemBlock);
-			FArchive* OutputFilePtr = &MemWriter;
-#else
-			FArchive* OutputFilePtr = CreateOutputArchive();
-			check(OutputFilePtr);
-#endif
-			WriteToOutputArchive(OutputFilePtr, SingleJobResults, PipelineJobResults);
+			if (DisableFileWrite)
+			{
+				// write to in-memory bytestream instead for debugging purposes
+				TArray<uint8> MemBlock;
+				FMemoryWriter MemWriter(MemBlock);
+				WriteToOutputArchive(&MemWriter, SingleJobResults, PipelineJobResults);
+			}
+			else
+			{
+				FArchive* OutputFilePtr = CreateOutputArchive();
+				check(OutputFilePtr);
+				WriteToOutputArchive(OutputFilePtr, SingleJobResults, PipelineJobResults);
+				// Close the output file.
+				delete OutputFilePtr;
 
-#if !UE_BUILD_DEBUG
-			// Close the output file.
-			delete OutputFilePtr;
-#endif
-
-			// Change the output file name to requested one
-			IFileManager::Get().Move(*OutputFilePath, *TempFilePath);
+				// Change the output file name to requested one
+				IFileManager::Get().Move(*OutputFilePath, *TempFilePath);
+			}
 
 			if (IsUsingXGE())
 			{
