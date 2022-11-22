@@ -40,6 +40,7 @@ namespace PyGenUtil
 	extern const FName ScriptNoExportMetaDataKey;
 	extern const FName ScriptMethodMetaDataKey;
 	extern const FName ScriptMethodSelfReturnMetaDataKey;
+	extern const FName ScriptMethodMutableMetaDataKey;
 	extern const FName ScriptOperatorMetaDataKey;
 	extern const FName ScriptConstantMetaDataKey;
 	extern const FName ScriptConstantHostMetaDataKey;

@@ -52,6 +52,26 @@ FPyTestStruct UPyTestStructLibrary::AddStr(const FPyTestStruct& InStruct, const 
 	return Result;
 }
 
+void UPyTestStructLibrary::SetBoolMutable(const FPyTestStruct& InStruct)
+{
+	InStruct.BoolMutable = true;
+}
+
+void UPyTestStructLibrary::ClearBoolMutable(const FPyTestStruct& InStruct)
+{
+	InStruct.BoolMutable = false;
+}
+
+void UPyTestStructLibrary::SetBoolMutableViaRef(FPyTestStruct& InStruct)
+{
+	InStruct.BoolMutable = true;
+}
+
+void UPyTestStructLibrary::ClearBoolMutableViaRef(FPyTestStruct& InStruct)
+{
+	InStruct.BoolMutable = false;
+}
+
 UPyTestInterface::UPyTestInterface(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -1335,6 +1335,17 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 			}
 		}
 
+		// The function may have been flagged as mutable, in which case we always consider it to need a 'self' return
+		if (!GeneratedWrappedDynamicMethod.SelfReturn.ParamProp && InFunc->HasMetaData(PyGenUtil::ScriptMethodMutableMetaDataKey))
+		{
+			if (!SelfParam.ParamProp->IsA<FStructProperty>())
+			{
+				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethodMutable' but the 'self' argument is not a struct."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName());
+				return;
+			}
+			GeneratedWrappedDynamicMethod.SelfReturn = SelfParam;
+		}
+
 		// Set-up some data needed to build the tooltip correctly for the hoisted method
 		const bool bIsStaticOverride = false;
 		TSet<FName> ParamsToIgnore;

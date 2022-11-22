@@ -57,6 +57,7 @@ const FName ScriptNameMetaDataKey = TEXT("ScriptName");
 const FName ScriptNoExportMetaDataKey = TEXT("ScriptNoExport");
 const FName ScriptMethodMetaDataKey = TEXT("ScriptMethod");
 const FName ScriptMethodSelfReturnMetaDataKey = TEXT("ScriptMethodSelfReturn");
+const FName ScriptMethodMutableMetaDataKey = TEXT("ScriptMethodMutable");
 const FName ScriptOperatorMetaDataKey = TEXT("ScriptOperator");
 const FName ScriptConstantMetaDataKey = TEXT("ScriptConstant");
 const FName ScriptConstantHostMetaDataKey = TEXT("ScriptConstantHost");

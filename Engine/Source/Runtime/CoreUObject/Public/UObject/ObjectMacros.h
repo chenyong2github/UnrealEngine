@@ -1556,8 +1556,11 @@ namespace UM
 		/// The value is optional, and may specify a name override for the method. May include deprecated names as additional semi-colon separated entries.
 		ScriptMethod,
 
-		/// [FunctionMetadata] Used with ScriptMethod to denote that the return value of the function should overwrite the value of the instance that made the call (structs only, equivalent to using UPARAM(self) on the struct argument).
+		/// [FunctionMetadata] Used with ScriptMethod to denote that the return value of the function should overwrite the value of the instance that made the call (structs only, equivalent to using UPARAM(ref) on the struct argument).
 		ScriptMethodSelfReturn,
+
+		/// [FunctionMetadata] Used with ScriptMethod to denote that the first argument of the function should be considered mutable even if passed as a const reference (structs only, equivalent to using UPARAM(ref) on the struct argument).
+		ScriptMethodMutable,
 
 		/// [FunctionMetadata] Flags a static function taking a struct as its first argument so that it "hoists" the function to be an operator of the struct when exporting it to a scripting language.
 		/// The value describes the kind of operator using C++ operator syntax (see below), and may contain multiple semi-colon separated values.

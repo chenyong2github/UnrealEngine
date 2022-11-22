@@ -88,6 +88,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Python|Internal")
 	bool BoolDefaultsOnly;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Python|Internal")
+	mutable bool BoolMutable = false;
 };
 
 /**
@@ -116,14 +119,26 @@ class UPyTestStructLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptConstant="ConstantValue", ScriptConstantHost="/Script/PythonScriptPlugin.PyTestStruct"))
 	static int32 GetConstantValue();
 
-	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
 	static FPyTestStruct AddInt(const FPyTestStruct& InStruct, const int32 InValue);
 
-	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
 	static FPyTestStruct AddFloat(const FPyTestStruct& InStruct, const float InValue);
 
-	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
 	static FPyTestStruct AddStr(const FPyTestStruct& InStruct, const FString& InValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodMutable))
+	static void SetBoolMutable(const FPyTestStruct& InStruct);
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodMutable))
+	static void ClearBoolMutable(const FPyTestStruct& InStruct);
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodMutable))
+	static void SetBoolMutableViaRef(UPARAM(ref) FPyTestStruct& InStruct);
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodMutable))
+	static void ClearBoolMutableViaRef(UPARAM(ref) FPyTestStruct& InStruct);
 };
 
 /**
