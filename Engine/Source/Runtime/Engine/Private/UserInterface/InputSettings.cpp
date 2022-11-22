@@ -493,9 +493,17 @@ void UInputSettings::SetDefaultInputComponentClass(TSubclassOf<UInputComponent> 
 	}
 }
 
-FHardwareDeviceIdentifier FHardwareDeviceIdentifier::Invalid = { NAME_None, TEXT("Invalid") };
+FHardwareDeviceIdentifier FHardwareDeviceIdentifier::Invalid = { NAME_None, NAME_None };
 
-FHardwareDeviceIdentifier::FHardwareDeviceIdentifier(FName InClassName, FString InHardwareDeviceIdentifier)
+// Default to the invalid hardware device identifier
+FHardwareDeviceIdentifier::FHardwareDeviceIdentifier()
+	: InputClassName(Invalid.InputClassName)
+	, HardwareDeviceIdentifier(Invalid.HardwareDeviceIdentifier)
+{
+	
+}
+
+FHardwareDeviceIdentifier::FHardwareDeviceIdentifier(const FName InClassName, const FName InHardwareDeviceIdentifier)
 	: InputClassName(InClassName)
 	, HardwareDeviceIdentifier(InHardwareDeviceIdentifier)
 {
@@ -504,7 +512,7 @@ FHardwareDeviceIdentifier::FHardwareDeviceIdentifier(FName InClassName, FString 
 
 bool FHardwareDeviceIdentifier::IsValid() const
 {
-	return InputClassName.IsValid() && !HardwareDeviceIdentifier.IsEmpty();
+	return InputClassName.IsValid() && HardwareDeviceIdentifier.IsValid();
 }
 
 UInputPlatformSettings* UInputPlatformSettings::Get()
@@ -526,9 +534,9 @@ const TArray<FHardwareDeviceIdentifier>& UInputPlatformSettings::GetHardwareDevi
 }
 
 #if WITH_EDITOR
-const TArray<FString>& UInputPlatformSettings::GetAllHardwareDeviceNames()
+const TArray<FName>& UInputPlatformSettings::GetAllHardwareDeviceNames()
 {
-	static TArray<FString> HardwareDevices;
+	static TArray<FName> HardwareDevices;
 	HardwareDevices.Reset();
 
 	// Get every known platform's InputPlatformSettings and compile a list of them

@@ -30,7 +30,8 @@ class FInputDeviceSubsystemProcessor : public IInputProcessor
 		{
 			if (const FInputDeviceScope* Scope = FInputDeviceScope::GetCurrent())
 			{
-				SubSystem->SetMostRecentlyUsedHardwareDevice(InDeviceId, { Scope->InputDeviceName, Scope->HardwareDeviceIdentifier });
+				// TODO: Refactor FInputDeviceScope to use FName's instead of a FString for HardwareDeviceIdentifier
+				SubSystem->SetMostRecentlyUsedHardwareDevice(InDeviceId, { Scope->InputDeviceName, FName(*Scope->HardwareDeviceIdentifier) });
 			}	
 		}
 	}

@@ -291,8 +291,8 @@ struct ENGINE_API FHardwareDeviceIdentifier
 {
 	GENERATED_BODY()
 
-	FHardwareDeviceIdentifier() = default;
-	FHardwareDeviceIdentifier(FName InClassName, FString InHardwareDeviceIdentifier);
+	FHardwareDeviceIdentifier();
+	FHardwareDeviceIdentifier(const FName InClassName, const FName InHardwareDeviceIdentifier);
 	
 	/** 
 	* The name of the Input Class that uses this hardware device.
@@ -306,10 +306,12 @@ struct ENGINE_API FHardwareDeviceIdentifier
 	 * This should correspond with a FInputDeviceScope that is used by an IInputDevice
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hardware")
-	FString HardwareDeviceIdentifier;
+	FName HardwareDeviceIdentifier;
 
+	/** Returns true if this hardware device Identifier has valid names */
 	bool IsValid() const;
 	
+	/** An Invalid Hardware Device Identifier. */
 	static FHardwareDeviceIdentifier Invalid;
 
 	bool operator==(const FHardwareDeviceIdentifier& Other) const
@@ -341,7 +343,7 @@ public:
 	* and the editor will make a nice drop down for you with all the current options that are in the settings.
 	*/
 	UFUNCTION()
-	static const TArray<FString>& GetAllHardwareDeviceNames();
+	static const TArray<FName>& GetAllHardwareDeviceNames();
 #endif	// WITH_EDITOR
 
 	/** Add the given hardware device identifier to this platform's settings. */

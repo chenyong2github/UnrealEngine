@@ -105,7 +105,7 @@ class UForceFeedbackEffect : public UObject
 
 	/** A map of platform name -> ForceFeedback channel details */
 	UPROPERTY(EditAnywhere, Category = "ForceFeedbackEffect", Meta = (GetOptions = "Engine.InputPlatformSettings.GetAllHardwareDeviceNames"))
-	TMap<FString, FForceFeedbackEffectOverridenChannelDetails> PerDeviceOverides;
+	TMap<FName, FForceFeedbackEffectOverridenChannelDetails> PerDeviceOverides;
 
 	/** A map of input device properties that we want to set while this effect is playing */
 	UPROPERTY(EditAnywhere, Instanced, Category = "ForceFeedbackEffect")
