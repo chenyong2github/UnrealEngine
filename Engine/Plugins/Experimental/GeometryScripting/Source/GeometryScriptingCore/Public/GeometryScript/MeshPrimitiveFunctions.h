@@ -36,7 +36,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPrimitiveOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, meta = (DisplayName = "PolyGroup Mode"))
 	EGeometryScriptPrimitivePolygroupMode PolygroupMode = EGeometryScriptPrimitivePolygroupMode::PerFace;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)

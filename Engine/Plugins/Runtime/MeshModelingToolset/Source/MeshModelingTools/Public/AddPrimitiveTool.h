@@ -81,8 +81,8 @@ class MESHMODELINGTOOLS_API UProceduralShapeToolProperties : public UInteractive
 
 public:
 
-	/** How Polygroups are assigned to shape primitives. */
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (ProceduralShapeSetting))
+	/** How PolyGroups are assigned to shape primitives. */
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (ProceduralShapeSetting, DisplayName = "PolyGroup Mode"))
 	EMakeMeshPolygroupMode PolygroupMode = EMakeMeshPolygroupMode::PerFace;
 
 	/** How the shape is placed in the scene. */
