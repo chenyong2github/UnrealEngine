@@ -116,7 +116,7 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 	{
 		ResetPreviewInternals_Editor();
 	}
-	else if (!IsRunningGameOrPIE())
+	else if (bPIEPreviewEnable && (PreviewNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone))
 	{
 		if (bDeferPreviewGeneration)
 		{
@@ -895,6 +895,10 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 
 				// Always reinitialize so changes impact the preview component.
 				PreviewComp->InitializePreviewComponent(this, Node.Key, Viewport.Key, Viewport.Value);
+				if (UMeshComponent* PreviewMesh = PreviewComp->GetPreviewMesh())
+				{
+					PreviewMesh->SetHiddenInGame(false);
+				}
 
 				IteratedPreviewComponents.Add(PreviewComp);
 			}
