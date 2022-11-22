@@ -1350,7 +1350,7 @@ void Histogram_MainCS(
 				ScreenWeight = AdaptationWeightTexture(BufferUV);
 
 				// Map the normalized histogram position into texels.
-				fBucket = LogLuminance * HistogramSizeMinusOne;// * 0.9999f;
+				fBucket = LogLuminance * HistogramSizeMinusOne;
 
 				// Find two discrete buckets that straddle the continuous histogram position.
 				Bucket0 = (uint)(fBucket);
