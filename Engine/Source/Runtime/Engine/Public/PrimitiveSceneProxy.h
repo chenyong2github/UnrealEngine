@@ -130,7 +130,7 @@ public:
 };
 
 extern bool IsOptimizedWPO();
-
+extern bool IsAllowingApproximateOcclusionQueries();
 extern bool CacheShadowDepthsFromPrimitivesUsingWPO();
 
 enum class ERayTracingPrimitiveFlags : uint8

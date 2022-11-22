@@ -81,6 +81,17 @@ static TAutoConsoleVariable<int32> CVarVelocityForceOutput(
 	ECVF_RenderThreadSafe
 	);
 
+static TAutoConsoleVariable<int32> CVarApproximateOcclusionQueries(
+	TEXT("r.ApproximateOcclusionQueries"),
+	0,
+	TEXT("Batch occlusion for a static and skeletal mesh even if there are movable.In general it's more beneficial to batch occlusion queires for all meshes"),
+	ECVF_RenderThreadSafe
+);
+
+bool IsAllowingApproximateOcclusionQueries()
+{
+	return CVarApproximateOcclusionQueries.GetValueOnAnyThread() != 0;
+}
 
 bool IsOptimizedWPO()
 {

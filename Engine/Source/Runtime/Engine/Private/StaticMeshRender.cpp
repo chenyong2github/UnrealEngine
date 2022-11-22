@@ -420,8 +420,7 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	// Enable dynamic triangle reordering to remove/reduce sorting issue when rendered with a translucent material (i.e., order-independent-transparency)
 	bSupportsSortedTriangles = InComponent->bSortTriangles;
 
-	// In general it's more beneficial to batch occlusion queires for all meshes on mobile
-	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	if (IsAllowingApproximateOcclusionQueries())
 	{
 		bAllowApproximateOcclusion = true;
 	}
