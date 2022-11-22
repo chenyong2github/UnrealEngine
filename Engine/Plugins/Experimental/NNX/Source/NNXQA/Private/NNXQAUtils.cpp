@@ -515,10 +515,9 @@ namespace Test
 			{
 				bool bShouldRunVariadicTest = (ONNXModelVariadic.Format != ENNXInferenceFormat::Invalid);
 				bShouldRunVariadicTest &= !(RuntimeName == "NNXRuntimeDML");
-				bShouldRunVariadicTest &= !(RuntimeName == "NNXRuntimeORTDml");
 
 				bool bTestSuceeded = RunTestInferenceAndCompareToRef(TestSetup, Runtime, ONNXModel, RefOutputMemBuffers, RefOutputTensorDescs);
-				
+
 				if (bShouldRunVariadicTest)
 				{
 					if (!bTestSuceeded)
