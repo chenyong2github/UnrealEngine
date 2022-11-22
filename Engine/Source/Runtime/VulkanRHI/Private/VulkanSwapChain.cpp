@@ -128,11 +128,12 @@ VkResult SimulateErrors(VkResult Result)
 extern TAutoConsoleVariable<int32> GAllowPresentOnComputeQueue;
 static TSet<EPixelFormat> GPixelFormatNotSupportedWarning;
 
-FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevice, void* WindowHandle, EPixelFormat& InOutPixelFormat, uint32 Width, uint32 Height, bool bIsFullScreen,
+FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevice, void* InWindowHandle, EPixelFormat& InOutPixelFormat, uint32 Width, uint32 Height, bool bIsFullScreen,
 	uint32* InOutDesiredNumBackBuffers, TArray<VkImage>& OutImages, int8 InLockToVsync, FVulkanSwapChainRecreateInfo* RecreateInfo)
 	: SwapChain(VK_NULL_HANDLE)
 	, Device(InDevice)
 	, Surface(VK_NULL_HANDLE)
+	, WindowHandle(InWindowHandle)
 	, CurrentImageIndex(-1)
 	, SemaphoreIndex(0)
 	, NumPresentCalls(0)
@@ -530,14 +531,14 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 	}
 #endif
 
-	VkResult Result = FVulkanPlatform::CreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain);
+	VkResult Result = FVulkanPlatform::CreateSwapchainKHR(WindowHandle, Device.GetPhysicalHandle(), Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain);
 #if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
 	if (Device.GetOptionalExtensions().HasEXTFullscreenExclusive && Result == VK_ERROR_INITIALIZATION_FAILED)
 	{
 		// Unlink fullscreen
 		UE_LOG(LogVulkanRHI, Warning, TEXT("Create swapchain failed with Initialization error; removing FullScreen extension..."));
 		SwapChainInfo.pNext = FullScreenInfo.pNext;
-		Result = FVulkanPlatform::CreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain);
+		Result = FVulkanPlatform::CreateSwapchainKHR(WindowHandle, Device.GetPhysicalHandle(), Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain);
 	}
 #endif
 	VERIFYVULKANRESULT_EXPANDED(Result);
@@ -801,7 +802,7 @@ FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVul
 	Info.pSwapchains = &SwapChain;
 	Info.pImageIndices = (uint32*)&CurrentImageIndex;
 
-	bool bPlatformHandlesFramePacing = FVulkanPlatform::FramePace(Device, SwapChain, PresentID, Info);
+	bool bPlatformHandlesFramePacing = FVulkanPlatform::FramePace(Device, WindowHandle, SwapChain, PresentID, Info);
 
 	if (!bPlatformHandlesFramePacing)
 	{

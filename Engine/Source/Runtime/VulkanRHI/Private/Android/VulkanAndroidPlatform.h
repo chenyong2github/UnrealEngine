@@ -58,6 +58,7 @@ public:
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
 	static void FreeVulkanLibrary();
 
+	static void InitDevice(FVulkanDevice* InDevice);
 	static void GetInstanceExtensions(FVulkanInstanceExtensionArray& OutExtensions);
 	static void GetInstanceLayers(TArray<const ANSICHAR*>& OutLayers);
 	static void GetDeviceExtensions(FVulkanDevice* Device, FVulkanDeviceExtensionArray& OutExtensions);
@@ -123,9 +124,11 @@ public:
 	//#todo-rco: Detect Mali? Does the platform require depth to be written on stencil clear
 	static bool RequiresDepthWriteOnStencilClear() { return true; }
 
-	static bool FramePace(FVulkanDevice& Device, VkSwapchainKHR Swapchain, uint32 PresentID, VkPresentInfoKHR& Info);
+	static bool FramePace(FVulkanDevice& Device, void* WindowHandle, VkSwapchainKHR Swapchain, uint32 PresentID, VkPresentInfoKHR& Info);
 
-	static VkResult CreateSwapchainKHR(VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain);
+	static VkResult Present(VkQueue Queue, VkPresentInfoKHR& PresentInfo);
+
+	static VkResult CreateSwapchainKHR(void* WindowHandle, VkPhysicalDevice PhysicalDevice, VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain);
 
 	static void DestroySwapchainKHR(VkDevice Device, VkSwapchainKHR Swapchain, const VkAllocationCallbacks* Allocator);
 
@@ -167,6 +170,7 @@ protected:
 	static int32 UnsuccessfulRefreshRateFrames;
 	static TArray<TArray<ANSICHAR>> DebugVulkanDeviceLayers;
 	static TArray<TArray<ANSICHAR>> DebugVulkanInstanceLayers;
+	static TArray<TArray<ANSICHAR>> SwappyRequiredExtensions;
 
 	static int32 AFBCWorkaroundOption;
 	static int32 ASTCWorkaroundOption;

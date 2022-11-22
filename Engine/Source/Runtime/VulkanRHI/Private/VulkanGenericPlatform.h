@@ -28,6 +28,8 @@ public:
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance) { return true; }
 	static void FreeVulkanLibrary() {}
 
+	static void InitDevice(FVulkanDevice* InDevice) {}
+
 	// Called after querying all the available extensions and layers
 	static void NotifyFoundInstanceLayersAndExtensions(const TArray<const ANSICHAR*>& Layers, const TArray<const ANSICHAR*>& Extensions) {}
 	static void NotifyFoundDeviceLayersAndExtensions(VkPhysicalDevice PhysicalDevice, const TArray<const ANSICHAR*>& Layers, const TArray<const ANSICHAR*>& Extensions) {}
@@ -100,13 +102,13 @@ public:
 	static bool RequiresSwapchainGeneralInitialLayout() { return false; }
 
 	// Allow platforms to perform their own frame pacing, called before Present. Returns true if the platform has done framepacing, false otherwise.
-	static bool FramePace(FVulkanDevice& Device, VkSwapchainKHR Swapchain, uint32 PresentID, VkPresentInfoKHR& Info) { return false; }
+	static bool FramePace(FVulkanDevice& Device, void* WindowHandle, VkSwapchainKHR Swapchain, uint32 PresentID, VkPresentInfoKHR& Info) { return false; }
 
 	// Allow platforms to do extra work on present
 	static VkResult Present(VkQueue Queue, VkPresentInfoKHR& PresentInfo);
 
 	// Allow platforms to track swapchain creation
-	static VkResult CreateSwapchainKHR(VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain);
+	static VkResult CreateSwapchainKHR(void* WindowHandle, VkPhysicalDevice PhysicalDevice, VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain);
 	
 	// Allow platforms to track swapchain destruction
 	static void DestroySwapchainKHR(VkDevice Device, VkSwapchainKHR Swapchain, const VkAllocationCallbacks* Allocator);

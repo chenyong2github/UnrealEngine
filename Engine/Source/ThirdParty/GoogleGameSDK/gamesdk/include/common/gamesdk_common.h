@@ -29,4 +29,13 @@
 
 #pragma once
 
-#define ANDROID_GAMESDK_PACKED_VERSION(MAJOR, MINOR) ((MAJOR << 16) | (MINOR))
+// There are separate versions for each GameSDK component that use this format:
+#define ANDROID_GAMESDK_PACKED_VERSION(MAJOR, MINOR, BUGFIX) \
+    ((MAJOR << 16) | (MINOR) | (BUGFIX << 8))
+// Accessors
+#define ANDROID_GAMESDK_MAJOR_VERSION(PACKED) ((PACKED) >> 16)
+#define ANDROID_GAMESDK_MINOR_VERSION(PACKED) ((PACKED)&0xff)
+#define ANDROID_GAMESDK_BUGFIX_VERSION(PACKED) (((PACKED) >> 8) & 0xff)
+
+#define AGDK_STRING_VERSION(MAJOR, MINOR, BUGFIX, GIT) \
+#MAJOR "." #MINOR "." #BUGFIX "." #GIT

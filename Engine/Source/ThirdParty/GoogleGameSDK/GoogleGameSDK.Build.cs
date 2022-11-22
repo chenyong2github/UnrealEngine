@@ -12,8 +12,15 @@ public class GoogleGameSDK : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PublicAdditionalLibraries.Add(GoogleGameSDKPath + "/gamesdk/libs/arm64-v8a_API24_NDK21_cpp_shared_Release/libgamesdk.a");
-			PublicAdditionalLibraries.Add(GoogleGameSDKPath + "/gamesdk/libs/x86_64_API24_NDK21_cpp_shared_Release/libgamesdk.a");
+			string Arm64GameSDKPath = GoogleGameSDKPath + "/gamesdk/libs/arm64-v8a_API27_NDK23_cpp_static_Release/";
+			string x86_64GameSDKPath = GoogleGameSDKPath + "/gamesdk/libs/x86_64_API27_NDK23_cpp_static_Release/";
+
+			PublicAdditionalLibraries.Add(Arm64GameSDKPath + "libswappy_static.a");
+			PublicAdditionalLibraries.Add(x86_64GameSDKPath + "libswappy_static.a");
+
+			PublicAdditionalLibraries.Add(Arm64GameSDKPath + "libmemory_advice_static.a");
+			PublicAdditionalLibraries.Add(x86_64GameSDKPath + "libmemory_advice_static.a");
+
 			PublicSystemIncludePaths.Add(GoogleGameSDKPath + "/gamesdk/include");
 
             // Register Plugin Language

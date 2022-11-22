@@ -1093,6 +1093,8 @@ void FVulkanDevice::InitGPU()
 
 	CreateDevice(DeviceLayers, UEExtensions);
 
+	FVulkanPlatform::InitDevice(this);
+
 	SetupFormats();
 
 	DeviceMemoryManager.Init(this);

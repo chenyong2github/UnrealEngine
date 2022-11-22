@@ -80,7 +80,7 @@ VkResult FVulkanGenericPlatform::Present(VkQueue Queue, VkPresentInfoKHR& Presen
 	return VulkanRHI::vkQueuePresentKHR(Queue, &PresentInfo);
 }
 
-VkResult FVulkanGenericPlatform::CreateSwapchainKHR(VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain)
+VkResult FVulkanGenericPlatform::CreateSwapchainKHR(void* WindowHandle, VkPhysicalDevice PhysicalDevice, VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain)
 {
 	return VulkanRHI::vkCreateSwapchainKHR(Device, CreateInfo, Allocator, Swapchain);
 }

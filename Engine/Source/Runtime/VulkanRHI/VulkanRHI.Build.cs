@@ -65,6 +65,16 @@ public class VulkanRHI : ModuleRules
 					"Launch"
 				}
 			);
+
+			// for Swappy
+			PublicDefinitions.Add("USE_ANDROID_SWAPPY=1");
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+				"Launch",
+				"GoogleGameSDK"
+				}
+			);
 		}
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))

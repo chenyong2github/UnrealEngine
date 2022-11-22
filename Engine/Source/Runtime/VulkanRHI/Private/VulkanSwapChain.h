@@ -54,7 +54,8 @@ protected:
 	FVulkanDevice& Device;
 
 	VkSurfaceKHR Surface;
-
+	void* WindowHandle;
+		
 	int32 CurrentImageIndex;
 	int32 SemaphoreIndex;
 	uint32 NumPresentCalls;
