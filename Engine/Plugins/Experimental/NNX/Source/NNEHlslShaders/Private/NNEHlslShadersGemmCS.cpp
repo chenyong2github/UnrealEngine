@@ -102,7 +102,7 @@ namespace UE::NNEHlslShaders::Internal
 		Parameters.MxN = M * N;
 		Parameters.CWidth = 0;
 		Parameters.CHeight = 0;
-		if (InputC)
+		if (InputC != nullptr)
 		{
 			Parameters.CWidth = InputC->GetShape().Rank() == 0 ? 0 : InputC->GetShape().Data[InputC->GetShape().Rank() - 1];;
 			Parameters.CHeight = InputC->GetShape().Rank() == 0 ? 0 : InputC->GetShape().Rank() == 1 ? 1 : InputC->GetShape().Data[InputC->GetShape().Rank() - 2];
