@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "GenericPlatform/IInputInterface.h"
+#include "GameFramework/InputDeviceSubsystem.h"
 
 #include "InputDeviceProperties.generated.h"
 
@@ -27,13 +28,13 @@ class UCurveFloat;
 * support certain device properties. An older gamepad may not have any advanced trigger haptics for 
 * example. 
 */
-UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew)
+UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew, CollapseCategories)
 class ENGINE_API UInputDeviceProperty : public UObject
 {
 	GENERATED_BODY()
 public:
 
-	UInputDeviceProperty();
+	UInputDeviceProperty(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/**
 	* Evaluate this device property for a given duration. 
@@ -111,12 +112,56 @@ public:
 
 protected:
 
+	/** Returns the device specific data for the given platform user. Returns the default data if none are given */
+	template<class TDataLayout>
+	const TDataLayout* GetDeviceSpecificData(const FPlatformUserId UserId, const TMap<FName, TDataLayout>& InMap) const;
+
+	template<class TDataLayout>
+	TDataLayout* GetDeviceSpecificDataMutable(const FPlatformUserId UserId, TMap<FName, TDataLayout>& InMap)
+	{
+		return GetDeviceSpecificData<TDataLayout>(UserId, InMap);
+	}
+
 	/**
 	* The duration that this device property should last. Override this if your property has any dynamic curves 
 	* to be the max time range.
 	*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Info")
 	float PropertyDuration = 0.1f;
+};
+
+template<class TDataLayout>
+const TDataLayout* UInputDeviceProperty::GetDeviceSpecificData(const FPlatformUserId UserId, const TMap<FName, TDataLayout>& InDeviceData) const
+{
+	if (const UInputDeviceSubsystem* SubSystem = UInputDeviceSubsystem::Get())
+	{
+		const FHardwareDeviceIdentifier Hardware = SubSystem->GetMostRecentlyUsedHardwareDevice(UserId);
+		// Check if there are any per-input device overrides available
+		if (const TDataLayout* DeviceDetails = InDeviceData.Find(Hardware.HardwareDeviceIdentifier))
+		{
+			return DeviceDetails;
+		}
+	}
+
+	return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////
+// UColorInputDeviceProperty
+
+/** Data required for setting the Input Device Color */
+USTRUCT(BlueprintType)
+struct FDeviceColorData
+{
+	GENERATED_BODY()
+
+	/** True if the light should be enabled at all */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
+	bool bEnable = true;
+
+	/** The color to set the light on  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
+	FColor LightColor = FColor::White;
 };
 
 /**
@@ -136,18 +181,37 @@ public:
 	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser) override;
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 
-	/** True if the light should be enabled at all */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	bool bEnable = true;
+	/** Default color data that will be used by default. Device Specific overrides will be used when the current input device matches */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color")
+	FDeviceColorData ColorData;
 
-	/** The color to set the light on  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	FColor LightColor = FColor::White;
+	/** A map of device specific color data. If no overrides are specified, the Default hardware data will be used */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color", meta = (GetOptions = "Engine.InputPlatformSettings.GetAllHardwareDeviceNames"))
+	TMap<FName, FDeviceColorData> DeviceOverrideData;
 
 private:
 
 	/** The internal light color property that this represents; */
 	FInputDeviceLightColorProperty InternalProperty;
+};
+
+
+///////////////////////////////////////////////////////////////////////
+// UColorInputDeviceCurveProperty
+
+/** Data required for setting the Input Device Color */
+USTRUCT(BlueprintType)
+struct FDeviceColorCurveData
+{
+	GENERATED_BODY()
+
+	/** True if the light should be enabled at all */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
+	bool bEnable = true;
+
+	/** The color the device light should be */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
+	TObjectPtr<UCurveLinearColor> DeviceColorCurve;
 };
 
 /** 
@@ -169,14 +233,13 @@ public:
 	virtual float RecalculateDuration() override;
 
 protected:
+	/** Default color data that will be used by default. Device Specific overrides will be used when the current input device matches */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color")
+	FDeviceColorCurveData ColorData;
 
-	/** True if the light should be enabled at all */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	bool bEnable = true;
-
-	/** The color the device light should be */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	TObjectPtr<UCurveLinearColor> DeviceColorCurve;
+	/** A map of device specific color data. If no overrides are specified, the Default hardware data will be used */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color", meta = (GetOptions = "Engine.InputPlatformSettings.GetAllHardwareDeviceNames"))
+	TMap<FName, FDeviceColorCurveData> DeviceOverrideData;
 
 private:
 
@@ -184,8 +247,26 @@ private:
 	FInputDeviceLightColorProperty InternalProperty;
 };
 
+
+///////////////////////////////////////////////////////////////////////
+// UInputDeviceTriggerEffect
+
+USTRUCT(BlueprintType)
+struct FDeviceTriggerBaseData
+{
+	GENERATED_BODY()
+
+	/** Which trigger this property should effect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	EInputDeviceTriggerMask AffectedTriggers = EInputDeviceTriggerMask::None;
+
+	/** True if the triggers should be reset after the duration of this device property */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	bool bResetUponCompletion = true;
+};
+
 /** A property that effect the triggers on a gamepad */
-UCLASS(Blueprintable, meta = (DisplayName = "Reset Trigger Device Properties"))
+UCLASS(Abstract, Blueprintable, meta = (DisplayName = "Reset Trigger Device Properties"))
 class ENGINE_API UInputDeviceTriggerEffect : public UInputDeviceProperty
 {
 	GENERATED_BODY()
@@ -195,18 +276,30 @@ public:
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser) override;
 
-	/** Which trigger this property should effect */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-    EInputDeviceTriggerMask AffectedTriggers = EInputDeviceTriggerMask::None;
-
-	/** True if the triggers should be reset after the duration of this device property */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	bool bResetUponCompletion = true;
+	FDeviceTriggerBaseData BaseTriggerData;
 
 protected:
 
 	/** Internal property that can be used to reset a given trigger */
 	FInputDeviceTriggerResetProperty ResetProperty = {};
+};
+
+///////////////////////////////////////////////////////////////////////
+// UInputDeviceTriggerFeedbackProperty
+
+USTRUCT(BlueprintType)
+struct FDeviceTriggerFeedbackData
+{
+	GENERATED_BODY()
+
+	/** What position on the trigger that the feedback should be applied to over time (1-9) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> FeedbackPositionCurve;
+
+	/** How strong the feedback is over time (1-8) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> FeedbackStrenghCurve;
 };
 
 /** 
@@ -229,20 +322,43 @@ public:
 	virtual float RecalculateDuration() override;
 
 	/** What position on the trigger that the feedback should be applied to over time (1-9) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	TObjectPtr<UCurveFloat> FeedbackPositionCurve;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
+	FDeviceTriggerFeedbackData TriggerData;
 
-	/** How strong the feedback is over time (1-8) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	TObjectPtr<UCurveFloat> FeedbackStrenghCurve;
+	/** A map of device specific color data. If no overrides are specified, the Default hardware data will be used */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Trigger", meta = (GetOptions = "Engine.InputPlatformSettings.GetAllHardwareDeviceNames"))
+	TMap<FName, FDeviceTriggerFeedbackData> DeviceOverrideData;
 
 private:
 
-	int32 GetPositionValue(const float Duration) const;
-	int32 GetStrengthValue(const float Duration) const;
+	int32 GetPositionValue(const FDeviceTriggerFeedbackData* Data, const float Duration) const;
+	int32 GetStrengthValue(const FDeviceTriggerFeedbackData* Data, const float Duration) const;
 
 	/** The internal property that represents this trigger feedback. */
 	FInputDeviceTriggerFeedbackProperty InternalProperty;
+};
+
+///////////////////////////////////////////////////////////////////////
+// UInputDeviceTriggerResistanceProperty
+
+USTRUCT(BlueprintType)
+struct FDeviceTriggerTriggerResistanceData
+{
+	GENERATED_BODY()
+
+	/** The position that the trigger should start providing resistance */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	int32 StartPosition = 0;
+
+	/** How strong the resistance is */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	int32 StartStrengh = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	int32 EndPosition = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	int32 EndStrengh = 0;
 };
 
 /** 
@@ -265,19 +381,13 @@ public:
 
 protected:
 
-	/** The position that the trigger should start providing resistance */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	int32 StartPosition = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
+	FDeviceTriggerTriggerResistanceData TriggerData;
 
-	/** How strong the resistance is */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	int32 StartStrengh = 0;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	int32 EndPosition = 0;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	int32 EndStrengh = 0;
+
+	/** A map of device specific color data. If no overrides are specified, the Default hardware data will be used */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Trigger", meta = (GetOptions = "Engine.InputPlatformSettings.GetAllHardwareDeviceNames"))
+	TMap<FName, FDeviceTriggerTriggerResistanceData> DeviceOverrideData;
 
 private:
 
@@ -285,6 +395,28 @@ private:
 	FInputDeviceTriggerResistanceProperty InternalProperty;
 };
 
+
+///////////////////////////////////////////////////////////////////////
+// UInputDeviceTriggerVibrationProperty
+
+
+USTRUCT(BlueprintType)
+struct FDeviceTriggerTriggerVibrationData
+{
+	GENERATED_BODY()
+
+	/** What position on the trigger that the feedback should be applied to over time (1-9) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> TriggerPositionCurve;
+
+	/** The frequency of the vibration */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> VibrationFrequencyCurve;
+
+	/** The amplitude of the vibration */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> VibrationAmplitudeCurve;
+};
 
 /**
 * Sets trigger vibration
@@ -305,23 +437,18 @@ public:
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 	virtual float RecalculateDuration() override;
 
-	/** What position on the trigger that the feedback should be applied to over time (1-9) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	TObjectPtr<UCurveFloat> TriggerPositionCurve;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
+	FDeviceTriggerTriggerVibrationData TriggerData;
 
-	/** The frequency of the vibration */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	TObjectPtr<UCurveFloat> VibrationFrequencyCurve;
-
-	/** The amplitude of the vibration */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
-	TObjectPtr<UCurveFloat> VibrationAmplitudeCurve;
+	/** A map of device specific color data. If no overrides are specified, the Default hardware data will be used */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Trigger", meta = (GetOptions = "Engine.InputPlatformSettings.GetAllHardwareDeviceNames"))
+	TMap<FName, FDeviceTriggerTriggerVibrationData> DeviceOverrideData;
 
 private:
 
-	int32 GetTriggerPositionValue(const float Duration) const;
-	int32 GetVibrationFrequencyValue(const float Duration) const;
-	int32 GetVibrationAmplitudeValue(const float Duration) const;
+	int32 GetTriggerPositionValue(const FDeviceTriggerTriggerVibrationData* Data, const float Duration) const;
+	int32 GetVibrationFrequencyValue(const FDeviceTriggerTriggerVibrationData* Data, const float Duration) const;
+	int32 GetVibrationAmplitudeValue(const FDeviceTriggerTriggerVibrationData* Data, const float Duration) const;
 
 	/** The internal property that represents this trigger feedback. */
 	FInputDeviceTriggerVibrationProperty InternalProperty;

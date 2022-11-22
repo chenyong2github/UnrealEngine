@@ -9,7 +9,8 @@
 ///////////////////////////////////////////////////////////////////////
 // UInputDeviceProperty
 
-UInputDeviceProperty::UInputDeviceProperty()
+UInputDeviceProperty::UInputDeviceProperty(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	RecalculateDuration();
 }
@@ -68,8 +69,18 @@ void UInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUse
 
 void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
 {
-	InternalProperty.bEnable = bEnable;
-	InternalProperty.Color = LightColor;
+	// Check for an override on the current input device
+	if (const FDeviceColorData* Data = GetDeviceSpecificData<FDeviceColorData>(PlatformUser, DeviceOverrideData))
+	{
+		InternalProperty.bEnable = Data->bEnable;
+		InternalProperty.Color = Data->LightColor;
+	}
+	// Otherwise use the default color data
+	else
+	{
+		InternalProperty.bEnable = ColorData.bEnable;
+		InternalProperty.Color = ColorData.LightColor;
+	}
 }
 
 void UColorInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
@@ -89,12 +100,27 @@ FInputDeviceProperty* UColorInputDeviceProperty::GetInternalDeviceProperty()
 
 void UColorInputDeviceCurveProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
 {
-	InternalProperty.bEnable = bEnable;
-
-	if (ensure(DeviceColorCurve))
+	// Check for an override on the current input device
+	if (const FDeviceColorCurveData* Data = GetDeviceSpecificData<FDeviceColorCurveData>(PlatformUser, DeviceOverrideData))
 	{
-		FLinearColor CurveColor = DeviceColorCurve->GetLinearColorValue(Duration);
-		InternalProperty.Color = CurveColor.ToFColorSRGB();
+		InternalProperty.bEnable = Data->bEnable;
+
+		if (ensure(Data->DeviceColorCurve))
+		{
+			FLinearColor CurveColor = Data->DeviceColorCurve->GetLinearColorValue(Duration);
+			InternalProperty.Color = CurveColor.ToFColorSRGB();
+		}
+	}
+	// Otherwise use the default color data
+	else
+	{
+		InternalProperty.bEnable = ColorData.bEnable;
+
+		if (ensure(ColorData.DeviceColorCurve))
+		{
+			FLinearColor CurveColor = ColorData.DeviceColorCurve->GetLinearColorValue(Duration);
+			InternalProperty.Color = CurveColor.ToFColorSRGB();
+		}
 	}
 }
 
@@ -112,16 +138,31 @@ FInputDeviceProperty* UColorInputDeviceCurveProperty::GetInternalDeviceProperty(
 
 float UColorInputDeviceCurveProperty::RecalculateDuration()
 {
-	float MinTime, MaxTime;
-	if (DeviceColorCurve)
+	float MinTime = 0.f;
+	float MaxTime = 0.f;
+
+	if (ColorData.DeviceColorCurve)
 	{
-		DeviceColorCurve->GetTimeRange(MinTime, MaxTime);
-		PropertyDuration = MaxTime;
+		ColorData.DeviceColorCurve->GetTimeRange(MinTime, MaxTime);
 	}
-	else
+
+	// Find the max time of any device specific data
+	for (const TPair<FName, FDeviceColorCurveData>& Pair : DeviceOverrideData)
 	{
-		PropertyDuration = 1.0f;
+		if (Pair.Value.DeviceColorCurve)
+		{
+			float DeviceSpecificMinTime = 0.f;
+			float DeviceSpecificMaxTime = 0.f;
+			Pair.Value.DeviceColorCurve->GetTimeRange(DeviceSpecificMinTime, DeviceSpecificMaxTime);
+			if (DeviceSpecificMaxTime > MaxTime)
+			{
+				MaxTime = DeviceSpecificMaxTime;
+			}
+		}		
 	}
+
+	PropertyDuration = MaxTime;
+	
 	return PropertyDuration;
 }
 
@@ -135,10 +176,10 @@ FInputDeviceProperty* UInputDeviceTriggerEffect::GetInternalDeviceProperty()
 
 void UInputDeviceTriggerEffect::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
 {
-	if (bResetUponCompletion)
+	if (BaseTriggerData.bResetUponCompletion)
 	{
 		// Pass in our reset property
-		ResetProperty.AffectedTriggers = AffectedTriggers;
+		ResetProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
 		ApplyDeviceProperty(PlatformUser, &ResetProperty);
 	}	
 }
@@ -149,37 +190,46 @@ void UInputDeviceTriggerEffect::ResetDeviceProperty_Implementation(const FPlatfo
 UInputDeviceTriggerFeedbackProperty::UInputDeviceTriggerFeedbackProperty()
 	: UInputDeviceTriggerEffect()
 {
-	InternalProperty.AffectedTriggers = AffectedTriggers;
+	InternalProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
 }
 
-int32 UInputDeviceTriggerFeedbackProperty::GetPositionValue(const float Duration) const
+int32 UInputDeviceTriggerFeedbackProperty::GetPositionValue(const FDeviceTriggerFeedbackData* Data, const float Duration) const
 {
-	if (ensure(FeedbackPositionCurve))
+	if (ensure(Data->FeedbackPositionCurve))
 	{
-		// TODO: Make the max position a cvar
-		int32 Position = FeedbackPositionCurve->GetFloatValue(Duration);
-		return FMath::Clamp(Position, 0, 9);
+		// TODO: Make the max Strength a cvar
+		int32 Pos = Data->FeedbackPositionCurve->GetFloatValue(Duration);
+		return FMath::Clamp(Pos, 0, 8);
 	}
+
 	return 0;
 }
 
-int32 UInputDeviceTriggerFeedbackProperty::GetStrengthValue(const float Duration) const
+int32 UInputDeviceTriggerFeedbackProperty::GetStrengthValue(const FDeviceTriggerFeedbackData* Data, const float Duration) const
 {
-	if (ensure(FeedbackStrenghCurve))
+	if (ensure(Data->FeedbackStrenghCurve))
 	{
 		// TODO: Make the max Strength a cvar
-		int32 Strength = FeedbackPositionCurve->GetFloatValue(Duration);
+		int32 Strength = Data->FeedbackStrenghCurve->GetFloatValue(Duration);
 		return FMath::Clamp(Strength, 0, 8);
 	}
+
 	return 0;
 }
 
 void UInputDeviceTriggerFeedbackProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
 {		
-	InternalProperty.AffectedTriggers = AffectedTriggers;
+	InternalProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
 
-	InternalProperty.Position = GetPositionValue(Duration);
-	InternalProperty.Strengh = GetStrengthValue(Duration);
+	const FDeviceTriggerFeedbackData* DataToUse = &TriggerData;
+
+	if (const FDeviceTriggerFeedbackData* OverrideData = GetDeviceSpecificData<FDeviceTriggerFeedbackData>(PlatformUser, DeviceOverrideData))
+	{
+		DataToUse = OverrideData;
+	}
+
+	InternalProperty.Position = GetPositionValue(DataToUse, Duration);
+	InternalProperty.Strengh = GetStrengthValue(DataToUse, Duration);
 }
 
 FInputDeviceProperty* UInputDeviceTriggerFeedbackProperty::GetInternalDeviceProperty()
@@ -191,14 +241,28 @@ float UInputDeviceTriggerFeedbackProperty::RecalculateDuration()
 {
 	// Get the max time from the two curves on this property
 	float MinTime, MaxTime = 0.0f;
-	if (FeedbackPositionCurve)
+	if (TriggerData.FeedbackPositionCurve)
 	{
-		FeedbackPositionCurve->GetTimeRange(MinTime, MaxTime);
+		TriggerData.FeedbackPositionCurve->GetTimeRange(MinTime, MaxTime);
 	}
 	
-	if (FeedbackStrenghCurve)
+	if (TriggerData.FeedbackStrenghCurve)
 	{
-		FeedbackStrenghCurve->GetTimeRange(MinTime, MaxTime);
+		TriggerData.FeedbackStrenghCurve->GetTimeRange(MinTime, MaxTime);
+	}
+
+	// Find the max time of any device specific data
+	for (const TPair<FName, FDeviceTriggerFeedbackData>& Pair : DeviceOverrideData)
+	{
+		if (Pair.Value.FeedbackPositionCurve)
+		{
+			Pair.Value.FeedbackPositionCurve->GetTimeRange(MinTime, MaxTime);
+		}
+
+		if (Pair.Value.FeedbackStrenghCurve)
+		{
+			Pair.Value.FeedbackStrenghCurve->GetTimeRange(MinTime, MaxTime);
+		}
 	}
 	
 	PropertyDuration = MaxTime;
@@ -216,11 +280,22 @@ UInputDeviceTriggerResistanceProperty::UInputDeviceTriggerResistanceProperty()
 
 void UInputDeviceTriggerResistanceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
 {
-	InternalProperty.AffectedTriggers = AffectedTriggers;
-	InternalProperty.StartPosition = StartPosition;
-	InternalProperty.StartStrengh = StartStrengh;
-	InternalProperty.EndPosition = EndPosition;
-	InternalProperty.EndStrengh = EndStrengh;
+	InternalProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
+
+	if (const FDeviceTriggerTriggerResistanceData* Data = GetDeviceSpecificData<FDeviceTriggerTriggerResistanceData>(PlatformUser, DeviceOverrideData))
+	{
+		InternalProperty.StartPosition = Data->StartPosition;
+		InternalProperty.StartStrengh = Data->StartStrengh;
+		InternalProperty.EndPosition = Data->EndPosition;
+		InternalProperty.EndStrengh = Data->EndStrengh;
+	}
+	else
+	{
+		InternalProperty.StartPosition = TriggerData.StartPosition;
+		InternalProperty.StartStrengh = TriggerData.StartStrengh;
+		InternalProperty.EndPosition = TriggerData.EndPosition;
+		InternalProperty.EndStrengh = TriggerData.EndStrengh;
+	}
 }
 
 FInputDeviceProperty* UInputDeviceTriggerResistanceProperty::GetInternalDeviceProperty()
@@ -240,10 +315,17 @@ UInputDeviceTriggerVibrationProperty::UInputDeviceTriggerVibrationProperty()
 
 void UInputDeviceTriggerVibrationProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
 {
-	InternalProperty.AffectedTriggers = AffectedTriggers;
-	InternalProperty.TriggerPosition = GetTriggerPositionValue(Duration);
-	InternalProperty.VibrationFrequency = GetVibrationFrequencyValue(Duration);
-	InternalProperty.VibrationAmplitude = GetVibrationAmplitudeValue(Duration);
+	const FDeviceTriggerTriggerVibrationData* DataToUse = &TriggerData;
+
+	if (const FDeviceTriggerTriggerVibrationData* OverrideData = GetDeviceSpecificData<FDeviceTriggerTriggerVibrationData>(PlatformUser, DeviceOverrideData))
+	{
+		DataToUse = OverrideData;
+	}
+
+	InternalProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
+	InternalProperty.TriggerPosition = GetTriggerPositionValue(DataToUse, Duration);
+	InternalProperty.VibrationFrequency = GetVibrationFrequencyValue(DataToUse, Duration);
+	InternalProperty.VibrationAmplitude = GetVibrationAmplitudeValue(DataToUse, Duration);
 }
 
 FInputDeviceProperty* UInputDeviceTriggerVibrationProperty::GetInternalDeviceProperty()
@@ -269,43 +351,53 @@ float UInputDeviceTriggerVibrationProperty::RecalculateDuration()
 		}
 	};
 
-	EvaluateMaxTime(TriggerPositionCurve);
-	EvaluateMaxTime(VibrationFrequencyCurve);
-	EvaluateMaxTime(VibrationAmplitudeCurve);
+	EvaluateMaxTime(TriggerData.TriggerPositionCurve);
+	EvaluateMaxTime(TriggerData.VibrationFrequencyCurve);
+	EvaluateMaxTime(TriggerData.VibrationAmplitudeCurve);
+
+	for (const TPair<FName, FDeviceTriggerTriggerVibrationData>& Pair : DeviceOverrideData)
+	{
+		EvaluateMaxTime(Pair.Value.TriggerPositionCurve);
+		EvaluateMaxTime(Pair.Value.VibrationFrequencyCurve);
+		EvaluateMaxTime(Pair.Value.VibrationAmplitudeCurve);
+	}
 
 	PropertyDuration = MaxTime;
 	return PropertyDuration;
 }
 
-int32 UInputDeviceTriggerVibrationProperty::GetTriggerPositionValue(const float Duration) const
+int32 UInputDeviceTriggerVibrationProperty::GetTriggerPositionValue(const FDeviceTriggerTriggerVibrationData* Data, const float Duration) const
 {
-	if (ensure(TriggerPositionCurve))
+	if (ensure(Data->TriggerPositionCurve))
 	{
 		// TODO: Make the max Strength a cvar
-		int32 Strength = TriggerPositionCurve->GetFloatValue(Duration);
+		int32 Strength = Data->TriggerPositionCurve->GetFloatValue(Duration);
 		return FMath::Clamp(Strength, 0, 9);
 	}
+
 	return 0;
 }
 
-int32 UInputDeviceTriggerVibrationProperty::GetVibrationFrequencyValue(const float Duration) const
+int32 UInputDeviceTriggerVibrationProperty::GetVibrationFrequencyValue(const FDeviceTriggerTriggerVibrationData* Data, const float Duration) const
 {
-	if (ensure(VibrationFrequencyCurve))
+	if (ensure(Data->VibrationFrequencyCurve))
 	{
 		// TODO: Make the max Frequency a cvar
-		int32 Strength = VibrationFrequencyCurve->GetFloatValue(Duration);
+		int32 Strength = Data->VibrationFrequencyCurve->GetFloatValue(Duration);
 		return FMath::Clamp(Strength, 0, 255);
 	}
+	
 	return 0;
 }
 
-int32 UInputDeviceTriggerVibrationProperty::GetVibrationAmplitudeValue(const float Duration) const
+int32 UInputDeviceTriggerVibrationProperty::GetVibrationAmplitudeValue(const FDeviceTriggerTriggerVibrationData* Data, const float Duration) const
 {
-	if (ensure(VibrationAmplitudeCurve))
+	if (ensure(Data->VibrationAmplitudeCurve))
 	{
 		// TODO: Make the max Amplitude a cvar
-		int32 Strength = VibrationAmplitudeCurve->GetFloatValue(Duration);
+		int32 Strength = Data->VibrationAmplitudeCurve->GetFloatValue(Duration);
 		return FMath::Clamp(Strength, 0, 8);
 	}
+	
 	return 0;
 }
