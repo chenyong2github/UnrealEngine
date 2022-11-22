@@ -404,6 +404,7 @@ class FVulkanRenderPassBuilder
 public:
 	FVulkanRenderPassBuilder(FVulkanDevice& InDevice)
 		: Device(InDevice)
+		, CorrelationMask(0)
 	{}
 
 	void BuildCreateInfo(const FVulkanRenderTargetLayout& RTLayout)
@@ -611,7 +612,7 @@ public:
 		Bit mask that specifices correlation between views
 		An implementation may use this for optimizations (concurrent render)
 		*/
-		const uint32_t CorrelationMask = MultiviewMask;
+		CorrelationMask = MultiviewMask;
 
 		VkRenderPassMultiviewCreateInfo MultiviewInfo;
 		if (RTLayout.GetIsMultiView())
@@ -691,6 +692,8 @@ private:
 
 	TRenderPassCreateInfoClass CreateInfo;
 	FVulkanDevice& Device;
+
+	uint32_t CorrelationMask;
 };
 
 VkRenderPass CreateVulkanRenderPass(FVulkanDevice& Device, const FVulkanRenderTargetLayout& RTLayout);
