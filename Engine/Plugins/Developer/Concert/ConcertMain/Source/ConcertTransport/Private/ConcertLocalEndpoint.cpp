@@ -298,6 +298,11 @@ FConcertRemoteEndpointRef FConcertLocalEndpoint::CreateRemoteEndpoint(const FCon
 		FScopeLock RemoteEndpointsLock(&RemoteEndpointsCS);
 		RemoteEndpoints.Add(InEndpointContext.EndpointId, NewRemoteEndpoint);
 	}
+
+	{
+		FScopeLock RemoteAddressesLock(&RemoteAddressesCS);
+		RemoteAddresses.Add(InRemoteAddress);
+	}
 	
 	NewRemoteEndpoint->OnConcertMessageAcknowledgementReceived().AddLambda(
 		[this](const FConcertEndpointContext& Context, const TSharedRef<IConcertMessage>& AckedMessage, const FConcertMessageContext& AckMessageContext)
@@ -324,6 +329,31 @@ FConcertRemoteEndpointPtr FConcertLocalEndpoint::FindRemoteEndpoint(const FMessa
 		}
 	}
 	return nullptr;
+}
+
+void FConcertLocalEndpoint::RemoveRemoteEndpoint(const FMessageAddress& EndpointAddress)
+{
+	FScopeLock RemoteEndpointsLock(&RemoteEndpointsCS);
+
+	TArray<FConcertRemoteEndpointPtr> Endpoints;
+	RemoteEndpoints.GenerateValueArray(Endpoints);
+
+	for (FConcertRemoteEndpointPtr RemoteEndpoint : Endpoints)
+	{
+		if (RemoteEndpoint->GetAddress() == EndpointAddress)
+		{
+			const FGuid& EndpointId = RemoteEndpoint->GetEndpointContext().EndpointId;
+
+			PendingRemoteEndpointConnectionChangedEvents.Add(MakeTuple(RemoteEndpoint->GetEndpointContext(), EConcertRemoteEndpointConnection::ClosedRemotely));
+			Logger.LogRemoteEndpointClosure(EndpointId, FDateTime::UtcNow());
+			RemoteEndpoints.Remove(EndpointId);
+
+			FScopeLock RemoteAddressesLock(&RemoteAddressesCS);
+			RemoteAddresses.Remove(EndpointAddress);
+
+			break;
+		}
+	}
 }
 
 bool FConcertLocalEndpoint::HandleTick(float DeltaTime)
@@ -586,6 +616,20 @@ void FConcertLocalEndpoint::InternalHandleBusNotification(const FMessageBusNotif
 	if (RemoteEndpoint.IsValid())
 	{
 		RemoteEndpoint->ForwardBusNotification(Notification.NotificationType);
+	}
+
+	if (Notification.NotificationType == EMessageBusNotification::Unregistered)
+	{
+		{
+			FScopeLock RemoteAddressesLock(&RemoteAddressesCS);
+
+			if (!RemoteAddresses.Contains(Notification.RegistrationAddress))
+			{
+				return;
+			}
+		}
+
+		RemoveRemoteEndpoint(Notification.RegistrationAddress);
 	}
 }
 
@@ -858,6 +902,12 @@ void FConcertLocalEndpoint::TimeoutRemoteEndpoints(const FDateTime& UtcNow)
 				PendingRemoteEndpointConnectionChangedEvents.Add(MakeTuple(RemoteEndpoint->GetEndpointContext(), EConcertRemoteEndpointConnection::TimedOut));
 				Logger.LogRemoteEndpointTimeOut(EndpointId, UtcNow);
 				SendEndpointClosed(RemoteEndpoint.ToSharedRef(), UtcNow);
+
+				{
+					FScopeLock RemoteAddressesLock(&RemoteAddressesCS);
+					RemoteAddresses.Remove(RemoteEndpoint->GetAddress());
+				}
+
 				It.RemoveCurrent();
 				continue;
 			}

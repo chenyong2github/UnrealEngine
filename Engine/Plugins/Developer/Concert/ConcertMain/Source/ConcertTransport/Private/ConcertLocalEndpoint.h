@@ -62,6 +62,9 @@ private:
 	/** Find the remote endpoint with the given Message Address */
 	FConcertRemoteEndpointPtr FindRemoteEndpoint(const FMessageAddress& InEndpointId) const;
 
+	/** Remove the remote endpoint with the given Message Address. */
+	void RemoveRemoteEndpoint(const FMessageAddress& EndpointAddress);
+
 	/** Handle the endpoint ticker */
 	bool HandleTick(float DeltaTime);
 
@@ -152,6 +155,10 @@ private:
 	/** Map of remote Endpoints we are sending messages to from this endpoint */
 	mutable FCriticalSection RemoteEndpointsCS;
 	TMap<FGuid, FConcertRemoteEndpointPtr> RemoteEndpoints;
+
+	/** Array of remote endpoint message addresses that were discovered. */
+	mutable FCriticalSection RemoteAddressesCS;
+	TArray<FMessageAddress> RemoteAddresses;
 
 	/** Incoming message bus messages */
 	TQueue<TSharedPtr<IMessageContext, ESPMode::ThreadSafe>, EQueueMode::Spsc> InboundMessages;
