@@ -324,6 +324,7 @@ void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* E
 		.AddConditional(Components->Easing,                     FEasingComponentData{ decltype(FEasingComponentData::Section)(this) }, bHasEasing)
 		.AddConditional(Components->HierarchicalBias,           Params.Sequence.HierarchicalBias, Params.Sequence.HierarchicalBias != 0)
 		.AddConditional(Components->Interrogation.InputKey,     Params.InterrogationKey, Params.InterrogationKey.IsValid())
+		.AddConditional(Components->Interrogation.Instance,     Params.InterrogationInstance, Params.InterrogationInstance.IsValid())
 		.AddConditional(Components->EvalTime,                   Params.EntityMetaData ? Params.EntityMetaData->ForcedTime : 0, bHasForcedTime)
 		.AddTagConditional(Components->Tags.RestoreState,       bShouldRestoreState)
 		.AddTagConditional(Components->Tags.FixedTime,          bHasForcedTime)

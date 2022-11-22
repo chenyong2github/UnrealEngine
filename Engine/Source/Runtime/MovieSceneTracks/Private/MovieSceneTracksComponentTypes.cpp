@@ -798,7 +798,10 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	// --------------------------------------------------------------------------------------------
 	// Set up PerlinNoise components
 	ComponentRegistry->Factories.DuplicateChildComponent(FloatPerlinNoiseChannel);
+	ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatPerlinNoiseChannel, BuiltInComponents->EvalSeconds);
+
 	ComponentRegistry->Factories.DuplicateChildComponent(DoublePerlinNoiseChannel);
+	ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoublePerlinNoiseChannel, BuiltInComponents->EvalSeconds);
 
 	// --------------------------------------------------------------------------------------------
 	// Set up SkeletalAnimation components

@@ -30,6 +30,7 @@ namespace UE::MovieScene
 	struct FInitialValueIndex;
 	struct FInstanceHandle;
 	struct FInterrogationKey;
+	struct FInterrogationInstance;
 	struct FRootInstanceHandle;
 	namespace Interpolation
 	{
@@ -247,6 +248,8 @@ public:
 
 	TComponentTypeID<FFrameTime>          EvalTime;
 
+	TComponentTypeID<double>              EvalSeconds;
+
 public:
 
 	TComponentTypeID<FMovieSceneBlendChannelID> BlendChannelInput;
@@ -403,6 +406,7 @@ public:
 	struct
 	{
 		TComponentTypeID<FInterrogationKey> InputKey;
+		TComponentTypeID<FInterrogationInstance> Instance;
 		TComponentTypeID<FInterrogationKey> OutputKey;
 	} Interrogation;
 

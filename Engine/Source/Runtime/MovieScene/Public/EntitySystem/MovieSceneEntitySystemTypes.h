@@ -18,6 +18,7 @@
 
 #include <initializer_list>
 
+class UMovieSceneSequence;
 namespace UE { namespace MovieScene { class FEntityManager; } }
 
 #ifndef UE_MOVIESCENE_ENTITY_DEBUG
@@ -260,6 +261,20 @@ struct FInterrogationKey
 	static FInterrogationKey Default(int32 InInterrogationIndex = 0)
 	{
 		return FInterrogationKey(FInterrogationChannel::Default(), InInterrogationIndex);
+	}
+};
+
+
+/**
+ * Sequence instance information for interrogations
+ */
+struct FInterrogationInstance
+{
+	UMovieSceneSequence* Sequence = nullptr;
+
+	bool IsValid() const
+	{
+		return Sequence != nullptr;
 	}
 };
 
