@@ -68,9 +68,6 @@ struct GLTFEXPORTER_API FGLTFCoreUtilities
 	static EGLTFJsonTextureFilter ConvertMinFilter(TextureFilter Filter);
 	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter);
 
-	static EGLTFJsonTextureFilter ConvertMinFilter(TextureFilter Filter, TextureGroup LODGroup);
-	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter, TextureGroup LODGroup);
-
 	template <typename ComponentType>
 	static EGLTFJsonComponentType GetComponentType()
 	{

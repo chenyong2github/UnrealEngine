@@ -76,7 +76,7 @@ TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
 		case ETextureSamplerFilter::Trilinear:         return TF_Trilinear;
 		case ETextureSamplerFilter::AnisotropicPoint:  return TF_Trilinear; // A lot of engine code doesn't result in nearest
 		case ETextureSamplerFilter::AnisotropicLinear: return TF_Trilinear;
-		default:                                       return TF_Default; // Let caller decide fallback
+		default:                                       return TF_MAX;
 	}
 }
 
@@ -103,28 +103,23 @@ FIntPoint FGLTFTextureUtility::GetInGameSize(const UTexture* Texture)
 	return { InGameWidth, InGameHeight };
 }
 
-TTuple<TextureAddress, TextureAddress> FGLTFTextureUtility::GetAddressXY(const UTexture* Texture)
+void FGLTFTextureUtility::GetAddressXY(const UTexture* Texture, TextureAddress& OutAddressX, TextureAddress& OutAddressY)
 {
-	TextureAddress AddressX;
-	TextureAddress AddressY;
-
 	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
 	{
-		AddressX = Texture2D->AddressX;
-		AddressY = Texture2D->AddressY;
+		OutAddressX = Texture2D->AddressX;
+		OutAddressY = Texture2D->AddressY;
 	}
 	else if (const UTextureRenderTarget2D* RenderTarget2D = Cast<UTextureRenderTarget2D>(Texture))
 	{
-		AddressX = RenderTarget2D->AddressX;
-		AddressY = RenderTarget2D->AddressY;
+		OutAddressX = RenderTarget2D->AddressX;
+		OutAddressY = RenderTarget2D->AddressY;
 	}
 	else
 	{
-		AddressX = TA_MAX;
-		AddressY = TA_MAX;
+		OutAddressX = TA_MAX;
+		OutAddressY = TA_MAX;
 	}
-
-	return MakeTuple(AddressX, AddressY);
 }
 
 UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint& Size, bool bHDR)

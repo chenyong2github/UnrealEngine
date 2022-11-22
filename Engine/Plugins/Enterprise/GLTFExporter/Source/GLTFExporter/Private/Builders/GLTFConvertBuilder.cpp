@@ -247,7 +247,17 @@ FGLTFJsonSampler* FGLTFConvertBuilder::AddUniqueSampler(const UTexture* Texture)
 		return nullptr;
 	}
 
-	return SamplerConverter->GetOrAdd(Texture);
+	return TextureSamplerConverter->GetOrAdd(Texture);
+}
+
+FGLTFJsonSampler* FGLTFConvertBuilder::AddUniqueSampler(TextureAddress Address, TextureFilter Filter, TextureGroup LODGroup)
+{
+	return AddUniqueSampler(Address, Address, Filter, LODGroup);
+}
+
+FGLTFJsonSampler* FGLTFConvertBuilder::AddUniqueSampler(TextureAddress AddressX, TextureAddress AddressY, TextureFilter Filter, TextureGroup LODGroup)
+{
+	return SamplerConverter->GetOrAdd(AddressX, AddressY, Filter, LODGroup);
 }
 
 FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTexture* Texture)

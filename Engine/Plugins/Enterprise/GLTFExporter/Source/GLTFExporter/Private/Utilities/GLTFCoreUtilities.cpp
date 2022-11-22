@@ -237,7 +237,7 @@ EGLTFJsonTextureWrap FGLTFCoreUtilities::ConvertWrap(TextureAddress Address)
 		case TA_Wrap:   return EGLTFJsonTextureWrap::Repeat;
 		case TA_Mirror: return EGLTFJsonTextureWrap::MirroredRepeat;
 		case TA_Clamp:  return EGLTFJsonTextureWrap::ClampToEdge;
-		default:        return EGLTFJsonTextureWrap::None; // TODO: add error handling in callers
+		default:        return EGLTFJsonTextureWrap::None;
 	}
 }
 
@@ -261,14 +261,4 @@ EGLTFJsonTextureFilter FGLTFCoreUtilities::ConvertMagFilter(TextureFilter Filter
 		case TF_Trilinear: return EGLTFJsonTextureFilter::Linear;
 		default:           return EGLTFJsonTextureFilter::None;
 	}
-}
-
-EGLTFJsonTextureFilter FGLTFCoreUtilities::ConvertMinFilter(TextureFilter Filter, TextureGroup LODGroup)
-{
-	return ConvertMinFilter(Filter == TF_Default ? FGLTFTextureUtility::GetDefaultFilter(LODGroup) : Filter);
-}
-
-EGLTFJsonTextureFilter FGLTFCoreUtilities::ConvertMagFilter(TextureFilter Filter, TextureGroup LODGroup)
-{
-	return ConvertMagFilter(Filter == TF_Default ? FGLTFTextureUtility::GetDefaultFilter(LODGroup) : Filter);
 }

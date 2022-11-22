@@ -24,7 +24,7 @@ struct FGLTFTextureUtility
 
 	static FIntPoint GetInGameSize(const UTexture* Texture);
 
-	static TTuple<TextureAddress, TextureAddress> GetAddressXY(const UTexture* Texture);
+	static void GetAddressXY(const UTexture* Texture, TextureAddress& OutAddressX, TextureAddress& OutAddressY);
 
 	static UTextureRenderTarget2D* CreateRenderTarget(const FIntPoint& Size, bool bIsHDR);
 
