@@ -1645,6 +1645,11 @@ EBlendMode UMaterialInstanceDynamic::GetBlendMode() const
 	return Parent ? Parent->GetBlendMode() : BLEND_Opaque;
 }
 
+EStrataBlendMode UMaterialInstanceDynamic::GetStrataBlendMode() const
+{
+	return Parent ? Parent->GetStrataBlendMode() : SBM_Opaque;
+}
+
 bool UMaterialInstanceDynamic::IsTwoSided() const
 {
 	return Parent ? Parent->IsTwoSided() : false;
@@ -4229,6 +4234,11 @@ bool UMaterialInstance::GetCastDynamicShadowAsMasked() const
 EBlendMode UMaterialInstance::GetBlendMode() const
 {
 	return BlendMode;
+}
+
+EStrataBlendMode UMaterialInstance::GetStrataBlendMode() const
+{
+	return Parent ? Parent->GetStrataBlendMode() : SBM_Opaque;
 }
 
 FMaterialShadingModelField UMaterialInstance::GetShadingModels() const
