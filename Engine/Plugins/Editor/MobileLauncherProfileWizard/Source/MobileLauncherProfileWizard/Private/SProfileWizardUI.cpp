@@ -744,8 +744,12 @@ void SProfileWizardUI::CacheCookFlavorsList()
 	if (DLCFlavorList.Num() == 0)
 	{
 		DLCFlavorList.Add(MakeShareable(new FString(TargetPlatformName.ToString())));
-		// And make it selected by default
-		DLCSelectedFlavors.Add(TargetPlatformName.ToString());
+	}
+
+	// If only one target, make it selected by default
+	if (DLCFlavorList.Num() == 1)
+	{
+		DLCSelectedFlavors.Add(*DLCFlavorList[0].Get());
 	}
 }
 
