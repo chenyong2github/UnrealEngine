@@ -51,10 +51,6 @@ struct VkAllocationCallbacks;
 
 #define VULKAN_SINGLE_ALLOCATION_PER_RESOURCE					0
 
-#ifndef VULKAN_FREEPAGE_FOR_TYPE
-	#define VULKAN_FREEPAGE_FOR_TYPE							0
-#endif
-
 #ifndef VULKAN_SHOULD_USE_LLM
 	#define VULKAN_SHOULD_USE_LLM								0
 #endif
