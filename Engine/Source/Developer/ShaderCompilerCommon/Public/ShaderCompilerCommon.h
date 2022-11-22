@@ -99,6 +99,7 @@ namespace UE::ShaderCompilerCommon
 		const TCHAR* FilenamePrefix = nullptr;
 		TFunction<FString()> AppendPreSource{};
 		TFunction<FString()> AppendPostSource{};
+		bool bSkipDirectCompileTxt = false;
 	};
 	/*
 	 * Dumps common debug information (preprocessed .usf as constructed by GetDebugShaderContents, and a directcompile.txt file 

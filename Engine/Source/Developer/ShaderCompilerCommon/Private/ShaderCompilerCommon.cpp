@@ -1475,7 +1475,7 @@ namespace UE::ShaderCompilerCommon
 			DumpDebugUSF(Input, ModifiedPreprocessedSource, Options.HlslCCFlags, *BaseSourceFilename);
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-			if (Input.bGenerateDirectCompileFile)
+			if (Input.bGenerateDirectCompileFile && !Options.bSkipDirectCompileTxt)
 			{
 				// note: CreateShaderCompileWorkerDirectCommandLine should be internalized once the deprecation window ends
 				// (i.e. still should remain in this file but not be declared in the header)
