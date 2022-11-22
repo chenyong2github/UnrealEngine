@@ -595,6 +595,8 @@ void FNiagaraEditorStyle::InitTabIcons()
 	Set("Tab.Spreadsheet", new IMAGE_BRUSH_SVG("Icons/Tabs/Spreadsheet", Icon20x20));
 	Set("Tab.SystemOverview", new IMAGE_BRUSH_SVG("Icons/Tabs/SystemOverview", Icon20x20));
 	Set("Tab.Timeline", new IMAGE_BRUSH_SVG("Icons/Tabs/Timeline", Icon20x20));
+	Set("Tab.UserParameters", new IMAGE_BRUSH_SVG("Icons/Tabs/UserParameters", Icon20x20));
+	Set("Tab.UserParameterHierarchy", new IMAGE_BRUSH_SVG("Icons/Tabs/UserParameterHierarchy", Icon20x20));
 	Set("Tab.Viewport", new IMAGE_BRUSH_SVG("Icons/Tabs/Viewport", Icon20x20));
 	Set("Tab.VisualEffects", new IMAGE_BRUSH_SVG("Icons/Tabs/VisualEffects", Icon20x20));
 }
@@ -706,6 +708,17 @@ void FNiagaraEditorStyle::InitHierarchyEditor()
 
 	Set("NiagaraEditor.Stack.DropTarget.BorderVertical", new IMAGE_BRUSH("Icons/StackDropTargetBorder_Vertical", FVector2D(2, 8), FLinearColor::White, ESlateBrushTileType::Vertical));
 	Set("NiagaraEditor.Stack.DropTarget.BorderHorizontal", new IMAGE_BRUSH("Icons/StackDropTargetBorder_Horizontal", FVector2D(8, 2), FLinearColor::White, ESlateBrushTileType::Horizontal));
+
+	FButtonStyle SimpleButtonStyle = FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton");
+	FButtonStyle ButtonStyle = FButtonStyle(SimpleButtonStyle)
+		.SetNormalForeground(FStyleColors::Foreground)
+		.SetPressedForeground(FStyleColors::ForegroundHover)
+		.SetHoveredForeground(FStyleColors::ForegroundHover)
+		.SetDisabledForeground(FStyleColors::Foreground)
+		.SetNormalPadding(FMargin(8.f, 2.f, 8.f, 2.f))
+		.SetPressedPadding(FMargin(8.f, 3.f, 8.f, 1.f));
+
+	Set("NiagaraEditor.HierarchyEditor.ButtonStyle", ButtonStyle);
 }
 
 FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle")

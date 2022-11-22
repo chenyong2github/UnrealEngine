@@ -40,7 +40,6 @@ public:
 	void SelectObjectInDetailsPanel(UObject* Object) const;
 	
 private:
-	TSharedRef<SWidget> CreateHierarchyButtonWidgets() const;
 	TSharedRef<ITableRow> GenerateSourceItemRow(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, const TSharedRef<STableViewBase>& TableViewBase);
 	TSharedRef<ITableRow> GenerateHierarchyItemRow(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, const TSharedRef<STableViewBase>& TableViewBase);
 private:	
@@ -68,7 +67,8 @@ private:
 	TMap<TSharedPtr<FNiagaraHierarchySectionViewModel>, TSharedPtr<class SNiagaraHierarchySection>> SectionsWidgetMap;
 	TSharedPtr<class SWrapBox> SectionBox;
 	TSharedPtr<IDetailsView> DetailsPanel;
-
+	FSlateBrush LightBackgroundBrush;
+	FSlateBrush RecessedBackgroundBrush;
 private:
 	FOnGenerateRowContentWidget OnGenerateRowContentWidget;
 	FOnGenerateCustomDetailsPanelNameWidget OnGenerateCustomDetailsPanelNameWidget;

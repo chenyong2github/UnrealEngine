@@ -9,6 +9,8 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -138,6 +140,7 @@ void SNiagaraHierarchySection::Construct(const FArguments& InArgs, TSharedPtr<FN
 						.Style(FAppStyle::Get(), "DetailsView.SectionButton")
 						.OnCheckStateChanged(this, &SNiagaraHierarchySection::OnSectionCheckChanged)
 						.IsChecked(this, &SNiagaraHierarchySection::GetSectionCheckState)
+						.Padding(FMargin(8.f, 4.f))
 						[
 							SAssignNew(InlineEditableTextBlock, SInlineEditableTextBlock)
 							.IsSelected(InArgs._IsSelected)
@@ -169,6 +172,7 @@ void SNiagaraHierarchySection::Construct(const FArguments& InArgs, TSharedPtr<FN
 				.Style(FAppStyle::Get(), "DetailsView.SectionButton")
 				.OnCheckStateChanged(this, &SNiagaraHierarchySection::OnSectionCheckChanged)
 				.IsChecked(this, &SNiagaraHierarchySection::GetSectionCheckState)
+				.Padding(FMargin(8.f, 4.f))
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("AllSection", "All"))
@@ -389,14 +393,69 @@ void SNiagaraHierarchy::Construct(const FArguments& InArgs, TObjectPtr<UNiagaraH
 	OnGenerateCustomDetailsPanelNameWidget = InArgs._OnGenerateCustomDetailsPanelNameWidget;
 	
 	SHorizontalBox::FSlot* DetailsPanelSlot = nullptr;
+
+	LightBackgroundBrush = FSlateColorBrush(FStyleColors::Panel);
+	RecessedBackgroundBrush = FSlateColorBrush(FStyleColors::Recessed);
+
+	TSharedRef<SWidget> AddSectionButton = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.OnPressed_UObject(HierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::AddSection)
+			.ButtonStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.HierarchyEditor.ButtonStyle")
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.f)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[			
+					SNew(STextBlock)
+					.Text(LOCTEXT("AddSectionLabel","Add Section"))				
+				]
+			]
+		];
+
+	TSharedRef<SWidget> AddCategoryButton = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.OnPressed_UObject(HierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::AddCategory)
+			.ButtonStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.HierarchyEditor.ButtonStyle")
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.f)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[			
+					SNew(STextBlock)
+					.Text(LOCTEXT("AddCategoryLabel","Add Category"))				
+				]
+			]
+		];
 	
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
+		SNew(SBorder)
+		.BorderImage(&RecessedBackgroundBrush)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
 			[
 				SAssignNew(SourceTreeView, STreeView<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>)
 				.TreeItemsSource(&InHierarchyViewModel->GetSourceItems())
@@ -405,57 +464,70 @@ void SNiagaraHierarchy::Construct(const FArguments& InArgs, TObjectPtr<UNiagaraH
 				.OnGetChildren_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnGetChildren)
 				.OnItemToString_Debug_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnItemToStringDebug)
 			]
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SSeparator).Orientation(EOrientation::Orient_Vertical)
-		]
-		+ SHorizontalBox::Slot()
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SSeparator).Orientation(EOrientation::Orient_Vertical)
+			]
+			+ SHorizontalBox::Slot()
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(SBox)
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
 					[
-						CreateHierarchyButtonWidgets()
+						SNew(SBorder)
+						.Padding(0.f)
+						.BorderImage(&LightBackgroundBrush)
+						[
+							AddSectionButton
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(1.f)
+					[
+						SAssignNew(SectionBox, SWrapBox)
+						.UseAllottedWidth(true)
+					]				
+				]
+				+ SVerticalBox::Slot()
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SBorder)
+						.BorderImage(&LightBackgroundBrush)
+						.Padding(0.f)
+						[
+							AddCategoryButton
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SAssignNew(HierarchyTreeView, STreeView<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>)
+						.TreeItemsSource(&InHierarchyViewModel->GetHierarchyItems())
+						.OnSelectionChanged(this, &SNiagaraHierarchy::OnSelectionChanged, true)
+						.OnGenerateRow(this, &SNiagaraHierarchy::GenerateHierarchyItemRow)
+						.OnGetChildren_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnGetChildren)
+						.OnItemToString_Debug_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnItemToStringDebug)
+					]
+					+ SVerticalBox::Slot()
+					.VAlign(VAlign_Fill)
+					[
+						SNew(SDropTarget)
+						.OnDropped(this, &SNiagaraHierarchy::HandleHierarchyRootDrop)
+						.OnAllowDrop(this, &SNiagaraHierarchy::CanDropOnRoot)
 					]
 				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SAssignNew(SectionBox, SWrapBox)
-					.UseAllottedWidth(true)
-				]
 			]
-			+ SVerticalBox::Slot()
-			[
-				 SNew(SVerticalBox)
-				 + SVerticalBox::Slot()
-				 .AutoHeight()
-				 [
-					SAssignNew(HierarchyTreeView, STreeView<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>)
-					.TreeItemsSource(&InHierarchyViewModel->GetHierarchyItems())
-					.OnSelectionChanged(this, &SNiagaraHierarchy::OnSelectionChanged, true)
-					.OnGenerateRow(this, &SNiagaraHierarchy::GenerateHierarchyItemRow)
-					.OnGetChildren_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnGetChildren)
-					.OnItemToString_Debug_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnItemToStringDebug)
-				]
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Fill)
-				[
-					SNew(SDropTarget)
-					.OnDropped(this, &SNiagaraHierarchy::HandleHierarchyRootDrop)
-					.OnAllowDrop(this, &SNiagaraHierarchy::CanDropOnRoot)
-				]
-			]
+			+ SHorizontalBox::Slot().Expose(DetailsPanelSlot)		
 		]
-		+ SHorizontalBox::Slot().Expose(DetailsPanelSlot)		
 	];
 
 	if(InHierarchyViewModel->SupportsDetailsPanel())
@@ -568,8 +640,10 @@ void SNiagaraHierarchy::RefreshSectionsWidget()
 		SectionsWidgetMap.Add(Section, SectionWidget);
 		
 		SectionBox->AddSlot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
 		[
-			SectionWidget.ToSharedRef()
+			SectionWidget.ToSharedRef()		
 		];
 	}
 	
@@ -582,6 +656,8 @@ void SNiagaraHierarchy::RefreshSectionsWidget()
 	SectionsWidgetMap.Add(nullptr, DefaultSectionWidget);
 
 	SectionBox->AddSlot()
+	.HAlign(HAlign_Center)
+	.VAlign(VAlign_Center)
 	[
 		DefaultSectionWidget.ToSharedRef()
 	];
@@ -598,31 +674,6 @@ void SNiagaraHierarchy::SelectObjectInDetailsPanel(UObject* Object) const
 	{
 		DetailsPanel->SetObject(Object);
 	}
-}
-
-TSharedRef<SWidget> SNiagaraHierarchy::CreateHierarchyButtonWidgets() const
-{
-	FSlimHorizontalToolBarBuilder ToolBarBuilder(nullptr, FMultiBoxCustomization::None);
-	
-	// Add Section
-	{
-		FUIAction AddSectionAction;
-		AddSectionAction.ExecuteAction = FExecuteAction::CreateUObject(HierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::AddSection);
-		ToolBarBuilder.AddToolBarButton(AddSectionAction, NAME_None,
-			FText::FromString("Add Section")
-			);
-	}
-	
-	// Add Category
-	{
-		FUIAction AddCategoryAction;
-		AddCategoryAction.ExecuteAction = FExecuteAction::CreateUObject(HierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::AddCategory);
-		ToolBarBuilder.AddToolBarButton(AddCategoryAction, NAME_None,
-			FText::FromString("Add Category")
-			);
-	}
-
-	return ToolBarBuilder.MakeWidget();
 }
 
 TSharedRef<ITableRow> SNiagaraHierarchy::GenerateSourceItemRow(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, const TSharedRef<STableViewBase>& TableViewBase)

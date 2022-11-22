@@ -112,7 +112,7 @@ UNiagaraHierarchySection* UNiagaraHierarchyRoot::AddSection(FText InNewSectionNa
 	UNiagaraHierarchySection* NewSectionItem = NewObject<UNiagaraHierarchySection>(this);
 	NewSectionItem->SetSectionName(NewName);
 	NewSectionItem->SetFlags(RF_Transactional);
-	Sections.Add(NewSectionItem);
+	Sections.Insert(NewSectionItem, 0);
 	return NewSectionItem;
 }
 
@@ -726,7 +726,7 @@ TSharedPtr<FNiagaraHierarchySectionViewModel> FNiagaraHierarchyRootViewModel::Ad
 	FScopedTransaction ScopedTransaction(LOCTEXT("NewSectionAdded","Added Section"));
 	HierarchyViewModel->GetHierarchyDataRoot()->Modify();
 	
-	UNiagaraHierarchySection* SectionData = Cast<UNiagaraHierarchyRoot>(ItemBase)->AddSection(LOCTEXT("NiagaraHierarchyEditorDefaultNewSectionName", "New Section"));
+	UNiagaraHierarchySection* SectionData = Cast<UNiagaraHierarchyRoot>(ItemBase)->AddSection(LOCTEXT("NiagaraHierarchyEditorDefaultNewSectionName", "Section"));
 	SectionData->Modify();
 	TSharedPtr<FNiagaraHierarchySectionViewModel> NewSectionViewModel = MakeShared<FNiagaraHierarchySectionViewModel>(SectionData, StaticCastSharedRef<FNiagaraHierarchyRootViewModel>(AsShared()), HierarchyViewModel);
 	SectionViewModels.Add(NewSectionViewModel);
