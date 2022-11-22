@@ -18,8 +18,8 @@ namespace Private {
 #if !defined(TRACE_PRIVATE_CONTROL_ENABLED) || TRACE_PRIVATE_CONTROL_ENABLED
 
 ////////////////////////////////////////////////////////////////////////////////
-bool	Writer_SendTo(const ANSICHAR*, uint32=0);
-bool	Writer_WriteTo(const ANSICHAR*);
+bool	Writer_SendTo(const ANSICHAR*, uint32=0, uint32=0);
+bool	Writer_WriteTo(const ANSICHAR*, uint32=0);
 bool	Writer_Stop();
 
 

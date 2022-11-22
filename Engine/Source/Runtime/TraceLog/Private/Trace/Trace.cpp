@@ -20,8 +20,8 @@ void	Writer_Initialize(const FInitializeDesc&);
 void	Writer_WorkerCreate();
 void	Writer_Shutdown();
 void	Writer_Update();
-bool	Writer_SendTo(const ANSICHAR*, uint32);
-bool	Writer_WriteTo(const ANSICHAR*);
+bool	Writer_SendTo(const ANSICHAR*, uint32, uint32);
+bool	Writer_WriteTo(const ANSICHAR*, uint32);
 bool	Writer_WriteSnapshotTo(const ANSICHAR*);
 bool	Writer_IsTracing();
 bool	Writer_Stop();
@@ -82,19 +82,19 @@ void GetStatistics(FStatistics& Out)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool SendTo(const TCHAR* InHost, uint32 Port)
+bool SendTo(const TCHAR* InHost, uint32 Port, uint16 Flags)
 {
 	char Host[256];
 	ToAnsiCheap(Host, InHost);
-	return Private::Writer_SendTo(Host, Port);
+	return Private::Writer_SendTo(Host, Flags, Port);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool WriteTo(const TCHAR* InPath)
+bool WriteTo(const TCHAR* InPath, uint16 Flags)
 {
 	char Path[512];
 	ToAnsiCheap(Path, InPath);
-	return Private::Writer_WriteTo(Path);
+	return Private::Writer_WriteTo(Path, Flags);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

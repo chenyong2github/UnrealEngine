@@ -493,6 +493,10 @@ static bool Writer_UpdateConnection()
 
 	AtomicStoreRelaxed(&GPendingDataHandle, UPTRINT(0));
 
+	// Extract send flags
+	uint32 SendFlags = uint32(PendingDataHandle >> 48ull);
+	PendingDataHandle &= 0x0000'ffff'ffff'ffffull;
+
 	// Reject the pending connection if we've already got a connection
 	if (GDataHandle)
 	{
@@ -522,7 +526,10 @@ static bool Writer_UpdateConnection()
 	Writer_CallbackOnConnect();
 
 	// Finally write the events in the tail buffer
-	Writer_TailOnConnect();
+	if ((SendFlags & FSendFlags::ExcludeTail) == 0)
+	{
+		Writer_TailOnConnect();
+	}
 
 	// See Writer_SendSync() for details.
 	GSyncPacketCountdown = GNumSyncPackets;
@@ -812,7 +819,26 @@ void Writer_Update()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)
+static UPTRINT Writer_PackSendFlags(UPTRINT DataHandle, uint32 Flags)
+{
+	// Passing ownership of IO to the worker thread via a single 64 bit value is
+	// convenient and saves a lot of machinery for something that mostly never
+	// happens, or perhaps just once or twice. Here we make the assumption that
+	// our supported platforms' handles are low integer file descriptor IDs or
+	// addresses and thus we have some most-significant bits to use for flags.
+
+	// Guard against the assumption being wrong.
+	if (DataHandle & 0xffff'0000'0000'0000ull)
+	{
+		IoClose(DataHandle);
+		return 0;
+	}
+
+	return DataHandle | (UPTRINT(Flags) << 48ull);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool Writer_SendTo(const ANSICHAR* Host, uint32 Flags, uint32 Port)
 {
 	if (AtomicLoadRelaxed(&GPendingDataHandle))
 	{
@@ -828,12 +854,18 @@ bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)
 		return false;
 	}
 
+	DataHandle = Writer_PackSendFlags(DataHandle, Flags);
+	if (!DataHandle)
+	{
+		return false;
+	}
+
 	AtomicStoreRelaxed(&GPendingDataHandle, DataHandle);
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_WriteTo(const ANSICHAR* Path)
+bool Writer_WriteTo(const ANSICHAR* Path, uint32 Flags)
 {
 	if (AtomicLoadRelaxed(&GPendingDataHandle))
 	{
@@ -843,6 +875,12 @@ bool Writer_WriteTo(const ANSICHAR* Path)
 	Writer_InternalInitialize();
 
 	UPTRINT DataHandle = FileOpen(Path);
+	if (!DataHandle)
+	{
+		return false;
+	}
+
+	DataHandle = Writer_PackSendFlags(DataHandle, Flags);
 	if (!DataHandle)
 	{
 		return false;

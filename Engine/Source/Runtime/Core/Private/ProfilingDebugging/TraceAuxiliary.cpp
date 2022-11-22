@@ -89,7 +89,7 @@ public:
 	bool HasCommandlineChannels() const { return !CommandlineChannels.IsEmpty(); }
 	void EnableChannels(const TCHAR* ChannelList);
 	void DisableChannels(const TCHAR* ChannelList);
-	bool Connect(ETraceConnectType Type, const TCHAR* Parameter, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	bool Connect(ETraceConnectType Type, const TCHAR* Parameter, const FTraceAuxiliary::FLogCategoryAlias& LogCategory, uint16 SendFlags);
 	bool Stop();
 	void ResumeChannels();
 	void PauseChannels();
@@ -123,8 +123,8 @@ private:
 	static uint32 HashChannelName(const TCHAR* Name);
 	bool EnableChannel(const TCHAR* Channel);
 	void DisableChannel(const TCHAR* Channel);
-	bool SendToHost(const TCHAR* Host, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
-	bool WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	bool SendToHost(const TCHAR* Host, const FTraceAuxiliary::FLogCategoryAlias& LogCategory, uint16 SendFlags);
+	bool WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory, uint16 SendFlags);
 	bool FinalizeFilePath(const TCHAR* InPath, FString& OutPath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
 
 	typedef TMap<uint32, FChannelEntry, TInlineSetAllocator<128>> ChannelSet;
@@ -274,7 +274,7 @@ void FTraceAuxiliaryImpl::RemoveChannel(const TCHAR* Name)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
+bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter, const FTraceAuxiliary::FLogCategoryAlias& LogCategory, uint16 SendFlags)
 {
 	// Connect/write to file, but only if we're not already sending/writing.
 	bool bConnected = UE::Trace::IsTracing();
@@ -282,7 +282,7 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 	{
 		if (Type == ETraceConnectType::Network)
 		{
-			bConnected = SendToHost(Parameter, LogCategory);
+			bConnected = SendToHost(Parameter, LogCategory, SendFlags);
 			if (bConnected)
 			{
 				UE_LOG_REF(LogCategory, Display, TEXT("Trace started (connected to trace server %s)."), GetDest());
@@ -297,7 +297,7 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 
 		else if (Type == ETraceConnectType::File)
 		{
-			bConnected = WriteToFile(Parameter, LogCategory);
+			bConnected = WriteToFile(Parameter, LogCategory, SendFlags);
 			if (bConnected)
 			{
 				UE_LOG_REF(LogCategory, Display, TEXT("Trace started (writing to file \"%s\")."), GetDest());
@@ -441,9 +441,10 @@ void FTraceAuxiliaryImpl::SetTruncateFile(bool bNewTruncateFileState)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::SendToHost(const TCHAR* Host, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
+bool FTraceAuxiliaryImpl::SendToHost(const TCHAR* Host, const FTraceAuxiliary::FLogCategoryAlias& LogCategory, uint16 SendFlags)
 {
-	if (!UE::Trace::SendTo(Host))
+	uint32 Port = 0; // "0" indicates that the default should be used.
+	if (!UE::Trace::SendTo(Host, Port, SendFlags))
 	{
 		UE_LOG_REF(LogCategory, Warning, TEXT("Unable to trace to host '%s'"), Host);
 		return false;
@@ -523,7 +524,7 @@ bool FTraceAuxiliaryImpl::FinalizeFilePath(const TCHAR* InPath, FString& OutPath
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
+bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory, uint16 SendFlags)
 {
 	FString NativePath;
 	if (!FinalizeFilePath(Path, NativePath, LogCategory))
@@ -531,7 +532,7 @@ bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path, const FTraceAuxiliary::
 		return false;
 	}
 
-	if (!UE::Trace::WriteTo(*NativePath))
+	if (!UE::Trace::WriteTo(*NativePath, SendFlags))
 	{
 		if (FPathViews::Equals(NativePath, FStringView(Path)))
 		{
@@ -1316,13 +1317,15 @@ bool FTraceAuxiliary::Start(EConnectionType Type, const TCHAR* Target, const TCH
 		}
 	}
 
+	uint16 SendFlags = (Options && Options->bExcludeTail) ? UE::Trace::FSendFlags::ExcludeTail : 0;
+	
 	if (Type == EConnectionType::File)
 	{
-		return GTraceAuxiliary.Connect(ETraceConnectType::File, Target, LogCategory);
+		return GTraceAuxiliary.Connect(ETraceConnectType::File, Target, LogCategory, SendFlags);
 	}
 	else if(Type == EConnectionType::Network)
 	{
-		return GTraceAuxiliary.Connect(ETraceConnectType::Network, Target, LogCategory);
+		return GTraceAuxiliary.Connect(ETraceConnectType::Network, Target, LogCategory, SendFlags);
 	}
 #endif
 	return false;

@@ -33,11 +33,11 @@ public:
 		 * Write to a file. Target string is filename. Absolute or relative current working directory.
 		 * If target is null the current date and time is used.
 		 */
-		 File,
-		 /**
-		  * Don't connect, just start tracing to memory.
-		  */
-		  None,
+		File,
+		/**
+		 * Don't connect, just start tracing to memory.
+		 */
+		None,
 	};
 
 	/**
@@ -67,6 +67,8 @@ public:
 		bool bNoWorkerThread = false;
 		/** When set, the target file will be truncated if it already exists. */
 		bool bTruncateFile = false;
+		/** When set, trace data buffered before starting tracing will not be output to the trace file */
+		bool bExcludeTail = false;
 	};
 
 	/**
