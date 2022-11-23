@@ -48,7 +48,7 @@ DECLARE_CYCLE_STAT(TEXT("MutableCoreTask"), STAT_MutableCoreTask, STATGROUP_Game
 namespace mu
 {
 
-	void CodeRunner::CompleteRomLoadOp( ROM_LOAD_OP& o )
+	void CodeRunner::CompleteRomLoadOp( FRomLoadOp& o )
 	{
 		if (DebugRom && (DebugRomAll || o.m_romIndex == DebugRomIndex))
 			UE_LOG(LogMutableCore, Log, TEXT("CodeRunner::CompleteRomLoadOp for rom %d."), o.m_romIndex);
@@ -110,7 +110,7 @@ namespace mu
 			//	int32 ClosedReady = ClosedTasks.Num();
 			//	for (int Index = ClosedTasks.Num() - 1; Index >= 0; --Index)
 			//	{
-			//		for (const CACHE_ADDRESS& Dep : ClosedTasks[Index].Deps)
+			//		for (const FCacheAddress& Dep : ClosedTasks[Index].Deps)
 			//		{
 			//			if (Dep.at && !GetMemory().IsValid(Dep))
 			//			{
@@ -130,10 +130,10 @@ namespace mu
 				bool WorkDone = IssuedTasks[Index]->IsComplete(this);
 				if (WorkDone)
 				{
-					const SCHEDULED_OP& item = IssuedTasks[Index]->Op;
+					const FScheduledOp& item = IssuedTasks[Index]->Op;
 					IssuedTasks[Index]->Complete(this);
 
-					if (ScheduledStagePerOp[item] == item.stage + 1)
+					if (ScheduledStagePerOp[item] == item.Stage + 1)
 					{
 						// We completed everything that was requested, clear it otherwise if needed
 						// again it is not going to be rebuilt.
@@ -152,17 +152,17 @@ namespace mu
 
 			while (!OpenTasks.IsEmpty())
 			{
-				SCHEDULED_OP item = OpenTasks.Pop();
+				FScheduledOp item = OpenTasks.Pop();
 
 				// Special processing in case it is an ImageDesc operation
-				if ( item.Type==SCHEDULED_OP::EType::ImageDesc )
+				if ( item.Type==FScheduledOp::EType::ImageDesc )
 				{
 					RunCodeImageDesc(item, m_pParams, m_pModel, m_lodMask);
 					continue;
 				}
 
 				// Don't run it if we already have the result.
-				CACHE_ADDRESS cat(item);
+				FCacheAddress cat(item);
 				if (GetMemory().IsValid(cat))
 				{
 					continue;
@@ -213,7 +213,7 @@ namespace mu
 					// Run immediately
 					RunCode(item, m_pParams, m_pModel, m_lodMask);
 
-					if (ScheduledStagePerOp[item] == item.stage + 1)
+					if (ScheduledStagePerOp[item] == item.Stage + 1)
 					{
 						// We completed everything that was requested, clear it otherwise if needed
 						// again it is not going to be rebuilt.
@@ -225,7 +225,7 @@ namespace mu
 				if (bProfile)
 				{
 					++NumRunOps;
-					RunOpsPerType[size_t(m_pModel->GetPrivate()->m_program.GetOpType(item.at))]++;
+					RunOpsPerType[size_t(m_pModel->GetPrivate()->m_program.GetOpType(item.At))]++;
 				}
 			}
 
@@ -243,10 +243,10 @@ namespace mu
 			for (int Index = 0; Index<ClosedTasks.Num(); )
 			{
 				bool Ready = true;
-				for ( const CACHE_ADDRESS& Dep: ClosedTasks[Index].Deps )
+				for ( const FCacheAddress& Dep: ClosedTasks[Index].Deps )
 				{
 					bool bDependencySatisfied = false;					
-					bDependencySatisfied = Dep.at && !GetMemory().IsValid(Dep);
+					bDependencySatisfied = Dep.At && !GetMemory().IsValid(Dep);
 					
 					if (bDependencySatisfied)
 					{
@@ -275,12 +275,12 @@ namespace mu
 				// Log the task graph
 				for (int Index = 0; Index < ClosedTasks.Num(); ++Index)
 				{
-					FString TaskDesc = FString::Printf(TEXT("Closed task %d-%d-%d depends on : "), ClosedTasks[Index].Op.at, ClosedTasks[Index].Op.executionIndex, ClosedTasks[Index].Op.stage );
-					for (const CACHE_ADDRESS& Dep : ClosedTasks[Index].Deps)
+					FString TaskDesc = FString::Printf(TEXT("Closed task %d-%d-%d depends on : "), ClosedTasks[Index].Op.At, ClosedTasks[Index].Op.ExecutionIndex, ClosedTasks[Index].Op.Stage );
+					for (const FCacheAddress& Dep : ClosedTasks[Index].Deps)
 					{
-						if (Dep.at && !GetMemory().IsValid(Dep))
+						if (Dep.At && !GetMemory().IsValid(Dep))
 						{
-							TaskDesc += FString::Printf(TEXT("%d-%d, "), Dep.at, Dep.executionIndex);
+							TaskDesc += FString::Printf(TEXT("%d-%d, "), Dep.At, Dep.ExecutionIndex);
 						}
 					}
 
@@ -372,7 +372,7 @@ namespace mu
 	class FImageLayerTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageLayerTask(SCHEDULED_OP, FProgramCache&, const OP::ImageLayerArgs&, int imageCompressionQuality );
+		FImageLayerTask(FScheduledOp, FProgramCache&, const OP::ImageLayerArgs&, int imageCompressionQuality );
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -389,16 +389,16 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageLayerTask::FImageLayerTask(SCHEDULED_OP InOp, FProgramCache& Memory, const OP::ImageLayerArgs& InArgs, int imageCompressionQuality)
+	FImageLayerTask::FImageLayerTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageLayerArgs& InArgs, int imageCompressionQuality)
 	{
 		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
-		m_base = Memory.GetImage({ Args.base, InOp.executionIndex, InOp.executionOptions });
-		m_blended = Memory.GetImage({ Args.blended, InOp.executionIndex, InOp.executionOptions });
+		m_base = Memory.GetImage({ Args.base, InOp.ExecutionIndex, InOp.ExecutionOptions });
+		m_blended = Memory.GetImage({ Args.blended, InOp.ExecutionIndex, InOp.ExecutionOptions });
 		if (Args.mask)
 		{
-			m_mask = Memory.GetImage({ Args.mask, InOp.executionIndex, InOp.executionOptions });
+			m_mask = Memory.GetImage({ Args.mask, InOp.ExecutionIndex, InOp.ExecutionOptions });
 		}
 	}
 
@@ -562,7 +562,7 @@ namespace mu
 	class FImageLayerColourTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageLayerColourTask(SCHEDULED_OP, FProgramCache&, const OP::ImageLayerColourArgs&, int imageCompressionQuality);
+		FImageLayerColourTask(FScheduledOp, FProgramCache&, const OP::ImageLayerColourArgs&, int imageCompressionQuality);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -579,16 +579,16 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageLayerColourTask::FImageLayerColourTask(SCHEDULED_OP InOp, FProgramCache& Memory, const OP::ImageLayerColourArgs& InArgs, int imageCompressionQuality)
+	FImageLayerColourTask::FImageLayerColourTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageLayerColourArgs& InArgs, int imageCompressionQuality)
 	{
 		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
-		m_base = Memory.GetImage({ Args.base, InOp.executionIndex, InOp.executionOptions });
-		m_col = Memory.GetColour({ Args.colour, InOp.executionIndex, 0 });
+		m_base = Memory.GetImage({ Args.base, InOp.ExecutionIndex, InOp.ExecutionOptions });
+		m_col = Memory.GetColour({ Args.colour, InOp.ExecutionIndex, 0 });
 		if (Args.mask)
 		{
-			m_mask = Memory.GetImage({ Args.mask, InOp.executionIndex, InOp.executionOptions });
+			m_mask = Memory.GetImage({ Args.mask, InOp.ExecutionIndex, InOp.ExecutionOptions });
 		}
 	}
 
@@ -747,7 +747,7 @@ namespace mu
 	class FImagePixelFormatTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImagePixelFormatTask(SCHEDULED_OP, FProgramCache&, const OP::ImagePixelFormatArgs&, int imageCompressionQuality);
+		FImagePixelFormatTask(FScheduledOp, FProgramCache&, const OP::ImagePixelFormatArgs&, int imageCompressionQuality);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -762,12 +762,12 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImagePixelFormatTask::FImagePixelFormatTask(SCHEDULED_OP InOp, FProgramCache& Memory, const OP::ImagePixelFormatArgs& InArgs, int imageCompressionQuality)
+	FImagePixelFormatTask::FImagePixelFormatTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImagePixelFormatArgs& InArgs, int imageCompressionQuality)
 	{
 		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
-		m_base = Memory.GetImage({ Args.source, InOp.executionIndex, InOp.executionOptions });
+		m_base = Memory.GetImage({ Args.source, InOp.ExecutionIndex, InOp.ExecutionOptions });
 	}
 
 
@@ -833,7 +833,7 @@ namespace mu
 	class FImageMipmapTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageMipmapTask(SCHEDULED_OP, FProgramCache&, const OP::ImageMipmapArgs&, int imageCompressionQuality);
+		FImageMipmapTask(FScheduledOp, FProgramCache&, const OP::ImageMipmapArgs&, int imageCompressionQuality);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -848,12 +848,12 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageMipmapTask::FImageMipmapTask(SCHEDULED_OP InOp, FProgramCache& Memory, const OP::ImageMipmapArgs& InArgs, int imageCompressionQuality)
+	FImageMipmapTask::FImageMipmapTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageMipmapArgs& InArgs, int imageCompressionQuality)
 	{
 		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
-		m_base = Memory.GetImage({ Args.source, InOp.executionIndex, InOp.executionOptions });
+		m_base = Memory.GetImage({ Args.source, InOp.ExecutionIndex, InOp.ExecutionOptions });
 	}
 
 
@@ -914,7 +914,7 @@ namespace mu
 	class FImageSwizzleTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageSwizzleTask(SCHEDULED_OP, FProgramCache&, const OP::ImageSwizzleArgs&);
+		FImageSwizzleTask(FScheduledOp, FProgramCache&, const OP::ImageSwizzleArgs&);
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -928,7 +928,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageSwizzleTask::FImageSwizzleTask(SCHEDULED_OP InOp, FProgramCache& Memory, const OP::ImageSwizzleArgs& InArgs)
+	FImageSwizzleTask::FImageSwizzleTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageSwizzleArgs& InArgs)
 	{
 		Op = InOp;
 		Args = InArgs;
@@ -936,7 +936,7 @@ namespace mu
 		{
 			if (Args.sources[i])
 			{
-				Sources[i] = Memory.GetImage({ Args.sources[i], InOp.executionIndex, InOp.executionOptions });
+				Sources[i] = Memory.GetImage({ Args.sources[i], InOp.ExecutionIndex, InOp.ExecutionOptions });
 			}
 		}
 	}
@@ -983,7 +983,7 @@ namespace mu
 	class FImageComposeTask : public CodeRunner::FIssuedTask
 	{
 	public:
-		FImageComposeTask(SCHEDULED_OP, FProgramCache&, const OP::ImageComposeArgs&, int imageCompressionQuality, const Ptr<const Layout>& );
+		FImageComposeTask(FScheduledOp, FProgramCache&, const OP::ImageComposeArgs&, int imageCompressionQuality, const Ptr<const Layout>& );
 
 		// FIssuedTask interface
 		void DoWork() override;
@@ -1001,23 +1001,23 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	FImageComposeTask::FImageComposeTask(SCHEDULED_OP InOp, FProgramCache& Memory, const OP::ImageComposeArgs& InArgs, int imageCompressionQuality, const Ptr<const Layout>& InLayout)
+	FImageComposeTask::FImageComposeTask(FScheduledOp InOp, FProgramCache& Memory, const OP::ImageComposeArgs& InArgs, int imageCompressionQuality, const Ptr<const Layout>& InLayout)
 	{
 		Op = InOp;
 		m_imageCompressionQuality = imageCompressionQuality;
 		Args = InArgs;
 		m_layout = InLayout;
 
-		m_base = Memory.GetImage({ Args.base, Op.executionIndex, InOp.executionOptions });
+		m_base = Memory.GetImage({ Args.base, Op.ExecutionIndex, InOp.ExecutionOptions });
 		
 		int relBlockIndex = m_layout->FindBlock(Args.blockIndex);
 
 		if (relBlockIndex >= 0)
 		{
-			m_block = Memory.GetImage({ Args.blockImage, Op.executionIndex, InOp.executionOptions });
+			m_block = Memory.GetImage({ Args.blockImage, Op.ExecutionIndex, InOp.ExecutionOptions });
 			if (Args.mask)
 			{
-				m_mask = Memory.GetImage({ Args.mask, Op.executionIndex, InOp.executionOptions });
+				m_mask = Memory.GetImage({ Args.mask, Op.ExecutionIndex, InOp.ExecutionOptions });
 			}
 		}
 	}
@@ -1162,7 +1162,7 @@ namespace mu
 			uint32 RomSize = program.m_roms[RomIndex].Size;
 			check(RomSize>0);
 
-			CodeRunner::ROM_LOAD_OP* op = nullptr;
+			CodeRunner::FRomLoadOp* op = nullptr;
 			for (auto& o : runner->m_romLoadOps)
 			{
 				if (o.m_romIndex < 0)
@@ -1173,7 +1173,7 @@ namespace mu
 
 			if (!op)
 			{
-				runner->m_romLoadOps.Add(CodeRunner::ROM_LOAD_OP());
+				runner->m_romLoadOps.Add(CodeRunner::FRomLoadOp());
 				op = &runner->m_romLoadOps.Last();
 			}
 
@@ -1282,7 +1282,7 @@ namespace mu
 			uint32 RomSize = program.m_roms[RomIndex].Size;
 			check(RomSize > 0);
 
-			CodeRunner::ROM_LOAD_OP* op = nullptr;
+			CodeRunner::FRomLoadOp* op = nullptr;
 			for (auto& o : runner->m_romLoadOps)
 			{
 				if (o.m_romIndex < 0)
@@ -1293,7 +1293,7 @@ namespace mu
 
 			if (!op)
 			{
-				runner->m_romLoadOps.Add(CodeRunner::ROM_LOAD_OP());
+				runner->m_romLoadOps.Add(CodeRunner::FRomLoadOp());
 				op = &runner->m_romLoadOps.Last();
 			}
 
@@ -1387,19 +1387,19 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
-	TSharedPtr<CodeRunner::FIssuedTask> CodeRunner::IssueOp(SCHEDULED_OP item)
+	TSharedPtr<CodeRunner::FIssuedTask> CodeRunner::IssueOp(FScheduledOp item)
 	{
 		TSharedPtr<FIssuedTask> Issued;
 
 		FProgram& program = m_pModel->GetPrivate()->m_program;
 
-		auto type = program.GetOpType(item.at);
+		auto type = program.GetOpType(item.At);
 
 		switch (type)
 		{
 		case OP_TYPE::ME_CONSTANT:
 		{
-			OP::MeshConstantArgs args = program.GetOpArgs<OP::MeshConstantArgs>(item.at);
+			OP::MeshConstantArgs args = program.GetOpArgs<OP::MeshConstantArgs>(item.At);
 			int32 RomIndex = program.m_constantMeshes[args.value].Key;
 			if (RomIndex >= 0 && !program.m_constantMeshes[args.value].Value )
 			{
@@ -1414,8 +1414,8 @@ namespace mu
 
 		case OP_TYPE::IM_CONSTANT:
 		{
-			OP::ResourceConstantArgs args = program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
-			int32 MipsToSkip = item.executionOptions;
+			OP::ResourceConstantArgs args = program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
+			int32 MipsToSkip = item.ExecutionOptions;
 			int32 ImageIndex = args.value;
 			int32 ReallySkip = FMath::Min(MipsToSkip, program.m_constantImages[ImageIndex].LODCount - 1);
 			int32 LODIndexIndex = program.m_constantImages[ImageIndex].FirstIndex + ReallySkip;
@@ -1451,9 +1451,9 @@ namespace mu
 
 		case OP_TYPE::IM_PIXELFORMAT:
 		{
-			if (item.stage == 1)
+			if (item.Stage == 1)
 			{
-				OP::ImagePixelFormatArgs args = program.GetOpArgs<OP::ImagePixelFormatArgs>(item.at);
+				OP::ImagePixelFormatArgs args = program.GetOpArgs<OP::ImagePixelFormatArgs>(item.At);
 				Issued = MakeShared<FImagePixelFormatTask>(item, GetMemory(), args, m_pSettings->GetPrivate()->m_imageCompressionQuality);
 			}
 			break;
@@ -1461,9 +1461,9 @@ namespace mu
 
 		case OP_TYPE::IM_LAYERCOLOUR:
 		{
-			if (item.stage == 1)
+			if (item.Stage == 1)
 			{
-				OP::ImageLayerColourArgs args = program.GetOpArgs<OP::ImageLayerColourArgs>(item.at);
+				OP::ImageLayerColourArgs args = program.GetOpArgs<OP::ImageLayerColourArgs>(item.At);
 				Issued = MakeShared<FImageLayerColourTask>(item, GetMemory(), args, m_pSettings->GetPrivate()->m_imageCompressionQuality);
 			}
 			break;
@@ -1471,9 +1471,9 @@ namespace mu
 
 		case OP_TYPE::IM_LAYER:
 		{
-			if (item.stage == 1)
+			if (item.Stage == 1)
 			{
-				OP::ImageLayerArgs args = program.GetOpArgs<OP::ImageLayerArgs>(item.at);
+				OP::ImageLayerArgs args = program.GetOpArgs<OP::ImageLayerArgs>(item.At);
 				Issued = MakeShared<FImageLayerTask>(item, GetMemory(), args, m_pSettings->GetPrivate()->m_imageCompressionQuality);
 			}
 			break;
@@ -1481,9 +1481,9 @@ namespace mu
 
 		case OP_TYPE::IM_MIPMAP:
 		{
-			if (item.stage == 1)
+			if (item.Stage == 1)
 			{
-				OP::ImageMipmapArgs args = program.GetOpArgs<OP::ImageMipmapArgs>(item.at);
+				OP::ImageMipmapArgs args = program.GetOpArgs<OP::ImageMipmapArgs>(item.At);
 				Issued = MakeShared<FImageMipmapTask>(item, GetMemory(), args, m_pSettings->GetPrivate()->m_imageCompressionQuality);
 			}
 			break;
@@ -1491,9 +1491,9 @@ namespace mu
 
 		case OP_TYPE::IM_SWIZZLE:
 		{
-			if (item.stage == 1)
+			if (item.Stage == 1)
 			{
-				OP::ImageSwizzleArgs args = program.GetOpArgs<OP::ImageSwizzleArgs>(item.at);
+				OP::ImageSwizzleArgs args = program.GetOpArgs<OP::ImageSwizzleArgs>(item.At);
 				Issued = MakeShared<FImageSwizzleTask>(item, GetMemory(), args);
 			}
 			break;
@@ -1501,11 +1501,11 @@ namespace mu
 
 		case OP_TYPE::IM_COMPOSE:
 		{
-			if (item.stage == 2)
+			if (item.Stage == 2)
 			{
-				OP::ImageComposeArgs args = program.GetOpArgs<OP::ImageComposeArgs>(item.at);
-				Ptr<const Layout> Layout = m_heapData[(size_t)item.customState].layout;
-				Issued = MakeShared<FImageComposeTask>(item, GetMemory(), args, m_pSettings->GetPrivate()->m_imageCompressionQuality, Layout);
+				OP::ImageComposeArgs args = program.GetOpArgs<OP::ImageComposeArgs>(item.At);
+				Ptr<const Layout> ComposeLayout = static_cast<const Layout*>( m_heapData[item.CustomState].Resource.get());
+				Issued = MakeShared<FImageComposeTask>(item, GetMemory(), args, m_pSettings->GetPrivate()->m_imageCompressionQuality, ComposeLayout);
 			}
 			break;
 		}

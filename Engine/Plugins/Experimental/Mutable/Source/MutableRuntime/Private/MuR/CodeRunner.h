@@ -31,9 +31,9 @@
 
 namespace  mu
 {
-class Model;
-class Parameters;
-class RangeIndex;
+	class Model;
+	class Parameters;
+	class RangeIndex;
 
 
     //---------------------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ class RangeIndex;
     public:
 		CodeRunner(const SettingsPtrConst&, class System::Private*, 
 			const Model* pModel, const Parameters* pParams,
-			OP::ADDRESS at, uint32 lodMask, uint8 executionOptions, SCHEDULED_OP::EType );
+			OP::ADDRESS at, uint32 lodMask, uint8 executionOptions, FScheduledOp::EType );
 
     protected:
 
@@ -56,36 +56,51 @@ class RangeIndex;
         //! operation stages.
         struct FScheduledOpData
         {
-            float bifactor=0.0f;
-            int32 min=0, max=0;
-            Ptr<const Layout> layout;
+			union
+			{
+				struct
+				{
+					float Bifactor;
+					int32 Min, Max;
+				} Interpolate;
+
+				struct
+				{
+					int32 Iterations;
+					EImageFormat OriginalBaseFormat;
+					bool bBlendOnlyOneMip;
+				} MultiLayer;
+
+				struct
+				{
+					int32 ResultDescAt;
+					int32 SourceDescAt;
+				} ResizeLike;
+			};
+            Ptr<RefCounted> Resource;
         };
 
 
-        Ptr<RangeIndex> BuildCurrentOpRangeIndex( const SCHEDULED_OP& item,
-                                                const Parameters* pParams,
-                                                const Model* pModel,
-                                                int parameterIndex );
+        Ptr<RangeIndex> BuildCurrentOpRangeIndex( const FScheduledOp&, const Parameters*, const Model*, int32 ParameterIndex );
 
+        void RunCode( FScheduledOp&, const Parameters*, const Model*, uint32 LodMask);
 
-        void RunCode( SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel, uint32_t lodMask);
+        void RunCode_Conditional( FScheduledOp&, const Model* );
+        void RunCode_Switch( FScheduledOp&, const Model* );
+        void RunCode_Instance( FScheduledOp&, const Model*, uint32 LodMask );
+        void RunCode_InstanceAddResource( FScheduledOp&, const Model*, const Parameters* );
+        void RunCode_ConstantResource( FScheduledOp&, const Model* );
+        void RunCode_Mesh( FScheduledOp&, const Model* );
+        void RunCode_Image( FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Layout( FScheduledOp&, const Model* );
+        void RunCode_Bool( FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Int( FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Scalar( FScheduledOp&, const Parameters*, const Model* );        
+        void RunCode_String( FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Colour( FScheduledOp&, const Parameters*, const Model* );
+        void RunCode_Projector( FScheduledOp&, const Parameters*, const Model* );
 
-        void RunCode_Conditional( SCHEDULED_OP& item, const Model* pModel );
-        void RunCode_Switch( SCHEDULED_OP& item, const Model* pModel );
-        void RunCode_Instance( SCHEDULED_OP& item, const Model* pModel, uint32_t lodMask );
-        void RunCode_InstanceAddResource( SCHEDULED_OP& item, const Model* pModel, const Parameters* pParams );
-        void RunCode_ConstantResource( SCHEDULED_OP& item, const Model* pModel );
-        void RunCode_Mesh( SCHEDULED_OP& item, const Model* pModel );
-        void RunCode_Image( SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel );
-        void RunCode_Layout( SCHEDULED_OP& item, const Model* pModel );
-        void RunCode_Bool( SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel );
-        void RunCode_Int( SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel );
-        void RunCode_Scalar( SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel );        
-        void RunCode_String( SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel );
-        void RunCode_Colour( SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel );
-        void RunCode_Projector( SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel );
-
-		void RunCodeImageDesc(SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel, uint32_t lodMask);
+		void RunCodeImageDesc(FScheduledOp&, const Parameters*, const Model*, uint32 LodMask);
 
 
         ImagePtr LoadExternalImage( EXTERNAL_IMAGE_ID id );
@@ -109,21 +124,21 @@ class RangeIndex;
 		struct FTask
 		{
 			FTask() {}
-			FTask(const SCHEDULED_OP& InOp) : Op(InOp) {}
-			FTask(const SCHEDULED_OP& InOp, const SCHEDULED_OP& InDep0) : Op(InOp) { Deps.Add(InDep0); }
-			FTask(const SCHEDULED_OP& InOp, const SCHEDULED_OP& InDep0, const SCHEDULED_OP& InDep1) : Op(InOp) { Deps.Add(InDep0); Deps.Add(InDep1); }
-			FTask(const SCHEDULED_OP& InOp, const SCHEDULED_OP& InDep0, const SCHEDULED_OP& InDep1, const SCHEDULED_OP& InDep2) : Op(InOp) { Deps.Add(InDep0); Deps.Add(InDep1); Deps.Add(InDep2); }
-			FTask(const SCHEDULED_OP& InOp, const SCHEDULED_OP& InDep0, const SCHEDULED_OP& InDep1, const SCHEDULED_OP& InDep2, const SCHEDULED_OP& InDep3) : Op(InOp) { Deps.Add(InDep0); Deps.Add(InDep1); Deps.Add(InDep2); Deps.Add(InDep3); }
-			FTask(const SCHEDULED_OP& InOp, const SCHEDULED_OP& InDep0, const SCHEDULED_OP& InDep1, const SCHEDULED_OP& InDep2, const SCHEDULED_OP& InDep3, const SCHEDULED_OP& InDep4) : Op(InOp) { Deps.Add(InDep0); Deps.Add(InDep1); Deps.Add(InDep2); Deps.Add(InDep3); Deps.Add(InDep4); }
+			FTask(const FScheduledOp& InOp) : Op(InOp) {}
+			FTask(const FScheduledOp& InOp, const FScheduledOp& InDep0) : Op(InOp) { Deps.Add(InDep0); }
+			FTask(const FScheduledOp& InOp, const FScheduledOp& InDep0, const FScheduledOp& InDep1) : Op(InOp) { Deps.Add(InDep0); Deps.Add(InDep1); }
+			FTask(const FScheduledOp& InOp, const FScheduledOp& InDep0, const FScheduledOp& InDep1, const FScheduledOp& InDep2) : Op(InOp) { Deps.Add(InDep0); Deps.Add(InDep1); Deps.Add(InDep2); }
+			FTask(const FScheduledOp& InOp, const FScheduledOp& InDep0, const FScheduledOp& InDep1, const FScheduledOp& InDep2, const FScheduledOp& InDep3) : Op(InOp) { Deps.Add(InDep0); Deps.Add(InDep1); Deps.Add(InDep2); Deps.Add(InDep3); }
+			FTask(const FScheduledOp& InOp, const FScheduledOp& InDep0, const FScheduledOp& InDep1, const FScheduledOp& InDep2, const FScheduledOp& InDep3, const FScheduledOp& InDep4) : Op(InOp) { Deps.Add(InDep0); Deps.Add(InDep1); Deps.Add(InDep2); Deps.Add(InDep3); Deps.Add(InDep4); }
 
-			SCHEDULED_OP Op;
-			TArray<CACHE_ADDRESS, TInlineAllocator<3>> Deps;
+			FScheduledOp Op;
+			TArray<FCacheAddress, TInlineAllocator<3>> Deps;
 		};
 
 		class FIssuedTask
 		{
 		public:
-			SCHEDULED_OP Op;
+			FScheduledOp Op;
 
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
 			UE::Tasks::FTask Event = {};
@@ -149,7 +164,7 @@ class RangeIndex;
 		class FLoadMeshRomTask : public CodeRunner::FIssuedTask
 		{
 		public:
-			FLoadMeshRomTask(SCHEDULED_OP InOp, int32 InRomIndex)
+			FLoadMeshRomTask(FScheduledOp InOp, int32 InRomIndex)
 			{
 				Op = InOp;
 				RomIndex = InRomIndex;
@@ -167,7 +182,7 @@ class RangeIndex;
 		class FLoadImageRomsTask : public CodeRunner::FIssuedTask
 		{
 		public:
-			FLoadImageRomsTask(SCHEDULED_OP InOp, int32 InLODIndexIndex, int32 InLODIndexCount )
+			FLoadImageRomsTask(FScheduledOp InOp, int32 InLODIndexIndex, int32 InLODIndexCount )
 			{
 				Op = InOp;
 				LODIndexIndex = InLODIndexIndex;
@@ -184,65 +199,65 @@ class RangeIndex;
 			int32 LODIndexCount = -1;
 		};
 
-		void AddOp(const SCHEDULED_OP& op)
+		void AddOp(const FScheduledOp& op)
 		{
 			OpenTasks.Add(op);
-			ScheduledStagePerOp[op] = op.stage + 1;
+			ScheduledStagePerOp[op] = op.Stage + 1;
 		}
 
-		void AddOp(const SCHEDULED_OP& op,
-			const SCHEDULED_OP& dep0)
+		void AddOp(const FScheduledOp& op,
+			const FScheduledOp& dep0)
 		{
 			ClosedTasks.Add(FTask(op, dep0));
-			ScheduledStagePerOp[op] = op.stage + 1;
+			ScheduledStagePerOp[op] = op.Stage + 1;
 			AddChildren(dep0);
 		}
 
-		void AddOp(const SCHEDULED_OP& op,
-			const SCHEDULED_OP& dep0,
-			const SCHEDULED_OP& dep1)
+		void AddOp(const FScheduledOp& op,
+			const FScheduledOp& dep0,
+			const FScheduledOp& dep1)
 		{
 			ClosedTasks.Add(FTask(op, dep0, dep1));
-			ScheduledStagePerOp[op] = op.stage + 1;
+			ScheduledStagePerOp[op] = op.Stage + 1;
 			AddChildren(dep0);
 			AddChildren(dep1);
 		}
 
-		void AddOp(const SCHEDULED_OP& op,
-			const SCHEDULED_OP& dep0,
-			const SCHEDULED_OP& dep1,
-			const SCHEDULED_OP& dep2)
+		void AddOp(const FScheduledOp& op,
+			const FScheduledOp& dep0,
+			const FScheduledOp& dep1,
+			const FScheduledOp& dep2)
 		{
 			ClosedTasks.Add(FTask(op, dep0, dep1, dep2));
-			ScheduledStagePerOp[op] = op.stage + 1;
+			ScheduledStagePerOp[op] = op.Stage + 1;
 			AddChildren(dep0);
 			AddChildren(dep1);
 			AddChildren(dep2);
 		}
 
-		void AddOp(const SCHEDULED_OP& op,
-			const SCHEDULED_OP& dep0,
-			const SCHEDULED_OP& dep1,
-			const SCHEDULED_OP& dep2,
-			const SCHEDULED_OP& dep3)
+		void AddOp(const FScheduledOp& op,
+			const FScheduledOp& dep0,
+			const FScheduledOp& dep1,
+			const FScheduledOp& dep2,
+			const FScheduledOp& dep3)
 		{
 			ClosedTasks.Add(FTask(op, dep0, dep1, dep2, dep3));
-			ScheduledStagePerOp[op] = op.stage + 1;
+			ScheduledStagePerOp[op] = op.Stage + 1;
 			AddChildren(dep0);
 			AddChildren(dep1);
 			AddChildren(dep2);
 			AddChildren(dep3);
 		}
 
-		void AddOp(const SCHEDULED_OP& op,
-			const SCHEDULED_OP& dep0,
-			const SCHEDULED_OP& dep1,
-			const SCHEDULED_OP& dep2,
-			const SCHEDULED_OP& dep3,
-			const SCHEDULED_OP& dep4)
+		void AddOp(const FScheduledOp& op,
+			const FScheduledOp& dep0,
+			const FScheduledOp& dep1,
+			const FScheduledOp& dep2,
+			const FScheduledOp& dep3,
+			const FScheduledOp& dep4)
 		{
 			ClosedTasks.Add(FTask(op, dep0, dep1, dep2, dep3, dep4));
-			ScheduledStagePerOp[op] = op.stage + 1;
+			ScheduledStagePerOp[op] = op.Stage + 1;
 			AddChildren(dep0);
 			AddChildren(dep1);
 			AddChildren(dep2);
@@ -250,35 +265,21 @@ class RangeIndex;
 			AddChildren(dep4);
 		}
 
-		void AddOp(const SCHEDULED_OP& op, const TArray<SCHEDULED_OP>& deps)
-		{
-			FTask Task(op);
-			for (const auto& d : deps)
-			{
-				Task.Deps.Add(d);
-			}
-			ClosedTasks.Add(Task);
-			for (const auto& d : deps)
-			{
-				AddChildren(d);
-			}
-		}
-
 		template<class RangeType>
-		void AddOp(const SCHEDULED_OP& Op, const RangeType& Deps)
+		void AddOp(const FScheduledOp& Op, const RangeType& Deps)
 		{
 			FTask Task(Op);
 
-			for (const SCHEDULED_OP& D : Deps)
+			for (const FScheduledOp& D : Deps)
 			{
 				Task.Deps.Add(D);
 			}
 
 			ClosedTasks.Add(Task);
 
-			ScheduledStagePerOp[Op] = Op.stage + 1;
+			ScheduledStagePerOp[Op] = Op.Stage + 1;
 
-			for (const SCHEDULED_OP& D : Deps)
+			for (const FScheduledOp& D : Deps)
 			{
 				AddChildren(D);
 			}
@@ -289,7 +290,7 @@ class RangeIndex;
 
 		//! Stack of pending operations, and the execution stage they are in.
 		TArray< FTask > ClosedTasks;
-		TArray< SCHEDULED_OP > OpenTasks;
+		TArray< FScheduledOp > OpenTasks;
 		CodeContainer<uint8> ScheduledStagePerOp;
 		TArray< TSharedPtr<FIssuedTask> > IssuedTasks;
 
@@ -307,29 +308,29 @@ class RangeIndex;
 		uint32 m_lodMask = 0;
 
 		// Async rom loading control
-		struct ROM_LOAD_OP
+		struct FRomLoadOp
 		{
 			int32 m_romIndex = 0;
 			DATATYPE ConstantType = DT_NONE;
 			ModelStreamer::OPERATION_ID m_streamID;
 			TArray<uint8> m_streamBuffer;
 		};
-		TArray<ROM_LOAD_OP> m_romLoadOps;
+		TArray<FRomLoadOp> m_romLoadOps;
 
 		//! Count of pending operations for every rom index
 		TArray<uint16> m_romPendingOps;
 
 	private:
 
-		inline void AddChildren(const SCHEDULED_OP& dep)
+		inline void AddChildren(const FScheduledOp& dep)
 		{
-			CACHE_ADDRESS at(dep);
-			if (dep.at && !GetMemory().IsValid(at))
+			FCacheAddress at(dep);
+			if (dep.At && !GetMemory().IsValid(at))
 			{
-				if (ScheduledStagePerOp.get(at) <= dep.stage)
+				if (ScheduledStagePerOp.get(at) <= dep.Stage)
 				{
 					OpenTasks.Add(dep);
-					ScheduledStagePerOp[at] = dep.stage + 1;
+					ScheduledStagePerOp[at] = dep.Stage + 1;
 				}
 			}
 
@@ -337,10 +338,10 @@ class RangeIndex;
 		}
 
 		/** Try to create a concurrent task for the given op. Return null if not possible. */
-		TSharedPtr<FIssuedTask> IssueOp(SCHEDULED_OP item);
+		TSharedPtr<FIssuedTask> IssueOp(FScheduledOp item);
 
 		/** */
-		void CompleteRomLoadOp(ROM_LOAD_OP& o);
+		void CompleteRomLoadOp(FRomLoadOp& o);
 
     };
 

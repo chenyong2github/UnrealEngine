@@ -129,6 +129,8 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     Model::~Model()
     {
+		MUTABLE_CPUPROFILER_SCOPE(ModelDestructor);
+
         check( m_pD );
         delete m_pD;
         m_pD = 0;
@@ -508,10 +510,10 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    uint32 Model::Private::GetResourceKey( uint32 paramListIndex,
-                                             OP::ADDRESS rootAt,
-                                             const Parameters* pParams )
+    uint32 Model::Private::GetResourceKey( uint32 paramListIndex, OP::ADDRESS rootAt, const Parameters* pParams )
     {
+		MUTABLE_CPUPROFILER_SCOPE(GetResourceKey)
+
         // Find the list of relevant parameters
         const TArray<uint16>* params = nullptr;
         if (paramListIndex<(uint32)m_program.m_parameterLists.Num())
@@ -529,8 +531,8 @@ namespace mu
 		parameterValuesBlob.Reserve(1024);
         for (int param: *params)
         {
-            size_t pos = parameterValuesBlob.Num();
-            size_t dataSize = 0;
+            int32 pos = parameterValuesBlob.Num();
+			int32 dataSize = 0;
 
             switch(m_program.m_parameters[param].m_type)
             {
@@ -555,9 +557,7 @@ namespace mu
             case PARAMETER_TYPE::T_INT:
                 dataSize = sizeof(int32);
                 parameterValuesBlob.SetNum( pos+dataSize );
-                FMemory::Memcpy( &parameterValuesBlob[pos],
-                        &pParams->GetPrivate()->m_values[param].m_int,
-                        dataSize );
+                FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].m_int, dataSize );
                 pos += dataSize;
 
                 // Multi-values
@@ -578,9 +578,7 @@ namespace mu
             case PARAMETER_TYPE::T_FLOAT:
                 dataSize = sizeof(float);
                 parameterValuesBlob.SetNum( pos+dataSize );
-				FMemory::Memcpy( &parameterValuesBlob[pos],
-                        &pParams->GetPrivate()->m_values[param].m_float,
-                        dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].m_float, dataSize );
                 pos += dataSize;
 
                 // Multi-values
@@ -601,9 +599,7 @@ namespace mu
             case PARAMETER_TYPE::T_COLOUR:
                 dataSize = 3*sizeof(float);
                 parameterValuesBlob.SetNum( pos+dataSize );
-				FMemory::Memcpy( &parameterValuesBlob[pos],
-                        &pParams->GetPrivate()->m_values[param].m_colour,
-                        dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].m_colour, dataSize );
                 pos += dataSize;
 
                 // Multi-values
@@ -627,9 +623,7 @@ namespace mu
 
                 // \todo: padding will be random?
                 parameterValuesBlob.SetNum( pos+dataSize );
-				FMemory::Memcpy( &parameterValuesBlob[pos],
-                        &pParams->GetPrivate()->m_values[param].m_projector,
-                        dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].m_projector, dataSize );
 				pos += dataSize;
 
                 // Multi-values
@@ -683,8 +677,8 @@ namespace mu
         {
             auto& key = m_generatedResources[i];
             if (key.m_rootAddress==rootAt
-                    &&
-                    key.m_parameterValuesBlob==parameterValuesBlob)
+				&&
+				key.m_parameterValuesBlob==parameterValuesBlob)
             {
                 key.m_lastRequestId = m_lastResourceResquestId;
                 return key.m_id;
@@ -706,13 +700,13 @@ namespace mu
         newKey.m_id = newId;
         newKey.m_lastRequestId = m_lastResourceResquestId;
         newKey.m_rootAddress = rootAt;
-        newKey.m_parameterValuesBlob = std::move(parameterValuesBlob);
+        newKey.m_parameterValuesBlob = MoveTemp(parameterValuesBlob);
 
         // TODO: Move the constant to settings?
         const size_t maxGeneratedResourcesIDCacheSize = 1024;
         if (m_generatedResources.Num()>=maxGeneratedResourcesIDCacheSize)
         {
-            m_generatedResources[oldestCachePosition] = std::move(newKey);
+            m_generatedResources[oldestCachePosition] = MoveTemp(newKey);
         }
         else
         {

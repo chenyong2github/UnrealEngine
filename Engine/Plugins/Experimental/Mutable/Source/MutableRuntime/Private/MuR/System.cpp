@@ -83,6 +83,7 @@ namespace mu
     System::~System()
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
+		MUTABLE_CPUPROFILER_SCOPE(SystemDestructor);
 
         check( m_pD );
 
@@ -121,6 +122,7 @@ namespace mu
     System::Private::~Private()
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
+		MUTABLE_CPUPROFILER_SCOPE(SystemPrivateDestructor);
 
         delete m_pStreamInterface;
         m_pStreamInterface = nullptr;
@@ -272,7 +274,7 @@ namespace mu
 
 		m_pD->RunCode(pLiveInstance->m_pModel.get(), pParams.get(), rootAt, lodMask);
 
-		InstancePtrConst pResult = pLiveInstance->m_memory->GetInstance(CACHE_ADDRESS(rootAt, 0, 0));
+		InstancePtrConst pResult = pLiveInstance->m_memory->GetInstance(FCacheAddress(rootAt, 0, 0));
 
 		pLiveInstance->m_pInstance = pResult;
 		if (pResult)
@@ -371,7 +373,7 @@ namespace mu
 				if (GetOpDataType(opType) == DT_IMAGE)
 				{
 					int8 executionOptions = 0;
-					CodeRunner Runner(m_pD->m_pSettings, m_pD, Model, pLiveInstance->m_pOldParameters.get(), at, System::AllLODs, executionOptions, SCHEDULED_OP::EType::ImageDesc);
+					CodeRunner Runner(m_pD->m_pSettings, m_pD, Model, pLiveInstance->m_pOldParameters.get(), at, System::AllLODs, executionOptions, FScheduledOp::EType::ImageDesc);
 					Runner.Run();
 					Runner.GetImageDescResult(OutDesc);
 				}
@@ -642,7 +644,7 @@ namespace mu
 		const Parameters* InParameters, OP::ADDRESS InCodeRoot, uint32 InLODs, uint8 executionOptions)
 	{
 		CodeRunner Runner(m_pSettings, this, InModel.get(), InParameters, InCodeRoot, InLODs, 
-			executionOptions, SCHEDULED_OP::EType::Full);
+			executionOptions, FScheduledOp::EType::Full);
 		Runner.Run();
 		bUnrecoverableError = Runner.bUnrecoverableError;
 	}
@@ -658,7 +660,7 @@ namespace mu
 		{
 			return false;
 		}
-		return m_memory->GetBool(CACHE_ADDRESS(at, 0, 0));
+		return m_memory->GetBool(FCacheAddress(at, 0, 0));
 	}
 
 
@@ -672,7 +674,7 @@ namespace mu
 		{
 			return 0.0f;
 		}
-		return m_memory->GetScalar(CACHE_ADDRESS(at, 0, 0));
+		return m_memory->GetScalar(FCacheAddress(at, 0, 0));
 	}
 
 
@@ -687,7 +689,7 @@ namespace mu
 			return 0;
 		}
 
-		return m_memory->GetInt(CACHE_ADDRESS(at, 0, 0));
+		return m_memory->GetInt(FCacheAddress(at, 0, 0));
 	}
 
 
@@ -712,7 +714,7 @@ namespace mu
 				if (pB) *pB = 0.0f;
 			}
 
-			col = m_memory->GetColour(CACHE_ADDRESS(at, 0, 0));
+			col = m_memory->GetColour(FCacheAddress(at, 0, 0));
 		}
 
 		if (pR) *pR = col[0];
@@ -729,7 +731,7 @@ namespace mu
 		{
 			return nullptr;
 		}
-    	return m_memory->GetProjector(CACHE_ADDRESS(at, 0, 0));
+    	return m_memory->GetProjector(FCacheAddress(at, 0, 0));
 	}
 
 	
@@ -747,7 +749,7 @@ namespace mu
 			{
 				return nullptr;
 			}
-			ImagePtrConst Result = m_memory->GetImage(CACHE_ADDRESS(at, 0, MipsToSkip));
+			ImagePtrConst Result = m_memory->GetImage(FCacheAddress(at, 0, MipsToSkip));
 			return Result;
 		}
 
@@ -769,7 +771,7 @@ namespace mu
 			{
 				return nullptr;
 			}
-			MeshPtrConst pResult = m_memory->GetMesh(CACHE_ADDRESS(at, 0, 0));
+			MeshPtrConst pResult = m_memory->GetMesh(FCacheAddress(at, 0, 0));
 			return pResult;
 		}
 
@@ -794,7 +796,7 @@ namespace mu
 				{
 					return nullptr;
 				}
-				pResult = m_memory->GetLayout(CACHE_ADDRESS(at, 0, 0));
+				pResult = m_memory->GetLayout(FCacheAddress(at, 0, 0));
 			}
 		}
 
@@ -819,7 +821,7 @@ namespace mu
 				{
 					return nullptr;
 				}
-				pResult = m_memory->GetString(CACHE_ADDRESS(at, 0, 0));
+				pResult = m_memory->GetString(FCacheAddress(at, 0, 0));
 			}
 		}
 

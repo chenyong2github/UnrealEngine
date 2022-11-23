@@ -8,8 +8,8 @@
 #include "MuR/Ptr.h"
 
 
-#define MAX_DIVISIONS 5
-#define MAX_VECTORS 20
+#define MUTABLE_OCTREE_MAX_DIVISIONS 5
+#define MUTABLE_OCTREE_MAX_VECTORS 32
 
 namespace mu
 {
@@ -54,7 +54,7 @@ namespace mu
 			{
 				elements.Add({ v, idx });
 
-				if (elements.Num() > MAX_VECTORS && division < MAX_DIVISIONS)
+				if (elements.Num() > MUTABLE_OCTREE_MAX_VECTORS && division < MUTABLE_OCTREE_MAX_DIVISIONS)
 				{
 					Divide();
 				}
@@ -165,15 +165,15 @@ namespace mu
 
 	private:
 		
-		int division = 0;
+		TArray<VertexInfo, TInlineAllocator<MUTABLE_OCTREE_MAX_VECTORS>> elements;
+
+		Octree* children[8];
 
 		vec3f minCorner;
 		vec3f maxCorner;
 
 		float padding = 0.0f;
+		int division = 0;
 
-		TArray<VertexInfo> elements;
-
-		Octree* children[8];
 	};
 }

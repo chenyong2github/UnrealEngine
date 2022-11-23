@@ -103,64 +103,61 @@ namespace mu
 	};
 
 
-	struct SCHEDULED_OP
+	/** This structure stores the data about an ongoing mutable operation that needs to be executed. */
+	struct FScheduledOp
 	{
-		SCHEDULED_OP()
+		inline FScheduledOp()
 		{
-			stage = 0;
+			Stage = 0;
 			Type = EType::Full;
 		}
 
-		SCHEDULED_OP(OP::ADDRESS _at,
-			const SCHEDULED_OP& opTemplate,
-			uint8 _stage = 0,
-			uint32 _customState = 0)
+		inline FScheduledOp(OP::ADDRESS InAt, const FScheduledOp& InOpTemplate, uint8 InStage = 0, uint32 InCustomState = 0)
 		{
-			at = _at;
-			executionOptions = opTemplate.executionOptions;
-			executionIndex = opTemplate.executionIndex;
-			stage = _stage;
-			customState = _customState;
-			Type = opTemplate.Type;
+			check(InStage < 120);
+			At = InAt;
+			ExecutionOptions = InOpTemplate.ExecutionOptions;
+			ExecutionIndex = InOpTemplate.ExecutionIndex;
+			Stage = InStage;
+			CustomState = InCustomState;
+			Type = InOpTemplate.Type;
 		}
 
-		static inline SCHEDULED_OP FromOpAndOptions(OP::ADDRESS _at,
-			const SCHEDULED_OP& opTemplate,
-			uint8 _executionOptions)
+		static inline FScheduledOp FromOpAndOptions(OP::ADDRESS InAt, const FScheduledOp& InOpTemplate, uint8 InExecutionOptions)
 		{
-			SCHEDULED_OP r;
-			r.at = _at;
-			r.executionOptions = _executionOptions;
-			r.executionIndex = opTemplate.executionIndex;
-			r.stage = 0;
-			r.customState = opTemplate.customState;
-			r.Type = opTemplate.Type;
+			FScheduledOp r;
+			r.At = InAt;
+			r.ExecutionOptions = InExecutionOptions;
+			r.ExecutionIndex = InOpTemplate.ExecutionIndex;
+			r.Stage = 0;
+			r.CustomState = InOpTemplate.CustomState;
+			r.Type = InOpTemplate.Type;
 			return r;
 		}
 
 		//! Address of the operation
-		OP::ADDRESS at = 0;
+		OP::ADDRESS At = 0;
 
 		//! Additional custom state data that the operation can store. This is usually used to pass information
 		//! between execution stages of an operation.
-		uint32 customState = 0;
+		uint32 CustomState = 0;
 
 		//! Index of the operation execution: This is used for iteration of different ranges.
 		//! It is an index into the CodeRunner::GetMemory()::m_rangeIndex vector.
 		//! executionIndex 0 is always used for empty ExecutionIndex, which is the most common
 		//! one.
-		uint16 executionIndex = 0;
+		uint16 ExecutionIndex = 0;
 
 		//! Additional execution options. Set externally to this op, it usually alters the result.
 		//! For example, this is used to keep track of the mipmaps to skip in image operations.
-		uint8 executionOptions = 0;
+		uint8 ExecutionOptions = 0;
 
 		//! Internal stage of the operation.
 		//! Stage 0 is usually scheduling of children, and 1 is execution. Some instructions
 		//! may have more steges to schedule children that are optional for execution, etc.
-		uint8 stage : 4;
+		uint8 Stage : 7;
 
-		//!
+		//! Type of calculation we are requestinf for this operation.
 		enum class EType : uint8
 		{
 			//! Execute the operation to calculate the full result
@@ -169,53 +166,54 @@ namespace mu
 			//! Execute the operation to obtain the descriptor of an image.
 			ImageDesc
 		};
-		EType Type : 4;
+		EType Type : 1;
 	};
 
-	inline uint32 GetTypeHash(const SCHEDULED_OP& op)
+	inline uint32 GetTypeHash(const FScheduledOp& Op)
 	{
-		return HashCombine(::GetTypeHash(op.at), HashCombine(::GetTypeHash(op.stage), ::GetTypeHash(op.executionIndex)));
+		return HashCombine(::GetTypeHash(Op.At), HashCombine(::GetTypeHash(Op.Stage), ::GetTypeHash(Op.ExecutionIndex)));
 	}
 
 
 	//! A cache address is the operation plus the context of execution (iteration indices, etc...).
-	struct CACHE_ADDRESS
+	struct FCacheAddress
 	{
-		OP::ADDRESS at = 0;
-		uint16 executionIndex = 0;
-		uint8 executionOptions = 0;
-		SCHEDULED_OP::EType Type = SCHEDULED_OP::EType::Full;
+		/** The meaning of all these fields is the same than the FScheduledOp struct. */
+		OP::ADDRESS At = 0;
+		uint16 ExecutionIndex = 0;
+		uint8 ExecutionOptions = 0;
+		FScheduledOp::EType Type = FScheduledOp::EType::Full;
 
-		CACHE_ADDRESS() {}
+		FCacheAddress() {}
 
-		CACHE_ADDRESS(OP::ADDRESS _at, uint16 _executionIndex, uint8 _executionOptions)
+		FCacheAddress(OP::ADDRESS InAt, uint16 InExecutionIndex, uint8 InExecutionOptions)
 		{
-			at = _at;
-			executionIndex = _executionIndex;
-			executionOptions = _executionOptions;
+			At = InAt;
+			ExecutionIndex = InExecutionIndex;
+			ExecutionOptions = InExecutionOptions;
 		}
 
-		CACHE_ADDRESS(OP::ADDRESS _at, const SCHEDULED_OP& item)
+		FCacheAddress(OP::ADDRESS InAt, const FScheduledOp& Item)
 		{
-			at = _at;
-			executionIndex = item.executionIndex;
-			executionOptions = item.executionOptions;
-			Type = item.Type;
+			At = InAt;
+			ExecutionIndex = Item.ExecutionIndex;
+			ExecutionOptions = Item.ExecutionOptions;
+			Type = Item.Type;
 		}
 
-		CACHE_ADDRESS(const SCHEDULED_OP& item)
+		FCacheAddress(const FScheduledOp& Item)
 		{
-			at = item.at;
-			executionIndex = item.executionIndex;
-			executionOptions = item.executionOptions;
-			Type = item.Type;
+			At = Item.At;
+			ExecutionIndex = Item.ExecutionIndex;
+			ExecutionOptions = Item.ExecutionOptions;
+			Type = Item.Type;
 		}
 	};
 
 
-	inline uint32 GetTypeHash(const CACHE_ADDRESS& a)
+	inline uint32 GetTypeHash(const FCacheAddress& a)
 	{
-		return HashCombine(::GetTypeHash(a.at), a.executionIndex);
+		return HashCombine(::GetTypeHash(a.At), a.ExecutionIndex);
 	}
 
 
@@ -243,11 +241,11 @@ namespace mu
 			m_otherIndex.Empty();
 		}
 
-		inline void erase(const CACHE_ADDRESS& at)
+		inline void erase(const FCacheAddress& at)
 		{
-			if (at.executionIndex == 0 && at.executionOptions == 0)
+			if (at.ExecutionIndex == 0 && at.ExecutionOptions == 0)
 			{
-				m_index0[at.at] = nullptr;
+				m_index0[at.At] = nullptr;
 			}
 			else
 			{
@@ -255,13 +253,13 @@ namespace mu
 			}
 		}
 
-		inline DATA get(const CACHE_ADDRESS& at) const
+		inline DATA get(const FCacheAddress& at) const
 		{
-			if (at.executionIndex == 0 && at.executionOptions == 0)
+			if (at.ExecutionIndex == 0 && at.ExecutionOptions == 0)
 			{
-				if (at.at < uint32(m_index0.Num()))
+				if (at.At < uint32(m_index0.Num()))
 				{
-					return m_index0[at.at];
+					return m_index0[at.At];
 				}
 				else
 				{
@@ -279,13 +277,13 @@ namespace mu
 			return 0;
 		}
 
-		inline const DATA* get_ptr(const CACHE_ADDRESS& at) const
+		inline const DATA* get_ptr(const FCacheAddress& at) const
 		{
-			if (at.executionIndex == 0 && at.executionOptions == 0)
+			if (at.ExecutionIndex == 0 && at.ExecutionOptions == 0)
 			{
-				if (at.at < uint32(m_index0.Num()))
+				if (at.At < uint32(m_index0.Num()))
 				{
-					return &m_index0[at.at];
+					return &m_index0[at.At];
 				}
 				else
 				{
@@ -303,11 +301,11 @@ namespace mu
 			return nullptr;
 		}
 
-		inline DATA& operator[](const CACHE_ADDRESS& at)
+		inline DATA& operator[](const FCacheAddress& at)
 		{
-			if (at.executionIndex == 0 && at.executionOptions == 0)
+			if (at.ExecutionIndex == 0 && at.ExecutionOptions == 0)
 			{
-				return m_index0[at.at];
+				return m_index0[at.At];
 			}
 			else
 			{
@@ -321,7 +319,7 @@ namespace mu
 			friend class CodeContainer<DATA>;
 			const CodeContainer<DATA>* container;
 			typename TArray<DATA>::TIterator it0;
-			typename TMap<CACHE_ADDRESS, DATA>::TIterator it1;
+			typename TMap<FCacheAddress, DATA>::TIterator it1;
 
 			iterator(CodeContainer<DATA>* InContainer)
 				: container(InContainer)
@@ -374,7 +372,7 @@ namespace mu
 				}
 			}
 
-			inline CACHE_ADDRESS get_address() const
+			inline FCacheAddress get_address() const
 			{
 				if (it0)
 				{
@@ -403,7 +401,7 @@ namespace mu
 		TArray<DATA> m_index0;
 
 		// For index>0
-		TMap<CACHE_ADDRESS, DATA> m_otherIndex;
+		TMap<FCacheAddress, DATA> m_otherIndex;
 	};
 
 
@@ -476,9 +474,9 @@ namespace mu
 			m_opHitCount.resize(size);
 		}
 
-		void SetUnused(CACHE_ADDRESS at)
+		void SetUnused(FCacheAddress at)
 		{
-			//UE_LOG(LogMutableCore, Log, TEXT("memory SetUnused : %5d "), at.at);
+			//UE_LOG(LogMutableCore, Log, TEXT("memory SetUnused : %5d "), at.At);
 			if (m_resources[at].Key >= 2)
 			{
 				// Keep the result anyway if it doesn't use any memory.
@@ -491,16 +489,16 @@ namespace mu
 		}
 
 
-		bool IsValid(CACHE_ADDRESS at)
+		bool IsValid(FCacheAddress at)
 		{
-			if (at.at == 0) return false;
+			if (at.At == 0) return false;
 
 			// Is it a desc data query?
-			if (at.Type == SCHEDULED_OP::EType::ImageDesc)
+			if (at.Type == FScheduledOp::EType::ImageDesc)
 			{
-				if (uint32(m_descCache.Num()) > at.at)
+				if (uint32(m_descCache.Num()) > at.At)
 				{
-					return m_descCache[at.at];
+					return m_descCache[at.At];
 				}
 				else
 				{
@@ -516,6 +514,8 @@ namespace mu
 
 		void ClearCacheLayer0()
 		{
+			MUTABLE_CPUPROFILER_SCOPE(ClearLayer0);
+
 			CodeContainer<int>::iterator it = m_opHitCount.begin();
 			for (; it.IsValid(); ++it)
 			{
@@ -531,6 +531,8 @@ namespace mu
 
 		void ClearCacheLayer1()
 		{
+			MUTABLE_CPUPROFILER_SCOPE(ClearLayer1);
+
 			CodeContainer<int>::iterator it = m_opHitCount.begin();
 			for (; it.IsValid(); ++it)
 			{
@@ -544,6 +546,8 @@ namespace mu
 
 		void Clear()
 		{
+			MUTABLE_CPUPROFILER_SCOPE(ProgramCacheClear);
+
 			size_t codeSize = m_resources.size_code();
 			m_resources.clear();
 			m_resources.resize(codeSize);
@@ -553,184 +557,198 @@ namespace mu
 		}
 
 
-		bool GetBool(CACHE_ADDRESS at)
+		bool GetBool(FCacheAddress at)
 		{
-			if (!at.at) return false;
+			if (!at.At) return false;
 			auto d = m_resources.get_ptr(at);
 			if (!d) return false;
 
 			Ptr<const Bool> pResult;
-			if (at.at)
+			if (at.At)
 			{
 				pResult = (const Bool*)d->Value.get();
 			}
 			return pResult ? pResult->m_value : false;
 		}
 
-		float GetScalar(CACHE_ADDRESS at)
+		float GetScalar(FCacheAddress at)
 		{
-			if (!at.at) return 0.0f;
+			if (!at.At) return 0.0f;
 			auto d = m_resources.get_ptr(at);
 			if (!d) return 0.0f;
 
 			Ptr<const Scalar> pResult;
-			if (at.at)
+			if (at.At)
 			{
 				pResult = (const Scalar*)d->Value.get();
 			}
 			return pResult ? pResult->m_value : 0.0f;
 		}
 
-		int GetInt(CACHE_ADDRESS at)
+		int GetInt(FCacheAddress at)
 		{
-			if (!at.at) return 0;
+			if (!at.At) return 0;
 			auto d = m_resources.get_ptr(at);
 			if (!d) return 0;
 
 			Ptr<const Int> pResult;
-			if (at.at)
+			if (at.At)
 			{
 				pResult = (const Int*)d->Value.get();
 			}
 			return pResult ? pResult->m_value : 0;
 		}
 
-		FVector4f GetColour(CACHE_ADDRESS at)
+		FVector4f GetColour(FCacheAddress at)
 		{
-			if (!at.at) return FVector4f();
+			if (!at.At) return FVector4f();
 			auto d = m_resources.get_ptr(at);
 			if (!d) return FVector4f();
 
 			Ptr<const Colour> pResult;
-			if (at.at)
+			if (at.At)
 			{
 				pResult = (const Colour*)d->Value.get();
 			}
 			return pResult ? pResult->m_colour : FVector4f();
 		}
 
-		Ptr<const Projector> GetProjector(CACHE_ADDRESS at)
+		Ptr<const Projector> GetProjector(FCacheAddress at)
 		{
-			if (!at.at) return nullptr;
+			if (!at.At) return nullptr;
 			auto d = m_resources.get_ptr(at);
 			if (!d) return nullptr;
 
 			Ptr<const Projector> pResult;
-			if (at.at)
+			if (at.At)
 			{
 				pResult = (const Projector*)d->Value.get();
 			}
 			return pResult;
 		}
 
-		Ptr<const Instance> GetInstance(CACHE_ADDRESS at)
+		Ptr<const Instance> GetInstance(FCacheAddress at)
 		{
-			if (!at.at) return nullptr;
+			if (!at.At) return nullptr;
 			auto d = m_resources.get_ptr(at);
 			if (!d) return nullptr;
 
-			Ptr<const Instance> pResult;
-			if (at.at)
+			Ptr<const Instance> pResult = (const Instance*)d->Value.get();
+
+			// We need to decrease the hitcount even if the result is null.
+			// Lower hit counts means we shouldn't clear the value
+			if (m_opHitCount[at] > 0)
 			{
-				pResult = (const Instance*)d->Value.get();
+				--m_opHitCount[at];
+
+				if (m_opHitCount[at] <= 0)
+				{
+					SetUnused(at);
+				}
 			}
+
 			return pResult;
 		}
 
 
-		Ptr<const Layout> GetLayout(CACHE_ADDRESS at)
+		Ptr<const Layout> GetLayout(FCacheAddress at)
 		{
-			if (!at.at) return nullptr;
+			if (!at.At)
+			{
+				return nullptr;
+			}
 			auto d = m_resources.get_ptr(at);
 			if (!d) return nullptr;
 
 			Ptr<const Layout> pResult;
-			if (at.at)
+			if (at.At)
 			{
 				pResult = (const Layout*)d->Value.get();
 			}
 			return pResult;
 		}
 
-		Ptr<const String> GetString(CACHE_ADDRESS at)
+		Ptr<const String> GetString(FCacheAddress at)
 		{
-			if (!at.at)
+			if (!at.At)
+			{
 				return nullptr;
+			}
 			auto d = m_resources.get_ptr(at);
 			if (!d)
 				return nullptr;
 
 			Ptr<const String> pResult;
-			if (at.at)
+			if (at.At)
 			{
 				pResult = (const String*)d->Value.get();
 			}
 			return pResult;
 		}
 
-		void SetBool(CACHE_ADDRESS at, bool v)
+		void SetBool(FCacheAddress at, bool v)
 		{
-			check(at.at < m_resources.size_code());
+			check(at.At < m_resources.size_code());
 
 			Ptr<Bool> pResult = new Bool;
 			pResult->m_value = v;
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, pResult);
 		}
 
-		void SetValidDesc(CACHE_ADDRESS at)
+		void SetValidDesc(FCacheAddress at)
 		{
-			check(at.Type == SCHEDULED_OP::EType::ImageDesc);
-			check(at.at < uint32(m_descCache.Num()));
+			check(at.Type == FScheduledOp::EType::ImageDesc);
+			check(at.At < uint32(m_descCache.Num()));
 
-			m_descCache[at.at] = true;
+			m_descCache[at.At] = true;
 		}
 
-		void SetScalar(CACHE_ADDRESS at, float v)
+		void SetScalar(FCacheAddress at, float v)
 		{
-			check(at.at < m_resources.size_code());
+			check(at.At < m_resources.size_code());
 
 			Ptr<Scalar> pResult = new Scalar;
 			pResult->m_value = v;
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, pResult);
 		}
 
-		void SetInt(CACHE_ADDRESS at, int v)
+		void SetInt(FCacheAddress at, int v)
 		{
-			check(at.at < m_resources.size_code());
+			check(at.At < m_resources.size_code());
 
 			Ptr<Int> pResult = new Int;
 			pResult->m_value = v;
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, pResult);
 		}
 
-		void SetColour(CACHE_ADDRESS at, const FVector4f& v)
+		void SetColour(FCacheAddress at, const FVector4f& v)
 		{
-			check(at.at < m_resources.size_code());
+			check(at.At < m_resources.size_code());
 
 			Ptr<Colour> pResult = new Colour;
 			pResult->m_colour = v;
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, pResult);
 		}
 
-		void SetProjector(CACHE_ADDRESS at, Ptr<const Projector> v)
+		void SetProjector(FCacheAddress at, Ptr<const Projector> v)
 		{
-			check(at.at < m_resources.size_code());
+			check(at.At < m_resources.size_code());
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
 		}
 
-		void SetInstance(CACHE_ADDRESS at, Ptr<const Instance> v)
+		void SetInstance(FCacheAddress at, Ptr<const Instance> v)
 		{
-			check(at.at < m_resources.size_code());
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
-		}
-
-		void SetImage(CACHE_ADDRESS at, Ptr<const Image> v)
-		{
-			check(at.at < m_resources.size_code());
+			check(at.At < m_resources.size_code());
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(2, v);
 		}
 
-		void SetMesh(CACHE_ADDRESS at, Ptr<const Mesh> v)
+		void SetImage(FCacheAddress at, Ptr<const Image> v)
+		{
+			check(at.At < m_resources.size_code());
+			m_resources[at] = TPair<int, Ptr<const RefCounted>>(2, v);
+		}
+
+		void SetMesh(FCacheAddress at, Ptr<const Mesh> v)
 		{
 			// debug
 //            if (v)
@@ -738,24 +756,24 @@ namespace mu
 //                v->GetPrivate()->CheckIntegrity();
 //            }
 
-			check(at.at < m_resources.size_code());
+			check(at.At < m_resources.size_code());
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(2, v);
 		}
 
-		void SetLayout(CACHE_ADDRESS at, Ptr<const Layout> v)
+		void SetLayout(FCacheAddress at, Ptr<const Layout> v)
 		{
-			check(at.at < m_resources.size_code());
+			check(at.At < m_resources.size_code());
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
 		}
 
-		void SetString(CACHE_ADDRESS at, Ptr<const String> v)
+		void SetString(FCacheAddress at, Ptr<const String> v)
 		{
-			check(at.at < m_resources.size_code());
+			check(at.At < m_resources.size_code());
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
 		}
 
 
-		inline void IncreaseHitCount(CACHE_ADDRESS at)
+		inline void IncreaseHitCount(FCacheAddress at)
 		{
 			m_opHitCount[at] += 1;
 		}
@@ -766,10 +784,10 @@ namespace mu
 		}
 
 
-		Ptr<const Image> GetImage(CACHE_ADDRESS at)
+		Ptr<const Image> GetImage(FCacheAddress at)
 		{
-			if (!at.at) return nullptr;
-			if (size_t(at.at) >= m_resources.size_code()) return nullptr;
+			if (!at.At) return nullptr;
+			if (size_t(at.At) >= m_resources.size_code()) return nullptr;
 			auto d = m_resources.get_ptr(at);
 			if (!d) return nullptr;
 
@@ -789,10 +807,10 @@ namespace mu
 			return pResult;
 		}
 
-		Ptr<const Mesh> GetMesh(CACHE_ADDRESS at)
+		Ptr<const Mesh> GetMesh(FCacheAddress at)
 		{
-			if (!at.at) return nullptr;
-			if (size_t(at.at) >= m_resources.size_code()) return nullptr;
+			if (!at.At) return nullptr;
+			if (size_t(at.At) >= m_resources.size_code()) return nullptr;
 			auto d = m_resources.get_ptr(at);
 			if (!d) return nullptr;
 
@@ -815,25 +833,25 @@ namespace mu
 	};
 
 
-	inline bool operator==(const CACHE_ADDRESS& a, const CACHE_ADDRESS& b)
+	inline bool operator==(const FCacheAddress& a, const FCacheAddress& b)
 	{
-		return a.at == b.at
+		return a.At == b.At
 			&&
-			a.executionIndex == b.executionIndex
+			a.ExecutionIndex == b.ExecutionIndex
 			&&
-			a.executionOptions == b.executionOptions
+			a.ExecutionOptions == b.ExecutionOptions
 			&&
 			a.Type == b.Type;
 	}
 
-	inline bool operator<(const CACHE_ADDRESS& a, const CACHE_ADDRESS& b)
+	inline bool operator<(const FCacheAddress& a, const FCacheAddress& b)
 	{
-		if (a.at < b.at) return true;
-		if (a.at > b.at) return false;
-		if (a.executionIndex < b.executionIndex) return true;
-		if (a.executionIndex > b.executionIndex) return false;
-		if (a.executionOptions < b.executionOptions) return true;
-		if (a.executionOptions > b.executionOptions) return false;
+		if (a.At < b.At) return true;
+		if (a.At > b.At) return false;
+		if (a.ExecutionIndex < b.ExecutionIndex) return true;
+		if (a.ExecutionIndex > b.ExecutionIndex) return false;
+		if (a.ExecutionOptions < b.ExecutionOptions) return true;
+		if (a.ExecutionOptions > b.ExecutionOptions) return false;
 		return a.Type < b.Type;
 	}
 
@@ -844,6 +862,11 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     struct FModelCache
     {
+		~FModelCache()
+		{
+			MUTABLE_CPUPROFILER_SCOPE(FModelCacheDestructor);
+		}
+
         struct FModelCacheEntry
         {
             //!
@@ -865,8 +888,7 @@ namespace mu
 			TFunctionRef<bool(const Model*, int)> IsRomLockedFunc = [](const Model*, int) {return false;});
 
         //!
-        void UpdateForLoad( int romIndex, const Model* pModel,
-                            TFunctionRef<bool(const Model*,int)> isRomLockedFunc );
+        void UpdateForLoad( int romIndex, const Model* pModel, TFunctionRef<bool(const Model*,int)> isRomLockedFunc );
         void MarkRomUsed( int romIndex, const Model* pModel );
 
         //! Private helper
@@ -939,6 +961,16 @@ namespace mu
 
 			//! An entry for every instruction in the program to cache resources (meshes, images) if necessary.
 			TSharedPtr<FProgramCache> m_memory;
+
+			~FLiveInstance()
+			{
+				// Manually done to trace mem deallocations
+				MUTABLE_CPUPROFILER_SCOPE(LiveInstanceDestructor);
+				m_memory = nullptr;
+				m_pOldParameters = nullptr;
+				m_pInstance = nullptr;
+				m_pModel = nullptr;
+			}
         };
 
         TArray<FLiveInstance> m_liveInstances;

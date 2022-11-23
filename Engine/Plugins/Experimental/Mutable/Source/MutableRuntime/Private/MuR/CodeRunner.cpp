@@ -83,21 +83,21 @@ namespace mu
 		const Model* pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at,
-		uint32 lodMask, uint8 executionOptions, SCHEDULED_OP::EType Type )
+		uint32 lodMask, uint8 executionOptions, FScheduledOp::EType Type )
 		: m_pSettings(pSettings), m_pSystem(s), m_pModel(pModel), m_pParams(pParams), m_lodMask(lodMask)
 	{
 		ScheduledStagePerOp.resize(m_pModel->GetPrivate()->m_program.m_opAddress.Num());
 
 		// We will read this in the end, so make sure we keep it.
-		m_pSystem->m_memory->IncreaseHitCount(CACHE_ADDRESS(at, 0, executionOptions));
+		m_pSystem->m_memory->IncreaseHitCount(FCacheAddress(at, 0, executionOptions));
 
 		FProgram& program = m_pModel->GetPrivate()->m_program;
 		m_romPendingOps.SetNum(program.m_roms.Num());
 
 		// Push the root operation
-		SCHEDULED_OP rootOp;
-		rootOp.at = at;
-		rootOp.executionOptions = executionOptions;
+		FScheduledOp rootOp;
+		rootOp.At = at;
+		rootOp.ExecutionOptions = executionOptions;
 		rootOp.Type = Type;
 		AddOp(rootOp);
 	}
@@ -135,25 +135,25 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Conditional( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_Conditional( FScheduledOp& item,
                                           const Model* pModel
                                           )
     {
         //MUTABLE_CPUPROFILER_SCOPE(RunCode_Conditional);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
-        auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ConditionalArgs>(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
+        auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ConditionalArgs>(item.At);
 
         // Conditionals have the following execution stages:
         // 0: we need to run the condition
         // 1: we need to run the branch
         // 2: we need to fetch the result and store it in this op
-        switch( item.stage )
+        switch( item.Stage )
         {
         case 0:
         {
-            AddOp( SCHEDULED_OP( item.at,item,1 ),
-                   SCHEDULED_OP( args.condition, item ) );
+            AddOp( FScheduledOp( item.At,item,1 ),
+                   FScheduledOp( args.condition, item ) );
             break;
         }
 
@@ -163,24 +163,24 @@ namespace mu
 
             // If there is no expression, we'll assume true.
             bool value = true;
-            value = GetMemory().GetBool( CACHE_ADDRESS(args.condition, item.executionIndex, item.executionOptions) );
+            value = GetMemory().GetBool( FCacheAddress(args.condition, item.ExecutionIndex, item.ExecutionOptions) );
 
             OP::ADDRESS resultAt = value ? args.yes : args.no;
 
             // Schedule the end of this instruction if necessary
-            AddOp( SCHEDULED_OP( item.at, item, 2, (uint32)value),
-				SCHEDULED_OP( resultAt, item) );
+            AddOp( FScheduledOp( item.At, item, 2, (uint32)value),
+				FScheduledOp( resultAt, item) );
 
             break;
         }
 
         case 2:
         {
-            OP::ADDRESS resultAt = item.customState ? args.yes : args.no;
+            OP::ADDRESS resultAt = item.CustomState ? args.yes : args.no;
 
             // Store the final result
-            CACHE_ADDRESS cat( item );
-            CACHE_ADDRESS rat( resultAt, item );
+            FCacheAddress cat( item );
+            FCacheAddress rat( resultAt, item );
             switch (GetOpDataType(type))
             {
             case DT_BOOL:       GetMemory().SetBool( cat, GetMemory().GetBool(rat) ); break;
@@ -208,13 +208,13 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeRunner::RunCode_Switch(SCHEDULED_OP& item,
+	void CodeRunner::RunCode_Switch(FScheduledOp& item,
 		const Model* pModel
 	)
 	{
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
 
-		const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+		const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
 		OP::ADDRESS VarAddress;
 		FMemory::Memcpy(&VarAddress, data, sizeof(OP::ADDRESS));
@@ -228,14 +228,14 @@ namespace mu
 		FMemory::Memcpy(&CaseCount, data, sizeof(uint32));
 		data += sizeof(uint32);
 
-		switch (item.stage)
+		switch (item.Stage)
 		{
 		case 0:
 		{
 			if (VarAddress)
 			{
-				AddOp(SCHEDULED_OP(item.at, item, 1),
-					SCHEDULED_OP(VarAddress, item));
+				AddOp(FScheduledOp(item.At, item, 1),
+					FScheduledOp(VarAddress, item));
 			}
 			else
 			{
@@ -262,7 +262,7 @@ namespace mu
 		case 1:
 		{
 			// Get the variable result
-			int var = GetMemory().GetInt(CACHE_ADDRESS(VarAddress, item));
+			int var = GetMemory().GetInt(FCacheAddress(VarAddress, item));
 
 			OP::ADDRESS valueAt = DefAddress;
 			for (uint32 C = 0; C < CaseCount; ++C)
@@ -283,19 +283,19 @@ namespace mu
 			}
 
             // Schedule the end of this instruction if necessary
-            AddOp( SCHEDULED_OP( item.at, item, 2, valueAt ),
-				   SCHEDULED_OP( valueAt, item ) );
+            AddOp( FScheduledOp( item.At, item, 2, valueAt ),
+				   FScheduledOp( valueAt, item ) );
 
             break;
         }
 
         case 2:
         {
-			OP::ADDRESS resultAt = OP::ADDRESS(item.customState);
+			OP::ADDRESS resultAt = OP::ADDRESS(item.CustomState);
 
             // Store the final result
-            CACHE_ADDRESS cat( item );
-            CACHE_ADDRESS rat( resultAt, item );
+            FCacheAddress cat( item );
+            FCacheAddress rat( resultAt, item );
             switch (GetOpDataType(type))
             {
             case DT_BOOL:       GetMemory().SetBool( cat, GetMemory().GetBool(rat) ); break;
@@ -323,32 +323,32 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Instance( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_Instance( FScheduledOp& item,
                                   const Model* pModel,
                                   uint32 lodMask
                                   )
     {
         //MUTABLE_CPUPROFILER_SCOPE(RunCode_Instance);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::IN_ADDVECTOR:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.at);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
 
-            switch (item.stage)
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.instance, item),
-                           SCHEDULED_OP( args.value, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.instance, item),
+                           FScheduledOp( args.value, item) );
                 break;
 
             case 1:
             {
-                InstancePtrConst pBase = GetMemory().GetInstance( CACHE_ADDRESS(args.instance,item) );
+                InstancePtrConst pBase = GetMemory().GetInstance( FCacheAddress(args.instance,item) );
                 InstancePtr pResult;
                 if (!pBase)
                 {
@@ -361,7 +361,7 @@ namespace mu
 
                 if ( args.value )
                 {
-					FVector4f value = GetMemory().GetColour( CACHE_ADDRESS(args.value,item) );
+					FVector4f value = GetMemory().GetColour( FCacheAddress(args.value,item) );
 
                     OP::ADDRESS nameAd = args.name;
                     check(  nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
@@ -382,18 +382,18 @@ namespace mu
 
         case OP_TYPE::IN_ADDSCALAR:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.instance, item),
-                           SCHEDULED_OP( args.value, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.instance, item),
+                           FScheduledOp( args.value, item) );
                 break;
 
             case 1:
             {
-                InstancePtrConst pBase = GetMemory().GetInstance( CACHE_ADDRESS(args.instance,item) );
+                InstancePtrConst pBase = GetMemory().GetInstance( FCacheAddress(args.instance,item) );
                 InstancePtr pResult;
                 if (!pBase)
                 {
@@ -401,12 +401,12 @@ namespace mu
                 }
                 else
                 {
-                    pResult = pBase->Clone();
+                    pResult = CloneOrTakeOver<Instance>(pBase.get());
                 }
 
                 if ( args.value )
                 {
-                    float value = GetMemory().GetScalar( CACHE_ADDRESS(args.value,item) );
+                    float value = GetMemory().GetScalar( FCacheAddress(args.value,item) );
 
                     OP::ADDRESS nameAd = args.name;
                     check(  nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
@@ -427,18 +427,18 @@ namespace mu
 
         case OP_TYPE::IN_ADDSTRING:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>( item.at );
-            switch ( item.stage )
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>( item.At );
+            switch ( item.Stage )
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1 ), SCHEDULED_OP( args.instance, item ),
-                           SCHEDULED_OP( args.value, item ) );
+                    AddOp( FScheduledOp( item.At, item, 1 ), FScheduledOp( args.instance, item ),
+                           FScheduledOp( args.value, item ) );
                 break;
 
             case 1:
             {
                 InstancePtrConst pBase =
-                    GetMemory().GetInstance( CACHE_ADDRESS( args.instance, item ) );
+                    GetMemory().GetInstance( FCacheAddress( args.instance, item ) );
                 InstancePtr pResult;
                 if ( !pBase )
                 {
@@ -446,13 +446,13 @@ namespace mu
                 }
                 else
                 {
-                    pResult = pBase->Clone();
-                }
+					pResult = CloneOrTakeOver<Instance>(pBase.get());
+				}
 
                 if ( args.value )
                 {
                     Ptr<const String> value =
-                        GetMemory().GetString( CACHE_ADDRESS( args.value, item ) );
+                        GetMemory().GetString( FCacheAddress( args.value, item ) );
 
                     OP::ADDRESS nameAd = args.name;
                     check( nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
@@ -474,18 +474,18 @@ namespace mu
 
         case OP_TYPE::IN_ADDCOMPONENT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.instance, item),
-                           SCHEDULED_OP( args.value, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.instance, item),
+                           FScheduledOp( args.value, item) );
                 break;
 
             case 1:
             {
-                InstancePtrConst pBase = GetMemory().GetInstance( CACHE_ADDRESS(args.instance,item) );
+                InstancePtrConst pBase = GetMemory().GetInstance( FCacheAddress(args.instance,item) );
                 InstancePtr pResult;
                 if (!pBase)
                 {
@@ -493,12 +493,12 @@ namespace mu
                 }
                 else
                 {
-                    pResult = pBase->Clone();
-                }
+					pResult = CloneOrTakeOver<Instance>(pBase.get());
+				}
 
                 if ( args.value )
                 {
-                    InstancePtrConst pComp = GetMemory().GetInstance( CACHE_ADDRESS(args.value,item) );
+                    InstancePtrConst pComp = GetMemory().GetInstance( FCacheAddress(args.value,item) );
 
                     int cindex = pResult->GetPrivate()->AddComponent( 0 );
 
@@ -533,28 +533,34 @@ namespace mu
 
         case OP_TYPE::IN_ADDSURFACE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.instance, item),
-                           SCHEDULED_OP( args.value, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.instance, item),
+                           FScheduledOp( args.value, item) );
                 break;
 
             case 1:
             {
-                InstancePtrConst pBase = GetMemory().GetInstance( CACHE_ADDRESS(args.instance,item) );
+                InstancePtrConst pBase = GetMemory().GetInstance( FCacheAddress(args.instance,item) );
 
                 InstancePtr pResult;
-                if (pBase) pResult = pBase->Clone();
-                else pResult = new Instance();
+				if (pBase)
+				{
+					pResult = CloneOrTakeOver<Instance>(pBase.get());
+				}
+				else
+				{
+					pResult = new Instance();
+				}
 
                 // Empty surfaces are ok, they still need to be created, because they may contain
                 // additional information like internal or external IDs
                 //if ( args.value )
                 {
-                    InstancePtrConst pSurf = GetMemory().GetInstance( CACHE_ADDRESS(args.value,item) );
+                    InstancePtrConst pSurf = GetMemory().GetInstance( FCacheAddress(args.value,item) );
 
                     int sindex = pResult->GetPrivate()->AddSurface( 0, 0 );
 
@@ -597,26 +603,26 @@ namespace mu
 
         case OP_TYPE::IN_ADDLOD:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddLODArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddLODArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
             {                
-                    TArray<SCHEDULED_OP> deps;
-                    for ( int i=0; i<MUTABLE_OP_MAX_ADD_COUNT; ++i )
+                TArray<FScheduledOp> deps;
+                for ( int i=0; i<MUTABLE_OP_MAX_ADD_COUNT; ++i )
+                {
+                    if ( args.lod[i] )
                     {
-                        if ( args.lod[i] )
-                        {
-                            bool selectedLod = ( (1<<i) & lodMask ) != 0;
+                        bool selectedLod = ( (1<<i) & lodMask ) != 0;
 
-                            if ( selectedLod )
-                            {
-                                deps.Emplace(args.lod[i], item);
-                            }
+                        if ( selectedLod )
+                        {
+                            deps.Emplace(args.lod[i], item);
                         }
                     }
+                }
 
-                    AddOp( SCHEDULED_OP( item.at,item, 1), deps );
+                AddOp( FScheduledOp( item.At,item, 1), deps );
 
                 break;
             }
@@ -634,14 +640,14 @@ namespace mu
 
                         if ( selectedLod )
                         {
-                            InstancePtrConst pLOD = GetMemory().GetInstance( CACHE_ADDRESS(args.lod[i],item) );
+                            InstancePtrConst pLOD = GetMemory().GetInstance( FCacheAddress(args.lod[i],item) );
 
-                            int lindex = pResult->GetPrivate()->AddLOD();
+                            int LODIndex = pResult->GetPrivate()->AddLOD();
 
                             // In a degenerated case, the returned pLOD may not have an LOD inside
                             if ( pLOD && !pLOD->GetPrivate()->m_lods.IsEmpty() )
                             {
-                                pResult->GetPrivate()->m_lods[lindex] = pLOD->GetPrivate()->m_lods[0];
+                                pResult->GetPrivate()->m_lods[LODIndex] = pLOD->GetPrivate()->m_lods[0];
                             }
                         }
                         else
@@ -670,25 +676,25 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_InstanceAddResource( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_InstanceAddResource( FScheduledOp& item,
                                   const Model* pModel,
                                   const Parameters* pParams
                                   )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_InstanceAddResource);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::IN_ADDMESH:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.instance, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.instance, item) );
 
                 // We don't build the resources when building instance: just store ids for them.
                 //PushIfNotVisited(args.value, item);
@@ -696,7 +702,7 @@ namespace mu
 
             case 1:
             {
-                InstancePtrConst pBase = GetMemory().GetInstance( CACHE_ADDRESS(args.instance,item) );
+                InstancePtrConst pBase = GetMemory().GetInstance( FCacheAddress(args.instance,item) );
                 InstancePtr pResult;
                 if (!pBase)
                 {
@@ -704,8 +710,8 @@ namespace mu
                 }
                 else
                 {
-                    pResult = pBase->Clone();
-                }
+					pResult = CloneOrTakeOver<Instance>(pBase.get());
+				}
 
                 if ( args.value )
                 {
@@ -730,17 +736,17 @@ namespace mu
 
         case OP_TYPE::IN_ADDIMAGE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
 				// We don't build the resources when building instance: just store ids for them.
-				AddOp( SCHEDULED_OP( item.at, item, 1), SCHEDULED_OP( args.instance, item) );
+				AddOp( FScheduledOp( item.At, item, 1), FScheduledOp( args.instance, item) );
                 break;
 
             case 1:
             {
-                InstancePtrConst pBase = GetMemory().GetInstance( CACHE_ADDRESS(args.instance,item) );
+                InstancePtrConst pBase = GetMemory().GetInstance( FCacheAddress(args.instance,item) );
                 InstancePtr pResult;
                 if (!pBase)
                 {
@@ -748,8 +754,8 @@ namespace mu
                 }
                 else
                 {
-                    pResult = pBase->Clone();
-                }
+					pResult = CloneOrTakeOver<Instance>(pBase.get());
+				}
 
                 if ( args.value )
                 {
@@ -780,17 +786,17 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_ConstantResource( SCHEDULED_OP& item, const Model* pModel )
+    void CodeRunner::RunCode_ConstantResource( FScheduledOp& item, const Model* pModel )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Constant);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::ME_CONSTANT:
         {
-			OP::MeshConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshConstantArgs>(item.at);
+			OP::MeshConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshConstantArgs>(item.At);
 
             OP::ADDRESS cat = args.value;
 
@@ -819,26 +825,26 @@ namespace mu
 			}
 
             GetMemory().SetMesh( item, pSource );
-			//UE_LOG(LogMutableCore, Log, TEXT("Set mesh constant %d."), item.at);
+			//UE_LOG(LogMutableCore, Log, TEXT("Set mesh constant %d."), item.At);
             break;
         }
 
         case OP_TYPE::IM_CONSTANT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
-                OP::ADDRESS cat = args.value;
+			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
+            OP::ADDRESS cat = args.value;
 
             const FProgram& program = pModel->GetPrivate()->m_program;
 
-			int32 MipsToSkip = item.executionOptions;
-            ImagePtrConst pSource;
+			int32 MipsToSkip = item.ExecutionOptions;
+            Ptr<const Image> pSource;
             program.GetConstant( cat, pSource, MipsToSkip);
 
 			// Assume the ROM has been loaded previously in a task generated at IssueOp
 			check(pSource);
 
             GetMemory().SetImage( item, pSource );
-			//UE_LOG(LogMutableCore, Log, TEXT("Set image constant %d."), item.at);
+			//UE_LOG(LogMutableCore, Log, TEXT("Set image constant %d."), item.At);
 			break;
         }
 
@@ -853,35 +859,35 @@ namespace mu
     }
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Mesh( SCHEDULED_OP& item, const Model* pModel )
+    void CodeRunner::RunCode_Mesh( FScheduledOp& item, const Model* pModel )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Mesh);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::ME_APPLYLAYOUT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyLayoutArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyLayoutArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.mesh, item),
-                           SCHEDULED_OP( args.layout, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.mesh, item),
+                           FScheduledOp( args.layout, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Mesh> pBase = GetMemory().GetMesh( CACHE_ADDRESS(args.mesh,item) );
+                Ptr<const Mesh> pBase = GetMemory().GetMesh( FCacheAddress(args.mesh,item) );
 
                 MeshPtr pApplied;
                 if (pBase)
                 {
                     pApplied = pBase->Clone();
 
-                    Ptr<const Layout> pLayout = GetMemory().GetLayout( CACHE_ADDRESS(args.layout,item) );
+                    Ptr<const Layout> pLayout = GetMemory().GetLayout( FCacheAddress(args.layout,item) );
                     int texCoordsSet = args.channel;
                     MeshApplyLayout( pApplied.get(), pLayout.get(), texCoordsSet );
                 }
@@ -899,7 +905,7 @@ namespace mu
 
         case OP_TYPE::ME_DIFFERENCE:
         {
-			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
 			OP::ADDRESS BaseAt = 0;
 			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
@@ -907,14 +913,14 @@ namespace mu
 			OP::ADDRESS TargetAt = 0;
 			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
 
-            switch (item.stage)
+            switch (item.Stage)
             {
             case 0:
                 if (BaseAt && TargetAt)
                 {
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                            SCHEDULED_OP( BaseAt, item),
-                            SCHEDULED_OP( TargetAt, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                            FScheduledOp( BaseAt, item),
+                            FScheduledOp( TargetAt, item) );
                 }
                 else
                 {
@@ -924,8 +930,8 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pBase = GetMemory().GetMesh(CACHE_ADDRESS(BaseAt,item));
-                Ptr<const Mesh> pTarget = GetMemory().GetMesh(CACHE_ADDRESS(TargetAt,item));
+                Ptr<const Mesh> pBase = GetMemory().GetMesh(FCacheAddress(BaseAt,item));
+                Ptr<const Mesh> pTarget = GetMemory().GetMesh(FCacheAddress(TargetAt,item));
 
 				TArray<MESH_BUFFER_SEMANTIC, TInlineAllocator<8>> Semantics;
 				TArray<int32, TInlineAllocator<8>> SemanticIndices;
@@ -964,7 +970,7 @@ namespace mu
 
         case OP_TYPE::ME_MORPH2:
         {
-			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
 			OP::ADDRESS FactorAt = 0;
 			FMemory::Memcpy(&FactorAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
@@ -982,14 +988,14 @@ namespace mu
 				FMemory::Memcpy(&Targets[T], data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
 			}
 
-			switch (item.stage)
+			switch (item.Stage)
             {
             case 0:
                 if (BaseAt)
                 {
-                    AddOp( SCHEDULED_OP(item.at, item, 1),
-                           SCHEDULED_OP(BaseAt, item),
-                           SCHEDULED_OP(FactorAt, item) );
+                    AddOp( FScheduledOp(item.At, item, 1),
+                           FScheduledOp(BaseAt, item),
+                           FScheduledOp(FactorAt, item) );
                 }
                 else
                 {
@@ -999,8 +1005,8 @@ namespace mu
 
             case 1:
             {
-                bool baseValid = GetMemory().IsValid( CACHE_ADDRESS(BaseAt,item) );
-                float factor = GetMemory().GetScalar( CACHE_ADDRESS(FactorAt,item) );
+                bool baseValid = GetMemory().IsValid( FCacheAddress(BaseAt,item) );
+                float factor = GetMemory().GetScalar( FCacheAddress(FactorAt,item) );
 
                 // Factor goes from -1 to 1 across all targets. [0 - 1] represents positive morphs, while [-1, 0) represent negative morphs.
 				factor = FMath::Clamp(factor, -1.0f, 1.0f); // Is the factor not in range [-1, 1], it will index a non existing morph.
@@ -1033,35 +1039,35 @@ namespace mu
                 if (baseValid)
                 {
                     FScheduledOpData HeapData;
-					HeapData.bifactor = bifactor;
-					HeapData.min = FMath::Clamp(min, 0, NumTargets - 1);
-					HeapData.max = FMath::Clamp(max, 0, NumTargets - 1);
+					HeapData.Interpolate.Bifactor = bifactor;
+					HeapData.Interpolate.Min = FMath::Clamp(min, 0, NumTargets - 1);
+					HeapData.Interpolate.Max = FMath::Clamp(max, 0, NumTargets - 1);
 					uint32 dataAddress = uint32(m_heapData.Add(HeapData));
 
                     // Just the first of the targets
 					if ( bifactor < UE_SMALL_NUMBER && bifactor > -UE_SMALL_NUMBER )
                     {                        
-                        AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                                SCHEDULED_OP(BaseAt, item),
-                                SCHEDULED_OP(Targets[min], item) );
+                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
+                                FScheduledOp(BaseAt, item),
+                                FScheduledOp(Targets[min], item) );
                     }
                     // Just the second of the targets
 					else if ( bifactor > 1.0f - UE_SMALL_NUMBER || bifactor <= -1.0f + UE_SMALL_NUMBER )
                     {
                         check( max>0 );
 
-                        AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                                SCHEDULED_OP(BaseAt, item),
-                                SCHEDULED_OP(Targets[max], item) );
+                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
+                                FScheduledOp(BaseAt, item),
+                                FScheduledOp(Targets[max], item) );
                     }
                     // Mix two targets on the base
                     else
                     {
                         // We will need the base again
-                        AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                                SCHEDULED_OP(BaseAt, item),
-                                SCHEDULED_OP(Targets[min], item),
-                                SCHEDULED_OP(Targets[max], item) );
+                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
+                                FScheduledOp(BaseAt, item),
+                                FScheduledOp(Targets[min], item),
+                                FScheduledOp(Targets[max], item) );
                     }
                 }
 
@@ -1070,13 +1076,13 @@ namespace mu
 
             case 2:
             {
-                Ptr<const Mesh> pBase = GetMemory().GetMesh( CACHE_ADDRESS(BaseAt,item) );
+                Ptr<const Mesh> pBase = GetMemory().GetMesh( FCacheAddress(BaseAt,item) );
 
                 // Factor from 0 to 1 between the two targets
-                const FScheduledOpData& HeapData = m_heapData[ (size_t)item.customState ];
-                float bifactor = HeapData.bifactor;
-                int min = HeapData.min;
-                int max = HeapData.max;
+                const FScheduledOpData& HeapData = m_heapData[ (size_t)item.CustomState ];
+                float bifactor = HeapData.Interpolate.Bifactor;
+                int min = HeapData.Interpolate.Min;
+                int max = HeapData.Interpolate.Max;
 
                 MeshPtrConst pResult;
 
@@ -1086,7 +1092,7 @@ namespace mu
 					if ( bifactor < UE_SMALL_NUMBER && bifactor > -UE_SMALL_NUMBER )
                     {
                         // Base with one full morph
-                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(Targets[min],item) );
+                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( FCacheAddress(Targets[min],item) );
                         if (pMorph)
                         {
 							pResult = MeshMorph(pBase.get(), pMorph.get());
@@ -1096,7 +1102,7 @@ namespace mu
                     else if ( bifactor > 1.0f - UE_SMALL_NUMBER )
                     {
                         check( max>0 );
-                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(Targets[max],item) );
+                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( FCacheAddress(Targets[max],item) );
                         if (pMorph)
                         {
 							pResult = MeshMorph(pBase.get(), pMorph.get());
@@ -1106,7 +1112,7 @@ namespace mu
 					else if (bifactor <= -1.0f + UE_SMALL_NUMBER)
 					{
 						check( max > 0 );
-						Ptr<const Mesh> pMorph = GetMemory().GetMesh(CACHE_ADDRESS(Targets[max], item));
+						Ptr<const Mesh> pMorph = GetMemory().GetMesh(FCacheAddress(Targets[max], item));
 						if (pMorph)
 						{
 							pResult = MeshMorph(pBase.get(), pMorph.get(), bifactor);
@@ -1115,8 +1121,8 @@ namespace mu
                     // Mix two targets on the base
                     else
                     {
-                        Ptr<const Mesh> pMin = GetMemory().GetMesh( CACHE_ADDRESS(Targets[min],item) );
-                        Ptr<const Mesh> pMax = GetMemory().GetMesh( CACHE_ADDRESS(Targets[max],item) );
+                        Ptr<const Mesh> pMin = GetMemory().GetMesh( FCacheAddress(Targets[min],item) );
+                        Ptr<const Mesh> pMax = GetMemory().GetMesh( FCacheAddress(Targets[max],item) );
                         if (pMin && pMax)
                         {
                             pResult = MeshMorph2( pBase.get(), pMin.get(), pMax.get(), bifactor );
@@ -1142,19 +1148,19 @@ namespace mu
 
         case OP_TYPE::ME_MERGE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMergeArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMergeArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.base, item),
-                           SCHEDULED_OP( args.added, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.base, item),
+                           FScheduledOp( args.added, item) );
                 break;
 
             case 1:
             {
-                MeshPtrConst pA = GetMemory().GetMesh( CACHE_ADDRESS(args.base,item) );
-                MeshPtrConst pB = GetMemory().GetMesh( CACHE_ADDRESS(args.added,item) );
+                MeshPtrConst pA = GetMemory().GetMesh( FCacheAddress(args.base,item) );
+                MeshPtrConst pB = GetMemory().GetMesh( FCacheAddress(args.added,item) );
 
                 MeshPtr pResult;
 
@@ -1205,15 +1211,15 @@ namespace mu
 
         case OP_TYPE::ME_INTERPOLATE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshInterpolateArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshInterpolateArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if ( args.base )
                 {
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.base, item),
-                           SCHEDULED_OP( args.factor, item ) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.base, item),
+                           FScheduledOp( args.factor, item ) );
                 }
                 else
                 {
@@ -1232,7 +1238,7 @@ namespace mu
                 }
 
                 // Factor from 0 to 1 across all targets
-                float factor = GetMemory().GetScalar( CACHE_ADDRESS(args.factor,item) );
+                float factor = GetMemory().GetScalar( FCacheAddress(args.factor,item) );
 
                 float delta = 1.0f/(count-1);
                 int min = (int)floorf( factor/delta );
@@ -1242,9 +1248,9 @@ namespace mu
                 float bifactor = factor/delta - min;
 
                 FScheduledOpData data;
-                data.bifactor = bifactor;
-				data.min = FMath::Clamp(min, 0, count - 1);
-				data.max = FMath::Clamp(max, 0, count - 1);
+                data.Interpolate.Bifactor = bifactor;
+				data.Interpolate.Min = FMath::Clamp(min, 0, count - 1);
+				data.Interpolate.Max = FMath::Clamp(max, 0, count - 1);
 				uint32 dataAddress = uint32(m_heapData.Num());
 
                 // Just the first of the targets
@@ -1253,7 +1259,7 @@ namespace mu
                     if( min==0 )
                     {
                         // Just the base
-                            Ptr<const Mesh> pBase = GetMemory().GetMesh( CACHE_ADDRESS(args.base,item) );
+                            Ptr<const Mesh> pBase = GetMemory().GetMesh( FCacheAddress(args.base,item) );
                             MeshPtr pResult;
                             if (pBase)
                             {
@@ -1265,36 +1271,36 @@ namespace mu
                     {
                         // Base with one full morph
                         m_heapData.Add(data);
-                            AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                                   SCHEDULED_OP( args.base, item),
-                                   SCHEDULED_OP( args.targets[min-1], item) );
+                            AddOp( FScheduledOp( item.At, item, 2, dataAddress),
+                                   FScheduledOp( args.base, item),
+                                   FScheduledOp( args.targets[min-1], item) );
                         }
                     }
                 // Just the second of the targets
                 else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
                 {
                     m_heapData.Add(data);
-                        AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                               SCHEDULED_OP( args.base, item),
-                               SCHEDULED_OP( args.targets[max-1], item) );
+                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
+                               FScheduledOp( args.base, item),
+                               FScheduledOp( args.targets[max-1], item) );
                     }
                 // Mix the first target on the base
                 else if ( min==0 )
                 {
                     m_heapData.Add(data);
-                        AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                               SCHEDULED_OP( args.base, item),
-                               SCHEDULED_OP( args.targets[0], item)
+                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
+                               FScheduledOp( args.base, item),
+                               FScheduledOp( args.targets[0], item)
                                );
                     }
                 // Mix two targets on the base
                 else
                 {
                     m_heapData.Add(data);
-                        AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                               SCHEDULED_OP( args.base, item),
-                               SCHEDULED_OP( args.targets[min-1], item),
-                               SCHEDULED_OP( args.targets[max-1], item) );
+                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
+                               FScheduledOp( args.base, item),
+                               FScheduledOp( args.targets[min-1], item),
+                               FScheduledOp( args.targets[max-1], item) );
                     }
 
                 break;
@@ -1310,14 +1316,14 @@ namespace mu
                     count++;
                 }
 
-                const FScheduledOpData& data = m_heapData[ (size_t)item.customState ];
+                const FScheduledOpData& data = m_heapData[ (size_t)item.CustomState ];
 
                 // Factor from 0 to 1 between the two targets
-                float bifactor = data.bifactor;
-                int min = data.min;
-                int max = data.max;
+                float bifactor = data.Interpolate.Bifactor;
+                int min = data.Interpolate.Min;
+                int max = data.Interpolate.Max;
 
-                Ptr<const Mesh> pBase = GetMemory().GetMesh( CACHE_ADDRESS(args.base, item) );
+                Ptr<const Mesh> pBase = GetMemory().GetMesh( FCacheAddress(args.base, item) );
 
                 MeshPtr pResult;
 
@@ -1334,7 +1340,7 @@ namespace mu
                         else
                         {
                             // Base with one full morph
-                            Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[min-1],item) );
+                            Ptr<const Mesh> pMorph = GetMemory().GetMesh( FCacheAddress(args.targets[min-1],item) );
                             pResult = MeshMorph( pBase.get(), pMorph.get() );
                         }
                     }
@@ -1342,7 +1348,7 @@ namespace mu
                     else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
                     {
                         check( max>0 );
-                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[max-1],item) );
+                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( FCacheAddress(args.targets[max-1],item) );
 
                         if (pMorph)
                         {
@@ -1356,7 +1362,7 @@ namespace mu
                     // Mix the first target on the base
                     else if ( min==0 )
                     {
-                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS( args.targets[0], item ) );
+                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( FCacheAddress( args.targets[0], item ) );
                         if (pMorph)
                         {
                             pResult = MeshMorph( pBase.get(), pMorph.get(), bifactor );
@@ -1370,8 +1376,8 @@ namespace mu
                     // Mix two targets on the base
                     else
                     {
-                        Ptr<const Mesh> pMin = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[min-1],item) );
-                        Ptr<const Mesh> pMax = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[max-1],item) );
+                        Ptr<const Mesh> pMin = GetMemory().GetMesh( FCacheAddress(args.targets[min-1],item) );
+                        Ptr<const Mesh> pMax = GetMemory().GetMesh( FCacheAddress(args.targets[max-1],item) );
 
                         if (pMin && pMax)
                         {
@@ -1397,19 +1403,19 @@ namespace mu
 
         case OP_TYPE::ME_MASKCLIPMESH:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMaskClipMeshArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMaskClipMeshArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.source, item),
-                           SCHEDULED_OP( args.clip, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.source, item),
+                           FScheduledOp( args.clip, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
-                Ptr<const Mesh> pClip = GetMemory().GetMesh( CACHE_ADDRESS(args.clip,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(args.source,item) );
+                Ptr<const Mesh> pClip = GetMemory().GetMesh( FCacheAddress(args.clip,item) );
 
                 // Only if both are valid.
                 MeshPtr pResult;
@@ -1431,19 +1437,19 @@ namespace mu
 
         case OP_TYPE::ME_MASKDIFF:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMaskDiffArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMaskDiffArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.source, item),
-                           SCHEDULED_OP( args.fragment, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.source, item),
+                           FScheduledOp( args.fragment, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
-                Ptr<const Mesh> pClip = GetMemory().GetMesh( CACHE_ADDRESS(args.fragment,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(args.source,item) );
+                Ptr<const Mesh> pClip = GetMemory().GetMesh( FCacheAddress(args.fragment,item) );
 
                 // Only if both are valid.
                 MeshPtr pResult;
@@ -1465,19 +1471,19 @@ namespace mu
 
         case OP_TYPE::ME_SUBTRACT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshSubtractArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshSubtractArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.a, item),
-                           SCHEDULED_OP( args.b, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.a, item),
+                           FScheduledOp( args.b, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Mesh> pA = GetMemory().GetMesh( CACHE_ADDRESS(args.a,item) );
-                Ptr<const Mesh> pB = GetMemory().GetMesh( CACHE_ADDRESS(args.b,item) );
+                Ptr<const Mesh> pA = GetMemory().GetMesh( FCacheAddress(args.a,item) );
+                Ptr<const Mesh> pB = GetMemory().GetMesh( FCacheAddress(args.b,item) );
 
                 MeshPtr pResult = MeshSubtract( pA.get(), pB.get() );
 
@@ -1494,15 +1500,15 @@ namespace mu
 
         case OP_TYPE::ME_FORMAT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshFormatArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshFormatArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if (args.source && args.format)
                 {
-                         AddOp( SCHEDULED_OP( item.at, item, 1),
-                                SCHEDULED_OP( args.source, item),
-                                SCHEDULED_OP( args.format, item));
+                         AddOp( FScheduledOp( item.At, item, 1),
+                                FScheduledOp( args.source, item),
+                                FScheduledOp( args.format, item));
                     }
                     else
                     {
@@ -1512,8 +1518,8 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
-                Ptr<const Mesh> pFormat = GetMemory().GetMesh( CACHE_ADDRESS(args.format,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(args.source,item) );
+                Ptr<const Mesh> pFormat = GetMemory().GetMesh( FCacheAddress(args.format,item) );
 
                 uint8 flags = args.buffers;
                 MeshPtr pResult;
@@ -1544,7 +1550,7 @@ namespace mu
 
         case OP_TYPE::ME_EXTRACTLAYOUTBLOCK:
         {
-            const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+            const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
             mu::OP::ADDRESS source;
             memcpy( &source, data, sizeof(OP::ADDRESS) );
@@ -1558,13 +1564,13 @@ namespace mu
             memcpy( &blockCount, data, sizeof(uint16) );
             data += sizeof(uint16);
 
-            switch (item.stage)
+            switch (item.Stage)
             {
             case 0:
                 if (source)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( source, item) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( source, item) );
                     }
                     else
                     {
@@ -1574,7 +1580,7 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(source,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(source,item) );
 
                 // Access with memcpy necessary for unaligned arm issues.
                 uint32 blocks[1024];
@@ -1599,14 +1605,14 @@ namespace mu
 
         case OP_TYPE::ME_EXTRACTFACEGROUP:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshExtractFaceGroupArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshExtractFaceGroupArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if (args.source)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.source, item) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.source, item) );
                     }
                     else
                     {
@@ -1616,7 +1622,7 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(args.source,item) );
 
                 MeshPtr pResult;
                 pResult = MeshExtractFaceGroup( pSource.get(),
@@ -1635,14 +1641,14 @@ namespace mu
 
         case OP_TYPE::ME_TRANSFORM:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshTransformArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshTransformArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if (args.source)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.source, item) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.source, item) );
                     }
                     else
                     {
@@ -1652,7 +1658,7 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(args.source,item) );
 
                 const mat4f& mat = pModel->GetPrivate()->m_program.
                     m_constantMatrices[args.matrix];
@@ -1672,14 +1678,14 @@ namespace mu
 
         case OP_TYPE::ME_CLIPMORPHPLANE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipMorphPlaneArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipMorphPlaneArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if (args.source)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.source, item) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.source, item) );
                     }
                     else
                     {
@@ -1689,7 +1695,7 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(args.source,item) );
 
                 MeshPtr pResult;
 
@@ -1742,15 +1748,15 @@ namespace mu
 
         case OP_TYPE::ME_CLIPWITHMESH:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipWithMeshArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipWithMeshArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if (args.source)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.source, item),
-                               SCHEDULED_OP( args.clipMesh, item) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.source, item),
+                               FScheduledOp( args.clipMesh, item) );
                     }
                     else
                     {
@@ -1760,8 +1766,8 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
-                Ptr<const Mesh> pClip = GetMemory().GetMesh( CACHE_ADDRESS(args.clipMesh,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(args.source,item) );
+                Ptr<const Mesh> pClip = GetMemory().GetMesh( FCacheAddress(args.clipMesh,item) );
 
                 // Only if both are valid.
                 MeshPtr pResult;
@@ -1786,15 +1792,15 @@ namespace mu
         }
 		case OP_TYPE::ME_CLIPDEFORM:
 		{
-			OP::MeshClipDeformArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipDeformArgs>(item.at);
-			switch (item.stage)
+			OP::MeshClipDeformArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshClipDeformArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
 				if (args.mesh)
 				{
-						AddOp(SCHEDULED_OP(item.at, item, 1),
-							SCHEDULED_OP(args.mesh, item),
-							SCHEDULED_OP(args.clipShape, item));
+						AddOp(FScheduledOp(item.At, item, 1),
+							FScheduledOp(args.mesh, item),
+							FScheduledOp(args.clipShape, item));
 					}
 					else
 					{
@@ -1804,8 +1810,8 @@ namespace mu
 			
 			case 1:
 			{
-				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(CACHE_ADDRESS(args.mesh, item));
-				Ptr<const Mesh> ClipShape = GetMemory().GetMesh(CACHE_ADDRESS(args.clipShape, item));
+				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(FCacheAddress(args.mesh, item));
+				Ptr<const Mesh> ClipShape = GetMemory().GetMesh(FCacheAddress(args.clipShape, item));
 				Ptr<Mesh> pResult;
 
 					if ( BaseMesh && ClipShape )
@@ -1830,15 +1836,15 @@ namespace mu
 
         case OP_TYPE::ME_REMAPINDICES:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshRemapIndicesArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshRemapIndicesArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if (args.source)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.source, item),
-                               SCHEDULED_OP( args.reference, item) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.source, item),
+                               FScheduledOp( args.reference, item) );
                     }
                     else
                     {
@@ -1848,8 +1854,8 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
-                Ptr<const Mesh> pReference = GetMemory().GetMesh( CACHE_ADDRESS(args.reference,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(args.source,item) );
+                Ptr<const Mesh> pReference = GetMemory().GetMesh( FCacheAddress(args.reference,item) );
 
                 // Only if both are valid.
                 MeshPtr pResult;
@@ -1876,15 +1882,15 @@ namespace mu
 
         case OP_TYPE::ME_APPLYPOSE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyPoseArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyPoseArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if (args.base)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.base, item),
-                               SCHEDULED_OP( args.pose, item) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.base, item),
+                               FScheduledOp( args.pose, item) );
                     }
                     else
                     {
@@ -1894,8 +1900,8 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pBase = GetMemory().GetMesh( CACHE_ADDRESS(args.base,item) );
-                Ptr<const Mesh> pPose = GetMemory().GetMesh( CACHE_ADDRESS(args.pose,item) );
+                Ptr<const Mesh> pBase = GetMemory().GetMesh( FCacheAddress(args.base,item) );
+                Ptr<const Mesh> pPose = GetMemory().GetMesh( FCacheAddress(args.pose,item) );
 
                 // Only if both are valid.
                 MeshPtr pResult;
@@ -1922,17 +1928,17 @@ namespace mu
 
 		case OP_TYPE::ME_GEOMETRYOPERATION:
 		{
-			auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshGeometryOperationArgs>(item.at);
-			switch (item.stage)
+			auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshGeometryOperationArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
 				if (args.meshA)
 				{
-						AddOp(SCHEDULED_OP(item.at, item, 1),
-							SCHEDULED_OP(args.meshA, item),
-							SCHEDULED_OP(args.meshB, item),
-							SCHEDULED_OP(args.scalarA, item),
-							SCHEDULED_OP(args.scalarB, item));
+						AddOp(FScheduledOp(item.At, item, 1),
+							FScheduledOp(args.meshA, item),
+							FScheduledOp(args.meshB, item),
+							FScheduledOp(args.scalarA, item),
+							FScheduledOp(args.scalarB, item));
 					}
 					else
 					{
@@ -1942,10 +1948,10 @@ namespace mu
 
 			case 1:
 			{
-				Ptr<const Mesh> MeshA = GetMemory().GetMesh(CACHE_ADDRESS(args.meshA, item));
-				Ptr<const Mesh> MeshB = GetMemory().GetMesh(CACHE_ADDRESS(args.meshB, item));
-				float ScalarA = GetMemory().GetScalar(CACHE_ADDRESS(args.scalarA, item));
-				float ScalarB = GetMemory().GetScalar(CACHE_ADDRESS(args.scalarB, item));
+				Ptr<const Mesh> MeshA = GetMemory().GetMesh(FCacheAddress(args.meshA, item));
+				Ptr<const Mesh> MeshB = GetMemory().GetMesh(FCacheAddress(args.meshB, item));
+				float ScalarA = GetMemory().GetScalar(FCacheAddress(args.scalarA, item));
+				float ScalarB = GetMemory().GetScalar(FCacheAddress(args.scalarB, item));
 
 				MeshPtr pResult = MeshGeometryOperation(MeshA.get(),MeshB.get(),ScalarA,ScalarB);
 
@@ -1963,17 +1969,17 @@ namespace mu
 
 		case OP_TYPE::ME_BINDSHAPE:
 		{
-			OP::MeshBindShapeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshBindShapeArgs>(item.at);
-			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+			OP::MeshBindShapeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshBindShapeArgs>(item.At);
+			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
-			switch (item.stage)
+			switch (item.Stage)
 			{
 			case 0:
 				if (args.mesh)
 				{
-					AddOp(SCHEDULED_OP(item.at, item, 1),
-							SCHEDULED_OP(args.mesh, item),
-							SCHEDULED_OP(args.shape, item));
+					AddOp(FScheduledOp(item.At, item, 1),
+							FScheduledOp(args.mesh, item),
+							FScheduledOp(args.shape, item));
 				}
 				else
 				{
@@ -1983,8 +1989,8 @@ namespace mu
 
 			case 1:
 			{
-				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(CACHE_ADDRESS(args.mesh, item));
-				Ptr<const Mesh> Shape = GetMemory().GetMesh(CACHE_ADDRESS(args.shape, item));
+				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(FCacheAddress(args.mesh, item));
+				Ptr<const Mesh> Shape = GetMemory().GetMesh(FCacheAddress(args.shape, item));
 				
 				EShapeBindingMethod BindingMethod = static_cast<EShapeBindingMethod>(args.bindingMethod); 
 
@@ -2043,15 +2049,15 @@ namespace mu
 
 		case OP_TYPE::ME_APPLYSHAPE:
 		{
-			auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyShapeArgs>(item.at);
-			switch (item.stage)
+			auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyShapeArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
 				if (args.mesh)
 				{
-						AddOp(SCHEDULED_OP(item.at, item, 1),
-							SCHEDULED_OP(args.mesh, item),
-							SCHEDULED_OP(args.shape, item));
+						AddOp(FScheduledOp(item.At, item, 1),
+							FScheduledOp(args.mesh, item),
+							FScheduledOp(args.shape, item));
 				}
 				else
 				{
@@ -2061,8 +2067,8 @@ namespace mu
 
 			case 1:
 			{
-				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(CACHE_ADDRESS(args.mesh, item));
-				Ptr<const Mesh> Shape = GetMemory().GetMesh(CACHE_ADDRESS(args.shape, item));
+				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(FCacheAddress(args.mesh, item));
+				Ptr<const Mesh> Shape = GetMemory().GetMesh(FCacheAddress(args.shape, item));
 
 
 				Ptr<Mesh> pResult = MeshApplyShape(BaseMesh.get(), Shape.get(), static_cast<EMeshBindShapeFlags>(args.flags));
@@ -2080,16 +2086,16 @@ namespace mu
 
 		case OP_TYPE::ME_MORPHRESHAPE:
 		{
-			OP::MeshMorphReshapeArgs Args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMorphReshapeArgs>(item.at);
-			switch(item.stage)
+			OP::MeshMorphReshapeArgs Args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMorphReshapeArgs>(item.At);
+			switch(item.Stage)
 			{
 			case 0:
 			{
 				if (Args.Morph)
 				{
-					AddOp(SCHEDULED_OP(item.at, item, 1), 
-						  SCHEDULED_OP(Args.Morph, item), 
-						  SCHEDULED_OP(Args.Reshape, item));
+					AddOp(FScheduledOp(item.At, item, 1), 
+						  FScheduledOp(Args.Morph, item), 
+						  FScheduledOp(Args.Reshape, item));
 				}
 				else 
 				{
@@ -2099,8 +2105,8 @@ namespace mu
 			}
 			case 1:
 			{
-				Ptr<const Mesh> MorphedMesh = GetMemory().GetMesh(CACHE_ADDRESS(Args.Morph, item));
-				Ptr<const Mesh> ReshapeMesh = GetMemory().GetMesh(CACHE_ADDRESS(Args.Reshape, item));
+				Ptr<const Mesh> MorphedMesh = GetMemory().GetMesh(FCacheAddress(Args.Morph, item));
+				Ptr<const Mesh> ReshapeMesh = GetMemory().GetMesh(FCacheAddress(Args.Reshape, item));
 
 				if (ReshapeMesh)
 				{
@@ -2135,15 +2141,15 @@ namespace mu
 
         case OP_TYPE::ME_SETSKELETON:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshSetSkeletonArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshSetSkeletonArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if (args.source)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.source, item),
-                               SCHEDULED_OP( args.skeleton, item) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.source, item),
+                               FScheduledOp( args.skeleton, item) );
                     }
                     else
                     {
@@ -2153,8 +2159,8 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
-                Ptr<const Mesh> pSkeleton = GetMemory().GetMesh( CACHE_ADDRESS(args.skeleton,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(args.source,item) );
+                Ptr<const Mesh> pSkeleton = GetMemory().GetMesh( FCacheAddress(args.skeleton,item) );
 
                 // Only if both are valid.
                 MeshPtr pResult;
@@ -2202,12 +2208,12 @@ namespace mu
         {
             // Decode op
             // TODO: Partial decode for each stage
-            const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+            const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
             OP::ADDRESS source;
             FMemory::Memcpy(&source,data,sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
 
-            TArray<SCHEDULED_OP> conditions;
+            TArray<FScheduledOp> conditions;
 			TArray<OP::ADDRESS> masks;
 
             uint16 removes;
@@ -2226,13 +2232,13 @@ namespace mu
 
 
             // Schedule next stages
-            switch (item.stage)
+            switch (item.Stage)
             {
             case 0:
                 if (source)
                 {
                     // Request the conditions
-                    AddOp( SCHEDULED_OP( item.at, item, 1), conditions );
+                    AddOp( FScheduledOp( item.At, item, 1), conditions );
                 }
                 else
                 {
@@ -2244,15 +2250,15 @@ namespace mu
             {
                 // Request the source and the necessary masks
                 // \todo: store condition values in heap?
-                TArray<SCHEDULED_OP> deps;
+                TArray<FScheduledOp> deps;
                 deps.Emplace( source, item );
                 for( size_t r=0; source && r<conditions.Num(); ++r )
                 {
                     // If there is no expression, we'll assume true.
                     bool value = true;
-                    if (conditions[r].at)
+                    if (conditions[r].At)
                     {
-                        value = GetMemory().GetBool( CACHE_ADDRESS(conditions[r].at, item) );
+                        value = GetMemory().GetBool( FCacheAddress(conditions[r].At, item) );
                     }
 
                     if (value)
@@ -2263,7 +2269,7 @@ namespace mu
 
                 if (source)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 2), deps );
+                        AddOp( FScheduledOp( item.At, item, 2), deps );
                     }
                 break;
             }
@@ -2271,7 +2277,7 @@ namespace mu
             case 2:
             {
                 // \todo: single remove operation with all masks?
-                Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(source,item) );
+                Ptr<const Mesh> pSource = GetMemory().GetMesh( FCacheAddress(source,item) );
 
                 MeshPtrConst pResult = pSource;
 
@@ -2279,14 +2285,14 @@ namespace mu
                 {
                     // If there is no expression, we'll assume true.
                     bool value = true;
-                    if (conditions[r].at)
+                    if (conditions[r].At)
                     {
-                        value = GetMemory().GetBool( CACHE_ADDRESS(conditions[r].at, item) );
+                        value = GetMemory().GetBool( FCacheAddress(conditions[r].At, item) );
                     }
 
                     if (value)
                     {
-                        Ptr<const Mesh> pMask = GetMemory().GetMesh( CACHE_ADDRESS(masks[r],item) );
+                        Ptr<const Mesh> pMask = GetMemory().GetMesh( FCacheAddress(masks[r],item) );
                         if (pMask)
                         {
                             pResult = MeshRemoveMask(pResult.get(), pMask.get());
@@ -2307,15 +2313,15 @@ namespace mu
 
         case OP_TYPE::ME_PROJECT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshProjectArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshProjectArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 if (args.mesh)
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.mesh, item),
-                               SCHEDULED_OP( args.projector, item));
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.mesh, item),
+                               FScheduledOp( args.projector, item));
                 }
                 else
                 {
@@ -2325,8 +2331,8 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pMesh = GetMemory().GetMesh( CACHE_ADDRESS(args.mesh,item) );
-                Ptr<const Projector> pProjector = GetMemory().GetProjector( CACHE_ADDRESS(args.projector,item) );
+                Ptr<const Mesh> pMesh = GetMemory().GetMesh( FCacheAddress(args.mesh,item) );
+                Ptr<const Projector> pProjector = GetMemory().GetProjector( FCacheAddress(args.projector,item) );
 
                 // Only if both are valid.
                 MeshPtr pResult;
@@ -2369,20 +2375,20 @@ namespace mu
     }
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Image( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_Image( FScheduledOp& item,
                                     const Parameters* pParams,
                                     const Model* pModel
                                     )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Image);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
 		switch (type)
         {
 
         case OP_TYPE::IM_PARAMETER:
         {
-			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.at);
+			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> Index = BuildCurrentOpRangeIndex(item, pParams, pModel, args.variable);
 			EXTERNAL_IMAGE_ID id = pParams->GetImageValue(args.variable, Index);
 			ImagePtr pResult = LoadExternalImage(id);
@@ -2392,14 +2398,14 @@ namespace mu
 
         case OP_TYPE::IM_LAYERCOLOUR:
         {
-			OP::ImageLayerColourArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerColourArgs>(item.at);
-            switch (item.stage)
+			OP::ImageLayerColourArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerColourArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.base, item),
-                           SCHEDULED_OP::FromOpAndOptions( args.colour, item, 0),
-                           SCHEDULED_OP( args.mask, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.base, item),
+                           FScheduledOp::FromOpAndOptions( args.colour, item, 0),
+                           FScheduledOp( args.mask, item) );
                 break;
 
             case 1:
@@ -2416,14 +2422,14 @@ namespace mu
 
         case OP_TYPE::IM_LAYER:
         {
-			OP::ImageLayerArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerArgs>(item.at);
-            switch (item.stage)
+			OP::ImageLayerArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.base, item),
-                           SCHEDULED_OP( args.blended, item),
-                           SCHEDULED_OP( args.mask, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.base, item),
+                           FScheduledOp( args.blended, item),
+                           FScheduledOp( args.mask, item) );
                 break;
 
             case 1:
@@ -2440,12 +2446,13 @@ namespace mu
 
         case OP_TYPE::IM_MULTILAYER:
         {
-			OP::ImageMultiLayerArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMultiLayerArgs>(item.at);
-            switch (item.stage)
+			OP::ImageMultiLayerArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMultiLayerArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                AddOp( SCHEDULED_OP( item.at, item, 1),
-                       SCHEDULED_OP( args.rangeSize, item ) );
+                AddOp( FScheduledOp( item.At, item, 1),
+                       FScheduledOp( args.rangeSize, item ),
+					   FScheduledOp(args.base, item));
                 break;
 
             case 1:
@@ -2454,7 +2461,7 @@ namespace mu
                 int32 Iterations = 0;
                 if (args.rangeSize)
                 {
-                    CACHE_ADDRESS RangeAddress(args.rangeSize,item);
+                    FCacheAddress RangeAddress(args.rangeSize,item);
 
                     // We support both integers and scalars here, which is not common.
                     // \todo: review if this is necessary or we can enforce it at compile time.
@@ -2469,96 +2476,99 @@ namespace mu
                     }
                 }
 
-                // \todo Check that we are not overwriting the index (it shouldn't be set when we reach here)
-                SCHEDULED_OP ItemCopy = item;
-                ExecutionIndex Index = GetMemory().GetRageIndex( item.executionIndex );
+				Ptr<const Image> Base = GetMemory().GetImage(FCacheAddress(args.base, item));
 
-				TArray<SCHEDULED_OP, TInlineAllocator<48>> Deps;
-				Deps.SetNumUninitialized(Iterations * 2 + 1);
-                int32 d=0;
-				Deps[d++] = SCHEDULED_OP( args.base, item );
-                for (int i=0; i< Iterations; ++i)
-                {
-					Index.SetFromModelRangeIndex( args.rangeId, i );
+				if (Iterations <= 0)
+				{
+					// There are no layers: return the base
+					GetMemory().SetImage(item, Base);
+				}
+				else
+				{
+					// Store the base
+					Ptr<Image> New = mu::CloneOrTakeOver(Base.get());
 
-					ItemCopy.executionIndex = GetMemory().GetRageIndexIndex(Index);
+					// This shouldn't happen in optimised models, but it could happen in editors, etc.
+					// \todo: raise a performance warning?
+					EImageFormat BaseFormat = GetUncompressedFormat(Base->GetFormat());
+					if (Base->GetFormat() != BaseFormat)
+					{
+						Base = ImagePixelFormat(m_pSettings->GetPrivate()->m_imageCompressionQuality, Base.get(), BaseFormat);
+					}
 
-					Deps[d++] = SCHEDULED_OP( args.blended, ItemCopy);
-					Deps[d++] = SCHEDULED_OP( args.mask, ItemCopy);
-                }
-                AddOp( SCHEDULED_OP( item.at, item, 2, Iterations), Deps);
+					FScheduledOpData Data;
+					Data.Resource = New;
+					Data.MultiLayer.Iterations = Iterations;
+					Data.MultiLayer.OriginalBaseFormat = Base->GetFormat();
+					Data.MultiLayer.bBlendOnlyOneMip = false;
+					int32 DataPos = m_heapData.Add(Data);
+
+					// Request the first layer
+					int32 CurrentIteration = 0;
+					FScheduledOp ItemCopy = item;
+					ExecutionIndex Index = GetMemory().GetRageIndex(item.ExecutionIndex);
+					Index.SetFromModelRangeIndex(args.rangeId, CurrentIteration);
+					ItemCopy.ExecutionIndex = GetMemory().GetRageIndexIndex(Index);
+					AddOp(FScheduledOp(item.At, item, 2, DataPos), FScheduledOp(args.base, item), FScheduledOp(args.blended, ItemCopy), FScheduledOp(args.mask, ItemCopy));
+				}
 
                 break;
             }
 
-            case 2:
+            default:
             {
-                MUTABLE_CPUPROFILER_SCOPE(ImageMultiLayer);
+                //MUTABLE_CPUPROFILER_SCOPE(ImageMultiLayer);
 
-				int32 Iterations = item.customState;
+				FScheduledOpData& Data = m_heapData[item.CustomState];
 
-                Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
+				int32 Iterations = Data.MultiLayer.Iterations;
+				int32 CurrentIteration = item.Stage - 2;
+				check(CurrentIteration >= 0 && CurrentIteration < 120);
 
-                if (Iterations ==0)
-                {
-					// Early out
-					GetMemory().SetImage(item, pBase);
-					break;
-                }
+				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("Layer %d of %d"), CurrentIteration, Iterations));
 
-				Ptr<const Image> pResult;
+				// Process the current layer
 
-                // This shouldn't happen in optimised models, but it could happen in editors, etc.
-                // \todo: raise a performance warning?
-                EImageFormat baseFormat = GetUncompressedFormat(pBase->GetFormat());
-                if ( pBase->GetFormat()!=baseFormat )
-                {
-                    pBase = ImagePixelFormat( m_pSettings->GetPrivate()->m_imageCompressionQuality,
-                                              pBase.get(), baseFormat );
-                }
-
-				Ptr<Image> pNew = mu::CloneOrTakeOver(pBase.get());
-				pResult = pNew;
-
-                SCHEDULED_OP itemCopy = item;
-                ExecutionIndex index = GetMemory().GetRageIndex( item.executionIndex );
+				Ptr<Image> Base = static_cast<Image*>(Data.Resource.get());
+ 
+                FScheduledOp itemCopy = item;
+                ExecutionIndex index = GetMemory().GetRageIndex( item.ExecutionIndex );
 				
-				// This becomes true if we need to update the mips of the resulting image
-				// This could happen in the base image has mips, but one of the blended one doesn't.
-				bool bBlendOnlyOneMip = false;
-
-                for (int i=0; i< Iterations; ++i)
                 {
-                    index.SetFromModelRangeIndex( args.rangeId, i );
-                    itemCopy.executionIndex = GetMemory().GetRageIndexIndex(index);
-					itemCopy.customState = 0;
+                    index.SetFromModelRangeIndex( args.rangeId, CurrentIteration);
+                    itemCopy.ExecutionIndex = GetMemory().GetRageIndexIndex(index);
+					itemCopy.CustomState = 0;
 
-                    Ptr<const Image> pBlended = GetMemory().GetImage( CACHE_ADDRESS(args.blended,itemCopy) );
+                    Ptr<const Image> pBlended = GetMemory().GetImage( FCacheAddress(args.blended,itemCopy) );
 
                     // This shouldn't happen in optimised models, but it could happen in editors, etc.
                     // \todo: raise a performance warning?
-                    if (pBlended && pBlended->GetFormat()!=baseFormat )
+                    if (pBlended && pBlended->GetFormat()!=Base->GetFormat() )
                     {
 						MUTABLE_CPUPROFILER_SCOPE(ImageResize_BlendedReformat);
-						pBlended = ImagePixelFormat( m_pSettings->GetPrivate()->m_imageCompressionQuality, pBlended.get(), baseFormat );
+						pBlended = ImagePixelFormat( m_pSettings->GetPrivate()->m_imageCompressionQuality, pBlended.get(), Base->GetFormat());
                     }
 
 					// TODO: This shouldn't happen, but be defensive.
-					FImageSize ResultSize = pBase->GetSize();
+					FImageSize ResultSize = Base->GetSize();
 					if (pBlended && pBlended->GetSize() != ResultSize)
 					{
 						MUTABLE_CPUPROFILER_SCOPE(ImageResize_BlendedFixForMultilayer);
 						pBlended = ImageResizeLinear(0, pBlended.get(), ResultSize);
 					}
 
-					if (pBlended->GetLODCount() < pBase->GetLODCount())
+					if (pBlended->GetLODCount() < Base->GetLODCount())
 					{
-						bBlendOnlyOneMip = true;
+						Data.MultiLayer.bBlendOnlyOneMip = true;
 					}
 
 					bool bApplyColorBlendToAlpha = false;
 
 					bool bDone = false;
+
+					// This becomes true if we need to update the mips of the resulting image
+					// This could happen in the base image has mips, but one of the blended one doesn't.
+					bool bBlendOnlyOneMip = Data.MultiLayer.bBlendOnlyOneMip;
 
 					if (!args.mask && args.bUseMaskFromBlended
 						&&
@@ -2569,17 +2579,12 @@ namespace mu
 						// This is a frequent critical-path case because of multilayer projectors.
 						bDone = true;
 						
-						if (pBlended->GetLODCount() < pBase->GetLODCount())
-						{
-							bBlendOnlyOneMip = true;
-						}
-
-						BufferLayerComposite<BlendChannelMasked, LightenChannel, false>(pNew.get(), pBlended.get(), bBlendOnlyOneMip);
+						BufferLayerComposite<BlendChannelMasked, LightenChannel, false>(Base.get(), pBlended.get(), bBlendOnlyOneMip);
 					}
 
                     if (!bDone && args.mask)
                     {
-                        Ptr<const Image> pMask = GetMemory().GetImage( CACHE_ADDRESS(args.mask,itemCopy) );
+                        Ptr<const Image> pMask = GetMemory().GetImage( FCacheAddress(args.mask,itemCopy) );
 
 						// TODO: This shouldn't happen, but be defensive.
 						if (pMask && pMask->GetSize() != ResultSize)
@@ -2588,54 +2593,36 @@ namespace mu
 							pMask = ImageResizeLinear(0, pMask.get(), ResultSize);
 						}
 
-                        if (pMask->GetLODCount()<pBase->GetLODCount() || pBlended->GetLODCount() < pBase->GetLODCount())
-                        {
-							bBlendOnlyOneMip = true;
-						}
-
                         switch (EBlendType(args.blendType))
                         {
-						case EBlendType::BT_NORMAL_COMBINE: 
-							// \todo: optimise with ping pong buffers or blend-in-place
-							ImageNormalCombine(pNew.get(), pBase.get(), pMask.get(), pBlended.get(), bBlendOnlyOneMip);
-							pResult = pNew;
-							pBase = pNew;
-							pNew = new Image(pBase->GetSizeX(), pBase->GetSizeY(), pBase->GetLODCount(), pBase->GetFormat());
-							break;
-                        case EBlendType::BT_SOFTLIGHT: BufferLayer<SoftLightChannelMasked, SoftLightChannel, false>( pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_HARDLIGHT: BufferLayer<HardLightChannelMasked, HardLightChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_BURN: BufferLayer<BurnChannelMasked, BurnChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_DODGE: BufferLayer<DodgeChannelMasked, DodgeChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_SCREEN: BufferLayer<ScreenChannelMasked, ScreenChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_OVERLAY: BufferLayer<OverlayChannelMasked, OverlayChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_LIGHTEN: BufferLayer<LightenChannelMasked, LightenChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_MULTIPLY: BufferLayer<MultiplyChannelMasked, MultiplyChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_BLEND: BufferLayer<BlendChannelMasked, BlendChannel, false>(pNew->GetData(), pNew.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_NORMAL_COMBINE: check(false); break;
+                        case EBlendType::BT_SOFTLIGHT: BufferLayer<SoftLightChannelMasked, SoftLightChannel, false>( Base->GetData(), Base.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_HARDLIGHT: BufferLayer<HardLightChannelMasked, HardLightChannel, false>(Base->GetData(), Base.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BURN: BufferLayer<BurnChannelMasked, BurnChannel, false>(Base->GetData(), Base.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_DODGE: BufferLayer<DodgeChannelMasked, DodgeChannel, false>(Base->GetData(), Base.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_SCREEN: BufferLayer<ScreenChannelMasked, ScreenChannel, false>(Base->GetData(), Base.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_OVERLAY: BufferLayer<OverlayChannelMasked, OverlayChannel, false>(Base->GetData(), Base.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_LIGHTEN: BufferLayer<LightenChannelMasked, LightenChannel, false>(Base->GetData(), Base.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_MULTIPLY: BufferLayer<MultiplyChannelMasked, MultiplyChannel, false>(Base->GetData(), Base.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BLEND: BufferLayer<BlendChannelMasked, BlendChannel, false>(Base->GetData(), Base.get(), pMask.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
                         default: check(false);
                         }
 
                     }
 					else if (!bDone && args.bUseMaskFromBlended)
 					{
-						if (pBlended->GetLODCount() < pBase->GetLODCount())
-						{
-							bBlendOnlyOneMip = true;
-						}
-
 						switch (EBlendType(args.blendType))
 						{
-						case EBlendType::BT_NORMAL_COMBINE:
-							check(false);
-							break;
-						case EBlendType::BT_SOFTLIGHT: BufferLayerEmbeddedMask<SoftLightChannelMasked, SoftLightChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-						case EBlendType::BT_HARDLIGHT: BufferLayerEmbeddedMask<HardLightChannelMasked, HardLightChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-						case EBlendType::BT_BURN: BufferLayerEmbeddedMask<BurnChannelMasked, BurnChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-						case EBlendType::BT_DODGE: BufferLayerEmbeddedMask<DodgeChannelMasked, DodgeChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-						case EBlendType::BT_SCREEN: BufferLayerEmbeddedMask<ScreenChannelMasked, ScreenChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-						case EBlendType::BT_OVERLAY: BufferLayerEmbeddedMask<OverlayChannelMasked, OverlayChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-						case EBlendType::BT_LIGHTEN: BufferLayerEmbeddedMask<LightenChannelMasked, LightenChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-						case EBlendType::BT_MULTIPLY: BufferLayerEmbeddedMask<MultiplyChannelMasked, MultiplyChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-						case EBlendType::BT_BLEND: BufferLayerEmbeddedMask<BlendChannelMasked, BlendChannel, false>(pNew->GetData(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_NORMAL_COMBINE: check(false); break;
+						case EBlendType::BT_SOFTLIGHT: BufferLayerEmbeddedMask<SoftLightChannelMasked, SoftLightChannel, false>(Base->GetData(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_HARDLIGHT: BufferLayerEmbeddedMask<HardLightChannelMasked, HardLightChannel, false>(Base->GetData(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_BURN: BufferLayerEmbeddedMask<BurnChannelMasked, BurnChannel, false>(Base->GetData(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_DODGE: BufferLayerEmbeddedMask<DodgeChannelMasked, DodgeChannel, false>(Base->GetData(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_SCREEN: BufferLayerEmbeddedMask<ScreenChannelMasked, ScreenChannel, false>(Base->GetData(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_OVERLAY: BufferLayerEmbeddedMask<OverlayChannelMasked, OverlayChannel, false>(Base->GetData(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_LIGHTEN: BufferLayerEmbeddedMask<LightenChannelMasked, LightenChannel, false>(Base->GetData(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_MULTIPLY: BufferLayerEmbeddedMask<MultiplyChannelMasked, MultiplyChannel, false>(Base->GetData(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_BLEND: BufferLayerEmbeddedMask<BlendChannelMasked, BlendChannel, false>(Base->GetData(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
 						default: check(false);
 						}
 					}
@@ -2643,22 +2630,16 @@ namespace mu
                     {
                         switch (EBlendType(args.blendType))
                         {
-						case EBlendType::BT_NORMAL_COMBINE: 
-							// \todo: optimise with ping pong buffers or blend-in-place
-							ImageNormalCombine(pNew.get(), pBase.get(), pBlended.get(), bBlendOnlyOneMip);
-							pResult = pNew;
-							pBase = pNew;
-							pNew = new Image(pBase->GetSizeX(), pBase->GetSizeY(), pBase->GetLODCount(), pBase->GetFormat());
-							break;
-                        case EBlendType::BT_SOFTLIGHT: BufferLayer<SoftLightChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_HARDLIGHT: BufferLayer<HardLightChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_BURN: BufferLayer<BurnChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_DODGE: BufferLayer<DodgeChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_SCREEN: BufferLayer<ScreenChannel, false>(pNew.get(), pNew.get(),  pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_OVERLAY: BufferLayer<OverlayChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_LIGHTEN: BufferLayer<LightenChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_MULTIPLY: BufferLayer<MultiplyChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
-                        case EBlendType::BT_BLEND: BufferLayer<BlendChannel, false>(pNew.get(), pNew.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+						case EBlendType::BT_NORMAL_COMBINE: check(false); break;
+                        case EBlendType::BT_SOFTLIGHT: BufferLayer<SoftLightChannel, false>(Base.get(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_HARDLIGHT: BufferLayer<HardLightChannel, false>(Base.get(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BURN: BufferLayer<BurnChannel, false>(Base.get(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_DODGE: BufferLayer<DodgeChannel, false>(Base.get(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_SCREEN: BufferLayer<ScreenChannel, false>(Base.get(), Base.get(),  pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_OVERLAY: BufferLayer<OverlayChannel, false>(Base.get(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_LIGHTEN: BufferLayer<LightenChannel, false>(Base.get(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_MULTIPLY: BufferLayer<MultiplyChannel, false>(Base.get(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BLEND: BufferLayer<BlendChannel, false>(Base.get(), Base.get(), pBlended.get(), bApplyColorBlendToAlpha, bBlendOnlyOneMip); break;
                         default: check(false);
                         }
                     }
@@ -2669,56 +2650,72 @@ namespace mu
 						// Separate alpha operation ignores the mask.
 						switch (EBlendType(args.blendTypeAlpha))
 						{
-						case EBlendType::BT_SOFTLIGHT: BufferLayerInPlace<SoftLightChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
-						case EBlendType::BT_HARDLIGHT: BufferLayerInPlace<HardLightChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
-						case EBlendType::BT_BURN: BufferLayerInPlace<BurnChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
-						case EBlendType::BT_DODGE: BufferLayerInPlace<DodgeChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
-						case EBlendType::BT_SCREEN: BufferLayerInPlace<ScreenChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
-						case EBlendType::BT_OVERLAY: BufferLayerInPlace<OverlayChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
-						case EBlendType::BT_LIGHTEN: BufferLayerInPlace<LightenChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
-						case EBlendType::BT_MULTIPLY: BufferLayerInPlace<MultiplyChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
-						case EBlendType::BT_BLEND: BufferLayerInPlace<BlendChannel, false, 1>(pNew.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_SOFTLIGHT: BufferLayerInPlace<SoftLightChannel, false, 1>(Base.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_HARDLIGHT: BufferLayerInPlace<HardLightChannel, false, 1>(Base.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_BURN: BufferLayerInPlace<BurnChannel, false, 1>(Base.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_DODGE: BufferLayerInPlace<DodgeChannel, false, 1>(Base.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_SCREEN: BufferLayerInPlace<ScreenChannel, false, 1>(Base.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_OVERLAY: BufferLayerInPlace<OverlayChannel, false, 1>(Base.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_LIGHTEN: BufferLayerInPlace<LightenChannel, false, 1>(Base.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_MULTIPLY: BufferLayerInPlace<MultiplyChannel, false, 1>(Base.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
+						case EBlendType::BT_BLEND: BufferLayerInPlace<BlendChannel, false, 1>(Base.get(), pBlended.get(), bBlendOnlyOneMip, 3, 3); break;
 						default: check(false);
 						}
 					}
 				}
 
-				if (bBlendOnlyOneMip)
+				// Are we done?
+				if (CurrentIteration + 1 == Iterations)
 				{
-					MUTABLE_CPUPROFILER_SCOPE(ImageLayer_MipFix);
-					FMipmapGenerationSettings DummyMipSettings{};
-					ImageMipmapInPlace(m_pSettings->GetPrivate()->m_imageCompressionQuality, pNew.get(), DummyMipSettings);
+					if (Data.MultiLayer.bBlendOnlyOneMip)
+					{
+						MUTABLE_CPUPROFILER_SCOPE(ImageLayer_MipFix);
+						FMipmapGenerationSettings DummyMipSettings{};
+						ImageMipmapInPlace(m_pSettings->GetPrivate()->m_imageCompressionQuality, Base.get(), DummyMipSettings);
+					}
+
+					// TODO: Reconvert to OriginalBaseFormat if necessary?
+
+					GetMemory().SetImage(item, Base);
+					Data.Resource = nullptr;
+					break;
+				}
+				else
+				{
+					// Request a new layer
+					++CurrentIteration;
+					FScheduledOp ItemCopy = item;
+					ExecutionIndex Index = GetMemory().GetRageIndex(item.ExecutionIndex);
+					Index.SetFromModelRangeIndex(args.rangeId, CurrentIteration);
+					ItemCopy.ExecutionIndex = GetMemory().GetRageIndexIndex(Index);
+					AddOp(FScheduledOp(item.At, item, 2+CurrentIteration, item.CustomState), FScheduledOp(args.blended, ItemCopy), FScheduledOp(args.mask, ItemCopy));
+
 				}
 
-				// TODO: Reconvert to baseFormat?
-
-                GetMemory().SetImage( item, pResult );
                 break;
             }
 
-            default:
-                check(false);
-            }
+            } // switch stage
 
             break;
         }
 
         case OP_TYPE::IM_DIFFERENCE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageDifferenceArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageDifferenceArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.a, item),
-                           SCHEDULED_OP( args.b, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.a, item),
+                           FScheduledOp( args.b, item) );
                 break;
 
             case 1:
             {
                 // TODO: Reuse base if possible
-                Ptr<const Image> pA = GetMemory().GetImage( CACHE_ADDRESS(args.a,item) );
-                Ptr<const Image> pB = GetMemory().GetImage( CACHE_ADDRESS(args.b,item) );
+                Ptr<const Image> pA = GetMemory().GetImage( FCacheAddress(args.a,item) );
+                Ptr<const Image> pB = GetMemory().GetImage( FCacheAddress(args.b,item) );
 
                 ImagePtr pResult = ImageDifference( pA.get(), pB.get() );
 
@@ -2735,15 +2732,15 @@ namespace mu
 
 		case OP_TYPE::IM_NORMALCOMPOSITE:
 		{
-			OP::ImageNormalCompositeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageNormalCompositeArgs>(item.at);
-			switch (item.stage)
+			OP::ImageNormalCompositeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageNormalCompositeArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
 				if (args.base && args.normal)
 				{
-						AddOp(SCHEDULED_OP(item.at, item, 1),
-							  SCHEDULED_OP(args.base, item),
-							  SCHEDULED_OP(args.normal, item));
+						AddOp(FScheduledOp(item.At, item, 1),
+							  FScheduledOp(args.base, item),
+							  FScheduledOp(args.normal, item));
 					}
 					else
 					{
@@ -2753,8 +2750,8 @@ namespace mu
 
 			case 1:
 			{
-				Ptr<const Image> Base = GetMemory().GetImage(CACHE_ADDRESS(args.base, item));
-				Ptr<const Image> Normal = GetMemory().GetImage(CACHE_ADDRESS(args.normal, item));
+				Ptr<const Image> Base = GetMemory().GetImage(FCacheAddress(args.base, item));
+				Ptr<const Image> Normal = GetMemory().GetImage(FCacheAddress(args.normal, item));
 
 				if (Normal->GetLODCount() < Base->GetLODCount())
 				{
@@ -2790,12 +2787,12 @@ namespace mu
 
         case OP_TYPE::IM_PIXELFORMAT:
         {
-			OP::ImagePixelFormatArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImagePixelFormatArgs>(item.at);
-            switch (item.stage)
+			OP::ImagePixelFormatArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImagePixelFormatArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.source, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.source, item) );
                 break;
 
             case 1:
@@ -2814,12 +2811,12 @@ namespace mu
 
         case OP_TYPE::IM_MIPMAP:
         {
-			OP::ImageMipmapArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMipmapArgs>(item.at);
-            switch (item.stage)
+			OP::ImageMipmapArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMipmapArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-				AddOp( SCHEDULED_OP( item.at, item, 1),
-					SCHEDULED_OP( args.source, item) );
+				AddOp( FScheduledOp( item.At, item, 1),
+					FScheduledOp( args.source, item) );
                 break;
 
             case 1:
@@ -2836,17 +2833,22 @@ namespace mu
 
         case OP_TYPE::IM_RESIZE:
         {
-			OP::ImageResizeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageResizeArgs>(item.at);
-            switch (item.stage)
+			OP::ImageResizeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageResizeArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.source, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.source, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.source,item) );
+                Ptr<const Image> pBase = GetMemory().GetImage( FCacheAddress(args.source,item) );
+
+				if (!pBase)
+				{
+					GetMemory().SetImage(item, nullptr);
+				}
 
                 FImageSize destSize = FImageSize
                     (
@@ -2855,6 +2857,7 @@ namespace mu
                     );
 
                 ImagePtr pResult;
+
                 if ( destSize[0]!=pBase->GetSizeX()
                      ||
                      destSize[1]!=pBase->GetSizeY() )
@@ -2905,19 +2908,19 @@ namespace mu
 
         case OP_TYPE::IM_RESIZELIKE:
         {
-			OP::ImageResizeLikeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageResizeLikeArgs>(item.at);
-            switch (item.stage)
+			OP::ImageResizeLikeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageResizeLikeArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.source, item),
-                           SCHEDULED_OP( args.sizeSource, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.source, item),
+                           FScheduledOp( args.sizeSource, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.source,item) );
-                Ptr<const Image> pSizeBase = GetMemory().GetImage( CACHE_ADDRESS(args.sizeSource,item) );
+                Ptr<const Image> pBase = GetMemory().GetImage( FCacheAddress(args.source,item) );
+                Ptr<const Image> pSizeBase = GetMemory().GetImage( FCacheAddress(args.sizeSource,item) );
                 ImagePtr pResult;
 
                 if ( pBase->GetSizeX()!=pSizeBase->GetSizeX()
@@ -2968,17 +2971,17 @@ namespace mu
 
         case OP_TYPE::IM_RESIZEREL:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageResizeRelArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageResizeRelArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.source, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.source, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.source,item) );
+                Ptr<const Image> pBase = GetMemory().GetImage( FCacheAddress(args.source,item) );
 
                 FImageSize destSize(
                             uint16( FMath::Max(1.0, pBase->GetSizeX()*args.factor[0] + 0.5f ) ),
@@ -3024,17 +3027,17 @@ namespace mu
 
         case OP_TYPE::IM_BLANKLAYOUT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageBlankLayoutArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageBlankLayoutArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP::FromOpAndOptions( args.layout, item, 0) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp::FromOpAndOptions( args.layout, item, 0) );
                 break;
 
             case 1:
             {
-                Ptr<const Layout> pLayout = GetMemory().GetLayout(SCHEDULED_OP::FromOpAndOptions(args.layout, item, 0));
+                Ptr<const Layout> pLayout = GetMemory().GetLayout(FScheduledOp::FromOpAndOptions(args.layout, item, 0));
 
                 FIntPoint SizeInBlocks = pLayout->GetGridSize();
 
@@ -3045,7 +3048,7 @@ namespace mu
 				int32 FullImageMipCount = Image::GetMipmapCount(FullImageSizeInPixels.X, FullImageSizeInPixels.Y);
 
 				FIntPoint ImageSizeInPixels = FullImageSizeInPixels;
-				int32 MipsToSkip = item.executionOptions;
+				int32 MipsToSkip = item.ExecutionOptions;
 				MipsToSkip = FMath::Min(MipsToSkip, FullImageMipCount);
 				if (MipsToSkip > 0)
 				{
@@ -3101,35 +3104,34 @@ namespace mu
 
         case OP_TYPE::IM_COMPOSE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageComposeArgs>( item.at );
-            switch ( item.stage )
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageComposeArgs>( item.At );
+            switch ( item.Stage )
             {
             case 0:
-                AddOp( SCHEDULED_OP( item.at, item, 1 ), 
-					SCHEDULED_OP::FromOpAndOptions( args.layout, item, 0 ) );
+                AddOp( FScheduledOp( item.At, item, 1 ), 
+					FScheduledOp::FromOpAndOptions( args.layout, item, 0 ) );
                 break;
 
             case 1:
             {
-                Ptr<const Layout> pLayout =
-                    GetMemory().GetLayout( CACHE_ADDRESS( args.layout, SCHEDULED_OP::FromOpAndOptions(args.layout, item, 0)) );
+                Ptr<const Layout> ComposeLayout = GetMemory().GetLayout( FCacheAddress( args.layout, FScheduledOp::FromOpAndOptions(args.layout, item, 0)) );
 
                 FScheduledOpData data;
-                data.layout = pLayout;
+                data.Resource = const_cast<Layout*>(ComposeLayout.get());
 				int32 dataPos = m_heapData.Add( data );
 
-                int relBlockIndex = pLayout->FindBlock( args.blockIndex );
+                int relBlockIndex = ComposeLayout->FindBlock( args.blockIndex );
                 if ( relBlockIndex >= 0 )
                 {
-                    AddOp( SCHEDULED_OP( item.at, item, 2, dataPos ),
-                           SCHEDULED_OP( args.base, item ),
-                           SCHEDULED_OP( args.blockImage, item ),
-                           SCHEDULED_OP( args.mask, item ) );
+                    AddOp( FScheduledOp( item.At, item, 2, dataPos ),
+                           FScheduledOp( args.base, item ),
+                           FScheduledOp( args.blockImage, item ),
+                           FScheduledOp( args.mask, item ) );
                 }
                 else
                 {
-                    AddOp( SCHEDULED_OP( item.at, item, 2, dataPos ),
-                           SCHEDULED_OP( args.base, item ) );
+                    AddOp( FScheduledOp( item.At, item, 2, dataPos ),
+                           FScheduledOp( args.base, item ) );
                 }
                 break;
             }
@@ -3148,12 +3150,12 @@ namespace mu
 
         case OP_TYPE::IM_INTERPOLATE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInterpolateArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInterpolateArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                AddOp( SCHEDULED_OP( item.at, item, 1),
-                       SCHEDULED_OP( args.factor, item) );
+                AddOp( FScheduledOp( item.At, item, 1),
+                       FScheduledOp( args.factor, item) );
                 break;
 
             case 1:
@@ -3167,7 +3169,7 @@ namespace mu
                     count++;
                 }
 
-                float factor = GetMemory().GetScalar( CACHE_ADDRESS(args.factor,item) );
+                float factor = GetMemory().GetScalar( FCacheAddress(args.factor,item) );
 
                 float delta = 1.0f/(count-1);
                 int min = (int)floorf( factor/delta );
@@ -3176,26 +3178,26 @@ namespace mu
                 float bifactor = factor/delta - min;
 
                 FScheduledOpData data;
-                data.bifactor = bifactor;
-				data.min = FMath::Clamp(min, 0, count - 1);
-				data.max = FMath::Clamp(max, 0, count - 1);
+                data.Interpolate.Bifactor = bifactor;
+				data.Interpolate.Min = FMath::Clamp(min, 0, count - 1);
+				data.Interpolate.Max = FMath::Clamp(max, 0, count - 1);
 				uint32 dataPos = uint32(m_heapData.Add(data));
 
                 if ( bifactor < UE_SMALL_NUMBER )
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 2, dataPos),
-                               SCHEDULED_OP( args.targets[min], item) );
+                        AddOp( FScheduledOp( item.At, item, 2, dataPos),
+                               FScheduledOp( args.targets[min], item) );
                     }
                 else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
                 {
-                        AddOp( SCHEDULED_OP( item.at, item, 2, dataPos),
-                               SCHEDULED_OP( args.targets[max], item) );
+                        AddOp( FScheduledOp( item.At, item, 2, dataPos),
+                               FScheduledOp( args.targets[max], item) );
                     }
                     else
                     {
-                        AddOp( SCHEDULED_OP( item.at, item, 2, dataPos),
-                               SCHEDULED_OP( args.targets[min], item),
-                               SCHEDULED_OP( args.targets[max], item) );
+                        AddOp( FScheduledOp( item.At, item, 2, dataPos),
+                               FScheduledOp( args.targets[min], item),
+                               FScheduledOp( args.targets[max], item) );
                     }
                 break;
             }
@@ -3212,26 +3214,26 @@ namespace mu
                 }
 
                 // Factor from 0 to 1 between the two targets
-                const FScheduledOpData& data = m_heapData[(size_t)item.customState];
-                float bifactor = data.bifactor;
-                int min = data.min;
-                int max = data.max;
+                const FScheduledOpData& data = m_heapData[(size_t)item.CustomState];
+                float bifactor = data.Interpolate.Bifactor;
+                int min = data.Interpolate.Min;
+                int max = data.Interpolate.Max;
 
                 ImagePtr pResult;
                 if ( bifactor < UE_SMALL_NUMBER )
                 {
-                    Ptr<const Image> pSource = GetMemory().GetImage( CACHE_ADDRESS(args.targets[min],item) );
+                    Ptr<const Image> pSource = GetMemory().GetImage( FCacheAddress(args.targets[min],item) );
                     pResult = pSource->Clone();
                 }
                 else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
                 {
-                    Ptr<const Image> pSource = GetMemory().GetImage( CACHE_ADDRESS(args.targets[max],item) );
+                    Ptr<const Image> pSource = GetMemory().GetImage( FCacheAddress(args.targets[max],item) );
                     pResult = pSource->Clone();
                 }
                 else
                 {
-                    Ptr<const Image> pMin = GetMemory().GetImage( CACHE_ADDRESS(args.targets[min],item) );
-                    Ptr<const Image> pMax = GetMemory().GetImage( CACHE_ADDRESS(args.targets[max],item) );
+                    Ptr<const Image> pMin = GetMemory().GetImage( FCacheAddress(args.targets[min],item) );
+                    Ptr<const Image> pMax = GetMemory().GetImage( FCacheAddress(args.targets[max],item) );
 
                     if (pMin && pMax)
                     {
@@ -3292,28 +3294,28 @@ namespace mu
 
         case OP_TYPE::IM_INTERPOLATE3:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInterpolate3Args>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInterpolate3Args>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP::FromOpAndOptions( args.factor1, item, 0),
-                           SCHEDULED_OP::FromOpAndOptions( args.factor2, item, 0),
-                           SCHEDULED_OP( args.target0, item),
-                           SCHEDULED_OP( args.target1, item),
-                           SCHEDULED_OP( args.target2, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp::FromOpAndOptions( args.factor1, item, 0),
+                           FScheduledOp::FromOpAndOptions( args.factor2, item, 0),
+                           FScheduledOp( args.target0, item),
+                           FScheduledOp( args.target1, item),
+                           FScheduledOp( args.target2, item) );
                 break;
 
             case 1:
             {
                 // \TODO Optimise limit cases
 
-                float factor1 = GetMemory().GetScalar(SCHEDULED_OP::FromOpAndOptions(args.factor1, item, 0));
-                float factor2 = GetMemory().GetScalar(SCHEDULED_OP::FromOpAndOptions(args.factor2, item, 0));
+                float factor1 = GetMemory().GetScalar(FScheduledOp::FromOpAndOptions(args.factor1, item, 0));
+                float factor2 = GetMemory().GetScalar(FScheduledOp::FromOpAndOptions(args.factor2, item, 0));
 
-                Ptr<const Image> pTarget0 = GetMemory().GetImage( CACHE_ADDRESS(args.target0,item) );
-                Ptr<const Image> pTarget1 = GetMemory().GetImage( CACHE_ADDRESS(args.target1,item) );
-                Ptr<const Image> pTarget2 = GetMemory().GetImage( CACHE_ADDRESS(args.target2,item) );
+                Ptr<const Image> pTarget0 = GetMemory().GetImage( FCacheAddress(args.target0,item) );
+                Ptr<const Image> pTarget1 = GetMemory().GetImage( FCacheAddress(args.target1,item) );
+                Ptr<const Image> pTarget2 = GetMemory().GetImage( FCacheAddress(args.target2,item) );
 
                 ImagePtr pResult = ImageInterpolate( pTarget0.get(), pTarget1.get(), pTarget2.get(),
                                                      factor1, factor2 );
@@ -3331,19 +3333,19 @@ namespace mu
 
         case OP_TYPE::IM_SATURATE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSaturateArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSaturateArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.base, item ),
-                           SCHEDULED_OP::FromOpAndOptions( args.factor, item, 0 ));
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.base, item ),
+                           FScheduledOp::FromOpAndOptions( args.factor, item, 0 ));
                 break;
 
             case 1:
             {
-                Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
-                float factor = GetMemory().GetScalar(SCHEDULED_OP::FromOpAndOptions(args.factor, item, 0));
+                Ptr<const Image> pBase = GetMemory().GetImage( FCacheAddress(args.base,item) );
+                float factor = GetMemory().GetScalar(FScheduledOp::FromOpAndOptions(args.factor, item, 0));
 
                 ImagePtr pResult = ImageSaturate( pBase.get(), factor );
 
@@ -3360,17 +3362,17 @@ namespace mu
 
         case OP_TYPE::IM_LUMINANCE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLuminanceArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLuminanceArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                AddOp( SCHEDULED_OP( item.at, item, 1),
-                        SCHEDULED_OP( args.base, item ) );
+                AddOp( FScheduledOp( item.At, item, 1),
+                        FScheduledOp( args.base, item ) );
                 break;
 
             case 1:
             {
-                Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
+                Ptr<const Image> pBase = GetMemory().GetImage( FCacheAddress(args.base,item) );
 
                 ImagePtr pResult = ImageLuminance( pBase.get() );
                 GetMemory().SetImage( item, pResult );
@@ -3386,15 +3388,15 @@ namespace mu
 
         case OP_TYPE::IM_SWIZZLE:
         {
-			OP::ImageSwizzleArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSwizzleArgs>(item.at);
-            switch (item.stage)
+			OP::ImageSwizzleArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSwizzleArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                AddOp( SCHEDULED_OP( item.at, item, 1),
-                        SCHEDULED_OP( args.sources[0], item ),
-                        SCHEDULED_OP( args.sources[1], item ),
-                        SCHEDULED_OP( args.sources[2], item ),
-                        SCHEDULED_OP( args.sources[3], item ) );
+                AddOp( FScheduledOp( item.At, item, 1),
+                        FScheduledOp( args.sources[0], item ),
+                        FScheduledOp( args.sources[1], item ),
+                        FScheduledOp( args.sources[2], item ),
+                        FScheduledOp( args.sources[3], item ) );
                 break;
 
             case 1:
@@ -3411,19 +3413,19 @@ namespace mu
 
         case OP_TYPE::IM_SELECTCOLOUR:
         {
-			OP::ImageSelectColourArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSelectColourArgs>(item.at);
-            switch (item.stage)
+			OP::ImageSelectColourArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSelectColourArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                AddOp( SCHEDULED_OP( item.at, item, 1),
-                        SCHEDULED_OP( args.base, item ),
-                        SCHEDULED_OP::FromOpAndOptions( args.colour, item, 0 ) );
+                AddOp( FScheduledOp( item.At, item, 1),
+                        FScheduledOp( args.base, item ),
+                        FScheduledOp::FromOpAndOptions( args.colour, item, 0 ) );
                 break;
 
             case 1:
             {
-                Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
-				FVector4f colour = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour, item, 0));
+                Ptr<const Image> pBase = GetMemory().GetImage( FCacheAddress(args.base,item) );
+				FVector4f colour = GetMemory().GetColour(FScheduledOp::FromOpAndOptions(args.colour, item, 0));
 
 				Ptr<Image> pResult = ImageSelectColour( pBase.get(), vec3f(colour) );
 
@@ -3440,21 +3442,21 @@ namespace mu
 
         case OP_TYPE::IM_COLOURMAP:
         {
-			OP::ImageColourMapArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageColourMapArgs>(item.at);
-            switch (item.stage)
+			OP::ImageColourMapArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageColourMapArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.base, item ),
-                           SCHEDULED_OP( args.mask, item ),
-                           SCHEDULED_OP( args.map, item ) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.base, item ),
+                           FScheduledOp( args.mask, item ),
+                           FScheduledOp( args.map, item ) );
                 break;
 
             case 1:
             {
-                Ptr<const Image> pSource = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
-                Ptr<const Image> pMask = GetMemory().GetImage( CACHE_ADDRESS(args.mask,item) );
-                Ptr<const Image> pMap = GetMemory().GetImage( CACHE_ADDRESS(args.map,item) );
+                Ptr<const Image> pSource = GetMemory().GetImage( FCacheAddress(args.base,item) );
+                Ptr<const Image> pMask = GetMemory().GetImage( FCacheAddress(args.mask,item) );
+                Ptr<const Image> pMap = GetMemory().GetImage( FCacheAddress(args.map,item) );
 
 				// Be defensive: ensure image sizes match.
 				if (pMask->GetSize() != pSource->GetSize())
@@ -3479,19 +3481,19 @@ namespace mu
 
         case OP_TYPE::IM_GRADIENT:
         {
-			OP::ImageGradientArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageGradientArgs>(item.at);
-            switch (item.stage)
+			OP::ImageGradientArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageGradientArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP::FromOpAndOptions( args.colour0, item, 0 ),
-                           SCHEDULED_OP::FromOpAndOptions( args.colour1, item, 0 ) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp::FromOpAndOptions( args.colour0, item, 0 ),
+                           FScheduledOp::FromOpAndOptions( args.colour1, item, 0 ) );
                 break;
 
             case 1:
             {
-				FVector4f colour0 = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour0, item, 0));
-				FVector4f colour1 = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour1, item, 0));
+				FVector4f colour0 = GetMemory().GetColour(FScheduledOp::FromOpAndOptions(args.colour0, item, 0));
+				FVector4f colour1 = GetMemory().GetColour(FScheduledOp::FromOpAndOptions(args.colour1, item, 0));
 
                 ImagePtr pResult = ImageGradient( colour0, colour1,
                                                   args.size[0],
@@ -3510,20 +3512,20 @@ namespace mu
 
         case OP_TYPE::IM_BINARISE:
         {
-			OP::ImageBinariseArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageBinariseArgs>(item.at);
-            switch (item.stage)
+			OP::ImageBinariseArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageBinariseArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.base, item ),
-                           SCHEDULED_OP::FromOpAndOptions( args.threshold, item, 0 ) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.base, item ),
+                           FScheduledOp::FromOpAndOptions( args.threshold, item, 0 ) );
                 break;
 
             case 1:
             {
-                Ptr<const Image> pA = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
+                Ptr<const Image> pA = GetMemory().GetImage( FCacheAddress(args.base,item) );
 
-                float c = GetMemory().GetScalar(SCHEDULED_OP::FromOpAndOptions(args.threshold, item, 0));
+                float c = GetMemory().GetScalar(FScheduledOp::FromOpAndOptions(args.threshold, item, 0));
 
                 ImagePtr pResult = ImageBinarise( pA.get(), c );
 
@@ -3540,17 +3542,17 @@ namespace mu
 
 		case OP_TYPE::IM_INVERT:
 		{
-			OP::ImageInvertArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInvertArgs>(item.at);
-			switch (item.stage)
+			OP::ImageInvertArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInvertArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-					AddOp(SCHEDULED_OP(item.at, item, 1),
-						SCHEDULED_OP(args.base, item));
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.base, item));
 				break;
 
 			case 1:
 			{
-				Ptr<const Image> pA = GetMemory().GetImage(CACHE_ADDRESS(args.base, item));
+				Ptr<const Image> pA = GetMemory().GetImage(FCacheAddress(args.base, item));
 
 				ImagePtr pResult = ImageInvert(pA.get());
 
@@ -3567,21 +3569,21 @@ namespace mu
 
         case OP_TYPE::IM_PLAINCOLOUR:
         {
-			OP::ImagePlainColourArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImagePlainColourArgs>(item.at);
-            switch (item.stage)
+			OP::ImagePlainColourArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImagePlainColourArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-				AddOp( SCHEDULED_OP( item.at, item, 1),
-					SCHEDULED_OP::FromOpAndOptions( args.colour, item, 0 ) );
+				AddOp( FScheduledOp( item.At, item, 1),
+					FScheduledOp::FromOpAndOptions( args.colour, item, 0 ) );
                 break;
 
             case 1:
             {
-				FVector4f c = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour, item, 0));
+				FVector4f c = GetMemory().GetColour(FScheduledOp::FromOpAndOptions(args.colour, item, 0));
 
 				uint16 SizeX = args.size[0];
 				uint16 SizeY = args.size[1];
-				for (int l=0; l<item.executionOptions; ++l)
+				for (int l=0; l<item.ExecutionOptions; ++l)
 				{
 					SizeX = FMath::Max(uint16(1), FMath::DivideAndRoundUp(SizeX, uint16(2)));
 					SizeY = FMath::Max(uint16(1), FMath::DivideAndRoundUp(SizeY, uint16(2)));
@@ -3613,17 +3615,17 @@ namespace mu
 
         case OP_TYPE::IM_CROP:
         {
-			OP::ImageCropArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageCropArgs>(item.at);
-            switch (item.stage)
+			OP::ImageCropArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageCropArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                AddOp( SCHEDULED_OP( item.at, item, 1),
-					SCHEDULED_OP( args.source, item ) );
+                AddOp( FScheduledOp( item.At, item, 1),
+					FScheduledOp( args.source, item ) );
                 break;
 
             case 1:
             {
-                Ptr<const Image> pA = GetMemory().GetImage( CACHE_ADDRESS(args.source,item) );
+                Ptr<const Image> pA = GetMemory().GetImage( FCacheAddress(args.source,item) );
 
                 box< vec2<int> > rect;
                 rect.min[0] = args.minX;
@@ -3632,7 +3634,7 @@ namespace mu
                 rect.size[1] = args.sizeY;
 
 				// Apply ther mipmap reduction to the crop rectangle.
-				int32 MipsToSkip = item.executionOptions;
+				int32 MipsToSkip = item.ExecutionOptions;
 				while ( MipsToSkip>0 && rect.size[0]>0 && rect.size[1]>0 )
 				{
 					rect.ShrinkToHalf();
@@ -3658,21 +3660,21 @@ namespace mu
 
         case OP_TYPE::IM_PATCH:
         {
-			OP::ImagePatchArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImagePatchArgs>(item.at);
-            switch (item.stage)
+			OP::ImagePatchArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImagePatchArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                AddOp( SCHEDULED_OP( item.at, item, 1),
-					SCHEDULED_OP( args.base, item ),
-					SCHEDULED_OP( args.patch, item ) );
+                AddOp( FScheduledOp( item.At, item, 1),
+					FScheduledOp( args.base, item ),
+					FScheduledOp( args.patch, item ) );
                 break;
 
             case 1:
             {
                 MUTABLE_CPUPROFILER_SCOPE(ImagePatch);
 
-                Ptr<const Image> pA = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
-                Ptr<const Image> pB = GetMemory().GetImage( CACHE_ADDRESS(args.patch,item) );
+                Ptr<const Image> pA = GetMemory().GetImage( FCacheAddress(args.base,item) );
+                Ptr<const Image> pB = GetMemory().GetImage( FCacheAddress(args.patch,item) );
 
 				// Failsafe
 				if (!pA || !pB)
@@ -3688,7 +3690,7 @@ namespace mu
                 rect.size[1] = pB->GetSizeY();
 
 				// Apply ther mipmap reduction to the crop rectangle.
-				int32 MipsToSkip = item.executionOptions;
+				int32 MipsToSkip = item.ExecutionOptions;
 				while (MipsToSkip > 0 && rect.size[0] > 0 && rect.size[1] > 0)
 				{
 					rect.min/=2;
@@ -3771,23 +3773,23 @@ namespace mu
 
         case OP_TYPE::IM_RASTERMESH:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageRasterMeshArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageRasterMeshArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                     if (!args.image)
                     {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                            SCHEDULED_OP::FromOpAndOptions( args.mesh, item, 0 ) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+                            FScheduledOp::FromOpAndOptions( args.mesh, item, 0 ) );
                     }
                     else
                     {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-							SCHEDULED_OP::FromOpAndOptions( args.mesh, item, 0),
-							SCHEDULED_OP( args.image, item ),
-							SCHEDULED_OP( args.mask, item ),
-							SCHEDULED_OP::FromOpAndOptions( args.angleFadeProperties, item, 0 ),
-							SCHEDULED_OP::FromOpAndOptions( args.projector, item, 0 ) );
+                        AddOp( FScheduledOp( item.At, item, 1),
+							FScheduledOp::FromOpAndOptions( args.mesh, item, 0),
+							FScheduledOp( args.image, item ),
+							FScheduledOp( args.mask, item ),
+							FScheduledOp::FromOpAndOptions( args.angleFadeProperties, item, 0 ),
+							FScheduledOp::FromOpAndOptions( args.projector, item, 0 ) );
                     }
                 break;
 
@@ -3795,7 +3797,7 @@ namespace mu
             {
                 MUTABLE_CPUPROFILER_SCOPE(RunCode_RasterMesh);
 
-                Ptr<const Mesh> pMesh = GetMemory().GetMesh( SCHEDULED_OP::FromOpAndOptions(args.mesh, item, 0) );
+                Ptr<const Mesh> pMesh = GetMemory().GetMesh( FScheduledOp::FromOpAndOptions(args.mesh, item, 0) );
 
                 ImagePtr pNew;
 
@@ -3803,7 +3805,7 @@ namespace mu
 				uint16 SizeY = args.sizeY;
 
 				// Drop mips while possible
-				int32 MipsToDrop = item.executionOptions;
+				int32 MipsToDrop = item.ExecutionOptions;
 				while (MipsToDrop && !(SizeX % 2) && !(SizeY % 2))
 				{
 					SizeX = FMath::Max(uint16(1),FMath::DivideAndRoundUp(SizeX, uint16(2)));
@@ -3819,12 +3821,12 @@ namespace mu
                 else if (args.image)
                 {
                     // Raster with projection
-                    Ptr<const Image> pSource = GetMemory().GetImage( CACHE_ADDRESS(args.image,item) );
+                    Ptr<const Image> pSource = GetMemory().GetImage( FCacheAddress(args.image,item) );
 
                     Ptr<const Image> pMask = nullptr;
                     if ( args.mask )
                     {
-                        pMask = GetMemory().GetImage( CACHE_ADDRESS(args.mask,item) );
+                        pMask = GetMemory().GetImage( FCacheAddress(args.mask,item) );
 
 						// TODO: This shouldn't happen, but be defensive.
 						FImageSize ResultSize(SizeX, SizeY);
@@ -3839,7 +3841,7 @@ namespace mu
                     float fadeEnd = 180.0f;
                     if ( args.angleFadeProperties )
                     {
-                        auto fadeProperties = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.angleFadeProperties, item, 0));
+                        auto fadeProperties = GetMemory().GetColour(FScheduledOp::FromOpAndOptions(args.angleFadeProperties, item, 0));
                         fadeStart = fadeProperties[0];
                         fadeEnd = fadeProperties[1];
                     }
@@ -3867,7 +3869,7 @@ namespace mu
                     float projectionAngle = 0;
                     if ( args.projector )
                     {
-                        auto pProjector = GetMemory().GetProjector(SCHEDULED_OP::FromOpAndOptions(args.projector, item, 0));
+                        auto pProjector = GetMemory().GetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
                         if (pProjector)
                         {
                             projectionAngle = pProjector->m_value.projectionAngle;
@@ -3926,19 +3928,19 @@ namespace mu
 
         case OP_TYPE::IM_MAKEGROWMAP:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMakeGrowMapArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMakeGrowMapArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.mask, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.mask, item) );
                 break;
 
             case 1:
             {
                 MUTABLE_CPUPROFILER_SCOPE(RunCode_ImageMakeGrowMap);
 
-                Ptr<const Image> pMask = GetMemory().GetImage( CACHE_ADDRESS(args.mask,item) );
+                Ptr<const Image> pMask = GetMemory().GetImage( FCacheAddress(args.mask,item) );
 
                 ImagePtr pNew = new Image( pMask->GetSizeX(), pMask->GetSizeY(), pMask->GetLODCount(), EImageFormat::IF_L_UBYTE);
 
@@ -3958,21 +3960,21 @@ namespace mu
 
         case OP_TYPE::IM_DISPLACE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageDisplaceArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageDisplaceArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.source, item ),
-                           SCHEDULED_OP( args.displacementMap, item ) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.source, item ),
+                           FScheduledOp( args.displacementMap, item ) );
                 break;
 
             case 1:
             {
                 MUTABLE_CPUPROFILER_SCOPE(RunCode_ImageDisplace);
 
-                Ptr<const Image> pSource = GetMemory().GetImage( CACHE_ADDRESS(args.source,item) );
-                Ptr<const Image> pMap = GetMemory().GetImage( CACHE_ADDRESS(args.displacementMap,item) );
+                Ptr<const Image> pSource = GetMemory().GetImage( FCacheAddress(args.source,item) );
+                Ptr<const Image> pMap = GetMemory().GetImage( FCacheAddress(args.displacementMap,item) );
 
 				// TODO: This shouldn't happen: displacement maps cannot be scaled because their information
 				// is resolution sensitive (pixel offsets). If the size doesn't match, scale the source, apply 
@@ -4010,38 +4012,38 @@ namespace mu
 
         case OP_TYPE::IM_TRANSFORM:
         {
-            const OP::ImageTransformArgs Args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageTransformArgs>(item.at);
+            const OP::ImageTransformArgs Args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageTransformArgs>(item.At);
 
-            switch (item.stage)
+            switch (item.Stage)
             {
             case 0:
 			{
-				const TArray<SCHEDULED_OP, TInlineAllocator<6>> Deps = {
-						SCHEDULED_OP( Args.base, item),
-						SCHEDULED_OP( Args.offsetX, item),
-						SCHEDULED_OP( Args.offsetY, item),
-						SCHEDULED_OP( Args.scaleX, item),
-						SCHEDULED_OP( Args.scaleY, item),
-						SCHEDULED_OP( Args.rotation, item) };
+				const TArray<FScheduledOp, TInlineAllocator<6>> Deps = {
+						FScheduledOp( Args.base, item),
+						FScheduledOp( Args.offsetX, item),
+						FScheduledOp( Args.offsetY, item),
+						FScheduledOp( Args.scaleX, item),
+						FScheduledOp( Args.scaleY, item),
+						FScheduledOp( Args.rotation, item) };
 
-                AddOp( SCHEDULED_OP( item.at, item, 1), Deps );
+                AddOp( FScheduledOp( item.At, item, 1), Deps );
 
 				break;
 			}
             case 1:
             {
-                Ptr<const Image> pBaseImage = GetMemory().GetImage( CACHE_ADDRESS(Args.base, item) );
+                Ptr<const Image> pBaseImage = GetMemory().GetImage( FCacheAddress(Args.base, item) );
                 
                 const FVector2f Offset = FVector2f(
-                        Args.offsetX ? GetMemory().GetScalar( CACHE_ADDRESS(Args.offsetX, item) ) : 0.0f,
-                        Args.offsetY ? GetMemory().GetScalar( CACHE_ADDRESS(Args.offsetY, item) ) : 0.0f );
+                        Args.offsetX ? GetMemory().GetScalar( FCacheAddress(Args.offsetX, item) ) : 0.0f,
+                        Args.offsetY ? GetMemory().GetScalar( FCacheAddress(Args.offsetY, item) ) : 0.0f );
 
                 const FVector2f Scale = FVector2f(
-                        Args.scaleX ? GetMemory().GetScalar( CACHE_ADDRESS(Args.scaleX, item) ) : 1.0f,
-                        Args.scaleY ? GetMemory().GetScalar( CACHE_ADDRESS(Args.scaleY, item) ) : 1.0f );
+                        Args.scaleX ? GetMemory().GetScalar( FCacheAddress(Args.scaleX, item) ) : 1.0f,
+                        Args.scaleY ? GetMemory().GetScalar( FCacheAddress(Args.scaleY, item) ) : 1.0f );
 
 				// Map Range 0-1 to a full rotation
-                const float Rotation = GetMemory().GetScalar( CACHE_ADDRESS(Args.rotation, item) ) * UE_TWO_PI;
+                const float Rotation = GetMemory().GetScalar( FCacheAddress(Args.rotation, item) ) * UE_TWO_PI;
 
 
 				Ptr<Image> pResult = new Image( pBaseImage->GetSizeX(), pBaseImage->GetSizeY(), 1, pBaseImage->GetFormat());
@@ -4077,13 +4079,9 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    Ptr<RangeIndex> CodeRunner::BuildCurrentOpRangeIndex( const SCHEDULED_OP& item,
-                                                        const Parameters* pParams,
-                                                        const Model* pModel,
-                                                        int parameterIndex
-                                                        )
+    Ptr<RangeIndex> CodeRunner::BuildCurrentOpRangeIndex( const FScheduledOp& item, const Parameters* pParams, const Model* pModel, int32 parameterIndex )
     {
-        if (!item.executionIndex)
+        if (!item.ExecutionIndex)
         {
             return nullptr;
         }
@@ -4103,7 +4101,7 @@ namespace mu
              ++rangeIndexInParam )
         {
             auto rangeIndexInModel = paramDesc.m_ranges[rangeIndexInParam];
-            const ExecutionIndex& currentIndex = GetMemory().GetRageIndex( item.executionIndex );
+            const ExecutionIndex& currentIndex = GetMemory().GetRageIndex( item.ExecutionIndex );
             int position = currentIndex.GetFromModelRangeIndex(rangeIndexInModel);
             index->GetPrivate()->m_values[rangeIndexInParam] = position;
         }
@@ -4113,7 +4111,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Bool( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_Bool( FScheduledOp& item,
                                    const Parameters* pParams,
                                    const Model* pModel
                                    )
@@ -4121,13 +4119,13 @@ namespace mu
         //MUTABLE_CPUPROFILER_SCOPE(RunCode_Bool);
 
         const auto& program = pModel->GetPrivate()->m_program;
-        auto type = program.GetOpType(item.at);
+        auto type = program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::BO_CONSTANT:
         {
-            auto args = program.GetOpArgs<OP::BoolConstantArgs>(item.at);
+            auto args = program.GetOpArgs<OP::BoolConstantArgs>(item.At);
             bool result = args.value;
             GetMemory().SetBool( item, result );
             break;
@@ -4135,7 +4133,7 @@ namespace mu
 
         case OP_TYPE::BO_PARAMETER:
         {
-            auto args = program.GetOpArgs<OP::ParameterArgs>(item.at);
+            auto args = program.GetOpArgs<OP::ParameterArgs>(item.At);
             bool result = false;
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             result = pParams->GetBoolValue( args.variable, index );
@@ -4145,19 +4143,19 @@ namespace mu
 
         case OP_TYPE::BO_LESS:
         {
-            auto args = program.GetOpArgs<OP::BoolLessArgs>(item.at);
-            switch (item.stage)
+            auto args = program.GetOpArgs<OP::BoolLessArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.a, item),
-                           SCHEDULED_OP( args.b, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.a, item),
+                           FScheduledOp( args.b, item) );
                 break;
 
             case 1:
             {
-                float a = GetMemory().GetScalar( CACHE_ADDRESS(args.a,item) );
-                float b = GetMemory().GetScalar( CACHE_ADDRESS(args.b,item) );
+                float a = GetMemory().GetScalar( FCacheAddress(args.a,item) );
+                float b = GetMemory().GetScalar( FCacheAddress(args.b,item) );
                 bool result = a<b;
                 GetMemory().SetBool( item, result );
                 break;
@@ -4172,16 +4170,16 @@ namespace mu
 
         case OP_TYPE::BO_AND:
         {
-            auto args = program.GetOpArgs<OP::BoolBinaryArgs>(item.at);
-            switch (item.stage)
+            auto args = program.GetOpArgs<OP::BoolBinaryArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 {
                     // Try to avoid the op entirely if we have some children cached
                     bool skip = false;
-                    if ( args.a && GetMemory().IsValid( CACHE_ADDRESS(args.a,item) ) )
+                    if ( args.a && GetMemory().IsValid( FCacheAddress(args.a,item) ) )
                     {
-                         bool a = GetMemory().GetBool( CACHE_ADDRESS(args.a,item) );
+                         bool a = GetMemory().GetBool( FCacheAddress(args.a,item) );
                          if (!a)
                          {
                             GetMemory().SetBool( item, false );
@@ -4189,9 +4187,9 @@ namespace mu
                          }
                     }
 
-                    if ( !skip && args.b && GetMemory().IsValid( CACHE_ADDRESS(args.b,item) ) )
+                    if ( !skip && args.b && GetMemory().IsValid( FCacheAddress(args.b,item) ) )
                     {
-                         bool b = GetMemory().GetBool( CACHE_ADDRESS(args.b,item) );
+                         bool b = GetMemory().GetBool( FCacheAddress(args.b,item) );
                          if (!b)
                          {
                             GetMemory().SetBool( item, false );
@@ -4201,23 +4199,23 @@ namespace mu
 
                     if (!skip)
                     {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.a, item));
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.a, item));
                     }
 				break;
                 }
 
             case 1:
             {
-                bool a = args.a ? GetMemory().GetBool( CACHE_ADDRESS(args.a,item) ) : true;
+                bool a = args.a ? GetMemory().GetBool( FCacheAddress(args.a,item) ) : true;
                 if (!a)
                 {
                     GetMemory().SetBool( item, false );
                 }
                 else
                 {
-                    AddOp( SCHEDULED_OP( item.at, item, 2),
-                           SCHEDULED_OP( args.b, item));
+                    AddOp( FScheduledOp( item.At, item, 2),
+                           FScheduledOp( args.b, item));
                 }
                 break;
             }
@@ -4225,7 +4223,7 @@ namespace mu
             case 2:
             {
                 // We arrived here because a is true
-                bool b = args.b ? GetMemory().GetBool( CACHE_ADDRESS(args.b,item) ) : true;
+                bool b = args.b ? GetMemory().GetBool( FCacheAddress(args.b,item) ) : true;
                 GetMemory().SetBool( item, b );
                 break;
             }
@@ -4238,16 +4236,16 @@ namespace mu
 
         case OP_TYPE::BO_OR:
         {
-            auto args = program.GetOpArgs<OP::BoolBinaryArgs>(item.at);
-            switch (item.stage)
+            auto args = program.GetOpArgs<OP::BoolBinaryArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
                 {
                     // Try to avoid the op entirely if we have some children cached
                     bool skip = false;
-                    if ( args.a && GetMemory().IsValid( CACHE_ADDRESS(args.a,item) ) )
+                    if ( args.a && GetMemory().IsValid( FCacheAddress(args.a,item) ) )
                     {
-                         bool a = GetMemory().GetBool( CACHE_ADDRESS(args.a,item) );
+                         bool a = GetMemory().GetBool( FCacheAddress(args.a,item) );
                          if (a)
                          {
                             GetMemory().SetBool( item, true );
@@ -4255,9 +4253,9 @@ namespace mu
                          }
                     }
 
-                    if ( !skip && args.b && GetMemory().IsValid( CACHE_ADDRESS(args.b,item) ) )
+                    if ( !skip && args.b && GetMemory().IsValid( FCacheAddress(args.b,item) ) )
                     {
-                         bool b = GetMemory().GetBool( CACHE_ADDRESS(args.b,item) );
+                         bool b = GetMemory().GetBool( FCacheAddress(args.b,item) );
                          if (b)
                          {
                             GetMemory().SetBool( item, true );
@@ -4267,23 +4265,23 @@ namespace mu
 
                     if (!skip)
                     {
-                        AddOp( SCHEDULED_OP( item.at, item, 1),
-                               SCHEDULED_OP( args.a, item));
+                        AddOp( FScheduledOp( item.At, item, 1),
+                               FScheduledOp( args.a, item));
                     }
 				break;
                 }
 
             case 1:
             {
-                bool a = args.a ? GetMemory().GetBool( CACHE_ADDRESS(args.a,item) ) : false;
+                bool a = args.a ? GetMemory().GetBool( FCacheAddress(args.a,item) ) : false;
                 if (a)
                 {
                     GetMemory().SetBool( item, true );
                 }
                 else
                 {
-                    AddOp( SCHEDULED_OP( item.at, item, 2),
-                           SCHEDULED_OP( args.b, item));
+                    AddOp( FScheduledOp( item.At, item, 2),
+                           FScheduledOp( args.b, item));
                 }
                 break;
             }
@@ -4291,7 +4289,7 @@ namespace mu
             case 2:
             {
                 // We arrived here because a is false
-                bool b = args.b ? GetMemory().GetBool( CACHE_ADDRESS(args.b,item) ) : false;
+                bool b = args.b ? GetMemory().GetBool( FCacheAddress(args.b,item) ) : false;
                 GetMemory().SetBool( item, b );
                 break;
             }
@@ -4304,17 +4302,17 @@ namespace mu
 
         case OP_TYPE::BO_NOT:
         {
-            auto args = program.GetOpArgs<OP::BoolNotArgs>(item.at);
-            switch (item.stage)
+            auto args = program.GetOpArgs<OP::BoolNotArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.source, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.source, item) );
                 break;
 
             case 1:
             {
-                bool result = !GetMemory().GetBool( CACHE_ADDRESS(args.source,item) );
+                bool result = !GetMemory().GetBool( FCacheAddress(args.source,item) );
                 GetMemory().SetBool( item, result );
                 break;
             }
@@ -4327,17 +4325,17 @@ namespace mu
 
         case OP_TYPE::BO_EQUAL_INT_CONST:
         {
-            auto args = program.GetOpArgs<OP::BoolEqualScalarConstArgs>(item.at);
-            switch (item.stage)
+            auto args = program.GetOpArgs<OP::BoolEqualScalarConstArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.value, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.value, item) );
                 break;
 
             case 1:
             {
-                int a = GetMemory().GetInt( CACHE_ADDRESS(args.value,item) );
+                int a = GetMemory().GetInt( FCacheAddress(args.value,item) );
                 bool result = a == args.constant;
                 GetMemory().SetBool( item, result );
                 break;
@@ -4357,20 +4355,20 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Int( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_Int( FScheduledOp& item,
                                   const Parameters* pParams,
                                   const Model* pModel
                               )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Int);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::NU_CONSTANT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::IntConstantArgs>(item.at);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::IntConstantArgs>(item.At);
             int result = args.value;
             GetMemory().SetInt( item, result );
             break;
@@ -4378,7 +4376,7 @@ namespace mu
 
         case OP_TYPE::NU_PARAMETER:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.at);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             int result = pParams->GetIntValue( args.variable, index );
 
@@ -4414,20 +4412,20 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Scalar( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_Scalar( FScheduledOp& item,
                                      const Parameters* pParams,
                                      const Model* pModel
                                      )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Scalar);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::SC_CONSTANT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ScalarConstantArgs>(item.at);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ScalarConstantArgs>(item.At);
             float result = args.value;
             GetMemory().SetScalar( item, result );
             break;
@@ -4435,7 +4433,7 @@ namespace mu
 
         case OP_TYPE::SC_PARAMETER:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.at);
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             float result = pParams->GetFloatValue( args.variable, index );
             GetMemory().SetScalar( item, result );
@@ -4444,17 +4442,17 @@ namespace mu
 
         case OP_TYPE::SC_CURVE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ScalarCurveArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ScalarCurveArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.time, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.time, item) );
                 break;
 
             case 1:
             {
-                float time = GetMemory().GetScalar( CACHE_ADDRESS(args.time,item) );
+                float time = GetMemory().GetScalar( FCacheAddress(args.time,item) );
 
                 const Curve& curve = pModel->GetPrivate()->m_program.m_constantCurves[args.curve];
                 float result = EvalCurve(curve, time);
@@ -4476,19 +4474,19 @@ namespace mu
 
         case OP_TYPE::SC_ARITHMETIC:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ArithmeticArgs>(item.at);
-            switch (item.stage)
+            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ArithmeticArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.a, item),
-                           SCHEDULED_OP( args.b, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.a, item),
+                           FScheduledOp( args.b, item) );
                 break;
 
             case 1:
             {
-                float a = GetMemory().GetScalar( CACHE_ADDRESS(args.a,item) );
-                float b = GetMemory().GetScalar( CACHE_ADDRESS(args.b,item) );
+                float a = GetMemory().GetScalar( FCacheAddress(args.a,item) );
+                float b = GetMemory().GetScalar( FCacheAddress(args.b,item) );
 
                 float result = 1.0f;
                 switch (args.operation)
@@ -4533,17 +4531,17 @@ namespace mu
 
     //---------------------------------------------------------------------------------------------
     void
-    CodeRunner::RunCode_String( SCHEDULED_OP& item, const Parameters* pParams, const Model* pModel )
+    CodeRunner::RunCode_String( FScheduledOp& item, const Parameters* pParams, const Model* pModel )
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_String );
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType( item.at );
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType( item.At );
         switch ( type )
         {
 
         case OP_TYPE::ST_CONSTANT:
         {
-			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>( item.at );
+			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>( item.At );
             check( args.value < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
 
             auto result = pModel->GetPrivate()->m_program.m_constantStrings[args.value];
@@ -4554,7 +4552,7 @@ namespace mu
 
         case OP_TYPE::ST_PARAMETER:
         {
-			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>( item.at );
+			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>( item.At );
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             string result = pParams->GetStringValue( args.variable, index );
             GetMemory().SetString( item, new String( result.c_str() ) );
@@ -4569,14 +4567,14 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Colour( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_Colour( FScheduledOp& item,
                                      const Parameters* pParams,
                                      const Model* pModel
                                      )
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Colour);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
 
         const auto& program = pModel->GetPrivate()->m_program;
 
@@ -4585,7 +4583,7 @@ namespace mu
 
         case OP_TYPE::CO_CONSTANT:
         {
-			OP::ColourConstantArgs args = program.GetOpArgs<OP::ColourConstantArgs>(item.at);
+			OP::ColourConstantArgs args = program.GetOpArgs<OP::ColourConstantArgs>(item.At);
 			FVector4f result;
             result[0] = args.value[0];
             result[1] = args.value[1];
@@ -4597,7 +4595,7 @@ namespace mu
 
         case OP_TYPE::CO_PARAMETER:
         {
-			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.at);
+			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             float r=0.0f;
             float g=0.0f;
@@ -4609,23 +4607,23 @@ namespace mu
 
         case OP_TYPE::CO_SAMPLEIMAGE:
         {
-			OP::ColourSampleImageArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourSampleImageArgs>(item.at);
-            switch (item.stage)
+			OP::ColourSampleImageArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourSampleImageArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.x, item),
-                           SCHEDULED_OP( args.y, item),
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.x, item),
+                           FScheduledOp( args.y, item),
 						   // Don't skip mips for the texture to sample
-                           SCHEDULED_OP::FromOpAndOptions( args.image, item, 0) );
+                           FScheduledOp::FromOpAndOptions( args.image, item, 0) );
                 break;
 
             case 1:
             {
-                float x = args.x ? GetMemory().GetScalar( CACHE_ADDRESS(args.x,item) ) : 0.5f;
-                float y = args.y ? GetMemory().GetScalar( CACHE_ADDRESS(args.y,item) ) : 0.5f;
+                float x = args.x ? GetMemory().GetScalar( FCacheAddress(args.x,item) ) : 0.5f;
+                float y = args.y ? GetMemory().GetScalar( FCacheAddress(args.y,item) ) : 0.5f;
 
-                Ptr<const Image> pImage = GetMemory().GetImage(SCHEDULED_OP::FromOpAndOptions(args.image, item, 0));
+                Ptr<const Image> pImage = GetMemory().GetImage(FScheduledOp::FromOpAndOptions(args.image, item, 0));
 
 				FVector4f result;
                 if (pImage)
@@ -4658,15 +4656,15 @@ namespace mu
 
         case OP_TYPE::CO_SWIZZLE:
         {
-			OP::ColourSwizzleArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourSwizzleArgs>(item.at);
-            switch (item.stage)
+			OP::ColourSwizzleArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourSwizzleArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.sources[0], item),
-                           SCHEDULED_OP( args.sources[1], item),
-                           SCHEDULED_OP( args.sources[2], item),
-                           SCHEDULED_OP( args.sources[3], item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.sources[0], item),
+                           FScheduledOp( args.sources[1], item),
+                           FScheduledOp( args.sources[2], item),
+                           FScheduledOp( args.sources[3], item) );
                 break;
 
             case 1:
@@ -4677,7 +4675,7 @@ namespace mu
                 {
                     if ( args.sources[t] )
                     {
-                        auto p = GetMemory().GetColour( CACHE_ADDRESS(args.sources[t],item) );
+                        auto p = GetMemory().GetColour( FCacheAddress(args.sources[t],item) );
                         result[t] = p[ args.sourceChannels[t] ];
                     }
                 }
@@ -4695,17 +4693,17 @@ namespace mu
 
         case OP_TYPE::CO_IMAGESIZE:
         {
-			OP::ColourImageSizeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourImageSizeArgs>(item.at);
-            switch (item.stage)
+			OP::ColourImageSizeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourImageSizeArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.image, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.image, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Image> pImage = GetMemory().GetImage( CACHE_ADDRESS(args.image,item) );
+                Ptr<const Image> pImage = GetMemory().GetImage( FCacheAddress(args.image,item) );
 
 				FVector4f result = FVector4f( (float)pImage->GetSizeX(), (float)pImage->GetSizeY(), 0.0f, 0.0f );
 
@@ -4722,17 +4720,17 @@ namespace mu
 
         case OP_TYPE::CO_LAYOUTBLOCKTRANSFORM:
         {
-			OP::ColourLayoutBlockTransformArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourLayoutBlockTransformArgs>(item.at);
-            switch (item.stage)
+			OP::ColourLayoutBlockTransformArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourLayoutBlockTransformArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.layout, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.layout, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Layout> pLayout = GetMemory().GetLayout( CACHE_ADDRESS(args.layout,item) );
+                Ptr<const Layout> pLayout = GetMemory().GetLayout( FCacheAddress(args.layout,item) );
 
 				FVector4f result = FVector4f(0,0,0,0);
                 if ( pLayout )
@@ -4772,15 +4770,15 @@ namespace mu
 
         case OP_TYPE::CO_FROMSCALARS:
         {
-			OP::ColourFromScalarsArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourFromScalarsArgs>(item.at);
-            switch (item.stage)
+			OP::ColourFromScalarsArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ColourFromScalarsArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.x, item),
-                           SCHEDULED_OP( args.y, item),
-                           SCHEDULED_OP( args.z, item),
-                           SCHEDULED_OP( args.w, item));
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.x, item),
+                           FScheduledOp( args.y, item),
+                           FScheduledOp( args.z, item),
+                           FScheduledOp( args.w, item));
                 break;
 
             case 1:
@@ -4789,22 +4787,22 @@ namespace mu
 
                 if (args.x)
                 {
-                    result[0] = GetMemory().GetScalar( CACHE_ADDRESS(args.x,item) );
+                    result[0] = GetMemory().GetScalar( FCacheAddress(args.x,item) );
                 }
 
                 if (args.y)
                 {
-                    result[1] = GetMemory().GetScalar( CACHE_ADDRESS(args.y,item) );
+                    result[1] = GetMemory().GetScalar( FCacheAddress(args.y,item) );
                 }
 
                 if (args.z)
                 {
-                    result[2] = GetMemory().GetScalar( CACHE_ADDRESS(args.z,item) );
+                    result[2] = GetMemory().GetScalar( FCacheAddress(args.z,item) );
                 }
 
                 if (args.w)
                 {
-                    result[3] = GetMemory().GetScalar( CACHE_ADDRESS(args.w,item) );
+                    result[3] = GetMemory().GetScalar( FCacheAddress(args.w,item) );
                 }
 
                 GetMemory().SetColour( item, result );
@@ -4820,13 +4818,13 @@ namespace mu
 
         case OP_TYPE::CO_ARITHMETIC:
         {
-			OP::ArithmeticArgs args = program.GetOpArgs<OP::ArithmeticArgs>(item.at);
-            switch (item.stage)
+			OP::ArithmeticArgs args = program.GetOpArgs<OP::ArithmeticArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.a, item),
-                           SCHEDULED_OP( args.b, item));
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.a, item),
+                           FScheduledOp( args.b, item));
                 break;
 
             case 1:
@@ -4837,9 +4835,9 @@ namespace mu
                 otype = program.GetOpType( args.b );
                 dtype = GetOpDataType( otype );
                 check( dtype == DT_COLOUR );
-				FVector4f a = args.a ? GetMemory().GetColour( CACHE_ADDRESS( args.a, item ) )
+				FVector4f a = args.a ? GetMemory().GetColour( FCacheAddress( args.a, item ) )
                                  : FVector4f( 0, 0, 0, 0 );
-				FVector4f b = args.b ? GetMemory().GetColour( CACHE_ADDRESS( args.b, item ) )
+				FVector4f b = args.b ? GetMemory().GetColour( FCacheAddress( args.b, item ) )
                                  : FVector4f( 0, 0, 0, 0 );
 
 				FVector4f result = FVector4f(0,0,0,0);
@@ -4885,7 +4883,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Projector( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_Projector( FScheduledOp& item,
                                 const Parameters* pParams,
                                 const Model* pModel
                               )
@@ -4893,13 +4891,13 @@ namespace mu
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Projector);
 
         const FProgram& program = pModel->GetPrivate()->m_program;
-		OP_TYPE type = program.GetOpType(item.at);
+		OP_TYPE type = program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::PR_CONSTANT:
         {
-			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
+			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
             ProjectorPtr pResult = new Projector();
             pResult->m_value = program.m_constantProjectors[args.value];
             GetMemory().SetProjector( item, pResult );
@@ -4908,7 +4906,7 @@ namespace mu
 
         case OP_TYPE::PR_PARAMETER:
         {
-			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.at);
+			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             ProjectorPtr pResult = new Projector();
             pResult->m_value = pParams->GetPrivate()->GetProjectorValue(args.variable,index);
@@ -4929,19 +4927,19 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode_Layout( SCHEDULED_OP& item,
+    void CodeRunner::RunCode_Layout( FScheduledOp& item,
                                      const Model* pModel
                                      )
     {
         //MUTABLE_CPUPROFILER_SCOPE(RunCode_Layout);
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
         switch (type)
         {
 
         case OP_TYPE::LA_CONSTANT:
         {
-			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
+			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
             check( args.value < (uint32)pModel->GetPrivate()->m_program.m_constantLayouts.Num() );
 
             LayoutPtrConst pResult = pModel->GetPrivate()->m_program.m_constantLayouts
@@ -4952,19 +4950,19 @@ namespace mu
 
         case OP_TYPE::LA_MERGE:
         {
-			OP::LayoutMergeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutMergeArgs>(item.at);
-            switch (item.stage)
+			OP::LayoutMergeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutMergeArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.Base, item),
-                           SCHEDULED_OP( args.Added, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.Base, item),
+                           FScheduledOp( args.Added, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Layout> pA = GetMemory().GetLayout( CACHE_ADDRESS(args.Base,item) );
-                Ptr<const Layout> pB = GetMemory().GetLayout( CACHE_ADDRESS(args.Added,item) );
+                Ptr<const Layout> pA = GetMemory().GetLayout( FCacheAddress(args.Base,item) );
+                Ptr<const Layout> pB = GetMemory().GetLayout( FCacheAddress(args.Added,item) );
 
                 LayoutPtrConst pResult;
 
@@ -4994,17 +4992,17 @@ namespace mu
 
         case OP_TYPE::LA_PACK:
         {
-			OP::LayoutPackArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutPackArgs>(item.at);
-            switch (item.stage)
+			OP::LayoutPackArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutPackArgs>(item.At);
+            switch (item.Stage)
             {
             case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.Source, item) );
+                    AddOp( FScheduledOp( item.At, item, 1),
+                           FScheduledOp( args.Source, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Layout> pSource = GetMemory().GetLayout( CACHE_ADDRESS(args.Source,item) );
+                Ptr<const Layout> pSource = GetMemory().GetLayout( FCacheAddress(args.Source,item) );
 
 				LayoutPtr pResult;
 
@@ -5036,17 +5034,17 @@ namespace mu
 
 		case OP_TYPE::LA_FROMMESH:
 		{
-			OP::LayoutFromMeshArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutFromMeshArgs>(item.at);
-			switch (item.stage)
+			OP::LayoutFromMeshArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutFromMeshArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1),
-					SCHEDULED_OP(args.Mesh, item));
+				AddOp(FScheduledOp(item.At, item, 1),
+					FScheduledOp(args.Mesh, item));
 				break;
 
 			case 1:
 			{
-				Ptr<const Mesh> Mesh = GetMemory().GetMesh(CACHE_ADDRESS(args.Mesh, item));
+				Ptr<const Mesh> Mesh = GetMemory().GetMesh(FCacheAddress(args.Mesh, item));
 
 				Ptr<const Layout> Result = LayoutFromMesh_RemoveBlocks(Mesh.get(), args.LayoutIndex);
 
@@ -5063,19 +5061,19 @@ namespace mu
 
 		case OP_TYPE::LA_REMOVEBLOCKS:
 		{
-			OP::LayoutRemoveBlocksArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutRemoveBlocksArgs>(item.at);
-			switch (item.stage)
+			OP::LayoutRemoveBlocksArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutRemoveBlocksArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1),
-					SCHEDULED_OP(args.Source, item),
-					SCHEDULED_OP(args.ReferenceLayout, item));
+				AddOp(FScheduledOp(item.At, item, 1),
+					FScheduledOp(args.Source, item),
+					FScheduledOp(args.ReferenceLayout, item));
 				break;
 
 			case 1:
 			{
-				Ptr<const Layout> Source = GetMemory().GetLayout(CACHE_ADDRESS(args.Source, item));
-				Ptr<const Layout> ReferenceLayout = GetMemory().GetLayout(CACHE_ADDRESS(args.ReferenceLayout, item));
+				Ptr<const Layout> Source = GetMemory().GetLayout(FCacheAddress(args.Source, item));
+				Ptr<const Layout> ReferenceLayout = GetMemory().GetLayout(FCacheAddress(args.ReferenceLayout, item));
 
 				Ptr<const Layout> pResult;
 
@@ -5108,16 +5106,16 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeRunner::RunCode( SCHEDULED_OP& item,
+    void CodeRunner::RunCode( FScheduledOp& item,
                               const Parameters* pParams,
                               const Model* pModel,
                               uint32 lodMask)
     {
-		//UE_LOG( LogMutableCore, Log, TEXT("Running :%5d , %d "), item.at, item.stage );
-		check( item.Type == SCHEDULED_OP::EType::Full );
+		//UE_LOG( LogMutableCore, Log, TEXT("Running :%5d , %d "), item.At, item.Stage );
+		check( item.Type == FScheduledOp::EType::Full );
 
-		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
-		//UE_LOG(LogMutableCore, Log, TEXT("Running :%5d , %d, of type %d "), item.at, item.stage, type);
+		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
+		//UE_LOG(LogMutableCore, Log, TEXT("Running :%5d , %d, of type %d "), item.At, item.Stage, type);
 		switch ( type )
         {
         case OP_TYPE::NONE:
@@ -5210,7 +5208,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeRunner::RunCodeImageDesc(SCHEDULED_OP& item,
+	void CodeRunner::RunCodeImageDesc(FScheduledOp& item,
 		const Parameters* pParams,
 		const Model* pModel, 
 		uint32 lodMask
@@ -5218,66 +5216,66 @@ namespace mu
 	{
 		MUTABLE_CPUPROFILER_SCOPE(RunCodeImageDesc);
 
-		check(item.Type == SCHEDULED_OP::EType::ImageDesc);
+		check(item.Type == FScheduledOp::EType::ImageDesc);
 
 		// Ensure there is room for the result in the heap.
-		if (item.customState >= uint32(m_heapData.Num()))
+		if (item.CustomState >= uint32(m_heapData.Num()))
 		{
-			m_heapImageDesc.SetNum(item.customState+1);
+			m_heapImageDesc.SetNum(item.CustomState+1);
 		}
 
 
 		const mu::FProgram& program = pModel->GetPrivate()->m_program;
 
-		OP_TYPE type = program.GetOpType(item.at);
+		OP_TYPE type = program.GetOpType(item.At);
 		switch (type)
 		{
 
 		case OP_TYPE::IM_CONSTANT:
 		{
-			check(item.stage == 0);
-			OP::ResourceConstantArgs args = program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
+			check(item.Stage == 0);
+			OP::ResourceConstantArgs args = program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
 			int32 ImageIndex = args.value;
-			m_heapImageDesc[item.customState].m_format = EImageFormat::IF_NONE;	// TODO: precalculate if necessary
-			m_heapImageDesc[item.customState].m_size[0] = program.m_constantImages[ImageIndex].ImageSizeX;
-			m_heapImageDesc[item.customState].m_size[1] = program.m_constantImages[ImageIndex].ImageSizeY;
-			m_heapImageDesc[item.customState].m_lods = program.m_constantImages[ImageIndex].LODCount;
+			m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_NONE;	// TODO: precalculate if necessary
+			m_heapImageDesc[item.CustomState].m_size[0] = program.m_constantImages[ImageIndex].ImageSizeX;
+			m_heapImageDesc[item.CustomState].m_size[1] = program.m_constantImages[ImageIndex].ImageSizeY;
+			m_heapImageDesc[item.CustomState].m_lods = program.m_constantImages[ImageIndex].LODCount;
 			GetMemory().SetValidDesc(item);
 			break;
 		}
 
 		case OP_TYPE::IM_PARAMETER:
 		{
-			check(item.stage == 0);
-			OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(item.at);
+			check(item.Stage == 0);
+			OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(item.At);
 			EXTERNAL_IMAGE_ID id = pParams->GetImageValue(args.variable);
 			ImagePtr pResult = LoadExternalImage(id);
-			m_heapImageDesc[item.customState].m_format = pResult->GetFormat();
-			m_heapImageDesc[item.customState].m_size = pResult->GetSize();
-			m_heapImageDesc[item.customState].m_lods = pResult->GetLODCount();
+			m_heapImageDesc[item.CustomState].m_format = pResult->GetFormat();
+			m_heapImageDesc[item.CustomState].m_size = pResult->GetSize();
+			m_heapImageDesc[item.CustomState].m_lods = pResult->GetLODCount();
 			GetMemory().SetValidDesc(item);
 			break;
 		}
 
 		case OP_TYPE::IM_CONDITIONAL:
 		{
-			OP::ConditionalArgs args = program.GetOpArgs<OP::ConditionalArgs>(item.at);
-			switch (item.stage)
+			OP::ConditionalArgs args = program.GetOpArgs<OP::ConditionalArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
 			{
 				// We need to run the full condition result
-				SCHEDULED_OP FullConditionOp(args.condition, item);
-				FullConditionOp.Type = SCHEDULED_OP::EType::Full;
-				AddOp(SCHEDULED_OP(item.at, item, 1), FullConditionOp);
+				FScheduledOp FullConditionOp(args.condition, item);
+				FullConditionOp.Type = FScheduledOp::EType::Full;
+				AddOp(FScheduledOp(item.At, item, 1), FullConditionOp);
 				break;
 			}
 
 			case 1:
 			{
-				bool value = GetMemory().GetBool(CACHE_ADDRESS(args.condition, item.executionIndex, item.executionOptions));
+				bool value = GetMemory().GetBool(FCacheAddress(args.condition, item.ExecutionIndex, item.ExecutionOptions));
 				OP::ADDRESS resultAt = value ? args.yes : args.no;
-				AddOp(SCHEDULED_OP(item.at, item, 2), SCHEDULED_OP(resultAt, item));
+				AddOp(FScheduledOp(item.At, item, 2), FScheduledOp(resultAt, item));
 				break;
 			}
 
@@ -5289,7 +5287,7 @@ namespace mu
 
 		case OP_TYPE::IM_SWITCH:
 		{
-			const uint8* data = program.GetOpArgsPointer(item.at);
+			const uint8* data = program.GetOpArgsPointer(item.At);
 		
 			OP::ADDRESS VarAddress;
 			FMemory::Memcpy( &VarAddress, data, sizeof(OP::ADDRESS));
@@ -5303,16 +5301,16 @@ namespace mu
 			FMemory::Memcpy( &CaseCount, data, sizeof(uint32));
 			data += sizeof(uint32);
 	
-			switch (item.stage)
+			switch (item.Stage)
 			{
 			case 0:
 			{
 				if (VarAddress)
 				{
 					// We need to run the full condition result
-					SCHEDULED_OP FullVariableOp(VarAddress, item);
-					FullVariableOp.Type = SCHEDULED_OP::EType::Full;
-					AddOp(SCHEDULED_OP(item.at, item, 1), FullVariableOp);
+					FScheduledOp FullVariableOp(VarAddress, item);
+					FullVariableOp.Type = FScheduledOp::EType::Full;
+					AddOp(FScheduledOp(item.At, item, 1), FullVariableOp);
 				}
 				else
 				{
@@ -5324,7 +5322,7 @@ namespace mu
 			case 1:
 			{
 				// Get the variable result
-				int var = GetMemory().GetInt(CACHE_ADDRESS(VarAddress, item));
+				int var = GetMemory().GetInt(FCacheAddress(VarAddress, item));
 
 				OP::ADDRESS valueAt = DefAddress;
 				for (uint32 C = 0; C < CaseCount; ++C)
@@ -5344,8 +5342,8 @@ namespace mu
 					}
 				}
 
-				AddOp(SCHEDULED_OP(item.at, item, 2, valueAt),
-					  SCHEDULED_OP(valueAt, item));
+				AddOp(FScheduledOp(item.At, item, 2, valueAt),
+					  FScheduledOp(valueAt, item));
 
 				break;
 			}
@@ -5358,10 +5356,10 @@ namespace mu
 
 		case OP_TYPE::IM_LAYERCOLOUR:
 		{
-			OP::ImageLayerColourArgs args = program.GetOpArgs<OP::ImageLayerColourArgs>(item.at);
-			switch (item.stage)
+			OP::ImageLayerColourArgs args = program.GetOpArgs<OP::ImageLayerColourArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5370,10 +5368,10 @@ namespace mu
 
 		case OP_TYPE::IM_LAYER:
 		{
-			OP::ImageLayerArgs args = program.GetOpArgs<OP::ImageLayerArgs>(item.at);
-			switch (item.stage)
+			OP::ImageLayerArgs args = program.GetOpArgs<OP::ImageLayerArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5382,10 +5380,10 @@ namespace mu
 
 		case OP_TYPE::IM_MULTILAYER:
 		{
-			OP::ImageMultiLayerArgs args = program.GetOpArgs<OP::ImageMultiLayerArgs>(item.at);
-			switch (item.stage)
+			OP::ImageMultiLayerArgs args = program.GetOpArgs<OP::ImageMultiLayerArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5394,10 +5392,10 @@ namespace mu
 
 		case OP_TYPE::IM_DIFFERENCE:
 		{
-			OP::ImageDifferenceArgs args = program.GetOpArgs<OP::ImageDifferenceArgs>(item.at);
-			switch (item.stage)
+			OP::ImageDifferenceArgs args = program.GetOpArgs<OP::ImageDifferenceArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.a, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.a, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5406,10 +5404,10 @@ namespace mu
 
 		case OP_TYPE::IM_NORMALCOMPOSITE:
 		{
-			OP::ImageNormalCompositeArgs args = program.GetOpArgs<OP::ImageNormalCompositeArgs>(item.at);
-			switch (item.stage)
+			OP::ImageNormalCompositeArgs args = program.GetOpArgs<OP::ImageNormalCompositeArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5418,17 +5416,17 @@ namespace mu
 
 		case OP_TYPE::IM_PIXELFORMAT:
 		{
-			OP::ImagePixelFormatArgs args = program.GetOpArgs<OP::ImagePixelFormatArgs>(item.at);
-			switch (item.stage)
+			OP::ImagePixelFormatArgs args = program.GetOpArgs<OP::ImagePixelFormatArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.source, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.source, item));
 				break;
 
 			case 1:
 			{
 				// Update directly in the heap
-				EImageFormat OldFormat = m_heapImageDesc[item.customState].m_format;
+				EImageFormat OldFormat = m_heapImageDesc[item.CustomState].m_format;
 				EImageFormat NewFormat = args.format;
 				if (args.formatIfAlpha != EImageFormat::IF_NONE
 					&&
@@ -5436,7 +5434,7 @@ namespace mu
 				{
 					NewFormat = args.formatIfAlpha;
 				}
-				m_heapImageDesc[item.customState].m_format = NewFormat;				
+				m_heapImageDesc[item.CustomState].m_format = NewFormat;				
 				GetMemory().SetValidDesc(item);
 				break;
 			}
@@ -5450,17 +5448,17 @@ namespace mu
 
 		case OP_TYPE::IM_MIPMAP:
 		{
-			OP::ImageMipmapArgs args = program.GetOpArgs<OP::ImageMipmapArgs>(item.at);
-			switch (item.stage)
+			OP::ImageMipmapArgs args = program.GetOpArgs<OP::ImageMipmapArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.source, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.source, item));
 				break;
 
 			case 1:
 			{
 				// Somewhat synched with Full op execution code.
-				FImageDesc BaseDesc = m_heapImageDesc[item.customState];
+				FImageDesc BaseDesc = m_heapImageDesc[item.CustomState];
 				int levelCount = args.levels;
 				int maxLevelCount = Image::GetMipmapCount(BaseDesc.m_size[0], BaseDesc.m_size[1]);
 				if (levelCount == 0)
@@ -5479,7 +5477,7 @@ namespace mu
 				levelCount = FMath::Max(startLevel, levelCount);
 
 				// Update result.
-				m_heapImageDesc[item.customState].m_lods = levelCount;
+				m_heapImageDesc[item.CustomState].m_lods = levelCount;
 				GetMemory().SetValidDesc(item);
 				break;
 			}
@@ -5492,16 +5490,16 @@ namespace mu
 
 		case OP_TYPE::IM_RESIZE:
 		{
-			auto args = program.GetOpArgs<OP::ImageResizeArgs>(item.at);
-			switch (item.stage)
+			auto args = program.GetOpArgs<OP::ImageResizeArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.source, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.source, item));
 				break;
 
 			case 1:
-				m_heapImageDesc[item.customState].m_size[0] = args.size[0];
-				m_heapImageDesc[item.customState].m_size[1] = args.size[1];
+				m_heapImageDesc[item.CustomState].m_size[0] = args.size[0];
+				m_heapImageDesc[item.CustomState].m_size[1] = args.size[1];
 				GetMemory().SetValidDesc(item);
 				break;
 
@@ -5513,25 +5511,28 @@ namespace mu
 
 		case OP_TYPE::IM_RESIZELIKE:
 		{
-			auto args = program.GetOpArgs<OP::ImageResizeLikeArgs>(item.at);
-			switch (item.stage)
+			auto args = program.GetOpArgs<OP::ImageResizeLikeArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
 			{
-				int32 ResultAndBaseDesc = item.customState;
+				int32 ResultAndBaseDesc = item.CustomState;
 				int32 SourceDescAddress = m_heapImageDesc.Add({});
-				int32 SecondStageData = m_heapData.Add({ 0.0f, ResultAndBaseDesc, SourceDescAddress, nullptr });
-				AddOp(SCHEDULED_OP(item.at, item, 1, SecondStageData),
-					SCHEDULED_OP(args.source, item, 0, ResultAndBaseDesc),
-					SCHEDULED_OP(args.sizeSource, item, 0, SourceDescAddress));
+				FScheduledOpData Data;
+				Data.ResizeLike.ResultDescAt = ResultAndBaseDesc;
+				Data.ResizeLike.SourceDescAt = SourceDescAddress;
+				int32 SecondStageData = m_heapData.Add(Data);
+				AddOp(FScheduledOp(item.At, item, 1, SecondStageData),
+					FScheduledOp(args.source, item, 0, ResultAndBaseDesc),
+					FScheduledOp(args.sizeSource, item, 0, SourceDescAddress));
 				break;
 			}
 
 			case 1:
 			{
-				const FScheduledOpData& SecondStageData = m_heapData[ item.customState ];
-				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[SecondStageData.min];
-				const FImageDesc& SourceDesc = m_heapImageDesc[SecondStageData.max];
+				const FScheduledOpData& SecondStageData = m_heapData[ item.CustomState ];
+				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[SecondStageData.ResizeLike.ResultDescAt];
+				const FImageDesc& SourceDesc = m_heapImageDesc[SecondStageData.ResizeLike.SourceDescAt];
 				ResultAndBaseDesc.m_size = SourceDesc.m_size;
 				GetMemory().SetValidDesc(item);
 				break;
@@ -5546,16 +5547,16 @@ namespace mu
 
 		case OP_TYPE::IM_RESIZEREL:
 		{
-			auto args = program.GetOpArgs<OP::ImageResizeRelArgs>(item.at);
-			switch (item.stage)
+			auto args = program.GetOpArgs<OP::ImageResizeRelArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.source, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.source, item));
 				break;
 
 			case 1:
 			{
-				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[item.customState];
+				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[item.CustomState];
 				FImageSize destSize(
 					uint16(ResultAndBaseDesc.m_size[0] * args.factor[0] + 0.5f),
 					uint16(ResultAndBaseDesc.m_size[1] * args.factor[1] + 0.5f));
@@ -5573,27 +5574,27 @@ namespace mu
 
 		case OP_TYPE::IM_BLANKLAYOUT:
 		{
-			OP::ImageBlankLayoutArgs args = program.GetOpArgs<OP::ImageBlankLayoutArgs>(item.at);
-			switch (item.stage)
+			OP::ImageBlankLayoutArgs args = program.GetOpArgs<OP::ImageBlankLayoutArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
 			{
 				// We need to run the full layout
-				SCHEDULED_OP FullLayoutOp(args.layout, item);
-				FullLayoutOp.Type = SCHEDULED_OP::EType::Full;
-				AddOp(SCHEDULED_OP(item.at, item, 1), FullLayoutOp);
+				FScheduledOp FullLayoutOp(args.layout, item);
+				FullLayoutOp.Type = FScheduledOp::EType::Full;
+				AddOp(FScheduledOp(item.At, item, 1), FullLayoutOp);
 				break;
 			}
 
 			case 1:
 			{
-				Ptr<const Layout> pLayout = GetMemory().GetLayout(CACHE_ADDRESS(args.layout, item));
+				Ptr<const Layout> pLayout = GetMemory().GetLayout(FCacheAddress(args.layout, item));
 
 				FIntPoint SizeInBlocks = pLayout->GetGridSize();
 				FIntPoint BlockSizeInPixels(args.blockSize[0], args.blockSize[1]);
 				FIntPoint ImageSizeInPixels = SizeInBlocks * BlockSizeInPixels;
 
-				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[item.customState];
+				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[item.CustomState];
 				FImageSize destSize(uint16(ImageSizeInPixels.X), uint16(ImageSizeInPixels.Y));
 				ResultAndBaseDesc.m_size = destSize;
 				
@@ -5621,10 +5622,10 @@ namespace mu
 
 		case OP_TYPE::IM_COMPOSE:
 		{
-			OP::ImageComposeArgs args = program.GetOpArgs<OP::ImageComposeArgs>(item.at);
-			switch (item.stage)
+			OP::ImageComposeArgs args = program.GetOpArgs<OP::ImageComposeArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5633,10 +5634,10 @@ namespace mu
 
 		case OP_TYPE::IM_INTERPOLATE:
 		{
-			OP::ImageInterpolateArgs args = program.GetOpArgs<OP::ImageInterpolateArgs>(item.at);
-			switch (item.stage)
+			OP::ImageInterpolateArgs args = program.GetOpArgs<OP::ImageInterpolateArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.targets[0], item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.targets[0], item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5645,10 +5646,10 @@ namespace mu
 
 		case OP_TYPE::IM_INTERPOLATE3:
 		{
-			OP::ImageInterpolate3Args args = program.GetOpArgs<OP::ImageInterpolate3Args>(item.at);
-			switch (item.stage)
+			OP::ImageInterpolate3Args args = program.GetOpArgs<OP::ImageInterpolate3Args>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.target0, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.target0, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5657,10 +5658,10 @@ namespace mu
 
 		case OP_TYPE::IM_SATURATE:
 		{
-			OP::ImageSaturateArgs args = program.GetOpArgs<OP::ImageSaturateArgs>(item.at);
-			switch (item.stage)
+			OP::ImageSaturateArgs args = program.GetOpArgs<OP::ImageSaturateArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5669,15 +5670,15 @@ namespace mu
 
 		case OP_TYPE::IM_LUMINANCE:
 		{
-			OP::ImageLuminanceArgs args = program.GetOpArgs<OP::ImageLuminanceArgs>(item.at);
-			switch (item.stage)
+			OP::ImageLuminanceArgs args = program.GetOpArgs<OP::ImageLuminanceArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item));
 				break;
 
 			case 1:
-				m_heapImageDesc[item.customState].m_format = EImageFormat::IF_L_UBYTE;
+				m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_L_UBYTE;
 				GetMemory().SetValidDesc(item);
 				break;
 
@@ -5690,15 +5691,15 @@ namespace mu
 
 		case OP_TYPE::IM_SWIZZLE:
 		{
-			OP::ImageSwizzleArgs args = program.GetOpArgs<OP::ImageSwizzleArgs>(item.at);
-			switch (item.stage)
+			OP::ImageSwizzleArgs args = program.GetOpArgs<OP::ImageSwizzleArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.sources[0], item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.sources[0], item));
 				break;
 
 			case 1:
-				m_heapImageDesc[item.customState].m_format = args.format;
+				m_heapImageDesc[item.CustomState].m_format = args.format;
 				GetMemory().SetValidDesc(item);
 				break;
 
@@ -5711,15 +5712,15 @@ namespace mu
 
 		case OP_TYPE::IM_SELECTCOLOUR:
 		{
-			OP::ImageSelectColourArgs args = program.GetOpArgs<OP::ImageSelectColourArgs>(item.at);
-			switch (item.stage)
+			OP::ImageSelectColourArgs args = program.GetOpArgs<OP::ImageSelectColourArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item));
 				break;
 
 			case 1:
-				m_heapImageDesc[item.customState].m_format = EImageFormat::IF_L_UBYTE;
+				m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_L_UBYTE;
 				GetMemory().SetValidDesc(item);
 				break;
 
@@ -5732,10 +5733,10 @@ namespace mu
 
 		case OP_TYPE::IM_COLOURMAP:
 		{
-			OP::ImageColourMapArgs args = program.GetOpArgs<OP::ImageColourMapArgs>(item.at);
-			switch (item.stage)
+			OP::ImageColourMapArgs args = program.GetOpArgs<OP::ImageColourMapArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5744,26 +5745,26 @@ namespace mu
 
 		case OP_TYPE::IM_GRADIENT:
 		{
-			OP::ImageGradientArgs args = program.GetOpArgs<OP::ImageGradientArgs>(item.at);
-			m_heapImageDesc[item.customState].m_size[0] = args.size[0];
-			m_heapImageDesc[item.customState].m_size[1] = args.size[1];
-			m_heapImageDesc[item.customState].m_lods = 1;
-			m_heapImageDesc[item.customState].m_format = EImageFormat::IF_RGB_UBYTE;
+			OP::ImageGradientArgs args = program.GetOpArgs<OP::ImageGradientArgs>(item.At);
+			m_heapImageDesc[item.CustomState].m_size[0] = args.size[0];
+			m_heapImageDesc[item.CustomState].m_size[1] = args.size[1];
+			m_heapImageDesc[item.CustomState].m_lods = 1;
+			m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_RGB_UBYTE;
 			GetMemory().SetValidDesc(item);
 			break;
 		}
 
 		case OP_TYPE::IM_BINARISE:
 		{
-			OP::ImageBinariseArgs args = program.GetOpArgs<OP::ImageBinariseArgs>(item.at);
-			switch (item.stage)
+			OP::ImageBinariseArgs args = program.GetOpArgs<OP::ImageBinariseArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item));
 				break;
 
 			case 1:
-				m_heapImageDesc[item.customState].m_format = EImageFormat::IF_L_UBYTE;
+				m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_L_UBYTE;
 				GetMemory().SetValidDesc(item);
 				break;
 
@@ -5775,10 +5776,10 @@ namespace mu
 
 		case OP_TYPE::IM_INVERT:
 		{
-			OP::ImageInvertArgs args = program.GetOpArgs<OP::ImageInvertArgs>(item.at);
-			switch (item.stage)
+			OP::ImageInvertArgs args = program.GetOpArgs<OP::ImageInvertArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5787,28 +5788,28 @@ namespace mu
 
 		case OP_TYPE::IM_PLAINCOLOUR:
 		{
-			OP::ImagePlainColourArgs args = program.GetOpArgs<OP::ImagePlainColourArgs>(item.at);
-			m_heapImageDesc[item.customState].m_size[0] = args.size[0];
-			m_heapImageDesc[item.customState].m_size[1] = args.size[1];
-			m_heapImageDesc[item.customState].m_lods = 1;
-			m_heapImageDesc[item.customState].m_format = EImageFormat::IF_RGB_UBYTE;
+			OP::ImagePlainColourArgs args = program.GetOpArgs<OP::ImagePlainColourArgs>(item.At);
+			m_heapImageDesc[item.CustomState].m_size[0] = args.size[0];
+			m_heapImageDesc[item.CustomState].m_size[1] = args.size[1];
+			m_heapImageDesc[item.CustomState].m_lods = 1;
+			m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_RGB_UBYTE;
 			GetMemory().SetValidDesc(item);
 			break;
 		}
 
 		case OP_TYPE::IM_CROP:
 		{
-			OP::ImageCropArgs args = program.GetOpArgs<OP::ImageCropArgs>(item.at);
-			switch (item.stage)
+			OP::ImageCropArgs args = program.GetOpArgs<OP::ImageCropArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.source, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.source, item));
 				break;
 
 			case 1:
-				m_heapImageDesc[item.customState].m_size[0] = args.sizeX;
-				m_heapImageDesc[item.customState].m_size[1] = args.sizeY;
-				m_heapImageDesc[item.customState].m_lods = 1;
+				m_heapImageDesc[item.CustomState].m_size[0] = args.sizeX;
+				m_heapImageDesc[item.CustomState].m_size[1] = args.sizeY;
+				m_heapImageDesc[item.CustomState].m_lods = 1;
 				GetMemory().SetValidDesc(item);
 				break;
 
@@ -5820,10 +5821,10 @@ namespace mu
 
 		case OP_TYPE::IM_PATCH:
 		{
-			OP::ImagePatchArgs args = program.GetOpArgs<OP::ImagePatchArgs>(item.at);
-			switch (item.stage)
+			OP::ImagePatchArgs args = program.GetOpArgs<OP::ImagePatchArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.base, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5832,27 +5833,27 @@ namespace mu
 
 		case OP_TYPE::IM_RASTERMESH:
 		{
-			OP::ImageRasterMeshArgs args = program.GetOpArgs<OP::ImageRasterMeshArgs>(item.at);
-			m_heapImageDesc[item.customState].m_size[0] = args.sizeX;
-			m_heapImageDesc[item.customState].m_size[1] = args.sizeY;
-			m_heapImageDesc[item.customState].m_lods = 1;
-			m_heapImageDesc[item.customState].m_format = EImageFormat::IF_L_UBYTE;
+			OP::ImageRasterMeshArgs args = program.GetOpArgs<OP::ImageRasterMeshArgs>(item.At);
+			m_heapImageDesc[item.CustomState].m_size[0] = args.sizeX;
+			m_heapImageDesc[item.CustomState].m_size[1] = args.sizeY;
+			m_heapImageDesc[item.CustomState].m_lods = 1;
+			m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_L_UBYTE;
 			GetMemory().SetValidDesc(item);
 			break;
 		}
 
 		case OP_TYPE::IM_MAKEGROWMAP:
 		{
-			OP::ImageMakeGrowMapArgs args = program.GetOpArgs<OP::ImageMakeGrowMapArgs>(item.at);
-			switch (item.stage)
+			OP::ImageMakeGrowMapArgs args = program.GetOpArgs<OP::ImageMakeGrowMapArgs>(item.At);
+			switch (item.Stage)
 			{
 			case 0:
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.mask, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.mask, item));
 				break;
 
 			case 1:
-				m_heapImageDesc[item.customState].m_format = EImageFormat::IF_L_UBYTE;
-				m_heapImageDesc[item.customState].m_lods = 1;
+				m_heapImageDesc[item.CustomState].m_format = EImageFormat::IF_L_UBYTE;
+				m_heapImageDesc[item.CustomState].m_lods = 1;
 				GetMemory().SetValidDesc(item);
 				break;
 
@@ -5865,10 +5866,10 @@ namespace mu
 
 		case OP_TYPE::IM_DISPLACE:
 		{
-			OP::ImageDisplaceArgs args = program.GetOpArgs<OP::ImageDisplaceArgs>(item.at);
-			switch (item.stage)
+			OP::ImageDisplaceArgs args = program.GetOpArgs<OP::ImageDisplaceArgs>(item.At);
+			switch (item.Stage)
 			{
-			case 0: AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(args.source, item)); break;
+			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.source, item)); break;
 			case 1: GetMemory().SetValidDesc(item); break;
 			default: check(false);
 			}
@@ -5878,13 +5879,13 @@ namespace mu
         case OP_TYPE::IM_TRANSFORM:
         {
 
-			OP::ImageTransformArgs Args = program.GetOpArgs<OP::ImageTransformArgs>(item.at);
+			OP::ImageTransformArgs Args = program.GetOpArgs<OP::ImageTransformArgs>(item.At);
 
-            switch (item.stage)
+            switch (item.Stage)
             {
             case 0:
 			{
-				AddOp(SCHEDULED_OP(item.at, item, 1), SCHEDULED_OP(Args.base, item));
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(Args.base, item));
                 break;
 			}
             case 1:
@@ -5905,7 +5906,7 @@ namespace mu
 			{
 				// Operation not implemented
 				check(false);
-				m_heapImageDesc[item.customState] = FImageDesc();
+				m_heapImageDesc[item.CustomState] = FImageDesc();
 			}
 			break;
 		}

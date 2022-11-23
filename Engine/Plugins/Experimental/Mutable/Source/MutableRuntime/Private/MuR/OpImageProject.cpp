@@ -1269,7 +1269,7 @@ void ImageRasterProjectedCylindrical( const Mesh* pMesh,
 //#define DEBUG_PROJECTION 1
 
 #ifdef DEBUG_PROJECTION
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION
 
 #undef assert
 int* assert_aux = 0;
@@ -1293,6 +1293,7 @@ inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
     int vcount = pMesh->GetVertexCount();
     collapsedVertexMap.SetNum(vcount);
     vertices.SetNum(vcount);
+	collapsedVertsMap.Reserve(vcount);
 
     const FMeshBufferSet& MBSPriv = pMesh->GetVertexBuffers();
     for (int32 b = 0; b < MBSPriv.m_buffers.Num(); ++b)
@@ -1803,7 +1804,9 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 	TArray<AdjacentFaces> faceConnectivity;
 	faceConnectivity.SetNum(faceCount);
     TSet<int> processedFaces;
+	processedFaces.Reserve(faceCount/4);
 	TSet<int> discardedWrapAroundFaces;
+	discardedWrapAroundFaces.Reserve(faceCount/16);
 	TArray<int> faceStep;
 	faceStep.SetNum(faceCount);
 
@@ -1815,6 +1818,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 
     // Used to speed up connectivity building
 	TMultiMap<int, int> vertToFacesMap;
+	vertToFacesMap.Reserve(vertexCount);
 
     for (int f = 0; f < faceCount; ++f)
     {
@@ -1867,7 +1871,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
             int v = collapsedVertexMap[pIndices[f * 3 + i]];
             //int v = pIndices[f * 3 + i];
 
-			TArray<int> FoundValues;
+			TArray<int,TInlineAllocator<32>> FoundValues;
 			vertToFacesMap.MultiFind(v, FoundValues);
             for (int f2 : FoundValues )
             {
@@ -1967,9 +1971,11 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
     if (intersectedFace >= 0)
     {
         TArray<NeighborFace> pendingFaces; // Queue of pending face + new vertex
+		pendingFaces.Reserve(faceCount/64);
         
 		// \TODO: Bool array to speed up?
 		TSet<int> pendingFacesUnique; // Used to quickly check uniqueness in the pendingFaces queue
+		pendingFacesUnique.Reserve(faceCount / 64);
 
         //FVector3f hitFaceProjectedNormal;
         bool hitFaceHasPositiveArea = false;
@@ -2645,7 +2651,7 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
     return pResult;
 }
 #ifdef DEBUG_PROJECTION
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION
 #endif
 
 

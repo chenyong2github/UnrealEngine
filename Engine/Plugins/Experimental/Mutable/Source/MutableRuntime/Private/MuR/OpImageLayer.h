@@ -830,26 +830,26 @@ namespace mu
 				] (uint32 i)
 				{
 					unsigned mask = pMaskBuf[i];
-			for (int c = 0; c < CHANNELS_TO_BLEND; ++c)
-			{
-				uint32 base = pBaseBuf[BASE_CHANNEL_STRIDE * i + c];
-				uint32 blended = pBlendedBuf[BLENDED_CHANNEL_STRIDE * i + c];
-				uint32 result = BLEND_FUNC_MASKED(base, blended, mask);
-				if (CLAMP)
-				{
-					pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)FMath::Min(255u, result);
-				}
-				else
-				{
-					pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)result;
-				}
-			}
-			// Copy the unblended channels
-			// \TODO: unnecessary when doing it in-place?
-			for (int c = 0; c < BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND; ++c)
-			{
-				pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
-			}
+					for (int c = 0; c < CHANNELS_TO_BLEND; ++c)
+					{
+						uint32 base = pBaseBuf[BASE_CHANNEL_STRIDE * i + c];
+						uint32 blended = pBlendedBuf[BLENDED_CHANNEL_STRIDE * i + c];
+						uint32 result = BLEND_FUNC_MASKED(base, blended, mask);
+						if (CLAMP)
+						{
+							pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)FMath::Min(255u, result);
+						}
+						else
+						{
+							pDestBuf[BASE_CHANNEL_STRIDE * i + c] = (uint8)result;
+						}
+					}
+					// Copy the unblended channels
+					// \TODO: unnecessary when doing it in-place?
+					for (int c = 0; c < BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND; ++c)
+					{
+						pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
+					}
 				});
 		}
 		else if (maskFormat == EImageFormat::IF_L_UBYTE_RLE)
@@ -904,9 +904,13 @@ namespace mu
 
 								// Copy the unblended channels
 								// \TODO: unnecessary when doing it in-place?
-								for (int c = 0; c < BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND; ++c)
+								// Add an unnecessary check to see if static analysis is happier
+								if (BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND > 0)
 								{
-									pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
+									for (int c = 0; c < BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND; ++c)
+									{
+										pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
+									}
 								}
 							}
 						}
@@ -931,9 +935,13 @@ namespace mu
 
 								// Copy the unblended channels
 								// \TODO: unnecessary when doing it in-place?
-								for (int c = 0; c < BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND; ++c)
+								// Add an unnecessary check to see if static analysis is happier
+								if (BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND > 0)
 								{
-									pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
+									for (int c = 0; c < BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND; ++c)
+									{
+										pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
+									}
 								}
 							}
 						}
@@ -971,9 +979,13 @@ namespace mu
 
 							// Copy the unblended channels
 							// \TODO: unnecessary when doing it in-place?
-							for (int c = 0; c < BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND; ++c)
+							// Add an unnecessary check to see if static analysis is happier
+							if (BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND > 0)
 							{
-								pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
+								for (int c = 0; c < BASE_CHANNEL_STRIDE - CHANNELS_TO_BLEND; ++c)
+								{
+									pDestBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c] = pBaseBuf[BASE_CHANNEL_STRIDE * i + CHANNELS_TO_BLEND + c];
+								}
 							}
 						}
 
