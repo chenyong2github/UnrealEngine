@@ -111,10 +111,9 @@ struct FNDIRigidMeshCollisionBuffer : public FRenderResource
 /** Data stored per DI instance*/
 struct FNDIRigidMeshCollisionData
 {
-	FNDIRigidMeshCollisionData(const FNiagaraSystemInstance* InSystemInstance, bool InRequiresSourceActors, bool InHasScriptedFindActor)
-	: SystemInstance(InSystemInstance)
-	, bRequiresSourceActors(InRequiresSourceActors)
-	, bHasScriptedFindActor(InHasScriptedFindActor)
+	FNDIRigidMeshCollisionData(const FNiagaraSystemInstance* InSystemInstance, bool InHasScriptedFindActor)
+		: SystemInstance(InSystemInstance)
+		, bHasScriptedFindActor(InHasScriptedFindActor)
 	{}
 
 	/** Initialize the cpu datas */
@@ -143,23 +142,29 @@ struct FNDIRigidMeshCollisionData
 	/** Source actors **/
 	TArray<TWeakObjectPtr<AActor>> ExplicitActors;
 
+	struct FComponentBodyCount
+	{
+		uint32 ComponentHash = 0;
+		uint32 BoxCount = 0;
+		uint32 SphereCount = 0;
+		uint32 CapsuleCount = 0;
+	};
+
+	TArray<FComponentBodyCount> MeshBodyCounts;
+
 	/** Source actors **/
 	TArray<TWeakObjectPtr<AActor>> FoundActors;
 
 	const FNiagaraSystemInstance* SystemInstance = nullptr;
 
-	/** If false indicates that the instance is not dependent on any RigidBodies, and processing can be skipped. */
-	const bool bRequiresSourceActors;
+	/** Hash of the components that have been collected, used to see if we need to fully rebuild our array of transforms */
+	uint32 ComponentCollectionHash = 0;
 
 	/** Indicates that the instance is being used in a call to FindActors */
 	const bool bHasScriptedFindActor;
 
-	/** Indicates that something has updated the list of FoundActors */
-	bool bFoundActorsUpdated = false;
-
 	/** Indicates that a full update of the arrays is required */
 	bool bRequiresFullUpdate = false;
-
 };
 
 /** Data Interface used to collide against static meshes - whether it is the mesh distance field or a physics asset's collision primitive */
@@ -197,16 +202,19 @@ public:
 	bool UseComplexCollisions = false;
 
 	/** If enabled the global search can be executed dependeing on GlobalSearchForced and GlobalSearchFallback_Unscripted */
-	UPROPERTY(EditAnywhere, Category = "Source", meta = (DisplayName = "Global Search Allowed"))
-	bool GlobalSearchAllowed = true;
+	UE_DEPRECATED(5.2, "Global search will be deprecated in favor of using a spatial search through the FindActors function.")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Source", meta = (DisplayName = "Global Search Allowed"))
+	bool GlobalSearchAllowed = false;
 
 	/** If enabled the global search will be performed only if there are no explicit actors specified */
-	UPROPERTY(EditAnywhere, Category = "Source", meta = (DisplayName = "Global Search Forced", EditCondition = GlobalSearchAllowed))
+	UE_DEPRECATED(5.2, "Global search will be deprecated in favor of using a spatial search through the FindActors function.")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Source", meta = (DisplayName = "Global Search Forced", EditCondition = GlobalSearchAllowed))
 	bool GlobalSearchForced = false;
 
 	/** If enabled the global search will be performed only if there are no explicit actors specified */
-	UPROPERTY(EditAnywhere, Category = "Source", meta = (DisplayName = "Global Search Only If Unscripted", EditCondition = GlobalSearchAllowed))
-	bool GlobalSearchFallback_Unscripted = true;
+	UE_DEPRECATED(5.2, "Global search will be deprecated in favor of using a spatial search through the FindActors function.")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Source", meta = (DisplayName = "Global Search Only If Unscripted", EditCondition = GlobalSearchAllowed))
+	bool GlobalSearchFallback_Unscripted = false;
 
 	/** Maximum number of RigidBody represented by this DataInterface. */
 	UPROPERTY(EditAnywhere, Category = "General")
@@ -225,10 +233,10 @@ public:
 #endif
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)override;
-	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FNDIRigidMeshCollisionData); }
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
-	virtual bool HasPreSimulateTick() const override { return true; }
+	virtual bool HasPostSimulateTick() const override { return true; }
 	virtual bool HasTickGroupPrereqs() const override { return true; }
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 
@@ -255,9 +263,15 @@ public:
 
 	bool GetExplicitActors(FNDIRigidMeshCollisionData& InstanceData);
 	bool FindActors(UWorld* World, FNDIRigidMeshCollisionData& InstanceData, ECollisionChannel Channel, const FVector& OverlapLocation, const FVector& OverlapExtent, const FQuat& OverlapRotation) const;
+
+	UE_DEPRECATED(5.2, "Global search will be deprecated in favor of using a spatial search through the FindActors function.")
 	bool GlobalFindActors(UWorld* World, FNDIRigidMeshCollisionData& InstanceData) const;
 
 	void FindActorsCPU(FVectorVMExternalFunctionContext& Context);
+
+#if WITH_EDITOR
+	virtual void GetFeedback(UNiagaraSystem* InAsset, UNiagaraComponent* InComponent, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo) override;
+#endif
 
 protected:
 	/** Copy one niagara DI to this */
