@@ -9,7 +9,6 @@
 #include "AnimationStateMachineGraph.h"
 #include "AnimationStateMachineSchema.h"
 #include "AnimationTransitionGraph.h"
-#include "AssetDiscoveryIndicator.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -38,7 +37,6 @@
 #include "EdGraphNode_Comment.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphSchema_K2_Actions.h"
-#include "EditorWidgetsModule.h"
 #include "Engine/Blueprint.h"
 #include "Engine/MemberReference.h"
 #include "Engine/SCS_Node.h"
@@ -67,6 +65,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "SBlueprintFavoritesPalette.h"
 #include "SBlueprintLibraryPalette.h"
@@ -2183,9 +2182,11 @@ TSharedPtr<SToolTip> SBlueprintPaletteItem::ConstructToolTipWidget() const
 //------------------------------------------------------------------------------
 void SBlueprintPalette::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor> InBlueprintEditor)
 {
-	// Create the asset discovery indicator
-	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
-	TSharedRef<SWidget> AssetDiscoveryIndicator = EditorWidgetsModule.CreateAssetDiscoveryIndicator(EAssetDiscoveryIndicatorScaleMode::Scale_Vertical);
+	const float NumProgressFrames = 2.0f;
+	const float SecondsToWaitBeforeShowingProgressDialog = 0.25f;
+
+	FScopedSlowTask SlowTask(NumProgressFrames, LOCTEXT("ConstructingPaletteTabContent", "Initializing Palette..."));
+	SlowTask.MakeDialogDelayed(SecondsToWaitBeforeShowingProgressDialog);
 
 	float FavoritesHeightRatio = 0.33f;
 	GConfig->GetFloat(*BlueprintPalette::ConfigSection, *BlueprintPalette::FavoritesHeightConfigKey, FavoritesHeightRatio, GEditorPerProjectIni);
@@ -2195,16 +2196,27 @@ void SBlueprintPalette::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintE
 	bool bUseLegacyLayout = false;
 	GConfig->GetBool(*BlueprintPalette::ConfigSection, TEXT("bUseLegacyLayout"), bUseLegacyLayout, GEditorIni);
 
+	SlowTask.EnterProgressFrame();
+	TSharedRef<SWidget> FavoritesContent = SNew(SBlueprintFavoritesPalette, InBlueprintEditor);
+
+	SlowTask.EnterProgressFrame();
+	TSharedRef<SWidget> LibraryContent = SNew(SBlueprintLibraryPalette, InBlueprintEditor)
+		.UseLegacyLayout(bUseLegacyLayout);
+
 	if (bUseLegacyLayout)
 	{
+		LibraryWrapper = LibraryContent;
+
 		this->ChildSlot
 		[
-			SAssignNew(LibraryWrapper, SBlueprintLibraryPalette, InBlueprintEditor)
-				.UseLegacyLayout(bUseLegacyLayout)
+			LibraryContent
 		];
 	}
 	else 
 	{
+		LibraryContent->AddMetadata<FTagMetaData>(MakeShared<FTagMetaData>(TEXT("BlueprintPaletteLibrary")));
+		FavoritesContent->AddMetadata<FTagMetaData>(MakeShared<FTagMetaData>(TEXT("BlueprintPaletteFavorites")));
+
 		this->ChildSlot
 		[
 			SAssignNew(PaletteSplitter, SSplitter)
@@ -2215,15 +2227,13 @@ void SBlueprintPalette::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintE
 			+ SSplitter::Slot()
 			.Value(FavoritesHeightRatio)
 			[
-				SNew(SBlueprintFavoritesPalette, InBlueprintEditor)
-				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("BlueprintPaletteFavorites")))
+				FavoritesContent
 			]
 
 			+ SSplitter::Slot()
 			.Value(LibraryHeightRatio)
 			[
-				SNew(SBlueprintLibraryPalette, InBlueprintEditor)
-				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("BlueprintPaletteLibrary")))
+				LibraryContent
 			]
 		];
 	}	

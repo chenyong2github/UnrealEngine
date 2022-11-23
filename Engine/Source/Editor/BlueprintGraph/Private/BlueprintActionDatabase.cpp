@@ -564,6 +564,19 @@ namespace BlueprintActionDatabaseImpl
 	 */
 	TSet<TWeakObjectPtr<UObject>> PendingDelete;
 
+	/**
+	 * Modules that were explicitly loaded at runtime but have not yet been
+	 * registered into the database. These will be processed on the next tick.
+	 */
+	TSet<FName> PendingModules;
+
+	/**
+	 * Modules that were explicitly loaded at runtime and registered into
+	 * the database. We keep track of them here so that in the off chance
+	 * we allow it to be unloaded, we can then trigger a database refresh.
+	 */
+	TSet<FName> LoadedModules;
+
 	/** */
 	bool bIsInitializing = false;
 
@@ -574,9 +587,33 @@ namespace BlueprintActionDatabaseImpl
 //------------------------------------------------------------------------------
 static void BlueprintActionDatabaseImpl::OnModulesChanged(FName InModuleName, EModuleChangeReason InModuleChangeReason)
 {
-	if (InModuleChangeReason == EModuleChangeReason::ModuleLoaded || InModuleChangeReason == EModuleChangeReason::ModuleUnloaded)
+	switch (InModuleChangeReason)
 	{
-		BlueprintActionDatabaseImpl::bRefreshAllRequested = true;
+	case EModuleChangeReason::ModuleLoaded:
+		// If not already tracked, add it to the list of modules that need to be registered on the next tick.
+		if (!LoadedModules.Contains(InModuleName))
+		{
+			PendingModules.Add(InModuleName);
+		}
+		break;
+
+	case EModuleChangeReason::ModuleUnloaded:
+		// If pending, it was unloaded in the same frame, so we just need to remove it, and no refresh is needed.
+		if (!PendingModules.Remove(InModuleName))
+		{
+			// If already registered as a loaded module, then we need to remove it and do a full refresh on the next tick.
+			if (LoadedModules.Remove(InModuleName))
+			{
+				bRefreshAllRequested = true;
+			}
+		}
+
+		// Guard against the possibility of unloading a pending module that is also already registered.
+		checkf(!LoadedModules.Contains(InModuleName), TEXT("Module %s was unloaded, but wasn't unregistered from the Blueprint action database."), *InModuleName.ToString());
+		break;
+	
+	default:
+		break;
 	}
 }
 
@@ -1327,6 +1364,63 @@ void FBlueprintActionDatabase::Tick(float DeltaTime)
 	if (BlueprintActionDatabaseImpl::bRefreshAllRequested)
 	{
 		RefreshAll();
+	}
+	
+	// Check for any modules that may have been loaded since the last tick. Even if we call RefreshAll() above, we still want to run
+	// through this list in order to keep track of loaded modules containing native script types that are registered into the database.
+	if(!BlueprintActionDatabaseImpl::PendingModules.IsEmpty())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionDatabase::ProcessLoadedModules);
+
+		// Treat this as an initialization event so that the registrar is configured to register new types rather than to refresh existing ones. For
+		// example, if this module contains a new node type that implements a GetMenuActions() override, most implementations assume that a NULL action
+		// key filter indicates the initialization path. This ensures we get the same behavior as node types that are registered via the RefreshAll() API.
+		TGuardValue<bool> ScopedInitialization(BlueprintActionDatabaseImpl::bIsInitializing, true);
+
+		// Register actions for any new modules that were explicitly loaded prior to this tick. Note that native type objects defined within the module
+		// may have already been registered prior to receiving the load event; in that case, action(s) associated with those objects are already present.
+		for (const FName& LoadedModule : BlueprintActionDatabaseImpl::PendingModules)
+		{
+			if (BlueprintActionDatabaseImpl::LoadedModules.Contains(LoadedModule))
+			{
+				continue;
+			}
+
+			// Look for a script package that's associated with this module load. If there isn't one, we can skip it.
+			const FName ModuleScriptPackageName = FPackageName::GetModuleScriptPackageName(LoadedModule);
+			if (const UPackage* ModuleScriptPackage = FindPackage(nullptr, *ModuleScriptPackageName.ToString()))
+			{
+				TArray<UObject*> ObjectsToProcess;
+				const bool bIncludeNestedObjects = false;
+				GetObjectsWithPackage(ModuleScriptPackage, ObjectsToProcess, bIncludeNestedObjects, RF_ClassDefaultObject);
+				for (UObject* Object : ObjectsToProcess)
+				{
+					UClass* ObjectAsClass = Cast<UClass>(Object);
+					const bool bIsNativeTypeObject = ObjectAsClass != nullptr || Object->IsA<UScriptStruct>() || Object->IsA<UEnum>();
+					
+					// Only need to include native types and those not already added through the registrar at initialization time.
+					if (!bIsNativeTypeObject || ActionRegistry.Contains(Object))
+					{
+						continue;
+					}
+
+					if (ObjectAsClass)
+					{
+						RefreshClassActions(ObjectAsClass);
+					}
+					else
+					{
+						RefreshAssetActions(Object);
+					}
+				}
+
+				// We only need to track modules that contain a script package in the off-chance that it is ever unloaded, in which case we'd need
+				// to refresh the database to account for any types that go missing as a result. Otherwise, we can ignore this module when unloaded.
+				BlueprintActionDatabaseImpl::LoadedModules.Add(LoadedModule);
+			}
+		}
+
+		BlueprintActionDatabaseImpl::PendingModules.Empty();
 	}
 
 	// entries that were removed from the database, in preparation for a delete
