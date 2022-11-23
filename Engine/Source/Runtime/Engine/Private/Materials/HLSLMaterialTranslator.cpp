@@ -88,8 +88,8 @@ static uint32 GetStrataBytePerPixel(EShaderPlatform InPlatform)
 {
 	// We enforce at least 20 bytes per pixel because this is the minimal Strata GBuffer footprint of the simplest material.
 	const uint32 MinStrataBytePerPixel = 20u;
-	const uint32 MaxStrataBytePerPixel = 256u;
-	static FShaderPlatformCachedIniValue<int32> CVarBudget(TEXT("r.Strata.BytesPerPixel"));
+	const uint32 MaxStrataBytePerPixel = IsMobilePlatform(InPlatform) ? 24u : 256u;
+	static FShaderPlatformCachedIniValue<int32> CVarBudget(TEXT("r.Strata.BytesPerPixel"));	
 	return FMath::Clamp(uint32(CVarBudget.Get(InPlatform)), MinStrataBytePerPixel, MaxStrataBytePerPixel);
 }
 
