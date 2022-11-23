@@ -164,22 +164,18 @@ struct FUsdStageActorImpl
 
 			const bool bRecursive = true;
 			StageActor->GetRootPrimTwin()->Iterate([&ActorsToDeselect, &ComponentsToDeselect](UUsdPrimTwin& PrimTwin)
+			{
+				if (USceneComponent* ReferencedComponent = PrimTwin.SceneComponent.Get())
 				{
-					if (AActor* ReferencedActor = PrimTwin.SpawnedActor.Get())
-					{
-						ActorsToDeselect.Add(ReferencedActor);
-					}
-					if (USceneComponent* ReferencedComponent = PrimTwin.SceneComponent.Get())
-					{
-						ComponentsToDeselect.Add(ReferencedComponent);
+					ComponentsToDeselect.Add(ReferencedComponent);
 
-						AActor* Owner = ReferencedComponent->GetOwner();
-						if (Owner && Owner->GetRootComponent() == ReferencedComponent)
-						{
-							ActorsToDeselect.Add(Owner);
-						}
+					AActor* Owner = ReferencedComponent->GetOwner();
+					if (Owner && Owner->GetRootComponent() == ReferencedComponent)
+					{
+						ActorsToDeselect.Add(Owner);
 					}
-				}, bRecursive);
+				}
+			}, bRecursive);
 
 			if (USelection* SelectedComponents = GEditor->GetSelectedComponents())
 			{
@@ -2608,12 +2604,6 @@ void AUsdStageActor::UpdateSpawnedObjectsTransientFlag(bool bTransient)
 	EObjectFlags Flag = bTransient ? EObjectFlags::RF_Transient : EObjectFlags::RF_NoFlags;
 	TFunction<void(UUsdPrimTwin&)> UpdateTransient = [=](UUsdPrimTwin& PrimTwin)
 	{
-		if (AActor* SpawnedActor = PrimTwin.SpawnedActor.Get())
-		{
-			SpawnedActor->ClearFlags(EObjectFlags::RF_Transient);
-			SpawnedActor->SetFlags(Flag);
-		}
-
 		if (USceneComponent* Component = PrimTwin.SceneComponent.Get())
 		{
 			Component->ClearFlags(EObjectFlags::RF_Transient);
@@ -2634,10 +2624,7 @@ void AUsdStageActor::UpdateSpawnedObjectsTransientFlag(bool bTransient)
 void AUsdStageActor::OnUsdPrimTwinDestroyed(const UUsdPrimTwin& UsdPrimTwin)
 {
 	PrimsToAnimate.Remove(UsdPrimTwin.PrimPath);
-
-	UObject* WatchedObject = UsdPrimTwin.SpawnedActor.IsValid() ? (UObject*)UsdPrimTwin.SpawnedActor.Get() : (UObject*)UsdPrimTwin.SceneComponent.Get();
-	ObjectsToWatch.Remove(WatchedObject);
-
+	ObjectsToWatch.Remove( UsdPrimTwin.SceneComponent.Get() );
 	LevelSequenceHelper.RemovePrim(UsdPrimTwin);
 }
 
@@ -2705,12 +2692,6 @@ void AUsdStageActor::OnObjectPropertyChanged(UObject* ObjectBeingModified, FProp
 	{
 		// Update prim from UE
 		USceneComponent* PrimSceneComponent = UsdPrimTwin->SceneComponent.Get();
-
-		if (!PrimSceneComponent && UsdPrimTwin->SpawnedActor.IsValid())
-		{
-			PrimSceneComponent = UsdPrimTwin->SpawnedActor->GetRootComponent();
-		}
-
 		if (PrimSceneComponent)
 		{
 			if (CurrentStage)

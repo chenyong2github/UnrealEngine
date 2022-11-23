@@ -69,14 +69,10 @@ void UUsdPrimTwin::Clear()
 		OnDestroyed.Broadcast( *this );
 	}
 
-	AActor* ActorToDestroy = SpawnedActor.Get();
-
-	if ( !ActorToDestroy )
+	AActor* ActorToDestroy = nullptr;
+	if ( SceneComponent.IsValid() && SceneComponent->GetOwner()->GetRootComponent() == SceneComponent.Get() )
 	{
-		if ( SceneComponent.IsValid() && SceneComponent->GetOwner()->GetRootComponent() == SceneComponent.Get() )
-		{
-			ActorToDestroy = SceneComponent->GetOwner();
-		}
+		ActorToDestroy = SceneComponent->GetOwner();
 	}
 
 	if ( ActorToDestroy && !ActorToDestroy->IsA< AUsdStageActor >() && !ActorToDestroy->IsActorBeingDestroyed() && ActorToDestroy->GetWorld() )
@@ -93,7 +89,6 @@ void UUsdPrimTwin::Clear()
 
 		ActorToDestroy->Modify();
 		ActorToDestroy->GetWorld()->DestroyActor( ActorToDestroy );
-		SpawnedActor = nullptr;
 	}
 	else if ( SceneComponent.IsValid() && !SceneComponent->IsBeingDestroyed() )
 	{
@@ -177,11 +172,6 @@ USceneComponent* UUsdPrimTwin::GetSceneComponent() const
 	if ( SceneComponent.IsValid() )
 	{
 		return SceneComponent.Get();
-	}
-
-	if ( SpawnedActor.IsValid() )
-	{
-		return SpawnedActor->GetRootComponent();
 	}
 
 	return nullptr;

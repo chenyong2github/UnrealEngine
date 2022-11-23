@@ -61,9 +61,6 @@ public:
 	FString PrimPath;
 
 	UPROPERTY()
-	TSoftObjectPtr< class AActor > SpawnedActor;
-
-	UPROPERTY()
 	TWeakObjectPtr< class USceneComponent > SceneComponent;
 
 private:
