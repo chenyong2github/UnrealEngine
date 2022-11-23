@@ -541,6 +541,18 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 						Props.AddressX = ReferenceTexture->AddressX;
 						Props.AddressY = ReferenceTexture->AddressY;
 						Props.bFlipGreenChannel = ReferenceTexture->bFlipGreenChannel;
+
+						// TODO: MTBL-1081
+						// TextureGroup::TEXTUREGROUP_UI does not support streaming. If we generate a texture that requires streaming and set this group, it will crash when initializing the resource. 
+						// If LODGroup == TEXTUREGROUP_UI, UTexture::IsPossibleToStream() will return false and UE will assume all mips are loaded, when they're not, and crash.
+						if (Props.LODGroup == TEXTUREGROUP_UI)
+						{
+							Props.LODGroup = TextureGroup::TEXTUREGROUP_Character;
+							
+							FString msg = FString::Printf(TEXT("The Reference texture [%s] is using TEXTUREGROUP_UI which does not support streaming. Please set a different TEXTURE group."),
+								*ReferenceTexture->GetName(), *ImageName);
+							GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node);
+						}
 					}
 					else if (!GroupProjectionImg.get())
 					{

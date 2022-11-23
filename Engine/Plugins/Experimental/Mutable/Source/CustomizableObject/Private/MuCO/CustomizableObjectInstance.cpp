@@ -4248,6 +4248,11 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshRenderData(const TShared
 		LODModel.bIsLODOptional = RefLODRenderData.bIsLODOptional;
 		LODModel.bStreamedDataInlined = RefLODRenderData.bStreamedDataInlined;
 
+		// WARNING! BufferSize must be > 0 or all texture mips in this LOD will be requested at once. 
+		// USkeletalMesh::IsMaterialUsed checks this size to see if a material is being used. If it fails the textures used by it won't be included 
+		// in the map of textures to stream.
+		LODModel.BuffersSize = 1;
+
 	}
 	
 
