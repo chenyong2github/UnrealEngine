@@ -37,7 +37,7 @@ static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingPersi
 
 static TAutoConsoleVariable<int32> CVarLumenRadianceCacheTemporaryBufferAllocationDownsampleFactor(
 	TEXT("r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor"),
-	16,
+	8,
 	TEXT("Downsample factor on the temporary buffer used by Hardware Ray Tracing Radiance Cache.  Higher downsample factors save more transient allocator memory, but may cause overflow and artifacts."),
 	ECVF_RenderThreadSafe
 );

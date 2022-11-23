@@ -353,8 +353,9 @@ void SplatRadianceCacheIntoAtlasCS(
 
 		if (TraceTileResultIndex >= TraceTileResultPackedBufferElementCount)
 		{
-			// Visual assert on overflow due to r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor
-			Lighting = float3(0, 10000, 0) * View.PreExposure;
+			// r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor overflow
+			Lighting = 0.0f;
+			//Lighting = float3(0, 10000, 0) * View.PreExposure;
 		}
 		
 		float HitDistance = TraceTileResult.HitDistance;
@@ -389,8 +390,9 @@ void SplatRadianceCacheIntoAtlasCS(
 
 					if (TraceTileResultIndex >= TraceTileResultPackedBufferElementCount)
 					{
-						// Visual assert on overflow due to r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor
-						Lighting += float3(0, 10000, 0) * View.PreExposure;
+						// r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor overflow
+						Lighting = 0.0f;
+						//Lighting = float3(0, 10000, 0) * View.PreExposure;
 					}
 				}
 			}
