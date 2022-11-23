@@ -563,11 +563,14 @@ void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer, FVTProduc
 
 void URuntimeVirtualTexture::InitNullResource()
 {
-	FNullVirtualTextureProducer* Producer = new FNullVirtualTextureProducer;
-	FVTProducerDescription ProducerDesc;
-	FNullVirtualTextureProducer::GetNullProducerDescription(ProducerDesc);
-	FRuntimeVirtualTextureRenderResource::FResourceInitDesc InitDesc;
-	Resource->Init(Producer, ProducerDesc, InitDesc);
+	if (FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FNullVirtualTextureProducer* Producer = new FNullVirtualTextureProducer;
+		FVTProducerDescription ProducerDesc;
+		FNullVirtualTextureProducer::GetNullProducerDescription(ProducerDesc);
+		FRuntimeVirtualTextureRenderResource::FResourceInitDesc InitDesc;
+		Resource->Init(Producer, ProducerDesc, InitDesc);
+	}
 }
 
 void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
