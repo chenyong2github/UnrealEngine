@@ -7822,20 +7822,25 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		PreviewFeatureLevelChanged.Broadcast(EffectiveFeatureLevel);
 	}
 
-	Scalability::ChangeScalabilityPreviewPlatform(PreviewPlatform.GetEffectivePreviewPlatformName());
+	Scalability::ChangeScalabilityPreviewPlatform(PreviewPlatform.GetEffectivePreviewPlatformName(), GetActiveShaderPlatform());
 
 	UDeviceProfileManager::Get().RestorePreviewDeviceProfile();
 
 	UStaticMesh::OnLodStrippingQualityLevelChanged(nullptr);
 
-	//Override the current device profile.
-	if (PreviewPlatform.DeviceProfileName != NAME_None)
+	if (PreviewPlatform.bPreviewFeatureLevelActive)
 	{
-		if (UDeviceProfile* DP = UDeviceProfileManager::Get().FindProfile(PreviewPlatform.DeviceProfileName.ToString(), false))
+		//Override the current device profile.
+		if (PreviewPlatform.DeviceProfileName != NAME_None)
 		{
-			UDeviceProfileManager::Get().SetPreviewDeviceProfile(DP);
+			if (UDeviceProfile* DP = UDeviceProfileManager::Get().FindProfile(PreviewPlatform.DeviceProfileName.ToString(), false))
+			{
+				UDeviceProfileManager::Get().SetPreviewDeviceProfile(DP);
+			}
 		}
 	}
+
+	Scalability::ApplyCachedQualityLevelForShaderPlatform(GetActiveShaderPlatform());
 
 	PreviewPlatformChanged.Broadcast();
 
@@ -7854,7 +7859,7 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 	DefaultWorldFeatureLevel = NewPreviewFeatureLevel;
 	PreviewFeatureLevelChanged.Broadcast(NewPreviewFeatureLevel);
 
-	Scalability::ChangeScalabilityPreviewPlatform(PreviewPlatform.GetEffectivePreviewPlatformName());
+	Scalability::ChangeScalabilityPreviewPlatform(PreviewPlatform.GetEffectivePreviewPlatformName(), GetActiveShaderPlatform());
 
 	if (PreviewPlatform.bPreviewFeatureLevelActive)
 	{
@@ -7882,6 +7887,8 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 		UDeviceProfileManager::Get().RestorePreviewDeviceProfile();
 	}
 
+	Scalability::ApplyCachedQualityLevelForShaderPlatform(GetActiveShaderPlatform());
+
 	PreviewPlatformChanged.Broadcast();
 
 	UStaticMesh::OnLodStrippingQualityLevelChanged(nullptr);
@@ -7899,6 +7906,17 @@ bool UEditorEngine::IsFeatureLevelPreviewEnabled() const
 bool UEditorEngine::IsFeatureLevelPreviewActive() const
 {
  	return PreviewPlatform.bPreviewFeatureLevelActive;
+}
+
+EShaderPlatform UEditorEngine::GetActiveShaderPlatform() const
+{
+	EShaderPlatform ActiveShaderPlatform = GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
+	if (PreviewPlatform.bPreviewFeatureLevelActive)
+	{
+		ActiveShaderPlatform = GShaderPlatformForFeatureLevel[PreviewPlatform.PreviewFeatureLevel];
+	}
+
+	return ActiveShaderPlatform;
 }
 
 ERHIFeatureLevel::Type UEditorEngine::GetActiveFeatureLevelPreviewType() const

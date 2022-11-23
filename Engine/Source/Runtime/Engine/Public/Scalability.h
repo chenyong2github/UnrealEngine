@@ -155,6 +155,10 @@ namespace Scalability
 	/** This is the only suggested way to set the current state - don't set CVars directly **/
 	ENGINE_API void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce = false);
 
+#if WITH_EDITOR
+	ENGINE_API void ApplyCachedQualityLevelForShaderPlatform(EShaderPlatform ShaderPlatform);
+#endif
+
 	/** This is the only suggested way to get the current state - don't get CVars directly */
 	ENGINE_API FQualityLevels GetQualityLevels();
 
@@ -210,7 +214,7 @@ namespace Scalability
 
 #if WITH_EDITOR
 	/** Set an Editor preview scalability platform */
-	void ENGINE_API ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName);
+	void ENGINE_API ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName, EShaderPlatform ShaderPlatform);
 #endif
 
 	ENGINE_API FText GetQualityLevelText(int32 Value, int32 NumLevels);

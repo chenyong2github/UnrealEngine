@@ -3205,6 +3205,9 @@ public:
 	/** Return whether the feature level preview enabled via Settings->Preview Rendering Level is currently active/displaying. */
 	bool IsFeatureLevelPreviewActive() const;
 
+	/** Return the current active shader platform in the editor*/
+	EShaderPlatform GetActiveShaderPlatform() const;
+
 	/**
 	 * Return the active feature level. This will be the chosen Settings->Preview Rendering Level if the Preview Mode button
 	 * is highlighted or SM5 if the Preview Mode button has been clicked and isn't highlighted.

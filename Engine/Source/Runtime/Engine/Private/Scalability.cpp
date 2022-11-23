@@ -337,10 +337,13 @@ FString GetScalabilitySectionString(const TCHAR* InGroupName, int32 InQualityLev
 
 #if WITH_EDITOR
 FName PlatformScalabilityName; // The name of the current platform scalability, or NAME_None if none is active
+EShaderPlatform ScalabilityShaderPlatform;
+bool bScalabilityShaderPlatformHasBeenChanged;
 FString PlatformScalabilityIniFilename;
 TMap<IConsoleVariable*, FString> PlatformScalabilityCVarBackup;
 TSet<const IConsoleVariable*> PlatformScalabilityCVarAllowList;
 TSet<const IConsoleVariable*> PlatformScalabilityCVarDenyList;
+TMap<EShaderPlatform, Scalability::FQualityLevels> PreviewShaderPlatformToCachedQualityLevels;
 
 void UndoPlatformScalability()
 {
@@ -376,9 +379,11 @@ void ApplyScalabilityGroupFromPlatformIni(const TCHAR* InSectionName, const TCHA
 	UE::ConfigUtilities::ForEachCVarInSectionFromIni(InSectionName, InIniFilename, Func);
 }
 
-void ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName)
+void ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName, EShaderPlatform ShaderPlatform)
 {
 	PlatformScalabilityName = NewPlatformScalabilityName;
+	bScalabilityShaderPlatformHasBeenChanged = ScalabilityShaderPlatform != ShaderPlatform;
+	ScalabilityShaderPlatform = ShaderPlatform;
 }
 #endif
 
@@ -417,6 +422,20 @@ static void SetGroupQualityLevel(const TCHAR* InGroupName, int32 InQualityLevel,
 		UE::ConfigUtilities::ApplyCVarSettingsFromIni(*Section, *GScalabilityIni, ECVF_SetByScalability);
 	}
 }
+
+#if WITH_EDITOR
+void ApplyCachedQualityLevelForShaderPlatform(EShaderPlatform ShaderPlatform)
+{
+	if (ScalabilityShaderPlatform != EShaderPlatform::SP_NumPlatforms)
+	{
+		if (Scalability::FQualityLevels* CachedQualityLevel = PreviewShaderPlatformToCachedQualityLevels.Find(ScalabilityShaderPlatform))
+		{
+			Scalability::SetQualityLevels(*CachedQualityLevel);
+			Scalability::SaveState(GEditorSettingsIni);
+		}
+	}
+}
+#endif
 
 float GetResolutionScreenPercentage()
 {
@@ -548,6 +567,10 @@ void InitScalabilitySystem()
 	CVarFoliageQuality.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeFoliageQuality));
 	CVarShadingQuality.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeShadingQuality));
 
+#if WITH_EDITOR
+	ScalabilityShaderPlatform = GMaxRHIShaderPlatform;
+	bScalabilityShaderPlatformHasBeenChanged = false;
+#endif
 	// Set defaults
 	SetQualityLevels(FQualityLevels(), true);
 	GScalabilityBackupQualityLevels = FQualityLevels();
@@ -782,6 +805,10 @@ void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce/* = false
 	ClampedLevels.SetFoliageQuality(QualityLevels.FoliageQuality);
 	ClampedLevels.SetShadingQuality(QualityLevels.ShadingQuality);
 
+#if WITH_EDITOR
+	bForce = bForce || bScalabilityShaderPlatformHasBeenChanged;
+#endif
+
 	if (GScalabilityUsingTemporaryQualityLevels && !bForce)
 	{
 		// When temporary scalability is active, non-temporary sets are
@@ -806,6 +833,14 @@ void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce/* = false
 
 		OnScalabilitySettingsChanged.Broadcast(ClampedLevels);
 	}
+
+#if WITH_EDITOR
+	if (ScalabilityShaderPlatform != EShaderPlatform::SP_NumPlatforms)
+	{
+		PreviewShaderPlatformToCachedQualityLevels.FindOrAdd(ScalabilityShaderPlatform) = ClampedLevels;
+	}
+	bScalabilityShaderPlatformHasBeenChanged = false;
+#endif
 }
 
 FQualityLevels GetQualityLevels()
