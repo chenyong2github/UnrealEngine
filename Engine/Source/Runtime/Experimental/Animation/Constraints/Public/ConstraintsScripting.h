@@ -74,9 +74,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig | Constraints")
 	static TArray<UTickableConstraint*> GetConstraintsArray(UWorld* InWorld);
 
+
+	/**
+	* Remove specified constraint 
+	* @param InWorld World to remove the constraint
+	* @param InTickableConstraint Constraint to remove
+	* @return return If constraint removed correctly
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig | Constraints")
+	static bool RemoveThisConstraint(UWorld* InWorld, UTickableConstraint* InTickableConstraint);
+
 	/**
 	* Remove constraint at specified index
-	* @param InWorld World to create the constraint
+	* @param InWorld World to remove the constraint
 	* @param InIndex Index to remove from
 	* @return return If constraint removed correctly
 	*/

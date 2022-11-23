@@ -491,35 +491,155 @@ TArray <UTickableConstraint*> UControlRigSequencerEditorLibrary::GetConstraintsF
 	return Constraints;
 }
 
-bool UControlRigSequencerEditorLibrary::Compensate(UTickableConstraint* InConstraint, const FFrameNumber& FrameTime)
+bool UControlRigSequencerEditorLibrary::Compensate(UTickableConstraint* InConstraint, FFrameNumber InTime, ESequenceTimeUnit TimeUnit)
 {
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset();
+	if (WeakSequencer.IsValid() == false)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("Compensate: Need open Sequencer"));
+		return false;
+	}
 	if (UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InConstraint))
 	{
-		TOptional<FFrameNumber> OptTime(FrameTime);
+		TSharedPtr<ISequencer>  Sequencer = WeakSequencer.Pin();
+		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+		FFrameRate DisplayRate = Sequencer->GetFocusedDisplayRate();
+		if (TimeUnit == ESequenceTimeUnit::DisplayRate)
+		{
+			InTime = FFrameRate::TransformTime(FFrameTime(InTime, 0), DisplayRate, TickResolution).RoundToFrame();
+		}
+		TOptional<FFrameNumber> OptTime(InTime);
 		FConstraintChannelHelper::Compensate(Constraint, OptTime);
 		return true;
+	}
+	else
+	{
+		UE_LOG(LogControlRig, Error, TEXT("Compensate: Not Transform Constraint"));
 	}
 	return false;
 }
 
 bool UControlRigSequencerEditorLibrary::CompensateAll(UTickableConstraint* InConstraint)
 {
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset();
+	if (WeakSequencer.IsValid() == false)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("CompensateAll: Need open Sequencer"));
+		return false;
+	}
 	if (UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InConstraint))
 	{
 		FConstraintChannelHelper::Compensate(Constraint, TOptional<FFrameNumber>());
 		return true;
 	}
-	return false;
-}
-
-bool UControlRigSequencerEditorLibrary::SetConstraintActiveKey(UTickableConstraint* InConstraint, bool bActive, const FFrameNumber& FrameTime)
-{
-	if (UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InConstraint))
+	else
 	{
-		return FConstraintChannelHelper::SmartConstraintKey(Constraint, TOptional<bool>(bActive), TOptional<FFrameNumber>(FrameTime));
+		UE_LOG(LogControlRig, Error, TEXT("CompensateAll: Not Transform Constraint"));
 	}
 	return false;
 }
+
+bool UControlRigSequencerEditorLibrary::SetConstraintActiveKey(UTickableConstraint* InConstraint, bool bActive, FFrameNumber InTime, ESequenceTimeUnit TimeUnit)
+{
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset();
+	if (WeakSequencer.IsValid() == false)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("SetConstraintActiveKey: Need open Sequencer"));
+		return false;
+	}
+
+	if (UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InConstraint))
+	{
+		TSharedPtr<ISequencer>  Sequencer = WeakSequencer.Pin();
+		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+		FFrameRate DisplayRate = Sequencer->GetFocusedDisplayRate();
+
+		if (TimeUnit == ESequenceTimeUnit::DisplayRate)
+		{
+			InTime = FFrameRate::TransformTime(FFrameTime(InTime, 0), DisplayRate, TickResolution).RoundToFrame();
+		}
+		return FConstraintChannelHelper::SmartConstraintKey(Constraint, TOptional<bool>(bActive), TOptional<FFrameNumber>(InTime));
+	}
+	else
+	{
+		UE_LOG(LogControlRig, Error, TEXT("SetConstraintActiveKey: Not Transform Constraint"));
+	}
+	return false;
+}
+
+bool UControlRigSequencerEditorLibrary::GetConstraintKeys(UTickableConstraint* InConstraint, UMovieSceneSection* ConstraintSection, TArray<bool>& OutBools, TArray<FFrameNumber>& OutFrames, ESequenceTimeUnit TimeUnit)
+{
+	if (InConstraint == nullptr)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("GetConstraintKeys: Constraint not valid"));
+		return false;
+	}
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset();
+	if (WeakSequencer.IsValid() == false)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("GetConstraintKeys: Need open Sequencer"));
+		return false;
+	}
+
+	IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(ConstraintSection);
+	if (ConstrainedSection == nullptr)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("GetConstraintKeys: Section doesn't support constraints"));
+		return false;
+	}
+	FConstraintAndActiveChannel* ConstraintAndChannel = ConstrainedSection->GetConstraintChannel(InConstraint->GetFName());
+	if (ConstraintAndChannel == nullptr)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("GetConstraintKeys: Constraint not found in section"));
+		return false;
+	}
+
+	if (UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InConstraint))
+	{
+		TSharedPtr<ISequencer>  Sequencer = WeakSequencer.Pin();
+		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+		FFrameRate DisplayRate = Sequencer->GetFocusedDisplayRate();
+
+
+		TArray<FFrameNumber> OurKeyTimes;
+		TArray<FKeyHandle> OurKeyHandles;
+		TRange<FFrameNumber> CurrentFrameRange;
+		CurrentFrameRange.SetLowerBound(TRangeBound<FFrameNumber>());
+		CurrentFrameRange.SetUpperBound(TRangeBound<FFrameNumber>());
+
+		TMovieSceneChannelData<bool> ChannelInterface = ConstraintAndChannel->ActiveChannel.GetData();
+		ChannelInterface.GetKeys(CurrentFrameRange, &OurKeyTimes, &OurKeyHandles);
+		
+		if (OurKeyTimes.Num() > 0)
+		{
+			OutBools.SetNum(OurKeyTimes.Num());
+			OutFrames.SetNum(OurKeyTimes.Num());
+			int32 Index = 0;
+			for (FFrameNumber Frame : OurKeyTimes)
+			{
+				ConstraintAndChannel->ActiveChannel.Evaluate(FFrameTime(Frame, 0.0f), OutBools[Index]);
+				if (TimeUnit == ESequenceTimeUnit::DisplayRate)
+				{
+					Frame = FFrameRate::TransformTime(FFrameTime(Frame, 0), TickResolution,DisplayRate).RoundToFrame();
+				}
+				OutFrames[Index] = Frame;
+				++Index;
+			}
+		}
+		else
+		{
+			OutBools.SetNum(0);
+			OutFrames.SetNum(0);
+		}
+	}
+	else
+	{
+		UE_LOG(LogControlRig, Error, TEXT("GetConstraintKeys: Not Transform Constraint"));
+		return false;
+	}
+	return true;
+}
+
 
 bool UControlRigSequencerEditorLibrary::MoveConstraintKey(UTickableConstraint* Constraint, UMovieSceneSection* ConstraintSection, FFrameNumber InTime, FFrameNumber InNewTime, ESequenceTimeUnit TimeUnit)
 {

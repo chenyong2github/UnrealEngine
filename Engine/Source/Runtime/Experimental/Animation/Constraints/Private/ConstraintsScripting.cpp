@@ -61,3 +61,17 @@ bool UConstraintsScriptingLibrary::RemoveConstraint(UWorld* InWorld, int32 InInd
 	return Controller.RemoveConstraint(InIndex);
 }
 
+bool UConstraintsScriptingLibrary::RemoveThisConstraint(UWorld* InWorld, UTickableConstraint* InTickableConstraint)
+{
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+	const TArray< TObjectPtr<UTickableConstraint> >& ConstraintsArray = Controller.GetConstraintsArray();
+	for (int32 Index = 0; Index < ConstraintsArray.Num(); ++Index)
+	{
+		if (InTickableConstraint == ConstraintsArray[Index])
+		{
+			return Controller.RemoveConstraint(Index);
+
+		}
+	}
+	return false;
+}

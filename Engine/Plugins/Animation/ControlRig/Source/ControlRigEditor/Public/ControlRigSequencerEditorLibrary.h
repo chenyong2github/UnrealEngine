@@ -162,15 +162,28 @@ public:
 	static UTickableConstraint* AddConstraint(UWorld* World, ETransformConstraintType InType, UTransformableHandle* InChild, UTransformableHandle* InParent, const bool bMaintainOffset);
 	
 	/**
+	* Get the constraint keys for the specified constraint
+	* @param InConstraint The constraint to get
+	* @param ConstraintSection Section containing Cosntraint Key
+	* @param OutBools Array of whether or not it's active at the specified times
+	* @param OutFrames The Times for the keys
+	* @param TimeUnit Unit for the time params, either in display rate or tick resolution
+	* @return Returns true if we got the keys from this constraint
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool GetConstraintKeys(UTickableConstraint* InConstraint, UMovieSceneSection* ConstraintSection,TArray<bool>& OutBools, TArray<FFrameNumber>& OutFrames, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+	
+	/**
 	* Set the constraint active key in the current open Sequencer
 	* @param InConstraint The constraint to set the key
 	* @param bActive Whether or not it's active
-	* @param FrameTime Time to set the value 
+	* @param FrameTime Time to set the value
+	* @param TimeUnit Unit for the time params, either in display rate or tick resolution
 	* @return Returns true if we set the constraint to be the passed in value, false if not. We may not do so if the value is the same.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	static bool SetConstraintActiveKey(UTickableConstraint* InConstraint, bool bActive,const FFrameNumber& FrameTime);
-	
+	static bool SetConstraintActiveKey(UTickableConstraint* InConstraint, bool bActive, FFrameNumber InFrame, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+
 	/**
 	* Get all constraints for this object, which is described by a transformable handle
 	* @param InChild The handle to look for constraints controlling it
@@ -188,7 +201,7 @@ public:
 	* @return Will return false if function fails, for example if there is no key at this time it will fail, or if the new time is invalid it could fail also
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	bool MoveConstraintKey(UTickableConstraint* Constraint, UMovieSceneSection* ConstraintSection, FFrameNumber InTime, FFrameNumber InNewTime, ESequenceTimeUnit TimeUnit);
+	static bool MoveConstraintKey(UTickableConstraint* Constraint, UMovieSceneSection* ConstraintSection, FFrameNumber InTime, FFrameNumber InNewTime, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
 
 	/** Delete the Key for the Constraint at the specified time. 
 	* @param InConstraint The constraint whose key to move
@@ -202,11 +215,12 @@ public:
 	/**
 	* Compensate constraint at the specfied time 
 	* @param InConstraint The constraint to compensate
-	* @param FrameTime  Time to compensate
+	* @param InTime Time to compensate
+	* @param TimeUnit Unit for the InTime, either in display rate or tick resolution
 	* @return Returns true if it can compensate
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	static bool Compensate(UTickableConstraint* InConstraint, const FFrameNumber& FrameTime);
+	static bool Compensate(UTickableConstraint* InConstraint,  FFrameNumber InTime, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
 
 	/**
 	* Compensate constraint at all keys
@@ -982,7 +996,7 @@ public:
 	* @return Return true if the function succeeds, false if it doesn't which can happen if the name arrays don't match in size or any of the new Control Names aren't valid
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	bool RenameControlRigControlChannels(ULevelSequence* InSequence, UControlRig* InControlRig, const TArray<FName>& InOldControlNames, const TArray<FName>& InNewControlNames);
+	static bool RenameControlRigControlChannels(ULevelSequence* InSequence, UControlRig* InControlRig, const TArray<FName>& InOldControlNames, const TArray<FName>& InNewControlNames);
 
 	/** Get the controls mask for the given ControlName */
 	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Sequencer Tools | Control Rig")
