@@ -57,12 +57,12 @@ struct CONTROLRIG_API FRigSpace : public FRigElement
 	UPROPERTY(BlueprintReadOnly, transient, EditAnywhere, Category = FRigElement)
 	FTransform LocalTransform;
 
-	FORCEINLINE virtual ERigElementType GetElementType() const override
+	virtual ERigElementType GetElementType() const override
 	{
 		return ERigElementType::Null;
 	}
 
-	FORCEINLINE virtual FRigElementKey GetParentElementKey() const
+	virtual FRigElementKey GetParentElementKey() const
 	{
 		switch (SpaceType)
 		{
@@ -94,10 +94,10 @@ struct CONTROLRIG_API FRigSpaceHierarchy
 
 	FRigSpaceHierarchy();
 
-	FORCEINLINE TArray<FRigSpace>::RangedForIteratorType      begin()       { return Spaces.begin(); }
-	FORCEINLINE TArray<FRigSpace>::RangedForConstIteratorType begin() const { return Spaces.begin(); }
-	FORCEINLINE TArray<FRigSpace>::RangedForIteratorType      end()         { return Spaces.end();   }
-	FORCEINLINE TArray<FRigSpace>::RangedForConstIteratorType end() const   { return Spaces.end();   }
+	TArray<FRigSpace>::RangedForIteratorType      begin()       { return Spaces.begin(); }
+	TArray<FRigSpace>::RangedForConstIteratorType begin() const { return Spaces.begin(); }
+	TArray<FRigSpace>::RangedForIteratorType      end()         { return Spaces.end();   }
+	TArray<FRigSpace>::RangedForConstIteratorType end() const   { return Spaces.end();   }
 
 	FRigSpace& Add(const FName& InNewName, ERigSpaceType InSpaceType, const FName& InParentName, const FTransform& InTransform);
 	

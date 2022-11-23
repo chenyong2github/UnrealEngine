@@ -26,14 +26,14 @@ struct RIGVM_API FRigVMNameOp
 {
 public:
 
-	FORCEINLINE FRigVMNameOp()
+	FRigVMNameOp()
 	: A(INDEX_NONE)
 	, B(INDEX_NONE)
 	, C(INDEX_NONE)
 	, Type(ERigVMNameOp::None)
 	{}
 
-	FORCEINLINE static uint32 GetTypeHash(const FName& InName)
+	static uint32 GetTypeHash(const FName& InName)
 	{
 		return HashCombine(InName.GetComparisonIndex().ToUnstableInt(), uint32(InName.GetNumber()));
 	}
@@ -48,22 +48,22 @@ public:
     static FRigVMNameOp StartsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase);
     static FRigVMNameOp Contains(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase);
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMNameOp& Op)
+	friend uint32 GetTypeHash(const FRigVMNameOp& Op)
 	{
 		return HashCombine(Op.A, HashCombine(Op.B, HashCombine(Op.C, (uint32)Op.Type)));
 	}
 
-	FORCEINLINE bool operator ==(const FRigVMNameOp& Other) const
+	bool operator ==(const FRigVMNameOp& Other) const
 	{
 		return Type == Other.Type && A == Other.A && B == Other.B && C == Other.C;
 	}
 
-	FORCEINLINE bool operator !=(const FRigVMNameOp& Other) const
+	bool operator !=(const FRigVMNameOp& Other) const
 	{
 		return Type != Other.Type || A != Other.A || B != Other.B || C != Other.C;
 	}
 
-	FORCEINLINE bool operator <(const FRigVMNameOp& Other) const
+	bool operator <(const FRigVMNameOp& Other) const
 	{
 		if (Type < Other.Type)
 		{
@@ -80,7 +80,7 @@ public:
 		return C < Other.C;
 	}
 
-	FORCEINLINE bool operator >(const FRigVMNameOp& Other) const
+	bool operator >(const FRigVMNameOp& Other) const
 	{
 		if (Type > Other.Type)
 		{
@@ -110,7 +110,7 @@ class RIGVM_API FRigVMNameCache
 {
 public:
 
-	FORCEINLINE void Reset()
+	void Reset()
 	{
 		NameCache.Reset();
 		BoolCache.Reset();
@@ -126,8 +126,8 @@ public:
 	bool StartsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase);
 	bool Contains(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase);
 
-	FORCEINLINE const TMap<FRigVMNameOp, FName>& GetNameCache() const { return NameCache; }
-	FORCEINLINE const TMap<FRigVMNameOp, bool>&  GetBoolCache() const { return BoolCache; }
+	const TMap<FRigVMNameOp, FName>& GetNameCache() const { return NameCache; }
+	const TMap<FRigVMNameOp, bool>&  GetBoolCache() const { return BoolCache; }
 	TArray<FRigVMNameOp> GetNameOps() const;
 	TArray<FName> GetNameValues() const;
 	TArray<FRigVMNameOp> GetBoolOps() const;
@@ -138,7 +138,7 @@ private:
 #if WITH_EDITOR
 	bool CheckCacheSize() const;
 #else
-	FORCEINLINE bool CheckCacheSize() const { return true; } 
+	bool CheckCacheSize() const { return true; } 
 #endif
 
 	TMap<FRigVMNameOp, FName> NameCache;

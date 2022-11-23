@@ -748,7 +748,7 @@ private:
 public:
 
 	/** Sets the execution mode. In Release mode the rig will ignore all breakpoints. */
-	FORCEINLINE void SetDebugMode(const bool bValue) { bCompileInDebugMode = bValue; }
+	void SetDebugMode(const bool bValue) { bCompileInDebugMode = bValue; }
 
 	/** Removes all the breakpoints from the blueprint and the VM */
 	void ClearBreakpoints();

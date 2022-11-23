@@ -14,19 +14,19 @@ struct CONTROLRIG_API FRigDispatchFactory : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
 
-	FORCEINLINE virtual UScriptStruct* GetExecuteContextStruct() const override
+	virtual UScriptStruct* GetExecuteContextStruct() const override
 	{
 		return FControlRigExecuteContext::StaticStruct();
 	}
 
-	FORCEINLINE virtual void RegisterDependencyTypes() const override
+	virtual void RegisterDependencyTypes() const override
 	{
 		FRigVMRegistry::Get().FindOrAddType(FControlRigExecuteContext::StaticStruct());
 		FRigVMRegistry::Get().FindOrAddType(FRigElementKey::StaticStruct());
     	FRigVMRegistry::Get().FindOrAddType(FCachedRigElement::StaticStruct());
 	}
 
-	FORCEINLINE virtual TArray<TPair<FName,FString>> GetOpaqueArguments() const override
+	virtual TArray<TPair<FName,FString>> GetOpaqueArguments() const override
 	{
 		static const TArray<TPair<FName,FString>> OpaqueArguments = {
 			TPair<FName,FString>(TEXT("Context"), TEXT("const FRigUnitContext&"))
@@ -40,7 +40,7 @@ struct CONTROLRIG_API FRigDispatchFactory : public FRigVMDispatchFactory
 
 #endif
 
-	FORCEINLINE static const FRigUnitContext& GetRigUnitContext(const FRigVMExtendedExecuteContext& InContext)
+	static const FRigUnitContext& GetRigUnitContext(const FRigVMExtendedExecuteContext& InContext)
 	{
 		return *(const FRigUnitContext*)InContext.OpaqueArguments[0];
 	}

@@ -332,7 +332,7 @@ private:
 
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG		
 	template<class ActionType>
-	FORCEINLINE void LogAction(const ActionType& InAction, const FString& InPrefix)
+	void LogAction(const ActionType& InAction, const FString& InPrefix)
 	{
 		LogAction(ActionType::StaticStruct(), InAction, InPrefix);
 	}

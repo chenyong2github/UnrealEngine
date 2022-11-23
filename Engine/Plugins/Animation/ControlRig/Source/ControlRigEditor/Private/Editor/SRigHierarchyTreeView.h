@@ -92,7 +92,7 @@ struct CONTROLRIGEDITOR_API FRigTreeDelegates
 		bIsChangingRigHierarchy = false;
 	}
 
-	FORCEINLINE const URigHierarchy* GetHierarchy() const
+	const URigHierarchy* GetHierarchy() const
 	{
 		if(OnGetHierarchy.IsBound())
 		{
@@ -101,7 +101,7 @@ struct CONTROLRIGEDITOR_API FRigTreeDelegates
 		return nullptr;
 	}
 
-	FORCEINLINE const FRigTreeDisplaySettings& GetDisplaySettings() const
+	const FRigTreeDisplaySettings& GetDisplaySettings() const
 	{
 		if(OnGetDisplaySettings.IsBound())
 		{
@@ -110,7 +110,7 @@ struct CONTROLRIGEDITOR_API FRigTreeDelegates
 		return DefaultDisplaySettings;
 	}
 	
-	FORCEINLINE FName HandleRenameElement(const FRigElementKey& OldKey, const FString& NewName) const
+	FName HandleRenameElement(const FRigElementKey& OldKey, const FString& NewName) const
 	{
 		if(OnRenameElement.IsBound())
 		{
@@ -119,7 +119,7 @@ struct CONTROLRIGEDITOR_API FRigTreeDelegates
 		return OldKey.Name;
 	}
 	
-	FORCEINLINE bool HandleVerifyElementNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage) const
+	bool HandleVerifyElementNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage) const
 	{
 		if(OnVerifyElementNameChanged.IsBound())
 		{
@@ -128,7 +128,7 @@ struct CONTROLRIGEDITOR_API FRigTreeDelegates
 		return false;
 	}
 
-	FORCEINLINE void HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
+	void HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
 	{
 		if(bIsChangingRigHierarchy)
 		{

@@ -437,7 +437,7 @@ public:
 	// helper function to retrieve an object from a path
 	static UObject* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath);
 	template<class T>
-	FORCEINLINE static T* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
+	static T* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
 	{
 		return Cast<T>(FindObjectFromCPPTypeObjectPath(InObjectPath));
 	}

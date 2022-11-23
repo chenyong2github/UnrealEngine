@@ -35,7 +35,7 @@ namespace RigVMPythonUtils
 	RIGVMDEVELOPER_API FString EnumValueToPythonString(UEnum* Enum, int64 Value);
 	
 	template<typename T>
-	FORCEINLINE FString EnumValueToPythonString(int64 Value)
+	FString EnumValueToPythonString(int64 Value)
 	{
 		return EnumValueToPythonString(StaticEnum<T>(), Value);
 	}

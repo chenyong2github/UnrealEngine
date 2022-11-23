@@ -53,7 +53,7 @@ public:
 	 * @return Returns true if the selection was applied
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    FORCEINLINE bool DeselectElement(FRigElementKey InKey)
+    bool DeselectElement(FRigElementKey InKey)
 	{
 		return SelectElement(InKey, false);
 	}
@@ -71,7 +71,7 @@ public:
 	 * @return Returns true if the selection was applied
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    FORCEINLINE bool ClearSelection()
+    bool ClearSelection()
 	{
 		return SetSelection(TArray<FRigElementKey>());
 	}
@@ -136,7 +136,7 @@ public:
 	 * @return The key for the newly created control.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController, meta = (DisplayName = "Add Control", ScriptName = "AddControl"))
-    FORCEINLINE FRigElementKey AddControl_ForBlueprint(
+    FRigElementKey AddControl_ForBlueprint(
         FName InName,
         FRigElementKey InParent,
         FRigControlSettings InSettings,
@@ -174,7 +174,7 @@ public:
 	 * @return The key for the newly created animation channel.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController, meta = (DisplayName = "Add Control", ScriptName = "AddAnimationChannel"))
-    FORCEINLINE FRigElementKey AddAnimationChannel_ForBlueprint(
+    FRigElementKey AddAnimationChannel_ForBlueprint(
         FName InName,
         FRigElementKey InParentControl,
         FRigControlSettings InSettings,
@@ -557,7 +557,7 @@ public:
 	/**
 	 * Returns a reference to the suspend notifications flag
 	 */
-	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendAllNotifications; }
+	bool& GetSuspendNotificationsFlag() { return bSuspendAllNotifications; }
 
 #if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
@@ -595,7 +595,7 @@ private:
 	 * Returns true if this controller is valid / linked to a valid hierarchy.
 	 * @return Returns true if this controller is valid / linked to a valid hierarchy.
 	 */
-	FORCEINLINE bool IsValid() const { return Hierarchy.IsValid(); }
+	bool IsValid() const { return Hierarchy.IsValid(); }
 
 	/**
 	 * Adds a new element to the hierarchy

@@ -76,7 +76,7 @@ public:
 protected:
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
-	FORCEINLINE ExecuteContextType& UpdateContext(TArrayView<void*> AdditionalArguments, int32 InNumberInstructions, const FName& InEntryName)
+	ExecuteContextType& UpdateContext(TArrayView<void*> AdditionalArguments, int32 InNumberInstructions, const FName& InEntryName)
 	{
 		UpdateExternalVariables();
 	
@@ -108,29 +108,29 @@ protected:
 		}
 	};
 
-	FORCEINLINE void BeginSlice(int32 InCount, int32 InRelativeIndex = 0)
+	void BeginSlice(int32 InCount, int32 InRelativeIndex = 0)
 	{
 		Context.BeginSlice(InCount, InRelativeIndex);
 	}
 
-	FORCEINLINE void EndSlice()
+	void EndSlice()
 	{
 		Context.EndSlice();
 	}
 
-	FORCEINLINE bool IsValidArraySize(int32 InArraySize) const
+	bool IsValidArraySize(int32 InArraySize) const
 	{
 		return Context.IsValidArraySize(InArraySize);
 	}
 
 	template<typename T>
-	FORCEINLINE bool IsValidArrayIndex(int32& InOutIndex, const TArray<T>& InArray) const
+	bool IsValidArrayIndex(int32& InOutIndex, const TArray<T>& InArray) const
 	{
 		return Context.IsValidArrayIndex(InOutIndex, InArray.Num());
 	}
 
 	template<typename T>
-	FORCEINLINE static const T& GetArrayElementSafe(const TArray<T>& InArray, const int32 InIndex)
+	static const T& GetArrayElementSafe(const TArray<T>& InArray, const int32 InIndex)
 	{
 		if(InArray.IsValidIndex(InIndex))
 		{
@@ -141,7 +141,7 @@ protected:
 	}
 
 	template<typename T>
-	FORCEINLINE static T& GetArrayElementSafe(TArray<T>& InArray, const int32 InIndex)
+	static T& GetArrayElementSafe(TArray<T>& InArray, const int32 InIndex)
 	{
 		if(InArray.IsValidIndex(InIndex))
 		{
@@ -152,7 +152,7 @@ protected:
 	}
 
 	template<typename A, typename B>
-	FORCEINLINE static void CopyUnrelatedArrays(TArray<A>& Target, const TArray<B>& Source)
+	static void CopyUnrelatedArrays(TArray<A>& Target, const TArray<B>& Source)
 	{
 		const int32 Num = Source.Num();
 		Target.SetNum(Num);
@@ -162,7 +162,7 @@ protected:
 		}
 	}
 
-	FORCEINLINE void BroadcastExecutionReachedExit()
+	void BroadcastExecutionReachedExit()
 	{
 		if(EntriesBeingExecuted.Num() == 1)
 		{
@@ -172,7 +172,7 @@ protected:
 	}
 
 	template<typename T>
-	FORCEINLINE T& GetExternalVariableRef(const FName& InExternalVariableName, const FName& InExpectedType) const
+	T& GetExternalVariableRef(const FName& InExternalVariableName, const FName& InExpectedType) const
 	{
 		for(const FRigVMExternalVariable& ExternalVariable : GetExternalVariables())
 		{
@@ -189,7 +189,7 @@ protected:
 	}
 
 	template<typename T>
-	FORCEINLINE T& GetOperandSlice(TArray<T>& InOutArray)
+	T& GetOperandSlice(TArray<T>& InOutArray)
 	{
 		const int32 SliceIndex = Context.GetSlice().GetIndex();
 		if(InOutArray.Num() <= SliceIndex)
@@ -200,7 +200,7 @@ protected:
 	}
 
 	template<typename T>
-	FORCEINLINE static bool ArrayOp_Iterator(const TArray<T>& InArray, T& OutElement, int32 InIndex, int32& OutCount, float& OutRatio)
+	static bool ArrayOp_Iterator(const TArray<T>& InArray, T& OutElement, int32 InIndex, int32& OutCount, float& OutRatio)
 	{
 		OutCount = InArray.Num();
 		const bool bContinue = InIndex >=0 && InIndex < OutCount;
@@ -218,7 +218,7 @@ protected:
 		return bContinue;
 	}
 
-	FORCEINLINE static bool ArrayOp_Iterator(const TArray<double>& InArray, float& OutElement, int32 InIndex, int32& OutCount, float& OutRatio)
+	static bool ArrayOp_Iterator(const TArray<double>& InArray, float& OutElement, int32 InIndex, int32& OutCount, float& OutRatio)
 	{
 		double Element = (double)OutElement;
 		const bool bResult = ArrayOp_Iterator<double>(InArray, Element, InIndex, OutCount, OutRatio);
@@ -226,7 +226,7 @@ protected:
 		return bResult;
 	}
 
-	FORCEINLINE static bool ArrayOp_Iterator(const TArray<float>& InArray, double& OutElement, int32 InIndex, int32& OutCount, float& OutRatio)
+	static bool ArrayOp_Iterator(const TArray<float>& InArray, double& OutElement, int32 InIndex, int32& OutCount, float& OutRatio)
 	{
 		float Element = (float)OutElement;
 		const bool bResult = ArrayOp_Iterator<float>(InArray, Element, InIndex, OutCount, OutRatio);
@@ -235,24 +235,24 @@ protected:
 	}
 
 	template<typename T>
-	FORCEINLINE static bool ArrayOp_Find(const TArray<T>& InArray, const T& InElement, int32& OutIndex)
+	static bool ArrayOp_Find(const TArray<T>& InArray, const T& InElement, int32& OutIndex)
 	{
 		OutIndex = InArray.Find(InElement);
 		return OutIndex != INDEX_NONE;
 	}
 
-	FORCEINLINE static bool ArrayOp_Find(const TArray<float>& InArray, const double& InElement, int32& OutIndex)
+	static bool ArrayOp_Find(const TArray<float>& InArray, const double& InElement, int32& OutIndex)
 	{
 		return ArrayOp_Find<float>(InArray, (float)InElement, OutIndex);
 	}
 
-	FORCEINLINE static bool ArrayOp_Find(const TArray<double>& InArray, const float& InElement, int32& OutIndex)
+	static bool ArrayOp_Find(const TArray<double>& InArray, const float& InElement, int32& OutIndex)
 	{
 		return ArrayOp_Find<double>(InArray, (double)InElement, OutIndex);
 	}
 
 	template<typename T>
-	FORCEINLINE static void ArrayOp_Union(TArray<T>& InOutA, const TArray<T>& InB)
+	static void ArrayOp_Union(TArray<T>& InOutA, const TArray<T>& InB)
 	{
 		for(const T& Element : InB)
 		{
@@ -261,7 +261,7 @@ protected:
 	}
 
 	template<typename T>
-	FORCEINLINE static void ArrayOp_Difference(TArray<T>& InOutA, const TArray<T>& InB)
+	static void ArrayOp_Difference(TArray<T>& InOutA, const TArray<T>& InB)
 	{
 		TArray<T> Temp;
 		Swap(InOutA, Temp);
@@ -283,7 +283,7 @@ protected:
 	}
 
 	template<typename T>
-	FORCEINLINE static void ArrayOp_Intersection(TArray<T>& InOutA, const TArray<T>& InB)
+	static void ArrayOp_Intersection(TArray<T>& InOutA, const TArray<T>& InB)
 	{
 		TArray<T> Temp;
 		Swap(InOutA, Temp);
@@ -298,7 +298,7 @@ protected:
 	}
 
 	template<typename T>
-	FORCEINLINE static void ArrayOp_Reverse(TArray<T>& InOutArray)
+	static void ArrayOp_Reverse(TArray<T>& InOutArray)
 	{
 		Algo::Reverse(InOutArray);
 	}
@@ -309,7 +309,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE static T GetStructConstant(const FString& InDefaultValue)
+	static T GetStructConstant(const FString& InDefaultValue)
 	{
 		T Value;
 		if(!InDefaultValue.IsEmpty())
@@ -324,7 +324,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
 	>
-	FORCEINLINE static T GetStructConstant(const FString& InDefaultValue)
+	static T GetStructConstant(const FString& InDefaultValue)
 	{
 		T Value;
 		if(!InDefaultValue.IsEmpty())
@@ -339,7 +339,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE static TArray<T> GetStructArrayConstant(const FString& InDefaultValue)
+	static TArray<T> GetStructArrayConstant(const FString& InDefaultValue)
 	{
 		TArray<T> Value;
 		if(!InDefaultValue.IsEmpty())
@@ -354,7 +354,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
 	>
-	FORCEINLINE static TArray<T> GetStructArrayConstant(const FString& InDefaultValue)
+	static TArray<T> GetStructArrayConstant(const FString& InDefaultValue)
 	{
 		TArray<T> Value;
 		if(!InDefaultValue.IsEmpty())
@@ -370,36 +370,36 @@ protected:
 	class FTransformSetter
 	{
 	public:
-		FORCEINLINE FTransformSetter(FTransform& InOutTransform)
+		FTransformSetter(FTransform& InOutTransform)
 			: Transform(InOutTransform)
 		{
 		}
 
-		FORCEINLINE void SetTranslationX(const FTransform::FReal InValue) const { SetTranslationComponent(0, InValue); }
-		FORCEINLINE void SetTranslationY(const FTransform::FReal InValue) const { SetTranslationComponent(1, InValue); }
-		FORCEINLINE void SetTranslationZ(const FTransform::FReal InValue) const { SetTranslationComponent(2, InValue); }
-		FORCEINLINE void SetTranslationComponent(const uint8 InComponent, const FTransform::FReal InValue) const
+		void SetTranslationX(const FTransform::FReal InValue) const { SetTranslationComponent(0, InValue); }
+		void SetTranslationY(const FTransform::FReal InValue) const { SetTranslationComponent(1, InValue); }
+		void SetTranslationZ(const FTransform::FReal InValue) const { SetTranslationComponent(2, InValue); }
+		void SetTranslationComponent(const uint8 InComponent, const FTransform::FReal InValue) const
 		{
 			FVector Translation = Transform.GetTranslation();
 			Translation.Component(InComponent) = InValue;
 			Transform.SetTranslation(Translation);
 		}
 		
-		FORCEINLINE void SetScaleX(const FTransform::FReal InValue) const { SetScaleComponent(0, InValue); }
-		FORCEINLINE void SetScaleY(const FTransform::FReal InValue) const { SetScaleComponent(1, InValue); }
-		FORCEINLINE void SetScaleZ(const FTransform::FReal InValue) const { SetScaleComponent(2, InValue); }
-		FORCEINLINE void SetScaleComponent(const uint8 InComponent, const FTransform::FReal InValue) const
+		void SetScaleX(const FTransform::FReal InValue) const { SetScaleComponent(0, InValue); }
+		void SetScaleY(const FTransform::FReal InValue) const { SetScaleComponent(1, InValue); }
+		void SetScaleZ(const FTransform::FReal InValue) const { SetScaleComponent(2, InValue); }
+		void SetScaleComponent(const uint8 InComponent, const FTransform::FReal InValue) const
 		{
 			FVector Scale = Transform.GetScale3D();
 			Scale.Component(InComponent) = InValue;
 			Transform.SetScale3D(Scale);
 		}
 		
-		FORCEINLINE void SetRotationX(const FTransform::FReal InValue) const { SetRotationComponent(0, InValue); }
-		FORCEINLINE void SetRotationY(const FTransform::FReal InValue) const { SetRotationComponent(1, InValue); }
-		FORCEINLINE void SetRotationZ(const FTransform::FReal InValue) const { SetRotationComponent(2, InValue); }
-		FORCEINLINE void SetRotationW(const FTransform::FReal InValue) const { SetRotationComponent(3, InValue); }
-		FORCEINLINE void SetRotationComponent(const uint8 InComponent, const FTransform::FReal InValue) const
+		void SetRotationX(const FTransform::FReal InValue) const { SetRotationComponent(0, InValue); }
+		void SetRotationY(const FTransform::FReal InValue) const { SetRotationComponent(1, InValue); }
+		void SetRotationZ(const FTransform::FReal InValue) const { SetRotationComponent(2, InValue); }
+		void SetRotationW(const FTransform::FReal InValue) const { SetRotationComponent(3, InValue); }
+		void SetRotationComponent(const uint8 InComponent, const FTransform::FReal InValue) const
 		{
 			FQuat Rotation = Transform.GetRotation();
 			switch(InComponent)

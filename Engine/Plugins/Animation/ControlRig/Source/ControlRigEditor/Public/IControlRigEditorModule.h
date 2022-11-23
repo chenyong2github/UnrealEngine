@@ -22,7 +22,7 @@ class IControlRigEditorModule : public IModuleInterface, public IHasMenuExtensib
 {
 public:
 
-	static FORCEINLINE IControlRigEditorModule& Get()
+	static IControlRigEditorModule& Get()
 	{
 		return FModuleManager::LoadModuleChecked< IControlRigEditorModule >(TEXT("ControlRigEditor"));
 	}

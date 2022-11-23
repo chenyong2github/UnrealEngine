@@ -52,7 +52,7 @@ struct RIGVM_API FRigVMPropertyPathDescription
 	bool IsValid() const { return PropertyIndex != INDEX_NONE && !HeadCPPType.IsEmpty() && !SegmentPath.IsEmpty(); }
 
 	// Archive operator for serialization
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMPropertyPathDescription& Path)
+	friend FArchive& operator<<(FArchive& Ar, FRigVMPropertyPathDescription& Path)
 	{
 		Ar << Path.PropertyIndex;
 		Ar << Path.HeadCPPType;
@@ -117,36 +117,36 @@ public:
 	FRigVMPropertyPath(const FRigVMPropertyPath& InOther);
 
 	// Returns the property path as a string (the sanitized SegmentPath)
-	FORCEINLINE const FString& ToString() const { return Path; }
+	const FString& ToString() const { return Path; }
 
 	// Returns the number of segments
-	FORCEINLINE int32 Num() const { return Segments.Num(); }
+	int32 Num() const { return Segments.Num(); }
 
 	// Returns true if the property path is valid (has any segments)
-	FORCEINLINE bool IsValid() const { return Num() > 0; }
+	bool IsValid() const { return Num() > 0; }
 
 	// Returns true if the property is empty (no segments)
-	FORCEINLINE bool IsEmpty() const { return Num() == 0; }
+	bool IsEmpty() const { return Num() == 0; }
 
 	// Index based access operator for a segment
-	FORCEINLINE const FRigVMPropertyPathSegment& operator[](int32 InIndex) const { return Segments[InIndex]; }
+	const FRigVMPropertyPathSegment& operator[](int32 InIndex) const { return Segments[InIndex]; }
 
-	FORCEINLINE bool operator ==(const FRigVMPropertyPath& Other) const
+	bool operator ==(const FRigVMPropertyPath& Other) const
 	{
 		return GetTypeHash(this) == GetTypeHash(Other);
 	}
 
-	FORCEINLINE bool operator !=(const FRigVMPropertyPath& Other) const
+	bool operator !=(const FRigVMPropertyPath& Other) const
 	{
 		return GetTypeHash(this) != GetTypeHash(Other);
 	}
 
-	FORCEINLINE bool operator >(const FRigVMPropertyPath& Other) const
+	bool operator >(const FRigVMPropertyPath& Other) const
 	{
 		return GetTypeHash(this) > GetTypeHash(Other);
 	}
 
-	FORCEINLINE bool operator <(const FRigVMPropertyPath& Other) const
+	bool operator <(const FRigVMPropertyPath& Other) const
 	{
 		return GetTypeHash(this) < GetTypeHash(Other);
 	}
@@ -157,13 +157,13 @@ public:
 	 * @param InProperty The head property to traverse off of
 	 */
 	template<typename T>
-	FORCEINLINE T* GetData(uint8* InPtr, const FProperty* InProperty) const
+	T* GetData(uint8* InPtr, const FProperty* InProperty) const
 	{
 		return (T*)GetData_Internal(InPtr, InProperty);
 	}
 
 	// Returns a unique hash for the property path
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMPropertyPath& InPropertyPath)
+	friend uint32 GetTypeHash(const FRigVMPropertyPath& InPropertyPath)
 	{
 		if(InPropertyPath.IsEmpty())
 		{

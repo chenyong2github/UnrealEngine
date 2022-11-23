@@ -133,7 +133,7 @@ public:
 	int32 GetIndex() const { return Index; }
 
 	// returns true if the expressoin is valid
-	FORCEINLINE bool IsValid() const { return GetIndex() != INDEX_NONE; }
+	bool IsValid() const { return GetIndex() != INDEX_NONE; }
 
 	// returns the parent of this expression
 	// @return the parent of this expression
@@ -171,12 +171,12 @@ public:
 	// accessor operator for a given child
 	// @param InIndex the index of the child to retrieve (bound = NumChildren() - 1)
 	// @return the child at the given index
-	FORCEINLINE const FRigVMExprAST* operator[](int32 InIndex) const { return Children[InIndex]; }
+	const FRigVMExprAST* operator[](int32 InIndex) const { return Children[InIndex]; }
 
 	// begin iterator accessor for the children
-	FORCEINLINE TArray<FRigVMExprAST*>::RangedForConstIteratorType begin() const { return Children.begin(); }
+	TArray<FRigVMExprAST*>::RangedForConstIteratorType begin() const { return Children.begin(); }
 	// end iterator accessor for the children
-	FORCEINLINE TArray<FRigVMExprAST*>::RangedForConstIteratorType end() const { return Children.end(); }
+	TArray<FRigVMExprAST*>::RangedForConstIteratorType end() const { return Children.end(); }
 
 	// templated getter to retrieve a child with a given index
 	// type checking will occur within the ::To method and raise
@@ -303,7 +303,7 @@ protected:
 // will raise if types are not compatible
 // @return this expression cast to FRigVMBlockExprAST
 template<>
-FORCEINLINE const FRigVMBlockExprAST* FRigVMExprAST::To() const
+inline const FRigVMBlockExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Block));
 	return (const FRigVMBlockExprAST*)this;
@@ -314,7 +314,7 @@ FORCEINLINE const FRigVMBlockExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMNodeExprAST
 template<>
-FORCEINLINE const FRigVMNodeExprAST* FRigVMExprAST::To() const
+inline const FRigVMNodeExprAST* FRigVMExprAST::To() const
 {
 	ensure(
 		IsA(EType::Entry) ||
@@ -335,7 +335,7 @@ FORCEINLINE const FRigVMNodeExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMEntryExprAST
 template<>
-FORCEINLINE const FRigVMEntryExprAST* FRigVMExprAST::To() const
+inline const FRigVMEntryExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Entry));
 	return (const FRigVMEntryExprAST*)this;
@@ -346,7 +346,7 @@ FORCEINLINE const FRigVMEntryExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMInvokeEntryExprAST
 template<>
-FORCEINLINE const FRigVMInvokeEntryExprAST* FRigVMExprAST::To() const
+inline const FRigVMInvokeEntryExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::InvokeEntry));
 	return (const FRigVMInvokeEntryExprAST*)this;
@@ -357,7 +357,7 @@ FORCEINLINE const FRigVMInvokeEntryExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMCallExternExprAST
 template<>
-FORCEINLINE const FRigVMCallExternExprAST* FRigVMExprAST::To() const
+inline const FRigVMCallExternExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::CallExtern));
 	return (const FRigVMCallExternExprAST*)this;
@@ -368,7 +368,7 @@ FORCEINLINE const FRigVMCallExternExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMInlineFunctionExprAST
 template<>
-FORCEINLINE const FRigVMInlineFunctionExprAST* FRigVMExprAST::To() const
+inline const FRigVMInlineFunctionExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::InlineFunction));
 	return (const FRigVMInlineFunctionExprAST*)this;
@@ -379,7 +379,7 @@ FORCEINLINE const FRigVMInlineFunctionExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMNoOpExprASTo 
 template<>
-FORCEINLINE const FRigVMNoOpExprAST* FRigVMExprAST::To() const
+inline const FRigVMNoOpExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::NoOp));
 	return (const FRigVMNoOpExprAST*)this;
@@ -390,7 +390,7 @@ FORCEINLINE const FRigVMNoOpExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMVarExprAST
 template<>
-FORCEINLINE const FRigVMVarExprAST* FRigVMExprAST::To() const
+inline const FRigVMVarExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Var));
 	return (const FRigVMVarExprAST*)this;
@@ -401,7 +401,7 @@ FORCEINLINE const FRigVMVarExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMLiteralExprAST
 template<>
-FORCEINLINE const FRigVMLiteralExprAST* FRigVMExprAST::To() const
+inline const FRigVMLiteralExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Literal));
 	return (const FRigVMLiteralExprAST*)this;
@@ -412,7 +412,7 @@ FORCEINLINE const FRigVMLiteralExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMExternalVarExprAST
 template<>
-FORCEINLINE const FRigVMExternalVarExprAST* FRigVMExprAST::To() const
+inline const FRigVMExternalVarExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::ExternalVar));
 	return (const FRigVMExternalVarExprAST*)this;
@@ -423,7 +423,7 @@ FORCEINLINE const FRigVMExternalVarExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMAssignExprAST
 template<>
-FORCEINLINE const FRigVMAssignExprAST* FRigVMExprAST::To() const
+inline const FRigVMAssignExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Assign));
 	return (const FRigVMAssignExprAST*)this;
@@ -434,7 +434,7 @@ FORCEINLINE const FRigVMAssignExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMCopyExprASTo 
 template<>
-FORCEINLINE const FRigVMCopyExprAST* FRigVMExprAST::To() const
+inline const FRigVMCopyExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Copy));
 	return (const FRigVMCopyExprAST*)this;
@@ -445,7 +445,7 @@ FORCEINLINE const FRigVMCopyExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMCachedValueExprAST
 template<>
-FORCEINLINE const FRigVMCachedValueExprAST* FRigVMExprAST::To() const
+inline const FRigVMCachedValueExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::CachedValue));
 	return (const FRigVMCachedValueExprAST*)this;
@@ -456,7 +456,7 @@ FORCEINLINE const FRigVMCachedValueExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMExitExprAST 
 template<>
-FORCEINLINE const FRigVMExitExprAST* FRigVMExprAST::To() const
+inline const FRigVMExitExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Exit));
 	return (const FRigVMExitExprAST*)this;
@@ -467,7 +467,7 @@ FORCEINLINE const FRigVMExitExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMBranchExprAST 
 template<>
-FORCEINLINE const FRigVMBranchExprAST* FRigVMExprAST::To() const
+inline const FRigVMBranchExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Branch));
 	return (const FRigVMBranchExprAST*)this;
@@ -478,7 +478,7 @@ FORCEINLINE const FRigVMBranchExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMIfExprAST 
 template<>
-FORCEINLINE const FRigVMIfExprAST* FRigVMExprAST::To() const
+inline const FRigVMIfExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::If));
 	return (const FRigVMIfExprAST*)this;
@@ -489,7 +489,7 @@ FORCEINLINE const FRigVMIfExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMSelectExprAST 
 template<>
-FORCEINLINE const FRigVMSelectExprAST* FRigVMExprAST::To() const
+inline const FRigVMSelectExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Select));
 	return (const FRigVMSelectExprAST*)this;
@@ -500,7 +500,7 @@ FORCEINLINE const FRigVMSelectExprAST* FRigVMExprAST::To() const
 // will raise if types are not compatible
 // @return this expression cast to FRigVMArrayExprAST 
 template<>
-FORCEINLINE const FRigVMArrayExprAST* FRigVMExprAST::To() const
+inline const FRigVMArrayExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Array));
 	return (const FRigVMArrayExprAST*)this;
@@ -1362,13 +1362,13 @@ public:
 	// operator accessor for a given root expression
 	// @param InIndex the index of the expression to retrieve (bound = Num() - 1)
 	// @return the root expression with the given index
-	FORCEINLINE const FRigVMExprAST* operator[](int32 InIndex) const { return RootExpressions[InIndex]; }
+	const FRigVMExprAST* operator[](int32 InIndex) const { return RootExpressions[InIndex]; }
 
 	// begin iterator accessor for the root expressions
-	FORCEINLINE TArray<FRigVMExprAST*>::RangedForConstIteratorType begin() const { return RootExpressions.begin(); }
+	TArray<FRigVMExprAST*>::RangedForConstIteratorType begin() const { return RootExpressions.begin(); }
 
 	// end iterator accessor for the root expressions
-	FORCEINLINE TArray<FRigVMExprAST*>::RangedForConstIteratorType end() const { return RootExpressions.end(); }
+	TArray<FRigVMExprAST*>::RangedForConstIteratorType end() const { return RootExpressions.end(); }
 
 	// accessor method for a given root expression
 	// @param InIndex the index of the expression to retrieve (bound = Num() - 1)

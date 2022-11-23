@@ -137,7 +137,7 @@ struct FRigUnitContext
 	 * @return The requested data source
 	 */
 	template<class T>
-	FORCEINLINE T* RequestDataSource(const FName& InName) const
+	T* RequestDataSource(const FName& InName) const
 	{
 		if (DataSourceRegistry == nullptr)
 		{
@@ -149,7 +149,7 @@ struct FRigUnitContext
 	/**
 	 * Converts a transform from rig (global) space to world space
 	 */
-	FORCEINLINE FTransform ToWorldSpace(const FTransform& InTransform) const
+	FTransform ToWorldSpace(const FTransform& InTransform) const
 	{
 		return InTransform * ToWorldSpaceTransform;
 	}
@@ -157,7 +157,7 @@ struct FRigUnitContext
 	/**
 	 * Converts a transform from world space to rig (global) space
 	 */
-	FORCEINLINE FTransform ToRigSpace(const FTransform& InTransform) const
+	FTransform ToRigSpace(const FTransform& InTransform) const
 	{
 		return InTransform.GetRelativeTransform(ToWorldSpaceTransform);
 	}
@@ -165,7 +165,7 @@ struct FRigUnitContext
 	/**
 	 * Converts a location from rig (global) space to world space
 	 */
-	FORCEINLINE FVector ToWorldSpace(const FVector& InLocation) const
+	FVector ToWorldSpace(const FVector& InLocation) const
 	{
 		return ToWorldSpaceTransform.TransformPosition(InLocation);
 	}
@@ -173,7 +173,7 @@ struct FRigUnitContext
 	/**
 	 * Converts a location from world space to rig (global) space
 	 */
-	FORCEINLINE FVector ToRigSpace(const FVector& InLocation) const
+	FVector ToRigSpace(const FVector& InLocation) const
 	{
 		return ToWorldSpaceTransform.InverseTransformPosition(InLocation);
 	}
@@ -181,7 +181,7 @@ struct FRigUnitContext
 	/**
 	 * Converts a rotation from rig (global) space to world space
 	 */
-	FORCEINLINE FQuat ToWorldSpace(const FQuat& InRotation) const
+	FQuat ToWorldSpace(const FQuat& InRotation) const
 	{
 		return ToWorldSpaceTransform.TransformRotation(InRotation);
 	}
@@ -189,7 +189,7 @@ struct FRigUnitContext
 	/**
 	 * Converts a rotation from world space to rig (global) space
 	 */
-	FORCEINLINE FQuat ToRigSpace(const FQuat& InRotation) const
+	FQuat ToRigSpace(const FQuat& InRotation) const
 	{
 		return ToWorldSpaceTransform.InverseTransformRotation(InRotation);
 	}
@@ -197,7 +197,7 @@ struct FRigUnitContext
 	/**
 	 * Returns true if this context is currently being interacted on
 	 */
-	FORCEINLINE bool IsInteracting() const
+	bool IsInteracting() const
 	{
 		return InteractionType != (uint8)EControlRigInteractionType::None;
 	}

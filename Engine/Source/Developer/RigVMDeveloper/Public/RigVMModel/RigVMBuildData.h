@@ -17,10 +17,10 @@ struct RIGVMDEVELOPER_API FRigVMFunctionReferenceArray
 	bool IsValidIndex(int32 InIndex) const { return FunctionReferences.IsValidIndex(InIndex); }
 
 	// Returns the number of reference functions
-	FORCEINLINE int32 Num() const { return FunctionReferences.Num(); }
+	int32 Num() const { return FunctionReferences.Num(); }
 
 	// const accessor for an function reference given its index
-	FORCEINLINE const TSoftObjectPtr<URigVMFunctionReferenceNode>& operator[](int32 InIndex) const { return FunctionReferences[InIndex]; }
+	const TSoftObjectPtr<URigVMFunctionReferenceNode>& operator[](int32 InIndex) const { return FunctionReferences[InIndex]; }
 
 	UPROPERTY(VisibleAnywhere, Category = "BuildData")
 	TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > FunctionReferences;

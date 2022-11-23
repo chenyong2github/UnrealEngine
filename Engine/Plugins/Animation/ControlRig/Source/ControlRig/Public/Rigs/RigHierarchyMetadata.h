@@ -11,22 +11,22 @@ class URigHierarchyController;
 
 #define DECLARE_RIG_METADATA_METHODS(MetadataType) \
 template<typename T> \
-friend FORCEINLINE const T* Cast(const MetadataType* InMetadata) \
+friend const T* Cast(const MetadataType* InMetadata) \
 { \
    return Cast<T>((const FRigBaseMetadata*) InMetadata); \
 } \
 template<typename T> \
-friend FORCEINLINE T* Cast(MetadataType* InMetadata) \
+friend T* Cast(MetadataType* InMetadata) \
 { \
    return Cast<T>((FRigBaseMetadata*) InMetadata); \
 } \
 template<typename T> \
-friend FORCEINLINE const T* CastChecked(const MetadataType* InMetadata) \
+friend const T* CastChecked(const MetadataType* InMetadata) \
 { \
 	return CastChecked<T>((const FRigBaseMetadata*) InMetadata); \
 } \
 template<typename T> \
-friend FORCEINLINE T* CastChecked(MetadataType* InMetadata) \
+friend T* CastChecked(MetadataType* InMetadata) \
 { \
 	return CastChecked<T>((FRigBaseMetadata*) InMetadata); \
 }
@@ -59,7 +59,7 @@ protected:
 
 	mutable const FProperty* ValueProperty;
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return true;
 	}
@@ -69,24 +69,24 @@ public:
 	UScriptStruct* GetMetadataStruct() const;
 	virtual void Serialize(FArchive& Ar, bool bIsLoading);
 
-	FORCEINLINE bool IsValid() const { return (GetType() != ERigMetadataType::Invalid) && GetKey().IsValid(); }
-	FORCEINLINE const FRigBaseElement* GetElement() const { return Element; }
+	bool IsValid() const { return (GetType() != ERigMetadataType::Invalid) && GetKey().IsValid(); }
+	const FRigBaseElement* GetElement() const { return Element; }
 	const FRigElementKey& GetKey() const;
-	FORCEINLINE const FName& GetName() const { return Name; }
-	FORCEINLINE const ERigMetadataType& GetType() const { return Type; }
-	FORCEINLINE bool IsArray() const
+	const FName& GetName() const { return Name; }
+	const ERigMetadataType& GetType() const { return Type; }
+	bool IsArray() const
 	{
 		return GetValueProperty()->IsA<FArrayProperty>();
 	}
-	FORCEINLINE const void* GetValueData() const
+	const void* GetValueData() const
 	{
 		return GetValueProperty()->ContainerPtrToValuePtr<void>(this);
 	}
-	FORCEINLINE const int32& GetValueSize() const
+	const int32& GetValueSize() const
 	{
 		return GetValueProperty()->ElementSize;
 	}
-	FORCEINLINE bool SetValueData(const void* InData, int32 InSize)
+	bool SetValueData(const void* InData, int32 InSize)
 	{
 		if(InData)
 		{
@@ -99,10 +99,10 @@ public:
 	}
 
 	template<typename T>
-	FORCEINLINE bool IsA() const { return T::IsClassOf(this); }
+	bool IsA() const { return T::IsClassOf(this); }
 
 	template<typename T>
-    friend FORCEINLINE const T* Cast(const FRigBaseMetadata* InMetadata)
+    friend const T* Cast(const FRigBaseMetadata* InMetadata)
 	{
 		if(InMetadata)
 		{
@@ -115,7 +115,7 @@ public:
 	}
 
 	template<typename T>
-    friend FORCEINLINE T* Cast(FRigBaseMetadata* InMetadata)
+    friend T* Cast(FRigBaseMetadata* InMetadata)
 	{
 		if(InMetadata)
 		{
@@ -128,7 +128,7 @@ public:
 	}
 
 	template<typename T>
-    friend FORCEINLINE const T* CastChecked(const FRigBaseMetadata* InMetadata)
+    friend const T* CastChecked(const FRigBaseMetadata* InMetadata)
 	{
 		const T* CastElement = Cast<T>(InMetadata);
 		check(CastElement);
@@ -136,7 +136,7 @@ public:
 	}
 
 	template<typename T>
-    friend FORCEINLINE T* CastChecked(FRigBaseMetadata* InMetadata)
+    friend T* CastChecked(FRigBaseMetadata* InMetadata)
 	{
 		T* CastElement = Cast<T>(InMetadata);
 		check(CastElement);
@@ -149,7 +149,7 @@ protected:
 	static FRigBaseMetadata* MakeMetadata(const FRigBaseElement* InElement, const FName& InName, ERigMetadataType InType);
 	static void DestroyMetadata(FRigBaseMetadata** Metadata);
 
-	FORCEINLINE const FProperty* GetValueProperty() const
+	const FProperty* GetValueProperty() const
 	{
 		if(ValueProperty == nullptr)
 		{
@@ -159,12 +159,12 @@ protected:
 		return ValueProperty;
 	}
 
-	FORCEINLINE void* GetValueData()
+	void* GetValueData()
 	{
 		return GetValueProperty()->ContainerPtrToValuePtr<void>(this);
 	}
 
-	FORCEINLINE virtual bool SetValueDataImpl(const void* InData)
+	virtual bool SetValueDataImpl(const void* InData)
 	{
 		const FProperty* Property = GetValueProperty();
 		if(!Property->Identical(GetValueData(), InData))
@@ -193,16 +193,16 @@ public:
 		, Value(false)
 	{}
 	virtual ~FRigBoolMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const bool& GetValue() const { return Value; }
-	FORCEINLINE bool& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const bool& InValue) { return SetValueData(&InValue, sizeof(bool)); }
+	const bool& GetValue() const { return Value; }
+	bool& GetValue() { return Value; }
+	bool SetValue(const bool& InValue) { return SetValueData(&InValue, sizeof(bool)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::Bool;
 	}
@@ -225,16 +225,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigBoolArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<bool>& GetValue() const { return Value; }
-	FORCEINLINE TArray<bool>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<bool>& InValue) { return SetValueData(&InValue, sizeof(TArray<bool>)); }
+	const TArray<bool>& GetValue() const { return Value; }
+	TArray<bool>& GetValue() { return Value; }
+	bool SetValue(const TArray<bool>& InValue) { return SetValueData(&InValue, sizeof(TArray<bool>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::BoolArray;
 	}
@@ -258,16 +258,16 @@ public:
 		, Value(0.f)
 	{}
 	virtual ~FRigFloatMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const float& GetValue() const { return Value; } 
-	FORCEINLINE float& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const float& InValue) { return SetValueData(&InValue, sizeof(float)); }
+	const float& GetValue() const { return Value; } 
+	float& GetValue() { return Value; }
+	bool SetValue(const float& InValue) { return SetValueData(&InValue, sizeof(float)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
     {
     	return InMetadata->GetType() == ERigMetadataType::Float;
     }
@@ -290,16 +290,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigFloatArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<float>& GetValue() const { return Value; }
-	FORCEINLINE TArray<float>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<float>& InValue) { return SetValueData(&InValue, sizeof(TArray<float>)); }
+	const TArray<float>& GetValue() const { return Value; }
+	TArray<float>& GetValue() { return Value; }
+	bool SetValue(const TArray<float>& InValue) { return SetValueData(&InValue, sizeof(TArray<float>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::FloatArray;
 	}
@@ -323,16 +323,16 @@ public:
 		, Value(0)
 	{}
 	virtual ~FRigInt32Metadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const int32& GetValue() const { return Value; } 
-	FORCEINLINE int32& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const int32& InValue) { return SetValueData(&InValue, sizeof(int32)); }
+	const int32& GetValue() const { return Value; } 
+	int32& GetValue() { return Value; }
+	bool SetValue(const int32& InValue) { return SetValueData(&InValue, sizeof(int32)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
     {
     	return InMetadata->GetType() == ERigMetadataType::Int32;
     }
@@ -355,16 +355,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigInt32ArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<int32>& GetValue() const { return Value; }
-	FORCEINLINE TArray<int32>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<int32>& InValue) { return SetValueData(&InValue, sizeof(TArray<int32>)); }
+	const TArray<int32>& GetValue() const { return Value; }
+	TArray<int32>& GetValue() { return Value; }
+	bool SetValue(const TArray<int32>& InValue) { return SetValueData(&InValue, sizeof(TArray<int32>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::Int32Array;
 	}
@@ -388,16 +388,16 @@ public:
 		, Value(NAME_None)
 	{}
 	virtual ~FRigNameMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const FName& GetValue() const { return Value; } 
-	FORCEINLINE FName& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const FName& InValue) { return SetValueData(&InValue, sizeof(FName)); }
+	const FName& GetValue() const { return Value; } 
+	FName& GetValue() { return Value; }
+	bool SetValue(const FName& InValue) { return SetValueData(&InValue, sizeof(FName)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
     {
     	return InMetadata->GetType() == ERigMetadataType::Name;
     }
@@ -420,16 +420,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigNameArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<FName>& GetValue() const { return Value; }
-	FORCEINLINE TArray<FName>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<FName>& InValue) { return SetValueData(&InValue, sizeof(TArray<FName>)); }
+	const TArray<FName>& GetValue() const { return Value; }
+	TArray<FName>& GetValue() { return Value; }
+	bool SetValue(const TArray<FName>& InValue) { return SetValueData(&InValue, sizeof(TArray<FName>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::NameArray;
 	}
@@ -453,16 +453,16 @@ public:
 		, Value(FVector::ZeroVector)
 	{}
 	virtual ~FRigVectorMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const FVector& GetValue() const { return Value; } 
-	FORCEINLINE FVector& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const FVector& InValue) { return SetValueData(&InValue, sizeof(FVector)); }
+	const FVector& GetValue() const { return Value; } 
+	FVector& GetValue() { return Value; }
+	bool SetValue(const FVector& InValue) { return SetValueData(&InValue, sizeof(FVector)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
     {
     	return InMetadata->GetType() == ERigMetadataType::Vector;
     }
@@ -485,16 +485,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigVectorArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<FVector>& GetValue() const { return Value; }
-	FORCEINLINE TArray<FVector>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<FVector>& InValue) { return SetValueData(&InValue, sizeof(TArray<FVector>)); }
+	const TArray<FVector>& GetValue() const { return Value; }
+	TArray<FVector>& GetValue() { return Value; }
+	bool SetValue(const TArray<FVector>& InValue) { return SetValueData(&InValue, sizeof(TArray<FVector>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::VectorArray;
 	}
@@ -518,16 +518,16 @@ public:
 		, Value(FRotator::ZeroRotator)
 	{}
 	virtual ~FRigRotatorMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const FRotator& GetValue() const { return Value; } 
-	FORCEINLINE FRotator& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const FRotator& InValue) { return SetValueData(&InValue, sizeof(FRotator)); }
+	const FRotator& GetValue() const { return Value; } 
+	FRotator& GetValue() { return Value; }
+	bool SetValue(const FRotator& InValue) { return SetValueData(&InValue, sizeof(FRotator)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
     {
     	return InMetadata->GetType() == ERigMetadataType::Rotator;
     }
@@ -550,16 +550,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigRotatorArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<FRotator>& GetValue() const { return Value; }
-	FORCEINLINE TArray<FRotator>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<FRotator>& InValue) { return SetValueData(&InValue, sizeof(TArray<FRotator>)); }
+	const TArray<FRotator>& GetValue() const { return Value; }
+	TArray<FRotator>& GetValue() { return Value; }
+	bool SetValue(const TArray<FRotator>& InValue) { return SetValueData(&InValue, sizeof(TArray<FRotator>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::RotatorArray;
 	}
@@ -583,16 +583,16 @@ public:
 		, Value(FQuat::Identity)
 	{}
 	virtual ~FRigQuatMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const FQuat& GetValue() const { return Value; } 
-	FORCEINLINE FQuat& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const FQuat& InValue) { return SetValueData(&InValue, sizeof(FQuat)); }
+	const FQuat& GetValue() const { return Value; } 
+	FQuat& GetValue() { return Value; }
+	bool SetValue(const FQuat& InValue) { return SetValueData(&InValue, sizeof(FQuat)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
     {
     	return InMetadata->GetType() == ERigMetadataType::Quat;
     }
@@ -615,16 +615,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigQuatArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<FQuat>& GetValue() const { return Value; }
-	FORCEINLINE TArray<FQuat>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<FQuat>& InValue) { return SetValueData(&InValue, sizeof(TArray<FQuat>)); }
+	const TArray<FQuat>& GetValue() const { return Value; }
+	TArray<FQuat>& GetValue() { return Value; }
+	bool SetValue(const TArray<FQuat>& InValue) { return SetValueData(&InValue, sizeof(TArray<FQuat>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::QuatArray;
 	}
@@ -648,16 +648,16 @@ public:
 		, Value(FTransform::Identity)
 	{}
 	virtual ~FRigTransformMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const FTransform& GetValue() const { return Value; } 
-	FORCEINLINE FTransform& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const FTransform& InValue) { return SetValueData(&InValue, sizeof(FTransform)); }
+	const FTransform& GetValue() const { return Value; } 
+	FTransform& GetValue() { return Value; }
+	bool SetValue(const FTransform& InValue) { return SetValueData(&InValue, sizeof(FTransform)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
     {
     	return InMetadata->GetType() == ERigMetadataType::Transform;
     }
@@ -680,16 +680,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigTransformArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<FTransform>& GetValue() const { return Value; }
-	FORCEINLINE TArray<FTransform>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<FTransform>& InValue) { return SetValueData(&InValue, sizeof(TArray<FTransform>)); }
+	const TArray<FTransform>& GetValue() const { return Value; }
+	TArray<FTransform>& GetValue() { return Value; }
+	bool SetValue(const TArray<FTransform>& InValue) { return SetValueData(&InValue, sizeof(TArray<FTransform>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::TransformArray;
 	}
@@ -713,16 +713,16 @@ public:
 		, Value(FLinearColor::White)
 	{}
 	virtual ~FRigLinearColorMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const FLinearColor& GetValue() const { return Value; } 
-	FORCEINLINE FLinearColor& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const FLinearColor& InValue) { return SetValueData(&InValue, sizeof(FLinearColor)); }
+	const FLinearColor& GetValue() const { return Value; } 
+	FLinearColor& GetValue() { return Value; }
+	bool SetValue(const FLinearColor& InValue) { return SetValueData(&InValue, sizeof(FLinearColor)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::LinearColor;
 	}
@@ -745,16 +745,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigLinearColorArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<FLinearColor>& GetValue() const { return Value; }
-	FORCEINLINE TArray<FLinearColor>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<FLinearColor>& InValue) { return SetValueData(&InValue, sizeof(TArray<FLinearColor>)); }
+	const TArray<FLinearColor>& GetValue() const { return Value; }
+	TArray<FLinearColor>& GetValue() { return Value; }
+	bool SetValue(const TArray<FLinearColor>& InValue) { return SetValueData(&InValue, sizeof(TArray<FLinearColor>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::LinearColorArray;
 	}
@@ -777,16 +777,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigElementKeyMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const FRigElementKey& GetValue() const { return Value; } 
-	FORCEINLINE FRigElementKey& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const FRigElementKey& InValue) { return SetValueData(&InValue, sizeof(FRigElementKey)); }
+	const FRigElementKey& GetValue() const { return Value; } 
+	FRigElementKey& GetValue() { return Value; }
+	bool SetValue(const FRigElementKey& InValue) { return SetValueData(&InValue, sizeof(FRigElementKey)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
     {
     	return InMetadata->GetType() == ERigMetadataType::RigElementKey;
     }
@@ -809,16 +809,16 @@ public:
 		: FRigBaseMetadata()
 	{}
 	virtual ~FRigElementKeyArrayMetadata() override {}
-	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	virtual void Serialize(FArchive& Ar, bool bIsLoading) override
 	{
 		Super::Serialize(Ar, bIsLoading);
 		Ar << Value;
 	}
-	FORCEINLINE const TArray<FRigElementKey>& GetValue() const { return Value; }
-	FORCEINLINE TArray<FRigElementKey>& GetValue() { return Value; }
-	FORCEINLINE bool SetValue(const TArray<FRigElementKey>& InValue) { return SetValueData(&InValue, sizeof(TArray<FRigElementKey>)); }
+	const TArray<FRigElementKey>& GetValue() const { return Value; }
+	TArray<FRigElementKey>& GetValue() { return Value; }
+	bool SetValue(const TArray<FRigElementKey>& InValue) { return SetValueData(&InValue, sizeof(TArray<FRigElementKey>)); }
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	static bool IsClassOf(const FRigBaseMetadata* InMetadata)
 	{
 		return InMetadata->GetType() == ERigMetadataType::RigElementKeyArray;
 	}

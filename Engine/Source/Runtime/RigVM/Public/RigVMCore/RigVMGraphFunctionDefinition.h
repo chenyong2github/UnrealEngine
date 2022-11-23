@@ -30,7 +30,7 @@ struct FRigVMFunctionCompilationPropertyDescription
 	UPROPERTY()
 	FString DefaultValue;
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMFunctionCompilationPropertyDescription& Description) 
+	friend uint32 GetTypeHash(const FRigVMFunctionCompilationPropertyDescription& Description) 
 	{
 		uint32 Hash = GetTypeHash(Description.Name);
 		Hash = HashCombine(Hash, GetTypeHash(Description.CPPType));
@@ -38,16 +38,16 @@ struct FRigVMFunctionCompilationPropertyDescription
 		Hash = HashCombine(Hash, GetTypeHash(Description.DefaultValue));
 		return Hash;
 	}
-};
 
-FORCEINLINE FArchive& operator<<(FArchive& Ar, FRigVMFunctionCompilationPropertyDescription& Data)
-{
-	Ar << Data.Name;
-	Ar << Data.CPPType;
-	Ar << Data.CPPTypeObject;
-	Ar << Data.DefaultValue;
-	return Ar;
-}
+	friend FArchive& operator<<(FArchive& Ar, FRigVMFunctionCompilationPropertyDescription& Data)
+	{
+		Ar << Data.Name;
+		Ar << Data.CPPType;
+		Ar << Data.CPPTypeObject;
+		Ar << Data.DefaultValue;
+		return Ar;
+	}
+};
 
 USTRUCT()
 struct FRigVMFunctionCompilationPropertyPath
@@ -63,22 +63,22 @@ struct FRigVMFunctionCompilationPropertyPath
 	UPROPERTY()
 	FString SegmentPath;
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMFunctionCompilationPropertyPath& Path)
+	friend uint32 GetTypeHash(const FRigVMFunctionCompilationPropertyPath& Path)
 	{
 		uint32 Hash = GetTypeHash(Path.PropertyIndex);
 		Hash = HashCombine(Hash, GetTypeHash(Path.HeadCPPType));
 		Hash = HashCombine(Hash, GetTypeHash(Path.SegmentPath));
 		return Hash;
 	}
-};
 
-FORCEINLINE FArchive& operator<<(FArchive& Ar, FRigVMFunctionCompilationPropertyPath& Data)
-{
-	Ar << Data.PropertyIndex;
-	Ar << Data.HeadCPPType;
-	Ar << Data.SegmentPath;
-	return Ar;
-}
+	friend FArchive& operator<<(FArchive& Ar, FRigVMFunctionCompilationPropertyPath& Data)
+	{
+		Ar << Data.PropertyIndex;
+		Ar << Data.HeadCPPType;
+		Ar << Data.SegmentPath;
+		return Ar;
+	}
+};
 
 USTRUCT(BlueprintType)
 struct RIGVM_API FRigVMFunctionCompilationData
@@ -131,7 +131,7 @@ struct RIGVM_API FRigVMFunctionCompilationData
 		return ByteCode.Num() > 0 || WorkPropertyDescriptions.Num() > 0;
 	}
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMFunctionCompilationData& Data) 
+	friend uint32 GetTypeHash(const FRigVMFunctionCompilationData& Data) 
 	{
 		uint32 DataHash = Data.ByteCode.GetByteCodeHash();
 		for (const FName& Name : Data.FunctionNames)
@@ -190,26 +190,24 @@ struct RIGVM_API FRigVMFunctionCompilationData
 		return DataHash;
 	}
 
+	friend FArchive& operator<<(FArchive& Ar, FRigVMFunctionCompilationData& Data)
+	{
+		Ar << Data.ByteCode;
+		Ar << Data.FunctionNames;
+		Ar << Data.WorkPropertyDescriptions;
+		Ar << Data.WorkPropertyPathDescriptions;
+		Ar << Data.LiteralPropertyDescriptions;
+		Ar << Data.LiteralPropertyPathDescriptions;
+		Ar << Data.DebugPropertyDescriptions;
+		Ar << Data.DebugPropertyPathDescriptions;
+		Ar << Data.ExternalPropertyDescriptions;
+		Ar << Data.ExternalPropertyPathDescriptions;
+		Ar << Data.ExternalRegisterIndexToVariable;
+		Ar << Data.Operands;
+		Ar << Data.Hash;
+		return Ar;
+	}
 };
-
-FORCEINLINE FArchive& operator<<(FArchive& Ar, FRigVMFunctionCompilationData& Data)
-{
-	Ar << Data.ByteCode;
-	Ar << Data.FunctionNames;
-	Ar << Data.WorkPropertyDescriptions;
-	Ar << Data.WorkPropertyPathDescriptions;
-	Ar << Data.LiteralPropertyDescriptions;
-	Ar << Data.LiteralPropertyPathDescriptions;
-	Ar << Data.DebugPropertyDescriptions;
-	Ar << Data.DebugPropertyPathDescriptions;
-	Ar << Data.ExternalPropertyDescriptions;
-	Ar << Data.ExternalPropertyPathDescriptions;
-	Ar << Data.ExternalRegisterIndexToVariable;
-	Ar << Data.Operands;
-	Ar << Data.Hash;
-	return Ar;
-}
-
 
 USTRUCT(BlueprintType)
 struct RIGVM_API FRigVMGraphFunctionArgument
@@ -255,7 +253,7 @@ struct RIGVM_API FRigVMGraphFunctionArgument
 
 	FRigVMExternalVariable GetExternalVariable() const;
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMGraphFunctionArgument& Argument)
+	friend uint32 GetTypeHash(const FRigVMGraphFunctionArgument& Argument)
 	{
 		uint32 Hash = HashCombine(GetTypeHash(Argument.Name), GetTypeHash(Argument.DisplayName));
 		Hash = HashCombine(Hash, GetTypeHash(Argument.CPPType));
@@ -276,21 +274,21 @@ struct RIGVM_API FRigVMGraphFunctionArgument
 	{
 		return true;
 	}
-};
 
-FORCEINLINE FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionArgument& Data)
-{
-	Ar << Data.Name;
-	Ar << Data.DisplayName;
-	Ar << Data.CPPType;
-	Ar << Data.CPPTypeObject;
-	Ar << Data.bIsArray;
-	Ar << Data.Direction;
-	Ar << Data.DefaultValue;
-	Ar << Data.bIsConst;
-	Ar << Data.PathToTooltip;
-	return Ar;
-}
+	friend FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionArgument& Data)
+	{
+		Ar << Data.Name;
+		Ar << Data.DisplayName;
+		Ar << Data.CPPType;
+		Ar << Data.CPPTypeObject;
+		Ar << Data.bIsArray;
+		Ar << Data.Direction;
+		Ar << Data.DefaultValue;
+		Ar << Data.bIsConst;
+		Ar << Data.PathToTooltip;
+		return Ar;
+	}
+};
 
 USTRUCT(BlueprintType)
 struct RIGVM_API FRigVMGraphFunctionIdentifier
@@ -310,7 +308,7 @@ struct RIGVM_API FRigVMGraphFunctionIdentifier
 	FRigVMGraphFunctionIdentifier(FSoftObjectPath InHostObject, FSoftObjectPath InLibraryNode)
 		: LibraryNode(InLibraryNode), HostObject(InHostObject) {}
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMGraphFunctionIdentifier& Pointer)
+	friend uint32 GetTypeHash(const FRigVMGraphFunctionIdentifier& Pointer)
 	{
 		return HashCombine(GetTypeHash(Pointer.LibraryNode), GetTypeHash(Pointer.HostObject));
 	}
@@ -319,14 +317,14 @@ struct RIGVM_API FRigVMGraphFunctionIdentifier
 	{
 		return HostObject == Other.HostObject && LibraryNode == Other.LibraryNode;
 	}
-};
 
-FORCEINLINE FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionIdentifier& Data)
-{
-	Ar << Data.LibraryNode;
-	Ar << Data.HostObject;
-	return Ar;
-}
+	friend FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionIdentifier& Data)
+	{
+		Ar << Data.LibraryNode;
+		Ar << Data.HostObject;
+		return Ar;
+	}
+};
 
 USTRUCT(BlueprintType)
 struct RIGVM_API FRigVMGraphFunctionHeader
@@ -372,12 +370,12 @@ struct RIGVM_API FRigVMGraphFunctionHeader
 
 	bool IsValid() const { return !LibraryPointer.HostObject.IsNull(); }
 
-	FORCEINLINE FString GetHash() const
+	FString GetHash() const
 	{
 		return FString::Printf(TEXT("%s:%s"), *LibraryPointer.HostObject.ToString(), *Name.ToString());
 	}
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMGraphFunctionHeader& Header)
+	friend uint32 GetTypeHash(const FRigVMGraphFunctionHeader& Header)
 	{
 		return GetTypeHash(Header.LibraryPointer);
 	}
@@ -390,22 +388,22 @@ struct RIGVM_API FRigVMGraphFunctionHeader
 	IRigVMGraphFunctionHost* GetFunctionHost() const;
 
 	FRigVMGraphFunctionData* GetFunctionData() const;
-};
 
-FORCEINLINE FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionHeader& Data)
-{
-	Ar << Data.LibraryPointer;
-	Ar << Data.Name;
-	Ar << Data.NodeTitle;
-	Ar << Data.NodeColor;
-	Ar << Data.Tooltip;
-	Ar << Data.Category;
-	Ar << Data.Keywords;
-	Ar << Data.Arguments;
-	Ar << Data.Dependencies;
-	Ar << Data.ExternalVariables;
-	return Ar;
-}
+	friend FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionHeader& Data)
+	{
+		Ar << Data.LibraryPointer;
+		Ar << Data.Name;
+		Ar << Data.NodeTitle;
+		Ar << Data.NodeColor;
+		Ar << Data.Tooltip;
+		Ar << Data.Category;
+		Ar << Data.Keywords;
+		Ar << Data.Arguments;
+		Ar << Data.Dependencies;
+		Ar << Data.ExternalVariables;
+		return Ar;
+	}
+};
 
 USTRUCT(BlueprintType)
 struct RIGVM_API FRigVMGraphFunctionData
@@ -431,11 +429,11 @@ struct RIGVM_API FRigVMGraphFunctionData
 	}
 
 	void ClearCompilationData() { CompilationData = FRigVMFunctionCompilationData(); }
-};
 
-FORCEINLINE FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionData& Data)
-{
-	Ar << Data.Header;
-	Ar << Data.CompilationData;
-	return Ar;
-}
+	friend FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionData& Data)
+	{
+		Ar << Data.Header;
+		Ar << Data.CompilationData;
+		return Ar;
+	}
+};

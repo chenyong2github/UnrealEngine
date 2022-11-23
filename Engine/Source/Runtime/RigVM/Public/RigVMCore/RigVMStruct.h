@@ -102,7 +102,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBaseStructure<T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE FName FindFirstVariableOfType() const
+	FName FindFirstVariableOfType() const
 	{
 		return FindFirstVariableOfType(TBaseStructure<T>::Get());
 	}
@@ -112,7 +112,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE FName FindFirstVariableOfType() const
+	FName FindFirstVariableOfType() const
 	{
 		return FindFirstVariableOfType(T::StaticStruct());
 	}
@@ -122,7 +122,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE FName FindFirstVariableOfType() const
+	FName FindFirstVariableOfType() const
 	{
 		return FindFirstVariableOfType(T::StaticClass());
 	}
@@ -132,7 +132,7 @@ public:
 		typename T,
 		typename TEnableIf<TIsEnum<T>::Value>::Type * = nullptr
 	>
-		FORCEINLINE FName FindFirstVariableOfType() const
+		FName FindFirstVariableOfType() const
 	{
 		return FindFirstVariableOfType(StaticEnum<T>());
 	}
@@ -173,12 +173,12 @@ public:
 	// control flow related
 	bool IsForLoop() const;
 	bool IsControlFlowNode() const; 
-	FORCEINLINE virtual int32 GetNumSlices() const { return 1; }
+	virtual int32 GetNumSlices() const { return 1; }
 	const TArray<FName>& GetControlFlowBlocks() const;
 	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const { return false; }
 
 	// node creation
-	FORCEINLINE virtual void OnUnitNodeCreated(FRigVMUnitNodeCreatedContext& InContext) const {}
+	virtual void OnUnitNodeCreated(FRigVMUnitNodeCreatedContext& InContext) const {}
 
 	// user workflow
 	TArray<FRigVMUserWorkflow> GetWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const; 
@@ -199,7 +199,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBaseStructure<T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE static FString ExportToFullyQualifiedText(const T& InStructValue)
+	static FString ExportToFullyQualifiedText(const T& InStructValue)
 	{
 		return ExportToFullyQualifiedText(TBaseStructure<T>::Get(), (const uint8*)&InStructValue);
 	}
@@ -208,7 +208,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE static FString ExportToFullyQualifiedText(const T& InStructValue)
+	static FString ExportToFullyQualifiedText(const T& InStructValue)
 	{
 		return ExportToFullyQualifiedText(T::StaticStruct(), (const uint8*)&InStructValue);
 	}
@@ -263,7 +263,7 @@ protected:
 	static float GetRatioFromIndex(int32 InIndex, int32 InCount);
 	TMap<FName, FString> GetDefaultValues(UScriptStruct* InScriptStruct) const;
 	bool ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo);
-	FORCEINLINE virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(const UObject* InSubject) const { return TArray<FRigVMUserWorkflow>(); }
+	virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(const UObject* InSubject) const { return TArray<FRigVMUserWorkflow>(); }
 	virtual const TArray<FName>& GetControlFlowBlocks_Impl() const;
 
 #if WITH_EDITOR

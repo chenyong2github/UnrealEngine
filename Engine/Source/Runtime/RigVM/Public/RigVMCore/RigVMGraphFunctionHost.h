@@ -68,7 +68,7 @@ public:
 
 	bool RemoveAllCompilationData();
 
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionStore& Host)
+	friend FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionStore& Host)
 	{
 		Ar << Host.PublicFunctions;
 		return Ar;

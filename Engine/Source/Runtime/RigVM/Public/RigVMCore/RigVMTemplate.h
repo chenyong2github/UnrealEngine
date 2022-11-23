@@ -100,7 +100,7 @@ struct RIGVM_API FRigVMTemplateArgumentType
 		return CPPType != InOther.CPPType;
 	}
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMTemplateArgumentType& InType)
+	friend uint32 GetTypeHash(const FRigVMTemplateArgumentType& InType)
 	{
 		return GetTypeHash(InType.CPPType);
 	}
@@ -390,7 +390,7 @@ public:
 	FRigVMTemplate_NewArgumentTypeDelegate& OnNewArgumentType() { return Delegates.NewArgumentTypeDelegate; }
 
 	// Returns the factory this template was created by
-	FORCEINLINE const FRigVMDispatchFactory* GetDispatchFactory() const
+	const FRigVMDispatchFactory* GetDispatchFactory() const
 	{
 		if(Delegates.GetDispatchFactoryDelegate.IsBound())
 		{
@@ -400,7 +400,7 @@ public:
 	}
 
 	// Returns true if this template is backed by a dispatch factory
-	FORCEINLINE bool UsesDispatch() const
+	bool UsesDispatch() const
 	{
 		return Delegates.RequestDispatchFunctionDelegate.IsBound() &&
 			Delegates.GetDispatchFactoryDelegate.IsBound();

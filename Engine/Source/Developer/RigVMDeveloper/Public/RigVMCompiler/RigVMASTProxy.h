@@ -29,12 +29,12 @@ public:
 	// Returns true if the stack contains a given entry
 	bool Contains(const UObject* InEntry) const;
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMCallstack& Callstack)
+	friend uint32 GetTypeHash(const FRigVMCallstack& Callstack)
 	{
 		return Callstack.GetEntryTypeHash(Callstack.Num() - 1);
 	}
 
-	FORCEINLINE bool operator ==(const FRigVMCallstack& Other) const
+	bool operator ==(const FRigVMCallstack& Other) const
 	{
 		if (Num() == Other.Num())
 		{
@@ -50,12 +50,12 @@ public:
 		return false;
 	}
 
-	FORCEINLINE bool operator !=(const FRigVMCallstack& Other) const
+	bool operator !=(const FRigVMCallstack& Other) const
 	{
 		return !(*this == Other);
 	}
 
-	FORCEINLINE bool operator <(const FRigVMCallstack& Other) const
+	bool operator <(const FRigVMCallstack& Other) const
 	{
 		if (Num() < Other.Num())
 		{
@@ -75,7 +75,7 @@ public:
 		return operator[](0) < Other[0];
 	}
 
-	FORCEINLINE bool operator >(const FRigVMCallstack& Other) const
+	bool operator >(const FRigVMCallstack& Other) const
 	{
 		if (Num() > Other.Num())
 		{
@@ -95,13 +95,13 @@ public:
 		return operator[](0) > Other[0];
 	}
 
-	FORCEINLINE TArray<UObject*> GetStack() const { return Stack; }
+	TArray<UObject*> GetStack() const { return Stack; }
 
 	FRigVMCallstack GetCallStackUpTo(int32 InIndex) const;
 
 private:
 
-	FORCEINLINE uint32 GetEntryTypeHash(int32 Index) const
+	uint32 GetEntryTypeHash(int32 Index) const
 	{
 		if (Index < 0)
 		{
@@ -205,27 +205,27 @@ public:
 	template<class T>
 	bool IsA() const { return GetSubject() ? GetSubject()->IsA<T>() : false; }
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMASTProxy& Proxy)
+	friend uint32 GetTypeHash(const FRigVMASTProxy& Proxy)
 	{
 		return GetTypeHash(Proxy.GetCallstack());
 	}
 
-	FORCEINLINE bool operator ==(const FRigVMASTProxy& Other) const
+	bool operator ==(const FRigVMASTProxy& Other) const
 	{
 		return GetCallstack() == Other.GetCallstack();
 	}
 
-	FORCEINLINE bool operator !=(const FRigVMASTProxy& Other) const
+	bool operator !=(const FRigVMASTProxy& Other) const
 	{
 		return GetCallstack() != Other.GetCallstack();
 	}
 
-	FORCEINLINE bool operator <(const FRigVMASTProxy& Other) const
+	bool operator <(const FRigVMASTProxy& Other) const
 	{
 		return GetCallstack() < Other.GetCallstack();
 	}
 
-	FORCEINLINE bool operator >(const FRigVMASTProxy& Other) const
+	bool operator >(const FRigVMASTProxy& Other) const
 	{
 		return GetCallstack() > Other.GetCallstack();
 	}

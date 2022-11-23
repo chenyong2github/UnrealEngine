@@ -19,22 +19,22 @@ DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FRigReferenceGetWorldTransformDe
 
 #define DECLARE_RIG_ELEMENT_METHODS(ElementType) \
 template<typename T> \
-friend FORCEINLINE const T* Cast(const ElementType* InElement) \
+friend const T* Cast(const ElementType* InElement) \
 { \
    return Cast<T>((const FRigBaseElement*) InElement); \
 } \
 template<typename T> \
-friend FORCEINLINE T* Cast(ElementType* InElement) \
+friend T* Cast(ElementType* InElement) \
 { \
    return Cast<T>((FRigBaseElement*) InElement); \
 } \
 template<typename T> \
-friend FORCEINLINE const T* CastChecked(const ElementType* InElement) \
+friend const T* CastChecked(const ElementType* InElement) \
 { \
 	return CastChecked<T>((const FRigBaseElement*) InElement); \
 } \
 template<typename T> \
-friend FORCEINLINE T* CastChecked(ElementType* InElement) \
+friend T* CastChecked(ElementType* InElement) \
 { \
 	return CastChecked<T>((FRigBaseElement*) InElement); \
 }
@@ -54,7 +54,7 @@ namespace ERigTransformType
 
 namespace ERigTransformType
 {
-	FORCEINLINE ERigTransformType::Type SwapCurrentAndInitial(const Type InTransformType)
+	inline ERigTransformType::Type SwapCurrentAndInitial(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -78,7 +78,7 @@ namespace ERigTransformType
 		return CurrentGlobal;
 	}
 
-	FORCEINLINE Type SwapLocalAndGlobal(const Type InTransformType)
+	inline Type SwapLocalAndGlobal(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -102,7 +102,7 @@ namespace ERigTransformType
 		return InitialLocal;
 	}
 
-	FORCEINLINE Type MakeLocal(const Type InTransformType)
+	inline Type MakeLocal(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -119,7 +119,7 @@ namespace ERigTransformType
 		return InitialLocal;
 	}
 
-	FORCEINLINE Type MakeGlobal(const Type InTransformType)
+	inline Type MakeGlobal(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -136,7 +136,7 @@ namespace ERigTransformType
 		return InitialGlobal;
 	}
 
-	FORCEINLINE Type MakeInitial(const Type InTransformType)
+	inline Type MakeInitial(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -153,7 +153,7 @@ namespace ERigTransformType
 		return InitialGlobal;
 	}
 
-	FORCEINLINE Type MakeCurrent(const Type InTransformType)
+	inline Type MakeCurrent(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -170,7 +170,7 @@ namespace ERigTransformType
 		return CurrentGlobal;
 	}
 
-	FORCEINLINE bool IsLocal(const Type InTransformType)
+	inline bool IsLocal(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -187,7 +187,7 @@ namespace ERigTransformType
 		return false;
 	}
 
-	FORCEINLINE bool IsGlobal(const Type InTransformType)
+	inline bool IsGlobal(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -204,7 +204,7 @@ namespace ERigTransformType
 		return false;
 	}
 
-	FORCEINLINE bool IsInitial(const Type InTransformType)
+	inline bool IsInitial(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -221,7 +221,7 @@ namespace ERigTransformType
 		return false;
 	}
 
-	FORCEINLINE bool IsCurrent(const Type InTransformType)
+	inline bool IsCurrent(const Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -252,7 +252,7 @@ struct CONTROLRIG_API FRigComputedTransform
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
 
-	FORCEINLINE_DEBUGGABLE void Set(const FTransform& InTransform)
+	void Set(const FTransform& InTransform)
 	{
 #if WITH_EDITOR
 		ensure(InTransform.GetRotation().IsNormalized());
@@ -264,14 +264,14 @@ struct CONTROLRIG_API FRigComputedTransform
 		bDirty = false;
 	}
 
-	FORCEINLINE static bool Equals(const FTransform& A, const FTransform& B, const float InTolerance = 0.0001f)
+	static bool Equals(const FTransform& A, const FTransform& B, const float InTolerance = 0.0001f)
 	{
 		return (A.GetTranslation() - B.GetTranslation()).IsNearlyZero(InTolerance) &&
 			A.GetRotation().Equals(B.GetRotation(), InTolerance) &&
 			(A.GetScale3D() - B.GetScale3D()).IsNearlyZero(InTolerance);
 	}
 
-	FORCEINLINE bool operator == (const FRigComputedTransform& Other) const
+	bool operator == (const FRigComputedTransform& Other) const
 	{
 		return bDirty == Other.bDirty && Equals(Transform, Other.Transform);
     }
@@ -295,7 +295,7 @@ struct CONTROLRIG_API FRigLocalAndGlobalTransform
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
 
-	FORCEINLINE bool operator == (const FRigLocalAndGlobalTransform& Other) const
+	bool operator == (const FRigLocalAndGlobalTransform& Other) const
 	{
 		return Local == Other.Local && Global == Other.Global;
 	}
@@ -317,7 +317,7 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
     , Initial()
 	{}
 
-	FORCEINLINE const FRigComputedTransform& operator[](const ERigTransformType::Type InTransformType) const
+	const FRigComputedTransform& operator[](const ERigTransformType::Type InTransformType) const
 	{
 		switch(InTransformType)
 		{
@@ -341,7 +341,7 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 		return Initial.Global;
 	}
 
-	FORCEINLINE FRigComputedTransform& operator[](const ERigTransformType::Type InTransformType)
+	FRigComputedTransform& operator[](const ERigTransformType::Type InTransformType)
 	{
 		switch(InTransformType)
 		{
@@ -365,22 +365,22 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 		return Initial.Global;
 	}
 
-	FORCEINLINE const FTransform& Get(const ERigTransformType::Type InTransformType) const
+	const FTransform& Get(const ERigTransformType::Type InTransformType) const
 	{
 		return operator[](InTransformType).Transform;
 	}
 
-	FORCEINLINE void Set(const ERigTransformType::Type InTransformType, const FTransform& InTransform)
+	void Set(const ERigTransformType::Type InTransformType, const FTransform& InTransform)
 	{
 		operator[](InTransformType).Set(InTransform);
 	}
 
-	FORCEINLINE bool IsDirty(const ERigTransformType::Type InTransformType) const
+	bool IsDirty(const ERigTransformType::Type InTransformType) const
 	{
 		return operator[](InTransformType).bDirty;
 	}
 
-	FORCEINLINE void MarkDirty(const ERigTransformType::Type InTransformType)
+	void MarkDirty(const ERigTransformType::Type InTransformType)
 	{
 		ensure(!(operator[](ERigTransformType::SwapLocalAndGlobal(InTransformType)).bDirty));
 		operator[](InTransformType).bDirty = true;
@@ -389,7 +389,7 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
 
-	FORCEINLINE bool operator == (const FRigCurrentAndInitialTransform& Other) const
+	bool operator == (const FRigCurrentAndInitialTransform& Other) const
 	{
 		return Current == Other.Current && Initial == Other.Initial;
 	}
@@ -417,7 +417,7 @@ struct CONTROLRIG_API FRigPreferredEulerAngles
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
 
-	FORCEINLINE bool operator == (const FRigPreferredEulerAngles& Other) const
+	bool operator == (const FRigPreferredEulerAngles& Other) const
 	{
 		return RotationOrder == Other.RotationOrder &&
 			Current == Other.Current &&
@@ -425,8 +425,8 @@ struct CONTROLRIG_API FRigPreferredEulerAngles
 	}
 
 	void Reset();
-	FORCEINLINE FVector& Get(bool bInitial = false) { return bInitial ? Initial : Current; }
-	FORCEINLINE const FVector& Get(bool bInitial = false) const { return bInitial ? Initial : Current; }
+	FVector& Get(bool bInitial = false) { return bInitial ? Initial : Current; }
+	const FVector& Get(bool bInitial = false) const { return bInitial ? Initial : Current; }
 	FRotator GetRotator(bool bInitial = false) const;
 	FRotator SetRotator(const FRotator& InValue, bool bInitial = false, bool bFixEulerFlips = false);
 	FVector GetAngles(bool bInitial = false, EEulerRotationOrder InRotationOrder = DefaultRotationOrder) const;
@@ -554,7 +554,7 @@ protected:
 	TArray<FRigBaseMetadata*> Metadata;
 	TMap<FName,int32> MetadataNameToIndex;
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return true;
 	}
@@ -566,21 +566,21 @@ public:
 	virtual void Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase);
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase);
 
-	FORCEINLINE const FName& GetName() const { return Key.Name; }
-	FORCEINLINE const FString& GetNameString() const { return NameString; }
-	FORCEINLINE virtual const FName& GetDisplayName() const { return GetName(); }
-	FORCEINLINE ERigElementType GetType() const { return Key.Type; }
-	FORCEINLINE const FRigElementKey& GetKey() const { return Key; }
-	FORCEINLINE int32 GetIndex() const { return Index; }
-	FORCEINLINE int32 GetSubIndex() const { return SubIndex; }
-	FORCEINLINE bool IsSelected() const { return bSelected; }
-	FORCEINLINE int32 GetCreatedAtInstructionIndex() const { return CreatedAtInstructionIndex; }
-	FORCEINLINE bool IsProcedural() const { return CreatedAtInstructionIndex != INDEX_NONE; }
-	FORCEINLINE int32 GetMetadataVersion() const { return MetadataVersion; }
+	const FName& GetName() const { return Key.Name; }
+	const FString& GetNameString() const { return NameString; }
+	virtual const FName& GetDisplayName() const { return GetName(); }
+	ERigElementType GetType() const { return Key.Type; }
+	const FRigElementKey& GetKey() const { return Key; }
+	int32 GetIndex() const { return Index; }
+	int32 GetSubIndex() const { return SubIndex; }
+	bool IsSelected() const { return bSelected; }
+	int32 GetCreatedAtInstructionIndex() const { return CreatedAtInstructionIndex; }
+	bool IsProcedural() const { return CreatedAtInstructionIndex != INDEX_NONE; }
+	int32 GetMetadataVersion() const { return MetadataVersion; }
 
-	FORCEINLINE int32 NumMetadata() const { return Metadata.Num(); }
-	FORCEINLINE FRigBaseMetadata* GetMetadata(int32 InIndex) const { return Metadata[InIndex]; }
-	FORCEINLINE FRigBaseMetadata* GetMetadata(const FName& InName) const
+	int32 NumMetadata() const { return Metadata.Num(); }
+	FRigBaseMetadata* GetMetadata(int32 InIndex) const { return Metadata[InIndex]; }
+	FRigBaseMetadata* GetMetadata(const FName& InName) const
 	{
 		if(const int32* MetadataIndex = MetadataNameToIndex.Find(InName))
 		{
@@ -588,7 +588,7 @@ public:
 		}
 		return nullptr;
 	}
-	FORCEINLINE FRigBaseMetadata* GetMetadata(const FName& InName, ERigMetadataType InType) const
+	FRigBaseMetadata* GetMetadata(const FName& InName, ERigMetadataType InType) const
 	{
 		if(const int32* MetadataIndex = MetadataNameToIndex.Find(InName))
 		{
@@ -600,7 +600,7 @@ public:
 		}
 		return nullptr;
 	}
-	FORCEINLINE bool SetMetaData(const FName& InName, ERigMetadataType InType, const void* InData, int32 InSize)
+	bool SetMetaData(const FName& InName, ERigMetadataType InType, const void* InData, int32 InSize)
 	{
 		if(FRigBaseMetadata* Md = SetupValidMetadata(InName, InType))
 		{
@@ -612,15 +612,15 @@ public:
 	bool RemoveAllMetadata();
 
 	template<typename T>
-	FORCEINLINE bool IsA() const { return T::IsClassOf(this); }
+	bool IsA() const { return T::IsClassOf(this); }
 
-	FORCEINLINE bool IsTypeOf(ERigElementType InElementType) const
+	bool IsTypeOf(ERigElementType InElementType) const
 	{
 		return Key.IsTypeOf(InElementType);
 	}
 
 	template<typename T>
-    friend FORCEINLINE const T* Cast(const FRigBaseElement* InElement)
+    friend const T* Cast(const FRigBaseElement* InElement)
 	{
 		if(InElement)
 		{
@@ -633,7 +633,7 @@ public:
 	}
 
 	template<typename T>
-    friend FORCEINLINE T* Cast(FRigBaseElement* InElement)
+    friend T* Cast(FRigBaseElement* InElement)
 	{
 		if(InElement)
 		{
@@ -646,7 +646,7 @@ public:
 	}
 
 	template<typename T>
-    friend FORCEINLINE const T* CastChecked(const FRigBaseElement* InElement)
+    friend const T* CastChecked(const FRigBaseElement* InElement)
 	{
 		const T* Element = Cast<T>(InElement);
 		check(Element);
@@ -654,7 +654,7 @@ public:
 	}
 
 	template<typename T>
-    friend FORCEINLINE T* CastChecked(FRigBaseElement* InElement)
+    friend T* CastChecked(FRigBaseElement* InElement)
 	{
 		T* Element = Cast<T>(InElement);
 		check(Element);
@@ -712,22 +712,22 @@ protected:
 
 	struct FElementToDirty
 	{
-		FORCEINLINE FElementToDirty()
+		FElementToDirty()
 			: Element(nullptr)
 			, HierarchyDistance(INDEX_NONE)
 		{}
 
-		FORCEINLINE FElementToDirty(FRigTransformElement* InElement, int32 InHierarchyDistance = INDEX_NONE)
+		FElementToDirty(FRigTransformElement* InElement, int32 InHierarchyDistance = INDEX_NONE)
 			: Element(InElement)
 			, HierarchyDistance(InHierarchyDistance)
 		{}
 
-		FORCEINLINE bool operator ==(const FElementToDirty& Other) const
+		bool operator ==(const FElementToDirty& Other) const
 		{
 			return Element == Other.Element;
 		}
 
-		FORCEINLINE bool operator !=(const FElementToDirty& Other) const
+		bool operator !=(const FElementToDirty& Other) const
 		{
 			return Element != Other.Element;
 		}
@@ -740,7 +740,7 @@ protected:
 	typedef TArray<FElementToDirty, TInlineAllocator<3>> FElementsToDirtyArray;  
 	FElementsToDirtyArray ElementsToDirty;
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Bone ||
 			InElement->GetType() == ERigElementType::Null ||
@@ -788,7 +788,7 @@ protected:
 
 	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Bone ||
 			InElement->GetType() == ERigElementType::RigidBody ||
@@ -813,25 +813,25 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Weight)
 	float Scale;
 
-	FORCEINLINE FRigElementWeight()
+	FRigElementWeight()
 		: Location(1.f)
 		, Rotation(1.f)
 		, Scale(1.f)
 	{}
 
-	FORCEINLINE FRigElementWeight(float InWeight)
+	FRigElementWeight(float InWeight)
 		: Location(InWeight)
 		, Rotation(InWeight)
 		, Scale(InWeight)
 	{}
 
-	FORCEINLINE FRigElementWeight(float InLocation, float InRotation, float InScale)
+	FRigElementWeight(float InLocation, float InRotation, float InScale)
 		: Location(InLocation)
 		, Rotation(InRotation)
 		, Scale(InScale)
 	{}
 
-	FORCEINLINE friend FArchive& operator <<(FArchive& Ar, FRigElementWeight& Weight)
+	friend FArchive& operator <<(FArchive& Ar, FRigElementWeight& Weight)
 	{
 		Ar << Weight.Location;
 		Ar << Weight.Rotation;
@@ -839,32 +839,32 @@ public:
 		return Ar;
 	}
 
-	FORCEINLINE bool AffectsLocation() const
+	bool AffectsLocation() const
 	{
 		return Location > SMALL_NUMBER;
 	}
 
-	FORCEINLINE bool AffectsRotation() const
+	bool AffectsRotation() const
 	{
 		return Rotation > SMALL_NUMBER;
 	}
 
-	FORCEINLINE bool AffectsScale() const
+	bool AffectsScale() const
 	{
 		return Scale > SMALL_NUMBER;
 	}
 
-	FORCEINLINE bool IsAlmostZero() const
+	bool IsAlmostZero() const
 	{
 		return !AffectsLocation() && !AffectsRotation() && !AffectsScale();
 	}
 
-	FORCEINLINE friend FRigElementWeight operator *(FRigElementWeight InWeight, float InScale)
+	friend FRigElementWeight operator *(FRigElementWeight InWeight, float InScale)
 	{
 		return FRigElementWeight(InWeight.Location * InScale, InWeight.Rotation * InScale, InWeight.Scale * InScale);
 	}
 
-	FORCEINLINE friend FRigElementWeight operator *(float InScale, FRigElementWeight InWeight)
+	friend FRigElementWeight operator *(float InScale, FRigElementWeight InWeight)
 	{
 		return FRigElementWeight(InWeight.Location * InScale, InWeight.Rotation * InScale, InWeight.Scale * InScale);
 	}
@@ -881,18 +881,18 @@ public:
 	FRigElementWeight InitialWeight;
 	mutable FRigComputedTransform Cache;
 		
-	FORCEINLINE FRigElementParentConstraint()
+	FRigElementParentConstraint()
 		: ParentElement(nullptr)
 	{
 		Cache.bDirty = true;
 	}
 
-	FORCEINLINE const FRigElementWeight& GetWeight(bool bInitial = false) const
+	const FRigElementWeight& GetWeight(bool bInitial = false) const
 	{
 		return bInitial ? InitialWeight : Weight;
 	}
 
-	FORCEINLINE void CopyPose(const FRigElementParentConstraint& InOther, bool bCurrent, bool bInitial)
+	void CopyPose(const FRigElementParentConstraint& InOther, bool bCurrent, bool bInitial)
 	{
 		if(bCurrent)
 		{
@@ -936,7 +936,7 @@ protected:
 
 	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Null ||
 			InElement->GetType() == ERigElementType::Control;
@@ -979,7 +979,7 @@ protected:
 
 	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Bone;
 	}
@@ -1005,7 +1005,7 @@ public:
 
 protected:
 	
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Null;
 	}
@@ -1158,13 +1158,13 @@ struct CONTROLRIG_API FRigControlSettings
 #endif
 	
 	/** Applies the limits expressed by these settings to a value */
-	FORCEINLINE void ApplyLimits(FRigControlValue& InOutValue) const
+	void ApplyLimits(FRigControlValue& InOutValue) const
 	{
 		InOutValue.ApplyLimits(LimitEnabled, ControlType, MinimumValue, MaximumValue);
 	}
 
 	/** Applies the limits expressed by these settings to a transform */
-	FORCEINLINE void ApplyLimits(FTransform& InOutValue) const
+	void ApplyLimits(FTransform& InOutValue) const
 	{
 		FRigControlValue Value;
 		Value.SetFromTransform(InOutValue, ControlType, PrimaryAxis);
@@ -1172,7 +1172,7 @@ struct CONTROLRIG_API FRigControlSettings
 		InOutValue = Value.GetAsTransform(ControlType, PrimaryAxis);
 	}
 
-	FORCEINLINE FRigControlValue GetIdentityValue() const
+	FRigControlValue GetIdentityValue() const
 	{
 		FRigControlValue Value;
 		Value.SetFromTransform(FTransform::Identity, ControlType, PrimaryAxis);
@@ -1181,36 +1181,36 @@ struct CONTROLRIG_API FRigControlSettings
 
 	bool operator == (const FRigControlSettings& InOther) const;
 
-	FORCEINLINE bool operator != (const FRigControlSettings& InOther) const
+	bool operator != (const FRigControlSettings& InOther) const
 	{
 		return !(*this == InOther);
 	}
 
 	void SetupLimitArrayForType(bool bLimitTranslation = false, bool bLimitRotation = false, bool bLimitScale = false);
 
-	FORCEINLINE bool IsAnimatable() const
+	bool IsAnimatable() const
 	{
 		return (AnimationType == ERigControlAnimationType::AnimationControl) ||
 			(AnimationType == ERigControlAnimationType::AnimationChannel);
 	}
 
-	FORCEINLINE bool ShouldBeGrouped() const
+	bool ShouldBeGrouped() const
 	{
 		return IsAnimatable() && bGroupWithParentControl;
 	}
 
-	FORCEINLINE bool SupportsShape() const
+	bool SupportsShape() const
 	{
 		return (AnimationType != ERigControlAnimationType::AnimationChannel) &&
 			(ControlType != ERigControlType::Bool);
 	}
 
-	FORCEINLINE bool IsVisible() const
+	bool IsVisible() const
 	{
 		return SupportsShape() && bShapeVisible;
 	}
 	
-	FORCEINLINE bool SetVisible(bool bVisible, bool bForce = false)
+	bool SetVisible(bool bVisible, bool bForce = false)
 	{
 		if(!bForce)
 		{
@@ -1234,14 +1234,14 @@ struct CONTROLRIG_API FRigControlSettings
 		return SupportsShape();
 	}
 
-	FORCEINLINE bool IsSelectable(bool bRespectVisibility = true) const
+	bool IsSelectable(bool bRespectVisibility = true) const
 	{
 		return (AnimationType == ERigControlAnimationType::AnimationControl ||
 			AnimationType == ERigControlAnimationType::ProxyControl) &&
 			(IsVisible() || !bRespectVisibility);
 	}
 
-	FORCEINLINE void SetAnimationTypeFromDeprecatedData(bool bAnimatable, bool bShapeEnabled)
+	void SetAnimationTypeFromDeprecatedData(bool bAnimatable, bool bShapeEnabled)
 	{
 		if(bAnimatable)
 		{
@@ -1277,7 +1277,7 @@ struct CONTROLRIG_API FRigControlElement : public FRigMultiParentElement
 
 	virtual ~FRigControlElement(){}
 	
-	FORCEINLINE virtual const FName& GetDisplayName() const override
+	virtual const FName& GetDisplayName() const override
 	{
 		if(!Settings.DisplayName.IsNone())
 		{
@@ -1286,9 +1286,9 @@ struct CONTROLRIG_API FRigControlElement : public FRigMultiParentElement
 		return FRigMultiParentElement::GetDisplayName();
 	}
 
-	FORCEINLINE bool IsAnimationChannel() const { return Settings.AnimationType == ERigControlAnimationType::AnimationChannel; }
+	bool IsAnimationChannel() const { return Settings.AnimationType == ERigControlAnimationType::AnimationChannel; }
 
-	FORCEINLINE bool CanDriveControls() const { return Settings.AnimationType == ERigControlAnimationType::ProxyControl || Settings.AnimationType == ERigControlAnimationType::AnimationControl; }
+	bool CanDriveControls() const { return Settings.AnimationType == ERigControlAnimationType::ProxyControl || Settings.AnimationType == ERigControlAnimationType::AnimationControl; }
 
 	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
@@ -1313,7 +1313,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = RigElement)
 	FRigPreferredEulerAngles PreferredEulerAngles;
 	
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Control;
 	}
@@ -1360,7 +1360,7 @@ public:
 	
 	float Value;
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Curve;
 	}
@@ -1419,7 +1419,7 @@ public:
 
 protected:
 	
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::RigidBody;
 	}
@@ -1456,7 +1456,7 @@ protected:
 
 	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
 
-	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Reference;
 	}

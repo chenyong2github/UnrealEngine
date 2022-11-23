@@ -27,7 +27,7 @@ struct FRigCurve : public FRigElement
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = FRigElement)
 	float Value;
 
-	FORCEINLINE virtual ERigElementType GetElementType() const override
+	virtual ERigElementType GetElementType() const override
 	{
 		return ERigElementType::Curve;
 	}
@@ -42,10 +42,10 @@ public:
 
 	FRigCurveContainer();
 
-	FORCEINLINE TArray<FRigCurve>::RangedForIteratorType      begin()       { return Curves.begin(); }
-	FORCEINLINE TArray<FRigCurve>::RangedForConstIteratorType begin() const { return Curves.begin(); }
-	FORCEINLINE TArray<FRigCurve>::RangedForIteratorType      end()         { return Curves.end();   }
-	FORCEINLINE TArray<FRigCurve>::RangedForConstIteratorType end() const   { return Curves.end();   }
+	TArray<FRigCurve>::RangedForIteratorType      begin()       { return Curves.begin(); }
+	TArray<FRigCurve>::RangedForConstIteratorType begin() const { return Curves.begin(); }
+	TArray<FRigCurve>::RangedForIteratorType      end()         { return Curves.end();   }
+	TArray<FRigCurve>::RangedForConstIteratorType end() const   { return Curves.end();   }
 
 	FRigCurve& Add(const FName& InNewName, float InValue);
 	

@@ -17,13 +17,13 @@ struct CONTROLRIG_API FCachedRigElement
 
 public:
 
-	FORCEINLINE FCachedRigElement()
+	FCachedRigElement()
 		: Key()
 		, Index(UINT16_MAX)
 		, ContainerVersion(INDEX_NONE)
 	{}
 
-	FORCEINLINE FCachedRigElement(const FRigElementKey& InKey, const URigHierarchy* InHierarchy)
+	FCachedRigElement(const FRigElementKey& InKey, const URigHierarchy* InHierarchy)
 		: Key()
 		, Index(UINT16_MAX)
 		, ContainerVersion(INDEX_NONE)
@@ -31,12 +31,12 @@ public:
 		UpdateCache(InKey, InHierarchy);
 	}
 
-	FORCEINLINE bool IsValid() const
+	bool IsValid() const
 	{
 		return GetIndex() != INDEX_NONE && Key.IsValid();
 	}
 
-	FORCEINLINE void Reset()
+	void Reset()
 	{
 		Key = FRigElementKey();
 		Index = UINT16_MAX;
@@ -44,22 +44,22 @@ public:
 		Element = nullptr;
 	}
 
-	FORCEINLINE explicit operator bool() const
+	explicit operator bool() const
 	{
 		return IsValid();
 	}
 
-	FORCEINLINE operator int32() const
+	operator int32() const
 	{
 		return GetIndex();
 	}
 
-	FORCEINLINE explicit operator FRigElementKey() const
+	explicit operator FRigElementKey() const
 	{
 		return Key;
 	}
 
-	FORCEINLINE int32 GetIndex() const
+	int32 GetIndex() const
 	{
 		if(Index == UINT16_MAX)
 		{
@@ -68,12 +68,12 @@ public:
 		return (int32)Index;
 	}
 
-	FORCEINLINE const FRigElementKey& GetKey() const
+	const FRigElementKey& GetKey() const
 	{
 		return Key;
 	}
 
-	FORCEINLINE const FRigBaseElement* GetElement() const
+	const FRigBaseElement* GetElement() const
 	{
 		return Element;
 	}
@@ -82,44 +82,44 @@ public:
 
 	bool UpdateCache(const FRigElementKey& InKey, const URigHierarchy* InHierarchy);
 
-	friend FORCEINLINE uint32 GetTypeHash(const FCachedRigElement& Cache)
+	friend uint32 GetTypeHash(const FCachedRigElement& Cache)
 	{
 		return GetTypeHash(Cache.Key) * 13 + (uint32)Cache.Index;
 	}
 
 	bool IsIdentical(const FRigElementKey& InKey, const URigHierarchy* InHierarchy);
 
-	FORCEINLINE bool operator ==(const FCachedRigElement& Other) const
+	bool operator ==(const FCachedRigElement& Other) const
 	{
 		return Index == Other.Index && Key == Other.Key;
 	}
 
-	FORCEINLINE bool operator !=(const FCachedRigElement& Other) const
+	bool operator !=(const FCachedRigElement& Other) const
 	{
 		return Index != Other.Index || Key != Other.Key;
 	}
 
-	FORCEINLINE bool operator ==(const FRigElementKey& Other) const
+	bool operator ==(const FRigElementKey& Other) const
 	{
 		return Key == Other;
 	}
 
-	FORCEINLINE bool operator !=(const FRigElementKey& Other) const
+	bool operator !=(const FRigElementKey& Other) const
 	{
 		return Key != Other;
 	}
 
-	FORCEINLINE bool operator ==(const int32& Other) const
+	bool operator ==(const int32& Other) const
 	{
 		return GetIndex() == Other;
 	}
 
-	FORCEINLINE bool operator !=(const int32& Other) const
+	bool operator !=(const int32& Other) const
 	{
 		return GetIndex() != Other;
 	}
 
-	FORCEINLINE bool operator <(const FCachedRigElement& Other) const
+	bool operator <(const FCachedRigElement& Other) const
 	{
 		if (Key < Other.Key)
 		{
@@ -128,7 +128,7 @@ public:
 		return Index < Other.Index;
 	}
 
-	FORCEINLINE bool operator >(const FCachedRigElement& Other) const
+	bool operator >(const FCachedRigElement& Other) const
 	{
 		if (Key > Other.Key)
 		{

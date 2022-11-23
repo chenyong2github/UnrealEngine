@@ -1206,17 +1206,17 @@ private:
 		{
 		}
 
-		friend FORCEINLINE uint32 GetTypeHash(const FControlRigStructPinRedirectorKey& Cache)
+		friend uint32 GetTypeHash(const FControlRigStructPinRedirectorKey& Cache)
 		{
 			return HashCombine(GetTypeHash(Cache.Struct), GetTypeHash(Cache.PinPathInNode));
 		}
 
-		FORCEINLINE bool operator ==(const FControlRigStructPinRedirectorKey& Other) const
+		bool operator ==(const FControlRigStructPinRedirectorKey& Other) const
 		{
 			return Struct == Other.Struct && PinPathInNode == Other.PinPathInNode;
 		}
 
-		FORCEINLINE bool operator !=(const FControlRigStructPinRedirectorKey& Other) const
+		bool operator !=(const FControlRigStructPinRedirectorKey& Other) const
 		{
 			return Struct != Other.Struct || PinPathInNode != Other.PinPathInNode;
 		}

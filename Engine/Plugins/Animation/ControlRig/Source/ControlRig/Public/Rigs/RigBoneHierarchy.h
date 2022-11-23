@@ -53,12 +53,12 @@ struct CONTROLRIG_API FRigBone: public FRigElement
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = FRigElement)
 	ERigBoneType Type;
 
-	FORCEINLINE virtual ERigElementType GetElementType() const override
+	virtual ERigElementType GetElementType() const override
 	{
 		return ERigElementType::Bone;
 	}
 
-	FORCEINLINE virtual FRigElementKey GetParentElementKey(bool bForce = false) const
+	virtual FRigElementKey GetParentElementKey(bool bForce = false) const
 	{
 		return FRigElementKey(ParentName, GetElementType());
 	}
@@ -71,10 +71,10 @@ struct CONTROLRIG_API FRigBoneHierarchy
 
 	FRigBoneHierarchy();
 
-	FORCEINLINE TArray<FRigBone>::RangedForIteratorType      begin()       { return Bones.begin(); }
-	FORCEINLINE TArray<FRigBone>::RangedForConstIteratorType begin() const { return Bones.begin(); }
-	FORCEINLINE TArray<FRigBone>::RangedForIteratorType      end()         { return Bones.end();   }
-	FORCEINLINE TArray<FRigBone>::RangedForConstIteratorType end() const   { return Bones.end();   }
+	TArray<FRigBone>::RangedForIteratorType      begin()       { return Bones.begin(); }
+	TArray<FRigBone>::RangedForConstIteratorType begin() const { return Bones.begin(); }
+	TArray<FRigBone>::RangedForIteratorType      end()         { return Bones.end();   }
+	TArray<FRigBone>::RangedForConstIteratorType end() const   { return Bones.end();   }
 
 	FRigBone& Add(const FName& InNewName, const FName& InParentName, ERigBoneType InType, const FTransform& InInitTransform, const FTransform& InLocalTransform, const FTransform& InGlobalTransform);
 	

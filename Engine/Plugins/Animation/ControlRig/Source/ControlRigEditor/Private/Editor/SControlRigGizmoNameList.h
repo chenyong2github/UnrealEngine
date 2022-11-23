@@ -39,7 +39,7 @@ protected:
 	void OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	void OnNameListComboBox();
 
-	FORCEINLINE static const TArray< TSharedPtr<FString> >& GetEmptyList()
+	static const TArray< TSharedPtr<FString> >& GetEmptyList()
 	{
 		static const TArray< TSharedPtr<FString> > EmptyList;
 		return EmptyList;

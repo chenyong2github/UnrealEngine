@@ -191,7 +191,7 @@ protected:
 
 #if WITH_EDITOR
 	template<typename ValueType>
-	FORCEINLINE_DEBUGGABLE bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
+	bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
 	{
 		return CheckArgumentType(Handles[NameArgIndex].IsType<FName>(), NameArgName) &&
 			CheckArgumentType(Handles[BoneNameArgIndex].IsType<FName>(), BoneNameArgName) &&
@@ -202,7 +202,7 @@ protected:
 			CheckArgumentType(Handles[FoundArgIndex].IsType<bool>(), FoundArgName);
 	}
 
-	FORCEINLINE_DEBUGGABLE bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
+	bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
 	{
 		return CheckArgumentType(Handles[NameArgIndex].IsType<FName>(), NameArgName) &&
 			CheckArgumentType(Handles[BoneNameArgIndex].IsType<FName>(), BoneNameArgName) &&
@@ -214,7 +214,7 @@ protected:
 
 	// dispatch function for built-in types
 	template<typename ValueType>	
-	FORCEINLINE_DEBUGGABLE static void GetAnimAttributeDispatch(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+	static void GetAnimAttributeDispatch(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
 	{
 		const FRigDispatch_GetAnimAttribute* Factory = static_cast<const FRigDispatch_GetAnimAttribute*>(InContext.Factory);
 		
@@ -265,7 +265,7 @@ protected:
 
 #if WITH_EDITOR
 	template<typename ValueType>
-	FORCEINLINE_DEBUGGABLE bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
+	bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
 	{
 		return CheckArgumentType(Handles[NameArgIndex].IsType<FName>(), NameArgName) &&
 			CheckArgumentType(Handles[BoneNameArgIndex].IsType<FName>(), BoneNameArgName) &&
@@ -275,7 +275,7 @@ protected:
 			CheckArgumentType(Handles[SuccessArgIndex].IsType<bool>(), FoundArgName);
 	}
 
-	FORCEINLINE_DEBUGGABLE bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
+	bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
 	{
 		return CheckArgumentType(Handles[NameArgIndex].IsType<FName>(), NameArgName) &&
 			CheckArgumentType(Handles[BoneNameArgIndex].IsType<FName>(), BoneNameArgName) &&
@@ -287,7 +287,7 @@ protected:
 
 	// dispatch function for built-in types
 	template<typename ValueType>	
-	FORCEINLINE_DEBUGGABLE static void SetAnimAttributeDispatch(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+	static void SetAnimAttributeDispatch(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
 	{
 		const FRigDispatch_SetAnimAttribute* Factory = static_cast<const FRigDispatch_SetAnimAttribute*>(InContext.Factory);
 		

@@ -141,50 +141,50 @@ struct RIGVM_API FRigVMRegister
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
-	FORCEINLINE_DEBUGGABLE friend FArchive& operator<<(FArchive& Ar, FRigVMRegister& P)
+	friend FArchive& operator<<(FArchive& Ar, FRigVMRegister& P)
 	{
 		P.Serialize(Ar);
 		return Ar;
 	}
 
 	// returns true if this register is using a dynamic array for storage
-	FORCEINLINE_DEBUGGABLE bool IsDynamic() const { return bIsDynamic; }
+	bool IsDynamic() const { return bIsDynamic; }
 
 	// returns true if this register is using a dynamic array for storage
-	FORCEINLINE_DEBUGGABLE bool IsNestedDynamic() const { return bIsDynamic && bIsArray; }
+	bool IsNestedDynamic() const { return bIsDynamic && bIsArray; }
 
 	// returns the current address of the register within the data byte array.
 	// this can change over time - as the register is moving through slices.
 	// use GetFirstAllocatedByte to get the fixed first byte.
-	FORCEINLINE_DEBUGGABLE uint64 GetWorkByteIndex(int32 InSliceIndex = 0) const
+	uint64 GetWorkByteIndex(int32 InSliceIndex = 0) const
 	{
 		ensure(InSliceIndex >= 0);
 		return ByteIndex + ((uint64)InSliceIndex * GetNumBytesPerSlice());
 	}
 
 	// returns the first allocated byte in the data byte array
-	FORCEINLINE_DEBUGGABLE uint64 GetFirstAllocatedByte() const
+	uint64 GetFirstAllocatedByte() const
 	{ 
 		return ByteIndex - (uint64)AlignmentBytes;
 	}
 
 	// Returns the leading alignment bytes
-	FORCEINLINE_DEBUGGABLE uint8 GetAlignmentBytes() const { return AlignmentBytes; }
+	uint8 GetAlignmentBytes() const { return AlignmentBytes; }
 
 	// Returns true if the register stores more than one element
-	FORCEINLINE_DEBUGGABLE bool IsArray() const { return bIsArray || (ElementCount > 1); }
+	bool IsArray() const { return bIsArray || (ElementCount > 1); }
 
 	// Returns the number of allocated bytes (including alignment + trailing bytes)
-	FORCEINLINE_DEBUGGABLE uint16 GetAllocatedBytes() const { return ElementCount * ElementSize * SliceCount + (uint16)AlignmentBytes + TrailingBytes; }
+	uint16 GetAllocatedBytes() const { return ElementCount * ElementSize * SliceCount + (uint16)AlignmentBytes + TrailingBytes; }
 
 	// Returns the number of bytes for a complete slice
-	FORCEINLINE_DEBUGGABLE uint16 GetNumBytesPerSlice() const { return ElementCount * ElementSize; }
+	uint16 GetNumBytesPerSlice() const { return ElementCount * ElementSize; }
 
 	// Returns the number of bytes for all slices
-	FORCEINLINE_DEBUGGABLE uint16 GetNumBytesAllSlices() const { return ElementCount * ElementSize * SliceCount; }
+	uint16 GetNumBytesAllSlices() const { return ElementCount * ElementSize * SliceCount; }
 
 	// Returns the total number of elements (elementcount * slicecount) in the register
-	FORCEINLINE_DEBUGGABLE uint32 GetTotalElementCount() const { return (uint32)ElementCount * (uint32)SliceCount; }
+	uint32 GetTotalElementCount() const { return (uint32)ElementCount * (uint32)SliceCount; }
 
 };
 
@@ -215,7 +215,7 @@ public:
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
-	FORCEINLINE_DEBUGGABLE friend FArchive& operator<<(FArchive& Ar, FRigVMRegisterOffset& P)
+	friend FArchive& operator<<(FArchive& Ar, FRigVMRegisterOffset& P)
 	{
 		P.Serialize(Ar);
 		return Ar;
@@ -237,11 +237,11 @@ public:
 
 	bool operator == (const FRigVMRegisterOffset& InOther) const;
 
-	FORCEINLINE_DEBUGGABLE bool IsValid() const { return Type != ERigVMRegisterType::Invalid; }
-	FORCEINLINE_DEBUGGABLE ERigVMRegisterType GetType() const { return Type; }
-	FORCEINLINE_DEBUGGABLE FName GetCPPType() const { return CPPType; }
-	FORCEINLINE_DEBUGGABLE FString GetCachedSegmentPath() const { return CachedSegmentPath; }
-	FORCEINLINE_DEBUGGABLE int32 GetArrayIndex() const { return ArrayIndex; }
+	bool IsValid() const { return Type != ERigVMRegisterType::Invalid; }
+	ERigVMRegisterType GetType() const { return Type; }
+	FName GetCPPType() const { return CPPType; }
+	FString GetCachedSegmentPath() const { return CachedSegmentPath; }
+	int32 GetArrayIndex() const { return ArrayIndex; }
 	uint16 GetElementSize() const;
 	void SetElementSize(uint16 InElementSize) { ElementSize = InElementSize; };
 	UScriptStruct* GetScriptStruct() const;
@@ -328,16 +328,16 @@ public:
 	FRigVMMemoryContainer& operator= (const FRigVMMemoryContainer &InOther);
 
 	// returns the memory type of this container
-	FORCEINLINE_DEBUGGABLE ERigVMMemoryType GetMemoryType() const { return MemoryType;  }
+	ERigVMMemoryType GetMemoryType() const { return MemoryType;  }
 
 	// sets the memory type. should only be used when the container is empty
-	FORCEINLINE_DEBUGGABLE void SetMemoryType(ERigVMMemoryType InMemoryType) { MemoryType = InMemoryType; }
+	void SetMemoryType(ERigVMMemoryType InMemoryType) { MemoryType = InMemoryType; }
 
 	// returns true if this container supports name based lookup
-	FORCEINLINE_DEBUGGABLE bool SupportsNames() const { return bUseNameMap;  }
+	bool SupportsNames() const { return bUseNameMap;  }
 
 	// returns the number of registers in this container
-	FORCEINLINE_DEBUGGABLE int32 Num() const { return Registers.Num(); }
+	int32 Num() const { return Registers.Num(); }
 
 	// resets the container but maintains storage.
 	void Reset();
@@ -346,50 +346,50 @@ public:
 	void Empty();
 
 	// const accessor for a register based on index
-	FORCEINLINE_DEBUGGABLE const FRigVMRegister& operator[](int32 InIndex) const { return GetRegister(InIndex); }
+	const FRigVMRegister& operator[](int32 InIndex) const { return GetRegister(InIndex); }
 
 	// accessor for a register based on index
-	FORCEINLINE_DEBUGGABLE FRigVMRegister& operator[](int32 InIndex) { return GetRegister(InIndex); }
+	FRigVMRegister& operator[](int32 InIndex) { return GetRegister(InIndex); }
 
 	// const accessor for a register based on an argument
-	FORCEINLINE_DEBUGGABLE const FRigVMRegister& operator[](const FRigVMOperand& InArg) const { return GetRegister(InArg); }
+	const FRigVMRegister& operator[](const FRigVMOperand& InArg) const { return GetRegister(InArg); }
 
 	// accessor for a register based on an argument
-	FORCEINLINE_DEBUGGABLE FRigVMRegister& operator[](const FRigVMOperand& InArg) { return GetRegister(InArg); }
+	FRigVMRegister& operator[](const FRigVMOperand& InArg) { return GetRegister(InArg); }
 
 	// const accessor for a register based on a a name. note: only works if SupportsNames() == true
-	FORCEINLINE_DEBUGGABLE const FRigVMRegister& operator[](const FName& InName) const { return GetRegister(InName); }
+	const FRigVMRegister& operator[](const FName& InName) const { return GetRegister(InName); }
 
 	// accessor for a register based on a a name. note: only works if SupportsNames() == true
-	FORCEINLINE_DEBUGGABLE FRigVMRegister& operator[](const FName& InName) { return GetRegister(InName); }
+	FRigVMRegister& operator[](const FName& InName) { return GetRegister(InName); }
 
-	FORCEINLINE_DEBUGGABLE TArray<FRigVMRegister>::RangedForIteratorType      begin() { return Registers.begin(); }
-	FORCEINLINE_DEBUGGABLE TArray<FRigVMRegister>::RangedForConstIteratorType begin() const { return Registers.begin(); }
-	FORCEINLINE_DEBUGGABLE TArray<FRigVMRegister>::RangedForIteratorType      end() { return Registers.end(); }
-	FORCEINLINE_DEBUGGABLE TArray<FRigVMRegister>::RangedForConstIteratorType end() const { return Registers.end(); }
+	TArray<FRigVMRegister>::RangedForIteratorType      begin() { return Registers.begin(); }
+	TArray<FRigVMRegister>::RangedForConstIteratorType begin() const { return Registers.begin(); }
+	TArray<FRigVMRegister>::RangedForIteratorType      end() { return Registers.end(); }
+	TArray<FRigVMRegister>::RangedForConstIteratorType end() const { return Registers.end(); }
 
 	// const accessor for a register based on index
-	FORCEINLINE_DEBUGGABLE const FRigVMRegister& GetRegister(int32 InIndex) const { return Registers[InIndex]; }
+	const FRigVMRegister& GetRegister(int32 InIndex) const { return Registers[InIndex]; }
 
 	// accessor for a register based on index
-	FORCEINLINE_DEBUGGABLE FRigVMRegister& GetRegister(int32 InIndex) { return Registers[InIndex]; }
+	FRigVMRegister& GetRegister(int32 InIndex) { return Registers[InIndex]; }
 
 	// const accessor for a register based on an argument
-	FORCEINLINE_DEBUGGABLE const FRigVMRegister& GetRegister(const FRigVMOperand& InArg) const { return Registers[InArg.GetRegisterIndex()]; }
+	const FRigVMRegister& GetRegister(const FRigVMOperand& InArg) const { return Registers[InArg.GetRegisterIndex()]; }
 
 	// accessor for a register based on an argument
-	FORCEINLINE_DEBUGGABLE FRigVMRegister& GetRegister(const FRigVMOperand& InArg) { return Registers[InArg.GetRegisterIndex()]; }
+	FRigVMRegister& GetRegister(const FRigVMOperand& InArg) { return Registers[InArg.GetRegisterIndex()]; }
 
 	// const accessor for a register based on a a name. note: only works if SupportsNames() == true
-	FORCEINLINE_DEBUGGABLE const FRigVMRegister& GetRegister(const FName& InName) const { return Registers[GetIndex(InName)]; }
+	const FRigVMRegister& GetRegister(const FName& InName) const { return Registers[GetIndex(InName)]; }
 
 	// accessor for a register based on a a name. note: only works if SupportsNames() == true
-	FORCEINLINE_DEBUGGABLE FRigVMRegister& GetRegister(const FName& InName) { return Registers[GetIndex(InName)]; }
+	FRigVMRegister& GetRegister(const FName& InName) { return Registers[GetIndex(InName)]; }
 	
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
-	FORCEINLINE_DEBUGGABLE friend FArchive& operator<<(FArchive& Ar, FRigVMMemoryContainer& P)
+	friend FArchive& operator<<(FArchive& Ar, FRigVMMemoryContainer& P)
 	{
 		P.Serialize(Ar);
 		return Ar;
@@ -397,7 +397,7 @@ public:
 
 	// Returns an argument for a given register.
 	// This is typically used to store a light weight address for use within a VM.
-	FORCEINLINE_DEBUGGABLE FRigVMOperand GetOperand(int32 InRegisterIndex, int32 InRegisterOffset)
+	FRigVMOperand GetOperand(int32 InRegisterIndex, int32 InRegisterOffset)
 	{
 		ensure(Registers.IsValidIndex(InRegisterIndex));
 		return FRigVMOperand(MemoryType, InRegisterIndex, InRegisterOffset);
@@ -405,7 +405,7 @@ public:
 
 	// Returns an argument for a given register.
 	// This is typically used to store a light weight address for use within a VM.
-	FORCEINLINE_DEBUGGABLE FRigVMOperand GetOperand(int32 InRegisterIndex, const FString& InSegmentPath = FString(), int32 InArrayElement = INDEX_NONE)
+	FRigVMOperand GetOperand(int32 InRegisterIndex, const FString& InSegmentPath = FString(), int32 InArrayElement = INDEX_NONE)
 	{
 		ensure(Registers.IsValidIndex(InRegisterIndex));
 		// Register offset must hold on to the ScriptStruct such that it can recalculate the struct size after cook
@@ -424,7 +424,7 @@ public:
 
 private:
 
-	FORCEINLINE_DEBUGGABLE uint8* GetDataPtr(const FRigVMRegister& Register, int32 InRegisterOffset = INDEX_NONE, int32 InSliceIndex = 0, bool bArrayContent = false) const
+	uint8* GetDataPtr(const FRigVMRegister& Register, int32 InRegisterOffset = INDEX_NONE, int32 InSliceIndex = 0, bool bArrayContent = false) const
 	{
 		if (Register.ElementCount == 0 && !Register.IsNestedDynamic())
 		{
@@ -476,7 +476,7 @@ private:
 public:
 	
 	// Returns the script struct used for a given register (can be nullptr for non-struct-registers).
-	FORCEINLINE_DEBUGGABLE UScriptStruct* GetScriptStruct(const FRigVMRegister& Register) const
+	UScriptStruct* GetScriptStruct(const FRigVMRegister& Register) const
 	{
 		if (Register.ScriptStructIndex != INDEX_NONE)
 		{
@@ -487,7 +487,7 @@ public:
 	}
 
 	// Returns the script struct used for a given register index (can be nullptr for non-struct-registers).
-	FORCEINLINE_DEBUGGABLE UScriptStruct* GetScriptStruct(int32 InRegisterIndex, int32 InRegisterOffset = INDEX_NONE) const
+	UScriptStruct* GetScriptStruct(int32 InRegisterIndex, int32 InRegisterOffset = INDEX_NONE) const
 	{
 		if (InRegisterOffset == INDEX_NONE)
 		{
@@ -502,7 +502,7 @@ public:
 	
 	// Returns the index of a register based on the register name.
 	// Note: This only works if SupportsNames() == true
-	FORCEINLINE_DEBUGGABLE int32 GetIndex(const FName& InName) const
+	int32 GetIndex(const FName& InName) const
 	{
 		if (!bUseNameMap)
 		{
@@ -532,7 +532,7 @@ public:
 	}
 
 	// Returns true if a given name is available for a new register.
-	FORCEINLINE_DEBUGGABLE bool IsNameAvailable(const FName& InPotentialNewName) const
+	bool IsNameAvailable(const FName& InPotentialNewName) const
 	{
 		if (!bUseNameMap)
 		{

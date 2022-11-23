@@ -243,7 +243,7 @@ protected:
 
 private:
 
-	FORCEINLINE int32 GetNodeTopologyVersion() const { return NodeTopologyVersion; }
+	int32 GetNodeTopologyVersion() const { return NodeTopologyVersion; }
 	int32 NodeTopologyVersion;
 
 	static void ConfigurePin(UEdGraphPin* EdGraphPin, const URigVMPin* ModelPin);

@@ -60,7 +60,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
 	>
-	FORCEINLINE T ConstructStructInstance() const
+	T ConstructStructInstance() const
 	{
 		if(!ensure(T::StaticStruct() == GetScriptStruct()))
 		{

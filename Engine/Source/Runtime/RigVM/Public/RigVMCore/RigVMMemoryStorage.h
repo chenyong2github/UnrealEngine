@@ -78,7 +78,7 @@ struct RIGVM_API FRigVMBranchInfo
 	}
 	
 	void Serialize(FArchive& Ar);
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMBranchInfo& P)
+	friend FArchive& operator<<(FArchive& Ar, FRigVMBranchInfo& P)
 	{
 		P.Serialize(Ar);
 		return Ar;
@@ -183,7 +183,7 @@ public:
 		, ConstValue(InConstValue)
 	{}
 
-	FORCEINLINE const ComputedType& Get() const
+	const ComputedType& Get() const
 	{
 		if(MemoryHandle)
 		{
@@ -226,7 +226,7 @@ struct FRigVMMemoryHandle
 public:
 
 	// Default constructor
-	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle()
+	FRigVMMemoryHandle()
 		: Ptr(nullptr)
 		, Property(nullptr) 
 		, PropertyPath(nullptr)
@@ -234,7 +234,7 @@ public:
 	{}
 
 	// Constructor from complete data
-	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle(uint8* InPtr, const FProperty* InProperty,  const FRigVMPropertyPath* InPropertyPath, FRigVMLazyBranch* InLazyBranch = nullptr)
+	FRigVMMemoryHandle(uint8* InPtr, const FProperty* InProperty,  const FRigVMPropertyPath* InPropertyPath, FRigVMLazyBranch* InLazyBranch = nullptr)
 		: Ptr(InPtr)
 		, Property(InProperty)
 		, PropertyPath(InPropertyPath)
@@ -248,7 +248,7 @@ public:
 	 * @param InSliceIndex If this is != INDEX_NONE the memory handle will return the slice of the memory requested
 	 * @return The traversed memory cached by this handle.
 	 */
-	FORCEINLINE uint8* GetData(bool bFollowPropertyPath = false, int32 InSliceIndex = INDEX_NONE)
+	uint8* GetData(bool bFollowPropertyPath = false, int32 InSliceIndex = INDEX_NONE)
 	{
 		return GetData_Internal(bFollowPropertyPath, InSliceIndex);
 	}
@@ -259,7 +259,7 @@ public:
 	 * @param InSliceIndex If this is != INDEX_NONE the memory handle will return the slice of the memory requested
 	 * @return The traversed memory cached by this handle (const)
 	 */
-	FORCEINLINE const uint8* GetData(bool bFollowPropertyPath = false, int32 InSliceIndex = INDEX_NONE) const
+	const uint8* GetData(bool bFollowPropertyPath = false, int32 InSliceIndex = INDEX_NONE) const
 	{
 		return GetData_Internal(bFollowPropertyPath, InSliceIndex);
 	}
@@ -271,7 +271,7 @@ public:
 	 * @return The traversed memory cached by this handle (const)
 	 */
 	template<typename ComputedType>
-	FORCEINLINE TRigVMLazyValue<ComputedType> GetDataLazily(bool bFollowPropertyPath = false, int32 InSliceIndex = INDEX_NONE) const
+	TRigVMLazyValue<ComputedType> GetDataLazily(bool bFollowPropertyPath = false, int32 InSliceIndex = INDEX_NONE) const
 	{
 		return GetDataLazily_Internal(bFollowPropertyPath, InSliceIndex);
 	}
@@ -280,7 +280,7 @@ public:
 	 * Returns true if this memory handle depends on a lazily executed branch
 	 * @return True if this memory handle depends on a lazily executed branch
 	 */
-	FORCEINLINE bool IsLazy() const
+	bool IsLazy() const
 	{
 		return LazyBranch != nullptr;
 	}
@@ -292,19 +292,19 @@ public:
 	bool ComputeLazyValueIfNecessary(int32 InSliceIndex = INDEX_NONE);
 
 	// Returns the head property of this handle
-	FORCEINLINE const FProperty* GetProperty() const
+	const FProperty* GetProperty() const
 	{
 		return Property;
 	}
 
 	// Returns the [optional] property path used within this handle
-	FORCEINLINE const FRigVMPropertyPath* GetPropertyPath() const
+	const FRigVMPropertyPath* GetPropertyPath() const
 	{
 		return PropertyPath;
 	}
 
 	// Returns the [optional] property path used within this handle (ref)
-	FORCEINLINE const FRigVMPropertyPath& GetPropertyPathRef() const
+	const FRigVMPropertyPath& GetPropertyPathRef() const
 	{
 		if(PropertyPath)
 		{
@@ -314,7 +314,7 @@ public:
 	}
 
 	// Returns the resolved property the data is pointing to
-	FORCEINLINE const FProperty* GetResolvedProperty(bool bIsHiddenArgument = false) const
+	const FProperty* GetResolvedProperty(bool bIsHiddenArgument = false) const
 	{
 		if(bIsHiddenArgument)
 		{
@@ -330,7 +330,7 @@ public:
 
 	// Returns true if this memory handle maps to a given type of property
 	template<typename PropertyType>
-	FORCEINLINE bool IsPropertyType(bool bIsHiddenArgument = false) const
+	bool IsPropertyType(bool bIsHiddenArgument = false) const
 	{
 		const FProperty* ResolvedProperty = GetResolvedProperty(bIsHiddenArgument);
 		return ResolvedProperty->IsA<PropertyType>();
@@ -338,7 +338,7 @@ public:
 
 	// Returns true if this memory handle maps to a given array type of property
 	template<typename PropertyType>
-	FORCEINLINE bool IsPropertyArrayType(bool bIsHiddenArgument = false) const
+	bool IsPropertyArrayType(bool bIsHiddenArgument = false) const
 	{
 		const FProperty* ResolvedProperty = GetResolvedProperty(bIsHiddenArgument);
 		if(const FProperty* ElementProperty = GetArrayElementProperty(ResolvedProperty))
@@ -353,7 +353,7 @@ public:
 		typename T,
 		typename TEnableIf<TIsTArray<T>::Value>::Type* = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		typedef typename T::ElementType ElementType;
 		return IsTypeArray<ElementType>(bIsHiddenArgument);
@@ -364,7 +364,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBool<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsBool(bIsHiddenArgument);
 	}
@@ -374,7 +374,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBool<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsBoolArray(bIsHiddenArgument);
 	}
@@ -384,7 +384,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsFloat<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsFloat(bIsHiddenArgument);
 	}
@@ -394,7 +394,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsFloat<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsFloatArray(bIsHiddenArgument);
 	}
@@ -404,7 +404,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsDouble<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsDouble(bIsHiddenArgument);
 	}
@@ -414,7 +414,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsDouble<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsDoubleArray(bIsHiddenArgument);
 	}
@@ -424,7 +424,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsInt32<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsInt32(bIsHiddenArgument);
 	}
@@ -434,7 +434,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsInt32<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsInt32Array(bIsHiddenArgument);
 	}
@@ -443,7 +443,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsName<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsName(bIsHiddenArgument);
 	}
@@ -453,7 +453,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsName<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsNameArray(bIsHiddenArgument);
 	}
@@ -463,7 +463,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsString<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsString(bIsHiddenArgument);
 	}
@@ -473,7 +473,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsString<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsStringArray(bIsHiddenArgument);
 	}
@@ -483,7 +483,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsStruct<T>(bIsHiddenArgument);
 	}
@@ -493,7 +493,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsStructArray<T>(bIsHiddenArgument);
 	}
@@ -503,7 +503,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsStruct<T>(bIsHiddenArgument);
 	}
@@ -513,7 +513,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsStructArray<T>(bIsHiddenArgument);
 	}
@@ -523,7 +523,7 @@ public:
 		typename T,
 		typename TEnableIf<TIsEnum<T>::Value>::Type* = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsEnum<T>(bIsHiddenArgument);
 	}
@@ -533,7 +533,7 @@ public:
 		typename T,
 		typename TEnableIf<TIsEnum<T>::Value>::Type* = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsEnumArray<T>(bIsHiddenArgument);
 	}
@@ -543,7 +543,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	bool IsType(bool bIsHiddenArgument = false) const
 	{
 		return IsObject<T>(bIsHiddenArgument);
 	}
@@ -553,92 +553,92 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	bool IsTypeArray(bool bIsHiddenArgument = false) const
 	{
 		return IsObjectArray<T>(bIsHiddenArgument);
 	}
 	
 	// Returns true if this memory handle maps to a bool property
-	FORCEINLINE bool IsBool(bool bIsHiddenArgument = false) const
+	bool IsBool(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyType<FBoolProperty>(bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to a bool array property
-	FORCEINLINE bool IsBoolArray(bool bIsHiddenArgument = false) const
+	bool IsBoolArray(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyArrayType<FBoolProperty>(bIsHiddenArgument);
 	}
 	
 	// Returns true if this memory handle maps to a float property
-	FORCEINLINE bool IsFloat(bool bIsHiddenArgument = false) const
+	bool IsFloat(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyType<FFloatProperty>(bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to a float array property
-	FORCEINLINE bool IsFloatArray(bool bIsHiddenArgument = false) const
+	bool IsFloatArray(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyArrayType<FFloatProperty>(bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to a double property
-	FORCEINLINE bool IsDouble(bool bIsHiddenArgument = false) const
+	bool IsDouble(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyType<FDoubleProperty>(bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to a double array property
-	FORCEINLINE bool IsDoubleArray(bool bIsHiddenArgument = false) const
+	bool IsDoubleArray(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyArrayType<FDoubleProperty>(bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to a int32 property
-	FORCEINLINE bool IsInt32(bool bIsHiddenArgument = false) const
+	bool IsInt32(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyType<FIntProperty>(bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to a int32 array property
-	FORCEINLINE bool IsInt32Array(bool bIsHiddenArgument = false) const
+	bool IsInt32Array(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyArrayType<FIntProperty>(bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to an FName property
-    FORCEINLINE bool IsName(bool bIsHiddenArgument = false) const
+    bool IsName(bool bIsHiddenArgument = false) const
     {
     	return IsPropertyType<FNameProperty>(bIsHiddenArgument);
     }
 
 	// Returns true if this memory handle maps to an FName array property
-    FORCEINLINE bool IsNameArray(bool bIsHiddenArgument = false) const
+    bool IsNameArray(bool bIsHiddenArgument = false) const
     {
     	return IsPropertyArrayType<FNameProperty>(bIsHiddenArgument);
     }
 
 	// Returns true if this memory handle maps to an FString property
-	FORCEINLINE bool IsString(bool bIsHiddenArgument = false) const
+	bool IsString(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyType<FStrProperty>(bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to an FString array property
-	FORCEINLINE bool IsStringArray(bool bIsHiddenArgument = false) const
+	bool IsStringArray(bool bIsHiddenArgument = false) const
 	{
 		return IsPropertyArrayType<FStrProperty>(bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to an enum property
-	FORCEINLINE bool IsEnum(const UEnum* InEnum, bool bIsHiddenArgument = false) const
+	bool IsEnum(const UEnum* InEnum, bool bIsHiddenArgument = false) const
 	{
 		const FProperty* ResolvedProperty = GetResolvedProperty();
 		return IsEnum(ResolvedProperty, InEnum, bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to an enum array property
-	FORCEINLINE bool IsEnumArray(const UEnum* InEnum, bool bIsHiddenArgument = false) const
+	bool IsEnumArray(const UEnum* InEnum, bool bIsHiddenArgument = false) const
 	{
 		const FProperty* ResolvedProperty = GetResolvedProperty();
 		if(bIsHiddenArgument)
@@ -654,27 +654,27 @@ public:
 
 	// Returns true if this memory handle maps to an enum property
 	template<typename T>
-	FORCEINLINE bool IsEnum(bool bIsHiddenArgument = false) const
+	bool IsEnum(bool bIsHiddenArgument = false) const
 	{
 		return IsEnum(StaticEnum<T>(), bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to an enum array property
 	template<typename T>
-	FORCEINLINE bool IsEnumArray(bool bIsHiddenArgument = false) const
+	bool IsEnumArray(bool bIsHiddenArgument = false) const
 	{
 		return IsEnumArray(StaticEnum<T>(), bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to a struct property
-	FORCEINLINE bool IsStruct(const UScriptStruct* InStruct, bool bIsHiddenArgument = false) const
+	bool IsStruct(const UScriptStruct* InStruct, bool bIsHiddenArgument = false) const
 	{
 		const FProperty* ResolvedProperty = GetResolvedProperty();
 		return IsStruct(ResolvedProperty, InStruct, bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to a struct array property
-	FORCEINLINE bool IsStructArray(const UScriptStruct* InStruct, bool bIsHiddenArgument = false) const
+	bool IsStructArray(const UScriptStruct* InStruct, bool bIsHiddenArgument = false) const
 	{
 		const FProperty* ResolvedProperty = GetResolvedProperty();
 		if(bIsHiddenArgument)
@@ -693,7 +693,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsStruct(bool bIsHiddenArgument = false) const
+	bool IsStruct(bool bIsHiddenArgument = false) const
 	{
 		return IsStruct(TBaseStructure<T>::Get(), bIsHiddenArgument);
 	}
@@ -703,7 +703,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE bool IsStruct(bool bIsHiddenArgument = false) const
+	bool IsStruct(bool bIsHiddenArgument = false) const
 	{
 		return IsStruct(T::StaticStruct(), bIsHiddenArgument);
 	}
@@ -713,7 +713,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE bool IsStructArray(bool bIsHiddenArgument = false) const
+	bool IsStructArray(bool bIsHiddenArgument = false) const
 	{
 		return IsStructArray(TBaseStructure<T>::Get(), bIsHiddenArgument);
 	}
@@ -723,20 +723,20 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE bool IsStructArray(bool bIsHiddenArgument = false) const
+	bool IsStructArray(bool bIsHiddenArgument = false) const
 	{
 		return IsStructArray(T::StaticStruct(), bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to an object property
-	FORCEINLINE bool IsObject(const UClass* InClass, bool bIsHiddenArgument = false) const
+	bool IsObject(const UClass* InClass, bool bIsHiddenArgument = false) const
 	{
 		const FProperty* ResolvedProperty = GetResolvedProperty();
 		return IsObject(ResolvedProperty, InClass, bIsHiddenArgument);
 	}
 
 	// Returns true if this memory handle maps to an objct array property
-	FORCEINLINE bool IsObjectArray(const UClass* InClass, bool bIsHiddenArgument = false) const
+	bool IsObjectArray(const UClass* InClass, bool bIsHiddenArgument = false) const
 	{
 		const FProperty* ResolvedProperty = GetResolvedProperty();
 		if(bIsHiddenArgument)
@@ -755,7 +755,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE bool IsObject(bool bIsHiddenArgument = false) const
+	bool IsObject(bool bIsHiddenArgument = false) const
 	{
 		return IsObject(T::StaticClass(), bIsHiddenArgument);
 	}
@@ -765,14 +765,14 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE bool IsObjectArray(bool bIsHiddenArgument = false) const
+	bool IsObjectArray(bool bIsHiddenArgument = false) const
 	{
 		return IsObjectArray(T::StaticClass(), bIsHiddenArgument);
 	}
 
 private:
 
-	FORCEINLINE_DEBUGGABLE uint8* GetData_Internal(bool bFollowPropertyPath, int32 InSliceIndex) const
+	uint8* GetData_Internal(bool bFollowPropertyPath, int32 InSliceIndex) const
 	{
 		if(InSliceIndex != INDEX_NONE)
 		{
@@ -802,7 +802,7 @@ private:
 		return Ptr;
 	}
 
-	FORCEINLINE_DEBUGGABLE TRigVMLazyValueBase GetDataLazily_Internal(bool bFollowPropertyPath, int32 InSliceIndex) const
+	TRigVMLazyValueBase GetDataLazily_Internal(bool bFollowPropertyPath, int32 InSliceIndex) const
 	{
 		// note: this works also for memory handles which don't provide a lazy branch
 		TRigVMLazyValueBase LazyValue;
@@ -812,7 +812,7 @@ private:
 		return LazyValue;
 	}
 
-	FORCEINLINE static const FProperty* GetArrayElementProperty(const FProperty* InProperty)
+	static const FProperty* GetArrayElementProperty(const FProperty* InProperty)
 	{
 		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 		{
@@ -821,13 +821,13 @@ private:
 		return nullptr;
 	}
 
-	FORCEINLINE static const FProperty* GetArrayElementPropertyChecked(const FProperty* InProperty)
+	static const FProperty* GetArrayElementPropertyChecked(const FProperty* InProperty)
 	{
 		const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(InProperty);
 		return ArrayProperty->Inner;
 	}
 
-	FORCEINLINE static bool IsEnum(const FProperty* InProperty, const UEnum* InEnum, bool bUseArrayElement)
+	static bool IsEnum(const FProperty* InProperty, const UEnum* InEnum, bool bUseArrayElement)
 	{
 		const FProperty* Property = InProperty;
 		if(bUseArrayElement)
@@ -851,7 +851,7 @@ private:
 		return false;
 	}
 
-	FORCEINLINE static bool IsStruct(const FProperty* InProperty, const UScriptStruct* InScriptStruct, bool bUseArrayElement)
+	static bool IsStruct(const FProperty* InProperty, const UScriptStruct* InScriptStruct, bool bUseArrayElement)
 	{
 		const FProperty* Property = InProperty;
 		if(bUseArrayElement)
@@ -868,7 +868,7 @@ private:
 		return false;
 	}
 
-	FORCEINLINE static bool IsObject(const FProperty* InProperty, const UClass* InClass, bool bUseArrayElement)
+	static bool IsObject(const FProperty* InProperty, const UClass* InClass, bool bUseArrayElement)
 	{
 		const FProperty* Property = InProperty;
 		if(bUseArrayElement)
@@ -1097,7 +1097,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////
 
 	// Returns the memory type of this memory
-	FORCEINLINE ERigVMMemoryType GetMemoryType() const
+	ERigVMMemoryType GetMemoryType() const
 	{
 		if(URigVMMemoryStorageGeneratorClass* Class = Cast<URigVMMemoryStorageGeneratorClass>(GetClass()))
 		{
@@ -1108,7 +1108,7 @@ public:
 	}
 
 	// Returns a hash of unique to the configuration of the memory
-	FORCEINLINE uint32 GetMemoryHash() const
+	uint32 GetMemoryHash() const
 	{
 		if(URigVMMemoryStorageGeneratorClass* Class = Cast<URigVMMemoryStorageGeneratorClass>(GetClass()))
 		{
@@ -1119,13 +1119,13 @@ public:
 	}
 
 	// Returns the number of properties stored in this instance
-	FORCEINLINE int32 Num() const
+	int32 Num() const
 	{
 		return GetProperties().Num();
 	}
 
 	// Returns true if a provided property index is valid
-	FORCEINLINE bool IsValidIndex(int32 InIndex) const
+	bool IsValidIndex(int32 InIndex) const
 	{
 		return GetProperties().IsValidIndex(InIndex);
 	}
@@ -1143,7 +1143,7 @@ public:
 	int32 GetPropertyIndexByName(const FName& InName) const;
 
 	// Returns a property given its index
-	FORCEINLINE const FProperty* GetProperty(int32 InPropertyIndex) const
+	const FProperty* GetProperty(int32 InPropertyIndex) const
 	{
 		return GetProperties()[InPropertyIndex];
 	}
@@ -1173,20 +1173,20 @@ public:
 	}
 
 	// Returns true if the property at a given index is a TArray
-	FORCEINLINE bool IsArray(int32 InPropertyIndex) const
+	bool IsArray(int32 InPropertyIndex) const
 	{
 		return GetProperty(InPropertyIndex)->IsA<FArrayProperty>();
 	}
 
 	// Returns true if the property at a given index is a TMap
-	FORCEINLINE bool IsMap(int32 InPropertyIndex) const
+	bool IsMap(int32 InPropertyIndex) const
 	{
 		return GetProperty(InPropertyIndex)->IsA<FMapProperty>();
 	}
 
 	// Returns the memory for a property given its index
 	template<typename T>
-	FORCEINLINE T* GetData(int32 InPropertyIndex)
+	T* GetData(int32 InPropertyIndex)
 	{
 		const TArray<const FProperty*>& Properties = GetProperties();
 		check(Properties.IsValidIndex(InPropertyIndex));
@@ -1195,7 +1195,7 @@ public:
 
 	// Returns the memory for a property given its name (or nullptr)
 	template<typename T>
-	FORCEINLINE T* GetDataByName(const FName& InName)
+	T* GetDataByName(const FName& InName)
 	{
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
 		if(PropertyIndex == INDEX_NONE)
@@ -1207,7 +1207,7 @@ public:
 
 	// Returns the memory for a property given its index and a matching property path
 	template<typename T>
-	FORCEINLINE T* GetData(int32 InPropertyIndex, const FRigVMPropertyPath& InPropertyPath)
+	T* GetData(int32 InPropertyIndex, const FRigVMPropertyPath& InPropertyPath)
 	{
 		const FProperty* Property = GetProperty(InPropertyIndex);
 		return InPropertyPath.GetData<T>(GetData<uint8>(InPropertyIndex), Property);
@@ -1215,7 +1215,7 @@ public:
 
 	// Returns the memory for a property given its name and a matching property path (or nullptr)
 	template<typename T>
-	FORCEINLINE T* GetDataByName(const FName& InName, const FRigVMPropertyPath& InPropertyPath)
+	T* GetDataByName(const FName& InName, const FRigVMPropertyPath& InPropertyPath)
 	{
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
 		if(PropertyIndex == INDEX_NONE)
@@ -1227,7 +1227,7 @@ public:
 
 	// Returns the memory for a property (and optionally a property path) given an operand
 	template<typename T>
-	FORCEINLINE T* GetData(const FRigVMOperand& InOperand)
+	T* GetData(const FRigVMOperand& InOperand)
 	{
 		const int32 PropertyIndex = InOperand.GetRegisterIndex();
 		const int32 PropertyPathIndex = InOperand.GetRegisterOffset();
@@ -1245,35 +1245,35 @@ public:
 
 	// Returns the ref of an element stored at a given property index
 	template<typename T>
-	FORCEINLINE T& GetRef(int32 InPropertyIndex)
+	T& GetRef(int32 InPropertyIndex)
 	{
 		return *GetData<T>(InPropertyIndex);
 	}
 
 	// Returns the ref of an element stored at a given property name (throws if name is invalid)
 	template<typename T>
-	FORCEINLINE T& GetRefByName(const FName& InName)
+	T& GetRefByName(const FName& InName)
 	{
 		return *GetDataByName<T>(InName);
 	}
 
 	// Returns the ref of an element stored at a given property index and a property path
 	template<typename T>
-	FORCEINLINE T& GetRef(int32 InPropertyIndex, const FRigVMPropertyPath& InPropertyPath)
+	T& GetRef(int32 InPropertyIndex, const FRigVMPropertyPath& InPropertyPath)
 	{
 		return *GetData<T>(InPropertyIndex, InPropertyPath);
 	}
 
 	// Returns the ref of an element stored at a given property name and a property path (throws if name is invalid)
 	template<typename T>
-	FORCEINLINE T& GetRefByName(const FName& InName, const FRigVMPropertyPath& InPropertyPath)
+	T& GetRefByName(const FName& InName, const FRigVMPropertyPath& InPropertyPath)
 	{
 		return *GetDataByName<T>(InName, InPropertyPath);
 	}
 
 	// Returns the ref of an element stored for a given operand
 	template<typename T>
-	FORCEINLINE T& GetRef(const FRigVMOperand& InOperand)
+	T& GetRef(const FRigVMOperand& InOperand)
 	{
 		return *GetData<T>(InOperand);
 	}
@@ -1282,7 +1282,7 @@ public:
 	FString GetDataAsString(int32 InPropertyIndex, int32 PortFlags = PPF_None);
 
 	// Returns the exported text for given property name 
-	FORCEINLINE FString GetDataAsStringByName(const FName& InName, int32 PortFlags = PPF_None)
+	FString GetDataAsStringByName(const FName& InName, int32 PortFlags = PPF_None)
 	{
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
 		return GetDataAsString(PropertyIndex, PortFlags);
@@ -1295,7 +1295,7 @@ public:
 	FString GetDataAsStringSafe(int32 InPropertyIndex, int32 PortFlags = PPF_None);
 
 	// Returns the exported text for given property name 
-	FORCEINLINE FString GetDataAsStringByNameSafe(const FName& InName, int32 PortFlags = PPF_None)
+	FString GetDataAsStringByNameSafe(const FName& InName, int32 PortFlags = PPF_None)
 	{
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
 		return GetDataAsStringSafe(PropertyIndex, PortFlags);
@@ -1308,7 +1308,7 @@ public:
 	bool SetDataFromString(int32 InPropertyIndex, const FString& InValue);
 
 	// Sets the content of a property by name given an exported string. Returns true if succeeded
-	FORCEINLINE bool SetDataFromStringByName(const FName& InName, const FString& InValue)
+	bool SetDataFromStringByName(const FName& InName, const FString& InValue)
 	{
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
 		return SetDataFromString(PropertyIndex, InValue);
@@ -1318,7 +1318,7 @@ public:
 	FRigVMMemoryHandle GetHandle(int32 InPropertyIndex, const FRigVMPropertyPath* InPropertyPath = nullptr);
 
 	// Returns the handle for a given property by name (and optionally property path)
-	FORCEINLINE FRigVMMemoryHandle GetHandleByName(const FName& InName, const FRigVMPropertyPath* InPropertyPath = nullptr)
+	FRigVMMemoryHandle GetHandleByName(const FName& InName, const FRigVMPropertyPath* InPropertyPath = nullptr)
 	{
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
 		return GetHandle(PropertyIndex, InPropertyPath);

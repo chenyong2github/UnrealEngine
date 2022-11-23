@@ -60,7 +60,7 @@ protected:
 
 #if WITH_EDITOR
 	template<typename ValueType>
-	FORCEINLINE_DEBUGGABLE bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
+	bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
 	{
 		return CheckArgumentType(Handles[ItemArgIndex].IsType<FRigElementKey>(), ItemArgName) &&
 			CheckArgumentType(Handles[NameArgIndex].IsType<FName>(), NameArgName) &&
@@ -72,7 +72,7 @@ protected:
 #endif
 
 	template<typename ValueType, typename MetadataType, ERigMetadataType EnumValue>
-	FORCEINLINE_DEBUGGABLE static void GetMetadataDispatch(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+	static void GetMetadataDispatch(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
 	{
 		const FRigDispatch_GetMetadata* Factory = static_cast<const FRigDispatch_GetMetadata*>(InContext.Factory);
 
@@ -124,7 +124,7 @@ protected:
 
 #if WITH_EDITOR
 	template<typename ValueType>
-	FORCEINLINE_DEBUGGABLE bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
+	bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
 	{
 		return CheckArgumentType(Handles[ItemArgIndex].IsType<FRigElementKey>(), ItemArgName) &&
 			CheckArgumentType(Handles[NameArgIndex].IsType<FName>(), NameArgName) &&
@@ -135,7 +135,7 @@ protected:
 #endif
 	
 	template<typename ValueType, typename MetadataType, ERigMetadataType EnumValue>
-	FORCEINLINE_DEBUGGABLE static void SetMetadataDispatch(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+	static void SetMetadataDispatch(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
 	{
 		const FRigDispatch_SetMetadata* Factory = static_cast<const FRigDispatch_SetMetadata*>(InContext.Factory);
 

@@ -616,7 +616,7 @@ struct CONTROLRIG_API FRigUnit_CollectionLoop : public FRigUnit_CollectionBaseMu
 		return Blocks;
 	}
 	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const { return InBlockName == ExecuteContextName; }
-	FORCEINLINE virtual int32 GetNumSlices() const override { return Count; }
+	virtual int32 GetNumSlices() const override { return Count; }
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;

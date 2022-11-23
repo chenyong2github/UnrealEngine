@@ -92,7 +92,7 @@ public:
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMParameter& P)
+	friend FArchive& operator<<(FArchive& Ar, FRigVMParameter& P)
 	{
 		P.Serialize(Ar);
 		return Ar;
@@ -204,7 +204,7 @@ public:
 	virtual void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false, bool bCopyExternalVariables = false, bool bCopyDynamicRegisters = false);
 
 	// sets the max array size allowed by this VM
-	FORCEINLINE void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
+	void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
 	{
 		Context.SetRuntimeSettings(InRuntimeSettings);
 	}
@@ -245,16 +245,16 @@ public:
 	virtual URigVMMemoryStorage* GetMemoryByType(ERigVMMemoryType InMemoryType, bool bCreateIfNeeded = true);
 	
 	// The default mutable work memory
-	FORCEINLINE URigVMMemoryStorage* GetWorkMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Work, bCreateIfNeeded); }
+	URigVMMemoryStorage* GetWorkMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Work, bCreateIfNeeded); }
 
 	// The default const literal memory
-	FORCEINLINE URigVMMemoryStorage* GetLiteralMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Literal, bCreateIfNeeded); }
+	URigVMMemoryStorage* GetLiteralMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Literal, bCreateIfNeeded); }
 
 	// The default debug watch memory
-	FORCEINLINE URigVMMemoryStorage* GetDebugMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Debug, bCreateIfNeeded); }
+	URigVMMemoryStorage* GetDebugMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Debug, bCreateIfNeeded); }
 
 	// returns all memory storages as an array
-	FORCEINLINE TArray<URigVMMemoryStorage*> GetLocalMemoryArray()
+	TArray<URigVMMemoryStorage*> GetLocalMemoryArray()
 	{
 		TArray<URigVMMemoryStorage*> LocalMemory;
 		LocalMemory.Add(GetWorkMemory(true));
@@ -282,8 +282,8 @@ public:
 	UPROPERTY()
 	FRigVMByteCode ByteCodeStorage;
 	FRigVMByteCode* ByteCodePtr;
-	FORCEINLINE FRigVMByteCode& GetByteCode() { return *ByteCodePtr; }
-	FORCEINLINE const FRigVMByteCode& GetByteCode() const { return *ByteCodePtr; }
+	FRigVMByteCode& GetByteCode() { return *ByteCodePtr; }
+	const FRigVMByteCode& GetByteCode() const { return *ByteCodePtr; }
 
 	// Returns the instructions of the VM
 	virtual const FRigVMInstructionArray& GetInstructions();
@@ -303,13 +303,13 @@ public:
 #if WITH_EDITOR
 	
 	// Returns true if the given instruction has been visited during the last run
-	FORCEINLINE bool WasInstructionVisitedDuringLastRun(int32 InIndex) const
+	bool WasInstructionVisitedDuringLastRun(int32 InIndex) const
 	{
 		return GetInstructionVisitedCount(InIndex) > 0;
 	}
 
 	// Returns the number of times an instruction has been hit
-	FORCEINLINE int32 GetInstructionVisitedCount(int32 InIndex) const
+	int32 GetInstructionVisitedCount(int32 InIndex) const
 	{
 		if (InstructionVisitedDuringLastRun.IsValidIndex(InIndex))
 		{
@@ -321,7 +321,7 @@ public:
 	// Returns accumulated cycles spent in an instruction during the last run
 	// This requires bEnabledProfiling to be turned on in the runtime settings.
 	// If there is no information available this function returns UINT64_MAX.
-	FORCEINLINE uint64 GetInstructionCycles(int32 InIndex) const
+	uint64 GetInstructionCycles(int32 InIndex) const
 	{
 		if (InstructionCyclesDuringLastRun.IsValidIndex(InIndex))
 		{
@@ -333,7 +333,7 @@ public:
 	// Returns accumulated duration of the instruction in microseconds during the last run
 	// Note: this requires bEnabledProfiling to be turned on in the runtime settings.
 	// If there is no information available this function returns -1.0.
-	FORCEINLINE double GetInstructionMicroSeconds(int32 InIndex) const
+	double GetInstructionMicroSeconds(int32 InIndex) const
 	{
 		const uint64 Cycles = GetInstructionCycles(InIndex);
 		if(Cycles == UINT64_MAX)
@@ -344,9 +344,9 @@ public:
 	}
 
 	// Returns the order of all instructions during the last run
-	FORCEINLINE const TArray<int32> GetInstructionVisitOrder() const { return InstructionVisitOrder; }
+	const TArray<int32> GetInstructionVisitOrder() const { return InstructionVisitOrder; }
 
-	FORCEINLINE const void SetFirstEntryEventInEventQueue(const FName& InFirstEventName) { FirstEntryEventInQueue = InFirstEventName; }
+	const void SetFirstEntryEventInEventQueue(const FName& InFirstEventName) { FirstEntryEventInQueue = InFirstEventName; }
 
 	bool ResumeExecution(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
 	bool ResumeExecution();
@@ -358,7 +358,7 @@ public:
 	// Returns a parameter given it's name
 	FRigVMParameter GetParameterByName(const FName& InParameterName);
 
-	FORCEINLINE_DEBUGGABLE FRigVMParameter AddParameter(ERigVMParameterType InType, const FName& InParameterName, const FName& InWorkMemoryPropertyName)
+	FRigVMParameter AddParameter(ERigVMParameterType InType, const FName& InParameterName, const FName& InWorkMemoryPropertyName)
 	{
 		check(GetWorkMemory());
 
@@ -382,7 +382,7 @@ public:
 	}
 
 	// Retrieve the array size of the parameter
-	FORCEINLINE int32 GetParameterArraySize(const FRigVMParameter& InParameter)
+	int32 GetParameterArraySize(const FRigVMParameter& InParameter)
 	{
 		const int32 PropertyIndex = InParameter.GetRegisterIndex();
 		const FProperty* Property = GetWorkMemory()->GetProperties()[PropertyIndex];
@@ -614,7 +614,7 @@ public:
 	FRigVMExternalVariable GetExternalVariableByName(const FName& InExternalVariableName);
 
 	// Adds a new external / unowned variable to the VM
-	FORCEINLINE_DEBUGGABLE FRigVMOperand AddExternalVariable(const FRigVMExternalVariable& InExternalVariable)
+	FRigVMOperand AddExternalVariable(const FRigVMExternalVariable& InExternalVariable)
 	{
 		int32 VariableIndex = ExternalVariables.Add(InExternalVariable);
 		return FRigVMOperand(ERigVMMemoryType::External, VariableIndex);
@@ -679,13 +679,13 @@ public:
 	FRigVMExtendedExecuteContext& GetContext() { return Context; }
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
-	FORCEINLINE const ExecuteContextType& GetPublicData() const
+	const ExecuteContextType& GetPublicData() const
 	{
 		return Context.GetPublicData<ExecuteContextType>();
 	}
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
-	FORCEINLINE ExecuteContextType& GetPublicData()
+	ExecuteContextType& GetPublicData()
 	{
 		return Context.GetPublicData<ExecuteContextType>();
 	}
@@ -730,18 +730,18 @@ private:
 	UPROPERTY()
 	TArray<FName> FunctionNamesStorage;
 	TArray<FName>* FunctionNamesPtr;
-	FORCEINLINE TArray<FName>& GetFunctionNames() { return *FunctionNamesPtr; }
-	FORCEINLINE const TArray<FName>& GetFunctionNames() const { return *FunctionNamesPtr; }
+	TArray<FName>& GetFunctionNames() { return *FunctionNamesPtr; }
+	const TArray<FName>& GetFunctionNames() const { return *FunctionNamesPtr; }
 
 	TArray<const FRigVMFunction*> FunctionsStorage;
 	TArray<const FRigVMFunction*>* FunctionsPtr;
-	FORCEINLINE TArray<const FRigVMFunction*>& GetFunctions() { return *FunctionsPtr; }
-	FORCEINLINE const TArray<const FRigVMFunction*>& GetFunctions() const { return *FunctionsPtr; }
+	TArray<const FRigVMFunction*>& GetFunctions() { return *FunctionsPtr; }
+	const TArray<const FRigVMFunction*>& GetFunctions() const { return *FunctionsPtr; }
 
 	TArray<const FRigVMDispatchFactory*> FactoriesStorage;
 	TArray<const FRigVMDispatchFactory*>* FactoriesPtr;
-	FORCEINLINE TArray<const FRigVMDispatchFactory*>& GetFactories() { return *FactoriesPtr; }
-	FORCEINLINE const TArray<const FRigVMDispatchFactory*>& GetFactories() const { return *FactoriesPtr; }
+	TArray<const FRigVMDispatchFactory*>& GetFactories() { return *FactoriesPtr; }
+	const TArray<const FRigVMDispatchFactory*>& GetFactories() const { return *FactoriesPtr; }
 
 	UPROPERTY()
 	TArray<FRigVMParameter> Parameters;
@@ -791,7 +791,7 @@ private:
 	
 	void CacheSingleMemoryHandle(int32 InHandleIndex, const FRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InArg, bool bForExecute = false);
 
-	FORCEINLINE_DEBUGGABLE void CopyOperandForDebuggingIfNeeded(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle)
+	void CopyOperandForDebuggingIfNeeded(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle)
 	{
 #if WITH_EDITOR
 		const FRigVMOperand KeyOperand(InArg.GetMemoryType(), InArg.GetRegisterIndex()); // no register offset

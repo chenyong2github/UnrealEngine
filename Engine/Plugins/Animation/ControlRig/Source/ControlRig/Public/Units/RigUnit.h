@@ -32,7 +32,7 @@ struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 	virtual FTransform DetermineOffsetTransformForPin(const FString& InPinPath, void* InUserContext) const { return FTransform::Identity; }
 	
 	/** The name of the method used within each rig unit */
-	FORCEINLINE_DEBUGGABLE static FName GetMethodName()
+	static FName GetMethodName()
 	{
 		static FName MethodName = FName(NAME_None);
 		if(MethodName.IsNone())

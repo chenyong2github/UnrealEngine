@@ -75,27 +75,27 @@ public:
 	{
 	}
 
-	FORCEINLINE_DEBUGGABLE bool operator == (const FRigVMOperand& InOther) const
+	bool operator == (const FRigVMOperand& InOther) const
 	{
 		return MemoryType == InOther.MemoryType &&
 			RegisterIndex == InOther.RegisterIndex &&
 			RegisterOffset == InOther.RegisterOffset;
 	}
 
-	FORCEINLINE_DEBUGGABLE bool operator != (const FRigVMOperand& InOther) const
+	bool operator != (const FRigVMOperand& InOther) const
 	{
 		return !(*this == InOther);
 	}
 
 	// returns the memory type of this argument
-	FORCEINLINE_DEBUGGABLE bool IsValid() const { return RegisterIndex != UINT16_MAX; }
+	bool IsValid() const { return RegisterIndex != UINT16_MAX; }
 
 	// returns the memory type of this argument
-	FORCEINLINE_DEBUGGABLE ERigVMMemoryType GetMemoryType() const { return MemoryType; }
+	ERigVMMemoryType GetMemoryType() const { return MemoryType; }
 
 	// returns the index of the container of this argument
 	// this function should be kept in sync with URigVM::GetContainerIndex()
-	FORCEINLINE_DEBUGGABLE int32 GetContainerIndex() const
+	int32 GetContainerIndex() const
 	{
 		if(MemoryType == ERigVMMemoryType::External)
 		{
@@ -110,12 +110,12 @@ public:
 	}
 
 	// returns the index of the register of this argument
-	FORCEINLINE_DEBUGGABLE int32 GetRegisterIndex() const { return RegisterIndex == UINT16_MAX ? INDEX_NONE : (int32)RegisterIndex; }
+	int32 GetRegisterIndex() const { return RegisterIndex == UINT16_MAX ? INDEX_NONE : (int32)RegisterIndex; }
 
 	// returns the register offset of this argument
-	FORCEINLINE_DEBUGGABLE int32 GetRegisterOffset() const { return RegisterOffset == UINT16_MAX ? INDEX_NONE : (int32)RegisterOffset; }
+	int32 GetRegisterOffset() const { return RegisterOffset == UINT16_MAX ? INDEX_NONE : (int32)RegisterOffset; }
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigVMOperand& Operand)
+	friend uint32 GetTypeHash(const FRigVMOperand& Operand)
 	{
   		return HashCombine(HashCombine((uint32)Operand.MemoryType, (uint32)Operand.RegisterIndex), (uint32)Operand.RegisterOffset);
   	}
@@ -123,7 +123,7 @@ public:
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar) const;
 	void Load(FArchive& Ar);
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMOperand& P)
+	friend FArchive& operator<<(FArchive& Ar, FRigVMOperand& P)
 	{
 		P.Serialize(Ar);
 		return Ar;

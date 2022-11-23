@@ -127,7 +127,7 @@ template<
 	typename T, 
 	typename TEnableIf<TIsArithmetic<T>::Value, bool>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMInitialize(void* InPtr, int32 InCount = 1)
+void RigVMInitialize(void* InPtr, int32 InCount = 1)
 {
 	ensure(InCount >= 0);
 	FMemory::Memzero(InPtr, InCount * sizeof(T));
@@ -137,7 +137,7 @@ template<
 	typename T,
 	typename TEnableIf<TIsArithmetic<T>::Value, bool>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMDestroy(void* InPtr, int32 InCount = 1)
+void RigVMDestroy(void* InPtr, int32 InCount = 1)
 {
 	// nothing to do
 }
@@ -146,7 +146,7 @@ template<
 	typename T,
 	typename TEnableIf<TIsArithmetic<T>::Value, bool>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
+void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
 {
 	ensure(InCount >= 0);
 	FMemory::Memcpy(InTargetPtr, InSourcePtr, InCount * sizeof(T));
@@ -156,7 +156,7 @@ template<
 	typename T,
 	typename TEnableIf<TRigVMIsString<T>::Value>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMInitialize(void* InPtr, int32 InCount)
+void RigVMInitialize(void* InPtr, int32 InCount)
 {
 	ensure(InCount >= 0);
 	FMemory::Memzero(InPtr, InCount * sizeof(FString));
@@ -172,7 +172,7 @@ template<
 	typename T,
 	typename TEnableIf<TRigVMIsString<T>::Value>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMDestroy(void* InPtr, int32 InCount)
+void RigVMDestroy(void* InPtr, int32 InCount)
 {
 	ensure(InCount >= 0);
 	FString* Values = (FString*)InPtr;
@@ -186,7 +186,7 @@ template<
 	typename T,
 	typename TEnableIf<TRigVMIsString<T>::Value>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
+void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
 {
 	ensure(InCount >= 0);
 
@@ -202,7 +202,7 @@ template<
 	typename T,
 	typename TEnableIf<TRigVMIsName<T>::Value, bool>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMInitialize(void* InPtr, int32 InCount)
+void RigVMInitialize(void* InPtr, int32 InCount)
 {
 	ensure(InCount >= 0);
 	FMemory::Memzero(InPtr, InCount * sizeof(FName));
@@ -212,7 +212,7 @@ template<
 	typename T,
 	typename TEnableIf<TRigVMIsName<T>::Value, bool>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMDestroy(void* InPtr, int32 InCount)
+void RigVMDestroy(void* InPtr, int32 InCount)
 {
 	ensure(InCount >= 0);
 	FMemory::Memzero(InPtr, InCount * sizeof(FName));
@@ -222,7 +222,7 @@ template<
 	typename T,
 	typename TEnableIf<TRigVMIsName<T>::Value, bool>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
+void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
 {
 	ensure(InCount >= 0);
 	FMemory::Memcpy(InTargetPtr, InSourcePtr, InCount * sizeof(FName));
@@ -232,7 +232,7 @@ template <
 	typename T,
 	typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMInitialize(void* InPtr, int32 InCount)
+void RigVMInitialize(void* InPtr, int32 InCount)
 {
 	ensure(InCount >= 0);
 	T::StaticStruct()->InitializeStruct(InPtr, InCount);
@@ -242,7 +242,7 @@ template <
 	typename T,
 	typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMDestroy(void* InPtr, int32 InCount)
+void RigVMDestroy(void* InPtr, int32 InCount)
 {
 	ensure(InCount >= 0);
 	T::StaticStruct()->DestroyStruct(InPtr, InCount);
@@ -252,7 +252,7 @@ template <
 	typename T,
 	typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
+void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
 {
 	ensure(InCount >= 0);
 	T::StaticStruct()->CopyScriptStruct(InTargetPtr, InSourcePtr, InCount);
@@ -262,7 +262,7 @@ template <
 	typename T,
 	typename TEnableIf<TIsEnum<T>::Value>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMInitialize(void* InPtr, int32 InCount)
+void RigVMInitialize(void* InPtr, int32 InCount)
 {
 	FMemory::Memzero(InPtr, InCount * sizeof(T));
 }
@@ -271,7 +271,7 @@ template <
 	typename T,
 	typename TEnableIf<TIsEnum<T>::Value>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMDestroy(void* InPtr, int32 InCount)
+void RigVMDestroy(void* InPtr, int32 InCount)
 {
 	// nothing to do
 }
@@ -280,7 +280,7 @@ template <
 	typename T,
 	typename TEnableIf<TIsEnum<T>::Value>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
+void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
 {
 	FMemory::Memcpy(InTargetPtr, InSourcePtr, InCount * sizeof(T));
 }
@@ -288,7 +288,7 @@ template <
 	typename T,
 	typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMInitialize(void* InPtr, int32 InCount)
+void RigVMInitialize(void* InPtr, int32 InCount)
 {
 	ensure(InCount >= 0);
 	TBaseStructure<T>::Get()->InitializeStruct(InPtr, InCount);
@@ -298,7 +298,7 @@ template <
 	typename T,
 	typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMDestroy(void* InPtr, int32 InCount)
+void RigVMDestroy(void* InPtr, int32 InCount)
 {
 	// nothing to do
 }
@@ -307,7 +307,7 @@ template <
 	typename T,
 	typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 >
-FORCEINLINE_DEBUGGABLE void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
+void RigVMCopy(void* InTargetPtr, const void* InSourcePtr, int32 InCount = 1)
 {
 	ensure(InCount >= 0);
 	FMemory::Memcpy(InTargetPtr, InSourcePtr, InCount * sizeof(T));

@@ -76,7 +76,7 @@ public:
 
 	// Returns true if the node has orphaned pins - which leads to a compiler error
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
-    FORCEINLINE bool HasOrphanedPins() const { return GetOrphanedPins().Num() > 0; }
+    bool HasOrphanedPins() const { return GetOrphanedPins().Num() > 0; }
 
 	// Returns the Graph of this Node
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)

@@ -96,17 +96,17 @@ private:
 		, ScriptStruct(nullptr)
 		{}
 
-		friend FORCEINLINE uint32 GetTypeHash(const FPerClassInfo& Info)
+		friend uint32 GetTypeHash(const FPerClassInfo& Info)
 		{
 			return HashCombine(GetTypeHash(Info.Notation), GetTypeHash(Info.ScriptStruct));
 		}
 
-		FORCEINLINE bool operator ==(const FPerClassInfo& Other) const
+		bool operator ==(const FPerClassInfo& Other) const
 		{
 			return Notation == Other.Notation && ScriptStruct == Other.ScriptStruct;
 		}
 
-		FORCEINLINE bool operator !=(const FPerClassInfo& Other) const
+		bool operator !=(const FPerClassInfo& Other) const
 		{
 			return Notation != Other.Notation || ScriptStruct != Other.ScriptStruct;
 		}

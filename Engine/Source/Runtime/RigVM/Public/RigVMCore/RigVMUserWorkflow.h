@@ -46,12 +46,12 @@ struct RIGVM_API FRigVMUserWorkflow
 
 public:
 
-	FORCEINLINE FRigVMUserWorkflow()
+	FRigVMUserWorkflow()
 	: Type(ERigVMUserWorkflowType::Invalid)
 	, OptionsClass(nullptr)
 	{}
 
-	FORCEINLINE FRigVMUserWorkflow(
+	FRigVMUserWorkflow(
 		const FString& InTitle,
 		const FString& InTooltip,
 		ERigVMUserWorkflowType InType,
@@ -64,19 +64,19 @@ public:
 	, OptionsClass(InOptionsClass)
 	{}
 	
-	FORCEINLINE virtual ~FRigVMUserWorkflow() {}
+	virtual ~FRigVMUserWorkflow() {}
 
-	FORCEINLINE bool IsValid() const
+	bool IsValid() const
 	{
 		return Type != ERigVMUserWorkflowType::Invalid &&
 			GetOptionsClass() != nullptr &&
 			(PerformDelegate.IsBound() || PerformDynamicDelegate.IsBound());
 	}
 
-	FORCEINLINE const FString& GetTitle() const { return Title; }
-	FORCEINLINE const FString& GetTooltip() const { return Tooltip; }
-	FORCEINLINE ERigVMUserWorkflowType GetType() const { return Type; }
-	FORCEINLINE UClass* GetOptionsClass() const { return OptionsClass; }
+	const FString& GetTitle() const { return Title; }
+	const FString& GetTooltip() const { return Tooltip; }
+	ERigVMUserWorkflowType GetType() const { return Type; }
+	UClass* GetOptionsClass() const { return OptionsClass; }
 
 	bool Perform(const URigVMUserWorkflowOptions* InOptions, UObject* InController) const;
 
@@ -110,15 +110,15 @@ class RIGVM_API URigVMUserWorkflowOptions : public UObject
 public:
 
 	UFUNCTION(BlueprintCallable, Category=Options)
-	FORCEINLINE bool IsValid() const { return Subject != nullptr; }
+	bool IsValid() const { return Subject != nullptr; }
 	
 	UFUNCTION(BlueprintCallable, Category=Options)
 	bool RequiresDialog() const;
 
 	template<typename T = UObject>
-	FORCEINLINE T* GetSubject() const { return Cast<T>(Subject.Get()); }
+	T* GetSubject() const { return Cast<T>(Subject.Get()); }
 
-	FORCEINLINE UObject* GetSubjectChecked() const
+	UObject* GetSubjectChecked() const
 	{
 		UObject* Object = Subject.Get();
 		check(Object);
@@ -126,7 +126,7 @@ public:
 	}
 
 	template<typename T>
-	FORCEINLINE T* GetSubjectChecked() const { return CastChecked<T>(Subject.Get()); }
+	T* GetSubjectChecked() const { return CastChecked<T>(Subject.Get()); }
 
 	const FRigVMUserWorkflow& GetWorkflow() const { return Workflow; }
 
@@ -139,19 +139,19 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category=Options)
-	FORCEINLINE void ReportError(const FString& InMessage)
+	void ReportError(const FString& InMessage)
 	{
 		Report(EMessageSeverity::Error, InMessage);
 	}
 
 	UFUNCTION(BlueprintCallable, Category=Options)
-	FORCEINLINE void ReportWarning(const FString& InMessage)
+	void ReportWarning(const FString& InMessage)
 	{
 		Report(EMessageSeverity::Warning, InMessage);
 	}
 
 	UFUNCTION(BlueprintCallable, Category=Options)
-	FORCEINLINE void ReportInfo(const FString& InMessage)
+	void ReportInfo(const FString& InMessage)
 	{
 		Report(EMessageSeverity::Info, InMessage);
 	}

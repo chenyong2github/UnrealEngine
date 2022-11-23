@@ -27,8 +27,8 @@ public:
 #endif
 	}
 
-	FORCEINLINE const FName& GetArgument() const { return Argument; }
-	FORCEINLINE TRigVMTypeIndex GetTypeIndex() const
+	const FName& GetArgument() const { return Argument; }
+	TRigVMTypeIndex GetTypeIndex() const
 	{
 #if UE_RIGVM_DEBUG_TYPEINDEX
 		const FRigVMTemplateArgumentType& Type = FRigVMRegistry::Get().GetType(TypeIndex);

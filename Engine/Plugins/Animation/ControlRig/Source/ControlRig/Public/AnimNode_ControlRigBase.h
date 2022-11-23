@@ -19,12 +19,12 @@ struct CONTROLRIG_API FControlRigIOSettings
 		, bUpdateCurves(true)
 	{}
 
-	FORCEINLINE static FControlRigIOSettings MakeEnabled()
+	static FControlRigIOSettings MakeEnabled()
 	{
 		return FControlRigIOSettings();
 	}
 
-	FORCEINLINE static FControlRigIOSettings MakeDisabled()
+	static FControlRigIOSettings MakeDisabled()
 	{
 		FControlRigIOSettings Settings;
 		Settings.bUpdatePose = Settings.bUpdateCurves = false;

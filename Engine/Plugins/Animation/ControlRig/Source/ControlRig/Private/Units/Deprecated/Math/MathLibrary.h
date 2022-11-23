@@ -7,25 +7,25 @@
 namespace FRigMathLibrary
 {
 	template<typename Type>
-	FORCEINLINE Type Multiply(const Type Argument0, const Type Argument1)
+	Type Multiply(const Type Argument0, const Type Argument1)
 	{
 		return Argument0 * Argument1;
 	}
 
 	template<typename Type>
-	FORCEINLINE Type Add(const Type Argument0, const Type Argument1)
+	Type Add(const Type Argument0, const Type Argument1)
 	{
 		return Argument0 + Argument1;
 	}
 
 	template<typename Type>
-	FORCEINLINE Type Subtract(const Type Argument0, const Type Argument1)
+	Type Subtract(const Type Argument0, const Type Argument1)
 	{
 		return Argument0 - Argument1;
 	}
 
 	template<typename Type>
-	FORCEINLINE Type Divide(const Type Argument0, const Type Argument1)
+	Type Divide(const Type Argument0, const Type Argument1)
 	{
 		return Argument0 / Argument1;
 	}

@@ -81,7 +81,7 @@ public:
 
 	// Adds a type if it doesn't exist yet and returns its index.
 	// This function is not thead-safe
-	FORCEINLINE TRigVMTypeIndex FindOrAddType(const FRigVMTemplateArgumentType& InType)
+	TRigVMTypeIndex FindOrAddType(const FRigVMTemplateArgumentType& InType)
 	{
 		return FindOrAddType_Internal(InType, false);
 	}
@@ -94,7 +94,7 @@ public:
 	TRigVMTypeIndex GetTypeIndex(const FRigVMTemplateArgumentType& InType) const;
 
 	// Returns the type index given a cpp type and a type object
-	FORCEINLINE TRigVMTypeIndex GetTypeIndex(const FName& InCPPType, UObject* InCPPTypeObject) const
+	TRigVMTypeIndex GetTypeIndex(const FName& InCPPType, UObject* InCPPTypeObject) const
 	{
 		return GetTypeIndex(FRigVMTemplateArgumentType(InCPPType, InCPPTypeObject));
 	}
@@ -104,7 +104,7 @@ public:
 		typename T,
 		typename TEnableIf<TIsEnum<T>::Value>::Type* = nullptr
 	>
-	FORCEINLINE TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
+	TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
 	{
 		FRigVMTemplateArgumentType Type(StaticEnum<T>());
 		if(bAsArray)
@@ -119,7 +119,7 @@ public:
 		typename T,
 		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
+	TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
 	{
 		FRigVMTemplateArgumentType Type(TBaseStructure<T>::Get());
 		if(bAsArray)
@@ -134,7 +134,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
+	TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
 	{
 		FRigVMTemplateArgumentType Type(T::StaticStruct());
 		if(bAsArray)
@@ -149,7 +149,7 @@ public:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
+	TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
 	{
 		FRigVMTemplateArgumentType Type(T::StaticClass());
 		if(bAsArray)
@@ -163,7 +163,7 @@ public:
 	const FRigVMTemplateArgumentType& GetType(TRigVMTypeIndex InTypeIndex) const;
 
 	// Returns the number of types
-	FORCEINLINE int32 NumTypes() const { return Types.Num(); }
+	int32 NumTypes() const { return Types.Num(); }
 
 	// Returns the type given only its cpp type
 	const FRigVMTemplateArgumentType& FindTypeFromCPPType(const FString& InCPPType) const;
@@ -266,12 +266,12 @@ private:
 
 	TRigVMTypeIndex FindOrAddType_Internal(const FRigVMTemplateArgumentType& InType, bool bForce);
 
-	FORCEINLINE static EObjectFlags DisallowedFlags()
+	static EObjectFlags DisallowedFlags()
 	{
 		return RF_BeginDestroyed | RF_FinishDestroyed;
 	}
 
-	FORCEINLINE static EObjectFlags NeededFlags()
+	static EObjectFlags NeededFlags()
 	{
 		return RF_Public;
 	}

@@ -154,27 +154,27 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Control)
 	TObjectPtr<UEnum> ControlEnum;
 
-	FORCEINLINE_DEBUGGABLE virtual ERigElementType GetElementType() const override
+	virtual ERigElementType GetElementType() const override
 	{
 		return ERigElementType::Control;
 	}
 
-	FORCEINLINE_DEBUGGABLE const FName& GetDisplayName() const
+	const FName& GetDisplayName() const
 	{
 		return DisplayName.IsNone() ? Name : DisplayName;
 	}
 
-	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetParentElementKey() const
+	virtual FRigElementKey GetParentElementKey() const
 	{
 		return FRigElementKey(ParentName, GetElementType());
 	}
 
-	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetSpaceElementKey() const
+	virtual FRigElementKey GetSpaceElementKey() const
 	{
 		return FRigElementKey(SpaceName, ERigElementType::Null);
 	}
 
-	FORCEINLINE_DEBUGGABLE const FRigControlValue& GetValue(ERigControlValueType InValueType = ERigControlValueType::Current) const
+	const FRigControlValue& GetValue(ERigControlValueType InValueType = ERigControlValueType::Current) const
 	{
 		switch(InValueType)
 		{
@@ -198,7 +198,7 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 		return Value;
 	}
 
-	FORCEINLINE_DEBUGGABLE FRigControlValue& GetValue(ERigControlValueType InValueType = ERigControlValueType::Current)
+	FRigControlValue& GetValue(ERigControlValueType InValueType = ERigControlValueType::Current)
 	{
 		switch(InValueType)
 		{
@@ -224,7 +224,7 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 
 	void ApplyLimits(FRigControlValue& InOutValue) const;
 
-	FORCEINLINE_DEBUGGABLE static FProperty* FindPropertyForValueType(ERigControlValueType InValueType)
+	static FProperty* FindPropertyForValueType(ERigControlValueType InValueType)
 	{
 		switch (InValueType)
 		{
@@ -260,11 +260,11 @@ struct CONTROLRIG_API FRigControlHierarchy
 
 	FRigControlHierarchy();
 
-	FORCEINLINE_DEBUGGABLE int32 Num() const { return Controls.Num(); }
-	FORCEINLINE_DEBUGGABLE TArray<FRigControl>::RangedForIteratorType      begin()       { return Controls.begin(); }
-	FORCEINLINE_DEBUGGABLE TArray<FRigControl>::RangedForConstIteratorType begin() const { return Controls.begin(); }
-	FORCEINLINE_DEBUGGABLE TArray<FRigControl>::RangedForIteratorType      end()         { return Controls.end();   }
-	FORCEINLINE_DEBUGGABLE TArray<FRigControl>::RangedForConstIteratorType end() const   { return Controls.end();   }
+	int32 Num() const { return Controls.Num(); }
+	TArray<FRigControl>::RangedForIteratorType      begin()       { return Controls.begin(); }
+	TArray<FRigControl>::RangedForConstIteratorType begin() const { return Controls.begin(); }
+	TArray<FRigControl>::RangedForIteratorType      end()         { return Controls.end();   }
+	TArray<FRigControl>::RangedForConstIteratorType end() const   { return Controls.end();   }
 
 	FRigControl& Add(
 	    const FName& InNewName,

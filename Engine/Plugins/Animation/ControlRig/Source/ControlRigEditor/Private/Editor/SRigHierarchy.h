@@ -74,7 +74,7 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FControlRigEditor> InControlRigEditor);
 
-	FORCEINLINE FControlRigEditor* GetControlRigEditor() const
+	FControlRigEditor* GetControlRigEditor() const
 	{
 		if(ControlRigEditor.IsValid())
 		{

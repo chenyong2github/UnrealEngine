@@ -49,7 +49,7 @@ struct CONTROLRIGEDITOR_API FMultiRigTreeDelegates
 	}
 
 
-	FORCEINLINE const FRigTreeDisplaySettings& GetDisplaySettings() const
+	const FRigTreeDisplaySettings& GetDisplaySettings() const
 	{
 		if (OnGetDisplaySettings.IsBound())
 		{
@@ -58,7 +58,7 @@ struct CONTROLRIGEDITOR_API FMultiRigTreeDelegates
 		return DefaultDisplaySettings;
 	}
 
-	FORCEINLINE void HandleSelectionChanged(TSharedPtr<FMultiRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
+	void HandleSelectionChanged(TSharedPtr<FMultiRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
 	{
 		if (bIsChangingRigHierarchy)
 		{

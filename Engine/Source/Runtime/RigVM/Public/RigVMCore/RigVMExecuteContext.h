@@ -37,7 +37,7 @@ public:
 
 	GENERATED_BODY()
 
-	FORCEINLINE FRigVMSlice()
+	FRigVMSlice()
 	: LowerBound(0)
 	, UpperBound(0)
 	, Index(INDEX_NONE)
@@ -45,7 +45,7 @@ public:
 		Reset();
 	}
 
-	FORCEINLINE FRigVMSlice(int32 InCount)
+	FRigVMSlice(int32 InCount)
 		: LowerBound(0)
 		, UpperBound(InCount - 1)
 		, Index(INDEX_NONE)
@@ -53,7 +53,7 @@ public:
 		Reset();
 	}
 
-	FORCEINLINE FRigVMSlice(int32 InCount, const FRigVMSlice& InParent)
+	FRigVMSlice(int32 InCount, const FRigVMSlice& InParent)
 		: LowerBound(InParent.GetIndex() * InCount)
 		, UpperBound((InParent.GetIndex() + 1) * InCount - 1)
 		, Index(INDEX_NONE)
@@ -61,80 +61,80 @@ public:
 		Reset();
 	}
 
-	FORCEINLINE bool IsValid() const
+	bool IsValid() const
 	{ 
 		return Index != INDEX_NONE;
 	}
 	
-	FORCEINLINE bool IsComplete() const
+	bool IsComplete() const
 	{
 		return Index > UpperBound;
 	}
 
-	FORCEINLINE int32 GetIndex() const
+	int32 GetIndex() const
 	{
 		return Index;
 	}
 
-	FORCEINLINE void SetIndex(int32 InIndex)
+	void SetIndex(int32 InIndex)
 	{
 		Index = InIndex;
 	}
 
-	FORCEINLINE int32 GetRelativeIndex() const
+	int32 GetRelativeIndex() const
 	{
 		return Index - LowerBound;
 	}
 
-	FORCEINLINE void SetRelativeIndex(int32 InIndex)
+	void SetRelativeIndex(int32 InIndex)
 	{
 		Index = InIndex + LowerBound;
 	}
 
-	FORCEINLINE float GetRelativeRatio() const
+	float GetRelativeRatio() const
 	{
 		return float(GetRelativeIndex()) / float(FMath::Max<int32>(1, Num() - 1));
 	}
 
-	FORCEINLINE int32 Num() const
+	int32 Num() const
 	{
 		return 1 + UpperBound - LowerBound;
 	}
 
-	FORCEINLINE int32 TotalNum() const
+	int32 TotalNum() const
 	{
 		return UpperBound + 1;
 	}
 
-	FORCEINLINE operator bool() const
+	operator bool() const
 	{
 		return IsValid();
 	}
 
-	FORCEINLINE bool operator !() const
+	bool operator !() const
 	{
 		return !IsValid();
 	}
 
-	FORCEINLINE operator int32() const
+	operator int32() const
 	{
 		return Index;
 	}
 
-	FORCEINLINE FRigVMSlice& operator++()
+	FRigVMSlice& operator++()
 	{
 		Index++;
 		return *this;
 	}
 
-	FORCEINLINE FRigVMSlice operator++(int32)
+	FRigVMSlice operator++(int32)
 	{
 		FRigVMSlice TemporaryCopy = *this;
 		++*this;
 		return TemporaryCopy;
 	}
 
-	FORCEINLINE bool Next()
+	bool Next()
 	{
 		if (!IsValid())
 		{
@@ -150,7 +150,7 @@ public:
 		return true;
 	}
 
-	FORCEINLINE void Reset()
+	void Reset()
 	{
 		if (UpperBound >= LowerBound)
 		{
@@ -220,7 +220,7 @@ struct RIGVM_API FRigVMExecuteContext
 {
 	GENERATED_BODY()
 
-	FORCEINLINE FRigVMExecuteContext()
+	FRigVMExecuteContext()
 		: EventName(NAME_None)
 		, FunctionName(NAME_None)
 		, InstructionIndex(0)
@@ -231,9 +231,9 @@ struct RIGVM_API FRigVMExecuteContext
 	{
 	}
 
-	FORCEINLINE virtual ~FRigVMExecuteContext() {}
+	virtual ~FRigVMExecuteContext() {}
 
-	FORCEINLINE void Log(EMessageSeverity::Type InSeverity, const FString& InMessage) const
+	void Log(EMessageSeverity::Type InSeverity, const FString& InMessage) const
 	{
 		if(RuntimeSettings.LogFunction.IsValid())
 		{
@@ -257,24 +257,24 @@ struct RIGVM_API FRigVMExecuteContext
 	}
 
 	template <typename FmtType, typename... Types>
-	FORCEINLINE void Logf(EMessageSeverity::Type InSeverity, const FmtType& Fmt, Types... Args) const
+	void Logf(EMessageSeverity::Type InSeverity, const FmtType& Fmt, Types... Args) const
 	{
 		Log(InSeverity, FString::Printf(Fmt, Args...));
 	}
 
-	FORCEINLINE uint16 GetInstructionIndex() const { return InstructionIndex; }
+	uint16 GetInstructionIndex() const { return InstructionIndex; }
 
-	FORCEINLINE FName GetFunctionName() const { return FunctionName; }
+	FName GetFunctionName() const { return FunctionName; }
 	
-	FORCEINLINE FName GetEventName() const { return EventName; }
+	FName GetEventName() const { return EventName; }
 
-	FORCEINLINE double GetDeltaTime() const { return DeltaTime; }
-	FORCEINLINE void SetDeltaTime(double InDeltaTime) { DeltaTime = InDeltaTime; }
+	double GetDeltaTime() const { return DeltaTime; }
+	void SetDeltaTime(double InDeltaTime) { DeltaTime = InDeltaTime; }
 
-	FORCEINLINE double GetAbsoluteTime() const { return AbsoluteTime; } 
-	FORCEINLINE void SetAbsoluteTime(double InAbsoluteTime) { AbsoluteTime = InAbsoluteTime; }
+	double GetAbsoluteTime() const { return AbsoluteTime; } 
+	void SetAbsoluteTime(double InAbsoluteTime) { AbsoluteTime = InAbsoluteTime; }
 	
-	FORCEINLINE FRigVMNameCache* GetNameCache() const { return NameCache; }
+	FRigVMNameCache* GetNameCache() const { return NameCache; }
 
 	virtual void Initialize()
 	{
@@ -296,7 +296,7 @@ struct RIGVM_API FRigVMExecuteContext
 
 protected:
 
-	FORCEINLINE virtual void Reset()
+	virtual void Reset()
 	{
 		InstructionIndex = 0;
 	}
@@ -338,7 +338,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 {
 	GENERATED_BODY()
 
-	FORCEINLINE FRigVMExtendedExecuteContext()
+	FRigVMExtendedExecuteContext()
 	: PublicDataScope(FRigVMExecuteContext::StaticStruct())
 	, VM(nullptr)
 	, LastExecutionMicroSeconds()
@@ -348,7 +348,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		SetDefaultNameCache();
 	}
 
-	FORCEINLINE FRigVMExtendedExecuteContext(const UScriptStruct* InExecuteContextStruct)
+	FRigVMExtendedExecuteContext(const UScriptStruct* InExecuteContextStruct)
 		: PublicDataScope(InExecuteContextStruct)
 		, VM(nullptr)
 		, LastExecutionMicroSeconds()
@@ -362,7 +362,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE FRigVMExtendedExecuteContext(const FRigVMExtendedExecuteContext& InOther)
+	FRigVMExtendedExecuteContext(const FRigVMExtendedExecuteContext& InOther)
 		: PublicDataScope()
 		, VM(nullptr)
 		, LastExecutionMicroSeconds()
@@ -373,7 +373,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 
 	virtual ~FRigVMExtendedExecuteContext() {}
 
-	FORCEINLINE void Reset()
+	void Reset()
 	{
 		((FRigVMExecuteContext*)PublicDataScope.GetStructMemory())->Reset();
 		VM = nullptr;
@@ -383,7 +383,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		Factory = nullptr;
 	}
 
-	FORCEINLINE_DEBUGGABLE FRigVMExtendedExecuteContext& operator =(const FRigVMExtendedExecuteContext& Other)
+	FRigVMExtendedExecuteContext& operator =(const FRigVMExtendedExecuteContext& Other)
 	{
 		const UScriptStruct* OtherPublicDataStruct = Cast<UScriptStruct>(Other.PublicDataScope.GetStruct());
 		check(OtherPublicDataStruct);
@@ -416,20 +416,20 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 	}
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
-	FORCEINLINE const ExecuteContextType& GetPublicData() const
+	const ExecuteContextType& GetPublicData() const
 	{
 		check(PublicDataScope.GetStruct()->IsChildOf(ExecuteContextType::StaticStruct()));
 		return *(const ExecuteContextType*)PublicDataScope.GetStructMemory();
 	}
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
-	FORCEINLINE ExecuteContextType& GetPublicData()
+	ExecuteContextType& GetPublicData()
 	{
 		check(PublicDataScope.GetStruct()->IsChildOf(ExecuteContextType::StaticStruct()));
 		return *(ExecuteContextType*)PublicDataScope.GetStructMemory();
 	}
 
-	FORCEINLINE const FRigVMSlice& GetSlice() const
+	const FRigVMSlice& GetSlice() const
 	{
 		const int32 SliceOffset = (int32)SliceOffsets[GetPublicData<>().InstructionIndex];
 		if (SliceOffset == 0)
@@ -440,36 +440,36 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		return Slices[FMath::Clamp<int32>(UpperBound - SliceOffset, 0, UpperBound)];
 	}
 
-	FORCEINLINE void BeginSlice(int32 InCount, int32 InRelativeIndex = 0)
+	void BeginSlice(int32 InCount, int32 InRelativeIndex = 0)
 	{
 		ensure(!IsSliceComplete());
 		Slices.Add(FRigVMSlice(InCount, Slices.Last()));
 		Slices.Last().SetRelativeIndex(InRelativeIndex);
 	}
 
-	FORCEINLINE void EndSlice()
+	void EndSlice()
 	{
 		ensure(Slices.Num() > 1);
 		Slices.Pop();
 	}
 
-	FORCEINLINE void IncrementSlice()
+	void IncrementSlice()
 	{
 		FRigVMSlice& ActiveSlice = Slices.Last();
 		ActiveSlice++;
 	}
 
-	FORCEINLINE bool IsSliceComplete() const
+	bool IsSliceComplete() const
 	{
 		return GetSlice().IsComplete();
 	}
 
-	FORCEINLINE bool IsValidArrayIndex(int32& InOutIndex, const FScriptArrayHelper& InArrayHelper) const
+	bool IsValidArrayIndex(int32& InOutIndex, const FScriptArrayHelper& InArrayHelper) const
 	{
 		return IsValidArrayIndex(InOutIndex, InArrayHelper.Num());
 	}
 
-	FORCEINLINE bool IsValidArrayIndex(int32& InOutIndex, int32 InArraySize) const
+	bool IsValidArrayIndex(int32& InOutIndex, int32 InArraySize) const
 	{
 		const int32 InOriginalIndex = InOutIndex;
 
@@ -488,7 +488,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		return true;
 	}
 
-	FORCEINLINE bool IsValidArraySize(int32 InSize) const
+	bool IsValidArraySize(int32 InSize) const
 	{
 		if(InSize < 0 || InSize > GetPublicData<>().RuntimeSettings.MaximumArraySize)
 		{
@@ -499,18 +499,18 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		return true;
 	}
 
-	FORCEINLINE void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
+	void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
 	{
 		GetPublicData<>().RuntimeSettings = InRuntimeSettings;
 		check(GetPublicData<>().RuntimeSettings.MaximumArraySize > 0);
 	}
 
-	FORCEINLINE void SetDefaultNameCache()
+	void SetDefaultNameCache()
 	{
 		SetNameCache(&NameCache);
 	}
 
-	FORCEINLINE void SetNameCache(FRigVMNameCache* InNameCache)
+	void SetNameCache(FRigVMNameCache* InNameCache)
 	{
 		GetPublicData<>().NameCache = InNameCache;
 	}

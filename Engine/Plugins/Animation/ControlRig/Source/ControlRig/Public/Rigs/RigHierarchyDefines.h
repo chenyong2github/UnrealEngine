@@ -215,18 +215,18 @@ struct CONTROLRIG_API FRigControlLimitEnabled
 	}
 
 	void Serialize(FArchive& Ar);
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigControlLimitEnabled& P)
+	friend FArchive& operator<<(FArchive& Ar, FRigControlLimitEnabled& P)
 	{
 		P.Serialize(Ar);
 		return Ar;
 	}
 
-	FORCEINLINE bool operator ==(const FRigControlLimitEnabled& Other) const
+	bool operator ==(const FRigControlLimitEnabled& Other) const
 	{
 		return bMinimum == Other.bMinimum && bMaximum == Other.bMaximum;
 	}
 
-	FORCEINLINE bool operator !=(const FRigControlLimitEnabled& Other) const
+	bool operator !=(const FRigControlLimitEnabled& Other) const
 	{
 		return bMinimum != Other.bMinimum || bMaximum != Other.bMaximum;
 	}
@@ -398,38 +398,38 @@ public:
 	{
 	}
 
-	FORCEINLINE_DEBUGGABLE bool IsValid() const
+	bool IsValid() const
 	{
 		return FloatStorage.bValid;
 	}
 
 	template<class T>
-	FORCEINLINE_DEBUGGABLE T Get() const
+	T Get() const
 	{
 		return GetRef<T>();
 	}
 
 	template<class T>
-	FORCEINLINE_DEBUGGABLE T& GetRef()
+	T& GetRef()
 	{
 		FloatStorage.bValid = true;
 		return *(T*)&FloatStorage;
 	}
 
 	template<class T>
-	FORCEINLINE_DEBUGGABLE const T& GetRef() const
+	const T& GetRef() const
 	{
 		return *(T*)&FloatStorage;
 	}
 
 	template<class T>
-	FORCEINLINE_DEBUGGABLE void Set(T InValue)
+	void Set(T InValue)
 	{
 		GetRef<T>() = InValue;
 	}
 
 	template<class T>
-	FORCEINLINE_DEBUGGABLE FString ToString() const
+	FString ToString() const
 	{
 		FString Result;
 		TBaseStructure<T>::Get()->ExportText(Result, &GetRef<T>(), nullptr, nullptr, PPF_None, nullptr);
@@ -437,7 +437,7 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE_DEBUGGABLE T SetFromString(const FString& InString)
+	T SetFromString(const FString& InString)
 	{
 		T Value;
 		TBaseStructure<T>::Get()->ImportText(*InString, &Value, nullptr, PPF_None, nullptr, TBaseStructure<T>::Get()->GetName());
@@ -447,7 +447,7 @@ public:
 
 	friend FArchive& operator <<(FArchive& Ar, FRigControlValue& Value);
 
-	FORCEINLINE_DEBUGGABLE FString ToPythonString(ERigControlType InControlType) const
+	FString ToPythonString(ERigControlType InControlType) const
 	{
 		FString ValueStr;
 		
@@ -499,14 +499,14 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE_DEBUGGABLE static FRigControlValue Make(T InValue)
+	static FRigControlValue Make(T InValue)
 	{
 		FRigControlValue Value;
 		Value.Set<T>(InValue);
 		return Value;
 	}
 
-	FORCEINLINE FTransform GetAsTransform(ERigControlType InControlType, ERigControlAxis InPrimaryAxis) const
+	FTransform GetAsTransform(ERigControlType InControlType, ERigControlAxis InPrimaryAxis) const
 	{
 		FTransform Transform = FTransform::Identity;
 		switch (InControlType)
@@ -630,7 +630,7 @@ public:
 		return Transform;
 	}
 	
-	FORCEINLINE void SetFromTransform(const FTransform& InTransform, ERigControlType InControlType, ERigControlAxis InPrimaryAxis)
+	void SetFromTransform(const FTransform& InTransform, ERigControlType InControlType, ERigControlAxis InPrimaryAxis)
 	{
 		switch (InControlType)
 		{
@@ -769,7 +769,7 @@ public:
 		}
 	}
 
-	FORCEINLINE void ApplyLimits(
+	void ApplyLimits(
 		const TArray<FRigControlLimitEnabled>& LimitEnabled,
 		ERigControlType InControlType,
 		const FRigControlValue& InMinimumValue,
@@ -1447,39 +1447,39 @@ public:
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigElementKey& P)
+	friend FArchive& operator<<(FArchive& Ar, FRigElementKey& P)
 	{
 		P.Serialize(Ar);
 		return Ar;
 	}
 
-	FORCEINLINE bool IsValid() const
+	bool IsValid() const
 	{
 		return Name != NAME_None && Type != ERigElementType::None;
 	}
 
-	FORCEINLINE explicit operator bool() const
+	explicit operator bool() const
 	{
 		return IsValid();
 	}
 
-	FORCEINLINE void Reset()
+	void Reset()
 	{
 		Type = ERigElementType::Curve;
 		Name = NAME_None;
 	}
 
-	FORCEINLINE bool IsTypeOf(ERigElementType InElementType) const
+	bool IsTypeOf(ERigElementType InElementType) const
 	{
 		return ((uint8)InElementType & (uint8)Type) == (uint8)Type;
 	}
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigElementKey& Key)
+	friend uint32 GetTypeHash(const FRigElementKey& Key)
 	{
 		return GetTypeHash(Key.Name) * 10 + (uint32)Key.Type;
 	}
 
-	friend FORCEINLINE uint32 GetTypeHash(const TArrayView<const FRigElementKey>& Keys)
+	friend uint32 GetTypeHash(const TArrayView<const FRigElementKey>& Keys)
 	{
 		uint32 Hash = (uint32)(Keys.Num() * 17 + 3);
 		for (const FRigElementKey& Key : Keys)
@@ -1489,22 +1489,22 @@ public:
 		return Hash;
 	}
 
-	friend FORCEINLINE uint32 GetTypeHash(const TArray<FRigElementKey>& Keys)
+	friend uint32 GetTypeHash(const TArray<FRigElementKey>& Keys)
 	{
 		return GetTypeHash(TArrayView<const FRigElementKey>(Keys.GetData(), Keys.Num()));
 	}
 
-	FORCEINLINE bool operator ==(const FRigElementKey& Other) const
+	bool operator ==(const FRigElementKey& Other) const
 	{
 		return Name == Other.Name && Type == Other.Type;
 	}
 
-	FORCEINLINE bool operator !=(const FRigElementKey& Other) const
+	bool operator !=(const FRigElementKey& Other) const
 	{
 		return Name != Other.Name || Type != Other.Type;
 	}
 
-	FORCEINLINE bool operator <(const FRigElementKey& Other) const
+	bool operator <(const FRigElementKey& Other) const
 	{
 		if (Type < Other.Type)
 		{
@@ -1513,7 +1513,7 @@ public:
 		return Name.LexicalLess(Other.Name);
 	}
 
-	FORCEINLINE bool operator >(const FRigElementKey& Other) const
+	bool operator >(const FRigElementKey& Other) const
 	{
 		if (Type > Other.Type)
 		{
@@ -1522,7 +1522,7 @@ public:
 		return Other.Name.LexicalLess(Name);
 	}
 
-	FORCEINLINE FString ToString() const
+	FString ToString() const
 	{
 		switch (Type)
 		{
@@ -1562,98 +1562,98 @@ struct CONTROLRIG_API FRigElementKeyCollection
 {
 	GENERATED_BODY()
 
-	FORCEINLINE FRigElementKeyCollection()
+	FRigElementKeyCollection()
 	{
 	}
 
-	FORCEINLINE FRigElementKeyCollection(const TArray<FRigElementKey>& InKeys)
+	FRigElementKeyCollection(const TArray<FRigElementKey>& InKeys)
 		: Keys(InKeys)
 	{
 	}
 
 	// Resets the data structure and maintains all storage.
-	FORCEINLINE void Reset()
+	void Reset()
 	{
 		Keys.Reset();
 	}
 
 	// Resets the data structure and removes all storage.
-	FORCEINLINE void Empty()
+	void Empty()
 	{
 		Keys.Empty();
 	}
 
 	// Returns true if a given instruction index is valid.
-	FORCEINLINE bool IsValidIndex(int32 InIndex) const
+	bool IsValidIndex(int32 InIndex) const
 	{
 		return Keys.IsValidIndex(InIndex);
 	}
 
 	// Returns the number of elements in this collection.
-	FORCEINLINE int32 Num() const { return Keys.Num(); }
+	int32 Num() const { return Keys.Num(); }
 
 	// Returns true if this collection contains no elements.
-	FORCEINLINE bool IsEmpty() const
+	bool IsEmpty() const
 	{
 		return Num() == 0;
 	}
 
 	// Returns the first element of this collection
-	FORCEINLINE const FRigElementKey& First() const
+	const FRigElementKey& First() const
 	{
 		return Keys[0];
 	}
 
 	// Returns the first element of this collection
-	FORCEINLINE FRigElementKey& First()
+	FRigElementKey& First()
 	{
 		return Keys[0];
 	}
 
 	// Returns the last element of this collection
-	FORCEINLINE const FRigElementKey& Last() const
+	const FRigElementKey& Last() const
 	{
 		return Keys.Last();
 	}
 
 	// Returns the last element of this collection
-	FORCEINLINE FRigElementKey& Last()
+	FRigElementKey& Last()
 	{
 		return Keys.Last();
 	}
 
-	FORCEINLINE int32 Add(const FRigElementKey& InKey)
+	int32 Add(const FRigElementKey& InKey)
 	{
 		return Keys.Add(InKey);
 	}
 
-	FORCEINLINE int32 AddUnique(const FRigElementKey& InKey)
+	int32 AddUnique(const FRigElementKey& InKey)
 	{
 		return Keys.AddUnique(InKey);
 	}
 
-	FORCEINLINE bool Contains(const FRigElementKey& InKey) const
+	bool Contains(const FRigElementKey& InKey) const
 	{
 		return Keys.Contains(InKey);
 	}
 
 	// const accessor for an element given its index
-	FORCEINLINE const FRigElementKey& operator[](int32 InIndex) const
+	const FRigElementKey& operator[](int32 InIndex) const
 	{
 		return Keys[InIndex];
 	}
 
-	FORCEINLINE const TArray<FRigElementKey>& GetKeys() const
+	const TArray<FRigElementKey>& GetKeys() const
 	{
 		return Keys;
 	}
 	   
-	FORCEINLINE TArray<FRigElementKey>::RangedForIteratorType      begin() { return Keys.begin(); }
-	FORCEINLINE TArray<FRigElementKey>::RangedForConstIteratorType begin() const { return Keys.begin(); }
-	FORCEINLINE TArray<FRigElementKey>::RangedForIteratorType      end() { return Keys.end(); }
-	FORCEINLINE TArray<FRigElementKey>::RangedForConstIteratorType end() const { return Keys.end(); }
+	TArray<FRigElementKey>::RangedForIteratorType      begin() { return Keys.begin(); }
+	TArray<FRigElementKey>::RangedForConstIteratorType begin() const { return Keys.begin(); }
+	TArray<FRigElementKey>::RangedForIteratorType      end() { return Keys.end(); }
+	TArray<FRigElementKey>::RangedForConstIteratorType end() const { return Keys.end(); }
 
-	friend FORCEINLINE uint32 GetTypeHash(const FRigElementKeyCollection& Collection)
+	friend uint32 GetTypeHash(const FRigElementKeyCollection& Collection)
 	{
 		return GetTypeHash(Collection.GetKeys());
 	}

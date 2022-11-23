@@ -43,17 +43,17 @@ public:
 	FString DefaultValue;
 
 	// Returns nullptr external variable matching this description
-	FORCEINLINE FRigVMExternalVariable ToExternalVariable() const
+	FRigVMExternalVariable ToExternalVariable() const
 	{
 		return RigVMTypeUtils::ExternalVariableFromRigVMVariableDescription(*this);
 	}
 
-	FORCEINLINE FEdGraphPinType ToPinType() const
+	FEdGraphPinType ToPinType() const
 	{
 		return RigVMTypeUtils::PinTypeFromRigVMVariableDescription(*this);
 	}
 
-	FORCEINLINE bool ChangeType(const FEdGraphPinType& PinType)
+	bool ChangeType(const FEdGraphPinType& PinType)
 	{
 		UObject* Object = nullptr;
 		const bool bSuccess = RigVMTypeUtils::CPPTypeFromPinType(PinType, CPPType, &Object);

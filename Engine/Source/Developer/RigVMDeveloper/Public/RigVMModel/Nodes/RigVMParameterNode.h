@@ -57,7 +57,7 @@ public:
 	FString DefaultValue;
 
 	// Returns nullptr external variable matching this description
-	FORCEINLINE FRigVMExternalVariable ToExternalVariable() const
+	FRigVMExternalVariable ToExternalVariable() const
 	{
 		FRigVMExternalVariable ExternalVariable;
 		ExternalVariable.Name = Name;

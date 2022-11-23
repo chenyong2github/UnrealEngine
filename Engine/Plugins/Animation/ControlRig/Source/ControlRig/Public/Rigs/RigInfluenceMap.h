@@ -17,33 +17,33 @@ struct FRigInfluenceEntry
 	{
 	}
 
-	FORCEINLINE const FRigElementKey& GetSource() const { return Source; }
+	const FRigElementKey& GetSource() const { return Source; }
 
-	FORCEINLINE int32 Num() const { return AffectedList.Num(); }
-	FORCEINLINE const FRigElementKey& operator[](int32 InIndex) const { return AffectedList[InIndex]; }
-	FORCEINLINE FRigElementKey& operator[](int32 InIndex) { return AffectedList[InIndex]; }
+	int32 Num() const { return AffectedList.Num(); }
+	const FRigElementKey& operator[](int32 InIndex) const { return AffectedList[InIndex]; }
+	FRigElementKey& operator[](int32 InIndex) { return AffectedList[InIndex]; }
 
-	FORCEINLINE TArray<FRigElementKey>::RangedForIteratorType      begin() { return AffectedList.begin(); }
-	FORCEINLINE TArray<FRigElementKey>::RangedForConstIteratorType begin() const { return AffectedList.begin(); }
-	FORCEINLINE TArray<FRigElementKey>::RangedForIteratorType      end() { return AffectedList.end(); }
-	FORCEINLINE TArray<FRigElementKey>::RangedForConstIteratorType end() const { return AffectedList.end(); }
+	TArray<FRigElementKey>::RangedForIteratorType      begin() { return AffectedList.begin(); }
+	TArray<FRigElementKey>::RangedForConstIteratorType begin() const { return AffectedList.begin(); }
+	TArray<FRigElementKey>::RangedForIteratorType      end() { return AffectedList.end(); }
+	TArray<FRigElementKey>::RangedForConstIteratorType end() const { return AffectedList.end(); }
 
-	FORCEINLINE int32 AddUnique(const FRigElementKey& InKey)
+	int32 AddUnique(const FRigElementKey& InKey)
 	{
 		return AffectedList.AddUnique(InKey);
 	}
 
-	FORCEINLINE void Remove(const FRigElementKey& InKey)
+	void Remove(const FRigElementKey& InKey)
 	{
 		AffectedList.Remove(InKey);
 	}
 
-	FORCEINLINE bool Contains(const FRigElementKey& InKey) const
+	bool Contains(const FRigElementKey& InKey) const
 	{
 		return AffectedList.Contains(InKey);
 	}
 
-	FORCEINLINE bool Merge(const FRigInfluenceEntry& Other)
+	bool Merge(const FRigInfluenceEntry& Other)
 	{
 		if(Other.Source != Source)
 		{
@@ -86,14 +86,14 @@ struct FRigInfluenceEntryModifier
 	UPROPERTY(EditAnywhere, Category = "Inversion")
 	TArray<FRigElementKey> AffectedList;
 
-	FORCEINLINE int32 Num() const { return AffectedList.Num(); }
-	FORCEINLINE const FRigElementKey& operator[](int32 InIndex) const { return AffectedList[InIndex]; }
-	FORCEINLINE FRigElementKey& operator[](int32 InIndex) { return AffectedList[InIndex]; }
+	int32 Num() const { return AffectedList.Num(); }
+	const FRigElementKey& operator[](int32 InIndex) const { return AffectedList[InIndex]; }
+	FRigElementKey& operator[](int32 InIndex) { return AffectedList[InIndex]; }
 
-	FORCEINLINE TArray<FRigElementKey>::RangedForIteratorType      begin() { return AffectedList.begin(); }
-	FORCEINLINE TArray<FRigElementKey>::RangedForConstIteratorType begin() const { return AffectedList.begin(); }
-	FORCEINLINE TArray<FRigElementKey>::RangedForIteratorType      end() { return AffectedList.end(); }
-	FORCEINLINE TArray<FRigElementKey>::RangedForConstIteratorType end() const { return AffectedList.end(); }
+	TArray<FRigElementKey>::RangedForIteratorType      begin() { return AffectedList.begin(); }
+	TArray<FRigElementKey>::RangedForConstIteratorType begin() const { return AffectedList.begin(); }
+	TArray<FRigElementKey>::RangedForIteratorType      end() { return AffectedList.end(); }
+	TArray<FRigElementKey>::RangedForConstIteratorType end() const { return AffectedList.end(); }
 };
 
 
@@ -110,16 +110,16 @@ public:
 
 	const FName& GetEventName() const { return EventName; }
 
-	FORCEINLINE int32 Num() const { return Entries.Num(); }
-	FORCEINLINE const FRigInfluenceEntry& operator[](int32 InIndex) const { return Entries[InIndex]; }
-	FORCEINLINE FRigInfluenceEntry& operator[](int32 InIndex) { return Entries[InIndex]; }
-	FORCEINLINE const FRigInfluenceEntry& operator[](const FRigElementKey& InKey) const { return Entries[GetIndex(InKey)]; }
-	FORCEINLINE FRigInfluenceEntry& operator[](const FRigElementKey& InKey) { return FindOrAdd(InKey); }
+	int32 Num() const { return Entries.Num(); }
+	const FRigInfluenceEntry& operator[](int32 InIndex) const { return Entries[InIndex]; }
+	FRigInfluenceEntry& operator[](int32 InIndex) { return Entries[InIndex]; }
+	const FRigInfluenceEntry& operator[](const FRigElementKey& InKey) const { return Entries[GetIndex(InKey)]; }
+	FRigInfluenceEntry& operator[](const FRigElementKey& InKey) { return FindOrAdd(InKey); }
 
-	FORCEINLINE TArray<FRigInfluenceEntry>::RangedForIteratorType      begin()       { return Entries.begin(); }
-	FORCEINLINE TArray<FRigInfluenceEntry>::RangedForConstIteratorType begin() const { return Entries.begin(); }
-	FORCEINLINE TArray<FRigInfluenceEntry>::RangedForIteratorType      end()         { return Entries.end();   }
-	FORCEINLINE TArray<FRigInfluenceEntry>::RangedForConstIteratorType end() const   { return Entries.end();   }
+	TArray<FRigInfluenceEntry>::RangedForIteratorType      begin()       { return Entries.begin(); }
+	TArray<FRigInfluenceEntry>::RangedForConstIteratorType begin() const { return Entries.begin(); }
+	TArray<FRigInfluenceEntry>::RangedForIteratorType      end()         { return Entries.end();   }
+	TArray<FRigInfluenceEntry>::RangedForConstIteratorType end() const   { return Entries.end();   }
 
 	FRigInfluenceEntry& FindOrAdd(const FRigElementKey& InKey);
 
@@ -127,12 +127,12 @@ public:
 
 	void Remove(const FRigElementKey& InKey);
 
-	FORCEINLINE bool Contains(const FRigElementKey& InKey) const
+	bool Contains(const FRigElementKey& InKey) const
 	{
 		return GetIndex(InKey) != INDEX_NONE;
 	}
 
-	FORCEINLINE int32 GetIndex(const FRigElementKey& InKey) const
+	int32 GetIndex(const FRigElementKey& InKey) const
 	{
 		const int32* Index = KeyToIndex.Find(InKey);
 		if (Index)
@@ -178,16 +178,16 @@ struct CONTROLRIG_API FRigInfluenceMapPerEvent
 
 public:
 
-	FORCEINLINE int32 Num() const { return Maps.Num(); }
-	FORCEINLINE const FRigInfluenceMap& operator[](int32 InIndex) const { return Maps[InIndex]; }
-	FORCEINLINE FRigInfluenceMap& operator[](int32 InIndex) { return Maps[InIndex]; }
-	FORCEINLINE const FRigInfluenceMap& operator[](const FName& InEventName) const { return Maps[GetIndex(InEventName)]; }
-	FORCEINLINE FRigInfluenceMap& operator[](const FName& InEventName) { return FindOrAdd(InEventName); }
+	int32 Num() const { return Maps.Num(); }
+	const FRigInfluenceMap& operator[](int32 InIndex) const { return Maps[InIndex]; }
+	FRigInfluenceMap& operator[](int32 InIndex) { return Maps[InIndex]; }
+	const FRigInfluenceMap& operator[](const FName& InEventName) const { return Maps[GetIndex(InEventName)]; }
+	FRigInfluenceMap& operator[](const FName& InEventName) { return FindOrAdd(InEventName); }
 
-	FORCEINLINE TArray<FRigInfluenceMap>::RangedForIteratorType      begin()       { return Maps.begin(); }
-	FORCEINLINE TArray<FRigInfluenceMap>::RangedForConstIteratorType begin() const { return Maps.begin(); }
-	FORCEINLINE TArray<FRigInfluenceMap>::RangedForIteratorType      end()         { return Maps.end();   }
-	FORCEINLINE TArray<FRigInfluenceMap>::RangedForConstIteratorType end() const   { return Maps.end();   }
+	TArray<FRigInfluenceMap>::RangedForIteratorType      begin()       { return Maps.begin(); }
+	TArray<FRigInfluenceMap>::RangedForConstIteratorType begin() const { return Maps.begin(); }
+	TArray<FRigInfluenceMap>::RangedForIteratorType      end()         { return Maps.end();   }
+	TArray<FRigInfluenceMap>::RangedForConstIteratorType end() const   { return Maps.end();   }
 
 	FRigInfluenceMap& FindOrAdd(const FName& InEventName);
 
@@ -195,12 +195,12 @@ public:
 
 	void Remove(const FName& InEventName);
 
-	FORCEINLINE bool Contains(const FName& InEventName) const
+	bool Contains(const FName& InEventName) const
 	{
 		return GetIndex(InEventName) != INDEX_NONE;
 	}
 
-	FORCEINLINE int32 GetIndex(const FName& InEventName) const
+	int32 GetIndex(const FName& InEventName) const
 	{
 		const int32* Index = EventToIndex.Find(InEventName);
 		if (Index)

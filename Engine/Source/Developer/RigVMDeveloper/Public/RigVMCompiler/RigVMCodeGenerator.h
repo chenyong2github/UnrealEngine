@@ -122,13 +122,13 @@ private:
 	FString GetEntryParameters() const;
 	static TArray<int32> GetInstructionIndicesFromRange(int32 First, int32 Last);
 
-	FORCEINLINE static FString FormatArgs(const TCHAR* InFormatString, const FStringFormatOrderedArguments& InArgs)
+	static FString FormatArgs(const TCHAR* InFormatString, const FStringFormatOrderedArguments& InArgs)
 	{
 		return FString::Format(InFormatString, InArgs);
 	}
 
 	template<typename TypeA>
-	FORCEINLINE static FString Format(const TCHAR* InFormatString, const TypeA& InArgA)
+	static FString Format(const TCHAR* InFormatString, const TypeA& InArgA)
 	{
 		return FormatArgs(InFormatString, {
 			FStringFormatArg(InArgA)
@@ -136,7 +136,7 @@ private:
 	}
 
 	template<typename TypeA, typename TypeB>
-	FORCEINLINE static FString Format(const TCHAR* InFormatString, const TypeA& InArgA, const TypeB& InArgB)
+	static FString Format(const TCHAR* InFormatString, const TypeA& InArgA, const TypeB& InArgB)
 	{
 		return FormatArgs(InFormatString, {
 			FStringFormatArg(InArgA),
@@ -145,7 +145,7 @@ private:
 	}
 
 	template<typename TypeA, typename TypeB, typename TypeC>
-	FORCEINLINE static FString Format(const TCHAR* InFormatString, const TypeA& InArgA, const TypeB& InArgB, const TypeC& InArgC)
+	static FString Format(const TCHAR* InFormatString, const TypeA& InArgA, const TypeB& InArgB, const TypeC& InArgC)
 	{
 		return FormatArgs(InFormatString, {
 			FStringFormatArg(InArgA),
@@ -155,7 +155,7 @@ private:
 	}
 
 	template<typename TypeA, typename TypeB, typename TypeC, typename TypeD>
-	FORCEINLINE static FString Format(const TCHAR* InFormatString,
+	static FString Format(const TCHAR* InFormatString,
 		const TypeA& InArgA,
 		const TypeB& InArgB,
 		const TypeC& InArgC,
@@ -171,7 +171,7 @@ private:
 	}
 
 	template<typename TypeA, typename TypeB, typename TypeC, typename TypeD, typename TypeE>
-	FORCEINLINE static FString Format(const TCHAR* InFormatString,
+	static FString Format(const TCHAR* InFormatString,
 		const TypeA& InArgA,
 		const TypeB& InArgB,
 		const TypeC& InArgC,
@@ -189,7 +189,7 @@ private:
 	}
 
 	template<typename TypeA, typename TypeB, typename TypeC, typename TypeD, typename TypeE, typename TypeF>
-	FORCEINLINE static FString Format(const TCHAR* InFormatString,
+	static FString Format(const TCHAR* InFormatString,
 		const TypeA& InArgA,
 		const TypeB& InArgB,
 		const TypeC& InArgC,
@@ -209,7 +209,7 @@ private:
 	}
 
 	template<typename TypeA, typename TypeB, typename TypeC, typename TypeD, typename TypeE, typename TypeF, typename TypeG>
-	FORCEINLINE static FString Format(const TCHAR* InFormatString,
+	static FString Format(const TCHAR* InFormatString,
 		const TypeA& InArgA,
 		const TypeB& InArgB,
 		const TypeC& InArgC,

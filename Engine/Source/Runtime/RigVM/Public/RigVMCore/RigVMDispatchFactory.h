@@ -29,23 +29,23 @@ struct RIGVM_API FRigVMDispatchFactory
 
 public:
 
-	FORCEINLINE FRigVMDispatchFactory()
+	FRigVMDispatchFactory()
 		: FactoryScriptStruct(nullptr)
 		, CachedTemplate(nullptr)
 	{}
 	
-	FORCEINLINE virtual ~FRigVMDispatchFactory() {}
+	virtual ~FRigVMDispatchFactory() {}
 
 	// returns the name of the factory template
 	FName GetFactoryName() const;
 
 	// returns the struct for this dispatch factory
-	FORCEINLINE UScriptStruct* GetScriptStruct() const { return FactoryScriptStruct; };
+	UScriptStruct* GetScriptStruct() const { return FactoryScriptStruct; };
 
 #if WITH_EDITOR
 	
 	// returns the title of the node for a given type set.
-	FORCEINLINE virtual FString GetNodeTitle(const FRigVMTemplateTypeMap& InTypes) const { return GetScriptStruct()->GetDisplayNameText().ToString(); }
+	virtual FString GetNodeTitle(const FRigVMTemplateTypeMap& InTypes) const { return GetScriptStruct()->GetDisplayNameText().ToString(); }
 
 	// returns the color of the node for a given type set.
 	virtual FLinearColor GetNodeColor() const;
@@ -57,22 +57,22 @@ public:
 	virtual FString GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const;
 
 	// returns the tooltip for an argument
-	FORCEINLINE virtual FText GetArgumentTooltip(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const { return FText(); }
+	virtual FText GetArgumentTooltip(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const { return FText(); }
 
 	// returns the names of the input aggregate arguments
-	FORCEINLINE virtual TArray<FName> GetAggregateInputArguments() const { return TArray<FName>(); }
+	virtual TArray<FName> GetAggregateInputArguments() const { return TArray<FName>(); }
 
 	// returns the names of the output aggregate arguments
-	FORCEINLINE virtual TArray<FName> GetAggregateOutputArguments() const { return TArray<FName>(); }
+	virtual TArray<FName> GetAggregateOutputArguments() const { return TArray<FName>(); }
 
 	// returns the next name to be used for an aggregate pin
 	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const;
 
 	// Returns the display name text for an argument 
-	FORCEINLINE virtual FText GetDisplayNameForArgument(const FName& InArgumentName) const { return FText::FromName(InArgumentName); }
+	virtual FText GetDisplayNameForArgument(const FName& InArgumentName) const { return FText::FromName(InArgumentName); }
 
 	// Returns meta data on the property of the permutations 
-	FORCEINLINE virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const { return FString(); }
+	virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const { return FString(); }
 
 	// Returns true if the factory provides metadata for a given argument
 	bool HasArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
@@ -92,7 +92,7 @@ public:
 #endif
 
 	// returns true if the dispatch is a control flow dispatch
-	FORCEINLINE bool IsControlFlowDispatch() const { return !GetControlFlowBlocks().IsEmpty(); }
+	bool IsControlFlowDispatch() const { return !GetControlFlowBlocks().IsEmpty(); }
 
 	// returns the control flow blocks of this dispatch
 	const TArray<FName>& GetControlFlowBlocks() const;
@@ -101,26 +101,26 @@ public:
 	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const { return false; }
 
 	// Returns the execute context support for this dispatch factory
-	FORCEINLINE virtual UScriptStruct* GetExecuteContextStruct() const { return FRigVMExecuteContext::StaticStruct(); }
+	virtual UScriptStruct* GetExecuteContextStruct() const { return FRigVMExecuteContext::StaticStruct(); }
 
 	// registered needed types during registration of the factory
-	FORCEINLINE virtual void RegisterDependencyTypes() const {}
+	virtual void RegisterDependencyTypes() const {}
 
 	// returns opaque arguments expected to be passed to this factory in FRigVMExtendedExecuteContext::OpaqueArguments
-	FORCEINLINE virtual TArray<TPair<FName,FString>> GetOpaqueArguments() const { return TArray<TPair<FName,FString>>(); }
+	virtual TArray<TPair<FName,FString>> GetOpaqueArguments() const { return TArray<TPair<FName,FString>>(); }
 
 	// returns the arguments of the template
-	FORCEINLINE virtual TArray<FRigVMTemplateArgument> GetArguments() const { return TArray<FRigVMTemplateArgument>(); }
+	virtual TArray<FRigVMTemplateArgument> GetArguments() const { return TArray<FRigVMTemplateArgument>(); }
 
 	// returns the execute arguments of the template
 	TArray<FRigVMExecuteArgument> GetExecuteArguments() const;
 
 	// returns the delegate to react to new types being added to an argument.
 	// this happens if types are being loaded later after this factory has already been deployed
-	FORCEINLINE virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const { return FRigVMTemplateTypeMap(); }
+	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const { return FRigVMTemplateTypeMap(); }
 
 	// returns the upgrade info to use for this factory
-	FORCEINLINE virtual FRigVMStructUpgradeInfo GetUpgradeInfo(const FRigVMTemplateTypeMap& InTypes) const { return FRigVMStructUpgradeInfo(); }
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo(const FRigVMTemplateTypeMap& InTypes) const { return FRigVMStructUpgradeInfo(); }
 
 	// returns the dispatch function for a given type set
 	FRigVMFunctionPtr GetDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const;
@@ -144,7 +144,7 @@ protected:
 	typename T,
 	typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
 	>
-	FORCEINLINE static FString GetDefaultValueForStruct(const T& InValue)
+	static FString GetDefaultValueForStruct(const T& InValue)
 	{
 		static FString ValueString;
 		if(ValueString.IsEmpty())
@@ -158,7 +158,7 @@ protected:
 		typename T,
 		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
 	>
-	FORCEINLINE static FString GetDefaultValueForStruct(const T& InValue)
+	static FString GetDefaultValueForStruct(const T& InValue)
 	{
 		static FString ValueString;
 		if(ValueString.IsEmpty())
@@ -169,7 +169,7 @@ protected:
 	}
 
 #if WITH_EDITOR
-	FORCEINLINE bool CheckArgumentType(bool bCondition, const FName& InArgumentName) const
+	bool CheckArgumentType(bool bCondition, const FName& InArgumentName) const
 	{
 		if(!bCondition)
 		{

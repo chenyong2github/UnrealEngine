@@ -70,22 +70,22 @@ namespace RigVMTypeUtils
 	};
 
 	// Returns true if the type specified is an array
-	FORCEINLINE bool IsArrayType(const FString& InCPPType)
+	inline bool IsArrayType(const FString& InCPPType)
 	{
 		return InCPPType.StartsWith(TArrayPrefix);
 	}
 
-	FORCEINLINE FString ArrayTypeFromBaseType(const FString& InCPPType)
+	inline FString ArrayTypeFromBaseType(const FString& InCPPType)
 	{
 		return FString::Printf(TArrayTemplate, *InCPPType);
 	}
 
-	FORCEINLINE FString BaseTypeFromArrayType(const FString& InCPPType)
+	inline FString BaseTypeFromArrayType(const FString& InCPPType)
 	{
 		return InCPPType.RightChop(7).LeftChop(1).TrimStartAndEnd();
 	}
 
-	FORCEINLINE_DEBUGGABLE FString GetUniqueStructTypeName(const UScriptStruct* InScriptStruct)
+	inline FString GetUniqueStructTypeName(const UScriptStruct* InScriptStruct)
 	{
 		if (const UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InScriptStruct))
 		{
@@ -95,7 +95,7 @@ namespace RigVMTypeUtils
 		return InScriptStruct->GetStructCPPName();
 	}
 
-	FORCEINLINE FString CPPTypeFromEnum(UEnum* InEnum)
+	inline FString CPPTypeFromEnum(UEnum* InEnum)
 	{
 		check(InEnum);
 
@@ -107,12 +107,12 @@ namespace RigVMTypeUtils
 		return CPPType;
 	}
 
-	FORCEINLINE bool IsUObjectType(const FString& InCPPType)
+	inline bool IsUObjectType(const FString& InCPPType)
 	{
 		return InCPPType.StartsWith(TObjectPtrPrefix);
 	}
 
-	FORCEINLINE bool IsInterfaceType(const FString& InCPPType)
+	inline bool IsInterfaceType(const FString& InCPPType)
 	{
 		return InCPPType.StartsWith(TScriptInterfacePrefix);
 	}
@@ -149,7 +149,7 @@ namespace RigVMTypeUtils
 
 
 
-	FORCEINLINE FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject)
+	inline FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject)
 	{
 		FString CPPType = InCPPType;
 	

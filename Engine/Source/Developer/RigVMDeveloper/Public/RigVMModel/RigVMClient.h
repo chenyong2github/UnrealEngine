@@ -94,9 +94,9 @@ public:
 	void SetFromDeprecatedData(URigVMGraph* InDefaultGraph, URigVMFunctionLibrary* InFunctionLibrary);
 
 	void Reset();
-	FORCEINLINE int32 Num() const { return Models.Num(); }
+	int32 Num() const { return Models.Num(); }
 	URigVMGraph* GetDefaultModel() const;
-	FORCEINLINE URigVMGraph* GetModel(int32 InIndex) const { return Models[InIndex]; }
+	URigVMGraph* GetModel(int32 InIndex) const { return Models[InIndex]; }
 	URigVMGraph* GetModel(const FString& InNodePathOrName) const;
 	URigVMGraph* GetModel(const UObject* InEditorSideObject) const;
 	TArray<URigVMGraph*> GetAllModels(bool bIncludeFunctionLibrary, bool bRecursive) const;
@@ -122,10 +122,10 @@ public:
 	URigVMNode* FindNode(const FString& InNodePathOrName) const;
 	URigVMPin* FindPin(const FString& InPinPath) const;
 	
-	FORCEINLINE TArray<TObjectPtr<URigVMGraph>>::RangedForIteratorType      begin() { return Models.begin(); }
-	FORCEINLINE TArray<TObjectPtr<URigVMGraph>>::RangedForConstIteratorType begin() const { return Models.begin(); }
-	FORCEINLINE TArray<TObjectPtr<URigVMGraph>>::RangedForIteratorType      end() { return Models.end(); }
-	FORCEINLINE TArray<TObjectPtr<URigVMGraph>>::RangedForConstIteratorType end() const { return Models.end(); }
+	TArray<TObjectPtr<URigVMGraph>>::RangedForIteratorType      begin() { return Models.begin(); }
+	TArray<TObjectPtr<URigVMGraph>>::RangedForConstIteratorType begin() const { return Models.begin(); }
+	TArray<TObjectPtr<URigVMGraph>>::RangedForIteratorType      end() { return Models.end(); }
+	TArray<TObjectPtr<URigVMGraph>>::RangedForConstIteratorType end() const { return Models.end(); }
 
 	UObject* GetOuter() const;
 	FProperty* GetOuterClientProperty() const;

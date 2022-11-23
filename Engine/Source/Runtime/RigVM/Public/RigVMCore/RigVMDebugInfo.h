@@ -38,12 +38,12 @@ struct RIGVM_API FRigVMBreakpoint
 
 	}
 
-	FORCEINLINE bool IsValid() const
+	bool IsValid() const
 	{
 		return InstructionIndex != INDEX_NONE && Guid.IsValid();
 	}
 
-	FORCEINLINE void Reset()
+	void Reset()
 	{
 		bIsActive = true;
 		InstructionIndex = INDEX_NONE;
@@ -52,7 +52,7 @@ struct RIGVM_API FRigVMBreakpoint
 		Depth = 0;
 	}
 
-	FORCEINLINE operator bool() const
+	operator bool() const
 	{
 		return IsValid();
 	}
@@ -88,7 +88,7 @@ struct RIGVM_API FRigVMDebugInfo
 {
 	GENERATED_BODY()
 
-	FORCEINLINE FRigVMDebugInfo()
+	FRigVMDebugInfo()
 	{
 	}
 
@@ -96,13 +96,13 @@ struct RIGVM_API FRigVMDebugInfo
 
 	void StartExecution();
 
-	FORCEINLINE void Reset()
+	void Reset()
 	{
 		Breakpoints.Reset();
 		// Do not remove state
 	}
 
-	FORCEINLINE bool IsEmpty() const
+	bool IsEmpty() const
 	{
 		return GetBreakpoints().IsEmpty() && !TemporaryBreakpoint.IsValid();
 	}
@@ -151,7 +151,7 @@ struct RIGVM_API FRigVMDebugInfo
 
 	const FRigVMBreakpoint& GetCurrentActiveBreakpoint() const { return FindBreakpoint(CurrentActiveBreakpoint); }
 
-	FORCEINLINE void SetCurrentActiveBreakpoint(const FRigVMBreakpoint& InBreakpoint)
+	void SetCurrentActiveBreakpoint(const FRigVMBreakpoint& InBreakpoint)
 	{
 		if(InBreakpoint.IsValid())
 		{
