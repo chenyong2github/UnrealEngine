@@ -518,7 +518,13 @@ static TOptional<EWindowsRHI> ChoosePreferredRHI(EWindowsRHI InDefaultRHI)
 		{
 			UE_LOG(LogRHI, Log, TEXT("Found D3DRHIPreference bUseD3D12InGame: %s"), bUseD3D12InGame ? TEXT("true") : TEXT("false"));
 
-			RHIPreference = bUseD3D12InGame ? EWindowsRHI::D3D12 : EWindowsRHI::D3D11;
+			bool bPreferFeatureLevelES31 = false;
+			GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferFeatureLevelES31"), bPreferFeatureLevelES31, GGameUserSettingsIni);
+
+			if (bPreferFeatureLevelES31)
+			{
+				RHIPreference = EWindowsRHI::D3D11;
+			}
 		}
 	}
 
