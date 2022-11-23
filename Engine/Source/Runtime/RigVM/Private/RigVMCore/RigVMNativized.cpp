@@ -19,6 +19,14 @@ void URigVMNativized::Serialize(FArchive& Ar)
 	UObject::Serialize(Ar);
 }
 
+void URigVMNativized::Reset(bool IsIgnoringArchetypeRef)
+{
+	// don't call super on purpose
+	LazyMemoryHandles.Reset();
+	LazyMemoryBranches.Reset();
+	ByteCodeStorage.Reset();
+}
+
 bool URigVMNativized::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments,
 	bool bInitializeMemory)
 {
@@ -35,6 +43,48 @@ ERigVMExecuteResult URigVMNativized::Execute(TArrayView<URigVMMemoryStorage*> Me
 
 const FRigVMInstructionArray& URigVMNativized::GetInstructions()
 {
+	if(GetByteCode().GetNumInstructions() > 0)
+	{
+		return Super::GetInstructions();
+	}
 	static const FRigVMInstructionArray EmptyInstructions;
 	return EmptyInstructions;
+}
+
+#if WITH_EDITOR
+
+void URigVMNativized::SetByteCode(const FRigVMByteCode& InByteCode)
+{
+	ByteCodeStorage = InByteCode;
+	ByteCodePtr = &ByteCodeStorage;
+}
+
+#endif
+
+const FRigVMMemoryHandle& URigVMNativized::GetLazyMemoryHandle(int32 InIndex, uint8* InMemory, const FProperty* InProperty, TFunction<ERigVMExecuteResult()> InLambda)
+{
+	check(InIndex != INDEX_NONE);
+	check(LazyMemoryHandles.IsValidIndex(InIndex));
+
+	FRigVMMemoryHandle& Handle = LazyMemoryHandles[InIndex];
+	if(!Handle.IsLazy())
+	{
+		check(LazyMemoryBranches.IsValidIndex(InIndex));
+		FRigVMLazyBranch& LazyBranch = LazyMemoryBranches[InIndex];
+		LazyBranch.VM = this;
+		LazyBranch.FunctionPtr = InLambda;
+
+		Handle = FRigVMMemoryHandle(InMemory, InProperty, nullptr, &LazyBranch);
+	}
+
+	return Handle;
+}
+
+void URigVMNativized::AllocateLazyMemoryHandles(int32 InCount)
+{
+	if(LazyMemoryHandles.Num() != InCount)
+	{
+		LazyMemoryHandles.SetNum(InCount);
+		LazyMemoryBranches.SetNum(InCount);
+	}
 }

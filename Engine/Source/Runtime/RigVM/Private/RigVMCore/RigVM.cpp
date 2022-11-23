@@ -914,13 +914,16 @@ const TArray<FName>& URigVM::GetEntryNames() const
 	return EntryNames;
 }
 
-bool URigVM::CanExecuteEntry(const FName& InEntryName) const
+bool URigVM::CanExecuteEntry(const FName& InEntryName, bool bLogErrorForMissingEntry) const
 {
 	const int32 EntryIndex = FindEntry(InEntryName);
 	if(EntryIndex == INDEX_NONE)
 	{
-		static constexpr TCHAR MissingEntry[] = TEXT("Entry('%s') cannot be found.");
-		Context.GetPublicData<>().Logf(EMessageSeverity::Error, MissingEntry, *InEntryName.ToString());
+		if(bLogErrorForMissingEntry)
+		{
+			static constexpr TCHAR MissingEntry[] = TEXT("Entry('%s') cannot be found.");
+			Context.GetPublicData<>().Logf(EMessageSeverity::Error, MissingEntry, *InEntryName.ToString());
+		}
 		return false;
 	}
 	
@@ -1659,16 +1662,21 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 				// find out the largest slice count
 				int32 MaxSliceCount = 1;
 
-				// todo Deal with slice counts
-
-				Context.BeginSlice(MaxSliceCount);
-				for (int32 SliceIndex = 0; SliceIndex < MaxSliceCount; SliceIndex++)
+				const bool bContainsLazyValue = OpHandles.ContainsByPredicate([](const FRigVMMemoryHandle& Handle)
 				{
-					(*Functions[Op.FunctionIndex]->FunctionPtr)(Context, OpHandles);
-					Context.IncrementSlice();
-				}
-				Context.EndSlice();
+					return Handle.IsLazy();
+				});
 
+				if(!bContainsLazyValue)
+				{
+					Context.BeginSlice(MaxSliceCount);
+					for (int32 SliceIndex = 0; SliceIndex < MaxSliceCount; SliceIndex++)
+					{
+						(*Functions[Op.FunctionIndex]->FunctionPtr)(Context, OpHandles);
+						Context.IncrementSlice();
+					}
+					Context.EndSlice();
+				}
 				break;
 			}
 			case ERigVMOpCode::Zero:
@@ -1785,18 +1793,7 @@ ERigVMExecuteResult URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TAr
 	{
 		if (FirstEntryEventInQueue == NAME_None || FirstEntryEventInQueue == InEntryName)
 		{
-			InstructionVisitedDuringLastRun.Reset();
-			InstructionVisitOrder.Reset();
-			InstructionVisitedDuringLastRun.SetNumZeroed(Instructions.Num());
-			InstructionCyclesDuringLastRun.Reset();
-			if(ContextPublicData.RuntimeSettings.bEnableProfiling)
-			{
-				InstructionCyclesDuringLastRun.SetNumUninitialized(Instructions.Num());
-				for(int32 DurationIndex=0;DurationIndex<InstructionCyclesDuringLastRun.Num();DurationIndex++)
-				{
-					InstructionCyclesDuringLastRun[DurationIndex] = UINT64_MAX;
-				}
-			}
+			SetupInstructionTracking(Instructions.Num());
 		}
 	}
 #endif
@@ -1871,12 +1868,7 @@ ERigVMExecuteResult URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TAr
 	}
 
 #if WITH_EDITOR
-	StartCycles = 0;
-	OverallCycles = 0;
-	if(ContextPublicData.RuntimeSettings.bEnableProfiling)
-	{
-		StartCycles = FPlatformTime::Cycles64();
-	}
+	StartProfiling();
 	
 #if UE_RIGVM_DEBUG_EXECUTION
 	FString DebugMemoryString;
@@ -2248,9 +2240,7 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 			{
 				if(bCurrentlyRunningRootEntry)
 				{
-#if WITH_EDITOR
-					Context.LastExecutionMicroSeconds = OverallCycles * FPlatformTime::GetSecondsPerCycle() * 1000.0 * 1000.0;
-#endif
+					StopProfiling();
 					ExecutionReachedExit().Broadcast(CurrentEntryName);
 #if WITH_EDITOR					
 					if (HaltedAtBreakpoint.IsValid())
@@ -3617,3 +3607,40 @@ void URigVM::CopyArray(FScriptArrayHelper& TargetHelper, FRigVMMemoryHandle& Tar
 	}
 }
 
+void URigVM::SetupInstructionTracking(int32 InInstructionCount)
+{
+#if WITH_EDITOR
+	InstructionVisitedDuringLastRun.Reset();
+	InstructionVisitOrder.Reset();
+	InstructionVisitedDuringLastRun.SetNumZeroed(InInstructionCount);
+	InstructionCyclesDuringLastRun.Reset();
+
+	if(Context.GetPublicData<>().RuntimeSettings.bEnableProfiling)
+	{
+		InstructionCyclesDuringLastRun.SetNumUninitialized(InInstructionCount);
+		for(int32 DurationIndex=0;DurationIndex<InstructionCyclesDuringLastRun.Num();DurationIndex++)
+		{
+			InstructionCyclesDuringLastRun[DurationIndex] = UINT64_MAX;
+		}
+	}
+#endif
+}
+
+void URigVM::StartProfiling()
+{
+#if WITH_EDITOR
+	OverallCycles = StartCycles = 0;
+	if(Context.GetPublicData<>().RuntimeSettings.bEnableProfiling)
+	{
+		StartCycles = FPlatformTime::Cycles64();
+	}
+#endif
+}
+
+void URigVM::StopProfiling()
+{
+#if WITH_EDITOR
+	const uint64 Cycles = OverallCycles > 0 ? OverallCycles : (FPlatformTime::Cycles64() - StartCycles); 
+	Context.LastExecutionMicroSeconds = Cycles * FPlatformTime::GetSecondsPerCycle() * 1000.0 * 1000.0;
+#endif
+}

@@ -124,6 +124,11 @@ FString FRigVMDispatchFactory::GetKeywords() const
 	return FString();
 }
 
+bool FRigVMDispatchFactory::IsLazyInputArgument(const FName& InArgumentName) const
+{
+	return HasArgumentMetaData(InArgumentName, FRigVMStruct::ComputeLazilyMetaName);
+}
+
 #endif
 
 const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks() const

@@ -86,6 +86,9 @@ public:
 	// Returns the keywords used for looking up this factory
 	virtual FString GetKeywords() const;
 
+	// Returns true if the argument is lazy
+	bool IsLazyInputArgument(const FName& InArgumentName) const;
+
 #endif
 
 	// returns true if the dispatch is a control flow dispatch

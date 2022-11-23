@@ -298,7 +298,7 @@ public:
 	virtual const TArray<FName>& GetEntryNames() const;
 
 	// returns false if an entry can not be executed
-	bool CanExecuteEntry(const FName& InEntryName) const;
+	bool CanExecuteEntry(const FName& InEntryName, bool bLogErrorForMissingEntry = true) const;
 
 #if WITH_EDITOR
 	
@@ -711,11 +711,12 @@ protected:
 	UPROPERTY(transient)
 	FRigVMExtendedExecuteContext Context;
 
-	FORCEINLINE void SetInstructionIndex(uint16 InInstructionIndex) { Context.GetPublicData<>().InstructionIndex = InInstructionIndex; }
+	virtual void SetInstructionIndex(uint16 InInstructionIndex) { Context.GetPublicData<>().InstructionIndex = InInstructionIndex; }
 
-private:
 	UPROPERTY(transient)
 	uint32 NumExecutions;
+
+private:
 
 #if WITH_EDITOR
 	FRigVMDebugInfo* DebugInfo;
@@ -772,11 +773,14 @@ private:
 	
 #if WITH_EDITOR
 
+protected:
+	
 	// stores the number of times each instruction was visited
 	TArray<int32> InstructionVisitedDuringLastRun;
 	TArray<uint64> InstructionCyclesDuringLastRun;
 	TArray<int32> InstructionVisitOrder;
-	
+
+private:
 	// Control Rig can run multiple events per evaluation, such as the Backward&Forward Solve Mode,
 	// store the first event such that we know when to reset data for a new round of rig evaluation
 	FName FirstEntryEventInQueue;
@@ -847,8 +851,10 @@ private:
 	TArrayView<void*> CurrentAdditionalArguments;
 
 #if WITH_EDITOR
+protected:
 	uint64 StartCycles = 0;
 	uint64 OverallCycles = 0;
+private:
 #endif
 
 	UPROPERTY(transient)
@@ -860,6 +866,12 @@ private:
 #if WITH_EDITOR
 	FExecutionHaltedEvent OnExecutionHalted;
 #endif
+
+protected:
+
+	void SetupInstructionTracking(int32 InInstructionCount);
+	void StartProfiling();
+	void StopProfiling();
 
 	friend class URigVMCompiler;
 	friend struct FRigVMCompilerWorkData;

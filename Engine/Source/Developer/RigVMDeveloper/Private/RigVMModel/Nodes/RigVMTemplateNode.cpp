@@ -565,7 +565,7 @@ const FRigVMFunction* URigVMTemplateNode::GetResolvedFunction() const
 		{
 			if(ResolvedPermutation != INDEX_NONE)
 			{
-				CachedFunction = GetTemplate()->GetPermutation(ResolvedPermutation);
+				CachedFunction = ((FRigVMTemplate*)GetTemplate())->GetOrCreatePermutation(ResolvedPermutation);
 			}
 		}
 	}

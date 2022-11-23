@@ -3105,6 +3105,14 @@ FGraphAppearanceInfo FControlRigEditor::GetGraphAppearance(UEdGraph* InGraph) co
 	if (GetBlueprintObj()->IsA(UControlRigBlueprint::StaticClass()))
 	{
 		AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_ControlRig", "RIG");
+
+		if(ControlRig && ControlRig->VM && ControlRig->VM->IsNativized())
+		{
+			AppearanceInfo.InstructionFade = 1;
+			AppearanceInfo.InstructionText = FText::FromString(
+				FString::Printf(TEXT("This graph runs a nativized VM (U%s)."), *ControlRig->VM->GetNativizedClass()->GetName())
+			);
+		}
 	}
 
 	return AppearanceInfo;

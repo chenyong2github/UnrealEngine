@@ -67,6 +67,16 @@ struct RIGVM_API FRigVMBranchInfo
 		return InstructionIndex != INDEX_NONE;
 	}
 
+	bool IsOutputBranch() const
+	{
+		return ArgumentIndex == INDEX_NONE;
+	}
+
+	bool IsLazyEvaluationBranch() const
+	{
+		return !IsOutputBranch();
+	}
+	
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMBranchInfo& P)
 	{
@@ -77,7 +87,7 @@ struct RIGVM_API FRigVMBranchInfo
 	friend uint32 GetTypeHash(const FRigVMBranchInfo& InBranchInfo)
 	{
 		uint32 Hash = GetTypeHash(GetTypeHash(InBranchInfo.Index));
-		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.Label));
+		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.Label.ToString()));
 		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.InstructionIndex));
 		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.ArgumentIndex));
 		Hash = HashCombine(Hash, GetTypeHash(InBranchInfo.FirstInstruction));
@@ -116,6 +126,7 @@ public:
 		: VM(nullptr)
 		, LastVMNumExecutions()
 		, BranchInfo()
+		, FunctionPtr(nullptr)
 	{}
 
 	ERigVMExecuteResult Execute();
@@ -126,8 +137,10 @@ private:
 	URigVM* VM;
 	TArray<int32> LastVMNumExecutions;
 	FRigVMBranchInfo BranchInfo;
+	TFunction<ERigVMExecuteResult()> FunctionPtr;
 
 	friend class URigVM;
+	friend class URigVMNativized;
 };
 
 /**
@@ -145,6 +158,7 @@ public:
 	}
 
 	const uint8* GetData() const;
+	const FRigVMMemoryHandle& GetMemoryHandle()const { return *MemoryHandle; }
 
 protected:
 	
@@ -220,11 +234,11 @@ public:
 	{}
 
 	// Constructor from complete data
-	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle(uint8* InPtr, const FProperty* InProperty,  const FRigVMPropertyPath* InPropertyPath)
+	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle(uint8* InPtr, const FProperty* InProperty,  const FRigVMPropertyPath* InPropertyPath, FRigVMLazyBranch* InLazyBranch = nullptr)
 		: Ptr(InPtr)
 		, Property(InProperty)
 		, PropertyPath(InPropertyPath)
-		, LazyBranch(nullptr)
+		, LazyBranch(InLazyBranch)
 	{
 	}
 

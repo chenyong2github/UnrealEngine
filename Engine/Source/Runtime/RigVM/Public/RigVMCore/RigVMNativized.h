@@ -46,7 +46,7 @@ public:
 	// URigVM interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override { return; }
-	virtual void Reset(bool IsIgnoringArchetypeRef = false) override { return; }
+	virtual void Reset(bool IsIgnoringArchetypeRef = false) override;
 	virtual bool IsNativized() const override { return true; }
 	virtual void Empty() override { return; }
 	virtual void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false, bool bCopyExternalVariables = false, bool bCopyDynamicRegisters = false) override { return; }
@@ -60,6 +60,18 @@ public:
 	virtual bool ContainsEntry(const FName& InEntryName) const override { return GetEntryNames().Contains(InEntryName); }
 	virtual int32 FindEntry(const FName& InEntryName) const override { return GetEntryNames().Find(InEntryName); }
 	virtual const TArray<FName>& GetEntryNames() const override { static const TArray<FName> EmptyEntries; return EmptyEntries; }
+	virtual void SetInstructionIndex(uint16 InInstructionIndex) override
+	{
+		Super::SetInstructionIndex(InInstructionIndex);
+#if WITH_EDITOR
+		InstructionVisitedDuringLastRun[InInstructionIndex]++;
+		InstructionVisitOrder.Add(InInstructionIndex);
+#endif
+	}
+
+#if WITH_EDITOR
+	void SetByteCode(const FRigVMByteCode& InByteCode);
+#endif
 	
 protected:
 
@@ -69,6 +81,7 @@ protected:
 		UpdateExternalVariables();
 	
 		Context.Reset();
+		Context.VM = this;
 		Context.OpaqueArguments = AdditionalArguments;
 		Context.SliceOffsets.AddZeroed(InNumberInstructions);
 		Context.GetPublicData<ExecuteContextType>().EventName = InEntryName;
@@ -155,6 +168,7 @@ protected:
 		{
 			ExecutionReachedExit().Broadcast(Context.GetPublicData<>().GetEventName());
 		}
+		NumExecutions++;
 	}
 
 	template<typename T>
@@ -420,5 +434,33 @@ protected:
 		FTransform& Transform;
 	};
 
+	template <typename T,
+			  typename TEnableIf<!TIsArray<T>::Value, int>::Type = 0>
+	bool ImportDefaultValue(T& OutValue, const FProperty* Property, const FString& InBuffer)
+	{
+		return false;
+	}
+
+	template <typename T,
+			  typename TEnableIf<TIsArray<T>::Value, int>::Type = 0>
+	bool ImportDefaultValue(T& OutValue, const FProperty* Property, const FString& InBuffer)
+	{
+		return false;
+	}
+
 	int32 TemporaryArrayIndex;
+
+	const FRigVMMemoryHandle& GetLazyMemoryHandle(int32 InIndex, uint8* InMemory, const FProperty* InProperty, TFunction<ERigVMExecuteResult()> InLambda);
+	
+	template<typename T>
+	TRigVMLazyValue<T> GetLazyValue(int32 InIndex, T& InMemory, const FProperty* InProperty, TFunction<ERigVMExecuteResult()> InLambda)
+	{
+		const FRigVMMemoryHandle& Handle = GetLazyMemoryHandle(InIndex, (uint8*)&InMemory, InProperty, InLambda);
+		return Handle.GetDataLazily<T>(false, INDEX_NONE);
+	}
+
+	void AllocateLazyMemoryHandles(int32 InCount);
+
+	TArray<FRigVMLazyBranch> LazyMemoryBranches;
+	TArray<FRigVMMemoryHandle> LazyMemoryHandles;
 };

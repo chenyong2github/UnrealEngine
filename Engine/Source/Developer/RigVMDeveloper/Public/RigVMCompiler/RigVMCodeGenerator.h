@@ -16,17 +16,21 @@ public:
 
 	FRigVMCodeGenerator(const FString& InClassName, const FString& InModuleName,
 		URigVMGraph* InModelToNativize, URigVM* InVMToNativize, TMap<FString,FRigVMOperand> InPinToOperandMap,
-		int32 InMaxOperationsPerFunction = 100)
+		int32 InMaxInstructionsPerFunction = 100)
 	{
-		ParseVM(InClassName, InModuleName, InModelToNativize, InVMToNativize, InPinToOperandMap, InMaxOperationsPerFunction);
+		ParseVM(InClassName, InModuleName, InModelToNativize, InVMToNativize, InPinToOperandMap, InMaxInstructionsPerFunction);
 	}
 
 	FString DumpIncludes(bool bLog = false);
 	FString DumpWrappedArrayTypes(bool bLog = false);
 	FString DumpExternalVariables(bool bForHeader, bool bLog = false);
 	FString DumpEntries(bool bForHeader, bool bLog = false);
-	FString DumpProperties(bool bForHeader, int32 InOperationGroup, bool bLog = false);
-	FString DumpInstructions(int32 InOperationGroup, bool bLog = false);
+	FString DumpBlockNames(bool bForHeader, bool bLog = false);
+	FString DumpProperties(bool bForHeader, int32 InInstructionGroup, bool bLog = false);
+	FString DumpDispatches(bool bLog = false);
+	FString DumpRequiredUProperties(bool bLog = false);
+	FString DumpInitialize(bool bLog = false);
+	FString DumpInstructions(int32 InInstructionGroup, bool bLog = false);
 	FString DumpHeader(bool bLog = false);
 	FString DumpSource(bool bLog = false);
 	FString DumpLines(const TArray<FString>& InLines, bool bLog = false);
@@ -56,7 +60,7 @@ private:
 		TArray<int32> Groups;
 	};
 
-	struct FOperationGroup
+	struct FInstructionGroup
 	{
 		FString Entry;
 		int32 First;
@@ -67,7 +71,7 @@ private:
 		TArray<int32> RequiredLabels;
 		TArray<FOpaqueArgument> OpaqueArguments;
 
-		FOperationGroup()
+		FInstructionGroup()
 			: Entry()
 			, First(INDEX_NONE)
 			, Last(INDEX_NONE)
@@ -75,7 +79,7 @@ private:
 			, ParentGroup(INDEX_NONE)
 		{}
 
-		FOperationGroup(const FOperationGroup& InOther)
+		FInstructionGroup(const FInstructionGroup& InOther)
 			: Entry(InOther.Entry)
 			, First(InOther.First)
 			, Last(InOther.Last)
@@ -90,11 +94,14 @@ private:
 	void Reset();
 	void ParseVM(const FString& InClassName, const FString& InModuleName,
 		URigVMGraph* InModelToNativize, URigVM* InVMToNativize,
-		TMap<FString,FRigVMOperand> InPinToOperandMap, int32 InMaxOperationsPerFunction);
+		TMap<FString,FRigVMOperand> InPinToOperandMap, int32 InMaxInstructionsPerFunction);
 	void ParseInclude(UStruct* InDependency, const FName& InMethodName = NAME_None);
+	void ParseRequiredUProperties();
 	void ParseMemory(URigVMMemoryStorage* InMemory);
 	void ParseProperty(ERigVMMemoryType InMemoryType, const FProperty* InProperty, URigVMMemoryStorage* InMemory);
-	void ParseOperationGroups();
+	void ParseInstructionGroups();
+	FString DumpInstructions(const FString& InPrefix, int32 InFirstInstruction, int32 InLastInstruction, const FInstructionGroup& InGroup, bool bLog = false);
+	FString DumpInstructions(const FString& InPrefix, const TArray<int32> InInstructionIndices, const FInstructionGroup& InGroup, bool bLog = false);
 	FString GetOperandName(const FRigVMOperand& InOperand, bool bPerSlice = true, bool bAsInput = true) const;
 	FString GetOperandCPPType(const FRigVMOperand& InOperand) const;
 	FString GetOperandCPPBaseType(const FRigVMOperand& InOperand) const;
@@ -109,9 +116,11 @@ private:
 	FString GetMappedType(const FString& InCPPType) const;
 	const FString& GetMappedTypeSuffix(const FString& InCPPType) const;
 	FString GetMappedArrayTypeName(const FString InBaseElementType) const;
-	const FOperationGroup& GetGroup(int32 InGroupIndex) const;
-	bool IsOperationPartOfGroup(int32 InOperationIndex, int32 InGroupIndex, bool bIncludeChildGroups) const;
+	const FInstructionGroup& GetGroup(int32 InGroupIndex) const;
+	bool IsInstructionPartOfGroup(int32 InInstructionIndex, int32 InGroupIndex, bool bIncludeChildGroups) const;
 	bool IsPropertyPartOfGroup(int32 InPropertyIndex, int32 InGroupIndex) const;
+	FString GetEntryParameters() const;
+	static TArray<int32> GetInstructionIndicesFromRange(int32 First, int32 Last);
 
 	FORCEINLINE static FString FormatArgs(const TCHAR* InFormatString, const FStringFormatOrderedArguments& InArgs)
 	{
@@ -225,19 +234,22 @@ private:
 	TStrongObjectPtr<URigVM> VM;
 	TMap<FString,FRigVMOperand> PinToOperandMap;
 	TMap<FRigVMOperand, FString> OperandToPinMap;
-	int32 MaxOperationsPerFunction;
+	int32 MaxInstructionsPerFunction;
 	FString ClassName;
 	FString ModuleName;
 	FString ExecuteContextType;
 	
 	FStringArray Libraries;
 	FStringArray Includes;
-	TArray<FOperationGroup> OperationGroups;
+	TMap<FString,const FRigVMFunction*> Dispatches;
+	TMap<TRigVMTypeIndex,TTuple<FString,FString>> RequiredUProperties;
+	TArray<FInstructionGroup> InstructionGroups;
 	FStringArray WrappedArrayCPPTypes;
 	TMap<FString, FMappedType> MappedCPPTypes;
 	TArray<FPropertyInfo> Properties;
 	TMap<FName, int32> PropertyNameToIndex;
 	TMap<FName, FName> MappedPropertyNames;
+	TMap<FString, FString> OverriddenOperatorNames;
 
 	static const TMap<FName, TStructConstGenerator>& GetStructConstGenerators();
 };

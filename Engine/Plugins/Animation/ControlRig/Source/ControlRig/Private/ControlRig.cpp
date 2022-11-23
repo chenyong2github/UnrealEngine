@@ -810,6 +810,7 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	if (bRequiresInitExecution)
 	{
 		bRequiresInitExecution = false;
+		VM->SetContextPublicDataStruct(FControlRigExecuteContext::StaticStruct());
 
 		if (!bIsInitializingMemory)
 		{
@@ -3382,6 +3383,25 @@ void UControlRig::SwapVMToNativizedIfRequired(UClass* InNativizedClass)
 #endif
 		}
 	}
+	
+#if WITH_EDITOR
+
+	// if we are a nativized VM,
+	// let's set the bytecode for UI purposes.
+	// this is only used for traversing node from execute stack to node and back etc. 
+	// since the hash between nativized VM and current matches we assume the bytecode is identical as well.
+	if(VM->IsNativized())
+	{
+		if(URigVMNativized* NativizedVM = Cast<URigVMNativized>(VM))
+		{
+			UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
+			if (CDO && CDO->VM)
+			{
+				NativizedVM->SetByteCode(CDO->VM->GetByteCode());
+			}
+		}
+	}
+#endif
 }
 
 bool UControlRig::AreNativizedVMsDisabled()

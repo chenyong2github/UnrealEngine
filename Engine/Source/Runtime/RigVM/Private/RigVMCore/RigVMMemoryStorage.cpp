@@ -81,7 +81,13 @@ void FRigVMBranchInfo::Serialize(FArchive& Ar)
 ERigVMExecuteResult FRigVMLazyBranch::Execute()
 {
 	check(VM);
-	return VM->ExecuteLazyBranch(BranchInfo);
+	if(BranchInfo.IsValid())
+	{
+		return VM->ExecuteLazyBranch(BranchInfo);
+	}
+
+	check(FunctionPtr);
+	return FunctionPtr();
 }
 
 ERigVMExecuteResult FRigVMLazyBranch::ExecuteIfRequired(int32 InSliceIndex)
