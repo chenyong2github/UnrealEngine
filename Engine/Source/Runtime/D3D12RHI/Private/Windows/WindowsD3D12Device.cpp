@@ -854,6 +854,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 	const D3D_FEATURE_LEVEL MinRequiredFeatureLevel = GetRequiredD3DFeatureLevel();
 
 	FD3D12AdapterDesc FirstDiscreteAdapter;
+	FD3D12AdapterDesc BestMemoryAdapter;
 	FD3D12AdapterDesc FirstAdapter;
 
 	bool bRequestedWARP = D3D12RHI_ShouldCreateWithWarp();
@@ -947,13 +948,21 @@ void FD3D12DynamicRHIModule::FindAdapter()
 
 				if (!bSkipAdapter)
 				{
-					if (!bIsWARP && !CurrentAdapter.bIsIntegrated && !FirstDiscreteAdapter.IsValid())
+					if (PreferredVendor == AdapterDesc.VendorId && FirstDiscreteAdapter.IsValid())
 					{
 						FirstDiscreteAdapter = CurrentAdapter;
 					}
-					else if (PreferredVendor == AdapterDesc.VendorId && FirstDiscreteAdapter.IsValid())
+					else if (!bIsWARP && !CurrentAdapter.bIsIntegrated)
 					{
-						FirstDiscreteAdapter = CurrentAdapter;
+						if (!FirstDiscreteAdapter.IsValid())
+						{
+							FirstDiscreteAdapter = CurrentAdapter;
+						}
+
+						if (CurrentAdapter.Desc.DedicatedVideoMemory > BestMemoryAdapter.Desc.DedicatedVideoMemory)
+						{
+							BestMemoryAdapter = CurrentAdapter;
+						}
 					}
 
 					if (!FirstAdapter.IsValid())
@@ -973,7 +982,12 @@ void FD3D12DynamicRHIModule::FindAdapter()
 	if (bFavorDiscreteAdapter)
 	{
 		// We assume Intel is integrated graphics (slower than discrete) than NVIDIA or AMD cards and rather take a different one
-		if (FirstDiscreteAdapter.IsValid())
+		if (BestMemoryAdapter.IsValid())
+		{
+			NewAdapter = TSharedPtr<FD3D12Adapter>(new FWindowsD3D12Adapter(BestMemoryAdapter));
+			ChosenAdapters.Add(NewAdapter);
+		}
+		else if (FirstDiscreteAdapter.IsValid())
 		{
 			NewAdapter = TSharedPtr<FD3D12Adapter>(new FWindowsD3D12Adapter(FirstDiscreteAdapter));
 			ChosenAdapters.Add(NewAdapter);
