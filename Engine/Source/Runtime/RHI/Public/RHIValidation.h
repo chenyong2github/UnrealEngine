@@ -586,19 +586,6 @@ public:
 		return Texture;
 	}
 
-	/**
-	* Copies shared mip levels from one texture to another. The textures must have
-	* full mip chains, share the same format, and have the same aspect ratio. This
-	* copy will not cause synchronization with the GPU.
-	* @param DestTexture2D - destination texture
-	* @param SrcTexture2D - source texture
-	*/
-	// FlushType: Flush RHI Thread
-	virtual void RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) override final
-	{
-		RHI->RHICopySharedMips(RHICmdList, DestTexture2D, SrcTexture2D);
-	}
-
 	void RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer) override final
 	{
 		RHI->RHITransferBufferUnderlyingResource(DestBuffer, SrcBuffer);

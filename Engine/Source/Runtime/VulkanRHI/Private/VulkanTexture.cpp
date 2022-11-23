@@ -925,11 +925,6 @@ FTextureRHIRef FVulkanDynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX,uint32 Si
 	return FTextureRHIRef();
 }
 
-void FVulkanDynamicRHI::RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D)
-{
-	VULKAN_SIGNAL_UNIMPLEMENTED();
-}
-
 static void DoAsyncReallocateTexture2D(FVulkanCommandListContext& Context, FVulkanTexture* OldTexture, FVulkanTexture* NewTexture, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);

@@ -227,10 +227,6 @@ public:
 		return this->RHICreateTexture(Desc);
 	}
 
-	virtual void RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) final override
-	{
-	}
-
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo) final override
 	{ 
 		return new FRHIShaderResourceView(Texture); 

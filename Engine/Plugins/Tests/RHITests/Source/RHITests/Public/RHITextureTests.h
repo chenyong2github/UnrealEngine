@@ -1200,6 +1200,64 @@ public:
 					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
 				}));
 			}
+
+			// Copy 3D texture
+			{
+				const TCHAR* TestName = TEXT("Copy 3D Texture");
+				
+				const FRHITextureCreateDesc SourceDesc =
+					FRHITextureCreateDesc::Create3D(TestName)
+					.SetExtent(64, 64)
+					.SetDepth(64)
+					.SetNumMips(6)
+					.SetFormat(PF_R32_UINT)
+					.SetInitialState(ERHIAccess::CopySrc);
+
+				const FRHITextureCreateDesc DestDesc = FRHITextureCreateDesc(SourceDesc)
+					.SetInitialState(ERHIAccess::CopyDest);
+
+				FTextureRHIRef SourceTexture = RHICreateTexture(SourceDesc);
+				FTextureRHIRef DestTexture = RHICreateTexture(DestDesc);
+
+				// Fill the source texture with data
+				for (int32 Mip = 0, ImageIndex = 1; Mip < SourceDesc.NumMips; ++Mip, ImageIndex += SourceDesc.Depth)
+				{
+					FUpdateTextureRegion3D Region(FIntVector::ZeroValue, FIntVector::ZeroValue, FIntVector(
+						FMath::Max(SourceDesc.Extent.X >> Mip, 1),
+						FMath::Max(SourceDesc.Extent.Y >> Mip, 1),
+						FMath::Max(SourceDesc.Depth    >> Mip, 1)
+					));
+
+					FUpdateTexture3DData Data = RHICmdList.BeginUpdateTexture3D(SourceTexture, Mip, Region);
+					
+					const FIntPoint PatternOffset(0, 0);
+					const FIntPoint PatternSize(Region.Width, Region.Height);
+
+					for (uint32 Z = 0; Z < Region.Depth; ++Z)
+					{
+						WriteTestData(Data.Data + Data.DepthPitch * Z, Data.RowPitch, PatternSize, PatternOffset, ImageIndex + Z);
+					}
+
+					RHICmdList.EndUpdateTexture3D(Data);
+				}
+
+				FRHICopyTextureInfo CopyInfo;
+				CopyInfo.NumMips = SourceDesc.NumMips;
+				CopyInfo.NumSlices = SourceDesc.ArraySize;
+
+				RHICmdList.CopyTexture(SourceTexture, DestTexture, CopyInfo);
+				RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::CopyDest, ERHIAccess::CopySrc));
+
+				RUN_TEST(VerifyTextureContents(TestName, RHICmdList, DestTexture, [&](void* Data, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 MipIndex, uint32 Depth)
+				{
+					int32 ImageIndex = SourceDesc.Depth * MipIndex + Depth + 1;
+
+					const FIntPoint PatternOffset(0, 0);
+					const FIntPoint PatternSize(MipWidth, MipHeight);
+
+					return CheckTestData(Data, Width * sizeof(uint32), PatternSize, PatternOffset, ImageIndex);
+				}));
+			}
 		}
 
 		return bResult;

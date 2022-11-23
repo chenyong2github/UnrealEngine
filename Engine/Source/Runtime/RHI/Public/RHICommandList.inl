@@ -162,3 +162,11 @@ inline FRHICommandListScopedPipelineGuard::~FRHICommandListScopedPipelineGuard()
 		RHICmdList.SwitchPipeline(ERHIPipeline::None);
 	}
 }
+
+FORCEINLINE void FRHICommandListImmediate::CopySharedMips(FRHITexture* DestTexture, FRHITexture* SrcTexture)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_CopySharedMips_Flush);
+
+	// Use the version that assumes SRVMask state on both textures to maintain behaviour of the old code path.
+	UE::RHI::CopySharedMips_AssumeSRVMaskState(*this, SrcTexture, DestTexture);
+}

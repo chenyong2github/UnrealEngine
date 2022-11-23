@@ -83,4 +83,13 @@ void FAutomationRHITest::Define()
 			TestEqual("RHICopyTexture", bResult, 1);
 		});
 	});
+
+	Describe("Test RHI Create Buffer Parallel", [this]
+	{
+		It("RHICreateBuffer_Parallel", [this]()
+		{
+			bool bResult = RunOnRenderThreadSynchronous(FRHIBufferTests::Test_RHICreateBuffer_Parallel);
+			TestEqual("RHICreateBuffer_Parallel", bResult, 1);
+		});
+	});
 }

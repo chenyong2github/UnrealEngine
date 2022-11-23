@@ -92,7 +92,10 @@ bool FTexture2DMipAllocator_AsyncCreate::FinalizeMips(const FTextureUpdateContex
 	else
 	{
 		// Copy the mips.
-		RHICopySharedMips(IntermediateTextureRHI, Texture2DRHI);
+		UE::RHI::CopySharedMips_AssumeSRVMaskState(
+			FRHICommandListExecutor::GetImmediateCommandList(),
+			Texture2DRHI,
+			IntermediateTextureRHI);
 		// Use the new texture resource for the texture asset, must run on the renderthread.
 		Context.Resource->FinalizeStreaming(IntermediateTextureRHI);
 		// No need for the intermediate texture anymore.

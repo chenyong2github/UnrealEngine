@@ -95,7 +95,11 @@ bool FVolumeTextureMipAllocator_Reallocate::FinalizeMips(const FTextureUpdateCon
 		ENQUEUE_RENDER_COMMAND(FCopySharedMipsForTexture3D)(
 			[&](FRHICommandListImmediate& RHICmdList)
 		{
-			RHICmdList.CopySharedMips(IntermediateTextureRHI.GetReference(), Context.Resource->GetTexture3DRHI());
+			FRHITexture* SrcTexture = Context.Resource->GetTexture3DRHI();
+			FRHITexture* DstTexture = IntermediateTextureRHI.GetReference();
+
+			UE::RHI::CopySharedMips_AssumeSRVMaskState(RHICmdList, SrcTexture, DstTexture);
+
 			bCopySharedMipsDone = true;
 		});
 		// Expected to execute immediately since ran on the renderthread.

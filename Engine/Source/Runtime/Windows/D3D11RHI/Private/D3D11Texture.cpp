@@ -853,7 +853,6 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture3D(FRHITextureCreateDesc cons
 
 	// Set up the texture bind flags.
 	check(!EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable));
-	check(EnumHasAllFlags(Flags, TexCreate_ShaderResource));
 
 	TArray<D3D11_SUBRESOURCE_DATA> SubResourceData;
 
@@ -1018,31 +1017,6 @@ FTextureRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 	}
 
 	return Texture;
-}
-
-void FD3D11DynamicRHI::RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2DRHI, FRHITexture2D* SrcTexture2DRHI)
-{
-	FD3D11Texture* DestTexture2D = ResourceCast(DestTexture2DRHI);
-	FD3D11Texture* SrcTexture2D = ResourceCast(SrcTexture2DRHI);
-
-	// Use the GPU to asynchronously copy the old mip-maps into the new texture.
-	const uint32 NumSharedMips = FMath::Min(DestTexture2D->GetNumMips(),SrcTexture2D->GetNumMips());
-	const uint32 SourceMipOffset = SrcTexture2D->GetNumMips() - NumSharedMips;
-	const uint32 DestMipOffset   = DestTexture2D->GetNumMips() - NumSharedMips;
-	for(uint32 MipIndex = 0;MipIndex < NumSharedMips;++MipIndex)
-	{
-		// Use the GPU to copy between mip-maps.
-		Direct3DDeviceIMContext->CopySubresourceRegion(
-			DestTexture2D->GetResource(),
-			D3D11CalcSubresource(MipIndex + DestMipOffset,0,DestTexture2D->GetNumMips()),
-			0,
-			0,
-			0,
-			SrcTexture2D->GetResource(),
-			D3D11CalcSubresource(MipIndex + SourceMipOffset,0,SrcTexture2D->GetNumMips()),
-			NULL
-			);
-	}
 }
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHITexture* TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo)

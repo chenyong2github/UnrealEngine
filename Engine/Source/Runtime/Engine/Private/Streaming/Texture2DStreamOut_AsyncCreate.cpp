@@ -52,7 +52,10 @@ void FTexture2DStreamOut_AsyncCreate::Finalize(const FContext& Context)
 
 	if (!IsCancelled() && IntermediateTextureRHI && Context.Resource)
 	{
-		RHICopySharedMips(IntermediateTextureRHI, Context.Resource->GetTexture2DRHI());
+		UE::RHI::CopySharedMips_AssumeSRVMaskState(
+			FRHICommandListExecutor::GetImmediateCommandList(),
+			Context.Resource->GetTexture2DRHI(),
+			IntermediateTextureRHI);
 	}
 
 	RHIFinalizeAsyncReallocateTexture2D(IntermediateTextureRHI, true);

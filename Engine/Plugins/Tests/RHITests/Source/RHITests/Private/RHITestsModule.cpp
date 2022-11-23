@@ -15,34 +15,42 @@ static bool RunTests_RenderThread(FRHICommandListImmediate& RHICmdList)
 	bool bResult = true;
 
 	// ------------------------------------------------
+	// RHI Formats
+	// ------------------------------------------------
+	{
+		RUN_TEST(FRHITextureTests::Test_RHIFormats(RHICmdList));
+	}
+
+	// ------------------------------------------------
 	// RHIClearUAVUint / RHIClearUAVFloat tests
 	// ------------------------------------------------
-
-	// Vertex/Structured Buffer
 	{
+		// Vertex/Structured Buffer
 		RUN_TEST(FRHIBufferTests::Test_RHIClearUAVUint_VertexBuffer(RHICmdList));
 		RUN_TEST(FRHIBufferTests::Test_RHIClearUAVFloat_VertexBuffer(RHICmdList));
 
 		RUN_TEST(FRHIBufferTests::Test_RHIClearUAVUint_StructuredBuffer(RHICmdList));
 		RUN_TEST(FRHIBufferTests::Test_RHIClearUAVFloat_StructuredBuffer(RHICmdList));
 
-		RUN_TEST(FRHIBufferTests::Test_RHICreateBuffer_Parallel(RHICmdList));
-	}
-
-	// Texture2D/3D
-	{
+		// Texture2D/3D
 		RUN_TEST(FRHITextureTests::Test_RHIClearUAV_Texture2D(RHICmdList));
 		RUN_TEST(FRHITextureTests::Test_RHIClearUAV_Texture3D(RHICmdList));
+	}
+
+	// ------------------------------------------------
+	// Texture Operations
+	// ------------------------------------------------
+	{
+		RUN_TEST(FRHITextureTests::Test_RHICopyTexture(RHICmdList));
 		RUN_TEST(FRHITextureTests::Test_UpdateTexture(RHICmdList));
 		RUN_TEST(FRHITextureTests::Test_MultipleLockTexture2D(RHICmdList));
 	}
 
+	// ------------------------------------------------
+	// Buffer Operations
+	// ------------------------------------------------
 	{
-		RUN_TEST(FRHITextureTests::Test_RHIFormats(RHICmdList));
-	}
-
-	{
-		RUN_TEST(FRHITextureTests::Test_RHICopyTexture(RHICmdList));
+		RUN_TEST(FRHIBufferTests::Test_RHICreateBuffer_Parallel(RHICmdList));
 	}
 
 	// @todo - add more tests

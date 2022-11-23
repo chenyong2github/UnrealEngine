@@ -1169,60 +1169,6 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 }
 
 
-void FD3D12DynamicRHI::RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2DRHI, FRHITexture2D* SrcTexture2DRHI)
-{
-	FD3D12Texture*  DestTexture2D = GetD3D12TextureFromRHITexture(DestTexture2DRHI);
-	FD3D12Texture*  SrcTexture2D = GetD3D12TextureFromRHITexture(SrcTexture2DRHI);
-
-	// Use the GPU to asynchronously copy the old mip-maps into the new texture.
-	const uint32 NumSharedMips = FMath::Min(DestTexture2D->GetNumMips(), SrcTexture2D->GetNumMips());
-	const uint32 SourceMipOffset = SrcTexture2D->GetNumMips() - NumSharedMips;
-	const uint32 DestMipOffset = DestTexture2D->GetNumMips() - NumSharedMips;
-
-	uint32 srcSubresource = 0;
-	uint32 destSubresource = 0;
-
-	FD3D12Adapter* Adapter = &GetAdapter();
-
-	for (FD3D12Texture::FDualLinkedObjectIterator It(DestTexture2D, SrcTexture2D); It; ++It)
-	{
-		DestTexture2D = static_cast<FD3D12Texture*>(It.GetFirst());
-		SrcTexture2D = static_cast<FD3D12Texture*>(It.GetSecond());
-
-		FD3D12CommandContext& Context = DestTexture2D->GetParentDevice()->GetDefaultCommandContext();
-
-		{
-			FScopedResourceBarrier ScopeResourceBarrierDst(Context, DestTexture2D->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST  , D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			FScopedResourceBarrier ScopeResourceBarrierSrc(Context, SrcTexture2D->GetResource() , D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			Context.FlushResourceBarriers();
-
-			for (uint32 MipIndex = 0; MipIndex < NumSharedMips; ++MipIndex)
-			{
-				// Use the GPU to copy between mip-maps.
-				srcSubresource = CalcSubresource(MipIndex + SourceMipOffset, 0, SrcTexture2D->GetNumMips());
-				destSubresource = CalcSubresource(MipIndex + DestMipOffset, 0, DestTexture2D->GetNumMips());
-
-				CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(DestTexture2D->GetResource()->GetResource(), destSubresource);
-				CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(SrcTexture2D->GetResource()->GetResource(), srcSubresource);
-
-				Context.GraphicsCommandList()->CopyTextureRegion(
-					&DestCopyLocation,
-					0, 0, 0,
-					&SourceCopyLocation,
-					nullptr);
-
-				Context.UpdateResidency(DestTexture2D->GetResource());
-				Context.UpdateResidency(SrcTexture2D->GetResource());
-			}
-		}
-
-		Context.ConditionalSplitCommandList();
-
-		DEBUG_EXECUTE_COMMAND_CONTEXT(Context);
-	}
-}
-
-
 /**
  * Computes the size in memory required by a given texture.
  *

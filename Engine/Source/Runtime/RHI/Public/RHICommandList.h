@@ -4537,20 +4537,8 @@ public:
 		return GDynamicRHI->RHIGetTextureMemoryVisualizeData(TextureData,SizeX,SizeY,Pitch,PixelSize);
 	}
 	
-	FORCEINLINE void CopySharedMips(FRHITexture* DestTexture, FRHITexture* SrcTexture)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_CopySharedMips_Flush);
-		DestTexture->AddRef();
-		SrcTexture->AddRef();
-		EnqueueLambda([DestTexture, SrcTexture](FRHICommandList& ExecutingCmdList)
-		{
-			LLM_SCOPE(ELLMTag::Textures);
-			//@todo move this function onto the IRHIComputeCommandContext
-			GDynamicRHI->RHICopySharedMips(ExecutingCmdList, DestTexture, SrcTexture);
-			DestTexture->Release();
-			SrcTexture->Release();
-		});
-	}
+	UE_DEPRECATED(5.2, "CopySharedMips should be replaced with UE::RHI::CopySharedMips(). ** Note ** The argument ordering of the new function has changed. The new function also does not issue RHI transitions, so the caller is responsible for ensuring src/dst textures are in CopySrc/CopyDest state.")
+	FORCEINLINE void CopySharedMips(FRHITexture* DestTexture, FRHITexture* SrcTexture);
 
 	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
 	{
@@ -5618,9 +5606,12 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+UE_DEPRECATED(5.2, "RHICopySharedMips should be replaced with UE::RHI::CopySharedMips(). ** Note ** The argument ordering of the new function has changed. The new function also does not issue RHI transitions, so the caller is responsible for ensuring src/dst textures are in CopySrc/CopyDest state.")
 FORCEINLINE void RHICopySharedMips(FRHITexture* DestTexture, FRHITexture* SrcTexture)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return FRHICommandListExecutor::GetImmediateCommandList().CopySharedMips(DestTexture, SrcTexture);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel)
@@ -5797,6 +5788,26 @@ FORCEINLINE void RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 {
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockStagingBuffer(StagingBuffer);
 }
+
+namespace UE::RHI
+{
+
+	//
+	// Copies shared mip levels from one texture to another.
+	// Both textures must have full mip chains, share the same format, and have the same aspect ratio.
+	// The source texture must be in the CopySrc state, and the destination texture must be in the CopyDest state.
+	// 
+	RHI_API void CopySharedMips(FRHICommandList& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture);
+
+	//
+	// Same as CopySharedMips(), but assumes both source and destination textures are in the SRVMask state.
+	// Adds transitions to move the textures to/from the CopySrc/CopyDest states, restoring SRVMask when done.
+	//
+	// Provided for backwards compatibility. Caller should prefer CopySharedMips() with optimally batched transitions.
+	//
+	RHI_API void CopySharedMips_AssumeSRVMaskState(FRHICommandList& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture);
+
+} //! UE::RHI
 
 template <uint32 MaxNumUpdates>
 struct TRHIResourceUpdateBatcher

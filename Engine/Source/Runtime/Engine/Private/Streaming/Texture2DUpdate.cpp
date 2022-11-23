@@ -104,7 +104,11 @@ void FTexture2DUpdate::DoConvertToVirtualWithNewMips(const FContext& Context)
 
 			RHIVirtualTextureSetFirstMipInMemory(IntermediateTextureRHI, CurrentFirstLODIdx);
 			RHIVirtualTextureSetFirstMipVisible(IntermediateTextureRHI, CurrentFirstLODIdx);
-			RHICopySharedMips(IntermediateTextureRHI, Context.Resource->GetTexture2DRHI());
+
+			UE::RHI::CopySharedMips_AssumeSRVMaskState(
+				FRHICommandListExecutor::GetImmediateCommandList(),
+				Context.Resource->GetTexture2DRHI(),
+				IntermediateTextureRHI);
 		}
 		else
 		{
@@ -136,7 +140,10 @@ bool FTexture2DUpdate::DoConvertToNonVirtual(const FContext& Context)
 
 			IntermediateTextureRHI = RHICreateTexture(Desc);
 
-			RHICopySharedMips(IntermediateTextureRHI, Context.Resource->GetTexture2DRHI());
+			UE::RHI::CopySharedMips_AssumeSRVMaskState(
+				FRHICommandListExecutor::GetImmediateCommandList(),
+				Context.Resource->GetTexture2DRHI(),
+				IntermediateTextureRHI);
 
 			return true;
 		}

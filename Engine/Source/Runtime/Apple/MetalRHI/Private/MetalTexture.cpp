@@ -1523,11 +1523,6 @@ FTexture2DRHIRef FMetalDynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 	return FTexture2DRHIRef();
 }
 
-void FMetalDynamicRHI::RHICopySharedMips(FRHICommandList& RHICmdList, FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D)
-{
-	NOT_SUPPORTED("RHICopySharedMips");
-}
-
 void FMetalDynamicRHI::RHIGenerateMips(FRHITexture* SourceSurfaceRHI)
 {
 	@autoreleasepool {
