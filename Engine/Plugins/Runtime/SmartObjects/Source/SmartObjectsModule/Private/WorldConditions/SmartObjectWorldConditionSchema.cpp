@@ -12,6 +12,7 @@ USmartObjectWorldConditionSchema::USmartObjectWorldConditionSchema(const FObject
 {
 	UserActorRef = AddContextDataDesc(TEXT("UserActor"), AActor::StaticClass(), EWorldConditionContextDataType::Dynamic);
 	UserTagsRef = AddContextDataDesc(TEXT("UserTags"), FGameplayTagContainer::StaticStruct(), EWorldConditionContextDataType::Dynamic);
+	SmartObjectActorRef = AddContextDataDesc(TEXT("SmartObjectActor"), AActor::StaticClass(), EWorldConditionContextDataType::Persistent);
 	SmartObjectHandleRef = AddContextDataDesc(TEXT("SmartObjectHandle"), FSmartObjectHandle::StaticStruct(), EWorldConditionContextDataType::Persistent);
 	SlotHandleRef = AddContextDataDesc(TEXT("SlotHandle"), FSmartObjectSlotHandle::StaticStruct(), EWorldConditionContextDataType::Persistent);
 }

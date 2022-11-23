@@ -130,6 +130,7 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddComponentToSimulation(USmartObjec
 	FSmartObjectRuntime* SmartObjectRuntime = AddCollectionEntryToSimulation(NewEntry, *SmartObjectComponent.GetDefinition());
 	if (SmartObjectRuntime != nullptr)
 	{
+		SmartObjectRuntime->OwnerActor = SmartObjectComponent.GetOwner();
 		SmartObjectComponent.OnRuntimeInstanceCreated(*SmartObjectRuntime);
 	}
 	return SmartObjectRuntime;
@@ -141,6 +142,12 @@ void USmartObjectSubsystem::BindComponentToSimulation(USmartObjectComponent& Sma
 	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(SmartObjectComponent.GetRegisteredHandle());
 	if (ensureMsgf(SmartObjectRuntime != nullptr, TEXT("Binding a component should only be used when an associated runtime instance exists.")))
 	{
+		if (SmartObjectRuntime->OwnerActor.IsValid())
+		{
+			UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Expecting empty OwnerActor (was %s) when binding SmartObjectComponent %s."),
+				*GetFullNameSafe(SmartObjectRuntime->OwnerActor.Get()), *GetFullNameSafe(&SmartObjectComponent));
+		}
+		SmartObjectRuntime->OwnerActor = SmartObjectComponent.GetOwner();
 		SmartObjectComponent.OnRuntimeInstanceBound(*SmartObjectRuntime);
 	}
 }
@@ -152,6 +159,7 @@ void USmartObjectSubsystem::UnbindComponentFromSimulation(USmartObjectComponent&
 	if (ensureMsgf(SmartObjectRuntime != nullptr, TEXT("Unbinding a component should only be used when an associated runtime instance exists.")))
 	{
 		SmartObjectComponent.OnRuntimeInstanceUnbound(*SmartObjectRuntime);
+		SmartObjectRuntime->OwnerActor = nullptr;
 	}
 }
 
@@ -190,7 +198,8 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 
 	const USmartObjectWorldConditionSchema* DefaultWorldConditionSchema = GetDefault<USmartObjectWorldConditionSchema>();
 	FWorldConditionContextData ConditionContextData(*Definition.GetWorldConditionSchema());
-	
+	ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectActorRef(), Runtime.GetOwnerActor().Get()), TEXT("Expecting USmartObjectWorldConditionSchema::GetSmartObjectActorRef to be valid."));
+
 	// Create runtime data and entity for each slot
 	int32 SlotIndex = 0;
 	for (const FSmartObjectSlotDefinition& SlotDefinition : Definition.GetSlots())
@@ -298,6 +307,7 @@ void USmartObjectSubsystem::DestroyRuntimeInstanceInternal(const FSmartObjectHan
 	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
 	const USmartObjectWorldConditionSchema* DefaultWorldConditionSchema = GetDefault<USmartObjectWorldConditionSchema>();
 	FWorldConditionContextData ConditionContextData(*Definition.GetWorldConditionSchema());
+	ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectActorRef(), SmartObjectRuntime.GetOwnerActor().Get()), TEXT("Expecting USmartObjectWorldConditionSchema::GetSmartObjectActorRef to be valid."));
 
 	// Destroy entities associated to slots
 	TArray<FMassEntityHandle> EntitiesToDestroy;
@@ -451,13 +461,13 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 			if (MainCollection->ShouldBuildCollectionAutomatically() == false)
 			{
 				bAddToCollection = false;
-				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection that is built on demand only."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection that is built on demand only."), *GetFullNameSafe(SmartObjectComponent.GetOwner()));
 			}
 			// For partition world we don't alter the collection unless we are explicitly building the collection
 			else if(World.IsPartitionedWorld() && !MainCollection->IsBuildingForWorldPartition())
 			{
 				bAddToCollection = false;
-				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection that is owned by partitioned world."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection that is owned by partitioned world."), *GetFullNameSafe(SmartObjectComponent.GetOwner()));
 			}
 		}
 #endif // WITH_EDITOR
@@ -492,7 +502,7 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 		}
 
 		ensureMsgf(RegisteredSOComponents.Find(&SmartObjectComponent) == INDEX_NONE
-			, TEXT("Adding %s to RegisteredSOColleciton, but it has already been added. Missing unregister call?"), *SmartObjectComponent.GetName());
+			, TEXT("Adding %s to RegisteredSOColleciton, but it has already been added. Missing unregister call?"), *SmartObjectComponent.GetFullName());
 		RegisteredSOComponents.Add(&SmartObjectComponent);
 	}
 	else
@@ -502,12 +512,13 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 			// Report error regarding missing Collection only when SmartObjects are registered (i.e. Collection is required)
 			UE_VLOG_UELOG(this, LogSmartObject, Error,
 				TEXT("%s not added to collection since Main Collection doesn't exist in world '%s'. You need to open and save that world to create the missing collection."),
-				*GetNameSafe(SmartObjectComponent.GetOwner()),
+				*GetFullNameSafe(SmartObjectComponent.GetOwner()),
 				*GetWorldRef().GetFullName());
 		}
 		else
 		{
-			UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since Main Collection is not set yet. Storing SOComponent instance for registration once a collection is set."), *GetNameSafe(SmartObjectComponent.GetOwner()));	
+			UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since Main Collection is not set yet. Storing SOComponent instance for registration once a collection is set."),
+				*GetFullNameSafe(SmartObjectComponent.GetOwner()));	
 			PendingSmartObjectRegistration.Add(&SmartObjectComponent);
 		}
 	}
@@ -547,13 +558,13 @@ bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent&
 			if (MainCollection->ShouldBuildCollectionAutomatically() == false)
 			{
 				bRemoveFromCollection = false;
-				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not removed from collection that is built on demand only."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not removed from collection that is built on demand only."), *GetFullNameSafe(SmartObjectComponent.GetOwner()));
 			}
 			// For partition world we never remove from the collection since it is built incrementally
 			else if (World.IsPartitionedWorld())
 			{
 				bRemoveFromCollection = false;
-				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not removed from collection that is owned by partitioned world."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not removed from collection that is owned by partitioned world."), *GetFullNameSafe(SmartObjectComponent.GetOwner()));
 			}
 		}
 #endif // WITH_EDITOR
@@ -592,7 +603,7 @@ bool USmartObjectSubsystem::RegisterSmartObjectActor(const AActor& SmartObjectAc
 	TArray<USmartObjectComponent*> Components;
 	SmartObjectActor.GetComponents(Components);
 	UE_CVLOG_UELOG(Components.Num() == 0, &SmartObjectActor, LogSmartObject, Log,
-		TEXT("Failed to register SmartObject components for %s. No components found."), *SmartObjectActor.GetName());
+		TEXT("Failed to register SmartObject components for %s. No components found."), *SmartObjectActor.GetFullName());
 
 	int32 NumSuccess = 0;
 	for (USmartObjectComponent* SOComponent : Components)
@@ -610,7 +621,7 @@ bool USmartObjectSubsystem::UnregisterSmartObjectActor(const AActor& SmartObject
 	TArray<USmartObjectComponent*> Components;
 	SmartObjectActor.GetComponents(Components);
 	UE_CVLOG_UELOG(Components.Num() == 0, &SmartObjectActor, LogSmartObject, Log,
-		TEXT("Failed to unregister SmartObject components for %s. No components found."), *SmartObjectActor.GetName());
+		TEXT("Failed to unregister SmartObject components for %s. No components found."), *SmartObjectActor.GetFullName());
 
 	int32 NumSuccess = 0;
 	for (USmartObjectComponent* SOComponent : Components)
@@ -1206,6 +1217,7 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 	const USmartObjectWorldConditionSchema* DefaultSchema = GetDefault<USmartObjectWorldConditionSchema>();
 	ensureMsgf(ConditionContextData.SetContextData(DefaultSchema->GetUserActorRef(), Filter.UserActor.Get()), TEXT("Expecting USmartObjectWorldConditionSchema::UserActorRef to be valid."));
 	ensureMsgf(ConditionContextData.SetContextData(DefaultSchema->GetUserTagsRef(), &Filter.UserTags), TEXT("Expecting USmartObjectWorldConditionSchema::UserTagsRef to be valid."));
+	ensureMsgf(ConditionContextData.SetContextData(DefaultSchema->GetSmartObjectActorRef(), SmartObjectRuntime.GetOwnerActor().Get()), TEXT("Expecting USmartObjectWorldConditionSchema::GetSmartObjectActorRef to be valid."));
 	
 	// Build list of available slot indices (filter out occupied or reserved slots or disabled slots)
 	for (const int32 SlotIndex : ValidSlotIndices)
@@ -1370,7 +1382,7 @@ void USmartObjectSubsystem::RegisterCollectionInstances()
 		if (IsValid(Collection) && Collection->IsRegistered() == false)
 		{
 			const ESmartObjectCollectionRegistrationResult Result = RegisterCollection(*Collection);
-			UE_VLOG_UELOG(Collection, LogSmartObject, Log, TEXT("Collection '%s' registration from USmartObjectSubsystem initialization - %s"), *Collection->GetName(), *UEnum::GetValueAsString(Result));
+			UE_VLOG_UELOG(Collection, LogSmartObject, Log, TEXT("Collection '%s' registration from USmartObjectSubsystem initialization - %s"), *Collection->GetFullName(), *UEnum::GetValueAsString(Result));
 		}
 	}
 }
@@ -1384,7 +1396,7 @@ ESmartObjectCollectionRegistrationResult USmartObjectSubsystem::RegisterCollecti
 
 	if (InCollection.IsRegistered())
 	{
-		UE_VLOG_UELOG(&InCollection, LogSmartObject, Error, TEXT("Trying to register collection '%s' more than once"), *InCollection.GetName());
+		UE_VLOG_UELOG(&InCollection, LogSmartObject, Error, TEXT("Trying to register collection '%s' more than once"), *InCollection.GetFullName());
 		return ESmartObjectCollectionRegistrationResult::Failed_AlreadyRegistered;
 	}
 
@@ -1392,7 +1404,7 @@ ESmartObjectCollectionRegistrationResult USmartObjectSubsystem::RegisterCollecti
 	if (InCollection.GetLevel()->IsPersistentLevel())
 	{
 		ensureMsgf(!IsValid(MainCollection), TEXT("Not expecting to set the main collection more than once"));
-		UE_VLOG_UELOG(&InCollection, LogSmartObject, Log, TEXT("Main collection '%s' registered with %d entries"), *InCollection.GetName(), InCollection.GetEntries().Num());
+		UE_VLOG_UELOG(&InCollection, LogSmartObject, Log, TEXT("Main collection '%s' registered with %d entries"), *InCollection.GetFullName(), InCollection.GetEntries().Num());
 		MainCollection = &InCollection;
 
 		for (TObjectPtr<USmartObjectComponent>& SOComponent : PendingSmartObjectRegistration)
@@ -1435,7 +1447,7 @@ void USmartObjectSubsystem::UnregisterCollection(ASmartObjectCollection& InColle
 {
 	if (MainCollection != &InCollection)
 	{
-		UE_VLOG_UELOG(&InCollection, LogSmartObject, Verbose, TEXT("Ignoring unregistration of collection '%s' since this is not the main collection."), *InCollection.GetName());
+		UE_VLOG_UELOG(&InCollection, LogSmartObject, Verbose, TEXT("Ignoring unregistration of collection '%s' since this is not the main collection."), *InCollection.GetFullName());
 		return;
 	}
 
@@ -1520,7 +1532,7 @@ void USmartObjectSubsystem::InitializeRuntime(const TSharedPtr<FMassEntityManage
 		if (Definition == nullptr || Definition->IsValid() == false)
 		{
 			UE_CVLOG_UELOG(Component != nullptr, Component->GetOwner(), LogSmartObject, Error,
-				TEXT("Skipped runtime data creation for SmartObject %s: Invalid definition"), *GetNameSafe(Component->GetOwner()));
+				TEXT("Skipped runtime data creation for SmartObject %s: Invalid definition"), *GetFullNameSafe(Component->GetOwner()));
 			continue;
 		}
 
@@ -1674,7 +1686,7 @@ void USmartObjectSubsystem::SpawnMissingCollection()
 	SpawnInfo.OverrideLevel = World.PersistentLevel;
 	SpawnInfo.bAllowDuringConstructionScript = true;
 
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Spawning missing collection for world '%s'."), *World.GetName());
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Spawning missing collection for world '%s'."), *World.GetFullName());
 	World.SpawnActor<ASmartObjectCollection>(ASmartObjectCollection::StaticClass(), SpawnInfo);
 
 	checkf(IsValid(MainCollection), TEXT("MainCollection must be assigned after spawning"));

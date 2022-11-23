@@ -230,6 +230,9 @@ public:
 	/** @return True of the Smart Object is enabled. */
 	bool IsEnabled() const { return bEnabled; }
 
+	/** @return Weak pointer to owner actor if present. */
+	TWeakObjectPtr<AActor> GetOwnerActor() const { return OwnerActor; }
+	
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
 	FSmartObjectRuntime() : bEnabled(true) {}
@@ -261,6 +264,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<const USmartObjectDefinition> Definition = nullptr;
 
+	/** Actor that owns the Smart Object. May be empty if the Actor is not loaded. */
+	UPROPERTY()
+	TWeakObjectPtr<AActor> OwnerActor;
+	
 	/** Instance specific transform */
 	FTransform Transform;
 

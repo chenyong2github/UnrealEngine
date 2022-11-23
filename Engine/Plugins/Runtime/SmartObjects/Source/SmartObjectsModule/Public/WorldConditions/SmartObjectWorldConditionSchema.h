@@ -17,10 +17,16 @@ public:
 	
 	/** Context data reference for accessing SmartObject request's UserActor. */
 	FWorldConditionContextDataRef GetUserActorRef() const { return UserActorRef; };
+	
 	/** Context data reference for accessing SmartObject request's UserTags. */
 	FWorldConditionContextDataRef GetUserTagsRef() const { return UserTagsRef; };
+	
+	/** Context data reference for accessing SmartObject owner Actor. */
+	FWorldConditionContextDataRef GetSmartObjectActorRef() const { return SmartObjectActorRef; };
+	
 	/** Context data reference for accessing SmartObject handle. */
 	FWorldConditionContextDataRef GetSmartObjectHandleRef() const { return SmartObjectHandleRef; }
+	
 	/** Context data reference for accessing SmartObject Slot handle. */
 	FWorldConditionContextDataRef GetSlotHandleRef() const { return SlotHandleRef; }
 
@@ -32,6 +38,7 @@ private:
 
 	FWorldConditionContextDataRef UserActorRef;
 	FWorldConditionContextDataRef UserTagsRef;
+	FWorldConditionContextDataRef SmartObjectActorRef;
 	FWorldConditionContextDataRef SmartObjectHandleRef;
 	FWorldConditionContextDataRef SlotHandleRef;
 };
