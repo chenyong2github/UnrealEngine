@@ -348,7 +348,7 @@ struct RIGVM_API FRigVMGraphFunctionHeader
 	FString NodeTitle;
 	
 	UPROPERTY()
-	FLinearColor NodeColor;
+	FLinearColor NodeColor = FLinearColor::White;
 
 	UPROPERTY()
 	FText Tooltip;
