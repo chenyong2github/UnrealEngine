@@ -295,19 +295,12 @@ namespace Horde.Agent.Utility
 		/// <param name="change">The changelist to sync to</param>
 		/// <param name="preflightChange">Change to preflight, or 0</param>
 		/// <param name="cacheFile">Path to the cache file to use</param>
-		/// <param name="useHaveTable">Use client's have table when resolving contents</param>
+		/// <param name="useHaveTable">Whether to update have table during sync</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Async task</returns>
 		public async Task SyncAsync(int change, int preflightChange, FileReference? cacheFile, bool useHaveTable, CancellationToken cancellationToken)
 		{
-			if (useHaveTable)
-			{
-				await Repository.SyncAsync(PerforceClient, StreamName, change, View, RemoveUntrackedFiles, false, cacheFile, cancellationToken);
-			}
-			else
-			{
-				await Repository.SyncWithoutHaveTableAsync(PerforceClient, StreamName, change, View, RemoveUntrackedFiles, false, cacheFile, cancellationToken);
-			}
+			await Repository.SyncAsync(PerforceClient, StreamName, change, View, RemoveUntrackedFiles, false, useHaveTable, cacheFile, cancellationToken);
 
 			// Purge the cache for incremental workspaces
 			if (!RemoveUntrackedFiles)

@@ -115,14 +115,7 @@ namespace Horde.Agent.Execution
 
 				// Sync the workspace
 				int syncPreflightChange = (_job.ClonedPreflightChange != 0) ? _job.ClonedPreflightChange : _job.PreflightChange;
-				if (_syncWithoutHaveTable)
-				{
-					await _workspace.SyncAsync(_job.Change, syncPreflightChange, null, false, cancellationToken);					
-				}
-				else
-				{
-					await _workspace.SyncAsync(_job.Change, syncPreflightChange, null, true, cancellationToken);
-				}
+				await _workspace.SyncAsync(_job.Change, syncPreflightChange, null, _syncWithoutHaveTable, cancellationToken);
 
 				// Remove any cached BuildGraph manifests
 				DirectoryReference manifestDir = DirectoryReference.Combine(_workspace.WorkspaceDir, "Engine", "Saved", "BuildGraph");

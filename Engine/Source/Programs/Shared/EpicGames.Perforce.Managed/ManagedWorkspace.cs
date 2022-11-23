@@ -134,6 +134,11 @@ namespace EpicGames.Perforce.Managed
 		/// Name of the main data file for a repository
 		/// </summary>
 		const string DataFileName = "Repository.dat";
+		
+		/// <summary>
+		/// Suffix added to client names that doesn't update the have table (syncing with -p option)
+		/// </summary>
+		const string NoHaveTableSuffix = "-NoHaveTable";
 
 		/// <summary>
 		/// Name of the host
@@ -778,9 +783,10 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="view">View of the workspace</param>
 		/// <param name="removeUntracked">Whether to remove untracked files from the workspace</param>
 		/// <param name="fakeSync">Whether to simulate the syncing operation rather than actually getting files from the server</param>
+		/// <param name="useHaveTable">Whether to update have table on the server during sync</param>
 		/// <param name="cacheFile">If set, uses the given file to cache the contents of the workspace. This can improve sync times when multiple machines sync the same workspace.</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		public async Task SyncAsync(IPerforceConnection perforce, string streamName, int changeNumber, IReadOnlyList<string> view, bool removeUntracked, bool fakeSync, FileReference? cacheFile, CancellationToken cancellationToken)
+		public async Task SyncAsync(IPerforceConnection perforce, string streamName, int changeNumber, IReadOnlyList<string> view, bool removeUntracked, bool fakeSync, bool useHaveTable, FileReference? cacheFile, CancellationToken cancellationToken)
 		{
 			Stopwatch timer = Stopwatch.StartNew();
 			if (changeNumber == -1)
@@ -792,6 +798,7 @@ namespace EpicGames.Perforce.Managed
 				_logger.LogInformation("Syncing to {StreamName} at CL {CL}", streamName, changeNumber);
 			}
 
+			using (_logger.WithProperty("useHaveTable", useHaveTable).BeginScope())
 			using (_logger.BeginIndentScope("  "))
 			{
 				// Update the client to the current stream
@@ -803,94 +810,46 @@ namespace EpicGames.Perforce.Managed
 					changeNumber = await GetLatestClientChangeAsync(perforce, cancellationToken);
 				}
 
-				// Revert any open files
-				await RevertInternalAsync(perforce, cancellationToken);
-
-				// Force the P4 metadata to match up
-				Task updateHaveTableTask = Task.Run(() => UpdateClientHaveTableAsync(perforce, changeNumber, view, cancellationToken), cancellationToken);
-
-				// Clean the current workspace
-				await CleanInternalAsync(removeUntracked, cancellationToken);
-
-				// Wait for the have table update to finish
-				await updateHaveTableTask;
-
-				// Update the state of the current stream, if necessary
-				StreamSnapshot? contents;
-				if (cacheFile == null)
+				if (useHaveTable)
 				{
-					contents = await FindClientContentsAsync(perforce, changeNumber, cancellationToken);
-				}
-				else
-				{
-					contents = await TryLoadClientContentsAsync(cacheFile, streamName, cancellationToken);
-					if (contents == null)
-					{
-						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, true, cancellationToken);
-					}
-				}
+					// Revert any open files
+					await RevertInternalAsync(perforce, cancellationToken);
 
-				// Sync all the appropriate files
-				await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
-				await AddFilesToWorkspaceAsync(perforce, contents, fakeSync, cancellationToken);
-			}
+					// Force the P4 metadata to match up
+					Task updateHaveTableTask = Task.Run(() => UpdateClientHaveTableAsync(perforce, changeNumber, view, cancellationToken), cancellationToken);
 
-			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
-		}
-		
-		/// <summary>
-		/// Switches to the given stream
-		/// </summary>
-		/// <param name="perforce">The perforce connection</param>
-		/// <param name="streamName">Name of the stream to sync</param>
-		/// <param name="changeNumber">Changelist number to sync. -1 to sync to latest.</param>
-		/// <param name="view">View of the workspace</param>
-		/// <param name="removeUntracked">Whether to remove untracked files from the workspace</param>
-		/// <param name="fakeSync">Whether to simulate the syncing operation rather than actually getting files from the server</param>
-		/// <param name="cacheFile">If set, uses the given file to cache the contents of the workspace. This can improve sync times when multiple machines sync the same workspace.</param>
-		/// <param name="cancellationToken">Cancellation token</param>
-		public async Task SyncWithoutHaveTableAsync(IPerforceConnection perforce, string streamName, int changeNumber, IReadOnlyList<string> view, bool removeUntracked, bool fakeSync, FileReference? cacheFile, CancellationToken cancellationToken)
-		{
-			Stopwatch timer = Stopwatch.StartNew();
-			if (changeNumber == -1)
-			{
-				_logger.LogInformation("Syncing without have-table to {StreamName} at latest", streamName);
-			}
-			else
-			{
-				_logger.LogInformation("Syncing without have-table to {StreamName} at CL {CL}", streamName, changeNumber);
-			}
+					// Clean the current workspace
+					await CleanInternalAsync(removeUntracked, cancellationToken);
 
-			using (_logger.WithProperty("useHaveTable", true).BeginScope())
-			using (_logger.BeginIndentScope("  "))
-			{
-				// Update the client to the current stream
-				await UpdateClientAsync(perforce, streamName, cancellationToken);
-
-				// Get the latest change number
-				if (changeNumber == -1)
-				{
-					changeNumber = await GetLatestClientChangeAsync(perforce, cancellationToken);
+					// Wait for the have table update to finish
+					await updateHaveTableTask;
 				}
 
 				// Update the state of the current stream, if necessary
 				StreamSnapshot? contents;
 				if (cacheFile == null)
 				{
-					contents = await FindClientContentsWithoutHaveTableAsync(perforce, streamName, changeNumber, cancellationToken);
+					if (useHaveTable)
+					{
+						contents = await FindClientContentsAsync(perforce, changeNumber, cancellationToken);						
+					}
+					else
+					{
+						contents = await FindClientContentsWithoutHaveTableAsync(perforce, streamName, changeNumber, cancellationToken);
+					}
 				}
 				else
 				{
 					contents = await TryLoadClientContentsAsync(cacheFile, streamName, cancellationToken);
 					if (contents == null)
 					{
-						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, false, cancellationToken);
+						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, useHaveTable, cancellationToken);
 					}
 				}
 
 				// Sync all the appropriate files
 				await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
-				await AddFilesToWorkspaceAsync(perforce, contents, fakeSync, cancellationToken);
+				await AddFilesToWorkspaceAsync(perforce, contents, fakeSync, useHaveTable, cancellationToken);
 			}
 
 			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
@@ -1123,7 +1082,7 @@ namespace EpicGames.Perforce.Managed
 
 					StreamSnapshot contents = streamState[idx].Item2;
 					await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
-					await AddFilesToWorkspaceAsync(request.PerforceClient, contents, fakeSync, cancellationToken);
+					await AddFilesToWorkspaceAsync(request.PerforceClient, contents, fakeSync, true, cancellationToken);
 				}
 			}
 
@@ -1143,19 +1102,71 @@ namespace EpicGames.Perforce.Managed
 		/// <returns>Async task</returns>
 		public async Task DeleteClientAsync(IPerforceConnection perforceClient, CancellationToken cancellationToken)
 		{
-			PerforceResponse response = await perforceClient.TryDeleteClientAsync(DeleteClientOptions.None, perforceClient.Settings.ClientName!, cancellationToken);
-			if (response.Error != null && response.Error.Generic != PerforceGenericCode.Unknown)
+			async Task DeleteAsync(string clientName)
 			{
-				if (response.Error.Generic == PerforceGenericCode.NotYet)
+				PerforceResponse response = await perforceClient.TryDeleteClientAsync(DeleteClientOptions.None, clientName, cancellationToken);
+				if (response.Error != null && response.Error.Generic != PerforceGenericCode.Unknown)
 				{
-					await RevertInternalAsync(perforceClient, cancellationToken);
-					response = await perforceClient.TryDeleteClientAsync(DeleteClientOptions.None, perforceClient.Settings.ClientName!, cancellationToken);
+					if (response.Error.Generic == PerforceGenericCode.NotYet)
+					{
+						await RevertInternalAsync(perforceClient, cancellationToken);
+						response = await perforceClient.TryDeleteClientAsync(DeleteClientOptions.None, clientName, cancellationToken);
+					}
+					response.EnsureSuccess();
 				}
-				response.EnsureSuccess();
+				_createdClients.Remove(clientName);
 			}
-			_createdClients.Remove(perforceClient.Settings.ClientName!);
+
+			await DeleteAsync(GetClientName(perforceClient, true));
+			await DeleteAsync(GetClientName(perforceClient, false));
 		}
 
+		private static string GetClientName(IPerforceConnection perforceClient, bool useHaveTable)
+		{
+			if (!useHaveTable)
+			{
+				return perforceClient.Settings.ClientName + NoHaveTableSuffix;
+			}
+			return perforceClient.Settings.ClientName!;
+		}
+		
+		private async Task<ClientRecord> GetOrCreateClientAsync(IPerforceConnection perforceClient, string streamName, bool useHaveTable, CancellationToken cancellationToken)
+		{
+			string clientName = GetClientName(perforceClient, useHaveTable);
+			if (_createdClients.TryGetValue(clientName, out ClientRecord? client) && client.Stream == streamName)
+			{
+				return client;
+			}
+
+			using (Trace("UpdateClient"))
+			using (ILoggerProgress status = _logger.BeginProgressScope("Updating client..."))
+			{
+				Stopwatch timer = Stopwatch.StartNew();
+
+				client = new ClientRecord(clientName, perforceClient.Settings.UserName!, _workspaceDir.FullName);
+				client.Host = _hostName;
+				client.Stream = streamName;
+				
+				// Partitioned and read-only types store their have table separately on the server, compared to normal (writeable) clients
+				// Clients that sync without updating the have table cannot submit so they're marked as read-only. 
+				client.Type = useHaveTable ? "partitioned" : "readonly";
+
+				using IPerforceConnection perforce = await perforceClient.WithoutClientAsync();
+
+				PerforceResponse response = await perforce.TryCreateClientAsync(client, cancellationToken);
+				if (!response.Succeeded)
+				{
+					await perforceClient.TryDeleteClientAsync(DeleteClientOptions.None, clientName, cancellationToken);
+					await perforceClient.CreateClientAsync(client, cancellationToken);
+				}
+
+				status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
+			}
+			_createdClients[clientName] = client;
+
+			return client;
+		}
+		
 		/// <summary>
 		/// Sets the stream for the current client
 		/// </summary>
@@ -1164,33 +1175,9 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="cancellationToken">Cancellation token</param>
 		private async Task UpdateClientAsync(IPerforceConnection perforceClient, string streamName, CancellationToken cancellationToken)
 		{
-			// Create or update the client if it doesn't exist already
-			ClientRecord? client;
-			if (!_createdClients.TryGetValue(perforceClient.Settings.ClientName!, out client) || client.Stream != streamName)
-			{
-				using (Trace("UpdateClient"))
-				using (ILoggerProgress status = _logger.BeginProgressScope("Updating client..."))
-				{
-					Stopwatch timer = Stopwatch.StartNew();
-
-					client = new ClientRecord(perforceClient.Settings.ClientName!, perforceClient.Settings.UserName!, _workspaceDir.FullName);
-					client.Host = _hostName;
-					client.Stream = streamName;
-					client.Type = "partitioned";
-
-					using IPerforceConnection perforce = await perforceClient.WithoutClientAsync();
-
-					PerforceResponse response = await perforce.TryCreateClientAsync(client, cancellationToken);
-					if (!response.Succeeded)
-					{
-						await perforceClient.TryDeleteClientAsync(DeleteClientOptions.None, perforceClient.Settings.ClientName!, cancellationToken);
-						await perforceClient.CreateClientAsync(client, cancellationToken);
-					}
-
-					status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
-				}
-				_createdClients[perforceClient.Settings.ClientName!] = client;
-			}
+			// Ensure a client exists both with and without have table use, using the correct stream
+			await GetOrCreateClientAsync(perforceClient, streamName, true, cancellationToken);
+			await GetOrCreateClientAsync(perforceClient, streamName, false, cancellationToken);
 
 			// Update the config file with the name of the client
 			FileReference configFile = FileReference.Combine(_baseDir, "p4.ini");
@@ -1639,7 +1626,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="basePath">Base path for the stream</param>
 		/// <param name="changeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
 		/// <param name="cacheFile">Location of the file to save the cached contents</param>
-		/// <param name="useHaveTable">Use client's have table when resolving contents</param>
+		/// <param name="useHaveTable">Whether to update the have table during sync</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
 		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection perforceClient, Utf8String basePath, int changeNumber, FileReference cacheFile, bool useHaveTable, CancellationToken cancellationToken)
@@ -1806,8 +1793,9 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="client">The client connection</param>
 		/// <param name="stream">Contents of the stream</param>
 		/// <param name="fakeSync">Whether to simulate the sync operation, rather than actually syncing files</param>
+		/// <param name="useHaveTable">Whether to update the have table during sync</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		private async Task AddFilesToWorkspaceAsync(IPerforceConnection client, StreamSnapshot stream, bool fakeSync, CancellationToken cancellationToken)
+		private async Task AddFilesToWorkspaceAsync(IPerforceConnection client, StreamSnapshot stream, bool fakeSync, bool useHaveTable, CancellationToken cancellationToken)
 		{
 			// Make sure the repair flag is reset
 			await RunOptionalRepairAsync(cancellationToken);
@@ -1915,7 +1903,7 @@ namespace EpicGames.Perforce.Managed
 							{
 								(int batchBeginIdx, int batchEndIdx) = batches[nextBatchIdx];
 
-								Task task = Task.Run(() => SyncBatch(client, filesToSync, batchBeginIdx, batchEndIdx, fakeSync, cancellationToken), cancellationToken);
+								Task task = Task.Run(() => SyncBatch(client, filesToSync, batchBeginIdx, batchEndIdx, fakeSync, useHaveTable, cancellationToken), cancellationToken);
 								tasks[task] = nextBatchIdx++;
 							}
 
@@ -1967,9 +1955,10 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="beginIdx">First file to sync</param>
 		/// <param name="endIdx">Index of the last file to sync (exclusive)</param>
 		/// <param name="fakeSync">Whether to fake a sync</param>
+		/// <param name="useHaveTable">Whether to update the have table during sync</param>
 		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Async task</returns>
-		async Task SyncBatch(IPerforceConnection client, WorkspaceFileToSync[] filesToSync, int beginIdx, int endIdx, bool fakeSync, CancellationToken cancellationToken)
+		async Task SyncBatch(IPerforceConnection client, WorkspaceFileToSync[] filesToSync, int beginIdx, int endIdx, bool fakeSync, bool useHaveTable, CancellationToken cancellationToken)
 		{
 			if (fakeSync)
 			{
@@ -1991,10 +1980,20 @@ namespace EpicGames.Perforce.Managed
 					}
 				}
 
-				using PerforceConnection clientWithFileList = new PerforceConnection(client.Settings, client.Logger);
-				clientWithFileList.GlobalOptions.Add($"-x\"{syncFileName}\"");
-
-				await clientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, Array.Empty<string>(), cancellationToken).ToListAsync(cancellationToken);
+				if (useHaveTable)
+				{
+					using PerforceConnection clientWithFileList = new (client.Settings, client.Logger);
+					clientWithFileList.GlobalOptions.Add($"-x\"{syncFileName}\"");
+					await clientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, Array.Empty<string>(), cancellationToken).ToListAsync(cancellationToken);
+				}
+				else
+				{
+					// Ensure a client with an empty have table is used to not interfere with the DoNotUpdateHaveList option.
+					using PerforceConnection clientWithFileList = new (client.Settings, client.Logger);
+					clientWithFileList.ClientName = GetClientName(client, false);
+					clientWithFileList.GlobalOptions.Add($"-x\"{syncFileName}\"");
+					await clientWithFileList.SyncAsync(SyncOptions.DoNotUpdateHaveList | SyncOptions.FullDepotSyntax, -1, Array.Empty<string>(), cancellationToken).ToListAsync(cancellationToken);
+				}
 			}
 		}
 

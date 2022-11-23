@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -17,21 +19,25 @@ public class DepotFileFixture
 	public string DepotFile { get; }
 	public string ClientFile { get; }
 	public long Size { get; }
+	public int Revision { get; }
 	public string Digest { get; }
 	public string Content { get; }
 	
-	public DepotFileFixture(string depotFile, string clientFile, string content)
+	public DepotFileFixture(string depotFile, string clientFile, string content, int revision)
 	{
 		DepotFile = depotFile;
 		ClientFile = clientFile;
-		Content = content;
 		Size = content.Length;
+		Revision = revision;
 		Digest = PerforceFixture.CalcMd5(content);
+		Content = content;
 	}
 }
 
 public class ChangelistFixture
 {
+	public const string Placeholder = "<placeholder>";
+	
 	public int Number { get; }
 	public string Description { get; }
 	
@@ -81,6 +87,41 @@ public class ChangelistFixture
 		}
 	}
 	
+	/// <summary>
+	/// Assert files in stream for this changelist matches the client's have table
+	/// </summary>
+	/// <param name="perforce">Perforce connection</param>
+	public async Task AssertHaveTableAsync(IPerforceConnection perforce)
+	{
+		List<HaveRecord> haveRecords = await perforce.HaveAsync(new FileSpecList(), CancellationToken.None).ToListAsync();
+		HashSet<(string depotFile, int rev)> actual = new(haveRecords.Select((x) => (x.DepotFile, x.HaveRev)));
+		HashSet<(string depotFile, int rev)> expected = new(StreamFiles.Select((x) => (x.DepotFile, x.Revision)));
+		
+		if (!expected.SetEquals(actual))
+		{
+			List<(string depotFile, int rev)> expectedList = new(expected);
+			List<(string depotFile, int rev)> actualList = new(actual);
+			
+			expectedList.Sort();
+			actualList.Sort();
+			
+			Console.WriteLine("Expected ------------------------------------------------------");
+			foreach ((string depotFile, int rev) in expectedList)
+			{
+				Console.WriteLine($"{depotFile,-20} | {rev,5}");
+			}
+			
+			Console.WriteLine("");
+			Console.WriteLine("Actual --------------------------------------------------------");
+			foreach ((string depotFile, int rev) in actualList)
+			{
+				Console.WriteLine($"{depotFile,-20} | {rev,5}");
+			}
+
+			Assert.Fail("Files in stream does not match files in client's have table");
+		}
+	}
+	
 	private (FileSet localFiles, FileSet streamFiles) GetFileSets(string clientRoot)
 	{
 		EnumerationOptions options = new () { RecurseSubdirectories = true };
@@ -123,12 +164,26 @@ public class ChangelistFixture
 public class StreamFixture
 {
 	public string Root { get; }
-	public IReadOnlyList<ChangelistFixture> Changelists { get; }
+	public IEnumerable<ChangelistFixture> Changelists { get; }
 
 	public StreamFixture(string root, IReadOnlyList<ChangelistFixture> changelists)
 	{
 		Root = root;
 		Changelists = changelists;
+	}
+
+	public ChangelistFixture GetChangelist(int changeNum)
+	{
+		foreach (ChangelistFixture changelist in Changelists)
+		{
+			if (changelist.Number == changeNum)
+			{
+				return changelist;
+			}
+		}
+
+		// Ignore null check to make tests more readable
+		return null!;
 	}
 }
 
@@ -137,58 +192,58 @@ public class PerforceFixture
 	public StreamFixture StreamFooMain { get; } = new ("//Foo/Main",
 		new List<ChangelistFixture>
 		{
-			new(0, "<placeholder>", new List<DepotFileFixture>()),
-			new(1, "<placeholder>", new List<DepotFileFixture>()),
+			new(0, ChangelistFixture.Placeholder, new List<DepotFileFixture>()),
+			new(1, ChangelistFixture.Placeholder, new List<DepotFileFixture>()),
 			new(2, "Initial import",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #1"),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #1"),
-					new("//Foo/Main/common.h", "common.h", "This is change common.h #1"),
-					new("//Foo/Main/unused.cpp", "unused.cpp", "This is change unused.cpp #1"),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1"),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #1", 1),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #1", 1),
+					new("//Foo/Main/common.h", "common.h", "This is change common.h #1", 1),
+					new("//Foo/Main/unused.cpp", "unused.cpp", "This is change unused.cpp #1", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
 				}),
 			new(3, "Improvement to main.cpp",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2"),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #1"),
-					new("//Foo/Main/common.h", "common.h", "This is change common.h #1"),
-					new("//Foo/Main/unused.cpp", "unused.cpp", "This is change unused.cpp #1"),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1"),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2", 2),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #1", 1),
+					new("//Foo/Main/common.h", "common.h", "This is change common.h #1", 1),
+					new("//Foo/Main/unused.cpp", "unused.cpp", "This is change unused.cpp #1", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
 				}),
 			new(4, "Delete an unused file",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2"),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #1"),
-					new("//Foo/Main/common.h", "common.h", "This is change common.h #1"),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1"),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2", 2),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #1", 1),
+					new("//Foo/Main/common.h", "common.h", "This is change common.h #1", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
 				}),
 			new(5, "Rename common.h to shared.h",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2"),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #1"),
-					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1"),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1"),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2", 2),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #1", 1),
+					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
 				}),
 			new(6, "Some updates to main",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #3"),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #2"),
-					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1"),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1"),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #3", 3),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #2", 2),
+					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
 				}),
 			new(7, "Add more data",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #3"),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #2"),
-					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1"),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1"),
-					new("//Foo/Main/Data/moredata.txt", "Data/moredata.txt", "This is change moredata.txt #1"),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #3", 3),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #2", 2),
+					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
+					new("//Foo/Main/Data/moredata.txt", "Data/moredata.txt", "This is change moredata.txt #1", 1),
 				}),
 		});
 

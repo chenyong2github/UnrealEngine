@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -16,6 +18,7 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 {
 	private string SyncDir => Path.Join(TempDir.FullName, "Sync");
 	private string StreamName => Fixture.StreamFooMain.Root;
+	private StreamFixture Stream => Fixture.StreamFooMain;
 
 	private readonly ILogger<ManagedWorkspace> _mwLogger;
 
@@ -25,56 +28,87 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 	}
 
 	[TestMethod]
-	public async Task SyncFromScratch()
+	public async Task SyncSingleChangelist()
 	{
-		ManagedWorkspace workspace = await GetManagedWorkspace();
-		await workspace.SetupAsync(PerforceConnection, StreamName, CancellationToken.None);
+		ManagedWorkspace ws = await GetManagedWorkspace();
+		await AssertHaveTableFileCount(0);
 
-		await workspace.SyncAsync(PerforceConnection, StreamName, 6, Array.Empty<string>(), true,
-			false, null, CancellationToken.None);
-
-		Fixture.StreamFooMain.Changelists[6].AssertDepotFiles(SyncDir);
+		await SyncAsync(ws, 6);
+		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
+		await Stream.GetChangelist(6).AssertHaveTableAsync(PerforceConnection);
 	}
 	
 	[TestMethod]
-	public async Task SyncIncrementally()
+	public async Task SyncSingleChangelistWithoutHaveTable()
 	{
 		ManagedWorkspace ws = await GetManagedWorkspace();
-		await ws.SetupAsync(PerforceConnection, StreamName, CancellationToken.None);
+		await AssertHaveTableFileCount(0);
 
-		await ws.SyncAsync(PerforceConnection, StreamName, 6, Array.Empty<string>(), true, false, null, CancellationToken.None);
-		Fixture.StreamFooMain.Changelists[6].AssertDepotFiles(SyncDir);
-		
-		await ws.SyncAsync(PerforceConnection, StreamName, 7, Array.Empty<string>(), true, false, null, CancellationToken.None);
-		Fixture.StreamFooMain.Changelists[7].AssertDepotFiles(SyncDir);
-		
-		// Go back one change number
-		await ws.SyncAsync(PerforceConnection, StreamName, 6, Array.Empty<string>(), true, false, null, CancellationToken.None);
-		Fixture.StreamFooMain.Changelists[6].AssertDepotFiles(SyncDir);
+		await SyncAsync(ws, 6, useHaveTable: false);
+		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
+		await AssertHaveTableFileCount(0);
 	}
 	
 	[TestMethod]
-	public async Task SyncIncrementallyWithoutHaveTable()
+	public async Task SyncBackwardsToOlderChangelist()
 	{
 		ManagedWorkspace ws = await GetManagedWorkspace();
-		await ws.SetupAsync(PerforceConnection, StreamName, CancellationToken.None);
 
-		await ws.SyncWithoutHaveTableAsync(PerforceConnection, StreamName, 6, Array.Empty<string>(), true, false, null, CancellationToken.None);
-		Fixture.StreamFooMain.Changelists[6].AssertDepotFiles(SyncDir);
+		await SyncAsync(ws, 6);
+		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
+		await Stream.GetChangelist(6).AssertHaveTableAsync(PerforceConnection);
 		
-		await ws.SyncWithoutHaveTableAsync(PerforceConnection, StreamName, 7, Array.Empty<string>(), true, false, null, CancellationToken.None);
-		Fixture.StreamFooMain.Changelists[7].AssertDepotFiles(SyncDir);
+		await SyncAsync(ws, 7);
+		Stream.GetChangelist(7).AssertDepotFiles(SyncDir);
+		await Stream.GetChangelist(7).AssertHaveTableAsync(PerforceConnection);
 		
-		// Go back one change number
-		await ws.SyncWithoutHaveTableAsync(PerforceConnection, StreamName, 6, Array.Empty<string>(), true, false, null, CancellationToken.None);
-		Fixture.StreamFooMain.Changelists[6].AssertDepotFiles(SyncDir);
+		// Go back one changelist
+		await SyncAsync(ws, 6);
+		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
+		await Stream.GetChangelist(6).AssertHaveTableAsync(PerforceConnection);
 	}
 	
+	[TestMethod]
+	public async Task SyncBackwardsToOlderChangelistWithoutHaveTable()
+	{
+		ManagedWorkspace ws = await GetManagedWorkspace();
+		
+		await SyncAsync(ws, 6, useHaveTable: false);
+		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
+		await AssertHaveTableFileCount(0);
+
+		await SyncAsync(ws, 7, useHaveTable: false);
+		Stream.GetChangelist(7).AssertDepotFiles(SyncDir);
+		await AssertHaveTableFileCount(0);
+		
+		// Go back one changelist
+		await SyncAsync(ws, 6, useHaveTable: false);
+		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
+		await AssertHaveTableFileCount(0);
+	}
+
+	[TestMethod]
+	public async Task SyncMixingUseOfHaveTable()
+	{
+		ManagedWorkspace ws = await GetManagedWorkspace();
+
+		await SyncAsync(ws, 1, useHaveTable: false);
+		Stream.GetChangelist(1).AssertDepotFiles(SyncDir);
+		await AssertHaveTableFileCount(0);
+		
+		await SyncAsync(ws, 2, useHaveTable: true);
+		Stream.GetChangelist(2).AssertDepotFiles(SyncDir);
+		await Stream.GetChangelist(2).AssertHaveTableAsync(PerforceConnection);
+		
+		await SyncAsync(ws, 3, useHaveTable: false);
+		Stream.GetChangelist(3).AssertDepotFiles(SyncDir);
+		await Stream.GetChangelist(2).AssertHaveTableAsync(PerforceConnection); // Have table should only match what was synced previously
+	}
+
 	[TestMethod]
 	public async Task SyncUsingCacheFiles()
 	{
 		ManagedWorkspace ws = await GetManagedWorkspace();
-		await ws.SetupAsync(PerforceConnection, StreamName, CancellationToken.None);
 
 		FileReference GetCacheFilePath(int changeNumber)
 		{
@@ -82,24 +116,46 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 		}
 		
 		// Sync and create a new cache file per change number
-		for (int i = 2; i < Fixture.StreamFooMain.Changelists.Count; i++)
+		foreach (ChangelistFixture cl in Stream.Changelists)
 		{
-			Console.WriteLine("Syncing CL " + i);
-			await ws.SyncAsync(PerforceConnection, StreamName, i, Array.Empty<string>(), true, false, GetCacheFilePath(i), CancellationToken.None);
-			Fixture.StreamFooMain.Changelists[i].AssertDepotFiles(SyncDir);
+			await ws.SyncAsync(PerforceConnection, StreamName, cl.Number, Array.Empty<string>(), true, false, true, GetCacheFilePath(cl.Number), CancellationToken.None);
+			cl.AssertDepotFiles(SyncDir);
+			await cl.AssertHaveTableAsync(PerforceConnection);
 		}
 		
 		// Sync again but using the cache files created above
-		for (int i = 2; i < Fixture.StreamFooMain.Changelists.Count; i++)
+		foreach (ChangelistFixture cl in Stream.Changelists.Reverse())
 		{
-			Console.WriteLine("Syncing CL " + i);
-			await ws.SyncAsync(PerforceConnection, StreamName, i, Array.Empty<string>(), true, false, GetCacheFilePath(i), CancellationToken.None);
-			Fixture.StreamFooMain.Changelists[i].AssertDepotFiles(SyncDir);
+			await ws.SyncAsync(PerforceConnection, StreamName, cl.Number, Array.Empty<string>(), true, false, true, GetCacheFilePath(cl.Number), CancellationToken.None);
+			cl.AssertDepotFiles(SyncDir);
+			await cl.AssertHaveTableAsync(PerforceConnection);
 		}
 	}
 
-	private async Task<ManagedWorkspace> GetManagedWorkspace(bool overwrite = true)
+	private async Task<ManagedWorkspace> GetManagedWorkspace()
 	{
-		return await ManagedWorkspace.LoadOrCreateAsync(Environment.MachineName, TempDir, overwrite, _mwLogger, CancellationToken.None);
+		ManagedWorkspace ws = await ManagedWorkspace.CreateAsync(Environment.MachineName, TempDir, _mwLogger, CancellationToken.None);
+		await ws.SetupAsync(PerforceConnection, StreamName, CancellationToken.None);
+		return ws;
+	}
+	
+	private async Task SyncAsync(ManagedWorkspace managedWorkspace, int changeNumber, bool useHaveTable = true, FileReference? cacheFile = null)
+	{
+		await managedWorkspace.SyncAsync(PerforceConnection, StreamName, changeNumber, Array.Empty<string>(), true, false, useHaveTable, cacheFile, CancellationToken.None);
+	}
+	
+	private async Task AssertHaveTableFileCount(int expected)
+	{
+		List<HaveRecord> haveRecords = await PerforceConnection.HaveAsync(new FileSpecList(), CancellationToken.None).ToListAsync();
+
+		if (haveRecords.Count != expected)
+		{
+			Console.WriteLine("Have table contains:");
+			foreach (HaveRecord haveRecord in haveRecords)
+			{
+				Console.WriteLine(haveRecord.DepotFile + "#" + haveRecord.HaveRev);
+			}
+			Assert.Fail($"Actual have table file count does not match expected count. Actual={haveRecords.Count} Expected={expected}");
+		}
 	}
 }
