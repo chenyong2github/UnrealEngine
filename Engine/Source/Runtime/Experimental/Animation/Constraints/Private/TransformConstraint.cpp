@@ -391,6 +391,8 @@ void UTickableTransformConstraint::PostLoad()
 
 	SetupDependencies();	
 	RegisterDelegates();
+
+	EnsurePrimaryDependency();
 }
 
 void UTickableTransformConstraint::PostDuplicate(bool bDuplicateForPIE)
