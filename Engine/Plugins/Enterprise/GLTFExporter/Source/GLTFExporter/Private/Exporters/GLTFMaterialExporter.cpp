@@ -12,8 +12,7 @@ UGLTFMaterialExporter::UGLTFMaterialExporter(const FObjectInitializer& ObjectIni
 {
 	SupportedClass = UMaterialInterface::StaticClass();
 
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultPreviewMeshFinder(TEXT("/Engine/EditorMeshes/EditorSphere.EditorSphere"));
-	DefaultPreviewMesh = DefaultPreviewMeshFinder.Object;
+	 // TODO: remove UGLTFMaterialExporter::DefaultPreviewMesh in 5.2 since it's no longer in use.
 }
 
 bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
@@ -23,28 +22,33 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 	if (Builder.ExportOptions->bExportPreviewMesh)
 	{
 		const UStaticMesh* PreviewMesh = FGLTFExporterUtility::GetPreviewMesh(Material);
-		if (PreviewMesh == nullptr)
+		if (PreviewMesh != nullptr)
 		{
-			PreviewMesh = DefaultPreviewMesh;
-		}
+			FGLTFJsonMesh* Mesh = Builder.AddUniqueMesh(PreviewMesh, { Material });
+			if (Mesh == nullptr)
+			{
+				Builder.LogError(
+					FString::Printf(TEXT("Failed to export preview mesh %s for material %s"),
+					*Material->GetName(),
+					*PreviewMesh->GetName()));
+				return false;
+			}
 
-		FGLTFJsonMesh* Mesh = Builder.AddUniqueMesh(PreviewMesh, { Material });
-		if (Mesh == nullptr)
+			FGLTFJsonNode* Node = Builder.AddNode();
+			Node->Mesh = Mesh;
+
+			FGLTFJsonScene* Scene = Builder.AddScene();
+			Scene->Nodes.Add(Node);
+
+			Builder.DefaultScene = Scene;
+		}
+		else
 		{
 			Builder.LogError(
-				FString::Printf(TEXT("Failed to export preview mesh %s for material %s"),
-				*Material->GetName(),
-				*PreviewMesh->GetName()));
+				FString::Printf(TEXT("Failed to export material %s because of missing preview mesh"),
+				*Material->GetName()));
 			return false;
 		}
-
-		FGLTFJsonNode* Node = Builder.AddNode();
-		Node->Mesh = Mesh;
-
-		FGLTFJsonScene* Scene = Builder.AddScene();
-		Scene->Nodes.Add(Node);
-
-		Builder.DefaultScene = Scene;
 	}
 	else
 	{
