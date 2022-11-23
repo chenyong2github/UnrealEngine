@@ -1018,6 +1018,32 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 		}
 	}
 
+	// Generate dependency errors with their fixes
+	FGuid EmitterHandleId = FGuid();
+	if (GetEmitterViewModel().IsValid())
+	{
+		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(GetEmitterViewModel()->GetEmitter());
+		if (EmitterHandleViewModel.IsValid())
+		{
+			EmitterHandleId = EmitterHandleViewModel->GetId();
+		}
+	}
+	
+	const TArray<FNiagaraStackModuleData>& StackModuleData = GetSystemViewModel()->GetStackModuleDataByModuleEntry(this);
+	UNiagaraScript* OwningScript = FNiagaraEditorUtilities::GetScriptFromSystem(GetSystemViewModel()->GetSystem(), EmitterHandleId, OutputNode->GetUsage(), OutputNode->GetUsageId());
+	if (OwningScript != nullptr)
+	{
+		NiagaraStackModuleItemIssues::GenerateDependencyIssues(
+			GetSystemViewModel(),
+			EmitterHandleId,
+			*OwningScript,
+			*FunctionCallNode,
+			GetStackEditorDataKey(),
+			*OutputNode,
+			StackModuleData,
+			NewIssues);
+	}
+
 	NewIssues.Append(MessageManagerIssues);
 	for(auto& Message : FunctionCallNode->GetCustomNotes())
 	{
@@ -1123,31 +1149,6 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			}
 			FoundAssignmentTargets.Add(AssignmentTarget);
 		}
-	}
-
-	// Generate dependency errors with their fixes
-	FGuid EmitterHandleId = FGuid();
-	if (GetEmitterViewModel().IsValid())
-	{
-		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(GetEmitterViewModel()->GetEmitter());
-		if (EmitterHandleViewModel.IsValid())
-		{
-			EmitterHandleId = EmitterHandleViewModel->GetId();
-		}
-	}
-	const TArray<FNiagaraStackModuleData>& StackModuleData = GetSystemViewModel()->GetStackModuleDataByModuleEntry(this);
-	UNiagaraScript* OwningScript = FNiagaraEditorUtilities::GetScriptFromSystem(GetSystemViewModel()->GetSystem(), EmitterHandleId, OutputNode->GetUsage(), OutputNode->GetUsageId());
-	if (OwningScript != nullptr)
-	{
-		NiagaraStackModuleItemIssues::GenerateDependencyIssues(
-			GetSystemViewModel(),
-			EmitterHandleId,
-			*OwningScript,
-			*FunctionCallNode,
-			GetStackEditorDataKey(),
-			*OutputNode,
-			StackModuleData,
-			NewIssues);
 	}
 }
 
