@@ -46,6 +46,11 @@ bool FOodleNetworkArchiveBase::SerializeOodleCompressData(FOodleCompressedData& 
 		bSuccess = ! InnerArchive.IsError();
 	}
 
+	if (!bSuccess)
+	{
+		SetError();
+	}
+
 	return bSuccess;
 }
 
@@ -110,6 +115,11 @@ bool FOodleNetworkArchiveBase::SerializeOodleDecompressData(FOodleCompressedData
 	}
 	
 	bSuccess = bSuccess && !InnerArchive.IsError();
+
+	if (!bSuccess)
+	{
+		SetError();
+	}
 
 	return bSuccess;
 }
