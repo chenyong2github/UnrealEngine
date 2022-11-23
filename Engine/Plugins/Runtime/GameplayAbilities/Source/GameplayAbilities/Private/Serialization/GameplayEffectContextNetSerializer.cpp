@@ -3,6 +3,8 @@
 #include "Serialization/GameplayEffectContextNetSerializer.h"
 #include "Serialization/InternalGameplayEffectContextNetSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayEffectContextNetSerializer)
+
 #if UE_WITH_IRIS
 
 #include "Engine/HitResult.h"

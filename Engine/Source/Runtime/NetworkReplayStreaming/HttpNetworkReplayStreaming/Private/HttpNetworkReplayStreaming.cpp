@@ -15,6 +15,8 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HttpNetworkReplayStreaming)
+
 DEFINE_LOG_CATEGORY_STATIC( LogHttpReplay, Log, All );
 
 DECLARE_STATS_GROUP( TEXT( "HttpReplay" ), STATGROUP_HttpReplay, STATCAT_Advanced )

@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimRootMotionProvider.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_OrientationWarping)
+
 DECLARE_CYCLE_STAT(TEXT("OrientationWarping Eval"), STAT_OrientationWarping_Eval, STATGROUP_Anim);
 
 #if ENABLE_ANIM_DEBUG

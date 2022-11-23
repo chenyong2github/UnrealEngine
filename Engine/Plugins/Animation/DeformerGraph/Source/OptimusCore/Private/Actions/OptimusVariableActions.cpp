@@ -6,6 +6,8 @@
 #include "OptimusHelpers.h"
 #include "OptimusVariableDescription.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusVariableActions)
+
 
 FOptimusVariableAction_AddVariable::FOptimusVariableAction_AddVariable(
 	FOptimusDataTypeRef InDataType, 

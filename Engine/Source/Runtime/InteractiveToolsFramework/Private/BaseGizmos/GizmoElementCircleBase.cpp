@@ -8,6 +8,8 @@
 #include "SceneManagement.h"
 #include "VectorUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementCircleBase)
+
 bool UGizmoElementCircleBase::IsPartial(const FSceneView* View, const FVector& InWorldCenter, const FVector& InWorldNormal)
 {
 	return IsPartial(InWorldCenter, InWorldNormal, View->ViewLocation, View->GetViewDirection(),

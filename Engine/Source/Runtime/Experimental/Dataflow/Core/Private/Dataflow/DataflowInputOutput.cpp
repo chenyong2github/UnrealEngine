@@ -6,6 +6,8 @@
 #include "Dataflow/DataflowNodeParameters.h"
 #include "Dataflow/DataflowNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowInputOutput)
+
 
 FDataflowInput FDataflowInput::NoOpInput = FDataflowInput();
 FDataflowOutput FDataflowOutput::NoOpOutput = FDataflowOutput();

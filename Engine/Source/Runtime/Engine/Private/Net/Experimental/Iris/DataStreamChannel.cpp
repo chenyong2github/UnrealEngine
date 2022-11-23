@@ -7,6 +7,8 @@
 #include "Net/Core/Trace/NetTrace.h"
 #include "PacketHandler.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataStreamChannel)
+
 #if UE_WITH_IRIS
 #include "Iris/IrisConfig.h"
 #include "Iris/DataStream/DataStreamManager.h"

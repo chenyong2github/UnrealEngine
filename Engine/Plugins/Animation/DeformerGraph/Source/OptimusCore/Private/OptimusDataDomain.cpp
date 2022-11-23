@@ -6,6 +6,8 @@
 #include "OptimusObjectVersion.h"
 #include "String/ParseTokens.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataDomain)
+
 
 namespace Optimus::DomainName
 {

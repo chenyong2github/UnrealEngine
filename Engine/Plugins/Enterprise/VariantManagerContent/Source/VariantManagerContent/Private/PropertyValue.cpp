@@ -18,6 +18,8 @@
 #include "UObject/CoreObjectVersion.h"
 #include "UObject/UnrealTypePrivate.h" // Only for converting deprecated UProperties!
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyValue)
+
 #if WITH_EDITOR
 #include "EdGraphSchema_K2.h"
 #include "Editor.h"

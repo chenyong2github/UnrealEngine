@@ -15,6 +15,8 @@
 #include "DataInterfaces/OptimusDataInterfaceSkinnedMeshExec.h"
 #include "Engine/UserDefinedStruct.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_CustomComputeKernel)
+
 static const FName DefaultKernelName("MyKernel");
 static const FName DefaultGroupName("Group"); 
 static const FName InputBindingsName= GET_MEMBER_NAME_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);

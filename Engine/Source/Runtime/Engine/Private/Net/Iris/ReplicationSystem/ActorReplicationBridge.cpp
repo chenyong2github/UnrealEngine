@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Net/Iris/ReplicationSystem/ActorReplicationBridge.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActorReplicationBridge)
+
 #if UE_WITH_IRIS
 
 #include "Net/Iris/ReplicationSystem/ActorReplicationBridgeInternal.h"

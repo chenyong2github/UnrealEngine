@@ -3,6 +3,8 @@
 #include "WorldConditionQuery.h"
 #include "WorldConditionContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldConditionQuery)
+
 FWorldConditionQueryState::~FWorldConditionQueryState()
 {
 	if (Memory)

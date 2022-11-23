@@ -4,6 +4,8 @@
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSubsystem_SharedLinkedAnimLayers)
+
 #if LINKEDANIMLAYERSDATA_INTEGRITYCHECKS
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimNode_LinkedAnimLayer.h"

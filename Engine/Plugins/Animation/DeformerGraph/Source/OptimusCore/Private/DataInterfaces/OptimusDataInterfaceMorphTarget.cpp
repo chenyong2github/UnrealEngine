@@ -12,6 +12,8 @@
 #include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceMorphTarget)
+
 FString UOptimusMorphTargetDataInterface::GetDisplayName() const
 {
 	return TEXT("Morph Target");

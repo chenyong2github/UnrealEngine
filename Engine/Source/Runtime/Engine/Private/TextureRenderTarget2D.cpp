@@ -678,6 +678,9 @@ void FTextureRenderTarget2DResource::ReleaseDynamicRHI()
 }
 
 #include "SceneUtils.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTarget2D)
+
 /**
  * Updates (resolves) the render target texture.
  * Optionally clears the contents of the render target to green.

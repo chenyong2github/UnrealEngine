@@ -9,6 +9,8 @@
 #include "SceneManagement.h"
 #include "VectorUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GizmoElementArc)
+
 
 static void DrawThickArc(FPrimitiveDrawInterface* PDI, const FVector& InCenter, const FVector& InAxis0, const FVector& InAxis1,
 	double InOuterRadius, double InInnerRadius, const double InStartAngle, const double InEndAngle, const int32 InNumSegments,

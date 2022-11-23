@@ -19,6 +19,8 @@
 #include "ShaderParameterMetadataBuilder.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComputeGraph)
+
 UComputeGraph::UComputeGraph() = default;
 
 UComputeGraph::UComputeGraph(const FObjectInitializer& ObjectInitializer)

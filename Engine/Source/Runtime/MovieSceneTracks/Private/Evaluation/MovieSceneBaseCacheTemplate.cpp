@@ -2,6 +2,8 @@
 
 #include "Evaluation/MovieSceneBaseCacheTemplate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBaseCacheTemplate)
+
 DECLARE_CYCLE_STAT(TEXT("Chaos Cache Evaluate"), MovieSceneEval_BaseCache_Evaluate, STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cache Token Execute"), MovieSceneEval_BaseCache_TokenExecute, STATGROUP_MovieSceneEval);
 

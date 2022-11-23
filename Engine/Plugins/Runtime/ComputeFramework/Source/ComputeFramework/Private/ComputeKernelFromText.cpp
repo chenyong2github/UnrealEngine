@@ -6,6 +6,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComputeKernelFromText)
+
 #if WITH_EDITOR
 
 void UComputeKernelFromText::PostLoad()

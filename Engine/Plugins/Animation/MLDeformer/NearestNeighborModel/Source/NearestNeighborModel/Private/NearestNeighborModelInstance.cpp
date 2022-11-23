@@ -6,6 +6,9 @@
 #include "NeuralNetwork.h"
 #include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NearestNeighborModelInstance)
+
 using namespace UE::MLDeformer;
 using namespace UE::NearestNeighborModel;
 

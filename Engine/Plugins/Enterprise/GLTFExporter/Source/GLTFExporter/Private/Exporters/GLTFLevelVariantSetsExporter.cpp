@@ -6,6 +6,8 @@
 #include "Engine/World.h"
 #include "LevelVariantSets.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GLTFLevelVariantSetsExporter)
+
 UGLTFLevelVariantSetsExporter::UGLTFLevelVariantSetsExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

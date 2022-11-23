@@ -5,6 +5,8 @@
 #include "ProfilingDebugging/TraceAuxiliary.h"
 #include "Modules/ModuleManager.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(TraceUtilLibrary)
+
 IMPLEMENT_MODULE(FDefaultModuleImpl, TraceUtilities)
 
 bool UTraceUtilLibrary::StartTraceToFile(const FString& FileName, const TArray<FString>& Channels)

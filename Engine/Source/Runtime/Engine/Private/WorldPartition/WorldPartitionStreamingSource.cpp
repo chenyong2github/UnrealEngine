@@ -2,6 +2,8 @@
 
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionStreamingSource)
+
 FORCEINLINE static bool IsClockWise(const FVector2D& V1, const FVector2D& V2)
 {
 	return (V1 ^ V2) < 0;

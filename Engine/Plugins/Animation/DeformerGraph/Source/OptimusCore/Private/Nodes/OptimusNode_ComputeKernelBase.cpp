@@ -14,6 +14,8 @@
 #include "OptimusHelpers.h"
 #include "OptimusKernelSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_ComputeKernelBase)
+
 
 #define LOCTEXT_NAMESPACE "OptimusKernelBase"
 

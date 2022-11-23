@@ -9,6 +9,8 @@
 #include "ResonanceAudioAmbisonicsSettingsProxy.h"
 #include "ResonanceAudioCommon.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ResonanceAudioAmbisonicsSettings)
+
 TUniquePtr<ISoundfieldEncodingSettingsProxy> UResonanceAudioSoundfieldSettings::GetProxy() const
 {
 	AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE

@@ -14,6 +14,8 @@
 
 #include "Selection/PersistentMeshSelection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometrySelectionManager)
+
 
 using namespace UE::Geometry;
 

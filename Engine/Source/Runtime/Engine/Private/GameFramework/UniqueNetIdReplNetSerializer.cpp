@@ -2,6 +2,8 @@
 
 #include "GameFramework/UniqueNetIdReplNetSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UniqueNetIdReplNetSerializer)
+
 #if UE_WITH_IRIS
 
 #include "GameFramework/InternalUniqueNetIdReplNetSerializer.h"

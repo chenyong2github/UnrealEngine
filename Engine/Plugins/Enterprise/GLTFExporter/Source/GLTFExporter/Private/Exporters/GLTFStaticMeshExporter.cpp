@@ -4,6 +4,8 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Engine/StaticMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GLTFStaticMeshExporter)
+
 UGLTFStaticMeshExporter::UGLTFStaticMeshExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

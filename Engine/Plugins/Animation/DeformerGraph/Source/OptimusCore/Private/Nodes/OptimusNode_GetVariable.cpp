@@ -11,6 +11,8 @@
 #include "Actions/OptimusAction.h"
 #include "Actions/OptimusVariableActions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_GetVariable)
+
 #define LOCTEXT_NAMESPACE "OptimusGetVariable"
 
 

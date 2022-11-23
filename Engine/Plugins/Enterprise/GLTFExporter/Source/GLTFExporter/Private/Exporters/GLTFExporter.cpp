@@ -10,6 +10,9 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "AssetExportTask.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GLTFExporter)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif

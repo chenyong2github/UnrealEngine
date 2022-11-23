@@ -13,6 +13,8 @@
 #include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceConnectivity)
+
 namespace
 {
 	// Code initially taken from NiagaraDataInterfaceSkeletalMeshConnectivity.cpp

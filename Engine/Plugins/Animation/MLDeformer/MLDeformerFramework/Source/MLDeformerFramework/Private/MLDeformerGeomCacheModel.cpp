@@ -8,6 +8,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "GeometryCache.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerGeomCacheModel)
+
 #define LOCTEXT_NAMESPACE "MLDeformerGeomCacheModel"
 
 void UMLDeformerGeomCacheModel::Serialize(FArchive& Archive)

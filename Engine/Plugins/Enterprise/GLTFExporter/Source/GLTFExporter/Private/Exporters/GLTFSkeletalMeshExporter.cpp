@@ -4,6 +4,8 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GLTFSkeletalMeshExporter)
+
 UGLTFSkeletalMeshExporter::UGLTFSkeletalMeshExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

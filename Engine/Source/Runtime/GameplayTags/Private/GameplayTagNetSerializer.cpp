@@ -2,6 +2,8 @@
 
 #include "GameplayTagNetSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagNetSerializer)
+
 #if UE_WITH_IRIS
 
 #include "GameplayTagContainer.h"

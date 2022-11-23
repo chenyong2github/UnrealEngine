@@ -9,6 +9,8 @@
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HLODDestruction)
+
 
 namespace
 {

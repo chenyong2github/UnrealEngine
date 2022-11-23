@@ -2,6 +2,8 @@
 
 #include "SynesthesiaSpectrumAnalysis.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SynesthesiaSpectrumAnalysis)
+
 namespace 
 {
 	// Convert EFFTSize to int32

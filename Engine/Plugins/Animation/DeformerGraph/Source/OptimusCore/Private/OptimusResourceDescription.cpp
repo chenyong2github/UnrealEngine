@@ -7,6 +7,8 @@
 #include "OptimusHelpers.h"
 #include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusResourceDescription)
+
 
 UOptimusDeformer* UOptimusResourceDescription::GetOwningDeformer() const
 {

@@ -14,6 +14,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "NeuralNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NearestNeighborModel)
+
 #define LOCTEXT_NAMESPACE "UNearestNeighborModel"
 
 NEARESTNEIGHBORMODEL_API DEFINE_LOG_CATEGORY(LogNearestNeighborModel)

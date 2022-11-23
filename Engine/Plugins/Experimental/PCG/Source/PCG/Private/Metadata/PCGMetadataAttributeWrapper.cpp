@@ -6,6 +6,8 @@
 #include "Data/PCGPointData.h"
 #include "PCGParamData.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataAttributeWrapper)
+
 EPCGMetadataTypes PCGMetadataAttributeWrapper::GetMetadataTypeFromProperty(const FProperty* InProperty)
 {
 	if (!InProperty)

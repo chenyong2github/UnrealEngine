@@ -2,6 +2,8 @@
 
 #include "OptimusSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusSource)
+
 void UOptimusSource::SetSource(const FString& InText)
 {
 	SourceText = InText;

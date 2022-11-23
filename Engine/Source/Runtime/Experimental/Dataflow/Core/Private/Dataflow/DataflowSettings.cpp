@@ -2,6 +2,8 @@
 
 #include "Dataflow/DataflowSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowSettings)
+
 UDataflowSettings::UDataflowSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)
 {

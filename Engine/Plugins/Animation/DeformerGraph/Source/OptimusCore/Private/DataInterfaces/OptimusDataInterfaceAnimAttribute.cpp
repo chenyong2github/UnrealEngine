@@ -21,6 +21,8 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceAnimAttribute)
+
 static const FString PinNameDelimiter = TEXT(" - ");
 static const FString HlslIdDelimiter = TEXT("_");
 

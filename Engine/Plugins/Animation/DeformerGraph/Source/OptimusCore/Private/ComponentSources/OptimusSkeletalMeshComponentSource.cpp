@@ -4,6 +4,8 @@
 
 #include "Components/SkeletalMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusSkeletalMeshComponentSource)
+
 
 #define LOCTEXT_NAMESPACE "OptimusSkeletalMeshComponentSource"
 

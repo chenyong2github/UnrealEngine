@@ -10,6 +10,8 @@
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Framework/Application/SlateApplication.h"			// For RegisterInputPreProcessor
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputDeviceSubsystem)
+
 #if WITH_EDITOR
 #include "Editor.h"		// For PIE delegates
 #endif

@@ -5,6 +5,8 @@
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ServerStreamingLevelsVisibility)
+
 AServerStreamingLevelsVisibility::AServerStreamingLevelsVisibility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

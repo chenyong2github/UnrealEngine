@@ -5,6 +5,8 @@
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataType)
+
 
 
 FOptimusDataTypeRef::FOptimusDataTypeRef(

@@ -2,6 +2,8 @@
 
 #include "Net/ReplayResult.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ReplayResult)
+
 #define CASE_EREPLAYRESULT_TO_TEXT_RET(txt) case txt: ReturnVal = TEXT(#txt); break;
 
 const TCHAR* LexToString(EReplayResult Result)

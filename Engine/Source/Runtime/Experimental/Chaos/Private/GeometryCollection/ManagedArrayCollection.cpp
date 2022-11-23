@@ -6,6 +6,8 @@
 #include "Chaos/ChaosArchive.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ManagedArrayCollection)
+
 DEFINE_LOG_CATEGORY_STATIC(FManagedArrayCollectionLogging, NoLogging, All);
 
 int8 FManagedArrayCollection::Invalid = INDEX_NONE;

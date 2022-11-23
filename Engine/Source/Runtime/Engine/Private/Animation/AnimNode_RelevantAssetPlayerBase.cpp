@@ -3,6 +3,8 @@
 #include "Animation/AnimNode_RelevantAssetPlayerBase.h"
 #include "Animation/AnimSyncScope.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RelevantAssetPlayerBase)
+
 UAnimationAsset* FAnimNode_AssetPlayerRelevancyBase::GetAnimAsset() const
 {
 	return nullptr;

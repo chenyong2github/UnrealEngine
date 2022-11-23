@@ -2,6 +2,8 @@
 
 #include "GameFramework/CharacterNetworkSerializationPackedBitsNetSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterNetworkSerializationPackedBitsNetSerializer)
+
 #if UE_WITH_IRIS
 
 #include "GameFramework/CharacterNetworkSerializationPackedBitsNetSerializer.h"

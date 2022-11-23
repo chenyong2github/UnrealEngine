@@ -11,6 +11,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerInputInfo)
 void UMLDeformerInputInfo::Reset()
 {
 	BoneNames.Empty();

@@ -10,6 +10,8 @@
 #include "Animation/MeshDeformerInstance.h"
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerComponent)
+
 UMLDeformerComponent::UMLDeformerComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

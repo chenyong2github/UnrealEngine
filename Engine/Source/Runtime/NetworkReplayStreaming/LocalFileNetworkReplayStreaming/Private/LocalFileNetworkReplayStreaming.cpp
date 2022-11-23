@@ -15,6 +15,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/IPlatformFileManagedStorageWrapper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LocalFileNetworkReplayStreaming)
+
 DEFINE_LOG_CATEGORY_STATIC(LogLocalFileReplay, Log, All);
 
 DECLARE_STATS_GROUP(TEXT("LocalReplay"), STATGROUP_LocalReplay, STATCAT_Advanced);

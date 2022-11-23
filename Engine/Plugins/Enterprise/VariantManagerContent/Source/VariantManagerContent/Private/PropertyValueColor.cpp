@@ -10,6 +10,8 @@
 #include "HAL/UnrealMemory.h"
 #include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyValueColor)
+
 #define LOCTEXT_NAMESPACE "PropertyValueColor"
 
 UPropertyValueColor::UPropertyValueColor(const FObjectInitializer& ObjectInitializer)

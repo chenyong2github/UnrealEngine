@@ -10,6 +10,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/RenderingObjectVersion.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkinnedAssetCommon)
+
 /*-----------------------------------------------------------------------------
 	FSkeletalMeshLODInfo
 -----------------------------------------------------------------------------*/

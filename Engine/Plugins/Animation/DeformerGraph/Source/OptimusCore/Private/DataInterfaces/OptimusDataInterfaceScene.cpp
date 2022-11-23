@@ -11,6 +11,8 @@
 #include "ShaderCompilerCore.h"
 #include "ShaderParameterMetadataBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceScene)
+
 FString UOptimusSceneDataInterface::GetDisplayName() const
 {
 	return TEXT("Scene Data");

@@ -2,6 +2,8 @@
 
 #include "OptimusAction.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusAction)
+
 
 FOptimusAction::FOptimusAction(const FString& InTitle /*= {}*/) :
 	Title(InTitle)

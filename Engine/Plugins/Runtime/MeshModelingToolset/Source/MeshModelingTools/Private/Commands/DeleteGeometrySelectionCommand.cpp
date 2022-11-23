@@ -9,6 +9,8 @@
 #include "Changes/MeshChange.h"
 #include "Selections/GeometrySelectionUtil.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DeleteGeometrySelectionCommand)
+
 using namespace UE::Geometry;
 
 

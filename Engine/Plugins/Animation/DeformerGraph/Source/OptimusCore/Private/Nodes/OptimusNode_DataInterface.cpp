@@ -11,6 +11,8 @@
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_DataInterface)
+
 
 #define LOCTEXT_NAMESPACE "OptimusNode_DataInterface"
 

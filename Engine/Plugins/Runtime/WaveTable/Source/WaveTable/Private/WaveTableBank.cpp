@@ -2,6 +2,8 @@
 
 #include "WaveTableBank.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaveTableBank)
+
 #define LOCTEXT_NAMESPACE "WaveTable"
 
 

@@ -4,6 +4,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimNodes/AnimNode_LayeredBoneBlend.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LayeredBoneBlendLibrary)
+
 FLayeredBoneBlendReference ULayeredBoneBlendLibrary::ConvertToLayeredBoneBlend(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)
 {
 	return FAnimNodeReference::ConvertToType<FLayeredBoneBlendReference>(Node, Result);

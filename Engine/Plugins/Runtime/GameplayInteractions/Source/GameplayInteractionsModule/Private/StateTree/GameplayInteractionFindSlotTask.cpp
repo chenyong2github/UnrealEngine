@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayInteractionFindSlotTask.h"
 #include "StateTreeExecutionContext.h"
@@ -6,6 +6,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "Annotations/SmartObjectSlotLinkAnnotation.h"
 #include "StateTreeLinker.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayInteractionFindSlotTask)
 
 FGameplayInteractionFindSlotTask::FGameplayInteractionFindSlotTask()
 {

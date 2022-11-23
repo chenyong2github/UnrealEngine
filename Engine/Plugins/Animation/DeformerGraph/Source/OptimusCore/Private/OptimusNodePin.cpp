@@ -13,6 +13,8 @@
 #include "Containers/Queue.h"
 #include "Misc/DefaultValueHelper.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNodePin)
+
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 

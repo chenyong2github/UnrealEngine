@@ -5,6 +5,8 @@
 #include "Templates/SubclassOf.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneChannelOverrideContainer)
+
 void UMovieSceneChannelOverrideContainer::GetOverrideCandidates(FName InDefaultChannelTypeName, FOverrideCandidates& OutCandidates)
 {
 	for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)

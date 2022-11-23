@@ -44,6 +44,8 @@
 #include "Nodes/OptimusNode_GetVariable.h"
 #include "Nodes/OptimusNode_ResourceAccessorBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDeformer)
+
 #include <limits>
 
 #define PRINT_COMPILED_OUTPUT 1

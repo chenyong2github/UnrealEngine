@@ -11,6 +11,8 @@
 #include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VariantSet)
+
 #define LOCTEXT_NAMESPACE "VariantManagerVariantSet"
 
 UVariantSet::FOnVariantSetChanged UVariantSet::OnThumbnailUpdated;

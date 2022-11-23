@@ -11,6 +11,8 @@
 #include "ComputeFramework/ComputeMetadataBuilder.h"
 #include "MeshDeformerInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceGraph)
+
 void UOptimusGraphDataInterface::Init(TArray<FOptimusGraphVariableDescription> const& InVariables)
 {
 	Variables = InVariables;

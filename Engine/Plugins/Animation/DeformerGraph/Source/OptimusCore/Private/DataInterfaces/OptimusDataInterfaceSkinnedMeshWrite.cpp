@@ -12,6 +12,8 @@
 #include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceSkinnedMeshWrite)
+
 
 FString UOptimusSkinnedMeshWriteDataInterface::GetDisplayName() const
 {

@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/GameplayEffectContextHandleNetSerializer.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayEffectContextHandleNetSerializer)
+
 #if UE_WITH_IRIS
 
 #include "GameplayEffectTypes.h"

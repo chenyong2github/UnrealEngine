@@ -2,6 +2,8 @@
 
 #include "PropertyPathHelpersTest.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyPathHelpersTest)
+
 #if WITH_DEV_AUTOMATION_TESTS
 
 DEFINE_LOG_CATEGORY_STATIC(LogPropertyPathHelpersTest, Log, All);

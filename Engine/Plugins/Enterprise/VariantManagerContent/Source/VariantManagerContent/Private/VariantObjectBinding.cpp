@@ -16,6 +16,9 @@
 #include "GameFramework/Actor.h"
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/SoftObjectPath.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(VariantObjectBinding)
+
 #if WITH_EDITORONLY_DATA
 #include "K2Node_FunctionEntry.h"
 #endif

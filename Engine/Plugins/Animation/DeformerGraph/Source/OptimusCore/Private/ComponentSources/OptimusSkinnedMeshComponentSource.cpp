@@ -8,6 +8,8 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusSkinnedMeshComponentSource)
+
 
 #define LOCTEXT_NAMESPACE "OptimusSkinnedMeshComponentSource"
 

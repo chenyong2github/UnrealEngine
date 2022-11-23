@@ -10,6 +10,8 @@
 #include "Actions/OptimusAction.h"
 #include "Actions/OptimusResourceActions.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_ResourceAccessorBase)
+
 
 #define LOCTEXT_NAMESPACE "OptimusResourceAccessorBase"
 

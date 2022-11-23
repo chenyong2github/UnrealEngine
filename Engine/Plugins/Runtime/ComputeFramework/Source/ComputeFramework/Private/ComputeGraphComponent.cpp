@@ -6,6 +6,8 @@
 #include "ComputeWorkerInterface.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComputeGraphComponent)
+
 UComputeGraphComponent::UComputeGraphComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;

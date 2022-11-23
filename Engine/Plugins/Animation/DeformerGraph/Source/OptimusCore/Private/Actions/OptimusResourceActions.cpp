@@ -8,6 +8,8 @@
 
 #include "Serialization/ObjectWriter.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusResourceActions)
+
 
 FOptimusResourceAction_AddResource::FOptimusResourceAction_AddResource(
 	FOptimusDataTypeRef InDataType,

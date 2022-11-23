@@ -2,6 +2,8 @@
 
 #include "OptimusValidatedName.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusValidatedName)
+
 bool FOptimusValidatedName::IsValid(FString const& InName, FText* OutReason, FText const* InErrorCtx)
 {
 	static const TCHAR* InvalidCharacters = TEXT("\"\\' ,.|&!~\n\r\t@#/(){}[]=;:^%$`");

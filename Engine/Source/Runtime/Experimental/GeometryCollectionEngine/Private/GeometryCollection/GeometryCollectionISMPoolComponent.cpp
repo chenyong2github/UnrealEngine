@@ -8,6 +8,8 @@
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionISMPoolComponent)
+
 FGeometryCollectionMeshGroup::FMeshId FGeometryCollectionMeshGroup::AddMesh(const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, const FGeometryCollectionMeshInfo& ISMInstanceInfo)
 {
 	FMeshId* MeshIndex = Meshes.Find(MeshInstance);

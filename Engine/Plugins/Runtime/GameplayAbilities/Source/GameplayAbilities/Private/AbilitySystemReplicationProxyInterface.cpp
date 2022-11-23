@@ -5,6 +5,8 @@
 #include "GameplayPrediction.h"
 #include "GameplayEffect.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AbilitySystemReplicationProxyInterface)
+
 
 void IAbilitySystemReplicationProxyInterface::Call_InvokeGameplayCueExecuted_FromSpec(const FGameplayEffectSpecForRPC Spec, FPredictionKey PredictionKey)
 {

@@ -11,6 +11,8 @@
 #include "ComputeFramework/ComputeGraphWorker.h"
 #include "ComputeFramework/ComputeSystem.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComputeGraphInstance)
+
 void FComputeGraphInstance::CreateDataProviders(UComputeGraph* InComputeGraph, int32 InBindingIndex, TObjectPtr<UObject> InBindingObject)
 {
 	if (InComputeGraph != nullptr)

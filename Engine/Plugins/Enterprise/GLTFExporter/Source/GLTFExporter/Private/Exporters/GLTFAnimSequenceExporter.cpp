@@ -6,6 +6,8 @@
 #include "Animation/AnimSequence.h"
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GLTFAnimSequenceExporter)
+
 UGLTFAnimSequenceExporter::UGLTFAnimSequenceExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

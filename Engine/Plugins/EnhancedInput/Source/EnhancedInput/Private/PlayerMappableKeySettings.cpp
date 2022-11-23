@@ -2,6 +2,8 @@
 
 #include "PlayerMappableKeySettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerMappableKeySettings)
+
 #define LOCTEXT_NAMESPACE "EnhancedActionKeySetting"
 
 #if WITH_EDITOR

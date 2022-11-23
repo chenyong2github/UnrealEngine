@@ -8,6 +8,8 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(CineCameraSettings)
+
 #define LOCTEXT_NAMESPACE "CineCameraSettings"
 
 const FString UCineCameraSettings::CineCameraConfigSection = TEXT("/Script/CinematicCamera.CineCameraComponent");

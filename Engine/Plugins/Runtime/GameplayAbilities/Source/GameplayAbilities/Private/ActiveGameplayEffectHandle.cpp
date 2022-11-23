@@ -3,6 +3,8 @@
 #include "ActiveGameplayEffectHandle.h"
 #include "AbilitySystemComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ActiveGameplayEffectHandle)
+
 namespace GlobalActiveGameplayEffectHandles
 {
 	static TMap<FActiveGameplayEffectHandle, TWeakObjectPtr<UAbilitySystemComponent>>	Map;

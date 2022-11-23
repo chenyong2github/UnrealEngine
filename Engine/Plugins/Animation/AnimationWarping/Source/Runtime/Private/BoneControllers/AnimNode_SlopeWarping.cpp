@@ -10,6 +10,8 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "DrawDebugHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_SlopeWarping)
+
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<int32> CVarAnimNodeSlopeWarpingDebug(TEXT("a.AnimNode.SlopeWarping.Debug"), 0, TEXT("Turn on debug for AnimNode_SlopeWarping"));
 #endif

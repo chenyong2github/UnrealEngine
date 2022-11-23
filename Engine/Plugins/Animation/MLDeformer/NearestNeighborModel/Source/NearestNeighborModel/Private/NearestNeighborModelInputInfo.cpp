@@ -4,6 +4,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NearestNeighborModelInputInfo)
+
 
 void UNearestNeighborModelInputInfo::ComputeNetworkInput(const TArray<FQuat>& BoneRotations, float* OutputBuffer, int64 StartIndex) const
 {

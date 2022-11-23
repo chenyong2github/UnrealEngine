@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WaveTableSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaveTableSettings)
+
 
 TArrayView<const float> FWaveTableSettings::GetEditSourceView() const
 {

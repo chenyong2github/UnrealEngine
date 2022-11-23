@@ -3,6 +3,9 @@
 #include "MassRequirements.h"
 #include "MassArchetypeData.h"
 #include "MassProcessorDependencySolver.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MassRequirements)
+
 #if WITH_MASSENTITY_DEBUG
 #include "MassRequirementAccessDetector.h"
 #endif // WITH_MASSENTITY_DEBUG

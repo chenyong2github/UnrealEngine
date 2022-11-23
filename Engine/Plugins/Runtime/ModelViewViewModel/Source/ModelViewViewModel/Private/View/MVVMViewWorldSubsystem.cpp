@@ -5,6 +5,8 @@
 #include "Misc/MemStack.h"
 #include "View/MVVMView.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewWorldSubsystem)
+
 void UMVVMViewWorldSubsystem::Tick(float DeltaTime)
 {
 	if (EveryTickBindings.Num() > 0)

@@ -14,6 +14,8 @@
 #include "Engine/Texture2D.h"
 #include "GameFramework/Actor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Variant)
+
 #define LOCTEXT_NAMESPACE "Variant"
 
 UVariant::FOnVariantChanged UVariant::OnThumbnailUpdated;

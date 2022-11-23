@@ -4,6 +4,8 @@
 #include "WorldConditionQuery.h"
 #include "WorldConditionSchema.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WorldConditionBase)
+
 FWorldConditionBase::~FWorldConditionBase()
 {
 	// Empty

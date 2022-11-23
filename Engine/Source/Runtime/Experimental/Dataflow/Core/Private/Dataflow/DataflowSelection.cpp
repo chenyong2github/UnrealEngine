@@ -2,6 +2,8 @@
 
 #include "Dataflow/DataflowSelection.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowSelection)
+
 void FDataflowSelection::Initialize(int32 NumBits, bool Value) 
 { 
 	SelectionArray.AddUninitialized(NumBits); 

@@ -41,6 +41,8 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNodeGraph)
+
 #define LOCTEXT_NAMESPACE "OptimusNodeGraph"
 
 

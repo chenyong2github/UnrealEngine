@@ -10,6 +10,8 @@
 #include "IOptimusNodeAdderPinProvider.h"
 #include "OptimusDataTypeRegistry.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNodeActions)
+
 
 FOptimusNodeAction_RenameNode::FOptimusNodeAction_RenameNode(
 	UOptimusNode* InNode, 

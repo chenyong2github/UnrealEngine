@@ -11,6 +11,8 @@
 #include "UObject/Object.h"
 #include "UObject/SoftObjectPath.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelVariantSetsActor)
+
 ALevelVariantSetsActor::ALevelVariantSetsActor(const FObjectInitializer& Init)
 	: Super(Init)
 {

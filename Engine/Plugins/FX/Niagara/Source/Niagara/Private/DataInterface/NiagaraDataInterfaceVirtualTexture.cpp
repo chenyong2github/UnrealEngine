@@ -13,6 +13,8 @@
 #include "ShaderCompilerCore.h"
 #include "VT/RuntimeVirtualTexture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceVirtualTexture)
+
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceVirtualTexture"
 
 namespace NDIVirtualTextureLocal

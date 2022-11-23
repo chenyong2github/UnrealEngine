@@ -6,6 +6,8 @@
 #include "MLDeformerComponent.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NeuralMorphModel)
+
 #define LOCTEXT_NAMESPACE "NeuralMorphModel"
 
 // Implement our module.

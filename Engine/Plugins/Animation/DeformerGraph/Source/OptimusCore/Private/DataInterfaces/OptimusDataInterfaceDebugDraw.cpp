@@ -11,6 +11,8 @@
 #include "ShaderCore.h"
 #include "ShaderParameterMetadataBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceDebugDraw)
+
 
 FString UOptimusDebugDrawDataInterface::GetDisplayName() const
 {

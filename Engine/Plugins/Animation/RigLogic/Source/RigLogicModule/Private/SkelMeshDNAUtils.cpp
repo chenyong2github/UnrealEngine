@@ -27,6 +27,8 @@
 
 #include "riglogic/RigLogic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkelMeshDNAUtils)
+
 DEFINE_LOG_CATEGORY(LogDNAUtils);
 /** compare based on base mesh source vertex indices */
 struct FCompareMorphTargetDeltas

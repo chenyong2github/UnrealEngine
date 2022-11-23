@@ -2,6 +2,8 @@
 
 #include "GameplayAbilitySpecHandle.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilitySpecHandle)
+
 // ----------------------------------------------------
 
 void FGameplayAbilitySpecHandle::GenerateNewHandle()

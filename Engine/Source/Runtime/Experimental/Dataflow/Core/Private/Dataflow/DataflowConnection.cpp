@@ -5,6 +5,8 @@
 #include "Dataflow/DataflowNodeParameters.h"
 #include "Dataflow/DataflowNode.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowConnection)
+
 FDataflowConnection::FDataflowConnection(Dataflow::FPin::EDirection InDirection, FName InType, FName InName, FDataflowNode* InOwningNode, FProperty* InProperty, FGuid InGuid)
 	: Direction(InDirection)
 	, Type(InType)

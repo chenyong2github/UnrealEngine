@@ -7,6 +7,8 @@
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_ComponentSource)
+
 
 void UOptimusNode_ComponentSource::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 {

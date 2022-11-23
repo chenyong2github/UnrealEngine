@@ -34,6 +34,8 @@
 #endif
 #include "Async/ParallelFor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AutomationControllerManager)
+
 // these strings are parsed by Gauntlet (AutomationLogParser) so make sure changes are replicated there!
 #define AutomationTestStarting		TEXT("Test Started. Name={%s} Path={%s}")
 #define AutomationStateFormat		TEXT("Test Completed. Result={%s} Name={%s} Path={%s}")

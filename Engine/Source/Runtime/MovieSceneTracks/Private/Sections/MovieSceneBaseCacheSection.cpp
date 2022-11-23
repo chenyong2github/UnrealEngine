@@ -1,10 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneBaseCacheSection.h"
 #include "MovieScene.h"
 #include "Evaluation/MovieSceneBaseCacheTemplate.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Misc/QualifiedFrameTime.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneBaseCacheSection)
 
 FMovieSceneBaseCacheParams::FMovieSceneBaseCacheParams()
 {

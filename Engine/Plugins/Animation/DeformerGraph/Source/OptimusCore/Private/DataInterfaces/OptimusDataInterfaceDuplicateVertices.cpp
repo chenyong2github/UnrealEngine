@@ -11,6 +11,8 @@
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceDuplicateVertices)
+
 
 FString UOptimusDuplicateVerticesDataInterface::GetDisplayName() const
 {

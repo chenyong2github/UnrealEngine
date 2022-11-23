@@ -1,9 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Annotations/SmartObjectSlotLinkAnnotation.h"
 #include "SmartObjectDefinition.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectVisualizationContext.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSlotLinkAnnotation)
 
 #if UE_ENABLE_DEBUG_DRAWING
 

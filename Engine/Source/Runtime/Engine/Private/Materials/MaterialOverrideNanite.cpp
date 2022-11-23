@@ -8,6 +8,8 @@
 #include "RenderUtils.h"
 #include "UObject/UObjectThreadContext.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialOverrideNanite)
+
 
 bool FMaterialOverrideNanite::CanUseOverride(EShaderPlatform ShaderPlatform) const
 {

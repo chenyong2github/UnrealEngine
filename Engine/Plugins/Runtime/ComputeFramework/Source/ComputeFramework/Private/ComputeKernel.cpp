@@ -3,6 +3,8 @@
 #include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeKernelSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComputeKernel)
+
 #if WITH_EDITOR
 
 void UComputeKernel::PostLoad()

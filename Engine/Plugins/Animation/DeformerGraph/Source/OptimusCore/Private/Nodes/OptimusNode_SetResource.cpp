@@ -6,6 +6,8 @@
 #include "OptimusResourceDescription.h"
 #include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_SetResource)
+
 
 int32 UOptimusNode_SetResource::GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const
 {

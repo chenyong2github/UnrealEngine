@@ -7,6 +7,8 @@
 
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioComponentGroup)
+
 UAudioComponentGroup::UAudioComponentGroup(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

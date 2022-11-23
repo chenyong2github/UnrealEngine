@@ -8,6 +8,8 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraShaderParametersBuilder.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceSpriteRendererInfo)
+
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSpriteRendererInfo"
 
 namespace NDISpriteRendererInfoLocal

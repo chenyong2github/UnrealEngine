@@ -8,6 +8,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Rendering/MorphTargetVertexInfoBuffers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerMorphModel)
+
 #define LOCTEXT_NAMESPACE "MLDeformerMorphModel"
 
 UMLDeformerMorphModel::UMLDeformerMorphModel(const FObjectInitializer& ObjectInitializer)

@@ -11,6 +11,9 @@
 #include "LevelVariantSetsFunctionDirector.h"
 #include "Kismet/GameplayStatics.h"
 #include "LevelVariantSetsActor.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(LevelVariantSets)
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "GameDelegates.h"

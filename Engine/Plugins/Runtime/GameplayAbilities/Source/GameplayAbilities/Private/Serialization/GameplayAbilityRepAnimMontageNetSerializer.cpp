@@ -2,6 +2,8 @@
 
 #include "Serialization/GameplayAbilityRepAnimMontageNetSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityRepAnimMontageNetSerializer)
+
 #if UE_WITH_IRIS
 
 #include "Abilities/GameplayAbilityTypes.h"

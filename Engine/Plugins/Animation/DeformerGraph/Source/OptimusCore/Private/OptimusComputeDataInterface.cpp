@@ -8,6 +8,8 @@
 #include "UObject/UObjectIterator.h"
 #include "Templates/SubclassOf.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusComputeDataInterface)
+
 
 const FName UOptimusComputeDataInterface::CategoryName::DataInterfaces("Data Interfaces");
 const FName UOptimusComputeDataInterface::CategoryName::ExecutionDataInterfaces("Execution Data Interfaces");

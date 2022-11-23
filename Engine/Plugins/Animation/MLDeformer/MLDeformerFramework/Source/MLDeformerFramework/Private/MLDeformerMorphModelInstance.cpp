@@ -6,6 +6,8 @@
 #include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerMorphModelInstance)
+
 TAtomic<int32> UMLDeformerMorphModelInstance::NextFreeMorphSetID(0);
 
 void UMLDeformerMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)

@@ -1,9 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldConditions/SmartObjectWorldConditionSchema.h"
 #include "WorldConditions/SmartObjectWorldConditionBase.h"
 #include "SmartObjectSubsystem.h"
 #include "WorldConditionContext.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectWorldConditionSchema)
 
 USmartObjectWorldConditionSchema::USmartObjectWorldConditionSchema(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

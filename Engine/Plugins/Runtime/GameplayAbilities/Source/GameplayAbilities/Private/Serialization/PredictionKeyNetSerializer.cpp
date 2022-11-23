@@ -2,6 +2,8 @@
 
 #include "PredictionKeyNetSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PredictionKeyNetSerializer)
+
 #if UE_WITH_IRIS
 
 #include "GameplayPrediction.h"

@@ -1,10 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayInteractionSendSlotEventTask.h"
 #include "StateTreeExecutionContext.h"
 #include "SmartObjectSubsystem.h"
 #include "StateTreeLinker.h"
 #include "VisualLogger/VisualLogger.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayInteractionSendSlotEventTask)
 
 #define LOCTEXT_NAMESPACE "GameplayInteractions"
 

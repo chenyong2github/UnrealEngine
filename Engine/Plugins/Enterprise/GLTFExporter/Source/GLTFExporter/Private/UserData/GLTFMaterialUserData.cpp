@@ -4,6 +4,8 @@
 #include "Materials/MaterialInstance.h"
 #include "Engine/Texture.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GLTFMaterialUserData)
+
 FGLTFOverrideMaterialBakeSettings::FGLTFOverrideMaterialBakeSettings()
 	: bOverrideSize(false)
 	, Size(EGLTFMaterialBakeSizePOT::POT_1024)

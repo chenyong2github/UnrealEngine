@@ -10,6 +10,8 @@
 #include "HAL/UnrealMemory.h"
 #include "Materials/MaterialInterface.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyValueMaterial)
+
 #define LOCTEXT_NAMESPACE "PropertyValueMaterial"
 
 FProperty* UPropertyValueMaterial::OverrideMaterialsProperty = nullptr;

@@ -11,6 +11,8 @@
 #include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceSkeleton)
+
 FString UOptimusSkeletonDataInterface::GetDisplayName() const
 {
 	return TEXT("Skeleton");

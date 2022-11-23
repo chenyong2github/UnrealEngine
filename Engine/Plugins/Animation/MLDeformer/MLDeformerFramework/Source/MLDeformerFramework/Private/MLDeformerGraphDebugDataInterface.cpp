@@ -18,6 +18,8 @@
 #include "SkeletalRenderPublic.h"
 #include "NeuralNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerGraphDebugDataInterface)
+
 TArray<FOptimusCDIPinDefinition> UMLDeformerGraphDebugDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;

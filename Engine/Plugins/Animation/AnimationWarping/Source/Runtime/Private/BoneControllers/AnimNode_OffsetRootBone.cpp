@@ -5,6 +5,8 @@
 #include "Animation/AnimRootMotionProvider.h"
 #include "Math/UnrealMathUtility.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_OffsetRootBone)
+
 DECLARE_CYCLE_STAT(TEXT("OffsetRootBone Eval"), STAT_OffsetRootBone_Eval, STATGROUP_Anim);
 
 #if ENABLE_ANIM_DEBUG

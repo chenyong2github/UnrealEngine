@@ -4,6 +4,8 @@
 
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ComputeKernelPermutationVector)
+
 void FComputeKernelPermutationVector::AddPermutation(FString const& Name, uint32 NumValues)
 {
 	check(NumValues > 0);

@@ -8,6 +8,8 @@
 #include "ActiveSound.h"
 #include "Kismet/KismetStringLibrary.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioParameterComponent)
+
 
 DEFINE_LOG_CATEGORY(LogAudioParameterComponent);
 

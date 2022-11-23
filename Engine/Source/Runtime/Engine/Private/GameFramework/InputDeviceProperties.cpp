@@ -6,6 +6,8 @@
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveFloat.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InputDeviceProperties)
+
 ///////////////////////////////////////////////////////////////////////
 // UInputDeviceProperty
 

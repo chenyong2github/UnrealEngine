@@ -8,6 +8,8 @@
 
 #include "OptimusHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_ConstantValue)
+
 void UOptimusNode_ConstantValueGeneratorClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
 {
 	Super::Link(Ar, bRelinkExistingProperties);

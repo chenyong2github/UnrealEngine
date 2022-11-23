@@ -11,6 +11,8 @@
 #include "Serialization/Archive.h"
 #include "Templates/TypeHash.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ShaderParamTypeDefinition)
+
 // Storage for shared shader value types.
 static uint32 GetTypeHash(const FShaderValueTypeHandle& InTypeHandle)
 {

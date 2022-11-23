@@ -7,6 +7,8 @@
 #include "OptimusBindingTypes.h"
 #include "OptimusNode_ComputeKernelBase.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_GraphTerminal)
+
 
 #define LOCTEXT_NAMESPACE "OptimusNodeGraphTerminal"
 

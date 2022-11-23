@@ -11,6 +11,8 @@
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "DataInterfaces/OptimusDataInterfaceAnimAttribute.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_AnimAttributeDataInterface)
+
 
 UOptimusNode_AnimAttributeDataInterface::UOptimusNode_AnimAttributeDataInterface() :
 	Super()

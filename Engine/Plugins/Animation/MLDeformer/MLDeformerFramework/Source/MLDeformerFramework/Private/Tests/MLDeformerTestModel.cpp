@@ -4,6 +4,8 @@
 #include "MLDeformerComponent.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerTestModel)
+
 UMLDeformerModelInstance* UMLDeformerTestModel::CreateModelInstance(UMLDeformerComponent* Component)
 {
 	return NewObject<UTestModelInstance>(Component);

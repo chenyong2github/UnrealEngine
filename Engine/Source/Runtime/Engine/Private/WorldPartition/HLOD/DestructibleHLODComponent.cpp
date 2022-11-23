@@ -12,6 +12,8 @@
 #include "RenderingThread.h"
 #include "TextureResource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DestructibleHLODComponent)
+
 #define LOCTEXT_NAMESPACE "DestructibleHLODComponent"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODDestruction, Log, All);

@@ -3,6 +3,8 @@
 #include "OptimusValueContainer.h"
 #include "OptimusHelpers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusValueContainer)
+
 FName UOptimusValueContainerGeneratorClass::ValuePropertyName = TEXT("Value");
 
 void UOptimusValueContainerGeneratorClass::Link(FArchive& Ar, bool bRelinkExistingProperties)

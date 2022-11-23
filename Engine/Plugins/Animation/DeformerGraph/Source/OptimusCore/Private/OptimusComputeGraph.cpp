@@ -13,6 +13,8 @@
 #include "OptimusObjectVersion.h"
 #include "Misc/UObjectToken.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusComputeGraph)
+
 #define LOCTEXT_NAMESPACE "OptimusComputeGraph"
 
 void UOptimusComputeGraph::Serialize(FArchive& Ar)

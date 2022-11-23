@@ -1,7 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Retargeter/IKRetargetSettings.h"
 #include "Retargeter/IKRetargeter.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IKRetargetSettings)
 
 bool FTargetChainSpeedPlantSettings::operator==(const FTargetChainSpeedPlantSettings& Other) const
 {

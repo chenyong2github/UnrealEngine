@@ -5,6 +5,8 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "LevelSequence.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GLTFLevelSequenceExporter)
+
 UGLTFLevelSequenceExporter::UGLTFLevelSequenceExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

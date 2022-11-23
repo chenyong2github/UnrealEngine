@@ -5,6 +5,8 @@
 #include "InputTriggers.h"
 #include "InputModifiers.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedActionKeyMapping)
+
 #define LOCTEXT_NAMESPACE "ActionKeyMapping"
 
 UPlayerMappableKeySettings* FEnhancedActionKeyMapping::GetPlayerMappableKeySettings() const

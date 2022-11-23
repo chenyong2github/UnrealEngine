@@ -3,6 +3,8 @@
 #include "WorldPartition/DataLayer/DataLayerLoadingPolicy.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayerLoadingPolicy)
+
 #if WITH_EDITOR
 bool UDataLayerLoadingPolicy::ResolveIsLoadedInEditor(TArray<const UDataLayerInstance*>& InDataLayers) const
 {

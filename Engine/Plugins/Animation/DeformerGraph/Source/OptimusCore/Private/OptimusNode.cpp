@@ -20,6 +20,8 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/UObjectGlobals.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode)
+
 
 const FName UOptimusNode::CategoryName::DataInterfaces("Data Interfaces");
 const FName UOptimusNode::CategoryName::Deformers("Deformers");

@@ -10,6 +10,8 @@
 #include "Animation/AnimInstance.h"
 #include "NeuralNetwork.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MLDeformerModelInstance)
+
 void UMLDeformerModelInstance::BeginDestroy()
 {
 	Release();

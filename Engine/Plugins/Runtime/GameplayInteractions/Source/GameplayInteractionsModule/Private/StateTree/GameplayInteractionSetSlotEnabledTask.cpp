@@ -1,10 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayInteractionSetSlotEnabledTask.h"
 #include "StateTreeExecutionContext.h"
 #include "SmartObjectSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "StateTreeLinker.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayInteractionSetSlotEnabledTask)
 
 FGameplayInteractionSetSlotEnabledTask::FGameplayInteractionSetSlotEnabledTask()
 {

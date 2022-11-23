@@ -2,6 +2,8 @@
 
 #include "RepMovementNetSerializer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RepMovementNetSerializer)
+
 #if UE_WITH_IRIS
 #include "Engine/ReplicatedState.h"
 #include "Iris/Serialization/BitPacking.h"

@@ -6,6 +6,8 @@
 #include "OptimusNodePin.h"
 #include "OptimusNode_GraphTerminal.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_FunctionReference)
+
 
 FText UOptimusNode_FunctionReference::GetDisplayName() const
 {

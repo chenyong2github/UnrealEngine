@@ -12,6 +12,8 @@
 #include "SkeletalRenderPublic.h"
 #include "ComponentSources/OptimusSkinnedMeshComponentSource.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceRawBuffer)
+
 
 const UOptimusComponentSource* UOptimusRawBufferDataInterface::GetComponentSource() const
 {

@@ -4,6 +4,8 @@
 
 #include "Components/SceneComponent.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusSceneComponentSource)
+
 
 #define LOCTEXT_NAMESPACE "OptimusSceneComponentSource"
 

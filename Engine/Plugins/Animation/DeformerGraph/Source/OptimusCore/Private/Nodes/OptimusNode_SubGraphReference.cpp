@@ -7,6 +7,8 @@
 #include "OptimusBindingTypes.h"
 #include "OptimusNode_GraphTerminal.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_SubGraphReference)
+
 
 FText UOptimusNode_SubGraphReference::GetDisplayName() const
 {

@@ -7,6 +7,8 @@
 #include "OptimusHelpers.h"
 #include "OptimusValueContainer.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusVariableDescription)
+
 
 void UOptimusVariableDescription::ResetValueDataSize()
 {
