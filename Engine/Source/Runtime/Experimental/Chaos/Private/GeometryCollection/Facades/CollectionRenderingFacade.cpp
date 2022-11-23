@@ -52,6 +52,17 @@ namespace GeometryCollection::Facades
 			MaterialIDAttribute.IsValid() && TriangleSectionAttribute.IsValid();
 	}
 
+	int32 FRenderingFacade::NumTriangles() const
+	{
+		if (IsValid())
+		{
+			return GetIndices().Num();
+		}
+			 
+		return 0;
+	}
+
+
 	void FRenderingFacade::AddTriangle(const Chaos::FTriangle& InTriangle)
 	{
 		check(!IsConst());

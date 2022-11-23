@@ -15,7 +15,7 @@ class FEditorViewportClient;
 class FDataflowEditorViewportClient;
 class SEditorViewport;
 class ADataflowActor;
-class ADataflowRenderingActor;
+class ADataflowActor;
 class FDynamicMeshBuilder;
 
 // ----------------------------------------------------------------------------------
@@ -53,7 +53,6 @@ private:
 
 	TWeakPtr<FDataflowEditorToolkit> DataflowEditorToolkitPtr;
 	ADataflowActor* CustomDataflowActor = nullptr;
-	ADataflowRenderingActor* CustomDataflowRenderingActor = nullptr;
 };
 
 
@@ -69,7 +68,7 @@ public:
 		TWeakPtr<FDataflowEditorToolkit> InDataflowEditorToolkitPtr = nullptr);
 
 	Dataflow::FTimestamp LatestTimestamp(const UDataflow* Dataflow, const Dataflow::FContext* Context);
-	void SetDataflowRenderingActor(ADataflowRenderingActor* InActor) { DataflowRenderingActor = InActor; }
+	void SetDataflowActor(ADataflowActor* InActor) { DataflowActor = InActor; }
 
 	// FEditorViewportClient interface
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
@@ -87,8 +86,9 @@ private:
 
 	TWeakPtr<FDataflowEditorToolkit> DataflowEditorToolkitPtr = nullptr;
 	Dataflow::FTimestamp LastModifiedTimestamp = Dataflow::FTimestamp::Invalid;
-	ADataflowRenderingActor* DataflowRenderingActor = nullptr;
+	ADataflowActor* DataflowActor = nullptr;
 
+	bool bIsSelected = false;
 	FManagedArrayCollection RenderCollection;
 
 	// Renderables

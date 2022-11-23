@@ -4,8 +4,9 @@
 #include "AdvancedPreviewScene.h"
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowObject.h"
-#include "Dataflow/DataflowRenderingActor.h"
-#include "Dataflow/DataflowRenderingComponent.h"
+#include "Dataflow/DataflowActor.h"
+#include "Dataflow/DataflowComponent.h"
+#include "Dataflow/DataflowEngineSceneHitProxies.h"
 #include "DynamicMeshBuilder.h"
 #include "Dataflow/DataflowEditorToolkit.h"
 #include "EditorModes.h"
@@ -21,8 +22,6 @@ FAutoConsoleVariableRef CVarbEnableDataflowClientDrawing(
 
 SDataflowEditorViewport::SDataflowEditorViewport()
 {
-	// Temporarily allow water subsystem to be created on preview worlds because we need one here : 
-	//UWaterSubsystem::FScopedAllowWaterSubsystemOnPreviewWorld AllowWaterSubsystemOnPreviewWorldScope(true);
 	PreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
 	PreviewScene->SetFloorVisibility(false);
 }
@@ -36,9 +35,9 @@ void SDataflowEditorViewport::Construct(const FArguments& InArgs)
 	SEditorViewport::Construct(SEditorViewport::FArguments());
 
 	FBoxSphereBounds SphereBounds = FBoxSphereBounds(EForceInit::ForceInitToZero);
-	CustomDataflowRenderingActor = CastChecked<ADataflowRenderingActor>(PreviewScene->GetWorld()->SpawnActor(ADataflowRenderingActor::StaticClass()));
+	CustomDataflowActor = CastChecked<ADataflowActor>(PreviewScene->GetWorld()->SpawnActor(ADataflowActor::StaticClass()));
 
-	EditorViewportClient->SetDataflowRenderingActor(CustomDataflowRenderingActor);
+	EditorViewportClient->SetDataflowActor(CustomDataflowActor);
 	EditorViewportClient->FocusViewportOnBox( SphereBounds.GetBox());
 }
 
@@ -59,7 +58,7 @@ void SDataflowEditorViewport::OnFloatingButtonClicked()
 
 void SDataflowEditorViewport::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(CustomDataflowRenderingActor);
+	Collector.AddReferencedObject(CustomDataflowActor);
 }
 
 TSharedRef<FEditorViewportClient> SDataflowEditorViewport::MakeEditorViewportClient()
@@ -100,7 +99,14 @@ Dataflow::FTimestamp FDataflowEditorViewportClient::LatestTimestamp(const UDataf
 void FDataflowEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
 	Super::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
-
+	if (HitProxy && HitProxy	->IsA(HDataflowActor::StaticGetType()))
+	{
+		if (DataflowActor && DataflowActor->DataflowComponent)
+		{
+			DataflowActor->DataflowComponent->bSelected = !DataflowActor->DataflowComponent->bSelected;
+			DataflowActor->DataflowComponent->Invalidate();
+		}
+	}
 }
 
 
@@ -222,13 +228,13 @@ void FDataflowEditorViewportClient::Tick(float DeltaSeconds)
 
 	TSharedPtr<FDataflowEditorToolkit> DataflowEditorToolkit = DataflowEditorToolkitPtr.Pin();
 
-	if (DataflowRenderingActor && DataflowEditorToolkitPtr.IsValid())
+	if (DataflowActor && DataflowEditorToolkitPtr.IsValid())
 	{
 		if (TSharedPtr<Dataflow::FContext> Context = DataflowEditorToolkit->GetContext())
 		{
 			if (const UDataflow* Dataflow = DataflowEditorToolkit->GetDataflow())
 			{
-				if (UDataflowRenderingComponent* DataflowRenderingComponent = DataflowRenderingActor->GetDataflowRenderingComponent())
+				if (UDataflowComponent* DataflowComponent = DataflowActor->GetDataflowComponent())
 				{
 					Dataflow::FTimestamp SystemTimestamp = LatestTimestamp(Dataflow, Context.Get());
 					if (SystemTimestamp >= LastModifiedTimestamp)
@@ -247,17 +253,17 @@ void FDataflowEditorViewportClient::Tick(float DeltaSeconds)
 							RenderIntoStructures();
 
 							// Component Object Rendering
-							DataflowRenderingComponent->ResetRenderTargets();
-							DataflowRenderingComponent->SetDataflow(Dataflow);
-							DataflowRenderingComponent->SetContext(Context);
+							DataflowComponent->ResetRenderTargets();
+							DataflowComponent->SetDataflow(Dataflow);
+							DataflowComponent->SetContext(Context);
 							for (const UDataflowEdNode* Node : Dataflow->GetRenderTargets())
 							{
-								DataflowRenderingComponent->AddRenderTarget(Node);
+								DataflowComponent->AddRenderTarget(Node);
 							}
 						}
 						else
 						{
-							DataflowRenderingComponent->ResetRenderTargets();
+							DataflowComponent->ResetRenderTargets();
 						}
 
 						LastModifiedTimestamp = LatestTimestamp(Dataflow, Context.Get()).Value + 1;

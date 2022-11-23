@@ -4,7 +4,7 @@ namespace UnrealBuildTool.Rules
 {
 	public class DataflowEnginePlugin : ModuleRules
 	{
-        public DataflowEnginePlugin(ReadOnlyTargetRules Target) : base(Target)
+		public DataflowEnginePlugin(ReadOnlyTargetRules Target) : base(Target)
 		{
 			bTreatAsEngineModule = true;
 			PublicDependencyModuleNames.AddRange(
@@ -12,11 +12,20 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
+				}
+			);
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					// NOTE: UVEditorTools is a separate module so that it doesn't rely on the editor.
+					// So, do not add editor dependencies here.
+	
 					"Engine",
+					"RenderCore",
+					"RHI",
 					"DataflowCore",
 					"DataflowEngine",
 					"Chaos",
-					"ProceduralMeshComponent"
 				}
 			);
 		}

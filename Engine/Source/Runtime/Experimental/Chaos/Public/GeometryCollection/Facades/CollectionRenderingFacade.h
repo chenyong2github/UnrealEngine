@@ -42,6 +42,13 @@ namespace GeometryCollection::Facades
 		/**Does it support rendering surfaces.*/
 		bool CanRenderSurface() const;
 
+		//
+		// Facade API
+		//
+
+		/**Add a triangle to the rendering view.*/
+		int32 NumTriangles() const;
+
 		/**Add a triangle to the rendering view.*/
 		void AddTriangle(const Chaos::FTriangle& InTriangle);
 

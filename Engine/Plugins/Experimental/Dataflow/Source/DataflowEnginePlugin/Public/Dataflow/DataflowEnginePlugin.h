@@ -15,6 +15,10 @@ class IDataflowEnginePlugin : public IModuleInterface
 
 public:
 
+	static FColor SurfaceColor;
+	static FColor PrimarySelectionColor;
+
+
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
 	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.

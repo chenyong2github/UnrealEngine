@@ -18,6 +18,7 @@ class FArchive;
 class UDataflow;
 class UObject;
 class UDataflowEdNode;
+class UMaterial;
 namespace Dataflow { class FGraph; }
 
 
@@ -78,6 +79,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Evaluation", AdvancedDisplay )
 	TArray<TObjectPtr<UObject>> Targets;
+
+	UPROPERTY(EditAnywhere, Category = "Render")
+	TObjectPtr<UMaterial> Material = nullptr;
+
 
 public:
 	/** UObject Interface */
