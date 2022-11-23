@@ -444,6 +444,13 @@ UCustomizableObject* FCustomizableObjectInstanceDescriptor::GetCustomizableObjec
 }
 
 
+void FCustomizableObjectInstanceDescriptor::SetCustomizableObject(UCustomizableObject& InCustomizableObject)
+{
+	CustomizableObject = &InCustomizableObject;
+	ReloadParameters();
+}
+
+
 bool FCustomizableObjectInstanceDescriptor::GetBuildParameterDecorations() const
 {
 	return bBuildParameterDecorations;
@@ -453,13 +460,6 @@ bool FCustomizableObjectInstanceDescriptor::GetBuildParameterDecorations() const
 void FCustomizableObjectInstanceDescriptor::SetBuildParameterDecorations(const bool Value)
 {
 	bBuildParameterDecorations = Value;
-}
-
-
-void FCustomizableObjectInstanceDescriptor::SetCustomizableObject(UCustomizableObject& InCustomizableObject)
-{
-	CustomizableObject = &InCustomizableObject;
-	ReloadParameters();
 }
 
 

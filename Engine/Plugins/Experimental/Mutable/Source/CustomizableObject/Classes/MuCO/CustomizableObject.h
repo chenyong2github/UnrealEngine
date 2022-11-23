@@ -1154,7 +1154,7 @@ public:
 
 	// Get the index of a parameter
 	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
-	int FindParameter(const FString& Name) const;
+	int32 FindParameter(const FString& Name) const;
 
 	// Get the type of a parameter
 	UFUNCTION(BlueprintCallable, Category = CustomizableObject)

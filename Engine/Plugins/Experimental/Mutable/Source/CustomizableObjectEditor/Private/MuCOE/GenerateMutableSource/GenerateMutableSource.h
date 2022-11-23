@@ -794,7 +794,7 @@ void PopulateReferenceSkeletalMeshesData(FMutableGraphGenerationContext& Generat
 void CheckNumOutputs(const UEdGraphPin& Pin, const FMutableGraphGenerationContext& GenerationContext);
 
 
-// TODO GMT Remove generation context dependency and move to GraphTraversal.
+// TODO FutureGMT Remove generation context dependency and move to GraphTraversal.
 UTexture2D* FindReferenceImage(const UEdGraphPin* Pin, FMutableGraphGenerationContext& GenerationContext);
 
 

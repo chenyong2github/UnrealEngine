@@ -1316,7 +1316,7 @@ const FString& UCustomizableObject::GetIntParameterAvailableOption(int32 ParamIn
 }
 
 
-int UCustomizableObject::FindParameter(const FString& Name) const
+int32 UCustomizableObject::FindParameter(const FString& Name) const
 {
 	const int32 * Found = ParameterPropertiesLookupTable.Find(Name);
 	if (Found == nullptr)

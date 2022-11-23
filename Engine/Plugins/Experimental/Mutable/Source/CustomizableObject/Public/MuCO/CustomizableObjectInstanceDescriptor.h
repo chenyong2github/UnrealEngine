@@ -52,12 +52,12 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 
 	UCustomizableObject* GetCustomizableObject() const;
 
+	void SetCustomizableObject(UCustomizableObject& InCustomizableObject);
+	
 	bool GetBuildParameterDecorations() const;
 	
 	void SetBuildParameterDecorations(bool Value);
 	
-	void SetCustomizableObject(UCustomizableObject& InCustomizableObject);
-
 	/** Update all parameters to be up to date with the Mutable Core parameters. */
 	void ReloadParameters();
     
