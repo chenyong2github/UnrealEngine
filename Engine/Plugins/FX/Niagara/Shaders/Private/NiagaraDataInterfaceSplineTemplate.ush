@@ -2,6 +2,7 @@
 	
 float4x4 {ParameterName}_SplineTransform;
 float4x4 {ParameterName}_SplineTransformRotationMat;
+float4x4 {ParameterName}_SplineTransformInverse;
 float4x4 {ParameterName}_SplineTransformInverseTranspose;
 float4	{ParameterName}_SplineTransformRotation;
 float3	{ParameterName}_DefaultUpVector;
@@ -111,25 +112,25 @@ float3 EvaluateDerivativePosition_{ParameterName}(float InDistance)
 	return {ParameterName}_SplinePositionsLUT[NextKey] - {ParameterName}_SplinePositionsLUT[PrevKey];
 }
 
-float3 EvaluateFindNearestPosition_{ParameterName}(float3 InPosition)
+float EvaluateFindNearestPosition_{ParameterName}(float3 InPosition)
 {
 	if ({ParameterName}_MaxIndex < 0)
 	{
 		return 0.0f;
 	}
 	
-	float MinDistance = dot(InPosition, {ParameterName}_SplinePositionsLUT[0].xyz);
+	float MinDistance = length2({ParameterName}_SplinePositionsLUT[0].xyz - InPosition);
 	float KeyToNearest = 0.0f;
-	for (int Index = 1; Index <= {ParameterName}_MaxIndex; Index++)
+	for (int i = 1; i <= {ParameterName}_MaxIndex; i++)
 	{
-		const float Distance = dot(InPosition, {ParameterName}_SplinePositionsLUT[Index].xyz);
+		const float Distance = length2({ParameterName}_SplinePositionsLUT[i].xyz - InPosition);
 		if (Distance < MinDistance)
 		{
 			MinDistance = Distance;
-			KeyToNearest = Index * {ParameterName}_SplineDistanceStep;
+			KeyToNearest = i;
 		}
 	}
-	return KeyToNearest;
+	return KeyToNearest > 0 ? float(KeyToNearest) / float({ParameterName}_MaxIndex) : 0.0f;
 }
 
 void SampleSplinePositionByUnitDistance_{ParameterName}(float U, out float3 Position)
@@ -214,7 +215,8 @@ void GetSplineLocalToWorldInverseTransposed_{ParameterName}(out float4x4 Transfo
 
 void FindClosestUnitDistanceFromPositionWS_{ParameterName}(float3 PositionWS, out float U)
 {
-	U = EvaluateFindNearestPosition_{ParameterName}(U * {ParameterName}_SplineLength);
+	float3 Position = mul(float4(PositionWS, 1.0f), {ParameterName}_SplineTransformInverse).xyz;
+	U = EvaluateFindNearestPosition_{ParameterName}(Position);
 }
 
 void GetSplineLength_{ParameterName}(out float Length)

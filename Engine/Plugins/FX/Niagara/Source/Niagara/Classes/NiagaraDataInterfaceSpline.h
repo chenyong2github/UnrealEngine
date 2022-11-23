@@ -21,6 +21,7 @@ struct FNDISpline_InstanceData_RenderThread
 	
 	FMatrix44f SplineTransform;
 	FMatrix44f SplineTransformRotationMat;
+	FMatrix44f SplineTransformInverse;
 	FMatrix44f SplineTransformInverseTranspose;
 	FQuat4f SplineTransformRotation;
 
@@ -45,9 +46,9 @@ struct FNDISpline_InstanceData_RenderThread
 		SplineScalesLUT.Release();
 		SplineRotationsLUT.Release();
 
-
 		SplineTransform = FMatrix44f::Identity;
 		SplineTransformRotationMat = FMatrix44f::Identity;
+		SplineTransformInverse = FMatrix44f::Identity;
 		SplineTransformInverseTranspose = FMatrix44f::Identity;
 		SplineTransformRotation = FQuat4f::Identity;
 
@@ -154,12 +155,12 @@ struct FNDISpline_InstanceData
 	FVector GetUpVectorAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 	template<typename UseLUT>
 	FVector GetRightVectorAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
-	
+
+	template<typename UseLUT>
+	float GetFinalKeyTime() const;
+
 	template<typename UseLUT>
 	float FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const;
-
-
-	FInterpCurveVector& GetSplinePointsPosition() { return SplineCurves.Position; }
 
 private:
 	template<typename UseLUT>

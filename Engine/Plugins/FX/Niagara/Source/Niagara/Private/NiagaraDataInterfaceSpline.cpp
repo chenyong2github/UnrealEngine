@@ -31,6 +31,7 @@ namespace NDISplineLocal
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
 		SHADER_PARAMETER(FMatrix44f,	SplineTransform)
 		SHADER_PARAMETER(FMatrix44f,	SplineTransformRotationMat)
+		SHADER_PARAMETER(FMatrix44f,	SplineTransformInverse)
 		SHADER_PARAMETER(FMatrix44f,	SplineTransformInverseTranspose)
 		SHADER_PARAMETER(FQuat4f,		SplineTransformRotation)
 		SHADER_PARAMETER(FVector3f,		DefaultUpVector)
@@ -451,6 +452,7 @@ void UNiagaraDataInterfaceSpline::SetShaderParameters(const FNiagaraDataInterfac
 	{
 		ShaderParameters->SplineTransform					= InstanceData_RT->SplineTransform;
 		ShaderParameters->SplineTransformRotationMat		= InstanceData_RT->SplineTransformRotationMat;
+		ShaderParameters->SplineTransformInverse			= InstanceData_RT->SplineTransformInverse;
 		ShaderParameters->SplineTransformInverseTranspose	= InstanceData_RT->SplineTransformInverseTranspose;
 		ShaderParameters->SplineTransformRotation			= InstanceData_RT->SplineTransformRotation;
 		ShaderParameters->DefaultUpVector					= InstanceData_RT->DefaultUpVector;
@@ -466,6 +468,7 @@ void UNiagaraDataInterfaceSpline::SetShaderParameters(const FNiagaraDataInterfac
 	{
 		ShaderParameters->SplineTransform					= FMatrix44f::Identity;
 		ShaderParameters->SplineTransformRotationMat		= FMatrix44f::Identity;
+		ShaderParameters->SplineTransformInverse			= FMatrix44f::Identity;
 		ShaderParameters->SplineTransformInverseTranspose	= FMatrix44f::Identity;
 		ShaderParameters->SplineTransformRotation			= FQuat4f::Identity;
 		ShaderParameters->DefaultUpVector					= FVector3f::UnitZ();
@@ -640,9 +643,10 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 			FNiagaraDataInterfaceProxySpline* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxySpline>();	
 			InstData->bSyncedGPUCopy = true;
 			
+
 			// Push Updates to Proxy.
 			ENQUEUE_RENDER_COMMAND(FUpdateDIColorCurve)(
-				[RT_Proxy, InstanceId = SystemInstance->GetId(), Transform = InstData->Transform, TransformRot = InstData->TransformQuat, TransformInverseTranspose = InstData->TransformInverseTransposed, DefaultUp = InstData->DefaultUpVector, rtShaderLUT = InstData->SplineLUT](FRHICommandListImmediate& RHICmdList)
+				[RT_Proxy, InstanceId=SystemInstance->GetId(), Transform=InstData->Transform, TransformRot=InstData->TransformQuat, DefaultUp=InstData->DefaultUpVector, rtShaderLUT=InstData->SplineLUT](FRHICommandListImmediate& RHICmdList)
 			{
 
 				FNDISpline_InstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.FindOrAdd(InstanceId);
@@ -650,7 +654,8 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 				TargetData->SplineTransform = FMatrix44f(Transform);			// LWC_TODO: Precision loss
 				TargetData->SplineTransformRotationMat =  FMatrix44f(Transform.RemoveTranslation());
 				TargetData->SplineTransformRotationMat.RemoveScaling();
-				TargetData->SplineTransformInverseTranspose = FMatrix44f(TransformInverseTranspose);
+				TargetData->SplineTransformInverse = TargetData->SplineTransform.Inverse();
+				TargetData->SplineTransformInverseTranspose = TargetData->SplineTransformInverse.GetTransposed();
 				TargetData->SplineTransformRotation = FQuat4f(TransformRot);
 					
 				TargetData->DefaultUpVector = (FVector3f)DefaultUp;
@@ -994,22 +999,18 @@ float FNDISpline_InstanceData::EvaluateFindNearestPosition<TIntegralConstant<boo
 {
 	// This is a brute force search, definitely not a great idea with large tables, but also not too many ways around it without more data.
 	float MinDistance = TNumericLimits<float>::Max();
-	float KeyToNearest = 0.0f;
-	for (int32 Index = 0; Index < SplineLUT.Positions.Num(); Index++)
+	int32 KeyToNearest = 0;
+	for (int32 i=0; i < SplineLUT.Positions.Num(); i++)
 	{
-		const float Distance = FVector::DistSquared(InPosition, SplineLUT.Positions[Index]);
+		const float Distance = FVector::DistSquared(InPosition, SplineLUT.Positions[i]);
 		if (Distance < MinDistance)
 		{
 			MinDistance = Distance;
-			KeyToNearest = Index * SplineLUT.SplineDistanceStep;
+			KeyToNearest = i;
 		}
 	}
-	return KeyToNearest;
+	return KeyToNearest > 0 ? float(KeyToNearest) / float(SplineLUT.Positions.Num() - 1) : 0.0f;
 }
-
-
-
-
 
 template<typename UseLUT>
 FVector FNDISpline_InstanceData::GetTangentAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const
@@ -1041,13 +1042,25 @@ FVector FNDISpline_InstanceData::GetDirectionAtDistanceAlongSpline(float Distanc
 	return Direction;
 }
 
+template <>
+float FNDISpline_InstanceData::GetFinalKeyTime<TIntegralConstant<bool, false>>() const
+{
+	const int32 NumPoints = SplineCurves.Position.Points.Num();
+	return NumPoints > 0 ? SplineCurves.Position.Points[NumPoints - 1].InVal : 1.0f;
+}
+
+template <>
+float FNDISpline_InstanceData::GetFinalKeyTime<TIntegralConstant<bool, true>>() const
+{
+	return 1.0f;
+}
+
 template<typename UseLUT>
 float FNDISpline_InstanceData::FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const
 {
 	const FVector LocalLocation = ComponentTransform.InverseTransformPosition(WorldLocation);
 	return EvaluateFindNearestPosition<UseLUT>(LocalLocation);
 }
-
 
 template<typename UseLUT, typename TransformHandlerType, typename SplineSampleType>
 void UNiagaraDataInterfaceSpline::SampleSplinePositionByUnitDistance(FVectorVMExternalFunctionContext& Context)
@@ -1374,19 +1387,17 @@ void UNiagaraDataInterfaceSpline::FindClosestUnitDistanceFromPositionWS(FVectorV
 
 	if (InstData->IsValid())
 	{
-
-		const int32 NumPoints = InstData->GetSplinePointsPosition().Points.Num();
-		const float FinalKeyTime = InstData->GetSplinePointsPosition().Points[NumPoints - 1].InVal;
+		const float FinalKeyTime = InstData->GetFinalKeyTime<UseLUT>();
 
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
-			FNiagaraPosition SimPos = PosParam.GetAndAdvance();
-			FVector WorldPos = InstData->LwcConverter.ConvertSimulationPositionToWorld(SimPos);
+			const FNiagaraPosition SimPos = PosParam.GetAndAdvance();
+			const FVector WorldPos = InstData->LwcConverter.ConvertSimulationPositionToWorld(SimPos);
 
 			// This first call finds the key time, but this is not in 0..1 range for the spline. 
-			float KeyTime = InstData->FindInputKeyClosestToWorldLocation<UseLUT>(WorldPos);
+			const float KeyTime = InstData->FindInputKeyClosestToWorldLocation<UseLUT>(WorldPos);
 			// We need to convert into the range by dividing through by the overall duration of the spline according to the keys.
-			float UnitDistance = KeyTime / FinalKeyTime;
+			const float UnitDistance = KeyTime / FinalKeyTime;
 
 			*OutUnitDistance.GetDest() = UnitDistance;
 			OutUnitDistance.Advance();
