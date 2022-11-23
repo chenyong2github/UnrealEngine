@@ -180,6 +180,9 @@ public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
 	USDSTAGE_API static FOnActorLoaded OnActorLoaded;
 
+	DECLARE_EVENT_OneParam( AUsdStageActor, FOnOpenStageEditorClicked, AUsdStageActor* );
+	USDSTAGE_API static FOnOpenStageEditorClicked OnOpenStageEditorClicked;
+
 	DECLARE_EVENT( AUsdStageActor, FOnStageActorEvent );
 	FOnStageActorEvent OnPreStageChanged;
 	FOnStageActorEvent OnStageChanged;

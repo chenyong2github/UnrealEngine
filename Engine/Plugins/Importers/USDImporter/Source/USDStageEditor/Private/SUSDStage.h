@@ -33,6 +33,8 @@ class SUsdStage : public SCompoundWidget
 
 	virtual ~SUsdStage();
 
+	void AttachToStageActor( AUsdStageActor* InUsdStageActor );
+
 protected:
 	void SetupStageActorDelegates();
 	void ClearStageActorDelegates();
@@ -75,8 +77,6 @@ protected:
 	void SetActor( AUsdStageActor* InUsdStageActor );
 
 	void Refresh();
-
-	void OnStageActorLoaded( AUsdStageActor* InUsdStageActor );
 
 	void OnViewportSelectionChanged( UObject* NewSelection );
 

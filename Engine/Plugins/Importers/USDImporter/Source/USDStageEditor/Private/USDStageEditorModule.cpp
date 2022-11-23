@@ -340,10 +340,28 @@ public:
 			const bool bForClosing = false;
 			UE::UsdStageEditorModule::Private::SaveStageActorLayersForWorld( World, bForClosing );
 		});
+
+		OpenStageEditorClickedHandle = AUsdStageActor::OnOpenStageEditorClicked.AddLambda( []( AUsdStageActor* StageActor )
+		{
+			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >( "LevelEditor" );
+			TSharedPtr< FTabManager > LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+			if ( TSharedPtr< SDockTab > Tab = LevelEditorTabManager->TryInvokeTab( FTabId{ TEXT( "USDStage" ) } ) )
+			{
+				if ( TSharedPtr<SBorder> ContentBorder = StaticCastSharedRef<SBorder>( Tab->GetContent() ) )
+				{
+					if ( TSharedPtr<SUsdStage> UsdStageEditor = StaticCastSharedRef<SUsdStage>( ContentBorder->GetContent() ) )
+					{
+						UsdStageEditor->AttachToStageActor( StageActor );
+					}
+				}
+			}
+		});
 	}
 
 	virtual void ShutdownModule() override
 	{
+		AUsdStageActor::OnOpenStageEditorClicked.Remove( OpenStageEditorClickedHandle );
+
 		FEditorDelegates::PreSaveWorldWithContext.Remove( PreSaveWorldEditorDelegateHandle );
 
 		AUsdStageActor::OnActorLoaded.Remove( StageActorLoadedHandle );
@@ -367,6 +385,7 @@ private:
 	FDelegateHandle PreSaveWorldEditorDelegateHandle;
 	FDelegateHandle EditorCanCloseDelegate;
 	FDelegateHandle StageActorLoadedHandle;
+	FDelegateHandle OpenStageEditorClickedHandle;
 	FDelegateHandle OnTransactionStateChangedHandle;
 #endif // #if USE_USD_SDK
 };

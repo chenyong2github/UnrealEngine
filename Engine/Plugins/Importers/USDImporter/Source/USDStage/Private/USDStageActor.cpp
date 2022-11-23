@@ -94,6 +94,7 @@ static FAutoConsoleVariableRef CVarRegenerateSkeletalAssetsOnControlRigBake(
 static const EObjectFlags DefaultObjFlag = EObjectFlags::RF_Transactional | EObjectFlags::RF_Transient;
 
 AUsdStageActor::FOnActorLoaded AUsdStageActor::OnActorLoaded;
+AUsdStageActor::FOnOpenStageEditorClicked AUsdStageActor::OnOpenStageEditorClicked;
 
 struct FUsdStageActorImpl
 {

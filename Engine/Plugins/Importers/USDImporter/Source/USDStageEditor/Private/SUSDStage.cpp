@@ -270,7 +270,7 @@ namespace SUSDStageImpl
 
 void SUsdStage::Construct( const FArguments& InArgs )
 {
-	OnActorLoadedHandle = AUsdStageActor::OnActorLoaded.AddSP( SharedThis( this ), &SUsdStage::OnStageActorLoaded );
+	OnActorLoadedHandle = AUsdStageActor::OnActorLoaded.AddSP( SharedThis( this ), &SUsdStage::AttachToStageActor );
 
 	OnViewportSelectionChangedHandle = USelection::SelectionChangedEvent.AddRaw( this, &SUsdStage::OnViewportSelectionChanged );
 
@@ -387,6 +387,22 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	{
 		Refresh();
 	}
+}
+
+void SUsdStage::AttachToStageActor( AUsdStageActor* InUsdStageActor )
+{
+	if ( ViewModel.UsdStageActor == InUsdStageActor )
+	{
+		return;
+	}
+
+	ClearStageActorDelegates();
+	ViewModel.UsdStageActor = InUsdStageActor;
+	SetupStageActorDelegates();
+
+	// Refresh here because we may be receiving an actor that has a stage already loaded,
+	// like during undo/redo
+	Refresh();
 }
 
 void SUsdStage::SetupStageActorDelegates()
@@ -2105,22 +2121,6 @@ void SUsdStage::Refresh()
 	{
 		UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), *SelectedPrimPath );
 	}
-}
-
-void SUsdStage::OnStageActorLoaded( AUsdStageActor* InUsdStageActor )
-{
-	if ( ViewModel.UsdStageActor == InUsdStageActor )
-	{
-		return;
-	}
-
-	ClearStageActorDelegates();
-	ViewModel.UsdStageActor = InUsdStageActor;
-	SetupStageActorDelegates();
-
-	// Refresh here because we may be receiving an actor that has a stage already loaded,
-	// like during undo/redo
-	Refresh();
 }
 
 void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )

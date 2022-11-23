@@ -17,6 +17,7 @@
 #include "Styling/AppStyle.h"
 #include "UObject/Object.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE "UsdStageActorCustomization"
@@ -77,6 +78,27 @@ void FUsdStageActorCustomization::CustomizeDetails( IDetailLayoutBuilder& Detail
 	}
 
 	IDetailCategoryBuilder& CatBuilder = DetailLayoutBuilder.EditCategory( TEXT( "USD" ) );
+
+	TWeakObjectPtr<AUsdStageActor> WeakActor = CurrentActor;
+	CatBuilder.AddCustomRow(FText())
+	.WholeRowContent()
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("OpenInStageEditorText", "Open in USD Stage Editor"))
+			.OnClicked_Lambda([WeakActor]()
+			{
+				if( AUsdStageActor* StageActor = WeakActor.Get() )
+				{
+					AUsdStageActor::OnOpenStageEditorClicked.Broadcast( StageActor );
+				}
+
+				return FReply::Handled();
+			})
+		]
+	];
 
 	if ( TSharedPtr<IPropertyHandle> RenderContextProperty = DetailLayoutBuilder.GetProperty( GET_MEMBER_NAME_CHECKED( AUsdStageActor, RenderContext ) ) )
 	{
