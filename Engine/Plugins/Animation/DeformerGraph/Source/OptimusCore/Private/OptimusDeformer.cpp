@@ -7,7 +7,6 @@
 #include "Actions/OptimusResourceActions.h"
 #include "Actions/OptimusVariableActions.h"
 #include "Components/MeshComponent.h"
-#include "ComputeFramework/ComputeFramework.h"
 #include "ComputeFramework/ComputeKernel.h"
 #include "Containers/Queue.h"
 #include "DataInterfaces/OptimusDataInterfaceGraph.h"
@@ -29,6 +28,7 @@
 #include "OptimusNodePin.h"
 #include "OptimusObjectVersion.h"
 #include "OptimusResourceDescription.h"
+#include "OptimusSettings.h"
 #include "OptimusVariableDescription.h"
 #include "RenderingThread.h"
 #include "SceneInterface.h"
@@ -2306,9 +2306,9 @@ UMeshDeformerInstance* UOptimusDeformer::CreateInstance(
 		return nullptr;
 	}
 
-	// Return nullptr if ComputeFramework is disabled. Clients can then fallback to some other behaviour.
+	// Return nullptr if deformers are disabled. Clients can then fallback to some other behaviour.
 	EShaderPlatform Platform = InMeshComponent->GetScene() != nullptr ? InMeshComponent->GetScene()->GetShaderPlatform() : GMaxRHIShaderPlatform;
-	if (!ComputeFramework::IsEnabled() || !ComputeFramework::IsSupported(Platform))
+	if (!Optimus::IsEnabled() || !Optimus::IsSupported(Platform))
 	{
 		return nullptr;
 	}

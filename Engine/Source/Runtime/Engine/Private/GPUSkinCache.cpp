@@ -24,7 +24,6 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 #include "RayTracingSkinnedGeometry.h"
 #include "GPUSkinCacheVisualizationData.h"
 #include "Internationalization/Internationalization.h"
-#include "Animation/MeshDeformerProvider.h"
 
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumChunks);
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumVertices);
@@ -207,11 +206,7 @@ static inline bool IsGPUSkinCacheAllowed(EShaderPlatform Platform)
 
 ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform)
 {
-	// Enable skin cache shaders if there is a mesh deformer provider.
-	// Store in static because it needs to be consistent and available on all threads.
-	static bool bMeshDeformersAvailable = IMeshDeformerProvider::IsAvailable();
-
-	return (bMeshDeformersAvailable || AreSkinCacheShadersEnabled(Platform) != 0) && IsGPUSkinCacheAllowed(Platform);
+	return AreSkinCacheShadersEnabled(Platform) != 0 && IsGPUSkinCacheAllowed(Platform);
 }
 
 static inline bool IsGPUSkinCacheEnable(EShaderPlatform Platform)

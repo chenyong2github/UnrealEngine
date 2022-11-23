@@ -14,6 +14,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "GPUSkinCache.h"
 #include "GPUSkinVertexFactory.h"
+#include "Animation/MeshDeformerProvider.h"
 
 IMPLEMENT_TYPE_LAYOUT(FLocalVertexFactoryShaderParametersBase);
 IMPLEMENT_TYPE_LAYOUT(FLocalVertexFactoryShaderParameters);
@@ -214,6 +215,14 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 	ShaderBindings.Add(Shader->GetUniformBufferParameter<FLocalVertexFactoryLooseParameters>(), LocalVertexFactory->LooseParametersUniformBuffer);
 }
 
+bool IsGPUSkinPassThroughSupported(EShaderPlatform Platform)
+{
+	// Enable the GPUSkin passthrough path if we might use the GPUSkinCache or MeshDeformers.
+	static IMeshDeformerProvider* MeshDeformerProvider = IMeshDeformerProvider::Get();
+	bool bMeshDeformersAvailable = MeshDeformerProvider && MeshDeformerProvider->IsSupported(Platform);
+	return bMeshDeformersAvailable || IsGPUSkinCacheAvailable(Platform);
+}
+
 void FLocalVertexFactoryShaderParameters::GetElementShaderBindingsGPUSkinPassThrough(
 	const FSceneInterface* Scene,
 	const FSceneView* View,
@@ -311,7 +320,7 @@ void FLocalVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShade
 
 	if (Parameters.VertexFactoryType->SupportsGPUSkinPassThrough())
 	{
-		OutEnvironment.SetDefine(TEXT("SUPPORT_GPUSKIN_PASSTHROUGH"), IsGPUSkinCacheAvailable(Parameters.Platform));
+		OutEnvironment.SetDefine(TEXT("SUPPORT_GPUSKIN_PASSTHROUGH"), IsGPUSkinPassThroughSupported(Parameters.Platform));
 	}
 }
 

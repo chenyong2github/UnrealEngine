@@ -22,6 +22,9 @@ public:
 	static bool IsAvailable();
 	static IMeshDeformerProvider* Get();
 
+	/** Returns true if the platform is supported. */
+	virtual bool IsSupported(EShaderPlatform Platform) const = 0;
+
 	/** Structure for passing to GetDefaultMeshDeformer(). */
 	struct FDefaultMeshDeformerSetup
 	{

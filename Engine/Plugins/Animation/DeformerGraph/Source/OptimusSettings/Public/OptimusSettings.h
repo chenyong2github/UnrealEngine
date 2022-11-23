@@ -43,3 +43,12 @@ class OPTIMUSSETTINGS_API UOptimusSettings : public UDeveloperSettings
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 };
+
+namespace Optimus
+{
+	/** Returns true if DeformerGraph is supported on a platform. */
+	OPTIMUSSETTINGS_API bool IsSupported(EShaderPlatform Platform);
+
+	/** Returns true if DeformerGraph is currently enabled. */
+	OPTIMUSSETTINGS_API bool IsEnabled();
+}

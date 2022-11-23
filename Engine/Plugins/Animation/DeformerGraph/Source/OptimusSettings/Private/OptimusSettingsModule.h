@@ -14,6 +14,7 @@ class FOptimusSettingsModule : public IModuleInterface, public IMeshDeformerProv
 	void ShutdownModule() override;
 
 	/** IMeshDeformerProvider implementation */
+	bool IsSupported(EShaderPlatform Platform) const override;
 	TObjectPtr<UMeshDeformer> GetDefaultMeshDeformer(FDefaultMeshDeformerSetup const& InSetup) override;
 
 private:

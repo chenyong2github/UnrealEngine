@@ -3,15 +3,44 @@
 #include "OptimusSettingsModule.h"
 
 #include "Animation/MeshDeformer.h"
+#include "ComputeFramework/ComputeFramework.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "OptimusSettings.h"
+#include "RenderUtils.h"
+
+
+namespace Optimus
+{
+	/** ReadOnly CVar intended for enabling/disabling of DeformerGraph support per platform. */
+	static TAutoConsoleVariable<int32> CVarDeformerGraphEnable(
+		TEXT("r.DeformerGraph.Enable"),
+		1,
+		TEXT("Set to 0 to disable DeformerGraph support on a platform.\n"),
+		ECVF_ReadOnly);
+
+	bool IsSupported(EShaderPlatform Platform)
+	{
+		static FShaderPlatformCachedIniValue<int32> PerPlatformCVar(TEXT("r.DeformerGraph.Enable"));
+		return PerPlatformCVar.Get(Platform) != 0 && ComputeFramework::IsSupported(Platform);
+	}
+
+	bool IsEnabled()
+	{
+		return ComputeFramework::IsEnabled();
+	}
+}
 
 
 UOptimusSettings::UOptimusSettings(const FObjectInitializer& ObjectInitlaizer)
 	: UDeveloperSettings(ObjectInitlaizer)
 {
+}
+
+bool FOptimusSettingsModule::IsSupported(EShaderPlatform Platform) const
+{
+	return Optimus::IsSupported(Platform);
 }
 
 #if WITH_EDITOR
