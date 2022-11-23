@@ -117,9 +117,9 @@ public:
 		Windows::InitializeSRWLock(&Mutex);
 	}
 
-	FORCEINLINE ~FWindowsRWLock()
+	~FWindowsRWLock()
 	{
-		checkf(Windows::TryAcquireSRWLockExclusive(&Mutex), TEXT("Destroying a lock that is still held!"));
+		checkf(!IsLocked(), TEXT("Destroying a lock that is still held!"));
 	}
 
 	FORCEINLINE void ReadLock()
@@ -153,6 +153,20 @@ public:
 	}
 
 private:
+
+	bool IsLocked()
+	{
+		if (Windows::TryAcquireSRWLockExclusive(&Mutex))
+		{
+			Windows::ReleaseSRWLockExclusive(&Mutex);
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	}
+
 	Windows::SRWLOCK Mutex;
 };
 
