@@ -206,22 +206,14 @@ namespace UE::PoseSearch
 			// Ensure statistics information get updated/populated
 			if (DatabaseAsset)
 			{
-				const auto UpdateStatisticsInformationLambda = [this]()
-				{
-					UPoseSearchDatabaseStatistics* Statistics = NewObject<UPoseSearchDatabaseStatistics>();
-					Statistics->AddToRoot();
-					Statistics->Initialize(GetPoseSearchDatabase());
-					StatisticsOverviewWidget->SetObject(Statistics);
-				};
-
 				// Init statistics
 				if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(GetPoseSearchDatabase(), ERequestAsyncBuildFlag::ContinueRequest))
 				{
-					UpdateStatisticsInformationLambda();
+					RefreshStatisticsWidgetInformation();
 				}
 
 				// Ensure any database changes are reflected
-				DatabaseAsset->RegisterOnDerivedDataRebuild(UPoseSearchDatabase::FOnDerivedDataRebuild::CreateLambda(UpdateStatisticsInformationLambda));
+				DatabaseAsset->RegisterOnDerivedDataRebuild(UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(this, &FDatabaseEditor::RefreshStatisticsWidgetInformation));
 			}
 		}
 		
@@ -576,6 +568,14 @@ namespace UE::PoseSearch
 		}
 
 		ViewModel->SetSelectedNodes(SelectedItems);
+	}
+
+	void FDatabaseEditor::RefreshStatisticsWidgetInformation()
+	{
+		UPoseSearchDatabaseStatistics* Statistics = NewObject<UPoseSearchDatabaseStatistics>();
+		Statistics->AddToRoot();
+		Statistics->Initialize(GetPoseSearchDatabase());
+		StatisticsOverviewWidget->SetObject(Statistics);
 	}
 }
 

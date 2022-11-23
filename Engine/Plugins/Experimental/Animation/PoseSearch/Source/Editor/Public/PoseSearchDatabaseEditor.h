@@ -67,6 +67,8 @@ namespace UE::PoseSearch
 			const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& SelectedItems,
 			ESelectInfo::Type SelectionType);
 
+		void RefreshStatisticsWidgetInformation();
+		
 		TSharedPtr<SDatabasePreview> PreviewWidget;
 
 		TSharedPtr<SDatabaseAssetTree> AssetTreeWidget;
