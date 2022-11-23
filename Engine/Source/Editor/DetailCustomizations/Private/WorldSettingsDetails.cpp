@@ -140,51 +140,46 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 
 	if (CustomizedLevel)
 	{
-		const bool bIsPartitionedWorld = UWorld::IsPartitionedWorld(CustomizedLevel->GetWorld());
-
 		IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
-		if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)
-		{
-			WorldCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("LevelUseExternalActors", "Use External Actors"))
-					.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Use external actors, new actor spawned in this level will be external and existing external actors will be loaded on load."))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(!bIsPartitionedWorld)
-				]
-				.ValueContent()
-				[
-					SNew(SCheckBox)
-					.OnCheckStateChanged(this, &FWorldSettingsDetails::OnUseExternalActorsChanged, CustomizedLevel)
-					.IsChecked(this, &FWorldSettingsDetails::IsUseExternalActorsChecked, CustomizedLevel)
-					.IsEnabled(!bIsPartitionedWorld)
-				];
-		}
+		
+		WorldCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("LevelUseExternalActors", "Use External Actors"))
+				.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Use external actors, new actor spawned in this level will be external and existing external actors will be loaded on load."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.IsEnabled(this, &FWorldSettingsDetails::IsUseExternalActorsEnabled, CustomizedLevel)
+			]
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.OnCheckStateChanged(this, &FWorldSettingsDetails::OnUseExternalActorsChanged, CustomizedLevel)
+				.IsChecked(this, &FWorldSettingsDetails::IsUseExternalActorsChecked, CustomizedLevel)
+				.IsEnabled(this, &FWorldSettingsDetails::IsUseExternalActorsEnabled, CustomizedLevel)
+			];
+		
 
 		const bool bIsUsingActorFolders = CustomizedLevel->IsUsingActorFolders();
-		if (bIsUsingActorFolders || GetDefault<UEditorExperimentalSettings>()->bEnableActorFolderObjectSupport)
-		{
-			WorldCategory.AddCustomRow(LOCTEXT("LevelUseActorFoldersRow", "LevelUseActorFolders"), true)
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("LevelUseActorFolders", "Use Actor Folder Objects"))
-					.ToolTipText(LOCTEXT("LevelUseActorFolders_ToolTip", "Use actor folder objects, actor folders of this level will be persistent in their own object."))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(!bIsUsingActorFolders)
-				]
-				.ValueContent()
-				[
-					SNew(SCheckBox)
-					.OnCheckStateChanged(this, &FWorldSettingsDetails::OnUseActorFoldersChanged, CustomizedLevel)
-					.IsChecked(this, &FWorldSettingsDetails::IsUsingActorFoldersChecked, CustomizedLevel)
-					.IsEnabled(!bIsUsingActorFolders)
-				];
-		}
+		WorldCategory.AddCustomRow(LOCTEXT("LevelUseActorFoldersRow", "LevelUseActorFolders"), true)
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("LevelUseActorFolders", "Use Actor Folder Objects"))
+				.ToolTipText(LOCTEXT("LevelUseActorFolders_ToolTip", "Use actor folder objects, actor folders of this level will be persistent in their own object."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.IsEnabled(this, &FWorldSettingsDetails::IsUsingActorFoldersEnabled, CustomizedLevel)
+			]
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.OnCheckStateChanged(this, &FWorldSettingsDetails::OnUseActorFoldersChanged, CustomizedLevel)
+				.IsChecked(this, &FWorldSettingsDetails::IsUsingActorFoldersChecked, CustomizedLevel)
+				.IsEnabled(this, &FWorldSettingsDetails::IsUsingActorFoldersEnabled, CustomizedLevel)
+			];
+		
 
-		if (bIsPartitionedWorld)
+		if (IsPartitionedWorld(CustomizedLevel))
 		{
 			IDetailCategoryBuilder& WorldPartitionCategory = DetailBuilder.EditCategory("WorldPartition");
 
@@ -195,7 +190,6 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 					.Text(LOCTEXT("DefaultWorldPartitionSettings", "Default World Partition Settings"))
 					.ToolTipText(LOCTEXT("DefaultWorldPartitionSettings_ToolTip", "Save or Reset the current World Partition default editor state"))
 					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(bIsPartitionedWorld)
 				]
 				.ValueContent()
 				[
@@ -230,7 +224,6 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 							.Text(LOCTEXT("SaveButtonText", "Save"))
 							.ToolTipText(LOCTEXT("SaveButtonToolTip", "Save current World Partition editor state as map default"))
 							.Font(IDetailLayoutBuilder::GetDetailFont())
-							.IsEnabled(bIsPartitionedWorld)
 						]
 					]
 				];
@@ -251,6 +244,11 @@ ECheckBoxState FWorldSettingsDetails::IsUsingActorFoldersChecked(ULevel* Level) 
 	return Level->IsUsingActorFolders() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
+bool FWorldSettingsDetails::IsUsingActorFoldersEnabled(ULevel* Level) const
+{
+	return !Level->IsUsingActorFolders();
+}
+
 void FWorldSettingsDetails::OnUseExternalActorsChanged(ECheckBoxState BoxState, ULevel* Level)
 {
 	if (Level != nullptr)
@@ -265,20 +263,20 @@ void FWorldSettingsDetails::OnUseExternalActorsChanged(ECheckBoxState BoxState, 
 			return;
 		}
 
-		FScopedTransaction Transaction(LOCTEXT("WorldUseExternalActors", "Change World Use External Actors"));
-
-		Level->Modify();
-		Level->SetUseExternalActors(BoxState == ECheckBoxState::Checked);
-		
 		FText MessageTitle(LOCTEXT("ConvertActorPackagingDialog", "Convert Actors Packaging"));
-		FText PackagingMode = Level->IsUsingExternalActors() ? LOCTEXT("ExternalActors", "External") : LOCTEXT("InternalActors", "Internal");
+		FText PackagingMode = !Level->IsUsingExternalActors() ? LOCTEXT("ExternalActors", "External") : LOCTEXT("InternalActors", "Internal");
 		FText Message = FText::Format(LOCTEXT("ConvertActorPackagingMsg", "Do you want to convert all actors to {0} packaging as well?"), PackagingMode);
 		EAppReturnType::Type ConvertAnswer = FMessageDialog::Open(EAppMsgType::YesNo, Message, &MessageTitle);
-
 		// if the user accepts, convert all actors to what the new packaging mode will be
 		if (ConvertAnswer == EAppReturnType::Yes)
 		{
-			Level->ConvertAllActorsToPackaging(Level->IsUsingExternalActors());
+			Level->Modify();
+			Level->ConvertAllActorsToPackaging(BoxState == ECheckBoxState::Checked);
+
+			if (Level->IsUsingExternalActors())
+			{
+				Level->SetUseActorFolders(true);
+			}
 		}
 	}
 }
@@ -286,6 +284,16 @@ void FWorldSettingsDetails::OnUseExternalActorsChanged(ECheckBoxState BoxState, 
 ECheckBoxState FWorldSettingsDetails::IsUseExternalActorsChecked(ULevel* Level) const
 {
 	return Level->IsUsingExternalActors() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool FWorldSettingsDetails::IsPartitionedWorld(ULevel* Level) const
+{
+	return UWorld::IsPartitionedWorld(Level->GetWorld());
+}
+
+bool FWorldSettingsDetails::IsUseExternalActorsEnabled(ULevel* Level) const
+{
+	return !IsPartitionedWorld(Level);
 }
 
 FLightmapCustomNodeBuilder::FLightmapCustomNodeBuilder(const TSharedPtr<FAssetThumbnailPool>& InThumbnailPool)

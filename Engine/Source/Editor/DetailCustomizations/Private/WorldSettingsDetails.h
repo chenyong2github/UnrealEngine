@@ -80,17 +80,26 @@ protected:
 	void AddWorldCustomization(IDetailLayoutBuilder& DetailBuilder);
 
 private:
+	// return true if level's owning world is partitioned.
+	bool IsPartitionedWorld(ULevel* Level) const;
+	
 	// Called when `ULevel::bUseExternalActors` changes.
 	void OnUseExternalActorsChanged(ECheckBoxState State, ULevel* Level);
 
-	// return the state of `ULevel::bUseExternalActors`
+	// return the state of `ULevel::bUseExternalActors`.
 	ECheckBoxState IsUseExternalActorsChecked(ULevel* Level) const;
+
+	// return true if the state of 'ULevel::bUseExternalActors' can be changed.
+	bool IsUseExternalActorsEnabled(ULevel* Level) const;
 
 	// Called when `ULevel::bUseActorFolders` changes.
 	void OnUseActorFoldersChanged(ECheckBoxState BoxState, ULevel* Level);
 
-	// return the state of `ULevel::bUseActorFolders`
+	// return the state of `ULevel::bUseActorFolders`.
 	ECheckBoxState IsUsingActorFoldersChecked(ULevel* Level) const;
+
+	// return true if the state of 'ULevel::bUseActorFolders' can be changed.
+	bool IsUsingActorFoldersEnabled(ULevel* Level) const;
 
 	// Handles checking whether a given asset is acceptable for drag-and-drop.
 	bool HandleAssetDropTargetIsAssetAcceptableForDrop( const UObject* InObject ) const;

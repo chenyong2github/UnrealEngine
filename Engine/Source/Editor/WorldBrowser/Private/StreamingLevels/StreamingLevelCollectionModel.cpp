@@ -6,7 +6,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor/EditorEngine.h"
 #include "Settings/LevelEditorMiscSettings.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Engine/LevelStreamingAlwaysLoaded.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Editor.h"
@@ -350,12 +349,9 @@ void FStreamingLevelCollectionModel::BuildHierarchyMenu(FMenuBuilder& InMenuBuil
 			InMenuBuilder.AddMenuEntry( Commands.MoveFoliageToSelected );
 		}
 
-		if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)
-		{
-			InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToExternalActors);
-			InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToInternalActors);
-		}
-
+		InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToExternalActors);
+		InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToInternalActors);
+		
 		if (AreAnyLevelsSelected() && !(IsOneLevelSelected() && SelectedLevelsList[0]->IsPersistent()))
 		{
 			InMenuBuilder.AddMenuEntry( Commands.SelectStreamingVolumes );

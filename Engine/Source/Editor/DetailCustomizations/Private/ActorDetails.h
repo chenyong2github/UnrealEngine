@@ -103,11 +103,6 @@ private:
 
 	// Functions for actor loading strategy details
 private:
-	// Functions to handle actor packaging mode (i.e. external or internal)
-	bool IsActorPackagingModeEditable() const;
-	FText GetCurrentActorPackagingMode() const;
-	void OnActorPackagingModeChanged(bool bExternal);
-
 
 	/** Bring up the menu for user to select the path to create blueprint at */
 	FReply OnPickBlueprintPathClicked(bool bHavest);

@@ -55,7 +55,6 @@
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Algo/AnyOf.h"
 
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -581,28 +580,6 @@ FReply FActorDetails::HandleAddOrViewEventForVariable(UBlueprint* BP, FMulticast
 	return FReply::Handled();
 }
 
-namespace ActorDetailsUtil
-{
-	constexpr int32 MultipleValuesIndicator = 2;
-
-	FText GetActorPackagingModeText(int32 Mode)
-	{
-		switch (Mode)
-		{
-			// false: internal
-		case 0:
-			return LOCTEXT("InternalActorPackaging", "Internal");
-			// true: external
-		case 1:
-			return LOCTEXT("ExternalActorPackaging", "External");
-		case MultipleValuesIndicator:
-			return LOCTEXT("MultipleValues", "Multiple Values");
-		default:
-			return LOCTEXT("InternalActorPackaging", "Internal");
-		}
-	}
-}
-
 void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const TMap<ULevel*, int32>& ActorsPerLevelCount )
 {		
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
@@ -720,112 +697,6 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 		[
 			MakeConvertMenu( SelectedActorInfo )
 		];
-	}
-
-	if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)
-	{
-		// WorldSettings should not be packaged externally
-		if (SelectedActorInfo.SelectionClass != AWorldSettings::StaticClass())
-		{
-			// Actor Packaging Mode
-			const bool bIsPartitionedWorld = UWorld::IsPartitionedWorld(SelectedActorInfo.SharedWorld);
-
-			auto OnGetMenuContent = [=]() -> TSharedRef<SWidget> {
-				FMenuBuilder MenuBuilder(true, nullptr);
-				MenuBuilder.AddMenuEntry(ActorDetailsUtil::GetActorPackagingModeText(0), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &FActorDetails::OnActorPackagingModeChanged, false));
-				MenuBuilder.AddMenuEntry(ActorDetailsUtil::GetActorPackagingModeText(1), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &FActorDetails::OnActorPackagingModeChanged, true));
-				return MenuBuilder.MakeWidget();
-			};
-
-			ActorCategory.AddCustomRow( LOCTEXT("ActorPackagingModeRow", "ActorPackagingMode"), true)
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ActorPackagingMode", "Packaging Mode"))
-					.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Change the actor packaging mode. This will indicate if the actor is packaged alongside its level or in an external package."))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-				.ValueContent()
-				[
-					SNew(SComboButton)
-					.ContentPadding(2)
-					.OnGetMenuContent_Lambda(OnGetMenuContent)
-					.IsEnabled(this, &FActorDetails::IsActorPackagingModeEditable)
-					.ButtonContent()
-					[
-						SNew(STextBlock)
-						.Text(this, &FActorDetails::GetCurrentActorPackagingMode)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
-					.IsEnabled(!bIsPartitionedWorld)
-				];
-		}
-	}
-}
-
-bool FActorDetails::IsActorPackagingModeEditable() const
-{
-	for (TWeakObjectPtr<AActor> Actor : SelectedActors)
-	{
-		if (Actor.IsValid() && Actor->GetLevel())
-		{
-			if (!Actor->SupportsExternalPackaging())
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-FText FActorDetails::GetCurrentActorPackagingMode() const
-{
-	int32 PackagingMode = -1;
-	for (TWeakObjectPtr<AActor> Actor : SelectedActors)
-	{
-		if (Actor.IsValid())
-		{
-			// If loading strategy is `Count` initialize it, otherwise set it to `None` if different between selected actors
-			PackagingMode = PackagingMode == -1 ? (int32)Actor->IsPackageExternal() : (PackagingMode != (int32)Actor->IsPackageExternal() ? ActorDetailsUtil::MultipleValuesIndicator : PackagingMode);
-		}
-	}
-	return ActorDetailsUtil::GetActorPackagingModeText(PackagingMode);
-}
-
-void FActorDetails::OnActorPackagingModeChanged(bool bExternal)
-{
-	// Validate all actors are in a saved map
-	TArray<AActor*> ActorsToConvert;
-	for (TWeakObjectPtr<AActor> Actor : SelectedActors)
-	{
-		if (Actor.IsValid() && Actor->GetLevel())
-		{
-			ULevel* Level = Actor->GetLevel();
-			UPackage* LevelPackage = Level->GetOutermost();
-			FString LevelName = LevelPackage->GetName();
-			if (LevelPackage == GetTransientPackage()
-				|| LevelPackage->HasAnyFlags(RF_Transient)
-				|| !FPackageName::IsValidLongPackageName(LevelName))
-			{
-				FText Message = FText::Format(LOCTEXT("ActorPackagingModeSaveMap", "You need to save level {0} before changing packaging mode on its actors."), FText::FromString(LevelName));
-				FMessageDialog::Open(EAppMsgType::Ok, Message);
-				return;
-			}
-			else if (Actor->SupportsExternalPackaging())
-			{
-				ActorsToConvert.Add(Actor.Get());
-			}
-			else
-			{
-				UE_LOG(LogLevel, Warning, TEXT("Can't convert %s to external packaging."), *Actor->GetName());
-			}
-		}
-	}
-
-	FScopedTransaction Transaction(LOCTEXT("ActorSetPackageExternal", "Change Actors Assigned Package"));
-	for (AActor* Actor : ActorsToConvert)
-	{
-		Actor->SetPackageExternal(bExternal);
 	}
 }
 
