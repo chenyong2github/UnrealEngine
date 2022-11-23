@@ -583,6 +583,7 @@ protected:
 
 	// USubsystem BEGIN
 	virtual void Deinitialize() override;
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	// USubsystem END
 
 	/** Creates all runtime data using main collection */

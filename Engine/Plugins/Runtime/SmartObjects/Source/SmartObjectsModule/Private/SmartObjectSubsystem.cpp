@@ -1615,6 +1615,19 @@ void USmartObjectSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+bool USmartObjectSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+	if (Super::ShouldCreateSubsystem(Outer))
+	{
+		if (UWorld* OuterWorld = Cast<UWorld>(Outer))
+		{
+			return OuterWorld->IsNetMode(NM_Client) == false;
+		}
+	}
+
+	return false;
+}
+
 #if WITH_EDITOR
 void USmartObjectSubsystem::ComputeBounds(const UWorld& World, ASmartObjectCollection& Collection) const
 {
