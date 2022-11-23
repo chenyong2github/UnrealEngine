@@ -661,7 +661,7 @@ void SAnimationModifiersTab::RetrieveModifierData()
 					return true;
 				});
 				// Swap the double buffer
-				Swap(NextModifiersToCheck, NextModifiersToCheck);
+				Swap(ModifiersToCheck, NextModifiersToCheck);
 
 				// Break if all modifiers are out of date
 				return !ModifiersToCheck.IsEmpty();
