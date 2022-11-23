@@ -230,6 +230,12 @@ bool FRecorderRelay::ReadMetadata(int32 Size)
 		ReadSize -= MetadataField.Size;
 	}
 
+	// There should be no data left to consume if the metadata was well-formed
+	if (ReadSize != 0)
+	{
+		return false;
+	}
+
 	// Now we've a full preamble we are ready to write the trace.
 	if (!CreateTrace())
 	{
