@@ -1961,7 +1961,7 @@ namespace UnrealBuildTool
 							}
 							else
 							{
-								AdditionalLibraries.Add(AbsoluteLibraryPath);
+								AdditionalLibraries.Add(Library.FullName);
 							}
 
 							if (!DisableLibCppSharedDependencyValidation() && ReadElfPath != null)
