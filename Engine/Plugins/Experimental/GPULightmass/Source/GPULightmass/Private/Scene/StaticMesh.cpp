@@ -55,9 +55,23 @@ void FStaticMeshInstance::AllocateLightmaps(TEntityArray<FLightmap>& LightmapCon
 			// Shrink LOD texture lightmaps by half for each LOD level
 			const int32 LightMapWidth = LODIndex > 0 ? FMath::Max(BaseLightMapWidth / (2 << (LODIndex - 1)), 32) : BaseLightMapWidth;
 			const int32 LightMapHeight = LODIndex > 0 ? FMath::Max(BaseLightMapHeight / (2 << (LODIndex - 1)), 32) : BaseLightMapHeight;
-
-			FString LightmapName = TEXT("Lightmap_") + (ComponentUObject->GetOwner() ? ComponentUObject->GetOwner()->GetActorLabel() : FString());
-
+			
+			FString LightmapName;
+			if (ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources.Num() > 1)
+			{
+				LightmapName = FString::Printf(
+					TEXT("Lightmap_%s:LOD%d"),
+					*(ComponentUObject->GetOwner() ? ComponentUObject->GetOwner()->GetActorLabel() : FString()),
+					LODIndex);
+			}
+			else
+			{
+				LightmapName = FString::Printf(
+					TEXT("Lightmap_%s"), *(ComponentUObject->GetOwner()
+						                             ? ComponentUObject->GetOwner()->GetActorLabel()
+						                             : FString()));
+			}
+			
 			LODLightmaps.Add(LightmapContainer.Emplace(LightmapName, FIntPoint(LightMapWidth, LightMapHeight)));
 		}
 		else

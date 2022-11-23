@@ -76,6 +76,7 @@ public:
 			FMath::DivideAndRoundUp(Size.X, GPreviewLightmapVirtualTileSize),
 			FMath::DivideAndRoundUp(Size.Y, GPreviewLightmapVirtualTileSize));
 	}
+	FIntPoint GetPaddedSize() const { return GetPaddedSizeInTiles() * GPreviewLightmapVirtualTileSize; }
 
 	FString Name;
 	FIntPoint Size;

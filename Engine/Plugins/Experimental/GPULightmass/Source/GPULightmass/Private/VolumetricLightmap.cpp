@@ -555,6 +555,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		{
 			FWriteSortedBrickRequestsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FWriteSortedBrickRequestsCS::FParameters>();
+			PassParameters->NumTotalBricks = NumTotalBricks;
 			PassParameters->BrickRequests = BrickRequests.UAV;
 			PassParameters->BrickRequestsUnsorted = GraphBuilder.CreateUAV(BrickRequestsUnsorted, PF_R32G32B32A32_UINT);
 			PassParameters->BrickRequestSortedIndices = GraphBuilder.CreateUAV(BrickRequestSortedIndices, PF_R32_UINT);
@@ -567,7 +568,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 				RDG_EVENT_NAME("WriteSortedBrickRequests"),
 				ComputeShader,
 				PassParameters,
-				FIntVector(NumTotalBricks, 1, 1));
+				FComputeShaderUtils::GetGroupCount(NumTotalBricks, 64));
 		}
 
 		for (int32 MipLevel = VoxelizationVolumeMips.Num() - 1; MipLevel >= 0; MipLevel--)

@@ -202,7 +202,7 @@ struct FGPUBatchedTileRequests
 			CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 			CreateInfo.ResourceArray = &BatchedTilesDesc;
 
-			BatchedTilesBuffer = RHICreateStructuredBuffer(sizeof(FGPUTileDescription), BatchedTilesDesc.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
+			BatchedTilesBuffer = RHICreateStructuredBuffer(sizeof(FGPUTileDescription), BatchedTilesDesc.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			BatchedTilesSRV = RHICreateShaderResourceView(BatchedTilesBuffer);
 		}
 	}
@@ -1509,6 +1509,35 @@ void FLightmapRenderer::RenderMeshBatchesIntoGBuffer(
 	GPrimitiveIdVertexBufferPool.DiscardAll();
 }
 
+void ClearScratchTilePoolForMultipleTiles(
+	FRDGBuilder& GraphBuilder,
+	const TResourceArray<FIntPoint>& TilePositionsToClear,
+	const TStaticArray<FRDGTextureUAVRef, 3>& ScratchTilePoolLayerUAVs,
+	const FGlobalShaderMap* GlobalShaderMap)
+{
+	for (int ScratchLayerIndex = 0; ScratchLayerIndex < ScratchTilePoolLayerUAVs.Num(); ScratchLayerIndex++)
+	{
+		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
+		FRDGBufferDesc TilePositionsBufferDesc = FRDGBufferDesc::CreateBufferDesc(TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num());
+		const FRDGBufferRef TilePositionsBuffer = CreateVertexBuffer(GraphBuilder, TEXT("TilePositionsBufferForClear"), TilePositionsBufferDesc, TilePositionsToClear.GetData(), TilePositionsToClear.GetResourceDataSize());
+		const FRDGBufferSRVRef TilePositionsBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TilePositionsBuffer, PF_R32G32_UINT));
+		FMultiTileClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMultiTileClearCS::FParameters>();
+		Parameters->NumTiles = TilePositionsToClear.Num();
+		Parameters->TileSize = GPreviewLightmapPhysicalTileSize;
+		Parameters->TilePositions = TilePositionsBufferSRV;
+		Parameters->TilePool = ScratchTilePoolLayerUAVs[ScratchLayerIndex];
+
+		TShaderMapRef<FMultiTileClearCS> ComputeShader(GlobalShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("MultiTileClear"),
+			ComputeShader,
+			Parameters,
+			FComputeShaderUtils::GetGroupCount(FIntPoint(GPreviewLightmapPhysicalTileSize * TilePositionsToClear.Num(), GPreviewLightmapPhysicalTileSize), FComputeShaderUtils::kGolden2DGroupSize));
+	}
+}
+	
 void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FLightmapRenderer::Finalize);
@@ -2175,33 +2204,13 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 						PendingGIRenderPassIndices.Add(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex);
 					}
 
-					for (int ScratchLayerIndex = 0; ScratchLayerIndex < 3; ScratchLayerIndex++)
+					TResourceArray<FIntPoint> TilePositionsToClear;
+					for (auto& Tile : PendingGITileRequests)
 					{
-						RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
-						
-						TResourceArray<FIntPoint> TilePositionsToClear;
-						for (auto& Tile : PendingGITileRequests)
-						{
-							TilePositionsToClear.Add(ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch));
-						}
-
-						FRDGBufferDesc TilePositionsBufferDesc = FRDGBufferDesc::CreateBufferDesc(TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num());
-						FRDGBufferRef TilePositionsBuffer = CreateVertexBuffer(GraphBuilder, TEXT("TilePositionsBufferForClear"), TilePositionsBufferDesc, TilePositionsToClear.GetData(), TilePositionsToClear.GetResourceDataSize());
-						FRDGBufferSRVRef TilePositionsBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TilePositionsBuffer, PF_R32G32_UINT));
-						FMultiTileClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMultiTileClearCS::FParameters>();
-						Parameters->NumTiles = TilePositionsToClear.Num();
-						Parameters->TileSize = GPreviewLightmapPhysicalTileSize;
-						Parameters->TilePositions = TilePositionsBufferSRV;
-						Parameters->TilePool = ScratchTilePoolLayerUAVs[ScratchLayerIndex];
-
-						TShaderMapRef<FMultiTileClearCS> ComputeShader(GlobalShaderMap);
-						FComputeShaderUtils::AddPass(
-							GraphBuilder,
-							RDG_EVENT_NAME("MultiTileClear"),
-							ComputeShader,
-							Parameters,
-							FComputeShaderUtils::GetGroupCount(FIntPoint(GPreviewLightmapPhysicalTileSize * TilePositionsToClear.Num(), GPreviewLightmapPhysicalTileSize), FComputeShaderUtils::kGolden2DGroupSize));
+						TilePositionsToClear.Add(ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch));
 					}
+					
+					ClearScratchTilePoolForMultipleTiles(GraphBuilder, TilePositionsToClear, ScratchTilePoolLayerUAVs, GlobalShaderMap);
 
 					{
 						for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
@@ -2466,32 +2475,13 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 					if (PendingShadowTileRequests.Num() == 0) continue;
 
-					for (int ScratchLayerIndex = 0; ScratchLayerIndex < 3; ScratchLayerIndex++)
+					TResourceArray<FIntPoint> TilePositionsToClear;
+					for (auto& Tile : PendingShadowTileRequests)
 					{
-						TResourceArray<FIntPoint> TilePositionsToClear;
-						for (auto& Tile : PendingShadowTileRequests)
-						{
-							TilePositionsToClear.Add(ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch));
-						}
-
-						FRDGBufferDesc TilePositionsBufferDesc = FRDGBufferDesc::CreateBufferDesc(TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num());
-						FRDGBufferRef TilePositionsBuffer = CreateVertexBuffer(GraphBuilder, TEXT("TilePositionsBufferForClear"), TilePositionsBufferDesc, TilePositionsToClear.GetData(), TilePositionsToClear.GetResourceDataSize());
-						FRDGBufferSRVRef TilePositionsBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TilePositionsBuffer, PF_R32_UINT));
-
-						FMultiTileClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMultiTileClearCS::FParameters>();
-						Parameters->NumTiles = TilePositionsToClear.Num();
-						Parameters->TileSize = GPreviewLightmapPhysicalTileSize;
-						Parameters->TilePositions = TilePositionsBufferSRV;
-						Parameters->TilePool = ScratchTilePoolLayerUAVs[ScratchLayerIndex];
-
-						TShaderMapRef<FMultiTileClearCS> ComputeShader(GlobalShaderMap);
-						FComputeShaderUtils::AddPass(
-							GraphBuilder,
-							RDG_EVENT_NAME("MultiTileClear"),
-							ComputeShader,
-							Parameters,
-							FComputeShaderUtils::GetGroupCount(FIntPoint(GPreviewLightmapPhysicalTileSize * TilePositionsToClear.Num(), GPreviewLightmapPhysicalTileSize), FComputeShaderUtils::kGolden2DGroupSize));
+						TilePositionsToClear.Add(ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch));
 					}
+
+					ClearScratchTilePoolForMultipleTiles(GraphBuilder, TilePositionsToClear, ScratchTilePoolLayerUAVs, GlobalShaderMap);
 
 					FRDGTextureRef GBufferWorldPosition = GraphBuilder.RegisterExternalTexture(ScratchTilePoolGPU->PooledRenderTargets[0], TEXT("GBufferWorldPosition"));
 					FRDGTextureRef GBufferWorldNormal = GraphBuilder.RegisterExternalTexture(ScratchTilePoolGPU->PooledRenderTargets[1], TEXT("GBufferWorldNormal"));
@@ -3139,6 +3129,51 @@ void FLightmapTileDenoiseAsyncTask::DoThreadedWork()
 	FPlatformAtomics::AtomicStore(&TextureData->bDenoisingFinished, 1);
 }
 
+bool CompareMostSignificantBit(uint32 A, uint32 B)
+{
+	return A < B && A < (A ^ B);
+}
+
+bool MortonCompare(FUintVector A, FUintVector B)
+{
+	int32 MostSignificantDim = 0;
+	for (int32 Dim = 1; Dim < FUintVector::Num(); Dim++)
+	{
+		if (CompareMostSignificantBit(A[MostSignificantDim] ^ B[MostSignificantDim], A[Dim] ^ B[Dim]))
+		{
+			MostSignificantDim = Dim;
+		}
+	}
+
+	return A[MostSignificantDim] < B[MostSignificantDim];
+}
+
+void FSceneRenderState::BuildMortonSortedLightmapRefList()
+{
+	FBox SceneBounds;
+
+	for (FLightmapRenderState& Lightmap : LightmapRenderStates.Elements)
+	{
+		SceneBounds += Lightmap.GeometryInstanceRef.GetOrigin();
+	}
+
+	for (FLightmapRenderState& Lightmap : LightmapRenderStates.Elements)
+	{
+		MortonSortedLightmapRefList.Add(FLightmapRenderStateRef(Lightmap, LightmapRenderStates));
+	}
+
+	if (SceneBounds.GetSize().GetMax() > UE_DOUBLE_SMALL_NUMBER)
+	{
+		MortonSortedLightmapRefList.Sort(
+			[SceneBounds](const FLightmapRenderStateRef& A, const FLightmapRenderStateRef& B)
+			{
+				const FUintVector QuantizedPosA = FUintVector((A->GeometryInstanceRef.GetOrigin() - SceneBounds.Min) / SceneBounds.GetSize().GetMax() * UINT_MAX);
+				const FUintVector QuantizedPosB = FUintVector((B->GeometryInstanceRef.GetOrigin() - SceneBounds.Min) / SceneBounds.GetSize().GetMax() * UINT_MAX);
+				return MortonCompare(QuantizedPosA, QuantizedPosB);
+			});
+	}
+}
+
 void FLightmapRenderer::BackgroundTick()
 {
 	{
@@ -3538,31 +3573,38 @@ void FLightmapRenderer::BackgroundTick()
 
 			TArray<FString> SelectedLightmapNames;
 
+			if (Scene->MortonSortedLightmapRefList.IsEmpty())
+			{
+				Scene->BuildMortonSortedLightmapRefList();
+			}
+
 			// We schedule VLM work to be after lightmaps (which forces LOD 0). Making LOD 0 last here reduces the chance of rebuilding cached scene
 			for (int32 LODIndex = MAX_STATIC_MESH_LODS - 1; LODIndex >= 0; LODIndex--)
 			{
-				for (FLightmapRenderState& Lightmap : Scene->LightmapRenderStates.Elements)
+				bool bLODIndexSelected = false;
+				
+				for (const FLightmapRenderStateRef& Lightmap : Scene->MortonSortedLightmapRefList)
 				{
-					if (Lightmap.GeometryInstanceRef.LODIndex != LODIndex)
+					if (Lightmap->GeometryInstanceRef.LODIndex != LODIndex)
 					{
 						continue;
 					}
 
 					bool bAnyTileSelected = false;
 
-					for (int32 Y = 0; Y < Lightmap.GetPaddedSizeInTiles().Y; Y++)
+					for (int32 Y = 0; Y < Lightmap->GetPaddedSizeInTiles().Y; Y++)
 					{
-						for (int32 X = 0; X < Lightmap.GetPaddedSizeInTiles().X; X++)
+						for (int32 X = 0; X < Lightmap->GetPaddedSizeInTiles().X; X++)
 						{
 							FTileVirtualCoordinates VirtualCoordinates(FIntPoint(X, Y), 0);
 
-							if (!Lightmap.DoesTileHaveValidCPUData(VirtualCoordinates, CurrentRevision) && Lightmap.RetrieveTileState(VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
+							if (!Lightmap->DoesTileHaveValidCPUData(VirtualCoordinates, CurrentRevision) && Lightmap->RetrieveTileState(VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
 							{
 								bAnyTileSelected = true;
 
 								FVTProduceTargetLayer TargetLayers[4];
 
-								Lightmap.LightmapPreviewVirtualTexture->ProducePageData(
+								Lightmap->LightmapPreviewVirtualTexture->ProducePageData(
 									RHICmdList,
 									Scene->FeatureLevel,
 									EVTProducePageFlags::None,
@@ -3590,7 +3632,8 @@ void FLightmapRenderer::BackgroundTick()
 
 					if (bAnyTileSelected)
 					{
-						SelectedLightmapNames.Add(Lightmap.Name);
+						bLODIndexSelected = true;
+						SelectedLightmapNames.Add(Lightmap->Name);
 					}
 
 					if (WorkGenerated >= WorkToGenerate)
@@ -3599,13 +3642,14 @@ void FLightmapRenderer::BackgroundTick()
 					}
 				}
 
-				if (WorkGenerated >= WorkToGenerate)
+				// Do not mix different LODs together
+				if (bLODIndexSelected || WorkGenerated >= WorkToGenerate)
 				{
 					break;
 				}
 			}
 
-			if (bIsViewportNonRealtime && FrameNumber % 100 == 0)
+			if (!SelectedLightmapNames.IsEmpty() && bIsViewportNonRealtime && FrameNumber % 100 == 0)
 			{
 				FString AllNames;
 				for (FString& Name : SelectedLightmapNames)
@@ -3725,6 +3769,8 @@ void FLightmapRenderer::BumpRevision()
 	RecordedTileRequests.Empty();
 
 	LightmapTilePoolGPU.UnmapAll();
+
+	Scene->MortonSortedLightmapRefList.Empty();
 }
 
 void FLightmapRenderer::DeduplicateRecordedTileRequests()

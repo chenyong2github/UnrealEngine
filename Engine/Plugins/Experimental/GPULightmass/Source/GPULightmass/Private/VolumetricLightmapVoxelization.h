@@ -315,6 +315,7 @@ class FWriteSortedBrickRequestsCS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(int32, NumTotalBricks)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint4>, BrickRequestsUnsorted)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BrickRequestSortedIndices)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BrickRequestSortedIndicesInverse)

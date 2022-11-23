@@ -59,6 +59,7 @@ public:
 	{}
 
 	TArray<FMeshBatch> GetMeshBatchesForGBufferRendering(FTileVirtualCoordinates CoordsForCulling = FTileVirtualCoordinates{});
+	FVector GetOrigin() const;
 
 	int32 LODIndex;
 private:

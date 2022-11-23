@@ -113,9 +113,12 @@ void SplatVolumeCS(
 	}
 }
 
-[numthreads(1, 1, 1)]
+int NumTotalBricks;
+
+[numthreads(64, 1, 1)]
 void WriteSortedBrickRequestsCS(uint3 RequestIndex : SV_DispatchThreadID)
 {
+	if (RequestIndex.x >= NumTotalBricks) return;
 	BrickRequests[RequestIndex.x] = BrickRequestsUnsorted[BrickRequestSortedIndices[RequestIndex.x]];
 	BrickRequestSortedIndicesInverse[BrickRequestSortedIndices[RequestIndex.x]] = RequestIndex.x;
 }
@@ -357,7 +360,6 @@ float3 ManualTrilinearFilter(RWTexture3D<UNORM float> Texture, float3 UVW)
 	return Value;
 }
 
-int NumTotalBricks;
 int BrickBatchOffset;
 RWTexture3D<uint> ValidityMask;
 

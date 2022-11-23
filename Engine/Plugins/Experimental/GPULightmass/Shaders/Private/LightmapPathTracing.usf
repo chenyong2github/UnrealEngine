@@ -146,6 +146,7 @@ void ApplyRayBias(inout FRayDesc Ray, float HitT, float3 Normal, bool ShadowTerm
 	// for shadow rays, push out the point a bit more so we can reduce shadow terminator issues from poor tesselations
 	// other rays are less likely to arrive at grazing angles, so don't need the extra offset
 	Ray.Origin += max(ShadowTerminatorFix ? ShadowOffset : BaseOffset, RelativeOffset * 100) * Normal;
+	Ray.TMax -= length(max(ShadowTerminatorFix ? ShadowOffset : BaseOffset, RelativeOffset * 100) * Normal);
 #else
 	ApplyPositionBias(Ray.Origin, Ray.Direction, Normal, MaxNormalBias);
 #endif
@@ -427,7 +428,21 @@ void PathTracingKernel(
 		float DistanceFromTexelToHit = length(HitPosition - TexelPosition);
 		bool bRejectedByCornerRejection = RenderPassIndex >= GetIrradianceCachingQuality() && DistanceFromTexelToHit < IrradianceCachingParameters.Spacing * IrradianceCachingParameters.CornerRejection;
 		
-		if (NearestCacheEntryID == -1 && Bounce >= 1 && !bRejectedByCornerRejection)
+		// Compute an overestimated upper bound for the number of samples we need for this texel by assuming
+		// all the rays from all IC building passes are sent from this single texel
+		float CellArea = IrradianceCachingParameters.Spacing * IrradianceCachingParameters.Spacing;
+		float TotalSamplesOverAllICPasses = GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize * GetIrradianceCachingQuality();
+		float DistanceFraction = CellArea / (2 * PI * DistanceFromTexelToHit * DistanceFromTexelToHit);
+
+		// Cache entries too far away have a very low chance of being reused
+		// Don't bother placing or looking them up
+		bool bRejectedByMaxLookupDistace = false;
+		if (TotalSamplesOverAllICPasses * DistanceFraction < 1)
+		{
+			bRejectedByMaxLookupDistace = true;
+		}
+		
+		if (NearestCacheEntryID == -1 && Bounce >= 1 && !bRejectedByCornerRejection && !bRejectedByMaxLookupDistace)
 		{
 			bool bIrradianceQuerySuccessful = false;
 			bool bGeometryQuerySuccessful = false;
@@ -442,12 +457,6 @@ void PathTracingKernel(
 
 				uint4 RecordIrradianceAndSampleCount = IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex];
 				uint BackfaceHitsCount = IrradianceCachingParameters.IrradianceCacheRecordBackfaceHits[RecordIndex].a;
-
-				// Compute an overestimated upper bound for the number of samples we need for this texel by assuming
-				// all the rays from all IC building passes are sent from this single texel
-				float CellArea = IrradianceCachingParameters.Spacing * IrradianceCachingParameters.Spacing;
-				float TotalSamplesOverAllICPasses = GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize * GetIrradianceCachingQuality();
-				float DistanceFraction = CellArea / (2 * PI * DistanceFromTexelToHit * DistanceFromTexelToHit);
 			
 				// We accept a cache entry, if:
 				// 1) The entry has been built by other lightmap tiles and contains more samples than we will ever need.
@@ -880,10 +889,10 @@ void LightmapPathTracingMainRG()
 
 	float4 EncodedGBufferWorldPosition = GBufferWorldPosition[TexelIndexInScratch];
 
-	bool bIsValidSample = true;
+	bool bGBufferSampleValid = true;
 	if (EncodedGBufferWorldPosition.w == 0.0f)
 	{
-		bIsValidSample = false;
+		bGBufferSampleValid = false;
 	}
 
 	float3 TranslatedWorldPosition = EncodedGBufferWorldPosition.xyz / WorldPositionScalar + LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
@@ -912,15 +921,18 @@ void LightmapPathTracingMainRG()
 	
 	if (NumTotalSamples <= 0 || (NumTotalSamples > 0 && BatchedTiles[TileIndex].RenderPassIndex < NumTotalSamples - 1))
 	{
-		if (bIsValidSample)
+		bool bAnyHemispherePathSampleValid = false;
+	
+		if (bGBufferSampleValid)
 		{			
 			// Needs a seed that is only related to position in virtual space to avoid seams due to per-tile calculation
 			uint2 VirtualTextureSpacePosition = BatchedTiles[TileIndex].VirtualTilePosition + LaunchIndex - uint2(2, 2);
 			uint Seed = VirtualTextureSpacePosition.y * BatchedTiles[TileIndex].LightmapSize.x + VirtualTextureSpacePosition.x;
 					
 			float4 PrimaryRandSample = float4(-1, -1, -1, -1);
-
+			
 			// Evaluate both hemispheres for two sided materials and add the lighting up naively
+			UNROLL_N(2)
 			for (int HemisphereIndex = 0; HemisphereIndex < (bMaterialTwoSided ? 2 : 1); HemisphereIndex++)
 			{
 				RandomSequence RandSequence;
@@ -940,32 +952,31 @@ void LightmapPathTracingMainRG()
 				float3 SkyLightBentNormal = 0;
 
 				float3 EffectiveShadingNormal = HemisphereIndex == 0 ? ShadingNormal : -ShadingNormal;
+
+				bool bPathSampleValid = true;
 				
-				if (bIsValidSample)
-				{
-					PathTracingKernel(
-						BatchedTiles[TileIndex].RenderPassIndex,
-						TranslatedWorldPosition,
-						EffectiveShadingNormal,
-						RandSequence,
-						SampleIndex,
-						bIsValidSample,
-						RadianceValue,
-						RadianceDirection,
-						DirectLightingIrradiance,
-						DirectLightingSH,
-						LuminanceForFirstBounceRayGuiding,
-						SkyLightBentNormal,
-						PrimaryRandSample
-					);
-				}
+				PathTracingKernel(
+					BatchedTiles[TileIndex].RenderPassIndex,
+					TranslatedWorldPosition,
+					EffectiveShadingNormal,
+					RandSequence,
+					SampleIndex,
+					bPathSampleValid,
+					RadianceValue,
+					RadianceDirection,
+					DirectLightingIrradiance,
+					DirectLightingSH,
+					LuminanceForFirstBounceRayGuiding,
+					SkyLightBentNormal,
+					PrimaryRandSample
+				);
 				
 				if (any(isnan(RadianceValue)) || any(RadianceValue < 0) || any(isinf(RadianceValue)))
 				{
-					bIsValidSample = false;
+					bPathSampleValid = false;
 				}
 				
-				if (bIsValidSample)
+				if (bPathSampleValid)
 				{
 				#if USE_FIRST_BOUNCE_RAY_GUIDING
 					int MinRenderPassIndex = 0;
@@ -1013,6 +1024,8 @@ void LightmapPathTracingMainRG()
 
 					SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].yzw += SkyLightBentNormal;
 				}
+
+				bAnyHemispherePathSampleValid = bAnyHemispherePathSampleValid || bPathSampleValid;
 			}
 		}
 
@@ -1032,7 +1045,7 @@ void LightmapPathTracingMainRG()
 		}
 #endif
 		
-		if (bIsValidSample)
+		if (bAnyHemispherePathSampleValid)
 			SampleCount++;
 		
 		IrradianceAndSampleCount[TexelIndexInPool].a = asfloat(SampleCount);
@@ -1271,6 +1284,7 @@ void VolumetricLightmapPathTracingMainRG()
 
 	int NumValidHalfSamples = 0;
 	
+	UNROLL_N(2)
 	for (int HalfSampleIndex = 0; HalfSampleIndex < 2; HalfSampleIndex++)
 	{
 		float3 ShadingNormal = float3(0, 0, (HalfSampleIndex == 0) ? 1 : -1);
@@ -1429,21 +1443,22 @@ void StationaryLightShadowTracingMainRG()
 
 	int ChannelIndex = ChannelIndexArray[TileIndex];
 
-	bool bIsValidSample = true;
+	bool bGBufferSampleValid = true;
 
 	float4 EncodedGBufferWorldPosition = GBufferWorldPosition[TexelIndexInScratch];
 	
 	if (EncodedGBufferWorldPosition.w == 0.0f)
 	{
-		bIsValidSample = false;
+		bGBufferSampleValid = false;
 	}
 
 	float3 TranslatedWorldPosition = EncodedGBufferWorldPosition.xyz / WorldPositionScalar + LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 	
-	if (bIsValidSample)
+	if (bGBufferSampleValid)
 	{
 		float3 WorldNormal = GBufferWorldNormal[TexelIndexInScratch].xyz;
 		float3 ShadingNormal = GBufferShadingNormal[TexelIndexInScratch].xyz;
+		bool bMaterialTwoSided = GBufferShadingNormal[TexelIndexInScratch].w;
 		
 		// Needs a seed that is only related to position in virtual space to avoid seams due to per-tile calculation
 		uint2 VirtualTextureSpacePosition = BatchedTiles[TileIndex].VirtualTilePosition + LaunchIndex - uint2(2, 2);
@@ -1452,27 +1467,36 @@ void StationaryLightShadowTracingMainRG()
 		int LightType = LightTypeArray[TileIndex];
 		FLightShaderParameters LightParameters;
 		LightShaderParametersArray[TileIndex].FillLightShaderParameters(LightParameters);
+
+		bool bAnyHemisphereRaySampleValid = false;
+		uint Visibility = 0;
 		
+		UNROLL_N(2)
+		for (int HemisphereIndex = 0; HemisphereIndex < (bMaterialTwoSided ? 2 : 1); HemisphereIndex++)
 		{
 			float2 RandSample = float2(
 				Halton(StrongIntegerHash(Seed) + LightSampleIndexArray[TileIndex], 5), 
 				Halton(StrongIntegerHash(Seed) + LightSampleIndexArray[TileIndex], 7)
 			);
+
+			float3 EffectiveWorldNormal = HemisphereIndex == 0 ? WorldNormal : -WorldNormal;
+
+			bool bRaySampleValid = true;
 			
 			FRayDesc Ray;
-			bIsValidSample &= GenerateOcclusionRay(
+			bRaySampleValid &= GenerateOcclusionRay(
 				LightType,
 				LightParameters,
-				TranslatedWorldPosition, WorldNormal,
+				TranslatedWorldPosition, EffectiveWorldNormal,
 				RandSample,
 				/* out */ Ray.Origin,
 				/* out */ Ray.Direction,
 				/* out */ Ray.TMin,
 				/* out */ Ray.TMax);
 				
-			ApplyRayBias(Ray, 1.0f, WorldNormal);
-				
-			if (bIsValidSample)
+			ApplyRayBias(Ray, LightType == LIGHT_TYPE_DIRECTIONAL ? 1.0f : max(Ray.TMax - Ray.TMin, 0.0f), EffectiveWorldNormal);
+			
+			if (bRaySampleValid)
 			{
 				uint RayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 
@@ -1481,13 +1505,18 @@ void StationaryLightShadowTracingMainRG()
 					RayFlags,
 					Ray);
 				
-				uint Visibility = asuint(ShadowMask[TexelIndexInPool][ChannelIndex]);
-				uint SampleCount = asuint(ShadowMaskSampleCount[TexelIndexInPool][ChannelIndex]);
-				Visibility += MinimalPayload.IsMiss() ? 1 : 0;
-				SampleCount++;
-				ShadowMask[TexelIndexInPool][ChannelIndex] = asfloat(Visibility);
-				ShadowMaskSampleCount[TexelIndexInPool][ChannelIndex] = asfloat(SampleCount);
+				Visibility = max(Visibility, MinimalPayload.IsMiss() ? 1 : 0);
 			}
+
+			bAnyHemisphereRaySampleValid = bAnyHemisphereRaySampleValid || bRaySampleValid;
+		}
+
+		if (bAnyHemisphereRaySampleValid)
+		{
+			ShadowMask[TexelIndexInPool][ChannelIndex] = asfloat(asuint(ShadowMask[TexelIndexInPool][ChannelIndex]) + Visibility);
+			uint SampleCount = asuint(ShadowMaskSampleCount[TexelIndexInPool][ChannelIndex]);
+			SampleCount++;
+			ShadowMaskSampleCount[TexelIndexInPool][ChannelIndex] = asfloat(SampleCount);
 		}
 	}
 }

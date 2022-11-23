@@ -967,7 +967,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 				int32 BaseLightMapWidth = Instance->LODPerInstanceLightmapSize[LODIndex].X;
 				int32 BaseLightMapHeight = Instance->LODPerInstanceLightmapSize[LODIndex].Y;
 
-				FVector2D Scale = FVector2D(BaseLightMapWidth - 2, BaseLightMapHeight - 2) / Lightmap->Size;
+				FVector2D Scale = FVector2D(BaseLightMapWidth - 2, BaseLightMapHeight - 2) / Lightmap->GetPaddedSize();
 				Lightmap->LightmapObject->CoordinateScale = Scale;
 				Lightmap->LightmapObject->CoordinateBias = FVector2D(0, 0);
 
@@ -980,7 +980,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 					{
 						int32 X = RenderIndex % InstancesPerRow;
 						int32 Y = RenderIndex / InstancesPerRow;
-						FVector2f Bias = (FVector2f(X, Y) * FVector2f(BaseLightMapWidth, BaseLightMapHeight) + FVector2f(1, 1)) / Lightmap->Size;
+						FVector2f Bias = (FVector2f(X, Y) * FVector2f(BaseLightMapWidth, BaseLightMapHeight) + FVector2f(1, 1)) / Lightmap->GetPaddedSize();
 						Lightmap->MeshMapBuildData->PerInstanceLightmapData[GameThreadInstanceIndex].LightmapUVBias = Bias;
 						Lightmap->MeshMapBuildData->PerInstanceLightmapData[GameThreadInstanceIndex].ShadowmapUVBias = Bias;
 					}
@@ -1167,7 +1167,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 		{
 			Lightmap->CreateGameThreadResources();
 
-			Lightmap->LightmapObject->CoordinateScale = FVector2D(1, 1);
+			Lightmap->LightmapObject->CoordinateScale = FVector2D(Lightmap->Size) / Lightmap->GetPaddedSize();
 			Lightmap->LightmapObject->CoordinateBias = FVector2D(0, 0);
 
 			for (FDirectionalLightBuildInfo& DirectionalLight : LightScene.DirectionalLights.Elements)
@@ -1971,10 +1971,12 @@ void FScene::ApplyFinishedLightmapsToWorld()
 									Lightmap.TileStorage[Coords].CPUTextureData[0]->Decompress();
 									Lightmap.TileStorage[Coords].CPUTextureData[1]->Decompress();
 									Lightmap.TileStorage[Coords].CPUTextureData[2]->Decompress();
+									Lightmap.TileStorage[Coords].CPUTextureData[3]->Decompress();
 
 									Lightmap.TileStorage[ParentCoords].CPUTextureData[0]->Decompress();
 									Lightmap.TileStorage[ParentCoords].CPUTextureData[1]->Decompress();
 									Lightmap.TileStorage[ParentCoords].CPUTextureData[2]->Decompress();
+									Lightmap.TileStorage[ParentCoords].CPUTextureData[3]->Decompress();
 
 									for (int32 X = 0; X < GPreviewLightmapVirtualTileSize; X++)
 									{
@@ -1994,6 +1996,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 											Lightmap.TileStorage[Coords].CPUTextureData[0]->Data[DstLinearIndex] = Lightmap.TileStorage[ParentCoords].CPUTextureData[0]->Data[SrcLinearIndex];
 											Lightmap.TileStorage[Coords].CPUTextureData[1]->Data[DstLinearIndex] = Lightmap.TileStorage[ParentCoords].CPUTextureData[1]->Data[SrcLinearIndex];
 											Lightmap.TileStorage[Coords].CPUTextureData[2]->Data[DstLinearIndex] = Lightmap.TileStorage[ParentCoords].CPUTextureData[2]->Data[SrcLinearIndex];
+											Lightmap.TileStorage[Coords].CPUTextureData[3]->Data[DstLinearIndex] = Lightmap.TileStorage[ParentCoords].CPUTextureData[3]->Data[SrcLinearIndex];
 										}
 									}
 
@@ -2071,6 +2074,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							Tile.Value.CPUTextureData[0]->Decompress();
 							Tile.Value.CPUTextureData[1]->Decompress();
 							Tile.Value.CPUTextureData[2]->Decompress();
+							Tile.Value.CPUTextureData[3]->Decompress();
 						}
 
 						// Transencode GI layers
@@ -2396,6 +2400,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							Tile.Value.CPUTextureData[0]->Decompress();
 							Tile.Value.CPUTextureData[1]->Decompress();
 							Tile.Value.CPUTextureData[2]->Decompress();
+							Tile.Value.CPUTextureData[3]->Decompress();
 						}
 
 						FInstanceGroup& InstanceGroup = InstanceGroups.Elements[InstanceGroupIndex];
@@ -2737,6 +2742,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							Tile.Value.CPUTextureData[0]->Decompress();
 							Tile.Value.CPUTextureData[1]->Decompress();
 							Tile.Value.CPUTextureData[2]->Decompress();
+							Tile.Value.CPUTextureData[3]->Decompress();
 						}
 
 						// Transencode GI layers

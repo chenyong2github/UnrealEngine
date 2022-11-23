@@ -10,6 +10,9 @@
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #include "AssetCompilingManager.h"
+#include "MeshUtilitiesCommon.h"
+#include "Logging/MessageLog.h"
+#include "Misc/UObjectToken.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
@@ -136,6 +139,51 @@ void UGPULightmassSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 }
 
+bool CheckStaticMeshesForLightmapUVVersionUpgrade(const UWorld* World)
+{
+	TSet<UStaticMesh*> StaticMeshesToUpgradeLightmapUVVersion;
+			
+	for (const UStaticMeshComponent* Component : TObjectRange<UStaticMeshComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
+	{
+		if (Component->GetWorld() == World && Component->GetStaticMesh() && Component->GetStaticMesh()->GetLightmapUVVersion() != (int32)ELightmapUVVersion::Latest)
+		{
+			StaticMeshesToUpgradeLightmapUVVersion.Add(Component->GetStaticMesh().Get());
+		}
+	}
+
+	if (!StaticMeshesToUpgradeLightmapUVVersion.IsEmpty())
+	{
+		const EAppReturnType::Type Response = FMessageDialog::Open(EAppMsgType::YesNo,
+			LOCTEXT("MeshLMUVNotLatestMessage", "Some meshes in your scene are not using the latest lightmap UV generation algorithm. Would you like to upgrade them? This can break existing lightmaps."));
+
+		if (Response == EAppReturnType::Yes)
+		{
+			if (GCurrentLevelEditingViewportClient)
+			{
+				GCurrentLevelEditingViewportClient->SetShowStats(true);
+			}
+					
+			UStaticMesh::BatchBuild(StaticMeshesToUpgradeLightmapUVVersion.Array());
+					
+			for (UStaticMesh* Mesh : StaticMeshesToUpgradeLightmapUVVersion)
+			{
+				FMessageLog("LightingResults").Info()
+					->AddToken(FUObjectToken::Create(Mesh))
+					->AddToken(FTextToken::Create(LOCTEXT("LightingResults_LMUVVersionUpdated", "lightmap UV version has been upgraded and need to be resaved.")));
+						
+				Mesh->MarkPackageDirty();
+				Mesh->OnMeshChanged.Broadcast();
+			}
+
+			FMessageLog("LightingResults").Open();
+					
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void UGPULightmassSubsystem::Launch()
 {
 	UWorld* World = Cast<UWorld>(GetOuter());
@@ -148,6 +196,11 @@ void UGPULightmassSubsystem::Launch()
 	{
 		UGPULightmassSettings* SettingsCopy = DuplicateObject(GetSettings(), GetTransientPackage(), MakeUniqueObjectName(GetTransientPackage(), UGPULightmassSettings::StaticClass()));
 
+		if (CheckStaticMeshesForLightmapUVVersionUpgrade(World))
+		{
+			return;
+		}
+		
 		FScopedSlowTask SlowTask(1);
 		SlowTask.MakeDialog();
 		SlowTask.EnterProgressFrame(1, LOCTEXT("StartingStaticLightingSystem", "Starting static lighting system"));

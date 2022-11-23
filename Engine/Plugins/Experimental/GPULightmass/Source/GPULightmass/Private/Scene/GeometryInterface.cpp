@@ -11,4 +11,9 @@ TArray<FMeshBatch> FGeometryInstanceRenderStateRef::GetMeshBatchesForGBufferRend
 	return Collection.GetMeshBatchesForGBufferRendering(*this, CoordsForCulling);
 }
 
+FVector FGeometryInstanceRenderStateRef::GetOrigin() const
+{
+	return Collection.Get(GetElementIdChecked()).LocalToWorld.GetOrigin();
+}
+
 }

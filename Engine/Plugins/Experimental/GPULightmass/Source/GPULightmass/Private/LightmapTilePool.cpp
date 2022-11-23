@@ -100,6 +100,12 @@ void FLightmapTilePool::UnmapAll()
 {
 	TileIndexToVirtualTileMap.Empty();
 	VirtualTileToTileIndexMap.Empty();
+		
+	FreeHeap.Free();	
+	for (int32 TileIndex = 0; TileIndex < NumTotalTiles; TileIndex++)
+	{
+		FreeHeap.Add(0, TileIndex);
+	}
 }
 
 FLightmapTilePoolGPU::FLightmapTilePoolGPU(int32 NumLayers, FIntPoint InSizeInTiles, FIntPoint TileSize)

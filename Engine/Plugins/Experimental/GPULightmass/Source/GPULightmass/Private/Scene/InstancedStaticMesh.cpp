@@ -204,8 +204,10 @@ TArray<FMeshBatch> FInstanceGroupRenderState::GetMeshBatchesForGBufferRendering(
 							int32 MinInstanceIndex = Y * InstancesPerRow + MinInInstanceTile.X;
 							int32 MaxInstanceIndex = Y * InstancesPerRow + MaxInInstanceTile.X;
 
-							MeshBatchElement.NumInstances = FMath::Min(MaxInstanceIndex - MinInstanceIndex, (int32)InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances());
-							MeshBatchElement.UserIndex = FMath::Min(MinInstanceIndex, (int32)InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances());
+							MinInstanceIndex = FMath::Min(MinInstanceIndex, (int32)InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances() - 1);
+							
+							MeshBatchElement.UserIndex = MinInstanceIndex;							
+							MeshBatchElement.NumInstances = FMath::Min(MaxInstanceIndex - MinInstanceIndex, (int32)InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances() - MinInstanceIndex);
 
 							MeshBatches.Add(MeshBatch);
 						}

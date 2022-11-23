@@ -129,6 +129,9 @@ public:
 
 	void CalculateDistributionPrefixSumForAllLightmaps();
 
+	TArray<FLightmapRenderStateRef> MortonSortedLightmapRefList;
+	void BuildMortonSortedLightmapRefList();
+
 	volatile int32 Percentage = 0;
 };
 
