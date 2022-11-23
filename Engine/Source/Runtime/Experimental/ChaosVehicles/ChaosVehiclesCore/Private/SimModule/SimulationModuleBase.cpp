@@ -6,8 +6,6 @@
 
 DEFINE_LOG_CATEGORY(LogSimulationModule);
 
-FCoreModularVehicleDebugParams GModularVehicleDebugParams;
-
 namespace Chaos
 {
 
