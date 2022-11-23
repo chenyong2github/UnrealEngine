@@ -187,7 +187,7 @@ namespace Jupiter.Implementation
 
         private static string SanitizeNamespace(NamespaceId ns)
         {
-            return ns.ToString().Replace(".", "-", StringComparison.OrdinalIgnoreCase).ToLower();
+            return ns.ToString().Replace(".", "-", StringComparison.OrdinalIgnoreCase).Replace("_", "-", StringComparison.OrdinalIgnoreCase).ToLower();
         }
     }
 }
