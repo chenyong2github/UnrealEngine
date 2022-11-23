@@ -139,11 +139,23 @@ public:
 	/**  Unpins an item list in the outliner. */
 	virtual void UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) = 0;
 	
+	/** Returns true if any of the items can be pinned. */
+	virtual bool CanPinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const = 0;
+
+	/** Returns true if any of the items can be unpinned. */
+	virtual bool CanUnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const = 0;
+
 	/** Pin selected items */
 	virtual void PinSelectedItems() = 0;
 
 	/** Unpins selected items */
 	virtual void UnpinSelectedItems() = 0;
+
+	/** Returns true if any of the selected items can be pinned */
+	virtual bool CanPinSelectedItems() const = 0;
+
+	/** Returns true if any of the selected items can be unpinned */
+	virtual bool CanUnpinSelectedItems() const = 0;
 
 	/** Get the active SceneOutlinerMode */
 	const ISceneOutlinerMode* GetMode() const { return Mode; }

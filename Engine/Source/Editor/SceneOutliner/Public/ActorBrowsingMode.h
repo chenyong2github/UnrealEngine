@@ -56,8 +56,8 @@ public:
 	virtual void SelectFoldersDescendants(const TArray<FFolderTreeItem*>& FolderItems, bool bSelectImmediateChildrenOnly) override;
 	virtual void PinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) override;
 	virtual void UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) override;
-	virtual void PinSelectedItems() override;
-	virtual void UnpinSelectedItems() override;
+	virtual bool CanPinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const override;
+	virtual bool CanUnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const override;
 	virtual void SynchronizeSelection() override;
 
 	/* End ISceneOutlinerMode Interface */

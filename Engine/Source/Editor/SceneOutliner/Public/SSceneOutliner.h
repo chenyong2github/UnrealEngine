@@ -164,6 +164,17 @@ struct FSceneOutlinerItemSelection
 		}
 	}
 
+	void Get(TArray<FSceneOutlinerTreeItemPtr>& OutArray) const
+	{
+		for (const TWeakPtr<ISceneOutlinerTreeItem>& Item : SelectedItems)
+		{
+			if (const auto ItemPtr = Item.Pin())
+			{
+				OutArray.Add(ItemPtr);
+			}
+		}
+	}
+
 	/** Apply a function to each item of a specified type */
 	template <typename TreeType>
 	void ForEachItem(TFunctionRef<void(TreeType&)> Func) const
@@ -421,6 +432,16 @@ public:
 	virtual void UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) override;
 
 	/**
+	 * Returns true if any of the items can be pinned.
+	 */
+	virtual bool CanPinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const override;
+
+	/**
+	 * Returns true if any of the items can be unpinned.
+	 */
+	virtual bool CanUnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const override;
+
+	/**
 	 * Pin selected items
 	 */
 	virtual void PinSelectedItems() override;
@@ -429,6 +450,16 @@ public:
 	 * Unpins selected items
 	 */
 	virtual void UnpinSelectedItems() override;
+
+	/**
+	 * Returns true if any of the selected items can be pinned
+	 */
+	virtual bool CanPinSelectedItems() const override;
+
+	/**
+	 * Returns true if any of the selected items can be unpinned
+	 */
+	virtual bool CanUnpinSelectedItems() const override;
 	
 	/**
 	 * Returns the parent tree item for a given item if it exists, nullptr otherwise.

@@ -124,7 +124,7 @@ private:
 				UActorDescContainer* ActorDescContainer = ActorDesc->GetContainer();
 				UWorld* World = ActorDescContainer != nullptr ? ActorDescContainer->GetWorld() : nullptr;
 				UWorldPartition* WorldPartition = World != nullptr ? World->GetWorldPartition() : nullptr;
-				if (WorldPartition && WorldPartition->IsActorPinned(ActorDesc->GetGuid()))
+				if (WorldPartition && (!ActorDesc->GetIsSpatiallyLoaded() || WorldPartition->IsActorPinned(ActorDesc->GetGuid())))
 				{
 					Args.Add(TEXT("UnloadState"), LOCTEXT("UnloadedDataLayer", "(Unloaded DataLayer)"));
 				}
@@ -324,7 +324,27 @@ bool FActorDescTreeItem::ShouldShowPinnedState() const
 		// Pinning of ActorDescs is only supported on the main world partition
 		if (UActorDescContainer* Container = ActorDescHandle->GetContainer())
 		{
-			return Container->IsMainPartitionContainer();
+			if (FWorldPartitionActorDesc const* ActorDesc = ActorDescHandle.Get())
+			{
+				if (!ActorDesc->GetIsSpatiallyLoaded())
+				{
+					return false;
+				}
+			}
+
+			if (Container->IsMainPartitionContainer())
+			{
+				return true;
+			}
+			else if (ActorDescHandle->GetContentBundleGuid().IsValid())
+			{
+				const UWorld* ContainerWorld = Container->GetWorld();
+				const UWorldPartition* ContainerWorldPartition = ContainerWorld ? ContainerWorld->GetWorldPartition() : nullptr;
+				if (ContainerWorldPartition && ContainerWorldPartition->IsMainWorldPartition())
+				{
+					return ActorDescHandle->GetActorSoftPath().GetAssetPath().GetPackageName() == ContainerWorld->GetPackage()->GetFName();
+				}
+			}
 		}
 	}
 

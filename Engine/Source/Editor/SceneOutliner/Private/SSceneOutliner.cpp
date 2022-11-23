@@ -2370,14 +2370,42 @@ void SSceneOutliner::UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems
 	Mode->UnpinItems(InItems);
 }
 
+bool SSceneOutliner::CanPinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const
+{
+	return Mode->CanPinItems(InItems);
+}
+
+bool SSceneOutliner::CanUnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const
+{
+	return Mode->CanUnpinItems(InItems);
+}
+
 void SSceneOutliner::PinSelectedItems()
 {
-	Mode->PinSelectedItems();
+	TArray<FSceneOutlinerTreeItemPtr> SelectedItems;
+	GetSelection().Get(SelectedItems);
+	PinItems(SelectedItems);
 }
 
 void SSceneOutliner::UnpinSelectedItems()
 {
-	Mode->UnpinSelectedItems();
+	TArray<FSceneOutlinerTreeItemPtr> SelectedItems;
+	GetSelection().Get(SelectedItems);
+	UnpinItems(SelectedItems);
+}
+
+bool SSceneOutliner::CanPinSelectedItems() const
+{
+	TArray<FSceneOutlinerTreeItemPtr> SelectedItems;
+	GetSelection().Get(SelectedItems);
+	return CanPinItems(SelectedItems);
+}
+
+bool SSceneOutliner::CanUnpinSelectedItems() const
+{
+	TArray<FSceneOutlinerTreeItemPtr> SelectedItems;
+	GetSelection().Get(SelectedItems);
+	return CanUnpinItems(SelectedItems);
 }
 
 FSceneOutlinerTreeItemPtr SSceneOutliner::FindParent(const ISceneOutlinerTreeItem& InItem) const
