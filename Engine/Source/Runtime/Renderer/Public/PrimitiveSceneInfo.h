@@ -486,6 +486,13 @@ public:
 	/** Adds a request to update GPU scene representation. */
 	RENDERER_API bool RequestGPUSceneUpdate(EPrimitiveDirtyState PrimitiveDirtyState = EPrimitiveDirtyState::ChangedAll);
 
+	/** Marks the primitive UB as needing updated and requests a GPU scene update */
+	void MarkGPUStateDirty(EPrimitiveDirtyState PrimitiveDirtyState = EPrimitiveDirtyState::ChangedAll)
+	{
+		SetNeedsUniformBufferUpdate(true);
+		RequestGPUSceneUpdate(PrimitiveDirtyState);
+	}
+
 	/** 
 	 * Builds an array of all primitive scene info's in this primitive's attachment group. 
 	 * This only works on potential parents (!LightingAttachmentRoot.IsValid()) and will include the current primitive in the output array.

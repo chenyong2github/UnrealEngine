@@ -2957,11 +2957,8 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 		{
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = RecachedReflectionCapturePrimitives.Prims[Index];
 
-			PrimitiveSceneInfo->SetNeedsUniformBufferUpdate(true);
+			PrimitiveSceneInfo->MarkGPUStateDirty(EPrimitiveDirtyState::ChangedAll);
 			PrimitiveSceneInfo->ConditionalUpdateUniformBuffer(RHICmdList);
-
-			FScene& WriteScene = *const_cast<FScene*>(Scene);
-			WriteScene.GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex(), EPrimitiveDirtyState::ChangedAll);
 		}
 
 		for (int32 Index = 0; Index < LazyUpdatePrimitives.NumPrims; Index++)
