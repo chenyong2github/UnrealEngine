@@ -649,7 +649,7 @@ namespace UnrealBuildTool
 
 			if(CachedSchemaSerializer == null)
 			{
-				CachedSchemaSerializer = XmlSerializer.FromTypes(new Type[] { typeof(XmlSchema) })[0];
+				CachedSchemaSerializer = XmlSerializer.FromTypes(new Type[] { typeof(XmlSchema) })[0]!;
 			}
 
 			StringBuilder Output = new StringBuilder();
