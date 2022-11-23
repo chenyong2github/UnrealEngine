@@ -17,7 +17,7 @@ namespace Anim {
 between top-level EAnimDataModelNotifyType::BracketOpened and EAnimDataModelNotifyType::BracketClosed notifies */
 struct ENGINE_API FAnimDataModelNotifyCollector
 {
-	FAnimDataModelNotifyCollector() : BracketDepth(0) {}
+	FAnimDataModelNotifyCollector() : BracketDepth(0), bDataModified(false) {}
 
 	/** Handle a broadcasted notify, reset if we are opening a new top-level bracket*/
 	void Handle(EAnimDataModelNotifyType NotifyType)
@@ -25,6 +25,7 @@ struct ENGINE_API FAnimDataModelNotifyCollector
 		if (BracketDepth == 0)
 		{
 			Reset();
+			bDataModified = false;
 		}
 		
 		NotifyTypes.Add(NotifyType);
@@ -64,6 +65,9 @@ struct ENGINE_API FAnimDataModelNotifyCollector
 
 	/** Returns whether or not all brackets have been closed */
 	bool IsNotWithinBracket() const { return BracketDepth == 0; }
+
+	void MarkDataModified() { bDataModified = true; }
+	bool WasDataModified() { return bDataModified; }
 protected:
 	void Reset()
 	{
@@ -72,6 +76,7 @@ protected:
 protected:
 	TSet<EAnimDataModelNotifyType> NotifyTypes;
 	int32 BracketDepth;
+	bool bDataModified;
 };
 
 #endif // WITH_EDITOR
