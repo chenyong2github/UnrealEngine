@@ -98,6 +98,7 @@ static const FColor DefaultColor = FColor(200, 200, 200);
 #ifdef USE_OPENMODEL
 
 const uint64 LibAliasNext_Version = 0xffffffffffffffffull;
+const uint64 LibAlias2023_1_0_Version = 8162778619576619;
 const uint64 LibAlias2023_0_0_Version = 8162774324609149;
 const uint64 LibAlias2022_2_0_Version = 7881307937833405;
 const uint64 LibAlias2022_1_0_Version = 7881303642865885;
@@ -131,8 +132,12 @@ const uint64 LibAliasVersionMax = LibAlias2023_0_0_Version;
 const FString AliasVersionChar = TEXT("AliasStudio 2022.2, Model files");
 #elif defined(OPEN_MODEL_2023_0)
 const uint64 LibAliasVersionMin = LibAlias2023_0_0_Version;
-const uint64 LibAliasVersionMax = LibAliasNext_Version;
+const uint64 LibAliasVersionMax = LibAlias2023_1_0_Version;
 const FString AliasVersionChar = TEXT("AliasStudio 2023.0, Model files");
+#elif defined(OPEN_MODEL_2023_1)
+const uint64 LibAliasVersionMin = LibAlias2023_1_0_Version;
+const uint64 LibAliasVersionMax = LibAliasNext_Version;
+const FString AliasVersionChar = TEXT("AliasStudio 2023.1, Model files");
 #endif
 
 // Alias material management (to allow sew of BReps of different materials):
@@ -2111,8 +2116,8 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 	bool bRet = CADModelConverter->Tessellate(MeshParameters, MeshDescription);
 	if (!bRet)
 	{
-		FString StaticMeshLable = MeshElement->GetLabel();
-		FString StaticMeshName = MeshElement->GetName();
+		const TCHAR* StaticMeshLable = MeshElement->GetLabel();
+		const TCHAR* StaticMeshName = MeshElement->GetName();
 		UE_LOG(LogDatasmithWireTranslator, Warning, TEXT("Failed to generate the mesh of \"%s\" (%s) StaticMesh."), *StaticMeshLable, *StaticMeshName);
 	}
 

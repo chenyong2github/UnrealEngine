@@ -118,6 +118,14 @@
 			]
 		},
 		{
+			"Name": "DatasmithWireTranslator2023_1",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		},
+		{
 			"Name": "ParametricSurfaceExtension",
 			"Type": "Editor",
 			"LoadingPhase": "Default",

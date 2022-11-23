@@ -128,7 +128,6 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, co
 	MeshDescription.ReserveNewEdges(VertexInstanceCount * NbStep);
 	MeshDescription.ReserveNewPolygons(TriangleCount * NbStep);
 
-	// Assume one material per mesh, no partitioning
 	MeshDescription.ReserveNewPolygonGroups(1);
 	FPolygonGroupID PolyGroupId = MeshDescription.CreatePolygonGroup();
 	FName ImportedSlotName = SlotMaterialId;
