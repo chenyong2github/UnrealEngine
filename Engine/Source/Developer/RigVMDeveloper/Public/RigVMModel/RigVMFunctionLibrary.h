@@ -87,7 +87,7 @@ private:
 	// The source pathname is the full path of the source function that was localized
 	// to the local copy stored in the value of the pair.
 	UPROPERTY()
-	TMap< FSoftObjectPath, TObjectPtr<URigVMLibraryNode> > LocalizedFunctions;
+	TMap< FString, TObjectPtr<URigVMLibraryNode> > LocalizedFunctions;
 
 	friend class URigVMController;
 	friend class URigVMCompiler;
