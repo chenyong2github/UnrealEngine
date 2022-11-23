@@ -1135,6 +1135,22 @@ int32 UTransBuffer::End()
 				{
 					check(UndoCount == 0);
 					UndoBuffer.Pop(false);
+					UndoBuffer.Reserve(UndoBuffer.Num() + RemovedTransactions.Num());
+
+					// Restore the transactions state to what it was before that transient (i.e. ineffective) transaction (like in the Cancel case : allows to not lose the Redo stack in case 
+					//  we had inserted a transient transaction in the middle) : 
+					if (PreviousUndoCount > 0)
+					{
+						UndoBuffer.Append(RemovedTransactions);
+					}
+					else
+					{
+						UndoBuffer.Insert(RemovedTransactions, 0);
+					}
+
+					RemovedTransactions.Reset();
+					UndoCount = PreviousUndoCount;
+
 					UndoBufferChangedDelegate.Broadcast();
 				}
 			}
