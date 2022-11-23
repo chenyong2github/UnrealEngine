@@ -183,6 +183,27 @@ bool FCameraCalibrationStepsController::OnTick(float DeltaTime)
 		LensFileEvaluationInputs = LensComponent->GetLensFileEvaluationInputs();
 	}
 
+	// Compare the current dimensions of the playing media track to the comp's render resolution to determine if the comp needs to be resized
+	if (MediaPlayer.IsValid())
+	{
+		const FIntPoint MediaDimensions = MediaPlayer->GetVideoTrackDimensions(INDEX_NONE, INDEX_NONE);
+
+		// If no track was found, the dimensions might be (0, 0)
+		if (MediaDimensions.X != 0 && MediaDimensions.Y != 0)
+		{
+			if (RenderTarget->SizeX != MediaDimensions.X || RenderTarget->SizeY != MediaDimensions.Y)
+			{
+				// Resize the media plate comp layer and its output render target to match the incoming media dimensions
+				MediaPlateRenderTarget->ResizeTarget(MediaDimensions.X, MediaDimensions.Y);
+				MediaPlate->SetRenderResolution(MediaDimensions);
+
+				// Resize the parent comp and its output render target to match the incoming media dimensions
+				RenderTarget->ResizeTarget(MediaDimensions.X, MediaDimensions.Y);
+				Comp->SetRenderResolution(MediaDimensions);
+			}
+		}
+	}
+
 	for (TStrongObjectPtr<UCameraCalibrationStep>& Step : CalibrationSteps)
 	{
 		if (Step.IsValid())

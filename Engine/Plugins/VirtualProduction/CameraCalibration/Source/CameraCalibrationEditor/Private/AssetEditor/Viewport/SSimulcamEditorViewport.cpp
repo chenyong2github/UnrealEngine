@@ -149,7 +149,12 @@ void SSimulcamEditorViewport::CacheEffectiveTextureSize()
 		return;
 	}
 
-	CachedEffectiveTextureSize = FVector2D(Texture->GetSurfaceWidth(), Texture->GetSurfaceHeight());
+	// If the cached texture dimensions do not match the current texture dimensions (because the texture was resized), update the cached value and zoom all the way out
+	if (CachedEffectiveTextureSize.X != Texture->GetSurfaceWidth() || CachedEffectiveTextureSize.Y != Texture->GetSurfaceHeight())
+	{
+		CachedEffectiveTextureSize = FVector2D(Texture->GetSurfaceWidth(), Texture->GetSurfaceHeight());
+		ViewportClient->OnTextureResized();
+	}
 }
 
 FVector2D SSimulcamEditorViewport::CalculateTextureDimensions() const

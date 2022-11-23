@@ -222,6 +222,17 @@ void FSimulcamEditorViewportClient::OnViewportResized(FViewport* InViewport, uin
 	}
 }
 
+void FSimulcamEditorViewportClient::OnTextureResized()
+{
+	if (TSharedPtr<SSimulcamEditorViewport> SimulcamEditorViewport = SimulcamEditorViewportWeakPtr.Pin())
+	{
+		if (FViewport* Viewport = SimulcamEditorViewport->GetViewport()->GetViewport())
+		{
+			ZoomToFit(Viewport);
+		}
+	}
+}
+
 void FSimulcamEditorViewportClient::ZoomToFit(FViewport* InViewport)
 {
 	if (SimulcamEditorViewportWeakPtr.IsValid())

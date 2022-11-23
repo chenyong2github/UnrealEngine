@@ -36,6 +36,10 @@ public:
 
 	/** Triggered whenever the viewport is resized */
 	void OnViewportResized(FViewport* InViewport, uint32 InParams);
+
+	/** Triggered whenever the underlying texture resource is resized */
+	void OnTextureResized();
+
 private:
 	FVector2D GetTexturePosition() const;
 	
