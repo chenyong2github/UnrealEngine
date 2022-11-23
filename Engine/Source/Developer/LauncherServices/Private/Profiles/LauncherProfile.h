@@ -2722,6 +2722,12 @@ protected:
 			ValidationErrors.Add(ELauncherProfileValidationErrors::CopyToDeviceRequiresCookByTheBook);
 		}
 
+		// Deploy: deployment by copying to devices requires no packaging
+		if ((DeploymentMode == ELauncherProfileDeploymentModes::CopyToDevice) && (PackagingMode != ELauncherProfilePackagingModes::DoNotPackage))
+		{
+			ValidationErrors.Add(ELauncherProfileValidationErrors::CopyToDeviceRequiresNoPackaging);
+		}
+
 		// Deploy: deployment by copying a packaged build to devices requires a package dir
 		if ((DeploymentMode == ELauncherProfileDeploymentModes::CopyRepository) && (PackageDir == TEXT("")))
 		{

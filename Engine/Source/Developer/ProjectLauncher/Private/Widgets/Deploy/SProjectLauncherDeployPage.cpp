@@ -127,6 +127,35 @@ void SProjectLauncherDeployPage::Construct(const FArguments& InArgs, const TShar
 			.AutoHeight()
 			.Padding(0.0f, 8.0f, 0.0f, 0.0f)
 			[
+				SNew(SBorder)
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+					.Padding(8.0f)
+					.Visibility(this, &SProjectLauncherDeployPage::HandleValidationErrorIconVisibility, ELauncherProfileValidationErrors::CopyToDeviceRequiresNoPackaging)
+					[
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								SNew(SImage)
+									.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
+							]
+
+						+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.Padding(4.0f, 0.0f)
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+									.Text(LOCTEXT("CopyToDeviceRequiresNoPackaging", "This mode requires 'Do not package' packaging"))
+							]
+					]
+			]
+
+		+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 8.0f, 0.0f, 0.0f)
+			[
 				// file server settings area
 				SNew(SProjectLauncherDeployFileServerSettings, InModel)
 					.Visibility(this, &SProjectLauncherDeployPage::HandleDeployFileServerSettingsVisibility)
@@ -219,7 +248,8 @@ EVisibility SProjectLauncherDeployPage::HandleDeployToDeviceSettingsVisibility()
 	{
 		if (SelectedProfile->GetDeploymentMode() == ELauncherProfileDeploymentModes::CopyToDevice)
 		{
-			if (!SelectedProfile->HasValidationError(ELauncherProfileValidationErrors::CopyToDeviceRequiresCookByTheBook))
+			if (!SelectedProfile->HasValidationError(ELauncherProfileValidationErrors::CopyToDeviceRequiresCookByTheBook) &&
+				!SelectedProfile->HasValidationError(ELauncherProfileValidationErrors::CopyToDeviceRequiresNoPackaging))
 			{
 				return EVisibility::Visible;
 			}

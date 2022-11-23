@@ -234,6 +234,9 @@ namespace ELauncherProfileValidationErrors
 		/** FallbackBuild Target is required */
 		FallbackBuildTargetIsRequired,
 
+		/** Packaging and deploying are mutually exclusive */
+		CopyToDeviceRequiresNoPackaging,
+
 		Count
 	};
 }
