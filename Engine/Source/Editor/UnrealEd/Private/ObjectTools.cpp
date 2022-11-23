@@ -2045,7 +2045,7 @@ namespace ObjectTools
 								if ( !SourceControlModule.IsEnabled() && ShareType != ECollectionShareType::CST_Local )
 								{
 									// Private and Shared collection types require a source control connection
-									Info.Text = NSLOCTEXT("ObjectTools", "FailedToAddCollection_SCC", "Failed to create new collection, requires source control connection");
+									Info.Text = NSLOCTEXT("ObjectTools", "FailedToAddCollection_SCC", "Failed to create new collection, requires revision control connection");
 								}
 								else
 								{

@@ -203,7 +203,7 @@ private:
 	TSharedPtr<SExpandableArea> SubmitDescriptionExpandable;
 	TSharedPtr<SMultiLineEditableTextBox> SubmitDescriptionTextCtrl;
 
-	/** State of the "Submit to Source Control" checkbox */
+	/** State of the "Submit to Revision Control" checkbox */
 	ECheckBoxState	SubmitToSourceControl;
 
 	/** State of the "Keep Files Checked Out" checkbox */

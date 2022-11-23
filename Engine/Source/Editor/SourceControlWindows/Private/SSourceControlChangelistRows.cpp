@@ -13,7 +13,7 @@
 #define LOCTEXT_NAMESPACE "SourceControlChangelistRow"
 
 FName SourceControlFileViewColumn::Icon::Id() { return TEXT("Icon"); }
-FText SourceControlFileViewColumn::Icon::GetDisplayText() {return LOCTEXT("Name_Icon", "Source Control Status"); }
+FText SourceControlFileViewColumn::Icon::GetDisplayText() {return LOCTEXT("Name_Icon", "Revision Control Status"); }
 FText SourceControlFileViewColumn::Icon::GetToolTipText() { return LOCTEXT("Icon_Column_Tooltip", "Displays the asset/file status"); }
 
 FName SourceControlFileViewColumn::Name::Id() { return TEXT("Name"); }

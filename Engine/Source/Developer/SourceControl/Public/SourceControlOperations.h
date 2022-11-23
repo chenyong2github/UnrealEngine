@@ -36,7 +36,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_Connecting", "Connecting to source control...");
+		return LOCTEXT("SourceControl_Connecting", "Connecting to revision control...");
 	}
 
 	const FString& GetPassword() const
@@ -81,7 +81,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_CheckIn", "Checking file(s) into Source Control...");
+		return LOCTEXT("SourceControl_CheckIn", "Checking file(s) into Revision Control...");
 	}
 
 	void SetDescription( const FText& InDescription )
@@ -139,7 +139,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_CheckOut", "Checking file(s) out of Source Control...");
+		return LOCTEXT("SourceControl_CheckOut", "Checking file(s) out of Revision Control...");
 	}
 };
 
@@ -157,7 +157,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_GetFileList", "Getting file list out of Source Control...");
+		return LOCTEXT("SourceControl_GetFileList", "Getting file list out of Revision Control...");
 	}
 
 	void SetIncludeDeleted( const bool bInIncludeDeleted )
@@ -202,7 +202,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_Add", "Adding file(s) to Source Control...");
+		return LOCTEXT("SourceControl_Add", "Adding file(s) to Revision Control...");
 	}
 };
 
@@ -220,7 +220,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_Delete", "Deleting file(s) from Source Control...");
+		return LOCTEXT("SourceControl_Delete", "Deleting file(s) from Revision Control...");
 	}
 };
 
@@ -238,7 +238,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_Revert", "Reverting file(s) in Source Control...");
+		return LOCTEXT("SourceControl_Revert", "Reverting file(s) in Revision Control...");
 	}
 
 	void SetSoftRevert(const bool bInSoftRevert)
@@ -282,7 +282,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_Sync", "Syncing file(s) from source control...");
+		return LOCTEXT("SourceControl_Sync", "Syncing file(s) from revision control...");
 	}
 
 	UE_DEPRECATED(4.26, "FSync::SetRevisionNumber(int32) has been deprecated. Please update to Fsync::SetRevision(const FString&).")
@@ -370,7 +370,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_Update", "Updating file(s) source control status...");
+		return LOCTEXT("SourceControl_Update", "Updating file(s) revision control status...");
 	}
 
 	void SetUpdateHistory( bool bInUpdateHistory )
@@ -512,7 +512,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_Copy", "Copying file(s) in Source Control...");
+		return LOCTEXT("SourceControl_Copy", "Copying file(s) in Revision Control...");
 	}
 
 	void SetDestination(const FString& InDestination)
@@ -558,7 +558,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_Resolve", "Resolving file(s) in Source Control...");
+		return LOCTEXT("SourceControl_Resolve", "Resolving file(s) in Revision Control...");
 	}
 };
 
@@ -576,7 +576,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_GetPendingChangelists", "Retrieving pending changelist(s) from Source Control...");
+		return LOCTEXT("SourceControl_GetPendingChangelists", "Retrieving pending changelist(s) from Revision Control...");
 	}
 };
 
@@ -594,7 +594,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_GetSubmittedChangelists", "Retrieving submitted changelist(s) from Source Control...");
+		return LOCTEXT("SourceControl_GetSubmittedChangelists", "Retrieving submitted changelist(s) from Revision Control...");
 	}
 };
 
@@ -629,7 +629,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_GetChangelistDetails", "Retrieving changelist details from Source Control...");
+		return LOCTEXT("SourceControl_GetChangelistDetails", "Retrieving changelist details from Revision Control...");
 	}
 
 	const FString& GetChangelistNumber() { return ChangelistNumber; }
@@ -713,7 +713,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_UpdateChangelistsStatus", "Updating changelist(s) status from Source Control...");
+		return LOCTEXT("SourceControl_UpdateChangelistsStatus", "Updating changelist(s) status from Revision Control...");
 	}
 
 private:
@@ -737,7 +737,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_NewChangelist", "Creating new changelist from Source Control...");
+		return LOCTEXT("SourceControl_NewChangelist", "Creating new changelist from Revision Control...");
 	}
 
 	void SetDescription(const FText& InDescription)
@@ -779,7 +779,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_DeleteChangelist", "Deleting a changelist from Source Control...");
+		return LOCTEXT("SourceControl_DeleteChangelist", "Deleting a changelist from Revision Control...");
 	}
 };
 
@@ -796,7 +796,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_EditChangelist", "Editing a changelist from Source Control...");
+		return LOCTEXT("SourceControl_EditChangelist", "Editing a changelist from Revision Control...");
 	}
 
 	void SetDescription(const FText& InDescription)
@@ -827,7 +827,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_RevertUnchanged", "Reverting unchanged files from Source Control...");
+		return LOCTEXT("SourceControl_RevertUnchanged", "Reverting unchanged files from Revision Control...");
 	}
 };
 
@@ -1176,7 +1176,7 @@ public:
 
 	virtual FText GetInProgressString() const override
 	{
-		return LOCTEXT("SourceControl_GetFile", "Retrieving file from source control...");
+		return LOCTEXT("SourceControl_GetFile", "Retrieving file from revision control...");
 	}
 
 	const FString& GetChangelistNumber() const { return ChangelistNumber; }

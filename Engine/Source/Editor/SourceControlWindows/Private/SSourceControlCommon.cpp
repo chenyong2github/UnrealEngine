@@ -439,7 +439,7 @@ bool OpenConflictDialog(const TArray<FSourceControlStateRef>& InFilesConflicts)
 			 	[
 			 		SAssignNew(SourceControlFileDialog, SSourceControlFileDialog)
 			 		.Message(LOCTEXT("CheckoutPackagesDialogMessage", "Conflict detected in the following assets:"))
-			 		.Warning(LOCTEXT("CheckoutPackagesWarnMessage", "Warning: These assets are locked or not at the head revision. You may lose your changes if you continue, as you will be unable to submit them to source control."))
+			 		.Warning(LOCTEXT("CheckoutPackagesWarnMessage", "Warning: These assets are locked or not at the head revision. You may lose your changes if you continue, as you will be unable to submit them to revision control."))
 			 		.Files(InFilesConflicts)
 			 	]
 			 ];

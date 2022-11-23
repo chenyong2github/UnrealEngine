@@ -101,7 +101,7 @@ TSet<FString> FEditorFileUtils::PackagesNotToPromptAnyMore;
 static TAutoConsoleVariable<int32> CVarSkipSourceControlCheckForEditablePackages(
 	TEXT("r.Editor.SkipSourceControlCheckForEditablePackages"),
 	0,
-    TEXT("Whether to skip the source control status check for editable packages, 0: Disable (Default), 1: Enable"));
+    TEXT("Whether to skip the revision control status check for editable packages, 0: Disable (Default), 1: Enable"));
 
 #define LOCTEXT_NAMESPACE "FileHelpers"
 
@@ -1619,7 +1619,7 @@ bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage
 		if (SourceControlCheckPackages.Num())
 		{
 			// Update the source control status of all potentially relevant packages
-			FScopedSlowTask SlowTask(static_cast<float>(SourceControlCheckPackages.Num()), LOCTEXT("UpdatingSourceControlStatus", "Updating source control status..."));
+			FScopedSlowTask SlowTask(static_cast<float>(SourceControlCheckPackages.Num()), LOCTEXT("UpdatingSourceControlStatus", "Updating revision control status..."));
 			SlowTask.MakeDialogDelayed(0.5f);
 			SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), SourceControlCheckPackages);
 			SlowTask.EnterProgressFrame(static_cast<float>(SourceControlCheckPackages.Num()));
@@ -1749,7 +1749,7 @@ bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage
 			if (!bOtherBranchWarning)
 			{
 				CheckoutPackagesDialogModule.SetWarning(
-					NSLOCTEXT("PackagesDialogModule", "CheckoutPackagesWarnMessage", "Warning: There are modified assets which you will not be able to check out as they are locked or not at the head revision. You may lose your changes if you continue, as you will be unable to submit them to source control."));
+					NSLOCTEXT("PackagesDialogModule", "CheckoutPackagesWarnMessage", "Warning: There are modified assets which you will not be able to check out as they are locked or not at the head revision. You may lose your changes if you continue, as you will be unable to submit them to revision control."));
 			}
 			else
 			{
@@ -1855,7 +1855,7 @@ bool FEditorFileUtils::PromptToCheckoutPackagesInternal(bool bCheckDirty, const 
 		if (bAllowSkip)
 		{
 			// Skip button to skip checkout step
-			CheckoutPackagesDialogModule.AddButton(DRT_Skip, NSLOCTEXT("PackagesDialogModule", "Dlg_SkipButton", "Skip"), NSLOCTEXT("PackagesDialogModule", "Dlg_SkipTooltip", "Save all files that are writable, but don't check any files out from source control or make them writable."));
+			CheckoutPackagesDialogModule.AddButton(DRT_Skip, NSLOCTEXT("PackagesDialogModule", "Dlg_SkipButton", "Skip"), NSLOCTEXT("PackagesDialogModule", "Dlg_SkipTooltip", "Save all files that are writable, but don't check any files out from revision control or make them writable."));
 		}
 
 		// The cancel button should be different if we are prompting during a modify.
@@ -2173,10 +2173,10 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("Packages"), FText::FromString( PkgsWhichFailedCheckout ));
-		FText MessageFormat = NSLOCTEXT("FileHelper", "FailedCheckoutDlgMessageFormatting", "The following assets could not be successfully checked out from source control:{Packages}");
+		FText MessageFormat = NSLOCTEXT("FileHelper", "FailedCheckoutDlgMessageFormatting", "The following assets could not be successfully checked out from revision control:{Packages}");
 		FText Message = FText::Format( MessageFormat, Arguments );
 
-		FText Title = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Source Control!");
+		FText Title = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Revision Control!");
 		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
 	}
 
@@ -2354,10 +2354,10 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<FString>& P
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("Packages"), FText::FromString( PkgsWhichFailedCheckout ));
-		FText MessageFormat = NSLOCTEXT("FileHelper", "FailedCheckoutDlgMessageFormatting", "The following assets could not be successfully checked out from source control:{Packages}");
+		FText MessageFormat = NSLOCTEXT("FileHelper", "FailedCheckoutDlgMessageFormatting", "The following assets could not be successfully checked out from revision control:{Packages}");
 		FText Message = FText::Format( MessageFormat, Arguments );
 
-		FText Title = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Source Control!");
+		FText Title = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Revision Control!");
 		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
 	}
 
@@ -4111,7 +4111,7 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
 			WritableFiles += FString::Printf(TEXT("\n%s"), *PackageIter->GetName());
 		}
 
-		const FText WritableFileWarning = FText::Format(NSLOCTEXT("UnrealEd", "Warning_WritablePackagesNotCheckedOut", "The following assets are writable on disk but not checked out from source control:{0}"),
+		const FText WritableFileWarning = FText::Format(NSLOCTEXT("UnrealEd", "Warning_WritablePackagesNotCheckedOut", "The following assets are writable on disk but not checked out from revision control:{0}"),
 			FText::FromString(WritableFiles));
 
 		UE_LOG(LogFileHelpers, Warning, TEXT("%s"), *WritableFileWarning.ToString());
@@ -4298,7 +4298,7 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 
 			if (WarningCount > 0)
 			{
-				PackagesDialogModule.SetWarning(LOCTEXT("Warning_Notification", "Warning: Assets have conflict in Source Control or cannot be written to disk"));
+				PackagesDialogModule.SetWarning(LOCTEXT("Warning_Notification", "Warning: Assets have conflict in Revision Control or cannot be written to disk"));
 			}
 
 			// If valid packages were added to the dialog, display it to the user

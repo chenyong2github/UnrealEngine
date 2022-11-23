@@ -304,7 +304,7 @@ static bool ExecuteRevertOperation(const TArray<FString>& InFilenames)
 
 	if (SourceControlProvider.GetState(InFilenames, UpdatedFilestates, EStateCacheUsage::ForceUpdate) != ECommandResult::Succeeded)
 	{
-		UE_LOG(LogSourceControl, Error, TEXT("Failed to update the source control files states for %s."), *BuildFileString(InFilenames));
+		UE_LOG(LogSourceControl, Error, TEXT("Failed to update the revision control files states for %s."), *BuildFileString(InFilenames));
 		return false;
 	}
 

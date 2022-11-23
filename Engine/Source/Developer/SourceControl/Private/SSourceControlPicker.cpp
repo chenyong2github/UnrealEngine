@@ -39,7 +39,7 @@ void SSourceControlPicker::Construct(const FArguments& InArgs)
 		[
 			SNew(SComboButton)
 			.OnGetMenuContent(this, &SSourceControlPicker::OnGetMenuContent)
-			.ToolTipText( LOCTEXT("ChooseProvider", "Choose the source control provider you want to use before you edit login settings.") )
+			.ToolTipText( LOCTEXT("ChooseProvider", "Choose the revision control provider you want to use before you edit login settings.") )
 			.ButtonContent()
 			[
 				SNew( STextBlock )
@@ -92,7 +92,7 @@ TSharedRef<SWidget> SSourceControlPicker::OnGetMenuContent() const
 		Arguments.Add( TEXT("ProviderName"), ProviderText );
 		MenuBuilder.AddMenuEntry(
 			ProviderText,
-			FText::Format(LOCTEXT("SourceControlProvider_Tooltip", "Use {ProviderName} as source control provider"), Arguments),
+			FText::Format(LOCTEXT("SourceControlProvider_Tooltip", "Use {ProviderName} as revision control provider"), Arguments),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SSourceControlPicker::ChangeSourceControlProvider, FMath::Abs(ProviderIndex) ),
@@ -113,7 +113,7 @@ FText SSourceControlPicker::GetProviderText(const FName& InName) const
 {
 	if(InName == "None")
 	{
-		return LOCTEXT("NoProviderDescription", "None  (source control disabled)");
+		return LOCTEXT("NoProviderDescription", "None  (revision control disabled)");
 	}
 
 	// @todo: Remove this block after the Git/Skein plugins have been exhaustively tested (also remember to change the Git plugin's "IsBetaVersion" setting to false.)

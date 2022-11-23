@@ -40,7 +40,7 @@ int32 USwapSoundForDialogueInCuesCommandlet::Main(const FString& Params)
 		FText SCCErrorStr;
 		if (!SourceControlInfo->IsReady(SCCErrorStr))
 		{
-			UE_LOG(LogSwapSoundForDialogueInCuesCommandlet, Error, TEXT("Source Control error: %s"), *SCCErrorStr.ToString());
+			UE_LOG(LogSwapSoundForDialogueInCuesCommandlet, Error, TEXT("Revision Control error: %s"), *SCCErrorStr.ToString());
 			return -1;
 		}
 	}

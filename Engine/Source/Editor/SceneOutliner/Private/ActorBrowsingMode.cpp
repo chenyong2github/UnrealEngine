@@ -1272,7 +1272,7 @@ void FActorBrowsingMode::RepairErrors() const
 			TArray<FString> ActorFilesToDelete;
 			TArray<FString> ActorFilesToRevert;
 			{
-				FScopedSlowTask SlowTask(InvalidActorDescs.Num(), LOCTEXT("UpdatingSourceControlStatus", "Updating source control status..."));
+				FScopedSlowTask SlowTask(InvalidActorDescs.Num(), LOCTEXT("UpdatingSourceControlStatus", "Updating revision control status..."));
 				SlowTask.MakeDialogDelayed(1.0f);
 
 				for (const FWorldPartitionActorDesc* InvalidActorDesc : InvalidActorDescs)

@@ -194,7 +194,7 @@ void SConcertSandboxPersistWidget::Construct(const FArguments& InArgs)
 					.IsEnabled( this, &SConcertSandboxPersistWidget::CanSubmitToSourceControl)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("SubmitToSourceControl", "Submit to Source Control"))
+						.Text(LOCTEXT("SubmitToSourceControl", "Submit to Revision Control"))
 					]
 				]
 				+ SWrapBox::Slot()
@@ -215,7 +215,7 @@ void SConcertSandboxPersistWidget::Construct(const FArguments& InArgs)
 					SNew(SCheckBox)
 					.OnCheckStateChanged(this, &SConcertSandboxPersistWidget::OnCheckStateChanged_MakeWritable)
 					.IsChecked(this, &SConcertSandboxPersistWidget::GetMakeWritable)
-					.ToolTipText(LOCTEXT("WarningMakeWritable", "Warning this may prevent accurate check-ins with source control."))
+					.ToolTipText(LOCTEXT("WarningMakeWritable", "Warning this may prevent accurate check-ins with revision control."))
 					.IsEnabled_Lambda([this]() { return !CanCheckOut();} )
 					[
 						SNew(STextBlock)

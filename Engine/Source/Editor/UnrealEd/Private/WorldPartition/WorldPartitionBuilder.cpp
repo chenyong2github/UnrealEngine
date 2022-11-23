@@ -429,7 +429,7 @@ bool UWorldPartitionBuilder::AutoSubmitFiles(const TArray<FString>& InModifiedFi
 
 	if (bAutoSubmit)
 	{
-		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Submitting changes to source control..."));
+		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Submitting changes to revision control..."));
 
 		if (!InModifiedFiles.IsEmpty())
 		{
@@ -439,12 +439,12 @@ bool UWorldPartitionBuilder::AutoSubmitFiles(const TArray<FString>& InModifiedFi
 			CheckInOperation->SetDescription(ChangelistDescription);
 			if (ISourceControlModule::Get().GetProvider().Execute(CheckInOperation, InModifiedFiles) != ECommandResult::Succeeded)
 			{
-				UE_LOG(LogWorldPartitionBuilder, Error, TEXT("Failed to submit changes to source control."));
+				UE_LOG(LogWorldPartitionBuilder, Error, TEXT("Failed to submit changes to revision control."));
 				bSucceeded = false;
 			}
 			else
 			{
-				UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Submitted changes to source control"));
+				UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Submitted changes to revision control"));
 			}
 		}
 		else

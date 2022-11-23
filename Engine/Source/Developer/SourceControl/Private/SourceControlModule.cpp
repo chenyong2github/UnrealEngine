@@ -62,7 +62,7 @@ void FSourceControlModule::StartupModule()
 #if WITH_UNREAL_DEVELOPER_TOOLS
 	// create a message log for source control to use
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-	MessageLogModule.RegisterLogListing("SourceControl", LOCTEXT("SourceControlLogLabel", "Source Control"));
+	MessageLogModule.RegisterLogListing("SourceControl", LOCTEXT("SourceControlLogLabel", "Revision Control"));
 #endif
 
 	AssetDataCache.Startup();
@@ -138,7 +138,7 @@ void FSourceControlModule::ShowLoginDialog(const FSourceControlLoginClosed& InOn
 
 		// Create the window
 		SourceControlLoginWindowPtr = SNew(SWindow)
-			.Title( LOCTEXT("SourceControlLoginTitle", "Source Control Login") )
+			.Title( LOCTEXT("SourceControlLoginTitle", "Revision Control Login") )
 			.HasCloseButton(true)
 			.SupportsMaximize(false) 
 			.SupportsMinimize(false)
@@ -373,7 +373,7 @@ void FSourceControlModule::SetProvider( const FName& InName )
 		}
 	}
 
-	UE_LOG(LogSourceControl, Fatal, TEXT("Tried to set unknown source control provider: %s"), *InName.ToString());
+	UE_LOG(LogSourceControl, Fatal, TEXT("Tried to set unknown revision control provider: %s"), *InName.ToString());
 }
 
 void FSourceControlModule::ClearCurrentSourceControlProvider()

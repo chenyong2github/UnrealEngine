@@ -169,8 +169,8 @@ void SPackagesDialog::Construct(const FArguments& InArgs)
 		.Padding( 2 )
 		[
 			SNew(SButton) 
-				.Text(LOCTEXT("ConnectToSourceControl", "Connect To Source Control"))
-				.ToolTipText(LOCTEXT("ConnectToSourceControl_Tooltip", "Connect to source control to allow source control operations to be performed on content and levels."))
+				.Text(LOCTEXT("ConnectToSourceControl", "Connect To Revision Control"))
+				.ToolTipText(LOCTEXT("ConnectToSourceControl_Tooltip", "Connect to a revision control system for tracking changes to your content and levels."))
 				.ContentPadding(FMargin(10, 3))
 				.HAlign(HAlign_Right)
 				.VAlign(VAlign_Center)
@@ -616,7 +616,7 @@ TSharedPtr<SWidget> SPackagesDialog::MakePackageListContextMenu() const
 		{
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("SCCDiffAgainstDepot", "Diff Against Depot"),
-				LOCTEXT("SCCDiffAgainstDepotTooltip", "Look at differences between your version of the asset and that in source control."),
+				LOCTEXT("SCCDiffAgainstDepotTooltip", "Look at differences between your version of the asset and that in revision control."),
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateSP( this, &SPackagesDialog::ExecuteSCCDiffAgainstDepot ),

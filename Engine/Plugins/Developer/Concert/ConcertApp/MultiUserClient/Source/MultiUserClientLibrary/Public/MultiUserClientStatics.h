@@ -105,7 +105,7 @@ struct FMultiUserClientConfig
 	UPROPERTY(BlueprintReadWrite, Category = "Client Settings")
 	FString DefaultSessionToRestore;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Source Control Settings")
+	UPROPERTY(BlueprintReadWrite, Category = "Revision Control Settings", meta = (Keywords = "Source Control"))
 	EMultiUserSourceValidationMode ValidationMode = EMultiUserSourceValidationMode::Hard;
 };
 
@@ -151,11 +151,11 @@ public:
 	static void JumpToMultiUserPresence(const FString& OtherUserName, FTransform TransformOffset);
 
 	/** Update Multi-User Workspace Modified Packages to be in sync for source control submission. */
-	UFUNCTION(BlueprintCallable, Category = "Multi-User Source Control", meta=(DevelopmentOnly, DeprecatedFunction, DeprecationMessage = "UpdateWorkspaceModifiedPackages is deprecated. Please use PersistMultiUserSessionChanges instead."))
+	UFUNCTION(BlueprintCallable, Category = "Multi-User Revision Control", meta=(DevelopmentOnly, DeprecatedFunction, DeprecationMessage = "UpdateWorkspaceModifiedPackages is deprecated. Please use PersistMultiUserSessionChanges instead.", Keywords = "Source Control"))
 	static void UpdateWorkspaceModifiedPackages();
 
 	/** Persist the session changes and prepare the files for source control submission. */
-	UFUNCTION(BlueprintCallable, Category = "Multi-User Source Control", meta=(DevelopmentOnly, DisplayName = "Persist Multi-User Session Changes"))
+	UFUNCTION(BlueprintCallable, Category = "Multi-User Revision Control", meta=(DevelopmentOnly, DisplayName = "Persist Multi-User Session Changes", Keywords = "Source Control"))
 	static void PersistMultiUserSessionChanges();
 
 	/** Persist the specified sessions changes using source control. */

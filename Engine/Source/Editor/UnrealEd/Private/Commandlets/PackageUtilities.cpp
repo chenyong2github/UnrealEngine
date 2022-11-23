@@ -2279,7 +2279,7 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 		}
 		else if ( bAutoCheckOut && SourceControlState.IsValid() && !SourceControlState->IsCurrent() )
 		{
-			UE_LOG(LogPackageUtilities, Warning, TEXT("Skipping %s (Not at head source control revision)"), *PackageName );
+			UE_LOG(LogPackageUtilities, Warning, TEXT("Skipping %s (Newer version exists in revision control)"), *PackageName );
 			continue;
 		}
 		else

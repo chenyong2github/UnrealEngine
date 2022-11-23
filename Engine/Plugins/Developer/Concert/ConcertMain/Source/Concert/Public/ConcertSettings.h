@@ -292,7 +292,7 @@ struct FConcertSourceControlSettings
 		: ValidationMode(EConcertSourceValidationMode::Soft)
 	{}
 
-	UPROPERTY(config, EditAnywhere, Category="Source Control Settings")
+	UPROPERTY(config, EditAnywhere, Category="Revision Control Settings", meta=(Keywords = "Source Control"))
 	EConcertSourceValidationMode ValidationMode;
 };
 
@@ -391,7 +391,7 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="Client Settings", meta=(ShowOnlyInnerProperties))
 	FConcertClientSettings ClientSettings;
 
-	UPROPERTY(config, EditAnywhere, Category = "Source Control Settings", meta=(ShowOnlyInnerProperties))
+	UPROPERTY(config, EditAnywhere, Category = "Revision Control Settings", meta=(ShowOnlyInnerProperties, Keywords = "Source Control"))
 	FConcertSourceControlSettings SourceControlSettings;
 
 	/** Endpoint settings passed down to endpoints on creation */

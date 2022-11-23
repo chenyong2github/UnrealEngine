@@ -720,11 +720,11 @@ void ExecuteInvalidateNiagaraCachedScripts(const TArray< FString >& Args)
 		}
 		else if (!SourceControlState->IsSourceControlled())
 		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("fx.InvalidateCachedScripts failed\n\"NiagaraShaderVersion.ush\" is not under source control."));
+			UE_LOG(LogConsoleResponse, Display, TEXT("fx.InvalidateCachedScripts failed\n\"NiagaraShaderVersion.ush\" is not under revision control."));
 		}
 		else if (SourceControlState->IsCheckedOutOther())
 		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("fx.InvalidateCachedScripts failed\n\"NiagaraShaderVersion.ush\" is already checked out by someone else\n(Unreal SourceControl needs to be fixed to allow multiple checkout.)"));
+			UE_LOG(LogConsoleResponse, Display, TEXT("fx.InvalidateCachedScripts failed\n\"NiagaraShaderVersion.ush\" is already checked out by someone else\n(Unreal revision control needs to be fixed to allow multiple checkout.)"));
 			return;
 		}
 		else if (SourceControlState->IsDeleted())

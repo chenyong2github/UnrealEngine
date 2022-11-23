@@ -59,7 +59,7 @@ bool UWorldPartitionVirtualHeightfieldMeshBuilder::RunInternal(UWorld* World, co
 
 			if (!PackageHelper.AddToSourceControl(Package))
 			{
-				UE_LOG(LogWorldPartitionVirtualHeightfieldMeshBuilder, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
+				UE_LOG(LogWorldPartitionVirtualHeightfieldMeshBuilder, Error, TEXT("Error adding package %s to revision control."), *Package->GetName());
 				return false;
 			}
 		}

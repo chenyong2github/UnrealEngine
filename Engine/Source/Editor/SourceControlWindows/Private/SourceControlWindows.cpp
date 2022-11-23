@@ -64,7 +64,7 @@ bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsO
 	if (!ISourceControlModule::Get().IsEnabled())
 	{
 		FCheckinResultInfo ResultInfo;
-		ResultInfo.Description = LOCTEXT("SourceControlDisabled", "Source control is not enabled.");
+		ResultInfo.Description = LOCTEXT("SourceControlDisabled", "Revision control is not enabled.");
 		OnCompleteDelegate.ExecuteIfBound(ResultInfo);
 
 		return false;
@@ -73,7 +73,7 @@ bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsO
 	if (!ISourceControlModule::Get().GetProvider().IsAvailable())
 	{
 		FCheckinResultInfo ResultInfo;
-		ResultInfo.Description = LOCTEXT("NoSCCConnection", "No connection to source control available!");
+		ResultInfo.Description = LOCTEXT("NoSCCConnection", "No connection to revision control available!");
 
 		FMessageLog EditorErrors("EditorErrors");
 		EditorErrors.Warning(ResultInfo.Description)->AddToken(
@@ -625,7 +625,7 @@ void FSourceControlWindows::ChoosePackagesToCheckInCallback(const FSourceControl
 
 			case ECommandResult::Failed:
 			{
-				ResultInfo.Description = LOCTEXT("CheckInOperationFailed", "Failed checking source control status!");
+				ResultInfo.Description = LOCTEXT("CheckInOperationFailed", "Failed checking revision control status!");
 				FMessageLog EditorErrors("EditorErrors");
 				EditorErrors.Warning(ResultInfo.Description);
 				EditorErrors.Notify();

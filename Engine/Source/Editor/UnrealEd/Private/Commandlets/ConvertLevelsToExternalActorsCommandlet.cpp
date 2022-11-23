@@ -162,10 +162,10 @@ bool UConvertLevelsToExternalActorsCommandlet::AddPackageToSourceControl(UPackag
 
 		if (SourceControlState.IsValid() && !SourceControlState->IsSourceControlled())
 		{
-			UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Log, TEXT("Adding package %s to source control"), *PackageFilename);
+			UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Log, TEXT("Adding package %s to revision control"), *PackageFilename);
 			if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FMarkForAdd>(), Package) != ECommandResult::Succeeded)
 			{
-				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error adding %s to source control."), *PackageFilename);
+				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error adding %s to revision control."), *PackageFilename);
 				return false;
 			}
 		}
@@ -218,7 +218,7 @@ bool UConvertLevelsToExternalActorsCommandlet::CheckoutPackage(UPackage* Package
 			}
 			else if (SourceControlState->IsSourceControlled())
 			{
-				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Log, TEXT("Checking out package %s from source control"), *PackageFilename);
+				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Log, TEXT("Checking out package %s from revision control"), *PackageFilename);
 				return GetSourceControlProvider().Execute(ISourceControlOperation::Create<FCheckOut>(), Package) == ECommandResult::Succeeded;
 			}
 		}
@@ -271,26 +271,26 @@ bool UConvertLevelsToExternalActorsCommandlet::DeleteFile(const FString& Filenam
 			{
 				if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FRevert>(), Filename) != ECommandResult::Succeeded)
 				{
-					UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error reverting package %s from source control"), *Filename);
+					UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error reverting package %s from revision control"), *Filename);
 					return false;
 				}
 			}
 			else
 			{
-				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Log, TEXT("Deleting package %s from source control"), *Filename);
+				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Log, TEXT("Deleting package %s from revision control"), *Filename);
 
 				if (SourceControlState->IsCheckedOut())
 				{
 					if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FRevert>(), Filename) != ECommandResult::Succeeded)
 					{
-						UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error reverting package %s from source control"), *Filename);
+						UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error reverting package %s from revision control"), *Filename);
 						return false;
 					}
 				}
 
 				if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FDelete>(), Filename) != ECommandResult::Succeeded)
 				{
-					UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error deleting package %s from source control"), *Filename);
+					UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error deleting package %s from revision control"), *Filename);
 					return false;
 				}
 			}

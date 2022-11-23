@@ -39,8 +39,8 @@ bool FSceneOutlinerSCCHandler::AddSourceControlMenuOptions(UToolMenu* Menu, TArr
 			// SCC sub menu
 			Section.AddSubMenu(
 				"SourceControlSubMenu",
-				LOCTEXT("SourceControlSubMenuLabel", "Source Control"),
-				LOCTEXT("SourceControlSubMenuToolTip", "Source control actions."),
+				LOCTEXT("SourceControlSubMenuLabel", "Revision Control"),
+				LOCTEXT("SourceControlSubMenuToolTip", "Revision control actions."),
 				FNewToolMenuDelegate::CreateSP(this, &FSceneOutlinerSCCHandler::FillSourceControlSubMenu),
 				FUIAction(
 					FExecuteAction(),
@@ -56,7 +56,7 @@ bool FSceneOutlinerSCCHandler::AddSourceControlMenuOptions(UToolMenu* Menu, TArr
 			// SCC sub menu
 			Section.AddMenuEntry(
 				"SourceControlSubMenu",
-				LOCTEXT("SourceControlSubMenuLabel", "Source Control"),
+				LOCTEXT("SourceControlSubMenuLabel", "Revision Control"),
 				LOCTEXT("SourceControlSubMenuDisabledToolTip", "Disabled because one or more selected items are not external packages."),
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.Off"),
 				FUIAction(
@@ -171,14 +171,14 @@ bool FSceneOutlinerSCCHandler::CanExecuteSCCShowInChangelist() const
 
 void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 {
-	FToolMenuSection& Section = Menu->AddSection("AssetSourceControlActions", LOCTEXT("AssetSourceControlActionsMenuHeading", "Source Control"));
+	FToolMenuSection& Section = Menu->AddSection("AssetSourceControlActions", LOCTEXT("AssetSourceControlActionsMenuHeading", "Revision Control"));
 
 	if ( CanExecuteSCCCheckOut() )
 	{
 		Section.AddMenuEntry(
 			"SCCCheckOut",
 			LOCTEXT("SCCCheckOut", "Check Out"),
-			LOCTEXT("SCCCheckOutTooltip", "Checks out the selected asset from source control."),
+			LOCTEXT("SCCCheckOutTooltip", "Checks out the selected asset from revision control."),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.CheckOut"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::ExecuteSCCCheckOut ),
@@ -192,7 +192,7 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 		Section.AddMenuEntry(
 			"SCCCheckIn",
 			LOCTEXT("SCCCheckIn", "Check In"),
-			LOCTEXT("SCCCheckInTooltip", "Checks in the selected asset to source control."),
+			LOCTEXT("SCCCheckInTooltip", "Checks in the selected asset to revision control."),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::ExecuteSCCCheckIn ),
@@ -204,7 +204,7 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 	Section.AddMenuEntry(
 		"SCCRefresh",
 		LOCTEXT("SCCRefresh", "Refresh"),
-		LOCTEXT("SCCRefreshTooltip", "Updates the source control status of the asset."),
+		LOCTEXT("SCCRefreshTooltip", "Updates the revision control status of the asset."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::ExecuteSCCRefresh ),
@@ -217,7 +217,7 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 		Section.AddMenuEntry(
 			"SCCHistory",
 			LOCTEXT("SCCHistory", "History"),
-			LOCTEXT("SCCHistoryTooltip", "Displays the source control revision history of the selected asset."),
+			LOCTEXT("SCCHistoryTooltip", "Displays the revision control revision history of the selected asset."),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.History"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::ExecuteSCCHistory ),

@@ -133,7 +133,7 @@ struct ECollectionShareType
 		switch (InType)
 		{
 		case CST_Local:
-			return NSLOCTEXT("ECollectionShareType", "CST_Local_Description", "Local. This collection is only visible to you and is not in source control.");
+			return NSLOCTEXT("ECollectionShareType", "CST_Local_Description", "Local. This collection is only visible to you and is not in revision control.");
 		case CST_Private:
 			return NSLOCTEXT("ECollectionShareType", "CST_Private_Description", "Private. This collection is only visible to you.");
 		case CST_Shared:

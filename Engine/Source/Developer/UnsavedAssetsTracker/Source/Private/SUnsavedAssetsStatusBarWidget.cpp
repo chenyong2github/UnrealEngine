@@ -78,7 +78,7 @@ FText SUnsavedAssetsStatusBarWidget::GetStatusBarTooltip() const
 	}
 	else if (UnsavedAssetTracker->GetWarningNum() > 0)
 	{
-		return LOCTEXT("Asset_Unsaved_Warning_Tooltip", "Warning: There are currently unsaved assets that have a conflict in Source Control");
+		return LOCTEXT("Asset_Unsaved_Warning_Tooltip", "Warning: There are currently unsaved assets that have a conflict in Revision Control");
 	}
 	else
 	{

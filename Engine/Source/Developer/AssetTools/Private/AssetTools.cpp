@@ -2097,7 +2097,7 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 						{
 							if (!SourceControlProvider.GetState(*FileIt, EStateCacheUsage::Use)->IsAdded())
 							{
-								SourceControlErrors += FText::Format(LOCTEXT("AdvancedCopyPackages_SourceControlError", "{0} could not be added to source control"), FText::FromString(*FileIt)).ToString();
+								SourceControlErrors += FText::Format(LOCTEXT("AdvancedCopyPackages_SourceControlError", "{0} could not be added to revision control"), FText::FromString(*FileIt)).ToString();
 								SourceControlErrors += LINE_TERMINATOR;
 							}
 						}
@@ -2113,10 +2113,10 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 		{
 			Severity = EMessageSeverity::Error;
 
-			AdvancedCopyLog.NewPage(LOCTEXT("AdvancedCopyPackages_SourceControlErrorsListPage", "Source Control Errors"));
+			AdvancedCopyLog.NewPage(LOCTEXT("AdvancedCopyPackages_SourceControlErrorsListPage", "Revision Control Errors"));
 			AdvancedCopyLog.Error(FText::FromString(*SourceControlErrors));
 
-			FString ErrorMessage = LOCTEXT("AdvancedCopyPackages_SourceControlErrorsList", "Some files reported source control errors.").ToString();
+			FString ErrorMessage = LOCTEXT("AdvancedCopyPackages_SourceControlErrorsList", "Some files reported revision control errors.").ToString();
 			
 			if (SuccessfullyCopiedSourcePackages.Num() > 0)
 			{
@@ -3859,7 +3859,7 @@ bool UAssetToolsImpl::CheckForDeletedPackage(const UPackage* Package) const
 		else
 		{
 			FMessageLog EditorErrors("EditorErrors");
-			EditorErrors.Warning(LOCTEXT( "DeletingNoSCCConnection", "Could not check for deleted file. No connection to source control available!"));
+			EditorErrors.Warning(LOCTEXT( "DeletingNoSCCConnection", "Could not check for deleted file. No connection to revision control available!"));
 			EditorErrors.Notify();
 		}
 	}
@@ -4759,7 +4759,7 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 					ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 					if(SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SuccessfullyCopiedFiles) == ECommandResult::Failed)
 					{
-						FScopedSlowTask SlowTask(SuccessfullyCopiedFiles.Num(), LOCTEXT("MigratePackages_AddToSourceControl", "Adding To Source Control..."));
+						FScopedSlowTask SlowTask(SuccessfullyCopiedFiles.Num(), LOCTEXT("MigratePackages_AddToSourceControl", "Adding To Revision Control..."));
 						SlowTask.MakeDialog();
 
 						for(auto FileIt(SuccessfullyCopiedFiles.CreateConstIterator()); FileIt; FileIt++)
@@ -4767,7 +4767,7 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 							SlowTask.EnterProgressFrame();
 							if(!SourceControlProvider.GetState(*FileIt, EStateCacheUsage::Use)->IsAdded())
 							{
-								SourceControlErrors += FText::Format(LOCTEXT("MigratePackages_SourceControlError", "{0} could not be added to source control"), FText::FromString(*FileIt)).ToString();
+								SourceControlErrors += FText::Format(LOCTEXT("MigratePackages_SourceControlError", "{0} could not be added to revision control"), FText::FromString(*FileIt)).ToString();
 								SourceControlErrors += LINE_TERMINATOR;
 							}
 						}
@@ -4790,10 +4790,10 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 			}
 			if( SourceControlErrors.Len() > 0 )
 			{
-				MigrateLog.NewPage( LOCTEXT("MigratePackages_SourceControlErrorsListPage", "Source Control Errors") );
+				MigrateLog.NewPage( LOCTEXT("MigratePackages_SourceControlErrorsListPage", "Revision Control Errors") );
 				MigrateLog.Error(FText::FromString(*SourceControlErrors));
 				ErrorMessage += LINE_TERMINATOR;
-				ErrorMessage += LOCTEXT( "MigratePackages_SourceControlErrorsList", "Some files reported source control errors.").ToString();
+				ErrorMessage += LOCTEXT( "MigratePackages_SourceControlErrorsList", "Some files reported revision control errors.").ToString();
 			}
 			if ( SuccessfullyCopiedPackages.Num() > 0 )
 			{

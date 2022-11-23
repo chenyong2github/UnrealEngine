@@ -30,7 +30,7 @@ bool FVirtualizationSourceControlUtilities::SyncPayloadSidecarFile(const FPackag
 
 	if (!ISourceControlModule::Get().IsEnabled())
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Attempting to sync a .upayload for '%s' but source control is disabled!"), *PackagePath.GetDebugName());
+		UE_LOG(LogVirtualization, Error, TEXT("Attempting to sync a .upayload for '%s' but revision control is disabled!"), *PackagePath.GetDebugName());
 		return false;
 	}
 
@@ -38,7 +38,7 @@ bool FVirtualizationSourceControlUtilities::SyncPayloadSidecarFile(const FPackag
 	const FName SourceControlName = ISourceControlModule::Get().GetProvider().GetName();
 	if (SourceControlName != TEXT("Perforce"))
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Attempting to sync a .upayload for '%s' but source control is '%s' and only Perforce is currently supported!"), *PackagePath.GetDebugName(), *SourceControlName.ToString());
+		UE_LOG(LogVirtualization, Error, TEXT("Attempting to sync a .upayload for '%s' but revision control is '%s' and only Perforce is currently supported!"), *PackagePath.GetDebugName(), *SourceControlName.ToString());
 		return false;
 	}
 
@@ -75,7 +75,7 @@ bool FVirtualizationSourceControlUtilities::SyncPayloadSidecarFileInternal(const
 		UpdateStatusOperation->SetUpdateHistory(true);
 		if (SCCProvider.Execute(UpdateStatusOperation, AssetFilePath) != ECommandResult::Succeeded)
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("Failed to update source control state for '%s'"), *PackagePath.GetDebugName());
+			UE_LOG(LogVirtualization, Error, TEXT("Failed to update revision control state for '%s'"), *PackagePath.GetDebugName());
 			return false;
 		}
 	}
@@ -87,7 +87,7 @@ bool FVirtualizationSourceControlUtilities::SyncPayloadSidecarFileInternal(const
 		State = SCCProvider.GetState(AssetFilePath, EStateCacheUsage::Use);
 		if (!State)
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("Failed to find source control state for '%s'"), *PackagePath.GetDebugName());
+			UE_LOG(LogVirtualization, Error, TEXT("Failed to find revision control state for '%s'"), *PackagePath.GetDebugName());
 			return false;
 		}
 	}
@@ -102,7 +102,7 @@ bool FVirtualizationSourceControlUtilities::SyncPayloadSidecarFileInternal(const
 
 	if (LocalRevision == INDEX_NONE)
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to find source control revision for '%s'"), *PackagePath.GetDebugName());
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to find revision control revision for '%s'"), *PackagePath.GetDebugName());
 		return false;
 	}
 

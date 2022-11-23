@@ -40,7 +40,7 @@ public:
 	/** A reference to the parent window */
 	SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
 
-	/** Callback to be called when the "Disable Source Control" button is pressed. */
+	/** Callback to be called when the "Disable Revision Control" button is pressed. */
 	SLATE_ARGUMENT(FSourceControlLoginClosed, OnSourceControlLoginClosed)
 
 	SLATE_END_ARGS()

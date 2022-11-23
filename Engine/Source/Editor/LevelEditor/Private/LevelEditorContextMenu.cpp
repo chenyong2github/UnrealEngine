@@ -1451,8 +1451,8 @@ void FLevelEditorContextMenuImpl::FillMergeActorsMenu(UToolMenu* Menu)
 
 void FLevelEditorContextMenuImpl::AddSourceControlMenu(FToolMenuSection& Section)
 {
-	Section.AddSubMenu(TEXT("SourceControlSubMenu"), LOCTEXT("SourceControlSubMenu", "Source Control"),
-					   LOCTEXT("SourceControlSubMenu_ToolTip", "Opens the Source Control sub menu"),
+	Section.AddSubMenu(TEXT("SourceControlSubMenu"), LOCTEXT("SourceControlSubMenu", "Revision Control"),
+					   LOCTEXT("SourceControlSubMenu_ToolTip", "Opens the Revision Control sub menu"),
 					   FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSourceControlMenu),
 					   false, // default value
 					   FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.ConnectToSourceControl"));
@@ -1460,7 +1460,7 @@ void FLevelEditorContextMenuImpl::AddSourceControlMenu(FToolMenuSection& Section
 
 void FLevelEditorContextMenuImpl::FillSourceControlMenu(UToolMenu* Menu)
 {
-	FToolMenuSection& Section = Menu->AddSection(TEXT("Source Control"));
+	FToolMenuSection& Section = Menu->AddSection(TEXT("Revision Control"));
 
 	Section.AddMenuEntry(FLevelEditorCommands::Get().ShowActorHistory);
 }

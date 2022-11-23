@@ -11,7 +11,7 @@
 
 void FDefaultSourceControlProvider::Init(bool bForceConnection)
 {
-	FMessageLog("SourceControl").Info(LOCTEXT("SourceControlDisabled", "Source control is disabled"));
+	FMessageLog("SourceControl").Info(LOCTEXT("SourceControlDisabled", "Revision control is disabled"));
 }
 
 void FDefaultSourceControlProvider::Close()
@@ -21,7 +21,7 @@ void FDefaultSourceControlProvider::Close()
 
 FText FDefaultSourceControlProvider::GetStatusText() const
 {
-	return LOCTEXT("SourceControlDisabled", "Source control is disabled");
+	return LOCTEXT("SourceControlDisabled", "Revision control is disabled");
 }
 
 bool FDefaultSourceControlProvider::IsAvailable() const

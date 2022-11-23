@@ -3742,7 +3742,7 @@ bool GameProjectUtils::CheckoutGameProjectFile(const FString& ProjectFilename, F
 
 	if ( !ISourceControlModule::Get().IsEnabled() )
 	{
-		OutFailReason = LOCTEXT("SCCDisabled", "Source control is not enabled. Enable source control in the preferences menu.");
+		OutFailReason = LOCTEXT("SCCDisabled", "Revision control is not enabled. Enable revision control in the preferences menu.");
 		return false;
 	}
 
@@ -3753,7 +3753,7 @@ bool GameProjectUtils::CheckoutGameProjectFile(const FString& ProjectFilename, F
 	FilesToBeCheckedOut.Add(AbsoluteFilename);
 
 	bool bSuccessfullyCheckedOut = false;
-	OutFailReason = LOCTEXT("SCCStateInvalid", "Could not determine source control state.");
+	OutFailReason = LOCTEXT("SCCStateInvalid", "Could not determine revision control state.");
 
 	if(SourceControlState.IsValid())
 	{

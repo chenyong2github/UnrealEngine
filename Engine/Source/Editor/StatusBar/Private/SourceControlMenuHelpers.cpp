@@ -30,7 +30,7 @@ FSourceControlCommands::FSourceControlCommands()
 	: TCommands<FSourceControlCommands>
 (
 	"SourceControl",
-	NSLOCTEXT("Contexts", "SourceControl", "Source Control"),
+	NSLOCTEXT("Contexts", "SourceControl", "Revision Control"),
 	"LevelEditor",
 	FAppStyle::GetAppStyleSetName()
 )
@@ -41,8 +41,8 @@ FSourceControlCommands::FSourceControlCommands()
  */
 void FSourceControlCommands::RegisterCommands()
 {
-	UI_COMMAND(ConnectToSourceControl, "Connect to Source Control...", "Connect to source control to allow source control operations to be performed on content and levels.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ChangeSourceControlSettings, "Change Source Control Settings...", "Opens a dialog to change source control settings.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ConnectToSourceControl, "Connect to Revision Control...", "Connect to a revision control system for tracking changes to your content and levels.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ChangeSourceControlSettings, "Change Revision Control Settings...", "Opens a dialog to change revision control settings.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ViewChangelists, "View Changelists", "Opens a dialog displaying current changelists.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(SubmitContent, "Submit Content", "Opens a dialog with check in options for content and levels.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CheckOutModifiedFiles, "Check Out Modified Files", "Opens a dialog to check out any assets which have been modified.", EUserInterfaceActionType::Button, FInputChord());
@@ -240,12 +240,12 @@ FText FSourceControlMenuHelpers::GetSourceControlStatusText()
 			}
 			else
 			{
-				return LOCTEXT("SourceControlStatus_Available", "Source Control");
+				return LOCTEXT("SourceControlStatus_Available", "Revision Control");
 			}
 		}
 		else
 		{
-			return LOCTEXT("SourceControlStatus_Error_Off", "Source Control"); // Relies on the icon on the status bar widget to know if the source control is on or off.
+			return LOCTEXT("SourceControlStatus_Error_Off", "Revision Control"); // Relies on the icon on the status bar widget to know if the source control is on or off.
 		}
 	}
 }
@@ -253,7 +253,7 @@ FText FSourceControlMenuHelpers::GetSourceControlTooltip()
 {
 	if (QueryState == EQueryState::Querying)
 	{
-		return LOCTEXT("SourceControlUnknown", "Source control status is unknown");
+		return LOCTEXT("SourceControlUnknown", "Revision control status is unknown");
 	}
 	else
 	{

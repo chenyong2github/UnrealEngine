@@ -67,7 +67,7 @@ int32 UPopulateDialogueWaveFromCharacterSheetCommandlet::Main(const FString& Par
 		FText SCCErrorStr;
 		if (!SourceControlInfo->IsReady(SCCErrorStr))
 		{
-			UE_LOG(LogPopulateDialogueWaveFromCharacterSheetCommandlet, Error, TEXT("Source Control error: %s"), *SCCErrorStr.ToString());
+			UE_LOG(LogPopulateDialogueWaveFromCharacterSheetCommandlet, Error, TEXT("Revision Control error: %s"), *SCCErrorStr.ToString());
 			return -1;
 		}
 	}

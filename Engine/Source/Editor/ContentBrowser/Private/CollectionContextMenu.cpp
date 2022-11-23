@@ -199,7 +199,7 @@ TSharedPtr<SWidget> FCollectionContextMenu::MakeCollectionTreeContextMenu(TShare
 			// Update
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("UpdateCollection", "Update"),
-				LOCTEXT("UpdateCollectionTooltip", "Update this collection to make sure it's using the latest version from source control."),
+				LOCTEXT("UpdateCollectionTooltip", "Update this collection to make sure it's using the latest version from revision control."),
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateSP( this, &FCollectionContextMenu::ExecuteUpdateCollection ),
@@ -210,7 +210,7 @@ TSharedPtr<SWidget> FCollectionContextMenu::MakeCollectionTreeContextMenu(TShare
 			// Refresh
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("RefreshCollection", "Refresh"),
-				LOCTEXT("RefreshCollectionTooltip", "Refresh the source control status of this collection."),
+				LOCTEXT("RefreshCollectionTooltip", "Refresh the revision control status of this collection."),
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateSP( this, &FCollectionContextMenu::ExecuteRefreshCollection ),
@@ -258,7 +258,7 @@ void FCollectionContextMenu::MakeNewCollectionSubMenu(FMenuBuilder& MenuBuilder,
 		const bool bCanCreateLocalChildren = !InCreationPayload.ParentCollection.IsSet() || ECollectionShareType::IsValidChildType( InCreationPayload.ParentCollection->Type, ECollectionShareType::CST_Local );
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("NewCollection_Local", "Local Collection"),
-			LOCTEXT("NewCollection_LocalTooltip", "Create a collection that is not in source control and can only be seen by you."),
+			LOCTEXT("NewCollection_LocalTooltip", "Create a collection that is not in revision control and can only be seen by you."),
 			FSlateIcon( FAppStyle::GetAppStyleSetName(), ECollectionShareType::GetIconStyleName( ECollectionShareType::CST_Local ) ),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FCollectionContextMenu::ExecuteNewCollection, ECollectionShareType::CST_Local, StorageMode, InCreationPayload ),

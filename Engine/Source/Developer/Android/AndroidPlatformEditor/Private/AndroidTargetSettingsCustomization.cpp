@@ -184,7 +184,7 @@ void FAndroidTargetSettingsCustomization::BuildAppManifestSection(IDetailLayoutB
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("OpenBuildFolderButton", "Open Build Folder"))
-				.ToolTipText(LOCTEXT("OpenManifestFolderButton_Tooltip", "Opens the folder containing the build files in Explorer or Finder (it's recommended you check these in to source control to share with your team)"))
+				.ToolTipText(LOCTEXT("OpenManifestFolderButton_Tooltip", "Opens the folder containing the build files in Explorer or Finder (it's recommended you check these in to revision control to share with your team)"))
 				.OnClicked(this, &FAndroidTargetSettingsCustomization::OpenBuildFolder)
 			]
 		];

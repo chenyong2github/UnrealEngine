@@ -660,7 +660,7 @@ bool FEditorBuildUtils::PrepForAutomatedBuild( const FEditorAutomatedBuildSettin
 	if ( BuildSettings.bUseSCC && !(ISourceControlModule::Get().IsEnabled() && SourceControlProvider.IsAvailable() ) )
 	{
 		bBuildSuccessful = false;
-		LogErrorMessage( NSLOCTEXT("UnrealEd", "AutomatedBuild_Error_SCCError", "Cannot connect to source control; automated build aborted."), OutErrorMessages );
+		LogErrorMessage( NSLOCTEXT("UnrealEd", "AutomatedBuild_Error_SCCError", "Cannot connect to revision control; automated build aborted."), OutErrorMessages );
 	}
 
 	TArray<UPackage*> PreviouslySavedWorldPackages;
@@ -758,7 +758,7 @@ bool FEditorBuildUtils::PrepForAutomatedBuild( const FEditorAutomatedBuildSettin
 		if ( PkgsThatCantBeCheckedOut.Len() > 0 )
 		{
 			bBuildSuccessful = ProcessAutomatedBuildBehavior( BuildSettings.UnableToCheckoutFilesBehavior,
-				FText::Format( NSLOCTEXT("UnrealEd", "AutomatedBuild_Error_UnsaveableFiles", "The following assets cannot be checked out of source control (or are read-only) and cannot be submitted:\n\n{0}\n\nAttempt to continue the build?"), FText::FromString(PkgsThatCantBeCheckedOut) ),
+				FText::Format( NSLOCTEXT("UnrealEd", "AutomatedBuild_Error_UnsaveableFiles", "The following assets cannot be checked out of revision control (or are read-only) and cannot be submitted:\n\n{0}\n\nAttempt to continue the build?"), FText::FromString(PkgsThatCantBeCheckedOut) ),
 				OutErrorMessages );
 		}
 	}
@@ -794,7 +794,7 @@ bool FEditorBuildUtils::PrepForAutomatedBuild( const FEditorAutomatedBuildSettin
 			if ( FilesThatFailedCheckout.Len() > 0 )
 			{
 				bBuildSuccessful = ProcessAutomatedBuildBehavior( BuildSettings.UnableToCheckoutFilesBehavior,
-					FText::Format( NSLOCTEXT("UnrealEd", "AutomatedBuild_Error_FilesFailedCheckout", "The following assets failed to checkout of source control and cannot be submitted:\n{0}\n\nAttempt to continue the build?"), FText::FromString(FilesThatFailedCheckout)),
+					FText::Format( NSLOCTEXT("UnrealEd", "AutomatedBuild_Error_FilesFailedCheckout", "The following assets failed to checkout of revision control and cannot be submitted:\n{0}\n\nAttempt to continue the build?"), FText::FromString(FilesThatFailedCheckout)),
 					OutErrorMessages );
 			}
 		}

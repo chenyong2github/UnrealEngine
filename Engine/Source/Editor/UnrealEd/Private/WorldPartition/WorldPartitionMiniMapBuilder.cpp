@@ -230,7 +230,7 @@ bool UWorldPartitionMiniMapBuilder::PostRun(UWorld* World, FPackageSourceControl
 
 	if (!PackageHelper.AddToSourceControl(WorldMiniMapExternalPackage))
 	{
-		UE_LOG(LogWorldPartitionMiniMapBuilder, Error, TEXT("Error adding package %s to source control."), *WorldMiniMapExternalPackage->GetName());
+		UE_LOG(LogWorldPartitionMiniMapBuilder, Error, TEXT("Error adding package %s to revision control."), *WorldMiniMapExternalPackage->GetName());
 		return false;
 	}
 

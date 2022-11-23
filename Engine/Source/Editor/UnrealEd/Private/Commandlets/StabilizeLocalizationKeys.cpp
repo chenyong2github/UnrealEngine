@@ -210,7 +210,7 @@ int32 UStabilizeLocalizationKeysCommandlet::Main(const FString& Params)
 		FText SCCErrorStr;
 		if (!SourceControlInfo->IsReady(SCCErrorStr))
 		{
-			UE_LOG(LogStabilizeLocalizationKeys, Error, TEXT("Source Control error: %s"), *SCCErrorStr.ToString());
+			UE_LOG(LogStabilizeLocalizationKeys, Error, TEXT("Revision Control error: %s"), *SCCErrorStr.ToString());
 			return -1;
 		}
 	}

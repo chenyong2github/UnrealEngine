@@ -125,7 +125,7 @@ bool UStateTreeCompileAllCommandlet::CompileAndSaveStateTree(UStateTree& StateTr
 			}
 			else if (SourceControlState->IsSourceControlled())
 			{
-				UE_LOG(LogStateTreeCompile, Log, TEXT("Checking out package %s from source control"), *PackageFileName);
+				UE_LOG(LogStateTreeCompile, Log, TEXT("Checking out package %s from revision control"), *PackageFileName);
 				return SourceControlProvider->Execute(ISourceControlOperation::Create<FCheckOut>(), PackageFileName) == ECommandResult::Succeeded;
 			}
 		}

@@ -17,7 +17,7 @@ class UObject;
 
 
 /** Settings for the Source Control Integration */
-UCLASS(config = Editor, defaultconfig, meta = (DisplayName = "Source Control"))
+UCLASS(config = Editor, defaultconfig, meta = (DisplayName = "Revision Control", Keywords = "Source Control"))
 class SOURCECONTROL_API USourceControlPreferences : public UDeveloperSettings
 {
 	GENERATED_BODY()

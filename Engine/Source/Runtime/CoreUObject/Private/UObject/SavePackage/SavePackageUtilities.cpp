@@ -230,7 +230,7 @@ public:
 		{
 			if (!FileSystem.Delete(*Entry))
 			{
-				UE_LOG(LogSavePackage, Error, TEXT("Failed to delete newly added file '%s' when trying to restore the package state and the package could be unstable, please revert in source control!"), *Entry);
+				UE_LOG(LogSavePackage, Error, TEXT("Failed to delete newly added file '%s' when trying to restore the package state and the package could be unstable, please revert in revision control!"), *Entry);
 			}
 		}
 
@@ -239,7 +239,7 @@ public:
 		{
 			if (!FileSystem.Move(*Entry.Key, *Entry.Value))
 			{
-				UE_LOG(LogSavePackage, Error, TEXT("Failed to restore package '%s', the file '%s' is in an incorrect state and the package could be unstable, please revert in source control!"), *PackagePath.GetDebugName(), *Entry.Key);
+				UE_LOG(LogSavePackage, Error, TEXT("Failed to restore package '%s', the file '%s' is in an incorrect state and the package could be unstable, please revert in revision control!"), *PackagePath.GetDebugName(), *Entry.Key);
 			}
 		}
 	}

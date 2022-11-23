@@ -161,7 +161,7 @@ void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
 			.HeaderContent()
 			[
 				SNew(STextBlock)
-					.ToolTipText(NSLOCTEXT("WorldBrowser", "SCCStatus", "Status in Source Control"))
+					.ToolTipText(NSLOCTEXT("WorldBrowser", "SCCStatus", "Status in Revision Control"))
 			]
 
 		/** Level save column */

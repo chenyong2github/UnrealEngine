@@ -66,10 +66,10 @@ void FAssetManagerEditorCommands::RegisterCommands()
 	UI_COMMAND(AuditReferencedObjects, "Audit References", "Opens the Asset Audit UI and displays information about all assets referenced by selected asset", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(Find, "Find", "Find objects in the reference viewer.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::F));
 
-	UI_COMMAND(MakeLocalCollectionWithReferencers, "Local", "Local. This collection is only visible to you and is not in source control.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(MakeLocalCollectionWithReferencers, "Local", "Local. This collection is only visible to you and is not in revision control.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(MakePrivateCollectionWithReferencers, "Private", "Private. This collection is only visible to you.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(MakeSharedCollectionWithReferencers, "Shared", "Shared. This collection is visible to everyone.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(MakeLocalCollectionWithDependencies, "Local", "Local. This collection is only visible to you and is not in source control.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(MakeLocalCollectionWithDependencies, "Local", "Local. This collection is only visible to you and is not in revision control.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(MakePrivateCollectionWithDependencies, "Private", "Private. This collection is only visible to you.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(MakeSharedCollectionWithDependencies, "Shared", "Shared. This collection is visible to everyone.", EUserInterfaceActionType::Button, FInputChord());
 }

@@ -339,7 +339,7 @@ FReply SSettingsSectionHeader::HandleSetAsDefaultButtonClicked()
 		}
 
 		bool FileNeedToBeAddedToSourceControl = false;
-		FText SaveAsDefaultNeedsAddMessage = LOCTEXT("SaveAsDefaultNeedsAddMessage", "The default configuration file for these settings is currently not under source control. Would you like to add it to source control?");
+		FText SaveAsDefaultNeedsAddMessage = LOCTEXT("SaveAsDefaultNeedsAddMessage", "The default configuration file for these settings is currently not under revision control. Would you like to add it to revision control?");
 		FString DefaultConfigFilePath = GetDefaultConfigFilePath();
 		
 		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*DefaultConfigFilePath))
@@ -352,7 +352,7 @@ FReply SSettingsSectionHeader::HandleSetAsDefaultButtonClicked()
 
 					if (SettingsHelpers::IsSourceControlled(DefaultConfigFilePath))
 					{
-						DisplayMessage = LOCTEXT("SaveAsDefaultNeedsCheckoutMessage", "The default configuration file for these settings is currently not checked out. Would you like to check it out from source control?");
+						DisplayMessage = LOCTEXT("SaveAsDefaultNeedsCheckoutMessage", "The default configuration file for these settings is currently not checked out. Would you like to check it out from revision control?");
 					}
 					else
 					{
@@ -363,7 +363,7 @@ FReply SSettingsSectionHeader::HandleSetAsDefaultButtonClicked()
 					{
 						if (!CheckOutOrAddDefaultConfigFile())
 						{
-							if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("SaveAsDefaultsSourceControlOperationFailed", "The source control operation failed. Would you like to make it writable?")) == EAppReturnType::Yes)
+							if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("SaveAsDefaultsSourceControlOperationFailed", "The revision control operation failed. Would you like to make it writable?")) == EAppReturnType::Yes)
 							{
 								MakeDefaultConfigFileWritable();
 							}
@@ -403,13 +403,13 @@ FReply SSettingsSectionHeader::HandleSetAsDefaultButtonClicked()
 			{
 				if (!CheckOutOrAddDefaultConfigFile(true))
 				{
-					FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("SaveAsDefaultsSourceControlFailedAddManually", "The source control operation failed. You will need to add it manually"));
+					FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("SaveAsDefaultsSourceControlFailedAddManually", "The revision control operation failed. You will need to add it manually"));
 					return FReply::Handled();
 				}
 			}
 		}
 
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("SaveAsDefaultsSucceededMessage", "The default configuration file for these settings was updated successfully. \n\nIf checked into source control this would affect other developers."));
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("SaveAsDefaultsSucceededMessage", "The default configuration file for these settings was updated successfully. \n\nIf checked into revision control this would affect other developers."));
 	}
 
 	return FReply::Handled();

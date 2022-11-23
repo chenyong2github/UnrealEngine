@@ -82,7 +82,7 @@ void SSourceControlLogin::Construct(const FArguments& InArgs)
 						SNew(STextBlock)
 						.Visibility(this, &SSourceControlLogin::GetDisabledTextVisibility)
 						.WrapTextAt(450.0f)
-						.Text(LOCTEXT("SourceControlDisabledText", "Source control is currently disabled.\n\nTo enable, select a provider from the drop-down box above and enter your credentials."))
+						.Text(LOCTEXT("SourceControlDisabledText", "Revision control is currently disabled.\n\nTo enable, select a provider from the drop-down box above and enter your credentials."))
 					]
 				]
 	#if WITH_UNREAL_DEVELOPER_TOOLS
@@ -99,7 +99,7 @@ void SSourceControlLogin::Construct(const FArguments& InArgs)
 					.HeaderContent()
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("LogTitle", "Source Control Log"))
+						.Text(LOCTEXT("LogTitle", "Revision Control Log"))
 					]
 					.BodyContent()
 					[
@@ -153,7 +153,7 @@ void SSourceControlLogin::Construct(const FArguments& InArgs)
 							SNew(SButton)
 							.VAlign(VAlign_Center)
   							.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-							.Text(LOCTEXT("RunWithoutSourceControl", "Disable Source Control"))
+							.Text(LOCTEXT("RunWithoutSourceControl", "Disable Revision Control"))
 							.OnClicked( this, &SSourceControlLogin::OnDisableSourceControl )
 							.IsEnabled( this, &SSourceControlLogin::AreControlsEnabled )
 						]
@@ -229,7 +229,7 @@ void SSourceControlLogin::DisplayConnectionError(const FText& InErrorText)
 	FMessageLog SourceControlLog("SourceControl");
 	if(InErrorText.IsEmpty())
 	{
-		SourceControlLog.Error(LOCTEXT("FailedToConnect", "Failed to connect to source control. Check your settings and connection then try again."));
+		SourceControlLog.Error(LOCTEXT("FailedToConnect", "Failed to connect to revision control. Check your settings and connection then try again."));
 	}
 	else
 	{
@@ -248,7 +248,7 @@ void SSourceControlLogin::DisplayConnectionError(const FText& InErrorText)
 
 void SSourceControlLogin::DisplayConnectionSuccess() const
 {
-	FNotificationInfo Info( LOCTEXT("ConnectionSuccessful", "Connection to source control was successful!") );
+	FNotificationInfo Info( LOCTEXT("ConnectionSuccessful", "Connection to revision control was successful!") );
 	Info.bFireAndForget = true;
 	Info.bUseSuccessFailIcons = true;
 	TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);

@@ -385,7 +385,7 @@ bool FTranslationDataManager::WriteJSONToTextFile(TSharedRef<FJsonObject>& Outpu
 
 		// Make a note in the Source Control log, including a note to check in the file later via source control application
 		FMessageLog TranslationEditorMessageLog("SourceControl");
-		TranslationEditorMessageLog.Info(FText::Format(LOCTEXT("TranslationArchiveCheckedOut", "Successfully checked out and saved translation archive '{Filename}'. Please check-in this file later via your source control application."), Arguments));
+		TranslationEditorMessageLog.Info(FText::Format(LOCTEXT("TranslationArchiveCheckedOut", "Successfully checked out and saved translation archive '{Filename}'. Please check-in this file later via your revision control application."), Arguments));
 
 		// Display notification that save was successful, along with a link to the Source Control log so the user can see the above message.
 		FNotificationInfo Info( LOCTEXT("ArchiveCheckedOut", "Translation Archive Successfully Checked Out and Saved.") );
@@ -403,7 +403,7 @@ bool FTranslationDataManager::WriteJSONToTextFile(TSharedRef<FJsonObject>& Outpu
 
 void FTranslationDataManager::GetHistoryForTranslationUnits()
 {
-	GWarn->BeginSlowTask(LOCTEXT("LoadingSourceControlHistory", "Loading Translation History from Source Control..."), true);
+	GWarn->BeginSlowTask(LOCTEXT("LoadingSourceControlHistory", "Loading Translation History from Revision Control..."), true);
 
 	TArray<UTranslationUnit*>& TranslationUnits = AllTranslations;
 	const FString& InManifestFilePath = OpenedManifestFilePath;
@@ -437,7 +437,7 @@ void FTranslationDataManager::GetHistoryForTranslationUnits()
 
 		for (int HistoryItemIndex = HistorySize-1; HistoryItemIndex >=0; --HistoryItemIndex)
 		{
-			GWarn->StatusUpdate(HistorySize - HistoryItemIndex, HistorySize, FText::Format(LOCTEXT("LoadingOldManifestRevisionNumber", "Loading Translation History from Manifest Revision {0} of {1} from Source Control..."), FText::AsNumber(HistorySize - HistoryItemIndex), FText::AsNumber(HistorySize)));
+			GWarn->StatusUpdate(HistorySize - HistoryItemIndex, HistorySize, FText::Format(LOCTEXT("LoadingOldManifestRevisionNumber", "Loading Translation History from Manifest Revision {0} of {1} from Revision Control..."), FText::AsNumber(HistorySize - HistoryItemIndex), FText::AsNumber(HistorySize)));
 
 			TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = SourceControlState->GetHistoryItem(HistoryItemIndex);
 			if(Revision.IsValid())
@@ -532,8 +532,8 @@ void FTranslationDataManager::GetHistoryForTranslationUnits()
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("ManifestFilePath"), FText::FromString(InManifestFilePath));
 		FMessageLog TranslationEditorMessageLog("SourceControl");
-		TranslationEditorMessageLog.Warning(FText::Format(LOCTEXT("SourceControlStateQueryFailed", "Failed to query source control state of file {ManifestFilePath}."), Arguments));
-		TranslationEditorMessageLog.Notify(LOCTEXT("RetrieveTranslationHistoryFailed", "Unable to Retrieve Translation History from Source Control!"));
+		TranslationEditorMessageLog.Warning(FText::Format(LOCTEXT("SourceControlStateQueryFailed", "Failed to query revision control state of file {ManifestFilePath}."), Arguments));
+		TranslationEditorMessageLog.Notify(LOCTEXT("RetrieveTranslationHistoryFailed", "Unable to Retrieve Translation History from Revision Control!"));
 	}
 
 

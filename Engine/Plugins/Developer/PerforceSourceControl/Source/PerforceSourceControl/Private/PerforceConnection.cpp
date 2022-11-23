@@ -642,9 +642,9 @@ bool FPerforceConnection::AutoDetectWorkspace(const FPerforceConnectionInfo& InC
 	}
 	else if (ClientSpecList.Num() > 0)
 	{
-		SourceControlLog.Warning(LOCTEXT("AmbiguousClientSpecLine1", "Source Control unable to auto-login due to ambiguous client specs"));
+		SourceControlLog.Warning(LOCTEXT("AmbiguousClientSpecLine1", "Revision Control unable to auto-login due to ambiguous client specs"));
 		SourceControlLog.Warning(LOCTEXT("AmbiguousClientSpecLine2", "  Please select a client spec in the Perforce settings dialog"));
-		SourceControlLog.Warning(LOCTEXT("AmbiguousClientSpecLine3", "  If you are unable to work with source control, consider checking out the files by hand temporarily"));
+		SourceControlLog.Warning(LOCTEXT("AmbiguousClientSpecLine3", "  If you are unable to work with revision control, consider checking out the files by hand temporarily"));
 
 		// List out the clientspecs that were found to be ambiguous
 		SourceControlLog.Info(LOCTEXT("AmbiguousClientSpecListTitle", "Ambiguous client specs..."));
@@ -715,7 +715,7 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 	// Add easy access to the localized error message if needed
 	auto GetFailedToConnectMessage = []() -> FText
 	{
-		return LOCTEXT("P4ErrorConnection_FailedToConnect", "P4ERROR: Failed to connect to source control provider.");
+		return LOCTEXT("P4ErrorConnection_FailedToConnect", "P4ERROR: Failed to connect to revision control provider.");
 	};
 
 	Error P4Error;

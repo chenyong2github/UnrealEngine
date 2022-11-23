@@ -215,7 +215,7 @@ public:
 	 * @param	AssetToCheckout		Asset to checkout.
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Source Control")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Revision Control", meta = (Keywords = "Source Control"))
 	bool CheckoutLoadedAsset(UObject* AssetToCheckout);
 
 	/**
@@ -223,7 +223,7 @@ public:
 	 * @param	AssetsToCheckout		Assets to checkout.
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Source Control")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Revision Control", meta = (Keywords = "Source Control"))
 	bool CheckoutLoadedAssets(const TArray<UObject*>& AssetsToCheckout);
 
 	/**
@@ -231,7 +231,7 @@ public:
 	 * @param	AssetToCheckout		Asset Path of the asset that we want to checkout.
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Source Control")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Revision Control", meta = (Keywords = "Source Control"))
 	bool CheckoutAsset(const FString& AssetToCheckout);
 
 	/**
@@ -241,7 +241,7 @@ public:
 	 * @param	bRecursive			If the AssetPath is a folder, the search will be recursive and will checkout the assets in the sub folders.
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Source Control")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Revision Control", meta = (Keywords = "Source Control"))
 	bool CheckoutDirectory(const FString& DirectoryPath, bool bRecursive = true);
 	
 	/**

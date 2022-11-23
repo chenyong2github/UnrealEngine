@@ -324,7 +324,7 @@ int32 UFixConflictingLocalizationKeysCommandlet::Main(const FString& Params)
 		FText SCCErrorStr;
 		if (!SourceControlInfo->IsReady(SCCErrorStr))
 		{
-			UE_LOG(LogFixConflictingLocalizationKeys, Error, TEXT("Source Control error: %s"), *SCCErrorStr.ToString());
+			UE_LOG(LogFixConflictingLocalizationKeys, Error, TEXT("Revision Control error: %s"), *SCCErrorStr.ToString());
 			return -1;
 		}
 	}

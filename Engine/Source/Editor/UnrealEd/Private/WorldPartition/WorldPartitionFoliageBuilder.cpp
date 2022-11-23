@@ -197,7 +197,7 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
                 if (!SCCHelper.AddToSourceControl(Package))
                 {
                     // It is possible the resave can't checkout everything. Continue processing.
-                    UE_LOG(LogWorldPartitionFoliageBuilder, Error, TEXT("Error adding package to source control %s."), *Package->GetName());
+                    UE_LOG(LogWorldPartitionFoliageBuilder, Error, TEXT("Error adding package to revision control %s."), *Package->GetName());
                     return false;
                 }
 

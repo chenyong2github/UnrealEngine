@@ -325,8 +325,8 @@ private:
 			InSharedState->PromptText = LOCTEXT("ValidatingWorkspace_SCContinue", "Continue");
 			InSharedState->Error.ErrorCode = MultiUserClientUtil::SourceControlValidationGenericErrorCode;
 			InSharedState->Error.ErrorText = InClientConfig->SourceControlSettings.ValidationMode == EConcertSourceValidationMode::Hard ?
-				LOCTEXT("ValidatingWorkspace_Failed", "The workspace validation request failed. Please check your source control settings.") :
-				LOCTEXT("ValidatingWorkspace_FailedSoft", "This workspace validation request failed. Please check your source control settings. Local changes will not available to other users.");
+				LOCTEXT("ValidatingWorkspace_Failed", "The workspace validation request failed. Please check your revision control settings.") :
+				LOCTEXT("ValidatingWorkspace_FailedSoft", "This workspace validation request failed. Please check your revision control settings. Local changes will not available to other users.");
 			break;
 		}
 	}
@@ -771,15 +771,15 @@ private:
 	{
 		if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Added)
 		{
-			UE_LOG(LogConcert, Warning, TEXT("The newly added package '%s' was too large (%s) to be synchronized on other Multi-User clients. It is recommended to save the package, leave and persist the session, submit the file to the source control, sync all clients to this submit and create a new session."), *PackageInfo.PackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
+			UE_LOG(LogConcert, Warning, TEXT("The newly added package '%s' was too large (%s) to be synchronized on other Multi-User clients. It is recommended to save the package, leave and persist the session, submit the file to the revision control, sync all clients to this submit and create a new session."), *PackageInfo.PackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
 		}
 		else if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Saved)
 		{
-			UE_LOG(LogConcert, Warning, TEXT("The saved package '%s' was too large (%s) to be synchronized on other Multi-User clients. It is recommended to leave and persist the session, submit the file to the source control, sync all clients to this submit and create a new session."), *PackageInfo.PackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
+			UE_LOG(LogConcert, Warning, TEXT("The saved package '%s' was too large (%s) to be synchronized on other Multi-User clients. It is recommended to leave and persist the session, submit the file to the revision control, sync all clients to this submit and create a new session."), *PackageInfo.PackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
 		}
 		else if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Renamed)
 		{
-			UE_LOG(LogConcert, Warning, TEXT("The renamed package '%s' was too large (%s) to be synchronized on other Multi-User clients. It is recommended to leave and persist the session, submit the file to the source control, sync all clients to this submit and create a new session."), *PackageInfo.NewPackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
+			UE_LOG(LogConcert, Warning, TEXT("The renamed package '%s' was too large (%s) to be synchronized on other Multi-User clients. It is recommended to leave and persist the session, submit the file to the revision control, sync all clients to this submit and create a new session."), *PackageInfo.NewPackageName.ToString(), *FText::AsMemory(PackageSize).ToString());
 		}
 		else // Other events are not expected to trigger a 'too large' error, but log it if something unexpected slips in.
 		{

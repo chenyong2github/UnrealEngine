@@ -394,13 +394,13 @@ void UBaseIteratePackagesCommandlet::ParseSourceControlOptions(const TArray<FStr
 		{
 			if (QueuedPackageFlushLimit >= 0)
 			{
-				UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Setting source control batches to be limited to %d package(s) at a time."), QueuedPackageFlushLimit);
+				UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Setting revision control batches to be limited to %d package(s) at a time."), QueuedPackageFlushLimit);
 				SourceControlQueue->SetMaxNumQueuedPackages(QueuedPackageFlushLimit);
 			}
 			else
 			{
 				// Negative values mean we will not flush the source control batch based on the number of packages
-				UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Setting source control batches to have no package limit!"));
+				UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Setting revision control batches to have no package limit!"));
 			}
 		}
 		else  if (FParse::Value(*CurrentSwitch, TEXT("BatchFileSizeLimit="), QueueFileSizeFlushLimit))
@@ -414,14 +414,14 @@ void UBaseIteratePackagesCommandlet::ParseSourceControlOptions(const TArray<FStr
 
 			if (QueueFileSizeFlushLimit >= 0)
 			{
-				UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Setting source control batches to be limited to %lld MB."), QueueFileSizeFlushLimit);
+				UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Setting revision control batches to be limited to %lld MB."), QueueFileSizeFlushLimit);
 
 				SourceControlQueue->SetMaxTemporaryFileTotalSize(QueueFileSizeFlushLimit);
 			}
 			else
 			{
 				// Negative values mean we will not flush the source control batch based on the disk space taken by temp files
-				UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Setting source control batches to have no disk space limit!"));
+				UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Setting revision control batches to have no disk space limit!"));
 			}
 		}
 	}
@@ -992,10 +992,10 @@ void UBaseIteratePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 
 	if (SourceControlState.IsValid() && (SourceControlState->IsCheckedOut() || SourceControlState->IsAdded()))
 	{
-		UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Revert '%s' from source control..."), *Filename);
+		UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Revert '%s' from revision control..."), *Filename);
 		SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), PackageFilename);
 
-		UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Deleting '%s' from source control..."), *Filename);
+		UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Deleting '%s' from revision control..."), *Filename);
 		SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), PackageFilename);
 
 		PackagesDeleted++;
@@ -1004,7 +1004,7 @@ void UBaseIteratePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 	}
 	else if (SourceControlState.IsValid() && SourceControlState->CanCheckout())
 	{
-		UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Deleting '%s' from source control..."), *Filename);
+		UE_LOG(LogIteratePackagesCommandlet, Display, TEXT("Deleting '%s' from revision control..."), *Filename);
 		SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), PackageFilename);
 
 		PackagesDeleted++;
@@ -1013,11 +1013,11 @@ void UBaseIteratePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 	}
 	else if (SourceControlState.IsValid() && SourceControlState->IsCheckedOutOther())
 	{
-		UE_LOG(LogIteratePackagesCommandlet, Warning, TEXT("Couldn't delete '%s' from source control, someone has it checked out, skipping..."), *Filename);
+		UE_LOG(LogIteratePackagesCommandlet, Warning, TEXT("Couldn't delete '%s' from revision control, someone has it checked out, skipping..."), *Filename);
 	}
 	else if (SourceControlState.IsValid() && !SourceControlState->IsSourceControlled())
 	{
-		UE_LOG(LogIteratePackagesCommandlet, Warning, TEXT("'%s' is not in source control, attempting to delete from disk..."), *Filename);
+		UE_LOG(LogIteratePackagesCommandlet, Warning, TEXT("'%s' is not in revision control, attempting to delete from disk..."), *Filename);
 		if (IFileManager::Get().Delete(*Filename, false, true) == true)
 		{
 			PackagesDeleted++;
@@ -1029,7 +1029,7 @@ void UBaseIteratePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 	}
 	else
 	{
-		UE_LOG(LogIteratePackagesCommandlet, Warning, TEXT("'%s' is in an unknown source control state, attempting to delete from disk..."), *Filename);
+		UE_LOG(LogIteratePackagesCommandlet, Warning, TEXT("'%s' is in an unknown revision control state, attempting to delete from disk..."), *Filename);
 		if (IFileManager::Get().Delete(*Filename, false, true)== true)
 		{
 			PackagesDeleted++;

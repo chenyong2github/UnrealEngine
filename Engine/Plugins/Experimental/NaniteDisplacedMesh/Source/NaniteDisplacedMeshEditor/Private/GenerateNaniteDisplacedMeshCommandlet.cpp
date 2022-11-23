@@ -42,7 +42,7 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 	const bool bDeleteUnused = Switches.Contains(TEXT("GNDMDeleteUnused"));
 
 	FPackageSourceControlHelper SourceControlHelper;
-	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Source control enabled: %s"), SourceControlHelper.UseSourceControl() ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Revision control enabled: %s"), SourceControlHelper.UseSourceControl() ? TEXT("true") : TEXT("false"));
 
 	FARFilter Filter;
 	Filter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());

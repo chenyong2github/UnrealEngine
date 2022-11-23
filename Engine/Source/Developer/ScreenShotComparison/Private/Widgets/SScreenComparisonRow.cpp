@@ -325,11 +325,11 @@ FText SScreenComparisonRow::GetAddNewButtonTooltip() const
 {
 	if (ISourceControlModule::Get().IsEnabled())
 	{
-		return LOCTEXT("AddNewToolTip", "Add new ground truth image to source control.");
+		return LOCTEXT("AddNewToolTip", "Add new ground truth image to revision control.");
 	}
 	else
 	{
-		return LOCTEXT("AddNewToolTip_Disabled", "Cannot add new ground truth image. Please connect to source control.");
+		return LOCTEXT("AddNewToolTip_Disabled", "Cannot add new ground truth image. Please connect to revision control.");
 	}
 }
 

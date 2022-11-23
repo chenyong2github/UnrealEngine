@@ -133,7 +133,7 @@ public:
 		{
 			if (!Add(Package))
 			{
-				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error adding package %s to revision control."), *Package->GetName());
 				return false;
 			}
 		}
@@ -267,7 +267,7 @@ bool UWorldPartitionHLODsBuilder::ValidateParams() const
 
 	if (ShouldRunStep(EHLODBuildStep::HLOD_Finalize) && bAutoSubmit && !ISourceControlModule::Get().GetProvider().IsEnabled())
 	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Submit requires that a valid source control provider is enabled, exiting..."), *BuildManifest);
+		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Submit requires that a valid revision control provider is enabled, exiting..."), *BuildManifest);
 		return false;
 	}
 
@@ -1159,7 +1159,7 @@ bool UWorldPartitionHLODsBuilder::CopyFilesFromWorkingDir(const FString& SourceD
 				bRet = USourceControlHelpers::MarkFilesForAdd(ToAdd);
 				if (!bRet)
 				{
-					UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Adding files to source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+					UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Adding files to revision control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
 					return false;
 				}
 			}
@@ -1173,7 +1173,7 @@ bool UWorldPartitionHLODsBuilder::CopyFilesFromWorkingDir(const FString& SourceD
 				bRet = USourceControlHelpers::MarkFilesForDelete(FilesToDelete);
 				if (!bRet)
 				{
-					UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Deleting files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+					UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Deleting files from revision control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
 					return false;
 				}
 			}
@@ -1201,7 +1201,7 @@ bool UWorldPartitionHLODsBuilder::CopyFilesFromWorkingDir(const FString& SourceD
 				bRet = USourceControlHelpers::CheckOutFiles(ToEdit);
 				if (!bRet)
 				{
-					UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Checking out files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+					UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Checking out files from revision control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
 					return false;
 				}
 			}

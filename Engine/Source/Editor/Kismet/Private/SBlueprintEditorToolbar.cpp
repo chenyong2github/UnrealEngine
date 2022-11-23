@@ -648,7 +648,7 @@ TSharedRef<SWidget> FBlueprintEditorToolbar::MakeDiffMenu(const UBlueprintEditor
 	}
 
 	FMenuBuilder MenuBuilder(true, NULL);
-	MenuBuilder.AddMenuEntry(LOCTEXT("SourceControlDisabled", "Source control is disabled"),
+	MenuBuilder.AddMenuEntry(LOCTEXT("SourceControlDisabled", "Revision control is disabled"),
 		FText(), FSlateIcon(), FUIAction());
 	return MenuBuilder.MakeWidget();
 }

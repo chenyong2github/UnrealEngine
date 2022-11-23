@@ -61,13 +61,13 @@ public:
 		UI_COMMAND( InvertLevelSelection, "Invert Level Selection", "Inverts level selection", EUserInterfaceActionType::Button, FInputChord() );
 
 		// Source Control
-		UI_COMMAND( SCCCheckOut, "Check Out", "Checks out the selected asset from source control.", EUserInterfaceActionType::Button, FInputChord() );
-		UI_COMMAND( SCCCheckIn, "Check In", "Checks in the selected asset to source control.", EUserInterfaceActionType::Button, FInputChord() );
-		UI_COMMAND( SCCOpenForAdd, "Mark For Add", "Adds the selected asset to source control.", EUserInterfaceActionType::Button, FInputChord() );
-		UI_COMMAND( SCCHistory, "History", "Displays the source control revision history of the selected asset.", EUserInterfaceActionType::Button, FInputChord() );
-		UI_COMMAND( SCCRefresh, "Refresh", "Updates the source control status of the asset.", EUserInterfaceActionType::Button, FInputChord() );
-		UI_COMMAND( SCCDiffAgainstDepot, "Diff Against Depot", "Look at differences between your version of the asset and that in source control.", EUserInterfaceActionType::Button, FInputChord() );
-		UI_COMMAND( SCCConnect, "Connect To Source Control", "Connect to source control to allow source control operations to be performed on content and levels.", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND( SCCCheckOut, "Check Out", "Checks out the selected asset from revision control.", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND( SCCCheckIn, "Check In", "Checks in the selected asset to revision control.", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND( SCCOpenForAdd, "Mark For Add", "Adds the selected asset to revision control.", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND( SCCHistory, "History", "Displays the history of the selected asset in revision control.", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND( SCCRefresh, "Refresh", "Updates the revision control status of the asset.", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND( SCCDiffAgainstDepot, "Diff Against Depot", "Look at differences between your version of the asset and that in revision control.", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND( SCCConnect, "Connect To Revision Control", "Connect to a revision control system for tracking changes to your content and levels.", EUserInterfaceActionType::Button, FInputChord() );
 
 		// set new streaming method
 		UI_COMMAND( SetAddStreamingMethod_Blueprint, "Set Blueprint Streaming Method", "Sets the streaming method for new or added levels to Blueprint streaming", EUserInterfaceActionType::RadioButton, FInputChord() );

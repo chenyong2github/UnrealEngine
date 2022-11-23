@@ -20,7 +20,7 @@ FLocalizationSCC::~FLocalizationSCC()
 {
 	if (CheckedOutFiles.Num() > 0)
 	{
-		UE_LOG(LogLocalizationSourceControl, Log, TEXT("Source Control wrapper shutting down with checked out files."));
+		UE_LOG(LogLocalizationSourceControl, Log, TEXT("Revision Control wrapper shutting down with checked out files."));
 	}
 
 	ISourceControlModule::Get().GetProvider().Close();
@@ -93,7 +93,7 @@ bool FLocalizationSCC::CheckOutFile(const FString& InFile, FText& OutError)
 			bSuccessfullyCheckedOut = (SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), FilesToBeCheckedOut) == ECommandResult::Succeeded);
 			if (!bSuccessfullyCheckedOut)
 			{
-				OutError = FText::Format(LOCTEXT("FailedToAddFileToSourceControl", "Failed to add file '{Filepath}' to source control."), Args);
+				OutError = FText::Format(LOCTEXT("FailedToAddFileToSourceControl", "Failed to add file '{Filepath}' to revision control."), Args);
 			}
 		}
 		else if (!SourceControlState->IsCurrent())
@@ -108,13 +108,13 @@ bool FLocalizationSCC::CheckOutFile(const FString& InFile, FText& OutError)
 		else
 		{
 			// Improper or invalid SCC state
-			OutError = FText::Format(LOCTEXT("CouldNotGetStateOfFile", "Could not determine source control state of file '{Filepath}'."), Args);
+			OutError = FText::Format(LOCTEXT("CouldNotGetStateOfFile", "Could not determine revision control state of file '{Filepath}'."), Args);
 		}
 	}
 	else
 	{
 		// Improper or invalid SCC state
-		OutError = FText::Format(LOCTEXT("CouldNotGetStateOfFile", "Could not determine source control state of file '{Filepath}'."), Args);
+		OutError = FText::Format(LOCTEXT("CouldNotGetStateOfFile", "Could not determine revision control state of file '{Filepath}'."), Args);
 	}
 
 	if (bSuccessfullyCheckedOut)
@@ -196,7 +196,7 @@ bool FLocalizationSCC::CleanUp(FText& OutError)
 
 	if (!bCleanupSuccess)
 	{
-		OutError = FText::Format(LOCTEXT("CouldNotCompleteSourceControlCleanup", "Could not complete Source Control cleanup.  {FailureReason}"), FText::FromString(AccumulatedErrorsStr));
+		OutError = FText::Format(LOCTEXT("CouldNotCompleteSourceControlCleanup", "Could not complete Revision Control cleanup.  {FailureReason}"), FText::FromString(AccumulatedErrorsStr));
 	}
 
 	return bCleanupSuccess;
@@ -206,13 +206,13 @@ bool FLocalizationSCC::IsReady(FText& OutError)
 {
 	if (!ISourceControlModule::Get().IsEnabled())
 	{
-		OutError = LOCTEXT("SourceControlNotEnabled", "Source control is not enabled.");
+		OutError = LOCTEXT("SourceControlNotEnabled", "Revision control is not enabled.");
 		return false;
 	}
 
 	if (!ISourceControlModule::Get().GetProvider().IsAvailable())
 	{
-		OutError = LOCTEXT("SourceControlNotAvailable", "Source control server is currently not available.");
+		OutError = LOCTEXT("SourceControlNotAvailable", "Revision control server is currently not available.");
 		return false;
 	}
 	return true;

@@ -165,7 +165,7 @@ FReply SDeviceProfileSourceControl::HandleCheckoutButtonPressed()
 
 		if (!SettingsHelpers::CheckOutOrAddFile(AbsoluteConfigFilePath, false, true, &ErrorMessage))
 		{
-			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("SaveAsDefaultsSourceControlOperationFailed", "The source control operation failed. Would you like to make it writable?")) == EAppReturnType::Yes)
+			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("SaveAsDefaultsSourceControlOperationFailed", "The revision control operation failed. Would you like to make it writable?")) == EAppReturnType::Yes)
 			{
 				SettingsHelpers::MakeWritable(AbsoluteConfigFilePath, true);
 			}
@@ -224,7 +224,7 @@ void SDeviceProfileSourceControl::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("DeviceProfileEditorSCCUnlockedLabel", "The default device profile configuration is under Source Control. This file is currently writable."))
+						.Text(LOCTEXT("DeviceProfileEditorSCCUnlockedLabel", "The default device profile configuration is under Revision Control. This file is currently writable."))
 					]
 					+ SHorizontalBox::Slot()
 					.HAlign(HAlign_Right)
@@ -251,7 +251,7 @@ void SDeviceProfileSourceControl::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("DeviceProfileEditorSCCLockedLabel", "The default device profile configuration is under Source Control. This file is currently locked."))
+						.Text(LOCTEXT("DeviceProfileEditorSCCLockedLabel", "The default device profile configuration is under Revision Control. This file is currently locked."))
 					]
 					+ SHorizontalBox::Slot()
 					.HAlign(HAlign_Right)

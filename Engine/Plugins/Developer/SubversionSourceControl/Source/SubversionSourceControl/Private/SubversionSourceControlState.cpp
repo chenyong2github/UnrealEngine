@@ -130,7 +130,7 @@ FText FSubversionSourceControlState::GetDisplayName() const
 	case EWorkingCopyState::Merged:
 		return LOCTEXT("Merged", "Merged");
 	case EWorkingCopyState::NotControlled:
-		return LOCTEXT("NotControlled", "Not Under Source Control");
+		return LOCTEXT("NotControlled", "Not Under Revision Control");
 	case EWorkingCopyState::Obstructed:
 		return LOCTEXT("Obstructed", "Obstructed By Other Type");
 	case EWorkingCopyState::Missing:
@@ -154,7 +154,7 @@ FText FSubversionSourceControlState::GetDisplayTooltip() const
 	switch(WorkingCopyState) //-V719
 	{
 	case EWorkingCopyState::Unknown:
-		return LOCTEXT("Unknown_Tooltip", "Unknown source control state");
+		return LOCTEXT("Unknown_Tooltip", "Unknown revision control state");
 	case EWorkingCopyState::Pristine:
 		return LOCTEXT("Pristine_Tooltip", "There are no modifications");
 	case EWorkingCopyState::Added:

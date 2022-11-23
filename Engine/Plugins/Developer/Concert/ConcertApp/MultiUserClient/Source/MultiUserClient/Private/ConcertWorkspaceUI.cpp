@@ -586,7 +586,7 @@ void FConcertWorkspaceUI::InstallWorkspaceExtensions(TWeakPtr<IConcertClientWork
 	Section.AddMenuEntry(
 		"ConcertPersistSessionChanges",
 		LOCTEXT("ConcertWVPersist", "Persist Session Changes..."),
-		LOCTEXT("ConcertWVPersistTooltip", "Persist the session changes and prepare the files for source control submission."),
+		LOCTEXT("ConcertWVPersistTooltip", "Persist the session changes and prepare the files for revision control submission."),
 		FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Persist"),
 		FUIAction(FExecuteAction::CreateLambda([Weak]()
 			{

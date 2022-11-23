@@ -496,10 +496,10 @@ FText SCollectionTreeItem::GetCollectionWarningText() const
 			return NSLOCTEXT("ContentBrowser", "CollectionStatus_IsCheckedOutByAnotherUser", "Collection is checked out by another user");
 
 		case ECollectionItemStatus::IsConflicted:
-			return NSLOCTEXT("ContentBrowser", "CollectionStatus_IsConflicted", "Collection is conflicted - please use your external source control provider to resolve this conflict");
+			return NSLOCTEXT("ContentBrowser", "CollectionStatus_IsConflicted", "Collection is conflicted - please use your external revision control provider to resolve this conflict");
 
 		case ECollectionItemStatus::IsMissingSCCProvider:
-			return NSLOCTEXT("ContentBrowser", "CollectionStatus_IsMissingSCCProvider", "Collection is missing its source control provider - please check your source control settings");
+			return NSLOCTEXT("ContentBrowser", "CollectionStatus_IsMissingSCCProvider", "Collection is missing its revision control provider - please check your revision control settings");
 
 		case ECollectionItemStatus::HasLocalChanges:
 			return NSLOCTEXT("ContentBrowser", "CollectionStatus_HasLocalChanges", "Collection has local unsaved or uncomitted changes");

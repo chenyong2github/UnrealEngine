@@ -59,87 +59,87 @@ public:
 	{}
 
 	/** Get the local filename that this state represents */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	FString Filename;
 
 	/** Indicates whether this source control state has valid information (true) or not (false) */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsValid=false;
 
 	/** Determine if we know anything about the source control state of this file */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsUnknown = false;
 
 	/** Determine if this file can be checked in. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bCanCheckIn = false;
 
 	/** Determine if this file can be checked out */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bCanCheckOut = false;
 
 	/** Determine if this file is checked out */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsCheckedOut = false;
 
 	/** Determine if this file is up-to-date with the version in source control */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsCurrent = false;
 
 	/** Determine if this file is under source control */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsSourceControlled = false;
 
 	/**
 	 * Determine if this file is marked for add
 	 * @note	if already checked in then not considered mid add
 	 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsAdded = false;
 
 	/** Determine if this file is marked for delete */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsDeleted = false;
 
 	/** Determine if this file is ignored by source control */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsIgnored = false;
 
 	/** Determine if source control allows this file to be edited */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bCanEdit = false;
 
 	/** Determine if source control allows this file to be deleted. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bCanDelete = false;
 
 	/** Determine if this file is modified compared to the version in source control. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsModified = false;
 
 	/** 
 	 * Determine if this file can be added to source control (i.e. is part of the directory 
 	 * structure currently under source control) 
 	 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bCanAdd = false;
 
 	/** Determine if this file is in a conflicted state */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsConflicted = false;
 
 	/** Determine if this file can be reverted, i.e. discard changes and the file will no longer be checked-out. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bCanRevert = false;
 
 	/** Determine if this file is checked out by someone else */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	bool bIsCheckedOutOther = false;
 
 	/**
 	 * Get name of other user who this file already checked out or "" if no other user has it checked out
 	 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	FString CheckedOutOther;
 
 };  // FSourceControlState
@@ -186,14 +186,14 @@ public:
 	 * Determine the name of the current source control provider.
 	 * @return	the name of the current source control provider. If one is not set then "None" is returned.
 	 */
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static FString CurrentProvider();
 
 	/**
 	 * Determine if there is a source control system enabled
 	 * @return	true if enabled, false if not
 	 */
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool IsEnabled();
 
 	/**
@@ -202,14 +202,14 @@ public:
 	 *
 	 * @return	true if source control is available, false if it is not
 	 */
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool IsAvailable();
 
 	/**
 	* Get status text set by SourceControl system if an error occurs regardless whether bSilent is set or not.
 	* Only set if there was an error.
 	*/
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static FText LastErrorMsg();
 
 	/**
@@ -220,7 +220,7 @@ public:
 	 * @param	bSilent	if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool SyncFile(const FString& InFile, bool bSilent = false);
 
 	/**
@@ -231,7 +231,7 @@ public:
 	 * @param	bSilent	if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool SyncFiles(const TArray<FString>& InFiles, bool bSilent = false);
 
 	/**
@@ -242,7 +242,7 @@ public:
 	 * @param	bSilent		if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool CheckOutFile(const FString& InFile, bool bSilent = false);
 
 	/**
@@ -253,7 +253,7 @@ public:
 	 * @param	bSilent		if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool CheckOutFiles(const TArray<FString>& InFiles, bool bSilent = false);
 
 	/**
@@ -264,7 +264,7 @@ public:
 	 * @param	bSilent		if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool CheckOutOrAddFile(const FString& InFile, bool bSilent = false);
 
 	/**
@@ -275,7 +275,7 @@ public:
 	 * @param	bSilent		if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool CheckOutOrAddFiles(const TArray<FString>& InFiles, bool bSilent = false);
 
 	/**
@@ -299,7 +299,7 @@ public:
 	 * @param	bSilent		if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool MarkFileForAdd(const FString& InFile, bool bSilent = false);
 
 	/**
@@ -310,7 +310,7 @@ public:
 	 * @param	bSilent		if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool MarkFilesForAdd(const TArray<FString>& InFiles, bool bSilent = false);
 
 	/**
@@ -322,7 +322,7 @@ public:
 	 * @param	bSilent		if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool MarkFileForDelete(const FString& InFile, bool bSilent = false);
 
 	/**
@@ -333,7 +333,7 @@ public:
 	 * @param	bSilent		if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool MarkFilesForDelete(const TArray<FString>& InFiles, bool bSilent = false);
 
 	/**
@@ -344,7 +344,7 @@ public:
 	 * @param	bSilent	if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool RevertFile(const FString& InFile, bool bSilent = false);
 
 #if WITH_EDITOR
@@ -362,7 +362,7 @@ public:
      * @param	InFilenames		The files/packages to revert and reload
      * @return true if succeeded.
      */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool RevertAndReloadPackages(const TArray<FString>& InFilenames);
 
 #endif // !WITH_EDITOR
@@ -375,7 +375,7 @@ public:
 	 * @param	bSilent	if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool RevertFiles(const TArray<FString>& InFiles, bool bSilent = false);
 
 	/**
@@ -386,7 +386,7 @@ public:
 	 * @param	bSilent	if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool RevertUnchangedFile(const FString& InFile, bool bSilent = false);
 
 	/**
@@ -397,7 +397,7 @@ public:
 	 * @param	bSilent	if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool RevertUnchangedFiles(const TArray<FString>& InFiles, bool bSilent = false);
 
 	/**
@@ -420,7 +420,7 @@ public:
 	 * @param	bKeepCheckedOut Keep files checked-out after checking in. This is helpful for maintaining "ownership" of files if further operations are needed.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool CheckInFile(const FString& InFile, const FString& InDescription, bool bSilent = false, bool bKeepCheckedOut = false);
 
 	/**
@@ -433,7 +433,7 @@ public:
 	 * @param	bKeepCheckedOut Keep files checked-out after checking in. This is helpful for maintaining "ownership" of files if further operations are needed.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool CheckInFiles(const TArray<FString>& InFiles, const FString& InDescription, bool bSilent = false, bool bKeepCheckedOut = false);
 
 	/**
@@ -445,7 +445,7 @@ public:
 	 * @param	bSilent			if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static bool CopyFile(const FString& InSourceFile, const FString& InDestFile, bool bSilent = false);
 
 	/**
@@ -469,7 +469,7 @@ public:
 	 * @return	Source control state - see USourceControlState. It will have bIsValid set to false if
 	 *			it could not have its values set.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static FSourceControlState QueryFileState(const FString& InFile, bool bSilent = false);
 
 	//Delegate to broadcast FileState upon AsyncQueryFileState completion
@@ -481,7 +481,7 @@ public:
 	* @param	InFile			  The file to query - can be either fully qualified path, relative path, long package name, asset path or export text path (often stored on clipboard)
 	* @param	bSilent			  if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
 	static void AsyncQueryFileState(FQueryFileStateDelegate FileStateCallback, const FString& InFile, bool bSilent = false);
 
 	/**

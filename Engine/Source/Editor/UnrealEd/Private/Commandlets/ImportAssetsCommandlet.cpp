@@ -45,10 +45,10 @@ void UImportAssetsCommandlet::PrintUsage()
 	UE_LOG(LogAutomatedImport, Display, TEXT("\tWhether or not to replace existing assets when importing"));
 
 	UE_LOG(LogAutomatedImport, Display, TEXT("-nosourcecontrol"));
-	UE_LOG(LogAutomatedImport, Display, TEXT("\tDisables source control.  Prevents checking out, adding files, and submitting files"));
+	UE_LOG(LogAutomatedImport, Display, TEXT("\tDisables revision control.  Prevents checking out, adding files, and submitting files"));
 
 	UE_LOG(LogAutomatedImport, Display, TEXT("-submitdesc"));
-	UE_LOG(LogAutomatedImport, Display, TEXT("\tSubmit description/comment to use checking in to source control.  If this is empty no files will be submitted"));
+	UE_LOG(LogAutomatedImport, Display, TEXT("\tSubmit description/comment to use checking in to revision control.  If this is empty no files will be submitted"));
 
 	UE_LOG(LogAutomatedImport, Display, TEXT("-skipreadonly"));
 	UE_LOG(LogAutomatedImport, Display, TEXT("\tIf an asset cannot be saved because it is read only, the commandlet will not clear the read only flag and will not save the file"));
@@ -309,7 +309,7 @@ bool UImportAssetsCommandlet::ImportAndSave(const TArray<UAutomatedAssetImportDa
 						const bool bWasAdded = SourceControlHelpers::MarkFileForAdd(PackageFilename);
 						if(!bWasAdded)
 						{
-							UE_LOG(LogAutomatedImport, Error, TEXT("%s could not be added to source control"), *PackageFilename);
+							UE_LOG(LogAutomatedImport, Error, TEXT("%s could not be added to revision control"), *PackageFilename);
 							bImportAndSaveSucceeded = false;
 						}
 					}
@@ -418,7 +418,7 @@ int32 UImportAssetsCommandlet::Main(const FString& InParams)
 			bHasSourceControl = SourceControlProvider.IsEnabled();
 			if(!bHasSourceControl)
 			{
-				UE_LOG(LogAutomatedImport, Error, TEXT("Could not connect to source control!"))
+				UE_LOG(LogAutomatedImport, Error, TEXT("Could not connect to revision control!"))
 			}
 		}
 		else

@@ -1054,11 +1054,11 @@ namespace BuildPromotionTestHelper
 			ADD_TEST_STAGE(EndSection, TEXT("Importing Workflow"));
 
 			// 5) Content Browser
-			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part1,			TEXT("Source Control"));
-			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part2,			TEXT("Source Control"));
-			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part3,			TEXT("Source Control"));
-			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part4,			TEXT("Source Control"));
-			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part5,			TEXT("Source Control"));
+			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part1,			TEXT("Revision Control"));
+			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part2,			TEXT("Revision Control"));
+			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part3,			TEXT("Revision Control"));
+			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part4,			TEXT("Revision Control"));
+			ADD_TEST_STAGE(ContentBrowser_SourceControl_Part5,			TEXT("Revision Control"));
 			ADD_TEST_STAGE(ContentBrowser_OpenAssets_Part1,				TEXT("Open Asset Types"));
 			ADD_TEST_STAGE(ContentBrowser_OpenAssets_Part2,				TEXT("Open Asset Types"));
 			ADD_TEST_STAGE(ContentBrowser_ReimportAsset,				TEXT("Re-import Assets"));
@@ -1406,7 +1406,7 @@ namespace BuildPromotionTestHelper
 			}
 			else
 			{
-				SkippedTests.Add(TEXT("ContentBrowser: Source Control. (No file path)"));
+				SkippedTests.Add(TEXT("ContentBrowser: Revision Control. (No file path)"));
 			}
 
 			return true;
@@ -1452,7 +1452,7 @@ namespace BuildPromotionTestHelper
 						}
 						else
 						{
-							UE_LOG(LogEditorBuildPromotionTests, Display, TEXT("Checked out the source control material"));
+							UE_LOG(LogEditorBuildPromotionTests, Display, TEXT("Checked out the revision control material"));
 						}
 					}
 				}
@@ -1491,7 +1491,7 @@ namespace BuildPromotionTestHelper
 				ChosenMaterialColor = AvailableColors[ChosenIndex * 2];
 				const FString ColorValue = AvailableColors[(ChosenIndex * 2)+1];
 
-				UE_LOG(LogEditorBuildPromotionTests, Display, TEXT("Changing source control test to %s"), *ChosenMaterialColor);
+				UE_LOG(LogEditorBuildPromotionTests, Display, TEXT("Changing revision control test to %s"), *ChosenMaterialColor);
 
 				//Get the editor material
 				UMaterial* EditorMaterial = Cast<UMaterial>(MaterialEditor->GetMaterialInterface());
@@ -1560,7 +1560,7 @@ namespace BuildPromotionTestHelper
 						}
 						else
 						{
-							UE_LOG(LogEditorBuildPromotionTests, Display, TEXT("Checked in the source control material"));
+							UE_LOG(LogEditorBuildPromotionTests, Display, TEXT("Checked in the revision control material"));
 						}
 					}
 					return true;

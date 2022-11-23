@@ -312,7 +312,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 
 				if (bSuccess)
 				{
-					NotificationOpText = LOCTEXT("MadeWritableAssetManagerIni", "Made {0} writable (you may need to manually add to source control)");
+					NotificationOpText = LOCTEXT("MadeWritableAssetManagerIni", "Made {0} writable (you may need to manually add to revision control)");
 				}
 				else
 				{

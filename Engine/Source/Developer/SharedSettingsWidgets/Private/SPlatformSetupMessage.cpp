@@ -81,7 +81,7 @@ void SPlatformSetupMessage::Construct(const FArguments& InArgs, const FString& I
 
 	TSharedRef<SWidget> NeedsCheckoutWidget = MakeRow(
 		"SettingsEditor.WarningIcon",
-		LOCTEXT("NeedsCheckoutText", "Platform files are under source control"),
+		LOCTEXT("NeedsCheckoutText", "Platform files are under revision control"),
 		LOCTEXT("NeedsCheckoutButton", "Check Out"));
 
 	TSharedRef<SWidget> ReadOnlyFilesWidget = MakeRow(

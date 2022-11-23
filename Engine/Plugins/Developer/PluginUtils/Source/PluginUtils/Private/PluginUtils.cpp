@@ -697,7 +697,7 @@ TSharedPtr<IPlugin> FPluginUtils::CreateAndLoadNewPlugin(const FString& PluginNa
 		// Add the plugin files to source control if the project is configured for it
 		if (USourceControlHelpers::IsAvailable())
 		{
-			GWarn->BeginSlowTask(LOCTEXT("AddingFilesToSourceControl", "Adding to Source Control..."), /*ShowProgressDialog*/ true, /*bShowCancelButton*/ false);
+			GWarn->BeginSlowTask(LOCTEXT("AddingFilesToSourceControl", "Adding to Revision Control..."), /*ShowProgressDialog*/ true, /*bShowCancelButton*/ false);
 			USourceControlHelpers::MarkFilesForAdd(NewFilePaths);
 			GWarn->EndSlowTask();
 		}

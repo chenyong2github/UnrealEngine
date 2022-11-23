@@ -166,7 +166,7 @@ EDataValidationResult UDataValidationChangelist::IsDataValid(FDataValidationCont
 			else
 			{
 				bHasChangelistErrors = true;
-				FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.NotInDepot", "{0} is referenced and must also be added to source control '{1}'"), FText::FromString(GetPrettyPackageName(ExternalDependency)), FText::FromString(ExternalPackageFilename));
+				FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.NotInDepot", "{0} is referenced and must also be added to revision control '{1}'"), FText::FromString(GetPrettyPackageName(ExternalDependency)), FText::FromString(ExternalPackageFilename));
 				Context.AddError(CurrentError);
 			}
 		}

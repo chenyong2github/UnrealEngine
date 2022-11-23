@@ -150,11 +150,11 @@ void FQueuedSourceControlOperations::FlushDeleteOperations(bool bForceAll)
 			}
 			else if (FileState->IsCheckedOutOther())
 			{
-				UE_LOG(LogSourceControlUtils, Warning, TEXT("Couldn't delete '%s' from source control, someone has it checked out, skipping..."), *Filename);
+				UE_LOG(LogSourceControlUtils, Warning, TEXT("Couldn't delete '%s' from revision control, someone has it checked out, skipping..."), *Filename);
 			}
 			else if (FileState->IsSourceControlled() == false)
 			{
-				UE_LOG(LogSourceControlUtils, Warning, TEXT("'%s' is not in source control, attempting to delete from disk..."), *Filename);
+				UE_LOG(LogSourceControlUtils, Warning, TEXT("'%s' is not in revision control, attempting to delete from disk..."), *Filename);
 				if (FileManager.Delete(*Filename, false, true) == true)
 				{
 					TotalFilesDeleted++;
@@ -166,7 +166,7 @@ void FQueuedSourceControlOperations::FlushDeleteOperations(bool bForceAll)
 			}
 			else
 			{
-				UE_LOG(LogSourceControlUtils, Warning, TEXT("'%s' is in an unknown source control state, attempting to delete from disk..."), *Filename);
+				UE_LOG(LogSourceControlUtils, Warning, TEXT("'%s' is in an unknown revision control state, attempting to delete from disk..."), *Filename);
 				if (FileManager.Delete(*Filename, false, true) == true)
 				{
 					TotalFilesDeleted++;
@@ -185,7 +185,7 @@ void FQueuedSourceControlOperations::FlushDeleteOperations(bool bForceAll)
 	{
 		for (const FString& Filename : PendingDeleteFiles)
 		{
-			UE_LOG(LogSourceControlUtils, Warning, TEXT("'%s' is in an unknown source control state, attempting to delete from disk..."), *Filename);
+			UE_LOG(LogSourceControlUtils, Warning, TEXT("'%s' is in an unknown revision control state, attempting to delete from disk..."), *Filename);
 			if (!FileManager.Delete(*Filename, false, true))
 			{
 				UE_LOG(LogSourceControlUtils, Warning, TEXT("  ... failed to delete from disk."), *Filename);
@@ -277,7 +277,7 @@ void FQueuedSourceControlOperations::FlushCheckoutOperations(bool bForceAll)
 			{
 				if (Verbosity < EVerbosity::ErrorsOnly)
 				{
-					UE_LOG(LogSourceControlUtils, Display, TEXT("Successfully checked out %d files from source control"), FilesToCheckOut.Num());
+					UE_LOG(LogSourceControlUtils, Display, TEXT("Successfully checked out %d files from revision control"), FilesToCheckOut.Num());
 				}
 
 				TotalFilesCheckedOut += FilesToCheckOut.Num();
@@ -289,7 +289,7 @@ void FQueuedSourceControlOperations::FlushCheckoutOperations(bool bForceAll)
 			}
 			else
 			{
-				UE_LOG(LogSourceControlUtils, Error, TEXT("Failed to checkout %d files from source control"), FilesToCheckOut.Num());
+				UE_LOG(LogSourceControlUtils, Error, TEXT("Failed to checkout %d files from revision control"), FilesToCheckOut.Num());
 			}
 		}
 
@@ -349,7 +349,7 @@ void FQueuedSourceControlOperations::FlushCheckoutOperations(bool bForceAll)
 	}
 	else
 	{
-		UE_LOG(LogSourceControlUtils, Error, TEXT("[REPORT] Failed to get source control status for files!"));
+		UE_LOG(LogSourceControlUtils, Error, TEXT("[REPORT] Failed to get revision control status for files!"));
 
 		// Only delete the tmp files we are referencing rather than call ::CleanTempFiles
 		for (const FileCheckoutOperation& PendingFile : PendingCheckoutFiles)
@@ -398,7 +398,7 @@ void FQueuedSourceControlOperations::DeleteFilesFromSourceControl(const TArray<F
 		{
 			const TCHAR* WorkType = bShouldRevert ? TEXT("Reverting then deleting") : TEXT("Deleting");
 
-			UE_LOG(LogSourceControlUtils, Display, TEXT("%s '%d' files from source control:"), WorkType, FilesToDelete.Num());
+			UE_LOG(LogSourceControlUtils, Display, TEXT("%s '%d' files from revision control:"), WorkType, FilesToDelete.Num());
 
 			for (const FString& Filename : FilesToDelete)
 			{
@@ -411,7 +411,7 @@ void FQueuedSourceControlOperations::DeleteFilesFromSourceControl(const TArray<F
 			const ECommandResult::Type RevertResult = SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), FilesToDelete);
 			if (RevertResult != ECommandResult::Succeeded)
 			{
-				UE_LOG(LogSourceControlUtils, Error, TEXT("Failed to revert the files from source control!"));
+				UE_LOG(LogSourceControlUtils, Error, TEXT("Failed to revert the files from revision control!"));
 				return;
 			}
 		}
@@ -419,7 +419,7 @@ void FQueuedSourceControlOperations::DeleteFilesFromSourceControl(const TArray<F
 		const ECommandResult::Type DeleteResult = SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), FilesToDelete);
 		if (DeleteResult != ECommandResult::Succeeded)
 		{
-			UE_LOG(LogSourceControlUtils, Error, TEXT("Failed to delete the files from source control!"));
+			UE_LOG(LogSourceControlUtils, Error, TEXT("Failed to delete the files from revision control!"));
 			return;
 		}
 
@@ -444,7 +444,7 @@ void FQueuedSourceControlOperations::DeleteFilesFromSourceControl(const TArray<F
 
 		if (Verbosity == EVerbosity::All)
 		{
-			UE_LOG(LogSourceControlUtils, Display, TEXT("Successfully deleted '%d' files from source control"), SuccessfulDeletes);
+			UE_LOG(LogSourceControlUtils, Display, TEXT("Successfully deleted '%d' files from revision control"), SuccessfulDeletes);
 		}
 	}
 }

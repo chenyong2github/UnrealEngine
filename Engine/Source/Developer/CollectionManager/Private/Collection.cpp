@@ -313,13 +313,13 @@ bool FCollection::Update(FText& OutError)
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	if ( !ISourceControlModule::Get().IsEnabled() )
 	{
-		OutError = LOCTEXT("Error_SCCDisabled", "Source control is not enabled. Enable source control in the preferences menu.");
+		OutError = LOCTEXT("Error_SCCDisabled", "Revision control is not enabled. Enable revision control in the preferences menu.");
 		return false;
 	}
 
 	if ( !SourceControlProvider.IsAvailable() )
 	{
-		OutError = LOCTEXT("Error_SCCNotAvailable", "Source control is currently not available. Check your connection and try again.");
+		OutError = LOCTEXT("Error_SCCNotAvailable", "Revision control is currently not available. Check your connection and try again.");
 		return false;
 	}
 
@@ -802,13 +802,13 @@ bool FCollection::CheckoutCollection(FText& OutError)
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	if ( !ISourceControlModule::Get().IsEnabled() )
 	{
-		OutError = LOCTEXT("Error_SCCDisabled", "Source control is not enabled. Enable source control in the preferences menu.");
+		OutError = LOCTEXT("Error_SCCDisabled", "Revision control is not enabled. Enable revision control in the preferences menu.");
 		return false;
 	}
 
 	if ( !SourceControlProvider.IsAvailable() )
 	{
-		OutError = LOCTEXT("Error_SCCNotAvailable", "Source control is currently not available. Check your connection and try again.");
+		OutError = LOCTEXT("Error_SCCNotAvailable", "Revision control is currently not available. Check your connection and try again.");
 		return false;
 	}
 
@@ -891,12 +891,12 @@ bool FCollection::CheckoutCollection(FText& OutError)
 		}
 		else
 		{
-			OutError = FText::Format(LOCTEXT("Error_SCCUnknown", "Could not determine source control state for collection '{0}'"), FText::FromName(CollectionName));
+			OutError = FText::Format(LOCTEXT("Error_SCCUnknown", "Could not determine revision control state for collection '{0}'"), FText::FromName(CollectionName));
 		}
 	}
 	else
 	{
-		OutError = LOCTEXT("Error_SCCInvalid", "Source control state is invalid.");
+		OutError = LOCTEXT("Error_SCCInvalid", "Revision control state is invalid.");
 	}
 
 	return bSuccessfullyCheckedOut;
@@ -913,13 +913,13 @@ bool FCollection::CheckinCollection(const TArray<FText>& AdditionalChangelistTex
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	if ( !ISourceControlModule::Get().IsEnabled() )
 	{
-		OutError = LOCTEXT("Error_SCCDisabled", "Source control is not enabled. Enable source control in the preferences menu.");
+		OutError = LOCTEXT("Error_SCCDisabled", "Revision control is not enabled. Enable revision control in the preferences menu.");
 		return false;
 	}
 
 	if ( !SourceControlProvider.IsAvailable() )
 	{
-		OutError = LOCTEXT("Error_SCCNotAvailable", "Source control is currently not available. Check your connection and try again.");
+		OutError = LOCTEXT("Error_SCCNotAvailable", "Revision control is currently not available. Check your connection and try again.");
 		return false;
 	}
 
@@ -932,7 +932,7 @@ bool FCollection::CheckinCollection(const TArray<FText>& AdditionalChangelistTex
 		const bool bWasAdded = (SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), AbsoluteFilename) == ECommandResult::Succeeded);
 		if (!bWasAdded)
 		{
-			OutError = FText::Format(LOCTEXT("Error_SCCAdd", "Failed to add collection '{0}' to source control."), FText::FromName(CollectionName));
+			OutError = FText::Format(LOCTEXT("Error_SCCAdd", "Failed to add collection '{0}' to revision control."), FText::FromName(CollectionName));
 			return false;
 		}
 		SourceControlState = SourceControlProvider.GetState(AbsoluteFilename, EStateCacheUsage::ForceUpdate);
@@ -1069,13 +1069,13 @@ bool FCollection::RevertCollection(FText& OutError)
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	if ( !ISourceControlModule::Get().IsEnabled() )
 	{
-		OutError = LOCTEXT("Error_SCCDisabled", "Source control is not enabled. Enable source control in the preferences menu.");
+		OutError = LOCTEXT("Error_SCCDisabled", "Revision control is not enabled. Enable revision control in the preferences menu.");
 		return false;
 	}
 
 	if ( !SourceControlProvider.IsAvailable() )
 	{
-		OutError = LOCTEXT("Error_SCCNotAvailable", "Source control is currently not available. Check your connection and try again.");
+		OutError = LOCTEXT("Error_SCCNotAvailable", "Revision control is currently not available. Check your connection and try again.");
 		return false;
 	}
 
@@ -1104,13 +1104,13 @@ bool FCollection::DeleteFromSourceControl(FText& OutError)
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	if ( !ISourceControlModule::Get().IsEnabled() )
 	{
-		OutError = LOCTEXT("Error_SCCDisabled", "Source control is not enabled. Enable source control in the preferences menu.");
+		OutError = LOCTEXT("Error_SCCDisabled", "Revision control is not enabled. Enable revision control in the preferences menu.");
 		return false;
 	}
 
 	if ( !SourceControlProvider.IsAvailable() )
 	{
-		OutError = LOCTEXT("Error_SCCNotAvailable", "Source control is currently not available. Check your connection and try again.");
+		OutError = LOCTEXT("Error_SCCNotAvailable", "Revision control is currently not available. Check your connection and try again.");
 		return false;
 	}
 
@@ -1189,7 +1189,7 @@ bool FCollection::DeleteFromSourceControl(FText& OutError)
 	{
 		if(SourceControlState->IsAdded() || SourceControlState->IsCheckedOut())
 		{
-			OutError = FText::Format(LOCTEXT("Error_SCCDeleteWhileCheckedOut", "Failed to delete collection '{0}' in source control because it is checked out or open for add."), FText::FromName(CollectionName));
+			OutError = FText::Format(LOCTEXT("Error_SCCDeleteWhileCheckedOut", "Failed to delete collection '{0}' in revision control because it is checked out or open for add."), FText::FromName(CollectionName));
 		}
 		else if(SourceControlState->CanCheckout())
 		{
@@ -1217,7 +1217,7 @@ bool FCollection::DeleteFromSourceControl(FText& OutError)
 			}
 			else
 			{
-				OutError = FText::Format(LOCTEXT("Error_SCCDeleteFailed", "Failed to delete collection '{0}' in source control."), FText::FromName(CollectionName));
+				OutError = FText::Format(LOCTEXT("Error_SCCDeleteFailed", "Failed to delete collection '{0}' in revision control."), FText::FromName(CollectionName));
 			}
 		}
 		else if(!SourceControlState->IsSourceControlled())
@@ -1239,12 +1239,12 @@ bool FCollection::DeleteFromSourceControl(FText& OutError)
 		}
 		else
 		{
-			OutError = FText::Format(LOCTEXT("Error_SCCUnknown", "Could not determine source control state for collection '{0}'"), FText::FromName(CollectionName));
+			OutError = FText::Format(LOCTEXT("Error_SCCUnknown", "Could not determine revision control state for collection '{0}'"), FText::FromName(CollectionName));
 		}
 	}
 	else
 	{
-		OutError = LOCTEXT("Error_SCCInvalid", "Source control state is invalid.");
+		OutError = LOCTEXT("Error_SCCInvalid", "Revision control state is invalid.");
 	}
 
 	GWarn->UpdateProgress(DeleteProgressNumerator++, DeleteProgressDenominator);

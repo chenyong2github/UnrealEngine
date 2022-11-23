@@ -57,7 +57,7 @@ ISourceControlProvider* VerifySourceControl(bool bSilent)
 
 	if (!SCModule.IsEnabled())
 	{
-		LogError(LOCTEXT("SourceControlDisabled", "Source control is not enabled."), bSilent);
+		LogError(LOCTEXT("SourceControlDisabled", "Revision control is not enabled."), bSilent);
 
 		return nullptr;
 	}
@@ -66,7 +66,7 @@ ISourceControlProvider* VerifySourceControl(bool bSilent)
 
 	if (!Provider->IsAvailable())
 	{
-		LogError(LOCTEXT("SourceControlServerUnavailable", "Source control server is currently not available."), bSilent);
+		LogError(LOCTEXT("SourceControlServerUnavailable", "Revision control server is currently not available."), bSilent);
 
 		return nullptr;
 	}
@@ -341,7 +341,7 @@ void LogCheckoutFailure(const FString& InFile, const FString& SCFile, FSourceCon
 	}
 	else if (!SCState->IsSourceControlled())
 	{
-		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("NotSourceControlled", "Could not check out the file '{InFile}' because it is not under source control ({SCFile})."), Arguments), bSilent);
+		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("NotSourceControlled", "Could not check out the file '{InFile}' because it is not under revision control ({SCFile})."), Arguments), bSilent);
 	}
 	else if (!SCState->IsCurrent())
 	{
@@ -355,7 +355,7 @@ void LogCheckoutFailure(const FString& InFile, const FString& SCFile, FSourceCon
 	else
 	{
 		// Improper or invalid SCC state
-		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine source control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
+		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine revision control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
 	}
 }
 
@@ -492,7 +492,7 @@ bool USourceControlHelpers::CheckOutOrAddFile(const FString& InFile, bool bSilen
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("InFile"), FText::FromString(InFile));
 		Arguments.Add(TEXT("SCFile"), FText::FromString(SCFile));
-		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine source control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
+		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine revision control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
 
 		return false;
 	}
@@ -541,7 +541,7 @@ bool USourceControlHelpers::CheckOutOrAddFile(const FString& InFile, bool bSilen
 
 	if (bAddFail)
 	{
-		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("AddFailed", "Failed to add file '{InFile}' to source control ({SCFile})."), Arguments), bSilent);
+		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("AddFailed", "Failed to add file '{InFile}' to revision control ({SCFile})."), Arguments), bSilent);
 	}
 	else if (!SCState->IsCurrent())
 	{
@@ -555,7 +555,7 @@ bool USourceControlHelpers::CheckOutOrAddFile(const FString& InFile, bool bSilen
 	else
 	{
 		// Improper or invalid SCC state
-		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine source control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
+		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine revision control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
 	}
 
 	return false;
@@ -665,7 +665,7 @@ bool USourceControlHelpers::MarkFileForAdd(const FString& InFile, bool bSilent)
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("InFile"), FText::FromString(InFile));
 		Arguments.Add(TEXT("SCFile"), FText::FromString(SCFile));
-		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine source control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
+		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine revision control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
 
 		return false;
 	}
@@ -678,7 +678,7 @@ bool USourceControlHelpers::MarkFileForAdd(const FString& InFile, bool bSilent)
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("InFile"), FText::FromString(InFile));
 			Arguments.Add(TEXT("SCFile"), FText::FromString(SCFile));
-			SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("MarkForAddFailed", "Failed to add file '{InFile}' to source control ({SCFile})."), Arguments), bSilent);
+			SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("MarkForAddFailed", "Failed to add file '{InFile}' to revision control ({SCFile})."), Arguments), bSilent);
 
 			return false;
 		}
@@ -744,7 +744,7 @@ bool USourceControlHelpers::MarkFileForDelete(const FString& InFile, bool bSilen
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("InFile"), FText::FromString(InFile));
 		Arguments.Add(TEXT("SCFile"), FText::FromString(SCFile));
-		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine source control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
+		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine revision control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
 
 		return false;
 	}
@@ -760,7 +760,7 @@ bool USourceControlHelpers::MarkFileForDelete(const FString& InFile, bool bSilen
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("InFile"), FText::FromString(InFile));
 				Arguments.Add(TEXT("SCFile"), FText::FromString(SCFile));
-				SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotRevert", "Could not revert source control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
+				SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotRevert", "Could not revert revision control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
 
 				return false;
 			}
@@ -774,7 +774,7 @@ bool USourceControlHelpers::MarkFileForDelete(const FString& InFile, bool bSilen
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("InFile"), FText::FromString(InFile));
 				Arguments.Add(TEXT("SCFile"), FText::FromString(SCFile));
-				SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDelete", "Could not delete file '{InFile}' from source control ({SCFile})."), Arguments), bSilent);
+				SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDelete", "Could not delete file '{InFile}' from revision control ({SCFile})."), Arguments), bSilent);
 
 				return false;
 			}
@@ -1290,7 +1290,7 @@ FSourceControlState USourceControlHelpers::QueryFileState(const FString& InFile,
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("InFile"), FText::FromString(InFile));
 		Arguments.Add(TEXT("SCFile"), FText::FromString(SCFile));
-		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine source control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
+		SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine revision control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
 
 		return State;
 	}
@@ -1356,7 +1356,7 @@ void USourceControlHelpers::AsyncQueryFileState(FQueryFileStateDelegate FileStat
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("InFile"), FText::FromString(InFile));
 				Arguments.Add(TEXT("SCFile"), FText::FromString(SCFile));
-				SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine source control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
+				SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotDetermineState", "Could not determine revision control state of file '{InFile}' ({SCFile})."), Arguments), bSilent);
 
 				FileStateCallback.ExecuteIfBound(State);
 				return;

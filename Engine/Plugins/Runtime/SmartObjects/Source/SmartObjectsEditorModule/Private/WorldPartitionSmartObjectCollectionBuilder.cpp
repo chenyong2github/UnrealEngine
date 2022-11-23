@@ -150,11 +150,11 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackag
 		{
 			// Add new packages to source control
 			TRACE_CPUPROFILER_EVENT_SCOPE(AddingToSourceControl);
-			UE_LOG(LogSmartObject, Log, TEXT("Adding package to source control."));
+			UE_LOG(LogSmartObject, Log, TEXT("Adding package to revision control."));
 
 			if (!PackageHelper.AddToSourceControl(Package))
 			{
-				UE_LOG(LogSmartObject, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
+				UE_LOG(LogSmartObject, Error, TEXT("Error adding package %s to revision control."), *Package->GetName());
 				return false;
 			}
 		}

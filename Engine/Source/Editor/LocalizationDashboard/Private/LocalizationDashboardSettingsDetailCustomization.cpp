@@ -100,24 +100,24 @@ void FLocalizationDashboardSettingsDetailCustomization::CustomizeDetails(IDetail
 
 	// Source Control
 	{
-		IDetailCategoryBuilder& SourceControlCategoryBuilder = DetailLayoutBuilder->EditCategory("SourceControl", LOCTEXT("SourceControl", "Source Control"), ECategoryPriority::Important);
+		IDetailCategoryBuilder& SourceControlCategoryBuilder = DetailLayoutBuilder->EditCategory("SourceControl", LOCTEXT("SourceControl", "Revision Control"), ECategoryPriority::Important);
 
 		// Enable Source Control
 		{
-			SourceControlCategoryBuilder.AddCustomRow(LOCTEXT("EnableSourceControl", "Enable Source Control"))
+			SourceControlCategoryBuilder.AddCustomRow(LOCTEXT("EnableSourceControl", "Enable Revision Control"))
 				.NameContent()
 				[
 					SNew(STextBlock)
 					.Font(DetailLayoutBuilder->GetDetailFont())
-					.Text(LOCTEXT("EnableSourceControl", "Enable Source Control"))
-					.ToolTipText(LOCTEXT("EnableSourceControlToolTip", "Should we use source control when running the localization commandlets. This will optionally pass \"-EnableSCC\" to the commandlet."))
+					.Text(LOCTEXT("EnableSourceControl", "Enable Revision Control"))
+					.ToolTipText(LOCTEXT("EnableSourceControlToolTip", "Should we use revision control when running the localization commandlets. This will optionally pass \"-EnableSCC\" to the commandlet."))
 				]
 				.ValueContent()
 				.MinDesiredWidth(TOptional<float>())
 				.MaxDesiredWidth(TOptional<float>())
 				[
 					SNew(SCheckBox)
-					.ToolTipText(LOCTEXT("EnableSourceControlToolTip", "Should we use source control when running the localization commandlets. This will optionally pass \"-EnableSCC\" to the commandlet."))
+					.ToolTipText(LOCTEXT("EnableSourceControlToolTip", "Should we use revision control when running the localization commandlets. This will optionally pass \"-EnableSCC\" to the commandlet."))
 					.IsEnabled_Lambda([]() -> bool
 					{
 						return FLocalizationSourceControlSettings::IsSourceControlAvailable();

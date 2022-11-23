@@ -242,7 +242,7 @@ void SLevelEditorBuildAndSubmit::Construct( const FArguments& InArgs, const TSha
 					.OnCheckStateChanged(this, &SLevelEditorBuildAndSubmit::OnShowPackagesNotInSCBoxChanged)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("ShowPackagesButtonLabel", "Show Files not in Source Control"))
+						.Text(LOCTEXT("ShowPackagesButtonLabel", "Show Files not in Revision Control"))
 					]
 				]
 				+SVerticalBox::Slot()
@@ -253,7 +253,7 @@ void SLevelEditorBuildAndSubmit::Construct( const FArguments& InArgs, const TSha
 					.IsChecked(ECheckBoxState::Checked)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("AddFilesButtonLabel", "Add Files to Source Control if Necessary"))
+						.Text(LOCTEXT("AddFilesButtonLabel", "Add Files to Revision Control if Necessary"))
 					]
 				]
 			]			

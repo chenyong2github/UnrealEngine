@@ -426,7 +426,7 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("SourceControl_Disabled", "The source control is disabled or it doesn't support changelists."))
+					.Text(LOCTEXT("SourceControl_Disabled", "The revision control is disabled or it doesn't support changelists."))
 				]
 			]
 			+SOverlay::Slot()
@@ -546,7 +546,7 @@ TSharedRef<SWidget> SSourceControlChangelistsWidget::MakeToolBar()
 			FExecuteAction::CreateLambda([this]() { RequestChangelistsRefresh(); })),
 			NAME_None,
 			LOCTEXT("SourceControl_RefreshButton", "Refresh"),
-			LOCTEXT("SourceControl_RefreshButton_Tooltip", "Refreshes changelists from source control provider."),
+			LOCTEXT("SourceControl_RefreshButton_Tooltip", "Refreshes changelists from revision control provider."),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"));
 
 	return ToolBarBuilder.MakeWidget();

@@ -1816,7 +1816,7 @@ void ExecuteInvalidateCachedShaders(const TArray< FString >& Args)
 		}
 		else if(!SourceControlState->IsSourceControlled())
 		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("r.InvalidateCachedShaders failed\n\"ShaderVersion.ush\" is not under source control."));
+			UE_LOG(LogConsoleResponse, Display, TEXT("r.InvalidateCachedShaders failed\n\"ShaderVersion.ush\" is not under revision control."));
 		}
 		else if(SourceControlState->IsCheckedOutOther())
 		{

@@ -249,7 +249,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 		{
 			// Add new packages to source control
 			TRACE_CPUPROFILER_EVENT_SCOPE(AddingToSourceControl);
-			UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Adding packages to source control."));
+			UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Adding packages to revision control."));
 
 			TArray<FString> PackageNamesToAdd;
 			PackageNamesToAdd.Reserve(PackagesToAdd.Num());

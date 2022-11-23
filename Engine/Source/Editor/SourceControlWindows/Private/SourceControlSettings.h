@@ -14,15 +14,15 @@ class USourceControlSettings : public UObject
 public:
 	USourceControlSettings() {}
 
-	UPROPERTY(config, EditAnywhere, Category="Source Control Changelist View")
+	UPROPERTY(config, EditAnywhere, Category="Revision Control Changelist View", meta = (Keywords = "Source Control"))
 	bool bShowAssetTypeColumn = true;
 
-	UPROPERTY(config, EditAnywhere, Category="Source Control Changelist View")
+	UPROPERTY(config, EditAnywhere, Category="Revision Control Changelist View", meta = (Keywords = "Source Control"))
 	bool bShowAssetLastModifiedTimeColumn = true;
 
-	UPROPERTY(config, EditAnywhere, Category="Source Control Changelist View")
+	UPROPERTY(config, EditAnywhere, Category="Revision Control Changelist View", meta = (Keywords = "Source Control"))
 	bool bShowAssetCheckedOutByColumn = true;
 
-	UPROPERTY(EditAnywhere, config, Category="Source Control Tools")
+	UPROPERTY(EditAnywhere, config, Category="Revision Control Tools", meta = (Keywords = "Source Control"))
 	bool bEnableSubmitContentMenuAction = true;
 };

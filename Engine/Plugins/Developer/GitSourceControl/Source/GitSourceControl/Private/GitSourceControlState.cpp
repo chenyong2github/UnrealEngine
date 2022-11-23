@@ -113,7 +113,7 @@ FText FGitSourceControlState::GetDisplayName() const
 	case EWorkingCopyState::Ignored:
 		return LOCTEXT("Ignored", "Ignored");
 	case EWorkingCopyState::NotControlled:
-		return LOCTEXT("NotControlled", "Not Under Source Control");
+		return LOCTEXT("NotControlled", "Not Under Revision Control");
 	case EWorkingCopyState::Missing:
 		return LOCTEXT("Missing", "Missing");
 	}
@@ -126,7 +126,7 @@ FText FGitSourceControlState::GetDisplayTooltip() const
 	switch(WorkingCopyState)
 	{
 	case EWorkingCopyState::Unknown:
-		return LOCTEXT("Unknown_Tooltip", "Unknown source control state");
+		return LOCTEXT("Unknown_Tooltip", "Unknown revision control state");
 	case EWorkingCopyState::Unchanged:
 		return LOCTEXT("Pristine_Tooltip", "There are no modifications");
 	case EWorkingCopyState::Added:

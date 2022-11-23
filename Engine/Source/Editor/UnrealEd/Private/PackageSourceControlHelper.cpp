@@ -88,7 +88,7 @@ bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames, bo
 	if (GetSourceControlProvider().GetState(Filenames, SourceControlStates, EStateCacheUsage::ForceUpdate) != ECommandResult::Succeeded)
 	{
 		// Nothing we can do if SCCStates fail
-		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get source control state for packages"));
+		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get revision control state for packages"));
 		return false;
 	}
 		
@@ -156,7 +156,7 @@ bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames, bo
 		if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FRevert>(), FilesToRevert) != ECommandResult::Succeeded)
 		{
 			bSuccess = false;
-			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error reverting packages from source control"));
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error reverting packages from revision control"));
 			if (!bErrorsAsWarnings)
 			{
 				return false;
@@ -170,7 +170,7 @@ bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames, bo
 		if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FDelete>(), FilesToDeleteFromSCC) != ECommandResult::Succeeded)
 		{
 			bSuccess = false;
-			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error deleting packages from source control"));
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error deleting packages from revision control"));
 			if(!bErrorsAsWarnings)
 			{
 				return false;
@@ -250,7 +250,7 @@ bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& Pack
 	if (GetSourceControlProvider().GetState(PackageFilenames, SourceControlStates, EStateCacheUsage::ForceUpdate) != ECommandResult::Succeeded)
 	{
 		// Nothing we can do if SCCStates fail
-		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get source control state for packages"));
+		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get revision control state for packages"));
 		return false;
 	}
 		
@@ -289,7 +289,7 @@ bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& Pack
 	{
 		if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FMarkForAdd>(), PackagesToAdd) != ECommandResult::Succeeded)
 		{
-			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error adding packages to source control"));
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error adding packages to revision control"));
 			return false;
 		}
 	}
@@ -323,7 +323,7 @@ bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames, 
 		if (UpdateState != ECommandResult::Succeeded)
 		{
 			// Nothing we can do if SCCStates fail
-			FPackageSourceControlHelperLog::Error(false, TEXT("Could not get source control state for packages"));
+			FPackageSourceControlHelperLog::Error(false, TEXT("Could not get revision control state for packages"));
 			return false;
 		}
 
@@ -384,7 +384,7 @@ bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames, 
 		if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FCheckOut>(), PackagesToCheckout) != ECommandResult::Succeeded)
 		{
 			// If operation didn't succeed. Get the list of invalid states when provided with a OutFailedPackages
-			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error checking out packages from source control"));
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error checking out packages from revision control"));
 			return false;
 		}
 	}
@@ -446,7 +446,7 @@ bool FPackageSourceControlHelper::GetDesiredStatesForModification(const TArray<F
 	if (GetSourceControlProvider().GetState(PackageFilenames, SourceControlStates, EStateCacheUsage::ForceUpdate) != ECommandResult::Succeeded)
 	{
 		// Nothing we can do if SCCStates fail
-		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get source control state for packages"));
+		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get revision control state for packages"));
 		return false;
 	}
 

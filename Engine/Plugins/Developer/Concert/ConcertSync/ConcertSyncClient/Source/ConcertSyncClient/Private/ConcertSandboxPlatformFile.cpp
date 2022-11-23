@@ -730,7 +730,7 @@ bool FConcertSandboxPlatformFile::CopyFileWithSCC(
 			if (SourceControlProvider->Execute(ISourceControlOperation::Create<FCheckOut>(), FilesToBeCheckedOut) != ECommandResult::Succeeded)
 			{
 				FText Failure = FText::Format(
-					NSLOCTEXT("Concert", "CheckoutFileFailure", "Failed to check-out file '{0}' from source control when persiting sandbox state!"),
+					NSLOCTEXT("Concert", "CheckoutFileFailure", "Failed to check-out file '{0}' from revision control when persiting sandbox state!"),
 					FText::FromString(InToFilename));
 				UE_LOG(LogConcert, Warning, TEXT("%s"),  *Failure.ToString());
 				OutResult.FailureReasons.Add(MoveTemp(Failure));
@@ -740,7 +740,7 @@ bool FConcertSandboxPlatformFile::CopyFileWithSCC(
 		else
 		{
 			FText Failure = FText::Format(
-				NSLOCTEXT("Concert", "CanCheckoutFileFailure", "Can't check-out file '{0}' from source control when persiting sandbox state!"),
+				NSLOCTEXT("Concert", "CanCheckoutFileFailure", "Can't check-out file '{0}' from revision control when persiting sandbox state!"),
 				FText::FromString(InToFilename));
 			UE_LOG(LogConcert, Warning, TEXT("%s"), *Failure.ToString());
 			OutResult.FailureReasons.Add(MoveTemp(Failure));
@@ -781,7 +781,7 @@ bool FConcertSandboxPlatformFile::CopyFileWithSCC(
 		if (SourceControlProvider->Execute(ISourceControlOperation::Create<FMarkForAdd>(), FilesToBeAdded) != ECommandResult::Succeeded)
 		{
 			FText Failure = FText::Format(
-				NSLOCTEXT("Concert", "AddFileFailure", "Failed to add file '{0}' to source control when persiting sandbox state!"),
+				NSLOCTEXT("Concert", "AddFileFailure", "Failed to add file '{0}' to revision control when persiting sandbox state!"),
 				FText::FromString(InToFilename));
 			UE_LOG(LogConcert, Warning, TEXT("%s"), *Failure.ToString());
 			OutResult.FailureReasons.Add(MoveTemp(Failure));
@@ -814,7 +814,7 @@ bool FConcertSandboxPlatformFile::DeleteFileWithSCC(const TCHAR* InFilename, con
 		{
 			if (SourceControlProvider->Execute(ISourceControlOperation::Create<FRevert>(), InFilename) != ECommandResult::Succeeded)
 			{
-				FText Failure = FText::Format(NSLOCTEXT("Concert", "RevertFileFailure", "Failed to revert file '{0}' to source control when persisting sandbox state!"), FText::FromString(InFilename));
+				FText Failure = FText::Format(NSLOCTEXT("Concert", "RevertFileFailure", "Failed to revert file '{0}' to revision control when persisting sandbox state!"), FText::FromString(InFilename));
 				UE_LOG(LogConcert, Warning, TEXT("%s"), *Failure.ToString());
 				OutResult.FailureReasons.Add(MoveTemp(Failure));
 				return false;
@@ -824,7 +824,7 @@ bool FConcertSandboxPlatformFile::DeleteFileWithSCC(const TCHAR* InFilename, con
 			{
 				if (SourceControlProvider->Execute(ISourceControlOperation::Create<FDelete>(), InFilename) != ECommandResult::Succeeded)
 				{
-					FText Failure = FText::Format(NSLOCTEXT("Concert", "DeleteSCCFileFailure", "Failed to delete file '{0}' from source control when persiting sandbox state!"), FText::FromString(InFilename));
+					FText Failure = FText::Format(NSLOCTEXT("Concert", "DeleteSCCFileFailure", "Failed to delete file '{0}' from revision control when persiting sandbox state!"), FText::FromString(InFilename));
 					UE_LOG(LogConcert, Warning, TEXT("%s"), *Failure.ToString());
 					OutResult.FailureReasons.Add(MoveTemp(Failure));
 					return false;

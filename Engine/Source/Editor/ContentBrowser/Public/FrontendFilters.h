@@ -138,8 +138,8 @@ public:
 
 	// FFrontendFilter implementation
 	virtual FString GetName() const override { return TEXT("NotSourceControlled"); }
-	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_NotSourceControlled", "Not Source Controlled"); }
-	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_NotSourceControlledTooltip", "Show only assets that are not tracked by source control."); }
+	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_NotSourceControlled", "Not Revision Controlled"); }
+	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_NotSourceControlledTooltip", "Show only assets that are not tracked by revision control."); }
 	virtual void ActiveStateChanged(bool bActive) override;
 	virtual void SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter) override;
 

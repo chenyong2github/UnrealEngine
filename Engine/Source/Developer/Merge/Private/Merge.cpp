@@ -168,7 +168,7 @@ TSharedPtr<SDockTab> FMerge::GenerateMergeWidget(const UBlueprint& Object, TShar
 		{
 			DisplayErrorMessage(
 				FText::Format(
-					LOCTEXT("MergeFailedNoSourceControl", "Aborted Load of {0} from {1} because the source control state was invalidated")
+					LOCTEXT("MergeFailedNoSourceControl", "Aborted Load of {0} from {1} because the revision control state was invalidated")
 					, FText::FromString(AssetName)
 					, FText::FromString(PackageName)
 				)

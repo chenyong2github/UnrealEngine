@@ -544,7 +544,7 @@ void FMainMenu::RegisterToolsMenu()
 		}
 	}
 
-	FToolMenuSection& SourceControlSection = Menu->AddSection("Source Control", LOCTEXT("SourceControlHeading", "Source Control"));
+	FToolMenuSection& SourceControlSection = Menu->AddSection("Source Control", LOCTEXT("SourceControlHeading", "Revision Control"));
 
 	SourceControlSection.AddMenuEntry(
 		FMainFrameCommands::Get().ViewChangelists,
