@@ -15,6 +15,13 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 #include "Streaming/TextureStreamingHelpers.h"
 #include "ContentStreaming.h"
 
+int32 GStreamingTextureIOPriority = (int32)AIOP_Low;
+static FAutoConsoleVariableRef CVarStreamingTextureIOPriority(
+	TEXT("r.Streaming.TextureIOPriority"),
+	GStreamingTextureIOPriority,
+	TEXT("Base I/O priority for loading texture mips"),
+	ECVF_Default);
+
 FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, bool InPrioritizedIORequest)
 	: FTexture2DStreamIn(InTexture)
 	, bPrioritizedIORequest(InPrioritizedIORequest)
@@ -80,7 +87,7 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 			IORequests[MipIndex] = MipMap.BulkData.CreateStreamingRequest(
 				0,
 				BulkDataSize,
-				bPrioritizedIORequest ? (AIOP_FLAG_DONTCACHE|AIOP_BelowNormal) : (AIOP_FLAG_DONTCACHE|AIOP_Low),
+				(EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(GStreamingTextureIOPriority + (bPrioritizedIORequest ? 1 : 0), AIOP_Low, AIOP_High) | AIOP_FLAG_DONTCACHE,
 				&AsyncFileCallBack,
 				(uint8*)MipData[MipIndex].Data);
 		}

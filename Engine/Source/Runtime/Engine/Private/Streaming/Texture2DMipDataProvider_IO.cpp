@@ -13,6 +13,8 @@ Texture2DMipDataProvider_IO.cpp : Implementation of FTextureMipDataProvider usin
 #include "Streaming/TextureStreamingHelpers.h"
 #include "ContentStreaming.h"
 
+extern int32 GStreamingTextureIOPriority;
+
 FTexture2DMipDataProvider_IO::FTexture2DMipDataProvider_IO(const UTexture* InTexture, bool InPrioritizedIORequest)
 	: FTextureMipDataProvider(InTexture, ETickState::Init, ETickThread::Async)
 	, bPrioritizedIORequest(InPrioritizedIORequest)
@@ -107,7 +109,7 @@ int32 FTexture2DMipDataProvider_IO::GetMips(
 			OwnerMip.BulkData.CreateStreamingRequest(
 				0,
 				OwnerMip.BulkData.GetBulkDataSize(),
-				bPrioritizedIORequest ? (AIOP_FLAG_DONTCACHE | AIOP_BelowNormal) : (AIOP_FLAG_DONTCACHE | AIOP_Low),
+				(EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(GStreamingTextureIOPriority + (bPrioritizedIORequest ? 1 : 0), AIOP_Low, AIOP_High) | AIOP_FLAG_DONTCACHE,
 				&AsyncFileCallBack,
 				(uint8*)MipInfo.DestData
 			)

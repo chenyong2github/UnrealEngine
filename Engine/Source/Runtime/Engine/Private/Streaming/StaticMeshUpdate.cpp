@@ -22,6 +22,13 @@ static FAutoConsoleVariableRef CVarStreamingMaxReferenceChecksBeforeStreamOut(
 	ECVF_Default
 );
 
+int32 GStreamingStaticMeshIOPriority = (int32)AIOP_Low;
+static FAutoConsoleVariableRef CVarStreamingStaticMeshIOPriority(
+	TEXT("r.Streaming.StaticMeshIOPriority"),
+	GStreamingStaticMeshIOPriority,
+	TEXT("Base I/O priority for loading static mesh LODs"),
+	ECVF_Default);
+
 // Instantiate TRenderAssetUpdate for FStaticMeshUpdateContext
 template class TRenderAssetUpdate<FStaticMeshUpdateContext>;
 
@@ -479,8 +486,9 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context)
 		// Increment as we push the request. If a request complete immediately, then it will call the callback
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
-		
-		const EAsyncIOPriorityAndFlags Priority = bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low;
+
+		const EAsyncIOPriorityAndFlags Priority = (EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(GStreamingStaticMeshIOPriority + (bHighPrioIORequest ? 1 : 0), AIOP_Low, AIOP_High);
+
 		Batch.Issue(BulkData, Priority, [this](FBulkDataRequest::EStatus Status)
 		{
 			TaskSynchronization.Decrement();

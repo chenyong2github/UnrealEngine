@@ -15,6 +15,13 @@ SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.
 #include "Components/SkinnedMeshComponent.h"
 #include "Streaming/RenderAssetUpdate.inl"
 
+int32 GStreamingSkeletalMeshIOPriority = (int32)AIOP_Low;
+static FAutoConsoleVariableRef CVarStreamingSkeletalMeshIOPriority(
+	TEXT("r.Streaming.SkeletalMeshIOPriority"),
+	GStreamingSkeletalMeshIOPriority,
+	TEXT("Base I/O priority for loading skeletal mesh LODs"),
+	ECVF_Default);
+
 extern int32 GStreamingMaxReferenceChecks;
 
 template class TRenderAssetUpdate<FSkelMeshUpdateContext>;
@@ -440,7 +447,8 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 
-		const EAsyncIOPriorityAndFlags Priority = bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low;
+		const EAsyncIOPriorityAndFlags Priority = (EAsyncIOPriorityAndFlags)FMath::Clamp<int32>(GStreamingSkeletalMeshIOPriority + (bHighPrioIORequest ? 1 : 0), AIOP_Low, AIOP_High);
+
 		Batch.Issue(BulkData, Priority, [this](FBulkDataRequest::EStatus Status)
 		{
 			// At this point task synchronization would hold the number of pending requests.
