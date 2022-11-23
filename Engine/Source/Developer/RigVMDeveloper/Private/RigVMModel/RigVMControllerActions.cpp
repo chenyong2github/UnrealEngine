@@ -2423,3 +2423,35 @@ bool FRigVMAddInvokeEntryNodeAction::Redo(URigVMController* InController)
 	return false;
 }
 
+FRigVMMarkFunctionPublicAction::FRigVMMarkFunctionPublicAction()
+	: FunctionName(NAME_None)
+	, bIsPublic(false)
+{
+}
+
+FRigVMMarkFunctionPublicAction::FRigVMMarkFunctionPublicAction(const FName& InFunctionName, bool bInIsPublic)
+	: FunctionName(InFunctionName)
+	, bIsPublic(bInIsPublic)
+{
+}
+
+bool FRigVMMarkFunctionPublicAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->MarkFunctionAsPublic(FunctionName, !bIsPublic, false);
+}
+
+bool FRigVMMarkFunctionPublicAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	if (InController->MarkFunctionAsPublic(FunctionName, bIsPublic, false))
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
+}
+

@@ -89,9 +89,6 @@ public:
 	void ForEachFunctionReferenceSoftPtr(const FRigVMGraphFunctionIdentifier& InFunction, TFunction<void(TSoftObjectPtr<URigVMFunctionReferenceNode>)>
 	                                     PerReferenceFunction) const;
 
-	// Update the references list for a given reference node
-	void UpdateReferencesForFunctionReferenceNode(URigVMFunctionReferenceNode* InReferenceNode);
-
 	// registers a new reference node for a given function
 	void RegisterFunctionReference(const FRigVMGraphFunctionIdentifier& InFunction, URigVMFunctionReferenceNode* InReference);
 

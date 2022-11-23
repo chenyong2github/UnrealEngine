@@ -193,6 +193,34 @@ bool FRigVMGraphFunctionStore::UpdateDependencies(const FRigVMGraphFunctionIdent
 {
 	if (FRigVMGraphFunctionData* Data = FindFunction(InLibraryPointer))
 	{
+		FRigVMGraphFunctionHeader& Header = Data->Header;
+		
+		// Check if they are the same
+		if (Header.Dependencies.Num() == Dependencies.Num())
+		{
+			bool bFoundDifference = false;
+			for (const TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : Dependencies)
+			{
+				if (uint32* Hash = Header.Dependencies.Find(Pair.Key))
+				{
+					if (*Hash != Pair.Value)
+					{
+						bFoundDifference = true;
+						break;
+					}
+				}
+				else
+				{
+					bFoundDifference = true;
+					break;
+				}
+			}
+			if (!bFoundDifference)
+			{
+				return false;
+			}
+		}
+		
 		Data->Header.Dependencies = Dependencies;		
 		return true;
 	}
@@ -204,10 +232,35 @@ bool FRigVMGraphFunctionStore::UpdateExternalVariables(const FRigVMGraphFunction
 	if (FRigVMGraphFunctionData* Data = FindFunction(InLibraryPointer))
 	{
 		FRigVMGraphFunctionHeader& Header = Data->Header;
-		
-		// Find Dependencies
-		Header.ExternalVariables = ExternalVariables;
 
+		// Check if they are the same
+		if (Header.ExternalVariables.Num() == ExternalVariables.Num())
+		{
+			bool bFoundDifference = false;
+			for (const FRigVMExternalVariable& Variable : ExternalVariables)
+			{
+				if (!Header.ExternalVariables.ContainsByPredicate([Variable](const FRigVMExternalVariable& ExternalVariable)
+				{
+					return Variable.Name == ExternalVariable.Name &&
+							Variable.TypeName == ExternalVariable.TypeName &&
+							Variable.TypeObject == ExternalVariable.TypeObject &&
+							Variable.bIsArray == ExternalVariable.bIsArray &&
+							Variable.bIsPublic == ExternalVariable.bIsPublic &&
+							Variable.bIsReadOnly == ExternalVariable.bIsReadOnly &&
+							Variable.Size == ExternalVariable.Size;
+				}))
+				{
+					bFoundDifference = true;
+					break;
+				}
+			}
+			if (!bFoundDifference)
+			{
+				return false;
+			}
+		}
+		
+		Header.ExternalVariables = ExternalVariables;
 		return true;
 	}
 	return false;
@@ -218,6 +271,11 @@ bool FRigVMGraphFunctionStore::UpdateFunctionCompilationData(const FRigVMGraphFu
 	FRigVMGraphFunctionData* Info = FindFunction(InLibraryPointer);
 	if (Info)
 	{
+		if (Info->CompilationData.Hash == CompilationData.Hash)
+		{
+			return false;
+		}
+		
 		Info->CompilationData = CompilationData;
 		return true;
 	}

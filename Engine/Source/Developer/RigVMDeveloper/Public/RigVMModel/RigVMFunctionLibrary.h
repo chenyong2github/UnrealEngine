@@ -76,7 +76,11 @@ public:
 	const FSoftObjectPath GetFunctionHostObjectPath() const;
 	URigVMFunctionLibrary_GetFunctionHostObjectPath GetFunctionHostObjectPathDelegate;
 
+	bool IsFunctionPublic(const FName& InFunctionName) const { return PublicFunctionNames.Contains(InFunctionName); }
+
 private:
+
+	TArray<FName> PublicFunctionNames;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

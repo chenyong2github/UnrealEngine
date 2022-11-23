@@ -33,6 +33,7 @@
 #include "Units/ControlRigNodeWorkflow.h"
 #include "Rigs/RigControlHierarchy.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprint)
 
@@ -921,23 +922,14 @@ void UControlRigBlueprint::PostLoad()
 				{
 					if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
 					{
-						if(const URigVMLibraryNode* DependencyNode = FunctionReferenceNode->LoadReferencedNode())
+						if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
 						{
-							if(UControlRigBlueprint* DependencyBlueprint = DependencyNode->GetTypedOuter<UControlRigBlueprint>())
-							{
-								if(DependencyBlueprint != this)
-								{
-									if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
-									{
-										BuildData->UpdateReferencesForFunctionReferenceNode(FunctionReferenceNode);
-									}
-								}
-							}
+							BuildData->RegisterFunctionReference(FunctionReferenceNode);
 						}
 					}
 				}
 			}
-		}	
+		}
 
 		CompileLog.Messages.Reset();
 		CompileLog.NumErrors = CompileLog.NumWarnings = 0;
@@ -2397,11 +2389,7 @@ UEdGraph* UControlRigBlueprint::GetEdGraph(const FString& InNodePath) const
 
 bool UControlRigBlueprint::IsFunctionPublic(const FName& InFunctionName) const
 {
-	if (URigVMLibraryNode* LibraryNode = GetLocalFunctionLibrary()->FindFunction(InFunctionName))
-	{
-		return GetControlRigBlueprintGeneratedClass()->GetRigVMGraphFunctionStore()->IsFunctionPublic(LibraryNode->GetFunctionIdentifier());
-	}
-	return false;
+	return GetLocalFunctionLibrary()->IsFunctionPublic(InFunctionName);	
 }
 
 void UControlRigBlueprint::MarkFunctionPublic(const FName& InFunctionName, bool bIsPublic)
@@ -2411,13 +2399,8 @@ void UControlRigBlueprint::MarkFunctionPublic(const FName& InFunctionName, bool 
 		return;
 	}
 	
-	Modify();
-	
-	UControlRigBlueprintGeneratedClass* Generated = GetControlRigBlueprintGeneratedClass();
-	Generated->Modify();
-
-	const FRigVMGraphFunctionIdentifier& Identifier = GetLocalFunctionLibrary()->FindFunction(InFunctionName)->GetFunctionIdentifier();
-	Generated->GetRigVMGraphFunctionStore()->MarkFunctionAsPublic(Identifier, bIsPublic);
+	URigVMController* Controller = RigVMClient.GetOrCreateController(GetLocalFunctionLibrary());
+	Controller->MarkFunctionAsPublic(InFunctionName, bIsPublic);
 }
 
 TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependencies(bool bRecursive) const
@@ -4064,8 +4047,9 @@ void UControlRigBlueprint::PatchFunctionReferencesOnLoad()
 			Nodes.Append(Library->GetContainedNodes());
 		}
 		
-		for (URigVMNode* Node : Nodes)
+		for (int32 i=0; i<Nodes.Num(); ++i)
 		{
+			URigVMNode* Node = Nodes[i];
 			if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
 			{
 				if (!FunctionReferenceNode->ReferencedNodePtr_DEPRECATED.IsValid())
@@ -4097,12 +4081,18 @@ void UControlRigBlueprint::PatchFunctionReferencesOnLoad()
 				{
 					FunctionReferenceNode->ReferencedFunctionHeader = FunctionReferenceNode->ReferencedNodePtr_DEPRECATED->GetFunctionHeader();					
 				}
-				else
+				else if (!FunctionReferenceNode->ReferencedNodePtr_DEPRECATED.IsNull())
 				{
 					// At least lets make sure we store the path in the header
 					FunctionReferenceNode->ReferencedFunctionHeader.LibraryPointer.LibraryNode = FunctionReferenceNode->ReferencedNodePtr_DEPRECATED.ToSoftObjectPath();
 				}
 			}
+
+			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+			{
+				Nodes.Append(CollapseNode->GetContainedNodes());
+			}
+			
 		}
 	}
 	FunctionReferenceNodeData = GetReferenceNodeData();
@@ -4560,56 +4550,66 @@ void UControlRigBlueprint::PatchFunctionsOnLoad()
 	UControlRigBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass();
 	FRigVMGraphFunctionStore& Store = CRGeneratedClass->GraphFunctionStore;
 	const URigVMFunctionLibrary* Library = GetLocalFunctionLibrary();
+
+	TMap<URigVMLibraryNode*, FRigVMGraphFunctionHeader> OldHeaders;
+
+	// Backwards compatibility. Store public access in the model
+	TArray<FName> BackwardsCompatiblePublicFunctions;
 	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::StoreFunctionsInGeneratedClass)
 	{
-		// Move functions to the generated class
 		for (const FControlRigPublicFunctionData& Data : PublicFunctions_DEPRECATED)
 		{
-			const URigVMLibraryNode* LibraryNode = Library->FindFunction(Data.Name);
-			Store.AddFunction(LibraryNode->GetFunctionHeader(), true);
+			BackwardsCompatiblePublicFunctions.Add(Data.Name);
 		}
 	}
-
-	// Add functions
-	for (const URigVMLibraryNode* LibraryNode : Library->GetFunctions())
+	else
 	{
-		FRigVMGraphFunctionIdentifier Identifier = LibraryNode->GetFunctionIdentifier();
-		bool bIsPublic = PublicGraphFunctions.ContainsByPredicate([Identifier](const FRigVMGraphFunctionHeader& Header)
+		if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMSaveFunctionAccessInModel)
 		{
-			return Header.LibraryPointer == Identifier;
-		});
-		Store.AddFunction(LibraryNode->GetFunctionHeader(), bIsPublic);		
-	}
-
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::StoreFunctionsInGeneratedClass)
-	{
-		TArray<URigVMGraph*> Graphs = GetAllModels();
-		for (URigVMGraph* Graph : Graphs)
-		{
-			TArray<URigVMNode*> Nodes = Graph->GetNodes();
-			for (int32 i=0; i<Nodes.Num(); ++i)
+			for (const FRigVMGraphFunctionData& FunctionData : Store.PublicFunctions)
 			{
-				if (URigVMFunctionReferenceNode* FuncRefNode = Cast<URigVMFunctionReferenceNode>(Nodes[i]))
-				{
-					TSoftObjectPtr<URigVMLibraryNode> ReferencedLibraryNode = FuncRefNode->ReferencedNodePtr_DEPRECATED;
-					if (ReferencedLibraryNode.IsValid())
-					{
-						FuncRefNode->ReferencedFunctionHeader = ReferencedLibraryNode->GetFunctionHeader();
-					}
-				}
-
-				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Nodes[i]))
-				{
-					Nodes.Append(CollapseNode->GetContainedNodes());
-				}
+				BackwardsCompatiblePublicFunctions.Add(FunctionData.Header.Name);
+				URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(FunctionData.Header.LibraryPointer.LibraryNode.ResolveObject());
+				OldHeaders.Add(LibraryNode, FunctionData.Header);
 			}
 		}
 	}
+	
 
-	// Update dependencies
-	for (const URigVMLibraryNode* LibraryNode : Library->GetFunctions())
+	// Lets rebuild the FunctionStore from the model
+	if (URigVMFunctionLibrary* FunctionLibrary = GetLocalFunctionLibrary())
 	{
-		GetRigVMClient()->UpdateDependenciesForFunction(LibraryNode);		
+		Store.PublicFunctions.Reset();
+		Store.PrivateFunctions.Reset();
+
+		for (URigVMLibraryNode* LibraryNode : FunctionLibrary->GetFunctions())
+		{
+			bool bIsPublic = FunctionLibrary->IsFunctionPublic(LibraryNode->GetFName());
+			if (!bIsPublic)
+			{
+				bIsPublic = BackwardsCompatiblePublicFunctions.Contains(LibraryNode->GetFName());
+				if (bIsPublic)
+				{
+					FunctionLibrary->PublicFunctionNames.Add(LibraryNode->GetFName());
+				}
+			}
+
+			FRigVMGraphFunctionHeader Header = LibraryNode->GetFunctionHeader(CRGeneratedClass);
+			if (FRigVMGraphFunctionHeader* OldHeader = OldHeaders.Find(LibraryNode))
+			{				
+				Header.ExternalVariables = OldHeader->ExternalVariables;
+				Header.Dependencies = OldHeader->Dependencies;
+			}
+			Store.AddFunction(Header, bIsPublic);
+			
+		}
+	}
+
+	// Update dependencies and external variables if needed
+	for (URigVMLibraryNode* LibraryNode : Library->GetFunctions())
+	{
+		GetRigVMClient()->UpdateExternalVariablesForFunction(LibraryNode);
+		GetRigVMClient()->UpdateDependenciesForFunction(LibraryNode);
 	}
 }
 

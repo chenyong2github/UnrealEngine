@@ -789,6 +789,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool RenameFunction(const FName& InOldFunctionName, const FName& InNewFunctionName, bool bSetupUndoRedo = true);
 
+	// Mark a function as public/private in the function library
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool MarkFunctionAsPublic(const FName& InFunctionName, bool bInIsPublic, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Returns true if a function is marked as public in the function library
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool IsFunctionPublic(const FName& InFunctionName);
+
 	// Add a local variable to the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	FRigVMGraphVariableDescription AddLocalVariable(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);

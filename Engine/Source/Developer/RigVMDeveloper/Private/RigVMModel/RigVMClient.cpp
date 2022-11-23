@@ -775,6 +775,7 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					UpdateGraphFunctionData(CollapseNode);
 				}
 			}
+			break;
 		}
 		case ERigVMGraphNotifType::NodeReferenceChanged: // A node has changed it's referenced function (Subject == URigVMFunctionReferenceNode)
 		case ERigVMGraphNotifType::LibraryTemplateChanged: // The definition of a library node's template has changed (Subject == URigVMLibraryNode)
@@ -807,6 +808,7 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					}
 				}
 			}
+			break;
 		}
 
 		case ERigVMGraphNotifType::LinkAdded: // A link has been added (Subject == URigVMLink)
@@ -822,6 +824,24 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					}
 				}
 			}
+
+			break;
+		}
+
+		case ERigVMGraphNotifType::FunctionAccessChanged: // A function was made public/private
+		{
+			if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InSubject))
+			{
+				if (URigVMFunctionLibrary* Library = Cast<URigVMFunctionLibrary>(InGraph))
+				{
+					bool bIsPublic = Library->IsFunctionPublic(LibraryNode->GetFName());
+					if (FRigVMGraphFunctionStore* Store = FindFunctionStore(LibraryNode))
+					{
+						Store->MarkFunctionAsPublic(LibraryNode->GetFunctionIdentifier(), bIsPublic);
+					}
+				}
+			}
+			break;	
 		}
 		
 		
@@ -853,10 +873,18 @@ bool FRigVMClient::UpdateFunctionReferences(const FRigVMGraphFunctionHeader& Hea
 	{
 		for (int32 i=0; i<FunctionReferenceArray->Num(); ++i)
 		{
-			TSoftObjectPtr<URigVMFunctionReferenceNode> Reference = FunctionReferenceArray->FunctionReferences[i];
+			const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference = FunctionReferenceArray->FunctionReferences[i];
+
+			// Load reference package
+			if (!Reference.IsValid())
+			{
+				Reference.LoadSynchronous();
+			}
 			if (Reference.IsValid())
 			{
 				URigVMFunctionReferenceNode* Node = Reference.Get();
+
+				Node->Modify();
 				Node->ReferencedFunctionHeader = Header;
 
 				if (bUpdateDependencies || bUpdateExternalVariables)
@@ -874,6 +902,7 @@ bool FRigVMClient::UpdateFunctionReferences(const FRigVMGraphFunctionHeader& Hea
 						}
 					}
 				}
+				Node->MarkPackageDirty();
 			}
 		}
 	}
@@ -937,35 +966,12 @@ bool FRigVMClient::DirtyGraphFunctionCompilationData(URigVMLibraryNode* InLibrar
 		FRigVMGraphFunctionIdentifier Identifier = InLibraryNode->GetFunctionIdentifier();
 		if (const FRigVMGraphFunctionData* Data = Store->FindFunction(Identifier))
 		{
-			if (Store->RemoveFunctionCompilationData(Identifier))
-			{
-				URigVMBuildData* BuildData = GetFunctionLibrary()->GetBuildData();
-				if (const FRigVMFunctionReferenceArray* FunctionReferenceArray = BuildData->FindFunctionReferences(Identifier))
-				{
-					for (int32 i=0; i<FunctionReferenceArray->Num(); ++i)
-					{
-						TSoftObjectPtr<URigVMFunctionReferenceNode> Reference = FunctionReferenceArray->FunctionReferences[i];
-						{
-							if (!Reference.IsValid())
-							{
-								Reference.LoadSynchronous();
-							}
-							if (Reference.IsValid())
-							{
-								if (URigVMFunctionLibrary* ReferenceFunctionLibrary = Reference->GetGraph()->GetDefaultFunctionLibrary())
-								{
-									if (URigVMLibraryNode* ReferenceLibraryNode = Reference.Get()->FindFunctionForNode())
-									{
-										IRigVMClientHost* OtherClientHost = ReferenceLibraryNode->GetImplementingOuter<IRigVMClientHost>();
-										OtherClientHost->GetRigVMClient()->DirtyGraphFunctionCompilationData(ReferenceLibraryNode);
-									}
-								}							
-							}
-						}
-					}
-				}
-				return true;
-			}
+			Store->RemoveFunctionCompilationData(Identifier);
+
+			// References to this function will check if the compilation hash matches, and will recompile if they
+			// see a different compilation hash. No need to dirty their compilation data.
+			
+			return true;
 		}
 	}
 

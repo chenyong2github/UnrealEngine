@@ -300,6 +300,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Adding additional object version to defer out-of-date pose asset warning until next resaves
 		PoseAssetRawDataGUIDUpdate,
+
+		// Store function information (and compilation data) in blueprint generated class
+		RigVMSaveFunctionAccessInModel,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

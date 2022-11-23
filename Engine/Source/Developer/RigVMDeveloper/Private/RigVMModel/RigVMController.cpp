@@ -6016,6 +6016,16 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 					break;
 				}
 			}
+
+			if (FunctionLibrary->PublicFunctionNames.Contains(LibraryNode->GetFName()))
+			{
+				FunctionLibrary->PublicFunctionNames.Remove(LibraryNode->GetFName());
+
+				if (bSetupUndoRedo)
+				{
+					ActionStack->AddAction(FRigVMMarkFunctionPublicAction(LibraryNode->GetFName(), true));
+				}
+			}
 		}
 	}
 
@@ -6229,6 +6239,12 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 				FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), false);
                 RenameNode(ReferenceNode, InNewName, false);
 			});
+
+			if (FunctionLibrary->PublicFunctionNames.Contains(InNode->PreviousName))
+			{
+				FunctionLibrary->PublicFunctionNames.Remove(InNode->PreviousName);
+				FunctionLibrary->PublicFunctionNames.Add(ValidNewName);
+			}
 		}
 	}
 
@@ -11658,6 +11674,117 @@ bool URigVMController::RenameFunction(const FName& InOldFunctionName, const FNam
 	}
 
 	return RenameNode(Node, InNewFunctionName, bSetupUndoRedo);
+}
+
+bool URigVMController::MarkFunctionAsPublic(const FName& InFunctionName, bool bInIsPublic, bool bSetupUndoRedo,	bool bPrintPythonCommand)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+
+	if (!Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Can only change function definitions from function library graphs."));
+		return false;
+	}
+
+	URigVMNode* Node = Graph->FindNode(InFunctionName.ToString());
+	if (!Node)
+	{
+		ReportErrorf(TEXT("Could not find function called '%s'."), *InFunctionName.ToString());
+		return false;
+	}
+
+	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(Graph))
+	{
+		bool bOldIsPublic = FunctionLibrary->PublicFunctionNames.Contains(InFunctionName); 
+		if ((bInIsPublic && bOldIsPublic) || (!bInIsPublic && !bOldIsPublic))
+		{
+			return true;
+		}
+
+		if (bSetupUndoRedo)
+		{
+			FRigVMBaseAction BaseAction;
+			BaseAction.Title = FString::Printf(TEXT("Mark function %s as %s"), *InFunctionName.ToString(), (bInIsPublic) ? TEXT("Public") : TEXT("Private"));
+			ActionStack->BeginAction(BaseAction);
+			ActionStack->AddAction(FRigVMMarkFunctionPublicAction(InFunctionName, bInIsPublic));
+			ActionStack->EndAction(BaseAction);
+		}
+
+		if (bInIsPublic)
+		{
+			FunctionLibrary->PublicFunctionNames.Add(InFunctionName);
+		}
+		else
+		{
+			FunctionLibrary->PublicFunctionNames.Remove(InFunctionName);
+		}
+	}
+
+	Notify(ERigVMGraphNotifType::FunctionAccessChanged, Node);
+
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
+
+	if (bPrintPythonCommand)
+	{
+		RigVMPythonUtils::Print(GetGraphOuterName(), 
+			FString::Printf(TEXT("library_controller.mark_function_as_public('%s', %s)"),
+				*GetSanitizedNodeName(InFunctionName.ToString()),
+				(bInIsPublic) ? TEXT("True") : TEXT("False")));
+	}
+
+	return true;
+}
+
+bool URigVMController::IsFunctionPublic(const FName& InFunctionName)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+
+	if (!Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Can only check function definitions from function library graphs."));
+		return false;
+	}
+
+	URigVMNode* Node = Graph->FindNode(InFunctionName.ToString());
+	if (!Node)
+	{
+		ReportErrorf(TEXT("Could not find function called '%s'."), *InFunctionName.ToString());
+		return false;
+	}
+
+	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(Graph))
+	{
+		return FunctionLibrary->PublicFunctionNames.Contains(InFunctionName);
+	}
+
+	return false;
 }
 
 FRigVMGraphVariableDescription URigVMController::AddLocalVariable(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)

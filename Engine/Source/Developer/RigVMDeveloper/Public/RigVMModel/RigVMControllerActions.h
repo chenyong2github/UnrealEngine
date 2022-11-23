@@ -1854,3 +1854,27 @@ public:
 	UPROPERTY()
 	FString NodePath;
 };
+
+/**
+ * An action marking a function as public/private.
+ */
+USTRUCT()
+struct FRigVMMarkFunctionPublicAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMMarkFunctionPublicAction();
+	FRigVMMarkFunctionPublicAction(const FName& InFunctionName, bool bInIsPublic);
+	virtual ~FRigVMMarkFunctionPublicAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMMarkFunctionPublicAction::StaticStruct(); }
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FName FunctionName;
+	
+	UPROPERTY()
+	bool bIsPublic;
+};

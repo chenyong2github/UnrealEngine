@@ -310,11 +310,6 @@ struct RIGVM_API FRigVMGraphFunctionIdentifier
 	FRigVMGraphFunctionIdentifier(FSoftObjectPath InHostObject, FSoftObjectPath InLibraryNode)
 		: LibraryNode(InLibraryNode), HostObject(InHostObject) {}
 
-	FORCEINLINE FString GetHash() const
-	{
-		return LibraryNode.ToString();
-	}
-
 	friend FORCEINLINE uint32 GetTypeHash(const FRigVMGraphFunctionIdentifier& Pointer)
 	{
 		return HashCombine(GetTypeHash(Pointer.LibraryNode), GetTypeHash(Pointer.HostObject));

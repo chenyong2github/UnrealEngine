@@ -84,40 +84,6 @@ void URigVMBuildData::ForEachFunctionReferenceSoftPtr(const FRigVMGraphFunctionI
 	}
 }
 
-void URigVMBuildData::UpdateReferencesForFunctionReferenceNode(URigVMFunctionReferenceNode* InReferenceNode)
-{
-	check(InReferenceNode);
-
-	if(InReferenceNode->GetOutermost() == GetTransientPackage())
-	{
-		return;
-	}
-
-	const FRigVMGraphFunctionHeader& Header = InReferenceNode->GetReferencedFunctionHeader();
-	FRigVMFunctionReferenceArray* ReferencesEntry = GraphFunctionReferences.Find(Header.LibraryPointer);
-	if (ReferencesEntry == nullptr)
-	{
-		Modify();
-		GraphFunctionReferences.Add(Header.LibraryPointer);
-		ReferencesEntry = GraphFunctionReferences.Find(Header.LibraryPointer);
-	}
-
-	const FString ReferenceNodePathName = InReferenceNode->GetPathName();
-	for (int32 ReferenceIndex = 0; ReferenceIndex < ReferencesEntry->Num(); ReferenceIndex++)
-	{
-		const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference = ReferencesEntry->operator [](ReferenceIndex);
-		if(Reference.ToString() == ReferenceNodePathName)
-		{
-			return;
-		}
-	}
-
-	Modify();
-	ReferencesEntry->FunctionReferences.Add(InReferenceNode);
-	MarkPackageDirty();
-
-}
-
 void URigVMBuildData::RegisterFunctionReference(const FRigVMGraphFunctionIdentifier& InFunction, URigVMFunctionReferenceNode* InReference)
 {
 	if(InReference == nullptr)
