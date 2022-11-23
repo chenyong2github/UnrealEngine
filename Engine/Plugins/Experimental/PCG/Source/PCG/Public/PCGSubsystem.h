@@ -119,6 +119,9 @@ public:
 
 #if WITH_EDITOR
 public:
+	/** Schedule refresh on the current or next frame */
+	FPCGTaskId ScheduleRefresh(UPCGComponent* SourceComponent);
+
 	/** Schedules an operation to cleanup the graph in the given bounds */
 	FPCGTaskId CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave);
 

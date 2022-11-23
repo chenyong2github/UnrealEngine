@@ -197,6 +197,8 @@ public:
 
 #if WITH_EDITOR
 	void Refresh();
+	void OnRefresh();
+
 	void DirtyGenerated(EPCGComponentDirtyFlag DataToDirtyFlag = EPCGComponentDirtyFlag::None);
 
 	/** Reset last generated bounds to force PCGPartitionActor creation on next refresh */
@@ -405,10 +407,6 @@ public:
 protected:
 	virtual bool ContainsData() const override;
 	virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase) override;
-
-#if WITH_EDITOR
-	void DelayedRefresh(UPCGComponent* PCGComponent);
-#endif // WITH_EDITOR
 
 	UPROPERTY()
 	TArray<TObjectPtr<UPCGManagedResource>> GeneratedResources;

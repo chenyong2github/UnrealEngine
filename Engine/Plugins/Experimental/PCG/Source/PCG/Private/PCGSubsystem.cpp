@@ -1253,6 +1253,21 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 	}
 }
 
+FPCGTaskId UPCGSubsystem::ScheduleRefresh(UPCGComponent* Component)
+{
+	TWeakObjectPtr<UPCGComponent> ComponentPtr(Component);
+
+	auto RefreshTask = [ComponentPtr]() {
+		if (UPCGComponent* Component = ComponentPtr.Get())
+		{
+			Component->OnRefresh();
+		}
+		return true;
+	};
+
+	return GraphExecutor->ScheduleGeneric(RefreshTask, Component, {});
+}
+
 FPCGTaskId UPCGSubsystem::CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave)
 {
 	TWeakObjectPtr<UPCGComponent> ComponentPtr(Component);
