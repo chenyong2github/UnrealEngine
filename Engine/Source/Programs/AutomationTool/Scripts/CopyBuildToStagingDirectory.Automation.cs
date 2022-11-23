@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using AutomationTool;
 using System;
@@ -1518,6 +1518,13 @@ namespace AutomationScripts
 			{
 				SC.FilesToStage.NonUFSFiles[Pair.Key] = Pair.Value;
 			}
+
+			// Allow the calling scripts to make modifications to the deployment context before we finalize it
+			if (Params.FinalizeDeploymentContextCallback != null)
+			{
+				Params.FinalizeDeploymentContextCallback(Params, SC);
+			}
+
 		}
 
 		/// <summary>

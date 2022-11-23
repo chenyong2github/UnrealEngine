@@ -472,7 +472,11 @@ namespace AutomationTool
 		/// <returns>Cook platform string.</returns>
 		public virtual string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
 		{
-			throw new AutomationException("{0} does not yet implement GetCookPlatform.", PlatformType);
+			// this should get all cases, but a platform can override if needed
+
+			string Suffix = bIsClientOnly ? "Client" : bDedicatedServer ? "Server" : "";
+			string PlatformName = GetGenericPlatformName(TargetPlatformType);
+			return $"{PlatformName}{Suffix}";
 		}
 
 		/// <summary>

@@ -743,6 +743,10 @@ public class MakeCookedEditor : BuildCommand
 		CookedEditorStageDirectory = SC.StageDirectory;
 	}
 
+	protected virtual void FinalizeDeploymentContext(ProjectParams Params, DeploymentContext SC)
+	{
+	}
+
 	protected virtual void SetupDLCMode(FileReference ProjectFile, out string DLCName, out string ReleaseVersion, out TargetType Type)
 	{
 		bool bBuildAgainstRelease = ConfigHelper.GetBool("bBuildAgainstRelease");
@@ -915,7 +919,7 @@ public class MakeCookedEditor : BuildCommand
 					throw new AutomationException($"Unable to stage directories with \"Dest\" setting for CookedEditor: '{Entry}'");
 				}
 
-				// now stage it to a different location a specified in the params
+				// now stage it to a different location as specified in the params
 				StagedFileType FileType = (FileList == Context.NonUFSFilesToStage) ? StagedFileType.NonUFS : StagedFileType.UFS;
 				SC.StageFile(FileType, SourceFile, new StagedFileReference(Props["Dest"]));
 				continue;
@@ -1110,8 +1114,9 @@ public class MakeCookedEditor : BuildCommand
 		}
 
 		// set up override functions
-		Params.PreModifyDeploymentContextCallback = new Action<ProjectParams, DeploymentContext>((ProjectParams P, DeploymentContext SC) => { PreModifyDeploymentContext(P, SC); });
-		Params.ModifyDeploymentContextCallback = new Action<ProjectParams, DeploymentContext>((ProjectParams P, DeploymentContext SC) => { ModifyDeploymentContext(P, SC); });
+		Params.PreModifyDeploymentContextCallback = (P, SC) => PreModifyDeploymentContext(P, SC);
+		Params.ModifyDeploymentContextCallback = (P, SC) => ModifyDeploymentContext(P, SC);
+		Params.FinalizeDeploymentContextCallback = (P, SC) => FinalizeDeploymentContext(P, SC);
 
 		// this will make all of the files that are specified in BUild.cs files with "AdditionalPropertiesForReceipt.Add("CookerSupportFiles", ...);"  be copied into this
 		// subdirectory along with a batch file that can be used to set platform SDK environment variables during cooking
