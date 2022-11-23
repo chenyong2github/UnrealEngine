@@ -662,7 +662,7 @@ public:
 			InsertClusteredParticle(ClusteredParticle);
 		}
 
-		if (ClusteredParticle->ObjectState() != EObjectStateType::Dynamic)
+		if (ClusteredParticle->ObjectState() != EObjectStateType::Dynamic || ClusteredParticle->Disabled())
 		{
 			RemoveFromActiveArray(ClusteredParticle->CastToRigidParticle(), /*bStillDirty=*/true);
 		}
