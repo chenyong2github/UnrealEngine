@@ -1808,8 +1808,7 @@ namespace Jupiter.FunctionalTests.References
 
             List<(BucketId, IoHashKey, DateTime)> records = await ReferencesStore.GetRecords(TestNamespace).ToListAsync();
 
-            (BucketId, IoHashKey, DateTime)? oldRecord = records.Find(record => record.Item2 == key);
-            Assert.IsNotNull(oldRecord);
+            (BucketId, IoHashKey, DateTime)? oldRecord = records.First(record => record.Item2 == key);
             Assert.AreEqual(key, oldRecord.Value.Item2);
             Assert.AreEqual("bucket", oldRecord.Value.Item1.ToString());
         }

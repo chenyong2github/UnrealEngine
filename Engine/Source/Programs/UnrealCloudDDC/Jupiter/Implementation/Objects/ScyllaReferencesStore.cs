@@ -124,60 +124,62 @@ namespace Jupiter.Implementation
         public async IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
         {
             using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.get_records");
-            int retryAttempts = 0;
             const int MaxRetryAttempts = 3;
             RowSet rowSet = await _session.ExecuteAsync(_getObjectsStatement.Bind(ns.ToString()));
 
-            Task? prefetchTask = null;
-            foreach (Row row in rowSet)
+            do
             {
-                try
-                {
-                    // when we only have a fow rows left we start prefetching the next page
-                    // this also allows us to get any read timeouts here instead of in the foreach line that moves the enumerator thus enabling us to handle it
-                    if (prefetchTask == null && rowSet.GetAvailableWithoutFetching() < 5)
-                    {
-                        prefetchTask = rowSet.FetchMoreResultsAsync();
-                    }
+                int countOfRows = rowSet.GetAvailableWithoutFetching();
+                IEnumerable<Row> localRows = rowSet.Take(countOfRows);
+                Task prefetchTask = rowSet.FetchMoreResultsAsync();
 
-                    if (prefetchTask is { IsCompleted: true })
-                    {
-                        await prefetchTask;
-                        prefetchTask = null;
-                    }
-                }
-                catch (ReadTimeoutException)
+                foreach (Row row in localRows)
                 {
-                    if (retryAttempts < MaxRetryAttempts)
-                    {
-                        retryAttempts += 1;
-                        _logger.Warning("Cassandra read timeouts, waiting a while and then retrying. Attempt {Attempts} .", retryAttempts);
-                        // wait 10 seconds and try again as the Db is under heavy load right now
-                        await Task.Delay(TimeSpan.FromSeconds(10));
+                    string bucket = row.GetValue<string>("bucket");
+                    string name = row.GetValue<string>("name");
+                    DateTime? lastAccessTime = row.GetValue<DateTime?>("last_access_time");
 
+                    // skip any names that are not conformant to io hash
+                    if (name.Length != 40)
+                    {
                         continue;
                     }
 
-                    _logger.Warning("Cassandra read timeouts, attempted {Attempts} attempts now we give up.", retryAttempts);
-                    // we have failed to many times, rethrow the exception and abort to avoid stalling here for ever
-                    throw;
+                    // if last access time is missing we treat it as being very old
+                    lastAccessTime ??= DateTime.MinValue;
+                    yield return (new BucketId(bucket), new IoHashKey(name), lastAccessTime.Value);
                 }
 
-                retryAttempts = 0;
-                string bucket = row.GetValue<string>("bucket");
-                string name = row.GetValue<string>("name");
-                DateTime? lastAccessTime = row.GetValue<DateTime?>("last_access_time");
-
-                // skip any names that are not conformant to io hash
-                if (name.Length != 40)
+                int retryAttempts = 0;
+                Exception? timeoutException = null;
+                while (retryAttempts < MaxRetryAttempts)
                 {
-                    continue;
+                    try
+                    {
+                        await prefetchTask;
+                        timeoutException = null;
+                        break;
+                    }
+                    catch (ReadTimeoutException e)
+                    {
+                        retryAttempts += 1;
+                        _logger.Warning(
+                            "Cassandra read timeouts, waiting a while and then retrying. Attempt {Attempts} .",
+                            retryAttempts);
+                        // wait 10 seconds and try again as the Db is under heavy load right now
+                        await Task.Delay(TimeSpan.FromSeconds(10));
+                        timeoutException = e;
+                    }
                 }
 
-                // if last access time is missing we treat it as being very old
-                lastAccessTime ??= DateTime.MinValue;
-                yield return (new BucketId(bucket), new IoHashKey(name), lastAccessTime.Value);
-            }
+                if (timeoutException != null)
+                {
+                    _logger.Warning("Cassandra read timeouts, attempted {Attempts} attempts now we give up.",
+                        retryAttempts);
+                    // we have failed to many times, rethrow the exception and abort to avoid stalling here for ever
+                    throw timeoutException;
+                }
+            } while (!rowSet.IsFullyFetched);
         }
 
         public async IAsyncEnumerable<NamespaceId> GetNamespaces()
