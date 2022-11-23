@@ -453,7 +453,7 @@ public:
 	bool bEnableNanite = false;
 
 	/** LOD level of the landscape when generating the Nanite mesh. Mostly there for debug reasons, since Nanite is meant to allow high density meshes, we want to use 0 most of the times. */
-	UPROPERTY(EditAnywhere, Category = Nanite, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Nanite, AdvancedDisplay, meta = (EditCondition = "bEnableNanite"))
 	int32 NaniteLODIndex = 0;
 
 	/** Landscape actor has authority on default streaming behavior for new actors : LandscapeStreamingProxies & LandscapeSplineActors */

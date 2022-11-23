@@ -6,7 +6,7 @@
 #include "Input/Reply.h"
 #include "Templates/SharedPointer.h"
 
-class ALandscapeProxy;
+class ALandscape;
 class IDetailLayoutBuilder;
 
 class FLandscapeProxyUIDetails : public IDetailCustomization
@@ -24,10 +24,9 @@ private:
 	FLandscapeProxyUIDetails();
 
 		/** Returns true if SetBounds button is enabled */
-	bool IsCreateRuntimeVirtualTextureVolumeEnabled() const;
+	bool IsCreateRuntimeVirtualTextureVolumeEnabled(ALandscape* InLandscapeActor) const;
 	/** Callback for Set Bounds button */
-	FReply CreateRuntimeVirtualTextureVolume();
+	FReply CreateRuntimeVirtualTextureVolume(ALandscape* InLandscapeActor);
 	
 	IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
-	ALandscapeProxy* LandscapeProxy = nullptr;
 };

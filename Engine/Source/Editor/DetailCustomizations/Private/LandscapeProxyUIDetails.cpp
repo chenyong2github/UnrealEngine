@@ -2,6 +2,9 @@
 
 #include "LandscapeProxyUIDetails.h"
 
+#include "Algo/Count.h"
+#include "Algo/Find.h"
+#include "Algo/Transform.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
@@ -17,6 +20,8 @@
 #include "Landscape.h"
 #include "LandscapeInfo.h"
 #include "LandscapeProxy.h"
+#include "LandscapeStreamingProxy.h"
+#include "LandscapeSubsystem.h"
 #include "Layout/Margin.h"
 #include "Math/IntPoint.h"
 #include "Math/IntRect.h"
@@ -65,106 +70,118 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 				.Text(InText);
 	};
 
-	if (EditingObjects.Num() == 1)
+	TArray<TWeakObjectPtr<ALandscapeProxy>> EditingProxies;
+	Algo::Transform(EditingObjects, EditingProxies, [](TWeakObjectPtr<UObject> InObject) { return TWeakObjectPtr<ALandscapeProxy>(Cast<ALandscapeProxy>(InObject.Get())); });
+
+	TArray<TWeakObjectPtr<ALandscape>> LandscapeActors;
+	for (TWeakObjectPtr<ALandscapeProxy> EditingProxy : EditingProxies)
 	{
-		LandscapeProxy = Cast<ALandscapeProxy>(EditingObjects[0]);
-		if (LandscapeProxy != nullptr)
+		if (EditingProxy.IsValid())
 		{
-			if (ULandscapeInfo* LandscapeInfo = LandscapeProxy->GetLandscapeInfo())
-			{
-				IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory("Information", FText::GetEmpty(), ECategoryPriority::Important);
+			ALandscape* LandscapeActor = EditingProxy->GetLandscapeActor();
+			check(LandscapeActor);
+			LandscapeActors.AddUnique(LandscapeActor);
+		}
+	}
+
+	if (LandscapeActors.Num() == 1)
+	{
+		TWeakObjectPtr<ALandscape> LandscapeActor = LandscapeActors[0];
+		if (ULandscapeInfo* LandscapeInfo = LandscapeActor->GetLandscapeInfo())
+		{
+			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory("Information", FText::GetEmpty(), ECategoryPriority::Important);
+
+			FText CreateRVTVolumesTooltip = LOCTEXT("Button_CreateVolumes_Tooltip", "Create volumes for the selected Runtime Virtual Textures.");
 				
-				FText RowDisplayText = LOCTEXT("LandscapeComponentResolution", "Component Resolution (Verts)");
-				CategoryBuilder.AddCustomRow(RowDisplayText)
-				.RowTag(TEXT("LandscapeComponentResolution"))
-				.NameContent()
-				[
-					GenerateTextWidget(RowDisplayText)
-				]
-				.ValueContent()
-				[
-					GenerateTextWidget(FText::Format(LOCTEXT("LandscapeComponentResolutionValue", "{0} x {0}"), LandscapeProxy->ComponentSizeQuads+1), true) // Verts
-				];
+			FText RowDisplayText = LOCTEXT("LandscapeComponentResolution", "Component Resolution (Verts)");
+			CategoryBuilder.AddCustomRow(RowDisplayText)
+			.RowTag(TEXT("LandscapeComponentResolution"))
+			.NameContent()
+			[
+				GenerateTextWidget(RowDisplayText)
+			]
+			.ValueContent()
+			[
+				GenerateTextWidget(FText::Format(LOCTEXT("LandscapeComponentResolutionValue", "{0} x {0}"), LandscapeActor->ComponentSizeQuads+1), true) // Verts
+			];
 
-				RowDisplayText = LOCTEXT("LandscapeComponentCount", "Component Count");
-				CategoryBuilder.AddCustomRow(RowDisplayText)
-				.RowTag(TEXT("LandscapeComponentCount"))
-				.NameContent()
-				[
-					GenerateTextWidget(RowDisplayText)
-				]
-				.ValueContent()
-				[
-					GenerateTextWidget(FText::Format(LOCTEXT("LandscapeComponentCountValue", "{0}"), LandscapeProxy->LandscapeComponents.Num()), true)
-				];
+			RowDisplayText = LOCTEXT("LandscapeComponentCount", "Component Count");
+			CategoryBuilder.AddCustomRow(RowDisplayText)
+			.RowTag(TEXT("LandscapeComponentCount"))
+			.NameContent()
+			[
+				GenerateTextWidget(RowDisplayText)
+			]
+			.ValueContent()
+			[
+				GenerateTextWidget(FText::Format(LOCTEXT("LandscapeComponentCountValue", "{0}"), LandscapeActor->LandscapeComponents.Num()), true)
+			];
 
-				RowDisplayText = LOCTEXT("LandscapeComponentSubsections", "Component Subsections");
-				CategoryBuilder.AddCustomRow(RowDisplayText)
-				.RowTag(TEXT("LandscapeComponentSubsections"))
-				.NameContent()
-				[
-					GenerateTextWidget(RowDisplayText)
-				]
-				.ValueContent()
-				[
-					GenerateTextWidget(FText::Format(LOCTEXT("LandscapeComponentSubSectionsValue", "{0} x {0}"), LandscapeProxy->NumSubsections), true)
-				];
+			RowDisplayText = LOCTEXT("LandscapeComponentSubsections", "Component Subsections");
+			CategoryBuilder.AddCustomRow(RowDisplayText)
+			.RowTag(TEXT("LandscapeComponentSubsections"))
+			.NameContent()
+			[
+				GenerateTextWidget(RowDisplayText)
+			]
+			.ValueContent()
+			[
+				GenerateTextWidget(FText::Format(LOCTEXT("LandscapeComponentSubSectionsValue", "{0} x {0}"), LandscapeActor->NumSubsections), true)
+			];
 
-				FIntRect Rect = LandscapeProxy->GetBoundingRect();
-				FIntPoint Size = Rect.Size();
-				RowDisplayText = LOCTEXT("LandscapeResolution", "Resolution (Verts)");
-				CategoryBuilder.AddCustomRow(RowDisplayText)
-				.RowTag(TEXT("LandscapeResolution"))
-				.NameContent()
-				[
-					GenerateTextWidget(RowDisplayText)
-				]
-				.ValueContent()
-				[
-					GenerateTextWidget(FText::Format(LOCTEXT("LandscapeResolutionValue", "{0} x {1}"), Size.X+1, Size.Y+1), true)
-				];
+			FIntRect Rect = LandscapeActor->GetBoundingRect();
+			FIntPoint Size = Rect.Size();
+			RowDisplayText = LOCTEXT("LandscapeResolution", "Resolution (Verts)");
+			CategoryBuilder.AddCustomRow(RowDisplayText)
+			.RowTag(TEXT("LandscapeResolution"))
+			.NameContent()
+			[
+				GenerateTextWidget(RowDisplayText)
+			]
+			.ValueContent()
+			[
+				GenerateTextWidget(FText::Format(LOCTEXT("LandscapeResolutionValue", "{0} x {1}"), Size.X+1, Size.Y+1), true)
+			];
 
-				int32 LandscapeCount = LandscapeInfo->StreamingProxies.Num() + (LandscapeInfo->LandscapeActor.Get() ? 1 : 0);
-				RowDisplayText = LOCTEXT("LandscapeCount", "Landscape Count");
-				CategoryBuilder.AddCustomRow(RowDisplayText)
-				.RowTag(TEXT("LandscapeCount"))
-				.NameContent()
-				[
-					GenerateTextWidget(RowDisplayText)
-				]
-				.ValueContent()
-				[
-					GenerateTextWidget(FText::Format(LOCTEXT("LandscapeCountValue", "{0}"), LandscapeCount), true)
-				];
+			int32 LandscapeCount = LandscapeInfo->StreamingProxies.Num() + (LandscapeInfo->LandscapeActor.Get() ? 1 : 0);
+			RowDisplayText = LOCTEXT("LandscapeCount", "Landscape Count");
+			CategoryBuilder.AddCustomRow(RowDisplayText)
+			.RowTag(TEXT("LandscapeCount"))
+			.NameContent()
+			[
+				GenerateTextWidget(RowDisplayText)
+			]
+			.ValueContent()
+			[
+				GenerateTextWidget(FText::Format(LOCTEXT("LandscapeCountValue", "{0}"), LandscapeCount), true)
+			];
 
-				int32 TotalComponentCount = LandscapeInfo->XYtoComponentMap.Num();
-				RowDisplayText = LOCTEXT("TotalLandscapeComponentCount", "Total Component Count");
-				CategoryBuilder.AddCustomRow(RowDisplayText)
-				.RowTag(TEXT("TotalLandscapeComponentCount"))
-				.NameContent()
-				[
-					GenerateTextWidget(RowDisplayText)
-				]
-				.ValueContent()
-				[
-					GenerateTextWidget(FText::Format(LOCTEXT("TotalLandscapeComponentCountValue", "{0}"), TotalComponentCount), true)
-				];
+			int32 TotalComponentCount = LandscapeInfo->XYtoComponentMap.Num();
+			RowDisplayText = LOCTEXT("TotalLandscapeComponentCount", "Total Component Count");
+			CategoryBuilder.AddCustomRow(RowDisplayText)
+			.RowTag(TEXT("TotalLandscapeComponentCount"))
+			.NameContent()
+			[
+				GenerateTextWidget(RowDisplayText)
+			]
+			.ValueContent()
+			[
+				GenerateTextWidget(FText::Format(LOCTEXT("TotalLandscapeComponentCountValue", "{0}"), TotalComponentCount), true)
+			];
 
-				LandscapeInfo->GetLandscapeExtent(Rect.Min.X, Rect.Min.Y, Rect.Max.X, Rect.Max.Y);
-				Size = Rect.Size();
-				RowDisplayText = LOCTEXT("LandscapeOverallResolution", "Overall Resolution (Verts)");
-				CategoryBuilder.AddCustomRow(RowDisplayText)
-				.RowTag(TEXT("LandscapeOverallResolution"))
-				.NameContent()
-				[
-					GenerateTextWidget(RowDisplayText)
-				]
-				.ValueContent()
-				[
-					GenerateTextWidget(FText::Format(LOCTEXT("LandscapeOveralResolutionValue", "{0} x {1}"), Size.X + 1, Size.Y + 1), true)
-				];
-			}
-
+			LandscapeInfo->GetLandscapeExtent(Rect.Min.X, Rect.Min.Y, Rect.Max.X, Rect.Max.Y);
+			Size = Rect.Size();
+			RowDisplayText = LOCTEXT("LandscapeOverallResolution", "Overall Resolution (Verts)");
+			CategoryBuilder.AddCustomRow(RowDisplayText)
+			.RowTag(TEXT("LandscapeOverallResolution"))
+			.NameContent()
+			[
+				GenerateTextWidget(RowDisplayText)
+			]
+			.ValueContent()
+			[
+				GenerateTextWidget(FText::Format(LOCTEXT("LandscapeOverallResolutionValue", "{0} x {1}"), Size.X + 1, Size.Y + 1), true)
+			];
 
 			// Apply custom widget for CreateVolume.
 			TSharedRef<IPropertyHandle> CreateVolumePropertyHandle = DetailBuilder.GetProperty(TEXT("bSetCreateRuntimeVirtualTextureVolumes"));
@@ -174,7 +191,7 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 				SNew(STextBlock)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.Text(LOCTEXT("Button_CreateVolumes", "Create Volumes"))
-				.ToolTipText(LOCTEXT("Button_CreateVolumes_Tooltip", "Create volumes for the selected Runtime Virtual Textures."))
+				.ToolTipText(CreateRVTVolumesTooltip)
 			]
 			.ValueContent()
 			.MinDesiredWidth(125.f)
@@ -184,17 +201,109 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 				.HAlign(HAlign_Center)
 				.ContentPadding(2)
 				.Text(LOCTEXT("Button_CreateVolumes", "Create Volumes"))
-				.OnClicked(this, &FLandscapeProxyUIDetails::CreateRuntimeVirtualTextureVolume)
-				.IsEnabled(this, &FLandscapeProxyUIDetails::IsCreateRuntimeVirtualTextureVolumeEnabled)
+				.OnClicked_Lambda([LandscapeActor, this]() { return CreateRuntimeVirtualTextureVolume(LandscapeActor.Get()); })
+				.IsEnabled_Lambda([LandscapeActor, this]() { return IsCreateRuntimeVirtualTextureVolumeEnabled(LandscapeActor.Get()); })
+				.ToolTipText_Lambda([LandscapeActor, this, CreateRVTVolumesTooltip]()
+				{
+					return IsCreateRuntimeVirtualTextureVolumeEnabled(LandscapeActor.Get())
+						? CreateRVTVolumesTooltip
+						: LOCTEXT("Button_CreateVolumes_Tooltip_Invalid", "No Runtime Virtual Textures found in the world.");
+				})
 			];
-
 		}
+	}
+
+	// Add Nanite buttons :
+	if (!EditingProxies.IsEmpty())
+	{
+		auto BuildNaniteData = [EditingProxies](bool bInForceRebuild) -> FReply
+		{
+			TArray<ALandscapeProxy*> ProxiesToBuild;
+			Algo::TransformIf(EditingProxies, ProxiesToBuild, [](const TWeakObjectPtr<ALandscapeProxy>& InProxy) { return InProxy.IsValid(); }, [](const TWeakObjectPtr<ALandscapeProxy>& InProxy) { return InProxy.Get(); });
+			if (ProxiesToBuild.IsEmpty())
+			{
+				return FReply::Unhandled();
+			}
+
+			if (UWorld* World = ProxiesToBuild[0]->GetWorld())
+			{
+				if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
+				{
+					LandscapeSubsystem->BuildNanite(MakeArrayView(ProxiesToBuild), bInForceRebuild);
+				}
+			}
+
+			return FReply::Handled();
+		};
+
+		auto GetNumProxiesNeedingRebuild = [EditingProxies](bool bInForceRebuild) -> int32
+		{
+			TSet<TWeakObjectPtr<ALandscapeProxy>> ProxiesToBuild;
+			for (TWeakObjectPtr<ALandscapeProxy> EditingProxy : EditingProxies)
+			{
+				if (EditingProxy.IsValid())
+				{
+					ProxiesToBuild.Add(EditingProxy);
+					// Build all streaming proxies in the case of a ALandscape :
+					if (ALandscape* Landscape = Cast<ALandscape>(EditingProxy.Get()))
+					{
+						ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+						if (LandscapeInfo != nullptr)
+						{
+							Algo::Transform(LandscapeInfo->StreamingProxies, ProxiesToBuild, [](const TWeakObjectPtr<ALandscapeStreamingProxy>& InStreamingProxy) { return InStreamingProxy; });
+						}
+					}
+				}
+			}
+
+			return Algo::CountIf(ProxiesToBuild, [bInForceRebuild](TWeakObjectPtr<ALandscapeProxy> InProxy) { return (InProxy.IsValid() && (bInForceRebuild || !InProxy->IsNaniteMeshUpToDate())); });
+		};
+
+		auto HasAtLeastOneNaniteLandscape = [LandscapeActors]() -> bool
+		{
+			return Algo::FindByPredicate(LandscapeActors, [](TWeakObjectPtr<ALandscape> InLandscape) { return (InLandscape.IsValid() && InLandscape->IsNaniteEnabled()); }) != nullptr;
+		};
+
+		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory("Nanite", FText::GetEmpty(), ECategoryPriority::Default);
+		TSharedRef<IPropertyHandle> EnableNaniteProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bEnableNanite));
+		CategoryBuilder.AddCustomRow(LOCTEXT("RebuildNaniteData", "Rebuild Nanite Data"))
+		[
+			SNew(SHorizontalBox)
+			.IsEnabled_Lambda([HasAtLeastOneNaniteLandscape] { return HasAtLeastOneNaniteLandscape(); })
+			+ SHorizontalBox::Slot()
+			.FillWidth(1)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("BuildNaniteData", "Build Data"))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.ToolTipText_Lambda([GetNumProxiesNeedingRebuild]()
+				{ 
+					return FText::Format(LOCTEXT("BuildNaniteDataTooltip", "Builds the Nanite mesh representation from the Landscape data if it's not up to date ({0} {0}|plural(one=actors, other=actors) to build)"), GetNumProxiesNeedingRebuild(/*bInForceRebuild = */false));
+				})
+				.OnClicked_Lambda([BuildNaniteData]() { return BuildNaniteData(/*bInForceRebuild = */false); })
+				.IsEnabled_Lambda([GetNumProxiesNeedingRebuild]() { return (GetNumProxiesNeedingRebuild(/*bInForceRebuild = */false) > 0); })
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("RebuildNaniteData", "Rebuild Data"))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.ToolTipText_Lambda([GetNumProxiesNeedingRebuild]()
+				{ 
+					return FText::Format(LOCTEXT("RebuildNaniteDataTooltip", "Rebuilds the Nanite mesh representation from the Landscape data ({0} {0}|plural(one=actors, other=actors) to build)"), GetNumProxiesNeedingRebuild(/*bInForceRebuild = */true));
+				})
+				.OnClicked_Lambda([BuildNaniteData]() { return BuildNaniteData(/*bInForceRebuild = */true); })
+			]
+		];
 	}
 }
 
-static void GetMissingRuntimeVirtualTextureVolumes(ALandscapeProxy* LandscapeProxy, TArray<URuntimeVirtualTexture*>& OutVirtualTextures)
+static void GetMissingRuntimeVirtualTextureVolumes(ALandscape* InLandscapeActor, TArray<URuntimeVirtualTexture*>& OutVirtualTextures)
 {
-	UWorld* World = LandscapeProxy != nullptr ? LandscapeProxy->GetWorld() : nullptr;
+	UWorld* World = InLandscapeActor != nullptr ? InLandscapeActor->GetWorld() : nullptr;
 	if (World == nullptr)
 	{
 		return;
@@ -212,7 +321,7 @@ static void GetMissingRuntimeVirtualTextureVolumes(ALandscapeProxy* LandscapePro
 		}
 	}
 
-	for (URuntimeVirtualTexture* VirtualTexture : LandscapeProxy->RuntimeVirtualTextures)
+	for (URuntimeVirtualTexture* VirtualTexture : InLandscapeActor->RuntimeVirtualTextures)
 	{
 		if (VirtualTexture != nullptr && FoundVolumes.Find(VirtualTexture) == INDEX_NONE)
 		{
@@ -221,17 +330,27 @@ static void GetMissingRuntimeVirtualTextureVolumes(ALandscapeProxy* LandscapePro
 	}
 }
 
-bool FLandscapeProxyUIDetails::IsCreateRuntimeVirtualTextureVolumeEnabled() const
+bool FLandscapeProxyUIDetails::IsCreateRuntimeVirtualTextureVolumeEnabled(ALandscape* InLandscapeActor) const
 {
+	if (InLandscapeActor == nullptr)
+	{
+		return false;
+	}
+
 	TArray<URuntimeVirtualTexture*> VirtualTextureVolumesToCreate;
-	GetMissingRuntimeVirtualTextureVolumes(LandscapeProxy, VirtualTextureVolumesToCreate);
+	GetMissingRuntimeVirtualTextureVolumes(InLandscapeActor, VirtualTextureVolumesToCreate);
 	return VirtualTextureVolumesToCreate.Num() > 0;
 }
 
-FReply FLandscapeProxyUIDetails::CreateRuntimeVirtualTextureVolume()
+FReply FLandscapeProxyUIDetails::CreateRuntimeVirtualTextureVolume(ALandscape* InLandscapeActor)
 {
+	if (InLandscapeActor == nullptr)
+	{
+		return FReply::Unhandled();
+	}
+
 	TArray<URuntimeVirtualTexture*> VirtualTextureVolumesToCreate;
-	GetMissingRuntimeVirtualTextureVolumes(LandscapeProxy, VirtualTextureVolumesToCreate);
+	GetMissingRuntimeVirtualTextureVolumes(InLandscapeActor, VirtualTextureVolumesToCreate);
 	if (VirtualTextureVolumesToCreate.Num() == 0)
 	{
 		return FReply::Unhandled();
@@ -241,9 +360,9 @@ FReply FLandscapeProxyUIDetails::CreateRuntimeVirtualTextureVolume()
 	
 	for (URuntimeVirtualTexture* VirtualTexture : VirtualTextureVolumesToCreate)
 	{
-		ARuntimeVirtualTextureVolume* NewVolume = LandscapeProxy->GetWorld()->SpawnActor<ARuntimeVirtualTextureVolume>();
+		ARuntimeVirtualTextureVolume* NewVolume = InLandscapeActor->GetWorld()->SpawnActor<ARuntimeVirtualTextureVolume>();
 		NewVolume->VirtualTextureComponent->SetVirtualTexture(VirtualTexture);
-		NewVolume->VirtualTextureComponent->SetBoundsAlignActor(LandscapeProxy);
+		NewVolume->VirtualTextureComponent->SetBoundsAlignActor(InLandscapeActor);
 		RuntimeVirtualTexture::SetBounds(NewVolume->VirtualTextureComponent);
 	}
 

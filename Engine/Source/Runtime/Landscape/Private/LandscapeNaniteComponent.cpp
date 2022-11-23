@@ -144,7 +144,7 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 				return false;
 			}
 
-			if (InputMaterials.Num() >= NANITE_MAX_CLUSTER_MATERIALS)
+			if (InputMaterials.Num() > NANITE_MAX_CLUSTER_MATERIALS)
 			{
 				UE_LOG(LogLandscape, Warning, TEXT("%s : Nanite landscape mesh would have more than %i materials, which is currently not supported. Please reduce the number of components in this landscape actor to enable Nanite."), *GetOwner()->GetActorNameOrLabel(), NANITE_MAX_CLUSTER_MATERIALS)
 				return false;
@@ -194,6 +194,9 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 		BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
 	}
+
+	// Disable navigation
+	NaniteStaticMesh->bHasNavigationData = false;
 
 	SetStaticMesh(NaniteStaticMesh);
 	UStaticMesh::BatchBuild({ NaniteStaticMesh });

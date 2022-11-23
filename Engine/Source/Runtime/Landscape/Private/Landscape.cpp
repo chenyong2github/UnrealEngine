@@ -311,14 +311,25 @@ void ALandscapeProxy::CheckGenerateMobilePlatformData(bool bIsCooking, const ITa
 	}
 }
 
-void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* TargetPlatform)
+bool ALandscapeProxy::IsNaniteMeshUpToDate() const
+{
+	if (IsNaniteEnabled() && !HasAnyFlags(RF_ClassDefaultObject) && LandscapeComponents.Num() > 0)
+	{
+		const FGuid NaniteContentId = GetNaniteContentId();
+		return (NaniteComponent != nullptr) && (NaniteComponent->GetProxyContentId() == NaniteContentId);
+	}
+
+	return true;
+}
+
+void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* InTargetPlatform)
 {
 	if (IsNaniteEnabled() && !HasAnyFlags(RF_ClassDefaultObject) && LandscapeComponents.Num() > 0)
 	{
 		const FGuid NaniteContentId = GetNaniteContentId();
 		if (NaniteComponent == nullptr)
 		{
-			NaniteComponent = NewObject<ULandscapeNaniteComponent>(this, TEXT("LandscapeNaniteComponent"), RF_Transactional);
+			NaniteComponent = NewObject<ULandscapeNaniteComponent>(this, TEXT("LandscapeNaniteComponent"));
 
 			NaniteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			NaniteComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -336,7 +347,7 @@ void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* TargetPl
 		if (NaniteComponent->GetProxyContentId() != NaniteContentId)
 		{
 			FScopedSlowTask ProgressDialog(1, LOCTEXT("BuildingLandscapeNanite", "Building Landscape Nanite Data"));
-			ProgressDialog.MakeDialog();
+			ProgressDialog.MakeDialogDelayed(/*Threshold = */1.0f);
 
 			bSuccess &= NaniteComponent->InitializeForLandscape(this, NaniteContentId);
 		}
@@ -344,7 +355,7 @@ void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* TargetPl
 		if (bSuccess)
 		{
 			// TODO: Add a flag that only initializes the platform if we called InitializeForLandscape during the PreSave for this or a previous platform
-			bSuccess &= NaniteComponent->InitializePlatformForLandscape(this, TargetPlatform);
+			bSuccess &= NaniteComponent->InitializePlatformForLandscape(this, InTargetPlatform);
 		}
 
 		if (bSuccess)
@@ -359,20 +370,32 @@ void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* TargetPl
 	}
 	else
 	{
-		InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
+		InvalidateNaniteRepresentation(/* bInCheckContentId = */false);
 	}
 }
 
-void ALandscapeProxy::InvalidateNaniteRepresentation(bool bCheckContentId)
+void ALandscapeProxy::InvalidateNaniteRepresentation(bool bInCheckContentId)
 {
 	if (NaniteComponent != nullptr)
 	{
-		if (!bCheckContentId || NaniteComponent->GetProxyContentId() != GetNaniteContentId())
+		if (!bInCheckContentId || NaniteComponent->GetProxyContentId() != GetNaniteContentId())
 		{
 			NaniteComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 			NaniteComponent->DestroyComponent();
 			NaniteComponent = nullptr;
 		}
+	}
+}
+
+void ALandscapeProxy::InvalidateOrUpdateNaniteRepresentation(bool bInCheckContentId, const ITargetPlatform* InTargetPlatform)
+{
+	if (LiveRebuildNaniteOnModification != 0)
+	{
+		UpdateNaniteRepresentation(InTargetPlatform);
+	}
+	else
+	{
+		InvalidateNaniteRepresentation(bInCheckContentId);
 	}
 }
 
@@ -3412,7 +3435,13 @@ void ALandscapeProxy::PostLoad()
 	if (World && !HasAnyFlags(RF_ClassDefaultObject) && !FPlatformProperties::RequiresCookedData())
 	{
 		// TODO: Need to sort out occasional StaticAllocateObject problem on load
-		//UpdateNaniteRepresentation();
+		//UpdateNaniteRepresentation(/*InTargetPlatform = */nullptr);
+	}
+
+	// Remove RF_Transactional from Nanite components : they're re-created upon transacting now : 
+	if (NaniteComponent != nullptr)
+	{
+		NaniteComponent->ClearFlags(RF_Transactional);
 	}
 #endif // WITH_EDITOR
 
@@ -5313,23 +5342,17 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeCo
 
 	for (auto Iter = ByProxy.CreateConstIterator(); Iter; ++Iter)
 	{
-		Iter.Key()->FlushGrassComponents(&Iter.Value());
+		ALandscapeProxy* Proxy = Iter.Key();
+		Proxy->FlushGrassComponents(&Iter.Value());
 
 	#if WITH_EDITOR
-		if (LiveRebuildNaniteOnModification != 0)
-		{
-			Iter.Key()->UpdateNaniteRepresentation();
-		}
-		else
-		{
-			Iter.Key()->InvalidateNaniteRepresentation();
-		}
+		Proxy->InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
 
 		FLandscapeProxyComponentDataChangedParams ChangeParams(Iter.Value());
-		Iter.Key()->OnComponentDataChanged.Broadcast(Iter.Key(), ChangeParams);
+		Proxy->OnComponentDataChanged.Broadcast(Iter.Key(), ChangeParams);
 	#endif
 
-		Iter.Key()->UpdateRenderingMethod();
+		Proxy->UpdateRenderingMethod();
 	}
 }
 

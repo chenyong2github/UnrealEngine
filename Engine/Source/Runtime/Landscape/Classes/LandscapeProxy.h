@@ -562,7 +562,7 @@ public:
 	UPROPERTY(transient, duplicatetransient)
 	TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> FoliageComponents;
 
-	UPROPERTY()
+	UPROPERTY(NonTransactional)
 	TObjectPtr<ULandscapeNaniteComponent> NaniteComponent;
 
 	/** A transient data structure for tracking the grass */
@@ -1204,16 +1204,26 @@ public:
 	/** Generate mobile platform data if it's missing or outdated */
 	LANDSCAPE_API void CheckGenerateMobilePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 
+	/** Returns true if the Nanite representation is missing or outdated */
+	LANDSCAPE_API bool IsNaniteMeshUpToDate() const;
+
 	/** Update Nanite representation if it's missing or outdated */
-	LANDSCAPE_API void UpdateNaniteRepresentation(const ITargetPlatform* TargetPlatform = nullptr);
+	LANDSCAPE_API void UpdateNaniteRepresentation(const ITargetPlatform* InTargetPlatform);
 
 	/** 
 	* Invalidate and disable Nanite representation until a subsequent rebuild occurs
 	*
-	* @param bCheckContentId - If true, only invalidate when the content Id of the proxy mismatches with the Nanite representation
+	* @param bInCheckContentId - If true, only invalidate when the content Id of the proxy mismatches with the Nanite representation
 	*/
-	LANDSCAPE_API void InvalidateNaniteRepresentation(bool bCheckContentId = true);
+	LANDSCAPE_API void InvalidateNaniteRepresentation(bool bInCheckContentId);
 	
+	/**
+	* Invalidate Nanite representation or rebuild it in case live update is active :
+	*
+	* @param bInCheckContentId - If true, only invalidate when the content Id of the proxy mismatches with the Nanite representation
+	*/
+	LANDSCAPE_API void InvalidateOrUpdateNaniteRepresentation(bool bInCheckContentId, const ITargetPlatform* InTargetPlatform);
+
 	/** @return Current size of bounding rectangle in quads space */
 	LANDSCAPE_API FIntRect GetBoundingRect() const;
 

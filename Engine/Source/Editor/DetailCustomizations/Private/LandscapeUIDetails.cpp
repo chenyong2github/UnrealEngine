@@ -18,7 +18,6 @@
 #include "LandscapeInfo.h"
 #include "LandscapeProxy.h"
 #include "LandscapeSettings.h"
-#include "LandscapeStreamingProxy.h"
 #include "Layout/Visibility.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Attribute.h"
@@ -106,42 +105,6 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 				}
 			})
 		];
-
-		TSharedRef<IPropertyHandle> EnableNanitePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bEnableNanite));
-		DetailBuilder.AddCustomRowToCategory(EnableNanitePropertyHandle, LOCTEXT("RebuildNaniteData", "Rebuild Data"))
-			.ValueContent()
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("RebuildNaniteData", "Rebuild Data"))
-				.HAlign(HAlign_Center)
-				.ToolTipText(LOCTEXT("RebuildNaniteDataTooltip", "Rebuilds the Nanite mesh representation from the Landscape data"))
-				.OnClicked_Lambda([Landscape]()
-				{
-					if (Landscape.IsValid())
-					{
-						Landscape->UpdateNaniteRepresentation();
-						Landscape->UpdateRenderingMethod();
-
-						ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
-						if (LandscapeInfo != nullptr)
-						{
-							FScopedSlowTask SlowTask(LandscapeInfo->StreamingProxies.Num(), (LOCTEXT("RebuildNaniteSlowTask", "Rebuilding Nanite Landscape Meshes")));
-							SlowTask.MakeDialog();
-
-							for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : LandscapeInfo->StreamingProxies)
-							{
-								SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("RebuildNaniteSlowTaskProgress", "Building Nanite Landscape Mesh ({0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
-								if (ALandscapeProxy* Proxy = ProxyPtr.Get())
-								{
-									Proxy->UpdateNaniteRepresentation();
-									Proxy->UpdateRenderingMethod();
-								}
-							}
-						}
-					}
-					return FReply::Handled();
-				})
-			];
 	}
 }
 

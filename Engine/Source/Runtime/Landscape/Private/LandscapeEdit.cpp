@@ -691,12 +691,17 @@ void ULandscapeComponent::PostEditUndo()
 		const bool bUpdateAll = true;
 		RequestHeightmapUpdate(bUpdateAll);
 		RequestWeightmapUpdate(bUpdateAll);
+
+		// Nanite data is non-transactional at the moment, so we need to invalidate the data now (it will get updated eventually after textures have been resolved): 
+		Proxy->InvalidateNaniteRepresentation(/* bInCheckContentId = */true);
 	}
 	else
 	{
 		TSet<ULandscapeComponent*> Components;
 		Components.Add(this);
 		Proxy->FlushGrassComponents(&Components);
+
+		Proxy->InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
 	}
 
 	check(!UndoRedoModifiedComponents.Contains(this));
@@ -940,7 +945,7 @@ void ULandscapeComponent::FixupWeightmaps(const FGuid& InEditLayerGuid)
 						DeleteLayerInternal(LayersToDelete[Idx], LandscapeEdit, LayerGuid);
 					}
 				});
-							
+								
 			}
 
 			bool bFixedWeightmapTextureIndex = false;
@@ -5440,15 +5445,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	if (GIsEditor && PropertyName == FName(TEXT("bEnableNanite")))
 	{
-		if (LiveRebuildNaniteOnModification != 0)
-		{
-			UpdateNaniteRepresentation();
-		}
-		else
-		{
-			InvalidateNaniteRepresentation();
-		}
-
+		InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
 		UpdateRenderingMethod();
 		MarkComponentsRenderStateDirty();
 	}
@@ -5565,14 +5562,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 					}
 				}
 
-				if (LiveRebuildNaniteOnModification != 0)
-				{
-					UpdateNaniteRepresentation();
-				}
-				else
-				{
-					InvalidateNaniteRepresentation();
-				}
+				InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
 
 				UpdateRenderingMethod();
 			}
@@ -5956,15 +5946,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 		// Generate Nanite data for a landscape with components on it, and recreate render state
 		// Streaming proxies won't be built here, but the bPropagateToProxies path will.
-		if (LiveRebuildNaniteOnModification != 0)
-		{
-			UpdateNaniteRepresentation();
-		}
-		else
-		{
-			InvalidateNaniteRepresentation();
-		}
-
+		InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
 		UpdateRenderingMethod();
 		MarkComponentsRenderStateDirty();
 	}
@@ -6039,15 +6021,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 						}
 					}
 
-					if (LiveRebuildNaniteOnModification != 0)
-					{
-						UpdateNaniteRepresentation();
-					}
-					else
-					{
-						InvalidateNaniteRepresentation();
-					}
-
+					InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
 					UpdateRenderingMethod();
 				}
 			}

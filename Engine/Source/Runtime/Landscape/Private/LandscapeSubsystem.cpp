@@ -21,6 +21,9 @@
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Algo/Transform.h"
+#include "Algo/RemoveIf.h"
+#include "Algo/Unique.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeSubsystem)
 
@@ -222,7 +225,7 @@ int32 ULandscapeSubsystem::GetOudatedPhysicalMaterialComponentsCount()
 	return PhysicalMaterialBuilder->GetOudatedPhysicalMaterialComponentsCount();
 }
 
-void ULandscapeSubsystem::BuildNanite()
+void ULandscapeSubsystem::BuildNanite(TArrayView<ALandscapeProxy*> InProxiesToBuild, bool bForceRebuild)
 {
 	UWorld* World = GetWorld();
 	if (!World || World->IsGameWorld())
@@ -230,22 +233,59 @@ void ULandscapeSubsystem::BuildNanite()
 		return;
 	}
 
-	if (Proxies.IsEmpty())
+	if (InProxiesToBuild.IsEmpty() && Proxies.IsEmpty())
 	{
 		return;
 	}
 
 	FScopedSlowTask SlowTask(static_cast<float>(Proxies.Num()), (LOCTEXT("Landscape_BuildNanite", "Building Nanite Landscape Meshes")));
-	SlowTask.MakeDialog();
 
-	for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : Proxies)
+	TArray<ALandscapeProxy*> FinalProxiesToBuild;
+	if (InProxiesToBuild.IsEmpty())
+	{
+		Algo::Transform(Proxies, FinalProxiesToBuild, [](const TWeakObjectPtr<ALandscapeProxy>& InProxyPtr) { return InProxyPtr.Get(); });
+	}
+	else 
+	{
+		for (ALandscapeProxy* ProxyToBuild : InProxiesToBuild)
+		{
+			FinalProxiesToBuild.Add(ProxyToBuild);
+			// Build all streaming proxies in the case of a ALandscape :
+			if (ALandscape* Landscape = Cast<ALandscape>(ProxyToBuild))
+			{
+				ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+				if (LandscapeInfo != nullptr)
+				{
+					Algo::Transform(LandscapeInfo->StreamingProxies, FinalProxiesToBuild, [](const TWeakObjectPtr<ALandscapeStreamingProxy>& InStreamingProxy) { return InStreamingProxy.Get(); });
+				}
+			}
+		}
+	}
+
+	// Only keep unique copies : 
+	FinalProxiesToBuild.Sort();
+	FinalProxiesToBuild.SetNum(Algo::Unique(FinalProxiesToBuild));
+
+	// Don't keep those that are null or already up to date :
+	FinalProxiesToBuild.SetNum(Algo::RemoveIf(FinalProxiesToBuild, [bForceRebuild](ALandscapeProxy* InProxy) { return (InProxy == nullptr) || (!bForceRebuild && InProxy->IsNaniteMeshUpToDate()); }));
+
+	FScopedSlowTask SlowTask(FinalProxiesToBuild.Num(), (LOCTEXT("Landscape_BuildNanite", "Building Nanite Landscape Meshes")));
+	SlowTask.MakeDialog(/*bShowCancelButton = */true);
+
+	for (ALandscapeProxy* Proxy : FinalProxiesToBuild)
 	{
 		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Landscape_BuildNaniteProgress", "Building Nanite Landscape Mesh ({0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
-		if (ALandscapeProxy* Proxy = ProxyPtr.Get())
+		if (SlowTask.ShouldCancel())
 		{
-			Proxy->UpdateNaniteRepresentation();
-			Proxy->UpdateRenderingMethod();
+			break;
 		}
+
+		if (bForceRebuild)
+		{
+			Proxy->InvalidateNaniteRepresentation(/*bInCheckContentId = */false);
+		}
+		Proxy->UpdateNaniteRepresentation(/*InTargetPlatform = */nullptr);
+		Proxy->UpdateRenderingMethod();
 	}
 }
 
