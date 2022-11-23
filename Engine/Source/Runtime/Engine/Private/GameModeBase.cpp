@@ -941,6 +941,7 @@ void AGameModeBase::ReplicateStreamingStatus(APlayerController* PC)
 					LevelStatus.bNewShouldBeLoaded = bTheLevelShouldBeLoaded;
 					LevelStatus.bNewShouldBeVisible = bTheLevelShouldBeVisible;
 					LevelStatus.bNewShouldBlockOnLoad = TheLevel->bShouldBlockOnLoad;
+					LevelStatus.bNewShouldBlockOnUnload = TheLevel->bShouldBlockOnUnload;
 					LevelStatus.LODIndex = TheLevel->GetLevelLODIndex();
 				}
 			}

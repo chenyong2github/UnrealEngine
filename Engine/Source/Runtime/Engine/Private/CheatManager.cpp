@@ -605,6 +605,7 @@ void UCheatManager::SetLevelStreamingStatus(FName PackageName, bool bShouldBeLoa
 					LevelStatus.bNewShouldBeLoaded = bShouldBeLoaded;
 					LevelStatus.bNewShouldBeVisible = bShouldBeVisible;
 					LevelStatus.bNewShouldBlockOnLoad = false;
+					LevelStatus.bNewShouldBlockOnUnload = false;
 					LevelStatus.LODIndex = INDEX_NONE;
 				}
 				PC->ClientUpdateMultipleLevelsStreamingStatus(LevelStatuses);

@@ -322,9 +322,10 @@ void FStreamLevelAction::ActivateLevel( ULevelStreaming* LevelStreamingObject )
 					PlayerController->LevelStreamingStatusChanged(
 						LevelStreamingObject,
 						bShouldBeLoaded,
-					bShouldBeVisible,
+						bShouldBeVisible,
 						bShouldBlock,
-					INDEX_NONE);
+						bShouldBlock,
+						INDEX_NONE);
 				}
 			}
 		}

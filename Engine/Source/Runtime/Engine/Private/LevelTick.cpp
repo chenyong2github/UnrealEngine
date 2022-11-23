@@ -774,6 +774,7 @@ void UWorld::ProcessLevelStreamingVolumes(FVector* OverrideViewLocation)
 									bNewShouldBeLoaded, 
 									bNewShouldBeVisible,
 									LevelStreamingObject->bShouldBlockOnLoad,
+									LevelStreamingObject->bShouldBlockOnUnload,
 									LevelStreamingObject->GetLevelLODIndex());
 						}
 					}

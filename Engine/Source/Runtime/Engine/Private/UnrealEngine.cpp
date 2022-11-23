@@ -16327,6 +16327,7 @@ bool UEngine::CommitMapChange( FWorldContext &Context )
 									bShouldBeLoaded,
 									bShouldBeVisible,
 									StreamingLevel->bShouldBlockOnLoad,
+									StreamingLevel->bShouldBlockOnUnload,
 									StreamingLevel->GetLevelLODIndex());
 							}
 						}

@@ -310,7 +310,7 @@ FName APlayerController::NetworkRemapPath(FName InPackageName, bool bReading)
 
 /// @cond DOXYGEN_WARNINGS
 
-void APlayerController::ClientUpdateLevelStreamingStatus_Implementation(FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex, FNetLevelVisibilityTransactionId TransactionId)
+void APlayerController::ClientUpdateLevelStreamingStatus_Implementation(FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex, FNetLevelVisibilityTransactionId TransactionId, bool bNewShouldBlockOnUnload)
 {
 	PackageName = NetworkRemapPath(PackageName, true);
 	
@@ -350,6 +350,7 @@ void APlayerController::ClientUpdateLevelStreamingStatus_Implementation(FName Pa
 		LevelStreamingObject->SetShouldBeLoaded(bNewShouldBeLoaded);
 		LevelStreamingObject->SetShouldBeVisible(bNewShouldBeVisible);
 		LevelStreamingObject->bShouldBlockOnLoad = bNewShouldBlockOnLoad;
+		LevelStreamingObject->bShouldBlockOnUnload = bNewShouldBlockOnUnload;
 		LevelStreamingObject->SetLevelLODIndex(LODIndex);
 		LevelStreamingObject->UpdateNetVisibilityTransactionState(bNewShouldBeVisible, TransactionId);
 	}
@@ -363,7 +364,7 @@ void APlayerController::ClientUpdateMultipleLevelsStreamingStatus_Implementation
 {
 	for( const FUpdateLevelStreamingLevelStatus& LevelStatus : LevelStatuses )
 	{
-		ClientUpdateLevelStreamingStatus_Implementation(LevelStatus.PackageName, LevelStatus.bNewShouldBeLoaded, LevelStatus.bNewShouldBeVisible, LevelStatus.bNewShouldBlockOnLoad, LevelStatus.LODIndex, FNetLevelVisibilityTransactionId());
+		ClientUpdateLevelStreamingStatus_Implementation(LevelStatus.PackageName, LevelStatus.bNewShouldBeLoaded, LevelStatus.bNewShouldBeVisible, LevelStatus.bNewShouldBlockOnLoad, LevelStatus.LODIndex, FNetLevelVisibilityTransactionId(), LevelStatus.bNewShouldBlockOnUnload);
 	}
 }
 
@@ -3460,7 +3461,13 @@ void APlayerController::ClientForceGarbageCollection_Implementation()
 
 /// @endcond
 
-void APlayerController::LevelStreamingStatusChanged(ULevelStreaming* LevelObject, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex )
+void APlayerController::LevelStreamingStatusChanged(ULevelStreaming* LevelObject, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex)
+{ 
+	const bool bNewShouldBlockOnUnload = false;
+	LevelStreamingStatusChanged(LevelObject, bNewShouldBeLoaded, bNewShouldBeVisible, bNewShouldBlockOnLoad, bNewShouldBlockOnUnload, LODIndex);
+}
+
+void APlayerController::LevelStreamingStatusChanged(ULevelStreaming* LevelObject, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, bool bNewShouldBlockOnUnload, int32 LODIndex)
 {
 	FNetLevelVisibilityTransactionId TransactionId;
 	if (GetNetMode() == NM_Client)
@@ -3475,7 +3482,7 @@ void APlayerController::LevelStreamingStatusChanged(ULevelStreaming* LevelObject
 		TransactionId = NetConnection->UpdateLevelStreamStatusChangedTransactionId(LevelObject, PackageName, bNewShouldBeVisible);
 	}
 
-	ClientUpdateLevelStreamingStatus(NetworkRemapPath(LevelObject->GetWorldAssetPackageFName(), false), bNewShouldBeLoaded, bNewShouldBeVisible, bNewShouldBlockOnLoad, LODIndex, TransactionId);
+	ClientUpdateLevelStreamingStatus(NetworkRemapPath(LevelObject->GetWorldAssetPackageFName(), false), bNewShouldBeLoaded, bNewShouldBeVisible, bNewShouldBlockOnLoad, LODIndex, TransactionId, bNewShouldBlockOnUnload);
 }
 
 /// @cond DOXYGEN_WARNINGS
