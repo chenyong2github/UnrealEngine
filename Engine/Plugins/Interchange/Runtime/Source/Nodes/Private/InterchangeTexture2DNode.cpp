@@ -10,12 +10,14 @@ FString UInterchangeTexture2DNode::MakeNodeUid(const FStringView NodeName)
 	return UInterchangeTextureNode::MakeNodeUid(NodeName);
 }
 
- UInterchangeTexture2DNode* UInterchangeTexture2DNode::Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView TextureNodeName)
+ UInterchangeTexture2DNode* UInterchangeTexture2DNode::Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView TextureNodeName /*Or TextureNodeId*/, const FStringView TextureNodeDisplayLabel)
 {
 	UInterchangeTexture2DNode* TextureNode = NewObject< UInterchangeTexture2DNode >(NodeContainer);
-	const FString TextureNodeUid = UInterchangeTextureNode::MakeNodeUid(TextureNodeName);
 
-	TextureNode->InitializeNode(TextureNodeUid, FString(TextureNodeName), EInterchangeNodeContainerType::TranslatedAsset);
+	const FString NodeUid = MakeNodeUid(TextureNodeName);
+	const FStringView NodeDisplayLabel = TextureNodeDisplayLabel.IsEmpty() ? TextureNodeName : TextureNodeDisplayLabel;
+
+	TextureNode->InitializeNode(NodeUid, FString(NodeDisplayLabel), EInterchangeNodeContainerType::TranslatedAsset);
 	NodeContainer->AddNode(TextureNode);
 
 	return TextureNode;

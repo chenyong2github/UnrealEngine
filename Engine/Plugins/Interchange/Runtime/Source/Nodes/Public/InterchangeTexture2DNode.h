@@ -36,8 +36,9 @@ public:
 
 	/**
 	 * Creates a new UInterchangeTexture2DNode and adds it to NodeContainer as a translated node.
+	 * In case the TextureNodeDisplayLabel is not empty, TextureNodeName supposed to hold the TextureNodeId
 	 */
-	static UInterchangeTexture2DNode* Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView TextureNodeName);
+	static UInterchangeTexture2DNode* Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView TextureNodeName /*Or TextureNodeId*/, const FStringView TextureNodeDisplayLabel = FStringView());
 
 	virtual void PostInitProperties()
 	{

@@ -107,6 +107,8 @@ namespace GLTF
 	{
 		FString				Name;
 		TArray<FPrimitive>	Primitives;
+
+		FString				UniqueId; //will be generated in FAsset::GenerateNames
 	
 		bool HasNormals() const;
 		bool HasTangents() const;

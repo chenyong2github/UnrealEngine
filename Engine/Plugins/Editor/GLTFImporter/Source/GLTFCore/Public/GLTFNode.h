@@ -40,6 +40,8 @@ namespace GLTF
 		int32 ParentIndex;
 		int32 RootJointIndex; //only valid if node is of Joint Type
 
+		FString UniqueId; //will be generated in FAsset::GenerateNames
+
 		FNode()
 		    : Type(EType::None)
 		    , MeshIndex(INDEX_NONE)
@@ -78,6 +80,7 @@ namespace GLTF
 		float ZNear;
 		float ZFar;
 		bool  bIsPerspective;
+		FString UniqueId; //will be generated in FAsset::GenerateNames
 
 		FCamera(const FNode& Node)
 		    : Node(Node)
@@ -119,6 +122,8 @@ namespace GLTF
 		float Range;
 		FSpot Spot;
 
+		FString UniqueId; //will be generated in FAsset::GenerateNames
+
 		FLight(const FNode* Node)
 		    : Node(Node)
 		    , Color(1.f)
@@ -134,6 +139,8 @@ namespace GLTF
 		FString          Name;
 		TArray<int32>    Joints;    // each is an index into FAsset::Nodes
 		int32            Skeleton;  // root node, index into FAsset::Nodes
+
+		FString          UniqueId; //will be generated in FAsset::GenerateNames
 
 		FSkinInfo(const FAccessor& InverseBindMatrices)
 		    : InverseBindMatrices(InverseBindMatrices)

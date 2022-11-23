@@ -169,8 +169,9 @@ public:
 
 	/**
 	 * Creates a new UInterchangeShaderGraphNode and adds it to NodeContainer as a translated node.
+	 * In case the ShaderGraphNodeDisplayLabel is not empty, ShaderGraphNodeName supposed to hold the ShaderGraphNodeId
 	 */
-	static UInterchangeShaderGraphNode* Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView NodeName);
+	static UInterchangeShaderGraphNode* Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView ShaderGraphNodeName /*Or ShaderGraphNodeId*/, const FStringView ShaderGraphNodeDisplayLabel = FStringView());
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
