@@ -23,12 +23,27 @@ namespace EpicGames.AspNet
         /// Media type for compact binary
         /// </summary>
         public const string UnrealCompactBinary = "application/x-ue-cb";
-    }
 
-    /// <summary>
-    /// Converter to allow reading compact binary objects as request bodies
-    /// </summary>
-    public class CbInputFormatter : InputFormatter
+		/// <summary>
+		/// Media type for compressed buffers
+		/// </summary>
+		public const string UnrealCompressedBuffer = "application/x-ue-comp";
+
+		/// <summary>
+		/// 
+		/// </summary>
+		public const string JupiterInlinedPayload = "application/x-jupiter-inline";
+
+		/// <summary>
+		/// Media type for compact binary packages
+		/// </summary>
+		public const string UnrealCompactBinaryPackage = "application/x-ue-cbpkg";
+	}
+
+	/// <summary>
+	/// Converter to allow reading compact binary objects as request bodies
+	/// </summary>
+	public class CbInputFormatter : InputFormatter
     {
         /// <summary>
         /// Constructor

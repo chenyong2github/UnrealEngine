@@ -25,6 +25,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Driver;
 using Serilog;
 using Logger = Serilog.Core.Logger;
+using EpicGames.AspNet;
 
 namespace Jupiter.FunctionalTests.Storage
 {

@@ -18,6 +18,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Serilog;
 using Serilog.Core;
+using EpicGames.AspNet;
 
 namespace Jupiter.FunctionalTests.CompressedBlobs
 {

@@ -14,6 +14,7 @@ using Serilog;
 using Logger = Serilog.Core.Logger;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
+using EpicGames.AspNet;
 
 namespace Jupiter.FunctionalTests.References
 {

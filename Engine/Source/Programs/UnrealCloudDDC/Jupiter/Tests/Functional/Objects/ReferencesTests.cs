@@ -29,6 +29,7 @@ using Logger = Serilog.Core.Logger;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using ContentId = Jupiter.Implementation.ContentId;
+using EpicGames.AspNet;
 
 namespace Jupiter.FunctionalTests.References
 {

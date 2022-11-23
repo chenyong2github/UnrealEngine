@@ -2,6 +2,7 @@
 
 using System.Net.Mime;
 using System.Threading.Tasks;
+using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;

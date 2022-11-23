@@ -33,6 +33,7 @@ using Serilog;
 using Serilog.Core;
 using ContentHash = Jupiter.Implementation.ContentHash;
 using IBlobStore = Jupiter.Implementation.IBlobStore;
+using EpicGames.AspNet;
 
 namespace Jupiter.FunctionalTests.Storage
 {
