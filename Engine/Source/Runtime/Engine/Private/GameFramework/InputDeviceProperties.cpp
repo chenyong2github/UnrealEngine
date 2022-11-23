@@ -17,10 +17,10 @@ UInputDeviceProperty::UInputDeviceProperty(const FObjectInitializer& ObjectIniti
 
 void UInputDeviceProperty::ApplyDeviceProperty(const FPlatformUserId UserId)
 {
-	UInputDeviceProperty::ApplyDeviceProperty(UserId, GetInternalDeviceProperty());
+	UInputDeviceProperty::ApplyDeviceProperty_Internal(UserId, GetInternalDeviceProperty());
 }
 
-void UInputDeviceProperty::ApplyDeviceProperty(const FPlatformUserId UserId, FInputDeviceProperty* RawProperty)
+void UInputDeviceProperty::ApplyDeviceProperty_Internal(const FPlatformUserId UserId, FInputDeviceProperty* RawProperty)
 {
 	if (ensure(RawProperty))
 	{
@@ -180,7 +180,7 @@ void UInputDeviceTriggerEffect::ResetDeviceProperty_Implementation(const FPlatfo
 	{
 		// Pass in our reset property
 		ResetProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
-		ApplyDeviceProperty(PlatformUser, &ResetProperty);
+		ApplyDeviceProperty_Internal(PlatformUser, &ResetProperty);
 	}	
 }
 

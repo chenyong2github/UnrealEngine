@@ -45,7 +45,7 @@ public:
 	* @param Duration			The number of seconds that this property has been active. Use this to get things like curve data over time.
 	* @return					A pointer to the evaluated input device property.
 	*/
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "InputDevice")
+	UFUNCTION(BlueprintNativeEvent, Category = "InputDevice")
 	void EvaluateDeviceProperty(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration);
 
 	/** 
@@ -62,7 +62,7 @@ public:
 	* 
 	* @param PlatformUser		The platform user that should receive this device property change
 	*/
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "InputDevice")
+	UFUNCTION(BlueprintNativeEvent, Category = "InputDevice")
 	void ResetDeviceProperty(const FPlatformUserId PlatformUser);
 
 	/**
@@ -79,16 +79,8 @@ public:
 	* 
 	* @param UserId		The owning Platform User whose input device this property should be applied to.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "InputDevice")
+	UFUNCTION(Category = "InputDevice")
 	virtual void ApplyDeviceProperty(const FPlatformUserId UserId);
-
-	/** 
-	* Apply the given device property
-	* 
-	* @param UserId			The owning Platform User whose input device this property should be applied to.
-	* @param RawProperty	The internal input device property to apply.
-	*/
-	static void ApplyDeviceProperty(const FPlatformUserId UserId, FInputDeviceProperty* RawProperty);
 	
 	/** Gets a pointer to the current input device property that the IInputInterface can use. */
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() { return nullptr; };
@@ -111,6 +103,14 @@ public:
 #endif	// WITH_EDITOR
 
 protected:
+
+	/**
+	* Apply the given device property
+	*
+	* @param UserId			The owning Platform User whose input device this property should be applied to.
+	* @param RawProperty	The internal input device property to apply.
+	*/
+	static void ApplyDeviceProperty_Internal(const FPlatformUserId UserId, FInputDeviceProperty* RawProperty);
 
 	/** Returns the device specific data for the given platform user. Returns the default data if none are given */
 	template<class TDataLayout>
