@@ -50,6 +50,7 @@
 #include "Styling/StyleColors.h"
 #include "EditorModes.h"
 #include "ControlRigObjectBinding.h"
+#include "SLevelViewport.h"
 
 #define LOCTEXT_NAMESPACE "SequencerAnimTools"
 
@@ -1229,30 +1230,48 @@ FMargin USequencerPivotTool::GetPivotOverlayPadding() const
 
 void USequencerPivotTool::RemoveAndDestroyPivotOverlay()
 {
+	if (PivotWidget.IsValid() == false)
+	{
+		return;
+	}
 	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
 	{
-		TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveViewport();
-		if (ActiveLevelViewport.IsValid())
+		if (TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule->GetFirstLevelEditor())
 		{
-			if (PivotWidget)
+			for (TSharedPtr<SLevelViewport> LevelViewport : LevelEditor->GetViewports())
 			{
-				ActiveLevelViewport->RemoveOverlayWidget(PivotWidget.ToSharedRef());
-				PivotWidget.Reset();
+				if (LevelViewport.IsValid())
+				{
+					if (PivotWidget)
+					{
+						LevelViewport->RemoveOverlayWidget(PivotWidget.ToSharedRef());
+					}
+				}
 			}
+			PivotWidget.Reset();
 		}
 	}
 }
 
 void USequencerPivotTool::TryRemovePivotOverlay()
 {
+	if (PivotWidget.IsValid() == false)
+	{
+		return;
+	}
 	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
 	{
-		TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveViewport();
-		if (ActiveLevelViewport.IsValid())
+		if (TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule->GetFirstLevelEditor())
 		{
-			if (PivotWidget)
+			for (TSharedPtr<SLevelViewport> LevelViewport : LevelEditor->GetViewports())
 			{
-				ActiveLevelViewport->RemoveOverlayWidget(PivotWidget.ToSharedRef());
+				if (LevelViewport.IsValid())
+				{
+					if (PivotWidget)
+					{
+						LevelViewport->RemoveOverlayWidget(PivotWidget.ToSharedRef());
+					}
+				}
 			}
 		}
 	}

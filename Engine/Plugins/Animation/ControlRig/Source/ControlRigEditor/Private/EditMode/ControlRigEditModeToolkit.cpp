@@ -23,6 +23,9 @@
 #include "EditMode/SControlRigDetails.h"
 #include "EditMode/SControlRigOutliner.h"
 #include "EditMode/SControlRigSpacePicker.h"
+#include "LevelEditor.h"
+#include "SLevelViewport.h"
+
 #define LOCTEXT_NAMESPACE "FControlRigEditModeToolkit"
 
 namespace 
@@ -297,7 +300,22 @@ void FControlRigEditModeToolkit::TryRemoveTweenOverlay()
 {
 	if (IsHosted() && TweenWidgetParent)
 	{
-		GetToolkitHost()->RemoveViewportOverlayWidget(TweenWidgetParent.ToSharedRef());
+		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
+		{
+			if (TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule->GetFirstLevelEditor())
+			{
+				for (TSharedPtr<SLevelViewport> LevelViewport : LevelEditor->GetViewports())
+				{
+					if (LevelViewport.IsValid())
+					{
+						if (TweenWidgetParent)
+						{
+							LevelViewport->RemoveOverlayWidget(TweenWidgetParent.ToSharedRef());
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
