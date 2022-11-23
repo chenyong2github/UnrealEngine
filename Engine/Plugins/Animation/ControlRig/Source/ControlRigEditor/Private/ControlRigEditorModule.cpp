@@ -1007,8 +1007,6 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 	FRigVMRegistry& Registry = FRigVMRegistry::Get();
 	Registry.RefreshEngineTypes();
 
-#if UE_RIGVM_ENABLE_TEMPLATE_NODES
-	
 	for (const FRigVMTemplate& Template : Registry.GetTemplates())
 	{
 		// factories are registered below
@@ -1066,8 +1064,6 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	};
 
-#endif
-
 	// Add all rig units
 	for(const FRigVMFunction& Function : Registry.GetFunctions())
 	{
@@ -1077,13 +1073,11 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 			continue;
 		}
 
-#if UE_RIGVM_ENABLE_TEMPLATE_NODES
 		// skip rig units which have a template
 		if (Function.GetTemplate())
 		{
 			continue;
 		}
-#endif
 
 		// skip deprecated units
 		if(Function.Struct->HasMetaData(FRigVMStruct::DeprecatedMetaName))

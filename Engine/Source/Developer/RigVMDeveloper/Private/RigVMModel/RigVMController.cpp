@@ -834,8 +834,6 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 		return nullptr;
 	}
 
-#if UE_RIGVM_ENABLE_TEMPLATE_NODES
-
 	if(const FRigVMTemplate* Template = Function->GetTemplate())
 	{
 		if(bSetupUndoRedo)
@@ -881,8 +879,6 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 
 		return TemplateNode;
 	}
-
-#endif
 
 	FStructOnScope StructOnScope(InScriptStruct);
 	FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope.GetStructMemory();

@@ -23,10 +23,6 @@
 #include "UObject/Interface.h"
 #include "RigVMController.generated.h"
 
-#ifndef UE_RIGVM_ENABLE_TEMPLATE_NODES
-#define UE_RIGVM_ENABLE_TEMPLATE_NODES 1
-#endif
-
 class URigVMActionStack;
 struct FRigVMGraphFunctionArgument;
 struct FRigVMGraphFunctionHeader;
