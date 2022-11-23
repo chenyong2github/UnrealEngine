@@ -159,18 +159,6 @@ namespace MaterialImpl
 		{ MP_Normal, SF_Pixel },
 		{ MP_OpacityMask, SF_Pixel },
 	};
-
-	bool IsPropertyRelevantForMobile(EMaterialProperty InProperty)
-	{
-		for (FMobileProperty MobileProperty : GMobileRelevantMaterialProperties)
-		{
-			if (MobileProperty.Property == InProperty)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
 }
 
 #if WITH_EDITOR
@@ -6375,6 +6363,20 @@ bool UMaterial::IsPropertySupported(EMaterialProperty InProperty) const
 		}
 	}
 	return bSupported;
+}
+
+bool UMaterial::IsPropertyRelevantForMobile(EMaterialProperty InProperty)
+{
+	using namespace MaterialImpl;
+
+	for (FMobileProperty MobileProperty : GMobileRelevantMaterialProperties)
+	{
+		if (MobileProperty.Property == InProperty)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
