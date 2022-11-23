@@ -177,6 +177,12 @@ bool FPCGAttributeReduceElement::ExecuteInternal(FPCGContext* Context) const
 	
 	FPCGMetadataAttributeBase* OutputAttribute = OutputParamData->Metadata->CopyAttribute(InputAttribute, OutputAttributeName, /*bKeepParent=*/ false, /*bCopyEntries=*/ false, /*bCopyValues=*/ false);
 
+	if (!OutputAttribute)
+	{
+		PCGE_LOG(Error, "Error while creating target attribute %s", *OutputAttributeName.ToString());
+		return true;
+	}
+
 	auto DoOperation = [InputAttribute, OutputAttribute, Operation = Settings->Operation, SpatialData, PointData, OutputParamData](auto DummyValue) -> bool
 	{
 		using AttributeType = decltype(DummyValue);

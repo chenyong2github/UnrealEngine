@@ -97,7 +97,7 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 		const FPCGMetadataAttributeBase* Attribute = PointData->Metadata->GetConstAttribute(Settings->InputAttributeName);
 		UPCGParamData* OutputParamData = NewObject<UPCGParamData>();
 
-		auto ExtractAttribute = [AttributeName = Settings->InputAttributeName, &Point, &OutputParamData, Attribute](auto DummyValue)
+		auto ExtractAttribute = [this, Context, AttributeName = Settings->InputAttributeName, &Point, &OutputParamData, Attribute](auto DummyValue) -> bool
 		{
 			using AttributeType = decltype(DummyValue);
 
@@ -106,17 +106,24 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 			FPCGMetadataAttributeBase* NewAttributeBase =
 				OutputParamData->Metadata->CreateAttribute<AttributeType>(AttributeName, TypedAttribute->GetValueFromItemKey(Point.MetadataEntry), TypedAttribute->AllowsInterpolation(), /*bOverrideParent=*/false);
 
-			check(NewAttributeBase);
+			if (!NewAttributeBase)
+			{
+				PCGE_LOG(Error, "Error while creating target attribute %s", *AttributeName.ToString());
+				return false;
+			}
 
 			PCGMetadataEntryKey EntryKey = OutputParamData->Metadata->AddEntry();
 			NewAttributeBase->SetValueFromValueKey(EntryKey, PCGDefaultValueKey);
+
+			return true;
 		};
 
-		PCGMetadataAttribute::CallbackWithRightType(Attribute->GetTypeId(), ExtractAttribute);
-
-		FPCGTaggedData& Output = Outputs.Emplace_GetRef();
-		Output.Data = OutputParamData;
-		Output.Pin = PCGAttributeGetFromPointIndexConstants::OutputAttributeLabel;
+		if (PCGMetadataAttribute::CallbackWithRightType(Attribute->GetTypeId(), ExtractAttribute))
+		{
+			FPCGTaggedData& Output = Outputs.Emplace_GetRef();
+			Output.Data = OutputParamData;
+			Output.Pin = PCGAttributeGetFromPointIndexConstants::OutputAttributeLabel;
+		}
 	}
 
 	return true;

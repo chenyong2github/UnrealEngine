@@ -73,3 +73,41 @@ void FPCGMetadataAttributeBase::ClearEntries()
 {
 	EntryToValueKeyMap.Reset();
 }
+
+bool FPCGMetadataAttributeBase::IsValidName(const FString& Name)
+{
+	// A valid name is alphanumeric with some special characters allowed.
+	static const FString AllowedSpecialCharacters = TEXT("_.-");
+
+	for (int32 i = 0; i < Name.Len(); ++i)
+	{
+		if (FChar::IsAlpha(Name[i]) || FChar::IsDigit(Name[i]))
+		{
+			continue;
+		}
+
+		bool bAllowedSpecialCharacterFound = false;
+
+		for (int32 j = 0; j < AllowedSpecialCharacters.Len(); ++j)
+		{
+			if (Name[i] == AllowedSpecialCharacters[j])
+			{
+				bAllowedSpecialCharacterFound = true;
+				break;
+			}
+		}
+
+		if (!bAllowedSpecialCharacterFound)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool FPCGMetadataAttributeBase::IsValidName(const FName& Name)
+{
+	// Early out on None
+	return (Name == NAME_None) || IsValidName(Name.ToString());
+}

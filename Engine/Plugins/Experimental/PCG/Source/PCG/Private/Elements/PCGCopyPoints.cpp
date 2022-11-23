@@ -117,8 +117,10 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 		if (!OutPointData->Metadata->HasAttribute(AttributeName))
 		{
 			const FPCGMetadataAttributeBase* Attribute = NonRootMetadata->GetConstAttribute(AttributeName);
-			FPCGMetadataAttributeBase* NewAttribute = OutPointData->Metadata->CopyAttribute(Attribute, AttributeName, /*bKeepRoot=*/false, /*bCopyEntries=*/false, /*bCopyValues=*/true);
-			NonRootAttributes.Add(NewAttribute);
+			if (FPCGMetadataAttributeBase* NewAttribute = OutPointData->Metadata->CopyAttribute(Attribute, AttributeName, /*bKeepRoot=*/false, /*bCopyEntries=*/false, /*bCopyValues=*/true))
+			{
+				NonRootAttributes.Add(NewAttribute);
+			}
 		}
 	}
 

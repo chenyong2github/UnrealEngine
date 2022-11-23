@@ -55,6 +55,13 @@ public:
 
 		// We can't keep the parent if we don't have the same root.
 		check(!bKeepParent || PCGMetadataHelpers::HasSameRoot(Metadata, InMetadata));
+
+		// Validate that the new name is valid
+		if (!IsValidName(NewName))
+		{
+			UE_LOG(LogPCG, Error, TEXT("Try to create a new attribute with an invalid name: %s"), *NewName.ToString());
+			return nullptr;
+		}
 		
 		// This copies to a new attribute.
 		FPCGMetadataAttribute<T>* AttributeCopy = new FPCGMetadataAttribute<T>(InMetadata, NewName, bKeepParent ? this : nullptr, DefaultValue, bAllowsInterpolation);

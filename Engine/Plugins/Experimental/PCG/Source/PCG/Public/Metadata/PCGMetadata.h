@@ -268,6 +268,12 @@ protected:
 template<typename T>
 FPCGMetadataAttributeBase* UPCGMetadata::CreateAttribute(FName AttributeName, const T& DefaultValue, bool bAllowsInterpolation, bool bOverrideParent)
 {
+	if (!FPCGMetadataAttributeBase::IsValidName(AttributeName))
+	{
+		UE_LOG(LogPCG, Error, TEXT("Attribute name %s is invalid"), *AttributeName.ToString());
+		return nullptr;
+	}
+
 	const FPCGMetadataAttributeBase* ParentAttribute = nullptr;
 
 	if (bOverrideParent && Parent.IsValid())

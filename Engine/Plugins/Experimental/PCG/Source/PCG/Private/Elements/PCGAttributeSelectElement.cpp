@@ -284,6 +284,12 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 
 	FPCGMetadataAttributeBase* OutputAttribute = OutputParamData->Metadata->CopyAttribute(InputAttribute, OutputAttributeName, /*bKeepParent=*/ false, /*bCopyEntries=*/ false, /*bCopyValues=*/ false);
 
+	if (!OutputAttribute)
+	{
+		PCGE_LOG(Error, "Error while creating target attribute %s", *OutputAttributeName.ToString());
+		return true;
+	}
+
 	auto DoOperation = [&](auto DummyValue) -> int32
 	{
 		using AttributeType = decltype(DummyValue);

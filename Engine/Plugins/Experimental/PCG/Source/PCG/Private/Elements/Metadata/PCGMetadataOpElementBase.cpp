@@ -241,6 +241,12 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			OperationData.InputIterators[0].GetWrapper().Get<AttributeType>(PCGInvalidEntryKey, DefaultValue);
 
 			FPCGMetadataAttributeBase* OutputAttribute = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputName, DefaultValue);
+
+			if (!OutputAttribute)
+			{
+				return false;
+			}
+
 			if (bShouldCopyEntryMap)
 			{
 				PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], OperationData.InputIterators[0].GetWrapper().GetAttribute(), OutputAttribute);

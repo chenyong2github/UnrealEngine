@@ -51,6 +51,9 @@ public:
 
 	const FPCGMetadataAttributeBase* GetParent() const { return Parent; }
 
+	static bool IsValidName(const FString& Name);
+	static bool IsValidName(const FName& Name);
+
 protected:
 	TMap<PCGMetadataEntryKey, PCGMetadataValueKey> EntryToValueKeyMap;
 	mutable FRWLock EntryMapLock;

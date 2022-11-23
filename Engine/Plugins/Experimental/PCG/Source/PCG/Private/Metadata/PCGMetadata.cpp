@@ -136,6 +136,8 @@ void UPCGMetadata::AddAttributesFiltered(const UPCGMetadata* InOther, const TSet
 		return;
 	}
 
+	bool bAttributeAdded = false;
+
 	for (const TPair<FName, FPCGMetadataAttributeBase*> OtherAttribute : InOther->Attributes)
 	{
 		// Skip this attribute if it is in an exclude list, or if it is not in an include list
@@ -149,11 +151,14 @@ void UPCGMetadata::AddAttributesFiltered(const UPCGMetadata* InOther, const TSet
 		}
 		else
 		{
-			CopyAttribute(OtherAttribute.Value, OtherAttribute.Key, /*bKeepParent=*/InOther == Parent, /*bCopyEntries=*/false, /*bCopyValues=*/false);
+			if (CopyAttribute(OtherAttribute.Value, OtherAttribute.Key, /*bKeepParent=*/InOther == Parent, /*bCopyEntries=*/false, /*bCopyValues=*/false))
+			{
+				bAttributeAdded = true;
+			}
 		}
 	}
 
-	if (InOther != Parent)
+	if (InOther != Parent && bAttributeAdded)
 	{
 		OtherParents.Add(InOther);
 	}
@@ -166,9 +171,9 @@ void UPCGMetadata::AddAttribute(const UPCGMetadata* InOther, FName AttributeName
 		return;
 	}
 
-	CopyAttribute(InOther->GetConstAttribute(AttributeName), AttributeName, /*bKeepParent=*/InOther == Parent, /*bCopyEntries=*/false, /*bCopyValues=*/false);
+	const bool bAttributeAdded = CopyAttribute(InOther->GetConstAttribute(AttributeName), AttributeName, /*bKeepParent=*/InOther == Parent, /*bCopyEntries=*/false, /*bCopyValues=*/false) != nullptr;
 
-	if (InOther != Parent)
+	if (InOther != Parent && bAttributeAdded)
 	{
 		OtherParents.Add(InOther);
 	}
@@ -535,16 +540,25 @@ FPCGMetadataAttributeBase* UPCGMetadata::CopyAttribute(const FPCGMetadataAttribu
 	check(OriginalAttribute->GetMetadata()->GetRoot() == GetRoot() || !bKeepParent);
 	FPCGMetadataAttributeBase* NewAttribute = OriginalAttribute->Copy(NewAttributeName, this, bKeepParent, bCopyEntries, bCopyValues);
 
-	AttributeLock.WriteLock();
-	NewAttribute->AttributeId = NextAttributeId++;
-	AddAttributeInternal(NewAttributeName, NewAttribute);
-	AttributeLock.WriteUnlock();
+	if (NewAttribute)
+	{
+		AttributeLock.WriteLock();
+		NewAttribute->AttributeId = NextAttributeId++;
+		AddAttributeInternal(NewAttributeName, NewAttribute);
+		AttributeLock.WriteUnlock();
+	}
 
 	return NewAttribute;
 }
 
 void UPCGMetadata::RenameAttribute(FName AttributeToRename, FName NewAttributeName)
 {
+	if (!FPCGMetadataAttributeBase::IsValidName(NewAttributeName))
+	{
+		UE_LOG(LogPCG, Error, TEXT("New attribute name %s is not valid"), *NewAttributeName.ToString());
+		return;
+	}
+
 	bool bRenamed = false;
 	AttributeLock.WriteLock();
 	if (FPCGMetadataAttributeBase** AttributeFound = Attributes.Find(AttributeToRename))

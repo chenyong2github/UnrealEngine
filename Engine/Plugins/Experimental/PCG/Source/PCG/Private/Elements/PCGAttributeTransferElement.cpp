@@ -131,6 +131,12 @@ UPCGSpatialData* FPCGAttributeTransferElement::TransferSpatialToSpatial(FPCGCont
 
 	NewSpatialData->Metadata->CopyAttribute(SourceData->Metadata, Settings->SourceAttributeName, TargetAttributeName);
 
+	if (!NewSpatialData->Metadata->HasAttribute(TargetAttributeName))
+	{
+		PCGE_LOG(Error, "Error while creating target attribute %s", *TargetAttributeName.ToString());
+		return nullptr;
+	}
+
 	return NewSpatialData;
 }
 
@@ -164,6 +170,12 @@ UPCGPointData* FPCGAttributeTransferElement::TransferPointToPoint(FPCGContext* C
 
 	const FPCGMetadataAttributeBase* SourceAttribute = SourceData->Metadata->GetConstAttribute(Settings->SourceAttributeName);
 	FPCGMetadataAttributeBase* TargetAttribute = NewPointData->Metadata->CopyAttribute(SourceAttribute, TargetAttributeName, /*bKeepParent=*/ false, /*bCopyEntries=*/ false, /*bCopyValues=*/ true);
+
+	if (!TargetAttribute)
+	{
+		PCGE_LOG(Error, "Error while creating target attribute %s", *TargetAttributeName.ToString());
+		return nullptr;
+	}
 
 	for (int32 i = 0; i < SourcePoints.Num(); ++i)
 	{
