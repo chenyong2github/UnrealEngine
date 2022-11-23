@@ -12,6 +12,7 @@
 #include "Widgets/FixturePatch/DMXMVRFixtureListItem.h"
 
 #include "SSearchableComboBox.h"
+#include "Engine/EngineTypes.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Styling/AppStyle.h"
@@ -65,7 +66,7 @@ public:
 				]
 			];
 
-		Refresh();
+		RefreshInternal();
 	}
 
 	/** Sets the currently selected Fixture Type */
@@ -89,6 +90,15 @@ public:
 		}
 	}
 
+	/** Requests to refresh the widget on the next tick */
+	void RequestRefresh()
+	{
+		if (!RefreshTimerHandle.IsValid())
+		{
+			RefreshTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXMVRFixtureFixtureTypePicker::RefreshInternal));
+		}
+	}
+
 private:
 	/** Called when the combo box generates a widget */
 	TSharedRef<SWidget> OnGenerateWidget(TSharedPtr<FString> InItem)
@@ -101,6 +111,11 @@ private:
 	/** Called when the combo box selection changed */
 	void OnSelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
 	{
+		if (SelectInfo == ESelectInfo::Direct)
+		{
+			return;
+		}
+
 		if (UDMXEntityFixtureType* SelectedFixtureType = GetSelectedFixtureType())
 		{
 			OnFixtureTypeSelectedDelegate.ExecuteIfBound(SelectedFixtureType);
@@ -134,14 +149,27 @@ private:
 	}
 
 	/** Refreshes the Combo Box */
-	void Refresh()
+	void RefreshInternal()
 	{
-		FixtureTypeNames.Reset();
+		RefreshTimerHandle.Invalidate();
 
-		FixtureTypeNames.Add(MakeShared<FString>(TEXT("None")));
-		if (const UDMXLibrary* DMXLibrary = WeakDMXLibrary.Get())
+		FixtureTypeNames.Reset();
+		const UDMXLibrary* DMXLibrary = WeakDMXLibrary.Get();
+		if (!DMXLibrary)
 		{
-			const TArray<UDMXEntityFixtureType*> FixtureTypes = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixtureType>();
+			return;
+		}
+
+		const TArray<UDMXEntityFixtureType*> FixtureTypes = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixtureType>();
+
+		if (FixtureTypes.IsEmpty())
+		{
+			const TSharedRef<FString> NoneItem = MakeShared<FString>(TEXT("None"));
+			FixtureTypeNames.Add(NoneItem);
+			ComboBox->SetSelectedItem(NoneItem);
+		}
+		else
+		{
 			for (UDMXEntityFixtureType* FixtureType : FixtureTypes)
 			{
 				const TSharedPtr<FString> FixtureTypeName = MakeShared<FString>(FixtureType->Name);
@@ -151,19 +179,40 @@ private:
 			}
 		}
 
+		if (!ensureMsgf(!FixtureTypeNames.IsEmpty(), TEXT("No combo box option for Fixture Type.")))
+		{
+			return;
+		}
+
+		const FString SelectedFixtureTypeName = ComboBox->GetSelectedItem() ? *ComboBox->GetSelectedItem() : TEXT("");
+		const TSharedPtr<FString>* SelectionPtr = Algo::FindByPredicate(FixtureTypeNames, [SelectedFixtureTypeName](const TSharedPtr<FString>& FixtureTypeName)
+			{
+				return *FixtureTypeName == SelectedFixtureTypeName;
+			});
+		if (!SelectionPtr)
+		{
+			ComboBox->SetSelectedItem(FixtureTypeNames[0], ESelectInfo::Direct);
+		}
+
 		ComboBox->RefreshOptions();
 	}
 
 	/** Called when the Entities in the DMX Library were added or removed */
 	void OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> AddedOrRemovedEntities)
 	{
-		Refresh();
+		if (DMXLibrary == WeakDMXLibrary)
+		{
+			RequestRefresh();
+		}
 	}
 
 	/** Called when a Fixture Type changed */
 	void OnFixtureTypeChanged(const UDMXEntityFixtureType* ChangedFixtureType)
 	{
-		Refresh();
+		if (ChangedFixtureType && ChangedFixtureType->GetParentLibrary() == WeakDMXLibrary)
+		{
+			RequestRefresh();
+		}
 	}
 
 	/** Names of Fixture Types in the Combo Box */
@@ -177,6 +226,9 @@ private:
 
 	/** The DMX Library from which to select fixture types */
 	TWeakObjectPtr<UDMXLibrary> WeakDMXLibrary;
+
+	/** Timer handle used for the RequestRefresh method */
+	FTimerHandle RefreshTimerHandle;
 
 	// Slate args
 	FDMXMVRFixtureListRowOnFixtureTypeSelectedDelegate OnFixtureTypeSelectedDelegate;
@@ -282,6 +334,9 @@ private:
 	/** Refreshes the Combo Box */
 	void RefreshOptions()
 	{
+		// Remember selection
+		const FString PreviousSelectedModeName = ComboBox->GetSelectedItem().IsValid() ? *ComboBox->GetSelectedItem() : FString();
+
 		ModeNames.Reset();
 
 		if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
@@ -308,12 +363,25 @@ private:
 		}
 
 		ComboBox->RefreshOptions();
+
+		// Restore selection
+		TSharedPtr<FString>* PreviousSelectionPtr = Algo::FindByPredicate(ModeNames, [PreviousSelectedModeName](const TSharedPtr<FString>& ModeName)
+			{
+				return ModeName.IsValid() && *ModeName == PreviousSelectedModeName;
+			});
+		if (PreviousSelectionPtr)
+		{
+			ComboBox->SetSelectedItem(*PreviousSelectionPtr);
+		}
 	}
 
 	/** Called when the Entities in the DMX Library were added or removed */
 	void OnFixtureTypeChanged(const UDMXEntityFixtureType* ChangedFixtureType)
 	{
-		RefreshOptions();
+		if (ChangedFixtureType == WeakFixtureType)
+		{
+			RefreshOptions();
+		}
 	}
 
 	/** True if the Combo Box should be enabled */

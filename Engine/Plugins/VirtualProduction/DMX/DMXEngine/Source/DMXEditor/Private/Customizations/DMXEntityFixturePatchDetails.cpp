@@ -120,11 +120,12 @@ TSharedRef<SWidget> FDMXEntityFixturePatchDetails::GenerateActiveModeWidget(cons
 void FDMXEntityFixturePatchDetails::OnParentFixtureTypeChanged(UDMXEntity* NewTemplate) const
 {
 	ParentFixtureTypeHandle->SetValue(Cast<UDMXEntityFixtureType>(NewTemplate));
+	PropertyUtilities->ForceRefresh();
 }
 
 void FDMXEntityFixturePatchDetails::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
 {
-	if (IsValid(FixtureType) && !FixtureType->HasAnyFlags(RF_Transactional))
+	if (IsValid(FixtureType))
 	{
 		// Keep the active mode valid
 		int32 ActiveMode;
@@ -264,11 +265,14 @@ void FDMXEntityFixturePatchDetails::SetActiveMode(int32 ModeIndex)
 
 	if (OuterObjects.Num() > 0)
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetFixturePatchActiveModeTransaction", "Set DMX Fixture Patch Active Mode"));
-
 		for (UObject* Object : OuterObjects)
 		{
 			UDMXEntityFixturePatch* Patch = CastChecked<UDMXEntityFixturePatch>(Object);
+			if (Patch->GetActiveModeIndex() == ModeIndex)
+			{
+				continue;
+			}
+			
 			Patch->Modify();
 			Patch->PreEditChange(UDMXEntityFixturePatch::StaticClass()->FindPropertyByName(UDMXEntityFixturePatch::GetActiveModePropertyNameChecked()));
 

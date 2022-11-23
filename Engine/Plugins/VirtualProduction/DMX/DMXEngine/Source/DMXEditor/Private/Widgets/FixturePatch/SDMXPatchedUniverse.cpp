@@ -114,7 +114,10 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SDMXPatchedUniverse::RequestRefresh()
 {
-	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXPatchedUniverse::RefreshInternal));
+	if (!RequestRefreshTimerHandle.IsValid())
+	{
+		RequestRefreshTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXPatchedUniverse::RefreshInternal));
+	}
 }
 
 void SDMXPatchedUniverse::CreateChannelConnectors()
@@ -308,13 +311,13 @@ void SDMXPatchedUniverse::Unpatch(const TSharedPtr<FDMXFixturePatchNode>& Node)
 				Grid->RemoveSlot(Widget.ToSharedRef());
 			}
 		}
-		RefreshInternal();
+		RequestRefresh();
 	}
 }
 
 void SDMXPatchedUniverse::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
 {
-	if (!FixturePatch)
+	if (!FixturePatch || FixturePatch->GetParentLibrary() != GetDMXLibrary())
 	{
 		return;
 	}
@@ -391,12 +394,14 @@ void SDMXPatchedUniverse::SetUniverseIDInternal(int32 NewUniverseID)
 			Connector->SetUniverseID(NewUniverseID);
 		}
 
-		RefreshInternal();
+		RequestRefresh();
 	}
 }
 
 void SDMXPatchedUniverse::RefreshInternal()
 {
+	RequestRefreshTimerHandle.Invalidate();
+
 	UpdateZOrderOfNodes();
 
 	// Remove old widgets from the grid

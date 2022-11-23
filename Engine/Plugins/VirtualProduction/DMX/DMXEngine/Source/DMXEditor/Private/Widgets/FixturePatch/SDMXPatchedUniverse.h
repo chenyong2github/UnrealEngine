@@ -205,6 +205,9 @@ private:
 	/** The Fixture Patch Widgets that are currently being displalyed */
 	TArray<TSharedPtr<SDMXFixturePatchFragment>> FixturePatchWidgets;
 
+	/** Timer handle for the Request Refresh method */
+	FTimerHandle RequestRefreshTimerHandle;
+
 	/** Shared data for fixture patch editors */
 	TSharedPtr<FDMXFixturePatchSharedData> SharedData;
 

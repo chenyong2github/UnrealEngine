@@ -13,8 +13,12 @@ class FDMXMVRFixtureListItem;
 class FDMXFixturePatchSharedData;
 class SDMXMVRFixtureListRow;
 class SDMXMVRFixtureListToolbar;
+class UDMXEntity;
 class UDMXEntityFixturePatch;
 class UDMXEntityFixtureType;
+class UDMXLibrary;
+class UDMXMVRFixtureNode;
+class UDMXMVRGeneralSceneDescription;
 
 class FUICommandList;
 class ITableRow;
@@ -93,6 +97,9 @@ private:
 	/** Called when the Selection in the list changed */
 	void OnSelectionChanged(TSharedPtr<FDMXMVRFixtureListItem> InItem, ESelectInfo::Type SelectInfo);
 
+	/** Called when entities were added or removed from the DMX Library */
+	void OnEntityAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities);
+
 	/** Called when a Fixture Patch changed */
 	void OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch);
 
@@ -101,9 +108,6 @@ private:
 
 	/** Called when Fixture Patch Shared Data selected Fixture Patches */
 	void OnFixturePatchSharedDataSelectedFixturePatches();
-
-	/** Called when Fixture Patch Shared Data selected a Universe */
-	void OnFixturePatchSharedDataSelectedUniverse();
 
 	/** Selects what is selected in Fixture Patch Shared Data */
 	void AdoptSelectionFromFixturePatchSharedData();
@@ -128,6 +132,9 @@ private:
 
 	/** Sort the list by ColumnId */
 	void SortByColumnID(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+
+	/** Returns the MVR Fixture corresponding to the fixture patch */
+	UDMXMVRFixtureNode* FindMVRFixtureNode(UDMXMVRGeneralSceneDescription* GeneralSceneDescription, UDMXEntityFixturePatch* FixturePatch) const;
 
 	/** The current Sort Mode */
 	EColumnSortMode::Type SortMode;
@@ -186,6 +193,4 @@ private:
 	void OnDeleteItems();
 
 	TSharedPtr<FUICommandList> CommandList;
-
-	static const FString ClipboardCopyMVRFixtureHeader;
 };

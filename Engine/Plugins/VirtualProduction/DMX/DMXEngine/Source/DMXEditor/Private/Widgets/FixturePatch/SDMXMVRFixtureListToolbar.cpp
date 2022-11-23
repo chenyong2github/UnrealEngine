@@ -10,6 +10,7 @@
 #include "Widgets/SDMXEntityDropdownMenu.h"
 
 #include "EditorStyleSet.h"
+#include "ScopedTransaction.h"
 #include "Internationalization/Regex.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -360,6 +361,7 @@ void SDMXMVRFixtureListToolbar::OnAddNewMVRFixtureClicked(UDMXEntity* InSelected
 	FixturePatchConstructionParams.UniverseID = Universe;
 	FixturePatchConstructionParams.StartingAddress = Address;
 
+	const FScopedTransaction CreateFixturePatchTransaction(LOCTEXT("CreateFixturePatchTransaction", "Create Fixture Patch"));
 	constexpr bool bMarkLibraryDirty = true;
 	UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams, FixtureType->Name, bMarkLibraryDirty);
 }

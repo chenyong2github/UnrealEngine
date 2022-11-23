@@ -23,7 +23,7 @@ class FDMXMVRFixtureListItem
 {
 public:	
 	/** Constructor */
-	FDMXMVRFixtureListItem(TWeakPtr<FDMXEditor> InDMXEditor, const FGuid& InMVRFixtureUUID);
+	FDMXMVRFixtureListItem(TWeakPtr<FDMXEditor> InDMXEditor, UDMXMVRFixtureNode& InMVRFixtureNode);
 
 	/** Returns the MVR UUID of the MVR Fixture */
 	const FGuid& GetMVRUUID() const;
@@ -67,15 +67,6 @@ public:
 	/** Returns Num Channels the MVR Fixture spans */
 	int32 GetNumChannels() const;
 
-	/** Pastes Pasted Items onto an item */
-	static void PasteItemsOntoItem(TWeakPtr<FDMXEditor> WeakDMXEditor, const TSharedPtr<FDMXMVRFixtureListItem>& PasteOntoItem, const TArray<TSharedPtr<FDMXMVRFixtureListItem>>& ItemsToPaste);
-
-	/** Duplicates the Fixture Patches of the items */
-	static void DuplicateItems(TWeakPtr<FDMXEditor> WeakDMXEditor, const TArray<TSharedPtr<FDMXMVRFixtureListItem>>& ItemsToDuplicate);
-
-	/** Deletes specified items. Note, if all items of a Fixture Patch is deleted, the Fixture Patch is remvoed from its DMX Library. */
-	static void DeleteItems(const TArray<TSharedPtr<FDMXMVRFixtureListItem>>& ItemsToDelete);
-
 	/** Returns the Fixture Patch. Const on purpose, should be edited via this class's methods */
 	UDMXEntityFixturePatch* GetFixturePatch() const;
 
@@ -99,20 +90,11 @@ protected:
 
 
 private:
-	/** Duplicates Fixture Patches */
-	static void DuplicateFixturePatchesInternal(TWeakPtr<FDMXEditor> WeakDMXEditor, const TArray<UDMXEntityFixturePatch*>& FixturePatchesToDuplicate, const FText& TransactionText);
-
-	/** Returns the MVR Fixture Node that corresponds to this item */
-	UDMXMVRFixtureNode* FindMVRFixture() const;
-
 	/** True if this is in an even group */
 	bool bIsEvenGroup = false;
 
 	/** Cached MVR Fixture to speed up getters. */
 	UDMXMVRFixtureNode* MVRFixtureNode = nullptr;
-
-	/** The MVRFixtureUUID this Item handles */
-	FGuid MVRFixtureUUID;
 
 	/** The fixture patch the MVR Fixture UUID is assigned to */
 	TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch;
