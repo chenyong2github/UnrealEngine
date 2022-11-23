@@ -259,7 +259,7 @@ void FSourceControlWindowExtenderModule::FocusActors(const TArray<FAssetData>& A
 	{
 		if (TUniquePtr<FWorldPartitionActorDesc> ActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(ActorToFocus))
 		{
-			FocusBounds += ActorDesc->GetBounds();
+			FocusBounds += ActorDesc->GetEditorBounds();
 		}
 	}
 
