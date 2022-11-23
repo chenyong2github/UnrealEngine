@@ -35,6 +35,7 @@ class COREUOBJECT_API UGCObjectReferencer : public UObject
 	bool bReferencedObjectsChangedSinceLastNameVerify = false;
 	/** Currently serializing FGCObject*, only valid if bIsAddingReferencedObjects */
 	FGCObject* CurrentlySerializingObject = nullptr;
+	friend struct FReplaceReferenceHelper;
 
 public:
 	DECLARE_CASTED_CLASS_INTRINSIC_WITH_API_NO_CTOR(UGCObjectReferencer, UObject, CLASS_Transient, TEXT("/Script/CoreUObject"), CASTCLASS_None, NO_API);
