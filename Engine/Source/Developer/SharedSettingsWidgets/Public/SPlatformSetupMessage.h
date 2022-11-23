@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Misc/Attribute.h"
 #include "Input/Reply.h"
+#include "ISourceControlProvider.h"
+#include "ISourceControlOperation.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
@@ -22,7 +24,8 @@ class SHAREDSETTINGSWIDGETS_API SPlatformSetupMessage : public SCompoundWidget
 		MissingFiles,
 		NeedsCheckout,
 		ReadOnlyFiles,
-		ReadyToModify
+		ReadyToModify,
+		GettingStatus
 	};
 
 	SLATE_BEGIN_ARGS(SPlatformSetupMessage)
@@ -53,8 +56,10 @@ private:
 
 	FReply OnButtonPressed();
 
+	void OnSourceControlOperationComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult);
+
 	// Returns the setup state of a specified file
-	ESetupState GetSetupStateBasedOnFile(bool bForceUpdate) const;
+	ESetupState GetSetupStateBasedOnFile(bool bInitStatus);
 
 	// Updates the cache CachedSetupState 
 	void UpdateCache(bool bForceUpdate);

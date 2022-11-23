@@ -12,6 +12,7 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
+#include "SourceControlOperations.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -93,6 +94,11 @@ void SPlatformSetupMessage::Construct(const FArguments& InArgs, const FString& I
 		LOCTEXT("ReadyToModifyText", "Platform files are writeable"),
 		FText::GetEmpty());
 
+	TSharedRef<SWidget> GettingStatusWidget = MakeRow(
+		"SettingsEditor.WarningIcon",
+		LOCTEXT("GettingStatusText", "Getting status from source control"),
+		FText::GetEmpty());
+
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -120,6 +126,10 @@ void SPlatformSetupMessage::Construct(const FArguments& InArgs, const FString& I
 			[
 				ReadyToModifyWidget
 			]
+			+SWidgetSwitcher::Slot()
+			[
+				GettingStatusWidget
+			]
 		]
 	];
 
@@ -136,7 +146,7 @@ int32 SPlatformSetupMessage::GetSetupStateAsInt() const
 	return (int32)CachedSetupState;
 }
 
-SPlatformSetupMessage::ESetupState SPlatformSetupMessage::GetSetupStateBasedOnFile(bool bForce) const
+SPlatformSetupMessage::ESetupState SPlatformSetupMessage::GetSetupStateBasedOnFile(bool bInitStatus)
 {
 	if (!FPaths::FileExists(TargetFilename))
 	{
@@ -149,19 +159,30 @@ SPlatformSetupMessage::ESetupState SPlatformSetupMessage::GetSetupStateBasedOnFi
 		{
 			ISourceControlProvider& Provider = SCC.GetProvider();
 
-			FSourceControlStatePtr SourceControlState = Provider.GetState(TargetFilename, bForce ? EStateCacheUsage::ForceUpdate : EStateCacheUsage::Use);
-			if (SourceControlState.IsValid())
+			if (bInitStatus)
 			{
-				if (SourceControlState->IsSourceControlled())
+				TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
+				if (Provider.Execute(UpdateStatusOperation, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPlatformSetupMessage::OnSourceControlOperationComplete)) == ECommandResult::Succeeded)
 				{
-					if (SourceControlState->CanCheckout())
-					{
-						return NeedsCheckout;
-					}
+					return GettingStatus;
 				}
-				else
+			}
+			else
+			{
+				FSourceControlStatePtr SourceControlState = Provider.GetState(TargetFilename, EStateCacheUsage::Use);
+				if (SourceControlState.IsValid())
 				{
-					//@TODO: Should we instead try to add the file?
+					if (SourceControlState->IsSourceControlled())
+					{
+						if (SourceControlState->CanCheckout())
+						{
+							return NeedsCheckout;
+						}
+					}
+					else
+					{
+						//@TODO: Should we instead try to add the file?
+					}
 				}
 			}
 		}
@@ -170,6 +191,11 @@ SPlatformSetupMessage::ESetupState SPlatformSetupMessage::GetSetupStateBasedOnFi
 		const bool bIsReadOnly = FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*TargetFilename);
 		return bIsReadOnly ? ReadOnlyFiles : ReadyToModify;
 	}
+}
+
+void SPlatformSetupMessage::OnSourceControlOperationComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult)
+{
+	UpdateCache(false); // the SCC cache can be used now
 }
 
 void SPlatformSetupMessage::UpdateCache(bool bForceUpdate)
@@ -187,6 +213,7 @@ FSlateColor SPlatformSetupMessage::GetBorderColor() const
 		return FLinearColor::Green;
 	case ReadOnlyFiles:
 	case NeedsCheckout:
+	case GettingStatus:
 	default:
 		return FLinearColor::Yellow;
 	}
