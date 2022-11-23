@@ -7,6 +7,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if WITH_EDITOR
+#include "RHIDefinitions.h"
+#endif
 
 namespace Scalability
 { 
