@@ -3040,6 +3040,15 @@ static TAutoConsoleVariable<int32> CVarMobileDesiredResY(
 	TEXT("Desired mobile Y resolution (shortest axis) (non-zero == use for Y, calculate X to retain aspect ratio)"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarLWCTruncateMode(
+	TEXT("r.MaterialEditor.LWCTruncateMode"),
+	2,
+	TEXT("Whether or not the material compiler respects the truncate LWC node or automatic transforms.\n"
+		"0: no truncate (LWC always used even if asked to truncate)\n"
+		"1: respect the truncate LWC node\n"
+		"2: respect the truncate LWC node and automatic transforms"),
+	ECVF_ReadOnly);
+
 // this cvar can be removed in shipping to not compile shaders for development (faster)
 static TAutoConsoleVariable<int32> CVarCompileShadersForDevelopment(
 	TEXT("r.CompileShadersForDevelopment"),

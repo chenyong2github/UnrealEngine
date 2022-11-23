@@ -664,6 +664,8 @@ public:
 	const FExpression* NewDot(const FExpression* Lhs, const FExpression* Rhs) { return NewSum(NewMul(Lhs, Rhs)); }
 	const FExpression* NewLerp(const FExpression* A, const FExpression* B, const FExpression* T) { return NewAdd(A, NewMul(NewSub(B, A), T)); }
 
+	const FExpression* NewTruncateLWC(const FExpression* Input) { return NewUnaryOp(EOperation::TruncateLWC, Input); }
+
 private:
 	template<typename T, typename... ArgTypes>
 	inline T* NewNode(ArgTypes&&... Args)

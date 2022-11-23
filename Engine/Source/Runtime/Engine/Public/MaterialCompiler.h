@@ -269,6 +269,8 @@ public:
 	virtual int32 ValidCast(int32 Code,EMaterialValueType DestType) = 0;
 	virtual int32 ForceCast(int32 Code,EMaterialValueType DestType,uint32 ForceCastFlags = 0) = 0;
 
+	virtual int32 TruncateLWC(int32 Code) = 0;
+
 	/** Pushes a function onto the compiler's function stack, which indicates that compilation is entering a function. */
 	virtual void PushFunction(FMaterialFunctionCompileState* FunctionState) = 0;
 
@@ -791,6 +793,7 @@ public:
 	virtual bool IsMaterialPropertyUsed(EMaterialProperty Property, int32 CodeChunkIdx) const override { return Compiler->IsMaterialPropertyUsed(Property, CodeChunkIdx); }
 	virtual int32 ValidCast(int32 Code, EMaterialValueType DestType) override { return Compiler->ValidCast(Code, DestType); }
 	virtual int32 ForceCast(int32 Code, EMaterialValueType DestType, uint32 ForceCastFlags = 0) override { return Compiler->ForceCast(Code, DestType, ForceCastFlags); }
+	virtual int32 TruncateLWC(int32 Code) override { return Compiler->TruncateLWC(Code); }
 
 	virtual int32 AccessCollectionParameter(UMaterialParameterCollection* ParameterCollection, int32 ParameterIndex, int32 ComponentIndex) override { return Compiler->AccessCollectionParameter(ParameterCollection, ParameterIndex, ComponentIndex); }
 	virtual int32 NumericParameter(EMaterialParameterType ParameterType, FName ParameterName, const UE::Shader::FValue& DefaultValue) override { return Compiler->NumericParameter(ParameterType, ParameterName, DefaultValue); }

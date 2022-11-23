@@ -77,6 +77,7 @@
 #include "Materials/MaterialExpressionCeil.h"
 #include "Materials/MaterialExpressionRound.h"
 #include "Materials/MaterialExpressionTruncate.h"
+#include "Materials/MaterialExpressionTruncateLWC.h"
 #include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionSign.h"
 #include "Materials/MaterialExpressionSine.h"
@@ -1775,6 +1776,18 @@ bool UMaterialExpressionBlendMaterialAttributes::GenerateHLSLExpression(FMateria
 	}
 
 	OutExpression = ExpressionResult;
+	return true;
+}
+
+bool UMaterialExpressionTruncateLWC::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
+{
+	const UE::HLSLTree::FExpression* ExpressionInput = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionInput)
+	{
+		return false;
+	}
+
+	OutExpression = Generator.GetTree().NewTruncateLWC(ExpressionInput);
 	return true;
 }
 

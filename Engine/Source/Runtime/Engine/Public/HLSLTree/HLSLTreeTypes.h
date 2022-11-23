@@ -102,6 +102,8 @@ enum class EOperation : uint8
 	Atan,
 	AtanFast,
 
+	TruncateLWC,
+
 	// Binary Ops
 	Add,
 	Sub,

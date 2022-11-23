@@ -234,6 +234,7 @@
 #include "Materials/MaterialExpressionTransform.h"
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionTruncate.h"
+#include "Materials/MaterialExpressionTruncateLWC.h"
 #include "Materials/MaterialExpressionTwoSidedSign.h"
 #include "Materials/MaterialExpressionVectorNoise.h"
 #include "Materials/MaterialExpressionVertexColor.h"
@@ -9981,6 +9982,41 @@ int32 UMaterialExpressionNormalize::Compile(class FMaterialCompiler* Compiler, i
 
 	int32	V = VectorInput.Compile(Compiler);
 	return Compiler->Normalize(V);
+}
+#endif // WITH_EDITOR
+
+//
+//	UMaterialExpressionTruncateLWC
+//
+UMaterialExpressionTruncateLWC::UMaterialExpressionTruncateLWC(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Coordinates;
+		FConstructorStatics()
+			: NAME_Coordinates(LOCTEXT("Coordinates", "Coordinates"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Coordinates);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionTruncateLWC::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Input.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input"));
+	}
+
+	int32 CodeIndex = Input.Compile(Compiler);
+	return Compiler->TruncateLWC(CodeIndex);
 }
 #endif // WITH_EDITOR
 

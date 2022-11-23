@@ -1482,6 +1482,19 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEditor.LWCTruncateMode"));
+		const int32 LWCTruncateValue = CVar ? CVar->GetValueOnAnyThread() : 0;
+		if (LWCTruncateValue == 1)
+		{
+			KeyString += TEXT("_LWC1");
+		}
+		else if (LWCTruncateValue == 2)
+		{
+			KeyString += TEXT("_LWC2");
+		}
+	}
+
+	{
 		KeyString += IsUsingBasePassVelocity(Platform) ? TEXT("_GV") : TEXT("");
 	}
 

@@ -857,7 +857,7 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		// we will be calculating a valid derivative, so this value doesn't matter, but make it false for consistency
 		bIsDerivValidZero = false;
 
-		// if the lhs has a derivitive of zero, and rhs is non-zero, convert lhs from a scalar type to deriv type
+		// if the lhs has a derivative of zero, and rhs is non-zero, convert lhs from a scalar type to deriv type
 		if (LhsDerivInfo.DerivativeStatus == EDerivativeStatus::Zero)
 		{
 			bMakeDerivLhs = true;

@@ -10,6 +10,13 @@
 #include "Engine/RendererSettings.h"
 #include <functional>
 
+static int32 GetLWCTruncateMode()
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEditor.LWCTruncateMode"));
+	const int32 LWCTruncateValue = CVar ? CVar->GetValueOnAnyThread() : 0;
+	return LWCTruncateValue;
+}
+
 bool IsExpressionClassPermitted(const UClass* const Class)
 {
 	if (Class)
@@ -4076,6 +4083,32 @@ int32 FHLSLMaterialTranslator::ForceCast(int32 Code, EMaterialValueType DestType
 	}
 }
 
+int32 FHLSLMaterialTranslator::TruncateLWC(int32 Code)
+{
+	const int32 LWCTruncateMode = GetLWCTruncateMode();
+	const bool bAllowLWCTruncate = LWCTruncateMode == 1 || LWCTruncateMode == 2;
+
+	if (!bAllowLWCTruncate)
+	{
+		return Code;
+	}
+
+	const EMaterialValueType TruncateType = GetParameterType(Code);
+	if (IsLWCType(TruncateType))
+	{
+		EMaterialValueType TruncatedType = MakeNonLWCType(TruncateType);
+		
+		if (TruncateType == MCT_LWCScalar)
+		{
+			TruncatedType = MCT_Float; // Remap from MCT_Float1 to MCT_Float to support replication
+		}
+
+		return ValidCast(Code, TruncatedType);
+	}
+
+	return Code;
+}
+
 int32 FHLSLMaterialTranslator::CastToNonLWCIfDisabled(int32 Code)
 {
 	int32 Result = Code;
@@ -5298,7 +5331,6 @@ int32 FHLSLMaterialTranslator::WorldPosition(EWorldPositionIncludedOffsets World
 	if (ShaderFrequency == SF_Pixel)
 	{
 		// No material offset only available in the vertex shader.
-		// TODO: should also be available in the tesselation shader
 		FunctionNamePattern.ReplaceInline(TEXT("<NO_MATERIAL_OFFSETS>"), TEXT("_NoMaterialOffsets"));
 	}
 	else
@@ -7331,21 +7363,39 @@ int32 FHLSLMaterialTranslator::Sub(int32 A, int32 B)
 	}
 	else
 	{
+		int32 ResultCode = INDEX_NONE;
+
 		if (IsAnalyticDerivEnabled())
 		{
-			return DerivativeAutogen.GenerateExpressionFunc2(*this, FMaterialDerivativeAutogen::EFunc2::Sub, A, B);
+			ResultCode = DerivativeAutogen.GenerateExpressionFunc2(*this, FMaterialDerivativeAutogen::EFunc2::Sub, A, B);
 		}
 		else
 		{
 			if (ResultType & MCT_LWCType)
 			{
-				return AddCodeChunk(ResultType, TEXT("LWCSubtract(%s, %s)"), *GetParameterCode(A), *GetParameterCode(B));
+				ResultCode = AddCodeChunk(ResultType, TEXT("LWCSubtract(%s, %s)"), *GetParameterCode(A), *GetParameterCode(B));
 			}
 			else
 			{
-				return AddCodeChunk(ResultType, TEXT("(%s - %s)"), *GetParameterCode(A), *GetParameterCode(B));
+				ResultCode = AddCodeChunk(ResultType, TEXT("(%s - %s)"), *GetParameterCode(A), *GetParameterCode(B));
 			}
 		}
+
+		// If both sides are LWC and we are subtracting, assume relative space going forward and truncate to single precision float.
+		const EMaterialValueType AType = GetParameterType(A);
+		const EMaterialValueType BType = GetParameterType(B);
+
+		const bool bTruncateToFloat = (AType == BType) && IsLWCType(AType) && IsLWCType(BType);
+		if (bTruncateToFloat)
+		{
+			const bool bAllowLWCTruncate = GetLWCTruncateMode() == 2; // Allow automatic truncate?
+			if (bAllowLWCTruncate)
+			{
+				return TruncateLWC(ResultCode);
+			}
+		}
+
+		return ResultCode;
 	}
 }
 
