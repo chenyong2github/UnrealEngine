@@ -2058,19 +2058,19 @@ const FPinConnectionResponse UEdGraphSchema_K2::DetermineConnectionResponseOfCom
 		!OutputPin->PinType.IsContainer() )
 	{
 		//check if the node wont be expanded as foreach call, if there is a link to an array
-		bool bAnyContainerInput = false;
+		bool bAnyArrayInput = false;
 		for(int InputLinkIndex = 0; InputLinkIndex < InputPin->LinkedTo.Num(); InputLinkIndex++)
 		{
 			if(const UEdGraphPin* Pin = InputPin->LinkedTo[InputLinkIndex])
 			{
-				if(Pin->PinType.IsContainer())
+				if(Pin->PinType.IsArray())
 				{
-					bAnyContainerInput = true;
+					bAnyArrayInput = true;
 					break;
 				}
 			}
 		}
-		bMultipleSelfException = !bAnyContainerInput;
+		bMultipleSelfException = !bAnyArrayInput;
 	}
 
 	if (bBreakExistingDueToExecOutput)
@@ -2209,12 +2209,16 @@ const FPinConnectionResponse UEdGraphSchema_K2::CanCreateConnection(const UEdGra
 	}
 
 	bool bIgnoreArray = false;
-	if(const UK2Node* OwningNode = Cast<UK2Node>(InputPin->GetOwningNode()))
+	if (const UK2Node* OwningNode = Cast<UK2Node>(InputPin->GetOwningNode()))
 	{
 		const bool bAllowMultipleSelfs = OwningNode->AllowMultipleSelfs(true); // it applies also to ForEachCall
 		const bool bNotAContainer = !InputPin->PinType.IsContainer();
 		const bool bSelfPin = IsSelfPin(*InputPin);
-		bIgnoreArray = bAllowMultipleSelfs && bNotAContainer && bSelfPin;
+		if (bAllowMultipleSelfs && bNotAContainer && bSelfPin)
+		{
+			// Indicates whether or not we will allow an array to be connected to a non-array input. This applies to nodes that support a foreach expansion of array inputs.
+			bIgnoreArray = OutputPin->PinType.IsArray();
+		}
 	}
 
 	// Find the calling context in case one of the pins is of type object and has a value of Self
