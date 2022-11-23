@@ -330,9 +330,18 @@ namespace EpicGames.Perforce
 		/// <returns></returns>
 		public static async Task<NativePerforceConnection> CreateAsync(IPerforceSettings settings, ILogger logger)
 		{
-			NativePerforceConnection connection = new NativePerforceConnection(settings, logger);
-			await connection.ConnectAsync();
-			return connection;
+			NativePerforceConnection? connection = null;
+			try
+			{
+				connection = new NativePerforceConnection(settings, logger);
+				await connection.ConnectAsync();
+				return connection;
+			}
+			catch
+			{
+				connection?.Dispose();
+				throw;
+			}
 		}
 
 		/// <summary>
