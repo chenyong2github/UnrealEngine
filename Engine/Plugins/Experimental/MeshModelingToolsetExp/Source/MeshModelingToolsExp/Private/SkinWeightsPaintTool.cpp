@@ -66,6 +66,9 @@ void USkinWeightsPaintTool::Setup()
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(TargetComponent->GetOwnerComponent());
 
+	EditedMesh = MakeUnique<FMeshDescription>();
+	*EditedMesh = *UE::ToolTarget::GetMeshDescription(Target);
+
 	// hide strength and falloff
 	BrushProperties->RestoreProperties(this);
 
@@ -130,9 +133,6 @@ void USkinWeightsPaintTool::Setup()
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartSkinWeightsPaint", "Paint per-bone skin weights. [ and ] change brush size, Ctrl to Erase/Subtract, Shift to Smooth"),
 		EToolMessageLevel::UserNotification);
-
-	EditedMesh = MakeUnique<FMeshDescription>();
-	*EditedMesh = *UE::ToolTarget::GetMeshDescription(Target);
 
 	InitializeSkinWeights();
 
@@ -322,7 +322,7 @@ void USkinWeightsPaintTool::UpdateBoneVisualization()
 		for (int32 ElementId : ColorOverlay->ElementIndicesItr())
 		{
 			const int32 VertexId = ColorOverlay->GetParentVertex(ElementId);
-			const float Value = SkinWeightsData[VertexId];
+			const float Value = SkinWeightsData.IsValidIndex(VertexId) ? SkinWeightsData[VertexId] : 0.f;
 			const FVector4f Color(WeightToColor(Value));
 			ColorOverlay->SetElement(ElementId, Color);
 		}
