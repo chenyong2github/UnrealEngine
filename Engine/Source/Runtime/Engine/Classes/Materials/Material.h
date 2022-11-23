@@ -1669,33 +1669,35 @@ public:
 	/**
 	 *	Get all referenced expressions (returns the chains for all properties).
 	 *
-	 *	@param	OutExpressions			The array to fill in all of the expressions.
-	 *	@param	InStaticParameterSet	Optional static parameter set - if supplied only walk the StaticSwitch branches according to it.
-	 *	@Param	InFeatureLevel			Optional feature level - if supplied, only walk FeatureLevelSwitch branches according to it.
-	 *	@Param	InQuality				Optional quality switch - if supplied, only walk QualitySwitch branches according to it.
-	 *	@Param	InShadingPath			Optional shading path switch - if supplied, only walk ShadingPathSwitch branches according to it.
+	 *	@param	OutExpressions						The array to fill in all of the expressions.
+	 *	@param	InStaticParameterSet				Optional static parameter set - if supplied only walk the StaticSwitch branches according to it.
+	 *	@Param	InFeatureLevel						Optional feature level - if supplied, only walk FeatureLevelSwitch branches according to it.
+	 *	@Param	InQuality							Optional quality switch - if supplied, only walk QualitySwitch branches according to it.
+	 *	@Param	InShadingPath						Optional shading path switch - if supplied, only walk ShadingPathSwitch branches according to it.
+	 *  @Param	bInRecurseIntoMaterialFunctions		Optional enable recursion into Material Functions - if true, will also return expressions from inside of MaterialFunctions.
 	 *
 	 *	@return	bool					true if successful, false if not.
 	 */
 	ENGINE_API virtual bool GetAllReferencedExpressions(TArray<UMaterialExpression*>& OutExpressions, struct FStaticParameterSet* InStaticParameterSet,
-		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num, ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num);
+		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num, ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num, const bool bInRecurseIntoMaterialFunctions = false);
 
 
 	/**
 	 *	Get the expression chain for the given property (ie fill in the given array with all expressions in the chain).
 	 *
-	 *	@param	InProperty				The material property chain to inspect, such as MP_BaseColor.
-	 *	@param	OutExpressions			The array to fill in all of the expressions.
-	 *	@param	InStaticParameterSet	Optional static parameter set - if supplied only walk the StaticSwitch branches according to it.
-	 *	@Param	InFeatureLevel			Optional feature level - if supplied, only walk FeatureLevelSwitch branches according to it.
-	 *	@Param	InQuality				Optional quality switch - if supplied, only walk QualitySwitch branches according to it.
-	 *	@Param	InShadingPath			Optional shading path switch - if supplied, only walk ShadingPathSwitch branches according to it.
+	 *	@param	InProperty							The material property chain to inspect, such as MP_BaseColor.
+	 *	@param	OutExpressions						The array to fill in all of the expressions.
+	 *	@param	InStaticParameterSet				Optional static parameter set - if supplied only walk the StaticSwitch branches according to it.
+	 *	@Param	InFeatureLevel						Optional feature level - if supplied, only walk FeatureLevelSwitch branches according to it.
+	 *	@Param	InQuality							Optional quality switch - if supplied, only walk QualitySwitch branches according to it.
+	 *	@Param	InShadingPath						Optional shading path switch - if supplied, only walk ShadingPathSwitch branches according to it.
+	 *  @Param	bInRecurseIntoMaterialFunctions		Optional enable recursion into Material Functions - if true, will also return expressions from inside of MaterialFunctions.
 	 *
 	 *	@return	bool					true if successful, false if not.
 	 */
 	ENGINE_API virtual bool GetExpressionsInPropertyChain(EMaterialProperty InProperty, 
 		TArray<UMaterialExpression*>& OutExpressions, struct FStaticParameterSet* InStaticParameterSet,
-		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num, ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num);
+		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num, ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num, const bool bInRecurseIntoMaterialFunctions = false);
 
 #endif // WITH_EDITOR
 
@@ -1705,14 +1707,15 @@ protected:
 	/**
 	 *	Recursively retrieve the expressions contained in the chain of the given expression.
 	 *
-	 *	@param	InExpression			The expression to start at.
-	 *	@param	InOutProcessedInputs	An array of processed expression inputs. (To avoid circular loops causing infinite recursion)
-	 *	@param	OutExpressions			The array to fill in all of the expressions.
-	 *	@param	InStaticParameterSet	Optional static parameter set - if supplied only walk the StaticSwitch branches according to it.
-	 *	@Param	InFeatureLevel			Optional feature level - if supplied, only walk FeatureLevelSwitch branches according to it.
-	 *	@Param	InQuality				Optional quality switch - if supplied, only walk QualitySwitch branches according to it.
-	 *	@Param	InShadingPath			Optional shading path switch - if supplied, only walk ShadingPathSwitch branches according to it.
-	 *	@Param	InShaderFrequency		Optional shader frequency - if supplied, only walk ShaderFrequencySwitch branches according to it.
+	 *	@param	InExpression						The expression to start at.
+	 *	@param	InOutProcessedInputs				An array of processed expression inputs. (To avoid circular loops causing infinite recursion)
+	 *	@param	OutExpressions						The array to fill in all of the expressions.
+	 *	@param	InStaticParameterSet				Optional static parameter set - if supplied only walk the StaticSwitch branches according to it.
+	 *	@Param	InFeatureLevel						Optional feature level - if supplied, only walk FeatureLevelSwitch branches according to it.
+	 *	@Param	InQuality							Optional quality switch - if supplied, only walk QualitySwitch branches according to it.
+	 *	@Param	InShadingPath						Optional shading path switch - if supplied, only walk ShadingPathSwitch branches according to it.
+	 *	@Param	InShaderFrequency					Optional shader frequency - if supplied, only walk ShaderFrequencySwitch branches according to it.
+	 *  @Param	bInRecurseIntoMaterialFunctions		Optional enable recursion into Material Functions - if true, will also return expressions from inside of MaterialFunctions.
 	 *
 	 *	@return	bool					true if successful, false if not.
 	 */
@@ -1722,7 +1725,8 @@ protected:
 		EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num,
 		ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num,
 		EShaderFrequency InShaderFrequency = SF_NumFrequencies, 
-		EMaterialProperty InProperty = MP_MAX);
+		EMaterialProperty InProperty = MP_MAX,
+		const bool bInRecurseIntoMaterialFunctions = false);
 
 	/**
 	*	Recursively update the bRealtimePreview for each expression based on whether it is connected to something that is time-varying.
