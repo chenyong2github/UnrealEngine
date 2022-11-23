@@ -47,6 +47,10 @@ public:
 	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowWarningOnIncompleteDuplication = true;
 
+	// Whether to show the warning dialog when authoring a transform track directly to a camera component
+	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
+	bool bShowTransformTrackOnCameraComponentWarning = true;
+
 	// Whether to display the pop up dialog asking what to do about dirty USD layers when saving the UE level
 	UPROPERTY(config, EditAnywhere, Category = "USD|Dialogs" )
 	EUsdSaveDialogBehavior ShowSaveLayersDialogWhenSaving = EUsdSaveDialogBehavior::ShowPrompt;
