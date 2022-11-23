@@ -229,6 +229,9 @@ void FCompensationEvaluator::ComputeLocalTransformsForBaking(UWorld* InWorld, co
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 	static constexpr bool bSorted = true;
 	const TArray<ConstraintPtr> AllConstraints = Controller.GetAllConstraints(bSorted);
+
+	// avoid transacting when evaluating sequencer
+	TGuardValue<ITransaction*> TransactionGuard(GUndo, nullptr);
 	
 	const TArray<IMovieSceneToolsAnimationBakeHelper*>& BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
