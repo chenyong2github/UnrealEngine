@@ -77,9 +77,18 @@ namespace UnrealToUsd
 	 * @param InDefaultTextureSize - Size of the baked texture to use for any material property that does not have a custom size set
 	 * @param InTexturesDir - Directory where the baked textures will be placed
 	 * @param OutUsdShadeMaterialPrim - UsdPrim with the UsdShadeMaterial schema that will be configured to use the baked textures and constants
+	 * @param bInDecayTexturesToSinglePixel - Whether to use a single value directly on the material instead of writing out textures with that
+											  have a single uniform color value for all pixels
 	 * @return Whether the conversion was successful or not.
 	 */
-	USDUTILITIES_API bool ConvertMaterialToBakedSurface( const UMaterialInterface& InMaterial, const TArray<FPropertyEntry>& InMaterialProperties, const FIntPoint& InDefaultTextureSize, const FDirectoryPath& InTexturesDir, pxr::UsdPrim& OutUsdShadeMaterialPrim );
+	USDUTILITIES_API bool ConvertMaterialToBakedSurface(
+		const UMaterialInterface& InMaterial,
+		const TArray<FPropertyEntry>& InMaterialProperties,
+		const FIntPoint& InDefaultTextureSize,
+		const FDirectoryPath& InTexturesDir,
+		pxr::UsdPrim& OutUsdShadeMaterialPrim,
+		bool bInDecayTexturesToSinglePixel = true
+	);
 
 	/**
 	 * Converts a flattened material's data into textures placed at InTexturesDir, and configures OutUsdShadeMaterial to use the baked textures.

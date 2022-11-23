@@ -1333,7 +1333,13 @@ namespace UE
 #if WITH_EDITOR
 			// Note that we will bake things that aren't supported on the default USD surface shader schema. These could be useful in case the user has a custom
 			// renderer though, and they can pick which properties they want anyway
-			bool BakeMaterial( const UMaterialInterface& Material, const TArray<FPropertyEntry>& InMaterialProperties, const FIntPoint& InDefaultTextureSize, FBakeOutput& OutBakedData )
+			bool BakeMaterial(
+				const UMaterialInterface& Material,
+				const TArray<FPropertyEntry>& InMaterialProperties,
+				const FIntPoint& InDefaultTextureSize,
+				FBakeOutput& OutBakedData,
+				bool bInDecayTexturesToSinglePixel
+			)
 			{
 				const bool bAllQualityLevels = true;
 				const bool bAllFeatureLevels = true;
@@ -1352,6 +1358,7 @@ namespace UE
 
 				FMaterialData MatSet;
 				MatSet.Material = const_cast<UMaterialInterface*>(&Material); // We don't modify it and neither does the material baking module, it's just a bad signature
+				MatSet.bPerformShrinking = bInDecayTexturesToSinglePixel;
 
 				for ( const FPropertyEntry& Entry : InMaterialProperties )
 				{
@@ -2375,7 +2382,14 @@ bool UsdToUnreal::ConvertShadeInputsToParameters( const pxr::UsdShadeMaterial& U
 }
 
 #if WITH_EDITOR
-bool UnrealToUsd::ConvertMaterialToBakedSurface( const UMaterialInterface& InMaterial, const TArray<FPropertyEntry>& InMaterialProperties, const FIntPoint& InDefaultTextureSize, const FDirectoryPath& InTexturesDir, pxr::UsdPrim& OutUsdShadeMaterialPrim )
+bool UnrealToUsd::ConvertMaterialToBakedSurface(
+	const UMaterialInterface& InMaterial,
+	const TArray<FPropertyEntry>& InMaterialProperties,
+	const FIntPoint& InDefaultTextureSize,
+	const FDirectoryPath& InTexturesDir,
+	pxr::UsdPrim& OutUsdShadeMaterialPrim,
+	bool bInDecayTexturesToSinglePixel
+)
 {
 	pxr::UsdShadeMaterial OutUsdShadeMaterial{ OutUsdShadeMaterialPrim };
 	if ( !OutUsdShadeMaterial )
@@ -2384,7 +2398,7 @@ bool UnrealToUsd::ConvertMaterialToBakedSurface( const UMaterialInterface& InMat
 	}
 
 	FBakeOutput BakedData;
-	if ( !UsdShadeConversionImpl::BakeMaterial( InMaterial, InMaterialProperties, InDefaultTextureSize, BakedData ) )
+	if ( !UsdShadeConversionImpl::BakeMaterial( InMaterial, InMaterialProperties, InDefaultTextureSize, BakedData, bInDecayTexturesToSinglePixel ) )
 	{
 		return false;
 	}

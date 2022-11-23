@@ -24,6 +24,7 @@ void UsdUtils::AddAnalyticsAttributes(
 
 	InOutAttributes.Emplace( TEXT( "BakedProperties" ), BakedPropertiesString );
 	InOutAttributes.Emplace( TEXT( "DefaultTextureSize" ), Options.DefaultTextureSize.ToString() );
+	InOutAttributes.Emplace( TEXT( "ConstantColorAsSingleValue" ), Options.bConstantColorAsSingleValue);
 }
 
 void UsdUtils::AddAnalyticsAttributes(
@@ -55,6 +56,11 @@ void UsdUtils::HashForMaterialExport( const FUsdMaterialBakingOptions& Options, 
 	HashToUpdate.Update(
 		reinterpret_cast< const uint8* >( &Options.DefaultTextureSize ),
 		sizeof( Options.DefaultTextureSize )
+	);
+
+	HashToUpdate.Update(
+		reinterpret_cast<const uint8*>(&Options.bConstantColorAsSingleValue),
+		sizeof(Options.bConstantColorAsSingleValue)
 	);
 
 	// If we changed where we want the textures exported we need to re-export them and update the texture paths on the

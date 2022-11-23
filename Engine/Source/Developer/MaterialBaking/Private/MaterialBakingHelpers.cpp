@@ -330,6 +330,11 @@ void FMaterialBakingHelpers::PerformUVBorderSmear(TArray<FColor>& InOutPixels, i
 	FMaterialBakingHelpersImpl::PerformUVBorderSmear(InOutPixels, ImageWidth, ImageHeight, MaxIterations);
 }
 
+void FMaterialBakingHelpers::PerformShrinking(TArray<FColor>& InOutPixels, int32& InOutImageWidth, int32& InOutImageHeight)
+{
+	FMaterialBakingHelpersImpl::PerformShrinking(InOutPixels, InOutImageWidth, InOutImageHeight);
+}
+
 void FMaterialBakingHelpers::PerformUVBorderSmearAndShrink(TArray<FColor>& InOutPixels, int32& InOutImageWidth, int32& InOutImageHeight)
 {
 	FMaterialBakingHelpersImpl::PerformShrinking(InOutPixels, InOutImageWidth, InOutImageHeight);

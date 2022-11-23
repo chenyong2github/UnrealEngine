@@ -180,6 +180,11 @@ namespace UE::MaterialExporterUSD::Private
 		);
 
 		VersionHash.Update(
+			reinterpret_cast<const uint8*>(&Options.bConstantColorAsSingleValue),
+			sizeof(Options.bConstantColorAsSingleValue)
+		);
+
+		VersionHash.Update(
 			reinterpret_cast< const uint8* >( Options.Properties.GetData() ),
 			Options.Properties.Num() * Options.Properties.GetTypeSize()
 		);
@@ -362,7 +367,8 @@ bool UMaterialExporterUsd::ExportMaterial(
 		Options.Properties,
 		Options.DefaultTextureSize,
 		Options.TexturesDir,
-		RootPrim
+		RootPrim,
+		Options.bConstantColorAsSingleValue
 	);
 
 	// Write asset info now that we finished exporting

@@ -23,6 +23,10 @@ struct USDEXPORTER_API FUsdMaterialBakingOptions
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Material baking options", meta = ( ClampMin = "1", UIMin = "1" ) )
 	FIntPoint DefaultTextureSize = FIntPoint{ 128, 128 };
 
+	/** When this is true and a baked texture contains a single flat color we will write out that color value directly on the USD layer and skip generating a texture */
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = "Material baking options" )
+	bool bConstantColorAsSingleValue = true;
+
 	/** Where baked textures are placed. Intentionally not a config as it's heavily dependent on where the stage is */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = "Material baking options" )
 	FDirectoryPath TexturesDir;

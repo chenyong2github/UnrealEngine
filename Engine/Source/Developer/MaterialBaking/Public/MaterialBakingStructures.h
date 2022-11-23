@@ -22,6 +22,9 @@ struct FMaterialData
 	/** Whether to smear borders after baking */
 	bool bPerformBorderSmear = true;
 
+	/** Whether to try to shrink the color values to a single non-magenta color value after baking */
+	bool bPerformShrinking = true;
+
 	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
 	bool bTangentSpaceNormal = false;
 };
@@ -37,6 +40,9 @@ struct FMaterialDataEx
 
 	/** Whether to smear borders after baking */
 	bool bPerformBorderSmear = true;
+
+	/** Whether to try to shrink the color values to a single non-magenta color value after baking */
+	bool bPerformShrinking = true;
 
 	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
 	bool bTangentSpaceNormal = false;

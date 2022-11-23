@@ -327,6 +327,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 		FMaterialDataEx& MaterialDataEx = MaterialDataExs.AddDefaulted_GetRef();
 		MaterialDataEx.Material = MaterialData->Material;
 		MaterialDataEx.bPerformBorderSmear = MaterialData->bPerformBorderSmear;
+		MaterialDataEx.bPerformShrinking = MaterialData->bPerformShrinking;
 		MaterialDataEx.bTangentSpaceNormal = MaterialData->bTangentSpaceNormal;
 
 		for (const TPair<EMaterialProperty, FIntPoint>& PropertySizePair : MaterialData->PropertySizes)
@@ -676,10 +677,14 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 									// We can't unmap ourself since we're not on the render thread
 									StagingBufferPool.ReleaseStagingBufferForUnmap_AnyThread(StagingBuffer);
 
+									if (CurrentMaterialSettings->bPerformShrinking)
+									{
+										FMaterialBakingHelpers::PerformShrinking(OutputColor, OutputSize.X, OutputSize.Y);
+									}
+
 									if (CurrentMaterialSettings->bPerformBorderSmear)
 									{
-										// This will resize the output to a single pixel if the result is monochrome.
-										FMaterialBakingHelpers::PerformUVBorderSmearAndShrink(OutputColor, OutputSize.X, OutputSize.Y);
+										FMaterialBakingHelpers::PerformUVBorderSmear(OutputColor, OutputSize.X, OutputSize.Y);
 									}
 #if WITH_EDITOR
 									// If saving intermediates is turned on
