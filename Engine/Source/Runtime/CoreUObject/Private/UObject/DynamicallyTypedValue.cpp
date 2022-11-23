@@ -15,7 +15,7 @@ UE::FDynamicallyTypedValueType& UE::FDynamicallyTypedValue::NullType()
 		virtual void InitializeValueFromCopy(void* DestData, const void* SourceData) const override {}
 		virtual void DestroyValue(void* Data) const override {}
 
-		virtual void SerializeValue(FStructuredArchive::FSlot Slot, void* Data) const override {}
+		virtual void SerializeValue(FStructuredArchive::FSlot Slot, void* Data, const void* DefaultData) const override {}
 
 		virtual uint32 GetValueHash(const void* Data) const override { return 0; }
 		virtual bool AreIdentical(const void* DataA, const void* DataB) const override { return true; }
