@@ -94,6 +94,18 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Mesh")
     bool bUsePhysicsBodyVelocity = false;
 
+	/** When true, we allow this DI to sample from streaming LODs. Selectively overriding the CVar fx.Niagara.NDIStaticMesh.UseInlineLODsOnly. */
+	UPROPERTY(EditAnywhere, Category = "LOD")
+	bool bAllowSamplingFromStreamingLODs = false;
+
+	/** 
+	Static Mesh LOD to sample.
+	When the desired LOD is not available, the next available LOD is used.
+	When LOD Index is negative, Desired LOD = Num LODs - LOD Index.
+	*/
+	UPROPERTY(EditAnywhere, Category = "LOD")
+	int32 LODIndex = 0;
+
 	/** List of filtered sockets to use. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	TArray<FName> FilteredSockets;
