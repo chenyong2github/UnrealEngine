@@ -21,8 +21,8 @@ STB_ALLOC_DEF void* stb_arena_alloc(struct stb_arena* a, size_t size);
 STB_ALLOC_DEF void* stb_arena_alloc_aligned(struct stb_arena* a, size_t size, size_t align);
 
 // allocate a string from an arena
-STB_ALLOC_DEF char* stb_arena_alloc_string(struct stb_arena* a, char* str);
-STB_ALLOC_DEF char* stb_arena_alloc_string_length(struct stb_arena* a, char* str, size_t length);
+STB_ALLOC_DEF char* stb_arena_alloc_string(struct stb_arena* a, const char* str);
+STB_ALLOC_DEF char* stb_arena_alloc_string_length(struct stb_arena* a, const char* str, size_t length);
 
 // free the entire arena, leaves arena reset so it can be used again
 STB_ALLOC_DEF void stb_arena_free(struct stb_arena* a);
@@ -68,7 +68,7 @@ void* stb_arena_alloc_aligned(struct stb_arena* a, size_t size, size_t align)
 		// grow the list of blocks if necessary
 		if (a->num_blocks == 0)
 		{
-			a->blocks = malloc(sizeof(a->blocks[0]) * 32);
+			a->blocks = (void**)malloc(sizeof(a->blocks[0]) * 32);
 		}
 		else if (a->num_blocks >= 32)
 		{
@@ -78,7 +78,7 @@ void* stb_arena_alloc_aligned(struct stb_arena* a, size_t size, size_t align)
 				// grow table
 				void* ptr = realloc(a->blocks, sizeof(a->blocks[0]) * a->num_blocks * 2);
 				if (ptr)
-					a->blocks = ptr;
+					a->blocks = (void**)ptr;
 			}
 		}
 
@@ -127,7 +127,7 @@ void* stb_arena_alloc(struct stb_arena* a, size_t size)
 	return stb_arena_alloc_aligned(a, size, stb_arena_align_size(size));
 }
 
-char* stb_arena_alloc_string_length(struct stb_arena* a, char* str, size_t length)
+char* stb_arena_alloc_string_length(struct stb_arena* a, const char* str, size_t length)
 {
 	char* p = (char*)stb_arena_alloc_aligned(a, length + 1, 4);
 	memcpy(p, str, length);
@@ -135,7 +135,7 @@ char* stb_arena_alloc_string_length(struct stb_arena* a, char* str, size_t lengt
 	return p;
 }
 
-char* stb_arena_alloc_string(struct stb_arena* a, char* str)
+char* stb_arena_alloc_string(struct stb_arena* a, const char* str)
 {
 	return stb_arena_alloc_string_length(a, str, strlen(str));
 }

@@ -54,18 +54,46 @@ typedef struct
 	pp_where* where;
 } pp_diagnostic;
 
-extern void preprocessor_test(void);
-extern void init_preprocessor(void);
-extern char* preprocess_file(char* output_storage,
-							 char* filename,
-							 char** include_paths,
-							 int num_include_paths,
-							 char** sys_include_paths,
-							 int num_sys_include_paths,
-							 struct macro_definition** predefined_macros,
-							 int num_predefined_macros,
-							 pp_diagnostic** pd,
-							 int* num_pd);
-extern void preprocessor_file_free(char* text, pp_diagnostic* pd);
-extern struct macro_definition* pp_define(struct stb_arena* a, char* p);
-extern unsigned int preprocessor_hash(char* data, size_t len);	// hash function for string of length 'len', roughly xxhash32
+
+#ifdef __cplusplus
+#define STB_PP_DEF extern "C"
+#else
+#define STB_PP_DEF extern
+#endif
+
+// callback function can be optionally specified to init_preprocessor to override file loading functionality
+// it's probably necessary to provide the freefile callback as well if you provide this (unless you are ok with
+// the default behaviour of calling "free" on the returned pointer)
+typedef const char* (*loadfile_callback_func)(const char* filename, void* custom_context, size_t* out_length);
+
+// callback function can be optionally specified to init_preprocessor to override freeing loaded files
+// it's probably necessary to provide the loadfile callback as well if you provide this
+typedef void (*freefile_callback_func)(const char* filename, const char* loaded_file, void* custom_context);
+
+// callback function can be optionally specified to init_preprocessor to override include resolution; in the
+// current incarnation this will still attempt file-based loading using the default behaviour in the event
+// that this callback returns null for a given file path.
+// note: returned resolved paths are expected to be allocated for the lifetime of preprocessor execution; 
+// for simplicity use stb_arena_alloc_string using the given "path_arena" stb_arena
+typedef const char* (*resolveinclude_callback_func)(const char* path, unsigned int path_len, const char* parent, struct stb_arena* path_arena, void* custom_context);
+
+STB_PP_DEF void preprocessor_test(void);
+STB_PP_DEF void init_preprocessor(
+	loadfile_callback_func load_callback,
+	freefile_callback_func free_callback,
+	resolveinclude_callback_func resolve_callback);
+STB_PP_DEF char* preprocess_file(
+	char* output_storage,
+	const char* filename,
+	void* custom_context,
+	char** include_paths,
+	int num_include_paths,
+	char** sys_include_paths,
+	int num_sys_include_paths,
+	struct macro_definition** predefined_macros,
+	int num_predefined_macros,
+	pp_diagnostic** pd,
+	int* num_pd);
+STB_PP_DEF void preprocessor_file_free(char* text, pp_diagnostic* pd);
+STB_PP_DEF struct macro_definition* pp_define(struct stb_arena* a, const char* p);
+STB_PP_DEF unsigned int preprocessor_hash(const char* data, size_t len);	// hash function for string of length 'len', roughly xxhash32
