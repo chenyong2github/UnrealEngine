@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "RHIDefinitions.h"
 #include "OptimusSettings.generated.h"
 
 class UMeshDeformer;

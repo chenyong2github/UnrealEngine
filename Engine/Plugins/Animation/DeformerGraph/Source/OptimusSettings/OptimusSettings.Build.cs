@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"DeveloperSettings",
 					"Engine",
 					"RenderCore",
+					"RHI",
 				}
 			);
         }
