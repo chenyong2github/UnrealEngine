@@ -22,21 +22,102 @@
 #include "RHI.h"
 #include "TextureCompiler.h"
 #include "TextureResource.h"
+#include "Editor/TransBuffer.h"
+#include "Editor/UnrealEdEngine.h"
+#include "UnrealEdGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshTexturePaintingTool)
 
 #define LOCTEXT_NAMESPACE "MeshTextureBrush"
 
+namespace UE::MeshPaintingToolset::Private::TexturePainting
+{
+
+	// Compare two sorted arrays of unique elements
+	template<typename T>
+	void CompareSortedArrayElements(const TArrayView<T>& FirstArray, const TArrayView<T>& SecondArray, TFunctionRef<void(T&)> MissingInFirstArray, TFunctionRef<void(T&)> MissingInSecondArray,  TFunctionRef<void(T&)> PresentInBoth)
+	{
+		if (FirstArray.IsEmpty())
+		{
+			for (T& Element : SecondArray)
+			{
+				MissingInFirstArray(Element);
+			}
+			return;
+		}
+
+		if (SecondArray.IsEmpty())
+		{
+			for (T& Element : FirstArray)
+			{
+				MissingInSecondArray(Element);
+			}
+			return;
+		}
+
+
+		int32 FirstIndex = 0;
+		int32 SecondIndex = 0;
+		T* ElementFromFirstArray = nullptr;
+		T* ElementFromSecondArray = nullptr;
+
+		while (FirstIndex < FirstArray.Num() && SecondIndex < SecondArray.Num())
+		{
+			if (FirstArray.IsValidIndex(FirstIndex))
+			{
+				ElementFromFirstArray = &FirstArray[FirstIndex];
+			}
+
+			if (SecondArray.IsValidIndex(SecondIndex))
+			{
+				ElementFromSecondArray = &SecondArray[SecondIndex];
+			}
+
+			if (*ElementFromFirstArray == *ElementFromSecondArray)
+			{
+				++FirstIndex;
+				++SecondIndex;
+				PresentInBoth(*ElementFromFirstArray);
+			}
+			else if (*ElementFromFirstArray < *ElementFromSecondArray)
+			{
+				MissingInSecondArray(*ElementFromFirstArray);
+				++FirstIndex;
+			}
+			else
+			{
+				MissingInFirstArray(*ElementFromSecondArray);
+				++SecondIndex;
+			}
+		}
+
+		if (FirstArray.Num() < SecondArray.Num())
+		{
+			++SecondIndex;
+			while (SecondArray.IsValidIndex(SecondIndex))
+			{
+				MissingInFirstArray(SecondArray[SecondIndex]);
+				++SecondIndex;
+			}
+		}
+		else if (SecondArray.Num() < FirstArray.Num())
+		{
+			++FirstIndex;
+			while (FirstArray.IsValidIndex(FirstIndex))
+			{
+				MissingInSecondArray(FirstArray[FirstIndex]);
+				++FirstIndex;
+			}
+		}
+	}
+}
+
 /*
  * ToolBuilder
  */
 
-
-
 bool UMeshTexturePaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-
-
 	return GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->SelectionHasMaterialValidForTexturePaint();
 }
 
@@ -73,6 +154,12 @@ UMeshTexturePaintingTool::UMeshTexturePaintingTool()
 void UMeshTexturePaintingTool::Setup()
 {
 	Super::Setup();
+
+	if (UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>(GUnrealEd->Trans) : nullptr)
+	{
+		TransBuffer->OnTransactionStateChanged().AddUObject(this, &UMeshTexturePaintingTool::OnTransactionStateChanged);
+	}
+
 	TextureProperties = Cast<UMeshTexturePaintingToolProperties>(BrushProperties);
 	bResultValid = false;
 	bStampPending = false;
@@ -99,15 +186,8 @@ void UMeshTexturePaintingTool::Setup()
 void UMeshTexturePaintingTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	FinishPainting();
-	// If the user has pending changes and the editor is not exiting, we want to do the commit for all the modified textures.
-	if ((GetNumberOfPendingPaintChanges() > 0) && !IsEngineExitRequested() && ShutdownType != EToolShutdownType::Cancel)
-	{
-		CommitAllPaintedTextures();
-	}
-	else
-	{
-		ClearAllTextureOverrides();
-	}
+	
+	ClearAllTextureOverrides();
 
 	PaintTargetData.Empty();
 
@@ -119,6 +199,12 @@ void UMeshTexturePaintingTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 
 	BrushProperties->SaveProperties(this);
+
+	if (UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>(GUnrealEd->Trans) : nullptr)
+	{
+		TransBuffer->OnTransactionStateChanged().RemoveAll(this);
+	}
+
 	Super::Shutdown(ShutdownType);
 }
 
@@ -478,7 +564,22 @@ bool UMeshTexturePaintingTool::PaintInternal(const TArrayView<TPair<FVector, FVe
 	return bPaintApplied;
 }
 
+void UMeshTexturePaintingTool::AddTextureOverrideToComponent(FPaintTexture2DData& TextureData, UMeshComponent* MeshComponent, const IMeshPaintComponentAdapter* MeshPaintAdapter)
+{
+	if (MeshComponent && MeshPaintAdapter)
+	{
+		if (!TextureData.PaintedComponents.Contains(MeshComponent))
+		{
+			TextureData.PaintedComponents.AddUnique(MeshComponent);
 
+			MeshPaintAdapter->ApplyOrRemoveTextureOverride(TextureData.PaintingTexture2D, TextureData.PaintRenderTargetTexture);
+
+			// For the transactions add to the cache of overridden component.
+			PaintComponentsOverride.FindOrAdd(TextureData.PaintingTexture2D).PaintedComponents.Add(MeshComponent);
+		}
+	}
+
+}
 
 void UMeshTexturePaintingTool::UpdateResult()
 {
@@ -581,8 +682,8 @@ void UMeshTexturePaintingTool::FinishPainting()
 	if (bArePainting)
 	{
 		bArePainting = false;
-		GetToolManager()->EndUndoTransaction();
 		OnPaintingFinishedDelegate.ExecuteIfBound();
+		PaintingTransaction.Reset();
 	}
 }
 
@@ -647,6 +748,9 @@ void UMeshTexturePaintingTool::StartPaintingTexture(UMeshComponent* InMeshCompon
 	check(TexturePaintingCurrentMeshComponent == nullptr);
 	check(PaintingTexture2D == nullptr);
 
+	PaintingTransaction = MakeUnique<FScopedTransaction>(LOCTEXT("MeshPaintMode_TexturePaint_Transaction", "Texture Paint"));
+	Modify();
+
 	const auto FeatureLevel = InMeshComponent->GetWorld()->FeatureLevel;
 
 	UTexture2D* Texture2D = TextureProperties->PaintTexture;
@@ -655,149 +759,134 @@ void UMeshTexturePaintingTool::StartPaintingTexture(UMeshComponent* InMeshCompon
 		return;
 	}
 
-	bool bStartedPainting = false;
 	FPaintTexture2DData* TextureData = GetPaintTargetData(Texture2D);
 
 	// Check all the materials on the mesh to see if the user texture is there
 	int32 MaterialIndex = 0;
 	UMaterialInterface* MaterialToCheck = InMeshComponent->GetMaterial(MaterialIndex);
-	while (MaterialToCheck != nullptr)
+
+	bool bIsTextureUsed = UTexturePaintToolset::DoesMeshComponentUseTexture(InMeshComponent, Texture2D);
+
+	if (!bIsTextureUsed && (TextureData != nullptr) && (TextureData->PaintRenderTargetTexture != nullptr))
 	{
-		bool bIsTextureUsed = UTexturePaintToolset::DoesMeshComponentUseTexture(InMeshComponent, Texture2D);
-
-		if (!bIsTextureUsed && (TextureData != nullptr) && (TextureData->PaintRenderTargetTexture != nullptr))
-		{
-			bIsTextureUsed = UTexturePaintToolset::DoesMeshComponentUseTexture(InMeshComponent, TextureData->PaintRenderTargetTexture);
-		}
-
-		if (bIsTextureUsed && !bStartedPainting)
-		{
-			FTextureCompilingManager::Get().FinishCompilation({ Texture2D });
-
-			bool bIsSourceTextureStreamedIn = Texture2D->IsFullyStreamedIn();
-
-			if (!bIsSourceTextureStreamedIn)
-			{
-				// We found that this texture is used in one of the meshes materials but not fully loaded, we will
-				//   attempt to fully stream in the texture before we try to do anything with it.
-				Texture2D->SetForceMipLevelsToBeResident(30.0f);
-				Texture2D->WaitForStreaming();
-
-				// We do a quick sanity check to make sure it is streamed fully streamed in now.
-				bIsSourceTextureStreamedIn = Texture2D->IsFullyStreamedIn();
-
-			}
-
-			if (bIsSourceTextureStreamedIn)
-			{
-				const int32 TextureWidth = Texture2D->Source.GetSizeX();
-				const int32 TextureHeight = Texture2D->Source.GetSizeY();
-
-				if (TextureData == nullptr)
-				{
-					TextureData = AddPaintTargetData(Texture2D);
-				}
-				check(TextureData != nullptr);
-
-				// Create our render target texture
-				if (TextureData->PaintRenderTargetTexture == nullptr ||
-					TextureData->PaintRenderTargetTexture->GetSurfaceWidth() != TextureWidth ||
-					TextureData->PaintRenderTargetTexture->GetSurfaceHeight() != TextureHeight)
-				{
-					TextureData->PaintRenderTargetTexture = nullptr;
-					TextureData->PaintRenderTargetTexture = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
-					TextureData->PaintRenderTargetTexture->bNeedsTwoCopies = true;
-					const bool bForceLinearGamma = true;
-					TextureData->PaintRenderTargetTexture->InitCustomFormat(TextureWidth, TextureHeight, PF_A16B16G16R16, bForceLinearGamma);
-					TextureData->PaintRenderTargetTexture->UpdateResourceImmediate();
-
-					//Duplicate the texture we are painting and store it in the transient package. This texture is a backup of the data incase we want to revert before commiting.
-					TextureData->PaintingTexture2DDuplicate = (UTexture2D*)StaticDuplicateObject(Texture2D, GetTransientPackage(), *FString::Printf(TEXT("%s_TEMP"), *Texture2D->GetName()));
-				}
-				TextureData->PaintRenderTargetTexture->AddressX = Texture2D->AddressX;
-				TextureData->PaintRenderTargetTexture->AddressY = Texture2D->AddressY;
-
-				const int32 BrushTargetTextureWidth = TextureWidth;
-				const int32 BrushTargetTextureHeight = TextureHeight;
-
-				// Create the rendertarget used to store our paint delta
-				if (BrushRenderTargetTexture == nullptr ||
-					BrushRenderTargetTexture->GetSurfaceWidth() != BrushTargetTextureWidth ||
-					BrushRenderTargetTexture->GetSurfaceHeight() != BrushTargetTextureHeight)
-				{
-					BrushRenderTargetTexture = nullptr;
-					BrushRenderTargetTexture = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
-					const bool bForceLinearGamma = true;
-					BrushRenderTargetTexture->ClearColor = FLinearColor::Black;
-					BrushRenderTargetTexture->bNeedsTwoCopies = true;
-					BrushRenderTargetTexture->InitCustomFormat(BrushTargetTextureWidth, BrushTargetTextureHeight, PF_A16B16G16R16, bForceLinearGamma);
-					BrushRenderTargetTexture->UpdateResourceImmediate();
-					BrushRenderTargetTexture->AddressX = TextureData->PaintRenderTargetTexture->AddressX;
-					BrushRenderTargetTexture->AddressY = TextureData->PaintRenderTargetTexture->AddressY;
-				}
-
-				if (TextureProperties->bEnableSeamPainting)
-				{
-					// Create the rendertarget used to store a mask for our paint delta area 
-					if (BrushMaskRenderTargetTexture == nullptr ||
-						BrushMaskRenderTargetTexture->GetSurfaceWidth() != BrushTargetTextureWidth ||
-						BrushMaskRenderTargetTexture->GetSurfaceHeight() != BrushTargetTextureHeight)
-					{
-						BrushMaskRenderTargetTexture = nullptr;
-						BrushMaskRenderTargetTexture = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
-						const bool bForceLinearGamma = true;
-						BrushMaskRenderTargetTexture->ClearColor = FLinearColor::Black;
-						BrushMaskRenderTargetTexture->bNeedsTwoCopies = true;
-						BrushMaskRenderTargetTexture->InitCustomFormat(BrushTargetTextureWidth, BrushTargetTextureHeight, PF_B8G8R8A8, bForceLinearGamma);
-						BrushMaskRenderTargetTexture->UpdateResourceImmediate();
-						BrushMaskRenderTargetTexture->AddressX = TextureData->PaintRenderTargetTexture->AddressX;
-						BrushMaskRenderTargetTexture->AddressY = TextureData->PaintRenderTargetTexture->AddressY;
-					}
-
-					// Create the rendertarget used to store a texture seam mask
-					if (SeamMaskRenderTargetTexture == nullptr ||
-						SeamMaskRenderTargetTexture->GetSurfaceWidth() != TextureWidth ||
-						SeamMaskRenderTargetTexture->GetSurfaceHeight() != TextureHeight)
-					{
-						SeamMaskRenderTargetTexture = nullptr;
-						SeamMaskRenderTargetTexture = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
-						const bool bForceLinearGamma = true;
-						SeamMaskRenderTargetTexture->ClearColor = FLinearColor::Black;
-						SeamMaskRenderTargetTexture->bNeedsTwoCopies = true;
-						SeamMaskRenderTargetTexture->InitCustomFormat(BrushTargetTextureWidth, BrushTargetTextureHeight, PF_B8G8R8A8, bForceLinearGamma);
-						SeamMaskRenderTargetTexture->UpdateResourceImmediate();
-						SeamMaskRenderTargetTexture->AddressX = TextureData->PaintRenderTargetTexture->AddressX;
-						SeamMaskRenderTargetTexture->AddressY = TextureData->PaintRenderTargetTexture->AddressY;
-					}
-
-					bGenerateSeamMask = true;
-				}
-
-				bStartedPainting = true;
-			}
-		}
-
-		// @todo MeshPaint: Here we override the textures on the mesh with the render target.  The problem is that other meshes in the scene that use
-		//    this texture do not get the override. Do we want to extend this to all other selected meshes or maybe even to all meshes in the scene?
-		if (bIsTextureUsed && bStartedPainting && !TextureData->PaintingMaterials.Contains(MaterialToCheck))
-		{
-			TextureData->PaintingMaterials.AddUnique(MaterialToCheck);
-
-			GeometryInfo.ApplyOrRemoveTextureOverride(Texture2D, TextureData->PaintRenderTargetTexture);
-		}
-
-		MaterialIndex++;
-		MaterialToCheck = InMeshComponent->GetMaterial(MaterialIndex);
+		bIsTextureUsed = UTexturePaintToolset::DoesMeshComponentUseTexture(InMeshComponent, TextureData->PaintRenderTargetTexture);
 	}
 
-	if (bStartedPainting)
+	if (bIsTextureUsed)
 	{
-		TexturePaintingCurrentMeshComponent = InMeshComponent;
+		FTextureCompilingManager::Get().FinishCompilation({ Texture2D });
 
-		check(Texture2D != nullptr);
-		PaintingTexture2D = Texture2D;
-		// OK, now we need to make sure our render target is filled in with data
-		UTexturePaintToolset::SetupInitialRenderTargetData(TextureData->PaintingTexture2D, TextureData->PaintRenderTargetTexture);
+		bool bIsSourceTextureStreamedIn = Texture2D->IsFullyStreamedIn();
+
+		if (!bIsSourceTextureStreamedIn)
+		{
+			// We found that this texture is used in one of the meshes materials but not fully loaded, we will
+			//   attempt to fully stream in the texture before we try to do anything with it.
+			Texture2D->SetForceMipLevelsToBeResident(30.0f);
+			Texture2D->WaitForStreaming();
+
+			// We do a quick sanity check to make sure it is streamed fully streamed in now.
+			bIsSourceTextureStreamedIn = Texture2D->IsFullyStreamedIn();
+
+		}
+
+		if (bIsSourceTextureStreamedIn)
+		{
+			const int32 TextureWidth = Texture2D->Source.GetSizeX();
+			const int32 TextureHeight = Texture2D->Source.GetSizeY();
+
+			if (TextureData == nullptr)
+			{
+				TextureData = AddPaintTargetData(Texture2D);
+			}
+			check(TextureData != nullptr);
+
+			// Create our render target texture
+			if (TextureData->PaintRenderTargetTexture == nullptr ||
+				TextureData->PaintRenderTargetTexture->GetSurfaceWidth() != TextureWidth ||
+				TextureData->PaintRenderTargetTexture->GetSurfaceHeight() != TextureHeight)
+			{
+				TextureData->PaintRenderTargetTexture = nullptr;
+				TextureData->PaintRenderTargetTexture = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
+				TextureData->PaintRenderTargetTexture->bNeedsTwoCopies = true;
+				const bool bForceLinearGamma = true;
+				TextureData->PaintRenderTargetTexture->InitCustomFormat(TextureWidth, TextureHeight, PF_A16B16G16R16, bForceLinearGamma);
+				TextureData->PaintRenderTargetTexture->UpdateResourceImmediate();
+			}
+			TextureData->PaintRenderTargetTexture->AddressX = Texture2D->AddressX;
+			TextureData->PaintRenderTargetTexture->AddressY = Texture2D->AddressY;
+
+			const int32 BrushTargetTextureWidth = TextureWidth;
+			const int32 BrushTargetTextureHeight = TextureHeight;
+
+			// Create the rendertarget used to store our paint delta
+			if (BrushRenderTargetTexture == nullptr ||
+				BrushRenderTargetTexture->GetSurfaceWidth() != BrushTargetTextureWidth ||
+				BrushRenderTargetTexture->GetSurfaceHeight() != BrushTargetTextureHeight)
+			{
+				BrushRenderTargetTexture = nullptr;
+				BrushRenderTargetTexture = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
+				const bool bForceLinearGamma = true;
+				BrushRenderTargetTexture->ClearColor = FLinearColor::Black;
+				BrushRenderTargetTexture->bNeedsTwoCopies = true;
+				BrushRenderTargetTexture->InitCustomFormat(BrushTargetTextureWidth, BrushTargetTextureHeight, PF_A16B16G16R16, bForceLinearGamma);
+				BrushRenderTargetTexture->UpdateResourceImmediate();
+				BrushRenderTargetTexture->AddressX = TextureData->PaintRenderTargetTexture->AddressX;
+				BrushRenderTargetTexture->AddressY = TextureData->PaintRenderTargetTexture->AddressY;
+			}
+
+			if (TextureProperties->bEnableSeamPainting)
+			{
+				// Create the rendertarget used to store a mask for our paint delta area 
+				if (BrushMaskRenderTargetTexture == nullptr ||
+					BrushMaskRenderTargetTexture->GetSurfaceWidth() != BrushTargetTextureWidth ||
+					BrushMaskRenderTargetTexture->GetSurfaceHeight() != BrushTargetTextureHeight)
+				{
+					BrushMaskRenderTargetTexture = nullptr;
+					BrushMaskRenderTargetTexture = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
+					const bool bForceLinearGamma = true;
+					BrushMaskRenderTargetTexture->ClearColor = FLinearColor::Black;
+					BrushMaskRenderTargetTexture->bNeedsTwoCopies = true;
+					BrushMaskRenderTargetTexture->InitCustomFormat(BrushTargetTextureWidth, BrushTargetTextureHeight, PF_B8G8R8A8, bForceLinearGamma);
+					BrushMaskRenderTargetTexture->UpdateResourceImmediate();
+					BrushMaskRenderTargetTexture->AddressX = TextureData->PaintRenderTargetTexture->AddressX;
+					BrushMaskRenderTargetTexture->AddressY = TextureData->PaintRenderTargetTexture->AddressY;
+				}
+
+				// Create the rendertarget used to store a texture seam mask
+				if (SeamMaskRenderTargetTexture == nullptr ||
+					SeamMaskRenderTargetTexture->GetSurfaceWidth() != TextureWidth ||
+					SeamMaskRenderTargetTexture->GetSurfaceHeight() != TextureHeight)
+				{
+					SeamMaskRenderTargetTexture = nullptr;
+					SeamMaskRenderTargetTexture = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
+					const bool bForceLinearGamma = true;
+					SeamMaskRenderTargetTexture->ClearColor = FLinearColor::Black;
+					SeamMaskRenderTargetTexture->bNeedsTwoCopies = true;
+					SeamMaskRenderTargetTexture->InitCustomFormat(BrushTargetTextureWidth, BrushTargetTextureHeight, PF_B8G8R8A8, bForceLinearGamma);
+					SeamMaskRenderTargetTexture->UpdateResourceImmediate();
+					SeamMaskRenderTargetTexture->AddressX = TextureData->PaintRenderTargetTexture->AddressX;
+					SeamMaskRenderTargetTexture->AddressY = TextureData->PaintRenderTargetTexture->AddressY;
+				}
+
+				bGenerateSeamMask = true;
+			}
+
+			// MeshPaint: Here we override the textures on the mesh with the render target.  The problem is that other meshes in the scene that use
+			// this texture do not get the override. Do we want to extend this to all other selected meshes or maybe even to all meshes in the scene?
+			AddTextureOverrideToComponent(*TextureData, InMeshComponent, &GeometryInfo);
+
+
+
+			TexturePaintingCurrentMeshComponent = InMeshComponent;
+
+			check(Texture2D != nullptr);
+			PaintingTexture2D = Texture2D;
+
+			// Todo investigate if this could be done before the first draw to avoid recreating the scratch texture because of a undo.
+			// OK, now we need to make sure our render target is filled in with data
+			UTexturePaintToolset::SetupInitialRenderTargetData(*TextureData);
+		}
 	}
 }
 
@@ -1142,27 +1231,175 @@ void UMeshTexturePaintingTool::FinishPaintingTexture()
 			RenderTargetResource->ReadPixels(TexturePixels);
 
 			{
-				FScopedTransaction Transaction(LOCTEXT("MeshPaintMode_TexturePaint_Transaction", "Texture Paint"));
-
 				// For undo
-				TextureData->PaintingTexture2D->SetFlags(RF_Transactional);
-				TextureData->PaintingTexture2D->Modify();
+				TextureData->ScratchTexture->Modify();
 
-				// Store source art
-				FColor* Colors = (FColor*)TextureData->PaintingTexture2D->Source.LockMip(0);
-				check(TextureData->PaintingTexture2D->Source.CalcMipSize(0) == TexturePixels.Num() * sizeof(FColor));
-				FMemory::Memcpy(Colors, TexturePixels.GetData(), TexturePixels.Num() * sizeof(FColor));
-				TextureData->PaintingTexture2D->Source.UnlockMip(0);
+				const int32 NumPixels = TexturePixels.Num();
+
+				constexpr int32 NumMips = 1;
+				constexpr int32 NumSlices = 1;
+				// Store source art into the scratch texture
+				TextureData->ScratchTexture->Source.Init(
+						TextureData->PaintingTexture2D->Source.GetSizeX(),
+						TextureData->PaintingTexture2D->Source.GetSizeY(),
+						NumSlices,
+						NumMips,
+						TSF_BGRA8,
+						UE::Serialization::FEditorBulkData::FSharedBufferWithID(MakeSharedBufferFromArray(MoveTemp(TexturePixels)))
+					);
+
+				// Store source art into the scratch texture
+				check(TextureData->ScratchTexture->Source.CalcMipSize(0) == NumPixels * sizeof(FColor));
 
 				// If render target gamma used was 1.0 then disable SRGB for the static texture
-				TextureData->PaintingTexture2D->SRGB = FMath::Abs(RenderTargetResource->GetDisplayGamma() - 1.0f) >= KINDA_SMALL_NUMBER;
-
-				TextureData->PaintingTexture2D->bHasBeenPaintedInEditor = true;
+				TextureData->ScratchTexture->SRGB = FMath::Abs(RenderTargetResource->GetDisplayGamma() - 1.0f) >= KINDA_SMALL_NUMBER;
+				TextureData->ScratchTexture->bHasBeenPaintedInEditor = true;
 			}
 		}
 
 		PaintingTexture2D = nullptr;
 		TexturePaintingCurrentMeshComponent = nullptr;
+	}
+
+	PaintingTransaction.Reset();
+}
+
+void UMeshTexturePaintingTool::OnTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState)
+{
+	if (InTransactionState == ETransactionStateEventType::UndoRedoFinalized)
+	{
+		if (GUnrealEd)
+		{
+			if (UTransactor* Trans = GUnrealEd->Trans)
+			{
+				int32 CurrentTransactionIndex = Trans->FindTransactionIndex(InTransactionContext.TransactionId);
+				if (const FTransaction* Transaction = Trans->GetTransaction(CurrentTransactionIndex))
+				{
+					// Update the texture override of the components
+					using namespace UE::MeshPaintingToolset::Private::TexturePainting;
+
+					UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>();
+					check(MeshPaintingSubsystem);
+					{
+						auto TextureOverrideIsMissing = [this, MeshPaintingSubsystem](TObjectPtr<UTexture2D>& Texture)
+						{
+							if (FPaintTexture2DData* TextureData = GetPaintTargetData(Texture))
+							{
+								FPaintComponentOverride& PaintComponentOverride = PaintComponentsOverride.FindOrAdd(TextureData->PaintingTexture2D);
+								PaintComponentOverride.PaintedComponents.Reserve(TextureData->PaintedComponents.Num());
+
+								for (UMeshComponent* Component : TextureData->PaintedComponents)
+								{
+									if (TSharedPtr<IMeshPaintComponentAdapter> PaintAdapterRessource = MeshPaintingSubsystem->GetAdapterForComponent(Component))
+									{
+										PaintAdapterRessource->ApplyOrRemoveTextureOverride(TextureData->PaintingTexture2D, TextureData->PaintRenderTargetTexture);
+										PaintComponentOverride.PaintedComponents.Add(Component);
+									}
+								}
+							}
+						};
+
+						auto TextureOverrideIsNotNeeded = [this, MeshPaintingSubsystem](TObjectPtr<UTexture2D>& Texture)
+						{
+							FPaintComponentOverride ComponentOverride;
+							PaintComponentsOverride.RemoveAndCopyValue(Texture, ComponentOverride);
+
+							for (UMeshComponent* Component : ComponentOverride.PaintedComponents)
+							{
+								if (TSharedPtr<IMeshPaintComponentAdapter> PaintAdapterRessource = MeshPaintingSubsystem->GetAdapterForComponent(Component))
+								{
+									PaintAdapterRessource->ApplyOrRemoveTextureOverride(Texture,  nullptr);
+								}
+							}
+						};
+
+
+						auto UpdateOverridedComponents = [this, MeshPaintingSubsystem](TObjectPtr<UTexture2D>& Texture)
+						{
+							if (FPaintTexture2DData* TextureData = GetPaintTargetData(Texture))
+							{
+								FPaintComponentOverride& ComponentOverride = PaintComponentsOverride.FindChecked(Texture);
+
+								auto SortComponents = [](const UMeshComponent& First, const UMeshComponent& Second) { return First < Second; };
+
+								TextureData->PaintedComponents.Sort(SortComponents);
+								ComponentOverride.PaintedComponents.Sort(SortComponents);
+
+								TArray<UMeshComponent*> MeshComponentsToRemove;
+								TArray<UMeshComponent*> MeshComponentsToAdd;
+
+								auto ComponentOverrideNotNeeded = [this, MeshPaintingSubsystem, &ComponentOverride, Texture, &MeshComponentsToRemove](TObjectPtr<UMeshComponent>& MeshComponent)
+								{
+									if (TSharedPtr<IMeshPaintComponentAdapter> PaintAdapterRessource = MeshPaintingSubsystem->GetAdapterForComponent(MeshComponent))
+									{
+										PaintAdapterRessource->ApplyOrRemoveTextureOverride(Texture, nullptr);
+									}
+
+									MeshComponentsToRemove.Add(MeshComponent);
+								};
+
+								auto ComponentOverrideMissing = [this, MeshPaintingSubsystem, &ComponentOverride, Texture, &MeshComponentsToAdd, RenderTarget = TextureData->PaintRenderTargetTexture](TObjectPtr<UMeshComponent>& MeshComponent)
+								{
+									if (TSharedPtr<IMeshPaintComponentAdapter> PaintAdapterRessource = MeshPaintingSubsystem->GetAdapterForComponent(MeshComponent))
+									{
+										PaintAdapterRessource->ApplyOrRemoveTextureOverride(Texture, RenderTarget);
+									}
+
+									MeshComponentsToAdd.Add(MeshComponent);
+								};
+
+								auto DoNothing = [](TObjectPtr<UMeshComponent>&) {};
+
+								CompareSortedArrayElements<TObjectPtr<UMeshComponent>>(TextureData->PaintedComponents, ComponentOverride.PaintedComponents, ComponentOverrideNotNeeded, ComponentOverrideMissing, DoNothing);
+							}
+						};
+					
+						// Unfortunately TObjectPtrs don't behave like a RawPtrs when sorting an array 
+						auto SortPredicate = [](const UTexture2D& First, const UTexture2D& Second) {return (&First) < (&Second);};
+
+						TArray<TObjectPtr<UTexture2D>> CurrentTextures;
+						PaintTargetData.GenerateKeyArray(CurrentTextures);
+						CurrentTextures.Sort(SortPredicate);
+
+						TArray<TObjectPtr<UTexture2D>> OverrideTextures;
+						PaintComponentsOverride.GenerateKeyArray(OverrideTextures);
+						PaintComponentsOverride.KeySort(SortPredicate);
+
+						CompareSortedArrayElements<TObjectPtr<UTexture2D>>(CurrentTextures, OverrideTextures, TextureOverrideIsNotNeeded, TextureOverrideIsMissing, UpdateOverridedComponents);
+					}
+
+
+					// Update the render targets
+					{
+						if (Transaction->ContainsObject(this) && TextureProperties)
+						{
+							if (TextureProperties->PaintTexture)
+							{
+								if (FPaintTexture2DData* TextureData = GetPaintTargetData(TextureProperties->PaintTexture))
+								{
+									if (TextureData->ScratchTexture)
+									{
+										UTexturePaintToolset::UpdateRenderTargetData(*TextureData);
+									}
+								}
+							}
+						}
+						else
+						{
+							for (TPair<TObjectPtr<UTexture2D>, FPaintTexture2DData>& TagetData : PaintTargetData)
+							{
+								FPaintTexture2DData& PaintTexture2DData = TagetData.Value;
+
+								if (Transaction->ContainsObject(PaintTexture2DData.ScratchTexture))
+								{
+									UTexturePaintToolset::UpdateRenderTargetData(PaintTexture2DData);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -1197,7 +1434,7 @@ void UMeshTexturePaintingTool::CommitAllPaintedTextures()
 	{
 		check(PaintingTexture2D == nullptr);
 
-		FScopedTransaction Transaction(LOCTEXT("MeshPaintMode_TexturePaint_Transaction", "Texture Paint"));
+		FScopedTransaction Transaction(LOCTEXT("MeshPaintMode_TexturePaint_Commit", "Commit Texture Paint"));
 
 	//	GWarn->BeginSlowTask(LOCTEXT("BeginMeshPaintMode_TexturePaint_CommitTask", "Committing Texture Paint Changes"), true);
 
@@ -1251,9 +1488,6 @@ void UMeshTexturePaintingTool::CommitAllPaintedTextures()
 
 					TextureData->bIsPaintingTexture2DModified = false;
 
-					// Reduplicate the duplicate so that if we cancel our future changes, it will restore to how the texture looked at this point.
-					TextureData->PaintingTexture2DDuplicate = (UTexture2D*)StaticDuplicateObject(TextureData->PaintingTexture2D, GetTransientPackage(), *FString::Printf(TEXT("%s_TEMP"), *TextureData->PaintingTexture2D->GetName()));
-
 				}
 			}
 		}
@@ -1266,21 +1500,26 @@ void UMeshTexturePaintingTool::CommitAllPaintedTextures()
 
 void UMeshTexturePaintingTool::ClearAllTextureOverrides()
 {
-	const auto FeatureLevel = GMaxRHIFeatureLevel;
-	/** Remove all texture overrides which are currently stored and active */
-	for (decltype(PaintTargetData)::TIterator It(PaintTargetData); It; ++It)
+	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
-		FPaintTexture2DData* TextureData = &It.Value();
-
-		for (int32 MaterialIndex = 0; MaterialIndex < TextureData->PaintingMaterials.Num(); MaterialIndex++)
+		const auto FeatureLevel = GetTargetWorld()->FeatureLevel;
+		/** Remove all texture overrides which are currently stored and active */
+		for (decltype(PaintTargetData)::TIterator It(PaintTargetData); It; ++It)
 		{
-			if (UMaterialInterface* PaintingMaterialInterface = TextureData->PaintingMaterials[MaterialIndex])
+			FPaintTexture2DData* TextureData = &It.Value();
+
+			for (UMeshComponent* MeshComponent : TextureData->PaintedComponents)
 			{
-				PaintingMaterialInterface->OverrideTexture(TextureData->PaintingTexture2D, nullptr, FeatureLevel);
+				if (TSharedPtr<IMeshPaintComponentAdapter> PaintAdapter = MeshPaintingSubsystem->GetAdapterForComponent(MeshComponent))
+				{
+					PaintAdapter->ApplyOrRemoveTextureOverride(TextureData->PaintingTexture2D, nullptr);
+				}
 			}
+	
+			TextureData->PaintedComponents.Empty();
 		}
 
-		TextureData->PaintingMaterials.Empty();
+		PaintComponentsOverride.Empty();
 	}
 }
 

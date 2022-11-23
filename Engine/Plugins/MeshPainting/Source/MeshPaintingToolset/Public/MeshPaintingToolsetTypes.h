@@ -121,53 +121,40 @@ struct FPaintTexture2DData
 	GENERATED_BODY()
 	/** The original texture that we're painting */
 	UPROPERTY(Transient)
-	TObjectPtr<UTexture2D> PaintingTexture2D;
-	bool bIsPaintingTexture2DModified;
+	TObjectPtr<UTexture2D> PaintingTexture2D = nullptr;
 
-	/** A copy of the original texture we're painting, used for restoration. */
+	bool bIsPaintingTexture2DModified = false;
+
+	/** Texture used to store the paint modifications for the transactions */
 	UPROPERTY(Transient)
-	TObjectPtr<UTexture2D> PaintingTexture2DDuplicate;
+	TObjectPtr<UTexture2D> ScratchTexture = nullptr;
 
 	/** Render target texture for painting */
 	UPROPERTY(Transient)
-	TObjectPtr<UTextureRenderTarget2D> PaintRenderTargetTexture;
+	TObjectPtr<UTextureRenderTarget2D> PaintRenderTargetTexture = nullptr;
 
-	/** Render target texture used as an input while painting that contains a clone of the original image */
+	/** List of component we are painting on */
 	UPROPERTY(Transient)
-	TObjectPtr<UTextureRenderTarget2D> CloneRenderTargetTexture;
+	TArray<TObjectPtr<UMeshComponent>> PaintedComponents;
 
-	/** List of materials we are painting on */
-	UPROPERTY(Transient)
-	TArray< TObjectPtr<UMaterialInterface> > PaintingMaterials;
+	FPaintTexture2DData() = default;
 
-	/** Default ctor */
-	FPaintTexture2DData() :
-		PaintingTexture2D(NULL),
-		bIsPaintingTexture2DModified(false),
-		PaintingTexture2DDuplicate(nullptr),
-		PaintRenderTargetTexture(nullptr),
-		CloneRenderTargetTexture(nullptr)
-	{}
-
-	FPaintTexture2DData(UTexture2D* InPaintingTexture2D, bool InbIsPaintingTexture2DModified = false) :
-		PaintingTexture2D(InPaintingTexture2D),
-		bIsPaintingTexture2DModified(InbIsPaintingTexture2DModified),
-		PaintRenderTargetTexture(nullptr),
-		CloneRenderTargetTexture(nullptr)
-	{}
-
-	/** Serializer */
-	void AddReferencedObjects(FReferenceCollector& Collector)
+	FPaintTexture2DData(UTexture2D* InPaintingTexture2D, bool InbIsPaintingTexture2DModified = false)
+		: PaintingTexture2D(InPaintingTexture2D)
+		, bIsPaintingTexture2DModified(InbIsPaintingTexture2DModified)
 	{
-		// @todo MeshPaint: We're relying on GC to clean up render targets, can we free up remote memory more quickly?
-		Collector.AddReferencedObject(PaintingTexture2D);
-		Collector.AddReferencedObject(PaintRenderTargetTexture);
-		Collector.AddReferencedObject(CloneRenderTargetTexture);
-		for (int32 Index = 0; Index < PaintingMaterials.Num(); Index++)
-		{
-			Collector.AddReferencedObject(PaintingMaterials[Index]);
-		}
 	}
+
+};
+
+USTRUCT()
+struct FPaintComponentOverride
+{
+	GENERATED_BODY()
+
+	/** List of components overridden */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMeshComponent>> PaintedComponents;
 };
 
 namespace MeshPaintDefs
