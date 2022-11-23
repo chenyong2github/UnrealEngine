@@ -633,7 +633,7 @@ void VisualizeMaterialPS(
 
 float2 GetBranchOffset(FStrataOperator Op, bool bIsLeft)
 {
-	if (Op.Type == STRATA_OPERATOR_WEIGHT || Op.Type == STRATA_OPERATOR_THINFILM)
+	if (Op.Type == STRATA_OPERATOR_WEIGHT)
 	{
 		return float2(0, TREE_BRANCH.y);
 	}
@@ -738,10 +738,6 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 				else if (Op.Type == STRATA_OPERATOR_BSDF_LEGACY)
 				{
 					Print(Context, TEXT("BSDF_LEGACY"), FontWhite);
-				}
-				else if (Op.Type == STRATA_OPERATOR_THINFILM)
-				{
-					Print(Context, TEXT("THINFILM"), FontWhite);
 				}
 				else
 				{
@@ -884,10 +880,6 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			else if (Op.Type == STRATA_OPERATOR_BSDF_LEGACY)
 			{
 				Print(Context, TEXT("BL"), FontWhite);
-			}
-			else if (Op.Type == STRATA_OPERATOR_THINFILM)
-			{
-				Print(Context, TEXT("TF"), FontWhite);
 			}
 			else
 			{

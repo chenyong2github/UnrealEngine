@@ -1063,10 +1063,6 @@ struct FStrataOperator
 	float				 OpaqueRoughRefractThicknessCm;	// The thickness of stack material from the top layer to the bottom layer.
 	float				 OpaqueRoughRefractTopRoughness;// The roughness of the top layer. This is enough because we currently assume all the bottom layers have a constant IOR, so eta will after that always be 1 and no refraction will occur after.
 
-	// Thin film
-	float ThinFilmThickness;							// Thickness of thin-film coating layer. In micro-meters (1um == 1000nm).  Merge with regular ThicknessCm?
-	float ThinFilmIOR;									// IOR of the thin-film coating layer
-
 	// Translucent refractions
 	FStrataLobeStatistic VerticalTop_TopDownRefractionLobeStat;	// Only used by vertical layering operators. It represent the lobe statistics of the top layer at its interface.
 	FStrataLobeStatistic VerticalTop_BottomUpRefractionLobeStat;
@@ -2081,30 +2077,6 @@ FStrataData StrataWeight(FStrataData A, float Weight, inout FStrataTree StrataTr
 	return StrataData;
 }
 
-FStrataData StrataThinFilm(FStrataData A, float Thickness, float IOR, inout FStrataTree StrataTree, int OperatorIndex, uint MaxDistanceFromLeaves)
-{
-	const float SafeThickness = saturate(Thickness);
-	const float SafeIOR = clamp(IOR, 1.01f, 3.0f);
-
-	FStrataData StrataData = GetInitialisedStrataData();
-	StrataData.OperatorIndex = OperatorIndex;
-#if USE_DEVELOPMENT_SHADERS
-	StrataData.PreviewColor = A.PreviewColor;
-#endif
-
-	StrataTree.OperatorCount++;
-	StrataTree.Operators[OperatorIndex] = GetInitialisedStrataOperator();
-	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves = MaxDistanceFromLeaves;
-	StrataTree.Operators[OperatorIndex].Type = STRATA_OPERATOR_THINFILM;
-	StrataTree.Operators[OperatorIndex].ThinFilmThickness = SafeThickness;
-	StrataTree.Operators[OperatorIndex].ThinFilmIOR = SafeIOR;
-	StrataTree.Operators[OperatorIndex].LeftIndex = A.OperatorIndex;
-
-	StrataTree.Operators[A.OperatorIndex].ParentIndex = OperatorIndex;
-
-	return StrataData;
-}
-
 FStrataData StrataHorizontalMixing(FStrataData Background, FStrataData Foreground, float Mix, inout FStrataTree StrataTree, int OperatorIndex, uint MaxDistanceFromLeaves)
 {
 	const float ForegroundMixFactor = saturate(Mix);
@@ -2539,11 +2511,18 @@ void StrataGetThinFilmF0F90(float NoV, float ThinFilmThickness, float ThinFilmIO
 	OutF90 = max(F0_Thin, F90);
 }
 
-FStrataData StrataThinFilmParameterBlending(in FStrataData A, float ThinFilmThickness, float ThinFilmIOR, float NoV)
+struct FStrataThinFilmOutput
 {
-	FStrataData StrataData = A;
-	StrataGetThinFilmF0F90(NoV, ThinFilmThickness, ThinFilmIOR, SLAB_F0(StrataData.InlinedBSDF), SLAB_F90(StrataData.InlinedBSDF));
-	return StrataData;
+	float3 F0;
+	float3 F90;
+};
+FStrataThinFilmOutput StrataGetThinFilmF0F90(float NoV, float3 F0, float3 F90, float ThinFilmThickness, float ThinFilmIOR)
+{
+	FStrataThinFilmOutput Output;
+	Output.F0 = F0;
+	Output.F90 = F90;
+	StrataGetThinFilmF0F90(NoV, ThinFilmThickness, ThinFilmIOR, Output.F0, Output.F90);
+	return Output;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

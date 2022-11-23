@@ -24524,109 +24524,6 @@ FStrataOperator* UMaterialExpressionStrataWeight::StrataGenerateMaterialTopology
 }
 #endif // WITH_EDITOR
 
-
-
-UMaterialExpressionStrataThinFilm::UMaterialExpressionStrataThinFilm(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	struct FConstructorStatics
-	{
-		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Ops", "Strata Operators")) { }
-	};
-	static FConstructorStatics ConstructorStatics;
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Strata);
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionStrataThinFilm::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	if (!A.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing A input"));
-	}
-
-	Compiler->StrataTreeStackPush(this, 0);
-	int32 ACodeChunk = A.Compile(Compiler);
-	Compiler->StrataTreeStackPop();
-	int32 ThicknessCodeChunk = Thickness.GetTracedInput().Expression ? Thickness.Compile(Compiler) : Compiler->Constant(1.0f);
-	int32 IORCodeChunk = IOR.GetTracedInput().Expression ? IOR.Compile(Compiler) : Compiler->Constant(1.44f);
-
-	int32 OutputCodeChunk = INDEX_NONE;
-	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(Compiler->StrataTreeStackGetPathUniqueId());
-	if (StrataOperator.bUseParameterBlending)
-	{
-		// Propagate the parameter blended normal
-		FStrataOperator* Operator = Compiler->StrataCompilationGetOperatorFromIndex(StrataOperator.LeftIndex);
-		if (!Operator)
-		{
-			return Compiler->Errorf(TEXT("Missing input on ThinFilm node."));
-		}
-		StrataOperator.BSDFRegisteredSharedLocalBasis = Operator->BSDFRegisteredSharedLocalBasis;
-
-		int32 NormalCodeChunk = Operator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk;
-		OutputCodeChunk = Compiler->StrataThinFilmParameterBlending(ACodeChunk, ThicknessCodeChunk, IORCodeChunk, NormalCodeChunk, StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
-	}
-	else
-	{
-		OutputCodeChunk = Compiler->StrataThinFilm(ACodeChunk, ThicknessCodeChunk, IORCodeChunk, StrataOperator.Index, StrataOperator.MaxDistanceFromLeaves);
-	}
-
-	return OutputCodeChunk;
-}
-
-void UMaterialExpressionStrataThinFilm::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Strata Thin-Film"));
-}
-
-uint32 UMaterialExpressionStrataThinFilm::GetOutputType(int32 OutputIndex)
-{
-	return MCT_Strata;
-}
-
-uint32 UMaterialExpressionStrataThinFilm::GetInputType(int32 InputIndex)
-{
-	if (InputIndex == 0) { return MCT_Strata; } // Material
-	if (InputIndex == 1) { return MCT_Float1; } // Thickness
-	if (InputIndex == 2) { return MCT_Float1; } // IOR
-	return MCT_Float1;
-}
-
-bool UMaterialExpressionStrataThinFilm::IsResultStrataMaterial(int32 OutputIndex)
-{
-	return true;
-}
-
-void UMaterialExpressionStrataThinFilm::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
-{
-	if (A.GetTracedInput().Expression)
-	{
-		A.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, A.OutputIndex);
-	}
-}
-
-FStrataOperator* UMaterialExpressionStrataThinFilm::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
-{
-	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_THINFILM, Compiler->StrataTreeStackGetPathUniqueId(), Parent, Compiler->StrataTreeStackGetParentPathUniqueId());
-
-	UMaterialExpression* ChildAExpression = A.GetTracedInput().Expression;
-	FStrataOperator* OpA = nullptr;
-	if (ChildAExpression)
-	{
-		Compiler->StrataTreeStackPush(this, 0);
-		OpA = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex);
-		Compiler->StrataTreeStackPop();
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, OpA);
-	}
-	CombineFlagForParameterBlending(StrataOperator, OpA);
-
-	return &StrataOperator;
-}
-#endif // WITH_EDITOR
-
 UMaterialExpressionStrataUtilityBase::UMaterialExpressionStrataUtilityBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -24907,6 +24804,100 @@ void UMaterialExpressionStrataHazinessToSecondaryRoughness::GetExpressionToolTip
 {
 	ConvertToMultilineToolTip(TEXT("Compute a second specular lobe roughness from a base surface roughness and haziness. This parameterisation ensure that the haziness makes physically and is perceptually easy to author."), 80, OutToolTip);
 
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataThinFilm::UMaterialExpressionStrataThinFilm(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Helpers", "Strata Helpers")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Specular Color")));
+	Outputs.Add(FExpressionOutput(TEXT("Edge Specular Color")));
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataThinFilm::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 NormalCodeChunk		= CompileWithDefaultNormalWS(Compiler, Normal);
+
+	int32 F0CodeChunk			= F0.GetTracedInput().Expression		? F0.Compile(Compiler)			: Compiler->Constant3(0.04f, 0.04f, 0.04f);
+	int32 F90CodeChunk			= F90.GetTracedInput().Expression		? F90.Compile(Compiler)			: Compiler->Constant3(1.0f, 1.0f, 1.0f);
+
+	int32 ThicknessCodeChunk	= Thickness.GetTracedInput().Expression	? Thickness.Compile(Compiler)	: Compiler->Constant(1.0f);
+	int32 IORCodeChunk			= IOR.GetTracedInput().Expression		? IOR.Compile(Compiler)			: Compiler->Constant(1.44f);
+
+	return Compiler->StrataThinFilm(NormalCodeChunk, F0CodeChunk, F90CodeChunk, ThicknessCodeChunk, IORCodeChunk, OutputIndex);
+}
+
+void UMaterialExpressionStrataThinFilm::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Thin-Film"));
+}
+
+uint32 UMaterialExpressionStrataThinFilm::GetOutputType(int32 OutputIndex)
+{
+	switch (OutputIndex)
+	{
+	case 0:
+		return MCT_Float3; // F0
+		break;
+	case 1:
+		return MCT_Float3; // F90
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+uint32 UMaterialExpressionStrataThinFilm::GetInputType(int32 InputIndex)
+{
+	if (InputIndex == 0) { return MCT_Float3; } // Normal
+	if (InputIndex == 1) { return MCT_Float3; } // F0
+	if (InputIndex == 2) { return MCT_Float3; } // F90
+	if (InputIndex == 3) { return MCT_Float1; } // Thickness
+	if (InputIndex == 4) { return MCT_Float1; } // IOR
+
+	check(false);
+	return MCT_Float1;
+}
+void UMaterialExpressionStrataThinFilm::GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip)
+{
+	if (OutputIndex != INDEX_NONE)
+	{
+		switch (OutputIndex)
+		{
+		case 0:
+			ConvertToMultilineToolTip(TEXT("F0 accounting for thin film interferences. This is percentage of light reflected as specular from a surface when the view is perpendicular to the surface. (type = float3, unit = unitless, defaults to plastic 0.04)"), 80, OutToolTip);
+			break;
+		case 1:
+			ConvertToMultilineToolTip(TEXT("F90 accounting for thin film interferences. the percentage of light reflected as specular from a surface when the view is tangent to the surface. (type = float3, unit = unitless, defaults to 1.0f)."), 80, OutToolTip);
+			break;
+		}
+		return;
+	}
+
+	// Else use the default input tooltip
+	Super::GetConnectorToolTip(InputIndex, OutputIndex, OutToolTip);
+}
+
+void UMaterialExpressionStrataThinFilm::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Compute the resulting material specular parameter F0 and F90 according to input surface properties as well as the thin film parameters."), 80, OutToolTip);
 }
 #endif // WITH_EDITOR
 

@@ -317,21 +317,6 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		break;
 	}
 
-	case STRATA_OPERATOR_THINFILM:
-	{
-		// Thin-film does not affect these property
-		Op.Coverage = OpA.Coverage;
-		Op.ThroughputAlongV = OpA.ThroughputAlongV;
-		Op.TransmittanceAlongN = OpA.TransmittanceAlongN;
-		Op.TopDownRefractionLobeStat = OpA.TopDownRefractionLobeStat;
-		Op.TopDownRefractionWorldNormal = OpA.TopDownRefractionWorldNormal;
-		Op.BottomUpRefractionLobeStat = OpA.BottomUpRefractionLobeStat;
-		Op.OpaqueRoughRefractThicknessCm = OpA.OpaqueRoughRefractThicknessCm;
-		Op.OpaqueRoughRefractCoverage = OpA.OpaqueRoughRefractCoverage;
-		Op.OpaqueRoughRefractTopRoughness = OpA.OpaqueRoughRefractTopRoughness;
-		break;
-	}
-
 	}
 
 #undef Op
@@ -419,51 +404,6 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
 		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataOppositeLobe(ReflectedLobe), DummyInterfaceDFG, StrataLobeVarianceToRoughness(TopLayerSigma), BottomUpInterfaceEta);/////////////////
 
 		StrataSetBSDFRoughness(CurrentBSDF, StrataLobeVarianceToRoughness(RefractedLobe.Sigma));
-	}
-
-#endif // STRATA_INLINE_SHADING
-}
-
-// Pre-update visit operators
-void PreUpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
-	FStrataPixelHeader StrataPixelHeader,
-	inout FStrataTree StrataTree,
-	inout FStrataBSDF CurrentBSDF,
-	FStrataAddressing NullStrataAddressing,
-	inout bool bCanReceiveThinFilm,
-	float3 V,
-	int OpIndex,
-	int PreviousIsInputA)
-{
-#if STRATA_INLINE_SHADING
-
-	// If the BSDF is coated with a vertical layer, it can no longer receive thin film-coating
-	if (PreviousIsInputA <= 0)
-	{
-		bCanReceiveThinFilm = false;
-	}
-
-#endif // STRATA_INLINE_SHADING
-}
-
-void PreUpdateAllBSDFWithBottomUpOperatorVisit_ThinFilm(
-	FStrataPixelHeader StrataPixelHeader,
-	inout FStrataTree StrataTree,
-	inout FStrataBSDF CurrentBSDF,
-	FStrataAddressing NullStrataAddressing,
-	inout bool bCanReceiveThinFilm,
-	float3 V,
-	int OpIndex,
-	int PreviousIsInputA)
-{
-#if STRATA_INLINE_SHADING
-
-	if (bCanReceiveThinFilm && BSDF_GETTYPE(CurrentBSDF) == STRATA_BSDF_TYPE_SLAB)
-	{
-		const float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
-		const float3 N = TangentBasis[2];
-		const float NoV = saturate(dot(N, V));
-		StrataGetThinFilmF0F90(NoV, Op.ThinFilmThickness, Op.ThinFilmIOR, SLAB_F0(CurrentBSDF), SLAB_F90(CurrentBSDF));
 	}
 
 #endif // STRATA_INLINE_SHADING

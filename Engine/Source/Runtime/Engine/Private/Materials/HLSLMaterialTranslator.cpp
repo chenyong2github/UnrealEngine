@@ -219,10 +219,6 @@ static inline const TCHAR* GetStrataOperatorStr(int32 OperatorType)
 	{
 		return TEXT("BSDFLEGACY");
 	}
-	case STRATA_OPERATOR_THINFILM:
-	{
-		return TEXT("THINFILM");
-	}
 	}
 	return TEXT("UNKNOWN   ");
 };
@@ -1402,7 +1398,6 @@ bool FHLSLMaterialTranslator::Translate()
 					for (uint32 BSDFIndex = 0; BSDFIndex < StrataMaterialBSDFCount; ++BSDFIndex)
 					{
 						ResourcesString += "\t{\n";
-						ResourcesString += "\t\tbool bCanReceiveThinFilm = true;\n";
 						for (auto& It : StrataMaterialExpressionRegisteredOperators)
 						{
 							if (!It.IsDiscarded() && It.BSDFIndex == BSDFIndex)
@@ -1422,17 +1417,12 @@ bool FHLSLMaterialTranslator::Translate()
 									}
 									case STRATA_OPERATOR_VERTICAL:
 									{
-										ResourcesString += FString::Printf(TEXT("\t PreUpdateAllBSDFWithBottomUpOperatorVisit_Vertical(StrataPixelHeader, StrataTree, StrataTree.BSDFs[%d], NullStrataAddressing, bCanReceiveThinFilm, V, %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
-										break;
+										// example ResourcesString += FString::Printf(TEXT("\t PreUpdateAllBSDFWithBottomUpOperatorVisit_Vertical(StrataPixelHeader, StrataTree, StrataTree.BSDFs[%d], NullStrataAddressing, V, %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+										break; // NOP
 									}
 									case STRATA_OPERATOR_ADD:
 									{
 										break; // NOP
-									}
-									case STRATA_OPERATOR_THINFILM:
-									{
-										ResourcesString += FString::Printf(TEXT("\t PreUpdateAllBSDFWithBottomUpOperatorVisit_ThinFilm(StrataPixelHeader, StrataTree, StrataTree.BSDFs[%d], NullStrataAddressing, bCanReceiveThinFilm, V,  %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
-										break;
 									}
 									default:
 									case STRATA_OPERATOR_BSDF:
@@ -1530,10 +1520,6 @@ bool FHLSLMaterialTranslator::Translate()
 										break;
 									}
 									case STRATA_OPERATOR_ADD:
-									{
-										break; // NOP
-									}
-									case STRATA_OPERATOR_THINFILM:
 									{
 										break; // NOP
 									}
@@ -10072,7 +10058,6 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 
 		// Operators with a single child
 		case STRATA_OPERATOR_WEIGHT:
-		case STRATA_OPERATOR_THINFILM:
 		{
 			bMustHaveLeftChild = true;
 		}
@@ -10142,7 +10127,6 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 					break;
 				}
 				case STRATA_OPERATOR_WEIGHT:
-				case STRATA_OPERATOR_THINFILM:
 				{
 					WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex], bUseParameterBlending);
 					bOperatorEncountered = true;
@@ -10243,7 +10227,6 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 
 			// Operators with a single child
 			case STRATA_OPERATOR_WEIGHT:
-			case STRATA_OPERATOR_THINFILM:
 			{
 				check(It.LeftIndex != INDEX_NONE);
 			}
@@ -10260,7 +10243,6 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 				switch (CurrentOperator.OperatorType)
 				{
 				case STRATA_OPERATOR_WEIGHT:
-				case STRATA_OPERATOR_THINFILM:
 				{
 					CurrentOperator.MaxDistanceFromLeaves = StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex].MaxDistanceFromLeaves + 1;
 					break;
@@ -10331,7 +10313,6 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 					break;
 				}
 				case STRATA_OPERATOR_WEIGHT:
-				case STRATA_OPERATOR_THINFILM:
 				{
 					WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex]);
 					break;
@@ -11183,57 +11164,6 @@ int32 FHLSLMaterialTranslator::StrataWeightParameterBlending(int32 A, int32 Weig
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataThinFilm(int32 A, int32 Thickness, int32 IOR, int OperatorIndex, uint32 MaxDistanceFromLeaves)
-{
-	if (A == INDEX_NONE || Thickness == INDEX_NONE || IOR == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataThinFilm(%s, %s, %s, Parameters.StrataTree, %u, %u)"),
-		*GetParameterCode(A),
-		*GetParameterCode(Thickness),
-		*GetParameterCode(IOR),
-		OperatorIndex,
-		MaxDistanceFromLeaves
-	);
-}
-
-int32 FHLSLMaterialTranslator::StrataThinFilmParameterBlending(int32 A, int32 Thickness, int32 IOR, int32 BSDFNormalCodeChunk, FStrataOperator* PromoteToOperator)
-{
-	if (A == INDEX_NONE || Thickness == INDEX_NONE || IOR == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
-	if (PromoteToOperator)
-	{
-		check(PromoteToOperator->Index != INDEX_NONE);
-		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
-		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataThinFilmParameterBlending(%s, %s, %s, dot(%s, %s)), Parameters.StrataTree, %u, %u, %u, %u)"),
-			*GetParameterCode(A),
-			*GetParameterCode(Thickness),
-			*GetParameterCode(IOR),
-			*GetParameterCode(BSDFNormalCodeChunk),
-			*GetParameterCode(CameraVector()),
-			PromoteToOperator->Index,
-			PromoteToOperator->BSDFIndex,
-			PromoteToOperator->LayerDepth,
-			PromoteToOperator->bIsBottom ? 1 : 0
-		);
-	}
-
-	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataThinFilmParameterBlending(%s, %s, %s, dot(%s, %s))"),
-		*GetParameterCode(A),
-		*GetParameterCode(Thickness),
-		*GetParameterCode(IOR),
-		*GetParameterCode(BSDFNormalCodeChunk),
-		*GetParameterCode(CameraVector())
-	);
-}
-
 int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex)
 {
 	if (OutputIndex == INDEX_NONE)
@@ -11309,6 +11239,30 @@ int32 FHLSLMaterialTranslator::StrataHazinessToSecondaryRoughness(int32 BaseRoug
 		break;
 	}
 	return INDEX_NONE;
+}
+
+int32 FHLSLMaterialTranslator::StrataThinFilm(int32 NormalCodeChunk, int32 SpecularColorCodeChunk, int32 EdgeSpecularColorCodeChunk, int32 ThicknessCodeChunk, int32 IORCodeChunk, int32 OutputIndex)
+{
+	if (NormalCodeChunk == INDEX_NONE || SpecularColorCodeChunk == INDEX_NONE || EdgeSpecularColorCodeChunk == INDEX_NONE
+		|| ThicknessCodeChunk == INDEX_NONE || IORCodeChunk == INDEX_NONE)
+	{
+		Errorf(TEXT("Strata error: one of StrataThinFilm node input is invalid (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+		return INDEX_NONE;
+	}
+	if (OutputIndex < 0 || OutputIndex > 1)
+	{
+		Errorf(TEXT("Strata error: StrataThinFilm output index is invalid (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+		return INDEX_NONE;
+	}
+	return AddCodeChunk(
+		MCT_Float3, TEXT("StrataGetThinFilmF0F90(%s, %s, %s, %s, %s)%s"),
+		*GetParameterCode(Dot(NormalCodeChunk, CameraVector())),
+		*GetParameterCode(SpecularColorCodeChunk),
+		*GetParameterCode(EdgeSpecularColorCodeChunk),
+		*GetParameterCode(ThicknessCodeChunk),
+		*GetParameterCode(IORCodeChunk),
+		OutputIndex == 0 ? TEXT(".F0") : TEXT(".F90")
+	);
 }
 
 int32 FHLSLMaterialTranslator::StrataCompilePreview(int32 StrataDataCodeChunk)

@@ -49,7 +49,6 @@
 #define STRATA_OPERATOR_ADD				3
 #define STRATA_OPERATOR_BSDF			4
 #define STRATA_OPERATOR_BSDF_LEGACY		5
-#define STRATA_OPERATOR_THINFILM		6
 
 // This must map directly to EStrataTileMaterialType
 #define STRATA_TILE_TYPE_SIMPLE						0
