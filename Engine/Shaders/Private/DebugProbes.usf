@@ -253,14 +253,14 @@ void MainPS(
 #if PERMUTATION_ILLUMINANCEMETER /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// In this case we want to show a small patch in front of the camera with pure white albedo.
-	// That is a way to measure the illuminance at the camera position, on the hemisphere pointing otwards the back of the camera.
+	// That is a way to measure the illuminance at the camera position, on the hemisphere pointing towards the back of the camera.
 
 	const float DeviceZ = 0.999999f;
 
 	// IlluminanceMeter variables must match the one in PostProcessVisualizeHDR.usf
-	const float  IlluminanceMeterSize = 20;
+	const float  IlluminanceMeterSize = 20 * View.ResolutionFractionAndInv.x;
 	const float  IlluminanceMeterHalfSize = IlluminanceMeterSize / 2;
-	const float2 IlluminanceMeterCenter = View.ViewSizeAndInvSize.xy * 0.5f - uint2(0, 100);
+	const float2 IlluminanceMeterCenter = View.ViewSizeAndInvSize.xy * 0.5f - uint2(0, 100) * View.ResolutionFractionAndInv.x;
 
 	if(all(PixelCoord > (IlluminanceMeterCenter - IlluminanceMeterHalfSize)) && all(PixelCoord < (IlluminanceMeterCenter + IlluminanceMeterHalfSize)))
 	{
