@@ -35,11 +35,12 @@ namespace Chaos
 		const VectorRegister4Float X2X1 = VectorSubtract(X1, X2);
 		const VectorRegister4Float CA = VectorSubtract(A, C);
 		const VectorRegister4Float CentroidA = VectorSubtract(A, Centroid);
+		const VectorRegister4Float CX1 = VectorSubtract(X1, C);
 		{
 			VectorRegister4Float EdgeSeparationAxis = VectorNormalize(VectorCross(X2X1, CA));
 			EdgeSeparationAxis = VectorSelect(VectorCompareGT(VectorZeroFloat(), VectorDot3(CentroidA, EdgeSeparationAxis)), VectorNegate(EdgeSeparationAxis), EdgeSeparationAxis);
 
-			const FRealSingle EdgeSeparationDist = VectorDot3Scalar(VectorSubtract(X1, C), EdgeSeparationAxis);
+			const FRealSingle EdgeSeparationDist = VectorDot3Scalar(CX1, EdgeSeparationAxis);
 			if (EdgeSeparationDist > Radius)
 			{
 				return false;
@@ -50,19 +51,59 @@ namespace Chaos
 			VectorRegister4Float EdgeSeparationAxis = VectorNormalize(VectorCross(X2X1, AB));
 			EdgeSeparationAxis = VectorSelect(VectorCompareGT(VectorZeroFloat(), VectorDot3(CentroidB, EdgeSeparationAxis)), VectorNegate(EdgeSeparationAxis), EdgeSeparationAxis);
 
-			const FRealSingle EdgeSeparationDist = VectorDot3Scalar(VectorSubtract(X1, A), EdgeSeparationAxis);
+			const FRealSingle EdgeSeparationDist = VectorDot3Scalar(AX1, EdgeSeparationAxis);
 			if (EdgeSeparationDist > Radius)
 			{
 				return false;
 			}
 		}
 		const VectorRegister4Float CentroidC = VectorSubtract(C, Centroid);
+		const VectorRegister4Float BX1 = VectorSubtract(X1, B);
 		{
 			VectorRegister4Float EdgeSeparationAxis = VectorNormalize(VectorCross(X2X1, BC));
 			EdgeSeparationAxis = VectorSelect(VectorCompareGT(VectorZeroFloat(), VectorDot3(CentroidC, EdgeSeparationAxis)), VectorNegate(EdgeSeparationAxis), EdgeSeparationAxis);
 
-			const FRealSingle EdgeSeparationDist = VectorDot3Scalar(VectorSubtract(X1, B), EdgeSeparationAxis);
+			const FRealSingle EdgeSeparationDist = VectorDot3Scalar(BX1, EdgeSeparationAxis);
 			if (EdgeSeparationDist > Radius)
+			{
+				return false;
+			}
+		}
+
+		const VectorRegister4Float RadiusSimd = VectorSetFloat1(Radius);
+		// Edge plane normals and signed distances to each segment point
+		// Mask to compare the distance of the triangle edge plane to the capsule radius.
+		constexpr static int32 AllEdges = 0b1111;
+		{
+			const VectorRegister4Float PlaneCA = VectorNormalize(VectorCross(CA, Normal));
+			const VectorRegister4Float EdgeX1 = VectorDot3(AX1, PlaneCA);
+			const VectorRegister4Float EdgeX2 = VectorDot3(AX2, PlaneCA);
+			const VectorRegister4Float Edge = VectorMoveLh(EdgeX1, EdgeX2);
+			const VectorRegister4Float EdgeGTRadius = VectorCompareGT(Edge, RadiusSimd);
+			if (VectorMaskBits(EdgeGTRadius) == AllEdges)
+			{
+				return false;
+			}
+		}
+
+		{
+			const VectorRegister4Float PlaneAB = VectorNormalize(VectorCross(AB, Normal));
+			const VectorRegister4Float EdgeX1 = VectorDot3(BX1, PlaneAB);
+			const VectorRegister4Float EdgeX2 = VectorDot3(VectorSubtract(X2, B), PlaneAB);
+			const VectorRegister4Float Edge = VectorMoveLh(EdgeX1, EdgeX2);
+			const VectorRegister4Float EdgeGTRadius = VectorCompareGT(Edge, RadiusSimd);
+			if (VectorMaskBits(EdgeGTRadius) == AllEdges)
+			{
+				return false;
+			}
+		}
+		{
+			const VectorRegister4Float PlaneBC = VectorNormalize(VectorCross(BC, Normal));
+			const VectorRegister4Float EdgeX1 = VectorDot3(CX1, PlaneBC);
+			const VectorRegister4Float EdgeX2 = VectorDot3(VectorSubtract(X2, C), PlaneBC);
+			const VectorRegister4Float Edge = VectorMoveLh(EdgeX1, EdgeX2);
+			const VectorRegister4Float EdgeGTRadius = VectorCompareGT(Edge, RadiusSimd);
+			if (VectorMaskBits(EdgeGTRadius) == AllEdges)
 			{
 				return false;
 			}

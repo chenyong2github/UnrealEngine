@@ -436,6 +436,12 @@ namespace ChaosTest
 					EXPECT_EQ(bResult, false);
 				}
 				{
+					FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 22.0), FQuat(FVec3(1.0, 0.0, 0.0), 3.1415926 / 2.0));
+					QueryTM = FRigidTransform3(QueryTM.GetLocation() * InvScale, QueryTM.GetRotation());
+					bool bResult = TriangleMesh->OverlapGeom(ScaledCapsule, QueryTM, 0.0, nullptr, TriMeshScale);
+					EXPECT_EQ(bResult, false);
+				}
+				{
 					// Inside Mesh
 					FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 8.0), FQuat::Identity);
 					QueryTM = FRigidTransform3(QueryTM.GetLocation() * InvScale, QueryTM.GetRotation());
@@ -946,12 +952,12 @@ namespace ChaosTest
 					EXPECT_TRUE(bResult);
 				}
 				{
-					const FRigidTransform3 QueryTM(FVec3(5.0, 10.25, 0.0), FQuat::Identity);
+					const FRigidTransform3 QueryTM(FVec3(5.0, -10.25, 0.0), FQuat::Identity);
 					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
 					EXPECT_TRUE(bResult);
 				}
 				{
-					const FRigidTransform3 QueryTM(FVec3(5.0, 10.6, 0.0), FQuat::Identity);
+					const FRigidTransform3 QueryTM(FVec3(5.0, -10.6, 0.0), FQuat::Identity);
 					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
 					EXPECT_FALSE(bResult);
 				}
@@ -1002,6 +1008,34 @@ namespace ChaosTest
 					bool bResult = TriangleMesh->OverlapGeom(Sphere, QueryTM, 0.0);
 					EXPECT_FALSE(bResult);
 				}
+			}
+			{
+				// Capsule test
+				const FVec3 X1 = { 0.0, 0.0, -2.0 };
+				const FVec3 X2 = { 0.0, 0.0, 2.0 };
+				const FReal Radius = 1.0;
+				const FCapsule Capsule = FCapsule(X1, X2, Radius);
+				{
+					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, 0.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(3.9, 0.0, 100.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(4.0, 0.0, 90.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+					EXPECT_TRUE(bResult);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(4.5, 0.0, 90.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Capsule, QueryTM, 0.0);
+					EXPECT_FALSE(bResult);
+				}
+
 			}
 		}
 	}
