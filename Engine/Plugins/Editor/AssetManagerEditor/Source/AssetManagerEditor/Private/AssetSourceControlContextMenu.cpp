@@ -318,8 +318,8 @@ bool FAssetSourceControlContextMenuState::AddSourceControlMenuOptions(FToolMenuS
 			// SCC sub menu
 			InSection.AddSubMenu(
 				"SourceControlSubMenu",
-				LOCTEXT("SourceControlSubMenuLabel", "Source Control"),
-				LOCTEXT("SourceControlSubMenuToolTip", "Source control actions."),
+				LOCTEXT("SourceControlSubMenuLabel", "Revision Control"),
+				LOCTEXT("SourceControlSubMenuToolTip", "Revision Control actions."),
 				FNewToolMenuDelegate::CreateSP(this, &FAssetSourceControlContextMenuState::FillSourceControlSubMenu),
 				false,
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.On")
@@ -329,8 +329,8 @@ bool FAssetSourceControlContextMenuState::AddSourceControlMenuOptions(FToolMenuS
 		{
 			InSection.AddSubMenu(
 				"SourceControlSubMenu",
-				LOCTEXT("SourceControlSubMenuUnavailableLabel", "Source Control (Unavailable)"),
-				LOCTEXT("SourceControlSubMenuUnavailableToolTip", "Source control servers are currently unavailable, check your network connection."),
+				LOCTEXT("SourceControlSubMenuUnavailableLabel", "Revision Control (Unavailable)"),
+				LOCTEXT("SourceControlSubMenuUnavailableToolTip", "Revision Control servers are currently unavailable, check your network connection."),
 				FNewToolMenuDelegate(),
 				FUIAction(
 					FExecuteAction(),
@@ -346,8 +346,8 @@ bool FAssetSourceControlContextMenuState::AddSourceControlMenuOptions(FToolMenuS
 	{
 		InSection.AddMenuEntry(
 			"SCCConnectToSourceControl",
-			LOCTEXT("SCCConnectToSourceControl", "Connect To Source Control..."),
-			LOCTEXT("SCCConnectToSourceControlTooltip", "Connect to source control to allow source control operations to be performed on content and levels."),
+			LOCTEXT("SCCConnectToSourceControl", "Connect To Revision Control..."),
+			LOCTEXT("SCCConnectToSourceControlTooltip", "Connect to a revision control system for tracking changes to your content and levels."),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.ConnectToSourceControl"),
 			FUIAction(
 				FExecuteAction::CreateLambda([]() { ISourceControlModule::Get().ShowLoginDialog(FSourceControlLoginClosed(), ELoginWindowMode::Modeless); }),
@@ -377,7 +377,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 {
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
-	FToolMenuSection& Section = Menu->AddSection("AssetSourceControlActions", LOCTEXT("AssetSourceControlActionsMenuHeading", "Source Control"));
+	FToolMenuSection& Section = Menu->AddSection("AssetSourceControlActions", LOCTEXT("AssetSourceControlActionsMenuHeading", "Revision Control"));
 
 	using namespace UE::AssetSourceControlContextMenu::Private;
 
@@ -390,7 +390,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		AddAsyncMenuEntry(Section,
 			"SCCSync",
 			LOCTEXT("SCCSync", "Sync"),
-			LOCTEXT("SCCSyncTooltip", "Updates the selected assets to the latest version in source control."),
+			LOCTEXT("SCCSyncTooltip", "Updates the selected assets to the latest version in revision control."),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Sync"),
 			FUIAction(
 				ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCSync)),
@@ -409,10 +409,10 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 				{
 					if (IsStillScanning(CanExecuteSCCCheckOut()) || CheckedOutUsers.Num() == 0)
 					{
-						return LOCTEXT("SCCCheckOutTooltip", "Check out the selected assets from source control.");
+						return LOCTEXT("SCCCheckOutTooltip", "Check out the selected assets from revision control.");
 					}
 
-					return FText::Format(LOCTEXT("SCCPartialCheckOut", "Checks out the selected assets from source control that are not currently locked.\n\nLocked Assets:\n{0}"), CheckedOutUsersText);
+					return FText::Format(LOCTEXT("SCCPartialCheckOut", "Checks out the selected assets from revision control that are not currently locked.\n\nLocked Assets:\n{0}"), CheckedOutUsersText);
 				}),
 
 			TAttribute<FSlateIcon>::CreateLambda([this]()
@@ -433,10 +433,10 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 				{
 					if (IsStillScanning(CanExecuteSCCCheckOut()) || CheckedOutUsers.Num() == 0)
 					{
-						return LOCTEXT("SCCSyncAndCheckOutTooltip", "Sync to latest and Check out the selected assets from source control.");
+						return LOCTEXT("SCCSyncAndCheckOutTooltip", "Sync to latest and Check out the selected assets from revision control.");
 					}
 
-					return FText::Format(LOCTEXT("SCCPartialSyncAndCheckOut", "Sync to latest and Checks out the selected assets from source control that are not currently locked.\n\nLocked Assets:\n{0}"), CheckedOutUsersText);
+					return FText::Format(LOCTEXT("SCCPartialSyncAndCheckOut", "Sync to latest and Checks out the selected assets from revision control that are not currently locked.\n\nLocked Assets:\n{0}"), CheckedOutUsersText);
 				}),
 
 			TAttribute<FSlateIcon>::CreateLambda([this]()
@@ -469,7 +469,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 	AddAsyncMenuEntry(Section,
 		"SCCOpenForAdd",
 		LOCTEXT("SCCOpenForAdd", "Mark For Add"),
-		LOCTEXT("SCCOpenForAddTooltip", "Adds the selected assets to source control."),
+		LOCTEXT("SCCOpenForAddTooltip", "Adds the selected assets to revision control."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Add"),
 		FUIAction(
 			ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCOpenForAdd)),
@@ -483,7 +483,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		AddAsyncMenuEntry(Section,
 			"SCCCheckIn",
 			LOCTEXT("SCCCheckIn", "Check In"),
-			LOCTEXT("SCCCheckInTooltip", "Checks the selected assets into source control."),
+			LOCTEXT("SCCCheckInTooltip", "Checks the selected assets into revision control."),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit"),
 			FUIAction(
 				ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCCheckIn)),
@@ -496,7 +496,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 	AddAsyncMenuEntry(Section,
 		"SCCHistory",
 		LOCTEXT("SCCHistory", "History"),
-		LOCTEXT("SCCHistoryTooltip", "Displays the source control revision history of the selected assets."),
+		LOCTEXT("SCCHistoryTooltip", "Displays the history of the selected asset in revision control."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.History"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCHistory),
@@ -520,7 +520,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 	AddAsyncMenuEntry(Section,
 		"SCCRevert",
 		LOCTEXT("SCCRevert", "Revert"),
-		LOCTEXT("SCCRevertTooltip", "Reverts the selected assets to their original state from source control."),
+		LOCTEXT("SCCRevertTooltip", "Reverts the selected assets to their original state from revision control."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCRevert),
@@ -534,7 +534,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		AddAsyncMenuEntry(Section,
 			"SCCRevertWritable",
 			LOCTEXT("SCCRevertWritable", "Revert Writable Files"),
-			LOCTEXT("SCCRevertWritableTooltip", "Reverts the assets that are Writable to their current state from source control. They will remain at their current revision."),
+			LOCTEXT("SCCRevertWritableTooltip", "Reverts the assets that are Writable to their current state from revision control. They will remain at their current revision."),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
 			FUIAction(
 				ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCRevertWritable)),
@@ -563,7 +563,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 	Section.AddMenuEntry(
 		"SCCRefresh",
 		LOCTEXT("SCCRefresh", "Refresh"),
-		LOCTEXT("SCCRefreshTooltip", "Updates the source control status of the asset."),
+		LOCTEXT("SCCRefreshTooltip", "Updates the revision control status of the asset."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
 		FUIAction(
 			ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCRefresh)),
@@ -588,7 +588,7 @@ FExecuteAction FAssetSourceControlContextMenuState::ExecutionCheck(FExecuteActio
 				}
 			}
 
-			FScopedSlowTask SlowTask(0, LOCTEXT("SCCOperationSlowTaskLabel", "Performing Source Control Operation"));
+			FScopedSlowTask SlowTask(0, LOCTEXT("SCCOperationSlowTaskLabel", "Performing Revision Control Operation"));
 			SlowTask.MakeDialogDelayed(0.25f);
 			Action.Execute();
 		});

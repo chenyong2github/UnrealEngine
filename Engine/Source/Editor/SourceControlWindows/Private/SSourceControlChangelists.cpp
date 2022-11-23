@@ -872,7 +872,7 @@ void SSourceControlChangelistsWidget::OnRefreshSourceControlWidgets(int64 CurrUp
 
 	auto OnSourceControlCachedItemVisited = [CurrUpdateNum, &VisitedItemCount](IChangelistTreeItem* Item)
 	{
-		checkf(Item->VisitedUpdateNum < CurrUpdateNum, TEXT("The same source control item was visited twice. It is likely present in more than one changelist"));
+		checkf(Item->VisitedUpdateNum < CurrUpdateNum, TEXT("The same revision control item was visited twice. It is likely present in more than one changelist"));
 		Item->VisitedUpdateNum = CurrUpdateNum;
 		++VisitedItemCount;
 	};

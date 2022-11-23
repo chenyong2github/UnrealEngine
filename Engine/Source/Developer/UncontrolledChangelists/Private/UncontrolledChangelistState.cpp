@@ -50,7 +50,7 @@ const FText& FUncontrolledChangelistState::GetDescriptionText() const
 
 FText FUncontrolledChangelistState::GetDisplayTooltip() const
 {
-	return LOCTEXT("UncontrolledStateTooltip", "Uncontrolled: Locally modified outside of source control");
+	return LOCTEXT("UncontrolledStateTooltip", "Uncontrolled: Locally modified outside of revision control");
 }
 
 const FDateTime& FUncontrolledChangelistState::GetTimeStamp() const

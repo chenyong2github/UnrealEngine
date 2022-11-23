@@ -508,7 +508,7 @@ bool SSourceControlReview::IsChangelistRecordValid(const TArray<TMap<FString, FS
 	}
 	if (InRecord.Num() > 1)
 	{
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangelistInvalidResponseFormat", "Invalid API response from Source Control"));
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangelistInvalidResponseFormat", "Invalid API response from Revision Control"));
 		return false;
 	}
 
@@ -541,7 +541,7 @@ void SSourceControlReview::SetFileSourceControlAction(TSharedPtr<FChangelistFile
 {
 	if (!ChangelistFileData.IsValid())
 	{
-		UE_LOG(LogSourceControl, Error, TEXT("Unable to set source control action information. No changelist file data"));
+		UE_LOG(LogSourceControl, Error, TEXT("Unable to set revision control action information. No changelist file data"));
 		return;
 	}
 
@@ -567,7 +567,7 @@ void SSourceControlReview::SetFileSourceControlAction(TSharedPtr<FChangelistFile
 	}
 	else
 	{
-		UE_LOG(LogSourceControl, Error, TEXT("Unable to parse source control action information. '%s' diff will not be shown"), *ChangelistFileData->AssetName);
+		UE_LOG(LogSourceControl, Error, TEXT("Unable to parse revision control action information. '%s' diff will not be shown"), *ChangelistFileData->AssetName);
 		ChangelistFileData->FileSourceControlAction = ESourceControlAction::Unset;
 	}
 }

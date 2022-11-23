@@ -72,7 +72,7 @@ void SSourceControlWidget::UpdateWidget(FSourceControlStatePtr SourceControlStat
 		SetColorAndOpacity(IconColor);
 
 		SetToolTipText(FText::Format(LOCTEXT("UncontrolledSourceControlCombinedTooltip",
-			"{0}\nStatus in source control: {1}"),
+			"{0}\nStatus in revision control: {1}"),
 			UncontrolledChangelistState->GetDisplayTooltip(), SourceControlState->GetDisplayTooltip()));
 	}
 	else if (SourceControlState.IsValid() && !UncontrolledChangelistState.IsValid())
