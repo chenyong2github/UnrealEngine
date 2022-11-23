@@ -34,7 +34,7 @@ FActorDesc::FActorDesc(const FWorldPartitionActorDesc& InActorDesc, const FTrans
 
 	Name = InActorDesc.GetActorName();
 	Label = InActorDesc.GetActorLabel();
-	Bounds = InActorDesc.GetBounds().TransformBy(InTransform);
+	Bounds = InActorDesc.GetEditorBounds().TransformBy(InTransform);
 	RuntimeGrid = InActorDesc.GetRuntimeGrid();
 	bIsSpatiallyLoaded = InActorDesc.GetIsSpatiallyLoaded();
 	bActorIsEditorOnly = InActorDesc.GetActorIsEditorOnly();
@@ -158,7 +158,7 @@ bool UWorldPartitionBlueprintLibrary::GetIntersectingActorDescs(const UActorDesc
 
 	for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
 	{
-		if (ActorDescIt->GetBounds().Intersect(InBox))
+		if (ActorDescIt->GetEditorBounds().Intersect(InBox))
 		{
 			bResult &= HandleIntersectingActorDesc(*ActorDescIt, InBox, InTransform, OutActorDescs);
 		}

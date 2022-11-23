@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
+#include "ActorPartition/ActorPartitionSubsystem.h"
 #include "ActorPartition/PartitionActor.h"
 
 #if WITH_EDITOR
@@ -51,5 +52,11 @@ bool FPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
 	}
 
 	return false;
+}
+
+FBox FPartitionActorDesc::GetEditorBounds() const
+{
+	const UActorPartitionSubsystem::FCellCoord CellCoord(GridIndexX, GridIndexY, GridIndexZ, 0);
+	return UActorPartitionSubsystem::FCellCoord::GetCellBounds(CellCoord, GridSize);
 }
 #endif

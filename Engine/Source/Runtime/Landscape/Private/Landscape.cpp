@@ -4735,7 +4735,7 @@ FBox ULandscapeInfo::GetCompleteBounds() const
 			}
 			else
 			{
-				Bounds += ActorDesc->GetBounds();
+				Bounds += ActorDesc->GetEditorBounds();
 			}
 		}
 

@@ -38,10 +38,12 @@ UClass* FWorldPartitionActorDescView::GetActorNativeClass() const
 	return ActorDesc->GetActorNativeClass();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FVector FWorldPartitionActorDescView::GetOrigin() const
 {
 	return ActorDesc->GetOrigin();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FName FWorldPartitionActorDescView::GetRuntimeGrid() const
 {
@@ -119,10 +121,21 @@ FName FWorldPartitionActorDescView::GetActorName() const
 	return ActorDesc->GetActorName();
 }
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FBox FWorldPartitionActorDescView::GetBounds() const
 {
 	return ActorDesc->GetBounds();
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+FBox FWorldPartitionActorDescView::GetEditorBounds() const
+{
+	return ActorDesc->GetEditorBounds();
+}
+
+FBox FWorldPartitionActorDescView::GetRuntimeBounds() const
+{
+	return ActorDesc->GetRuntimeBounds();
 }
 
 const TArray<FGuid>& FWorldPartitionActorDescView::GetReferences() const

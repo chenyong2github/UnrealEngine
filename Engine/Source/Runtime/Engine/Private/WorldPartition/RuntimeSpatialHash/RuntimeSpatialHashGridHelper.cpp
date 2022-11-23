@@ -192,7 +192,7 @@ FSquare2DGridHelper GetPartitionedActors(const FBox& WorldBounds, const FSpatial
 			if (bUseLocation)
 			{
 				// Find grid level that best matches actor set bounds
-				const float MaxLength = InActorSetInstanceBounds.GetExtent().GetMax() * 2.0;
+				const float MaxLength = InActorSetInstanceBounds.GetSize().GetMax();
 				OutGridLevel = FMath::Min(FMath::CeilToInt(FMath::Max<float>(FMath::Log2(MaxLength / CellSize), 0)), GridLevelCount - 1);
 			}
 			return bUseLocation;

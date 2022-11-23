@@ -1352,7 +1352,7 @@ void UWorldPartition::Tick(float DeltaSeconds)
 			{
 				if (ActorDescIterator->GetIsSpatiallyLoadedRaw())
 				{
-					AllActorsBounds += ActorDescIterator->GetBounds();
+					AllActorsBounds += ActorDescIterator->GetEditorBounds();
 
 					// Warn the user if the world becomes larger that 4km in any axis
 					if (AllActorsBounds.GetSize().GetMax() >= UWorldPartition::WorldExtentToEnableStreaming)
@@ -1600,7 +1600,7 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 		}
 		ActorDescs.Sort([](const FWorldPartitionActorDesc& A, const FWorldPartitionActorDesc& B)
 		{
-			return A.GetBounds().GetExtent().GetMax() < B.GetBounds().GetExtent().GetMax();
+			return A.GetRuntimeBounds().GetExtent().GetMax() < B.GetRuntimeBounds().GetExtent().GetMax();
 		});
 		for (const FWorldPartitionActorDesc* ActorDescIterator : ActorDescs)
 		{

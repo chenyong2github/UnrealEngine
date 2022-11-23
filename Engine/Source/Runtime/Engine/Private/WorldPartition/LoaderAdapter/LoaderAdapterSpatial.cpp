@@ -22,7 +22,7 @@ void ILoaderAdapterSpatial::ForEachActor(TFunctionRef<void(const FWorldPartition
 
 		WorldPartition->EditorHash->ForEachIntersectingActor(*GetBoundingBox(), [this, WorldPartition, &InOperation](FWorldPartitionActorDesc* ActorDesc)
 		{
-			if (Intersect(ActorDesc->GetBounds()))
+			if (Intersect(ActorDesc->GetEditorBounds()))
 			{
 				FWorldPartitionHandle ActorHandle(WorldPartition, ActorDesc->GetGuid());
 				InOperation(ActorHandle);

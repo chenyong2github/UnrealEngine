@@ -191,7 +191,7 @@ void ForEachIntersectingLoaderAdapters(UWorldPartition* WorldPartition, const FB
 			{
 				if (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(Actor)->GetLoaderAdapter())
 				{
-					if (IsBoundsSelected(SelectBox, ActorDesc->GetBounds()))
+					if (IsBoundsSelected(SelectBox, ActorDesc->GetEditorBounds()))
 					{
 						if (!Func(Actor))
 						{
@@ -214,7 +214,7 @@ public:
 		, bUseActor(bInUseActor)
 	{}
 
-	FBox GetBounds() const
+	FBox GetEditorBounds() const
 	{
 		if (bUseActor)
 		{
@@ -224,7 +224,7 @@ public:
 			}
 		}
 
-		return ActorDesc->GetBounds();
+		return ActorDesc->GetEditorBounds();
 	}
 
 	AActor* GetActor() const
@@ -1442,7 +1442,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 				}
 			};
 
-			const FBox ActorBounds = ActorDescView.GetBounds();
+			const FBox ActorBounds = ActorDescView.GetEditorBounds();
 			const AActor* Actor = ActorDescView.GetActor();
 			const bool bIsSelected = Actor ? Actor->IsSelected() : WorldPartitionSubsystem->SelectedActorDescs.Contains(ActorDescView.GetActorDesc());
 			const bool bIsSpatiallyLoaded = ActorDescView.GetIsSpatiallyLoaded();
@@ -1450,7 +1450,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 
 			if (bIsSelected)
 			{
-				const FBox ActorDescBounds = ActorDescView.GetActorDesc()->GetBounds();
+				const FBox ActorDescBounds = ActorDescView.GetActorDesc()->GetEditorBounds();
 				if (!ActorDescBounds.Equals(ActorBounds, 1.0f))
 				{
 					ShowActorBox(ActorDescBounds, false, bIsSpatiallyLoaded, ActorLabel);
@@ -1969,7 +1969,7 @@ FReply SWorldPartitionEditorGrid2D::FocusSelection()
 	UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(World);
 	for (FWorldPartitionActorDesc* SelectedActorDesc : WorldPartitionSubsystem->SelectedActorDescs)
 	{
-		SelectionBox += SelectedActorDesc->GetBounds();
+		SelectionBox += SelectedActorDesc->GetEditorBounds();
 	}
 
 	if (!SelectionBox.IsValid)

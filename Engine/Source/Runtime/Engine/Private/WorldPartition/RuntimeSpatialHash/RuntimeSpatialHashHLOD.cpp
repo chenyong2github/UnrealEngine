@@ -193,8 +193,8 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 					{
 						const IStreamingGenerationContext::FActorInstance& ActorInstance = ActorInstances.Emplace_GetRef(ActorGuid, ActorSetInstance);
 
-						const double ActorMinZ = ActorInstance.GetActorDescView().GetBounds().Min.Z;
-						const double ActorMaxZ = ActorInstance.GetActorDescView().GetBounds().Max.Z;
+						const double ActorMinZ = ActorInstance.GetActorDescView().GetRuntimeBounds().Min.Z;
+						const double ActorMaxZ = ActorInstance.GetActorDescView().GetRuntimeBounds().Max.Z;
 
 						CellBounds.Min.Z = FMath::Min(CellBounds.Min.Z, ActorMinZ);
 						CellBounds.Max.Z = FMath::Max(CellBounds.Max.Z, ActorMaxZ);
@@ -524,7 +524,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 			
 			IStreamingGenerationContext::FActorSetInstance& NewHLODActorSetInstance = HLODActorSetInstances.Emplace_GetRef();
 			
-			NewHLODActorSetInstance.Bounds = HLODActorDescView.GetBounds();
+			NewHLODActorSetInstance.Bounds = HLODActorDescView.GetRuntimeBounds();
 			NewHLODActorSetInstance.RuntimeGrid = HLODActorDescView.GetRuntimeGrid();
 			NewHLODActorSetInstance.bIsSpatiallyLoaded = HLODActorDescView.GetIsSpatiallyLoaded();
 			NewHLODActorSetInstance.DataLayers = UDataLayerSubsystem::GetRuntimeDataLayerInstances(MainActorSetContainer->ActorDescContainer->GetWorld(), HLODActorDescView.GetRuntimeDataLayers());

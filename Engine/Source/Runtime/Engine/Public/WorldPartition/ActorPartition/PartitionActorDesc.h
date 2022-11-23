@@ -18,9 +18,11 @@ public:
 	int64 GridIndexY;
 	int64 GridIndexZ;
 	FGuid GridGuid;
+
 protected:
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual FBox GetEditorBounds() const override;
 };
 #endif

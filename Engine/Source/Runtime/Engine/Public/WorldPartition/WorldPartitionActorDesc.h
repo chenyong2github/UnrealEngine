@@ -85,7 +85,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline FTopLevelAssetPath GetBaseClass() const { return BaseClass; }
 	inline FTopLevelAssetPath GetNativeClass() const { return NativeClass; }
 	inline UClass* GetActorNativeClass() const { return ActorNativeClass; }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.2, "GetOrigin is deprecated.")
 	inline FVector GetOrigin() const { return GetBounds().GetCenter(); }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	inline FName GetRuntimeGrid() const { return RuntimeGrid; }
 	inline bool GetIsSpatiallyLoaded() const { return bIsForcedNonSpatiallyLoaded ? false : bIsSpatiallyLoaded; }
 	inline bool GetIsSpatiallyLoadedRaw() const { return bIsSpatiallyLoaded; }
@@ -109,7 +114,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline FName GetActorLabel() const { return ActorLabel; }
 	inline FName GetFolderPath() const { return FolderPath; }
 	inline const FGuid& GetFolderGuid() const { return FolderGuid; }
-	FBox GetBounds() const;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.2, "GetBounds is deprecated, GetEditorBounds or GetRuntimeBounds should be used instead.")
+	FBox GetBounds() const { return GetEditorBounds(); }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	virtual FBox GetEditorBounds() const;
+	FBox GetRuntimeBounds() const;
+
 	inline const FGuid& GetParentActor() const { return ParentActor; }
 	inline bool IsUsingDataLayerAsset() const { return bIsUsingDataLayerAsset; }
 	inline void AddProperty(FName PropertyName, FName PropertyValue = NAME_None) { Properties.AddProperty(PropertyName, PropertyValue); }

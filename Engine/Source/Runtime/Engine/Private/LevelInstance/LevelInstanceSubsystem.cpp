@@ -1471,7 +1471,7 @@ void ULevelInstanceSubsystem::FActorDescContainerInstanceManager::FActorDescCont
 		{
 			continue;
 		}
-		Bounds += ActorDescIt->GetBounds();
+		Bounds += ActorDescIt->GetRuntimeBounds();
 	}
 }
 

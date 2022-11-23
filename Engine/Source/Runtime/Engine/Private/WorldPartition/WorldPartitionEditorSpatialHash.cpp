@@ -71,14 +71,14 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 
 			for (const FWorldPartitionHandle& Actor : Cell->Actors)
 			{
-				RuntimeBounds += Actor->GetBounds();
+				RuntimeBounds += Actor->GetEditorBounds();
 			}
 		}
 
 		NonSpatialBounds.Init();
 		for (const FWorldPartitionHandle& Actor : AlwaysLoadedCell->Actors)
 		{
-			NonSpatialBounds += Actor->GetBounds();
+			NonSpatialBounds += Actor->GetEditorBounds();
 		}
 
 		const int32 OldLevel = GetLevelForBox(EditorBounds);
@@ -129,7 +129,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 	check(InActorHandle.IsValid());
 
 	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded();
-	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetBounds() : FBox(ForceInit);
+	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetEditorBounds() : FBox(ForceInit);
 
 #if DO_CHECK
 	check(!HashedActors.Contains(InActorHandle->GetGuid()));
@@ -139,7 +139,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 	if (!bConsiderActorSpatiallyLoaded)
 	{
 		AlwaysLoadedCell->Actors.Add(InActorHandle);
-		NonSpatialBounds += InActorHandle->GetBounds();
+		NonSpatialBounds += InActorHandle->GetEditorBounds();
 	}
 	else
 	{
@@ -232,7 +232,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 			}
 		}
 
-		RuntimeBounds += InActorHandle->GetBounds();
+		RuntimeBounds += InActorHandle->GetEditorBounds();
 	}
 }
 
@@ -241,7 +241,7 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 	check(InActorHandle.IsValid());
 
 	const bool bConsiderActorSpatiallyLoaded = InActorHandle->GetIsSpatiallyLoaded();
-	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetBounds() : FBox(ForceInit);
+	const FBox ActorBounds = bConsiderActorSpatiallyLoaded ? InActorHandle->GetEditorBounds() : FBox(ForceInit);
 
 #if DO_CHECK
 	const FBox OldActorBounds = HashedActors.FindAndRemoveChecked(InActorHandle->GetGuid());
@@ -318,7 +318,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingActor(const FBox& Box
 
 					if (!bWasAlreadyInSet)
 					{
-						if (Box.Intersect(ActorDesc->GetBounds()))
+						if (Box.Intersect(ActorDesc->GetEditorBounds()))
 						{
 							InOperation(*ActorDesc);
 						}
@@ -334,7 +334,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingActor(const FBox& Box
 		{
 			if (ActorDesc.IsValid())
 			{
-				if (Box.Intersect(ActorDesc->GetBounds()))
+				if (Box.Intersect(ActorDesc->GetEditorBounds()))
 				{
 					bool bWasAlreadyInSet;
 					IntersectedActorDescs.Add(*ActorDesc, &bWasAlreadyInSet);

@@ -20,6 +20,7 @@ public:
 
 protected:
 	virtual void Serialize(FArchive& Ar) override;
+	virtual FBox GetEditorBounds() const override;
 
 private:
 	FGuid LandscapeActorGuid;

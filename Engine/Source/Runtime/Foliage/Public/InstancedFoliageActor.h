@@ -184,7 +184,6 @@ public:
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual bool ShouldExport() override;
 	virtual bool ShouldImport(FStringView ActorPropString, bool IsMovingLevel) override;
-	virtual FBox GetStreamingBounds() const override;
 
 	// Called in response to BSP rebuilds to migrate foliage from obsolete to new components.
 	FOLIAGE_API void MapRebuild();

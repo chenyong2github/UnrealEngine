@@ -256,6 +256,18 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 
 	if (Mode >= EToStringMode::Compact)
 	{
+		FString BoundsStr;
+		const FBox EditorBounds = GetEditorBounds();
+		const FBox RuntimeBounds = GetRuntimeBounds();
+		if (EditorBounds.Equals(RuntimeBounds))
+		{
+			BoundsStr = RuntimeBounds.ToString();
+		}
+		else
+		{
+			BoundsStr = *FString::Printf(TEXT("(Editor:%s Runtime:%s)"), *EditorBounds.ToString(), *RuntimeBounds.ToString());
+		}
+
 		Result.Appendf(
 			TEXT(" BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s RuntimeOnly:%s HLODRelevant:%s"),
 			*BaseClass.ToString(), 
@@ -263,7 +275,7 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 			*GetActorName().ToString(),
 			*GetActorLabel().ToString(),
 			GetBoolStr(bIsSpatiallyLoaded),
-			*GetBounds().ToString(),
+			*BoundsStr,
 			*RuntimeGrid.ToString(),
 			GetBoolStr(bActorIsEditorOnly),
 			GetBoolStr(bActorIsRuntimeOnly),
@@ -496,7 +508,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
-FBox FWorldPartitionActorDesc::GetBounds() const
+FBox FWorldPartitionActorDesc::GetEditorBounds() const
+{
+	return FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
+}
+
+FBox FWorldPartitionActorDesc::GetRuntimeBounds() const
 {
 	return FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
 }

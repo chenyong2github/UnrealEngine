@@ -48,6 +48,12 @@ void FLandscapeActorDesc::Serialize(FArchive& Ar)
 	}
 }
 
+FBox FLandscapeActorDesc::GetEditorBounds() const
+{
+	// We need to skip super class since we aren't using grid indices as it should be (it's in Landscape space).
+	return FWorldPartitionActorDesc::GetEditorBounds();
+}
+
 void FLandscapeActorDesc::Unload()
 {
 	if (ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(GetActor()))
