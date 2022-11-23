@@ -690,6 +690,9 @@ void FStreamingManager::Add( FResources* Resources )
 		StatPeakRootPages = FMath::Max(StatPeakRootPages, (uint32)ClusterPageData.Allocator.GetMaxSize());
 		SET_DWORD_STAT(STAT_NanitePeakRootPages, StatPeakRootPages);
 
+	#if !NANITE_IMPOSTERS_SUPPORTED
+		check(Resources->ImposterAtlas.Num() == 0);
+	#endif
 		if (GNaniteStreamingImposters && Resources->ImposterAtlas.Num())
 		{
 			Resources->ImposterIndex = ImposterData.Allocator.Allocate(1);
@@ -1350,8 +1353,9 @@ void FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	FRDGBuffer* ImposterDataBuffer = nullptr;
 
 	const bool bUploadImposters = GNaniteStreamingImposters && ImposterData.TotalUpload > 0;
-	if(bUploadImposters)
+	if (bUploadImposters)
 	{
+		check(NANITE_IMPOSTERS_SUPPORTED != 0);
 		uint32 WidthInTiles = 12;
 		uint32 TileSize = 12;
 		uint32 AtlasBytes = FMath::Square( WidthInTiles * TileSize ) * sizeof( uint16 );

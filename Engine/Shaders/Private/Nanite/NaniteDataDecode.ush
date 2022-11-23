@@ -272,13 +272,18 @@ FVisibleCluster GetVisibleCluster( uint ClusterIdx, bool bHasPageData )
 
 bool IsVisibleClusterIndexImposter(uint ClusterIndex)
 {
+#if NANITE_IMPOSTERS_SUPPORTED
 	return ClusterIndex >= (1 << 24);
+#else
+	return false;
+#endif
 }
 
 FVisibleCluster GetVisibleCluster( uint ClusterIndex )
 {
 	FVisibleCluster VisibleCluster;
 
+#if NANITE_IMPOSTERS_SUPPORTED
 	if( IsVisibleClusterIndexImposter(ClusterIndex) )
 	{
 		// Couldn't have been stored so signals this is an imposter
@@ -289,6 +294,7 @@ FVisibleCluster GetVisibleCluster( uint ClusterIndex )
 		VisibleCluster.ClusterIndex = ClusterIndex & 1;
 	}
 	else
+#endif
 	{
 		VisibleCluster = GetVisibleCluster( ClusterIndex, false );
 	}
@@ -300,12 +306,14 @@ FInstanceSceneData GetInstanceSceneData( inout FVisibleCluster VisibleCluster, b
 {
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, PageConstants.x, bCheckValid );
 
+#if NANITE_IMPOSTERS_SUPPORTED
 	// Couldn't have been stored so signals this is an imposter
 	if( VisibleCluster.Flags == (1 << NANITE_NUM_CULLING_FLAG_BITS) )
 	{
 		const uint MaxStreamingPages = 1 << 12;
 		VisibleCluster.PageIndex = MaxStreamingPages + (InstanceData.NaniteRuntimeResourceID & NANITE_MAX_GPU_PAGES_MASK);
 	}
+#endif
 
 	return InstanceData;
 }
@@ -572,7 +580,11 @@ void UnpackVisPixel(
 	VisibleClusterIndex = Unpacked.x >> 7;
 	TriIndex = Unpacked.x & 0x7F;
 	DepthInt = Unpacked.y;
+#if NANITE_IMPOSTERS_SUPPORTED
 	bIsImposter = (Unpacked.x >> 31);
+#else
+	bIsImposter = false;
+#endif
 
 	VisibleClusterIndex--;
 }

@@ -363,7 +363,7 @@ void InstanceCull(
 #endif
 
 			// NOTE: Imposters not supported currently with virtual targets
-#if CULLING_PASS != CULLING_PASS_EXPLICIT_LIST && !VIRTUAL_TEXTURE_TARGET
+#if CULLING_PASS != CULLING_PASS_EXPLICIT_LIST && !VIRTUAL_TEXTURE_TARGET && NANITE_IMPOSTERS_SUPPORTED
 			// Draw imposters
 			const bool bHasNaniteImposter = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER) != 0u;
 			if (bHasNaniteImposter && bIsVisible && !bWasOccluded)
