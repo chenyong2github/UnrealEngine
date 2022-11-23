@@ -36,14 +36,6 @@ namespace
 		TEXT(" 3: Manual"),
 		ECVF_Scalability | ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<int32> CVarEyeAdaptationBasicCompute(
-		TEXT("r.EyeAdaptation.Basic.Compute"),
-		1,
-		TEXT("Use Pixel or Compute Shader to compute the basic eye adaptation. \n")
-		TEXT("= 0 : Pixel Shader\n")
-		TEXT("> 0 : Compute Shader (default) \n"),
-		ECVF_Scalability | ECVF_RenderThreadSafe);
-
 	TAutoConsoleVariable<float> CVarEyeAdaptationExponentialTransitionDistance(
 		TEXT("r.EyeAdaptation.ExponentialTransitionDistance"),
 		1.5,
@@ -770,9 +762,9 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 		RENDER_TARGET_BINDING_SLOTS()
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::Type(GetBasicEyeAdaptationMinFeatureLevel()));
 	}
@@ -819,64 +811,22 @@ FScreenPassTexture AddBasicEyeAdaptationSetupPass(
 	return FScreenPassTexture(OutputTexture, SceneColor.ViewRect);
 }
 
-class FBasicEyeAdaptationShader : public FGlobalShader
+class FBasicEyeAdaptationCS : public FGlobalShader
 {
 public:
+	DECLARE_GLOBAL_SHADER(FBasicEyeAdaptationCS);
+	SHADER_USE_PARAMETER_STRUCT(FBasicEyeAdaptationCS, FGlobalShader);
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
-		END_SHADER_PARAMETER_STRUCT()
-
-		static const EPixelFormat OutputFormat = PF_A32B32G32R32F;
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetRenderTargetOutputFormat(0, OutputFormat);
-	}
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWEyeAdaptationTexture)
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::Type(GetBasicEyeAdaptationMinFeatureLevel()));
-	}
-
-	FBasicEyeAdaptationShader() = default;
-	FBasicEyeAdaptationShader(const CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
-};
-
-class FBasicEyeAdaptationPS : public FBasicEyeAdaptationShader
-{
-	using Super = FBasicEyeAdaptationShader;
-public:
-	DECLARE_GLOBAL_SHADER(FBasicEyeAdaptationPS);
-	SHADER_USE_PARAMETER_STRUCT(FBasicEyeAdaptationPS, Super);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(Super::FParameters, Base)
-		RENDER_TARGET_BINDING_SLOTS()
-		END_SHADER_PARAMETER_STRUCT()
-};
-
-IMPLEMENT_GLOBAL_SHADER(FBasicEyeAdaptationPS, "/Engine/Private/PostProcessEyeAdaptation.usf", "BasicEyeAdaptationPS", SF_Pixel);
-
-class FBasicEyeAdaptationCS : public FBasicEyeAdaptationShader
-{
-	using Super = FBasicEyeAdaptationShader;
-public:
-	DECLARE_GLOBAL_SHADER(FBasicEyeAdaptationCS);
-	SHADER_USE_PARAMETER_STRUCT(FBasicEyeAdaptationCS, Super);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(Super::FParameters, Base)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWEyeAdaptationTexture)
-		END_SHADER_PARAMETER_STRUCT()
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
@@ -898,47 +848,22 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 
 	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERDGTextureFlags::MultiFrame);
 
-	FBasicEyeAdaptationShader::FParameters PassBaseParameters;
-	PassBaseParameters.View = View.ViewUniformBuffer;
-	PassBaseParameters.EyeAdaptation = EyeAdaptationParameters;
-	PassBaseParameters.Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
-	PassBaseParameters.ColorTexture = SceneColor.Texture;
-	PassBaseParameters.EyeAdaptationTexture = EyeAdaptationTexture;
+	FBasicEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationCS::FParameters>();
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->EyeAdaptation = EyeAdaptationParameters;
+	PassParameters->Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
+	PassParameters->ColorTexture = SceneColor.Texture;
+	PassParameters->EyeAdaptationTexture = EyeAdaptationTexture;
+	PassParameters->RWEyeAdaptationTexture = GraphBuilder.CreateUAV(OutputTexture);
 
-	if (View.bUseComputePasses || CVarEyeAdaptationBasicCompute.GetValueOnRenderThread())
-	{
-		FBasicEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationCS::FParameters>();
-		PassParameters->Base = PassBaseParameters;
-		PassParameters->RWEyeAdaptationTexture = GraphBuilder.CreateUAV(OutputTexture);
+	auto ComputeShader = View.ShaderMap->GetShader<FBasicEyeAdaptationCS>();
 
-		TShaderMapRef<FBasicEyeAdaptationCS> ComputeShader(View.ShaderMap);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("BasicEyeAdaptation (CS)"),
-			ComputeShader,
-			PassParameters,
-			FIntVector(1, 1, 1));
-	}
-	else
-	{
-		FBasicEyeAdaptationPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationPS::FParameters>();
-		PassParameters->Base = PassBaseParameters;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction);
-
-		TShaderMapRef<FBasicEyeAdaptationPS> PixelShader(View.ShaderMap);
-
-		const FScreenPassTextureViewport OutputViewport(OutputTexture);
-
-		AddDrawScreenPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("BasicEyeAdaptation (PS)"),
-			View,
-			OutputViewport,
-			OutputViewport,
-			PixelShader,
-			PassParameters);
-	}
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("BasicEyeAdaptation (CS)"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, 1));
 
 	View.EnqueueEyeAdaptationExposureTextureReadback(GraphBuilder);
 

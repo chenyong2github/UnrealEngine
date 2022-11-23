@@ -20,6 +20,8 @@
 #include "SHCommon.ush"
 #include "/Engine/Private/ScreenPass.ush"
 
+RWTexture2D<float4> RWEyeAdaptationTexture;
+
 #endif
 
 Texture2D EyeAdaptationTexture;
@@ -29,12 +31,6 @@ Texture2D HistogramTexture;
 Texture2D ColorTexture;
 
 SamplerState ColorSampler;
-
-#if COMPUTESHADER
-
-RWTexture2D<float4> RWEyeAdaptationTexture;
-
-#endif
 
 uint2 Color_ViewportMin;
 uint2 Color_ViewportMax;
@@ -177,17 +173,10 @@ groupshared float2 SubRectValueWeight[TGSIZE*TGSIZE];
 [numthreads(TGSIZE, TGSIZE, 1)]
 void BasicEyeAdaptationCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThreadID)
 {
-	float4 OutColor=0;
-
-#else
-
-void BasicEyeAdaptationPS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor : SV_Target0)
-{
-
-#endif
-
+	float4 OutColor = 0;
+	
 	// Compute scaled Log Luminance Average
-#if COMPUTESHADER
+
 	// There are TGSIZE*TGSIZE threads. Each thread will calculate the luminance for its own subregions from a TGSIZE*TGSIZE screen grid
 	const uint2 SubRectMin = uint2(
 		((Color_ViewportMax.x - Color_ViewportMin.x) * GTId.x) / TGSIZE,
@@ -229,9 +218,6 @@ void BasicEyeAdaptationPS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutCo
 	GroupMemoryBarrierWithGroupSync();
 
 	float LogLumAve = SubRectValueWeight[0].x /  SubRectValueWeight[0].y;
-#else
-	float LogLumAve = ComputeWeightedTextureAverageAlpha(ColorTexture, Color_ViewportMin, Color_ViewportMax);
-#endif
 
 	// Correct for [0,1] scaling
 	LogLumAve = (LogLumAve - EyeAdaptation_HistogramBias) / EyeAdaptation_HistogramScale;
@@ -269,13 +255,13 @@ void BasicEyeAdaptationPS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutCo
 	OutColor = !all(IsFinite(OutColor)) ? float4(1, 1, 1, 0) : OutColor;
 #endif
 	
-#if COMPUTESHADER
 	if(GIndex==0)
 	{
 		RWEyeAdaptationTexture[uint2(0,0)] = OutColor;
 	}
-#endif
 }
+
+#endif
 
 #if COMPUTESHADER
 
