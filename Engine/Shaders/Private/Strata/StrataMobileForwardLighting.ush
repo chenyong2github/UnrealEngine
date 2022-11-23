@@ -16,7 +16,7 @@
 
 // For debug or iteration purpose only
 #ifndef STRATA_FORCE_SINGLE_LOCAL_LIGHT
-#define STRATA_FORCE_SINGLE_LOCAL_LIGHT 0
+#define STRATA_FORCE_SINGLE_LOCAL_LIGHT 1
 #endif
 
 // Forward declarations
@@ -60,6 +60,7 @@ float3 StrataMobileForwardLighting(
 	const float3 AbsoluteWorldPosition = LWCToFloat(MaterialParameters.AbsoluteWorldPosition);
 	const float3 TranslatedWorldPosition = MaterialParameters.WorldPosition_CamRelative;
 	const float3 LightingPositionOffset = MaterialParameters.LightingPositionOffset;
+	const half4 PrecomputedShadowFactors = GetPrimaryPrecomputedShadowMask(LightmapVTPageTableResult, Interpolants, MaterialParameters);
 	float3 V = MaterialParameters.CameraVector;
 
 	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
@@ -244,6 +245,7 @@ float3 StrataMobileForwardLighting(
 						InitRectTexture(),
 						DirLightingChannelMask,
 						PrimitiveLightingChannelMask,
+						PrecomputedShadowFactors,
 						TranslatedWorldPosition,
 						SceneDepth,
 						LuminanceWeight(StrataBSDFContext, CurrentBSDF),
@@ -325,6 +327,7 @@ float3 StrataMobileForwardLighting(
 							LocalRectTexture,
 							LocalLightChannelMask,
 							PrimitiveLightingChannelMask,
+							PrecomputedShadowFactors,
 							TranslatedWorldPosition,
 							SceneDepth,
 							LuminanceWeight(StrataBSDFContext, CurrentBSDF),

@@ -1082,6 +1082,7 @@ void EvaluateLighting(
 		FRectTexture RectTexture = InitRectTexture();
 		uint LightChannelMask = 0xFFFFFFFF;
 		uint PrimitiveLightingChannelMask = LightChannelMask;
+		half4 PrecomputedShadowFactors = 1;
 
 		float3 BSDFColoredVisibility = 1.0f;
 
@@ -1098,6 +1099,7 @@ void EvaluateLighting(
 			RectTexture,
 			LightChannelMask,
 			PrimitiveLightingChannelMask,
+			PrecomputedShadowFactors,
 			TranslatedWorldPosition,
 			SceneDepth,
 			BSDFColoredVisibility,

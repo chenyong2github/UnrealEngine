@@ -4,6 +4,19 @@
 
 #ifdef USE_STRATA_FORWARD_LIGHTING_COMMON
 
+// Used by non-mobile path
+half4 GetPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, float3 TranslatedWorldPosition)
+{
+	// PrecomputedShadowFactors are not supported on mobile at the moment
+	float4 OutPrecomputedShadowFactors = HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
+#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING && !SHADING_PATH_MOBILE
+	OutPrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(TranslatedWorldPosition).x; // Is that actually correct for forward & deferred?
+#else
+	OutPrecomputedShadowFactors.x = 1;
+#endif
+	return half4(OutPrecomputedShadowFactors);
+}
+
 // Common function for forward lighting per pixel using light data
 float3 StrataForwardLightingCommon(
 	float Dither,
@@ -15,6 +28,7 @@ float3 StrataForwardLightingCommon(
 	FRectTexture RectTexture,
 	uint LightChannelMask,
 	uint PrimitiveLightingChannelMask,
+	half4 PrecomputedShadowFactors,
 	float3 TranslatedWorldPosition,
 	float SceneDepth,
 	float3 BSDFColoredVisibility,
@@ -28,14 +42,6 @@ float3 StrataForwardLightingCommon(
 	{
 		// Evaluate the ShadowTerm that can then be used when integrating the lighting
 		FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
-
-		// PrecomputedShadowFactors are not supported on mobile at the moment
-		float4 PrecomputedShadowFactors = HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
-	#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING && !SHADING_PATH_MOBILE
-		PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(TranslatedWorldPosition).x;
-	#else
-		PrecomputedShadowFactors.x = 1;
-	#endif
 
 		const uint FakeShadingModelID = 0;
 		const float FakeContactShadowOpacity = 1.0f;
