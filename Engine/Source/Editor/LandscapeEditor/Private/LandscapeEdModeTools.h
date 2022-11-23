@@ -1576,14 +1576,3 @@ protected:
 		return ViewportClient != nullptr && IsShiftDown(ViewportClient->Viewport);
 	}
 };
-
-struct FToolFlattenCustomData
-{
-	FToolFlattenCustomData()
-		: ActiveEyeDropperMode(false)
-		, EyeDropperModeHeight(0.0f)
-	{}
-
-	bool ActiveEyeDropperMode;
-	float EyeDropperModeHeight;
-};

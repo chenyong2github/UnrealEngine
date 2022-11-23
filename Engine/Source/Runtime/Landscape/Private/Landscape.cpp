@@ -183,13 +183,7 @@ static FAutoConsoleVariableRef CVarLiveRebuildNaniteOnModification(
 	LiveRebuildNaniteOnModification,
 	TEXT("Trigger a rebuild of Nanite representation immediately when a modification is performed"));
 
-static int32 GLandscapeDirtyOnlyInModeEnabled = 0;
-static FAutoConsoleVariableRef CVarLandscapeDirtyOnlyInModeEnabled(
-	TEXT("landscape.DirtyOnlyInMode"),
-	GLandscapeDirtyOnlyInModeEnabled,
-	TEXT("Set to 1 to avoid Landscape being dirtied when not in Landscape mode."));
-
-#endif
+#endif // WITH_EDITOR
 
 int32 GRenderNaniteLandscape = 1;
 FAutoConsoleVariableRef CVarRenderNaniteLandscape(
