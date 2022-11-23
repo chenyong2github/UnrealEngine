@@ -143,7 +143,7 @@ TSharedRef<SWidget> SCustomDialog::CreateButtonBox(const FArguments& InArgs)
 
 		// Buttons
 		+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(1.0f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
 			[
