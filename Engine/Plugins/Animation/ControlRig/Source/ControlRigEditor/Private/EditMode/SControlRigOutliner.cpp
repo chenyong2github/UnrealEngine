@@ -590,11 +590,11 @@ bool SMultiRigHierarchyTreeView::AddElement(UControlRig* InControlRig, const FRi
 						if(ControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationControl)
 						{
 							const FRigElementKey& ElementKey = InElement->GetKey();
-							const FName BoneName = FKControlRig->GetControlTargetName(ElementKey.Name, ElementKey.Type);
+							const FName BoneName = FKControlRig->GetControlTargetName(ElementKey.Name, ParentKey.Type);
 							const FRigElementKey ParentBoneKey = Hierarchy->GetFirstParent(FRigElementKey(BoneName, ERigElementType::Bone));
 							if(ParentBoneKey.IsValid())
 							{
-								ParentKey = FRigElementKey(FKControlRig->GetControlName(ParentBoneKey.Name, ElementKey.Type), ElementKey.Type);
+								ParentKey = FRigElementKey(FKControlRig->GetControlName(ParentBoneKey.Name, ParentKey.Type), ElementKey.Type);
 							}
 						}
 					}

@@ -27,31 +27,38 @@ FName UFKControlRig::GetControlName(const FName& InName, const ERigElementType& 
 {
 	if (InName != NAME_None)
 	{
-		//@jurre to look at after vacation, causes ensure check(InType == ERigElementType::Bone || InType == ERigElementType::Curve);
-		static thread_local TMap<FName, FName> NameToControlMappings[2];
-		TMap<FName, FName>& NameToControlMapping = NameToControlMappings[InType == ERigElementType::Bone ? 0 : 1];
-		if (const FName* CachedName = NameToControlMapping.Find(InName))
+		if((InType == ERigElementType::Bone || InType == ERigElementType::Curve))
 		{
-			return *CachedName;
-		}
-		else
-		{
-			static thread_local FStringBuilderBase ScratchString;		
-
-			// ToString performs ScratchString.Reset() internally
-			InName.ToString(ScratchString);
-
-			if (InType == ERigElementType::Curve)
+			static thread_local TMap<FName, FName> NameToControlMappings[2];
+			TMap<FName, FName>& NameToControlMapping = NameToControlMappings[InType == ERigElementType::Bone ? 0 : 1];
+			if (const FName* CachedName = NameToControlMapping.Find(InName))
 			{
-				static const TCHAR* CurvePostFix = TEXT("_CURVE");
-				ScratchString.Append(CurvePostFix);
+				return *CachedName;
 			}
+			else
+			{
+				static thread_local FStringBuilderBase ScratchString;		
 
-			static FString ControlPostFix = TEXT("_CONTROL");
+				// ToString performs ScratchString.Reset() internally
+				InName.ToString(ScratchString);
+
+				if (InType == ERigElementType::Curve)
+				{
+					static const TCHAR* CurvePostFix = TEXT("_CURVE");
+					ScratchString.Append(CurvePostFix);
+				}
+
+				static FString ControlPostFix = TEXT("_CONTROL");
 		
-			ScratchString.Append(ControlPostFix);
-			return NameToControlMapping.Add(InName, FName(*ScratchString));
+				ScratchString.Append(ControlPostFix);
+				return NameToControlMapping.Add(InName, FName(*ScratchString));
+			}
 		}
+		else if (InType == ERigElementType::Control)
+		{
+			checkSlow(InName.ToString().Contains(TEXT("_CONTROL")));
+			return InName;
+		}	
 	}
 
 	// if control name is coming as none, we don't append the postfix
@@ -62,7 +69,7 @@ FName UFKControlRig::GetControlTargetName(const FName& InName, const ERigElement
 {
 	if (InName != NAME_None)
 	{
-		//@jurre to look at after vacation, causes ensure check(InType == ERigElementType::Bone || InType == ERigElementType::Curve);
+		check(InType == ERigElementType::Bone || InType == ERigElementType::Curve);
 		static thread_local TMap<FName, FName> NameToTargetMappings[2];
 		TMap<FName, FName>& NameToTargetMapping = NameToTargetMappings[InType == ERigElementType::Bone ? 0 : 1];
 		if (const FName* CachedName = NameToTargetMapping.Find(InName))
