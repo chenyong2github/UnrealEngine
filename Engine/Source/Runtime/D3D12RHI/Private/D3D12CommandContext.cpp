@@ -687,14 +687,30 @@ void FD3D12CommandContextBase::RHIEndFrame()
 	FD3D12DynamicRHI::GetD3DRHI()->ProcessInterruptQueueUntil(nullptr);
 }
 
+#if PLATFORM_WINDOWS && CSV_PROFILER && !UE_BUILD_SHIPPING
+	CSV_DEFINE_CATEGORY(GPUMem, true);
+#endif
+DEFINE_STAT(STAT_D3D12UpdateVideoMemoryStats);
+
 void FD3D12CommandContextBase::UpdateMemoryStats()
 {
-#if PLATFORM_WINDOWS && STATS
+#if PLATFORM_WINDOWS && (STATS || CSV_PROFILER) && !UE_BUILD_SHIPPING
+	SCOPE_CYCLE_COUNTER(STAT_D3D12UpdateVideoMemoryStats);
 	// Refresh captured memory info.
 	ParentAdapter->UpdateMemoryInfo();
 
 	const FD3D12MemoryInfo& MemoryInfo = ParentAdapter->GetMemoryInfo();
 
+#if CSV_PROFILER
+	{
+		CSV_CUSTOM_STAT(GPUMem, Total, double(MemoryInfo.LocalMemoryInfo.Budget), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(GPUMem, Used, double(MemoryInfo.LocalMemoryInfo.CurrentUsage), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(GPUMem, Available, double(MemoryInfo.AvailableLocalMemory), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(GPUMem, Demoted, double(MemoryInfo.DemotedLocalMemory), ECsvCustomStatOp::Set);
+	}
+#endif // CSV_PROFILER
+
+#if STATS
 	SET_MEMORY_STAT(STAT_D3D12UsedVideoMemory, MemoryInfo.LocalMemoryInfo.CurrentUsage);
 	SET_MEMORY_STAT(STAT_D3D12UsedSystemMemory, MemoryInfo.NonLocalMemoryInfo.CurrentUsage);
 	SET_MEMORY_STAT(STAT_D3D12AvailableVideoMemory, MemoryInfo.AvailableLocalMemory);
@@ -718,7 +734,8 @@ void FD3D12CommandContextBase::UpdateMemoryStats()
 		Device->GetDefaultBufferAllocator().UpdateMemoryStats();
 		ParentAdapter->GetUploadHeapAllocator(GPUIndex).UpdateMemoryStats();
 	}
-#endif
+#endif // STATS
+#endif // PLATFORM_WINDOWS && (STATS || CSV_PROFILER)
 }
 
 void FD3D12CommandContext::RHIBeginScene()
