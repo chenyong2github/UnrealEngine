@@ -219,7 +219,7 @@ bool FRecorderRelay::ReadMetadata(int32 Size)
 
 		if (ReadSize < MetadataField.Size)
 		{
-			break;
+			return false;
 		}
 
 		if (MetadataField.Id == 0) /* ControlPortFieldId */
