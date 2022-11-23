@@ -651,7 +651,7 @@ static bool SystemHasFindActorsFunction(UNiagaraSystem* System)
 
 bool WeakActorPtrLess(const TWeakObjectPtr<AActor>& Lhs, const TWeakObjectPtr<AActor>& Rhs)
 {
-	return Lhs.GetWeakPtrTypeHash() < Rhs.GetWeakPtrTypeHash();
+	return GetTypeHash(Lhs) < GetTypeHash(Rhs);
 }
 
 } // NDIRigidMeshCollisionLocal
