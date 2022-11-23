@@ -1047,7 +1047,6 @@ protected:
 		{
 			// Update the frontend filters collection
 			SetFrontendFilterActive(FrontendFilter.ToSharedRef(), false);
-			OnFilterChanged.ExecuteIfBound();
 		}
 
 		RemoveWidgetFromLayout(FilterToRemove);

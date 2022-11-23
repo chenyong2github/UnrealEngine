@@ -134,7 +134,10 @@ void SSceneOutlinerFilterBar::LoadSettings()
 	// From the instance settings, get each checked filter and set the checked and active state
 	for(const FCustomTextFilterState& FilterState : InstanceSettings->CustomTextFilters)
 	{
-		RestoreCustomTextFilterState(FilterState);
+		if(!RestoreCustomTextFilterState(FilterState))
+		{
+			UE_LOG(LogSlate, Warning, TEXT("SSceneOutlinerFilterBar was unable to load the following custom text filter: %s"), *FilterState.FilterData.FilterLabel.ToString());
+		}
 	}
 
 	this->OnFilterChanged.ExecuteIfBound();
@@ -201,7 +204,7 @@ void SSceneOutlinerFilterBar::LoadCustomTextFilters(const FFilterBarSettings* Fi
 }
 
 
-void SSceneOutlinerFilterBar::RestoreCustomTextFilterState(const FCustomTextFilterState& InFilterState)
+bool SSceneOutlinerFilterBar::RestoreCustomTextFilterState(const FCustomTextFilterState& InFilterState)
 {
 	// Find the filter associated with the current instance data from our list of custom text filters
 	TSharedRef< ICustomTextFilter<SceneOutliner::FilterBarType> >* Filter =
@@ -210,8 +213,10 @@ void SSceneOutlinerFilterBar::RestoreCustomTextFilterState(const FCustomTextFilt
 		return Element->CreateCustomTextFilterData().FilterLabel.EqualTo(InFilterState.FilterData.FilterLabel);
 	});
 
-	// InFilterState should always be a filter that already exists!
-	check(Filter);
+	if(!Filter)
+	{
+		return false;
+	}
 
 	// Get the actual FFilterBase
 	TSharedRef<FFilterBase<SceneOutliner::FilterBarType>> ActualFilter = Filter->Get().GetFilter().ToSharedRef();
@@ -222,6 +227,8 @@ void SSceneOutlinerFilterBar::RestoreCustomTextFilterState(const FCustomTextFilt
 	// Set the filter as active if it was previously
 	AddedFilter->SetEnabled(InFilterState.bIsActive, false);
 	this->SetFrontendFilterActive(ActualFilter, InFilterState.bIsActive);
+
+	return true;
 }
 
 void SSceneOutlinerFilterBar::OnExternalCustomTextFilterCreated(TSharedPtr<SWidget> BroadcastingFilterBar)
@@ -276,4 +283,7 @@ void SSceneOutlinerFilterBar::OnExternalCustomTextFilterCreated(TSharedPtr<SWidg
 	{
 		RestoreCustomTextFilterState(SavedFilterState);
 	}
+
+	// Save the settings for this instance
+	SaveSettings();
 }
