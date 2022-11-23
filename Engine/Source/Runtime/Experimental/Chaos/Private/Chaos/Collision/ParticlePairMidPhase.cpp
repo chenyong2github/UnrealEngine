@@ -410,14 +410,16 @@ namespace Chaos
 
 			FConstGenericParticleHandle P0 = GetParticle0();
 			FConstGenericParticleHandle P1 = GetParticle1();
-			// For kinematic particles, X = P (at TOI=1), we need to compute P-V*dt to get position at TOI=0. 
-			const FVec3 StartX0 = P0->ObjectState() == EObjectStateType::Kinematic ? P0->P() - P0->V() * Dt : P0->X();
-			const FVec3 StartX1 = P1->ObjectState() == EObjectStateType::Kinematic ? P1->P() - P1->V() * Dt : P1->X();
-			// Note: It is unusual that we are mixing X and Q. 
-			// This is due to how CCD rewinds the position (not rotation) and then sweeps to find the first contact at the most recent orientation Q
+
+
+			// We need the previous transform for the swept collision detector. It assumes that the current
+			// transform has been set on the constraint. 
+			// We assume that the particle's center of mass moved in a stright line and that it's rotation has 
+			// not changed so we calculate the previous transform from the current one and the velocity.
 			// NOTE: These are actor transforms, not CoM transforms
-			const FRigidTransform3 CCDParticleWorldTransform0 = FRigidTransform3(StartX0, P0->Q());
-			const FRigidTransform3 CCDParticleWorldTransform1 = FRigidTransform3(StartX1, P1->Q());
+			// @todo(chaos): Pass both start and end transforms to the collision detector
+			const FRigidTransform3 CCDParticleWorldTransform0 = FRigidTransform3(P0->P() - P0->V() * Dt, P0->Q());
+			const FRigidTransform3 CCDParticleWorldTransform1 = FRigidTransform3(P1->P() - P1->V() * Dt, P1->Q());
 			const FRigidTransform3 CCDShapeWorldTransform0 = Constraint->ImplicitTransform[0] * CCDParticleWorldTransform0;
 			const FRigidTransform3 CCDShapeWorldTransform1 = Constraint->ImplicitTransform[1] * CCDParticleWorldTransform1;
 			const bool bDidSweep = Collisions::UpdateConstraintSwept(*Constraint.Get(), CCDShapeWorldTransform0, CCDShapeWorldTransform1, Dt);
