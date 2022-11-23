@@ -487,38 +487,6 @@ bool FRigVMAddRerouteNodeAction::Redo(URigVMController* InController)
 	return false;
 }
 
-FRigVMAddBranchNodeAction::FRigVMAddBranchNodeAction()
-	: Position(FVector2D::ZeroVector)
-	, NodePath()
-{
-}
-
-FRigVMAddBranchNodeAction::FRigVMAddBranchNodeAction(URigVMBranchNode* InNode)
-	: Position(InNode->GetPosition())
-	, NodePath(InNode->GetNodePath())
-{
-}
-
-bool FRigVMAddBranchNodeAction::Undo(URigVMController* InController)
-{
-	if (!FRigVMBaseAction::Undo(InController))
-	{
-		return false;
-	}
-	return InController->RemoveNodeByName(*NodePath, false);
-}
-
-bool FRigVMAddBranchNodeAction::Redo(URigVMController* InController)
-{
-#if WITH_EDITOR
-	if (URigVMBranchNode* Node = InController->AddBranchNode(Position, NodePath, false))
-	{
-		return FRigVMBaseAction::Redo(InController);
-	}
-#endif
-	return false;
-}
-
 FRigVMAddIfNodeAction::FRigVMAddIfNodeAction()
 	: CPPType()
 	, CPPTypeObjectPath(NAME_None)
@@ -737,10 +705,6 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	else if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMAddRerouteNodeAction(RerouteNode), InController);
-	}
-	else if (URigVMBranchNode* BranchNode = Cast<URigVMBranchNode>(InNode))
-	{
-		InverseAction.AddAction(FRigVMAddBranchNodeAction(BranchNode), InController);
 	}
 	else if (URigVMIfNode* IfNode = Cast<URigVMIfNode>(InNode))
 	{

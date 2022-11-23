@@ -7,7 +7,6 @@
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 #include "RigVMModel/Nodes/RigVMCommentNode.h"
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
-#include "RigVMModel/Nodes/RigVMBranchNode.h"
 #include "RigVMModel/Nodes/RigVMIfNode.h"
 #include "RigVMModel/Nodes/RigVMSelectNode.h"
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
@@ -83,10 +82,6 @@ FName FRigVMExprAST::GetTypeName() const
 		case EType::Exit:
 		{
 			return TEXT("[.Exit..]");
-		}
-		case EType::Branch:
-		{
-			return TEXT("[Branch.]");
 		}
 		case EType::If:
 		{
@@ -620,42 +615,6 @@ bool FRigVMVarExprAST::SupportsSoftLinks() const
 	return false;
 }
 
-
-bool FRigVMBranchExprAST::IsConstant() const
-{
-	if (IsAlwaysTrue())
-	{
-		return GetTrueExpr()->IsConstant();
-	}
-	else if(IsAlwaysFalse())
-	{
-		return GetFalseExpr()->IsConstant();
-	}
-	return FRigVMNodeExprAST::IsConstant();
-}
-
-bool FRigVMBranchExprAST::IsAlwaysTrue() const
-{
-	const FRigVMVarExprAST* ConditionExpr = GetConditionExpr();
-	if (ConditionExpr->IsA(EType::Literal))
-	{
-		const FString& PinDefaultValue = ConditionExpr->GetDefaultValue();
-		return PinDefaultValue == TEXT("True");
-	}
-	return false;
-}
-
-bool FRigVMBranchExprAST::IsAlwaysFalse() const
-{
-	const FRigVMVarExprAST* ConditionExpr = GetConditionExpr();
-	if (ConditionExpr->IsA(EType::Literal))
-	{
-		const FString& PinDefaultValue = ConditionExpr->GetDefaultValue();
-		return PinDefaultValue == TEXT("False") || PinDefaultValue.IsEmpty();
-	}
-	return false;
-}
-
 bool FRigVMIfExprAST::IsConstant() const
 {
 	if (IsAlwaysTrue())
@@ -865,10 +824,6 @@ FRigVMParserAST::FRigVMParserAST(TArray<URigVMGraph*> InGraphs, URigVMController
 				bContinueToFoldConstantBranches = true;
 			}
 		}
-		if (FoldUnreachableBranches(InGraphs))
-		{
-			bContinueToFoldConstantBranches = true;
-		}
 	}
 
 	BubbleUpExpressions();
@@ -1076,10 +1031,6 @@ FRigVMExprAST* FRigVMParserAST::CreateExpressionForNode(const FRigVMASTProxy& In
 			InNodeProxy.IsA<URigVMFunctionReturnNode>())
 		{
 			NodeExpr = MakeExpr<FRigVMNoOpExprAST>(InNodeProxy);
-		}
-		else if (InNodeProxy.IsA<URigVMBranchNode>())
-		{
-			NodeExpr = MakeExpr<FRigVMBranchExprAST>(InNodeProxy);
 		}
 		else if (InNodeProxy.IsA<URigVMIfNode>())
 		{
@@ -2299,105 +2250,6 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs
 
 	RemoveExpressions(ExpressionsToRemove);
 
-	return ExpressionsToRemove.Num() > 0;
-}
-
-bool FRigVMParserAST::FoldUnreachableBranches(TArray<URigVMGraph*> InGraphs)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	TArray<FRigVMExprAST*> ExpressionsToRemove;
-
-	for (const FRigVMASTProxy& NodeProxy : NodeProxies)
-	{
-		if (NodeProxy.IsA<URigVMVariableNode>())
-		{
-			continue;
-		}
-
-		//URigVMNode* Node = NodeProxy.GetSubjectChecked<URigVMNode>();
-
-		FRigVMExprAST** NodeExprPtr = SubjectToExpression.Find(NodeProxy);
-		if (NodeExprPtr == nullptr)
-		{
-			continue;
-		}
-
-		FRigVMExprAST* NodeExpr = *NodeExprPtr;
-		if (NodeExpr->NumParents() == 0)
-		{
-			continue;
-		}
-
-		if (NodeExpr->IsA(FRigVMExprAST::EType::Branch))
-		{
-			const FRigVMBranchExprAST* BranchExpr = NodeExpr->To<FRigVMBranchExprAST>();
-			FRigVMExprAST* ExprReplacement = nullptr;
-
-			if (BranchExpr->IsAlwaysTrue())
-			{
-				ExprReplacement = (FRigVMExprAST*)BranchExpr->GetTrueExpr();
-			}
-			else if (BranchExpr->IsAlwaysFalse())
-			{
-				ExprReplacement = (FRigVMExprAST*)BranchExpr->GetFalseExpr();
-			}
-
-			if (ExprReplacement)
-			{
-				if (ExprReplacement->NumChildren() == 1)
-				{
-					ExprReplacement = (FRigVMExprAST*)ExprReplacement->ChildAt(0);
-					if (ExprReplacement->IsA(FRigVMExprAST::EType::Block))
-					{
-						ExprReplacement->RemoveParent((FRigVMExprAST*)ExprReplacement->GetParent());
-						NodeExpr->ReplaceBy(ExprReplacement);
-						ExpressionsToRemove.Add(NodeExpr);
-					}
-				}
-			}
-		}
-		else
-		{
-			FRigVMExprAST* CachedValueExpr = (FRigVMExprAST*)NodeExpr->GetParent();
-			if (!CachedValueExpr->IsA(FRigVMExprAST::EType::CachedValue))
-			{
-				continue;
-			}
-
-			FRigVMExprAST* ExprReplacement = nullptr;
-			if (NodeExpr->IsA(FRigVMExprAST::EType::If))
-			{
-				const FRigVMIfExprAST* IfExpr = NodeExpr->To<FRigVMIfExprAST>();
-				if (IfExpr->IsAlwaysTrue())
-				{
-					ExprReplacement = (FRigVMExprAST*)IfExpr->GetTrueExpr();
-				}
-				else if (IfExpr->IsAlwaysFalse())
-				{
-					ExprReplacement = (FRigVMExprAST*)IfExpr->GetFalseExpr();
-				}
-			}
-			else if (NodeExpr->IsA(FRigVMExprAST::EType::Select))
-			{
-				const FRigVMSelectExprAST* SelectExpr = NodeExpr->To<FRigVMSelectExprAST>();
-				int32 ConstantCaseIndex = SelectExpr->GetConstantValueIndex();
-				if (ConstantCaseIndex != INDEX_NONE)
-				{
-					ExprReplacement = (FRigVMExprAST*)SelectExpr->GetValueExpr(ConstantCaseIndex);
-				}
-			}
-
-			if (ExprReplacement)
-			{
-				ExprReplacement->RemoveParent((FRigVMExprAST*)ExprReplacement->GetParent());
-				CachedValueExpr->ReplaceBy(ExprReplacement);
-				ExpressionsToRemove.Add(CachedValueExpr);
-			}
-		}
-	}
-
-	RemoveExpressions(ExpressionsToRemove);
 	return ExpressionsToRemove.Num() > 0;
 }
 

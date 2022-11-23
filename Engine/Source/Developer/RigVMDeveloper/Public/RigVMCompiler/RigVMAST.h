@@ -26,7 +26,6 @@ class FRigVMAssignExprAST;
 class FRigVMCopyExprAST;
 class FRigVMCachedValueExprAST;
 class FRigVMExitExprAST;
-class FRigVMBranchExprAST;
 class FRigVMIfExprAST;
 class FRigVMSelectExprAST;
 class FRigVMArrayExprAST;
@@ -460,17 +459,6 @@ inline const FRigVMExitExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Exit));
 	return (const FRigVMExitExprAST*)this;
-}
-
-// specialized cast for type checking
-// for a Branch / FRigVMBranchExprAST expression
-// will raise if types are not compatible
-// @return this expression cast to FRigVMBranchExprAST 
-template<>
-inline const FRigVMBranchExprAST* FRigVMExprAST::To() const
-{
-	ensure(IsA(EType::Branch));
-	return (const FRigVMBranchExprAST*)this;
 }
 
 // specialized cast for type checking
@@ -1119,49 +1107,6 @@ private:
 };
 
 /*
- * An abstract syntax tree branch expression represents a branch point
- * for two blocks.
- * In C++ the branch is is the definition: if(bCondition){a();}else{b();}
- */
-class RIGVMDEVELOPER_API FRigVMBranchExprAST : public FRigVMNodeExprAST
-{
-public:
-
-	// virtual destructor
-	virtual ~FRigVMBranchExprAST() {}
-
-	// disable copy constructor
-	FRigVMBranchExprAST(const FRigVMEntryExprAST&) = delete;
-
-	// overload of the type checking mechanism
-	virtual bool IsA(EType InType) const override
-	{
-		return InType == EType::Branch;
-	};
-
-	virtual bool IsConstant() const override;
-
-	const FRigVMVarExprAST* GetConditionExpr() const { return ChildAt(1)->To<FRigVMVarExprAST>(); }
-	const FRigVMVarExprAST* GetTrueExpr() const { return ChildAt(2)->To<FRigVMVarExprAST>(); }
-	const FRigVMVarExprAST* GetFalseExpr() const { return ChildAt(3)->To<FRigVMVarExprAST>(); }
-
-	bool IsAlwaysTrue() const;
-	bool IsAlwaysFalse() const;
-
-protected:
-
-	// default constructor (protected so that only parser can access it)
-	FRigVMBranchExprAST(const FRigVMASTProxy& InProxy)
-		: FRigVMNodeExprAST(EType::Branch, InProxy)
-	{}
-
-
-private:
-
-	friend class FRigVMParserAST;
-};
-
-/*
  * An abstract syntax tree if expression represents a branch point for values.
  * In C++ the branch is is the definition: (Condition ? True : False)
  */
@@ -1534,9 +1479,6 @@ private:
 
 	// helper function to fold constant values into literals
 	bool FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData);
-
-	// helper function to fold unreachable branches 
-	bool FoldUnreachableBranches(TArray<URigVMGraph*> InGraphs);
 
 	// helper function to inline all contributing nodes of the graph
 	void Inline(TArray<URigVMGraph*> InGraphs);

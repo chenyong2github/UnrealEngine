@@ -11,6 +11,7 @@
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMCore/RigVMUnknownType.h"
 #include "RigVMCore/RigVMByteCode.h"
+#include "RigVMFunctions/RigVMFunction_ControlFlow.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMDeveloperModule.h"
 #include "UObject/PropertyPortFlags.h"
@@ -24,6 +25,7 @@
 #include "RigVMTypeUtils.h"
 #include "Engine/UserDefinedStruct.h"
 #include "RigVMModel/RigVMClient.h"
+#include "RigVMModel/Nodes/RigVMBranchNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMController)
 
@@ -597,14 +599,6 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 					*RigVMPythonUtils::Vector2DToPythonString(CommentNode->GetSize()),
 					*RigVMPythonUtils::LinearColorToPythonString(CommentNode->GetNodeColor()),
 					*NodeName));	
-	}
-	else if (const URigVMBranchNode* BranchNode = Cast<URigVMBranchNode>(Node))
-	{
-		// add_branch_node(position=[0.0, 0.0], node_name='', undo=True)
-		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_branch_node(%s, '%s')"),
-						*GraphName,
-						*RigVMPythonUtils::Vector2DToPythonString(BranchNode->GetPosition()),
-						*NodeName));	
 	}
 	else if (const URigVMIfNode* IfNode = Cast<URigVMIfNode>(Node))
 	{
@@ -12730,69 +12724,9 @@ URigVMRerouteNode* URigVMController::AddFreeRerouteNode(bool bShowAsFullNode, co
 	return Node;
 }
 
-URigVMBranchNode* URigVMController::AddBranchNode(const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
+URigVMNode* URigVMController::AddBranchNode(const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
-	if(!IsValidGraph())
-	{
-		return nullptr;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return nullptr;
-	}
-
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-
-	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("BranchNode")) : InNodeName);
-	URigVMBranchNode* Node = NewObject<URigVMBranchNode>(Graph, *Name);
-	Node->Position = InPosition;
-
-	URigVMPin* ExecutePin = MakeExecutePin(Node, FRigVMStruct::ExecuteContextName);
-	ExecutePin->Direction = ERigVMPinDirection::Input;
-	AddNodePin(Node, ExecutePin);
-
-	URigVMPin* ConditionPin = NewObject<URigVMPin>(Node, *URigVMBranchNode::ConditionName);
-	ConditionPin->CPPType = RigVMTypeUtils::BoolType;
-	ConditionPin->Direction = ERigVMPinDirection::Input;
-	AddNodePin(Node, ConditionPin);
-
-	URigVMPin* TruePin = NewObject<URigVMPin>(Node, *URigVMBranchNode::TrueName);
-	TruePin->CPPType = ExecutePin->CPPType;
-	TruePin->CPPTypeObject = ExecutePin->CPPTypeObject;
-	TruePin->CPPTypeObjectPath = ExecutePin->CPPTypeObjectPath;
-	TruePin->Direction = ERigVMPinDirection::Output;
-	AddNodePin(Node, TruePin);
-
-	URigVMPin* FalsePin = NewObject<URigVMPin>(Node, *URigVMBranchNode::FalseName);
-	FalsePin->CPPType = ExecutePin->CPPType;
-	FalsePin->CPPTypeObject = ExecutePin->CPPTypeObject;
-	FalsePin->CPPTypeObjectPath = ExecutePin->CPPTypeObjectPath;
-	FalsePin->Direction = ERigVMPinDirection::Output;
-	AddNodePin(Node, FalsePin);
-
-	Graph->Nodes.Add(Node);
-
-	Notify(ERigVMGraphNotifType::NodeAdded, Node);
-
-	FRigVMControllerCompileBracketScope CompileScope(this);
-	if (bSetupUndoRedo)
-	{
-		ActionStack->AddAction(FRigVMAddBranchNodeAction(Node));
-	}
-
-	if (bPrintPythonCommand)
-	{
-		TArray<FString> Commands = GetAddNodePythonCommands(Node);
-		for (const FString& Command : Commands)
-		{
-			RigVMPythonUtils::Print(GetGraphOuterName(), 
-				FString::Printf(TEXT("%s"), *Command));
-		}
-	}
-
-	return Node;
+	return AddUnitNode(FRigVMFunction_ControlFlowBranch::StaticStruct(), FRigVMStruct::ExecuteName, InPosition, InNodeName, bSetupUndoRedo, bPrintPythonCommand);
 }
 
 URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition, const FString& InNodeName, bool  bSetupUndoRedo, bool bPrintPythonCommand)
@@ -19701,6 +19635,37 @@ void URigVMController::PatchDispatchNodesOnLoad()
 					}
 				}
 			}
+		}
+	}
+}
+
+void URigVMController::PatchBranchNodesOnLoad()
+{
+	if (const URigVMGraph* Graph = GetGraph())
+	{
+		TArray<URigVMNode*> BranchNodes = Graph->GetNodes().FilterByPredicate([](URigVMNode* Node)
+		{
+			return Node->IsA<UDEPRECATED_RigVMBranchNode>();
+		});
+
+		for(URigVMNode* BranchNode : BranchNodes)
+		{
+			TArray<TPair<FString, FString>> LinkedPaths = GetLinkedPinPaths(BranchNode);
+			const FVector2D NodePosition = BranchNode->GetPosition();
+			const FString NodeName = BranchNode->GetName();
+			const URigVMPin* OldConditionPin = BranchNode->FindPin(GET_MEMBER_NAME_CHECKED(FRigVMFunction_ControlFlowBranch, Condition).ToString());
+			const FString ConditionDefault = GetPinDefaultValue(OldConditionPin->GetPinPath());
+
+			RemoveNode(BranchNode, false, true, false, false);
+
+			const URigVMNode* NewNode = AddUnitNode(FRigVMFunction_ControlFlowBranch::StaticStruct(), FRigVMStruct::ExecuteName, NodePosition, NodeName, false, false);
+
+			if(!ConditionDefault.IsEmpty())
+			{
+				const URigVMPin* ConditionPin = NewNode->FindPin(GET_MEMBER_NAME_CHECKED(FRigVMFunction_ControlFlowBranch, Condition).ToString());
+				SetPinDefaultValue(ConditionPin->GetPinPath(), ConditionDefault, false, false, false, false);
+			}
+			RestoreLinkedPaths(LinkedPaths, {}, {}, false);
 		}
 	}
 }

@@ -9,7 +9,6 @@
 #include "RigVMModel/Nodes/RigVMParameterNode.h"
 #include "RigVMModel/Nodes/RigVMCommentNode.h"
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
-#include "RigVMModel/Nodes/RigVMBranchNode.h"
 #include "RigVMModel/Nodes/RigVMIfNode.h"
 #include "RigVMModel/Nodes/RigVMSelectNode.h"
 #include "RigVMModel/Nodes/RigVMTemplateNode.h"
@@ -339,8 +338,9 @@ public:
 	// Adds a branch node to the graph.
 	// Branch nodes can be used to split the execution of into multiple branches,
 	// allowing to drive behavior by logic.
-	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMBranchNode* AddBranchNode(const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+	UE_DEPRECATED(5.2, "Please use AddUnitNode with FRigVMFunction_ControlFlowBranch::StaticStruct()")
+	UFUNCTION(BlueprintCallable, Category = RigVMController, meta=(DeprecatedFunction))
+	URigVMNode* AddBranchNode(const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds an if node to the graph.
 	// If nodes can be used to pick between two values based on a condition.
@@ -1175,6 +1175,7 @@ protected:
 
 	// backwards compatibility code
 	void PatchDispatchNodesOnLoad();
+	void PatchBranchNodesOnLoad();
 	
 private: 
 	UPROPERTY(transient)

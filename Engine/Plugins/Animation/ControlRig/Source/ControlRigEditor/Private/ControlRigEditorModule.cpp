@@ -49,7 +49,6 @@
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigRerouteNodeSpawner.h"
-#include "Graph/NodeSpawners/ControlRigBranchNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigIfNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigSelectNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigTemplateNodeSpawner.h"
@@ -1112,12 +1111,6 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		LOCTEXT("RerouteSpawnerCategory", "Organization"), 
 		LOCTEXT("RerouteSpawnerTooltip", "Adds a new reroute node to the graph"));
 	ActionRegistrar.AddBlueprintAction(ActionKey, RerouteNodeSpawner);
-
-	UBlueprintNodeSpawner* BranchNodeSpawner = UControlRigBranchNodeSpawner::CreateGeneric(
-		LOCTEXT("BranchSpawnerDesc", "Branch"),
-		LOCTEXT("BranchSpawnerCategory", "Execution"),
-		LOCTEXT("BranchSpawnerTooltip", "Adds a new 'branch' node to the graph"));
-	ActionRegistrar.AddBlueprintAction(ActionKey, BranchNodeSpawner);
 
 	UBlueprintNodeSpawner* IfNodeSpawner = UControlRigIfNodeSpawner::CreateGeneric(
 		LOCTEXT("IfSpawnerDesc", "If"),

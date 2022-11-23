@@ -100,6 +100,7 @@
 #include "ToolMenus.h"
 #include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "RigVMFunctions/RigVMFunction_ControlFlow.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -2670,7 +2671,7 @@ FReply FControlRigEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const 
 			{
 				if(InChord.Key == EKeys::B)
 				{
-					Controller->AddBranchNode(InPosition, "", true, true);
+					Controller->AddUnitNode(FRigVMFunction_ControlFlowBranch::StaticStruct(), FRigVMStruct::ExecuteName, InPosition, FString(), true, true);
 				}
 				else if(InChord.Key == EKeys::S)
 				{

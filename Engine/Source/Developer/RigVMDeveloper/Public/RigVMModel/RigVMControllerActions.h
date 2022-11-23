@@ -524,30 +524,6 @@ public:
 };
 
 /**
- * An action adding a branch node to the graph.
- */
-USTRUCT()
-struct FRigVMAddBranchNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddBranchNodeAction();
-	FRigVMAddBranchNodeAction(URigVMBranchNode* InNode);
-	virtual ~FRigVMAddBranchNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddBranchNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
  * An action adding an if node to the graph.
  */
 USTRUCT()
