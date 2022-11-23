@@ -2162,10 +2162,7 @@ namespace EpicGames.UHT.Utils
 					states[visit.HeaderFileTypeIndex] = TopologicalState.Temporary;
 					foreach (UhtHeaderFile referenced in visit.ReferencedHeadersNoLock)
 					{
-						if (visit != referenced)
-						{
-							TopologicalVisit(states, referenced, headerStack);
-						}
+						TopologicalVisit(states, referenced, headerStack);
 					}
 					states[visit.HeaderFileTypeIndex] = TopologicalState.Permanent;
 					_sortedHeaderFiles.Add(visit);

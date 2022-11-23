@@ -274,6 +274,13 @@ namespace EpicGames.UHT.Types
 		/// <param name="isIncludedFile">True if this is a directly included file</param>
 		public void AddReferencedHeader(UhtHeaderFile headerFile, bool isIncludedFile)
 		{
+
+			// Ignore direct references to myself
+			if (!isIncludedFile && headerFile == this)
+			{
+				return;
+			}
+
 			lock (_referencedHeaders)
 			{
 				// Check for a duplicate
