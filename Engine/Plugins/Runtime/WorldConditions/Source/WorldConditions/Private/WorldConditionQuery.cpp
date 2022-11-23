@@ -269,6 +269,20 @@ bool FWorldConditionQueryDefinition::Initialize()
 	return bResult;
 }
 
+void FWorldConditionQueryDefinition::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+#if WITH_EDITOR
+		// Initialize on load in editor.
+		if (Conditions.Num() == 0 && EditableConditions.Num() > 0)
+		{
+			Initialize();
+		}
+#endif
+	}
+}
+
 
 //
 // FWorldConditionQuery

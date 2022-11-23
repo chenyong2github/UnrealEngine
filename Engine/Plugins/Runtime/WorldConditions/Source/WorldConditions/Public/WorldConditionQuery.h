@@ -87,6 +87,8 @@ struct WORLDCONDITIONS_API FWorldConditionQueryDefinition
 	/** Initialized the condition from editable data. */
 	bool Initialize();
 
+	void PostSerialize(const FArchive& Ar);
+	
 	/** Conditions of the query, populated by Initialize(). */
 	UPROPERTY()
 	FInstancedStructArray Conditions;
@@ -104,6 +106,15 @@ struct WORLDCONDITIONS_API FWorldConditionQueryDefinition
 	friend struct FWorldConditionQueryState;
 	friend struct FWorldConditionBase;
 	friend struct FWorldConditionContext;
+};
+
+template<>
+struct TStructOpsTypeTraits<FWorldConditionQueryDefinition> : public TStructOpsTypeTraitsBase2<FWorldConditionQueryDefinition>
+{
+	enum
+	{
+		WithPostSerialize = true,
+	};
 };
 
 

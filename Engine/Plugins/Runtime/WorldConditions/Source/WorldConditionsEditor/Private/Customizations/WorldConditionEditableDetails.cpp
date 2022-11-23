@@ -151,7 +151,7 @@ void FWorldConditionEditableDetails::CustomizeHeader(TSharedRef<IPropertyHandle>
 
 				// Class picker
 				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
+				.AutoWidth()
 				.Padding(FMargin(FMargin(4.0f, 0.0f, 0.0f, 0.0f)))
 				.VAlign(VAlign_Center)
 				[
@@ -560,7 +560,7 @@ FText FWorldConditionEditableDetails::GetDisplayValueString() const
 			return Condition->GetDescription();
 		}
 	}
-	return FText();
+	return LOCTEXT("ValueNone", "None");
 }
 
 TSharedRef<SWidget> FWorldConditionEditableDetails::GeneratePicker()
@@ -570,7 +570,7 @@ TSharedRef<SWidget> FWorldConditionEditableDetails::GeneratePicker()
 	StructFilter->Schema = Schema;
 
 	FStructViewerInitializationOptions Options;
-	Options.bShowNoneOption = false;
+	Options.bShowNoneOption = true;
 	Options.StructFilter = StructFilter;
 	Options.NameTypeToDisplay = EStructViewerNameTypeToDisplay::DisplayName;
 	Options.DisplayMode = EStructViewerDisplayMode::ListView;
@@ -606,10 +606,7 @@ void FWorldConditionEditableDetails::OnStructPicked(const UScriptStruct* InStruc
 	{
 		if (FWorldConditionEditable* Condition = static_cast<FWorldConditionEditable*>(Data))
 		{
-			if (InStruct)
-			{
-				Condition->Condition.InitializeAs(InStruct);
-			}
+			Condition->Condition.InitializeAs(InStruct);
 		}
 	}
 

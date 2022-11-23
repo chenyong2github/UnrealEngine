@@ -26,19 +26,8 @@ void FWorldConditionQueryDefinitionDetails::CustomizeHeader(TSharedRef<IProperty
 	EditableConditionsProperty = StructProperty->GetChildHandle(TEXT("EditableConditions"));
 
 	// Keep the definition up to date as it's being edited.
-	StructProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(
-	[StructProperty = StructProperty]()
-	{
-		TArray<void*> RawNodeData;
-		StructProperty->AccessRawData(RawNodeData);
-		for (void* Data : RawNodeData)
-		{
-			if (FWorldConditionQueryDefinition* QueryDefinition = static_cast<FWorldConditionQueryDefinition*>(Data))
-			{
-				QueryDefinition->Initialize();
-			}
-		}
-	}));
+	StructProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FWorldConditionQueryDefinitionDetails::InitializeDefinition));
+	StructProperty->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FWorldConditionQueryDefinitionDetails::InitializeDefinition));
 	
 	HeaderRow
 		.NameContent()
@@ -66,5 +55,20 @@ void FWorldConditionQueryDefinitionDetails::CustomizeChildren(TSharedRef<IProper
 		StructBuilder.AddCustomBuilder(Builder);
 	}
 }
+
+void FWorldConditionQueryDefinitionDetails::InitializeDefinition() const
+{
+	check(StructProperty);
+	TArray<void*> RawNodeData;
+	StructProperty->AccessRawData(RawNodeData);
+	for (void* Data : RawNodeData)
+	{
+		if (FWorldConditionQueryDefinition* QueryDefinition = static_cast<FWorldConditionQueryDefinition*>(Data))
+		{
+			QueryDefinition->Initialize();
+		}
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE
