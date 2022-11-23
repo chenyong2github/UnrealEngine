@@ -84,11 +84,11 @@ struct ENGINE_API FSetDevicePropertyParams
 
 	FSetDevicePropertyParams();
 
-	FSetDevicePropertyParams(TObjectPtr<UInputDeviceProperty> InProperty, const FPlatformUserId InUserId, const bool bInRemoveAfterEvaluationTime = true);
+	FSetDevicePropertyParams(TSubclassOf<UInputDeviceProperty> InPropertyClass, const FPlatformUserId InUserId, const bool bInRemoveAfterEvaluationTime = true);
 	
 	/** The device property to set */
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Input Devices")
-	TObjectPtr<UInputDeviceProperty> DeviceProperty;
+	TSubclassOf<UInputDeviceProperty> DevicePropertyClass;
 	
 	/** The Platform User whose device's should receive the device property */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
@@ -162,11 +162,23 @@ public:
 	* Remove a single device property based on it's handle
 	*
 	* @param FInputDevicePropertyHandle		Device property handle to be removed
+	* @param bResetOnRemoval				If true, call ResetDeviceProperty before it is removed. Default is true.
 	*
 	* @return								The number of removed device properties.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Num Removed"))
-	int32 RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove);
+	int32 RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove, const bool bResetOnRemoval = true);
+
+	/**
+	* Remove a set of device properties based on their handles. 
+	* 
+	* @param HandlesToRemove	The set of device property handles to remove
+	* @param bResetOnRemoval	If true, call ResetDeviceProperty before it is removed. Default is true.
+	* 
+	* @return					The number of removed device properties
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Num Removed"))
+	int32 RemoveDevicePropertyHandles(const TSet<FInputDevicePropertyHandle>& HandlesToRemove, const bool bResetOnRemoval = true);
 
 	/** Removes all the current Input Device Properties that are active, regardless of the Platform User */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")

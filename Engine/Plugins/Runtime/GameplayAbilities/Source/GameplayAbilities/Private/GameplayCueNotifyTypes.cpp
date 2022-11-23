@@ -865,9 +865,9 @@ bool FGameplayCueNotify_InputDevicePropertyInfo::SetDeviceProperties(const FGame
 			Params.bRemoveAfterEvaluationTime = true;
 			if (ensure(Params.UserId.IsValid()))
 			{
-				for (TObjectPtr<UInputDeviceProperty> Prop : DeviceProperties)
+				for (TSubclassOf<UInputDeviceProperty> PropClass : DeviceProperties)
 				{
-					Params.DeviceProperty = Prop;
+					Params.DevicePropertyClass = PropClass;
 					FInputDevicePropertyHandle Handle = System->SetDeviceProperty(Params);
 					ensure(Handle.IsValid());
 				}
@@ -882,12 +882,12 @@ bool FGameplayCueNotify_InputDevicePropertyInfo::SetDeviceProperties(const FGame
 void FGameplayCueNotify_InputDevicePropertyInfo::ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
 {
 #if WITH_EDITORONLY_DATA
-	for (const TObjectPtr<UInputDeviceProperty> Prop : DeviceProperties)
+	for (const TSubclassOf<UInputDeviceProperty> PropClass : DeviceProperties)
 	{
-		if (!Prop)
+		if (!PropClass)
 		{
 			ValidationErrors.Add(FText::Format(
-				LOCTEXT("InputDeviceProperty_ShouldNotBeNull", "There is a null device property used in slot [{0}] for asset [{1}]."),
+				LOCTEXT("InputDeviceProperty_ShouldNotBeNull", "There is a null device property class used in slot [{0}] for asset [{1}]."),
 				FText::AsCultureInvariant(Context),
 				FText::AsCultureInvariant(ContainingAsset->GetPathName())));
 		}

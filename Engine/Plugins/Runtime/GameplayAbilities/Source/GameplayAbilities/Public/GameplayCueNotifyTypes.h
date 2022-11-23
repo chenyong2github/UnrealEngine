@@ -629,8 +629,8 @@ struct FGameplayCueNotify_InputDevicePropertyInfo
 	void ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const;
 	
 	/** Input Device properties to apply */
-	UPROPERTY(EditAnywhere, Instanced, BlueprintReadOnly, Category = GameplayCueNotify)
-	TArray<TObjectPtr<UInputDeviceProperty>> DeviceProperties;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = GameplayCueNotify)
+	TArray<TSubclassOf<UInputDeviceProperty>> DeviceProperties;
 };
 
 /**

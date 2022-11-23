@@ -137,8 +137,8 @@ FSetDevicePropertyParams::FSetDevicePropertyParams()
 
 }
 
-FSetDevicePropertyParams::FSetDevicePropertyParams(TObjectPtr<UInputDeviceProperty> InProperty, const FPlatformUserId InUserId, const bool bInRemoveAfterEvaluationTime /* = true */)
-	: DeviceProperty(InProperty)
+FSetDevicePropertyParams::FSetDevicePropertyParams(TSubclassOf<UInputDeviceProperty> InPropertyClass, const FPlatformUserId InUserId, const bool bInRemoveAfterEvaluationTime /* = true */)
+	: DevicePropertyClass(InPropertyClass)
 	, UserId(InUserId)
 	, bRemoveAfterEvaluationTime(bInRemoveAfterEvaluationTime)
 {
@@ -294,7 +294,7 @@ void UInputDeviceSubsystem::Tick(float DeltaTime)
 
 FInputDevicePropertyHandle UInputDeviceSubsystem::SetDeviceProperty(const FSetDevicePropertyParams& Params)
 {
-	if (!Params.DeviceProperty)
+	if (!Params.DevicePropertyClass)
 	{
 		UE_LOG(LogInputDeviceProperties, Error, TEXT("Invalid DevicePropertyClass passed into SetDeviceProperty! Nothing will happen."));
 		return FInputDevicePropertyHandle::InvalidHandle;
@@ -306,9 +306,8 @@ FInputDevicePropertyHandle UInputDeviceSubsystem::SetDeviceProperty(const FSetDe
 	{
 		FActiveDeviceProperty ActiveProp = {};
 
-		// Spawn an instance of this device property
-		// TODO: Possible performance problems with DuplicateObject because FDuplicateDataWriter is not very performant
-		ActiveProp.Property = DuplicateObject<UInputDeviceProperty>(Params.DeviceProperty, /* Outer = */ this);
+		// Spawn an instance of this device property		
+		ActiveProp.Property = NewObject<UInputDeviceProperty>(/* Outer = */ this, /* Class */ Params.DevicePropertyClass);
 		ensure(ActiveProp.Property);
 
 		ActiveProp.PlatformUser = Params.UserId;
@@ -358,15 +357,23 @@ int32 UInputDeviceSubsystem::RemoveDevicePropertiesOfClass(const FPlatformUserId
 	return NumRemoved;
 }
 
-int32 UInputDeviceSubsystem::RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove)
+int32 UInputDeviceSubsystem::RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove, const bool bResetOnRemoval /*= true*/)
+{
+	return RemoveDevicePropertyHandles({ HandleToRemove }, bResetOnRemoval);
+}
+
+int32 UInputDeviceSubsystem::RemoveDevicePropertyHandles(const TSet<FInputDevicePropertyHandle>& HandlesToRemove, const bool bResetOnRemoval /*= true*/)
 {
 	int32 NumRemoved = 0;
 
 	for (int32 Index = ActiveProperties.Num() - 1; Index >= 0; --Index)
 	{
-		if (ActiveProperties[Index].PropertyHandle == HandleToRemove)
+		if (HandlesToRemove.Contains(ActiveProperties[Index].PropertyHandle))
 		{
-			ActiveProperties[Index].Property->ResetDeviceProperty(ActiveProperties[Index].PlatformUser);
+			if (bResetOnRemoval)
+			{
+				ActiveProperties[Index].Property->ResetDeviceProperty(ActiveProperties[Index].PlatformUser);
+			}			
 			ActiveProperties.RemoveAtSwap(Index);
 			++NumRemoved;
 			break;
@@ -375,7 +382,7 @@ int32 UInputDeviceSubsystem::RemoveDevicePropertyByHandle(const FInputDeviceProp
 
 	if (NumRemoved <= 0)
 	{
-		UE_LOG(LogInputDeviceProperties, Warning, TEXT("Unable to remove a device property with handle '%s'"), *HandleToRemove.ToString());
+		UE_LOG(LogInputDeviceProperties, Warning, TEXT("Unable to remove any device property handles!"));
 	}
 
 	return NumRemoved;
