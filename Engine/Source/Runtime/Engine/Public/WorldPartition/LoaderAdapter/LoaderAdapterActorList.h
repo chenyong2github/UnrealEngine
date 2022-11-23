@@ -22,10 +22,9 @@ public:
 
 protected:
 	//~ Begin IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
-	virtual bool ShouldActorBeLoaded(const FWorldPartitionHandle& ActorHandle) const override;
+	virtual bool PassActorDescFilter(const FWorldPartitionHandle& ActorHandle) const override;
 	//~ End IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 
-private:
 	TSet<FWorldPartitionHandle> ActorsToRemove;
 };
 #endif

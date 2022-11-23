@@ -273,6 +273,22 @@ public:
 		bIncludeNonSpatiallyLoadedActors = true;
 	}
 };
+
+class FLoaderAdapterPinnedActors: public FLoaderAdapterActorList
+{
+public:
+	FLoaderAdapterPinnedActors(UWorld* InWorld)
+		: FLoaderAdapterActorList(InWorld)
+	{}
+
+protected:
+	virtual bool PassActorDescFilter(const FWorldPartitionHandle& ActorHandle) const override
+	{
+		// We want to be able to pin any type of actors (HLODs, etc).
+		return ActorHandle.IsValid() && !ActorsToRemove.Contains(ActorHandle);
+	}
+};
+
 #endif
 
 UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
@@ -495,7 +511,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		EditorHash->Initialize();
 
 		AlwaysLoadedActors = new FLoaderAdapterAlwaysLoadedActors(OuterWorld);
-		PinnedActors = new FLoaderAdapterActorList(OuterWorld);
+		PinnedActors = new FLoaderAdapterPinnedActors(OuterWorld);
 		
 		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
 		ForceLoadedActors = WorldPartitionEditorModule.GetDisableLoadingInEditor() ? new FLoaderAdapterActorList(OuterWorld) : nullptr;

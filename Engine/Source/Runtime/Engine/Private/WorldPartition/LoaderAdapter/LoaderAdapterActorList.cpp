@@ -83,8 +83,8 @@ bool FLoaderAdapterActorList::ContainsActor(const FWorldPartitionHandle& ActorHa
 	return Actors.Contains(ActorHandle);
 }
 
-bool FLoaderAdapterActorList::ShouldActorBeLoaded(const FWorldPartitionHandle& ActorHandle) const
+bool FLoaderAdapterActorList::PassActorDescFilter(const FWorldPartitionHandle& ActorHandle) const
 {
-	return ActorHandle.IsValid() && !ActorsToRemove.Contains(ActorHandle) && PassDataLayersFilter(ActorHandle);
+	return ActorHandle.IsValid() && !ActorsToRemove.Contains(ActorHandle) && FLoaderAdapterList::PassActorDescFilter(ActorHandle);
 }
 #endif

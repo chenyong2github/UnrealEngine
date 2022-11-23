@@ -47,14 +47,15 @@ public:
 	protected:
 		// Private interface
 		virtual void ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const =0;
-		virtual bool ShouldActorBeLoaded(const FWorldPartitionHandle& Actor) const;
+
+		bool ShouldActorBeLoaded(const FWorldPartitionHandle& Actor) const;
 
 		void RegisterDelegates();
 		void UnregisterDelegates();
 
 		// Actors filtering
-		bool PassActorDescFilter(const FWorldPartitionHandle& Actor) const;
-		bool PassDataLayersFilter(const FWorldPartitionHandle& Actor) const;
+		virtual bool PassActorDescFilter(const FWorldPartitionHandle& Actor) const;
+		virtual bool PassDataLayersFilter(const FWorldPartitionHandle& Actor) const;
 		void RefreshLoadedState();
 
 		void PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads);
