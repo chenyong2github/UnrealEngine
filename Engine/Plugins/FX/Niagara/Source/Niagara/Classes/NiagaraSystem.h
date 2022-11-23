@@ -1016,3 +1016,4 @@ FORCEINLINE void UNiagaraSystem::RegisterActiveInstance()
 FORCEINLINE void UNiagaraSystem::UnregisterActiveInstance()
 {
 	--ActiveInstances;
+}
