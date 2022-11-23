@@ -551,7 +551,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 							
 							FString msg = FString::Printf(TEXT("The Reference texture [%s] is using TEXTUREGROUP_UI which does not support streaming. Please set a different TEXTURE group."),
 								*ReferenceTexture->GetName(), *ImageName);
-							GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node);
+							GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node, EMessageSeverity::Info);
 						}
 					}
 					else if (!GroupProjectionImg.get())
