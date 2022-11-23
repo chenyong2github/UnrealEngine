@@ -47,7 +47,7 @@ public:
 	class ELECTRABASE_API FDataReader
 	{
 	public:
-		FDataReader(const TConstArrayView<const uint8>& InDataBufferToReadFrom);
+		FDataReader(const void* InDataPtr, int32 InDataSize);
 
 		int32 GetCurrentOffset() const;
 		int32 GetNumBytesRemaining() const;
@@ -84,7 +84,8 @@ public:
 		}
 		int32 ReadData(void* IntoBuffer, int32 NumBytesToRead);
 
-		const TConstArrayView<const uint8>& DataBufferRef;
+		const uint8* DataPtr = nullptr;
+		int32 DataSize = 0;
 		int32 CurrentOffset = 0;
 	};
 
