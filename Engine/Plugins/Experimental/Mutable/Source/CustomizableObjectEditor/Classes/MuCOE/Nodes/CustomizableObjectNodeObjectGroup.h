@@ -57,20 +57,11 @@ public:
 	bool IsSingleOutputNode() const override;
 
 	// Own interface
-	UEdGraphPin* ObjectsPin() const
-	{
-		return FindPin(TEXT("Objects"));
-	}
+	UEdGraphPin* ObjectsPin() const;
 
-	UEdGraphPin* GroupProjectorsPin() const
-	{
-		return FindPin(TEXT("Projectors"));
-	}
+	UEdGraphPin* GroupProjectorsPin() const;
 
-	UEdGraphPin* GroupPin() const
-	{
-		return FindPin(TEXT("Group"));
-	}
+	UEdGraphPin* GroupPin() const;
 
 private:
 	FString LastGroupName;
