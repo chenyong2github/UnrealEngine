@@ -204,8 +204,14 @@ float3 StrataMobileForwardLighting(
 				////
 				//// Evaluate translucent lighting volume / vertex lighting.
 				////
-				// This is currently not supported by mobile renderer. See StrataForwardLighting for more details
+				#define STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_DIRECTIONAL    (TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_DIRECTIONAL || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME)
+				#define STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL (TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL)
 
+				#if STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_DIRECTIONAL
+				float4 VolumeLighting = 0;
+				float3 InterpolatedLighting = 0;
+				FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, Settings);
+				#endif
 
 				////
 				//// Evaluate emissive
@@ -232,6 +238,12 @@ float3 StrataMobileForwardLighting(
 					DirectionalLightCloudShadow = BasePassInterpolants.VertexCloudShadow;
 				#endif
 
+					FTranslucencyLightingVector LightingVector = GetTranslucencyLightingVector(DirLightData, TranslatedWorldPosition);
+				#if STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_DIRECTIONAL
+					GetVolumeLightingDirectional(LightingVector.AmbientLightingVector, LightingVector.DirectionalLightingVector, StrataBSDFContext.N, BSDFEvaluate.DiffuseColor, InterpolatedLighting, VolumeLighting);
+				#elif STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL
+					GetVolumeLightingNonDirectional(LightingVector.AmbientLightingVector, BSDFEvaluate.DiffuseColor, InterpolatedLighting, VolumeLighting);
+				#else
 					StrataUpdateBSDFContext(StrataBSDFContext, ToDirLight);
 
 					FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
@@ -252,6 +264,7 @@ float3 StrataMobileForwardLighting(
 						StrataPixelHeader,
 						StrataBSDFContext,
 						BSDFEvaluate) * DirectionalLightCloudShadow;
+				#endif
 				}
 
 				////
@@ -313,6 +326,12 @@ float3 StrataMobileForwardLighting(
 							LOCAL_LIGHT_EARLY_OUT;
 						}
 
+						FTranslucencyLightingVector LightingVector = GetTranslucencyLightingVector(LightData, TranslatedWorldPosition);
+					#if STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_DIRECTIONAL
+						GetVolumeLightingDirectional(LightingVector.AmbientLightingVector, LightingVector.DirectionalLightingVector, StrataBSDFContext.N, BSDFEvaluate.DiffuseColor, InterpolatedLighting, VolumeLighting);
+					#elif STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL
+						GetVolumeLightingNonDirectional(LightingVector.AmbientLightingVector, BSDFEvaluate.DiffuseColor, InterpolatedLighting, VolumeLighting);
+					#else
 						// Update the strata BSDF context accordgin to the new L
 						StrataUpdateBSDFContext(StrataBSDFContext, ToLight);
 
@@ -334,6 +353,7 @@ float3 StrataMobileForwardLighting(
 							StrataPixelHeader,
 							StrataBSDFContext,
 							BSDFEvaluate);
+					#endif
 					}
 				}
 				#endif // !DISABLE_FORWARD_LOCAL_LIGHTS
