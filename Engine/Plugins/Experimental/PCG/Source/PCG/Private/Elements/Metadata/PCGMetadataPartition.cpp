@@ -5,6 +5,8 @@
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include "Algo/Find.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataPartition)
 
 FPCGElementPtr UPCGMetadataPartitionSettings::CreateElement() const
@@ -72,11 +74,22 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 		TArray<PCGMetadataValueKey> ValueKeyMapping;
 		ValueKeyMapping.Reserve(MetadataValueKeyCount);
 
+		const bool bUsesValueKeys = AttributeBase->UsesValueKeys();
+
 		for (PCGMetadataValueKey ValueKey = 0; ValueKey < MetadataValueKeyCount; ++ValueKey)
 		{
 			if (AttributeBase->IsEqualToDefaultValue(ValueKey))
 			{
 				ValueKeyMapping.Add(-1);
+			}
+			else if (bUsesValueKeys)
+			{
+				PCGMetadataValueKey* MatchingVK = Algo::FindByPredicate(ValueKeyMapping, [ValueKey, AttributeBase](const PCGMetadataValueKey& Key)
+				{
+					return AttributeBase->AreValuesEqual(ValueKey, Key);
+				});
+
+				ValueKeyMapping.Add(MatchingVK ? *MatchingVK : ValueKey);
 			}
 			else
 			{

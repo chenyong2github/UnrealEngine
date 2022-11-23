@@ -243,7 +243,35 @@ public:
 		}
 	}
 
-	virtual bool IsEqualToDefaultValue(PCGMetadataValueKey ValueKey) const
+	virtual bool AreValuesEqualForEntryKeys(PCGMetadataEntryKey EntryKey1, PCGMetadataEntryKey EntryKey2) const override
+	{
+		return AreValuesEqual(GetValueKey(EntryKey1), GetValueKey(EntryKey2));
+	}
+
+	virtual bool AreValuesEqual(PCGMetadataValueKey ValueKey1, PCGMetadataValueKey ValueKey2) const override
+	{
+		if constexpr (PCG::Private::MetadataTraits<T>::CompressData)
+		{
+			if (ValueKey1 == PCGInvalidEntryKey)
+			{
+				return PCG::Private::MetadataTraits<T>::Equal(DefaultValue, GetValue(ValueKey2));
+			}
+			else if (ValueKey2 == PCGInvalidEntryKey)
+			{
+				return PCG::Private::MetadataTraits<T>::Equal(GetValue(ValueKey1), DefaultValue);
+			}
+			else
+			{
+				return ValueKey1 == ValueKey2;
+			}
+		}
+		else
+		{
+			return ValueKey1 == ValueKey2 || PCG::Private::MetadataTraits<T>::Equal(GetValue(ValueKey1), GetValue(ValueKey2));
+		}
+	}
+
+	virtual bool IsEqualToDefaultValue(PCGMetadataValueKey ValueKey) const override
 	{
 		return PCG::Private::MetadataTraits<T>::Equal(GetValue(ValueKey), DefaultValue);
 	}
@@ -310,6 +338,11 @@ public:
 	}
 
 	/** Code related to finding values / compressing data */
+	virtual bool UsesValueKeys() const override
+	{
+		return PCG::Private::MetadataTraits<T>::CompressData;
+	}
+
 	template<typename IT = T, typename TEnableIf<PCG::Private::MetadataTraits<IT>::CompressData>::Type* = nullptr>
 	PCGMetadataValueKey FindValue(const T& InValue) const
 	{
