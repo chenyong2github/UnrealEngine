@@ -34,7 +34,7 @@ public:
 	virtual bool IsValid() const override;
 	//~ End IContentBundle Interface
 
-	const FGuid& GetGuid() const { return Guid; }
+	const FGuid& GetTreeItemID() const { return TreeItemID; }
 
 	void StartEditing();
 	void StopEditing();
@@ -94,7 +94,8 @@ private:
 	TMap<uint32, const UWorldPartitionRuntimeCell*> CookPackageIdsToCell;
 	URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject;
 
-	FGuid Guid;
+	// Used by Content Bundle Outliner to link tree item to FContentBundle instance.
+	FGuid TreeItemID;
 
 	bool bIsBeingEdited;
 };

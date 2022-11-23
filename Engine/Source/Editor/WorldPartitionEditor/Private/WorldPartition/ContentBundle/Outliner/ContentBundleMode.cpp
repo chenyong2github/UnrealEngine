@@ -12,6 +12,7 @@
 #include "SceneOutlinerMenuContext.h"
 #include "Algo/Transform.h"
 #include "Engine/DataAsset.h"
+#include "ScopedTransaction.h"
 #include "ToolMenus.h"
 #include "Editor.h"
 
@@ -163,24 +164,51 @@ void FContentBundleMode::RegisterContextMenu()
 				}
 
 				SSceneOutliner* SceneOutliner = Context->SceneOutliner.Pin().Get();
+
+				{
+					FToolMenuSection& Section = InMenu->AddSection("ContentBundleActorEditorContext", LOCTEXT("ContentBundleActorEditorContext", "Actor Editor Context"));
+
+					Section.AddMenuEntry("MakeCurrentContentBundle", LOCTEXT("MakeCurrentContentBundle", "Make Current Content Bundle"), FText(), FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda([this, SceneOutliner]()
+							{
+								TSharedPtr<FContentBundleEditor> SelectedContentBundleEditor = GetSelectedContentBundlePin(SceneOutliner);
+								if (SelectedContentBundleEditor && !SelectedContentBundleEditor->IsBeingEdited())
+								{
+									ToggleContentBundleActivation(SelectedContentBundleEditor);
+								}
+							}),
+							FCanExecuteAction::CreateLambda([this, SceneOutliner]
+							{
+								TSharedPtr<FContentBundleEditor> SelectedContentBundleEditor = GetSelectedContentBundlePin(SceneOutliner);
+								return SelectedContentBundleEditor && !SelectedContentBundleEditor->IsBeingEdited();
+							})
+						));
+
+					Section.AddMenuEntry("ClearCurrentContentBundle", LOCTEXT("ClearCurrentContentBundle", "Clear Current Content Bundle"), FText(), FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda([this, SceneOutliner]()
+								{
+									UContentBundleEditorSubsystem* ContentBundleEditorSubsystem = UContentBundleEditorSubsystem::Get();
+									if (ContentBundleEditorSubsystem && ContentBundleEditorSubsystem->IsEditingContentBundle())
+									{
+										if (UContentBundleEditingSubmodule* ContentBundleEditingSubModule = ContentBundleEditorSubsystem->GetEditingSubmodule())
+										{
+											const FScopedTransaction Transaction(LOCTEXT("ClearCurrentContentBundle", "Clear Current Content Bundle"));
+											ContentBundleEditingSubModule->DeactivateCurrentContentBundleEditing();
+										}
+									}
+								}),
+							FCanExecuteAction::CreateLambda([this, SceneOutliner]
+								{
+									UContentBundleEditorSubsystem* ContentBundleEditorSubsystem = UContentBundleEditorSubsystem::Get();
+									return ContentBundleEditorSubsystem && ContentBundleEditorSubsystem->IsEditingContentBundle();
+								})
+						));
+				}
 				
 				{
 					FToolMenuSection& Section = InMenu->AddSection("ContentBundleSection", LOCTEXT("ContentBundle", "Content Bundle"));
-
-					Section.AddMenuEntry("EditContentBundleMenuEntry", LOCTEXT("EditContentBundle", "Edit Content Bundle"), FText(), FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateLambda([this, SceneOutliner]
-								{
-									TWeakPtr<FContentBundleEditor> SelectedContentBundleEditor = GetSelectedContentBundle(SceneOutliner);
-									ToggleContentBundleActivation(SelectedContentBundleEditor);
-								}),
-							FCanExecuteAction(),
-							FIsActionChecked::CreateLambda([this, SceneOutliner]
-								{
-									TSharedPtr<FContentBundleEditor> SelectedContentBundleEditor = GetSelectedContentBundlePin(SceneOutliner);
-									return SelectedContentBundleEditor != nullptr && SelectedContentBundleEditor->IsBeingEdited();
-								})
-							));
 
 					Section.AddMenuEntry("InjectBaseContentMenuEntry", LOCTEXT("InjectBaseContent", "Inject Base Content"), FText(), FSlateIcon(),
 						FUIAction(
@@ -294,17 +322,19 @@ void FContentBundleMode::ToggleContentBundleActivation(const TWeakPtr<FContentBu
 {
 	if (UContentBundleEditorSubsystem* ContentBundleEditorSubsystem = UContentBundleEditorSubsystem::Get())
 	{
-		if (UContentBundleEditionSubmodule* ContentBundleEditionModule = ContentBundleEditorSubsystem->GetEditionSubmodule())
+		if (UContentBundleEditingSubmodule* ContentBundleEditingSubModule = ContentBundleEditorSubsystem->GetEditingSubmodule())
 		{
 			if (TSharedPtr<FContentBundleEditor> ContentBundlePin = ContentBundle.Pin())
 			{
 				if (ContentBundlePin->IsBeingEdited())
 				{
-					ContentBundleEditionModule->DeactivateCurrentContentBundleEditing();
+					const FScopedTransaction Transaction(LOCTEXT("ClearCurrentContentBundle", "Clear Current Content Bundle"));
+					ContentBundleEditingSubModule->DeactivateCurrentContentBundleEditing();
 				}
 				else
 				{
-					ContentBundleEditionModule->ActivateContentBundleEditing(ContentBundlePin);
+					const FScopedTransaction Transaction(LOCTEXT("MakeCurrentContentBundle", "Make Current Content Bundle"));
+					ContentBundleEditingSubModule->ActivateContentBundleEditing(ContentBundlePin);
 				}
 			}
 		}

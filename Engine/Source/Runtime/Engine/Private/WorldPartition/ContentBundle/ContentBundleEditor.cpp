@@ -26,7 +26,7 @@ FContentBundleEditor::FContentBundleEditor(TSharedPtr<FContentBundleClient>& InC
 	: FContentBundleBase(InClient, InWorld)
 	, UnsavedActorMonitor(nullptr)
 	, ExternalStreamingObject(nullptr)
-	, Guid(FGuid::NewGuid())
+	, TreeItemID(FGuid::NewGuid())
 	, bIsBeingEdited(false)
 {}
 

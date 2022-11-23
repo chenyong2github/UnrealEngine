@@ -79,7 +79,7 @@ void FContentBundleHiearchy::OnContentBundleChanged(const FContentBundleEditor* 
 {
 	FSceneOutlinerHierarchyChangedData EventData;
 	EventData.Type = FSceneOutlinerHierarchyChangedData::FullRefresh;
-	EventData.ItemIDs.Emplace(ContentBundle->GetGuid());
+	EventData.ItemIDs.Emplace(ContentBundle->GetTreeItemID());
 	HierarchyChangedEvent.Broadcast(EventData);
 }
 

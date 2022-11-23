@@ -40,7 +40,7 @@ private:
 };
 
 UCLASS()
-class UContentBundleEditionSubmodule : public UContentBundleEditorSubsystemModule, public IActorEditorContextClient
+class UContentBundleEditingSubmodule : public UContentBundleEditorSubsystemModule, public IActorEditorContextClient
 {
 	GENERATED_BODY()
 
@@ -48,7 +48,7 @@ public:
 	//~ Begin IActorEditorContextClient interface
 	virtual void OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor = nullptr) override;
 	virtual bool GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const override;
-	virtual bool CanResetContext(UWorld* InWorld) const override;
+	virtual bool CanResetContext(UWorld* InWorld) const override { return true; }
 	virtual TSharedRef<SWidget> GetActorEditorContextWidget(UWorld* InWorld) const override;
 	virtual FOnActorEditorContextClientChanged& GetOnActorEditorContextClientChanged() override { return ActorEditorContextClientChanged; }
 	//~ End IActorEditorContextClient interface
@@ -56,9 +56,10 @@ public:
 	bool ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor);
 	bool DeactivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor);
 	bool DeactivateCurrentContentBundleEditing();
-	bool IsEditingContentBundle() const { return EditingContentBundle.IsValid(); }
-	bool IsEditingContentBundle(const FContentBundleEditor* ContentBundleEditor) const { return EditingContentBundle.Pin().Get() == ContentBundleEditor; }
+	bool IsEditingContentBundle() const;
+	bool IsEditingContentBundle(const TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
 	bool IsEditingContentBundle(const FGuid& ContentBundleGuid) const;
+	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const FGuid& ContentBundleGuid) const;
 
 protected:
 	//~ Begin UContentBundleEditorSubsystemModule interface
@@ -69,10 +70,19 @@ protected:
 private:
 	void PushContentBundleEditing();
 	void PopContentBundleEditing();
+	void StartEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor);
+	void StopEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor);
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
 
-	TArray<TWeakPtr<FContentBundleEditor>> ActiveContentBundlesStack;
+	UPROPERTY()
+	TArray<FGuid> EditingContentBundlesStack;
 
-	TWeakPtr<FContentBundleEditor> EditingContentBundle;
+	UPROPERTY()
+	FGuid EditingContentBundleGuid;
+
+	// Used for undo/redo
+	FGuid PreUndoRedoEditingContentBundleGuid;
 
 	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
 };
@@ -85,7 +95,7 @@ class WORLDPARTITIONEDITOR_API UContentBundleEditorSubsystem : public UEditorSub
 public:
 	static UContentBundleEditorSubsystem* Get() { return StaticCast<UContentBundleEditorSubsystem*>(IContentBundleEditorSubsystemInterface::Get()); }
 
-	UContentBundleEditorSubsystem();
+	UContentBundleEditorSubsystem() {}
 
 	//~ Begin UEditorSubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -102,14 +112,13 @@ public:
 
 	UWorld* GetWorld() const;
 
-	UContentBundleEditionSubmodule* GetEditionSubmodule() { return ContentBundleEditionSubModule; }
+	UContentBundleEditingSubmodule* GetEditingSubmodule() { return ContentBundleEditingSubModule; }
 
 	TSharedPtr<FContentBundleEditor> GetEditorContentBundleForActor(const AActor* Actor);
 
 	TArray<TSharedPtr<FContentBundleEditor>> GetEditorContentBundles();
 	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const UContentBundleDescriptor* ContentBundleDescriptor) const;
-
-	bool HasContentBundle(const UContentBundleDescriptor* ContentBundleDescriptor) const;
+	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const FGuid& ContentBundleGuid) const;
 
 	void SelectActors(FContentBundleEditor& EditorContentBundle);
 	void DeselectActors(FContentBundleEditor& EditorContentBundle);
@@ -136,7 +145,7 @@ private:
 	void SelectActorsInternal(FContentBundleEditor& EditorContentBundle, bool bSelect);
 
 	UPROPERTY()
-	TObjectPtr<UContentBundleEditionSubmodule> ContentBundleEditionSubModule;
+	TObjectPtr<UContentBundleEditingSubmodule> ContentBundleEditingSubModule;
 
 	FOnContentBundleChanged ContentBundleChanged;
 	FOnContentBundleAdded ContentBundleAdded;

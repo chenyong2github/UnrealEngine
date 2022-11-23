@@ -9,7 +9,7 @@ void SContentBundleOutliner::SelectContentBundle(const TWeakPtr<FContentBundleEd
 	TSharedPtr<FContentBundleEditor> ContentBundleEditorPin = ContentBundle.Pin();
 	if (ContentBundleEditorPin != nullptr)
 	{
-		FSceneOutlinerTreeItemPtr Item = GetTreeItem(ContentBundleEditorPin->GetGuid());
+		FSceneOutlinerTreeItemPtr Item = GetTreeItem(ContentBundleEditorPin->GetTreeItemID());
 		if (Item->IsValid())
 		{
 			SetItemSelection(Item, true, ESelectInfo::Direct);
