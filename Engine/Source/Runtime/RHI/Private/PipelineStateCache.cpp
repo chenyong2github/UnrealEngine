@@ -199,23 +199,23 @@ static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitialize
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if(Init.BoundShaderState.VertexShaderRHI)
 	{
-		UE_LOG(LogRHI, Error, TEXT("Vertex: %s"), *Init.BoundShaderState.VertexShaderRHI->ShaderName);
+		UE_LOG(LogRHI, Error, TEXT("Vertex: %s"), Init.BoundShaderState.VertexShaderRHI->GetShaderName());
 	}
 	if (Init.BoundShaderState.GetMeshShader())
 	{
-		UE_LOG(LogRHI, Error, TEXT("Mesh: %s"), *Init.BoundShaderState.GetMeshShader()->ShaderName);
+		UE_LOG(LogRHI, Error, TEXT("Mesh: %s"), Init.BoundShaderState.GetMeshShader()->GetShaderName());
 	}
 	if (Init.BoundShaderState.GetAmplificationShader())
 	{
-		UE_LOG(LogRHI, Error, TEXT("Amplification: %s"), *Init.BoundShaderState.GetAmplificationShader()->ShaderName);
+		UE_LOG(LogRHI, Error, TEXT("Amplification: %s"), Init.BoundShaderState.GetAmplificationShader()->GetShaderName());
 	}
 	if(Init.BoundShaderState.GetGeometryShader())
 	{
-		UE_LOG(LogRHI, Error, TEXT("Geometry: %s"), *Init.BoundShaderState.GetGeometryShader()->ShaderName);
+		UE_LOG(LogRHI, Error, TEXT("Geometry: %s"), Init.BoundShaderState.GetGeometryShader()->GetShaderName());
 	}
 	if(Init.BoundShaderState.PixelShaderRHI)
 	{
-		UE_LOG(LogRHI, Error, TEXT("Pixel: %s"), *Init.BoundShaderState.PixelShaderRHI->ShaderName);
+		UE_LOG(LogRHI, Error, TEXT("Pixel: %s"), Init.BoundShaderState.PixelShaderRHI->GetShaderName());
 	}
 	
 	UE_LOG(LogRHI, Error, TEXT("Render Targets: (%u)"), Init.RenderTargetFormats.Num());

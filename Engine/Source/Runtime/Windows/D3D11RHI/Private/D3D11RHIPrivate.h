@@ -438,6 +438,19 @@ public:
 		return static_cast<typename TD3D11ResourceTraits<TRHIType>::TConcreteType*>(Resource);
 	}
 
+	static inline FD3D11Texture* ResourceCast(FRHITexture* Texture)
+	{
+		if (!Texture)
+		{
+			return nullptr;
+		}
+
+		FD3D11Texture* Result = static_cast<FD3D11Texture*>(Texture->GetTextureBaseRHI());
+		check(Result);
+
+		return Result;
+	}
+
 	/**
 	 * Reads a D3D query's data into the provided buffer.
 	 * @param Query - The D3D query to read data from.
@@ -963,7 +976,7 @@ protected:
 	virtual void CommitComputeShaderConstants();
 
 	template <class ShaderType> void SetResourcesFromTables(const ShaderType* RESTRICT);
-	template <class ShaderType> int32 SetUAVPSResourcesFromTables(const ShaderType* RESTRICT, bool bForceInvalid);
+
 	void CommitGraphicsResourceTables();
 	void CommitComputeResourceTables(FD3D11ComputeShader* ComputeShader);
 

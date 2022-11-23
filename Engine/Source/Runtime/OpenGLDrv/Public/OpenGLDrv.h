@@ -999,7 +999,7 @@ private:
 	void UpdateScissorRectInOpenGLContext( FOpenGLContextState& ContextState );
 	void UpdateViewportInOpenGLContext( FOpenGLContextState& ContextState );
 	
-	template <class ShaderType> void SetResourcesFromTables(const ShaderType* RESTRICT);
+	template <class ShaderType> void SetResourcesFromTables(ShaderType* RESTRICT);
 	FORCEINLINE void CommitGraphicsResourceTables()
 	{
 		if (PendingState.bAnyDirtyGraphicsUniformBuffers)
@@ -1008,7 +1008,7 @@ private:
 		}
 	}
 	void CommitGraphicsResourceTablesInner();
-	void CommitComputeResourceTables(FOpenGLComputeShader* ComputeShader);
+	void CommitComputeResourceTables(FOpenGLComputeShaderProxy* ComputeShader);
 	void CommitNonComputeShaderConstants();
 	void CommitComputeShaderConstants(FOpenGLComputeShader* ComputeShader);
 	void SetPendingBlendStateForActiveRenderTargets( FOpenGLContextState& ContextState );

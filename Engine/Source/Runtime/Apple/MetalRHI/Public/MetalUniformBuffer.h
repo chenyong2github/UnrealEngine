@@ -30,7 +30,6 @@ public:
     // This allows you to upload on a frame but actually use this UB later on
     void* Shadow;
 private:
-    TArray<TRefCountPtr<FRHIResource> > ResourceTable;
 #if METAL_UNIFORM_BUFFER_VALIDATION
     EUniformBufferValidation Validation;
 #endif

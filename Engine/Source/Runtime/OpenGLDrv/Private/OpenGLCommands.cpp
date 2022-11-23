@@ -1749,7 +1749,7 @@ void FOpenGLDynamicRHI::SetupVertexArrays(FOpenGLContextState& ContextState, uin
 
 	check(IsValidRef(PendingState.BoundShaderState));
 	FOpenGLVertexDeclaration* VertexDeclaration = PendingState.BoundShaderState->VertexDeclaration;
-	const CrossCompiler::FShaderBindingInOutMask& AttributeMask = PendingState.BoundShaderState->GetVertexShader()->Bindings.InOutMask;
+	const CrossCompiler::FShaderBindingInOutMask& AttributeMask = PendingState.BoundShaderState->GetVertexShader()->GetGLResourceObject()->Bindings.InOutMask;
 
 	if (ContextState.VertexDecl != VertexDeclaration || AttributeMask.Bitmask != ContextState.VertexAttrs_EnabledBits)
 	{
@@ -2059,11 +2059,11 @@ void FOpenGLDynamicRHI::CommitNonComputeShaderConstants()
 	FOpenGLLinkedProgram* LinkedProgram = PendingState.BoundShaderState->LinkedProgram;
 	if (GUseEmulatedUniformBuffers)
 	{
-		PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_VERTEX].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_VERTEX, PendingState.BoundUniformBuffers[SF_Vertex], PendingState.BoundShaderState->GetVertexShader()->UniformBuffersCopyInfo);
-		PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_PIXEL].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_PIXEL, PendingState.BoundUniformBuffers[SF_Pixel], PendingState.BoundShaderState->GetPixelShader()->UniformBuffersCopyInfo);
+		PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_VERTEX].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_VERTEX, PendingState.BoundUniformBuffers[SF_Vertex], PendingState.BoundShaderState->GetVertexShader()->GetGLResourceObject()->UniformBuffersCopyInfo);
+		PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_PIXEL].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_PIXEL, PendingState.BoundUniformBuffers[SF_Pixel], PendingState.BoundShaderState->GetPixelShader()->GetGLResourceObject()->UniformBuffersCopyInfo);
 		if (PendingState.BoundShaderState->GetGeometryShader())
 		{
-			PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_GEOMETRY].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_GEOMETRY, PendingState.BoundUniformBuffers[SF_Geometry], PendingState.BoundShaderState->GetGeometryShader()->UniformBuffersCopyInfo);
+			PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_GEOMETRY].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_GEOMETRY, PendingState.BoundUniformBuffers[SF_Geometry], PendingState.BoundShaderState->GetGeometryShader()->GetGLResourceObject()->UniformBuffersCopyInfo);
 		}
 	}
 	
@@ -2123,124 +2123,105 @@ template <> FORCEINLINE uint32 GetNumUAVUnits<SF_Compute>()	{ return FOpenGL::Ge
 template <> FORCEINLINE uint32 GetNumUAVUnits<SF_Pixel>()	{ return FOpenGL::GetMaxPixelUAVUnits(); }
 template <> FORCEINLINE uint32 GetNumUAVUnits<SF_Vertex>()	{ return FOpenGL::GetMaxPixelUAVUnits(); }
 
-template <EShaderFrequency Frequency>
-void SetResource(FOpenGLDynamicRHI* RESTRICT OpenGLRHI, uint32 BindIndex, FRHITexture* RESTRICT TextureRHI)
-{
-	FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
-#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
-	ensureMsgf(BindIndex < GetNumTextureUnits<Frequency>(), TEXT("Using more %s texture units (%d) than allowed (%d) on a shader unit!"), GetShaderFrequencyString(Frequency, false), BindIndex, GetNumTextureUnits<Frequency>());
-#endif
-	if (Texture)
-	{
-		TextureRHI->SetLastRenderTime(FApp::GetCurrentTime());
-		OpenGLRHI->InternalSetShaderTexture(Texture, nullptr, GetFirstTextureUnit<Frequency>() + BindIndex, Texture->Target, Texture->GetResource(), Texture->GetNumMips(), -1);
-	}
-	else
-	{
-		OpenGLRHI->InternalSetShaderTexture(Texture, nullptr, GetFirstTextureUnit<Frequency>() + BindIndex, 0, 0, 0, -1);
-	}
-	// clear any previous sampler state
-	OpenGLRHI->InternalSetSamplerStates(GetFirstTextureUnit<Frequency>() + BindIndex, nullptr);
-}
-
-template <EShaderFrequency Frequency>
-FORCEINLINE void SetResource(FOpenGLDynamicRHI* RESTRICT OpenGLRHI, uint32 BindIndex, FOpenGLSamplerState* RESTRICT SamplerState)
-{
-	OpenGLRHI->InternalSetSamplerStates(GetFirstTextureUnit<Frequency>() + BindIndex, SamplerState);
-}
-
-template <EShaderFrequency Frequency>
-FORCEINLINE void SetResource(FOpenGLDynamicRHI* RESTRICT OpenGLRHI, uint32 BindIndex, FRHIShaderResourceView* RESTRICT RHISRV)
-{
-#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
-	ensureMsgf(BindIndex < GetNumTextureUnits<Frequency>(), TEXT("Using more %s texture units (%d) than allowed (%d) on a shader unit!"), GetShaderFrequencyString(Frequency, false), BindIndex, GetNumTextureUnits<Frequency>());	VERIFY_GL_SCOPE();
-#endif
-	auto SRV = FOpenGLDynamicRHI::ResourceCast(RHISRV);
-	if (SRV->Target == GL_SHADER_STORAGE_BUFFER)
-	{
-		OpenGLRHI->InternalSetShaderBufferUAV(GetFirstUAVUnit<Frequency>() + BindIndex, SRV->Resource);
-	}
-	else
-	{
-		OpenGLRHI->InternalSetShaderTexture(NULL, SRV, GetFirstTextureUnit<Frequency>() + BindIndex, SRV->Target, SRV->Resource, 0, SRV->LimitMip);
-		SetResource<Frequency>(OpenGLRHI,BindIndex,OpenGLRHI->GetPointSamplerState());
-	}
-}
-
-template <EShaderFrequency Frequency>
-FORCEINLINE void SetResource(FOpenGLDynamicRHI* RESTRICT OpenGLRHI, uint32 BindIndex, FRHIUnorderedAccessView* RESTRICT RHIUAV)
-{
-#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
-	ensureMsgf(BindIndex < GetNumUAVUnits<Frequency>(), TEXT("Using more %s image units (%d) than allowed (%d) on a shader unit!"), GetShaderFrequencyString(Frequency, false), BindIndex, GetNumUAVUnits<Frequency>());	VERIFY_GL_SCOPE();
-#endif
-	auto UAV = FOpenGLDynamicRHI::ResourceCast(RHIUAV);
-	GLint UAVIndex = GetFirstUAVUnit<Frequency>() + BindIndex;
-	
-	if (UAV->Resource)
-	{
-		GLenum Access = (Frequency == SF_Compute) ? GL_READ_WRITE : GL_WRITE_ONLY;
-		// TODO: This must be true for 3D textures
-		bool bLayered = false;
-		GLint Layer = 0;
-		OpenGLRHI->InternalSetShaderImageUAV(UAVIndex, UAV->Format, UAV->Resource, bLayered, Layer, Access);
-	}
-	else
-	{
-		OpenGLRHI->InternalSetShaderBufferUAV(UAVIndex, UAV->BufferResource);
-	}
-}
-
-template <class GLResourceType, EShaderFrequency ShaderFrequency>
-FORCEINLINE void SetShaderResourcesFromBuffer(FOpenGLDynamicRHI* RESTRICT OpenGLRHI, FOpenGLUniformBuffer* RESTRICT Buffer, const uint32* RESTRICT ResourceMap, int32 BufferIndex)
-{
-	uint32 BufferOffset = ResourceMap[BufferIndex];
-	if (BufferOffset > 0)
-	{
-		const TRefCountPtr<FRHIResource>* RESTRICT Resources = Buffer->ResourceTable.GetData();
-		const uint32* RESTRICT ResourceInfos = &ResourceMap[BufferOffset];
-		uint32 ResourceInfo = *ResourceInfos++;
-		do 
-		{
-			checkSlow(FRHIResourceTableEntry::GetUniformBufferIndex(ResourceInfo) == BufferIndex);
-			const uint16 ResourceIndex = FRHIResourceTableEntry::GetResourceIndex(ResourceInfo);
-			const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(ResourceInfo);
-
-			GLResourceType* ResourcePtr = (GLResourceType*)Resources[ResourceIndex].GetReference();
-			SetResource<ShaderFrequency>(OpenGLRHI, BindIndex, ResourcePtr);
-
-			ResourceInfo = *ResourceInfos++;
-		} while (FRHIResourceTableEntry::GetUniformBufferIndex(ResourceInfo) == BufferIndex);
-	}
-}
-
 template <class ShaderType>
-FORCEINLINE void FOpenGLDynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
+FORCEINLINE void FOpenGLDynamicRHI::SetResourcesFromTables(ShaderType* RESTRICT Shader)
 {
 	checkSlow(Shader);
-	const FOpenGLShaderResourceTable* RESTRICT SRT = &Shader->Bindings.ShaderResourceTable;
+	VERIFY_GL_SCOPE();
 
-	// Mask the dirty bits by those buffers from which the shader has bound resources.
-	uint32 DirtyBits = SRT->ResourceTableBits & PendingState.DirtyUniformBuffers[ShaderType::StaticFrequency];
-	int32 BufferIndex = 0;
-	do
+	static constexpr EShaderFrequency Frequency = static_cast<EShaderFrequency>(ShaderType::ContainedGLType::StaticFrequency);
+
+	struct FUniformResourceBinder
 	{
-		uint32 LowBit = (DirtyBits & 1);
-		if (LowBit)
-		{
-			FOpenGLUniformBuffer* Buffer = (FOpenGLUniformBuffer*)PendingState.BoundUniformBuffers[ShaderType::StaticFrequency][BufferIndex].GetReference();
-			check(Buffer);
-			check(BufferIndex < SRT->ResourceTableLayoutHashes.Num());
-			check(Buffer->GetLayout().GetHash() == SRT->ResourceTableLayoutHashes[BufferIndex]);
+		FOpenGLDynamicRHI& RHI;
 
-			// todo: could make this two pass: gather then set
-			SetShaderResourcesFromBuffer<FRHITexture, (EShaderFrequency)ShaderType::StaticFrequency>(this, Buffer, SRT->TextureMap.GetData(), BufferIndex);
-			SetShaderResourcesFromBuffer<FRHIShaderResourceView, (EShaderFrequency)ShaderType::StaticFrequency>(this, Buffer, SRT->ShaderResourceViewMap.GetData(), BufferIndex);
-			SetShaderResourcesFromBuffer<FOpenGLSamplerState, (EShaderFrequency)ShaderType::StaticFrequency>(this, Buffer, SRT->SamplerMap.GetData(), BufferIndex);
-			SetShaderResourcesFromBuffer<FRHIUnorderedAccessView, (EShaderFrequency)ShaderType::StaticFrequency>(this, Buffer, SRT->UnorderedAccessViewMap.GetData(), BufferIndex);
+		void SetUAV(FRHIUnorderedAccessView* RHIUAV, uint8 Index)
+		{
+			ensureMsgf(Index < GetNumUAVUnits<Frequency>()
+				, TEXT("Using more %s image units (%d) than allowed (%d) on a shader unit!")
+				, GetShaderFrequencyString(Frequency, false)
+				, Index
+				, GetNumUAVUnits<Frequency>()
+			);
+
+			auto UAV = FOpenGLDynamicRHI::ResourceCast(RHIUAV);
+			GLint UAVIndex = GetFirstUAVUnit<Frequency>() + Index;
+
+			if (UAV->Resource)
+			{
+				GLenum Access = (Frequency == SF_Compute) ? GL_READ_WRITE : GL_WRITE_ONLY;
+				// TODO: This must be true for 3D textures
+				bool bLayered = false;
+				GLint Layer = 0;
+				RHI.InternalSetShaderImageUAV(UAVIndex, UAV->Format, UAV->Resource, bLayered, Layer, Access);
+			}
+			else
+			{
+				RHI.InternalSetShaderBufferUAV(UAVIndex, UAV->BufferResource);
+			}
 		}
-		BufferIndex++;
-		DirtyBits >>= 1;
-	} while (DirtyBits);
+
+		void SetSRV(FRHIShaderResourceView* RHISRV, uint8 Index)
+		{
+			ensureMsgf(Index < GetNumTextureUnits<Frequency>()
+				, TEXT("Using more %s texture units (%d) than allowed (%d) on a shader unit!")
+				, GetShaderFrequencyString(Frequency, false)
+				, Index
+				, GetNumTextureUnits<Frequency>()
+			);
+
+			auto SRV = FOpenGLDynamicRHI::ResourceCast(RHISRV);
+			if (SRV->Target == GL_SHADER_STORAGE_BUFFER)
+			{
+				RHI.InternalSetShaderBufferUAV(GetFirstUAVUnit<Frequency>() + Index, SRV->Resource);
+			}
+			else
+			{
+				RHI.InternalSetShaderTexture(nullptr, SRV, GetFirstTextureUnit<Frequency>() + Index, SRV->Target, SRV->Resource, 0, SRV->LimitMip);
+				SetSampler(RHI.GetPointSamplerState(), Index);
+			}
+		}
+
+		void SetTexture(FRHITexture* TextureRHI, uint8 Index)
+		{
+			ensureMsgf(Index < GetNumTextureUnits<Frequency>()
+				, TEXT("Using more %s texture units (%d) than allowed (%d) on a shader unit!")
+				, GetShaderFrequencyString(Frequency, false)
+				, Index
+				, GetNumTextureUnits<Frequency>()
+			);
+
+			FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
+
+			if (Texture)
+			{
+				RHI.InternalSetShaderTexture(Texture, nullptr, GetFirstTextureUnit<Frequency>() + Index, Texture->Target, Texture->GetResource(), Texture->GetNumMips(), -1);
+			}
+			else
+			{
+				RHI.InternalSetShaderTexture(Texture, nullptr, GetFirstTextureUnit<Frequency>() + Index, 0, 0, 0, -1);
+			}
+
+			// clear any previous sampler state
+			RHI.InternalSetSamplerStates(GetFirstTextureUnit<Frequency>() + Index, nullptr);
+		}
+
+		void SetSampler(FRHISamplerState* Sampler, uint8 Index)
+		{
+			RHI.InternalSetSamplerStates(GetFirstTextureUnit<Frequency>() + Index, ResourceCast(Sampler));
+		}
+	};
+
+	UE::RHICore::SetResourcesFromTables(
+		  FUniformResourceBinder { *this }
+		, *Shader
+		, Shader->GetGLResourceObject()->Bindings.ShaderResourceTable
+		, PendingState.DirtyUniformBuffers[Frequency]
+		, PendingState.BoundUniformBuffers[Frequency]
+#if ENABLE_RHI_VALIDATION
+		, Tracker
+#endif
+	);
 }
 
 
@@ -2277,7 +2258,7 @@ void FOpenGLDynamicRHI::CommitGraphicsResourceTablesInner()
 }
 
 
-void FOpenGLDynamicRHI::CommitComputeResourceTables(FOpenGLComputeShader* ComputeShader)
+void FOpenGLDynamicRHI::CommitComputeResourceTables(FOpenGLComputeShaderProxy* ComputeShader)
 {
 	VERIFY_GL_SCOPE();
 
@@ -2811,7 +2792,8 @@ void FOpenGLDynamicRHI::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint3
 	FRHIComputeShader* ComputeShaderRHI = PendingState.CurrentComputeShader;
 	check(ComputeShaderRHI);
 
-	FOpenGLComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
+	FOpenGLComputeShaderProxy* ComputeShaderProxy = ResourceCastProxy(ComputeShaderRHI);
+	FOpenGLComputeShader* ComputeShader = ComputeShaderProxy->GetGLResourceObject();
 
 	if (ComputeShader->LinkedProgram == nullptr)
 	{
@@ -2822,7 +2804,7 @@ void FOpenGLDynamicRHI::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint3
 	GPUProfilingData.RegisterGPUDispatch(FIntVector(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ));	
 
 	BindPendingComputeShaderState(ContextState, ComputeShader);
-	CommitComputeResourceTables(ComputeShader);
+	CommitComputeResourceTables(ComputeShaderProxy);
 	SetupTexturesForDraw(ContextState, ComputeShader, FOpenGL::GetMaxComputeTextureImageUnits());
 	SetupUAVsForCompute(ContextState, ComputeShader);
 	CommitComputeShaderConstants(ComputeShader);

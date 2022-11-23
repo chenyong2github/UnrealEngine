@@ -1045,9 +1045,6 @@ public:
 	FVulkanDevice* Device;
 	VulkanRHI::FVulkanAllocation Allocation;
 	EUniformBufferUsage Usage;
-protected:
-	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
-	
 };
 
 class FVulkanUnorderedAccessView : public FRHIUnorderedAccessView, public VulkanRHI::FVulkanViewBase

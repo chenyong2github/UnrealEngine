@@ -521,7 +521,7 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 	TFunction<void(FShaderCode&)> AddOptionalDataCallback)
 {
 	// Build the SRT for this shader.
-	FD3D11ShaderResourceTable SRT;
+	FShaderResourceTable SRT;
 
 	TArray<uint8> UniformBufferNameBytes;
 

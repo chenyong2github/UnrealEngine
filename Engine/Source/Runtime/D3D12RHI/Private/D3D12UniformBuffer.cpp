@@ -186,13 +186,13 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 
 		for (FD3D12UniformBuffer& CurrentBuffer : *UniformBufferOut)
 		{
-			CurrentBuffer.ResourceTable.SetNumZeroed(NumResources);
+			CurrentBuffer.GetResourceTable().SetNumZeroed(NumResources);
 
 			if (Contents)
 			{
 				for (int32 Index = 0; Index < NumResources; ++Index)
 				{
-					CurrentBuffer.ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout->Resources[Index].MemberOffset, Layout->Resources[Index].MemberType);
+					CurrentBuffer.GetResourceTable()[Index] = GetShaderParameterResourceRHI(Contents, Layout->Resources[Index].MemberOffset, Layout->Resources[Index].MemberType);
 				}
 			}
 		}
@@ -235,8 +235,8 @@ FRHICOMMAND_MACRO(FRHICommandD3D12UpdateUniformBuffer)
 		for (int32 i = 0; i < UpdatedResources.Num(); ++i)
 		{
 			//check(UniformBuffer->ResourceTable[i]);
-			UniformBuffer->ResourceTable[i] = UpdatedResources[i];
-			check(UniformBuffer->ResourceTable[i]);
+			UniformBuffer->GetResourceTable()[i] = UpdatedResources[i];
+			check(UniformBuffer->GetResourceTable()[i]);
 		}
 		FD3D12ResourceLocation::TransferOwnership(UniformBuffer->ResourceLocation, UpdatedLocation);
 #if USE_STATIC_ROOT_SIGNATURE
@@ -278,7 +278,7 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, F
 	// Update buffers on all GPUs by looping over FD3D12LinkedAdapterObject chain
 	for (FD3D12UniformBuffer& UniformBuffer : *FirstUniformBuffer)
 	{
-		check(UniformBuffer.ResourceTable.Num() == NumResources);
+		check(UniformBuffer.GetResourceTable().Num() == NumResources);
 
 		FD3D12Device* Device = UniformBuffer.GetParentDevice();
 

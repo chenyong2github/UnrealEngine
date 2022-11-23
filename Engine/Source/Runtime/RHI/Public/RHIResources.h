@@ -580,11 +580,33 @@ public:
 	FSHAHash GetHash() const { return Hash; }
 
 #if RHI_INCLUDE_SHADER_DEBUG_DATA
+
 	// for debugging only e.g. MaterialName:ShaderFile.usf or ShaderFile.usf/EntryFunc
-	FString ShaderName;
-	FORCEINLINE const TCHAR* GetShaderName() const { return *ShaderName; }
+	struct
+	{
+		FString ShaderName;
+		TArray<FName> UniformBufferNames;
+	} Debug;
+
+	const TCHAR* GetShaderName() const
+	{
+		return Debug.ShaderName.Len()
+			? *Debug.ShaderName
+			: TEXT("<unknown>");
+	}
+
+	FString GetUniformBufferName(uint32 Index) const
+	{
+		return Debug.UniformBufferNames.IsValidIndex(Index)
+			? Debug.UniformBufferNames[Index].ToString()
+			: TEXT("<unknown>");
+	}
+
 #else
-	FORCEINLINE const TCHAR* GetShaderName() const { return TEXT(""); }
+
+	const TCHAR* GetShaderName() const { return TEXT("<unknown>"); }
+	FString GetUniformBufferName(uint32 Index) const { return TEXT("<unknown>"); }
+
 #endif
 
 	FRHIShader() = delete;
@@ -1063,6 +1085,11 @@ public:
 #if VALIDATE_UNIFORM_BUFFER_LIFETIME
 	mutable int32 NumMeshCommandReferencesForDebugging = 0;
 #endif
+
+	const TArray<TRefCountPtr<FRHIResource>>& GetResourceTable() const { return ResourceTable; }
+
+protected:
+	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
 
 private:
 	/** Layout of the uniform buffer. */

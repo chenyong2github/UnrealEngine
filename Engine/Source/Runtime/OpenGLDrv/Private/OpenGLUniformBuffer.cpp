@@ -481,19 +481,19 @@ FOpenGLUniformBuffer::~FOpenGLUniformBuffer()
 }
 
 
-static void SetLayoutTable(FOpenGLUniformBuffer* NewUniformBuffer, const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferValidation Validation)
+void FOpenGLUniformBuffer::SetLayoutTable(const void* Contents, EUniformBufferValidation Validation)
 {
-	if (Layout->Resources.Num())
+	if (GetLayout().Resources.Num())
 	{
-		int32 NumResources = Layout->Resources.Num();
-		NewUniformBuffer->ResourceTable.Empty(NumResources);
-		NewUniformBuffer->ResourceTable.AddZeroed(NumResources);
+		int32 NumResources = GetLayout().Resources.Num();
+		ResourceTable.Empty(NumResources);
+		ResourceTable.AddZeroed(NumResources);
 
 		if (Contents)
 		{
 			for (int32 Index = 0; Index < NumResources; ++Index)
 			{
-				NewUniformBuffer->ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout->Resources[Index].MemberOffset, Layout->Resources[Index].MemberType);
+				ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, GetLayout().Resources[Index].MemberOffset, GetLayout().Resources[Index].MemberType);
 			}
 		}
 	}
@@ -638,7 +638,7 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 	}
 
 	// Initialize the resource table for this uniform buffer.
-	SetLayoutTable(NewUniformBuffer, Contents, Layout, Validation);
+	NewUniformBuffer->SetLayoutTable(Contents, Validation);
 
 	return NewUniformBuffer;
 }	
@@ -755,7 +755,7 @@ FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Conte
 	}
 
 	// Initialize the resource table for this uniform buffer.
-	SetLayoutTable(NewUniformBuffer, Contents, Layout, Validation);
+	NewUniformBuffer->SetLayoutTable(Contents, Validation);
 
 	return NewUniformBuffer;
 }
@@ -793,7 +793,7 @@ void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, 
 	const int32 ConstantBufferSize = Layout.ConstantBufferSize;
 	const int32 NumResources = Layout.Resources.Num();
 
-	check(UniformBuffer->ResourceTable.Num() == NumResources);
+	check(UniformBuffer->GetResourceTable().Num() == NumResources);
 
 	uint32 NextUniqueID = UniqueUniformBufferID();
 
@@ -803,7 +803,7 @@ void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, 
 
 		for (int32 Index = 0; Index < NumResources; ++Index)
 		{
-			UniformBuffer->ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout.Resources[Index].MemberOffset, Layout.Resources[Index].MemberType);
+			UniformBuffer->GetResourceTable()[Index] = GetShaderParameterResourceRHI(Contents, Layout.Resources[Index].MemberOffset, Layout.Resources[Index].MemberType);
 		}
 		
 		UniformBuffer->UniqueID = NextUniqueID;
@@ -837,7 +837,7 @@ void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, 
 			// Update resource table.
 			for (int32 ResourceIndex = 0; ResourceIndex < NumResources; ++ResourceIndex)
 			{
-				UniformBuffer->ResourceTable[ResourceIndex] = CmdListResources[ResourceIndex];
+				UniformBuffer->GetResourceTable()[ResourceIndex] = CmdListResources[ResourceIndex];
 			}
 			UniformBuffer->UniqueID = NextUniqueID;
 		});

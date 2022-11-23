@@ -14,6 +14,7 @@
 	#include "ShaderCore.h"
 	#include "D3D11State.h"
 	#include "D3D11Resources.h"
+	#include "ID3D11DynamicRHI.h"
 	#include "ID3D12DynamicRHI.h"
 	#include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START
@@ -376,10 +377,8 @@ namespace UE::PixelStreaming
 #if PLATFORM_WINDOWS
 	void FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTextureRHIRef& Texture)
 	{
-		FD3D11Texture* D3D11Texture = GetD3D11TextureFromRHITexture(Texture);
-		unsigned long long TextureMemorySize = D3D11Texture->GetMemorySize();
-
-		ID3D11Texture2D* D3D11NativeTexture = static_cast<ID3D11Texture2D*>(D3D11Texture->GetResource());
+		ID3D11Resource* D3D11NativeTexture = GetID3D11DynamicRHI()->RHIGetResource(Texture);
+		unsigned long long TextureMemorySize = GetID3D11DynamicRHI()->RHIGetResourceMemorySize(Texture);
 
 		TRefCountPtr<IDXGIResource> DXGIResource;
 		HRESULT QueryResult = D3D11NativeTexture->QueryInterface(IID_PPV_ARGS(DXGIResource.GetInitReference()));

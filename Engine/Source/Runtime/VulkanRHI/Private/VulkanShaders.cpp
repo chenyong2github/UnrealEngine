@@ -91,7 +91,7 @@ ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVu
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				FShaderCodeReader ShaderCode(Code);
-				RetShader->ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
+				RetShader->Debug.ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
 #endif
 			}
 		}

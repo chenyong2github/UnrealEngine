@@ -505,13 +505,9 @@ void FMetalRenderPass::DrawIndexedPrimitive(FMetalBuffer const& IndexBuffer, uin
 				
 				if(ClampedNumInstances < NumInstances)
 				{
-					FString ShaderName = TEXT("Unknown");
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-					ShaderName = PipelineState->PixelShader->ShaderName;
-#endif
 					// Setting NumInstances to ClampedNumInstances would fix any visual rendering bugs resulting from this bad call but these draw calls are wrong - don't hide the issue
 					UE_LOG(LogMetal, Error, TEXT("Metal DrawIndexedPrimitive requested to draw %d Instances but vertex stream only has %d instance data available. ShaderName: %s, Deficient Attribute Index: %u"), NumInstances, ClampedNumInstances,
-						   *ShaderName, VertexElem.AttributeIndex);
+						   *PipelineState->PixelShader->GetShaderName(), VertexElem.AttributeIndex);
 				}
 			}
 		}

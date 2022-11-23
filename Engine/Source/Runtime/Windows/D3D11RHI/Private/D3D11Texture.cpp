@@ -1021,7 +1021,7 @@ FTextureRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHITexture* TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo)
 {
-	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = ResourceCast(TextureRHI);
 
 	// Create a Shader Resource View
 	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
@@ -1102,7 +1102,7 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderTh
 /** Generates mip maps for the surface. */
 void FD3D11DynamicRHI::RHIGenerateMips(FRHITexture* TextureRHI)
 {
-	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = ResourceCast(TextureRHI);
 	// Surface must have been created with D3D11_BIND_RENDER_TARGET for GenerateMips to work
 	check(Texture->GetShaderResourceView() && Texture->GetRenderTargetView(0, -1));
 	Direct3DDeviceIMContext->GenerateMips(Texture->GetShaderResourceView());
@@ -1123,7 +1123,7 @@ uint32 FD3D11DynamicRHI::RHIComputeMemorySize(FRHITexture* TextureRHI)
 		return 0;
 	}
 	
-	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = ResourceCast(TextureRHI);
 	return Texture->GetMemorySize();
 }
 
@@ -1628,7 +1628,7 @@ void FD3D11DynamicRHI::RHIUnlockTextureCubeFace_RenderThread(
 
 void FD3D11DynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCHAR* Name)
 {
-	FD3D11Texture* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
+	FD3D11Texture* Texture = ResourceCast(TextureRHI);
 
 	//todo: require names at texture creation time.
 	FName DebugName(Name);
@@ -1978,8 +1978,8 @@ void FD3D11Texture::AliasResource(FD3D11Texture const& Other)
 
 void FD3D11DynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DstTextureRHI, FTextureRHIRef& SrcTextureRHI)
 {
-	FD3D11Texture* DstTexture = GetD3D11TextureFromRHITexture(DstTextureRHI);
-	FD3D11Texture* SrcTexture = GetD3D11TextureFromRHITexture(SrcTextureRHI);
+	FD3D11Texture* DstTexture = ResourceCast(DstTextureRHI);
+	FD3D11Texture* SrcTexture = ResourceCast(SrcTextureRHI);
 	check(DstTexture && SrcTexture);
 
 	DstTexture->AliasResource(*SrcTexture);
@@ -1987,7 +1987,7 @@ void FD3D11DynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DstTextureRHI, F
 
 FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SrcTextureRHI)
 {
-	FD3D11Texture* SrcTexture = GetD3D11TextureFromRHITexture(SrcTextureRHI);
+	FD3D11Texture* SrcTexture = ResourceCast(SrcTextureRHI);
 	check(SrcTexture);
 	const FString Name = SrcTextureRHI->GetName().ToString() + TEXT("Alias");
 
@@ -1998,8 +1998,8 @@ void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture
 {
 	FRHICommandList_RecursiveHazardous RHICmdList(this);	
 
-	FD3D11Texture* SourceTexture = GetD3D11TextureFromRHITexture(SourceTextureRHI);
-	FD3D11Texture* DestTexture = GetD3D11TextureFromRHITexture(DestTextureRHI);
+	FD3D11Texture* SourceTexture = ResourceCast(SourceTextureRHI);
+	FD3D11Texture* DestTexture = ResourceCast(DestTextureRHI);
 
 	check(SourceTexture && DestTexture);
 

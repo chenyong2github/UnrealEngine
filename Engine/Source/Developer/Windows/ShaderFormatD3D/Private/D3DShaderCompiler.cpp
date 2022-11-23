@@ -5,7 +5,6 @@
 #include "ShaderCompilerCommon.h"
 #include "ShaderMinifier.h"
 #include "ShaderParameterParser.h"
-#include "D3D11ShaderResources.h"
 #include "D3D12RHI.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"

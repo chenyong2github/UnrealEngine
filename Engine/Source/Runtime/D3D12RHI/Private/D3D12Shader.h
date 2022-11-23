@@ -44,11 +44,7 @@ struct FD3D12ShaderData
 	/** The shader's bytecode, with custom data in the last byte. */
 	TArray<uint8> Code;
 
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-#if RHI_INCLUDE_SHADER_DEBUG_DATA
-	TArray<FName> UniformBuffers;
-#endif
+	FShaderResourceTable ShaderResourceTable;
 
 	FShaderCodePackedResourceCounts ResourceCounts{};
 

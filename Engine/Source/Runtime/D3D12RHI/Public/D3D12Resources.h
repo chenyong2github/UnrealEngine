@@ -821,9 +821,6 @@ public:
 	/** The D3D12 constant buffer resource */
 	FD3D12ResourceLocation ResourceLocation;
 
-	/** Resource table containing RHI references. */
-	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
-
 	const EUniformBufferUsage UniformBufferUsage;
 
 	/** Initialization constructor. */
@@ -839,6 +836,10 @@ public:
 	}
 
 	virtual ~FD3D12UniformBuffer();
+
+	// Provides public non-const access to ResourceTable.
+	// @todo refactor uniform buffers to perform updates as a member function, so this isn't necessary.
+	TArray<TRefCountPtr<FRHIResource>>& GetResourceTable() { return ResourceTable; }
 };
 
 class FD3D12Buffer : public FRHIBuffer, public FD3D12BaseShaderResource, public FD3D12LinkedAdapterObject<FD3D12Buffer>

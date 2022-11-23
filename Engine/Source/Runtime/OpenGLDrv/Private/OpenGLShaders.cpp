@@ -1036,7 +1036,7 @@ RHIType* CreateProxyShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (RHIShader)
 	{
-		RHIShader->ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
+		RHIShader->Debug.ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
 	}
 #endif
 

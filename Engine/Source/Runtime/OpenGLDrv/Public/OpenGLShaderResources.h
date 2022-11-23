@@ -33,35 +33,6 @@ enum
 	OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT = -1, // for now, only CS and PS supports UAVs/ images
 };
 
-struct FOpenGLShaderResourceTable : public FBaseShaderResourceTable
-{
-	/** Mapping of bound Textures to their location in resource tables. */
-	TArray<uint32> TextureMap;
-	friend bool operator==(const FOpenGLShaderResourceTable &A, const FOpenGLShaderResourceTable& B)
-	{
-		if (!(((FBaseShaderResourceTable&)A) == ((FBaseShaderResourceTable&)B)))
-		{
-			return false;
-		}
-		if (A.TextureMap.Num() != B.TextureMap.Num())
-		{
-			return false;
-		}
-		if (FMemory::Memcmp(A.TextureMap.GetData(), B.TextureMap.GetData(), A.TextureMap.GetTypeSize()*A.TextureMap.Num()) != 0)
-		{
-			return false;
-		}
-		return true;
-	}
-};
-
-inline FArchive& operator<<(FArchive& Ar, FOpenGLShaderResourceTable& SRT)
-{
-	Ar << ((FBaseShaderResourceTable&)SRT);
-	Ar << SRT.TextureMap;
-	return Ar;
-}
-
 struct FOpenGLShaderVarying
 {
 	TArray<ANSICHAR> Varying;
@@ -100,7 +71,7 @@ struct FOpenGLShaderBindings
 	TArray<CrossCompiler::FPackedArrayInfo>			PackedGlobalArrays;
 	TArray<FOpenGLShaderVarying>					InputVaryings;
 	TArray<FOpenGLShaderVarying>					OutputVaryings;
-	FOpenGLShaderResourceTable						ShaderResourceTable;
+	FShaderResourceTable							ShaderResourceTable;
 	CrossCompiler::FShaderBindingInOutMask			InOutMask;
 
 	uint8	NumSamplers;

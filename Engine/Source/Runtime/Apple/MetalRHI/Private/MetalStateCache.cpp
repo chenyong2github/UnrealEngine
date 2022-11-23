@@ -1178,11 +1178,6 @@ void FMetalStateCache::BindUniformBuffer(EMetalShaderStages const Freq, uint32 c
 	}
 }
 
-void FMetalStateCache::SetDirtyUniformBuffers(EMetalShaderStages const Freq, uint32 const Dirty)
-{
-	DirtyUniformBuffers[Freq] = Dirty;
-}
-
 void FMetalStateCache::SetVisibilityResultMode(mtlpp::VisibilityResultMode const Mode, NSUInteger const Offset)
 {
 	if (VisibilityMode != Mode || VisibilityOffset != Offset)
@@ -1419,14 +1414,13 @@ void FMetalStateCache::SetShaderSamplerState(EMetalShaderStages const Frequency,
 	}
 }
 
-void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FRHITexture* RESTRICT TextureRHI, float CurrentTime)
+void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FRHITexture* RESTRICT TextureRHI)
 {
 	FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(TextureRHI);
 	ns::AutoReleased<FMetalTexture> Texture;
 	mtlpp::ResourceUsage Usage = (mtlpp::ResourceUsage)0;
 	if (Surface != nullptr)
 	{
-		TextureRHI->SetLastRenderTime(CurrentTime);
 		Texture = Surface->Texture;
 		Usage = mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample);
 	}
@@ -1566,7 +1560,7 @@ void FMetalStateCache::SetShaderUnorderedAccessView(EMetalShaderStages ShaderSta
 	}
 }
 
-void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalShaderResourceView* RESTRICT SRV, float CurrentTime)
+void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalShaderResourceView* RESTRICT SRV)
 {
 	switch (ShaderStage)
 	{
@@ -1588,7 +1582,7 @@ void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalS
 	}
 }
 
-void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalSamplerState* RESTRICT SamplerState, float CurrentTime)
+void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalSamplerState* RESTRICT SamplerState)
 {
 	check(SamplerState->State);
 	switch (ShaderStage)
@@ -1611,7 +1605,7 @@ void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalS
 	}
 }
 
-void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* RESTRICT UAV, float CurrentTime)
+void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* RESTRICT UAV)
 {
 	switch (ShaderStage)
 	{
@@ -1633,42 +1627,13 @@ void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalU
 	}
 }
 
-
-template <typename MetalResourceType>
-inline int32 FMetalStateCache::SetShaderResourcesFromBuffer(uint32 ShaderStage, FMetalUniformBuffer* RESTRICT Buffer, const uint32* RESTRICT ResourceMap, int32 BufferIndex, float CurrentTime)
-{
-	const TRefCountPtr<FRHIResource>* RESTRICT Resources = Buffer->ResourceTable.GetData();
-	int32 NumSetCalls = 0;
-	uint32 BufferOffset = ResourceMap[BufferIndex];
-	if (BufferOffset > 0)
-	{
-		const uint32* RESTRICT ResourceInfos = &ResourceMap[BufferOffset];
-		uint32 ResourceInfo = *ResourceInfos++;
-		do
-		{
-			checkSlow(FRHIResourceTableEntry::GetUniformBufferIndex(ResourceInfo) == BufferIndex);
-			const uint16 ResourceIndex = FRHIResourceTableEntry::GetResourceIndex(ResourceInfo);
-			const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(ResourceInfo);
-			
-			MetalResourceType* ResourcePtr = (MetalResourceType*)Resources[ResourceIndex].GetReference();
-			
-			// todo: could coalesce adjacent bound resources.
-			SetResource(ShaderStage, BindIndex, ResourcePtr, CurrentTime);
-			
-			NumSetCalls++;
-			ResourceInfo = *ResourceInfos++;
-		} while (FRHIResourceTableEntry::GetUniformBufferIndex(ResourceInfo) == BufferIndex);
-	}
-	return NumSetCalls;
-}
-
 template <class ShaderType>
 void FMetalStateCache::SetResourcesFromTables(ShaderType Shader, uint32 ShaderStage)
 {
 	checkSlow(Shader);
 	
 	EMetalShaderStages Frequency;
-	switch(ShaderStage)
+	switch (ShaderStage)
 	{
 		case CrossCompiler::SHADER_STAGE_VERTEX:
 			Frequency = EMetalShaderStages::Vertex;
@@ -1685,30 +1650,35 @@ void FMetalStateCache::SetResourcesFromTables(ShaderType Shader, uint32 ShaderSt
 			break;
 	}
 
-	float CurrentTime = FPlatformTime::Seconds();
-
-	// Mask the dirty bits by those buffers from which the shader has bound resources.
-	uint32 DirtyBits = Shader->Bindings.ShaderResourceTable.ResourceTableBits & GetDirtyUniformBuffers(Frequency);
-	while (DirtyBits)
+	if (!FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs))
 	{
-		// Scan for the lowest set bit, compute its index, clear it in the set of dirty bits.
-		const uint32 LowestBitMask = (DirtyBits)& (-(int32)DirtyBits);
-		const int32 BufferIndex = FMath::FloorLog2(LowestBitMask); // todo: This has a branch on zero, we know it could never be zero...
-		DirtyBits ^= LowestBitMask;
-		FMetalUniformBuffer* Buffer = (FMetalUniformBuffer*)GetBoundUniformBuffers(Frequency)[BufferIndex];
-		if (Buffer && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs))
+		struct FUniformResourceBinder
 		{
-			check(BufferIndex < Shader->Bindings.ShaderResourceTable.ResourceTableLayoutHashes.Num());
-			check(Buffer->GetLayout().GetHash() == Shader->Bindings.ShaderResourceTable.ResourceTableLayoutHashes[BufferIndex]);
-			
-			// todo: could make this two pass: gather then set
-			SetShaderResourcesFromBuffer<FRHITexture>(ShaderStage, Buffer, Shader->Bindings.ShaderResourceTable.TextureMap.GetData(), BufferIndex, CurrentTime);
-			SetShaderResourcesFromBuffer<FMetalShaderResourceView>(ShaderStage, Buffer, Shader->Bindings.ShaderResourceTable.ShaderResourceViewMap.GetData(), BufferIndex, CurrentTime);
-			SetShaderResourcesFromBuffer<FMetalSamplerState>(ShaderStage, Buffer, Shader->Bindings.ShaderResourceTable.SamplerMap.GetData(), BufferIndex, CurrentTime);
-			SetShaderResourcesFromBuffer<FMetalUnorderedAccessView>(ShaderStage, Buffer, Shader->Bindings.ShaderResourceTable.UnorderedAccessViewMap.GetData(), BufferIndex, CurrentTime);
-		}
+			FMetalStateCache& StateCache;
+			uint32 ShaderStage;
+
+			void SetUAV(FRHIUnorderedAccessView*  UAV, uint8 Index) { StateCache.SetResource(ShaderStage, Index, static_cast<FMetalUnorderedAccessView*>(UAV)); }
+			void SetSRV(FRHIShaderResourceView*   SRV, uint8 Index) { StateCache.SetResource(ShaderStage, Index, static_cast<FMetalShaderResourceView*>(SRV)); }
+
+			void SetTexture(FRHITexture*      Texture, uint8 Index) { StateCache.SetResource(ShaderStage, Index, Texture); }
+			void SetSampler(FRHISamplerState* Sampler, uint8 Index) { StateCache.SetResource(ShaderStage, Index, static_cast<FMetalSamplerState*>(Sampler)); }
+		};
+
+		UE::RHICore::SetResourcesFromTables(
+			  FUniformResourceBinder { *this, ShaderStage }
+			, *Shader
+			, Shader->Bindings.ShaderResourceTable
+			, DirtyUniformBuffers[Frequency]
+			, BoundUniformBuffers[Frequency]
+#if ENABLE_RHI_VALIDATION
+			, nullptr /*Tracker*/ // @todo: the current structure of the Metal RHI prevents easily passing the RHI validation layer tracker here
+#endif
+		);
 	}
-	SetDirtyUniformBuffers(Frequency, 0);
+	else
+	{
+		DirtyUniformBuffers[Frequency] = 0;
+	}
 }
 
 void FMetalStateCache::CommitRenderResources(FMetalCommandEncoder* Raster)

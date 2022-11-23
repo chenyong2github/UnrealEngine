@@ -17,7 +17,6 @@ FMetalSuballocatedUniformBuffer::FMetalSuballocatedUniformBuffer(const void *Con
     , Offset(0)
     , Backing(nil)
     , Shadow(FMemory::Malloc(GetSize()))
-    , ResourceTable()
 #if METAL_UNIFORM_BUFFER_VALIDATION
     , Validation(InValidation)
 #endif // METAL_UNIFORM_BUFFER_VALIDATION

@@ -793,25 +793,25 @@ ID3D11Buffer* FD3D11DynamicRHI::RHIGetResource(FRHIBuffer* InBuffer) const
 
 ID3D11Resource* FD3D11DynamicRHI::RHIGetResource(FRHITexture* InTexture) const
 {
-	FD3D11Texture* D3D11Texture = GetD3D11TextureFromRHITexture(InTexture);
+	FD3D11Texture* D3D11Texture = ResourceCast(InTexture);
 	return D3D11Texture->GetResource();
 }
 
 int64 FD3D11DynamicRHI::RHIGetResourceMemorySize(FRHITexture* InTexture) const
 {
-	FD3D11Texture* D3D11Texture = GetD3D11TextureFromRHITexture(InTexture);
+	FD3D11Texture* D3D11Texture = ResourceCast(InTexture);
 	return D3D11Texture->GetMemorySize();
 }
 
 ID3D11RenderTargetView* FD3D11DynamicRHI::RHIGetRenderTargetView(FRHITexture* InTexture, int32 InMipIndex, int32 InArraySliceIndex) const
 {
-	FD3D11Texture* D3D11Texture = GetD3D11TextureFromRHITexture(InTexture);
+	FD3D11Texture* D3D11Texture = ResourceCast(InTexture);
 	return D3D11Texture->GetRenderTargetView(InMipIndex, InArraySliceIndex);
 }
 
 ID3D11ShaderResourceView* FD3D11DynamicRHI::RHIGetShaderResourceView(FRHITexture* InTexture) const
 {
-	FD3D11Texture* D3D11Texture = GetD3D11TextureFromRHITexture(InTexture);
+	FD3D11Texture* D3D11Texture = ResourceCast(InTexture);
 	return D3D11Texture->GetShaderResourceView();
 }
 

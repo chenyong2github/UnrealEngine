@@ -7,7 +7,6 @@
 #pragma once
 
 #include "BoundShaderStateCache.h"
-#include "D3D11ShaderResources.h"
 
 interface ID3D11DeviceContext;
 typedef ID3D11DeviceContext FD3D11DeviceContext;
@@ -40,10 +39,7 @@ public:
 
 struct FD3D11ShaderData
 {
-	FD3D11ShaderResourceTable			ShaderResourceTable;
-#if RHI_INCLUDE_SHADER_DEBUG_DATA
-	TArray<FName>						UniformBuffers;
-#endif
+	FShaderResourceTable				ShaderResourceTable;
 	TArray<FUniformBufferStaticSlot>	StaticSlots;
 	TArray<FShaderCodeVendorExtension>	VendorExtensions;
 	bool								bShaderNeedsGlobalConstantBuffer;
@@ -299,19 +295,6 @@ private:
 	uint8 bAlias : 1;
 };
 
-/** Given a pointer to a RHI texture that was created by the D3D11 RHI, returns a pointer to the FD3D11Texture it encapsulates. */
-FORCEINLINE FD3D11Texture* GetD3D11TextureFromRHITexture(FRHITexture* Texture)
-{
-	if (!Texture)
-	{
-		return nullptr;
-	}
-
-	FD3D11Texture* Result = static_cast<FD3D11Texture*>(Texture->GetTextureBaseRHI());
-	check(Result);
-	return Result;
-}
-
 
 /** D3D11 render query */
 class FD3D11RenderQuery : public FRHIRenderQuery
@@ -369,9 +352,6 @@ public:
 	/** Allocation in the constants ring buffer if applicable. */
 	FRingAllocation RingAllocation;
 
-	/** Resource table containing RHI references. */
-	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
-
 	/** Initialization constructor. */
 	FD3D11UniformBuffer(class FD3D11DynamicRHI* InD3D11RHI, const FRHIUniformBufferLayout* InLayout, ID3D11Buffer* InResource,const FRingAllocation& InRingAllocation, bool bInAllocatedFromPool)
 	: FRHIUniformBuffer(InLayout)
@@ -382,6 +362,10 @@ public:
 	{}
 
 	virtual ~FD3D11UniformBuffer();
+
+	// Provides public non-const access to ResourceTable.
+	// @todo refactor uniform buffers to perform updates as a member function, so this isn't necessary.
+	TArray<TRefCountPtr<FRHIResource>>& GetResourceTable() { return ResourceTable; }
 
 private:
 	class FD3D11DynamicRHI* D3D11RHI;
@@ -543,11 +527,6 @@ template<>
 struct TD3D11ResourceTraits<FRHIBoundShaderState>
 {
 	typedef FD3D11BoundShaderState TConcreteType;
-};
-template<>
-struct TD3D11ResourceTraits<FRHITexture>
-{
-	typedef FD3D11Texture TConcreteType;
 };
 template<>
 struct TD3D11ResourceTraits<FRHIRenderQuery>

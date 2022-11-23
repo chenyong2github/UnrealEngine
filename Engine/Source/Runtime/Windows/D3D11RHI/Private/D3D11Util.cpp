@@ -267,20 +267,11 @@ void VerifyD3D11ShaderResult(FRHIShader* Shader, HRESULT D3DResult, const ANSICH
 
 	const FString& ErrorString = GetD3D11ErrorString(D3DResult, Device);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (Shader->ShaderName.Len())
-	{
-		UE_LOG(LogD3D11RHI, Error, TEXT("%s failed trying to create shader '%s' with error %s\n at %s:%u"), ANSI_TO_TCHAR(Code), *Shader->ShaderName, *ErrorString, ANSI_TO_TCHAR(Filename), Line);
-		TerminateOnDeviceRemoved(D3DResult, Device);
-		TerminateOnOutOfMemory(D3DResult, false);
+	UE_LOG(LogD3D11RHI, Error, TEXT("%s failed trying to create shader '%s' with error %s\n at %s:%u"), ANSI_TO_TCHAR(Code), Shader->GetShaderName(), *ErrorString, ANSI_TO_TCHAR(Filename), Line);
+	TerminateOnDeviceRemoved(D3DResult, Device);
+	TerminateOnOutOfMemory(D3DResult, false);
 
-		UE_LOG(LogD3D11RHI, Fatal, TEXT("%s failed trying to create shader '%s' with error %s\n at %s:%u"), ANSI_TO_TCHAR(Code), *Shader->ShaderName, *ErrorString, ANSI_TO_TCHAR(Filename), Line);
-	}
-	else
-#endif
-	{
-		VerifyD3D11Result(D3DResult, Code, Filename, Line, Device);
-	}
+	UE_LOG(LogD3D11RHI, Fatal, TEXT("%s failed trying to create shader '%s' with error %s\n at %s:%u"), ANSI_TO_TCHAR(Code), Shader->GetShaderName(), *ErrorString, ANSI_TO_TCHAR(Filename), Line);
 }
 
 void VerifyD3D11CreateTextureResult(HRESULT D3DResult, int32 UEFormat,const ANSICHAR* Code,const ANSICHAR* Filename,uint32 Line,uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 D3DFormat,uint32 NumMips,uint32 Flags,

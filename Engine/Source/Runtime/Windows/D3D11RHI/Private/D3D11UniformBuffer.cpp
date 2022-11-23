@@ -260,15 +260,15 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 	if (Layout->Resources.Num())
 	{
 		const int32 ResourceCount = Layout->Resources.Num();
-		NewUniformBuffer->ResourceTable.Empty(ResourceCount);
-		NewUniformBuffer->ResourceTable.AddZeroed(ResourceCount);
+		NewUniformBuffer->GetResourceTable().Empty(ResourceCount);
+		NewUniformBuffer->GetResourceTable().AddZeroed(ResourceCount);
 
 		if (Contents)
 		{
 			for (int32 Index = 0; Index < ResourceCount; ++Index)
 			{
 				const auto ResourceParameter = Layout->Resources[Index];
-				NewUniformBuffer->ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, ResourceParameter.MemberOffset, ResourceParameter.MemberType);
+				NewUniformBuffer->GetResourceTable()[Index] = GetShaderParameterResourceRHI(Contents, ResourceParameter.MemberOffset, ResourceParameter.MemberType);
 			}
 		}
 	}
@@ -304,7 +304,7 @@ void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, F
 	const uint32 ConstantBufferSize = Layout.ConstantBufferSize;
 	const int32 NumResources = Layout.Resources.Num();
 
-	check(UniformBuffer->ResourceTable.Num() == NumResources);
+	check(UniformBuffer->GetResourceTable().Num() == NumResources);
 
 	if (RHICmdList.Bypass())
 	{
@@ -313,7 +313,7 @@ void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, F
 		for (int32 Index = 0; Index < NumResources; ++Index)
 		{
 			const auto Parameter = Layout.Resources[Index];
-			UniformBuffer->ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Parameter.MemberOffset, Parameter.MemberType);
+			UniformBuffer->GetResourceTable()[Index] = GetShaderParameterResourceRHI(Contents, Parameter.MemberOffset, Parameter.MemberType);
 		}
 	}
 	else
@@ -351,7 +351,7 @@ void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, F
 			// Update resource table.
 			for (int32 ResourceIndex = 0; ResourceIndex < NumResources; ++ResourceIndex)
 			{
-				UniformBuffer->ResourceTable[ResourceIndex] = CmdListResources[ResourceIndex];
+				UniformBuffer->GetResourceTable()[ResourceIndex] = CmdListResources[ResourceIndex];
 			}
 		});
 		RHICmdList.RHIThreadFence(true);

@@ -18,7 +18,7 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	OutShader.ResourceCounts = *PackedResourceCounts;
 
 #if RHI_INCLUDE_SHADER_DEBUG_DATA
-	OutShader.ShaderName = InShaderCode.FindOptionalData(FShaderCodeName::Key);
+	OutShader.Debug.ShaderName = InShaderCode.FindOptionalData(FShaderCodeName::Key);
 
 	int32 UniformBufferTableSize = 0;
 	const uint8* UniformBufferData = InShaderCode.FindOptionalDataAndSize(FShaderCodeUniformBuffers::Key, UniformBufferTableSize);
@@ -27,10 +27,10 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 		FBufferReader UBReader((void*)UniformBufferData, UniformBufferTableSize, false);
 		TArray<FString> Names;
 		UBReader << Names;
-		check(OutShader.UniformBuffers.Num() == 0);
+		check(OutShader.Debug.UniformBufferNames.Num() == 0);
 		for (int32 Index = 0; Index < Names.Num(); ++Index)
 		{
-			OutShader.UniformBuffers.Add(FName(*Names[Index]));
+			OutShader.Debug.UniformBufferNames.Add(FName(*Names[Index]));
 		}
 	}
 #endif

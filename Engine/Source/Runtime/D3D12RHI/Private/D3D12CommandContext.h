@@ -495,7 +495,6 @@ public:
 	void CommitComputeShaderConstants();
 
 	template <class ShaderType> void SetResourcesFromTables(const ShaderType* RESTRICT);
-	template <class ShaderType> uint32 SetUAVPSResourcesFromTables(const ShaderType* RESTRICT Shader);
 
 	void CommitGraphicsResourceTables();
 	void CommitComputeResourceTables();

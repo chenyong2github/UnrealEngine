@@ -949,9 +949,6 @@ public:
 	/** Unique ID for state shadowing purposes. */
 	uint32 UniqueID;
 
-	/** Resource table containing RHI references. */
-	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
-
 	/** Emulated uniform data for ES2. */
 	FOpenGLEUniformBufferDataRef EmulatedBufferData;
 
@@ -974,6 +971,12 @@ public:
 
 	FOpenGLAssertRHIThreadFence AccessFence;
 	FOpenGLAssertRHIThreadFence CopyFence;
+
+	// Provides public non-const access to ResourceTable.
+	// @todo refactor uniform buffers to perform updates as a member function, so this isn't necessary.
+	TArray<TRefCountPtr<FRHIResource>>& GetResourceTable() { return ResourceTable; }
+
+	void SetLayoutTable(const void* Contents, EUniformBufferValidation Validation);
 };
 
 typedef TOpenGLBuffer<FOpenGLBasePixelBuffer, CachedBindPixelUnpackBuffer> FOpenGLPixelBuffer;
@@ -1144,19 +1147,22 @@ public:
 	int32 MaxTextureStageUsed();
 	bool RequiresDriverInstantiation();
 
-	FOpenGLVertexShader* GetVertexShader()
+	FOpenGLVertexShaderProxy* GetVertexShader()
 	{
 		check(IsValidRef(VertexShaderProxy));
-		return VertexShaderProxy->GetGLResourceObject();
+		return VertexShaderProxy;
 	}
 
-	FOpenGLPixelShader* GetPixelShader()
+	FOpenGLPixelShaderProxy* GetPixelShader()
 	{
 		check(IsValidRef(PixelShaderProxy));
-		return PixelShaderProxy->GetGLResourceObject();
+		return PixelShaderProxy;
 	}
 
-	FOpenGLGeometryShader* GetGeometryShader()	{ return GeometryShaderProxy ? GeometryShaderProxy->GetGLResourceObject() : nullptr;}
+	FOpenGLGeometryShaderProxy* GetGeometryShader()
+	{
+		return GeometryShaderProxy;
+	}
 
 	virtual ~FOpenGLBoundShaderState();
 };
