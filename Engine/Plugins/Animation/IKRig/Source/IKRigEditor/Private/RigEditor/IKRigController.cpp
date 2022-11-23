@@ -732,6 +732,11 @@ UIKRigSolver* UIKRigController::GetSolver(int32 Index) const
 
 UIKRigEffectorGoal* UIKRigController::AddNewGoal(const FName& GoalName, const FName& BoneName) const
 {
+	if (GetIKRigSkeleton().GetBoneIndexFromName(BoneName) == INDEX_NONE)
+	{
+		return nullptr; // bone does not exist in the skeleton
+	}
+	
 	if (GetGoalIndex(GoalName) != INDEX_NONE)
 	{
 		return nullptr; // goal already exists!

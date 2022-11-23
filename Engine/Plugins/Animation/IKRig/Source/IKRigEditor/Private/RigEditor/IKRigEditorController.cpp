@@ -967,6 +967,13 @@ UIKRigEffectorGoal* FIKRigEditorController::PromptToAddGoalToNewChain(const FBon
 		return ExistingGoal;
 	}
 
+	// check if there is a corresponding bone, if there is none, then no need to create a goal
+	const FIKRigSkeleton& IKRigSkeleton = AssetController->GetIKRigSkeleton();
+	if (IKRigSkeleton.GetBoneIndexFromName(BoneChain.EndBone.BoneName) == INDEX_NONE)
+	{
+		return nullptr;
+	}
+
 	// ask user if they want to add a goal to the end of this chain
 	const TSharedRef<SCustomDialog> AddGoalToChainDialog = SNew(SCustomDialog)
 		.Title(FText(LOCTEXT("AddGoalToNewChainTitleLabel", "Add Goal to New Chain")))
