@@ -302,6 +302,10 @@ void SUndoHistory::SelectLastTransaction()
 				UndoDetailsView->SetSelectedTransaction(InnerTransaction->GenerateDiff());
 			}
 		}
+		else
+		{
+			UndoDetailsView->Reset();
+		}
 	}
 }
 
