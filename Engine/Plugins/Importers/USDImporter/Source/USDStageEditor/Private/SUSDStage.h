@@ -5,14 +5,15 @@
 #include "USDStageViewModel.h"
 #include "UsdWrappers/UsdStage.h"
 
+#include "Animation/CurveSequence.h"
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
 #include "Input/Reply.h"
+#include "Layout/Visibility.h"
 #include "Misc/Optional.h"
 #include "Templates/SharedPointer.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
 
 class AUsdStageActor;
 class FLevelCollectionModel;
@@ -33,7 +34,10 @@ class SUsdStage : public SCompoundWidget
 
 	virtual ~SUsdStage();
 
-	void AttachToStageActor( AUsdStageActor* InUsdStageActor );
+	// Attaches to a new stage actor.
+	// When bFlashButton is true we will also blink the button on the UI to draw attention to the fact
+	// that the actor changed
+	void AttachToStageActor( AUsdStageActor* InUsdStageActor, bool bFlashButton=true );
 
 protected:
 	void SetupStageActorDelegates();
@@ -74,11 +78,12 @@ protected:
 
 	void OpenStage( const TCHAR* FilePath );
 
-	void SetActor( AUsdStageActor* InUsdStageActor );
-
 	void Refresh();
 
 	void OnViewportSelectionChanged( UObject* NewSelection );
+
+	void OnPostPIEStarted( bool bIsSimulating );
+	void OnEndPIE( bool bIsSimulating );
 
 	int32 GetNaniteTriangleThresholdValue() const;
 	void OnNaniteTriangleThresholdValueChanged( int32 InValue );
@@ -100,12 +105,15 @@ protected:
 	FDelegateHandle OnStageEditTargetChangedHandle;
 	FDelegateHandle OnPrimChangedHandle;
 	FDelegateHandle OnLayersChangedHandle;
-
 	FDelegateHandle OnViewportSelectionChangedHandle;
+	FDelegateHandle PostPIEStartedHandle;
+	FDelegateHandle EndPIEHandle;
 
 	FString SelectedPrimPath;
 
 	FUsdStageViewModel ViewModel;
+
+	FCurveSequence FlashActorPickerCurve;
 
 	// True while we're in the middle of setting the viewport selection from the prim selection
 	bool bUpdatingViewportSelection;

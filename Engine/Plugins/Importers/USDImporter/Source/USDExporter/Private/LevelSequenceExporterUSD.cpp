@@ -1198,7 +1198,8 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 	UWorld* World = Options->Level.Get();
 	if ( !World )
 	{
-		World = GWorld;
+		const bool bEditorWorldsOnly = true;
+		World = IUsdClassesModule::GetCurrentWorld( bEditorWorldsOnly );
 	}
 	Params.PlaybackContext = TAttribute<UObject*>::Create( TAttribute<UObject*>::FGetter::CreateLambda( [World]()
 	{

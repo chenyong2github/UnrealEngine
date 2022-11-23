@@ -37,4 +37,7 @@ public:
 	 * This can be used to track the version of exported assets and levels, to prevent unnecessary re-exports.
 	 */
 	USDCLASSES_API static bool HashObjectPackage( const UObject* Object, FSHA1& HashToUpdate );
+
+	/** Returns a world that could be suitably described as "the current world". (e.g. when in PIE, the PIE world) */
+	USDCLASSES_API static UWorld* GetCurrentWorld( bool bEditorWorldsOnly = false );
 };

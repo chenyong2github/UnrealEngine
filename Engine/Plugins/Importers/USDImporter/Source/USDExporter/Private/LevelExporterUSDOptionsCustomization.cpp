@@ -2,8 +2,9 @@
 
 #include "LevelExporterUSDOptionsCustomization.h"
 
-#include "LevelExporterUSDOptions.h"
+#include "USDClassesModule.h"
 #include "LevelSequenceExporterUSDOptions.h"
+#include "LevelExporterUSDOptions.h"
 
 #include "Brushes/SlateColorBrush.h"
 #include "CoreMinimal.h"
@@ -199,7 +200,8 @@ void FLevelExporterUSDOptionsCustomization::CustomizeDetails(IDetailLayoutBuilde
 		// by looking at the soft object paths, but even those aren't exposed, so here we just default to using the current level as the export level.
 		if ( LevelSequenceOptions->Level == nullptr )
 		{
-			LevelSequenceOptions->Level = GWorld;
+			const bool bEditorWorldsOnly = true;
+			LevelSequenceOptions->Level = IUsdClassesModule::GetCurrentWorld( bEditorWorldsOnly );
 		}
 
 		PickerTree = SNew( LevelExporterUSDImpl::SLevelPickerList, &LevelSequenceOptions->LevelExportOptions, LevelSequenceOptions->Level->GetWorld() );

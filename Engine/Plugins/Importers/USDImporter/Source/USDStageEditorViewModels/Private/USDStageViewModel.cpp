@@ -3,6 +3,7 @@
 #include "USDStageViewModel.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
@@ -64,7 +65,7 @@ void FUsdStageViewModel::NewStage()
 	if ( !UsdStageActor.IsValid() )
 	{
 		IUsdStageModule& UsdStageModule = FModuleManager::GetModuleChecked< IUsdStageModule >( TEXT( "USDStage" ) );
-		UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
+		UsdStageActor = &UsdStageModule.GetUsdStageActor( IUsdClassesModule::GetCurrentWorld() );
 	}
 
 	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
@@ -83,7 +84,7 @@ void FUsdStageViewModel::OpenStage( const TCHAR* FilePath )
 	if ( !UsdStageActor.IsValid() )
 	{
 		IUsdStageModule& UsdStageModule = FModuleManager::GetModuleChecked< IUsdStageModule >( TEXT("USDStage") );
-		UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
+		UsdStageActor = &UsdStageModule.GetUsdStageActor( IUsdClassesModule::GetCurrentWorld() );
 	}
 
 	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )

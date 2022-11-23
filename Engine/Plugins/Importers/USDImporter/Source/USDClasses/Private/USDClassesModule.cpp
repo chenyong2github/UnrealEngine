@@ -5,6 +5,7 @@
 #include "USDLog.h"
 
 #include "AnalyticsEventAttribute.h"
+#include "Engine/Engine.h"
 #include "EngineAnalytics.h"
 #include "HAL/FileManager.h"
 #include "Misc/EngineVersion.h"
@@ -242,6 +243,42 @@ bool IUsdClassesModule::HashObjectPackage( const UObject* Object, FSHA1& HashToU
 #else
 	return false;
 #endif // WITH_EDITOR
+}
+
+UWorld* IUsdClassesModule::GetCurrentWorld( bool bEditorWorldsOnly )
+{
+	UWorld* EditorWorld = nullptr;
+	UWorld* LowestPIEWorld = nullptr;
+	int32 LowestPIEInstance = TNumericLimits<int32>::Max();
+
+	for ( const FWorldContext& Context : GEngine->GetWorldContexts() )
+	{
+		UWorld* World = Context.World();
+		if ( !World )
+		{
+			continue;
+		}
+
+		if ( !bEditorWorldsOnly && Context.WorldType == EWorldType::PIE )
+		{
+			if ( !LowestPIEInstance || Context.PIEInstance < LowestPIEInstance )
+			{
+				LowestPIEWorld = World;
+				LowestPIEInstance = Context.PIEInstance;
+			}
+		}
+		else if ( Context.WorldType == EWorldType::Editor )
+		{
+			EditorWorld = World;
+		}
+	}
+
+	if ( LowestPIEWorld )
+	{
+		return LowestPIEWorld;
+	}
+
+	return EditorWorld;
 }
 
 class FUsdClassesModule : public IUsdClassesModule

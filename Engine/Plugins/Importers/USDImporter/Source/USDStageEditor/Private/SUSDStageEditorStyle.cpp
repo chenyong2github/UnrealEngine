@@ -67,6 +67,8 @@ void FUsdStageEditorStyle::Initialize()
 		 */
 		StyleSet->Set( "UsdStageEditor.CheckBoxImage", new IMAGE_BRUSH( "Common/Check", Icon14x14, FLinearColor::White ) );
 
+		StyleSet->Set( "UsdStageEditor.ActorPickerFlashBrush", new FSlateRoundedBoxBrush( FLinearColor::White, 4.0f ) );
+
 		/**
 		 * Button without a background, border or foreground color that doesn't move when pressed.
 		 * No foreground color is important to let the automatic slate foreground color propagate down.

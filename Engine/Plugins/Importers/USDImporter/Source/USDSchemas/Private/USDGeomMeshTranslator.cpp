@@ -11,6 +11,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDGroomTranslatorUtils.h"
@@ -1296,7 +1297,7 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 			UWorld* World = Context->Level ? Context->Level->GetWorld() : nullptr;
 			if (!World)
 			{
-				World = GWorld;
+				World = IUsdClassesModule::GetCurrentWorld();
 			}
 			if (World)
 			{

@@ -4,6 +4,7 @@
 
 #include "SUSDLayersTreeView.h"
 #include "SUSDPrimInfo.h"
+#include "SUSDStageEditorStyle.h"
 #include "SUSDStageTreeView.h"
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
@@ -29,6 +30,7 @@
 #include "Async/Async.h"
 #include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
+#include "Editor.h"
 #include "Engine/Selection.h"
 #include "Engine/World.h"
 #include "EngineAnalytics.h"
@@ -43,8 +45,8 @@
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SSplitter.h"
 
@@ -270,12 +272,16 @@ namespace SUSDStageImpl
 
 void SUsdStage::Construct( const FArguments& InArgs )
 {
-	OnActorLoadedHandle = AUsdStageActor::OnActorLoaded.AddSP( SharedThis( this ), &SUsdStage::AttachToStageActor );
+	const bool bFlashButton = true;
+	OnActorLoadedHandle = AUsdStageActor::OnActorLoaded.AddSP( SharedThis( this ), &SUsdStage::AttachToStageActor, bFlashButton );
 
-	OnViewportSelectionChangedHandle = USelection::SelectionChangedEvent.AddRaw( this, &SUsdStage::OnViewportSelectionChanged );
+	OnViewportSelectionChangedHandle = USelection::SelectionChangedEvent.AddSP( SharedThis(this), &SUsdStage::OnViewportSelectionChanged );
+
+	PostPIEStartedHandle = FEditorDelegates::PostPIEStarted.AddSP( SharedThis(this), &SUsdStage::OnPostPIEStarted );
+	EndPIEHandle = FEditorDelegates::EndPIE.AddSP( SharedThis(this), &SUsdStage::OnEndPIE );
 
 	IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-	ViewModel.UsdStageActor = UsdStageModule.FindUsdStageActor( GWorld );
+	ViewModel.UsdStageActor = UsdStageModule.FindUsdStageActor( IUsdClassesModule::GetCurrentWorld() );
 
 	bUpdatingViewportSelection = false;
 	bUpdatingPrimSelection = false;
@@ -389,16 +395,36 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	}
 }
 
-void SUsdStage::AttachToStageActor( AUsdStageActor* InUsdStageActor )
+void SUsdStage::AttachToStageActor( AUsdStageActor* InUsdStageActor, bool bFlashButton )
 {
 	if ( ViewModel.UsdStageActor == InUsdStageActor )
 	{
 		return;
 	}
 
+	if ( bFlashButton )
+	{
+		const float StartTimeSeconds = 0.0f;
+		const float FlashDuration = 0.5f;
+		const ECurveEaseFunction EaseFunction = ECurveEaseFunction::Linear;
+		FlashActorPickerCurve = FCurveSequence{ StartTimeSeconds, FlashDuration, EaseFunction };
+		FlashActorPickerCurve.Play( this->AsShared() );
+	}
+
 	ClearStageActorDelegates();
 	ViewModel.UsdStageActor = InUsdStageActor;
 	SetupStageActorDelegates();
+
+	if ( InUsdStageActor )
+	{
+		UE::FUsdStage UsdStage = static_cast< const AUsdStageActor* >( InUsdStageActor )->GetUsdStage();
+
+		if ( this->UsdPrimInfoWidget && InUsdStageActor )
+		{
+			// Just reset to the pseudoroot for now
+			this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT( "/" ) );
+		}
+	}
 
 	// Refresh here because we may be receiving an actor that has a stage already loaded,
 	// like during undo/redo
@@ -575,6 +601,9 @@ void SUsdStage::ClearStageActorDelegates()
 
 SUsdStage::~SUsdStage()
 {
+	FEditorDelegates::PostPIEStarted.Remove( PostPIEStartedHandle );
+	FEditorDelegates::EndPIE.Remove( EndPIEHandle );
+
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove( OnStageActorPropertyChangedHandle );
 	AUsdStageActor::OnActorLoaded.Remove( OnActorLoadedHandle );
 	USelection::SelectionChangedEvent.Remove( OnViewportSelectionChangedHandle );
@@ -616,22 +645,50 @@ TSharedRef< SWidget > SUsdStage::MakeMainMenu()
 
 TSharedRef< SWidget > SUsdStage::MakeActorPickerMenu()
 {
-	return SNew( SComboButton )
-		.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButton" )
-		.OnGetMenuContent( this, &SUsdStage::MakeActorPickerMenuContent )
-		.MenuPlacement( EMenuPlacement::MenuPlacement_BelowRightAnchor )
-		.ToolTipText( LOCTEXT( "ActorPicker_ToolTip", "Switch the active stage actor" ) )
-		.ButtonContent()
+	return
+		SNew(SOverlay)
+		+ SOverlay::Slot()
 		[
-			SNew( STextBlock )
-			.Text_Lambda( [this]()
-			{
-				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+			SNew( SComboButton )
+			.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButton" )
+			.OnGetMenuContent( this, &SUsdStage::MakeActorPickerMenuContent )
+			.MenuPlacement( EMenuPlacement::MenuPlacement_BelowRightAnchor )
+			.ToolTipText( LOCTEXT( "ActorPicker_ToolTip", "Switch the active stage actor" ) )
+			.ButtonContent()
+			[
+				SNew( STextBlock )
+				.Text_Lambda( [this]()
 				{
-					return FText::FromString( StageActor->GetActorLabel() );
+					if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						return FText::FromString( StageActor->GetActorLabel() );
+					}
+
+					return FText::FromString( "None" );
+				})
+			]
+		]
+
+		// Overlay for flashing for attention
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.Visibility( EVisibility::HitTestInvisible )
+			.BorderImage( FUsdStageEditorStyle::Get()->GetBrush( "UsdStageEditor.ActorPickerFlashBrush" ) )
+			.BorderBackgroundColor_Lambda( [this]() -> FSlateColor
+			{
+				FLinearColor Color = FLinearColor::White;
+
+				if ( FlashActorPickerCurve.IsPlaying() )
+				{
+					Color.A = 0.6f * (1.0f - FlashActorPickerCurve.GetLerp());
+				}
+				else
+				{
+					Color.A = 0.0f;
 				}
 
-				return FText::FromString( "None" );
+				return FSlateColor( Color );
 			})
 		];
 }
@@ -692,7 +749,9 @@ TSharedRef< SWidget > SUsdStage::MakeActorPickerMenuContent()
 				{
 					if ( Actor && Actor->IsA<AUsdStageActor>() )
 					{
-						this->SetActor( Cast<AUsdStageActor>( Actor ) );
+						// Don't need to flash here as it was an intentional act to attach to a new actor
+						const bool bFlashButton = false;
+						AttachToStageActor( Cast<AUsdStageActor>( Actor ), bFlashButton );
 
 						FSlateApplication::Get().DismissAllMenus();
 					}
@@ -2055,36 +2114,7 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 		FText::FromString( FilePath )
 	) );
 
-	if ( !ViewModel.UsdStageActor.IsValid() )
-	{
-		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-		SetActor( &UsdStageModule.GetUsdStageActor( GWorld ) );
-	}
-
 	ViewModel.OpenStage( FilePath );
-}
-
-void SUsdStage::SetActor( AUsdStageActor* InUsdStageActor )
-{
-	// Call this first so that we clear all of our delegates from the previous actor before we switch actors
-	ClearStageActorDelegates();
-
-	ViewModel.UsdStageActor = InUsdStageActor;
-
-	SetupStageActorDelegates();
-
-	if( InUsdStageActor )
-	{
-		UE::FUsdStage UsdStage = static_cast< const AUsdStageActor* >( InUsdStageActor )->GetUsdStage();
-
-		if ( this->UsdPrimInfoWidget && InUsdStageActor )
-		{
-			// Just reset to the pseudoroot for now
-			this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT( "/" ) );
-		}
-	}
-
-	Refresh();
 }
 
 void SUsdStage::Refresh()
@@ -2121,6 +2151,16 @@ void SUsdStage::Refresh()
 	{
 		UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), *SelectedPrimPath );
 	}
+
+	// Automatically attach to another stage actor if we can find one
+	if ( !StageActor )
+	{
+		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
+		if ( AUsdStageActor* OtherStageActor = UsdStageModule.FindUsdStageActor( IUsdClassesModule::GetCurrentWorld() ) )
+		{
+			AttachToStageActor( OtherStageActor );
+		}
+	}
 }
 
 void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
@@ -2137,19 +2177,17 @@ void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
 		return;
 	}
 
-	AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+	AUsdStageActor* AttachedStageActor = ViewModel.UsdStageActor.Get();
 	USelection* Selection = Cast<USelection>( NewSelection );
-	if ( !Selection || !StageActor )
+	if ( !Selection || !AttachedStageActor )
 	{
 		return;
 	}
 
 	TGuardValue<bool> SelectionLoopGuard( bUpdatingPrimSelection, true );
 
-	TArray<USceneComponent*> SelectedComponents;
+	TArray<USceneComponent*> AllSelectedComponents;
 	{
-		Selection->GetSelectedObjects<USceneComponent>( SelectedComponents );
-
 		TArray<AActor*> SelectedActors;
 		Selection->GetSelectedObjects<AActor>( SelectedActors );
 
@@ -2157,30 +2195,109 @@ void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
 		{
 			if ( SelectedActor )
 			{
-				SelectedComponents.Add( SelectedActor->GetRootComponent() );
+				AllSelectedComponents.Add( SelectedActor->GetRootComponent() );
 			}
 		}
+
+		// Push the components last as we'll show info for the last selected component,
+		// and we must first select the actor before we can select its individual components
+		TArray<USceneComponent*> SelectedComponents;
+		Selection->GetSelectedObjects<USceneComponent>( SelectedComponents );
+
+		AllSelectedComponents.Append( SelectedComponents );
+	}
+	if ( AllSelectedComponents.Num() == 0 )
+	{
+		return;
+	}
+
+	// Find the exact stage actor that owns these components, if any
+	AUsdStageActor* OwnerActor = nullptr;
+	if ( AllSelectedComponents.Num() > 0 )
+	{
+		USceneComponent* AttachParent = AllSelectedComponents[ AllSelectedComponents.Num() - 1 ]->GetAttachParent();
+		while ( AttachParent )
+		{
+			USceneComponent* NewAttachParent = AttachParent->GetAttachParent();
+			if ( !NewAttachParent )
+			{
+				break;
+			}
+			AttachParent = NewAttachParent;
+		}
+
+		if ( AttachParent )
+		{
+			OwnerActor = Cast<AUsdStageActor>( AttachParent->GetOwner() );
+		}
+	}
+	if ( !OwnerActor )
+	{
+		// Selected component is not something we spawned
+		return;
 	}
 
 	TArray<FString> PrimPaths;
-	for ( USceneComponent* Component : SelectedComponents )
+	for ( USceneComponent* Component : AllSelectedComponents )
 	{
-		FString FoundPrimPath = StageActor->GetSourcePrimPath( Component );
+		FString FoundPrimPath = OwnerActor->GetSourcePrimPath( Component );
 		if ( !FoundPrimPath.IsEmpty() )
 		{
 			PrimPaths.Add( FoundPrimPath );
 		}
 	}
 
+	if ( OwnerActor && OwnerActor != AttachedStageActor )
+	{
+		AttachToStageActor( OwnerActor );
+	}
+
 	if ( PrimPaths.Num() > 0 )
 	{
-		UsdStageTreeView->SelectPrims( PrimPaths );
+		if ( UsdStageTreeView )
+		{
+			UsdStageTreeView->SelectPrims( PrimPaths );
+		}
 
 		if ( UsdPrimInfoWidget )
 		{
 			UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), *PrimPaths[ PrimPaths.Num() - 1 ] );
 		}
 	}
+}
+
+void SUsdStage::OnPostPIEStarted( bool bIsSimulating )
+{
+	AUsdStageActor* CurrentStageActor = ViewModel.UsdStageActor.Get();
+	if ( !CurrentStageActor )
+	{
+		return;
+	}
+
+	AUsdStageActor* PIEStageActor = Cast<AUsdStageActor>( EditorUtilities::GetSimWorldCounterpartActor( CurrentStageActor ) );
+	if ( !PIEStageActor )
+	{
+		return;
+	}
+
+	AttachToStageActor( PIEStageActor );
+}
+
+void SUsdStage::OnEndPIE( bool bIsSimulating )
+{
+	AUsdStageActor* CurrentStageActor = ViewModel.UsdStageActor.Get();
+	if ( !CurrentStageActor )
+	{
+		return;
+	}
+
+	AUsdStageActor* EditorStageActor = Cast<AUsdStageActor>( EditorUtilities::GetEditorWorldCounterpartActor( CurrentStageActor ) );
+	if ( !EditorStageActor )
+	{
+		return;
+	}
+
+	AttachToStageActor( EditorStageActor );
 }
 
 int32 SUsdStage::GetNaniteTriangleThresholdValue() const

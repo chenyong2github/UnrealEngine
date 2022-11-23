@@ -7,6 +7,7 @@
 #include "UObject/Package.h"
 #include "USDAssetImportData.h"
 #include "USDAttributeUtils.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -3303,7 +3304,7 @@ bool UnrealToUsd::ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim
 		pxr::UsdAttribute ScalesAttr = UsdSkelAnim.CreateScalesAttr();
 
 		UDebugSkelMeshComponent* DebugSkelMeshComponent = NewObject< UDebugSkelMeshComponent >();
-		DebugSkelMeshComponent->RegisterComponentWithWorld( GWorld );
+		DebugSkelMeshComponent->RegisterComponentWithWorld( IUsdClassesModule::GetCurrentWorld() );
 		DebugSkelMeshComponent->EmptyOverrideMaterials();
 		DebugSkelMeshComponent->SetSkeletalMesh( SkeletalMesh );
 
