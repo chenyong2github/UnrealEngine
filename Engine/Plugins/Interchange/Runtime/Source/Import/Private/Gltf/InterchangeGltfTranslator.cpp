@@ -391,6 +391,16 @@ void UInterchangeGltfTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 				BaseColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString());
 		}
 
+		// Opacity (use the base color alpha channel)
+		if (GltfMaterial.AlphaMode != GLTF::FMaterial::EAlphaMode::Opaque)
+		{
+			TVariant< FLinearColor, float > OpacityFactor;
+			OpacityFactor.Set< float >(GltfMaterial.BaseColorFactor.W);
+
+			HandleGltfMaterialParameter(NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBR::Parameters::Opacity.ToString(),
+				OpacityFactor, Standard::Nodes::TextureSample::Outputs::A.ToString());
+		}
+
 		return;
 	}
 	

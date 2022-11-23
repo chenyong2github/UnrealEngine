@@ -2520,6 +2520,24 @@ bool UInterchangeGenericMaterialPipeline::HandleUnlitModel(const UInterchangeSha
 
 	bool bShadingModelHandled = false;
 
+	{
+		//gltf allows unlit color to be also translucent:
+		const bool bHasInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Common::Parameters::Opacity);
+
+		if (bHasInput)
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> OpacityExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Common::Parameters::Opacity.ToString(), MaterialFactoryNode->GetUniqueID());
+
+			if (OpacityExpressionFactoryNode.Get<0>())
+			{
+				MaterialFactoryNode->ConnectOutputToOpacity(OpacityExpressionFactoryNode.Get<0>()->GetUniqueID(), OpacityExpressionFactoryNode.Get<1>());
+			}
+
+			MaterialFactoryNode->SetCustomBlendMode(EBlendMode::BLEND_Translucent);
+		}
+	}
+
 	// Unlit Color
 	{
 		const bool bHasInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Unlit::Parameters::UnlitColor);
