@@ -251,10 +251,22 @@ bool SFieldSelector::IsClearEnabled() const
 
 FReply SFieldSelector::OnClearClicked()
 {
+	FMVVMBlueprintPropertyPath NewProperty;
+	
 	if (FixedSource.IsSet())
 	{
-		SetPropertySelection(FMVVMBlueprintPropertyPath());
+		FBindingSource Source = FixedSource.GetValue();
+		if (Source.ViewModelId.IsValid())
+		{
+			NewProperty.SetViewModelId(Source.ViewModelId);
+		}
+		else 
+		{
+			NewProperty.SetWidgetName(Source.Name);
+		}
 	}
+
+	SetPropertySelection(NewProperty);
 	SetConversionFunctionSelection(nullptr);
 	return FReply::Handled();
 }
