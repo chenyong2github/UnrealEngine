@@ -325,10 +325,10 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 	Out.VolumetricScatteringIntensity = LightSceneInfo.Proxy->GetVolumetricScatteringIntensity();
 
 	static auto* ContactShadowsCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ContactShadows"));
-	static auto* IntensityCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ContactShadows.NonShadowCastingIntensity"));
 
 	Out.ContactShadowLength = 0;
-	Out.ContactShadowNonShadowCastingIntensity = 0.0f;
+	Out.ContactShadowCastingIntensity = 1.0f;
+	Out.ContactShadowNonCastingIntensity = 0.0f;
 
 	if (ContactShadowsCVar && ContactShadowsCVar->GetValueOnRenderThread() != 0 && View.Family->EngineShowFlags.ContactShadows)
 	{
@@ -336,8 +336,8 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 		// Sign indicates if contact shadow length is in world space or screen space.
 		// Multiply by 2 for screen space in order to preserve old values after introducing multiply by View.ClipToView[1][1] in shader.
 		Out.ContactShadowLength *= LightSceneInfo.Proxy->IsContactShadowLengthInWS() ? -1.0f : 2.0f;
-
-		Out.ContactShadowNonShadowCastingIntensity = IntensityCVar ? IntensityCVar->GetValueOnRenderThread() : 0.0f;
+		Out.ContactShadowCastingIntensity = LightSceneInfo.Proxy->GetContactShadowCastingIntensity();
+		Out.ContactShadowNonCastingIntensity = LightSceneInfo.Proxy->GetContactShadowNonCastingIntensity();
 	}
 
 	// When rendering reflection captures, the direct lighting of the light is actually the indirect specular from the main view
@@ -371,7 +371,8 @@ FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 	Out.ShadowMapChannelMask = FVector4f(0, 0, 0, 0);
 	Out.DistanceFadeMAD = FVector2f(0, 0);
 	Out.ContactShadowLength = 0.0f;
-	Out.ContactShadowNonShadowCastingIntensity = 0.f;
+	Out.ContactShadowCastingIntensity = 1.f;
+	Out.ContactShadowNonCastingIntensity = 0.f;
 	Out.VolumetricScatteringIntensity = SimpleLight.VolumetricScatteringIntensity;
 	Out.ShadowedBits = 0;
 	Out.LightingChannelMask = 0;

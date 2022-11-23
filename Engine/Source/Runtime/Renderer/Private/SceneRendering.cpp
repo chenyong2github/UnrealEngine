@@ -3375,6 +3375,9 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 			}
 		}
 
+		static const auto ContactShadowNonCastingIntensityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ContactShadows.NonShadowCastingIntensity"));
+		const bool bContactShadowIntensityCvarUsed = ContactShadowNonCastingIntensityCVar && ContactShadowNonCastingIntensityCVar->GetFloat() != 0.0f;
+
 		// Mobile-specific warnings
 		const bool bMobile = (FeatureLevel <= ERHIFeatureLevel::ES3_1);
 		const bool bShowMobileLowQualityLightmapWarning = bMobile && !ReadOnlyCVARCache.bEnableLowQualityLightmaps && ReadOnlyCVARCache.bAllowStaticLighting;
@@ -3402,7 +3405,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
 			|| bMobileMissingSkyMaterial || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw 
 			|| bLumenEnabledButHasNoDataForTracing || bLumenEnabledButDisabledForTheProject || bNaniteEnabledButNoAtomics || bNaniteEnabledButDisabledInProject || bRealTimeSkyCaptureButNothingToCapture || bShowWaitingSkylight
-			|| bShowLocalExposureDisabledWarning || bHasDelegateWarnings
+			|| bShowLocalExposureDisabledWarning || bHasDelegateWarnings || bContactShadowIntensityCvarUsed
 			;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
@@ -3450,7 +3453,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileMissingSkyMaterial, 
 						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, bShowLocalExposureDisabledWarning,
 						bLumenEnabledButHasNoDataForTracing, bLumenEnabledButDisabledForTheProject, bNaniteEnabledButNoAtomics, bNaniteEnabledButDisabledInProject, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight, bShowAmbientCubemapMipGenSettingsWarning,
-						bStereoView, bPrimaryStereoView, bIsInstancedStereoEnabled, bIsMultiViewportEnabled, bIsMobileMultiViewEnabled]
+						bStereoView, bPrimaryStereoView, bIsInstancedStereoEnabled, bIsMultiViewportEnabled, bIsMobileMultiViewEnabled, bContactShadowIntensityCvarUsed]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -3600,6 +3603,12 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						if (bShowAmbientCubemapMipGenSettingsWarning)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "AmbientCubemapMipGenSettings", "Ambient cubemaps should use 'Angular' Mip Gen Settings.");
+							Writer.DrawLine(Message);
+						}
+
+						if (bContactShadowIntensityCvarUsed)
+						{
+							static const FText Message = NSLOCTEXT("Renderer", "ContactShadowsIntensityCvar", "r.ContactShadows.NonShadowCastingIntensity is set but ignored. Use setting on the Light Component instead.");
 							Writer.DrawLine(Message);
 						}
 

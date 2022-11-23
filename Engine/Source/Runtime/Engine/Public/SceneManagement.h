@@ -1568,6 +1568,8 @@ public:
 	inline float GetShadowSharpen() const { return ShadowSharpen; }
 	inline float GetContactShadowLength() const { return ContactShadowLength; }
 	inline bool IsContactShadowLengthInWS() const { return bContactShadowLengthInWS; }
+	inline float GetContactShadowCastingIntensity() const { return ContactShadowCastingIntensity; }
+	inline float GetContactShadowNonCastingIntensity() const { return ContactShadowNonCastingIntensity; }
 	inline float GetSpecularScale() const { return SpecularScale; }
 	inline FVector GetLightFunctionScale() const { return LightFunctionScale; }
 	inline float GetLightFunctionFadeDistance() const { return LightFunctionFadeDistance; }
@@ -1715,6 +1717,12 @@ protected:
 
 	/** Length of screen space ray trace for sharp contact shadows. */
 	float ContactShadowLength;
+
+	/** Intensity of the shadows cast by primitives with "cast contact shadow" enabled. 0 = no shadow, 1 (default) = fully shadowed. */
+	float ContactShadowCastingIntensity;
+
+	/** Intensity of the shadows cast by primitives with "cast contact shadow" disabled. 0 (default) = no shadow, 1 = fully shadowed. */
+	float ContactShadowNonCastingIntensity;
 
 	/** Specular scale */
 	float SpecularScale;

@@ -153,8 +153,10 @@ struct FDeferredLightData
 	float  SourceLength;
 	half   SpecularScale;
 	float  ContactShadowLength;
+	/** Intensity of shadow-casting contact shadows */
+	float ContactShadowCastingIntensity;
 	/** Intensity of non-shadow-casting contact shadows */
-	float  ContactShadowNonShadowCastingIntensity;
+	float ContactShadowNonCastingIntensity;
 	float2 DistanceFadeMAD;
 	half4  ShadowMapChannelMask;
 	/** Whether ContactShadowLength is in World Space or in Screen Space. */

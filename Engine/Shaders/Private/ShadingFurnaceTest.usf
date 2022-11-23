@@ -185,7 +185,8 @@ void MainPS(
 					LightData.SpecularScale				= 1.0f;
 					LightData.ContactShadowLength		= 0.f;
 					LightData.ContactShadowLengthInWS	= 0.f;
-					LightData.ContactShadowNonShadowCastingIntensity = 0.f;
+					LightData.ContactShadowCastingIntensity = 1.f;
+					LightData.ContactShadowNonCastingIntensity = 0.f;
 					LightData.DistanceFadeMAD			= 0.f;
 					LightData.ShadowMapChannelMask		= 0;
 					LightData.ShadowedBits				= 0;

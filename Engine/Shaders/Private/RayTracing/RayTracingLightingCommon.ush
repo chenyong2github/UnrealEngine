@@ -139,7 +139,8 @@ FDeferredLightData GetRayTracingDeferredLightData(
 	LightData.ShadowedBits = 0; // Not lit dynamic shadows 
 	LightData.ContactShadowLength = 0.0;
 	LightData.ContactShadowLengthInWS = false;
-	LightData.ContactShadowNonShadowCastingIntensity = 0.0f;
+	LightData.ContactShadowCastingIntensity = 1.0f;
+	LightData.ContactShadowNonCastingIntensity = 0.0f;
 
 	LightData.bRadialLight = (LightType != LIGHT_TYPE_DIRECTIONAL);
 	LightData.bSpotLight = (LightType == LIGHT_TYPE_SPOT);

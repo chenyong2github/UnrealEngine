@@ -801,9 +801,9 @@ void FPixelShaderInOut_MainPS(
 	}
 #elif IS_NANITE_PASS
 	{
-		// TODO: PROG_RASTER - USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
 		float3 TranslatedWorldPosition = MaterialParameters.WorldPosition_CamRelative;
-		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, In.SvPosition, MaterialParameters.ScreenPosition, In.bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+		float3 TranslatedWorldPosition_NoOffsets = MaterialParameters.WorldPosition_NoOffsets_CamRelative;
+		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, In.SvPosition, MaterialParameters.ScreenPosition, In.bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition_NoOffsets);
 	}
 #else
 	{

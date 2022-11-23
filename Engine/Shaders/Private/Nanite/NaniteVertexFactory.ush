@@ -214,6 +214,7 @@ struct FNaniteTransformedVert
 	float3 PointLocal;
 	float3 PrevPointLocal;
 	float3 PointWorld;
+	float3 PointWorld_NoOffset;
 	float4 PointSubpixelClip;
 	FNaniteRawAttributeData RawAttributeData;
 #if NUM_TEX_COORD_INTERPOLATORS
@@ -297,10 +298,11 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 			const float3 LocalOffset = mul(WorldPositionOffset, Transforms.WorldToLocalVector);
 			const float3 PrevLocalOffset = mul(PrevWorldPositionOffset, Transforms.PrevWorldToLocalVector);
 
-			Tri.Verts[i].PointLocal			= PointLocalNoWPO[i] + LocalOffset;
-			Tri.Verts[i].PrevPointLocal		= PointLocalNoWPO[i] + PrevLocalOffset;
-			Tri.Verts[i].PointWorld			= VertexParameters.WorldPosition + WorldPositionOffset;
-			Tri.Verts[i].PointSubpixelClip	= mul(float4(Tri.Verts[i].PointWorld, 1), Transforms.TranslatedWorldToSubpixelClip);
+			Tri.Verts[i].PointLocal				= PointLocalNoWPO[i] + LocalOffset;
+			Tri.Verts[i].PrevPointLocal			= PointLocalNoWPO[i] + PrevLocalOffset;
+			Tri.Verts[i].PointWorld				= VertexParameters.WorldPosition + WorldPositionOffset;
+			Tri.Verts[i].PointWorld_NoOffset	= VertexParameters.WorldPosition;
+			Tri.Verts[i].PointSubpixelClip		= mul(float4(Tri.Verts[i].PointWorld, 1), Transforms.TranslatedWorldToSubpixelClip);
 
 		#if NUM_TEX_COORD_INTERPOLATORS
 			GetMaterialCustomizedUVs(VertexParameters, Tri.Verts[i].CustomizedUVs);
@@ -317,10 +319,11 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 			Tri.Verts[i].VertIndex = TriIndices[i];
 			Tri.Verts[i].RawAttributeData = RawAttributeData[i];
 
-			Tri.Verts[i].PointLocal			= PointLocalNoWPO[i];
-			Tri.Verts[i].PrevPointLocal		= PointLocalNoWPO[i];
-			Tri.Verts[i].PointWorld			= mul(float4(Tri.Verts[i].PointLocal, 1), Transforms.LocalToTranslatedWorld).xyz;
-			Tri.Verts[i].PointSubpixelClip	= mul(float4(Tri.Verts[i].PointWorld, 1), Transforms.TranslatedWorldToSubpixelClip);
+			Tri.Verts[i].PointLocal				= PointLocalNoWPO[i];
+			Tri.Verts[i].PrevPointLocal			= PointLocalNoWPO[i];
+			Tri.Verts[i].PointWorld				= mul(float4(Tri.Verts[i].PointLocal, 1), Transforms.LocalToTranslatedWorld).xyz;
+			Tri.Verts[i].PointWorld_NoOffset	= Tri.Verts[i].PointWorld;
+			Tri.Verts[i].PointSubpixelClip		= mul(float4(Tri.Verts[i].PointWorld, 1), Transforms.TranslatedWorldToSubpixelClip);
 
 		#if NUM_TEX_COORD_INTERPOLATORS
 			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
@@ -367,6 +370,7 @@ FNaniteTransformedVert TransformNaniteVertex(FInstanceSceneData InstanceData, FN
 		Vert.PointLocal = PointLocalNoWPO + LocalOffset;
 		Vert.PrevPointLocal = PointLocalNoWPO + PrevLocalOffset;
 		Vert.PointWorld = VertexParameters.WorldPosition + WorldPositionOffset;
+		Vert.PointWorld_NoOffset = VertexParameters.WorldPosition;
 		Vert.PointSubpixelClip = mul(float4(Vert.PointWorld, 1), Transforms.TranslatedWorldToSubpixelClip);
 
 	#if NUM_TEX_COORD_INTERPOLATORS
@@ -380,6 +384,7 @@ FNaniteTransformedVert TransformNaniteVertex(FInstanceSceneData InstanceData, FN
 		Vert.PointLocal = PointLocalNoWPO;
 		Vert.PrevPointLocal = PointLocalNoWPO;
 		Vert.PointWorld = mul(float4(Vert.PointLocal, 1), Transforms.LocalToTranslatedWorld).xyz;
+		Vert.PointWorld_NoOffset = Vert.PointWorld;
 		Vert.PointSubpixelClip = mul(float4(Vert.PointWorld, 1), Transforms.TranslatedWorldToSubpixelClip);
 
 	#if NUM_TEX_COORD_INTERPOLATORS
@@ -405,6 +410,7 @@ FNaniteTransformedVert WaveReadLaneAtVarying(FNaniteTransformedVert Vert, uint S
 	Result.PointLocal = WaveReadLaneAtVarying(Vert.PointLocal, SrcIndex);
 	Result.PrevPointLocal = WaveReadLaneAtVarying(Vert.PrevPointLocal, SrcIndex);
 	Result.PointWorld = WaveReadLaneAtVarying(Vert.PointWorld, SrcIndex);
+	Result.PointWorld_NoOffset = WaveReadLaneAtVarying(Vert.PointWorld_NoOffset, SrcIndex);
 	Result.PointSubpixelClip = WaveReadLaneAtVarying(Vert.PointSubpixelClip, SrcIndex);
 #if NUM_TEX_COORD_INTERPOLATORS
 	UNROLL
@@ -488,6 +494,9 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 	Result.WorldPosition_CamRelative = PointWorld;
 	Result.WorldPosition_DDX = Barycentrics.UVW_dx.x * Tri.Verts[0].PointWorld + Barycentrics.UVW_dx.y * Tri.Verts[1].PointWorld + Barycentrics.UVW_dx.z * Tri.Verts[2].PointWorld;
 	Result.WorldPosition_DDY = Barycentrics.UVW_dy.x * Tri.Verts[0].PointWorld + Barycentrics.UVW_dy.y * Tri.Verts[1].PointWorld + Barycentrics.UVW_dy.z * Tri.Verts[2].PointWorld;
+
+	const float3 PointWorld_NoOffset = Barycentrics.UVW.x * Tri.Verts[0].PointWorld_NoOffset + Barycentrics.UVW.y * Tri.Verts[1].PointWorld_NoOffset + Barycentrics.UVW.z * Tri.Verts[2].PointWorld_NoOffset;
+	Result.WorldPosition_NoOffsets_CamRelative = PointWorld_NoOffset;
 
 	// Update screen W and all screen derivatives. This is rarely used and will be dead code eliminated most of the time.
 	{

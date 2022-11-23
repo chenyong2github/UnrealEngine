@@ -116,6 +116,14 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Light, AdvancedDisplay, meta = (DisplayName = "Contact Shadow Length In World Space Units"))
 	uint32 ContactShadowLengthInWS : 1;
 
+	/** Intensity of the shadows cast by primitives with "cast contact shadow" enabled. 0 = no shadow, 1 (default) = fully shadowed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Light, AdvancedDisplay, meta = (ClampMin = 0.0, ClampMax = 1.0, UIMin = "0.0", UIMax = "1.0"))
+	float ContactShadowCastingIntensity;
+
+	/** Intensity of the shadows cast by primitives with "cast contact shadow" disabled. 0 (default) = no shadow, 1 = fully shadowed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Light, AdvancedDisplay, meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float ContactShadowNonCastingIntensity;
+
 	UPROPERTY()
 	uint32 InverseSquaredFalloff_DEPRECATED:1;
 

@@ -375,6 +375,8 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, ShadowSlopeBias(InLightComponent->ShadowSlopeBias)
 	, ShadowSharpen(InLightComponent->ShadowSharpen)
 	, ContactShadowLength(InLightComponent->ContactShadowLength)
+	, ContactShadowCastingIntensity(InLightComponent->ContactShadowCastingIntensity)
+	, ContactShadowNonCastingIntensity(InLightComponent->ContactShadowNonCastingIntensity)
 	, SpecularScale(InLightComponent->SpecularScale)
 	, LightGuid(InLightComponent->LightGuid)
 	, RayStartOffsetDepthScale(InLightComponent->RayStartOffsetDepthScale)
@@ -540,6 +542,8 @@ ULightComponent::ULightComponent(const FObjectInitializer& ObjectInitializer)
 	ShadowSharpen = 0.0f;
 	ContactShadowLength = 0.0f;
 	ContactShadowLengthInWS = false;
+	ContactShadowCastingIntensity = 1.0f;
+	ContactShadowNonCastingIntensity = 0.0f;
 	bUseIESBrightness = false;
 	IESBrightnessScale = 1.0f;
 	IESTexture = NULL;
@@ -817,6 +821,8 @@ void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ShadowSlopeBias) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ShadowSharpen) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ContactShadowLength) &&
+		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ContactShadowCastingIntensity) &&
+		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ContactShadowNonCastingIntensity) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, ContactShadowLengthInWS) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bEnableLightShaftBloom) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, BloomScale) &&

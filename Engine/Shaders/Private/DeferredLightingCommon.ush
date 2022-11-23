@@ -204,7 +204,7 @@ void GetShadowTerms(float SceneDepth, half4 PrecomputedShadowFactors, uint Shadi
 				
 		if ( HitDistance > 0.0 )
 		{
-			float ContactShadowOcclusion = bHitCastContactShadow ? 1.0 : LightData.ContactShadowNonShadowCastingIntensity;
+			float ContactShadowOcclusion = bHitCastContactShadow ? LightData.ContactShadowCastingIntensity : LightData.ContactShadowNonCastingIntensity;
 
 #if STRATA_ENABLED == 0
 			// Exponential attenuation is not applied on hair/eye/SSS-profile here, as the hit distance (shading-point to blocker) is different from the estimated 

@@ -2885,7 +2885,7 @@ static TAutoConsoleVariable<int32> CVarContactShadows(
 static TAutoConsoleVariable<float> CVarContactShadowsNonShadowCastingIntensity(
 	TEXT("r.ContactShadows.NonShadowCastingIntensity"),
 	0.0f,
-	TEXT("Intensity of contact shadows from objects with cast contact shadows disabled. Usually 0 (off).\n"),
+	TEXT("DEPRECATED. Please use the parameters on the Light Component directly instead.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 // Changing this causes a full shader recompile

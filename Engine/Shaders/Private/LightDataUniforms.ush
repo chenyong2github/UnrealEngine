@@ -24,7 +24,8 @@ FDeferredLightData InitDeferredLightFromUniforms(uint InLightType)
 	Out.SpecularScale			= DeferredLightUniforms.SpecularScale;
 	Out.ContactShadowLength		= abs(DeferredLightUniforms.ContactShadowLength);
 	Out.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
-	Out.ContactShadowNonShadowCastingIntensity = DeferredLightUniforms.ContactShadowNonShadowCastingIntensity;
+	Out.ContactShadowCastingIntensity = DeferredLightUniforms.ContactShadowCastingIntensity;
+	Out.ContactShadowNonCastingIntensity = DeferredLightUniforms.ContactShadowNonCastingIntensity;
 	Out.DistanceFadeMAD			= DeferredLightUniforms.DistanceFadeMAD;
 	Out.ShadowMapChannelMask	= DeferredLightUniforms.ShadowMapChannelMask;
 	Out.ShadowedBits			= DeferredLightUniforms.ShadowedBits;
