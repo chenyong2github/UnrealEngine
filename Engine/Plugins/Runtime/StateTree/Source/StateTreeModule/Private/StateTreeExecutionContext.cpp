@@ -161,6 +161,9 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 		return EStateTreeRunStatus::Failed;
 	}
 
+	// Stop if still running previous state.
+	Stop();
+
 	// Initialize instance data if needed.
 	if (!InstanceData.IsValid())
 	{
@@ -177,14 +180,6 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 	const TSharedPtr<FStateTreeInstanceData> SharedInstanceData = StateTree.GetSharedInstanceData();
 	check(SharedInstanceData.IsValid());
 
-	FStateTreeExecutionState* Exec = &GetExecState(); // Using pointer as we will need to reacquire the exec later.
-
-	// Stop if still running previous state.
-	if (Exec->TreeRunStatus == EStateTreeRunStatus::Running)
-	{
-		Stop();
-	}
-
 	// Call TreeStart on evaluators.
 	StartEvaluators();
 
@@ -192,6 +187,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 	TickEvaluators(0.0f);
 
 	// Initialize to unset running state.
+	FStateTreeExecutionState* Exec = &GetExecState(); // Using pointer as we will need to reacquire the exec later.
 	Exec->TreeRunStatus = EStateTreeRunStatus::Running;
 	Exec->ActiveStates.Reset();
 	Exec->LastTickStatus = EStateTreeRunStatus::Unset;
@@ -256,8 +252,13 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop()
 	{
 		return EStateTreeRunStatus::Failed;
 	}
-	
+
 	FStateTreeExecutionState& Exec = GetExecState();
+
+	if (Exec.TreeRunStatus != EStateTreeRunStatus::Running)
+	{
+		return Exec.TreeRunStatus;
+	}
 
 	// Capture events added between ticks.
 	FStateTreeEventQueue& EventQueue = InstanceData.GetEventQueue();
@@ -1151,9 +1152,11 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Shar
 		
 		return EventsToProcess.ContainsByPredicate([QueriedTag](const FStateTreeEvent& Event)
 		{
-			return Event.Tag == QueriedTag;
+			return Event.Tag.MatchesTag(QueriedTag);
 		});
 	};
+
+	OutTransition.CurrentActiveStates = Exec.ActiveStates;
 
 	// Walk towards root and check all transitions along the way.
 	for (int32 StateIndex = StateStartIndex; StateIndex >= 0; StateIndex--)
@@ -1194,7 +1197,6 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Shar
 				
 				if (Transition.Type == EStateTreeTransitionType::GotoState || Transition.Type == EStateTreeTransitionType::NextState)
 				{
-					OutTransition.CurrentActiveStates = Exec.ActiveStates;
 					OutTransition.TargetState = Transition.State;
 					OutTransition.NextActiveStates.Reset();
 
@@ -1209,20 +1211,26 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Shar
 					// NotSet is no-operation, but can be used to mask a transition at parent state. Returning unset keeps updating current state.
 					return false;
 				}
-				else if (Transition.Type == EStateTreeTransitionType::Succeeded)
-				{
-					STATETREE_LOG(Verbose, TEXT("Stop tree execution from state '%s' (%s): Succeeded"), *GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString());
-					OutTransition.CurrentActiveStates = Exec.ActiveStates;
-					OutTransition.TargetState = FStateTreeStateHandle::Succeeded;
-					OutTransition.NextActiveStates = FStateTreeActiveStates(FStateTreeStateHandle::Succeeded);
-					return true;
-				}
 				else
 				{
-					STATETREE_LOG(Verbose, TEXT("Stop tree execution from state '%s' (%s): Failed"), *GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString());
-					OutTransition.CurrentActiveStates = Exec.ActiveStates;
-					OutTransition.TargetState = FStateTreeStateHandle::Failed;
-					OutTransition.NextActiveStates = FStateTreeActiveStates(FStateTreeStateHandle::Failed);
+					// Tree succeeded or failed.
+					// If we are on a linked state, find the first parent linked state and mark that as completed, continue to find completion transitions.
+					const FStateTreeStateHandle ParentLinkedState = GetParentLinkedStateHandle(Exec.ActiveStates, StateIndex);
+					if (ParentLinkedState.IsValid())
+					{
+						STATETREE_LOG(Verbose, TEXT("Compled subtree '%s' from state '%s' (%s): %s"),
+							*GetSafeStateName(ParentLinkedState), *GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *UEnum::GetDisplayValueAsText(Transition.Type).ToString());
+						Exec.CompletedStateHandle = ParentLinkedState;
+						Exec.LastTickStatus = Transition.Type == EStateTreeTransitionType::Succeeded ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Failed;
+						return TriggerTransitions(SharedInstanceData, OutTransition);
+					}
+					
+					STATETREE_LOG(Verbose, TEXT("Stop tree execution from state '%s' (%s): %s"),
+						*GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *UEnum::GetDisplayValueAsText(Transition.Type).ToString());
+
+					const FStateTreeStateHandle NextState = Transition.Type == EStateTreeTransitionType::Succeeded ? FStateTreeStateHandle::Succeeded : FStateTreeStateHandle::Failed; 
+					OutTransition.TargetState = NextState;
+					OutTransition.NextActiveStates = FStateTreeActiveStates(NextState);
 					return true;
 				}
 			}
@@ -1246,6 +1254,21 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Shar
 	// No transition triggered, keep on updating current state.
 	return false;
 }
+
+FStateTreeStateHandle FStateTreeExecutionContext::GetParentLinkedStateHandle(const FStateTreeActiveStates& ActiveStates, const int32 StartStartIndex) const
+{
+	check(ActiveStates.IsValidIndex(StartStartIndex));
+	for (int32 StateIndex = StartStartIndex; StateIndex >= 0; StateIndex--)
+	{
+		const FCompactStateTreeState& State = StateTree.States[ActiveStates[StateIndex].Index];
+		if (State.LinkedState.IsValid())
+		{
+			return ActiveStates[StateIndex];
+		}
+	}
+
+	return FStateTreeStateHandle();
+}	
 
 bool FStateTreeExecutionContext::SelectState(FStateTreeInstanceData& SharedInstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState)
 {

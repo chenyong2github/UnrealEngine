@@ -326,6 +326,12 @@ protected:
 	bool TriggerTransitions(FStateTreeInstanceData& SharedInstanceData, FStateTreeTransitionResult& OutTransition);
 
 	/**
+	 * Traverses the ActiveStates from StartStateIndex to 0 and returns first linked state.
+	 * @return Parent linked state, or invalid state if no linked state found. 
+	 */
+	FStateTreeStateHandle GetParentLinkedStateHandle(const FStateTreeActiveStates& ActiveStates, const int32 StartStateIndex) const;
+
+	/**
 	 * Runs state selection logic starting at the specified state, walking towards the leaf states.
 	 * If a state cannot be selected, false is returned. 
 	 * If NextState is a selector state, SelectStateInternal is called recursively (depth-first) to all child states (where NextState will be one of child states).
