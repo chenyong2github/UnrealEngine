@@ -490,11 +490,11 @@ bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorde
 		Parameters.User.bAutoLock = false;
 	}
 
-	// Figure out which world we're recording from
-	DiscoverSourceWorld();
-
 	// Perform any other parameter-configurable initialization. Must have a valid world at this point.
 	InitializeFromParameters();
+
+	// Figure out which world we're recording from
+	DiscoverSourceWorld();
 
 	// Open a recording notification
 
@@ -1203,27 +1203,6 @@ void UTakeRecorder::StopInternal(const bool bCancelled)
 		}
 	}
 
-	if (Parameters.TakeRecorderMode == ETakeRecorderMode::RecordNewSequence && !bRecordingFinished)
-	{
-		if (GIsEditor)
-		{
-			// Recording was canceled before it started, so delete the asset. Note we can only do this on editor
-			// nodes. On -game nodes, this cannot be performed. This can only happen with Mult-user and -game node
-			// recording.
-			//
-			FAssetRegistryModule::AssetDeleted(SequenceAsset);
-		}
-
-		// Move the asset to the transient package so that new takes with the same number can be created in its place
-		FName DeletedPackageName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), *(FString(TEXT("/Temp/") + SequenceAsset->GetName() + TEXT("_Cancelled"))));
-		SequenceAsset->GetOutermost()->Rename(*DeletedPackageName.ToString());
-
-		SequenceAsset->ClearFlags(RF_Standalone | RF_Public);
-		SequenceAsset->RemoveFromRoot();
-		SequenceAsset->MarkAsGarbage();
-		SequenceAsset = nullptr;
-	}
-
 	// Perform any other cleanup that has been defined for this recording
 	for (const TFunction<void()>& Cleanup : OnStopCleanup)
 	{
@@ -1247,6 +1226,29 @@ void UTakeRecorder::StopInternal(const bool bCancelled)
 			OnRecordingCancelledEvent.Broadcast(this);
 			UTakeRecorderBlueprintLibrary::OnTakeRecorderCancelled();
 		}
+	}
+
+	// Delete the asset after OnTakeRecorderFinished and OnTakeRecorderCancelled because the ScopedSequencerPanel 
+	// will still have the current sequence before it is returned to the Pending Take.
+	if (Parameters.TakeRecorderMode == ETakeRecorderMode::RecordNewSequence && !bRecordingFinished)
+	{
+		if (GIsEditor)
+		{
+			// Recording was canceled before it started, so delete the asset. Note we can only do this on editor
+			// nodes. On -game nodes, this cannot be performed. This can only happen with Mult-user and -game node
+			// recording.
+			//
+			FAssetRegistryModule::AssetDeleted(SequenceAsset);
+		}
+
+		// Move the asset to the transient package so that new takes with the same number can be created in its place
+		FName DeletedPackageName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), *(FString(TEXT("/Temp/") + SequenceAsset->GetName() + TEXT("_Cancelled"))));
+		SequenceAsset->GetOutermost()->Rename(*DeletedPackageName.ToString());
+
+		SequenceAsset->ClearFlags(RF_Standalone | RF_Public);
+		SequenceAsset->RemoveFromRoot();
+		SequenceAsset->MarkAsGarbage();
+		SequenceAsset = nullptr;
 	}
 
 	if (SequenceAsset)
