@@ -218,6 +218,11 @@ namespace Jupiter.Implementation
                 BucketName = GetBucketName(ns)
             };
 
+            if (!await _amazonS3.DoesS3BucketExistAsync(GetBucketName(ns)))
+            {
+                yield break;
+            }
+
             ListObjectsV2Response response;
             do
             {
