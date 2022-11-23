@@ -272,7 +272,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 			if (NumBlendSampleEntries)
 			{
 				DetailCategoryBuilder
-					.AddGroup(FName("GroupName"), FText::GetEmpty())
+					.AddGroup(FName("BlendSamples_RemoveSamples"), FText::GetEmpty())
 					.HeaderRow()
 					.Visibility(TAttribute<EVisibility>::Create([AnalysisPropertiesHandle, HideIndex]() {
 						return GetAnalyzeButtonVisibility(AnalysisPropertiesHandle, HideIndex);}))
@@ -412,7 +412,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 			if (NumBlendSampleEntries && BlendSpace->IsAsset())
 			{
 				DetailCategoryBuilder
-					.AddGroup(FName("GroupName"), FText::GetEmpty())
+					.AddGroup(FName("BlendSamples_RemoveSamples"), FText::GetEmpty())
 					.HeaderRow()
 					.NameContent()
 					[
@@ -444,7 +444,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 				TSharedPtr<IPropertyHandle> SampleValueProperty = BlendSampleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBlendSample, SampleValue));
 				TSharedPtr<IPropertyHandle> RateScaleProperty = BlendSampleProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBlendSample, RateScale));
 
-				IDetailGroup& Group = DetailCategoryBuilder.AddGroup(FName("GroupName"), FText::GetEmpty());
+				IDetailGroup& Group = DetailCategoryBuilder.AddGroup(FName("BlendSamples_Samples"), FText::GetEmpty());
 				Group.HeaderRow()
 				.NameContent()
 				[
@@ -480,7 +480,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 				];
 
 				FBlendSampleDetails::GenerateBlendSampleWidget(
-					[&Group]() -> FDetailWidgetRow& { return Group.AddWidgetRow(); }, FOnSampleMoved::CreateLambda(
+					[&Group, &SampleValueProperty]() -> IDetailPropertyRow& { return Group.AddPropertyRow(SampleValueProperty.ToSharedRef()); }, FOnSampleMoved::CreateLambda(
 						[this](const uint32 Index, const FVector& SampleValue, bool bIsInteractive) 
 				{
 					if (BlendSpace->IsValidBlendSampleIndex(Index) && BlendSpace->GetBlendSample(Index).SampleValue !=
@@ -499,7 +499,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 
 				if(BlendSpace->IsAsset())
 				{
-					FDetailWidgetRow& AnimationRow = Group.AddWidgetRow();
+					IDetailPropertyRow& AnimationRow = Group.AddPropertyRow(AnimationProperty.ToSharedRef());
 					FBlendSampleDetails::GenerateAnimationWidget(AnimationRow, BlendSpace, AnimationProperty);
 					Group.AddPropertyRow(RateScaleProperty.ToSharedRef());
 				}

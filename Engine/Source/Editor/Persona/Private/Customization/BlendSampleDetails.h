@@ -28,9 +28,9 @@ public:
 	virtual void CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder) override;
 	// End IDetailCustomization interface
 	
-	static void GenerateBlendSampleWidget(TFunction<FDetailWidgetRow& (void)>InFunctor, FOnSampleMoved OnSampleMoved, const class UBlendSpace* BlendSpace, const int32 SampleIndex, bool bShowLabel);
+	static void GenerateBlendSampleWidget(TFunction<IDetailPropertyRow& (void)>InFunctor, FOnSampleMoved OnSampleMoved, const class UBlendSpace* BlendSpace, const int32 SampleIndex, bool bShowLabel);
 
-	static void GenerateAnimationWidget(FDetailWidgetRow& Row, const UBlendSpace* BlendSpace, TSharedPtr<IPropertyHandle> AnimationProperty);
+	static void GenerateAnimationWidget(IDetailPropertyRow& PropertyRow, const UBlendSpace* BlendSpace, TSharedPtr<IPropertyHandle> AnimationProperty);
 
 	static void GenerateSampleGraphWidget(FDetailWidgetRow& Row, UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode, int32 SampleIndex);
 
