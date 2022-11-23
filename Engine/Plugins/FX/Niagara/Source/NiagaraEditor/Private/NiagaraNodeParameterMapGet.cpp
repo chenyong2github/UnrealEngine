@@ -84,6 +84,13 @@ bool UNiagaraNodeParameterMapGet::VerifyEditablePinName(const FText& InName, FTe
 		OutErrorMessage = LOCTEXT("InvalidName", "Invalid pin name");
 		return false;
 	}
+	
+	if(GetNiagaraGraph()->GetScriptVariable(FName(InName.ToString())) != nullptr && !InName.EqualToCaseIgnored(FText::FromString(InGraphPinObj->GetName())))
+	{
+		OutErrorMessage = LOCTEXT("InvalidName_VariableExists", "This variable already exists.");
+		return false;
+	}
+	
 	return true;
 }
 
