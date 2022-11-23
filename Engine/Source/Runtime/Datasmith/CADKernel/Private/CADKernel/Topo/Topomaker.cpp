@@ -1028,6 +1028,15 @@ void FTopomaker::SplitIntoConnectedShells()
 
 	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
 	{
+		if (Face->IsDeleted() || Face->IsDegenerated())
+		{
+			Face->SetMarker1();
+			continue;
+		}
+	}
+		
+	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
+	{
 		if (Face->HasMarker1())
 		{
 			continue;
