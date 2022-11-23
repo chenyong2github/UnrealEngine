@@ -10,10 +10,18 @@
 #include <type_traits>
 
 template <typename T>
+class TSubclassOf;
+
+template <typename T>
 struct TIsTSubclassOf
 {
 	enum { Value = false };
 };
+
+template <typename T> struct TIsTSubclassOf<               TSubclassOf<T>> { enum { Value = true }; };
+template <typename T> struct TIsTSubclassOf<const          TSubclassOf<T>> { enum { Value = true }; };
+template <typename T> struct TIsTSubclassOf<      volatile TSubclassOf<T>> { enum { Value = true }; };
+template <typename T> struct TIsTSubclassOf<const volatile TSubclassOf<T>> { enum { Value = true }; };
 
 /**
  * Template to allow TClassType's to be passed around with type safety 
@@ -158,12 +166,6 @@ public:
 
 private:
 	TClassType* Class;
-};
-
-template <typename T>
-struct TIsTSubclassOf<TSubclassOf<T>>
-{
-	enum { Value = true };
 };
 
 template <typename T>
