@@ -406,10 +406,12 @@ public:
 
 	LANDSCAPE_API void RequestSplineLayerUpdate();
 	LANDSCAPE_API void ForceLayersFullUpdate();
-#endif
 
-#if WITH_EDITOR
+	static void SetForceNonSpatiallyLoadedByDefault(bool bInForceNonSpatiallyLoadedByDefault) { bForceNonSpatiallyLoadedByDefault = bInForceNonSpatiallyLoadedByDefault; }
+
 private:
+	inline static bool bForceNonSpatiallyLoadedByDefault = false;
+
 	bool ApplySplinesInternal(bool bOnlySelected, TScriptInterface<ILandscapeSplineInterface> SplineOwner, TSet<TObjectPtr<ULandscapeComponent>>* OutModifiedComponents, bool bMarkPackageDirty, int32 LandscapeMinX, int32 LandscapeMinY, int32 LandscapeMaxX, int32 LandscapeMaxY, TFunctionRef<TSharedPtr<FModulateAlpha>(ULandscapeLayerInfoObject*)> GetOrCreateModulate);
 	void MoveSegment(ULandscapeSplineSegment* InSegment, TScriptInterface<ILandscapeSplineInterface> From, TScriptInterface<ILandscapeSplineInterface> To);
 	void MoveControlPoint(ULandscapeSplineControlPoint* InControlPoint, TScriptInterface<ILandscapeSplineInterface> From, TScriptInterface<ILandscapeSplineInterface> To);

@@ -4806,9 +4806,12 @@ uint32 ULandscapeInfo::GetGridSize(uint32 InGridSizeInComponents) const
 
 bool ULandscapeInfo::AreNewLandscapeActorsSpatiallyLoaded() const
 {
-	if (ALandscape* Landscape = LandscapeActor.Get())
+	if (!bForceNonSpatiallyLoadedByDefault)
 	{
-		return Landscape->bAreNewLandscapeActorsSpatiallyLoaded;
+		if (ALandscape* Landscape = LandscapeActor.Get())
+		{
+			return Landscape->bAreNewLandscapeActorsSpatiallyLoaded;
+		}
 	}
 	
 	return false;
