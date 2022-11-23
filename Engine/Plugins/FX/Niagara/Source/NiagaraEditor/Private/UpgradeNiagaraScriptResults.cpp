@@ -75,6 +75,11 @@ bool UNiagaraPythonScriptModuleInput::IsLocalValue() const
 	return IsSet() && Input->ValueMode == ENiagaraClipboardFunctionInputValueMode::Local;
 }
 
+bool UNiagaraPythonScriptModuleInput::IsLinkedValue() const
+{
+	return IsSet() && Input->ValueMode == ENiagaraClipboardFunctionInputValueMode::Linked;
+}
+
 float UNiagaraPythonScriptModuleInput::AsFloat() const
 {
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetFloatDef())
@@ -159,6 +164,15 @@ FString UNiagaraPythonScriptModuleInput::AsEnum() const
 	{
 		int32 Value = NiagaraScriptResults::GetValue<int32>(Input);
 		return Input->InputType.GetEnum()->GetNameStringByValue(Value);
+	}
+	return FString();
+}
+
+FString UNiagaraPythonScriptModuleInput::AsLinkedValue() const
+{
+	if (IsLinkedValue())
+	{
+		return Input->Linked.ToString();
 	}
 	return FString();
 }
@@ -274,6 +288,15 @@ void UUpgradeNiagaraScriptResults::SetEnumInput(const FString& InputName, FStrin
 	{
 		int32 EnumValue = ModuleInput->Input->InputType.GetEnum()->GetValueByNameString(Value, EGetByNameFlags::ErrorIfNotFound | EGetByNameFlags::CheckAuthoredName);
 		NiagaraScriptResults::SetValue(ModuleInput, EnumValue);
+	}
+}
+
+void UUpgradeNiagaraScriptResults::SetLinkedInput(const FString& InputName, FString Value)
+{
+	if (UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName)))
+	{
+		const UNiagaraClipboardFunctionInput* CurrentInput = ModuleInput->Input;
+		ModuleInput->Input = UNiagaraClipboardFunctionInput::CreateLinkedValue(ModuleInput, CurrentInput->InputName, CurrentInput->InputType, CurrentInput->bEditConditionValue, FName(Value));
 	}
 }
 

@@ -51,6 +51,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
     bool IsLocalValue() const;
+    
+    UFUNCTION(BlueprintCallable, Category = "Scripting")
+    bool IsLinkedValue() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
     float AsFloat() const;
@@ -78,6 +81,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
     FString AsEnum() const;
+    
+    UFUNCTION(BlueprintCallable, Category = "Scripting")
+    FString AsLinkedValue() const;
 };
 
 /**
@@ -133,6 +139,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
     void SetEnumInput(const FString& InputName, FString Value);
+    
+    UFUNCTION(BlueprintCallable, Category = "Scripting")
+    void SetLinkedInput(const FString& InputName, FString Value);
 
 private:
 	UNiagaraPythonScriptModuleInput* GetNewInput(const FName& InputName) const;
