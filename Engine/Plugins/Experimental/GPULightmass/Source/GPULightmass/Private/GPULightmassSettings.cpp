@@ -13,6 +13,8 @@
 #include "MeshUtilitiesCommon.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
+#include "Misc/MessageDialog.h"
+
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
