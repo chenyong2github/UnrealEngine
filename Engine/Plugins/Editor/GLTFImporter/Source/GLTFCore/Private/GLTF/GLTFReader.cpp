@@ -785,7 +785,7 @@ namespace GLTF
 					continue;
 
 				const FString& URI = Object.GetStringField(TEXT("uri"));
-				if (URI.StartsWith(TEXT("data:)")))
+				if (URI.StartsWith(TEXT("data:")))
 				{
 					FString         MimeType;
 					const uint32    DataSize = GetDecodedDataSize(URI, MimeType);
