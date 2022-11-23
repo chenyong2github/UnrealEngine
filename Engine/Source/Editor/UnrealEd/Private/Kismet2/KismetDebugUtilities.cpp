@@ -1845,11 +1845,12 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::FindDebuggingData
 			if (!PropertyBase && AnimBlueprintGeneratedClass)
 			{
 				// are we linked to an anim graph node?
+				UEdGraphPin* LinkedPin = nullptr;
 				const FProperty* LinkedProperty = Property;
 				const UAnimGraphNode_Base* Node = Cast<UAnimGraphNode_Base>(WatchPin->GetOuter());
 				if (Node == nullptr && WatchPin->LinkedTo.Num() > 0)
 				{
-					const UEdGraphPin* LinkedPin = WatchPin->LinkedTo[0];
+					LinkedPin = WatchPin->LinkedTo[0];
 					// When we change Node we *must* change Property, so it's still a sub-element of that.
 					LinkedProperty = FKismetDebugUtilities::FindClassPropertyForPin(Blueprint, LinkedPin);
 					Node = Cast<UAnimGraphNode_Base>(LinkedPin->GetOuter());
@@ -1858,9 +1859,9 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::FindDebuggingData
 				if (Node && LinkedProperty)
 				{
 					// In case the property was folded its value has to be retrieved from the Mutable data struct on the instance rather than from the Anim Node itself
-					if (const TFieldPath<const FProperty>* FoldedPropertyPathPtr = AnimBlueprintGeneratedClass->AnimBlueprintDebugData.NodeToFoldedPropertyMap.Find(LinkedProperty))
+					if (FProperty* const* FoldedPropertyPathPtr = AnimBlueprintGeneratedClass->AnimBlueprintDebugData.GraphPinToFoldedPropertyMap.Find(LinkedPin))
 					{
-						const FProperty* FoldedProperty = FoldedPropertyPathPtr->Get();						
+						const FProperty* FoldedProperty = *FoldedPropertyPathPtr;
 						const UStruct* FoldedPropertyStruct = FoldedProperty ? FoldedProperty->GetOwnerStruct() : nullptr;
 
 						if(FoldedPropertyStruct && FoldedPropertyStruct->IsChildOf(FAnimBlueprintMutableData::StaticStruct()))

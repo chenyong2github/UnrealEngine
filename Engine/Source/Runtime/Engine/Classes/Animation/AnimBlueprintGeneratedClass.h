@@ -202,8 +202,9 @@ public:
 	// History of snapshots of animation data
 	TSimpleRingBuffer<FAnimationFrameSnapshot>* SnapshotBuffer;
 
-	// Mapping from animation node properties to folded versions
-	TMap<TFieldPath<const FProperty>, TFieldPath<const FProperty>> NodeToFoldedPropertyMap;
+	// Mapping from graph pins to their folded properties.
+	// Graph pins are unique per node instance and thus suitable as identifier for the properties.
+	TMap<FEdGraphPinReference, FProperty*> GraphPinToFoldedPropertyMap;
 
 	// Node visit structure
 	using FNodeVisit = FAnimBlueprintDebugData_NodeVisit;

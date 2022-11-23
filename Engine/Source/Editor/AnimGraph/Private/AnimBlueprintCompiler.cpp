@@ -1946,8 +1946,24 @@ void FAnimBlueprintCompilerContext::ProcessFoldedPropertyRecords()
 							Record->GeneratedProperty->SetPropertyFlags(CPF_BlueprintVisible);
 							Record->PropertyIndex = PropertyIndex++;
 
-							// Populate the original-to-folded property mapping with the newly generated property
-							AnimBlueprintDebugData.NodeToFoldedPropertyMap.Add(Record->Property, Record->GeneratedProperty);
+							// Get the source graph node of the given one as the debug utilities and other users of the graph pin to folded property map
+							// are working with the source graph nodes.
+							UEdGraphNode* GraphNode = CastChecked<UEdGraphNode>(MessageLog.FindSourceObject(Record->AnimGraphNode));
+							if (GraphNode)
+							{
+								UEdGraphPin* GraphPin = GraphNode->FindPin(Record->Property->GetName());
+								if (GraphPin)
+								{
+									// Link the graph pin with the generated (folded) property.
+									AnimBlueprintDebugData.GraphPinToFoldedPropertyMap.Add(GraphPin, Record->GeneratedProperty);
+
+									// Also add all linked pins directly here. This is needed for pins on nodes that are not processed by the compiler as e.g. get variable nodes.
+									for (UEdGraphPin* LinkedToPin : GraphPin->LinkedTo)
+									{									
+										AnimBlueprintDebugData.GraphPinToFoldedPropertyMap.Add(LinkedToPin, Record->GeneratedProperty);
+									}
+								}
+							}
 						}
 					}
 					else
