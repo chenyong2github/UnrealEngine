@@ -68,7 +68,7 @@ void GetPreSkinnedLocalBounds_{ParameterName}(out float3 OutCenter, out float3 O
 {
 	OutCenter		= {ParameterName}_PreSkinnedLocalBoundsCenter;
 	OutHalfExtents	= {ParameterName}_PreSkinnedLocalBoundsExtents;
-	OutExtents		= OutExtents * 2.0f;
+	OutExtents		= OutHalfExtents * 2.0f;
 	OutExtentsMin	= OutCenter - OutHalfExtents;
 	OutExtentsMax	= OutCenter + OutHalfExtents;
 }
