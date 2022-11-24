@@ -331,7 +331,7 @@ struct FShaderPrintContext
 void ShaderPrint_Internal(FShaderPrintContext Ctx, in FShaderPrintItem Item)
 {
 	// If MaxValueCount is 0 then we don't reset the buffer counter so early out here
-	if (Ctx.Config.MaxValueCount == 0)
+	if (!Ctx.bIsActive || Ctx.Config.MaxValueCount == 0)
 	{
 		return;
 	}
@@ -376,8 +376,11 @@ void PrintSymbol(inout FShaderPrintContext Ctx, in int Symbol) { PrintSymbol(Ctx
 
 void Newline(inout FShaderPrintContext Ctx)
 {
-	Ctx.Pos.x = Ctx.StartPos.x;
-	Ctx.Pos.y += Ctx.Config.FontSpacing.y;
+	if (Ctx.bIsActive)
+	{
+		Ctx.Pos.x = Ctx.StartPos.x;
+		Ctx.Pos.y += Ctx.Config.FontSpacing.y;
+	}
 }
 
 int2 GetCursorPos(FShaderPrintContext Ctx)

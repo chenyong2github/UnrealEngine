@@ -68,7 +68,7 @@ FShaderPrintContext InitShaderPrintContext(bool bActive, float2 InStartPos)
 
 FShaderPrintContext InitShaderPrintContext(bool bActive, uint2 InStartCoord) 
 {
-	return InitShaderPrintContext(true, float2(InStartCoord) / float2(ShaderPrintData.Resolution));
+	return InitShaderPrintContext(bActive, float2(InStartCoord) / float2(ShaderPrintData.Resolution));
 }
 
 FShaderPrintContext InitShaderPrintContext()
