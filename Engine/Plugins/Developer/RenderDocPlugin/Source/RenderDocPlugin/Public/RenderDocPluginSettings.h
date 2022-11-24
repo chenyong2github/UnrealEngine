@@ -53,7 +53,13 @@ public:
 		ToolTip = "If > 1, the RenderDoc capture will encompass more than a single frame. Note: this implies that all activity in all viewports and editor windows will be captured (i.e. same as CaptureAllActivity)",
 		ClampMin = 1,
 		ConfigRestartRequired = false))
-		int32 CaptureFrameCount;
+	int32 CaptureFrameCount;
+
+	UPROPERTY(config, EditAnywhere, Category = "Advanced Settings", meta = (
+		ConsoleVariable = "renderdoc.AutoAttach", DisplayName = "Auto attach on startup",
+		ToolTip = "If checked, then RenderDoc will attach on startup. Otherwise the command line argument '-AttachRenderDoc' is required."
+		))
+	uint32 bAutoAttach : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = "Advanced Settings", meta = (
 		ConsoleVariable = "renderdoc.ShowHelpOnStartup", DisplayName = "Show help on startup",

@@ -20,6 +20,11 @@
 
 #define LOCTEXT_NAMESPACE "RenderDocPlugin"
 
+static TAutoConsoleVariable<int32> CVarRenderDocAutoAttach(
+	TEXT("renderdoc.AutoAttach"),
+	0,
+	TEXT("RenderDoc will attach on startup."));
+
 static TAutoConsoleVariable<int32> CVarRenderDocEnableCrashHandler(
 	TEXT("renderdoc.EnableCrashHandler"),
 	0,
@@ -186,21 +191,33 @@ void FRenderDocPluginLoader::Initialize()
 	RenderDocDLL = nullptr;
 	RenderDocAPI = nullptr;
 
-	bool bDisableFrameTraceCapture = FParse::Param(FCommandLine::Get(), TEXT("DisableFrameTraceCapture"));
+	// Since we are so early in the loading phase, we first need to load the cvars since they're not loaded at this point.
+	UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/RenderDocPlugin.RenderDocPluginSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+
+	const bool bCapture = FParse::Param(FCommandLine::Get(), TEXT("AttachRenderDoc")) || (CVarRenderDocAutoAttach.GetValueOnAnyThread() != 0);
+
+	const bool bUnattended = FApp::IsUnattended();
+	IConsoleVariable* CVarAutomationAllowFrameTraceCapture = IConsoleManager::Get().FindConsoleVariable(TEXT("AutomationAllowFrameTraceCapture"), false);
+	const bool bUnattendedCapture = bUnattended && CVarAutomationAllowFrameTraceCapture && CVarAutomationAllowFrameTraceCapture->GetInt() != 0;
+
+	if (!bCapture && !bUnattendedCapture)
+	{
+		if (bUnattended)
+		{
+			UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because AutomationAllowFrameTraceCapture cvar is set to 0."));
+		}
+		else
+		{
+			UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded. Use '-AttachRenderDoc' on the cmd line or enable 'renderdoc.AutoAttach' in the plugin settings."));
+		}
+		return;
+	}
+
+	const bool bDisableFrameTraceCapture = FParse::Param(FCommandLine::Get(), TEXT("DisableFrameTraceCapture"));
 	if (bDisableFrameTraceCapture)
 	{
 		UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because -DisableFrameTraceCapture cmd line flag."));
 		return;
-	}
-
-	if (FApp::IsUnattended())
-	{
-		IConsoleVariable* CVarAutomationAllowFrameTraceCapture = IConsoleManager::Get().FindConsoleVariable(TEXT("AutomationAllowFrameTraceCapture"), false);
-		if (!CVarAutomationAllowFrameTraceCapture || CVarAutomationAllowFrameTraceCapture->GetInt() == 0)
-		{
-			UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because AutomationAllowFrameTraceCapture cvar is set to 0."));
-			return;
-		}
 	}
 
 	if (GUsingNullRHI)
@@ -215,8 +232,7 @@ void FRenderDocPluginLoader::Initialize()
 	// Look for a renderdoc.dll somewhere in the system:
 	UE_LOG(RenderDocPlugin, Log, TEXT("locating RenderDoc library (%s)..."), *RenderDocDllName);
 
-	// 1) Check the Game configuration files. Since we are so early in the loading phase, we first need to load the cvars since they're not loaded at this point:
-	UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/RenderDocPlugin.RenderDocPluginSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+	// 1) Get binary path  from CVar:
 	RenderDocDLL = LoadAndCheckRenderDocLibrary(RenderDocAPI, CVarRenderDocBinaryPath.GetValueOnAnyThread());
 
 #if PLATFORM_WINDOWS

@@ -8,7 +8,7 @@
 	"DocsURL" : "https://renderdoc.org/docs/index.html",
 	"Description" : "RenderDoc graphics debugger/profiler integration.",
 	"Category" : "Rendering",
-	"EnabledByDefault" : false,
+	"EnabledByDefault" : true,
 	"Modules" :
 	[
 		{
