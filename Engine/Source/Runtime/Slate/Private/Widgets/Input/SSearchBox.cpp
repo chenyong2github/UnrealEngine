@@ -33,6 +33,7 @@ void SSearchBox::Construct( const FArguments& InArgs )
 		.ClearKeyboardFocusOnCommit( false )
 		.OnTextChanged( this, &SSearchBox::HandleTextChanged )
 		.OnTextCommitted( this, &SSearchBox::HandleTextCommitted )
+		.OnVerifyTextChanged( InArgs._OnVerifyTextChanged )
 		.MinDesiredWidth( InArgs._MinDesiredWidth )
 		.OnKeyDownHandler( InArgs._OnKeyDownHandler )
 	);
