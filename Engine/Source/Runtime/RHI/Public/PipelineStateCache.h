@@ -98,7 +98,7 @@ namespace PipelineStateCache
 	extern RHI_API bool						IsPSOPrecachingEnabled();
 
 	/* Precache the compute shader and return an optional graph event if precached async */
-	extern RHI_API FGraphEventRef			PrecacheComputePipelineState(FRHIComputeShader* ComputeShader);
+	extern RHI_API FGraphEventRef			PrecacheComputePipelineState(FRHIComputeShader* ComputeShader, bool bForcePrecache = false);
 
 	/* Precache the graphic PSO and return an optional graph event if precached async */
 	extern RHI_API FGraphEventRef			PrecacheGraphicsPipelineState(const FGraphicsPipelineStateInitializer& PipelineStateInitializer);

@@ -374,7 +374,7 @@ private:
 	bool IsReadyToRunInternal() const;
 
 public:
-	bool IsReadyToRun() const { return FPlatformProperties::RequiresCookedData() ? bIsReadyToRunCached : IsReadyToRunInternal(); }
+	bool IsReadyToRun() const;
 
 	FORCEINLINE bool NeedsWarmup()const { return WarmupTickCount > 0 && WarmupTickDelta > SMALL_NUMBER; }
 	FORCEINLINE float GetWarmupTime()const { return WarmupTime; }
@@ -959,6 +959,7 @@ protected:
 	TArray<TArray<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>>> EmitterSpawnInfoAccessors;
 
 	FGraphEventRef ScriptOptimizationCompletionEvent;
+	FGraphEventRef PSOPrecacheCompletionEvent;
 
 public:
 	void AsyncOptimizeAllScripts();

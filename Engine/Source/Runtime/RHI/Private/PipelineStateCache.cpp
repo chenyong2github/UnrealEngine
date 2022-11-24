@@ -2194,10 +2194,10 @@ bool PipelineStateCache::IsPSOPrecachingEnabled()
 #endif // WITH_EDITOR
 }
 
-FGraphEventRef PipelineStateCache::PrecacheComputePipelineState(FRHIComputeShader* ComputeShader)
+FGraphEventRef PipelineStateCache::PrecacheComputePipelineState(FRHIComputeShader* ComputeShader, bool bForcePrecache)
 {
 	FGraphEventRef GraphEvent = nullptr;
-	if (!IsPSOPrecachingEnabled())
+	if (!IsPSOPrecachingEnabled() && !bForcePrecache)
 	{
 		return GraphEvent;
 	}
@@ -2311,7 +2311,7 @@ EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(const FGraphics
 
 EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(FRHIComputeShader* ComputeShader)
 {
-	if (!IsPSOPrecachingEnabled() || ComputeShader == nullptr)
+	if (ComputeShader == nullptr)
 	{
 		return EPSOPrecacheResult::Unknown;
 	}
@@ -2322,8 +2322,12 @@ EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(FRHIComputeShad
 		return EPSOPrecacheResult::Missed;
 	}
 
-	// TODO: add code to check if the PSO is still precaching or not
-	return EPSOPrecacheResult::Complete;
+	if (!CachedState->IsComplete())
+	{
+		return EPSOPrecacheResult::Active;
+	}
+
+	return CachedState->RHIPipeline && CachedState->RHIPipeline->IsValid() ? EPSOPrecacheResult::Complete : EPSOPrecacheResult::NotSupported;
 }
 
 bool PipelineStateCache::IsPrecaching(const FGraphicsPipelineStateInitializer& PipelineStateInitializer)

@@ -373,6 +373,10 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	FORCEINLINE const TArray<FNiagaraEventScriptProperties>& GetEventHandlers() const { return EventHandlerScriptProps; }
 	void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData, const UNiagaraEmitter& Emitter);
 	void CacheFromShaderCompiled();
+
+	FGraphEventRef PrecacheComputePSOs(const UNiagaraEmitter& NiagaraEmitter);
+	bool DidPSOPrecacheFail() const { return PSOPrecacheResult == EPSOPrecacheResult::NotSupported; }
+
 	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
 	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
 	uint32 GetMaxAllocationCount() const { return MaxAllocationCount; }
@@ -527,6 +531,8 @@ private:
 
 	void EnsureScriptsPostLoaded();
 	void OnPostCompile(const UNiagaraEmitter& InEmitter);
+
+	EPSOPrecacheResult PSOPrecacheResult = EPSOPrecacheResult::Unknown;
 };
 
 /** 

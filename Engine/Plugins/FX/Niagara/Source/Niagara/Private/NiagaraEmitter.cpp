@@ -66,6 +66,18 @@ static FAutoConsoleVariableRef CVarEnableEmitterChangeIdMergeLogging(
 	ECVF_Default
 );
 
+static int32 GNiagaraEmitterComputePSOPrecacheMode = 0;
+static FAutoConsoleVariableRef CVarNiagaraEmitterComputePSOPrecacheMode(
+	TEXT("fx.Niagara.Emitter.ComputePSOPrecacheMode"),
+	GNiagaraEmitterComputePSOPrecacheMode,
+	TEXT("Controlls how PSO precaching should be done for Niagara compute shaders\n")
+	TEXT("0 = Disabled (Default).\n")
+	TEXT("1 = Enabled if r.PSOPrecaching is also enabled.\n")
+	TEXT("2 = Force Enabled.\n")
+	TEXT("3 = Force Enabled, emitters are not allowed to run until they complete."),
+	ECVF_Scalability
+);
+
 static int32 GNiagaraEmitterMaxGPUBufferElements = 0;
 static FAutoConsoleVariableRef CVarNiagaraEmitterMaxGPUBufferElements(
 	TEXT("fx.Niagara.Emitter.MaxGPUBufferElements"),
@@ -1620,7 +1632,6 @@ void FVersionedNiagaraEmitterData::CacheFromCompiledData(const FNiagaraDataSetCo
 		MaxInstanceCount = 0;
 	}
 	UpdateDebugName(Emitter, CompiledData);
-
 }
 
 void FVersionedNiagaraEmitterData::UpdateDebugName(const UNiagaraEmitter& Emitter, const FNiagaraDataSetCompiledData* CompiledData)
@@ -3237,6 +3248,113 @@ void UNiagaraEmitter::GenerateStatID()const
 	StatID_RT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(Name + TEXT("[RT]"));
 	StatID_RT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(Name + TEXT("[RT_CNC]"));
 #endif
+}
+
+FGraphEventRef FVersionedNiagaraEmitterData::PrecacheComputePSOs(const UNiagaraEmitter& NiagaraEmitter)
+{
+	FGraphEventRef PSOReadyGraphTask;
+	PSOPrecacheResult = EPSOPrecacheResult::Complete;
+	if (GNiagaraEmitterComputePSOPrecacheMode == 0 || !FApp::CanEverRender() || SimTarget != ENiagaraSimTarget::GPUComputeSim)
+	{
+		return PSOReadyGraphTask;
+	}
+	
+	FNiagaraShaderScript* ShaderScript = GPUComputeScript->GetRenderThreadScript();
+	if (ShaderScript == nullptr || GPUComputeScript->DidScriptCompilationSucceed(true) == false)
+	{
+		return PSOReadyGraphTask;
+	}
+
+	// Compute PSO can fail on some platforms even though the shader compiled successfully this path will wait for the PSO precache to complete before the emitter is allowed to run
+	if (GNiagaraEmitterComputePSOPrecacheMode == 3)
+	{
+		FGraphEventArray PSOPrecacheEvents;
+		for (int32 i = 0; i < ShaderScript->GetNumPermutations(); ++i)
+		{
+			FRHIComputeShader* ComputeShader = ShaderScript->GetShaderGameThread(i).GetComputeShader();
+			FGraphEventRef TaskRef = PipelineStateCache::PrecacheComputePipelineState(ComputeShader, true);
+			if (TaskRef.IsValid())
+			{
+				PSOPrecacheEvents.Add(TaskRef);
+				continue;
+			}
+
+			const EPSOPrecacheResult ShaderResult = PipelineStateCache::CheckPipelineStateInCache(ComputeShader);
+			if (ShaderResult != EPSOPrecacheResult::Complete)
+			{
+				PSOPrecacheResult = EPSOPrecacheResult::NotSupported;
+				return PSOReadyGraphTask;
+			}
+		}
+
+		const FNiagaraVMExecutableDataId VMid = GPUComputeScript->GetComputedVMCompilationId();	//-TODO:
+		struct FNiagaraEmitterPSOPrecacheReadyTask
+		{
+			explicit FNiagaraEmitterPSOPrecacheReadyTask(FVersionedNiagaraEmitterWeakPtr InVersionedEmitter)
+				: WeakVersionedEmitter(InVersionedEmitter)
+			{
+			}
+
+			FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraEmitterPSOPrecacheReadyTask, STATGROUP_TaskGraphTasks); }
+			ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
+			static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+			void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+			{
+				FVersionedNiagaraEmitter VersionedEmitter = WeakVersionedEmitter.ResolveWeakPtr();
+				FVersionedNiagaraEmitterData* EmitterData = VersionedEmitter.GetEmitterData();
+				if (EmitterData == nullptr)
+				{
+					return;
+				}
+
+				FNiagaraShaderScript* ShaderScript = EmitterData->GPUComputeScript->GetRenderThreadScript();
+				if (ShaderScript == nullptr)
+				{
+					return;
+				}
+
+				for (int32 i = 0; i < ShaderScript->GetNumPermutations(); ++i)
+				{
+					FRHIComputeShader* ComputeShader = ShaderScript->GetShaderGameThread(i).GetComputeShader();
+					FGraphEventRef TaskRef = PipelineStateCache::PrecacheComputePipelineState(ComputeShader, true);
+					const EPSOPrecacheResult ShaderResult = PipelineStateCache::CheckPipelineStateInCache(ComputeShader);
+					if (ShaderResult != EPSOPrecacheResult::Complete)
+					{
+						EmitterData->PSOPrecacheResult = EPSOPrecacheResult::NotSupported;
+
+						UNiagaraSystem* NiagaraSystem = VersionedEmitter.Emitter ? VersionedEmitter.Emitter->GetTypedOuter<UNiagaraSystem>() : nullptr;
+						UE_LOG(LogNiagara, Warning, TEXT("Niagara ComputePSOPrecache Failed for Emitter(%s) System(%s), emitter will not run."), *GetNameSafe(VersionedEmitter.Emitter), *GetNameSafe(NiagaraSystem));
+						return;
+					}
+				}
+				EmitterData->PSOPrecacheResult = EPSOPrecacheResult::Complete;
+			}
+
+			FVersionedNiagaraEmitterWeakPtr WeakVersionedEmitter;
+		};
+
+		if (PSOPrecacheEvents.Num() > 0)
+		{
+			PSOPrecacheResult = EPSOPrecacheResult::Active;
+
+			FVersionedNiagaraEmitterWeakPtr EmitterWeakPtr((UNiagaraEmitter*)(&NiagaraEmitter), Version.VersionGuid);
+			PSOReadyGraphTask = TGraphTask<FNiagaraEmitterPSOPrecacheReadyTask>::CreateTask(&PSOPrecacheEvents, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(EmitterWeakPtr);
+		}
+		else
+		{
+			PSOPrecacheResult = EPSOPrecacheResult::Complete;
+		}
+	}
+	// In this mode we either force them to cache or respect that precaching is enabled
+	else if (GNiagaraEmitterComputePSOPrecacheMode == 2 || PipelineStateCache::IsPSOPrecachingEnabled() )
+	{
+		for (int32 i=0; i < ShaderScript->GetNumPermutations(); ++i)
+		{
+			FRHIComputeShader* ComputeShader = ShaderScript->GetShaderGameThread(i).GetComputeShader();
+			PipelineStateCache::PrecacheComputePipelineState(ComputeShader, true);
+		}
+	}
+	return PSOReadyGraphTask;
 }
 
 #if WITH_EDITORONLY_DATA

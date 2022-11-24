@@ -235,6 +235,11 @@ bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 			return false;
 		}
 
+		if (EmitterData->DidPSOPrecacheFail() == true)
+		{
+			return false;
+		}
+
 		if (const UNiagaraScript* GPUComputeScript = EmitterData->GetGPUComputeScript())
 		{
 			if (const FNiagaraShaderScript* ShaderScript = GPUComputeScript->GetRenderThreadScript())

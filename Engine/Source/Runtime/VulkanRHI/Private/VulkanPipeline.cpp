@@ -2173,6 +2173,7 @@ FVulkanComputePipeline* FVulkanPipelineStateCacheManager::CreateComputePipelineF
 	{
 		FString ComputeHash = Shader->GetHash().ToString();
 		UE_LOG(LogVulkanRHI, Error, TEXT("Failed to create compute pipeline.\nShaders in pipeline: CS: %s"), *ComputeHash);
+		Pipeline->SetValid(false);
 	}
 
 	Pipeline->Layout = ComputeLayout;

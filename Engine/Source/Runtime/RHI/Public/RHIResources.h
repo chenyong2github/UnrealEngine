@@ -732,6 +732,12 @@ class FRHIComputePipelineState : public FRHIResource
 {
 public:
 	FRHIComputePipelineState() : FRHIResource(RRT_ComputePipelineState) {}
+
+	inline void SetValid(bool InIsValid) { bIsValid = InIsValid; }
+	inline bool IsValid() const { return bIsValid; }
+
+private:
+	bool bIsValid = true;
 };
 class FRHIRayTracingPipelineState : public FRHIResource
 {

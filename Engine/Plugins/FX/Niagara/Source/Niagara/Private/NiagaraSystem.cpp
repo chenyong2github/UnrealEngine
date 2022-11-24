@@ -95,17 +95,17 @@ static FAutoConsoleVariableRef CVarNiagaraCompileWaitLoggingTerminationCap(
 
 //////////////////////////////////////////////////////////////////////////
 
-class FNiagaraOptimizeCompleteTask
+class FNiagaraSystemNullCompletionTask
 {
 public:
-	FNiagaraOptimizeCompleteTask(UNiagaraSystem* Owner, FGraphEventRef* InRefToClear)
+	FNiagaraSystemNullCompletionTask(UNiagaraSystem* Owner, FGraphEventRef* InRefToClear)
 		: WeakOwner(Owner)
 		, RefToClear(InRefToClear)
 		, ReferenceValue(InRefToClear != nullptr ? InRefToClear->GetReference() : nullptr)
 	{
 	}
 
-	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraOptimizeCompleteTask, STATGROUP_TaskGraphTasks); }
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemNullCompletionTask, STATGROUP_TaskGraphTasks); }
 	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
@@ -1205,6 +1205,15 @@ bool UNiagaraSystem::IsReadyToRunInternal() const
 	return true;
 }
 
+bool UNiagaraSystem::IsReadyToRun() const
+{
+	if (PSOPrecacheCompletionEvent.IsValid() && !PSOPrecacheCompletionEvent->IsComplete())
+	{
+		return false;
+	}
+	return FPlatformProperties::RequiresCookedData() ? bIsReadyToRunCached : IsReadyToRunInternal();
+}
+
 void UNiagaraSystem::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
@@ -1780,6 +1789,8 @@ void UNiagaraSystem::CacheFromCompiledData()
 	// reset the MaxDeltaTime so we get the most up to date values from the emitters
 	MaxDeltaTime.Reset();
 
+	FGraphEventArray PSOPrecacheEvents;
+
 	TSet<FName> DataInterfaceGpuUsage;
 	TStringBuilder<128> ExecutionStateNameBuilder;
 	for (int32 i=0; i < EmitterHandles.Num(); ++i)
@@ -1814,6 +1825,11 @@ void UNiagaraSystem::CacheFromCompiledData()
 			}
 			Handle.GetInstance().Emitter->ConditionalPostLoad();
 			EmitterData->CacheFromCompiledData(DataSetCompiledData, *Handle.GetInstance().Emitter);
+
+			if ( FGraphEventRef PSOGraphEvent = EmitterData->PrecacheComputePSOs(*Handle.GetInstance().Emitter) )
+			{
+				PSOPrecacheEvents.Add(PSOGraphEvent);
+			}
 
 			// Allow data interfaces to cache static buffers
 			UNiagaraScript* NiagaraEmitterScripts[] =
@@ -1853,6 +1869,17 @@ void UNiagaraSystem::CacheFromCompiledData()
 		{
 			EmitterExecutionStateAccessors.AddDefaulted();
 		}
+	}
+
+	// If we had any precache events to wait on add a task to ensure the system does not start until they are ready
+	if (PSOPrecacheEvents.Num() > 0)
+	{
+		DECLARE_CYCLE_STAT(TEXT("FNullGraphTask.NiagaraPSOPrecacheCompletion"), STAT_FNullGraphTask_NiagaraPSOPrecacheCompletion, STATGROUP_TaskGraphTasks);
+		PSOPrecacheCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&PSOPrecacheEvents, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(GET_STATID(STAT_FNullGraphTask_NiagaraPSOPrecacheCompletion), ENamedThreads::AnyThread);
+
+		// Inject task to clear out the reference to the graph task as soon as possible
+		FGraphEventArray CompleteTaskPrereqs({ PSOPrecacheCompletionEvent });
+		TGraphTask<FNiagaraSystemNullCompletionTask>::CreateTask(&CompleteTaskPrereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, &PSOPrecacheCompletionEvent);
 	}
 
 	// Loop over system scripts these are more awkward because we need to determine the usage
@@ -3470,7 +3497,7 @@ void UNiagaraSystem::AsyncOptimizeAllScripts()
 
 		// Inject task to clear out the reference to the graph task
 		FGraphEventArray CompleteTaskPrereqs({ ScriptOptimizationCompletionEvent });
-		TGraphTask<FNiagaraOptimizeCompleteTask>::CreateTask(&CompleteTaskPrereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, &ScriptOptimizationCompletionEvent);
+		TGraphTask<FNiagaraSystemNullCompletionTask>::CreateTask(&CompleteTaskPrereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, &ScriptOptimizationCompletionEvent);
 	}
 
 	bNeedsAsyncOptimize = false;
