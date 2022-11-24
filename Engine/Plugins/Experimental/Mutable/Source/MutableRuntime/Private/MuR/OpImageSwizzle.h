@@ -9,14 +9,19 @@
 namespace mu
 {
 
-	inline ImagePtr ImageSwizzle
+	inline Ptr<Image> ImageSwizzle
 		(
 			EImageFormat format,
-			const ImagePtrConst pSources[],
-            const uint8_t channels[]
+			const Ptr<const Image> pSources[],
+            const uint8 channels[]
 		)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ImageSwizzle);
+
+		if (!pSources[0])
+		{
+			return nullptr;
+		}
 
         ImagePtr pDest = new Image( pSources[0]->GetSizeX(), pSources[0]->GetSizeY(),
                                     pSources[0]->GetLODCount(),
@@ -68,7 +73,7 @@ namespace mu
 
 		for (int i = 0; i < NumDestChannels; ++i)
 		{
-			uint8_t* pDestBuf = pDest->GetData() + i;
+			uint8* pDestBuf = pDest->GetData() + i;
 
 			if (format == EImageFormat::IF_BGRA_UBYTE)
 			{
@@ -86,7 +91,7 @@ namespace mu
 
 			if (pSources[i])
 			{
-				const uint8_t* pSourceBuf = pSources[i]->GetData() + channels[i];
+				const uint8* pSourceBuf = pSources[i]->GetData() + channels[i];
 
 				switch (pSources[i]->GetFormat())
 				{

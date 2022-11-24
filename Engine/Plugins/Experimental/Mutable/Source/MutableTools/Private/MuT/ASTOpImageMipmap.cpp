@@ -125,7 +125,7 @@ namespace mu
 		case OP_TYPE::IM_BLANKLAYOUT:
 		{
 			// Set the mipmap generation on the blank layout operation
-			auto mop = mu::Clone<ASTOpFixed>(sourceAt);
+			Ptr<ASTOpFixed> mop = mu::Clone<ASTOpFixed>(sourceAt);
 			mop->op.args.ImageBlankLayout.generateMipmaps = 1;    // true
 			mop->op.args.ImageBlankLayout.mipmapCount = Levels;
 			at = mop;
@@ -329,7 +329,7 @@ namespace mu
 		case OP_TYPE::IM_CONDITIONAL:
 		{
 			// We move the op down the two paths
-			auto newOp = mu::Clone<ASTOpConditional>(at);
+			Ptr<ASTOpConditional> newOp = mu::Clone<ASTOpConditional>(at);
 			newOp->yes = Visit(newOp->yes.child(), currentMipmapOp);
 			newOp->no = Visit(newOp->no.child(), currentMipmapOp);
 			newAt = newOp;
@@ -339,9 +339,9 @@ namespace mu
 		case OP_TYPE::IM_SWITCH:
 		{
 			// We move the op down all the paths
-			auto newOp = mu::Clone<ASTOpSwitch>(at);
+			Ptr<ASTOpSwitch> newOp = mu::Clone<ASTOpSwitch>(at);
 			newOp->def = Visit(newOp->def.child(), currentMipmapOp);
-			for (auto& c : newOp->cases)
+			for (ASTOpSwitch::FCase& c : newOp->cases)
 			{
 				c.branch = Visit(c.branch.child(), currentMipmapOp);
 			}
@@ -359,12 +359,12 @@ namespace mu
 				!typedAt->Mask
 				)
 			{
-				auto newOp = mu::Clone<ASTOpImageCompose>(at);
+				Ptr<ASTOpImageCompose> newOp = mu::Clone<ASTOpImageCompose>(at);
 
-				auto baseOp = newOp->Base.child();
+				Ptr<ASTOp> baseOp = newOp->Base.child();
 				newOp->Base = Visit(baseOp, currentMipmapOp);
 
-				auto blockOp = newOp->BlockImage.child();
+				Ptr<ASTOp> blockOp = newOp->BlockImage.child();
 				newOp->BlockImage = Visit(blockOp, currentMipmapOp);
 
 				newAt = newOp;
@@ -383,11 +383,12 @@ namespace mu
 				// mipmaps after the patch is done.
 
 				const ASTOpImagePatch* typedSource = dynamic_cast<const ASTOpImagePatch*>(at.get());
-				auto rectOp = typedSource->patch.child();
+				Ptr<ASTOp> rectOp = typedSource->patch.child();
 				ASTOp::FGetImageDescContext context;
-				auto patchDesc = rectOp->GetImageDesc(false, &context);
+				FImageDesc patchDesc = rectOp->GetImageDesc(false, &context);
 
-				uint8_t blockLevels = 0;
+				// Calculate the mip levels that can be calculated for the patch
+				uint8 PatchBlockLevels = 0;
 				{
 					uint16 minX = typedSource->location[0];
 					uint16 minY = typedSource->location[1];
@@ -397,7 +398,7 @@ namespace mu
 						&&
 						minX % 2 == 0 && minY % 2 == 0 && sizeX % 2 == 0 && sizeY % 2 == 0)
 					{
-						blockLevels++;
+						PatchBlockLevels++;
 						minX /= 2;
 						minY /= 2;
 						sizeX /= 2;
@@ -405,22 +406,29 @@ namespace mu
 					}
 				}
 
-				mu::Ptr<ASTOpImageMipmap> newMip = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
-				newMip->Levels = blockLevels;
-				newMip->BlockLevels = blockLevels;
-				newMip->bOnlyTail = false;
-
-				auto newOp = mu::Clone<ASTOpImagePatch>(at);
-				newOp->base = Visit(newOp->base.child(), newMip.get());
-				newOp->patch = Visit(newOp->patch.child(), newMip.get());
-				newAt = newOp;
-
-				// We need to add a mipmap on top to finish the mipmapping
+				if (currentMipmapOp->Levels!= PatchBlockLevels || currentMipmapOp->BlockLevels!= PatchBlockLevels)
 				{
+					mu::Ptr<ASTOpImageMipmap> newMip = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
+					newMip->Levels = PatchBlockLevels;
+					newMip->BlockLevels = PatchBlockLevels;
+					newMip->bOnlyTail = false;
+
+					Ptr<ASTOpImagePatch> newOp = mu::Clone<ASTOpImagePatch>(at);
+					newOp->base = Visit(newOp->base.child(), newMip.get());
+					newOp->patch = Visit(newOp->patch.child(), newMip.get());
+
+					// We need to add a mipmap on top to finish the mipmapping
 					mu::Ptr<ASTOpImageMipmap> topMipOp = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
 					topMipOp->Source = newOp;
 					topMipOp->bOnlyTail = true;
 					newAt = topMipOp;
+				}
+				else
+				{
+					// The patch supports the same amount of mips that we are currently sinking.
+					Ptr<ASTOpImagePatch> newOp = mu::Clone<ASTOpImagePatch>(at);
+					newOp->base = Visit(newOp->base.child(), currentMipmapOp);
+					newOp->patch = Visit(newOp->patch.child(), currentMipmapOp);
 				}
 			}
 

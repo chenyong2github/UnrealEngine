@@ -599,7 +599,11 @@ namespace mu
 		MUTABLE_CPUPROFILER_SCOPE(FImageLayerColourTask);
 
 		// Warning: This runs in a worker thread.
-		ImagePtr pNew;
+		Ptr<Image> pNew;
+		if (!m_base)
+		{
+			return;
+		}
 		
 		if (Args.mask)
 		{
@@ -615,16 +619,13 @@ namespace mu
 				//MUTABLE_CPUPROFILER_SCOPE(ImageLayerColour_EmergencyFix);
 
 				int32 levelCount = m_base->GetLODCount();
-				ImagePtr pDest = new Image(m_mask->GetSizeX(), m_mask->GetSizeY(),
-					levelCount,
-					m_mask->GetFormat());
+				Ptr<Image> pDest = new Image(m_mask->GetSizeX(), m_mask->GetSizeY(), levelCount, m_mask->GetFormat());
 
 				SCRATCH_IMAGE_MIPMAP scratch;
 				FMipmapGenerationSettings settings{};
 
 				ImageMipmap_PrepareScratch(pDest.get(), m_mask.get(), levelCount, &scratch);
-				ImageMipmap(m_imageCompressionQuality, pDest.get(), m_mask.get(), levelCount,
-					&scratch, settings);
+				ImageMipmap(m_imageCompressionQuality, pDest.get(), m_mask.get(), levelCount, &scratch, settings);
 				m_mask = pDest;
 			}
 		}

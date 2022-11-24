@@ -13,17 +13,22 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//!
 	//---------------------------------------------------------------------------------------------
-	inline ImagePtr ImageBinarise( const Image* pA, float threshold )
+	inline Ptr<Image> ImageBinarise( const Image* pA, float threshold )
 	{
-        ImagePtr pDest = new Image( pA->GetSizeX(), pA->GetSizeY(), pA->GetLODCount(), EImageFormat::IF_L_UBYTE );
+		if (!pA)
+		{
+			return nullptr;
+		}
 
-        uint8_t* pDestBuf = pDest->GetData();
-        const uint8_t* pABuf = pA->GetData();
+		Ptr<Image> pDest = new Image( pA->GetSizeX(), pA->GetSizeY(), pA->GetLODCount(), EImageFormat::IF_L_UBYTE );
+
+        uint8* pDestBuf = pDest->GetData();
+        const uint8* pABuf = pA->GetData();
 
 		// Generic implementation
-		int pixelCount = (int)pA->CalculatePixelCount();
+		int32 pixelCount = pA->CalculatePixelCount();
 
-        uint32_t t_8 = uint32_t( threshold * 255.0f );
+        uint32 t_8 = uint32( threshold * 255.0f );
 
 		switch ( pA->GetFormat() )
 		{
@@ -31,7 +36,7 @@ namespace mu
 		{
 			for ( int i=0; i<pixelCount; ++i )
 			{
-                uint32_t a_8 = pABuf[i];
+                uint32 a_8 = pABuf[i];
 				pDestBuf[i] = (a_8>=t_8) ? 255 : 0;
 			}
 			break;
@@ -41,7 +46,7 @@ namespace mu
 		{
 			for ( int i=0; i<pixelCount; ++i )
 			{
-                uint32_t a_8 = pABuf[3*i+0];
+                uint32 a_8 = pABuf[3*i+0];
 				a_8 += pABuf[3*i+1];
 				a_8 += pABuf[3*i+2];
 				a_8 /= 3;
@@ -55,7 +60,7 @@ namespace mu
         {
 			for ( int i=0; i<pixelCount; ++i )
 			{
-                uint32_t a_8 = pABuf[4*i+0];
+                uint32 a_8 = pABuf[4*i+0];
 				a_8 += pABuf[4*i+1];
 				a_8 += pABuf[4*i+2];
 				a_8 /= 3;

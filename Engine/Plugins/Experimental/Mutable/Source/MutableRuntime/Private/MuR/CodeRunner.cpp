@@ -356,7 +356,7 @@ namespace mu
                 }
                 else
                 {
-                    pResult = pBase->Clone();
+					pResult = CloneOrTakeOver<Instance>(pBase.get());
                 }
 
                 if ( args.value )
@@ -2815,8 +2815,7 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-				AddOp( FScheduledOp( item.At, item, 1),
-					FScheduledOp( args.source, item) );
+				AddOp( FScheduledOp( item.At, item, 1), FScheduledOp( args.source, item) );
                 break;
 
             case 1:
@@ -2837,8 +2836,7 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                    AddOp( FScheduledOp( item.At, item, 1),
-                           FScheduledOp( args.source, item) );
+                    AddOp( FScheduledOp( item.At, item, 1), FScheduledOp( args.source, item) );
                 break;
 
             case 1:
@@ -2848,6 +2846,7 @@ namespace mu
 				if (!pBase)
 				{
 					GetMemory().SetImage(item, nullptr);
+					break;
 				}
 
                 FImageSize destSize = FImageSize
@@ -2863,9 +2862,7 @@ namespace mu
                      destSize[1]!=pBase->GetSizeY() )
                 {
                     //pResult = ImageResize( pBase.get(), destSize );
-                    pResult =
-                        ImageResizeLinear( m_pSettings->GetPrivate()->m_imageCompressionQuality,
-                                           pBase.get(), destSize );
+                    pResult = ImageResizeLinear( m_pSettings->GetPrivate()->m_imageCompressionQuality, pBase.get(), destSize );
 
                     // If the source image had mips, generate them as well for the resized image.
                     // This shouldn't happen often since "ResizeLike" should be usually optimised out
@@ -3848,10 +3845,10 @@ namespace mu
                     fadeStart *= PI / 180.0f;
                     fadeEnd *= PI / 180.0f;
 
-                    auto format = GetUncompressedFormat( pSource->GetFormat() );
+					EImageFormat format = pSource ? GetUncompressedFormat(pSource->GetFormat()) : EImageFormat::IF_L_UBYTE;
                     pNew = new Image( SizeX, SizeY, 1, format );
 
-                    if (pSource->GetFormat()!=format)
+                    if (pSource && pSource->GetFormat()!=format)
                     {
 						MUTABLE_CPUPROFILER_SCOPE(RunCode_RasterMesh_ReformatSource);
                         pSource = ImagePixelFormat( m_pSettings->GetPrivate()->m_imageCompressionQuality, pSource.get(), format );
@@ -3867,7 +3864,7 @@ namespace mu
                     int layout = 0;
 
                     float projectionAngle = 0;
-                    if ( args.projector )
+                    if ( args.projector && pSource )
                     {
                         auto pProjector = GetMemory().GetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
                         if (pProjector)
