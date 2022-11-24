@@ -1609,6 +1609,21 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageTrailer()
 		PackageTrailer = MakeUnique<UE::FPackageTrailer>();
 		if (!PackageTrailer->TryLoad(*this))
 		{
+			// If the archive has an error then we found a package trailer but it failed to serialize
+			// correctly and we most likely have a problem with the file.
+			// If the load failed but the archive is fine then the package is just of an older format
+			// and there never was a package trailer to load.
+			if (IsError())
+			{
+				UE_ASSET_LOG(LogLinker, Error, PackagePath, TEXT("Package has a corrupted package trailer"));
+
+				FMessageLog("LoadErrors").SuppressLoggingToOutputLog(true)
+					.Error(FText::Format(NSLOCTEXT("Core", "LinkerLoad_CorruptTrailer", "Package {0} has a corrupted package trailer"),
+					FText::FromString(GetDebugName())));
+
+				return LINKER_Failed;
+			}
+
 			PackageTrailer.Reset();
 		}
 
