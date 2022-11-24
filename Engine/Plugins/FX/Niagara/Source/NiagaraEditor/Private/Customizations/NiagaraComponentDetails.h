@@ -192,14 +192,15 @@ public:
 	/** We want to add rename & delete actions within a system asset */
 	virtual void AddCustomMenuActionsForParameter(FDetailWidgetRow& WidgetRow, FNiagaraVariable UserParameter) override;
 
-	TSharedRef<SWidget> GetAddParameterButton();
+	TSharedRef<SWidget> GetAdditionalHeaderWidgets();
 private:
 	TSharedRef<SWidget> GetAddParameterMenu();
 	void AddParameter(FNiagaraVariable NewParameter) const;
 	bool CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType) const;
-
+	
 	void ParameterValueChanged();
 
+	FReply SummonHierarchyEditor();
 	void DeleteParameter(FNiagaraVariable UserParameter) const;
 	void RequestRename(FNiagaraVariable UserParameter);
 	void RenameParameter(FNiagaraVariable UserParameter, FName NewName);
@@ -210,7 +211,7 @@ private:
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 	TOptional<FNiagaraVariable> SelectedParameter;
 	TMap<FNiagaraVariable, TSharedPtr<class SNiagaraParameterNameTextBlock>> UserParamToWidgetMap;
-	TSharedPtr<SWidget> AddParameterButtonContainer;
+	TSharedPtr<SWidget> AdditionalHeaderWidgetsContainer;
 	TSharedPtr<class SComboButton> AddParameterButton;
 	TSharedPtr<class SNiagaraAddParameterFromPanelMenu> AddParameterMenu;
 };

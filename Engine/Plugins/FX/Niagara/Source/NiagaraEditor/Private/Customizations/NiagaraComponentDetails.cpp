@@ -39,6 +39,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "SNiagaraSystemUserParameters.h"
+#include "SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraComponentDetails"
@@ -600,8 +601,8 @@ void FNiagaraSystemUserParameterDetails::CustomizeDetails(IDetailLayoutBuilder& 
 		ensure(SystemViewModel.IsValid());
 		TSharedRef<FNiagaraSystemUserParameterBuilder> SystemUserParameterBuilder = MakeShared<FNiagaraSystemUserParameterBuilder>(SystemViewModel, ParamCategoryName);
 		InputParamCategory.AddCustomBuilder(SystemUserParameterBuilder);
-		TSharedRef<SWidget> AddParameterButton = SystemUserParameterBuilder->GetAddParameterButton();
-		InputParamCategory.HeaderContent(AddParameterButton);
+		TSharedRef<SWidget> AdditionalHeaderWidgets = SystemUserParameterBuilder->GetAdditionalHeaderWidgets();
+		InputParamCategory.HeaderContent(AdditionalHeaderWidgets);
 	}
 }
 
@@ -1027,35 +1028,57 @@ void FNiagaraSystemUserParameterBuilder::AddCustomMenuActionsForParameter(FDetai
 	WidgetRow.AddCustomContextMenuAction(DeleteAction, LOCTEXT("DeleteParameterAction", "Delete"), LOCTEXT("DeleteParameterActionTooltip", "Delete this user parameter"));
 }
 
-TSharedRef<SWidget> FNiagaraSystemUserParameterBuilder::GetAddParameterButton()
+TSharedRef<SWidget> FNiagaraSystemUserParameterBuilder::GetAdditionalHeaderWidgets()
 {
-	if(!AddParameterButtonContainer.IsValid())
+	if(!AdditionalHeaderWidgetsContainer.IsValid())
 	{
-		AddParameterButtonContainer = SNew(SBox)
+		AdditionalHeaderWidgetsContainer = SNew(SBox)
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
+		.Padding(2.f)
 		[
-			SAssignNew(AddParameterButton, SComboButton)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.ButtonStyle(FAppStyle::Get(), "RoundButton")
-			.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
-			.ContentPadding(FMargin(2, 0))
-			.OnGetMenuContent(this, &FNiagaraSystemUserParameterBuilder::GetAddParameterMenu)
-			.OnComboBoxOpened_Lambda([this]
-			{
-				AddParameterButton->SetMenuContentWidgetToFocus(AddParameterMenu->GetSearchBox());
-			})
-			.HasDownArrow(false)
-			.ButtonContent()
+			.AutoWidth()
+			.Padding(2.f, 1.f)
 			[
-				SNew(SImage)
-				.Image(FAppStyle::GetBrush("Plus"))
+				SNew(SButton)
+				.OnClicked(this, &FNiagaraSystemUserParameterBuilder::SummonHierarchyEditor)
+				.Text(LOCTEXT("SummonUserParametersHierarchyButtonLabel", "Edit Hierarchy"))
+				.ButtonStyle(FAppStyle::Get(), "RoundButton")
+				.ToolTipText(LOCTEXT("SummonUserParametersHierarchyButtonTooltip", "Summon the Hierarchy Editor to add categories, sections and tooltips to User Parameters."))
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(2.f)
+			[
+				SAssignNew(AddParameterButton, SComboButton)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.ButtonStyle(FAppStyle::Get(), "RoundButton")
+				.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
+				.ContentPadding(FMargin(2, 3.5))
+				.ToolTipText(LOCTEXT("AddUserParameterButtonTooltip", "Add a new User Parameter to this system.\nUser Parameters exist once for the entire system and their values can be changed at runtime from Blueprints, C++ or the sequencer, among other systems."))
+				.OnGetMenuContent(this, &FNiagaraSystemUserParameterBuilder::GetAddParameterMenu)
+				.OnComboBoxOpened_Lambda([this]
+				{
+					AddParameterButton->SetMenuContentWidgetToFocus(AddParameterMenu->GetSearchBox());
+				})
+				.HasDownArrow(false)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush("Plus"))
+				]
 			]
 		];
 	}
 	
-	return AddParameterButtonContainer.ToSharedRef(); 
+	return AdditionalHeaderWidgetsContainer.ToSharedRef(); 
 }
 
 TSharedRef<SWidget> FNiagaraSystemUserParameterBuilder::GetAddParameterMenu()
@@ -1112,6 +1135,17 @@ void FNiagaraSystemUserParameterBuilder::ParameterValueChanged()
 			}
 		}
 	}
+}
+
+FReply FNiagaraSystemUserParameterBuilder::SummonHierarchyEditor()
+{
+	if(TSharedPtr<FNiagaraSystemViewModel> SystemViewModelPinned = SystemViewModel.Pin())
+	{
+		SystemViewModelPinned->FocusTab(FNiagaraSystemToolkitModeBase::UserParametersHierarchyTabID, true);
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
 }
 
 void FNiagaraSystemUserParameterBuilder::DeleteParameter(FNiagaraVariable UserParameter) const

@@ -34,37 +34,12 @@ void SNiagaraSystemUserParameters::Construct(const FArguments& InArgs, TSharedPt
 	
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Fill)
-		.Padding(2.f)
+		SNew(SBox)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("UserParameters")))
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Right)
-			[
-				SNew(SButton)
-				.HAlign(HAlign_Right)
-				.OnClicked(this, &SNiagaraSystemUserParameters::SummonHierarchyEditor)
-				.Text(LOCTEXT("SummonUserParametersHierarchyButtonLabel", "Edit Hierarchy"))
-			]
-		]
-		+ SVerticalBox::Slot()
-		[
-			SNew(SBox)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("UserParameters")))
-			[
-				ObjectDetailsView
-			]
-		]
+			ObjectDetailsView
+		]		
 	];
-}
-
-FReply SNiagaraSystemUserParameters::SummonHierarchyEditor()
-{
-	SystemViewModel.Pin()->FocusTab(FNiagaraSystemToolkitModeBase::UserParametersHierarchyTabID);
-	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

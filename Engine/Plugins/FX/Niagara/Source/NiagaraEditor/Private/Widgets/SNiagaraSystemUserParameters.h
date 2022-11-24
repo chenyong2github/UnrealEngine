@@ -21,7 +21,5 @@ public:
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override {}
 
 private:
-	FReply SummonHierarchyEditor();
-private:
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 };
