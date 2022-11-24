@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/UnrealType.h"
-#include "Templates/SubclassOf.h"
+#include "Templates/SubclassOfField.h"
 
 struct FAnimatedPropertyKey
 {
@@ -84,7 +84,7 @@ struct FAnimatedPropertyKey
 		return Definition;
 	}
 
-	static FAnimatedPropertyKey FromPropertyType(TSubclassOf<FProperty> PropertyType)
+	static FAnimatedPropertyKey FromPropertyType(TSubclassOfField<FProperty> PropertyType)
 	{
 		FAnimatedPropertyKey Definition;
 		Definition.PropertyTypeName = PropertyType->GetFName();
