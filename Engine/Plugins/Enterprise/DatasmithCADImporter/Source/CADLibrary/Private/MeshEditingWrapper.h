@@ -102,6 +102,9 @@ private:
 	TArray<FElementMetaData> EdgeMetaData;
 	TArray<FElementMetaData> TriangleMetaData;
 
+	// for orientation purpose
+	TBitArray<> VertexInstanceMarker;
+
 private:
 
 

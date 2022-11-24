@@ -31,6 +31,8 @@ void FMeshEditingWrapper::UpdateMeshWrapper()
 	{
 		DefineVertexTopologyApproximation(VertexID);
 	}
+
+	VertexInstanceMarker.Init(false, MeshDescription.VertexInstances().GetArraySize());
 }
 
 
@@ -252,7 +254,12 @@ void FMeshEditingWrapper::SwapTriangleOrientation(FTriangleID Triangle)
 	TArrayView<const FVertexInstanceID> TriVertexInstances = MeshDescription.GetTriangleVertexInstances(Triangle);
 	for (int32 IVertex = 0; IVertex < 3; IVertex++)
 	{
-		SwapVertexNormal(TriVertexInstances[IVertex]);
+		const FVertexInstanceID& InstanceID = TriVertexInstances[IVertex];
+		if(!VertexInstanceMarker[InstanceID])
+		{
+			SwapVertexNormal(InstanceID);
+			VertexInstanceMarker[InstanceID] = true;
+		}
 	}
 }
 
