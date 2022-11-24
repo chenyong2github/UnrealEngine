@@ -17,6 +17,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Algo/AllOf.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/MemoryReader.h"
 #include "Stats/Stats.h"
@@ -1522,6 +1523,7 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GFP_Mounting);
 		if (!Result.HasValue())
 		{
 			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, Result);
@@ -1623,6 +1625,7 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GFP_WaitingForDependencies);
 		checkf(!StateProperties.PluginInstalledFilename.IsEmpty(), TEXT("PluginInstalledFilename must be set by the loading dependencies phase. PluginURL: %s"), *StateProperties.PluginIdentifier.GetFullPluginURL());
 		checkf(FPaths::GetExtension(StateProperties.PluginInstalledFilename) == TEXT("uplugin"), TEXT("PluginInstalledFilename must have a uplugin extension. PluginURL: %s"), *StateProperties.PluginIdentifier.GetFullPluginURL());
 
@@ -1824,6 +1827,7 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GFP_Registering);
 		const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
 		UGameplayTagsManager::Get().AddTagIniSearchPath(PluginFolder / TEXT("Config") / TEXT("Tags"));
 
@@ -1975,6 +1979,7 @@ struct FGameFeaturePluginState_Loading : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GFP_Loading);
 		check(StateProperties.GameFeatureData);
 
 		// AssetManager
@@ -2124,6 +2129,7 @@ struct FGameFeaturePluginState_Activating : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GFP_Activating);
 		check(GEngine);
 		check(StateProperties.GameFeatureData);
 

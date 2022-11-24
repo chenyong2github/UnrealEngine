@@ -26,6 +26,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Algo/Accumulate.h"
 #include "Containers/VersePath.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #if READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT
 #include "TargetReceipt.h"
 #endif
@@ -2578,6 +2579,7 @@ bool FPluginManager::TryMountExplicitlyLoadedPluginVersion(TSharedRef<FPlugin>* 
 
 void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Plugin)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MountPluginFromExternalSource);
 	if (GWarn)
 	{
 		GWarn->BeginSlowTask(FText::Format(LOCTEXT("MountingPluginFiles", "Mounting plugin {0}..."), FText::FromString(Plugin->GetFriendlyName())), /*ShowProgressDialog*/ true, /*bShowCancelButton*/ false);
@@ -2646,6 +2648,7 @@ bool FPluginManager::UnmountExplicitlyLoadedPlugin(const FString& PluginName, FT
 
 bool FPluginManager::UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& Plugin, FText* OutReason)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UnmountPluginFromExternalSource);
 	if (!Plugin.IsValid() || Plugin->bEnabled == false)
 	{
 		// Does not exist or is not loaded
