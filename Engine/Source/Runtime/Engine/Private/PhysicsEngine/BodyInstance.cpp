@@ -1463,6 +1463,13 @@ FInitBodySpawnParams::FInitBodySpawnParams(const UPrimitiveComponent* PrimComp)
 	}
 }
 
+FInitBodySpawnParams::FInitBodySpawnParams(bool bInStaticPhysics, bool bInPhysicsTypeDeterminesSimulation)
+	: bStaticPhysics(bInStaticPhysics)
+	, bPhysicsTypeDeterminesSimulation(bInPhysicsTypeDeterminesSimulation)
+{
+}
+
+
 // Chaos addition
 static TAutoConsoleVariable<int32> CVarAllowCreatePhysxBodies(
 	TEXT("p.chaos.AllowCreatePhysxBodies"),

@@ -56,7 +56,7 @@ namespace EDOFMode
 	};
 }
 
-struct FBodyInstnace;
+struct FBodyInstance;
 
 #ifndef CHAOS_DEBUG_NAME
 #define CHAOS_DEBUG_NAME 0
@@ -68,6 +68,7 @@ struct FBodyInstnace;
 struct FInitBodySpawnParams
 {
 	ENGINE_API FInitBodySpawnParams(const UPrimitiveComponent* PrimComp);
+	ENGINE_API FInitBodySpawnParams(bool bInStaticPhysics, bool bInPhysicsTypeDeterminesSimulation);
 
 	/** Whether the created physics actor will be static */
 	bool bStaticPhysics;
