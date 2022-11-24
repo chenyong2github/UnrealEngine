@@ -23,11 +23,16 @@ void UPoseSearchDatabaseSequenceReflection::PostEditChangeProperty(
 
 	check(WeakAssetTreeNode.Pin()->SourceAssetType == ESearchIndexAssetType::Sequence);
 
-	UPoseSearchDatabase* Database = WeakAssetTreeNode.Pin()->EditorViewModel.Pin()->GetPoseSearchDatabase();
-	if (IsValid(Database))
+	if (const TSharedPtr<UE::PoseSearch::FDatabaseViewModel> ViewModel = WeakAssetTreeNode.Pin()->EditorViewModel.Pin())
 	{
-		Database->Sequences[WeakAssetTreeNode.Pin()->SourceAssetIdx] = Sequence;
-		AssetTreeWidget->FinalizeTreeChanges(true);
+		UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
+		if (IsValid(Database))
+		{
+			Database->Sequences[WeakAssetTreeNode.Pin()->SourceAssetIdx] = Sequence;
+			Database->MarkPackageDirty();
+		
+			AssetTreeWidget->FinalizeTreeChanges(true);
+		}
 	}
 }
 
@@ -38,11 +43,16 @@ void UPoseSearchDatabaseBlendSpaceReflection::PostEditChangeProperty(
 
 	check(WeakAssetTreeNode.Pin()->SourceAssetType == ESearchIndexAssetType::BlendSpace);
 
-	UPoseSearchDatabase* Database = WeakAssetTreeNode.Pin()->EditorViewModel.Pin()->GetPoseSearchDatabase();
-	if (IsValid(Database))
+	if (const TSharedPtr<UE::PoseSearch::FDatabaseViewModel> ViewModel = WeakAssetTreeNode.Pin()->EditorViewModel.Pin())
 	{
-		Database->BlendSpaces[WeakAssetTreeNode.Pin()->SourceAssetIdx] = BlendSpace;
-		AssetTreeWidget->FinalizeTreeChanges(true);
+		UPoseSearchDatabase* Database = WeakAssetTreeNode.Pin()->EditorViewModel.Pin()->GetPoseSearchDatabase();
+		if (IsValid(Database))
+		{
+			Database->BlendSpaces[WeakAssetTreeNode.Pin()->SourceAssetIdx] = BlendSpace;
+			Database->MarkPackageDirty();
+		
+			AssetTreeWidget->FinalizeTreeChanges(true);
+		}
 	}
 }
 

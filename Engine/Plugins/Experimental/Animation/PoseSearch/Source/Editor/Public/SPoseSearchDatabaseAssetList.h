@@ -84,7 +84,7 @@ namespace UE::PoseSearch
 		TWeakPtr<SDatabaseAssetTree> SkeletonView;
 	};
 
-	class SDatabaseAssetTree : public SCompoundWidget, public FEditorUndoClient
+	class SDatabaseAssetTree : public SCompoundWidget, public FSelfRegisteringEditorUndoClient
 	{
 	public:
 		SLATE_BEGIN_ARGS(SDatabaseAssetTree) {}
@@ -99,7 +99,13 @@ namespace UE::PoseSearch
 		virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 		virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 		// End SWidget interface
-	
+
+		// Begin FEditorUndoClient interface
+		virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
+		virtual void PostUndo(bool bSuccess) override;
+		virtual void PostRedo(bool bSuccess) override;
+		// End FEditorUndoClient interface
+		
 		void RefreshTreeView(bool bIsInitialSetup = false, bool bRecoverSelection = false);
 		void FinalizeTreeChanges(bool bRecoverSelection = false);
 

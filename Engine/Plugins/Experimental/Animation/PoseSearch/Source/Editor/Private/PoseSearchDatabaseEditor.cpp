@@ -540,6 +540,7 @@ namespace UE::PoseSearch
 					NewSelectionReflection->AddToRoot();
 					NewSelectionReflection->Sequence = GetPoseSearchDatabase()->Sequences[SelectedItem->SourceAssetIdx];
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
+					NewSelectionReflection->SetFlags(RF_Transactional);
 					SelectionReflections[SequenceSelectionIndex].Add(NewSelectionReflection);
 				}
 				else if (SelectedItem->SourceAssetType == ESearchIndexAssetType::BlendSpace)
@@ -548,6 +549,7 @@ namespace UE::PoseSearch
 					NewSelectionReflection->AddToRoot();
 					NewSelectionReflection->BlendSpace = GetPoseSearchDatabase()->BlendSpaces[SelectedItem->SourceAssetIdx];
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
+					NewSelectionReflection->SetFlags(RF_Transactional);
 					SelectionReflections[BlendSpaceSelectionIndex].Add(NewSelectionReflection);
 				}
 			}
