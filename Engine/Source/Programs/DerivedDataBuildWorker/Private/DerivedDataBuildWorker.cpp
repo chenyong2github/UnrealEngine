@@ -432,7 +432,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	uint64 WorkerStartTime = FPlatformTime::Cycles64();
 
-	if (const int32 ErrorLevel = GEngineLoop.PreInit(ArgC, ArgV, TEXT("-DDC=None -Unattended")))
+	if (const int32 ErrorLevel = GEngineLoop.PreInit(ArgC, ArgV, TEXT("-Unattended")))
 	{
 		return ErrorLevel;
 	}
