@@ -63,9 +63,9 @@ int32 UGeometryScriptLibrary_PolyPathFunctions::GetNearestVertexIndex(FGeometryS
 FGeometryScriptPolyPath UGeometryScriptLibrary_PolyPathFunctions::FlattenTo2DOnAxis(FGeometryScriptPolyPath PolyPath, EGeometryScriptAxis DropAxis)
 {
 	FGeometryScriptPolyPath ToReturn;
+	ToReturn.Reset();
 	if (PolyPath.Path.IsValid())
 	{
-		ToReturn.Reset();
 		ToReturn.bClosedLoop = PolyPath.bClosedLoop;
 		ToReturn.Path = PolyPath.Path;
 

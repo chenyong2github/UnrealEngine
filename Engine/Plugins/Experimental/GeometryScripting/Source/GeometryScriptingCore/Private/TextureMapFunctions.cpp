@@ -19,6 +19,12 @@ void UGeometryScriptLibrary_TextureMapFunctions::SampleTexture2DAtUVPositions(
 	FGeometryScriptColorList& ColorList,
 	UGeometryScriptDebug* Debug)
 {
+	ColorList.Reset();
+	if (UVList.List.IsValid() == false || UVList.List->Num() == 0)
+	{
+		return;
+	}
+	
 	if (TextureAsset == nullptr)
 	{
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SampleTexture2DAtUVPositions_InvalidInput2", "SampleTexture2DAtUVPositions: Texture is Null"));
@@ -35,7 +41,6 @@ void UGeometryScriptLibrary_TextureMapFunctions::SampleTexture2DAtUVPositions(
 	const TArray<FVector2D>& UVs = *UVList.List;
 	int32 NumUVs = UVs.Num();
 
-	ColorList.Reset();
 	TArray<FLinearColor>& Colors = *ColorList.List;
 	Colors.SetNumUninitialized(NumUVs);
 

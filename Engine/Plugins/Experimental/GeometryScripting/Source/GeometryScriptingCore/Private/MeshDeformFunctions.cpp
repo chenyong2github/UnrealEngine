@@ -537,15 +537,15 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyDisplaceFromPerVe
 		return TargetMesh;
 	}
 
-	const TArray<FVector>& Vectors = *VectorList.List;
-
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
 	{
-		if (Vectors.Num() < EditMesh.MaxVertexID())
+		if (VectorList.List.IsValid() == false || VectorList.List->Num() < EditMesh.MaxVertexID())
 		{
 			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyDisplaceFromPerVertexVectors_InvalidVectorLength", "ApplyDisplaceFromPerVertexVectors: VectorList Length is less than TargetMesh MaxVertexID"));
 			return;
 		}
+
+		const TArray<FVector>& Vectors = *VectorList.List;
 
 		auto UpdateVertex = [&EditMesh, &Magnitude, &Vectors](int32 VertexID)
 		{
