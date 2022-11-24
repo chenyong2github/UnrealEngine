@@ -2806,21 +2806,33 @@ void URigVMCompiler::AddCopyOperator(const FRigVMCopyOp& InOp, const FRigVMAssig
 	int32 InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 	if (Settings.SetupNodeInstructionIndex)
 	{
+		bool bSetSubject = false;
 		if (URigVMPin* SourcePin = InAssignExpr->GetSourcePin())
 		{
 			if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(SourcePin->GetNode()))
 			{
 				const FRigVMCallstack Callstack = InSourceExpr->GetProxy().GetSibling(VariableNode).GetCallstack();
 				WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+				bSetSubject = true;
 			}
 		}
 
-		if (URigVMPin* TargetPin = InAssignExpr->GetTargetPin())
+		if (!bSetSubject)
 		{
-			if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(TargetPin->GetNode()))
+			if (URigVMPin* TargetPin = InAssignExpr->GetTargetPin())
 			{
-				const FRigVMCallstack Callstack = InTargetExpr->GetProxy().GetSibling(VariableNode).GetCallstack();
-				WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+				if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(TargetPin->GetNode()))
+				{
+					const FRigVMCallstack Callstack = InTargetExpr->GetProxy().GetSibling(VariableNode).GetCallstack();
+					WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+					bSetSubject = true;
+				}
+				else
+				{
+					const FRigVMCallstack Callstack = InTargetExpr->GetProxy().GetSibling(TargetPin->GetNode()).GetCallstack();
+					WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+					bSetSubject = true;
+				}
 			}
 		}
 	}

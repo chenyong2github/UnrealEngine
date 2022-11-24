@@ -58,6 +58,7 @@ private:
 	FText GetIndexText() const;
 	FText GetLabelText() const;
 	FSlateFontInfo GetLabelFont() const;
+	FText GetTooltip() const;
 	FText GetVisitedCountText() const;
 	FText GetDurationText() const;
 };
@@ -127,7 +128,6 @@ private:
 
 	TWeakPtr<FControlRigEditor> ControlRigEditor;
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprint;
-	TWeakObjectPtr<UControlRigGraph> Graph;
 
 	TArray<TSharedPtr<FRigStackEntry>> Operators;
 

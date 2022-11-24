@@ -123,6 +123,7 @@ void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 					SAssignNew(TextWidget, STextBlock)
 					.Text(this, &SRigStackItem::GetLabelText)
 					.Font(this, &SRigStackItem::GetLabelFont)
+					.ToolTipText(this, &SRigStackItem::GetTooltip)
 					.Justification(ETextJustify::Left)
 				]
 			]
@@ -181,6 +182,11 @@ FSlateFontInfo SRigStackItem::GetLabelFont() const
 		return IDetailLayoutBuilder::GetDetailFont();
 	}
 	return IDetailLayoutBuilder::GetDetailFontBold();
+}
+
+FText SRigStackItem::GetTooltip() const
+{
+	return FText::FromString(WeakStackEntry.Pin()->Callstack.GetCallPath(true));
 }
 
 FText SRigStackItem::GetVisitedCountText() const
@@ -267,7 +273,6 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 {
 	ControlRigEditor = InControlRigEditor;
 	ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
-	Graph = Cast<UControlRigGraph>(ControlRigBlueprint->GetLastEditedUberGraph());
 	CommandList = MakeShared<FUICommandList>();
 	bSuspendModelNotifications = false;
 	bSuspendControllerSelection = false;
@@ -997,17 +1002,33 @@ void SControlRigStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 
 	switch (InNotifType)
 	{
-		case ERigVMGraphNotifType::NodeSelected:
-		case ERigVMGraphNotifType::NodeDeselected:
+		case ERigVMGraphNotifType::NodeSelectionChanged:
 		{
+			const TGuardValue<bool> SuspendNotifs(bSuspendModelNotifications, true);
+			TreeView->ClearSelection();
+			TArray<const URigVMNode*> SelectedNodes;
+			const TArray<FName>& SelectedNames = InGraph->GetSelectNodes();
+			for (const FName& Selected : SelectedNames)
+			{
+				if (const URigVMNode* Node = InGraph->FindNodeByName(Selected))
+				{
+					SelectedNodes.Add(Node);
+				}
+			}		
+
+			TArray<TSharedPtr<FRigStackEntry>> SelectedItems;
 			for (TSharedPtr<FRigStackEntry>& Operator : Operators)
 			{
-				if(Operator->Callstack.Contains(InSubject))
+				for (const URigVMNode* Node : SelectedNodes)
 				{
-					const TGuardValue<bool> SuspendNotifs(bSuspendModelNotifications, true);
-					TreeView->SetItemSelection(Operator, InNotifType == ERigVMGraphNotifType::NodeSelected, ESelectInfo::Direct);
+					if(Operator->Callstack.Contains(Node))
+					{
+						SelectedItems.Add(Operator);
+						break;
+					}
 				}
 			}
+			TreeView->SetItemSelection(SelectedItems, true, ESelectInfo::Direct);
 			break;
 		}
 		default:
