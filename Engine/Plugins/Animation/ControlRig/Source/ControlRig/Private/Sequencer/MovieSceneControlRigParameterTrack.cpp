@@ -441,7 +441,7 @@ void UMovieSceneControlRigParameterTrack::HandlePackageDone(const FEndLoadPackag
 	}
 
 	// ensure both packages are fully end-loaded
-	if (ControlRig)
+	if (ControlRig && !ControlRig->GetClass()->IsNative())
 	{
 		if (const UPackage* ControlRigPackage = Cast<UPackage>(ControlRig->GetClass()->GetOutermost()))
 		{
