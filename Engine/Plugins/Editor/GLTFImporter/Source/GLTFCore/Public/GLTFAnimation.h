@@ -69,8 +69,6 @@ namespace GLTF
 		FString          Name;
 		TArray<FSampler> Samplers;
 		TArray<FChannel> Channels;
-
-		FString          UniqueId; //will be generated in FAsset::GenerateNames
 	};
 
 }  // namespace GLTF

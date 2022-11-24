@@ -277,11 +277,6 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 					RenameInfo.NewName = NewName;
 					RenameInfo.SourceIndex = SourceIndex;
 					FactoryNode->SetDisplayLabel(FactoryNode->GetDisplayLabel() + NameIndexString);
-					if (FactoryNode->HasAttribute(UE::Interchange::FBaseNodeStaticData::AssetNameKey()))
-					{
-						//TextureFactorNodes automatically set up the AssetNames which then are used for asset creation:
-						FactoryNode->SetAssetName(FactoryNode->GetDisplayLabel());
-					}
 				}
 				else
 				{

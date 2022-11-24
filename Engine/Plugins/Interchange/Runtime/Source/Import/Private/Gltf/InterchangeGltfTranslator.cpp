@@ -134,7 +134,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 {
 	using namespace UE::Interchange::Gltf::Private;
 
-	const FString NodeUid = ParentNodeUid + TEXT("\\") + GltfNode.UniqueId;
+	const FString NodeUid = ParentNodeUid + TEXT("\\") + GltfNode.Name;
 
 	const UInterchangeSceneNode* ParentSceneNode = Cast< UInterchangeSceneNode >( NodeContainer.GetNode( ParentNodeUid ) );
 
@@ -173,7 +173,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 			{
 				HandleGltfMesh(NodeContainer, GltfAsset.Meshes[GltfNode.MeshIndex], GltfNode.MeshIndex, UnusedMeshIndices);
 
-				const FString MeshNodeUid = TEXT("\\Mesh\\") + GltfAsset.Meshes[ GltfNode.MeshIndex ].UniqueId;
+				const FString MeshNodeUid = TEXT("\\Mesh\\") + GltfAsset.Meshes[ GltfNode.MeshIndex ].Name;
 				InterchangeSceneNode->SetCustomAssetInstanceUid( MeshNodeUid );
 
 				if (!bHasVariants && GltfAsset.Variants.Num() > 0)
@@ -190,7 +190,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 
 			if ( GltfAsset.Cameras.IsValidIndex( GltfNode.CameraIndex ) )
 			{
-				const FString CameraNodeUid = TEXT("\\Camera\\") + GltfAsset.Cameras[ GltfNode.CameraIndex ].UniqueId;
+				const FString CameraNodeUid = TEXT("\\Camera\\") + GltfAsset.Cameras[ GltfNode.CameraIndex ].Name;
 				InterchangeSceneNode->SetCustomAssetInstanceUid( CameraNodeUid );
 			}
 			break;
@@ -202,7 +202,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 
 			if ( GltfAsset.Lights.IsValidIndex( GltfNode.LightIndex ) )
 			{
-				const FString LightNodeUid = TEXT("\\Light\\") + GltfAsset.Lights[ GltfNode.LightIndex ].UniqueId;
+				const FString LightNodeUid = TEXT("\\Light\\") + GltfAsset.Lights[ GltfNode.LightIndex ].Name;
 				InterchangeSceneNode->SetCustomAssetInstanceUid( LightNodeUid );
 			}
 		}
@@ -271,13 +271,14 @@ void UInterchangeGltfTranslator::HandleGltfMaterialParameter( UInterchangeBaseNo
 		UInterchangeShaderNode* ColorNode = UInterchangeShaderNode::Create( &NodeContainer, ColorNodeName, ShaderNode.GetUniqueID() );
 		ColorNode->SetCustomShaderType( Standard::Nodes::TextureSample::Name.ToString() );
 
-		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid(GltfAsset.Textures[TextureMap.TextureIndex].UniqueId);
+		const FString TextureName = GltfAsset.Textures[ TextureMap.TextureIndex ].Name;
+		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid( TextureName );
 
 		ColorNode->AddStringAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::TextureSample::Inputs::Texture.ToString() ), TextureUid );
 
 		if (TextureMap.TexCoord > 0 || TextureMap.bHasTextureTransform)
 		{
-			UInterchangeShaderNode* TexCoordNode = UInterchangeShaderNode::Create(&NodeContainer, MapName + TEXT("\\TexCoord"), ShaderNode.GetUniqueID());
+			UInterchangeShaderNode* TexCoordNode = UInterchangeShaderNode::Create(&NodeContainer, TEXT("TexCoord"), ShaderNode.GetUniqueID());
 			TexCoordNode->SetCustomShaderType(Standard::Nodes::TextureCoordinate::Name.ToString());
 
 			TexCoordNode->AddInt32Attribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Standard::Nodes::TextureCoordinate::Inputs::Index.ToString()), TextureMap.TexCoord);
@@ -888,8 +889,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		int32 TextureIndex = 0;
 		for ( const GLTF::FTexture& GltfTexture : GltfAsset.Textures )
 		{
-			UInterchangeTexture2DNode* TextureNode = UInterchangeTexture2DNode::Create(&NodeContainer, GltfTexture.UniqueId, GltfTexture.Name);
-
+			UInterchangeTexture2DNode* TextureNode = UInterchangeTexture2DNode::Create( &NodeContainer, GltfTexture.Name);
 			TextureNode->SetCustomFilter(ConvertFilter(GltfTexture.Sampler.MinFilter));
 			TextureNode->SetPayLoadKey( LexToString( TextureIndex++ ) );
 
@@ -903,7 +903,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		int32 MaterialIndex = 0;
 		for ( const GLTF::FMaterial& GltfMaterial : GltfAsset.Materials )
 		{
-			UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, GltfMaterial.UniqueId, GltfMaterial.Name);
+			UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create( &NodeContainer, GltfMaterial.Name );
 
 			HandleGltfMaterial( NodeContainer, GltfMaterial, *ShaderGraphNode );
 			++MaterialIndex;
@@ -926,7 +926,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		for ( const GLTF::FCamera& GltfCamera : GltfAsset.Cameras )
 		{
 			UInterchangeCameraNode* CameraNode = NewObject< UInterchangeCameraNode >( &NodeContainer );
-			FString CameraNodeUid = TEXT("\\Camera\\") + GltfCamera.UniqueId;
+			FString CameraNodeUid = TEXT("\\Camera\\") + GltfCamera.Name;
 			CameraNode->InitializeNode( CameraNodeUid, GltfCamera.Name, EInterchangeNodeContainerType::TranslatedAsset );
 
 			float       AspectRatio;
@@ -959,7 +959,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		int32 LightIndex = 0;
 		for ( const GLTF::FLight& GltfLight : GltfAsset.Lights )
 		{
-			FString LightNodeUid = TEXT("\\Light\\") + GltfLight.UniqueId;
+			FString LightNodeUid = TEXT("\\Light\\") + GltfLight.Name;
 
 			switch (GltfLight.Type)
 			{
@@ -1023,8 +1023,12 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			UInterchangeSceneNode* SceneNode = NewObject< UInterchangeSceneNode >( &NodeContainer );
 
 			FString SceneName = GltfScene.Name;
+			if (SceneName.IsEmpty())
+			{
+				SceneName = FileName + TEXT("_scene_") + LexToString(SceneIndex++);
+			}
 
-			FString SceneNodeUid = TEXT("\\Scene\\") + GltfScene.UniqueId;
+			FString SceneNodeUid = TEXT("\\Scene\\") + SceneName;
 			SceneNode->InitializeNode( SceneNodeUid, SceneName, EInterchangeNodeContainerType::TranslatedScene );
 			NodeContainer.AddNode( SceneNode );
 
@@ -1362,8 +1366,9 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 
 	UInterchangeAnimationTrackSetNode* TrackSetNode = NewObject< UInterchangeAnimationTrackSetNode >(&NodeContainer);
 
-	const FString AnimTrackSetNodeUid = TEXT("\\Animation\\") + GltfAnimation.UniqueId;
-	TrackSetNode->InitializeNode(AnimTrackSetNodeUid, GltfAnimation.Name, EInterchangeNodeContainerType::TranslatedAsset);
+	const FString AnimTrackSetName = GltfAnimation.Name;
+	const FString AnimTrackSetNodeUid = TEXT("\\Animation\\") + AnimTrackSetName;
+	TrackSetNode->InitializeNode(AnimTrackSetNodeUid, AnimTrackSetName, EInterchangeNodeContainerType::TranslatedAsset);
 
 	for (const TTuple<const GLTF::FNode*, TArray<int32>>& NodeChannelsEntry : NodeChannelsMap)
 	{
@@ -1439,7 +1444,8 @@ void UInterchangeGltfTranslator::SetTextureSRGB(UInterchangeBaseNodeContainer& N
 {
 	if (GltfAsset.Textures.IsValidIndex(TextureMap.TextureIndex))
 	{
-		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid(GltfAsset.Textures[TextureMap.TextureIndex].UniqueId);
+		const FString TextureName = GltfAsset.Textures[TextureMap.TextureIndex].Name;
+		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid(TextureName);
 		if (UInterchangeTextureNode* TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureUid))))
 		{
 			TextureNode->SetCustomSRGB(true);
@@ -1450,7 +1456,8 @@ void UInterchangeGltfTranslator::SetTextureFlipGreenChannel(UInterchangeBaseNode
 {
 	if (GltfAsset.Textures.IsValidIndex(TextureMap.TextureIndex))
 	{
-		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid(GltfAsset.Textures[TextureMap.TextureIndex].UniqueId);
+		const FString TextureName = GltfAsset.Textures[TextureMap.TextureIndex].Name;
+		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid(TextureName);
 		if (UInterchangeTextureNode* TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureUid))))
 		{
 			TextureNode->SetCustombFlipGreenChannel(true);
@@ -1551,7 +1558,7 @@ void UInterchangeGltfTranslator::HandleGltfVariants(UInterchangeBaseNodeContaine
 								}
 
 								const GLTF::FMaterial& GltfMaterial = Materials[VariantMapping.MaterialIndex];
-								const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfMaterial.UniqueId);
+								const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfMaterial.Name);
 
 								VariantSetNode->AddCustomDependencyUid(MaterialUid);
 
@@ -1632,7 +1639,7 @@ bool UInterchangeGltfTranslator::GetVariantSetPayloadData(UE::Interchange::FVari
 						}
 
 						const GLTF::FMaterial& GltfMaterial = Materials[VariantMapping.MaterialIndex];
-						const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfMaterial.UniqueId);
+						const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfMaterial.Name);
 
 						for (int32 VariantIndex : VariantMapping.VariantIndices)
 						{
@@ -1745,9 +1752,8 @@ void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContain
 
 			//Skeletal Mesh's naming policy: (Mesh.Name)_(RootJointNode.Name) naming policy:
 			FString SkeletalName = GltfAsset.Meshes[MeshIndex].Name + TEXT("_") + GltfAsset.Nodes[RootJointIndex].Name;
-			FString SkeletalId = GltfAsset.Meshes[MeshIndex].UniqueId + TEXT("_") + GltfAsset.Nodes[RootJointIndex].UniqueId;
 
-			UInterchangeMeshNode* SkeletalMeshNode = HandleGltfMesh(NodeContainer, GltfAsset.Meshes[MeshIndex], MeshIndex, UnusedMeshIndices, SkeletalName, SkeletalId);
+			UInterchangeMeshNode* SkeletalMeshNode = HandleGltfMesh(NodeContainer, GltfAsset.Meshes[MeshIndex], MeshIndex, UnusedMeshIndices, SkeletalName);
 
 			SkeletalMeshNode->SetSkinnedMesh(true);
 
@@ -1798,8 +1804,7 @@ void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContain
 UInterchangeMeshNode* UInterchangeGltfTranslator::HandleGltfMesh(UInterchangeBaseNodeContainer& NodeContainer, 
 	const GLTF::FMesh& GltfMesh, int MeshIndex, 
 	TSet<int>& UnusedMeshIndices, 
-	const FString& SkeletalName/*If set it creates the mesh even if it was already created (for Skeletals)*/,
-	const FString& SkeletalId) const
+	const FString& SkeletalName/*If set it creates the mesh even if it was already created (for Skeletals)*/) const
 {
 	if (!UnusedMeshIndices.Contains(MeshIndex) && SkeletalName.Len() == 0)
 	{
@@ -1809,7 +1814,7 @@ UInterchangeMeshNode* UInterchangeGltfTranslator::HandleGltfMesh(UInterchangeBas
 	UnusedMeshIndices.Remove(MeshIndex);
 
 	UInterchangeMeshNode* MeshNode = NewObject< UInterchangeMeshNode >(&NodeContainer);
-	FString MeshNodeUid = TEXT("\\Mesh\\") + (SkeletalId.Len() ? SkeletalId : GltfMesh.UniqueId);
+	FString MeshNodeUid = TEXT("\\Mesh\\") + MeshName;
 
 	MeshNode->InitializeNode(MeshNodeUid, MeshName, EInterchangeNodeContainerType::TranslatedAsset);
 	MeshNode->SetPayLoadKey(LexToString(MeshIndex));
@@ -1824,7 +1829,7 @@ UInterchangeMeshNode* UInterchangeGltfTranslator::HandleGltfMesh(UInterchangeBas
 		if (GltfAsset.Materials.IsValidIndex(Primitive.MaterialIndex))
 		{
 			const FString MaterialName = GltfAsset.Materials[Primitive.MaterialIndex].Name;
-			const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfAsset.Materials[Primitive.MaterialIndex].UniqueId);
+			const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid(MaterialName);
 			MeshNode->SetSlotMaterialDependencyUid(MaterialName, ShaderGraphNodeUid);
 		}
 	}

@@ -167,15 +167,14 @@ FString UInterchangeShaderGraphNode::MakeNodeUid(const FStringView NodeName)
 	return FString(UInterchangeBaseNode::HierarchySeparator) + TEXT("Shaders") + FString(UInterchangeBaseNode::HierarchySeparator) + NodeName;
 }
 
-UInterchangeShaderGraphNode* UInterchangeShaderGraphNode::Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView ShaderGraphNodeName /*Or ShaderGraphNodeId*/, const FStringView ShaderGraphNodeDisplayLabel)
+UInterchangeShaderGraphNode* UInterchangeShaderGraphNode::Create(UInterchangeBaseNodeContainer* NodeContainer, const FStringView NodeName)
 {
 	check(NodeContainer);
-	
-	const FString NodeUid = MakeNodeUid(ShaderGraphNodeName);
-	const FStringView NodeDisplayLabel = ShaderGraphNodeDisplayLabel.IsEmpty() ? ShaderGraphNodeName : ShaderGraphNodeDisplayLabel;
+
+	const FString ShaderGraphNodeUid = MakeNodeUid(NodeName);
 
 	UInterchangeShaderGraphNode* ShaderGraphNode = NewObject< UInterchangeShaderGraphNode >(NodeContainer);
-	ShaderGraphNode->InitializeNode(NodeUid, FString(NodeDisplayLabel), EInterchangeNodeContainerType::TranslatedAsset);
+	ShaderGraphNode->InitializeNode(ShaderGraphNodeUid, FString(NodeName), EInterchangeNodeContainerType::TranslatedAsset);
 
 	NodeContainer->AddNode(ShaderGraphNode);
 

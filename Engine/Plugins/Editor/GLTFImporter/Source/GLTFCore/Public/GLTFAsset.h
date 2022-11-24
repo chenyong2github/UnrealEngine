@@ -37,7 +37,6 @@ namespace GLTF
 	{
 		FString       Name;
 		TArray<int32> Nodes;
-		FString	      UniqueId; //will be generated in FAsset::GenerateNames
 	};
 
 	struct GLTFCORE_API FMetadata
