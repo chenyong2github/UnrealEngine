@@ -276,13 +276,12 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFInd
 			}
 
 			const FStrataSubsurfaceHeader SSSHeader			= StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, InCoord);
-			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
-			const FStrataIrradianceAndOcclusion IrradianceAO = StrataGetIrradianceAndAO(StrataPixelHeader);
+			const FStrataBSDF BSDF							= UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
+			const FStrataIrradianceAndOcclusion IrradianceAO= StrataGetIrradianceAndAO(StrataPixelHeader);
 
 			Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InCoord, 0)).r);
 			Out.TangentBasis					= StrataGetBSDFSharedBasis(StrataPixelHeader, BSDF, StrataAddressing);
 			Out.WorldNormal						= Out.TangentBasis[2];
-			Out.TopLayerRoughness				= Out.Roughness;
 			Out.MaterialAO						= IrradianceAO.MaterialAO;
 			Out.ShadingID						= SHADINGMODELID_STRATA;
 			Out.DiffuseIndirectSampleOcclusion	= IrradianceAO.DiffuseIndirectSampleOcclusion;
