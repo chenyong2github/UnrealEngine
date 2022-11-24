@@ -359,6 +359,11 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 				else
 				{
 					ObjectResult = FGetObjectResult(NewObject<UObject>(NewObjectOuter, ObjectClass, *ObjectNameToCreate.ToString(), (EObjectFlags)InObjectId.ObjectPersistentFlags), EGetObjectResultFlags::NewlyCreated);
+
+					if (UActorComponent* NewComponent = Cast<UActorComponent>(ObjectResult.Obj))
+					{
+						NewComponent->RegisterComponent();
+					}
 				}
 				
 				// if we have any package assignment, do it here
