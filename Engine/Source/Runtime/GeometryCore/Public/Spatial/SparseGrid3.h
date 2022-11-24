@@ -94,7 +94,7 @@ public:
 	 * @param bAllocateIfMissing if the element at this index is null, allocate a new one
 	 * @return pointer to ElemType instance, or nullptr if element doesn't exist
 	 */
-	ElemType* Get(const FVector3i& Index, bool bAllocateIfMissing = true)
+	ElemType* Get(const FVector3i& Index, bool bAllocateIfMissing)
 	{
 		ElemType* result = Elements.FindRef(Index);
 		if (result != nullptr)
@@ -170,7 +170,7 @@ public:
 
 
 	/**
-	 * Iterate over existing elements and apply ElementFunc to each of them
+	 * Iterate over existing elements and apply ElementFunc(ElementType) to each of them
 	 */
 	template<typename Func>
 	void AllocatedIteration(Func ElementFunc) const
@@ -180,6 +180,31 @@ public:
 			ElementFunc(Pair.Value);
 		}
 	}
+
+
+	/**
+	 * Iterate over existing allocated elements within the integer bounds defined 
+	 * by Min and Max (inclusive), and apply ElementFunc(ElementType) to each of them
+	 */
+	template<typename Func>
+	void RangeIteration(FVector3i MinIndex, FVector3i MaxIndex, Func ElementFunc) const
+	{
+		for (int32 zi = MinIndex.Z; zi <= MaxIndex.Z; ++zi)
+		{
+			for (int32 yi = MinIndex.Y; yi <= MaxIndex.Y; ++yi)
+			{
+				for (int32 xi = MinIndex.X; xi <= MaxIndex.X; ++xi)
+				{
+					const ElemType* Found = Elements.FindRef(FVector3i(xi,yi,zi));
+					if (Found != nullptr)
+					{
+						ElementFunc(*Found);
+					}
+				}
+			}
+		}
+	}
+
 
 
 protected:

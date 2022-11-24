@@ -21,7 +21,7 @@ void FPointSetHashtable::Build(double CellSizeIn, const FVector3d& OriginIn)
 		{
 			FVector3d Pt = Points->GetPoint(i);
 			FVector3i Idx = GridIndexer.ToGrid(Pt);
-			PointList* CellList = Grid.Get(Idx);
+			PointList* CellList = Grid.Get(Idx, true);
 			CellList->Add(i);
 		}
 	}

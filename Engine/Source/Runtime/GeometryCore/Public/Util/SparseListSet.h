@@ -42,7 +42,7 @@ public:
 	TSparseListSet()
 	{
 		ChunkList.Add(MakeUnique<FChunk>());
-		ChunkList[0]->ElementBuffer.SetNumUninitialized(BlocksPerChunk * BlockSize);
+		ChunkList[0]->Initialize(BlocksPerChunk * BlockSize);
 	}
 
 	/**

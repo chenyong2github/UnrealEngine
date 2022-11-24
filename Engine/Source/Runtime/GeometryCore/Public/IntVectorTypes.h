@@ -445,6 +445,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		return X != Other.X || Y != Other.Y || Z != Other.Z;
 	}
+
+	constexpr bool operator<(const FVector3i& Other) const
+	{
+		if ( X != Other.X ) return X < Other.X;
+		else if (Y != Other.Y) return Y < Other.Y;
+		else if (Z != Other.Z) return Z < Other.Z;
+		else return false;
+	}
 };
 
 
