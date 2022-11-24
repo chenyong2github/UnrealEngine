@@ -1077,7 +1077,7 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 			UpdateMorphMaterialUsageOnProxy();
 		}
 
-		if (MeshDeformerInstance != nullptr)
+		if (MeshDeformerInstance != nullptr && UseLOD <= GetMeshDeformerMaxLOD())
 		{
 			if (MeshDeformerInstance->IsActive())
 			{
@@ -2141,6 +2141,19 @@ void USkinnedMeshComponent::SetMeshDeformer(UMeshDeformer* InMeshDeformer)
 void USkinnedMeshComponent::UnsetMeshDeformer()
 {
 	SetMeshDeformer(false, nullptr);
+}
+
+static TAutoConsoleVariable<int32> CVarMeshDeformerMaxLod(
+	TEXT("r.MeshDeformerMaxLOD"),
+	-1,
+	TEXT("Don't apply MeshDeformers to SkinnedMeshs above this LOD.\n")
+	TEXT("Default is -1 (disabled).\n"),
+	ECVF_Default);
+
+int32 USkinnedMeshComponent::GetMeshDeformerMaxLOD() const
+{
+	int32 MaxLod = CVarMeshDeformerMaxLod.GetValueOnGameThread();
+	return MaxLod >= 0 ? MaxLod : GetNumLODs() - 1;
 }
 
 FSkeletalMeshRenderData* USkinnedMeshComponent::GetSkeletalMeshRenderData() const

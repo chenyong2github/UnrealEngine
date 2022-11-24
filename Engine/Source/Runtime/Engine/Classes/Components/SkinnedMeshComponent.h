@@ -263,7 +263,10 @@ protected:
 
 public:
 	/** Get the currently active MeshDeformer Instance. */
-	virtual UMeshDeformerInstance const* GetMeshDeformerInstance() const override { return MeshDeformerInstance; }
+	UMeshDeformerInstance const* GetMeshDeformerInstance() const override { return MeshDeformerInstance; }
+
+	/** Max LOD at which to update or apply the MeshDeformer. */
+	int32 GetMeshDeformerMaxLOD() const;
 
 	/** const getters for previous transform idea */
 	const TArray<uint8>& GetPreviousBoneVisibilityStates() const
