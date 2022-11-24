@@ -284,6 +284,7 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 		if (TargetInfo != nullptr)
 		{
 			LauncherProfile->SetBuildTarget(TargetInfo->Name);
+			LauncherProfile->SetBuildTargetSpecified(true);
 		}
 	}
 	LauncherProfile->SetCookMode(CurrentLauncherCookMode);
