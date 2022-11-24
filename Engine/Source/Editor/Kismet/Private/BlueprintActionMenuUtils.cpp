@@ -672,7 +672,7 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 	FBlueprintActionFilter AddComponentFilter;
 	AddComponentFilter.Context = MainMenuFilter.Context;
 	AddComponentFilter.PermittedNodeTypes.Add(UK2Node_AddComponent::StaticClass());
-	LevelActorsFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsUnBoundSpawner)->WithFlags(EActionFilterTestFlags::CacheResults));
+	AddComponentFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsUnBoundSpawner)->WithFlags(EActionFilterTestFlags::CacheResults));
 
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
