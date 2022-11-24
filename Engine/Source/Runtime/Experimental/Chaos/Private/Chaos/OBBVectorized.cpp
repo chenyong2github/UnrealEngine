@@ -8,7 +8,7 @@
 namespace Chaos
 {
 
-	FOBBVectorized::FOBBVectorized(const FRigidTransform3& Transform, const FVec3f& HalfExtentsIn)
+	Private::FOBBVectorized::FOBBVectorized(const FRigidTransform3& Transform, const FVec3f& HalfExtentsIn)
 	{
 		TRotation<FRealSingle, 3> Rotation = Transform.GetRotation();
 		PMatrix<FRealSingle, 3, 3> Matrix = Rotation.ToMatrix();
@@ -20,16 +20,16 @@ namespace Chaos
 		Position = MakeVectorRegisterFloatFromDouble(VectorLoadDouble3(&Translation.X));
 
 		HalfExtents = VectorLoadFloat3(&HalfExtentsIn.X);
-		XHalfExtent = VectorReplicate(HalfExtents, 0);
-		YHalfExtent = VectorReplicate(HalfExtents, 1);
-		ZHalfExtent = VectorReplicate(HalfExtents, 2);
+		const VectorRegister4Float XHalfExtent = VectorReplicate(HalfExtents, 0);
+		const VectorRegister4Float YHalfExtent = VectorReplicate(HalfExtents, 1);
+		const VectorRegister4Float ZHalfExtent = VectorReplicate(HalfExtents, 2);
 
 		VectorRegister4Float FurthestPoint = VectorMultiplyAdd(VectorAbs(XAxis), XHalfExtent, VectorMultiplyAdd(VectorAbs(YAxis), YHalfExtent, VectorMultiply(VectorAbs(ZAxis), ZHalfExtent)));
 		MaxObb = VectorAdd(Position, FurthestPoint);
 		MinObb = VectorSubtract(Position, FurthestPoint);
 	}
 
-	bool FOBBVectorized::IntersectAABB(const FAABBVectorized& Bounds) const
+	bool Private::FOBBVectorized::IntersectAABB(const FAABBVectorized& Bounds) const
 	{
 		VectorRegister4Float HasSeparationAxis = VectorBitwiseOr(VectorCompareGT(MinObb, Bounds.GetMax()), VectorCompareGT(Bounds.GetMin(), MaxObb));
 

@@ -184,7 +184,7 @@ namespace Chaos
 		}
 
 		template <typename SQVisitor>
-		FORCEINLINE_DEBUGGABLE void OverlapOBB(const FOBBVectorized& Obb, SQVisitor& Visitor) const
+		FORCEINLINE_DEBUGGABLE void OverlapOBB(const Private::FOBBVectorized& Obb, SQVisitor& Visitor) const
 		{
 			const auto BoundsFilter = [&Obb](const FAABBVectorized& Bounds) -> EFilterResult
 			{
@@ -202,7 +202,7 @@ namespace Chaos
 		}
 
 		template <typename QueryGeomType>
-		bool FindAllIntersectionsNoMTD(const FOBBVectorized& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const;
+		bool FindAllIntersectionsNoMTD(const Private::FOBBVectorized& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const;
 		template <typename QueryGeomType>
 		bool FindAllIntersectionsNoMTD(const FAABB3& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const;
 		TArray<int32> FindAllIntersections(const FAABB3& Intersection) const;

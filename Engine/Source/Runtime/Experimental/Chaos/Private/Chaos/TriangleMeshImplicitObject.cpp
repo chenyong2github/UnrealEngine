@@ -656,7 +656,7 @@ bool FTrimeshBVH::FindAllIntersectionsNoMTD(const FAABB3& Intersection, const TR
 }
 
 template <typename QueryGeomType>
-bool FTrimeshBVH::FindAllIntersectionsNoMTD(const FOBBVectorized& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const
+bool FTrimeshBVH::FindAllIntersectionsNoMTD(const Private::FOBBVectorized& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const
 {
 	FTriangleMeshOverlapVisitorNoMTD Visitor(Transform, QueryGeom, Thickness, TriMeshScale, TriMesh);
 	OverlapOBB(Intersection, Visitor);
@@ -1010,7 +1010,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 		{
 			FAABB3 GeometryAABB = QueryGeom.BoundingBox();
 			GeometryAABB.ThickenSymmetrically(FVec3(Thickness));
-			FOBBVectorized QueryObb(QueryTM, (GeometryAABB.Max() - GeometryAABB.Min()) * 0.5);
+			Private::FOBBVectorized QueryObb(QueryTM, (GeometryAABB.Max() - GeometryAABB.Min()) * 0.5);
 			TRigidTransform<FReal, 3> WorldScaleQueryTM;
 			ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
 			return FastBVH.FindAllIntersectionsNoMTD(QueryObb, WorldScaleQueryTM, WorldScaleQueryGeom, Thickness, TriMeshScale, this);
