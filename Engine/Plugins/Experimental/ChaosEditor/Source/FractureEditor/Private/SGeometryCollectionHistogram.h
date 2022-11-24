@@ -79,8 +79,7 @@ public:
 
 private:
 	TWeakObjectPtr<UGeometryCollectionComponent> Component;
-	TMap<FGuid, FGeometryCollectionHistogramItemPtr> NodesMap;
-	TMap<FGuid, int32> GuidIndexMap;
+	TMap<int32, FGeometryCollectionHistogramItemPtr> ItemByBoneIndex;
 };
 
 
@@ -88,9 +87,8 @@ private:
 class FGeometryCollectionHistogramItem : public TSharedFromThis<FGeometryCollectionHistogramItem>
 {
 public:
-	FGeometryCollectionHistogramItem(const FGuid NewGuid, const int32 InBoneIndex, const TSharedPtr<FGeometryCollectionHistogramItemComponent> InParentComponentItem)
-		: Guid(NewGuid)
-		, BoneIndex(InBoneIndex)
+	FGeometryCollectionHistogramItem(const int32 InBoneIndex, const TSharedPtr<FGeometryCollectionHistogramItemComponent> InParentComponentItem)
+		: BoneIndex(InBoneIndex)
 		, ParentComponentItem(InParentComponentItem)
 		, ListIndex(0)
 		, NodeColor(FLinearColor::Black)
@@ -112,7 +110,6 @@ public:
 	int32 GetListIndex() const { return ListIndex; }
 
 private:
-	const FGuid Guid;
 	const int32 BoneIndex;
 	const TSharedPtr<FGeometryCollectionHistogramItemComponent> ParentComponentItem;
 	

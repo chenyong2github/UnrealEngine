@@ -713,10 +713,6 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 		{
 			HistogramView->RegenerateNodes(GetLevelViewValue());
 		}
-		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ItemText))
-		{
-			OutlinerView->RegenerateItems();
-		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ColorByLevel))
 		{
 			OutlinerView->RegenerateItems();
@@ -727,7 +723,6 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ColumnMode))
 		{
 			OutlinerView->RegenerateHeader();
-			OutlinerView->RegenerateItems();
 			FGeometryCollectionStatistics Stats;
 			GetStatisticsSummary(Stats);
 			StatisticsView->SetStatistics(Stats);

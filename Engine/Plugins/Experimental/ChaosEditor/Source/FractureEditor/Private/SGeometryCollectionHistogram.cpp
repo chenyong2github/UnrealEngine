@@ -114,15 +114,7 @@ void FGeometryCollectionHistogramItem::SetNormalizedValue(float MinValue, float 
 
 FGeometryCollectionHistogramItemPtr FGeometryCollectionHistogramItemComponent::GetItemFromBoneIndex(int32 BoneIndex) const
 {
-	for (auto& Pair : NodesMap)
-	{
-		if (Pair.Value->GetBoneIndex() == BoneIndex)
-		{
-			return Pair.Value;
-		}
-	}
-
-	return FGeometryCollectionHistogramItemPtr();
+	return ItemByBoneIndex.FindRef(BoneIndex);
 }
 
 FGeometryCollectionHistogramItemList FGeometryCollectionHistogramItemComponent::RegenerateNodes(int32 LevelView)
@@ -142,15 +134,12 @@ FGeometryCollectionHistogramItemList FGeometryCollectionHistogramItemComponent::
 	{
 		FGeometryCollection* Collection = Component->GetRestCollection()->GetGeometryCollection().Get();
 
-		NodesMap.Empty();
-		GuidIndexMap.Empty();
+		ItemByBoneIndex.Empty();
 
 		if (Collection)
 		{
 			int32 NumElements = Collection->NumElements(FGeometryCollection::TransformGroup);
-			::GeometryCollection::GenerateTemporaryGuids(Collection);
 
-			const TManagedArray<FGuid>& Guids = Collection->GetAttribute<FGuid>("GUID", "Transform");
 			const TManagedArray<int32>& GeometryToTransform = Collection->GetAttribute<int32>("TransformIndex", "Geometry");
 			const TManagedArray<FLinearColor>& BoneColor = Collection->GetAttribute<FLinearColor>("BoneColor", "Transform");
 		
@@ -172,14 +161,13 @@ FGeometryCollectionHistogramItemList FGeometryCollectionHistogramItemComponent::
 						}
 					}
 
-					TSharedRef<FGeometryCollectionHistogramItem> NewItem = MakeShared<FGeometryCollectionHistogramItem>(Guids[Index], Index, AsShared());
+					TSharedRef<FGeometryCollectionHistogramItem> NewItem = MakeShared<FGeometryCollectionHistogramItem>(Index, AsShared());
 
-					FLinearColor GeoColor = BoneColor[Index];
+					const FLinearColor GeoColor = BoneColor[Index];
 					NewItem->SetColor(GeoColor);
 
 					NodesList.Add(NewItem);
-					NodesMap.Add(Guids[Index], NewItem);
-					GuidIndexMap.Add(Guids[Index], Index);
+					ItemByBoneIndex.Add(Index, NewItem);
 				}
 			}
 		}
