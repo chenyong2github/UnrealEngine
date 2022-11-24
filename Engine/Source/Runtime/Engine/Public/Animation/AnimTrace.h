@@ -113,6 +113,9 @@ struct FAnimTrace
 		float Thickness;
 		bool bPersistentLines;
 	};
+	
+	/** Reset Caches so a new trace can be started*/
+	ENGINE_API static void Reset();
 
 	/** Helper function to output a tick record */
 	ENGINE_API FORCENOINLINE static void OutputAnimTickRecord(const FAnimationBaseContext& InContext, const FAnimTickRecord& InTickRecord);

@@ -682,10 +682,13 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 
 	// terminate existing scopes
 	uint64 NumEvents = TimelineStorage->Timeline->GetEventCount();
-	if(NumEvents > 0)
+	if (NumEvents > 0)
 	{
 		// Add end event at current time
-		TimelineStorage->Timeline->EndEvent(NumEvents - 1, InProfileTime);
+		if (TimelineStorage->Timeline->GetEventEndTime(NumEvents - 1) > InProfileTime)
+		{
+			TimelineStorage->Timeline->EndEvent(NumEvents - 1, InProfileTime);
+		}
 	}
 
 	const int32 NumCurves = InCurveIds.Num();

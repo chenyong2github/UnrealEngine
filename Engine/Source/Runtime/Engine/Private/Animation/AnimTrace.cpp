@@ -269,6 +269,12 @@ uint32 GAnimTraceCurrentNameId = 1;
 // Critical section used to lock global name map & index
 FCriticalSection GAnimTraceNameCriticalSection;
 
+void FAnimTrace::Reset()
+{
+	GSkeletalMeshTraceAnnotations.ClearAll();
+	GAnimTraceCurrentNameId = 1;
+}
+
 // Scratch buffers for various traces to avoid allocation churn.
 // These can be removed when lambda support is added for array fields to remove a memcpy.
 struct FAnimTraceScratchBuffers : public TThreadSingleton<FAnimTraceScratchBuffers>

@@ -48,6 +48,9 @@ struct FObjectTrace
 
 	/** Shut down object tracing */
 	ENGINE_API static void Destroy();
+	
+	/** Reset Caches so a new trace can be started*/
+	ENGINE_API static void Reset();
 
 	/** Helper function to output an object */
 	ENGINE_API static void OutputClass(const UClass* InClass);

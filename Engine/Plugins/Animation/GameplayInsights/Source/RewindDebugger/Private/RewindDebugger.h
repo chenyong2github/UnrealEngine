@@ -46,6 +46,9 @@ public:
 	virtual TSharedPtr<RewindDebugger::FRewindDebuggerTrack> GetSelectedTrack() const override;
 	virtual TArray<TSharedPtr<FDebugObjectInfo>>& GetDebugComponents() override;
 	
+
+	void GetTargetObjectIds(TArray<uint64>& OutActorIds) const;
+
 	TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>& GetDebugTracks() { return DebugTracks; }
 
 	// create singleton instance
@@ -183,6 +186,7 @@ private:
 		FTransform RelativeTransform;
 	};
 
+	TArray<uint64> TargetObjectIds;
 	TMap<uint64, FMeshComponentResetData> MeshComponentsToReset;
 
 	mutable class IUnrealInsightsModule *UnrealInsightsModule;

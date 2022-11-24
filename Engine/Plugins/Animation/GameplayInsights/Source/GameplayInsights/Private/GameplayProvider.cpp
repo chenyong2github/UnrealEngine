@@ -486,7 +486,10 @@ void FGameplayProvider::AppendObjectLifetimeEnd(uint64 InObjectId, double InProf
 
 	if (const uint64 *FoundIndex = ActiveObjectRecordingLifetimes.Find(InObjectId))
 	{
-		ObjectRecordingLifetimes.EndEvent(*FoundIndex, InRecordingTime);
+		if(ObjectRecordingLifetimes.GetEventEndTime(*FoundIndex) > InRecordingTime)
+		{
+			ObjectRecordingLifetimes.EndEvent(*FoundIndex, InRecordingTime);
+		}
 		// do not remove from ActiveObjectRecordingLifetimes - lifetimes can be queried by Object Id in GetObjectRecordingLifetime
 	}
 

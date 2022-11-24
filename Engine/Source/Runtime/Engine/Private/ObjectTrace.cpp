@@ -180,6 +180,12 @@ void FObjectTrace::Destroy()
 	FWorldDelegates::OnWorldTickStart.Remove(WorldTickStartHandle);
 }
 
+void FObjectTrace::Reset()
+{
+	GObjectIdAnnotations.RemoveAllAnnotations();
+	GObjectTracedAnnotations.RemoveAllAnnotations();
+}
+
 uint64 FObjectTrace::GetObjectId(const UObject* InObject)
 {
 	// An object ID uses a combination of its own and its outer's index
@@ -234,6 +240,8 @@ void FObjectTrace::ResetWorldElapsedTime(const UWorld* World)
 	{
 		WorldSubsystem->ElapsedTime = 0;
 	}
+
+	GObjectTracedAnnotations.RemoveAllAnnotations();
 }
 
 double FObjectTrace::GetWorldElapsedTime(const UWorld* World)
@@ -416,6 +424,11 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 		<< Object.OuterId(GetObjectId(InObject->GetOuter()))
 		<< Object.Name(ObjectName, ObjectNameLength)
 		<< Object.Path(*ObjectPathName, ObjectPathName.Len());
+
+	UE_TRACE_LOG(Object, ObjectLifetimeBegin2, ObjectChannel)
+		<< ObjectLifetimeBegin2.Cycle(FPlatformTime::Cycles64())
+		<< ObjectLifetimeBegin2.RecordingTime(FObjectTrace::GetWorldElapsedTime(InObject->GetWorld()))
+		<< ObjectLifetimeBegin2.Id(GetObjectId(InObject));
 }
 
 void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEvent)
@@ -446,28 +459,7 @@ void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEve
 
 void FObjectTrace::OutputObjectLifetimeBegin(const UObject* InObject)
 {
-	const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectChannel);
-	if (!bChannelEnabled || InObject == nullptr)
-	{
-		return;
-	}
-
-	if(InObject->HasAnyFlags(RF_ClassDefaultObject))
-	{
-		return;
-	}
-
-	if (CANNOT_TRACE_OBJECT(InObject->GetWorld()))
-	{
-		return;
-	}
-
 	TRACE_OBJECT(InObject);
-
-	UE_TRACE_LOG(Object, ObjectLifetimeBegin2, ObjectChannel)
-		<< ObjectLifetimeBegin2.Cycle(FPlatformTime::Cycles64())
-		<< ObjectLifetimeBegin2.RecordingTime(FObjectTrace::GetWorldElapsedTime(InObject->GetWorld()))
-		<< ObjectLifetimeBegin2.Id(GetObjectId(InObject));
 }
 
 void FObjectTrace::OutputObjectLifetimeEnd(const UObject* InObject)
