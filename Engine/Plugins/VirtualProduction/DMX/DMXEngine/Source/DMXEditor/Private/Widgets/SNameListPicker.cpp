@@ -152,6 +152,11 @@ void SNameListPicker::OnSelectionChanged(const TSharedPtr<FName> Item, ESelectIn
 		return;
 	}
 
+	if (Item.IsValid())
+	{
+		EdititableTextBox->SetText(FText::FromString(Item->ToString()));
+	}
+
 	OnUserSelectedItem(Item);
 }
 
