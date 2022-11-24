@@ -425,7 +425,8 @@ public:
 	 * for the trailer.
 	 * 
 	 * @param Ar	The archive to load the trailer from
-	 * @return		True if a valid trailer was found and was able to be loaded, otherwise false.
+	 * @return		True if a valid trailer was found and was able to be loaded, otherwise false. If the trailer was found but failed
+	 *				to load then the archive will be set to the error state.
 	 */
 	[[nodiscard]] bool TryLoad(FArchive& Ar);
 
@@ -434,7 +435,8 @@ public:
 	 * and so will attempt to read the footer first and use that to find the start of the trailer in order to read the header.
 	 * 
 	 * @param Ar	The archive to load the trailer from
-	 * @return		True if a valid trailer was found and was able to be loaded, otherwise false.
+	 * @return		True if a valid trailer was found and was able to be loaded, otherwise false. If the trailer was found but failed
+	 *				to load then the archive will be set to the error state.
 	 */
 	[[nodiscard]] bool TryLoadBackwards(FArchive& Ar);
 

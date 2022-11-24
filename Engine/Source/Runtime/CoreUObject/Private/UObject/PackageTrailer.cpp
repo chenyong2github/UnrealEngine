@@ -81,6 +81,43 @@ Private::FLookupTableEntry* FindEntryInHeader(FPackageTrailer::FHeader& Header, 
 	return Entry;
 }
 
+/** 
+ * Utility to check if a FLookupTableEntry seems valid for the trailer.
+ * @param	Entry					The entry we are trying to validate
+ * @param	PayloadDataEndPoint		The end point of the payloads stored locally. Anything
+ *									exceeding this point is not valud.
+ * 
+ * @return							True if it looks like the entry could exist in the 
+  *									current trailer, false if 
+ *									there are obvious problems.
+ */
+bool IsEntryValid(const Private::FLookupTableEntry& Entry, uint64 PayloadDataEndPoint)
+{
+	// If the entry is virtualized then we should assume that it is valid.
+	if (Entry.IsVirtualized())
+	{
+		return true;
+	}
+
+	// If not virtualized then the offset should not be negative
+	if (Entry.OffsetInFile < 0)
+	{
+		return false;
+	}
+
+	// PayloadDataEndPoint only applies if the entry is for a locally stored payload
+	if (Entry.IsLocal())
+	{
+		// A locally stored payload must end before PayloadDataEndPoint
+		if ((uint64)Entry.OffsetInFile + Entry.CompressedSize > PayloadDataEndPoint)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 } //namespace
 
 namespace Private
@@ -434,10 +471,10 @@ void FPackageTrailerBuilder::RemoveDuplicateEntries()
 	for (auto Iter = LocalEntries.CreateIterator(); Iter; ++Iter)
 	{
 		if (VirtualizedEntries.Contains(Iter.Key()))
-		{	
-			UE_LOG(LogSerialization, Verbose, 
-				TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"), 
-				*LexToString(Iter.Key()) , 
+		{
+			UE_LOG(LogSerialization, Verbose,
+				TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"),
+				*LexToString(Iter.Key()),
 				*DebugContext);
 
 			Iter.RemoveCurrent();
@@ -448,9 +485,9 @@ void FPackageTrailerBuilder::RemoveDuplicateEntries()
 	{
 		if (VirtualizedEntries.Contains(Iter.Key()))
 		{
-			UE_LOG(LogSerialization, Verbose, 
-				TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"), 
-				*LexToString(Iter.Key()), 
+			UE_LOG(LogSerialization, Verbose,
+				TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"),
+				*LexToString(Iter.Key()),
 				*DebugContext);
 
 			Iter.RemoveCurrent();
@@ -465,7 +502,7 @@ bool FPackageTrailer::IsEnabled()
 		bool bEnabled = true;
 
 		FUsePackageTrailer()
-		{		
+		{
 			GConfig->GetBool(TEXT("Core.System"), TEXT("UsePackageTrailer"), bEnabled, GEngineIni);
 			UE_LOG(LogSerialization, Log, TEXT("UsePackageTrailer: '%s'"), bEnabled ? TEXT("true") : TEXT("false"));
 		}
@@ -488,7 +525,7 @@ bool FPackageTrailer::TryLoadFromPackage(const FPackagePath& PackagePath, FPacka
 	{
 		LogPackageOpenFailureMessage(PackagePath.GetDebugName());
 		return false;
-	}	
+	}
 }
 
 bool FPackageTrailer::TryLoadFromFile(const FString& Path, FPackageTrailer& OutTrailer)
@@ -519,6 +556,7 @@ bool FPackageTrailer::TryLoad(FArchive& Ar)
 
 	TrailerPositionInFile = Ar.Tell();
 
+	Header.Tag = 0; // Make sure we ignore anything previously loaded
 	Ar << Header.Tag;
 
 	// Make sure that we are parsing a valid FPackageTrailer
@@ -528,9 +566,15 @@ bool FPackageTrailer::TryLoad(FArchive& Ar)
 	}
 
 	Ar << Header.Version;
-
 	Ar << Header.HeaderLength;
 	Ar << Header.PayloadsDataLength;
+
+	// The header and the payloads should not exceed the remaining data in the archive
+	if (TrailerPositionInFile + Header.HeaderLength + Header.PayloadsDataLength > (uint64)Ar.TotalSize())
+	{
+		Ar.SetError();
+		return false;
+	}
 
 	EPayloadAccessMode LegacyAccessMode = EPayloadAccessMode::Local;
 	if (Header.Version < (uint32)EPackageTrailerVersion::ACCESS_PER_PAYLOAD)
@@ -540,6 +584,19 @@ bool FPackageTrailer::TryLoad(FArchive& Ar)
 
 	int32 NumPayloads = 0;
 	Ar << NumPayloads;
+	
+	// Make sure that we serialized a valid value for 'NumPayloads' before we try to allocate memory based off it
+	if (Ar.IsError())
+	{
+		return false; 
+	}
+
+	// Make sure that there is enough data remaining in the archive to load the look up table
+	if (NumPayloads * Private::FLookupTableEntry::SizeOnDisk > Header.HeaderLength)
+	{
+		Ar.SetError();
+		return false;
+	}
 
 	Header.PayloadLookupTable.Reserve(NumPayloads);
 
@@ -547,6 +604,13 @@ bool FPackageTrailer::TryLoad(FArchive& Ar)
 	{
 		Private::FLookupTableEntry& Entry = Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Serialize(Ar, (EPackageTrailerVersion)Header.Version);
+
+		if (!IsEntryValid(Entry, Header.PayloadsDataLength))
+		{
+			// If an entry is invalid then something is likely up with the data so signal an error
+			Ar.SetError();
+			return false;
+		}
 
 		if (Header.Version < (uint32)EPackageTrailerVersion::ACCESS_PER_PAYLOAD)
 		{
@@ -575,9 +639,16 @@ bool FPackageTrailer::TryLoadBackwards(FArchive& Ar)
 	Ar << Footer.TrailerLength;
 	Ar << Footer.PackageTag;
 
-	// First check the package tag as this indicates if the file is corrupted or not
+	// First make sure that we were able to serialize everything
+	if (Ar.IsError())
+	{
+		return false;
+	}
+
+	// Then check the package tag as this indicates if the data/file is corrupted or not
 	if (Footer.PackageTag != PACKAGE_FILE_TAG)
 	{
+		Ar.SetError();
 		return false;
 	}
 
@@ -588,6 +659,12 @@ bool FPackageTrailer::TryLoadBackwards(FArchive& Ar)
 	}
 
 	Ar.Seek(Ar.Tell() - Footer.TrailerLength);
+
+	// Lastly make sure we were able to see to where we believe the header is before we try to load it
+	if (Ar.IsError())
+	{
+		return false;
+	}
 
 	return TryLoad(Ar);
 }
