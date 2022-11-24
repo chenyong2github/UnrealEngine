@@ -1632,7 +1632,9 @@ void FilterInvalidPSOs(TSet<FPipelineCacheFileFormatPSO>& InOutPSOs, const TMult
 		TEXT("FRenderSkyAtmosphereVS"),
 		TEXT("TPageTableUpdateVS<true>"),
 		TEXT("TPageTableUpdateVS<false>"),
-		TEXT("FShaderDrawDebugVS")
+		TEXT("FShaderDrawDebugVS"),
+		TEXT("FHWRasterizeVS"),
+		TEXT("FRenderRealTimeReflectionHeightFogVS")
 	};
 
 	TSet<FName> VShadersUsableWithEmptyVertexDecl;
