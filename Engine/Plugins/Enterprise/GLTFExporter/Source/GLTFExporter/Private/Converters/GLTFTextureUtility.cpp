@@ -103,25 +103,6 @@ FIntPoint FGLTFTextureUtility::GetInGameSize(const UTexture* Texture)
 	return { InGameWidth, InGameHeight };
 }
 
-void FGLTFTextureUtility::GetAddressXY(const UTexture* Texture, TextureAddress& OutAddressX, TextureAddress& OutAddressY)
-{
-	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
-	{
-		OutAddressX = Texture2D->AddressX;
-		OutAddressY = Texture2D->AddressY;
-	}
-	else if (const UTextureRenderTarget2D* RenderTarget2D = Cast<UTextureRenderTarget2D>(Texture))
-	{
-		OutAddressX = RenderTarget2D->AddressX;
-		OutAddressY = RenderTarget2D->AddressY;
-	}
-	else
-	{
-		OutAddressX = TA_MAX;
-		OutAddressY = TA_MAX;
-	}
-}
-
 UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint& Size, bool bHDR)
 {
 	// TODO: instead of PF_FloatRGBA (i.e. RTF_RGBA16f) use PF_A32B32G32R32F (i.e. RTF_RGBA32f) to avoid accuracy loss

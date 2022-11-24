@@ -5,24 +5,6 @@
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFTextureUtility.h"
 
-FGLTFJsonSampler* FGLTFTextureSamplerConverter::Convert(const UTexture* Texture)
-{
-	TextureAddress AddressX;
-	TextureAddress AddressY;
-
-	if (FGLTFTextureUtility::IsCubemap(Texture))
-	{
-		AddressX = TA_Clamp;
-		AddressY = TA_Clamp;
-	}
-	else
-	{
-		FGLTFTextureUtility::GetAddressXY(Texture, AddressX, AddressY);
-	}
-
-	return Builder.AddUniqueSampler(AddressX, AddressY, Texture->Filter, Texture->LODGroup);
-}
-
 void FGLTFSamplerConverter::Sanitize(TextureAddress& AddressX, TextureAddress& AddressY, TextureFilter& Filter, TextureGroup& LODGroup)
 {
 	if (Filter == TF_Default)

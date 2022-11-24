@@ -247,7 +247,7 @@ FGLTFJsonSampler* FGLTFConvertBuilder::AddUniqueSampler(const UTexture* Texture)
 		return nullptr;
 	}
 
-	return TextureSamplerConverter->GetOrAdd(Texture);
+	return AddUniqueSampler(Texture->GetTextureAddressX(), Texture->GetTextureAddressY(), Texture->Filter, Texture->LODGroup);
 }
 
 FGLTFJsonSampler* FGLTFConvertBuilder::AddUniqueSampler(TextureAddress Address, TextureFilter Filter, TextureGroup LODGroup)
