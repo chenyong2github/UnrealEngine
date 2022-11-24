@@ -7,9 +7,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#if WITH_EDITOR
-#include "RHIDefinitions.h"
-#endif
+
+enum EShaderPlatform : uint16;
 
 namespace Scalability
 { 
@@ -159,7 +158,7 @@ namespace Scalability
 	ENGINE_API void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce = false);
 
 #if WITH_EDITOR
-	ENGINE_API void ApplyCachedQualityLevelForShaderPlatform(EShaderPlatform ShaderPlatform);
+	ENGINE_API void ApplyCachedQualityLevelForShaderPlatform(const EShaderPlatform& ShaderPlatform);
 #endif
 
 	/** This is the only suggested way to get the current state - don't get CVars directly */
@@ -217,7 +216,7 @@ namespace Scalability
 
 #if WITH_EDITOR
 	/** Set an Editor preview scalability platform */
-	void ENGINE_API ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName, EShaderPlatform ShaderPlatform);
+	void ENGINE_API ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName, const EShaderPlatform& ShaderPlatform);
 #endif
 
 	ENGINE_API FText GetQualityLevelText(int32 Value, int32 NumLevels);

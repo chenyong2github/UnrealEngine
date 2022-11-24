@@ -89,7 +89,7 @@ enum EShaderFrequency : uint8
 static_assert(SF_NumFrequencies <= (1 << SF_NumBits), "SF_NumFrequencies will not fit on SF_NumBits");
 
 /** @warning: update *LegacyShaderPlatform* when the below changes */
-enum EShaderPlatform
+enum EShaderPlatform : uint16
 {
 	SP_PCD3D_SM5					= 0,
 	SP_METAL						= 11,

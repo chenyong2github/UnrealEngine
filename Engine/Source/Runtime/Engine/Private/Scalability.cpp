@@ -13,6 +13,7 @@
 
 #if WITH_EDITOR
 #include "RHI.h"
+#include "RHIDefinitions.h"
 #endif
 
 Scalability::FOnScalabilitySettingsChanged Scalability::OnScalabilitySettingsChanged;
@@ -383,7 +384,7 @@ void ApplyScalabilityGroupFromPlatformIni(const TCHAR* InSectionName, const TCHA
 	UE::ConfigUtilities::ForEachCVarInSectionFromIni(InSectionName, InIniFilename, Func);
 }
 
-void ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName, EShaderPlatform ShaderPlatform)
+void ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName, const EShaderPlatform& ShaderPlatform)
 {
 	PlatformScalabilityName = NewPlatformScalabilityName;
 	bScalabilityShaderPlatformHasBeenChanged = ScalabilityShaderPlatform != ShaderPlatform;
@@ -428,7 +429,7 @@ static void SetGroupQualityLevel(const TCHAR* InGroupName, int32 InQualityLevel,
 }
 
 #if WITH_EDITOR
-void ApplyCachedQualityLevelForShaderPlatform(EShaderPlatform ShaderPlatform)
+void ApplyCachedQualityLevelForShaderPlatform(const EShaderPlatform& ShaderPlatform)
 {
 	if (ScalabilityShaderPlatform != EShaderPlatform::SP_NumPlatforms)
 	{
