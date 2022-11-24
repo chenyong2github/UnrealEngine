@@ -347,7 +347,13 @@ void UAudioComponentGroup::ResetParameters()
 
 void UAudioComponentGroup::SetTriggerParameter(FName InName)
 {
-	SetParameters({ FAudioParameter(InName, true) });
+	IterateComponents([InName](UAudioComponent* Component)
+	{
+		if(Component->IsPlaying())
+		{
+			Component->SetTriggerParameter(InName);
+		}
+	});
 }
 
 void UAudioComponentGroup::SetBoolParameter(FName InName, bool InBool)
