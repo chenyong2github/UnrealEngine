@@ -75,6 +75,9 @@ private:
 	/** Called when the Add button was clicked */
 	FReply OnAddNewFixtureTypeClicked();
 
+	/** Adds a new Fixture Type to the Library */
+	void AddNewFixtureType();
+
 	/** Returns the row that corresponds to the node */
 	TSharedPtr<SDMXFixtureTypeTreeFixtureTypeRow> FindEntityRowByNode(const TSharedRef<FDMXEntityTreeEntityNode>& EntityNode);
 

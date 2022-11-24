@@ -40,6 +40,10 @@ void SDMXFixtureTypeTree::Construct(const FArguments& InArgs)
 	
 	if (const TSharedPtr<FDMXEditor> PinnedDMXEditor = DMXEditor.Pin())
 	{
+		CommandList->MapAction(FDMXEditorCommands::Get().AddNewEntityFixtureType,
+			FUIAction(FExecuteAction::CreateSP(this, &SDMXFixtureTypeTree::AddNewFixtureType))
+		);
+
 		FixtureTypeSharedData = PinnedDMXEditor->GetFixtureTypeSharedData();
 		FixtureTypeSharedData->OnFixtureTypesSelected.AddSP(this, &SDMXFixtureTypeTree::OnFixtureTypesSelected);
 		PinnedDMXEditor->GetFixturePatchSharedData()->OnFixturePatchSelectionChanged.AddSP(this, &SDMXFixtureTypeTree::OnFixturePatchesSelected);
@@ -621,8 +625,14 @@ void SDMXFixtureTypeTree::OnFixtureTypeChanged(const UDMXEntityFixtureType* Fixt
 
 FReply SDMXFixtureTypeTree::OnAddNewFixtureTypeClicked()
 {
+	AddNewFixtureType();
+	return FReply::Handled();
+}
+
+void SDMXFixtureTypeTree::AddNewFixtureType()
+{
 	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
-	{		
+	{
 		const FScopedTransaction Transaction(LOCTEXT("CreateFixtureTypeTransaction", "Create DMX Fixture Type"));
 
 		FDMXEntityFixtureTypeConstructionParams FixtureTypeConstructionParams;
@@ -633,11 +643,7 @@ FReply SDMXFixtureTypeTree::OnAddNewFixtureTypeClicked()
 		FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>({ NewFixtureType }));
 
 		UpdateTree();
-
-		return FReply::Handled();
 	}
-
-	return FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE
