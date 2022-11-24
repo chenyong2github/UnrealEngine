@@ -796,8 +796,14 @@ bool UNiagaraRendererProperties::IsSortHighPrecision(ENiagaraRendererSortPrecisi
 	return SortPrecision == ENiagaraRendererSortPrecision::High;
 }
 
-bool UNiagaraRendererProperties::IsGpuTranslucentThisFrame(ENiagaraRendererGpuTranslucentLatency Latency)
+bool UNiagaraRendererProperties::IsGpuTranslucentThisFrame(ERHIFeatureLevel::Type FeatureLevel, ENiagaraRendererGpuTranslucentLatency Latency)
 {
+	// We can not support low latency on the mobile renderer path as it calls PostRenderOpaque after translucent in some paths
+	if (FSceneInterface::GetShadingPath(FeatureLevel) != EShadingPath::Deferred)
+	{
+		return false;
+	}
+
 	if (Latency == ENiagaraRendererGpuTranslucentLatency::ProjectDefault)
 	{
 		return GetDefault<UNiagaraSettings>()->DefaultGpuTranslucentLatency == ENiagaraDefaultGpuTranslucentLatency::Immediate;

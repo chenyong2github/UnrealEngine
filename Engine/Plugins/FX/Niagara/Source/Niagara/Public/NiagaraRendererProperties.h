@@ -372,7 +372,7 @@ public:
 
 	static bool IsSortHighPrecision(ENiagaraRendererSortPrecision SortPrecision);
 
-	static bool IsGpuTranslucentThisFrame(ENiagaraRendererGpuTranslucentLatency Latency);
+	static bool IsGpuTranslucentThisFrame(ERHIFeatureLevel::Type FeatureLevel, ENiagaraRendererGpuTranslucentLatency Latency);
 
 	template<typename TAction>
 	void ForEachPlatformSet(TAction Func);
