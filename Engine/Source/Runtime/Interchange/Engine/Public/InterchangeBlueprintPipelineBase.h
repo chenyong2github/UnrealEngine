@@ -22,7 +22,4 @@ public:
 		//We must make sure the GeneratedClass is generated after the blueprint is loaded
 		bRecompileOnLoad = true;
 	}
-#if WITH_EDITOR
-	virtual UClass* GetBlueprintClass() const override { return UInterchangePipelineBase::StaticClass(); }
-#endif
 };
