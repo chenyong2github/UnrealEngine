@@ -17,6 +17,7 @@ public class VPMaterialsEditor : ModuleRules
 				"InputCore",
 				"Landscape",
 				"PropertyEditor",
+				"MaterialEditor",
 				"Slate",
 				"SlateCore",
 				"UnrealEd",

@@ -2,11 +2,14 @@
 
 #include "SMaterialDynamicWidgets.h"
 
-#include "PropertyCustomizationHelpers.h"
-#include "ScopedTransaction.h"
-#include "SMaterialDynamicParametersPanelWidget.h"
 #include "Components/ActorComponent.h"
+#include "Editor.h"
+#include "MaterialEditingLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "PropertyCustomizationHelpers.h"
+#include "SMaterialDynamicParametersPanelWidget.h"
+#include "ScopedTransaction.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -199,6 +202,14 @@ FReply SMaterialDynamicView::OnCopyToOriginalButtonClicked() const
 	ParentMaterialInstance->FontParameterValues = MaterialInstanceDynamic->FontParameterValues;
 	ParentMaterialInstance->UpdateStaticPermutation();
 	ParentMaterialInstance->Modify();
+
+#if WITH_EDITOR
+	// Check if the Parent is being Edited actively in a Window somewhere
+	if (GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(ParentMaterialInstance, false))
+	{
+		UMaterialEditingLibrary::RecompileMaterial(ParentMaterialInstance->GetMaterial());
+	}
+#endif
 
 	return FReply::Handled();
 }
