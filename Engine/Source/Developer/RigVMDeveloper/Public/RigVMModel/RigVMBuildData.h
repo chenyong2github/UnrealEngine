@@ -68,8 +68,11 @@ class RIGVMDEVELOPER_API URigVMBuildData : public UObject
 
 public:
 
-	// Default constructor
-	URigVMBuildData();
+	// Returns the singleton build data
+	static URigVMBuildData* Get();
+	
+	// Looks for all function references (in RigVMClientHost metadata) and initializes the URigVMBuildData
+	void InitializeIfNeeded();
 
 	// Returns the list of references for a given function definition
 	const FRigVMFunctionReferenceArray* FindFunctionReferences(const FRigVMGraphFunctionIdentifier& InFunction) const;
@@ -111,6 +114,11 @@ public:
 	void SetIsRunningUnitTest(bool bIsRunning) { bIsRunningUnitTest = bIsRunning; }
 
 private:
+
+	// disable default constructor
+	URigVMBuildData();
+	
+	static bool bInitialized;
 
 	UPROPERTY(meta=(DeprecatedProperty))
 	TMap< TSoftObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray > FunctionReferences_DEPRECATED;

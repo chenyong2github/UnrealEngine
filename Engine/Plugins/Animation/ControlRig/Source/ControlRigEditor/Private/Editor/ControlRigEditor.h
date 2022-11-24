@@ -84,10 +84,8 @@ private:
 
 	FControlRigEditorClosed ControlRigEditorClosedDelegate;
 
-	static bool bAreFunctionReferencesInitialized;
 
 public:
-	static void InitFunctionReferences();
 	
 	// IToolkit Interface
 	virtual FName GetToolkitFName() const override;

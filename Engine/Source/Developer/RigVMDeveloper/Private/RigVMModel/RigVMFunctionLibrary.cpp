@@ -71,11 +71,6 @@ URigVMLibraryNode* URigVMFunctionLibrary::FindFunctionForNode(URigVMNode* InNode
 	return Cast<URigVMLibraryNode>(Subject);
 }
 
-URigVMBuildData* URigVMFunctionLibrary::GetBuildData() const
-{
-	return URigVMController::GetBuildData();
-}
-
 TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > URigVMFunctionLibrary::GetReferencesForFunction(const FName& InFunctionName)
 {
 	TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > Result;
@@ -105,7 +100,7 @@ void URigVMFunctionLibrary::ForEachReference(const FName& InFunctionName,
 {
 	if (URigVMLibraryNode* Function = FindFunction(InFunctionName))
 	{
-		if(const URigVMBuildData* BuildData = GetBuildData())
+		if(const URigVMBuildData* BuildData = URigVMBuildData::Get())
 		{
 			BuildData->ForEachFunctionReference(Function->GetFunctionIdentifier(),PerReferenceFunction);
 		}
@@ -117,7 +112,7 @@ void URigVMFunctionLibrary::ForEachReferenceSoftPtr(const FName& InFunctionName,
 {
 	if (URigVMLibraryNode* Function = FindFunction(InFunctionName))
 	{
-		if(const URigVMBuildData* BuildData = GetBuildData())
+		if(const URigVMBuildData* BuildData = URigVMBuildData::Get())
 		{
 			BuildData->ForEachFunctionReferenceSoftPtr(Function->GetFunctionIdentifier(), PerReferenceFunction);
 		}

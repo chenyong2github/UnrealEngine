@@ -277,7 +277,7 @@ void URigVMController::SetIsRunningUnitTest(bool bIsRunning)
 {
 	bIsRunningUnitTest = bIsRunning;
 
-	if(URigVMBuildData* BuildData = GetBuildData())
+	if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 	{
 		BuildData->SetIsRunningUnitTest(bIsRunning);
 	}	
@@ -3560,7 +3560,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 
 			if (URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(SubNode))
 			{
-				if(URigVMBuildData* BuildData = GetBuildData())
+				if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 				{
 					BuildData->RegisterFunctionReference(FunctionRefNode->GetReferencedFunctionHeader().LibraryPointer, FunctionRefNode);
 				}
@@ -5768,7 +5768,7 @@ void URigVMController::SetReferencedFunction(URigVMFunctionReferenceNode* InFunc
 	
 	if(!(OldReferencedNode == InFunctionRefNode->ReferencedFunctionHeader))
 	{
-		if(URigVMBuildData* BuildData = GetBuildData())
+		if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 		{
 			BuildData->UnregisterFunctionReference(OldReferencedNode.LibraryPointer, InFunctionRefNode);
 			BuildData->RegisterFunctionReference(InFunctionRefNode->ReferencedFunctionHeader.LibraryPointer, InFunctionRefNode);
@@ -5965,7 +5965,7 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 		// If we are removing a reference, remove the function references to this node in the function library
 		if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(LibraryNode))
 		{
-			if(URigVMBuildData* BuildData = GetBuildData())
+			if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 			{
 				BuildData->UnregisterFunctionReference(FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer, FunctionReferenceNode);
 			}
@@ -5973,7 +5973,7 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 		// If we are removing a function, remove all the references first
 		else if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
 		{
-			if(URigVMBuildData* BuildData = GetBuildData())
+			if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 			{
 				FRigVMGraphFunctionIdentifier Identifier = LibraryNode->GetFunctionIdentifier();
 				if (const FRigVMFunctionReferenceArray* ReferencesEntry = BuildData->FindFunctionReferences(Identifier))
@@ -6207,7 +6207,7 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 		if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
 		{
 			// update the table in the build data
-			if(URigVMBuildData* BuildData = GetBuildData())
+			if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 			{
 				for(const TPair< FRigVMGraphFunctionIdentifier, FRigVMFunctionReferenceArray >& Pair: BuildData->GraphFunctionReferences)
 				{
@@ -11348,7 +11348,7 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNodeFromDescr
 
 	Notify(ERigVMGraphNotifType::NodeAdded, FunctionRefNode);
 
-	if (URigVMBuildData* BuildData = GetBuildData())
+	if (URigVMBuildData* BuildData = URigVMBuildData::Get())
 	{
 		BuildData->RegisterFunctionReference(FunctionRefNode->GetReferencedFunctionHeader().LibraryPointer, FunctionRefNode);
 	}
@@ -14586,20 +14586,6 @@ FProperty* URigVMController::FindPropertyForPin(const FString& InPinPath)
 	}
 
 	return nullptr;
-}
-
-URigVMBuildData* URigVMController::GetBuildData(bool bCreateIfNeeded)
-{
-	static TStrongObjectPtr<URigVMBuildData> sBuildData;
-	if(!sBuildData.IsValid() && bCreateIfNeeded && IsInGameThread())
-	{
-		sBuildData = TStrongObjectPtr<URigVMBuildData>(
-			NewObject<URigVMBuildData>(
-				GetTransientPackage(), 
-				TEXT("RigVMBuildData"), 
-				RF_Transient));
-	}
-	return sBuildData.Get();
 }
 
 int32 URigVMController::DetachLinksFromPinObjects(const TArray<URigVMLink*>* InLinks, bool bNotify)

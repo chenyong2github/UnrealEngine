@@ -111,8 +111,6 @@ const FName ControlRigEditorAppName(TEXT("ControlRigEditorApp"));
 
 const FName FControlRigEditorModes::ControlRigEditorMode("Rigging");
 
-bool FControlRigEditor::bAreFunctionReferencesInitialized = false;
-
 namespace ControlRigEditorTabs
 {
 	const FName DetailsTab(TEXT("DetailsTab"));
@@ -373,9 +371,6 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	InControlRigBlueprint->InitializeModelIfRequired();
 
 	CommonInitialization(ControlRigBlueprints, false);
-
-	// update function references once
-	InitFunctionReferences();
 	
 	// user-defined-struct can change even after load
 	// refresh the models such that pins are updated to match
@@ -608,61 +603,6 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	}
 
 	PropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &FControlRigEditor::OnPropertyChanged);
-}
-
-void FControlRigEditor::InitFunctionReferences()
-{
-	if (bAreFunctionReferencesInitialized)
-	{
-		return;
-	}
-	
-	FFunctionGraphTask::CreateAndDispatchWhenReady([]()
-	{
-		if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
-		{
-			const FArrayProperty* ReferenceNodeDataProperty =
-				CastField<FArrayProperty>(UControlRigBlueprint::StaticClass()->FindPropertyByName(TEXT("FunctionReferenceNodeData")));
-			if(ReferenceNodeDataProperty)
-			{
-				const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-
-				// find all control rigs in the project
-				TArray<FAssetData> ControlRigAssetDatas;
-				FARFilter ControlRigAssetFilter;
-				ControlRigAssetFilter.ClassPaths.Add(UControlRigBlueprint::StaticClass()->GetClassPathName());
-				AssetRegistryModule.Get().GetAssets(ControlRigAssetFilter, ControlRigAssetDatas);
-
-				// loop over all control rigs in the project
-				for(const FAssetData& ControlRigAssetData : ControlRigAssetDatas)
-				{
-					const FString ReferenceNodeDataString =
-						ControlRigAssetData.GetTagValueRef<FString>(ReferenceNodeDataProperty->GetFName());
-					if(ReferenceNodeDataString.IsEmpty())
-					{
-						continue;
-					}
-
-					TArray<FRigVMReferenceNodeData> ReferenceNodeDatas;
-					ReferenceNodeDataProperty->ImportText_Direct(*ReferenceNodeDataString, &ReferenceNodeDatas, nullptr, EPropertyPortFlags::PPF_None);
-
-					for(FRigVMReferenceNodeData& ReferenceNodeData : ReferenceNodeDatas)
-					{
-						if (ReferenceNodeData.ReferencedHeader.IsValid())
-						{
-							BuildData->RegisterFunctionReference(ReferenceNodeData.ReferencedHeader.LibraryPointer, ReferenceNodeData.GetReferenceNodeObjectPath());
-						}
-						else if (!ReferenceNodeData.ReferencedFunctionPath_DEPRECATED.IsEmpty())
-						{
-							BuildData->RegisterFunctionReference(ReferenceNodeData);							
-						}
-					}
-				}
-			}
-		}
-	}, TStatId(), NULL, ENamedThreads::GameThread);
-	
-	bAreFunctionReferencesInitialized = true;
 }
 
 void FControlRigEditor::BindCommands()

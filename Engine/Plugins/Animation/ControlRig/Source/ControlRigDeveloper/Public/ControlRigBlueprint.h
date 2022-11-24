@@ -417,10 +417,6 @@ protected:
 	UPROPERTY(AssetRegistrySearchable)
 	TArray<FRigVMGraphFunctionHeader> PublicGraphFunctions;
 
-	/** Asset searchable information function references in this rig */
-	UPROPERTY(AssetRegistrySearchable)
-	TArray<FRigVMReferenceNodeData> FunctionReferenceNodeData;
-
 #if WITH_EDITORONLY_DATA
 
 	UPROPERTY(transient, DuplicateTransient)

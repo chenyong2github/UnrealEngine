@@ -42,10 +42,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
     URigVMLibraryNode* FindFunctionForNode(URigVMNode* InNode) const;
 
-	// returns the build data for for this library
-	UFUNCTION()
-	URigVMBuildData* GetBuildData() const;
-
 	// Returns all references for a given function name
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > GetReferencesForFunction(const FName& InFunctionName);

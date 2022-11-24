@@ -922,7 +922,7 @@ void UControlRigBlueprint::PostLoad()
 				{
 					if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
 					{
-						if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
+						if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 						{
 							BuildData->RegisterFunctionReference(FunctionReferenceNode);
 						}
@@ -1053,7 +1053,7 @@ void UControlRigBlueprint::HandlePackageDone()
 		ShapeLibrariesToLoadOnPackageLoaded.Reset();
 	}
 
-	if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
+	if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 	{
 		if(URigVMFunctionLibrary* FunctionLibrary = RigVMClient.GetFunctionLibrary())
 		{

@@ -1,10 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/RigVMBuildData.h"
-
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "RigVMModel/RigVMFunctionLibrary.h"
+#include "UObject/UObjectIterator.h"
+#include "RigVMModel/RigVMClient.h"
+#include "UObject/StrongObjectPtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMBuildData)
+
+// When the object system has been completely loaded, collect all the references between RigVM graphs 
+static FDelayedAutoRegisterHelper GRigVMBuildDataSingletonHelper(EDelayedRegisterRunPhase::EndOfEngineInit, []() -> void
+{
+	URigVMBuildData::Get()->InitializeIfNeeded();
+});
 
 FRigVMReferenceNodeData::FRigVMReferenceNodeData(URigVMFunctionReferenceNode* InReferenceNode)
 {
@@ -40,10 +49,92 @@ URigVMFunctionReferenceNode* FRigVMReferenceNodeData::GetReferenceNode()
 	return nullptr;
 }
 
+bool URigVMBuildData::bInitialized = false; 
+
 URigVMBuildData::URigVMBuildData()
 : UObject()
 , bIsRunningUnitTest(false)
 {
+}
+
+URigVMBuildData* URigVMBuildData::Get()
+{
+	// static in a function scope ensures that the GC system is initiated before 
+	// the build data constructor is called
+	static TStrongObjectPtr<URigVMBuildData> sBuildData;
+	if(!sBuildData.IsValid() && IsInGameThread())
+	{
+		sBuildData = TStrongObjectPtr<URigVMBuildData>(
+			NewObject<URigVMBuildData>(
+				GetTransientPackage(), 
+				TEXT("RigVMBuildData"), 
+				RF_Transient));
+	}
+	return sBuildData.Get();
+
+}
+
+void URigVMBuildData::InitializeIfNeeded()
+{
+	if (bInitialized)
+	{
+		return;
+	}
+
+	// Find all classes which implement IRigVMClientHost
+	TArray<UClass*> ImplementedClasses;
+	for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)
+	{
+		if (ClassIterator->ImplementsInterface(URigVMClientHost::StaticClass()))
+		{
+			ImplementedClasses.Add(*ClassIterator);
+		}
+	}
+
+	// Loop the classes
+	for (UClass* Class : ImplementedClasses)
+	{
+		const FArrayProperty* ReferenceNodeDataProperty =
+		   CastField<FArrayProperty>(Class->FindPropertyByName(TEXT("FunctionReferenceNodeData")));
+		if(ReferenceNodeDataProperty)
+		{
+			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
+			// find all assets of this class in the project
+			TArray<FAssetData> ControlRigAssetDatas;
+			FARFilter ControlRigAssetFilter;
+			ControlRigAssetFilter.ClassPaths.Add(Class->GetClassPathName());
+			AssetRegistryModule.Get().GetAssets(ControlRigAssetFilter, ControlRigAssetDatas);
+
+			// loop over all found assets
+			for(const FAssetData& ControlRigAssetData : ControlRigAssetDatas)
+			{
+				const FString ReferenceNodeDataString =
+					ControlRigAssetData.GetTagValueRef<FString>(ReferenceNodeDataProperty->GetFName());
+				if(ReferenceNodeDataString.IsEmpty())
+				{
+					continue;
+				}
+
+				// See if it has reference node data, and register the references
+				TArray<FRigVMReferenceNodeData> ReferenceNodeDatas;
+				ReferenceNodeDataProperty->ImportText_Direct(*ReferenceNodeDataString, &ReferenceNodeDatas, nullptr, EPropertyPortFlags::PPF_None);	
+				for(FRigVMReferenceNodeData& ReferenceNodeData : ReferenceNodeDatas)
+				{
+					if (ReferenceNodeData.ReferencedHeader.IsValid())
+					{
+						RegisterFunctionReference(ReferenceNodeData.ReferencedHeader.LibraryPointer, ReferenceNodeData.GetReferenceNodeObjectPath());
+					}
+					else if (!ReferenceNodeData.ReferencedFunctionPath_DEPRECATED.IsEmpty())
+					{
+						RegisterFunctionReference(ReferenceNodeData);							
+					}
+				}
+			}
+		}
+	}
+	
+	bInitialized = true;
 }
 
 const FRigVMFunctionReferenceArray* URigVMBuildData::FindFunctionReferences(const FRigVMGraphFunctionIdentifier& InFunction) const
