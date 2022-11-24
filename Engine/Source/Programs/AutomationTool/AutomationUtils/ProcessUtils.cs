@@ -740,6 +740,10 @@ namespace AutomationTool
 			/// </summary>
 			NoStdOutRedirect = 1 << 3,
 			NoLoggingOfRunCommand = 1 << 4,
+
+			/// <summary>
+			/// Output of the spawned process is expected to be encoded as UTF-8.
+			/// </summary>
 			UTF8Output = 1 << 5,
 
 			/// When specified with AllowSpew, the output will be TraceEventType.Verbose instead of TraceEventType.Information
@@ -758,6 +762,11 @@ namespace AutomationTool
 			/// Not relevant when NoStdOutRedirect is set.
 			/// </summary>
 			NoStdOutCapture = 1 << 9,
+
+			/// <summary>
+			/// Output of the spawned process is expected to be encoded as UTF-16 (System.Text.UnicodeEncoding, in .NET terminology)
+			/// </summary>
+			UTF16Output = 1 << 10,
 
 			Default = AllowSpew | AppMustExist,
 		}
@@ -891,6 +900,10 @@ namespace AutomationTool
 				if ((Options & ERunOptions.UTF8Output) == ERunOptions.UTF8Output)
 				{
 					Proc.StartInfo.StandardOutputEncoding = new System.Text.UTF8Encoding(false, false);
+				}
+				else if ((Options & ERunOptions.UTF16Output) == ERunOptions.UTF16Output)
+				{
+					Proc.StartInfo.StandardOutputEncoding = new System.Text.UnicodeEncoding(false, false, false);
 				}
 				Proc.Start();
 
