@@ -11,7 +11,7 @@
 
 class FRDGBuilder;
 
-class FNiagaraGpuReadbackManager
+class NIAGARA_API FNiagaraGpuReadbackManager
 {
 protected:
 	typedef TFunction<void(TConstArrayView<TPair<void*, uint32>>)> FCompletionCallback;
