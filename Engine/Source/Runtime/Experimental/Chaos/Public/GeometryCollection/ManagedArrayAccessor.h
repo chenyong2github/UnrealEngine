@@ -126,7 +126,10 @@ public:
 	void Copy(const TManagedArrayAccessor<T>& FromAttribute )
 	{
 		check(!IsConst());
-		Collection->CopyAttribute(*FromAttribute.Collection, Name, Group);
+		Collection->CopyAttribute(FromAttribute.ConstCollection, FromAttribute.Name, Name, Group);
+		// update attribute array if necessary
+		AttributeArray = Collection->FindAttributeTyped<T>(Name, Group);
+		ConstAttributeArray = AttributeArray;
 	}
 
 	void Remove()
