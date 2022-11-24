@@ -90,6 +90,7 @@ public:
 
 private:
 	void CancelCounterSafely();
+	void PrintWarningAndAdvanceToCleanup();
 
 public:
 	// Todo: Simplify by replacing the reference to the Instance with some static parametrization or hash with enough info to reconstruct the texture
