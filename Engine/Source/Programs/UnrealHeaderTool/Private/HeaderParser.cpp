@@ -4810,8 +4810,24 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 	else
 	{
 		FToken VarToken;
-		if (!GetIdentifier(VarToken))
+		if (!GetToken(VarToken, false))
 		{
+			Throwf(TEXT("Missing variable name") );
+		}
+
+		// allow True and False as identifiers for Variables
+		if(VarToken.TokenType == ETokenType::TrueConst || VarToken.TokenType == ETokenType::FalseConst)
+		{
+			const FString FirstChar(1, VarToken.Value.GetData());
+			if(FirstChar.ToUpper().Equals(FirstChar, ESearchCase::CaseSensitive))
+			{
+				VarToken.TokenType = ETokenType::Identifier;
+			}
+		}
+
+		if(!VarToken.IsIdentifier())
+		{
+			UngetToken(VarToken);
 			Throwf(TEXT("Missing variable name") );
 		}
 
