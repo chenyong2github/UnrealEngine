@@ -1336,9 +1336,8 @@ namespace Generator
 					{
 						return {NewMaterialExpressionStaticSwitch(CurrentMaterial, Inputs[0], 1.0f, 0.0f)};
 					}
-					else
+					if (Inputs[0].IsExpressionA<UMaterialExpressionScalarParameter>())
 					{
-						check(Inputs[0].IsExpressionA<UMaterialExpressionScalarParameter>());
 						return Inputs;
 					}
 				}
@@ -1352,9 +1351,13 @@ namespace Generator
 
 				if (Inputs.Num() == 1)
 				{
-					if (ensure(IsScalar(Inputs[0])))
+					if (IsScalar(Inputs[0]))
 					{
 						return { NewMaterialExpressionFunctionCall(CurrentMaterial, MakeFloat3, {Inputs[0], Inputs[0], Inputs[0]}) };
+					}
+					if (Inputs[0].IsExpressionA<UMaterialExpressionVectorParameter>())
+					{
+						return Inputs;
 					}
 				}
 				else if (Inputs.Num() == VectorSize)
