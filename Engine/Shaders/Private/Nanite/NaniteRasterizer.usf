@@ -1372,9 +1372,7 @@ struct VSOut
 {
 	float4 PointClipPixel						: TEXCOORD0;
 	nointerpolation uint3 PixelValue_ViewId_Mip_ArrayIndex_LevelOffset : TEXCOORD1;
-#if NANITE_MULTI_VIEW
 	nointerpolation int4 ViewRect				: TEXCOORD2;
-#endif
 #if VERTEX_TO_TRIANGLE_MASKS
 #if NANITE_VERT_REUSE_BATCH
 	CUSTOM_INTERPOLATION uint2 ToTriangleMask_TriRangeStart : TEXCOORD3;
@@ -1441,7 +1439,7 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 
 	Out.ViewRect.xy = 0;	// Unused by pixel shader
 	Out.ViewRect.zw = VisibleCluster.vPageEnd * VSM_PAGE_SIZE + VSM_PAGE_SIZE;
-#elif NANITE_MULTI_VIEW
+#else
 	PointClip.xy = NaniteView.ClipSpaceScaleOffset.xy * PointClip.xy + NaniteView.ClipSpaceScaleOffset.zw * PointClip.w;
 	Out.ViewRect = NaniteView.ViewRect;
 #endif
@@ -1451,11 +1449,8 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 #if VIRTUAL_TEXTURE_TARGET
 	PointClipPixel.xy *= (VSM_RASTER_WINDOW_PAGES * VSM_PAGE_SIZE);
 	PointClipPixel.xy += VisibleCluster.vPage * (VSM_PAGE_SIZE * PointClipPixel.w);
-#elif NANITE_MULTI_VIEW
-	PointClipPixel.xy *= HardwareViewportSize;	// Offset handled by ClipSpaceScaleOffset
 #else
-	PointClipPixel.xy *= NaniteView.ViewSizeAndInvSize.xy;
-	PointClipPixel.xy += NaniteView.ViewRect.xy * PointClipPixel.w;
+	PointClipPixel.xy *= HardwareViewportSize;	// Offset handled by ClipSpaceScaleOffset
 #endif
 	Out.PointClipPixel = PointClipPixel;
 	
@@ -1466,7 +1461,7 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	const uint ArrayIndex = bStaticPage ? GetVirtualShadowMapStaticArrayIndex() : 0;
 	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y = VisibleCluster.ViewId | (NaniteView.TargetMipLevel << 16) | (ArrayIndex << 24);
 	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.z = CalcPageTableLevelOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel).LevelOffset;
-#elif NANITE_MULTI_VIEW
+#else
 	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y = VisibleCluster.ViewId;
 #endif
 	Out.Position = PointClip;
@@ -2033,7 +2028,7 @@ void HWRasterizePS(VSOut In
 
 #if VIRTUAL_TEXTURE_TARGET
 	if (all(PixelPos < In.ViewRect.zw))
-#elif NANITE_MULTI_VIEW
+#else
 	// In multi-view mode every view has its own scissor, so we have to scissor manually.
 	if (all(PixelPos >= In.ViewRect.xy && PixelPos < In.ViewRect.zw))
 #endif

@@ -943,14 +943,13 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 {
 	DECLARE_SHADER_TYPE(FMicropolyRasterizeCS, Material);
 
-	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FTwoSidedDim : SHADER_PERMUTATION_BOOL("NANITE_TWO_SIDED");
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FVertexProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_VERTEX_PROGRAMMABLE");
 	class FPixelProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_PIXEL_PROGRAMMABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FMultiViewDim, FDepthOnlyDim, FTwoSidedDim, FVisualizeDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FDepthOnlyDim, FTwoSidedDim, FVisualizeDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -994,8 +993,7 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 			return false;
 		}
 
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
-		  (!PermutationVector.Get<FMultiViewDim>() || !PermutationVector.Get<FDepthOnlyDim>()))
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FDepthOnlyDim>())
 		{
 			return false;
 		}
@@ -1016,6 +1014,7 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 1);
+		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
 
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
@@ -1042,13 +1041,12 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 	DECLARE_SHADER_TYPE(FHWRasterizeVS, Material);
 
 	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
-	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
 	class FAutoShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_AUTO_SHADER_CULL");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FVertexProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_VERTEX_PROGRAMMABLE");
 	class FPixelProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_PIXEL_PROGRAMMABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FDepthOnlyDim, FMultiViewDim, FPrimShaderDim, FAutoShaderCullDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FDepthOnlyDim, FPrimShaderDim, FAutoShaderCullDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -1090,8 +1088,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		}
 
 		// VSM rendering is depth-only and multiview
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
-		  (!PermutationVector.Get<FMultiViewDim>() || !PermutationVector.Get<FDepthOnlyDim>()))
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FDepthOnlyDim>())
 		{
 			return false;
 		}
@@ -1113,6 +1110,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
 		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
+		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
 
 		const bool bIsPrimitiveShader = PermutationVector.Get<FPrimShaderDim>();
 		
@@ -1150,11 +1148,10 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 	DECLARE_SHADER_TYPE(FHWRasterizeMS, Material);
 
 	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
-	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FVertexProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_VERTEX_PROGRAMMABLE");
 	class FPixelProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_PIXEL_PROGRAMMABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FDepthOnlyDim, FMultiViewDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FDepthOnlyDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -1189,8 +1186,7 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		}
 
 		// VSM rendering is depth-only and multiview
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
-		  (!PermutationVector.Get<FMultiViewDim>() || !PermutationVector.Get<FDepthOnlyDim>()))
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FDepthOnlyDim>())
 		{
 			return false;
 		}
@@ -1213,6 +1209,7 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
 		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), 4); // Mesh and primitive shaders use an index of 4 instead of 5
+		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
 
 		const uint32 MSThreadGroupSize = FDataDrivenShaderPlatformInfo::GetMaxMeshShaderThreadGroupSize(Parameters.Platform);
 		check(MSThreadGroupSize == 128 || MSThreadGroupSize == 256);
@@ -1247,7 +1244,6 @@ public:
 	DECLARE_SHADER_TYPE(FHWRasterizePS, Material);
 
 	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
-	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FMeshShaderDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
@@ -1258,7 +1254,6 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain
 	<
 		FDepthOnlyDim,
-		FMultiViewDim,
 		FMeshShaderDim,
 		FPrimShaderDim,
 		FVisualizeDim,
@@ -1320,8 +1315,7 @@ public:
 		}
 
 		// VSM rendering is depth-only and multiview
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
-		  (!PermutationVector.Get<FMultiViewDim>() || !PermutationVector.Get<FDepthOnlyDim>()))
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FDepthOnlyDim>())
 		{
 			return false;
 		}
@@ -1344,6 +1338,7 @@ public:
 		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_R32_UINT);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
 		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
+		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
 
 		if (FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Parameters.Platform) && PermutationVector.Get<FVertexProgrammableDim>() && (PermutationVector.Get<FMeshShaderDim>() || PermutationVector.Get<FPrimShaderDim>()))
 		{
@@ -1366,7 +1361,6 @@ namespace Nanite
 
 void SetupProgrammableRasterizePermutationVectors(
 	EOutputBufferMode RasterMode,
-	bool bMultiView,
 	bool bUseMeshShader,
 	bool bUsePrimitiveShader,
 	bool bUseAutoCullingShader,
@@ -1378,17 +1372,14 @@ void SetupProgrammableRasterizePermutationVectors(
 	FMicropolyRasterizeCS::FPermutationDomain& PermutationVectorCS)
 {
 	PermutationVectorVS.Set<FHWRasterizeVS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
-	PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
 	PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
 	PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
 	PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(bHasVirtualShadowMapArray);
 
 	PermutationVectorMS.Set<FHWRasterizeMS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
-	PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
 	PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(bHasVirtualShadowMapArray);
 
 	PermutationVectorPS.Set<FHWRasterizePS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
-	PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
 	PermutationVectorPS.Set<FHWRasterizePS::FMeshShaderDim>(bUseMeshShader);
 	PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
 	PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(bVisualizeActive && RasterMode != EOutputBufferMode::DepthOnly);
@@ -1396,7 +1387,6 @@ void SetupProgrammableRasterizePermutationVectors(
 
 	// SW Rasterize
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FMultiViewDim>(bMultiView);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVisualizeDim>(bVisualizeActive && RasterMode != EOutputBufferMode::DepthOnly);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(bHasVirtualShadowMapArray);
 }
@@ -1592,7 +1582,6 @@ void CollectRasterPSOInitializersForPipeline(
 	const FPSOPrecacheParams& PreCacheParams,
 	EShaderPlatform ShaderPlatform,
 	EPipeline Pipeline,
-	bool bMultiView,
 	TArray<FPSOPrecacheData>& PSOInitializers)
 {
 	const bool bUseMeshShader = UseMeshShader(ShaderPlatform, Pipeline);
@@ -1607,7 +1596,7 @@ void CollectRasterPSOInitializersForPipeline(
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
 	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
 	FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
-	SetupProgrammableRasterizePermutationVectors(RasterMode, bMultiView, bUseMeshShader, bUsePrimitiveShader, bUseAutoCullingShader, bVisualizeActive, bHasVirtualShadowMapArray,
+	SetupProgrammableRasterizePermutationVectors(RasterMode, bUseMeshShader, bUsePrimitiveShader, bUseAutoCullingShader, bVisualizeActive, bHasVirtualShadowMapArray,
 		PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS);
 
 	if (Material.IsDefaultMaterial())
@@ -1640,9 +1629,9 @@ void CollectRasterPSOInitializers(
 		return;
 	}
 
-	// Collect for primary & shadows (primary is always single view, shadows are always multiview)
-	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Primary, false /*bMultiView*/, PSOInitializers);
-	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Shadows, true /*bMultiView*/, PSOInitializers);
+	// Collect for primary & shadows
+	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Primary, PSOInitializers);
+	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Shadows, PSOInitializers);
 }
 
 static void AddPassInitNodesAndClusterBatchesUAV( FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAVRef )
@@ -2638,7 +2627,6 @@ FBinningData AddPass_Rasterize(
 	FRDGBufferRef BinIndirectArgs = bProgrammableRaster ? BinningData.IndirectArgs : IndirectArgs;
 
 	const ERasterScheduling Scheduling = RasterContext.RasterScheduling;
-	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
 	const auto CreateSkipBarrierUAV = [&](auto& InOutUAV)
 	{
@@ -2658,12 +2646,9 @@ FBinningData AddPass_Rasterize(
 
 	const ERDGPassFlags ComputePassFlags = (Scheduling == ERasterScheduling::HardwareAndSoftwareOverlap) ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
 
-	FIntRect ViewRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W);
-	if (bMultiView)
-	{
-		ViewRect.Min = FIntPoint::ZeroValue;
-		ViewRect.Max = RasterContext.TextureSize;
-	}
+	FIntRect ViewRect = {};
+	ViewRect.Min = FIntPoint::ZeroValue;
+	ViewRect.Max = RasterContext.TextureSize;
 
 	if (VirtualShadowMapArray)
 	{
@@ -2680,7 +2665,7 @@ FBinningData AddPass_Rasterize(
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
 	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
 	FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
-	SetupProgrammableRasterizePermutationVectors(RasterContext.RasterMode, bMultiView, bUseMeshShader, bUsePrimitiveShader, bUseAutoCullingShader, RasterContext.VisualizeActive, VirtualShadowMapArray != nullptr,
+	SetupProgrammableRasterizePermutationVectors(RasterContext.RasterMode, bUseMeshShader, bUsePrimitiveShader, bUseAutoCullingShader, RasterContext.VisualizeActive, VirtualShadowMapArray != nullptr,
 		PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS);
 	
 	const FMaterialRenderProxy* FixedMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
