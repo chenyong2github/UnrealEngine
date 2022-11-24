@@ -4,9 +4,10 @@
 
 #include "Engine/Texture.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Materials/MaterialInterface.h"
 
 #include "MeshPaintingToolsetTypes.generated.h"
+
+class UMeshComponent;
 
 class FMeshPaintParameters;
 DECLARE_MULTICAST_DELEGATE_FourParams(FApplyVertexPaintData, const FMeshPaintParameters& /* &InParams*/, const FLinearColor& /*OldColor*/, FLinearColor& /*NewColor*/, const float /*PaintAmount*/);
