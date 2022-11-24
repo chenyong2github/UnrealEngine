@@ -45,6 +45,7 @@ namespace UnrealBuildTool.Rules
 				"ToolMenus",
 				"ToolWidgets",
 				"ApplicationCore",
+				"DeveloperSettings"
 			}
 			);
 

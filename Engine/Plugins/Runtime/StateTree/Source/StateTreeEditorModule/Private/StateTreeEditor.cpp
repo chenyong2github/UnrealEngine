@@ -16,6 +16,7 @@
 #include "StateTreeEditorCommands.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeEditorModule.h"
+#include "StateTreeEditorSettings.h"
 #include "StateTreeObjectHash.h"
 #include "StateTreeState.h"
 #include "StateTreeTaskBase.h"
@@ -25,6 +26,7 @@
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "FileHelpers.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -674,7 +676,52 @@ namespace UE::StateTree::Editor::Internal
 		});
 	}
 
-}
+	static void MakeSaveOnCompileSubMenu(UToolMenu* InMenu)
+	{
+		FToolMenuSection& Section = InMenu->AddSection("Section");
+		const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
+		Section.AddMenuEntry(Commands.SaveOnCompile_Never);
+		Section.AddMenuEntry(Commands.SaveOnCompile_SuccessOnly);
+		Section.AddMenuEntry(Commands.SaveOnCompile_Always);
+	}
+
+	static void GenerateCompileOptionsMenu(UToolMenu* InMenu)
+	{
+		FToolMenuSection& Section = InMenu->AddSection("Section");
+		const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
+
+		// @TODO: disable the menu and change up the tooltip when all sub items are disabled
+		Section.AddSubMenu(
+			"SaveOnCompile",
+			LOCTEXT("SaveOnCompileSubMenu", "Save on Compile"),
+			LOCTEXT("SaveOnCompileSubMenu_ToolTip", "Determines how the StateTree is saved whenever you compile it."),
+			FNewToolMenuDelegate::CreateStatic(&MakeSaveOnCompileSubMenu));
+	}
+
+	static void SetSaveOnCompileSetting(const EStateTreeSaveOnCompile NewSetting)
+	{
+		UStateTreeEditorSettings* Settings = GetMutableDefault<UStateTreeEditorSettings>();
+		Settings->SaveOnCompile = NewSetting;
+		Settings->SaveConfig();
+	}
+
+	static bool IsSaveOnCompileOptionSet(TWeakPtr<FStateTreeEditor> Editor, const EStateTreeSaveOnCompile Option)
+	{
+		const UStateTreeEditorSettings* Settings = GetDefault<UStateTreeEditorSettings>();
+
+		EStateTreeSaveOnCompile CurrentSetting = Settings->SaveOnCompile;
+		if (!Editor.IsValid() || !Editor.Pin()->IsSaveOnCompileEnabled())
+		{
+			// If save-on-compile is disabled for the StateTree, then we want to 
+			// show "Never" as being selected
+			// 
+			// @TODO: a tooltip explaining why would be nice too
+			CurrentSetting = EStateTreeSaveOnCompile::Never;
+		}
+
+		return (CurrentSetting == Option);
+	}
+} // UE::StateTree::Editor::Internal
 
 namespace UE::StateTree::Editor
 {
@@ -699,7 +746,7 @@ namespace UE::StateTree::Editor
 		return EditorDataHash;
 	}
 
-};
+}; // UE::StateTree::Editor
 
 void FStateTreeEditor::BindCommands()
 {
@@ -709,6 +756,31 @@ void FStateTreeEditor::BindCommands()
 		Commands.Compile,
 		FExecuteAction::CreateSP(this, &FStateTreeEditor::Compile),
 		FCanExecuteAction::CreateSP(this, &FStateTreeEditor::CanCompile));
+
+	TWeakPtr<FStateTreeEditor> WeakThisPtr = SharedThis(this);
+	ToolkitCommands->MapAction(
+		FStateTreeEditorCommands::Get().SaveOnCompile_Never,
+		FExecuteAction::CreateStatic(&UE::StateTree::Editor::Internal::SetSaveOnCompileSetting, EStateTreeSaveOnCompile::Never),
+		FCanExecuteAction::CreateSP(this, &FStateTreeEditor::IsSaveOnCompileEnabled),
+		FIsActionChecked::CreateStatic(&UE::StateTree::Editor::Internal::IsSaveOnCompileOptionSet, WeakThisPtr, EStateTreeSaveOnCompile::Never)
+	);
+	ToolkitCommands->MapAction(
+		FStateTreeEditorCommands::Get().SaveOnCompile_SuccessOnly,
+		FExecuteAction::CreateStatic(&UE::StateTree::Editor::Internal::SetSaveOnCompileSetting, EStateTreeSaveOnCompile::SuccessOnly),
+		FCanExecuteAction::CreateSP(this, &FStateTreeEditor::IsSaveOnCompileEnabled),
+		FIsActionChecked::CreateStatic(&UE::StateTree::Editor::Internal::IsSaveOnCompileOptionSet, WeakThisPtr, EStateTreeSaveOnCompile::SuccessOnly)
+	);
+	ToolkitCommands->MapAction(
+		FStateTreeEditorCommands::Get().SaveOnCompile_Always,
+		FExecuteAction::CreateStatic(&UE::StateTree::Editor::Internal::SetSaveOnCompileSetting, EStateTreeSaveOnCompile::Always),
+		FCanExecuteAction::CreateSP(this, &FStateTreeEditor::IsSaveOnCompileEnabled),
+		FIsActionChecked::CreateStatic(&UE::StateTree::Editor::Internal::IsSaveOnCompileOptionSet, WeakThisPtr, EStateTreeSaveOnCompile::Always)
+	);
+}
+
+bool FStateTreeEditor::IsSaveOnCompileEnabled() const
+{
+	return true;
 }
 
 void FStateTreeEditor::RegisterToolbar()
@@ -740,14 +812,21 @@ void FStateTreeEditor::RegisterToolbar()
 			{
 				const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
 
-				FToolMenuEntry CompileButton = FToolMenuEntry::InitToolBarButton(
+				FToolMenuEntry& CompileButton = InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 					Commands.Compile,
 					TAttribute<FText>(),
 					TAttribute<FText>(),
-					TAttribute<FSlateIcon>(StateTreeEditor.ToSharedRef(), &FStateTreeEditor::GetCompileStatusImage)
-					);
+					TAttribute<FSlateIcon>(StateTreeEditor.ToSharedRef(), &FStateTreeEditor::GetCompileStatusImage)));
+				CompileButton.StyleNameOverride = "CalloutToolbar";
 
-				InSection.AddEntry(CompileButton);
+				FToolMenuEntry& CompileOptions = InSection.AddEntry(FToolMenuEntry::InitComboButton(
+					"CompileComboButton",
+					FUIAction(),
+					FNewToolMenuDelegate::CreateStatic(&UE::StateTree::Editor::Internal::GenerateCompileOptionsMenu),
+					LOCTEXT("CompileOptions_ToolbarTooltip", "Options to customize how State Trees compile")
+				));
+				CompileOptions.StyleNameOverride = "CalloutToolbar";
+				CompileOptions.ToolBarData.bSimpleComboBox = true;
 			}
 		}
 	}));
@@ -794,6 +873,16 @@ void FStateTreeEditor::Compile()
 
 		// Show log
 		TabManager->TryInvokeTab(CompilerResultsTabId);
+	}
+
+	const UStateTreeEditorSettings* Settings = GetMutableDefault<UStateTreeEditorSettings>();
+	const bool bShouldSaveOnCompile = ((Settings->SaveOnCompile == EStateTreeSaveOnCompile::Always)
+									|| ((Settings->SaveOnCompile == EStateTreeSaveOnCompile::SuccessOnly) && bLastCompileSucceeded));
+
+	if (bShouldSaveOnCompile)
+	{
+		const TArray<UPackage*> PackagesToSave { StateTree->GetOutermost() };
+		FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, /*bCheckDirty =*/true, /*bPromptToSave =*/false);
 	}
 }
 
@@ -851,6 +940,5 @@ void FStateTreeEditor::UpdateAsset()
 	UE::StateTree::Editor::ValidateAsset(*StateTree);
 	EditorDataHash = UE::StateTree::Editor::CalcAssetHash(*StateTree);
 }
-
 
 #undef LOCTEXT_NAMESPACE
