@@ -306,6 +306,8 @@ void FContentBundleEditor::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenerate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FContentBundleEditor::GenerateStreaming);
+
 	if (GetStatus() != EContentBundleStatus::ContentInjected)
 	{
 		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Skipping streaming generation. It's status is: %s."), *GetDescriptor()->GetDisplayName(), *UEnum::GetDisplayValueAsText(GetStatus()).ToString());
@@ -383,7 +385,6 @@ bool FContentBundleEditor::GatherPackagesToCook(class IWorldPartitionCookPackage
 bool FContentBundleEditor::PopulateGeneratorPackageForCook(class IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& PackagesToCook, TArray<UPackage*>& OutModifiedPackages)
 {
 	bool bIsSuccess = true;
-
 
 	if (HasCookedContent())
 	{

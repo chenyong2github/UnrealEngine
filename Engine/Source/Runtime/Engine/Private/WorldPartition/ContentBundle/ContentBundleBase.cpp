@@ -22,6 +22,8 @@ FContentBundleBase::~FContentBundleBase()
 
 void FContentBundleBase::Initialize()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FContentBundleBase::Initialize);
+
 	check(GetStatus() == EContentBundleStatus::Unknown);
 
 	DoInitialize();
@@ -31,6 +33,8 @@ void FContentBundleBase::Initialize()
 
 void FContentBundleBase::Uninitialize()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FContentBundleBase::Uninitialize);
+
 	check(GetStatus() != EContentBundleStatus::Unknown);
 
 	if (GetStatus() == EContentBundleStatus::ReadyToInject || GetStatus() == EContentBundleStatus::ContentInjected)
@@ -45,6 +49,8 @@ void FContentBundleBase::Uninitialize()
 
 void FContentBundleBase::InjectContent()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FContentBundleBase::InjectContent);
+
 	check(GetStatus() == EContentBundleStatus::Registered);
 
 	DoInjectContent();
@@ -59,6 +65,8 @@ void FContentBundleBase::InjectContent()
 
 void FContentBundleBase::RemoveContent()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FContentBundleBase::RemoveContent);
+
 	check(GetStatus() == EContentBundleStatus::ReadyToInject || GetStatus() == EContentBundleStatus::ContentInjected || GetStatus() == EContentBundleStatus::FailedToInject);
 
 	if (GetStatus() == EContentBundleStatus::ContentInjected || GetStatus() == EContentBundleStatus::ReadyToInject)

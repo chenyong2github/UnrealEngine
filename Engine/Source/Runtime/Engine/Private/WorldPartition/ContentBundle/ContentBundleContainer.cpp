@@ -62,6 +62,8 @@ void FContentBundleContainer::Initialize()
 
 void FContentBundleContainer::Deinitialize()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FContentBundleContainer::Deinitialize);
+
 	if (GetInjectedWorld())
 	{
 		UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] Deleting container."), *GetInjectedWorld()->GetName());
@@ -268,19 +270,16 @@ void FContentBundleContainer::DeinitializeContentBundle(FContentBundleBase& Cont
 
 void FContentBundleContainer::InjectContentBundle(FContentBundleBase& ContentBundle)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(InjectContentBundle);
 	ContentBundle.InjectContent();
 }
 
 void FContentBundleContainer::RemoveContentBundle(FContentBundleBase& ContentBundle)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(RemoveContentBundle);
 	ContentBundle.RemoveContent();
 }
 
 void FContentBundleContainer::OnContentBundleClientRegistered(TSharedPtr<FContentBundleClient>& ContentBundleClient)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(InitializeContentBundle);
 	InitializeContentBundle(ContentBundleClient);
 }
 
