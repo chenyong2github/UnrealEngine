@@ -74,7 +74,7 @@ namespace
 
 FDMXFixtureTypeSharedData::FDMXFixtureTypeSharedData(TWeakPtr<FDMXEditor> InDMXEditorPtr)
 {
-	Selection = NewObject<UDMXFixtureTypeSharedDataSelection>(GetTransientPackage(), "FixtureTypeSharedDataSelection", RF_Transactional);
+	Selection = NewObject<UDMXFixtureTypeSharedDataSelection>(GetTransientPackage(), NAME_None, RF_Transactional);
 }
 
 void FDMXFixtureTypeSharedData::AddReferencedObjects(FReferenceCollector& Collector)

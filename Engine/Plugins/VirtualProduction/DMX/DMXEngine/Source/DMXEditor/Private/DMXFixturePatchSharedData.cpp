@@ -12,7 +12,7 @@
 FDMXFixturePatchSharedData::FDMXFixturePatchSharedData(TWeakPtr<FDMXEditor> InDMXEditorPtr)
 	: DMXEditorPtr(InDMXEditorPtr)
 {
-	Selection = NewObject<UDMXFixturePatchSharedDataSelection>(GetTransientPackage(), "FixturePatchSharedDataSelection", RF_Transactional);
+	Selection = NewObject<UDMXFixturePatchSharedDataSelection>(GetTransientPackage(), NAME_None, RF_Transactional);
 }
 
 void FDMXFixturePatchSharedData::AddReferencedObjects(FReferenceCollector& Collector)
