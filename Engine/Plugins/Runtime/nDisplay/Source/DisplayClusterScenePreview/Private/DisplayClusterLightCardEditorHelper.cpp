@@ -464,6 +464,8 @@ void FDisplayClusterLightCardEditorHelper::MoveActorsToPixel(
 		{
 			if (Actor.IsValid())
 			{
+				VerifyAndFixActorOrigin(Actor);
+
 				const FSphericalCoordinates ActorCoords = GetActorCoordinates(Actor);
 
 				AverageCoords = AverageCoords + ActorCoords;
