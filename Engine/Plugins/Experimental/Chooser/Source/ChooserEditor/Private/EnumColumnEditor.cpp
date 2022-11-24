@@ -7,7 +7,6 @@
 #include "ChooserTableEditor.h"
 #include "GraphEditorSettings.h"
 #include "SEnumCombo.h"
-#include "../../../../../Developer/TextureFormatOodle/Sdks/2.9.8/include/oodle2tex.h"
 
 #define LOCTEXT_NAMESPACE "EnumColumnEditor"
 
