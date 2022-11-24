@@ -66,9 +66,14 @@ public:
 #if WITH_EDITOR
 	/** Cancel any further streaming operations for the given object. This is necessary if the object compiled data is
 	 * going to be modified. This can only happen in the editor, when recompiling.
-	 * Any additional straming requests for this object will fail.
+	 * Any additional streaming requests for this object will fail.
 	 */
 	void CancelStreamingForObject(const UCustomizableObject* CustomizableObject);
+
+	/** Checks if there are any streaming operations for the parameter object.
+	* @return true if there are streaming operations in flight
+	*/
+	bool AreTherePendingStreamingOperationsForObject(const UCustomizableObject* CustomizableObject) const;
 #endif
 
 	/** Release all the pending resources. This disables treamings for all objects. */

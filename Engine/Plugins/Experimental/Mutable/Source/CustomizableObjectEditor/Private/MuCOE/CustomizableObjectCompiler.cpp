@@ -41,9 +41,11 @@
 #include "MuCO/CustomizableObjectClothingTypes.h"
 #include "MuCO/CustomizableObjectIdentifier.h"
 #include "MuCO/CustomizableObjectInstance.h"
+#include "MuCO/CustomizableInstancePrivateData.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableObjectUIData.h"
+#include "MuCO/UnrealMutableModelDiskStreamer.h"
 #include "MuCO/ICustomizableObjectModule.h"
 #include "MuCOE/CustomizableObjectCompileRunnable.h"
 #include "MuCOE/CustomizableObjectEditorLogger.h"
@@ -232,7 +234,10 @@ void FCustomizableObjectCompiler::PreloadingReferencerAssetsCallback(UCustomizab
 
 void FCustomizableObjectCompiler::Compile(UCustomizableObject& Object, const FCompilationOptions& InOptions, bool bAsync)
 {
-	if (UCustomizableObjectSystem::GetInstance()->IsCompilationDisabled())
+	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+	check(System);
+
+	if (System->IsCompilationDisabled())
 	{
 		CompileInternal(&Object, InOptions, bAsync);
 		return;
@@ -240,32 +245,29 @@ void FCustomizableObjectCompiler::Compile(UCustomizableObject& Object, const FCo
 
 	UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] Preload asynchronously assets start."), FPlatformTime::Seconds());
 
+	FString Message = FString::Printf(TEXT("Customizable Object %s is already being compiled or updated. Please wait a few seconds and try again."), *Object.GetName());
+	FNotificationInfo Info(LOCTEXT("CustomizableObjectBeingCompilerOrUpdated", "Customizable Object compile and/or update still in process. Please wait a few seconds and try again."));
+	Info.bFireAndForget = true;
+	Info.bUseThrobber = true;
+	Info.FadeOutDuration = 1.0f;
+	Info.ExpireDuration = 1.0f;
+
 	if (PreloadingReferencerAssets || CompilationLaunchPending || (Object.IsLocked()))
 	{
-		FString Message = FString::Printf(TEXT("Customizable Object %s is already being compiled or updated. Please wait a few seconds and try again."), *Object.GetName());
 		UE_LOG(LogMutable, Warning, TEXT("%s"), *Message);
-		FNotificationInfo Info(LOCTEXT("CustomizableObjectBeingCompilerOrUpdated", "Customizable object compile and update still in process"));
-		Info.bFireAndForget = true;
-		Info.bUseThrobber = true;
-		Info.FadeOutDuration = 1.0f;
-		Info.ExpireDuration = 1.0f;
 		FSlateNotificationManager::Get().AddNotification(Info);
+
 		return;
 	}
 
-	// Lock object during asynchronous asset loading to avoid instance updates
-	bool LockResult = UCustomizableObjectSystem::GetInstance()->LockObject(&Object);
+	// Lock object during asynchronous asset loading to avoid instance/mip updates and reentrant compilations
+	bool LockResult = System->LockObject(&Object);
 
 	if (!LockResult)
-	{
-		FString Message = FString::Printf(TEXT("Customizable Object %s is already being compiled or updated. Please wait a few seconds and try again."), *Object.GetName());
+	{		
 		UE_LOG(LogMutable, Warning, TEXT("%s"), *Message);
-		FNotificationInfo Info(LOCTEXT("CustomizableObjectBeingCompilerOrUpdated", "Customizable object compile and update still in process"));
-		Info.bFireAndForget = true;
-		Info.bUseThrobber = true;
-		Info.FadeOutDuration = 1.0f;
-		Info.ExpireDuration = 1.0f;
 		FSlateNotificationManager::Get().AddNotification(Info);
+
 		return;
 	}
 
@@ -291,7 +293,7 @@ void FCustomizableObjectCompiler::Compile(UCustomizableObject& Object, const FCo
 
 	if (ArrayAssetToStream.Num() > 0)
 	{
-		FStreamableManager& Streamable = UCustomizableObjectSystem::GetInstance()->GetStreamableManager();
+		FStreamableManager& Streamable = System->GetStreamableManager();
 
 		if (bAsync) 
 		{

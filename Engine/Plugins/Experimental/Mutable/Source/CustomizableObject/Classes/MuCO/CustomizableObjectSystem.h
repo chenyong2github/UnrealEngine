@@ -243,6 +243,11 @@ public:
 	// This is usually only used in the editor
 	bool LockObject(const class UCustomizableObject*);
 	void UnlockObject(const class UCustomizableObject*);
+
+	/** Checks if there are any outstading disk or mip update operations in flight for the parameter Customizable Object that may
+	* make it unsafe to compile at the moment.
+	* @return true if there are operations in flight and it's not safe to compile */
+	bool CheckIfDiskOrMipUpdateOperationsPending(const UCustomizableObject& Object) const;
 	
 	// Called whenever the Mutable Editor Settings change, copying the new value of the current needed settings to the Customizable Object System
 	void EditorSettingsChanged(const FEditorCompileSettings& InEditorSettings);

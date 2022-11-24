@@ -236,6 +236,32 @@ void FUnrealMutableModelBulkStreamer::CancelStreamingForObject(const UCustomizab
 	}
 }
 
+
+bool FUnrealMutableModelBulkStreamer::AreTherePendingStreamingOperationsForObject(const UCustomizableObject* CustomizableObject) const
+{
+	// This happens in the game thread
+	check(IsInGameThread());
+
+	if (!CustomizableObject)
+	{
+		check(false);
+		return false;
+	}
+
+	for (int32 ObjectIndex = 0; ObjectIndex < Objects.Num(); ++ObjectIndex)
+	{
+		if (Objects[ObjectIndex].Model.Pin() == CustomizableObject->GetModel())
+		{
+			if(!Objects[ObjectIndex].CurrentReadRequests.IsEmpty())
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 #endif // WITH_EDITOR
 
 

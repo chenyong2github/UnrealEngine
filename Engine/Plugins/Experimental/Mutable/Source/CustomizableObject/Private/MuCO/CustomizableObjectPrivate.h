@@ -19,7 +19,7 @@ public:
 	mu::Model* GetModel();
 	const mu::Model* GetModel() const;
 
-	// See UCustomizableObjectSystem::LockObject.
+	// See UCustomizableObjectSystem::LockObject. Must only be modified from the game thread
 	bool bLocked = false;
 
 #if WITH_EDITOR

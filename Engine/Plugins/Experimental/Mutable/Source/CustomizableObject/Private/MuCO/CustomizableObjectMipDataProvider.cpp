@@ -44,10 +44,29 @@ FMutableTextureMipDataProvider::FMutableTextureMipDataProvider(const UTexture* T
 }
 
 
+void FMutableTextureMipDataProvider::PrintWarningAndAdvanceToCleanup()
+{
+	UE_LOG(LogMutable, Warning, TEXT("Tried to update a mip from a Customizable Object being compiled, cancelling mip update."));
+	AdvanceTo(ETickState::CleanUp, ETickThread::Async);
+}
+
+
 void FMutableTextureMipDataProvider::Init(const FTextureUpdateContext& Context, const FTextureUpdateSyncOptions& SyncOptions)
 {
+#if WITH_EDITOR
+	check(Context.Texture->HasPendingInitOrStreaming());
+	check(CustomizableObjectInstance->GetCustomizableObject());
+	if (CustomizableObjectInstance->GetCustomizableObject()->IsLocked())
+	{
+		PrintWarningAndAdvanceToCleanup();
+
+		return;
+	}
+#endif
+
 	AdvanceTo(ETickState::GetMips, ETickThread::Async);
 }
+
 
 namespace impl
 {
@@ -139,6 +158,17 @@ namespace impl
 
 int32 FMutableTextureMipDataProvider::GetMips(const FTextureUpdateContext& Context, int32 StartingMipIndex, const FTextureMipInfoArray& MipInfos, const FTextureUpdateSyncOptions& SyncOptions)
 {
+#if WITH_EDITOR
+	check(Context.Texture->HasPendingInitOrStreaming());
+	check(CustomizableObjectInstance->GetCustomizableObject());
+	if (CustomizableObjectInstance->GetCustomizableObject()->IsLocked())
+	{
+		PrintWarningAndAdvanceToCleanup();
+
+		return CurrentFirstLODIdx;
+	}
+#endif
+
 	const UTexture2D* Texture = Cast<UTexture2D>(Context.Texture);
 	check(Texture);
 	check(!Texture->NeverStream);
@@ -224,6 +254,16 @@ int32 FMutableTextureMipDataProvider::GetMips(const FTextureUpdateContext& Conte
 
 bool FMutableTextureMipDataProvider::PollMips(const FTextureUpdateSyncOptions& SyncOptions)
 {
+#if WITH_EDITOR
+	check(CustomizableObjectInstance->GetCustomizableObject());
+	if (CustomizableObjectInstance->GetCustomizableObject()->IsLocked())
+	{
+		PrintWarningAndAdvanceToCleanup();
+
+		return false;
+	}
+#endif
+
 	if (!bRequestAborted && UpdateImageMutableTaskEvent)
 	{
 		if (OperationData && OperationData->Result && OperationData->Levels.Num())
