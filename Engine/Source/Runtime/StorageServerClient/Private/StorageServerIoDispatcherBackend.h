@@ -20,6 +20,7 @@ public:
 	~FStorageServerIoDispatcherBackend();
 
 	void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) override;
+	void Shutdown() override;
 	bool Resolve(FIoRequestImpl* Request) override;
 	void CancelIoRequest(FIoRequestImpl* Request) override {};
 	void UpdatePriorityForIoRequest(FIoRequestImpl* Request) override {};
@@ -85,7 +86,7 @@ private:
 
 	void SubmitBatch(FBatch* Batch);
 	void OnBatchCompleted(FBatch* Batch);
-	void WaitForBatchToComplete();
+	bool WaitForBatchToComplete(uint32 WaitTime = MAX_uint32);
 
 	FStorageServerConnection& Connection;
 	TSharedPtr<const FIoDispatcherBackendContext> BackendContext;
