@@ -28,6 +28,7 @@ namespace UE::Math
 	template <typename IntType> struct TIntVector2;
 	template <typename IntType> struct TIntVector3;
 	template <typename IntType> struct TIntVector4;
+	template<typename T> struct TRay;
 }
 
 // ISPC forward declarations
@@ -54,6 +55,7 @@ using FSphere 		= UE::Math::TSphere<double>;		// UE_DECLARE_LWC_TYPE(Sphere, 3);
 using FBox 			= UE::Math::TBox<double>;			// UE_DECLARE_LWC_TYPE(Box, 3);
 using FBox2D 		= UE::Math::TBox2<double>;			// UE_DECLARE_LWC_TYPE(Box2,, FBox2D);
 using FRotator 		= UE::Math::TRotator<double>;		// UE_DECLARE_LWC_TYPE(Rotator, 3);
+using FRay			= UE::Math::TRay<double>;			// UE_DECLARE_LWC_TYPE(Ray, 3);
 
 using FVector3d 	= UE::Math::TVector<double>;
 using FVector2d 	= UE::Math::TVector2<double>;
@@ -66,6 +68,7 @@ using FSphere3d 	= UE::Math::TSphere<double>;
 using FBox3d 		= UE::Math::TBox<double>;
 using FBox2d 		= UE::Math::TBox2<double>;
 using FRotator3d 	= UE::Math::TRotator<double>;
+using FRay3d		= UE::Math::TRay<double>;
 
 using FVector3f		= UE::Math::TVector<float>;
 using FVector2f		= UE::Math::TVector2<float>;
@@ -78,6 +81,7 @@ using FSphere3f		= UE::Math::TSphere<float>;
 using FBox3f		= UE::Math::TBox<float>;
 using FBox2f		= UE::Math::TBox2<float>;
 using FRotator3f	= UE::Math::TRotator<float>;
+using FRay3f		= UE::Math::TRay<float>;
 
 
 struct FColor;

@@ -21,6 +21,7 @@
 #include "UObject/CoreRedirects.h"
 #include "UObject/SoftObjectPath.h"
 #include "Math/Box2D.h"
+#include "Math/Ray.h"
 #include "Math/InterpCurvePoint.h"
 #include "UObject/ReleaseObjectVersion.h"
 
@@ -330,6 +331,25 @@ struct TStructOpsTypeTraits<FTwoVectors> : public TStructOpsTypeTraitsBase2<FTwo
 	};
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TwoVectors);
+
+
+template<typename T>
+struct TRay3StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+		WithNoInitConstructor = true,
+		WithZeroConstructor = true,
+		WithSerializeFromMismatchedTag = true,		
+	};
+};
+template<> struct TStructOpsTypeTraits<FRay3f> : public TRay3StructOpsTypeTraits<FRay3f> {};
+template<> struct TStructOpsTypeTraits<FRay3d> : public TRay3StructOpsTypeTraits<FRay3d> {};
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Ray3f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Ray3d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Ray);
+
 
 template<>
 struct TStructOpsTypeTraits<FInterpCurvePointFloat> : public TStructOpsTypeTraitsBase2<FInterpCurvePointFloat>

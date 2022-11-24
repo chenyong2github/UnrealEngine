@@ -30,9 +30,18 @@ public:
 	/** Default constructor initializes ray to Zero origin and Z-axis direction */
 	TRay()
 	{
-		Origin = TVector<T>::ZeroVector;
-		Direction = TVector<T>(0, 0, 1);
+		Init();
 	}
+
+	/**
+	 * Creates and initializes a new Ray to Zero Origin and Z-axis Direction.
+	 * @param EForceInit Force Init Enum.
+	 */
+	explicit TRay<T>( EForceInit )
+	{
+		Init();
+	}
+
 
 	/** 
 	  * Initialize Ray with origin and direction
@@ -51,9 +60,38 @@ public:
 		}
 	}
 
-	// Conversion to other type.
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
-	explicit TRay(const TRay<FArg>& From) : TRay<T>(TVector<T>(From.Origin), TVector<T>(From.Direction), true) {}
+
+	/**
+	 * Set the initial values of the Ray to Zero Origin and Z-axis Direction.
+	 */
+	void Init()
+	{
+		Origin = TVector<T>::ZeroVector;
+		Direction = TVector<T>(0, 0, 1);
+	}
+
+	/**
+	 * Compares two Rays for equality.
+	 *
+	 * @param Other The other Ray to compare with.
+	 * @return true if the Rays are equal, false otherwise.
+	 */
+	bool operator==( const TRay<T>& Other ) const
+	{
+		return (Origin == Other.Origin) && (Direction == Other.Direction);
+	}
+
+	/**
+	 * Compares two Rays for inequality.
+	 *
+	 * @param Other The other Ray to compare with.
+	 * @return true if the Rays are not equal, false otherwise.
+	 */
+	bool operator!=( const TRay<T>& Other ) const
+	{
+		return !(*this == Other);
+	}
+
 
 public:
 
@@ -129,6 +167,44 @@ public:
 	}
 
 
+
+public:
+
+	/**
+	* Get a textual representation of the Ray.
+	*
+	* @return Text describing the Ray.
+	*/
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("Origin=(%s), Direction=(%s)"), *Origin.ToString(), *Direction.ToString());
+	}
+
+	/**
+	 * Serializes the Ray.
+	 *
+	 * @param Ar The archive to serialize into.
+	 * @param Box The box to serialize.
+	 *
+	 * @return Reference to the Archive after serialization.
+	 */
+	friend FArchive& operator<<( FArchive& Ar, TRay<T>& Ray )
+	{
+		return Ar << Ray.Origin << Ray.Direction;
+	}
+
+	// Note: TRay is usually written via binary serialization. This function exists for SerializeFromMismatchedTag conversion usage. 
+	bool Serialize(FArchive& Ar)
+	{
+		Ar << *this;
+		return true;
+	}
+
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
+
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TRay(const TRay<FArg>& From) : TRay<T>(TVector<T>(From.Origin), TVector<T>(From.Direction), true) {}
 };
 
 }	// namespace UE::Math
@@ -136,6 +212,21 @@ public:
 
 UE_DECLARE_LWC_TYPE(Ray, 3);
 
+template<> struct TIsPODType<FRay3f> { enum { Value = true }; };
+template<> struct TIsPODType<FRay3d> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FRay3f> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FRay3d> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<FRay3f> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<FRay3d> { enum { Value = true }; };
 
+template<>
+inline bool FRay3f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Ray, Ray3f, Ray3d);
+}
+
+template<>
+inline bool FRay3d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Ray, Ray3d, Ray3f);
+}

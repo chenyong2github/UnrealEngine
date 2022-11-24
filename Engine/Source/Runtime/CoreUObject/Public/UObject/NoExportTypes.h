@@ -673,6 +673,52 @@ struct FPlane : public FVector
 };
 
 
+
+/**
+ * 3D Ray represented by Origin and (normalized) Direction.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Ray.h
+ * @note FRay3f is not currently exposed as a Blueprint type
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FRay3f
+{
+	UPROPERTY(EditAnywhere, Category = Ray, SaveGame)
+	FVector3f Origin;
+
+	UPROPERTY(EditAnywhere, Category = Ray, SaveGame)
+	FVector3f Direction;
+};
+
+/**
+ * 3D Ray represented by Origin and (normalized) Direction.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Ray.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FRay3d
+{
+	UPROPERTY(EditAnywhere, Category = Ray, SaveGame)
+	FVector3d Origin;
+
+	UPROPERTY(EditAnywhere, Category = Ray, SaveGame)
+	FVector3d Direction;
+};
+
+/**
+ * 3D Ray represented by Origin and (normalized) Direction.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Ray.h
+ */
+USTRUCT(immutable, noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FRay
+{
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ray, SaveGame)
+	FVector Origin;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ray, SaveGame)
+	FVector Direction;
+};
+
+
+
 /**
  * An orthogonal rotation in 3d space.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Rotator.h
