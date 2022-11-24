@@ -95,6 +95,12 @@ void UCustomizableObjectLayout::GenerateBlocksFromUVs()
 		
 		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Mesh))
 		{
+			// We don't need all the data to generate the blocks
+			const uint32 ShapeFlags = uint32(EMutableMeshConversionFlags::IgnoreSkinning) &
+				uint32(EMutableMeshConversionFlags::IgnorePhysics);
+
+			GenerationContext.MeshGenerationFlags.Push(ShapeFlags);
+
 			GenerationContext.ComponentInfos.Add(SkeletalMesh);
 			MutableMesh = ConvertSkeletalMeshToMutable(SkeletalMesh, LOD, Material, GenerationContext, Node);
 		}

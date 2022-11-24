@@ -543,7 +543,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 	if (!bIgnoreSkeleton)
 	{
 		// Add the RefSkeleton ID to the mesh.
-		const int32 RefSkeletonID = GenerationContext.ReferencedSkeletons.Find(ComponentRefSkeleton);
+		const int32 RefSkeletonID = GenerationContext.ReferencedSkeletons.AddUnique(ComponentRefSkeleton);
 		MutableMesh->AddSkeletonID(RefSkeletonID);
 
 		if (InSkeleton != ComponentRefSkeleton)
