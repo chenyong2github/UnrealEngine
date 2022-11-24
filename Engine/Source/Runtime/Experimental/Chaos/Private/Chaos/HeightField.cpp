@@ -2009,7 +2009,7 @@ namespace Chaos
 					X1 = VectorLoadFloat3(&X1f.X);
 					X2 = VectorLoadFloat3(&X2f.X);
 				}
-				if constexpr (std::is_same<QueryGeomType, Chaos::FSphere>::value)
+				else if constexpr (std::is_same<QueryGeomType, Chaos::FSphere>::value)
 				{
 					Radius = FRealSingle(QueryGeom.GetRadius());
 					const FVec3f X1f = QueryGeom.GetCenter();
