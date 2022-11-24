@@ -14,6 +14,8 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
+#include "ISMPartition/ISMComponentBatcher.h"
+
 FPackedLevelActorBuilderID FPackedLevelActorISMBuilder::BuilderID = 'ISMP';
 
 FPackedLevelActorBuilderID FPackedLevelActorISMBuilder::GetID() const
@@ -42,49 +44,28 @@ void FPackedLevelActorISMBuilder::PackActors(FPackedLevelActorBuilderContext& In
 	check(InClusterID.GetBuilderID() == GetID());
 	FTransform ActorTransform = InPackingActor->GetActorTransform();
 
-	TArray<FTransform> InstanceTransforms;
-	for (UActorComponent* Component : InComponents)
-	{
-		// If we have a ISM we need to add all instances
-		if (UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(Component))
-		{
-			for (int32 InstanceIndex = 0; InstanceIndex < ISMComponent->GetInstanceCount(); ++InstanceIndex)
-			{
-				FTransform InstanceTransform;
-
-				if (ensure(ISMComponent->GetInstanceTransform(InstanceIndex, InstanceTransform, /*bWorldSpace=*/ true)))
-				{
-					// WorldSpace -> ActorSpace -> Apply pivot change
-					InstanceTransforms.Add(InstanceTransform.GetRelativeTransform(ActorTransform) * InContext.GetRelativePivotTransform());
-				}
-			}
-		}
-		else // other subclasses are processed like regular UStaticMeshComponent
-		{
-			UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(Component);
-
-			// WorldSpace -> ActorSpace -> Apply pivot change
-			InstanceTransforms.Add(StaticMeshComponent->GetComponentTransform().GetRelativeTransform(ActorTransform) * InContext.GetRelativePivotTransform());
-		}
-	}
-
 	FPackedLevelActorISMBuilderCluster* ISMCluster = (FPackedLevelActorISMBuilderCluster*)InClusterID.GetData();
 	check(ISMCluster);
 
+	FISMComponentBatcher ISMComponentBatcher;
+	ISMComponentBatcher.Append(InComponents, [&ActorTransform, &InContext](const FTransform& InTransform) { return InTransform.GetRelativeTransform(ActorTransform) * InContext.GetRelativePivotTransform() * ActorTransform; });
+
 	TSubclassOf<UInstancedStaticMeshComponent> ComponentClass = UInstancedStaticMeshComponent::StaticClass();
-	if (InstanceTransforms.Num() > 1 && ISMCluster->ISMDescriptor.StaticMesh && !ISMCluster->ISMDescriptor.StaticMesh->NaniteSettings.bEnabled)
+	if (ISMComponentBatcher.GetNumInstances() > 1 && ISMCluster->ISMDescriptor.StaticMesh && !ISMCluster->ISMDescriptor.StaticMesh->NaniteSettings.bEnabled)
 	{
 		// Use HISM for non-nanite when there is more than one transform (no use in using HISM cpu occlusion for a single instance)
 		ComponentClass = UHierarchicalInstancedStaticMeshComponent::StaticClass();
 	}
-		
+
 	UInstancedStaticMeshComponent* PackComponent = InPackingActor->AddPackedComponent<UInstancedStaticMeshComponent>(ComponentClass);
-		
 	PackComponent->AttachToComponent(InPackingActor->GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
 
+	// Initialize the ISM properties using the ISM descriptor
 	ISMCluster->ISMDescriptor.InitComponent(PackComponent);
 
-	PackComponent->AddInstances(InstanceTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/false);
+	// Initialize the ISM instances using the ISM batcher
+	ISMComponentBatcher.InitComponent(PackComponent);
+
 	PackComponent->RegisterComponent();
 }
 

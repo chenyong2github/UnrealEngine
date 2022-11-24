@@ -80,6 +80,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 
+#include "ISMPartition/ISMComponentBatcher.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
 
 #define LOCTEXT_NAMESPACE "MeshMergeUtils"
@@ -3546,10 +3547,10 @@ void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComp
 						NewComponent->SetCollisionProfileName(ComponentEntry.CollisionProfileName);
 						NewComponent->SetCollisionEnabled(ComponentEntry.CollisionEnabled);
 						NewComponent->SetMobility(EComponentMobility::Static);
-						for(UStaticMeshComponent* OriginalComponent : ComponentEntry.OriginalComponents)
-						{
-							NewComponent->AddInstance(OriginalComponent->GetComponentTransform());
-						}
+
+						FISMComponentBatcher ISMComponentBatcher;
+						ISMComponentBatcher.Append(ComponentEntry.OriginalComponents);
+						ISMComponentBatcher.InitComponent(NewComponent);						
 
 						NewComponent->RegisterComponent();
 					}
