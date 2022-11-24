@@ -277,6 +277,16 @@ DynamicRenderScaling::FBudget GDynamicNaniteScalingPrimary(TEXT("DynamicNaniteSc
 DynamicRenderScaling::FBudget GDynamicNaniteScalingShadow( TEXT("DynamicNaniteScalingShadow"),  &GetDynamicNaniteScalingShadowSettings);
 
 extern int32 GNaniteShowStats;
+extern int32 GSkipDrawOnPSOPrecaching;
+
+// Set to 1 to pretend all programmable raster draws are not precached yet
+int32 GNaniteTestPrecacheDrawSkipping = 0;
+static FAutoConsoleVariableRef CVarNaniteTestPrecacheDrawSkipping(
+	TEXT("r.Nanite.TestPrecacheDrawSkipping"),
+	GNaniteTestPrecacheDrawSkipping,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
 
 static bool UseMeshShader(EShaderPlatform ShaderPlatform, Nanite::EPipeline Pipeline)
 {
@@ -1630,8 +1640,7 @@ void CollectRasterPSOInitializers(
 		return;
 	}
 
-	// Collect for primary & shadows (shadows are always multiview)
-	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Primary, true /*bMultiView*/, PSOInitializers);
+	// Collect for primary & shadows (primary is always single view, shadows are always multiview)
 	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Primary, false /*bMultiView*/, PSOInitializers);
 	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Shadows, true /*bMultiView*/, PSOInitializers);
 }
@@ -2702,6 +2711,8 @@ FBinningData AddPass_Rasterize(
 		uint32 RasterizerBin = ~uint32(0u);
 	};
 
+	int32 FixedFunctionPassIndex = INDEX_NONE;
+
 	auto& RasterizerPasses = GraphBuilder.AllocArray<FRasterizerPass>();
 
 	if (bProgrammableRaster)
@@ -2798,6 +2809,14 @@ FBinningData AddPass_Rasterize(
 
 			// Note: The indirect args offset is in bytes
 			RasterizerPass.IndirectOffset = (RasterizerPass.RasterizerBin * NANITE_RASTERIZER_ARG_COUNT) * 4u;
+
+			if (FixedFunctionPassIndex == INDEX_NONE &&
+				RasterizerPass.VertexMaterialProxy  == FixedMaterialProxy &&
+				RasterizerPass.PixelMaterialProxy   == FixedMaterialProxy &&
+				RasterizerPass.ComputeMaterialProxy == FixedMaterialProxy)
+			{
+				FixedFunctionPassIndex = RasterizerPasses.Num() - 1;
+			}
 		}
 	}
 	else
@@ -2808,6 +2827,8 @@ FBinningData AddPass_Rasterize(
 		RasterizerPass.ComputeMaterialProxy	= FixedMaterialProxy;
 		RasterizerPass.IndirectOffset		= 0u;
 		RasterizerPass.RasterizerBin		= 0u;
+
+		FixedFunctionPassIndex = 0;
 	}
 
 	for (FRasterizerPass& RasterizerPass : RasterizerPasses)
@@ -2911,12 +2932,13 @@ FBinningData AddPass_Rasterize(
 		ParallelTranslateFlag = ERDGPassFlags::ParallelTranslate;
 	}
 
+	const bool bAllowPrecacheSkip = GSkipDrawOnPSOPrecaching != 0;
 
-	FRDGPass* SWPass = GraphBuilder.AddPass(
+	FRDGPass* HWPass = GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HW Rasterize"),
 		RasterPassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ParallelTranslateFlag,
-		[RasterPassParameters, &RasterizerPasses, ViewRect, &SceneView, FixedMaterialProxy, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
+		[RasterPassParameters, &RasterizerPasses, ViewRect, &SceneView, FixedMaterialProxy, bAllowPrecacheSkip, FixedFunctionPassIndex, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("HW Rasterize"));
 		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
@@ -2947,40 +2969,61 @@ FBinningData AddPass_Rasterize(
 			const bool bCullModeNone = RasterizerPass.RasterPipeline.bIsTwoSided;
 			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, bCullModeNone ? CM_None : CM_CW);
 
-			if (bUseMeshShader)
+			auto BindShadersToPSOInit = [bUseMeshShader, &GraphicsPSOInit](const FRasterizerPass& PassToBind)
 			{
-				GraphicsPSOInit.BoundShaderState.SetMeshShader(RasterizerPass.RasterMeshShader.GetMeshShader());
+				if (bUseMeshShader)
+				{
+					GraphicsPSOInit.BoundShaderState.SetMeshShader(PassToBind.RasterMeshShader.GetMeshShader());
+				}
+				else
+				{
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = PassToBind.RasterVertexShader.GetVertexShader();
+				}
+
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PassToBind.RasterPixelShader.GetPixelShader();
+			};
+
+			auto BindShaderParameters = [bUseMeshShader, &RHICmdList, &SceneView, &Parameters](const FRasterizerPass& PassToBind)
+			{
+				if (bUseMeshShader)
+				{
+					PassToBind.RasterMeshShader->SetParameters(RHICmdList, SceneView, PassToBind.VertexMaterialProxy, *PassToBind.VertexMaterial);
+				}
+				else
+				{
+					PassToBind.RasterVertexShader->SetParameters(RHICmdList, SceneView, PassToBind.VertexMaterialProxy, *PassToBind.VertexMaterial);
+				}
+
+				PassToBind.RasterPixelShader->SetParameters(RHICmdList, SceneView, PassToBind.PixelMaterialProxy, *PassToBind.PixelMaterial);
+
+				if (bUseMeshShader)
+				{
+					SetShaderParameters(RHICmdList, PassToBind.RasterMeshShader, PassToBind.RasterMeshShader.GetMeshShader(), Parameters);
+				}
+				else
+				{
+					SetShaderParameters(RHICmdList, PassToBind.RasterVertexShader, PassToBind.RasterVertexShader.GetVertexShader(), Parameters);
+				}
+
+				SetShaderParameters(RHICmdList, PassToBind.RasterPixelShader, PassToBind.RasterPixelShader.GetPixelShader(), Parameters);
+			};
+
+			BindShadersToPSOInit(RasterizerPass);
+
+			if (bAllowPrecacheSkip && FixedFunctionPassIndex != INDEX_NONE && (GNaniteTestPrecacheDrawSkipping != 0 || PipelineStateCache::IsPrecaching(GraphicsPSOInit)))
+			{
+				// Programmable raster PSO has not been precached yet, fallback to fixed function in the meantime to avoid hitching.
+				const FRasterizerPass& FixedFunctionPass = RasterizerPasses[FixedFunctionPassIndex];
+
+				BindShadersToPSOInit(FixedFunctionPass);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+				BindShaderParameters(FixedFunctionPass);
 			}
 			else
 			{
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = RasterizerPass.RasterVertexShader.GetVertexShader();
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+				BindShaderParameters(RasterizerPass);
 			}
-
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = RasterizerPass.RasterPixelShader.GetPixelShader();
-
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-
-			if (bUseMeshShader)
-			{
-				RasterizerPass.RasterMeshShader->SetParameters(RHICmdList, SceneView, RasterizerPass.VertexMaterialProxy, *RasterizerPass.VertexMaterial);
-			}
-			else
-			{
-				RasterizerPass.RasterVertexShader->SetParameters(RHICmdList, SceneView, RasterizerPass.VertexMaterialProxy, *RasterizerPass.VertexMaterial);
-			}
-
-			RasterizerPass.RasterPixelShader->SetParameters(RHICmdList, SceneView, RasterizerPass.PixelMaterialProxy, *RasterizerPass.PixelMaterial);
-
-			if (bUseMeshShader)
-			{
-				SetShaderParameters(RHICmdList, RasterizerPass.RasterMeshShader, RasterizerPass.RasterMeshShader.GetMeshShader(), Parameters);
-			}
-			else
-			{
-				SetShaderParameters(RHICmdList, RasterizerPass.RasterVertexShader, RasterizerPass.RasterVertexShader.GetVertexShader(), Parameters);
-			}
-
-			SetShaderParameters(RHICmdList, RasterizerPass.RasterPixelShader, RasterizerPass.RasterPixelShader.GetPixelShader(), Parameters);
 
 			if (bUseMeshShader)
 			{
@@ -2995,15 +3038,15 @@ FBinningData AddPass_Rasterize(
 		RHICmdList.EndRenderPass();
 	});
 
-	GraphBuilder.SetPassWorkload(SWPass, PassWorkload);
+	GraphBuilder.SetPassWorkload(HWPass, PassWorkload);
 
 	if (Scheduling != ERasterScheduling::HardwareOnly)
 	{
-		FRDGPass* HWPass = GraphBuilder.AddPass(
+		FRDGPass* SWPass = GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SW Rasterize"),
 			RasterPassParameters,
 			ComputePassFlags | ParallelTranslateFlag,
-			[RasterPassParameters, &RasterizerPasses, &SceneView, FixedMaterialProxy](FRHIComputeCommandList& RHICmdList)
+			[RasterPassParameters, &RasterizerPasses, &SceneView, FixedMaterialProxy, bAllowPrecacheSkip, FixedFunctionPassIndex](FRHIComputeCommandList& RHICmdList)
 		{
 			FRasterizePassParameters Parameters = *RasterPassParameters;
 			Parameters.IndirectArgs->MarkResourceAsUsed();
@@ -3018,6 +3061,8 @@ FBinningData AddPass_Rasterize(
 
 				FRHIBuffer* IndirectArgsBuffer = Parameters.IndirectArgs->GetIndirectRHICallBuffer();
 				FRHIComputeShader* ShaderRHI = RasterizerPass.RasterComputeShader.GetComputeShader();
+
+				// TODO: Implement support for testing precache and skipping if needed
 
 				FComputeShaderUtils::ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), RasterizerPass.IndirectOffset, IndirectArgsBuffer->GetStride());
 				SetComputePipelineState(RHICmdList, ShaderRHI);
@@ -3036,7 +3081,7 @@ FBinningData AddPass_Rasterize(
 			}
 		});
 
-		GraphBuilder.SetPassWorkload(HWPass, PassWorkload);
+		GraphBuilder.SetPassWorkload(SWPass, PassWorkload);
 	}
 
 	return BinningData;
