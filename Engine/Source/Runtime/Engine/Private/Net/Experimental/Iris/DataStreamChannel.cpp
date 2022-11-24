@@ -20,6 +20,7 @@
 #include "Iris/Core/IrisProfiler.h"
 #include "Iris/Core/IrisMemoryTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "PacketHandler.h"
 #endif // UE_WITH_IRIS
 
 namespace UE::Net::Private
