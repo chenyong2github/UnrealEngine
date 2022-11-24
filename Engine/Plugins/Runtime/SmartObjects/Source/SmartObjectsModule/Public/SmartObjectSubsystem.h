@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "SmartObjectCollection.h"
+#include "SmartObjectPersistentCollection.h"
 #include "Templates/SubclassOf.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectRuntime.h"
@@ -11,9 +11,11 @@
 #include "SmartObjectSubsystem.generated.h"
 
 class USmartObjectComponent;
+class UWorldPartitionSmartObjectCollectionBuilder;
 struct FMassEntityManager;
 class ASmartObjectSubsystemRenderingActor;
 class FDebugRenderSceneProxy;
+class ADEPRECATED_SmartObjectCollection;
 
 #if WITH_EDITOR
 /** Called when an event related to the main collection occured. */
@@ -149,7 +151,7 @@ enum class ESmartObjectCollectionRegistrationResult : uint8
 UENUM()
 enum class ESmartObjectUnregistrationMode : uint8
 {
-	KeepRuntimeInstanceActive,
+	KeepRuntimeInstanceActiveIfPartOfCollection,
 	DestroyRuntimeInstance
 };
 
@@ -161,11 +163,15 @@ class SMARTOBJECTSMODULE_API USmartObjectSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 public:
+	USmartObjectSubsystem();
+
 	static USmartObjectSubsystem* GetCurrent(const UWorld* World);
 
-	ESmartObjectCollectionRegistrationResult RegisterCollection(ASmartObjectCollection& InCollection);
-	void UnregisterCollection(ASmartObjectCollection& InCollection);
-	ASmartObjectCollection* GetMainCollection() const { return MainCollection; }
+	ESmartObjectCollectionRegistrationResult RegisterCollection(ASmartObjectPersistentCollection& InCollection);
+	void UnregisterCollection(ASmartObjectPersistentCollection& InCollection);
+
+	const FSmartObjectContainer& GetSmartObjectContainer() const { return SmartObjectContainer; }
+	FSmartObjectContainer& GetMutableSmartObjectContainer() { return SmartObjectContainer; }
 
 	/**
 	 * Registers to the runtime simulation all SmartObject components for a given actor.
@@ -558,13 +564,25 @@ public:
 	void DebugDrawCanvas(UCanvas* Canvas, APlayerController* PlayerController) const {}
 #endif
 
+#if WITH_EDITORONLY_DATA
+	/** 
+	 * Special-purpose function used to set up an instance of ASmartObjectPersistentCollection with data from a given
+	 * instance of ADEPRECATED_SmartObjectCollection 
+	 */
+	static void CreatePersistentCollectionFromDeprecatedData(UWorld& World, const ADEPRECATED_SmartObjectCollection& DeprecatedCollection);
+
+	TConstArrayView<TWeakObjectPtr<ASmartObjectPersistentCollection>> GetRegisteredCollections() const { return RegisteredCollections; }
+	TArrayView<TWeakObjectPtr<ASmartObjectPersistentCollection>> GetMutableRegisteredCollections() { return RegisteredCollections; }
+#endif // WITH_EDITORONLY_DATA
+
 #if WITH_EDITOR
 	mutable FOnMainCollectionEvent OnMainCollectionChanged;
 	mutable FOnMainCollectionEvent OnMainCollectionDirtied;
 #endif
 
 protected:
-	friend class USmartObjectComponent;
+	friend USmartObjectComponent;
+	friend UWorldPartitionSmartObjectCollectionBuilder;
 
 	bool RegisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent);
 	bool UnregisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent, const ESmartObjectUnregistrationMode UnregistrationMode);
@@ -657,18 +675,20 @@ protected:
 	/** Make sure that all SmartObjectCollection actors from our associated world are registered. */
 	void RegisterCollectionInstances();
 
+	void AddContainerToSimulation(const FSmartObjectContainer& InSmartObjectContainer);
+
 	/**
 	 * Registers a collection entry to the simulation and creates its associated runtime instance.
 	 * This method must be used only when the associated actor component is not available (e.g. not loaded).
 	 */
-	FSmartObjectRuntime* AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition, AActor* OwnerActor);
+	FSmartObjectRuntime* AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition, AActor* OwnerActor, const bool bCommitChanges = true);
 
 	/**
 	 * Registers a collection entry to the simulation and creates its associated runtime instance.
 	 * @param SmartObjectComponent The component to add to the simulation and for which a runtime entry might be created or an existing one found
 	 * @param CollectionEntry The associated collection entry that got created to add the component to the simulation.
 	 */
-	FSmartObjectRuntime* AddComponentToSimulation(USmartObjectComponent& SmartObjectComponent, const FSmartObjectCollectionEntry& CollectionEntry);
+	FSmartObjectRuntime* AddComponentToSimulation(USmartObjectComponent& SmartObjectComponent, const FSmartObjectCollectionEntry& CollectionEntry, const bool bCommitChanges = true);
 
 	/**
 	 * Binds a smartobject component to an existing instance in the simulation.
@@ -681,6 +701,14 @@ protected:
 	 * @param SmartObjectComponent The component to remove from the simulation
 	 */
 	void UnbindComponentFromSimulation(USmartObjectComponent& SmartObjectComponent);
+
+	/**
+	 * Unbinds a smartobject component from the given FSmartObjectRuntime instance. Note that unlike UnbindComponentFromSimulation
+	 * this function blindly assumes that SmartObjectRuntime does indeed represent SmartObjectComponent
+	 * @param SmartObjectComponent The component to remove from the simulation
+	 * @param SmartObjectRuntime runtime data representing the component being removed
+	 */
+	void UnbindComponentFromSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime);
 
 	/** @return whether the removal was successful */
 	bool RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle);
@@ -710,8 +738,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<ASmartObjectSubsystemRenderingActor> RenderingActor;
 
-	UPROPERTY()
-	TObjectPtr<ASmartObjectCollection> MainCollection;
+	UPROPERTY(Transient)
+	FSmartObjectContainer SmartObjectContainer;
+
+	TArray<TWeakObjectPtr<ASmartObjectPersistentCollection>> RegisteredCollections;
 
 	TSharedPtr<FMassEntityManager> EntityManager;
 
@@ -731,20 +761,26 @@ protected:
 
 	uint32 NextFreeUserID = 1;
 
-	/** Flag to indicate that all entries from the baked collection are registered and new registrations will be considered runtime entries (i.e. no persistence) */
-	bool bInitialCollectionAddedToSimulation = false;
+	bool bRuntimeInitialized = false;
 
-#if WITH_EDITOR
-	friend class ASmartObjectCollection;
-	void RebuildCollection(ASmartObjectCollection& InCollection);
-	virtual void SpawnMissingCollection();
+#if WITH_EDITORONLY_DATA
+	/** Set in OnWorldComponentsUpdated and used to control special logic required to build collections in Editor mode */
+	bool bIsPartitionedWorld = false;
+
+	friend class ASmartObjectPersistentCollection;
+
+	void PopulateCollection(ASmartObjectPersistentCollection& InCollection);
+
+	/** Iteratively adds items to registered collections. Expected to be called in World Partitined worlds. */
+	void IterativelyBuildCollections();
+
+	int32 GetRegisteredSmartObjectsCompatibleWithCollection(ASmartObjectPersistentCollection& InCollection, TArray<USmartObjectComponent*>& OutRelevantComponents) const;
 
 	/**
-	 * Compute bounds from given world and store result in provided collection
+	 * Compute bounds from the given world 
 	 * @param World World from which the bounds must be computed
-	 * @param Collection Collection that will store computed bounds
 	 */
-	void ComputeBounds(const UWorld& World, ASmartObjectCollection& Collection) const;
+	FBox ComputeBounds(const UWorld& World) const;
 #endif // WITH_EDITOR
 
 #if WITH_SMARTOBJECT_DEBUG
@@ -762,9 +798,6 @@ public:
 
 	/** Debugging helper to emulate the start of the simulation to create all runtime data */
 	void DebugInitializeRuntime();
-	
-	/** Debugging helper to force rebuild collection for tests scenarios when collection is built on demand */
-	void DebugRebuildCollection();
 
 	/** Debugging helper to emulate the stop of the simulation to destroy all runtime data */
 	void DebugCleanupRuntime();

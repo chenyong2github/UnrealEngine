@@ -13,10 +13,35 @@
 #include "Engine/World.h"
 #endif
 
+#if WITH_EDITORONLY_DATA
+USmartObjectComponent::FOnSmartObjectChanged USmartObjectComponent::OnSmartObjectChanged;
+#endif // WITH_EDITORONLY_DATA
+
 USmartObjectComponent::USmartObjectComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 
+}
+
+void USmartObjectComponent::PostInitProperties()
+{
+	Super::PostInitProperties();
+#if WITH_EDITORONLY_DATA
+	if (HasAnyFlags(RF_ClassDefaultObject) == false)
+	{
+		if (AActor* Actor = GetOwner())
+		{
+			// tagging owner actors since the tags get included in FWorldPartitionActorDesc 
+			// and that's the only way we can tell a given actor has a SmartObjectComponent 
+			// until it's fully loaded
+			if (Actor->Tags.Contains(UE::SmartObjects::WithSmartObjectTag) == false)
+			{
+				Actor->Tags.AddUnique(UE::SmartObjects::WithSmartObjectTag);
+				Actor->MarkPackageDirty();
+			}
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void USmartObjectComponent::OnRegister()
@@ -84,12 +109,15 @@ void USmartObjectComponent::OnUnregister()
 		return;
 	}
 
-	// Note: we don't report error or ensure on missing subsystem since it might happen
-	// in various scenarios (e.g. inactive world, AI system is cleaned up before the components gets unregistered, etc.)
-	if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
-	{
-		// The default behavior is to maintain the runtime instance alive when the component is unregistered (streamed out).
-		Subsystem->UnregisterSmartObjectInternal(*this, ESmartObjectUnregistrationMode::KeepRuntimeInstanceActive);
+	if (GetRegisteredHandle().IsValid())
+	{	
+		if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
+		{
+			// If a given smart object has been registered with the system as a part of SmartObject collection we
+			// keep the runtime data alive and active - that data will only be removed along with the whole collection.
+			// If this smart object is not a part of a collection its runtime data will be removed.
+			Subsystem->UnregisterSmartObjectInternal(*this, ESmartObjectUnregistrationMode::KeepRuntimeInstanceActiveIfPartOfCollection);
+		}
 	}
 
 	ensureMsgf(!OnComponentTagsModifiedHandle.IsValid(), TEXT("AbilitySystemComponent delegate is expected to be unbound after unregistration"));
@@ -245,6 +273,25 @@ TStructOnScope<FActorComponentInstanceData> USmartObjectComponent::GetComponentI
 	return MakeStructOnScope<FActorComponentInstanceData, FSmartObjectComponentInstanceData>(this, DefinitionAsset);
 }
 
+#if WITH_EDITOR
+void USmartObjectComponent::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	OnSmartObjectChanged.Broadcast(*this);
+}
+
+void USmartObjectComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	OnSmartObjectChanged.Broadcast(*this);
+}
+#endif // WITH_EDITOR
+
+//-----------------------------------------------------------------------------
+// FSmartObjectComponentInstanceData
+//-----------------------------------------------------------------------------
 bool FSmartObjectComponentInstanceData::ContainsData() const
 {
 	return true;

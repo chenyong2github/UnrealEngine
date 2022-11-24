@@ -4,15 +4,18 @@
 
 #include "EngineUtils.h"
 #include "FileHelpers.h"
-#include "SmartObjectCollection.h"
+#include "SmartObjectPersistentCollection.h"
+#include "SmartObjectComponent.h"
 #include "WorldPartition/WorldPartition.h"
 #include "SmartObjectSubsystem.h"
 #include "UObject/SavePackage.h"
 
+#include "WorldPartition/WorldPartitionHelpers.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionSmartObjectCollectionBuilder)
 
 UWorldPartitionSmartObjectCollectionBuilder::UWorldPartitionSmartObjectCollectionBuilder(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer), MainCollection(nullptr)
+	: Super(ObjectInitializer)
 {
 	IterativeCellSize = 51200;
 }
@@ -21,42 +24,80 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PreRun(UWorld* World, FPackage
 {
 	Super::PreRun(World, PackageHelper);
 
-	const USmartObjectSubsystem* SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(World);
+	USmartObjectSubsystem* SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(World);
 	if (SmartObjectSubsystem == nullptr)
 	{
 		UE_LOG(LogSmartObject, Error, TEXT("SmartObjectSubsystem not found."));
 		return false;
 	}
-
-	MainCollection = SmartObjectSubsystem->GetMainCollection();
-	if (MainCollection == nullptr)
+	
+	NumSmartObjectsBefore.Reserve(SmartObjectSubsystem->GetRegisteredCollections().Num());
+	OriginalContentsHash.Reserve(SmartObjectSubsystem->GetRegisteredCollections().Num());
+	for (const TWeakObjectPtr<ASmartObjectPersistentCollection>& WeakCollection : SmartObjectSubsystem->GetRegisteredCollections())
 	{
-		UE_LOG(LogSmartObject, Error, TEXT("Main SmartObject collection not found."));
+		if (ASmartObjectPersistentCollection* Collection = WeakCollection.Get())
+		{
+			NumSmartObjectsBefore.Add(Collection->GetEntries().Num());
+			OriginalContentsHash.Add(GetTypeHash(Collection->GetSmartObjectContainer()));
+			Collection->ResetCollection();
+		}
+		else
+		{
+			NumSmartObjectsBefore.Add(0);
+			OriginalContentsHash.Add(0);
+		}
+	}
+
+
+	UWorldPartition* WorldPartition = World->GetWorldPartition();
+	if (!WorldPartition)
+	{
+		UE_LOG(LogSmartObject, Error, TEXT("Failed to retrieve WorldPartition."));
 		return false;
 	}
 
-	NumSmartObjectsBefore = MainCollection->GetEntries().Num();
-	MainCollection->ResetCollection();
-	MainCollection->SetBuildingForWorldPartition(true);
+	// parse the actors meta data to find the ones that contain smart objects
+	TArray<FGuid> ExistingActorGUIDs;
+	TArray<AActor*> ExistingActorInstances;
+	TArray<USmartObjectComponent*> ExistingSOComponents;
+	FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, AActor::StaticClass(), [&ExistingActorGUIDs, &ExistingSOComponents](const FWorldPartitionActorDesc* ActorDesc)
+		{
+			if (ActorDesc->GetTags().Contains(UE::SmartObjects::WithSmartObjectTag)
+				&& ActorDesc->GetDataLayers().Num() > 0)
+			{
+				ExistingActorGUIDs.Add(ActorDesc->GetGuid());
+				if (AActor* Actor = ActorDesc->Load())
+				{
+					if (USmartObjectComponent* SOComponent = Actor->GetComponentByClass<USmartObjectComponent>())
+					{
+						ExistingSOComponents.Add(SOComponent);
+					}
+				}
+			}
 
-	NumSmartObjectsTotal = 0;
+			return true;
+		});
+
+	// manually register smart objects what we found via the meta data
+	for (USmartObjectComponent* SOComponent : ExistingSOComponents)
+	{
+		SmartObjectSubsystem->RegisterSmartObject(*SOComponent);
+	}
 
 	return true;
 }
 
 bool UWorldPartitionSmartObjectCollectionBuilder::RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper)
 {
-	if (MainCollection == nullptr)
+	USmartObjectSubsystem* SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(World);
+	if (SmartObjectSubsystem == nullptr)
 	{
 		// no need to report an error here, was already done in PreRun
 		return false;
 	}
 
-	const uint32 PreviousTotal = NumSmartObjectsTotal;
-	NumSmartObjectsTotal = MainCollection->GetEntries().Num();
-
-	ensureMsgf(NumSmartObjectsTotal >= PreviousTotal, TEXT("Collection is built incrementally so count should be stable or increase while loading new areas."));
-	UE_CLOG(NumSmartObjectsTotal != PreviousTotal, LogSmartObject, Log, TEXT("Total = %d: added %d from area bounds [%s]"), NumSmartObjectsTotal, NumSmartObjectsTotal-PreviousTotal, *InCellInfo.Bounds.ToString());
+	// this call will append all newly loaded smart objects to the appropriate collections
+	SmartObjectSubsystem->IterativelyBuildCollections();
 
 	return true;
 }
@@ -65,103 +106,117 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackag
 {
 	Super::PostRun(World, PackageHelper, bInRunSuccess);
 
-	if (MainCollection == nullptr)
+	USmartObjectSubsystem* SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(World);
+	if (SmartObjectSubsystem == nullptr)
 	{
-		// no need to report an error here, was already done in PreRun
 		return false;
 	}
-	MainCollection->SetBuildingForWorldPartition(false);
 
-	const bool bWasEmpty = NumSmartObjectsBefore == 0;
-	const bool bIsEmpty = NumSmartObjectsTotal == 0;
+	bool bErrorsEncountered = false;
 
-	// If collection was empty and still is, nothing to save. Otherwise we mark as dirty.
-	if (!(bIsEmpty && bWasEmpty))
+	const int32 CollectionsCount = SmartObjectSubsystem->GetMutableRegisteredCollections().Num();
+	for (int32 CollectionIndex = 0; CollectionIndex < CollectionsCount; ++CollectionIndex)
 	{
-		MainCollection->MarkPackageDirty();
-	}
-
-	UPackage* Package = MainCollection->GetPackage();
-	bool bDeletePackage = false;
-	bool bSavePackage = false;
-	if (Package->IsDirty())
-	{
-		if (UPackage::IsEmptyPackage(Package))
+		ASmartObjectPersistentCollection* Collection = SmartObjectSubsystem->GetMutableRegisteredCollections()[CollectionIndex].Get();
+		if (Collection == nullptr)
 		{
-			bDeletePackage = true;
+			continue;
 		}
-		else
-		{
-			bSavePackage = true;
-		}
-	}
+	
+		const int32 NumSmartObjectsAfter = Collection->GetEntries().Num();
 
-	// Delete package
-	if (bDeletePackage)
-	{
-		UE_LOG(LogSmartObject, Log, TEXT("Deleting package %s."), *Package->GetName());
-		if (!PackageHelper.Delete(Package))
-		{
-			UE_LOG(LogSmartObject, Error, TEXT("Error deleting package."));
-			return false;
-		}
-	}
-
-	// Save packages
-	if (bSavePackage)
-	{
-		{
-			// Checkout package to save
-			TRACE_CPUPROFILER_EVENT_SCOPE(CheckoutPackage);
-			if (PackageHelper.UseSourceControl())
+		if (NumSmartObjectsBefore[CollectionIndex] == NumSmartObjectsAfter)
+		{ 
+			if (NumSmartObjectsAfter == 0 && bRemoveEmptyCollections == false)
 			{
-				FEditorFileUtils::CheckoutPackages({Package}, /*OutPackagesCheckedOut*/nullptr, /*bErrorIfAlreadyCheckedOut*/false);
+				// nothing to do here
+				continue;
 			}
 			else
 			{
-				// Remove read-only
-				const FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
-				if (IPlatformFile::GetPlatformPhysical().FileExists(*PackageFilename))
+				const uint32 NewHash = GetTypeHash(Collection->GetSmartObjectContainer());
+				if (NewHash == OriginalContentsHash[CollectionIndex])
 				{
-					if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*PackageFilename, /*bNewReadOnlyValue*/false))
-					{
-						UE_LOG(LogSmartObject, Error, TEXT("Error setting %s writable"), *PackageFilename);
-						return false;
-					}
+					// Container hasn't changed. Skip as well.
+					continue;
 				}
 			}
 		}
 
+		Collection->MarkPackageDirty();
+		
+		UPackage* Package = Collection->GetPackage();
+		ensure(Package->IsDirty());
+
+		const bool bDeletePackage = UPackage::IsEmptyPackage(Package) || (NumSmartObjectsAfter == 0 && bRemoveEmptyCollections);
+
+		if (bDeletePackage)
 		{
-			// Save packages
-			TRACE_CPUPROFILER_EVENT_SCOPE(SavingPackage);
-			UE_LOG(LogSmartObject, Log, TEXT("   Saving package  %s."), *Package->GetName());
-			const FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-			FSavePackageArgs SaveArgs;
-			SaveArgs.TopLevelFlags = RF_Standalone;
-			SaveArgs.SaveFlags = SAVE_Async;
-			if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
+			UE_LOG(LogSmartObject, Log, TEXT("Deleting package %s."), *Package->GetName());
+			if (!PackageHelper.Delete(Package))
 			{
-				UE_LOG(LogSmartObject, Error, TEXT("Error saving package %s."), *Package->GetName());
-				return false;
+				UE_LOG(LogSmartObject, Error, TEXT("Error deleting package."));
+				bErrorsEncountered = true;
 			}
 		}
-
+		else
 		{
-			// Add new packages to source control
-			TRACE_CPUPROFILER_EVENT_SCOPE(AddingToSourceControl);
-			UE_LOG(LogSmartObject, Log, TEXT("Adding package to revision control."));
-
-			if (!PackageHelper.AddToSourceControl(Package))
 			{
-				UE_LOG(LogSmartObject, Error, TEXT("Error adding package %s to revision control."), *Package->GetName());
-				return false;
+				// Checkout package to save
+				TRACE_CPUPROFILER_EVENT_SCOPE(CheckoutPackage);
+				if (PackageHelper.UseSourceControl())
+				{
+					FEditorFileUtils::CheckoutPackages({Package}, /*OutPackagesCheckedOut*/nullptr, /*bErrorIfAlreadyCheckedOut*/false);
+				}
+				else
+				{
+					// Remove read-only
+					const FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
+					if (IPlatformFile::GetPlatformPhysical().FileExists(*PackageFilename))
+					{
+						if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*PackageFilename, /*bNewReadOnlyValue*/false))
+						{
+							UE_LOG(LogSmartObject, Error, TEXT("Error setting %s writable"), *PackageFilename);
+							bErrorsEncountered = true;
+							continue;
+						}
+					}
+				}
 			}
-		}
 
-		UPackage::WaitForAsyncFileWrites();
+			{
+				// Save packages
+				TRACE_CPUPROFILER_EVENT_SCOPE(SavingPackage);
+				UE_LOG(LogSmartObject, Log, TEXT("   Saving package  %s."), *Package->GetName());
+				const FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				SaveArgs.SaveFlags = SAVE_Async;
+				if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
+				{
+					UE_LOG(LogSmartObject, Error, TEXT("Error saving package %s."), *Package->GetName());
+					bErrorsEncountered = true;
+					continue;
+				}
+			}
+
+			{
+				// Add new packages to source control
+				TRACE_CPUPROFILER_EVENT_SCOPE(AddingToSourceControl);
+				UE_LOG(LogSmartObject, Log, TEXT("Adding package to source control."));
+
+				if (!PackageHelper.AddToSourceControl(Package))
+				{
+					UE_LOG(LogSmartObject, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
+					bErrorsEncountered = true;
+					continue;
+				}
+			}
+
+			UPackage::WaitForAsyncFileWrites();
+		}
 	}
 
-	return true;
+	return (bErrorsEncountered == false);
 }
 

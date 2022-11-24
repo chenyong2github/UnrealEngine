@@ -37,8 +37,8 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 	const uint32 NumRuntimeObjects = Subsystem->DebugGetNumRuntimeObjects();
 	const uint32 NumRegisteredComponents = Subsystem->DebugGetNumRegisteredComponents();
 
-	ASmartObjectCollection* MainCollection = Subsystem->GetMainCollection();
-	const uint32 NumCollectionEntries = MainCollection != nullptr ? MainCollection->GetEntries().Num() : 0;
+	const FSmartObjectContainer& SmartObjectContainer = Subsystem->GetSmartObjectContainer();
+	const uint32 NumCollectionEntries = SmartObjectContainer.GetEntries().Num();
 
 	uint32 NumActiveObjects = 0;
 

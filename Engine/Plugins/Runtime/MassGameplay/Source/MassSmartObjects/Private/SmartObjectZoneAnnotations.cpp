@@ -39,7 +39,7 @@ void USmartObjectZoneAnnotations::PostSubsystemsInitialized()
 				// unregistered/registered when modifying their properties (e.g. dragging the actor(s) in the level)
 				bRebuildAllGraphsRequested = true;
 				MarkPackageDirty();
-	}
+			}
 		});
 	}
 
@@ -185,11 +185,7 @@ void USmartObjectZoneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* Debu
 		return;
 	}
 
-	const ASmartObjectCollection* Collection = SmartObjectSubsystem->GetMainCollection();
-	if (Collection == nullptr)
-	{
-		return;
-	}
+	const FSmartObjectContainer& SmartObjectContainer = SmartObjectSubsystem->GetSmartObjectContainer();
 
 	for (FSmartObjectAnnotationData& AnnotationData : SmartObjectAnnotationDataArray)
 	{
@@ -199,7 +195,7 @@ void USmartObjectZoneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* Debu
 			continue;
 		}
 
-		for (const FSmartObjectCollectionEntry& Entry : Collection->GetEntries())
+		for (const FSmartObjectCollectionEntry& Entry : SmartObjectContainer.GetEntries())
 		{
 			int32* Index = AnnotationData.SmartObjectToLaneLocationIndexLookup.Find(Entry.GetHandle());
 			if (Index == nullptr)
@@ -293,26 +289,21 @@ void USmartObjectZoneAnnotations::RebuildForSingleGraph(FSmartObjectAnnotationDa
 		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Attempting to rebuild data while BehaviorTag is invalid (e.g. not set in MassSmartObjectSettings)"));
 		return;
 	}
-
-	const ASmartObjectCollection* Collection = SmartObjectSubsystem->GetMainCollection();
-	if (Collection == nullptr)
-	{
-		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Attempting to rebuild data while main SmartObject collection is not set."));
-		return;
-	}
+	
+	const FSmartObjectContainer& SmartObjectContainer = SmartObjectSubsystem->GetSmartObjectContainer();
 
 	const FVector SearchExtent(GetDefault<UMassSmartObjectSettings>()->SearchExtents);
 	int32 NumAdded = 0;
 	int32 NumDiscarded = 0;
 
-	const int32 NumSO = Collection->GetEntries().Num();
+	const int32 NumSO = SmartObjectContainer.GetEntries().Num();
 	const int32 NumLanes = Storage.Lanes.Num();
 	Data.SmartObjectLaneLocations.Empty(NumSO);
 	Data.SmartObjectToLaneLocationIndexLookup.Empty(NumSO);
 	Data.LaneToLaneLocationIndicesLookup.Empty(NumLanes);
 	Data.AffectedLanes.Empty(NumLanes);
 
-	for (const FSmartObjectCollectionEntry& Entry : Collection->GetEntries())
+	for (const FSmartObjectCollectionEntry& Entry : SmartObjectContainer.GetEntries())
 	{
 		FSmartObjectHandle Handle = Entry.GetHandle();
 		const FVector& ObjectLocation = Entry.GetTransform().GetLocation();

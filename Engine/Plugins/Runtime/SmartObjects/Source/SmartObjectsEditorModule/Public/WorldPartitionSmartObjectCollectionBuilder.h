@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "SmartObjectCollection.h"
+#include "SmartObjectPersistentCollection.h"
 #include "WorldPartition/WorldPartitionBuilder.h"
 #include "WorldPartitionSmartObjectCollectionBuilder.generated.h"
 
-class ASmartObjectCollection;
+class ASmartObjectPersistentCollection;
 
 /**
  * WorldPartitionBuilder dedicated to collect all smart object components from a world and store them in the collection.
@@ -23,9 +23,9 @@ protected:
 	virtual bool PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	virtual bool PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) override;
 
-	UPROPERTY(Transient)
-	TObjectPtr<ASmartObjectCollection> MainCollection;
-
-	uint32 NumSmartObjectsBefore = 0;
+	TArray<uint32> NumSmartObjectsBefore;
+	TArray<uint32> OriginalContentsHash;
 	uint32 NumSmartObjectsTotal = 0;
+
+	bool bRemoveEmptyCollections = false;
 };

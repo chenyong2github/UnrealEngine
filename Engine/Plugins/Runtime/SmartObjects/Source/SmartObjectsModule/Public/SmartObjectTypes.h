@@ -14,6 +14,13 @@ class FDebugRenderSceneProxy;
 
 SMARTOBJECTSMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogSmartObject, Warning, All);
 
+namespace UE::SmartObjects
+{
+#if WITH_EDITORONLY_DATA
+	inline const FName WithSmartObjectTag = FName("WithSmartObject");
+#endif // WITH_EDITORONLY_DATA
+}
+
 /** Indicates how Tags from slots and parent object are combined to be evaluated by a TagQuery from a find request. */
 UENUM()
 enum class ESmartObjectTagMergingPolicy : uint8
@@ -108,7 +115,7 @@ public:
 
 private:
 	/** Valid Id must be created by the collection */
- 	friend class ASmartObjectCollection;
+	friend struct FSmartObjectHandleFactory;
 
 	explicit FSmartObjectHandle(const uint32 InID) : ID(InID) {}
 

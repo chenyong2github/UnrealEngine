@@ -4,7 +4,7 @@
 
 #include "SmartObjectDefinition.h"
 #include "SmartObjectTypes.h"
-#include "SmartObjectCollection.h"
+#include "SmartObjectPersistentCollection.h"
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectTestTypes.generated.h"
 
@@ -31,23 +31,19 @@ public:
 
 protected:
 #if WITH_EDITOR
-	virtual void SpawnMissingCollection() override;
 #endif // WITH_EDITOR
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const { return false; }
-	virtual void CleanupRuntime() override;
 };
 
 /**
- * Test-time ASmartObjectCollection override, aimed at encapsulating test-time smart object instances and functionality
+ * Test-time ASmartObjectPersistentCollection override, aimed at encapsulating test-time smart object instances and functionality
  */
 UCLASS(HideDropdown)
-class ASmartObjectTestCollection : public ASmartObjectCollection
+class ASmartObjectTestCollection : public ASmartObjectPersistentCollection
 {
 	GENERATED_BODY()
 
 public:
-	ASmartObjectTestCollection();
-
 	virtual bool RegisterWithSubsystem(const FString& Context) override;
 	virtual bool UnregisterWithSubsystem(const FString& Context) override;
 };

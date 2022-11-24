@@ -10,31 +10,7 @@ void USmartObjectTestSubsystem::RebuildAndInitializeForTesting(const TSharedPtr<
 	UWorld& World = GetWorldRef();
 	OnWorldComponentsUpdated(World);
 
-	if (MainCollection == nullptr)
-	{
-		SpawnMissingCollection();
-	}
-
-	if (MainCollection != nullptr)
-	{
-		RebuildCollection(*MainCollection);
-	}
-
 	InitializeRuntime(InEntityManager);
-}
-
-void USmartObjectTestSubsystem::SpawnMissingCollection()
-{
-	if (IsValid(MainCollection))
-	{
-		return;
-	}
-
-	UWorld& World = GetWorldRef();	
-	ASmartObjectCollection* LocalCollection = World.SpawnActor<ASmartObjectCollection>(ASmartObjectTestCollection::StaticClass());//, SpawnInfo);
-	check(LocalCollection);
-
-	RegisterCollection(*LocalCollection);
 }
 
 FMassEntityManager* USmartObjectTestSubsystem::GetEntityManagerForTesting()
@@ -42,25 +18,9 @@ FMassEntityManager* USmartObjectTestSubsystem::GetEntityManagerForTesting()
 	return EntityManager.Get();
 }
 
-void USmartObjectTestSubsystem::CleanupRuntime()
-{
-	Super::CleanupRuntime();
-
-	if (IsValid(MainCollection))
-	{
-		MainCollection->Destroy();
-		MainCollection = nullptr;
-	}
-}
-
 //----------------------------------------------------------------------//
 // ASmartObjectTestCollection
 //----------------------------------------------------------------------//
-ASmartObjectTestCollection::ASmartObjectTestCollection()
-{
-	bIgnoreLevelTesting = true;
-}
-
 bool ASmartObjectTestCollection::RegisterWithSubsystem(const FString & Context)
 {
 	return false;
