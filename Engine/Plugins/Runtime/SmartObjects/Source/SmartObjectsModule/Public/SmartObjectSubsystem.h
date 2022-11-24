@@ -661,7 +661,7 @@ protected:
 	 * Registers a collection entry to the simulation and creates its associated runtime instance.
 	 * This method must be used only when the associated actor component is not available (e.g. not loaded).
 	 */
-	FSmartObjectRuntime* AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition);
+	FSmartObjectRuntime* AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition, AActor* OwnerActor);
 
 	/**
 	 * Registers a collection entry to the simulation and creates its associated runtime instance.

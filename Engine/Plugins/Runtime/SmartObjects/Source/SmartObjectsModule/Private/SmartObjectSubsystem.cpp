@@ -127,10 +127,9 @@ USmartObjectSubsystem* USmartObjectSubsystem::GetCurrent(const UWorld* World)
 FSmartObjectRuntime* USmartObjectSubsystem::AddComponentToSimulation(USmartObjectComponent& SmartObjectComponent, const FSmartObjectCollectionEntry& NewEntry)
 {
 	checkf(SmartObjectComponent.GetDefinition() != nullptr, TEXT("Shouldn't reach this point with an invalid definition asset"));
-	FSmartObjectRuntime* SmartObjectRuntime = AddCollectionEntryToSimulation(NewEntry, *SmartObjectComponent.GetDefinition());
+	FSmartObjectRuntime* SmartObjectRuntime = AddCollectionEntryToSimulation(NewEntry, *SmartObjectComponent.GetDefinition(), SmartObjectComponent.GetOwner());
 	if (SmartObjectRuntime != nullptr)
 	{
-		SmartObjectRuntime->OwnerActor = SmartObjectComponent.GetOwner();
 		SmartObjectComponent.OnRuntimeInstanceCreated(*SmartObjectRuntime);
 	}
 	return SmartObjectRuntime;
@@ -163,7 +162,7 @@ void USmartObjectSubsystem::UnbindComponentFromSimulation(USmartObjectComponent&
 	}
 }
 
-FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition)
+FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition, AActor* OwnerActor)
 {
 	const FSmartObjectHandle Handle = Entry.GetHandle();
 	const FTransform& Transform = Entry.GetTransform();
@@ -190,6 +189,7 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(Handle, FSmartObjectRuntime(Definition));
 	Runtime.SetRegisteredHandle(Handle);
 	Runtime.Tags = Tags;
+	Runtime.OwnerActor = OwnerActor;
 
 #if UE_ENABLE_DEBUG_DRAWING
 	Runtime.Bounds = Bounds;
@@ -198,7 +198,7 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 
 	const USmartObjectWorldConditionSchema* DefaultWorldConditionSchema = GetDefault<USmartObjectWorldConditionSchema>();
 	FWorldConditionContextData ConditionContextData(*Definition.GetWorldConditionSchema());
-	ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectActorRef(), Runtime.GetOwnerActor().Get()), TEXT("Expecting USmartObjectWorldConditionSchema::GetSmartObjectActorRef to be valid."));
+	ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectActorRef(), OwnerActor), TEXT("Expecting USmartObjectWorldConditionSchema::GetSmartObjectActorRef to be valid."));
 
 	// Create runtime data and entity for each slot
 	int32 SlotIndex = 0;
@@ -1545,7 +1545,7 @@ void USmartObjectSubsystem::InitializeRuntime(const TSharedPtr<FMassEntityManage
 		else
 		{
 			// Otherwise we create the runtime instance based on the information from the collection and component will be bound later (e.g. on load)
-			AddCollectionEntryToSimulation(Entry, *Definition);
+			AddCollectionEntryToSimulation(Entry, *Definition, nullptr);
 		}
 	}
 
