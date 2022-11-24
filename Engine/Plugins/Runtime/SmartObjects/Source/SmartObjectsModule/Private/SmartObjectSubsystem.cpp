@@ -1211,7 +1211,7 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 	FWorldConditionContextData ConditionContextData = Filter.ConditionContextData;
 	if (!ConditionContextData.IsValid())
 	{
-		ConditionContextData.SetSchema(Definition.GetWorldConditionSchema());
+		ConditionContextData.SetSchema(*Definition.GetWorldConditionSchema());
 	}
 
 	const USmartObjectWorldConditionSchema* DefaultSchema = GetDefault<USmartObjectWorldConditionSchema>();

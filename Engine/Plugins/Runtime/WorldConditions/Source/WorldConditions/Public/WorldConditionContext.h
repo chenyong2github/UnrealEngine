@@ -56,7 +56,7 @@ struct WORLDCONDITIONS_API FWorldConditionContextData
 	
 	explicit FWorldConditionContextData(const UWorldConditionSchema& InSchema)
 	{
-		SetSchema(&InSchema);
+		SetSchema(InSchema);
 	}
 
 	/** @return True if the context data is initialized with a schema. */
@@ -72,21 +72,21 @@ struct WORLDCONDITIONS_API FWorldConditionContextData
 	const UWorldConditionSchema* GetSchema() const { return Schema; }
 
 	/** Sets schema for the context data and initializes data views. */
+	void SetSchema(const UWorldConditionSchema& InSchema)
+	{
+		Schema = &InSchema;
+		Views.Init(FWorldConditionDataView(), Schema->GetContextDataDescs().Num());
+		for (int32 Index = 0; Index < Views.Num(); Index++)
+		{
+			Views[Index] = FWorldConditionDataView(Schema->GetContextDataTypeByIndex(Index));
+		}
+	}
+
+	/** @todo: this is temporary change to allow non-engine code to migrate to ref API. */
 	void SetSchema(const UWorldConditionSchema* InSchema)
 	{
-		Schema = InSchema;
-		if (InSchema)
-		{
-			Views.Init(FWorldConditionDataView(), Schema->GetContextDataDescs().Num());
-			for (int32 Index = 0; Index < Views.Num(); Index++)
-			{
-				Views[Index] = FWorldConditionDataView(Schema->GetContextDataTypeByIndex(Index));
-			}
-		}
-		else
-		{
-			Views.Reset();
-		}
+		check(InSchema);
+		SetSchema(*InSchema);
 	}
 
 	/** Sets context data Struct at location specified by Ref. */
