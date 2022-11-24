@@ -2888,8 +2888,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			// Ensure that DDC is initialized from the game thread.
 			UE_SCOPED_ENGINE_ACTIVITY(TEXT("Initializing Derived Data Cache"));
 			SCOPED_BOOT_TIMING("InitDerivedData");
-			UE::DerivedData::GetBuild();
 			UE::DerivedData::GetCache();
+			UE::DerivedData::GetBuild();
 			GetDerivedDataCacheRef();
 		}
 #endif

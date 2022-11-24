@@ -53,7 +53,6 @@ public:
 
 	void CreateBuildOnce()
 	{
-		CreateCacheOnce();
 		FScopeLock Lock(&CreateLock);
 		if (!GDerivedDataBuild)
 		{
