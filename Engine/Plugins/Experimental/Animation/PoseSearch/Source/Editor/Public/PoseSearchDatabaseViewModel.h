@@ -98,7 +98,6 @@ namespace UE::PoseSearch
 		bool IsAnimationPreviewMode(EAnimationPreviewMode PreviewMode) const;
 
 		void OnToggleDisplayRootMotionSpeed();
-		bool CanDisplayRootMotionSpeed() const;
 		bool IsDisplayRootMotionSpeedChecked() const { return DisplayRootMotionSpeed; };
 		
 		void AddSequenceToDatabase(UAnimSequence* AnimSequence);

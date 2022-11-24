@@ -112,7 +112,7 @@ namespace UE::PoseSearch
 		CommandList->MapAction(
 			Commands.ShowDisplayRootMotionSpeed,
 			FExecuteAction::CreateSP(ViewModelRef, &FDatabaseViewModel::OnToggleDisplayRootMotionSpeed),
-			FCanExecuteAction::CreateSP(ViewModelRef, &FDatabaseViewModel::CanDisplayRootMotionSpeed),
+			FCanExecuteAction(),
 			FIsActionChecked::CreateSP(ViewModelRef, &FDatabaseViewModel::IsDisplayRootMotionSpeedChecked));
 	}
 

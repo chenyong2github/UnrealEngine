@@ -410,11 +410,6 @@ namespace UE::PoseSearch
 		DisplayRootMotionSpeed = !DisplayRootMotionSpeed;
 	}
 
-	bool FDatabaseViewModel::CanDisplayRootMotionSpeed() const
-	{
-		return SelectedNodes.Num() <= 1;
-	}
-
 	void FDatabaseViewModel::AddSequenceToDatabase(UAnimSequence* AnimSequence)
 	{
 		FPoseSearchDatabaseSequence& NewDbSequence = PoseSearchDatabase->Sequences.AddDefaulted_GetRef();
