@@ -46,6 +46,7 @@ enum class EReplicationStateMemberTraits : uint16
 	HasDynamicState = 1U << 0U,
 	HasObjectReference = HasDynamicState << 1U,
 	HasConnectionSpecificSerialization = HasObjectReference << 1U,
+	HasRepNotifyAlways = HasConnectionSpecificSerialization << 1U,
 };
 ENUM_CLASS_FLAGS(EReplicationStateMemberTraits);
 

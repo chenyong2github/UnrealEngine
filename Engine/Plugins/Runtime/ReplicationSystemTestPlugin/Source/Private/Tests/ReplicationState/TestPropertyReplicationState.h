@@ -34,8 +34,14 @@ public:
 	UFUNCTION()
 	void OnRep_IntA(int32 OldInt);
 
+	UFUNCTION()
+	void OnRep_IntB(int32 OldInt);
+
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_IntA)
 	int32 IntA;
+
+	UPROPERTY(Transient, ReplicatedUsing=OnRep_IntB)
+	int32 IntB;
 };
 
 

@@ -21,9 +21,14 @@ void UTestPropertyReplicationState_TestClassWithRepNotify::OnRep_IntA(int32 OldI
 {
 }
 
+void UTestPropertyReplicationState_TestClassWithRepNotify::OnRep_IntB(int32 OldInt)
+{
+}
+
 void UTestPropertyReplicationState_TestClassWithRepNotify::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
 {
-	DOREPLIFETIME_CONDITION_NOTIFY( UTestPropertyReplicationState_TestClassWithRepNotify, IntA, COND_None, REPNOTIFY_Always );
+	DOREPLIFETIME_CONDITION_NOTIFY(UTestPropertyReplicationState_TestClassWithRepNotify, IntA, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UTestPropertyReplicationState_TestClassWithRepNotify, IntB, COND_None, REPNOTIFY_OnChanged);
 }
 
 void UTestPropertyReplicationState_TestClassWithInitAndCArrays::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -315,7 +320,12 @@ UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationSta
 {
 	InitDescriptorsFromClass(UTestPropertyReplicationState_TestClassWithRepNotify::StaticClass());
 
-	UE_NET_ASSERT_EQ(true, EnumHasAllFlags(Descriptor->Traits, EReplicationStateTraits::HasRepNotifies | EReplicationStateTraits::KeepPreviousState));
+	UE_NET_ASSERT_TRUE(EnumHasAllFlags(Descriptor->Traits, EReplicationStateTraits::HasRepNotifies | EReplicationStateTraits::KeepPreviousState));
+	UE_NET_ASSERT_TRUE(EnumHasAllFlags(Descriptor->MemberTraitsDescriptors[0].Traits, EReplicationStateMemberTraits::HasRepNotifyAlways));
+	UE_NET_ASSERT_NE(Descriptor->MemberPropertyDescriptors[0].RepNotifyFunction, nullptr);
+
+	UE_NET_ASSERT_FALSE(EnumHasAllFlags(Descriptor->MemberTraitsDescriptors[1].Traits, EReplicationStateMemberTraits::HasRepNotifyAlways));
+	UE_NET_ASSERT_NE(Descriptor->MemberPropertyDescriptors[1].RepNotifyFunction, nullptr);
 }
 
 UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationState_SetInitArray)
