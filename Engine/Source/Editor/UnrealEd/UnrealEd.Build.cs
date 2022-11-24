@@ -273,7 +273,8 @@ public class UnrealEd : ModuleRules
 				"WorldPartitionEditor",
 				"CSVtoSVG",
 				"SourceControlWindowExtender",
-				"AnimationSettings"
+				"AnimationSettings",
+				"GameplayDebuggerEditor"
 			}
 		);
 

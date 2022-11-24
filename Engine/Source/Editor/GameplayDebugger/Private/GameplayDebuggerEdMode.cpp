@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Editor/GameplayDebuggerEdMode.h"
+#include "GameplayDebuggerEdMode.h"
 
-#if WITH_EDITOR
 #include "CoreGlobals.h"
-#include "Editor/GameplayDebuggerToolkit.h"
+#include "GameplayDebuggerToolkit.h"
 #include "Toolkits/ToolkitManager.h"
 #include "GameplayDebuggerPlayerManager.h"
 #include "GameplayDebuggerLocalController.h"
@@ -139,5 +138,3 @@ void FGameplayDebuggerEdMode::SafeCloseMode()
 		GLevelEditorModeTools().DeactivateMode(FGameplayDebuggerEdMode::EM_GameplayDebugger);
 	}
 }
-
-#endif // WITH_EDITOR

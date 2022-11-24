@@ -1281,10 +1281,18 @@ namespace UnrealBuildTool
 				if (bAddAsPublicDependency)
 				{
 					PublicDependencyModuleNames.Add("GameplayDebugger");
+					if (Target.Type == TargetType.Editor)
+					{
+						PublicDependencyModuleNames.Add("GameplayDebuggerEditor");
+					}					
 				}
 				else
 				{
 					PrivateDependencyModuleNames.Add("GameplayDebugger");
+					if (Target.Type == TargetType.Editor)
+					{
+						PrivateDependencyModuleNames.Add("GameplayDebuggerEditor");
+					}
 				}
 			}
 			else

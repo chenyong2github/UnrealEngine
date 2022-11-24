@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Editor/GameplayDebuggerToolkit.h"
+#include "GameplayDebuggerToolkit.h"
 #include "Modules/ModuleManager.h"
 
-#if WITH_EDITOR
 #include "LevelEditor.h"
 #include "IAssetViewport.h"
 #include "SLevelViewport.h"
@@ -105,4 +104,3 @@ FReply FGameplayDebuggerToolkit::OnClickedDisableTool()
 }
 
 #undef LOCTEXT_NAMESPACE
-#endif // WITH_EDITOR

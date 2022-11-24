@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "GameplayDebuggerModule.h"
+
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/World.h"
@@ -12,38 +14,16 @@
 #include "GameplayDebuggerExtension_Spectator.h"
 #include "GameplayDebuggerExtension_HUD.h"
 
-#if WITH_EDITOR
-#include "PropertyEditorModule.h"
-#include "EditorModeRegistry.h"
-#include "Editor/GameplayDebuggerCategoryConfigCustomization.h"
-#include "Editor/GameplayDebuggerExtensionConfigCustomization.h"
-#include "Editor/GameplayDebuggerInputConfigCustomization.h"
-#include "Editor/GameplayDebuggerEdMode.h"
-#endif
-
 #if UE_WITH_IRIS
 #include "Iris/IrisConfig.h"
 #endif // UE_WITH_IRIS
 
-class FGameplayDebuggerModule : public IGameplayDebugger
-{
-public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+FOnLocalControllerInitialized FGameplayDebuggerModule::OnLocalControllerInitialized;
+FOnLocalControllerUninitialized FGameplayDebuggerModule::OnLocalControllerUninitialized;
 
-	virtual void RegisterCategory(FName CategoryName, IGameplayDebugger::FOnGetCategory MakeInstanceDelegate, EGameplayDebuggerCategoryState CategoryState, int32 SlotIdx) override;
-	virtual void UnregisterCategory(FName CategoryName) override;
-	virtual void NotifyCategoriesChanged() override;
-	virtual void RegisterExtension(FName ExtensionName, IGameplayDebugger::FOnGetExtension MakeInstanceDelegate) override;
-	virtual void UnregisterExtension(FName ExtensionName) override;
-	virtual void NotifyExtensionsChanged() override;
-
-	AGameplayDebuggerPlayerManager& GetPlayerManager(UWorld* World);
-	void OnWorldInitialized(UWorld* World, const UWorld::InitializationValues IVS);
-	
-	FGameplayDebuggerAddonManager AddonManager;
-	TMap<TWeakObjectPtr<UWorld>, TWeakObjectPtr<AGameplayDebuggerPlayerManager>> PlayerManagers;
-};
+#if WITH_EDITOR
+FOnDebuggerEdMode FGameplayDebuggerModule::OnDebuggerEdModeActivation;
+#endif //WITH_EDITOR
 
 IMPLEMENT_MODULE(FGameplayDebuggerModule, GameplayDebugger)
 
@@ -64,15 +44,6 @@ void FGameplayDebuggerModule::StartupModule()
 				SettingsCDO);
 		}
 
-#if WITH_EDITOR
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyEditorModule.RegisterCustomPropertyTypeLayout("GameplayDebuggerCategoryConfig", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayDebuggerCategoryConfigCustomization::MakeInstance));
-		PropertyEditorModule.RegisterCustomPropertyTypeLayout("GameplayDebuggerExtensionConfig", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayDebuggerExtensionConfigCustomization::MakeInstance));
-		PropertyEditorModule.RegisterCustomPropertyTypeLayout("GameplayDebuggerInputConfig", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGameplayDebuggerInputConfigCustomization::MakeInstance));
-
-		FEditorModeRegistry::Get().RegisterMode<FGameplayDebuggerEdMode>(FGameplayDebuggerEdMode::EM_GameplayDebugger);
-#endif
-
 		AddonManager.RegisterExtension("GameHUD", FOnGetExtension::CreateStatic(&FGameplayDebuggerExtension_HUD::MakeInstance));
 		AddonManager.RegisterExtension("Spectator", FOnGetExtension::CreateStatic(&FGameplayDebuggerExtension_Spectator::MakeInstance));
 		AddonManager.NotifyExtensionsChanged();
@@ -90,19 +61,6 @@ void FGameplayDebuggerModule::ShutdownModule()
 	{
 		SettingsModule->UnregisterSettings("Project", "Engine", "GameplayDebugger");
 	}
-
-#if WITH_EDITOR
-
-	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
-	if (PropertyEditorModule)
-	{
-		PropertyEditorModule->UnregisterCustomPropertyTypeLayout("GameplayDebuggerCategoryConfig");
-		PropertyEditorModule->UnregisterCustomPropertyTypeLayout("GameplayDebuggerExtensionConfig");
-		PropertyEditorModule->UnregisterCustomPropertyTypeLayout("GameplayDebuggerInputConfig");
-	}
-
-	FEditorModeRegistry::Get().UnregisterMode(FGameplayDebuggerEdMode::EM_GameplayDebugger);
-#endif
 }
 
 void FGameplayDebuggerModule::RegisterCategory(FName CategoryName, IGameplayDebugger::FOnGetCategory MakeInstanceDelegate, EGameplayDebuggerCategoryState CategoryState, int32 SlotIdx)

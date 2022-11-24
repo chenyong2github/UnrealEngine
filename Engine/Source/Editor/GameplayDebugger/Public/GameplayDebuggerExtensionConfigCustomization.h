@@ -4,33 +4,27 @@
 
 #include "CoreMinimal.h"
 
-#if WITH_EDITOR
-
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;
 
-class FGameplayDebuggerCategoryConfigCustomization : public IPropertyTypeCustomization
+class FGameplayDebuggerExtensionConfigCustomization : public IPropertyTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShareable(new FGameplayDebuggerCategoryConfigCustomization);
+		return MakeShareable(new FGameplayDebuggerExtensionConfigCustomization);
 	}
 
 	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
 protected:
-	TSharedPtr<IPropertyHandle> CategoryNameProp;
-	TSharedPtr<IPropertyHandle> SlotIdxProp;
-	TSharedPtr<IPropertyHandle> ActiveInGameProp;
-	TSharedPtr<IPropertyHandle> ActiveInSimulateProp;
+	TSharedPtr<IPropertyHandle> ExtensionNameProp;
+	TSharedPtr<IPropertyHandle> UseExtensionProp;
 
 	FText CachedHeader;
 	FText GetHeaderDesc() const { return CachedHeader; }
 
 	void OnChildValueChanged();
 };
-
-#endif // WITH_EDITOR

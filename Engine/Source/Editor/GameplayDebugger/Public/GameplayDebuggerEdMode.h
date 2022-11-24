@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#if WITH_EDITOR
 #include "InputCoreTypes.h"
 #include "EditorModes.h"
 #include "EdMode.h"
@@ -36,5 +35,3 @@ private:
 
 	void EnableViewportClientFlags(FEditorViewportClient* ViewportClient, bool bEnable);
 };
-
-#endif // WITH_EDITOR

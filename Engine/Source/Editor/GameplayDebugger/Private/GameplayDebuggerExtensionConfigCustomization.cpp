@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Editor/GameplayDebuggerExtensionConfigCustomization.h"
+#include "GameplayDebuggerExtensionConfigCustomization.h"
 
-#if WITH_EDITOR
 #include "UObject/UnrealType.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Application/SlateWindowHelper.h"
@@ -74,4 +73,3 @@ void FGameplayDebuggerExtensionConfigCustomization::OnChildValueChanged()
 }
 
 #undef LOCTEXT_NAMESPACE
-#endif // WITH_EDITOR

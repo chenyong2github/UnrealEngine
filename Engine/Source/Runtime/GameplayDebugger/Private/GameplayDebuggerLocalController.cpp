@@ -19,6 +19,7 @@
 #include "GameplayDebuggerAddonManager.h"
 #include "GameplayDebuggerExtension.h"
 #include "GameplayDebuggerConfig.h"
+#include "GameplayDebuggerModule.h"
 #include "Debug/DebugDrawService.h"
 #include "Engine/Selection.h"
 #include "CanvasItem.h"
@@ -31,8 +32,6 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayDebuggerLocalController)
 
 #if WITH_EDITOR
-#include "Editor/GameplayDebuggerEdMode.h"
-#include "EditorModeManager.h"
 #include "Editor.h"
 #endif // WITH_EDITOR
 
@@ -67,7 +66,7 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 #if WITH_EDITOR
 	if (bSimulateMode)
 	{
-		FGameplayDebuggerEdMode::SafeOpenMode();
+		FGameplayDebuggerModule::OnLocalControllerInitialized.Broadcast();		
 	}
 
 	if (GIsEditor)
@@ -137,7 +136,7 @@ void UGameplayDebuggerLocalController::Cleanup()
 
 	if (bSimulateMode)
 	{
-		FGameplayDebuggerEdMode::SafeCloseMode();
+		FGameplayDebuggerModule::OnLocalControllerUninitialized.Broadcast();
 	}
 #endif // WITH_EDITOR
 
@@ -241,7 +240,7 @@ void UGameplayDebuggerLocalController::DrawHeader(FGameplayDebuggerCanvasContext
 
 		// reactivate editor mode when this is being drawn = show flag is set
 #if WITH_EDITOR
-		GLevelEditorModeTools().ActivateMode(FGameplayDebuggerEdMode::EM_GameplayDebugger);
+	FGameplayDebuggerModule::OnDebuggerEdModeActivation.Broadcast();
 #endif // WITH_EDITOR
 	}
 	else

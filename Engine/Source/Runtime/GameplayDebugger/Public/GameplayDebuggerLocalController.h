@@ -38,7 +38,7 @@ class UGameplayDebuggerLocalController : public UObject
 	void BindInput(UInputComponent& InputComponent);
 
 	/** checks if key is bound by any action */
-	bool IsKeyBound(const FName KeyName) const;
+	bool GAMEPLAYDEBUGGER_API IsKeyBound(const FName KeyName) const;
 
 protected:
 	friend struct FGameplayDebuggerConsoleCommands;

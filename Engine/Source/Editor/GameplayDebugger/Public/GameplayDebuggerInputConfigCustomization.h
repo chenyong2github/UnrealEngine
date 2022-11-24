@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#if WITH_EDITOR
-
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;
@@ -34,5 +32,3 @@ protected:
 
 	void OnChildValueChanged();
 };
-
-#endif // WITH_EDITOR

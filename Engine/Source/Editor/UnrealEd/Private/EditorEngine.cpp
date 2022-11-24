@@ -1165,6 +1165,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("GeometryFramework"),
 			TEXT("VirtualizationEditor"),
 			TEXT("AnimationSettings"),
+			TEXT("GameplayDebuggerEditor"),
 			TEXT("RenderResourceViewer"),
 		};
 

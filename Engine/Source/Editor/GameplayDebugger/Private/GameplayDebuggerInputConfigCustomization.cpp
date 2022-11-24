@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Editor/GameplayDebuggerInputConfigCustomization.h"
+#include "GameplayDebuggerInputConfigCustomization.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Engine/GameViewportClient.h"
 #include "GameplayDebuggerTypes.h"
 
-#if WITH_EDITOR
 #include "Widgets/Text/STextBlock.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
@@ -108,4 +107,3 @@ void FGameplayDebuggerInputConfigCustomization::OnChildValueChanged()
 }
 
 #undef LOCTEXT_NAMESPACE
-#endif // WITH_EDITOR

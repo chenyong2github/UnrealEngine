@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#if WITH_EDITOR
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
@@ -34,5 +33,3 @@ private:
 	EVisibility GetScreenMessageWarningVisibility() const;
 	FReply OnClickedDisableTool();
 };
-
-#endif // WITH_EDITOR
