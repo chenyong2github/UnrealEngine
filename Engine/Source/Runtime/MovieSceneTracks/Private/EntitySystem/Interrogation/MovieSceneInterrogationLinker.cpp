@@ -684,24 +684,12 @@ void FSystemInterrogator::ImportTrack(UMovieSceneTrack* Track, const FGuid& Obje
 
 	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Linker->EntityManager);
 
+	FFrameRate TickResolution = Track->GetTypedOuter<UMovieScene>()->GetTickResolution();
+
 	const FMovieSceneTrackEvaluationField& EvaluationField = Track->GetEvaluationField();
 
 	FMovieSceneEntityComponentFieldBuilder FieldBuilder(&EntityComponentField);
 	FieldBuilder.GetSharedMetaData().ObjectBindingID = ObjectBindingID;
-
-	// Creating a new builder allocates a new piece of shared metadata. We will use that shared metadata's index
-	// to keep track of the extra metadata, since the extra metadata is also shared.
-	const int32 SharedMetaDataIndex = FieldBuilder.GetSharedMetaDataIndex();
-	UMovieSceneSequence* OwningSequence = Track->GetTypedOuter<UMovieSceneSequence>();
-	if (!ExtraMetaData.IsValidIndex(SharedMetaDataIndex))
-	{
-		ExtraMetaData.Insert(SharedMetaDataIndex, FExtraMetaData{ FInterrogationInstance { OwningSequence }, InChannel });
-	}
-	else
-	{
-		const FExtraMetaData& InterrogationMetaData = ExtraMetaData[SharedMetaDataIndex];
-		ensure(InterrogationMetaData.InterrogationInstance.Sequence == OwningSequence && InterrogationMetaData.InterrogationChannel == InChannel);
-	}
 
 	for (const FMovieSceneTrackEvaluationFieldEntry& Entry : EvaluationField.Entries)
 	{
@@ -723,6 +711,11 @@ void FSystemInterrogator::ImportTrack(UMovieSceneTrack* Track, const FGuid& Obje
 		MetaData.Flags      = Entry.Flags;
 		MetaData.bEvaluateInSequencePreRoll  = Track->EvalOptions.bEvaluateInPreroll;
 		MetaData.bEvaluateInSequencePostRoll = Track->EvalOptions.bEvaluateInPostroll;
+
+		if (InChannel != FInterrogationChannel::Default())
+		{
+			MetaData.InterrogationChannel = InChannel;
+		}
 
 		if (!EntityProvider->PopulateEvaluationField(Entry.Range, MetaData, &FieldBuilder))
 		{
@@ -776,12 +769,9 @@ void FSystemInterrogator::InterrogateEntity(int32 InterrogationIndex, const FMov
 	Params.InterrogationKey.Channel = FInterrogationChannel::Default();
 	Params.InterrogationKey.InterrogationIndex = InterrogationIndex;
 
-	const int32 SharedMetaDataIndex = Query.Entity.SharedMetaDataIndex;
-	if (SharedMetaDataIndex != INDEX_NONE && ensure(ExtraMetaData.IsValidIndex(SharedMetaDataIndex)))
+	if (Params.EntityMetaData && Params.EntityMetaData->InterrogationChannel.IsValid())
 	{
-		const FExtraMetaData& InterrogationMetaData = ExtraMetaData[SharedMetaDataIndex];
-		Params.InterrogationKey.Channel = InterrogationMetaData.InterrogationChannel;
-		Params.InterrogationInstance = InterrogationMetaData.InterrogationInstance;
+		Params.InterrogationKey.Channel = Params.EntityMetaData->InterrogationChannel;
 	}
 
 	FImportedEntity ImportedEntity;
@@ -810,37 +800,11 @@ void FSystemInterrogator::Update()
 	Linker->LinkRelevantSystems();
 
 	TArrayView<const FInterrogationParams> Interrogations = Channels.GetInterrogations();
-
-	// Compute evaluation time (in frames) for all entities that need it.
 	FEntityTaskBuilder()
 	.Read(FBuiltInComponentTypes::Get()->Interrogation.InputKey)
 	.Write(FBuiltInComponentTypes::Get()->EvalTime)
 	.FilterNone({ FBuiltInComponentTypes::Get()->Tags.FixedTime })
-	.Iterate_PerEntity(
-		&Linker->EntityManager, 
-		[&Interrogations](const FInterrogationKey& InterrogationKey, FFrameTime& OutEvalTime)
-		{
-			const FInterrogationParams& InterrogationParams(Interrogations[InterrogationKey.InterrogationIndex]);
-			OutEvalTime = InterrogationParams.Time;
-		});
-
-	// Compute evaluation time (in seconds) for all entities that need it.
-	FEntityTaskBuilder()
-	.Read(FBuiltInComponentTypes::Get()->Interrogation.InputKey)
-	.Read(FBuiltInComponentTypes::Get()->Interrogation.Instance)
-	.Write(FBuiltInComponentTypes::Get()->EvalSeconds)
-	.FilterNone({ FBuiltInComponentTypes::Get()->Tags.FixedTime })
-	.Iterate_PerEntity(
-		&Linker->EntityManager, 
-		[&Interrogations](const FInterrogationKey& InterrogationKey, const FInterrogationInstance& InterrogationInstance, double& OutEvalSeconds)
-		{
-			const FInterrogationParams& InterrogationParams(Interrogations[InterrogationKey.InterrogationIndex]);
-			if (ensure(InterrogationInstance.Sequence && InterrogationInstance.Sequence->GetMovieScene()))
-			{
-				const FFrameRate& TickResolution = InterrogationInstance.Sequence->GetMovieScene()->GetTickResolution();
-				OutEvalSeconds = TickResolution.AsSeconds(InterrogationParams.Time);
-			}
-		});
+	.Iterate_PerEntity(&Linker->EntityManager, [&Interrogations](const FInterrogationKey& InterrogationKey, FFrameTime& OutEvalTime) { OutEvalTime = Interrogations[InterrogationKey.InterrogationIndex].Time; });
 
 	FMovieSceneEntitySystemRunner Runner;
 	Runner.AttachToLinker(Linker);

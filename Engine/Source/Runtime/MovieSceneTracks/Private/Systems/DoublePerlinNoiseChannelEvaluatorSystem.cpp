@@ -20,9 +20,21 @@ namespace UE
 	{
 		struct FEvaluateDoublePerlinNoiseChannels
 		{
-			void ForEachEntity(double EvalSeconds, const FPerlinNoiseParams& PerlinNoiseParams, double& OutResult)
+			FInstanceRegistry* InstanceRegistry;
+
+			FEvaluateDoublePerlinNoiseChannels(FInstanceRegistry* InInstanceRegistry)
+				: InstanceRegistry{ InInstanceRegistry }
 			{
-				OutResult = FMovieSceneDoublePerlinNoiseChannel::Evaluate(PerlinNoiseParams, EvalSeconds);
+				check(InstanceRegistry);
+			}
+
+			void ForEachEntity(const FPerlinNoiseParams& PerlinNoiseParams, FInstanceHandle InstanceHandle, double& OutResult)
+			{
+				const FMovieSceneContext& Context = InstanceRegistry->GetContext(InstanceHandle);
+				FFrameTime Time = Context.GetTime();
+				FFrameRate Rate = Context.GetFrameRate();
+
+				OutResult = FMovieSceneDoublePerlinNoiseChannel::Evaluate(PerlinNoiseParams, Rate.AsSeconds(Time));
 			}
 		};
 	} // namespace MovieScene
@@ -63,12 +75,12 @@ void UDoublePerlinNoiseChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& I
 	for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->DoubleResult); ++i)
 	{
 		FEntityTaskBuilder()
-			.Read(BuiltInComponents->EvalSeconds)
 			.Read(TrackComponents->DoublePerlinNoiseChannel)
+			.Read(BuiltInComponents->InstanceHandle)
 			.Write(BuiltInComponents->DoubleResult[i])
 			.FilterNone({ BuiltInComponents->Tags.Ignored })
 			.SetStat(GET_STATID(MovieSceneEval_EvaluateDoublePerlinNoiseChannelTask))
-			.Dispatch_PerEntity<FEvaluateDoublePerlinNoiseChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents);
+			.Dispatch_PerEntity<FEvaluateDoublePerlinNoiseChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, GetLinker()->GetInstanceRegistry());
 	}
 }
 

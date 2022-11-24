@@ -123,6 +123,7 @@ struct FMovieSceneEvaluationFieldEntityMetaData
 	friend bool operator==(const FMovieSceneEvaluationFieldEntityMetaData& A, const FMovieSceneEvaluationFieldEntityMetaData& B)
 	{
 		return A.ForcedTime == B.ForcedTime && 
+			A.InterrogationChannel == B.InterrogationChannel && 
 			A.Flags == B.Flags && 
 			A.bEvaluateInSequencePreRoll == B.bEvaluateInSequencePreRoll && 
 			A.bEvaluateInSequencePostRoll == B.bEvaluateInSequencePostRoll &&
@@ -135,6 +136,9 @@ struct FMovieSceneEvaluationFieldEntityMetaData
 
 	UPROPERTY()
 	FFrameNumber ForcedTime;
+
+	/** Never serialized */
+	UE::MovieScene::FInterrogationChannel InterrogationChannel;
 
 	UPROPERTY()
 	ESectionEvaluationFlags Flags;
@@ -329,11 +333,6 @@ struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
 	 * Access the shared meta-data for all the entities created by this builder.
 	 */
 	FMovieSceneEvaluationFieldSharedEntityMetaData& GetSharedMetaData();
-
-	/**
-	 * Access the index of the shared meta-data of this builder.
-	 */
-	int32 GetSharedMetaDataIndex() const;
 
 	/**
 	 * Add meta-data to this tree returning its index within this builder

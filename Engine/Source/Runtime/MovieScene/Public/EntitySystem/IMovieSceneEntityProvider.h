@@ -94,7 +94,6 @@ struct FEntityImportParams
 	uint32 EntityID = 0;
 
 	FInterrogationKey InterrogationKey;
-	FInterrogationInstance InterrogationInstance;
 
 	FEntityImportSequenceParams Sequence;
 
@@ -119,8 +118,8 @@ class MOVIESCENE_API IMovieSceneEntityProvider
 {
 public:
 
-	using FEntityImportParams        = UE::MovieScene::FEntityImportParams;
-	using FImportedEntity            = UE::MovieScene::FImportedEntity;
+	using FEntityImportParams   = UE::MovieScene::FEntityImportParams;
+	using FImportedEntity       = UE::MovieScene::FImportedEntity;
 
 
 	GENERATED_BODY()

@@ -14,26 +14,32 @@
 DECLARE_CYCLE_STAT(TEXT("EvalTime System"), MovieSceneEval_EvalTimeSystem, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Assign evaluation times"), MovieSceneEval_EvalTimes, STATGROUP_MovieSceneECS);
 
+struct FAssignEvalTimesTask
+{
+	TArray<FFrameTime>* FrameTimes;
+
+	explicit FAssignEvalTimesTask(TArray<FFrameTime>* InFrameTimes)
+		: FrameTimes(InFrameTimes)
+	{}
+
+	void ForEachEntity(UE::MovieScene::FInstanceHandle InstanceHandle, FFrameTime& EvalTime)
+	{
+		EvalTime = (*FrameTimes)[InstanceHandle.InstanceID];
+	}
+};
+
 UMovieSceneEvalTimeSystem::UMovieSceneEvalTimeSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
 	using namespace UE::MovieScene;
 
-	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-
+	RelevantComponent = FBuiltInComponentTypes::Get()->EvalTime;
 	SystemCategories = EEntitySystemCategory::Core;
-	RelevantFilter.Any({ BuiltInComponents->EvalTime, BuiltInComponents->EvalSeconds });
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		DefineComponentProducer(GetClass(), BuiltInComponents->EvalTime);
-		DefineComponentProducer(GetClass(), BuiltInComponents->EvalSeconds);
+		DefineComponentProducer(GetClass(), FBuiltInComponentTypes::Get()->EvalTime);
 	}
-}
-
-bool UMovieSceneEvalTimeSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
-{
-	return InLinker->EntityManager.Contains(RelevantFilter);
 }
 
 void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -44,13 +50,13 @@ void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites,
 
 	struct FGatherTimes
 	{
-		FGatherTimes(const FInstanceRegistry* InInstanceRegistry, TArray<FEvaluatedTime>* InEvaluatedTimes)
+		FGatherTimes(const FInstanceRegistry* InInstanceRegistry, TArray<FFrameTime>* InFrameTimes)
 			: InstanceRegistry(InInstanceRegistry)
-			, EvaluatedTimes(InEvaluatedTimes)
+			, FrameTimes(InFrameTimes)
 		{}
 
 		const FInstanceRegistry* InstanceRegistry;
-		TArray<FEvaluatedTime>* EvaluatedTimes;
+		TArray<FFrameTime>* FrameTimes;
 
 		FORCEINLINE TStatId           GetStatId() const    { RETURN_QUICK_DECLARE_CYCLE_STAT(FGenericTask, STATGROUP_TaskGraphTasks); }
 		static ENamedThreads::Type    GetDesiredThread()   { return ENamedThreads::AnyHiPriThreadHiPriTask; }
@@ -63,45 +69,11 @@ void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites,
 
 		void Run()
 		{
-			EvaluatedTimes->SetNum(InstanceRegistry->GetSparseInstances().GetMaxIndex());
+			FrameTimes->SetNum(InstanceRegistry->GetSparseInstances().GetMaxIndex());
 			for (auto It = InstanceRegistry->GetSparseInstances().CreateConstIterator(); It; ++It)
 			{
-				const FMovieSceneContext& Context = It->GetContext();
-
-				FEvaluatedTime EvaluatedTime;
-				EvaluatedTime.FrameTime = Context.GetTime();
-				EvaluatedTime.Seconds = Context.GetFrameRate().AsSeconds(EvaluatedTime.FrameTime);
-
-				(*EvaluatedTimes)[It.GetIndex()] = EvaluatedTime;
+				(*FrameTimes)[It.GetIndex()] = It->GetContext().GetTime();
 			}
-		}
-	};
-
-	struct FAssignEvalTimesTask
-	{
-		TArrayView<const FEvaluatedTime> EvaluatedTimes;
-
-		explicit FAssignEvalTimesTask(TArrayView<const FEvaluatedTime> InEvaluatedTimes)
-			: EvaluatedTimes(InEvaluatedTimes)
-		{}
-
-		void ForEachEntity(UE::MovieScene::FInstanceHandle InstanceHandle, FFrameTime& EvalTime)
-		{
-			EvalTime = EvaluatedTimes[InstanceHandle.InstanceID].FrameTime;
-		}
-	};
-
-	struct FAssignEvalSecondsTask
-	{
-		TArrayView<const FEvaluatedTime> EvaluatedTimes;
-
-		explicit FAssignEvalSecondsTask(TArrayView<const FEvaluatedTime> InEvaluatedTimes)
-			: EvaluatedTimes(InEvaluatedTimes)
-		{}
-
-		void ForEachEntity(UE::MovieScene::FInstanceHandle InstanceHandle, double& EvalSeconds)
-		{
-			EvalSeconds = EvaluatedTimes[InstanceHandle.InstanceID].Seconds;
 		}
 	};
 
@@ -110,13 +82,13 @@ void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites,
 
 	if (Linker->EntityManager.GetThreadingModel() == EEntityThreadingModel::NoThreading)
 	{
-		FGatherTimes(Linker->GetInstanceRegistry(), &EvaluatedTimes).Run();
+		FGatherTimes(Linker->GetInstanceRegistry(), &FrameTimes).Run();
 	}
 	else
 	{
 		// The only thing we depend on is the gather task
 		FGraphEventRef GatherEvalTimesEvent = TGraphTask<FGatherTimes>::CreateTask(nullptr, Linker->EntityManager.GetDispatchThread())
-		.ConstructAndDispatchWhenReady(Linker->GetInstanceRegistry(), &EvaluatedTimes);
+		.ConstructAndDispatchWhenReady(Linker->GetInstanceRegistry(), &FrameTimes);
 
 		EvalPrereqs.AddComponentTask(BuiltInComponents->EvalTime, GatherEvalTimesEvent);
 	}
@@ -126,13 +98,6 @@ void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites,
 	.Write(BuiltInComponents->EvalTime)
 	.FilterNone({ FBuiltInComponentTypes::Get()->Tags.FixedTime })
 	.SetStat(GET_STATID(MovieSceneEval_EvalTimes))
-	.Dispatch_PerEntity<FAssignEvalTimesTask>(&Linker->EntityManager, EvalPrereqs, &Subsequents, EvaluatedTimes);
-
-	FEntityTaskBuilder()
-	.Read(BuiltInComponents->InstanceHandle)
-	.Write(BuiltInComponents->EvalSeconds)
-	.FilterNone({ FBuiltInComponentTypes::Get()->Tags.FixedTime })
-	.SetStat(GET_STATID(MovieSceneEval_EvalTimes))
-	.Dispatch_PerEntity<FAssignEvalSecondsTask>(&Linker->EntityManager, EvalPrereqs, &Subsequents, EvaluatedTimes);
+	.Dispatch_PerEntity<FAssignEvalTimesTask>(&Linker->EntityManager, EvalPrereqs, &Subsequents, &FrameTimes);
 }
 
