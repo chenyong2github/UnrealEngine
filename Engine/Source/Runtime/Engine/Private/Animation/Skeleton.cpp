@@ -1985,12 +1985,7 @@ void USkeleton::RemoveVirtualBones(const TArray<FName>& BonesToRemove)
 	// Blend profiles cache bone names and indices, make sure they remain in sync when the indices change
 	for (UBlendProfile* Profile : BlendProfiles)
 	{
-		// TEMPORARY FIX FOR 5.1.1
-
-		for (FBlendProfileBoneEntry& Entry : Profile->ProfileEntries)
-		{
-			Entry.BoneReference.Initialize(Profile->OwningSkeleton);
-		}
+		Profile->RefreshBoneEntriesFromName();
 	}
 }
 
@@ -2033,18 +2028,7 @@ void USkeleton::RenameVirtualBone(const FName OriginalBoneName, const FName NewB
 		{
 			for (UBlendProfile* Profile : BlendProfiles)
 			{
-				// TEMPORARY FIX FOR 5.1.1
-
-				FBlendProfileBoneEntry* FoundEntry = Profile->ProfileEntries.FindByPredicate([BoneIdx](const FBlendProfileBoneEntry& Entry)
-					{
-						return Entry.BoneReference.BoneIndex == BoneIdx;
-					});
-
-				if (FoundEntry)
-				{
-					FoundEntry->BoneReference.BoneName = Profile->OwningSkeleton->GetReferenceSkeleton().GetBoneName(BoneIdx);
-					FoundEntry->BoneReference.Initialize(Profile->OwningSkeleton);
-				}
+				Profile->RefreshBoneEntry(BoneIdx);
 			}
 		}
 	}

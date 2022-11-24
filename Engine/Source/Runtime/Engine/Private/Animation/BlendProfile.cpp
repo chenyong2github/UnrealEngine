@@ -51,6 +51,28 @@ void UBlendProfile::RemoveEntry(int32 InBoneIdx)
 		});
 }
 
+void UBlendProfile::RefreshBoneEntry(int32 InBoneIndex)
+{
+	FBlendProfileBoneEntry* FoundEntry = ProfileEntries.FindByPredicate([InBoneIndex](const FBlendProfileBoneEntry& Entry)
+		{
+			return Entry.BoneReference.BoneIndex == InBoneIndex;
+		});
+
+	if (FoundEntry)
+	{
+		FoundEntry->BoneReference.BoneName = OwningSkeleton->GetReferenceSkeleton().GetBoneName(InBoneIndex);
+		FoundEntry->BoneReference.Initialize(OwningSkeleton);
+	}
+}
+
+void UBlendProfile::RefreshBoneEntriesFromName()
+{
+	for (FBlendProfileBoneEntry& Entry : ProfileEntries)
+	{
+		Entry.BoneReference.Initialize(OwningSkeleton);
+	}
+}
+
 const FBlendProfileBoneEntry& UBlendProfile::GetEntry(const int32 InEntryIdx) const
 {
 	return ProfileEntries[InEntryIdx];

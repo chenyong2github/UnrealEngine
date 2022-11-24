@@ -83,9 +83,17 @@ public:
 	void SetBoneBlendScale(const FName& InBoneName, float InScale, bool bRecurse = false, bool bCreate = false);
 
 	/** Removes the entry for the specified bone index (does nothing if it doesn't exist) 
-	*  @param InBoneIdx Index of the bone to remove from this blend profile
-	*/
+	 *  @param InBoneIdx Index of the bone to remove from this blend profile
+	 */
 	void RemoveEntry(int32 InBoneIdx);
+
+	/** Ensures the bone name of the specified entry matches the skeleton index (does nothing if it doesn't exist)
+	 *  @param InBoneIdx Index of the bone to refresh
+	 */
+	void RefreshBoneEntry(int32 InBoneIndex);
+
+	/** Ensures the bone names match the skeleton indices by using the bone name as our lookup key. */
+	void RefreshBoneEntriesFromName();
 
 	/**
 	 * Get the bone entry by entry index.
