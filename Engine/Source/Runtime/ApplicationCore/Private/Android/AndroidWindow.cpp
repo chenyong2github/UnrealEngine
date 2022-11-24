@@ -89,6 +89,7 @@ void FAndroidWindow::SetOSWindowHandle(void* InWindow)
 
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeSetObbInfo(String PackageName, int Version, int PatchVersion);"
 static bool GAndroidIsPortrait = false;
+static std::atomic<bool> GAndroidSafezoneRequiresUpdate = false;
 static int GAndroidDepthBufferPreference = 0;
 static FVector4 GAndroidPortraitSafezone = FVector4(-1.0f, -1.0f, -1.0f, -1.0f);
 static FVector4 GAndroidLandscapeSafezone = FVector4(-1.0f, -1.0f, -1.0f, -1.0f);
@@ -126,6 +127,8 @@ JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetSafezoneInfo(JNI
 		GAndroidLandscapeSafezone.Z = right;
 		GAndroidLandscapeSafezone.W = bottom;
 	}
+
+	GAndroidSafezoneRequiresUpdate = true;
 }
 #endif
 
@@ -141,6 +144,12 @@ bool FAndroidWindow::IsPortraitOrientation()
 FVector4 FAndroidWindow::GetSafezone(bool bPortrait)
 {
 	return bPortrait ? GAndroidPortraitSafezone : GAndroidLandscapeSafezone;
+}
+
+bool FAndroidWindow::SafezoneUpdated()
+{
+	bool bRequiresUpdate = true;
+	return GAndroidSafezoneRequiresUpdate.compare_exchange_weak(bRequiresUpdate, false);
 }
 
 int32 FAndroidWindow::GetDepthBufferPreference()

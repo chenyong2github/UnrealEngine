@@ -106,7 +106,10 @@ void FAndroidApplication::HandleDeviceOrientation()
 	if (PreviousDeviceOrientation != DeviceOrientation)
 	{
 		FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate.Broadcast((int32)DeviceOrientation);
+	}
 
+	if (FAndroidWindow::SafezoneUpdated())
+	{
 		//we also want to fire off the safe frame event
 		FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
 	}

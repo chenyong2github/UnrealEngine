@@ -61,6 +61,7 @@ public:
 
 	static bool IsPortraitOrientation();
 	static FVector4 GetSafezone(bool bPortrait);
+	static bool SafezoneUpdated();
 
 	// called by the Android event thread to initially set the current window dimensions.
 	static void SetWindowDimensions_EventThread(ANativeWindow* DimensionWindow);
