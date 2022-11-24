@@ -3788,8 +3788,6 @@ void FWrapLayer::GetPhysicalDeviceQueueFamilyProperties(VkResult Result, VkPhysi
 	}
 }
 
-
-#if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
 void FWrapLayer::GetImageMemoryRequirements2KHR(VkResult Result, VkDevice Device, const VkImageMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements)
 {
 	if (Result == VK_RESULT_MAX_ENUM)
@@ -3799,7 +3797,16 @@ void FWrapLayer::GetImageMemoryRequirements2KHR(VkResult Result, VkDevice Device
 #endif
 	}
 }
-#endif	// VULKAN_SUPPORTS_DEDICATED_ALLOCATION
+
+void FWrapLayer::GetBufferMemoryRequirements2KHR(VkResult Result, VkDevice Device, const VkBufferMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements)
+{
+	if (Result == VK_RESULT_MAX_ENUM)
+	{
+#if VULKAN_ENABLE_DUMP_LAYER
+		DevicePrintfBegin(Device, FString::Printf(TEXT("vkGetBufferemoryRequirements2KHR(Info=0x%p, MemReqs=0x%p)[...]"), Info, MemoryRequirements));
+#endif
+	}
+}
 
 void FWrapLayer::GetImageSparseMemoryRequirements(VkResult Result, VkDevice Device, VkImage Image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements)
 {
