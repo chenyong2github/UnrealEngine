@@ -256,7 +256,7 @@ void ReflectionCompactTracesCS(
 		if (all(ReflectionTracingCoord.Coord < ReflectionTracingViewSize))
 		{
 			float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord.Coord);
-			float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.Coord, 0)).x;
+			float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.CoordFlatten, 0)).x;
 
 			bool bHit;
 			float TraceHitDistance = DecodeRayDistance(TraceHit[ReflectionTracingCoord.CoordFlatten].x, bHit);
@@ -395,7 +395,7 @@ void TraceMeshSDFs(
 	const FReflectionTracingCoord ReflectionTracingCoord = GetReflectionTracingCoord(InReflectionTracingCoord);
 
 	float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord.Coord);
-	float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.Coord, 0)).x;
+	float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.CoordFlatten, 0)).x;
 
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 	float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
@@ -497,7 +497,7 @@ void TraceVoxels(
 	const FReflectionTracingCoord ReflectionTracingCoord = GetReflectionTracingCoord(InReflectionTracingCoord);
 
 	float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord.Coord);
-	float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.Coord, 0)).x;
+	float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord.CoordFlatten, 0)).x;
 
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth); // LUMEN_LWC_TODO
 	float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
