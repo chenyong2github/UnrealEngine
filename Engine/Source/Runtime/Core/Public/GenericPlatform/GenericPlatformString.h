@@ -214,9 +214,9 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 		}
 		else if constexpr (TIsFixedWidthCharEncoding_V<SourceEncoding> && TIsFixedWidthCharEncoding_V<DestEncoding>)
 		{
-			DestEncoding* DestCopy     = Dest;
-			DestEncoding* SrcCopy      = Src;
-			int32         DestSizeCopy = DestSize;
+			DestEncoding*         DestCopy     = Dest;
+			const SourceEncoding* SrcCopy      = Src;
+			int32                 DestSizeCopy = DestSize;
 
 			bool bInvalidChars = false;
 			for (;;)
