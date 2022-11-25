@@ -158,6 +158,7 @@ namespace PerfReportTool
 				}
 
 			}
+			defaultReportTypeName = reportTypesElement.GetSafeAttibute<string>("default");
 
 			Console.Out.WriteLine("GraphXML:  " + graphsXMLFilename+"\n");
 			XDocument reportGraphsDoc = XDocument.Load(graphsXMLFilename);
@@ -300,18 +301,40 @@ namespace PerfReportTool
 			ReportTypeInfo reportTypeInfo = null;
 			if (reportType == "")
 			{
+				XElement defaultReportTypeElement = null;
 				// Attempt to determine the report type automatically based on the stats
 				foreach (XElement element in reportTypesElement.Elements("reporttype"))
 				{
-					if (IsReportTypeXMLCompatibleWithStats(element, csvFile.dummyCsvStats))
+					bool bReportTypeSupportsAutodetect = element.GetSafeAttibute<bool>("allowAutoDetect", true);
+
+					if (bReportTypeSupportsAutodetect && IsReportTypeXMLCompatibleWithStats(element, csvFile.dummyCsvStats))
 					{
 						reportTypeInfo = new ReportTypeInfo(element, sharedSummaries, baseXmlDirectory);
 						break;
 					}
+
+					if (defaultReportTypeName != null && element.GetSafeAttibute<string>("name") == defaultReportTypeName )
+					{
+						defaultReportTypeElement = element;
+					}
 				}
-				if (reportTypeInfo == null)
+				// Attempt to fall back to a default ReportType if we didn't find one
+				if (reportTypeInfo == null && defaultReportTypeName != null)
 				{
-					throw new Exception("Compatible report type for CSV " + csvFile.filename + " could not be found in" + reportTypeXmlFilename);
+					if ( defaultReportTypeElement == null )
+					{
+						throw new Exception("Default report type " + defaultReportTypeName + " was not found in " + reportTypeXmlFilename);
+					}
+					if (!IsReportTypeXMLCompatibleWithStats(defaultReportTypeElement, csvFile.dummyCsvStats, true))
+					{
+						throw new Exception("Default report type " + defaultReportTypeName + " was not compatible with CSV " + csvFile.filename);
+					}
+					Console.Out.WriteLine("Falling back to default report type: " + defaultReportTypeName);
+					reportTypeInfo = new ReportTypeInfo(defaultReportTypeElement, sharedSummaries, baseXmlDirectory);
+				}
+				else if (reportTypeInfo == null)
+				{
+					throw new Exception("Compatible report type for CSV " + csvFile.filename + " could not be found in " + reportTypeXmlFilename);
 				}
 			}
 			else
@@ -364,7 +387,7 @@ namespace PerfReportTool
 			return reportTypeInfo;
 		}
 
-		bool IsReportTypeXMLCompatibleWithStats(XElement reportTypeElement, CsvStats csvStats)
+		bool IsReportTypeXMLCompatibleWithStats(XElement reportTypeElement, CsvStats csvStats, bool bIsDefaultFallback=false)
 		{
 			XAttribute nameAt = reportTypeElement.Attribute("name");
 			if (nameAt == null)
@@ -408,6 +431,12 @@ namespace PerfReportTool
 				{
 					// There was required metadata, but the CSV doesn't have any
 					return false;
+				}
+
+				// Some metadata may be safe to skip for the default fallback case
+				if (bIsDefaultFallback && requiredMetadataEl.GetSafeAttibute("ignoreForDefaultFallback", false))
+				{
+					continue;
 				}
 
 				bool ignoreIfKeyNotFound = requiredMetadataEl.GetSafeAttibute("ignoreIfKeyNotFound", true);
@@ -474,6 +503,7 @@ namespace PerfReportTool
 		XElement rootElement;
 		XElement graphGroupsElement;
 		XElement summaryTablesElement;
+		string defaultReportTypeName;
 		Dictionary<string, XElement> sharedSummaries;
 		Dictionary<string, GraphSettings> graphs;
 		Dictionary<string, string> statDisplayNameMapping;
