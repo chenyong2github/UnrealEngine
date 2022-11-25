@@ -27,7 +27,8 @@ public class EditorTraceUtilities : ModuleRules
             {
                 "CoreUObject",
                 "Engine",
-                "Slate",
+				"InputCore",
+				"Slate",
                 "SlateCore",
                 "ToolMenus",
                 "ToolWidgets",

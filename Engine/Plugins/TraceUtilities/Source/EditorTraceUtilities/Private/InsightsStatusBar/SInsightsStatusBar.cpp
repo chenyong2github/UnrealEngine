@@ -12,7 +12,9 @@
 #include "HAL/FileManager.h"
 #include "Math/Color.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "SRecentTracesList.h"
 #include "Styling/StyleColors.h"
 #include "ToolMenus.h"
 #include "Trace/StoreClient.h"
@@ -323,6 +325,15 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
+
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("RecentTracesLabel", "Recent Traces"),
+			LOCTEXT("RecentTracesTooltop", "Open the latest traces recorded to the trace store or as a file."),
+			FNewMenuDelegate::CreateSP(this, &SInsightsStatusBarWidget::Traces_BuildMenu),
+			false,
+			FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), ("Icons.Trace.Menu"))
+		);
 	}
 	MenuBuilder.EndSection();
 
@@ -378,6 +389,21 @@ void SInsightsStatusBarWidget::Channels_BuildMenu(FMenuBuilder& MenuBuilder)
 		);
 	}
 	MenuBuilder.EndSection();
+}
+
+void SInsightsStatusBarWidget::Traces_BuildMenu(FMenuBuilder& MenuBuilder)
+{
+	CacheTraceStorePath();
+
+	MenuBuilder.AddWidget(
+		SNew(SBox)
+		.MaxDesiredHeight(400.0f)
+		.MinDesiredWidth(200.0f)
+		.MaxDesiredWidth(270.0f)
+		[
+			SNew(SRecentTracesList, TraceStorePath)
+		],
+		FText(), true);
 }
 
 FText SInsightsStatusBarWidget::GetTitleToolTipText() const
@@ -491,23 +517,9 @@ void SInsightsStatusBarWidget::OpenTraceStoreDirectory_OnClicked()
 
 void SInsightsStatusBarWidget::OpenTraceStoreDirectory(bool bSelectLastTrace)
 {
-	UE::Trace::FStoreClient* StoreClient = UE::Trace::FStoreClient::Connect(TEXT("localhost"));
+	CacheTraceStorePath();
 
-	if (!StoreClient)
-	{
-		// TODO: Add Error Message
-		return;
-	}
-
-	const UE::Trace::FStoreClient::FStatus* Status = StoreClient->GetStatus();
-	if (!Status)
-	{
-		// TODO: Add Error Message
-		return;
-	}
-
-	FString Path(Status->GetStoreDir());
-
+	FString StorePathLocal = TraceStorePath;
 	if (bSelectLastTrace)
 	{
 		FString MostRecentTraceName;
@@ -526,15 +538,15 @@ void SInsightsStatusBarWidget::OpenTraceStoreDirectory(bool bSelectLastTrace)
 			return true;
 		};
 
-		IFileManager::Get().IterateDirectoryStat(*Path, Visitor);
+		IFileManager::Get().IterateDirectoryStat(*StorePathLocal, Visitor);
 
 		if (!MostRecentTraceName.IsEmpty())
 		{
-			Path = MostRecentTraceName;
+			StorePathLocal = MostRecentTraceName;
 		}
 	}
 
-	FString FullPath(FPaths::ConvertRelativePathToFull(Path));
+	FString FullPath(FPaths::ConvertRelativePathToFull(StorePathLocal));
 	FPlatformProcess::ExploreFolder(*FullPath);
 }
 
@@ -694,6 +706,29 @@ void SInsightsStatusBarWidget::OnSnapshotSaved(const FString& InPath)
 	if (GetBooleanSettingValue(ShowInExplorerAfterTraceSettingName))
 	{
 		FPlatformProcess::ExploreFolder(*InPath);
+	}
+}
+
+void SInsightsStatusBarWidget::CacheTraceStorePath()
+{
+	if (TraceStorePath.IsEmpty())
+	{
+		UE::Trace::FStoreClient* StoreClient = UE::Trace::FStoreClient::Connect(TEXT("localhost"));
+
+		if (!StoreClient)
+		{
+			// TODO: Add Error Message
+			return;
+		}
+
+		const UE::Trace::FStoreClient::FStatus* Status = StoreClient->GetStatus();
+		if (!Status)
+		{
+			// TODO: Add Error Message
+			return;
+		}
+
+		TraceStorePath = FString(Status->GetStoreDir());
 	}
 }
 

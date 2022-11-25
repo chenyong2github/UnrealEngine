@@ -66,6 +66,7 @@ private:
 
 	TSharedRef<SWidget> MakeTraceMenu();
 	void Channels_BuildMenu(FMenuBuilder& MenuBuilder);
+	void Traces_BuildMenu(FMenuBuilder& MenuBuilder);
 
 	static void SendSnapshotNotification();
 	static void SendTraceStartedNotification();
@@ -79,6 +80,8 @@ private:
 	void OnTraceStarted(FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
 	void OnTraceStopped(FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
 	void OnSnapshotSaved(const FString& InPath);
+
+	void CacheTraceStorePath();
 
 private:
 	static const TCHAR* DefaultPreset;
@@ -95,4 +98,6 @@ private:
 	bool bIsTraceRecordButtonHovered = false;
 	const TCHAR* Channels;
 	mutable double ConnectionStartTime = 0.0f;
+
+	FString TraceStorePath;
 };
