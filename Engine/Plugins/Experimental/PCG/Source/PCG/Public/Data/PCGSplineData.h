@@ -64,6 +64,15 @@ public:
 	const UPCGSplineData* GetSpline() const;
 	const UPCGSpatialData* GetSurface() const;
 
+	//~Begin UPCGSpatialData interface
+	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
+
+	// It is easy to determine if a point lies on a top-down projection onto a surface. No need to convert to points.
+	// NOTE: It will be less easy if the projection is not straight downwards, as the landscape will 'shadow' the projection. This could be detected
+	// here.
+	virtual bool RequiresCollapseToSample() const override { return false; }
+	//~End UPCGSpatialData interface
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SpatialData)
 	FInterpCurveVector2D ProjectedPosition;
 
