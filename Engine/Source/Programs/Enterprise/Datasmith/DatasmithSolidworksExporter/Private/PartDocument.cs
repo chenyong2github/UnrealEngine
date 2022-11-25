@@ -79,14 +79,26 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public override void PreExport(FMeshes Meshes)
+		public override void PreExport(FMeshes Meshes, bool bConfigurations)
 		{
+			if (!bConfigurations)
+			{
+				// Not exporting configurations - just load materials here
+				ExportedPartMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
+				return;
+			}
+
+			// Load mesh data for each configuration - need to have information about meshes to understand what to export for configurations.
+			// (Also load materials - mesh processing later needs them)
 			ConfigurationManager ConfigManager = (SwPartDoc as ModelDoc2).ConfigurationManager;
 			IConfiguration OriginalConfiguration = ConfigManager.ActiveConfiguration;
 
 			foreach (string ConfigurationName in SwDoc.GetConfigurationNames())
 			{
 				SwDoc.ShowConfiguration2(ConfigurationName);
+
+				// Load materials for each configuration
+				ExportedPartMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
 
 				// todo: Solidworks api docs says that GetRootComponent3 is null for Part but our current 
 				//   parsing code relies on it's existence(and it exists in all cases). Probably better to refactor this without Component use for parts
@@ -113,8 +125,6 @@ namespace DatasmithSolidworks
 			string PartName = Path.GetFileNameWithoutExtension(PathName);
 
 			SetExportStatus($"{PartName} Materials");
-
-			ExportedPartMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
 
 			Exporter.ExportMaterials(ExportedMaterialsMap);
 

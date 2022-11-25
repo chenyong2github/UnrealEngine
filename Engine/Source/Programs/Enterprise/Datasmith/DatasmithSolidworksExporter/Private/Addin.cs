@@ -6,10 +6,15 @@ using SolidWorks.Interop.swpublished;
 using SolidWorksTools;
 using SolidWorksTools.File;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
+using Environment = System.Environment;
 
 namespace DatasmithSolidworks
 {
@@ -34,13 +39,19 @@ namespace DatasmithSolidworks
 		public ISldWorks SolidworksApp { get; private set; } = null;
 		public FDocument CurrentDocument { get; private set; } = null;
 
+		// DebugLog is enabled with DatasmithSolidworksDebugOutput conditional compilation symbol
+		private ConcurrentQueue<string> DebugLog;
+		private Thread LogWriterThread;
+
 		public static Addin Instance { get; private set; } = null;
+
 
 		public Addin()
 		{
 			if (Instance == null)
 			{
 				Instance = this;
+				StartLogWriterTread();
 			}
 		}
 
@@ -81,8 +92,7 @@ namespace DatasmithSolidworks
 			object[] ObjDocuments = (object[])SolidworksApp.GetDocuments();
 			for (int Index = 0; Index < NumOpenDocs; Index++)
 			{
-				ModelDoc2 Doc = ObjDocuments[Index] as ModelDoc2;
-				if (Doc != null)
+				if (ObjDocuments[Index] is ModelDoc2 Doc)
 				{
 					CurrentOpenDocumentsSet.Add(GetDocumentId(Doc));
 				}
@@ -521,6 +531,49 @@ namespace DatasmithSolidworks
 		{
 			CurrentDocument?.OnIdle();
 			return 0;
+		}
+
+		#endregion
+
+		#region Logging
+
+		[Conditional("DatasmithSolidworksDebugOutput")]
+		private void StartLogWriterTread()
+		{
+			DebugLog = new ConcurrentQueue<string>();
+
+			LogWriterThread = new Thread(() =>
+			{
+				LogWriterProc();
+			});
+
+			LogWriterThread.Start();
+		}
+
+		[Conditional("DatasmithSolidworksDebugOutput")]
+		private void LogWriterProc()
+		{
+			string LogPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+				"UnrealDatasmithExporter/Saved/Logs/UnrealDatasmithSolidworksExporterDebug.log");
+
+			StreamWriter LogFile = new StreamWriter(LogPath);
+
+			while (true)
+			{
+				while (DebugLog.TryDequeue(out string Message))
+				{
+					LogFile.WriteLine(Message);
+				}
+				LogFile.Flush();
+
+				Thread.Sleep(10);
+			}
+		}
+
+		[Conditional("DatasmithSolidworksDebugOutput")]
+		public void LogDebug(string Message)  
+		{
+			DebugLog.Enqueue(Message);
 		}
 
 		#endregion

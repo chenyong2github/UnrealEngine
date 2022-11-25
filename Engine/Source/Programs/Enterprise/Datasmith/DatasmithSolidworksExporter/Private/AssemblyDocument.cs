@@ -49,7 +49,7 @@ namespace DatasmithSolidworks
 			SwAsmDoc = InSwDoc;
 		}
 
-		public override void PreExport(FMeshes Meshes)
+		public override void PreExport(FMeshes Meshes, bool bConfigurations)
 		{
 		}
 

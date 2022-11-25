@@ -4,6 +4,7 @@ using SolidWorks.Interop.sldworks;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -357,17 +358,21 @@ namespace DatasmithSolidworks
 
 		public bool ExportMesh(string InMeshName, FMeshData InData, FActorName InUpdateMeshActor, out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> OutMeshPair)
 		{
+			Addin.Instance.LogDebug($"ExportMesh(MeshName: {InMeshName}, MeshActor: {InUpdateMeshActor.GetString()})");
+
 			InMeshName = SanitizeName(InMeshName);  //Compute mesh name early(it might be needed to remove old mesh)
 
 			OutMeshPair = null;
 
 			if (InData.Vertices == null || InData.Normals == null || InData.TexCoords == null || InData.Triangles == null)
 			{
+				Addin.Instance.LogDebug($"  skipping(some attributes are null) - Vertices:{InData.Vertices == null}, Normals:{InData.Normals == null}, TexCoords: {InData.TexCoords == null}, Triangles:{InData.Triangles}");
 				return false;
 			}
 
 			if (InData.Vertices.Length == 0 || InData.Normals.Length == 0 || InData.TexCoords.Length == 0 || InData.Triangles.Length == 0)
 			{
+				Addin.Instance.LogDebug($"  skipping - Vertices: {InData.Vertices.Length}, Normals: {InData.Normals.Length}, TexCoords: {InData.TexCoords.Length} Triangles: {InData.Triangles.Length}");
 				return false;
 			}
 
@@ -410,11 +415,15 @@ namespace DatasmithSolidworks
 				{
 					if (!MeshAddedMaterials.Contains(Triangle.MaterialID))
 					{
+						Addin.Instance.LogDebug($"  set material if it's exported: {Triangle.MaterialID}");
+
 						FDatasmithFacadeMaterialInstance Material = null;
 						ExportedMaterialsMap.TryGetValue(Triangle.MaterialID, out Material);
 
 						if (Material != null)
 						{
+							Addin.Instance.LogDebug($" SetMaterial({Material.GetName()}, SlotId: {Triangle.MaterialID})");
+
 							MeshAddedMaterials.Add(Triangle.MaterialID);
 							MeshElement.SetMaterial(Material.GetName(), Triangle.MaterialID);
 							MatID = Triangle.MaterialID;
@@ -440,6 +449,7 @@ namespace DatasmithSolidworks
 				if (ExportedActorsMap.TryGetValue(InUpdateMeshActor, out ExportedActorInfo) && ExportedActorInfo.Item1 == EActorType.MeshActor)
 				{
 					FDatasmithFacadeActorMesh MeshActor = ExportedActorInfo.Item2 as FDatasmithFacadeActorMesh;
+					Addin.Instance.LogDebug($"  SetMesh on MeshActor: {MeshActor.GetName()}: {MeshActor.GetLabel()}  )");
 					MeshActor.SetMesh(InMeshName);
 				}
 			}
@@ -745,9 +755,12 @@ namespace DatasmithSolidworks
 					}
 				}
 			});
+
+			Addin.Instance.LogDebug($"AddMaterials");
 			// Adding stuff to a datasmith scene cannot be multithreaded!
 			foreach (FDatasmithFacadeMaterialInstance Mat in CreatedMaterials)
 			{
+				Addin.Instance.LogDebug($"  AddMaterial: {Mat.GetName()}: {Mat.GetLabel()}");
 				DatasmithScene.AddMaterial(Mat);
 			}
 			foreach (FDatasmithFacadeTexture Texture in CreatedTextures)
@@ -758,13 +771,18 @@ namespace DatasmithSolidworks
 
 		private bool CreateAndCacheMaterial(FMaterial InMaterial, out List<FDatasmithFacadeTexture> OutCreatedTextures, out FDatasmithFacadeMaterialInstance OutCreatedMaterial)
 		{
+			Addin.Instance.LogDebug($"CreateAndCacheMaterial({InMaterial.Name}: {InMaterial.ID})");
+
 			OutCreatedTextures = null;
 			OutCreatedMaterial = null;
 
 			if (ExportedMaterialsMap.ContainsKey(InMaterial.ID))
 			{
+				Addin.Instance.LogDebug($"  skipping, already present in map");
 				return false;
 			}
+
+			Addin.Instance.LogDebug($"  making, ShaderName: '{InMaterial.ShaderName}'");
 
 			FMaterial.EMaterialType Type = FMaterial.GetMaterialType(InMaterial.ShaderName);
 
