@@ -736,12 +736,16 @@ public:
 			return Particles.GetActiveKinematicParticlesView();
 		};
 
+		// We do not update the particle views every time we change a particle - we do it once at the end
+		const bool bUpdateParticleViews = false;
+
 		for (auto& Particle : GetKinematicView())
 		{
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
 			const FVec3 CurrentX = Particle.X();
 			const FRotation3 CurrentR = Particle.R();
 
+			bool bMoved = false;
 			switch (KinematicTarget.GetMode())
 			{
 			case EKinematicTargetMode::None:
@@ -754,7 +758,7 @@ public:
 				Particle.V() = FVec3(0, 0, 0);
 				Particle.W() = FVec3(0, 0, 0);
 				KinematicTarget.SetMode(EKinematicTargetMode::None);
-				Particles.MarkTransientDirtyParticle(Particle.Handle());
+				Particles.MarkTransientDirtyParticle(Particle.Handle(), bUpdateParticleViews);
 				break;
 			}
 
@@ -777,26 +781,38 @@ public:
 					NewX = FVec3::Lerp(CurrentX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
 					NewR = FRotation3::Slerp(CurrentR, KinematicTarget.GetTarget().GetRotation(), decltype(FQuat::X)(StepFraction));
 				}
-				if (Dt > MinDt)
-				{
-					FVec3 V = FVec3::CalculateVelocity(CurrentX, NewX, Dt);
-					Particle.V() = V;
 
-					FVec3 W = FRotation3::CalculateAngularVelocity(CurrentR, NewR, Dt);
-					Particle.W() = W;
+				bMoved = !FVec3::IsNearlyEqual(NewX, CurrentX, UE_SMALL_NUMBER) || !FRotation3::IsNearlyEqual(NewR, CurrentR, UE_SMALL_NUMBER);
+				FVec3 V = FVec3(0);
+				FVec3 W = FVec3(0);
+				if (bMoved)
+				{
+					if (Dt > MinDt)
+					{
+						V = FVec3::CalculateVelocity(CurrentX, NewX, Dt);
+						Particle.V() = V;
+
+						W = FRotation3::CalculateAngularVelocity(CurrentR, NewR, Dt);
+						Particle.W() = W;
+					}
+
+					Particle.X() = NewX;
+					Particle.R() = NewR;
 				}
-				Particle.X() = NewX;
-				Particle.R() = NewR;
-				Particles.MarkTransientDirtyParticle(Particle.Handle());
+				Particle.V() = V;
+				Particle.W() = W;
+				Particles.MarkTransientDirtyParticle(Particle.Handle(), bUpdateParticleViews);
+
 				break;
 			}
 
 			case EKinematicTargetMode::Velocity:
 			{
 				// Move based on velocity
+				bMoved = true;
 				Particle.X() = Particle.X() + Particle.V() * Dt;
 				Particle.R() = FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
-				Particles.MarkTransientDirtyParticle(Particle.Handle());
+				Particles.MarkTransientDirtyParticle(Particle.Handle(), bUpdateParticleViews);
 				break;
 			}
 			}
@@ -810,13 +826,17 @@ public:
 				Rigid->Q() = Rigid->R();
 				Rigid->PreV() = Rigid->V();
 				Rigid->PreW() = Rigid->W();
-				if (!Rigid->CCDEnabled())
+
+				if (bMoved)
 				{
-					Rigid->UpdateWorldSpaceState(FRigidTransform3(Rigid->P(), Rigid->Q()), FVec3(0));
-				}
-				else
-				{
-					Rigid->UpdateWorldSpaceStateSwept(FRigidTransform3(Rigid->P(), Rigid->Q()), FVec3(0), -Rigid->V() * Dt);
+					if (!Rigid->CCDEnabled())
+					{
+						Rigid->UpdateWorldSpaceState(FRigidTransform3(Rigid->P(), Rigid->Q()), FVec3(0));
+					}
+					else
+					{
+						Rigid->UpdateWorldSpaceStateSwept(FRigidTransform3(Rigid->P(), Rigid->Q()), FVec3(0), -Rigid->V() * Dt);
+					}
 				}
 			}
 		}
@@ -826,6 +846,9 @@ public:
 		{
 			Particles.UpdateAllMovingKinematic();
 		}
+
+		// If we changed any particle state, the views need to be refreshed
+		Particles.UpdateDirtyViews();
 	}
 
 	/** Make a copy of the acceleration structure to allow for external modification.

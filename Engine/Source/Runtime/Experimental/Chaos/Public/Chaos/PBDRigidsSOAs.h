@@ -229,6 +229,12 @@ public:
 	{
 		check(0);
 	}
+
+	void UpdateDirtyViews()
+	{
+		// @todo(chaos): this should only refresh views that may have changed
+		UpdateViews();
+	}
 	
 	TArray<FGeometryParticleHandle*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const FGeometryParticleParameters& Params = FGeometryParticleParameters())
 	{
@@ -299,7 +305,9 @@ public:
 		TransientDirtyMapArray.Reset();
 	}
 
-	void MarkTransientDirtyParticle(FGeometryParticleHandle* Particle)
+	// @todo(chaos): keep track of which views may be dirty and lazily update them
+	// rather than calling UpdateViews all the time
+	void MarkTransientDirtyParticle(FGeometryParticleHandle* Particle, const bool bUpdateViews = true)
 	{
 		if(FPBDRigidParticleHandle* Rigid =  Particle->CastToRigidParticle())
 		{
@@ -307,7 +315,10 @@ public:
 			if (!ActiveParticlesMapArray.Contains(Rigid))
 			{
 				TransientDirtyMapArray.Insert(Rigid);
-				UpdateViews();
+				if (bUpdateViews)
+				{
+					UpdateViews();
+				}
 			}
 		}
 	}
