@@ -194,17 +194,6 @@ void FInterfaceProperty::ExportText_Internal( FString& ValueStr, const void* Pro
 		Temp = InterfaceValue->GetObject();
 	}
 
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		const FString GetObjectStr = Temp
-			? FString::Printf(TEXT("LoadObject<UObject>(nullptr, TEXT(\"%s\"))"), *Temp->GetPathName().ReplaceCharWithEscapedChar())
-			: TEXT("");
-		ValueStr += FString::Printf(TEXT("TScriptInterface<I%s>(%s)")
-			, (InterfaceClass ? *InterfaceClass->GetName() : TEXT("Interface"))
-			, *GetObjectStr);
-		return;
-	}
-
 	if( Temp != NULL )
 	{
 		bool bExportFullyQualified = true;

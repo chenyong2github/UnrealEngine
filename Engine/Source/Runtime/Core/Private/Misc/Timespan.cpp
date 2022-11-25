@@ -16,12 +16,6 @@
 
 bool FTimespan::ExportTextItem(FString& ValueStr, FTimespan const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if ((PortFlags & EPropertyPortFlags::PPF_ExportCpp) != 0)
-	{
-		ValueStr += FString::Printf(TEXT("FTimespan(0x%016X)"), Ticks);
-		return true;
-	}
-
 	ValueStr += ToString(TEXT("%D.%h:%m:%s.%n"));
 
 	return true;

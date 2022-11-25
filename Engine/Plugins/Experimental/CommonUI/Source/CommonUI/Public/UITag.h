@@ -51,12 +51,8 @@ class TTypedTagStaticImpl
 
 	static bool ExportTextItem(const TagT& Tag, FString& ValueStr, int32 PortFlags)
 	{
-		if (0 == (PortFlags & EPropertyPortFlags::PPF_ExportCpp))
-		{
-			ValueStr += Tag.GetTagName().ToString();
-			return true;
-		}
-		return false;
+		ValueStr += Tag.GetTagName().ToString();
+		return true;
 	}
 
 	static TagT TryConvert(FGameplayTag VanillaTag, bool bChecked)

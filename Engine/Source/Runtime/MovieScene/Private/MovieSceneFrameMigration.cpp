@@ -57,11 +57,6 @@ bool FMovieSceneFrameRange::SerializeFromMismatchedTag(FPropertyTag const& Tag, 
 
 bool FMovieSceneFrameRange::ExportTextItem(FString& ValueStr, FMovieSceneFrameRange const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if (0 != (PortFlags & EPropertyPortFlags::PPF_ExportCpp))
-	{
-		return false;
-	}
-
 	FString String;
 	if (Value.GetLowerBound().IsOpen())
 	{

@@ -364,45 +364,6 @@ void FByteProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) con
 
 void FByteProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		if (Enum)
-		{
-			int64 ActualValue = 0;
-			if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
-			{
-				uint8 Value = 0;
-				GetValue_InContainer(PropertyValueOrContainer, &Value);
-				ActualValue = Value;
-			}
-			else
-			{
-				ActualValue = *(const uint8*)PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType);
-			}
-			const int64 MaxValue = Enum->GetMaxEnumValue();
-			const int64 GoodValue = Enum->IsValidEnumValue(ActualValue) ? ActualValue : MaxValue;
-			const bool bNonNativeEnum = Enum->GetClass() != UEnum::StaticClass();
-			ensure(!bNonNativeEnum || Enum->CppType.IsEmpty());
-			const FString FullyQualifiedEnumName = bNonNativeEnum ? ::UnicodeToCPPIdentifier(Enum->GetName(), false, TEXT("E__"))
-				: (Enum->CppType.IsEmpty() ? Enum->GetName() : Enum->CppType);
-			if (GoodValue == MaxValue)
-			{
-				// not all native enums have Max value declared
-				ValueStr += FString::Printf(TEXT("(%s)(%d)"), *FullyQualifiedEnumName, ActualValue);
-			}
-			else
-			{
-				ValueStr += FString::Printf(TEXT("%s::%s"), *FullyQualifiedEnumName,
-					*Enum->GetNameStringByValue(GoodValue));
-			}
-		}
-		else
-		{
-			Super::ExportText_Internal(ValueStr, PropertyValueOrContainer, PropertyPointerType, DefaultValue, Parent, PortFlags, ExportRootScope);
-		}
-		return;
-	}
-
 	if( Enum && (PortFlags & PPF_ConsoleVariable) == 0 )
 	{
 		int64 ActualValue = 0;

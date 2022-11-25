@@ -447,7 +447,6 @@ struct TStructOpsTypeTraits<FRandomStream> : public TStructOpsTypeTraitsBase2<FR
 {
 	enum 
 	{
-		WithExportTextItem = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 	};
@@ -2060,16 +2059,6 @@ UPropertyWrapper* FProperty::GetUPropertyWrapper()
 	return Wrapper;
 }
 #endif //  WITH_EDITORONLY_DATA
-
-void FFloatProperty::ExportText_Internal(FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
-{
-	Super::ExportText_Internal(ValueStr, PropertyValueOrContainer, PropertyPointerType, DefaultValue, Parent, PortFlags, ExportRootScope);
-
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		ValueStr += TEXT("f");
-	}
-}
 
 
 FProperty* UStruct::FindPropertyByName(FName InName) const

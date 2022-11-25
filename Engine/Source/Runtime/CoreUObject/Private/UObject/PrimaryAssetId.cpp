@@ -8,11 +8,7 @@
 
 bool FPrimaryAssetType::ExportTextItem(FString& ValueStr, FPrimaryAssetType const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		ValueStr += FString::Printf(TEXT("FPrimaryAssetType(TEXT(\"%s\"))"), *ToString().ReplaceCharWithEscapedChar());
-	}
-	else if (!(PortFlags & PPF_Delimited))
+	if (!(PortFlags & PPF_Delimited))
 	{
 		ValueStr += ToString();
 	}
@@ -85,11 +81,7 @@ FPrimaryAssetId FPrimaryAssetId::ParseTypeAndName(FName TypeAndName)
 
 bool FPrimaryAssetId::ExportTextItem(FString& ValueStr, FPrimaryAssetId const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		ValueStr += FString::Printf(TEXT("FPrimaryAssetId(TEXT(\"%s\"))"), *ToString().ReplaceCharWithEscapedChar());
-	}
-	else if (!(PortFlags & PPF_Delimited))
+	if (!(PortFlags & PPF_Delimited))
 	{
 		ValueStr += ToString();
 	}

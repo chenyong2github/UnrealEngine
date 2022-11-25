@@ -98,13 +98,7 @@ void FFieldPathProperty::ExportText_Internal( FString& ValueStr, const void* Pro
 		Value = GetPropertyValue(PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType));
 	}
 
-	if (PortFlags & PPF_ExportCpp)
-	{
-		ValueStr += TEXT("TEXT(\"");
-		ValueStr += Value.ToString();
-		ValueStr += TEXT("\")");
-	}
-	else if (PortFlags & PPF_PropertyWindow)
+	if (PortFlags & PPF_PropertyWindow)
 	{
 		if (PortFlags & PPF_Delimited)
 		{

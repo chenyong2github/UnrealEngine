@@ -2369,11 +2369,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
 #endif // WITH_EDITORONLY_DATA
-
-	// FProperty interface
-protected:
-	virtual void ExportText_Internal(FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const override;
-	// End of FProperty interface
 };
 
 /*-----------------------------------------------------------------------------
@@ -3636,9 +3631,6 @@ public:
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	uint32 GetValueTypeHashInternal(const void* Src) const override;
 	// End of FProperty interface
-
-	// Necessary to fix Compiler Error C2026
-	static FString ExportCppHardcodedText(const FString& InSource, const FString& Indent);
 };
 
 /*-----------------------------------------------------------------------------

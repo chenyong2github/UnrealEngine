@@ -2934,11 +2934,6 @@ void UScriptStruct::ExportText(FString& ValueStr, const void* Value, const void*
 		}
 	}
 
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		return;
-	}
-
 	int32 Count = 0;
 
 	// if this struct is configured to be serialized as a unit, it must be exported as a unit as well.

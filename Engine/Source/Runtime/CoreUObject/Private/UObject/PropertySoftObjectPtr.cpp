@@ -124,12 +124,6 @@ void FSoftObjectProperty::ExportText_Internal( FString& ValueStr, const void* Pr
 		SoftObjectPath = SoftObjectPtr.GetUniqueID();
 	}
 
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		ValueStr += FString::Printf(TEXT("FSoftObjectPath(TEXT(\"%s\"))"), *SoftObjectPath.ToString().ReplaceCharWithEscapedChar());
-		return;
-	}
-
 	SoftObjectPath.ExportTextItem(ValueStr, SoftObjectPath, Parent, PortFlags, ExportRootScope);
 }
 

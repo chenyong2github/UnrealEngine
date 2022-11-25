@@ -243,17 +243,6 @@ void FObjectPropertyBase::ExportText_Internal( FString& ValueStr, const void* Pr
 		Temp = GetObjectPtrPropertyValue(PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType));
 	}
 
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		ValueStr += Temp
-			? FString::Printf(TEXT("LoadObject<%s%s>(nullptr, TEXT(\"%s\"))")
-				, PropertyClass->GetPrefixCPP()
-				, *PropertyClass->GetName()
-				, *(Temp->GetPathName().ReplaceCharWithEscapedChar()))
-			: TEXT("nullptr");
-		return;
-	}
-
 	if (!Temp)
 	{
 		ValueStr += TEXT("None");

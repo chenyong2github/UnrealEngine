@@ -327,11 +327,6 @@ bool FSoftObjectPath::operator==(FSoftObjectPath const& Other) const
 
 bool FSoftObjectPath::ExportTextItem(FString& ValueStr, FSoftObjectPath const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if (0 != (PortFlags & EPropertyPortFlags::PPF_ExportCpp))
-	{
-		return false;
-	}
-
 	if (!IsNull())
 	{
 		// Fixup any redirectors

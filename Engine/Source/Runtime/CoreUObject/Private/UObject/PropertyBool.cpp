@@ -355,15 +355,7 @@ void FBoolProperty::ExportText_Internal( FString& ValueStr, const void* Containe
 		LocalByteValue = *((uint8*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType) + ByteOffset);
 		bValue = 0 != (LocalByteValue & FieldMask);
 	}
-	const TCHAR* Temp = nullptr;
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		Temp = (bValue ? TEXT("true") : TEXT("false"));
-	}
-	else
-	{
-		Temp = (bValue ? TEXT("True") : TEXT("False"));
-	}
+	const TCHAR* Temp = (bValue ? TEXT("True") : TEXT("False"));
 	ValueStr += FString::Printf( TEXT("%s"), Temp );
 }
 const TCHAR* FBoolProperty::ImportText_Internal( const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText ) const

@@ -142,12 +142,6 @@ FString FDelegateProperty::GetCPPTypeForwardDeclaration() const
 
 void FDelegateProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		ValueStr += TEXT("{}");
-		return;
-	}
-
 	auto ExportDelegateAsText = [&ValueStr](FScriptDelegate* ScriptDelegate)
 	{
 		check(ScriptDelegate != NULL);

@@ -175,11 +175,6 @@ bool FTopLevelAssetPath::TrySetPath(FAnsiStringView Path)
 
 bool FTopLevelAssetPath::ExportTextItem(FString& ValueStr, FTopLevelAssetPath const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if (0 != (PortFlags & EPropertyPortFlags::PPF_ExportCpp))
-	{
-		return false;
-	}
-
 	if (!IsNull())
 	{
 		if (PortFlags & PPF_Delimited)

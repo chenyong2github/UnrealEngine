@@ -282,28 +282,6 @@ void FEnumProperty::ExportText_Internal(FString& ValueStr, const void* PropertyV
 		PropertyValue = PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType);
 	}
 
-	if (PortFlags & PPF_ExportCpp)
-	{
-		const int64 ActualValue = LocalUnderlyingProp->GetSignedIntPropertyValue(PropertyValue);
-		const int64 MaxValue = Enum->GetMaxEnumValue();
-		const int64 GoodValue = Enum->IsValidEnumValue(ActualValue) ? ActualValue : MaxValue;
-		const bool bNonNativeEnum = Enum->GetClass() != UEnum::StaticClass();
-		ensure(!bNonNativeEnum || Enum->CppType.IsEmpty());
-		const FString FullyQualifiedEnumName = bNonNativeEnum ? ::UnicodeToCPPIdentifier(Enum->GetName(), false, TEXT("E__"))
-			: (Enum->CppType.IsEmpty() ? Enum->GetName() : Enum->CppType);
-		if (GoodValue == MaxValue)
-		{
-			// not all native enums have Max value declared
-			ValueStr += FString::Printf(TEXT("(%s)(%llu)"), *FullyQualifiedEnumName, ActualValue);
-		}
-		else
-		{
-			ValueStr += FString::Printf(TEXT("%s::%s"), *FullyQualifiedEnumName,
-				*Enum->GetNameStringByValue(GoodValue));
-		}
-		return;
-	}
-
 	if (PortFlags & PPF_ConsoleVariable)
 	{
 		UnderlyingProp->ExportText_Internal(ValueStr, PropertyValue, EPropertyPointerType::Direct, DefaultValue, Parent, PortFlags, ExportRootScope);

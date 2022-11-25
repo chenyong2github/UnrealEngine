@@ -13,11 +13,7 @@ const FDataRegistryType FDataRegistryType::CustomContextType = FDataRegistryType
 
 bool FDataRegistryType::ExportTextItem(FString& ValueStr, FDataRegistryType const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		ValueStr += FString::Printf(TEXT("FDataRegistryType(TEXT(\"%s\"))"), *ToString().ReplaceCharWithEscapedChar());
-	}
-	else if (!(PortFlags & PPF_Delimited))
+	if (!(PortFlags & PPF_Delimited))
 	{
 		ValueStr += ToString();
 	}
@@ -68,11 +64,7 @@ bool FDataRegistryType::SerializeFromMismatchedTag(struct FPropertyTag const& Ta
 
 bool FDataRegistryId::ExportTextItem(FString& ValueStr, FDataRegistryId const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		ValueStr += FString::Printf(TEXT("FDataRegistryId(TEXT(\"%s\"))"), *ToString().ReplaceCharWithEscapedChar());
-	}
-	else if (!(PortFlags & PPF_Delimited))
+	if (!(PortFlags & PPF_Delimited))
 	{
 		ValueStr += ToString();
 	}

@@ -73,12 +73,6 @@ FDateTime::FDateTime(int32 Year, int32 Month, int32 Day, int32 Hour, int32 Minut
 
 bool FDateTime::ExportTextItem(FString& ValueStr, FDateTime const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if (0 != (PortFlags & EPropertyPortFlags::PPF_ExportCpp))
-	{
-		ValueStr += FString::Printf(TEXT("FDateTime(0x%016X)"), Ticks);
-		return true;
-	}
-
 	ValueStr += ToString();
 
 	return true;

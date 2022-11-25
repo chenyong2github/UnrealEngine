@@ -85,11 +85,6 @@ struct FIOSBuildResourceFilePath
 	 */
 	bool ExportTextItem(FString& ValueStr, FIOSBuildResourceFilePath const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 	{
-		if (0 != (PortFlags & EPropertyPortFlags::PPF_ExportCpp))
-		{
-			return false;
-		}
-
 		ValueStr += FilePath;
 		return true;
 	}
@@ -138,11 +133,6 @@ struct FIOSBuildResourceDirectory
 	 */
 	bool ExportTextItem(FString& ValueStr, FIOSBuildResourceDirectory const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 	{
-		if (0 != (PortFlags & EPropertyPortFlags::PPF_ExportCpp))
-		{
-			return false;
-		}
-
 		ValueStr += Path;
 		return true;
 	}

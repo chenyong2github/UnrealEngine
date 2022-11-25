@@ -463,14 +463,6 @@ void FArrayProperty::ExportText_Internal( FString& ValueStr, const void* Contain
 {
 	checkSlow(Inner);
 
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		FString ExtendedTypeText;
-		FString TypeText = GetCPPType(&ExtendedTypeText, EPropertyExportCPPFlags::CPPF_BlueprintCppBackend);
-		ValueStr += FString::Printf(TEXT("%s%s()"), *TypeText, *ExtendedTypeText);
-		return;
-	}
-
 	uint8* TempArrayStorage = nullptr;
 	void* PropertyValuePtr = nullptr;
 	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())

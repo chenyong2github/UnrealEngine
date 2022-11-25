@@ -1458,12 +1458,6 @@ bool FKey::SerializeFromMismatchedTag(struct FPropertyTag const& Tag, FStructure
 
 bool FKey::ExportTextItem(FString& ValueStr, FKey const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	if (0 != (PortFlags & EPropertyPortFlags::PPF_ExportCpp))
-	{
-		ValueStr += FString::Printf(TEXT("FKey(TEXT(\"%s\"))"), *KeyName.ToString());
-		return true;
-	}
-
 	ValueStr += KeyName.ToString();
 	return true;
 }

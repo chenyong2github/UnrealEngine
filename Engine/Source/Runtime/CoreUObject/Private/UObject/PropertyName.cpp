@@ -27,13 +27,7 @@ void FNameProperty::ExportText_Internal( FString& ValueStr, const void* Property
 	{
 		Temp = *(FName*)PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType);
 	}
-	if (0 != (PortFlags & PPF_ExportCpp))
-	{
-		ValueStr += (Temp == NAME_None) 
-			? TEXT("FName()") 
-			: FString::Printf(TEXT("FName(TEXT(\"%s\"))"), *(Temp.ToString().ReplaceCharWithEscapedChar()));
-	}
-	else if( !(PortFlags & PPF_Delimited) )
+	if( !(PortFlags & PPF_Delimited) )
 	{
 		ValueStr += Temp.ToString();
 	}
