@@ -197,8 +197,17 @@ private:
 	/** Handles disabling CPU throttling. */
 	FReply OnClickDisableUseLessCPU() const;
 
+	/** Handles ignoring Warnings. */
+	FReply OnClickIgnoreWarnings() const;
+
 	/** Creates a widget that warns the user when CPU throttling is enabled.  */
 	TSharedRef<SWidget> CreateCPUThrottleWarning() const;
+
+	/** Creates a widget that warns the user when the settings are currently ignoring the Protected flag is enabled. */
+	TSharedRef<SWidget> CreateProtectedIgnoredWarning() const;
+	
+	/** Creates a widget that warns the user when the settings are currently ignoring the Getter/Setter is enabled. */
+	TSharedRef<SWidget> CreateGetterSetterIgnoredWarning() const;
 
 	/** Create expose button, allowing to expose blueprints and actor functions. */
 	TSharedRef<SWidget> CreateExposeFunctionsButton();

@@ -123,6 +123,15 @@ public:
 	UPROPERTY(config)
 	bool bUseRebindingContext = true;
 
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control Preset", DisplayName = "Ignore Remote Control Protected Check")
+	bool bIgnoreProtectedCheck = false;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Preset", DisplayName = "Ignore Remote Control Getter/Setter Check")
+	bool bIgnoreGetterSetterCheck = false;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Preset", DisplayName = "Ignore Warnings")
+	bool bIgnoreWarnings = false;
+
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Remote Control Web Interface Passphrase")
 	TArray<FRCPassphrase> Passphrases = {};
 };

@@ -21,6 +21,7 @@
 #include "RemoteControlInterceptionProcessor.h"
 #include "RemoteControlInstanceMaterial.h"
 #include "RemoteControlPreset.h"
+#include "RemoteControlSettings.h"
 #include "SceneInterface.h"
 #include "Serialization/PropertyMapStructDeserializerBackendWrapper.h"
 #include "StructDeserializer.h"
@@ -99,13 +100,17 @@ namespace RemoteControlUtil
 
 	bool IsPropertyAllowed(const FProperty* InProperty, ERCAccess InAccessType, bool bObjectInGamePackage)
 	{
+#if WITH_EDITOR
+		URemoteControlSettings* RCSettings = GetMutableDefault<URemoteControlSettings>();
+#endif
 		// The property is allowed to be accessed if it exists...
 		return InProperty &&
 				// it doesn't have exposed getter/setter that should be used instead
 #if WITH_EDITOR
-				(!InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintGetter) || !InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintSetter)) &&
-				// it isn't private or protected, except if AllowPrivateAccess is true
-				(!InProperty->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate) || InProperty->GetBoolMetaData(RemoteControlUtil::NAME_AllowPrivateAccess)) &&
+				(!InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintGetter) || !InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintSetter) || RCSettings->bIgnoreGetterSetterCheck) &&
+				// it isn't private or protected, except if AllowPrivateAccess is true and if only for Protected whenever it should be ignored
+				(!InProperty->HasAnyPropertyFlags(CPF_NativeAccessSpecifierPrivate) || InProperty->GetBoolMetaData(RemoteControlUtil::NAME_AllowPrivateAccess)) &&
+				(!InProperty->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected) || RCSettings->bIgnoreProtectedCheck || InProperty->GetBoolMetaData(RemoteControlUtil::NAME_AllowPrivateAccess)) &&	
 #endif
 				// it isn't blueprint private
 				!InProperty->HasAnyPropertyFlags(CPF_DisableEditOnInstance) &&
