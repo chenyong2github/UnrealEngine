@@ -247,6 +247,18 @@ FPrimitiveSceneInfo::~FPrimitiveSceneInfo()
 }
 
 #if RHI_RAYTRACING
+bool FPrimitiveSceneInfo::IsCachedRayTracingGeometryValid() const
+{
+	if (CachedRayTracingGeometry)
+	{
+		// TODO: Doesn't take Nanite Ray Tracing into account
+		//check(CachedRayTracingGeometry->RayTracingGeometryRHI == CachedRayTracingInstance.GeometryRHI);
+		return CachedRayTracingGeometry->IsValid();
+	}
+
+	return false;
+}
+
 FRHIRayTracingGeometry* FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstance(int LodLevel) const
 {
 	if (RayTracingGeometries.Num() > LodLevel)
@@ -268,11 +280,6 @@ FRHIRayTracingGeometry* FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstance
 	}
 	else
 	{
-		if (LodLevel == 0 && CachedRayTracingGeometry && CachedRayTracingGeometry->IsValid())
-		{
-			return CachedRayTracingGeometry->RayTracingGeometryRHI;
-		}
-
 		return nullptr;
 	}
 }

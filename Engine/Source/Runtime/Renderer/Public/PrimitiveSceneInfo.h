@@ -599,6 +599,9 @@ public:
 
 #if RHI_RAYTRACING
 	static void UpdateCachedRaytracingData(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
+
+	bool IsCachedRayTracingGeometryValid() const;
+
 	RENDERER_API FRHIRayTracingGeometry* GetStaticRayTracingGeometryInstance(int LodLevel) const;
 
 	int GetRayTracingGeometryNum() const { return RayTracingGeometries.Num(); }
