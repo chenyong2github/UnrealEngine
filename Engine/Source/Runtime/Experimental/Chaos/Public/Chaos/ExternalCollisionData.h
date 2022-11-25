@@ -177,6 +177,7 @@ namespace Chaos
 			, Mass((FReal)0.0)
 			, BoundingBox(FAABB3(FVec3((FReal)0.0), FVec3((FReal)0.0)))
 			, TransformGroupIndex(INDEX_NONE)
+			, bFromCrumble(false)
 		{}
 
 		// The pointer to the proxy should be used with caution on the Game Thread.
@@ -192,6 +193,7 @@ namespace Chaos
 		FReal Mass;
 		Chaos::FAABB3 BoundingBox;
 		int32 TransformGroupIndex;
+		bool bFromCrumble;
 	};
 
 	/*

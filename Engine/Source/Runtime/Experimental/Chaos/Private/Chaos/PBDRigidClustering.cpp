@@ -53,6 +53,35 @@ namespace Chaos
 	float GraphPropagationBasedCollisionFactor = 1;
 	FAutoConsoleVariableRef CVarGraphPropagationBasedCollisionFactor(TEXT("p.GraphPropagationBasedCollisionFactor"), GraphPropagationBasedCollisionFactor, TEXT("when p.GraphPropagationBasedCollisionImpulseProcessing is on, the percentage [0-1] of remaining damage that is distributed to the connected pieces"));
 
+	static FGeometryCollectionPhysicsProxy* GetConcreteProxy(FPBDRigidClusteredParticleHandle* ClusteredParticle)
+	{
+		if (ClusteredParticle)
+		{
+			if (IPhysicsProxyBase* Proxy = ClusteredParticle->PhysicsProxy())
+			{
+				if (Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+				{
+					return static_cast<FGeometryCollectionPhysicsProxy*>(Proxy);
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	static const FGeometryCollectionPhysicsProxy* GetConcreteProxy(const FPBDRigidClusteredParticleHandle* ClusteredParticle)
+	{
+		if (ClusteredParticle)
+		{
+			if (const IPhysicsProxyBase* Proxy = ClusteredParticle->PhysicsProxy())
+			{
+				if (Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+				{
+					return static_cast<const FGeometryCollectionPhysicsProxy*>(Proxy);
+				}
+			}
+		}
+		return nullptr;
+	}
 	
 	//==========================================================================
 	// TPBDRigidClustering
@@ -368,29 +397,33 @@ namespace Chaos
 		return ActivatedChildren;
 	}
 
-	void FRigidClustering::SendBreakingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle)
+	void FRigidClustering::ResetAllEvents()
 	{
-		check(ClusteredParticle);
-		if (DoGenerateBreakingData)
+		ResetAllClusterBreakings();
+		ResetAllClusterCrumblings();
+		CrumbledSinceLastUpdate.Reset();
+	}
+
+	void FRigidClustering::SendBreakingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle, bool bFromCrumble)
+	{
+		// only emit break event if the proxy needs it 
+		if (FGeometryCollectionPhysicsProxy* ConcreteProxy = GetConcreteProxy(ClusteredParticle))
 		{
-			FBreakingData& ClusterBreak = MAllClusterBreakings.AddDefaulted_GetRef();
-			ClusterBreak.Proxy = ClusteredParticle->PhysicsProxy();
-			ClusterBreak.Location = ClusteredParticle->X();
-			ClusterBreak.Velocity = ClusteredParticle->V();
-			ClusterBreak.AngularVelocity = ClusteredParticle->W();
-			ClusterBreak.Mass = ClusteredParticle->M();
-			if (ClusteredParticle->Geometry() && ClusteredParticle->Geometry()->HasBoundingBox())
+			const FSimulationParameters& SimParams = ConcreteProxy->GetSimParameters();
+			if (SimParams.bGenerateBreakingData)
 			{
-				ClusterBreak.BoundingBox = ClusteredParticle->Geometry()->BoundingBox();
-			}
-			if (ClusterBreak.Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
-			{
-				const FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ClusterBreak.Proxy);
+				FBreakingData& ClusterBreak = MAllClusterBreakings.AddDefaulted_GetRef();
+				ClusterBreak.Proxy = ClusteredParticle->PhysicsProxy();
+				ClusterBreak.Location = ClusteredParticle->X();
+				ClusterBreak.Velocity = ClusteredParticle->V();
+				ClusterBreak.AngularVelocity = ClusteredParticle->W();
+				ClusterBreak.Mass = ClusteredParticle->M();
+				if (ClusteredParticle->Geometry() && ClusteredParticle->Geometry()->HasBoundingBox())
+				{
+					ClusterBreak.BoundingBox = ClusteredParticle->Geometry()->BoundingBox();
+				}
 				ClusterBreak.TransformGroupIndex = ConcreteProxy->GetTransformGroupIndexFromHandle(ClusteredParticle);
-			}
-			else
-			{
-				ClusterBreak.TransformGroupIndex = INDEX_NONE;
+				ClusterBreak.bFromCrumble = bFromCrumble;
 			}
 		}
 	}
@@ -398,33 +431,29 @@ namespace Chaos
 	
 	void FRigidClustering::SendCrumblingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle)
 	{
-		check(ClusteredParticle);
-		if (IPhysicsProxyBase* Proxy = ClusteredParticle->PhysicsProxy())
+		// only emit crumble events if the proxy needs it 
+		if (FGeometryCollectionPhysicsProxy* ConcreteProxy = GetConcreteProxy(ClusteredParticle))
 		{
-			if (Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+			const FSimulationParameters& SimParams = ConcreteProxy->GetSimParameters(); 
+			if (SimParams.bGenerateCrumblingData)
 			{
-				FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<FGeometryCollectionPhysicsProxy*>(Proxy);
-				FSimulationParameters& SimParams = ConcreteProxy->GetSimParameters(); 
-				if (SimParams.bGenerateCrumblingData)
+				FCrumblingData& ClusterCrumbling = MAllClusterCrumblings.AddDefaulted_GetRef();
+				ClusterCrumbling.Proxy = ClusteredParticle->PhysicsProxy();
+				ClusterCrumbling.Location = ClusteredParticle->X();
+				ClusterCrumbling.Orientation = ClusteredParticle->R();
+				ClusterCrumbling.LinearVelocity = ClusteredParticle->V();
+				ClusterCrumbling.AngularVelocity = ClusteredParticle->W();
+				ClusterCrumbling.Mass = ClusteredParticle->M();
+				if (ClusteredParticle->Geometry() && ClusteredParticle->Geometry()->HasBoundingBox())
 				{
-					FCrumblingData& ClusterCrumbling = MAllClusterCrumblings.AddDefaulted_GetRef();
-					ClusterCrumbling.Proxy = ClusteredParticle->PhysicsProxy();
-					ClusterCrumbling.Location = ClusteredParticle->X();
-					ClusterCrumbling.Orientation = ClusteredParticle->R();
-					ClusterCrumbling.LinearVelocity = ClusteredParticle->V();
-					ClusterCrumbling.AngularVelocity = ClusteredParticle->W();
-					ClusterCrumbling.Mass = ClusteredParticle->M();
-					if (ClusteredParticle->Geometry() && ClusteredParticle->Geometry()->HasBoundingBox())
+					ClusterCrumbling.LocalBounds = ClusteredParticle->Geometry()->BoundingBox();
+				}
+				if (SimParams.bGenerateCrumblingChildrenData)
+				{
+					// when sending this event, children are still attached
+					if (const FRigidHandleArray* Children = MChildren.Find(ClusteredParticle))
 					{
-						ClusterCrumbling.LocalBounds = ClusteredParticle->Geometry()->BoundingBox();
-					}
-					if (SimParams.bGenerateCrumblingChildrenData)
-					{
-						// when sending this event, children are still attached
-						if (const FRigidHandleArray* Children = MChildren.Find(ClusteredParticle))
-						{
-							ConcreteProxy->GetTransformGroupIndicesFromHandles(*Children, ClusterCrumbling.Children);
-						}
+						ConcreteProxy->GetTransformGroupIndicesFromHandles(*Children, ClusterCrumbling.Children);
 					}
 				}
 			}
@@ -621,19 +650,16 @@ namespace Chaos
 		bool bUseDamagePropagation = false;
 		float BreakDamagePropagationFactor = 0.0f;
 		float ShockDamagePropagationFactor = 0.0f;
-		FPBDRigidClusteredParticleHandle* ClusteredParent = ClusteredParticle->CastToClustered();
-		if (const IPhysicsProxyBase* Proxy = ClusteredParent->PhysicsProxy())
+		if (const FGeometryCollectionPhysicsProxy* ConcreteProxy = GetConcreteProxy(ClusteredParticle))
 		{
-			if (Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
-			{
-				const FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<const FGeometryCollectionPhysicsProxy*>(Proxy);
-				bUseDamagePropagation = ConcreteProxy->GetSimParameters().bUseDamagePropagation;
-				BreakDamagePropagationFactor = ConcreteProxy->GetSimParameters().BreakDamagePropagationFactor;
-				ShockDamagePropagationFactor = ConcreteProxy->GetSimParameters().ShockDamagePropagationFactor;
-			}
+			const FSimulationParameters& SimParams = ConcreteProxy->GetSimParameters();
+			bUseDamagePropagation = SimParams.bUseDamagePropagation;
+			BreakDamagePropagationFactor = SimParams.BreakDamagePropagationFactor;
+			ShockDamagePropagationFactor = SimParams.ShockDamagePropagationFactor;
 		}
 
 		TArray<FPBDRigidParticleHandle*>& Children = MChildren[ClusteredParticle];
+		const bool bParentCrumbled = CrumbledSinceLastUpdate.Contains(ClusteredParticle);
 
 		// only used for propagation
 		TMap<FPBDRigidParticleHandle*, FReal> AppliedStrains;
@@ -664,7 +690,7 @@ namespace Chaos
 				// 1 entry at a time.
 				Children.RemoveAtSwap(ChildIdx, 1, false);
 
-				SendBreakingEvent(Child);
+				SendBreakingEvent(Child, bParentCrumbled);
 			}
 			if (bUseDamagePropagation)
 			{
@@ -883,8 +909,7 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_UpdateDirtyImpulses);
 				BreakingModel();
 			} // end if MCollisionImpulseArrayDirty
-
-		} // end if MParticles.Size()
+		}
 		Timer.Stop();
 		UE_LOG(LogChaos, Verbose, TEXT("Cluster Break Update Time is %f"), Time);
 	}
@@ -1150,13 +1175,9 @@ namespace Chaos
 				{
 					// gather propagation information from the parent proxy
 					bool bUseDamagePropagation = false;
-					if (const IPhysicsProxyBase* Proxy = Cluster->PhysicsProxy())
+					if (const FGeometryCollectionPhysicsProxy* ConcreteProxy = GetConcreteProxy(Cluster))
 					{
-						if (Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
-						{
-							const FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<const FGeometryCollectionPhysicsProxy*>(Proxy);
-							bUseDamagePropagation = ConcreteProxy->GetSimParameters().bUseDamagePropagation;
-						}
+						bUseDamagePropagation = ConcreteProxy->GetSimParameters().bUseDamagePropagation;
 					}
 
 					if (bUseDamagePropagation)
@@ -1236,15 +1257,6 @@ namespace Chaos
 		GetChildrenMap().Remove(ClusteredParticle);
 		ClusteredParticle->ClusterIds() = ClusterId();
 		ClusteredParticle->ClusterGroupIndex() = 0;
-	}
-
-	void FRigidClustering::DisableParticleWithBreakEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle)
-	{
-		if (ClusteredParticle)
-		{
-			DisableCluster(ClusteredParticle);
-			SendBreakingEvent(ClusteredParticle);
-		}
 	}
 
 	FPBDRigidClusteredParticleHandle*
@@ -1333,6 +1345,7 @@ namespace Chaos
 			}
 			if (ChildrenHandles->Num() > 0)
 			{
+				CrumbledSinceLastUpdate.Add(ClusteredParticle);
 				SendCrumblingEvent(ClusteredParticle);
 			}
 			return true;
@@ -1362,6 +1375,7 @@ namespace Chaos
 					}
 					if (Children->Num() > 0)
 					{
+						CrumbledSinceLastUpdate.Add(ClusteredHandle);
 						SendCrumblingEvent(ClusteredHandle);
 					}
 				}

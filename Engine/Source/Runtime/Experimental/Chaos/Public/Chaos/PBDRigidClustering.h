@@ -256,6 +256,11 @@ public:
 	TArrayCollectionArray<int32>& GetClusterGroupIndexArray() { return MParticles.ClusterGroupIndexArray(); }
 
 	/*
+	* Reset all events ( this include breaking, crumbling event and tracking data 
+	*/
+	void ResetAllEvents();
+
+	/*
 	*  Cluster Break Data
 	*     The cluster breaks can be used to seed particle emissions. 
 	*/
@@ -346,7 +351,6 @@ public:
 	void ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule);
 	void ResetCollisionImpulseArray();
 	void DisableCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle);
-	void DisableParticleWithBreakEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle);
 
 	/*
 	* Connectivity
@@ -369,7 +373,7 @@ public:
 
 	void RemoveChildFromParent(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
 
-	void SendBreakingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle);
+	void SendBreakingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle, bool bFromCrumble);
 	void SendCrumblingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle);
 
 	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticlesImpl(
@@ -399,7 +403,9 @@ private:
 	TArray<FBreakingData> MAllClusterBreakings;
 
 	TArray<FCrumblingData> MAllClusterCrumblings;
-	
+
+	TSet<FPBDRigidClusteredParticleHandle*> CrumbledSinceLastUpdate;
+
 	FReal MClusterConnectionFactor;
 	FClusterCreationParameters::EConnectionMethod MClusterUnionConnectionType;
 };

@@ -316,61 +316,33 @@ namespace Chaos
 			if (!Solver->GetEventFilters()->IsBreakingEventEnabled())
 				return;
 
-			FBreakingDataArray& AllBreakingDataArray = BreakingEventData.BreakingData.AllBreakingsArray;
-			TMap<IPhysicsProxyBase*, TArray<int32>>& AllBreakingIndicesByPhysicsProxy = BreakingEventData.PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap;
+			FBreakingDataArray& FilteredBreakingDataArray = BreakingEventData.BreakingData.AllBreakingsArray;
+			TMap<IPhysicsProxyBase*, TArray<int32>>& FilteredBreakingIndicesByPhysicsProxy = BreakingEventData.PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap;
 
 			if (bResetData)
 			{
-				AllBreakingDataArray.Reset();
-				AllBreakingIndicesByPhysicsProxy.Reset();
+				FilteredBreakingDataArray.Reset();
+				FilteredBreakingIndicesByPhysicsProxy.Reset();
 			}
 			BreakingEventData.BreakingData.TimeCreated = Solver->MTime;
 
 			const auto* Evolution = Solver->GetEvolution();
 			const FPBDRigidParticles& Particles = Evolution->GetParticles().GetDynamicParticles();
-			const TArray<FBreakingData>& AllBreakingsArray = Evolution->GetRigidClustering().GetAllClusterBreakings();
-			const TArrayCollectionArray<ClusterId>& ClusterIdsArray = Evolution->GetRigidClustering().GetClusterIdsArray();
-
-#if TODO_REIMPLEMENT_RIGID_CLUSTERING
-			const Chaos::FPBDRigidsSolver::FClusteringType::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
-#endif
-			
-			if (AllBreakingsArray.Num() > 0)
+			const TArray<FBreakingData>& AllClusterBreakings = Evolution->GetRigidClustering().GetAllClusterBreakings();
+	
+			if (AllClusterBreakings.Num() > 0)
 			{
-				for (int32 Idx = 0; Idx < AllBreakingsArray.Num(); ++Idx)
+				const FSolverBreakingEventFilter* SolverBreakingEventFilter = Solver->GetEventFilters()->GetBreakingFilter();
+				for (int32 Idx = 0; Idx < AllClusterBreakings.Num(); ++Idx)
 				{					
-					FBreakingData BreakingData;
-					BreakingData.Location = AllBreakingsArray[Idx].Location;
-					BreakingData.Velocity = AllBreakingsArray[Idx].Velocity;
-					BreakingData.AngularVelocity = AllBreakingsArray[Idx].AngularVelocity;
-					BreakingData.Mass = AllBreakingsArray[Idx].Mass;
-					BreakingData.Proxy = AllBreakingsArray[Idx].Proxy;
-					BreakingData.BoundingBox = AllBreakingsArray[Idx].BoundingBox;
-					BreakingData.TransformGroupIndex = AllBreakingsArray[Idx].TransformGroupIndex;
-
-					const FSolverBreakingEventFilter* SolverBreakingEventFilter = Solver->GetEventFilters()->GetBreakingFilter();
-					if (!SolverBreakingEventFilter->Enabled() || SolverBreakingEventFilter->Pass(BreakingData))
+					const FBreakingData& ClusterBreaking = AllClusterBreakings[Idx];
+					if (!SolverBreakingEventFilter->Enabled() || SolverBreakingEventFilter->Pass(ClusterBreaking))
 					{
-						int32 NewIdx = AllBreakingDataArray.Add(FBreakingData());
-						FBreakingData& BreakingDataArrayItem = AllBreakingDataArray[NewIdx];
-						BreakingDataArrayItem = BreakingData;
-
-						// Add to AllBreakingIndicesByPhysicsProxy
-						AllBreakingIndicesByPhysicsProxy.FindOrAdd(BreakingData.Proxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
-
-#if 0 // #todo
-						// If AllBreakingsArray[Idx].ParticleIndex is a cluster store an index for a mesh in this cluster
-						if (ClusterIdsArray[AllBreakingsArray[Idx].ParticleIndex].NumChildren > 0)
-						{
-							int32 ParticleIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, AllBreakingsArray[Idx].ParticleIndex);
-							ensure(ParticleIndexMesh != INDEX_NONE);
-							BreakingDataArrayItem.ParticleIndexMesh = ParticleIndexMesh;
-						}
-#endif
-					}					
+						const int32 NewIndex = FilteredBreakingDataArray.Emplace(ClusterBreaking);
+						FilteredBreakingIndicesByPhysicsProxy.FindOrAdd(ClusterBreaking.Proxy).Add(FEventManager::EncodeCollisionIndex(NewIndex, false));
+					}
 				}
 			}
-		
 		});
 	}
 

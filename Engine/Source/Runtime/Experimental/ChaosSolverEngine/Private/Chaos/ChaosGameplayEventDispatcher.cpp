@@ -23,10 +23,23 @@ FChaosBreakEvent::FChaosBreakEvent()
 	, Location(FVector::ZeroVector)
 	, Velocity(FVector::ZeroVector)
 	, AngularVelocity(FVector::ZeroVector)
+	, Extents(FVector::ZeroVector)
 	, Mass(0.0f)
 	, Index(INDEX_NONE)
+	, bFromCrumble(false)
 {
+}
 
+FChaosBreakEvent::FChaosBreakEvent(const Chaos::FBreakingData& BreakingData)
+	: Component(nullptr)
+	, Location(BreakingData.Location)
+	, Velocity(BreakingData.Velocity)
+	, AngularVelocity(BreakingData.AngularVelocity)
+	, Extents(BreakingData.BoundingBox.Extents())
+	, Mass(BreakingData.Mass)
+	, Index(BreakingData.TransformGroupIndex)
+	, bFromCrumble(BreakingData.bFromCrumble)
+{
 }
 
 FChaosRemovalEvent::FChaosRemovalEvent()
@@ -482,27 +495,22 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 	{
 		LastBreakingDataTime = BreakingDataTimestamp;
 
-		Chaos::FBreakingDataArray const& BreakingData = Event.BreakingData.AllBreakingsArray;
+		const Chaos::FBreakingDataArray& BreakingDataArray = Event.BreakingData.AllBreakingsArray;
 
 		// let's assume breaks are very rare, so we will iterate breaks instead of registered components for now
-		const int32 NumBreaks = BreakingData.Num();
+		const int32 NumBreaks = BreakingDataArray.Num();
 		if (NumBreaks > 0)
 		{
-			for (Chaos::FBreakingData const& BreakingDataItem : BreakingData)
+			for (const Chaos::FBreakingData& BreakingData : BreakingDataArray)
 			{	
-				if (BreakingDataItem.Proxy)
+				if (BreakingData.Proxy)
 				{
-					UPrimitiveComponent* const PrimComp = Cast<UPrimitiveComponent>(BreakingDataItem.Proxy->GetOwner());
+					UPrimitiveComponent* const PrimComp = Cast<UPrimitiveComponent>(BreakingData.Proxy->GetOwner());
 					if (PrimComp && BreakEventRegistrations.Contains(PrimComp))
 					{
 						// queue them up so we can release the physics data before trigging BP events
-						FChaosBreakEvent& BreakEvent = PendingBreakEvents.AddZeroed_GetRef();
+						FChaosBreakEvent& BreakEvent = PendingBreakEvents.Emplace_GetRef(BreakingData);
 						BreakEvent.Component = PrimComp;
-						BreakEvent.Location = BreakingDataItem.Location;
-						BreakEvent.Velocity = BreakingDataItem.Velocity;
-						BreakEvent.AngularVelocity = BreakingDataItem.AngularVelocity;
-						BreakEvent.Mass = BreakingDataItem.Mass;
-						BreakEvent.Index = BreakingDataItem.TransformGroupIndex;
 					}
 				}
 			}

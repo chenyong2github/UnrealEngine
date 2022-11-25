@@ -456,11 +456,10 @@ namespace Chaos
 				MSolver->CompleteSceneSimulation();
 			}
 
-			// reset all clustering event needs to be after CompleteSceneSimulation to make sure the cache recording gets them before they get removed
+			// reset all clustering events needs to be after CompleteSceneSimulation to make sure the cache recording gets them before they get removed
 			// they cannot be right after the presolve callback ( as they were before ) because they will cause geometry collection replicated clients to miss them
 			// Todo(chaos) we should probably move all of the solver event reset here in the future
-			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
-			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterCrumblings();
+			MSolver->GetEvolution()->GetRigidClustering().ResetAllEvents();
 
 			if (FRewindData* RewindData = MSolver->GetRewindData())
 			{
