@@ -5,14 +5,11 @@
 #include "DerivedDataBuildFunctionFactory.h"
 #include "DerivedDataBuildFunctionRegistry.h"
 #include "DerivedDataBuildPrivate.h"
-#include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
-#include "Experimental/Async/LazyEvent.h"
+#include "DerivedDataThreadPoolTask.h"
 #include "Experimental/DerivedDataBuildSchedulerThreadPoolProvider.h"
 #include "Experimental/Misc/ExecutionResource.h"
 #include "HAL/CriticalSection.h"
-#include "Misc/IQueuedWork.h"
-#include "Misc/QueuedThreadPool.h"
 #include "Misc/ScopeRWLock.h"
 
 namespace UE::DerivedData::Private
@@ -41,103 +38,10 @@ private:
 
 	FQueuedThreadPool* FindThreadPool(const FUtf8SharedString& TypeName) const;
 
-	class FRequest;
-
 private:
 	mutable FRWLock Lock;
 	TMap<FUtf8SharedString, IBuildSchedulerThreadPoolProvider*> Providers;
 };
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FBuildSchedulerMemoryQueue::FRequest final : public FRequestBase, public IQueuedWork
-{
-public:
-	FRequest(
-		uint64 MemoryEstimate,
-		IRequestOwner& Owner,
-		FQueuedThreadPool& ThreadPool,
-		TUniqueFunction<void ()>&& OnComplete);
-	~FRequest();
-
-private:
-	TRefCountPtr<IRequest> TryEnd();
-	void Execute();
-
-	void SetPriority(EPriority Priority) final;
-	void Wait() final;
-	void Cancel() final { Wait(); }
-
-	void DoThreadedWork() final { Execute(); }
-	void Abandon() final { Execute(); }
-	int64 GetRequiredMemory() const final { return int64(MemoryEstimate); }
-
-private:
-	uint64 MemoryEstimate;
-	IRequestOwner& Owner;
-	FQueuedThreadPool& ThreadPool;
-	TUniqueFunction<void ()> OnComplete;
-	UE::FLazyEvent Event{EEventMode::ManualReset};
-	std::atomic<bool> bClaimed = false;
-};
-
-FBuildSchedulerMemoryQueue::FRequest::FRequest(
-	const uint64 InMemoryEstimate,
-	IRequestOwner& InOwner,
-	FQueuedThreadPool& InThreadPool,
-	TUniqueFunction<void ()>&& InOnComplete)
-	: MemoryEstimate(InMemoryEstimate)
-	, Owner(InOwner)
-	, ThreadPool(InThreadPool)
-	, OnComplete(MoveTemp(InOnComplete))
-{
-	AddRef(); // Released in Execute() or Cancel()
-	Owner.Begin(this);
-	ThreadPool.AddQueuedWork(this, ConvertToQueuedWorkPriority(Owner.GetPriority()));
-}
-
-FBuildSchedulerMemoryQueue::FRequest::~FRequest()
-{
-	check(bClaimed.load(std::memory_order_relaxed));
-}
-
-TRefCountPtr<IRequest> FBuildSchedulerMemoryQueue::FRequest::TryEnd()
-{
-	return bClaimed.exchange(true) ? nullptr : Owner.End(this, [this]
-	{
-		Invoke(OnComplete);
-		Event.Trigger();
-	});
-}
-
-void FBuildSchedulerMemoryQueue::FRequest::Execute()
-{
-	TryEnd();
-	Release();
-}
-
-void FBuildSchedulerMemoryQueue::FRequest::SetPriority(EPriority Priority)
-{
-	if (ThreadPool.RetractQueuedWork(this))
-	{
-		ThreadPool.AddQueuedWork(this, ConvertToQueuedWorkPriority(Priority));
-	}
-}
-
-void FBuildSchedulerMemoryQueue::FRequest::Wait()
-{
-	if (TRefCountPtr<IRequest> Self = TryEnd())
-	{
-		if (ThreadPool.RetractQueuedWork(this))
-		{
-			Release();
-		}
-	}
-	else
-	{
-		Event.Wait();
-	}
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -222,7 +126,7 @@ void FBuildSchedulerMemoryQueue::WaitForMemory(
 {
 	if (FQueuedThreadPool* ThreadPool = FindThreadPool(TypeName))
 	{
-		new FRequest(MemoryEstimate, Owner, *ThreadPool, MoveTemp(OnComplete));
+		LaunchTaskInThreadPool(MemoryEstimate, Owner, *ThreadPool, MoveTemp(OnComplete));
 	}
 	else
 	{
@@ -246,8 +150,10 @@ public:
 
 	void ScheduleCacheQuery() final       { StepSync(); }
 	void ScheduleCacheStore() final       { StepSync(); }
+
 	void ScheduleResolveKey() final       { StepAsync(TEXT("ResolveKey")); }
 	void ScheduleResolveInputMeta() final { StepAsync(TEXT("ResolveInputMeta")); }
+
 	void ScheduleResolveInputData() final
 	{
 		if (Params.MissingRemoteInputsSize)
@@ -259,6 +165,7 @@ public:
 			StepAsyncOrQueue(TEXT("ResolveInputData"));
 		}
 	}
+
 	void ScheduleExecuteRemote() final    { StepAsync(TEXT("ExecuteRemote")); }
 	void ScheduleExecuteLocal() final     { StepAsyncOrQueue(TEXT("ExecuteLocal")); }
 
@@ -271,6 +178,7 @@ private:
 	void StepSync()
 	{
 		Job.StepExecution();
+		// DO NOT ACCESS THIS AGAIN PAST THIS POINT!
 	}
 
 	void StepAsync(const TCHAR* DebugName)
@@ -283,6 +191,7 @@ private:
 		{
 			Owner.LaunchTask(DebugName, [this] { Job.StepExecution(); });
 		}
+		// DO NOT ACCESS THIS AGAIN PAST THIS POINT!
 	}
 
 	void StepAsyncOrQueue(const TCHAR* DebugName)
@@ -305,6 +214,7 @@ private:
 			ExecutionResources = FExecutionResourceContext::Get();
 			StepAsync(DebugName);
 		});
+		// DO NOT ACCESS THIS AGAIN PAST THIS POINT!
 	}
 
 private:

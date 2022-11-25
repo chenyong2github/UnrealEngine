@@ -20,6 +20,7 @@
 #include "DerivedDataPrivate.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataThreadPoolTask.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -328,95 +329,11 @@ namespace UE::DerivedData::Private
 
 FQueuedThreadPool* GCacheThreadPool;
 
-class FCacheThreadPoolTaskRequest final : public FRequestBase, private FInheritedContextBase, private IQueuedWork
-{
-public:
-	inline FCacheThreadPoolTaskRequest(IRequestOwner& InOwner, TUniqueFunction<void ()>&& InTaskBody)
-		: Owner(InOwner)
-		, TaskBody(MoveTemp(InTaskBody))
-	{
-		CaptureInheritedContext();
-		Owner.Begin(this);
-		DoneEvent.Reset();
-		GCacheThreadPool->AddQueuedWork(this, ConvertToQueuedWorkPriority(Owner.GetPriority()));
-	}
-
-private:
-	inline void Execute()
-	{
-		FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
-		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
-		Owner.End(this, [this]
-		{
-			TaskBody();
-			DoneEvent.Trigger();
-		});
-		// DO NOT ACCESS ANY MEMBERS PAST THIS POINT!
-	}
-
-	// IRequest Interface
-
-	inline void SetPriority(EPriority Priority) final
-	{
-		if (GCacheThreadPool->RetractQueuedWork(this))
-		{
-			GCacheThreadPool->AddQueuedWork(this, ConvertToQueuedWorkPriority(Priority));
-		}
-	}
-
-	inline void Cancel() final
-	{
-		if (!DoneEvent.Wait(0))
-		{
-			if (GCacheThreadPool->RetractQueuedWork(this))
-			{
-				Abandon();
-			}
-			else
-			{
-				FScopeCycleCounter Scope(GetStatId());
-				DoneEvent.Wait();
-			}
-		}
-	}
-
-	inline void Wait() final
-	{
-		if (!DoneEvent.Wait(0))
-		{
-			if (GCacheThreadPool->RetractQueuedWork(this))
-			{
-				DoThreadedWork();
-			}
-			else
-			{
-				FScopeCycleCounter Scope(GetStatId());
-				DoneEvent.Wait();
-			}
-		}
-	}
-
-	// IQueuedWork Interface
-
-	inline void DoThreadedWork() final { Execute(); }
-	inline void Abandon() final { Execute(); }
-
-	inline TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FCacheThreadPoolTaskRequest, STATGROUP_ThreadPoolAsyncTasks);
-	}
-
-private:
-	IRequestOwner& Owner;
-	TUniqueFunction<void ()> TaskBody;
-	FLazyEvent DoneEvent{EEventMode::ManualReset};
-};
-
 void LaunchTaskInCacheThreadPool(IRequestOwner& Owner, TUniqueFunction<void ()>&& TaskBody)
 {
 	if (GCacheThreadPool)
 	{
-		new FCacheThreadPoolTaskRequest(Owner, MoveTemp(TaskBody));
+		LaunchTaskInThreadPool(Owner, *GCacheThreadPool, MoveTemp(TaskBody));
 	}
 	else
 	{
