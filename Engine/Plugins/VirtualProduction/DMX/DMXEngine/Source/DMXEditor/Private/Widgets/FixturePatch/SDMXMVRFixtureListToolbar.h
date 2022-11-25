@@ -52,6 +52,9 @@ private:
 	/** True if only conflicts are searched for */
 	bool bShowConfictsOnly = false;
 
+	/** The number of fixture patches to add when one is selected in the entity dropdown */
+	int32 NumFixturePatchesToAdd = 1;
+
 	/** Dropdown menu of Fixture Types */
 	TSharedPtr<SDMXEntityDropdownMenu<UDMXEntityFixtureType>> FixtureTypeDropdownMenu;
 
