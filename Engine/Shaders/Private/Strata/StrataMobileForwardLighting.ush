@@ -188,13 +188,13 @@ float3 StrataMobileForwardLighting(
 					// Evaluate specular lighting for the main lobe
 					if (any(StrataEnvLight.SpecularWeight > 0.0f))
 					{
-						Color += GetImageBasedReflectionSpecular(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, MaterialParameters.WorldPosition_CamRelative, StrataBSDFContext.N, ShadingOcclusion, IndirectIrradiance, GridIndex) *
+						Color += GetImageBasedReflectionSpecular(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, MaterialParameters.WorldPosition_CamRelative, StrataBSDFContext.N, ShadingOcclusion.SpecularOcclusion, IndirectIrradiance, GridIndex) *
 								 StrataEnvLight.SpecularWeight * IndirectOcclusion * LuminanceWeight(StrataBSDFContext, CurrentBSDF) * AOMultiBounce(StrataEnvLight.SpecularColor, ShadingOcclusion.SpecOcclusion);
 					}
 					// And for the second lobe if needed
 					if (any(StrataEnvLight.SpecularHazeWeight > 0.0f))
 					{
-						Color += GetImageBasedReflectionSpecular(StrataEnvLight.SpecularHazeDirection, StrataEnvLight.SpecularHazeSafeRoughness, MaterialParameters.WorldPosition_CamRelative, StrataBSDFContext.N, ShadingOcclusion, IndirectIrradiance, GridIndex) *
+						Color += GetImageBasedReflectionSpecular(StrataEnvLight.SpecularHazeDirection, StrataEnvLight.SpecularHazeSafeRoughness, MaterialParameters.WorldPosition_CamRelative, StrataBSDFContext.N, ShadingOcclusion.SpecularOcclusion, IndirectIrradiance, GridIndex) *
 								 StrataEnvLight.SpecularHazeWeight * IndirectOcclusion * LuminanceWeight(StrataBSDFContext, CurrentBSDF) * AOMultiBounce(StrataEnvLight.SpecularColor, ShadingOcclusion.SpecOcclusion);
 					}
 				}
