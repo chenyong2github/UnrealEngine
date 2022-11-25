@@ -17,6 +17,18 @@ namespace UE { namespace Shader	{ enum class EValueType : uint8; } }
 
 #define SPARSE_VOLUME_TILE_RES	16
 
+DECLARE_DELEGATE_RetVal_EightParams(bool, FConvertOpenVDBToSparseVolumeTextureDelegate, 
+	TArray<uint8>& SourceFile,
+	uint32 GridIndex,
+	struct FSparseVolumeAssetHeader* OutHeader,
+	TArray<uint32>* OutDensityPage,
+	TArray<uint8>* OutDensityData,
+	bool bOverrideActiveMinMax,
+	FVector ActiveMin,
+	FVector ActiveMax);
+
+ENGINE_API FConvertOpenVDBToSparseVolumeTextureDelegate& OnConvertOpenVDBToSparseVolumeTexture();
+
 struct ENGINE_API FSparseVolumeAssetHeader
 {
 	FIntVector3 PageTableVolumeResolution;
@@ -43,12 +55,8 @@ struct ENGINE_API FSparseVolumeAssetHeader
 // The structure represent the source asset in high quality. It is used to cook the runtime data
 struct ENGINE_API FSparseVolumeRawSource
 {
-	FSparseVolumeAssetHeader Header;
-
-	// SVT_TODO Store the source asset as the saved openvdb instead of page table/physical tile as it is now.
-
-	TArray<uint32>	DensityPage;
-	TArray<uint8>	DensityData;
+	uint32						DensityGridIndex;
+	TArray<uint8>				SourceAssetFile;
 
 	// The current data format version for the raw source data.
 	static const uint32 kVersion = 0;
@@ -59,7 +67,7 @@ struct ENGINE_API FSparseVolumeRawSource
 	void Serialize(FArchive& Ar);
 
 	FSparseVolumeRawSource()
-		: Header()
+		: DensityGridIndex()
 		, Version(kVersion)
 	{
 	}
