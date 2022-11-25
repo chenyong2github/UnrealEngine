@@ -319,6 +319,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 		UserData.Add(FRigVMUserDataArray());
 	}
 
+	OutVM->SetContextPublicDataStruct(Settings.GetExecuteContextStruct());
 	OutVM->Reset();
 
 	TMap<FString, FRigVMOperand> LocalOperands;
