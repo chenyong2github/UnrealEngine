@@ -210,6 +210,10 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 #endif
 }
 
+bool UWidgetBlueprintThumbnailRenderer::AllowsRealtimeThumbnails(UObject* Object) const 
+{ 
+	return false; 
+}
 
 void UWidgetBlueprintThumbnailRenderer::OnBlueprintUnloaded(UBlueprint* Blueprint)
 {

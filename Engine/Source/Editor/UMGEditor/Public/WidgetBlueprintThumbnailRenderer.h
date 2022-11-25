@@ -22,6 +22,7 @@ class UMGEDITOR_API UWidgetBlueprintThumbnailRenderer : public UDefaultSizedThum
 	//~ Begin UThumbnailRenderer Object
 	bool CanVisualizeAsset(UObject* Object) override;
 	void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily) override;
+	bool AllowsRealtimeThumbnails(UObject* Object) const override;
 	//~ End UThumbnailRenderer Object
 
 private:
