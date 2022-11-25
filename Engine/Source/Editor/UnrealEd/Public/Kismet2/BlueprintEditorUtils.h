@@ -212,6 +212,7 @@ public:
 	/**
 	 * Regenerates the class at class load time, and refreshes the blueprint
 	 */
+	UE_DEPRECATED(5.2, "Replace with FKismetEditorUtilities::CompileBlueprint")
 	static UClass* RegenerateBlueprintClass(UBlueprint* Blueprint, UClass* ClassToRegenerate, UObject* PreviousCDO);
 	
 	/**
