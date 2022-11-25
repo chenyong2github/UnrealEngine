@@ -1252,24 +1252,29 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 
 	FRigVMReportDelegate ReportDelegate;
 
+	UPROPERTY(VisibleAnywhere, Category = "AST", transient)
+	TObjectPtr<UScriptStruct> ExecuteContextStruct;
+
 	// static method to provide fast AST parse settings
-	static FRigVMParserASTSettings Fast()
+	static FRigVMParserASTSettings Fast(UScriptStruct* InExecuteContextStruct = nullptr)
 	{
 		FRigVMParserASTSettings Settings;
 		Settings.bFoldAssignments = false;
 		Settings.bFoldLiterals = false;
 		Settings.bFoldConstantBranches = false;
+		Settings.ExecuteContextStruct = InExecuteContextStruct ? InExecuteContextStruct : FRigVMExecuteContext::StaticStruct();
 		return Settings;
 	}
 
 	// static method to provide AST parse settings
 	// tuned for a fast executing runtime, but slow parse
-	static FRigVMParserASTSettings Optimized()
+	static FRigVMParserASTSettings Optimized(UScriptStruct* InExecuteContextStruct = nullptr)
 	{
 		FRigVMParserASTSettings Settings;
 		Settings.bFoldAssignments = true;
 		Settings.bFoldLiterals = true;
 		Settings.bFoldConstantBranches = true;
+		Settings.ExecuteContextStruct = InExecuteContextStruct ? InExecuteContextStruct : FRigVMExecuteContext::StaticStruct();
 		return Settings;
 	}
 

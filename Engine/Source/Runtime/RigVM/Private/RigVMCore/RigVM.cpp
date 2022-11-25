@@ -116,7 +116,7 @@ void URigVM::Serialize(FArchive& Ar)
 	{
 		return;
 	}
-
+	
 	// call into the super class to serialize any uproperty
 	if(Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
@@ -146,6 +146,10 @@ void URigVM::Save(FArchive& Ar)
 	int32 RigVMUClassBasedStorageDefine = 0; // this used to 
 	Ar << RigVMUClassBasedStorageDefine;
 
+	// store the context public data object path
+	FString ExecuteContextPath = GetContextPublicDataStruct()->GetPathName();
+	Ar << ExecuteContextPath;
+
 	// we rely on Ar.IsIgnoringArchetypeRef for determining if we are currently performing
 	// CPFUO (Copy Properties for unrelated objects). During a reinstance pass we don't
 	// want to overwrite the bytecode and some other properties - since that's handled already
@@ -171,6 +175,22 @@ void URigVM::Load(FArchive& Ar)
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::RigVMMemoryStorageObject)
 	{
 		Ar << RigVMUClassBasedStorageDefine;
+	}
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::RigVMSerializeExecuteContextStruct)
+	{
+		FString ExecuteContextPath;
+		Ar << ExecuteContextPath;
+
+		const FTopLevelAssetPath AssetPath(*ExecuteContextPath);
+		UScriptStruct* ExecuteContextScriptStruct = FindObject<UScriptStruct>(AssetPath);
+		if(ExecuteContextScriptStruct == nullptr)
+		{
+			Reset();
+			return;
+		}
+
+		SetContextPublicDataStruct(ExecuteContextScriptStruct);
 	}
 
 	if(RigVMUClassBasedStorageDefine == 1)

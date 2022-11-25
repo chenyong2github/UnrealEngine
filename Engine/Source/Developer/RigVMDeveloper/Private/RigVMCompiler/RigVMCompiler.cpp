@@ -68,6 +68,16 @@ FRigVMCompileSettings::FRigVMCompileSettings()
 {
 }
 
+FRigVMCompileSettings::FRigVMCompileSettings(UScriptStruct* InExecuteContextScriptStruct)
+	: FRigVMCompileSettings()
+{
+	ASTSettings.ExecuteContextStruct = InExecuteContextScriptStruct;
+	if(ASTSettings.ExecuteContextStruct == nullptr)
+	{
+		ASTSettings.ExecuteContextStruct = FRigVMExecuteContext::StaticStruct();
+	}
+}
+
 FRigVMOperand FRigVMCompilerWorkData::AddProperty(
 	ERigVMMemoryType InMemoryType,
 	const FName& InName,
@@ -261,6 +271,29 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	{
 		ReportError(TEXT("Provided vm is nullptr."));
 		return false;
+	}
+
+	if (Settings.GetExecuteContextStruct() == nullptr)
+	{
+		ReportError(TEXT("Compiler settings don't provide the ExecuteContext to use. Cannot compile."));
+		return false;;
+	}
+
+	for(URigVMGraph* Graph : InGraphs)
+	{
+		if(Graph->GetExecuteContextStruct())
+		{
+			if(!Settings.GetExecuteContextStruct()->IsChildOf(Graph->GetExecuteContextStruct()))
+			{
+				ReportErrorf(
+					TEXT("Compiler settings' ExecuteContext (%s) is not compatible with '%s' graph's ExecuteContext (%s). Cannot compile."),
+					*Settings.GetExecuteContextStruct()->GetStructCPPName(),
+					*Graph->GetNodePath(),
+					*Graph->GetExecuteContextStruct()->GetStructCPPName()
+				);
+				return false;;
+			}
+		}
 	}
 
 	for(int32 Index = 1; Index < InGraphs.Num(); Index++)
@@ -683,14 +716,25 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 		}
 
 		// at this point the execute context structs are unrelated
-		static constexpr TCHAR CompatibleExecuteContextsFormat[] = TEXT("ExecuteContext types '%s' and '%s' are not compatible. Cannot compile this graph.");
-		const FString CompatibleExecuteContextsMessage = FString::Printf(
-			CompatibleExecuteContextsFormat,
+		ReportErrorf(
+			TEXT("ExecuteContext types '%s' and '%s' are not compatible. Cannot compile this graph."),
 			*ExecuteContextStruct->GetStructCPPName(),
 			*TopLevelExecuteContextStruct->GetStructCPPName());
-		Settings.ASTSettings.Report(EMessageSeverity::Error, nullptr, CompatibleExecuteContextsMessage);
 		bEncounteredGraphError = true;
 		break;
+	}
+
+	// check if the top level matches the settings
+	if(TopLevelExecuteContextStruct)
+	{
+		if(!Settings.GetExecuteContextStruct()->IsChildOf(TopLevelExecuteContextStruct))
+		{
+			ReportErrorf(
+				TEXT("The graph contains an incompatible execute context '%s'. The compiler settings expect '%s' (or below)."),
+				*TopLevelExecuteContextStruct->GetStructCPPName(),
+				*Settings.GetExecuteContextStruct()->GetStructCPPName());
+			bEncounteredGraphError = true;
+		}
 	}
 
 	if(bEncounteredGraphError)

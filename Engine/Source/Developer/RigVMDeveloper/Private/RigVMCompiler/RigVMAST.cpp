@@ -2073,7 +2073,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs
 	TempCompiler->Settings.SetupNodeInstructionIndex = false;
 	TempCompiler->Settings.IsPreprocessorPhase = true;
 	TempCompiler->Settings.EnablePinWatches = false;
-	TempCompiler->Settings.ASTSettings = FRigVMParserASTSettings::Fast();
+	TempCompiler->Settings.ASTSettings = FRigVMParserASTSettings::Fast(Settings.ExecuteContextStruct);
 
 	TempCompiler->Compile(InGraphs, InController, TempVM, InExternalVariables, InRigVMUserData, &Operands, TempAST);
 

@@ -303,6 +303,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Store function information (and compilation data) in blueprint generated class
 		RigVMSaveFunctionAccessInModel,
+
+		// Store the RigVM execute context struct the VM uses in the archive
+		RigVMSerializeExecuteContextStruct,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

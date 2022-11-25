@@ -31,6 +31,11 @@ public:
 
 	FRigVMCompileSettings();
 
+	FRigVMCompileSettings(UScriptStruct* InExecuteContextScriptStruct);
+
+	UScriptStruct* GetExecuteContextStruct() const { return ASTSettings.ExecuteContextStruct; }
+	void SetExecuteContextStruct(UScriptStruct* InExecuteContextScriptStruct) { ASTSettings.ExecuteContextStruct = InExecuteContextScriptStruct; }
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FRigVMCompileSettings)
 	bool SurpressInfoMessages;
 
@@ -52,21 +57,21 @@ public:
 	UPROPERTY()
 	bool SetupNodeInstructionIndex;
 
-	static FRigVMCompileSettings Fast()
+	static FRigVMCompileSettings Fast(UScriptStruct* InExecuteContextStruct = nullptr)
 	{
-		FRigVMCompileSettings Settings;
+		FRigVMCompileSettings Settings(InExecuteContextStruct);
 		Settings.EnablePinWatches = true;
 		Settings.IsPreprocessorPhase = false;
-		Settings.ASTSettings = FRigVMParserASTSettings::Fast();
+		Settings.ASTSettings = FRigVMParserASTSettings::Fast(InExecuteContextStruct);
 		return Settings;
 	}
 
-	static FRigVMCompileSettings Optimized()
+	static FRigVMCompileSettings Optimized(UScriptStruct* InExecuteContextStruct = nullptr)
 	{
-		FRigVMCompileSettings Settings;
+		FRigVMCompileSettings Settings(InExecuteContextStruct);
 		Settings.EnablePinWatches = false;
 		Settings.IsPreprocessorPhase = false;
-		Settings.ASTSettings = FRigVMParserASTSettings::Optimized();
+		Settings.ASTSettings = FRigVMParserASTSettings::Optimized(InExecuteContextStruct);
 		return Settings;
 	}
 
