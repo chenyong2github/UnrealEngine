@@ -207,6 +207,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Settings|Template")
 	TSubclassOf<UPCGBlueprintElement> GetElementType() const { return BlueprintElementType; }
 
+#if WITH_EDITOR
+	TObjectPtr<UPCGBlueprintElement> GetElementInstance() const { return BlueprintElementInstance; }
+#endif
+
 protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
