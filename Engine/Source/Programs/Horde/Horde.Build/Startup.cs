@@ -410,8 +410,17 @@ namespace Horde.Build
 			services.AddSingleton<ILogFileService, LogFileService>();
 			services.AddSingleton<LogTailService>();
 			services.AddSingleton<INotificationService, NotificationService>();
-			services.AddSingleton<PerforceServiceCache>();
-			services.AddSingleton<IPerforceService>(sp => sp.GetRequiredService<PerforceServiceCache>());
+
+			if (settings.Commits.ReplicateMetadata)
+			{
+				services.AddSingleton<PerforceServiceCache>();
+				services.AddSingleton<IPerforceService>(sp => sp.GetRequiredService<PerforceServiceCache>());
+			}
+			else
+			{
+				services.AddSingleton<PerforceService>();
+				services.AddSingleton<IPerforceService>(sp => sp.GetRequiredService<PerforceService>());
+			}
 
 			services.AddSingleton<PerforceLoadBalancer>();
 			services.AddSingleton<PoolService>();
@@ -608,7 +617,12 @@ namespace Horde.Build
 				services.AddHostedService(provider => provider.GetRequiredService<FleetService>());
 				
 				services.AddHostedService(provider => provider.GetRequiredService<AgentService>());
-				services.AddHostedService(provider => provider.GetRequiredService<PerforceServiceCache>());
+
+				if (settings.Commits.ReplicateMetadata)
+				{
+					services.AddHostedService(provider => provider.GetRequiredService<PerforceServiceCache>());
+				}
+
 				services.AddHostedService(provider => provider.GetRequiredService<ConsistencyService>());
 				services.AddHostedService(provider => provider.GetRequiredService<IssueService>());
 				services.AddHostedService<IssueReportService>();

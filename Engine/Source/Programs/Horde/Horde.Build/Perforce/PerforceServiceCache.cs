@@ -206,19 +206,13 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		public async Task StartAsync(CancellationToken cancellationToken)
 		{
-			if (_settings.Commits.ReplicateMetadata)
-			{
-				await _updateCommitsTicker.StartAsync();
-			}
+			await _updateCommitsTicker.StartAsync();
 		}
 
 		/// <inheritdoc/>
 		public async Task StopAsync(CancellationToken cancellationToken)
 		{
-			if (_settings.Commits.ReplicateMetadata)
-			{
-				await _updateCommitsTicker.StopAsync();
-			}
+			await _updateCommitsTicker.StopAsync();
 		}
 
 		#region Commit updates
