@@ -88,11 +88,6 @@ public:
 	virtual TSubclassOf<UHLODBuilderSettings> GetSettingsClass() const;
 
 	/**
-	 * Should return true if this builder needs to have it's input assets fully compiled.
-	 */
-	virtual bool RequiresCompiledAssets() const;
-
-	/**
 	 * Should return true if components generated from this builder need a warmup phase before being made visible.
 	 * If your components are using virtual textures or Nanite meshes, this should return true, as it will be necessary
 	 * to warmup the VT & Nanite caches before transitionning to HLOD. Otherwise, it's likely the initial first frames
@@ -154,7 +149,6 @@ class ENGINE_API UNullHLODBuilder : public UHLODBuilder
 	GENERATED_UCLASS_BODY()
 
 #if WITH_EDITOR
-	virtual bool RequiresCompiledAssets() const { return false; }
 	virtual bool RequiresWarmup() const { return false; }
 	virtual uint32 ComputeHLODHash(const UActorComponent* InSourceComponent) const { return 0; }
 	virtual TArray<UActorComponent*> Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const { return {}; }

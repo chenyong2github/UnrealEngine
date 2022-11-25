@@ -31,7 +31,6 @@ class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderInstancing : public UHLODBuild
 	 GENERATED_UCLASS_BODY()
 
 public:
-	virtual bool RequiresCompiledAssets() const override { return false; }
 	virtual bool RequiresWarmup() const override { return false; }
 
 	virtual TSubclassOf<UHLODBuilderSettings> GetSettingsClass() const override;

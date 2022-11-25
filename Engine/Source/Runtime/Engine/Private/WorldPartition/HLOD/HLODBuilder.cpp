@@ -46,11 +46,6 @@ void UHLODBuilder::SetHLODBuilderSettings(const UHLODBuilderSettings* InHLODBuil
 	HLODBuilderSettings = InHLODBuilderSettings;
 }
 
-bool UHLODBuilder::RequiresCompiledAssets() const
-{
-	return true;
-}
-
 bool UHLODBuilder::RequiresWarmup() const
 {
 	return true;
@@ -264,17 +259,6 @@ TArray<UActorComponent*> UHLODBuilder::Build(const FHLODBuildContext& InHLODBuil
 		HLODBuildersForComponents.FindOrAdd(HLODBuilderClass).Add(SourceComponent);
 	}
 
-	// If any of the builders requires it, wait for assets compilation to finish
-	for (const auto& HLODBuilderPair : HLODBuildersForComponents)
-	{
-		const UHLODBuilder* HLODBuilder = HLODBuilderPair.Key ? HLODBuilderPair.Key->GetDefaultObject<UHLODBuilder>() : this;
-		if (HLODBuilder->RequiresCompiledAssets())
-		{
-			FAssetCompilingManager::Get().FinishAllCompilation();
-			break;
-		}
-	}	
-	
 	// Build HLOD components by sending source components to the individual builders, in batch
 	TArray<UActorComponent*> HLODComponents;
 	for (const auto& HLODBuilderPair : HLODBuildersForComponents)
