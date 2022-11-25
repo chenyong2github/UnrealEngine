@@ -25,7 +25,7 @@ FDatasmithCADWorkerImpl::FDatasmithCADWorkerImpl(int32 InServerPID, int32 InServ
 	, EnginePluginsPath(InEnginePluginsPath)
 	, CachePath(InCachePath)
 	, PingStartCycle(0)
-	, bRequestExit(false)
+	, bRequestRestart(false)
 {
 }
 
@@ -145,6 +145,9 @@ uint64 DefineMaximumAllowedDuration(const CADLibrary::FFileDescriptor& FileDescr
 		break;
 	}
 
+	constexpr int64 OneKiloBit = 1024;
+	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - File size %lld KB"), FileStatData.FileSize / OneKiloBit);
+
 	uint64 MaximumDuration = ((double)FileStatData.FileSize) * MaxTimePerMb * SafetyCoeficient;
 	return FMath::Max(MaximumDuration, (uint64)30);
 }
@@ -163,15 +166,18 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 	Checkers.Emplace(UE::Tasks::Launch(TEXT("MemoryChecker"), [&]() { CheckMemory(); }));
 
 	CADLibrary::FCADFileReader FileReader(ImportParameters, FileToProcess, EnginePluginsPath, CachePath);
-	ETaskState ProcessResult = FileReader.ProcessFile();
+	CompletedTask.ProcessResult = FileReader.ProcessFile();
 
 	bProcessIsRunning = false;
 	UE::Tasks::Wait(Checkers);
 
-	CompletedTask.ProcessResult = ProcessResult;
-
 	if (CompletedTask.ProcessResult == ETaskState::ProcessOk)
 	{
+		if (bRequestRestart)
+		{
+			CompletedTask.ProcessResult = ETaskState::Unknown;
+		}
+			
 		const CADLibrary::FCADFileData& CADFileData = FileReader.GetCADFileData();
 		CompletedTask.ExternalReferences = CADFileData.GetExternalRefSet();
 		CompletedTask.SceneGraphFileName = CADFileData.GetSceneGraphFileName();
@@ -186,18 +192,22 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 			UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("     - Body %s"), *BodyFileName);
 		}
 	}
+	else if(CompletedTask.ProcessResult == ETaskState::FileNotFound)
+	{
+		UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("=> File not found %s"), *FileToProcess.GetFileName());
+	}
 	else
 	{
 		UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("=> Process %s %s failed"), *FileToProcess.GetFileName(), *FileToProcess.GetConfiguration());
 	}
-	CommandIO.SendCommand(CompletedTask, Config::SendCommandTimeout_s);
-
 	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("End of Process %s %s"), *FileToProcess.GetFileName(), *FileToProcess.GetConfiguration());
-
-	if (bRequestExit)
+	
+	if(bRequestRestart)
 	{
-		FPlatformMisc::RequestExit(true);
+		GLog->Flush();
 	}
+
+	CommandIO.SendCommand(CompletedTask, Config::SendCommandTimeout_s);
 }
 
 void FDatasmithCADWorkerImpl::CheckDuration(const CADLibrary::FFileDescriptor& FileToProcess, const int64 MaxDuration)
@@ -249,7 +259,8 @@ void FDatasmithCADWorkerImpl::CheckMemory()
 	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - Max Ram used %llu MB"), MaxMemoryUsed / OneMegaBit);
 	if(EndMemoryUsed > GigaBit)
 	{
-		UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - End Ram used %llu MB. Exceeded the limit to start a new process. CADWorker restart is requested"), EndMemoryUsed / OneMegaBit);
-		bRequestExit = true;
+		UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - Ram used (%llu MB) after cleanup exceeds limit to start new process. CADWorker restart is requested"), EndMemoryUsed / OneMegaBit);
+		bRequestRestart = true;
 	}
+
 }

@@ -46,5 +46,5 @@ private:
 	uint64 PingStartCycle;
 
 	std::atomic<bool> bProcessIsRunning;
-	std::atomic<bool> bRequestExit;
+	std::atomic<bool> bRequestRestart;
 };

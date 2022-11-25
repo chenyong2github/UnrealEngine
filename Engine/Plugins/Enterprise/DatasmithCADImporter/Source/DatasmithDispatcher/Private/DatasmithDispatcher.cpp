@@ -93,16 +93,31 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 		Task.State = TaskState;
 		FileDescriptor = Task.FileDescription;
 
-		if (TaskState == ETaskState::ProcessOk
-			|| TaskState == ETaskState::ProcessFailed
-			|| TaskState == ETaskState::FileNotFound)
+		switch (TaskState)
 		{
+		case ETaskState::Unknown:
+		{
+			Task.State = ETaskState::ProcessOk;
 			CompletedTaskCount++;
+			break;
 		}
 
-		if (TaskState == ETaskState::UnTreated)
+		case ETaskState::ProcessOk:
+		case ETaskState::ProcessFailed:
+		case ETaskState::FileNotFound:
+		{
+			CompletedTaskCount++;
+			break;
+		}
+
+		case ETaskState::UnTreated:
 		{
 			NextTaskIndex = TaskIndex;
+			break;
+		}
+
+		default:
+			break;
 		}
 	}
 

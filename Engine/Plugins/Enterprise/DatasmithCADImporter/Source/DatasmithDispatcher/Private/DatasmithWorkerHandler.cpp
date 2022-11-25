@@ -214,9 +214,9 @@ void FDatasmithWorkerHandler::RunInternal()
 					ProcessCommand(*Command);
 
 					bool bProcessingOver = CurrentTask.IsSet() == false;
-					if (bProcessingOver)
+					if (bProcessingOver && bShouldTerminate)
 					{
-						WorkerState = bShouldTerminate ? EWorkerState::Closing : EWorkerState::Idle;
+						WorkerState = EWorkerState::Closing;
 					}
 				}
 				else
@@ -342,6 +342,27 @@ void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTas
 	Dispatcher.LinkCTFileToUnrealCacheFile(CurrentTask->FileDescription, CompletedTaskCommand.SceneGraphFileName, CompletedTaskCommand.GeomFileName);
 	Dispatcher.LogWarningMessages(CompletedTaskCommand.WarningMessages);
 	CurrentTask.Reset();
+
+	if (CompletedTaskCommand.ProcessResult == ETaskState::Unknown)
+	{
+		// try to close the process gracefully
+		if (WorkerHandle.IsValid())
+		{
+			FPlatformProcess::TerminateProc(WorkerHandle, true);
+		}
+
+		// Process commands still in input queue
+		CommandIO.Disconnect(0);
+		while (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(0))
+		{
+			ProcessCommand(*Command);
+		}
+		WorkerState = EWorkerState::Uninitialized;
+	}
+	else
+	{
+		WorkerState = EWorkerState::Idle;
+	}
 }
 
 const TCHAR* FDatasmithWorkerHandler::EWorkerErrorStateAsString(EWorkerErrorState Error)
