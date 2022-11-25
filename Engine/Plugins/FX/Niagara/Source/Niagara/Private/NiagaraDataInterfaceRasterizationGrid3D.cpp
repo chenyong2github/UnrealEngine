@@ -500,12 +500,10 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::Equals(const UNiagaraDataInterfac
 #if WITH_EDITOR
 bool UNiagaraDataInterfaceRasterizationGrid3D::ShouldCompile(EShaderPlatform ShaderPlatform) const
 {
-	if (!RHISupportsVolumeTextureAtomics(ShaderPlatform))
-	{
-		return false;
-	}
-
-	return UNiagaraDataInterface::ShouldCompile(ShaderPlatform);
+	return
+		RHISupportsVolumeTextureAtomics(ShaderPlatform) &&
+		RHIVolumeTextureRenderingSupportGuaranteed(ShaderPlatform) &&
+		Super::ShouldCompile(ShaderPlatform);
 }
 #endif
 

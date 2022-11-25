@@ -93,6 +93,9 @@ public:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	// GPU sim functionality
+#if WITH_EDITOR
+	virtual bool ShouldCompile(EShaderPlatform ShaderPlatform) const override;
+#endif
 #if WITH_EDITORONLY_DATA
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;

@@ -336,6 +336,15 @@ void UNiagaraDataInterfaceGrid3DCollection::PostInitProperties()
 	}
 }
 
+#if WITH_EDITOR
+bool UNiagaraDataInterfaceGrid3DCollection::ShouldCompile(EShaderPlatform ShaderPlatform) const
+{
+	return
+		RHIVolumeTextureRenderingSupportGuaranteed(ShaderPlatform) &&
+		Super::ShouldCompile(ShaderPlatform);
+}
+#endif
+
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceGrid3DCollection::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {

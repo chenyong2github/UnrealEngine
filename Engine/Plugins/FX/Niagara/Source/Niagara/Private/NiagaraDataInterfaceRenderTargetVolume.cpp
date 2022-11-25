@@ -371,6 +371,15 @@ bool UNiagaraDataInterfaceRenderTargetVolume::CopyToInternal(UNiagaraDataInterfa
 	return true;
 }
 
+#if WITH_EDITOR
+bool UNiagaraDataInterfaceRenderTargetVolume::ShouldCompile(EShaderPlatform ShaderPlatform) const
+{
+	return
+		RHIVolumeTextureRenderingSupportGuaranteed(ShaderPlatform) &&
+		Super::ShouldCompile(ShaderPlatform);
+}
+#endif
+
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceRenderTargetVolume::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
