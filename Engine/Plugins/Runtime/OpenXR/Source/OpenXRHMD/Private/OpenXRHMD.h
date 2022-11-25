@@ -248,6 +248,9 @@ protected:
 	void SetupFrameQuadLayers_RenderThread(FRHICommandListImmediate& RHICmdList);
 	void DrawEmulatedQuadLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView);
 
+	/** TStereoLayerManager<FOpenXRLayer> */
+	void UpdateLayer(FOpenXRLayer& ManagerLayer, uint32 LayerId, bool bIsValid) override;
+
 public:
 	/** IXRTrackingSystem interface */
 	virtual bool DoesSupportLateProjectionUpdate() const override { return true; }
