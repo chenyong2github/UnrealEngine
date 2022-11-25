@@ -15,5 +15,7 @@ AProceduralFoliageBlockingVolume::AProceduralFoliageBlockingVolume(const FObject
 		MyBrushComponent->SetCollisionObjectType(ECC_WorldStatic);
 		MyBrushComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	}
+
+	bIsEditorOnlyActor = true;
 }
 
