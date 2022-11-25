@@ -647,10 +647,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		ShaderPrint::BeginView(GraphBuilder, Views[ViewIndex]);
-	}
+	ShaderPrint::BeginViews(GraphBuilder, Views);
 
 	{
 		FRDGExternalAccessQueue ExternalAccessQueue;
@@ -753,10 +750,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	::DoRenderHitProxies(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture, NaniteRasterResults, InstanceCullingManager);
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		ShaderPrint::EndView(Views[ViewIndex]);
-	}
+	ShaderPrint::EndViews(Views);
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 

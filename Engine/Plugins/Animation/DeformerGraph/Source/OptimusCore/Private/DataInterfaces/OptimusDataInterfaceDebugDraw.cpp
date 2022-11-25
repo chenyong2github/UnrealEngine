@@ -116,6 +116,8 @@ FComputeDataProviderRenderProxy* UOptimusDebugDrawDataProvider::GetRenderProxy()
 FOptimusDebugDrawDataProviderProxy::FOptimusDebugDrawDataProviderProxy(UPrimitiveComponent* InPrimitiveComponent, FOptimusDebugDrawParameters const& InDebugDrawParameters)
 	: Setup(FIntRect(0, 0, 1920, 1080))
 {
+	Scene = InPrimitiveComponent->GetScene();
+
 	// Split LocalToWorld into a pre-translation and transform for large world coordinate support.
 	FMatrix RenderMatrix = InPrimitiveComponent->GetRenderMatrix();
 	FVector PreViewTranslation = -RenderMatrix.GetOrigin();
@@ -151,7 +153,7 @@ void FOptimusDebugDrawDataProviderProxy::AllocateResources(FRDGBuilder& GraphBui
 	{
 		// Enqueue for display at next view render.
 		FFrozenShaderPrintData FrozenShaderPrintData = ShaderPrint::FreezeShaderPrintData(GraphBuilder, ShaderPrintData);
-		ShaderPrint::SubmitShaderPrintData(FrozenShaderPrintData);
+		ShaderPrint::SubmitShaderPrintData(FrozenShaderPrintData, Scene);
 	}
 }
 

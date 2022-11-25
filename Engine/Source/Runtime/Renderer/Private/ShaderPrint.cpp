@@ -83,8 +83,15 @@ namespace ShaderPrint
 	static uint32 GLineRequestCount = 0;
 	static uint32 GTriangleRequestCount = 0;
 	static FViewInfo* GDefaultView = nullptr;
-	static TArray<FFrozenShaderPrintData> GShaderPrintDataToRender;
-
+	
+	struct FQueuedRenderItem
+	{
+		FFrozenShaderPrintData Payload;
+		FSceneInterface const* Scene = nullptr;
+		uint32 FrameForGC = 0;
+	};
+	static TArray<FQueuedRenderItem> GQueuedRenderItems;
+	
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	// Struct & Functions
 
@@ -249,9 +256,17 @@ namespace ShaderPrint
 		GTriangleRequestCount += InCount;
 	}
 
+	void SubmitShaderPrintData(FFrozenShaderPrintData& InData, FSceneInterface const* InScene)
+	{
+		// Queue with a frame number so that we can garbage collect if no matching view ever renders.
+		GQueuedRenderItems.Add({InData, InScene, GFrameNumberRenderThread + 10});
+	}
+
 	void SubmitShaderPrintData(FFrozenShaderPrintData& InData)
 	{
-		GShaderPrintDataToRender.Add(InData);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		SubmitShaderPrintData(InData, nullptr);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -681,18 +696,27 @@ namespace ShaderPrint
 			return;
 		}
 
-		// Invalid to call begin twice for the same view.
-		ensure(GDefaultView != &View);
-		if (GDefaultView == nullptr)
-		{
-			GDefaultView = &View;
-		}
-
 		// Create the render data and store on the view.
 		FShaderPrintSetup ShaderPrintSetup(View);
 		View.ShaderPrintData = CreateShaderPrintData(GraphBuilder, ShaderPrintSetup, View.ViewState);
+	}
 
-		// Reset counter which is read on the next BeginView().
+	void BeginViews(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views)
+	{
+		ensure(GDefaultView == nullptr);
+		if (Views.Num() > 0)
+		{
+			GDefaultView = &Views[0];
+		}
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			FViewInfo& View = Views[ViewIndex];
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+			BeginView(GraphBuilder, View);
+		}
+
+		// Reset counters which are read on the next BeginViews().
 		GCharacterRequestCount = 0;
 		GWidgetRequestCount = 0;
 		GLineRequestCount = 0;
@@ -976,17 +1000,32 @@ namespace ShaderPrint
 		InternalDrawView(GraphBuilder, View, View.ShaderPrintData, OutputTexture, DepthTexture);
 
 		// Draw any externally enqueued shader print data.
-		for (FFrozenShaderPrintData& ShaderPrintDataToRender : GShaderPrintDataToRender)
+		FSceneInterface const* Scene = View.Family != nullptr ? View.Family->Scene : nullptr;
+		for (FQueuedRenderItem& ShaderPrintDataToRender : GQueuedRenderItems)
 		{
-			FShaderPrintData ShaderPrintData = UnFreezeShaderPrintData(GraphBuilder, ShaderPrintDataToRender);
-			InternalDrawView(GraphBuilder, View, ShaderPrintData, OutputTexture, DepthTexture);
+			if (ShaderPrintDataToRender.Scene == nullptr || ShaderPrintDataToRender.Scene == Scene)
+			{
+				FShaderPrintData ShaderPrintData = UnFreezeShaderPrintData(GraphBuilder, ShaderPrintDataToRender.Payload);
+				InternalDrawView(GraphBuilder, View, ShaderPrintData, OutputTexture, DepthTexture);
+			}
 		}
 	}
 
-	void EndView(FViewInfo& View)
+	void EndViews(TArrayView<FViewInfo> Views)
 	{
-		View.ShaderPrintData = FShaderPrintData();
+		// Clear the shader print data owned by the views.
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			Views[ViewIndex].ShaderPrintData = FShaderPrintData();
+		}
+
+		// Remove all externally enqueud shader print data for the matching Scene, since we will have drawn it in the calls to DrawView().
+		if (Views.Num())
+		{
+			FSceneInterface const* Scene = Views[0].Family != nullptr ? Views[0].Family->Scene : nullptr;
+			GQueuedRenderItems.RemoveAll([Scene](FQueuedRenderItem& Data) { return Data.Scene == nullptr || Data.Scene == Scene || Data.FrameForGC < GFrameNumberRenderThread; });
+		}
+
 		GDefaultView = nullptr;
-		GShaderPrintDataToRender.Reset();
 	}
 }

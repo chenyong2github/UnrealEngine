@@ -2206,23 +2206,21 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GPU_MESSAGE_SCOPE(GraphBuilder);
 
+	ShaderPrint::BeginViews(GraphBuilder, Views);
+
+	ON_SCOPE_EXIT
+	{
+		ShaderPrint::EndViews(Views);
+	};
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-		ShaderPrint::BeginView(GraphBuilder, View);
 		ShadingEnergyConservation::Init(GraphBuilder, View);
 	}
 	
-	ON_SCOPE_EXIT
-	{
-		for (FViewInfo& View : Views)
-		{
-			ShaderPrint::EndView(View);
-		}
-	};
-
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
 #if RHI_RAYTRACING

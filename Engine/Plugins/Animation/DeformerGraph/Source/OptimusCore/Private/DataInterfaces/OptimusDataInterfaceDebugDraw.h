@@ -94,6 +94,7 @@ public:
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	FSceneInterface const* Scene;
 	FMatrix44f LocalToWorld;
 	ShaderPrint::FShaderPrintSetup Setup;
 	ShaderPrint::FShaderPrintCommonParameters ConfigParameters;

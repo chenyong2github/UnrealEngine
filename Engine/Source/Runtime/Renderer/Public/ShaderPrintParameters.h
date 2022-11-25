@@ -128,7 +128,10 @@ namespace ShaderPrint
 	/** Import the shader print buffers into an RDG builder and recreate the FShaderPrintData object. */
 	RENDERER_API FShaderPrintData UnFreezeShaderPrintData(FRDGBuilder& GraphBuilder, FFrozenShaderPrintData& FrozenShaderPrintData);
 
-	/** Submit shader print data for display in the next rendered frame. */
+	/** Submit shader print data for display in the next rendered frame. The data is displayed in views from the scene, or all views if InScene==nullptr. */
+	RENDERER_API void SubmitShaderPrintData(FFrozenShaderPrintData& InData, FSceneInterface const* InScene);
+
+	UE_DEPRECATED(5.2, "Use the version of this function that takes a FSceneInterface")
 	RENDERER_API void SubmitShaderPrintData(FFrozenShaderPrintData& InData);
 
 	/** Fill the FShaderParameters with an explicit FShaderPrintData managed by the calling code. */
