@@ -5375,23 +5375,6 @@ void UWorld::RemoveOnActorDestroyededHandler(FDelegateHandle InHandle) const
 	OnActorDestroyed.Remove(InHandle);
 }
 
-FDelegateHandle UWorld::AddOnActorAddedToWorldHandler(const FOnActorAddedToWorld::FDelegate& InHandler) const
-{
-	return OnActorAddedToWorld.Add(InHandler);
-}
-
-void UWorld::RemoveOnActorAddedToWorldHandler(FDelegateHandle InHandle) const
-{
-	OnActorAddedToWorld.Remove(InHandle);
-}
-
-void UWorld::NotifyActorAddedToWorld(AActor* Actor)
-{
-	// This should never be called on inactive worlds.
-	ensure(WorldType != EWorldType::Inactive);
-	OnActorAddedToWorld.Broadcast(Actor);
-}
-
 FDelegateHandle UWorld::AddOnActorRemovedFromWorldHandler(const FOnActorRemovedFromWorld::FDelegate& InHandler) const
 {
 	return OnActorRemovedFromWorld.Add(InHandler);
@@ -5400,15 +5383,6 @@ FDelegateHandle UWorld::AddOnActorRemovedFromWorldHandler(const FOnActorRemovedF
 void UWorld::RemoveOnActorRemovedFromWorldHandler(FDelegateHandle InHandle) const
 {
 	OnActorRemovedFromWorld.Remove(InHandle);
-}
-
-void UWorld::NotifyActorRemovedFromWorld(AActor* Actor)
-{
-	// This may be called on inactive/GCing worlds, if so ignore it.
-	if (WorldType != EWorldType::Inactive && IsValid(this))
-	{
-		OnActorRemovedFromWorld.Broadcast(Actor);
-	}
 }
 
 FDelegateHandle UWorld::AddMovieSceneSequenceTickHandler(const FOnMovieSceneSequenceTick::FDelegate& InHandler)
