@@ -37,6 +37,9 @@ class UMaterialFunctionInterfaceEditorOnlyData : public UObject
 	GENERATED_BODY()
 public:
 	
+	//~ Begin UObject Interface.
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject Interface.
 };
 
 /**
@@ -49,6 +52,8 @@ class UMaterialFunctionInterface : public UObject
 
 #if WITH_EDITORONLY_DATA
 protected:
+	friend class UMaterialFunctionInterfaceEditorOnlyData;
+
 	UPROPERTY()
 	TObjectPtr<UMaterialFunctionInterfaceEditorOnlyData> EditorOnlyData;
 

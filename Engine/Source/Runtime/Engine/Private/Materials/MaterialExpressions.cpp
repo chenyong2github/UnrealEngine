@@ -44,6 +44,8 @@
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "Serialization/ObjectWriter.h"
+#include "Serialization/ObjectReader.h"
 #include "Styling/CoreStyle.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
@@ -13380,8 +13382,37 @@ void UMaterialExpressionCustom::Serialize(FStructuredArchive::FRecord Record)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// UMaterialFunctionInterfaceEditorOnlyData
+///////////////////////////////////////////////////////////////////////////////
+void UMaterialFunctionInterfaceEditorOnlyData::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+#if WITH_EDITORONLY_DATA
+	if (!IsTemplate())
+	{
+		// If our owner material function isn't pointing to this EditorOnlyData it means this object's name
+		// doesn't match the default created object name and we need to fix our pointer into the material function interface
+		UMaterialFunctionInterface* MFInterface = CastChecked<UMaterialFunctionInterface>(GetOuter());
+		if (MFInterface->EditorOnlyData != this)
+		{
+			MFInterface->EditorOnlyData = this;
+		}
+	}
+#endif
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // UMaterialFunctionInterface
 ///////////////////////////////////////////////////////////////////////////////
+namespace MaterialFunctionInterface
+{
+	FString GetEditorOnlyDataName(const TCHAR* InMaterialName)
+	{
+		return FString::Printf(TEXT("%sEditorOnlyData"), InMaterialName);
+	}
+}
+
 UMaterialFunctionInterface::UMaterialFunctionInterface(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, MaterialFunctionUsage(EMaterialFunctionUsage::Default)
@@ -13402,6 +13433,30 @@ void UMaterialFunctionInterface::PostInitProperties()
 void UMaterialFunctionInterface::PostLoad()
 {
 	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	if (EditorOnlyData && !GetPackage()->HasAnyPackageFlags(PKG_Cooked))
+	{
+		// Test for badly named EditorOnlyData objects
+		const FString EditorOnlyDataName = MaterialFunctionInterface::GetEditorOnlyDataName(*GetName());
+		if (EditorOnlyData->GetName() != EditorOnlyDataName)
+		{
+			UMaterialFunctionInterfaceEditorOnlyData* CorrectEditorOnlyDataObj = Cast<UMaterialFunctionInterfaceEditorOnlyData>(StaticFindObject(EditorOnlyData->GetClass(), EditorOnlyData->GetOuter(), *EditorOnlyDataName, true));
+			if (CorrectEditorOnlyDataObj)
+			{
+				// Copy data to correct EditorOnlyObject
+				TArray<uint8> Data;
+				FObjectWriter Ar(EditorOnlyData, Data);
+				FObjectReader(CorrectEditorOnlyDataObj, Data);
+
+				// Point EditorOnlyData to the right object
+				EditorOnlyData = CorrectEditorOnlyDataObj;
+			}
+		}
+	}
+#endif
+
+	
 	if (!StateId.IsValid())
 	{
 		StateId = FGuid::NewGuid();
@@ -13431,14 +13486,6 @@ void UMaterialFunctionInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>&
 		}
 	}
 #endif
-}
-
-namespace MaterialFunctionInterface
-{
-	FString GetEditorOnlyDataName(const TCHAR* InMaterialName)
-	{
-		return FString::Printf(TEXT("%sEditorOnlyData"), InMaterialName);
-	}
 }
 
 bool UMaterialFunctionInterface::Rename(const TCHAR* NewName, UObject* NewOuter, ERenameFlags Flags)
