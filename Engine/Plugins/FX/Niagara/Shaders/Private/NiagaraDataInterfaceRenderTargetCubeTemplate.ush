@@ -40,3 +40,11 @@ void ExecToIndex_{ParameterName}(out int IndexX, out int IndexY, out int Face)
 {
 	LinearToIndex_{ParameterName}(ExecIndex(), IndexX, IndexY, Face);
 }
+
+void ExecToUnit_{ParameterName}(out float2 Unit, out int Face)
+{
+	int2 Texel;
+	ExecToIndex_{ParameterName}(Texel.x, Texel.y, Face);
+	Unit.x = (float(Texel.x) + 0.5f) / float({ParameterName}_TextureSize);
+	Unit.y = (float(Texel.y) + 0.5f) / float({ParameterName}_TextureSize);
+}

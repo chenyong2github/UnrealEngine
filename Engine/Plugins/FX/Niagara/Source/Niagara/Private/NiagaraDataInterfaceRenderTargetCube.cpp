@@ -39,6 +39,7 @@ namespace NDIRenderTargetCubeLocal
 	static const FName GetSizeFunctionName("GetRenderTargetSize");
 	static const FName LinearToIndexName("LinearToIndex");
 	static const FName ExecToIndexName("ExecToIndex");
+	static const FName ExecToUnitName("ExecToUnit");
 
 	struct EFunctionVersion
 	{
@@ -240,6 +241,24 @@ void UNiagaraDataInterfaceRenderTargetCube::GetFunctions(TArray<FNiagaraFunction
 		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
 	#endif
 	}
+
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = ExecToUnitName;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Unit"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Face"));
+
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bWriteFunction = true;
+		Sig.bSupportsCPU = false;
+		Sig.bSupportsGPU = true;
+#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
+#endif
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -358,7 +377,8 @@ bool UNiagaraDataInterfaceRenderTargetCube::GetFunctionHLSL(const FNiagaraDataIn
 		(FunctionInfo.DefinitionName == SampleValueFunctionName) ||
 		(FunctionInfo.DefinitionName == GetSizeFunctionName) ||
 		(FunctionInfo.DefinitionName == LinearToIndexName) ||
-		(FunctionInfo.DefinitionName == ExecToIndexName))
+		(FunctionInfo.DefinitionName == ExecToIndexName) ||
+		(FunctionInfo.DefinitionName == ExecToUnitName))
 	{
 		return true;
 	}
