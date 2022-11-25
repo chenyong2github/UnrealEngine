@@ -108,6 +108,12 @@ struct FReplicationSystemUtil
 
 	/** Enable or disable a replication condition. This will affect the replication of properties with conditions. */
 	ENGINE_API static void SetReplicationCondition(FNetHandle NetHandle, EReplicationCondition Condition, bool bEnableCondition);
+
+	/**
+	 * Sets a fixed priority for a replicated object 
+	 * @see ReplicationSystem.h for details
+	 */
+	ENGINE_API static void SetStaticPriority(const AActor* Actor, float Priority);
 };
 
 }

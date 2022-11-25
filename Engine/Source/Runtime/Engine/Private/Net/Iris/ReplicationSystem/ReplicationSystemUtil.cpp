@@ -571,6 +571,28 @@ void FReplicationSystemUtil::SetReplicationCondition(FNetHandle NetHandle, ERepl
 	});
 }
 
+void FReplicationSystemUtil::SetStaticPriority(const AActor* Actor, float Priority)
+{
+	FNetHandle ActorHandle = GetNetHandle(Actor);
+	if (!ActorHandle.IsValid())
+	{
+		return;
+	}
+	
+	ReplicationSystemUtil::ForEachReplicationSystem([ActorHandle, Priority](UReplicationSystem* ReplicationSystem)
+	{
+		if (ReplicationSystem->IsServer())
+		{
+			if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
+			{
+				const FNetRefHandle ActorRefHandle = Bridge->GetReplicatedRefHandle(ActorHandle);
+				ReplicationSystem->SetStaticPriority(ActorRefHandle, Priority);
+			}
+		}
+	});
+}
+
+
 
 }
 

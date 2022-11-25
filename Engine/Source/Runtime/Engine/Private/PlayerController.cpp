@@ -6022,18 +6022,9 @@ void APlayerController::BeginReplication()
 	Params.bIncludeInLevelGroupFilter = false;
 	Super::BeginReplication(Params);
 
-	if (UReplicationSystem* ReplicationSystem = FReplicationSystemUtil::GetReplicationSystem(this))
-	{
-		if (UActorReplicationBridge* Bridge = Cast<UActorReplicationBridge>(ReplicationSystem->GetReplicationBridge()))
-		{
-			// Bump prio of playercontroller in order to make sure it replicates really early
-			const FNetRefHandle RefHandle = Bridge->GetReplicatedRefHandle(this);	
-
-			// $IRIS TODO: Add config support for overriding static prio
-			static constexpr float PlayerControllerStaticPriority = 100.f;
-			ReplicationSystem->SetStaticPriority(RefHandle, PlayerControllerStaticPriority);
-		}
-	}
+	// Bump prio of playercontroller in order to make sure it replicates really early
+	static constexpr float PlayerControllerStaticPriority = 100.f;
+	FReplicationSystemUtil::SetStaticPriority(this, PlayerControllerStaticPriority);
 
 	// Enable groups once owner is set!!
 	FReplicationSystemUtil::UpdateSubObjectGroupMemberships(this);
