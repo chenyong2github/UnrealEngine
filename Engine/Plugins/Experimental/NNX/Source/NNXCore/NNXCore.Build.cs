@@ -14,12 +14,22 @@ namespace UnrealBuildTool.Rules
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]
-                {
+				{
 					"Core",
 					"CoreUObject",
 					"Engine",
 				}
 			);
-        }
+
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"DerivedDataCache"
+					}
+				);
+			}
+		}
     }
 }
