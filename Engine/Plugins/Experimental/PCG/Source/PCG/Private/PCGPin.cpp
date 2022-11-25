@@ -47,14 +47,24 @@ bool UPCGPin::AddEdgeTo(UPCGPin* OtherPin)
 		}
 	}
 
+	// This pin is upstream if the pin is an output pin
+	const bool bThisPinIsUpstream = Node->GetOutputPin(Properties.Label) == this;
+
+	// Pins should not both be upstream or both be downstream..
+	const bool bOtherPinIsUpstream = OtherPin->Node->GetOutputPin(OtherPin->Properties.Label) == OtherPin;
+	if (!ensure(bThisPinIsUpstream != bOtherPinIsUpstream))
+	{
+		return false;
+	}
+
 	Modify();
 	OtherPin->Modify();
 
 	UPCGEdge* NewEdge = Edges.Add_GetRef(NewObject<UPCGEdge>(this));
 	OtherPin->Edges.Add(NewEdge);
 
-	NewEdge->InputPin = this;
-	NewEdge->OutputPin = OtherPin;
+	NewEdge->InputPin = bThisPinIsUpstream ? this : OtherPin;
+	NewEdge->OutputPin = bThisPinIsUpstream ? OtherPin : this;
 
 	return true;
 }
