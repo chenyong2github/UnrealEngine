@@ -4887,7 +4887,6 @@ int32 ALandscape::PerformLayersHeightmapsGlobalMerge(const FUpdateLayersContentC
 int32 ALandscape::RegenerateLayersHeightmaps(const FUpdateLayersContentContext& InUpdateLayersContentContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_RegenerateLayersHeightmaps);
-	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateHeightmaps);
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
 	const int32 AllHeightmapUpdateModes = (ELandscapeLayerUpdateMode::Update_Heightmap_All | ELandscapeLayerUpdateMode::Update_Heightmap_Editing | ELandscapeLayerUpdateMode::Update_Heightmap_Editing_NoCollision);
@@ -4998,7 +4997,6 @@ void ALandscape::ResolveLayersHeightmapTexture(
 	TArray<FLandscapeEditLayerComponentReadbackResult>& InOutComponentReadbackResults)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_ResolveLayersHeightmapTexture);
-	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersResolveHeightmaps);
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
 	if (Info == nullptr)
@@ -5208,7 +5206,6 @@ bool ALandscape::ResolveLayersTexture(
 	bool bIsWeightmap)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_ResolveLayersTexture);
-	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersResolveTexture);
 
 	if (bFlushRender)
 	{
@@ -5579,7 +5576,6 @@ void ALandscape::PrepareComponentDataToPackMaterialLayersCS(int32 InCurrentWeigh
 void ALandscape::ReallocateLayersWeightmaps(FUpdateLayersContentContext& InUpdateLayersContentContext, const TArray<ULandscapeLayerInfoObject*>& InBrushRequiredAllocations)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_ReallocateLayersWeightmaps);
-	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersReallocateWeightmaps);
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
@@ -7142,7 +7138,6 @@ int32 ALandscape::PerformLayersWeightmapsGlobalMerge(FUpdateLayersContentContext
 int32 ALandscape::RegenerateLayersWeightmaps(FUpdateLayersContentContext& InUpdateLayersContentContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_RegenerateLayersWeightmaps);
-	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersRegenerateWeightmaps);
 	const int32 AllWeightmapUpdateModes = (ELandscapeLayerUpdateMode::Update_Weightmap_All | ELandscapeLayerUpdateMode::Update_Weightmap_Editing | ELandscapeLayerUpdateMode::Update_Weightmap_Editing_NoCollision);
 	const int32 WeightmapUpdateModes = LayerContentUpdateModes & AllWeightmapUpdateModes;
 	const bool bSkipBrush = CVarLandscapeLayerBrushOptim.GetValueOnAnyThread() == 1 && ((WeightmapUpdateModes & AllWeightmapUpdateModes) == ELandscapeLayerUpdateMode::Update_Weightmap_Editing);
@@ -7269,7 +7264,6 @@ uint32 ULandscapeComponent::ComputeWeightmapsHash()
 void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*>& InLandscapeComponents)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_UpdateLayersMaterialInstances);
-	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersUpdateMaterialInstance);
 	TArray<ULandscapeComponent*> ComponentsToUpdate;
 
 	// Compute Weightmap usage changes
@@ -7439,7 +7433,6 @@ void ALandscape::ResolveLayersWeightmapTexture(
 	TArray<FLandscapeEditLayerComponentReadbackResult>& InOutComponentReadbackResults)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_ResolveLayersWeightmapTexture);
-	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersResolveWeightmaps);
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
 	if (Info == nullptr)

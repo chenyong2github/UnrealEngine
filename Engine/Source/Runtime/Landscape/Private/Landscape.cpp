@@ -103,36 +103,12 @@ Landscape.cpp: Terrain rendering
 /** Landscape stats */
 
 DEFINE_STAT(STAT_LandscapeDynamicDrawTime);
-DEFINE_STAT(STAT_LandscapeStaticDrawLODTime);
 DEFINE_STAT(STAT_LandscapeVFDrawTimeVS);
-DEFINE_STAT(STAT_LandscapeInitViewCustomData);
-DEFINE_STAT(STAT_LandscapePostInitViewCustomData);
-DEFINE_STAT(STAT_LandscapeComputeCustomMeshBatchLOD);
-DEFINE_STAT(STAT_LandscapeComputeCustomShadowMeshBatchLOD);
 DEFINE_STAT(STAT_LandscapeVFDrawTimePS);
 DEFINE_STAT(STAT_LandscapeComponentRenderPasses);
-DEFINE_STAT(STAT_LandscapeTessellatedShadowCascade);
-DEFINE_STAT(STAT_LandscapeTessellatedComponents);
-DEFINE_STAT(STAT_LandscapeComponentUsingSubSectionDrawCalls);
 DEFINE_STAT(STAT_LandscapeDrawCalls);
 DEFINE_STAT(STAT_LandscapeTriangles);
-
-DEFINE_STAT(STAT_LandscapeLayersRegenerate_RenderThread);
 DEFINE_STAT(STAT_LandscapeLayersRegenerateDrawCalls);
-
-DEFINE_STAT(STAT_LandscapeLayersRegenerateHeightmaps);
-DEFINE_STAT(STAT_LandscapeLayersResolveHeightmaps);
-DEFINE_STAT(STAT_LandscapeLayersResolveTexture);
-
-DEFINE_STAT(STAT_LandscapeLayersUpdateMaterialInstance);
-DEFINE_STAT(STAT_LandscapeLayersReallocateWeightmaps);
-
-DEFINE_STAT(STAT_LandscapeLayersResolveWeightmaps);
-DEFINE_STAT(STAT_LandscapeLayersRegenerateWeightmaps);
-
-DEFINE_STAT(STAT_LandscapeVertexMem);
-DEFINE_STAT(STAT_LandscapeHoleMem);
-DEFINE_STAT(STAT_LandscapeComponentMem);
 
 #if ENABLE_COOK_STATS
 namespace LandscapeCookStats
