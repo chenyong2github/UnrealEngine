@@ -114,6 +114,14 @@ void AWaterZone::PostLoad()
 #endif // WITH_EDITORONLY_DATA
 }
 
+#if WITH_EDITORONLY_DATA
+void AWaterZone::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UBoxComponent::StaticClass()));
+}
+#endif
+
 void AWaterZone::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();

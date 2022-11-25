@@ -3,6 +3,7 @@
 #include "StateTree.h"
 #include "StateTreeLinker.h"
 #include "StateTreeNodeBase.h"
+#include "StateTreeSchema.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeEvaluatorBase.h"
 #include "AssetRegistry/AssetData.h"
@@ -160,6 +161,22 @@ void UStateTree::PostLoad()
 		UE_LOG(LogStateTree, Error, TEXT("%s failed to link. Asset will not be usable at runtime."), *GetFullName());	
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+void UStateTree::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	TArray<UClass*> SchemaClasses;
+	GetDerivedClasses(UStateTreeSchema::StaticClass(), SchemaClasses);
+	for (UClass* SchemaClass : SchemaClasses)
+	{
+		if (!SchemaClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Transient))
+		{
+			OutConstructClasses.Add(FTopLevelAssetPath(SchemaClass));
+		}
+	}
+}
+#endif
 
 void UStateTree::Serialize(FStructuredArchiveRecord Record)
 {

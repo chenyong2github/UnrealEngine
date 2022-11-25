@@ -4881,6 +4881,14 @@ void AInstancedFoliageActor::PostLoad()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void AInstancedFoliageActor::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UFoliageInstancedStaticMeshComponent::StaticClass()));
+}
+#endif
+
 #if WITH_EDITOR
 
 void AInstancedFoliageActor::RepairDuplicateIFA(AInstancedFoliageActor* DuplicateIFA)

@@ -131,6 +131,14 @@ void UPCGGraph::PostLoad()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+void UPCGGraph::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UPCGPin::StaticClass()));
+}
+#endif
+
 void UPCGGraph::BeginDestroy()
 {
 #if WITH_EDITOR

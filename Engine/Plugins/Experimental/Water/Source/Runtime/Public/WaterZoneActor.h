@@ -52,6 +52,9 @@ public:
 	virtual void BeginPlay() override;
 	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 	virtual void PostRegisterAllComponents() override;
 
 	FVector2f GetWaterHeightExtents() const { return WaterHeightExtents; }

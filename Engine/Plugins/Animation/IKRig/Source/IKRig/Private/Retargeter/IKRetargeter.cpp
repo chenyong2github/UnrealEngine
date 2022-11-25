@@ -123,6 +123,14 @@ void UIKRetargeter::PostLoad()
 	CleanAndInitialize();
 }
 
+#if WITH_EDITORONLY_DATA
+void UIKRetargeter::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(URetargetChainSettings::StaticClass()));
+}
+#endif
+
 void UIKRetargeter::CleanAndInitialize()
 {
 	// remove null settings
