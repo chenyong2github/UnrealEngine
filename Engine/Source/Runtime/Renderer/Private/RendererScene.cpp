@@ -427,6 +427,16 @@ FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneView
 	LumenSurfaceCacheResolution = 1.0f;
 
 	ViewVirtualShadowMapCache = nullptr;
+
+	// OcclusionFeedback works only with mobile rendering atm
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		extern int32 GOcclusionFeedback_Enable;
+		if (GOcclusionFeedback_Enable != 0)
+		{
+			BeginInitResource(&OcclusionFeedback);
+		}
+	}
 }
 
 void DestroyRenderResource(FRenderResource* RenderResource)

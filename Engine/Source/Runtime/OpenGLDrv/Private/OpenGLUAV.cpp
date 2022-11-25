@@ -311,6 +311,7 @@ void FOpenGLDynamicRHI::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAcces
 		{
 			int32 NumComponents = 0;
 			uint32 NumElements = 0;
+			bool bStorageBuffer = false;
 
 			if (Texture->UnrealFormat != 0)
 			{
@@ -321,14 +322,23 @@ void FOpenGLDynamicRHI::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAcces
 			{
 				NumElements = Texture->GetBufferSize() / sizeof(float);
 				NumComponents = 1;
+				bStorageBuffer = true;
 			}
 					
 			switch (NumComponents)
 			{
 			case 1:
-				ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Float, 1, false>(RHICmdList, UnorderedAccessViewRHI, NumElements, 1, 1, *reinterpret_cast<const float(*)[1]>(&Values));
+				if (bStorageBuffer)
+				{
+					ClearUAVShader_T<EClearReplacementResourceType::StructuredBuffer, EClearReplacementValueType::Float, 1, false>(RHICmdList, UnorderedAccessViewRHI, NumElements, 1, 1, *reinterpret_cast<const float(*)[1]>(&Values));
+				}
+				else
+				{
+					ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Float, 1, false>(RHICmdList, UnorderedAccessViewRHI, NumElements, 1, 1, *reinterpret_cast<const float(*)[1]>(&Values));
+				}
 				break;
 			case 4:
+				check(!bStorageBuffer);
 				ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Float, 4, false>(RHICmdList, UnorderedAccessViewRHI, NumElements, 1, 1, *reinterpret_cast<const float(*)[4]>(&Values));
 				break;
 			default:
@@ -365,6 +375,7 @@ void FOpenGLDynamicRHI::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccess
 		{
 			int32 NumComponents = 0;
 			uint32 NumElements = 0;
+			bool bStorageBuffer = false;
 
 			if (Texture->UnrealFormat != 0)
 			{
@@ -375,14 +386,23 @@ void FOpenGLDynamicRHI::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccess
 			{
 				NumElements = Texture->GetBufferSize() / sizeof(uint32);
 				NumComponents = 1;
+				bStorageBuffer = true;
 			}
 
 			switch (NumComponents)
 			{
 			case 1:
-				ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Uint32, 1, false>(RHICmdList, UnorderedAccessViewRHI, NumElements, 1, 1, *reinterpret_cast<const uint32(*)[1]>(&Values));
+				if (bStorageBuffer)
+				{
+					ClearUAVShader_T<EClearReplacementResourceType::StructuredBuffer, EClearReplacementValueType::Uint32, 1, false>(RHICmdList, UnorderedAccessViewRHI, NumElements, 1, 1, *reinterpret_cast<const uint32(*)[1]>(&Values));
+				}
+				else
+				{
+					ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Uint32, 1, false>(RHICmdList, UnorderedAccessViewRHI, NumElements, 1, 1, *reinterpret_cast<const uint32(*)[1]>(&Values));
+				}
 				break;
 			case 4:
+				check(!bStorageBuffer)
 				ClearUAVShader_T<EClearReplacementResourceType::Buffer, EClearReplacementValueType::Uint32, 4, false>(RHICmdList, UnorderedAccessViewRHI, NumElements, 1, 1, *reinterpret_cast<const uint32(*)[4]>(&Values));
 				break;
 			default:

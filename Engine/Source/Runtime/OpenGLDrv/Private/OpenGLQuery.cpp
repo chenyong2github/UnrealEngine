@@ -229,7 +229,6 @@ void BeginOcclusionQueryBatch(uint32 NumOcclusionQueries)
 {
 	if (IsRunningRHIInSeparateThread())
 	{
-
 		GBatcher.StartNewBatch(*GetDynamicRHI<FOpenGLDynamicRHI>());
 	}
 }
@@ -242,11 +241,15 @@ void EndOcclusionQueryBatch()
 	}
 }
 
+void OpenGL_PollAllFences();
+
 void FOpenGLDynamicRHI::RHIPollOcclusionQueries()
 {
 	if (IsRunningRHIInSeparateThread())
 	{
 		GBatcher.SoftFlush(*GetDynamicRHI<FOpenGLDynamicRHI>());
+
+		OpenGL_PollAllFences();
 	}
 }
 
@@ -1197,11 +1200,15 @@ struct FOpenGLGPUFenceProxy
 
 TArray<FOpenGLGPUFenceProxy*> FOpenGLGPUFenceProxy::AllOpenGLGPUFences;
 
-void BeginFrame_PollAllFences()
+void OpenGL_PollAllFences()
 {
 	if (IsRunningRHIInSeparateThread())
 	{
-		FOpenGLGPUFenceProxy::PollAllFences();
+		RunOnGLRenderContextThread([]()
+		{
+			VERIFY_GL_SCOPE();
+			FOpenGLGPUFenceProxy::PollAllFences();
+		});
 	}
 }
 

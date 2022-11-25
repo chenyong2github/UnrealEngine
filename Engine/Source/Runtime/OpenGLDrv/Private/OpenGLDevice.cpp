@@ -154,7 +154,7 @@ bool IsUniformBufferBound( GLuint Buffer )
 extern void BeginFrame_UniformBufferPoolCleanup();
 extern void BeginFrame_VertexBufferCleanup();
 extern void BeginFrame_QueryBatchCleanup();
-extern void BeginFrame_PollAllFences();
+extern void OpenGL_PollAllFences();
 
 
 FOpenGLContextState& FOpenGLDynamicRHI::GetContextStateForCurrentContext(bool bAssertIfInvalid)
@@ -193,12 +193,14 @@ void FOpenGLDynamicRHI::RHIBeginFrame()
 	PendingState.DepthStencil = 0 ;
 #endif
 
-	BeginFrame_PollAllFences();
+	OpenGL_PollAllFences();
 }
 
 void FOpenGLDynamicRHI::RHIEndFrame()
 {
 	GPUProfilingData.EndFrame();
+
+	OpenGL_PollAllFences();
 }
 
 void FOpenGLDynamicRHI::RHIPerFrameRHIFlushComplete()
@@ -206,6 +208,8 @@ void FOpenGLDynamicRHI::RHIPerFrameRHIFlushComplete()
 	BeginFrame_UniformBufferPoolCleanup();
 	BeginFrame_VertexBufferCleanup();
 	BeginFrame_QueryBatchCleanup();
+
+	OpenGL_PollAllFences();
 }
 
 

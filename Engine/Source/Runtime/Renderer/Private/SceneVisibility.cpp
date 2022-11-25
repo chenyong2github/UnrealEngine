@@ -112,6 +112,14 @@ static FAutoConsoleVariableRef CVarHZBOcclusion(
 	ECVF_RenderThreadSafe
 	);
 
+int32 GOcclusionFeedback_Enable = 0;
+static FAutoConsoleVariableRef CVarOcclusionFeedback_Enable(
+	TEXT("r.OcclusionFeedback.Enable"),
+	GOcclusionFeedback_Enable,
+	TEXT("Whether to enable occlusion system based on a rendering feedback. Currently works only with a mobile rendering\n"),
+	ECVF_RenderThreadSafe
+);
+
 static int32 GVisualizeOccludedPrimitives = 0;
 static FAutoConsoleVariableRef CVarVisualizeOccludedPrimitives(
 	TEXT("r.VisualizeOccludedPrimitives"),
@@ -1163,6 +1171,8 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 	const float CurrentRealTime = View.Family->Time.GetRealTimeSeconds();
 	uint32 OcclusionFrameCounter = ViewState->OcclusionFrameCounter;
 	FHZBOcclusionTester& HZBOcclusionTests = ViewState->HZBOcclusionTests;
+	FOcclusionFeedback& OcclusionFeedback = ViewState->OcclusionFeedback;
+	const bool bUseOcclusionFeedback = bSingleThreaded && OcclusionFeedback.IsInitialized();
 
 	int32 ReadBackLagTolerance = NumBufferedFrames;
 
@@ -1368,7 +1378,12 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 					}
 					else if (bCanBeOccluded)
 					{
-						if (bHZBOcclusion)
+						if (bUseOcclusionFeedback)
+						{
+							bIsOccluded = OcclusionFeedback.IsOccluded(PrimitiveId);
+							bOcclusionStateIsDefinite = true;
+						}
+						else if (bHZBOcclusion)
 						{
 							if (HZBOcclusionTests.IsValidFrame(PrimitiveOcclusionHistory->LastTestFrameNumber))
 							{
@@ -1519,7 +1534,14 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 						if (bAllowBoundsTest)
 						{
 							PrimitiveOcclusionHistory->LastTestFrameNumber = OcclusionFrameCounter;
-							if (bHZBOcclusion)
+
+							if (bUseOcclusionFeedback)
+							{
+								const FVector BoundOrigin = OcclusionBounds.Origin + View.ViewMatrices.GetPreViewTranslation();
+								const FVector BoundExtent = OcclusionBounds.BoxExtent;
+								OcclusionFeedback.AddPrimitive(PrimitiveId, BoundOrigin, BoundExtent, *DynamicVertexBufferIfSingleThreaded);
+							}
+							else if (bHZBOcclusion)
 							{
 								// Always run
 								if (bSingleThreaded)
@@ -2024,7 +2046,12 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 		bSubmitQueries = bSubmitQueries && !ViewState->HasViewParent() && !ViewState->bIsFrozen;
 #endif
 
-		if( bHZBOcclusion )
+		if (ViewState->OcclusionFeedback.IsInitialized())
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_OcclusionFeedback_ReadbackResults);
+			ViewState->OcclusionFeedback.ReadbackResults(RHICmdList);
+		}
+		else if( bHZBOcclusion )
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_MapHZBResults);
 			check(!ViewState->HZBOcclusionTests.IsValidFrame(ViewState->OcclusionFrameCounter));
@@ -2060,6 +2087,19 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 			if( bSubmitQueries )
 			{
 				ViewState->HZBOcclusionTests.SetValidFrameNumber(ViewState->OcclusionFrameCounter);
+			}
+		}
+
+		if (View.FeatureLevel == ERHIFeatureLevel::ES3_1)
+		{
+			// Initialize/release OcclusionFeedback system on demand
+			if (GOcclusionFeedback_Enable == 0 && ViewState->OcclusionFeedback.IsInitialized())
+			{
+				ViewState->OcclusionFeedback.ReleaseResource();
+			}
+			else if (GOcclusionFeedback_Enable != 0 && !ViewState->OcclusionFeedback.IsInitialized())
+			{
+				ViewState->OcclusionFeedback.InitResource();
 			}
 		}
 	}

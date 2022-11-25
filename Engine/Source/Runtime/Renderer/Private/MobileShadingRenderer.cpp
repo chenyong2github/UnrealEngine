@@ -733,6 +733,30 @@ static void BuildMeshPassInstanceCullingDrawParams(FRDGBuilder& GraphBuilder, co
 	}
 }
 
+static void BeginOcclusionScope(FRDGBuilder& GraphBuilder, TArray<FViewInfo>& Views)
+{
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		if (View.ShouldRenderView() && View.ViewState && View.ViewState->OcclusionFeedback.IsInitialized())
+		{
+			View.ViewState->OcclusionFeedback.BeginOcclusionScope(GraphBuilder);
+		}
+	}
+}
+
+static void EndOcclusionScope(FRDGBuilder& GraphBuilder, TArray<FViewInfo>& Views)
+{
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		if (View.ShouldRenderView() && View.ViewState && View.ViewState->OcclusionFeedback.IsInitialized())
+		{
+			View.ViewState->OcclusionFeedback.EndOcclusionScope(GraphBuilder);
+		}
+	}
+}
+
 /*
 * Renders the Full Depth Prepass
 */
@@ -761,6 +785,7 @@ void FMobileSceneRenderer::RenderFullDepthPrepass(FRDGBuilder& GraphBuilder, FSc
 		auto* PassParameters = GraphBuilder.AllocParameters<FMobileRenderPassParameters>();
 		PassParameters->RenderTargets = BasePassRenderTargets;
 		PassParameters->View = View.GetShaderParameters();
+		PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, EMobileSceneTextureSetupMode::None);
 
 		if (Scene->GPUScene.IsEnabled())
 		{
@@ -961,6 +986,8 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel));
 	}
 
+	BeginOcclusionScope(GraphBuilder, Views);
+	
 	// Sort objects' triangles
 	for (FViewInfo& View : Views)
 	{
@@ -1012,6 +1039,8 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RenderForward(GraphBuilder, ViewFamilyTexture, SceneTextures);
 	}
+
+	EndOcclusionScope(GraphBuilder, Views);
 
 	if (!bIsFullDepthPrepassEnabled)
 	{

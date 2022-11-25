@@ -714,6 +714,7 @@ public:
 	FFrameBasedOcclusionQueryPool PrimitiveOcclusionQueryPool;
 
 	FHZBOcclusionTester HZBOcclusionTests;
+	FOcclusionFeedback OcclusionFeedback;
 
 	FPersistentSkyAtmosphereData PersistentSkyAtmosphereData;
 
@@ -1336,6 +1337,7 @@ public:
 	{
 		HZBOcclusionTests.ReleaseDynamicRHI();
 		EyeAdaptationManager.SafeRelease();
+		OcclusionFeedback.ReleaseResource();
 		bValidEyeAdaptationTexture = false;
 		bValidEyeAdaptationBuffer = false;
 	}
