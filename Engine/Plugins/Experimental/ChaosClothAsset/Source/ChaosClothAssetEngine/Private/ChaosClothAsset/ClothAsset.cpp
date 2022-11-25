@@ -8,6 +8,7 @@
 #include "ChaosClothAsset/ClothAssetPrivate.h"
 #include "ChaosClothAsset/ClothSimulationModel.h"
 #include "Animation/Skeleton.h"
+#include "Engine/RendererSettings.h"
 #include "Engine/SkinnedAssetAsyncCompileUtils.h"
 #include "Features/IModularFeatures.h"
 #include "Rendering/SkeletalMeshModel.h"
@@ -476,6 +477,9 @@ FString UChaosClothAsset::BuildDerivedDataKey(const ITargetPlatform* TargetPlatf
 	IMeshBuilderModule::GetForPlatform(TargetPlatform).AppendToDDCKey(KeySuffix, true);
 	const bool bUnlimitedBoneInfluences = FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences();
 	KeySuffix += bUnlimitedBoneInfluences ? "1" : "0";
+
+	// Include the global default bone influences limit in case any LODs don't set an explicit limit (highly likely)
+	KeySuffix += FString::FromInt(GetDefault<URendererSettings>()->DefaultBoneInfluenceLimit.GetValueForPlatform(*TargetPlatform->IniPlatformName()));
 
 	// Add LODInfoArray
 	TmpPartialKeySuffix = TEXT("");
