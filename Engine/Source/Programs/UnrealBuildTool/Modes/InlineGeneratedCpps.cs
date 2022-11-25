@@ -143,13 +143,12 @@ namespace UnrealBuildTool
 										}
 									}
 
-									var SourceText = FileReference.ReadAllText(InputFile.Location);
-									if (InlineReflectionMarkupRegex.IsMatch(SourceText))
+									var TextLines = System.IO.File.ReadAllLines(InputFile.Location.FullName).ToList();
+									if (TextLines.Any(Text => InlineReflectionMarkupRegex.IsMatch(Text)))
 									{
 										continue;
 									}
 
-									var TextLines = SourceText.Split(Environment.NewLine).ToList();
 									var CleanTextLines = new List<string>(TextLines.Count);
 
 									bool bInComment = false;
