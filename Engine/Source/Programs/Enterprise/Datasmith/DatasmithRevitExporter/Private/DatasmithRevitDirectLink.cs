@@ -125,6 +125,16 @@ namespace DatasmithRevitExporter
 					FDocumentData.FBaseElementData ElementData = CachedElements[ElemId];
 					CachedElements.Remove(ElemId);
 					ElementData.Parent?.ChildElements.Remove(ElementData);
+
+					// Remove all owned children
+					foreach (FDocumentData.FBaseElementData ChildElementData in ElementData.ChildElements)
+					{
+						if (ChildElementData.bOwnedByParent && (ChildElementData.ElementActor != null))
+						{
+							ElementData.ElementActor.RemoveChild(ChildElementData.ElementActor);
+						}
+					}
+
 					DatasmithScene.RemoveActor(ElementData.ElementActor, FDatasmithFacadeScene.EActorRemovalRule.KeepChildrenAndKeepRelativeTransform);
 					ExportedActorsMap.Remove(ElementData.ElementActor.GetName());
 				}

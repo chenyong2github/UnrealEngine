@@ -45,7 +45,10 @@ namespace DatasmithRevitExporter
 
 				NewActiveDocument.SettingsChangedHandler = new EventHandler((object Sender, EventArgs Args) =>
 				{
-					NewActiveDocument.ActiveDirectLinkInstance.bSettingsDirty = true;
+					if (NewActiveDocument.ActiveDirectLinkInstance != null)
+					{
+						NewActiveDocument.ActiveDirectLinkInstance.bSettingsDirty = true;
+					}
 				});
 
 				FSettingsManager.SettingsUpdated += NewActiveDocument.SettingsChangedHandler;

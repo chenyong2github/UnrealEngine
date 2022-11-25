@@ -299,6 +299,8 @@ namespace DatasmithRevitExporter
 
 			public FBaseElementData			Parent = null;
 
+			public bool bOwnedByParent = false; // Lifetime is controlled by parent Element
+
 			public FBaseElementData(
 				ElementType InElementType, FDocumentData InDocumentData
 			)
@@ -312,20 +314,6 @@ namespace DatasmithRevitExporter
 				ElementActor = InElementActor;
 				ElementMetaData = InElementMetaData;
 				DocumentData = InDocumentData;
-			}
-
-			public bool IsSimpleActor()
-			{
-				FDatasmithFacadeActorMesh MeshActor = ElementActor as FDatasmithFacadeActorMesh;
-
-				if (MeshActor != null && MeshActor.GetMeshName().Length == 0)
-				{
-					ElementActor = new FDatasmithFacadeActor(MeshActor.GetName());
-					CopyActorData(MeshActor, ElementActor);
-					return true;
-				}
-
-				return !(ElementActor is FDatasmithFacadeActorMesh || ElementActor is FDatasmithFacadeActorLight || ElementActor is FDatasmithFacadeActorCamera);
 			}
 
 			void CopyActorData(FDatasmithFacadeActor InFromActor, FDatasmithFacadeActor InToActor)
@@ -358,9 +346,16 @@ namespace DatasmithRevitExporter
 				ElementMetaData?.SetAssociatedElement(InToActor);
 			}
 
+			// Return element when this 'ElementData' is associated with an Element
+			// todo: Probably worth separating FBaseElementData into different entity, calling it now "Element" data is confusing as it's also used to hold for non-Element datasmith actors
+			protected virtual Element GetElement()
+			{
+				return null;
+			}
+
 			public void AddToScene(FDatasmithFacadeScene InScene, FBaseElementData InParent, bool bInSkipChildren, bool bInForceAdd = false)
 			{
-				Element ThisElement = (this as FElementData)?.CurrentElement;
+				Element ThisElement = GetElement();
 
 				if (!bInSkipChildren)
 				{
@@ -421,25 +416,24 @@ namespace DatasmithRevitExporter
 				bIsModified = false;
 			}
 
+			// Returns true if element's actor is simple(plain actor without descendants)
 			public bool Optimize()
 			{
-				bool bIsSimpleActor = IsSimpleActor();
-
-				List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
-
-				foreach (FBaseElementData CurrentChild in ChildElements)
+				// Replace MeshActor without geometry by a dummy Actor
+				if (ElementActor is FDatasmithFacadeActorMesh MeshActor && MeshActor.GetMeshName().Length == 0)
 				{
-					if (CurrentChild.Optimize())
-					{
-						ChildrenToRemove.Add(CurrentChild);
-					}
+					ElementActor = new FDatasmithFacadeActor(MeshActor.GetName());
+					CopyActorData(MeshActor, ElementActor);
 				}
 
-				foreach (FBaseElementData Child in ChildrenToRemove)
+				// Optimize and remove children whose actors are simple
+				List<FBaseElementData> SimpleChildren = ChildElements.Where(Child => Child.Optimize()).ToList(); // Build a list of elements to remove after enumeration
+				foreach (FBaseElementData Child in SimpleChildren)
 				{
 					ChildElements.Remove(Child);
 				}
 
+				bool bIsSimpleActor = !(ElementActor is FDatasmithFacadeActorMesh || ElementActor is FDatasmithFacadeActorLight || ElementActor is FDatasmithFacadeActorCamera);
 				return bIsSimpleActor && (ChildElements.Count == 0) && bOptimizeHierarchy;
 			}
 
@@ -478,6 +472,11 @@ namespace DatasmithRevitExporter
 
 				// Create a new Datasmith mesh actor.
 				InitializeElement(InWorldTransform, this);
+			}
+
+			protected override Element GetElement() 
+			{
+				return CurrentElement;
 			}
 
 			public void InitializePivotPlacement(ref Transform InOutWorldTransform)
@@ -718,6 +717,7 @@ namespace DatasmithRevitExporter
 			)
 			{
 				FBaseElementData InstanceData = new FBaseElementData(InInstanceType, DocumentData);
+				InstanceData.bOwnedByParent = true;
 
 				FamilyInstance CurrentFamilyInstance = CurrentElement as FamilyInstance;
 				if (CurrentFamilyInstance != null && CurrentFamilyInstance.HasModifiedGeometry())
@@ -787,7 +787,7 @@ namespace DatasmithRevitExporter
 				FDatasmithRevitLight.SetLightProperties(InLightAsset, CurrentElement, LightActor);
 
 				// Add the light actor to the Datasmith actor hierarchy.
-				AddChildActor(LightActor, LightMetaData, false);
+				AddChildActor(LightActor, LightMetaData, false, true);
 			}
 
 			public bool AddRPCActor(
@@ -943,7 +943,7 @@ namespace DatasmithRevitExporter
 				}
 
 				// Add the RPC mesh actor to the Datasmith actor hierarchy.
-				AddChildActor(FacadeActor, ElementMetaData, false);
+				AddChildActor(FacadeActor, ElementMetaData, false, true);
 
 				return OutDatasmithMesh != null;
 			}
@@ -961,7 +961,8 @@ namespace DatasmithRevitExporter
 			public void AddChildActor(
 				FDatasmithFacadeActor ChildActor,
 				FDatasmithFacadeMetaData MetaData,
-				bool bOptimizeHierarchy
+				bool bOptimizeHierarchy,
+				bool bOwned // Make its lifetime controlled by this ElementData
 			)
 			{
 				FBaseElementData ElementData = new FBaseElementData(ChildActor, MetaData, DocumentData);
@@ -971,6 +972,7 @@ namespace DatasmithRevitExporter
 
 				Parent.ChildElements.Add(ElementData);
 				ElementData.Parent = Parent;
+				ElementData.bOwnedByParent = bOwned;
 			}
 
 			public void InitializeElement(
