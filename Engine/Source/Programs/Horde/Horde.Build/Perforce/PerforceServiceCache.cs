@@ -1,14 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
+using EpicGames.Redis;
 using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Users;
@@ -21,6 +24,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Options;
 using MongoDB.Driver;
+using StackExchange.Redis;
 
 namespace Horde.Build.Perforce
 {
@@ -167,22 +171,25 @@ namespace Horde.Build.Perforce
 		}
 
 		readonly MongoService _mongoService;
+		readonly RedisService _redisService;
 		readonly IDowntimeService _downtimeService;
-		readonly ServerSettings _settings;
 		readonly IMongoCollection<CachedCommitDoc> _commits;
 		readonly IStreamCollection _streamCollection;
 		readonly ILogger _logger;
+
+		static readonly RedisChannel<StreamId> s_commitUpdateChannel = new RedisChannel<StreamId>("commit-update");
+
 		readonly ITicker _updateCommitsTicker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceServiceCache(PerforceLoadBalancer loadBalancer, MongoService mongoService, IDowntimeService downtimeService, GlobalsService globalsService, IUserCollection userCollection, IStreamCollection streamCollection, IClock clock, IOptions<ServerSettings> settings, ILogger<PerforceService> logger)
+		public PerforceServiceCache(PerforceLoadBalancer loadBalancer, MongoService mongoService, RedisService redisService, IDowntimeService downtimeService, GlobalsService globalsService, IUserCollection userCollection, IStreamCollection streamCollection, IClock clock, IOptions<ServerSettings> settings, ILogger<PerforceService> logger)
 			: base(loadBalancer, globalsService, userCollection, settings, logger)
 		{
 			_mongoService = mongoService;
+			_redisService = redisService;
 			_downtimeService = downtimeService;
-			_settings = settings.Value;
 
 			List<MongoIndex<CachedCommitDoc>> indexes = new List<MongoIndex<CachedCommitDoc>>();
 			indexes.Add(MongoIndex.Create<CachedCommitDoc>(keys => keys.Ascending(x => x.StreamId).Descending(x => x.Number), true));
@@ -419,6 +426,8 @@ namespace Horde.Build.Perforce
 
 							CachedCommitDoc commitDoc = new CachedCommitDoc(commit, commitTags);
 							await AddCachedCommitAsync(commitDoc, cancellationToken);
+
+							await _redisService.PublishAsync(s_commitUpdateChannel, streamInfo.Stream.Id, CommandFlags.FireAndForget);
 						}
 					}
 				}
@@ -604,6 +613,60 @@ namespace Horde.Build.Perforce
 					return commit;
 				}
 				return await base.GetAsync(changeNumber, cancellationToken);
+			}
+
+			/// <inheritdoc/>
+			public override async IAsyncEnumerable<ICommit> SubscribeAsync(int minChange, IReadOnlyList<CommitTag>? tags = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			{
+				AsyncEvent updateEvent = new AsyncEvent();
+
+				void OnUpdate(StreamId streamId)
+				{
+					if (streamId == _stream.Id)
+					{
+						updateEvent.Set();
+					}
+				}
+
+				RedisChannelSubscription<StreamId>? subscription = null;
+				try
+				{
+					for (; ; )
+					{
+						cancellationToken.ThrowIfCancellationRequested();
+
+						Task task = updateEvent.Task;
+
+						int numResults = 10;
+						await foreach (ICommit commit in FindAsync(minChange + 1, null, numResults, tags, cancellationToken))
+						{
+							yield return commit;
+							minChange = commit.Number;
+							numResults--;
+						}
+
+						if (numResults == 0)
+						{
+							// Query again; received the max requested number of changes.
+							continue;
+						}
+
+						if (subscription == null)
+						{
+							subscription = await _owner._redisService.SubscribeAsync(s_commitUpdateChannel, OnUpdate);
+							continue;
+						}
+
+						await task;
+					}
+				}
+				finally
+				{
+					if (subscription != null)
+					{
+						await subscription.DisposeAsync();
+					}
+				}
 			}
 		}
 

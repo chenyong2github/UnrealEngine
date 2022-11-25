@@ -1250,9 +1250,23 @@ namespace Horde.Build.Perforce
 				}
 			}
 
+			/// <inheritdoc/>
 			public virtual Task<ICommit> GetAsync(int changeNumber, CancellationToken cancellationToken = default)
 			{
 				return _perforceService.GetChangeDetailsAsync(_stream, changeNumber, cancellationToken);
+			}
+
+			/// <inheritdoc/>
+			public virtual async IAsyncEnumerable<ICommit> SubscribeAsync(int minChange, IReadOnlyList<CommitTag>? tags = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			{
+				for (; ; )
+				{
+					await foreach (ICommit commit in FindAsync(minChange + 1, null, 10, tags, cancellationToken))
+					{
+						yield return commit;
+					}
+					await Task.Delay(TimeSpan.FromSeconds(10.0), cancellationToken);
+				}
 			}
 		}
 

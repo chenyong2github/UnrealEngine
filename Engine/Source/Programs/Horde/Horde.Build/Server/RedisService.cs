@@ -221,5 +221,33 @@ namespace Horde.Build.Server
 			}
 			redisLogger.LogInformation("Exit code {ExitCode}", _redisProcess.ExitCode);
 		}
+
+		/// <summary>
+		/// Publish a message to a channel
+		/// </summary>
+		/// <typeparam name="T">Type of elements sent over the channel</typeparam>
+		/// <param name="channel">Channel to post to</param>
+		/// <param name="message">Message to post to the channel</param>
+		/// <param name="flags">Flags for the request</param>
+		public Task PublishAsync<T>(RedisChannel<T> channel, T message, CommandFlags flags = CommandFlags.None)
+		{
+			return ConnectionPool.GetDatabase().PublishAsync(channel, message, flags);
+		}
+
+		/// <inheritdoc cref="SubscribeAsync{T}(RedisChannel{T}, Action{RedisChannel{T}, T})"/>
+		public Task<RedisChannelSubscription<T>> SubscribeAsync<T>(RedisChannel<T> channel, Action<T> callback) => SubscribeAsync(channel, (ch, x) => callback(x));
+
+		/// <summary>
+		/// Subscribe to notifications on a channel
+		/// </summary>
+		/// <typeparam name="T">Type of elements sent over the channel</typeparam>
+		/// <param name="channel">Channel to monitor</param>
+		/// <param name="callback">Callback for new events</param>
+		/// <returns>Subscription object</returns>
+		public async Task<RedisChannelSubscription<T>> SubscribeAsync<T>(RedisChannel<T> channel, Action<RedisChannel<T>, T> callback)
+		{
+			ISubscriber subscriber = ConnectionPool.GetConnection().GetSubscriber();
+			return await subscriber.SubscribeAsync(channel, callback);
+		}
 	}
 }

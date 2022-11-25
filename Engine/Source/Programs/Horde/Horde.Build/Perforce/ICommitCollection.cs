@@ -41,6 +41,15 @@ namespace Horde.Build.Perforce
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Changelist information</returns>
 		IAsyncEnumerable<ICommit> FindAsync(int? minChange = null, int? maxChange = null, int? maxResults = null, IReadOnlyList<CommitTag>? tags = null, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Subscribes to changes from this commit source
+		/// </summary>
+		/// <param name="minChange">Minimum changelist number (exclusive)</param>
+		/// <param name="tags">Tags for the commit to return</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New change information</returns>
+		IAsyncEnumerable<ICommit> SubscribeAsync(int minChange, IReadOnlyList<CommitTag>? tags = null, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
