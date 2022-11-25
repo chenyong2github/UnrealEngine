@@ -42,6 +42,9 @@ bool Slabs(float3 p0, float3 p1, float3 rayOrigin, float3 invRaydir, out float o
 
 float3 VolumeBoundMinWorld;
 float3 VolumeBoundMaxWorld;
+float4 WorldToLocal0;
+float4 WorldToLocal1;
+float4 WorldToLocal2;
 
 
 Texture3D<float4> SparseVolumeTexture;
@@ -65,15 +68,26 @@ void VisualizeSparseVolumeTexturePS(
 	const float Depth = 10000.0f;
 	float4 TranslatedWorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToTranslatedWorld);
 
-	const float3 RayDir = normalize(TranslatedWorldPos.xyz - View.TranslatedWorldCameraOrigin);
-	const float3 RayOrig = LWCHackToFloat(ResolvedView.WorldCameraOrigin);
+	const float3 RayDirWorld = normalize(TranslatedWorldPos.xyz - View.TranslatedWorldCameraOrigin);
+	const float3 RayOrigWorld = LWCHackToFloat(ResolvedView.WorldCameraOrigin);
+
+	// Transform into local [-1.0f, 1.0f] space
+	float3 RayDir;
+	RayDir.x = dot(WorldToLocal0.xyz, RayDirWorld);
+	RayDir.y = dot(WorldToLocal1.xyz, RayDirWorld);
+	RayDir.z = dot(WorldToLocal2.xyz, RayDirWorld);
+
+	float3 RayOrig;
+	RayOrig.x = dot(WorldToLocal0, float4(RayOrigWorld, 1.0f));
+	RayOrig.y = dot(WorldToLocal1, float4(RayOrigWorld, 1.0f));
+	RayOrig.z = dot(WorldToLocal2, float4(RayOrigWorld, 1.0f));
 
 	OutLuminanceAlpha = float4(0.0, 0.0, 0.0, 1.0);
 
 	float TMin = 0.0f;
 	float TMax = 0.0f;
 	float Transmittance = 1.0f;
-	if (Slabs(VolumeBoundMinWorld, VolumeBoundMaxWorld, RayOrig, 1.0 / RayDir, TMin, TMax) && TMax > 0.0f)
+	if (Slabs(-1.0f, 1.0f, RayOrig, 1.0 / RayDir, TMin, TMax) && TMax > 0.0f)
 	{
 		Transmittance = 0.5; // show the bounding box
 
@@ -84,7 +98,7 @@ void VisualizeSparseVolumeTexturePS(
 
 		float3 VolumeResolution = SparseVolumeTexturePageTableResolution * SPARSE_VOLUME_TILE_RES;
 
-		const float3 StartUVs = (StartPos - VolumeBoundMinWorld) / (VolumeBoundMaxWorld - VolumeBoundMinWorld);
+		const float3 StartUVs = StartPos * 0.5f + 0.5f;
 		float3 P = StartUVs * VolumeResolution;
 
 		// Force round to volume

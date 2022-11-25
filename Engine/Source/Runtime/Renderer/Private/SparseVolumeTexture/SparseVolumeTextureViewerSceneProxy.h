@@ -19,6 +19,7 @@ public:
 
 	const FSparseVolumeTextureSceneProxy* SparseVolumeTextureSceneProxy = nullptr;
 	FBoxSphereBounds VolumeWorldBounds;
+	FMatrix44f WorldToLocal;
 
 protected:
 

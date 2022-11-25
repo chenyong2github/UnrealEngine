@@ -55,6 +55,9 @@ class FVisualizeSparseVolumeTexturePS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		RENDER_TARGET_BINDING_SLOTS()
+		SHADER_PARAMETER(FVector4f, WorldToLocal0)
+		SHADER_PARAMETER(FVector4f, WorldToLocal1)
+		SHADER_PARAMETER(FVector4f, WorldToLocal2)
 		SHADER_PARAMETER(FVector3f, VolumeBoundMinWorld)
 		SHADER_PARAMETER(FVector3f, VolumeBoundMaxWorld)
 		SHADER_PARAMETER(FVector3f, SparseVolumeTextureResolution)
@@ -108,6 +111,7 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 		for (auto& SVTProxy : Scene->SparseVolumeTextureViewers)
 		{
 			const FBoxSphereBounds& SVTProxyBound = SVTProxy->VolumeWorldBounds;
+			const FMatrix44f& WorldToLocal = SVTProxy->WorldToLocal;
 			
 			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 			FVisualizeSparseVolumeTextureVS::FPermutationDomain VsPermutationVector;
@@ -118,6 +122,9 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 			FVisualizeSparseVolumeTexturePS::FParameters* PsPassParameters = GraphBuilder.AllocParameters<FVisualizeSparseVolumeTexturePS::FParameters>();
 			PsPassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PsPassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
+			PsPassParameters->WorldToLocal0 = FVector4f(WorldToLocal.M[0][0], WorldToLocal.M[1][0], WorldToLocal.M[2][0], WorldToLocal.M[3][0]);
+			PsPassParameters->WorldToLocal1 = FVector4f(WorldToLocal.M[0][1], WorldToLocal.M[1][1], WorldToLocal.M[2][1], WorldToLocal.M[3][1]);
+			PsPassParameters->WorldToLocal2 = FVector4f(WorldToLocal.M[0][2], WorldToLocal.M[1][2], WorldToLocal.M[2][2], WorldToLocal.M[3][2]);
 			PsPassParameters->VolumeBoundMinWorld = FVector3f(SVTProxyBound.Origin - SVTProxyBound.BoxExtent);
 			PsPassParameters->VolumeBoundMaxWorld = FVector3f(SVTProxyBound.Origin + SVTProxyBound.BoxExtent);
 			PsPassParameters->SparseVolumeTextureResolution = FVector3f::OneVector;

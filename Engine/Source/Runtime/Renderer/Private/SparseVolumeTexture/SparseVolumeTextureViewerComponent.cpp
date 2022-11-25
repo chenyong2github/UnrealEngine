@@ -161,11 +161,15 @@ void USparseVolumeTextureViewerComponent::SendRenderTransformCommand()
 		float MaxScaling = FMath::Max(Scale3D.X, FMath::Max(Scale3D.Y, Scale3D.Z));
 		ToWorldMat.SetScale3D(FVector(MaxScaling, MaxScaling, MaxScaling));		// Keep max scaling
 		FBoxSphereBounds ComponentBounds = CalcBounds(ToWorldMat);
+
+		FMatrix44f ToLocalMat = FMatrix44f(FTranslationMatrix(-ToWorldMat.GetTranslation()) * FRotationMatrix(FRotator(GetComponentToWorld().GetRotation().Inverse())) * FScaleMatrix(ComponentBounds.BoxExtent.Reciprocal()));
+
 		FSparseVolumeTextureViewerSceneProxy* SVTViewerSceneProxy = SparseVolumeTextureViewerSceneProxy;
 		ENQUEUE_RENDER_COMMAND(FUpdateSparseVolumeTextureViewerProxyTransformCommand)(
-			[SVTViewerSceneProxy, ComponentBounds](FRHICommandList& RHICmdList)
+			[SVTViewerSceneProxy, ComponentBounds, ToLocalMat](FRHICommandList& RHICmdList)
 			{
 				SVTViewerSceneProxy->VolumeWorldBounds = ComponentBounds;
+				SVTViewerSceneProxy->WorldToLocal = ToLocalMat;
 			});
 	}
 }
