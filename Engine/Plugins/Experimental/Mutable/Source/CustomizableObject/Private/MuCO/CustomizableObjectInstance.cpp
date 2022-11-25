@@ -1050,10 +1050,10 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 	return FinalSkeleton;
 }
 
-UPhysicsAsset* UCustomizableInstancePrivateData::BuildPhysicsAsset(
-		TObjectPtr<UPhysicsAsset> TemplateAsset,
-		const mu::PhysicsBody* MutablePhysics, int32 ComponentId,
-		bool bDisableCollisionsBetweenDifferentAssets)
+UPhysicsAsset* UCustomizableInstancePrivateData::GetOrBuildPhysicsAsset(
+	TObjectPtr<UPhysicsAsset> TemplateAsset,
+	const mu::PhysicsBody* MutablePhysics, int32 ComponentId,
+	bool bDisableCollisionsBetweenDifferentAssets)
 {
 
 	MUTABLE_CPUPROFILER_SCOPE(MergePhysicsAssets);
@@ -1062,12 +1062,12 @@ UPhysicsAsset* UCustomizableInstancePrivateData::BuildPhysicsAsset(
 
 	UPhysicsAsset* Result = nullptr;
 
-	FCustomizableInstanceComponentData* ComponentData =	GetComponentData(ComponentId);
+	FCustomizableInstanceComponentData* ComponentData = GetComponentData(ComponentId);
 	check(ComponentData);
 
 	TArray<TObjectPtr<UPhysicsAsset>>& PhysicsAssets = ComponentData->PhysicsAssets.PhysicsAssetsToMerge;
 
-	TArray<TObjectPtr<UPhysicsAsset>> ValidAssets;		
+	TArray<TObjectPtr<UPhysicsAsset>> ValidAssets;
 
 	const int32 NumPhysicsAssets = ComponentData->PhysicsAssets.PhysicsAssetsToMerge.Num();
 	for (int32 I = 0; I < NumPhysicsAssets; ++I)
@@ -1079,29 +1079,33 @@ UPhysicsAsset* UCustomizableInstancePrivateData::BuildPhysicsAsset(
 			ValidAssets.AddUnique(PhysicsAsset);
 		}
 	}
-	
+
 	if (!ValidAssets.Num())
 	{
 		return Result;
 	}
 
-	if (!TemplateAsset)
+	// Just get the referenced asset if no recontrution or merge is needed.
+	if (ValidAssets.Num() == 1 && !MutablePhysics->bBodiesModified)
 	{
-		Result = DuplicateObject(ValidAssets[0], nullptr);
+		return ValidAssets[0];
 	}
-	else
-	{
-		Result = DuplicateObject(TemplateAsset, nullptr);	
-	}
+
+	TemplateAsset = TemplateAsset ? TemplateAsset : ValidAssets[0];
+	check(TemplateAsset);
+
+	Result = NewObject<UPhysicsAsset>();
 
 	if (!Result)
 	{
 		return nullptr;
 	}
-	// TODO: We are duplicating just to remove the data that will be replaced.
-	Result->CollisionDisableTable.Empty();
-	Result->SkeletalBodySetups.Empty();
-	Result->ConstraintSetup.Empty();
+
+	Result->SolverSettings = TemplateAsset->SolverSettings;
+	Result->SolverType = TemplateAsset->SolverType;
+
+	Result->bNotForDedicatedServer = TemplateAsset->bNotForDedicatedServer;
+
 
 	auto MakeAggGeomFromMutablePhysics = [](int32 BodyIndex, const mu::PhysicsBody* MutablePhysicsBody) -> FKAggregateGeom
 	{
@@ -1116,7 +1120,7 @@ UPhysicsAsset* UCustomizableInstancePrivateData::BuildPhysicsAsset(
 		{
 			return static_cast<bool>( (Flags >> 8 ) & 1 );
 		};
-				
+
 		const int32 NumSpheres = MutablePhysicsBody->GetSphereCount( BodyIndex );
 		TArray<FKSphereElem>& AggSpheres = BodyAggGeom.SphereElems;
 		AggSpheres.Empty(NumSpheres);
@@ -1163,25 +1167,25 @@ UPhysicsAsset* UCustomizableInstancePrivateData::BuildPhysicsAsset(
 			NewElem.SetName( FName(*Name) );
 		}
 
-		const int32 NumConvexes = MutablePhysicsBody->GetConvexCount( BodyIndex );
-		TArray<FKConvexElem>& AggConvexes = BodyAggGeom.ConvexElems;
-		AggConvexes.Empty();
-		for (int32 I = 0; I < NumConvexes; ++I)
-		{
-			uint32 Flags = MutablePhysicsBody->GetConvexFlags( BodyIndex, I );
-			FString Name = MutablePhysicsBody->GetConvexName( BodyIndex, I );
+		//const int32 NumConvexes = MutablePhysicsBody->GetConvexCount( BodyIndex );
+		//TArray<FKConvexElem>& AggConvexes = BodyAggGeom.ConvexElems;
+		//AggConvexes.Empty();
+		//for (int32 I = 0; I < NumConvexes; ++I)
+		//{
+		//	uint32 Flags = MutablePhysicsBody->GetConvexFlags( BodyIndex, I );
+		//	FString Name = MutablePhysicsBody->GetConvexName( BodyIndex, I );
 
-			const FVector3f* Vertices;
-			const int32* Indices;
-			int32 NumVertices;
-			int32 NumIndices;
-			FTransform3f Transform;
+		//	const FVector3f* Vertices;
+		//	const int32* Indices;
+		//	int32 NumVertices;
+		//	int32 NumIndices;
+		//	FTransform3f Transform;
 
-			MutablePhysicsBody->GetConvex( BodyIndex, I, Vertices, NumVertices, Indices, NumIndices, Transform );
-			
-			TArrayView<const FVector3f> VerticesView( Vertices, NumVertices );
-			TArrayView<const int32> IndicesView( Indices, NumIndices );
-		}
+		//	MutablePhysicsBody->GetConvex( BodyIndex, I, Vertices, NumVertices, Indices, NumIndices, Transform );
+		//	
+		//	TArrayView<const FVector3f> VerticesView( Vertices, NumVertices );
+		//	TArrayView<const int32> IndicesView( Indices, NumIndices );
+		//}
 
 		TArray<FKSphylElem>& AggSphyls = BodyAggGeom.SphylElems;
 		const int32 NumSphyls = MutablePhysicsBody->GetSphylCount( BodyIndex );
@@ -1315,7 +1319,13 @@ UPhysicsAsset* UCustomizableInstancePrivateData::BuildPhysicsAsset(
 				NewBodySetup->WalkableSlopeOverride = BodySetup->WalkableSlopeOverride;
 				NewBodySetup->BuildScale3D = BodySetup->BuildScale3D;	
 				NewBodySetup->bSkipScaleFromAnimation = BodySetup->bSkipScaleFromAnimation;
+				
+				// PhysicalAnimationProfiles can't be added with the current UPhysicsAsset API outside the editor.
+				// Don't poulate them for now.	
+				//NewBodySetup->PhysicalAnimationData = BodySetup->PhysicalAnimationData;
+
 				NewBodySetup->AggGeom = MakeAggGeomFromMutablePhysics(*MutableBodyIndex, MutablePhysics);
+
 
 				Result->SkeletalBodySetups.Add(NewBodySetup);
 				
@@ -1574,7 +1584,7 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 					if (MutablePhysics)
 					{
 						constexpr bool bDisallowCollisionBetweenAssets = true;
-						UPhysicsAsset* PhysicsAssetResult = BuildPhysicsAsset( 
+						UPhysicsAsset* PhysicsAssetResult = GetOrBuildPhysicsAsset( 
 								RefSkeletalMeshData->PhysicsAsset.Get(), MutablePhysics.get(), SkeletalMeshIndex, bDisallowCollisionBetweenAssets);
 					
 						SkeletalMesh->SetPhysicsAsset(PhysicsAssetResult);
@@ -3070,7 +3080,7 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshSkeletonData(const TShar
 		}
 
 		// First step is to update the RefBasesInvMatrix for the bones.
-		for (const auto& BoneMatrix : MutSkeletonData.BoneMatricesWithScale)
+		for (const TPair<FName, FMatrix44f>& BoneMatrix : MutSkeletonData.BoneMatricesWithScale)
 		{
 			const int32 RefSkelBoneIndex = BoneToFinalBoneIndexMap[BoneMatrix.Key];
 			RefBasesInvMatrix[RefSkelBoneIndex] = BoneMatrix.Value;
@@ -3083,12 +3093,8 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshSkeletonData(const TShar
 			int32 ParentBoneIndex = ReferenceSkeleton.GetParentIndex(RefSkelBoneIndex);
 			if (ParentBoneIndex >= 0)
 			{
-				FMatrix44f BoneBaseInvMatrix = RefBasesInvMatrix[RefSkelBoneIndex];
-				FMatrix44f ParentBaseInvMatrix = RefBasesInvMatrix[ParentBoneIndex];
-				FMatrix44f BonePoseMatrix = BoneBaseInvMatrix.Inverse() * ParentBaseInvMatrix;
-
-				FTransform3f BonePoseTransform;
-				BonePoseTransform.SetFromMatrix(BonePoseMatrix);
+				const FTransform3f BonePoseTransform(
+						RefBasesInvMatrix[RefSkelBoneIndex].Inverse() * RefBasesInvMatrix[ParentBoneIndex]);
 
 				SkeletonModifier.UpdateRefPoseTransform(RefSkelBoneIndex, (FTransform)BonePoseTransform);
 			}

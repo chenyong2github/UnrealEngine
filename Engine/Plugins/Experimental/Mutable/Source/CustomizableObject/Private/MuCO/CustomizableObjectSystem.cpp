@@ -1442,7 +1442,7 @@ namespace impl
 			TArray<uint32>& SkeletonIds = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].SkeletonIds;
 			TArray<FName>& BoneNames = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].BoneNames;
 			TMap<FName, FMatrix44f>& BoneMatricesWithScale = OperationData->InstanceUpdateData.Skeletons[ComponentIndex].BoneMatricesWithScale;
-
+			
 			// Use first valid LOD bone count as a potential total number of bones, used for pre-allocating data arrays
 			if (MinLODComponent.Mesh && MinLODComponent.Mesh->GetSkeleton())
 			{
@@ -1487,71 +1487,71 @@ namespace impl
 					const int32 NumVerticesLODModel = Mesh->GetVertexCount();
 					const int32 SurfaceCount = Mesh->GetSurfaceCount();
 
-					mu::MESH_BUFFER_FORMAT boneIndexFormat = mu::MBF_NONE;
-					int boneIndexComponents = 0;
-					int boneIndexOffset = 0;
-					int boneIndexBuffer = -1;
-					int boneIndexChannel = -1;
-					MutableMeshVertexBuffers.FindChannel(mu::MBS_BONEINDICES, 0, &boneIndexBuffer, &boneIndexChannel);
-					if (boneIndexBuffer >= 0 || boneIndexChannel >= 0)
+					mu::MESH_BUFFER_FORMAT BoneIndexFormat = mu::MBF_NONE;
+					int32 BoneIndexComponents = 0;
+					int32 BoneIndexOffset = 0;
+					int32 BoneIndexBuffer = -1;
+					int32 BoneIndexChannel = -1;
+					MutableMeshVertexBuffers.FindChannel(mu::MBS_BONEINDICES, 0, &BoneIndexBuffer, &BoneIndexChannel);
+					if (BoneIndexBuffer >= 0 || BoneIndexChannel >= 0)
 					{
-						MutableMeshVertexBuffers.GetChannel(boneIndexBuffer, boneIndexChannel,
-							nullptr, nullptr, &boneIndexFormat, &boneIndexComponents, &boneIndexOffset);
+						MutableMeshVertexBuffers.GetChannel(BoneIndexBuffer, BoneIndexChannel,
+							nullptr, nullptr, &BoneIndexFormat, &BoneIndexComponents, &BoneIndexOffset);
 					}
 
-					int32 elemSize = MutableMeshVertexBuffers.GetElementSize(boneIndexBuffer);
+					const int32 ElemSize = MutableMeshVertexBuffers.GetElementSize(BoneIndexBuffer);
 
-					const uint8_t* BufferStart = MutableMeshVertexBuffers.GetBufferData(boneIndexBuffer) + boneIndexOffset;
+					const uint8_t* BufferStart = MutableMeshVertexBuffers.GetBufferData(BoneIndexBuffer) + BoneIndexOffset;
 
 					UsedBones.Empty(BoneCount);
 					UsedBones.AddDefaulted(BoneCount);
 
 					for (int32 Surface = 0; Surface < SurfaceCount; Surface++)
 					{
-						int32 is, ic, vs, VertexCount;
-						Mesh->GetSurface(Surface, &vs, &VertexCount, &is, &ic);
+						int32 IndexStart, IndexCount, VertexStart, VertexCount;
+						Mesh->GetSurface(Surface, &VertexStart, &VertexCount, &IndexStart, &IndexCount);
 
-						if (VertexCount == 0 || ic == 0)
+						if (VertexCount == 0 || IndexCount == 0)
 						{
 							continue;
 						}
 
-						const uint8_t* VertexBoneIndexPtr = BufferStart + vs * elemSize;
+						const uint8_t* VertexBoneIndexPtr = BufferStart + VertexStart * ElemSize;
 
-						if (boneIndexFormat == mu::MBF_UINT8)
+						if (BoneIndexFormat == mu::MBF_UINT8)
 						{
 							for (int32 v = 0; v < VertexCount; ++v)
 							{
-								for (int32 i = 0; i < boneIndexComponents; ++i)
+								for (int32 i = 0; i < BoneIndexComponents; ++i)
 								{
 									size_t SectionBoneIndex = VertexBoneIndexPtr[i];
 									UsedBones[SectionBoneIndex] = true;
 								}
-								VertexBoneIndexPtr += elemSize;
+								VertexBoneIndexPtr += ElemSize;
 							}
 						}
-						else if (boneIndexFormat == mu::MBF_UINT16)
+						else if (BoneIndexFormat == mu::MBF_UINT16)
 						{
 							for (int32 v = 0; v < VertexCount; ++v)
 							{
-								for (int32 i = 0; i < boneIndexComponents; ++i)
+								for (int32 i = 0; i < BoneIndexComponents; ++i)
 								{
 									size_t SectionBoneIndex = ((uint16*)VertexBoneIndexPtr)[i];
 									UsedBones[SectionBoneIndex] = true;
 								}
-								VertexBoneIndexPtr += elemSize;
+								VertexBoneIndexPtr += ElemSize;
 							}
 						}
-						else if (boneIndexFormat == mu::MBF_UINT32)
+						else if (BoneIndexFormat == mu::MBF_UINT32)
 						{
 							for (int32 v = 0; v < VertexCount; ++v)
 							{
-								for (int32 i = 0; i < boneIndexComponents; ++i)
+								for (int32 i = 0; i < BoneIndexComponents; ++i)
 								{
 									size_t SectionBoneIndex = ((uint32_t*)VertexBoneIndexPtr)[i];
 									UsedBones[SectionBoneIndex] = true;
 								}
-								VertexBoneIndexPtr += elemSize;
+								VertexBoneIndexPtr += ElemSize;
 							}
 						}
 						else
@@ -1559,10 +1559,8 @@ namespace impl
 							// Unsupported bone index format in generated mutable mesh
 							check(false);
 						}
-
 					}
 				}
-
 
 				{
 					MUTABLE_CPUPROFILER_SCOPE(PrepareSkeletonData_ActiveBones);
@@ -1576,9 +1574,9 @@ namespace impl
 					ParentChain.SetNumZeroed(BoneCount);
 
 					// Add new bones and their poses to the final hierarchy of active bones
-					auto AddBone = [&](const char* strName) {
+					auto AddBone = [&](const char* StrName) {
 
-						const FName BoneName = strName;
+						const FName BoneName = StrName;
 						const int16 FinalBoneIndex = BoneNames.Num();
 
 						// Add bone
@@ -1588,12 +1586,12 @@ namespace impl
 						ComponentActiveBones.Add(FinalBoneIndex);
 
 						// Add bone pose
-						const int32 BonePoseIndex = Mesh->FindBonePose(strName);
+						const int32 BonePoseIndex = Mesh->FindBonePose(StrName);
 						if (BonePoseIndex != INDEX_NONE)
 						{
-							FTransform3f transform;
-							Mesh->GetBoneTransform(BonePoseIndex, transform);
-							BoneMatricesWithScale.Add(BoneName, transform.Inverse().ToMatrixWithScale());
+							FTransform3f Transform;
+							Mesh->GetBoneTransform(BonePoseIndex, Transform);
+							BoneMatricesWithScale.Emplace(BoneName, Transform.Inverse().ToMatrixWithScale());
 						}
 
 						return FinalBoneIndex;
@@ -1690,7 +1688,7 @@ namespace impl
 
 					ComponentBoneMap.Shrink();
 					ComponentActiveBones.Shrink();
-				}
+				}	
 			}
 
 			BoneNames.Shrink();

@@ -16,11 +16,11 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//! Merge two meshes into one new mesh
 	//---------------------------------------------------------------------------------------------
-	inline MeshPtr MeshMerge( const Mesh* pFirst, const Mesh* pSecond )
+	inline MeshPtr MeshMerge(const Mesh* pFirst, const Mesh* pSecond)
 	{
-        MUTABLE_CPUPROFILER_SCOPE(MeshMerge);
+		MUTABLE_CPUPROFILER_SCOPE(MeshMerge);
 
-        MeshPtr pResult = new Mesh;
+		MeshPtr pResult = new Mesh;
 
 		// Should never happen, but fixes static analysis warnings.
 		if (!(pFirst && pSecond))
@@ -30,328 +30,328 @@ namespace mu
 
 		// Indices
 		//-----------------
-		if ( pFirst->GetIndexBuffers().GetBufferCount()>0 )
+		if (pFirst->GetIndexBuffers().GetBufferCount() > 0)
 		{
-            MUTABLE_CPUPROFILER_SCOPE(Indices);
+			MUTABLE_CPUPROFILER_SCOPE(Indices);
 
-            int firstCount = pFirst->GetIndexBuffers().GetElementCount();
+			int firstCount = pFirst->GetIndexBuffers().GetElementCount();
 			int secondCount = pSecond->GetIndexBuffers().GetElementCount();
-			pResult->GetIndexBuffers().SetElementCount( firstCount+secondCount );
+			pResult->GetIndexBuffers().SetElementCount(firstCount + secondCount);
 
-			check( pFirst->GetIndexBuffers().GetBufferCount() <= 1 );
-			check( pSecond->GetIndexBuffers().GetBufferCount() <= 1 );
-			pResult->GetIndexBuffers().SetBufferCount( 1 );
+			check(pFirst->GetIndexBuffers().GetBufferCount() <= 1);
+			check(pSecond->GetIndexBuffers().GetBufferCount() <= 1);
+			pResult->GetIndexBuffers().SetBufferCount(1);
 
-            // This will be changed below if need to change the format of the index buffers.
-            MESH_BUFFER_FORMAT requiredBufferFormatChange = MBF_NONE;
+			// This will be changed below if need to change the format of the index buffers.
+			MESH_BUFFER_FORMAT requiredBufferFormatChange = MBF_NONE;
 
-            if (firstCount && secondCount)
+			if (firstCount && secondCount)
 			{
 				const MESH_BUFFER& first = pFirst->GetIndexBuffers().m_buffers[0];
 				const MESH_BUFFER& second = pSecond->GetIndexBuffers().m_buffers[0];
 				check(first.m_channels == second.m_channels);
 				check(first.m_elementSize == second.m_elementSize);
-                check(first.m_channels.IsEmpty() || first.m_channels[0].m_format == second.m_channels[0].m_format);
-				
+				check(first.m_channels.IsEmpty() || first.m_channels[0].m_format == second.m_channels[0].m_format);
+
 				// Avoid unused variable warnings
 				(void)first;
 				(void)second;
 
-                // We need to know the total number of vertices in case we need to adjust the index buffer format.
-                uint64_t totalVertexCount = pFirst->GetVertexBuffers().GetElementCount()
-                        + pSecond->GetVertexBuffers().GetElementCount();
-                uint64_t maxValueBits = GetMeshFormatData(pFirst->GetIndexBuffers().m_buffers[0].m_channels[0].m_format).m_maxValueBits;
-                uint64_t maxSupportedVertices = uint64_t(1)<<maxValueBits;
-                if (totalVertexCount>maxSupportedVertices)
-                {
-                    if (totalVertexCount > 0xFFFF)
-                    {
-                        requiredBufferFormatChange = MBF_UINT32;
-                    }
-                    else
-                    {
-                        requiredBufferFormatChange = MBF_UINT16;
-                    }
-                }
-            }
+				// We need to know the total number of vertices in case we need to adjust the index buffer format.
+				uint64_t totalVertexCount = pFirst->GetVertexBuffers().GetElementCount()
+					+ pSecond->GetVertexBuffers().GetElementCount();
+				uint64_t maxValueBits = GetMeshFormatData(pFirst->GetIndexBuffers().m_buffers[0].m_channels[0].m_format).m_maxValueBits;
+				uint64_t maxSupportedVertices = uint64_t(1) << maxValueBits;
+				if (totalVertexCount > maxSupportedVertices)
+				{
+					if (totalVertexCount > 0xFFFF)
+					{
+						requiredBufferFormatChange = MBF_UINT32;
+					}
+					else
+					{
+						requiredBufferFormatChange = MBF_UINT16;
+					}
+				}
+			}
 
 			MESH_BUFFER& result = pResult->GetIndexBuffers().m_buffers[0];
 
-            if (requiredBufferFormatChange != MBF_NONE)
-            {
-                // We only support vertex indices in case of having to change the format.
-                check(pFirst->GetIndexBuffers().m_buffers[0].m_channels.Num()==1);
+			if (requiredBufferFormatChange != MBF_NONE)
+			{
+				// We only support vertex indices in case of having to change the format.
+				check(pFirst->GetIndexBuffers().m_buffers[0].m_channels.Num() == 1);
 
-                result.m_channels.SetNum(1);
-                result.m_channels[0].m_semantic = MBS_VERTEXINDEX;
-                result.m_channels[0].m_format = requiredBufferFormatChange;
-                result.m_channels[0].m_componentCount = 1;
-                result.m_channels[0].m_semanticIndex = 0;
-                result.m_channels[0].m_offset = 0;
-                result.m_elementSize = GetMeshFormatData(requiredBufferFormatChange).m_size;
-            }
-            else if (firstCount)
+				result.m_channels.SetNum(1);
+				result.m_channels[0].m_semantic = MBS_VERTEXINDEX;
+				result.m_channels[0].m_format = requiredBufferFormatChange;
+				result.m_channels[0].m_componentCount = 1;
+				result.m_channels[0].m_semanticIndex = 0;
+				result.m_channels[0].m_offset = 0;
+				result.m_elementSize = GetMeshFormatData(requiredBufferFormatChange).m_size;
+			}
+			else if (firstCount)
 			{
 				const MESH_BUFFER& first = pFirst->GetIndexBuffers().m_buffers[0];
 				result.m_channels = first.m_channels;
 				result.m_elementSize = first.m_elementSize;
 			}
-            else if (secondCount)
+			else if (secondCount)
 			{
 				const MESH_BUFFER& second = pSecond->GetIndexBuffers().m_buffers[0];
 				result.m_channels = second.m_channels;
 				result.m_elementSize = second.m_elementSize;
 			}
 
-			result.m_data.SetNum(result.m_elementSize*(firstCount + secondCount));
+			result.m_data.SetNum(result.m_elementSize * (firstCount + secondCount));
 
-			check( result.m_channels.Num()==1 );
-			check( result.m_channels[0].m_semantic == MBS_VERTEXINDEX );
+			check(result.m_channels.Num() == 1);
+			check(result.m_channels[0].m_semantic == MBS_VERTEXINDEX);
 
-			if ( result.m_data.Num() )
+			if (result.m_data.Num())
 			{
-				if ( firstCount )
+				if (firstCount)
 				{
 					const MESH_BUFFER& first = pFirst->GetIndexBuffers().m_buffers[0];
 
-                    if (requiredBufferFormatChange==MBF_NONE
-                            || requiredBufferFormatChange==first.m_channels[0].m_format)
-                    {
-                        FMemory::Memcpy( &result.m_data[0],
-                                        &first.m_data[0],
-                                        first.m_elementSize*firstCount );
-                    }
-                    else
-                    {
-                        // Conversion required
-                        const uint8_t* pSource = &first.m_data[0];
-                        uint8_t* pDest = &result.m_data[0];
-                        switch( requiredBufferFormatChange )
-                        {
-                        case MBF_UINT32:
-                        {
-                            switch( first.m_channels[0].m_format )
-                            {
-                            case MBF_UINT16:
-                            {
-                                for ( int v=0; v<firstCount; ++v )
-                                {
-                                    *(uint32_t*)pDest = *(const uint16*)pSource;
-                                    pSource+=first.m_elementSize;
-                                    pDest+=result.m_elementSize;
-                                }
-                                break;
-                            }
+					if (requiredBufferFormatChange == MBF_NONE
+						|| requiredBufferFormatChange == first.m_channels[0].m_format)
+					{
+						FMemory::Memcpy(&result.m_data[0],
+							&first.m_data[0],
+							first.m_elementSize * firstCount);
+					}
+					else
+					{
+						// Conversion required
+						const uint8_t* pSource = &first.m_data[0];
+						uint8_t* pDest = &result.m_data[0];
+						switch (requiredBufferFormatChange)
+						{
+						case MBF_UINT32:
+						{
+							switch (first.m_channels[0].m_format)
+							{
+							case MBF_UINT16:
+							{
+								for (int v = 0; v < firstCount; ++v)
+								{
+									*(uint32_t*)pDest = *(const uint16*)pSource;
+									pSource += first.m_elementSize;
+									pDest += result.m_elementSize;
+								}
+								break;
+							}
 
-                            case MBF_UINT8:
-                            {
-                                for ( int v=0; v<firstCount; ++v )
-                                {
-                                    *(uint32_t*)pDest = *(const uint8_t*)pSource;
-                                    pSource+=first.m_elementSize;
-                                    pDest+=result.m_elementSize;
-                                }
-                                break;
-                            }
+							case MBF_UINT8:
+							{
+								for (int v = 0; v < firstCount; ++v)
+								{
+									*(uint32_t*)pDest = *(const uint8_t*)pSource;
+									pSource += first.m_elementSize;
+									pDest += result.m_elementSize;
+								}
+								break;
+							}
 
-                            default:
-                                checkf( false, TEXT("Format not supported.") );
-                                break;
-                            }
-                            break;
-                        }
-
-                        case MBF_UINT16:
-                        {
-                            switch( first.m_channels[0].m_format )
-                            {
-
-                            case MBF_UINT8:
-                            {
-                                for ( int v=0; v<firstCount; ++v )
-                                {
-                                    *(uint16*)pDest = *(const uint8_t*)pSource;
-                                    pSource+=first.m_elementSize;
-                                    pDest+=result.m_elementSize;
-                                }
-                                break;
-                            }
-
-                            default:
+							default:
 								checkf(false, TEXT("Format not supported."));
 								break;
-                            }
-                            break;
-                        }
+							}
+							break;
+						}
 
-                        default:
+						case MBF_UINT16:
+						{
+							switch (first.m_channels[0].m_format)
+							{
+
+							case MBF_UINT8:
+							{
+								for (int v = 0; v < firstCount; ++v)
+								{
+									*(uint16*)pDest = *(const uint8_t*)pSource;
+									pSource += first.m_elementSize;
+									pDest += result.m_elementSize;
+								}
+								break;
+							}
+
+							default:
+								checkf(false, TEXT("Format not supported."));
+								break;
+							}
+							break;
+						}
+
+						default:
 							checkf(false, TEXT("Format not supported."));
 							break;
-                        }
-                    }
-                }
+						}
+					}
+				}
 
-				if ( secondCount )
+				if (secondCount)
 				{
 					const MESH_BUFFER& second = pSecond->GetIndexBuffers().m_buffers[0];
-                    const uint8_t* pSource = &second.m_data[0];
-                    uint8_t* pDest = &result.m_data[result.m_elementSize*firstCount ];
+					const uint8_t* pSource = &second.m_data[0];
+					uint8_t* pDest = &result.m_data[result.m_elementSize * firstCount];
 
-                    uint32_t firstVertexCount = pFirst->GetVertexBuffers().GetElementCount();
+					uint32_t firstVertexCount = pFirst->GetVertexBuffers().GetElementCount();
 
-                    if (requiredBufferFormatChange==MBF_NONE
-                            || requiredBufferFormatChange==second.m_channels[0].m_format)
-                    {
-                        switch( second.m_channels[0].m_format )
-                        {
-                        case MBF_INT32:
-                        case MBF_UINT32:
-                        case MBF_NINT32:
-                        case MBF_NUINT32:
-                        {
-                            for ( int v=0; v<secondCount; ++v )
-                            {
-                                *(uint32_t*)pDest = firstVertexCount + *(const uint32_t*)pSource;
-                                pSource+=second.m_elementSize;
-                                pDest+=result.m_elementSize;
-                            }
-                            break;
-                        }
+					if (requiredBufferFormatChange == MBF_NONE
+						|| requiredBufferFormatChange == second.m_channels[0].m_format)
+					{
+						switch (second.m_channels[0].m_format)
+						{
+						case MBF_INT32:
+						case MBF_UINT32:
+						case MBF_NINT32:
+						case MBF_NUINT32:
+						{
+							for (int v = 0; v < secondCount; ++v)
+							{
+								*(uint32_t*)pDest = firstVertexCount + *(const uint32_t*)pSource;
+								pSource += second.m_elementSize;
+								pDest += result.m_elementSize;
+							}
+							break;
+						}
 
-                        case MBF_INT16:
-                        case MBF_UINT16:
-                        case MBF_NINT16:
-                        case MBF_NUINT16:
-                        {
-                            for ( int v=0; v<secondCount; ++v )
-                            {
-                                *(uint16*)pDest = uint16(firstVertexCount) + *(const uint16*)pSource;
-                                pSource+=second.m_elementSize;
-                                pDest+=result.m_elementSize;
-                            }
-                            break;
-                        }
+						case MBF_INT16:
+						case MBF_UINT16:
+						case MBF_NINT16:
+						case MBF_NUINT16:
+						{
+							for (int v = 0; v < secondCount; ++v)
+							{
+								*(uint16*)pDest = uint16(firstVertexCount) + *(const uint16*)pSource;
+								pSource += second.m_elementSize;
+								pDest += result.m_elementSize;
+							}
+							break;
+						}
 
-                        case MBF_INT8:
-                        case MBF_UINT8:
-                        case MBF_NINT8:
-                        case MBF_NUINT8:
-                        {
-                            for ( int v=0; v<secondCount; ++v )
-                            {
-                                *(uint8_t*)pDest = uint8_t(firstVertexCount) + *(const uint8_t*)pSource;
-                                pSource+=second.m_elementSize;
-                                pDest+=result.m_elementSize;
-                            }
-                            break;
-                        }
+						case MBF_INT8:
+						case MBF_UINT8:
+						case MBF_NINT8:
+						case MBF_NUINT8:
+						{
+							for (int v = 0; v < secondCount; ++v)
+							{
+								*(uint8_t*)pDest = uint8_t(firstVertexCount) + *(const uint8_t*)pSource;
+								pSource += second.m_elementSize;
+								pDest += result.m_elementSize;
+							}
+							break;
+						}
 
-                        default:
+						default:
 							checkf(false, TEXT("Format not supported."));
 							break;
-                        }
-                    }
-                    else
-                    {
-                        // Format conversion required
-                        switch (requiredBufferFormatChange)
-                        {
+						}
+					}
+					else
+					{
+						// Format conversion required
+						switch (requiredBufferFormatChange)
+						{
 
-                        case MBF_UINT32:
-                        {
-                            switch( second.m_channels[0].m_format )
-                            {
-                            case MBF_INT16:
-                            case MBF_UINT16:
-                            case MBF_NINT16:
-                            case MBF_NUINT16:
-                            {
-                                for ( int v=0; v<secondCount; ++v )
-                                {
-                                    *(uint32_t*)pDest = uint32_t(firstVertexCount) + *(const uint16*)pSource;
-                                    pSource+=second.m_elementSize;
-                                    pDest+=result.m_elementSize;
-                                }
-                                break;
-                            }
+						case MBF_UINT32:
+						{
+							switch (second.m_channels[0].m_format)
+							{
+							case MBF_INT16:
+							case MBF_UINT16:
+							case MBF_NINT16:
+							case MBF_NUINT16:
+							{
+								for (int v = 0; v < secondCount; ++v)
+								{
+									*(uint32_t*)pDest = uint32_t(firstVertexCount) + *(const uint16*)pSource;
+									pSource += second.m_elementSize;
+									pDest += result.m_elementSize;
+								}
+								break;
+							}
 
-                            case MBF_INT8:
-                            case MBF_UINT8:
-                            case MBF_NINT8:
-                            case MBF_NUINT8:
-                            {
-                                for ( int v=0; v<secondCount; ++v )
-                                {
-                                    *(uint32_t*)pDest = uint32_t(firstVertexCount) + *(const uint8_t*)pSource;
-                                    pSource+=second.m_elementSize;
-                                    pDest+=result.m_elementSize;
-                                }
-                                break;
-                            }
+							case MBF_INT8:
+							case MBF_UINT8:
+							case MBF_NINT8:
+							case MBF_NUINT8:
+							{
+								for (int v = 0; v < secondCount; ++v)
+								{
+									*(uint32_t*)pDest = uint32_t(firstVertexCount) + *(const uint8_t*)pSource;
+									pSource += second.m_elementSize;
+									pDest += result.m_elementSize;
+								}
+								break;
+							}
 
-                            default:
+							default:
 								checkf(false, TEXT("Format not supported."));
 								break;
-                            }
+							}
 
-                            break;
-                        }
+							break;
+						}
 
-                        case MBF_UINT16:
-                        {
-                            switch( second.m_channels[0].m_format )
-                            {
-                            case MBF_INT8:
-                            case MBF_UINT8:
-                            case MBF_NINT8:
-                            case MBF_NUINT8:
-                            {
-                                for ( int v=0; v<secondCount; ++v )
-                                {
-                                    *(uint16*)pDest = uint16(firstVertexCount) + *(const uint8_t*)pSource;
-                                    pSource+=second.m_elementSize;
-                                    pDest+=result.m_elementSize;
-                                }
-                                break;
-                            }
+						case MBF_UINT16:
+						{
+							switch (second.m_channels[0].m_format)
+							{
+							case MBF_INT8:
+							case MBF_UINT8:
+							case MBF_NINT8:
+							case MBF_NUINT8:
+							{
+								for (int v = 0; v < secondCount; ++v)
+								{
+									*(uint16*)pDest = uint16(firstVertexCount) + *(const uint8_t*)pSource;
+									pSource += second.m_elementSize;
+									pDest += result.m_elementSize;
+								}
+								break;
+							}
 
-                            default:
+							default:
 								checkf(false, TEXT("Format not supported."));
 								break;
-                            }
+							}
 
-                            break;
-                        }
+							break;
+						}
 
-                        default:
+						default:
 							checkf(false, TEXT("Format not supported."));
 							break;
 
-                        }
-                    }
-                }
+						}
+					}
+				}
 			}
 		}
 
 		// Faces
 		//-----------------
 		{
-            MUTABLE_CPUPROFILER_SCOPE(Faces);
+			MUTABLE_CPUPROFILER_SCOPE(Faces);
 
-            int firstCount = pFirst->GetFaceBuffers().GetElementCount();
+			int firstCount = pFirst->GetFaceBuffers().GetElementCount();
 			int secondCount = pSecond->GetFaceBuffers().GetElementCount();
-			pResult->GetFaceBuffers().SetElementCount( firstCount+secondCount );
-			pResult->GetFaceBuffers().SetBufferCount( pFirst->GetFaceBuffers().GetBufferCount() );
+			pResult->GetFaceBuffers().SetElementCount(firstCount + secondCount);
+			pResult->GetFaceBuffers().SetBufferCount(pFirst->GetFaceBuffers().GetBufferCount());
 
 			// Merge only the buffers present in the first mesh
-			for ( int b = 0; b<pResult->GetFaceBuffers().GetBufferCount(); ++b )
+			for (int b = 0; b < pResult->GetFaceBuffers().GetBufferCount(); ++b)
 			{
 				const MESH_BUFFER& first = pFirst->GetFaceBuffers().m_buffers[b];
 
 				MESH_BUFFER& result = pResult->GetFaceBuffers().m_buffers[b];
 				result.m_channels = first.m_channels;
 				result.m_elementSize = first.m_elementSize;
-				result.m_data.SetNum( result.m_elementSize * (firstCount+secondCount) );
+				result.m_data.SetNum(result.m_elementSize * (firstCount + secondCount));
 
 				MESH_BUFFER_SEMANTIC semantic = MBS_NONE;
 				int semanticIndex = 0;
@@ -359,79 +359,79 @@ namespace mu
 				int components = 0;
 				int offset = 0;
 				pFirst->GetFaceBuffers().GetChannel
-						( b, 0, &semantic, &semanticIndex, &type, &components, &offset );
+				(b, 0, &semantic, &semanticIndex, &type, &components, &offset);
 
-				if ( firstCount )
+				if (firstCount)
 				{
-					FMemory::Memcpy( &result.m_data[0],
-									&first.m_data[0],
-									result.m_elementSize * firstCount
-									);
+					FMemory::Memcpy(&result.m_data[0],
+						&first.m_data[0],
+						result.m_elementSize * firstCount
+					);
 				}
 
-				if ( secondCount )
+				if (secondCount)
 				{
 					// Find in the second mesh
 					int otherBuffer = -1;
 					int otherChannel = -1;
 					pSecond->GetFaceBuffers().FindChannel
-							( semantic, 0, &otherBuffer, &otherChannel );
+					(semantic, 0, &otherBuffer, &otherChannel);
 
-					if (otherBuffer>=0)
+					if (otherBuffer >= 0)
 					{
 						const MESH_BUFFER& second =
-								pSecond->GetFaceBuffers().m_buffers[otherBuffer];
-						check( first.m_channels == second.m_channels );
+							pSecond->GetFaceBuffers().m_buffers[otherBuffer];
+						check(first.m_channels == second.m_channels);
 
 						// Raw copy
-						FMemory::Memcpy( &result.m_data[ result.m_elementSize * firstCount ],
-										&second.m_data[0],
-										result.m_elementSize * secondCount );
+						FMemory::Memcpy(&result.m_data[result.m_elementSize * firstCount],
+							&second.m_data[0],
+							result.m_elementSize * secondCount);
 					}
 					else
 					{
 						// Fill with zeroes
-						FMemory::Memzero( &result.m_data[ result.m_elementSize * firstCount ],
-										result.m_elementSize * secondCount );
+						FMemory::Memzero(&result.m_data[result.m_elementSize * firstCount],
+							result.m_elementSize * secondCount);
 					}
 				}
 			}
 		}
 
 
-        // Layouts
-        //-----------------
-        {
-            MUTABLE_CPUPROFILER_SCOPE(Layouts);
+		// Layouts
+		//-----------------
+		{
+			MUTABLE_CPUPROFILER_SCOPE(Layouts);
 
-            pResult->m_layouts.SetNum( pFirst->m_layouts.Num() );
-            for ( int i=0; i<pFirst->m_layouts.Num(); ++i )
-            {
-                const Layout* pF = pFirst->m_layouts[i].get();
-                LayoutPtr pR = pF->Clone();
+			pResult->m_layouts.SetNum(pFirst->m_layouts.Num());
+			for (int i = 0; i < pFirst->m_layouts.Num(); ++i)
+			{
+				const Layout* pF = pFirst->m_layouts[i].get();
+				LayoutPtr pR = pF->Clone();
 
-                if ( i<pSecond->m_layouts.Num() )
-                {
-                    const Layout* pS = pSecond->m_layouts[i].get();
+				if (i < pSecond->m_layouts.Num())
+				{
+					const Layout* pS = pSecond->m_layouts[i].get();
 
-                    pR->m_blocks.Append(pS->m_blocks);
-                }
+					pR->m_blocks.Append(pS->m_blocks);
+				}
 
-                pResult->m_layouts[i] = pR;
-            }
-        }
+				pResult->m_layouts[i] = pR;
+			}
+		}
 
 
-        // Surfaces
-        //-----------------
-        pResult->m_surfaces = pFirst->m_surfaces;
+		// Surfaces
+		//-----------------
+		pResult->m_surfaces = pFirst->m_surfaces;
 
-        for ( const auto& s : pSecond->m_surfaces )
-        {
-            pResult->m_surfaces.Add(s);
-            pResult->m_surfaces.Last().m_firstVertex += pFirst->GetVertexCount();
-            pResult->m_surfaces.Last().m_firstIndex += pFirst->GetIndexCount();
-        }
+		for (const auto& s : pSecond->m_surfaces)
+		{
+			pResult->m_surfaces.Add(s);
+			pResult->m_surfaces.Last().m_firstVertex += pFirst->GetVertexCount();
+			pResult->m_surfaces.Last().m_firstIndex += pFirst->GetIndexCount();
+		}
 
 
 		// Skeleton
@@ -445,76 +445,76 @@ namespace mu
 			pResult->SkeletonIDs.AddUnique(SkeletonID);
 		}
 
-        // Do they have the same skeleton?
-        bool remapNeeded = pFirst->GetSkeleton() != pSecond->GetSkeleton();
+		// Do they have the same skeleton?
+		bool remapNeeded = pFirst->GetSkeleton() != pSecond->GetSkeleton();
 
-        // Are they different skeletons but with the same data?
-        if ( remapNeeded && pFirst->GetSkeleton() && pSecond->GetSkeleton() )
-        {
-            remapNeeded = ! ( *pFirst->GetSkeleton()
-                              ==
-                              *pSecond->GetSkeleton() );
-        }
+		// Are they different skeletons but with the same data?
+		if (remapNeeded && pFirst->GetSkeleton() && pSecond->GetSkeleton())
+		{
+			remapNeeded = !(*pFirst->GetSkeleton()
+				==
+				*pSecond->GetSkeleton());
+		}
 
 
 		TArray<int32> secondToFirstBones;
 
-        if ( remapNeeded )
-        {
-            MUTABLE_CPUPROFILER_SCOPE(Skeleton);
-            Ptr<Skeleton> pResultSkeleton;
+		if (remapNeeded)
+		{
+			MUTABLE_CPUPROFILER_SCOPE(Skeleton);
+			Ptr<Skeleton> pResultSkeleton;
 
 			mu::SkeletonPtrConst pFirstSkeleton = pFirst->GetSkeleton();
 			mu::SkeletonPtrConst pSecondSkeleton = pSecond->GetSkeleton();
 
 			const int32 pFirstBoneCount = pFirstSkeleton ? pFirstSkeleton->GetBoneCount() : 0;
 			const int32 pSecondBoneCount = pSecondSkeleton ? pSecondSkeleton->GetBoneCount() : 0;
-			
-			pResultSkeleton = pFirstSkeleton ? pFirstSkeleton->Clone() : new Skeleton; 
+
+			pResultSkeleton = pFirstSkeleton ? pFirstSkeleton->Clone() : new Skeleton;
 			pResult->SetSkeleton(pResultSkeleton);
 
 			secondToFirstBones.SetNumUninitialized(pSecondBoneCount);
 
 			// Merge pSecond and build the remap array 
-            for ( int32 ob=0; ob< pSecondBoneCount; ++ob )
-            {
-                int32 tb = INDEX_NONE;
-                for ( int32 c=0; tb<0 && c<pResultSkeleton->m_bones.Num(); ++c )
-                {
-                    if ( pResultSkeleton->m_bones[c] == pSecondSkeleton->GetBoneName( ob ) )
-                    {
-                        tb = c;
+			for (int32 ob = 0; ob < pSecondBoneCount; ++ob)
+			{
+				int32 tb = INDEX_NONE;
+				for (int32 c = 0; tb < 0 && c < pResultSkeleton->m_bones.Num(); ++c)
+				{
+					if (pResultSkeleton->m_bones[c] == pSecondSkeleton->GetBoneName(ob))
+					{
+						tb = c;
 						break;
-                    }
-                }
+					}
+				}
 
-                // Add a new bone
-                if( tb == INDEX_NONE)
-                {
-                    tb = pResultSkeleton->m_bones.Num();
-                    pResultSkeleton->m_bones.Add( pSecondSkeleton->m_bones[ob] );
-					
+				// Add a new bone
+				if (tb == INDEX_NONE)
+				{
+					tb = pResultSkeleton->m_bones.Num();
+					pResultSkeleton->m_bones.Add(pSecondSkeleton->m_bones[ob]);
+
 					// Add an incorrect index, to be fixed below in case the parent index is later in the bone array.
 					pResultSkeleton->m_boneParents.Add(pSecondSkeleton->m_boneParents[ob]);
-                }
+				}
 
-                secondToFirstBones[ob] = tb;
+				secondToFirstBones[ob] = tb;
 			}
 
-            // Fix second mesh bone parents
-            for (int32 ob = pFirstBoneCount; ob < pResultSkeleton->m_boneParents.Num(); ++ob)
-            {
-                int16_t secondMeshIndex = pResultSkeleton->m_boneParents[ob];
-                if (secondMeshIndex != INDEX_NONE)
-                {
-                    pResultSkeleton->m_boneParents[ob] = (uint16)secondToFirstBones[secondMeshIndex];
-                }
-            }
-        }
-        else
-        {
-            pResult->SetSkeleton( pFirst->GetSkeleton() );
-        }
+			// Fix second mesh bone parents
+			for (int32 ob = pFirstBoneCount; ob < pResultSkeleton->m_boneParents.Num(); ++ob)
+			{
+				int16_t secondMeshIndex = pResultSkeleton->m_boneParents[ob];
+				if (secondMeshIndex != INDEX_NONE)
+				{
+					pResultSkeleton->m_boneParents[ob] = (uint16)secondToFirstBones[secondMeshIndex];
+				}
+			}
+		}
+		else
+		{
+			pResult->SetSkeleton(pFirst->GetSkeleton());
+		}
 
 
 		// Pose
@@ -523,7 +523,7 @@ namespace mu
 			MUTABLE_CPUPROFILER_SCOPE(Pose);
 
 			pResult->BonePoses.Reserve(pResult->GetSkeleton()->GetBoneCount());
-			
+
 			// Copy poses from the first mesh
 			pResult->BonePoses = pFirst->BonePoses;
 
@@ -541,7 +541,7 @@ namespace mu
 					auto ComputeBoneMergePriority = [](const Mesh::FBonePose& BonePose)
 					{
 						return (EnumHasAnyFlags(BonePose.BoneUsageFlags, EBoneUsageFlags::Skinning) ? 1 : 0) +
-							   (EnumHasAnyFlags(BonePose.BoneUsageFlags, EBoneUsageFlags::Reshaped) ? 1 : 0);
+							(EnumHasAnyFlags(BonePose.BoneUsageFlags, EBoneUsageFlags::Reshaped) ? 1 : 0);
 					};
 
 					if (ComputeBoneMergePriority(ResultBonePose) < ComputeBoneMergePriority(SecondBonePose))
@@ -549,8 +549,8 @@ namespace mu
 						//ResultBonePose.BoneName = SecondBonePose.BoneName;
 						ResultBonePose.BoneTransform = SecondBonePose.BoneTransform;
 						// Merge usage flags
-						EnumAddFlags(ResultBonePose.BoneUsageFlags, SecondBonePose.BoneUsageFlags);					
-					}	
+						EnumAddFlags(ResultBonePose.BoneUsageFlags, SecondBonePose.BoneUsageFlags);
+					}
 				}
 				else
 				{
@@ -561,97 +561,127 @@ namespace mu
 			pResult->BonePoses.Shrink();
 		}
 
-		
+
 		// PhysicsBodies
 		//---------------------------
-
-		// Appends InPhysicsBody to OutPhysicsBody removing Bodies that are equal, have same bone and customId and its properies are identical.	
-		auto AppendPhysicsBodiesUnique = [](PhysicsBody& OutPhysicsBody, const PhysicsBody& InPhysicsBody)
-		{	
-			TArray<string>& OutBones = OutPhysicsBody.Bones;
-			TArray<int32>& OutCustomIds = OutPhysicsBody.CustomIds;
-			TArray<FPhysicsBodyAggregate>& OutBodies = OutPhysicsBody.Bodies;
-			
-			const TArray<string>& InBones = InPhysicsBody.Bones;
-			const TArray<int32>& InCustomIds = InPhysicsBody.CustomIds;
-			const TArray<FPhysicsBodyAggregate>& InBodies = InPhysicsBody.Bodies;
-			
-			const int32 InBodyCount = InPhysicsBody.GetBodyCount();
-			const int32 OutBodyCount = OutPhysicsBody.GetBodyCount();
-
-			for (int32 I = 0; I < InBodyCount; ++I)
-			{
-				int32 FoundIndex = INDEX_NONE;
-				for (int32 O = 0; O < OutBodyCount; ++O)
-				{
-					if (InCustomIds[I] == OutCustomIds[O] && InBones[I] == OutBones[O])
-					{
-						FoundIndex = O;
-						break;
-					}
-				}
-
-				if (FoundIndex == INDEX_NONE)
-				{
-					OutBones.Add(InBones[I]);
-					OutCustomIds.Add(InCustomIds[I]);
-					OutBodies.Add(InBodies[I]);
-				}
-				else
-				{
-					for (const FSphereBody& Body : InBodies[I].Spheres)
-					{
-						OutBodies[FoundIndex].Spheres.AddUnique(Body);
-					}
-
-					for (const FBoxBody& Body : InBodies[I].Boxes)
-					{
-						OutBodies[FoundIndex].Boxes.AddUnique(Body);
-					}
-
-					for (const FSphylBody& Body : InBodies[I].Sphyls)
-					{
-						OutBodies[FoundIndex].Sphyls.AddUnique(Body);
-					}
-
-					for (const FTaperedCapsuleBody& Body : InBodies[I].TaperedCapsules)
-					{
-						OutBodies[FoundIndex].TaperedCapsules.AddUnique(Body);
-					}
-
-					for (const FConvexBody& Body : InBodies[I].Convex)
-					{
-						OutBodies[FoundIndex].Convex.AddUnique(Body);
-					}
-				}
-			}
-		};
-
-
-		if (pFirst->GetPhysicsBody() == pSecond->GetPhysicsBody())
 		{
-			// Both meshes are sharing the physics body, let the result share it as well.
-			pResult->SetPhysicsBody( pFirst->GetPhysicsBody() );
-		}
-		else
-		{
-			Ptr<PhysicsBody> ResultPhysicsBody = new PhysicsBody;
+			MUTABLE_CPUPROFILER_SCOPE(PhysicsBodies);
 
-			if (pFirst->GetPhysicsBody())
+			// Appends InPhysicsBody to OutPhysicsBody removing Bodies that are equal, have same bone and customId and its properies are identical.	
+			auto AppendPhysicsBodiesUnique = [](PhysicsBody& OutPhysicsBody, const PhysicsBody& InPhysicsBody) -> bool
 			{
-				AppendPhysicsBodiesUnique(*ResultPhysicsBody, *pFirst->GetPhysicsBody());
-			}
-			
-			if (pSecond->GetPhysicsBody())
-			{
-				AppendPhysicsBodiesUnique(*ResultPhysicsBody, *pSecond->GetPhysicsBody());
-			}
-			bool FirstBodyModified = pFirst->GetPhysicsBody() ? pFirst->GetPhysicsBody()->bBodiesModified : false;
-			bool SecondBodyModified = pSecond->GetPhysicsBody() ? pSecond->GetPhysicsBody()->bBodiesModified : false;
-			ResultPhysicsBody->bBodiesModified = FirstBodyModified || SecondBodyModified;
-			pResult->SetPhysicsBody( ResultPhysicsBody );
-		}
+				TArray<string>& OutBones = OutPhysicsBody.Bones;
+				TArray<int32>& OutCustomIds = OutPhysicsBody.CustomIds;
+				TArray<FPhysicsBodyAggregate>& OutBodies = OutPhysicsBody.Bodies;
 
+				const TArray<string>& InBones = InPhysicsBody.Bones;
+				const TArray<int32>& InCustomIds = InPhysicsBody.CustomIds;
+				const TArray<FPhysicsBodyAggregate>& InBodies = InPhysicsBody.Bodies;
+
+				const int32 InBodyCount = InPhysicsBody.GetBodyCount();
+				const int32 OutBodyCount = OutPhysicsBody.GetBodyCount();
+
+				bool bModified = false;
+
+				for (int32 InBodyIndex = 0; InBodyIndex < InBodyCount; ++InBodyIndex)
+				{
+					int32 FoundIndex = INDEX_NONE;
+					for (int32 OutBodyIndex = 0; OutBodyIndex < OutBodyCount; ++OutBodyIndex)
+					{
+						if (InCustomIds[InBodyIndex] == OutCustomIds[OutBodyIndex] && InBones[InBodyIndex] == OutBones[OutBodyIndex])
+						{
+							FoundIndex = OutBodyIndex;
+							break;
+						}
+					}
+
+					if (FoundIndex == INDEX_NONE)
+					{
+						OutBones.Add(InBones[InBodyIndex]);
+						OutCustomIds.Add(InCustomIds[InBodyIndex]);
+						OutBodies.Add(InBodies[InBodyIndex]);
+
+						bModified |= true;
+
+						continue;
+					}
+
+					for (const FSphereBody& Body : InBodies[InBodyIndex].Spheres)
+					{
+						const int32 NumBeforeAddition = OutBodies[FoundIndex].Spheres.Num();
+						bModified |= NumBeforeAddition == OutBodies[FoundIndex].Spheres.AddUnique(Body);
+					}
+
+					for (const FBoxBody& Body : InBodies[InBodyIndex].Boxes)
+					{
+						const int32 NumBeforeAddition = OutBodies[FoundIndex].Boxes.Num();
+						bModified |= NumBeforeAddition == OutBodies[FoundIndex].Boxes.AddUnique(Body);
+					}
+
+					for (const FSphylBody& Body : InBodies[InBodyIndex].Sphyls)
+					{
+						const int32 NumBeforeAddition = OutBodies[FoundIndex].Sphyls.Num();
+						bModified |= NumBeforeAddition == OutBodies[FoundIndex].Sphyls.AddUnique(Body);
+					}
+
+					for (const FTaperedCapsuleBody& Body : InBodies[InBodyIndex].TaperedCapsules)
+					{
+						const int32 NumBeforeAddition = OutBodies[FoundIndex].TaperedCapsules.Num();
+						bModified |= NumBeforeAddition == OutBodies[FoundIndex].TaperedCapsules.AddUnique(Body);
+					}
+
+					for (const FConvexBody& Body : InBodies[InBodyIndex].Convex)
+					{
+						const int32 NumBeforeAddition = OutBodies[FoundIndex].Convex.Num();
+						bModified |= NumBeforeAddition == OutBodies[FoundIndex].Convex.AddUnique(Body);
+					}
+				}
+
+				return bModified;
+			};
+
+			TTuple<const PhysicsBody*, bool> SharedResultPhysicsBody = Invoke([&]()
+				-> TTuple<const PhysicsBody*, bool>
+			{
+				if (pFirst->GetPhysicsBody() == pSecond->GetPhysicsBody())
+				{
+					return MakeTuple(pFirst->GetPhysicsBody().get(), true);
+				}
+
+				if (pFirst->GetPhysicsBody() && !pSecond->GetPhysicsBody())
+				{
+					return MakeTuple(pFirst->GetPhysicsBody().get(), true);
+				}
+
+				if (!pFirst->GetPhysicsBody() && pSecond->GetPhysicsBody())
+				{
+					return MakeTuple(pSecond->GetPhysicsBody().get(), true);
+				}
+
+				return MakeTuple(nullptr, false);
+			});
+
+			if (SharedResultPhysicsBody.Get<1>())
+			{
+				check(!pFirst->GetPhysicsBody() || !pSecond->GetPhysicsBody())
+
+					// Only one or non of the meshes has physics, share the result.
+					pResult->SetPhysicsBody(SharedResultPhysicsBody.Get<0>());
+			}
+			else
+			{
+				check(pFirst->GetPhysicsBody() && pSecond->GetPhysicsBody());
+
+				Ptr<PhysicsBody> MergedResultPhysicsBody = pFirst->GetPhysicsBody()->Clone();
+
+				MergedResultPhysicsBody->bBodiesModified =
+					AppendPhysicsBodiesUnique(*MergedResultPhysicsBody, *pSecond->GetPhysicsBody()) ||
+					pFirst->GetPhysicsBody()->bBodiesModified || pSecond->GetPhysicsBody()->bBodiesModified;
+
+				pResult->SetPhysicsBody(MergedResultPhysicsBody);
+			}
+
+		}
 		// Vertices
 		//-----------------
 		{

@@ -1548,10 +1548,11 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 					VertexData[Elem] = FVector3f(ConvexElem.VertexData[Elem]);
 				}
 				
-				PhysicsBody->SetConvex( B, I, 
-						VertexData.GetData(), ConvexElem.VertexData.Num(), 
-						ConvexElem.IndexData.GetData(), ConvexElem.IndexData.Num(), 
-						FTransform3f(ConvexElem.GetTransform()) );
+				PhysicsBody->SetConvexMesh(B, I,
+						TArrayView<const FVector3f>(VertexData.GetData(), ConvexElem.VertexData.Num()),
+						TArrayView<const int32>(ConvexElem.IndexData.GetData(), ConvexElem.IndexData.Num()));
+
+				PhysicsBody->SetConvexTransform(B, I, FTransform3f(ConvexElem.GetTransform()));
 				
 				const FString KElemName = ConvexElem.GetName().ToString();
 				PhysicsBody->SetConvexName(B, I, TCHAR_TO_ANSI(*KElemName));

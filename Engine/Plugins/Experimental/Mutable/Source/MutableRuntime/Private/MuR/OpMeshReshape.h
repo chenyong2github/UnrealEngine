@@ -16,6 +16,7 @@
 #include "Distance/DistPoint3Triangle3.h"
 #include "LineTypes.h"
 
+#include "Algo/AnyOf.h" 
 
 
 // TODO: Make the handling of rotations an option. It is more expensive on CPU and memory, and for some
@@ -41,124 +42,130 @@ namespace mu
 		TArray<UE::Geometry::FIndex3i> Triangles;
 	};
 
-	// Method to actually deform a point
-	inline bool GetDeform( const FShapeMeshDescriptorApply& Shape, const FReshapeVertexBindingData& Binding, FVector3f& NewPosition, FQuat4f& Rotation)
+	// Methods to actually deform a point
+	inline void GetDeform( const FShapeMeshDescriptorApply& Shape, const FReshapeVertexBindingData& Binding, FVector3f& NewPosition, FQuat4f& Rotation)
 	{
-		const TArray<FVector3f>& ShapePositions = Shape.Positions;
-		const TArray<FVector3f>& ShapeNormals = Shape.Normals;
-	    const TArray<UE::Geometry::FIndex3i>& ShapeTriangles = Shape.Triangles;
-		
-		if (Binding.Triangle < 0 || Binding.Triangle >= ShapeTriangles.Num() )
-		{
-			return false;
-		}
+		const UE::Geometry::FIndex3i& Triangle = Shape.Triangles[Binding.Triangle];
 
-		const UE::Geometry::FIndex3i& Triangle = ShapeTriangles[Binding.Triangle];
-
-		FVector3f ProjectedVertexPosition
-			= ShapePositions[Triangle.A] * (1.0f - Binding.S - Binding.T)
-			+ ShapePositions[Triangle.B] * Binding.S
-			+ ShapePositions[Triangle.C] * Binding.T;
+		FVector3f ProjectedVertexPosition = 
+			Shape.Positions[Triangle.A] * (1.0f - Binding.S - Binding.T)
+			+ Shape.Positions[Triangle.B] * Binding.S
+			+ Shape.Positions[Triangle.C] * Binding.T;
 
 		// This method approximates the shape face rotation
-		FVector3f InterpolatedNormal
-			= ShapeNormals[Triangle.A] * (1.0f - Binding.S - Binding.T)
-			+ ShapeNormals[Triangle.B] * Binding.S
-			+ ShapeNormals[Triangle.C] * Binding.T;
+		FVector3f InterpolatedNormal = 
+			Shape.Normals[Triangle.A] * (1.0f - Binding.S - Binding.T)
+			+ Shape.Normals[Triangle.B] * Binding.S
+			+ Shape.Normals[Triangle.C] * Binding.T;
 		
-		FVector3f PositionOffset = InterpolatedNormal * Binding.D;
-		NewPosition = ProjectedVertexPosition + PositionOffset;
+		NewPosition = ProjectedVertexPosition + InterpolatedNormal*Binding.D;
 
-		FVector3f CurrentShapeNormal = ((ShapePositions[Triangle.B] - ShapePositions[Triangle.A]) ^ (ShapePositions[Triangle.C] - ShapePositions[Triangle.A])).GetSafeNormal();
+		FVector3f CurrentShapeNormal = ((Shape.Positions[Triangle.B] - Shape.Positions[Triangle.A]) ^ 
+										(Shape.Positions[Triangle.C] - Shape.Positions[Triangle.A])).GetSafeNormal();
+
 		Rotation = FQuat4f::FindBetween(Binding.ShapeNormal, CurrentShapeNormal);
-		
-		return true;
 	}
+
+	inline void GetDeform( const FShapeMeshDescriptorApply& Shape, const FReshapePointBindingData& Binding, FVector3f& NewPosition)
+	{
+		const UE::Geometry::FIndex3i& Triangle = Shape.Triangles[Binding.Triangle];
+
+		FVector3f ProjectedVertexPosition = 
+			Shape.Positions[Triangle.A] * (1.0f - Binding.S - Binding.T)
+			+ Shape.Positions[Triangle.B] * Binding.S
+			+ Shape.Positions[Triangle.C] * Binding.T;
+
+		// This method approximates the shape face rotation
+		FVector3f InterpolatedNormal = 
+			Shape.Normals[Triangle.A] * (1.0f - Binding.S - Binding.T)
+			+ Shape.Normals[Triangle.B] * Binding.S
+			+ Shape.Normals[Triangle.C] * Binding.T;
+		
+		NewPosition = ProjectedVertexPosition + InterpolatedNormal*Binding.D;
+	}
+
 
     //---------------------------------------------------------------------------------------------
     //! Physics Bodies Reshape 
     //---------------------------------------------------------------------------------------------
-	inline bool GetDeformedBox( const FShapeMeshDescriptorApply& Shape, const FReshapeVertexBindingData* BindingData,  TStaticArray<FVector3f, 8>& OutBox )
+	template<uint32 NumPoints>
+	inline bool GetDeformedPoints( const FShapeMeshDescriptorApply& Shape, const FReshapePointBindingData* BindingData,  TStaticArray<FVector3f, NumPoints>& OutPoints )
 	{
-		FQuat4f UnusedRotation;
-
-		for ( int32 I = 0; I < OutBox.Num(); ++I )
+		const int32 ShapeNumTris = Shape.Triangles.Num();
+		for (int32 I = 0; I < NumPoints; ++I)
 		{
-			bool bModified = GetDeform(Shape, *(BindingData + I), OutBox[I], UnusedRotation);
-
-			if (!bModified)
+			const FReshapePointBindingData& BindingDataPoint = *(BindingData + I);
+			if ((BindingDataPoint.Triangle < 0) | (BindingDataPoint.Triangle >= ShapeNumTris))
 			{
-				// Invalidate the whole box. 
 				return false;
 			}
+		}
+
+		for (int32 I = 0; I < NumPoints; ++I)
+		{
+			GetDeform(Shape, *(BindingData + I), OutPoints[I]);
 		}
 
 		return true;
 	}
 
-	inline void GetDeformedConvex( const FShapeMeshDescriptorApply& Shape, const FReshapeVertexBindingData* BindingData, TArray<FVector3f>& InOutDeformedVertices )
+	inline void GetDeformedConvex( const FShapeMeshDescriptorApply& Shape, const FReshapePointBindingData* BindingData, TArrayView<FVector3f>& InOutDeformedVertices )
 	{
+		const int32 ShapeNumTris = Shape.Triangles.Num();
 		const int32 ConvexVertCount = InOutDeformedVertices.Num();
-		FQuat4f UnusedTangentCorrection;
-		for ( int32 I = 0; I < ConvexVertCount; ++I )
+
+		for (int32 I = 0; I < ConvexVertCount; ++I)
 		{
-			GetDeform(Shape, *(BindingData + I), InOutDeformedVertices[I], UnusedTangentCorrection);	
+			const FReshapePointBindingData& BindingDataPoint = *(BindingData + I);
+
+			if ((BindingDataPoint.Triangle < 0) | (BindingDataPoint.Triangle >= ShapeNumTris))
+			{
+				continue;
+			}
+
+			GetDeform(Shape, BindingDataPoint, InOutDeformedVertices[I]);	
 		}
 	}
 
-	inline void ComputeSphereFromDeformedBox( 
-			const TStaticArray<FVector3f, 8>& Box, 
-			FVector3f& InOutP, float& InOutR, 
+	inline void ComputeSphereFromDeformedPoints( 
+			const TStaticArray<FVector3f, 6>& Points, 
+			FVector3f& OutP, float& OutR, 
 			const FTransform3f& InvBoneT )
-	{
-		TStaticArray<FVector3f, 8> TransformedBox = Box;
-		for (int32 I = 0; I < 8; ++I)
-		{
-			TransformedBox[I] = InvBoneT.TransformPosition(Box[I]) - InOutP;
-		}
-		
+	{	
 		FVector3f Centroid(ForceInitToZero);
-		for ( const FVector3f& V : TransformedBox )
+		for (const FVector3f& V : Points)
 		{
 			Centroid += V;	
 		}
 
-		Centroid *= (1.0f/8.0f);
+		Centroid *= (1.0f/6.0f);
 
-		InOutP = Centroid + InOutP;
+		OutP = Centroid + InvBoneT.GetTranslation();
 		
-		FVector3f Dim(ForceInitToZero);
-		for ( const FVector3f& V : TransformedBox )
+		float Radius = 0.0f;
+		for (const FVector3f& V : Points)
 		{
-			Dim += (V - Centroid).GetAbs();
+			Radius += (V - Centroid).Length();
 		}
 
-		Dim *= (1.0f/8.0f);
+		Radius *= (1.0f/6.0f);
 		
-		InOutR = (Dim.X + Dim.Y + Dim.Z) * (1.0f/3.0f);
+		OutR = Radius;
 	}
 
-	inline void ComputeBoxFromDeformedBox( 
-			const TStaticArray<FVector3f, 8>& Box, 
-			FVector3f& InOutP, FQuat4f& InOutQ, FVector3f& InOutS, 
+	inline void ComputeBoxFromDeformedPoints( 
+			const TStaticArray<FVector3f, 14>& Points, 
+			FVector3f& OutP, FQuat4f& OutQ, FVector3f& OutS, 
 			const FTransform3f& InvBoneT )
-	{
-		const FQuat4f InvQ = InOutQ.Inverse();
-		
-		TStaticArray<FVector3f, 8> TranformedBox;
-		for (int32 I = 0; I < 8; ++I)
-		{
-			TranformedBox[I] = InvQ.RotateVector(InvBoneT.TransformPosition(Box[I]) - InOutP);
-		}
-	
-		const FVector3f TopC = (Box[0] + Box[1] + Box[2] + Box[3])*0.25f;
-		const FVector3f BottomC = (Box[4+0] + Box[4+1] + Box[4+2] + Box[4+3])*0.25f;
+	{	
+		const FVector3f TopC = (Points[0] + Points[1] + Points[2] + Points[3])*0.25f;
+		const FVector3f BottomC = (Points[4+0] + Points[4+1] + Points[4+2] + Points[4+3])*0.25f;
     
-		const FVector3f FrontC = (Box[0] + Box[1] + Box[4+0] + Box[4+1])*0.25f;
-		const FVector3f BackC = (Box[2] + Box[3] + Box[4+2] + Box[4+3])*0.25f;
+		const FVector3f FrontC = (Points[0] + Points[1] + Points[4+0] + Points[4+1])*0.25f;
+		const FVector3f BackC = (Points[2] + Points[3] + Points[4+2] + Points[4+3])*0.25f;
     
-		const FVector3f RightC =  (Box[1] + Box[2] + Box[4+1] + Box[4+2])*0.25f;
-		const FVector3f LeftC =  (Box[3] + Box[0] + Box[4+3] + Box[4+0])*0.25f;
+		const FVector3f RightC =  (Points[1] + Points[2] + Points[4+1] + Points[4+2])*0.25f;
+		const FVector3f LeftC =  (Points[3] + Points[0] + Points[4+3] + Points[4+0])*0.25f;
     
 		FVector3f ZB = (TopC - BottomC).GetSafeNormal();
 		FVector3f XB = (RightC - LeftC).GetSafeNormal();
@@ -191,100 +198,186 @@ namespace mu
 					? FRotationMatrix44f::MakeFromZX(ZB, XB)
 					: FRotationMatrix44f::MakeFromZY(ZB, YB);	
 		} 
-		
-		InOutQ = RotationMatrix.ToQuat() * InOutQ;
-		InOutP = (TopC + BottomC) * 0.5f + InOutP;
-		InOutS = FVector3f((RightC - LeftC).Size(), (FrontC - BackC).Size(), (TopC - BottomC).Size()) * 0.5f;	
+	
+		FTransform3f ShapeToBone = FTransform3f(RotationMatrix.ToQuat(), (TopC + BottomC) * 0.5f) * InvBoneT;
+
+		OutQ = ShapeToBone.GetRotation();
+		OutP = ShapeToBone.GetTranslation();
+		OutS = FVector3f((RightC - LeftC).Size(), (FrontC - BackC).Size(), (TopC - BottomC).Size()) * 0.5f;	
 	}
 
-	inline void ComputeSphylFromDeformedBox( 
-			const TStaticArray<FVector3f, 8>& Box, 
-			FVector3f& InOutP, FQuat4f& InOutQ, float& InOutR, float& InOutL, 
+	inline void ComputeSphylFromDeformedPoints( 
+			const TStaticArray<FVector3f, 14>& Points, 
+			FVector3f& OutP, FQuat4f& OutQ, float& OutR, float& OutL, 
 			const FTransform3f& InvBoneT)
 	{
-		const FQuat4f InvQ = InOutQ.Inverse();
-    	
-		TStaticArray<FVector3f, 8> TranformedBox;
-		for (int32 I = 0; I < 8; ++I)
+		constexpr int32 NumCentroids = 5;
+		TStaticArray<FVector3f, NumCentroids> Centroids;
+		Centroids[0] = Points[0];
+		Centroids[1] = Points[1];
+
+		for (int32 I = 0; I < NumCentroids - 2; ++I)
 		{
-			TranformedBox[I] = InvQ.RotateVector(InvBoneT.TransformPosition(Box[I]) - InOutP);
+			Centroids[2 + I] = 
+				(Points[2 + I*4 + 0] + Points[2 + I*4 + 1] +
+				 Points[2 + I*4 + 2] + Points[2 + I*4 + 3] ) * 0.25f;
 		}
-       
-		FVector3f TopCentroid(ForceInitToZero);
-		FVector3f BottomCentroid(ForceInitToZero);
-		for (int32 I = 0; I < 4; ++I)
+
+		// Geometric linear regression of top, bottom and rings centroids.
+		FVector3f Centroid = FVector3f::Zero();
+		for (const FVector3f& C : Centroids)
 		{
-			TopCentroid += TranformedBox[I];
-			BottomCentroid += TranformedBox[4+I];
+			Centroid += C;
 		}
+
+		constexpr float OneOverNumCentroids = 1.0f / static_cast<float>(NumCentroids);
+		Centroid *= OneOverNumCentroids;
 		
-		TopCentroid *= 0.25f;
-		BottomCentroid *= 0.25f;
-
-		FVector3f DirVector = (TopCentroid - BottomCentroid).GetSafeNormal();
-
-		InOutQ = FQuat4f::FindBetweenNormals(FVector3f::UnitZ(), DirVector) * InOutQ; 
-		InOutP = (TopCentroid + BottomCentroid) * 0.5f + InOutP;
-
-		FVector3f TopDim(ForceInitToZero);
-		FVector3f BottomDim(ForceInitToZero);
-		for (int32 I = 0; I < 4; ++I)
+		for (FVector3f& C : Centroids)
 		{
-			TopDim += (TopCentroid - TranformedBox[I]).GetAbs();
-			BottomDim += (BottomCentroid - TranformedBox[4+I]).GetAbs();
+			C -= Centroid;
 		}
 
-		TopDim *= 0.25f;
-		BottomDim *= 0.25f;
+		constexpr int32 NumIters = 3;
+		FVector3f Direction = (Centroids[0] - Centroids[1]).GetSafeNormal();
+		for (int32 Iter = 0; Iter < NumIters; ++Iter)
+		{
+			FVector3f IterDirRefinement = Direction;
+			for (const FVector3f& C : Centroids)
+			{
+				IterDirRefinement += C * FVector3f::DotProduct(Direction, C);
+			}
 
-		InOutR = (TopDim.X + TopDim.Y + BottomDim.X + BottomDim.Y) * 0.25f;
-		InOutL = (TopCentroid - BottomCentroid).Size() - InOutR*2.0f;
+			Direction = IterDirRefinement.GetSafeNormal();
+		}
+
+		// Project centroids to the line described by Direction and Centroid.
+		for (FVector3f& C : Centroids)
+		{
+			C = Centroid + Direction * FVector3f::DotProduct(C, Direction);
+		}
+
+		// Quaternion form {0,0,1} to Direction.
+		const FQuat4f Rotation = FQuat4f(-Direction.Y, Direction.X, 0.0f, 1.0f + FMath::Max(Direction.Z, -1.0f + UE_SMALL_NUMBER)).GetNormalized(); 
+
+		FTransform3f ShapeToBone = FTransform3f(Rotation, Centroid) * InvBoneT;
+		OutQ = ShapeToBone.GetRotation();
+		OutP = ShapeToBone.GetTranslation();
+
+		// Project ring points to plane formed by ring centroid and direction to extract ring radius.
+		const auto ComputeRadiusContribution = [&](const FVector3f& P, const FVector3f& Origin, const FVector3f& Dir) -> float
+		{
+			return ((P + Dir * FVector3f::DotProduct(Dir, P - Origin)) - Origin).Length();
+		};
+
+		const float R0 = 
+			ComputeRadiusContribution(Points[2], Centroids[2], Direction) +
+			ComputeRadiusContribution(Points[3], Centroids[2], Direction) +
+			ComputeRadiusContribution(Points[4], Centroids[2], Direction) +
+			ComputeRadiusContribution(Points[5], Centroids[2], Direction);
+
+		const float R1 = 
+			ComputeRadiusContribution(Points[6], Centroids[3], Direction) +
+			ComputeRadiusContribution(Points[7], Centroids[3], Direction) +
+			ComputeRadiusContribution(Points[8], Centroids[3], Direction) +
+			ComputeRadiusContribution(Points[9], Centroids[3], Direction);
+
+		const float R2 = 
+			ComputeRadiusContribution(Points[10], Centroids[4], Direction) +
+			ComputeRadiusContribution(Points[11], Centroids[4], Direction) +
+			ComputeRadiusContribution(Points[12], Centroids[4], Direction) +
+			ComputeRadiusContribution(Points[13], Centroids[4], Direction);
+
+		OutR =  (R0 + R1 + R2) * (0.25f/3.0f);
+		OutL = FMath::Max(0.0f, (Centroids[0] - Centroids[1]).Length() - OutR*2.0f);
 	}
 
-	inline void ComputeTaperedCapsuleFromDeformedBox( 
-			const TStaticArray<FVector3f, 8>& Box, 
-			FVector3f& InOutP, FQuat4f& InOutQ, float& InOutR0, float& InOutR1, float& InOutL, 
+	inline void ComputeTaperedCapsuleFromDeformedPoints( 
+			const TStaticArray<FVector3f, 14>& Points, 
+			FVector3f& OutP, FQuat4f& OutQ, float& OutR0, float& OutR1, float& OutL, 
 			const FTransform3f& InvBoneT)
 	{
-		const FQuat4f InvQ = InOutQ.Inverse();
-    
-		TStaticArray<FVector3f, 8> TranformedBox;
-		for (int32 I = 0; I < 8; ++I)
+		constexpr int32 NumCentroids = 5;
+		TStaticArray<FVector3f, NumCentroids> Centroids;
+		Centroids[0] = Points[0];
+		Centroids[1] = Points[1];
+
+		for (int32 I = 0; I < NumCentroids - 2; ++I)
 		{
-			TranformedBox[I] = InvQ.RotateVector(InvBoneT.TransformPosition(Box[I]) - InOutP);
+			Centroids[2 + I] = 
+				(Points[2 + I*4 + 0] + Points[2 + I*4 + 1] +
+				 Points[2 + I*4 + 2] + Points[2 + I*4 + 3] ) * 0.25f;
 		}
-       
-		FVector3f TopCentroid(ForceInitToZero);
-		FVector3f BottomCentroid(ForceInitToZero);
-		for (int32 I = 0; I < 4; ++I)
+	
+		// Geometric linear regression of top, bottom and ring centroids.
+		FVector3f Centroid = FVector3f::Zero();
+		for (const FVector3f& C : Centroids)
 		{
-			TopCentroid += TranformedBox[I];
-			BottomCentroid += TranformedBox[4+I];
+			Centroid += C;
 		}
+
+		constexpr float OneOverNumCentroids = 1.0f / static_cast<float>(NumCentroids);
+		Centroid *= OneOverNumCentroids;
 		
-		TopCentroid *= 0.25f;
-		BottomCentroid *= 0.25f;
-
-		FVector3f DirVector = (TopCentroid - BottomCentroid).GetSafeNormal();
-
-		InOutQ = InOutQ * FQuat4f::FindBetweenNormals(FVector3f::UnitZ(), DirVector); 
-		InOutP = (TopCentroid + BottomCentroid) * 0.5f + InOutP;
-
-		FVector3f TopDim(ForceInitToZero);
-		FVector3f BottomDim(ForceInitToZero);
-
-		for (int32 I = 0; I < 4; ++I)
+		for (FVector3f& C : Centroids)
 		{
-			TopDim += (TopCentroid - TranformedBox[I]).GetAbs();
-			BottomDim += (BottomCentroid - TranformedBox[4+I]).GetAbs();
+			C -= Centroid;
 		}
 
-		TopDim *= 0.25f;
-		BottomDim *= 0.25f;
+		constexpr int32 NumIters = 3;
+		FVector3f Direction = (Centroids[0] - Centroids[1]).GetSafeNormal();
+		for (int32 Iter = 0; Iter < NumIters; ++Iter)
+		{
+			FVector3f IterDirRefinement = Direction;
+			for (const FVector3f& C : Centroids)
+			{
+				IterDirRefinement += C * FVector3f::DotProduct(Direction, C);
+			}
 
-		InOutR0 = (TopDim.X + TopDim.Y) * 0.5f;
-		InOutR1 = (BottomDim.X + BottomDim.Y) * 0.5f;
-		InOutL = (TopCentroid - BottomCentroid).Size() - (InOutR0 + InOutR1);
+			Direction = IterDirRefinement.GetSafeNormal();
+		}
+
+		// Project centroids to the line described by Direction and Centroid.
+		for (FVector3f& C : Centroids)
+		{
+			C = Centroid + Direction * FVector3f::DotProduct(C, Direction);
+		}
+
+		// Quaternion form {0,0,1} to Direction.
+		const FQuat4f Rotation = FQuat4f(-Direction.Y, Direction.X, 0.0f, 1.0f + FMath::Max(Direction.Z, -1.0f + UE_SMALL_NUMBER)).GetNormalized(); 
+
+		FTransform3f ShapeToBone = FTransform3f(Rotation, Centroid) * InvBoneT;
+		OutQ = ShapeToBone.GetRotation();
+		OutP = ShapeToBone.GetTranslation();
+
+		// Project ring points to plane formed by ring centroid and direction to extract ring radius.
+		const auto ComputeRadiusContribution = [&](const FVector3f& P, const FVector3f& Origin, const FVector3f& Dir) -> float
+		{
+			return ((P + Dir * FVector3f::DotProduct(Dir, P - Origin)) - Origin).Length();
+		};
+
+		const float R0 = 
+			ComputeRadiusContribution(Points[2], Centroids[2], Direction) +
+			ComputeRadiusContribution(Points[3], Centroids[2], Direction) +
+			ComputeRadiusContribution(Points[4], Centroids[2], Direction) +
+			ComputeRadiusContribution(Points[5], Centroids[2], Direction);
+
+		const float R1 = 
+			ComputeRadiusContribution(Points[6], Centroids[3], Direction) +
+			ComputeRadiusContribution(Points[7], Centroids[3], Direction) +
+			ComputeRadiusContribution(Points[8], Centroids[3], Direction) +
+			ComputeRadiusContribution(Points[9], Centroids[3], Direction);
+
+		const float R2 = 
+			ComputeRadiusContribution(Points[10], Centroids[4], Direction) +
+			ComputeRadiusContribution(Points[11], Centroids[4], Direction) +
+			ComputeRadiusContribution(Points[12], Centroids[4], Direction) +
+			ComputeRadiusContribution(Points[13], Centroids[4], Direction);
+
+		// TODO: Ajust for R1, center ring radius.
+		OutR0 = R0*0.25f;
+		OutR1 = R2*0.25f;
+		OutL = FMath::Max(0.0f, (Centroids[0] - Centroids[1]).Length() - (OutR0 + OutR1));
 	}
 
 	inline void ApplyToVertices(Mesh* Mesh, TArrayView<const FReshapeVertexBindingData> BindingData, const FShapeMeshDescriptorApply& Shape)
@@ -292,42 +385,46 @@ namespace mu
 		check(Mesh);
 		check(Mesh->GetVertexCount() == BindingData.Num());
 		
-
 		UntypedMeshBufferIterator ItPosition(Mesh->GetVertexBuffers(), MBS_POSITION);
 		UntypedMeshBufferIterator ItNormal(Mesh->GetVertexBuffers(), MBS_NORMAL);
 		UntypedMeshBufferIterator ItTangent(Mesh->GetVertexBuffers(), MBS_TANGENT);
 
 #if DO_CHECK
 		// checking if the Base shape has more triangles than the target shape
-		for (const FReshapeVertexBindingData& Binding : BindingData)
+		const bool bTriangleOutOfScopeFound = Algo::AnyOf(BindingData, 
+			[NumShapeTriangles = Shape.Triangles.Num()](const FReshapeVertexBindingData& B) { return B.Triangle >= NumShapeTriangles; });
+
+		if (bTriangleOutOfScopeFound)
 		{
-			if (Binding.Triangle >= Shape.Triangles.Num())
-			{
-				UE_LOG(LogMutableCore, Warning, TEXT("Performing a Mesh Reshape where base shape and target shape do not have the same number of triangles."));
-				break;
-			}
-		}
+			UE_LOG(LogMutableCore, Warning, TEXT("Performing a Mesh Reshape where base shape and target shape do not have the same number of triangles."));
+		}	
 #endif
 
+		const int32 ShapeTriangleCount = Shape.Triangles.Num();
+		const int32 ShapePositionCount = Shape.Positions.Num();
+
 		const int32 MeshVertexCount = BindingData.Num();
+
 		for (int32 MeshVertexIndex = 0; MeshVertexIndex < MeshVertexCount; ++MeshVertexIndex)
 		{
 			const FReshapeVertexBindingData& Binding = BindingData[MeshVertexIndex];
 
 			FVector3f NewPosition;
 			FQuat4f TangentSpaceCorrection;
-			bool bModified = GetDeform( Shape, Binding, NewPosition, TangentSpaceCorrection );
 
+			const bool bModified = (Binding.Triangle >= 0) & (Binding.Triangle < ShapeTriangleCount);
 			if (bModified)
 			{
+				GetDeform(Shape, Binding, NewPosition, TangentSpaceCorrection);
+
 				FVector3f OldPosition = ItPosition.GetAsVec3f();
 				
-				if ( !FMath::IsNearlyEqual( Binding.Weight, 1.0f ) )
+				if (!FMath::IsNearlyEqual(Binding.Weight, 1.0f))
 				{
 					// Zero weighted vertices are already discarded at the binding phase so there is no gain
 					// checking here.
-					NewPosition = FMath::Lerp( OldPosition, NewPosition, Binding.Weight );
-					TangentSpaceCorrection = FQuat4f::Slerp( FQuat4f::Identity, TangentSpaceCorrection, Binding.Weight );
+					NewPosition = FMath::Lerp(OldPosition, NewPosition, Binding.Weight);
+					TangentSpaceCorrection = FQuat4f::Slerp(FQuat4f::Identity, TangentSpaceCorrection, Binding.Weight).GetNormalized();
 				}
 				
 				// Non rigid vertices will not rotate since are attached to themselves 
@@ -366,29 +463,45 @@ namespace mu
 	}
 
 	inline void ApplyToPose(Mesh* Result, 
-			TArrayView<const FReshapeVertexBindingData> BindingData, 
-			TArrayView<const int> BoneIndices,
+			TArrayView<const FReshapePointBindingData> BindingData, 
+			TArrayView<const int32> BoneIndices,
 			const FShapeMeshDescriptorApply& Shape)
 	{
 		check(Result);
 
-		const int32 NumBoneIndices = BoneIndices.Num();
-		for (int32 b = 0; b < NumBoneIndices; ++b)
-		{
-			int32 BoneIndex = BoneIndices[b];
+#if DO_CHECK
+		// checking if the Base shape has more triangles than the target shape
+		const bool bTriangleOutOfScopeFound = Algo::AnyOf(BindingData, 
+			[NumShapeTriangles = Shape.Triangles.Num()](const FReshapePointBindingData& B) { return B.Triangle >= NumShapeTriangles; });
 
-			const FReshapeVertexBindingData& Binding = BindingData[b];
+		if (bTriangleOutOfScopeFound)
+		{
+			UE_LOG(LogMutableCore, Warning, TEXT("Performing a Mesh Reshape where base shape and target shape do not have the same number of triangles."));
+		}	
+#endif
+
+		const int32 NumShapeTris = Shape.Triangles.Num();
+		const int32 NumBoneIndices = BoneIndices.Num();
+		for (int32 BoneSelectionIndex = 0; BoneSelectionIndex < NumBoneIndices; ++BoneSelectionIndex)
+		{
+			int32 BoneIndex = BoneIndices[BoneSelectionIndex];
+
+			const FReshapePointBindingData& Binding = BindingData[BoneSelectionIndex];
 
 			check(!EnumHasAnyFlags(Result->BonePoses[BoneIndex].BoneUsageFlags, EBoneUsageFlags::Root));
 
 			FTransform3f& T = Result->BonePoses[BoneIndex].BoneTransform;
 
 			FVector3f NewPosition(ForceInitToZero);
-			FQuat4f TangentSpaceCorrection;
 
-			const bool bModified = GetDeform(Shape, Binding, NewPosition, TangentSpaceCorrection);
+			const bool bModified = (Binding.Triangle >= 0) & (Binding.Triangle < NumShapeTris);
+			
+			if (bModified)
+			{
+				GetDeform(Shape, Binding, NewPosition);
+			}
+
 			const bool bHasChanged = bModified && FVector3f::DistSquared(NewPosition, T.GetLocation()) > UE_SMALL_NUMBER;
-
 			// Only set it if has actually moved.
 			if (bHasChanged)
 			{	
@@ -402,15 +515,20 @@ namespace mu
 	}
 
 	inline void ApplyToPhysicsBodies(
-			PhysicsBody* PBody, const Mesh* BaseMesh, 
-			TArrayView<const FReshapeVertexBindingData> BindingData, TArrayView<const int32> UsedIndices, 
+			PhysicsBody& PBody, const Mesh& BaseMesh, 
+			TArrayView<const FReshapePointBindingData> BindingData, TArrayView<const int32> UsedIndices, 
 			const FShapeMeshDescriptorApply& Shape)
 	{
-		check(PBody);
-		check(BaseMesh);
+#if DO_CHECK
+		// checking if the Base shape has more triangles than the target shape
+		const bool bTriangleOutOfScopeFound = Algo::AnyOf(BindingData, 
+			[NumShapeTriangles = Shape.Triangles.Num()](const FReshapePointBindingData& B) { return B.Triangle >= NumShapeTriangles; });
 
-		// Not used.	
-		FQuat4f DummyTangentSpaceCorrection;
+		if (bTriangleOutOfScopeFound)
+		{
+			UE_LOG(LogMutableCore, Warning, TEXT("Performing a Mesh Reshape where base shape and target shape do not have the same number of triangles."));
+		}
+#endif
 		
 		int32 NumProcessedBindPoints = 0;
 
@@ -419,40 +537,39 @@ namespace mu
 		// Retrieve them in the same order the boxes where put in, so they can be linked to the physics body volumes.
 		for ( const int32 B : UsedIndices )
 		{	
-			int32 BoneIdx = BaseMesh->FindBonePose(PBody->GetBodyBoneName(B));
+			int32 BoneIdx = BaseMesh.FindBonePose(PBody.GetBodyBoneName(B));
 			FTransform3f BoneTransform = FTransform3f::Identity;
 			if (BoneIdx >= 0)
 			{
-				BaseMesh->GetBoneTransform(BoneIdx, BoneTransform);
+				BaseMesh.GetBoneTransform(BoneIdx, BoneTransform);
 			}
 			
 			FTransform3f InvBoneTransform = BoneTransform.Inverse();
 
-			const int32 NumSpheres = PBody->GetSphereCount(B); 
+			const int32 NumSpheres = PBody.GetSphereCount(B); 
 			for ( int32 I = 0; I < NumSpheres; ++I )
 			{
 				FVector3f P;
 				float R;
 
-				TStaticArray<FVector3f, 8> Box; 
-				const bool bDeformed = GetDeformedBox( Shape, &BindingData[NumProcessedBindPoints], Box );
+				TStaticArray<FVector3f, 6> Points; 
+				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[NumProcessedBindPoints], Points);
 
 				if (bDeformed)
 				{
-					PBody->GetSphere(B, I, P, R);
-					ComputeSphereFromDeformedBox(Box, P, R, InvBoneTransform);
-					PBody->SetSphere(B, I, P, R);
+					ComputeSphereFromDeformedPoints(Points, P, R, InvBoneTransform);
+					PBody.SetSphere(B, I, P, R);
 					bAnyModified = true;
 				}
 
-				NumProcessedBindPoints += Box.Num();
+				NumProcessedBindPoints += Points.Num();
 			}
 
-			const int32 NumBoxes = PBody->GetBoxCount(B);
+			const int32 NumBoxes = PBody.GetBoxCount(B);
 			for ( int32 I = 0; I < NumBoxes; ++I )
 			{
-				TStaticArray<FVector3f, 8> Box;
-				const bool bDeformed = GetDeformedBox( Shape, &BindingData[NumProcessedBindPoints], Box );
+				TStaticArray<FVector3f, 14> Points;
+				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[NumProcessedBindPoints], Points);
 				
 				if (bDeformed)
 				{
@@ -460,20 +577,19 @@ namespace mu
 					FQuat4f Q;
 					FVector3f S;
 					
-					PBody->GetBox(B, I, P, Q, S);
-					ComputeBoxFromDeformedBox(Box, P, Q, S, InvBoneTransform);
-					PBody->SetBox(B, I, P, Q, S);
+					ComputeBoxFromDeformedPoints(Points, P, Q, S, InvBoneTransform);
+					PBody.SetBox(B, I, P, Q, S);
 					bAnyModified = true;
 				}
 
-				NumProcessedBindPoints += Box.Num();
+				NumProcessedBindPoints += Points.Num();
 			}
 			
-			const int32 NumSphyls = PBody->GetSphylCount(B);
+			const int32 NumSphyls = PBody.GetSphylCount(B);
 			for ( int32 I = 0; I < NumSphyls; ++I )
 			{
-				TStaticArray<FVector3f, 8> Box;
-				const bool bDeformed = GetDeformedBox( Shape, &BindingData[NumProcessedBindPoints], Box );
+				TStaticArray<FVector3f, 14> Points;
+				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[NumProcessedBindPoints], Points);
 
 				if ( bDeformed )
 				{
@@ -482,20 +598,19 @@ namespace mu
 					float R;
 					float L;						
 
-					PBody->GetSphyl(B, I, P, Q, R, L);
-					ComputeSphylFromDeformedBox(Box, P, Q, R, L, InvBoneTransform);
-					PBody->SetSphyl(B, I, P, Q, R, L);
+					ComputeSphylFromDeformedPoints(Points, P, Q, R, L, InvBoneTransform);
+					PBody.SetSphyl(B, I, P, Q, R, L);
 					bAnyModified = true;
 				}
 
-				NumProcessedBindPoints += Box.Num();
+				NumProcessedBindPoints += Points.Num();
 			}
 
-			const int32 NumTaperedCapsules = PBody->GetTaperedCapsuleCount(B);
+			const int32 NumTaperedCapsules = PBody.GetTaperedCapsuleCount(B);
 			for ( int32 I = 0; I < NumTaperedCapsules; ++I )
 			{
-				TStaticArray<FVector3f, 8> Box;
-				const bool bDeformed = GetDeformedBox( Shape, &BindingData[NumProcessedBindPoints], Box );
+				TStaticArray<FVector3f, 14> Points;
+				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[NumProcessedBindPoints], Points);
 
 				if ( bDeformed )
 				{
@@ -505,46 +620,38 @@ namespace mu
 					float R1;
 					float L;
 				
-					PBody->GetTaperedCapsule(B, I, P, Q, R0, R1, L);
-					ComputeTaperedCapsuleFromDeformedBox(Box, P, Q, R0, R1, L, InvBoneTransform);
-					PBody->SetTaperedCapsule(B, I, P, Q, R0, R1, L);
+					ComputeTaperedCapsuleFromDeformedPoints(Points, P, Q, R0, R1, L, InvBoneTransform);
+					PBody.SetTaperedCapsule(B, I, P, Q, R0, R1, L);
 					bAnyModified = true;
 				}
 				
-				NumProcessedBindPoints += Box.Num();
+				NumProcessedBindPoints += Points.Num();
 			}
 
-			const int32 NumConvex = PBody->GetConvexCount(B);
+			const int32 NumConvex = PBody.GetConvexCount(B);
 			for ( int32 I = 0; I < NumConvex; ++I )
 			{
-				FVector3f const* VertexData;
-				int32 VertexCount;
-				int32 const* IndexData;
-				int32 IndexCount;
-				FTransform3f ConvexT;
+				TArrayView<FVector3f> VerticesView;
+				TArrayView<int32> IndicesView;
+				PBody.GetConvexMeshView(B, I, VerticesView, IndicesView);
 
-				PBody->GetConvex(B, I, VertexData, VertexCount, IndexData, IndexCount, ConvexT);
+				FTransform3f ConvexTransform;
+				PBody.GetConvexTransform(B, I, ConvexTransform);
 
-				// TODO: Allow access and modification to the convex data directly to avoid a copy here.
-				TArray<FVector3f> DeformedVertexData(VertexData, VertexCount);
-				TArray<int32> Indices(IndexData, IndexCount);
+				GetDeformedConvex(Shape, &BindingData[NumProcessedBindPoints], VerticesView);
 
-				GetDeformedConvex( Shape, &BindingData[NumProcessedBindPoints], DeformedVertexData);
-
-				FTransform3f InvConvexT = InvBoneTransform * ConvexT.Inverse();
-				for ( FVector3f& V : DeformedVertexData )
+				FTransform3f InvConvexT = InvBoneTransform * ConvexTransform.Inverse();
+				for ( FVector3f& V : VerticesView )
 				{
 					V = InvConvexT.TransformPosition( V );				
 				}
 				
-				PBody->SetConvex(B, I, DeformedVertexData.GetData(), DeformedVertexData.Num(), Indices.GetData(), Indices.Num(), ConvexT);
-
-				NumProcessedBindPoints += VertexCount;
+				NumProcessedBindPoints += VerticesView.Num();
 				bAnyModified = true;
 			}
 		}
 
-		PBody->bBodiesModified = bAnyModified;
+		PBody.bBodiesModified = bAnyModified;
 
 		check(NumProcessedBindPoints == BindingData.Num());	
 	}
@@ -718,10 +825,10 @@ namespace mu
 			{
 				// \TODO: More checks
 				check(BarycentricDataChannel == 0);
-				check(SkeletonBindBuffer && SkeletonBindBuffer->GetElementSize(BarycentricDataBuffer) == (int)sizeof(FReshapeVertexBindingData));
+				check(SkeletonBindBuffer && SkeletonBindBuffer->GetElementSize(BarycentricDataBuffer) == (int)sizeof(FReshapePointBindingData));
 
-				TArrayView<const FReshapeVertexBindingData> SkeletonBindingData( 
-						(const FReshapeVertexBindingData*)SkeletonBindBuffer->GetBufferData(BarycentricDataBuffer),
+				TArrayView<const FReshapePointBindingData> SkeletonBindingData( 
+						(const FReshapePointBindingData*)SkeletonBindBuffer->GetBufferData(BarycentricDataBuffer),
 						SkeletonBindBuffer->GetElementCount());
 			
 				check(SkeletonBindBuffer->GetBufferCount() >= 2);
@@ -732,7 +839,10 @@ namespace mu
 			}
 		}
 
-		// Transform Physics Volumes based on the deformed bounding box points.
+		// When transforming the physics volumes, the resulting pose of of the skeleton reshape operation will be used, so 
+		// order of operation is important.
+
+		// Transform physics volumes based on the deformed sampling points.
 		const PhysicsBody* OldPhysicsBody = Result->m_pPhysicsBody.get();
 
 		if (bReshapePhysicsVolumes && OldPhysicsBody)
@@ -759,10 +869,10 @@ namespace mu
 
 				// \TODO: More checks
 				check(BarycentricDataChannel == 0);
-				check(PhysicsBindBuffer.GetElementSize(BarycentricDataBuffer) == (int)sizeof(FReshapeVertexBindingData));
+				check(PhysicsBindBuffer.GetElementSize(BarycentricDataBuffer) == (int)sizeof(FReshapePointBindingData));
 					
-				TArrayView<const FReshapeVertexBindingData> PhysicsBindingData(  
-						(const FReshapeVertexBindingData*)PhysicsBindBuffer.GetBufferData(BarycentricDataBuffer),
+				TArrayView<const FReshapePointBindingData> PhysicsBindingData(  
+						(const FReshapePointBindingData*)PhysicsBindBuffer.GetBufferData(BarycentricDataBuffer),
 						PhysicsBindBuffer.GetElementCount() );
 
 				TArrayView<const int32> UsedIndices( 
@@ -772,7 +882,8 @@ namespace mu
 				Ptr<PhysicsBody> NewPhysicsBody = OldPhysicsBody->Clone();
 				Result->SetPhysicsBody(NewPhysicsBody);
 
-				ApplyToPhysicsBodies( NewPhysicsBody.get(), BaseMesh, PhysicsBindingData, UsedIndices, ShapeDescriptor );
+				check(NewPhysicsBody);
+				ApplyToPhysicsBodies(*NewPhysicsBody, *Result, PhysicsBindingData, UsedIndices, ShapeDescriptor);
 			}
 		}
 		

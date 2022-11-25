@@ -352,10 +352,12 @@ namespace mu
 				int32 B, int32 I, 
 				FVector3f Position, FQuat4f Orientation, FVector3f Size );
 
-		void SetConvex( 
+		void SetConvexMesh( 
 				int32 B, int32 I,
-				const FVector3f* Vertices, int32 VerticesCount, 
-				const int32* Indices, int32 IndicesCount, 
+				TArrayView<const FVector3f> Vertices, TArrayView<const int32> Indices);
+
+		void SetConvexTransform( 
+				int32 B, int32 I, 
 				const FTransform3f& Transform );
 
 		void SetSphyl( 
@@ -390,8 +392,15 @@ namespace mu
 
 		void GetConvex( 
 				int32 B, int32 I, 
-				FVector3f const*& OutVertices, int32& OutVerticesCount, 
-				int32 const*& OutIndices, int32& OutIndicesCount, FTransform3f& OutTransform ) const;
+				TArrayView<const FVector3f>& OutVertices, TArrayView<const int32>& OutIndices, FTransform3f& OutTransform ) const;
+
+		void GetConvexMeshView(
+				int32 B, int32 I, 
+			    TArrayView<FVector3f>& OutVerticesView, TArrayView<int32>& OutIndicesView);
+
+		void GetConvexTransform(
+				int32 B, int32 I,
+				FTransform3f& OutTransform) const;
 
 		void GetSphyl( 
 				int32 B, int32 I, 

@@ -166,20 +166,28 @@ namespace mu
 	}
 
 	//-------------------------------------------------------------------------------------------------
-	void PhysicsBody::SetConvex(
+	void PhysicsBody::SetConvexMesh(
 		int32 B, int32 I,
-		const FVector3f* Vertices, int32 VerticesCount,
-		const int32* Indices, int32 IndicesCount,
+		TArrayView<const FVector3f> Vertices, TArrayView<const int32> Indices)
+	{
+		check(B >= 0 && B < Bodies.Num());
+		check(I >= 0 && I < Bodies[B].Convex.Num());
+
+		Bodies[B].Convex[I].Vertices = TArray<FVector3f>(Vertices);
+		Bodies[B].Convex[I].Indices = TArray<int32>(Indices);
+	}
+
+	//-------------------------------------------------------------------------------------------------
+	void PhysicsBody::SetConvexTransform(
+		int32 B, int32 I,
 		const FTransform3f& Transform)
 	{
 		check(B >= 0 && B < Bodies.Num());
 		check(I >= 0 && I < Bodies[B].Convex.Num());
 
-		Bodies[B].Convex[I].Vertices = TArray<FVector3f>(Vertices, VerticesCount);
-		Bodies[B].Convex[I].Indices = TArray<int32>(Indices, IndicesCount);
 		Bodies[B].Convex[I].Transform = Transform;
-
 	}
+
 
 	//-------------------------------------------------------------------------------------------------
 	void PhysicsBody::SetSphyl(
@@ -329,18 +337,31 @@ namespace mu
 	//-------------------------------------------------------------------------------------------------
 	void PhysicsBody::GetConvex(
 		int32 B, int32 I,
-		FVector3f const*& OutVertices, int32& OutVerticesCount,
-		int32 const*& OutIndices, int32& OutIndicesCount,
+		TArrayView<const FVector3f>& OutVertices, TArrayView<const int32>& OutIndices,
 		FTransform3f& OutTransform) const
 	{
 		check(B >= 0 && B < Bodies.Num());
 		check(I >= 0 && I < Bodies[B].Convex.Num());
 
-		OutVertices = Bodies[B].Convex[I].Vertices.GetData();
-		OutVerticesCount = Bodies[B].Convex[I].Vertices.Num();
+		OutVertices = TArrayView<const FVector3f>(Bodies[B].Convex[I].Vertices.GetData(), Bodies[B].Convex[I].Vertices.Num());
+		OutIndices = TArrayView<const int32>(Bodies[B].Convex[I].Indices.GetData(), Bodies[B].Convex[I].Indices.Num());
+		OutTransform = Bodies[B].Convex[I].Transform;
+	}
 
-		OutIndices = Bodies[B].Convex[I].Indices.GetData();
-		OutIndicesCount = Bodies[B].Convex[I].Indices.Num();
+	void PhysicsBody::GetConvexMeshView(int32 B, int32 I,
+		TArrayView<FVector3f>& OutVerticesView, TArrayView<int32>& OutIndicesView)
+	{
+		check(B >= 0 && B < Bodies.Num());
+		check(I >= 0 && I < Bodies[B].Convex.Num());
+
+		OutVerticesView = TArrayView<FVector3f>(Bodies[B].Convex[I].Vertices.GetData(), Bodies[B].Convex[I].Vertices.Num());
+		OutIndicesView = TArrayView<int32>(Bodies[B].Convex[I].Indices.GetData(), Bodies[B].Convex[I].Indices.Num());
+	}
+
+	void PhysicsBody::GetConvexTransform(int32 B, int32 I, FTransform3f& OutTransform) const
+	{
+		check(B >= 0 && B < Bodies.Num());
+		check(I >= 0 && I < Bodies[B].Convex.Num());
 
 		OutTransform = Bodies[B].Convex[I].Transform;
 	}
