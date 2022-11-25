@@ -6819,7 +6819,7 @@ int32 FHLSLMaterialTranslator::DBufferTextureLookup(int32 ViewportUV, uint32 DBu
 	MaterialCompilationOutput.SetIsDBufferTextureUsed(DBufferTextureIndex);
 	AddEstimatedTextureSample();
 
-	return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionDBufferTextureLookup(%s, %d)"), *CoerceParameter(BufferUV, MCT_Float2), (int)DBufferTextureIndex);
+	return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionDBufferTextureLookup(Parameters, %s, %d)"), *CoerceParameter(BufferUV, MCT_Float2), (int)DBufferTextureIndex);
 }
 
 int32 FHLSLMaterialTranslator::Texture(UTexture* InTexture, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource, ETextureMipValueMode MipValueMode)
