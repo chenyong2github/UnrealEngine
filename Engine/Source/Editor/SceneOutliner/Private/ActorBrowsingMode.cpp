@@ -2140,6 +2140,23 @@ namespace ActorBrowsingModeUtils
 			});
 		}
 	};
+
+	bool CanChangePinnedStates(const TArray<FSceneOutlinerTreeItemPtr>& InItems)
+	{
+		for (const FSceneOutlinerTreeItemPtr& Item : InItems)
+		{
+			if (Item->ShouldShowPinnedState())
+			{
+				return true;
+			}
+			else if (const FActorFolderTreeItem* FolderItem = Item->CastTo<FActorFolderTreeItem>(); FolderItem && FolderItem->CanChangeChildrenPinnedState())
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 }
 
 void FActorBrowsingMode::SelectFoldersDescendants(const TArray<FFolderTreeItem*>& FolderItems, bool bSelectImmediateChildrenOnly)
@@ -2169,15 +2186,7 @@ void FActorBrowsingMode::SelectFoldersDescendants(const TArray<FFolderTreeItem*>
 
 bool FActorBrowsingMode::CanPinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const
 {
-	for (const FSceneOutlinerTreeItemPtr& Item : InItems)
-	{
-		if (Item->ShouldShowPinnedState())
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return ActorBrowsingModeUtils::CanChangePinnedStates(InItems);
 }
 
 void FActorBrowsingMode::PinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems)
@@ -2224,15 +2233,7 @@ void FActorBrowsingMode::PinItems(const TArray<FSceneOutlinerTreeItemPtr>& InIte
 
 bool FActorBrowsingMode::CanUnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) const
 {
-	for (const FSceneOutlinerTreeItemPtr& Item : InItems)
-	{
-		if (Item->ShouldShowPinnedState())
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return ActorBrowsingModeUtils::CanChangePinnedStates(InItems);
 }
 
 void FActorBrowsingMode::UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems)
