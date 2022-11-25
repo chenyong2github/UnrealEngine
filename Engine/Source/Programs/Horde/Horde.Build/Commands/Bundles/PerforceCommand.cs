@@ -78,34 +78,7 @@ namespace Horde.Build.Commands.Bundles
 				throw new FatalErrorException($"Stream '{stream}' not found");
 			}
 
-			Dictionary<IStream, int> streamToFirstChange = new Dictionary<IStream, int>();
-			streamToFirstChange[stream] = Change;
-
-			ReplicationNode baseContents;
-			if (BaseChange == 0)
-			{
-				baseContents = new ReplicationNode(new DirectoryNode());
-			}
-			else
-			{
-				baseContents = await ReplicationService.ReadCommitTreeAsync(reader, stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
-			}
-
-			await foreach (ICommit commit in commitService.GetCollection(stream).FindAsync(Change, null, Count))
-			{
-				string briefSummary = commit.Description.Replace('\n', ' ');
-				logger.LogInformation("");
-				logger.LogInformation("Commit {Change} by {AuthorId}: {Summary}", commit.Number, commit.AuthorId, briefSummary.Substring(0, Math.Min(50, briefSummary.Length)));
-				logger.LogInformation("Base path: {BasePath}", commit.BasePath);
-
-				if (Content)
-				{
-					baseContents = await replicationService.WriteCommitTreeAsync(storage, reader, stream, commit.Number, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
-					BaseChange = commit.Number;
-				}
-			}
-
-			return 0;
+			throw new NotImplementedException();
 		}
 	}
 }

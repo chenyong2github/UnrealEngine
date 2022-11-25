@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -31,18 +32,14 @@ namespace Horde.Build.Commands.Bundles
 			_loggerProvider = loggerProvider;
 		}
 
-		public override async Task<int> ExecuteAsync(ILogger logger)
+		public override Task<int> ExecuteAsync(ILogger logger)
 		{
 			using ServiceProvider serviceProvider = Startup.CreateServiceProvider(_configuration, _loggerProvider);
 
 			IStorageClient store = serviceProvider.GetRequiredService<IStorageClient<ReplicationService>>();
-			TreeReader reader = new TreeReader(store, serviceProvider.GetRequiredService<IMemoryCache>(), serviceProvider.GetRequiredService<ILogger<ExtractCommand>>()); 
+			TreeReader reader = new TreeReader(store, serviceProvider.GetRequiredService<IMemoryCache>(), serviceProvider.GetRequiredService<ILogger<ExtractCommand>>());
 
-			ReplicationNode node = await reader.ReadNodeAsync<ReplicationNode>(RefName);
-			DirectoryNode root = await node.Contents.ExpandAsync(reader);
-			await root.CopyToDirectoryAsync(reader, OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
-
-			return 0;
+			throw new NotImplementedException();
 		}
 	}
 }
