@@ -53,10 +53,12 @@ public:
 		uint8 PlatformToInt(const ITargetPlatform* Platform) const;
 		const ITargetPlatform* IntToPlatform(uint8 PlatformAsInt) const;
 		FWorkerId GetWorkerId() const { return WorkerId; }
+		int32 GetProfileId() const { return ProfileId; }
 
 	private:
 		TConstArrayView<const ITargetPlatform*> Platforms;
 		FWorkerId WorkerId;
+		int32 ProfileId;
 
 		friend class FCookWorkerServer;
 	};

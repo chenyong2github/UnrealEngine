@@ -37,7 +37,7 @@ FCookWorkerClient::~FCookWorkerClient()
 	if (ConnectStatus == EConnectStatus::Connected ||
 		(EConnectStatus::FlushAndAbortFirst <= ConnectStatus && ConnectStatus <= EConnectStatus::FlushAndAbortLast))
 	{
-		UE_LOG(LogCook, Warning, TEXT("CookWorkerServer %d was destroyed before it finished Disconnect. The CookDirector may be missing some information."));
+		UE_LOG(LogCook, Warning, TEXT("CookWorker was destroyed before it finished Disconnect. The CookDirector may be missing some information."));
 	}
 	Sockets::CloseSocket(ServerSocket);
 }

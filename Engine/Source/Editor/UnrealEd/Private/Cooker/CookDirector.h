@@ -15,6 +15,7 @@
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
 #include "Misc/ScopeLock.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
@@ -24,6 +25,7 @@ class FCbObject;
 class FCbWriter;
 class FRunnableThread;
 class UCookOnTheFlyServer;
+namespace UE::Cook { struct FCookWorkerProfileData; }
 namespace UE::Cook { class FCookWorkerServer; }
 namespace UE::Cook { class IMPCollector; }
 namespace UE::Cook { struct FInitialConfigMessage; }
@@ -68,6 +70,8 @@ public:
 	void RemoveFromWorker(FPackageData& PackageData);
 	/** Periodic tick function. Sends/Receives messages to CookWorkers. */
 	void TickFromSchedulerThread();
+	/** Periodic display function, called from CookOnTheFlyServer.UpdateDisplay. */
+	void UpdateDisplayDiagnostics();
 	/** Called when the COTFS Server has detected all packages are complete. Tells the CookWorkers to flush messages and exit. */
 	void PumpCookComplete(bool& bOutCompleted);
 	/** Called when a session ends. The Director blocks on shutdown of all CookWorkers and returns state to before session started. */
@@ -94,7 +98,7 @@ public:
 		FString CommandletExecutable;
 		FString WorkerCommandLine;
 	};
-	FLaunchInfo GetLaunchInfo(FWorkerId WorkerId);
+	FLaunchInfo GetLaunchInfo(FWorkerId WorkerId, int32 ProfileId);
 
 	/** The message CookWorkerServer sends to the remote process once it is ready to connect. */
 	const FInitialConfigMessage& GetInitialConfigMessage();
@@ -162,7 +166,7 @@ private:
 	/** Tick helper: tick any workers that are shutting down. */
 	void TickWorkerShutdowns(ECookDirectorThread TickThread);
 	/** Get the commandline to launch a worker process with. */
-	FString GetWorkerCommandLine(FWorkerId WorkerId);
+	FString GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId);
 	/** Calls the configured LoadBalanceAlgorithm. Input Requests have been sorted by leaf to root load order. */
 	void LoadBalance(TConstArrayView<TRefCountPtr<FCookWorkerServer>> Workers, TArrayView<FPackageData*> Requests,
 		TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments);
@@ -174,6 +178,8 @@ private:
 	 * Send warning when it goes on too long.
 	 */
 	void SetWorkersStalled(bool bInWorkersStalled);
+	/** Callback for CookStats system to log our stats. */
+	void LogCookStats(FCookStatsManager::AddStatFuncRef AddStat);
 
 private:
 	// Synchronization primitives that can be used from any thread
@@ -183,10 +189,13 @@ private:
 	// Data only accessible from the SchedulerThread
 	FRunnableShunt RunnableShunt;
 	FRunnableThread* CommunicationThread = nullptr;
+	TArray<FCookWorkerProfileData> RemoteWorkerProfileDatas;
 	TArray<FPendingConnection> PendingConnections;
+	TUniquePtr<FCookWorkerProfileData> LocalWorkerProfileData;
 	UCookOnTheFlyServer& COTFS;
 	double WorkersStalledStartTimeSeconds = 0.;
 	double WorkersStalledWarnTimeSeconds = 0.;
+	double LastTickTimeSeconds = 0.;
 	bool bWorkersInitialized = false;
 	bool bHasReducedMachineResources = false;
 	bool bIsFirstAssignment = true;
@@ -239,4 +248,4 @@ public:
 	static FGuid MessageType;
 };
 
-}
+} // namespace UE::Cook

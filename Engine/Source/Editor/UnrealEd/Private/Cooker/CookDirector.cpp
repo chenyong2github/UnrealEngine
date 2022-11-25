@@ -12,6 +12,7 @@
 #include "CoreGlobals.h"
 #include "LoadBalanceCookBurden.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/PlatformTime.h"
 #include "HAL/RunnableThread.h"
 #include "Math/NumericLimits.h"
 #include "Misc/CommandLine.h"
@@ -29,6 +30,24 @@ extern CORE_API int32 GNumForegroundWorkers; // TaskGraph.cpp
 namespace UE::Cook
 {
 
+/** Profile data for each CookWorker that needs to be collected on the Director. */
+struct FCookWorkerProfileData
+{
+	float IdleTimeSeconds = 0.f;
+	bool bIsIdle = true;
+	void UpdateIdle(bool bInIsIdle, float DeltaTime)
+	{
+		if (bInIsIdle)
+		{
+			if (bIsIdle)
+			{
+				IdleTimeSeconds += DeltaTime;
+			}
+		}
+		bIsIdle = bInIsIdle;
+	}
+};
+
 FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS, int32 CookProcessCount)
 	: RunnableShunt(*this) 
 	, COTFS(InCOTFS)
@@ -37,6 +56,7 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS, int32 CookProcessCoun
 	WorkersStalledStartTimeSeconds = MAX_flt;
 	WorkersStalledWarnTimeSeconds = MAX_flt;
 	ShutdownEvent->Reset();
+	LocalWorkerProfileData = MakeUnique<FCookWorkerProfileData>();
 
 	bool bConfigValid;
 	ParseConfig(CookProcessCount, bConfigValid);
@@ -59,6 +79,9 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS, int32 CookProcessCoun
 		RequestedCookWorkerCount+1, RequestedCookWorkerCount, RequestedCookWorkerCount > 1 ? TEXT("CookWorkers") : TEXT("CookWorker"));
 
 	Register(new FLogMessagesMessageHandler());
+	LastTickTimeSeconds = FPlatformTime::Seconds();
+
+	FCookStatsManager::CookStatsCallbacks.AddRaw(this, &FCookDirector::LogCookStats);
 }
 
 bool FCookDirector::IsMultiprocessAvailable() const
@@ -123,6 +146,7 @@ void FCookDirector::ParseConfig(int32 CookProcessCount, bool& bOutValid)
 FCookDirector::~FCookDirector()
 {
 	StopCommunicationThread();
+	FCookStatsManager::CookStatsCallbacks.RemoveAll(this);
 
 	TSet<FPackageData*> AbortedAssignments;
 	for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
@@ -136,6 +160,7 @@ FCookDirector::~FCookDirector()
 		PackageData->SendToState(UE::Cook::EPackageState::Request, ESendFlags::QueueAddAndRemove);
 	}
 	RemoteWorkers.Empty();
+	RemoteWorkerProfileDatas.Empty();
 	PendingConnections.Empty();
 	Sockets::CloseSocket(WorkerConnectSocket);
 }
@@ -303,19 +328,28 @@ void FCookDirector::RemoveFromWorker(FPackageData& PackageData)
 
 void FCookDirector::TickFromSchedulerThread()
 {
+	double CurrentTime = FPlatformTime::Seconds();
 	if (!CommunicationThread)
 	{
 		TickCommunication(ECookDirectorThread::SchedulerThread);
 	}
+
+	bool bLocalWorkerIdle = COTFS.NumMultiprocessLocalWorkerAssignments() == 0;
+	float DeltaTime = static_cast<float>(CurrentTime - LastTickTimeSeconds);
+	LastTickTimeSeconds = CurrentTime;
+	LocalWorkerProfileData->UpdateIdle(bLocalWorkerIdle, DeltaTime);
 
 	TArray<TRefCountPtr<FCookWorkerServer>, TInlineAllocator<16>> WorkersWithMessage;
 	{
 		FScopeLock CommunicationScopeLock(&CommunicationLock);
 		for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
 		{
-			if (Pair.Value->HasMessages())
+			FCookWorkerServer* RemoteWorker = Pair.Value.GetReference();
+			FCookWorkerProfileData& ProfileData = RemoteWorkerProfileDatas[RemoteWorker->GetProfileId()];
+			ProfileData.UpdateIdle(RemoteWorker->NumAssignments() == 0, DeltaTime);
+			if (RemoteWorker->HasMessages())
 			{
-				WorkersWithMessage.Add(Pair.Value);
+				WorkersWithMessage.Add(RemoteWorker);
 			}
 		}
 		for (TPair<FCookWorkerServer*, TRefCountPtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
@@ -327,15 +361,27 @@ void FCookDirector::TickFromSchedulerThread()
 		}
 
 	}
-	bool bIsStalled = COTFS.IsMultiprocessLocalWorkerIdle() && !COTFS.PackageDatas->GetAssignedToWorkerSet().IsEmpty();
+	bool bIsStalled = bLocalWorkerIdle && !COTFS.PackageDatas->GetAssignedToWorkerSet().IsEmpty() && WorkersWithMessage.IsEmpty();
 	for (TRefCountPtr<FCookWorkerServer>& Worker : WorkersWithMessage)
 	{
 		Worker->HandleReceiveMessages(ECookDirectorThread::SchedulerThread);
-		bIsStalled = false;
 	}
 	WorkersWithMessage.Empty();
 
 	SetWorkersStalled(bIsStalled);
+	LastTickTimeSeconds = CurrentTime;
+}
+
+void FCookDirector::UpdateDisplayDiagnostics()
+{
+	UE_LOG(LogCook, Display, TEXT("\tLocalWorker: %d packages remain."), COTFS.NumMultiprocessLocalWorkerAssignments());
+	FScopeLock CommunicationScopeLock(&CommunicationLock);
+	for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+	{
+		FCookWorkerServer* RemoteWorker = Pair.Value;
+		UE_LOG(LogCook, Display, TEXT("\tCookWorker %d: %d packages remain."),
+			RemoteWorker->GetProfileId(), RemoteWorker->NumAssignments());
+	}
 }
 
 void FCookDirector::TickCommunication(ECookDirectorThread TickThread)
@@ -398,7 +444,7 @@ void FCookDirector::PumpCookComplete(bool& bCompleted)
 				// the last message sent about completed saves. These discovered packages can cause the cook to fall
 				// back to incomplete. Don't send CookComplete messages to the CookWorkers until all CookWorkers have
 				// reported they are idle and have no further messages to send.
-				if (RemoteWorker.HasAssignments())
+				if (RemoteWorker.NumAssignments() > 0)
 				{
 					bAllIdle = false;
 					break;
@@ -621,7 +667,9 @@ void FCookDirector::InitializeWorkers()
 	RemoteWorkers.Reserve(RequestedCookWorkerCount);
 	for (int32 RemoteIndex = 0; RemoteIndex < RequestedCookWorkerCount; ++RemoteIndex)
 	{
-		RemoteWorkers.Add(RemoteIndex, new FCookWorkerServer(*this, FWorkerId::FromRemoteIndex(RemoteIndex)));
+		int32 ProfileId = RemoteWorkerProfileDatas.Num();
+		RemoteWorkerProfileDatas.Emplace();
+		RemoteWorkers.Add(RemoteIndex, new FCookWorkerServer(*this, ProfileId, FWorkerId::FromRemoteIndex(RemoteIndex)));
 	}
 	bWorkersActive = true;
 
@@ -668,7 +716,9 @@ void FCookDirector::RecreateWorkers()
 		{
 			RemoteIndex = RemoteWorkers.Num();
 		}
-		RemoteWorkers.Add(RemoteIndex, new FCookWorkerServer(*this, FWorkerId::FromRemoteIndex(RemoteIndex)));
+		int32 ProfileId = RemoteWorkerProfileDatas.Num();
+		RemoteWorkerProfileDatas.Emplace();
+		RemoteWorkers.Add(RemoteIndex, new FCookWorkerServer(*this, ProfileId, FWorkerId::FromRemoteIndex(RemoteIndex)));
 		bWorkersActive = true;
 	}
 
@@ -862,7 +912,7 @@ void FCookDirector::TickWorkerShutdowns(ECookDirectorThread TickThread)
 	CompletedWorkers.Empty();
 }
 
-FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId)
+FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 {
 	FString CommandLine = FCommandLine::Get();
 
@@ -874,17 +924,14 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId)
 			if (Token.StartsWith(TEXT("-run=")) ||
 				Token == TEXT("-CookOnTheFly") ||
 				Token == TEXT("-CookWorker") ||
-				Token == TEXT("-CookMultiProcess") ||
-				Token == TEXT("-CookSingleProcess") ||
 				Token.StartsWith(TEXT("-TargetPlatform")) ||
 				Token.StartsWith(TEXT("-CookCultures")) ||
-				Token.StartsWith(TEXT("-CookDirectorCount=")) ||
 				Token.StartsWith(TEXT("-CookDirectorHost=")) ||
 				Token.StartsWith(TEXT("-MultiprocessId=")) ||
+				Token.StartsWith(TEXT("-CookProfileId=")) ||
 				Token.StartsWith(TEXT("-ShowCookWorker")) ||
 				Token.StartsWith(TEXT("-CoreLimit")) ||
-				Token.StartsWith(TEXT("-PhysicalCoreLimit")) ||
-				Token.StartsWith(TEXT("-CoreLimitHyperThreads"))
+				Token.StartsWith(TEXT("-PhysicalCoreLimit"))
 				)
 			{
 				return;
@@ -900,6 +947,7 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId)
 	check(!WorkerConnectAuthority.IsEmpty()); // This should have been constructed in TryCreateWorkerConnectSocket before any CookWorkerServers could exist to call GetWorkerCommandLine
 	Tokens.Add(FString::Printf(TEXT("-CookDirectorHost=%s"), *WorkerConnectAuthority));
 	Tokens.Add(FString::Printf(TEXT("-MultiprocessId=%d"), WorkerId.GetRemoteIndex() + 1));
+	Tokens.Add(FString::Printf(TEXT("-CookProfileId=%d"), ProfileId));
 	if (CoreLimit > 0)
 	{
 		Tokens.Add(FString::Printf(TEXT("-PhysicalCoreLimit=%d"), CoreLimit));
@@ -1011,14 +1059,30 @@ const FInitialConfigMessage& FCookDirector::GetInitialConfigMessage()
 	return *InitialConfigMessage;
 }
 
-FCookDirector::FLaunchInfo FCookDirector::GetLaunchInfo(FWorkerId WorkerId)
+FCookDirector::FLaunchInfo FCookDirector::GetLaunchInfo(FWorkerId WorkerId, int32 ProfileId)
 {
 	FLaunchInfo Info;
 	Info.ShowWorkerOption = GetShowWorkerOption();
 	Info.CommandletExecutable = CommandletExecutablePath;
-	Info.WorkerCommandLine = GetWorkerCommandLine(WorkerId);
+	Info.WorkerCommandLine = GetWorkerCommandLine(WorkerId, ProfileId);
 	return Info;
 }
 
+void FCookDirector::LogCookStats(FCookStatsManager::AddStatFuncRef AddStat)
+{
+	auto IdleTimeToString = [](float IdleTime)
+	{
+		return FString::Printf(TEXT("%.1fs"), IdleTime);
+	};
+	TArray<FCookStatsManager::StringKeyValue> Stats;
+	Stats.Emplace(TEXT("LocalWorker IdleTime"), IdleTimeToString(LocalWorkerProfileData->IdleTimeSeconds));
+	for (int32 ProfileId = 0; ProfileId < RemoteWorkerProfileDatas.Num(); ++ProfileId)
+	{
+		FCookWorkerProfileData& ProfileData = RemoteWorkerProfileDatas[ProfileId];
+		Stats.Emplace(FString::Printf(TEXT("CookWorker %d IdleTime"), ProfileId),
+			IdleTimeToString(ProfileData.IdleTimeSeconds));
+	}
+	AddStat(TEXT("CookDirector"), Stats);
+}
 
 }

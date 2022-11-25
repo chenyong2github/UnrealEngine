@@ -1657,10 +1657,15 @@ void UCookOnTheFlyServer::UpdateDisplay(UE::Cook::FTickStackData& StackData, boo
 		}
 		if (!IsCookOnTheFlyMode() || bCookOnTheFlyShouldDisplay)
 		{
-			UE_CLOG(!(StackData.TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay != (int32)ECookProgressDisplayMode::Nothing),
-				LogCook, Display,
-				TEXT("Cook Diagnostics: OpenFileHandles=%d, VirtualMemory=%dMiB"),
-				OpenFileHandles, FPlatformMemory::GetStats().UsedVirtual / 1024 / 1024);
+			if (!(StackData.TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay != (int32)ECookProgressDisplayMode::Nothing))
+			{
+				UE_LOG(LogCook, Display, TEXT("Cook Diagnostics: OpenFileHandles=%d, VirtualMemory=%dMiB"),
+					OpenFileHandles, FPlatformMemory::GetStats().UsedVirtual / 1024 / 1024);
+				if (CookDirector)
+				{
+					CookDirector->UpdateDisplayDiagnostics();
+				}
+			}
 		}
 		if (bCookOnTheFlyShouldDisplay)
 		{
@@ -2284,18 +2289,18 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 	return ECookAction::Done;
 }
 
-bool UCookOnTheFlyServer::IsMultiprocessLocalWorkerIdle() const
+int32 UCookOnTheFlyServer::NumMultiprocessLocalWorkerAssignments() const
 {
 	if (!CookDirector.IsValid())
 	{
-		return false;
+		return 0;
 	}
 	UE::Cook::FPackageDataMonitor& Monitor = PackageDatas->GetMonitor();
-	return !WorkerRequests->HasExternalRequests() &&
-		PackageDatas->GetRequestQueue().IsEmpty() &&
-		PackageDatas->GetLoadPrepareQueue().IsEmpty() &&
-		PackageDatas->GetLoadReadyQueue().IsEmpty() &&
-		PackageDatas->GetSaveQueue().IsEmpty();
+	return WorkerRequests->GetNumExternalRequests() +
+		PackageDatas->GetRequestQueue().Num() +
+		PackageDatas->GetLoadPrepareQueue().Num() +
+		PackageDatas->GetLoadReadyQueue().Num() +
+		PackageDatas->GetSaveQueue().Num();
 }
 
 void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& CookerTimer)

@@ -36,9 +36,10 @@ namespace UE::Cook
 class FCookWorkerServer : public FThreadSafeRefCountedObject
 {
 public:
-	FCookWorkerServer(FCookDirector& InDirector, FWorkerId InWorkerId);
+	FCookWorkerServer(FCookDirector& InDirector, int32 InProfileId, FWorkerId InWorkerId);
 	~FCookWorkerServer();
 
+	int32 GetProfileId() const { return ProfileId; }
 	FWorkerId GetWorkerId() const { return WorkerId; }
 
 	/** Add the given assignments for the CookWorker. They will be sent during Tick */
@@ -71,8 +72,8 @@ public:
 	bool IsFlushingBeforeShutdown() const;
 	/** Is this not yet or no longer connected to a remote Client? */
 	bool IsShutdownComplete() const;
-	/** Does this Server have any package assignments the remmote CookWorker is supposed to save but hasn't yet? */
-	bool HasAssignments() const;
+	/** How many package assignments is the remote CookWorker supposed to save but hasn't yet? */
+	int32 NumAssignments() const;
 	/** Does this Server have any ReceivedMessages that need to be processed by the Scheduler thread? */
 	bool HasMessages() const;
 
@@ -160,6 +161,7 @@ private:
 	FProcHandle CookWorkerHandle;
 	FTickState TickState;
 	uint32 CookWorkerProcessId = 0;
+	int32 ProfileId = 0;
 	double ConnectStartTimeSeconds = 0.;
 	double ConnectTestStartTimeSeconds = 0.;
 	FWorkerId WorkerId = FWorkerId::Invalid();
