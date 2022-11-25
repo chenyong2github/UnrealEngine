@@ -379,7 +379,7 @@ void SSourceBindingList::AddSources(TArrayView<const FBindingSource> InSources)
 
 FMVVMBlueprintPropertyPath SSourceBindingList::CreateBlueprintPropertyPath(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> FieldPath) const
 {
-	if (FieldPath.Num() < 0)
+	if (FieldPath.Num() < 0 || !Handle.IsValid())
 	{
 		return FMVVMBlueprintPropertyPath();
 	}
@@ -402,57 +402,80 @@ FMVVMBlueprintPropertyPath SSourceBindingList::CreateBlueprintPropertyPath(SProp
 		return FMVVMBlueprintPropertyPath();
 	}
 
-	// Backward, test if the object can be access.
-	//The last property can be a struct variable, inside a struct, inside..., inside an object. 
-	bool bPassFilter = false;
-	TSubclassOf<UObject> AccessorClass = WidgetBlueprintPtr ? WidgetBlueprintPtr->GeneratedClass : nullptr;
-	for (int32 Index = FieldPath.Num() - 1; Index >= 0; --Index)
-	{
-		const FFieldVariant& FieldVariant = FieldPath[Index];
-		const UStruct* OwnerStruct = nullptr;
-		FName FieldName;
-		if (const FProperty* Property = FieldVariant.Get<FProperty>())
-		{
-			OwnerStruct = Property->GetOwnerStruct();
-			FieldName = Property->GetFName();
-		}
-		else if (const UFunction* Function = FieldVariant.Get<UFunction>())
-		{
-			OwnerStruct = Function->GetOwnerClass();
-			FieldName = Function->GetFName();
-		}
-
-		if (const UClass* OwnerClass = Cast<const UClass>(OwnerStruct))
-		{
-			FMVVMAvailableBinding Binding = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBinding(OwnerClass, FMVVMBindingName(FieldName), AccessorClass);
-			if (Binding.IsValid())
-			{
-				bPassFilter = Private::PassFilter(Binding, OwnerClass, FieldIterator->GetFieldVisibilityFlags(), FieldIterator->GetAssignableTo(), true).IsSet();
-			}
-			break;
-		}
-	}
-
+	TSubclassOf<UObject> AccessorClass = WidgetBlueprintPtr ? WidgetBlueprintPtr->SkeletonGeneratedClass : nullptr;
 	FMVVMBlueprintPropertyPath PropertyPath;
-	if (bPassFilter)
+	if (FieldPath.Num() > 0)
 	{
-		if (Source->Key.ViewModelId.IsValid())
+		// Backward, test if the object can be access.
+		//The last property can be a struct variable, inside a struct, inside..., inside an object. 
+		bool bPassFilter = false;
+		for (int32 Index = FieldPath.Num() - 1; Index >= 0; --Index)
 		{
-			PropertyPath.SetViewModelId(Source->Key.ViewModelId);
-		}
-		else
-		{
-			PropertyPath.SetWidgetName(Source->Key.Name);
+			const FFieldVariant& FieldVariant = FieldPath[Index];
+			const UStruct* OwnerStruct = nullptr;
+			FName FieldName;
+			if (const FProperty* Property = FieldVariant.Get<FProperty>())
+			{
+				OwnerStruct = Property->GetOwnerStruct();
+				FieldName = Property->GetFName();
+			}
+			else if (const UFunction* Function = FieldVariant.Get<UFunction>())
+			{
+				OwnerStruct = Function->GetOwnerClass();
+				FieldName = Function->GetFName();
+			}
+
+			if (const UClass* OwnerClass = Cast<const UClass>(OwnerStruct))
+			{
+				FMVVMAvailableBinding Binding = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBinding(OwnerClass, FMVVMBindingName(FieldName), AccessorClass);
+				if (Binding.IsValid())
+				{
+					bPassFilter = Private::PassFilter(Binding, OwnerClass, FieldIterator->GetFieldVisibilityFlags(), FieldIterator->GetAssignableTo(), true).IsSet();
+				}
+				break;
+			}
 		}
 
-		PropertyPath.ResetBasePropertyPath();
-
-		for (const FFieldVariant& Field : FieldPath)
+		if (bPassFilter)
 		{
-			PropertyPath.AppendBasePropertyPath(FMVVMConstFieldVariant(Field));
+			if (Source->Key.ViewModelId.IsValid())
+			{
+				PropertyPath.SetViewModelId(Source->Key.ViewModelId);
+			}
+			else
+			{
+				PropertyPath.SetWidgetName(Source->Key.Name);
+			}
+
+			PropertyPath.ResetBasePropertyPath();
+
+			for (const FFieldVariant& Field : FieldPath)
+			{
+				PropertyPath.AppendBasePropertyPath(FMVVMConstFieldVariant(Field));
+			}
 		}
 	}
-
+	else if(AccessorClass.Get())
+	{
+		FMVVMBindingName BindingName = Source->Key.ToBindingName(WidgetBlueprintPtr);
+		FMVVMAvailableBinding Binding = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBinding(AccessorClass, BindingName, AccessorClass);
+		if (Binding.IsValid())
+		{
+			bool bPassFilter = Private::PassFilter(Binding, AccessorClass, FieldIterator->GetFieldVisibilityFlags(), FieldIterator->GetAssignableTo(), true).IsSet();
+			if (bPassFilter)
+			{
+				if (Source->Key.ViewModelId.IsValid())
+				{
+					PropertyPath.SetViewModelId(Source->Key.ViewModelId);
+				}
+				else
+				{
+					PropertyPath.SetWidgetName(Source->Key.Name);
+				}
+				PropertyPath.ResetBasePropertyPath();
+			}
+		}
+	}
 	return PropertyPath;
 }
 

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Views/TableViewTypeTraits.h"
+#include "Types/MVVMBindingName.h"
 
 class UWidgetBlueprint;
 
@@ -45,6 +46,8 @@ namespace UE::MVVM
 			Class = nullptr;
 			DisplayName = FText::GetEmpty();
 		}
+
+		FMVVMBindingName ToBindingName(const UWidgetBlueprint* WidgetBlueprint) const;
 
 		static FBindingSource CreateForWidget(const UWidgetBlueprint* WidgetBlueprint, FName WidgetName);
 		static FBindingSource CreateForViewModel(const UWidgetBlueprint* WidgetBlueprint, FGuid ViewModelId);

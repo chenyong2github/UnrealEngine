@@ -179,16 +179,16 @@ namespace Private
 		{
 			if (const FObjectProperty* Property = CastField<FObjectProperty>(RootRef.ResolveMember<FProperty>(WidgetBlueprint->SkeletonGeneratedClass)))
 			{
-				if (Property->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
+				if (Property->PropertyClass->IsChildOf<UWidget>() || Property->PropertyClass->IsChildOf<UWidgetBlueprint>())
+				{
+					ResultPath.SetWidgetName(Property->GetFName());
+				}
+				else if (Property->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
 				{
 					if (const FMVVMBlueprintViewModelContext* ViewModel = BlueprintView->FindViewModel(Property->GetFName()))
 					{
 						ResultPath.SetViewModelId(ViewModel->GetViewModelId());
 					}
-				}
-				else if (Property->PropertyClass->IsChildOf<UWidget>() || Property->PropertyClass->IsChildOf<UWidgetBlueprint>())
-				{
-					ResultPath.SetWidgetName(Property->GetFName());
 				}
 			}
 		}

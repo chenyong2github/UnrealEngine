@@ -151,9 +151,9 @@ bool UMVVMView::SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldV
 			if (NewValue.GetObject())
 			{
 				// Register back any binding that was previously enabled
-				if (PreviousValue)
+				if (BindingToReenabled.Num() > 0)
 				{
-					for (int32 Index = 0; Index < BindingToReenabled.Num(); ++Index)
+					for (int32 Index : BindingToReenabled)
 					{
 						const FMVVMViewClass_CompiledBinding& Binding = CompiledBindings[Index];
 						EnableLibraryBinding(Binding, Index);

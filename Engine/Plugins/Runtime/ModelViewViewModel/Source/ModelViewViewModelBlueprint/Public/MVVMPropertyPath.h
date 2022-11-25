@@ -214,6 +214,11 @@ private:
 #endif
 
 public:
+	bool HasPaths() const
+	{
+		return Paths.Num() > 0;
+	}
+
 	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
 	TArray<FName> GetPaths() const
 	{

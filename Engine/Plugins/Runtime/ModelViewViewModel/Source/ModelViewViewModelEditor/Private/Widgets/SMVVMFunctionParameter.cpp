@@ -64,16 +64,7 @@ void SFunctionParameter::Construct(const FArguments& InArgs)
 
 	ValueWidget->SetVisibility(TAttribute<EVisibility>::CreateSP(this, &SFunctionParameter::OnGetVisibility, true));
 
-	bool bFromViewModel;
-	if (bSourceToDestination)
-	{
-		bFromViewModel = UE::MVVM::IsForwardBinding(Binding->BindingType);
-	}
-	else
-	{
-		bFromViewModel = UE::MVVM::IsBackwardBinding(Binding->BindingType);
-	}
-
+	bool bFromViewModel = UE::MVVM::IsForwardBinding(Binding->BindingType);
 	TSharedPtr<SHorizontalBox> HBox;
 
 	ChildSlot

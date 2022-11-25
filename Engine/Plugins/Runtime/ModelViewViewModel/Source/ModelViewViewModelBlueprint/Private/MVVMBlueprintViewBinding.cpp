@@ -37,16 +37,11 @@ namespace UE::MVVM::Private
 			PathBuilder << TEXT("<none>");
 		}
 
-		PathBuilder << TEXT(".");
-
 		const FString PropertyPath = ViewModelPath.GetBasePropertyPath();
 		if (!PropertyPath.IsEmpty())
 		{
+			PathBuilder << TEXT(".");
 			PathBuilder << PropertyPath;
-		}
-		else
-		{
-			PathBuilder << TEXT("<none>");
 		}
 	}
 	
@@ -145,16 +140,11 @@ namespace UE::MVVM::Private
 			PathBuilder << WidgetPath.GetWidgetName();
 		}
 
-		PathBuilder << TEXT(".");
-
 		const FString PropertyPath = WidgetPath.GetBasePropertyPath();
 		if (!PropertyPath.IsEmpty())
 		{
+			PathBuilder << TEXT(".");
 			PathBuilder << PropertyPath;
-		}
-		else
-		{
-			PathBuilder << TEXT("<none>");
 		}
 	}
 

@@ -173,14 +173,17 @@ void FMVVMViewBlueprintCompiler::CreateVariables(const FWidgetBlueprintCompilerC
 		CreateFunctionsDeclaration(Context, BlueprintView);
 	}
 
-	auto CreateVariable = [&Context](const FCompilerSourceContext& SourceContext) -> FProperty*
+	auto CreateVariable = [&Context](const FCompilerUserWidgetPropertyContext& SourceContext) -> FProperty*
 	{
-		FEdGraphPinType ViewModelPinType(UEdGraphSchema_K2::PC_Object, NAME_None, SourceContext.Class, EPinContainerType::None, false, FEdGraphTerminalType());
-		FProperty* NewProperty = Context.CreateVariable(SourceContext.PropertyName, ViewModelPinType);
+		FEdGraphPinType NewPropertyPinType(UEdGraphSchema_K2::PC_Object, NAME_None, SourceContext.Class, EPinContainerType::None, false, FEdGraphTerminalType());
+		FProperty* NewProperty = Context.CreateVariable(SourceContext.PropertyName, NewPropertyPinType);
 		if (NewProperty != nullptr)
 		{
-			NewProperty->SetPropertyFlags(CPF_BlueprintVisible | CPF_BlueprintReadOnly | CPF_RepSkip
-				| CPF_Transient | CPF_DuplicateTransient);
+			NewProperty->SetPropertyFlags(CPF_BlueprintVisible | CPF_RepSkip | CPF_Transient | CPF_DuplicateTransient);
+			if (SourceContext.BlueprintSetter.IsEmpty())
+			{
+				NewProperty->SetPropertyFlags(CPF_BlueprintReadOnly);
+			}
 			NewProperty->SetPropertyFlags(SourceContext.bExposeOnSpawn ? CPF_ExposeOnSpawn : CPF_DisableEditOnInstance);
 
 #if WITH_EDITOR
@@ -205,7 +208,7 @@ void FMVVMViewBlueprintCompiler::CreateVariables(const FWidgetBlueprintCompilerC
 		return NewProperty;
 	};
 
-	for (FCompilerSourceContext& SourceContext : CompilerSourceContexts)
+	for (FCompilerUserWidgetPropertyContext& SourceContext : CompilerSourceContexts)
 	{
 		SourceContext.Field = BindingHelper::FindFieldByName(Context.GetSkeletonGeneratedClass(), FMVVMBindingName(SourceContext.PropertyName));
 
@@ -348,7 +351,7 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 		}
 		checkf(FoundSourceCreatorContextIndex != INDEX_NONE, TEXT("The viewmodel was added after the skeleton was created?"));
 
-		FCompilerSourceContext SourceVariable;
+		FCompilerUserWidgetPropertyContext SourceVariable;
 		SourceVariable.Class = ViewModelContext.GetViewModelClass();
 		SourceVariable.PropertyName = ViewModelContext.GetViewModelName();
 		SourceVariable.DisplayName = ViewModelContext.GetDisplayName();
@@ -419,11 +422,11 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 					}
 
 					UWidget* Widget = *WidgetPtr;
-					FCompilerSourceContext SourceVariable;
+					FCompilerUserWidgetPropertyContext SourceVariable;
 					SourceVariable.Class = Widget->GetClass();
 					SourceVariable.PropertyName = PropertyPath.GetWidgetName();
-					SourceVariable.DisplayName = Widget->GetLabelText();
-					SourceVariable.CategoryName = !Widget->GetCategoryName().IsEmpty() ? Widget->GetCategoryName() : DefaultWidgetCategory.ToString();
+					SourceVariable.DisplayName = FText::FromString(Widget->GetDisplayLabel());
+					SourceVariable.CategoryName = TEXT("Widget");
 					Self->CompilerSourceContexts.Emplace(MoveTemp(SourceVariable));
 				}
 			}
@@ -670,7 +673,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 				return false;
 			}
 
-			if (!BindingSourceContext.bIsRootWidget && BindingSourceContext.CompilerSourceContextIndex == INDEX_NONE)
+			if (!BindingSourceContext.bIsRootWidget && BindingSourceContext.UserWidgetPropertyContextIndex == INDEX_NONE)
 			{
 				AddErrorForBinding(Binding, LOCTEXT("BindingInvalidSource", "Internal error. The binding could not find its source."), ArgumentName);
 				return false;
@@ -710,7 +713,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 		{
 			CreateSourcesForConversionFunction(false);
 
-			if (!Binding.WidgetPath.IsEmpty())
+			if (!Binding.WidgetPath.IsEmpty() && Binding.WidgetPath.HasPaths())
 			{
 				if (!CreateSourceContextForPropertyPath(Binding.WidgetPath, false))
 				{
@@ -1042,7 +1045,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 
 		FCompilerBinding NewBinding = AddBindingResult.StealValue();
 		NewBinding.BindingIndex = BindingSourceContext.BindingIndex;
-		NewBinding.CompilerSourceContextIndex = BindingSourceContext.CompilerSourceContextIndex;
+		NewBinding.CompilerSourceContextIndex = BindingSourceContext.UserWidgetPropertyContextIndex;
 		NewBinding.FieldIdHandle = AddFieldResult.StealValue();
 		NewBinding.bSourceIsUserWidget = BindingSourceContext.bIsRootWidget;
 		NewBinding.bFieldIdNeeded = !IsOneTimeBinding(Binding.BindingType);
@@ -1149,11 +1152,11 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 		const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(PropertyPath.GetViewModelId());
 		check(SourceViewModelContext);
 		const FName SourceName = SourceViewModelContext->GetViewModelName();
-		Result.CompilerSourceContextIndex = CompilerSourceContexts.IndexOfByPredicate([SourceName](const FCompilerSourceContext& Other) { return Other.PropertyName == SourceName; });
-		check(Result.CompilerSourceContextIndex != INDEX_NONE);
+		Result.UserWidgetPropertyContextIndex = CompilerSourceContexts.IndexOfByPredicate([SourceName](const FCompilerUserWidgetPropertyContext& Other) { return Other.PropertyName == SourceName; });
+		check(Result.UserWidgetPropertyContextIndex != INDEX_NONE);
 
-		Result.SourceClass = CompilerSourceContexts[Result.CompilerSourceContextIndex].Class;
-		Result.PropertyPath = CreatePropertyPath(Class, CompilerSourceContexts[Result.CompilerSourceContextIndex].PropertyName, PropertyPath.GetFields());
+		Result.SourceClass = CompilerSourceContexts[Result.UserWidgetPropertyContextIndex].Class;
+		Result.PropertyPath = CreatePropertyPath(Class, CompilerSourceContexts[Result.UserWidgetPropertyContextIndex].PropertyName, PropertyPath.GetFields());
 	}
 	else if (PropertyPath.IsFromWidget())
 	{
@@ -1161,16 +1164,16 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 		Result.bIsRootWidget = SourceName == Class->ClassGeneratedBy->GetFName();
 		if (Result.bIsRootWidget)
 		{
-			Result.CompilerSourceContextIndex = INDEX_NONE;
+			Result.UserWidgetPropertyContextIndex = INDEX_NONE;
 			Result.SourceClass = Class->ClassGeneratedBy->GetClass();
 			Result.PropertyPath = CreatePropertyPath(Class, FName(), PropertyPath.GetFields());
 		}
 		else
 		{
-			Result.CompilerSourceContextIndex = CompilerSourceContexts.IndexOfByPredicate([SourceName](const FCompilerSourceContext& Other) { return Other.PropertyName == SourceName; });
-			check(Result.CompilerSourceContextIndex != INDEX_NONE);
-			Result.SourceClass = CompilerSourceContexts[Result.CompilerSourceContextIndex].Class;
-			Result.PropertyPath = CreatePropertyPath(Class, CompilerSourceContexts[Result.CompilerSourceContextIndex].PropertyName, PropertyPath.GetFields());
+			Result.UserWidgetPropertyContextIndex = CompilerSourceContexts.IndexOfByPredicate([SourceName](const FCompilerUserWidgetPropertyContext& Other) { return Other.PropertyName == SourceName; });
+			check(Result.UserWidgetPropertyContextIndex != INDEX_NONE);
+			Result.SourceClass = CompilerSourceContexts[Result.UserWidgetPropertyContextIndex].Class;
+			Result.PropertyPath = CreatePropertyPath(Class, CompilerSourceContexts[Result.UserWidgetPropertyContextIndex].PropertyName, PropertyPath.GetFields());
 		}
 	}
 	else
@@ -1195,7 +1198,7 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 	if (bCreateADynamicSourceEntry)
 	{
 		Result.SourceClass = BindingInfo.NotifyFieldClass;
-		Result.CompilerSourceContextIndex = INDEX_NONE;
+		Result.UserWidgetPropertyContextIndex = INDEX_NONE;
 		Result.bIsRootWidget = false;
 
 		FString InterfacePath = FieldPathHelper::ToString(BindingInfo.NotifyFieldInterfacePath);
@@ -1217,14 +1220,7 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 		Result.PropertyPath.RemoveAt(0, BindingInfo.ViewModelIndex);
 		if (CompilerSourceCreatorContexts[SourceCreatorContextIndex].Type == ECompilerSourceCreatorType::ViewModel)
 		{
-			Result.CompilerSourceContextIndex = SourceCreatorContextIndex;
-		}
-	}
-	else
-	{
-		if (Result.SourceClass != BindingInfo.NotifyFieldClass)
-		{
-			return MakeError(LOCTEXT("ClassDoesNotMatch", "Internal Error. The class doesn't match"));
+			Result.UserWidgetPropertyContextIndex = SourceCreatorContextIndex;
 		}
 	}
 
@@ -1245,7 +1241,7 @@ TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreateBindingDestinat
 		const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(PropertyPath.GetViewModelId());
 		check(SourceViewModelContext);
 		FName DestinationName = SourceViewModelContext->GetViewModelName();
-		const int32 DestinationVariableContextIndex = CompilerSourceContexts.IndexOfByPredicate([DestinationName](const FCompilerSourceContext& Other) { return Other.PropertyName == DestinationName; });
+		const int32 DestinationVariableContextIndex = CompilerSourceContexts.IndexOfByPredicate([DestinationName](const FCompilerUserWidgetPropertyContext& Other) { return Other.PropertyName == DestinationName; });
 		check(DestinationVariableContextIndex != INDEX_NONE);
 
 		return CreatePropertyPath(Class, CompilerSourceContexts[DestinationVariableContextIndex].PropertyName, PropertyPath.GetFields());
@@ -1261,7 +1257,7 @@ TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreateBindingDestinat
 		}
 		else
 		{
-			const int32 DestinationVariableContextIndex = CompilerSourceContexts.IndexOfByPredicate([DestinationName](const FCompilerSourceContext& Other) { return Other.PropertyName == DestinationName; });
+			const int32 DestinationVariableContextIndex = CompilerSourceContexts.IndexOfByPredicate([DestinationName](const FCompilerUserWidgetPropertyContext& Other) { return Other.PropertyName == DestinationName; });
 			if (ensureAlwaysMsgf(DestinationVariableContextIndex != INDEX_NONE, TEXT("Could not find source context for destination '%s'"), *DestinationName.ToString()))
 			{
 				return CreatePropertyPath(Class, CompilerSourceContexts[DestinationVariableContextIndex].PropertyName, PropertyPath.GetFields());

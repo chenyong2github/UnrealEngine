@@ -88,7 +88,7 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 			+ SOverlay::Slot()
 			[
 				SAssignNew(SourceEntryBox, SHorizontalBox)
-				.Visibility_Lambda([this]() { return CachedSelectedConversionFunction == nullptr && CachedSelectedField.GetFields().Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed; })
+				.Visibility_Lambda([this]() { return CachedSelectedConversionFunction == nullptr && !CachedSelectedField.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
 			]
 
 			// is a conversion function set?
@@ -167,7 +167,8 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 			[
 				SNew(SImage)
 				.Image(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
-			];					
+				.Visibility_Lambda([this]() { return CachedSelectedField.HasPaths() ? EVisibility::Visible : EVisibility::Collapsed; })
+			];
 	}
 
 	SourceEntryBox->AddSlot()
@@ -211,7 +212,7 @@ bool SFieldSelector::IsSelectEnabled() const
 	if (BindingList.IsValid())
 	{
 		FMVVMBlueprintPropertyPath Path = BindingList->GetSelectedProperty();
-		if ((Path.IsFromViewModel() || Path.IsFromWidget()) && !Path.GetBasePropertyPath().IsEmpty())
+		if (Path.IsFromViewModel() || Path.IsFromWidget())
 		{
 			return true;
 		}
