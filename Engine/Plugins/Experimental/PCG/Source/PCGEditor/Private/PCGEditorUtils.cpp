@@ -2,14 +2,22 @@
 
 #include "PCGEditorUtils.h"
 
-#include "AssetTypeCategories.h"
-#include "UObject/NoExportTypes.h"
+#include "PCGGraph.h"
+#include "PCGSettings.h"
 #include "Elements/PCGExecuteBlueprint.h"
-#include "Engine/Blueprint.h"
+
 #include "AssetToolsModule.h"
-#include "Modules/ModuleManager.h"
+#include "AssetTypeCategories.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/Blueprint.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/PackageName.h"
+#include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
+#include "UObject/NoExportTypes.h"
 
 bool PCGEditorUtils::IsAssetPCGBlueprint(const FAssetData& InAssetData)
 {
@@ -37,3 +45,82 @@ void PCGEditorUtils::GetParentPackagePathAndUniqueName(const UObject* OriginalOb
 	AssetTools.CreateUniqueAssetName(OutPackagePath, NewAssetTentativeName, DummyPackageName, OutUniqueName);
 }
 
+void PCGEditorUtils::ForEachAssetData(const FARFilter& InFilter, TFunctionRef<bool(const FAssetData&)> InFunc)
+{
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	TArray<FAssetData> AssetDataList;
+	AssetRegistryModule.Get().GetAssets(InFilter, AssetDataList);
+
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		if (!InFunc(AssetData))
+		{
+			break;
+		}
+	}
+}
+
+void PCGEditorUtils::ForEachPCGBlueprintAssetData(TFunctionRef<bool(const FAssetData&)> InFunc)
+{
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
+	Filter.bRecursiveClasses = true;
+	Filter.TagsAndValues.Add(FBlueprintTags::NativeParentClassPath, UPCGBlueprintElement::GetParentClassName());
+
+	ForEachAssetData(Filter, InFunc);
+}
+
+void PCGEditorUtils::ForEachPCGSettingsAssetData(TFunctionRef<bool(const FAssetData&)> InFunc)
+{
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UPCGSettings::StaticClass()->GetClassPathName());
+	Filter.bRecursiveClasses = true;
+
+	ForEachAssetData(Filter, InFunc);
+}
+
+void PCGEditorUtils::ForEachPCGGraphAssetData(TFunctionRef<bool(const FAssetData&)> InFunc)
+{
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UPCGGraph::StaticClass()->GetClassPathName());
+	Filter.bRecursiveClasses = true;
+
+	ForEachAssetData(Filter, InFunc);
+}
+
+void PCGEditorUtils::ForcePCGBlueprintVariableVisibility()
+{
+	ForEachPCGBlueprintAssetData([](const FAssetData& AssetData)
+	{
+		const FString GeneratedClass = AssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
+		FSoftClassPath BlueprintClassPath = FSoftClassPath(GeneratedClass);
+		TSubclassOf<UPCGBlueprintElement> BlueprintClass = BlueprintClassPath.TryLoadClass<UPCGBlueprintElement>();
+		if (BlueprintClass)
+		{
+			if (UBlueprint* Blueprint = Cast<UBlueprint>(BlueprintClass->ClassGeneratedBy))
+			{
+				if (Blueprint->NewVariables.IsEmpty())
+				{
+					return true;
+				}
+
+				const bool bHasEditOnInstanceVariables = (Blueprint->NewVariables.FindByPredicate([](const FBPVariableDescription& VarDesc) { return !(VarDesc.PropertyFlags & CPF_DisableEditOnInstance); }) != nullptr);
+				if (!bHasEditOnInstanceVariables)
+				{
+					Blueprint->Modify();
+
+					for (FBPVariableDescription& VarDesc : Blueprint->NewVariables)
+					{
+						VarDesc.PropertyFlags &= ~CPF_DisableEditOnInstance;
+					}
+
+					FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+					FKismetEditorUtilities::CompileBlueprint(Blueprint, EBlueprintCompileOptions::SkipGarbageCollection);
+				}
+			}
+		}
+
+		return true;
+	});
+}

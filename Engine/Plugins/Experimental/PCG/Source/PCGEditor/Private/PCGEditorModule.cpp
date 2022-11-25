@@ -9,6 +9,7 @@
 #include "PCGEditorGraphNodeFactory.h"
 #include "PCGEditorSettings.h"
 #include "PCGEditorStyle.h"
+#include "PCGEditorUtils.h"
 #include "PCGGraphDetails.h"
 #include "PCGSubsystem.h"
 #include "PCGVolumeDetails.h"
@@ -264,6 +265,16 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 						}
 					}
 				}
+				})),
+		NAME_None);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("UpdatePCGBlueprintVariableVisibility", "Make all PCG blueprint variables visible to instances"),
+		LOCTEXT("UpdatePCGBlueprintVariableVisibility_Tooltip", "Will visit all PCG blueprints, update their Instance editable flag, unless there is already one variable that is visible"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([]() {
+				PCGEditorUtils::ForcePCGBlueprintVariableVisibility();
 				})),
 		NAME_None);
 }
