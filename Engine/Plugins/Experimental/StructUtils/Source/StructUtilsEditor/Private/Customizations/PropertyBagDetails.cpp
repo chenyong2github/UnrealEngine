@@ -38,7 +38,7 @@ bool IsScriptStruct(const TSharedPtr<IPropertyHandle>& PropertyHandle)
 		return false;
 	}
 
-	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(PropertyHandle->GetProperty());
+	FStructProperty* StructProperty = CastField<FStructProperty>(PropertyHandle->GetProperty());
 	return StructProperty && StructProperty->Struct == TBaseStructure<T>::Get();
 }
 
