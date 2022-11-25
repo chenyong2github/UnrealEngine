@@ -29,7 +29,7 @@
 
 // For flushing async systems
 #include "RendererInterface.h"
-#include "LandscapeProxy.h"
+#include "LandscapeSubsystem.h"
 #include "EngineModule.h"
 #include "DistanceFieldAtlas.h"
 #include "MeshCardRepresentation.h"
@@ -547,14 +547,9 @@ void UMoviePipeline::FlushAsyncEngineSystems()
 		UMoviePipelineGameOverrideSetting* GameOverrides = FindOrAddSettingForShot<UMoviePipelineGameOverrideSetting>(ActiveShotList[CurrentShotIndex]);
 		if (GameOverrides && GameOverrides->bFlushGrassStreaming)
 		{
-			for (TActorIterator<ALandscapeProxy> It(GetWorld()); It; ++It)
+			if (ULandscapeSubsystem* LandscapeSubsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>())
 			{
-				ALandscapeProxy* LandscapeProxy = (*It);
-				if (LandscapeProxy)
-				{
-					TArray<FVector> CameraList;
-					LandscapeProxy->UpdateGrass(CameraList, true);
-				}
+				LandscapeSubsystem->RegenerateGrass(/*bInFlushGrass = */false, /*bInForceSync = */true, /*InOptionalCameraLocations = */MakeArrayView(TArray<FVector>()));
 			}
 		}
 	}

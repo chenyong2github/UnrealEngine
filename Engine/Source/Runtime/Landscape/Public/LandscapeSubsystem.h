@@ -53,6 +53,14 @@ public:
 	void PrioritizeGrassCreation(bool bPrioritizeGrassCreation) { bIsGrassCreationPrioritized = bPrioritizeGrassCreation; }
 	bool IsGrassCreationPrioritized() const { return bIsGrassCreationPrioritized; }
 
+	/**
+	 * Can be called at runtime : (optionally) flushes grass on all landscape components and updates them
+	 * @param bInFlushGrass : flushes all grass from landscape components prior to updating them
+	 * @param bInForceSync : synchronously updates grass on all landscape components 
+	 * @param InOptionalCameraLocations : (optional) camera locations that should be used when updating the grass. If not specified, the usual (streaming manager-based) view locations will be used
+	 */
+	LANDSCAPE_API void RegenerateGrass(bool bInFlushGrass, bool bInForceSync, TOptional<TArrayView<FVector>> InOptionalCameraLocations = TOptional<TArrayView<FVector>>());
+
 #if WITH_EDITOR
 	LANDSCAPE_API void BuildAll();
 	LANDSCAPE_API void BuildGrassMaps();

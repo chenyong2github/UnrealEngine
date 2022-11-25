@@ -42,7 +42,7 @@ DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick,
 #define LOCTEXT_NAMESPACE "LandscapeSubsystem"
 
 ULandscapeSubsystem::ULandscapeSubsystem()
-: bIsGrassCreationPrioritized(false)
+	: bIsGrassCreationPrioritized(false)
 {
 }
 
@@ -88,6 +88,65 @@ void ULandscapeSubsystem::Deinitialize()
 TStatId ULandscapeSubsystem::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(ULandscapeSubsystem, STATGROUP_Tickables);
+}
+
+void ULandscapeSubsystem::RegenerateGrass(bool bInFlushGrass, bool bInForceSync, TOptional<TArrayView<FVector>> InOptionalCameraLocations)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeSubsystem::RegenerateGrass);
+
+	if (Proxies.IsEmpty())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+
+	if (bInFlushGrass)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FlushGrass);
+		for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : Proxies)
+		{
+			if (ALandscapeProxy* Proxy = ProxyPtr.Get())
+			{
+				Proxy->FlushGrassComponents(/*OnlyForComponents = */nullptr, /*bFlushGrassMaps = */false);
+			}
+		}
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateGrass);
+
+		TArray<FVector> CameraLocations;
+		if (InOptionalCameraLocations.IsSet())
+		{
+			CameraLocations = *InOptionalCameraLocations;
+		}
+		else
+		{
+			if (GUseStreamingManagerForCameras == 0)
+			{
+				CameraLocations = World->ViewLocationsRenderedLastFrame;
+			}
+			else if (int32 Num = IStreamingManager::Get().GetNumViews())
+			{
+				CameraLocations.Reserve(Num);
+				for (int32 Index = 0; Index < Num; Index++)
+				{
+					const FStreamingViewInfo& ViewInfo = IStreamingManager::Get().GetViewInformation(Index);
+					CameraLocations.Add(ViewInfo.ViewOrigin);
+				}
+			}
+		}
+
+		// Update the grass near the specified location(s) : 
+		for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : Proxies)
+		{
+			if (ALandscapeProxy* Proxy = ProxyPtr.Get())
+			{
+				Proxy->UpdateGrass(CameraLocations, bInForceSync);
+			}
+		}
+	}
 }
 
 ETickableTickType ULandscapeSubsystem::GetTickableTickType() const
