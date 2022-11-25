@@ -997,22 +997,6 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FStrata
 	return StrataEvaluateBSDFCommon(BSDFContext, IdentityShadow, DummyAreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
 }
 
-// Area light evaluation
-FStrataEvaluateResult StrataIntegrateBSDF(FStrataBSDFContext BSDFContext, FShadowTerms Shadow, FAreaLightIntegrateContext AreaLightContext, FStrataIntegrationSettings Settings, uint IntegrationMode)
-{
-	BRANCH
-	if (IntegrationMode == INTEGRATION_AREA_LIGHT_RECT)
-	{
-		return StrataEvaluateBSDFCommon(BSDFContext, Shadow, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
-	}
-	else if (IntegrationMode == INTEGRATION_AREA_LIGHT_CAPSULE)
-	{
-		return StrataEvaluateBSDFCommon(BSDFContext, Shadow, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_CAPSULE);
-	}
-
-	return StrataEvaluateBSDFCommon(BSDFContext, Shadow, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // BSDF Importance sampling
  

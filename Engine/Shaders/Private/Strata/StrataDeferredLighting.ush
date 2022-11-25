@@ -70,7 +70,7 @@ FStrataDeferredLighting StrataDeferredLighting(
 
 			// We must have the StrataIntegrateBSDF inside the if due to the rectlight texture: it must be non ambiguous which texture is going to be used.
 			// After the compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-			BSDFEvaluate = StrataIntegrateBSDF(BSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
+			BSDFEvaluate = StrataEvaluateBSDFCommon(BSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
 		}
 		else
 		{
@@ -80,11 +80,11 @@ FStrataDeferredLighting StrataDeferredLighting(
 			BRANCH
 			if(IsAreaLight(AreaLightContext.AreaLight))
 			{
-				BSDFEvaluate = StrataIntegrateBSDF(BSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_CAPSULE);
+				BSDFEvaluate = StrataEvaluateBSDFCommon(BSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_CAPSULE);
 			}
 			else
 			{
-				BSDFEvaluate = StrataIntegrateBSDF(BSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
+				BSDFEvaluate = StrataEvaluateBSDFCommon(BSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
 			}
 		}
 

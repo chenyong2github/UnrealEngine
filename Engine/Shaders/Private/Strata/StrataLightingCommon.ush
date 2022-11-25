@@ -69,7 +69,7 @@ float3 StrataForwardLightingCommon(
 
 				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
 				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
+				BSDFEvaluate = StrataEvaluateBSDFCommon(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
 			}
 			else
 			{
@@ -80,11 +80,11 @@ float3 StrataForwardLightingCommon(
 				BRANCH
 				if(IsAreaLight(AreaLightContext.AreaLight))
 				{
-					BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_CAPSULE);
+					BSDFEvaluate = StrataEvaluateBSDFCommon(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_CAPSULE);
 				}
 				else
 				{
-					BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
+					BSDFEvaluate = StrataEvaluateBSDFCommon(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
 				}
 			}
 
@@ -107,7 +107,7 @@ float3 StrataForwardLightingCommon(
 
 				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
 				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
+				BSDFEvaluate = StrataEvaluateBSDFCommon(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
 			}
 			else
 			{
@@ -117,11 +117,11 @@ float3 StrataForwardLightingCommon(
 				BRANCH
 				if(IsAreaLight(AreaLightContext.AreaLight))
 				{
-					BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_CAPSULE);
+					BSDFEvaluate = StrataEvaluateBSDFCommon(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_CAPSULE);
 				}
 				else
 				{
-					BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
+					BSDFEvaluate = StrataEvaluateBSDFCommon(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
 				}
 			}
 
