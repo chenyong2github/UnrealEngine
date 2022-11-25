@@ -57,7 +57,7 @@ static const FProperty* GetActualMetadataProperty(const FProperty* Property)
 }
 
 // Helper to support both meta=(TagName) and meta=(TagName=true) syntaxes
-static bool GetTagOrBoolMetadata(const FProperty* Property, const TCHAR* TagName, bool bDefault)
+static bool GetTagOrBoolMetadata(const FProperty* Property, FName TagName, bool bDefault)
 {
 	bool bResult = bDefault;
 
@@ -131,87 +131,16 @@ void SPropertyEditorAsset::InitializeClassFilters(const FProperty* Property)
 	// Account for the allowed classes specified in the property metadata
 	const FProperty* MetadataProperty = GetActualMetadataProperty(Property);
 
-	bExactClass = GetTagOrBoolMetadata(MetadataProperty, TEXT("ExactClass"), false);
-
-	auto FindClass = [](const FString& InClassName)
-	{
-		UClass* Class = UClass::TryFindTypeSlow<UClass>(InClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
-		if (!Class)
-		{
-			Class = LoadObject<UClass>(nullptr, *InClassName);
-		}
-		return Class;
-	};
-
-	const FString AllowedClassesFilterString = MetadataProperty->GetMetaData(TEXT("AllowedClasses"));
-	if (!AllowedClassesFilterString.IsEmpty())
-	{
-		TArray<FString> AllowedClassFilterNames;
-		AllowedClassesFilterString.ParseIntoArrayWS(AllowedClassFilterNames, TEXT(","), true);
-
-		for (const FString& ClassName : AllowedClassFilterNames)
-		{
-			UClass* Class = FindClass(ClassName);
-
-			if (Class)
-			{
-				// If the class is an interface, expand it to be all classes in memory that implement the class.
-				if (Class->HasAnyClassFlags(CLASS_Interface))
-				{
-					for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-					{
-						UClass* const ClassWithInterface = (*ClassIt);
-						if (ClassWithInterface->ImplementsInterface(Class))
-						{
-							AllowedClassFilters.Add(ClassWithInterface);
-						}
-					}
-				}
-				else
-				{
-					AllowedClassFilters.Add(Class);
-				}
-			}
-		}
-	}
+	bExactClass = GetTagOrBoolMetadata(MetadataProperty, "ExactClass", false);
 	
+	AllowedClassFilters = PropertyCustomizationHelpers::GetClassesFromMetadataString(MetadataProperty->GetMetaData("AllowedClasses"));
 	if (AllowedClassFilters.Num() == 0)
 	{
 		// always add the object class to the filters
 		AllowedClassFilters.Add(ObjectClass);
 	}
 
-	const FString DisallowedClassesFilterString = MetadataProperty->GetMetaData(TEXT("DisallowedClasses"));
-	if (!DisallowedClassesFilterString.IsEmpty())
-	{
-		TArray<FString> DisallowedClassFilterNames;
-		DisallowedClassesFilterString.ParseIntoArrayWS(DisallowedClassFilterNames, TEXT(","), true);
-
-		for (const FString& ClassName : DisallowedClassFilterNames)
-		{
-			UClass* Class = FindClass(ClassName);
-
-			if (Class)
-			{
-				// If the class is an interface, expand it to be all classes in memory that implement the class.
-				if (Class->HasAnyClassFlags(CLASS_Interface))
-				{
-					for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-					{
-						UClass* const ClassWithInterface = (*ClassIt);
-						if (ClassWithInterface->ImplementsInterface(Class))
-						{
-							DisallowedClassFilters.Add(ClassWithInterface);
-						}
-					}
-				}
-				else
-				{
-					DisallowedClassFilters.Add(Class);
-				}
-			}
-		}
-	}
+	DisallowedClassFilters = PropertyCustomizationHelpers::GetClassesFromMetadataString(MetadataProperty->GetMetaData("DisallowedClasses"));
 }
 
 void SPropertyEditorAsset::InitializeAssetDataTags(const FProperty* Property)
@@ -222,7 +151,7 @@ void SPropertyEditorAsset::InitializeAssetDataTags(const FProperty* Property)
 	}
 
 	const FProperty* MetadataProperty = GetActualMetadataProperty(Property);
-	const FString DisallowedAssetDataTagsFilterString = MetadataProperty->GetMetaData(TEXT("DisallowedAssetDataTags"));
+	const FString DisallowedAssetDataTagsFilterString = MetadataProperty->GetMetaData("DisallowedAssetDataTags");
 	if (!DisallowedAssetDataTagsFilterString.IsEmpty())
 	{
 		TArray<FString> DisallowedAssetDataTagsAndValues;
@@ -243,7 +172,7 @@ void SPropertyEditorAsset::InitializeAssetDataTags(const FProperty* Property)
 		}
 	}
 
-	const FString RequiredAssetDataTagsFilterString = MetadataProperty->GetMetaData(TEXT("RequiredAssetDataTags"));
+	const FString RequiredAssetDataTagsFilterString = MetadataProperty->GetMetaData("RequiredAssetDataTags");
 	if (!RequiredAssetDataTagsFilterString.IsEmpty())
 	{
 		TArray<FString> RequiredAssetDataTagsAndValues;
