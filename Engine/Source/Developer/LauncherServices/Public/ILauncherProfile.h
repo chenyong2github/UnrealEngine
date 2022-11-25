@@ -241,6 +241,7 @@ namespace ELauncherProfileValidationErrors
 	};
 }
 
+LAUNCHERSERVICES_API FString LexToStringLocalized(ELauncherProfileValidationErrors::Type Value);
 
 /** Type definition for shared pointers to instances of ILauncherProfile. */
 typedef TSharedPtr<class ILauncherSimpleProfile> ILauncherSimpleProfilePtr;

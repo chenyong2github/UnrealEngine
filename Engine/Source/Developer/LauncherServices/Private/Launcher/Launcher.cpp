@@ -4,6 +4,7 @@
 
 #include "HAL/RunnableThread.h"
 #include "Launcher/LauncherWorker.h"
+#include "Profiles/LauncherProfile.h"
 
 
 /* Static class member instantiations
@@ -27,6 +28,19 @@ ILauncherWorkerPtr FLauncher::Launch(const TSharedRef<ITargetDeviceProxyManager>
 			ILauncherWorkerPtr Worker = MakeShareable(LauncherWorker);
 			FLauncherWorkerStartedDelegate.Broadcast(Worker, Profile);
 			return Worker;
+		}
+	}
+	else
+	{
+		UE_LOG(LogLauncherProfile, Error, TEXT("Launcher profile '%s' for is not valid for launch."),
+			*Profile->GetName());
+		for (int32 I = 0; I < (int32)ELauncherProfileValidationErrors::Count; ++I)
+		{
+			ELauncherProfileValidationErrors::Type Error = (ELauncherProfileValidationErrors::Type)I;
+			if (Profile->HasValidationError(Error))
+			{
+				UE_LOG(LogLauncherProfile, Error, TEXT("ValidationError: %s"), *LexToStringLocalized(Error));
+			}
 		}
 	}
 
