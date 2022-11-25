@@ -10,6 +10,8 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_WorldConditionsTest"
 
+UE_DISABLE_OPTIMIZATION_SHIP
+
 struct FWorldConditionTest_Init : FAITestBase
 {
 	virtual bool InstantTest() override
@@ -70,6 +72,41 @@ struct FWorldConditionTest_Eval : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_Eval, "System.WorldConditions.Eval");
+
+struct FWorldConditionTest_EvalInvert : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FWorldConditionQuery Query;
+		const bool bInitialized = Query.DebugInitialize(UWorldConditionTestSchema::StaticClass(),
+			{
+				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(1))),
+				FWorldConditionEditable(0, EWorldConditionOperator::And, /*bInveret*/true, FConstStructView::Make(FWorldConditionTest(0)))
+			});
+
+		AITEST_TRUE("Query should get initialized", bInitialized);
+		
+		const FWorldConditionTestData TestData(1);
+
+		const UWorldConditionTestSchema* TestSchema = GetDefault<UWorldConditionTestSchema>();
+		FWorldConditionContextData ContextData(*TestSchema);
+		const bool bContextDataSet = ContextData.SetContextData(TestSchema->GetValueRef(), &TestData);
+		AITEST_TRUE("Query context data should be set", bContextDataSet);
+		
+		const bool bActivated = Query.Activate(GetWorld(), ContextData);
+		AITEST_TRUE("Query should get activated", bActivated);
+		AITEST_TRUE("Query should be active", Query.IsActive());
+		
+		const bool bResult = Query.IsTrue(ContextData);
+		AITEST_TRUE("Query result should be true", bResult);
+
+		Query.Deactivate(ContextData);
+		AITEST_FALSE("Query should not be active", Query.IsActive());
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_EvalInvert, "System.WorldConditions.EvalInvert");
 
 struct FWorldConditionTest_CachedEval : FAITestBase
 {
@@ -231,5 +268,7 @@ struct FWorldConditionTest_FailingActivate : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_FailingActivate, "System.WorldConditions.FailingActivate");
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE

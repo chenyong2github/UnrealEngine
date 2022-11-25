@@ -32,7 +32,9 @@ private:
 
 	bool ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const;
 	void ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle);
-	
+
+	EVisibility GetInvertVisibility() const;
+
 	FOptionalSize GetIndentSize() const;
 	TSharedRef<SWidget> OnGetIndentContent() const;
 
@@ -69,5 +71,6 @@ private:
 	TSharedPtr<IPropertyHandle> ConditionProperty;
 	TSharedPtr<IPropertyHandle> ExpressionDepthProperty;
 	TSharedPtr<IPropertyHandle> OperatorProperty;
+	TSharedPtr<IPropertyHandle> InvertProperty;
 	IPropertyUtilities* PropUtils = nullptr;
 };

@@ -221,6 +221,7 @@ bool FWorldConditionQueryDefinition::Initialize()
 				// Store expression depth temporarily into NextExpressionDepth, it will be update below.
 				Condition.NextExpressionDepth = EditableCondition.ExpressionDepth;
 				Condition.Operator = EditableCondition.Operator;
+				Condition.bInvert = EditableCondition.bInvert;
 
 				ValidConditions.Add(EditableCondition.Condition);
 			}

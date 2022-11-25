@@ -19,6 +19,7 @@
 #include "WorldConditionSchema.h"
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "WorldCondition"
 
@@ -70,10 +71,12 @@ void FWorldConditionEditableDetails::CustomizeHeader(TSharedRef<IPropertyHandle>
 	ConditionProperty = StructProperty->GetChildHandle(TEXT("Condition"));
 	ExpressionDepthProperty = StructProperty->GetChildHandle(TEXT("ExpressionDepth"));
 	OperatorProperty = StructProperty->GetChildHandle(TEXT("Operator"));
+	InvertProperty = StructProperty->GetChildHandle(TEXT("bInvert"));
 
 	check(ConditionProperty.IsValid());
 	check(ExpressionDepthProperty.IsValid());
 	check(OperatorProperty.IsValid());
+	check(InvertProperty.IsValid());
 	
 	CacheSchema();
 
@@ -149,6 +152,22 @@ void FWorldConditionEditableDetails::CustomizeHeader(TSharedRef<IPropertyHandle>
 					.Text(this, &FWorldConditionEditableDetails::GetOpenParens)
 				]
 
+				// Not
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SBox)
+					.Padding(FMargin(8, 0, 4, 0))
+					.VAlign(VAlign_Center)
+					.Visibility(this, &FWorldConditionEditableDetails::GetInvertVisibility)
+					[
+						SNew(STextBlock)
+						.TextStyle(FWorldConditionEditorStyle::Get(), "Condition.Operator")
+						.Text(LOCTEXT("NotOperator","NOT"))
+					]
+				]
+				
 				// Class picker
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -188,9 +207,45 @@ void FWorldConditionEditableDetails::CustomizeHeader(TSharedRef<IPropertyHandle>
 void FWorldConditionEditableDetails::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	check(ConditionProperty);
+	check(InvertProperty);
+
+	StructBuilder.AddProperty(InvertProperty.ToSharedRef());
 	
 	TSharedRef<FInstancedStructDataDetails> NodeDetails = MakeShareable(new FInstancedStructDataDetails(ConditionProperty));
 	StructBuilder.AddCustomBuilder(NodeDetails);
+}
+
+void FWorldConditionEditableDetails::CacheSchema()
+{
+	// Find schema from outer FWorldConditionQueryDefinition.
+	Schema = nullptr;
+	
+	TSharedPtr<IPropertyHandle> CurrentProperty = StructProperty;
+	while (CurrentProperty.IsValid() && !Schema)
+	{
+		const FProperty* Property = CurrentProperty->GetProperty();
+		if (const FStructProperty* CurrentStructProperty = CastField<FStructProperty>(Property))
+		{
+			if (CurrentStructProperty->Struct == TBaseStructure<FWorldConditionQueryDefinition>::Get())
+			{
+				// Get schema from definition
+				TArray<void*> RawNodeData;
+				CurrentProperty->AccessRawData(RawNodeData);
+				for (void* Data : RawNodeData)
+				{
+					if (const FWorldConditionQueryDefinition* QueryDefinition = static_cast<FWorldConditionQueryDefinition*>(Data))
+					{
+						Schema = QueryDefinition->SchemaClass.GetDefaultObject();
+						if (Schema)
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+		CurrentProperty = CurrentProperty->GetParentHandle(); 
+	}
 }
 
 bool FWorldConditionEditableDetails::ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const
@@ -247,37 +302,14 @@ void FWorldConditionEditableDetails::ResetToDefault(TSharedPtr<IPropertyHandle> 
 	}
 }
 
-void FWorldConditionEditableDetails::CacheSchema()
+EVisibility FWorldConditionEditableDetails::GetInvertVisibility() const
 {
-	// Find schema from outer FWorldConditionQueryDefinition.
-	Schema = nullptr;
+	check(InvertProperty);
 	
-	TSharedPtr<IPropertyHandle> CurrentProperty = StructProperty;
-	while (CurrentProperty.IsValid() && !Schema)
-	{
-		const FProperty* Property = CurrentProperty->GetProperty();
-		if (const FStructProperty* CurrentStructProperty = CastField<FStructProperty>(Property))
-		{
-			if (CurrentStructProperty->Struct == TBaseStructure<FWorldConditionQueryDefinition>::Get())
-			{
-				// Get schema from definition
-				TArray<void*> RawNodeData;
-				CurrentProperty->AccessRawData(RawNodeData);
-				for (void* Data : RawNodeData)
-				{
-					if (const FWorldConditionQueryDefinition* QueryDefinition = static_cast<FWorldConditionQueryDefinition*>(Data))
-					{
-						Schema = QueryDefinition->SchemaClass.GetDefaultObject();
-						if (Schema)
-						{
-							break;
-						}
-					}
-				}
-			}
-		}
-		CurrentProperty = CurrentProperty->GetParentHandle(); 
-	}
+	bool bInvert = false;
+	InvertProperty->GetValue(bInvert);
+	
+	return bInvert ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FOptionalSize FWorldConditionEditableDetails::GetIndentSize() const

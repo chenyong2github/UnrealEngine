@@ -79,6 +79,7 @@ struct WORLDCONDITIONS_API FWorldConditionBase
 	FWorldConditionBase()
 		: bIsStateObject(false)
 		, bCanCacheResult(true)
+		, bInvert(false)
 	{
 	}
 	virtual ~FWorldConditionBase();
@@ -139,6 +140,10 @@ protected:
 
 	/** Set to true if the result of the IsTrue() can be cached. */
 	uint8 bCanCacheResult : 1;
+
+	/** Controls whether the value of the expressions as calculated by IsTrue should be inverted. The inversion is handled by the expression evaluator. */
+	UPROPERTY()
+	uint8 bInvert : 1;
 
 	/** Operator describing how the results of the condition is combined with other conditions. Not used directly, but to set up condition item in query state. */
 	UPROPERTY()

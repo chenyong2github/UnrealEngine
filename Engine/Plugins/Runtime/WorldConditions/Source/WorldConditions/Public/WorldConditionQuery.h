@@ -49,7 +49,15 @@ struct WORLDCONDITIONS_API FWorldConditionEditable
 		, Condition(InCondition)
 	{
 	}
-	
+
+	FWorldConditionEditable(const uint8 InExpressionDepth, const EWorldConditionOperator InOperator, const bool bInInvert, const FConstStructView InCondition)
+		: ExpressionDepth(InExpressionDepth)
+		, Operator(InOperator)
+		, bInvert(bInInvert)
+		, Condition(InCondition)
+		{
+		}
+
 	void Reset()
 	{
 		Operator = EWorldConditionOperator::And;
@@ -64,7 +72,11 @@ struct WORLDCONDITIONS_API FWorldConditionEditable
 	/** Operator describing how the results of the condition is combined with other conditions. */
 	UPROPERTY(EditAnywhere, Category="Default")
 	EWorldConditionOperator Operator = EWorldConditionOperator::And;
-	
+
+	/** Controls whether the value of the expressions as calculated by IsTrue should be inverted. */
+	UPROPERTY(EditAnywhere, Category="Default")
+	bool bInvert = false;
+
 	/** Instance of a world condition. */
 	UPROPERTY(EditAnywhere, Category="Default")
 	FInstancedStruct Condition;

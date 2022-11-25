@@ -67,6 +67,8 @@ bool FWorldConditionContext::IsTrue() const
 			check(QueryDefinition.Conditions.Num() == QueryState.GetNumConditions());
 			const FWorldConditionBase& Condition = QueryDefinition.Conditions[Index].Get<FWorldConditionBase>();
 			CurrResult = Condition.IsTrue(*this);
+			CurrResult = UE::WorldCondition::Invert(CurrResult, Condition.bInvert); 
+			
 			if (Condition.bCanCacheResult)
 			{
 				Item.CachedResult = CurrResult;

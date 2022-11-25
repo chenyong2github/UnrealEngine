@@ -47,6 +47,17 @@ namespace UE::WorldCondition
 		const uint8 Result = (Operator == EWorldConditionOperator::And) ? ResultAnd : ResultOr;
 		return (Operator == EWorldConditionOperator::Copy) ? InRight : (EWorldConditionResult)Result;
 	}
+
+	/** Inverts the result if bInvert is true. Invalid is kept intact. */
+	inline EWorldConditionResult Invert(const EWorldConditionResult InResult, const bool bInvert)
+	{
+		if (InResult == EWorldConditionResult::Invalid)
+		{
+			return EWorldConditionResult::Invalid;
+		}
+		return ((InResult == EWorldConditionResult::IsTrue) ^ bInvert) ? EWorldConditionResult::IsTrue : EWorldConditionResult::IsFalse;
+	}
+
 } // UE::WorldCondition
 
 /**
