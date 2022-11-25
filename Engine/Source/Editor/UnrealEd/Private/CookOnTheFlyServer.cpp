@@ -9550,6 +9550,12 @@ void UCookOnTheFlyServer::LogCookWorkerStats()
 
 void UCookOnTheFlyServer::CookAsCookWorkerFinished()
 {
+	if (CookWorkerClient->HasRunFinished())
+	{
+		return;
+	}
+	CookWorkerClient->SetHasRunFinished(true);
+
 	FString LibraryName = GetProjectShaderLibraryName();
 	FString ActualLibraryName = GenerateShaderCodeLibraryName(LibraryName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
 	FShaderLibraryCooker::EndCookingLibrary(ActualLibraryName);
@@ -9560,6 +9566,7 @@ void UCookOnTheFlyServer::CookAsCookWorkerFinished()
 	{
 		GShaderCompilingManager->SkipShaderCompilation(false);
 	}
+	LogCookWorkerStats();
 }
 
 void UCookOnTheFlyServer::ShutdownCookAsCookWorker()

@@ -47,6 +47,8 @@ public:
 	FCookOnTheFlyOptions&& ConsumeCookOnTheFlyOptions();
 	/** Mark that initialization is complete and we can free the memory for initialization settings. */
 	void DoneWithInitialSettings();
+	bool HasRunFinished() const { return bHasRunFinished; }
+	void SetHasRunFinished(bool Value) { bHasRunFinished = Value; }
 
 	/** Queue a message to the server that the Package was cook-suppressed. Will be sent during Tick. */
 	void ReportDemoteToIdle(const FPackageData& PackageData, ESuppressCookReason Reason);
@@ -120,6 +122,7 @@ private:
 	double NextTickCollectorsTimeSeconds = 0.;
 	EConnectStatus ConnectStatus = EConnectStatus::Uninitialized;
 	ECookMode::Type DirectorCookMode = ECookMode::CookByTheBook;
+	bool bHasRunFinished = false;
 };
 
 }

@@ -477,9 +477,9 @@ void FCookWorkerClient::PumpDisconnect(FTickStackData& StackData)
 		{
 		case EConnectStatus::FlushAndAbortFirst:
 		{
-			COTFS.LogCookWorkerStats();
 			TickCollectors(StackData, true /* bFlush */);
 			// Add code here for any waiting we need to do for the local CookOnTheFlyServer to gracefully shutdown
+			COTFS.CookAsCookWorkerFinished();
 			SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
 			SendToState(EConnectStatus::WaitForAbortAcknowledge);
 			break;
