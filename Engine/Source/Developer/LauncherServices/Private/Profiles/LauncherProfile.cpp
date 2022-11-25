@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "LauncherProfile.h"
 
 #define LOCTEXT_NAMESPACE "SProjectLauncherValidation"
