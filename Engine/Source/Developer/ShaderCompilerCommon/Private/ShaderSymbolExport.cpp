@@ -6,6 +6,7 @@
 
 #include "FileUtilities/ZipArchiveWriter.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/CommandLine.h"
