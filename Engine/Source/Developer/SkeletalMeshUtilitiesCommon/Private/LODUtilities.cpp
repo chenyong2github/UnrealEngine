@@ -2155,7 +2155,7 @@ void MatchVertexIndexUsingPosition(
 	}
 }
 
-bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals)
+bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, int32 LODIndexDest, const IMeshUtilities::MeshBuildOptions& Options)
 {
 	//Grab all the destination structure
 	check(SkeletalMeshDest);
@@ -2168,12 +2168,48 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 		//Very old asset will not have this data, we cannot add alternate until the asset is reimported
 		return false;
 	}
+	
 	FSkeletalMeshImportData ImportDataDest;
 	SkeletalMeshDest->LoadLODImportedData(LODIndexDest, ImportDataDest);
-	return UpdateAlternateSkinWeights(LODModelDest, ImportDataDest, SkeletalMeshDest, SkeletalMeshDest->GetRefSkeleton(), ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, bComputeWeightedNormals);
+	
+	return UpdateAlternateSkinWeights(
+		LODModelDest,
+		ImportDataDest,
+		SkeletalMeshDest,
+		SkeletalMeshDest->GetRefSkeleton(),
+		ProfileNameDest,
+		LODIndexDest,
+		Options);
 }
 
-bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDest, FSkeletalMeshImportData& ImportDataDest, USkeletalMesh* SkeletalMeshDest, const FReferenceSkeleton& RefSkeleton, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals)
+bool FLODUtilities::UpdateAlternateSkinWeights(
+	USkeletalMesh* SkeletalMeshDest,
+	const FName& ProfileNameDest,
+	int32 LODIndexDest,
+	FOverlappingThresholds OverlappingThresholds,
+	bool ShouldImportNormals,
+	bool ShouldImportTangents,
+	bool bUseMikkTSpace,
+	bool bComputeWeightedNormals)
+{
+	IMeshUtilities::MeshBuildOptions Options;
+	Options.OverlappingThresholds = OverlappingThresholds;
+	Options.bComputeNormals = !ShouldImportNormals;
+	Options.bComputeTangents = !ShouldImportTangents;
+	Options.bUseMikkTSpace = bUseMikkTSpace;
+	Options.bComputeWeightedNormals = bComputeWeightedNormals;
+
+	return UpdateAlternateSkinWeights(SkeletalMeshDest, ProfileNameDest, LODIndexDest, Options);
+}
+
+bool FLODUtilities::UpdateAlternateSkinWeights(
+	FSkeletalMeshLODModel& LODModelDest,
+	FSkeletalMeshImportData& ImportDataDest,
+	USkeletalMesh* SkeletalMeshDest,
+	const FReferenceSkeleton& RefSkeleton,
+	const FName& ProfileNameDest,
+	int32 LODIndexDest,
+	const IMeshUtilities::MeshBuildOptions& Options)
 {
 	//Ensure log message only once
 	bool bNoMatchMsgDone = false;
@@ -2527,14 +2563,10 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	ImportDataDest.CopyLODImportData(LODPointsDest, LODWedgesDest, LODFacesDest, LODInfluencesDest, LODPointToRawMapDest);
 
 	//Set the options with the current asset build options
-	IMeshUtilities::MeshBuildOptions BuildOptions;
-	BuildOptions.OverlappingThresholds = OverlappingThresholds;
-	BuildOptions.bComputeNormals = !ShouldImportNormals || !ImportDataDest.bHasNormals;
-	BuildOptions.bComputeTangents = !ShouldImportTangents || !ImportDataDest.bHasTangents;
-	BuildOptions.bUseMikkTSpace = (bUseMikkTSpace) && (!ShouldImportNormals || !ShouldImportTangents);
-	BuildOptions.bComputeWeightedNormals = bComputeWeightedNormals;
-	BuildOptions.bRemoveDegenerateTriangles = false;
-	BuildOptions.TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	IMeshUtilities::MeshBuildOptions BuildOptions = Options;
+	BuildOptions.bComputeNormals = Options.bComputeNormals || !ImportDataDest.bHasNormals;
+	BuildOptions.bComputeTangents = Options.bComputeTangents || !ImportDataDest.bHasTangents;
+	BuildOptions.bUseMikkTSpace = (Options.bUseMikkTSpace) && (Options.bComputeNormals || Options.bComputeTangents);
 
 	//Build the skeletal mesh asset
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
@@ -2549,12 +2581,41 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	//Re-Apply the user section changes, the UserSectionsData is map to original section and should match the builded LODModel
 	LODModelDest.SyncronizeUserSectionsDataArray();
 
-	RegenerateAllImportSkinWeightProfileData(LODModelDest);
+	RegenerateAllImportSkinWeightProfileData(LODModelDest, Options.BoneInfluenceLimit, Options.TargetPlatform);
 	
 	return bBuildSuccess;
 }
 
-bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, USkeletalMesh* SkeletalMeshSrc, int32 LODIndexDest, int32 LODIndexSrc, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals)
+bool FLODUtilities::UpdateAlternateSkinWeights(
+	FSkeletalMeshLODModel& LODModelDest,
+	FSkeletalMeshImportData& ImportDataDest,
+	USkeletalMesh* SkeletalMeshDest,
+	const FReferenceSkeleton& RefSkeleton,
+	const FName& ProfileNameDest,
+	int32 LODIndexDest,
+	FOverlappingThresholds OverlappingThresholds,
+	bool ShouldImportNormals,
+	bool ShouldImportTangents,
+	bool bUseMikkTSpace,
+	bool bComputeWeightedNormals)
+{
+	IMeshUtilities::MeshBuildOptions Options;
+	Options.OverlappingThresholds = OverlappingThresholds;
+	Options.bComputeNormals = !ShouldImportNormals;
+	Options.bComputeTangents = !ShouldImportTangents;
+	Options.bUseMikkTSpace = bUseMikkTSpace;
+	Options.bComputeWeightedNormals = bComputeWeightedNormals;
+
+	return UpdateAlternateSkinWeights(LODModelDest, ImportDataDest, SkeletalMeshDest, RefSkeleton, ProfileNameDest, LODIndexDest, Options);
+}
+
+bool FLODUtilities::UpdateAlternateSkinWeights(
+	USkeletalMesh* SkeletalMeshDest,
+	const FName& ProfileNameDest,
+	USkeletalMesh* SkeletalMeshSrc,
+	int32 LODIndexDest,
+	int32 LODIndexSrc,
+	const IMeshUtilities::MeshBuildOptions& Options)
 {
 	//Grab all the destination structure
 	check(SkeletalMeshDest);
@@ -2613,12 +2674,38 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 	if(!SkeletalMeshDest->IsLODImportedDataBuildAvailable(LODIndexDest))
 	{
 		//Build the alternate buffer with all the data into the bulk, in case the build data is not existing (old asset)
-		return UpdateAlternateSkinWeights(SkeletalMeshDest, ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, bComputeWeightedNormals);
+		return UpdateAlternateSkinWeights(SkeletalMeshDest, ProfileNameDest, LODIndexDest, Options);
 	}
 	return true;
 }
 
-void FLODUtilities::GenerateImportedSkinWeightProfileData(FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData &ImportedProfileData)
+bool FLODUtilities::UpdateAlternateSkinWeights(
+	USkeletalMesh* SkeletalMeshDest,
+	const FName& ProfileNameDest,
+	USkeletalMesh* SkeletalMeshSrc,
+	int32 LODIndexDest,
+	int32 LODIndexSrc,
+	FOverlappingThresholds OverlappingThresholds,
+	bool ShouldImportNormals,
+	bool ShouldImportTangents,
+	bool bUseMikkTSpace,
+	bool bComputeWeightedNormals)
+{
+	IMeshUtilities::MeshBuildOptions Options;
+	Options.OverlappingThresholds = OverlappingThresholds;
+	Options.bComputeNormals = !ShouldImportNormals;
+	Options.bComputeTangents = !ShouldImportTangents;
+	Options.bUseMikkTSpace = bUseMikkTSpace;
+	Options.bComputeWeightedNormals = bComputeWeightedNormals;
+
+	return UpdateAlternateSkinWeights(SkeletalMeshDest, ProfileNameDest, SkeletalMeshSrc, LODIndexDest, LODIndexSrc, Options);
+}
+
+void FLODUtilities::GenerateImportedSkinWeightProfileData(
+	FSkeletalMeshLODModel& LODModelDest,
+	FImportedSkinWeightProfileData& ImportedProfileData,
+	int32 BoneInfluenceLimit,
+	const ITargetPlatform* TargetPlatform)
 {
 	//Add the override buffer with the alternate influence data
 	TArray<FSoftSkinVertex> DestinationSoftVertices;
@@ -2627,8 +2714,12 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(FSkeletalMeshLODModel&
 	TArray<FRawSkinWeight>& SkinWeights = ImportedProfileData.SkinWeights;
 	SkinWeights.Empty(DestinationSoftVertices.Num());
 
+	const int32 MaxBoneInfluencesFromProjectSettings = FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(MAX_TOTAL_INFLUENCES) ? MAX_TOTAL_INFLUENCES : EXTRA_BONE_INFLUENCES;
+	const int32 MaxBoneInfluencesFromAsset = FGPUBaseSkinVertexFactory::GetBoneInfluenceLimitForAsset(BoneInfluenceLimit, TargetPlatform);
+
 	//Get the maximum allow bone influence, so we can cut lowest weight properly and get the same result has the sk build
-	const int32 MaxInfluenceCount = FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(MAX_TOTAL_INFLUENCES) ? MAX_TOTAL_INFLUENCES : EXTRA_BONE_INFLUENCES;
+	const int32 MaxInfluenceCount = FMath::Min(MaxBoneInfluencesFromProjectSettings, MaxBoneInfluencesFromAsset);
+
 	int32 MaxNumInfluences = 0;
 
 	for (int32 VertexInstanceIndex = 0; VertexInstanceIndex < DestinationSoftVertices.Num(); ++VertexInstanceIndex)
@@ -2641,7 +2732,7 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(FSkeletalMeshLODModel&
 			continue;
 		}
 		FSkelMeshSection& Section = LODModelDest.Sections[SectionIndex];
-		const TArray<FBoneIndexType> SectionBoneMap = Section.BoneMap;
+		const TArray<FBoneIndexType>& SectionBoneMap = Section.BoneMap;
 		const FSoftSkinVertex& Vertex = DestinationSoftVertices[VertexInstanceIndex];
 		const int32 VertexIndex = LODModelDest.MeshToImportVertexMap[VertexInstanceIndex];
 		check(VertexIndex >= 0 && VertexIndex <= LODModelDest.MaxImportVertex);
@@ -2712,11 +2803,11 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(FSkeletalMeshLODModel&
 	}
 }
 
-void FLODUtilities::RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODModel& LODModelDest)
+void FLODUtilities::RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODModel& LODModelDest, int32 BoneInfluenceLimit, const ITargetPlatform* TargetPlatform)
 {
 	for (TPair<FName, FImportedSkinWeightProfileData>& ProfilePair : LODModelDest.SkinWeightProfiles)
 	{
-		GenerateImportedSkinWeightProfileData(LODModelDest, ProfilePair.Value);
+		GenerateImportedSkinWeightProfileData(LODModelDest, ProfilePair.Value, BoneInfluenceLimit, TargetPlatform);
 	}
 }
 

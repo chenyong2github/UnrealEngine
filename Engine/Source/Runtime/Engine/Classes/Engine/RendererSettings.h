@@ -1096,6 +1096,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "When Unlimited Bone Influence is enabled, it still uses a fixed bone inflence buffer until the max bone influence of a mesh exceeds this value"))
 		int32 UnlimitedBonInfluencesThreshold;
 
+	UPROPERTY(config, EditAnywhere, Category = Skinning, meta = (
+		ToolTip = "When BoneInfluenceLimit on a skeletal mesh LOD is set to 0, this setting is used instead. If this setting is 0, no limit will be applied here and the max bone influences will be determined by other project settings. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true,
+		ClampMin = "0", UIMin = "0"))
+		FPerPlatformInt DefaultBoneInfluenceLimit;
+
 	/*
 	 * The maximum bones count section vertices's skinning can use before being chunked into more sections. The minimum value is the maximum total influences define (MAX_TOTAL_INFLUENCES).
 	 */

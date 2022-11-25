@@ -255,6 +255,9 @@ public:
 	DECLARE_DELEGATE_RetVal(float, FGetFloatDelegate);
 	DECLARE_DELEGATE_OneParam(FSetFloatDelegate, float);
 
+	DECLARE_DELEGATE_RetVal(int32, FGetIntegerDelegate);
+	DECLARE_DELEGATE_OneParam(FSetIntegerDelegate, int32);
+
 	void UnbindBuildSettings()
 	{
 		IsBuildSettingsEnabledDelegate.Unbind();
@@ -272,8 +275,17 @@ private:
 
 	bool IsBuildEnabled() const;
 
-		//Custom Row Add utilities
+	//Custom Row Add utilities
 	FDetailWidgetRow& AddFloatRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const float MinSliderValue, const float MaxSliderValue, FGetFloatDelegate GetterDelegate, FSetFloatDelegate SetterDelegate);
+	FDetailWidgetRow& AddIntegerRow(
+		IDetailChildrenBuilder& ChildrenBuilder,
+		const FText& RowTitleText,
+		const FText& RowNameContentText,
+		const FText& RowNameContentTooltipText,
+		const int32 MinSliderValue,
+		const int32 MaxSliderValue,
+		const FGetIntegerDelegate& GetterDelegate,
+		const FSetIntegerDelegate& SetterDelegate);
 
 	float GetThresholdPosition() const;
 	void SetThresholdPosition(float Value);
@@ -286,6 +298,9 @@ private:
 
 	float GetMorphThresholdPosition() const;
 	void SetMorphThresholdPosition(float Value);
+
+	int32 GetBoneInfluenceLimit() const;
+	void SetBoneInfluenceLimit(int32 Value);
 
 	ECheckBoxState ShouldRecomputeNormals() const;
 	ECheckBoxState ShouldRecomputeTangents() const;

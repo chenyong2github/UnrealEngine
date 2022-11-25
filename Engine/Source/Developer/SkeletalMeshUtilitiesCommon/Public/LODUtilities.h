@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "MeshBuild.h"
+#include "MeshUtilities.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Rendering/SkeletalMeshLODModel.h"
@@ -142,9 +143,27 @@ public:
 	 * @param LODIndexDest - the destination LOD
 	 * @param LODIndexSrc - the Source LOD index
 	 */
-	static bool UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, USkeletalMesh* SkeletalMeshSrc, int32 LODIndexDest, int32 LODIndexSrc, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals);
+	static bool UpdateAlternateSkinWeights(
+		USkeletalMesh* SkeletalMeshDest,
+		const FName& ProfileNameDest,
+		USkeletalMesh* SkeletalMeshSrc,
+		int32 LODIndexDest,
+		int32 LODIndexSrc,
+		const IMeshUtilities::MeshBuildOptions& Options);
 
-	
+	UE_DEPRECATED(5.2, "Please use the new overloads of UpdateAlternateSkinWeights that take an IMeshUtilities::MeshBuildOptions. Note that IMeshUtilities::MeshBuildOptions::bComputeNormals/Tangents has the opposite meaning of ShouldImportNormals/Tangents.")
+	static bool UpdateAlternateSkinWeights(
+		USkeletalMesh* SkeletalMeshDest,
+		const FName& ProfileNameDest,
+		USkeletalMesh* SkeletalMeshSrc,
+		int32 LODIndexDest,
+		int32 LODIndexSrc,
+		FOverlappingThresholds OverlappingThresholds,
+		bool ShouldImportNormals,
+		bool ShouldImportTangents,
+		bool bUseMikkTSpace,
+		bool bComputeWeightedNormals);
+
 	/*
 	 *	This function apply the skinning weights from the saved imported skinning weight data to the destination skeletal mesh.
 	 *  The Destination will receive the weights has the alternate weights.
@@ -152,12 +171,52 @@ public:
 	 * @param SkeletalMeshDest - The skeletal mesh that will receive the alternate skinning weights.
 	 * @param LODIndexDest - the destination LOD
 	 */
-	static bool UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals);
+	static bool UpdateAlternateSkinWeights(
+		USkeletalMesh* SkeletalMeshDest,
+		const FName& ProfileNameDest,
+		int32 LODIndexDest,
+		const IMeshUtilities::MeshBuildOptions& Options);
 
-	static bool UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDest, FSkeletalMeshImportData& ImportDataDest, USkeletalMesh* SkeletalMeshDest, const FReferenceSkeleton& RefSkeleton, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals);
+	UE_DEPRECATED(5.2, "Please use the new overloads of UpdateAlternateSkinWeights that take an IMeshUtilities::MeshBuildOptions. Note that IMeshUtilities::MeshBuildOptions::bComputeNormals/Tangents has the opposite meaning of ShouldImportNormals/Tangents.")
+	static bool UpdateAlternateSkinWeights(
+		USkeletalMesh* SkeletalMeshDest,
+		const FName& ProfileNameDest,
+		int32 LODIndexDest,
+		FOverlappingThresholds OverlappingThresholds,
+		bool ShouldImportNormals,
+		bool ShouldImportTangents,
+		bool bUseMikkTSpace,
+		bool bComputeWeightedNormals);
 
-	/** Re-generate all (editor-only) skin weight profile, used whenever we rebuild the skeletal mesh data which could change the chunking and bone indices */
-	static void RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODModel& LODModelDest);
+	static bool UpdateAlternateSkinWeights(
+		FSkeletalMeshLODModel& LODModelDest,
+		FSkeletalMeshImportData& ImportDataDest,
+		USkeletalMesh* SkeletalMeshDest,
+		const FReferenceSkeleton& RefSkeleton,
+		const FName& ProfileNameDest,
+		int32 LODIndexDest,
+		const IMeshUtilities::MeshBuildOptions& Options);
+
+	UE_DEPRECATED(5.2, "Please use the new overloads of UpdateAlternateSkinWeights that take an IMeshUtilities::MeshBuildOptions. Note that IMeshUtilities::MeshBuildOptions::bComputeNormals/Tangents has the opposite meaning of ShouldImportNormals/Tangents.")
+	static bool UpdateAlternateSkinWeights(
+		FSkeletalMeshLODModel& LODModelDest,
+		FSkeletalMeshImportData& ImportDataDest,
+		USkeletalMesh* SkeletalMeshDest,
+		const FReferenceSkeleton& RefSkeleton,
+		const FName& ProfileNameDest,
+		int32 LODIndexDest,
+		FOverlappingThresholds OverlappingThresholds,
+		bool ShouldImportNormals,
+		bool ShouldImportTangents,
+		bool bUseMikkTSpace,
+		bool bComputeWeightedNormals);
+
+	/**
+	 * Re-generate all (editor-only) skin weight profile, used whenever we rebuild the skeletal mesh data which could change the chunking and bone indices
+	 * 
+	 * If BoneInfluenceLimit is 0, the DefaultBoneInfluenceLimit from the project settings will be used.
+	 */
+	static void RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODModel& LODModelDest, int32 BoneInfluenceLimit = 0, const ITargetPlatform* TargetPlatform = nullptr);
 
 	static void UnbindClothingAndBackup(USkeletalMesh* SkeletalMesh, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings);
 	static void UnbindClothingAndBackup(USkeletalMesh* SkeletalMesh, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings, const int32 LODIndex);
@@ -189,7 +248,11 @@ private:
 	FLODUtilities() {}
 
 	/** Generate the editor-only data stored for a skin weight profile (relies on bone indices) */
-	static void GenerateImportedSkinWeightProfileData(FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData& ImportedProfileData);
+	static void GenerateImportedSkinWeightProfileData(
+		FSkeletalMeshLODModel& LODModelDest,
+		struct FImportedSkinWeightProfileData& ImportedProfileData,
+		int32 BoneInfluenceLimit,
+		const class ITargetPlatform* TargetPlatform);
 
 	/**
 	 *	Simplifies the static mesh based upon various user settings for DesiredLOD

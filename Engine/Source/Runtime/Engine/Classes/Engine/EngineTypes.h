@@ -2635,6 +2635,16 @@ struct FSkeletalMeshBuildSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
 	float MorphThresholdPosition;
 
+	/**
+	 * The maximum number of bone influences to allow each vertex in this mesh to use.
+	 * 
+	 * If set higher than the limit determined by the project settings, it has no effect.
+	 * 
+	 * If set to 0, the value is taken from the DefaultBoneInfluenceLimit project setting.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
+	int32 BoneInfluenceLimit;
+
 	/** Default settings. */
 	FSkeletalMeshBuildSettings()
 		: bRecomputeNormals(true)
@@ -2650,6 +2660,7 @@ struct FSkeletalMeshBuildSettings
 		, ThresholdTangentNormal(0.00002f)
 		, ThresholdUV(0.0009765625f)
 		, MorphThresholdPosition(0.015f)
+		, BoneInfluenceLimit(0)
 	{}
 
 	/** Equality operator. */
@@ -2667,7 +2678,8 @@ struct FSkeletalMeshBuildSettings
 			&& ThresholdPosition == Other.ThresholdPosition
 			&& ThresholdTangentNormal == Other.ThresholdTangentNormal
 			&& ThresholdUV == Other.ThresholdUV
-			&& MorphThresholdPosition == Other.MorphThresholdPosition;
+			&& MorphThresholdPosition == Other.MorphThresholdPosition
+			&& BoneInfluenceLimit == Other.BoneInfluenceLimit;
 	}
 
 	/** Inequality. */

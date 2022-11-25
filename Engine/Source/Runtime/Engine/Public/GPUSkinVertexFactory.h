@@ -378,6 +378,17 @@ public:
 	ENGINE_API static bool UseUnlimitedBoneInfluences(uint32 MaxBoneInfluences);
 	ENGINE_API static bool GetUnlimitedBoneInfluences();
 
+	/*
+	 * Returns the maximum number of bone influences that should be used for a skeletal mesh, given
+	 * the user-requested limit.
+	 * 
+	 * If the requested limit is 0, the limit will be determined from the project settings.
+	 * 
+	 * The return value is guaranteed to be greater than zero, but note that it may be higher than
+	 * the maximum supported bone influences.
+	 */
+	ENGINE_API static int32 GetBoneInfluenceLimitForAsset(int32 AssetProvidedLimit, const ITargetPlatform* TargetPlatform = nullptr);
+
 	/** Morph vertex factory functions */
 	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) {}
 	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious) const { return nullptr; }

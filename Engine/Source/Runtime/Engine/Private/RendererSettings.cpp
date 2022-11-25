@@ -86,6 +86,7 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	bEnableRayTracingSkylight = 0;
 	bEnablePathTracing = 0;
 	bEnableRayTracingTextureLOD = 0;
+	DefaultBoneInfluenceLimit = 0;
 	MaxSkinBones = FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones;
 	WorkingColorSpaceChoice = EWorkingColorSpace::sRGB;
 	RedChromaticityCoordinate = FVector2D::ZeroVector;

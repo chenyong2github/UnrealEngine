@@ -254,12 +254,16 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 
 				FImportedSkinWeightProfileData PreviousProfileData = ProfileData;
 				
-				FOverlappingThresholds OverlappingThresholds = ImportOptions.OverlappingThresholds;
-				bool ShouldImportNormals = ImportOptions.ShouldImportNormals();
-				bool ShouldImportTangents = ImportOptions.ShouldImportTangents();
-				bool bUseMikkTSpace = ImportOptions.NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace;
+				IMeshUtilities::MeshBuildOptions BuildOptions;
+				BuildOptions.OverlappingThresholds = ImportOptions.OverlappingThresholds;
+				BuildOptions.bComputeNormals = !ImportOptions.ShouldImportNormals();
+				BuildOptions.bComputeTangents = !ImportOptions.ShouldImportTangents();
+				BuildOptions.bUseMikkTSpace = ImportOptions.NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace;
+				BuildOptions.bComputeWeightedNormals = ImportOptions.bComputeWeightedNormals;
+				// There's currently no import option for this. We could add one if needed.
+				BuildOptions.BoneInfluenceLimit = 0;
 
-				bResult = FLODUtilities::UpdateAlternateSkinWeights(SkeletalMesh, ProfileName, TmpSkeletalMesh, TargetLODIndex, SrcLodIndex, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, ImportOptions.bComputeWeightedNormals);
+				bResult = FLODUtilities::UpdateAlternateSkinWeights(SkeletalMesh, ProfileName, TmpSkeletalMesh, TargetLODIndex, SrcLodIndex, BuildOptions);
 				
 				if (!bResult)
 				{
@@ -380,6 +384,8 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 	BuildOptions.bComputeWeightedNormals = OriginalSkeletalMeshImportData->bComputeWeightedNormals;
 	BuildOptions.bRemoveDegenerateTriangles = false;
 	BuildOptions.TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	// There's currently no import option for this. We could add one if needed.
+	BuildOptions.BoneInfluenceLimit = 0;
 
 	//Build the skeletal mesh asset
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
@@ -391,7 +397,7 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 
 	//Build the destination mesh with the Alternate influences, so the chunking is done properly.
 	const bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, SkeletalMesh->GetPathName(), SkeletalMesh->GetRefSkeleton(), LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
-	FLODUtilities::RegenerateAllImportSkinWeightProfileData(LODModelDest);
+	FLODUtilities::RegenerateAllImportSkinWeightProfileData(LODModelDest, BuildOptions.BoneInfluenceLimit, BuildOptions.TargetPlatform);
 
 	return bBuildSuccess;
 }

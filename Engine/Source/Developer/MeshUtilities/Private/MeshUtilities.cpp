@@ -4055,6 +4055,15 @@ public:
 					}
 
 					InfluenceCount = FMath::Min<uint32>(InfluenceCount, MAX_TOTAL_INFLUENCES);
+
+					// Apply bone influence limit from asset
+					{
+						const int32 InfluenceLimit = FGPUBaseSkinVertexFactory::GetBoneInfluenceLimitForAsset(
+							BuildData.BuildOptions.BoneInfluenceLimit, BuildData.BuildOptions.TargetPlatform);
+
+						InfluenceCount = FMath::Min<uint32>(InfluenceCount, InfluenceLimit);
+					}
+
 					if (InfluenceCount > EXTRA_BONE_INFLUENCES && !FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(InfluenceCount))
 					{
 						// Add a single warning message, there could be too many

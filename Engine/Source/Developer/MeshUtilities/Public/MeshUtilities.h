@@ -152,7 +152,8 @@ public:
 	struct MeshBuildOptions
 	{
 		MeshBuildOptions()
-		: bRemoveDegenerateTriangles(false)
+		: BoneInfluenceLimit(0)
+		, bRemoveDegenerateTriangles(false)
 		, bComputeNormals(true)
 		, bComputeTangents(true)
 		, bUseMikkTSpace(false)
@@ -161,6 +162,7 @@ public:
 		{
 		}
 
+		int32 BoneInfluenceLimit;
 		bool bRemoveDegenerateTriangles;
 		bool bComputeNormals;
 		bool bComputeTangents;
@@ -175,6 +177,7 @@ public:
 			OverlappingThresholds.ThresholdTangentNormal = SkeletalMeshBuildSettings.ThresholdTangentNormal;
 			OverlappingThresholds.ThresholdUV = SkeletalMeshBuildSettings.ThresholdUV;
 			OverlappingThresholds.MorphThresholdPosition = SkeletalMeshBuildSettings.MorphThresholdPosition;
+			BoneInfluenceLimit = SkeletalMeshBuildSettings.BoneInfluenceLimit;
 			bComputeNormals = SkeletalMeshBuildSettings.bRecomputeNormals;
 			bComputeTangents = SkeletalMeshBuildSettings.bRecomputeTangents;
 			bUseMikkTSpace = SkeletalMeshBuildSettings.bUseMikkTSpace;

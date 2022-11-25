@@ -1708,6 +1708,17 @@ void FSkeletalMeshBuildSettingsLayout::GenerateChildContent(IDetailChildrenBuild
 			FGetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetMorphThresholdPosition),
 			FSetFloatDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetMorphThresholdPosition));
 	}
+
+	{
+		FDetailWidgetRow& BoneInfluenceLimit = AddIntegerRow(ChildrenBuilder,
+			LOCTEXT("BoneInfluenceLimit_Row", "BoneInfluenceLimitRow"),
+			LOCTEXT("BoneInfluenceLimit", "Bone Influence Limit"),
+			LOCTEXT("BoneInfluenceLimit_ToolTip", "Limit the number of bone influences a vertex can have. If 0, the Default Bone Influence Limit from the project settings will be used."),
+			0,
+			MAX_TOTAL_INFLUENCES,
+			FGetIntegerDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::GetBoneInfluenceLimit),
+			FSetIntegerDelegate::CreateRaw(this, &FSkeletalMeshBuildSettingsLayout::SetBoneInfluenceLimit));
+	}
 }
 
 bool FSkeletalMeshBuildSettingsLayout::IsBuildEnabled() const
@@ -1770,6 +1781,81 @@ FDetailWidgetRow& FSkeletalMeshBuildSettingsLayout::AddFloatRow(IDetailChildrenB
 	.ValueContent()
 	[
 		SNew(SSpinBox<float>)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.MinValue(MinSliderValue)
+		.MaxValue(MaxSliderValue)
+		.Value_Lambda(GetValueHelperFunc)
+		.OnValueChanged_Lambda(SetValueHelperFunc)
+		.OnBeginSliderMovement_Lambda(BeginSliderMovementHelperFunc)
+		.OnEndSliderMovement_Lambda(EndSliderMovementHelperFunc)
+		.IsEnabled(this, &FSkeletalMeshBuildSettingsLayout::IsBuildEnabled)
+	];
+	return Row;
+}
+
+FDetailWidgetRow& FSkeletalMeshBuildSettingsLayout::AddIntegerRow(
+	IDetailChildrenBuilder& ChildrenBuilder,
+	const FText& RowTitleText,
+	const FText& RowNameContentText,
+	const FText& RowNameContentTooltipText,
+	const int32 MinSliderValue,
+	const int32 MaxSliderValue,
+	const FGetIntegerDelegate& GetterDelegate,
+	const FSetIntegerDelegate& SetterDelegate)
+{
+	const int32 SliderDataIndex = SliderStateDataArray.Num();
+	FSliderStateData& SliderData = SliderStateDataArray.AddDefaulted_GetRef();
+	SliderData.bSliderActiveMode = false;
+
+	auto BeginSliderMovementHelperFunc = [GetterDelegate, SliderDataIndex, this]()
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		SliderStateDataArray[SliderDataIndex].bSliderActiveMode = true;
+		SliderStateDataArray[SliderDataIndex].MovementValueInt = GetterDelegate.IsBound() ? GetterDelegate.Execute() : 0;
+	};
+
+	auto EndSliderMovementHelperFunc = [SetterDelegate, SliderDataIndex, this](int32 Value)
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		SliderStateDataArray[SliderDataIndex].bSliderActiveMode = false;
+		SliderStateDataArray[SliderDataIndex].MovementValueInt = 0;
+		SetterDelegate.ExecuteIfBound(Value);
+	};
+
+	auto SetValueHelperFunc = [SetterDelegate, SliderDataIndex, this](int32 Value)
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		if (SliderStateDataArray[SliderDataIndex].bSliderActiveMode)
+		{
+			SliderStateDataArray[SliderDataIndex].MovementValueInt = Value;
+		}
+		else
+		{
+			SetterDelegate.ExecuteIfBound(Value);
+		}
+	};
+
+	auto GetValueHelperFunc = [GetterDelegate, SliderDataIndex, this]()
+	{
+		check(SliderStateDataArray.IsValidIndex(SliderDataIndex));
+		if (SliderStateDataArray[SliderDataIndex].bSliderActiveMode)
+		{
+			return SliderStateDataArray[SliderDataIndex].MovementValueInt;
+		}
+		return GetterDelegate.IsBound() ? GetterDelegate.Execute() : 0;
+	};
+
+	FDetailWidgetRow& Row = ChildrenBuilder.AddCustomRow(RowTitleText)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(RowNameContentText)
+		.ToolTipText(RowNameContentTooltipText)
+	]
+	.ValueContent()
+	[
+		SNew(SSpinBox<int32>)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.MinValue(MinSliderValue)
 		.MaxValue(MaxSliderValue)
@@ -1847,6 +1933,23 @@ void FSkeletalMeshBuildSettingsLayout::SetMorphThresholdPosition(float Value)
 		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
 
 		BuildSettings.MorphThresholdPosition = Value;
+	}
+}
+
+int32 FSkeletalMeshBuildSettingsLayout::GetBoneInfluenceLimit() const
+{
+	return BuildSettings.BoneInfluenceLimit;
+}
+
+void FSkeletalMeshBuildSettingsLayout::SetBoneInfluenceLimit(int32 Value)
+{
+	if (BuildSettings.BoneInfluenceLimit != Value)
+	{
+		FText TransactionText = FText::Format(LOCTEXT("PersonaSetBoneInfluenceLimitLOD", "LOD{0} build settings: bone influence limit changed"), LODIndex);
+		FScopedTransaction Transaction(TransactionText);
+		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
+
+		BuildSettings.BoneInfluenceLimit = Value;
 	}
 }
 

@@ -458,6 +458,42 @@ bool FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences()
 	return (GCVarUnlimitedBoneInfluences!=0);
 }
 
+int32 FGPUBaseSkinVertexFactory::GetBoneInfluenceLimitForAsset(int32 AssetProvidedLimit, const ITargetPlatform* TargetPlatform /*= nullptr*/)
+{
+	if (AssetProvidedLimit > 0)
+	{
+		// The asset provided an explicit limit
+		return AssetProvidedLimit;
+	}
+
+	int32 GlobalDefaultLimit = GetDefault<URendererSettings>()->DefaultBoneInfluenceLimit.GetValue();
+
+#if WITH_EDITOR
+	const ITargetPlatform* TargetPlatformTmp = TargetPlatform;
+	if (!TargetPlatformTmp)
+	{
+		// Get the running platform if the caller did not supply a platform
+		ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+		TargetPlatformTmp = TargetPlatformManager.GetRunningTargetPlatform();
+	}
+
+	if (TargetPlatformTmp)
+	{
+		// Get the platform value
+		GlobalDefaultLimit = GetDefault<URendererSettings>()->DefaultBoneInfluenceLimit.GetValueForPlatform(*TargetPlatformTmp->IniPlatformName());
+	}
+#endif
+
+	if (GlobalDefaultLimit > 0)
+	{
+		// A global default limit has been set for this platform
+		return GlobalDefaultLimit;
+	}
+
+	// No limit has been set. Return the maximum possible value.
+	return MAX_TOTAL_INFLUENCES;
+}
+
 void FGPUBaseSkinVertexFactory::SetData(const FGPUSkinDataType* InData)
 {
 	check(InData);
