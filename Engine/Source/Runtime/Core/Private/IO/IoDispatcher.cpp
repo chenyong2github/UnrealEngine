@@ -19,8 +19,6 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Containers/Ticker.h"
 #include "IO/IoDispatcherBackend.h"
-#include "Hash/Blake3.h"
-#include "IO/PackageId.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
@@ -1232,39 +1230,4 @@ FIoRequest::Release()
 		Impl->ReleaseRef();
 		Impl = nullptr;
 	}
-}
-
-FIoChunkId CreatePackageDataChunkId(const FPackageId& PackageId)
-{
-	return CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
-}
-
-FIoChunkId CreateExternalFileChunkId(const FStringView Filename)
-{
-	check(Filename.Len() > 0);
-
-	TArray<TCHAR, TInlineAllocator<FName::StringBufferSize>> Buffer;
-	Buffer.SetNum(Filename.Len());
-
-	for (int32 Idx = 0, Len = Filename.Len(); Idx < Len; Idx++)
-	{
-		TCHAR Char = TChar<TCHAR>::ToLower(Filename[Idx]);
-		if (Char == TEXT('\\'))
-		{
-			Char = TEXT('/');
-		}
-
-		Buffer[Idx] = Char;
-	}
-
-	const FBlake3Hash Hash = FBlake3::HashBuffer(FMemoryView(Buffer.GetData(), Buffer.Num() * Buffer.GetTypeSize()));
-
-	uint8 Id[12] = {0};
-	FMemory::Memcpy(Id, Hash.GetBytes(), 11);
-	Id[11] = uint8(EIoChunkType::ExternalFile);
-
-	FIoChunkId ChunkId;
-	ChunkId.Set(Id, sizeof(Id));
-
-	return ChunkId;
 }

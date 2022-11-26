@@ -658,59 +658,6 @@ private:
 	uint8	Hash[32];
 };
 
-/**
- * Addressable chunk types.
- * 
- * The enumerators have explicitly defined values here to encourage backward/forward
- * compatible updates. 
- * 
- * Also note that for certain discriminators, Zen Store will assume certain things
- * about the structure of the chunk ID so changes must be made carefully.
- * 
- */
-enum class EIoChunkType : uint8
-{
-	Invalid = 0,
-	ExportBundleData = 1,
-	BulkData = 2,
-	OptionalBulkData = 3,
-	MemoryMappedBulkData = 4,
-	ScriptObjects = 5,
-	ContainerHeader = 6,
-	ExternalFile = 7,
-	ShaderCodeLibrary = 8,
-	ShaderCode = 9,
-	PackageStoreEntry = 10,
-	DerivedData = 11,
-	EditorDerivedData = 12,
-	PackageResource = 13,
-	MAX
-};
-
-CORE_API FString LexToString(const EIoChunkType Type);
-
-/**
- * Creates a chunk identifier (generic -- prefer specialized versions where possible)
- */
-static FIoChunkId CreateIoChunkId(uint64 ChunkId, uint16 ChunkIndex, EIoChunkType IoChunkType)
-{
-	checkSlow(IoChunkType != EIoChunkType::ExternalFile);	// Use CreateExternalFileChunkId() instead
-
-	uint8 Data[12] = {0};
-
-	*reinterpret_cast<uint64*>(&Data[0]) = ChunkId;
-	*reinterpret_cast<uint16*>(&Data[8]) = NETWORK_ORDER16(ChunkIndex);
-	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(IoChunkType);
-
-	FIoChunkId IoChunkId;
-	IoChunkId.Set(Data, 12);
-
-	return IoChunkId;
-}
-
-CORE_API FIoChunkId CreatePackageDataChunkId(const FPackageId& PackageId);
-CORE_API FIoChunkId CreateExternalFileChunkId(const FStringView Filename);
-
 //////////////////////////////////////////////////////////////////////////
 
 class FIoReadOptions

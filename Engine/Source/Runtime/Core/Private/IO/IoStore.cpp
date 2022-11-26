@@ -37,52 +37,6 @@ constexpr char FIoStoreTocHeader::TocMagicImg[];
 
 //TRACE_DECLARE_INT_COUNTER(IoStoreAvailableCompressionBuffers, TEXT("IoStore/AvailableCompressionBuffers"));
 
-FString LexToString(const EIoChunkType Type)
-{
-	const TCHAR* Strings[] = {
-		TEXT("Invalid"),
-		TEXT("ExportBundleData"),
-		TEXT("BulkData"),
-		TEXT("OptionalBulkData"),
-		TEXT("MemoryMappedBulkData"),
-		TEXT("ScriptObjects"),
-		TEXT("ContainerHeader"),
-		TEXT("ExternalFile"),
-		TEXT("ShaderCodeLibrary"),
-		TEXT("ShaderCode"),
-		TEXT("PackageStoreEntry"),
-		TEXT("DerivedData"),
-		TEXT("EditorDerivedData"),
-		TEXT("PackageResource"),
-	};
-	static_assert(UE_ARRAY_COUNT(Strings) == (SIZE_T)EIoChunkType::MAX);
-	uint8 Index = (uint8)Type;
-	if (Index < UE_ARRAY_COUNT(Strings))
-	{
-		return Strings[Index];
-	}
-	else
-	{
-		return Strings[0]; // return Invalid
-	}
-}
-
-FArchive& operator<<(FArchive& Ar, FIoChunkId& ChunkId)
-{
-	Ar.Serialize(&ChunkId.Id, sizeof FIoChunkId::Id);
-	return Ar;
-}
-
-FString LexToString(const FIoChunkId& Id)
-{
-	FString Output;
-	TArray<TCHAR, FString::AllocatorType>& CharArray = Output.GetCharArray();
-	CharArray.AddUninitialized(sizeof(FIoChunkId) * 2 + 1);
-	UE::String::BytesToHexLower(Id.Id, CharArray.GetData());
-	CharArray.Last() = TCHAR('\0');
-	return Output;
-}
-
 template<typename ArrayType>
 bool WriteArray(IFileHandle* FileHandle, const ArrayType& Array)
 {
