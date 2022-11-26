@@ -227,6 +227,11 @@ private:
 	 * All the DLL directories we want to load from. 
 	 */
 	static TArray<FString> DllDirectories;
+	
+	/**
+	 * A cache of the dlls found in each directory in DllDirectories. 
+	 */
+	static TMap<FName, TArray<FString>> SearchPathDllCache;
 
 	/**
 	 * Replacement implementation of the Win32 LoadLibrary function which searches the given list of directories for dependent imports, and attempts
@@ -236,6 +241,25 @@ private:
 	 * @param SearchPaths Search directories to scan for imports
 	 */
 	static void* LoadLibraryWithSearchPaths(const FString& FileName, const TArray<FString>& SearchPaths);
+
+	/**
+	 * Resolve an individual import.
+	 *
+	 * @param ImportName Name of the imported module
+	 * @param OutFileName On success, receives the path to the imported file
+	 * @return true if an import was found.
+	 */
+	static bool ResolveImport(const FString& Name, const TArray<FString>& SearchPaths, FString& OutFileName);
+
+	/**
+	 * Resolve all the imports for the given library, searching through a set of directories.
+	 *
+	 * @param FileName Path to the library to load
+	 * @param SearchPaths Search directories to scan for imports
+	 * @param ImportFileNames Array which is filled with a list of the resolved imports found in the given search directories
+	 * @param VisitedImportNames Array which stores a list of imports which have been checked
+	 */
+	static void ResolveMissingImportsRecursive(const FString& FileName, const TArray<FString>& SearchPaths, TArray<FString>& ImportFileNames, TSet<FString>& VisitedImportNames);
 };
 
 #if WINDOWS_USE_FEATURE_PLATFORMPROCESS_CLASS
