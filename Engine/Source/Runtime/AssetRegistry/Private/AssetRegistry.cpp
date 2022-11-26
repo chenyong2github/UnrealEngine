@@ -1250,15 +1250,19 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 			{
 				KeyString.TrimStartAndEndInline();
 				ValueString.TrimStartAndEndInline();
-				if (KeyString == TEXT("Class"))
+				if (KeyString.Equals(TEXT("Class"), ESearchCase::IgnoreCase))
 				{
 					ClassName = ValueString;
 				}
-				else if (KeyString == TEXT("Tag"))
+				else if (KeyString.Equals(TEXT("Tag"), ESearchCase::IgnoreCase))
 				{
 					TagName = ValueString;
 				}
-				else if (KeyString == TEXT("KeepInDevOnly"))
+			}
+			else
+			{
+				KeyString = Token.TrimStartAndEnd();
+				if (KeyString.Equals(TEXT("KeepInDevOnly"), ESearchCase::IgnoreCase))
 				{
 					bKeepInDevOnly = true;
 				}
