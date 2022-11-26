@@ -172,6 +172,8 @@ public:
 	void Initialize(Chaos::FPBDRigidsEvolutionBase* Evolution);
 	void Reset() { }
 
+	bool IsInitializedOnPhysicsThread() const { return bIsInitializedOnPhysicsThread; }
+
 	/** 
 	 * Finish initialization on the physics thread. 
 	 *
@@ -457,6 +459,9 @@ protected:
 	Chaos::FPBDRigidClusteredParticleHandle* FindClusteredParticleHandleByItemIndex_Internal(FGeometryCollectionItemIndex ItemIndex) const;
 	
 private:
+
+	/* set to true once InitializeBodiesPT has been called*/
+	bool bIsInitializedOnPhysicsThread = false;
 
 	FSimulationParameters Parameters;
 	TArray<FFieldSystemCommand> Commands;

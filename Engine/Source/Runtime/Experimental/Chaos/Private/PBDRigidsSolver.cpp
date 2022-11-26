@@ -1178,9 +1178,12 @@ namespace Chaos
 					case EPhysicsProxyType::GeometryCollectionType:
 					{
 						auto Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(Dirty.Proxy);
-						// Finish registration on the physics thread...
-						Proxy->InitializeBodiesPT(this, GetParticles());
-						GeometryCollectionPhysicsProxies_Internal.Add(Proxy);
+						if (!Proxy->IsInitializedOnPhysicsThread())
+						{
+							// Finish registration on the physics thread...
+							Proxy->InitializeBodiesPT(this, GetParticles());
+							GeometryCollectionPhysicsProxies_Internal.Add(Proxy);
+						}
 						Proxy->PushToPhysicsState();
 						// Currently no push needed for geometry collections and they handle the particle creation internally
 						// #TODO This skips the rewind data push so GC will not be rewindable until resolved.

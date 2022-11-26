@@ -856,6 +856,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 	const FGeometryCollection* RestCollection = Parameters.RestCollection;
 	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 
+	bIsInitializedOnPhysicsThread = true;
+
 	if (Parameters.Simulating && RestCollection)
 	{
 		const TManagedArray<int32>& TransformIndex = RestCollection->TransformIndex;
