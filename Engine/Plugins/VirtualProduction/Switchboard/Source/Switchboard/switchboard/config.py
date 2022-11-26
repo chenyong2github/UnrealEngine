@@ -2173,7 +2173,7 @@ class Config(object):
             "tracing_args": StringSetting(
                 "tracing_args",
                 "Unreal Insights Tracing Args",
-                data.get('tracing_args', 'log,cpu,gpu,frame,bookmark,concert,messaging')
+                data.get('tracing_args', 'default,concert,messaging,tasks')
             ),
             "tracing_stat_events": BoolSetting(
                 "tracing_stat_events",
