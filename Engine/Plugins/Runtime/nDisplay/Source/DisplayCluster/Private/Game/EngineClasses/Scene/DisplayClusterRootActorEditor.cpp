@@ -112,11 +112,7 @@ void ADisplayClusterRootActor::Destructor_Editor()
 
 void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 {
-	if (!IsPreviewEnabled())
-	{
-		ResetPreviewInternals_Editor();
-	}
-	else if (bPIEPreviewEnable && (PreviewNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone))
+	if (IsPreviewEnabled())
 	{
 		if (bDeferPreviewGeneration)
 		{
@@ -125,7 +121,7 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 			bDeferPreviewGeneration = false;
 			UpdatePreviewComponents();
 		}
-		
+
 		// Update preview RTTs correspond to 'TickPerFrame' value
 		if (++TickPerFrameCounter >= TickPerFrame)
 		{
@@ -140,6 +136,10 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 
 		// preview frustums on each tick
 		ImplRenderPreviewFrustums_Editor();
+	}
+	else
+	{
+		ResetPreviewInternals_Editor();
 	}
 }
 
@@ -192,23 +192,15 @@ bool ADisplayClusterRootActor::IsPreviewEnabled() const
 		return false;
 	}
 
-	//@todo: (GUI) Scene preview can be disabled when the configuration window with internal preview is open.
-#if 0
-	bool bIsScenePreview = true; //@todo: handle GUI logic
-	bool bIsConfigurationPreviewUsed = false; //@todo: handle GUI logic
-
-	if (bIsScenePreview == bIsConfigurationPreviewUsed)
+	// -game or PIE case
+	if (IsRunningGameOrPIE())
 	{
-		return false;
-	}
-#endif
-
-	if (!PreviewEnableOverriders.IsEmpty())
-	{
-		return true;
+		// Only PIE is currently supported
+		return bPIEPreviewEnable && GIsPlayInEditorWorld && (PreviewNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone);
 	}
 
-	return bPreviewEnable;
+	// Editor case
+	return bPreviewEnable || !PreviewEnableOverriders.IsEmpty();
 }
 
 // Return all RTT RHI resources for preview
