@@ -2050,6 +2050,7 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_OcclusionFeedback_ReadbackResults);
 			ViewState->OcclusionFeedback.ReadbackResults(RHICmdList);
+			ViewState->OcclusionFeedback.AdvanceFrame(ViewState->OcclusionFrameCounter);
 		}
 		else if( bHZBOcclusion )
 		{

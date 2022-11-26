@@ -515,7 +515,9 @@ public:
 
 	/** Renders the current batch and resets the batch state. */
 	void SubmitOcclusionDraws(FRHICommandList& RHICmdList, FViewInfo& View);
+	
 	void ReadbackResults(FRHICommandList& RHICmdList);
+	void AdvanceFrame(uint32 OcclusionFrameCounter);
 
 	inline FRDGBuffer* GetGPUFeedbackBuffer() const
 	{
@@ -543,11 +545,14 @@ private:
 	{
 		TArray<FPrimitiveComponentId> BatchedPrimitives;
 		FRHIGPUBufferReadback* ReadbackBuffer = nullptr;
+		uint32 OcclusionFrameCounter = 0u;
 	};
 
 	FOcclusionBuffer OcclusionBuffers[3];
 	uint32 CurrentBufferIndex;
+	
 	TSet<FPrimitiveComponentId> LatestOcclusionResults;
+	uint32 ResultsOcclusionFrameCounter;
 
 	//
 	FVertexDeclarationRHIRef OcclusionVertexDeclarationRHI;

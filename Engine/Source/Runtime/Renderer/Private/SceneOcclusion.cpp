@@ -1607,6 +1607,7 @@ void FSceneRenderer::WaitOcclusionTests(FRHICommandListImmediate& RHICmdList)
 FOcclusionFeedback::FOcclusionFeedback()
 	: FRenderResource()
 	, CurrentBufferIndex(0)
+	, ResultsOcclusionFrameCounter(0)
 {
 	OcclusionVertexDeclarationRHI = nullptr;
 }
@@ -1670,19 +1671,56 @@ void FOcclusionFeedback::EndOcclusionScope(FRDGBuilder& GraphBuilder)
 	GPUFeedbackBuffer = nullptr;
 }
 
+void FOcclusionFeedback::AdvanceFrame(uint32 InOcclusionFrameCounter)
+{
+	constexpr uint32 NumBuffers = UE_ARRAY_COUNT(OcclusionBuffers);
+	CurrentBufferIndex = (CurrentBufferIndex + 1u) % NumBuffers;
+	
+	FOcclusionBuffer& OcclusionBuffer = OcclusionBuffers[CurrentBufferIndex];
+	OcclusionBuffer.BatchedPrimitives.Empty();
+	OcclusionBuffer.OcclusionFrameCounter = InOcclusionFrameCounter;
+}
+
 void FOcclusionFeedback::ReadbackResults(FRHICommandList& RHICmdList)
 {
 	constexpr uint32 NumBuffers = UE_ARRAY_COUNT(OcclusionBuffers);
+	TArray<uint32, TInlineAllocator<NumBuffers>> ReadyBuffers;
 
-	CurrentBufferIndex = (CurrentBufferIndex + 1u) % NumBuffers;
+	// Find the most recent Ready buffer
+	for (uint32 Index = 1u; Index <= NumBuffers; ++Index)
+	{
+		uint32 ReadbackBufferIndex = (CurrentBufferIndex + Index) % NumBuffers;
+		FOcclusionBuffer& OcclusionBuffer = OcclusionBuffers[ReadbackBufferIndex];
 
-	FOcclusionBuffer& OcclusionBuffer = OcclusionBuffers[CurrentBufferIndex];
-	uint32 NumPrimitives = OcclusionBuffer.BatchedPrimitives.Num();
+		if (OcclusionBuffer.BatchedPrimitives.Num() == 0)
+		{
+			// No data to readback
+			break;
+		}
+		
+		if (OcclusionBuffer.OcclusionFrameCounter <= ResultsOcclusionFrameCounter)
+		{
+			// Already read
+			continue;
+		}
 
-	bool bReady = (NumPrimitives > 0 && OcclusionBuffer.ReadbackBuffer->IsReady());
+		if (!OcclusionBuffer.ReadbackBuffer->IsReady())
+		{
+			break;
+		}
+
+		ReadyBuffers.Add(ReadbackBufferIndex);
+	}
+
+	bool bReady = (ReadyBuffers.Num() != 0);
 	if (!bReady)
 	{
-		if (OcclusionBuffer.BatchedPrimitives.Num() > 0)
+		uint32 TailBufferIndex = (CurrentBufferIndex + 1u) % NumBuffers;
+		FOcclusionBuffer& TailOcclusionBuffer = OcclusionBuffers[TailBufferIndex];
+		
+		// Check if we have to wait for result
+		if (TailOcclusionBuffer.BatchedPrimitives.Num() > 0 
+			&& ResultsOcclusionFrameCounter < TailOcclusionBuffer.OcclusionFrameCounter)
 		{
 			// We'll do manual wait
 			double StartTime = FPlatformTime::Seconds();
@@ -1705,15 +1743,25 @@ void FOcclusionFeedback::ReadbackResults(FRHICommandList& RHICmdList)
 					break;
 				}
 
-				bReady = OcclusionBuffer.ReadbackBuffer->IsReady();
+				bReady = TailOcclusionBuffer.ReadbackBuffer->IsReady();
+			}
+
+			if (bReady)
+			{
+				ReadyBuffers.Add(TailBufferIndex);
 			}
 		}
 	}
 
 	if (bReady)
 	{
+		uint32 ReadbackBufferIndex = ReadyBuffers.Last();
+		FOcclusionBuffer& OcclusionBuffer = OcclusionBuffers[ReadbackBufferIndex];
+
+		ResultsOcclusionFrameCounter = OcclusionBuffer.OcclusionFrameCounter;
 		LatestOcclusionResults.Reset();
 
+		uint32 NumPrimitives = OcclusionBuffer.BatchedPrimitives.Num();
 		uint32 NumBytes = NumPrimitives * sizeof(uint32);
 		uint32* Results = (uint32*)OcclusionBuffer.ReadbackBuffer->Lock(NumBytes);
 
@@ -1727,8 +1775,6 @@ void FOcclusionFeedback::ReadbackResults(FRHICommandList& RHICmdList)
 
 		OcclusionBuffer.ReadbackBuffer->Unlock();
 	}
-
-	OcclusionBuffer.BatchedPrimitives.Empty();
 }
 
 void FOcclusionFeedback::AddPrimitive(FPrimitiveComponentId PrimitiveId, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
@@ -1802,7 +1848,7 @@ IMPLEMENT_GLOBAL_SHADER(FOcclusionFeedbackPS,"/Engine/Private/OcclusionFeedbackS
 
 int32 GOcclusionFeeback_Blending = 1;
 static FAutoConsoleVariableRef CVarOcclusionFeeback_Blending(
-	TEXT("r.OcclusionFeeback.Blending"),
+	TEXT("r.OcclusionFeedback.Blending"),
 	GOcclusionFeeback_Blending,
 	TEXT("0: Opaque \n")
 	TEXT("1: Enable blending  (default) \n")
