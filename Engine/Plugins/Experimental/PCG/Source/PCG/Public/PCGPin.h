@@ -20,13 +20,13 @@ struct PCG_API FPCGPinProperties
 
 	bool operator==(const FPCGPinProperties& Other) const;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName Label = NAME_None;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGDataType AllowedTypes = EPCGDataType::Any;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bAllowMultipleConnections = true;
 };
 
