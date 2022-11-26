@@ -127,6 +127,7 @@ public:
 	FAssetPostCompileEvent& OnAssetPostCompileEvent() { return AssetPostCompileEvent; }
 private:
 	FAssetCompilingManager();
+	~FAssetCompilingManager();
 	friend struct IAssetCompilingManager;
 
 	/** Take some action whenever the number of remaining asset changes. */

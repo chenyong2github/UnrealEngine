@@ -27,6 +27,12 @@ LLM_DEFINE_TAG(AssetCompilation, NAME_None, NAME_None, GET_STATFNAME(STAT_AssetC
 #include "Algo/Find.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
+#if WITH_EDITOR
+#include "DerivedDataBuildSchedulerQueue.h"
+#include "DerivedDataThreadPoolTask.h"
+#include "Features/IModularFeatures.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AssetCompilingManager)
 
 #define LOCTEXT_NAMESPACE "AssetCompilingManager"
@@ -88,7 +94,23 @@ namespace AssetCompilingManagerImpl
 		}
 #endif
 	}
-}
+
+#if WITH_EDITOR
+	using namespace UE::DerivedData;
+
+	class FAssetCompilingManagerMemoryQueue final : public IBuildSchedulerMemoryQueue
+	{
+		void Reserve(uint64 Memory, IRequestOwner& Owner, TUniqueFunction<void ()>&& OnComplete) final
+		{
+			// TODO: This is not thread-safe right now because the thread pool is created on first use.
+			//       That first use is expected to occur on the main thread, which we do not guarantee.
+			LaunchTaskInThreadPool(Memory, Owner, FAssetCompilingManager::Get().GetThreadPool(), MoveTemp(OnComplete));
+		}
+	};
+
+	static FAssetCompilingManagerMemoryQueue GMemoryQueue;
+#endif
+} // AssetCompilingManagerImpl
 
 #if WITH_EDITOR
 
@@ -273,6 +295,15 @@ FAssetCompilingManager::FAssetCompilingManager()
 	RegisterManager(&FTextureCompilingManager::Get());
 	RegisterManager(&FActorDeferredScriptManager::Get());
 	RegisterManager(&FSoundWaveCompilingManager::Get());
+
+	IModularFeatures::Get().RegisterModularFeature(UE::DerivedData::IBuildSchedulerMemoryQueue::FeatureName, &AssetCompilingManagerImpl::GMemoryQueue);
+#endif
+}
+
+FAssetCompilingManager::~FAssetCompilingManager()
+{
+#if WITH_EDITOR
+	IModularFeatures::Get().UnregisterModularFeature(UE::DerivedData::IBuildSchedulerMemoryQueue::FeatureName, &AssetCompilingManagerImpl::GMemoryQueue);
 #endif
 }
 

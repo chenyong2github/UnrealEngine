@@ -35,6 +35,7 @@
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataThreadPoolTask.h"
 #include "Engine/TextureCube.h"
 #include "Engine/VolumeTexture.h"
 #include "ImageCoreUtils.h"
@@ -55,6 +56,7 @@
 #include "Serialization/BulkDataRegistry.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "TextureBuildUtilities.h"
+#include "TextureCompiler.h"
 #include "TextureDerivedDataBuildUtils.h"
 #include "TextureEncodingSettings.h"
 #include "TextureFormatManager.h"
@@ -2323,10 +2325,10 @@ struct FBuildInfo
 
 static void LaunchBuildWithFallback(
 	FBuildResults& OutBuildResults,
-	FBuildResultOptions InBuildResultOptions,
-	FBuildInfo& InInitialBuild, 
-	TOptional<FBuildInfo> InFallbackBuild, 
-	UE::DerivedData::FRequestOwner& InRequestOwner	// Owner must be valid for the duration of the build.
+	FBuildResultOptions BuildResultOptions,
+	FBuildInfo& InInitialBuild,
+	TOptional<FBuildInfo> InFallbackBuild,
+	UE::DerivedData::FRequestOwner& InRequestOwner // Owner must be valid for the duration of the build.
 )
 {
 	using namespace UE::DerivedData;
@@ -2336,36 +2338,49 @@ static void LaunchBuildWithFallback(
 		OutBuildResults.PlatformData.ResultMetadata = *InInitialBuild.ResultMetadata;
 	}
 
-	InInitialBuild.BuildSession.Build(InInitialBuild.BuildDefinition, {}, InInitialBuild.BuildPolicy, InRequestOwner,
+	LaunchTaskInThreadPool(InRequestOwner, FTextureCompilingManager::Get().GetThreadPool(),
 		[
 			FallbackBuild = MoveTemp(InFallbackBuild),
 			RequestOwner = &InRequestOwner,
 			OutBuildResults = &OutBuildResults,
-			BuildResultOptions = InBuildResultOptions,
+			BuildResultOptions,
+			BuildDefinition = InInitialBuild.BuildDefinition,
+			BuildPolicy = InInitialBuild.BuildPolicy,
+			BuildSession = &InInitialBuild.BuildSession,
 			InitialBuildTilingInputResolver = InInitialBuild.TilingInputResolver
-		](FBuildCompleteParams&& Params) mutable
+		]() mutable
 	{
-		if (Params.Status == EStatus::Error &&
-			FallbackBuild.IsSet())
+		BuildSession->Build(BuildDefinition, {}, BuildPolicy, *RequestOwner,
+			[
+				FallbackBuild = MoveTemp(FallbackBuild),
+				RequestOwner,
+				OutBuildResults,
+				BuildResultOptions,
+				InitialBuildTilingInputResolver
+			](FBuildCompleteParams&& Params) mutable
 		{
-			if (FallbackBuild->ResultMetadata.IsSet())
+			if (Params.Status == EStatus::Error &&
+				FallbackBuild.IsSet())
 			{
-				OutBuildResults->PlatformData.ResultMetadata = *FallbackBuild->ResultMetadata;
+				if (FallbackBuild->ResultMetadata.IsSet())
+				{
+					OutBuildResults->PlatformData.ResultMetadata = *FallbackBuild->ResultMetadata;
+				}
+				FallbackBuild->BuildSession.Build(FallbackBuild->BuildDefinition, {}, FallbackBuild->BuildPolicy, *RequestOwner,
+					[
+						OutBuildResults = OutBuildResults,
+						BuildResultOptions,
+						FallbackBuildTilingInputResolver = FallbackBuild->TilingInputResolver
+					](FBuildCompleteParams&& Params) mutable
+				{
+					GetBuildResultsFromCompleteParams(*OutBuildResults, BuildResultOptions, MoveTemp(Params), FallbackBuildTilingInputResolver);
+				});
 			}
-			FallbackBuild->BuildSession.Build(FallbackBuild->BuildDefinition, {}, FallbackBuild->BuildPolicy, *RequestOwner,
-				[
-					OutBuildResults = OutBuildResults,
-					BuildResultOptions = BuildResultOptions,
-					FallbackBuildTilingInputResolver = FallbackBuild->TilingInputResolver
-				](FBuildCompleteParams&& Params) mutable
+			else
 			{
-				GetBuildResultsFromCompleteParams(*OutBuildResults, BuildResultOptions, MoveTemp(Params), FallbackBuildTilingInputResolver);
-			});
-		}
-		else
-		{			
-			GetBuildResultsFromCompleteParams(*OutBuildResults, BuildResultOptions, MoveTemp(Params), InitialBuildTilingInputResolver);
-		}
+				GetBuildResultsFromCompleteParams(*OutBuildResults, BuildResultOptions, MoveTemp(Params), InitialBuildTilingInputResolver);
+			}
+		});
 	});
 };
 

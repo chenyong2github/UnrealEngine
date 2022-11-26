@@ -4,10 +4,7 @@
 
 #if WITH_EDITOR
 
-#include "DerivedDataSharedString.h"
 #include "Engine/Texture.h"
-#include "Experimental/DerivedDataBuildSchedulerThreadPoolProvider.h"
-#include "Features/IModularFeatures.h"
 #include "ObjectCacheContext.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
@@ -81,42 +78,10 @@ namespace TextureCompilingManagerImpl
 	}
 }
 
-class UE::Private::FTextureThreadPoolProvider final : public UE::DerivedData::IBuildSchedulerThreadPoolProvider
-{
-public:
-	explicit FTextureThreadPoolProvider(FTextureCompilingManager& InManager)
-		: Manager(InManager)
-	{
-		IModularFeatures::Get().RegisterModularFeature(FeatureName, this);
-	}
-
-	~FTextureThreadPoolProvider() final
-	{
-		IModularFeatures::Get().UnregisterModularFeature(FeatureName, this);
-	}
-
-private:
-	const UE::DerivedData::FUtf8SharedString& GetTypeName() const final
-	{
-		static UE::DerivedData::FUtf8SharedString TypeName(UTF8TEXTVIEW("Texture"));
-		return TypeName;
-	}
-
-	FQueuedThreadPool* GetThreadPool() const final
-	{
-		// TODO: This is not thread-safe right now because the thread pool is created on first use.
-		//       That first use is expected to occur on the main thread, which we do not guarantee.
-		return Manager.GetThreadPool();
-	}
-
-	const FTextureCompilingManager& Manager;
-};
-
 FTextureCompilingManager::FTextureCompilingManager()
 	: Notification(GetAssetNameFormat())
 {
 	TextureCompilingManagerImpl::EnsureInitializedCVars();
-	ThreadPoolProvider = MakePimpl<UE::Private::FTextureThreadPoolProvider>(*this);
 }
 
 FName FTextureCompilingManager::GetStaticAssetTypeName()
