@@ -331,14 +331,7 @@ FQueuedThreadPool* GCacheThreadPool;
 
 void LaunchTaskInCacheThreadPool(IRequestOwner& Owner, TUniqueFunction<void ()>&& TaskBody)
 {
-	if (GCacheThreadPool)
-	{
-		LaunchTaskInThreadPool(Owner, *GCacheThreadPool, MoveTemp(TaskBody));
-	}
-	else
-	{
-		TaskBody();
-	}
+	LaunchTaskInThreadPool(Owner, GCacheThreadPool, MoveTemp(TaskBody));
 }
 
 /**

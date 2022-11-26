@@ -20,7 +20,9 @@ namespace UE::DerivedData
  *
  * Waiting on or canceling the task before it has started executing in the thread pool will cause
  * it to be retracted and executed on the thread that asked to wait or cancel.
- * 
+ *
+ * Passing a null thread pool will execute the task immediately on the calling thread.
+ *
  * TaskBody is guaranteed to return before the request is considered complete.
  * TaskBody is responsible for checking for cancellation by checking Owner.IsCanceled().
  *
@@ -32,11 +34,11 @@ namespace UE::DerivedData
 UE_API void LaunchTaskInThreadPool(
 	uint64 MemoryEstimate,
 	IRequestOwner& Owner,
-	FQueuedThreadPool& ThreadPool,
+	FQueuedThreadPool* ThreadPool,
 	TUniqueFunction<void ()>&& TaskBody);
 UE_API void LaunchTaskInThreadPool(
 	IRequestOwner& Owner,
-	FQueuedThreadPool& ThreadPool,
+	FQueuedThreadPool* ThreadPool,
 	TUniqueFunction<void ()>&& TaskBody);
 
 } // UE::DerivedData

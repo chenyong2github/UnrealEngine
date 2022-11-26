@@ -117,20 +117,26 @@ void FThreadPoolTaskRequest::Wait()
 void LaunchTaskInThreadPool(
 	uint64 MemoryEstimate,
 	IRequestOwner& Owner,
-	FQueuedThreadPool& ThreadPool,
+	FQueuedThreadPool* ThreadPool,
 	TUniqueFunction<void ()>&& TaskBody)
 {
-	// The request is reference-counted and will be deleted when complete.
-	new FThreadPoolTaskRequest(MemoryEstimate, Owner, ThreadPool, MoveTemp(TaskBody));
+	if (ThreadPool)
+	{
+		// The request is reference-counted and will be deleted when complete.
+		new FThreadPoolTaskRequest(MemoryEstimate, Owner, *ThreadPool, MoveTemp(TaskBody));
+	}
+	else
+	{
+		TaskBody();
+	}
 }
 
 void LaunchTaskInThreadPool(
 	IRequestOwner& Owner,
-	FQueuedThreadPool& ThreadPool,
+	FQueuedThreadPool* ThreadPool,
 	TUniqueFunction<void ()>&& TaskBody)
 {
-	// The request is reference-counted and will be deleted when complete.
-	new FThreadPoolTaskRequest(0, Owner, ThreadPool, MoveTemp(TaskBody));
+	LaunchTaskInThreadPool(0, Owner, ThreadPool, MoveTemp(TaskBody));
 }
 
 } // UE::DerivedData
