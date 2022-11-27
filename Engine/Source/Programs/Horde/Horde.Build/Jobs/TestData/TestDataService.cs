@@ -98,8 +98,8 @@ namespace Horde.Build.Jobs.TestData
 		/// <returns></returns>
 		public async Task<List<ITestDataRef>> FindTestRefs(StreamId[] streamIds, TestMetaId[] metaIds, string[]? testIds = null, string[]? suiteIds = null, DateTime? minCreateTime = null, DateTime? maxCreateTime = null, int? minChange = null, int? maxChange = null)
 		{
-			TestId[]? tids = testIds?.ConvertAll(x => new TestId(x)).ToArray();
-			TestSuiteId[]? sids = suiteIds?.ConvertAll(x => new TestSuiteId(x)).ToArray();
+			TestId[]? tids = testIds?.ConvertAll(x => new TestId(x));
+			TestSuiteId[]? sids = suiteIds?.ConvertAll(x => new TestSuiteId(x));
 
 			return await _testData.FindTestRefs(streamIds, metaIds, tids, sids, minCreateTime, maxCreateTime, minChange, maxChange);
 		}
