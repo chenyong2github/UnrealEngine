@@ -92,9 +92,14 @@ namespace EpicGames.Core
 		int _length;
 
 		/// <summary>
+		/// Returns the span that has been written to
+		/// </summary>
+		public Span<byte> WrittenSpan => _data.AsSpan(0, _length);
+
+		/// <summary>
 		/// Returns the memory that has been written to
 		/// </summary>
-		public ReadOnlyMemory<byte> WrittenMemory => _data.AsMemory(0, _length);
+		public Memory<byte> WrittenMemory => _data.AsMemory(0, _length);
 
 		/// <summary>
 		/// Constructor
