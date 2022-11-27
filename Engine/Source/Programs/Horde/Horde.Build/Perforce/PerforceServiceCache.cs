@@ -628,7 +628,7 @@ namespace Horde.Build.Perforce
 					}
 				}
 
-				RedisChannelSubscription<StreamId>? subscription = null;
+				RedisSubscription? subscription = null;
 				try
 				{
 					for (; ; )

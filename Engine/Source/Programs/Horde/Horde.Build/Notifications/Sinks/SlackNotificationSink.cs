@@ -221,12 +221,12 @@ namespace Horde.Build.Notifications.Sinks
 		readonly IExternalIssueService _externalIssueService;
 		readonly JsonSerializerOptions _jsonSerializerOptions;
 		readonly ITicker _escalateTicker;
-		readonly RedisSortedSet<int> _escalateIssues;
+		static readonly RedisSortedSetKey<int> _escalateIssues = "slack/escalate";
 		readonly IClock _clock;
 		readonly ILogger _logger;
 
 		readonly ITicker _issueQueueTicker;
-		readonly RedisList<int> _redisIssueQueue;
+		static readonly RedisListKey<int> _redisIssueQueue = "slack/issue-queue";
 		readonly string _redisIssueLockPrefix;
 
 		readonly HttpClient _httpClient;
@@ -252,14 +252,12 @@ namespace Horde.Build.Notifications.Sinks
 			_settings = settings.Value;
 			_messageStates = mongoService.GetCollection<MessageStateDocument>("SlackV2", keys => keys.Ascending(x => x.Recipient).Ascending(x => x.EventId), unique: true);
 			_slackUsers = mongoService.GetCollection<SlackUserDocument>("Slack.UsersV2");
-			_escalateIssues = new RedisSortedSet<int>(redisService.ConnectionPool, "slack/escalate");
 			_clock = clock;
 			_logger = logger;
 
 			_escalateTicker = clock.AddSharedTicker<SlackNotificationSink>(TimeSpan.FromMinutes(1.0), EscalateAsync, _logger);
 
 			_issueQueueTicker = clock.AddSharedTicker("slack-issues", TimeSpan.FromMinutes(1.0), ProcessIssueQueueAsync, _logger);
-			_redisIssueQueue = new RedisList<int>(redisService.ConnectionPool, "slack/issue-queue");
 			_redisIssueLockPrefix = "slack/issues/";
 
 			_httpClient = new HttpClient();
@@ -692,7 +690,7 @@ namespace Horde.Build.Notifications.Sinks
 			}
 
 			// Otherwise add it to the redis queue, and attempt to process the queue immediately.
-			await _redisIssueQueue.RightPushAsync(issue.Id);
+			await _redisService.GetDatabase().ListRightPushAsync(_redisIssueQueue, issue.Id);
 			await ProcessIssueQueueAsync(CancellationToken.None);
 		}
 
@@ -706,13 +704,13 @@ namespace Horde.Build.Notifications.Sinks
 
 			// Execute loop number of times based on the length of the queue at the start. This should bound the number of iterations while allowing us
 			// to re-queue items that we're unable to process now, without having to track whether we've reached the end of the list in its original state.
-			long count = await _redisIssueQueue.LengthAsync();
+			long count = await _redisService.GetDatabase().ListLengthAsync(_redisIssueQueue);
 			for (; count > 0; count--)
 			{
-				int issueId = await _redisIssueQueue.LeftPopAsync();
+				int issueId = await _redisService.GetDatabase().ListLeftPopAsync(_redisIssueQueue);
 				if (!testedIssueIds.Add(issueId) || !await TryUpdateIssueAsync(issueId))
 				{
-					await _redisIssueQueue.RightPushAsync(issueId);
+					await _redisService.GetDatabase().ListRightPushAsync(_redisIssueQueue, issueId);
 				}
 				cancellationToken.ThrowIfCancellationRequested();
 			}
@@ -1072,7 +1070,7 @@ namespace Horde.Build.Notifications.Sinks
 			if (workflow.EscalateAlias != null && workflow.EscalateTimes.Count > 0)
 			{
 				DateTime escalateTime = _clock.UtcNow + TimeSpan.FromMinutes(workflow.EscalateTimes[0]);
-				if (await _escalateIssues.AddAsync(issue.Id, (escalateTime - DateTime.UnixEpoch).TotalSeconds, StackExchange.Redis.When.NotExists))
+				if (await _redisService.GetDatabase().SortedSetAddAsync(_escalateIssues, issue.Id, (escalateTime - DateTime.UnixEpoch).TotalSeconds, StackExchange.Redis.When.NotExists))
 				{
 					_logger.LogInformation("First escalation time for issue {IssueId} is {Time}", issue.Id, escalateTime);
 				}
@@ -2162,7 +2160,7 @@ namespace Horde.Build.Notifications.Sinks
 			DateTime utcNow = DateTime.UtcNow;
 			double time = (utcNow - DateTime.UnixEpoch).TotalSeconds;
 
-			int[] issueIds = await _escalateIssues.RangeByScoreAsync(0, time);
+			int[] issueIds = await _redisService.GetDatabase().SortedSetRangeByScoreAsync(_escalateIssues, 0, time);
 			if (issueIds.Length > 0)
 			{
 				_logger.LogInformation("Escalating issues for {Time} ({TimeSecs})", utcNow, time);
@@ -2175,18 +2173,18 @@ namespace Horde.Build.Notifications.Sinks
 						if (nextTime == null)
 						{
 							_logger.LogInformation("Cancelling escalation for issue {IssueId}", issueId);
-							await _escalateIssues.RemoveAsync(issueId);
+							await _redisService.GetDatabase().SortedSetRemoveAsync(_escalateIssues, issueId);
 						}
 						else
 						{
 							_logger.LogInformation("Next escalation for issue {IssueId} is at timestamp {Time}", issueId, nextTime.Value);
-							await _escalateIssues.AddAsync(issueId, nextTime.Value);
+							await _redisService.GetDatabase().SortedSetAddAsync(_escalateIssues, issueId, nextTime.Value);
 						}
 					}
 					catch (SlackException ex)
 					{
 						_logger.LogError(ex, "Slack exception while escalating issue {IssueId}; cancelling.", issueId);
-						await _escalateIssues.RemoveAsync(issueId);
+						await _redisService.GetDatabase().SortedSetRemoveAsync(_escalateIssues, issueId);
 					}
 				}
 			}

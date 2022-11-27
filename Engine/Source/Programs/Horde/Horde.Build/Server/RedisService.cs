@@ -235,7 +235,7 @@ namespace Horde.Build.Server
 		}
 
 		/// <inheritdoc cref="SubscribeAsync{T}(RedisChannel{T}, Action{RedisChannel{T}, T})"/>
-		public Task<RedisChannelSubscription<T>> SubscribeAsync<T>(RedisChannel<T> channel, Action<T> callback) => SubscribeAsync(channel, (ch, x) => callback(x));
+		public Task<RedisSubscription> SubscribeAsync<T>(RedisChannel<T> channel, Action<T> callback) => SubscribeAsync(channel, (ch, x) => callback(x));
 
 		/// <summary>
 		/// Subscribe to notifications on a channel
@@ -244,10 +244,10 @@ namespace Horde.Build.Server
 		/// <param name="channel">Channel to monitor</param>
 		/// <param name="callback">Callback for new events</param>
 		/// <returns>Subscription object</returns>
-		public async Task<RedisChannelSubscription<T>> SubscribeAsync<T>(RedisChannel<T> channel, Action<RedisChannel<T>, T> callback)
+		public async Task<RedisSubscription> SubscribeAsync<T>(RedisChannel<T> channel, Action<RedisChannel<T>, T> callback)
 		{
-			ISubscriber subscriber = ConnectionPool.GetConnection().GetSubscriber();
-			return await subscriber.SubscribeAsync(channel, callback);
+			IConnectionMultiplexer connection = ConnectionPool.GetConnection();
+			return await connection.SubscribeAsync(channel, callback);
 		}
 	}
 }

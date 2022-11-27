@@ -9,126 +9,37 @@ using System.Threading.Tasks;
 namespace EpicGames.Redis
 {
 	/// <summary>
-	/// Represents a typed Redis hash with a given key and value
+	/// Represents a typed Redis list with a given key
 	/// </summary>
-	/// <typeparam name="TName">The key type for the hash</typeparam>
-	/// <typeparam name="TValue">The value type for the hash</typeparam>
-	public readonly struct RedisHash<TName, TValue>
+	/// <typeparam name="TName">Type of the hash key</typeparam>
+	/// <typeparam name="TValue">Type of the hash value</typeparam>
+	public readonly struct RedisHashKey<TName, TValue>
 	{
-		internal readonly RedisConnectionPool? ConnectionPool = null;
-		internal readonly IDatabaseAsync? Database = null;
-
 		/// <summary>
 		/// The key for the list
 		/// </summary>
-		public readonly RedisKey Key { get; }
+		public readonly RedisKey Inner { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="database">Explicitly set Redis database (overrides use of any connection pool)</param>
-		/// <param name="key">Redis key this type is using</param>
-		public RedisHash(IDatabaseAsync database, RedisKey key)
+		/// <param name="inner">Redis key this type is using</param>
+		public RedisHashKey(RedisKey inner)
 		{
-			Database = database;
-			Key = key;
+			Inner = inner;
 		}
-		
+
 		/// <summary>
-		/// Constructor
+		/// Implicit conversion to typed redis key.
 		/// </summary>
-		/// <param name="connectionPool">Connection pool for Redis databases</param>
-		/// <param name="key">Redis key this type is using</param>
-		public RedisHash(RedisConnectionPool connectionPool, RedisKey key)
-		{
-			ConnectionPool = connectionPool;
-			Key = key;
-		}
-		
+		/// <param name="key">Key to convert</param>
+		public static implicit operator RedisHashKey<TName, TValue>(string key) => new RedisHashKey<TName, TValue>(new RedisKey(key));
+
 		/// <summary>
-		/// Get the Redis database in use
+		/// Implicit conversion to untyped redis keys.
 		/// </summary>
-		/// <returns>A connection pool or explicitly set Redis database</returns>
-		/// <exception cref="InvalidOperationException">If neither are set</exception>
-		public IDatabaseAsync GetDatabase()
-		{
-			if (Database != null) return Database;
-			if (ConnectionPool != null) return ConnectionPool.GetDatabase();
-			throw new InvalidOperationException($"Neither {nameof(Database)} or {nameof(ConnectionPool)} has been set!");
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashDeleteAsync(RedisKey, RedisValue, CommandFlags)"/>
-		public Task<bool> DeleteAsync(TName name, CommandFlags flags = CommandFlags.None)
-		{
-			return GetDatabase().HashDeleteAsync(Key, RedisSerializer.Serialize(name), flags);
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashDeleteAsync(RedisKey, RedisValue[], CommandFlags)"/>
-		public Task<long> DeleteAsync(IEnumerable<TName> names, CommandFlags flags = CommandFlags.None)
-		{
-			RedisValue[] nameArray = names.Select(x => RedisSerializer.Serialize(x)).ToArray();
-			return GetDatabase().HashDeleteAsync(Key, nameArray, flags);
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashExistsAsync(RedisKey, RedisValue, CommandFlags)"/>
-		public Task<bool> ExistsAsync(TName name, CommandFlags flags = CommandFlags.None)
-		{
-			return GetDatabase().HashExistsAsync(Key, RedisSerializer.Serialize(name), flags);
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashGetAsync(RedisKey, RedisValue, CommandFlags)"/>
-		public async Task<TValue> GetAsync(TName name, CommandFlags flags = CommandFlags.None)
-		{
-			RedisValue value = await GetDatabase().HashGetAsync(Key, RedisSerializer.Serialize(name), flags);
-			return value.IsNull ? default! : RedisSerializer.Deserialize<TValue>(value)!;
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashGetAsync(RedisKey, RedisValue[], CommandFlags)"/>
-		public async Task<TValue[]> GetAsync(IEnumerable<TName> names, CommandFlags flags = CommandFlags.None)
-		{
-			RedisValue[] nameArray = names.Select(x => RedisSerializer.Serialize(x)).ToArray();
-			RedisValue[] valueArray = await GetDatabase().HashGetAsync(Key, nameArray, flags);
-			return Array.ConvertAll(valueArray, x => RedisSerializer.Deserialize<TValue>(x)!);
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashGetAllAsync(RedisKey, CommandFlags)"/>
-		public async Task<HashEntry<TName, TValue>[]> GetAllAsync(CommandFlags flags = CommandFlags.None)
-		{
-			HashEntry[] entries = await GetDatabase().HashGetAllAsync(Key, flags);
-			return Array.ConvertAll(entries, x => new HashEntry<TName, TValue>(RedisSerializer.Deserialize<TName>(x.Name)!, RedisSerializer.Deserialize<TValue>(x.Value)!));
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashKeysAsync(RedisKey, CommandFlags)"/>
-		public async Task<TName[]> KeysAsync(CommandFlags flags = CommandFlags.None)
-		{
-			RedisValue[] nameArray = await GetDatabase().HashKeysAsync(Key, flags);
-			return Array.ConvertAll(nameArray, x => RedisSerializer.Deserialize<TName>(x)!);
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashLengthAsync(RedisKey, CommandFlags)"/>
-		public Task<long> LengthAsync(CommandFlags flags = CommandFlags.None)
-		{
-			return GetDatabase().HashLengthAsync(Key, flags);
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashSetAsync(RedisKey, RedisValue, RedisValue, When, CommandFlags)"/>
-		public Task SetAsync(TName name, TValue value, When when = When.Always, CommandFlags flags = CommandFlags.None)
-		{
-			return GetDatabase().HashSetAsync(Key, RedisSerializer.Serialize(name), RedisSerializer.Serialize(value), when, flags);
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashSetAsync(RedisKey, HashEntry[], CommandFlags)"/>
-		public Task SetAsync(IEnumerable<HashEntry<TName, TValue>> entries, CommandFlags flags = CommandFlags.None)
-		{
-			return GetDatabase().HashSetAsync(Key, entries.Select(x => (HashEntry)x).ToArray(), flags);
-		}
-
-		/// <inheritdoc cref="IDatabaseAsync.HashValuesAsync(RedisKey, CommandFlags)"/>
-		public async Task<TValue[]> ValuesAsync(CommandFlags flags = CommandFlags.None)
-		{
-			RedisValue[] values = await GetDatabase().HashValuesAsync(Key, flags);
-			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TValue>(x)!);
-		}
+		/// <param name="key">Key to convert</param>
+		public static implicit operator TypedRedisKey(RedisHashKey<TName, TValue> key) => new TypedRedisKey(key.Inner);
 	}
 
 	/// <inheritdoc cref="HashEntry"/>
@@ -175,36 +86,137 @@ namespace EpicGames.Redis
 	/// </summary>
 	public static class RedisHashExtensions
 	{
+		#region HashDecrementAsync
+
 		/// <inheritdoc cref="IDatabaseAsync.HashDecrementAsync(RedisKey, RedisValue, Int64, CommandFlags)"/>
-		public static Task<long> DecrementAsync<TName>(this RedisHash<TName, long> hash, TName name, long value = 1L, CommandFlags flags = CommandFlags.None)
+		public static Task<long> HashDecrementAsync<TName>(this IDatabaseAsync target, RedisHashKey<TName, long> key, TName name, long value = 1L, CommandFlags flags = CommandFlags.None)
 		{
-			return hash.GetDatabase().HashDecrementAsync(hash.Key, RedisSerializer.Serialize<TName>(name), value, flags);
+			return target.HashDecrementAsync(key.Inner, RedisSerializer.Serialize<TName>(name), value, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.HashDecrementAsync(RedisKey, RedisValue, Double, CommandFlags)"/>
-		public static Task<double> DecrementAsync<TName>(this RedisHash<TName, long> hash, TName name, double value = 1.0, CommandFlags flags = CommandFlags.None)
+		public static Task<double> HashDecrementAsync<TName>(this IDatabaseAsync target, RedisHashKey<TName, long> key, TName name, double value = 1.0, CommandFlags flags = CommandFlags.None)
 		{
-			return hash.GetDatabase().HashDecrementAsync(hash.Key, RedisSerializer.Serialize<TName>(name), value, flags);
+			return target.HashDecrementAsync(key.Inner, RedisSerializer.Serialize<TName>(name), value, flags);
 		}
 
-		/// <inheritdoc cref="IDatabaseAsync.HashIncrementAsync(RedisKey, RedisValue, Int64, CommandFlags)"/>
-		public static Task<long> IncrementAsync<TName>(this RedisHash<TName, long> hash, TName name, long value = 1L, CommandFlags flags = CommandFlags.None)
+		#endregion
+
+		#region HashDeleteAsync
+
+		/// <inheritdoc cref="IDatabaseAsync.HashDeleteAsync(RedisKey, RedisValue, CommandFlags)"/>
+		public static Task<bool> HashDeleteAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, TName name, CommandFlags flags = CommandFlags.None)
 		{
-			return hash.GetDatabase().HashIncrementAsync(hash.Key, RedisSerializer.Serialize<TName>(name), value, flags);
+			return target.HashDeleteAsync(key.Inner, RedisSerializer.Serialize(name), flags);
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.HashDeleteAsync(RedisKey, RedisValue[], CommandFlags)"/>
+		public static Task<long> HashDeleteAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, TName[] names, CommandFlags flags = CommandFlags.None)
+		{
+			return target.HashDeleteAsync(key.Inner, RedisSerializer.Serialize(names), flags);
+		}
+
+		#endregion
+
+		#region HashExistsAsync
+
+		/// <inheritdoc cref="IDatabaseAsync.HashExistsAsync(RedisKey, RedisValue, CommandFlags)"/>
+		public static Task<bool> HashExistsAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, TName name, CommandFlags flags = CommandFlags.None)
+		{
+			return target.HashExistsAsync(key.Inner, RedisSerializer.Serialize(name), flags);
+		}
+
+		#endregion
+
+		#region HashGetAsync
+
+		/// <inheritdoc cref="IDatabaseAsync.HashGetAsync(RedisKey, RedisValue, CommandFlags)"/>
+		public static Task<TValue> HashGetAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, TName name, CommandFlags flags = CommandFlags.None)
+		{
+			return target.HashGetAsync(key.Inner, RedisSerializer.Serialize(name), flags).DeserializeAsync<TValue>();
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.HashGetAsync(RedisKey, RedisValue[], CommandFlags)"/>
+		public static Task<TValue[]> HashGetAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, TName[] names, CommandFlags flags = CommandFlags.None)
+		{
+			return target.HashGetAsync(key.Inner, RedisSerializer.Serialize(names), flags).DeserializeAsync<TValue>();
+		}
+
+		#endregion
+
+		#region HashGetAllAsync
+
+		/// <inheritdoc cref="IDatabaseAsync.HashGetAllAsync(RedisKey, CommandFlags)"/>
+		public static async Task<HashEntry<TName, TValue>[]> HashGetAllAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, CommandFlags flags = CommandFlags.None)
+		{
+			HashEntry[] entries = await target.HashGetAllAsync(key.Inner, flags);
+			return Array.ConvertAll(entries, x => new HashEntry<TName, TValue>(RedisSerializer.Deserialize<TName>(x.Name)!, RedisSerializer.Deserialize<TValue>(x.Value)!));
+		}
+
+		#endregion
+
+		#region HashIncrementAsync
+
+
+		/// <inheritdoc cref="IDatabaseAsync.HashIncrementAsync(RedisKey, RedisValue, Int64, CommandFlags)"/>
+		public static Task<long> HashIncrementAsync<TName>(this IDatabaseAsync target, RedisHashKey<TName, long> key, TName name, long value = 1L, CommandFlags flags = CommandFlags.None)
+		{
+			return target.HashIncrementAsync(key.Inner, RedisSerializer.Serialize<TName>(name), value, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.HashIncrementAsync(RedisKey, RedisValue, Double, CommandFlags)"/>
-		public static Task<double> IncrementAsync<TName>(this RedisHash<TName, long> hash, TName name, double value = 1.0, CommandFlags flags = CommandFlags.None)
+		public static Task<double> HashIncrementAsync<TName>(this IDatabaseAsync target, RedisHashKey<TName, long> key, TName name, double value = 1.0, CommandFlags flags = CommandFlags.None)
 		{
-			return hash.GetDatabase().HashIncrementAsync(hash.Key, RedisSerializer.Serialize<TName>(name), value, flags);
+			return target.HashIncrementAsync(key.Inner, RedisSerializer.Serialize<TName>(name), value, flags);
 		}
 
-		/// <summary>
-		/// Creates a version of this set which modifies a transaction rather than the direct DB
-		/// </summary>
-		public static RedisHash<TName, TValue> With<TName, TValue>(this ITransaction transaction, RedisHash<TName, TValue> set)
+		#endregion
+
+		#region HashKeysAsync
+
+		/// <inheritdoc cref="IDatabaseAsync.HashKeysAsync(RedisKey, CommandFlags)"/>
+		public static Task<TName[]> HashKeysAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, CommandFlags flags = CommandFlags.None)
 		{
-			return new RedisHash<TName, TValue>(transaction, set.Key);
+			return target.HashKeysAsync(key.Inner, flags).DeserializeAsync<TName>();
 		}
+
+		#endregion
+
+		#region HashLengthAsync
+
+		/// <inheritdoc cref="IDatabaseAsync.HashLengthAsync(RedisKey, CommandFlags)"/>
+		public static Task<long> HashLengthAsync(this IDatabaseAsync target, TypedRedisKey key, CommandFlags flags = CommandFlags.None)
+		{
+			return target.HashLengthAsync(key, flags);
+		}
+
+		#endregion
+
+		#region HashSetAsync
+
+
+		/// <inheritdoc cref="IDatabaseAsync.HashSetAsync(RedisKey, RedisValue, RedisValue, When, CommandFlags)"/>
+		public static Task HashSetAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, TName name, TValue value, When when = When.Always, CommandFlags flags = CommandFlags.None)
+		{
+			return target.HashSetAsync(key.Inner, RedisSerializer.Serialize(name), RedisSerializer.Serialize(value), when, flags);
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.HashSetAsync(RedisKey, HashEntry[], CommandFlags)"/>
+		public static Task HashSetAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, IEnumerable<HashEntry<TName, TValue>> entries, CommandFlags flags = CommandFlags.None)
+		{
+			return target.HashSetAsync(key.Inner, entries.Select(x => (HashEntry)x).ToArray(), flags);
+		}
+
+		#endregion
+
+		#region HashValuesAsync
+
+		/// <inheritdoc cref="IDatabaseAsync.HashValuesAsync(RedisKey, CommandFlags)"/>
+		public static Task<TValue[]> HashValuesAsync<TName, TValue>(this IDatabaseAsync target, RedisHashKey<TName, TValue> key, CommandFlags flags = CommandFlags.None)
+		{
+			return target.HashValuesAsync(key.Inner, flags).DeserializeAsync<TValue>();
+		}
+
+		#endregion
 	}
 }

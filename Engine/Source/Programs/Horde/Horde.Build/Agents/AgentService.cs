@@ -83,7 +83,7 @@ namespace Horde.Build.Agents
 		readonly ILogger _logger;
 		readonly ITicker _ticker;
 		
-		readonly RedisString<AgentRateTable> _agentRateTableData;
+		readonly RedisStringKey<AgentRateTable> _agentRateTableData = new RedisStringKey<AgentRateTable>("agent-rates");
 		readonly RedisService _redisService;
 
 		// Lazily updated costs for different agent types
@@ -108,8 +108,7 @@ namespace Horde.Build.Agents
 			_sessions = sessions;
 			_aclService = aclService;
 			_downtimeService = downtimeService;
-			_agentRateTableData = new RedisString<AgentRateTable>(redisService.ConnectionPool, "agent-rates");
-			_agentRateTable = new AsyncCachedValue<AgentRateTable?>(() => _agentRateTableData.GetAsync(), TimeSpan.FromSeconds(2.0));//.FromMinutes(5.0));
+			_agentRateTable = new AsyncCachedValue<AgentRateTable?>(() => redisService.GetDatabase().StringGetAsync(_agentRateTableData), TimeSpan.FromSeconds(2.0));//.FromMinutes(5.0));
 			_poolsList = new AsyncCachedValue<List<IPool>>(() => poolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
 			_dogStatsd = dogStatsd;
 			_taskSources = taskSources.ToArray();
@@ -899,7 +898,7 @@ namespace Horde.Build.Agents
 		/// <returns></returns>
 		public async Task UpdateRateTableAsync(List<AgentRateConfig> entries)
 		{
-			await _agentRateTableData.SetAsync(new AgentRateTable { Entries = entries });
+			await _redisService.GetDatabase().StringSetAsync(_agentRateTableData, new AgentRateTable { Entries = entries });
 		}
 
 		/// <summary>
@@ -909,7 +908,7 @@ namespace Horde.Build.Agents
 		/// <returns>Hourly rate of running the given agent</returns>
 		public async ValueTask<double?> GetRateAsync(AgentId agentId)
 		{
-			RedisKey key = $"agent-rate/{agentId}";
+			RedisStringKey<double> key = $"agent-rate/{agentId}";
 
 			// Try to get the current value
 			RedisValue value = await _redisService.GetDatabase().StringGetAsync(key);

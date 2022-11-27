@@ -24,8 +24,8 @@ namespace Horde.Build.Logs
 	/// 
 	/// * Once a log is retrieved, server adds an entry with this log id to a sorted set in Redis (see <see cref="_expireQueue"/>, scored by 
 	///   expiry time (defaulting to <see cref="ExpireAfter"/> from present) and broadcasts it to any other server instances.
-	/// * If a log is being tailed, server keeps the total number of lines in a Redis key (<see cref="RedisTailNext"/>, and appends chunks of log 
-	///   data to a sorted set for that log scored by index of the first line (see <see cref="RedisTailData"/>).
+	/// * If a log is being tailed, server keeps the total number of lines in a Redis key (<see cref="TailNextKey"/>, and appends chunks of log 
+	///   data to a sorted set for that log scored by index of the first line (see <see cref="TailDataKey"/>).
 	/// * Chunks are split on fixed boundaries, in order to allow older entries to be purged by score without having to count the number of lines
 	///   they contain first.
 	/// * Agent polls for requests to provide tail data via <see cref="LogRpcService.UpdateLogTail"/>, which calls <see cref="WaitForTailNextAsync"/>.
@@ -52,18 +52,18 @@ namespace Horde.Build.Logs
 
 		readonly ConcurrentDictionary<LogId, AsyncEvent> _notifyLogEvents = new ConcurrentDictionary<LogId, AsyncEvent>();
 		readonly RedisChannel<LogId> _tailStartChannel;
-		readonly RedisSortedSet<string> _trimQueue;
-		readonly RedisSortedSet<LogId> _expireQueue;
+		static readonly RedisSortedSetKey<string> _trimQueue = "logs:trim";
+		static readonly RedisSortedSetKey<LogId> _expireQueue = "logs:expire";
 
 		readonly IClock _clock;
 		readonly ITicker _expireTailsTicker;
 
 		readonly ILogger _logger;
 
-		RedisChannelSubscription<LogId>? _tailStartSubscription;
+		IAsyncDisposable? _tailStartSubscription;
 
-		internal RedisString<int> RedisTailNext(LogId logId) => new RedisString<int>(_redisService.ConnectionPool, $"logs:{logId}:tail-next");
-		internal RedisSortedSet<ReadOnlyMemory<byte>> RedisTailData(LogId logId) => new RedisSortedSet<ReadOnlyMemory<byte>>(_redisService.ConnectionPool, $"logs:{logId}:tail-data");
+		internal static RedisStringKey<int> TailNextKey(LogId logId) => new RedisStringKey<int>($"logs:{logId}:tail-next");
+		internal static RedisSortedSetKey<ReadOnlyMemory<byte>> TailDataKey(LogId logId) => new RedisSortedSetKey<ReadOnlyMemory<byte>>($"logs:{logId}:tail-data");
 
 		/// <summary>
 		/// Boundary to split Redis chunks along. 
@@ -92,8 +92,6 @@ namespace Horde.Build.Logs
 
 			_redisService = redisService;
 			_tailStartChannel = new RedisChannel<LogId>("logs:notify");
-			_trimQueue = new RedisSortedSet<string>(_redisService.ConnectionPool, "logs:trim");
-			_expireQueue = new RedisSortedSet<LogId>(_redisService.ConnectionPool, "logs:expire");
 
 			_clock = clock;
 			_expireTailsTicker = clock.AddSharedTicker<LogTailService>(TimeSpan.FromSeconds(30.0), ExpireTailsAsync, logger);
@@ -103,7 +101,7 @@ namespace Horde.Build.Logs
 		/// <inheritdoc/>
 		public async Task StartAsync(CancellationToken cancellationToken)
 		{
-			_tailStartSubscription = await _redisService.DatabaseSingleton.Multiplexer.GetSubscriber().SubscribeAsync(_tailStartChannel, (_, x) => OnTailStart(x));
+			_tailStartSubscription = await _redisService.SubscribeAsync(_tailStartChannel, OnTailStart);
 			await _expireTailsTicker.StartAsync();
 		}
 
@@ -121,7 +119,7 @@ namespace Horde.Build.Logs
 		{
 			double maxScore = (_clock.UtcNow - DateTime.UnixEpoch).TotalSeconds;
 
-			SortedSetEntry<string>[] trimEntries = await _trimQueue.RangeByScoreWithScoresAsync(stop: maxScore);
+			SortedSetEntry<string>[] trimEntries = await _redisService.GetDatabase().SortedSetRangeByScoreWithScoresAsync(_trimQueue, stop: maxScore);
 			foreach (SortedSetEntry<string> trimEntry in trimEntries)
 			{
 				string[] values = trimEntry.Element.Split('=');
@@ -130,18 +128,18 @@ namespace Horde.Build.Logs
 				int lineCount = Int32.Parse(values[1], NumberStyles.None, CultureInfo.InvariantCulture);
 
 				int minLineIndex = (lineCount & ~(ChunkLineCount - 1)) - 1;
-				_ = await RedisTailData(logId).RemoveRangeByScoreAsync(Double.NegativeInfinity, minLineIndex, Exclude.None, CommandFlags.FireAndForget);
+				_ = await _redisService.GetDatabase().SortedSetRemoveRangeByScoreAsync(TailDataKey(logId), Double.NegativeInfinity, minLineIndex, Exclude.None, CommandFlags.FireAndForget);
 			}
 
-			SortedSetEntry<LogId>[] expireEntries = await _expireQueue.RangeByScoreWithScoresAsync(stop: maxScore);
+			SortedSetEntry<LogId>[] expireEntries = await _redisService.GetDatabase().SortedSetRangeByScoreWithScoresAsync(_expireQueue, stop: maxScore);
 			foreach (SortedSetEntry<LogId> expireEntry in expireEntries)
 			{
 				LogId logId = expireEntry.Element;
 
 				ITransaction transaction = _redisService.GetDatabase().CreateTransaction();
-				transaction.AddCondition(Condition.SortedSetEqual(_expireQueue.Key, expireEntry.ElementValue, expireEntry.Score));
-				_ = transaction.KeyDeleteAsync(RedisTailNext(logId).Key, CommandFlags.FireAndForget);
-				_ = transaction.KeyDeleteAsync(RedisTailData(logId).Key, CommandFlags.FireAndForget);
+				transaction.AddCondition(Condition.SortedSetEqual(_expireQueue.Inner, expireEntry.ElementValue, expireEntry.Score));
+				_ = transaction.KeyDeleteAsync(TailNextKey(logId), CommandFlags.FireAndForget);
+				_ = transaction.KeyDeleteAsync(TailDataKey(logId), CommandFlags.FireAndForget);
 				_ = transaction.ExecuteAsync(CommandFlags.FireAndForget);
 			}
 		}
@@ -161,7 +159,7 @@ namespace Horde.Build.Logs
 		/// <param name="lineCount">The current flushed line count for the log file</param>
 		public async ValueTask EnableTailingAsync(LogId logId, int lineCount)
 		{
-			if (await RedisTailNext(logId).SetAsync(lineCount, when: When.NotExists))
+			if (await _redisService.GetDatabase().StringSetAsync(TailNextKey(logId), lineCount, when: When.NotExists))
 			{
 				_logger.LogDebug("Enabled tailing for log {LogId}", logId);
 			}
@@ -169,7 +167,7 @@ namespace Horde.Build.Logs
 			await _redisService.GetDatabase().PublishAsync(_tailStartChannel, logId);
 
 			double score = (_clock.UtcNow + ExpireAfter - DateTime.UnixEpoch).TotalSeconds;
-			_ = _expireQueue.AddAsync(logId, score, flags: CommandFlags.FireAndForget);
+			_ = _redisService.GetDatabase().SortedSetAddAsync(_expireQueue, logId, score, flags: CommandFlags.FireAndForget);
 		}
 
 		/// <summary>
@@ -186,13 +184,13 @@ namespace Horde.Build.Logs
 
 			if (entries.Count > 0)
 			{
-				RedisString<int> redisTailNext = RedisTailNext(logId);
-				RedisSortedSet<ReadOnlyMemory<byte>> redisTailData = RedisTailData(logId);
+				RedisStringKey<int> redisTailNext = TailNextKey(logId);
+				RedisSortedSetKey<ReadOnlyMemory<byte>> redisTailData = TailDataKey(logId);
 
 				ITransaction transaction = _redisService.GetDatabase().CreateTransaction();
-				transaction.AddCondition(Condition.StringEqual(RedisTailNext(logId).Key, tailNext));
-				_ = transaction.With(redisTailData).AddAsync(entries.ToArray(), flags: CommandFlags.FireAndForget);
-				_ = transaction.With(redisTailNext).SetAsync(newLineCount, flags: CommandFlags.FireAndForget);
+				transaction.AddCondition(Condition.StringEqual(TailNextKey(logId).Inner, RedisSerializer.Serialize(tailNext)));
+				_ = transaction.SortedSetAddAsync(redisTailData, entries.ToArray(), flags: CommandFlags.FireAndForget);
+				_ = transaction.StringSetAsync(redisTailNext, newLineCount, flags: CommandFlags.FireAndForget);
 
 				bool result = await transaction.ExecuteAsync();
 				_logger.LogTrace("Tail data for {LogId}, line {TailNext} -> {NewTailNext}, result: {Result}", logId, tailNext, newLineCount, result);
@@ -230,7 +228,7 @@ namespace Horde.Build.Logs
 
 			int nextIndex = lineIndex;
 
-			SortedSetEntry<ReadOnlyMemory<byte>>[] entries = await RedisTailData(logId).RangeByScoreWithScoresAsync(chunkLowerBound, chunkUpperBound);
+			SortedSetEntry<ReadOnlyMemory<byte>>[] entries = await _redisService.GetDatabase().SortedSetRangeByScoreWithScoresAsync(TailDataKey(logId), chunkLowerBound, chunkUpperBound);
 			foreach (SortedSetEntry<ReadOnlyMemory<byte>> entry in entries)
 			{
 				ReadOnlyMemory<byte> memory = entry.Element;
@@ -267,7 +265,7 @@ namespace Horde.Build.Logs
 		{
 			string trimEntry = $"{logId}={lineCount}";
 			double trimTime = (_clock.UtcNow + TrimAfter - DateTime.UnixEpoch).TotalSeconds;
-			_ = await _trimQueue.AddAsync(trimEntry, trimTime, flags: CommandFlags.FireAndForget);
+			_ = await _redisService.GetDatabase().SortedSetAddAsync(_trimQueue, trimEntry, trimTime, flags: CommandFlags.FireAndForget);
 		}
 
 		/// <summary>
@@ -277,8 +275,7 @@ namespace Horde.Build.Logs
 		/// <returns>Number of lines for the log file</returns>
 		public async Task<int> GetTailNextAsync(LogId logId)
 		{
-			int? tailNext = await RedisTailNext(logId).GetValueAsync();
-			return tailNext ?? -1;
+			return await _redisService.GetDatabase().StringGetAsync(TailNextKey(logId), -1);
 		}
 
 		/// <summary>
@@ -298,10 +295,10 @@ namespace Horde.Build.Logs
 					{
 						Task notifyTask = notifyEvent.Task;
 
-						int? tailNext = await RedisTailNext(logId).GetValueAsync();
-						if (tailNext != null)
+						int tailNext = await _redisService.GetDatabase().StringGetAsync(TailNextKey(logId), -1);
+						if (tailNext != -1)
 						{
-							return tailNext.Value;
+							return tailNext;
 						}
 						else if (cancellationToken.IsCancellationRequested)
 						{

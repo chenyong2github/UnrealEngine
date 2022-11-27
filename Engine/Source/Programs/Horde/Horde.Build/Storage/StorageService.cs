@@ -935,7 +935,7 @@ namespace Horde.Build.Storage
 		static RedisKey GetRedisKey(string suffix) => $"storage:{suffix}";
 		static RedisKey GetRedisKey(NamespaceId namespaceId, string suffix) => GetRedisKey($"{namespaceId}:{suffix}");
 
-		RedisSortedSet<RedisValue> GetGcCheckSet(NamespaceId namespaceId) => new RedisSortedSet<RedisValue>(_redisService.ConnectionPool, GetRedisKey(namespaceId, "check"));
+		static RedisSortedSetKey<RedisValue> GetGcCheckSet(NamespaceId namespaceId) => new RedisSortedSetKey<RedisValue>(GetRedisKey(namespaceId, "check"));
 
 		/// <summary>
 		/// Find the next namespace to run GC on
@@ -1016,10 +1016,10 @@ namespace Horde.Build.Storage
 
 			double score = GetGcTimestamp(utcNow);
 
-			RedisSortedSet<RedisValue> checkSet = GetGcCheckSet(namespaceId);
+			RedisSortedSetKey<RedisValue> checkSet = GetGcCheckSet(namespaceId);
 			for (; ; )
 			{
-				RedisValue[] values = await checkSet.RangeByRankAsync(0, 0);
+				RedisValue[] values = await _redisService.GetDatabase().SortedSetRangeByRankAsync(checkSet, 0, 0);
 				if (values.Length == 0)
 				{
 					break;
@@ -1034,13 +1034,13 @@ namespace Horde.Build.Storage
 						if (info.Imports != null)
 						{
 							SortedSetEntry<RedisValue>[] entries = info.Imports.Select(x => new SortedSetEntry<RedisValue>(x.ToByteArray(), score)).ToArray();
-							_ = checkSet.AddAsync(entries, flags: CommandFlags.FireAndForget);
+							_ = _redisService.GetDatabase().SortedSetAddAsync(checkSet, entries, flags: CommandFlags.FireAndForget);
 							score = Math.BitIncrement(score);
 						}
 						await namespaceInfo.Client.DeleteBlobAsync(info.BlobId, cancellationToken);
 					}
 				}
-				_ = checkSet.RemoveAsync(values[0], CommandFlags.FireAndForget);
+				_ = _redisService.GetDatabase().SortedSetRemoveAsync(checkSet, values[0], CommandFlags.FireAndForget);
 			}
 
 			await _gcState.UpdateAsync(state => state.FindOrAddNamespace(namespaceId).LastTime = utcNow);
@@ -1107,7 +1107,7 @@ namespace Horde.Build.Storage
 		void AddGcCheckRecord(NamespaceId namespaceId, ObjectId blobInfoId)
 		{
 			double score = GetGcTimestamp();
-			_ = GetGcCheckSet(namespaceId).AddAsync(blobInfoId.ToByteArray(), score, flags: CommandFlags.FireAndForget);
+			_ = _redisService.GetDatabase().SortedSetAddAsync(GetGcCheckSet(namespaceId), blobInfoId.ToByteArray(), score, flags: CommandFlags.FireAndForget);
 		}
 
 		#endregion

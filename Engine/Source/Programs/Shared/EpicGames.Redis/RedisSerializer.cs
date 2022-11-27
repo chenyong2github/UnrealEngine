@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using EpicGames.Serialization;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
+using System.Reflection.Emit;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace EpicGames.Redis
 {
@@ -47,7 +51,7 @@ namespace EpicGames.Redis
 		/// </summary>
 		/// <param name="value"></param>
 		/// <returns></returns>
-		T? FromRedisValue(RedisValue value);
+		T FromRedisValue(RedisValue value);
 	}
 
 	/// <summary>
@@ -63,7 +67,7 @@ namespace EpicGames.Redis
 		}
 
 		/// <inheritdoc/>
-		public T? FromRedisValue(RedisValue value)
+		public T FromRedisValue(RedisValue value)
 		{
 			return CbSerializer.Deserialize<T>(new CbField((byte[])value!));
 		}
@@ -84,7 +88,7 @@ namespace EpicGames.Redis
 			}
 
 			public RedisValue ToRedisValue(T value) => (string?)_typeConverter.ConvertTo(value, typeof(string));
-			public T? FromRedisValue(RedisValue value) => (T?)_typeConverter.ConvertFrom((string)value!);
+			public T FromRedisValue(RedisValue value) => (T)_typeConverter.ConvertFrom((string)value!)!;
 		}
 
 		class RedisNativeConverter<T> : IRedisConverter<T>
@@ -224,14 +228,86 @@ namespace EpicGames.Redis
 		}
 
 		/// <summary>
+		/// Serialize an object to a <see cref="RedisValue"/>
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="inputs"></param>
+		/// <returns></returns>
+		public static RedisValue[] Serialize<T>(T[] inputs)
+		{
+			RedisValue[] outputs = new RedisValue[inputs.Length];
+
+			for (int idx = 0; idx < inputs.Length; idx++)
+			{
+				outputs[idx] = Serialize<T>(inputs[idx]);
+			}
+
+			return outputs;
+		}
+
+		/// <summary>
 		/// Deserialize a <see cref="RedisValue"/>
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		/// <param name="value"></param>
 		/// <returns></returns>
-		public static T? Deserialize<T>(RedisValue value)
+		public static T Deserialize<T>(RedisValue value)
 		{
 			return CachedConverter<T>.Converter.FromRedisValue(value);
+		}
+
+		/// <summary>
+		/// Deserialize an array of <see cref="RedisValue"/> objects
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="inputs"></param>
+		/// <returns></returns>
+		public static T[] Deserialize<T>(RedisValue[] inputs)
+		{
+			T[] outputs = new T[inputs.Length];
+
+			for (int idx = 0; idx < inputs.Length; idx++)
+			{
+				outputs[idx] = Deserialize<T>(inputs[idx]);
+			}
+
+			return outputs;
+		}
+	}
+
+	/// <summary>
+	/// Extension methods for serialization
+	/// </summary>
+	public static class RedisSerializerExtensions
+	{
+		/// <summary>
+		/// Deserialize a <see cref="RedisValue"/>
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		public static async Task<T> DeserializeAsync<T>(this Task<RedisValue> value)
+		{
+			RedisValue result = await value;
+			if (result.IsNull)
+			{
+				return default!;
+			}
+			else
+			{
+				return RedisSerializer.Deserialize<T>(await value);
+			}
+		}
+
+		/// <summary>
+		/// Deserialize a <see cref="RedisValue"/>
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="values"></param>
+		/// <returns></returns>
+		public static async Task<T[]> DeserializeAsync<T>(this Task<RedisValue[]> values)
+		{
+			return RedisSerializer.Deserialize<T>(await values);
 		}
 	}
 }

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Redis;
 using Horde.Build.Logs;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
@@ -80,15 +81,15 @@ namespace Horde.Build.Tests
 			await tailService.EnableTailingAsync(_logId, 30);
 			await tailService.AppendAsync(_logId, 30, Encoding.UTF8.GetBytes("line30\nline31\nline32\nline33\nline34\nline35\nline36\nline37\nline38\nline39\nline40\n"));
 
-			Assert.AreEqual(4, await tailService.RedisTailData(_logId).LengthAsync());
+			Assert.AreEqual(4, await redisService.GetDatabase().SortedSetLengthAsync(LogTailService.TailDataKey(_logId)));
 
 			await tailService.FlushAsync(_logId, 33);
 
-			Assert.AreEqual(4, await tailService.RedisTailData(_logId).LengthAsync());
+			Assert.AreEqual(4, await redisService.GetDatabase().SortedSetLengthAsync(LogTailService.TailDataKey(_logId)));
 
 			await Clock.AdvanceAsync(TimeSpan.FromMinutes(1.0));
 
-			Assert.AreEqual(3, await tailService.RedisTailData(_logId).LengthAsync());
+			Assert.AreEqual(3, await redisService.GetDatabase().SortedSetLengthAsync(LogTailService.TailDataKey(_logId)));
 
 			{
 				List<Utf8String> lines = await tailService.ReadAsync(_logId, 25, 20);
@@ -123,13 +124,13 @@ namespace Horde.Build.Tests
 			await tailService.EnableTailingAsync(_logId, 30);
 			await tailService.AppendAsync(_logId, 30, Encoding.UTF8.GetBytes("foo\n"));
 
-			Assert.IsTrue(await redisService.GetDatabase().KeyExistsAsync(tailService.RedisTailNext(_logId).Key));
-			Assert.IsTrue(await redisService.GetDatabase().KeyExistsAsync(tailService.RedisTailData(_logId).Key));
+			Assert.IsTrue(await redisService.GetDatabase().KeyExistsAsync(LogTailService.TailNextKey(_logId)));
+			Assert.IsTrue(await redisService.GetDatabase().KeyExistsAsync(LogTailService.TailDataKey(_logId)));
 
 			await Clock.AdvanceAsync(TimeSpan.FromMinutes(5.0));
 
-			Assert.IsFalse(await redisService.GetDatabase().KeyExistsAsync(tailService.RedisTailNext(_logId).Key));
-			Assert.IsFalse(await redisService.GetDatabase().KeyExistsAsync(tailService.RedisTailData(_logId).Key));
+			Assert.IsFalse(await redisService.GetDatabase().KeyExistsAsync(LogTailService.TailNextKey(_logId)));
+			Assert.IsFalse(await redisService.GetDatabase().KeyExistsAsync(LogTailService.TailDataKey(_logId)));
 		}
 
 		[TestMethod]

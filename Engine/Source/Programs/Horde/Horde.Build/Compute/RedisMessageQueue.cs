@@ -95,31 +95,31 @@ namespace Horde.Build.Compute
 		/// </summary>
 		/// <param name="channelId"></param>
 		/// <returns></returns>
-		RedisList<T> GetChannel(string channelId)
+		RedisListKey<T> GetChannel(string channelId)
 		{
-			return new RedisList<T>(_redis, _keyPrefix.Append(channelId));
+			return new RedisListKey<T>(_keyPrefix.Append(channelId));
 		}
 
 		/// <inheritdoc/>
 		public async Task PostAsync(string channelId, T message)
 		{
-			RedisList<T> channel = GetChannel(channelId);
+			RedisListKey<T> channel = GetChannel(channelId);
 
-			long length = await channel.RightPushAsync(message);
+			long length = await _redis.ListRightPushAsync(channel, message);
 			if (length == 1)
 			{
 				await _redis.PublishAsync(_updateChannel, channelId, CommandFlags.FireAndForget);
 			}
-			await _redis.KeyExpireAsync(channel.Key, ExpireTime, CommandFlags.FireAndForget);
+			await _redis.KeyExpireAsync(channel, ExpireTime, flags: CommandFlags.FireAndForget);
 		}
 
-		static async Task<bool> ReadMessagesAsync(RedisList<T> list, List<T> messages)
+		async Task<bool> ReadMessagesAsync(RedisListKey<T> list, List<T> messages)
 		{
-			T? message = await list.LeftPopAsync();
+			T? message = await _redis.ListLeftPopAsync(list);
 			while(message != null)
 			{
 				messages.Add(message);
-				message = await list.LeftPopAsync();
+				message = await _redis.ListLeftPopAsync(list);
 			}
 			return messages.Count > 0;
 		}
@@ -137,7 +137,7 @@ namespace Horde.Build.Compute
 		{
 			List<T> messages = new List<T>();
 
-			RedisList<T> channel = GetChannel(channelId);
+			RedisListKey<T> channel = GetChannel(channelId);
 			while (!cancellationToken.IsCancellationRequested && !await ReadMessagesAsync(channel, messages))
 			{
 				// Register for notifications on this channel

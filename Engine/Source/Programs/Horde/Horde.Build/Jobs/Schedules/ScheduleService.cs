@@ -70,9 +70,9 @@ namespace Horde.Build.Jobs.Schedules
 		readonly IClock _clock;
 		readonly ILogger _logger;
 		readonly RedisService _redis;
-		readonly RedisKey _baseLockKey;
-		readonly RedisKey _tickLockKey; // Lock to tick the queue
-		readonly RedisSortedSet<QueueItem> _queue; // Items to tick, ordered by time
+		static readonly RedisKey s_baseLockKey = "scheduler/locks";
+		static readonly RedisKey s_tickLockKey = s_baseLockKey.Append("/tick"); // Lock to tick the queue
+		static readonly RedisSortedSetKey<QueueItem> s_queueKey = "scheduler/queue"; // Items to tick, ordered by time
 		readonly ITicker _ticker;
 
 		/// <summary>
@@ -90,9 +90,6 @@ namespace Horde.Build.Jobs.Schedules
 			_logger = logger;
 
 			_redis = redis;
-			_baseLockKey = "scheduler/locks";
-			_tickLockKey = _baseLockKey.Append("/tick");
-			_queue = new RedisSortedSet<QueueItem>(redis.GetDatabase(), "scheduler/queue");
 			if (mongoService.ReadOnlyMode)
 			{
 				_ticker = new NullTicker();
@@ -126,7 +123,7 @@ namespace Horde.Build.Jobs.Schedules
 			DateTime utcNow = _clock.UtcNow;
 
 			// Update the current queue
-			await using (RedisLock sharedLock = new (_redis.GetDatabase(), _tickLockKey))
+			await using (RedisLock sharedLock = new (_redis.GetDatabase(), s_tickLockKey))
 			{
 				if (await sharedLock.AcquireAsync(TimeSpan.FromMinutes(1.0), false))
 				{
@@ -145,7 +142,7 @@ namespace Horde.Build.Jobs.Schedules
 				}
 
 				// Acquire the lock for this schedule and update it
-				await using (RedisLock sharedLock = new RedisLock<QueueItem>(_redis.GetDatabase(), _baseLockKey, item))
+				await using (RedisLock sharedLock = new RedisLock<QueueItem>(_redis.GetDatabase(), s_baseLockKey, item))
 				{
 					if (await sharedLock.AcquireAsync(TimeSpan.FromMinutes(1.0)))
 					{
@@ -168,14 +165,15 @@ namespace Horde.Build.Jobs.Schedules
 
 		async Task<QueueItem?> PopQueueItemAsync()
 		{
+			IDatabaseAsync target = _redis.GetDatabase();
 			for (; ; )
 			{
-				QueueItem[] items = await _queue.RangeByRankAsync(0, 0);
+				QueueItem[] items = await target.SortedSetRangeByRankAsync(s_queueKey, 0, 0);
 				if (items.Length == 0)
 				{
 					return null;
 				}
-				if (await _queue.RemoveAsync(items[0]))
+				if (await target.SortedSetRemoveAsync(s_queueKey, items[0]))
 				{
 					return items[0];
 				}
@@ -185,8 +183,8 @@ namespace Horde.Build.Jobs.Schedules
 		internal async Task ResetAsync()
 		{
 			IDatabase redis = _redis.GetDatabase();
-			await redis.KeyDeleteAsync(_queue.Key);
-			await redis.KeyDeleteAsync(_tickLockKey);
+			await redis.KeyDeleteAsync(s_queueKey);
+			await redis.KeyDeleteAsync(s_tickLockKey);
 		}
 
 		internal async Task TickForTestingAsync()
@@ -224,7 +222,7 @@ namespace Horde.Build.Jobs.Schedules
 				}
 			}
 
-			await _queue.AddAsync(queueItems.ToArray());
+			await _redis.GetDatabase().SortedSetAddAsync(s_queueKey, queueItems.ToArray());
 		}
 
 		/// <summary>
