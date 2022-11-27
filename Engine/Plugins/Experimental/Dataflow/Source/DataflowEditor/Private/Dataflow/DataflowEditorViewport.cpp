@@ -2,15 +2,20 @@
 #include "Dataflow/DataflowEditorViewport.h"
 
 #include "AdvancedPreviewScene.h"
+#include "Dataflow/DataflowEditorCommands.h"
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowActor.h"
 #include "Dataflow/DataflowComponent.h"
+#include "Dataflow/DataflowEditorViewportToolbar.h"
 #include "Dataflow/DataflowEngineSceneHitProxies.h"
 #include "DynamicMeshBuilder.h"
 #include "Dataflow/DataflowEditorToolkit.h"
 #include "EditorModes.h"
 #include "EditorViewportClient.h"
+#include "EditorViewportCommands.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UIAction.h"
 #include "Materials/Material.h"
 #include "SCommonEditorViewportToolbarBase.h"
 #include "Settings/EditorStyleSettings.h"
@@ -37,14 +42,15 @@ void SDataflowEditorViewport::Construct(const FArguments& InArgs)
 	FBoxSphereBounds SphereBounds = FBoxSphereBounds(EForceInit::ForceInitToZero);
 	CustomDataflowActor = CastChecked<ADataflowActor>(PreviewScene->GetWorld()->SpawnActor(ADataflowActor::StaticClass()));
 
-	EditorViewportClient->SetDataflowActor(CustomDataflowActor);
-	EditorViewportClient->FocusViewportOnBox( SphereBounds.GetBox());
+	ViewportClient->SetDataflowActor(CustomDataflowActor);
+	ViewportClient->FocusViewportOnBox( SphereBounds.GetBox());
 }
 
 TSharedRef<SEditorViewport> SDataflowEditorViewport::GetViewportWidget()
 {
 	return SharedThis(this);
 }
+
 
 TSharedPtr<FExtender> SDataflowEditorViewport::GetExtenders() const
 {
@@ -63,13 +69,32 @@ void SDataflowEditorViewport::AddReferencedObjects(FReferenceCollector& Collecto
 
 TSharedRef<FEditorViewportClient> SDataflowEditorViewport::MakeEditorViewportClient()
 {
-	EditorViewportClient = MakeShareable(new FDataflowEditorViewportClient(PreviewScene.Get(), SharedThis(this), DataflowEditorToolkitPtr));
-	return EditorViewportClient.ToSharedRef();
+	ViewportClient = MakeShareable(new FDataflowEditorViewportClient(PreviewScene.Get(), SharedThis(this), DataflowEditorToolkitPtr));
+	return ViewportClient.ToSharedRef();
 }
 
 TSharedPtr<SWidget> SDataflowEditorViewport::MakeViewportToolbar()
 {
-	return SNew(SCommonEditorViewportToolbarBase, SharedThis(this));
+	return
+		SNew(SDataflowViewportSelectionToolBar)
+		.EditorViewport(SharedThis(this))
+		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
+}
+
+void SDataflowEditorViewport::BindCommands()
+{
+	SEditorViewport::BindCommands();
+	{
+		const FDataflowEditorCommandsImpl& Commands = FDataflowEditorCommands::Get();
+		TSharedRef<FDataflowEditorViewportClient> ClientRef = ViewportClient.ToSharedRef();
+
+		CommandList->MapAction(
+			Commands.ToggleObjectSelection,
+			FExecuteAction::CreateSP(ClientRef, &FDataflowEditorViewportClient::SetSelectionMode, FDataflowSelectionState::EMode::DSS_Dataflow_Object)
+			,FCanExecuteAction::CreateSP(ClientRef, &FDataflowEditorViewportClient::CanSetSelectionMode, FDataflowSelectionState::EMode::DSS_Dataflow_Object)
+			,FIsActionChecked::CreateSP(ClientRef, &FDataflowEditorViewportClient::IsSelectionModeActive, FDataflowSelectionState::EMode::DSS_Dataflow_Object)
+		);
+	}
 }
 
 // ----------------------------------------------------------------------------------
@@ -87,6 +112,50 @@ FDataflowEditorViewportClient::FDataflowEditorViewportClient(FPreviewScene* InPr
 	EngineShowFlags.Grid = false;
 }
 
+void FDataflowEditorViewportClient::SetSelectionMode(FDataflowSelectionState::EMode InState)
+{
+	if (SelectionMode == InState)
+	{
+		SelectionMode = FDataflowSelectionState::EMode::DSS_Dataflow_None;
+	}
+	else
+	{
+		SelectionMode = InState;
+	}
+
+	if (SelectionMode == FDataflowSelectionState::EMode::DSS_Dataflow_None && !SelectionState.IsEmpty())
+	{
+		SelectionState = FDataflowSelectionState();
+		SelectionState.UpdateSelection(DataflowActor->DataflowComponent);
+	}
+}
+bool FDataflowEditorViewportClient::CanSetSelectionMode(FDataflowSelectionState::EMode InState)
+{
+	TSharedPtr<FDataflowEditorToolkit> DataflowEditorToolkit = DataflowEditorToolkitPtr.Pin();
+	if (DataflowEditorToolkitPtr.IsValid())
+	{
+		if (const UDataflow* Dataflow = DataflowEditorToolkit->GetDataflow())
+		{
+			if (Dataflow->GetRenderTargets().Num())
+			{
+				return true;
+			}
+		}
+	}
+
+	if (!SelectionState.IsEmpty())
+	{
+		SelectionState = FDataflowSelectionState();
+		SelectionState.UpdateSelection(DataflowActor->DataflowComponent);
+	}
+
+	return false;
+}
+bool FDataflowEditorViewportClient::IsSelectionModeActive(FDataflowSelectionState::EMode InState) 
+{ 
+	return SelectionMode == InState;
+}
+
 Dataflow::FTimestamp FDataflowEditorViewportClient::LatestTimestamp(const UDataflow* Dataflow, const Dataflow::FContext* Context)
 {
 	if (Dataflow && Context)
@@ -99,12 +168,25 @@ Dataflow::FTimestamp FDataflowEditorViewportClient::LatestTimestamp(const UDataf
 void FDataflowEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
 	Super::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
-	if (HitProxy && HitProxy	->IsA(HDataflowActor::StaticGetType()))
+	if (DataflowActor && DataflowActor->DataflowComponent)
 	{
-		if (DataflowActor && DataflowActor->DataflowComponent)
+		FDataflowSelectionState PreState = SelectionState;
+
+		if (SelectionMode == FDataflowSelectionState::EMode::DSS_Dataflow_Object)
 		{
-			DataflowActor->DataflowComponent->bSelected = !DataflowActor->DataflowComponent->bSelected;
-			DataflowActor->DataflowComponent->Invalidate();
+			if (HitProxy && HitProxy->IsA(HDataflowActor::StaticGetType()))
+			{
+					SelectionState.bComponentSelected = !SelectionState.bComponentSelected;
+			}
+			else
+			{
+				SelectionState.bComponentSelected = false;
+			}
+		}
+
+		if (PreState != SelectionState)
+		{
+			SelectionState.UpdateSelection(DataflowActor->DataflowComponent);
 		}
 	}
 }
@@ -113,6 +195,7 @@ void FDataflowEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* Hi
 void FDataflowEditorViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
 	Super::Draw(View, PDI);
+	
 	if (bEnableDataflowClientDrawing)
 	{
 		GeometryCollection::Facades::FRenderingFacade Facade(RenderCollection);

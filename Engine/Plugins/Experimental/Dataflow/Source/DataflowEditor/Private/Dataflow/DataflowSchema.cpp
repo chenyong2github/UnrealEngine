@@ -3,7 +3,7 @@
 #include "Dataflow/DataflowSchema.h"
 
 #include "Dataflow/DataflowEdNode.h"
-#include "Dataflow/DataflowEditorActions.h"
+#include "Dataflow/DataflowEditorCommands.h"
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowSNode.h"
 #include "Dataflow/DataflowNodeFactory.h"

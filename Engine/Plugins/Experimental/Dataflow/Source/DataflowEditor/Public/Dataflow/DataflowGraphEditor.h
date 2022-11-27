@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "Dataflow/DataflowEditorActions.h"
+#include "Dataflow/DataflowEditorCommands.h"
 #include "EdGraphUtilities.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"

@@ -40,6 +40,7 @@ public:
 	TSharedPtr< FUICommandInfo > EvaluateNode;
 	TSharedPtr< FUICommandInfo > CreateComment;
 	TSharedPtr< FUICommandInfo > ToggleEnabledState;
+	TSharedPtr<FUICommandInfo> ToggleObjectSelection;
 
 	TMap< FName, TSharedPtr<FUICommandInfo> > CreateNodesMap;
 };
@@ -100,5 +101,7 @@ public:
 	*  ToggleEnabledState
 	*/
 	static void ToggleEnabledState(UDataflow* Graph);
+
+
 
 };

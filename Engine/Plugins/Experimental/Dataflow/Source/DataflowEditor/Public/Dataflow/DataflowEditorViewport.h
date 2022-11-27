@@ -3,6 +3,7 @@
 
 #include "CanvasTypes.h"
 #include "CoreMinimal.h"
+#include "Dataflow/DataflowComponent.h"
 #include "Dataflow/DataflowNodeParameters.h"
 #include "EditorViewportClient.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
@@ -15,10 +16,46 @@ class FEditorViewportClient;
 class FDataflowEditorViewportClient;
 class SEditorViewport;
 class ADataflowActor;
-class ADataflowActor;
 class FDynamicMeshBuilder;
 
 // ----------------------------------------------------------------------------------
+
+class FDataflowSelectionState
+{
+public:
+	FDataflowSelectionState() {}
+	FDataflowSelectionState(const UDataflowComponent* DataflowComponent) 
+	:bComponentSelected(DataflowComponent->bSelected)
+	{}
+
+	enum EMode
+	{
+		DSS_Dataflow_None,
+		DSS_Dataflow_Object,
+		DSS_Dataflow_Max
+	};
+
+	void UpdateSelection(UDataflowComponent* DataflowComponent) const
+	{
+		DataflowComponent->bSelected = bComponentSelected;
+		DataflowComponent->Invalidate();
+	}
+
+	bool IsEmpty() const
+	{
+		return !bComponentSelected;
+	}
+
+	bool operator==(const FDataflowSelectionState& A) {
+		return A.bComponentSelected == bComponentSelected;
+	}
+	bool operator!=(const FDataflowSelectionState& A) {
+		return !this->operator==(A);
+	}
+
+	bool bComponentSelected = false;
+};
+
 
 class SDataflowEditorViewport : public SAssetEditorViewport, public ICommonEditorViewportToolbarInfoProvider, public FGCObject
 {
@@ -45,11 +82,15 @@ protected:
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
 	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
 private:
+
+	virtual void BindCommands() override;
+
+
 	/// The scene for this viewport. 
 	TSharedPtr<FAdvancedPreviewScene> PreviewScene;
 
 	/// Editor viewport client 
-	TSharedPtr<FDataflowEditorViewportClient> EditorViewportClient;
+	TSharedPtr<FDataflowEditorViewportClient> ViewportClient;
 
 	TWeakPtr<FDataflowEditorToolkit> DataflowEditorToolkitPtr;
 	ADataflowActor* CustomDataflowActor = nullptr;
@@ -69,6 +110,12 @@ public:
 
 	Dataflow::FTimestamp LatestTimestamp(const UDataflow* Dataflow, const Dataflow::FContext* Context);
 	void SetDataflowActor(ADataflowActor* InActor) { DataflowActor = InActor; }
+
+	void SetSelectionMode(FDataflowSelectionState::EMode InState);
+	bool CanSetSelectionMode(FDataflowSelectionState::EMode InState);
+	bool IsSelectionModeActive(FDataflowSelectionState::EMode InState);
+	FDataflowSelectionState::EMode GetSelectionMode() const { return SelectionMode; }
+
 
 	// FEditorViewportClient interface
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
@@ -96,5 +143,9 @@ private:
 	TArray<uint32> IndexBuffer;
 	TArray<FDynamicMeshVertex> VertexBuffer;
 	TUniquePtr<FDynamicMeshBuilder> MeshBuilder;
+
+	// State
+	FDataflowSelectionState SelectionState;
+	FDataflowSelectionState::EMode SelectionMode;
 
 };

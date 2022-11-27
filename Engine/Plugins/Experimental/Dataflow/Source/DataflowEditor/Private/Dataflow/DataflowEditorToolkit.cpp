@@ -4,7 +4,7 @@
 
 #include "Animation/Skeleton.h"
 #include "Dataflow/DataflowCore.h"
-#include "Dataflow/DataflowEditorActions.h"
+#include "Dataflow/DataflowEditorCommands.h"
 #include "Dataflow/DataflowEditorViewport.h"
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowGraphEditor.h"
