@@ -22,7 +22,7 @@
 #include "Styling/AppStyle.h"
 #include "ChaosClothAsset/SClothCollectionOutliner.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Dataflow/DataflowEditorActions.h"
+#include "Dataflow/DataflowEditorCommands.h"
 #include "Dataflow/DataflowGraphEditor.h"
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowSchema.h"
