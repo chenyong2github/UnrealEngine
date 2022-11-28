@@ -6,6 +6,7 @@
 #include "RigVMDeveloperModule.h"
 #include "Algo/Count.h"
 #include "Animation/Rig.h"
+#include "RigVMModel/Nodes/RigVMDispatchNode.h"
 
 static constexpr TCHAR RigVM_CommaSeparator[] = TEXT(", ");
 static constexpr TCHAR RigVM_NewLineFormat[] = TEXT("\r\n");
@@ -501,16 +502,15 @@ FString FRigVMCodeGenerator::DumpDispatches(bool bLog)
 
 	if(!Dispatches.IsEmpty())
 	{
-		for(auto Pair : Dispatches)
+		for(const FRigVMDispatchInfo& Info : Dispatches)
 		{
-			const FRigVMFunction* Function = Pair.Value;
-			const FString FunctionName = Function->GetName();
-			const FRigVMDispatchFactory* Factory = Function->Factory;
+			const FString FunctionName = Info.Function->GetName();
+			const FRigVMDispatchFactory* Factory = Info.Function->Factory;
 
 			TArray<FString> InputArguments, OutputArguments, MemoryHandles;
 			OutputArguments.Add(RigVM_ContextFormat);
 
-			for(const FRigVMFunctionArgument& Argument : Function->Arguments)
+			for(const FRigVMFunctionArgument& Argument : Info.Function->Arguments)
 			{
 				const TRigVMTypeIndex TypeIndex = FRigVMRegistry::Get().GetTypeIndexFromCPPType(Argument.Type);
 				const FString DispatchArgument = RequiredUProperties.FindChecked(TypeIndex).Get<1>();
@@ -532,7 +532,7 @@ FString FRigVMCodeGenerator::DumpDispatches(bool bLog)
 			OutputArguments.Add(TEXT("MemoryHandles"));
 			
 			Lines.Emplace();
-			Lines.Add(Format(RigVM_DispatchDeclarationFormat, Pair.Key, FString::Join(InputArguments, RigVM_CommaSeparator), *FunctionName));
+			Lines.Add(Format(RigVM_DispatchDeclarationFormat, Info.Name, FString::Join(InputArguments, RigVM_CommaSeparator), *FunctionName));
 			Lines.Add(Format(TEXT("\t\tTArray<FRigVMMemoryHandle> MemoryHandles = {\r\n\t\t\t{0}\r\n\t\t};"), FString::Join(MemoryHandles, TEXT(",\r\n\t\t\t"))));
 			Lines.Add(Format(RigVM_InvokeDispatchPtrFormat, FString::Join(OutputArguments, RigVM_CommaSeparator)));
 			Lines.Add(TEXT("\t\treturn true;\r\n\t}"));
@@ -827,11 +827,11 @@ FString FRigVMCodeGenerator::DumpInstructions(const FString& InPrefix, const TAr
 				else if(Function->Factory)
 				{
 					FString DispatchName;
-					for(auto Pair : Dispatches)
+					for(const FRigVMDispatchInfo& Info : Dispatches)
 					{
-						if(Pair.Value == Function)
+						if(Info.Function == Function)
 						{
-							DispatchName = Pair.Key;
+							DispatchName = Info.Name;
 							break;
 						}
 					}
@@ -1457,8 +1457,10 @@ void FRigVMCodeGenerator::ParseRequiredUProperties()
 		}
 	};
 
-	for(const FRigVMInstruction& Instruction : Instructions)
+	for(int32 InstructionIndex = 0; InstructionIndex < Instructions.Num(); InstructionIndex++)
 	{
+		const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
+		
 		if(Instruction.OpCode >= ERigVMOpCode::Execute_0_Operands &&
 			Instruction.OpCode <= ERigVMOpCode::Execute_64_Operands)
 		{
@@ -1470,7 +1472,14 @@ void FRigVMCodeGenerator::ParseRequiredUProperties()
 				const int32 PermutationIndex = Factory->GetTemplate()->FindPermutation(Function); 
 				check(PermutationIndex != INDEX_NONE);
 				const FString DispatchKey = Format(RigVM_DispatchKeyFormat, Factory->GetFactoryName().ToString(), PermutationIndex);
-				Dispatches.Add(DispatchKey, Function);
+
+				FRigVMDispatchContext Context;
+				if(URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(ByteCode.GetSubjectForInstruction(InstructionIndex)))
+				{
+					Context = DispatchNode->GetDispatchContext();
+				}
+
+				Dispatches.Add({DispatchKey, Function, Context});
 
 				for(const FRigVMFunctionArgument& Argument : Function->Arguments)
 				{

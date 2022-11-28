@@ -16,8 +16,27 @@
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/StructOnScope.h"
 
 #include "RigVMDispatchFactory.generated.h"
+
+struct FRigVMDispatchFactory;
+
+/**
+ * A context used for inquiring from dispatch factories
+ */
+struct RIGVM_API FRigVMDispatchContext
+{
+	FRigVMDispatchContext()
+		: Instance()
+		, Subject(nullptr)
+		, StringRepresentation()
+	{}
+	
+	TSharedPtr<FStructOnScope> Instance;
+	const UObject* Subject;
+	FString StringRepresentation;
+};
 
 /**
  * A factory to generate a template and its dispatch functions
@@ -91,11 +110,16 @@ public:
 
 #endif
 
+	// Returns the name to use for the branch info / argument based on the operand index.
+	// operand index count may be different than the number of arguments, since fixed size array
+	// arguments get unrolled.
+	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const;
+
 	// returns true if the dispatch is a control flow dispatch
-	bool IsControlFlowDispatch() const { return !GetControlFlowBlocks().IsEmpty(); }
+	bool IsControlFlowDispatch(const FRigVMDispatchContext& InContext) const { return !GetControlFlowBlocks(InContext).IsEmpty(); }
 
 	// returns the control flow blocks of this dispatch
-	const TArray<FName>& GetControlFlowBlocks() const;
+	const TArray<FName>& GetControlFlowBlocks(const FRigVMDispatchContext& InContext) const;
 
 	// returns true if a given control flow block needs to be sliced
 	virtual const bool IsControlFlowBlockSliced(const FName& InBlockName) const { return false; }
@@ -113,14 +137,14 @@ public:
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const { return TArray<FRigVMTemplateArgument>(); }
 
 	// returns the execute arguments of the template
-	TArray<FRigVMExecuteArgument> GetExecuteArguments() const;
+	TArray<FRigVMExecuteArgument> GetExecuteArguments(const FRigVMDispatchContext& InContext) const;
 
 	// returns the delegate to react to new types being added to an argument.
 	// this happens if types are being loaded later after this factory has already been deployed
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const { return FRigVMTemplateTypeMap(); }
 
 	// returns the upgrade info to use for this factory
-	virtual FRigVMStructUpgradeInfo GetUpgradeInfo(const FRigVMTemplateTypeMap& InTypes) const { return FRigVMStructUpgradeInfo(); }
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo(const FRigVMTemplateTypeMap& InTypes, const FRigVMDispatchContext& InContext) const { return FRigVMStructUpgradeInfo(); }
 
 	// returns the dispatch function for a given type set
 	FRigVMFunctionPtr GetDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const;
@@ -138,7 +162,7 @@ protected:
 
 	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const { return nullptr; }
 
-	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl() const { return TArray<FRigVMExecuteArgument>(); }
+	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const { return TArray<FRigVMExecuteArgument>(); }
 
 	template <
 	typename T,
@@ -179,7 +203,7 @@ protected:
 	}
 #endif
 
-	virtual const TArray<FName>& GetControlFlowBlocks_Impl() const;
+	virtual const TArray<FName>& GetControlFlowBlocks_Impl(const FRigVMDispatchContext& InContext) const;
 
 	static const FString DispatchPrefix;
 

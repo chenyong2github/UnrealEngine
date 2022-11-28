@@ -257,7 +257,7 @@ struct CONTROLRIG_API FRigDispatch_SetAnimAttribute: public FRigDispatch_AnimAtt
 	GENERATED_BODY()
 	virtual bool IsSet() const override { return true; }
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
-	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl() const override;
+	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 	
 protected:

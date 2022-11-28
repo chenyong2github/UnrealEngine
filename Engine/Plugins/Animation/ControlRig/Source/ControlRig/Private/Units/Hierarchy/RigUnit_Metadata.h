@@ -114,7 +114,7 @@ struct CONTROLRIG_API FRigDispatch_SetMetadata : public FRigDispatch_MetadataBas
 	GENERATED_BODY()
 
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
-	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl() const override;
+	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;
 	virtual bool IsSetMetadata() const override { return true; }
 
 protected:

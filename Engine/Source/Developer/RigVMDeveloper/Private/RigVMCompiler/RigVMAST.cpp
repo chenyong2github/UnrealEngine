@@ -20,6 +20,7 @@
 #include "Stats/StatsHierarchical.h"
 #include "RigVMDeveloperModule.h"
 #include "VisualGraphUtils.h"
+#include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "UObject/FieldIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMAST)
@@ -1100,32 +1101,37 @@ TArray<FRigVMExprAST*> FRigVMParserAST::TraversePins(const FRigVMASTProxy& InNod
 		Pins = Node->GetPins();
 	}
 
+	// dispatch nodes may contain a fixed size array
+	if(Node->IsA<URigVMDispatchNode>() || Node->IsA<URigVMSelectNode>())
+	{
+		TArray<URigVMPin*> FlattenedPins;
+		FlattenedPins.Reserve(Pins.Num());
+		for(URigVMPin* Pin : Pins)
+		{
+			if(Pin->IsFixedSizeArray())
+			{
+				FlattenedPins.Append(Pin->GetSubPins());
+			}
+			else
+			{
+				FlattenedPins.Add(Pin);
+			}
+		}
+		Swap(Pins, FlattenedPins);
+	}
+
 	for (URigVMPin* Pin : Pins)
 	{
 		FRigVMASTProxy PinProxy = InNodeProxy.GetSibling(Pin);
+		PinExpressions.Add(TraversePin(PinProxy, InParentExpr));
 
-		if (InParentExpr &&
-		    Pin->GetDirection() == ERigVMPinDirection::Input &&
-		    InParentExpr->IsA(FRigVMExprAST::EType::Select))
+		if (InParentExpr && !Pin->IsRootPin())
 		{
-			if (Pin->GetName() == URigVMSelectNode::ValueName)
-			{
-				const TArray<URigVMPin*>& CasePins = Pin->GetSubPins();
-				for (URigVMPin* CasePin : CasePins)
-				{
-					FRigVMASTProxy CasePinProxy = PinProxy.GetSibling(CasePin);
-
-					PinExpressions.Add(TraversePin(CasePinProxy, InParentExpr));
-
-					const FString PinName = FString::Printf(TEXT("%s_%s"), *Pin->GetName(), *CasePin->GetName());
-					const int32 ChildIndex = InParentExpr->Children.Find(PinExpressions.Last());
-					InParentExpr->PinNameToChildIndex.FindOrAdd(*PinName) = ChildIndex;
-				}
-				continue;
-			}
+			const FString PinName = FString::Printf(TEXT("%s_%s"), *Pin->GetParentPin()->GetName(), *Pin->GetName());
+			const int32 ChildIndex = InParentExpr->Children.Find(PinExpressions.Last());
+			InParentExpr->PinNameToChildIndex.FindOrAdd(*PinName) = ChildIndex;
 		}
 
-		PinExpressions.Add(TraversePin(PinProxy, InParentExpr));
 		if(InParentExpr)
 		{
 			const int32 ChildIndex = InParentExpr->Children.Find(PinExpressions.Last());

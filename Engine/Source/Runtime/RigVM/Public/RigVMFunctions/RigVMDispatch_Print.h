@@ -16,7 +16,7 @@ struct FRigVMDispatch_Print : public FRigVMDispatchFactory
 public:
 
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
-	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl() const override;
+	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 
 #if WITH_EDITOR

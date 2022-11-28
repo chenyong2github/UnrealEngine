@@ -50,6 +50,29 @@ public:
 	bool IsDeprecated() const;
 	FString GetDeprecatedMetadata() const;
 
+	FRigVMDispatchContext GetDispatchContext() const;
+
+	// Returns an instance of the factory with the current values.
+	// @param bUseDefault If set to true the default struct will be created - otherwise the struct will contains the values from the node
+	TSharedPtr<FStructOnScope> ConstructFactoryInstance(bool bUseDefault = false, FString* OutFactoryDefault = nullptr) const;
+
+	// Returns a copy of the struct with the current values
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
+	>
+	T ConstructFactoryInstance() const
+	{
+		if(!ensure(T::StaticStruct() == GetFactoryStruct()))
+		{
+			return T();
+		}
+
+		TSharedPtr<FStructOnScope> Instance = ConstructFactoryInstance(false);
+		const T& InstanceRef = *(const T*)Instance->GetStructMemory();
+		return InstanceRef;
+	}
+	
 protected:
 
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
@@ -57,6 +80,7 @@ protected:
 	const FRigVMTemplateTypeMap& GetFilteredTypes() const;
 	virtual void InvalidateCache() override;
 	virtual bool ShouldInputPinComputeLazily(const URigVMPin* InPin) const override;
+	FString GetFactoryDefaultValue() const;
 
 private:
 

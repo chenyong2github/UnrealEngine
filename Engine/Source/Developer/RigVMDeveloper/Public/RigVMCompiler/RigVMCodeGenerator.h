@@ -238,7 +238,15 @@ private:
 	
 	FStringArray Libraries;
 	FStringArray Includes;
-	TMap<FString,const FRigVMFunction*> Dispatches;
+
+	struct FRigVMDispatchInfo
+	{
+		FString Name;
+		const FRigVMFunction* Function;
+		FRigVMDispatchContext Context;
+	};
+	
+	TArray<FRigVMDispatchInfo> Dispatches;
 	TMap<TRigVMTypeIndex,TTuple<FString,FString>> RequiredUProperties;
 	TArray<FInstructionGroup> InstructionGroups;
 	FStringArray WrappedArrayCPPTypes;

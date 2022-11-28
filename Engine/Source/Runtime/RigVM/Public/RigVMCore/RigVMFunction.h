@@ -157,4 +157,5 @@ struct RIGVM_API FRigVMFunction
 	const FRigVMTemplate* GetTemplate() const;
 	const UScriptStruct* GetExecuteContextStruct() const;
 	bool SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const;
+	FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const;
 };

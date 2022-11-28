@@ -34,7 +34,10 @@
 #include "Styling/AppStyle.h"
 #include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
+#include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "Slate/SlateTextures.h"
+//#include "RigVMFunctions/RigVMDispatch_If.h"
+//#include "RigVMFunctions/RigVMDispatch_Select.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -991,11 +994,28 @@ void SControlRigGraphNode::RefreshErrorInfo()
 			{
 				if(const URigVMNode* RigModelNode = RigGraphNode->GetModelNode())
 				{
-					if(RigModelNode->IsA<URigVMIfNode>() || RigModelNode->IsA<URigVMSelectNode>())
+					bool bShowCopyWarning = RigModelNode->IsA<URigVMIfNode>() || RigModelNode->IsA<URigVMSelectNode>();
+					if(!bShowCopyWarning)
+					{
+						/*
+						if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(RigModelNode))
+						{
+							if(const UScriptStruct* FactoryStruct = DispatchNode->GetScriptStruct())
+							{
+								if(FactoryStruct == FRigVMDispatch_If::StaticStruct() ||
+									FactoryStruct == FRigVMDispatch_SelectInt32::StaticStruct())
+								{
+									bShowCopyWarning = true;
+								}
+							}
+						}
+						*/
+					}
+					if(bShowCopyWarning)
 					{
 						for(const URigVMPin* Pin : RigModelNode->GetPins())
 						{
-							if(Pin->IsArray())
+							if(Pin->IsArray() && !Pin->IsFixedSizeArray())
 							{
 								GraphNode->bHasCompilerMessage = true;
 								GraphNode->ErrorType = int32(EMessageSeverity::Info);
@@ -1257,9 +1277,12 @@ EVisibility SControlRigGraphNode::GetPinVisibility(int32 InPinInfoIndex, bool bA
 				return ParentPinVisibility;
 			}
 
-			if(!PinInfos[ParentPinIndex].bExpanded)
+			if(!PinInfos[InPinInfoIndex].bFixedArray)
 			{
-				return EVisibility::Collapsed;
+				if(!PinInfos[ParentPinIndex].bExpanded)
+				{
+					return EVisibility::Collapsed;
+				}
 			}
 		}
 	}
@@ -1556,6 +1579,10 @@ void SControlRigGraphNode::UpdatePinTreeView()
 			}
 			PinInfo.ParentIndex = *ParentIndexPtr;
 			PinInfo.Depth = PinInfos[PinInfo.ParentIndex].Depth + 1;
+			if(PinInfos[PinInfo.ParentIndex].bFixedArray)
+			{
+				PinInfo.Depth--;
+			}
 		}
 
 		TAttribute<EVisibility> PinVisibilityAttribute = TAttribute<EVisibility>::CreateSP(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index, false);

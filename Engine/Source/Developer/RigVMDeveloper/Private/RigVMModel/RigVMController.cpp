@@ -14391,10 +14391,16 @@ void URigVMController::AddPinsForArray(FArrayProperty* InArrayProperty, URigVMNo
 void URigVMController::AddPinsForTemplate(const FRigVMTemplate* InTemplate, const FRigVMTemplateTypeMap& InPinTypeMap, URigVMNode* InNode)
 {
 	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+
+	FRigVMDispatchContext DispatchContext;
+	if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(InNode))
+	{
+		DispatchContext = DispatchNode->GetDispatchContext();
+	}
 	
-	for (int32 ArgIndex = 0; ArgIndex < InTemplate->NumExecuteArguments(); ArgIndex++)
+	for (int32 ArgIndex = 0; ArgIndex < InTemplate->NumExecuteArguments(DispatchContext); ArgIndex++)
     {
-        const FRigVMExecuteArgument* Arg = InTemplate->GetExecuteArgument(ArgIndex);
+        const FRigVMExecuteArgument* Arg = InTemplate->GetExecuteArgument(ArgIndex, DispatchContext);
         URigVMPin* Pin = NewObject<URigVMPin>(InNode, Arg->Name);
         const FRigVMTemplateArgumentType Type = Registry.GetType(Arg->TypeIndex);
         
@@ -14444,6 +14450,20 @@ void URigVMController::AddPinsForTemplate(const FRigVMTemplate* InTemplate, cons
 			else if(!DefaultValue.IsEmpty())
 			{
 				SetPinDefaultValue(Pin, DefaultValue, true, false, false);
+			}
+		}
+		else if(Pin->IsFixedSizeArray())
+		{
+			if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Pin->GetNode()))
+			{
+				if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
+				{
+					const FString DefaultValue =  Factory->GetArgumentDefaultValue(Pin->GetFName(), RigVMTypeUtils::TypeIndex::WildCardArray);
+					if(!DefaultValue.IsEmpty())
+					{
+						SetPinDefaultValue(Pin, DefaultValue, true, false, false);
+					}
+				}
 			}
 		}
 	}
@@ -16332,6 +16352,12 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 	{
 		if(ResolvedFunction->Struct == nullptr)
 		{
+			FRigVMDispatchContext DispatchContext;
+			if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(InNode))
+			{
+				DispatchContext = DispatchNode->GetDispatchContext();
+			}
+
 			const TArray<FRigVMTemplateArgument>& Arguments = Template->Arguments;
 			for(URigVMPin* Pin : InNode->GetPins())
 			{
@@ -16341,7 +16367,7 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 				});
 				if(!bFound)
 				{
-					bFound = Template->GetExecuteArguments().ContainsByPredicate([Pin](const FRigVMExecuteArgument& Argument)
+					bFound = Template->GetExecuteArguments(DispatchContext).ContainsByPredicate([Pin](const FRigVMExecuteArgument& Argument)
 					{
 						return Pin->GetFName() == Argument.Name;
 					});

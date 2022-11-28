@@ -22,7 +22,7 @@ TArray<FRigVMTemplateArgument> FRigVMDispatch_Print::GetArguments() const
 	};
 }
 
-TArray<FRigVMExecuteArgument> FRigVMDispatch_Print::GetExecuteArguments_Impl() const
+TArray<FRigVMExecuteArgument> FRigVMDispatch_Print::GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const
 {
 	return {{TEXT("ExecuteContext"), ERigVMPinDirection::IO}};
 }

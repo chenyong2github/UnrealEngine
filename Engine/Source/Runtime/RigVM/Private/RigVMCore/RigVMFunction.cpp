@@ -159,3 +159,15 @@ bool FRigVMFunction::SupportsExecuteContextStruct(const UScriptStruct* InExecute
 {
 	return InExecuteContextStruct->IsChildOf(GetExecuteContextStruct());
 }
+
+FName FRigVMFunction::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
+{
+	if(Factory)
+	{
+		return Factory->GetArgumentNameForOperandIndex(InOperandIndex, InTotalOperands);
+	}
+
+	check(Arguments.IsValidIndex(InOperandIndex));
+	check(Arguments.Num() == InTotalOperands);
+	return Arguments[InOperandIndex].Name;
+}

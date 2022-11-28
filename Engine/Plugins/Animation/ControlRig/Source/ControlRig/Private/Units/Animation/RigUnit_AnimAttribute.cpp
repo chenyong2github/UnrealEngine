@@ -471,7 +471,7 @@ TArray<FRigVMTemplateArgument> FRigDispatch_SetAnimAttribute::GetArguments() con
 	return Arguments;
 }
 
-TArray<FRigVMExecuteArgument> FRigDispatch_SetAnimAttribute::GetExecuteArguments_Impl() const
+TArray<FRigVMExecuteArgument> FRigDispatch_SetAnimAttribute::GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const
 {
 	return {{TEXT("ExecuteContext"), ERigVMPinDirection::IO}};
 }

@@ -28,6 +28,7 @@
 class FProperty;
 struct FRigVMDispatchFactory;
 struct FRigVMTemplate;
+struct FRigVMDispatchContext;
 
 typedef TMap<FName, TRigVMTypeIndex> FRigVMTemplateTypeMap;
 
@@ -298,13 +299,13 @@ public:
 	const FRigVMTemplateArgument* FindArgument(const FName& InArgumentName) const;
 
 	// returns the number of args of this template
-	int32 NumExecuteArguments() const;
+	int32 NumExecuteArguments(const FRigVMDispatchContext& InContext) const;
 
 	// returns an argument for a given index
-	const FRigVMExecuteArgument* GetExecuteArgument(int32 InIndex) const;
+	const FRigVMExecuteArgument* GetExecuteArgument(int32 InIndex, const FRigVMDispatchContext& InContext) const;
 
 	// returns an argument given a name (or nullptr)
-	const FRigVMExecuteArgument* FindExecuteArgument(const FName& InArgumentName) const;
+	const FRigVMExecuteArgument* FindExecuteArgument(const FName& InArgumentName, const FRigVMDispatchContext& InContext) const;
 
 	// returns the top level execute context struct this template uses
 	const UScriptStruct* GetExecuteContextStruct() const;
@@ -425,7 +426,7 @@ private:
 
 	static FLinearColor GetColorFromMetadata(FString InMetadata);
 
-	const TArray<FRigVMExecuteArgument>& GetExecuteArguments() const;
+	const TArray<FRigVMExecuteArgument>& GetExecuteArguments(const FRigVMDispatchContext& InContext) const;
 
 	int32 Index;
 	FName Notation;

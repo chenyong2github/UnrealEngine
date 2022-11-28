@@ -710,9 +710,10 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 				
 				if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
 				{
-					for(int32 Index = 0; Index < Template->NumExecuteArguments(); Index++)
+					const FRigVMDispatchContext DispatchContext;
+					for(int32 Index = 0; Index < Template->NumExecuteArguments(DispatchContext); Index++)
 					{
-						if(const FRigVMExecuteArgument* Argument = Template->GetExecuteArgument(Index))
+						if(const FRigVMExecuteArgument* Argument = Template->GetExecuteArgument(Index, DispatchContext))
 						{
 							if(Registry.IsExecuteType(Argument->TypeIndex))
 							{
@@ -1524,38 +1525,62 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		FRigVMOperand BlockToRunOperand;
 		for(const FRigVMFunctionArgument& Argument : Function->GetArguments())
 		{
-			const FRigVMExprAST* ChildExpr = InExpr->FindExprWithPinName(Argument.Name);
-			if(ChildExpr == nullptr)
+			auto ProcessArgument = [
+				&WorkData,
+				Argument,
+				&Operands,
+				&BlockToRunOperand,
+				&CountOperand,
+				&IndexOperand
+			](const FRigVMExprAST* InExpr)
 			{
-				// opaque arguments don't have a matching child expression
-				continue;
+				if (InExpr->GetType() == FRigVMExprAST::EType::CachedValue)
+				{
+					Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr())));
+				}
+				else if (InExpr->IsA(FRigVMExprAST::EType::Var))
+				{
+					Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->To<FRigVMVarExprAST>())));
+				}
+				else
+				{
+					return;
+				}
+
+				if(Argument.Name == FRigVMStruct::ControlFlowBlockToRunName)
+				{
+					BlockToRunOperand = Operands.Last();
+				}
+				else if(Argument.Name == FRigVMStruct::ControlFlowCountName)
+				{
+					CountOperand = Operands.Last();
+				}
+				else if(Argument.Name == FRigVMStruct::ControlFlowIndexName)
+				{
+					IndexOperand = Operands.Last();
+				}
+				
+			};
+
+			if(URigVMPin* Pin = InExpr->GetNode()->FindPin(Argument.Name))
+			{
+				if(Pin->IsFixedSizeArray())
+				{
+					for(URigVMPin* SubPin : Pin->GetSubPins())
+					{
+						static constexpr TCHAR Format[] = TEXT("%s_%s");
+						const FString PinName = FString::Printf(Format, *Pin->GetName(), *SubPin->GetName());
+						const FRigVMExprAST* SubPinExpr = InExpr->FindExprWithPinName(*PinName);
+						check(SubPinExpr);
+						ProcessArgument(SubPinExpr);
+					}
+					continue;
+				}
 			}
 			
-			if (ChildExpr->GetType() == FRigVMExprAST::EType::CachedValue)
-			{
-				Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ChildExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr())));
-			}
-			else if (ChildExpr->IsA(FRigVMExprAST::EType::Var))
-			{
-				Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ChildExpr->To<FRigVMVarExprAST>())));
-			}
-			else
-			{
-				break;
-			}
-
-			if(Argument.Name == FRigVMStruct::ControlFlowBlockToRunName)
-			{
-				BlockToRunOperand = Operands.Last();
-			}
-			else if(Argument.Name == FRigVMStruct::ControlFlowCountName)
-			{
-				CountOperand = Operands.Last();
-			}
-			else if(Argument.Name == FRigVMStruct::ControlFlowIndexName)
-			{
-				IndexOperand = Operands.Last();
-			}
+			const FRigVMExprAST* ChildExpr = InExpr->FindExprWithPinName(Argument.Name);
+			check(ChildExpr);
+			ProcessArgument(ChildExpr);
 		}
 
 		// make sure to skip the output blocks while we are traversing this call extern
@@ -2164,32 +2189,29 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 						}
 					}
 
-					// for select nodes we create a register for each case (since the cases are fixed in size)
+					// for fixed array pins we create a register for each array element
 					// thus we do not need to setup a registeroffset for the array element.
-					if (URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(RootPin->GetNode()))
+					if (RootPin->IsFixedSizeArray())
 					{
-						if(RootPin->GetName() == URigVMSelectNode::ValueName)
+						if (Pin->GetParentPin() == RootPin)
 						{
-							if (Pin->GetParentPin() == RootPin)
-							{
-								return;
-							}
+							return;
+						}
 
-							// if the pin is a sub pin of a case of the select (for example: Values.0.Translation)
-							// we'll need to re-adjust the root pin to the case pin (for example: Values.0)
-							TArray<FString> SegmentPathPaths;
-							if(ensure(URigVMPin::SplitPinPath(SegmentPath, SegmentPathPaths)))
-							{
-								RootPin = RootPin->FindSubPin(SegmentPathPaths[0]);
+						// if the pin is a sub pin of a case of a fixed array
+						// we'll need to re-adjust the root pin to the case pin (for example: Values.0)
+						TArray<FString> SegmentPathPaths;
+						if(ensure(URigVMPin::SplitPinPath(SegmentPath, SegmentPathPaths)))
+						{
+							RootPin = RootPin->FindSubPin(SegmentPathPaths[0]);
 
-								SegmentPathPaths.RemoveAt(0);
-								ensure(SegmentPathPaths.Num() > 0);
-								SegmentPath = URigVMPin::JoinPinPath(SegmentPathPaths);
-							}
-							else
-							{
-								return;
-							}
+							SegmentPathPaths.RemoveAt(0);
+							ensure(SegmentPathPaths.Num() > 0);
+							SegmentPath = URigVMPin::JoinPinPath(SegmentPathPaths);
+						}
+						else
+						{
+							return;
 						}
 					}
 

@@ -478,6 +478,13 @@ ERigVMPinDirection URigVMPin::GetDirection() const
 
 bool URigVMPin::IsExpanded() const
 {
+	if(!bIsExpanded)
+	{
+		if(IsFixedSizeArray())
+		{
+			return true;
+		}
+	}
 	return bIsExpanded;
 }
 

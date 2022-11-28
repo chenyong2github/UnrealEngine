@@ -283,7 +283,7 @@ TArray<FRigVMTemplateArgument> FRigDispatch_SetMetadata::GetArguments() const
 	return Arguments;
 }
 
-TArray<FRigVMExecuteArgument> FRigDispatch_SetMetadata::GetExecuteArguments_Impl() const
+TArray<FRigVMExecuteArgument> FRigDispatch_SetMetadata::GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const
 {
 	return {{TEXT("ExecuteContext"), ERigVMPinDirection::IO}};
 }

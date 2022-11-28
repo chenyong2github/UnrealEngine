@@ -1162,7 +1162,10 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 
 			for (int32 ArgIndex = 0; ArgIndex < Operands.Num(); ArgIndex++)
 			{
-				InOpFunc(InHandleBaseIndex++, {InstructionIndex, ArgIndex, Function->Arguments[ArgIndex].Name}, Operands[ArgIndex]);
+				InOpFunc(
+					InHandleBaseIndex++,
+					{InstructionIndex, ArgIndex, Function->GetArgumentNameForOperandIndex(ArgIndex, Operands.Num())},
+					Operands[ArgIndex]);
 			}
 		}
 		else

@@ -131,9 +131,15 @@ bool FRigVMDispatchFactory::IsLazyInputArgument(const FName& InArgumentName) con
 
 #endif
 
-const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks() const
+FName FRigVMDispatchFactory::GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const
 {
-	const TArray<FName>& Blocks = GetControlFlowBlocks_Impl();
+	check(GetArguments().Num() == InTotalOperands);
+	return GetArguments()[InOperandIndex].GetName();
+}
+
+const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks(const FRigVMDispatchContext& InContext) const
+{
+	const TArray<FName>& Blocks = GetControlFlowBlocks_Impl(InContext);
 #if WITH_EDITOR
 	FRigVMStruct::ValidateControlFlowBlocks(Blocks);
 #endif
@@ -145,15 +151,15 @@ bool FRigVMDispatchFactory::SupportsExecuteContextStruct(const UScriptStruct* In
 	return InExecuteContextStruct->IsChildOf(GetExecuteContextStruct());
 }
 
-const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks_Impl() const
+const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks_Impl(const FRigVMDispatchContext& InContext) const
 {
 	static const TArray<FName> EmptyArray;
 	return EmptyArray;
 }
 
-TArray<FRigVMExecuteArgument> FRigVMDispatchFactory::GetExecuteArguments() const
+TArray<FRigVMExecuteArgument> FRigVMDispatchFactory::GetExecuteArguments(const FRigVMDispatchContext& InContext) const
 {
-	TArray<FRigVMExecuteArgument> Arguments = GetExecuteArguments_Impl();
+	TArray<FRigVMExecuteArgument> Arguments = GetExecuteArguments_Impl(InContext);
 	const TRigVMTypeIndex ExecuteTypeIndex = FRigVMRegistry::Get().GetTypeIndex<FRigVMExecuteContext>();
 	for(FRigVMExecuteArgument& Argument : Arguments)
 	{

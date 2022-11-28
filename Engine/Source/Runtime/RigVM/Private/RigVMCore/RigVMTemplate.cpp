@@ -3,6 +3,7 @@
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMStruct.h"
+#include "RigVMCore/RigVMDispatchFactory.h"
 #include "RigVMModule.h"
 #include "Algo/Sort.h"
 #include "UObject/UObjectIterator.h"
@@ -1056,14 +1057,14 @@ const FRigVMTemplateArgument* FRigVMTemplate::FindArgument(const FName& InArgume
 	});
 }
 
-int32 FRigVMTemplate::NumExecuteArguments() const
+int32 FRigVMTemplate::NumExecuteArguments(const FRigVMDispatchContext& InContext) const
 {
-	return GetExecuteArguments().Num();
+	return GetExecuteArguments(InContext).Num();
 }
 
-const FRigVMExecuteArgument* FRigVMTemplate::GetExecuteArgument(int32 InIndex) const
+const FRigVMExecuteArgument* FRigVMTemplate::GetExecuteArgument(int32 InIndex, const FRigVMDispatchContext& InContext) const
 {
-	const TArray<FRigVMExecuteArgument>& Args = GetExecuteArguments();
+	const TArray<FRigVMExecuteArgument>& Args = GetExecuteArguments(InContext);
 	if(Args.IsValidIndex(InIndex))
 	{
 		return &Args[InIndex];
@@ -1071,16 +1072,16 @@ const FRigVMExecuteArgument* FRigVMTemplate::GetExecuteArgument(int32 InIndex) c
 	return nullptr;
 }
 
-const FRigVMExecuteArgument* FRigVMTemplate::FindExecuteArgument(const FName& InArgumentName) const
+const FRigVMExecuteArgument* FRigVMTemplate::FindExecuteArgument(const FName& InArgumentName, const FRigVMDispatchContext& InContext) const
 {
-	const TArray<FRigVMExecuteArgument>& Args = GetExecuteArguments();
+	const TArray<FRigVMExecuteArgument>& Args = GetExecuteArguments(InContext);
 	return Args.FindByPredicate([InArgumentName](const FRigVMExecuteArgument& Arg) -> bool
 	{
 		return Arg.Name == InArgumentName;
 	});
 }
 
-const TArray<FRigVMExecuteArgument>& FRigVMTemplate::GetExecuteArguments() const
+const TArray<FRigVMExecuteArgument>& FRigVMTemplate::GetExecuteArguments(const FRigVMDispatchContext& InContext) const
 {
 	if(ExecuteArguments.IsEmpty())
 	{
@@ -1089,7 +1090,7 @@ const TArray<FRigVMExecuteArgument>& FRigVMTemplate::GetExecuteArguments() const
 			const FRigVMDispatchFactory* Factory = Delegates.GetDispatchFactoryDelegate.Execute();
 			check(Factory);
 
-			ExecuteArguments = Factory->GetExecuteArguments();
+			ExecuteArguments = Factory->GetExecuteArguments(InContext);
 		}
 		else if(const FRigVMFunction* PrimaryPermutation = GetPrimaryPermutation())
 		{
