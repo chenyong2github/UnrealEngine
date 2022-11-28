@@ -426,7 +426,16 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 		{
 			if (const UCustomizableObjectNodeTable* TypedNodeTable = Cast< UCustomizableObjectNodeTable >(ConnectedPin->GetOwningNode()))
 			{
-				GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), ConnectedPin, GenerationContext);
+				FString ColumnName = ConnectedPin->PinFriendlyName.ToString();
+
+				// Generating a new data table if not exists
+				mu::TablePtr Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), ConnectedPin, GenerationContext);
+				
+				// Generating a column for each modified parameter(texture, color & float) if not exists
+				if (Table && Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == INDEX_NONE)
+				{
+					GenerateTableColumn(TypedNodeTable, ConnectedPin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+				}
 
 				// Checking if this material has some parameters modified by the table node linked to it
 				if (GenerationContext.GeneratedParametersInTables.Contains(TypedNodeTable))

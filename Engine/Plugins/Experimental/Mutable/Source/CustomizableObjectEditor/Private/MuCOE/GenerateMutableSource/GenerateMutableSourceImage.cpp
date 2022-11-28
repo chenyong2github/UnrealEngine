@@ -241,21 +241,28 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		}
 		FormatNode->SetSource(TextureNode);
 
+		
+
+		//TODO(Uncoment this)
+		// //Result = FormatNode;
+		//if (TypedNodeParam->bForceFixedSize)
+		//{
 		mu::NodeImageResizePtr ResizeNode = new mu::NodeImageResize();
 		ResizeNode->SetBase(FormatNode);
 		ResizeNode->SetRelative(false);
 
 		if (TypedNodeParam->DefaultValue)
 		{
-			ResizeNode->SetSize(TypedNodeParam->DefaultValue->GetResource()->GetSizeX(), TypedNodeParam->DefaultValue->GetResource()->GetSizeY() );
+			ResizeNode->SetSize(TypedNodeParam->DefaultValue->GetResource()->GetSizeX(), TypedNodeParam->DefaultValue->GetResource()->GetSizeY());
 		}
 		else
 		{
 			// \TODO: Let the user specify this in the node?
-			ResizeNode->SetSize(1024,1024);
+			ResizeNode->SetSize(1024, 1024);
 		}
 
 		Result = ResizeNode;
+		//}
 	}
 
 	else if (const UCustomizableObjectNodeMesh* TypedNodeMesh = Cast<UCustomizableObjectNodeMesh>(Node))
@@ -818,7 +825,14 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 					ColumnName = GenerationContext.CurrentMaterialTableParameterId;
 				}
 
+				// Generating a new data table if not exists
 				Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
+
+				// Generating a new Texture column if not exists
+				if (Table && Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == INDEX_NONE)
+				{
+					GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+				}
 				
 				ImageTableNode->SetTable(Table);
 				ImageTableNode->SetColumn(TCHAR_TO_ANSI(*ColumnName));
@@ -826,7 +840,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 				GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
 				
-				if (Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == -1)
+				if (Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == INDEX_NONE)
 				{
 					FString Msg = FString::Printf(TEXT("Couldn't find pin column with name %s"), *ColumnName);
 					GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);

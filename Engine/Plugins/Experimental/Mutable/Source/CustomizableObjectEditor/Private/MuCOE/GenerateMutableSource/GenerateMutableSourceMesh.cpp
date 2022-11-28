@@ -2452,7 +2452,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 		mu::TablePtr Table = GenerationContext.GeneratedTables[TypedNodeTable->Table->GetName()];
 
 		FString ColumnName = TableColumnName + TypedNodeMorphs[MorphIndex].MorphTargetName;
-		int32 ColumnIndex = -1;
+		int32 ColumnIndex = INDEX_NONE;
 
 		for (int32 RowIndex = 0; RowIndex < NumRows; ++RowIndex)
 		{
@@ -2460,7 +2460,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 
 			ColumnIndex = Table->FindColumn(TCHAR_TO_ANSI(*ColumnName));
 
-			if (ColumnIndex == -1)
+			if (ColumnIndex == INDEX_NONE)
 			{
 				ColumnIndex = Table->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
 			}
@@ -2469,7 +2469,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 			Table->SetCell(ColumnIndex, RowIndex, MorphedSourceTableMesh.get());
 		}
 
-		if (ColumnIndex > -1)
+		if (ColumnIndex > INDEX_NONE)
 		{
 			bSuccess = true;
 
@@ -3359,9 +3359,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 		mu::TablePtr Table = nullptr;
 
 		if (TypedNodeTable->Table)
-		{
-			Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
-	
+		{			
 			USkeletalMesh* SkeletalMesh = TypedNodeTable->GetColumnDefaultAssetByType<USkeletalMesh>(Pin);
 			
 			int32 CurrentLOD = 0;
@@ -3371,11 +3369,11 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 			if (GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh)
 			{
-				CurrentLOD += GenerationContext.CurrentLOD;
-
-				if (SkeletalMesh)
+				if (SkeletalMesh && Helper_GetImportedModel(SkeletalMesh))
 				{
 					FSkeletalMeshModel* ImportedModel = Helper_GetImportedModel(SkeletalMesh);
+
+					CurrentLOD += GenerationContext.CurrentLOD;
 
 					// Checking if the current LOD is valid
 					if (ImportedModel->LODModels.Num() <= CurrentLOD
@@ -3395,10 +3393,21 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				}
 			}
 
-			FString ColumnName = TypedNodeTable->GetMutableColumnName(Pin, CurrentLOD);
+			// Generating a new data table if not exists
+			Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
+
+			// Getting mutable and data table column names
+			FString MutableColumnName = TypedNodeTable->GetMutableColumnName(Pin, CurrentLOD);
+			FString DataTableColumnName = TypedNodeTable->GetColumnNameByPin(Pin);
+
+			// Generating a new Mesh column if not exists
+			if (Table && Table->FindColumn(TCHAR_TO_ANSI(*MutableColumnName)) == INDEX_NONE)
+			{
+				GenerateTableColumn(TypedNodeTable, Pin, Table, DataTableColumnName, CurrentLOD, GenerationContext);
+			}
 
 			MeshTableNode->SetTable(Table);
-			MeshTableNode->SetColumn(TCHAR_TO_ANSI(*ColumnName));
+			MeshTableNode->SetColumn(TCHAR_TO_ANSI(*MutableColumnName));
 			MeshTableNode->SetParameterName(TCHAR_TO_ANSI(*TypedNodeTable->ParameterName));
 
 			GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
@@ -3463,7 +3472,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 					}
 					else
 					{
-						FString msg = "Mesh Column [" + ColumnName + "] Layout doesn't has any block. A grid sized block will be used instead.";
+						FString msg = "Mesh Column [" + MutableColumnName + "] Layout doesn't has any block. A grid sized block will be used instead.";
 						GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node, EMessageSeverity::Warning);
 
 						LayoutNode->SetBlock(0, 0, 0, Layouts[i]->GetGridSize().X, Layouts[i]->GetGridSize().Y);
@@ -3477,12 +3486,12 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			// Applying Mesh Morph Nodes
 			if (GenerationContext.MeshMorphStack.Num())
 			{
-				MorphResult = GenerateMorphMesh(Pin, GenerationContext.MeshMorphStack, 0, Result, GenerationContext, MeshData, ColumnName);
+				MorphResult = GenerateMorphMesh(Pin, GenerationContext.MeshMorphStack, 0, Result, GenerationContext, MeshData, MutableColumnName);
 			}
 
-			if (Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == -1)
+			if (Table->FindColumn(TCHAR_TO_ANSI(*MutableColumnName)) == INDEX_NONE)
 			{
-				FString Msg = FString::Printf(TEXT("Couldn't find pin column with name %s"), *ColumnName);
+				FString Msg = FString::Printf(TEXT("Couldn't find pin column with name %s"), *MutableColumnName);
 				GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
 			}
 		}

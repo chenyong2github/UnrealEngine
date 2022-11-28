@@ -50,9 +50,9 @@
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
-void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString ColumnName, FString RowName, int32 RowIdx, uint8* CellData, FProperty* Property, FMutableGraphGenerationContext& GenerationContext)
+
+void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr MutableTable,	const FString& ColumnName,	const FString& RowName,	const int32 RowIdx,	uint8* CellData, FProperty* Property, const int32 LOD, FMutableGraphGenerationContext& GenerationContext)
 {
-	UCustomizableObjectNodeTable* CustomNodeTable = Cast<UCustomizableObjectNodeTable>(Pin->GetOwningNode());
 	int32 CurrentColumn;
 
 	// Getting property type
@@ -71,22 +71,22 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 			FString AnimBP, AnimSlot, GameplayTag, AnimBPAssetTag;
 			TArray<FGameplayTag> GameplayTags;
 
-			CustomNodeTable->GetAnimationColumns(ColumnName, AnimBP, AnimSlot, GameplayTag);
+			TableNode->GetAnimationColumns(ColumnName, AnimBP, AnimSlot, GameplayTag);
 
 			if (!AnimBP.IsEmpty())
 			{
 				if (!AnimSlot.IsEmpty())
 				{
-					if (CustomNodeTable->Table)
+					if (TableNode->Table)
 					{
-						uint8* AnimRowData = CustomNodeTable->Table->FindRowUnchecked(FName(*RowName));
+						uint8* AnimRowData = TableNode->Table->FindRowUnchecked(FName(*RowName));
 
 						if (AnimRowData)
 						{
 							int32 SlotIndex = -1;
 
 							// Getting animation slot row value from data table
-							if (FProperty* AnimSlotProperty = CustomNodeTable->Table->FindTableProperty(FName(*AnimSlot)))
+							if (FProperty* AnimSlotProperty = TableNode->Table->FindTableProperty(FName(*AnimSlot)))
 							{
 								uint8* AnimSlotData = AnimSlotProperty->ContainerPtrToValuePtr<uint8>(AnimRowData, 0);
 
@@ -102,7 +102,7 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 							if (SlotIndex > -1)
 							{
 								// Getting animation instance soft class from data table
-								if (FProperty* AnimBPProperty = CustomNodeTable->Table->FindTableProperty(FName(*AnimBP)))
+								if (FProperty* AnimBPProperty = TableNode->Table->FindTableProperty(FName(*AnimBP)))
 								{
 									uint8* AnimBPData = AnimBPProperty->ContainerPtrToValuePtr<uint8>(AnimRowData, 0);
 
@@ -125,7 +125,7 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 							else
 							{
 								FString msg = FString::Printf(TEXT("Could not found the Slot column of the animation blueprint column [%s] for the mesh column [%s] row [%s]."), *AnimBP, *ColumnName, *RowName);
-								GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+								GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 							}
 						}
 					}
@@ -133,21 +133,21 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 				else
 				{
 					FString msg = FString::Printf(TEXT("Could not found the Slot column of the animation blueprint column [%s] for the mesh column [%s]."), *AnimBP, *ColumnName);
-					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 				}
 			}
 
 			// Getting Gameplay tags
 			if (!GameplayTag.IsEmpty())
 			{
-				if (CustomNodeTable->Table)
+				if (TableNode->Table)
 				{
-					uint8* GameplayRowData = CustomNodeTable->Table->FindRowUnchecked(FName(*RowName));
+					uint8* GameplayRowData = TableNode->Table->FindRowUnchecked(FName(*RowName));
 
 					if (GameplayRowData)
 					{
 						// Getting animation tag row value from data table
-						if (FProperty* GameplayTagProperty = CustomNodeTable->Table->FindTableProperty(FName(*GameplayTag)))
+						if (FProperty* GameplayTagProperty = TableNode->Table->FindTableProperty(FName(*GameplayTag)))
 						{
 							uint8* GameplayTagData = GameplayTagProperty->ContainerPtrToValuePtr<uint8>(GameplayRowData, 0);
 
@@ -168,189 +168,180 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 			}
 
 			// Getting reference Mesh
-			USkeletalMesh* ReferenceSkeletalMesh = CustomNodeTable->GetColumnDefaultAssetByType<USkeletalMesh>(ColumnName);
+			USkeletalMesh* ReferenceSkeletalMesh = TableNode->GetColumnDefaultAssetByType<USkeletalMesh>(ColumnName);
 
 			if (!ReferenceSkeletalMesh)
 			{
 				FString msg = FString::Printf(TEXT("Reference Skeletal Mesh not found for column [%s]."), *ColumnName);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 
 				return;
 			}
 
-			int ReferenceNumLODs = 0;
-			ReferenceNumLODs = Helper_GetLODInfoArray(ReferenceSkeletalMesh).Num();
+			// Parameter used for LOD differences
+			int32 CurrentLOD = LOD;
 
 			int NumLODs = Helper_GetLODInfoArray(SkeletalMesh).Num();
 
-			if (NumLODs != ReferenceNumLODs)
+			if (NumLODs <= CurrentLOD)
 			{
-				FString Dif_1 = NumLODs > ReferenceNumLODs ? "more" : "less";
-				FString Dif_2 = NumLODs > ReferenceNumLODs ? "Some will be ignored" : "LOD " + FString::FromInt(NumLODs - 1) + " will be used instead. This can cause some performance penalties.";
+				CurrentLOD = NumLODs - 1;
 
-				FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] has %s LODs than the reference mesh. %s"), *ColumnName, *RowName, *Dif_1, *Dif_2);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+				FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] needs LOD %d but has less LODs than the reference mesh. LOD %d will be used instead. This can cause some performance penalties."),
+					*ColumnName, *RowName, LOD, CurrentLOD);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 			}
 
-			// Parameter used for LOD differences
-			int32 CurrentLOD = 0;
+			int32 NumMaterials = Helper_GetImportedModel(SkeletalMesh)->LODModels[CurrentLOD].Sections.Num();
+			int32 ReferenceNumMaterials = Helper_GetImportedModel(ReferenceSkeletalMesh)->LODModels[CurrentLOD].Sections.Num();
 
-			// Generating skeletal mesh columns
-			for (int32 LODIndex = 0; LODIndex < ReferenceNumLODs; ++LODIndex)
+			if (NumMaterials != ReferenceNumMaterials)
 			{
-				int32 NumMaterials = Helper_GetImportedModel(SkeletalMesh)->LODModels[CurrentLOD].Sections.Num();
-				int32 ReferenceNumMaterials = Helper_GetImportedModel(ReferenceSkeletalMesh)->LODModels[CurrentLOD].Sections.Num();
+				FString Dif_1 = NumMaterials > ReferenceNumMaterials ? "more" : "less";
+				FString Dif_2 = NumMaterials > ReferenceNumMaterials ? "Some will be ignored" : "This can cause some compilation errors.";
 
-				if (NumMaterials > ReferenceNumMaterials)
+				FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] has %s Sections than the reference mesh. %s"), *ColumnName, *RowName, *Dif_1, *Dif_2);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
+			}
+
+			int32 Materials = NumMaterials <= ReferenceNumMaterials ? NumMaterials : ReferenceNumMaterials;
+
+			for (int32 MatIndex = 0; MatIndex < Materials; ++MatIndex)
+			{
+				FString MutableColumnName = ColumnName + FString::Printf(TEXT(" LOD_%d "), LOD) + FString::Printf(TEXT("Mat_%d"), MatIndex);
+
+				CurrentColumn = MutableTable.get()->FindColumn(TCHAR_TO_ANSI(*MutableColumnName));
+
+				if (CurrentColumn == -1)
 				{
-					FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] has more Sections than the reference mesh. Some will be ignored"), *ColumnName, *RowName);
-					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+					CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*MutableColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
 				}
 
-				int32 Materials = NumMaterials <= ReferenceNumMaterials ? NumMaterials : ReferenceNumMaterials;
+				// First process the mesh tags that are going to make the mesh unique and affect whether it's repeated in 
+				// the mesh cache or not
+				FString MeshUniqueTags;
 
-				for (int32 MatIndex = 0; MatIndex < Materials; ++MatIndex)
+				if (!AnimBPAssetTag.IsEmpty())
 				{
-					FString MutableColumnName = ColumnName + FString::Printf(TEXT(" LOD_%d "), LODIndex) + FString::Printf(TEXT("Mat_%d"), MatIndex);
+					MeshUniqueTags += AnimBPAssetTag;
+				}
 
-					CurrentColumn = MutableTable.get()->FindColumn(TCHAR_TO_ANSI(*MutableColumnName));
+				TArray<FString> ArrayAnimBPTags;
 
-					if (CurrentColumn == -1)
-					{
-						CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*MutableColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
+				for (const FGameplayTag& Tag : GameplayTags)
+				{
+					MeshUniqueTags += GenerateGameplayTag(Tag.ToString());
+				}
+
+				mu::MeshPtr MutableMesh = GenerateMutableMesh(SkeletalMesh, CurrentLOD, MatIndex, MeshUniqueTags, GenerationContext, TableNode);
+
+				if (MutableMesh)
+				{
+ 					if (SkeletalMesh->GetPhysicsAsset() && MutableMesh->GetPhysicsBody() && MutableMesh->GetPhysicsBody()->GetBodyCount())
+					{	
+						TSoftObjectPtr<UPhysicsAsset> PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
+						GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), PhysicsAsset);
+						FString PhysicsAssetTag = FString("__PhysicsAsset:") + PhysicsAsset.ToString();
+
+						AddTagToMutableMeshUnique(*MutableMesh, PhysicsAssetTag);
 					}
-
-					// First process the mesh tags that are going to make the mesh unique and affect whether it's repeated in 
-					// the mesh cache or not
-					FString MeshUniqueTags;
 
 					if (!AnimBPAssetTag.IsEmpty())
 					{
-						MeshUniqueTags += AnimBPAssetTag;
+						AddTagToMutableMeshUnique(*MutableMesh, AnimBPAssetTag);
 					}
-
-					TArray<FString> ArrayAnimBPTags;
 
 					for (const FGameplayTag& Tag : GameplayTags)
 					{
-						MeshUniqueTags += GenerateGameplayTag(Tag.ToString());
+						AddTagToMutableMeshUnique(*MutableMesh, GenerateGameplayTag(Tag.ToString()));
 					}
 
-					mu::MeshPtr MutableMesh = GenerateMutableMesh(SkeletalMesh, CurrentLOD, MatIndex, MeshUniqueTags, GenerationContext, CustomNodeTable);
+					AddSocketTagsToMesh(SkeletalMesh, MutableMesh, GenerationContext);
 
-					if (MutableMesh)
+					if (UCustomizableObjectSystem::GetInstance()->IsMutableAnimInfoDebuggingEnabled())
 					{
- 						if (SkeletalMesh->GetPhysicsAsset() && MutableMesh->GetPhysicsBody() && MutableMesh->GetPhysicsBody()->GetBodyCount())
-						{	
-							TSoftObjectPtr<UPhysicsAsset> PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
-							GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), PhysicsAsset);
-							FString PhysicsAssetTag = FString("__PhysicsAsset:") + PhysicsAsset.ToString();
-
-							AddTagToMutableMeshUnique(*MutableMesh, PhysicsAssetTag);
-						}
-
-						if (!AnimBPAssetTag.IsEmpty())
-						{
-							AddTagToMutableMeshUnique(*MutableMesh, AnimBPAssetTag);
-						}
-
-						for (const FGameplayTag& Tag : GameplayTags)
-						{
-							AddTagToMutableMeshUnique(*MutableMesh, GenerateGameplayTag(Tag.ToString()));
-						}
-
-						AddSocketTagsToMesh(SkeletalMesh, MutableMesh, GenerationContext);
-
-						if (UCustomizableObjectSystem::GetInstance()->IsMutableAnimInfoDebuggingEnabled())
-						{
-							FString MeshPath;
-							SkeletalMesh->GetOuter()->GetPathName(nullptr, MeshPath);
-							FString MeshTag = FString("__MeshPath:") + MeshPath;
-							AddTagToMutableMeshUnique(*MutableMesh, MeshTag);
-						}
-
-						MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
+						FString MeshPath;
+						SkeletalMesh->GetOuter()->GetPathName(nullptr, MeshPath);
+						FString MeshTag = FString("__MeshPath:") + MeshPath;
+						AddTagToMutableMeshUnique(*MutableMesh, MeshTag);
 					}
-					else
-					{
-						FString msg = FString::Printf(TEXT("Error converting skeletal mesh LOD %d, Material %d from column [%s] row [%s] to mutable."),
-							LODIndex, MatIndex, *ColumnName, *RowName);
-						GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
-					}
+
+					MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
 				}
-
-				CurrentLOD = (CurrentLOD + 1) >= NumLODs ? CurrentLOD : (CurrentLOD + 1);
+				else
+				{
+					FString msg = FString::Printf(TEXT("Error converting skeletal mesh LOD %d, Material %d from column [%s] row [%s] to mutable."),
+						LOD, MatIndex, *ColumnName, *RowName);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
+				}
 			}
 		}
 
 		else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object))
 		{
 			// Getting reference Mesh
-			UStaticMesh* ReferenceStaticMesh = CustomNodeTable->GetColumnDefaultAssetByType<UStaticMesh>(ColumnName);
+			UStaticMesh* ReferenceStaticMesh = TableNode->GetColumnDefaultAssetByType<UStaticMesh>(ColumnName);
 
 			if (!ReferenceStaticMesh)
 			{
 				FString msg = FString::Printf(TEXT("Reference Static Mesh not found for column [%s]."), *ColumnName);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 
 				return;
 			}
 
+			// Parameter used for LOD differences
+			int32 CurrentLOD = LOD;
+
 			int NumLODs = StaticMesh->GetRenderData()->LODResources.Num();
-			int ReferenceNumLODs = ReferenceStaticMesh->GetRenderData()->LODResources.Num();
 
-			if (NumLODs != ReferenceNumLODs)
+			if (NumLODs <= CurrentLOD)
 			{
-				FString Dif_1 = NumLODs > ReferenceNumLODs ? "more" : "less";
-				FString Dif_2 = NumLODs > ReferenceNumLODs ? "Some will be ignored" : "LOD " + FString::FromInt(NumLODs - 1) + " will be used instead. This can cause some performance penalties.";
+				CurrentLOD = NumLODs - 1;
 
-				FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] has %s LODs than the reference mesh. %s"), *ColumnName, *RowName, *Dif_1, *Dif_2);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+				FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] needs LOD %d but has less LODs than the reference mesh. LOD %d will be used instead. This can cause some performance penalties."),
+					*ColumnName, *RowName, LOD, CurrentLOD);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 			}
 
-			// Parameter used for LOD differences
-			int32 CurrentLOD = 0;
+			int32 NumMaterials = StaticMesh->GetRenderData()->LODResources[CurrentLOD].Sections.Num();
+			int32 ReferenceNumMaterials = ReferenceStaticMesh->GetRenderData()->LODResources[CurrentLOD].Sections.Num();
 
-			for (int32 LODIndex = 0; LODIndex < ReferenceNumLODs; ++LODIndex)
+			if (NumMaterials != ReferenceNumMaterials)
 			{
-				int32 NumMaterials = StaticMesh->GetRenderData()->LODResources[CurrentLOD].Sections.Num();
-				int32 ReferenceNumMaterials = ReferenceStaticMesh->GetRenderData()->LODResources[CurrentLOD].Sections.Num();
+				FString FirstTextOption = NumMaterials > ReferenceNumMaterials ? "more" : "less";
+				FString SecondTextOption = NumMaterials > ReferenceNumMaterials ? "Some will be ignored" : "This can cause some compilation errors.";
 
-				if (NumMaterials > ReferenceNumMaterials)
+				FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] has %s Sections than the reference mesh. %s"), *ColumnName, *RowName, *FirstTextOption, *SecondTextOption);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
+			}
+
+			int32 Materials = NumMaterials <= ReferenceNumMaterials ? NumMaterials : ReferenceNumMaterials;
+
+			for (int32 MatIndex = 0; MatIndex < Materials; ++MatIndex)
+			{
+				FString MutableColumnName = ColumnName + FString::Printf(TEXT(" LOD_%d "), LOD) + FString::Printf(TEXT("Mat_%d"), MatIndex);
+
+				CurrentColumn = MutableTable.get()->FindColumn(TCHAR_TO_ANSI(*MutableColumnName));
+
+				if (CurrentColumn == -1)
 				{
-					FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] has more Sections than the reference mesh. Some will be ignored"), *ColumnName, *RowName);
-					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+					CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*MutableColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
 				}
 
-				int32 Materials = NumMaterials <= ReferenceNumMaterials ? NumMaterials : ReferenceNumMaterials;
+				mu::MeshPtr MutableMesh = GenerateMutableMesh(StaticMesh, CurrentLOD, MatIndex, FString(), GenerationContext, TableNode);
 
-				for (int32 MatIndex = 0; MatIndex < Materials; ++MatIndex)
+				if (MutableMesh)
 				{
-					FString MutableColumnName = ColumnName + FString::Printf(TEXT(" LOD_%d "), LODIndex) + FString::Printf(TEXT("Mat_%d"), MatIndex);
-
-					CurrentColumn = MutableTable.get()->FindColumn(TCHAR_TO_ANSI(*MutableColumnName));
-
-					if (CurrentColumn == -1)
-					{
-						CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*MutableColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
-					}
-
-					mu::MeshPtr MutableMesh = GenerateMutableMesh(StaticMesh, CurrentLOD, MatIndex, FString(), GenerationContext, CustomNodeTable);
-
-					if (MutableMesh)
-					{
-						MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
-					}
-					else
-					{
-						FString msg = FString::Printf(TEXT("Error converting skeletal mesh LOD %d, Material %d from column [%s] row [%s] to mutable."),
-							LODIndex, MatIndex, *ColumnName, *RowName);
-
-						GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
-					}
+					MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
 				}
+				else
+				{
+					FString msg = FString::Printf(TEXT("Error converting skeletal mesh LOD %d, Material %d from column [%s] row [%s] to mutable."),
+						LOD, MatIndex, *ColumnName, *RowName);
 
-				CurrentLOD = (CurrentLOD + 1) >= NumLODs ? CurrentLOD : (CurrentLOD + 1);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
+				}
 			}
 		}
 
@@ -359,29 +350,35 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 			// Getting column index from column name
 			CurrentColumn = MutableTable->FindColumn(TCHAR_TO_ANSI(*ColumnName));
 
-			if (CurrentColumn == -1)
+			if (CurrentColumn == INDEX_NONE)
 			{
 				CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_IMAGE);
 			}
 
-			GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(MutableTable, Texture, CustomNodeTable, CurrentColumn, RowIdx));
+			GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(MutableTable, Texture, TableNode, CurrentColumn, RowIdx));
 		}
 
 		else if (UMaterialInstance* Material = Cast<UMaterialInstance>(Object))
 		{
-			UMaterialInstance* ReferenceMaterial = CustomNodeTable->GetColumnDefaultAssetByType<UMaterialInstance>(ColumnName);
-			
-			if (!GenerationContext.GeneratedParametersInTables.Contains(CustomNodeTable))
+			//Adding an empty column for searching purposes
+			if (MutableTable.get()->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == -1)
 			{
-				GenerationContext.GeneratedParametersInTables.Add(CustomNodeTable);
+				CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_NONE);
 			}
 
-			TArray<FGuid>& Parameters = GenerationContext.GeneratedParametersInTables[CustomNodeTable];
+			UMaterialInstance* ReferenceMaterial = TableNode->GetColumnDefaultAssetByType<UMaterialInstance>(ColumnName);
+			
+			if (!GenerationContext.GeneratedParametersInTables.Contains(TableNode))
+			{
+				GenerationContext.GeneratedParametersInTables.Add(TableNode);
+			}
+
+			TArray<FGuid>& Parameters = GenerationContext.GeneratedParametersInTables[TableNode];
 
 			if (!ReferenceMaterial)
 			{
 				FString msg = FString::Printf(TEXT("Reference Material not found for column [%s]."), *ColumnName);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 
 				return;
 			}
@@ -420,7 +417,7 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 						// Getting column index from parameter name
 						ColumnIndex = MutableTable->FindColumn(TCHAR_TO_ANSI(*ParameterGuid));
 
-						if (ColumnIndex == -1)
+						if (ColumnIndex == INDEX_NONE)
 						{
 							// If there is no column with the parameters name, we generate a new one
 							ColumnIndex = MutableTable->AddColumn(TCHAR_TO_ANSI(*ParameterGuid), mu::TABLE_COLUMN_TYPE::TCT_IMAGE);
@@ -449,12 +446,12 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 
 						if (TextureToConvert)
 						{
-							GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(MutableTable, TextureToConvert, CustomNodeTable, ColumnIndex, RowIdx));
+							GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(MutableTable, TextureToConvert, TableNode, ColumnIndex, RowIdx));
 						}
 						else
 						{
 							FString msg = FString::Printf(TEXT("Didn't find Material Texture Parameter [%s] from parent Material of column [%s] row [%s]."), *TextureParameterName, *ColumnName, *RowName);
-							GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+							GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 						}
 					}
 				}
@@ -466,7 +463,7 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 					FString msg =
 						FString::Printf(TEXT("Material Instance [%s] from column [%s] row [%s] has %d modifiable Textures that will not be modified, they are non-modifiable parameters in the Default Material Instance"),
 						*Material->GetName(), *ColumnName, *RowName, ParametersDiff);
-					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 				}
 
 				ParameterInfos.Empty();
@@ -497,7 +494,7 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 					// Getting column index from parameter name
 					ColumnIndex = MutableTable->FindColumn(TCHAR_TO_ANSI(*ParameterGuid));
 
-					if (ColumnIndex == -1)
+					if (ColumnIndex == INDEX_NONE)
 					{
 						// If there is no column with the parameters name, we generate a new one
 						ColumnIndex = MutableTable->AddColumn(TCHAR_TO_ANSI(*ParameterGuid), mu::TABLE_COLUMN_TYPE::TCT_COLOUR);
@@ -532,7 +529,7 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 					FString msg =
 						FString::Printf(TEXT("Material Instance [%s] from column [%s] row [%s] has %d modifiable Vectors that will not be modified, they are non-modifiable parameters in the Default Material Instance"),
 							*Material->GetName(), *ColumnName, *RowName, ParametersDiff);
-					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 				}
 
 				// Number of modified Float parameters in the Material Instance
@@ -563,7 +560,7 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 					// Getting column index from parameter name
 					ColumnIndex = MutableTable->FindColumn(TCHAR_TO_ANSI(*ParameterGuid));
 
-					if (ColumnIndex == -1)
+					if (ColumnIndex == INDEX_NONE)
 					{
 						// If there is no column with the parameters name, we generate a new one
 						ColumnIndex = MutableTable->AddColumn(TCHAR_TO_ANSI(*ParameterGuid), mu::TABLE_COLUMN_TYPE::TCT_SCALAR);
@@ -597,13 +594,13 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 					FString msg =
 						FString::Printf(TEXT("Material Instance [%s] from column [%s] row [%s] has %d modifiable Scalars that will not be modified, they are non-modifiable parameters in the Default Material Instance"),
 							*Material->GetName(), *ColumnName, *RowName, ParametersDiff);
-					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 				}
 			}
 			else
 			{
 				FString msg = FString::Printf(TEXT("Material from column [%s] row [%s] is a diferent instance than the Reference Material of the table."), *ColumnName, *RowName);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), CustomNodeTable);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 			}
 		}
 	}
@@ -614,7 +611,7 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 		{
 			CurrentColumn = MutableTable->FindColumn(TCHAR_TO_ANSI(*ColumnName));
 
-			if (CurrentColumn == -1)
+			if (CurrentColumn == INDEX_NONE)
 			{
 				CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_COLOUR);
 			}
@@ -625,26 +622,92 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 		}
 	}
 
-	else if (const FNumericProperty* NumProperty = CastField<FFloatProperty>(Property))
+	else if (const FNumericProperty* FloatNumProperty = CastField<FFloatProperty>(Property))
 	{
 		CurrentColumn = MutableTable->FindColumn(TCHAR_TO_ANSI(*ColumnName));
 
-		if (CurrentColumn == -1)
+		if (CurrentColumn == INDEX_NONE)
 		{
 			CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_SCALAR);
 		}
 
 		// Setting cell value
-		float Value = NumProperty->GetFloatingPointPropertyValue(CellData);
+		float Value = FloatNumProperty->GetFloatingPointPropertyValue(CellData);
 		MutableTable->SetCell(CurrentColumn, RowIdx, Value);
+	}
+
+	//TODO
+	//else if (const FNumericProperty* DoubleNumProperty = CastField<FDoubleProperty>(Property))
+	//{
+	//	CurrentColumn = MutableTable->FindColumn(TCHAR_TO_ANSI(*ColumnName));
+	//
+	//	if (CurrentColumn == INDEX_NONE)
+	//	{
+	//		CurrentColumn = MutableTable->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_SCALAR);
+	//	}
+	//
+	//	// Setting cell value
+	//	float Value = DoubleNumProperty->GetFloatingPointPropertyValue(CellData);
+	//	MutableTable->SetCell(CurrentColumn, RowIdx, Value);
+	//}
+}
+
+
+void GenerateTableColumn(const UCustomizableObjectNodeTable* TableNode, const UEdGraphPin* Pin, mu::TablePtr MutableTable, const FString& DataTableColumnName, const int32 LOD, FMutableGraphGenerationContext& GenerationContext)
+{
+	SCOPED_PIN_DATA(GenerationContext, Pin)
+
+	if (!TableNode)
+	{
+		return;
+	}
+
+	UDataTable* DataTable = TableNode->Table;
+
+	if (!DataTable)
+	{
+		return;
+	}
+
+	const UScriptStruct* TableStruct = DataTable->GetRowStruct();
+
+	if (TableStruct)
+	{
+		// Getting names of the rows to access the information
+		TArray<FName> RowNames = TableNode->GetRowNames();
+
+		for (TFieldIterator<FProperty> It(TableStruct); It; ++It)
+		{
+			FProperty* ColumnProperty = *It;
+
+			if (!ColumnProperty || DataTableColumnName != DataTableUtils::GetPropertyExportName(ColumnProperty))
+			{
+				continue;
+			}
+
+			for (int32 RowIndex = 0; RowIndex < RowNames.Num(); ++RowIndex)
+			{
+				// Getting Row Data
+				uint8* RowData = DataTable->FindRowUnchecked(RowNames[RowIndex]);
+
+				if (RowData)
+				{
+					// Getting Cell Data
+					uint8* CellData = ColumnProperty->ContainerPtrToValuePtr<uint8>(RowData, 0);
+
+					if (CellData)
+					{
+						FillTableColumn(TableNode, MutableTable, DataTableColumnName, RowNames[RowIndex].ToString(), RowIndex, CellData, ColumnProperty, LOD, GenerationContext);
+					}
+				}
+			}
+		}
 	}
 }
 
 
 mu::TablePtr GenerateMutableSourceTable(const FString& TableName, const UEdGraphPin* Pin, FMutableGraphGenerationContext& GenerationContext)
-{
-	SCOPED_PIN_DATA(GenerationContext, Pin)
-	
+{	
 	if (mu::TablePtr* Result = GenerationContext.GeneratedTables.Find(TableName))
 	{
 		return *Result;
@@ -674,14 +737,8 @@ mu::TablePtr GenerateMutableSourceTable(const FString& TableName, const UEdGraph
 
 		if (TableStruct)
 		{
-			// Getting names of the column headers
-			TArray<FString> ColumnHeaders = Table->GetColumnTitles();
-
 			// Getting names of the rows to access the information
 			TArray<FName> RowNames = TypedTable->GetRowNames();
-
-			// index to iterate the column headers
-			int32 ColumnHeaderIndex = 1;
 
 			// Adding and filling Name Column
 			MutableTable->AddColumn("Name", mu::TABLE_COLUMN_TYPE::TCT_STRING);
@@ -705,30 +762,6 @@ mu::TablePtr GenerateMutableSourceTable(const FString& TableName, const UEdGraph
 				ParameterUIData.ArrayIntegerParameterOption.Add(FIntegerParameterUIData(
 					RowName,
 					FMutableParamUIMetadata()));
-			}
-
-			for (TFieldIterator<FProperty> It(TableStruct); It; ++It)
-			{
-				FProperty* Property = *It;
-
-				for (int32 RowIndex = 0; RowIndex < RowNames.Num(); ++RowIndex)
-				{
-					// Getting Row Data
-					uint8* RowData = Table->FindRowUnchecked(RowNames[RowIndex]);
-
-					if (RowData)
-					{
-						// Getting Cell Data
-						uint8* CellData = Property->ContainerPtrToValuePtr<uint8>(RowData, 0);
-
-						if (CellData)
-						{
-							FillTableColumn(Pin, MutableTable, ColumnHeaders[ColumnHeaderIndex], RowNames[RowIndex].ToString(), RowIndex, CellData, Property, GenerationContext);
-						}
-					}
-				}
-
-				ColumnHeaderIndex++;
 			}
 
 			GenerationContext.ParameterUIDataMap.Add(TypedTable->ParameterName, ParameterUIData);

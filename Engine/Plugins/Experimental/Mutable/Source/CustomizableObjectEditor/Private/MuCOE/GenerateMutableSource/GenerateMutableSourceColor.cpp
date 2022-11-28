@@ -309,7 +309,14 @@ mu::NodeColourPtr GenerateMutableSourceColor(const UEdGraphPin* Pin, FMutableGra
 				ColumnName = GenerationContext.CurrentMaterialTableParameterId;
 			}
 
+			// Generating a new data table if not exists
 			Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
+
+			// Generating a new Color column if not exists
+			if (Table && Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == INDEX_NONE)
+			{
+				GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+			}
 
 			ColorTableNode->SetTable(Table);
 			ColorTableNode->SetColumn(TCHAR_TO_ANSI(*ColumnName));
@@ -317,7 +324,7 @@ mu::NodeColourPtr GenerateMutableSourceColor(const UEdGraphPin* Pin, FMutableGra
 
 			GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
 
-			if (Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == -1)
+			if (Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == INDEX_NONE)
 			{
 				FString Msg = FString::Printf(TEXT("Couldn't find pin column with name %s"), *ColumnName);
 				GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);

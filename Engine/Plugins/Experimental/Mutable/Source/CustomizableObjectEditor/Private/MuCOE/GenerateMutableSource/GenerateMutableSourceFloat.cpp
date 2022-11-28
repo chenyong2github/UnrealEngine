@@ -359,7 +359,14 @@ mu::NodeScalarPtr GenerateMutableSourceFloat(const UEdGraphPin* Pin, FMutableGra
 				ColumnName = GenerationContext.CurrentMaterialTableParameterId;
 			}
 			
+			// Generating a new data table if not exists
 			Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
+
+			// Generating a new Float column if not exists
+			if (Table && Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == INDEX_NONE)
+			{
+				GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+			}
 			
 			ScalarTableNode->SetTable(Table);
 			ScalarTableNode->SetColumn(TCHAR_TO_ANSI(*ColumnName));
@@ -367,7 +374,7 @@ mu::NodeScalarPtr GenerateMutableSourceFloat(const UEdGraphPin* Pin, FMutableGra
 
 			GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
 			
-			if (Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == -1)
+			if (Table->FindColumn(TCHAR_TO_ANSI(*ColumnName)) == INDEX_NONE)
 			{
 				Table = new mu::Table();
 
