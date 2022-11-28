@@ -2,7 +2,6 @@
 
 using System;
 using System.IO;
-using System.Linq;
 using System.Text;
 using EpicGames.Core;
 
@@ -58,7 +57,6 @@ namespace EpicGames.UHT.Utils
 	/// </summary>
 	public class UhtStdFileManager : IUhtFileManager
 	{
-
 		/// <summary>
 		/// Construct a new file manager
 		/// </summary>
@@ -96,28 +94,18 @@ namespace EpicGames.UHT.Utils
 			try
 			{
 				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan);
-				using StreamReader sr = new(fs, Encoding.UTF8, true);
+				using UhtBorrowByteBuffer byteBuffer = new((int)fs.Length);
+				Span<byte> byteSpan = byteBuffer.Buffer.Memory.Span;
+				int readLength = fs.Read(byteSpan);
+				byteSpan = byteSpan.Slice(0, readLength);
 
-				// Try to read the whole file into a buffer created by hand.  This avoids a LOT of memory allocations which in turn reduces the
-				// GC stress on the system.  Removing the StreamReader would be nice in the future.
-				long rawFileLength = fs.Length;
-				UhtBuffer initialBuffer = UhtBuffer.Borrow((int)rawFileLength);
-				int readLength = sr.Read(initialBuffer.Memory.Span);
-				if (sr.EndOfStream)
-				{
-					initialBuffer.Reset(readLength);
-					return initialBuffer;
-				}
-				else
-				{
-					string remaining = sr.ReadToEnd();
-					long totalSize = readLength + remaining.Length;
-					UhtBuffer combined = UhtBuffer.Borrow((int)totalSize);
-					Buffer.BlockCopy(initialBuffer.Block, 0, combined.Block, 0, readLength * sizeof(char));
-					Buffer.BlockCopy(remaining.ToArray(), 0, combined.Block, readLength * sizeof(char), remaining.Length * sizeof(char));
-					UhtBuffer.Return(initialBuffer);
-					return combined;
-				}
+				Encoding encoding = GetEncoding(byteSpan, out int skipBytes);
+				byteSpan = byteSpan.Slice(skipBytes);
+
+				int charCount = encoding.GetCharCount(byteBuffer.Buffer.Memory.Span);
+				UhtBuffer initialBuffer = UhtBuffer.Borrow(charCount);
+				encoding.GetChars(byteBuffer.Buffer.Memory.Span, initialBuffer.Memory.Span);
+				return initialBuffer;
 			}
 			catch (IOException)
 			{
@@ -177,22 +165,18 @@ namespace EpicGames.UHT.Utils
 			try
 			{
 				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan);
-				using StreamReader sr = new(fs, Encoding.UTF8, true);
+				using UhtBorrowByteBuffer byteBuffer = new((int)fs.Length);
+				Span<byte> byteSpan = byteBuffer.Buffer.Memory.Span;
+				int readLength = fs.Read(byteSpan);
+				byteSpan = byteSpan.Slice(0, readLength);
 
-				// Try to read the whole file into a buffer created by hand.  This avoids a LOT of memory allocations which in turn reduces the
-				// GC stress on the system.  Removing the StreamReader would be nice in the future.
-				long rawFileLength = fs.Length;
-				char[] initialBuffer = new char[rawFileLength];
-				int readLength = sr.Read(initialBuffer, 0, (int)rawFileLength);
-				if (sr.EndOfStream)
-				{
-					contents = new StringView(new ReadOnlyMemory<char>(initialBuffer, 0, readLength));
-				}
-				else
-				{
-					string remaining = sr.ReadToEnd();
-					contents = new StringView(String.Concat(new ReadOnlySpan<char>(initialBuffer, 0, readLength), remaining));
-				}
+				Encoding encoding = GetEncoding(byteSpan, out int skipBytes);
+				byteSpan = byteSpan.Slice(skipBytes);
+
+				int charCount = encoding.GetCharCount(byteSpan);
+				char[] initialBuffer = new char[charCount];
+				encoding.GetChars(byteSpan, initialBuffer);
+				contents = new StringView(new ReadOnlyMemory<char>(initialBuffer, 0, charCount));
 				return true;
 			}
 			catch (IOException)
@@ -200,6 +184,64 @@ namespace EpicGames.UHT.Utils
 				contents = new StringView();
 				return false;
 			}
+		}
+
+		/// <summary>
+		/// Get the encoding and number of bytes to skip at the start of the buffer
+		/// </summary>
+		/// <param name="bytes">Bytes to scan for a BOM</param>
+		/// <param name="skipBytes">Number of bytes to skip</param>
+		/// <returns>The encoding</returns>
+		// https://simple.wikipedia.org/wiki/Byte_order_mark
+		private static Encoding GetEncoding(ReadOnlySpan<byte> bytes, out int skipBytes)
+		{
+			skipBytes = 0;
+			int length = bytes.Length;
+			Encoding encoding = Encoding.UTF8;
+
+			if (length < 2)
+			{
+				return encoding;
+			}
+
+			if (bytes[0] == 0xfe && bytes[1] == 0xff)
+			{
+				encoding = Encoding.BigEndianUnicode; // Big 16
+				skipBytes = 2;
+			}
+			else if (bytes[0] == 0xff && bytes[1] == 0xfe)
+			{
+				// Check for FFFE but not FFFE0000
+				if (length < 4 || bytes[2] != 0 || bytes[3] != 0)
+				{
+					encoding = Encoding.Unicode; // Little 16
+					skipBytes = 2;
+				}
+				else
+				{
+					encoding = Encoding.UTF32; // Little 32
+					skipBytes = 4;
+				}
+			}
+			else if (length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf)
+			{
+				encoding = Encoding.UTF8; // 8
+				skipBytes = 3;
+			}
+			else if (length >= 4 && bytes[0] == 0 && bytes[1] == 0 && bytes[2] == 0xfe && bytes[3] == 0xff)
+			{
+				encoding = new UTF32Encoding(bigEndian: true, byteOrderMark: true); // Big 32
+				skipBytes = 4;
+			}
+
+			if (encoding.Preamble.Length > 0)
+			{
+				if (bytes.Slice(skipBytes).StartsWith(encoding.Preamble))
+				{
+					skipBytes += encoding.Preamble.Length;
+				}
+			}
+			return encoding;
 		}
 	}
 }

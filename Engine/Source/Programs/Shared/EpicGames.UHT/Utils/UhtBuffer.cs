@@ -219,4 +219,171 @@ namespace EpicGames.UHT.Utils
 			UhtBuffer.Return(Buffer);
 		}
 	}
+
+	/// <summary>
+	/// Cached character buffer system.
+	/// 
+	/// Invoke UhtBuffer.Borrow method to get a buffer of the given size.
+	/// Invoke UhtBuffer.Return to return the buffer to the cache.
+	/// </summary>
+	// TODO: Refactor to share implementation and possibly support ArrayPool<T>.
+	public class UhtByteBuffer
+	{
+		/// <summary>
+		/// Any requests of the given size or smaller will be placed in bucket zero with the given size.
+		/// </summary>
+		private const int MinSize = 1024 * 16;
+
+		/// <summary>
+		/// Adjustment to the bucket index to account for the minimum bucket size
+		/// </summary>
+		private static readonly int s_buckedAdjustment = BitOperations.Log2((uint)UhtByteBuffer.MinSize);
+
+		/// <summary>
+		/// Total number of supported buckets
+		/// </summary>
+		private static readonly int s_bucketCount = 32 - UhtByteBuffer.s_buckedAdjustment;
+
+		/// <summary>
+		/// Bucket lookaside list
+		/// </summary>
+		private static readonly UhtByteBuffer?[] s_lookAsideArray = new UhtByteBuffer?[UhtByteBuffer.s_bucketCount];
+
+		/// <summary>
+		/// The bucket index associated with the buffer
+		/// </summary>
+		private int Bucket { get; }
+
+		/// <summary>
+		/// Single list link to the next cached buffer
+		/// </summary>
+		private UhtByteBuffer? NextBuffer { get; set; } = null;
+
+		/// <summary>
+		/// The backing character block.  The size of the array will normally be larger than the 
+		/// requested size.
+		/// </summary>
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:Do not declare visible instance fields", Justification = "<Pending>")]
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "<Pending>")]
+		public byte[] Block;
+
+		/// <summary>
+		/// Memory region sized to the requested size
+		/// </summary>
+		public Memory<byte> Memory { get; set; }
+
+		/// <summary>
+		/// Construct a new buffer
+		/// </summary>
+		/// <param name="size">The initial size of the buffer</param>
+		/// <param name="bucket">The bucket associated with the buffer</param>
+		/// <param name="bucketSize">The size all blocks in this bucket</param>
+		private UhtByteBuffer(int size, int bucket, int bucketSize)
+		{
+			Block = new byte[bucketSize];
+			Bucket = bucket;
+			Reset(size);
+		}
+
+		/// <summary>
+		/// Reset the memory region to the given size
+		/// </summary>
+		/// <param name="size"></param>
+		public void Reset(int size)
+		{
+			Memory = new Memory<byte>(Block, 0, size);
+		}
+
+		/// <summary>
+		/// Borrow a new buffer of the given size
+		/// </summary>
+		/// <param name="size">Size of the buffer</param>
+		/// <returns>Buffer that should be returned with a call to Return</returns>
+		public static UhtByteBuffer Borrow(int size)
+		{
+			if (size <= UhtByteBuffer.MinSize)
+			{
+				return BorrowInternal(size, 0, UhtByteBuffer.MinSize);
+			}
+			else
+			{
+
+				// Round up the size to the next larger power of two if it isn't a power of two
+				uint usize = (uint)size;
+				--usize;
+				usize |= usize >> 1;
+				usize |= usize >> 2;
+				usize |= usize >> 4;
+				usize |= usize >> 8;
+				usize |= usize >> 16;
+				++usize;
+				int bucket = BitOperations.Log2(usize) - UhtByteBuffer.s_buckedAdjustment;
+				return BorrowInternal(size, bucket, (int)usize);
+			}
+		}
+
+		/// <summary>
+		/// Return the buffer to the cache.  The buffer should no longer be accessed.
+		/// </summary>
+		/// <param name="buffer">The buffer to be returned.</param>
+		public static void Return(UhtByteBuffer buffer)
+		{
+			lock (UhtByteBuffer.s_lookAsideArray)
+			{
+				buffer.NextBuffer = UhtByteBuffer.s_lookAsideArray[buffer.Bucket];
+				UhtByteBuffer.s_lookAsideArray[buffer.Bucket] = buffer;
+			}
+		}
+
+		/// <summary>
+		/// Internal helper to allocate a buffer
+		/// </summary>
+		/// <param name="size">The initial size of the buffer</param>
+		/// <param name="bucket">The bucket associated with the buffer</param>
+		/// <param name="bucketSize">The size all blocks in this bucket</param>
+		/// <returns>The allocated buffer</returns>
+		private static UhtByteBuffer BorrowInternal(int size, int bucket, int bucketSize)
+		{
+			lock (UhtByteBuffer.s_lookAsideArray)
+			{
+				if (UhtByteBuffer.s_lookAsideArray[bucket] != null)
+				{
+					UhtByteBuffer buffer = UhtByteBuffer.s_lookAsideArray[bucket]!;
+					UhtByteBuffer.s_lookAsideArray[bucket] = buffer.NextBuffer;
+					buffer.Reset(size);
+					return buffer;
+				}
+			}
+			return new UhtByteBuffer(size, bucket, bucketSize);
+		}
+	}
+
+	/// <summary>
+	/// Helper class for using pattern to borrow and return a buffer.
+	/// </summary>
+	public struct UhtBorrowByteBuffer : IDisposable
+	{
+
+		/// <summary>
+		/// The borrowed buffer
+		/// </summary>
+		public UhtByteBuffer Buffer { get; set; }
+
+		/// <summary>
+		/// Borrow a buffer with the given size
+		/// </summary>
+		/// <param name="size">The size to borrow</param>
+		public UhtBorrowByteBuffer(int size)
+		{
+			Buffer = UhtByteBuffer.Borrow(size);
+		}
+
+		/// <summary>
+		/// Return the borrowed buffer to the cache
+		/// </summary>
+		public void Dispose()
+		{
+			UhtByteBuffer.Return(Buffer);
+		}
+	}
 }
