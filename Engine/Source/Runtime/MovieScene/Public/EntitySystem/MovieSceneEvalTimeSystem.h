@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "Misc/FrameTime.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
@@ -23,8 +24,16 @@ public:
 	UMovieSceneEvalTimeSystem(const FObjectInitializer& ObjInit);
 
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 
 private:
-	TArray<FFrameTime> FrameTimes;
+	struct FEvaluatedTime
+	{
+		FFrameTime FrameTime;
+		double Seconds;
+	};
+	TArray<FEvaluatedTime> EvaluatedTimes;
+
+	UE::MovieScene::FEntityComponentFilter RelevantFilter;
 };
 

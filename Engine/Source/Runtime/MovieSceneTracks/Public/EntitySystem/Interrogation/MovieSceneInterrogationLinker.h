@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/SparseArray.h"
 #include "Containers/SortedMap.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
 #include "MovieSceneTracksComponentTypes.h"
@@ -605,7 +606,16 @@ protected:
 	/** The linker we own */
 	UMovieSceneEntitySystemLinker* Linker;
 
+	/** Initial value cache */
 	TSharedPtr<FInitialValueCache> InitialValueCache;
+
+	/** Array of shared extra metadata on entities */
+	struct FExtraMetaData
+	{
+		UE::MovieScene::FInterrogationInstance InterrogationInstance;
+		UE::MovieScene::FInterrogationChannel InterrogationChannel;
+	};
+	TSparseArray<FExtraMetaData> ExtraMetaData;
 };
 
 

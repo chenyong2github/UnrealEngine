@@ -32,6 +32,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&RootInstanceHandle,    TEXT("Root Instance Handle"));
 
 	ComponentRegistry->NewComponentType(&EvalTime,              TEXT("Eval Time"));
+	ComponentRegistry->NewComponentType(&EvalSeconds,           TEXT("Eval Seconds"));
 
 	ComponentRegistry->NewComponentType(&BoundObject,           TEXT("Bound Object"));
 
@@ -126,6 +127,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&EvaluationHookFlags,   TEXT("Evaluation Hook Flags"), EComponentTypeFlags::Preserved);
 
 	ComponentRegistry->NewComponentType(&Interrogation.InputKey,  TEXT("Interrogation Input"));
+	ComponentRegistry->NewComponentType(&Interrogation.Instance,  TEXT("Interrogation Instance"));
 	ComponentRegistry->NewComponentType(&Interrogation.OutputKey, TEXT("Interrogation Output"));
 
 	Tags.RestoreState            = ComponentRegistry->NewTag(TEXT("Is Restore State Entity"));
@@ -169,6 +171,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Tags.SectionPreRoll,Tags.PreRoll);
 
 	ComponentRegistry->Factories.DuplicateChildComponent(EvalTime);
+	ComponentRegistry->Factories.DuplicateChildComponent(EvalSeconds);
 	ComponentRegistry->Factories.DuplicateChildComponent(BaseValueEvalTime);
 
 	ComponentRegistry->Factories.DuplicateChildComponent(SequenceID);

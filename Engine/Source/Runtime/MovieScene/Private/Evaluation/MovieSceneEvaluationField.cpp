@@ -40,6 +40,11 @@ FMovieSceneEvaluationFieldSharedEntityMetaData& FMovieSceneEntityComponentFieldB
 	return Field->SharedMetaData[SharedMetaDataIndex];
 }
 
+int32 FMovieSceneEntityComponentFieldBuilder::GetSharedMetaDataIndex() const
+{
+	return SharedMetaDataIndex;
+}
+
 int32 FMovieSceneEntityComponentFieldBuilder::FindOrAddEntity(UObject* EntityOwner, uint32 EntityID)
 {
 	FMovieSceneEvaluationFieldEntityKey Key = { EntityOwner, EntityID };
