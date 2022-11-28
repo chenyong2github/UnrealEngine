@@ -115,6 +115,8 @@ public:
 	static uint32 ComputeHLODHash(const TArray<AActor*>& InSourceActors);
 
 protected:
+	virtual bool ShouldIgnoreBatchingPolicy() const { return false; }
+
 	static TArray<UActorComponent*> BatchInstances(const TArray<UActorComponent*>& InSubComponents);
 
 	template <typename TComponentClass>

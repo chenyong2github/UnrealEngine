@@ -32,7 +32,7 @@ class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderInstancing : public UHLODBuild
 
 public:
 	virtual bool RequiresWarmup() const override { return false; }
-
+	virtual bool ShouldIgnoreBatchingPolicy() const override { return true; }
 	virtual TSubclassOf<UHLODBuilderSettings> GetSettingsClass() const override;
 	virtual TArray<UActorComponent*> Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const override;
 };

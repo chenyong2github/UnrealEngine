@@ -238,16 +238,24 @@ TArray<UActorComponent*> UHLODBuilder::Build(const FHLODBuildContext& InHLODBuil
 	// Handle components using a batching policy separately
 	TArray<UActorComponent*> InputComponents;
 	TArray<UActorComponent*> ComponentsToBatch;
-	for (UActorComponent* SourceComponent : HLODRelevantComponents)
+
+	if (!ShouldIgnoreBatchingPolicy())
+	{				
+		for (UActorComponent* SourceComponent : HLODRelevantComponents)
+		{
+			if (ShouldBatchComponent(SourceComponent))
+			{
+				ComponentsToBatch.Add(SourceComponent);
+			}
+			else
+			{
+				InputComponents.Add(SourceComponent);
+			}
+		}
+	}
+	else
 	{
-		if (ShouldBatchComponent(SourceComponent))
-		{
-			ComponentsToBatch.Add(SourceComponent);
-		}
-		else
-		{
-			InputComponents.Add(SourceComponent);
-		}
+		InputComponents = MoveTemp(HLODRelevantComponents);
 	}
 
 	TMap<TSubclassOf<UHLODBuilder>, TArray<UActorComponent*>> HLODBuildersForComponents;
