@@ -1836,7 +1836,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		TEXT("SelectionOutline"),
 		TEXT("EditorPrimitive"),
 		TEXT("PrimaryUpscale"),
-		TEXT("Sharpen"),
+		TEXT("SecondaryUpscale"),
 		TEXT("Visualize"),
 		TEXT("HMDDistortion")
 	};
