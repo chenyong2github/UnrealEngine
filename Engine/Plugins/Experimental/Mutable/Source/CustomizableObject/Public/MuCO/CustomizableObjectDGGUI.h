@@ -28,8 +28,4 @@ public:
 
 	static void OpenDGGUI(const int32 SlotID, UCustomizableSkeletalComponent* SelectedCustomizableSkeletalComponent, const UWorld* CurrentWorld, const int32 PlayerIndex = 0);
 	static bool CloseExistingDGGUI(const UWorld* CurrentWorld);
-private:
-	void CustomizableSkeletalMeshPreUpdate(class UCustomizableSkeletalComponent* Component, class USkeletalMesh* NextMesh);
-	void CustomizableSkeletalMeshUpdated();
-	TSubclassOf<UAnimInstance> LastAnimationClass;
 };
