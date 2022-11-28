@@ -30,6 +30,12 @@ namespace UnrealBuildTool
 		FileReference? OutputFile = null;
 
 		/// <summary>
+		/// Write out all targets, even if a default is specified in the BuildSettings section of the Default*.ini files. 
+		/// </summary>
+		[CommandLine("-IncludeAllTargets")]
+		bool bIncludeAllTargets = false;
+		
+		/// <summary>
 		/// Execute the mode
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
@@ -62,7 +68,7 @@ namespace UnrealBuildTool
 			}
 
 			// Write information about these targets
-			WriteTargetInfo(ProjectFile, Assembly, OutputFile, Arguments, Logger);
+			WriteTargetInfo(ProjectFile, Assembly, OutputFile, Arguments, Logger, bIncludeAllTargets);
 			Logger.LogInformation("Written {OutputFile}", OutputFile);
 			return 0;
 		}
@@ -92,7 +98,8 @@ namespace UnrealBuildTool
 		/// <param name="OutputFile">Output file to write to</param>
 		/// <param name="Arguments"></param>
 		/// <param name="Logger">Logger for output</param>
-		public static void WriteTargetInfo(FileReference? ProjectFile, RulesAssembly Assembly, FileReference OutputFile, CommandLineArguments Arguments, ILogger Logger)
+		/// <param name="bIncludeAllTargets">Include all targets even if a default target is specified for a given target type.</param>
+		public static void WriteTargetInfo(FileReference? ProjectFile, RulesAssembly Assembly, FileReference OutputFile, CommandLineArguments Arguments, ILogger Logger, bool bIncludeAllTargets = true)
 		{
 			// Construct all the targets in this assembly
 			List<string> TargetNames = new List<string>();
@@ -126,7 +133,17 @@ namespace UnrealBuildTool
 						Logger.LogDebug("{Ex}", ExceptionUtils.FormatException(Ex));
 						continue;
 					}
-
+					
+					// Skip non-default targets if one is specified.
+					if (ProjectFile != null && !bIncludeAllTargets)
+					{
+						string? DefaultTargetName = ProjectFileGenerator.GetProjectDefaultTargetNameForType(ProjectFile.Directory, TargetRules.Type);
+						if (DefaultTargetName != null && DefaultTargetName != TargetName)
+						{
+							continue;
+						}
+					}
+					
 					// Write the target info
 					Writer.WriteObjectStart();
 					Writer.WriteValue("Name", TargetName);

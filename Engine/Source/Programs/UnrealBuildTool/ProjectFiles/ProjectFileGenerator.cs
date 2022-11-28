@@ -2437,21 +2437,7 @@ namespace UnrealBuildTool
 					{
 						if (GameFolder != null)
 						{
-							FileReference DefaultEngineIniFilename = FileReference.Combine(GameFolder, "Config", "DefaultEngine.ini");
-							ConfigFile? ProjectDefaultEngineIni;
-							ConfigCache.TryReadFile(DefaultEngineIniFilename, out ProjectDefaultEngineIni);
-							if (ProjectDefaultEngineIni != null)
-							{
-								ConfigFileSection? Section;
-								if (ProjectDefaultEngineIni.TryGetSection("/Script/BuildSettings.BuildSettings", out Section))
-								{
-									ConfigLine? Line;
-									if (Section.TryGetLine("DefaultEditorTarget", out Line))
-									{
-										DefaultEditorTarget = Line.Value;
-									}
-								}
-							}
+							DefaultEditorTarget = GetProjectDefaultTargetNameForType(GameFolder, TargetType.Editor);
 						}
 
 						DefaultProjectEditorTargetCache.Add(ProjectFileNameBase, DefaultEditorTarget);
@@ -3061,6 +3047,27 @@ namespace UnrealBuildTool
 			InProject.LoadGUIDFromExistingProject();
 
 			OtherProjectFiles.Add(InProject);
+		}
+
+		/// <summary>
+		/// Retrieves the user-set default target name for a given target type. This is used for cases where
+		/// a target type can have multiple target names but only one is used for default builds.
+		/// </summary>
+		/// <param name="ProjectDirectory">The project directory to find the configuration files in</param>
+		/// <param name="TargetType">The target type to find a default value for.</param>
+		/// <returns>The name of the default target, or null</returns>
+		public static string? GetProjectDefaultTargetNameForType(DirectoryReference ProjectDirectory, TargetType TargetType)
+		{
+			// For now, we only support editor targets.
+			if (TargetType != TargetType.Editor)
+			{
+				return null;
+			}
+			
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectDirectory, BuildHostPlatform.Current.Platform);
+			string? Value;
+			Ini.TryGetValue("/Script/BuildSettings.BuildSettings", "DefaultEditorTarget", out Value);
+			return Value;
 		}
 
 		public virtual string[] GetTargetArguments(string[] Arguments)
