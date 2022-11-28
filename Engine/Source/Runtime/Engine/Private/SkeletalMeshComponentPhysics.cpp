@@ -11,6 +11,7 @@
 #include "EngineDefines.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/InstancedStaticMesh.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
 #include "CollisionQueryParams.h"
@@ -2619,6 +2620,13 @@ bool USkeletalMeshComponent::ComponentOverlapComponentImpl(class UPrimitiveCompo
 {
 	//we do not support skeletal mesh vs skeletal mesh overlap test
 	if (PrimComp->IsA<USkeletalMeshComponent>())
+	{
+		UE_LOG(LogCollision, Warning, TEXT("ComponentOverlapComponent : (%s) Does not support skeletalmesh with Physics Asset"), *PrimComp->GetPathName());
+		return false;
+	}
+
+	//We do not support skeletal mesh vs Instanced static meshes
+	if (PrimComp->IsA<UInstancedStaticMeshComponent>())
 	{
 		UE_LOG(LogCollision, Warning, TEXT("ComponentOverlapComponent : (%s) Does not support skeletalmesh with Physics Asset"), *PrimComp->GetPathName());
 		return false;

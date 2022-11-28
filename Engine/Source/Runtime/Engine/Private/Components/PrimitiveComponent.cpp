@@ -17,6 +17,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/InstancedStaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Texture2D.h"
@@ -2893,6 +2894,20 @@ bool UPrimitiveComponent::ComponentOverlapComponentImpl(class UPrimitiveComponen
 	{
 		UE_LOG(LogCollision, Warning, TEXT("ComponentOverlapMulti : (%s) Does not support skeletalmesh with Physics Asset"), *PrimComp->GetPathName());
 		return false;
+	}
+
+	// if target is Instanced Static Meshes
+	UInstancedStaticMeshComponent* InstancedStaticMesh = Cast<UInstancedStaticMeshComponent>(PrimComp);
+	if (InstancedStaticMesh)
+	{
+		if (FBodyInstance* ThisBodyInstance = GetBodyInstance())
+		{
+			return ThisBodyInstance->OverlapTestForBodies(Pos, Quat, InstancedStaticMesh->InstanceBodies);
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	if(FBodyInstance* BI = PrimComp->GetBodyInstance())

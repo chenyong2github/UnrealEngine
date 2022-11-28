@@ -34,6 +34,7 @@
 #include "NaniteSceneProxy.h"
 #include "MaterialCachedData.h"
 #include "Collision.h"
+#include "CollisionDebugDrawingPublic.h"
 #include "PipelineStateCache.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
@@ -4625,6 +4626,124 @@ bool UInstancedStaticMeshComponent::DoCustomNavigableGeometryExport(FNavigableGe
 
 	// we don't want "regular" collision export for this component
 	return false;
+}
+
+extern float DebugLineLifetime;
+
+bool UInstancedStaticMeshComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params)
+{
+	bool bHaveHit = false;	
+	float MinTime = UE_MAX_FLT;
+	FHitResult Hit;
+
+	// TODO: use spatial acceleration instead
+	for (FBodyInstance* Body : InstanceBodies)
+	{
+		if (Body->LineTrace(Hit, Start, End, Params.bTraceComplex, Params.bReturnPhysicalMaterial))
+		{
+			bHaveHit = true;
+			if (MinTime > Hit.Time)
+			{
+				MinTime = Hit.Time;
+				OutHit = Hit;
+			}
+		}
+	}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	UWorld* const World = GetWorld();
+	if (World && World->DebugDrawSceneQueries(Params.TraceTag))
+	{
+		TArray<FHitResult> Hits;
+		if (bHaveHit)
+		{
+			Hits.Add(OutHit);
+		}
+		DrawLineTraces(GetWorld(), Start, End, Hits, DebugLineLifetime);
+	}
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+	return bHaveHit;
+}
+
+bool UInstancedStaticMeshComponent::SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FCollisionShape& CollisionShape, bool bTraceComplex)
+{
+	bool bHaveHit = false;
+	
+	FHitResult Hit;
+	// TODO: use spatial acceleration instead
+	for (FBodyInstance* Body : InstanceBodies)
+	{
+		if (Body->Sweep(Hit, Start, End, ShapeWorldRotation, CollisionShape, bTraceComplex))
+		{
+			if (!bHaveHit || Hit.Time < OutHit.Time)
+			{
+				OutHit = Hit;
+			}
+			bHaveHit = true;
+		}
+	}
+	return bHaveHit;
+}
+
+bool UInstancedStaticMeshComponent::OverlapComponent(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape) const
+{	
+	for (FBodyInstance* Body : InstanceBodies)
+	{
+		if (Body->OverlapTest(Pos, Rot, CollisionShape))
+		{
+			return true;
+		}
+	}
+
+	return false;	
+}
+
+bool UInstancedStaticMeshComponent::ComponentOverlapComponentImpl(class UPrimitiveComponent* PrimComp, const FVector Pos, const FQuat& Quat, const FCollisionQueryParams& Params)
+{
+	//we do not support skeletal mesh vs InstancedStaticMesh overlap test
+	if (PrimComp->IsA<USkeletalMeshComponent>())
+	{
+		UE_LOG(LogCollision, Warning, TEXT("ComponentOverlapComponent : (%s) Does not support InstancedStaticMesh with Physics Asset"), *PrimComp->GetPathName());
+		return false;
+	}
+
+	//We do not support Instanced static meshes vs Instanced static meshes
+	if (PrimComp->IsA<UInstancedStaticMeshComponent>())
+	{
+		UE_LOG(LogCollision, Warning, TEXT("ComponentOverlapComponent : (%s) Does not support InstancedStaticMesh with Physics Asset"), *PrimComp->GetPathName());
+		return false;
+	}
+
+	if (FBodyInstance* BI = PrimComp->GetBodyInstance())
+	{
+		return BI->OverlapTestForBodies(Pos, Quat, InstanceBodies);
+	}
+
+	return false;
+}
+
+bool UInstancedStaticMeshComponent::ComponentOverlapMultiImpl(TArray<struct FOverlapResult>& OutOverlaps, const class UWorld* InWorld, const FVector& Pos, const FQuat& Rot, ECollisionChannel TestChannel, const struct FComponentQueryParams& Params, const struct FCollisionObjectQueryParams& ObjectQueryParams) const
+{
+	OutOverlaps.Reset();
+
+	const FTransform WorldToComponent(GetComponentTransform().Inverse());
+	const FCollisionResponseParams ResponseParams(GetCollisionResponseToChannels());
+
+	FComponentQueryParams ParamsWithSelf = Params;
+	ParamsWithSelf.AddIgnoredComponent(this);
+
+	bool bHaveBlockingHit = false;
+	for (FBodyInstance* Body : InstanceBodies)
+	{
+		checkSlow(Body);
+		if (Body->OverlapMulti(OutOverlaps, InWorld, &WorldToComponent, Pos, Rot, TestChannel, ParamsWithSelf, ResponseParams, ObjectQueryParams))
+		{
+			bHaveBlockingHit = true;
+		}
+	}
+
+	return bHaveBlockingHit;
 }
 
 void UInstancedStaticMeshComponent::GetNavigationData(FNavigationRelevantData& Data) const
