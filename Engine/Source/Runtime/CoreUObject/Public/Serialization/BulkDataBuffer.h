@@ -72,7 +72,7 @@ public:
 
 		if (this != &Other)
 		{
-			const int32 BufferSize = Other.View.Num();
+			const int64 BufferSize = Other.View.Num();
 
 			DataType* BufferCopy = (DataType*)FMemory::Malloc(BufferSize);
 			FMemory::Memcpy(BufferCopy, Other.View.GetData(), BufferSize);
