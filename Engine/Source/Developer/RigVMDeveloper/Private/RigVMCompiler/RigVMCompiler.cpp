@@ -477,7 +477,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 				bEncounteredGraphError = true;
 			}
 
-			if(!InController->RemoveUnusedOrphanedPins(ModelNode, true))
+			if(!InController->RemoveUnusedOrphanedPins(ModelNode))
 			{
 				static const FString LinkedMessage = TEXT("Node @@ uses pins that no longer exist. Please rewire the links and re-compile.");
 				Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, LinkedMessage);

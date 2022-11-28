@@ -5004,12 +5004,13 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 				GetControlRigBlueprint()->RequestAutoVMRecompilation();
 			}
 			else if (PropertyPath == TEXT("DefaultValue"))
-			{			
+			{
+				FRigVMControllerNotifGuard(Controller, true);
 				for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
 				{
 					if (Variable.Name == VariableDescription.Name)
 					{
-						Controller->SetLocalVariableDefaultValue(Variable.Name, VariableDescription.DefaultValue, true, true, false);
+						Controller->SetLocalVariableDefaultValue(Variable.Name, VariableDescription.DefaultValue, true, true);
 						break;
 					}
 				}
@@ -5083,7 +5084,7 @@ void FControlRigEditor::OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFun
 FRigVMController_BulkEditResult FControlRigEditor::OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController,
 	URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
 {
-	const TArray<FAssetData> FirstLevelReferenceAssets = InController->GetAffectedAssets(InEditType, false, true);
+	const TArray<FAssetData> FirstLevelReferenceAssets = InController->GetAffectedAssets(InEditType, false);
 	if(FirstLevelReferenceAssets.Num() == 0)
 	{
 		return FRigVMController_BulkEditResult();

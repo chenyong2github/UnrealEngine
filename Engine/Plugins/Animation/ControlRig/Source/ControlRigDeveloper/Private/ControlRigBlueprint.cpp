@@ -890,7 +890,8 @@ void UControlRigBlueprint::PostLoad()
 			for(URigVMNode* Node : GraphToValidate->GetNodes())
 			{
 				URigVMController* Controller = GetOrCreateController(GraphToValidate);
-				Controller->RemoveUnusedOrphanedPins(Node, false);
+				FRigVMControllerNotifGuard NotifGuard(Controller, true);
+				Controller->RemoveUnusedOrphanedPins(Node);				
 			}
 				
 			for(URigVMNode* Node : GraphToValidate->GetNodes())
@@ -904,9 +905,8 @@ void UControlRigBlueprint::PostLoad()
 						{
 							if(URigVMController* Controller = GetController(GraphToValidate))
 							{
-								Controller->SuspendNotifications(true);
+								FRigVMControllerNotifGuard(Controller, true);
 								Controller->SetPinDefaultValue(Pin->GetPinPath(), TEXT("Null"), false, false, false);
-								Controller->SuspendNotifications(false);
 							}
 						}
 					}
@@ -1307,11 +1307,12 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 			URigVMController* Controller = GetOrCreateController(GraphToDetach);
 			// temporarily disable default value validation during load time, serialized values should always be accepted
 			TGuardValue<bool> PerGraphDisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
+			FRigVMControllerNotifGuard(Controller, true);
 			Controller->DetachLinksFromPinObjects();
 			TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
 			for (URigVMNode* Node : Nodes)
 			{
-				Controller->RepopulatePinsOnNode(Node, true, false, true);
+				Controller->RepopulatePinsOnNode(Node, true, true);
 			}
 		}
 		SetupPinRedirectorsForBackwardsCompatibility();
@@ -1322,7 +1323,8 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 		URigVMController* Controller = GetOrCreateController(GraphToDetach);
 		// at this stage, allow all links to be reattached,
 		// RecomputeAllTemplateFilteredPermutations() later should break any invalid links
-		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true, true);
+		FRigVMControllerNotifGuard(Controller, true);
+		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, true, true);
 	}
 
 	if(bIsPostLoad)
@@ -1394,11 +1396,11 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 		URigVMController* Controller = GetOrCreateController(GraphToClean);
 		TGuardValue<bool> RecomputeGuard(Controller->bSuspendRecomputingOuterTemplateFilters, true);
 		TGuardValue<bool> GuardEditGraph(GraphToClean->bEditable, true);
-		Controller->SuspendNotifications(true);
+		FRigVMControllerNotifGuard(Controller, true);
 		
 		for(URigVMNode* ModelNode : GraphToClean->GetNodes())
 		{
-			Controller->RemoveUnusedOrphanedPins(ModelNode, false);
+			Controller->RemoveUnusedOrphanedPins(ModelNode);
 		}
 
 		if(bIsPostLoad)
@@ -1535,7 +1537,6 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 		}
 #endif
 
-		Controller->SuspendNotifications(false);
 	}
 }
 
@@ -4095,7 +4096,11 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 	{
 		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
 
-		GetOrCreateController()->ReattachLinksToPinObjects();
+		{
+			URigVMController* Controller = GetOrCreateController();
+			FRigVMControllerNotifGuard(Controller, true);
+			Controller->ReattachLinksToPinObjects();
+		}
 
 		check(GetDefaultModel());
 
@@ -4149,7 +4154,7 @@ void UControlRigBlueprint::PatchRigElementKeyCacheOnLoad()
 		{
 			URigVMController* Controller = GetOrCreateController(Graph);
 			TGuardValue<bool> DisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
-			Controller->SuspendNotifications(true);
+			FRigVMControllerNotifGuard(Controller, true);
 			for (URigVMNode* Node : Graph->GetNodes())
 			{
 				if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
@@ -4176,7 +4181,6 @@ void UControlRigBlueprint::PatchRigElementKeyCacheOnLoad()
 					}
 				}
 			}
-			Controller->SuspendNotifications(false);
 		}
 	}
 }
@@ -4361,12 +4365,11 @@ void UControlRigBlueprint::PatchPropagateToChildren()
 		
 		if (URigVMController* Controller = GetOrCreateController(Graph))
 		{
-			Controller->SuspendNotifications(true);
+			FRigVMControllerNotifGuard(Controller, true);
 			for (const URigVMPin* Pin: PinsToUpdate)
 			{
 				Controller->SetPinDefaultValue(Pin->GetPinPath(), TEXT("True"), false, false, false);
 			}
-			Controller->SuspendNotifications(false);
 		}
 	}
 }
@@ -4381,7 +4384,11 @@ void UControlRigBlueprint::PatchParameterNodesOnLoad()
 		
 		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
 
-		GetOrCreateController()->ReattachLinksToPinObjects();
+		{
+			URigVMController* Controller = GetOrCreateController();
+			FRigVMControllerNotifGuard(Controller, true);
+			Controller->ReattachLinksToPinObjects();
+		}
 
 		check(GetDefaultModel());
 
@@ -4513,7 +4520,7 @@ void UControlRigBlueprint::PatchLinksWithCast()
 				if(!SourcePin->IsLinkedTo(TargetPin))
 				{
 					const TArray<URigVMLink*> LinksToReattach = {Link};
-					Controller->ReattachLinksToPinObjects(true, &LinksToReattach, true, false, false);
+					Controller->ReattachLinksToPinObjects(true, &LinksToReattach, false, false);
 				}
 			}
 
