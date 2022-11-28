@@ -14,6 +14,8 @@ namespace Test
 {
 	struct FTests
 	{
+		typedef TArray<char> FTensorData;
+		
 		struct FTestSetup
 		{
 			static constexpr float DefaultAbsoluteErrorEpsilon = 1e-5f;
@@ -35,7 +37,11 @@ namespace Test
 			TMap<FString, float> AbsoluteErrorEpsilonForRuntime;
 			TMap<FString, float> RelativeErrorPercentForRuntime;
 			TArray<FTensor> Inputs;
+			TArray<FTensor> Weights;
 			TArray<FTensor> Outputs;
+			TArray<FTensorData> InputsData;
+			TArray<FTensorData> WeightsData;
+			TArray<FTensorData> OutputsData;
 			UE::NNECore::FAttributeMap AttributeMap;
 			TArray<FString> Tags;
 			TArray<FString> AutomationExcludedRuntime;
@@ -63,9 +69,10 @@ namespace Test
 
 	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FNNIModelRaw& ONNXModelVariadic, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter = TEXT(""));
 
-	FString FMLTensorDescToString(const FTensor& TensorDesc);
-	FString TensorToString(const FTensor& TensorDesc, const TArray<char>& TensorData);
-	template<typename T> FString ShapeToString(TArrayView<const T> Shape);
+	FString TensorToString(const FTensor& Tensor);
+	FString TensorToString(const FTensor& Tensor, TConstArrayView<char> TensorData);
+	template<typename T> FString ShapeToString(TConstArrayView<T> Shape);
+	TArray<char> GenerateTensorDataForTest(const FTensor& Tensor, int TensorIndex);
 
 } // namespace Test
 } // namespace NNX

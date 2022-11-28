@@ -37,7 +37,11 @@
 					"type": "array",
 					"items": { "type": "number" }
 			    },
-				"data_type": {
+				"source": {
+					"type": "array",
+					"items": { "type": "string" }
+			    },
+				"type": {
 					"type": "string",
 					"enum": [ "float", "int32", "uint32", "boolean" ]
 				},
@@ -86,12 +90,17 @@
 			"properties": {
 				"inputs": {
 					"type": "array",
-					"description": "input shapes to test",
+					"description": "input to test",
+					"items": { "$ref": "#/$defs/test_config_tensor" }
+				},
+				"weights": {
+					"type": "array",
+					"description": "output to test",
 					"items": { "$ref": "#/$defs/test_config_tensor" }
 				},
 				"outputs": {
 					"type": "array",
-					"description": "output shapes to test",
+					"description": "output to test",
 					"items": { "$ref": "#/$defs/test_config_tensor" }
 				},
 				"runtimes": {

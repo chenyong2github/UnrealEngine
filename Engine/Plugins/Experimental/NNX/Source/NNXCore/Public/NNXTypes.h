@@ -42,6 +42,24 @@ template <typename DimType, class FinalType> struct TTensorShapeBase
 		return Data.Num();
 	}
 
+	inline bool operator==(const TTensorShapeBase<DimType,FinalType>& OtherShape) const
+	{
+		check(Rank() <= MaxRank);
+
+		if (Rank() != OtherShape.Rank())
+			return false;
+
+		for (int32 i = 0; i < Rank(); ++i)
+		{
+			if (Data[i] != OtherShape.Data[i])
+			return false;
+		}
+
+		return true;
+	}
+	
+	inline bool operator!=(const TTensorShapeBase<DimType, FinalType>& OtherShape) const { return !(*this == OtherShape); }
+
 	static FinalType Make(TConstArrayView<DimType> Data)
 	{
 		if (Data.Num() > MaxRank)
@@ -85,7 +103,7 @@ struct FTensorShape : TTensorShapeBase<uint32, FTensorShape>
 		
 		return Result;
 	}
-	
+
 	bool IsCompatibleWith(FSymbolicTensorShape SymbolicShape) const
 	{
 		if (Rank() != SymbolicShape.Rank())

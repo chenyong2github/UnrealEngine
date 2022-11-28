@@ -18,19 +18,24 @@ namespace Json
 	struct FTestConfigTensor : FJsonSerializable
 	{
 		TArray<int32> Shape;
+		TArray<FString> Source;
 		FString Type;
-		//TODO Extend:
-		// by adding custom data
-		// by adding custom initializer or parameter (range, distribution)
-		// by adding data type
-		// by adding source CPU or GPU resident data
-
+		//Idea: Extend with custom initializer:
+		//	FString Initializer;
+		//	JSON_SERIALIZE("initializer", ...);
+		//		if (initializer && source)
+		//			InEngineTensorData = initializer(source) <-- To add
+		//		if (!initializer && source)
+		//			InEngineTensorData = element-wise( static_cast<Type>(source[i]) ) <-- Current behavior
+		//		if (!initializer && !source)
+		//			InEngineTensorData = random from seed <-- Current behavior
+		//Idea: Extend by adding source CPU or GPU resident data
+		//	bool OnGpu;
+		//	JSON_SERIALIZE("on_gpu", OnGpu);
 		BEGIN_JSON_SERIALIZER
 			JSON_SERIALIZE_ARRAY("shape", Shape);
-			JSON_SERIALIZE("data_type", Type);
-			//JSON_SERIALIZE("on_gpu", OnGpu);
-			//JSON_SERIALIZE("range", ...);
-			//JSON_SERIALIZE("data_source", DataSource);
+			JSON_SERIALIZE("type", Type);
+			JSON_SERIALIZE_ARRAY("source", Source);
 		END_JSON_SERIALIZER
 	};
 
@@ -52,11 +57,13 @@ namespace Json
 	struct FTestConfigDataset : FJsonSerializable
 	{
 		TArray<FTestConfigTensor> Inputs;
+		TArray<FTestConfigTensor> Weights;
 		TArray<FTestConfigTensor> Outputs;
 		TArray<FTestConfigRuntime> Runtimes;
 
 		BEGIN_JSON_SERIALIZER
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("inputs", Inputs, FTestConfigTensor);
+			JSON_SERIALIZE_ARRAY_SERIALIZABLE("weights", Weights, FTestConfigTensor);
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("outputs", Outputs, FTestConfigTensor);
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("runtimes", Runtimes, FTestConfigRuntime);
 		END_JSON_SERIALIZER
