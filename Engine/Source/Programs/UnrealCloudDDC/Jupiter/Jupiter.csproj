@@ -70,7 +70,6 @@
     <PackageReference Include="AspNetCore.HealthChecks.AzureStorage" Version="5.0.1" />
     <PackageReference Include="AspNetCore.HealthChecks.MongoDb" Version="5.0.1" />
     <PackageReference Include="AspNetCore.HealthChecks.System" Version="5.0.1" />
-    <PackageReference Include="AsyncEnumerator" Version="4.0.2" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.0.1" />
     <PackageReference Include="AWSSDK.S3" Version="3.7.0.17" />
     <PackageReference Include="Azure.Identity" Version="1.5.0" />
@@ -85,6 +84,8 @@
     <PackageReference Include="K4os.Compression.LZ4" Version="1.2.16" />
 
     <PackageReference Include="CassandraCSharpDriver" Version="3.16.3" />
+
+    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
 
     <!-- Embeds git information into the build process 
         Enable this if you are on git to embedd the git hash into the build 

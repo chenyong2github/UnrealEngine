@@ -4,12 +4,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
-using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.LeaderElection;
 using k8s;
@@ -203,7 +203,7 @@ namespace Jupiter.Implementation
         public IAsyncEnumerable<(BlobIdentifier, DateTime)> ListObjects(NamespaceId ns)
         {
             // not applicable
-            return AsyncEnumerable<(BlobIdentifier, DateTime)>.Empty;
+            return AsyncEnumerable.Empty<(BlobIdentifier, DateTime)>();
         }
     }
 

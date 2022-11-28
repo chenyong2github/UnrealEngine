@@ -9,7 +9,6 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Mime;
 using System.Threading.Tasks;
-using Dasync.Collections;
 using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using Jupiter.Controllers;
@@ -582,7 +581,7 @@ public class BlobService : IBlobService
 
         try
         {
-            await blobs.ParallelForEachAsync(async identifier =>
+            await Parallel.ForEachAsync(blobs, async (identifier, ctx) =>
             {
                 bool exists = await Exists(ns, identifier);
 
@@ -592,7 +591,7 @@ public class BlobService : IBlobService
                 }
             });
         }
-        catch (ParallelForEachException e)
+        catch (AggregateException e)
         {
             if (e.InnerException is PartialReferenceResolveException)
             {

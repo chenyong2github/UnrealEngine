@@ -11,7 +11,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Jupiter.Controllers;
 using Jupiter.Implementation.TransactionLog;
@@ -306,36 +305,38 @@ namespace Jupiter.Implementation
 
             // if MaxParallelReplications is set to not limit we use the default behavior of ParallelForEachAsync which is to limit based on CPUs 
             int maxParallelism = _replicatorSettings.MaxParallelReplications != -1 ? _replicatorSettings.MaxParallelReplications : 0;
-            await snapshot.GetLiveObjects().ParallelForEachAsync(async snapshotLiveObject =>
-            {
-                try
+            await Parallel.ForEachAsync(snapshot.GetLiveObjects(),
+                new ParallelOptions { MaxDegreeOfParallelism = maxParallelism, CancellationToken = cancellationToken },
+                async (snapshotLiveObject, cancellationToken) =>
                 {
-                    using TelemetrySpan? scope = _tracer.StartActiveSpan("replicator.replicate_op_snapshot")
-                        .SetAttribute("operation.name", "replicator.replicate_op_snapshot")
-                        .SetAttribute("resource.name", $"{ns}.{snapshotLiveObject.Blob}");
-                    Interlocked.Increment(ref countOfObjectsCurrentlyReplicating);
-                    LogReplicationHeartbeat(countOfObjectsCurrentlyReplicating);
-
-                    if (countOfObjectsReplicated % 100 == 0)
+                    try
                     {
-                        _logger.LogInformation("{Name} Snapshot replication still running, replicated {CountOfObjects} of {TotalCountOfObjects}. Replicating {Namespace}", _name, countOfObjectsReplicated, snapshot.LiveObjectsCount, ns);
+                        using TelemetrySpan? scope = _tracer.StartActiveSpan("replicator.replicate_op_snapshot")
+                            .SetAttribute("operation.name", "replicator.replicate_op_snapshot")
+                            .SetAttribute("resource.name", $"{ns}.{snapshotLiveObject.Blob}");
+                        Interlocked.Increment(ref countOfObjectsCurrentlyReplicating);
+                        LogReplicationHeartbeat(countOfObjectsCurrentlyReplicating);
+
+                        if (countOfObjectsReplicated % 100 == 0)
+                        {
+                            _logger.LogInformation("{Name} Snapshot replication still running, replicated {CountOfObjects} of {TotalCountOfObjects}. Replicating {Namespace}", _name, countOfObjectsReplicated, snapshot.LiveObjectsCount, ns);
+                        }
+
+                        Info.CountOfRunningReplications = countOfObjectsCurrentlyReplicating;
+                        Info.LastRun = DateTime.Now;
+
+                        bool blobWasReplicated = await ReplicateOp(ns, snapshotLiveObject.Blob, cancellationToken);
+                        if (blobWasReplicated)
+                        {
+                            await AddToReplicationLog(ns, snapshotLiveObject.Bucket, snapshotLiveObject.Key, snapshotLiveObject.Blob);
+                        }
                     }
-
-                    Info.CountOfRunningReplications = countOfObjectsCurrentlyReplicating;
-                    Info.LastRun = DateTime.Now;
-
-                    bool blobWasReplicated = await ReplicateOp(ns, snapshotLiveObject.Blob, cancellationToken);
-                    if (blobWasReplicated)
+                    finally
                     {
-                        await AddToReplicationLog(ns, snapshotLiveObject.Bucket, snapshotLiveObject.Key, snapshotLiveObject.Blob);
+                        Interlocked.Increment(ref countOfObjectsReplicated);
+                        Interlocked.Decrement(ref countOfObjectsCurrentlyReplicating);
                     }
-                }
-                finally
-                {
-                    Interlocked.Increment(ref countOfObjectsReplicated);
-                    Interlocked.Decrement(ref countOfObjectsCurrentlyReplicating);
-                }
-            }, maxParallelism, cancellationToken);
+                });
 
             snapshot.Dispose();
 
@@ -375,82 +376,84 @@ namespace Jupiter.Implementation
                 return countOfReplicationsDone;
             }
 
-            await GetRefEvents(ns, lastBucket, lastEvent, replicationToken).ParallelForEachAsync(async (ReplicationLogEvent @event) =>
-            {
-                using TelemetrySpan? scope = _tracer.StartActiveSpan("replicator.replicate_op_incremental")
-                    .SetAttribute("operation.name", "replicator.replicate_op_incremental")
-                    .SetAttribute("resource.name", $"{ns}.{@event.Bucket}.{@event.Key}")
-                    .SetAttribute("time-bucket", @event.Timestamp.ToString(CultureInfo.InvariantCulture));
+            await Parallel.ForEachAsync(GetRefEvents(ns, lastBucket, lastEvent, replicationToken),
+                new ParallelOptions { MaxDegreeOfParallelism = maxParallelism, CancellationToken = linkedTokenSource.Token },
+                async (ReplicationLogEvent @event, CancellationToken ctx) =>
+                {
+                    using TelemetrySpan? scope = _tracer.StartActiveSpan("replicator.replicate_op_incremental")
+                        .SetAttribute("operation.name", "replicator.replicate_op_incremental")
+                        .SetAttribute("resource.name", $"{ns}.{@event.Bucket}.{@event.Key}")
+                        .SetAttribute("time-bucket", @event.Timestamp.ToString(CultureInfo.InvariantCulture));
 
-                _logger.LogInformation("{Name} New transaction to replicate found. Ref: {Namespace} {Bucket} {Key} in {TimeBucket} ({TimeDate}) with id {EventId}. Count of running replications: {CurrentReplications}", _name, @event.Namespace, @event.Bucket, @event.Key, @event.TimeBucket, @event.Timestamp, @event.EventId, replicationTasks.Count);
+                    _logger.LogInformation("{Name} New transaction to replicate found. Ref: {Namespace} {Bucket} {Key} in {TimeBucket} ({TimeDate}) with id {EventId}. Count of running replications: {CurrentReplications}", _name, @event.Namespace, @event.Bucket, @event.Key, @event.TimeBucket, @event.Timestamp, @event.EventId, replicationTasks.Count);
                 
-                Info.CountOfRunningReplications = replicationTasks.Count;
-                LogReplicationHeartbeat(replicationTasks.Count);
-                long currentOffset = Interlocked.Increment(ref countOfReplicationsDone);
-
-                try
-                {
-                    string eventBucket = @event.TimeBucket;
-                    Guid eventId = @event.EventId;
-
-                    lock (replicationTasks)
-                    {
-                        replicationTasks.Add(currentOffset);
-                    }
-
-                    bool blobWasReplicated = false;
-                    // we do not need to replicate delete events
-                    if (@event.Op != ReplicationLogEvent.OpType.Deleted)
-                    {
-                        if (@event.Blob == null)
-                        {
-                            throw new Exception($"Event: {@event.Bucket} {@event.Key} in namespace {@event.Namespace} was missing a blob, unable to replicate it");
-                        }
-
-                        blobWasReplicated = await ReplicateOp(@event.Namespace, @event.Blob, replicationToken);
-                    }
-
-                    if (blobWasReplicated)
-                    {
-                        // add events should all have blobs, and blobs are only replicated for adds events so this should always be true
-                        if (@event.Blob != null)
-                        {
-                            await AddToReplicationLog(@event.Namespace, @event.Bucket, @event.Key, @event.Blob);
-                        }
-                    }
-
-                    bool wasOldest;
-                    lock (replicationTasks)
-                    {
-                        wasOldest = currentOffset <= replicationTasks.First();
-                    }
-
-                    // only update the state when we have replicated everything up that point
-                    if (wasOldest)
-                    {
-                        // we have replicated everything up to a point and can persist this in the state
-                        _refsState.LastBucket = eventBucket;
-                        _refsState.LastEvent = eventId;
-                        await SaveState(_refsState);
-
-                        _logger.LogInformation("{Name} replicated all events up to {Time} . Bucket: {EventBucket} Id: {EventId}", _name, @event.Timestamp, eventBucket, eventId);
-                    }
-
-                    Info.LastRun = DateTime.Now;
+                    Info.CountOfRunningReplications = replicationTasks.Count;
                     LogReplicationHeartbeat(replicationTasks.Count);
-                }
-                catch (BlobNotFoundException)
-                {
-                    _logger.LogWarning("{Name} Failed to replicate {@Op} in {Namespace} because blob was not present in remote store. Skipping.", _name, @event, Info.NamespaceToReplicate);
-                }
-                finally
-                {
-                    lock (replicationTasks)
+                    long currentOffset = Interlocked.Increment(ref countOfReplicationsDone);
+
+                    try
                     {
-                        replicationTasks.Remove(currentOffset);
+                        string eventBucket = @event.TimeBucket;
+                        Guid eventId = @event.EventId;
+
+                        lock (replicationTasks)
+                        {
+                            replicationTasks.Add(currentOffset);
+                        }
+
+                        bool blobWasReplicated = false;
+                        // we do not need to replicate delete events
+                        if (@event.Op != ReplicationLogEvent.OpType.Deleted)
+                        {
+                            if (@event.Blob == null)
+                            {
+                                throw new Exception($"Event: {@event.Bucket} {@event.Key} in namespace {@event.Namespace} was missing a blob, unable to replicate it");
+                            }
+
+                            blobWasReplicated = await ReplicateOp(@event.Namespace, @event.Blob, replicationToken);
+                        }
+
+                        if (blobWasReplicated)
+                        {
+                            // add events should all have blobs, and blobs are only replicated for adds events so this should always be true
+                            if (@event.Blob != null)
+                            {
+                                await AddToReplicationLog(@event.Namespace, @event.Bucket, @event.Key, @event.Blob);
+                            }
+                        }
+
+                        bool wasOldest;
+                        lock (replicationTasks)
+                        {
+                            wasOldest = currentOffset <= replicationTasks.First();
+                        }
+
+                        // only update the state when we have replicated everything up that point
+                        if (wasOldest)
+                        {
+                            // we have replicated everything up to a point and can persist this in the state
+                            _refsState.LastBucket = eventBucket;
+                            _refsState.LastEvent = eventId;
+                            await SaveState(_refsState);
+
+                            _logger.LogInformation("{Name} replicated all events up to {Time} . Bucket: {EventBucket} Id: {EventId}", _name, @event.Timestamp, eventBucket, eventId);
+                        }
+
+                        Info.LastRun = DateTime.Now;
+                        LogReplicationHeartbeat(replicationTasks.Count);
                     }
-                }
-            } , maxParallelism, breakLoopOnException: true, cancellationToken: linkedTokenSource.Token);
+                    catch (BlobNotFoundException)
+                    {
+                        _logger.LogWarning("{Name} Failed to replicate {@Op} in {Namespace} because blob was not present in remote store. Skipping.", _name, @event, Info.NamespaceToReplicate);
+                    }
+                    finally
+                    {
+                        lock (replicationTasks)
+                        {
+                            replicationTasks.Remove(currentOffset);
+                        }
+                    }
+                });
 
             return countOfReplicationsDone;
         }

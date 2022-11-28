@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
 using Jupiter.Common;
@@ -83,27 +82,29 @@ namespace Jupiter.Implementation
                 // only consider blobs that have been around for 60 minutes
                 // this due to cases were blobs are uploaded first
                 DateTime cutoff = DateTime.Now.AddMinutes(-60);
-                await _blobService.ListObjects(@namespace).ParallelForEachAsync(async (tuple) =>
-                {
-                    (BlobIdentifier blob, DateTime lastModified) = tuple;
-
-                    if (lastModified > cutoff)
+                await Parallel.ForEachAsync(_blobService.ListObjects(@namespace),
+                    new ParallelOptions { MaxDegreeOfParallelism = _gcSettings.CurrentValue.OrphanGCMaxParallelOperations, CancellationToken = cancellationToken },
+                    async (tuple, ctx) =>
                     {
-                        return;
-                    }
+                        (BlobIdentifier blob, DateTime lastModified) = tuple;
 
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        return;
-                    }
+                        if (lastModified > cutoff)
+                        {
+                            return;
+                        }
 
-                    bool removed = await GCBlob(policy.StoragePool, namespacesThatSharePool, blob, lastModified, cancellationToken);
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            return;
+                        }
 
-                    if (removed)
-                    {
-                        Interlocked.Increment(ref countOfBlobsRemoved);
-                    }
-                }, cancellationToken: cancellationToken, maxDegreeOfParallelism: _gcSettings.CurrentValue.OrphanGCMaxParallelOperations);
+                        bool removed = await GCBlob(policy.StoragePool, namespacesThatSharePool, blob, lastModified, cancellationToken);
+
+                        if (removed)
+                        {
+                            Interlocked.Increment(ref countOfBlobsRemoved);
+                        }
+                    });
 
                 TimeSpan storagePoolGcDuration = DateTime.Now - startTime;
                 _logger.LogInformation("Finished running Orphan GC For StoragePool: {StoragePool}. Took {Duration}", policy.StoragePool, storagePoolGcDuration);

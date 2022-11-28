@@ -1,9 +1,9 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.TransactionLog;
 using Jupiter.Common;
@@ -57,34 +57,36 @@ namespace Jupiter.Implementation
             }
 
             bool ran = false;
-            _snapshotBuildTask = _replicationLog.GetNamespaces().ParallelForEachAsync(async ns =>
-            {
-                SnapshotInfo? latestSnapshot = await _replicationLog.GetLatestSnapshot(ns);
-                if (latestSnapshot != null)
+            _snapshotBuildTask = Parallel.ForEachAsync(_replicationLog.GetNamespaces(),
+                new ParallelOptions { MaxDegreeOfParallelism = _settings.CurrentValue.MaxCountOfNamespacesToSnapshotInParallel, CancellationToken = _cancellationTokenSource.Token },
+                async (ns, ctx) =>
                 {
-                    DateTime lastSnapshot = latestSnapshot.Timestamp;
-                    DateTime nextSnapshot = lastSnapshot.AddDays(1);
-                    if (DateTime.Now < nextSnapshot)
+                    SnapshotInfo? latestSnapshot = await _replicationLog.GetLatestSnapshot(ns);
+                    if (latestSnapshot != null)
                     {
-                        _logger.LogInformation("Skipped building snapshot for namespace {Namespace} as the previous snapshot ({PreviousSnapshot}) was not a day old.", ns, lastSnapshot);
-                        return;
+                        DateTime lastSnapshot = latestSnapshot.Timestamp;
+                        DateTime nextSnapshot = lastSnapshot.AddDays(1);
+                        if (DateTime.Now < nextSnapshot)
+                        {
+                            _logger.LogInformation("Skipped building snapshot for namespace {Namespace} as the previous snapshot ({PreviousSnapshot}) was not a day old.", ns, lastSnapshot);
+                            return;
+                        }
                     }
-                }
-                ReplicationLogSnapshotBuilder builder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_provider);
-                try
-                {
-                    _logger.LogInformation("Building snapshot for {Namespace}", ns);
-                    BlobIdentifier snapshotBlob = await builder.BuildSnapshot(ns, _settings.CurrentValue.SnapshotStorageNamespace, _cancellationTokenSource.Token);
-                    _logger.LogInformation("Snapshot built for {Namespace} with id {Id}", ns, snapshotBlob);
+                    ReplicationLogSnapshotBuilder builder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_provider);
+                    try
+                    {
+                        _logger.LogInformation("Building snapshot for {Namespace}", ns);
+                        BlobIdentifier snapshotBlob = await builder.BuildSnapshot(ns, _settings.CurrentValue.SnapshotStorageNamespace, _cancellationTokenSource.Token);
+                        _logger.LogInformation("Snapshot built for {Namespace} with id {Id}", ns, snapshotBlob);
 
-                }
-                catch (IncrementalLogNotAvailableException)
-                {
-                    _logger.LogWarning("Unable to generate a snapshot for {Namespace} as there was no incremental state available", ns);
-                }
+                    }
+                    catch (IncrementalLogNotAvailableException)
+                    {
+                        _logger.LogWarning("Unable to generate a snapshot for {Namespace} as there was no incremental state available", ns);
+                    }
 
-                ran = true;
-            }, _settings.CurrentValue.MaxCountOfNamespacesToSnapshotInParallel, _cancellationTokenSource.Token);
+                    ran = true;
+                });
             await _snapshotBuildTask;
             _snapshotBuildTask = null;
             return ran;

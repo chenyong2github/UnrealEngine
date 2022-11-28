@@ -10,7 +10,6 @@ using System.Net.Http.Json;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Cassandra;
-using Dasync.Collections;
 using Jupiter.Controllers;
 using Jupiter.Implementation;
 using Jupiter.Implementation.TransactionLog;

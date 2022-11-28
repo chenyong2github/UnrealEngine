@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
 using Microsoft.Extensions.Logging;
@@ -84,7 +83,7 @@ namespace Jupiter.Implementation
                 List<NamespaceId> namespaces = await _referencesStore.GetNamespaces().ToListAsync();
 
                 // technically this does not need to be run per namespace but per storage pool
-                await foreach (NamespaceId ns in namespaces)
+                foreach (NamespaceId ns in namespaces)
                 {
                     ulong countOfBlobsChecked = 0;
                     ulong countOfIncorrectBlobsFound = 0;
