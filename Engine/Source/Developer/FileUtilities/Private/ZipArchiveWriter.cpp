@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FileUtilities/ZipArchiveWriter.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-
-DECLARE_LOG_CATEGORY_CLASS(LogZipArchiveWriter, Display, Display);
 
 #if WITH_ENGINE
+
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "ZipArchivePrivate.h"
+
+DEFINE_LOG_CATEGORY(LogZipArchive);
 
 FZipArchiveWriter::FZipArchiveWriter(IFileHandle* InFile)
 	: File(InFile)
@@ -17,7 +19,7 @@ FZipArchiveWriter::~FZipArchiveWriter()
 	// Zip File Format Specification:
 	// https://www.loc.gov/preservation/digital/formats/digformatspecs/APPNOTE%2820120901%29_Version_6.3.3.txt
 
-	UE_LOG(LogZipArchiveWriter, Display, TEXT("Closing zip file with %d entries."), Files.Num());
+	UE_LOG(LogZipArchive, Display, TEXT("Closing zip file with %d entries."), Files.Num());
 
 	// Write the file directory
 	uint64 DirStartOffset = Tell();
@@ -151,7 +153,7 @@ void FZipArchiveWriter::Flush()
 	{
 		if (File && !File->Write(Buffer.GetData(), Buffer.Num()))
 		{
-			UE_LOG(LogZipArchiveWriter, Error, TEXT("Failed to write to zip file. Zip file writing aborted."));
+			UE_LOG(LogZipArchive, Error, TEXT("Failed to write to zip file. Zip file writing aborted."));
 			delete File;
 			File = nullptr;
 		}
