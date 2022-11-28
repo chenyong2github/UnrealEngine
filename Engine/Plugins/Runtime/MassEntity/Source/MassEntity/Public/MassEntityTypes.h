@@ -432,7 +432,7 @@ namespace UE::Mass
 		};
 
 		template<typename TBitSetType>
-		static void PopulateBitSet(TBitSetType& OutBitSet)
+		constexpr static void PopulateBitSet(TBitSetType& OutBitSet)
 		{
 			Super::PopulateBitSet(OutBitSet);
 			OutBitSet += TBitSetType::template GetTypeBitSet<FType>();
@@ -450,7 +450,7 @@ namespace UE::Mass
 		};
 
 		template<typename TBitSetType>
-		static void PopulateBitSet(TBitSetType& OutBitSet)
+		constexpr static void PopulateBitSet(TBitSetType& OutBitSet)
 		{
 			OutBitSet += TBitSetType::template GetTypeBitSet<FType>();
 		}
