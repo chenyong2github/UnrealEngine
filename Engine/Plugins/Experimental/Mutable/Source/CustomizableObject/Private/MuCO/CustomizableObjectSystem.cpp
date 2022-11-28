@@ -524,11 +524,11 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 					{
 						CountAllocatedSkeletalMesh++;
 
-						if (CustomizableObjectInstance->GetPrivate()->LastUpdateMinLOD < 1)
+						if (CustomizableObjectInstance->GetCurrentMinLOD() < 1)
 						{
 							++CountLOD0;
 						}
-						else if (CustomizableObjectInstance->GetPrivate()->LastUpdateMaxLOD < 2)
+						else if (CustomizableObjectInstance->GetCurrentMaxLOD() < 2)
 						{
 							++CountLOD1;
 						}
@@ -812,8 +812,6 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 	}
 	
 	const TSharedPtr<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(&Instance, bNeverStream, MipsToSkip));
-
-	Instance.GetPrivate()->SaveMinMaxLODToLoad(&Instance);
 
 	const FDescriptorRuntimeHash UpdateDescriptorHash = Instance.GetUpdateDescriptorRuntimeHash();
 
@@ -2170,20 +2168,15 @@ namespace impl
 		// Prepare streaming for the current customizable object
 		System->GetPrivate()->Streamer->PrepareStreamingForObject(CustomizableObject);
 
-		// Ensure we're not requesting invalid LODs
-		PrivateInstance->LastUpdateMinLOD = FMath::Max(PrivateInstance->LastUpdateMinLOD, (int32)PrivateInstance->FirstLODAvailable);
-		PrivateInstance->LastUpdateMinLOD = FMath::Min(PrivateInstance->LastUpdateMinLOD, PrivateInstance->FirstLODAvailable + PrivateInstance->NumMaxLODsToStream);
-
-		PrivateInstance->LastUpdateMaxLOD = FMath::Max(PrivateInstance->LastUpdateMaxLOD, PrivateInstance->LastUpdateMinLOD);
-
-
+		CandidateInstance->CommitMinMaxLOD();
+		
 		// Task: Mutable Update and GetMesh
 		//-------------------------------------------------------------
 		TSharedPtr<FMutableOperationData> CurrentOperationData = MakeShared<FMutableOperationData>();
 		CurrentOperationData->TextureCoverageQueries_MutableThreadParams = PrivateInstance->TextureCoverageQueries;
 		CurrentOperationData->TextureCoverageQueries_MutableThreadResults.Empty();
-		CurrentOperationData->CurrentMinLOD = PrivateInstance->LastUpdateMinLOD;
-		CurrentOperationData->CurrentMaxLOD = PrivateInstance->LastUpdateMaxLOD;
+		CurrentOperationData->CurrentMinLOD = Operation->InstanceDescriptorRuntimeHash.GetMinLOD();
+		CurrentOperationData->CurrentMaxLOD = Operation->InstanceDescriptorRuntimeHash.GetMaxLOD();
 		CurrentOperationData->bNeverStream = Operation->bNeverStream;
 		CurrentOperationData->MipsToSkip = Operation->MipsToSkip;
 		CurrentOperationData->MutableParameters = Parameters;
@@ -2361,7 +2354,11 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 
 	MUTABLE_CPUPROFILER_SCOPE(TickCustomizableObjectSystem)
 
-
+	// Reset the instance relevancy
+	// \TODO: Review
+	// TODO: This should be done only when requiring a new job. And for the current operation instance, in case it needs to be cancelled.
+	CurrentInstanceLODManagement->UpdateInstanceDistsAndLODs();
+	
 	// Get a new operation if we aren't working on one
 	if (!Private->CurrentMutableOperation)
 	{
@@ -2380,18 +2377,12 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 			Private->CurrentMutableOperation = nullptr;
 		}
 	}
-
+	
 	// Advance the current operation
 	if (Private->CurrentMutableOperation)
 	{
 		AdvanceCurrentOperation();
 	}
-
-
-	// Reset the instance relevancy
-	// \TODO: Review
-	// TODO: This should be done only when requiring a new job. And for the current operation instance, in case it needs to be cancelled.
-	CurrentInstanceLODManagement->UpdateInstanceDistsAndLODs();
 
 	for (TObjectIterator<UCustomizableObjectInstance> CustomizableObjectInstance; CustomizableObjectInstance; ++CustomizableObjectInstance)
 	{

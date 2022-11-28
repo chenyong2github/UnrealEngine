@@ -279,10 +279,6 @@ public:
 												
 	double LastUpdateTime;
 
-	// LODs applied on the last update. Represent the actual LODs the Instance is using.
-	int32 LastUpdateMinLOD = -1;
-	int32 LastUpdateMaxLOD = -1;
-
 	/** Saves the LODs requested on the update. */
 	void SaveMinMaxLODToLoad(const UCustomizableObjectInstance* Public);
 	

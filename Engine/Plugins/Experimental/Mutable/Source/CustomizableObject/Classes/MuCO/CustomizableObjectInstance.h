@@ -601,11 +601,20 @@ public:
 	void SetIsPlayerOrNearIt(bool NewValue);
 	float GetMinSquareDistToPlayer() const;
 	void SetMinSquareDistToPlayer(float NewValue);
-	void SetMinMaxLODToLoad(int32 NewMinLOD, int32 NewMaxLOD, bool LimitLODUpgrades = true);
+	void SetMinMaxLODToLoad(int32 NewMinLOD = 0, int32 NewMaxLOD = INT32_MAX, bool LimitLODUpgrades = true);
 	int32 GetMinLODToLoad() const;
 	int32 GetMaxLODToLoad() const;
 	int32 GetNumLODsAvailable() const;
 
+	/** Return the Min LOD this Instance is using (from the beginning of an update. If an update fails this value will be incorrect). */
+	int32 GetCurrentMinLOD() const;
+
+	/** Return the Max LOD this Instance is using (from the beginning of an update. If an update fails this value will be incorrect). */
+	int32 GetCurrentMaxLOD() const;
+
+	/** Save the Min and Max LOD that will be used for the update. */
+	void CommitMinMaxLOD();
+	
 	/* If enabled, CurrentMinLOD will be the first LOD of the generated SkeletalMesh. Otherwise the number of LODs will remain constant and LODs [0 .. CurrentMinLOD] will share the same RenderData. 
 	 * Enabled by default */
 	void SetUseCurrentMinLODAsBaseLOD(bool bIsBaseLOD);
@@ -687,6 +696,10 @@ private:
 	
 	/** Hash of the UCustomizableObjectInstance::Descriptor on the last successful update. */
 	FDescriptorRuntimeHash DescriptorRuntimeHash;
+
+	/** LODs applied on the beginning of the last update. Represent the actual LODs the Instance is using (not strictly true since an update can fail). */
+	int32 CurrentMinLOD = -1;
+	int32 CurrentMaxLOD = -1;
 
 #if WITH_EDITORONLY_DATA
 	/** Textures used in the Texture Parameters. */

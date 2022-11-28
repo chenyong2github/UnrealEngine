@@ -349,8 +349,8 @@ private:
 	bool bBuildParameterDecorations = false;
 
 	/** These are the LODs we want to have, they MUST NOT be used in an update (Mutable thread). */
-	int32 MinLODToLoad = 0;
-	int32 MaxLODToLoad = INT32_MAX;
+	int32 MinLOD = 0;
+	int32 MaxLOD = INT32_MAX;
 
 	/** Lookup of UCustomizableObjectDescriptor::IntParameters. */
 	TMap<FString, int32> IntParametersLookupTable;
@@ -404,8 +404,14 @@ public:
 
 	/** Return true if this Hash is a subset of the other Hash (i.e., this Descriptor is a subset of the other Descriptor). */
 	bool IsSubset(const FDescriptorRuntimeHash& Other) const;
+
+	void UpdateMinMaxLOD(int32 InMinLOD, int32 InMaxLOD);
+
+	int32 GetMinLOD() const;
+
+	int32 GetMaxLOD() const;
 	
 private:
-	int32 MinLODToLoad = 0;
-	int32 MaxLODToLoad = INT32_MAX;
+	int32 MinLOD = 0;
+	int32 MaxLOD = INT32_MAX;
 };

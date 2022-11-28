@@ -217,7 +217,7 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 			{
 				if (!bAlreadyReachedFixedLOD && SortedInstances[i]->GetMinSquareDistToPlayer() < DistanceForFixedLODSquared)
 				{
-					SortedInstances[i]->SetMinMaxLODToLoad(0, INT32_MAX);
+					SortedInstances[i]->SetMinMaxLODToLoad();
 				}
 				else
 				{
@@ -254,7 +254,7 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 			// No limit surpassed, set all instances to have all LODs, there will be an UpdateSkeletalMesh only if there's a change in LOD state
 			for (int32 i = 0; i < SortedInstances.Num(); ++i)
 			{
-				SortedInstances[i]->SetMinMaxLODToLoad(0, INT32_MAX);
+				SortedInstances[i]->SetMinMaxLODToLoad();
 			}
 		}
 	}

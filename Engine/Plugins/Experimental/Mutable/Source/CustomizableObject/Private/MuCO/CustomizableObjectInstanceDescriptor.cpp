@@ -2310,8 +2310,8 @@ FDescriptorHash::FDescriptorHash(const FCustomizableObjectInstanceDescriptor& De
 	
 	Hash = HashCombine(Hash, GetTypeHash(Descriptor.State));
 	Hash = HashCombine(Hash, GetTypeHash(Descriptor.bBuildParameterDecorations));
-	Hash = HashCombine(Hash, GetTypeHash(Descriptor.MinLODToLoad));
-	Hash = HashCombine(Hash, GetTypeHash(Descriptor.MaxLODToLoad));
+	Hash = HashCombine(Hash, GetTypeHash(Descriptor.MinLOD));
+	Hash = HashCombine(Hash, GetTypeHash(Descriptor.MaxLOD));
 
 	for (const TTuple<FName, FMultilayerProjector>& Pair : Descriptor.MultilayerProjectors)
 	{
@@ -2348,14 +2348,33 @@ FString FDescriptorHash::ToString() const
 FDescriptorRuntimeHash::FDescriptorRuntimeHash(const FCustomizableObjectInstanceDescriptor& Descriptor) :
 	FDescriptorHash(Descriptor)
 {
-	MinLODToLoad = Descriptor.MinLODToLoad;
-	MaxLODToLoad = Descriptor.MaxLODToLoad;	
+	MinLOD = Descriptor.MinLOD;
+	MaxLOD = Descriptor.MaxLOD;	
 }
 
 
 bool FDescriptorRuntimeHash::IsSubset(const FDescriptorRuntimeHash& Other) const
 {
 	return FDescriptorHash::operator==(Other) &&
-		MinLODToLoad >= Other.MinLODToLoad &&
-		MaxLODToLoad <= Other.MaxLODToLoad;
+		MinLOD >= Other.MinLOD &&
+		MaxLOD <= Other.MaxLOD;
+}
+
+
+void FDescriptorRuntimeHash::UpdateMinMaxLOD(const int32 InMinLOD, const int32 InMaxLOD)
+{
+	MinLOD = InMinLOD;
+	MaxLOD = InMaxLOD;	
+}
+
+
+int32 FDescriptorRuntimeHash::GetMinLOD() const
+{
+	return MinLOD;
+}
+
+
+int32 FDescriptorRuntimeHash::GetMaxLOD() const
+{
+	return MaxLOD;
 }

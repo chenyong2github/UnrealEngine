@@ -145,13 +145,6 @@ UTexture2D* UCustomizableInstancePrivateData::CreateTexture()
 }
 
 
-void UCustomizableInstancePrivateData::SaveMinMaxLODToLoad(const UCustomizableObjectInstance* Public)
-{
-	LastUpdateMinLOD = Public->Descriptor.MinLODToLoad;
-	LastUpdateMaxLOD = Public->Descriptor.MaxLODToLoad;
-}
-
-
 int32 UCustomizableInstancePrivateData::GetLastMeshId(int32 ComponentIndex, int32 LODIndex) const
 {
 	const FCustomizableInstanceComponentData* ComponentData = GetComponentData(ComponentIndex);
@@ -232,7 +225,7 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectIns
 	// Min LOD
 	NewMinLOD = FMath::Min(FMath::Max(NewMinLOD, static_cast<int32>(FirstLODAvailable)), FirstLODAvailable + NumMaxLODsToStream);
 
-	const bool bIsDowngradeLODUpdate = LastUpdateMinLOD >= 0 && NewMinLOD > LastUpdateMinLOD;
+	const bool bIsDowngradeLODUpdate = Public->GetCurrentMinLOD() >= 0 && NewMinLOD > Public->GetCurrentMinLOD();
 	SetCOInstanceFlags(bIsDowngradeLODUpdate ? PendingLODsDowngrade : ECONone);
 
 	if (!bIsDowngradeLODUpdate && bLimitLODUpgrades)
@@ -246,9 +239,9 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectIns
 	// Max LOD
 	if (NumLODsAvailable != INT32_MAX)
 	{
-		if (Public->Descriptor.MaxLODToLoad == INT32_MAX)
+		if (Public->Descriptor.MaxLOD == INT32_MAX)
 		{
-			Public->Descriptor.MaxLODToLoad = NumLODsAvailable - 1;
+			Public->Descriptor.MaxLOD = NumLODsAvailable - 1;
 		}
 
 		NewMaxLOD = FMath::Min(NewMaxLOD, NumLODsAvailable - 1);
@@ -257,10 +250,20 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectIns
 	NewMaxLOD = FMath::Max(NewMaxLOD, NewMinLOD);
 
 	// Save the new LODs
-	SetCOInstanceFlags(Public->Descriptor.MinLODToLoad != NewMinLOD || Public->Descriptor.MaxLODToLoad != NewMaxLOD ? PendingLODsUpdate : ECONone);
+	const bool bLODChanged = Public->Descriptor.MinLOD != NewMinLOD || Public->Descriptor.MaxLOD != NewMaxLOD;
 	
-	Public->Descriptor.MinLODToLoad = NewMinLOD;
-	Public->Descriptor.MaxLODToLoad = NewMaxLOD;
+	Public->Descriptor.MinLOD = NewMinLOD;
+	Public->Descriptor.MaxLOD = NewMaxLOD;
+
+	SetCOInstanceFlags(bLODChanged ? PendingLODsUpdate : ECONone);
+
+	if (bLODChanged)
+	{
+		if (const FMutableQueueElem* QueueElem = UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableOperationQueue.Get(Public))
+		{
+			QueueElem->Operation->InstanceDescriptorRuntimeHash.UpdateMinMaxLOD(NewMinLOD, NewMaxLOD);
+		}
+	}
 }
 
 
@@ -551,6 +554,7 @@ void UCustomizableObjectInstance::PostLoad()
 	Super::PostLoad();
 
 	Descriptor.ReloadParameters();
+	SetMinMaxLODToLoad();
 }
 
 
@@ -687,6 +691,7 @@ void UCustomizableObjectInstance::SetObject(UCustomizableObject* InObject)
 {
 	Descriptor.SetCustomizableObject(*InObject);
 	PrivateData->ReloadParameters(this);
+	SetMinMaxLODToLoad();
 }
 
 
@@ -902,7 +907,7 @@ void UCustomizableInstancePrivateData::DoUpdateSkeletalMesh(UCustomizableObjectI
 		if (bShouldUpdateLODs)
 		{
 			SetCOInstanceFlags(PendingLODsUpdateSecondStage);
-			UE_LOG(LogMutable, Verbose, TEXT("LOD change: %d, %d -> %d, %d"), LastUpdateMinLOD, LastUpdateMaxLOD, CustomizableInstance.Descriptor.MinLODToLoad, CustomizableInstance.Descriptor.MaxLODToLoad);
+			UE_LOG(LogMutable, Verbose, TEXT("LOD change: %d, %d -> %d, %d"), CustomizableInstance.GetCurrentMinLOD(), CustomizableInstance.GetCurrentMaxLOD(), CustomizableInstance.GetMinLODToLoad(), CustomizableInstance.GetMinLODToLoad());
 		}
 
 		if ((!(bIsGenerated && bOnlyUpdateIfNotGenerated) && !(bIsCloseDistTick && bIsGenerated)) || bShouldUpdateLODs)
@@ -2625,6 +2630,13 @@ FDescriptorRuntimeHash UCustomizableObjectInstance::GetDescriptorRuntimeHash() c
 FDescriptorRuntimeHash UCustomizableObjectInstance::GetUpdateDescriptorRuntimeHash() const
 {
 	return UpdateDescriptorRuntimeHash;
+}
+
+
+void UCustomizableObjectInstance::CommitMinMaxLOD()
+{
+	CurrentMinLOD = Descriptor.MinLOD;
+	CurrentMaxLOD = Descriptor.MaxLOD;	
 }
 
 
@@ -5406,13 +5418,13 @@ void UCustomizableObjectInstance::SetMinMaxLODToLoad(int32 NewMinLOD, int32 NewM
 
 int32 UCustomizableObjectInstance::GetMinLODToLoad() const
 {
-	return Descriptor.MinLODToLoad;	
+	return Descriptor.MinLOD;	
 }
 
 
 int32 UCustomizableObjectInstance::GetMaxLODToLoad() const
 {
-	return Descriptor.MaxLODToLoad;	
+	return Descriptor.MaxLOD;	
 }
 
 
@@ -5431,6 +5443,18 @@ bool UCustomizableObjectInstance::GetUseCurrentMinLODAsBaseLOD() const
 int32 UCustomizableObjectInstance::GetNumLODsAvailable() const
 {
 	return GetPrivate()->GetNumLODsAvailable();
+}
+
+
+int32 UCustomizableObjectInstance::GetCurrentMinLOD() const
+{
+	return CurrentMinLOD;
+}
+
+
+int32 UCustomizableObjectInstance::GetCurrentMaxLOD() const
+{
+	return CurrentMaxLOD;
 }
 
 
