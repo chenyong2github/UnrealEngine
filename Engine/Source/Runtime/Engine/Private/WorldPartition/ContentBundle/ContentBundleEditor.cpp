@@ -397,8 +397,8 @@ bool FContentBundleEditor::PopulateGeneratorPackageForCook(class IWorldPartition
 				UWorldPartitionRuntimeCell** MatchingCell = const_cast<UWorldPartitionRuntimeCell**>(CookPackageIdsToCell.Find(CookPackage->PackageId));
 				if (UWorldPartitionRuntimeCell* Cell = MatchingCell ? *MatchingCell : nullptr)
 				{
-					// Change outer to ExternalStreamingObject so it will be saved in the right package at the end of the cook.
-					Cell->Rename(nullptr, ExternalStreamingObject);
+					// Make sure the cell outer is set to the  ExternalStreamingObject so it will be saved in the right package at the end of the cook.
+					check(Cell->GetOuter() == ExternalStreamingObject);
 
 					if (!Cell->PrepareCellForCook(CookPackage->GetPackage()))
 					{
