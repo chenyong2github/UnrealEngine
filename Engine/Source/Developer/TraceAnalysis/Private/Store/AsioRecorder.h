@@ -31,7 +31,6 @@ public:
 		friend					FAsioRecorder;
 		FAsioRecorderRelay*		Relay;
 		uint32					Id;
-		uint32					TraceId;
 	};
 
 								FAsioRecorder(asio::io_context& IoContext, FAsioStore& InStore);

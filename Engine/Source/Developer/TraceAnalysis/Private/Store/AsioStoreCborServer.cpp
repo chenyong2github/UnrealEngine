@@ -289,6 +289,11 @@ void FAsioStoreCborPeer::OnIoComplete(uint32 Id, int32 Size)
 		break;
 
 	case OpReadPayloadSize:
+		if (PayloadSize == 0 || PayloadSize > 1024)
+		{
+			SendError(EStatusCode::BadRequest);
+			break;
+		}
 		Socket.Read(Response.Reserve(PayloadSize), PayloadSize, this, OpReadPayload);
 		break;
 
