@@ -61,15 +61,15 @@ void UVCamPixelStreamingSession::Activate()
 		UVCamComponent* VCamComponent = GetTypedOuter<UVCamComponent>();
 		if (bAutoSetLiveLinkSubject && IsValid(VCamComponent))
 		{
-			VCamComponent->LiveLinkSubject = GetFName();
+			VCamComponent->SetLiveLinkSubobject(GetFName());
 		}
 	}
 
 	// If we don't have a UMG assigned, we still need to create an empty 'dummy' UMG in order to properly route the input back from the RemoteSession device
-	if (UMGClass == nullptr)
+	if (!GetUMGClass())
 	{
 		bUsingDummyUMG = true;
-		UMGClass = UE::VCamPixelStreamingSession::Private::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>();
+		SetUMGClass(UE::VCamPixelStreamingSession::Private::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>());
 	}
 
 	if (MediaOutput == nullptr)
@@ -336,7 +336,7 @@ void UVCamPixelStreamingSession::Deactivate()
 	Super::Deactivate();
 	if (bUsingDummyUMG)
 	{
-		UMGClass = nullptr;
+		SetUMGClass(nullptr);
 		bUsingDummyUMG = false;
 	}
 
@@ -373,16 +373,6 @@ void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& P
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
-
-TWeakPtr<SWindow> UVCamPixelStreamingSession::GetTargetInputWindow() const
-{
-	TWeakPtr<SWindow> InputWindow;
-	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
-	{
-		InputWindow = OuterComponent->GetTargetInputWindow();
-	}
-	return InputWindow;
-}
 
 void UVCamPixelStreamingSession::UpdateOverrideResolution(bool bApplyOverride) const
 {

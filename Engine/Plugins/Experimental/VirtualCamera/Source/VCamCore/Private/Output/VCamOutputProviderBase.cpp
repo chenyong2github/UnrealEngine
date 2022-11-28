@@ -5,18 +5,32 @@
 #include "Modifier/VCamModifierInterface.h"
 #include "VCamComponent.h"
 #include "UI/VCamWidget.h"
+#include "Util/LevelViewportUtils.h"
+#include "VCamCoreCustomVersion.h"
 
-#include "Engine/Engine.h"
-#include "UObject/UObjectBaseUtility.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Engine/Engine.h"
+#include "Framework/Application/SlateApplication.h"
+#include "UObject/UObjectBaseUtility.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "IAssetViewport.h"
+#include "LevelEditorViewport.h"
+#include "SLevelViewport.h"
+#include "SEditorViewport.h"
 #include "UnrealClient.h"
+#else
+#include "Engine/GameEngine.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
+
+namespace UE::VCamCore::Private
+{
+	static const FName LevelEditorName(TEXT("LevelEditor"));
+}
 
 void UVCamOutputProviderBase::BeginDestroy()
 {
@@ -110,13 +124,7 @@ bool UVCamOutputProviderBase::IsOuterComponentEnabled() const
 void UVCamOutputProviderBase::SetTargetCamera(const UCineCameraComponent* InTargetCamera)
 {
 	TargetCamera = InTargetCamera;
-
 	NotifyWidgetOfComponentChange();
-}
-
-void UVCamOutputProviderBase::SetUMGClass(const TSubclassOf<UUserWidget> InUMGClass)
-{
-	UMGClass = InUMGClass;
 }
 
 void UVCamOutputProviderBase::CreateUMG()
@@ -234,6 +242,21 @@ void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 	}
 }
 
+void UVCamOutputProviderBase::Serialize(FArchive& Ar)
+{
+	using namespace UE::VCamCore;
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FVCamCoreCustomVersion::GUID);
+	
+	if (Ar.IsLoading() && Ar.CustomVer(FVCamCoreCustomVersion::GUID) < FVCamCoreCustomVersion::MoveTargetViewportFromComponentToOutput)
+	{
+		UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>();
+		TargetViewport = OuterComponent
+			? OuterComponent->TargetViewport_DEPRECATED
+			: TargetViewport;
+	}
+}
+
 UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(int32 Index) const
 {
 	if (Index > INDEX_NONE)
@@ -254,15 +277,53 @@ UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(
 	return nullptr;
 }
 
-
 TSharedPtr<FSceneViewport> UVCamOutputProviderBase::GetTargetSceneViewport() const
 {
 	TSharedPtr<FSceneViewport> SceneViewport;
 
-	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+#if WITH_EDITOR
+	if (GIsEditor)
 	{
-		SceneViewport = OuterComponent->GetTargetSceneViewport();
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			if (Context.WorldType == EWorldType::PIE)
+			{
+				FSlatePlayInEditorInfo* SlatePlayInEditorSession = GEditor->SlatePlayInEditorMap.Find(Context.ContextHandle);
+				if (SlatePlayInEditorSession)
+				{
+					if (SlatePlayInEditorSession->DestinationSlateViewport.IsValid())
+					{
+						TSharedPtr<IAssetViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
+						SceneViewport = DestinationLevelViewport->GetSharedActiveViewport();
+					}
+					else if (SlatePlayInEditorSession->SlatePlayInEditorWindowViewport.IsValid())
+					{
+						SceneViewport = SlatePlayInEditorSession->SlatePlayInEditorWindowViewport;
+					}
+
+					// If PIE is active always choose it
+					break;
+				}
+			}
+			else if (Context.WorldType == EWorldType::Editor)
+			{
+				if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
+				{
+					TSharedPtr<SEditorViewport> ViewportWidget = LevelViewportClient->GetEditorViewportWidget();
+					if (ViewportWidget.IsValid())
+					{
+						SceneViewport = ViewportWidget->GetSceneViewport();
+					}
+				}
+			}
+		}
 	}
+#else
+	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	{
+		SceneViewport = GameEngine->SceneViewport;
+	}
+#endif
 
 	return SceneViewport;
 }
@@ -271,37 +332,66 @@ TWeakPtr<SWindow> UVCamOutputProviderBase::GetTargetInputWindow() const
 {
 	TWeakPtr<SWindow> InputWindow;
 
-	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+#if WITH_EDITOR
+	if (GIsEditor)
 	{
-		InputWindow = OuterComponent->GetTargetInputWindow();
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			if (Context.WorldType == EWorldType::PIE)
+			{
+				FSlatePlayInEditorInfo* SlatePlayInEditorSession = GEditor->SlatePlayInEditorMap.Find(Context.ContextHandle);
+				if (SlatePlayInEditorSession)
+				{
+					if (SlatePlayInEditorSession->DestinationSlateViewport.IsValid())
+					{
+						TSharedPtr<IAssetViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
+						InputWindow = FSlateApplication::Get().FindWidgetWindow(DestinationLevelViewport->AsWidget());
+					}
+					else if (SlatePlayInEditorSession->SlatePlayInEditorWindowViewport.IsValid())
+					{
+						InputWindow = SlatePlayInEditorSession->SlatePlayInEditorWindow;
+					}
+
+					// If PIE is active always choose it
+					break;
+				}
+			}
+			else if (Context.WorldType == EWorldType::Editor)
+			{
+				if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
+				{
+					TSharedPtr<SEditorViewport> ViewportWidget = LevelViewportClient->GetEditorViewportWidget();
+					if (ViewportWidget.IsValid())
+					{
+						InputWindow = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.ToSharedRef());
+					}
+				}
+			}
+		}
 	}
+#else
+	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	{
+		InputWindow = GameEngine->GameViewportWindow;
+	}
+#endif
 
 	return InputWindow;
 }
 
 #if WITH_EDITOR
+
 FLevelEditorViewportClient* UVCamOutputProviderBase::GetTargetLevelViewportClient() const
 {
-	FLevelEditorViewportClient* ViewportClient = nullptr;
-
-	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
-	{
-		ViewportClient = OuterComponent->GetTargetLevelViewportClient();
-	}
-
-	return ViewportClient;
+	const TSharedPtr<SLevelViewport> LevelViewport = GetTargetLevelViewport();
+	return LevelViewport
+		? &LevelViewport->GetLevelViewportClient()
+		: nullptr;
 }
 
 TSharedPtr<SLevelViewport> UVCamOutputProviderBase::GetTargetLevelViewport() const
 {
-	TSharedPtr<SLevelViewport> LevelViewport;
-
-	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
-	{
-		LevelViewport = OuterComponent->GetTargetLevelViewport();
-	}
-
-	return LevelViewport;
+	return UE::VCamCore::LevelViewportUtils::Private::GetLevelViewport(TargetViewport);
 }
 
 void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

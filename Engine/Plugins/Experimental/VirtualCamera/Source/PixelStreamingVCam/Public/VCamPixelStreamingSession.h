@@ -56,7 +56,6 @@ private:
 	void SetupCustomInputHandling();
 	void OnCaptureStateChanged();
 	void OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data);
-	TWeakPtr<SWindow> GetTargetInputWindow() const;
 	
 	/**
 	 * Applies or removes a fixed resolution to a viewport.

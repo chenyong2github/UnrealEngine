@@ -4,15 +4,16 @@
 
 #include "Modifier/VCamModifier.h"
 #include "Modifier/VCamModifierContext.h"
+#include "Util/LevelViewportUtils.h"
+#include "VCamCoreCustomVersion.h"
 
+#include "Algo/ForEach.h"
 #include "CineCameraComponent.h"
-#include "Engine/GameInstance.h"
 #include "Engine/GameEngine.h"
 #include "Engine/InputDelegateBinding.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Features/IModularFeatures.h"
-#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/InputSettings.h"
 #include "ILiveLinkClient.h"
 #include "InputMappingContext.h"
@@ -24,7 +25,6 @@
 #include "Modules/ModuleManager.h"
 #include "Editor.h"
 #include "LevelEditor.h"
-#include "IAssetViewport.h"
 #include "SLevelViewport.h"
 
 #include "IConcertModule.h"
@@ -99,8 +99,8 @@ UVCamComponent::UVCamComponent()
 
 void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
-	bLockViewportToCamera = false;
-	UpdateActorLock();
+	bLockViewportToCamera_DEPRECATED = false;
+	UpdateActorViewportLocks();
 
 	for (UVCamOutputProviderBase* Provider : OutputProviders)
 	{
@@ -300,6 +300,18 @@ void UVCamComponent::OnAttachmentChanged()
 #endif
 }
 
+void UVCamComponent::Serialize(FArchive& Ar)
+{
+	using namespace UE::VCamCore;
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FVCamCoreCustomVersion::GUID);
+	
+	if (Ar.IsLoading() && Ar.CustomVer(FVCamCoreCustomVersion::GUID) < FVCamCoreCustomVersion::MoveTargetViewportFromComponentToOutput)
+	{
+		Algo::ForEach(ViewportLocker.Locks, [this](TPair<EVCamTargetViewportID, FVCamViewportLockState>& Pair){ Pair.Value.bLockViewportToCamera = bLockViewportToCamera_DEPRECATED; });
+	}
+}
+
 void UVCamComponent::PostLoad()
 {
 	Super::PostLoad();
@@ -337,7 +349,6 @@ void UVCamComponent::PreEditChange(FEditPropertyChain& PropertyAboutToChange)
 	{
 		static FName NAME_OutputProviders = GET_MEMBER_NAME_CHECKED(UVCamComponent, OutputProviders);
 		static FName NAME_ModifierStack = GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack);
-		static FName NAME_GeneratedModifier = GET_MEMBER_NAME_CHECKED(FModifierStackEntry, GeneratedModifier);
 		static FName NAME_Enabled = GET_MEMBER_NAME_CHECKED(UVCamComponent, bEnabled);
 
 		const FName MemberPropertyName = MemberProperty->GetFName();
@@ -371,19 +382,12 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	FProperty* Property = PropertyChangedEvent.MemberProperty;
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		static FName NAME_LockViewportToCamera = GET_MEMBER_NAME_CHECKED(UVCamComponent, bLockViewportToCamera);
 		static FName NAME_Enabled = GET_MEMBER_NAME_CHECKED(UVCamComponent, bEnabled);
 		static FName NAME_ModifierStack = GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack);
-		static FName NAME_TargetViewport = GET_MEMBER_NAME_CHECKED(UVCamComponent, TargetViewport);
 		static FName NAME_InputProfile = GET_MEMBER_NAME_CHECKED(UVCamComponent, InputProfile);
-
 		const FName PropertyName = Property->GetFName();
 
-		if (PropertyName == NAME_LockViewportToCamera)
-		{
-			UpdateActorLock();
-		}
-		else if (PropertyName == NAME_Enabled)
+		if (PropertyName == NAME_Enabled)
 		{
 			// Only act here if we are a struct (like FModifierStackEntry)
 			if (!Property->GetOwner<UClass>())
@@ -394,20 +398,6 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		else if (PropertyName == NAME_ModifierStack)
 		{
 			ValidateModifierStack();
-		}
-		else if (PropertyName == NAME_TargetViewport)
-		{
-			if (bEnabled)
-			{
-				SetEnabled(false);
-				SetEnabled(true);
-
-				if (bLockViewportToCamera)
-				{
-					SetActorLock(false);
-					SetActorLock(true);
-				}
-			}
 		}
 		else if (PropertyName == NAME_InputProfile)
 		{
@@ -432,48 +422,20 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_OutputProviders = GET_MEMBER_NAME_CHECKED(UVCamComponent, OutputProviders);
+		static FName NAME_TargetViewport = UVCamOutputProviderBase::GetTargetViewportPropertyName();
 
 		if (Property->GetFName() == NAME_OutputProviders)
 		{
-			FProperty* ActualProperty = PropertyChangedEvent.PropertyChain.GetActiveNode()->GetNextNode() ? PropertyChangedEvent.PropertyChain.GetActiveNode()->GetNextNode()->GetValue() : nullptr;
+			FProperty* ActualProperty = PropertyChangedEvent.PropertyChain.GetActiveNode()->GetNextNode()
+				? PropertyChangedEvent.PropertyChain.GetActiveNode()->GetNextNode()->GetValue()
+				: nullptr;
 			if (ActualProperty == nullptr)
 			{
-				const int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(PropertyChangedEvent.GetPropertyName().ToString());
-				if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
-				{
-					if (OutputProviders.IsValidIndex(ChangedIndex))
-					{
-						UVCamOutputProviderBase* ChangedProvider = OutputProviders[ChangedIndex];
-
-						// If we changed the output type, be sure to delete the old one before setting up the new one
-						if (SavedOutputProviders.IsValidIndex(ChangedIndex) && (SavedOutputProviders[ChangedIndex] != ChangedProvider))
-						{
-							DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
-						}
-
-						// We only Initialize a provider if they're able to be updated
-						// If they later become able to be updated then they will be
-						// Initialized inside the Update() loop
-						if (ChangedProvider && ShouldUpdateOutputProviders())
-						{
-							ChangedProvider->Initialize();
-						}
-					}
-				}
-				else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
-				{
-					if (SavedOutputProviders.IsValidIndex(ChangedIndex))
-					{
-						DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
-					}
-				}
-				else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
-				{
-					for (UVCamOutputProviderBase* ClearedProvider : SavedOutputProviders)
-					{
-						DestroyOutputProvider(ClearedProvider);
-					}
-				}
+				OnOutputProvidersEdited(PropertyChangedEvent);
+			}
+			else if (ActualProperty->GetFName() == NAME_TargetViewport)
+			{
+				OnTargetViewportEdited();
 			}
 
 			// We created this in PreEditChange, so we need to always get rid of it
@@ -483,6 +445,57 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 }
+
+void UVCamComponent::OnOutputProvidersEdited(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	const int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(PropertyChangedEvent.GetPropertyName().ToString());
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+	{
+		if (OutputProviders.IsValidIndex(ChangedIndex))
+		{
+			UVCamOutputProviderBase* ChangedProvider = OutputProviders[ChangedIndex];
+
+			// If we changed the output type, be sure to delete the old one before setting up the new one
+			if (SavedOutputProviders.IsValidIndex(ChangedIndex) && (SavedOutputProviders[ChangedIndex] != ChangedProvider))
+			{
+				DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
+			}
+
+			// We only Initialize a provider if they're able to be updated
+			// If they later become able to be updated then they will be
+			// Initialized inside the Update() loop
+			if (ChangedProvider && ShouldUpdateOutputProviders())
+			{
+				ChangedProvider->Initialize();
+			}
+		}
+	}
+	else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove)
+	{
+		if (SavedOutputProviders.IsValidIndex(ChangedIndex))
+		{
+			DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
+		}
+	}
+	else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
+	{
+		for (UVCamOutputProviderBase* ClearedProvider : SavedOutputProviders)
+		{
+			DestroyOutputProvider(ClearedProvider);
+		}
+	}
+}
+
+void UVCamComponent::OnTargetViewportEdited()
+{
+	if (bEnabled)
+	{
+		SetEnabled(false);
+		SetEnabled(true);
+		UpdateActorViewportLocks();
+	}
+}
+
 #endif // WITH_EDITOR
 
 void UVCamComponent::AddInputMappingContext(const UVCamModifier* Modifier)
@@ -689,11 +702,8 @@ void UVCamComponent::Update()
 		// Ensure the actor lock reflects the state of the lock property
 		// This is needed as UActorComponent::ConsolidatedPostEditChange will cause the component to be reconstructed on PostEditChange
 		// if the component is inherited
-		if (bLockViewportToCamera != bIsLockedToViewport)
-		{
-			UpdateActorLock();
-		}
-
+		UpdateActorViewportLocks();
+		
 		FLiveLinkCameraBlueprintData InitialLiveLinkData;
 		GetLiveLinkDataForCurrentFrame(InitialLiveLinkData);
 
@@ -1234,76 +1244,23 @@ float UVCamComponent::GetDeltaTime()
 	return DeltaTime;
 }
 
-void UVCamComponent::UpdateActorLock()
+void UVCamComponent::UpdateActorViewportLocks()
 {
-	if (GetTargetCamera() == nullptr)
+	if (const UCineCameraComponent* Camera = GetTargetCamera()
+		; Camera && ensure(Camera->GetOwner()))
 	{
-		UE_LOG(LogVCamComponent, Warning, TEXT("UpdateActorLock has been called, but there is no valid TargetCamera!"));
-		return;
-	}
-
-	for (const FWorldContext& Context : GEngine->GetWorldContexts())
-	{
-#if WITH_EDITOR
-		if (Context.WorldType == EWorldType::Editor)
-		{
-			if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
-			{
-				if (bLockViewportToCamera)
-				{
-					Backup_ActorLock = LevelViewportClient->GetActiveActorLock();
-					LevelViewportClient->SetActorLock(GetTargetCamera()->GetOwner());
-					// If bLockedCameraView is not true then the viewport is locked to the actor's transform and not the camera component
-					LevelViewportClient->bLockedCameraView = true;
-					bIsLockedToViewport = true;
-				}
-				else if (Backup_ActorLock.IsValid())
-				{
-					LevelViewportClient->SetActorLock(Backup_ActorLock.Get());
-					Backup_ActorLock = nullptr;
-					// If bLockedCameraView is not true then the viewport is locked to the actor's transform and not the camera component
-					LevelViewportClient->bLockedCameraView = true;
-					bIsLockedToViewport = false;
-				}
-				else
-				{
-					LevelViewportClient->SetActorLock(nullptr);
-					bIsLockedToViewport = false;
-				}
-			}
-		}
-		else
-#endif
-		{
-			UWorld* ActorWorld = Context.World();
-			if (ActorWorld && ActorWorld->GetGameInstance())
-			{
-				APlayerController* PlayerController = ActorWorld->GetGameInstance()->GetFirstLocalPlayerController(ActorWorld);
-				if (PlayerController)
-				{
-					if (bLockViewportToCamera)
-					{
-						Backup_ViewTarget = PlayerController->GetViewTarget();
-						PlayerController->SetViewTarget(GetTargetCamera()->GetOwner());
-						bIsLockedToViewport = true;
-					}
-					else if (Backup_ViewTarget.IsValid())
-					{
-						PlayerController->SetViewTarget(Backup_ViewTarget.Get());
-						Backup_ViewTarget = nullptr;
-						bIsLockedToViewport = false;
-					}
-					else
-					{
-						PlayerController->SetViewTarget(nullptr);
-						bIsLockedToViewport = false;
-					}
-				}
-			}
-		}
+		UE::VCamCore::LevelViewportUtils::Private::UpdateViewportLocksFromOutputs(OutputProviders, ViewportLocker, Camera->GetOwner());
 	}
 }
 
+void UVCamComponent::UnlockAllViewports()
+{
+	if (const UCineCameraComponent* Camera = GetTargetCamera()
+		; Camera && ensure(Camera->GetOwner()))
+	{
+		UE::VCamCore::LevelViewportUtils::Private::UnlockAllViewports(ViewportLocker);
+	}
+}
 
 void UVCamComponent::DestroyOutputProvider(UVCamOutputProviderBase* Provider)
 {
@@ -1450,160 +1407,7 @@ void UVCamComponent::FindModifiedStackEntry(int32& ModifiedStackIndex, bool& bIs
 
 }
 
-TSharedPtr<FSceneViewport> UVCamComponent::GetTargetSceneViewport() const
-{
-	TSharedPtr<FSceneViewport> SceneViewport;
-
 #if WITH_EDITOR
-	if (GIsEditor)
-	{
-		for (const FWorldContext& Context : GEngine->GetWorldContexts())
-		{
-			if (Context.WorldType == EWorldType::PIE)
-			{
-				FSlatePlayInEditorInfo* SlatePlayInEditorSession = GEditor->SlatePlayInEditorMap.Find(Context.ContextHandle);
-				if (SlatePlayInEditorSession)
-				{
-					if (SlatePlayInEditorSession->DestinationSlateViewport.IsValid())
-					{
-						TSharedPtr<IAssetViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
-						SceneViewport = DestinationLevelViewport->GetSharedActiveViewport();
-					}
-					else if (SlatePlayInEditorSession->SlatePlayInEditorWindowViewport.IsValid())
-					{
-						SceneViewport = SlatePlayInEditorSession->SlatePlayInEditorWindowViewport;
-					}
-
-					// If PIE is active always choose it
-					break;
-				}
-			}
-			else if (Context.WorldType == EWorldType::Editor)
-			{
-				if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
-				{
-					TSharedPtr<SEditorViewport> ViewportWidget = LevelViewportClient->GetEditorViewportWidget();
-					if (ViewportWidget.IsValid())
-					{
-						SceneViewport = ViewportWidget->GetSceneViewport();
-					}
-				}
-			}
-		}
-	}
-#else
-	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
-	{
-		SceneViewport = GameEngine->SceneViewport;
-	}
-#endif
-
-	return SceneViewport;
-}
-
-TWeakPtr<SWindow> UVCamComponent::GetTargetInputWindow() const
-{
-	TWeakPtr<SWindow> InputWindow;
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		for (const FWorldContext& Context : GEngine->GetWorldContexts())
-		{
-			if (Context.WorldType == EWorldType::PIE)
-			{
-				FSlatePlayInEditorInfo* SlatePlayInEditorSession = GEditor->SlatePlayInEditorMap.Find(Context.ContextHandle);
-				if (SlatePlayInEditorSession)
-				{
-					if (SlatePlayInEditorSession->DestinationSlateViewport.IsValid())
-					{
-						TSharedPtr<IAssetViewport> DestinationLevelViewport = SlatePlayInEditorSession->DestinationSlateViewport.Pin();
-						InputWindow = FSlateApplication::Get().FindWidgetWindow(DestinationLevelViewport->AsWidget());
-					}
-					else if (SlatePlayInEditorSession->SlatePlayInEditorWindowViewport.IsValid())
-					{
-						InputWindow = SlatePlayInEditorSession->SlatePlayInEditorWindow;
-					}
-
-					// If PIE is active always choose it
-					break;
-				}
-			}
-			else if (Context.WorldType == EWorldType::Editor)
-			{
-				if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
-				{
-					TSharedPtr<SEditorViewport> ViewportWidget = LevelViewportClient->GetEditorViewportWidget();
-					if (ViewportWidget.IsValid())
-					{
-						InputWindow = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.ToSharedRef());
-					}
-				}
-			}
-		}
-	}
-#else
-	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
-	{
-		InputWindow = GameEngine->GameViewportWindow;
-	}
-#endif
-
-	return InputWindow;
-}
-
-#if WITH_EDITOR
-FLevelEditorViewportClient* UVCamComponent::GetTargetLevelViewportClient() const
-{
-	FLevelEditorViewportClient* OutClient = nullptr;
-
-	TSharedPtr<SLevelViewport> LevelViewport = GetTargetLevelViewport();
-	if (LevelViewport.IsValid())
-	{
-		OutClient = &LevelViewport->GetLevelViewportClient();
-	}
-
-	return OutClient;
-}
-
-TSharedPtr<SLevelViewport> UVCamComponent::GetTargetLevelViewport() const
-{
-	TSharedPtr<SLevelViewport> OutLevelViewport = nullptr;
-
-	if (TargetViewport == EVCamTargetViewportID::CurrentlySelected)
-	{
-		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamComponent::LevelEditorName))
-		{
-			OutLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
-		}
-	}
-	else
-	{
-		if (GEditor)
-		{
-			for (FLevelEditorViewportClient* Client : GEditor->GetLevelViewportClients())
-			{
-				// We only care about the fully rendered 3D viewport...seems like there should be a better way to check for this
-				if (!Client->IsOrtho())
-				{
-					TSharedPtr<SLevelViewport> LevelViewport = StaticCastSharedPtr<SLevelViewport>(Client->GetEditorViewportWidget());
-					if (LevelViewport.IsValid())
-					{
-						const FString WantedViewportString = FString::Printf(TEXT("Viewport %d.Viewport"), (int32)TargetViewport);
-						const FString ViewportConfigKey = LevelViewport->GetConfigKey().ToString();
-						if (ViewportConfigKey.Contains(*WantedViewportString, ESearchCase::CaseSensitive, ESearchDir::FromStart))
-						{
-							OutLevelViewport = LevelViewport;
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return OutLevelViewport;
-}
 
 void UVCamComponent::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 {

@@ -45,10 +45,10 @@ void UVCamOutputRemoteSession::Deinitialize()
 void UVCamOutputRemoteSession::Activate()
 {
 	// If we don't have a UMG assigned, we still need to create an empty 'dummy' UMG in order to properly route the input back from the RemoteSession device
-	if (UMGClass == nullptr)
+	if (!GetUMGClass())
 	{
 		bUsingDummyUMG = true;
-		UMGClass = UE::VCamOutputRemoteSession::Private::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>();
+		SetUMGClass(UE::VCamOutputRemoteSession::Private::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>());
 	}
 
 	CreateRemoteSession();
@@ -64,7 +64,7 @@ void UVCamOutputRemoteSession::Deactivate()
 
 	if (bUsingDummyUMG)
 	{
-		UMGClass = nullptr;
+		SetUMGClass(nullptr);
 		bUsingDummyUMG = false;
 	}
 }
@@ -234,7 +234,7 @@ void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChan
 	if (InputChannel)
 	{
 		// If we have a UMG, then use it
-		if (UMGClass && UMGWidget)
+		if (GetUMGClass() && UMGWidget) 
 		{
 			TSharedPtr<SVirtualWindow> InputWindow;
 

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "CineCameraComponent.h"
+#include "EVCamTargetViewportID.h"
 #include "VPFullScreenUserWidget.h"
 #include "VCamOutputProviderBase.generated.h"
 
@@ -24,7 +25,17 @@ class VCAMCORE_API UVCamOutputProviderBase : public UObject
 	GENERATED_BODY()
 public:
 
+	/** Override the default output resolution with a custom value - NOTE you must toggle bIsActive off then back on for this to take effect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "5"))
+	bool bUseOverrideResolution = false;
+
+	/** When bUseOverrideResolution is set, use this custom resolution */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "6"), meta = (EditCondition = "bUseOverrideResolution", ClampMin = 1))
+	FIntPoint OverrideResolution = { 2048, 1536 };
+
+	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
+	//~ End UObject Interface
 
 	// Called when the provider is brought online such as after instantiating or loading a component containing this provider 
 	// Use Initialize for any setup logic that needs to survive between Start / Stop cycles such as spawning transient objects 
@@ -46,11 +57,6 @@ public:
 	// Called to turn on or off this output provider
 	UFUNCTION(BlueprintCallable, Category = "Output")
 	void SetActive(const bool bInActive);
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-
 	// Returns if this output provider is currently active or not
 	UFUNCTION(BlueprintPure, Category = "Output")
 	bool IsActive() const { return bIsActive; };
@@ -59,25 +65,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Output")
 	bool IsInitialized() const { return bInitialized; };
 
-	// Sets the TargetCamera parameter
 	UFUNCTION(BlueprintCallable, Category = "Output")
 	void SetTargetCamera(const UCineCameraComponent* InTargetCamera);
 
-	// Sets the UMG class to be rendered in this output provider
+	UFUNCTION(BlueprintPure, Category = "Output")
+	EVCamTargetViewportID GetTargetViewport() const { return TargetViewport; }
 	UFUNCTION(BlueprintCallable, Category = "Output")
-	void SetUMGClass(const TSubclassOf<UUserWidget> InUMGClass);
-
-	// The UMG class to be rendered in this output provider
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayName="UMG Overlay", DisplayPriority = "2"))
-	TSubclassOf<UUserWidget> UMGClass;
-
-	// Override the default output resolution with a custom value - NOTE you must toggle bIsActive off then back on for this to take effect
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "3"))
-	bool bUseOverrideResolution = false;
-
-	// When bUseOverrideResolution is set, use this custom resolution
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "4"), meta = (EditCondition = "bUseOverrideResolution", ClampMin = 1))
-	FIntPoint OverrideResolution = { 2048, 1536 };
+	void SetTargetViewport(EVCamTargetViewportID Value) { TargetViewport = Value; }
+	static FName GetTargetViewportPropertyName() { return GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, TargetViewport); }
+	
+	UFUNCTION(BlueprintPure, Category = "Output")
+	TSubclassOf<UUserWidget> GetUMGClass() const { return UMGClass; }
+	UFUNCTION(BlueprintCallable, Category = "Output")
+	void SetUMGClass(const TSubclassOf<UUserWidget> InUMGClass) { UMGClass = InUMGClass; }
 
 	UVPFullScreenUserWidget* GetUMGWidget() { return UMGWidget; };
 
@@ -104,7 +104,16 @@ public:
 	/** Calls the VCamModifierInterface on the widget if it exists and also requests any child VCam Widgets to reconnect */
 	void NotifyWidgetOfComponentChange() const;
 
+	//~ Begin UObject Interface
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject Interface
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 protected:
+	
 	// If set, this output provider will execute every frame
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "1"))
 	bool bIsActive = false;
@@ -112,7 +121,11 @@ protected:
 	UPROPERTY(Transient)
 	bool bInitialized = false;
 
+	UPROPERTY(Transient)
 	EVPWidgetDisplayType DisplayType = EVPWidgetDisplayType::PostProcess;
+	
+	UPROPERTY(Transient)
+	TObjectPtr<UVPFullScreenUserWidget> UMGWidget = nullptr;
 
 	virtual void CreateUMG();
 
@@ -129,12 +142,21 @@ protected:
 	TSharedPtr<SLevelViewport> GetTargetLevelViewport() const;
 #endif
 
-	UPROPERTY(Transient)
-	TObjectPtr<UVPFullScreenUserWidget> UMGWidget = nullptr;
-
 private:
-	bool IsOuterComponentEnabled() const;
 
+	/** Which viewport to use for this VCam */
+	UPROPERTY(EditAnywhere, BlueprintGetter = "GetTargetViewport", BlueprintSetter = "SetTargetViewport", Category = "Output", meta = (DisplayPriority = "2"))
+	EVCamTargetViewportID TargetViewport = EVCamTargetViewportID::CurrentlySelected;
+	
+	/** The UMG class to be rendered in this output provider */
+	UPROPERTY(EditAnywhere, BlueprintGetter = "GetUMGClass", BlueprintSetter = "SetUMGClass", Category = "Output", meta = (DisplayName="UMG Overlay", DisplayPriority = "3"))
+	TSubclassOf<UUserWidget> UMGClass;
+	
+	UPROPERTY(Transient)
 	TSoftObjectPtr<UCineCameraComponent> TargetCamera;
+	
+	UPROPERTY(Transient)
 	bool bWasActive = false;
+	
+	bool IsOuterComponentEnabled() const;
 };
