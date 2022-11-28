@@ -25,7 +25,7 @@ struct CONTROLRIG_API FRigUnit_ParentSwitchConstraint : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The subject to constrain
@@ -104,7 +104,7 @@ struct CONTROLRIG_API FRigUnit_ParentSwitchConstraintArray : public FRigUnitMuta
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The subject to constrain

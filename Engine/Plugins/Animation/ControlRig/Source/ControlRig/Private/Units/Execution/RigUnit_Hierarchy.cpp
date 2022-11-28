@@ -11,13 +11,13 @@ FRigUnit_HierarchyGetParent_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedChild.Reset();
 		CachedParent.Reset();
 	}
 
-	if(CachedChild.IsIdentical(Child, Context.Hierarchy))
+	if(CachedChild.IsIdentical(Child, ExecuteContext.Hierarchy))
 	{
 		Parent = CachedParent.GetKey();
 	}
@@ -26,12 +26,12 @@ FRigUnit_HierarchyGetParent_Execute()
 		Parent.Reset();
 		CachedParent.Reset();
 
-		if(CachedChild.UpdateCache(Child, Context.Hierarchy))
+		if(CachedChild.UpdateCache(Child, ExecuteContext.Hierarchy))
 		{
-			Parent = Context.Hierarchy->GetFirstParent(Child);
+			Parent = ExecuteContext.Hierarchy->GetFirstParent(Child);
 			if(Parent.IsValid())
 			{
-				CachedParent.UpdateCache(Parent, Context.Hierarchy);
+				CachedParent.UpdateCache(Parent, ExecuteContext.Hierarchy);
 			}
 		}
 	}
@@ -39,7 +39,7 @@ FRigUnit_HierarchyGetParent_Execute()
 
 FRigUnit_HierarchyGetParents_Execute()
 {
-	FRigUnit_HierarchyGetParentsItemArray::StaticExecute(ExecuteContext, Child, bIncludeChild, bReverse, Parents.Keys, CachedChild, CachedParents, Context);
+	FRigUnit_HierarchyGetParentsItemArray::StaticExecute(ExecuteContext, Child, bIncludeChild, bReverse, Parents.Keys, CachedChild, CachedParents);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchyGetParents::GetUpgradeInfo() const
@@ -56,17 +56,17 @@ FRigUnit_HierarchyGetParentsItemArray_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedChild.Reset();
 		CachedParents.Reset();
 	}
 
-	if(!CachedChild.IsIdentical(Child, Context.Hierarchy))
+	if(!CachedChild.IsIdentical(Child, ExecuteContext.Hierarchy))
 	{
 		CachedParents.Reset();
 
-		if(CachedChild.UpdateCache(Child, Context.Hierarchy))
+		if(CachedChild.UpdateCache(Child, ExecuteContext.Hierarchy))
 		{
 			TArray<FRigElementKey> Keys;
 			FRigElementKey Parent = Child;
@@ -76,7 +76,7 @@ FRigUnit_HierarchyGetParentsItemArray_Execute()
 				{
 					Keys.Add(Parent);
 				}
-				Parent = Context.Hierarchy->GetFirstParent(Parent);
+				Parent = ExecuteContext.Hierarchy->GetFirstParent(Parent);
 			}
 			while(Parent.IsValid());
 
@@ -95,17 +95,17 @@ FRigUnit_HierarchyGetChildren_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedParent.Reset();
 		CachedChildren.Reset();
 	}
 
-	if(!CachedParent.IsIdentical(Parent, Context.Hierarchy))
+	if(!CachedParent.IsIdentical(Parent, ExecuteContext.Hierarchy))
 	{
 		CachedChildren.Reset();
 
-		if(CachedParent.UpdateCache(Parent, Context.Hierarchy))
+		if(CachedParent.UpdateCache(Parent, ExecuteContext.Hierarchy))
 		{
 			TArray<FRigElementKey> Keys;
 
@@ -115,7 +115,7 @@ FRigUnit_HierarchyGetChildren_Execute()
 			}
 
 			
-			Keys.Append(Context.Hierarchy->GetChildren(Parent, bRecursive));
+			Keys.Append(ExecuteContext.Hierarchy->GetChildren(Parent, bRecursive));
 
 			CachedChildren = FRigElementKeyCollection(Keys);
 		}
@@ -136,7 +136,7 @@ FRigVMStructUpgradeInfo FRigUnit_HierarchyGetChildren::GetUpgradeInfo() const
 
 FRigUnit_HierarchyGetSiblings_Execute()
 {
-	FRigUnit_HierarchyGetSiblingsItemArray::StaticExecute(ExecuteContext, Item, bIncludeItem, Siblings.Keys, CachedItem, CachedSiblings, Context);
+	FRigUnit_HierarchyGetSiblingsItemArray::StaticExecute(ExecuteContext, Item, bIncludeItem, Siblings.Keys, CachedItem, CachedSiblings);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchyGetSiblings::GetUpgradeInfo() const
@@ -151,24 +151,24 @@ FRigUnit_HierarchyGetSiblingsItemArray_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedItem.Reset();
 		CachedSiblings.Reset();
 	}
 
-	if(!CachedItem.IsIdentical(Item, Context.Hierarchy))
+	if(!CachedItem.IsIdentical(Item, ExecuteContext.Hierarchy))
 	{
 		CachedSiblings.Reset();
 
-		if(CachedItem.UpdateCache(Item, Context.Hierarchy))
+		if(CachedItem.UpdateCache(Item, ExecuteContext.Hierarchy))
 		{
 			TArray<FRigElementKey> Keys;
 
-			FRigElementKey Parent = Context.Hierarchy->GetFirstParent(Item);
+			FRigElementKey Parent = ExecuteContext.Hierarchy->GetFirstParent(Item);
 			if(Parent.IsValid())
 			{
-				TArray<FRigElementKey> Children = Context.Hierarchy->GetChildren(Parent, false);
+				TArray<FRigElementKey> Children = ExecuteContext.Hierarchy->GetChildren(Parent, false);
 				for(FRigElementKey Child : Children)
 				{
 					if(bIncludeItem || Child != Item)
@@ -192,7 +192,7 @@ FRigUnit_HierarchyGetSiblingsItemArray_Execute()
 
 FRigUnit_HierarchyGetPose_Execute()
 {
-	FRigUnit_HierarchyGetPoseItemArray::StaticExecute(ExecuteContext, Initial, ElementType, ItemsToGet.Keys, Pose, Context);
+	FRigUnit_HierarchyGetPoseItemArray::StaticExecute(ExecuteContext, Initial, ElementType, ItemsToGet.Keys, Pose);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchyGetPose::GetUpgradeInfo() const
@@ -207,12 +207,12 @@ FRigVMStructUpgradeInfo FRigUnit_HierarchyGetPose::GetUpgradeInfo() const
 
 FRigUnit_HierarchyGetPoseItemArray_Execute()
 {
-	Pose = Context.Hierarchy->GetPose(Initial, ElementType, ItemsToGet);
+	Pose = ExecuteContext.Hierarchy->GetPose(Initial, ElementType, ItemsToGet);
 }
 
 FRigUnit_HierarchySetPose_Execute()
 {
-	FRigUnit_HierarchySetPoseItemArray::StaticExecute(ExecuteContext, Pose, ElementType, Space, ItemsToSet.Keys, Weight, Context);
+	FRigUnit_HierarchySetPoseItemArray::StaticExecute(ExecuteContext, Pose, ElementType, Space, ItemsToSet.Keys, Weight);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchySetPose::GetUpgradeInfo() const
@@ -244,7 +244,7 @@ FRigUnit_PoseIsEmpty_Execute()
 
 FRigUnit_PoseGetItems_Execute()
 {
-	FRigUnit_PoseGetItemsItemArray::StaticExecute(ExecuteContext, Pose, ElementType, Items.Keys, Context);
+	FRigUnit_PoseGetItemsItemArray::StaticExecute(ExecuteContext, Pose, ElementType, Items.Keys);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_PoseGetItems::GetUpgradeInfo() const
@@ -285,14 +285,14 @@ FRigUnit_PoseGetDelta_Execute()
 	if(PoseA.Num() == 0 && PoseB.Num() != 0)
 	{
 		PosesAreEqual = false;
-		FRigUnit_PoseGetItems::StaticExecute(ExecuteContext, PoseB, ElementType, ItemsWithDelta, Context);
+		FRigUnit_PoseGetItems::StaticExecute(ExecuteContext, PoseB, ElementType, ItemsWithDelta);
 		return;
 	}
 
 	if(PoseA.Num() != 0 && PoseB.Num() == 0)
 	{
 		PosesAreEqual = false;
-		FRigUnit_PoseGetItems::StaticExecute(ExecuteContext, PoseA, ElementType, ItemsWithDelta, Context);
+		FRigUnit_PoseGetItems::StaticExecute(ExecuteContext, PoseA, ElementType, ItemsWithDelta);
 		return;
 	}
 
@@ -490,7 +490,7 @@ bool FRigUnit_PoseGetDelta::AreCurvesEqual(float A, float B, float CurveU)
 
 FRigUnit_PoseGetTransform_Execute()
 {
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedPoseElementIndex = CachedPoseHash = INDEX_NONE;
 	}
@@ -552,7 +552,7 @@ FRigUnit_PoseGetTransformArray_Execute()
 
 FRigUnit_PoseGetCurve_Execute()
 {
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedPoseElementIndex = CachedPoseHash = INDEX_NONE;
 	}

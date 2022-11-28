@@ -10,11 +10,11 @@ FRigUnit_ApplyFK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
-	else if (Context.State == EControlRigState::Update)
+	else if (ExecuteContext.UnitContext.State == EControlRigState::Update)
 	{
 		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)

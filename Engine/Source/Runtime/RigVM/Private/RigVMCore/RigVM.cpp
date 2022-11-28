@@ -983,10 +983,10 @@ bool URigVM::ResumeExecution()
 	return false;
 }
 
-bool URigVM::ResumeExecution(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName)
+bool URigVM::ResumeExecution(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName)
 {
 	ResumeExecution();
-	return Execute(Memory, AdditionalArguments, InEntryName) != ERigVMExecuteResult::Failed;
+	return Execute(Memory, InEntryName) != ERigVMExecuteResult::Failed;
 }
 
 #endif
@@ -1549,7 +1549,7 @@ bool URigVM::ShouldHaltAtInstruction(const FName& InEventName, const uint16 Inst
 }
 #endif
 
-bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, bool bInitializeMemory)
+bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, bool bInitializeMemory)
 {
 	if (ExecutingThreadId != INDEX_NONE)
 	{
@@ -1590,7 +1590,6 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 
 	Context.Reset();
 	Context.SliceOffsets.AddZeroed(Instructions.Num());
-	Context.OpaqueArguments = AdditionalArguments;
 	FRigVMExecuteContext& ContextPublicData = Context.GetPublicData<>();
 
 	TGuardValue<URigVM*> VMInContext(Context.VM, this);
@@ -1760,14 +1759,13 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 	return true;
 }
 
-ERigVMExecuteResult URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName)
+ERigVMExecuteResult URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName)
 {
 	// if this the first entry being executed - get ready for execution
 	const bool bIsRootEntry = EntriesBeingExecuted.IsEmpty();
 
 	TGuardValue<FName> EntryNameGuard(CurrentEntryName, InEntryName);
 	TGuardValue<bool> RootEntryGuard(bCurrentlyRunningRootEntry, bIsRootEntry);
-	TGuardValue<TArrayView<void*>> AdditionalArgumentsGuard(CurrentAdditionalArguments, AdditionalArguments);
 
 	if(bIsRootEntry)
 	{
@@ -1822,7 +1820,6 @@ ERigVMExecuteResult URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TAr
 	{
 		Context.Reset();
 		Context.SliceOffsets.AddZeroed(Instructions.Num());
-		Context.OpaqueArguments = AdditionalArguments;
 	}
 
 	TGuardValue<URigVM*> VMInContext(Context.VM, this);
@@ -2841,7 +2838,7 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 				{
 					// this will restore the public data after invoking the entry
 					TGuardValue<FRigVMExecuteContext> PublicDataGuard(ContextPublicData, ContextPublicData);
-					const ERigVMExecuteResult ExecuteResult = Execute(CurrentMemory, CurrentAdditionalArguments, Op.EntryName);
+					const ERigVMExecuteResult ExecuteResult = Execute(CurrentMemory, Op.EntryName);
 					if(ExecuteResult != ERigVMExecuteResult::Succeeded)
 					{
 						return CurrentExecuteResult = ExecuteResult;
@@ -2974,7 +2971,7 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 
 bool URigVM::Execute(const FName& InEntryName)
 {
-	return Execute(TArray<URigVMMemoryStorage*>(), TArrayView<void*>(), InEntryName) != ERigVMExecuteResult::Failed;
+	return Execute(TArray<URigVMMemoryStorage*>(), InEntryName) != ERigVMExecuteResult::Failed;
 }
 
 ERigVMExecuteResult URigVM::ExecuteLazyBranch(const FRigVMBranchInfo& InBranchToRun)

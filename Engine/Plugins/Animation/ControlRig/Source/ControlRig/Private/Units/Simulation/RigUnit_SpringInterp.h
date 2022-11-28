@@ -24,7 +24,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 	}
  
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
  
 	UPROPERTY(meta = (Input))
 	float Current;
@@ -69,7 +69,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
 	}
  
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
  
 	UPROPERTY(meta = (Input))
 	FVector Current;
@@ -117,7 +117,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpV2 : public FRigUnit_SimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** Rest/target position of the spring. */
 	UPROPERTY(meta=(Input))
@@ -207,7 +207,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVectorV2 : public FRigUnit_SimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** Rest/target position of the spring. */
 	UPROPERTY(meta=(Input))
@@ -299,7 +299,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpQuaternionV2 : public FRigUnit_SimBas
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** Rest/target position of the spring. */
 	UPROPERTY(meta=(Input))

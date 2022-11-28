@@ -77,7 +77,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionMake : public FRigUnit_MathQuaterni
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathQuaternionMake()
 	{
@@ -117,7 +117,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromAxisAndAngle : public FRigUnit_
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Axis;
@@ -145,7 +145,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQua
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Euler;
@@ -172,7 +172,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromRotator : public FRigUnit_MathQ
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FRotator Rotator;
@@ -187,7 +187,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromRotator : public FRigUnit_MathQ
 /**
  * Makes a quaternion from a rotator
  */
-USTRUCT(meta=(DisplayName="From Rotator", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Rotator", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathQuaternionFromRotatorV2 : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
@@ -199,7 +199,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromRotatorV2 : public FRigUnit_Mat
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FRotator Value;
@@ -223,7 +223,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromTwoVectors : public FRigUnit_Ma
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -251,7 +251,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionToAxisAndAngle : public FRigUnit_Ma
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat Value;
@@ -278,7 +278,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionScale : public FRigUnit_MathQuatern
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input, Output))
 	FQuat Value;
@@ -305,7 +305,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionScaleV2 : public FRigUnit_MathQuate
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat Value;
@@ -333,7 +333,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuate
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat Value;
@@ -348,7 +348,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuate
 /**
  * Retrieves the rotator
  */
-USTRUCT(meta=(DisplayName="To Rotator", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="To Rotator", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathQuaternionToRotator : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
@@ -360,7 +360,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionToRotator : public FRigUnit_MathQua
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat Value;
@@ -377,7 +377,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionMul : public FRigUnit_MathQuaternio
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -388,7 +388,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionInverse : public FRigUnit_MathQuate
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -406,7 +406,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionSlerp : public FRigUnit_MathQuatern
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat A;
@@ -436,7 +436,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionEquals : public FRigUnit_MathQuater
 	}	
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat A;
@@ -466,7 +466,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionNotEquals : public FRigUnit_MathQua
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat A;
@@ -496,7 +496,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionSelectBool : public FRigUnit_MathQu
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	bool Condition;
@@ -529,7 +529,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionDot : public FRigUnit_MathQuaternio
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat A;
@@ -549,7 +549,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionUnit : public FRigUnit_MathQuaterni
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -567,7 +567,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionRotateVector : public FRigUnit_Math
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat Transform;
@@ -595,7 +595,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionGetAxis: public FRigUnit_MathQuater
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FQuat Quaternion;
@@ -623,7 +623,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionSwingTwist : public FRigUnit_MathQu
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FQuat	Input;
@@ -656,7 +656,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionRotationOrder : public FRigUnit_Mat
 
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -673,7 +673,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionMakeRelative : public FRigUnit_Math
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat Global;
@@ -699,7 +699,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionMakeAbsolute : public FRigUnit_Math
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FQuat Local;
@@ -728,7 +728,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionMirrorTransform : public FRigUnit_M
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FQuat Value;

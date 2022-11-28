@@ -9,7 +9,7 @@
 FRigUnit_StartProfilingTimer_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Update)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Update)
 	{
 		UKismetAnimationLibrary::K2_StartProfilingTimer();
 	}
@@ -18,14 +18,14 @@ FRigUnit_StartProfilingTimer_Execute()
 FRigUnit_EndProfilingTimer_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		AccumulatedTime = 0.f;
 		MeasurementsLeft = FMath::Max(NumberOfMeasurements, 1);
 		return;
 	}
 
-	if (Context.State == EControlRigState::Update)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Update)
 	{
 		float Delta = UKismetAnimationLibrary::K2_EndProfilingTimer(false);
 		if(MeasurementsLeft > 0)

@@ -17,7 +17,7 @@ struct CONTROLRIG_API FRigUnit_Control_StaticMesh : public FRigUnit_Control
 	FRigUnit_Control_StaticMesh();
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** The the transform the mesh will be rendered with (applied on top of the control's transform in the viewport) */
 	UPROPERTY(meta=(Input))

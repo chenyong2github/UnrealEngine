@@ -79,7 +79,7 @@ struct CONTROLRIG_API FRigUnit_DistributeRotation : public FRigUnit_HighlevelBas
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** 
 	 * The name of the first bone to align
@@ -143,7 +143,7 @@ struct CONTROLRIG_API FRigUnit_DistributeRotationForCollection : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** 
 	 * The items to use to distribute the rotation
@@ -193,7 +193,7 @@ struct CONTROLRIG_API FRigUnit_DistributeRotationForItemArray : public FRigUnit_
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** 
 	 * The items to use to distribute the rotation

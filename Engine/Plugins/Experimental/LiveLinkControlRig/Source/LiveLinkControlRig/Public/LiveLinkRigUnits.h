@@ -28,7 +28,7 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkEvaluteFrameAnimation : public FR
 
 	/** Execute logic for this rig unit */
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FName SubjectName;
@@ -56,7 +56,7 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkGetTransformByName : public FRigU
 
 	/** Execute logic for this rig unit */
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FSubjectFrameHandle SubjectFrame;
@@ -81,7 +81,7 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkGetParameterValueByName : public 
 
 	/** Execute logic for this rig unit */
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FSubjectFrameHandle SubjectFrame;
@@ -103,7 +103,7 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkEvaluteFrameTransform : public FR
 
 	/** Execute logic for this rig unit */
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FName SubjectName;

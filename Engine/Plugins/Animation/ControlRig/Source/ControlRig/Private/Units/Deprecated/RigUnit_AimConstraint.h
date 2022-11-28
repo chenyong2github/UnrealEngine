@@ -61,7 +61,7 @@ struct CONTROLRIG_API FRigUnit_AimConstraint : public FRigUnitMutable
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = FRigUnit_AimConstraint, meta = (Input))
 	FName Joint;

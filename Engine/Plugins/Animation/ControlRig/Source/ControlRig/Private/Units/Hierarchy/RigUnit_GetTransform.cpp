@@ -16,9 +16,9 @@ FRigUnit_GetTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (URigHierarchy* Hierarchy = Context.Hierarchy)
+	if (URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -35,7 +35,7 @@ FRigUnit_GetTransform_Execute()
 				}
 				else
 				{
-					if(bInitial || Context.State == EControlRigState::Init)
+					if(bInitial || ExecuteContext.UnitContext.State == EControlRigState::Init)
 					{
 						switch (Space)
 						{
@@ -87,7 +87,7 @@ FRigUnit_GetTransform_Execute()
 
 FRigUnit_GetTransformArray_Execute()
 {
-	FRigUnit_GetTransformItemArray::StaticExecute(ExecuteContext, Items.Keys, Space, bInitial, Transforms, CachedIndex, Context);
+	FRigUnit_GetTransformItemArray::StaticExecute(ExecuteContext, Items.Keys, Space, bInitial, Transforms, CachedIndex);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_GetTransformArray::GetUpgradeInfo() const
@@ -112,7 +112,7 @@ FRigUnit_GetTransformItemArray_Execute()
 	Transforms.SetNum(Items.Num());
 	for(int32 Index=0;Index<Items.Num();Index++)
 	{
-		FRigUnit_GetTransform::StaticExecute(ExecuteContext, Items[Index], Space, bInitial, Transforms[Index], CachedIndex[Index], Context);
+		FRigUnit_GetTransform::StaticExecute(ExecuteContext, Items[Index], Space, bInitial, Transforms[Index], CachedIndex[Index]);
 
 	}
 }

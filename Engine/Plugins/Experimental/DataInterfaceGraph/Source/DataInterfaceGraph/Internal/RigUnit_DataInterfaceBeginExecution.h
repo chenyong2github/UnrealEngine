@@ -10,12 +10,12 @@
  * Event for driving the skeleton hierarchy with variables and rig elements
  */
 USTRUCT(meta=(DisplayName="Execute Data Interface", Category="Events", NodeColor="1, 0, 0", Keywords="Begin,Update,Tick,Forward,Event"))
-struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceBeginExecution : public FRigUnit
+struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceBeginExecution : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 
 	virtual FName GetEventName() const override { return EventName; }
 	virtual bool CanOnlyExistOnce() const override { return true; }

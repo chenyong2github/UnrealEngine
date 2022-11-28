@@ -45,17 +45,13 @@ void FUtils::Compile(UDataInterfaceGraph* InGraph)
 	void* InitContextPtr = &InitContext;
 	void* UpdateContextPtr = &UpdateContext;
 
-	TArray<FRigVMUserDataArray> UserData;
-	UserData.Add(FRigVMUserDataArray(&InitContextPtr, 1));
-	UserData.Add(FRigVMUserDataArray(&UpdateContextPtr, 1));
-
 	EditorData->CompileLog.Messages.Reset();
 	EditorData->CompileLog.NumErrors = EditorData->CompileLog.NumWarnings = 0;
 
 	URigVMCompiler* Compiler = URigVMCompiler::StaticClass()->GetDefaultObject<URigVMCompiler>();
 	Compiler->Settings = (EditorData->bCompileInDebugMode) ? FRigVMCompileSettings::Fast() : EditorData->VMCompileSettings;
 	URigVMController* RootController = EditorData->GetRigVMClient()->GetOrCreateController(EditorData->GetRigVMClient()->GetDefaultModel());
-	Compiler->Compile(EditorData->GetRigVMClient()->GetAllModels(false, false), RootController, InGraph->RigVM, InGraph->GetRigVMExternalVariables(), UserData, &EditorData->PinToOperandMap);
+	Compiler->Compile(EditorData->GetRigVMClient()->GetAllModels(false, false), RootController, InGraph->RigVM, InGraph->GetRigVMExternalVariables(), &EditorData->PinToOperandMap);
 
 	if (EditorData->bErrorsDuringCompilation)
 	{

@@ -11,7 +11,7 @@ FRigUnit_SetCurveValue_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{

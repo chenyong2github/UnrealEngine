@@ -256,7 +256,7 @@ URigVMCompiler::URigVMCompiler()
 {
 }
 
-bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* InController, URigVM* OutVM, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InAST, FRigVMFunctionCompilationData* OutFunctionCompilationData)
+bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* InController, URigVM* OutVM, const TArray<FRigVMExternalVariable>& InExternalVariables, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InAST, FRigVMFunctionCompilationData* OutFunctionCompilationData)
 {
 	double CompilationTime = 0;
 	FDurationTimer CompileTimer(CompilationTime);
@@ -279,11 +279,21 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 		return false;;
 	}
 
+	// also during traverse - find all known execute contexts
+	// for functions / dispatches / templates.
+	// we only allow compatible execute context structs within a VM
+	TArray<UStruct*> ValidExecuteContextStructs = FRigVMTemplate::GetSuperStructs(Settings.GetExecuteContextStruct());
+	TArray<FString> ValidExecuteContextStructNames;
+	Algo::Transform(ValidExecuteContextStructs, ValidExecuteContextStructNames, [](const UStruct* InStruct)
+	{
+		return CastChecked<UScriptStruct>(InStruct)->GetStructCPPName();
+	});
+
 	for(URigVMGraph* Graph : InGraphs)
 	{
 		if(Graph->GetExecuteContextStruct())
 		{
-			if(!Settings.GetExecuteContextStruct()->IsChildOf(Graph->GetExecuteContextStruct()))
+			if(!ValidExecuteContextStructs.Contains(Graph->GetExecuteContextStruct()))
 			{
 				ReportErrorf(
 					TEXT("Compiler settings' ExecuteContext (%s) is not compatible with '%s' graph's ExecuteContext (%s). Cannot compile."),
@@ -312,12 +322,6 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	}
 
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	TArray<FRigVMUserDataArray> UserData = InRigVMUserData;
-	if (UserData.Num() == 0)
-	{
-		UserData.Add(FRigVMUserDataArray());
-	}
 
 	OutVM->SetContextPublicDataStruct(Settings.GetExecuteContextStruct());
 	OutVM->Reset();
@@ -439,11 +443,6 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	TArray<URigVMGraph*> VisitedGraphs;
 	VisitedGraphs.Append(InGraphs);
 
-	// also during traverse - find all known execute context and argument notations
-	// for functions / dispatches / templates.
-	// we only allow compatible execute context structs within a VM
-	TArray<UScriptStruct*> ExecuteContextStructs;
-	
 	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
 
 	for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
@@ -640,11 +639,45 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 				}
 			}
 
+			auto ReportIncompatibleExecuteContextString = [&] (const FString InExecuteContextName)
+			{
+				static constexpr TCHAR Format[] = TEXT("ExecuteContext '%s' on node '%s' is not compatible with '%s' provided by the compiler settings."); 
+				ReportErrorf(
+					Format,
+					*InExecuteContextName,
+					*ModelNode->GetNodePath(),
+					*Settings.GetExecuteContextStruct()->GetStructCPPName());
+				bEncounteredGraphError = true;
+			};
+
+			auto ReportIncompatibleExecuteContext = [&] (const UScriptStruct* InExecuteContext)
+			{
+				ReportIncompatibleExecuteContextString(InExecuteContext->GetStructCPPName());
+			};
+
+			FString ExecuteContextMetaData;
+			if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
+			{
+				if(UScriptStruct* Struct = UnitNode->GetScriptStruct())
+				{
+					if(Struct->GetStringMetaDataHierarchical(FRigVMStruct::ExecuteContextName, &ExecuteContextMetaData))
+					{
+						if(!ValidExecuteContextStructNames.Contains(ExecuteContextMetaData))
+						{
+							ReportIncompatibleExecuteContextString(ExecuteContextMetaData);
+						}
+					}
+				}
+			}
+
 			if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(ModelNode))
 			{
 				if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
 				{
-					ExecuteContextStructs.AddUnique(Factory->GetExecuteContextStruct());
+					if(!ValidExecuteContextStructs.Contains(Factory->GetExecuteContextStruct()))
+					{
+						ReportIncompatibleExecuteContext(Factory->GetExecuteContextStruct());
+					}
 				}
 			}
 			else if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
@@ -665,7 +698,10 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 							{
 								if(StructProperty->Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 								{
-									ExecuteContextStructs.AddUnique(StructProperty->Struct);
+									if(!ValidExecuteContextStructs.Contains(StructProperty->Struct))
+									{
+										ReportIncompatibleExecuteContext(StructProperty->Struct);
+									}
 								}
 							}
 						}
@@ -683,7 +719,10 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 								const FRigVMTemplateArgumentType& Type = Registry.GetType(Argument->TypeIndex);
 								if(UScriptStruct* ExecuteContextStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
 								{
-									ExecuteContextStructs.AddUnique(ExecuteContextStruct);
+									if(!ValidExecuteContextStructs.Contains(ExecuteContextStruct))
+									{
+										ReportIncompatibleExecuteContext(ExecuteContextStruct);
+									}
 								}
 							}
 						}
@@ -698,43 +737,6 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 					return false;
 				}
 			}
-		}
-	}
-
-	// check if the execute context structs are compatible
-	UScriptStruct* TopLevelExecuteContextStruct = FRigVMExecuteContext::StaticStruct();
-	for(UScriptStruct* ExecuteContextStruct : ExecuteContextStructs)
-	{
-		if(TopLevelExecuteContextStruct->IsChildOf(ExecuteContextStruct))
-		{
-			continue;
-		}
-		
-		if(ExecuteContextStruct->IsChildOf(TopLevelExecuteContextStruct))
-		{
-			TopLevelExecuteContextStruct = ExecuteContextStruct;
-			continue;
-		}
-
-		// at this point the execute context structs are unrelated
-		ReportErrorf(
-			TEXT("ExecuteContext types '%s' and '%s' are not compatible. Cannot compile this graph."),
-			*ExecuteContextStruct->GetStructCPPName(),
-			*TopLevelExecuteContextStruct->GetStructCPPName());
-		bEncounteredGraphError = true;
-		break;
-	}
-
-	// check if the top level matches the settings
-	if(TopLevelExecuteContextStruct)
-	{
-		if(!Settings.GetExecuteContextStruct()->IsChildOf(TopLevelExecuteContextStruct))
-		{
-			ReportErrorf(
-				TEXT("The graph contains an incompatible execute context '%s'. The compiler settings expect '%s' (or below)."),
-				*TopLevelExecuteContextStruct->GetStructCPPName(),
-				*Settings.GetExecuteContextStruct()->GetStructCPPName());
-			bEncounteredGraphError = true;
 		}
 	}
 
@@ -758,7 +760,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	WorkData.AST = InAST;
 	if (!WorkData.AST.IsValid())
 	{
-		WorkData.AST = MakeShareable(new FRigVMParserAST(InGraphs, InController, Settings.ASTSettings, InExternalVariables, UserData));
+		WorkData.AST = MakeShareable(new FRigVMParserAST(InGraphs, InController, Settings.ASTSettings, InExternalVariables));
 		for(URigVMGraph* Graph : InGraphs)
 		{
 			Graph->RuntimeAST = WorkData.AST;
@@ -770,9 +772,8 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	ensure(WorkData.AST.IsValid());
 
 	WorkData.VM = OutVM;
-	WorkData.ExecuteContextStruct = InGraphs[0]->GetExecuteContextStruct();
+	WorkData.ExecuteContextStruct = Settings.GetExecuteContextStruct();
 	WorkData.PinPathToOperand = OutOperands;
-	WorkData.RigVMUserData = UserData[0];
 	WorkData.bSetupMemory = true;
 	WorkData.ProxySources = &WorkData.AST->SharedOperandPins;
 
@@ -1089,11 +1090,9 @@ bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URi
 		ExternalVariables = InController->GetExternalVariablesDelegate.Execute(InLibraryNode->GetContainedGraph());
 	}
 	TMap<FString, FRigVMOperand> Operands;
-	TArray<FRigVMUserDataArray> UserData;
-	UserData.Add(FRigVMUserDataArray());
 	
 	URigVM* TempVM = NewObject<URigVM>(InLibraryNode->GetContainedGraph());
-	const bool bSuccess = Compile({InLibraryNode->GetContainedGraph()}, InController, TempVM, ExternalVariables, UserData, &Operands, nullptr, OutFunctionCompilationData);
+	const bool bSuccess = Compile({InLibraryNode->GetContainedGraph()}, InController, TempVM, ExternalVariables, &Operands, nullptr, OutFunctionCompilationData);
 	TempVM->ClearMemory();
 	TempVM->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 	TempVM->MarkAsGarbage();

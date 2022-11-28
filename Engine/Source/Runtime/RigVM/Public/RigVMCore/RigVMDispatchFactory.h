@@ -103,11 +103,11 @@ public:
 	// Returns the execute context support for this dispatch factory
 	virtual UScriptStruct* GetExecuteContextStruct() const { return FRigVMExecuteContext::StaticStruct(); }
 
+	// Returns truf if this factory supports a given executecontext struct
+	bool SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const;
+
 	// registered needed types during registration of the factory
 	virtual void RegisterDependencyTypes() const {}
-
-	// returns opaque arguments expected to be passed to this factory in FRigVMExtendedExecuteContext::OpaqueArguments
-	virtual TArray<TPair<FName,FString>> GetOpaqueArguments() const { return TArray<TPair<FName,FString>>(); }
 
 	// returns the arguments of the template
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const { return TArray<FRigVMTemplateArgument>(); }

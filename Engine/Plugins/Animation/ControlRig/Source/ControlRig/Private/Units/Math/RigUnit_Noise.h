@@ -21,7 +21,7 @@ struct CONTROLRIG_API FRigUnit_NoiseFloat : public FRigUnit_MathBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	float Value;
@@ -61,7 +61,7 @@ struct CONTROLRIG_API FRigUnit_NoiseDouble : public FRigUnit_MathBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	double Value;
@@ -103,7 +103,7 @@ struct CONTROLRIG_API FRigUnit_NoiseVector : public FRigUnit_MathBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Position;
@@ -148,7 +148,7 @@ struct CONTROLRIG_API FRigUnit_NoiseVector2 : public FRigUnit_MathBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Value;

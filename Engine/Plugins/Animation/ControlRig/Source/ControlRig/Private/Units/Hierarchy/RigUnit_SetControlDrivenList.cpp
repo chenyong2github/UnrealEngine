@@ -13,10 +13,10 @@ FRigUnit_GetControlDrivenList_Execute()
 
     Driven.Reset();
 
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -46,7 +46,7 @@ FRigUnit_SetControlDrivenList_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{

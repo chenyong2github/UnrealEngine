@@ -77,7 +77,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMake : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathVectorMake()
 	{
@@ -101,12 +101,12 @@ struct CONTROLRIG_API FRigUnit_MathVectorMake : public FRigUnit_MathVectorBase
 /**
  * Makes a vector from a single float
  */
-USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathVectorFromFloat()
 	{
@@ -124,12 +124,12 @@ struct CONTROLRIG_API FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorB
 /**
  * Makes a vector from a single double
  */
-USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathVectorFromDouble : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathVectorFromDouble()
 	{
@@ -153,7 +153,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorAdd : public FRigUnit_MathVectorBinaryA
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -165,7 +165,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorSub : public FRigUnit_MathVectorBinaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -182,7 +182,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMul : public FRigUnit_MathVectorBinaryA
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -200,7 +200,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorScale : public FRigUnit_MathVectorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Value;
@@ -226,7 +226,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorDiv : public FRigUnit_MathVectorBinaryO
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -244,7 +244,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMod : public FRigUnit_MathVectorBinaryO
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -256,7 +256,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMin : public FRigUnit_MathVectorBinaryA
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -268,7 +268,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMax : public FRigUnit_MathVectorBinaryA
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -280,7 +280,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorNegate : public FRigUnit_MathVectorUnar
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -292,7 +292,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorAbs : public FRigUnit_MathVectorUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -304,7 +304,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorFloor : public FRigUnit_MathVectorUnary
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -316,7 +316,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorCeil : public FRigUnit_MathVectorUnaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -328,7 +328,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorRound : public FRigUnit_MathVectorUnary
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -340,7 +340,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorSign : public FRigUnit_MathVectorUnaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -358,7 +358,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorClamp : public FRigUnit_MathVectorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Value;
@@ -389,7 +389,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorLerp : public FRigUnit_MathVectorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -420,7 +420,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorRemap : public FRigUnit_MathVectorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Value;
@@ -460,7 +460,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorEquals : public FRigUnit_MathVectorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -490,7 +490,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorNotEquals : public FRigUnit_MathVectorB
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -521,7 +521,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorIsNearlyZero : public FRigUnit_MathVect
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Value;
@@ -549,7 +549,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorIsNearlyEqual : public FRigUnit_MathVec
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -579,7 +579,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorSelectBool : public FRigUnit_MathVector
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	bool Condition;
@@ -606,7 +606,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorDeg : public FRigUnit_MathVectorUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -618,7 +618,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorRad : public FRigUnit_MathVectorUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -636,7 +636,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorLengthSquared : public FRigUnit_MathVec
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Value;
@@ -660,7 +660,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorLength : public FRigUnit_MathVectorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Value;
@@ -684,7 +684,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorDistance : public FRigUnit_MathVectorBa
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -704,7 +704,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorCross : public FRigUnit_MathVectorBinar
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -722,7 +722,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorDot : public FRigUnit_MathVectorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -743,7 +743,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorUnit : public FRigUnit_MathVectorUnaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -761,7 +761,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorSetLength: public FRigUnit_MathVectorBa
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Value;
@@ -790,7 +790,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorClampLength: public FRigUnit_MathVector
 
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Value;
@@ -820,7 +820,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMirror : public FRigUnit_MathVectorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Value;
@@ -847,7 +847,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorAngle : public FRigUnit_MathVectorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -874,7 +874,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorParallel : public FRigUnit_MathVectorBa
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -902,7 +902,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorOrthogonal : public FRigUnit_MathVector
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector A;
@@ -930,7 +930,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathV
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FCRFourPointBezier Bezier;
@@ -962,7 +962,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMakeBezierFourPoint : public FRigUnit_M
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, Output))
 	FCRFourPointBezier Bezier;
@@ -993,7 +993,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorClampSpatially: public FRigUnit_MathVec
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Value;
@@ -1044,7 +1044,7 @@ struct CONTROLRIG_API FRigUnit_MathIntersectPlane : public FRigUnit_MathVectorBa
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Start;
@@ -1081,7 +1081,7 @@ struct CONTROLRIG_API FRigUnit_MathDistanceToPlane : public FRigUnit_MathVectorB
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Point;
@@ -1113,7 +1113,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMakeRelative : public FRigUnit_MathVect
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Global;
@@ -1139,7 +1139,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMakeAbsolute : public FRigUnit_MathVect
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Local;
@@ -1168,7 +1168,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMirrorTransform : public FRigUnit_MathV
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Value;

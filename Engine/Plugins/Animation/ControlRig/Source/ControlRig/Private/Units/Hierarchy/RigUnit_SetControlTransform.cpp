@@ -13,7 +13,7 @@ FRigUnit_SetControlBool_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -45,7 +45,7 @@ FRigUnit_SetMultiControlBool_Execute()
 	{
 		CachedControlIndices.SetNum(Entries.Num());
 
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Update:
 			{
@@ -53,7 +53,7 @@ FRigUnit_SetMultiControlBool_Execute()
 				{
 					bool BoolValue = Entries[EntryIndex].BoolValue;
 
-					FRigUnit_SetControlBool::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, BoolValue, CachedControlIndices[EntryIndex], Context);
+					FRigUnit_SetControlBool::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, BoolValue, CachedControlIndices[EntryIndex]);
 				}
 				break;
 			}
@@ -71,7 +71,7 @@ FRigUnit_SetControlFloat_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -111,7 +111,7 @@ FRigUnit_SetMultiControlFloat_Execute()
 	{ 
 		CachedControlIndices.SetNum(Entries.Num());
 	 
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Update:
 			{ 
@@ -119,7 +119,7 @@ FRigUnit_SetMultiControlFloat_Execute()
 				{
 					float FloatValue = Entries[EntryIndex].FloatValue;
 
-					FRigUnit_SetControlFloat::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, FloatValue, CachedControlIndices[EntryIndex], Context); 
+					FRigUnit_SetControlFloat::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, FloatValue, CachedControlIndices[EntryIndex]); 
 				}
 				break;
 			}
@@ -137,7 +137,7 @@ FRigUnit_SetControlInteger_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -177,7 +177,7 @@ FRigUnit_SetMultiControlInteger_Execute()
 	{
 		CachedControlIndices.SetNum(Entries.Num());
 
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Update:
 			{
@@ -185,7 +185,7 @@ FRigUnit_SetMultiControlInteger_Execute()
 				{
 					int32 IntegerValue = Entries[EntryIndex].IntegerValue;
 
-					FRigUnit_SetControlInteger::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, IntegerValue, CachedControlIndices[EntryIndex], Context);
+					FRigUnit_SetControlInteger::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, IntegerValue, CachedControlIndices[EntryIndex]);
 				}
 				break;
 			}
@@ -203,7 +203,7 @@ FRigUnit_SetControlVector2D_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -244,7 +244,7 @@ FRigUnit_SetMultiControlVector2D_Execute()
 	{
 		CachedControlIndices.SetNum(Entries.Num());
 
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Update:
 			{
@@ -252,7 +252,7 @@ FRigUnit_SetMultiControlVector2D_Execute()
 				{
 					FVector2D Vector = Entries[EntryIndex].Vector;
 
-					FRigUnit_SetControlVector2D::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Vector, CachedControlIndices[EntryIndex], Context);
+					FRigUnit_SetControlVector2D::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Vector, CachedControlIndices[EntryIndex]);
 				}
 				break;
 			}
@@ -270,7 +270,7 @@ FRigUnit_SetControlVector_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -348,7 +348,7 @@ FRigUnit_SetControlRotator_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -413,7 +413,7 @@ FRigUnit_SetMultiControlRotator_Execute()
 	{
 		CachedControlIndices.SetNum(Entries.Num());
 
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Update:
 			{
@@ -421,7 +421,7 @@ FRigUnit_SetMultiControlRotator_Execute()
 				{
 					FRotator Rotator = Entries[EntryIndex].Rotator;
 
-					FRigUnit_SetControlRotator::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Rotator, Entries[EntryIndex].Space , CachedControlIndices[EntryIndex], Context);
+					FRigUnit_SetControlRotator::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Rotator, Entries[EntryIndex].Space , CachedControlIndices[EntryIndex]);
 				}
 				break;
 			}
@@ -439,7 +439,7 @@ FRigUnit_SetControlTransform_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{

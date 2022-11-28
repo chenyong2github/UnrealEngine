@@ -27,7 +27,7 @@ struct CONTROLRIG_API FRigUnit_SphereTraceWorld : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** Start of the trace in rig / global space */
 	UPROPERTY(meta = (Input))
@@ -83,7 +83,7 @@ struct CONTROLRIG_API FRigUnit_SphereTraceByTraceChannel : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** Start of the trace in rig / global space */
 	UPROPERTY(meta = (Input))
@@ -136,7 +136,7 @@ struct CONTROLRIG_API FRigUnit_SphereTraceByObjectTypes : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** Start of the trace in rig / global space */
 	UPROPERTY(meta = (Input))

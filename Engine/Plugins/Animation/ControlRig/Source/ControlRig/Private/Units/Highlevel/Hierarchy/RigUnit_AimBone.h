@@ -152,7 +152,7 @@ struct CONTROLRIG_API FRigUnit_AimBoneMath : public FRigUnit_HighlevelBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The transform (in global space) before the aim was applied (optional)
@@ -233,7 +233,7 @@ struct CONTROLRIG_API FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** 
 	 * The name of the bone to align
@@ -321,7 +321,7 @@ struct CONTROLRIG_API FRigUnit_AimItem: public FRigUnit_HighlevelBaseMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** 
 	 * The name of the item to align
@@ -439,7 +439,7 @@ struct CONTROLRIG_API FRigUnit_AimConstraintLocalSpaceOffset: public FRigUnit_Hi
 	};
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** 
 	 * The name of the item to apply aim

@@ -23,7 +23,7 @@ struct CONTROLRIG_API FRigUnit_RandomFloat : public FRigUnit_MathBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	int32 Seed;
@@ -77,7 +77,7 @@ struct CONTROLRIG_API FRigUnit_RandomVector: public FRigUnit_MathBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	int32 Seed;

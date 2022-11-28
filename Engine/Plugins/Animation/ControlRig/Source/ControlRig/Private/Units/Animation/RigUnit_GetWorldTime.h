@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_GetWorldTime : public FRigUnit_AnimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Output))
 	float Year;

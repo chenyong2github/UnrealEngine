@@ -36,7 +36,7 @@ struct CONTROLRIG_API FRigUnit_BlendTransform : public FRigUnit
 	FTransform Result;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;

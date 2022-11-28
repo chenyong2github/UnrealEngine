@@ -10,12 +10,12 @@ FRigUnit_PointSimulation_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 
-	float DeltaTime = Context.DeltaTime;
+	float DeltaTime = ExecuteContext.UnitContext.DeltaTime;
 
 	FCRSimPointContainer& Simulation = WorkData.Simulation;
 	TArray<FCachedRigElement>& BoneIndices = WorkData.BoneIndices;
 
-	if (Context.State == EControlRigState::Init ||
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init ||
 		Simulation.Points.Num() != Points.Num() ||
 		Simulation.Springs.Num() != Links.Num() ||
 		Simulation.Forces.Num() != Forces.Num() ||
@@ -251,9 +251,9 @@ FRigUnit_PointSimulation_Execute()
 		Bezier.D = Simulation.GetPointInterpolated(3).Position;
 	}
 
-	if (Context.DrawInterface != nullptr && DebugSettings.bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface != nullptr && DebugSettings.bEnabled)
 	{
-		Context.DrawInterface->DrawPointSimulation(DebugSettings.WorldOffset, Simulation, DebugSettings.Color, DebugSettings.Scale, DebugSettings.CollisionScale, DebugSettings.bDrawPointsAsSpheres);
+		ExecuteContext.UnitContext.DrawInterface->DrawPointSimulation(DebugSettings.WorldOffset, Simulation, DebugSettings.Color, DebugSettings.Scale, DebugSettings.CollisionScale, DebugSettings.bDrawPointsAsSpheres);
 	}
 }
 

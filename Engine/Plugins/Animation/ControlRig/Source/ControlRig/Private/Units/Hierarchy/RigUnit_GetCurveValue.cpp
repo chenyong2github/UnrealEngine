@@ -8,9 +8,9 @@
 FRigUnit_GetCurveValue_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-    if (const URigHierarchy* Hierarchy = Context.Hierarchy)
+    if (const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{

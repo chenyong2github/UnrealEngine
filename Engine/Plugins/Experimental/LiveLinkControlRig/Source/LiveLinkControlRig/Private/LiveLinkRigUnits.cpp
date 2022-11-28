@@ -25,7 +25,7 @@ ILiveLinkClient* LiveLinkControlRigUtilities::TryGetLiveLinkClient()
 
 FRigUnit_LiveLinkEvaluteFrameAnimation_Execute()
 {
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 	case EControlRigState::Init:
 	case EControlRigState::Update:
@@ -45,7 +45,7 @@ FRigUnit_LiveLinkEvaluteFrameAnimation_Execute()
 		}
 
 		// Debug Drawing if required
-		if (bDrawDebug && Context.DrawInterface != nullptr)
+		if (bDrawDebug && ExecuteContext.UnitContext.DrawInterface != nullptr)
 		{
 			/*
 			FRigBoneHierarchy DebugHierarchy;
@@ -81,7 +81,7 @@ FRigUnit_LiveLinkEvaluteFrameAnimation_Execute()
 
 FRigUnit_LiveLinkGetTransformByName_Execute()
 {
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 	case EControlRigState::Init:
 	case EControlRigState::Update:
@@ -114,7 +114,7 @@ FRigUnit_LiveLinkGetTransformByName_Execute()
 
 FRigUnit_LiveLinkGetParameterValueByName_Execute()
 {
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 	case EControlRigState::Init:
 	case EControlRigState::Update:
@@ -138,7 +138,7 @@ FRigUnit_LiveLinkGetParameterValueByName_Execute()
 
 FRigUnit_LiveLinkEvaluteFrameTransform_Execute()
 {
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 	case EControlRigState::Init:
 	case EControlRigState::Update:
@@ -158,7 +158,7 @@ FRigUnit_LiveLinkEvaluteFrameTransform_Execute()
 		}
 
 		// Debug Drawing if required
-		if (bDrawDebug && Context.DrawInterface != nullptr)
+		if (bDrawDebug && ExecuteContext.UnitContext.DrawInterface != nullptr)
 		{
 			// Rather than drawing as an axis guide, draw as a hierarchy with a dummy root bone which makes it clearer what the origin of the transform
 			// space is

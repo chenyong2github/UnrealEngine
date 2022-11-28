@@ -79,7 +79,7 @@ struct CONTROLRIG_API FRigUnit_TransformConstraint : public FRigUnit_HighlevelBa
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	FName Bone;
@@ -149,7 +149,7 @@ struct CONTROLRIG_API FRigUnit_TransformConstraintPerItem : public FRigUnit_High
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
 	FRigElementKey Item;
@@ -262,7 +262,7 @@ struct FRigUnit_ParentConstraint : public FRigUnit_HighlevelBaseMutable
 	}
 	
 	RIGVM_METHOD()
-    virtual void Execute(const FRigUnitContext& Context) override;
+    virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
@@ -306,7 +306,7 @@ struct FRigUnit_PositionConstraint : public FRigUnit_HighlevelBaseMutable
 	}
 	
 	RIGVM_METHOD()
-    virtual void Execute(const FRigUnitContext& Context) override;
+    virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
@@ -346,7 +346,7 @@ struct FRigUnit_PositionConstraintLocalSpaceOffset : public FRigUnit_HighlevelBa
 	}
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
@@ -411,7 +411,7 @@ struct FRigUnit_RotationConstraint : public FRigUnit_HighlevelBaseMutable
 	}
 	
 	RIGVM_METHOD()
-    virtual void Execute(const FRigUnitContext& Context) override;
+    virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
@@ -454,7 +454,7 @@ struct FRigUnit_RotationConstraintLocalSpaceOffset : public FRigUnit_HighlevelBa
 	}
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
@@ -498,7 +498,7 @@ struct FRigUnit_ScaleConstraint : public FRigUnit_HighlevelBaseMutable
 	}
 	
 	RIGVM_METHOD()
-    virtual void Execute(const FRigUnitContext& Context) override;
+    virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
@@ -538,7 +538,7 @@ struct FRigUnit_ScaleConstraintLocalSpaceOffset : public FRigUnit_HighlevelBaseM
 	}
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
 	FRigElementKey Child;

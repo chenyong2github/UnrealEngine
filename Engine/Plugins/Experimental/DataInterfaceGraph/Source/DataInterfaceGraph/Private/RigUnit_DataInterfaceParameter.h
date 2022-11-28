@@ -4,6 +4,7 @@
 
 #include "IDataInterface.h"
 #include "Units/RigUnit.h"
+#include "DataInterfaceGraph/Internal/DataInterfaceExecuteContext.h"
 #include "RigUnit_DataInterfaceParameter.generated.h"
 
 struct FDataInterfaceUnitContext;
@@ -11,7 +12,7 @@ class UDataInterfaceGraph;
 
 /** Unit for reading parameters from context */
 USTRUCT(meta=(DisplayName="Parameter"))
-struct FRigUnit_DataInterfaceParameter : public FRigUnit
+struct FRigUnit_DataInterfaceParameter : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
 
@@ -29,7 +30,7 @@ struct FRigUnit_DataInterfaceParameter_Float : public FRigUnit_DataInterfacePara
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Result", meta = (Output))
@@ -43,7 +44,7 @@ struct FRigUnit_DataInterfaceParameter_DataInterface : public FRigUnit_DataInter
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Result", meta = (Output))
@@ -142,7 +143,7 @@ struct FDataInterfaceParameter_DataInterface : public FDataInterfaceParameter
 
 /** Base unit for calling data interfaces from graphs */
 USTRUCT(meta=(DisplayName="Data Interface"))
-struct FRigUnit_DataInterface : public FRigUnit
+struct FRigUnit_DataInterface : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
 
@@ -158,7 +159,7 @@ struct FRigUnit_DataInterface_Float : public FRigUnit_DataInterface
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Data Interface", meta = (Input))
@@ -176,7 +177,7 @@ struct FRigUnit_DataInterface_Pose : public FRigUnit
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Pose Interface", meta = (Input))
@@ -191,7 +192,7 @@ protected:
 */
 /** Unit for getting a pose via a data interface */
 USTRUCT(meta=(DisplayName="Float Operator"))
-struct FRigUnit_FloatOperator : public FRigUnit
+struct FRigUnit_FloatOperator : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
 	
@@ -202,7 +203,7 @@ struct FRigUnit_FloatOperator : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Pose Interface", meta = (Input))
@@ -220,12 +221,12 @@ protected:
 
 /** Unit for getting a pose via a data interface */
 USTRUCT(meta=(DisplayName="Pose Operator"))
-struct FRigUnit_PoseOperator : public FRigUnit
+struct FRigUnit_PoseOperator : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Pose Interface", meta = (Input))
@@ -238,7 +239,7 @@ protected:
 	FDataInterfaceParameters1 Parameters;
 
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Result", Category = "BeginExecution", meta = (Output))
-	FRigVMExecuteContext Result;
+	FDataInterfaceExecuteContext Result;
 };
 
 USTRUCT(BlueprintType)
@@ -258,12 +259,12 @@ struct FAnimSequenceParameters
 
 /** Unit for getting a pose via a data interface */
 USTRUCT(meta=(DisplayName="Anim Sequence"))
-struct FRigUnit_DataInterface_SequencePlayer : public FRigUnit
+struct FRigUnit_DataInterface_SequencePlayer : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Data Interface", meta = (Input))
@@ -273,17 +274,17 @@ protected:
 	TScriptInterface<IDataInterface> Sequence = nullptr;
 	
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Result", Category = "BeginExecution", meta = (Output))
-	FRigVMExecuteContext Result;
+	FDataInterfaceExecuteContext Result;
 };
 
 /** Unit for getting a pose via a data interface */
 USTRUCT(meta=(DisplayName="Test Float State - Spring Damper Smoothing", Varying))
-struct FRigUnit_TestFloatState : public FRigUnit
+struct FRigUnit_TestFloatState : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "Parameters", meta=(Input))

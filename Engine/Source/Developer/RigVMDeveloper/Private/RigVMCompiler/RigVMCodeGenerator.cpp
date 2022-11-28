@@ -51,7 +51,7 @@ static constexpr TCHAR RigVM_CopyOpAssignFormat[] = TEXT("\t{0} = {1}{2};");
 static constexpr TCHAR RigVM_IncrementOpFormat[] = TEXT("\t{0}++;");
 static constexpr TCHAR RigVM_DecrementOpFormat[] = TEXT("\t{0}--;");
 static constexpr TCHAR RigVM_EqualsOpFormat[] = TEXT("\t{0} = {1} == {2};");
-static constexpr TCHAR RigVM_InvokeEntryFormat[] = TEXT("\tif (InEntryName == EntryName_{0}) return ExecuteEntry_{0}({1});");
+static constexpr TCHAR RigVM_InvokeEntryFormat[] = TEXT("\tif (InEntryName == EntryName_{0}) return ExecuteEntry_{0}();");
 static constexpr TCHAR RigVM_InvokeEntryByNameFormat[] = TEXT("\tERigVMExecuteResult EntryResult = InvokeEntryByName(InEntryName{0});\r\n\tSetInstructionIndex(INDEX_NONE);\r\n\tStopProfiling();\r\n\treturn ExecuteResult;");
 static constexpr TCHAR RigVM_InvokeEntryByNameFormat2[] = TEXT("\tif(!InvokeEntryByName({0}{1})) return ERigVMExecuteResult::Failed;");
 static constexpr TCHAR RigVM_CanExecuteEntryFormat[] = TEXT("\tif(!CanExecuteEntry(InEntryName, false)) { return ERigVMExecuteResult::Failed; }");
@@ -59,7 +59,7 @@ static constexpr TCHAR RigVM_EntryExecuteGuardFormat[] = TEXT("\tFEntryExecuteGu
 static constexpr TCHAR RigVM_PublicContextGuardFormat[] = TEXT("\tTGuardValue<{0}> PublicContextGuard(Context.GetPublicData<{0}>(), PublicContext);");
 static constexpr TCHAR RigVM_EntryNameFormat[] = TEXT("EntryName_{0}");
 static constexpr TCHAR RigVM_SetExecuteContextStructFormat[] = TEXT("\tSetContextPublicDataStruct({0}::StaticStruct());");
-static constexpr TCHAR RigVM_UpdateContextFormat[] = TEXT("\t{0}& PublicContext = UpdateContext<{0}>(AdditionalArguments, {1}, InEntryName);");
+static constexpr TCHAR RigVM_UpdateContextFormat[] = TEXT("\t{0}& PublicContext = UpdateContext<{0}>({1}, InEntryName);");
 static constexpr TCHAR RigVM_TrueFormat[] = TEXT("true");  
 static constexpr TCHAR RigVM_FalseFormat[] = TEXT("false");
 static constexpr TCHAR RigVM_SingleUnderscoreFormat[] = TEXT("_");
@@ -71,9 +71,6 @@ static constexpr TCHAR RigVM_IsValidArrayIndexFormat[] = TEXT("IsValidArrayIndex
 static constexpr TCHAR RigVM_TemporaryArrayIndexFormat[] = TEXT("\tTemporaryArrayIndex = {0};");
 static constexpr TCHAR RigVM_StartProfilingFormat[] = TEXT("\tStartProfiling");
 static constexpr TCHAR RigVM_ExecuteReachedExitFormat[] = TEXT("\tBroadcastExecutionReachedExit();");
-static constexpr TCHAR RigVM_AdditionalArgumentNameFormat[] = TEXT("AdditionalArgument_{0}_{1}");
-static constexpr TCHAR RigVM_FullOpaqueArgumentFormat[] = TEXT("\t{0} {1} = *({2}*)Context.OpaqueArguments[{3}];");
-static constexpr TCHAR RigVM_ParameterOpaqueArgumentFormat[] = TEXT("{0} {1}");
 static constexpr TCHAR RigVM_InstructionLabelFormat[] = TEXT("\tInstruction{0}Label:");
 static constexpr TCHAR RigVM_SetInstructionIndexFormat[] = TEXT("\tSetInstructionIndex({0});");
 static constexpr TCHAR RigVM_ContextFormat[] = TEXT("Context");
@@ -114,12 +111,12 @@ static constexpr TCHAR RigVM_GetVMHashFormat[] = TEXT("\tvirtual uint32 GetVMHas
 static constexpr TCHAR RigVM_GetEntryNamesFormat[] = TEXT("\tvirtual const TArray<FName>& GetEntryNames() const override\r\n\t{\r\n\t\tstatic const TArray<FName> StaticEntryNames = { {0} };\r\n\t\treturn StaticEntryNames;\r\n\t}");
 static constexpr TCHAR RigVM_DeclareUpdateExternalVariablesFormat[] = TEXT("\tvirtual void UpdateExternalVariables() override;");
 static constexpr TCHAR RigVM_DeclareInvokeEntryByNameFormat[] = TEXT("\tERigVMExecuteResult InvokeEntryByName(const FName& InEntryName{0});");
-static constexpr TCHAR RigVM_DeclareInitializeFormat[] = TEXT("\tvirtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, bool bInitializeMemory = true) override;");
-static constexpr TCHAR RigVM_DefineInitializeFormat[] = TEXT("bool U{0}::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, bool bInitializeMemory)\r\n{");
-static constexpr TCHAR RigVM_DeclareExecuteFormat[] = TEXT("\tvirtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName) override;");
+static constexpr TCHAR RigVM_DeclareInitializeFormat[] = TEXT("\tvirtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> bool bInitializeMemory = true) override;");
+static constexpr TCHAR RigVM_DefineInitializeFormat[] = TEXT("bool U{0}::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> bool bInitializeMemory)\r\n{");
+static constexpr TCHAR RigVM_DeclareExecuteFormat[] = TEXT("\tvirtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> const FName& InEntryName) override;");
 static constexpr TCHAR RigVM_DefineUpdateExternalVariablesFormat[] = TEXT("void U{0}::UpdateExternalVariables()\r\n{");
 static constexpr TCHAR RigVM_DefineInvokeEntryByNameFormat[] = TEXT("ERigVMExecuteResult U{0}::InvokeEntryByName(const FName& InEntryName{1})\r\n{");
-static constexpr TCHAR RigVM_DefineExecuteFormat[] = TEXT("ERigVMExecuteResult U{0}::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName)\r\n{");
+static constexpr TCHAR RigVM_DefineExecuteFormat[] = TEXT("ERigVMExecuteResult U{0}::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> const FName& InEntryName)\r\n{");
 static constexpr TCHAR RigVM_DeclareExecuteEntryFormat[] = TEXT("\tERigVMExecuteResult ExecuteEntry_{0}({1});");
 static constexpr TCHAR RigVM_DefineExecuteEntryFormat[] = TEXT("ERigVMExecuteResult U{0}::ExecuteEntry_{1}({2})\r\n{");
 static constexpr TCHAR RigVM_DeclareExecuteGroupFormat[] = TEXT("\tERigVMExecuteResult ExecuteGroup_{0}_{1}({2});");
@@ -599,32 +596,6 @@ FString FRigVMCodeGenerator::DumpInstructions(int32 InInstructionGroup, bool bLo
 		{
 			Lines.Add(Format(RigVM_SetExecuteContextStructFormat, ExecuteContextType));
 			Lines.Add(Format(RigVM_UpdateContextFormat, ExecuteContextType, Instructions.Num()));
-
-			// let's get the additional arguments for all sub groups
-			TArray<FString> OpaqueArgumentHit;
-			for(const FInstructionGroup& EntryGroup : InstructionGroups)
-			{
-				if(EntryGroup.Entry.IsEmpty() || EntryGroup.Depth > 0)
-				{
-					continue;
-				}
-
-				for(const FOpaqueArgument& OpaqueArgument : EntryGroup.OpaqueArguments)
-				{
-					if(OpaqueArgumentHit.Contains(OpaqueArgument.Get<0>()))
-					{
-						continue;
-					}
-					const int32 ArgumentIndex = OpaqueArgumentHit.Add(OpaqueArgument.Get<0>());
-					FString ArgumentTypeNoRef = OpaqueArgument.Get<2>();
-					if (ArgumentTypeNoRef.EndsWith(TEXT("&")))
-					{
-						ArgumentTypeNoRef.LeftChopInline(1);
-					}
-					Lines.Add(Format(RigVM_FullOpaqueArgumentFormat, *OpaqueArgument.Get<2>(), *OpaqueArgument.Get<1>(), *ArgumentTypeNoRef, ArgumentIndex));
-				}
-			}
-
 			Lines.Add(Format(RigVM_InvokeEntryByNameFormat, *GetEntryParameters()));
 
 			return DumpLines(Lines, bLog);
@@ -641,23 +612,7 @@ FString FRigVMCodeGenerator::DumpInstructions(int32 InInstructionGroup, bool bLo
 			{
 				const FRigVMByteCodeEntry& Entry = ByteCode.GetEntry(EntryIndex);
 				const FString EntryName = Entry.GetSanitizedName();
-				FString OpaqueArguments;
-
-				// find the entry's group and provide the needed arguments
-				for(const FInstructionGroup& EntryGroup : InstructionGroups)
-				{
-					if(EntryGroup.Depth <= 0 && EntryGroup.Entry == EntryName)
-					{
-						TArray<FString> ArgumentNames = {RigVM_ContextPublicFormat};
-						for(const FOpaqueArgument& OpaqueArgument : EntryGroup.OpaqueArguments)
-						{
-							ArgumentNames.Add(OpaqueArgument.Get<1>());
-						}
-						OpaqueArguments = FString::Join(ArgumentNames, RigVM_CommaSeparator);
-						break;
-					}
-				}
-				Lines.Add(Format(RigVM_InvokeEntryFormat, *EntryName, *OpaqueArguments));
+				Lines.Add(Format(RigVM_InvokeEntryFormat, *EntryName));
 			}
 		}
 	}
@@ -720,13 +675,6 @@ FString FRigVMCodeGenerator::DumpInstructions(int32 InInstructionGroup, bool bLo
 
 			FString Parameters;
 			TArray<FString> ParameterArray = {RigVM_ContextPublicFormat};
-			if(!ChildGroup.OpaqueArguments.IsEmpty())
-			{
-				for(const FOpaqueArgument& OpaqueArgument : ChildGroup.OpaqueArguments)
-				{
-					ParameterArray.Add(OpaqueArgument.Get<1>());
-				}
-			}
 			Parameters = FString::Join(ParameterArray, RigVM_CommaSeparator);
 			Lines.Add(Format(RigVM_InvokeExecuteGroupFormat, *ChildGroup.Entry, ChildGroupIndex, *Parameters));
 		}
@@ -869,20 +817,6 @@ FString FRigVMCodeGenerator::DumpInstructions(const FString& InPrefix, const TAr
 						bSliced = FunctionArgument.Type != Property.CPPType;
 					}
 					Arguments.Add(GetOperandName(Operand, bSliced));
-				}
-
-				for(const FRigVMFunctionArgument& Argument : Function->GetArguments())
-				{
-					if (Function->IsAdditionalArgument(Argument))
-					{
-						const FOpaqueArgument* OpaqueArgument = InGroup.OpaqueArguments.FindByPredicate([Argument](const FOpaqueArgument& InArgument) -> bool
-						{
-							return InArgument.Get<0>() == Argument.Name;
-						});
-
-						check(OpaqueArgument);
-						Arguments.Add(OpaqueArgument->Get<1>());
-					}
 				}
 
 				const FString JoinedArguments = FString::Join(Arguments, RigVM_CommaSeparator);
@@ -1273,13 +1207,6 @@ FString FRigVMCodeGenerator::DumpHeader(bool bLog)
 
 		FString Parameters;
 		TArray<FString> ParameterArray = {Format(RigVM_ContextPublicParameterFormat, ExecuteContextType)};
-		if(!Group.OpaqueArguments.IsEmpty())
-		{
-			for(const FOpaqueArgument& OpaqueArgument : Group.OpaqueArguments)
-			{
-				ParameterArray.Add(Format(RigVM_ParameterOpaqueArgumentFormat, *OpaqueArgument.Get<2>(), *OpaqueArgument.Get<1>()));
-			}
-		}
 		Parameters = FString::Join(ParameterArray, RigVM_CommaSeparator);
 		
 		if(Group.Depth == 0)
@@ -1376,13 +1303,6 @@ FString FRigVMCodeGenerator::DumpSource(bool bLog)
 
 		FString Parameters;
 		TArray<FString> ParameterArray = {Format(RigVM_ContextPublicParameterFormat, ExecuteContextType)};
-		if(!Group.OpaqueArguments.IsEmpty())
-		{
-			for(const FOpaqueArgument& OpaqueArgument : Group.OpaqueArguments)
-			{
-				ParameterArray.Add(Format(RigVM_ParameterOpaqueArgumentFormat, *OpaqueArgument.Get<2>(), *OpaqueArgument.Get<1>()));
-			}
-		}
 		Parameters = FString::Join(ParameterArray, RigVM_CommaSeparator);
 
 		Lines.Emplace();
@@ -1910,22 +1830,6 @@ void FRigVMCodeGenerator::ParseInstructionGroups()
 						ParseInclude(Function->Factory->GetScriptStruct(), Function->GetMethodName());
 					}
 
-					// check all of the arguments that may not be part of the struct definition
-					for(const FRigVMFunctionArgument& Argument : Function->GetArguments())
-					{
-						if (Function->IsAdditionalArgument(Argument))
-						{
-							if(!Group.OpaqueArguments.ContainsByPredicate([Argument](const FOpaqueArgument& OpaqueArgument) -> bool
-							{
-								return Argument.Name == OpaqueArgument.Get<0>();
-							}))
-							{
-								const FString ArgumentName = Format(RigVM_AdditionalArgumentNameFormat, Group.OpaqueArguments.Num(), Argument.Name);
-								FOpaqueArgument OpaqueArgument(Argument.Name, ArgumentName, Argument.Type);
-								Group.OpaqueArguments.AddUnique(OpaqueArgument);
-							}
-						}
-					}
 					break;
 				}
 				case ERigVMOpCode::JumpAbsolute:
@@ -2477,10 +2381,6 @@ FString FRigVMCodeGenerator::GetEntryParameters() const
 		if(EntryGroup.Depth <= 0 && EntryGroup.Entry == EntryName)
 		{
 			TArray<FString> ArgumentNames = {RigVM_ContextPublicFormat};
-			for(const FOpaqueArgument& OpaqueArgument : EntryGroup.OpaqueArguments)
-			{
-				ArgumentNames.Add(OpaqueArgument.Get<1>());
-			}
 			Parameters = FString::Join(ArgumentNames, RigVM_CommaSeparator);
 			break;
 		}

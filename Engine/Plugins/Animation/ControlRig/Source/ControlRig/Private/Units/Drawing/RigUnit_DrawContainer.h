@@ -21,7 +21,7 @@ struct CONTROLRIG_API FRigUnit_DrawContainerGetInstruction : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, Constant, CustomWidget = "DrawingName"))
 	FName InstructionName;
@@ -51,7 +51,7 @@ struct CONTROLRIG_API FRigUnit_DrawContainerSetColor: public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, Constant, CustomWidget = "DrawingName"))
 	FName InstructionName;
@@ -78,7 +78,7 @@ struct CONTROLRIG_API FRigUnit_DrawContainerSetThickness : public FRigUnitMutabl
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, Constant, CustomWidget = "DrawingName"))
 	FName InstructionName;
@@ -105,7 +105,7 @@ struct CONTROLRIG_API FRigUnit_DrawContainerSetTransform : public FRigUnitMutabl
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, Constant, CustomWidget = "DrawingName"))
 	FName InstructionName;

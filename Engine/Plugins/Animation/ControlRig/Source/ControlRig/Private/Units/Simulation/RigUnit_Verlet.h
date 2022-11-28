@@ -26,7 +26,7 @@ struct CONTROLRIG_API FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Target;

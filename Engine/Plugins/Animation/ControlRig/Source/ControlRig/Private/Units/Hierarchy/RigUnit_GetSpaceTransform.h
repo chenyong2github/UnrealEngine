@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_GetSpaceTransform : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Space to retrieve the transform for.

@@ -9,21 +9,21 @@
 FRigUnit_DebugPoint_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
 
 	FVector Center = FVector::ZeroVector;
 	FVector DrawVector = Vector;
-	if (Space != NAME_None && Context.Hierarchy != nullptr)
+	if (Space != NAME_None && ExecuteContext.Hierarchy != nullptr)
 	{
-		const FTransform Transform = Context.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
+		const FTransform Transform = ExecuteContext.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
 		Center = Transform.GetLocation();
 		DrawVector = Transform.TransformPosition(DrawVector);
 	}
@@ -32,12 +32,12 @@ FRigUnit_DebugPoint_Execute()
 	{
 		case ERigUnitDebugPointMode::Point:
 		{
-			Context.DrawInterface->DrawPoint(WorldOffset, DrawVector, Scale, Color);
+			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawVector, Scale, Color);
 			break;
 		}
 		case ERigUnitDebugPointMode::Vector:
 		{
-			Context.DrawInterface->DrawLine(WorldOffset, Center, DrawVector, Color, Thickness);
+			ExecuteContext.UnitContext.DrawInterface->DrawLine(WorldOffset, Center, DrawVector, Color, Thickness);
 			break;
 		}
 	}
@@ -62,21 +62,21 @@ FRigVMStructUpgradeInfo FRigUnit_DebugPoint::GetUpgradeInfo() const
 FRigUnit_DebugPointMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
 
 	FVector Center = FVector::ZeroVector;
 	FVector DrawVector = Vector;
-	if (Space != NAME_None && Context.Hierarchy != nullptr)
+	if (Space != NAME_None && ExecuteContext.Hierarchy != nullptr)
 	{
-		const FTransform Transform = Context.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
+		const FTransform Transform = ExecuteContext.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
 		Center = Transform.GetLocation();
 		DrawVector = Transform.TransformPosition(DrawVector);
 	}
@@ -85,12 +85,12 @@ FRigUnit_DebugPointMutable_Execute()
 	{
 		case ERigUnitDebugPointMode::Point:
 		{
-			Context.DrawInterface->DrawPoint(WorldOffset, DrawVector, Scale, Color);
+			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawVector, Scale, Color);
 			break;
 		}
 		case ERigUnitDebugPointMode::Vector:
 		{
-			Context.DrawInterface->DrawLine(WorldOffset, Center, DrawVector, Color, Thickness);
+			ExecuteContext.UnitContext.DrawInterface->DrawLine(WorldOffset, Center, DrawVector, Color, Thickness);
 			break;
 		}
 	}

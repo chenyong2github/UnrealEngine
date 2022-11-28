@@ -28,7 +28,7 @@ struct CONTROLRIG_API FRigUnit_MultiplyTransform : public FRigUnit_BinaryTransfo
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -40,7 +40,7 @@ struct CONTROLRIG_API FRigUnit_GetRelativeTransform : public FRigUnit_BinaryTran
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;

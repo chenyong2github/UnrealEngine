@@ -15,7 +15,7 @@ struct CONTROLRIG_API FRigUnit_SequenceExecution : public FRigUnit
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The execution input
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Execute", Category = "SequenceExecution", meta = (Input))
@@ -50,7 +50,7 @@ struct CONTROLRIG_API FRigUnit_SequenceAggregate : public FRigUnit
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The execution input
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Execute", Category = "SequenceExecution", meta = (Input, Aggregate))

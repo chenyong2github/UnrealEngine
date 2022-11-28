@@ -20,7 +20,7 @@ struct CONTROLRIG_API FRigUnit_GetControlColor : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to get the color for.
@@ -54,7 +54,7 @@ struct CONTROLRIG_API FRigUnit_SetControlColor : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the color for.

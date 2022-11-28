@@ -12,7 +12,7 @@
 
 FRigUnit_ControlRigSplineFromPoints_Execute()
 {
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 		case EControlRigState::Init:
 		case EControlRigState::Update:
@@ -40,7 +40,7 @@ FRigUnit_ControlRigSplineFromPoints_Execute()
 
 FRigUnit_SetSplinePoints_Execute()
 {
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
@@ -65,7 +65,7 @@ FRigUnit_SetSplinePoints_Execute()
 		return;
 	}
 
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 		case EControlRigState::Init:
 		case EControlRigState::Update:
@@ -97,7 +97,7 @@ FRigUnit_PositionFromControlRigSpline_Execute()
 	}
 #endif
 	
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 		case EControlRigState::Init:
 		case EControlRigState::Update:
@@ -128,7 +128,7 @@ FRigUnit_TransformFromControlRigSpline_Execute()
 	}
 #endif	
 	
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 		case EControlRigState::Init:
 		case EControlRigState::Update:
@@ -178,7 +178,7 @@ FRigUnit_TangentFromControlRigSpline_Execute()
 	}
 #endif	
 	
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 		case EControlRigState::Init:
 		case EControlRigState::Update:
@@ -209,12 +209,12 @@ FRigUnit_TangentFromControlRigSpline_Execute()
 
 FRigUnit_DrawControlRigSpline_Execute()
 {
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr)
 	{
 		return;
 	}
@@ -245,7 +245,7 @@ FRigUnit_DrawControlRigSpline_Execute()
 		T += Step;
 	}
 
-	Context.DrawInterface->Instructions.Add(Instruction);
+	ExecuteContext.UnitContext.DrawInterface->Instructions.Add(Instruction);
 }
 
 FRigUnit_GetLengthControlRigSpline_Execute()
@@ -265,7 +265,7 @@ FRigUnit_GetLengthControlRigSpline_Execute()
 	}
 #endif	
 	
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 		case EControlRigState::Init:
 		case EControlRigState::Update:
@@ -299,8 +299,7 @@ FRigUnit_FitChainToSplineCurve_Execute()
 		Weight,
 		bPropagateToChildren,
 		DebugSettings,
-		WorkData,
-		Context);
+		WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_FitChainToSplineCurve::GetUpgradeInfo() const
@@ -359,7 +358,7 @@ FRigUnit_FitChainToSplineCurveItemArray_Execute()
 	TArray<float>& ItemRotationT = WorkData.ItemRotationT;
 	TArray<FTransform>& ItemLocalTransforms = WorkData.ItemLocalTransforms;
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedItems.Reset();
 		return;
@@ -714,7 +713,7 @@ FRigUnit_FitChainToSplineCurveItemArray_Execute()
 		}
 	}
 
-	if (Context.DrawInterface != nullptr && DebugSettings.bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface != nullptr && DebugSettings.bEnabled)
 	{
 		int32 Count = 64;
 		FControlRigDrawInstruction Instruction(EControlRigDrawSettings::LineStrip, DebugSettings.CurveColor, DebugSettings.Scale, DebugSettings.WorldOffset);
@@ -728,21 +727,21 @@ FRigUnit_FitChainToSplineCurveItemArray_Execute()
 			Instruction.Positions[Index] = Spline.PositionAtParam(T);
 			T += Step;
 		}
-		Context.DrawInterface->Instructions.Add(Instruction);
+		ExecuteContext.UnitContext.DrawInterface->Instructions.Add(Instruction);
 
 		for (auto Point : Spline.SplineData->GetControlPoints())
 		{
-			Context.DrawInterface->DrawPoint(DebugSettings.WorldOffset, Point, DebugSettings.Scale * 6, DebugSettings.CurveColor);
+			ExecuteContext.UnitContext.DrawInterface->DrawPoint(DebugSettings.WorldOffset, Point, DebugSettings.Scale * 6, DebugSettings.CurveColor);
 		}
 
-		Context.DrawInterface->DrawLineStrip(DebugSettings.WorldOffset, CurvePositions, DebugSettings.SegmentsColor, DebugSettings.Scale);
-		Context.DrawInterface->DrawPoints(DebugSettings.WorldOffset, CurvePositions, DebugSettings.Scale * 4.f, DebugSettings.SegmentsColor);
+		ExecuteContext.UnitContext.DrawInterface->DrawLineStrip(DebugSettings.WorldOffset, CurvePositions, DebugSettings.SegmentsColor, DebugSettings.Scale);
+		ExecuteContext.UnitContext.DrawInterface->DrawPoints(DebugSettings.WorldOffset, CurvePositions, DebugSettings.Scale * 4.f, DebugSettings.SegmentsColor);
 	}
 }
 
 FRigUnit_FitSplineCurveToChain_Execute()
 {
-	FRigUnit_FitSplineCurveToChainItemArray::StaticExecute(ExecuteContext, Items.Keys, Spline, Context);
+	FRigUnit_FitSplineCurveToChainItemArray::StaticExecute(ExecuteContext, Items.Keys, Spline);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_FitSplineCurveToChain::GetUpgradeInfo() const
@@ -777,7 +776,7 @@ FRigUnit_FitSplineCurveToChainItemArray_Execute()
 	}
 #endif	
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
@@ -833,7 +832,7 @@ FRigUnit_ClosestParameterFromControlRigSpline_Execute()
 	}
 #endif	
 	
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 		case EControlRigState::Init:
 		case EControlRigState::Update:
@@ -905,7 +904,7 @@ FRigUnit_ParameterAtPercentage_Execute()
 	}
 #endif	
 	
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 	case EControlRigState::Init:
 	case EControlRigState::Update:

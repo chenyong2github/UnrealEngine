@@ -2800,15 +2800,15 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 
 						if(bChildFound)
 						{
-							const FRigUnitContext* UnitContext = (const FRigUnitContext*)ExecuteContext->OpaqueArguments[0];
-							if(UnitContext && UnitContext->Log)
+							const FRigUnitContext& UnitContext = ExecuteContext->GetPublicData<FControlRigExecuteContext>().UnitContext;
+							if(UnitContext.Log)
 							{
 								static constexpr TCHAR MessageFormat[] = TEXT("Setting transform of parent (%s) after setting child (%s).\nThis may lead to unexpected results.");
 								const FString& Message = FString::Printf(
 									MessageFormat,
 									*InTransformElement->GetName().ToString(),
 									*Child->GetName().ToString());
-								UnitContext->Log->Report(
+								UnitContext.Log->Report(
 									EMessageSeverity::Info,
 									ExecuteContext->GetPublicData<>().GetFunctionName(),
 									ExecuteContext->GetPublicData<>().GetInstructionIndex(),

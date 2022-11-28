@@ -9,9 +9,9 @@ FRigUnit_FramesToSeconds_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-    if(Context.FramesPerSecond > SMALL_NUMBER)
+    if(ExecuteContext.UnitContext.FramesPerSecond > SMALL_NUMBER)
     {
-		Seconds = Frames / Context.FramesPerSecond;
+		Seconds = Frames / ExecuteContext.UnitContext.FramesPerSecond;
 	}
 	else
 	{
@@ -23,9 +23,9 @@ FRigUnit_SecondsToFrames_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-    if(Context.FramesPerSecond > SMALL_NUMBER)
+    if(ExecuteContext.UnitContext.FramesPerSecond > SMALL_NUMBER)
     {
-		Frames = Seconds * Context.FramesPerSecond;
+		Frames = Seconds * ExecuteContext.UnitContext.FramesPerSecond;
 	}
 	else
 	{

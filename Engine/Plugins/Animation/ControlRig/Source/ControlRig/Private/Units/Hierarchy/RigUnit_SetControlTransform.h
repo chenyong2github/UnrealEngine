@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_SetControlBool : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the bool for.
@@ -72,7 +72,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlBool : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The array of control-Bool pairs to be processed
@@ -100,7 +100,7 @@ struct CONTROLRIG_API FRigUnit_SetControlFloat : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the transform for.
@@ -161,7 +161,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlFloat : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The array of control-float pairs to be processed
@@ -197,7 +197,7 @@ struct CONTROLRIG_API FRigUnit_SetControlInteger : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the transform for.
@@ -258,7 +258,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlInteger : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The array of control-integer pairs to be processed
@@ -292,7 +292,7 @@ struct CONTROLRIG_API FRigUnit_SetControlVector2D : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the transform for.
@@ -354,7 +354,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlVector2D : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The array of control-vector2D pairs to be processed
@@ -389,7 +389,7 @@ struct CONTROLRIG_API FRigUnit_SetControlVector : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the transform for.
@@ -437,7 +437,7 @@ struct CONTROLRIG_API FRigUnit_SetControlRotator : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the transform for.
@@ -515,7 +515,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlRotator : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The array of control-rotator pairs to be processed
@@ -549,7 +549,7 @@ struct CONTROLRIG_API FRigUnit_SetControlTransform : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the transform for.

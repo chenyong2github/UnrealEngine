@@ -34,7 +34,7 @@ struct CONTROLRIG_API FRigUnit_MultiplyQuaternion : public FRigUnit_BinaryQuater
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -59,7 +59,7 @@ struct CONTROLRIG_API FRigUnit_InverseQuaterion: public FRigUnit_UnaryQuaternion
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -80,7 +80,7 @@ struct CONTROLRIG_API FRigUnit_QuaternionToAxisAndAngle : public FRigUnit
 	float Angle = 0.f;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -107,7 +107,7 @@ struct CONTROLRIG_API FRigUnit_QuaternionFromAxisAndAngle : public FRigUnit
 	FQuat Result;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -134,7 +134,7 @@ struct CONTROLRIG_API FRigUnit_QuaternionToAngle : public FRigUnit
 	float Angle;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 	
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;

@@ -37,7 +37,7 @@ struct CONTROLRIG_API FRigUnit_DebugTransform : public FRigUnit_DebugBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, Output))
 	FTransform Transform;
@@ -83,7 +83,7 @@ struct CONTROLRIG_API FRigUnit_DebugTransformMutable : public FRigUnit_DebugBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FTransform Transform;
@@ -133,7 +133,7 @@ struct CONTROLRIG_API FRigUnit_DebugTransformMutableItemSpace : public FRigUnit_
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FTransform Transform;
@@ -185,7 +185,7 @@ struct CONTROLRIG_API FRigUnit_DebugTransformArrayMutable : public FRigUnit_Debu
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	TArray<FTransform> Transforms;
@@ -238,7 +238,7 @@ struct CONTROLRIG_API FRigUnit_DebugTransformArrayMutableItemSpace : public FRig
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	TArray<FTransform> Transforms;

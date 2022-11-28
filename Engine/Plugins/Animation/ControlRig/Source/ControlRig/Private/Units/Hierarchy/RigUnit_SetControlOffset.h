@@ -21,7 +21,7 @@ struct CONTROLRIG_API FRigUnit_SetControlOffset : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the transform for.
@@ -63,7 +63,7 @@ struct CONTROLRIG_API FRigUnit_GetShapeTransform : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the transform for.
@@ -98,7 +98,7 @@ struct CONTROLRIG_API FRigUnit_SetShapeTransform : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the transform for.

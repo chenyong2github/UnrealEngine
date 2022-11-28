@@ -105,7 +105,7 @@ struct FRigUnit_FullbodyIK : public FRigUnit_HighlevelBaseMutable
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_FullbodyIK()
 		: Root(NAME_None, ERigElementType::Bone)

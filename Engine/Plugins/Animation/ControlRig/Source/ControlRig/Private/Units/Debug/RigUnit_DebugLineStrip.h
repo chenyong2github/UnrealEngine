@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_DebugLineStrip : public FRigUnit_DebugBaseMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	TArray<FVector> Points;
@@ -61,7 +61,7 @@ struct CONTROLRIG_API FRigUnit_DebugLineStripItemSpace : public FRigUnit_DebugBa
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	TArray<FVector> Points;

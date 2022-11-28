@@ -7,7 +7,7 @@
 
 FRigUnit_TwistBones_Execute()
 {
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		WorkData.CachedItems.Reset();
 		return;
@@ -17,7 +17,7 @@ FRigUnit_TwistBones_Execute()
 	if(WorkData.CachedItems.Num() == 0)
 	{
 		Items = FRigElementKeyCollection::MakeFromChain(
-			Context.Hierarchy,
+			ExecuteContext.Hierarchy,
 			FRigElementKey(StartBone, ERigElementType::Bone),
 			FRigElementKey(EndBone, ERigElementType::Bone),
 			false /* reverse */
@@ -32,8 +32,7 @@ FRigUnit_TwistBones_Execute()
 		TwistEaseType,
 		Weight,
 		bPropagateToChildren,
-		WorkData,
-		Context);
+		WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_TwistBones::GetUpgradeInfo() const
@@ -55,7 +54,7 @@ FRigUnit_TwistBonesPerItem_Execute()
 	TArray<float>& ItemRatios = WorkData.ItemRatios;
 	TArray<FTransform>& ItemTransforms = WorkData.ItemTransforms;
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedItems.Reset();
 		return;

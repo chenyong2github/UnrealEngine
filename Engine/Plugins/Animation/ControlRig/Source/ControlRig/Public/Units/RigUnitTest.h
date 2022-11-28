@@ -40,13 +40,11 @@ public:
 			Hierarchy->AddToRoot();
 			// we no longer add the controller to root since controller is now part of the hierarchy
 		}
-		Context.Hierarchy = Hierarchy;;
 		ExecuteContext.Hierarchy = Hierarchy;
 	}
 
 	URigHierarchy* Hierarchy;
 	URigHierarchyController* Controller;
-	FRigUnitContext Context;
 };
 
 #define CONTROLRIG_RIGUNIT_STRINGIFY(Content) #Content
@@ -80,13 +78,13 @@ public:
 		virtual FString GetBeautifiedTestName() const override { return TEXT(CONTROLRIG_RIGUNIT_STRINGIFY(ControlRig.Units.TUnitStruct)); } \
 		void Init() \
 		{ \
-			Context.State = EControlRigState::Init; \
-			Unit.Execute(Context); \
+			ExecuteContext.UnitContext.State = EControlRigState::Init; \
+			Unit.Execute(ExecuteContext); \
 		} \
 		void Execute() \
 		{ \
-			Context.State = EControlRigState::Update; \
-			Unit.Execute(Context); \
+			ExecuteContext.UnitContext.State = EControlRigState::Update; \
+			Unit.Execute(ExecuteContext); \
 		} \
 		void InitAndExecute() { Init(); Execute(); } \
 	}; \

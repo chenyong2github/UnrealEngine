@@ -12,7 +12,7 @@ struct FRigUnitContext;
 
 /** Event for writing back calculated results to external variables */
 USTRUCT(meta=(DisplayName="End Execute Data Interface"))
-struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution : public FRigUnit
+struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
 
@@ -36,11 +36,12 @@ struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution_Bool : public F
 	GENERATED_BODY()
 	
 	FRigUnit_DataInterfaceEndExecution_Bool()
-		: Result(false)
+		: FRigUnit_DataInterfaceEndExecution()
+		, Result(false)
 	{}
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 	
 	UPROPERTY(EditAnywhere, Category = Result, meta = (Input))
 	bool Result;
@@ -53,11 +54,12 @@ struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution_Float : public 
 	GENERATED_BODY()
 
 	FRigUnit_DataInterfaceEndExecution_Float()
-	: Result(0.f)
+		: FRigUnit_DataInterfaceEndExecution()
+		, Result(0.f)
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	void Execute();
 
 	UPROPERTY(EditAnywhere, Category = Result, meta = (Input))
 	float Result;

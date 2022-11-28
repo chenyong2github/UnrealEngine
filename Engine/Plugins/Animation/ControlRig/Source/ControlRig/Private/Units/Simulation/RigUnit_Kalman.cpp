@@ -10,7 +10,7 @@ FRigUnit_KalmanFloat_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
 	{
-		if (Context.State == EControlRigState::Init)
+		if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("BufferSize is too small."));
 		}
@@ -21,7 +21,7 @@ FRigUnit_KalmanFloat_Execute()
 
 	Buffer.SetNum(BufferSize);
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		for (float& Element : Buffer)
 		{
@@ -61,7 +61,7 @@ FRigUnit_KalmanVector_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
 	{
-		if (Context.State == EControlRigState::Init)
+		if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("BufferSize is too small."));
 		}
@@ -72,7 +72,7 @@ FRigUnit_KalmanVector_Execute()
 
 	Buffer.SetNum(BufferSize);
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		for (FVector& Element : Buffer)
 		{
@@ -112,7 +112,7 @@ FRigUnit_KalmanTransform_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
 	{
-		if (Context.State == EControlRigState::Init)
+		if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("BufferSize is too small."));
 		}
@@ -123,7 +123,7 @@ FRigUnit_KalmanTransform_Execute()
 
 	Buffer.SetNum(BufferSize);
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		for (FTransform& Element : Buffer)
 		{

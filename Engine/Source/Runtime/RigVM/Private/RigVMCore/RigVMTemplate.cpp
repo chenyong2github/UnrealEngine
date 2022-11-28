@@ -963,20 +963,27 @@ FString FRigVMTemplate::GetArgumentMetaData(const FName& InArgumentName, const F
 
 #endif
 
-bool FRigVMTemplate::IsCompatible(const FRigVMTemplate& InOther) const
+bool FRigVMTemplate::Merge(const FRigVMTemplate& InOther)
 {
 	if (!IsValid() || !InOther.IsValid())
 	{
 		return false;
 	}
 
-	return Notation == InOther.Notation;
-}
-
-bool FRigVMTemplate::Merge(const FRigVMTemplate& InOther)
-{
-	if (!IsCompatible(InOther))
+	if(Notation != InOther.Notation)
 	{
+		return false;
+	}
+
+	if(InOther.GetExecuteContextStruct() != GetExecuteContextStruct())
+	{
+		// find the previously defined permutation.
+		UE_LOG(LogRigVM, Display, TEXT("RigVMFunction '%s' cannot be merged into the '%s' template. ExecuteContext Types differ ('%s' vs '%s' from '%s')."),
+			*InOther.GetPrimaryPermutation()->Name,
+			*GetNotation().ToString(),
+			*InOther.GetExecuteContextStruct()->GetStructCPPName(),
+			*GetExecuteContextStruct()->GetStructCPPName(),
+			*GetPrimaryPermutation()->Name);
 		return false;
 	}
 
@@ -1001,7 +1008,7 @@ bool FRigVMTemplate::Merge(const FRigVMTemplate& InOther)
 		{
 			// find the previously defined permutation.
 			UE_LOG(LogRigVM, Display, TEXT("RigVMFunction '%s' cannot be merged into the '%s' template. It collides with '%s'."),
-				*InOther.GetPermutation(0)->Name,
+				*InOther.GetPrimaryPermutation()->Name,
 				*GetNotation().ToString(),
 				*GetPermutation(PermutationIndex)->Name);
 			return false;
@@ -1105,6 +1112,21 @@ const TArray<FRigVMExecuteArgument>& FRigVMTemplate::GetExecuteArguments() const
 		}
 	}
 	return ExecuteArguments;
+}
+
+const UScriptStruct* FRigVMTemplate::GetExecuteContextStruct() const
+{
+	if(const FRigVMDispatchFactory* Factory = GetDispatchFactory())
+	{
+		return Factory->GetExecuteContextStruct();
+	}
+	check(!Permutations.IsEmpty());
+	return GetPrimaryPermutation()->GetExecuteContextStruct();
+}
+
+bool FRigVMTemplate::SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const
+{
+	return InExecuteContextStruct->IsChildOf(GetExecuteContextStruct());
 }
 
 bool FRigVMTemplate::ArgumentSupportsTypeIndex(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex) const
@@ -1468,7 +1490,7 @@ FString FRigVMTemplate::GetCategory() const
 	}
 	
 	FString Category;
-	GetPermutation(0)->Struct->GetStringMetaDataHierarchical(FRigVMStruct::CategoryMetaName, &Category);
+	GetPrimaryPermutation()->Struct->GetStringMetaDataHierarchical(FRigVMStruct::CategoryMetaName, &Category);
 
 	if (Category.IsEmpty())
 	{

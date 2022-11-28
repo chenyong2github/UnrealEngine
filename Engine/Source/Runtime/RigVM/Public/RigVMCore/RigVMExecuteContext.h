@@ -402,7 +402,6 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		}
 
 		VM = Other.VM;
-		OpaqueArguments = Other.OpaqueArguments;
 		Slices = Other.Slices;
 		SliceOffsets = Other.SliceOffsets;
 		return *this;
@@ -517,7 +516,6 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 
 	FStructOnScope PublicDataScope;
 	URigVM* VM;
-	TArrayView<void*> OpaqueArguments;
 	TArray<FRigVMSlice> Slices;
 	TArray<uint16> SliceOffsets;
 	double LastExecutionMicroSeconds;

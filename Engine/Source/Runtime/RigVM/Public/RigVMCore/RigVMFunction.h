@@ -20,7 +20,6 @@ struct FRigVMExtendedExecuteContext;
 struct FRigVMMemoryHandle;
 
 typedef TArrayView<FRigVMMemoryHandle> FRigVMMemoryHandleArray;
-typedef TArrayView<void*> FRigVMUserDataArray;
 
 typedef void (*FRigVMFunctionPtr)(FRigVMExtendedExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles);
 
@@ -155,6 +154,7 @@ struct RIGVM_API FRigVMFunction
 	FString GetModuleRelativeHeaderPath() const;
 	const TArray<FRigVMFunctionArgument>& GetArguments() const { return Arguments; }
 	const TArray<TRigVMTypeIndex>& GetArgumentTypeIndices() const;
-	bool IsAdditionalArgument(const FRigVMFunctionArgument& InArgument) const;
 	const FRigVMTemplate* GetTemplate() const;
+	const UScriptStruct* GetExecuteContextStruct() const;
+	bool SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const;
 };

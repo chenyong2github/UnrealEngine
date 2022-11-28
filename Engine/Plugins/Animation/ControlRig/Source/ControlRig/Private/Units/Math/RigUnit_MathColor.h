@@ -60,7 +60,7 @@ struct CONTROLRIG_API FRigUnit_MathColorMake : public FRigUnit_MathColorBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathColorMake()
 	{
@@ -88,12 +88,12 @@ struct CONTROLRIG_API FRigUnit_MathColorMake : public FRigUnit_MathColorBase
 /**
  * Makes a vector from a single float
  */
-USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathColorFromFloat : public FRigUnit_MathColorBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathColorFromFloat()
 	{
@@ -111,12 +111,12 @@ struct CONTROLRIG_API FRigUnit_MathColorFromFloat : public FRigUnit_MathColorBas
 /**
  * Makes a vector from a single double
  */
-USTRUCT(meta=(DisplayName="From Double", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Double", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathColorFromDouble : public FRigUnit_MathColorBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathColorFromDouble()
 	{
@@ -140,7 +140,7 @@ struct CONTROLRIG_API FRigUnit_MathColorAdd : public FRigUnit_MathColorBinaryAgg
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -152,7 +152,7 @@ struct CONTROLRIG_API FRigUnit_MathColorSub : public FRigUnit_MathColorBinaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -169,7 +169,7 @@ struct CONTROLRIG_API FRigUnit_MathColorMul : public FRigUnit_MathColorBinaryAgg
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -188,7 +188,7 @@ struct CONTROLRIG_API FRigUnit_MathColorLerp : public FRigUnit_MathColorBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FLinearColor A;

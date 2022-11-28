@@ -5,12 +5,13 @@
 #include "ControlRigDefines.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMCore/RigVMRegistry.h"
+#include "RigUnitContext.h"
 #include "RigUnit.generated.h"
 
 struct FRigUnitContext;
 
 /** Base class for all rig units */
-USTRUCT(BlueprintType, meta=(Abstract, NodeColor = "0.1 0.1 0.1"), BlueprintInternalUseOnlyHierarchical)
+USTRUCT(BlueprintType, meta=(Abstract, NodeColor = "0.1 0.1 0.1", ExecuteContext="FControlRigExecuteContext"), BlueprintInternalUseOnlyHierarchical)
 struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 {
 	GENERATED_BODY()
@@ -25,7 +26,7 @@ struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 	virtual FString GetUnitLabel() const { return FString(); }
 
 	/** Execute logic for this rig unit */
-	virtual void Execute(const FRigUnitContext& Context) {}
+	virtual void Execute() {}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const { return FRigElementKey(); }
 	

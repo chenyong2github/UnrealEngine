@@ -66,7 +66,7 @@ private:
 		virtual FString GetBeautifiedTestName() const override { return TEXT(RIGVMSTRUCT_TEST_STRINGIFY(RigVM.RigVMFunctions.TRigVMStruct)); } \
 		void Execute() \
 		{ \
-			Unit.Execute(); \
+			Unit.Execute(ExecuteContext); \
 		} \
 	}; \
 	namespace\

@@ -13,7 +13,7 @@ FRigUnit_ItemExists_Execute()
 
 	Exists = false;
 
-	switch (Context.State)
+	switch (ExecuteContext.UnitContext.State)
 	{
 		case EControlRigState::Init:
 		{
@@ -22,7 +22,7 @@ FRigUnit_ItemExists_Execute()
 		}
 		case EControlRigState::Update:
 		{
-			Exists = CachedIndex.UpdateCache(Item, Context.Hierarchy);
+			Exists = CachedIndex.UpdateCache(Item, ExecuteContext.Hierarchy);
 	    	break;
 	    }
 	    default:

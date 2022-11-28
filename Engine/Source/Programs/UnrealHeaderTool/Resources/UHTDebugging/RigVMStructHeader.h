@@ -52,7 +52,7 @@ struct FUHTTestExecuteContext : public FRigVMExecuteContext
 	GENERATED_BODY()
 };
 
-USTRUCT(meta = (Deprecated = "5.0.0"))
+USTRUCT(meta = (Deprecated = "5.0.0", ExecuteContext = "FUHTTestExecuteContext"))
 struct FRigVMMethodStruct : public FRigVMStructBase
 {
 	GENERATED_BODY()
@@ -61,10 +61,10 @@ struct FRigVMMethodStruct : public FRigVMStructBase
 	void Clear();
 
 	RIGVM_METHOD()
-	virtual void Execute(bool bAdditionalFlag = false, const FString& InString = TEXT("")) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
-	void Compute(float TestFloat);
+	void Compute();
 
 	UPROPERTY(meta = (Input))
 	float A;
@@ -143,7 +143,7 @@ struct CONTROLRIG_API FRigUnit_Mutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(float Factor);
+	virtual void Execute();
 
 	/** The transform of this control */
 	UPROPERTY(EditAnywhere, Category="Control", meta=(Input, Output))
@@ -156,7 +156,7 @@ struct CONTROLRIG_API FRigUnit_BeginExecution
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigVMExecuteContext& Context) override;
+	virtual void Execute() override;
 
 	// The execution result
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Execute", Category = "BeginExecution", meta = (Output))

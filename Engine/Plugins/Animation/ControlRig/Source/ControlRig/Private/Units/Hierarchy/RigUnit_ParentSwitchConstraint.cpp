@@ -7,7 +7,7 @@
 
 FRigUnit_ParentSwitchConstraint_Execute()
 {
-	FRigUnit_ParentSwitchConstraintArray::StaticExecute(ExecuteContext, Subject, ParentIndex, Parents.Keys, InitialGlobalTransform, Weight, Transform, Switched, CachedSubject, CachedParent, RelativeOffset, Context);	
+	FRigUnit_ParentSwitchConstraintArray::StaticExecute(ExecuteContext, Subject, ParentIndex, Parents.Keys, InitialGlobalTransform, Weight, Transform, Switched, CachedSubject, CachedParent, RelativeOffset);	
 }
 
 FRigVMStructUpgradeInfo FRigUnit_ParentSwitchConstraint::GetUpgradeInfo() const
@@ -31,7 +31,7 @@ FRigUnit_ParentSwitchConstraintArray_Execute()
 
 	if (URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{

@@ -11,10 +11,10 @@ FRigUnit_GetControlColor_Execute()
 
     Color = FLinearColor::Black;
 
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -44,7 +44,7 @@ FRigUnit_SetControlColor_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{

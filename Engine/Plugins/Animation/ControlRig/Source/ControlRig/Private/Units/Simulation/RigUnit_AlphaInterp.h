@@ -32,7 +32,7 @@ struct CONTROLRIG_API FRigUnit_AlphaInterp : public FRigUnit_SimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	virtual FString ProcessPinLabelForInjection(const FString& InLabel) const override;
 
@@ -105,7 +105,7 @@ struct CONTROLRIG_API FRigUnit_AlphaInterpVector : public FRigUnit_SimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	virtual FString ProcessPinLabelForInjection(const FString& InLabel) const override;
 
@@ -178,7 +178,7 @@ struct CONTROLRIG_API FRigUnit_AlphaInterpQuat : public FRigUnit_SimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	virtual FString ProcessPinLabelForInjection(const FString& InLabel) const override;
 

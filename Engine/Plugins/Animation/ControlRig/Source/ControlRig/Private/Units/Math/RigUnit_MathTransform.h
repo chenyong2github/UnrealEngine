@@ -84,7 +84,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMake : public FRigUnit_MathTransform
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathTransformMake()
 	{
@@ -122,7 +122,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransform : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FEulerTransform EulerTransform;
@@ -137,7 +137,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransform : public FRigUnit
 /**
  * Makes a quaternion based transform from a euler based transform
  */
-USTRUCT(meta=(DisplayName="To Transform", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="To Transform", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransformV2 : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -149,7 +149,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransformV2 : public FRigUn
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FEulerTransform Value;
@@ -161,7 +161,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransformV2 : public FRigUn
 /**
  * Retrieves a euler based transform from a quaternion based transform
  */
-USTRUCT(meta=(DisplayName="To Euler Transform", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="To Euler Transform", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathTransformToEulerTransform : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -173,7 +173,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformToEulerTransform : public FRigUnit_M
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FTransform Value;
@@ -190,7 +190,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMul : public FRigUnit_MathTransformB
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -207,7 +207,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMakeRelative : public FRigUnit_MathT
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FTransform Global;
@@ -233,7 +233,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMakeAbsolute : public FRigUnit_MathT
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FTransform Local;
@@ -264,7 +264,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformAccumulateArray : public FRigUnit_Ma
 	virtual FString GetUnitLabel() const override;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input, Output))
 	TArray<FTransform> Transforms;
@@ -297,7 +297,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformInverse : public FRigUnit_MathTransf
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -315,7 +315,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformLerp : public FRigUnit_MathTransform
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FTransform A;
@@ -345,7 +345,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformSelectBool : public FRigUnit_MathTra
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	bool Condition;
@@ -378,7 +378,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformRotateVector : public FRigUnit_MathT
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FTransform Transform;
@@ -405,7 +405,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformTransformVector : public FRigUnit_Ma
 	}
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FTransform Transform;
@@ -436,7 +436,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransf
 	}
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Location;
@@ -471,7 +471,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformArrayToSRT : public FRigUnit_MathTra
 	}
 
 	RIGVM_METHOD()
-		virtual void Execute(const FRigUnitContext& Context) override;
+		virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	TArray<FTransform> Transforms;
@@ -508,7 +508,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformClampSpatially : public FRigUnit_Mat
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FTransform Value;
@@ -560,7 +560,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMirrorTransform : public FRigUnit_Ma
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FTransform Value;

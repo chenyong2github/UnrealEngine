@@ -1301,7 +1301,7 @@ public:
 	// default constructor
 	// @param InGraph The graph / model to parse
 	// @param InSettings The parse settings to use
-	FRigVMParserAST(TArray<URigVMGraph*> InGraphs, URigVMController* InController = nullptr, const FRigVMParserASTSettings& InSettings = FRigVMParserASTSettings::Fast(), const TArray<FRigVMExternalVariable>& InExternalVariables = TArray<FRigVMExternalVariable>(), const TArray<FRigVMUserDataArray>& InRigVMUserData = TArray<FRigVMUserDataArray>());
+	FRigVMParserAST(TArray<URigVMGraph*> InGraphs, URigVMController* InController = nullptr, const FRigVMParserASTSettings& InSettings = FRigVMParserASTSettings::Fast(), const TArray<FRigVMExternalVariable>& InExternalVariables = TArray<FRigVMExternalVariable>());
 
 	// default destructor
 	~FRigVMParserAST();
@@ -1483,7 +1483,7 @@ private:
 	void FoldAssignments();
 
 	// helper function to fold constant values into literals
-	bool FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData);
+	bool FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const TArray<FRigVMExternalVariable>& InExternalVariables);
 
 	// helper function to inline all contributing nodes of the graph
 	void Inline(TArray<URigVMGraph*> InGraphs);

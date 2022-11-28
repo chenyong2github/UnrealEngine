@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_ToWorldSpace_Transform : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The input transform in global / rig space
@@ -48,7 +48,7 @@ struct CONTROLRIG_API FRigUnit_ToRigSpace_Transform : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The input transform in world
@@ -77,7 +77,7 @@ struct CONTROLRIG_API FRigUnit_ToWorldSpace_Location : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The input position / location in global / rig space
@@ -106,7 +106,7 @@ struct CONTROLRIG_API FRigUnit_ToRigSpace_Location : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The input position / location in world
@@ -135,7 +135,7 @@ struct CONTROLRIG_API FRigUnit_ToWorldSpace_Rotation : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The input rotation in global / rig space
@@ -164,7 +164,7 @@ struct CONTROLRIG_API FRigUnit_ToRigSpace_Rotation : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The input rotation in world

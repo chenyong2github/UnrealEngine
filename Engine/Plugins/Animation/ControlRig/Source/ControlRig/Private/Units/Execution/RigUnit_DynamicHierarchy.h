@@ -12,7 +12,6 @@ struct CONTROLRIG_API FRigUnit_DynamicHierarchyBase : public FRigUnit
 	GENERATED_BODY()
 
 	static bool IsValidToRunInContext(
-		const FRigUnitContext& InContext,
 		const FControlRigExecuteContext& InExecuteContext,
 		bool bAllowOnlyConstructionEvent,
 		FString* OutErrorMessage = nullptr);
@@ -39,7 +38,7 @@ struct CONTROLRIG_API FRigUnit_AddParent : public FRigUnit_DynamicHierarchyBaseM
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/*
 	 * The child to be parented under the new parent
@@ -68,7 +67,7 @@ struct CONTROLRIG_API FRigUnit_SetDefaultParent : public FRigUnit_DynamicHierarc
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/*
 	 * The child to be parented under the new default parent
@@ -112,7 +111,7 @@ struct CONTROLRIG_API FRigUnit_SwitchParent : public FRigUnit_DynamicHierarchyBa
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/* Depending on this the child will switch to the world,
 	 * back to its default or to the item provided by the Parent pin
@@ -149,7 +148,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParentWeights : public FRigUnit_Dynam
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/*
 	 * The child to retrieve the weights for
@@ -187,7 +186,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParentWeightsArray : public FRigUnit_
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/*
 	 * The child to retrieve the weights for
@@ -222,7 +221,7 @@ struct CONTROLRIG_API FRigUnit_HierarchySetParentWeights : public FRigUnit_Dynam
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/*
 	 * The child to set the parents' weights for
@@ -252,7 +251,7 @@ struct FRigUnit_HierarchyReset : public FRigUnit_DynamicHierarchyBaseMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -271,7 +270,7 @@ struct FRigUnit_HierarchyImportFromSkeleton : public FRigUnit_DynamicHierarchyBa
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FName NameSpace;
@@ -299,7 +298,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyRemoveElement : public FRigUnit_DynamicH
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/*
 	 * The item to remove
@@ -377,7 +376,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddBone : public FRigUnit_HierarchyAddEl
 	EBoneGetterSetterMode Space;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -411,7 +410,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddNull : public FRigUnit_HierarchyAddEl
 	EBoneGetterSetterMode Space;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 USTRUCT(BlueprintType)
@@ -584,7 +583,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlFloat : public FRigUnit_Hierar
 	FRigUnit_HierarchyAddControlFloat_Settings Settings;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 USTRUCT(BlueprintType)
@@ -669,7 +668,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlInteger : public FRigUnit_Hier
 	FRigUnit_HierarchyAddControlInteger_Settings Settings;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 USTRUCT(BlueprintType)
@@ -763,7 +762,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector2D : public FRigUnit_Hie
 	FRigUnit_HierarchyAddControlVector2D_Settings Settings;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 USTRUCT(BlueprintType)
@@ -864,7 +863,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector : public FRigUnit_Hiera
 	FRigUnit_HierarchyAddControlVector_Settings Settings;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 USTRUCT(BlueprintType)
@@ -958,7 +957,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlRotator : public FRigUnit_Hier
 	FRigUnit_HierarchyAddControlRotator_Settings Settings;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 USTRUCT(BlueprintType)
@@ -1014,7 +1013,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlTransform : public FRigUnit_Hi
 	FRigUnit_HierarchyAddControlTransform_Settings Settings;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -1053,7 +1052,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelBool : public FRigUni
 	bool MaximumValue;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -1092,7 +1091,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelFloat : public FRigUn
 	float MaximumValue;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -1131,7 +1130,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelInteger : public FRig
 	int32 MaximumValue;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -1170,7 +1169,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelVector2D : public FRi
 	FVector2D MaximumValue;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -1209,7 +1208,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelVector : public FRigU
 	FVector MaximumValue;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -1248,7 +1247,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelRotator : public FRig
 	FRotator MaximumValue;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -1277,7 +1276,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetShapeSettings : public FRigUnit_Dynam
 	FRigUnit_HierarchyAddControl_ShapeSettings Settings;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -1307,5 +1306,5 @@ struct CONTROLRIG_API FRigUnit_HierarchySetShapeSettings : public FRigUnit_Dynam
 	FRigUnit_HierarchyAddControl_ShapeSettings Settings;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };

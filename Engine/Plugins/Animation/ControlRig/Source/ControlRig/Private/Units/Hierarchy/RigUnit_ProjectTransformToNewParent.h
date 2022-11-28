@@ -27,7 +27,7 @@ struct CONTROLRIG_API FRigUnit_ProjectTransformToNewParent : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The element to project between parents

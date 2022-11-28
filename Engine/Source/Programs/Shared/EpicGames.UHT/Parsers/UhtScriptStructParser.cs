@@ -219,6 +219,11 @@ namespace EpicGames.UHT.Parsers
 
 				if (!isGetUpgradeInfo && !isGetNextAggregateName)
 				{
+					if (methodInfo.Parameters.Count > 0)
+					{
+						topScope.TokenReader.LogError($"RIGVM_METHOD {scriptStruct.SourceName}::{methodInfo.Name} has {methodInfo.Parameters.Count} parameters. Since 5.2 parameters are no longer allowed for RIGVM_METHOD functions.");
+						methodInfo.Parameters.Clear();
+					}
 					structInfo.Methods.Add(methodInfo);
 				}
 			}

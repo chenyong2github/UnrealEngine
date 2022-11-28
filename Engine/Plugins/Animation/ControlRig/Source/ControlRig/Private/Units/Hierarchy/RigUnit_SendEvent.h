@@ -22,7 +22,7 @@ struct CONTROLRIG_API FRigUnit_SendEvent : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The event to send to the engine

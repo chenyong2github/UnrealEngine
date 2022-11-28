@@ -34,7 +34,7 @@ struct CONTROLRIG_API FRigUnit_ItemExists : public FRigUnit_ItemBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey Item;
@@ -62,7 +62,7 @@ struct CONTROLRIG_API FRigUnit_ItemReplace : public FRigUnit_ItemBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigElementKey Item;
@@ -92,7 +92,7 @@ struct CONTROLRIG_API FRigUnit_ItemEquals : public FRigUnit_ItemBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey A;
@@ -122,7 +122,7 @@ struct CONTROLRIG_API FRigUnit_ItemNotEquals : public FRigUnit_ItemBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey A;
@@ -152,7 +152,7 @@ struct CONTROLRIG_API FRigUnit_ItemTypeEquals : public FRigUnit_ItemBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey A;
@@ -179,7 +179,7 @@ struct CONTROLRIG_API FRigUnit_ItemTypeNotEquals : public FRigUnit_ItemBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey A;
@@ -194,7 +194,7 @@ struct CONTROLRIG_API FRigUnit_ItemTypeNotEquals : public FRigUnit_ItemBase
 /**
  * Casts the provided item key to its name
  */
-USTRUCT(meta=(DisplayName="To Name", Keywords="", TemplateName="Cast"))
+USTRUCT(meta=(DisplayName="To Name", Keywords="", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext"))
 struct CONTROLRIG_API FRigUnit_ItemToName : public FRigUnit_ItemBase
 {
 	GENERATED_BODY()
@@ -206,7 +206,7 @@ struct CONTROLRIG_API FRigUnit_ItemToName : public FRigUnit_ItemBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey Value;

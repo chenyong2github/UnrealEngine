@@ -96,7 +96,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolMake : public FRigUnit_MathBoolBase
 	}
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input, Output))
 	bool Value;
@@ -116,7 +116,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolConstTrue : public FRigUnit_MathBoolConst
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -133,7 +133,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolConstFalse : public FRigUnit_MathBoolCons
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -145,7 +145,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolNot : public FRigUnit_MathBoolUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -157,7 +157,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryAggre
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -169,7 +169,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolNand : public FRigUnit_MathBoolBinaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -184,7 +184,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolNand2 : public FRigUnit_MathBoolBinaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -196,7 +196,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolOr : public FRigUnit_MathBoolBinaryAggreg
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -207,7 +207,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolEquals : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathBoolEquals()
 	{
@@ -236,7 +236,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolNotEquals : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathBoolNotEquals()
 	{
@@ -265,7 +265,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolToggled : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathBoolToggled()
 	{
@@ -293,7 +293,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolFlipFlop : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathBoolFlipFlop()
 	{
@@ -330,7 +330,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolOnce : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathBoolOnce()
 	{
@@ -358,12 +358,12 @@ struct CONTROLRIG_API FRigUnit_MathBoolOnce : public FRigUnit_MathBoolBase
 /**
  * Turns the given bool into a float value
  */
-USTRUCT(meta=(DisplayName="To Float", TemplateName="Cast"))
+USTRUCT(meta=(DisplayName="To Float", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext"))
 struct CONTROLRIG_API FRigUnit_MathBoolToFloat : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathBoolToFloat()
 	{
@@ -381,12 +381,12 @@ struct CONTROLRIG_API FRigUnit_MathBoolToFloat : public FRigUnit_MathBoolBase
 /**
  * Turns the given bool into an integer value
  */
-USTRUCT(meta=(DisplayName="To Integer", TemplateName="Cast"))
+USTRUCT(meta=(DisplayName="To Integer", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext"))
 struct CONTROLRIG_API FRigUnit_MathBoolToInteger : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathBoolToInteger()
 	{

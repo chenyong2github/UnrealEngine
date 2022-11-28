@@ -730,7 +730,7 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	LatestExecutedState = InState;
 
 	FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
-	FRigVMExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicData<>();
+	FControlRigExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicData<FControlRigExecuteContext>();
 	PublicContext.SetDeltaTime(DeltaTime);
 	PublicContext.SetAbsoluteTime(AbsoluteTime);
 
@@ -810,7 +810,6 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	if (bRequiresInitExecution)
 	{
 		bRequiresInitExecution = false;
-		VM->SetContextPublicDataStruct(FControlRigExecuteContext::StaticStruct());
 
 		if (!bIsInitializingMemory)
 		{
@@ -823,7 +822,7 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		}
 	}
 
-	FRigUnitContext Context;
+	FRigUnitContext& Context = PublicContext.UnitContext;
 
 	// setup the draw interface for debug drawing
 	if(!bIsEventInQueue || bIsEventFirstInQueue)
@@ -865,11 +864,11 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.InteractionType = InteractionType;
 	Context.ElementsBeingInteracted = ElementsBeingInteracted;
 	Context.State = InState;
+	PublicContext.Hierarchy = GetHierarchy();
 
 	// allow access to the hierarchy
-	Context.Hierarchy = GetHierarchy();
 	Context.HierarchySettings = HierarchySettings;
-	check(Context.Hierarchy);
+	check(PublicContext.Hierarchy);
 
 	// allow access to the default hierarchy to allow to reset
 	if(!HasAnyFlags(RF_ClassDefaultObject))
@@ -878,13 +877,13 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		{
 			if(URigHierarchy* DefaultHierarchy = CDO->GetHierarchy())
 			{
-				Context.Hierarchy->DefaultHierarchyPtr = DefaultHierarchy;
+				PublicContext.Hierarchy->DefaultHierarchyPtr = DefaultHierarchy;
 			}
 		}
 	}
 
 	// disable any controller access outside of the construction event
-	FRigHierarchyEnableControllerBracket DisableHierarchyController(Context.Hierarchy, bIsConstructionEvent);
+	FRigHierarchyEnableControllerBracket DisableHierarchyController(PublicContext.Hierarchy, bIsConstructionEvent);
 
 	// setup the context with further fields
 	Context.ToWorldSpaceTransform = FTransform::Identity;
@@ -1515,8 +1514,6 @@ bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 		const bool bUseDebuggingSnapshots = !VM->IsNativized();
 		
 		TArray<URigVMMemoryStorage*> LocalMemory = VM->GetLocalMemoryArray();
-		TArray<void*> AdditionalArguments;
-		AdditionalArguments.Add(&InOutContext);
 
 		bool bSuccess = true;
 
@@ -1542,7 +1539,7 @@ bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 
 							VM->WorkMemoryStorageObject->CopyFrom(InitializedVMSnapshot->WorkMemoryStorageObject);
 							VM->InvalidateCachedMemory();
-							VM->Initialize(LocalMemory, AdditionalArguments, false);
+							VM->Initialize(LocalMemory, false);
 							bIsValidSnapshot = true;
 						}
 						else
@@ -1554,7 +1551,7 @@ bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 				
 				if(!bIsValidSnapshot)
 				{
-					VM->Initialize(LocalMemory, AdditionalArguments);
+					VM->Initialize(LocalMemory);
 
 					// objects assigned to transient properties need transient flag, otherwise it might get exported during save
 					URigVM* InitializedVMSnapshot = NewObject<URigVM>(CDO, NAME_None, RF_Public | RF_Transient);
@@ -1572,7 +1569,7 @@ bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 			}
 			else
 			{
-				bSuccess = VM->Initialize(LocalMemory, AdditionalArguments);
+				bSuccess = VM->Initialize(LocalMemory);
 			}
 			bRequiresConstructionEvent = true;
 		}
@@ -1623,7 +1620,7 @@ bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 #endif
 			FRigHierarchyExecuteContextBracket HierarchyContextGuard(Hierarchy, &VM->GetContext());
 
-			bSuccess = VM->Execute(LocalMemory, AdditionalArguments, InEventName) != ERigVMExecuteResult::Failed;
+			bSuccess = VM->Execute(LocalMemory, InEventName) != ERigVMExecuteResult::Failed;
 		}
 
 #if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM

@@ -14,7 +14,7 @@ FRigUnit_SendEvent_Execute()
     	return;
     }
 
-	if (bOnlyDuringInteraction && !Context.IsInteracting())
+	if (bOnlyDuringInteraction && !ExecuteContext.UnitContext.IsInteracting())
 	{
 		return;
 	}
@@ -22,7 +22,7 @@ FRigUnit_SendEvent_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -34,7 +34,7 @@ FRigUnit_SendEvent_Execute()
 				EventContext.Key = Item;
 				EventContext.Event = Event;
 				EventContext.SourceEventName = ExecuteContext.GetEventName();
-				EventContext.LocalTime = Context.AbsoluteTime + OffsetInSeconds;
+				EventContext.LocalTime = ExecuteContext.UnitContext.AbsoluteTime + OffsetInSeconds;
 				Hierarchy->SendEvent(EventContext, false /* async */); //needs to be false for sequencer keying to work
 				break;
 			}

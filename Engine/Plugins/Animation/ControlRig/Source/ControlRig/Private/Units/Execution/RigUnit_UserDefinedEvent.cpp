@@ -18,7 +18,6 @@ FString FRigUnit_UserDefinedEvent::GetUnitLabel() const
 FRigUnit_UserDefinedEvent_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	ExecuteContext.Hierarchy = Context.Hierarchy;
 
 	if(EventName.IsNone())
 	{

@@ -13,7 +13,7 @@ FRigUnit_AlphaInterp_Execute()
 	ScaleBiasClamp.bClampResult = bClampResult;
 	ScaleBiasClamp.bInterpResult = bInterpResult;
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		ScaleBiasClamp.Reinitialize();
 	}
@@ -28,7 +28,7 @@ FRigUnit_AlphaInterp_Execute()
 		ScaleBiasClamp.InterpSpeedIncreasing = InterpSpeedIncreasing;
 		ScaleBiasClamp.InterpSpeedDecreasing = InterpSpeedDecreasing;
 
-		Result = ScaleBiasClamp.ApplyTo(Value, Context.DeltaTime);
+		Result = ScaleBiasClamp.ApplyTo(Value, ExecuteContext.UnitContext.DeltaTime);
 	}
 }
 
@@ -63,7 +63,7 @@ FRigUnit_AlphaInterpVector_Execute()
 	ScaleBiasClamp.bClampResult = bClampResult;
 	ScaleBiasClamp.bInterpResult = bInterpResult;
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		ScaleBiasClamp.Reinitialize();
 	}
@@ -78,9 +78,9 @@ FRigUnit_AlphaInterpVector_Execute()
 		ScaleBiasClamp.InterpSpeedIncreasing = InterpSpeedIncreasing;
 		ScaleBiasClamp.InterpSpeedDecreasing = InterpSpeedDecreasing;
 
-		Result.X = ScaleBiasClamp.ApplyTo(Value.X, Context.DeltaTime);
-		Result.Y = ScaleBiasClamp.ApplyTo(Value.Y, Context.DeltaTime);
-		Result.Z = ScaleBiasClamp.ApplyTo(Value.Z, Context.DeltaTime);
+		Result.X = ScaleBiasClamp.ApplyTo(Value.X, ExecuteContext.UnitContext.DeltaTime);
+		Result.Y = ScaleBiasClamp.ApplyTo(Value.Y, ExecuteContext.UnitContext.DeltaTime);
+		Result.Z = ScaleBiasClamp.ApplyTo(Value.Z, ExecuteContext.UnitContext.DeltaTime);
 	}
 }
 
@@ -115,7 +115,7 @@ FRigUnit_AlphaInterpQuat_Execute()
 	ScaleBiasClamp.bClampResult = bClampResult;
 	ScaleBiasClamp.bInterpResult = bInterpResult;
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		ScaleBiasClamp.Reinitialize();
 	}
@@ -130,7 +130,7 @@ FRigUnit_AlphaInterpQuat_Execute()
 		ScaleBiasClamp.InterpSpeedIncreasing = InterpSpeedIncreasing;
 		ScaleBiasClamp.InterpSpeedDecreasing = InterpSpeedDecreasing;
 
-		const float T = ScaleBiasClamp.ApplyTo(1.f, Context.DeltaTime);
+		const float T = ScaleBiasClamp.ApplyTo(1.f, ExecuteContext.UnitContext.DeltaTime);
 		Result = FQuat::Slerp(FQuat::Identity, Value, T);
 	}
 }

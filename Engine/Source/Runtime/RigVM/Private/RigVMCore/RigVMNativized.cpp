@@ -27,15 +27,13 @@ void URigVMNativized::Reset(bool IsIgnoringArchetypeRef)
 	ByteCodeStorage.Reset();
 }
 
-bool URigVMNativized::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments,
-	bool bInitializeMemory)
+bool URigVMNativized::Initialize(TArrayView<URigVMMemoryStorage*> Memory, bool bInitializeMemory)
 {
 	// nothing to do here 
 	return true;
 }
 
-ERigVMExecuteResult URigVMNativized::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments,
-	const FName& InEntryName)
+ERigVMExecuteResult URigVMNativized::Execute(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName)
 {
 	// to be implemented by the generated code
 	return ERigVMExecuteResult::Failed;

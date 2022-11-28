@@ -16,18 +16,12 @@ bool FRigUnit_DataInterfaceParameter::GetParameterInternal(FName InName, const F
 
 FRigUnit_DataInterfaceParameter_Float_Execute()
 {
-	if(Context.State == EControlRigState::Update)
-	{
-		GetParameterInternal(Parameter, static_cast<const FDataInterfaceUnitContext&>(Context), &Result);
-	}
+	GetParameterInternal(Parameter, ExecuteContext.GetUnitContext(), &Result);
 }
 
 FRigUnit_DataInterfaceParameter_DataInterface_Execute()
 {
-	if(Context.State == EControlRigState::Update)
-	{
-		GetParameterInternal(Parameter, static_cast<const FDataInterfaceUnitContext&>(Context), &Result);
-	}
+	GetParameterInternal(Parameter, ExecuteContext.GetUnitContext(), &Result);
 }
 
 FRigUnit_DataInterface_Float_Execute()
@@ -35,18 +29,13 @@ FRigUnit_DataInterface_Float_Execute()
 	using namespace UE::DataInterface;
 
 	// @TODO: ensure that context arg is always present to avoid these checks here
-	// Could bind the RigVM to a specific execution context UStruct?
-	if(Context.State == EControlRigState::Update)
-	{
-		const FDataInterfaceExecuteContext& DataInterfaceExecuteContext = static_cast<const FDataInterfaceExecuteContext&>(ExecuteContext);
-		const FContext& DataInterfaceContext = DataInterfaceExecuteContext.GetContext();
+	const FContext& DataInterfaceContext = ExecuteContext.GetContext();
 
-		// Wrap the internal result we are going to be writing to 
-		TWrapParam<float> CallResult(&Result);
+	// Wrap the internal result we are going to be writing to 
+	TWrapParam<float> CallResult(&Result);
 
-		// Call the interface
-		DataInterfaceExecuteContext.SetResult(UE::DataInterface::GetDataSafe(DataInterface, DataInterfaceContext, CallResult));
-	}
+	// Call the interface
+	ExecuteContext.SetResult(UE::DataInterface::GetDataSafe(DataInterface, DataInterfaceContext, CallResult));
 }
 /*
 FRigUnit_DataInterface_Pose_Execute()
@@ -54,7 +43,6 @@ FRigUnit_DataInterface_Pose_Execute()
 	using namespace UE::DataInterface;
 
 	// @TODO: ensure that context arg is always present to avoid these checks here
-	// Could bind the RigVM to a specific execution context UStruct?
 	if(Context.State == EControlRigState::Update && ExecuteContext.OpaqueArguments.Num() > 1 && ExecuteContext.OpaqueArguments[1] != nullptr)
 	{
 		const FDataInterfaceUnitContext& DataInterfaceUnitContext = *static_cast<const FDataInterfaceUnitContext*>(ExecuteContext.OpaqueArguments[1]);
@@ -90,33 +78,28 @@ FRigUnit_TestFloatState_Execute()
 	using namespace UE::DataInterface;
 
 	// @TODO: ensure that context arg is always present to avoid these checks here
-	// Could bind the RigVM to a specific execution context UStruct?
-	if(Context.State == EControlRigState::Update)
-	{
-		const FDataInterfaceExecuteContext& DataInterfaceExecuteContext = static_cast<const FDataInterfaceExecuteContext&>(ExecuteContext);
-		const FContext& DataInterfaceContext = DataInterfaceExecuteContext.GetContext();
+	const FContext& DataInterfaceContext = ExecuteContext.GetContext();
 
-		const TParam<FSpringDamperState> State = DataInterfaceContext.GetState<FSpringDamperState>(DataInterfaceExecuteContext.GetInterface(), 0);
-		const float DeltaTime = DataInterfaceContext.GetDeltaTime();
+	const TParam<FSpringDamperState> State = DataInterfaceContext.GetState<FSpringDamperState>(ExecuteContext.GetInterface(), 0);
+	const float DeltaTime = DataInterfaceContext.GetDeltaTime();
 
-		FKernel::Run(DataInterfaceContext,
-			[DeltaTime, &Result](FSpringDamperState& InOutState,
-						float InTargetValue,
-						float InTargetValueRate,
-						float InSmoothingTime,
-						float InDampingRatio)
-				{
-					FMath::SpringDamperSmoothing(
-						InOutState.Value,
-						InOutState.ValueRate,
-						InTargetValue,
-						InTargetValueRate,
-						DeltaTime,
-						InSmoothingTime,
-						InDampingRatio);
+	FKernel::Run(DataInterfaceContext,
+		[DeltaTime, &Result](FSpringDamperState& InOutState,
+					float InTargetValue,
+					float InTargetValueRate,
+					float InSmoothingTime,
+					float InDampingRatio)
+			{
+				FMath::SpringDamperSmoothing(
+					InOutState.Value,
+					InOutState.ValueRate,
+					InTargetValue,
+					InTargetValueRate,
+					DeltaTime,
+					InSmoothingTime,
+					InDampingRatio);
 
-					Result = InOutState.Value;
-				},
-				State, TargetValue, TargetValueRate, SmoothingTime, DampingRatio);
-	}
+				Result = InOutState.Value;
+			},
+			State, TargetValue, TargetValueRate, SmoothingTime, DampingRatio);
 }

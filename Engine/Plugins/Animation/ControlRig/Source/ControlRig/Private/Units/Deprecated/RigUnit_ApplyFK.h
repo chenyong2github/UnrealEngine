@@ -27,7 +27,7 @@ struct CONTROLRIG_API FRigUnit_ApplyFK : public FRigUnitMutable
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(EditAnywhere, Category = "ApplyFK", meta = (Input))
 	FName Joint;

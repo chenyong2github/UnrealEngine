@@ -8,7 +8,7 @@
 
 FRigUnit_SlideChain_Execute()
 {
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		WorkData.CachedItems.Reset();
 		return;
@@ -18,7 +18,7 @@ FRigUnit_SlideChain_Execute()
 	if(WorkData.CachedItems.Num() == 0)
 	{
 		Items = FRigElementKeyCollection::MakeFromChain(
-			Context.Hierarchy,
+			ExecuteContext.Hierarchy,
 			FRigElementKey(StartBone, ERigElementType::Bone),
 			FRigElementKey(EndBone, ERigElementType::Bone),
 			false /* reverse */
@@ -30,8 +30,7 @@ FRigUnit_SlideChain_Execute()
 		Items,
 		SlideAmount,
 		bPropagateToChildren,
-		WorkData,
-		Context);
+		WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_SlideChain::GetUpgradeInfo() const
@@ -42,7 +41,7 @@ FRigVMStructUpgradeInfo FRigUnit_SlideChain::GetUpgradeInfo() const
 
 FRigUnit_SlideChainPerItem_Execute()
 {
-	FRigUnit_SlideChainItemArray::StaticExecute(ExecuteContext, Items.Keys, SlideAmount, bPropagateToChildren, WorkData, Context);
+	FRigUnit_SlideChainItemArray::StaticExecute(ExecuteContext, Items.Keys, SlideAmount, bPropagateToChildren, WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_SlideChainPerItem::GetUpgradeInfo() const
@@ -69,7 +68,7 @@ FRigUnit_SlideChainItemArray_Execute()
 	TArray<FTransform>& Transforms = WorkData.Transforms;
 	TArray<FTransform>& BlendedTransforms = WorkData.BlendedTransforms;
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedItems.Reset();
 		return;

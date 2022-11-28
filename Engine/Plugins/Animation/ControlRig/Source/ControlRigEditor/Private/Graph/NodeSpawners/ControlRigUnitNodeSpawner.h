@@ -32,7 +32,7 @@ public:
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
-	static UControlRigUnitNodeSpawner* CreateFromStruct(UScriptStruct* InStruct, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
+	static UControlRigUnitNodeSpawner* CreateFromStruct(UScriptStruct* InStruct, const FName& InMethodName, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -47,7 +47,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UScriptStruct> StructTemplate;
 
-	static UControlRigGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, UScriptStruct* StructTemplate, FVector2D const Location);
+	UPROPERTY(Transient)
+	FName MethodName;
+
+	static UControlRigGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, UScriptStruct* StructTemplate, const FName& InMethodName, FVector2D const Location);
 
 	friend class UEngineTestControlRig;
 	friend class FControlRigEditor;

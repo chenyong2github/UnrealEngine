@@ -10,7 +10,7 @@ FRigUnit_PBIK_Execute()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	LLM_SCOPE_BYNAME(TEXT("Animation/FBIK"));
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		BoneSettingToSolverBoneIndex.Reset();
 		Solver.Reset();
@@ -21,7 +21,7 @@ FRigUnit_PBIK_Execute()
 	}
 
 	// only updates from here on...
-	if (Context.State != EControlRigState::Update)
+	if (ExecuteContext.UnitContext.State != EControlRigState::Update)
 	{
 		return;
 	}
@@ -190,6 +190,6 @@ FRigUnit_PBIK_Execute()
 	}
 
 	// do all debug drawing
-	Debug.Draw(Context.DrawInterface, &Solver);
+	Debug.Draw(ExecuteContext.UnitContext.DrawInterface, &Solver);
 }
 

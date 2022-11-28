@@ -249,6 +249,7 @@ protected:
 	friend struct FRigVMRegistry;
 	friend struct FRigVMStructUpgradeInfo;
 	friend struct FRigVMSetLibraryTemplateAction;
+	friend class URigVMCompiler;
 };
 
 /**
@@ -279,9 +280,6 @@ public:
 	// Returns the name of the template
 	FName GetName() const;
 
-	// returns true if this template is compatible with another one
-	bool IsCompatible(const FRigVMTemplate& InOther) const;
-
 	// returns true if this template can merge another one
 	bool Merge(const FRigVMTemplate& InOther);
 
@@ -302,6 +300,12 @@ public:
 
 	// returns an argument given a name (or nullptr)
 	const FRigVMExecuteArgument* FindExecuteArgument(const FName& InArgumentName) const;
+
+	// returns the top level execute context struct this template uses
+	const UScriptStruct* GetExecuteContextStruct() const;
+
+	// returns true if this template supports a given execute context struct
+	bool SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const;
 
 	// returns true if a given arg supports a type
 	bool ArgumentSupportsTypeIndex(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex = nullptr) const;

@@ -8,10 +8,10 @@
 FRigUnit_GetControlBool_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -39,10 +39,10 @@ FRigUnit_GetControlBool_Execute()
 FRigUnit_GetControlFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -73,10 +73,10 @@ FRigUnit_GetControlFloat_Execute()
 FRigUnit_GetControlInteger_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -106,10 +106,10 @@ FRigUnit_GetControlInteger_Execute()
 FRigUnit_GetControlVector2D_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -142,10 +142,10 @@ FRigUnit_GetControlVector2D_Execute()
 FRigUnit_GetControlVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -204,10 +204,10 @@ FRigUnit_GetControlVector_Execute()
 FRigUnit_GetControlRotator_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{
@@ -259,10 +259,10 @@ FRigUnit_GetControlRotator_Execute()
 FRigUnit_GetControlTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{

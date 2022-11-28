@@ -41,7 +41,6 @@ private:
 	typedef TMap<FString, FString> FStringMap;
 	typedef TArray<FRigVMPropertyDescription> FRigVMPropertyDescriptionArray;
 	typedef TTuple<FString, FString> FMappedType;
-	typedef TTuple<FString, FString, FString> FOpaqueArgument;
 	typedef TFunction<FString(const FString&)> TStructConstGenerator;
 
 	enum ERigVMNativizedPropertyType
@@ -69,7 +68,6 @@ private:
 		int32 ParentGroup;
 		TArray<int32> ChildGroups;
 		TArray<int32> RequiredLabels;
-		TArray<FOpaqueArgument> OpaqueArguments;
 
 		FInstructionGroup()
 			: Entry()
@@ -87,7 +85,6 @@ private:
 			, ParentGroup(InOther.ParentGroup)
 			, ChildGroups(InOther.ChildGroups)
 			, RequiredLabels(InOther.RequiredLabels)
-			, OpaqueArguments(InOther.OpaqueArguments)
 		{}
 	};
 

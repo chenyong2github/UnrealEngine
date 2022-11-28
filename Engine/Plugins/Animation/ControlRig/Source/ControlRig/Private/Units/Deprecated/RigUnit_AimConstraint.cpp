@@ -13,7 +13,7 @@ FRigUnit_AimConstraint_Execute()
 
 	TArray<FConstraintData>& ConstraintData = WorkData.ConstraintData;
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		ConstraintData.Reset();
 
@@ -43,7 +43,7 @@ FRigUnit_AimConstraint_Execute()
 			}
 		}
 	}
-	else if (Context.State == EControlRigState::Update)
+	else if (ExecuteContext.UnitContext.State == EControlRigState::Update)
 	{
 		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)

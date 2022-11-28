@@ -3506,10 +3506,13 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		OutGeneratedHeaderText.Log(TEXT("\r\n"));
 		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 		{
-			FString ParameterSuffix = MethodInfo.Parameters.Declarations(!StructMembers.IsEmpty(), TEXT(", \\\r\n\t\t"));
-			FString RigVMParameterPrefix2 = RigVMExecuteContextPublicDeclaration + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(", \\\r\n\t\t"));
+			FString RigVMParameterPrefix2 = RigVMExecuteContextPublicDeclaration + FString(StructMembers.IsEmpty() ? TEXT("") : TEXT(", \\\r\n\t\t"));
+			if(StructRigVMInfo.ExecuteContextMember.IsEmpty())
+			{
+				RigVMParameterPrefix2 = TEXT("const ") + RigVMParameterPrefix2;
+			}
 			OutGeneratedHeaderText.Logf(TEXT("#define %s_%s() \\\r\n"), *StructNameCPP, *MethodInfo.Name);
-			OutGeneratedHeaderText.Logf(TEXT("\t%s %s::Static%s( \\\r\n\t\t%s%s%s \\\r\n\t)\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers, *ParameterSuffix);
+			OutGeneratedHeaderText.Logf(TEXT("\t%s %s::Static%s( \\\r\n\t\t%s%s \\\r\n\t)\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers);
 		}
 		OutGeneratedHeaderText.Log(TEXT("\r\n"));
 	}
@@ -3533,29 +3536,20 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 			{
 				FString StructMembersForStub = StructRigVMInfo.Members.Names(false, TEXT(",\r\n\t\t\t"), false, true, false);
-				FString ParameterSuffix = MethodInfo.Parameters.Declarations(!StructMembers.IsEmpty(), TEXT(",\r\n\t\t"));
-				FString ParameterNamesSuffix = MethodInfo.Parameters.Names(!StructMembersForStub.IsEmpty(), TEXT(",\r\n\t\t\t"));
-				FString RigVMParameterPrefix2 = RigVMExecuteContextPublicDeclaration + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
+				FString RigVMParameterPrefix2 = RigVMExecuteContextPublicDeclaration + FString(StructMembers.IsEmpty() ? TEXT("") : TEXT(",\r\n\t\t"));
+				if(StructRigVMInfo.ExecuteContextMember.IsEmpty())
+				{
+					RigVMParameterPrefix2 = TEXT("const ") + RigVMParameterPrefix2;
+				}
 				FString RigVMParameterPrefix4 = FString(TEXT("RigVMExecuteContext.GetPublicData<")) +
 					StructRigVMInfo.ExecuteContextType +
 					FString(TEXT(">()")) +
-					FString((StructMembersForStub.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t\t"));
+					FString(StructMembersForStub.IsEmpty() ? TEXT("") : TEXT(",\r\n\t\t\t"));
 
-				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s%s\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers, *ParameterSuffix);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\t%s %s(%s%s& InExecuteContext);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, StructRigVMInfo.ExecuteContextMember.IsEmpty() ? TEXT("const ") : TEXT(""), *StructRigVMInfo.ExecuteContextType);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers);
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\tFORCEINLINE_DEBUGGABLE static %s RigVM%s(\r\n\t\t%s,\r\n\t\tFRigVMMemoryHandleArray RigVMMemoryHandles\r\n\t)\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *RigVMExecuteContextDeclaration);
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\t{\r\n"));
-
-				// implement inline stub method body
-				if (MethodInfo.Parameters.Num() > 0)
-				{
-					//RigVMMethodsDeclarations += FString::Printf(TEXT("\t\tensure(RigVMUserData.Num() == %d);\r\n"), MethodInfo.Parameters.Num());
-					for (int32 ParameterIndex = 0; ParameterIndex < MethodInfo.Parameters.Num(); ParameterIndex++)
-					{
-						const FRigVMParameter& Parameter = MethodInfo.Parameters[ParameterIndex];
-						RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t%s = *(%s*)RigVMExecuteContext.OpaqueArguments[%d];\r\n"), *Parameter.Declaration(), *Parameter.TypeNoRef(), ParameterIndex);
-					}
-					RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t\r\n"));
-				}
 
 				if (RigVMStubProlog.Num() > 0)
 				{
@@ -3566,7 +3560,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 					RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t\r\n"));
 				}
 
-				RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t%sStatic%s(\r\n\t\t\t%s%s%s\r\n\t\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix4, *StructMembersForStub, *ParameterNamesSuffix);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t%sStatic%s(\r\n\t\t\t%s%s\r\n\t\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix4, *StructMembersForStub);
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\t}\r\n"));
 			}
 		}
@@ -3644,11 +3638,6 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				for (int32 MemberIndex = 0; MemberIndex < StructRigVMInfo.Members.Num(); MemberIndex++)
 				{
 					const FRigVMParameter& Parameter = StructRigVMInfo.Members[MemberIndex];
-					Out.Logf(TEXT("\t\t%s.Emplace(TEXT(\"%s\"), TEXT(\"%s\"));\r\n"), *ArgumentsName, *Parameter.NameOriginal(), *Parameter.TypeOriginal());
-				}
-				for (int32 ParameterIndex = 0; ParameterIndex < MethodInfo.Parameters.Num(); ParameterIndex++)
-				{
-					const FRigVMParameter& Parameter = MethodInfo.Parameters[ParameterIndex];
 					Out.Logf(TEXT("\t\t%s.Emplace(TEXT(\"%s\"), TEXT(\"%s\"));\r\n"), *ArgumentsName, *Parameter.NameOriginal(), *Parameter.TypeOriginal());
 				}
 				Out.Logf(TEXT("\t\tFRigVMRegistry::Get().Register(TEXT(\"%s::%s\"), &%s::RigVM%s, %s, %s);\r\n"),
@@ -3798,12 +3787,10 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		{
 			Out.Log(TEXT("\r\n"));
 
-			FString ParameterDeclaration = MethodInfo.Parameters.Declarations(false, TEXT(",\r\n\t\t"));
-			FString ParameterSuffix = MethodInfo.Parameters.Names(!StructMembersForVirtualFunc.IsEmpty(), TEXT(",\r\n\t\t"));
-			FString RigVMParameterPrefix3 = FString(TEXT("TemporaryExecuteContext")) + FString((StructMembersForVirtualFunc.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(",\r\n\t\t"));
+			FString RigVMParameterPrefix3 = FString(TEXT("InExecuteContext")) + FString(StructMembersForVirtualFunc.IsEmpty() ? TEXT("") : TEXT(",\r\n\t\t"));
 
-			// implement the virtual function body.
-			Out.Logf(TEXT("%s %s::%s(%s)\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *ParameterDeclaration);
+			// implement the virtual function body without execute context
+			Out.Logf(TEXT("%s %s::%s()\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name);
 			Out.Log(TEXT("{\r\n"));
 			if(StructRigVMInfo.ExecuteContextMember.IsEmpty())
 			{
@@ -3814,6 +3801,24 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				Out.Logf(TEXT("\t%s& TemporaryExecuteContext = %s;\r\n"), *StructRigVMInfo.ExecuteContextType, *StructRigVMInfo.ExecuteContextMember);
 			}
 			Out.Log(TEXT("\tTemporaryExecuteContext.Initialize();\r\n"));
+			Out.Log(TEXT("\t"));
+
+			if(MethodInfo.ReturnType != TEXT("void"))
+			{
+				Out.Log(TEXT("return "));
+			}
+			Out.Logf(TEXT("%s(TemporaryExecuteContext);\r\n"), *MethodInfo.Name);
+			Out.Log(TEXT("}\r\n\r\n"));
+
+			// implement the virtual function body.
+			FString ParameterDeclaration = FString::Printf(TEXT("%s& InExecuteContext"), *StructRigVMInfo.ExecuteContextType);
+			if(StructRigVMInfo.ExecuteContextMember.IsEmpty())
+			{
+				ParameterDeclaration = TEXT("const ") + ParameterDeclaration;
+			}
+			
+			Out.Logf(TEXT("%s %s::%s(%s)\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *ParameterDeclaration);
+			Out.Log(TEXT("{\r\n"));
 
 			if(RigVMVirtualFuncProlog.Num() > 0)
 			{
@@ -3824,7 +3829,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				Out.Log(TEXT("\t\r\n"));
 			}
 
-			Out.Logf(TEXT("\t%sStatic%s(\r\n\t\t%s%s%s\r\n\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix3, *StructMembersForVirtualFunc, *ParameterSuffix);
+			Out.Logf(TEXT("\t%sStatic%s(\r\n\t\t%s%s\r\n\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix3, *StructMembersForVirtualFunc);
 
 			if (RigVMVirtualFuncEpilog.Num() > 0)
 			{

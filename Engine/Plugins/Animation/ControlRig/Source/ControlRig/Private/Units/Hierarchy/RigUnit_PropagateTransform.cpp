@@ -22,7 +22,7 @@ FRigUnit_PropagateTransform_Execute()
     	/*
     	 * This node doesn't do anything anymore now that the hierarchy is lazy
     	 *
-		switch (Context.State)
+		switch (ExecuteContext.UnitContext.State)
 		{
 			case EControlRigState::Init:
 			{

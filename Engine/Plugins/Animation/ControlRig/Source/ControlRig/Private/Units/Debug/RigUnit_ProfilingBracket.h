@@ -18,7 +18,7 @@ struct CONTROLRIG_API FRigUnit_StartProfilingTimer : public FRigUnit_DebugBaseMu
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -38,7 +38,7 @@ struct CONTROLRIG_API FRigUnit_EndProfilingTimer : public FRigUnit_DebugBaseMuta
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, Constant))
 	int32 NumberOfMeasurements;

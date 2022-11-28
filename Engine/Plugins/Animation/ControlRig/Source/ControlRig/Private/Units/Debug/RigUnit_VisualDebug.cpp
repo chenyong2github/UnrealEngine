@@ -7,7 +7,7 @@
 
 FRigUnit_VisualDebugVector_Execute()
 {
-	FRigUnit_VisualDebugVectorItemSpace::StaticExecute(ExecuteContext, Value, bEnabled, Mode, Color, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);
+	FRigUnit_VisualDebugVectorItemSpace::StaticExecute(ExecuteContext, Value, bEnabled, Mode, Color, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone));
 }
 
 FRigVMStructUpgradeInfo FRigUnit_VisualDebugVector::GetUpgradeInfo() const
@@ -28,12 +28,12 @@ FRigVMStructUpgradeInfo FRigUnit_VisualDebugVector::GetUpgradeInfo() const
 FRigUnit_VisualDebugVectorItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -41,19 +41,19 @@ FRigUnit_VisualDebugVectorItemSpace_Execute()
 	FTransform WorldOffset = FTransform::Identity;
 	if (Space.IsValid())
 	{
-		WorldOffset = Context.Hierarchy->GetGlobalTransform(Space);
+		WorldOffset = ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 	}
 
 	switch(Mode)
 	{
 		case ERigUnitVisualDebugPointMode::Point:
 		{
-			Context.DrawInterface->DrawPoint(WorldOffset, Value, Thickness, Color);
+			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, Value, Thickness, Color);
 			break;
 		}
 		case ERigUnitVisualDebugPointMode::Vector:
 		{
-			Context.DrawInterface->DrawLine(WorldOffset, FVector::ZeroVector, Value * Scale, Color, Thickness);
+			ExecuteContext.UnitContext.DrawInterface->DrawLine(WorldOffset, FVector::ZeroVector, Value * Scale, Color, Thickness);
 			break;
 		}
 		default:
@@ -65,7 +65,7 @@ FRigUnit_VisualDebugVectorItemSpace_Execute()
 
 FRigUnit_VisualDebugQuat_Execute()
 {
-	FRigUnit_VisualDebugQuatItemSpace::StaticExecute(ExecuteContext, Value, bEnabled, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);
+	FRigUnit_VisualDebugQuatItemSpace::StaticExecute(ExecuteContext, Value, bEnabled, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone));
 }
 
 FRigVMStructUpgradeInfo FRigUnit_VisualDebugQuat::GetUpgradeInfo() const
@@ -89,12 +89,12 @@ FRigUnit_VisualDebugQuatItemSpace_Execute()
     FTransform Transform = FTransform::Identity;
     Transform.SetRotation(Value);
 
-	FRigUnit_VisualDebugTransformItemSpace::StaticExecute(ExecuteContext, Transform, bEnabled, Thickness, Scale, Space, Context);
+	FRigUnit_VisualDebugTransformItemSpace::StaticExecute(ExecuteContext, Transform, bEnabled, Thickness, Scale, Space);
 }
 
 FRigUnit_VisualDebugTransform_Execute()
 {
-	FRigUnit_VisualDebugTransformItemSpace::StaticExecute(ExecuteContext, Value, bEnabled, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);
+	FRigUnit_VisualDebugTransformItemSpace::StaticExecute(ExecuteContext, Value, bEnabled, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone));
 }
 
 FRigVMStructUpgradeInfo FRigUnit_VisualDebugTransform::GetUpgradeInfo() const
@@ -114,12 +114,12 @@ FRigVMStructUpgradeInfo FRigUnit_VisualDebugTransform::GetUpgradeInfo() const
 FRigUnit_VisualDebugTransformItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -127,8 +127,8 @@ FRigUnit_VisualDebugTransformItemSpace_Execute()
 	FTransform WorldOffset = FTransform::Identity;
 	if (Space.IsValid())
 	{
-		WorldOffset = Context.Hierarchy->GetGlobalTransform(Space);
+		WorldOffset = ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 	}
 
-	Context.DrawInterface->DrawAxes(WorldOffset, Value, Scale, Thickness);
+	ExecuteContext.UnitContext.DrawInterface->DrawAxes(WorldOffset, Value, Scale, Thickness);
 }

@@ -264,7 +264,7 @@ FRigUnit_MathQuaternionMirrorTransform_Execute()
 {
 	FTransform Transform = FTransform::Identity;
 	Transform.SetRotation(Value);
-	FRigUnit_MathTransformMirrorTransform::StaticExecute(ExecuteContext, Transform, MirrorAxis, AxisToFlip, CentralTransform, Transform, Context);
+	FRigUnit_MathTransformMirrorTransform::StaticExecute(ExecuteContext, Transform, MirrorAxis, AxisToFlip, CentralTransform, Transform);
 	Result = Transform.GetRotation();
 }
 

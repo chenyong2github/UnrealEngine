@@ -14,8 +14,7 @@ FRigUnit_DebugLineStrip_Execute()
 		Thickness,
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
-		bEnabled,
-		Context);
+		bEnabled);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_DebugLineStrip::GetUpgradeInfo() const
@@ -36,30 +35,30 @@ FRigVMStructUpgradeInfo FRigUnit_DebugLineStrip::GetUpgradeInfo() const
 FRigUnit_DebugLineStripItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
 
 	if (Space.IsValid())
 	{
-		FTransform Transform = Context.Hierarchy->GetGlobalTransform(Space);
+		FTransform Transform = ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 		TArray<FVector> PointsTransformed;
 		PointsTransformed.Reserve(Points.Num());
 		for(const FVector& Point : Points)
 		{
 			PointsTransformed.Add(Transform.TransformPosition(Point));
 		}
-		Context.DrawInterface->DrawLineStrip(WorldOffset, PointsTransformed, Color, Thickness);
+		ExecuteContext.UnitContext.DrawInterface->DrawLineStrip(WorldOffset, PointsTransformed, Color, Thickness);
 	}
 	else
 	{
-		Context.DrawInterface->DrawLineStrip(WorldOffset, TArrayView<const FVector>(Points.GetData(), Points.Num()), Color, Thickness);
+		ExecuteContext.UnitContext.DrawInterface->DrawLineStrip(WorldOffset, TArrayView<const FVector>(Points.GetData(), Points.Num()), Color, Thickness);
 	}
 }
 

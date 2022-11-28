@@ -25,7 +25,7 @@
 
 FRigUnit_CollectionChain_Execute()
 {
-	FRigUnit_CollectionChainArray::StaticExecute(ExecuteContext, FirstItem, LastItem, Reverse, Collection.Keys, Context);
+	FRigUnit_CollectionChainArray::StaticExecute(ExecuteContext, FirstItem, LastItem, Reverse, Collection.Keys);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionChain::GetUpgradeInfo() const
@@ -40,37 +40,37 @@ FRigVMStructUpgradeInfo FRigUnit_CollectionChain::GetUpgradeInfo() const
 
 FRigUnit_CollectionChainArray_Execute()
 {
-	uint32 Hash = FRigUnit_CollectionChain_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	uint32 Hash = FRigUnit_CollectionChain_Hash + ExecuteContext.Hierarchy->GetTopologyVersion() * 17;
 	Hash = HashCombine(Hash, GetTypeHash(FirstItem));
 	Hash = HashCombine(Hash, GetTypeHash(LastItem));
 	Hash = HashCombine(Hash, Reverse ? 1 : 0);
 
 	FRigElementKeyCollection Collection;
-	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
+	if(const FRigElementKeyCollection* Cache = ExecuteContext.Hierarchy->FindCachedCollection(Hash))
 	{
 		Collection = *Cache;
 	}
 	else
 	{
-		Collection = FRigElementKeyCollection::MakeFromChain(Context.Hierarchy, FirstItem, LastItem, Reverse);
+		Collection = FRigElementKeyCollection::MakeFromChain(ExecuteContext.Hierarchy, FirstItem, LastItem, Reverse);
 		if (Collection.IsEmpty())
 		{
-			if (Context.Hierarchy->GetIndex(FirstItem) == INDEX_NONE)
+			if (ExecuteContext.Hierarchy->GetIndex(FirstItem) == INDEX_NONE)
 			{
-				if(Context.State != EControlRigState::Init)
+				if(ExecuteContext.UnitContext.State != EControlRigState::Init)
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("First Item '%s' is not valid."), *FirstItem.ToString());
 				}
 			}
-			if (Context.Hierarchy->GetIndex(LastItem) == INDEX_NONE)
+			if (ExecuteContext.Hierarchy->GetIndex(LastItem) == INDEX_NONE)
 			{
-				if(Context.State != EControlRigState::Init)
+				if(ExecuteContext.UnitContext.State != EControlRigState::Init)
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Last Item '%s' is not valid."), *LastItem.ToString());
 				}
 			}
 		}
-		Context.Hierarchy->AddCachedCollection(Hash, Collection);
+		ExecuteContext.Hierarchy->AddCachedCollection(Hash, Collection);
 	}
 
 	Items = Collection.Keys;
@@ -78,7 +78,7 @@ FRigUnit_CollectionChainArray_Execute()
 
 FRigUnit_CollectionNameSearch_Execute()
 {
-	FRigUnit_CollectionNameSearchArray::StaticExecute(ExecuteContext, PartialName, TypeToSearch, Collection.Keys, Context);
+	FRigUnit_CollectionNameSearchArray::StaticExecute(ExecuteContext, PartialName, TypeToSearch, Collection.Keys);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionNameSearch::GetUpgradeInfo() const
@@ -94,19 +94,19 @@ FRigUnit_CollectionNameSearchArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	uint32 Hash = FRigUnit_CollectionNameSearch_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	uint32 Hash = FRigUnit_CollectionNameSearch_Hash + ExecuteContext.Hierarchy->GetTopologyVersion() * 17;
 	Hash = HashCombine(Hash, GetTypeHash(PartialName));
 	Hash = HashCombine(Hash, (int32)TypeToSearch * 8);
 
 	FRigElementKeyCollection Collection;
-	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
+	if(const FRigElementKeyCollection* Cache = ExecuteContext.Hierarchy->FindCachedCollection(Hash))
 	{
 		Collection = *Cache;
 	}
 	else
 	{
-		Collection = FRigElementKeyCollection::MakeFromName(Context.Hierarchy, PartialName, (uint8)TypeToSearch);
-		Context.Hierarchy->AddCachedCollection(Hash, Collection);
+		Collection = FRigElementKeyCollection::MakeFromName(ExecuteContext.Hierarchy, PartialName, (uint8)TypeToSearch);
+		ExecuteContext.Hierarchy->AddCachedCollection(Hash, Collection);
 	}
 
 	Items = Collection.Keys;
@@ -114,7 +114,7 @@ FRigUnit_CollectionNameSearchArray_Execute()
 
 FRigUnit_CollectionChildren_Execute()
 {
-	FRigUnit_CollectionChildrenArray::StaticExecute(ExecuteContext, Parent, bIncludeParent, bRecursive, TypeToSearch, Collection.Keys, Context);
+	FRigUnit_CollectionChildrenArray::StaticExecute(ExecuteContext, Parent, bIncludeParent, bRecursive, TypeToSearch, Collection.Keys);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionChildren::GetUpgradeInfo() const
@@ -134,28 +134,28 @@ FRigUnit_CollectionChildrenArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	uint32 Hash = FRigUnit_CollectionChildren_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	uint32 Hash = FRigUnit_CollectionChildren_Hash + ExecuteContext.Hierarchy->GetTopologyVersion() * 17;
 	Hash = HashCombine(Hash, GetTypeHash(Parent));
 	Hash = HashCombine(Hash, bRecursive ? 2 : 0);
 	Hash = HashCombine(Hash, bIncludeParent ? 1 : 0);
 	Hash = HashCombine(Hash, (int32)TypeToSearch * 8);
 
 	FRigElementKeyCollection Collection;
-	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
+	if(const FRigElementKeyCollection* Cache = ExecuteContext.Hierarchy->FindCachedCollection(Hash))
 	{
 		Collection = *Cache;
 	}
 	else
 	{
-		Collection = FRigElementKeyCollection::MakeFromChildren(Context.Hierarchy, Parent, bRecursive, bIncludeParent, (uint8)TypeToSearch);
+		Collection = FRigElementKeyCollection::MakeFromChildren(ExecuteContext.Hierarchy, Parent, bRecursive, bIncludeParent, (uint8)TypeToSearch);
 		if (Collection.IsEmpty())
 		{
-			if (Context.Hierarchy->GetIndex(Parent) == INDEX_NONE)
+			if (ExecuteContext.Hierarchy->GetIndex(Parent) == INDEX_NONE)
 			{
 				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Parent '%s' is not valid."), *Parent.ToString());
 			}
 		}
-		Context.Hierarchy->AddCachedCollection(Hash, Collection);
+		ExecuteContext.Hierarchy->AddCachedCollection(Hash, Collection);
 	}
 
 	Items = Collection.Keys;
@@ -165,17 +165,17 @@ FRigUnit_CollectionGetAll_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	uint32 Hash = FRigUnit_CollectionGetAll_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	uint32 Hash = FRigUnit_CollectionGetAll_Hash + ExecuteContext.Hierarchy->GetTopologyVersion() * 17;
 	Hash = HashCombine(Hash, (int32)TypeToSearch * 8);
 
 	FRigElementKeyCollection Collection;
-	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
+	if(const FRigElementKeyCollection* Cache = ExecuteContext.Hierarchy->FindCachedCollection(Hash))
 	{
 		Collection = *Cache;
 	}
 	else
 	{
-		Context.Hierarchy->Traverse([&Collection, TypeToSearch](FRigBaseElement* InElement, bool &bContinue)
+		ExecuteContext.Hierarchy->Traverse([&Collection, TypeToSearch](FRigBaseElement* InElement, bool &bContinue)
 		{
 			bContinue = true;
 			
@@ -190,7 +190,7 @@ FRigUnit_CollectionGetAll_Execute()
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("%s"), TEXT("No elements found for given filter."));
 		}
-		Context.Hierarchy->AddCachedCollection(Hash, Collection);
+		ExecuteContext.Hierarchy->AddCachedCollection(Hash, Collection);
 	}
 
 	Items = Collection.Keys;
@@ -237,7 +237,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_CollectionChildren)
 
 FRigUnit_CollectionReplaceItems_Execute()
 {
-	FRigUnit_CollectionReplaceItemsArray::StaticExecute(ExecuteContext, Items.Keys, Old, New, RemoveInvalidItems, bAllowDuplicates, Collection.Keys, Context);
+	FRigUnit_CollectionReplaceItemsArray::StaticExecute(ExecuteContext, Items.Keys, Old, New, RemoveInvalidItems, bAllowDuplicates, Collection.Keys);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionReplaceItems::GetUpgradeInfo() const
@@ -256,14 +256,14 @@ FRigUnit_CollectionReplaceItemsArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	uint32 Hash = FRigUnit_CollectionReplaceItems_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	uint32 Hash = FRigUnit_CollectionReplaceItems_Hash + ExecuteContext.Hierarchy->GetTopologyVersion() * 17;
 	Hash = HashCombine(Hash, GetTypeHash(Items));
 	Hash = HashCombine(Hash, 12 * GetTypeHash(Old));
 	Hash = HashCombine(Hash, 13 * GetTypeHash(New));
 	Hash = HashCombine(Hash, RemoveInvalidItems ? 14 : 0);
 
 	FRigElementKeyCollection Collection;
-	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
+	if(const FRigElementKeyCollection* Cache = ExecuteContext.Hierarchy->FindCachedCollection(Hash))
 	{
 		Collection = *Cache;
 	}
@@ -274,9 +274,9 @@ FRigUnit_CollectionReplaceItemsArray_Execute()
 		for (int32 Index = 0; Index < Items.Num(); Index++)
 		{
 			FRigElementKey Key = Items[Index];
-			FRigUnit_ItemReplace::StaticExecute(ExecuteContext, Key, Old, New, Key, Context);
+			FRigUnit_ItemReplace::StaticExecute(ExecuteContext, Key, Old, New, Key);
 
-			if (Context.Hierarchy->GetIndex(Key) != INDEX_NONE)
+			if (ExecuteContext.Hierarchy->GetIndex(Key) != INDEX_NONE)
 			{
 				if(bAllowDuplicates)
 				{
@@ -293,7 +293,7 @@ FRigUnit_CollectionReplaceItemsArray_Execute()
 			}
 		}
 
-		Context.Hierarchy->AddCachedCollection(Hash, Collection);
+		ExecuteContext.Hierarchy->AddCachedCollection(Hash, Collection);
 	}
 	
 	Result = Collection.Keys;
@@ -326,7 +326,7 @@ FRigUnit_CollectionGetItems_Execute()
 
 FRigUnit_CollectionGetParentIndices_Execute()
 {
-	FRigUnit_CollectionGetParentIndicesItemArray::StaticExecute(ExecuteContext, Collection.Keys, ParentIndices, Context);
+	FRigUnit_CollectionGetParentIndicesItemArray::StaticExecute(ExecuteContext, Collection.Keys, ParentIndices);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionGetParentIndices::GetUpgradeInfo() const
@@ -343,7 +343,7 @@ FRigUnit_CollectionGetParentIndicesItemArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if(Context.Hierarchy == nullptr)
+	if(ExecuteContext.Hierarchy == nullptr)
 	{
 		ParentIndices.Reset();
 		return;
@@ -355,7 +355,7 @@ FRigUnit_CollectionGetParentIndicesItemArray_Execute()
 	{
 		ParentIndices[Index] = INDEX_NONE;
 
-		const int32 ItemIndex = Context.Hierarchy->GetIndex(Items[Index]);
+		const int32 ItemIndex = ExecuteContext.Hierarchy->GetIndex(Items[Index]);
 		if(ItemIndex == INDEX_NONE)
 		{
 			continue;;
@@ -369,17 +369,17 @@ FRigUnit_CollectionGetParentIndicesItemArray_Execute()
 			}
 			case ERigElementType::Bone:
 			{
-				ParentIndices[Index] = Context.Hierarchy->GetFirstParent(ItemIndex);
+				ParentIndices[Index] = ExecuteContext.Hierarchy->GetFirstParent(ItemIndex);
 				break;
 			}
 			default:
 			{
-				if(const FRigBaseElement* ChildElement = Context.Hierarchy->Get(ItemIndex))
+				if(const FRigBaseElement* ChildElement = ExecuteContext.Hierarchy->Get(ItemIndex))
 				{
-					TArray<int32> ItemParents = Context.Hierarchy->GetParents(ItemIndex);
+					TArray<int32> ItemParents = ExecuteContext.Hierarchy->GetParents(ItemIndex);
 					for(int32 ParentIndex = 0; ParentIndex < ItemParents.Num(); ParentIndex++)
 					{
-						const FRigElementWeight Weight = Context.Hierarchy->GetParentWeight(ChildElement, ParentIndex, false);
+						const FRigElementWeight Weight = ExecuteContext.Hierarchy->GetParentWeight(ChildElement, ParentIndex, false);
 						if(!Weight.IsAlmostZero())
 						{
 							ParentIndices[Index] = ItemParents[ParentIndex];
@@ -397,8 +397,8 @@ FRigUnit_CollectionGetParentIndicesItemArray_Execute()
 
 			while(ParentIndices[Index] == INDEX_NONE && ParentIndex != INDEX_NONE)
 			{
-				ParentIndices[Index] = Items.Find(Context.Hierarchy->GetKey(ParentIndex));
-				ParentIndex = Context.Hierarchy->GetFirstParent(ParentIndex);
+				ParentIndices[Index] = Items.Find(ExecuteContext.Hierarchy->GetKey(ParentIndex));
+				ParentIndex = ExecuteContext.Hierarchy->GetFirstParent(ParentIndex);
 			}
 		}
 	}

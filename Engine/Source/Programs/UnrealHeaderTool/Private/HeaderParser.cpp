@@ -6637,10 +6637,24 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 	}
 
 	FRigVMStructInfo& StructRigVMInfo = StructDef.GetRigVMInfo();
+
+	// disable support for opaque arguments
+	if (MethodInfo.Parameters.Num() > 0)
+	{
+		LogError(TEXT("RIGVM_METHOD F%s::%s has %d parameters. Since 5.2 parameters are no longer allowed for RIGVM_METHOD functions."), *StructRigVMInfo.Name, *MethodInfo.Name, MethodInfo.Parameters.Num());
+		MethodInfo.Parameters = FRigVMParameterArray();
+	}
+	
 	StructRigVMInfo.bHasRigVM = true;
 	StructRigVMInfo.Name = StructDef.GetName();
 	StructRigVMInfo.Methods.Add(MethodInfo);
 	StructRigVMInfo.ExecuteContextType = TEXT("FRigVMExecuteContext");
+
+	FString ExecuteContextTypeMetadata;
+	if(StructDef.GetStringMetaDataHierarchical(TEXT("ExecuteContext"), &ExecuteContextTypeMetadata))
+	{
+		StructRigVMInfo.ExecuteContextType = ExecuteContextTypeMetadata;
+	}
 }
 
 const FName FHeaderParser::NAME_InputText(TEXT("Input"));

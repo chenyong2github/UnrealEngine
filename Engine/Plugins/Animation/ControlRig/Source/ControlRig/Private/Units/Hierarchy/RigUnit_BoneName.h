@@ -17,7 +17,7 @@ struct CONTROLRIG_API FRigUnit_Item : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The item
@@ -38,7 +38,7 @@ struct CONTROLRIG_API FRigUnit_ItemArray : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The items
@@ -59,7 +59,7 @@ struct CONTROLRIG_API FRigUnit_BoneName : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Bone
@@ -83,7 +83,7 @@ struct CONTROLRIG_API FRigUnit_SpaceName : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Space
@@ -107,7 +107,7 @@ struct CONTROLRIG_API FRigUnit_ControlName : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control

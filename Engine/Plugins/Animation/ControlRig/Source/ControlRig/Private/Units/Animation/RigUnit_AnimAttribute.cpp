@@ -184,7 +184,7 @@ void FRigDispatch_GetAnimAttribute::GetAnimAttributeDispatch(FRigVMExtendedExecu
 
 #if WITH_EDITOR
 		{
-			FRigVMExecuteContext& ExecuteContext = InContext.GetPublicData<>();
+			FControlRigExecuteContext& ExecuteContext = InContext.GetPublicData<FControlRigExecuteContext>();
 			if (!UE::Anim::AttributeTypes::IsTypeRegistered(ScriptStruct))
 			{
 				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(
@@ -246,7 +246,7 @@ void FRigDispatch_SetAnimAttribute::SetAnimAttributeDispatch(FRigVMExtendedExecu
 
 #if WITH_EDITOR
 		{
-			FRigVMExecuteContext& ExecuteContext = InContext.GetPublicData<>();
+			FControlRigExecuteContext& ExecuteContext = InContext.GetPublicData<FControlRigExecuteContext>();
 			if (!UE::Anim::AttributeTypes::IsTypeRegistered(ScriptStruct))
 			{
 				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(

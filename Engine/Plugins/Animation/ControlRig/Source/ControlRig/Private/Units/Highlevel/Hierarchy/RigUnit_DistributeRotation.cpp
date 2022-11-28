@@ -54,8 +54,7 @@ FRigUnit_DistributeRotation_Execute()
 		Rotations,
 		RotationEaseType,
 		Weight,
-		WorkData,
-		Context);
+		WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_DistributeRotation::GetUpgradeInfo() const
@@ -66,7 +65,7 @@ FRigVMStructUpgradeInfo FRigUnit_DistributeRotation::GetUpgradeInfo() const
 
 FRigUnit_DistributeRotationForCollection_Execute()
 {
-	FRigUnit_DistributeRotationForItemArray::StaticExecute(ExecuteContext, Items.Keys, Rotations, RotationEaseType, Weight, WorkData, Context);
+	FRigUnit_DistributeRotationForItemArray::StaticExecute(ExecuteContext, Items.Keys, Rotations, RotationEaseType, Weight, WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_DistributeRotationForCollection::GetUpgradeInfo() const
@@ -107,7 +106,7 @@ FRigUnit_DistributeRotationForItemArray_Execute()
 		}
 	}
 
-	if (Context.State == EControlRigState::Init || (CachedItems.Num() > 0 && CachedItems.Num() != Items.Num()))
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init || (CachedItems.Num() > 0 && CachedItems.Num() != Items.Num()))
 	{
 		CachedItems.Reset();
 		ItemRotationA.Reset();

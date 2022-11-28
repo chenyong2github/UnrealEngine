@@ -224,13 +224,13 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionMakeRelative)
 	TransformUnit.Global.SetRotation(Unit.Global);
 	TransformUnit.Parent.SetRotation(Unit.Parent);
 
-	Context.State = EControlRigState::Init;
-	Unit.Execute(Context);
-	TransformUnit.Execute(Context);
+	ExecuteContext.UnitContext.State = EControlRigState::Init;
+	Unit.Execute();
+	TransformUnit.Execute();
 
-	Context.State = EControlRigState::Update;
-	Unit.Execute(Context);
-	TransformUnit.Execute(Context);
+	ExecuteContext.UnitContext.State = EControlRigState::Update;
+	Unit.Execute();
+	TransformUnit.Execute();
 
 	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Unit.Local, TransformUnit.Local.GetRotation()), TEXT("unexpected result"));
 	return true;
@@ -245,13 +245,13 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathQuaternionMakeAbsolute)
 	TransformUnit.Local.SetRotation(Unit.Local);
 	TransformUnit.Parent.SetRotation(Unit.Parent);
 
-	Context.State = EControlRigState::Init;
-	Unit.Execute(Context);
-	TransformUnit.Execute(Context);
+	ExecuteContext.UnitContext.State = EControlRigState::Init;
+	Unit.Execute();
+	TransformUnit.Execute();
 
-	Context.State = EControlRigState::Update;
-	Unit.Execute(Context);
-	TransformUnit.Execute(Context);
+	ExecuteContext.UnitContext.State = EControlRigState::Update;
+	Unit.Execute();
+	TransformUnit.Execute();
 
 	AddErrorIfFalse(FRigUnit_MathQuatTest_Utils::IsNearlyEqual(Unit.Global, TransformUnit.Global.GetRotation()), TEXT("unexpected result"));
 	return true;

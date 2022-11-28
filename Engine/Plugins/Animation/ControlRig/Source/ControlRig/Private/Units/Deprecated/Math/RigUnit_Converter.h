@@ -18,7 +18,7 @@ struct CONTROLRIG_API FRigUnit_ConvertTransform : public FRigUnit
 	FEulerTransform Result;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -36,7 +36,7 @@ struct CONTROLRIG_API FRigUnit_ConvertEulerTransform : public FRigUnit
 	FTransform Result;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -54,7 +54,7 @@ struct CONTROLRIG_API FRigUnit_ConvertRotation : public FRigUnit
 	FQuat	Result = FQuat::Identity;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -78,7 +78,7 @@ struct CONTROLRIG_API FRigUnit_ConvertQuaternion: public FRigUnit
 	FRotator	Result = FRotator(0.f);
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -96,7 +96,7 @@ struct CONTROLRIG_API FRigUnit_ConvertVectorToRotation: public FRigUnit
 	FRotator	Result = FRotator(0.f);
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -114,7 +114,7 @@ struct CONTROLRIG_API FRigUnit_ConvertVectorToQuaternion: public FRigUnit
 	FQuat	Result = FQuat::Identity;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -132,7 +132,7 @@ struct CONTROLRIG_API FRigUnit_ConvertRotationToVector: public FRigUnit
 	FVector Result = FVector(0.f);
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -150,7 +150,7 @@ struct CONTROLRIG_API FRigUnit_ConvertQuaternionToVector: public FRigUnit
 	FVector Result = FVector(0.f);
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
@@ -182,7 +182,7 @@ struct CONTROLRIG_API FRigUnit_ToSwingAndTwist : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;

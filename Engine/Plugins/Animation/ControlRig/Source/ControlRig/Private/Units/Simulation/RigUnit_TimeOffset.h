@@ -24,7 +24,7 @@ struct CONTROLRIG_API FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 	
 	/** The value to record */
 	UPROPERTY(meta = (Input))
@@ -77,7 +77,7 @@ struct CONTROLRIG_API FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 	
 	/** The value to record */
 	UPROPERTY(meta = (Input))
@@ -130,7 +130,7 @@ struct CONTROLRIG_API FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 	
 	/** The value to record */
 	UPROPERTY(meta = (Input))

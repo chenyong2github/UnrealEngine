@@ -21,7 +21,7 @@ struct CONTROLRIG_API FRigUnit_SetSpaceTransform : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Space to set the transform for.

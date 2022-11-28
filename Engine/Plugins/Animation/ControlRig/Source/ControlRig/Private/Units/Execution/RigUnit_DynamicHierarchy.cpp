@@ -11,13 +11,11 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_DynamicHierarchy)
 
 bool FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(
-	const FRigUnitContext& InContext,
 	const FControlRigExecuteContext& InExecuteContext,
 	bool bAllowOnlyConstructionEvent,
 	FString* OutErrorMessage)
 {
-	if((InContext.State != EControlRigState::Update) ||
-		(InContext.Hierarchy == nullptr) ||
+	if((InExecuteContext.UnitContext.State != EControlRigState::Update) ||
 		(InExecuteContext.Hierarchy == nullptr))
 	{
 		return false;
@@ -36,7 +34,7 @@ bool FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(
 		}
 	}
 
-	if(InContext.Hierarchy->Num() >= InContext.HierarchySettings.ProceduralElementLimit)
+	if(InExecuteContext.Hierarchy->Num() >= InExecuteContext.UnitContext.HierarchySettings.ProceduralElementLimit)
 	{
 		if(OutErrorMessage)
 		{
@@ -51,7 +49,7 @@ bool FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(
 
 FRigUnit_AddParent_Execute()
 {
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true))
 	{
 		return;
 	}
@@ -79,7 +77,7 @@ FRigUnit_AddParent_Execute()
 
 FRigUnit_SetDefaultParent_Execute()
 {
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true))
 	{
 		return;
 	}
@@ -107,7 +105,7 @@ FRigUnit_SetDefaultParent_Execute()
 
 FRigUnit_SwitchParent_Execute()
 {
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, false))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, false))
 	{
 		return;
 	}
@@ -200,7 +198,7 @@ FRigUnit_SwitchParent_Execute()
 
 FRigUnit_HierarchyGetParentWeights_Execute()
 {
-	FRigUnit_HierarchyGetParentWeightsArray::StaticExecute(ExecuteContext, Child, Weights, Parents.Keys, Context);
+	FRigUnit_HierarchyGetParentWeightsArray::StaticExecute(ExecuteContext, Child, Weights, Parents.Keys);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchyGetParentWeights::GetUpgradeInfo() const
@@ -215,30 +213,30 @@ FRigVMStructUpgradeInfo FRigUnit_HierarchyGetParentWeights::GetUpgradeInfo() con
 
 FRigUnit_HierarchyGetParentWeightsArray_Execute()
 {
-	if((Context.State != EControlRigState::Update) || (Context.Hierarchy == nullptr))
+	if((ExecuteContext.UnitContext.State != EControlRigState::Update) || (ExecuteContext.Hierarchy == nullptr))
 	{
 		return;
 	}
 
-	FRigBaseElement* ChildElement = Context.Hierarchy->Find(Child);
+	FRigBaseElement* ChildElement = ExecuteContext.Hierarchy->Find(Child);
 	if(ChildElement == nullptr)
 	{
 		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Item %s does not exist."), *Child.ToString())
 		return;
 	}
 	
-	Weights = Context.Hierarchy->GetParentWeightArray(ChildElement, false);
-	Parents = Context.Hierarchy->GetParents(ChildElement->GetKey(), false);
+	Weights = ExecuteContext.Hierarchy->GetParentWeightArray(ChildElement, false);
+	Parents = ExecuteContext.Hierarchy->GetParents(ChildElement->GetKey(), false);
 }
 
 FRigUnit_HierarchySetParentWeights_Execute()
 {
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, false))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, false))
 	{
 		return;
 	}
 
-	FRigBaseElement* ChildElement = Context.Hierarchy->Find(Child);
+	FRigBaseElement* ChildElement = ExecuteContext.Hierarchy->Find(Child);
 	if(ChildElement == nullptr)
 	{
 		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Item %s does not exist."), *Child.ToString())
@@ -263,7 +261,7 @@ FRigUnit_HierarchySetParentWeights_Execute()
 FRigUnit_HierarchyReset_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -277,7 +275,7 @@ FRigUnit_HierarchyReset_Execute()
 FRigUnit_HierarchyImportFromSkeleton_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -292,7 +290,7 @@ FRigUnit_HierarchyImportFromSkeleton_Execute()
 	{
 		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		
-		if(const USkeletalMeshComponent* SkelMeshComponent = Context.DataSourceRegistry->RequestSource<USkeletalMeshComponent>(UControlRig::OwnerComponent))
+		if(const USkeletalMeshComponent* SkelMeshComponent = ExecuteContext.UnitContext.DataSourceRegistry->RequestSource<USkeletalMeshComponent>(UControlRig::OwnerComponent))
 		{
 			if(SkelMeshComponent->GetSkeletalMeshAsset())
 			{
@@ -313,7 +311,7 @@ FRigUnit_HierarchyImportFromSkeleton_Execute()
 FRigUnit_HierarchyRemoveElement_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -334,7 +332,7 @@ FRigUnit_HierarchyRemoveElement_Execute()
 FRigUnit_HierarchyAddBone_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -355,7 +353,7 @@ FRigUnit_HierarchyAddBone_Execute()
 FRigUnit_HierarchyAddNull_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -416,7 +414,7 @@ void FRigUnit_HierarchyAddControlFloat_Settings::Configure(FRigControlSettings& 
 FRigUnit_HierarchyAddControlFloat_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -464,7 +462,7 @@ void FRigUnit_HierarchyAddControlInteger_Settings::Configure(FRigControlSettings
 FRigUnit_HierarchyAddControlInteger_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -514,7 +512,7 @@ void FRigUnit_HierarchyAddControlVector2D_Settings::Configure(FRigControlSetting
 FRigUnit_HierarchyAddControlVector2D_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -564,7 +562,7 @@ void FRigUnit_HierarchyAddControlVector_Settings::Configure(FRigControlSettings&
 FRigUnit_HierarchyAddControlVector_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -614,7 +612,7 @@ void FRigUnit_HierarchyAddControlRotator_Settings::Configure(FRigControlSettings
 FRigUnit_HierarchyAddControlRotator_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -652,7 +650,7 @@ void FRigUnit_HierarchyAddControlTransform_Settings::Configure(FRigControlSettin
 FRigUnit_HierarchyAddControlTransform_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -680,7 +678,7 @@ FRigUnit_HierarchyAddControlTransform_Execute()
 FRigUnit_HierarchyAddAnimationChannelBool_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -719,7 +717,7 @@ FRigUnit_HierarchyAddAnimationChannelBool_Execute()
 FRigUnit_HierarchyAddAnimationChannelFloat_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -758,7 +756,7 @@ FRigUnit_HierarchyAddAnimationChannelFloat_Execute()
 FRigUnit_HierarchyAddAnimationChannelInteger_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -797,7 +795,7 @@ FRigUnit_HierarchyAddAnimationChannelInteger_Execute()
 FRigUnit_HierarchyAddAnimationChannelVector2D_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -836,7 +834,7 @@ FRigUnit_HierarchyAddAnimationChannelVector2D_Execute()
 FRigUnit_HierarchyAddAnimationChannelVector_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -875,7 +873,7 @@ FRigUnit_HierarchyAddAnimationChannelVector_Execute()
 FRigUnit_HierarchyAddAnimationChannelRotator_Execute()
 {
 	FString ErrorMessage;
-	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(ExecuteContext, true, &ErrorMessage))
 	{
 		if(!ErrorMessage.IsEmpty())
 		{
@@ -915,7 +913,7 @@ FRigUnit_HierarchyGetShapeSettings_Execute()
 {
 	Settings = FRigUnit_HierarchyAddControl_ShapeSettings();
 
-	if(URigHierarchy* Hierarchy = Context.Hierarchy)
+	if(URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
 		if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Item))
 		{

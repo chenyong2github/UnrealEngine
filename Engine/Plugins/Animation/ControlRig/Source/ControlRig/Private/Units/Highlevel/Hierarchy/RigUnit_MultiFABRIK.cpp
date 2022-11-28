@@ -228,7 +228,7 @@ FRigUnit_MultiFABRIK_Execute()
 	TArray<FRigUnit_MultiFABRIK_BoneWorkingData>&	BoneTree = WorkData.BoneTree;
 	TArray<FCachedRigElement>&				        EffectorIndices = WorkData.EffectorBoneIndices;
 	
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		EffectorIndices.Reset();
 		BoneTree.Reset();
@@ -236,7 +236,7 @@ FRigUnit_MultiFABRIK_Execute()
 		return;
 	}
 
-	if (Context.State == EControlRigState::Update)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Update)
 	{
 		if(BoneTree.Num() == 0)
 		{

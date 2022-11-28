@@ -97,7 +97,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleMake : public FRigUnit_MathDoubleBase
 	}
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input, Output))
 	double Value;
@@ -112,7 +112,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleConstPi : public FRigUnit_MathDoubleCon
 	GENERATED_BODY()
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -124,7 +124,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleConstHalfPi : public FRigUnit_MathDoubl
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -136,7 +136,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleConstTwoPi : public FRigUnit_MathDouble
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -148,7 +148,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleConstE : public FRigUnit_MathDoubleCons
 	GENERATED_BODY()
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -160,7 +160,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleAdd : public FRigUnit_MathDoubleBinaryA
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -172,7 +172,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleSub : public FRigUnit_MathDoubleBinaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -190,7 +190,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleMul : public FRigUnit_MathDoubleBinaryA
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -207,7 +207,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleDiv : public FRigUnit_MathDoubleBinaryO
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -225,7 +225,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleMod : public FRigUnit_MathDoubleBinaryO
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -237,7 +237,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleMin : public FRigUnit_MathDoubleBinaryA
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -249,7 +249,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleMax : public FRigUnit_MathDoubleBinaryA
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -267,7 +267,7 @@ struct CONTROLRIG_API FRigUnit_MathDoublePow : public FRigUnit_MathDoubleBinaryO
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -279,7 +279,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleSqrt : public FRigUnit_MathDoubleUnaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -291,7 +291,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleNegate : public FRigUnit_MathDoubleUnar
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -303,7 +303,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleAbs : public FRigUnit_MathDoubleUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -321,7 +321,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleFloor : public FRigUnit_MathDoubleBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double Value;
@@ -348,7 +348,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleCeil : public FRigUnit_MathDoubleBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double Value;
@@ -375,7 +375,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleRound : public FRigUnit_MathDoubleBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double Value;
@@ -390,7 +390,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleRound : public FRigUnit_MathDoubleBase
 /**
  * Returns the double cast to an int (this uses floor)
  */
-USTRUCT(meta=(DisplayName="To Int", TemplateName="Cast"))
+USTRUCT(meta=(DisplayName="To Int", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext"))
 struct CONTROLRIG_API FRigUnit_MathDoubleToInt : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
@@ -402,7 +402,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleToInt : public FRigUnit_MathDoubleBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double Value;
@@ -420,7 +420,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleSign : public FRigUnit_MathDoubleUnaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -437,7 +437,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleClamp : public FRigUnit_MathDoubleBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double Value;
@@ -467,7 +467,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleLerp : public FRigUnit_MathDoubleBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double A;
@@ -498,7 +498,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleRemap : public FRigUnit_MathDoubleBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double Value;
@@ -531,7 +531,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleEquals : public FRigUnit_MathDoubleBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathDoubleEquals()
 	{
@@ -560,7 +560,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleNotEquals : public FRigUnit_MathDoubleB
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	FRigUnit_MathDoubleNotEquals()
 	{
@@ -596,7 +596,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleGreater : public FRigUnit_MathDoubleBas
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double A;
@@ -623,7 +623,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleLess : public FRigUnit_MathDoubleBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double A;
@@ -650,7 +650,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleGreaterEqual : public FRigUnit_MathDoub
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double A;
@@ -677,7 +677,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleLessEqual : public FRigUnit_MathDoubleB
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double A;
@@ -704,7 +704,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleIsNearlyZero : public FRigUnit_MathDoub
 	}
 	
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double Value;
@@ -731,7 +731,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleIsNearlyEqual : public FRigUnit_MathDou
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	double A;
@@ -755,7 +755,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleDeg : public FRigUnit_MathDoubleUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -767,7 +767,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleRad : public FRigUnit_MathDoubleUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -779,7 +779,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleSin : public FRigUnit_MathDoubleUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -791,7 +791,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleCos : public FRigUnit_MathDoubleUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -803,7 +803,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleTan : public FRigUnit_MathDoubleUnaryOp
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -815,7 +815,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleAsin : public FRigUnit_MathDoubleUnaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -827,7 +827,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleAcos : public FRigUnit_MathDoubleUnaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -839,7 +839,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleAtan : public FRigUnit_MathDoubleUnaryO
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -857,7 +857,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleLawOfCosine : public FRigUnit_MathDoubl
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	double A;
@@ -890,5 +890,5 @@ struct CONTROLRIG_API FRigUnit_MathDoubleExponential : public FRigUnit_MathDoubl
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };

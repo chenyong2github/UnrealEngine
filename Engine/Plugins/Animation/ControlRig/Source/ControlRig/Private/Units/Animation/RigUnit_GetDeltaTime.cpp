@@ -8,7 +8,7 @@
 FRigUnit_GetDeltaTime_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	Result = Context.DeltaTime;
+	Result = ExecuteContext.UnitContext.DeltaTime;
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -16,7 +16,7 @@ FRigUnit_GetDeltaTime_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetDeltaTime)
 {
-	Context.DeltaTime = 0.2f;
+	ExecuteContext.UnitContext.DeltaTime = 0.2f;
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result, 0.2f), TEXT("unexpected delta time"));
 	return true;

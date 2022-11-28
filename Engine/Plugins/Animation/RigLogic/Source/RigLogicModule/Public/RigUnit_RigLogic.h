@@ -128,7 +128,7 @@ public:
 #endif
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 private:
 	static TSharedPtr<FSharedRigRuntimeContext> GetSharedRigRuntimeContext(USkeletalMesh* SkelMesh);

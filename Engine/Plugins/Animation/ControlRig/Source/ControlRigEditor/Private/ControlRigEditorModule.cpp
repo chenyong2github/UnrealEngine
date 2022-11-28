@@ -1026,6 +1026,11 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 			continue;
 		}
 
+		if(!Template.SupportsExecuteContextStruct(FControlRigExecuteContext::StaticStruct()))
+		{
+			continue;
+		}
+
 		FText NodeCategory = FText::FromString(Template.GetCategory());
 		FText MenuDesc = FText::FromName(Template.GetName());
 		FText ToolTip = Template.GetTooltipText();
@@ -1037,15 +1042,9 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 
 	for (const FRigVMDispatchFactory* Factory : Registry.GetFactories())
 	{
-		// allow empty opaque arguments or the control rig notation
-		const TArray<TPair<FName,FString>>& OpaqueArguments = Factory->GetOpaqueArguments();
-		if(!OpaqueArguments.IsEmpty())
+		if(!Factory->SupportsExecuteContextStruct(FControlRigExecuteContext::StaticStruct()))
 		{
-			static const FRigDispatchFactory ControlRigFactory;
-			if(ControlRigFactory.GetOpaqueArguments() != OpaqueArguments)
-			{
-				continue;
-			}
+			continue;
 		}
 
 		const FRigVMTemplate* Template = Factory->GetTemplate();
@@ -1068,6 +1067,11 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 	{
 		UScriptStruct* Struct = Function.Struct;
 		if (Struct == nullptr || !Struct->IsChildOf(FRigVMStruct::StaticStruct()))
+		{
+			continue;
+		}
+
+		if(!Function.SupportsExecuteContextStruct(FControlRigExecuteContext::StaticStruct()))
 		{
 			continue;
 		}
@@ -1101,7 +1105,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		FText MenuDesc = FText::FromString(DisplayNameMetadata + MenuDescSuffixMetadata);
 		FText ToolTip = Struct->GetToolTipText();
 
-		UBlueprintNodeSpawner* NodeSpawner = UControlRigUnitNodeSpawner::CreateFromStruct(Struct, MenuDesc, NodeCategory, ToolTip);
+		UBlueprintNodeSpawner* NodeSpawner = UControlRigUnitNodeSpawner::CreateFromStruct(Struct, Function.GetMethodName(), MenuDesc, NodeCategory, ToolTip);
 		check(NodeSpawner != nullptr);
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	};
@@ -1881,11 +1885,11 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								StructOnScope = UnitNode->ConstructStructInstance(false /* default */);
 								StructMemory = (FRigUnit*)StructOnScope->GetStructMemory();
 
-								FRigUnitContext RigUnitContext;
-								RigUnitContext.Hierarchy = TemporaryHierarchy;
-								RigUnitContext.State = EControlRigState::Update;
+								//FRigUnitContext RigUnitContext;
+								//RigUnitContext.Hierarchy = TemporaryHierarchy;
+								//RigUnitContext.State = EControlRigState::Update;
 								
-								StructMemory->Execute(RigUnitContext);
+								StructMemory->Execute();
 							}
 						}
 

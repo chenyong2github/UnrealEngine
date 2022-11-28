@@ -713,7 +713,7 @@ void FRigVMParserASTSettings::Report(EMessageSeverity::Type InSeverity, UObject*
 
 const TArray<FRigVMASTProxy> FRigVMParserAST::EmptyProxyArray;
 
-FRigVMParserAST::FRigVMParserAST(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const FRigVMParserASTSettings& InSettings, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData)
+FRigVMParserAST::FRigVMParserAST(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const FRigVMParserASTSettings& InSettings, const TArray<FRigVMExternalVariable>& InExternalVariables)
 	: LibraryNodeBeingCompiled(nullptr)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -819,7 +819,7 @@ FRigVMParserAST::FRigVMParserAST(TArray<URigVMGraph*> InGraphs, URigVMController
 		bContinueToFoldConstantBranches = false;
 		if (LibraryNodeBeingCompiled == nullptr)
 		{
-			if (FoldConstantValuesToLiterals(InGraphs, InController, InExternalVariables, InRigVMUserData))
+			if (FoldConstantValuesToLiterals(InGraphs, InController, InExternalVariables))
 			{
 				bContinueToFoldConstantBranches = true;
 			}
@@ -1882,16 +1882,11 @@ void FRigVMParserAST::FoldAssignments()
 
 	RemoveExpressions(ExpressionsToRemove);
 }
-bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData)
+bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const TArray<FRigVMExternalVariable>& InExternalVariables)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	if (InController == nullptr)
-	{
-		return false;
-	}
-
-	if (InRigVMUserData.Num() == 0)
 	{
 		return false;
 	}
@@ -2075,16 +2070,13 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs
 	TempCompiler->Settings.EnablePinWatches = false;
 	TempCompiler->Settings.ASTSettings = FRigVMParserASTSettings::Fast(Settings.ExecuteContextStruct);
 
-	TempCompiler->Compile(InGraphs, InController, TempVM, InExternalVariables, InRigVMUserData, &Operands, TempAST);
+	TempCompiler->Compile(InGraphs, InController, TempVM, InExternalVariables, &Operands, TempAST);
 
 	TArray<URigVMMemoryStorage*> Memory;
 	Memory.Add(TempVM->GetWorkMemory());
 	Memory.Add(TempVM->GetLiteralMemory());
 	Memory.Add(TempVM->GetDebugMemory());
-	for (const FRigVMUserDataArray& RigVMUserData : InRigVMUserData)
-	{
-		TempVM->Execute(Memory, RigVMUserData);
-	}
+	TempVM->Execute(Memory);
 
 	// copy the values out of the temp VM and set them on the cached value
 	for (const FRigVMASTProxy& PinToComputeProxy : PinsToCompute)

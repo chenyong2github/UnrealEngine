@@ -7,7 +7,7 @@
 
 FRigUnit_FABRIK_Execute()
 {
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		WorkData.CachedItems.Reset();
 		return;
@@ -17,7 +17,7 @@ FRigUnit_FABRIK_Execute()
 	if(WorkData.CachedItems.Num() == 0)
 	{
 		Items = FRigElementKeyCollection::MakeFromChain(
-			Context.Hierarchy,
+			ExecuteContext.Hierarchy,
 			FRigElementKey(StartBone, ERigElementType::Bone),
 			FRigElementKey(EffectorBone, ERigElementType::Bone),
 			false /* reverse */
@@ -33,8 +33,7 @@ FRigUnit_FABRIK_Execute()
 		bPropagateToChildren,
 		MaxIterations,
 		WorkData,
-		bSetEffectorTransform,
-		Context);
+		bSetEffectorTransform);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_FABRIK::GetUpgradeInfo() const
@@ -45,7 +44,7 @@ FRigVMStructUpgradeInfo FRigUnit_FABRIK::GetUpgradeInfo() const
 
 FRigUnit_FABRIKPerItem_Execute()
 {
-	FRigUnit_FABRIKItemArray::StaticExecute(ExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, bPropagateToChildren, MaxIterations, WorkData, bSetEffectorTransform, Context);
+	FRigUnit_FABRIKItemArray::StaticExecute(ExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, bPropagateToChildren, MaxIterations, WorkData, bSetEffectorTransform);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_FABRIKPerItem::GetUpgradeInfo() const
@@ -74,14 +73,14 @@ FRigUnit_FABRIKItemArray_Execute()
 	TArray<FCachedRigElement>& CachedItems = WorkData.CachedItems;
 	FCachedRigElement& CachedEffector = WorkData.CachedEffector;
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		CachedItems.Reset();
 		CachedEffector.Reset();
 		return;
 	}
 
-	if (Context.State == EControlRigState::Update)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Update)
 	{
 		if (CachedItems.Num() == 0 && Items.Num() > 0)
 		{

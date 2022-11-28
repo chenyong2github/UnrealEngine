@@ -36,7 +36,7 @@ struct CONTROLRIG_API FRigUnit_GetTransform : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The item to retrieve the transform for
@@ -83,7 +83,7 @@ struct CONTROLRIG_API FRigUnit_GetTransformArray : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	* The items to retrieve the transforms for
@@ -133,7 +133,7 @@ struct CONTROLRIG_API FRigUnit_GetTransformItemArray : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	* The items to retrieve the transforms for

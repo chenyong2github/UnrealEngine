@@ -33,7 +33,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParent : public FRigUnit_HierarchyBas
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
@@ -68,7 +68,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParents : public FRigUnit_HierarchyBa
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
@@ -112,7 +112,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParentsItemArray : public FRigUnit_Hi
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
@@ -154,7 +154,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetChildren : public FRigUnit_HierarchyB
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey Parent;
@@ -197,7 +197,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetSiblings : public FRigUnit_HierarchyB
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey Item;
@@ -237,7 +237,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetSiblingsItemArray : public FRigUnit_H
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey Item;
@@ -274,7 +274,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetPose : public FRigUnit_HierarchyBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	bool Initial;
@@ -309,7 +309,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetPoseItemArray : public FRigUnit_Hiera
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	bool Initial;
@@ -344,7 +344,7 @@ struct CONTROLRIG_API FRigUnit_HierarchySetPose : public FRigUnit_HierarchyBaseM
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigPose Pose;
@@ -383,7 +383,7 @@ struct CONTROLRIG_API FRigUnit_HierarchySetPoseItemArray : public FRigUnit_Hiera
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigPose Pose;
@@ -417,7 +417,7 @@ struct CONTROLRIG_API FRigUnit_PoseIsEmpty : public FRigUnit_HierarchyBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigPose Pose;
@@ -442,7 +442,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetItems : public FRigUnit_HierarchyBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigPose Pose;
@@ -472,7 +472,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetItemsItemArray : public FRigUnit_Hierarchy
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigPose Pose;
@@ -504,7 +504,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetDelta : public FRigUnit_HierarchyBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigPose PoseA;
@@ -587,7 +587,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetTransform : public FRigUnit_HierarchyBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigPose Pose;
@@ -634,7 +634,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetTransformArray : public FRigUnit_Hierarchy
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigPose Pose;
@@ -670,7 +670,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetCurve : public FRigUnit_HierarchyBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FRigPose Pose;
@@ -721,7 +721,7 @@ struct CONTROLRIG_API FRigUnit_PoseLoop : public FRigUnit_HierarchyBaseMutable
 	virtual int32 GetNumSlices() const override { return Count; }
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Singleton))
 	FName BlockToRun;

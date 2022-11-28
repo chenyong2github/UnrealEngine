@@ -916,6 +916,11 @@ namespace EpicGames.UHT.Types
 		{
 			if (RigVMStructInfo != null)
 			{
+				if (this.MetaData.TryGetValueHierarchical("ExecuteContext", out string? ExecuteContextMetadata))
+				{
+					RigVMStructInfo.ExecuteContextType = ExecuteContextMetadata;
+				}
+
 				for (UhtStruct? current = this; current != null; current = current.SuperStruct)
 				{
 					foreach (UhtProperty property in current.Properties)

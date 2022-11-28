@@ -43,7 +43,7 @@ struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
 
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The item to set the transform for
@@ -115,7 +115,7 @@ struct CONTROLRIG_API FRigUnit_SetTranslation : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The item to set the translation for
@@ -187,7 +187,7 @@ struct CONTROLRIG_API FRigUnit_SetRotation : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The item to set the rotation for
@@ -247,7 +247,7 @@ struct FRigUnit_SetScale : public FRigUnitMutable
 	virtual FString GetUnitLabel() const override;
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The item to set the scale for
@@ -309,7 +309,7 @@ struct CONTROLRIG_API FRigUnit_SetTransformArray : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The item to set the transform for
@@ -374,7 +374,7 @@ struct CONTROLRIG_API FRigUnit_SetTransformItemArray : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The item to set the transform for

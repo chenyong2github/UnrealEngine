@@ -196,7 +196,7 @@ FRigUnit_MathTransformClampSpatially_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FVector Position;
-	FRigUnit_MathVectorClampSpatially::StaticExecute(ExecuteContext, Value.GetTranslation(), Axis, Type, Minimum, Maximum, Space, bDrawDebug, DebugColor, DebugThickness, Position, Context);
+	FRigUnit_MathVectorClampSpatially::StaticExecute(ExecuteContext, Value.GetTranslation(), Axis, Type, Minimum, Maximum, Space, bDrawDebug, DebugColor, DebugThickness, Position);
 	Result = Value;
 	Result.SetTranslation(Position);
 }
@@ -208,8 +208,8 @@ FRigUnit_MathTransformMirrorTransform_Execute()
 	MirrorSettings.AxisToFlip = AxisToFlip;
 
 	FTransform Local = FTransform::Identity;
-	FRigUnit_MathTransformMakeRelative::StaticExecute(ExecuteContext, Value, CentralTransform, Local, Context);
+	FRigUnit_MathTransformMakeRelative::StaticExecute(ExecuteContext, Value, CentralTransform, Local);
 	Local = MirrorSettings.MirrorTransform(Local);
-	FRigUnit_MathTransformMakeAbsolute::StaticExecute(ExecuteContext, Local, CentralTransform, Result, Context);
+	FRigUnit_MathTransformMakeAbsolute::StaticExecute(ExecuteContext, Local, CentralTransform, Result);
 }
 

@@ -8,7 +8,7 @@
 FRigUnit_NoiseFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		Time = 0.f;
 		return;
@@ -16,13 +16,13 @@ FRigUnit_NoiseFloat_Execute()
 
 	const float Noise = FMath::PerlinNoise1D(Value * Frequency + Time) + 0.5f;
 	Result = FMath::Lerp<float>(Minimum, Maximum, Noise);
-	Time = Time + Speed * Context.DeltaTime;
+	Time = Time + Speed * ExecuteContext.UnitContext.DeltaTime;
 }
 
 FRigUnit_NoiseDouble_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		Time = 0.f;
 		return;
@@ -30,12 +30,12 @@ FRigUnit_NoiseDouble_Execute()
 
 	const double Noise = double(FMath::PerlinNoise1D(Value * Frequency + Time)) + 0.5;
 	Result = FMath::Lerp<double>(Minimum, Maximum, Noise);
-	Time = Time + Speed * Context.DeltaTime;
+	Time = Time + Speed * ExecuteContext.UnitContext.DeltaTime;
 }
 
 FRigUnit_NoiseVector_Execute()
 {
-	FRigUnit_NoiseVector2::StaticExecute(ExecuteContext, Position, Speed, Frequency, Minimum, Maximum, Result, Time, Context);
+	FRigUnit_NoiseVector2::StaticExecute(ExecuteContext, Position, Speed, Frequency, Minimum, Maximum, Result, Time);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_NoiseVector::GetUpgradeInfo() const
@@ -55,7 +55,7 @@ FRigVMStructUpgradeInfo FRigUnit_NoiseVector::GetUpgradeInfo() const
 FRigUnit_NoiseVector2_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		Time = FVector::ZeroVector;
 		return;
@@ -67,6 +67,6 @@ FRigUnit_NoiseVector2_Execute()
 	Result.X = FMath::Lerp<double>(Minimum, Maximum, NoiseX);
 	Result.Y = FMath::Lerp<double>(Minimum, Maximum, NoiseY);
 	Result.Z = FMath::Lerp<double>(Minimum, Maximum, NoiseZ);
-	Time = Time + Speed * Context.DeltaTime;
+	Time = Time + Speed * ExecuteContext.UnitContext.DeltaTime;
 }
 

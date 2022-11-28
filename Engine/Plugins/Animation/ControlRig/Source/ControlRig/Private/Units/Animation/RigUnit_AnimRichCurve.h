@@ -22,7 +22,7 @@ struct CONTROLRIG_API FRigUnit_AnimRichCurve : public FRigUnit_AnimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input, Output, Constant))
 	FRuntimeFloatCurve Curve;

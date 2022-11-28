@@ -30,8 +30,7 @@ FRigUnit_BoneHarmonics_Execute()
 		WaveMinimum,
 		WaveMaximum,
 		RotationOrder,
-		WorkData,
-		Context);
+		WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_BoneHarmonics::GetUpgradeInfo() const
@@ -78,7 +77,7 @@ FRigUnit_ItemHarmonics_Execute()
 	TArray<FCachedRigElement>& CachedItems = WorkData.CachedItems;
 	FVector& WaveTime = WorkData.WaveTime;
 
-	if (Context.State == EControlRigState::Init ||
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init ||
 		CachedItems.Num() != Targets.Num())
 	{
 		CachedItems.Reset();
@@ -127,6 +126,6 @@ FRigUnit_ItemHarmonics_Execute()
 		}
 	}
 
-	WaveTime += WaveSpeed * Context.DeltaTime;
+	WaveTime += WaveSpeed * ExecuteContext.UnitContext.DeltaTime;
 }
 

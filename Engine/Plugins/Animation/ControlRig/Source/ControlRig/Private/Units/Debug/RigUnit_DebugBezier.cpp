@@ -17,8 +17,7 @@ FRigUnit_DebugBezier_Execute()
 		Detail, 
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
-		bEnabled,
-		Context);
+		bEnabled);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_DebugBezier::GetUpgradeInfo() const
@@ -30,12 +29,12 @@ FRigVMStructUpgradeInfo FRigUnit_DebugBezier::GetUpgradeInfo() const
 FRigUnit_DebugBezierItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -43,10 +42,10 @@ FRigUnit_DebugBezierItemSpace_Execute()
 	FTransform Transform = WorldOffset;
 	if (Space.IsValid())
 	{
-		Transform = Transform * Context.Hierarchy->GetGlobalTransform(Space);
+		Transform = Transform * ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 	}
 
-	Context.DrawInterface->DrawBezier(Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);
+	ExecuteContext.UnitContext.DrawInterface->DrawBezier(Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_DebugBezierItemSpace::GetUpgradeInfo() const

@@ -13,28 +13,6 @@
 //#define DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT() \
 //	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-USTRUCT(BlueprintType)
-struct FControlRigExecuteContext : public FRigVMExecuteContext
-{
-	GENERATED_BODY()
-
-	FControlRigExecuteContext()
-		: FRigVMExecuteContext()
-		, Hierarchy(nullptr)
-	{
-	}
-
-	virtual void Copy(const FRigVMExecuteContext* InOtherContext) override
-	{
-		Super::Copy(InOtherContext);
-
-		const FControlRigExecuteContext* OtherContext = (const FControlRigExecuteContext*)InOtherContext; 
-		Hierarchy = OtherContext->Hierarchy;
-	}
-		
-	URigHierarchy* Hierarchy;
-};
-
 UENUM()
 enum class ETransformSpaceMode : uint8
 {

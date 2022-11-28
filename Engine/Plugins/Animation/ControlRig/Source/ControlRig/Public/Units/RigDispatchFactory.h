@@ -26,14 +26,6 @@ struct CONTROLRIG_API FRigDispatchFactory : public FRigVMDispatchFactory
     	FRigVMRegistry::Get().FindOrAddType(FCachedRigElement::StaticStruct());
 	}
 
-	virtual TArray<TPair<FName,FString>> GetOpaqueArguments() const override
-	{
-		static const TArray<TPair<FName,FString>> OpaqueArguments = {
-			TPair<FName,FString>(TEXT("Context"), TEXT("const FRigUnitContext&"))
-		};
-		return OpaqueArguments;
-	}
-
 #if WITH_EDITOR
 
 	virtual FString GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
@@ -42,7 +34,7 @@ struct CONTROLRIG_API FRigDispatchFactory : public FRigVMDispatchFactory
 
 	static const FRigUnitContext& GetRigUnitContext(const FRigVMExtendedExecuteContext& InContext)
 	{
-		return *(const FRigUnitContext*)InContext.OpaqueArguments[0];
+		return InContext.GetPublicData<FControlRigExecuteContext>().UnitContext;
 	}
 };
 

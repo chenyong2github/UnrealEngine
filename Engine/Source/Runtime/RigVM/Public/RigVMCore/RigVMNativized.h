@@ -50,8 +50,8 @@ public:
 	virtual bool IsNativized() const override { return true; }
 	virtual void Empty() override { return; }
 	virtual void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false, bool bCopyExternalVariables = false, bool bCopyDynamicRegisters = false) override { return; }
-	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, bool bInitializeMemory = true) override;
-	virtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None) override;
+	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, bool bInitializeMemory = true) override;
+	virtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None) override;
 	virtual int32 AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InMethodName) override { return INDEX_NONE; }
 	virtual FString GetRigVMFunctionName(int32 InFunctionIndex) const override { return FString(); }
 	virtual URigVMMemoryStorage* GetMemoryByType(ERigVMMemoryType InMemoryType, bool bCreateIfNeeded = true) override { return nullptr; }
@@ -76,13 +76,12 @@ public:
 protected:
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
-	ExecuteContextType& UpdateContext(TArrayView<void*> AdditionalArguments, int32 InNumberInstructions, const FName& InEntryName)
+	ExecuteContextType& UpdateContext(int32 InNumberInstructions, const FName& InEntryName)
 	{
 		UpdateExternalVariables();
 	
 		Context.Reset();
 		Context.VM = this;
-		Context.OpaqueArguments = AdditionalArguments;
 		Context.SliceOffsets.AddZeroed(InNumberInstructions);
 		Context.GetPublicData<ExecuteContextType>().EventName = InEntryName;
 		return Context.GetPublicData<ExecuteContextType>();

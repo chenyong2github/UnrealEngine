@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Types;
@@ -129,9 +130,13 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					builder.Append("#define ").Append(scriptStruct.SourceName).Append('_').Append(methodInfo.Name).Append("() \\\r\n");
 					builder.Append('\t').Append(methodInfo.ReturnType).Append(' ').Append(scriptStruct.SourceName).Append("::Static").Append(methodInfo.Name).Append("( \\\r\n");
-					builder.Append("\t\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& ").Append(RigVMExecuteContextParamName);
+					builder.Append("\t\t");
+					if (scriptStruct.RigVMStructInfo.ExecuteContextMember == String.Empty)
+					{
+						builder.Append("const ");
+					}
+					builder.Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& ").Append(RigVMExecuteContextParamName);
 					builder.AppendParameterDecls(scriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t", true, false);
-					builder.AppendParameterDecls(methodInfo.Parameters, true, ", \\\r\n\t\t", false, false);
 					builder.Append(" \\\r\n");
 					builder.Append("\t)\r\n");
 				}
@@ -154,32 +159,32 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					// declare the static method as well as the stub method
 					if (scriptStruct.RigVMStructInfo != null)
 					{
+						string constPrefix = "";
+						if (scriptStruct.RigVMStructInfo.ExecuteContextMember == String.Empty)
+						{
+							constPrefix = "const ";
+						}
+						
 						foreach (UhtRigVMMethodInfo methodInfo in scriptStruct.RigVMStructInfo.Methods)
 						{
+							builder.Append('\t').Append(methodInfo.ReturnType).Append(' ').Append(methodInfo.Name).Append('(').Append(constPrefix).Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& InExecuteContext); \\\r\n");
 							builder.Append("\tstatic ").Append(methodInfo.ReturnType).Append(" Static").Append(methodInfo.Name).Append("( \\\r\n");
-							builder.Append("\t\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& ").Append(RigVMExecuteContextParamName);
+							builder.Append("\t\t");
+							if (scriptStruct.RigVMStructInfo.ExecuteContextMember == String.Empty)
+							{
+								builder.Append("const ");
+							}
+							builder.Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& ").Append(RigVMExecuteContextParamName);
 							builder.AppendParameterDecls(scriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t", true, false);
-							builder.AppendParameterDecls(methodInfo.Parameters, true, ", \\\r\n\t\t", false, false);
 							builder.Append(" \\\r\n");
 							builder.Append("\t); \\\r\n");
 
 							builder.Append("\tFORCEINLINE_DEBUGGABLE static ").Append(methodInfo.ReturnType).Append(" RigVM").Append(methodInfo.Name).Append("( \\\r\n");
-							builder.Append("\t\t").Append(RigVMExecuteContextDeclaration).Append(", \\\r\n");
+							builder.Append("\t\t");
+							builder.Append(RigVMExecuteContextDeclaration).Append(", \\\r\n");
 							builder.Append("\t\tFRigVMMemoryHandleArray RigVMMemoryHandles \\\r\n");
 							builder.Append("\t) \\\r\n");
 							builder.Append("\t{ \\\r\n");
-
-							// implement inline stub method body
-							if (methodInfo.Parameters.Count > 0)
-							{
-								for (int parameterIndex = 0; parameterIndex < methodInfo.Parameters.Count; parameterIndex++)
-								{
-									UhtRigVMParameter parameter = methodInfo.Parameters[parameterIndex];
-									builder.Append("\t\t").Append(parameter.Declaration()).Append(" = *(").Append(parameter.TypeNoRef())
-										.Append("*)RigVMExecuteContext.OpaqueArguments[").Append(parameterIndex).Append("]; \\\r\n");
-								}
-								builder.Append("\t\t \\\r\n");
-							}
 
 							if (scriptStruct.RigVMStructInfo.Members.Count > 0)
 							{
@@ -278,7 +283,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							builder.Append("\t\t").Append(methodInfo.ReturnPrefix()).Append("Static").Append(methodInfo.Name).Append("( \\\r\n");
 							builder.Append("\t\t\tRigVMExecuteContext.GetPublicData<").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append(">()");
 							builder.AppendParameterNames(scriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t\t", false);
-							builder.AppendParameterNames(methodInfo.Parameters, true, ", \\\r\n\t\t\t");
 							builder.Append(" \\\r\n");
 							builder.Append("\t\t); \\\r\n");
 							builder.Append("\t} \\\r\n");

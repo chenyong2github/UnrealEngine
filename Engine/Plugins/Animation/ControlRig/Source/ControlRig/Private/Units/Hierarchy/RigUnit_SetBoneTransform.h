@@ -34,7 +34,7 @@ struct CONTROLRIG_API FRigUnit_SetBoneTransform : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Bone to set the transform for.

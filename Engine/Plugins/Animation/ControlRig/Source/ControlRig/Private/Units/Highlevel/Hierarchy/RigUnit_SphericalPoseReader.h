@@ -299,7 +299,7 @@ struct CONTROLRIG_API FRigUnit_SphericalPoseReader: public FRigUnit_HighlevelBas
 	}
 	
 	RIGVM_METHOD()
-    virtual void Execute(const FRigUnitContext& Context) override;
+    virtual void Execute() override;
 
 	static void RemapAndConvertInputs(
 		FSphericalRegion& InnerRegion,

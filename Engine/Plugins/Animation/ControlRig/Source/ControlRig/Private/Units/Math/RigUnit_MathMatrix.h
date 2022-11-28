@@ -73,7 +73,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixBinaryAggregateOp : public FRigUnit_Mat
 /**
 * Makes a transform from a matrix
 */
-USTRUCT(meta=(DisplayName="To Transform", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="To Transform", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathMatrixToTransform : public FRigUnit_MathMatrixBase
 {
 	GENERATED_BODY()
@@ -85,7 +85,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixToTransform : public FRigUnit_MathMatri
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FMatrix Value;
@@ -109,7 +109,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixFromTransform : public FRigUnit_MathMat
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FTransform Transform;
@@ -124,7 +124,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixFromTransform : public FRigUnit_MathMat
 /**
  * Makes a matrix from a transform
  */
-USTRUCT(meta=(DisplayName="From Transform", TemplateName="Cast", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Transform", TemplateName="Cast", ExecuteContext="FRigVMExecuteContext", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathMatrixFromTransformV2 : public FRigUnit_MathMatrixBase
 {
 	GENERATED_BODY()
@@ -136,7 +136,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixFromTransformV2 : public FRigUnit_MathM
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FTransform Value;
@@ -163,7 +163,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixToVectors : public FRigUnit_MathMatrixB
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FMatrix Value;
@@ -199,7 +199,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixFromVectors : public FRigUnit_MathMatri
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	FVector Origin;
@@ -225,7 +225,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixMul : public FRigUnit_MathMatrixBinaryA
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };
 
 /**
@@ -236,5 +236,5 @@ struct CONTROLRIG_API FRigUnit_MathMatrixInverse : public FRigUnit_MathMatrixUna
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 };

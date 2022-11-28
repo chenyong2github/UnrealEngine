@@ -267,6 +267,8 @@ void FRigVMClient::AddModel(URigVMGraph* InModel, bool bCreateController)
 		Models.Add(InModel);
 	}
 
+	InModel->SetExecuteContextStruct(GetExecuteContextStruct());
+
 	if(bCreateController)
 	{
 		CreateController(InModel);

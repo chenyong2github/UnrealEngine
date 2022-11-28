@@ -7,7 +7,7 @@
 
 FRigUnit_CCDIK_Execute()
 {
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		WorkData.CachedItems.Reset();
 		return;
@@ -17,7 +17,7 @@ FRigUnit_CCDIK_Execute()
 	if(WorkData.CachedItems.Num() == 0)
 	{
 		Items = FRigElementKeyCollection::MakeFromChain(
-			Context.Hierarchy,
+			ExecuteContext.Hierarchy,
 			FRigElementKey(StartBone, ERigElementType::Bone),
 			FRigElementKey(EffectorBone, ERigElementType::Bone),
 			false /* reverse */
@@ -45,8 +45,7 @@ FRigUnit_CCDIK_Execute()
 		BaseRotationLimit,
 		RotationLimitsPerItem,
 		bPropagateToChildren,
-		WorkData,
-		Context);
+		WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CCDIK::GetUpgradeInfo() const
@@ -57,7 +56,7 @@ FRigVMStructUpgradeInfo FRigUnit_CCDIK::GetUpgradeInfo() const
 
 FRigUnit_CCDIKPerItem_Execute()
 {
-	FRigUnit_CCDIKItemArray::StaticExecute(ExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, MaxIterations, bStartFromTail, BaseRotationLimit, RotationLimits, bPropagateToChildren, WorkData, Context);
+	FRigUnit_CCDIKItemArray::StaticExecute(ExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, MaxIterations, bStartFromTail, BaseRotationLimit, RotationLimits, bPropagateToChildren, WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CCDIKPerItem::GetUpgradeInfo() const
@@ -91,7 +90,7 @@ FRigUnit_CCDIKItemArray_Execute()
 	TArray<float>& RotationLimitsPerItem = WorkData.RotationLimitsPerItem;
 	FCachedRigElement& CachedEffector = WorkData.CachedEffector;
 
-	if ((Context.State == EControlRigState::Init) ||
+	if ((ExecuteContext.UnitContext.State == EControlRigState::Init) ||
 		(
 			(RotationLimits.Num() != RotationLimitIndex.Num()) &&
 			(RotationLimitIndex.Num() > 0))
@@ -104,7 +103,7 @@ FRigUnit_CCDIKItemArray_Execute()
 		return;
 	}
 	
-	if (Context.State == EControlRigState::Update)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Update)
 	{
 		if (CachedItems.Num() == 0 && Items.Num() > 0)
 		{

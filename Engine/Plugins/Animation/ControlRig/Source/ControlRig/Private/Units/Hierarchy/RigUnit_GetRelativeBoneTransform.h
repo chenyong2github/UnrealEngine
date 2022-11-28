@@ -28,7 +28,7 @@ struct CONTROLRIG_API FRigUnit_GetRelativeBoneTransform : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Bone to retrieve the transform for.

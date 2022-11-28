@@ -11,7 +11,7 @@ FRigUnit_TwoBoneIKFK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)
@@ -57,7 +57,7 @@ FRigUnit_TwoBoneIKFK_Execute()
 			}
 		}
 	}
-	else  if (Context.State == EControlRigState::Update)
+	else  if (ExecuteContext.UnitContext.State == EControlRigState::Update)
 	{
 		if (StartJointIndex != INDEX_NONE && MidJointIndex != INDEX_NONE && EndJointIndex != INDEX_NONE)
 		{
@@ -76,7 +76,7 @@ FRigUnit_TwoBoneIKFK_Execute()
 			else if (FMath::IsNearlyEqual(IKBlend, 1.f))
 			{
 				// update transform before going through IK
-				const URigHierarchy* Hierarchy = Context.Hierarchy;
+				const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 				check(Hierarchy);
 
 				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
@@ -93,7 +93,7 @@ FRigUnit_TwoBoneIKFK_Execute()
 			else
 			{
 				// update transform before going through IK
-				const URigHierarchy* Hierarchy = Context.Hierarchy;
+				const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 				check(Hierarchy);
 
 				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);

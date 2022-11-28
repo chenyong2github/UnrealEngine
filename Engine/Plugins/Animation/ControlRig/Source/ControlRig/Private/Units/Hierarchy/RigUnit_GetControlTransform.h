@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_GetControlBool : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to retrieve the bool for.
@@ -52,7 +52,7 @@ struct CONTROLRIG_API FRigUnit_GetControlFloat : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to retrieve the Float for.
@@ -93,7 +93,7 @@ struct CONTROLRIG_API FRigUnit_GetControlInteger : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to retrieve the Integer for.
@@ -134,7 +134,7 @@ struct CONTROLRIG_API FRigUnit_GetControlVector2D : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to retrieve the Vector2D for.
@@ -176,7 +176,7 @@ struct CONTROLRIG_API FRigUnit_GetControlVector : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to retrieve the Vector for.
@@ -226,7 +226,7 @@ struct CONTROLRIG_API FRigUnit_GetControlRotator : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to retrieve the Rotator for.
@@ -275,7 +275,7 @@ struct CONTROLRIG_API FRigUnit_GetControlTransform : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to retrieve the transform for.

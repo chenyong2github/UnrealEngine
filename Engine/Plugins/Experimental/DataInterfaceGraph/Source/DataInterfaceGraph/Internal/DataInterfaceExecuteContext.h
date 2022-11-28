@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "RigVMCore/RigVMStruct.h"
+#include "DataInterfaceUnitContext.h"
 #include "DataInterfaceExecuteContext.generated.h"
 
 class IDataInterface;
@@ -18,12 +20,24 @@ struct FDataInterfaceExecuteContext : public FRigVMExecuteContext
 {
 	GENERATED_BODY()
 
-	FDataInterfaceExecuteContext() = default;
+	FDataInterfaceExecuteContext()
+		: FRigVMExecuteContext()
+	, DataInterfaceContext(nullptr)
+	, Interface(nullptr)
+	, ResultPtr(nullptr)
+	, UnitContext()
+	{
+	}
 
 	const UE::DataInterface::FContext& GetContext() const
 	{
 		check(DataInterfaceContext);
 		return *DataInterfaceContext;
+	}
+
+	const FDataInterfaceUnitContext& GetUnitContext() const
+	{
+		return UnitContext;
 	}
 
 	void SetResult(bool bInResult) const
@@ -50,7 +64,14 @@ struct FDataInterfaceExecuteContext : public FRigVMExecuteContext
 
 
 private:
-	const UE::DataInterface::FContext* DataInterfaceContext = nullptr;
-	const IDataInterface* Interface = nullptr;
-	bool* ResultPtr = nullptr;
+	const UE::DataInterface::FContext* DataInterfaceContext;
+	const IDataInterface* Interface;
+	bool* ResultPtr;
+	FDataInterfaceUnitContext UnitContext;
+};
+
+USTRUCT(meta=(ExecuteContext="FDataInterfaceExecuteContext"))
+struct FRigUnit_DataInterfaceBase : public FRigVMStruct
+{
+	GENERATED_BODY()
 };

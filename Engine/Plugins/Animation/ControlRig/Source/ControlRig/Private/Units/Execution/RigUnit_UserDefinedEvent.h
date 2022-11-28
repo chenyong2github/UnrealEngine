@@ -20,7 +20,7 @@ struct CONTROLRIG_API FRigUnit_UserDefinedEvent : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	virtual FString GetUnitLabel() const override;
 	virtual FName GetEventName() const override { return EventName; }

@@ -25,7 +25,7 @@ struct CONTROLRIG_API FRigUnit_AnimEvalRichCurve : public FRigUnit_AnimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	float Value;

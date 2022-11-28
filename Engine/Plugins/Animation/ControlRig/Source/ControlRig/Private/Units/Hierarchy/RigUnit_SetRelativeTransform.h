@@ -30,7 +30,7 @@ struct CONTROLRIG_API FRigUnit_SetRelativeTransformForItem : public FRigUnitMuta
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The child item to set the transform for
@@ -99,7 +99,7 @@ struct CONTROLRIG_API FRigUnit_SetRelativeTranslationForItem : public FRigUnitMu
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The child item to set the transform for
@@ -168,7 +168,7 @@ struct CONTROLRIG_API FRigUnit_SetRelativeRotationForItem : public FRigUnitMutab
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The child item to set the transform for

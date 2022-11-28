@@ -8,7 +8,7 @@
 FRigUnit_DeltaFromPreviousFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		Delta = 0.f;
 		PreviousValue = Cache = Value;
@@ -18,7 +18,7 @@ FRigUnit_DeltaFromPreviousFloat_Execute()
 	PreviousValue = Cache;
 	Delta = Cache - Value;
 
-	if (FMath::Abs(Context.DeltaTime) > SMALL_NUMBER)
+	if (FMath::Abs(ExecuteContext.UnitContext.DeltaTime) > SMALL_NUMBER)
 	{
 		Cache = Value;
 	}
@@ -27,7 +27,7 @@ FRigUnit_DeltaFromPreviousFloat_Execute()
 FRigUnit_DeltaFromPreviousVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		Delta = FVector::ZeroVector;
 		PreviousValue = Cache = Value;
@@ -37,7 +37,7 @@ FRigUnit_DeltaFromPreviousVector_Execute()
 	PreviousValue = Cache;
 	Delta = Cache - Value;
 
-	if (FMath::Abs(Context.DeltaTime) > SMALL_NUMBER)
+	if (FMath::Abs(ExecuteContext.UnitContext.DeltaTime) > SMALL_NUMBER)
 	{
 		Cache = Value;
 	}
@@ -46,7 +46,7 @@ FRigUnit_DeltaFromPreviousVector_Execute()
 FRigUnit_DeltaFromPreviousQuat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		Delta = FQuat::Identity;
 		PreviousValue = Cache = Value;
@@ -56,7 +56,7 @@ FRigUnit_DeltaFromPreviousQuat_Execute()
 	PreviousValue = Cache;
 	Delta = Cache.Inverse() * Value;
 
-	if (FMath::Abs(Context.DeltaTime) > SMALL_NUMBER)
+	if (FMath::Abs(ExecuteContext.UnitContext.DeltaTime) > SMALL_NUMBER)
 	{
 		Cache = Value;
 	}
@@ -65,7 +65,7 @@ FRigUnit_DeltaFromPreviousQuat_Execute()
 FRigUnit_DeltaFromPreviousTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		Delta = FTransform::Identity;
 		PreviousValue = Cache = Value;
@@ -75,7 +75,7 @@ FRigUnit_DeltaFromPreviousTransform_Execute()
 	PreviousValue = Cache;
 	Delta = Value.GetRelativeTransform(Cache);
 
-	if (FMath::Abs(Context.DeltaTime) > SMALL_NUMBER)
+	if (FMath::Abs(ExecuteContext.UnitContext.DeltaTime) > SMALL_NUMBER)
 	{
 		Cache = Value;
 	}
@@ -86,7 +86,7 @@ FRigUnit_DeltaFromPreviousTransform_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DeltaFromPreviousFloat)
 {
-	Context.DeltaTime = 0.1f;
+	ExecuteContext.UnitContext.DeltaTime = 0.1f;
 	Unit.Value = 1.f;
 	InitAndExecute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Delta, 0.f), TEXT("unexpected average result"));

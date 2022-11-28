@@ -21,7 +21,7 @@ struct CONTROLRIG_API FRigUnit_Control : public FRigUnit
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** Combine Transform and Base to make the resultant transform */
 	FTransform GetResultantTransform() const;

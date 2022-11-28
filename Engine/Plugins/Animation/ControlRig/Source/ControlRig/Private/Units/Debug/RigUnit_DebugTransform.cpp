@@ -9,38 +9,38 @@
 FRigUnit_DebugTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
 
 	FTransform DrawTransform = Transform;
-	if (Space != NAME_None && Context.Hierarchy != nullptr)
+	if (Space != NAME_None && ExecuteContext.Hierarchy != nullptr)
 	{
-		DrawTransform = Transform * Context.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
+		DrawTransform = Transform * ExecuteContext.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
 	}
 
 	switch (Mode)
 	{
 		case ERigUnitDebugTransformMode::Axes:
 		{
-			Context.DrawInterface->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
+			ExecuteContext.UnitContext.DrawInterface->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
 			break;
 		}
 		case ERigUnitDebugTransformMode::Point:
 		{
-			Context.DrawInterface->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
+			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
 			break;
 		}
 		case ERigUnitDebugTransformMode::Box:
 		{
 			DrawTransform.SetScale3D(DrawTransform.GetScale3D() * Scale);
-			Context.DrawInterface->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
+			ExecuteContext.UnitContext.DrawInterface->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
 			break;
 		}
 	}
@@ -73,8 +73,7 @@ FRigUnit_DebugTransformMutable_Execute()
 		Scale,
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
-		bEnabled,
-		Context);
+		bEnabled);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_DebugTransformMutable::GetUpgradeInfo() const
@@ -97,38 +96,38 @@ FRigVMStructUpgradeInfo FRigUnit_DebugTransformMutable::GetUpgradeInfo() const
 FRigUnit_DebugTransformMutableItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
 
 	FTransform DrawTransform = Transform;
-	if (Space.IsValid() && Context.Hierarchy != nullptr)
+	if (Space.IsValid() && ExecuteContext.Hierarchy != nullptr)
 	{
-		DrawTransform = Transform * Context.Hierarchy->GetGlobalTransform(Space);
+		DrawTransform = Transform * ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 	}
 
 	switch (Mode)
 	{
 		case ERigUnitDebugTransformMode::Axes:
 		{
-			Context.DrawInterface->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
+			ExecuteContext.UnitContext.DrawInterface->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
 			break;
 		}
 		case ERigUnitDebugTransformMode::Point:
 		{
-			Context.DrawInterface->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
+			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
 			break;
 		}
 		case ERigUnitDebugTransformMode::Box:
 		{
 			DrawTransform.SetScale3D(DrawTransform.GetScale3D() * Scale);
-			Context.DrawInterface->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
+			ExecuteContext.UnitContext.DrawInterface->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
 			break;
 		}
 	}
@@ -137,20 +136,20 @@ FRigUnit_DebugTransformMutableItemSpace_Execute()
 FRigUnit_DebugTransformArrayMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
 
 	WorkData.DrawTransforms.SetNumUninitialized(Transforms.Num());
-	if (Space != NAME_None && Context.Hierarchy)
+	if (Space != NAME_None && ExecuteContext.Hierarchy)
 	{
-		FTransform SpaceTransform = Context.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
+		FTransform SpaceTransform = ExecuteContext.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
 		for(int32 Index=0;Index<Transforms.Num();Index++)
 		{
 			WorkData.DrawTransforms[Index] = Transforms[Index] * SpaceTransform;
@@ -170,18 +169,18 @@ FRigUnit_DebugTransformArrayMutable_Execute()
 		{
 			case ERigUnitDebugTransformMode::Axes:
 			{
-				Context.DrawInterface->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
+				ExecuteContext.UnitContext.DrawInterface->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
 				break;
 			}
 			case ERigUnitDebugTransformMode::Point:
 			{
-				Context.DrawInterface->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
+				ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
 				break;
 			}
 			case ERigUnitDebugTransformMode::Box:
 			{
 				DrawTransform.SetScale3D(DrawTransform.GetScale3D() * Scale);
-				Context.DrawInterface->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
+				ExecuteContext.UnitContext.DrawInterface->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
 				break;
 			}
 		}
@@ -208,12 +207,12 @@ FRigVMStructUpgradeInfo FRigUnit_DebugTransformArrayMutable::GetUpgradeInfo() co
 FRigUnit_DebugTransformArrayMutableItemSpace_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled || Transforms.Num() == 0)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled || Transforms.Num() == 0)
 	{
 		return;
 	}
@@ -229,8 +228,7 @@ FRigUnit_DebugTransformArrayMutableItemSpace_Execute()
 			Scale,
 			Space, 
 			WorldOffset, 
-			bEnabled,
-			Context);
+			bEnabled);
 	}
 
 	if(ParentIndices.Num() == Transforms.Num())
@@ -239,7 +237,7 @@ FRigUnit_DebugTransformArrayMutableItemSpace_Execute()
 		{
 			if(Transforms.IsValidIndex(ParentIndices[Index]))
 			{
-				Context.DrawInterface->DrawLine(
+				ExecuteContext.UnitContext.DrawInterface->DrawLine(
 					WorldOffset,
 					Transforms[Index].GetTranslation(),
 					Transforms[ParentIndices[Index]].GetTranslation(),

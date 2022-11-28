@@ -83,12 +83,14 @@ public:
 	GENERATED_BODY()
 
 	FRigVMClient()
-		: FunctionLibrary(nullptr)
+		: ExecuteContextStruct(nullptr)
+		, FunctionLibrary(nullptr)
 		, bSuspendNotifications(false)
 		, bIgnoreModelNotifications(false)
 		, OuterClientHost(nullptr)
 		, OuterClientPropertyName(NAME_None)
 	{
+		ExecuteContextStruct = FRigVMExecuteContext::StaticStruct();
 	}
 
 	void SetOuterClientHost(UObject* InOuterClientHost, const FName& InOuterClientHostPropertyName);
@@ -112,6 +114,8 @@ public:
 	URigVMFunctionLibrary* GetFunctionLibrary() const { return FunctionLibrary; }
 	URigVMFunctionLibrary* GetOrCreateFunctionLibrary(bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr, bool bCreateController = true);
 	TArray<FName> GetEntryNames() const;
+	UScriptStruct* GetExecuteContextStruct() const { return ExecuteContextStruct; }
+	void SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct) { ExecuteContextStruct = InExecuteContextStruct; }
 
 	URigVMGraph* AddModel(const FName& InName, bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr, bool bCreateController = true);
 	void AddModel(URigVMGraph* InModel, bool bCreateController);
@@ -165,6 +169,9 @@ private:
 	};
 
 	URigVMController* CreateController(const URigVMGraph* InModel);
+
+	UPROPERTY(transient)
+	TObjectPtr<UScriptStruct> ExecuteContextStruct;
 
 	UPROPERTY()
 	TArray<TObjectPtr<URigVMGraph>> Models;

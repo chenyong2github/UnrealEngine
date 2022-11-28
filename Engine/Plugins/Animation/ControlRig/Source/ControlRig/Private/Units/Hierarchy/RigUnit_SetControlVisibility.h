@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_GetControlVisibility : public FRigUnit
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the visibility for.
@@ -53,7 +53,7 @@ struct CONTROLRIG_API FRigUnit_SetControlVisibility : public FRigUnitMutable
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The name of the Control to set the visibility for.

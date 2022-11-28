@@ -132,6 +132,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer, false);
 		RigVMClient.AddModel(RigVMModelPrefix, false, &ObjectInitializer, false);
 	}
+	RigVMClient.SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
 	
 	FunctionLibraryEdGraph = ObjectInitializer.CreateDefaultSubobject<UControlRigGraph>(this, TEXT("RigVMFunctionLibraryEdGraph"));
 	FunctionLibraryEdGraph->Schema = UControlRigGraphSchema::StaticClass();
@@ -375,8 +376,6 @@ void UControlRigBlueprint::HandleRigVMGraphAdded(const FRigVMClient* InClient, c
 {
 	if(URigVMGraph* Model = InClient->GetModel(InNodePath))
 	{
-		Model->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
-
 		if(!HasAnyFlags(RF_ClassDefaultObject | RF_NeedInitialization | RF_NeedLoad | RF_NeedPostLoad) &&
 			GetOuter() != GetTransientPackage())
 		{
@@ -1184,20 +1183,6 @@ void UControlRigBlueprint::RecompileVM()
 		}
 		CDO->VM->Reset();
 
-		FRigUnitContext InitContext;
-		InitContext.State = EControlRigState::Init;
-		InitContext.Hierarchy = CDO->DynamicHierarchy;
-
-		FRigUnitContext UpdateContext = InitContext;
-		UpdateContext.State = EControlRigState::Update;
-
-		void* InitContextPtr = &InitContext;
-		void* UpdateContextPtr = &UpdateContext;
-
-		TArray<FRigVMUserDataArray> UserData;
-		UserData.Add(FRigVMUserDataArray(&InitContextPtr, 1));
-		UserData.Add(FRigVMUserDataArray(&UpdateContextPtr, 1));
-
 		// Clear all Errors
 		CompileLog.Messages.Reset();
 		CompileLog.NumErrors = CompileLog.NumWarnings = 0;
@@ -1223,9 +1208,9 @@ void UControlRigBlueprint::RecompileVM()
 		}
 
 		URigVMCompiler* Compiler = URigVMCompiler::StaticClass()->GetDefaultObject<URigVMCompiler>();
-		VMCompileSettings.SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
+		VMCompileSettings.SetExecuteContextStruct(RigVMClient.GetExecuteContextStruct());
 		Compiler->Settings = (bCompileInDebugMode) ? FRigVMCompileSettings::Fast(VMCompileSettings.GetExecuteContextStruct()) : VMCompileSettings;
-		Compiler->Compile(RigVMClient.GetAllModels(false, false), GetOrCreateController(), CDO->VM, CDO->GetExternalVariablesImpl(false), UserData, &PinToOperandMap);
+		Compiler->Compile(RigVMClient.GetAllModels(false, false), GetOrCreateController(), CDO->VM, CDO->GetExternalVariablesImpl(false), &PinToOperandMap);
 
 		if (bErrorsDuringCompilation)
 		{
@@ -2350,7 +2335,7 @@ URigVMGraph* UControlRigBlueprint::GetTemplateModel(bool bIsFunctionLibrary)
 			TemplateModel = NewObject<URigVMGraph>(this, TEXT("TemplateModel"));
 		}
 		TemplateModel->SetFlags(RF_Transient);
-		TemplateModel->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
+		TemplateModel->SetExecuteContextStruct(RigVMClient.GetExecuteContextStruct());
 	}
 	return TemplateModel;
 #else

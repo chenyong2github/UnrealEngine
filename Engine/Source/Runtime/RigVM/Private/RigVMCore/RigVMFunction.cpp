@@ -4,6 +4,7 @@
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMExternalVariable.h"
+#include "RigVMCore/RigVMStruct.h"
 #include "UObject/Package.h"
 
 FString FRigVMFunction::GetName() const
@@ -97,17 +98,6 @@ const TArray<TRigVMTypeIndex>& FRigVMFunction::GetArgumentTypeIndices() const
 	return ArgumentTypeIndices;
 }
 
-bool FRigVMFunction::IsAdditionalArgument(const FRigVMFunctionArgument& InArgument) const
-{
-#if WITH_EDITOR
-	if (Struct)
-	{
-		return Struct->FindPropertyByName(InArgument.Name) == nullptr;
-	}
-#endif
-	return false;
-}
-
 const FRigVMTemplate* FRigVMFunction::GetTemplate() const
 {
 	if(TemplateIndex == INDEX_NONE)
@@ -122,4 +112,50 @@ const FRigVMTemplate* FRigVMFunction::GetTemplate() const
 	}
 
 	return Template;
+}
+
+const UScriptStruct* FRigVMFunction::GetExecuteContextStruct() const
+{
+	if(Factory)
+	{
+		return Factory->GetExecuteContextStruct();
+	}
+	if(Struct)
+	{
+#if WITH_EDITOR
+		FString ExecuteContextName;
+		if(Struct->GetStringMetaDataHierarchical(FRigVMStruct::ExecuteContextName, &ExecuteContextName))
+		{
+			const FRigVMTemplateArgumentType& Type = FRigVMRegistry::Get().FindTypeFromCPPType(ExecuteContextName);
+			if(const UScriptStruct* ExecuteContextStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
+			{
+				return ExecuteContextStruct;
+			}
+		}
+#endif
+
+		for (TFieldIterator<FProperty> It(Struct); It; ++It)
+		{
+			const FProperty* Property = *It;
+
+			if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+			{
+				Property = ArrayProperty->Inner;
+			}
+			if(const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+			{
+				if(StructProperty->Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+				{
+					return StructProperty->Struct;
+				}
+			}
+		}
+	}
+
+	return FRigVMExecuteContext::StaticStruct();
+}
+
+bool FRigVMFunction::SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const
+{
+	return InExecuteContextStruct->IsChildOf(GetExecuteContextStruct());
 }

@@ -210,12 +210,12 @@ public:
 	}
 
 	// Initializes all execute ops and their memory.
-	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, bool bInitializeMemory = true);
+	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, bool bInitializeMemory = true);
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
-	virtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
+	virtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None);
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
@@ -348,7 +348,7 @@ public:
 
 	const void SetFirstEntryEventInEventQueue(const FName& InFirstEventName) { FirstEntryEventInQueue = InFirstEventName; }
 
-	bool ResumeExecution(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
+	bool ResumeExecution(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None);
 	bool ResumeExecution();
 #endif
 
@@ -848,7 +848,6 @@ private:
 	FName CurrentEntryName;
 	bool bCurrentlyRunningRootEntry;
 	TArrayView<URigVMMemoryStorage*> CurrentMemory;
-	TArrayView<void*> CurrentAdditionalArguments;
 
 #if WITH_EDITOR
 protected:

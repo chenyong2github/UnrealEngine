@@ -170,10 +170,10 @@ TArray<FRigVMTemplateArgument> FRigDispatch_GetMetadata::GetArguments() const
 FRigBaseMetadata* FRigDispatch_GetMetadata::FindMetadata(const FRigVMExtendedExecuteContext& InContext,
                                                          const FRigElementKey& InKey, const FName& InName, ERigMetadataType InType, FCachedRigElement& Cache)
 {
-	const FRigUnitContext& Context = GetRigUnitContext(InContext);
-	if(Cache.UpdateCache(InKey, Context.Hierarchy))
+	const FControlRigExecuteContext& ExecuteContext = InContext.GetPublicData<FControlRigExecuteContext>();
+	if(Cache.UpdateCache(InKey, ExecuteContext.Hierarchy))
 	{
-		if(FRigBaseElement* Element = Context.Hierarchy->Get(Cache.GetIndex()))
+		if(FRigBaseElement* Element = ExecuteContext.Hierarchy->Get(Cache.GetIndex()))
 		{
 			return Element->GetMetadata(InName, InType);
 		}
@@ -422,7 +422,7 @@ FRigUnit_RemoveAllMetadata_Execute()
 
 FRigUnit_HasMetadata_Execute()
 {
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 
 	Found = false;
 
@@ -437,7 +437,7 @@ FRigUnit_HasMetadata_Execute()
 
 FRigUnit_FindItemsWithMetadata_Execute()
 {
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 
 	Items.Reset();
 
@@ -455,7 +455,7 @@ FRigUnit_GetMetadataTags_Execute()
 {
 	Tags.Reset();
 	
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if(CachedIndex.UpdateCache(Item, Hierarchy))
 	{
 		if(const FRigBaseElement* Element = Hierarchy->Get(CachedIndex))
@@ -530,7 +530,7 @@ FRigUnit_HasMetadataTag_Execute()
 {
 	Found = false;
 	
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if(CachedIndex.UpdateCache(Item, Hierarchy))
 	{
 		if(const FRigBaseElement* Element = Hierarchy->Get(CachedIndex))
@@ -547,7 +547,7 @@ FRigUnit_HasMetadataTagArray_Execute()
 {
 	Found = false;
 	
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if(CachedIndex.UpdateCache(Item, Hierarchy))
 	{
 		if(const FRigBaseElement* Element = Hierarchy->Get(CachedIndex))
@@ -570,7 +570,7 @@ FRigUnit_HasMetadataTagArray_Execute()
 
 FRigUnit_FindItemsWithMetadataTag_Execute()
 {
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 
 	Items.Reset();
 
@@ -589,7 +589,7 @@ FRigUnit_FindItemsWithMetadataTag_Execute()
 
 FRigUnit_FindItemsWithMetadataTagArray_Execute()
 {
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 
 	Items.Reset();
 
@@ -618,7 +618,7 @@ FRigUnit_FindItemsWithMetadataTagArray_Execute()
 
 FRigUnit_FilterItemsByMetadataTags_Execute()
 {
-	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 
 	Result.Reset();
 

@@ -78,7 +78,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimple : public FRigUnit_HighlevelBaseMu
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** 
 	 * The name of first bone
@@ -248,7 +248,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimplePerItem : public FRigUnit_Highleve
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/** 
 	 * The name of first item
@@ -392,7 +392,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimpleVectors : public FRigUnit_Highleve
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The position of the root of the triangle
@@ -474,7 +474,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimpleTransforms : public FRigUnit_Highl
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The transform of the root of the triangle

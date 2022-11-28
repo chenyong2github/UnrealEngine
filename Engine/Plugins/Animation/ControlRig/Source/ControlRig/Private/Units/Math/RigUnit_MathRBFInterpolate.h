@@ -195,7 +195,7 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatFloat :
 	float Output = 0.0f;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };
 
 
@@ -224,7 +224,7 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatVector :
 	FVector Output = FVector::ZeroVector;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };
 
 
@@ -253,7 +253,7 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatColor :
 	FLinearColor Output = FLinearColor::Transparent;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };
 
 
@@ -282,7 +282,7 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatQuat :
 	FQuat Output = FQuat::Identity;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };
 
 
@@ -311,7 +311,7 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatXform :
 	FTransform Output = FTransform::Identity;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };
 
 
@@ -342,7 +342,7 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorFloat :
 	float Output = 0.0f;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };
 
 
@@ -371,7 +371,7 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorVector :
 	FVector Output = FVector::ZeroVector;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };
 
 
@@ -400,7 +400,7 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorColor :
 	FLinearColor Output = FLinearColor::Transparent;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };
 
 
@@ -430,7 +430,7 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorQuat :
 	FQuat Output = FQuat::Identity;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };
 
 USTRUCT()
@@ -458,5 +458,5 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorXform :
 	FTransform Output = FTransform::Identity;
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+	void Execute() override;
 };

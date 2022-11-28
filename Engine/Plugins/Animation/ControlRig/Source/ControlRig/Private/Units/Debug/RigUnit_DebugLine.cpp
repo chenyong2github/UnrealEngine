@@ -15,8 +15,7 @@ FRigUnit_DebugLine_Execute()
 		Thickness,
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
-		bEnabled,
-		Context);
+		bEnabled);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_DebugLine::GetUpgradeInfo() const
@@ -38,12 +37,12 @@ FRigVMStructUpgradeInfo FRigUnit_DebugLine::GetUpgradeInfo() const
 FRigUnit_DebugLineItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		return;
 	}
 
-	if (Context.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -51,10 +50,10 @@ FRigUnit_DebugLineItemSpace_Execute()
 	FVector DrawA = A, DrawB = B;
 	if (Space.IsValid())
 	{
-		FTransform Transform = Context.Hierarchy->GetGlobalTransform(Space);
+		FTransform Transform = ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 		DrawA = Transform.TransformPosition(DrawA);
 		DrawB = Transform.TransformPosition(DrawB);
 	}
 
-	Context.DrawInterface->DrawLine(WorldOffset, DrawA, DrawB, Color, Thickness);
+	ExecuteContext.UnitContext.DrawInterface->DrawLine(WorldOffset, DrawA, DrawB, Color, Thickness);
 }

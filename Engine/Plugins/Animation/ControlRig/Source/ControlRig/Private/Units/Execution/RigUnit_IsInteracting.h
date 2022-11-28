@@ -15,7 +15,7 @@ struct CONTROLRIG_API FRigUnit_IsInteracting : public FRigUnit
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// True if there is currently an interaction happening
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Interacting", Category = "Execution", meta = (Output))

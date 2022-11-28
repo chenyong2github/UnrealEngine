@@ -11,7 +11,7 @@ FRigUnit_GetJointTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
     
-	if (URigHierarchy* Hierarchy = Context.Hierarchy)
+	if (URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
 		const FRigElementKey Key(Joint, ERigElementType::Bone);
 		

@@ -64,7 +64,7 @@ struct CONTROLRIG_API FRigUnit_GetBoolAnimationChannel : public FRigUnit_GetAnim
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The current value of the animation channel
 	UPROPERTY(meta=(Output))
@@ -85,7 +85,7 @@ struct CONTROLRIG_API FRigUnit_GetFloatAnimationChannel : public FRigUnit_GetAni
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The current value of the animation channel
 	UPROPERTY(meta=(Output, UIMin=0, UIMax=1))
@@ -106,7 +106,7 @@ struct CONTROLRIG_API FRigUnit_GetIntAnimationChannel : public FRigUnit_GetAnima
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The current value of the animation channel
 	UPROPERTY(meta=(Output))
@@ -127,7 +127,7 @@ struct CONTROLRIG_API FRigUnit_GetVector2DAnimationChannel : public FRigUnit_Get
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The current value of the animation channel
 	UPROPERTY(meta=(Output))
@@ -148,7 +148,7 @@ struct CONTROLRIG_API FRigUnit_GetVectorAnimationChannel : public FRigUnit_GetAn
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The current value of the animation channel
 	UPROPERTY(meta=(Output))
@@ -169,7 +169,7 @@ struct CONTROLRIG_API FRigUnit_GetRotatorAnimationChannel : public FRigUnit_GetA
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The current value of the animation channel
 	UPROPERTY(meta=(Output))
@@ -190,7 +190,7 @@ struct CONTROLRIG_API FRigUnit_GetTransformAnimationChannel : public FRigUnit_Ge
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The current value of the animation channel
 	UPROPERTY(meta=(Output))
@@ -228,7 +228,7 @@ struct CONTROLRIG_API FRigUnit_SetBoolAnimationChannel : public FRigUnit_SetAnim
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The new value of the animation channel
 	UPROPERTY(meta=(Input))
@@ -249,7 +249,7 @@ struct CONTROLRIG_API FRigUnit_SetFloatAnimationChannel : public FRigUnit_SetAni
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The new value of the animation channel
 	UPROPERTY(meta=(Input, UIMin=0, UIMax=1))
@@ -270,7 +270,7 @@ struct CONTROLRIG_API FRigUnit_SetIntAnimationChannel : public FRigUnit_SetAnima
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The new value of the animation channel
 	UPROPERTY(meta=(Input))
@@ -291,7 +291,7 @@ struct CONTROLRIG_API FRigUnit_SetVector2DAnimationChannel : public FRigUnit_Set
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The new value of the animation channel
 	UPROPERTY(meta=(Input))
@@ -312,7 +312,7 @@ struct CONTROLRIG_API FRigUnit_SetVectorAnimationChannel : public FRigUnit_SetAn
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The new value of the animation channel
 	UPROPERTY(meta=(Input))
@@ -333,7 +333,7 @@ struct CONTROLRIG_API FRigUnit_SetRotatorAnimationChannel : public FRigUnit_SetA
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The new value of the animation channel
 	UPROPERTY(meta=(Input))
@@ -354,7 +354,7 @@ struct CONTROLRIG_API FRigUnit_SetTransformAnimationChannel : public FRigUnit_Se
 	{}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	// The new value of the animation channel
 	UPROPERTY(meta=(Input))

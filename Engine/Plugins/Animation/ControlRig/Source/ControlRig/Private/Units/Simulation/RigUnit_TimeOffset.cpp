@@ -12,7 +12,7 @@ FRigUnit_TimeOffsetFloat_Execute()
 
 	if(BufferSize <= 0)
 	{
-		if (Context.State == EControlRigState::Init)
+		if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("BufferSize is too small."));
 		}
@@ -22,7 +22,7 @@ FRigUnit_TimeOffsetFloat_Execute()
 
 	if (TimeRange <= 0)
 	{
-		if (Context.State == EControlRigState::Init)
+		if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("TimeRange is too small."));
 		}
@@ -35,7 +35,7 @@ FRigUnit_TimeOffsetFloat_Execute()
 	DeltaTimes.SetNum(MaxSize);
 	MaxSize = FMath::Min<int32>(MaxSize, Buffer.Num());
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		UpperBound = 0;
 		Result = Value;
@@ -80,35 +80,35 @@ FRigUnit_TimeOffsetFloat_Execute()
 		Result = FMath::Lerp<float>(A, B, T);
 	}
 
-	if (Context.DeltaTime > SMALL_NUMBER)
+	if (ExecuteContext.UnitContext.DeltaTime > SMALL_NUMBER)
 	{
 		if (UpperBound == 0)
 		{
 			LastInsertIndex = UpperBound;
 			Buffer[UpperBound] = Value;
-			DeltaTimes[UpperBound++] = Context.DeltaTime;
+			DeltaTimes[UpperBound++] = ExecuteContext.UnitContext.DeltaTime;
 		}
 		else
 		{
 			float SecondsPerEntry = TimeRange / float(MaxSize - 1);
-			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - Context.DeltaTime * 0.5f)
+			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - ExecuteContext.UnitContext.DeltaTime * 0.5f)
 			{
 				if (UpperBound < MaxSize)
 				{
 					LastInsertIndex = UpperBound;
 					Buffer[UpperBound] = Value;
-					DeltaTimes[UpperBound++] = Context.DeltaTime;
+					DeltaTimes[UpperBound++] = ExecuteContext.UnitContext.DeltaTime;
 				}
 				else
 				{
 					LastInsertIndex = (LastInsertIndex + 1) % UpperBound;
 					Buffer[LastInsertIndex] = Value;
-					DeltaTimes[LastInsertIndex] = Context.DeltaTime;
+					DeltaTimes[LastInsertIndex] = ExecuteContext.UnitContext.DeltaTime;
 				}
 			}
 			else
 			{
-				DeltaTimes[LastInsertIndex] += Context.DeltaTime;
+				DeltaTimes[LastInsertIndex] += ExecuteContext.UnitContext.DeltaTime;
 			}
 		}
 	}
@@ -121,7 +121,7 @@ FRigUnit_TimeOffsetVector_Execute()
 
 	if(BufferSize <= 0)
 	{
-		if (Context.State == EControlRigState::Init)
+		if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("BufferSize is too small."));
 		}
@@ -131,7 +131,7 @@ FRigUnit_TimeOffsetVector_Execute()
 
 	if (TimeRange <= 0)
 	{
-		if (Context.State == EControlRigState::Init)
+		if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("TimeRange is too small."));
 		}
@@ -144,7 +144,7 @@ FRigUnit_TimeOffsetVector_Execute()
 	DeltaTimes.SetNum(MaxSize);
 	MaxSize = FMath::Min<int32>(MaxSize, Buffer.Num());
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		UpperBound = 0;
 		Result = Value;
@@ -189,35 +189,35 @@ FRigUnit_TimeOffsetVector_Execute()
 		Result = FMath::Lerp<FVector>(A, B, T);
 	}
 
-	if (Context.DeltaTime > SMALL_NUMBER)
+	if (ExecuteContext.UnitContext.DeltaTime > SMALL_NUMBER)
 	{
 		if (UpperBound == 0)
 		{
 			LastInsertIndex = UpperBound;
 			Buffer[UpperBound] = Value;
-			DeltaTimes[UpperBound++] = Context.DeltaTime;
+			DeltaTimes[UpperBound++] = ExecuteContext.UnitContext.DeltaTime;
 		}
 		else
 		{
 			float SecondsPerEntry = TimeRange / float(MaxSize - 1);
-			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - Context.DeltaTime * 0.5f)
+			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - ExecuteContext.UnitContext.DeltaTime * 0.5f)
 			{
 				if (UpperBound < MaxSize)
 				{
 					LastInsertIndex = UpperBound;
 					Buffer[UpperBound] = Value;
-					DeltaTimes[UpperBound++] = Context.DeltaTime;
+					DeltaTimes[UpperBound++] = ExecuteContext.UnitContext.DeltaTime;
 				}
 				else
 				{
 					LastInsertIndex = (LastInsertIndex + 1) % UpperBound;
 					Buffer[LastInsertIndex] = Value;
-					DeltaTimes[LastInsertIndex] = Context.DeltaTime;
+					DeltaTimes[LastInsertIndex] = ExecuteContext.UnitContext.DeltaTime;
 				}
 			}
 			else
 			{
-				DeltaTimes[LastInsertIndex] += Context.DeltaTime;
+				DeltaTimes[LastInsertIndex] += ExecuteContext.UnitContext.DeltaTime;
 			}
 		}
 	}
@@ -230,7 +230,7 @@ FRigUnit_TimeOffsetTransform_Execute()
 
 	if(BufferSize <= 0)
 	{
-		if (Context.State == EControlRigState::Init)
+		if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("BufferSize is too small."));
 		}
@@ -240,7 +240,7 @@ FRigUnit_TimeOffsetTransform_Execute()
 
 	if (TimeRange <= 0)
 	{
-		if (Context.State == EControlRigState::Init)
+		if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("TimeRange is too small."));
 		}
@@ -253,7 +253,7 @@ FRigUnit_TimeOffsetTransform_Execute()
 	DeltaTimes.SetNum(MaxSize);
 	MaxSize = FMath::Min<int32>(MaxSize, Buffer.Num());
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		UpperBound = 0;
 		Result = Value;
@@ -300,35 +300,35 @@ FRigUnit_TimeOffsetTransform_Execute()
 		Result.SetScale3D(FMath::Lerp<FVector>(A.GetScale3D(), B.GetScale3D(), T));
 	}
 
-	if (Context.DeltaTime > SMALL_NUMBER)
+	if (ExecuteContext.UnitContext.DeltaTime > SMALL_NUMBER)
 	{
 		if (UpperBound == 0)
 		{
 			LastInsertIndex = UpperBound;
 			Buffer[UpperBound] = Value;
-			DeltaTimes[UpperBound++] = Context.DeltaTime;
+			DeltaTimes[UpperBound++] = ExecuteContext.UnitContext.DeltaTime;
 		}
 		else
 		{
 			float SecondsPerEntry = TimeRange / float(MaxSize - 1);
-			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - Context.DeltaTime * 0.5f)
+			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - ExecuteContext.UnitContext.DeltaTime * 0.5f)
 			{
 				if (UpperBound < MaxSize)
 				{
 					LastInsertIndex = UpperBound;
 					Buffer[UpperBound] = Value;
-					DeltaTimes[UpperBound++] = Context.DeltaTime;
+					DeltaTimes[UpperBound++] = ExecuteContext.UnitContext.DeltaTime;
 				}
 				else
 				{
 					LastInsertIndex = (LastInsertIndex + 1) % UpperBound;
 					Buffer[LastInsertIndex] = Value;
-					DeltaTimes[LastInsertIndex] = Context.DeltaTime;
+					DeltaTimes[LastInsertIndex] = ExecuteContext.UnitContext.DeltaTime;
 				}
 			}
 			else
 			{
-				DeltaTimes[LastInsertIndex] += Context.DeltaTime;
+				DeltaTimes[LastInsertIndex] += ExecuteContext.UnitContext.DeltaTime;
 			}
 		}
 	}
@@ -339,7 +339,7 @@ FRigUnit_TimeOffsetTransform_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_TimeOffsetFloat)
 {
-	Context.DeltaTime = 1.f;
+	ExecuteContext.UnitContext.DeltaTime = 1.f;
 	Unit.SecondsAgo = 0.5;
 	Unit.TimeRange = 5.f;
 	Unit.BufferSize = 16;
@@ -365,7 +365,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_TimeOffsetFloat)
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result, 11.f), TEXT("unexpected previous result"));
 
-	Context.DeltaTime = 0.f;
+	ExecuteContext.UnitContext.DeltaTime = 0.f;
 	Unit.SecondsAgo = 1.5;
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result, 9.f), TEXT("unexpected previous result"));
@@ -379,7 +379,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_TimeOffsetFloat)
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result, 3.f), TEXT("unexpected previous result"));
 
-	Context.DeltaTime = 1.f;
+	ExecuteContext.UnitContext.DeltaTime = 1.f;
 	Unit.SecondsAgo = 0.5;
 	Unit.Value = 14.f;
 	Execute();
@@ -418,7 +418,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_TimeOffsetFloat)
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result, 35.f), TEXT("unexpected previous result"));
 
-	Context.DeltaTime = 0.f;
+	ExecuteContext.UnitContext.DeltaTime = 0.f;
 	Unit.SecondsAgo = 1.5;
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result, 33.f), TEXT("unexpected previous result"));
@@ -433,7 +433,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_TimeOffsetFloat)
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result, 27.f), TEXT("unexpected previous result"));
 
 
-	Context.DeltaTime = 1.f;
+	ExecuteContext.UnitContext.DeltaTime = 1.f;
 	Unit.TimeRange = 8.f;
 	Unit.BufferSize = 3;
 	Unit.SecondsAgo = 0.5f;
@@ -448,7 +448,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_TimeOffsetFloat)
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result, 5.f), TEXT("unexpected previous result"));
 
-	Context.DeltaTime = 0.f;
+	ExecuteContext.UnitContext.DeltaTime = 0.f;
 	Unit.SecondsAgo = 1.5f;
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Result, 4.f), TEXT("unexpected previous result"));

@@ -17,8 +17,7 @@ FRigUnit_TransformConstraint_Execute()
 		FRigElementKey(BaseBone, ERigElementType::Bone),
 		Targets,
 		bUseInitialTransforms,
-		WorkData,
-		Context);
+		WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_TransformConstraint::GetUpgradeInfo() const
@@ -111,7 +110,7 @@ FRigUnit_TransformConstraintPerItem_Execute()
 		}
 	};
 
-	if (Context.State == EControlRigState::Init)
+	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		ConstraintData.Reset();
 		ConstraintDataToTargets.Reset();
@@ -122,7 +121,7 @@ FRigUnit_TransformConstraintPerItem_Execute()
 			SetupConstraintData();
 		}
 	}
-	else if (Context.State == EControlRigState::Update)
+	else if (ExecuteContext.UnitContext.State == EControlRigState::Update)
 	{
 		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)
@@ -196,7 +195,7 @@ FRigUnit_ParentConstraint_Execute()
 		return;
 	}
 
-	if(Context.State == EControlRigState::Init)
+	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		ChildCache.Reset();
 		ParentCaches.Reset();
@@ -637,7 +636,7 @@ FRigUnit_PositionConstraintLocalSpaceOffset_Execute()
 		return;
 	}
 
-	if(Context.State == EControlRigState::Init)
+	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		ChildCache.Reset();
 		ParentCaches.Reset();
@@ -1119,7 +1118,7 @@ FRigUnit_RotationConstraintLocalSpaceOffset_Execute()
 		return;
 	}
 	
-	if(Context.State == EControlRigState::Init)
+	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		ChildCache.Reset();
 		ParentCaches.Reset();
@@ -1492,7 +1491,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RotationConstraintLocalSpaceOffset)
 
 FRigUnit_ScaleConstraint_Execute()
 {
-	TFunction<FVector (const FVector&)> GetNonZeroScale([ExecuteContext, Context](const FVector& InScale)
+	TFunction<FVector (const FVector&)> GetNonZeroScale([ExecuteContext](const FVector& InScale)
 	{
 		FVector NonZeroScale = InScale;
        
@@ -1698,7 +1697,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ScaleConstraint)
 
 FRigUnit_ScaleConstraintLocalSpaceOffset_Execute()
 {
-	TFunction<FVector (const FVector&)> GetNonZeroScale([ExecuteContext, Context](const FVector& InScale)
+	TFunction<FVector (const FVector&)> GetNonZeroScale([ExecuteContext](const FVector& InScale)
 	{
 		FVector NonZeroScale = InScale;
        
@@ -1732,7 +1731,7 @@ FRigUnit_ScaleConstraintLocalSpaceOffset_Execute()
 		return;
 	}
 	
-	if(Context.State == EControlRigState::Init)
+	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
 	{
 		ChildCache.Reset();
 		ParentCaches.Reset();

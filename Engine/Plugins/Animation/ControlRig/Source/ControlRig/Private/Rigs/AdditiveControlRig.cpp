@@ -46,14 +46,17 @@ bool UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FNam
 {
 	if (InEventName == FRigUnit_BeginExecution::EventName)
 	{
+		FControlRigExecuteContext ExecuteContext;
+		ExecuteContext.Hierarchy = GetHierarchy();
+		ExecuteContext.EventName = InEventName;
+		ExecuteContext.UnitContext = InOutContext;
+
 		for (FRigUnit_AddBoneTransform& Unit : AddBoneRigUnits)
 		{
 			FName ControlName = GetControlName(Unit.Bone);
 			const int32 Index = GetHierarchy()->GetIndex(FRigElementKey(ControlName, ERigElementType::Control));
 			Unit.Transform = GetHierarchy()->GetLocalTransform(Index);
-			Unit.ExecuteContext.Hierarchy = GetHierarchy();
-			Unit.ExecuteContext.EventName = InEventName;
-			Unit.Execute(InOutContext);
+			Unit.Execute(ExecuteContext);
 		}
 	}
 	else if(InEventName == FRigUnit_PrepareForExecution::EventName)

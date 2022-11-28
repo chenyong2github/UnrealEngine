@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_FramesToSeconds : public FRigUnit_AnimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	float Frames;
@@ -42,7 +42,7 @@ struct CONTROLRIG_API FRigUnit_SecondsToFrames : public FRigUnit_AnimBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta=(Input))
 	float Seconds;

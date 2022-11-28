@@ -198,7 +198,7 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMut
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FName ChainRoot;
@@ -257,7 +257,7 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonicsPerItem : public FRigUnit_Highlevel
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKey ChainRoot;

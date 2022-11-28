@@ -140,6 +140,11 @@ const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks() const
 	return Blocks;
 }
 
+bool FRigVMDispatchFactory::SupportsExecuteContextStruct(const UScriptStruct* InExecuteContextStruct) const
+{
+	return InExecuteContextStruct->IsChildOf(GetExecuteContextStruct());
+}
+
 const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks_Impl() const
 {
 	static const TArray<FName> EmptyArray;

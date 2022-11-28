@@ -23,8 +23,7 @@ FRigUnit_ModifyBoneTransforms_Execute()
 		WeightMinimum,
 		WeightMaximum,
 		Mode,
-		WorkData,
-		Context);
+		WorkData);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_ModifyBoneTransforms::GetUpgradeInfo() const

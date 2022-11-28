@@ -819,6 +819,21 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 		return nullptr;
 	}
 
+	if(IRigVMClientHost* ClientHost = GetImplementingOuter<IRigVMClientHost>())
+	{
+		if(const FRigVMClient* Client = ClientHost->GetRigVMClient())
+		{
+			if(!Function->SupportsExecuteContextStruct(Client->GetExecuteContextStruct()))
+			{
+				ReportErrorf(TEXT("Cannot add node for function '%s' - incompatible execute context: '%s' vs '%s'."),
+						*Function->GetName(),
+						*Function->GetExecuteContextStruct()->GetStructCPPName(),
+						*Client->GetExecuteContextStruct()->GetStructCPPName());
+				return nullptr;
+			}
+		}
+	}
+
 	FString StructureError;
 	if (!FRigVMStruct::ValidateStruct(InScriptStruct, &StructureError))
 	{
@@ -13053,6 +13068,21 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 	{
 		ReportErrorf(TEXT("Template '%s' cannot be found."), *InNotation.ToString());
 		return nullptr;
+	}
+
+	if(IRigVMClientHost* ClientHost = GetImplementingOuter<IRigVMClientHost>())
+	{
+		if(const FRigVMClient* Client = ClientHost->GetRigVMClient())
+		{
+			if(!Template->SupportsExecuteContextStruct(Client->GetExecuteContextStruct()))
+			{
+				ReportErrorf(TEXT("Cannot add node for template '%s' - incompatible execute context: '%s' vs '%s'."),
+						*Template->GetNotation().ToString(),
+						*Template->GetExecuteContextStruct()->GetStructCPPName(),
+						*Client->GetExecuteContextStruct()->GetStructCPPName());
+				return nullptr;
+			}
+		}
 	}
 
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? Template->GetName().ToString() : InNodeName);

@@ -64,7 +64,6 @@ struct FRigUnitContext
 		, DeltaTime(0.f)
 		, AbsoluteTime(0.f)
 		, State(EControlRigState::Invalid)
-		, Hierarchy(nullptr)
 		, InteractionType((uint8)EControlRigInteractionType::None)
 		, ElementsBeingInteracted()
 		, ToWorldSpaceTransform(FTransform::Identity)
@@ -100,9 +99,6 @@ struct FRigUnitContext
 
 	/** Current execution context */
 	EControlRigState State;
-
-	/** The current hierarchy being executed */
-	URigHierarchy* Hierarchy;
 
 	/** The current hierarchy settings */
 	FRigHierarchySettings HierarchySettings;
@@ -203,11 +199,34 @@ struct FRigUnitContext
 	}
 };
 
+USTRUCT(BlueprintType)
+struct FControlRigExecuteContext : public FRigVMExecuteContext
+{
+	GENERATED_BODY()
+
+	FControlRigExecuteContext()
+		: FRigVMExecuteContext()
+		, Hierarchy(nullptr)
+	{
+	}
+
+	virtual void Copy(const FRigVMExecuteContext* InOtherContext) override
+	{
+		Super::Copy(InOtherContext);
+
+		const FControlRigExecuteContext* OtherContext = (const FControlRigExecuteContext*)InOtherContext; 
+		Hierarchy = OtherContext->Hierarchy;
+	}
+
+	FRigUnitContext UnitContext;
+	URigHierarchy* Hierarchy;
+};
+
 #if WITH_EDITOR
 #define UE_CONTROLRIG_RIGUNIT_REPORT(Severity, Format, ...) \
-if(Context.Log != nullptr) \
+if(ExecuteContext.UnitContext.Log != nullptr) \
 { \
-	Context.Log->Report(EMessageSeverity::Severity, ExecuteContext.GetFunctionName(), ExecuteContext.GetInstructionIndex(), FString::Printf((Format), ##__VA_ARGS__)); \
+	ExecuteContext.UnitContext.Log->Report(EMessageSeverity::Severity, ExecuteContext.GetFunctionName(), ExecuteContext.GetInstructionIndex(), FString::Printf((Format), ##__VA_ARGS__)); \
 }
 #define UE_CONTROLRIG_RIGUNIT_LOG_MESSAGE(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Info, (Format), ##__VA_ARGS__)
 #define UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Warning, (Format), ##__VA_ARGS__)

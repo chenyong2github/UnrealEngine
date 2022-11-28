@@ -28,7 +28,7 @@ struct CONTROLRIG_API FRigUnit_PropagateTransform : public FRigUnitMutable
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	/**
 	 * The item to offset the transform for

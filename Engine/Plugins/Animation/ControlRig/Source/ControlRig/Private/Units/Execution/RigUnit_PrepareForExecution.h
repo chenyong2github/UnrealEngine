@@ -15,7 +15,7 @@ struct CONTROLRIG_API FRigUnit_PrepareForExecution : public FRigUnit
 	GENERATED_BODY()
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	virtual FName GetEventName() const override { return EventName; }
 	virtual bool CanOnlyExistOnce() const override { return true; }

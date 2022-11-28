@@ -35,7 +35,7 @@ struct CONTROLRIG_API FRigUnit_DebugPoint : public FRigUnit_DebugBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, Output))
 	FVector Vector;
@@ -82,7 +82,7 @@ struct CONTROLRIG_API FRigUnit_DebugPointMutable : public FRigUnit_DebugBaseMuta
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
 	FVector Vector;
