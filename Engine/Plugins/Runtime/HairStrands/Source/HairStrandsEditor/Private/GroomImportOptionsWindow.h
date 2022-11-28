@@ -15,6 +15,8 @@ class UGroomCacheImportOptions;
 class UGroomHairGroupsPreview;
 struct FHairGroupInfo;
 
+enum class EHairDescriptionStatus;
+
 class SGroomImportOptionsWindow : public SCompoundWidget
 {
 public:
@@ -95,6 +97,15 @@ public:
 private:
 
 	bool CanImport() const;
+	void UpdateStatus(UGroomHairGroupsPreview* Description) const;
+	FText GetStatusText() const;
+	FSlateColor GetStatusColor() const;
+
+	// Properties that are monitored for changes
+	mutable EHairDescriptionStatus CurrentStatus;
+	mutable FSoftObjectPath GroomAsset;
+	mutable bool bImportGroomAssetState;
+	mutable bool bImportGroomCacheState;
 
 private:
 	UGroomImportOptions* ImportOptions;

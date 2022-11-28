@@ -228,7 +228,11 @@ namespace ReimportGroomCacheHelpers
 			{
 				HairImportContext.Parent = SourceGroomCache;
 			}
-			TArray<UGroomCache*> GroomCaches = FGroomCacheImporter::ImportGroomCache(SourceFilename, Translator, AnimInfo, HairImportContext, GroomAsset);
+			if (Settings.bOverrideConversionSettings)
+			{
+				HairImportContext.ImportOptions->ConversionSettings = Settings.ConversionSettings;
+			}
+			TArray<UGroomCache*> GroomCaches = FGroomCacheImporter::ImportGroomCache(SourceFilename, Translator, AnimInfo, HairImportContext, GroomAsset, Settings.ImportType);
 
 			// Update asset import data
 			for (UGroomCache* GroomCache : GroomCaches)

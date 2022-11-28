@@ -3,8 +3,20 @@
 #pragma once
 
 #include "EditorFramework/AssetImportData.h"
+#include "GroomSettings.h"
 #include "UObject/SoftObjectPath.h"
 #include "GroomCacheImportOptions.generated.h"
+
+UENUM(BlueprintType)
+enum class EGroomCacheImportType : uint8
+{
+	None = 0x00 UMETA(Hidden),
+	Strands = 0x01,
+	Guides = 0x02,
+	All = Strands | Guides
+};
+
+ENUM_CLASS_FLAGS(EGroomCacheImportType);
 
 USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FGroomCacheImportSettings
@@ -14,6 +26,10 @@ struct HAIRSTRANDSCORE_API FGroomCacheImportSettings
 	/** Import the animated groom that was detected in this file */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GroomCache)
 	bool bImportGroomCache = true;
+
+	/** Groom Cache types to import */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GroomCache)
+	EGroomCacheImportType ImportType = EGroomCacheImportType::All;
 
 	/** Starting index to start sampling the animation from */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sampling)
@@ -34,6 +50,14 @@ struct HAIRSTRANDSCORE_API FGroomCacheImportSettings
 	/** The groom asset the groom cache will be built from (must be compatible) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GroomCache, meta = (MetaClass = "/Script/HairStrandsCore.GroomAsset"))
 	FSoftObjectPath GroomAsset;
+
+	/** Set to true to override the groom conversion settings. Otherwise, use the settings from the groom import options */
+	UPROPERTY(BlueprintReadWrite, Category = GroomCache)
+	bool bOverrideConversionSettings = false;
+
+	/** Conversion settings to apply to the groom cache import when override is enabled */
+	UPROPERTY(BlueprintReadWrite, Category = GroomCache)
+	FGroomConversionSettings ConversionSettings;
 };
 
 UCLASS(BlueprintType)

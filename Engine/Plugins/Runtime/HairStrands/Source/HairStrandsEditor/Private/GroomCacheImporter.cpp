@@ -93,6 +93,8 @@ static UGroomCache* CreateGroomCache(EGroomCacheType Type, UObject*& InParent, c
 
 UGroomCache* FGroomCacheImporter::ProcessToGroomCache(FGroomCacheProcessor& Processor, const FGroomAnimationInfo& AnimInfo, FHairImportContext& ImportContext, const FString& ObjectNameSuffix)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomCacheImporter::ProcessToGroomCache);
+
 	if (UGroomCache* GroomCache = CreateGroomCache(Processor.GetType(), ImportContext.Parent, ObjectNameSuffix, ImportContext.Flags))
 	{
 		Processor.TransferChunks(GroomCache);
@@ -105,9 +107,14 @@ UGroomCache* FGroomCacheImporter::ProcessToGroomCache(FGroomCacheProcessor& Proc
 	return nullptr;
 }
 
-TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& SourceFilename, TSharedPtr<IGroomTranslator> Translator, const FGroomAnimationInfo& AnimInfo, FHairImportContext& HairImportContext, UGroomAsset* GroomAssetForCache)
+TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& SourceFilename, TSharedPtr<IGroomTranslator> Translator, const FGroomAnimationInfo& AnimInfo, FHairImportContext& HairImportContext, UGroomAsset* GroomAssetForCache, EGroomCacheImportType ImportType)
 {
 	bool bSuccess = true;
+	bool bGuidesOnly = false;
+
+	const bool bImportStrandsCache = (EnumHasAnyFlags(ImportType, EGroomCacheImportType::Strands));
+	const bool bImportGuidesCache = (EnumHasAnyFlags(ImportType, EGroomCacheImportType::Guides));
+
 	FGroomCacheProcessor StrandsProcessor(EGroomCacheType::Strands, AnimInfo.Attributes);
 	FGroomCacheProcessor GuidesProcessor(EGroomCacheType::Guides, AnimInfo.Attributes);
 	if (Translator->BeginTranslation(SourceFilename))
@@ -122,6 +129,8 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 		// Each frame is translated into a HairDescription and processed into HairGroupData
 		for (int32 FrameIndex = AnimInfo.StartFrame; FrameIndex < AnimInfo.EndFrame + 1; ++FrameIndex)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FGroomCacheImporter::ImportGroomCache::OneFrame);
+
 			const uint32 CurrentFrame = FrameIndex - AnimInfo.StartFrame;
 
 			FTextBuilder TextBuilder;
@@ -140,6 +149,14 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 
 				const uint32 GroupCount = HairDescriptionGroups.HairGroups.Num();
 
+				if (GroupCount != GroomHairGroupsData.Num())
+				{
+					bSuccess = false;
+					UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache does not have the same number of groups as the static groom (%d instead of %d). Aborting GroomCache import."),
+						GroupCount, GroomHairGroupsData.Num());
+					break;
+				}
+
 				TArray<FHairGroupInfoWithVisibility> HairGroupsInfo = GroomAssetForCache->HairGroupsInfo;
 				TArray<FHairDescriptionGroup> HairGroupsData;
 				HairGroupsData.SetNum(GroupCount);
@@ -151,24 +168,40 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 				}
 
 				// Validate that the GroomCache has the same topology as the static groom
-				if (HairGroupsData.Num() == GroomHairGroupsData.Num())
+				for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 				{
-					for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
+					if (bImportStrandsCache)
 					{
-						if (HairGroupsData[GroupIndex].Strands.GetNumPoints() != GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumPoints())
+						if (HairGroupsData[GroupIndex].Strands.GetNumCurves() != GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumCurves() ||
+							HairGroupsData[GroupIndex].Strands.GetNumPoints() != GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumPoints())
 						{
 							bSuccess = false;
-							UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache frame %d does not have the same number of vertices as the static groom (%u instead of %u). Aborting GroomCache import."),
-								FrameIndex, HairGroupsData[GroupIndex].Strands.GetNumPoints(), GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumPoints());
+							UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache frame %d does not have the same number of curves (%u) \
+								or vertices (%u) for the strands as the static groom (%u and %u respectively). Aborting GroomCache import."),
+								FrameIndex, HairGroupsData[GroupIndex].Strands.GetNumCurves(), HairGroupsData[GroupIndex].Strands.GetNumPoints(),
+								GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumCurves(), GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumPoints());
 							break;
 						}
 					}
-				}
-				else
-				{
-					bSuccess = false;
-					UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache does not have the same number of groups as the static groom (%d instead of %d). Aborting GroomCache import."),
-						HairGroupsData.Num(), GroomHairGroupsData.Num());
+
+					if (bImportGuidesCache)
+					{
+						if (HairGroupsData[GroupIndex].Strands.GetNumPoints() == 0)
+						{
+							bGuidesOnly = true;
+						}
+
+						if (HairGroupsData[GroupIndex].Guides.GetNumCurves() != GroomHairGroupsData[GroupIndex].Guides.BulkData.GetNumCurves() ||
+							HairGroupsData[GroupIndex].Guides.GetNumPoints() != GroomHairGroupsData[GroupIndex].Guides.BulkData.GetNumPoints())
+						{
+							bSuccess = false;
+							UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache frame %d does not have the same number of curves (%u) \
+								or vertices (%u) for the guides as the static groom (%u and %u respectively). Aborting GroomCache import."),
+								FrameIndex, HairGroupsData[GroupIndex].Guides.GetNumCurves(), HairGroupsData[GroupIndex].Guides.GetNumPoints(),
+								GroomHairGroupsData[GroupIndex].Guides.BulkData.GetNumCurves(), GroomHairGroupsData[GroupIndex].Guides.BulkData.GetNumPoints());
+							break;
+						}
+					}
 				}
 
 				if (!bSuccess)
@@ -177,8 +210,15 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 				}
 
 				// The HairGroupData is converted into animated groom data by the GroomCacheProcessor
-				StrandsProcessor.AddGroomSample(MoveTemp(HairGroupsData));
-				GuidesProcessor.AddGroomSample(MoveTemp(HairGroupsData));
+				if (bImportStrandsCache && !bGuidesOnly)
+				{
+					StrandsProcessor.AddGroomSample(MoveTemp(HairGroupsData));
+				}
+
+				if (bImportGuidesCache)
+				{
+					GuidesProcessor.AddGroomSample(MoveTemp(HairGroupsData));
+				}
 			}
 		}
 	}
@@ -192,16 +232,22 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 	if (bSuccess)
 	{
 		// Once the processing has completed successfully, the data is transferred to the GroomCache
-		UGroomCache* GroomCache = ProcessToGroomCache(StrandsProcessor, AnimInfo, HairImportContext, "strands_cache");
-		if (GroomCache)
+		if (bImportStrandsCache && !bGuidesOnly)
 		{
-			GroomCaches.Add(GroomCache);
+			UGroomCache* GroomCache = ProcessToGroomCache(StrandsProcessor, AnimInfo, HairImportContext, "strands_cache");
+			if (GroomCache)
+			{
+				GroomCaches.Add(GroomCache);
+			}
 		}
 
-		GroomCache = ProcessToGroomCache(GuidesProcessor, AnimInfo, HairImportContext, "guides_cache");
-		if (GroomCache)
+		if (bImportGuidesCache)
 		{
-			GroomCaches.Add(GroomCache);
+			UGroomCache* GroomCache = ProcessToGroomCache(GuidesProcessor, AnimInfo, HairImportContext, "guides_cache");
+			if (GroomCache)
+			{
+				GroomCaches.Add(GroomCache);
+			}
 		}
 	}
 	return GroomCaches;

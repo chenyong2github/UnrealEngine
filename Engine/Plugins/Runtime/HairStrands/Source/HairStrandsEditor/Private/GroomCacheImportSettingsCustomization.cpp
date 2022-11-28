@@ -31,7 +31,8 @@ void FGroomCacheImportSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 			// Visibility depends on other settings
 			VisibleType = 1;
 		}
-		else if	(ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FGroomCacheImportSettings, FrameStart) ||
+		else if	(ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FGroomCacheImportSettings, ImportType) ||
+			ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FGroomCacheImportSettings, FrameStart) ||
 			ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FGroomCacheImportSettings, FrameEnd) ||
 			ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FGroomCacheImportSettings, bSkipEmptyFrames))
 		{

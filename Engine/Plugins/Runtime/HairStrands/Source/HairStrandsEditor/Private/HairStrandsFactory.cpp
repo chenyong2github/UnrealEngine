@@ -72,6 +72,8 @@ void UHairStrandsFactory::GetSupportedFileExtensions(TArray<FString>& OutExtensi
 UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, 
 	const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled) 
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHairStrandsFactory::FactoryCreateFile);
+
 	bOutOperationCanceled = false;
 
 	const bool bIsUnattended = (IsAutomatedImport()
@@ -104,6 +106,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		}
 	}
 
+	bool bGuidesOnly = false;
 	FGroomAnimationInfo AnimInfo;
 	{
 		// Load the alembic file upfront to preview & report any potential issue
@@ -151,6 +154,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 				OutGroup.bHasPrecomputedWeights = bHasPrecomputedWeights;
 				OutGroup.bHasColorAttributes = bHasColorAttributes;
 				OutGroup.bHasRoughnessAttributes = bHasRoughnessAttributes;
+				bGuidesOnly |= (OutGroup.CurveCount == 0 && OutGroup.GuideCount > 0);
 
 				if (OutGroup.GroupID < OutDescription.HairGroups.Num())
 				{				
@@ -160,6 +164,15 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		}
 
 		FGroomCacheImporter::SetupImportSettings(GroomCacheImportOptions->ImportSettings, AnimInfo);
+
+		if (bGuidesOnly)
+		{
+			// Guides-only groom cache cannot import groom asset and must specify an existing one
+			GroomCacheImportOptions->ImportSettings.bImportGroomAsset = false;
+
+			// Hint since All will import guides too
+			GroomCacheImportOptions->ImportSettings.ImportType = EGroomCacheImportType::Guides;
+		}
 
 		// Don't bother saving the options coming from script
 		if (!bIsUnattended)
@@ -198,7 +211,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 	UObject* CurrentAsset = nullptr;
 	UGroomAsset* GroomAssetForCache = nullptr;
 	FHairImportContext HairImportContext(ImportOptions, InParent, InClass, InName, Flags);
-	if (GroomCacheImportOptions->ImportSettings.bImportGroomAsset)
+	if (GroomCacheImportOptions->ImportSettings.bImportGroomAsset && !bGuidesOnly)
 	{
 		// Might try to import the same file in the same folder, so if an asset already exists there, reuse and update it
 		// Since we are importing (not reimporting) we reset the object completely. All previous settings will be lost.
@@ -232,7 +245,11 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 
 	if (GroomCacheImportOptions->ImportSettings.bImportGroomCache && GroomAssetForCache)
 	{
-		TArray<UGroomCache*> GroomCaches = FGroomCacheImporter::ImportGroomCache(Filename, SelectedTranslator, AnimInfo, HairImportContext, GroomAssetForCache);
+		if (GroomCacheImportOptions->ImportSettings.bOverrideConversionSettings)
+		{
+			HairImportContext.ImportOptions->ConversionSettings = GroomCacheImportOptions->ImportSettings.ConversionSettings;
+		}
+		TArray<UGroomCache*> GroomCaches = FGroomCacheImporter::ImportGroomCache(Filename, SelectedTranslator, AnimInfo, HairImportContext, GroomAssetForCache, GroomCacheImportOptions->ImportSettings.ImportType);
 
 		// Setup asset import data
 		for (UGroomCache* GroomCache : GroomCaches)

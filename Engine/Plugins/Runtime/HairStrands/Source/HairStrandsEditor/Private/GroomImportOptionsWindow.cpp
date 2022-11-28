@@ -21,31 +21,165 @@
 
 enum class EHairDescriptionStatus
 {
+	Unset,
 	Valid,
 	NoGroup,
 	NoCurve,
+	GroomCache, // groom cache with unspecified groom asset
+	GroomCacheCompatible,
+	GroomCacheIncompatible,
+	GuidesOnly, // guides-only with unspecified groom asset
+	GuidesOnlyCompatible,
+	GuidesOnlyIncompatible,
 	Unknown
 };
 
-static EHairDescriptionStatus GetStatus(UGroomHairGroupsPreview* Description)
+void SGroomImportOptionsWindow::UpdateStatus(UGroomHairGroupsPreview* Description) const
 {
-	if (Description)
+	if (!Description)
 	{
-		for (const FGroomHairGroupPreview& Group : Description->Groups)
+		CurrentStatus = EHairDescriptionStatus::Unknown;
+		return;
+	}
+
+	const bool bImportGroomAsset = !GroomCacheImportOptions || GroomCacheImportOptions->ImportSettings.bImportGroomAsset;
+	const bool bImportGroomCache = GroomCacheImportOptions && GroomCacheImportOptions->ImportSettings.bImportGroomCache;
+	if (!bImportGroomAsset && !bImportGroomCache)
+	{
+		CurrentStatus = EHairDescriptionStatus::Unset;
+		return;
+	}
+
+	if (Description->Groups.Num() == 0)
+	{
+		CurrentStatus = EHairDescriptionStatus::NoGroup;
+		return;
+	}
+
+	// Check the validity of the groom to import
+	CurrentStatus = EHairDescriptionStatus::Valid;
+
+	bool bGuidesOnly = false;
+	for (const FGroomHairGroupPreview& Group : Description->Groups)
+	{
+		if (Group.CurveCount == 0)
 		{
-			if (Group.CurveCount == 0)
-				return EHairDescriptionStatus::NoCurve;
+			CurrentStatus = EHairDescriptionStatus::NoCurve;
+			if (Group.GuideCount > 0)
+			{
+				bGuidesOnly = true;
+			}
+			break;
+		}
+	}
+
+	if (!bImportGroomCache)
+	{
+		return;
+	}
+
+	// Update the states of the properties being monitored
+	bImportGroomAssetState = GroomCacheImportOptions->ImportSettings.bImportGroomAsset;
+	bImportGroomCacheState = GroomCacheImportOptions->ImportSettings.bImportGroomCache;
+	GroomAsset = GroomCacheImportOptions->ImportSettings.GroomAsset;
+
+	if (!GroomCacheImportOptions->ImportSettings.bImportGroomAsset)
+	{
+		// When importing a groom cache with a provided groom asset, check their compatibility
+		UGroomAsset* GroomAssetForCache = Cast<UGroomAsset>(GroomCacheImportOptions->ImportSettings.GroomAsset.TryLoad());
+		if (!GroomAssetForCache)
+		{
+			// No groom asset provided or loaded but one is needed with this setting
+			CurrentStatus = bGuidesOnly ? EHairDescriptionStatus::GuidesOnly : EHairDescriptionStatus::GroomCache;
+			return;
 		}
 
-		if (Description->Groups.Num() == 0)
+		const TArray<FHairGroupData>& GroomHairGroupsData = GroomAssetForCache->HairGroupsData;
+		if (GroomHairGroupsData.Num() != Description->Groups.Num())
 		{
-			return EHairDescriptionStatus::NoGroup;
+			CurrentStatus = bGuidesOnly ? EHairDescriptionStatus::GuidesOnlyIncompatible : EHairDescriptionStatus::GroomCacheIncompatible;
+			return;
 		}
-		return EHairDescriptionStatus::Valid;
+
+		CurrentStatus = bGuidesOnly ? EHairDescriptionStatus::GuidesOnlyCompatible : EHairDescriptionStatus::GroomCacheCompatible;
+		for (int32 Index = 0; Index < GroomHairGroupsData.Num(); ++Index)
+		{
+			// Check the strands compatibility
+			if (!bGuidesOnly && Description->Groups[Index].CurveCount != GroomHairGroupsData[Index].Strands.BulkData.GetNumCurves())
+			{
+				CurrentStatus = EHairDescriptionStatus::GroomCacheIncompatible;
+				break;
+			}
+
+			// Check the guides compatibility if there were strands tagged as guides
+			// Otherwise, guides will be generated according to the groom asset interpolation settings
+			// and compatibility cannot be determined here
+			if (Description->Groups[Index].GuideCount > 0 &&
+				Description->Groups[Index].GuideCount != GroomHairGroupsData[Index].Guides.BulkData.GetNumCurves())
+			{
+				CurrentStatus = bGuidesOnly ? EHairDescriptionStatus::GuidesOnlyIncompatible : EHairDescriptionStatus::GroomCacheIncompatible;
+				break;
+			}
+		}
 	}
 	else
 	{
-		return EHairDescriptionStatus::Unknown;
+		// A guides-only groom cannot be imported as asset, but otherwise the imported groom asset
+		// is always compatible with the groom cache since they are from the same file
+		CurrentStatus = bGuidesOnly ? EHairDescriptionStatus::GuidesOnly : EHairDescriptionStatus::Valid;
+	}
+}
+
+FText SGroomImportOptionsWindow::GetStatusText() const
+{
+	switch (CurrentStatus)
+	{
+		case EHairDescriptionStatus::Valid:
+			return LOCTEXT("GroomOptionsWindow_ValidationText0", "Valid");
+		case EHairDescriptionStatus::NoCurve:
+			return LOCTEXT("GroomOptionsWindow_ValidationText1", "Invalid. Some groups have 0 curves.");
+		case EHairDescriptionStatus::NoGroup:
+			return LOCTEXT("GroomOptionsWindow_ValidationText2", "Invalid. The groom does not contain any group.");
+		case EHairDescriptionStatus::GroomCache:
+			return LOCTEXT("GroomOptionsWindow_ValidationText4", "A compatible groom asset must be provided to import the groom cache.");
+		case EHairDescriptionStatus::GroomCacheCompatible:
+			return LOCTEXT("GroomOptionsWindow_ValidationText5", "The groom cache is compatible with the groom asset provided .");
+		case EHairDescriptionStatus::GroomCacheIncompatible:
+			return LOCTEXT("GroomOptionsWindow_ValidationText6", "The groom cache is incompatible with the groom asset provided .");
+		case EHairDescriptionStatus::GuidesOnly:
+			return LOCTEXT("GroomOptionsWindow_ValidationText7", "Only guides were detected. A compatible groom asset must be provided.");
+		case EHairDescriptionStatus::GuidesOnlyCompatible:
+			return LOCTEXT("GroomOptionsWindow_ValidationText8", "Only guides were detected. The groom asset provided is compatible.");
+		case EHairDescriptionStatus::GuidesOnlyIncompatible:
+			return LOCTEXT("GroomOptionsWindow_ValidationText9", "Only guides were detected. The groom asset provided is incompatible.");
+		case EHairDescriptionStatus::Unset:
+		case EHairDescriptionStatus::Unknown:
+		default:
+			return LOCTEXT("GroomOptionsWindow_ValidationText3", "Unknown");
+	}
+}
+
+FSlateColor SGroomImportOptionsWindow::GetStatusColor() const
+{
+	switch (CurrentStatus)
+	{
+		case EHairDescriptionStatus::Valid:
+		case EHairDescriptionStatus::GroomCacheCompatible:
+		case EHairDescriptionStatus::GuidesOnlyCompatible:
+			return FLinearColor(0, 0.80f, 0, 1);
+		case EHairDescriptionStatus::NoCurve:
+		case EHairDescriptionStatus::GroomCacheIncompatible:
+		case EHairDescriptionStatus::GuidesOnlyIncompatible:
+			return FLinearColor(0.80f, 0, 0, 1);
+		case EHairDescriptionStatus::NoGroup:
+			return FLinearColor(1, 0, 0, 1);
+		case EHairDescriptionStatus::GroomCache:
+		case EHairDescriptionStatus::GuidesOnly:
+			return FLinearColor(0.80f, 0.80f, 0, 1);
+		case EHairDescriptionStatus::Unset:
+		case EHairDescriptionStatus::Unknown:
+		default:
+			return FLinearColor(1, 1, 1);
 	}
 }
 
@@ -70,29 +204,8 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 	GroomCacheDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	GroomCacheDetailsView->SetObject(GroomCacheImportOptions);
 
-	const EHairDescriptionStatus Status = GetStatus(GroupsPreview);
-
-	FText ValidationText;
-	FLinearColor ValidationColor(1,1,1);
-	if (Status == EHairDescriptionStatus::Valid)
-	{
-		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText0", "Valid");
-		ValidationColor = FLinearColor(0, 0.80f, 0, 1);
-	}
-	else if (Status == EHairDescriptionStatus::NoCurve)
-	{
-		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText1", "Invalid. Some groups have 0 curves.");
-		ValidationColor = FLinearColor(0.80f, 0, 0, 1);
-	}
-	else if (Status == EHairDescriptionStatus::NoGroup)
-	{
-		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText2", "Invalid. The groom does not contain any group.");
-		ValidationColor = FLinearColor(1, 0, 0, 1);
-	}
-	else
-	{
-		ValidationText = LOCTEXT("GroomOptionsWindow_ValidationText3", "Unknown");
-	}
+	CurrentStatus = EHairDescriptionStatus::Unset;
+	UpdateStatus(GroupsPreview);
 
 	const FSlateFontInfo AttributeFont = FAppStyle::GetFontStyle("CurveEd.InfoFont");
 	const FSlateFontInfo AttributeResultFont = FAppStyle::GetFontStyle("CurveEd.InfoFont");
@@ -171,8 +284,8 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Font(FAppStyle::GetFontStyle("CurveEd.InfoFont"))
-					.Text(ValidationText)
-					.ColorAndOpacity(ValidationColor)
+					.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SGroomImportOptionsWindow::GetStatusText)))
+					.ColorAndOpacity(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SGroomImportOptionsWindow::GetStatusColor)))
 				]
 			]
 		]
@@ -345,31 +458,38 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 	];
 }
 
-bool SGroomImportOptionsWindow::CanImport()  const
+bool SGroomImportOptionsWindow::CanImport() const
 {
-	if (GroupsPreview)
+	bool bNeedUpdate = CurrentStatus == EHairDescriptionStatus::Unset;
+	if (GroomCacheImportOptions)
 	{
-		for (const FGroomHairGroupPreview& Group : GroupsPreview->Groups)
-		{
-			if (Group.CurveCount == 0)
-				return false;
-		}
+		bNeedUpdate |= bImportGroomAssetState != GroomCacheImportOptions->ImportSettings.bImportGroomAsset;
+		bNeedUpdate |= bImportGroomCacheState != GroomCacheImportOptions->ImportSettings.bImportGroomCache;
+		bNeedUpdate |= GroomAsset != GroomCacheImportOptions->ImportSettings.GroomAsset;
+	}
 
-		if (GroupsPreview->Groups.Num() == 0)
-		{
+	if (bNeedUpdate)
+	{
+		UpdateStatus(GroupsPreview);
+	}
+
+	switch (CurrentStatus)
+	{
+		case EHairDescriptionStatus::Valid:
+		case EHairDescriptionStatus::GroomCacheCompatible:
+		case EHairDescriptionStatus::GuidesOnlyCompatible:
+			return true;
+		case EHairDescriptionStatus::Unset:
+		case EHairDescriptionStatus::NoGroup:
+		case EHairDescriptionStatus::NoCurve:
+		case EHairDescriptionStatus::GroomCache:
+		case EHairDescriptionStatus::GroomCacheIncompatible:
+		case EHairDescriptionStatus::GuidesOnly:
+		case EHairDescriptionStatus::GuidesOnlyIncompatible:
+		case EHairDescriptionStatus::Unknown:
+		default:
 			return false;
-		}
 	}
-
-	// For the GroomCache import, if we don't import the groom asset, a compatible replacement must be specified
-	// If neither the asset nor the cache is imported, then there's nothing to import
-	if (GroomCacheImportOptions && !GroomCacheImportOptions->ImportSettings.bImportGroomAsset &&
-		(!GroomCacheImportOptions->ImportSettings.GroomAsset.IsValid() || !GroomCacheImportOptions->ImportSettings.bImportGroomCache))
-	{
-		// TODO: Test for compatibility between cache and selected groom asset
-		return false;
-	}
-	return true;
 }
 
 enum class EGroomOptionsVisibility : uint8
