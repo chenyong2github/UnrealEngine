@@ -34,7 +34,7 @@ TSharedRef<IDetailCustomization> FCustomizableObjectNodeLayoutBlocksDetails::Mak
 
 void FCustomizableObjectNodeLayoutBlocksDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
 {
-	Node = 0;
+	Node = nullptr;
 	const IDetailsView* DetailsView = DetailBuilder.GetDetailsView();
 	if (DetailsView->GetSelectedObjects().Num())
 	{

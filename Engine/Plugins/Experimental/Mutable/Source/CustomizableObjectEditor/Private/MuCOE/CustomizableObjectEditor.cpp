@@ -301,19 +301,13 @@ void FCustomizableObjectEditor::InitCustomizableObjectEditor(const EToolkitMode:
 	DetailsViewArgs.bAllowSearch = false;
 	//DetailsViewArgs.bShowActorLabel = false;
 	DetailsViewArgs.bShowObjectLabel = false;
+	DetailsViewArgs.bShowScrollBar = false;
 
 	CustomizableObjectDetailsView = PropPlugin.CreateDetailView( DetailsViewArgs );
 	CustomizableObjectDetailsView->SetObject(CustomizableObject);
 
-	CustomizableInstanceDetailsView = PropPlugin.CreateDetailView( DetailsViewArgs );	
-
-	FDetailsViewArgs GraphDetailsViewArgs;
-	GraphDetailsViewArgs.NotifyHook = this;
-	GraphDetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
-	GraphDetailsViewArgs.bAllowSearch = false;
-	//GraphDetailsViewArgs.bShowActorLabel = false;
-	GraphDetailsViewArgs.bShowObjectLabel = false;
-	GraphNodeDetailsView = PropPlugin.CreateDetailView( GraphDetailsViewArgs );
+	CustomizableInstanceDetailsView = PropPlugin.CreateDetailView( DetailsViewArgs );
+	GraphNodeDetailsView = PropPlugin.CreateDetailView(DetailsViewArgs);
 
 	Viewport = SNew(SCustomizableObjectEditorViewportTabBody)
 		.CustomizableObjectEditor(SharedThis(this));
@@ -596,11 +590,18 @@ TSharedRef<SDockTab> FCustomizableObjectEditor::SpawnTab_ObjectProperties( const
 {
 	check( Args.GetTabId() == ObjectPropertiesTabId );
 
+	TSharedRef<SScrollBox> ScrollBox = SNew(SScrollBox)
+		+ SScrollBox::Slot()
+		[
+			CustomizableObjectDetailsView.ToSharedRef()
+		];
+
+	ScrollBox->SetScrollBarRightClickDragAllowed(true);
+
 	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.Label( FText::FromString( GetTabPrefix() + LOCTEXT( "CustomizableObjectProperties_TabTitle", "Object Properties" ).ToString() ) )
 		[
-			CustomizableObjectDetailsView.ToSharedRef()
-			//CustomizableObjectProperties.ToSharedRef()
+			ScrollBox
 		];
 
 	DockTab->SetTabIcon(FCustomizableObjectEditorStyle::Get().GetBrush("CustomizableObjectEditor.Tabs.CustomizableObjectProperties"));
@@ -613,10 +614,18 @@ TSharedRef<SDockTab> FCustomizableObjectEditor::SpawnTab_InstanceProperties( con
 {
 	check( Args.GetTabId() == InstancePropertiesTabId );
 
+	TSharedRef<SScrollBox> ScrollBox = SNew(SScrollBox)
+		+ SScrollBox::Slot()
+		[
+			CustomizableInstanceDetailsView.ToSharedRef()
+		];
+
+	ScrollBox->SetScrollBarRightClickDragAllowed(true);
+
 	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.Label( FText::FromString( GetTabPrefix() + LOCTEXT( "CustomizableInstanceProperties_TabTitle", "Preview Inst. Properties" ).ToString() ) )
 		[
-			CustomizableInstanceDetailsView.ToSharedRef()
+			ScrollBox
 		];
 
 	DockTab->SetTabIcon(FCustomizableObjectEditorStyle::Get().GetBrush("CustomizableObjectEditor.Tabs.CustomizableInstanceProperties"));
@@ -746,44 +755,19 @@ TSharedRef<SDockTab> FCustomizableObjectEditor::SpawnTab_GraphNodeProperties( co
 {
 	check( Args.GetTabId().TabType == GraphNodePropertiesTabId );
 
-	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar);
+	TSharedRef<SScrollBox> ScrollBox = SNew(SScrollBox)
+		+ SScrollBox::Slot()
+		[
+			GraphNodeDetailsView.ToSharedRef()
+		];
 
-	NodeDetailsSplitter = SNew( SSplitter )
-			.Orientation(Orient_Vertical)
-			+SSplitter::Slot()
-			.Value(0.5f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1)
-				[
-					SNew(SScrollBox)
-					.ExternalScrollbar(ScrollBar)
-					+ SScrollBox::Slot()
-					[
-						SNew(SVerticalBox)
-						+ SVerticalBox::Slot().AutoHeight()
-						[
-							GraphNodeDetailsView.ToSharedRef()
-						]
-					]
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SBox)
-					.WidthOverride(FOptionalSize(16))
-					[
-						ScrollBar
-					]
-				]
-			];
+	ScrollBox->SetScrollBarRightClickDragAllowed(true);
 
 	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.Label(FText::FromString(GetTabPrefix() + LOCTEXT("Graph Node Properties", "Node Properties").ToString()))
 		.TabColorScale(GetTabColorScale())
 		[
-			NodeDetailsSplitter.ToSharedRef()
+			ScrollBox
 		];
 
 	DockTab->SetTabIcon(FCustomizableObjectEditorStyle::Get().GetBrush("CustomizableObjectEditor.Tabs.NodeProperties"));
@@ -1692,78 +1676,6 @@ void FCustomizableObjectEditor::OnSelectedGraphNodesChanged(const FGraphPanelSel
 		SelectedMeshClipWithMeshNode = nullptr;
 		SelectedProjectorNode = nullptr;
 		SelectedProjectorParameterNode = nullptr;
-	}
-
-	// Special details. Usually widgets that you want to be able to scale
-	if ( NodeDetailsSplitter.IsValid() )
-	{
-		UObject* FirstNode = 0;		
-		if ( Objects.Num() )
-		{
-			FirstNode = Objects[0];
-		}
-
-		TSharedPtr<SWidget> ChildWidget;
-
-		// Set the size of the child widget to show properly the node widgets
-		FVector2D SplitWeights = { 0.15f,0.85f };
-		
-		if ( UCustomizableObjectNodeEditMaterial* CustomizableObjectNodeEditMaterial = Cast<UCustomizableObjectNodeEditMaterial>(FirstNode) )
-		{
-			if (!LayoutBlocksSelector.IsValid())
-			{
-				LayoutBlocksSelector = SNew(SCustomizableObjectNodeLayoutBlocksSelector)
-					.CustomizableObjectEditor(SharedThis(this));
-			}
-
-			LayoutBlocksSelector->SetSelectedNode(CustomizableObjectNodeEditMaterial);
-			SplitWeights = { 0.25f,0.75f };
-
-			ChildWidget = LayoutBlocksSelector;
-		}
-		else if (UCustomizableObjectNodeRemoveMeshBlocks* CustomizableObjectNodeRemoveMeshBlocks = Cast< UCustomizableObjectNodeRemoveMeshBlocks>(FirstNode))
-		{
-			if (!LayoutBlocksSelector.IsValid())
-			{
-				LayoutBlocksSelector = SNew(SCustomizableObjectNodeLayoutBlocksSelector)
-					.CustomizableObjectEditor(SharedThis(this));
-			}
-
-			LayoutBlocksSelector->SetSelectedNode(CustomizableObjectNodeRemoveMeshBlocks);
-			SplitWeights = { 0.25f,0.75f };
-
-			ChildWidget = LayoutBlocksSelector;
-		}
-
-		if ( ChildWidget.IsValid() )
-		{
-			if ( NodeDetailsSplitter->GetChildren()->Num()<=1 )
-			{
-				NodeDetailsSplitter->AddSlot();
-			}
-
-			NodeDetailsSplitter->SlotAt(0).SetSizeValue(SplitWeights.X);
-			NodeDetailsSplitter->SlotAt(1).SetSizeValue(SplitWeights.Y);
-
-			NodeDetailsSplitter->SlotAt(1)
-				[
-					SNew(SBorder)
-					.BorderImage( FAppStyle::GetBrush( TEXT("Graph.TitleBackground") ) )
-					.HAlign(HAlign_Fill)
-					[
-						ChildWidget.ToSharedRef()
-					]
-				];
-		}
-		else
-		{
-			NodeDetailsSplitter->SlotAt(0).SetSizeValue(0.5);
-
-			if ( NodeDetailsSplitter->GetChildren()->Num()>1 )
-			{
-				NodeDetailsSplitter->RemoveAt(1);
-			}
-		}
 	}
 
 	if (!ManagingProjector)

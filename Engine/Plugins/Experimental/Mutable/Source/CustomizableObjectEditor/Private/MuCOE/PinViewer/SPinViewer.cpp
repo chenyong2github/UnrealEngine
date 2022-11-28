@@ -150,7 +150,6 @@ void SPinViewer::Construct(const FArguments& InArgs)
 	Node->PostReconstructNodeDelegate.AddSP(this, &SPinViewer::UpdateWidget);
 	Node->NodeConnectionListChangedDelegate.AddSP(this, &SPinViewer::UpdateWidget);
 	Node->RemapPinsDelegate.AddSP(this, &SPinViewer::PinsRemapped);
-
 	GeneratePinInfoList();
 	
 	ChildSlot
@@ -192,36 +191,34 @@ void SPinViewer::Construct(const FArguments& InArgs)
 
 		+SVerticalBox::Slot()
 		[
-			SNew(SScrollBox)
-			+ SScrollBox::Slot()
-			[
-				SAssignNew(ListView, SListView<TSharedPtr<FEdGraphPinReference>>)
-				.ListItemsSource(&PinReferences)
-				.OnGenerateRow(this, &SPinViewer::GenerateNodePinRow)
-				.ItemHeight(22.0f)
-				.SelectionMode(ESelectionMode::Single)
-				.IsFocusable(true)
-				.HeaderRow
-				(
-					SNew(SHeaderRow)
-					+ SHeaderRow::Column(COLUMN_NAME)
-					.DefaultLabel(LOCTEXT("PinNameLabel", "Name"))
-					.OnSort(this, &SPinViewer::SortListView)
-					.FillWidth(0.5)
+			SAssignNew(ListView, SListView<TSharedPtr<FEdGraphPinReference>>)
+			.ListItemsSource(&PinReferences)
+			.OnGenerateRow(this, &SPinViewer::GenerateNodePinRow)
+			.ItemHeight(22.0f)
+			.SelectionMode(ESelectionMode::None)
+			.IsFocusable(false)
+			.HeaderRow
+			(
+				SNew(SHeaderRow)
+				+ SHeaderRow::Column(COLUMN_NAME)
+				.DefaultLabel(LOCTEXT("PinNameLabel", "Name"))
+				.OnSort(this, &SPinViewer::SortListView)
+				.FillWidth(0.5)
 
-					+ SHeaderRow::Column(COLUMN_TYPE)
-					.DefaultLabel(LOCTEXT("TypeLabel", "Type"))
-					.OnSort(this, &SPinViewer::SortListView)
-					.FillWidth(0.25)
+				+ SHeaderRow::Column(COLUMN_TYPE)
+				.DefaultLabel(LOCTEXT("TypeLabel", "Type"))
+				.OnSort(this, &SPinViewer::SortListView)
+				.FillWidth(0.25)
 
-					+ SHeaderRow::Column(COLUMN_VISIBILITY)
-					.DefaultLabel(LOCTEXT("VisibilityLabel", "Visibility"))
-					.OnSort(this, &SPinViewer::SortListView)
-					.FillWidth(0.25)
-				)
-			]
+				+ SHeaderRow::Column(COLUMN_VISIBILITY)
+				.DefaultLabel(LOCTEXT("VisibilityLabel", "Visibility"))
+				.OnSort(this, &SPinViewer::SortListView)
+				.FillWidth(0.25)
+			)
 		]
 	];
+
+	ListView->SetIsRightClickScrollingEnabled(false);
 }
 
 
@@ -288,12 +285,11 @@ void PinViewerAttachToDetailCustomization(IDetailLayoutBuilder& DetailBuilder)
 		UCustomizableObjectNode* Node = Cast<UCustomizableObjectNode>(SelectedObjects[0].Get());
 
 		IDetailCategoryBuilder& PinViewerCategoryBuilder = DetailBuilder.EditCategory("PinViewer", FText::GetEmpty(), ECategoryPriority::Uncommon);
-		PinViewerCategoryBuilder.AddCustomRow(LOCTEXT("PinViewerDetailsCategory", "PinViwer"))
+		PinViewerCategoryBuilder.AddCustomRow(LOCTEXT("PinViewerDetailsCategory", "PinViwer")).ShouldAutoExpand(true)
 		[
 			SNew(SPinViewer).Node(Node)
 		];
 	}
 }
-
 
 #undef LOCTEXT_NAMESPACE

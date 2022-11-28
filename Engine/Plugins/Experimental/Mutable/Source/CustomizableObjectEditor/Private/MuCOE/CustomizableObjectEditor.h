@@ -433,9 +433,6 @@ private:
 	TSharedPtr<SGraphEditor> GraphEditor;
 	TSharedPtr<class IDetailsView> GraphNodeDetailsView;
 
-	/** This splitter can be used to add more widgets outside the property editor of the currently selected node. */
-	TSharedPtr<class SSplitter> NodeDetailsSplitter;
-
 	/** This widget shows the layout blocks and they can be edited. It is kept alive for some problems re-registering toolbar commands.*/
 	TSharedPtr<class SCustomizableObjectNodeLayoutBlocksEditor> LayoutBlocksEditor;
 	TSharedPtr<class SCustomizableObjectNodeLayoutBlocksSelector> LayoutBlocksSelector;

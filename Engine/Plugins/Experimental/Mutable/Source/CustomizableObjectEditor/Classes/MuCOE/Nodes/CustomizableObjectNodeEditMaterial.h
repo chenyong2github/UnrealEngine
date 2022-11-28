@@ -11,6 +11,7 @@
 #include "Internationalization/Text.h"
 #include "Math/Color.h"
 #include "Misc/Guid.h"
+#include "MuCOE/CustomizableObjectEditor_Deprecated.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEditLayoutBlocks.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeUseMaterial.h"
@@ -23,7 +24,6 @@ class FCustomizableObjectNodeParentedMaterial;
 class UCustomizableObject;
 class UCustomizableObjectNodeRemapPins;
 class UObject;
-struct FCustomizableObjectNodeEditMaterialImage;
 
 
 /** Additional data for the Parent Texture Parameter to edit pin. */

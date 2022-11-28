@@ -90,7 +90,7 @@ private:
 	TSharedPtr<SWidget> StrategyWidget;
 
 	/** The list of UI Commands executable */
-	TSharedRef< FUICommandList> UICommandList;
+	TSharedRef<FUICommandList> UICommandList;
 
 private:
 

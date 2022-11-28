@@ -79,9 +79,13 @@ public:
 };
 
 
+SCustomizableObjectNodeLayoutBlocksSelector::SCustomizableObjectNodeLayoutBlocksSelector() : UICommandList(new FUICommandList())
+{
+}
+
+
 void SCustomizableObjectNodeLayoutBlocksSelector::Construct(const FArguments& InArgs)
 {
-	CustomizableObjectEditorPtr = InArgs._CustomizableObjectEditor;
 	CurrentNode = nullptr;
 	
 	BindCommands();
@@ -163,8 +167,7 @@ void SCustomizableObjectNodeLayoutBlocksSelector::AddReferencedObjects( FReferen
 
 TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksSelector::BuildLayoutToolBar()
 {
-	TSharedPtr<FUICommandList> CommandList = CustomizableObjectEditorPtr.Pin()->GetToolkitCommands();
-	FToolBarBuilder LayoutToolbarBuilder(CommandList, FMultiBoxCustomization::None);
+	FToolBarBuilder LayoutToolbarBuilder(UICommandList, FMultiBoxCustomization::None);
 
 	// Build toolbar widgets
 
@@ -311,8 +314,6 @@ void SCustomizableObjectNodeLayoutBlocksSelector::BindCommands()
 	FLayoutBlockSelectorCommands::Register();
 
 	const FLayoutBlockSelectorCommands& Commands = FLayoutBlockSelectorCommands::Get();
-
-	const TSharedRef<FUICommandList>& UICommandList = CustomizableObjectEditorPtr.Pin()->GetToolkitCommands();
 
 	UICommandList->MapAction(
 		Commands.SelectAll,

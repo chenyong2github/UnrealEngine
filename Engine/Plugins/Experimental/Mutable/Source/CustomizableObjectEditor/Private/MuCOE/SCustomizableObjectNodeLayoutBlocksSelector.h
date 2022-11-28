@@ -11,6 +11,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class FReferenceCollector;
+class FUICommandList;
 class ICustomizableObjectInstanceEditor;
 class SWidget;
 struct FCustomizableObjectLayoutBlock;
@@ -24,11 +25,12 @@ class SCustomizableObjectNodeLayoutBlocksSelector : public SCompoundWidget, publ
 {
 public:
 	SLATE_BEGIN_ARGS( SCustomizableObjectNodeLayoutBlocksSelector ){}
-		SLATE_ARGUMENT(TWeakPtr<ICustomizableObjectInstanceEditor>, CustomizableObjectEditor)
 	SLATE_END_ARGS()
 
+	SCustomizableObjectNodeLayoutBlocksSelector();
+	virtual ~SCustomizableObjectNodeLayoutBlocksSelector();
+
 	void Construct(const FArguments& InArgs);
-	~SCustomizableObjectNodeLayoutBlocksSelector();
 	
 	// FSerializableObject interface
 	void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -47,9 +49,6 @@ public:
 
 private:
 
-	/** Pointer back to the editor tool that owns us */
-	TWeakPtr<ICustomizableObjectInstanceEditor> CustomizableObjectEditorPtr;
-
 	// 
 	class UCustomizableObjectNodeEditLayoutBlocks* CurrentNode = nullptr;
 
@@ -58,6 +57,9 @@ private:
 	
 	/** */
 	TSharedPtr<class STextBlock> BlocksLabel;
+
+	/** The list of UI Commands executable */
+	TSharedRef<FUICommandList> UICommandList;
 
 	/** */
 	FIntPoint GetGridSize() const;

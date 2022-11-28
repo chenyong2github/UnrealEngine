@@ -131,7 +131,6 @@ void FCustomizableObjectDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 			//SNew( SFilterableDetail, LOCTEXT( "States", "States" ), &StatesCategory )
 			//[
 				SAssignNew(StatesTree, STreeView<TSharedPtr< FStateDetailsNode > >)
-					//.Visibility(EVisibility::Collapsed)
 					.SelectionMode(ESelectionMode::Single)
 					.TreeItemsSource( &RootTreeItems )
 					// Called to child items for any given parent item
@@ -174,6 +173,8 @@ void FCustomizableObjectDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 //			]
 //		]
 	];
+
+	StatesTree->SetIsRightClickScrollingEnabled(false);
 
 	if ( CustomObject &&  CustomObject->GetModel() )
 	{
