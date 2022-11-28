@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using EpicGames.Core;
+using EpicGames.Compression;
 using Force.Crc32;
-using Jupiter.Utils;
 using K4os.Compression.LZ4;
 using OpenTelemetry.Trace;
 
@@ -15,12 +15,10 @@ namespace Jupiter.Implementation
 {
     public class CompressedBufferUtils
     {
-        private readonly OodleCompressor _oodleCompressor;
         private readonly Tracer _tracer;
 
-        public CompressedBufferUtils(OodleCompressor oodleCompressor, Tracer tracer)
+        public CompressedBufferUtils(Tracer tracer)
         {
-            _oodleCompressor = oodleCompressor;
             _tracer = tracer;
         }
 
@@ -32,7 +30,7 @@ namespace Jupiter.Implementation
                 // Header is followed by one uncompressed block. 
                 None = 0,
                 // Header is followed by an array of compressed block sizes then the compressed blocks. 
-                Oodle=3,
+                Oodle = 3,
                 LZ4 = 4,
             }
 
@@ -92,7 +90,7 @@ namespace Jupiter.Implementation
             {
                 Magic = reader.ReadUInt32(),
                 Crc32 = reader.ReadUInt32(),
-                Method = (Header.CompressionMethod) reader.ReadByte(),
+                Method = (Header.CompressionMethod)reader.ReadByte(),
                 CompressionLevel = reader.ReadByte(),
                 CompressionMethodUsed = reader.ReadByte(),
                 BlockSizeExponent = reader.ReadByte(),
@@ -124,7 +122,7 @@ namespace Jupiter.Implementation
             // none compressed objects have no extra blocks
             uint blocksByteUsed = header.Method != Header.CompressionMethod.None ? header.BlockCount * (uint)sizeof(uint) : 0;
             uint calculatedCrc = Crc32Algorithm.Compute(content, MethodOffset, (int)(Header.HeaderLength - MethodOffset + blocksByteUsed));
-            
+
             if (header.Crc32 != calculatedCrc)
             {
                 throw new InvalidHashException(header.Crc32, calculatedCrc);
@@ -222,7 +220,7 @@ namespace Jupiter.Implementation
                 DecompressPayload(memory, header, header.TotalRawSize, targetSpan);
                 decompressedPayloadOffset = header.TotalRawSize;
             }
-           
+
             if (header.TotalRawSize != decompressedPayloadOffset)
             {
                 throw new Exception("Did not decompress the full payload");
@@ -237,7 +235,7 @@ namespace Jupiter.Implementation
 
                 BlobIdentifier headerIdentifier = new BlobIdentifier(slicedHash);
                 BlobIdentifier contentHash = BlobIdentifier.FromBlob(decompressedPayload);
-               
+
                 if (!headerIdentifier.Equals(contentHash))
                 {
                     throw new Exception($"Payload was expected to be {headerIdentifier} but was {contentHash}");
@@ -247,28 +245,29 @@ namespace Jupiter.Implementation
             return decompressedPayload;
         }
 
-        private int DecompressPayload(ReadOnlySpan<byte> compressedPayload, Header header, ulong rawBlockSize, Span<byte> target)
+        private static int DecompressPayload(ReadOnlySpan<byte> compressedPayload, Header header, ulong rawBlockSize, Span<byte> target)
         {
-             switch (header.Method)
+            switch (header.Method)
             {
                 case Header.CompressionMethod.None:
                     compressedPayload.CopyTo(target);
                     return compressedPayload.Length;
                 case Header.CompressionMethod.Oodle:
-                {
-                    long writtenBytes = _oodleCompressor.Decompress(compressedPayload.ToArray(), (long)rawBlockSize, out byte[] result);
-                    if (writtenBytes == 0)
                     {
-                        throw new Exception("Failed to run oodle decompress");
+                        byte[] result = new byte[rawBlockSize];
+                        long writtenBytes = Oodle.Decompress(compressedPayload, result);
+                        if (writtenBytes == 0)
+                        {
+                            throw new Exception("Failed to run oodle decompress");
+                        }
+                        result.CopyTo(target);
+                        return (int)writtenBytes;
                     }
-                    result.CopyTo(target);
-                    return (int)writtenBytes;
-                }
                 case Header.CompressionMethod.LZ4:
-                {
-                    int writtenBytes = LZ4Codec.Decode(compressedPayload, target);
-                    return writtenBytes;
-                }
+                    {
+                        int writtenBytes = LZ4Codec.Decode(compressedPayload, target);
+                        return writtenBytes;
+                    }
                 default:
                     throw new NotImplementedException($"Method {header.Method} is not a support value");
             }
@@ -276,8 +275,8 @@ namespace Jupiter.Implementation
 
         public byte[] CompressContent(OoodleCompressorMethod method, OoodleCompressionLevel compressionLevel, byte[] rawContents)
         {
-            OodleLZ_Compressor oodleMethod = OodleUtils.ToOodleApiCompressor(method);
-            OodleLZ_CompressionLevel oodleLevel = OodleUtils.ToOodleApiCompressionLevel(compressionLevel);
+            OodleCompressorType oodleMethod = OodleUtils.ToOodleApiCompressor(method);
+            OodleCompressionLevel oodleLevel = OodleUtils.ToOodleApiCompressionLevel(compressionLevel);
 
             const long DefaultBlockSize = 256 * 1024;
             long blockSize = DefaultBlockSize;
@@ -293,7 +292,9 @@ namespace Jupiter.Implementation
                 int rawBlockSize = Math.Min(rawContents.Length - (i * (int)blockSize), (int)blockSize);
                 Span<byte> bufferToCompress = contentsSpan.Slice((int)(i * blockSize), rawBlockSize);
 
-                long encodedSize = _oodleCompressor.Compress(oodleMethod, bufferToCompress.ToArray(), oodleLevel, out byte[] compressedBlock);
+                int maxSize = Oodle.MaximumOutputSize(oodleMethod, bufferToCompress.Length);
+                byte[] compressedBlock = new byte[maxSize];
+                long encodedSize = Oodle.Compress(oodleMethod, bufferToCompress.ToArray(), compressedBlock, oodleLevel);
 
                 if (encodedSize == 0)
                 {
@@ -366,7 +367,7 @@ namespace Jupiter.Implementation
     {
         public InvalidHashException(uint headerCrc32, uint calculatedCrc) : base($"Header specified crc \"{headerCrc32}\" but calculated hash was \"{calculatedCrc}\"")
         {
-            
+
         }
     }
 
@@ -379,13 +380,13 @@ namespace Jupiter.Implementation
 
     // from OodleDataCompression.h , we define our own enums for oodle compressions used and convert to the ones expected in the oodle api
 #pragma warning disable CA1028 // Enum Storage should be Int32
-    public enum OoodleCompressorMethod: byte
+    public enum OoodleCompressorMethod : byte
 
     {
         NotSet = 0,
         Selkie = 1,
         Mermaid = 2,
-        Kraken  = 3,
+        Kraken = 3,
         Leviathan = 4
     }
 
@@ -408,55 +409,55 @@ namespace Jupiter.Implementation
 #pragma warning restore CA1028 // Enum Storage should be Int32
     public static class OodleUtils
     {
-        public static OodleLZ_CompressionLevel ToOodleApiCompressionLevel(OoodleCompressionLevel compressionLevel)
+        public static OodleCompressionLevel ToOodleApiCompressionLevel(OoodleCompressionLevel compressionLevel)
         {
             switch (compressionLevel)
             {
                 case OoodleCompressionLevel.HyperFast4:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_HyperFast4;
+                    return OodleCompressionLevel.HyperFast4;
                 case OoodleCompressionLevel.HyperFast3:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_HyperFast3;
+                    return OodleCompressionLevel.HyperFast3;
                 case OoodleCompressionLevel.HyperFast2:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_HyperFast2;
+                    return OodleCompressionLevel.HyperFast2;
                 case OoodleCompressionLevel.HyperFast1:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_HyperFast1;
+                    return OodleCompressionLevel.HyperFast1;
                 case OoodleCompressionLevel.None:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_None;
+                    return OodleCompressionLevel.None;
                 case OoodleCompressionLevel.SuperFast:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_SuperFast;
+                    return OodleCompressionLevel.SuperFast;
                 case OoodleCompressionLevel.VeryFast:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_VeryFast;
+                    return OodleCompressionLevel.VeryFast;
                 case OoodleCompressionLevel.Fast:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_Fast;
+                    return OodleCompressionLevel.Fast;
                 case OoodleCompressionLevel.Normal:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_Normal;
+                    return OodleCompressionLevel.Normal;
                 case OoodleCompressionLevel.Optimal1:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_Optimal1;
+                    return OodleCompressionLevel.Optimal1;
                 case OoodleCompressionLevel.Optimal2:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_Optimal2;
+                    return OodleCompressionLevel.Optimal2;
                 case OoodleCompressionLevel.Optimal3:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_Optimal3;
+                    return OodleCompressionLevel.Optimal3;
                 case OoodleCompressionLevel.Optimal4:
-                    return OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_Optimal4;
+                    return OodleCompressionLevel.Optimal4;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(compressionLevel), compressionLevel, null);
             }
         }
 
-        public static OodleLZ_Compressor ToOodleApiCompressor(OoodleCompressorMethod compressor)
+        public static OodleCompressorType ToOodleApiCompressor(OoodleCompressorMethod compressor)
         {
             switch (compressor)
             {
                 case OoodleCompressorMethod.NotSet:
-                    return OodleLZ_Compressor.OodleLZ_Compressor_None;
+                    return OodleCompressorType.None;
                 case OoodleCompressorMethod.Selkie:
-                    return OodleLZ_Compressor.OodleLZ_Compressor_Selkie;
+                    return OodleCompressorType.Selkie;
                 case OoodleCompressorMethod.Mermaid:
-                    return OodleLZ_Compressor.OodleLZ_Compressor_Mermaid;
+                    return OodleCompressorType.Mermaid;
                 case OoodleCompressorMethod.Kraken:
-                    return OodleLZ_Compressor.OodleLZ_Compressor_Kraken;
+                    return OodleCompressorType.Kraken;
                 case OoodleCompressorMethod.Leviathan:
-                    return OodleLZ_Compressor.OodleLZ_Compressor_Leviathan;
+                    return OodleCompressorType.Leviathan;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(compressor), compressor, null);
             }

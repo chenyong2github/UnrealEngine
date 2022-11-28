@@ -61,13 +61,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Shared\Oodle\2.9.3\linux\lib\liboo2corelinux64.so.9" Link="liboo2corelinux64.so.9" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Shared\Oodle\2.9.3\linux\lib\liboo2corelinux.so.9" Link="liboo2corelinux.so.9" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Shared\Oodle\2.9.3\win\redist\oo2core_9_win64.dll" Link="oo2core_9_win64.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Shared\Oodle\2.9.3\win\redist\oo2core_9_win32.dll" Link="oo2core_9_win32.dll" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\Shared\EpicGames.Horde\EpicGames.Horde.csproj" />
     <ProjectReference Include="..\..\Shared\EpicGames.AspNet\EpicGames.AspNet.csproj" />
   </ItemGroup>

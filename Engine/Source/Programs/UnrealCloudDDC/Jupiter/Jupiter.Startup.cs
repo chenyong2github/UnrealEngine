@@ -106,7 +106,6 @@ namespace Jupiter
             services.AddOptions<KubernetesLeaderElectionSettings>().Configure(o => Configuration.GetSection("Kubernetes").Bind(o)).ValidateDataAnnotations();
             services.AddOptions<StaticPeerServiceDiscoverySettings>().Configure(o => Configuration.GetSection("ServiceDiscovery").Bind(o)).ValidateDataAnnotations();
 
-            services.AddSingleton(typeof(OodleCompressor), CreateOodleCompressor);
             services.AddSingleton(typeof(CompressedBufferUtils), CreateCompressedBufferUtils);
 
             services.AddSingleton<AWSCredentials>(provider =>
@@ -245,13 +244,6 @@ namespace Jupiter
         private CompressedBufferUtils CreateCompressedBufferUtils(IServiceProvider provider)
         {
             return ActivatorUtilities.CreateInstance<CompressedBufferUtils>(provider);
-        }
-
-        private object CreateOodleCompressor(IServiceProvider provider)
-        {
-            OodleCompressor compressor = new OodleCompressor();
-            compressor.InitializeOodle();
-            return compressor;
         }
 
         private object ContentIdStoreFactory(IServiceProvider provider)
