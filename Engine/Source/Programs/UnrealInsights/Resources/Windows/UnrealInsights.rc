@@ -7,7 +7,7 @@
 //
 #include <windows.h>
 #include "Runtime/Launch/Resources/Version.h"
-#include "Runtime/Launch/Resources/Windows/resource.h"
+#include "Runtime/Launch/Resources/Windows/PCLaunch.rc"
 #include "Developer/TraceInsights/Public/Insights/Version.h"
 
 #define VER_FILEVERSION         UNREAL_INSIGHTS_VERSION_MAJOR,UNREAL_INSIGHTS_VERSION_MINOR,UNREAL_INSIGHTS_VERSION_PATCH,0
