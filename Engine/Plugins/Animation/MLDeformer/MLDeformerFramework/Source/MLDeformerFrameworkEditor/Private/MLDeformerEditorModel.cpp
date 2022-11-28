@@ -15,6 +15,7 @@
 #include "MLDeformerSampler.h"
 #include "MLDeformerModelInstance.h"
 #include "AnimationEditorPreviewActor.h"
+#include "AnimationEditorViewportClient.h"
 #include "AnimPreviewInstance.h"
 #include "Animation/MeshDeformer.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -236,11 +237,10 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorModel::ClearWorld()
 	{
-		TSharedRef<IPersonaPreviewScene> PreviewScene = Editor->GetPersonaToolkit()->GetPreviewScene();
-
 		// First remove actors from the world and add them to the destroy list.
 		TArray<AActor*> ActorsToDestroy;
 		ActorsToDestroy.Reserve(EditorActors.Num());
+		TSharedRef<IPersonaPreviewScene> PreviewScene = Editor->GetPersonaToolkit()->GetPreviewScene();
 		UWorld* World = PreviewScene->GetWorld();
 		for (FMLDeformerEditorActor* EditorActor : EditorActors)
 		{
@@ -254,15 +254,27 @@ namespace UE::MLDeformer
 		// Now delete the editor actors, which removes components.
 		DeleteEditorActors();
 
-		PreviewScene->DeselectAll();
-		PreviewScene->SetPreviewAnimationAsset(nullptr);
-		PreviewScene->SetPreviewMeshComponent(nullptr);
-		PreviewScene->SetActor(nullptr);
-
 		for (AActor* Actor : ActorsToDestroy)
 		{
 			Actor->Destroy();
 		}
+	}
+
+	void FMLDeformerEditorModel::ClearPersonaPreviewScene()
+	{
+		TSharedRef<IPersonaPreviewScene> PreviewScene = Editor->GetPersonaToolkit()->GetPreviewScene();
+		UWorld* World = PreviewScene->GetWorld();
+
+		PreviewScene->DeselectAll();
+		PreviewScene->SetPreviewAnimationAsset(nullptr);
+		PreviewScene->SetPreviewMeshComponent(nullptr);
+		PreviewScene->SetActor(nullptr);
+	}
+
+	void FMLDeformerEditorModel::ClearWorldAndPersonaPreviewScene()
+	{
+		ClearWorld();
+		ClearPersonaPreviewScene();
 	}
 
 	FMLDeformerEditorActor* FMLDeformerEditorModel::CreateEditorActor(const FMLDeformerEditorActor::FConstructSettings& Settings) const
@@ -1659,7 +1671,7 @@ namespace UE::MLDeformer
 		}
 	}
 
-	void FMLDeformerEditorModel::CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix, int32 LOD, float DeltaThreshold, bool bIncludeNormals)
+	void FMLDeformerEditorModel::CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix, int32 LOD, float DeltaThreshold, bool bIncludeNormals, EMLDeformerMaskChannel MaskChannel, bool bInvertMaskChannel)
 	{
 		OutMorphTargets.Reset();
 		if (Deltas.IsEmpty())
@@ -1686,6 +1698,8 @@ namespace UE::MLDeformer
 		const TArrayView<const FVector3f> BaseVertexPositions = Sampler->GetUnskinnedVertexPositions();
 		TArray<FVector3f> BaseNormals;
 		CalcMeshNormals(BaseVertexPositions, IndexArray, VertexMap, BaseNormals);
+
+		const FColorVertexBuffer& ColorBuffer = RenderData->LODRenderData[LOD].StaticVertexBuffers.ColorVertexBuffer;
 
 		// Initialize an engine morph target for each model morph target.
 		UE_LOG(LogMLDeformer, Display, TEXT("Initializing %d engine morph targets of %d vertices each"), NumMorphTargets, Deltas.Num() / NumMorphTargets);
@@ -1725,20 +1739,40 @@ namespace UE::MLDeformer
 				const int32 ImportedVertexNumber = VertexMap[VertexIndex];
 				if (ImportedVertexNumber != INDEX_NONE)
 				{
+					float VertexWeight = 1.0f;
+					if (ColorBuffer.GetNumVertices() != 0 && MaskChannel != EMLDeformerMaskChannel::Disabled)
+					{
+						const FLinearColor& VertexColor = ColorBuffer.VertexColor(VertexIndex);
+						switch (MaskChannel)
+						{
+							case EMLDeformerMaskChannel::VertexColorRed:	{ VertexWeight = VertexColor.R; break; }
+							case EMLDeformerMaskChannel::VertexColorGreen:	{ VertexWeight = VertexColor.G; break; }
+							case EMLDeformerMaskChannel::VertexColorBlue:	{ VertexWeight = VertexColor.B; break; }
+							case EMLDeformerMaskChannel::VertexColorAlpha:	{ VertexWeight = VertexColor.A; break; }
+							default: 
+								checkf(false, TEXT("Unexpected weight mask value."));
+								break;
+						};
+
+						if (bInvertMaskChannel)
+						{
+							VertexWeight = FMath::Clamp<float>(1.0f - VertexWeight, 0.0f, 1.0f);
+						}
+					}
+
 					const FVector3f Delta = Deltas[ImportedVertexNumber + MorphTargetIndex * NumBaseMeshVerts];
-					if (Delta.Length() > DeltaThreshold)
+					if (Delta.Length() * VertexWeight > DeltaThreshold)
 					{
 						MorphLODModel.Vertices.AddDefaulted();
 						FMorphTargetDelta& MorphTargetDelta = MorphLODModel.Vertices.Last();
-						MorphTargetDelta.PositionDelta = Delta;
+						MorphTargetDelta.PositionDelta = Delta * VertexWeight;
 						MorphTargetDelta.SourceIdx = VertexIndex;
-						MorphTargetDelta.TangentZDelta = bIncludeNormals ? DeltaNormals[ImportedVertexNumber] : FVector3f::ZeroVector;
+						MorphTargetDelta.TangentZDelta = bIncludeNormals ? DeltaNormals[ImportedVertexNumber] * VertexWeight : FVector3f::ZeroVector;
 					}
 				}
 			}
 
 			MorphLODModel.Vertices.Shrink();
-			UE_LOG(LogMLDeformer, Display, TEXT("Morph #%d: %d deltas"), MorphTargetIndex, MorphLODModel.Vertices.Num());
 		}
 	}
 

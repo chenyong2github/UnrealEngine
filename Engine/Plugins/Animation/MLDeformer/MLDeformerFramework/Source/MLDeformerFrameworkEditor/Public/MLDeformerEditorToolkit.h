@@ -21,6 +21,7 @@ class SSimpleTimeSlider;
 namespace UE::MLDeformer
 {
 	class SMLDeformerTimeline;
+	class FMLDeformerApplicationMode;
 
 	namespace MLDeformerEditorModes
 	{
@@ -88,10 +89,14 @@ namespace UE::MLDeformer
 		TWeakPtr<FMLDeformerEditorModel> GetActiveModelPointer(){ return TWeakPtr<FMLDeformerEditorModel>(ActiveModel); }
 		const FMLDeformerEditorModel* GetActiveModel() const { return ActiveModel.Get(); }
 
+		FMLDeformerApplicationMode* GetApplicationMode() const { return ApplicationMode; }
+
 		double CalcTimelinePosition() const;
 		void OnTimeSliderScrubPositionChanged(double NewScrubTime, bool bIsScrubbing);
 		void UpdateTimeSliderRange();
 		void SetTimeSliderRange(double StartTime, double EndTime);
+
+		TSharedPtr<IPersonaViewport> GetViewport() const { return PersonaViewport; }
 
 	private:
 		/* Toolbar related. */
@@ -141,6 +146,8 @@ namespace UE::MLDeformer
 
 		/** The ML Deformer Asset. */
 		TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
+
+		FMLDeformerApplicationMode* ApplicationMode = nullptr;
 
 		/** Has the asset editor been initialized? */
 		bool bIsInitialized = false;

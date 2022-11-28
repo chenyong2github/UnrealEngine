@@ -29,20 +29,24 @@ public:
 	void BeginDestroy() override;
 	// ~END UObject overrides.
 
-#if WITH_EDITORONLY_DATA
 	float GetMorphTargetDeltaThreshold() const				{ return MorphTargetDeltaThreshold; }
 	float GetMorphTargetErrorTolerance() const				{ return MorphTargetErrorTolerance; }
 	bool GetIncludeMorphTargetNormals() const				{ return bIncludeNormals; }
+	EMLDeformerMaskChannel GetMaskChannel() const			{ return MaskChannel; }
+	bool GetInvertMaskChannel() const						{ return bInvertMaskChannel; }
 
 	void SetMorphTargetDeltaThreshold(float Threshold)		{ MorphTargetDeltaThreshold = Threshold; }
 	void SetMorphTargetErrorTolerance(float Tolerance)		{ MorphTargetErrorTolerance = Tolerance; }
 	void SetIncludeMorphTargetNormals(bool bInclude)		{ bIncludeNormals = bInclude; }
+	void SetWeightMask(EMLDeformerMaskChannel Channel)		{ MaskChannel = Channel; }
+	void SetInvertMaskChannel(bool bInvert)					{ bInvertMaskChannel = bInvert; }
 
 	// Get property names.
 	static FName GetMorphTargetDeltaThresholdPropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, MorphTargetDeltaThreshold); }
 	static FName GetMorphTargetErrorTolerancePropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, MorphTargetErrorTolerance); }
 	static FName GetIncludeMorphTargetNormalsPropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, bIncludeNormals); }
-#endif
+	static FName GetMaskChannelPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, MaskChannel); }
+	static FName GetInvertMaskChannelPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, bInvertMaskChannel); }
 
 	/**
 	 * Set the per vertex deltas, as a set of floats. Each vertex delta must have 3 floats.
@@ -97,7 +101,6 @@ private:
 	 */
 	TArray<FVector3f> MorphTargetDeltas;
 
-#if WITH_EDITORONLY_DATA
 	/**
 	 * Include vertex normals in the morph targets?
 	 * The advantage of this can be that it is higher performance than recomputing the normals.
@@ -117,5 +120,19 @@ private:
 	/** The morph target error tolerance. Higher values result in larger compression, but could result in visual artifacts. */
 	UPROPERTY(EditAnywhere, Category = "Morph Targets", meta = (ClampMin = "0.01", ClampMax = "500"))
 	float MorphTargetErrorTolerance = 20.0f;
-#endif // WITH_EDITORONLY_DATA
+
+	/**
+	 * The channel data that represents the delta mask multipliers.
+	 * You can use this feather out influence of the ML Deformer in specific areas, such as neck line seams, where the head mesh connects with the body.
+	 * The painted vertex color values will be like a weight multiplier on the ML deformer deltas applied to that vertex. You can invert the mask as well.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Morph Targets")
+	EMLDeformerMaskChannel MaskChannel = EMLDeformerMaskChannel::Disabled;
+
+	/** 
+	 * Enable this if you want to invert the mask channel values. For example if you painted the neck seam vertices in red, and you wish the vertices that got painted to NOT move, you have to invert the mask.
+	 * On default you paint areas where the deformer should be active. If you enable the invert option, you paint areas where the deformer will not be active.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Morph Targets", meta = (EditCondition = "MaskChannel != EMLDeformerMaskChannel::Disabled"))
+	bool bInvertMaskChannel = false;
 };

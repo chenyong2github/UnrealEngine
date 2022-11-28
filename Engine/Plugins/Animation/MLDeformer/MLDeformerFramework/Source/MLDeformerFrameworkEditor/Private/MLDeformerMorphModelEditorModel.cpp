@@ -14,6 +14,7 @@
 #include "Animation/MorphTarget.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "Engine/SkeletalMesh.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerMorphModelEditorModel"
@@ -103,11 +104,15 @@ namespace UE::MLDeformer
 	{
 		const int32 LOD = 0;
 
-		// Turn the delta buffer in a set of engine morph targets.
+		// Get the weight mask setting.
 		UMLDeformerMorphModel* MorphModel = GetMorphModel();
+		const EMLDeformerMaskChannel MaskChannel = MorphModel->GetMaskChannel();
+		const bool bInvertMaskChannel = MorphModel->GetInvertMaskChannel();
+
+		// Turn the delta buffer in a set of engine morph targets.
 		TArray<UMorphTarget*> MorphTargets;	// These will be garbage collected.
 		const bool bIncludeNormals = MorphModel->GetIncludeMorphTargetNormals();
-		CreateEngineMorphTargets(MorphTargets, Deltas, TEXT("MLDeformerMorph_"), LOD, MorphModel->GetMorphTargetDeltaThreshold(), bIncludeNormals);
+		CreateEngineMorphTargets(MorphTargets, Deltas, TEXT("MLDeformerMorph_"), LOD, MorphModel->GetMorphTargetDeltaThreshold(), bIncludeNormals, MaskChannel, bInvertMaskChannel);
 
 		// Now compress the morph targets to GPU friendly buffers.
 		check(MorphModel->GetMorphTargetSet().IsValid());

@@ -11,6 +11,7 @@
 #include "Misc/FrameTime.h"
 #include "MLDeformerVizSettings.h"
 #include "MLDeformerModule.h"
+#include "MLDeformerModel.h"
 
 class UMLDeformerModel;
 class UMLDeformerInputInfo;
@@ -151,9 +152,19 @@ namespace UE::MLDeformer
 
 		/**
 		 * Clears the world, which basically means it removes all the editor actors and engine actors from the editor world.
-		 * It also resets the Persona preview scene.
 		 */
 		virtual void ClearWorld();
+
+		/**
+		 * Clears the Persona preview scene. Resetting the preview mesh, preview mesh component etc.
+		 */
+		virtual void ClearPersonaPreviewScene();
+
+		/**
+		 * Clear both the world and preview scene.
+		 * This calls ClearWorld and ClearPersonaPreviewScene.
+		 */
+		virtual void ClearWorldAndPersonaPreviewScene();
 
 		/**
 		 * Create an actor in the editor viewport.
@@ -796,8 +807,18 @@ namespace UE::MLDeformer
 		 * @param DeltaThreshold Only include deltas with a length larger than this threshold in the morph targets.
 		 * @param bIncludeNormals Include normals inside the morph targets? This can be an alternative to recalculating normals at the end, although setting this to true and not 
 		 *        recomputing normals can lead to lower quality results, in trade for faster performance.
+		 * @param MaskChannel The weight mask mode, which specifies what channel to get the weight data from. Such channel allows the user to define what areas the deformer should for example not be active in.
+		 * @param bInvertMaskChannel Specifies whether the weight mask should be inverted or not.
 		 */
-		void CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix = TEXT("MorphTarget_"), int32 LOD = 0, float DeltaThreshold = 0.01f, bool bIncludeNormals=false);
+		void CreateEngineMorphTargets(
+			TArray<UMorphTarget*>& OutMorphTargets,
+			const TArray<FVector3f>& Deltas,
+			const FString& NamePrefix = TEXT("MorphTarget_"),
+			int32 LOD = 0,
+			float DeltaThreshold = 0.01f,
+			bool bIncludeNormals=false,
+			const EMLDeformerMaskChannel MaskChannel = EMLDeformerMaskChannel::Disabled,
+			bool bInvertMaskChannel = false);
 
 		/** 
 		 * Compress morph targets into GPU based morph buffers.

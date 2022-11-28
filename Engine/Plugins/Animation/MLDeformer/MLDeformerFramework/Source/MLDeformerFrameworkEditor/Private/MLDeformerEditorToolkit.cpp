@@ -13,6 +13,7 @@
 #include "MLDeformerEditorStyle.h"
 #include "MLDeformerVizSettings.h"
 #include "MLDeformerSampler.h"
+#include "AnimationEditorViewportClient.h"
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
 #include "Modules/ModuleManager.h"
@@ -86,7 +87,7 @@ namespace UE::MLDeformer
 			DeformerAsset);
 
 		// Create and set the application mode.
-		FMLDeformerApplicationMode* ApplicationMode = new FMLDeformerApplicationMode(SharedThis(this), PersonaToolkit->GetPreviewScene());
+		ApplicationMode = new FMLDeformerApplicationMode(SharedThis(this), PersonaToolkit->GetPreviewScene());
 		AddApplicationMode(MLDeformerEditorModes::Editor, MakeShareable(ApplicationMode));
 		SetCurrentMode(MLDeformerEditorModes::Editor);
 
@@ -261,7 +262,7 @@ namespace UE::MLDeformer
 		// Remove existing actors etc.
 		if (ActiveModel)
 		{
-			ActiveModel->ClearWorld();
+			ActiveModel->ClearWorldAndPersonaPreviewScene();
 		}
 
 		// Get the runtime model type based on the index, and create an instance of it.
@@ -606,7 +607,7 @@ namespace UE::MLDeformer
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("AssetName"), FText::FromString(DeformerAsset->GetName()));
-		return FText::Format(LOCTEXT("DemoEditorToolkitName", "{AssetName}"), Args);
+		return FText::Format(LOCTEXT("MLDeformerEditorToolkitName", "{AssetName}"), Args);
 	}
 
 	FLinearColor FMLDeformerEditorToolkit::GetWorldCentricTabColorScale() const
@@ -828,7 +829,6 @@ namespace UE::MLDeformer
 			ActiveModel->SetViewRange(ViewRange);
 
 		}
-
 	}
 }	// namespace UE::MLDeformer
 

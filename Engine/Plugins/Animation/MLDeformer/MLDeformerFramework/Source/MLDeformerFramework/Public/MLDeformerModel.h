@@ -21,6 +21,26 @@ class UMLDeformerModelInstance;
 class UMLDeformerComponent;
 class UMLDeformerInputInfo;
 
+UENUM()
+enum class EMLDeformerMaskChannel : uint8
+{
+	/** Disable the weight mask. */
+	Disabled,
+
+	/** The red vertex color channel. */
+	VertexColorRed,
+
+	/** The green vertex color channel. */
+	VertexColorGreen,
+
+	/** The blue vertex color channel. */
+	VertexColorBlue,
+
+	/** The alpha vertex color channel. */
+	VertexColorAlpha
+};
+
+
 namespace UE::MLDeformer
 {
 	/**

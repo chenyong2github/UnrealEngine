@@ -8,6 +8,13 @@ namespace UnrealBuildTool.Rules
 	{
 		public MLDeformerFrameworkEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PrivateIncludePaths.AddRange(
+				new string[] 
+				{
+					System.IO.Path.Combine(GetModuleDirectory("Persona"), "Private"),
+				}
+			);
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
