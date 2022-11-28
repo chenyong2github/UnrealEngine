@@ -3,6 +3,8 @@
 #include "Engine/StreamableManager.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/ObjectRedirector.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
 #include "Misc/PackageName.h"
 #include "UObject/UObjectThreadContext.h"
 #include "HAL/IConsoleManager.h"
