@@ -157,6 +157,12 @@ namespace UnrealBuildTool
 		public bool bWarnOnCppUnrealHeaderTool = false;
 
 		/// <summary>
+		/// If true, force C++ version UHT to run as just a warning
+		/// </summary>
+		[CommandLine("-UseCppUHT")]
+		public bool bUseCppUHT = false;
+
+		/// <summary>
 		/// Whether to skip compiling rules assemblies and just assume they are valid
 		/// </summary>
 		[CommandLine("-SkipRulesCompile")]
