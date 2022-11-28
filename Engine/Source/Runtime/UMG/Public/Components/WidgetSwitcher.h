@@ -72,6 +72,7 @@ protected:
 	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
+	void SetActiveWidgetIndexForSlateWidget();
 protected:
 
 	TSharedPtr<class SWidgetSwitcher> MyWidgetSwitcher;
