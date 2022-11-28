@@ -91,11 +91,17 @@ public class ChangelistFixture
 	/// Assert files in stream for this changelist matches the client's have table
 	/// </summary>
 	/// <param name="perforce">Perforce connection</param>
-	public async Task AssertHaveTableAsync(IPerforceConnection perforce)
+	/// <param name="useHaveTable">When set to false, have table is expected to be empty</param>
+	public async Task AssertHaveTableAsync(IPerforceConnection perforce, bool useHaveTable = true)
 	{
 		List<HaveRecord> haveRecords = await perforce.HaveAsync(new FileSpecList(), CancellationToken.None).ToListAsync();
 		HashSet<(string depotFile, int rev)> actual = new(haveRecords.Select((x) => (x.DepotFile, x.HaveRev)));
 		HashSet<(string depotFile, int rev)> expected = new(StreamFiles.Select((x) => (x.DepotFile, x.Revision)));
+
+		if (!useHaveTable)
+		{
+			expected.Clear();
+		}
 		
 		if (!expected.SetEquals(actual))
 		{
@@ -171,6 +177,8 @@ public class StreamFixture
 		Root = root;
 		Changelists = changelists;
 	}
+
+	public ChangelistFixture LatestChangelist => Changelists.Last();
 
 	public ChangelistFixture GetChangelist(int changeNum)
 	{

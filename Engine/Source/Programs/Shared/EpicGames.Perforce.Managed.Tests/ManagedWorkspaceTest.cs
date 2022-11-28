@@ -50,6 +50,24 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 	}
 	
 	[TestMethod]
+	public async Task SyncBackwardsToOlderChangelistRemoveUntracked()
+	{
+		ManagedWorkspace ws = await GetManagedWorkspace();
+
+		await SyncAsync(ws, 6, removeUntracked: false);
+		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
+		await Stream.GetChangelist(6).AssertHaveTableAsync(PerforceConnection);
+		
+		await SyncAsync(ws, 7, removeUntracked: false);
+		Stream.GetChangelist(7).AssertDepotFiles(SyncDir);
+		await Stream.GetChangelist(7).AssertHaveTableAsync(PerforceConnection);
+
+		await SyncAsync(ws, 6, removeUntracked: false);
+		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
+		await Stream.GetChangelist(6).AssertHaveTableAsync(PerforceConnection);
+	}
+	
+	[TestMethod]
 	public async Task SyncBackwardsToOlderChangelist()
 	{
 		ManagedWorkspace ws = await GetManagedWorkspace();
@@ -131,6 +149,22 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 			await cl.AssertHaveTableAsync(PerforceConnection);
 		}
 	}
+	
+	[DataTestMethod]
+	[DataRow(true, DisplayName = "With have-table")]
+	[DataRow(false, DisplayName = "Without have-table")]
+	public async Task Populate(bool useHaveTable)
+	{
+		ManagedWorkspace ws = await GetManagedWorkspace();
+
+		List<PopulateRequest> populateRequests = new ()
+		{
+			new PopulateRequest(PerforceConnection, StreamName, new List<string>())
+		};
+		await ws.PopulateAsync(populateRequests, false, useHaveTable, CancellationToken.None);
+		Stream.LatestChangelist.AssertDepotFiles(SyncDir);
+		await Stream.LatestChangelist.AssertHaveTableAsync(PerforceConnection, useHaveTable);
+	}
 
 	private async Task<ManagedWorkspace> GetManagedWorkspace()
 	{
@@ -139,9 +173,9 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 		return ws;
 	}
 	
-	private async Task SyncAsync(ManagedWorkspace managedWorkspace, int changeNumber, bool useHaveTable = true, FileReference? cacheFile = null)
+	private async Task SyncAsync(ManagedWorkspace managedWorkspace, int changeNumber, bool useHaveTable = true, FileReference? cacheFile = null, bool removeUntracked = true)
 	{
-		await managedWorkspace.SyncAsync(PerforceConnection, StreamName, changeNumber, Array.Empty<string>(), true, false, useHaveTable, cacheFile, CancellationToken.None);
+		await managedWorkspace.SyncAsync(PerforceConnection, StreamName, changeNumber, Array.Empty<string>(), removeUntracked, false, useHaveTable, cacheFile, CancellationToken.None);
 	}
 	
 	private async Task AssertHaveTableFileCount(int expected)
@@ -156,6 +190,15 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 				Console.WriteLine(haveRecord.DepotFile + "#" + haveRecord.HaveRev);
 			}
 			Assert.Fail($"Actual have table file count does not match expected count. Actual={haveRecords.Count} Expected={expected}");
+		}
+	}
+
+	private void DumpMetaDir()
+	{
+		Console.WriteLine("Meta dir: --------------------------");
+		foreach (string path in Directory.GetFiles(TempDir.FullName, "*", SearchOption.AllDirectories))
+		{
+			Console.WriteLine(Path.GetRelativePath(TempDir.FullName, path));
 		}
 	}
 }

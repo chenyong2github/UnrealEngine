@@ -955,20 +955,20 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Populates the cache with the head revision of the given streams.
 		/// </summary>
-		public async Task PopulateAsync(List<PopulateRequest> requests, bool fakeSync, CancellationToken cancellationToken)
+		public async Task PopulateAsync(List<PopulateRequest> requests, bool fakeSync, bool useHaveTable, CancellationToken cancellationToken)
 		{
 			_logger.LogInformation("Populating with {NumStreams} streams", requests.Count);
 			using (_logger.BeginIndentScope("  "))
 			{
-				Tuple<int, StreamSnapshot>[] streamState = await PopulateCleanAsync(requests, cancellationToken);
-				await PopulateSyncAsync(requests, streamState, fakeSync, cancellationToken);
+				Tuple<int, StreamSnapshot>[] streamState = await PopulateCleanAsync(requests, useHaveTable, cancellationToken);
+				await PopulateSyncAsync(requests, streamState, fakeSync, useHaveTable, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Perform the clean part of a populate command
 		/// </summary>
-		public async Task<Tuple<int, StreamSnapshot>[]> PopulateCleanAsync(List<PopulateRequest> requests, CancellationToken cancellationToken)
+		public async Task<Tuple<int, StreamSnapshot>[]> PopulateCleanAsync(List<PopulateRequest> requests, bool useHaveTable, CancellationToken cancellationToken)
 		{
 			// Revert all changes in each of the unique clients
 			foreach (PopulateRequest request in requests)
@@ -1001,10 +1001,18 @@ namespace EpicGames.Perforce.Managed
 					int changeNumber = await GetLatestClientChangeAsync(request.PerforceClient, cancellationToken);
 					_logger.LogInformation("Latest change is CL {CL}", changeNumber);
 
-					await UpdateClientHaveTableAsync(request.PerforceClient, changeNumber, request.View, cancellationToken);
+					if (useHaveTable)
+					{
+						await UpdateClientHaveTableAsync(request.PerforceClient, changeNumber, request.View, cancellationToken);
 
-					StreamSnapshot contents = await FindClientContentsAsync(request.PerforceClient, changeNumber, cancellationToken);
-					streamState[idx] = Tuple.Create(changeNumber, contents);
+						StreamSnapshot contents = await FindClientContentsAsync(request.PerforceClient, changeNumber, cancellationToken);
+						streamState[idx] = Tuple.Create(changeNumber, contents);
+					}
+					else
+					{
+						StreamSnapshot contents = await FindClientContentsWithoutHaveTableAsync(request.PerforceClient, streamName, changeNumber, cancellationToken);
+						streamState[idx] = Tuple.Create(changeNumber, contents);
+					}
 
 					GC.Collect();
 				}
@@ -1063,7 +1071,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Perform the sync part of a populate command
 		/// </summary>
-		public async Task PopulateSyncAsync(List<PopulateRequest> requests, Tuple<int, StreamSnapshot>[] streamState, bool fakeSync, CancellationToken cancellationToken)
+		public async Task PopulateSyncAsync(List<PopulateRequest> requests, Tuple<int, StreamSnapshot>[] streamState, bool fakeSync, bool useHaveTable, CancellationToken cancellationToken)
 		{
 			// Sync all the new files
 			for (int idx = 0; idx < requests.Count; idx++)
@@ -1074,15 +1082,18 @@ namespace EpicGames.Perforce.Managed
 
 				using (_logger.BeginIndentScope("  "))
 				{
-					await DeleteClientAsync(request.PerforceClient, cancellationToken);
-					await UpdateClientAsync(request.PerforceClient, streamName, cancellationToken);
+					if (useHaveTable)
+					{
+						await DeleteClientAsync(request.PerforceClient, cancellationToken);
+						await UpdateClientAsync(request.PerforceClient, streamName, cancellationToken);
 
-					int changeNumber = streamState[idx].Item1;
-					await UpdateClientHaveTableAsync(request.PerforceClient, changeNumber, requests[idx].View, cancellationToken);
+						int changeNumber = streamState[idx].Item1;
+						await UpdateClientHaveTableAsync(request.PerforceClient, changeNumber, requests[idx].View, cancellationToken);
+					}
 
 					StreamSnapshot contents = streamState[idx].Item2;
 					await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
-					await AddFilesToWorkspaceAsync(request.PerforceClient, contents, fakeSync, true, cancellationToken);
+					await AddFilesToWorkspaceAsync(request.PerforceClient, contents, fakeSync, useHaveTable, cancellationToken);
 				}
 			}
 

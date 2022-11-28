@@ -233,7 +233,7 @@ namespace Horde.Agent.Execution
 			await _workspace.CleanAsync(cancellationToken);
 		}
 
-		public static async Task ConformAsync(DirectoryReference rootDir, IList<AgentWorkspace> pendingWorkspaces, bool removeUntrackedFiles, ILogger logger, CancellationToken cancellationToken)
+		public static async Task ConformAsync(DirectoryReference rootDir, IList<AgentWorkspace> pendingWorkspaces, bool removeUntrackedFiles, bool useHaveTable, ILogger logger, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("Conform").StartActive();
 			scope.Span.SetTag("workspaces", String.Join(',', pendingWorkspaces.Select(x => x.Identifier)));
@@ -383,13 +383,13 @@ namespace Horde.Agent.Execution
 					if (populateRequests.Count == 1 && !firstWorkspace.RemoveUntrackedFiles && !removeUntrackedFiles)
 					{
 						await firstWorkspace.CleanAsync(cancellationToken);
-						syncFuncs.Add(() => firstWorkspace.SyncAsync(-1, -1, null, true, cancellationToken));
+						syncFuncs.Add(() => firstWorkspace.SyncAsync(-1, -1, null, useHaveTable, cancellationToken));
 					}
 					else
 					{
 						ManagedWorkspace repository = firstWorkspace.Repository;
-						Tuple<int, StreamSnapshot>[] streamStates = await repository.PopulateCleanAsync(populateRequests, cancellationToken);
-						syncFuncs.Add(() => repository.PopulateSyncAsync(populateRequests, streamStates, false, cancellationToken));
+						Tuple<int, StreamSnapshot>[] streamStates = await repository.PopulateCleanAsync(populateRequests, useHaveTable, cancellationToken);
+						syncFuncs.Add(() => repository.PopulateSyncAsync(populateRequests, streamStates, false, useHaveTable, cancellationToken));
 					}
 				}
 				foreach (Func<Task> syncFunc in syncFuncs)
