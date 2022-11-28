@@ -129,6 +129,7 @@ void F3DTransformTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, 
 		UMovieSceneSequence* Sequence = InSequencer->GetFocusedMovieSceneSequence();
 
 		FAssetPickerConfig AssetPickerConfig;
+		AssetPickerConfig.bAddFilterUI = true;
 		AssetPickerConfig.SelectionMode = ESelectionMode::Single;
 		AssetPickerConfig.Filter.ClassPaths.Add(UAnimSequence::StaticClass()->GetClassPathName());
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateStatic(&F3DTransformTrackEditor::ImportAnimSequenceTransforms, InSequencer, InTransformTrack);
