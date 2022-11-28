@@ -853,7 +853,7 @@ void FStreamableHandle::AsyncLoadCallbackWrapper(const FName& PackageName, UPack
 	// Needed so we can bind with a shared pointer for safety
 	if (OwningManager)
 	{
-		OwningManager->AsyncLoadCallback(TargetName);
+		OwningManager->AsyncLoadCallback(TargetName, Package);
 
 		if (!HasLoadCompleted())
 		{
@@ -1480,12 +1480,28 @@ UObject* FStreamableManager::LoadSynchronous(const FSoftObjectPath& Target, bool
 	return nullptr;
 }
 
-void FStreamableManager::FindInMemory( FSoftObjectPath& InOutTargetName, struct FStreamable* Existing )
+void FStreamableManager::FindInMemory(FSoftObjectPath& InOutTargetName, struct FStreamable* Existing, UPackage* Package)
 {
 	check(Existing);
 	check(!Existing->bAsyncLoadRequestOutstanding);
 	UE_LOG(LogStreamableManager, Verbose, TEXT("     Searching in memory for %s"), *InOutTargetName.ToString());
-	Existing->Target = StaticFindObject(UObject::StaticClass(), nullptr, *InOutTargetName.ToString());
+	Existing->Target = nullptr;
+
+	UObject* Asset = Package ? 
+		StaticFindObjectFast(UObject::StaticClass(), Package, InOutTargetName.GetAssetFName()) :
+		StaticFindObject(UObject::StaticClass(), InOutTargetName.GetAssetPath(), /*ExactClass*/false);	
+	if (Asset)
+	{
+		if (InOutTargetName.IsAsset())
+		{
+			Existing->Target = Asset;
+		}
+		else if (InOutTargetName.IsSubobject())
+		{
+			Existing->Target = StaticFindObject(UObject::StaticClass(), Asset, *InOutTargetName.GetSubPathString());
+		}
+	}
+	checkSlow(Existing->Target == StaticFindObject(UObject::StaticClass(), nullptr, *InOutTargetName.ToString()));
 
 	if (Existing->Target && Existing->Target->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
 	{
@@ -1507,7 +1523,7 @@ void FStreamableManager::FindInMemory( FSoftObjectPath& InOutTargetName, struct 
 	}
 }
 
-void FStreamableManager::AsyncLoadCallback(FSoftObjectPath TargetName)
+void FStreamableManager::AsyncLoadCallback(FSoftObjectPath TargetName, UPackage* Package)
 {
 	check(IsInGameThread());
 
@@ -1521,7 +1537,7 @@ void FStreamableManager::AsyncLoadCallback(FSoftObjectPath TargetName)
 			Existing->bAsyncLoadRequestOutstanding = false;
 			if (!Existing->Target)
 			{
-				FindInMemory(TargetName, Existing);
+				FindInMemory(TargetName, Existing, Package);
 			}
 
 			CheckCompletedRequests(TargetName, Existing);
