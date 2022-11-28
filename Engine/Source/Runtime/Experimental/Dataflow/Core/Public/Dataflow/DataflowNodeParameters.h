@@ -20,7 +20,7 @@ namespace Dataflow
 		Type Value = Type(0);
 
 		FTimestamp(Type InValue) : Value(InValue) {}
-		bool operator>=(const FTimestamp& InTimestamp) { return Value >= InTimestamp.Value; }
+		bool operator>=(const FTimestamp& InTimestamp) const { return Value >= InTimestamp.Value; }
 		bool IsInvalid() { return Value == Invalid; }
 
 		static Type Current();
