@@ -429,7 +429,7 @@ HRGN FWindowsWindow::MakeWindowRegionObject(bool bIncludeBorderWhenMaximized) co
 
 void FWindowsWindow::DisableTouchFeedback()
 {
-	if (void* User32Dll = FPlatformProcess::GetDllHandle(TEXT("User32.dll")))
+	if (void* User32Dll = GetModuleHandle(L"user32.dll"))
 	{
 		typedef enum tagWINVER602FEEDBACK_TYPE
 		{

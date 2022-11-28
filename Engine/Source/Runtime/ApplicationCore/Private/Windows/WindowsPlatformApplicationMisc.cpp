@@ -228,7 +228,7 @@ void FWindowsPlatformApplicationMisc::SetHighDPIMode()
 
 			FPlatformProcess::FreeDllHandle(ShCoreDll);
 		}
-		else if (void* User32Dll = FPlatformProcess::GetDllHandle(TEXT("user32.dll")))
+		else if (void* User32Dll = GetModuleHandle(L"user32.dll"))
 		{
 			typedef BOOL(WINAPI *SetProcessDpiAwareProc)(void);
 			SetProcessDpiAwareProc SetProcessDpiAware = (SetProcessDpiAwareProc)FPlatformProcess::GetDllExport(User32Dll, TEXT("SetProcessDPIAware"));
@@ -243,8 +243,6 @@ void FWindowsPlatformApplicationMisc::SetHighDPIMode()
 					UE_LOG(LogInit, Warning, TEXT("SetProcessDpiAware failed"));
 				}
 			}
-
-			FPlatformProcess::FreeDllHandle(User32Dll);
 		}
 	}
 }
