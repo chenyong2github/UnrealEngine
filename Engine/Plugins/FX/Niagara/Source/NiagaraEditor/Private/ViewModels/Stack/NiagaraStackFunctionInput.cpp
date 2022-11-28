@@ -1789,6 +1789,11 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 			if (InputType.IsStatic()) // Need to potentially trigger a recompile.
 			{
 				Script->MarkScriptAndSourceDesynchronized(TEXT("Static variable changed!"), FGuid::NewGuid());
+				UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(Script->GetLatestSource());
+				if (Source && Source->NodeGraph)
+				{
+					Source->NodeGraph->NotifyGraphChanged();
+				}
 			}
 		}
 
