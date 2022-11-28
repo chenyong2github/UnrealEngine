@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Core
 {
 	/// <summary>
 	/// Represents a memory region which can be treated as a utf-8 string.
 	/// </summary>
-	public struct Utf8StringBuilder
+	public class Utf8StringBuilder
 	{
 		readonly ArrayMemoryWriter _writer;
 
