@@ -12,7 +12,7 @@
 	"SupportURL" : "",
 	"EnabledByDefault" : false,
 	"CanContainContent" : false,
-	"IsBetaVersion" : true,
+	"IsBetaVersion" : false,
 	"IsExperimentalVersion" : true,
 	"Installed" : false,
 	"Plugins": [
@@ -32,6 +32,16 @@
 			"Name" : "ChooserEditor",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default"
-		}
+		},
+		{
+			"Name" : "ProxyTable",
+			"Type" : "Runtime",
+			"LoadingPhase" : "Default"
+		},
+		{
+			"Name" : "ProxyTableEditor",
+			"Type" : "Editor",
+			"LoadingPhase" : "Default"
+		},
 	]
 }
