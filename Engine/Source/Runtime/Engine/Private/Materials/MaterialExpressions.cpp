@@ -22464,7 +22464,6 @@ int32 UMaterialExpressionStrataBSDF::CompilePreview(class FMaterialCompiler* Com
 
 UMaterialExpressionStrataSlabBSDF::UMaterialExpressionStrataSlabBSDF(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bUseMetalness(true)
 	, bUseSSSDiffusion(true)
 {
 	struct FConstructorStatics
@@ -22489,7 +22488,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	// used in StrataGetBSDFSharedBasis cannot be relied on for smooth tangent used for lighting on any mesh.
 	const bool bHasAnisotropy = HasAnisotropy();
 
-	const bool bHasEdgeColor = HasEdgeColor(); // This accounts for EdgeColor and also F90 when the non metalness workflow is selected.
+	const bool bHasEdgeColor = HasEdgeColor();
 	const bool bHasFuzz = HasFuzz();
 	const bool bHasSecondRoughness = HasSecondRoughness();
 	const bool bHasMFPPluggedIn = HasMFPPluggedIn();
@@ -22511,19 +22510,9 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 
 	int32 OutputCodeChunk = Compiler->StrataSlabBSDF(
-		bUseMetalness ? Compiler->Constant(1.0f) : Compiler->Constant(0.0f),
-
-		// Metalness workflow
-		CompileWithDefaultFloat3(Compiler, BaseColor, 0.18f, 0.18f, 0.18f),
-		CompileWithDefaultFloat3(Compiler, EdgeColor, 1.0f, 1.0f, 1.0f),
-		CompileWithDefaultFloat1(Compiler, Specular, DefaultSpecular),
-		CompileWithDefaultFloat1(Compiler, Metallic,  0.0f),
-
-		// !Metalness workflow
 		CompileWithDefaultFloat3(Compiler, DiffuseAlbedo, 0.18f, 0.18f, 0.18f),
 		CompileWithDefaultFloat3(Compiler, F0, DefaultF0, DefaultF0, DefaultF0),
 		CompileWithDefaultFloat3(Compiler, F90, 1.0f, 1.0f, 1.0f),
-
 		RoughnessCodeChunk,
 		AnisotropyCodeChunk,
 		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),	
@@ -22550,19 +22539,9 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 const TArray<FExpressionInput*> UMaterialExpressionStrataSlabBSDF::GetInputs()
 {
 	TArray<FExpressionInput*> Result;
-	if (bUseMetalness)
-	{
-		Result.Add(&BaseColor);
-		Result.Add(&EdgeColor);
-		Result.Add(&Metallic);
-		Result.Add(&Specular);
-	}
-	else
-	{
-		Result.Add(&DiffuseAlbedo);
-		Result.Add(&F0);
-		Result.Add(&F90);
-	}
+	Result.Add(&DiffuseAlbedo);
+	Result.Add(&F0);
+	Result.Add(&F90);
 	Result.Add(&Roughness);
 	Result.Add(&Anisotropy);
 	Result.Add(&Normal);
@@ -22579,55 +22558,6 @@ const TArray<FExpressionInput*> UMaterialExpressionStrataSlabBSDF::GetInputs()
 	return Result;
 }
 
-void UMaterialExpressionStrataSlabBSDF::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.Property && (PropertyChangedEvent.Property->GetName() == TEXT("bUseMetalness")))
-	{
-		auto SafeConnect = [](FExpressionInput& Input, int32 OutputIndex, class UMaterialExpression* Expression)
-		{
-			if (Expression)
-			{
-				Input.Connect(OutputIndex, Expression);
-			}
-			else
-			{
-				Input.Expression = nullptr;
-			}
-		};
-
-		// Relink to make the node looks somewhat ok when toggling Metalness
-		if (bUseMetalness)
-		{
-			SafeConnect(BaseColor, DiffuseAlbedo.OutputIndex, DiffuseAlbedo.Expression);
-			SafeConnect(Specular, F0.OutputIndex, F0.Expression);
-			SafeConnect(EdgeColor, F90.OutputIndex, F90.Expression);
-
-			DiffuseAlbedo.Expression = nullptr;
-			F0.Expression = nullptr;
-			F90.Expression = nullptr;
-		}
-		else
-		{
-			SafeConnect(DiffuseAlbedo, BaseColor.OutputIndex, BaseColor.Expression);
-			SafeConnect(F0, Specular.OutputIndex, Specular.Expression);
-			SafeConnect(F90, EdgeColor.OutputIndex, EdgeColor.Expression);
-
-			BaseColor.Expression = nullptr;
-			EdgeColor.Expression = nullptr;
-			Specular.Expression = nullptr;
-			Metallic.Expression = nullptr;
-		}
-
-		// Recreate this node and relink according to updated pins.
-		CastChecked<UMaterialGraphNode>(GraphNode)->RecreateAndLinkNode();
-	}
-	if (GraphNode)
-	{
-		GraphNode->ReconstructNode();
-	}
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-
 void UMaterialExpressionStrataSlabBSDF::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Strata Slab BSDF"));
@@ -22640,92 +22570,67 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetOutputType(int32 OutputIndex)
 
 uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 {
-	const int32 SkipDisabledInputOffset = bUseMetalness ? 0 : -1;
-
-	if (bUseMetalness)
+	if (InputIndex == 0)
 	{
-		if (InputIndex == 0)
-		{
-			return MCT_Float3; // BaseColor
-		}
-		else if (InputIndex == 1)
-		{
-			return MCT_Float3; // EdgeColor
-		}
-		else if (InputIndex == 2)
-		{
-			return MCT_Float1; // Metallic
-		}
-		else if (InputIndex == 3)
-		{
-			return MCT_Float1; // Specular
-		}
+		return MCT_Float3; // DiffuseAlbedo
 	}
-	else
+	else if (InputIndex == 1)
 	{
-		if (InputIndex == 0)
-		{
-			return MCT_Float3; // DiffuseAlbedo
-		}
-		else if (InputIndex == 1)
-		{
-			return MCT_Float3; // F0
-		}
-		else if (InputIndex == 2)
-		{
-			return MCT_Float3; // F90
-		}
+		return MCT_Float3; // F0
 	}
-
-	if (InputIndex == (4 + SkipDisabledInputOffset))
+	else if (InputIndex == 2)
+	{
+		return MCT_Float3; // F90
+	}
+	else if (InputIndex == 3)
 	{
 		return MCT_Float1; // Roughness
 	}
-	else if (InputIndex == (5 + SkipDisabledInputOffset))
+	else if (InputIndex == 4)
 	{
 		return MCT_Float1; // Anisotropy
 	}
-	else if (InputIndex == (6 + SkipDisabledInputOffset))
+	else if (InputIndex == 5)
 	{
 		return MCT_Float3; // Normal
 	}
-	else if (InputIndex == (7 + SkipDisabledInputOffset))
+	else if (InputIndex == 6)
 	{
 		return MCT_Float3; // Tangent
 	}
-	else if (InputIndex == (8 + SkipDisabledInputOffset))
+	else if (InputIndex == 7)
 	{
 		return MCT_Float3; // SSSMFP
 	}
-	else if (InputIndex == (9 + SkipDisabledInputOffset))
+	else if (InputIndex == 8)
 	{
 		return MCT_Float1; // SSSMFPScale
 	}
-	else if (InputIndex == (10 + SkipDisabledInputOffset))
+	else if (InputIndex == 9)
 	{
 		return MCT_Float1; // SSSPhaseAniso
 	}
-	else if (InputIndex == (11 + SkipDisabledInputOffset))
+	else if (InputIndex == 10)
 	{
 		return MCT_Float3; // Emissive Color
 	}
-	else if (InputIndex == (12 + SkipDisabledInputOffset))
+	else if (InputIndex == 11)
 	{
 		return MCT_Float1; // SecondRoughness
 	}
-	else if (InputIndex == (13 + SkipDisabledInputOffset))
+	else if (InputIndex == 12)
 	{
 		return MCT_Float1; // SecondRoughnessWeight
 	}
-	else if (InputIndex == (14 + SkipDisabledInputOffset))
+	else if (InputIndex == 13)
 	{
 		return MCT_Float1; // Thickness
 	}
-	else if (InputIndex == (15 + SkipDisabledInputOffset))
+	else if (InputIndex == 14)
 	{
 		return MCT_Float1; // FuzzAmount
 	}
-	else if (InputIndex == (16 + SkipDisabledInputOffset))
+	else if (InputIndex == 15)
 	{
 		return MCT_Float3; // FuzzColor
 	}
@@ -22736,92 +22641,67 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 
 FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 {
-	const int32 SkipDisabledInputOffset = bUseMetalness ? 0 : -1;
-
-	if (bUseMetalness)
+	if (InputIndex == 0)
 	{
-		if (InputIndex == 0)
-		{
-			return TEXT("Base Color");
-		}
-		else if (InputIndex == 1)
-		{
-			return TEXT("Edge Color");
-		}
-		else if (InputIndex == 2)
-		{
-			return TEXT("Metallic");
-		}
-		else if (InputIndex == 3)
-		{
-			return TEXT("Specular");
-		}
+		return TEXT("Diffuse Albedo");
 	}
-	else
+	else if (InputIndex == 1)
 	{
-		if (InputIndex == 0)
-		{
-			return TEXT("Diffuse Albedo");
-		}
-		else if (InputIndex == 1)
-		{
-			return TEXT("F0");
-		}
-		else if (InputIndex == 2)
-		{
-			return  TEXT("F90");
-		}
+		return TEXT("F0");
 	}
-
-	if (InputIndex == (4 + SkipDisabledInputOffset))
+	else if (InputIndex == 2)
+	{
+		return  TEXT("F90");
+	}
+	else if (InputIndex == 3)
 	{
 		return TEXT("Roughness");
 	}
-	else if (InputIndex == (5 + SkipDisabledInputOffset))
+	else if (InputIndex == 4)
 	{
 		return TEXT("Anisotropy");
 	}
-	else if (InputIndex == (6 + SkipDisabledInputOffset))
+	else if (InputIndex == 5)
 	{
 		return TEXT("Normal");
 	}
-	else if (InputIndex == (7 + SkipDisabledInputOffset))
+	else if (InputIndex == 6)
 	{
 		return TEXT("Tangent");
 	}
-	else if (InputIndex == (8 + SkipDisabledInputOffset))
+	else if (InputIndex == 7)
 	{
 		return TEXT("SSS MFP");
 	}
-	else if (InputIndex == (9 + SkipDisabledInputOffset))
+	else if (InputIndex == 8)
 	{
 		return TEXT("SSS MFP Scale");
 	}
-	else if (InputIndex == (10 + SkipDisabledInputOffset))
+	else if (InputIndex == 9)
 	{
 		return TEXT("SSS Phase Anisotropy");
 	}
-	else if (InputIndex == (11 + SkipDisabledInputOffset))
+	else if (InputIndex == 10)
 	{
 		return TEXT("Emissive Color");
 	}
-	else if (InputIndex == (12 + SkipDisabledInputOffset))
+	else if (InputIndex == 11)
 	{
 		return TEXT("Second Roughness");
 	}
-	else if (InputIndex == (13 + SkipDisabledInputOffset))
+	else if (InputIndex == 12)
 	{
 		return TEXT("Second Roughness Weight");
 	}
-	else if (InputIndex == (14 + SkipDisabledInputOffset))
+	else if (InputIndex == 13)
 	{
 		return TEXT("Thickness");
 	}
-	else if (InputIndex == (15 + SkipDisabledInputOffset))
+	else if (InputIndex == 14)
 	{
 		return TEXT("Fuzz Amount");
 	}
-	else if (InputIndex == (16 + SkipDisabledInputOffset))
+	else if (InputIndex == 15)
 	{
 		return TEXT("Fuzz Color");
 	}
@@ -22836,99 +22716,8 @@ void UMaterialExpressionStrataSlabBSDF::GetConnectorToolTip(int32 InputIndex, in
 		OutToolTip.Add(TEXT("TT Ouput"));
 		return;
 	}
-	const int32 SkipDisabledInputOffset = bUseMetalness ? 0 : -1;
 
-	if (bUseMetalness)
-	{
-		if (InputIndex == 0)
-		{
-			Super::GetConnectorToolTip(0, INDEX_NONE, OutToolTip);
-		}
-		else if (InputIndex == 1)
-		{
-			Super::GetConnectorToolTip(1, INDEX_NONE, OutToolTip);
-		}
-		else if (InputIndex == 2)
-		{
-			Super::GetConnectorToolTip(2, INDEX_NONE, OutToolTip);
-		}
-		else if (InputIndex == 3)
-		{
-			Super::GetConnectorToolTip(3, INDEX_NONE, OutToolTip);
-		}
-	}
-	else
-	{
-		if (InputIndex == 0)
-		{
-			Super::GetConnectorToolTip(4, INDEX_NONE, OutToolTip);
-		}
-		else if (InputIndex == 1)
-		{
-			Super::GetConnectorToolTip(5, INDEX_NONE, OutToolTip);
-		}
-		else if (InputIndex == 2)
-		{
-			Super::GetConnectorToolTip(6, INDEX_NONE, OutToolTip);
-		}
-	}
-
-	if (InputIndex == (4 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(7, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (5 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(8, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (6 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(9, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (7 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(10, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (8 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(11, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (9 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(12, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (10 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(13, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (11 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(14, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (12 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(15, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (13 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(16, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (14 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(17, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (15 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(18, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (16 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(19, INDEX_NONE, OutToolTip);
-	}
-	else if (InputIndex == (17 + SkipDisabledInputOffset))
-	{
-		Super::GetConnectorToolTip(20, INDEX_NONE, OutToolTip);
-	}
+	Super::GetConnectorToolTip(InputIndex, INDEX_NONE, OutToolTip);
 }
 
 bool UMaterialExpressionStrataSlabBSDF::IsResultStrataMaterial(int32 OutputIndex)
@@ -22939,17 +22728,8 @@ bool UMaterialExpressionStrataSlabBSDF::IsResultStrataMaterial(int32 OutputIndex
 void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
 {
 	// Track connected inputs
-	if (bUseMetalness)
-	{
-		if (BaseColor.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_BaseColor); }
-		if (Metallic.IsConnected())			{ StrataMaterialInfo.AddPropertyConnected(MP_Metallic); }
-		if (Specular.IsConnected())			{ StrataMaterialInfo.AddPropertyConnected(MP_Specular); }
-	}
-	else
-	{
-		if (DiffuseAlbedo.IsConnected())	{ StrataMaterialInfo.AddPropertyConnected(MP_DiffuseColor); }
-		if (F0.IsConnected())				{ StrataMaterialInfo.AddPropertyConnected(MP_SpecularColor); }
-	}
+	if (DiffuseAlbedo.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_DiffuseColor); }
+	if (F0.IsConnected())					{ StrataMaterialInfo.AddPropertyConnected(MP_SpecularColor); }
 	if (Roughness.IsConnected())			{ StrataMaterialInfo.AddPropertyConnected(MP_Roughness); }
 	if (Anisotropy.IsConnected())			{ StrataMaterialInfo.AddPropertyConnected(MP_Anisotropy); }
 	if (EmissiveColor.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_EmissiveColor); }
@@ -23002,7 +22782,7 @@ bool UMaterialExpressionStrataSlabBSDF::HasMFPPluggedIn() const
 
 bool UMaterialExpressionStrataSlabBSDF::HasEdgeColor() const
 {
-	return bUseMetalness ? EdgeColor.IsConnected() : F90.IsConnected();
+	return F90.IsConnected();
 }
 
 bool UMaterialExpressionStrataSlabBSDF::HasFuzz() const
@@ -23040,7 +22820,6 @@ UMaterialExpressionStrataSimpleClearCoatBSDF::UMaterialExpressionStrataSimpleCle
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	const bool  bUseMetalness = true;
 	const float DefaultSpecular = 0.5f;
 	const float DefaultF0 = DielectricSpecularToF0(DefaultSpecular);
 
@@ -23052,17 +22831,8 @@ int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompi
 	StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 
 	int32 OutputCodeChunk = Compiler->StrataSlabBSDF(
-		bUseMetalness ? Compiler->Constant(1.0f) : Compiler->Constant(0.0f),
-
-		// Metalness workflow
-		CompileWithDefaultFloat3(Compiler, BaseColor, 0.18f, 0.18f, 0.18f),
-		Compiler->Constant3(1.0f, 1.0f, 1.0f),					// EdgeColor
-		CompileWithDefaultFloat1(Compiler, Specular, DefaultSpecular),
-		CompileWithDefaultFloat1(Compiler, Metallic, 0.0f),
-
-		// !Metalness workflow unused for this node
-		Compiler->Constant3(0.18f, 0.18f, 0.18f),				// DiffuseAlbedo
-		Compiler->Constant3(DefaultF0, DefaultF0, DefaultF0),	// F0
+		CompileWithDefaultFloat3(Compiler, DiffuseAlbedo, 0.18f, 0.18f, 0.18f),		// DiffuseAlbedo
+		CompileWithDefaultFloat3(Compiler, F0, DefaultF0, DefaultF0, DefaultF0),	// F0
 		Compiler->Constant3(1.0f, 1.0f, 1.0f),					// F90
 		
 		CompileWithDefaultFloat1(Compiler, Roughness, 0.5f),
@@ -23091,9 +22861,8 @@ int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompi
 const TArray<FExpressionInput*> UMaterialExpressionStrataSimpleClearCoatBSDF::GetInputs()
 {
 	TArray<FExpressionInput*> Result;
-	Result.Add(&BaseColor);
-	Result.Add(&Metallic);
-	Result.Add(&Specular);
+	Result.Add(&DiffuseAlbedo);
+	Result.Add(&F0);
 	Result.Add(&Roughness);
 	Result.Add(&ClearCoatCoverage);
 	Result.Add(&ClearCoatRoughness);
@@ -23116,33 +22885,29 @@ uint32 UMaterialExpressionStrataSimpleClearCoatBSDF::GetInputType(int32 InputInd
 {
 	if (InputIndex == 0)
 	{
-		return MCT_Float3; // BaseColor
+		return MCT_Float3; // DiffuseAlbedo
 	}
 	else if (InputIndex == 1)
 	{
-		return MCT_Float1; // Metallic
+		return MCT_Float3; // F0
 	}
 	else if (InputIndex == 2)
 	{
-		return MCT_Float1; // Specular
+		return MCT_Float1; // Roughness
 	}
 	else if (InputIndex == 3)
 	{
-		return MCT_Float1; // Roughness
+		return MCT_Float1; // ClearCoatCoverage 
 	}
 	else if (InputIndex == 4)
 	{
-		return MCT_Float1; // ClearCoatCoverage 
+		return MCT_Float1; // ClearCoatRoughness
 	}
 	else if (InputIndex == 5)
 	{
-		return MCT_Float1; // ClearCoatRoughness
-	}
-	else if (InputIndex == 6)
-	{
 		return MCT_Float3; // Normal
 	}
-	else if (InputIndex == 7)
+	else if (InputIndex == 6)
 	{
 		return MCT_Float3; // Emissive Color
 	}
@@ -23155,33 +22920,29 @@ FName UMaterialExpressionStrataSimpleClearCoatBSDF::GetInputName(int32 InputInde
 {
 	if (InputIndex == 0)
 	{
-		return TEXT("BaseColor");
+		return TEXT("Diffuse Albedo");
 	}
 	else if (InputIndex == 1)
 	{
-		return TEXT("Metallic");
+		return TEXT("F0");
 	}
 	else if (InputIndex == 2)
 	{
-		return TEXT("Specular");
+		return TEXT("Roughness");
 	}
 	else if (InputIndex == 3)
 	{
-		return TEXT("Roughness");
+		return TEXT("Clear Coat Coverage");
 	}
 	else if (InputIndex == 4)
 	{
-		return TEXT("Clear Coat Coverage");
+		return TEXT("Clear Coat Roughness");
 	}
 	else if (InputIndex == 5)
 	{
-		return TEXT("Clear Coat Roughness");
-	}
-	else if (InputIndex == 6)
-	{
 		return TEXT("Normal");
 	}
-	else if (InputIndex == 7)
+	else if (InputIndex == 6)
 	{
 		return TEXT("Emissive Color");
 	}
@@ -23197,9 +22958,9 @@ bool UMaterialExpressionStrataSimpleClearCoatBSDF::IsResultStrataMaterial(int32 
 void UMaterialExpressionStrataSimpleClearCoatBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
 {
 	// Track connected inputs
-	if (BaseColor.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_BaseColor); }
-	if (Metallic.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_Metallic); }
-	if (Specular.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_Specular); }
+	if (DiffuseAlbedo.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_BaseColor); }
+	StrataMaterialInfo.AddPropertyConnected(MP_Metallic); // Metallic is always connected with Diffuse/F0 parameterisation
+	if (F0.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_Specular); }
 	if (Roughness.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_Roughness); }
 	if (Normal.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_Normal); }
 	if (EmissiveColor.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_EmissiveColor); }

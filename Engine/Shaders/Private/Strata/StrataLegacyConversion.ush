@@ -88,17 +88,22 @@ FStrataData CreateLegacySlab(
 	const float3 Zeros = float3(0, 0, 0);
 	const float3 Ones  = float3(1, 1, 1);
 
+	float3 DiffuseAlbedo = In.DiffuseAlbedo;
+	float3 F0 = In.F0;
+	float3 F90 = In.F90;
+	if (In.UseMetalness > 0.0f)
+	{
+		DiffuseAlbedo = ComputeDiffuseAlbedo(In.BaseColor, In.Metallic);
+		F0 = ComputeF0(In.Specular, In.BaseColor, In.Metallic);
+		F90 = Ones;
+	}
+
 	// Fixed layer structure for helping compiler to unroll and optimize shader
 	return GetStrataSlabBSDF(
 		In.PixelFootprint,
-		In.UseMetalness,									// UseMetalness
-		In.BaseColor,										// BaseColor		-  Metalness workflow
-		Ones,												// EdgeColor		-  Metalness workflow
-		In.Specular,										// Specular			-  Metalness workflow
-		In.Metallic,										// Metallic			-  Metalness workflow
-		In.DiffuseAlbedo,									// DiffuseAlbedo	- !Metalness workflow
-		In.F0,												// F0				- !Metalness workflow
-		In.F90,												// F90				- !Metalness workflow
+		DiffuseAlbedo,										// DiffuseAlbedo
+		F0,													// F0
+		F90,												// F90
 		In.Roughness,										// Roughness
 		In.Anisotropy,										// Anisotropy
 		In.SSSProfileID,									// SSSProfileID

@@ -3281,7 +3281,6 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		// Empty material: Create by default a slab node
 		UMaterialExpressionStrataSlabBSDF* SlabNode = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
 		SetPosXAndMoveReferenceToTheRight(SlabNode);
-		SlabNode->bUseMetalness = false;
 		EditorOnly->FrontMaterial.Connect(0, SlabNode);
 		bRelinkCustomOutputNodes = false;
 		bInvalidateShader = true;
@@ -3298,32 +3297,39 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 				{
 					// For this special case, using two slabs to create a clear coat material with separated top and bottom normal. 
 
+					// Create metalness to Slab parameterisation conveersion node
+					UMaterialExpressionStrataMetalnessToDiffuseAlbedoF0* StrataMetalnessToDiffuseAlbedoF0 = NewObject<UMaterialExpressionStrataMetalnessToDiffuseAlbedoF0>(this);
+					SetPosXAndMoveReferenceToTheRight(StrataMetalnessToDiffuseAlbedoF0);
+					MoveConnectionTo(EditorOnly->BaseColor, StrataMetalnessToDiffuseAlbedoF0, 0);					// BaseColor
+					MoveConnectionTo(EditorOnly->Metallic, StrataMetalnessToDiffuseAlbedoF0, 1);					// Metallic
+					MoveConnectionTo(EditorOnly->Specular, StrataMetalnessToDiffuseAlbedoF0, 2);					// Specular
+					
 					// Top slab BSDF as a simple Disney material
 					UMaterialExpressionStrataSlabBSDF* BottomSlabBSDF = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
 					SetPosXAndMoveReferenceToTheRight(BottomSlabBSDF);
-					MoveConnectionTo(EditorOnly->BaseColor, BottomSlabBSDF, 0);					// BaseColor
-					MoveConnectionTo(EditorOnly->Metallic, BottomSlabBSDF, 2);					// Metallic
-					MoveConnectionTo(EditorOnly->Specular, BottomSlabBSDF, 3);					// Specular
-					MoveConnectionTo(EditorOnly->Roughness, BottomSlabBSDF, 7);					// Roughness
-					CopyConnectionTo(EditorOnly->Anisotropy, BottomSlabBSDF, 8);				// Anisotropy
-					MoveConnectionTo(EditorOnly->Tangent, BottomSlabBSDF, 10);					// Tangent
+					BottomSlabBSDF->GetInput(0)->Connect(0, StrataMetalnessToDiffuseAlbedoF0);
+					BottomSlabBSDF->GetInput(1)->Connect(1, StrataMetalnessToDiffuseAlbedoF0);
+					BottomSlabBSDF->GetInput(2)->Connect(2, StrataMetalnessToDiffuseAlbedoF0);
+					MoveConnectionTo(EditorOnly->Roughness, BottomSlabBSDF, 3);					// Roughness
+					CopyConnectionTo(EditorOnly->Anisotropy, BottomSlabBSDF, 4);				// Anisotropy
+					MoveConnectionTo(EditorOnly->Tangent, BottomSlabBSDF, 6);					// Tangent
 
 					check(ClearCoatBottomNormalOutput);
-					CopyConnectionTo(*ClearCoatBottomNormalOutput->GetInput(0), BottomSlabBSDF, 9);// ClearColorBottomNormal -> BottomSlabBSDF.Normal
+					CopyConnectionTo(*ClearCoatBottomNormalOutput->GetInput(0), BottomSlabBSDF, 5);// ClearColorBottomNormal -> BottomSlabBSDF.Normal
 
 					// Now weight the top base material by opacity.
 					UMaterialExpressionStrataSlabBSDF* TopSlabBSDF = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
 					TopSlabBSDF->MaterialExpressionEditorX = BottomSlabBSDF->MaterialExpressionEditorX;
 					TopSlabBSDF->MaterialExpressionEditorY = BottomSlabBSDF->MaterialExpressionEditorY + 650;
-					MoveConnectionTo(EditorOnly->EmissiveColor, TopSlabBSDF, 14);				// Emissive
-					MoveConnectionTo(EditorOnly->ClearCoatRoughness, TopSlabBSDF, 7);			// ClearCoatRoughness => Roughness
-					MoveConnectionTo(EditorOnly->Normal, TopSlabBSDF, 9);						// Normal
+					MoveConnectionTo(EditorOnly->EmissiveColor, TopSlabBSDF, 10);				// Emissive
+					MoveConnectionTo(EditorOnly->ClearCoatRoughness, TopSlabBSDF, 3);			// ClearCoatRoughness => Roughness
+					MoveConnectionTo(EditorOnly->Normal, TopSlabBSDF, 5);						// Normal
 
 					//  The top layer has a hard coded specular value of 0.5 (F0 = 0.04)
 					UMaterialExpressionConstant* ConstantHalf = NewObject<UMaterialExpressionConstant>(this);
 					ReplaceNodeAndMoveToTheRight(TopSlabBSDF, ConstantHalf);
-					ConstantHalf->R = 0.5f;
-					TopSlabBSDF->GetInput(3)->Connect(0, ConstantHalf);
+					ConstantHalf->R = 0.5f * 0.08f;
+					TopSlabBSDF->GetInput(1)->Connect(0, ConstantHalf);
 
 					// The original clear coat is a complex assemblage of arbitrary functions that do not always make sense.
 					// To simplify things, we set the top slab BSDF as having a constant Grey scale transmittance.
@@ -3338,9 +3344,10 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 					ReplaceNodeAndMoveToTheRight(TopSlabBSDF, Constant075);
 					Constant075->R = 0.75f;
 					UMaterialExpressionStrataTransmittanceToMFP* TransToMDFP = NewObject<UMaterialExpressionStrataTransmittanceToMFP>(this);
+					ReplaceNodeAndMoveToTheRight(TopSlabBSDF, TransToMDFP);
 					TransToMDFP->GetInput(0)->Connect(0, Constant075);
-					TopSlabBSDF->GetInput(11)->Connect(0, TransToMDFP);							// MFP -> MFP
-					TopSlabBSDF->GetInput(17)->Connect(1, TransToMDFP);							// Thickness -> Thickness
+					TopSlabBSDF->GetInput(7)->Connect(0, TransToMDFP);							// MFP -> MFP
+					TopSlabBSDF->GetInput(13)->Connect(1, TransToMDFP);							// Thickness -> Thickness
 
 					// Now weight the top base material by ClearCoat
 					UMaterialExpressionStrataWeight* TopSlabBSDFWithCoverage = NewObject<UMaterialExpressionStrataWeight>(this);

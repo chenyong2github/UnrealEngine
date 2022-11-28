@@ -116,14 +116,9 @@ void WriteOutMaterial(
 	FStrataPixelFootprint PixelFootprint = (FStrataPixelFootprint)0;
 	FStrataData StrataSlabData = GetStrataSlabBSDF(
 		/**FStrataPixelFootprint PixelFootprint */PixelFootprint,
-		/*float UseMetalness					*/true,
-		/*float3 BaseColor						*/BaseColor,
-		/*float3 EdgeColor						*/1.0f,
-		/*float Specular						*/Specular,
-		/*float Metallic						*/Metallic,
-		/*float3 DiffuseAlbedo					*/0.0f,
-		/*float3 F0								*/0.0f,
-		/*float3 F90							*/0.0f,
+		/*float3 DiffuseAlbedo					*/ComputeDiffuseAlbedo(BaseColor, Metallic),
+		/*float3 F0								*/ComputeF0(Specular, BaseColor, Metallic),
+		/*float3 F90							*/1.0f,
 		/*float Roughness						*/Roughness,
 		/*float Anisotropy						*/0.0f,
 		/*float SSSProfileID					*/0.0f,

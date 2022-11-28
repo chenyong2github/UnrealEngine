@@ -1338,9 +1338,7 @@ FStrataPixelFootprint StrataGetPixelFootprint(float3 InWorldPosition)
 
 FStrataData GetStrataSlabBSDF(
 	FStrataPixelFootprint InPixelFootprint,
-	float UseMetalness,
-	float3 BaseColor, float3 EdgeColor, float Specular, float Metallic,	//  Metalness workflow
-	float3 DiffuseAlbedo, float3 F0, float3 F90,						// !Metalness workflow
+	float3 DiffuseAlbedo, float3 F0, float3 F90,
 	float Roughness, float Anisotropy,
 	float SSSProfileID, float3 SSSMFP, float SSSMFPScale, float SSSPhaseAnisotropy, float UseSSSDiffusion,
 	float3 Emissive, 
@@ -1430,29 +1428,14 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETTHICKNESSCM		(StrataData.InlinedBSDF,		Thickness);
 #endif
 
-
-	if (UseMetalness > 0.0f)
-	{
 #if !STRATA_FASTPATH
-		BSDF_SETHASF90(StrataData.InlinedBSDF, any(EdgeColor < 1.0f));
+	// See how UMaterialExpressionStrataSlabBSDF node interface is changed
+	BSDF_SETHASF90(StrataData.InlinedBSDF, any(F90 < 1.0f));
 #endif
 
-		const float SafeMetallic = saturate(Metallic);
-		SLAB_DIFFUSEALBEDO(StrataData.InlinedBSDF)			= ComputeDiffuseAlbedo(BaseColor, SafeMetallic);
-		SLAB_F0(StrataData.InlinedBSDF)						= ComputeF0(Specular, BaseColor, SafeMetallic);
-		SLAB_F90(StrataData.InlinedBSDF)					= ComputeF90(F0, EdgeColor, SafeMetallic);
-	}
-	else
-	{
-#if !STRATA_FASTPATH
-		// See how UMaterialExpressionStrataSlabBSDF node interface is changed
-		BSDF_SETHASF90(StrataData.InlinedBSDF, any(F90 < 1.0f));
-#endif
-
-		SLAB_DIFFUSEALBEDO(StrataData.InlinedBSDF)			= DiffuseAlbedo;
-		SLAB_F0(StrataData.InlinedBSDF)						= F0;
-		SLAB_F90(StrataData.InlinedBSDF)					= F90;
-	}
+	SLAB_DIFFUSEALBEDO(StrataData.InlinedBSDF)			= DiffuseAlbedo;
+	SLAB_F0(StrataData.InlinedBSDF)						= F0;
+	SLAB_F90(StrataData.InlinedBSDF)					= F90;
 
 	SLAB_ROUGHNESS			(StrataData.InlinedBSDF)		= Roughness;
 
@@ -1486,14 +1469,7 @@ FStrataData GetStrataSlabBSDF(
 #endif
 
 #if USE_DEVELOPMENT_SHADERS
-	if (UseMetalness > 0.0f)
-	{
-		StrataData.PreviewColor = BaseColor;
-	}
-	else
-	{
-		StrataData.PreviewColor = lerp(DiffuseAlbedo, F0, F0RGBToMetallic(F0));
-	}
+	StrataData.PreviewColor = lerp(DiffuseAlbedo, F0, F0RGBToMetallic(F0));
 #endif
 
 	return StrataData;
@@ -3434,14 +3410,9 @@ void StrataConvertFromDBuffer(
 	const float DefaultThickness = STRATA_LAYER_DEFAULT_THICKNESS_CM;
 	OutData = GetStrataSlabBSDF(
 		PixelFootprint,		// PixelFootprint
-		true,				// UseMetalness
-		In.BaseColor,		// BaseColor		-  Metalness workflow
-		1.f,				// EdgeColor		-  Metalness workflow
-		In.Specular,		// Specular			-  Metalness workflow
-		In.Metallic,		// Metallic			-  Metalness workflow
-		0.f,				// DiffuseAlbedo	- !Metalness workflow
-		0.f,				// F0				- !Metalness workflow
-		0.f,				// F90				- !Metalness workflow
+		ComputeDiffuseAlbedo(In.BaseColor, In.Metallic),
+		ComputeF0(In.Specular, In.BaseColor, In.Metallic),
+		1.0f,				// F90
 		In.Roughness,		// Roughness
 		0.f,				// Anisotropy
 		0.f,				// SSSProfileID

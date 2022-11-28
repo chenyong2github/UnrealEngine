@@ -200,30 +200,6 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	GENERATED_UCLASS_BODY()
 
 	/**
-	 * Defines the overall color of the Material. (type = float3, unit = unitless, defaults to 0.18)
-	 */
-	UPROPERTY()
-	FExpressionInput BaseColor;
-
-	/**
-	 * Defines the edge color of the Material. This is only applied on metallic material (type = float3, unit = unitless, defaults to 1.0)
-	 */
-	UPROPERTY()
-	FExpressionInput EdgeColor;
-
-	/**
-	 * Controls how \"metal-like\" your surface looks like. 0 means dielectric, 1 means conductor (type = float, unit = unitless, defaults to 0)
-	 */
-	UPROPERTY()
-	FExpressionInput Metallic;
-	
-	/**
-	 * Used to scale the current amount of specularity on non-metallic surfaces and is a value between 0 and 1 (type = float, unit = unitless, defaults to plastic 0.5)
-	 */
-	UPROPERTY()
-	FExpressionInput Specular;
-	
-	/**
 	 * Defines the diffused albedo, the percentage of light reflected as diffuse from the surface. (type = float3, unit = unitless, defaults to 0.18)
 	 */
 	UPROPERTY()
@@ -323,10 +299,6 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
 
-	/** Whether to use the metalness workflow relying on BaseColor, Specular, EdgeColor and Metallic inputs. Or use the DiffuseColor, F0 and F90 specification. */
-	UPROPERTY(EditAnywhere, Category = Mode)
-	uint32 bUseMetalness : 1;
-
 	/** Whether to use light diffusion (i.e., SSS diffusion) or wrap-approximation for material with scattering behavior. This option trades quality over performance and will result into visual differences. */
 	UPROPERTY(EditAnywhere, Category = Mode, meta = (DisplayName = "Use Subsurface Diffusion"))
 	uint32 bUseSSSDiffusion : 1;
@@ -342,7 +314,6 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex) override;
 	virtual FName GetInputName(int32 InputIndex) const override;
 	virtual void GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual const TArray<FExpressionInput*> GetInputs() override;
 
 	bool HasEdgeColor() const;
@@ -362,22 +333,16 @@ class UMaterialExpressionStrataSimpleClearCoatBSDF : public UMaterialExpressionS
 	GENERATED_UCLASS_BODY()
 
 	/**
-	 * Defines the overall color of the Material. (type = float3, unit = unitless, defaults to 0.18)
+	 * Defines the diffused albedo, the percentage of light reflected as diffuse from the surface. (type = float3, unit = unitless, defaults to 0.18)
 	 */
 	UPROPERTY()
-	FExpressionInput BaseColor;
+	FExpressionInput DiffuseAlbedo;
 
 	/**
-	 * Controls how \"metal-like\" your surface looks like. 0 means dielectric, 1 means conductor (type = float, unit = unitless, defaults to 0)
+	 * Defines F0, the percentage of light reflected as specular from a surface when the view is perpendicular to the surface. (type = float3, unit = unitless, defaults to plastic 0.04)
 	 */
 	UPROPERTY()
-	FExpressionInput Metallic;
-	
-	/**
-	 * Used to scale the current amount of specularity on non-metallic surfaces and is a value between 0 and 1 (type = float, unit = unitless, defaults to plastic 0.5)
-	 */
-	UPROPERTY()
-	FExpressionInput Specular;
+	FExpressionInput F0;
 
 	/**
 	 * Controls how rough the bottom layer of the material is. Roughness of 0 (smooth) is a mirror reflection and 1 (rough) is completely matte or diffuse. (type = float, unit = unitless, defaults to 0.5)
