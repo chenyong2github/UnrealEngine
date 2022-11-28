@@ -29,8 +29,8 @@ namespace UE::PoseSearch
 #endif
 
 //////////////////////////////////////////////////////////////////////////
-// FDerivedDataKeyBuilder
-class POSESEARCH_API FDerivedDataKeyBuilder : public FArchiveUObject
+// FKeyBuilder
+class POSESEARCH_API FKeyBuilder : public FArchiveUObject
 {
 public:
 	using Super = FArchiveUObject;
@@ -40,10 +40,8 @@ public:
 	inline static const FName ExcludeFromHashName = FName(TEXT("ExcludeFromHash"));
 	inline static const FName NeverInHashName = FName(TEXT("NeverInHash"));
 
-	FDerivedDataKeyBuilder(UObject* Object)
+	FKeyBuilder()
 	{
-		check(Object);
-
 		ArIgnoreOuterRef = true;
 
 		// Set FDerivedDataKeyBuilder to be a saving archive instead of a reference collector.
@@ -51,14 +49,26 @@ public:
 		// which doesn't give a stable hash.  Serializing these to a saving archive will
 		// use a string reference instead, which is a more meaningful hash value.
 		SetIsSaving(true);
+	}
 
-		// used to invalidate the key without having to change POSESEARCHDB_DERIVEDDATA_VER all the times
-		FGuid VersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().POSESEARCHDB_DERIVEDDATA_VER);
-		int32 POSESEARCHDB_DERIVEDDATA_VER_SMALL = 3;
+	FKeyBuilder(const UObject* Object, bool bUseDataVer = false)
+		: FKeyBuilder()
+	{
+		check(Object);
 
-		*this << VersionGuid;
-		*this << POSESEARCHDB_DERIVEDDATA_VER_SMALL;
-		*this << Object;
+		if (bUseDataVer)
+		{
+			// used to invalidate the key without having to change POSESEARCHDB_DERIVEDDATA_VER all the times
+			int32 POSESEARCHDB_DERIVEDDATA_VER_SMALL = 6;
+			FGuid VersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().POSESEARCHDB_DERIVEDDATA_VER);
+
+			*this << VersionGuid;
+			*this << POSESEARCHDB_DERIVEDDATA_VER_SMALL;
+		}
+
+		// FKeyBuilder is a saving only archiver, and since it doesn't modify the input Object it's safe to do a const_cast 
+		UObject* NonConstObject = const_cast<UObject*>(Object);
+		*this << NonConstObject;
 	}
 
 	virtual void Seek(int64 InPos) override
@@ -196,9 +206,10 @@ public:
 	}
 	//~ End FArchive Interface
 	
-	HashDigestType Finalize() const
+	FIoHash Finalize() const
 	{
-		return Hasher.Finalize();
+		// Stores a BLAKE3-160 hash, taken from the first 20 bytes of a BLAKE3-256 hash
+		return FIoHash(Hasher.Finalize());
 	}
 
 	const TSet<const UObject*>& GetDependencies() const

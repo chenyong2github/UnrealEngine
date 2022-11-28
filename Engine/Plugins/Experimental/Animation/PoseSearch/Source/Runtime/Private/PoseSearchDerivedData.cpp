@@ -29,7 +29,56 @@ static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsM
 	});
 #endif
 
-static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex& SearchIndex, const UPoseSearchSchema* Schema)
+static float ComputeFeatureMeanDeviation(TConstArrayView<FFeatureChannelLayoutSet::FEntry> Entries, TConstArrayView<FPoseSearchIndexBase> SearchIndexBases, TConstArrayView<const UPoseSearchSchema*> Schemas)
+{
+	check(Schemas.Num() == SearchIndexBases.Num());
+	
+	const int32 EntriesNum = Entries.Num();
+	check(EntriesNum > 0);
+
+	const int32 Cardinality = Entries[0].Cardinality;
+	check(Cardinality > 0);
+
+	int32 TotalNumPoses = 0;
+	for (int32 EntryIdx = 0; EntryIdx < EntriesNum; ++EntryIdx)
+	{
+		TotalNumPoses += SearchIndexBases[Entries[EntryIdx].SchemaIndex].NumPoses;
+	}
+
+	int32 AccumulatedNumPoses = 0;
+	RowMajorMatrix CenteredSubPoseMatrix(TotalNumPoses, Cardinality);
+	for (int32 EntryIdx = 0; EntryIdx < EntriesNum; ++EntryIdx)
+	{
+		const FFeatureChannelLayoutSet::FEntry& Entry = Entries[EntryIdx];
+		check(Cardinality == Entry.Cardinality);
+
+		const int32 DataSetIdx = Entry.SchemaIndex;
+
+		const UPoseSearchSchema* Schema = Schemas[DataSetIdx];
+		const FPoseSearchIndexBase& SearchIndex = SearchIndexBases[DataSetIdx];
+
+		const int32 NumPoses = SearchIndex.NumPoses;
+
+		// Map input buffer with NumPoses as rows and NumDimensions	as cols
+		RowMajorMatrixMapConst PoseMatrixSourceMap(SearchIndex.Values.GetData(), NumPoses, Schema->SchemaCardinality);
+
+		// Given the sub matrix for the features, find the average distance to the feature's centroid.
+		CenteredSubPoseMatrix.block(AccumulatedNumPoses, 0, NumPoses, Cardinality) = PoseMatrixSourceMap.block(0, Entry.DataOffset, NumPoses, Cardinality);
+		AccumulatedNumPoses += NumPoses;
+	}
+
+	RowMajorVector SampleMean = CenteredSubPoseMatrix.colwise().mean();
+	CenteredSubPoseMatrix = CenteredSubPoseMatrix.rowwise() - SampleMean;
+
+	// after mean centering the data, the average distance to the centroid is simply the average norm.
+	const float FeatureMeanDeviation = CenteredSubPoseMatrix.rowwise().norm().mean();
+
+	return FeatureMeanDeviation;
+}
+
+// it collects FFeatureChannelLayoutSet from all the Schemas (for example, figuring out the data offsets of SampledBones at a specific 
+// SampleTimes for a UPoseSearchFeatureChannel_Pose for all the SearchIndexBases), and call ComputeFeatureMeanDeviation
+static TArray<float> ComputeChannelsDeviations(TConstArrayView<FPoseSearchIndexBase> SearchIndexBases, TConstArrayView<const UPoseSearchSchema*> Schemas)
 {
 	// This function performs a modified z-score normalization where features are normalized
 	// by mean absolute deviation rather than standard deviation. Both methods are preferable
@@ -45,46 +94,56 @@ static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex& SearchI
 	//     British Journal of Educational Studies, 53: 417-430.
 
 	using namespace Eigen;
+	using namespace UE::PoseSearch;
 
-	check(Schema->IsValid());
+	int32 ThisSchemaIndex = 0;
+	check(SearchIndexBases.Num() == Schemas.Num() && Schemas.Num() > ThisSchemaIndex);
+	const UPoseSearchSchema* ThisSchema = Schemas[ThisSchemaIndex];
+	check(ThisSchema->IsValid());
+	const int32 NumDimensions = ThisSchema->SchemaCardinality;
 
-	const int32 NumPoses = SearchIndex.NumPoses;
-	const int32 NumDimensions = Schema->SchemaCardinality;
+	TArray<float> MeanDeviations;
+	MeanDeviations.Init(1.f, NumDimensions);
+	RowMajorVectorMap MeanDeviationsMap(MeanDeviations.GetData(), 1, NumDimensions);
 
-	// Compute per Channel average distances
-	VectorXd MeanDeviations(NumDimensions);
-	MeanDeviations.setConstant(1.0);
-
-	if (NumPoses > 0)
+	const EPoseSearchDataPreprocessor DataPreprocessor = ThisSchema->DataPreprocessor;
+	if (SearchIndexBases[ThisSchemaIndex].NumPoses > 0 && (DataPreprocessor == EPoseSearchDataPreprocessor::Normalize || DataPreprocessor == EPoseSearchDataPreprocessor::NormalizeOnlyByDeviation))
 	{
-		// Map input buffer
-		auto PoseMatrixSourceMap = RowMajorMatrixMapConst(
-			SearchIndex.Values.GetData(),
-			NumPoses,		// rows
-			NumDimensions	// cols
-		);
-
-		// @todo: evaluate removing the cast to double
-
-		// Copy row major float matrix to column major double matrix
-		MatrixXd PoseMatrix = PoseMatrixSourceMap.transpose().cast<double>();
-		checkSlow(PoseMatrix.rows() == NumDimensions);
-		checkSlow(PoseMatrix.cols() == NumPoses);
-
-		// Mean center
-		VectorXd SampleMean = PoseMatrix.rowwise().mean();
-		PoseMatrix = PoseMatrix.colwise() - SampleMean;
-
-		for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
+		FFeatureChannelLayoutSet FeatureChannelLayoutSet;
+		for (int32 SchemaIndex = 0; SchemaIndex < Schemas.Num(); ++SchemaIndex)
 		{
-			const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
-			Channel->ComputeMeanDeviations(PoseMatrix, MeanDeviations);
+			const UPoseSearchSchema* Schema = Schemas[SchemaIndex];
+
+			FeatureChannelLayoutSet.CurrentSchemaIndex = SchemaIndex;
+			FeatureChannelLayoutSet.CurrentSchema = Schema;
+			for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
+			{
+				const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
+				Channel->PopulateChannelLayoutSet(FeatureChannelLayoutSet);
+			}
+		}
+
+		for (auto Pair : FeatureChannelLayoutSet.EntriesMap)
+		{
+			const TArray<FFeatureChannelLayoutSet::FEntry>& Entries = Pair.Value;
+			for (const FFeatureChannelLayoutSet::FEntry& Entry : Entries)
+			{
+				if (Entry.SchemaIndex == ThisSchemaIndex)
+				{
+					const float FeatureMeanDeviation = ComputeFeatureMeanDeviation(Entries, SearchIndexBases, Schemas);
+					// the associated data to all the Entries data is going to be used to calculate the deviation of Deviation[Entry.DataOffset] to Deviation[Entry.DataOffset + Entry.Cardinality]
+
+					// Fill the feature's corresponding scaling axes with the average distance
+					// Avoid scaling by zero by leaving near-zero deviations as 1.0
+					static const float MinFeatureMeanDeviation = 0.1f;
+					MeanDeviationsMap.segment(Entry.DataOffset, Entry.Cardinality).setConstant(FeatureMeanDeviation > MinFeatureMeanDeviation ? FeatureMeanDeviation : 1.f);
+				}
+			}
 		}
 	}
-
+	
 	return MeanDeviations;
 }
-
 static inline FFloatInterval GetEffectiveSamplingRange(const UAnimSequenceBase* Sequence, FFloatInterval RequestedSamplingRange)
 {
 	const bool bSampleAll = (RequestedSamplingRange.Min == 0.0f) && (RequestedSamplingRange.Max == 0.0f);
@@ -216,28 +275,17 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, TConstArray
 	}
 }
 
-static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UPoseSearchSchema* Schema)
+static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UPoseSearchSchema* Schema, TConstArrayView<float> Deviation)
 {
 	const int32 NumDimensions = Schema->SchemaCardinality;
 	SearchIndex.WeightsSqrt.Init(1.f, NumDimensions);
-
 	for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
 	{
 		const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
 		Channel->FillWeights(SearchIndex.WeightsSqrt);
 	}
 
-	Eigen::VectorXd ChannelsMeanDeviations = ComputeChannelsDeviations(SearchIndex, Schema);
-	TArray<float> Deviation;
-	Deviation.Init(1.f, NumDimensions);
-	for (int32 Dimension = 0; Dimension != NumDimensions; ++Dimension)
-	{
-		const float ChannelsMeanDeviation = ChannelsMeanDeviations[Dimension];
-		Deviation[Dimension] = ChannelsMeanDeviation;
-	}
-
 	EPoseSearchDataPreprocessor DataPreprocessor = Schema->DataPreprocessor;
-
 	if (DataPreprocessor == EPoseSearchDataPreprocessor::Normalize)
 	{
 		// normalizing user weights: the idea behind this step is to be able to compare poses from databases using different schemas
@@ -245,7 +293,7 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 		const float WeightsSum = MapWeights.sum();
 		if (!FMath::IsNearlyZero(WeightsSum))
 		{
-			MapWeights *= (1.0f / WeightsSum);
+			MapWeights *= (1.f / WeightsSum);
 		}
 	}
 
@@ -259,14 +307,10 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 	{
 		for (int32 Dimension = 0; Dimension != NumDimensions; ++Dimension)
 		{
-			// the idea here is to premultiply the weights by the inverse of the variance (proportional to the square of the deviation) to have a "weighted Mahalanobis" distance
+			// the idea here is to pre-multiply the weights by the inverse of the variance (proportional to the square of the deviation) to have a "weighted Mahalanobis" distance
 			SearchIndex.WeightsSqrt[Dimension] /= Deviation[Dimension];
 		}
 	}
-
-#if WITH_EDITORONLY_DATA
-	SearchIndex.Deviation = Deviation;
-#endif // WITH_EDITORONLY_DATA
 }
 
 // it calculates Mean, PCAValues, and PCAProjectionMatrix
@@ -927,6 +971,8 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 		float CurrentTime = Sample.ClipTime;
 		float PreviousTime = CurrentTime - SamplingContext->FiniteDelta;
 
+		check(Sample.Clip->IsLoopable() || PreviousTime <= Sample.Clip->GetPlayLength());
+
 		FDeltaTimeRecord DeltaTimeRecord;
 		DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
 		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), true, DeltaTimeRecord, Sample.Clip->IsLoopable());
@@ -1245,10 +1291,8 @@ void FPoseSearchDatabaseAsyncCacheTask::StartNewRequestIfNeeded(FCriticalSection
 	Owner.Cancel();
 
 	// composing the key
-	const FDerivedDataKeyBuilder KeyBuilder(Database.Get());
-
-	// Stores a BLAKE3-160 hash, taken from the first 20 bytes of a BLAKE3-256 hash
-	const FIoHash NewDerivedDataKey = KeyBuilder.Finalize();
+	const FKeyBuilder KeyBuilder(Database.Get(), true);
+	const FIoHash NewDerivedDataKey(KeyBuilder.Finalize());
 	const bool bHasKeyChanged = NewDerivedDataKey != DerivedDataKey;
 	if (bHasKeyChanged)
 	{
@@ -1391,68 +1435,115 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 			{
 				COOK_STAT(auto Timer = UsageStats.TimeSyncWork());
 
-				// early out for invalid indexing conditions
-				if (!Database->Schema || !Database->Schema->IsValid() || Database->Schema->SchemaCardinality <= 0)
+				// collecting all the databases that need to be built to gather their FPoseSearchIndexBase
+				TArray<TWeakObjectPtr<const UPoseSearchDatabase>> IndexBaseDatabases;
+				IndexBaseDatabases.Add(Database); // the first one is always this Database
+				if (Database->NormalizationSet)
 				{
-					UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Failed"), *LexToString(FullIndexKey.Hash), *Database->GetName());
-					SearchIndex.Reset();
-					return;
+					for (auto OtherDatabase : Database->NormalizationSet->Databases)
+					{
+						if (OtherDatabase)
+						{
+							IndexBaseDatabases.AddUnique(OtherDatabase);
+						}
+					}
 				}
 
-				if (Owner.IsCanceled())
+				// @todo: DDC or parallelize this code
+				TArray<FPoseSearchIndexBase> SearchIndexBases;
+				TArray<const UPoseSearchSchema*> Schemas;
+				SearchIndexBases.AddDefaulted(IndexBaseDatabases.Num());
+				Schemas.AddDefaulted(IndexBaseDatabases.Num());
+				for (int32 IndexBaseIdx = 0; IndexBaseIdx < IndexBaseDatabases.Num(); ++IndexBaseIdx)
 				{
-					UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
-					SearchIndex.Reset();
-					return;
+					auto IndexBaseDatabase = IndexBaseDatabases[IndexBaseIdx];
+					FPoseSearchIndexBase& SearchIndexBase = SearchIndexBases[IndexBaseIdx];
+					Schemas[IndexBaseIdx] = IndexBaseDatabase->Schema;
+
+					// early out for invalid indexing conditions
+					if (!IndexBaseDatabase->Schema || !IndexBaseDatabase->Schema->IsValid() || IndexBaseDatabase->Schema->SchemaCardinality <= 0)
+					{
+						if (IndexBaseDatabase == Database)
+						{
+							UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Failed"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+						}
+						else
+						{
+							UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Failed because of dependent database fail '%s'"), *LexToString(FullIndexKey.Hash), *Database->GetName(), *IndexBaseDatabase->GetName());
+						}
+						SearchIndex.Reset();
+						return;
+					}
+
+					if (Owner.IsCanceled())
+					{
+						UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+						SearchIndex.Reset();
+						return;
+					}
+
+					// Building all the related FPoseSearchBaseIndex first
+					InitSearchIndexAssets(SearchIndexBase, IndexBaseDatabase->Sequences, IndexBaseDatabase->BlendSpaces, IndexBaseDatabase->ExcludeFromDatabaseParameters);
+
+					if (Owner.IsCanceled())
+					{
+						UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+						SearchIndex.Reset();
+						return;
+					}
+
+					FDatabaseIndexingContext DbIndexingContext;
+					DbIndexingContext.SearchIndexBase = &SearchIndexBase;
+					DbIndexingContext.Prepare(IndexBaseDatabase->Schema, IndexBaseDatabase->ExtrapolationParameters, IndexBaseDatabase->Sequences, IndexBaseDatabase->BlendSpaces);
+
+					if (Owner.IsCanceled())
+					{
+						UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+						SearchIndex.Reset();
+						return;
+					}
+
+					const bool bSuccess = DbIndexingContext.IndexAssets();
+					if (!bSuccess)
+					{
+						if (IndexBaseDatabase == Database)
+						{
+							UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Failed"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+						}
+						else
+						{
+							UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Failed because of dependent database fail '%s'"), *LexToString(FullIndexKey.Hash), *Database->GetName(), *IndexBaseDatabase->GetName());
+						}
+						SearchIndex.Reset();
+						return;
+					}
+
+					if (Owner.IsCanceled())
+					{
+						UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+						SearchIndex.Reset();
+						return;
+					}
+
+					DbIndexingContext.JoinIndex();
+					if (Owner.IsCanceled())
+					{
+						UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
+						SearchIndex.Reset();
+						return;
+					}
 				}
 
-				// Building all the related FPoseSearchBaseIndex first
-				FPoseSearchIndexBase& SearchIndexBase = SearchIndex;
-				InitSearchIndexAssets(SearchIndexBase, Database->Sequences, Database->BlendSpaces, Database->ExcludeFromDatabaseParameters);
+				static_cast<FPoseSearchIndexBase&>(SearchIndex) = SearchIndexBases[0];
+				
+				TArray<float> Deviation = ComputeChannelsDeviations(SearchIndexBases, Schemas);
 
-				if (Owner.IsCanceled())
-				{
-					UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
-					SearchIndex.Reset();
-					return;
-				}
-
-				FDatabaseIndexingContext DbIndexingContext;
-				DbIndexingContext.SearchIndexBase = &SearchIndexBase;
-				DbIndexingContext.Prepare(Database->Schema, Database->ExtrapolationParameters, Database->Sequences, Database->BlendSpaces);
-
-				if (Owner.IsCanceled())
-				{
-					UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
-					SearchIndex.Reset();
-					return;
-				}
-
-				const bool bSuccess = DbIndexingContext.IndexAssets();
-				if (!bSuccess)
-				{
-					UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Failed"), *LexToString(FullIndexKey.Hash), *Database->GetName());
-					SearchIndex.Reset();
-					return;
-				}
-
-				if (Owner.IsCanceled())
-				{
-					UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
-					SearchIndex.Reset();
-					return;
-				}
-
-				DbIndexingContext.JoinIndex();
-				if (Owner.IsCanceled())
-				{
-					UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
-					SearchIndex.Reset();
-					return;
-				}
+				#if WITH_EDITORONLY_DATA
+				SearchIndex.Deviation = Deviation;
+				#endif // WITH_EDITORONLY_DATA
 
 				// Building FPoseSearchIndex
-				PreprocessSearchIndexWeights(SearchIndex, Database->Schema);
+				PreprocessSearchIndexWeights(SearchIndex, Database->Schema, Deviation);
 				if (Owner.IsCanceled())
 				{
 					UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());

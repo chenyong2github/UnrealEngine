@@ -70,15 +70,6 @@ namespace UE::DerivedData
 } // namespace UE::DerivedData
 #endif
 
-// eigen forward declaration
-namespace Eigen
-{
-	template<typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-	class Matrix;
-	using MatrixXd = Matrix<double, -1, -1, 0, -1, -1>;
-	using VectorXd = Matrix<double, -1, 1, 0, -1, 1>;
-}
-
 //////////////////////////////////////////////////////////////////////////
 // Constants
 
@@ -380,6 +371,37 @@ private:
 	TArrayView<float> FeatureVectorTable;
 };
 
+#if WITH_EDITOR
+// data structure collecting the internal layout representation of UPoseSearchFeatureChannel,
+// so we can aggregate data from different FPoseSearchIndex and calculate mean deviation with a homogeneous data set (ComputeChannelsDeviations
+struct FFeatureChannelLayoutSet
+{
+	// data structure holding DataOffset and Cardinality to find the data of the DebugName (channel breakdown / layout) in the related SearchIndexBases[SchemaIndex]
+	struct FEntry
+	{
+		FString DebugName; // for easier debugging
+		int32 SchemaIndex = -1; // index of the associated Schemas / SearchIndexBases used as input of the algorithm
+		int32 DataOffset = -1; // data offset from the base of SearchIndexBases[SchemaIndex].Values.GetData() from where the data associated to this Item starts
+		int32 Cardinality = -1; // data cardinality
+	};
+
+	// FIoHash is the hash associated to the channel data breakdown (e.g.: it could be a single SampledBones at a specific SampleTimes for a UPoseSearchFeatureChannel_Pose)
+	TMap<FIoHash, TArray<FEntry>> EntriesMap;
+	int32 CurrentSchemaIndex = -1;
+	TWeakObjectPtr<const UPoseSearchSchema> CurrentSchema;
+
+	void Add(FString DebugName, FIoHash Id, int32 DataOffset, int32 Cardinality)
+	{
+		check(DataOffset >= 0 && Cardinality >= 0 && CurrentSchemaIndex >= 0);
+		TArray<FEntry>& Entries = EntriesMap.FindOrAdd(Id);
+
+		// making sure all the FEntry associated with the same Id have the same Cardinality
+		check(Entries.IsEmpty() || Entries[0].Cardinality == Cardinality);
+		Entries.Add({ DebugName, CurrentSchemaIndex, DataOffset, Cardinality });
+	}
+};
+#endif // WITH_EDITOR
+
 class POSESEARCH_API IAssetIndexer
 {
 public:
@@ -450,7 +472,6 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 // Feature channels interface
-
 UCLASS(Abstract, BlueprintType, EditInlineNew)
 class POSESEARCH_API UPoseSearchFeatureChannel : public UObject, public IBoneReferenceSkeletonProvider, public IPoseFilter
 {
@@ -472,9 +493,6 @@ public:
 	// Called at database build time to populate pose vectors with this channel's data
 	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
 
-	// Called at database build time to calculate normalization values
-	virtual void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const;
-
 	// Called at runtime to add this channel's data to the query pose vector
 	virtual bool BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, return false;);
 
@@ -482,11 +500,9 @@ public:
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
 
 #if WITH_EDITOR
+	virtual void PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const;
 	virtual void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const;
 #endif
-
-	// Used during data normalization. If a feature has less than this amount of deviation from the mean across all poses in a database, then it will not be normalized.
-	virtual float GetMinimumMeanDeviation() const { return 0.1f; }
 
 private:
 	// IBoneReferenceSkeletonProvider interface
@@ -505,9 +521,6 @@ protected:
 	UPROPERTY(meta = (ExcludeFromHash))
 	int32 ChannelCardinality = INDEX_NONE;
 };
-
-//////////////////////////////////////////////////////////////////////////
-// Schema
 
 namespace UE::PoseSearch
 {
@@ -1068,6 +1081,17 @@ struct FSearchResult
 } // namespace UE::PoseSearch
 
 /** A data asset for indexing a collection of animation sequences. */
+UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental, meta = (DisplayName = "Normalization Set"))
+class POSESEARCH_API UNormalizationSetAsset : public UDataAsset
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NormalizationSet")
+	TArray<TObjectPtr<const UPoseSearchDatabase>> Databases; // @todo: it should be a UPoseSearchSearchableAsset, and have the UPoseSearchSearchableAsset iterate over all it's contained UPoseSearchSearchableAsset recursively (without duplicates)
+};
+
+/** A data asset for indexing a collection of animation sequences. */
 UCLASS(Abstract, BlueprintType, Experimental)
 class POSESEARCH_API UPoseSearchSearchableAsset : public UDataAsset
 {
@@ -1114,6 +1138,9 @@ public:
 	// if true, this database search will be skipped if cannot decrease the pose cost, and poses will not be listed into the PoseSearchDebugger
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	bool bSkipSearchIfPossible = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Database")
+	TObjectPtr<const UNormalizationSetAsset> NormalizationSet;
 
 private:
 	UPROPERTY(Transient, meta = (ExcludeFromHash))
@@ -1216,18 +1243,11 @@ public:
 	static void EncodeFloat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
 	static float DecodeFloat(TConstArrayView<float> Values, int32& DataOffset);
 
-	// populates MeanDeviations[DataOffset] ... MeanDeviations[DataOffset + Cardinality] with a single value the mean deviation calculated from a centered matrix
-	static void ComputeMeanDeviations(float MinMeanDeviation, const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
-
-	// populates MeanDeviations[DataOffset] ... MeanDeviations[DataOffset + Cardinality] with a single value
-	static void SetMeanDeviations(float Deviation, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
-
 private:
 	static FQuat DecodeQuatInternal(TConstArrayView<float> Values, int32 DataOffset);
 	static FVector DecodeVectorInternal(TConstArrayView<float> Values, int32 DataOffset);
 	static FVector2D DecodeVector2DInternal(TConstArrayView<float> Values, int32 DataOffset);
 	static float DecodeFloatInternal(TConstArrayView<float> Values, int32 DataOffset);
-
 };
 
 /**

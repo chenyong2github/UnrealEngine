@@ -4,6 +4,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "PoseSearch/PoseSearchAnimNotifies.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
+#include "PoseSearch/PoseSearchDerivedDataKey.h"
 #include "PoseSearchEigenHelper.h"
 
 #include "Algo/BinarySearch.h"
@@ -369,22 +370,16 @@ void UPoseSearchFeatureChannel::InitializeSchema(UE::PoseSearch::FSchemaInitiali
 }
 
 #if WITH_EDITOR
+void UPoseSearchFeatureChannel::PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const
+{
+	FeatureChannelLayoutSet.Add(GetName(), UE::PoseSearch::FKeyBuilder(this).Finalize(), ChannelDataOffset, ChannelCardinality);
+}
+
 void UPoseSearchFeatureChannel::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const
 {
 	CostBreakDownData.AddEntireBreakDownSection(FText::FromString(GetName()), Schema, ChannelDataOffset, ChannelCardinality);
 }
 #endif // WITH_EDITOR
-
-// base implementation calculating a single mean deviation value (replicated ChannelCardinality times into MeanDeviations starting at DataOffset index) from all the features data associated to this channel
-void UPoseSearchFeatureChannel::ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const
-{
-	using namespace UE::PoseSearch;
-
-	int32 DataOffset = ChannelDataOffset;
-	FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, ChannelCardinality);
-
-	check(DataOffset == ChannelDataOffset + ChannelCardinality);
-}
 
 //////////////////////////////////////////////////////////////////////////
 // FSchemaInitializer
@@ -1965,29 +1960,6 @@ float FFeatureVectorHelper::DecodeFloatInternal(TConstArrayView<float> Values, i
 	return Values[DataOffset];
 }
 
-void FFeatureVectorHelper::ComputeMeanDeviations(float MinMeanDeviation, const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality)
-{
-	const int32 NumPoses = CenteredPoseMatrix.cols();
-
-	// Construct a submatrix for the feature and find the average distance to the feature's centroid.
-	// Since we've already mean centered the data, the average distance to the centroid is simply the average norm.
-	const double FeatureMeanDeviation = CenteredPoseMatrix.block(DataOffset, 0, Cardinality, NumPoses).colwise().norm().mean();
-
-	// Fill the feature's corresponding scaling axes with the average distance
-	// Avoid scaling by zero by leaving near-zero deviations as 1.0
-	MeanDeviations.segment(DataOffset, Cardinality).setConstant(FeatureMeanDeviation > MinMeanDeviation ? FeatureMeanDeviation : 1.f);
-
-	DataOffset += Cardinality;
-}
-
-void FFeatureVectorHelper::SetMeanDeviations(float Deviation, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality)
-{
-	// Fill the feature's corresponding scaling axes with the supplied value
-	MeanDeviations.segment(DataOffset, Cardinality).setConstant(Deviation);
-
-	DataOffset += Cardinality;
-}
-
 //////////////////////////////////////////////////////////////////////////
 // FDebugDrawParams
 bool FDebugDrawParams::CanDraw() const
@@ -2896,7 +2868,7 @@ void FBlendSpaceSampler::ProcessRootDistance()
 	// Also emit root motion summary info to help with sample wrapping in 
 	// FAssetIndexer::GetSampleTimeFromDistance() and FAssetIndexer::GetSampleInfo()
 	TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
-	TotalRootDistance = AccumulatedRootDistance.Last();
+	TotalRootDistance = AccumulatedRootDistance.Last(); 
 }
 
 const UAnimationAsset* FBlendSpaceSampler::GetAsset() const

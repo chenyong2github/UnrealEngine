@@ -8,6 +8,7 @@
 #include "Animation/MirrorDataTable.h"
 #include "DrawDebugHelpers.h"
 #include "PoseSearchEigenHelper.h"
+#include "PoseSearch/PoseSearchDerivedDataKey.h"
 #include "UObject/ObjectSaveContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PoseSearchFeatureChannels)
@@ -728,49 +729,6 @@ void UPoseSearchFeatureChannel_Pose::IndexAsset(UE::PoseSearch::IAssetIndexer& I
 	}
 }
 
-void UPoseSearchFeatureChannel_Pose::ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const
-{
-	using namespace UE::PoseSearch;
-
-	int32 DataOffset = ChannelDataOffset;
-
-	const int32 NumBones = SampledBones.Num();
-	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != NumBones; ++ChannelBoneIdx)
-	{
-		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
-		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Position))
-		{
-			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
-			{
-				FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVectorCardinality);
-			}
-		}
-		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Rotation))
-		{
-			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
-			{
-				FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeQuatCardinality);
-			}
-		}
-		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Velocity))
-		{
-			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
-			{
-				FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVectorCardinality);
-			}
-		}
-		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Phase))
-		{
-			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
-			{
-				FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVector2DCardinality);
-			}
-		}
-	}
-
-	check(DataOffset == ChannelDataOffset + ChannelCardinality);
-}
-
 void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, TArrayView<float> FeatureVector, const TArray<TArray<FVector2D>>& Phases) const
 {
 	// This function samples the instantaneous pose at time t as well as the pose's velocity and acceleration at time t.
@@ -1184,6 +1142,59 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 }
 
 #if WITH_EDITOR
+void UPoseSearchFeatureChannel_Pose::PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const
+{
+	using namespace UE::PoseSearch;
+	int32 DataOffset = ChannelDataOffset;
+
+	auto Add = [&FeatureChannelLayoutSet, &DataOffset](const FPoseSearchBone& SampledBone, EPoseSearchBoneFlags BoneFlag, float SampleTime, const char* Label, int32 Cardinality)
+	{
+		FString SkeletonName = FeatureChannelLayoutSet.CurrentSchema->Skeleton->GetName();
+		FString BoneName = SampledBone.Reference.BoneName.ToString();
+
+		UE::PoseSearch::FKeyBuilder KeyBuilder;
+		KeyBuilder << SkeletonName << BoneName << BoneFlag << SampleTime;
+		FeatureChannelLayoutSet.Add(FString::Format(TEXT("{0} {1} {2}"), { BoneName, Label, SampleTime }), KeyBuilder.Finalize(), DataOffset, Cardinality);
+
+		DataOffset += Cardinality;
+	};
+
+	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != SampledBones.Num(); ++ChannelBoneIdx)
+	{
+		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
+		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Position))
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Add(SampledBone, EPoseSearchBoneFlags::Position, SampleTimes[SubsampleIdx], "Pos", FFeatureVectorHelper::EncodeVectorCardinality);
+			}
+		}
+		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Rotation))
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Add(SampledBone, EPoseSearchBoneFlags::Rotation, SampleTimes[SubsampleIdx], "Rot", FFeatureVectorHelper::EncodeQuatCardinality);
+			}
+		}
+		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Velocity))
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Add(SampledBone, EPoseSearchBoneFlags::Velocity, SampleTimes[SubsampleIdx], "Vel", FFeatureVectorHelper::EncodeVectorCardinality);
+			}
+		}
+		if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Phase))
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Add(SampledBone, EPoseSearchBoneFlags::Phase, SampleTimes[SubsampleIdx], "Pha", FFeatureVectorHelper::EncodeVector2DCardinality);
+			}
+		}
+	}
+
+	check(DataOffset == ChannelDataOffset + ChannelCardinality);
+}
+
 void UPoseSearchFeatureChannel_Pose::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const
 {
 	using namespace UE::PoseSearch;
@@ -1390,54 +1401,6 @@ void UPoseSearchFeatureChannel_Trajectory::IndexAsset(UE::PoseSearch::IAssetInde
 	}
 }
 
-void UPoseSearchFeatureChannel_Trajectory::ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const
-{
-	using namespace UE::PoseSearch;
-
-	int32 DataOffset = ChannelDataOffset;
-
-	for (const FPoseSearchTrajectorySample& Sample : Samples)
-	{
-		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Position))
-		{
-			FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVectorCardinality);
-		}
-		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::PositionXY))
-		{
-			FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVector2DCardinality);
-		}
-
-		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Velocity))
-		{
-			FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVectorCardinality);
-		}
-		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityXY))
-		{
-			FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVector2DCardinality);
-		}
-
-		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
-		{
-			FFeatureVectorHelper::SetMeanDeviations(1.f, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVectorCardinality);
-		}
-		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
-		{
-			FFeatureVectorHelper::SetMeanDeviations(1.f, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVector2DCardinality);
-		}
-
-		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
-		{
-			FFeatureVectorHelper::SetMeanDeviations(1.f, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVectorCardinality);
-		}
-		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
-		{
-			FFeatureVectorHelper::SetMeanDeviations(1.f, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVector2DCardinality);
-		}
-	}
-
-	check(DataOffset == ChannelDataOffset + ChannelCardinality);
-}
-
 float UPoseSearchFeatureChannel_Trajectory::GetSampleTime(const UE::PoseSearch::IAssetIndexer& Indexer, float Offset, float SampleTime, float RootDistance) const
 {
 	switch (Domain)
@@ -1541,7 +1504,7 @@ void UPoseSearchFeatureChannel_Trajectory::IndexAssetPrivate(const UE::PoseSearc
 		}
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
 		{
-			FFeatureVectorHelper::EncodeVector2D(FeatureVector, DataOffset, FVector2D(FacingDirection.X, FacingDirection.Y));
+			FFeatureVectorHelper::EncodeVector2D(FeatureVector, DataOffset, FVector2D(FacingDirection.X, FacingDirection.Y).GetSafeNormal());
 		}
 	}
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
@@ -1618,7 +1581,7 @@ bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchCon
 		}
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
 		{
-			FFeatureVectorHelper::EncodeVector2D(InOutQuery.EditValues(), DataOffset, FVector2D(FacingDirection.X, FacingDirection.Y));
+			FFeatureVectorHelper::EncodeVector2D(InOutQuery.EditValues(), DataOffset, FVector2D(FacingDirection.X, FacingDirection.Y).GetSafeNormal());
 		}
 	}
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
@@ -2051,6 +2014,65 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 }
 
 #if WITH_EDITOR
+void UPoseSearchFeatureChannel_Trajectory::PopulateChannelLayoutSet(UE::PoseSearch::FFeatureChannelLayoutSet& FeatureChannelLayoutSet) const
+{
+	using namespace UE::PoseSearch;
+
+	int32 DataOffset = ChannelDataOffset;
+
+	auto Add = [&FeatureChannelLayoutSet, &DataOffset](EPoseSearchTrajectoryFlags SampleFlag, float Offset, const char* Label, int32 Cardinality)
+	{
+		FString SkeletonName = FeatureChannelLayoutSet.CurrentSchema->Skeleton->GetName();
+
+		UE::PoseSearch::FKeyBuilder KeyBuilder;
+		KeyBuilder << SkeletonName << SampleFlag << Offset;
+		FeatureChannelLayoutSet.Add(FString::Format(TEXT("Traj {0} {1}"), { Label, Offset }), KeyBuilder.Finalize(), DataOffset, Cardinality);
+
+		DataOffset += Cardinality;
+	};
+
+	for (const FPoseSearchTrajectorySample& Sample : Samples)
+	{
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Position))
+		{
+			Add(EPoseSearchTrajectoryFlags::Position, Sample.Offset, "Pos", FFeatureVectorHelper::EncodeVectorCardinality);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::PositionXY))
+		{
+			Add(EPoseSearchTrajectoryFlags::PositionXY, Sample.Offset, "PosXY", FFeatureVectorHelper::EncodeVector2DCardinality);
+		}
+
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Velocity))
+		{
+			Add(EPoseSearchTrajectoryFlags::Velocity, Sample.Offset, "Vel", FFeatureVectorHelper::EncodeVectorCardinality);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityXY))
+		{
+			Add(EPoseSearchTrajectoryFlags::VelocityXY, Sample.Offset, "VelXY", FFeatureVectorHelper::EncodeVector2DCardinality);
+		}
+
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
+		{
+			Add(EPoseSearchTrajectoryFlags::VelocityDirection, Sample.Offset, "VelDir", FFeatureVectorHelper::EncodeVectorCardinality);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+		{
+			Add(EPoseSearchTrajectoryFlags::VelocityDirectionXY, Sample.Offset, "VelDirXY", FFeatureVectorHelper::EncodeVector2DCardinality);
+		}
+
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
+		{
+			Add(EPoseSearchTrajectoryFlags::FacingDirection, Sample.Offset, "Fac", FFeatureVectorHelper::EncodeVectorCardinality);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+		{
+			Add(EPoseSearchTrajectoryFlags::FacingDirectionXY, Sample.Offset, "FacXY", FFeatureVectorHelper::EncodeVector2DCardinality);
+		}
+	}
+
+	check(DataOffset == ChannelDataOffset + ChannelCardinality);
+}
+
 void UPoseSearchFeatureChannel_Trajectory::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const
 {
 	using namespace UE::PoseSearch;

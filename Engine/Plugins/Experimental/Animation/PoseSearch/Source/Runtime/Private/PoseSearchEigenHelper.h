@@ -64,15 +64,10 @@ namespace UE::PoseSearch
 	using ColMajorMatrixMap = Eigen::Map<ColMajorMatrix, Eigen::ColMajor>;
 	using ColMajorMatrixMapConst = Eigen::Map<const ColMajorMatrix, Eigen::ColMajor>;
 
-	struct ColMajorVectord : public Eigen::VectorXd
-	{
-		ColMajorVectord(int32 Size) : Eigen::VectorXd(Size) {}
-	};
-	struct ColMajorMatrixd : public Eigen::MatrixXd {};
-
 #if UE_POSE_SEARCH_EIGEN_DEBUG
 	template<typename EigenDenseBaseDerivedType>
-	FString EigenMatrixToString(const Eigen::DenseBase<EigenDenseBaseDerivedType>& Matrix){
+	FString EigenMatrixToString(const Eigen::DenseBase<EigenDenseBaseDerivedType>& Matrix)
+	{
 		std::stringstream StringStream;
 		StringStream << Matrix;
 		return StringStream.str().c_str();
