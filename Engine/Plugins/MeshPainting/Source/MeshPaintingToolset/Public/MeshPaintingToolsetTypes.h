@@ -124,6 +124,7 @@ struct FPaintTexture2DData
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> PaintingTexture2D = nullptr;
 
+	UPROPERTY(Transient)
 	bool bIsPaintingTexture2DModified = false;
 
 	/** Texture used to store the paint modifications for the transactions */
