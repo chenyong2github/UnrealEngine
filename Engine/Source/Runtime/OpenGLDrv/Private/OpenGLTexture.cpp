@@ -187,7 +187,7 @@ FOpenGLTextureDesc::FOpenGLTextureDesc(FRHITextureDesc const& InDesc)
 
 	// Special case for multiview MSAA depth target. It has to be a non-MSAA texture with multisample rendering
 	const bool bMultiviewMSAADepthTarget = (bDepthStencil && InDesc.NumSamples > 1 && InDesc.Dimension == ETextureDimension::Texture2DArray);
-	if (bMultiviewMSAADepthTarget)
+	if (bMultiviewMSAADepthTarget || FOpenGL::GetMaxMSAASamplesTileMem() == 1)
 	{
 		bMultisampleRenderbuffer = false;
 	}
