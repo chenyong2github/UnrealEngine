@@ -26,9 +26,13 @@ public:
 	virtual FString GetSubsceneAssetName(ULevelSequence* InSequence) const override;
 	// ~UTakeRecorderSource Interface
 
-	/** Name of the recorded audio track name */
+	/** Name of the recorded audio track */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Source")
 	FText AudioTrackName;
+
+	/** The name of the audio asset. */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Source")
+	FString AudioAssetName;
 
 	/** The name of the subdirectory audio will be placed in. Leave this empty to place into the same directory as the sequence base path */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Source")

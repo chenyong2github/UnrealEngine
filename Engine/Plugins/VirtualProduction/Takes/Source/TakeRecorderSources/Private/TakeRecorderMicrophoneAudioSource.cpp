@@ -29,6 +29,7 @@
 UTakeRecorderMicrophoneAudioSourceSettings::UTakeRecorderMicrophoneAudioSourceSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, AudioTrackName(NSLOCTEXT("UTakeRecorderMicrophoneAudioSource", "DefaultAudioTrackName", "Recorded Audio"))
+	, AudioAssetName(TEXT("Audio_{slate}_{take}"))
 	, AudioSubDirectory(TEXT("Audio"))
 {
 	TrackTint = FColor(75, 67, 148);
@@ -48,7 +49,7 @@ FString UTakeRecorderMicrophoneAudioSourceSettings::GetSubsceneTrackName(ULevelS
 {
 	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
 	{
-		return FString::Printf(TEXT("Audio_%s"), *TakeMetaData->GenerateAssetPath("{slate}"));
+		return FString::Printf(TEXT("%s_%s"), *AudioTrackName.ToString(), *TakeMetaData->GenerateAssetPath("{slate}"));
 	}
 	return TEXT("MicrophoneAudio");
 }
@@ -57,7 +58,7 @@ FString UTakeRecorderMicrophoneAudioSourceSettings::GetSubsceneAssetName(ULevelS
 {
 	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
 	{
-		return FString::Printf(TEXT("Audio_%s"), *TakeMetaData->GenerateAssetPath("{slate}_{take}"));
+		return TakeMetaData->GenerateAssetPath(AudioAssetName);
 	}
 	return TEXT("MicrophoneAudio");
 }
