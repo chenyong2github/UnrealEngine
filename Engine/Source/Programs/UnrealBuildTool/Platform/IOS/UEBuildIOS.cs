@@ -735,7 +735,7 @@ namespace UnrealBuildTool
 
 		public override string GetDefaultArchitecture(FileReference? ProjectFile)
 		{
-			return "";
+			return "arm64";
 		}
 		
 		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference? ProjectFile, ReadOnlyTargetRules Target)
