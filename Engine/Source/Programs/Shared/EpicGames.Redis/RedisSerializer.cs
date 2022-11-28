@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Redis.Converters;
 using EpicGames.Serialization;
 using StackExchange.Redis;
 using System;
@@ -89,6 +90,19 @@ namespace EpicGames.Redis
 
 			public RedisValue ToRedisValue(T value) => (string?)_typeConverter.ConvertTo(value, typeof(string));
 			public T FromRedisValue(RedisValue value) => (T)_typeConverter.ConvertFrom((string)value!)!;
+		}
+
+		class RedisUtf8StringConverter<T> : IRedisConverter<T>
+		{
+			readonly TypeConverter _typeConverter;
+
+			public RedisUtf8StringConverter(TypeConverter typeConverter)
+			{
+				_typeConverter = typeConverter;
+			}
+
+			public RedisValue ToRedisValue(T value) => ((Utf8String)_typeConverter.ConvertTo(value, typeof(Utf8String))!).Memory;
+			public T FromRedisValue(RedisValue value) => (T)_typeConverter.ConvertFrom(new Utf8String((ReadOnlyMemory<byte>)value!))!;
 		}
 
 		class RedisNativeConverter<T> : IRedisConverter<T>
@@ -189,11 +203,25 @@ namespace EpicGames.Redis
 
 			// Check if there's a regular converter we can use to convert to/from a string
 			TypeConverter? converter = TypeDescriptor.GetConverter(type);
-			if (converter != null && converter.CanConvertFrom(typeof(string)) && converter.CanConvertTo(typeof(string)))
+			if (converter != null)
 			{
-				return new RedisStringConverter<T>(converter);
+				if (converter.CanConvertFrom(typeof(Utf8String)) && converter.CanConvertTo(typeof(Utf8String)))
+				{
+					return new RedisUtf8StringConverter<T>(converter);
+				}
+				if (converter.CanConvertFrom(typeof(string)) && converter.CanConvertTo(typeof(string)))
+				{
+					return new RedisStringConverter<T>(converter);
+				}
 			}
 
+			// If it's a compound type, try to create a class converter
+			if (type.IsClass)
+			{
+				return new RedisClassConverter<T>();
+			}
+
+			// Otherwise fail
 			throw new Exception($"Unable to find Redis converter for {type.Name}");
 		}
 
