@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 
@@ -30,6 +31,15 @@ namespace Jupiter.Implementation
         Task DeleteNamespace(NamespaceId ns);
 
         IAsyncEnumerable<(BlobIdentifier,DateTime)> ListObjects(NamespaceId ns);
+    }
+
+    public interface IStorageBackend
+    {
+        Task WriteAsync(string path, Stream content, CancellationToken cancellationToken = default);
+        Task<BlobContents?> TryReadAsync(string path, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking, CancellationToken cancellationToken = default);
+        Task<bool> ExistsAsync(string path, CancellationToken cancellationToken = default);
+        Task DeleteAsync(string path, CancellationToken cancellationToken = default);
+        IAsyncEnumerable<(string, DateTime)> ListAsync(CancellationToken cancellationToken = default);
     }
 
     public class BlobNotFoundException : Exception

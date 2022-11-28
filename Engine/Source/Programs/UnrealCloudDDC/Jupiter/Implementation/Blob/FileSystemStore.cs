@@ -1,11 +1,13 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
@@ -18,8 +20,7 @@ namespace Jupiter.Implementation
         private readonly ILogger _logger;
         private readonly IOptionsMonitor<FilesystemSettings> _settings;
         private readonly Tracer _tracer;
-
-        private const int DefaultBufferSize = 4096;
+        private readonly ConcurrentDictionary<NamespaceId, IStorageBackend> _backends = new ConcurrentDictionary<NamespaceId, IStorageBackend>();
 
         public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings, Tracer tracer, ILogger<FileSystemStore> logger)
         {
@@ -28,12 +29,17 @@ namespace Jupiter.Implementation
             _logger = logger;
         }
 
+        private IStorageBackend GetBackend(NamespaceId ns)
+        {
+            return _backends.GetOrAdd(ns, x => new FileStorageBackend(_logger, GetFilesystemPath(x), _settings));
+        }
+
         private string GetRootDir()
         {
             return PathUtil.ResolvePath(_settings.CurrentValue.RootDir);
         }
 
-        public static FileInfo GetFilesystemPath(string rootDir, NamespaceId ns, BlobIdentifier blob)
+        public static string GetFilesystemPath(BlobIdentifier blob)
         {
             const int CountOfCharactersPerDirectory = 2;
             string objectName = blob.ToString();
@@ -41,21 +47,18 @@ namespace Jupiter.Implementation
             string secondPart = objectName.Substring(CountOfCharactersPerDirectory, CountOfCharactersPerDirectory);
             string fileName = objectName;
 
-            return new FileInfo(Path.Combine(rootDir, ns.ToString(), firstPart, secondPart, fileName));
+            return Path.Combine(firstPart, secondPart, fileName);
         }
 
-        public FileInfo GetFilesystemPath(NamespaceId ns, BlobIdentifier objectName)
+        public static FileInfo GetFilesystemPath(string rootDir, NamespaceId ns, BlobIdentifier blob)
         {
-            return GetFilesystemPath(GetRootDir(), ns, objectName);
+            return new FileInfo(Path.Combine(rootDir, ns.ToString(), GetFilesystemPath(blob)));
         }
 
-        public DirectoryInfo GetFilesystemPath(NamespaceId ns)
+        public DirectoryReference GetFilesystemPath(NamespaceId ns)
         {
-            return new DirectoryInfo(Path.Combine(GetRootDir(), ns.ToString()));
+            return DirectoryReference.Combine(new DirectoryReference(GetRootDir()), ns.ToString());
         }
-
-        static readonly string s_processSuffix = Guid.NewGuid().ToString();
-        static int s_uniqueId = 0;
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> content, BlobIdentifier blobIdentifier)
         {
@@ -65,37 +68,8 @@ namespace Jupiter.Implementation
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, Stream content, BlobIdentifier blobIdentifier)
         {
-            FileInfo filePath = GetFilesystemPath(ns, blobIdentifier);
-            filePath.Directory?.Create();
-
-            if (!filePath.Exists)
-            {
-                int uniqueId = Interlocked.Increment(ref s_uniqueId);
-
-                string tempFilePath = $"{filePath.FullName}.{s_processSuffix}.{uniqueId}";
-                await using (FileStream fs = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan))
-                {
-                    CancellationToken cancellationToken = default(CancellationToken);
-                    await content.CopyToAsync(fs, cancellationToken);
-                }
-
-                try
-                {
-                    File.Move(tempFilePath, filePath.FullName, true);
-                }
-                catch (IOException) when (File.Exists(filePath.FullName))
-                {
-                }
-
-                filePath.Refresh();
-
-                if (filePath.Length == 0)
-                {
-                    _logger.LogWarning("0 byte file written as {Blob} {Namespace} {Method}", blobIdentifier, ns, "Stream");
-                }
-            }
-
-            UpdateLastWriteTime(filePath.FullName, DateTime.UnixEpoch);
+            string path = GetFilesystemPath(blobIdentifier);
+            await GetBackend(ns).WriteAsync(path, content, CancellationToken.None);
             return blobIdentifier;
         }
 
@@ -105,66 +79,34 @@ namespace Jupiter.Implementation
 			return await PutObject(ns, stream, blobIdentifier);
         }
 
-        public Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags)
+        public async Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags)
         {
-            FileInfo filePath = GetFilesystemPath(ns, blob);
+            string path = GetFilesystemPath(blob);
 
-            if (!filePath.Exists)
+            BlobContents? contents = await GetBackend(ns).TryReadAsync(path, flags, CancellationToken.None);
+            if (contents == null)
             {
                 throw new BlobNotFoundException(ns, blob);
             }
 
-            if (flags == LastAccessTrackingFlags.DoTracking)
-            {
-                UpdateLastWriteTime(filePath.FullName, DateTime.UtcNow);
-            }
-            FileStream fs = new FileStream(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-            return Task.FromResult(new BlobContents(fs, fs.Length));
+            return contents;
         }
 
-        /// <summary>
-        /// Update the last modified/write time that is used for determining when file was last accessed
-        /// 
-        /// Using access time is tricky as many file systems disable that for performance reasons.
-        /// A new blob written to disk should be set with the oldest possible write time.
-        /// This will ensure sorting of least recently accessed files during garbage collection works as intended.
-        /// The write time update will happen async without any waiting to prevent blocking the critical path
-        /// as it's best-effort only.
-        /// 
-        /// See <seealso cref="GetLeastRecentlyAccessedObjects" />.
-        /// </summary>
-        /// <param name="filePath"></param>
-        /// <param name="lastAccessed">Time the file was last accessed</param>
-        private static void UpdateLastWriteTime(string filePath, DateTime lastAccessed)
+        public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck)
         {
-            try
-            {
-                File.SetLastWriteTimeUtc(filePath, lastAccessed);
-            }
-            catch (FileNotFoundException)
-            {
-                // it is okay if the file does not exist anymore, that just means it got gced
-            }
+            string path = GetFilesystemPath(blob);
+            return await GetBackend(ns).ExistsAsync(path);
         }
 
-        public Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck)
+        public async Task DeleteObject(NamespaceId ns, BlobIdentifier objectName)
         {
-            FileInfo filePath = GetFilesystemPath(ns, blob);
-
-            return Task.FromResult(filePath.Exists);
-        }
-
-        public Task DeleteObject(NamespaceId ns, BlobIdentifier objectName)
-        {
-            FileInfo filePath = GetFilesystemPath(ns, objectName);
-            filePath.Delete();
-            return Task.CompletedTask;
+            string path = GetFilesystemPath(objectName);
+            await GetBackend(ns).DeleteAsync(path);
         }
 
         public Task DeleteNamespace(NamespaceId ns)
         {
-            DirectoryInfo namespaceDirectory = GetFilesystemPath(ns);
+            DirectoryInfo namespaceDirectory = GetFilesystemPath(ns).ToDirectoryInfo();
             if (namespaceDirectory.Exists)
             {
                 namespaceDirectory.Delete(true);
@@ -173,27 +115,13 @@ namespace Jupiter.Implementation
             return Task.CompletedTask;
         }
 
-        public IAsyncEnumerable<(BlobIdentifier,DateTime)> ListObjects(NamespaceId ns)
+        public async IAsyncEnumerable<(BlobIdentifier,DateTime)> ListObjects(NamespaceId ns)
         {
-            return DoListOldObjects(ns).ToAsyncEnumerable();
-        }
-
-        private IEnumerable<(BlobIdentifier, DateTime)> DoListOldObjects(NamespaceId ns)
-        {
-            DirectoryInfo di = GetFilesystemPath(ns);
-            if (!di.Exists)
+            IStorageBackend backend = GetBackend(ns);
+            await foreach ((string path, DateTime time) in backend.ListAsync())
             {
-                yield break;
-            }
-
-            foreach (FileSystemInfo? file in di.EnumerateFileSystemInfos("*", SearchOption.AllDirectories))
-            {
-                if (file.Attributes.HasFlag(FileAttributes.Directory))
-                {
-                    continue;
-                }
-
-                yield return (new BlobIdentifier(file.Name), file.LastWriteTime);
+                string name = path.Substring(path.LastIndexOf('/') + 1);
+                yield return (new BlobIdentifier(name), time);
             }
         }
 
@@ -325,10 +253,165 @@ namespace Jupiter.Implementation
             }));
         }
         
-        public  IAsyncEnumerable<NamespaceId> ListNamespaces()
+        public IAsyncEnumerable<NamespaceId> ListNamespaces()
         {
             DirectoryInfo di = new DirectoryInfo(GetRootDir());
             return di.GetDirectories().Select(x => new NamespaceId(x.Name)).ToAsyncEnumerable();
+        }
+    }
+
+    public class FileStorageBackend : IStorageBackend
+    {
+        private readonly ILogger _logger;
+        private readonly DirectoryReference _baseDir;
+        private readonly IOptionsMonitor<FilesystemSettings> _settings;
+
+        private const int DefaultBufferSize = 4096;
+
+        public FileStorageBackend(ILogger logger, DirectoryReference baseDir, IOptionsMonitor<FilesystemSettings> settings)
+        {
+            _logger = logger;
+            _baseDir = baseDir;
+            _settings = settings;
+        }
+
+        private string GetRootDir()
+        {
+            return PathUtil.ResolvePath(_settings.CurrentValue.RootDir);
+        }
+
+        public static FileInfo GetFilesystemPath(string rootDir, NamespaceId ns, BlobIdentifier blob)
+        {
+            const int CountOfCharactersPerDirectory = 2;
+            string objectName = blob.ToString();
+            string firstPart = objectName.Substring(0, CountOfCharactersPerDirectory);
+            string secondPart = objectName.Substring(CountOfCharactersPerDirectory, CountOfCharactersPerDirectory);
+            string fileName = objectName;
+
+            return new FileInfo(Path.Combine(rootDir, ns.ToString(), firstPart, secondPart, fileName));
+        }
+
+        public FileInfo GetFilesystemPath(string path)
+        {
+            return FileReference.Combine(_baseDir, path).ToFileInfo();
+        }
+
+        public DirectoryInfo GetFilesystemPath(NamespaceId ns)
+        {
+            return new DirectoryInfo(Path.Combine(GetRootDir(), ns.ToString()));
+        }
+
+        static readonly string s_processSuffix = Guid.NewGuid().ToString();
+        static int s_uniqueId = 0;
+
+        public async Task WriteAsync(string path, Stream content, CancellationToken cancellationToken)
+        {
+            FileInfo filePath = GetFilesystemPath(path);
+            filePath.Directory?.Create();
+
+            if (!filePath.Exists)
+            {
+                int uniqueId = Interlocked.Increment(ref s_uniqueId);
+
+                string tempFilePath = $"{filePath.FullName}.{s_processSuffix}.{uniqueId}";
+                await using (FileStream fs = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                {
+                    await content.CopyToAsync(fs, cancellationToken);
+                }
+
+                try
+                {
+                    File.Move(tempFilePath, filePath.FullName, true);
+                }
+                catch (IOException) when (File.Exists(filePath.FullName))
+                {
+                }
+
+                filePath.Refresh();
+
+                if (filePath.Length == 0)
+                {
+                    _logger.LogWarning("0 byte file written as {Path} {Method}", path, "Stream");
+                }
+            }
+
+            UpdateLastWriteTime(filePath.FullName, DateTime.UnixEpoch);
+        }
+
+
+        /// <summary>
+        /// Update the last modified/write time that is used for determining when file was last accessed
+        /// 
+        /// Using access time is tricky as many file systems disable that for performance reasons.
+        /// A new blob written to disk should be set with the oldest possible write time.
+        /// This will ensure sorting of least recently accessed files during garbage collection works as intended.
+        /// The write time update will happen async without any waiting to prevent blocking the critical path
+        /// as it's best-effort only.
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <param name="lastAccessed">Time the file was last accessed</param>
+        private static void UpdateLastWriteTime(string filePath, DateTime lastAccessed)
+        {
+            try
+            {
+                File.SetLastWriteTimeUtc(filePath, lastAccessed);
+            }
+            catch (FileNotFoundException)
+            {
+                // it is okay if the file does not exist anymore, that just means it got gced
+            }
+        }
+
+        public Task<BlobContents?> TryReadAsync(string path, LastAccessTrackingFlags flags, CancellationToken cancellationToken)
+        {
+            FileInfo filePath = GetFilesystemPath(path);
+
+            if (!filePath.Exists)
+            {
+                return Task.FromResult<BlobContents?>(null);
+            }
+
+            if (flags == LastAccessTrackingFlags.DoTracking)
+            {
+                UpdateLastWriteTime(filePath.FullName, DateTime.UtcNow);
+            }
+            FileStream fs = new FileStream(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, DefaultBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+            return Task.FromResult<BlobContents?>(new BlobContents(fs, fs.Length));
+        }
+
+        public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken)
+        {
+            FileInfo filePath = GetFilesystemPath(path);
+
+            return Task.FromResult(filePath.Exists);
+        }
+
+        public Task DeleteAsync(string path, CancellationToken cancellationToken)
+        {
+            FileInfo filePath = GetFilesystemPath(path);
+            filePath.Delete();
+            return Task.CompletedTask;
+        }
+
+        public IAsyncEnumerable<(string, DateTime)> ListAsync(CancellationToken cancellationToken)
+        {
+            return DoListOldObjects().ToAsyncEnumerable();
+        }
+
+        private IEnumerable<(string, DateTime)> DoListOldObjects()
+        {
+            DirectoryInfo di = _baseDir.ToDirectoryInfo();
+            if (!di.Exists)
+            {
+                yield break;
+            }
+
+            foreach (FileInfo file in di.EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                string path = new FileReference(file).MakeRelativeTo(_baseDir).Replace(Path.DirectorySeparatorChar, '/');
+                yield return (path, file.LastWriteTime);
+            }
         }
     }
 }

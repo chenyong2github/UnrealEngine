@@ -132,9 +132,9 @@ namespace Jupiter.UnitTests
         [TestMethod]
         public async Task DeleteObject()
         {
-            await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => _chained.DeleteObject(NsnonExistingNs, _nonExisting));
-            await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => _chained.DeleteObject(NsOnlyFirst, _nonExisting));
-            await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => _chained.DeleteObject(NsOnlySecond, _nonExisting));
+            Assert.IsFalse(await _chained.Exists(NsnonExistingNs, _nonExisting));
+            Assert.IsFalse(await _chained.Exists(NsOnlyFirst, _nonExisting));
+            Assert.IsFalse(await _chained.Exists(NsOnlySecond, _nonExisting));
             
             Assert.IsTrue(await _first.Exists(Ns, _onlyFirstId));
             await _chained.DeleteObject(Ns, _onlyFirstId);
