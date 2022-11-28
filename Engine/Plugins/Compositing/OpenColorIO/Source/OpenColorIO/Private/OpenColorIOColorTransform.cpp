@@ -432,6 +432,7 @@ FOpenColorIOTransformResource* UOpenColorIOColorTransform::AllocateResource()
 bool UOpenColorIOColorTransform::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, TSortedMap<int32, FTextureResource*>& OutTextureResources)
 {
 	OutShaderResource = ColorTransformResources[InFeatureLevel];
+	
 	if (OutShaderResource)
 	{
 		OutTextureResources.Reserve(Textures.Num());
@@ -440,14 +441,9 @@ bool UOpenColorIOColorTransform::GetRenderResources(ERHIFeatureLevel::Type InFea
 		{
 			OutTextureResources.Add(Pair.Key, Pair.Value->GetResource());
 		}
-
-		return true;
 	}
-	else
-	{
-		UE_LOG(LogOpenColorIO, Warning, TEXT("Shader resource was invalid for color transform %s. Were there errors during loading?"), *GetTransformFriendlyName());
-		return false;
-	}
+	
+	return OutShaderResource != nullptr;
 }
 
 bool UOpenColorIOColorTransform::GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)

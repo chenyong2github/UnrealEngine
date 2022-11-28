@@ -77,7 +77,6 @@ bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeat
 
 	if (TransformPtr == nullptr)
 	{
-		UE_LOG(LogOpenColorIO, Warning, TEXT("Color transform [%s] was not found."), *InSettings.ToString());
 		return false;
 	}
 

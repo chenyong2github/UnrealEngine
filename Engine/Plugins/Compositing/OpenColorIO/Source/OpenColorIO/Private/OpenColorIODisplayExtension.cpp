@@ -15,6 +15,8 @@
 #include "PipelineStateCache.h"
 #include "RenderTargetPool.h"
 #include "Shader.h"
+#include "ShaderParameters.h"
+#include "ShaderParameterStruct.h"
 
 #include "RHI.h"
 #include "SceneView.h"
@@ -25,7 +27,34 @@
 // for FPostProcessMaterialInputs
 #include "PostProcess/PostProcessMaterial.h"
 
+
+BEGIN_SHADER_PARAMETER_STRUCT(FOpenColorIOErrorShaderParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+class FOpenColorIOErrorPassPS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FOpenColorIOErrorPassPS);
+	SHADER_USE_PARAMETER_STRUCT(FOpenColorIOErrorPassPS, FGlobalShader);
+
+	using FParameters = FOpenColorIOErrorShaderParameters;
+};
+
+IMPLEMENT_GLOBAL_SHADER(FOpenColorIOErrorPassPS, "/Plugin/OpenColorIO/Private/OpenColorIOErrorShader.usf", "MainPS", SF_Pixel);
+
+
 float FOpenColorIODisplayExtension::DefaultDisplayGamma = 2.2f;
+
+namespace {
+	FRHITexture* GetSystemMiniFontTexture()
+	{
+		return GSystemTextures.AsciiTexture ? GSystemTextures.AsciiTexture->GetRHI() : GSystemTextures.WhiteDummy->GetRHI();
+	}
+};
 
 FOpenColorIODisplayExtension::FOpenColorIODisplayExtension(const FAutoRegister& AutoRegister, FViewportClient* AssociatedViewportClient)
 	: FSceneViewExtensionBase(AutoRegister)
@@ -72,7 +101,7 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 
 		if (!bFoundTransform)
 		{
-			UE_LOG(LogOpenColorIO, Warning, TEXT("Can't apply display look - Couldn't find shader to transform from %s to %s"), *DisplayConfiguration.ColorConfiguration.SourceColorSpace.ColorSpaceName, *DisplayConfiguration.ColorConfiguration.DestinationColorSpace.ColorSpaceName);
+			UE_LOG(LogOpenColorIO, Warning, TEXT("Can't apply display look - Couldn't find shader to transform: %s"), *DisplayConfiguration.ColorConfiguration.ToString());
 		}
 		else
 		{
@@ -118,27 +147,13 @@ void FOpenColorIODisplayExtension::SubscribeToPostProcessingPass(EPostProcessing
 
 FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs)
 {
-	const FSceneViewFamily& ViewFamily = *View.Family;
 	const FScreenPassTexture& SceneColor = InOutInputs.GetInput(EPostProcessMaterialInput::SceneColor);
 	check(SceneColor.IsValid());
-
-	//If the shader resource could not be found, skip this frame. The LUT isn't required
-	if (CachedResourcesRenderThread.ShaderResource == nullptr)
-	{
-		return SceneColor;
-	}
-
-	if (!EnumHasAnyFlags(SceneColor.Texture->Desc.Flags, TexCreate_ShaderResource))
-	{
-		return SceneColor;
-	}
-
 	checkSlow(View.bIsViewInfo);
 	const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
-	
 	FScreenPassRenderTarget Output = InOutInputs.OverrideOutput;
 
-	// If the override output is provided it means that this is the last pass in post processing.
+	// If the override output is provided, it means that this is the last pass in post processing.
 	if (!Output.IsValid())
 	{
 		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, SceneColor, ViewInfo.GetOverwriteLoadAction(), TEXT("OCIORenderTarget"));
@@ -147,21 +162,37 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 	const FScreenPassTextureViewport InputViewport(SceneColor);
 	const FScreenPassTextureViewport OutputViewport(Output);
 
-	TShaderRef<FOpenColorIOPixelShader> OCIOPixelShader = CachedResourcesRenderThread.ShaderResource->GetShader<FOpenColorIOPixelShader>();
+	if (CachedResourcesRenderThread.ShaderResource)
+	{
+		TShaderRef<FOpenColorIOPixelShader> OCIOPixelShader = CachedResourcesRenderThread.ShaderResource->GetShader<FOpenColorIOPixelShader>();
 
-	const float DisplayGamma = View.Family->RenderTarget->GetDisplayGamma();
+		const float DisplayGamma = View.Family->RenderTarget->GetDisplayGamma();
 
-	FOpenColorIOPixelShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOPixelShaderParameters>();
-	Parameters->InputTexture = SceneColor.Texture;
-	Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
-	OpenColorIOBindTextureResources(Parameters, CachedResourcesRenderThread.TextureResources);
+		FOpenColorIOPixelShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOPixelShaderParameters>();
+		Parameters->InputTexture = SceneColor.Texture;
+		Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
+		OpenColorIOBindTextureResources(Parameters, CachedResourcesRenderThread.TextureResources);
 
-	// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
-	// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.
-	Parameters->Gamma = (ViewFamily.EngineShowFlags.Tonemapper == 0) || (ViewFamily.EngineShowFlags.PostProcessing == 0) ? DefaultDisplayGamma : DefaultDisplayGamma / DisplayGamma;
-	Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+		// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
+		// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.
+		Parameters->Gamma = (View.Family->EngineShowFlags.Tonemapper == 0) || (View.Family->EngineShowFlags.PostProcessing == 0) ? DefaultDisplayGamma : DefaultDisplayGamma / DisplayGamma;
+		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OCIODisplayLook"), ViewInfo, OutputViewport, InputViewport, OCIOPixelShader, Parameters);
+		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OCIODisplayLook"), ViewInfo, OutputViewport, InputViewport, OCIOPixelShader, Parameters);
+	}
+	else
+	{
+		// Fallback error pass, printing OCIO error message indicators across the viewport. (Helpful to quickly identify an OCIO config issue on nDisplay for example.)
+		TShaderMapRef<FOpenColorIOErrorPassPS> OCIOPixelShader(ViewInfo.ShaderMap);
+		FOpenColorIOErrorShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOErrorShaderParameters>();
+		Parameters->InputTexture = SceneColor.Texture;
+		Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
+		Parameters->MiniFontTexture = GetSystemMiniFontTexture();
+		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+
+		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OCIODisplayLookError"), ViewInfo, OutputViewport, InputViewport, OCIOPixelShader, Parameters);
+	}
+
 
 	return MoveTemp(Output);
 }
