@@ -43,7 +43,7 @@
 			    },
 				"type": {
 					"type": "string",
-					"enum": [ "float", "int32", "uint32", "boolean" ]
+					"enum": [ "float", "int32", "int64", "uint32", "boolean" ]
 				},
 				"comment": {
 					"type": "string",
@@ -189,11 +189,11 @@
 				},
 				"input_type": {
 					"type": "string",
-					"enum": [ "float", "int32", "uint32", "boolean" ]
+					"enum": [ "float", "int32", "int64", "uint32", "boolean" ]
 				},
 				"output_type": {
 					"type": "string",
-					"enum": [ "float", "int32", "uint32", "boolean" ]
+					"enum": [ "float", "int32", "int64", "uint32", "boolean" ]
 				},
 				"runtimes": {
 					"type": "array",

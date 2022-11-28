@@ -27,8 +27,13 @@ namespace Test
 			}
 		}
 	}
+	
+	ElementWiseCosTensorInitializer::ElementWiseCosTensorInitializer(EMLTensorDataType InDataType, uint32 InTensorIndex)
+	: DataType(InDataType), TensorIndex(InTensorIndex)
+	{
+	}
 
-	static float ElementWiseCosTensorInitializer(EMLTensorDataType DataType, uint32 ElementIndex, uint32 TensorIndex)
+	float ElementWiseCosTensorInitializer::operator() (uint32 ElementIndex) const 
 	{
 		const constexpr uint32 IndexOffsetBetweenTensor = 9;
 		switch (DataType)
@@ -57,9 +62,9 @@ namespace Test
 			//case EMLTensorDataType::BFloat16:
 			return FMath::Cos((float)(ElementIndex + IndexOffsetBetweenTensor * TensorIndex));
 		}
-	}
+	};
 
-	TArray<char> GenerateTensorDataForTest(const FTensor& Tensor, int TensorIndex)
+	TArray<char> GenerateTensorDataForTest(const FTensor& Tensor, std::function<float(uint32)> ElementInitializer)
 	{
 		const uint32 NumberOfElements = Tensor.GetVolume();
 		const int32 ElementByteSize = Tensor.GetElemByteSize();
@@ -69,11 +74,12 @@ namespace Test
 			
 		Buffer.SetNum(BufferSize);
 		char* DestinationPtr = Buffer.GetData();
-			
+
 		for (uint32 i = 0; i != NumberOfElements; ++i)
 		{
-			const float FloatData = ElementWiseCosTensorInitializer(DataType, i, TensorIndex);//Default and only initializer for now.
+			const float FloatData = ElementInitializer(i);
 			const int32 IntData = (int32)FloatData;
+			const int64 Int64Data = (int64)FloatData;
 			const uint32 UIntData = (uint32)FloatData;
 			const char BoolData = FloatData != 0.0f ? 1 : 0;
 			switch (DataType)
@@ -84,6 +90,9 @@ namespace Test
 			case EMLTensorDataType::Int32:
 				check(sizeof(IntData) == ElementByteSize);
 				FMemory::Memcpy(DestinationPtr, &IntData, ElementByteSize); break;
+			case EMLTensorDataType::Int64:
+				check(sizeof(Int64Data) == ElementByteSize);
+				FMemory::Memcpy(DestinationPtr, &Int64Data, ElementByteSize); break;
 			case EMLTensorDataType::UInt32:
 				check(sizeof(UIntData) == ElementByteSize);
 				FMemory::Memcpy(DestinationPtr, &UIntData, ElementByteSize); break;
@@ -112,7 +121,8 @@ namespace Test
 			TArray<char>& MemBuffer = OutMemBuffers.Emplace_GetRef();
 			if (TensorsData.Num() == 0 || TensorsData[Index].Num() == 0)
 			{
-				MemBuffer = GenerateTensorDataForTest(Tensor, Index);
+				ElementWiseCosTensorInitializer Initializer(Tensor.GetDataType(), Index);
+				MemBuffer = GenerateTensorDataForTest(Tensor, Initializer);
 			}
 			else
 			{

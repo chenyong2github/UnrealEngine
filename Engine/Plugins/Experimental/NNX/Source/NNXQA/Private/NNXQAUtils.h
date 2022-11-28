@@ -3,10 +3,12 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
-#include "NNXRuntime.h"
+#include <functional>
 #include "NNECoreAttributeMap.h"
+#include "NNXRuntime.h"
+#include "NNXRuntimeFormat.h"
+#include "NNXTypes.h"
 
-struct FNNIModelRaw;
 
 namespace NNX 
 {
@@ -67,12 +69,23 @@ namespace Test
 		TArray<FTestSetup> TestSetups;
 	};
 
-	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FNNIModelRaw& ONNXModelVariadic, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter = TEXT(""));
+	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FNNIModelRaw& ONNXModelVariadic, 
+		const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter = TEXT(""));
+	
+	class ElementWiseCosTensorInitializer
+	{
+		EMLTensorDataType DataType;
+		uint32 TensorIndex;
+
+	public:
+		ElementWiseCosTensorInitializer(EMLTensorDataType InDataType, uint32 InTensorIndex);
+		float operator () (uint32 ElementIndex) const;
+	};
 
 	FString TensorToString(const FTensor& Tensor);
 	FString TensorToString(const FTensor& Tensor, TConstArrayView<char> TensorData);
 	template<typename T> FString ShapeToString(TConstArrayView<T> Shape);
-	TArray<char> GenerateTensorDataForTest(const FTensor& Tensor, int TensorIndex);
+	TArray<char> GenerateTensorDataForTest(const FTensor& Tensor, std::function<float(uint32)> ElementInitializer);
 
 } // namespace Test
 } // namespace NNX

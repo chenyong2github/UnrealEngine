@@ -133,15 +133,54 @@ namespace Test
 			return (Value == INDEX_NONE) ? DefaultValue : (EMLTensorDataType)Value;
 		}
 
-		static TArray<char> GetInputTensorDataFromJson(FTensor Tensor, int TensorIndex, TConstArrayView<FString> JsonValues)
+		class ElementWiseFromJsonStringTensorInitializer
 		{
-			checkf(JsonValues.Num() == 0, TEXT("source data for tensor not supported yet"));
-			return GenerateTensorDataForTest(Tensor, TensorIndex);
+			TConstArrayView<FString> JsonValues;
+				
+		public:
+			ElementWiseFromJsonStringTensorInitializer(TConstArrayView<FString> InJsonValues)
+				:JsonValues(InJsonValues) 
+			{}
+
+			float operator () (uint32 TensorIndex) const 
+			{
+				const FString& JsonValue = JsonValues[TensorIndex];
+				if (!FCString::IsNumeric(*JsonValue))
+				{
+					UE_LOG(LogNNX, Error, TEXT("Cannot convert %s to float will default to 0.0f, check test config."), *JsonValue);
+				}
+				return FCString::Atof(*JsonValues[TensorIndex]);
+			}
+		};
+
+		static TArray<char> GetInputTensorDataFromJson(const FTensor& Tensor, int TensorIndex, TConstArrayView<FString> JsonValues)
+		{
+			if (JsonValues.Num() == Tensor.GetVolume())
+			{
+				ElementWiseFromJsonStringTensorInitializer Initializer(JsonValues);
+				return GenerateTensorDataForTest(Tensor, Initializer);
+			}
+			else if (JsonValues.Num() > 0)
+			{
+				UE_LOG(LogNNX, Error, TEXT("Incorrect number of element for tensor initializer %s, should have %d but got %d. Fallbacking to default initializer."), *Tensor.GetName(), Tensor.GetVolume(), JsonValues.Num());
+				
+			}
+			ElementWiseCosTensorInitializer Initializer(Tensor.GetDataType(), TensorIndex);
+			return GenerateTensorDataForTest(Tensor, Initializer);
 		}
 
-		static TArray<char> GetOutputTensorDataFromJson(FTensor Tensor, int TensorIndex, TConstArrayView<FString> JsonValues)
+		static TArray<char> GetOutputTensorDataFromJson(const FTensor& Tensor, int TensorIndex, TConstArrayView<FString> JsonValues)
 		{
-			checkf(JsonValues.Num() == 0, TEXT("source data for tensor not supported yet"));
+			if (JsonValues.Num() == Tensor.GetVolume())
+			{
+				ElementWiseFromJsonStringTensorInitializer Initializer(JsonValues);
+				return GenerateTensorDataForTest(Tensor, Initializer);
+			}
+			else if (JsonValues.Num() > 0)
+			{
+				UE_LOG(LogNNX, Error, TEXT("Incorrect number of element for tensor initializer %s, should have %d but got %d."), *Tensor.GetName());
+
+			}
 			return TArray<char>();
 		}
 
