@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Common;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
@@ -23,16 +23,17 @@ namespace Jupiter.Implementation
         private readonly IReplicationLog _replicationLog;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly Tracer _tracer;
-        private readonly ILogger _logger = Log.ForContext<RefCleanup>();
+        private readonly ILogger _logger;
 
         public RefCleanup(IOptionsMonitor<GCSettings> settings, IReferencesStore referencesStore,
-            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer)
+            IReplicationLog replicationLog, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer, ILogger<RefCleanup> logger)
         {
             _settings = settings;
             _referencesStore = referencesStore;
             _replicationLog = replicationLog;
             _namespacePolicyResolver = namespacePolicyResolver;
             _tracer = tracer;
+            _logger = logger;
         }
 
         public Task<int> Cleanup(NamespaceId ns, CancellationToken cancellationToken)
@@ -44,7 +45,7 @@ namespace Jupiter.Implementation
             }
             catch (UnknownNamespaceException)
             {
-                _logger.Warning("Namespace {Namespace} does not configure any policy, not running ref cleanup on it.",
+                _logger.LogWarning("Namespace {Namespace} does not configure any policy, not running ref cleanup on it.",
                     ns);
                 return Task.FromResult(0);
             }
@@ -73,7 +74,7 @@ namespace Jupiter.Implementation
                 {
                     (BucketId bucket, IoHashKey name, DateTime lastAccessTime) = tuple;
 
-                    _logger.Debug(
+                    _logger.LogDebug(
                         "Considering object in {Namespace} {Bucket} {Name} for deletion, was last updated {LastAccessTime}",
                         ns, bucket, name, lastAccessTime);
                     Interlocked.Increment(ref consideredCount);
@@ -83,7 +84,7 @@ namespace Jupiter.Implementation
                         return;
                     }
 
-                    _logger.Information(
+                    _logger.LogInformation(
                         "Attempting to delete object {Namespace} {Bucket} {Name} as it was last updated {LastAccessTime} which is older then {CutoffTime}",
                         ns, bucket, name, lastAccessTime, cutoffTime);
                     using TelemetrySpan scope = _tracer.StartActiveSpan("gc.ref")
@@ -104,7 +105,7 @@ namespace Jupiter.Implementation
                     }
                     catch (Exception e)
                     {
-                        _logger.Warning(e, "Exception when attempting to delete record {Bucket} {Name} in {Namespace}",
+                        _logger.LogWarning(e, "Exception when attempting to delete record {Bucket} {Name} in {Namespace}",
                             bucket, name, ns);
                     }
 
@@ -114,12 +115,12 @@ namespace Jupiter.Implementation
                     }
                     else
                     {
-                        _logger.Warning("Failed to delete record {Bucket} {Name} in {Namespace}", bucket, name, ns);
+                        _logger.LogWarning("Failed to delete record {Bucket} {Name} in {Namespace}", bucket, name, ns);
                     }
                 });
 
             TimeSpan cleanupDuration = DateTime.Now - cleanupStart;
-            _logger.Information(
+            _logger.LogInformation(
                 "Finished cleaning {Namespace}. Refs considered: {ConsideredCount} Refs Deleted: {DeletedCount}. Cleanup took: {CleanupDuration}", ns,
                 consideredCount, countOfDeletedRecords, cleanupDuration);
 

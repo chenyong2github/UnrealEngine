@@ -7,9 +7,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Trace;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
@@ -29,7 +29,7 @@ namespace Jupiter.Implementation
 
     public class LastAccessTrackerReference : LastAccessTracker<LastAccessRecord>
     {
-        public LastAccessTrackerReference(IOptionsMonitor<UnrealCloudDDCSettings> settings, Tracer tracer) : base(settings, tracer)
+        public LastAccessTrackerReference(IOptionsMonitor<UnrealCloudDDCSettings> settings, Tracer tracer, ILogger<LastAccessTrackerReference> logger) : base(settings, tracer, logger)
         {
         }
 
@@ -43,17 +43,18 @@ namespace Jupiter.Implementation
     {
         private readonly IOptionsMonitor<UnrealCloudDDCSettings> _settings;
         private readonly Tracer _tracer;
-        private readonly ILogger _logger = Log.ForContext<LastAccessTracker<T>>();
+        private readonly ILogger _logger;
 
         private ConcurrentDictionary<string, LastAccessRecord> _cache = new ConcurrentDictionary<string, LastAccessRecord>();
 
         // we will exchange the refs dictionary when fetching the records and use a rw lock to make sure no-one is trying to add things at the same time
         private readonly ReaderWriterLock _rwLock = new ReaderWriterLock();
 
-        protected LastAccessTracker(IOptionsMonitor<UnrealCloudDDCSettings> settings, Tracer tracer)
+        protected LastAccessTracker(IOptionsMonitor<UnrealCloudDDCSettings> settings, Tracer tracer, ILogger logger)
         {
             _settings = settings;
             _tracer = tracer;
+            _logger = logger;
         }
 
         protected abstract string BuildCacheKey(T record);
@@ -72,7 +73,7 @@ namespace Jupiter.Implementation
                 {
                     _rwLock.AcquireReaderLock(-1);
 
-                    _logger.Debug("Last Access time updated for {@RefRecord}", record);
+                    _logger.LogDebug("Last Access time updated for {@RefRecord}", record);
                     string cacheKey = BuildCacheKey(record);
                     _cache.AddOrUpdate(cacheKey, _ => new LastAccessRecord(record, DateTime.Now),
                         (_, cacheRecord) =>
@@ -96,7 +97,7 @@ namespace Jupiter.Implementation
                 {
                     _rwLock.AcquireWriterLock(-1);
 
-                    _logger.Debug("Last Access Records collected");
+                    _logger.LogDebug("Last Access Records collected");
                     ConcurrentDictionary<string, LastAccessRecord> localReference = _cache;
 
                     _cache = new ConcurrentDictionary<string, LastAccessRecord>();

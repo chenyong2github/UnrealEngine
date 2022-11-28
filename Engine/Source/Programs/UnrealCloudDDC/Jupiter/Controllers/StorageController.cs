@@ -17,10 +17,10 @@ using Jupiter.Common.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Serilog;
 
 namespace Jupiter.Controllers
 {
+	using IDiagnosticContext = Serilog.IDiagnosticContext;
     using BlobNotFoundException = Jupiter.Implementation.BlobNotFoundException;
 
     [ApiController]

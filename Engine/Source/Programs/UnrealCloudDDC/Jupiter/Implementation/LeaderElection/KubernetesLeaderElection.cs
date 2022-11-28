@@ -9,8 +9,8 @@ using k8s;
 using k8s.LeaderElection;
 using k8s.LeaderElection.ResourceLock;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.Rest;
-using Serilog;
 
 namespace Jupiter.Implementation.LeaderElection
 {
@@ -36,22 +36,24 @@ namespace Jupiter.Implementation.LeaderElection
 
     public class KubernetesLeaderElection : PollingService<KubernetesLeaderElectionState>, ILeaderElection
     {
-        private readonly ILogger _logger = Log.ForContext<KubernetesLeaderElection>();
+        private readonly ILogger _logger;
 
         private readonly Kubernetes _client;
         private readonly LeaderElector _leaderElector;
         private readonly ConfigMapLock _configMapLock;
         private readonly string _identity;
 
-        public KubernetesLeaderElection(IOptionsMonitor<KubernetesLeaderElectionSettings> leaderSettings) : base("Kubernetes Leader Election", TimeSpan.FromSeconds(1), new KubernetesLeaderElectionState(), startAtRandomTime: true)
+        public KubernetesLeaderElection(IOptionsMonitor<KubernetesLeaderElectionSettings> leaderSettings, ILogger<KubernetesLeaderElection> logger) : base("Kubernetes Leader Election", TimeSpan.FromSeconds(1), new KubernetesLeaderElectionState(), logger, startAtRandomTime: true)
         {
+            _logger = logger;
+
             KubernetesLeaderElectionSettings settings = leaderSettings.CurrentValue;
             // As we are determining if we are the leader we just assume we are running in a kubernetes cluster
             KubernetesClientConfiguration config = KubernetesClientConfiguration.InClusterConfig();
             _client = new Kubernetes(config);
             
             _identity = System.Net.Dns.GetHostName();
-            _logger.Information("Participating in kubernetes leadership election as {Identity} using {Resource} under {Namespace}", _identity, settings.ConfigMapName, settings.Namespace);
+            _logger.LogInformation("Participating in kubernetes leadership election as {Identity} using {Resource} under {Namespace}", _identity, settings.ConfigMapName, settings.Namespace);
             _configMapLock = new ConfigMapLock(_client, settings.Namespace, settings.ConfigMapName, _identity);
 
             LeaderElectionConfig leaderElectionConfig = new LeaderElectionConfig(_configMapLock)
@@ -62,14 +64,14 @@ namespace Jupiter.Implementation.LeaderElection
             };
 
             _leaderElector = new LeaderElector(leaderElectionConfig);
-            _leaderElector.OnStartedLeading += () => _logger.Warning("Acquired leadership from kubernetes");
-            _leaderElector.OnStoppedLeading += () => _logger.Warning("Lost leadership in kubernetes");
+            _leaderElector.OnStartedLeading += () => _logger.LogWarning("Acquired leadership from kubernetes");
+            _leaderElector.OnStoppedLeading += () => _logger.LogWarning("Lost leadership in kubernetes");
             _leaderElector.OnNewLeader += OnLeaderElectorNewLeader;
         }
 
         private void OnLeaderElectorNewLeader(string leaderName)
         {
-            _logger.Warning("{Instance} is the new leader", leaderName);
+            _logger.LogWarning("{Instance} is the new leader", leaderName);
 
             bool isLeader = string.Equals(leaderName, _identity, StringComparison.OrdinalIgnoreCase);
             OnLeaderChanged?.Invoke(this, new OnLeaderChangedEventArgs(isLeader, leaderName));
@@ -92,7 +94,7 @@ namespace Jupiter.Implementation.LeaderElection
 
         public override async Task<bool> OnPoll(KubernetesLeaderElectionState state, CancellationToken cancellationToken)
         {
-            _logger.Information("Polling kubernetes to determine leadership status");
+            _logger.LogInformation("Polling kubernetes to determine leadership status");
 
             try
             {
@@ -102,12 +104,12 @@ namespace Jupiter.Implementation.LeaderElection
             {
                 if (e.Response.StatusCode != HttpStatusCode.NotFound)
                 {
-                    _logger.Error(e, "Failed to fetch config map lock");
+                    _logger.LogError(e, "Failed to fetch config map lock");
                 }
             }
             catch (Exception e)
             {
-                _logger.Error(e, "Failed to fetch config map lock");
+                _logger.LogError(e, "Failed to fetch config map lock");
             }
 
             await _leaderElector.RunAsync(cancellationToken);

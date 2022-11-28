@@ -12,8 +12,8 @@ using Jupiter.Implementation.Blob;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
@@ -40,9 +40,9 @@ namespace Jupiter.Implementation
         private readonly IBlobIndex _blobIndex;
         private readonly ILastAccessTracker<LastAccessRecord> _lastAccessTracker;
         private readonly Tracer _tracer;
-        private readonly ILogger _logger = Log.ForContext<ObjectService>();
+        private readonly ILogger _logger;
 
-        public ObjectService(IHttpContextAccessor httpContextAccessor, IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex, ILastAccessTracker<LastAccessRecord> lastAccessTracker, Tracer tracer)
+        public ObjectService(IHttpContextAccessor httpContextAccessor, IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex, ILastAccessTracker<LastAccessRecord> lastAccessTracker, Tracer tracer, ILogger<ObjectService> logger)
         {
             _httpContextAccessor = httpContextAccessor;
             _referencesStore = referencesStore;
@@ -52,6 +52,7 @@ namespace Jupiter.Implementation
             _blobIndex = blobIndex;
             _lastAccessTracker = lastAccessTracker;
             _tracer = tracer;
+            _logger = logger;
         }
 
         public async Task<(ObjectRecord, BlobContents?)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[]? fields = null, bool doLastAccessTracking = true)
@@ -89,7 +90,7 @@ namespace Jupiter.Implementation
                 {
                     if (task.Exception != null)
                     {
-                        _logger.Error(task.Exception, "Exception when tracking last access record");
+                        _logger.LogError(task.Exception, "Exception when tracking last access record");
                     }
                 }, null, TaskScheduler.Current);
             }

@@ -20,8 +20,8 @@ using Jupiter.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
-using Serilog;
 
 namespace Jupiter.Implementation;
 
@@ -72,7 +72,7 @@ public class BlobService : IBlobService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly Tracer _tracer;
     private readonly BufferedPayloadFactory _bufferedPayloadFactory;
-    private readonly ILogger _logger = Log.ForContext<BlobService>();
+    private readonly ILogger _logger;
 
     internal IEnumerable<IBlobStore> BlobStore
     {
@@ -80,7 +80,7 @@ public class BlobService : IBlobService
         set => _blobStores = value.ToList();
     }
 
-    public BlobService(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver, IHttpContextAccessor httpContextAccessor, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory)
+    public BlobService(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings, IBlobIndex blobIndex, IPeerStatusService peerStatusService, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, INamespacePolicyResolver namespacePolicyResolver, IHttpContextAccessor httpContextAccessor, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory, ILogger<BlobService> logger)
     {
         _blobStores = GetBlobStores(provider, settings).ToList();
         _settings = settings;
@@ -92,6 +92,7 @@ public class BlobService : IBlobService
         _httpContextAccessor = httpContextAccessor;
         _tracer = tracer;
         _bufferedPayloadFactory = bufferedPayloadFactory;
+        _logger = logger;
     }
 
     public static IEnumerable<IBlobStore> GetBlobStores(IServiceProvider provider, IOptionsMonitor<UnrealCloudDDCSettings> settings)
@@ -345,7 +346,7 @@ public class BlobService : IBlobService
             throw new BlobReplicationException(ns, blob, "Blob not found in any region");
         }
 
-        _logger.Information("On-demand replicating blob {Blob} in Namespace {Namespace}", blob, ns);
+        _logger.LogInformation("On-demand replicating blob {Blob} in Namespace {Namespace}", blob, ns);
         List<(int, string)> possiblePeers = new List<(int, string)>(_peerStatusService.GetPeersByLatency(blobInfo.Regions.ToList()));
 
         bool replicated = false;
@@ -357,7 +358,7 @@ public class BlobService : IBlobService
                 throw new Exception($"Failed to find peer {region}");
             }
 
-            _logger.Information("Attempting to replicate blob {Blob} in Namespace {Namespace} from {Region}", blob, ns, region);
+            _logger.LogInformation("Attempting to replicate blob {Blob} in Namespace {Namespace} from {Region}", blob, ns, region);
 
             PeerEndpoints peerEndpoint = peerStatus.Endpoints.First();
             using HttpClient httpClient = _httpClientFactory.CreateClient();

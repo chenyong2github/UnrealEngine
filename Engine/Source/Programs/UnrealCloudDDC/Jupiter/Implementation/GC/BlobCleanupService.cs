@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Implementation
 {
@@ -25,16 +25,17 @@ namespace Jupiter.Implementation
     {
         private readonly IOptionsMonitor<GCSettings> _settings;
         private volatile bool _alreadyPolling;
-        private readonly ILogger _logger = Log.ForContext<BlobCleanupService>();
+        private readonly ILogger _logger;
 
         protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.BlobCleanupServiceEnabled;
         }
 
-        public BlobCleanupService(IServiceProvider provider, IOptionsMonitor<GCSettings> settings) : base(serviceName: nameof(BlobCleanupService), settings.CurrentValue.BlobCleanupPollFrequency, new BlobCleanupState())
+        public BlobCleanupService(IServiceProvider provider, IOptionsMonitor<GCSettings> settings, ILogger<BlobCleanupService> logger) : base(serviceName: nameof(BlobCleanupService), settings.CurrentValue.BlobCleanupPollFrequency, new BlobCleanupState(), logger)
         {
             _settings = settings;
+            _logger = logger;
             
             if (settings.CurrentValue.CleanOldBlobs)
             {
@@ -86,17 +87,17 @@ namespace Jupiter.Implementation
                 }
 
                 string type = blobCleanup.GetType().ToString();
-                _logger.Information("Blob cleanup running for {BlobCleanup}", type);
+                _logger.LogInformation("Blob cleanup running for {BlobCleanup}", type);
 
-                _logger.Information("Attempting to run Blob Cleanup {BlobCleanup}. ", type);
+                _logger.LogInformation("Attempting to run Blob Cleanup {BlobCleanup}. ", type);
                 try
                 {
                     ulong countOfBlobsCleaned = await blobCleanup.Cleanup(cancellationToken);
-                    _logger.Information("Ran blob cleanup {BlobCleanup}. Deleted {CountBlobRecords}", type, countOfBlobsCleaned);
+                    _logger.LogInformation("Ran blob cleanup {BlobCleanup}. Deleted {CountBlobRecords}", type, countOfBlobsCleaned);
                 }
                 catch (Exception e)
                 {
-                    _logger.Error(e, "Exception running Blob Cleanup {BlobCleanup} .", type);
+                    _logger.LogError(e, "Exception running Blob Cleanup {BlobCleanup} .", type);
                 }
             }
         }

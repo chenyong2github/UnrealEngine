@@ -27,15 +27,16 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using OpenTelemetry.Trace;
-using Serilog;
+
 using ContentHash = Jupiter.Implementation.ContentHash;
 using ContentId = Jupiter.Implementation.ContentId;
-using Log = Serilog.Log;
 
 namespace Jupiter.Controllers
 {
+	using IDiagnosticContext = Serilog.IDiagnosticContext;
     using BlobNotFoundException = Jupiter.Implementation.BlobNotFoundException;
 
     [ApiController]
@@ -52,11 +53,11 @@ namespace Jupiter.Controllers
         private readonly RequestHelper _requestHelper;
         private readonly Tracer _tracer;
 
-        private readonly ILogger _logger = Log.ForContext<ReferencesController>();
+        private readonly ILogger _logger;
         private readonly IObjectService _objectService;
         private readonly IBlobService _blobStore;
 
-        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver, RequestHelper requestHelper, Tracer tracer)
+        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver, RequestHelper requestHelper, Tracer tracer, ILogger<ReferencesController> logger)
         {
             _objectService = objectService;
             _blobStore = blobStore;
@@ -66,6 +67,7 @@ namespace Jupiter.Controllers
             _referenceResolver = referenceResolver;
             _requestHelper = requestHelper;
             _tracer = tracer;
+            _logger = logger;
         }
 
         /// <summary>
@@ -157,7 +159,7 @@ namespace Jupiter.Controllers
                         // do not raise exceptions for cancelled writes
                         // as we have already started writing a response we can not change the status code
                         // so we just drop a warning and proceed
-                        _logger.Warning("The operation was canceled while writing the body");
+                        _logger.LogWarning("The operation was canceled while writing the body");
                     }
                 }
 
@@ -352,7 +354,7 @@ namespace Jupiter.Controllers
                                 }
                                 catch (Exception ex)
                                 {
-                                    _logger.Error(ex, "Unknown exception encountered while writing body for jupiter inlined payload.");
+                                    _logger.LogError(ex, "Unknown exception encountered while writing body for jupiter inlined payload.");
                                     throw;
                                 }
                                 return new EmptyResult();

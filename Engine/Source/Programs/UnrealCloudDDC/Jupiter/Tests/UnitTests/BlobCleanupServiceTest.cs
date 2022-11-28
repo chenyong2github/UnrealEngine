@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Jupiter.Implementation;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -21,7 +22,7 @@ namespace Jupiter.UnitTests
                 CleanOldBlobs = false
             };
             IOptionsMonitor<GCSettings> gcSettingsMon = Mock.Of<IOptionsMonitor<GCSettings>>(_ => _.CurrentValue == gcSettings);
-            await using BlobCleanupService blobCleanupService = new BlobCleanupService(Mock.Of<IServiceProvider>(), gcSettingsMon);
+            await using BlobCleanupService blobCleanupService = new BlobCleanupService(Mock.Of<IServiceProvider>(), gcSettingsMon, NullLogger<BlobCleanupService>.Instance);
 
             Mock<IBlobCleanup> store1 = new Mock<IBlobCleanup>();
             store1.Setup(cleanup => cleanup.ShouldRun()).Returns(true);

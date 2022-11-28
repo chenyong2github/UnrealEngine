@@ -14,8 +14,8 @@ using EpicGames.Horde.Storage;
 using Jupiter.Implementation.LeaderElection;
 using k8s;
 using k8s.Models;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
@@ -24,14 +24,15 @@ namespace Jupiter.Implementation
         private readonly IPeerServiceDiscovery _serviceDiscovery;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IServiceCredentials _serviceCredentials;
-        private readonly ILogger _logger = Log.ForContext<PeerBlobStore>();
+        private readonly ILogger _logger;
         private readonly ConcurrentDictionary<string, HttpClient> _httpClients = new ConcurrentDictionary<string, HttpClient>();
 
-        public PeerBlobStore(IPeerServiceDiscovery serviceDiscovery, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials)
+        public PeerBlobStore(IPeerServiceDiscovery serviceDiscovery, IHttpClientFactory httpClientFactory, IServiceCredentials serviceCredentials, ILogger<PeerBlobStore> logger)
         {
             _serviceDiscovery = serviceDiscovery;
             _httpClientFactory = httpClientFactory;
             _serviceCredentials = serviceCredentials;
+            _logger = logger;
         }
 
         private async Task<HttpRequestMessage> BuildHttpRequest(HttpMethod method, Uri uri)
@@ -64,7 +65,7 @@ namespace Jupiter.Implementation
                 long? contentLength = response.Content.Headers.ContentLength;
                 if (contentLength == null)
                 {
-                    _logger.Warning("Content length missing in response from peer blob store. This is not supported, ignoring response");
+                    _logger.LogWarning("Content length missing in response from peer blob store. This is not supported, ignoring response");
                     return null;
                 }
                     
@@ -72,7 +73,7 @@ namespace Jupiter.Implementation
             }
             catch (Exception e)
             {
-                _logger.Warning(e,
+                _logger.LogWarning(e,
                     "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}",
                     blob, ns, instance);
             }
@@ -123,7 +124,7 @@ namespace Jupiter.Implementation
             }
             catch (Exception e)
             {
-                _logger.Warning(e,
+                _logger.LogWarning(e,
                     "Exception when attempting to fetch blob {Blob} in namespace {Namespace} from instance {Instance}",
                     blob, ns, instance);
             }

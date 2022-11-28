@@ -10,23 +10,24 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using Serilog;
 using EpicGames.Horde.Storage;
 using Jupiter.Common.Implementation;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Implementation
 {
     public class AzureBlobStore : IBlobStore
     {
-        private readonly ILogger _logger = Log.ForContext<AzureBlobStore>();
+        private readonly ILogger _logger;
         private readonly string _connectionString;
 
         private const string LastTouchedKey = "Io_LastTouched";
         private const string NamespaceKey = "Io_Namespace";
 
-        public AzureBlobStore(IOptionsMonitor<AzureSettings> settings, IServiceProvider provider)
+        public AzureBlobStore(IOptionsMonitor<AzureSettings> settings, IServiceProvider provider, ILogger<AzureBlobStore> logger)
         {
             _connectionString = GetConnectionString(settings.CurrentValue, provider);
+            _logger = logger;
         }
 
         /// <summary>
@@ -57,12 +58,12 @@ namespace Jupiter.Implementation
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, Stream content, BlobIdentifier blobIdentifier)
         {
             string @namespace = SanitizeNamespace(ns);
-            _logger.Debug("Checking if Azure container with name {Name} exists", @namespace);
+            _logger.LogDebug("Checking if Azure container with name {Name} exists", @namespace);
             BlobContainerClient container = new BlobContainerClient(_connectionString, @namespace);
             Dictionary<string, string> metadata = new Dictionary<string, string> { { NamespaceKey, ns.ToString() } };
             await container.CreateIfNotExistsAsync(metadata:metadata);
 
-            _logger.Debug("Fetching blob reference with name {ObjectName}", blobIdentifier);
+            _logger.LogDebug("Fetching blob reference with name {ObjectName}", blobIdentifier);
             try
             {
 
@@ -83,7 +84,7 @@ namespace Jupiter.Implementation
                 // we touch the blob so that the last access time is always refreshed even if we didnt actually mutate it to make sure the gc knows this is a active blob
                 // see delete operation in Leda blob store cleanup
                 await TouchBlob(container.GetBlobClient(blobIdentifier.ToString()));
-                _logger.Debug("Upload of blob {ObjectName} completed", blobIdentifier);
+                _logger.LogDebug("Upload of blob {ObjectName} completed", blobIdentifier);
             }
 
             return blobIdentifier;

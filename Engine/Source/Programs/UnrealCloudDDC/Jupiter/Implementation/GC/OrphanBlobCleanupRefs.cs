@@ -11,7 +11,7 @@ using Jupiter.Implementation.Blob;
 using Jupiter.Common;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Trace;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Implementation
 {
@@ -24,10 +24,10 @@ namespace Jupiter.Implementation
         private readonly ILeaderElection _leaderElection;
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly Tracer _tracer;
-        private readonly ILogger _logger = Log.ForContext<OrphanBlobCleanupRefs>();
+        private readonly ILogger _logger;
 
         // ReSharper disable once UnusedMember.Global
-        public OrphanBlobCleanupRefs(IOptionsMonitor<GCSettings> gcSettings, IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer)
+        public OrphanBlobCleanupRefs(IOptionsMonitor<GCSettings> gcSettings, IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, INamespacePolicyResolver namespacePolicyResolver, Tracer tracer, ILogger<OrphanBlobCleanupRefs> logger)
         {
             _gcSettings = gcSettings;
             _blobService = blobService;
@@ -36,6 +36,7 @@ namespace Jupiter.Implementation
             _leaderElection = leaderElection;
             _namespacePolicyResolver = namespacePolicyResolver;
             _tracer = tracer;
+            _logger = logger;
         }
 
         public bool ShouldRun()
@@ -52,7 +53,7 @@ namespace Jupiter.Implementation
         {
             if (!_leaderElection.IsThisInstanceLeader())
             {
-                _logger.Information("Skipped orphan blob (refs) cleanup run as this instance is not the leader");
+                _logger.LogInformation("Skipped orphan blob (refs) cleanup run as this instance is not the leader");
                 return 0;
             }
 
@@ -60,7 +61,7 @@ namespace Jupiter.Implementation
             List<NamespaceId> namespacesThatHaveBeenChecked = new List<NamespaceId>();
             // enumerate all namespaces, and check if the old blob is valid in any of them to allow for a blob store to just store them in a single pile if it wants to
             ulong countOfBlobsRemoved = 0;
-            _logger.Information("Started orphan blob");
+            _logger.LogInformation("Started orphan blob");
             foreach (NamespaceId @namespace in namespaces)
             {
                 // if we have already checked this namespace there is no need to repeat it
@@ -77,7 +78,7 @@ namespace Jupiter.Implementation
                 NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(@namespace);
                 List<NamespaceId> namespacesThatSharePool = namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool).ToList();
 
-                _logger.Information("Running Orphan GC For StoragePool: {StoragePool}", policy.StoragePool);
+                _logger.LogInformation("Running Orphan GC For StoragePool: {StoragePool}", policy.StoragePool);
                 namespacesThatHaveBeenChecked.AddRange(namespacesThatSharePool);
                 // only consider blobs that have been around for 60 minutes
                 // this due to cases were blobs are uploaded first
@@ -105,10 +106,10 @@ namespace Jupiter.Implementation
                 }, cancellationToken: cancellationToken, maxDegreeOfParallelism: _gcSettings.CurrentValue.OrphanGCMaxParallelOperations);
 
                 TimeSpan storagePoolGcDuration = DateTime.Now - startTime;
-                _logger.Information("Finished running Orphan GC For StoragePool: {StoragePool}. Took {Duration}", policy.StoragePool, storagePoolGcDuration);
+                _logger.LogInformation("Finished running Orphan GC For StoragePool: {StoragePool}. Took {Duration}", policy.StoragePool, storagePoolGcDuration);
             }
 
-            _logger.Information("Finished running Orphan GC");
+            _logger.LogInformation("Finished running Orphan GC");
             return countOfBlobsRemoved;
         }
 
@@ -190,7 +191,7 @@ namespace Jupiter.Implementation
 
         private async Task RemoveBlob(NamespaceId ns, BlobIdentifier blob, DateTime lastModifiedTime)
         {
-            _logger.Information("Attempting to GC Orphan blob {Blob} from {Namespace} which was last modified at {LastModifiedTime}", blob, ns, lastModifiedTime);
+            _logger.LogInformation("Attempting to GC Orphan blob {Blob} from {Namespace} which was last modified at {LastModifiedTime}", blob, ns, lastModifiedTime);
             try
             {
                 await _blobService.DeleteObject(ns, blob);
@@ -201,7 +202,7 @@ namespace Jupiter.Implementation
             }
             catch (Exception e)
             {
-                _logger.Warning("Failed to delete blob {Blob} from {Namespace} due to {Error}", blob, ns, e.Message);
+                _logger.LogWarning("Failed to delete blob {Blob} from {Namespace} due to {Error}", blob, ns, e.Message);
             }
         }
 

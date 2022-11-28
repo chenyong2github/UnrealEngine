@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Trace;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
@@ -29,14 +29,14 @@ namespace Jupiter.Implementation
         private readonly IReferencesStore _referencesStore;
         private readonly IBlobIndex _blobIndex;
         private readonly Tracer _tracer;
-        private readonly ILogger _logger = Log.ForContext<BlobStoreConsistencyCheckService>();
+        private readonly ILogger _logger;
 
         protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.EnableBlobStoreChecks;
         }
 
-        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<UnrealCloudDDCSettings> UnrealCloudDDCSettings, IServiceProvider provider, ILeaderElection leaderElection, IReferencesStore referencesStore, IBlobIndex blobIndex, Tracer tracer) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState())
+        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<UnrealCloudDDCSettings> UnrealCloudDDCSettings, IServiceProvider provider, ILeaderElection leaderElection, IReferencesStore referencesStore, IBlobIndex blobIndex, Tracer tracer, ILogger<BlobStoreConsistencyCheckService> logger) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState(), logger)
         {
             _settings = settings;
             _UnrealCloudDDCSettings = UnrealCloudDDCSettings;
@@ -45,13 +45,14 @@ namespace Jupiter.Implementation
             _referencesStore = referencesStore;
             _blobIndex = blobIndex;
             _tracer = tracer;
+            _logger = logger;
         }
 
         public override async Task<bool> OnPoll(ConsistencyState state, CancellationToken cancellationToken)
         {
             if (!_settings.CurrentValue.EnableBlobStoreChecks)
             {
-                _logger.Information("Skipped running blob store consistency check as it is disabled");
+                _logger.LogInformation("Skipped running blob store consistency check as it is disabled");
                 return false;
             }
 
@@ -76,7 +77,7 @@ namespace Jupiter.Implementation
 
                 if (requiresLeader && !_leaderElection.IsThisInstanceLeader())
                 {
-                    _logger.Information("Skipped running blob store consistency check Blob Store {BlobStore} because this instance was not the leader", blobStoreName);
+                    _logger.LogInformation("Skipped running blob store consistency check Blob Store {BlobStore} because this instance was not the leader", blobStoreName);
                     continue;
                 }
 
@@ -97,7 +98,7 @@ namespace Jupiter.Implementation
 
                         if (countOfBlobsChecked % 100 == 0)
                         {
-                            _logger.Information("Consistency check running on Blob Store {BlobStore}, count of blobs processed so far: {CountOfBlobs}", blobStoreName, countOfBlobsChecked);
+                            _logger.LogInformation("Consistency check running on Blob Store {BlobStore}, count of blobs processed so far: {CountOfBlobs}", blobStoreName, countOfBlobsChecked);
                         }
 
                         Interlocked.Increment(ref countOfBlobsChecked);
@@ -109,7 +110,7 @@ namespace Jupiter.Implementation
                         BlobIdentifier newHash = await BlobIdentifier.FromStream(s);
                         if (!blob.Equals(newHash))
                         {
-                            _logger.Error("Mismatching hash for {Blob} in {Namespace} stored in {BlobStore}, new hash has {NewHash}. Deleting incorrect blob.", blob, ns, blobStoreName,newHash);
+                            _logger.LogError("Mismatching hash for {Blob} in {Namespace} stored in {BlobStore}, new hash has {NewHash}. Deleting incorrect blob.", blob, ns, blobStoreName,newHash);
 
                             Interlocked.Increment(ref countOfIncorrectBlobsFound);
                             await blobStore.DeleteObject(ns, blob);
@@ -124,7 +125,7 @@ namespace Jupiter.Implementation
                         scope.SetAttribute("deleted", inconsistencyFound.ToString());
                     }
 
-                    _logger.Information("Blob Store {BlobStore}: Consistency check finished for {Namespace}, found {CountOfIncorrectBlobs} incorrect blobs. Processed {CountOfBlobs} blobs.", blobStoreName, ns, countOfIncorrectBlobsFound, countOfBlobsChecked);
+                    _logger.LogInformation("Blob Store {BlobStore}: Consistency check finished for {Namespace}, found {CountOfIncorrectBlobs} incorrect blobs. Processed {CountOfBlobs} blobs.", blobStoreName, ns, countOfIncorrectBlobsFound, countOfBlobsChecked);
                 }
             }
         }

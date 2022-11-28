@@ -23,6 +23,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
@@ -35,19 +37,31 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
-using ILogger = Serilog.ILogger;
 using OktaWebApiOptions = Okta.AspNetCore.OktaWebApiOptions;
 
 namespace Jupiter
 {
+    using ILogger = Microsoft.Extensions.Logging.ILogger;
+
     public abstract class BaseStartup
     {
-        protected ILogger Logger { get; } = Log.ForContext<BaseStartup>();
+        protected ILogger Logger { get; }
 
-        protected BaseStartup(IConfiguration configuration)
+        protected BaseStartup(IConfiguration configuration, ILogger logger)
         {
             Configuration = configuration;
             Auth = new AuthSettings();
+            Logger = logger;
+        }
+
+        protected static ILogger CreateLogger<T>()
+        {
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.SetMinimumLevel(LogLevel.Information);
+                builder.AddSerilog();
+            });
+            return loggerFactory.CreateLogger<T>();
         }
 
         protected IConfiguration Configuration { get; }
@@ -60,6 +74,7 @@ namespace Jupiter
             CbConvertersAspNet.AddAspnetConverters();
 
             services.AddServerTiming();
+            services.AddLogging(builder => builder.AddSerilog());
 
             // aws specific settings
             services.AddOptions<AWSCredentialsSettings>().Bind(Configuration.GetSection("AWSCredentials")).ValidateDataAnnotations();
@@ -89,8 +104,7 @@ namespace Jupiter
                 {
                     options.InputFormatters.Add(new CbInputFormatter());
                     options.OutputFormatters.Add(new CbOutputFormatter());
-                    options.OutputFormatters.Add(new RawOutputFormatter());
-
+                    options.OutputFormatters.Add(new RawOutputFormatter(CreateLogger<RawOutputFormatter>()));
                     options.FormatterMappings.SetMediaTypeMappingForFormat("raw", MediaTypeNames.Application.Octet);
                     options.FormatterMappings.SetMediaTypeMappingForFormat("uecb", CustomMediaTypeNames.UnrealCompactBinary);
                     options.FormatterMappings.SetMediaTypeMappingForFormat("uecbpkg", CustomMediaTypeNames.UnrealCompactBinaryPackage);
@@ -359,7 +373,7 @@ namespace Jupiter
 
             if (jupiterSettings.ShowPII)
             {
-                Logger.Error("Personally Identifiable information being shown. This should not be generally enabled in prod.");
+                Logger.LogError("Personally Identifiable information being shown. This should not be generally enabled in prod.");
 
                 // do not hide personal information during development
                 Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;

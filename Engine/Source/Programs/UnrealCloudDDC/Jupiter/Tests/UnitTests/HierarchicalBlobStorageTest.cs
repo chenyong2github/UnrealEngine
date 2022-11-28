@@ -17,6 +17,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using OpenTelemetry.Trace;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jupiter.UnitTests
 {
@@ -62,7 +63,7 @@ namespace Jupiter.UnitTests
             IOptionsMonitor<JupiterSettings> jupiterSettings = Mock.Of<IOptionsMonitor<JupiterSettings>>(_ => _.CurrentValue == new JupiterSettings());
             BufferedPayloadFactory bufferedPayloadFactory = new BufferedPayloadFactory(jupiterSettings, tracer);
 
-            _chained = new BlobService(serviceProviderMock.Object, settingsMonitor, Mock.Of<IBlobIndex>(), Mock.Of<IPeerStatusService>(), Mock.Of<IHttpClientFactory>(), Mock.Of<IServiceCredentials>(), mockPolicyResolver.Object, Mock.Of<IHttpContextAccessor>(), tracer, bufferedPayloadFactory);
+            _chained = new BlobService(serviceProviderMock.Object, settingsMonitor, Mock.Of<IBlobIndex>(), Mock.Of<IPeerStatusService>(), Mock.Of<IHttpClientFactory>(), Mock.Of<IServiceCredentials>(), mockPolicyResolver.Object, Mock.Of<IHttpContextAccessor>(), tracer, bufferedPayloadFactory, NullLogger<BlobService>.Instance);
             _chained.BlobStore = new List<IBlobStore> { _first, _second, _third };
 
             await _first.PutObject(Ns, Encoding.ASCII.GetBytes("onlyFirstContent"), _onlyFirstId);

@@ -26,18 +26,19 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StatsdClient;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter
 {
     // ReSharper disable once ClassNeverInstantiated.Global
     public class JupiterStartup : BaseStartup
     {
-        public JupiterStartup(IConfiguration configuration) : base(configuration)
+        public JupiterStartup(IConfiguration configuration) : base(configuration, CreateLogger<JupiterStartup>())
         {
             string? ddAgentHost = System.Environment.GetEnvironmentVariable("DD_AGENT_HOST");
             if (!string.IsNullOrEmpty(ddAgentHost))
             {
-                Logger.Information("Initializing Dogstatsd to connect to: {DatadogAgentHost}", ddAgentHost);
+                Logger.LogInformation("Initializing Dogstatsd to connect to: {DatadogAgentHost}", ddAgentHost);
                 StatsdConfig dogstatsdConfig = new StatsdConfig
                 {
                     StatsdServerName = ddAgentHost,
@@ -320,7 +321,7 @@ namespace Jupiter
                                 return true;
                             }
 
-                            Logger.Error("Certificate error: {0}", sslPolicyErrors);
+                            Logger.LogError("Certificate error: {Errors}", sslPolicyErrors);
                             // Do not allow this client to communicate with unauthenticated servers.
                             return false;
                         });
@@ -355,7 +356,7 @@ namespace Jupiter
             if (settings.KeyspaceReplicationStrategy != null)
             {
                 replicationStrategy = settings.KeyspaceReplicationStrategy;
-                Logger.Information("Scylla Replication strategy for replicated keyspace is set to {@ReplicationStrategy}", replicationStrategy);
+                Logger.LogInformation("Scylla Replication strategy for replicated keyspace is set to {@ReplicationStrategy}", replicationStrategy);
             }
 
             ISession replicatedSession;
@@ -371,12 +372,12 @@ namespace Jupiter
                 }
                 catch (NoHostAvailableException)
                 {
-                    Logger.Warning("Failed to connect to scylla, waiting a while and will then retry. Attempt {0} of {1}", countOfAttempts, MaxRetryAttempts);
+                    Logger.LogWarning("Failed to connect to scylla, waiting a while and will then retry. Attempt {AttemptNum} of {NumAttempts}", countOfAttempts, MaxRetryAttempts);
                     // wait for a few seconds before attempt to connect again
                     Thread.Sleep(5000);
                     if (countOfAttempts >= MaxRetryAttempts)
                     {
-                        Logger.Error("Failed to connect to Scylla after {0} attempts, giving up.", countOfAttempts);
+                        Logger.LogError("Failed to connect to Scylla after {NumAttempts} attempts, giving up.", countOfAttempts);
                         throw;
                     }
                 }
@@ -393,7 +394,7 @@ namespace Jupiter
             if (settings.LocalKeyspaceReplicationStrategy != null)
             {
                 replicationStrategyLocal = settings.LocalKeyspaceReplicationStrategy;
-                Logger.Information("Scylla Replication strategy for local keyspace is set to {@ReplicationStrategy}", replicationStrategyLocal);
+                Logger.LogInformation("Scylla Replication strategy for local keyspace is set to {@ReplicationStrategy}", replicationStrategyLocal);
             }
 
             // the local keyspace is never replicated so we do not support controlling how the replication strategy is setup

@@ -4,18 +4,19 @@ using System;
 using System.Threading.Tasks;
 using EpicGames.AspNet;
 using Microsoft.AspNetCore.Http;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Common
 {
     public class SuppressExceptionMiddleware
     {
-        private readonly ILogger _logger = Log.ForContext<SuppressExceptionMiddleware>();
+        private readonly ILogger _logger;
         private readonly RequestDelegate _next;
 
-        public SuppressExceptionMiddleware(RequestDelegate next)
+        public SuppressExceptionMiddleware(RequestDelegate next, ILogger<SuppressExceptionMiddleware> logger)
         {
             _next = next ?? throw new ArgumentNullException(nameof(next));
+            _logger = logger;
         }
 
         public async Task Invoke(HttpContext context)
@@ -28,7 +29,7 @@ namespace Jupiter.Common
             catch (ClientSendSlowException e)
             {
                 // always suppress slow sends
-                _logger.Warning(e, "Client was sending data slowly");
+                _logger.LogWarning(e, "Client was sending data slowly");
             }
             catch (TaskCanceledException e)
             {
@@ -42,7 +43,7 @@ namespace Jupiter.Common
                 }
                 else
                 {
-                    _logger.Warning(e, "Health check was cancelled. This can happen if multiple health checks happen at the same time");
+                    _logger.LogWarning(e, "Health check was cancelled. This can happen if multiple health checks happen at the same time");
                 }
             }
         }

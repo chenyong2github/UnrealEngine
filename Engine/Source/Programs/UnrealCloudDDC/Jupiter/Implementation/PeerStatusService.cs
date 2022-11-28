@@ -8,8 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Options;
-using Serilog;
-using Log = Serilog.Log;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Implementation
 {
@@ -47,7 +46,7 @@ namespace Jupiter.Implementation
         private readonly IHttpClientFactory _clientFactory;
         private readonly Dictionary<string, PeerStatus> _peers = new Dictionary<string, PeerStatus>(StringComparer.InvariantCultureIgnoreCase);
         private volatile bool _alreadyPolling = false;
-        private readonly ILogger _logger = Log.ForContext<PeerStatusService>();
+        private readonly ILogger _logger;
 
         public PeerStatus? GetPeerStatus(string regionName)
         {
@@ -83,11 +82,12 @@ namespace Jupiter.Implementation
             return peers;
         }
 
-        public PeerStatusService(IOptionsMonitor<ClusterSettings> clusterSettings, IOptionsMonitor<JupiterSettings> jupiterSettings, IHttpClientFactory clientFactory) : base("PeerStatus", TimeSpan.FromMinutes(15), new PeerStatusServiceState())
+        public PeerStatusService(IOptionsMonitor<ClusterSettings> clusterSettings, IOptionsMonitor<JupiterSettings> jupiterSettings, IHttpClientFactory clientFactory, ILogger<PeerStatusService> logger) : base("PeerStatus", TimeSpan.FromMinutes(15), new PeerStatusServiceState(), logger)
         {
             _clusterSettings = clusterSettings;
             _jupiterSettings = jupiterSettings;
             _clientFactory = clientFactory;
+            _logger = logger;
 
             foreach (PeerSettings peerSettings in clusterSettings.CurrentValue.Peers)
             {
@@ -169,7 +169,7 @@ namespace Jupiter.Implementation
                 // ignore error responses as they may not have reached the actual instance
                 if (!result.IsSuccessStatusCode)
                 {
-                    _logger.Warning("Non-success status code ({StatusCode}) when attempting to measure latency to {Endpoint}", result.StatusCode, uri);
+                    _logger.LogWarning("Non-success status code ({StatusCode}) when attempting to measure latency to {Endpoint}", result.StatusCode, uri);
                     return int.MaxValue;
                 }
 
@@ -177,7 +177,7 @@ namespace Jupiter.Implementation
             }
             catch (Exception e)
             {
-                _logger.Warning(e, "Exception when attempting to measure latency from {Endpoint}", uri);
+                _logger.LogWarning(e, "Exception when attempting to measure latency from {Endpoint}", uri);
                 // error reaching the endpoint is just considered to max latency
                 return int.MaxValue;
             }

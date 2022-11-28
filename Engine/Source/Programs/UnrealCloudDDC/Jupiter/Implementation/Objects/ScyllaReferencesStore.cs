@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Mapping;
 using EpicGames.Horde.Storage;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Trace;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
@@ -19,15 +19,16 @@ namespace Jupiter.Implementation
         private readonly IMapper _mapper;
         private readonly IOptionsMonitor<ScyllaSettings> _settings;
         private readonly Tracer _tracer;
-        private readonly ILogger _logger = Log.ForContext<ScyllaReferencesStore>();
+        private readonly ILogger _logger;
         private readonly PreparedStatement _getObjectsStatement;
         private readonly PreparedStatement _getNamespacesStatement;
 
-        public ScyllaReferencesStore(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings, Tracer tracer)
+        public ScyllaReferencesStore(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings, Tracer tracer, ILogger<ScyllaReferencesStore> logger)
         {
             _session = scyllaSessionManager.GetSessionForReplicatedKeyspace();
             _settings = settings;
             _tracer = tracer;
+            _logger = logger;
 
             _mapper = new Mapper(_session);
 
@@ -83,7 +84,7 @@ namespace Jupiter.Implementation
             }
             catch (Exception e)
             {
-                _logger.Warning(e, "Partial object found {Namespace} {Bucket} {Name} ignoring object", ns, bucket, name);
+                _logger.LogWarning(e, "Partial object found {Namespace} {Bucket} {Name} ignoring object", ns, bucket, name);
                 throw new ObjectNotFoundException(ns, bucket, name);
             }
 
@@ -163,7 +164,7 @@ namespace Jupiter.Implementation
                     catch (ReadTimeoutException e)
                     {
                         retryAttempts += 1;
-                        _logger.Warning(
+                        _logger.LogWarning(
                             "Cassandra read timeouts, waiting a while and then retrying. Attempt {Attempts} .",
                             retryAttempts);
                         // wait 10 seconds and try again as the Db is under heavy load right now
@@ -174,7 +175,7 @@ namespace Jupiter.Implementation
 
                 if (timeoutException != null)
                 {
-                    _logger.Warning("Cassandra read timeouts, attempted {Attempts} attempts now we give up.",
+                    _logger.LogWarning("Cassandra read timeouts, attempted {Attempts} attempts now we give up.",
                         retryAttempts);
                     // we have failed to many times, rethrow the exception and abort to avoid stalling here for ever
                     throw timeoutException;

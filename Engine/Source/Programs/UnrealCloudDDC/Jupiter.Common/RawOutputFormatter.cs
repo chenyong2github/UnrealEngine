@@ -7,17 +7,18 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
-using Serilog;
 
 namespace Jupiter
 {
     public class RawOutputFormatter : OutputFormatter
     {
-        private readonly ILogger _logger = Log.ForContext<RawOutputFormatter>();
+        private readonly ILogger _logger;
 
-        public RawOutputFormatter()
+        public RawOutputFormatter(ILogger logger)
         {
+            _logger = logger;
             SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("application/octet-stream"));
         }
 
@@ -53,7 +54,7 @@ namespace Jupiter
             {
                 context.ContentType = "text/plain";
 
-                _logger.Debug("No RawOutputProperty detected, unable to use raw formatter on this object of type {Type}", o.GetType().FullName);
+                _logger.LogDebug("No RawOutputProperty detected, unable to use raw formatter on this object of type {Type}", o.GetType().FullName);
                 return;
             }
 

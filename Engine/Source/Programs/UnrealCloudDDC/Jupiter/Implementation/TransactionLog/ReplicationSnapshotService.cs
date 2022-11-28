@@ -9,7 +9,7 @@ using Jupiter.Implementation.TransactionLog;
 using Jupiter.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Implementation
 {
@@ -24,7 +24,7 @@ namespace Jupiter.Implementation
         private readonly IOptionsMonitor<SnapshotSettings> _settings;
         private readonly IReplicationLog _replicationLog;
         private readonly ILeaderElection _leaderElection;
-        private readonly ILogger _logger = Log.ForContext<ReplicationSnapshotService>();
+        private readonly ILogger _logger;
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private Task? _snapshotBuildTask = null;
 
@@ -33,25 +33,26 @@ namespace Jupiter.Implementation
             return _settings.CurrentValue.Enabled;
         }
 
-        public ReplicationSnapshotService(IServiceProvider provider, IOptionsMonitor<SnapshotSettings> settings, IReplicationLog replicationLog, ILeaderElection leaderElection) : base(serviceName: nameof(ReplicationSnapshotService), TimeSpan.FromMinutes(15), new SnapshotState())
+        public ReplicationSnapshotService(IServiceProvider provider, IOptionsMonitor<SnapshotSettings> settings, IReplicationLog replicationLog, ILeaderElection leaderElection, ILogger<ReplicationSnapshotService> logger) : base(serviceName: nameof(ReplicationSnapshotService), TimeSpan.FromMinutes(15), new SnapshotState(), logger)
         {
             _provider = provider;
             _settings = settings;
             _replicationLog = replicationLog;
             _leaderElection = leaderElection;
+            _logger = logger;
         }
 
         public override async Task<bool> OnPoll(SnapshotState state, CancellationToken cancellationToken)
         {
             if (!_settings.CurrentValue.Enabled)
             {
-                _logger.Information("Skipped running replication snapshot service as it is disabled");
+                _logger.LogInformation("Skipped running replication snapshot service as it is disabled");
                 return false;
             }
 
             if (!_leaderElection.IsThisInstanceLeader())
             {
-                _logger.Information("Skipped running snapshot service because this instance was not the leader");
+                _logger.LogInformation("Skipped running snapshot service because this instance was not the leader");
                 return false;
             }
 
@@ -65,21 +66,21 @@ namespace Jupiter.Implementation
                     DateTime nextSnapshot = lastSnapshot.AddDays(1);
                     if (DateTime.Now < nextSnapshot)
                     {
-                        _logger.Information("Skipped building snapshot for namespace {Namespace} as the previous snapshot ({PreviousSnapshot}) was not a day old.", ns, lastSnapshot);
+                        _logger.LogInformation("Skipped building snapshot for namespace {Namespace} as the previous snapshot ({PreviousSnapshot}) was not a day old.", ns, lastSnapshot);
                         return;
                     }
                 }
                 ReplicationLogSnapshotBuilder builder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_provider);
                 try
                 {
-                    _logger.Information("Building snapshot for {Namespace}", ns);
+                    _logger.LogInformation("Building snapshot for {Namespace}", ns);
                     BlobIdentifier snapshotBlob = await builder.BuildSnapshot(ns, _settings.CurrentValue.SnapshotStorageNamespace, _cancellationTokenSource.Token);
-                    _logger.Information("Snapshot built for {Namespace} with id {Id}", ns, snapshotBlob);
+                    _logger.LogInformation("Snapshot built for {Namespace} with id {Id}", ns, snapshotBlob);
 
                 }
                 catch (IncrementalLogNotAvailableException)
                 {
-                    _logger.Warning("Unable to generate a snapshot for {Namespace} as there was no incremental state available", ns);
+                    _logger.LogWarning("Unable to generate a snapshot for {Namespace} as there was no incremental state available", ns);
                 }
 
                 ran = true;

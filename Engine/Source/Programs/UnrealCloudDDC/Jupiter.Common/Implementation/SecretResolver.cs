@@ -11,7 +11,7 @@ using Azure;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.Extensions.DependencyInjection;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Common.Implementation
 {
@@ -23,11 +23,12 @@ namespace Jupiter.Common.Implementation
     public class SecretResolver : ISecretResolver
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly ILogger _logger = Log.ForContext<SecretResolver>();
+        private readonly ILogger _logger;
 
-        public SecretResolver(IServiceProvider serviceProvider)
+        public SecretResolver(IServiceProvider serviceProvider, ILogger<SecretResolver> logger)
         {
             _serviceProvider = serviceProvider;
+            _logger = logger;
         }
 
         public string? Resolve(string value)
@@ -78,7 +79,7 @@ namespace Jupiter.Common.Implementation
             }
             catch (ResourceNotFoundException e)
             {
-                _logger.Error(e, "Failed to find AWS secret: {Arn}", arn);
+                _logger.LogError(e, "Failed to find AWS secret: {Arn}", arn);
                 throw;
             }
 

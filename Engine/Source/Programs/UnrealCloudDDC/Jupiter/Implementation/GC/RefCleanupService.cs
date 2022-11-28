@@ -6,8 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using EpicGames.Horde.Storage;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
@@ -28,13 +28,14 @@ namespace Jupiter.Implementation
         private readonly ILeaderElection _leaderElection;
         private readonly IReferencesStore _referencesStore;
         private volatile bool _alreadyPolling;
-        private readonly ILogger _logger = Log.ForContext<RefCleanupService>();
+        private readonly ILogger _logger;
 
-        public RefCleanupService(IOptionsMonitor<GCSettings> settings, IRefCleanup refCleanup, ILeaderElection leaderElection, IReferencesStore referencesStore) : base(serviceName: nameof(RefCleanupService), settings.CurrentValue.RefCleanupPollFrequency, new RefCleanupState(refCleanup), startAtRandomTime: false)
+        public RefCleanupService(IOptionsMonitor<GCSettings> settings, IRefCleanup refCleanup, ILeaderElection leaderElection, IReferencesStore referencesStore, ILogger<RefCleanupService> logger) : base(serviceName: nameof(RefCleanupService), settings.CurrentValue.RefCleanupPollFrequency, new RefCleanupState(refCleanup), logger, startAtRandomTime: false)
         {
             _settings = settings;
             _leaderElection = leaderElection;
             _referencesStore = referencesStore;
+            _logger = logger;
         }
 
         protected override bool ShouldStartPolling()
@@ -54,7 +55,7 @@ namespace Jupiter.Implementation
             {
                 if (!_leaderElection.IsThisInstanceLeader())
                 {
-                    _logger.Information("Skipped ref cleanup run as this instance was not the leader");
+                    _logger.LogInformation("Skipped ref cleanup run as this instance was not the leader");
                     return false;
                 }
                 List<NamespaceId>? namespaces = await _referencesStore.GetNamespaces().ToListAsync(cancellationToken);
@@ -83,16 +84,16 @@ namespace Jupiter.Implementation
 
         private async Task DoCleanup(NamespaceId ns, RefCleanupState state, CancellationToken cancellationToken)
         {
-            _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
+            _logger.LogInformation("Attempting to run Refs Cleanup of {Namespace}. ", ns);
             try
             {
                 int countOfRemovedRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
-                _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns,
+                _logger.LogInformation("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns,
                     countOfRemovedRecords);
             }
             catch (Exception e)
             {
-                _logger.Error("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
+                _logger.LogError("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
             }
         }
     }

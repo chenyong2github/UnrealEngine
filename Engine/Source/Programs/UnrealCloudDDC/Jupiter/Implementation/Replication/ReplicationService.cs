@@ -7,8 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
@@ -22,7 +22,7 @@ namespace Jupiter.Implementation
     {
         private readonly IOptionsMonitor<ReplicationSettings> _settings;
         private readonly ILeaderElection _leaderElection;
-        private readonly ILogger _logger = Log.ForContext<ReplicationService>();
+        private readonly ILogger _logger;
         private readonly Dictionary<string, Task<bool>> _currentReplications = new Dictionary<string, Task<bool>>();
 
         protected override bool ShouldStartPolling()
@@ -30,10 +30,11 @@ namespace Jupiter.Implementation
             return _settings.CurrentValue.Enabled;
         }
 
-        public ReplicationService(IOptionsMonitor<ReplicationSettings> settings, IServiceProvider provider, ILeaderElection leaderElection) : base(serviceName: nameof(ReplicationService), TimeSpan.FromSeconds(settings.CurrentValue.ReplicationPollFrequencySeconds), new ReplicationState(), startAtRandomTime: true)
+        public ReplicationService(IOptionsMonitor<ReplicationSettings> settings, IServiceProvider provider, ILeaderElection leaderElection, ILogger<ReplicationService> logger) : base(serviceName: nameof(ReplicationService), TimeSpan.FromSeconds(settings.CurrentValue.ReplicationPollFrequencySeconds), new ReplicationState(), logger, startAtRandomTime: true)
         {
             _settings = settings;
             _leaderElection = leaderElection;
+            _logger = logger;
 
             _leaderElection.OnLeaderChanged += OnLeaderChanged;
 
@@ -45,7 +46,7 @@ namespace Jupiter.Implementation
                 }
                 catch (Exception e)
                 {
-                    _logger.Error(e, "Failed to create replicator {Name}", replicator.ReplicatorName);
+                    _logger.LogError(e, "Failed to create replicator {Name}", replicator.ReplicatorName);
                 }
             }
         }
@@ -79,17 +80,17 @@ namespace Jupiter.Implementation
         {
             if (!_settings.CurrentValue.Enabled)
             {
-                _logger.Information("Skipped running replication as it is disabled");
+                _logger.LogInformation("Skipped running replication as it is disabled");
                 return false;
             }
 
             if (!_leaderElection.IsThisInstanceLeader())
             {
-                _logger.Information("Skipped running replicators because this instance was not the leader");
+                _logger.LogInformation("Skipped running replicators because this instance was not the leader");
                 return false;
             }
 
-            _logger.Information("Polling for new replication to start");
+            _logger.LogInformation("Polling for new replication to start");
 
             foreach (IReplicator replicator in state.Replicators)
             {
@@ -102,32 +103,32 @@ namespace Jupiter.Implementation
                         if (replicationTask.IsFaulted)
                         {
                             // we log the error but avoid raising it to make sure all replicators actually get to run even if there is a faulting one
-                            _logger.Error(replicationTask.Exception, "Unhandled exception in replicator {Name}", replicator.Info.ReplicatorName);
+                            _logger.LogError(replicationTask.Exception, "Unhandled exception in replicator {Name}", replicator.Info.ReplicatorName);
                             continue;
                         }
                      
                         DateTime time = DateTime.Now;
-                        _logger.Information("Joining replication task for replicator {Name}", replicator.Info.ReplicatorName);
+                        _logger.LogInformation("Joining replication task for replicator {Name}", replicator.Info.ReplicatorName);
                         await replicationTask;
-                        _logger.Information("Waited for replication task {Name} for {Duration} seconds", replicator.Info.ReplicatorName, (DateTime.Now - time).TotalSeconds);
+                        _logger.LogInformation("Waited for replication task {Name} for {Duration} seconds", replicator.Info.ReplicatorName, (DateTime.Now - time).TotalSeconds);
                     }
                     else
                     {
-                        _logger.Debug("Replication of replicator: {Name} is still running", replicator.Info.ReplicatorName);
+                        _logger.LogDebug("Replication of replicator: {Name} is still running", replicator.Info.ReplicatorName);
                         // if the replication is still running let it continue to run
                         continue;
                     }
                 }
 
                 // start a new run of the replication
-                _logger.Debug("Triggering new replication of replicator: {Name}", replicator.Info.ReplicatorName);
+                _logger.LogDebug("Triggering new replication of replicator: {Name}", replicator.Info.ReplicatorName);
                 Task<bool> newReplication = replicator.TriggerNewReplications();
                 _currentReplications[replicator.Info.ReplicatorName] = newReplication;
             }
 
             if (state.Replicators.Count == 0)
             {
-                _logger.Information("Finished replication poll, but no replicators configured to run.");
+                _logger.LogInformation("Finished replication poll, but no replicators configured to run.");
             }
 
             return state.Replicators.Count != 0;

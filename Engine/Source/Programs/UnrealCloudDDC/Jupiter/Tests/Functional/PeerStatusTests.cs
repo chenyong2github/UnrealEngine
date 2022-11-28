@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using Moq.Contrib.HttpClient;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jupiter.FunctionalTests.Status
 {
@@ -77,7 +78,7 @@ namespace Jupiter.FunctionalTests.Status
             handler.SetupRequest("http://siteb.com/internal" + endpoint).ReturnsResponse(HttpStatusCode.OK).Callback(() => Task.Delay(400).Wait()).Verifiable();
 
             IHttpClientFactory httpClientFactory = handler.CreateClientFactory();
-            await using PeerStatusService statusService = new(settingsMock, jupiterSettingsMock, httpClientFactory);
+            await using PeerStatusService statusService = new(settingsMock, jupiterSettingsMock, httpClientFactory, NullLogger<PeerStatusService>.Instance);
 
             await statusService.UpdatePeerStatus(CancellationToken.None);
 
@@ -153,7 +154,7 @@ namespace Jupiter.FunctionalTests.Status
             handler.SetupRequest("http://siteb.com/internal" + endpoint).Throws<SocketException>().Verifiable();
 
             IHttpClientFactory httpClientFactory = handler.CreateClientFactory();
-            await using PeerStatusService statusService = new(settingsMock, jupiterSettingsMock, httpClientFactory);
+            await using PeerStatusService statusService = new(settingsMock, jupiterSettingsMock, httpClientFactory, NullLogger<PeerStatusService>.Instance);
 
             await statusService.UpdatePeerStatus(CancellationToken.None);
 

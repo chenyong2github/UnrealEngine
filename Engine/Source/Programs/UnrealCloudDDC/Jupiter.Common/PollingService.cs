@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter
 {
@@ -21,7 +21,7 @@ namespace Jupiter
             public PollingService<T> Instance { get; set; }
         }
 
-        private readonly ILogger _logger = Log.ForContext<PollingService<T>>();
+        private readonly ILogger _logger;
         private readonly string _serviceName;
         private readonly TimeSpan _pollFrequency;
         private readonly T _state;
@@ -32,14 +32,15 @@ namespace Jupiter
         private Timer? _timer;
         private bool _disposed = false;
 
-        protected PollingService(string serviceName, TimeSpan pollFrequency, T state, bool startAtRandomTime = false)
+        protected PollingService(string serviceName, TimeSpan pollFrequency, T state, ILogger logger, bool startAtRandomTime = false)
         {
             _serviceName = serviceName;
             _pollFrequency = pollFrequency;
             _state = state;
+            _logger = logger;
             _startAtRandomTime = startAtRandomTime;
 
-            _timer = new Timer(OnUpdate, new ThreadState
+            _timer = new Timer(x => OnUpdate(x, _logger), new ThreadState
             {
                 ServiceName = _serviceName, 
                 PollFrequency = _pollFrequency, 
@@ -61,7 +62,7 @@ namespace Jupiter
         public Task StartAsync(CancellationToken cancellationToken)
         {
             bool shouldPoll = ShouldStartPolling();
-            _logger.Information("Polling service {Service} initialized {@State} , will poll: {WillPoll}.", _serviceName, _state, shouldPoll);
+            _logger.LogInformation("Polling service {Service} initialized {@State} , will poll: {WillPoll}.", _serviceName, _state, shouldPoll);
 
             if (shouldPoll)
             {
@@ -77,7 +78,7 @@ namespace Jupiter
             return Task.CompletedTask;
         }
 
-        private static void OnUpdate(object? state)
+        private static void OnUpdate(object? state, ILogger logger)
         {
             ThreadState? ts = (ThreadState?)state;
             if (ts == null)
@@ -89,7 +90,6 @@ namespace Jupiter
             PollingService<T> instance = threadState.Instance;
             string serviceName = threadState.ServiceName;
             CancellationToken stopPollingToken = threadState.StopPollingToken;
-            ILogger logger = Log.ForContext<PollingService<T>>();
 
             if (instance._alreadyRunning)
             {
@@ -114,26 +114,26 @@ namespace Jupiter
                     e.InnerExceptions.Any(exception => exception.GetType() == typeof(TaskCanceledException));
                 if (!taskCancelled)
                 {
-                    logger.Error(e, "{Service} Aggregate exception in polling service", serviceName);
+                    logger.LogError(e, "{Service} Aggregate exception in polling service", serviceName);
                     foreach (Exception inner in e.InnerExceptions)
                     {
-                        logger.Error(inner, "{Service} inner exception in polling service. Trace: {StackTrace}",
+                        logger.LogError(inner, "{Service} inner exception in polling service. Trace: {StackTrace}",
                             serviceName, inner.StackTrace);
 
                     }
                 }
                 else
                 {
-                    logger.Warning("{Service} poll cancelled in polling service", serviceName);
+                    logger.LogWarning("{Service} poll cancelled in polling service", serviceName);
                 }
             }
             catch (TaskCanceledException)
             {
-                logger.Warning("{Service} poll cancelled in polling service", serviceName);
+                logger.LogWarning("{Service} poll cancelled in polling service", serviceName);
             }
             catch (Exception e)
             {
-                logger.Error(e, "{Service} Exception in polling service", serviceName);
+                logger.LogError(e, "{Service} Exception in polling service", serviceName);
             }
             finally
             {
@@ -151,7 +151,7 @@ namespace Jupiter
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.Information("{Service} poll service stopping.", _serviceName);
+            _logger.LogInformation("{Service} poll service stopping.", _serviceName);
 
             if (_timer != null)
             {

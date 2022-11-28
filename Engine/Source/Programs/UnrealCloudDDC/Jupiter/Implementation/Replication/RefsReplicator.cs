@@ -20,14 +20,14 @@ using Jupiter.Common.Implementation;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using OpenTelemetry.Trace;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Implementation
 {
     public class RefsReplicator : IReplicator
     {
         private readonly string _name;
-        private readonly ILogger _logger = Log.ForContext<RefsReplicator>();
+        private readonly ILogger _logger;
         private readonly ManualResetEvent _replicationFinishedEvent = new ManualResetEvent(true);
         private readonly CancellationTokenSource _replicationTokenSource = new CancellationTokenSource();
         private readonly ReplicatorSettings _replicatorSettings;
@@ -43,7 +43,7 @@ namespace Jupiter.Implementation
         private bool _replicationRunning;
         private bool _disposed = false;
 
-        public RefsReplicator(ReplicatorSettings replicatorSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory, ReplicationLogFactory replicationLogFactory)
+        public RefsReplicator(ReplicatorSettings replicatorSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory, ReplicationLogFactory replicationLogFactory, ILogger<RefsReplicator> logger)
         {
             _name = replicatorSettings.ReplicatorName;
             _namespace = new NamespaceId(replicatorSettings.NamespaceToReplicate);
@@ -54,6 +54,7 @@ namespace Jupiter.Implementation
             _tracer = tracer;
             _bufferedPayloadFactory = bufferedPayloadFactory;
             _replicationLogFactory = replicationLogFactory;
+            _logger = logger;
 
             _httpClient = httpClientFactory.CreateClient();
             _httpClient.BaseAddress = new Uri(replicatorSettings.ConnectionString);
@@ -109,7 +110,7 @@ namespace Jupiter.Implementation
         {
             if (_replicationRunning)
             {
-                _logger.Debug("Skipping replication of replicator: {Name} as it was already running.", _name);
+                _logger.LogDebug("Skipping replication of replicator: {Name} as it was already running.", _name);
                 return false;
             }
 
@@ -128,7 +129,7 @@ namespace Jupiter.Implementation
                 };
             }
 
-            _logger.Debug("Read Replication state for replicator: {Name}. {LastBucket} {LastEvent}.", _name, _refsState.LastBucket, _refsState.LastEvent);
+            _logger.LogDebug("Read Replication state for replicator: {Name}. {LastBucket} {LastEvent}.", _name, _refsState.LastBucket, _refsState.LastEvent);
 
             LogReplicationHeartbeat(0);
 
@@ -140,7 +141,7 @@ namespace Jupiter.Implementation
                 //using IScope scope = Tracer.Instance.StartActive("replicator.run");
                 //scope.Span.ResourceName =_name;
 
-                _logger.Debug("Replicator: {Name} is starting a run.", _name);
+                _logger.LogDebug("Replicator: {Name} is starting a run.", _name);
 
                 _replicationTokenSource.TryReset();
                 _replicationRunning = true;
@@ -158,7 +159,7 @@ namespace Jupiter.Implementation
                 if (!haveRunBefore && !_replicatorSettings.SkipSnapshot)
                 {
                     // have not run before, replicate a snapshot
-                    _logger.Information("{Name} Have not run replication before, attempting to use snapshot. State: {@State}", _name, _refsState);
+                    _logger.LogInformation("{Name} Have not run replication before, attempting to use snapshot. State: {@State}", _name, _refsState);
                     try
                     {
                         (string eventBucket, Guid eventId, int countOfEventsReplicated) = await ReplicateFromSnapshot(ns, replicationToken);
@@ -251,7 +252,7 @@ namespace Jupiter.Implementation
                 _replicationFinishedEvent.Set();
             }
 
-            _logger.Debug("Replicator: {Name} finished its replication run. Replications completed: {ReplicationsDone} .", _name, countOfReplicationsDone);
+            _logger.LogDebug("Replicator: {Name} finished its replication run. Replications completed: {ReplicationsDone} .", _name, countOfReplicationsDone);
 
             return hasRun;
         }
@@ -317,7 +318,7 @@ namespace Jupiter.Implementation
 
                     if (countOfObjectsReplicated % 100 == 0)
                     {
-                        _logger.Information("{Name} Snapshot replication still running, replicated {CountOfObjects} of {TotalCountOfObjects}. Replicating {Namespace}", _name, countOfObjectsReplicated, snapshot.LiveObjectsCount, ns);
+                        _logger.LogInformation("{Name} Snapshot replication still running, replicated {CountOfObjects} of {TotalCountOfObjects}. Replicating {Namespace}", _name, countOfObjectsReplicated, snapshot.LiveObjectsCount, ns);
                     }
 
                     Info.CountOfRunningReplications = countOfObjectsCurrentlyReplicating;
@@ -357,14 +358,14 @@ namespace Jupiter.Implementation
         private async Task<int> ReplicateIncrementally(NamespaceId ns, string? lastBucket, Guid? lastEvent, CancellationToken replicationToken)
         {
             int countOfReplicationsDone = 0;
-            _logger.Information("{Name} Looking for new transaction. Previous state: {@State}", _name, _refsState);
+            _logger.LogInformation("{Name} Looking for new transaction. Previous state: {@State}", _name, _refsState);
 
             SortedSet<long> replicationTasks = new();
 
             // if MaxParallelReplications is set to not limit we use the default behavior of ParallelForEachAsync which is to limit based on CPUs 
             int maxParallelism = _replicatorSettings.MaxParallelReplications != -1 ? _replicatorSettings.MaxParallelReplications : 0;
 
-            _logger.Information("{Name} Starting incremental replication maxParallelism: {MaxParallelism} Last event: {LastEvent} Last Bucket {LastBucket}", _name, maxParallelism, lastEvent, lastBucket);
+            _logger.LogInformation("{Name} Starting incremental replication maxParallelism: {MaxParallelism} Last event: {LastEvent} Last Bucket {LastBucket}", _name, maxParallelism, lastEvent, lastBucket);
 
             using CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
             using CancellationTokenSource linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token, replicationToken);
@@ -381,7 +382,7 @@ namespace Jupiter.Implementation
                     .SetAttribute("resource.name", $"{ns}.{@event.Bucket}.{@event.Key}")
                     .SetAttribute("time-bucket", @event.Timestamp.ToString(CultureInfo.InvariantCulture));
 
-                _logger.Information("{Name} New transaction to replicate found. Ref: {Namespace} {Bucket} {Key} in {TimeBucket} ({TimeDate}) with id {EventId}. Count of running replications: {CurrentReplications}", _name, @event.Namespace, @event.Bucket, @event.Key, @event.TimeBucket, @event.Timestamp, @event.EventId, replicationTasks.Count);
+                _logger.LogInformation("{Name} New transaction to replicate found. Ref: {Namespace} {Bucket} {Key} in {TimeBucket} ({TimeDate}) with id {EventId}. Count of running replications: {CurrentReplications}", _name, @event.Namespace, @event.Bucket, @event.Key, @event.TimeBucket, @event.Timestamp, @event.EventId, replicationTasks.Count);
                 
                 Info.CountOfRunningReplications = replicationTasks.Count;
                 LogReplicationHeartbeat(replicationTasks.Count);
@@ -432,7 +433,7 @@ namespace Jupiter.Implementation
                         _refsState.LastEvent = eventId;
                         await SaveState(_refsState);
 
-                        _logger.Information("{Name} replicated all events up to {Time} . Bucket: {EventBucket} Id: {EventId}", _name, @event.Timestamp, eventBucket, eventId);
+                        _logger.LogInformation("{Name} replicated all events up to {Time} . Bucket: {EventBucket} Id: {EventId}", _name, @event.Timestamp, eventBucket, eventId);
                     }
 
                     Info.LastRun = DateTime.Now;
@@ -440,7 +441,7 @@ namespace Jupiter.Implementation
                 }
                 catch (BlobNotFoundException)
                 {
-                    _logger.Warning("{Name} Failed to replicate {@Op} in {Namespace} because blob was not present in remote store. Skipping.", _name, @event, Info.NamespaceToReplicate);
+                    _logger.LogWarning("{Name} Failed to replicate {@Op} in {Namespace} because blob was not present in remote store. Skipping.", _name, @event, Info.NamespaceToReplicate);
                 }
                 finally
                 {
@@ -460,7 +461,7 @@ namespace Jupiter.Implementation
                 .SetAttribute("operation.name", "replicator.replicate_op")
                 .SetAttribute("resource.name", $"{ns}.{objectToReplicate}");
 
-            _logger.Information("Attempting to replicate object {Blob} in {Namespace}.", objectToReplicate, ns);
+            _logger.LogInformation("Attempting to replicate object {Blob} in {Namespace}.", objectToReplicate, ns);
 
             // We could potentially do this, but that could be dangerous if missing child references
             // check if this blob exists locally before replicating, if it does we assume we have all of its references already
@@ -473,13 +474,13 @@ namespace Jupiter.Implementation
 
             if (referencesResponse.StatusCode == HttpStatusCode.BadRequest)
             {
-                _logger.Warning("Failed to resolve references for object {Blob} in {Namespace}. Skipping replication", objectToReplicate, ns);
+                _logger.LogWarning("Failed to resolve references for object {Blob} in {Namespace}. Skipping replication", objectToReplicate, ns);
                 return false;
             }
             if (referencesResponse.StatusCode == HttpStatusCode.NotFound)
             {
                 // objects that do not exist can not be replicated so we skip them
-                _logger.Warning("Failed to resolve references for object {Blob} in {Namespace}. Got not found with message \"{Message}\". Skipping replication.", objectToReplicate, ns, referencesResponse.ReasonPhrase);
+                _logger.LogWarning("Failed to resolve references for object {Blob} in {Namespace}. Got not found with message \"{Message}\". Skipping replication.", objectToReplicate, ns, referencesResponse.ReasonPhrase);
                 return false;
             }
             referencesResponse.EnsureSuccessStatusCode();
@@ -504,17 +505,17 @@ namespace Jupiter.Implementation
                     HttpRequestMessage blobRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blobToReplicate}", UriKind.Relative));
                     HttpResponseMessage blobResponse = await _httpClient.SendAsync(blobRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
-                    _logger.Information("Attempting to replicate blob {Blob} in {Namespace}.", blobToReplicate, ns);
+                    _logger.LogInformation("Attempting to replicate blob {Blob} in {Namespace}.", blobToReplicate, ns);
 
                     if (blobResponse.StatusCode == HttpStatusCode.NotFound)
                     {
-                        _logger.Warning("Failed to replicate {Blob} in {Namespace} due to it not existing.", blobToReplicate, ns);
+                        _logger.LogWarning("Failed to replicate {Blob} in {Namespace} due to it not existing.", blobToReplicate, ns);
                         return;
                     }
 
                     if (blobResponse.StatusCode != HttpStatusCode.OK)
                     {
-                        _logger.Error("Bad http response when replicating {Blob} in {Namespace} . Status code: {StatusCode}", blobToReplicate, ns, blobResponse.StatusCode);
+                        _logger.LogError("Bad http response when replicating {Blob} in {Namespace} . Status code: {StatusCode}", blobToReplicate, ns, blobResponse.StatusCode);
                         return;
                     }
 
@@ -611,10 +612,10 @@ namespace Jupiter.Implementation
         {
             
             // log message used to generate metric for how many replications are currently running
-            _logger.Information("{Name} replication has run . Count of running replications: {CurrentReplications}", _name, countOfCurrentReplications);
+            _logger.LogInformation("{Name} replication has run . Count of running replications: {CurrentReplications}", _name, countOfCurrentReplications);
 
             // log message used to verify replicators are actually running
-            _logger.Information("{Name} starting replication. Last transaction was {TransactionId} {Generation}", _name, State.ReplicatorOffset.GetValueOrDefault(0L), State.ReplicatingGeneration.GetValueOrDefault(Guid.Empty) );
+            _logger.LogInformation("{Name} starting replication. Last transaction was {TransactionId} {Generation}", _name, State.ReplicatorOffset.GetValueOrDefault(0L), State.ReplicatingGeneration.GetValueOrDefault(Guid.Empty) );
         }
 
         private async Task AddToReplicationLog(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blob)

@@ -17,10 +17,11 @@ using Jupiter.Common.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Jupiter.Controllers
 {
+	using IDiagnosticContext = Serilog.IDiagnosticContext;
     using BlobNotFoundException = Jupiter.Implementation.BlobNotFoundException;
 
     [ApiController]
@@ -35,15 +36,16 @@ namespace Jupiter.Controllers
         private readonly IReferenceResolver _referenceResolver;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
 
-        private readonly ILogger _logger = Log.ForContext<ObjectController>();
+        private readonly ILogger _logger;
 
-        public ObjectController(IBlobService storage, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, IReferenceResolver referenceResolver, BufferedPayloadFactory bufferedPayloadFactory)
+        public ObjectController(IBlobService storage, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, IReferenceResolver referenceResolver, BufferedPayloadFactory bufferedPayloadFactory, ILogger<ObjectController> logger)
         {
             _storage = storage;
             _diagnosticContext = diagnosticContext;
             _requestHelper = requestHelper;
             _referenceResolver = referenceResolver;
             _bufferedPayloadFactory = bufferedPayloadFactory;
+            _logger = logger;
         }
 
         [HttpGet("{ns}/{id}")]
@@ -194,7 +196,7 @@ namespace Jupiter.Controllers
             byte[] blobContents = await blob.Stream.ToByteArray();
             if (blobContents.Length == 0)
             {
-                _logger.Warning("0 byte object found for {Id} {Namespace}", id, ns);
+                _logger.LogWarning("0 byte object found for {Id} {Namespace}", id, ns);
             }
 
             CbObject compactBinaryObject;

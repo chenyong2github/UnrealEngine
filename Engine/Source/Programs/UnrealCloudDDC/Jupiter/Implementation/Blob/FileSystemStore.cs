@@ -9,23 +9,24 @@ using System.Threading.Tasks;
 using Dasync.Collections;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
-using Serilog;
 
 namespace Jupiter.Implementation
 {
     public class FileSystemStore : IBlobStore, IBlobCleanup 
     {
-        private readonly ILogger _logger = Log.ForContext<FileSystemStore>();
+        private readonly ILogger _logger;
         private readonly IOptionsMonitor<FilesystemSettings> _settings;
         private readonly Tracer _tracer;
 
         private const int DefaultBufferSize = 4096;
 
-        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings, Tracer tracer)
+        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings, Tracer tracer, ILogger<FileSystemStore> logger)
         {
             _settings = settings;
             _tracer = tracer;
+            _logger = logger;
         }
 
         private string GetRootDir()
@@ -91,7 +92,7 @@ namespace Jupiter.Implementation
 
                 if (filePath.Length == 0)
                 {
-                    _logger.Warning("0 byte file written as {Blob} {Namespace} {Method}", blobIdentifier, ns, "Stream");
+                    _logger.LogWarning("0 byte file written as {Blob} {Namespace} {Method}", blobIdentifier, ns, "Stream");
                 }
             }
 
