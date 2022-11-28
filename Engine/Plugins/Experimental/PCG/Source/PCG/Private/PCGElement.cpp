@@ -106,7 +106,7 @@ void IPCGElement::PreExecute(FPCGContext* Context) const
 		return;
 	}
 
-	if (SettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Disabled)
+	if (!SettingsInterface->bEnabled)
 	{
 		//Pass-through - no execution
 		Context->OutputData = Context->InputData;
@@ -197,7 +197,7 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 void IPCGElement::DebugDisplay(FPCGContext* Context) const
 {
 	const UPCGSettingsInterface* SettingsInterface = Context->GetInputSettingsInterface();
-	if (SettingsInterface && (SettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Debug || SettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated))
+	if (SettingsInterface && SettingsInterface->bDebug)
 	{
 		FPCGDataCollection ElementInputs = Context->InputData;
 		FPCGDataCollection ElementOutputs = Context->OutputData;
@@ -209,12 +209,6 @@ void IPCGElement::DebugDisplay(FPCGContext* Context) const
 
 		Context->InputData = ElementInputs;
 		Context->OutputData = ElementOutputs;
-
-		// Null out the output if this node is executed in isolation
-		if (SettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
-		{
-			Context->OutputData.bCancelExecution = true;
-		}
 	}
 }
 
@@ -247,11 +241,11 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 
 		// Validate all out data for errors in labels
 #if WITH_EDITOR
-		if (SettingsInterface->ExecutionMode != EPCGSettingsExecutionMode::Disabled)
+		if (SettingsInterface->bEnabled)
 		{
 			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
 			{
-				int32 MatchIndex = OutputPinProperties.IndexOfByPredicate([&TaggedData](const FPCGPinProperties& InProp) { return TaggedData.Pin == InProp.Label; });
+				const int32 MatchIndex = OutputPinProperties.IndexOfByPredicate([&TaggedData](const FPCGPinProperties& InProp) { return TaggedData.Pin == InProp.Label; });
 				if (MatchIndex == INDEX_NONE)
 				{
 					PCGE_LOG(Warning, "Output generated for pin %s but cannot be routed", *TaggedData.Pin.ToString());
@@ -271,7 +265,7 @@ bool IPCGElement::IsCacheableInstance(const UPCGSettingsInterface* InSettingsInt
 {
 	if (InSettingsInterface)
 	{
-		if (InSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Disabled)
+		if (!InSettingsInterface->bEnabled)
 		{
 			return false;
 		}

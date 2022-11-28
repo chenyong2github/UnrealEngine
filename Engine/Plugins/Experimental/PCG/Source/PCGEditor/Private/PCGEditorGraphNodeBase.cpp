@@ -38,7 +38,7 @@ void UPCGEditorGraphNodeBase::Construct(UPCGNode* InPCGNode)
 
 	if (const UPCGSettingsInterface* PCGSettingsInterface = InPCGNode->GetSettingsInterface())
 	{
-		const ENodeEnabledState NewEnabledState = (PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Disabled) ? ENodeEnabledState::Disabled : ENodeEnabledState::Enabled;
+		const ENodeEnabledState NewEnabledState = !PCGSettingsInterface->bEnabled ? ENodeEnabledState::Disabled : ENodeEnabledState::Enabled;
 		SetEnabledState(NewEnabledState);
 	}
 }
@@ -79,19 +79,11 @@ void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class U
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsHeader", "Node Actions"));
+		Section.AddMenuEntry(FPCGEditorCommands::Get().ToggleEnabled, LOCTEXT("ToggleEnabledLabel", "Enable"));
+		Section.AddMenuEntry(FPCGEditorCommands::Get().ToggleDebug, LOCTEXT("ToggleDebugLabel", "Debug"));
 		Section.AddMenuEntry(bIsInspected ? FPCGEditorCommands::Get().StopInspectNode : FPCGEditorCommands::Get().StartInspectNode);
 		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 		Section.AddMenuEntry(FPCGEditorCommands::Get().CollapseNodes);
-
-		Section.AddSubMenu("ExecutionMode", LOCTEXT("ExecutionModeHeader", "Execution Mode"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* ExecutionModeMenu)
-		{
-			FToolMenuSection& SubSection = ExecutionModeMenu->AddSection("ExecutionMode");
-			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeEnabled, LOCTEXT("ExecutionModeEnabledLabel", "Enabled"));
-			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeDebug, LOCTEXT("ExecutionModeDebugLabel", "Debug"));
-			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeDisabled, LOCTEXT("ExecutionModeDisabledLabel", "Disabled"));
-			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeIsolated, LOCTEXT("ExecutionModeIsolatedLabel", "Isolated"));
-		}));
-
 		Section.AddMenuEntry(FPCGEditorCommands::Get().ExportNodes);
 		Section.AddMenuEntry(FPCGEditorCommands::Get().ConvertToStandaloneNodes);
 	}
@@ -253,7 +245,7 @@ void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType Cha
 		{
 			if (const UPCGSettingsInterface* PCGSettingsInterface = InNode->GetSettingsInterface())
 			{
-				const ENodeEnabledState NewEnabledState = (PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Disabled) ? ENodeEnabledState::Disabled : ENodeEnabledState::Enabled;
+				const ENodeEnabledState NewEnabledState = PCGSettingsInterface->bEnabled ? ENodeEnabledState::Enabled : ENodeEnabledState::Disabled;
 				if (NewEnabledState != GetDesiredEnabledState())
 				{
 					SetEnabledState(NewEnabledState);
@@ -261,7 +253,10 @@ void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType Cha
 			}
 		}
 		
-		ReconstructNode();
+		if (!!(ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Cosmetic)))
+		{
+			ReconstructNode();
+		}
 	}
 }
 
@@ -326,11 +321,6 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeTitleColor() const
 		const UPCGSettingsInterface* PCGSettingsInterface = PCGNode->GetSettingsInterface();
 		const UPCGSettings* PCGSettings = PCGSettingsInterface ? PCGSettingsInterface->GetSettings() : nullptr;
 
-		if (PCGSettingsInterface && PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
-		{
-			return GetDefault<UPCGEditorSettings>()->IsolatedNodeColor;
-		}
-
 		if (PCGNode->NodeTitleColor != FLinearColor::White)
 		{
 			return PCGNode->NodeTitleColor;
@@ -363,10 +353,6 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeBodyTintColor() const
 			if (PCGSettingsInterface->IsInstance())
 			{
 				return GetDefault<UPCGEditorSettings>()->InstancedNodeBodyTintColor;
-			}
-			else if (PCGSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
-			{
-				return GetDefault<UPCGEditorSettings>()->IsolatedNodeColor;
 			}
 		}
 	}

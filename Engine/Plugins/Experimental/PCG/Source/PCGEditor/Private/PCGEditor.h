@@ -114,6 +114,16 @@ private:
 	/** Stop inspecting the current inspected node */
 	void OnStopInspectNode();
 
+	/** Toggle node enabled state for selected nodes */
+	void OnToggleEnabled();
+	/** Whether selected nodes are enabled or not */
+	ECheckBoxState GetEnabledCheckState() const;
+	
+	/** Toggle node debug state for selected nodes */
+	void OnToggleDebug();
+	/** Whether selected nodes are being debugged or not */
+	ECheckBoxState GetDebugCheckState() const;
+
 	/** Cancels the current execution of the selected graph */
 	void OnCancelExecution_Clicked();
 
@@ -131,12 +141,6 @@ private:
 	void OnEditGraphSettings() const;
 	/** Whether the PCG object being edited is opened in details view or not */
 	bool IsEditGraphSettingsToggled() const;
-
-	/** Whether or not an execution mode is active for the selected nodes */
-	bool IsExecutionModeActive(EPCGSettingsExecutionMode InExecutionMode) const;
-
-	/** Set execution mode for selected nodes */
-	void OnSetExecutionMode(EPCGSettingsExecutionMode InExecutionMode);
 
 	/** Select every node in the graph */
 	void SelectAllNodes();

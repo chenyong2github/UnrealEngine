@@ -87,7 +87,7 @@ void SPCGEditorGraphNode::GetOverlayBrushes(bool bSelected, const FVector2D Widg
 
 	if (const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode())
 	{
-		if (PCGNode->GetSettingsInterface() && PCGNode->GetSettingsInterface()->ExecutionMode == EPCGSettingsExecutionMode::Debug)
+		if (PCGNode->GetSettingsInterface() && PCGNode->GetSettingsInterface()->bDebug)
 		{
 			FOverlayBrushInfo BrushInfo;
 			BrushInfo.Brush = DebugBrush;

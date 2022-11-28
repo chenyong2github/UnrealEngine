@@ -62,7 +62,10 @@ public:
 #endif
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
-	EPCGSettingsExecutionMode ExecutionMode = EPCGSettingsExecutionMode::Enabled;
+	bool bEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+	bool bDebug = false;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug, meta = (ShowOnlyInnerProperties))

@@ -453,7 +453,7 @@ void FPCGGraphExecutor::Execute()
 				FPCGDataCollection CachedOutput;
 				const bool bResultAlreadyInCache = Task.Element->IsCacheableInstance(TaskSettingsInterface) && GraphCache.GetFromCache(Task.Element.Get(), TaskInput, TaskSettings, Task.SourceComponent.Get(), CachedOutput);
 #if WITH_EDITOR
-				const bool bNeedsToCreateActiveTask = !bResultAlreadyInCache || TaskSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Debug || TaskSettingsInterface->ExecutionMode == EPCGSettingsExecutionMode::Isolated;
+				const bool bNeedsToCreateActiveTask = !bResultAlreadyInCache || TaskSettingsInterface->bDebug;
 #else
 				const bool bNeedsToCreateActiveTask = !bResultAlreadyInCache;
 #endif

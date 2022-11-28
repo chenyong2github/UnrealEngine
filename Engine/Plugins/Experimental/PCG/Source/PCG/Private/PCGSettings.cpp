@@ -60,7 +60,8 @@ void UPCGSettings::PostLoad()
 #if WITH_EDITORONLY_DATA
 	if (ExecutionMode_DEPRECATED != EPCGSettingsExecutionMode::Enabled)
 	{
-		ExecutionMode = ExecutionMode_DEPRECATED;
+		bEnabled = ExecutionMode_DEPRECATED != EPCGSettingsExecutionMode::Disabled;
+		bDebug = ExecutionMode_DEPRECATED == EPCGSettingsExecutionMode::Debug;
 		ExecutionMode_DEPRECATED = EPCGSettingsExecutionMode::Enabled;
 	}
 #endif
