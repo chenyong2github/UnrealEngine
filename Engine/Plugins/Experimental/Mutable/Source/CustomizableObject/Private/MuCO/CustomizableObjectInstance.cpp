@@ -2526,6 +2526,7 @@ void UCustomizableInstancePrivateData::DiscardResourcesAndSetReferenceSkeletalMe
 	ClearAllLastMeshIds();
 	
 	Public->SkeletalMeshes.Reset();
+	Public->DescriptorRuntimeHash = FDescriptorRuntimeHash();
 
 	for (TObjectIterator<UCustomizableSkeletalComponent> It; It; ++It)
 	{
