@@ -963,6 +963,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 		}
 		else
 		{
+			Output.bSucceeded = true;
+
 			TRefCountPtr<ID3D12ShaderReflection> ShaderReflection;
 			VERIFYHRESULT(Utils->CreateReflection(&ReflBuffer, IID_PPV_ARGS(ShaderReflection.GetInitReference())));
 
@@ -981,7 +983,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 					Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
 
 			NumInstructions = ShaderDesc.InstructionCount;
-			Output.bSucceeded = true;
 		}
 
 		if (!ValidateResourceCounts(NumSRVs, NumSamplers, NumUAVs, NumCBs, FilteredErrors))
