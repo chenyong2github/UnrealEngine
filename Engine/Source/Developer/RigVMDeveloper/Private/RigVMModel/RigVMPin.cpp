@@ -17,10 +17,12 @@
 #include "Misc/StringBuilder.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
+#include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
+#include "RigVMModel/Nodes/RigVMSelectNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMPin)
 
@@ -567,6 +569,16 @@ bool URigVMPin::IsDynamicArray() const
 
 bool URigVMPin::IsLazy() const
 {
+	// fixed array elements are treated as lazy elements
+	// if the original argument is also marked as lazy
+	if(const URigVMPin* ParentPin = GetParentPin())
+	{
+		if(ParentPin->IsFixedSizeArray())
+		{
+			return ParentPin->IsLazy();
+		}
+	}
+	
 	if(GetDirection() == ERigVMPinDirection::Input)
 	{
 		if(const URigVMNode* Node = GetNode())
@@ -709,6 +721,40 @@ bool URigVMPin::ContainsWildCardSubPin() const
 	return false;
 }
 
+bool URigVMPin::IsFixedSizeArray() const
+{
+#if WITH_EDITOR
+
+	if(IsArray() && IsRootPin())
+	{
+		if(const URigVMNode* Node = GetNode())
+		{
+			if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
+			{
+				if(const UScriptStruct* Struct = UnitNode->GetScriptStruct())
+				{
+					if(const FProperty* Property = Struct->FindPropertyByName(GetFName()))
+					{
+						return Property->HasMetaData(FRigVMStruct::FixedSizeArrayMetaName);
+					}
+				}
+			}
+			else if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Node))
+			{
+				if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
+				{
+					return Factory->HasArgumentMetaData(GetFName(), FRigVMStruct::FixedSizeArrayMetaName);
+				}
+			}
+			else if(Node->IsA<URigVMSelectNode>())
+			{
+				return GetFName().ToString() == URigVMSelectNode::ValueName;
+			}
+		}
+	}
+#endif
+	return false;
+}
 
 FString URigVMPin::GetDefaultValue() const
 {

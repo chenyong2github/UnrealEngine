@@ -271,6 +271,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool ContainsWildCardSubPin() const;
 
+	// Returns true if this pin is an array that should be displayed as elements only
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool IsFixedSizeArray() const;
+	
 	// Returns the default value of the Pin as a string.
 	// Note that this value is computed based on the Pin's
 	// SubPins - so for example for a FVector typed Pin

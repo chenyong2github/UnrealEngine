@@ -235,31 +235,53 @@ void SControlRigGraphNode::UpdateCompactNode()
 	CreatePinWidgets();
 }
 
-void SControlRigGraphNode::CreateAggregateAddPinButton()
+void SControlRigGraphNode::CreateAddPinButton()
 {
-	if (LeftNodeBox.IsValid() && ModelNode.IsValid() && (ModelNode->IsAggregate() || ModelNode->IsA<URigVMAggregateNode>()))
+	if (LeftNodeBox.IsValid() && ModelNode.IsValid())
 	{
-		const bool bInputAggregate = ModelNode->IsInputAggregate();
-		const TSharedRef<SWidget> AddPinButton = AddPinButtonContent(
-		   LOCTEXT("ControlRigAggregateNodeAddPinButton", "Add pin"),
-		   bInputAggregate ? 
-			LOCTEXT("ControlRigAggregateNodeAddInputPinButton_Tooltip", "Adds an input pin to the node") :
-			LOCTEXT("ControlRigAggregateNodeAddOutputPinButton_Tooltip", "Adds an output pin to the node"),
-		   !bInputAggregate);
-
-		FMargin AddPinPadding = bInputAggregate ? Settings->GetInputPinPadding() : Settings->GetOutputPinPadding();
+		TSharedPtr<SWidget> AddPinButton;
+		FMargin AddPinPadding = Settings->GetInputPinPadding();
 		AddPinPadding.Top += 2.0f;
-		AddPinPadding.Left -= bInputAggregate ? 2.f : 0.f;
-		AddPinPadding.Right -= bInputAggregate ? 0.f : 2.f;
+		AddPinPadding.Left -= 2.0f;
+		EHorizontalAlignment HorizontalAlignment = HAlign_Left;
+		
+		if(ModelNode->IsAggregate() || ModelNode->IsA<URigVMAggregateNode>())
+		{
+			const bool bInputAggregate = ModelNode->IsInputAggregate();
+			AddPinButton = AddPinButtonContent(
+			   LOCTEXT("ControlRigAggregateNodeAddPinButton", "Add pin"),
+			   bInputAggregate ? 
+				LOCTEXT("ControlRigAggregateNodeAddInputPinButton_Tooltip", "Adds an input pin to the node") :
+				LOCTEXT("ControlRigAggregateNodeAddOutputPinButton_Tooltip", "Adds an output pin to the node"),
+			   !bInputAggregate);
+		
+			AddPinPadding = bInputAggregate ? Settings->GetInputPinPadding() : Settings->GetOutputPinPadding();
+			AddPinPadding.Top += 2.0f;
+			AddPinPadding.Left -= bInputAggregate ? 2.f : 0.f;
+			AddPinPadding.Right -= bInputAggregate ? 0.f : 2.f;
 
-		LeftNodeBox->AddSlot()
-			.AutoHeight()
-			.VAlign(VAlign_Center)
-			.HAlign(bInputAggregate ? HAlign_Left : HAlign_Right)
-			.Padding(AddPinPadding)
-			[
-				AddPinButton
-			];
+			HorizontalAlignment = bInputAggregate ? HAlign_Left : HAlign_Right;
+		}
+
+		else if(ModelNode->GetPins().ContainsByPredicate([](const URigVMPin* Pin) { return Pin->IsFixedSizeArray(); }))
+		{
+			AddPinButton = AddPinButtonContent(
+			   LOCTEXT("ControlRigFixedArrayAddPinButton", "Add pin"),
+				LOCTEXT("ControlRigFixedArrayAddPinButton_Tooltip", "Adds an input pin to the node"),
+			   false);
+		}
+
+		if(AddPinButton.IsValid())
+		{
+			LeftNodeBox->AddSlot()
+				.AutoHeight()
+				.VAlign(VAlign_Center)
+				.HAlign(HorizontalAlignment)
+				.Padding(AddPinPadding)
+				[
+					AddPinButton.ToSharedRef()
+				];
+		}
 	}
 }
 
@@ -269,7 +291,22 @@ FReply SControlRigGraphNode::OnAddPin()
 	{
 		if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
 		{
-			ControlRigGraphNode->HandleAddAggregateElement(ModelNode->GetNodePath());
+			if (ModelNode->IsA<URigVMAggregateNode>())
+			{
+				ControlRigGraphNode->HandleAddAggregateElement(ModelNode->GetNodePath());
+			}
+			else
+			{
+				// we assume the model node has a fixed size array pin
+				for(URigVMPin* Pin : ModelNode->GetPins())
+				{
+					if(Pin->IsFixedSizeArray())
+					{
+						ControlRigGraphNode->HandleAddArrayElement(Pin->GetPinPath());
+						break;
+					}
+				}
+			}
 		}
 	}
 	return FReply::Handled();
@@ -1202,14 +1239,19 @@ int32 SControlRigGraphNode::GetNodeTopologyVersion() const
 	return INDEX_NONE;
 }
 
-EVisibility SControlRigGraphNode::GetPinVisibility(int32 InPinInfoIndex) const
+EVisibility SControlRigGraphNode::GetPinVisibility(int32 InPinInfoIndex, bool bAskingForSubPin) const
 {
 	if(PinInfos.IsValidIndex(InPinInfoIndex))
 	{
+		if(PinInfos[InPinInfoIndex].bFixedArray)
+		{
+			return bAskingForSubPin ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+		
 		const int32 ParentPinIndex = PinInfos[InPinInfoIndex].ParentIndex;
 		if(ParentPinIndex != INDEX_NONE)
 		{
-			const EVisibility ParentPinVisibility = GetPinVisibility(ParentPinIndex); 
+			const EVisibility ParentPinVisibility = GetPinVisibility(ParentPinIndex, true); 
 			if(ParentPinVisibility != EVisibility::Visible)
 			{
 				return ParentPinVisibility;
@@ -1481,6 +1523,7 @@ void SControlRigGraphNode::UpdatePinTreeView()
 		PinInfo.bExpanded = ModelPin->IsExpanded();
 		PinInfo.ModelPinPath = ModelPin->GetPinPath();
 		PinInfo.bAutoHeight = false;
+		PinInfo.bFixedArray = ModelPin->IsFixedSizeArray();
 
 		if(!bSupportSubPins)
 		{
@@ -1515,7 +1558,7 @@ void SControlRigGraphNode::UpdatePinTreeView()
 			PinInfo.Depth = PinInfos[PinInfo.ParentIndex].Depth + 1;
 		}
 
-		TAttribute<EVisibility> PinVisibilityAttribute = TAttribute<EVisibility>::CreateSP(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index);
+		TAttribute<EVisibility> PinVisibilityAttribute = TAttribute<EVisibility>::CreateSP(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index, false);
 
 		bool bPinWidgetForExpanderLeft = false;
 		TSharedPtr<SGraphPin> PinWidgetForExpander;
@@ -1779,7 +1822,7 @@ void SControlRigGraphNode::UpdatePinTreeView()
 				.MaxHeight(InputPinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
                 [
                     SAssignNew(SlotLayout, SHorizontalBox)
-                    .Visibility(this, &SControlRigGraphNode::GetPinVisibility, InputPinInfo.Index)
+                    .Visibility(this, &SControlRigGraphNode::GetPinVisibility, InputPinInfo.Index, false)
 		            
                     +SHorizontalBox::Slot()
                     .Expose(FirstSlot)
@@ -1817,7 +1860,7 @@ void SControlRigGraphNode::UpdatePinTreeView()
 				.MaxHeight(InputPinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
                 [
                     SAssignNew(SlotLayout, SHorizontalBox)
-                    .Visibility(this, &SControlRigGraphNode::GetPinVisibility, OutputPinInfo.Index)
+                    .Visibility(this, &SControlRigGraphNode::GetPinVisibility, OutputPinInfo.Index, false)
 
                     +SHorizontalBox::Slot()
 					.Expose(FirstSlot)
@@ -1861,7 +1904,7 @@ void SControlRigGraphNode::UpdatePinTreeView()
 			.MaxHeight(OutputPinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
             [
             	SNew(SHorizontalBox)
-	            .Visibility(this, &SControlRigGraphNode::GetPinVisibility, OutputPinInfo.Index)
+	            .Visibility(this, &SControlRigGraphNode::GetPinVisibility, OutputPinInfo.Index, false)
 	            
 				+SHorizontalBox::Slot()
 				.FillWidth(1.f)
@@ -1919,7 +1962,7 @@ void SControlRigGraphNode::UpdatePinTreeView()
 		}
 	}
 
-	CreateAggregateAddPinButton();
+	CreateAddPinButton();
 	
 	// add spacer widget at the end
 	LeftNodeBox->AddSlot()

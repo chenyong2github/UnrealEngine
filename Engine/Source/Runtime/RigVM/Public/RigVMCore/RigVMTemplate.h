@@ -85,6 +85,11 @@ struct RIGVM_API FRigVMTemplateArgumentType
 	{
 	}
 
+	bool IsValid() const
+	{
+		return !CPPType.IsNone();
+	}
+
 	static FRigVMTemplateArgumentType Array()
 	{
 		return FRigVMTemplateArgumentType(RigVMTypeUtils::GetWildCardArrayCPPTypeName(), RigVMTypeUtils::GetWildCardCPPTypeObject());

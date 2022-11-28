@@ -52,5 +52,6 @@ private:
 	friend class FRigVMParserAST;
 	friend class FRigVMSelectExprAST;
 	friend struct FRigVMRemoveNodeAction;
+	friend class URigVMPin;
 };
 

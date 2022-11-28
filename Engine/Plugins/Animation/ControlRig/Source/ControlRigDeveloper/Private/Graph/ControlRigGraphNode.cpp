@@ -1704,7 +1704,7 @@ void UControlRigGraphNode::ConfigurePin(UEdGraphPin* EdGraphPin, const URigVMPin
 
 	EdGraphPin->bHidden = bHidden;
 	EdGraphPin->PinFriendlyName = FText::FromName(ModelPin->GetDisplayName());
-	EdGraphPin->bNotConnectable = !bConnectable;
+	EdGraphPin->bNotConnectable = !bConnectable  || ModelPin->IsFixedSizeArray();
 	EdGraphPin->bOrphanedPin = ModelPin->IsOrphanPin() ? 1 : 0; 
 	EdGraphPin->bDisplayAsMutableRef = ModelPin->IsWildCard();
 }

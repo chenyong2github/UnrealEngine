@@ -1483,26 +1483,35 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						{
 							FToolMenuSection& TemplatesSection = Menu->AddSection("EdGraphSchemaTemplates", LOCTEXT("TemplatesHeader", "Templates"));
 
-							if(ModelPin->IsRootPin())
+							if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
 							{
-								TSharedRef<SControlRigChangePinType> ChangePinTypeWidget =
-								SNew(SControlRigChangePinType)
-								.Blueprint(RigBlueprint)
-								.ModelPins({ModelPin});
+								if(!ModelPin->IsExecuteContext())
+								{
+									if(const FRigVMTemplateArgument* Argument = Template->FindArgument(ModelPin->GetRootPin()->GetFName()))
+									{
+										if(!Argument->IsSingleton())
+										{
+											TSharedRef<SControlRigChangePinType> ChangePinTypeWidget =
+											SNew(SControlRigChangePinType)
+											.Blueprint(RigBlueprint)
+											.ModelPins({ModelPin});
 
-								TemplatesSection.AddEntry(FToolMenuEntry::InitWidget("ChangePinTypeWidget", ChangePinTypeWidget, FText(), true));
+											TemplatesSection.AddEntry(FToolMenuEntry::InitWidget("ChangePinTypeWidget", ChangePinTypeWidget, FText(), true));
+										}
+									}
+								}
+							
+								TemplatesSection.AddMenuEntry(
+									"Unresolve Template Node",
+									LOCTEXT("UnresolveTemplateNode", "Unresolve Template Node"),
+									LOCTEXT("UnresolveTemplateNode_Tooltip", "Removes any type information from the template node"),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
+										const TArray<FName> Nodes = ModelPin->GetGraph()->GetSelectNodes();
+										Controller->UnresolveTemplateNodes(Nodes, true, true);
+									})
+								));
 							}
-						
-							TemplatesSection.AddMenuEntry(
-								"Unresolve Template Node",
-								LOCTEXT("UnresolveTemplateNode", "Unresolve Template Node"),
-								LOCTEXT("UnresolveTemplateNode_Tooltip", "Removes any type information from the template node"),
-								FSlateIcon(),
-								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
-									const TArray<FName> Nodes = ModelPin->GetGraph()->GetSelectNodes();
-									Controller->UnresolveTemplateNodes(Nodes, true, true);
-								})
-							));
 						}
 					}
 
