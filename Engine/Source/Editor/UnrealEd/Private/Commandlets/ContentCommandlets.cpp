@@ -1126,8 +1126,10 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	bOnlyUnversioned = Switches.Contains(TEXT("OnlyUnversioned"));
 	/** whether we should only save packages saved by licensees */
 	bOnlyLicenseed = Switches.Contains(TEXT("OnlyLicenseed"));
-	/** whether we should only save packages containing virtualized bulkdata payloads */
+	/** whether we should only save packages containing virtualized payloads */
 	bOnlyVirtualized = Switches.Contains(TEXT("OnlyVirtualized"));
+	/** whether we should skip saving packages that already contain virtualized payloads */
+	bSkipVirtualized = Switches.Contains(TEXT("SkipVirtualized"));
 	/** whether we should only save packages containing FPayloadTrailers */
 	bOnlyPayloadTrailers = Switches.Contains(TEXT("OnlyPayloadTrailers"));
 	/** whether we should skip saving packages that already have a payload trailer */
@@ -1520,11 +1522,20 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 		}
 	}
 
-	// Check if the package contains virtualized bulkdata payloads
 	if (bOnlyVirtualized)
 	{
 		const UE::FPackageTrailer* Trailer = PackageLinker->GetPackageTrailer();
 		if (Trailer == nullptr || Trailer->GetNumPayloads(UE::EPayloadStorageType::Virtualized) == 0)
+		{
+			bSavePackage = false;
+			return;
+		}
+	}
+
+	if (bSkipVirtualized)
+	{
+		const UE::FPackageTrailer* Trailer = PackageLinker->GetPackageTrailer();
+		if (Trailer != nullptr && Trailer->GetNumPayloads(UE::EPayloadStorageType::Virtualized) > 0)
 		{
 			bSavePackage = false;
 			return;

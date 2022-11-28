@@ -105,6 +105,9 @@ protected:
 	/** Only save packages containing bulkdata payloads that have been virtualized **/
 	bool bOnlyVirtualized;
 
+	/** Only save packages containing bulkdata payloads that have not been virtualized **/
+	bool bSkipVirtualized;
+	
 	/** Only save packages containing FPayloadTrailers **/
 	bool bOnlyPayloadTrailers;
 
