@@ -81,15 +81,12 @@ namespace Audio
 		static void RemoveDevice(const FAudioDevice& AudioDevice);
 		static void ResolveDesiredStats(FViewportClient* ViewportClient);
 		static void SendUpdateResultsToGameThread(const FAudioDevice& AudioDevice, const int32 FirstActiveIndex);
-		static bool ToggleStatCues(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
-		static bool ToggleStatMixes(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
-		static bool ToggleStatModulators(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
-		static bool ToggleStatSounds(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
-		static bool ToggleStatWaves(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
 		static void UpdateAudibleInactiveSounds(const uint32 FirstIndex, const TArray<FWaveInstance*>& WaveInstances);
 		static void LogSubtitle(const TCHAR* InCmd, USoundWave& InSoundWave);
 		static void ClearStats(const FName StatsToToggle, UWorld* InWorld);
 		static void SetStats(const TSet<FName>& StatsToToggle, UWorld* InWorld);
+
+		static bool IsVirtualLoopVisualizeEnabled();
 
 		void ClearMutesAndSolos();
 		void DumpActiveSounds() const;

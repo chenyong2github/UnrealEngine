@@ -867,6 +867,11 @@ namespace Audio
 		bVisualize3dDebug = !bVisualize3dDebug;
 	}
 
+	bool FAudioDebugger::IsVirtualLoopVisualizeEnabled()
+	{
+		return static_cast<bool>(VirtualLoopsVisualizeEnabledCVar);
+	}
+
 	#if WITH_EDITOR
 	void FAudioDebugger::OnBeginPIE()
 	{

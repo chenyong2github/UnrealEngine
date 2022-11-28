@@ -9,6 +9,7 @@
 #include "AudioDecompress.h"
 #include "AudioDefines.h"
 #include "AudioEffect.h"
+#include "AudioMixerTrace.h"
 #include "AudioPluginUtilities.h"
 #include "Audio/AudioDebug.h"
 #include "AudioMixerDevice.h"
@@ -41,6 +42,7 @@
 #include "Sound/SoundNode.h"
 #include "Sound/SoundNodeWavePlayer.h"
 #include "Sound/SoundSubmix.h"
+#include "Trace/Trace.h"
 #include "UnrealEngine.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -237,6 +239,13 @@ static FAutoConsoleCommandWithWorldArgsAndOutputDevice GSetCurrentSpatialPluginC
 			}
 		})
 	);
+
+#if UE_AUDIO_PROFILERTRACE_ENABLED
+UE_TRACE_EVENT_BEGIN(Audio, VirtualLoopStop)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(uint32, PlayOrder)
+UE_TRACE_EVENT_END()
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 
 namespace Audio
 {
@@ -5347,6 +5356,15 @@ bool FAudioDevice::RemoveVirtualLoop(FActiveSound& InActiveSound)
 		}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
+#if UE_AUDIO_PROFILERTRACE_ENABLED
+		const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AudioChannel);
+		if (bChannelEnabled)
+		{
+			UE_TRACE_LOG(Audio, VirtualLoopStop, AudioChannel)
+				<< VirtualLoopStop.Timestamp(FPlatformTime::Cycles64())
+				<< VirtualLoopStop.PlayOrder(InActiveSound.GetPlayOrder());
+		}
+#endif // UE_AUDIO_PROFILERTRACE_ENABLED
 		VirtualLoops.Remove(&InActiveSound);
 		return true;
 	}
