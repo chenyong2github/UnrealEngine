@@ -96,7 +96,7 @@ namespace Horde.Build.Agents
 		readonly Dictionary<AgentId, CancellationTokenSource> _waitingAgents = new Dictionary<AgentId, CancellationTokenSource>();
 
 		// Subscription for update events
-		readonly IDisposable _subscription;
+		IAsyncDisposable? _subscription;
 
 		/// <summary>
 		/// Constructor
@@ -117,20 +117,29 @@ namespace Horde.Build.Agents
 			_clock = clock;
 			_ticker = clock.AddTicker<AgentService>(TimeSpan.FromSeconds(30.0), TickAsync, logger);
 			_logger = logger;
-
-			_subscription = agents.SubscribeToUpdateEventsAsync(OnAgentUpdate).Result;
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
+		public async Task StartAsync(CancellationToken cancellationToken)
+		{
+			await _ticker.StartAsync();
+			_subscription = await Agents.SubscribeToUpdateEventsAsync(OnAgentUpdate);
+		}
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
+		public async Task StopAsync(CancellationToken cancellationToken)
+		{
+			if (_subscription != null)
+			{
+				await _subscription.DisposeAsync();
+				_subscription = null;
+			}
+			await _ticker.StopAsync();
+		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			_subscription.Dispose();
 			_ticker.Dispose();
 		}
 

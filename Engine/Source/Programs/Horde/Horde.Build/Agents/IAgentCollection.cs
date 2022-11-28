@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -157,6 +157,6 @@ namespace Horde.Build.Agents
 		/// </summary>
 		/// <param name="onUpdate">Callback for updates</param>
 		/// <returns>Disposable subscription object</returns>
-		Task<IDisposable> SubscribeToUpdateEventsAsync(Action<AgentId> onUpdate);
+		Task<IAsyncDisposable> SubscribeToUpdateEventsAsync(Action<AgentId> onUpdate);
 	}
 }
