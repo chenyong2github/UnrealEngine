@@ -313,9 +313,9 @@ void GetMaterialPayload(
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 #if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
-	half2 Refraction = GetMaterialRefraction(PixelMaterialInputs);
+	half IOR = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
 #else
-	half2 Refraction = 1;
+	half IOR = 1;
 #endif
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
 	half  Specular = GetMaterialSpecular(PixelMaterialInputs);
@@ -341,7 +341,7 @@ void GetMaterialPayload(
 	}
 #endif // MATERIALBLENDING_MASKED
 
-	Payload.Ior = Refraction.x == 0 ? 1.0 : Refraction.x;
+	Payload.Ior = IOR == 0 ? 1.0 : IOR;
 	Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
 	
 #if MATERIAL_SHADINGMODEL_CLEAR_COAT

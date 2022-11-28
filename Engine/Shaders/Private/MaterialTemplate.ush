@@ -2912,9 +2912,45 @@ half GetMaterialAmbientOcclusion(FPixelMaterialInputs PixelMaterialInputs)
 	return saturate(GetMaterialAmbientOcclusionRaw(PixelMaterialInputs));
 }
 
-half2 GetMaterialRefraction(FPixelMaterialInputs PixelMaterialInputs)
+struct FMaterialRefractionData
 {
-	return PixelMaterialInputs.Refraction;
+	float2 Data;
+	float  RefractionDepthBias;
+};
+
+float GetMaterialRefractionIOR(in FMaterialRefractionData RefractionData)
+{
+#if REFRACTION_USE_INDEX_OF_REFRACTION
+	return RefractionData.Data.x;
+#else
+	return 1.0f;
+#endif
+}
+
+float GetMaterialRefractionPixelNormalStrength(in FMaterialRefractionData RefractionData)
+{
+#if REFRACTION_USE_PIXEL_NORMAL_OFFSET
+	return RefractionData.Data.x;
+#else
+	return 1.0f;
+#endif
+}
+
+float2 GetMaterialRefraction2DOffset(in FMaterialRefractionData RefractionData)
+{
+#if REFRACTION_USE_2D_OFFSET
+	return RefractionData.Data.xy;
+#else
+	return float2(0.0f, 0.0f);
+#endif
+}
+
+FMaterialRefractionData GetMaterialRefraction(FPixelMaterialInputs PixelMaterialInputs)
+{
+	FMaterialRefractionData Data;
+	Data.Data					= PixelMaterialInputs.Refraction.xy;
+	Data.RefractionDepthBias	= PixelMaterialInputs.Refraction.z;
+	return Data;
 }
 
 #if NUM_TEX_COORD_INTERPOLATORS

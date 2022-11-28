@@ -383,7 +383,12 @@ enum ERefractionMode
 	 * The refraction material input scales the offset, although a value of 1.0 maps to no refraction, and a value of 2 maps to a scale of 1.0 on the offset.
 	 * This is a non-physical model of refraction but is useful on large refractive surfaces like water, since offsets have to stay small to avoid reading outside scene color.
 	 */
-	RM_PixelNormalOffset UMETA(DisplayName="Pixel Normal Offset")
+	RM_PixelNormalOffset UMETA(DisplayName="Pixel Normal Offset"),
+
+	/**
+	 * Explicit 2D screen offset. This offset is independent of screen resolution and aspect ratio. The user is in charge of any strength and fading.
+	 */
+	RM_2DOffset UMETA(DisplayName = "2D Offset"),
 };
 
 /**

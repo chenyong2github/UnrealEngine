@@ -118,7 +118,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 #if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
-	Payload.Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+	Payload.Ior = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
 	Payload.Ior = (Payload.Ior == 0.0) ? 1.0 : Payload.Ior;
 #else
 	Payload.Ior = 1;
@@ -487,7 +487,7 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 #if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
-	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+	float Ior = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
 	Ior = Ior == 0 ? 1.0 : Ior;
 #else
 	float Ior = 1.0;
@@ -534,7 +534,7 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	
 	// Is refraction enabled?
 #if !SIMPLIFIED_MATERIAL_SHADER && MATERIAL_SHADINGMODEL_DEFAULT_LIT && REFRACTION_USE_INDEX_OF_REFRACTION
-	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+	float Ior = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
 	Ior = Ior == 0.0 ? 1.0 : Ior;
 	int ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
 	if (Transparency > 0 && ShadingModelID == SHADINGMODELID_DEFAULT_LIT && Ior != 1.0)

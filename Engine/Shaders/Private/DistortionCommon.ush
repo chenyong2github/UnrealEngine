@@ -6,18 +6,22 @@
 
 float2 ComputeBufferUVDistortion(
 	in FMaterialPixelParameters MaterialParameters, in FPixelMaterialInputs PixelMaterialInputs, in ViewState ResolvedView,
-	in half3 WorldNormal, in float4 DistortionParameters, in float2 ScreenUV, in float2 RefractionIORAndBias, in bool TryToClip, in uint EyeIndex)
+	in half3 WorldNormal, in float4 DistortionParameters, in float2 ScreenUV, in FMaterialRefractionData RefractionData, in bool TryToClip, in uint EyeIndex)
 {
 	half3 ViewNormal = normalize(TransformWorldVectorToView(WorldNormal));
 
 #if REFRACTION_USE_PIXEL_NORMAL_OFFSET
 	half3 ViewVertexNormal = TransformTangentVectorToView(MaterialParameters, float3(0, 0, 1));
 	// Treat refraction of 1 as no refraction, to be consistent with IOR mode
-	float2 ViewportUVDistortion = (ViewVertexNormal.xy - ViewNormal.xy) * (RefractionIORAndBias.x - 1);
-#else
+	float2 ViewportUVDistortion = (ViewVertexNormal.xy - ViewNormal.xy) * (GetMaterialRefractionPixelNormalStrength(RefractionData) - 1);
+#elif REFRACTION_USE_INDEX_OF_REFRACTION
 	// we assume the camera is in air
 	float AirIOR = 1.0f;
-	float2 ViewportUVDistortion = ViewNormal.xy * (RefractionIORAndBias.x - AirIOR);
+	float2 ViewportUVDistortion = ViewNormal.xy * (GetMaterialRefractionIOR(RefractionData) - AirIOR);
+#elif REFRACTION_USE_2D_OFFSET
+	float2 ViewportUVDistortion = GetMaterialRefraction2DOffset(RefractionData);
+#else
+#error Unkown refraction mode.
 #endif
 
 	float2 BufferUVDistortion = ViewportUVDistortion * ResolvedView.ViewSizeAndInvSize.xy * ResolvedView.BufferSizeAndInvSize.zw;
@@ -55,10 +59,10 @@ float2 ComputeBufferUVDistortion(
 
 void PostProcessUVDistortion(
 	in FMaterialPixelParameters MaterialParameters, in FPixelMaterialInputs PixelMaterialInputs, 
-	in float DistortSceneDepth,	inout float2 BufferUVDistortion, in float2 RefractionIORAndBias)
+	in float DistortSceneDepth,	inout float2 BufferUVDistortion, in FMaterialRefractionData RefractionData)
 {
 	// Soft thresholding 
-	float Bias = -RefractionIORAndBias.y;
+	float Bias = -RefractionData.RefractionDepthBias;
 	float Range = clamp(abs(Bias * 0.5f), 0, 50);
 	float Z = DistortSceneDepth;
 	float ZCompare = MaterialParameters.ScreenPosition.w;

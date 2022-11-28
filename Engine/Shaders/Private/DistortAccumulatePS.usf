@@ -81,8 +81,7 @@ void Main(
 	float2 NDC = (MaterialParameters.ScreenPosition.xy / MaterialParameters.ScreenPosition.w);
 	float2 ScreenUV = NDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
 
-	// X = IOR, Y = Refraction Bias
-	float2 Refraction = GetMaterialRefraction(PixelMaterialInputs);
+	FMaterialRefractionData RefractionData = GetMaterialRefraction(PixelMaterialInputs);
 
 
 #if STRATA_ENABLED
@@ -124,7 +123,7 @@ void Main(
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
-		RefractionWorldNormal, DistortionParams, ScreenUV, Refraction, TryToClip, EyeIndex);
+		RefractionWorldNormal, DistortionParams, ScreenUV, RefractionData, TryToClip, EyeIndex);
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;
@@ -135,7 +134,7 @@ void Main(
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
-		MaterialParameters.WorldNormal, DistortionParams, ScreenUV, Refraction, true, EyeIndex);
+		MaterialParameters.WorldNormal, DistortionParams, ScreenUV, RefractionData, true, EyeIndex);
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;
@@ -146,7 +145,7 @@ void Main(
 	float DistortSceneDepth = CalcSceneDepth(DistortBufferUV);
 
 	// Post process UV distortion according to depth
-	PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, DistortSceneDepth, BufferUVDistortion, Refraction);
+	PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, DistortSceneDepth, BufferUVDistortion, RefractionData);
 
 	// store positive and negative offsets separately
 	float2 PosOffset = max(BufferUVDistortion,0);
