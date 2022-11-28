@@ -2034,7 +2034,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 			if (OutBatchInfo.ObjectInfos.Num() > BatchObjectInfoCount)
 			{
 				const FBatchObjectInfo& SubObjectEntry = OutBatchInfo.ObjectInfos.Last();
-				bHasDirtySubObjects = SubObjectEntry.bHasDirtySubObjects || SubObjectEntry.bHasUnsentAttachments;
+				bHasDirtySubObjects |= SubObjectEntry.bHasDirtySubObjects || SubObjectEntry.bHasUnsentAttachments;
 			}
 		}
 
