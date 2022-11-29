@@ -10,6 +10,7 @@
 #include "AI/NavigationSystemBase.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Components/LightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "UnrealEngine.h"
