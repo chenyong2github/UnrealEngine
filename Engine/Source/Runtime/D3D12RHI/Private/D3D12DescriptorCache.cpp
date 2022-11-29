@@ -953,9 +953,6 @@ bool FD3D12SubAllocatedOnlineHeap::AllocateBlock()
 		check(FirstUsedSlot == 0);
 		CurrentBlock->SizeUsed = NextSlotIndex;
 
-		// Create the sync point on the current command list
-		CurrentBlock->SyncPoint = Context.GetContextSyncPoint();
-
 		OnlineManager.FreeHeapBlock(CurrentBlock);
 		CurrentBlock = nullptr;
 	}

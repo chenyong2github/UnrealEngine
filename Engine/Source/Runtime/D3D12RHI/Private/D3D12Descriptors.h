@@ -124,7 +124,6 @@ struct FD3D12OnlineDescriptorBlock
 	uint32 BaseSlot;
 	uint32 Size;
 	uint32 SizeUsed = 0;
-	FD3D12SyncPointRef SyncPoint;
 };
 
 /** Primary online heap from which sub blocks can be allocated and freed. Used when allocating blocks of descriptors for tables. */
@@ -146,15 +145,14 @@ public:
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUSlotHandle(FD3D12OnlineDescriptorBlock* InBlock) const { return Heap->GetCPUSlotHandle(InBlock->BaseSlot); }
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUSlotHandle(FD3D12OnlineDescriptorBlock* InBlock) const { return Heap->GetGPUSlotHandle(InBlock->BaseSlot); }
+	
+	// Called by the EOP task to recycle blocks
+	void Recycle(FD3D12OnlineDescriptorBlock* Block);
 
 private:
-	// Check all released blocks and check which ones are not used by the GPU anymore
-	void UpdateFreeBlocks();
-
 	FD3D12DescriptorHeapPtr Heap;
 
 	TQueue<FD3D12OnlineDescriptorBlock*> FreeBlocks;
-	TArray<FD3D12OnlineDescriptorBlock*> ReleasedBlocks;
 
 	FCriticalSection CriticalSection;
 };

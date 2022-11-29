@@ -40,7 +40,8 @@ struct FD3D12DeferredDeleteObject
 		D3DObject,
 		D3DHeap,
 		BindlessDescriptor,
-		CPUAllocation
+		CPUAllocation,
+		DescriptorBlock
 	} Type;
 
 	union
@@ -56,6 +57,12 @@ struct FD3D12DeferredDeleteObject
 		} BindlessDescriptor;
 
 		void* CPUAllocation;
+
+		struct
+		{
+			FD3D12OnlineDescriptorBlock* Block;
+			FD3D12OnlineDescriptorManager* Manager;
+		} DescriptorBlock;
 	};
 
 	explicit FD3D12DeferredDeleteObject(FD3D12Resource* RHIObject)
@@ -84,6 +91,11 @@ struct FD3D12DeferredDeleteObject
 	{
 		check(Type == EType::CPUAllocation);
 	}
+
+	explicit FD3D12DeferredDeleteObject(FD3D12OnlineDescriptorBlock* Block, FD3D12OnlineDescriptorManager* Manager)
+		: Type(EType::DescriptorBlock)
+		, DescriptorBlock({ Block, Manager })
+	{}
 };
 
 enum class ED3D12Units
