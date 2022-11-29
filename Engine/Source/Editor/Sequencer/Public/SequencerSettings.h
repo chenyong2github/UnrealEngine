@@ -289,9 +289,9 @@ public:
 	/** Set whether to show channel colors */
 	void SetInfiniteKeyAreas(bool bInInfiniteKeyAreas);
 
-	/** @return true if showing channel colors */
+	/** @return true if showing channel colors for the key bars */
 	bool GetShowChannelColors() const;
-	/** Set whether to show channel colors */
+	/** Set whether to show channel colors for the key bars */
 	void SetShowChannelColors(bool bInShowChannelColors);
 
 	/** @return true if showing status bar */
@@ -567,7 +567,7 @@ protected:
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
 	bool bInfiniteKeyAreas;
 
-	/** Enable or disable displaying channel bar colors for vector properties. */
+	/** Enable or disable displaying channel bar colors for the key bars. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bShowChannelColors;
 
