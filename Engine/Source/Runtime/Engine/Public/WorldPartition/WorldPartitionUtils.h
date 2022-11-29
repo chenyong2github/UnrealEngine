@@ -2,7 +2,7 @@
 
 #if WITH_EDITOR
 
-#include "UObject/GCObject.h"
+#include "UObject/WeakObjectPtr.h"
 
 class UWorld;
 class UWorldPartition;
