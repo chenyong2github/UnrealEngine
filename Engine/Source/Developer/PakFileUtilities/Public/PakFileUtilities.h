@@ -10,6 +10,7 @@
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathSSE.h"
 #include "Misc/Optional.h"
+#include "Misc/IEngineCrypto.h"
 #include "Templates/Tuple.h"
 
 class FArchive;
@@ -142,3 +143,6 @@ struct FPakFooterInfo
 
 /** Write the index and other data at the end of a pak file after all the entries */
 PAKFILEUTILITIES_API void WritePakFooter(FArchive& PakHandle, FPakFooterInfo& FooterInfo);
+
+/** Take an existing pak file and regenerate the signature file */
+PAKFILEUTILITIES_API bool SignPakFile(const FString& InPakFilename, const FRSAKeyHandle InSigningKey);
