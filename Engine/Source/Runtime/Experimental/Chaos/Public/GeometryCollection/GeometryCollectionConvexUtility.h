@@ -31,7 +31,7 @@ namespace UE::GeometryCollectionConvexUtility
 	// Note these hulls are typically computed in a shared coordinate space, in contrast to the final hulls on the geometry collection which are in the local space of each bone
 	struct FConvexHulls
 	{
-		TArray<TUniquePtr<Chaos::FConvex>> Hulls;
+		TArray<TUniquePtr<::Chaos::FConvex>> Hulls;
 
 		// Mapping from geometry collection bones indices to indices in the Hulls array. A Set is used to support multiple hulls per bone.
 		TArray<TSet<int32>> TransformToHullsIndices;

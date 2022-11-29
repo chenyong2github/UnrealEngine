@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EditorViewportClient.h"
+#include "Dataflow/DataflowNodeParameters.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
 
 class UChaosClothComponent;
 class UChaosClothAssetEditorMode;
+class FChaosClothAssetEditorToolkit;
 
 /**
  * Viewport client for the 3d sim preview in the cloth editor. Currently same as editor viewport
@@ -25,6 +27,8 @@ public:
 	virtual void SetWidgetMode(UE::Widget::EWidgetMode NewMode) override {}
 	virtual UE::Widget::EWidgetMode GetWidgetMode() const override { return UE::Widget::EWidgetMode::WM_None; }
 
+	virtual void Tick(float DeltaSeconds) override;
+
 	void EnableSimMeshWireframe(bool bEnable ) { bSimMeshWireframe = bEnable; }
 	bool SimMeshWireframeEnabled() const { return bSimMeshWireframe; }
 
@@ -33,6 +37,7 @@ public:
 
 	void SetClothComponent(TObjectPtr<UChaosClothComponent> ClothComponent);
 	void SetClothEdMode(TObjectPtr<UChaosClothAssetEditorMode> ClothEdMode);
+	void SetClothEditorToolkit(TSharedPtr<const FChaosClothAssetEditorToolkit> ClothToolkit);
 
 	void SoftResetSimulation();
 	void HardResetSimulation();
@@ -48,12 +53,17 @@ private:
 
 	TObjectPtr<UChaosClothAssetEditorMode> ClothEdMode;
 
+	TSharedPtr<const FChaosClothAssetEditorToolkit> ClothToolkit;
+
 	// Debug draw of simulation meshes
 	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
-
-	UChaosClothAssetEditorMode* GetClothEdMode();
-	const UChaosClothAssetEditorMode* GetClothEdMode() const;
-
+	
 	bool bSimMeshWireframe = true;
 	bool bRenderMeshWireframe = false;
+
+	//~ Dataflow render support
+
+	Dataflow::FTimestamp LastModifiedTimestamp = Dataflow::FTimestamp::Invalid;
+
+	//~ Dataflow render support
 };

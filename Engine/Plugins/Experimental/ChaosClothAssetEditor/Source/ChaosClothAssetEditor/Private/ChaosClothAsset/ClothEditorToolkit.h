@@ -43,6 +43,9 @@ public:
 	explicit FChaosClothAssetEditorToolkit(UAssetEditor* InOwningAssetEditor);
 	virtual ~FChaosClothAssetEditorToolkit();
 
+	TSharedPtr<Dataflow::FEngineContext> GetDataflowContext() const;
+	const UDataflow* GetDataflow() const;
+
 private:
 
 	static const FName ClothPreviewTabID;
@@ -70,7 +73,8 @@ private:
 	virtual void PostInitAssetEditor() override;
 
 	// IAssetEditorInstance
-	virtual bool IsPrimaryEditor() const override { return true; };
+	// TODO: If this returns true then the editor cannot re-open after it's closed. Figure out why.
+	virtual bool IsPrimaryEditor() const override { return false; };
 
 	// IToolkit
 	virtual FText GetToolkitName() const override;
@@ -125,6 +129,7 @@ private:
 	void OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage) const;
 	void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode) const;
+	void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection) const;
 
 	//~ End Dataflow support
 

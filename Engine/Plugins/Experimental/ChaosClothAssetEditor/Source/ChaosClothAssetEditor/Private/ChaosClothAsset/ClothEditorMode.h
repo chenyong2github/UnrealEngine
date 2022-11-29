@@ -26,6 +26,7 @@ class UChaosClothComponent;
 class FEditorViewportClient;
 class FChaosClothEditorRestSpaceViewportClient;
 class FViewport;
+class UDataflowComponent;
 
 /**
  * The cloth editor mode is the mode used in the cloth asset editor. It holds most of the inter-tool state.
@@ -59,6 +60,8 @@ public:
 	void SuspendSimulation();
 	void ResumeSimulation();
 	bool IsSimulationSuspended() const;
+
+	UDataflowComponent* GetDataflowComponent() const;
 
 private:
 
@@ -160,5 +163,8 @@ private:
 	bool bShouldResetSimulation = false;
 	bool bHardReset = false;
 	bool bShouldClearTeleportFlag = false;
+
+	UPROPERTY()
+	TObjectPtr<UDataflowComponent> DataflowComponent = nullptr;
 };
 

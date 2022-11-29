@@ -5,6 +5,7 @@
 #include "Dataflow/DataflowCore.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothCollection.h"
+#include "GeometryCollection/GeometryCollection.h"
 #include "ClothDataflowNodes.generated.h"
 
 USTRUCT()
@@ -12,6 +13,7 @@ struct FClothAssetTerminalDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FClothAssetTerminalDataflowNode, "ClothAssetTerminal", "Cloth", "")
+	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
 
 public:
 

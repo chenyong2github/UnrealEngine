@@ -48,6 +48,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "BoneWeights.h"
 #include "ToolSetupUtil.h"
+#include "Dataflow/DataflowComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorMode)
 
@@ -597,6 +598,10 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 	}
 
 	ReinitializeDynamicMeshComponents();
+
+	DataflowComponent = NewObject<UDataflowComponent>();
+	DataflowComponent->RegisterComponentWithWorld(PreviewWorld);
+
 	bShouldFocusRestSpaceView = true;
 }
 
@@ -627,6 +632,11 @@ void UChaosClothAssetEditorMode::ResumeSimulation()
 bool UChaosClothAssetEditorMode::IsSimulationSuspended() const
 {
 	return bIsSimulationSuspended;
+}
+
+UDataflowComponent* UChaosClothAssetEditorMode::GetDataflowComponent() const
+{
+	return DataflowComponent;
 }
 
 void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)

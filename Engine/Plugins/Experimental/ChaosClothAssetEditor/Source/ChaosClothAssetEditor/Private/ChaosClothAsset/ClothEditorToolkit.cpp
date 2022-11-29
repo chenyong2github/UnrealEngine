@@ -26,9 +26,11 @@
 #include "Dataflow/DataflowGraphEditor.h"
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowSchema.h"
+#include "Dataflow/DataFlowEdNode.h"
 #include "IStructureDetailsView.h"
 #include "Engine/Canvas.h"
 #include "PropertyEditorModule.h"
+#include "Algo/RemoveIf.h"
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetEditorToolkit"
 
@@ -190,6 +192,15 @@ FChaosClothAssetEditorToolkit::~FChaosClothAssetEditorToolkit()
 	EditorModeManager->DestroyMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId);
 }
 
+TSharedPtr<Dataflow::FEngineContext> FChaosClothAssetEditorToolkit::GetDataflowContext() const
+{
+	return DataflowContext;
+}
+
+const UDataflow* FChaosClothAssetEditorToolkit::GetDataflow() const
+{
+	return Dataflow;
+}
 
 //~ Begin FTickableEditorObject overrides
 
@@ -262,6 +273,7 @@ void FChaosClothAssetEditorToolkit::CreateWidgets()
 	{
 		Dataflow = ClothEditorToolkitHelpers::GetDataflowFrom(ClothAsset);
 
+		// TODO: Figure out how to create the GraphEditor widgets when the ClothAsset doesn't have a Dataflow property set
 		if (Dataflow)
 		{
 			DataflowTerminalPath = ClothEditorToolkitHelpers::GetDataflowTerminalFrom(ClothAsset);
@@ -399,6 +411,7 @@ void FChaosClothAssetEditorToolkit::PostInitAssetEditor()
 	// Set up 3D viewport
 	ClothPreviewViewportClient->SetClothComponent(ClothMode->ClothComponent);
 	ClothPreviewViewportClient->SetClothEdMode(ClothMode);
+	ClothPreviewViewportClient->SetClothEditorToolkit(StaticCastSharedRef<FChaosClothAssetEditorToolkit>(this->AsShared()));
 
 	SetCommonViewportClientOptions(ClothPreviewViewportClient.Get());
 	ClothPreviewViewportClient->SetInitialViewTransform(ELevelViewportType::LVT_Perspective, FVector(0, -100, 100), FRotator(0, 90, 0), DEFAULT_ORTHOZOOM);
@@ -591,24 +604,42 @@ TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_GraphCanvas(const F
 {
 	check(Args.GetTabId() == GraphCanvasTabId);
 
-	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("DataflowEditor_Dataflow_TabTitle", "Graph"))
-		[
-			GraphEditor.ToSharedRef()
-		];
+	if (GraphEditor)
+	{
+		TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+			.Label(LOCTEXT("DataflowEditor_Dataflow_TabTitle", "Graph"))
+			[
+				GraphEditor.ToSharedRef()
+			];
 
-	return SpawnedTab;
+		return SpawnedTab;
+	}
+	else
+	{
+		TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+			.Label(LOCTEXT("DataflowEditor_Dataflow_TabTitle", "Graph"));
+
+		return SpawnedTab;
+	}
 }
 
 TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_NodeDetails(const FSpawnTabArgs& Args)
 {
 	check(Args.GetTabId() == NodeDetailsTabId);
 
-	return SNew(SDockTab)
-		.Label(LOCTEXT("DataflowEditor_NodeDetails_TabTitle", "Node Details"))
-		[
-			NodeDetailsEditor->GetWidget()->AsShared()
-		];
+	if (NodeDetailsEditor)
+	{
+		return SNew(SDockTab)
+			.Label(LOCTEXT("DataflowEditor_NodeDetails_TabTitle", "Node Details"))
+			[
+				NodeDetailsEditor->GetWidget()->AsShared()
+			];
+	}
+	else
+	{
+		return SNew(SDockTab)
+			.Label(LOCTEXT("DataflowEditor_NodeDetails_TabTitle", "Node Details"));
+	}
 }
 
 void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
@@ -672,12 +703,15 @@ TSharedRef<SGraphEditor> FChaosClothAssetEditorToolkit::CreateGraphEditorWidget(
 	InEvents.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeVerifyTitleCommit);
 	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FChaosClothAssetEditorToolkit::OnNodeTitleCommitted);
 
-	return SNew(SDataflowGraphEditor, DataflowToEdit)
+	TSharedRef<SDataflowGraphEditor> NewGraphEditor = SNew(SDataflowGraphEditor, DataflowToEdit)
 		.GraphToEdit(DataflowToEdit)
 		.GraphEvents(InEvents)
 		.DetailsView(InNodeDetailsEditor)
 		.EvaluateGraph(Evaluate);
 
+	NewGraphEditor->OnSelectionChangedMulticast.AddSP(this, &FChaosClothAssetEditorToolkit::OnNodeSelectionChanged);
+
+	return NewGraphEditor;
 }
 
 TSharedPtr<IStructureDetailsView> FChaosClothAssetEditorToolkit::CreateNodeDetailsEditorWidget(UObject* ObjectToEdit)
@@ -727,6 +761,28 @@ bool FChaosClothAssetEditorToolkit::OnNodeVerifyTitleCommit(const FText& NewText
 void FChaosClothAssetEditorToolkit::OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode) const
 {
 	FDataflowEditorCommands::OnNodeTitleCommitted(InNewText, InCommitType, GraphNode);
+}
+
+void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>& NewSelection) const
+{
+	if (Dataflow)
+	{
+		// remove nodes if they don't have the render box checked
+		int32 NewLen = Algo::RemoveIf(Dataflow->RenderTargets, [](const UDataflowEdNode* Node)
+		{
+			return !Node->bRenderInAssetEditor;
+		});
+		Dataflow->RenderTargets.SetNum(NewLen);
+
+		for (UObject* Selected : NewSelection)
+		{
+			if (UDataflowEdNode* Node = Cast<UDataflowEdNode>(Selected))
+			{
+				Dataflow->RenderTargets.Add(Node);
+			}
+		}
+		Dataflow->LastModifiedRenderTarget = Dataflow::FTimestamp::Current();
+	}
 }
 
 //~ Ends DataflowEditorActions

@@ -2,8 +2,13 @@
 
 #include "ChaosClothAsset/ClothEditor3DViewportClient.h"
 #include "ChaosClothAsset/ClothEditorMode.h"
+#include "ChaosClothAsset/ClothEditorToolkit.h"
 #include "EditorModeManager.h"
 #include "ChaosClothAsset/ClothComponent.h"
+#include "Dataflow/DataflowEdNode.h"
+#include "Dataflow/DataflowObject.h"
+#include "Dataflow/DataflowActor.h"
+#include "Dataflow/DataflowRenderingFactory.h"
 
 FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools,
 	FPreviewScene* InPreviewScene, 
@@ -17,6 +22,58 @@ FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(F
 	EnableRenderMeshWireframe(bRenderMeshWireframe);
 }
 
+
+void FChaosClothAssetEditor3DViewportClient::Tick(float DeltaSeconds)
+{
+	FEditorViewportClient::Tick(DeltaSeconds);
+
+	auto GetLatestTimestamp = [](const UDataflow* Dataflow, const Dataflow::FContext* Context) -> Dataflow::FTimestamp
+	{
+		if (Dataflow && Context)
+		{
+			return FMath::Max(Dataflow->GetRenderingTimestamp().Value, Context->GetTimestamp().Value);
+		}
+		return Dataflow::FTimestamp::Invalid;
+	};
+
+	if (ClothToolkit.IsValid())
+	{
+		if (const TSharedPtr<Dataflow::FContext> Context = ClothToolkit->GetDataflowContext())
+		{
+			if (const UDataflow* const Dataflow = ClothToolkit->GetDataflow())
+			{
+				if (UDataflowComponent* const DataflowComponent = ClothEdMode->GetDataflowComponent())
+				{
+					const Dataflow::FTimestamp SystemTimestamp = GetLatestTimestamp(Dataflow, Context.Get());
+
+					if (SystemTimestamp >= LastModifiedTimestamp)
+					{
+						if (Dataflow->GetRenderTargets().Num())
+						{
+							// Component Object Rendering
+							DataflowComponent->ResetRenderTargets();
+							DataflowComponent->SetDataflow(Dataflow);
+							DataflowComponent->SetContext(Context);
+							for (const UDataflowEdNode* const Node : Dataflow->GetRenderTargets())
+							{
+								DataflowComponent->AddRenderTarget(Node);
+							}
+						}
+						else
+						{
+							DataflowComponent->ResetRenderTargets();
+						}
+
+						LastModifiedTimestamp = GetLatestTimestamp(Dataflow, Context.Get()).Value + 1;
+					}
+				}
+			}
+		}
+	}
+
+	// Note: we don't tick the PreviewWorld here, that is done in UChaosClothAssetEditorMode::ModeTick()
+
+}
 
 void FChaosClothAssetEditor3DViewportClient::EnableRenderMeshWireframe(bool bEnable)
 {
@@ -36,6 +93,11 @@ void FChaosClothAssetEditor3DViewportClient::SetClothComponent(TObjectPtr<UChaos
 void FChaosClothAssetEditor3DViewportClient::SetClothEdMode(TObjectPtr<UChaosClothAssetEditorMode> InClothEdMode)
 {
 	ClothEdMode = InClothEdMode;
+}
+
+void FChaosClothAssetEditor3DViewportClient::SetClothEditorToolkit(TSharedPtr<const FChaosClothAssetEditorToolkit> InClothToolkit)
+{
+	ClothToolkit = InClothToolkit;
 }
 
 void FChaosClothAssetEditor3DViewportClient::SoftResetSimulation()
