@@ -973,7 +973,11 @@ void UAnimGraphNode_LinkedAnimLayer::HandleInstanceChanged()
 void UAnimGraphNode_LinkedAnimLayer::SetupFromLayerId(FName InLayer)
 {
 	Node.Layer = InLayer;
-	
+
+	// Set to self member first, so we have a valid name in the member reference (otherwise GetInterfaceForLayer will fail)
+	// We will override this below
+	FunctionReference.SetSelfMember(InLayer);
+
 	// Get the interface for this layer. If null, then we are using a 'self' layer.
 	Node.Interface = GetInterfaceForLayer();
 
