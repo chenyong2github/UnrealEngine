@@ -485,7 +485,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			}
 
 			// do we already have a workspace? (_initBranchWorkspacesForAllBots, _getExistingWorkspaces)
-			const existingWorkspaceInfos = await this.p4.find_workspaces(undefined, edgeServer.address)
+			const existingWorkspaceInfos = await this.p4.find_workspaces(undefined, {edgeServerAddress: edgeServer.address, includeUnloaded: true})
 			if (existingWorkspaceInfos.map(ws => ws.client).indexOf(info.targetWorkspaceOverride) >= 0) {
 				await p4util.cleanWorkspaces(this.p4, [[info.targetWorkspaceOverride, target.branch.rootPath]], edgeServer.address)
 			}

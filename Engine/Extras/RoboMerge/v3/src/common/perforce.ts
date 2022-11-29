@@ -248,8 +248,9 @@ export interface Workspace {
 export type RoboWorkspace = Workspace | string | null;
 
 export interface ClientSpec {
-	client: string;
+	client: string
 	Stream?: string
+	IsUnloaded?: boolean
 }
 
 export type StreamSpec = {
@@ -563,12 +564,14 @@ export class PerforceContext {
 
 	// find a workspace for the given user
 	// output format is an array of workspace names
-	async find_workspaces(user?: string, edgeServerAddress?: string) {
-		// -a to include workspaces on edge servers
+	async find_workspaces(user?: string, options?: {edgeServerAddress?: string, includeUnloaded?: boolean}) {
 
+		const edgeServerAddress = options && options.edgeServerAddress
+		const includeUnloaded = options && options.includeUnloaded
 
 		let args = ['clients', '-u', user || this.username]
 
+		// -a to include workspaces on edge servers
 		if (!edgeServerAddress) {
 			// find all
 			args.push('-a')
@@ -579,11 +582,19 @@ export class PerforceContext {
 			opts.edgeServerAddress = edgeServerAddress
 		}
 
-		let parsedClients = await this._execP4Ztag(null, args, opts);
+		let parsedLoadedClients = this._execP4Ztag(null, args, opts);
+		let parsedUnloadedClients = (includeUnloaded ? this._execP4Ztag(null, [...args, '-U'], opts) : null)
 		let workspaces = [];
-		for (let clientDef of parsedClients) {
+		for (let clientDef of await parsedLoadedClients) {
 			if (clientDef.client) {
 				workspaces.push(clientDef);
+			}
+		}
+		if (includeUnloaded) {
+			for (let clientDef of await parsedUnloadedClients!) {
+				if (clientDef.client) {
+					workspaces.push(clientDef);
+				}
 			}
 		}
 		return workspaces as ClientSpec[];
@@ -604,6 +615,10 @@ export class PerforceContext {
 			return {id: serverId, address: address.trim()}
 		}
 		return null
+	}
+
+	async reloadWorkspace(workspaceName: string) {
+		return this._execP4Ztag(null, ['reload', '-c', workspaceName]);
 	}
 
 	getEdgeServerAddress(serverId: string): Promise<string> {

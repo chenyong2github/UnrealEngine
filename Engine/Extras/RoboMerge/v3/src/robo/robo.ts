@@ -220,13 +220,14 @@ export class RoboMerge {
 }
 
 async function _getExistingWorkspaces(user?: string) {
-	const existingWorkspacesObjects = await robo.p4.find_workspaces(user);
-	return new Set<string>(existingWorkspacesObjects.map((ws: ClientSpec) => ws.client));
+	const existingWorkspacesObjects = await robo.p4.find_workspaces(user, {includeUnloaded: true});
+	return new Map<string, ClientSpec>(existingWorkspacesObjects.map((ws: ClientSpec) => [ws.client, ws]));
 }
 
-async function _initWorkspacesForGraphBot(graphBot: GraphBot, existingWorkspaces: Set<string>, logger: ContextualLogger) {
+async function _initWorkspacesForGraphBot(graphBot: GraphBot, existingWorkspaces: Map<string, ClientSpec>, logger: ContextualLogger) {
 	// name and depot root pair
 	const workspacesToReset: [string, string][] = []
+	let reloadedWorkspaces = []
 
 	for (const branch of graphBot.branchGraph.branches) {
 		if (branch.workspace !== null) {
@@ -252,7 +253,11 @@ async function _initWorkspacesForGraphBot(graphBot: GraphBot, existingWorkspaces
 		}
 
 		// see if we already have this workspace
-		if (existingWorkspaces.has(ws)) {
+		const clientSpec = existingWorkspaces.get(ws)
+		if (clientSpec) {
+			if (clientSpec.IsUnloaded) {
+				reloadedWorkspaces.push(robo.p4.reloadWorkspace(ws))
+			}
 			workspacesToReset.push([ws, branch.rootPath])
 		}
 		else {
@@ -282,6 +287,7 @@ async function _initWorkspacesForGraphBot(graphBot: GraphBot, existingWorkspaces
 		}
 	}
 
+	Promise.all(reloadedWorkspaces)
 	if (workspacesToReset.length > 0) {
 		logger.info('The following workspaces already exist and will be reset: ' + workspacesToReset.join(', '))
 		await p4util.cleanWorkspaces(robo.p4, workspacesToReset)
