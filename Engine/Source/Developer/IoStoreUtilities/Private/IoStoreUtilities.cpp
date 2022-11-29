@@ -66,6 +66,7 @@
 #include "ZenFileSystemManifest.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/PathViews.h"
+#include "HAL/FileManagerGeneric.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -5901,6 +5902,90 @@ bool ExtractFilesFromIoStoreContainer(
 	}
 
 	UE_LOG(LogIoStore, Log, TEXT("Finished extracting %d chunks (including %d errors)."), Entries.Num(), ErrorCount);
+	return true;
+}
+
+bool SignIoStoreContainer(const TCHAR* InContainerFilename, const FRSAKeyHandle InSigningKey)
+{
+	FString TocFilePath = FPaths::ChangeExtension(InContainerFilename, TEXT(".utoc"));
+	FString TempOutputPath = TocFilePath + ".tmp";
+	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
+	ON_SCOPE_EXIT
+	{
+		if (Ipf.FileExists(*TempOutputPath))
+		{
+			Ipf.DeleteFile(*TempOutputPath);
+		}
+	};
+
+	FIoStoreTocResource TocResource;
+	FIoStatus Status = FIoStoreTocResource::Read(*TocFilePath, EIoStoreTocReadOptions::ReadAll, TocResource);
+	if (!Status.IsOk())
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Failed reading container file \"%s\"."), InContainerFilename);
+		return false;
+	}
+
+	if (TocResource.ChunkBlockSignatures.Num() != TocResource.CompressionBlocks.Num())
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Container is not signed, calculating block hashes..."));
+		TocResource.ChunkBlockSignatures.Empty();
+		TUniquePtr<FArchive> ContainerFileReader;
+		int32 LastPartitionIndex = -1;
+		TArray<uint8> BlockBuffer;
+		BlockBuffer.SetNum(static_cast<int32>(TocResource.Header.CompressionBlockSize));
+		const int32 BlockCount = TocResource.CompressionBlocks.Num();
+		FString ContainerBasePath = FPaths::ChangeExtension(InContainerFilename, TEXT(""));
+		TStringBuilder<256> UcasFilePath;
+		for (int32 BlockIndex = 0; BlockIndex < BlockCount; ++BlockIndex)
+		{
+			const FIoStoreTocCompressedBlockEntry& CompressionBlockEntry = TocResource.CompressionBlocks[BlockIndex];
+			uint64 BlockRawSize = Align(CompressionBlockEntry.GetCompressedSize(), FAES::AESBlockSize);
+			check(BlockRawSize <= TocResource.Header.CompressionBlockSize);
+			const int32 PartitionIndex = int32(CompressionBlockEntry.GetOffset() / TocResource.Header.PartitionSize);
+			const uint64 PartitionRawOffset = CompressionBlockEntry.GetOffset() % TocResource.Header.PartitionSize;
+			if (PartitionIndex != LastPartitionIndex)
+			{
+				UcasFilePath.Reset();
+				UcasFilePath.Append(ContainerBasePath);
+				if (PartitionIndex > 0)
+				{
+					UcasFilePath.Append(FString::Printf(TEXT("_s%d"), PartitionIndex));
+				}
+				UcasFilePath.Append(TEXT(".ucas"));
+				IFileHandle* ContainerFileHandle = Ipf.OpenRead(*UcasFilePath, /* allowwrite */ false);
+				if (!ContainerFileHandle)
+				{
+					UE_LOG(LogIoStore, Error, TEXT("Failed opening container file \"%s\"."), *UcasFilePath);
+					return false;
+				}
+				ContainerFileReader.Reset(new FArchiveFileReaderGeneric(ContainerFileHandle, *UcasFilePath, ContainerFileHandle->Size(), 256 << 10));
+				LastPartitionIndex = PartitionIndex;
+			}
+			ContainerFileReader->Seek(PartitionRawOffset);
+			ContainerFileReader->Precache(PartitionRawOffset, 0); // Without this buffering won't work due to the first read after a seek always being uncached
+			ContainerFileReader->Serialize(BlockBuffer.GetData(), BlockRawSize);
+			FSHAHash& BlockHash = TocResource.ChunkBlockSignatures.AddDefaulted_GetRef();
+			FSHA1::HashBuffer(BlockBuffer.GetData(), BlockRawSize, BlockHash.Hash);
+		}
+	}
+
+	FIoContainerSettings ContainerSettings;
+	ContainerSettings.ContainerId = TocResource.Header.ContainerId;
+	ContainerSettings.ContainerFlags = TocResource.Header.ContainerFlags | EIoContainerFlags::Signed;
+	ContainerSettings.EncryptionKeyGuid = TocResource.Header.EncryptionKeyGuid;
+	ContainerSettings.SigningKey = InSigningKey;
+
+	TIoStatusOr<uint64> WriteStatus = FIoStoreTocResource::Write(*TempOutputPath, TocResource, TocResource.Header.CompressionBlockSize, TocResource.Header.PartitionSize, ContainerSettings);
+	if (!WriteStatus.IsOk())
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Failed writing new utoc file file \"%s\"."), *TocFilePath);
+		return false;
+	}
+
+	Ipf.DeleteFile(*TocFilePath);
+	Ipf.MoveFile(*TocFilePath, *TempOutputPath);
+
 	return true;
 }
 

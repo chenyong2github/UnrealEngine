@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "HAL/Platform.h"
+#include "Misc/IEngineCrypto.h"
 
 struct FGuid;
 struct FKeyChain;
@@ -36,3 +37,5 @@ IOSTOREUTILITIES_API bool ExtractFilesFromIoStoreContainer(
 	TMap<FString, uint64>* OutOrderMap,
 	TArray<FGuid>* OutUsedEncryptionKeys,
 	bool* bOutIsSigned);
+
+IOSTOREUTILITIES_API bool SignIoStoreContainer(const TCHAR* InContainerFilename, const FRSAKeyHandle InSigningKey);

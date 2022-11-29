@@ -1135,7 +1135,7 @@ public:
 				ContainerSettings.IsEncrypted() ? ContainerSettings.EncryptionKey : FAES::FAESKey());
 		}
 
-		TIoStatusOr<uint64> TocSize = FIoStoreTocResource::Write(*TocFilePath, TocResource, ContainerSettings, WriterContext->GetSettings());
+		TIoStatusOr<uint64> TocSize = FIoStoreTocResource::Write(*TocFilePath, TocResource, static_cast<uint32>(WriterSettings.CompressionBlockSize), WriterSettings.MaxPartitionSize, ContainerSettings);
 		check(TocSize.IsOk());
 		
 		Result.ContainerId = ContainerSettings.ContainerId;
@@ -1148,7 +1148,7 @@ public:
 		Result.CompressedContainerSize = CompressedContainerSize;
 		Result.DirectoryIndexSize = TocResource.Header.DirectoryIndexSize;
 		Result.CompressionMethod = EnumHasAnyFlags(ContainerSettings.ContainerFlags, EIoContainerFlags::Compressed)
-			? WriterContext->GetSettings().CompressionMethod
+			? WriterSettings.CompressionMethod
 			: NAME_None;
 		Result.ModifiedChunksCount = 0;
 		Result.AddedChunksCount = 0;
@@ -2892,8 +2892,9 @@ FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOpt
 TIoStatusOr<uint64> FIoStoreTocResource::Write(
 	const TCHAR* TocFilePath,
 	FIoStoreTocResource& TocResource,
-	const FIoContainerSettings& ContainerSettings,
-	const FIoStoreWriterSettings& WriterSettings)
+	uint32 CompressionBlockSize,
+	uint64 MaxPartitionSize,
+	const FIoContainerSettings& ContainerSettings)
 {
 	check(TocFilePath != nullptr);
 
@@ -2916,6 +2917,19 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Number of TOC chunk IDs doesn't match the number of chunk meta data"));
 	}
 
+	bool bHasExplicitCompressionMethodNone = false;
+	for (int32 CompressionMethodIndex = 0; CompressionMethodIndex < TocResource.CompressionMethods.Num(); ++CompressionMethodIndex)
+	{
+		if (TocResource.CompressionMethods[CompressionMethodIndex].IsNone())
+		{
+			if (CompressionMethodIndex != 0)
+			{
+				return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Compression method None must be the first compression method"));
+			}
+			bHasExplicitCompressionMethodNone = true;
+		}
+	}
+
 	FMemory::Memzero(&TocResource.Header, sizeof(FIoStoreTocHeader));
 
 	FIoStoreTocHeader& TocHeader = TocResource.Header;
@@ -2927,8 +2941,8 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 	TocHeader.TocChunksWithoutPerfectHashCount = TocResource.ChunkIndicesWithoutPerfectHash.Num();
 	TocHeader.TocCompressedBlockEntryCount = TocResource.CompressionBlocks.Num();
 	TocHeader.TocCompressedBlockEntrySize = sizeof(FIoStoreTocCompressedBlockEntry);
-	TocHeader.CompressionBlockSize = uint32(WriterSettings.CompressionBlockSize);
-	TocHeader.CompressionMethodNameCount = TocResource.CompressionMethods.Num();
+	TocHeader.CompressionBlockSize = CompressionBlockSize;
+	TocHeader.CompressionMethodNameCount = TocResource.CompressionMethods.Num() - (bHasExplicitCompressionMethodNone ? 1 : 0);
 	TocHeader.CompressionMethodNameLength = FIoStoreTocResource::CompressionMethodNameLen;
 	TocHeader.DirectoryIndexSize = TocResource.DirectoryIndexBuffer.Num();
 	TocHeader.ContainerId = ContainerSettings.ContainerId;
@@ -2939,13 +2953,13 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 		TocHeader.PartitionCount = 0;
 		TocHeader.PartitionSize = MAX_uint64;
 	}
-	else if (WriterSettings.MaxPartitionSize)
+	else if (MaxPartitionSize)
 	{
 		const FIoStoreTocCompressedBlockEntry& LastBlock = TocResource.CompressionBlocks.Last();
 		uint64 LastBlockEnd = LastBlock.GetOffset() + LastBlock.GetCompressedSize();
-		TocHeader.PartitionCount = uint32(Align(LastBlockEnd, WriterSettings.MaxPartitionSize) / WriterSettings.MaxPartitionSize);
+		TocHeader.PartitionCount = uint32(Align(LastBlockEnd, MaxPartitionSize) / MaxPartitionSize);
 		check(TocHeader.PartitionCount > 0);
-		TocHeader.PartitionSize = WriterSettings.MaxPartitionSize;
+		TocHeader.PartitionSize = MaxPartitionSize;
 	}
 	else
 	{
@@ -2994,6 +3008,10 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 
 	for (FName MethodName : TocResource.CompressionMethods)
 	{
+		if (MethodName.IsNone())
+		{
+			continue;
+		}
 		FMemory::Memzero(AnsiMethodName, FIoStoreTocResource::CompressionMethodNameLen);
 		FCStringAnsi::Strcpy(AnsiMethodName, FIoStoreTocResource::CompressionMethodNameLen, TCHAR_TO_ANSI(*MethodName.ToString()));
 
