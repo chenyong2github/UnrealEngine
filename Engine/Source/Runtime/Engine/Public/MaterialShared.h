@@ -2061,7 +2061,7 @@ public:
 
 	class FMaterialShaderMap* GetGameThreadShaderMap() const 
 	{ 
-		checkSlow(IsInGameThread() || IsInAsyncLoadingThread());
+		checkSlow(IsInGameThread() || IsInParallelGameThread() || IsInAsyncLoadingThread());
 		return GameThreadShaderMap; 
 	}
 
@@ -2073,7 +2073,7 @@ public:
 
 	inline bool IsGameThreadShaderMapComplete() const
 	{
-		checkSlow(IsInGameThread());
+		checkSlow(IsInGameThread() || IsInParallelGameThread());
 		return bGameThreadShaderMapIsComplete;
 	}
 
