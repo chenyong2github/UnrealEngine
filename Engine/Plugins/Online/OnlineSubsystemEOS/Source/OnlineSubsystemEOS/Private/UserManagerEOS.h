@@ -69,40 +69,6 @@ public:
 typedef TSharedPtr<FOnlineFriendEOS> FOnlineFriendEOSPtr;
 typedef TSharedRef<FOnlineFriendEOS> FOnlineFriendEOSRef;
 
-/**
- * Concrete blocked player class built from the reusable templates
- */
-class FOnlineBlockedPlayerEOS :
-	public TOnlineBlockedPlayerEOS<FOnlineBlockedPlayer>
-{
-public:
-	FOnlineBlockedPlayerEOS(FUniqueNetIdEOSRef InUserId) :
-		TOnlineBlockedPlayerEOS<FOnlineBlockedPlayer>(InUserId)
-	{
-	}
-	virtual ~FOnlineBlockedPlayerEOS() = default;
-};
-
-typedef TSharedPtr<FOnlineBlockedPlayerEOS> FOnlineBlockedPlayerEOSPtr;
-typedef TSharedRef<FOnlineBlockedPlayerEOS> FOnlineBlockedPlayerEOSRef;
-
-/**
- * Concrete blocked player class built from the reusable templates
- */
-class FOnlineRecentPlayerEOS :
-	public TOnlineRecentPlayerEOS<FOnlineRecentPlayer>
-{
-public:
-	FOnlineRecentPlayerEOS(FUniqueNetIdEOSRef InUserId) :
-		TOnlineRecentPlayerEOS<FOnlineRecentPlayer>(InUserId)
-	{
-	}
-	virtual ~FOnlineRecentPlayerEOS() = default;
-};
-
-typedef TSharedPtr<FOnlineRecentPlayerEOS> FOnlineRecentPlayerEOSPtr;
-typedef TSharedRef<FOnlineRecentPlayerEOS> FOnlineRecentPlayerEOSRef;
-
 template<class ListClass, class ListClassReturnType>
 class TOnlinePlayerList
 {
@@ -188,32 +154,6 @@ public:
 };
 
 typedef TSharedRef<FFriendsListEOS> FFriendsListEOSRef;
-
-class FBlockedPlayersListEOS :
-	public TOnlinePlayerList<FOnlineBlockedPlayerEOSRef, FOnlineBlockedPlayerEOSPtr>
-{
-public:
-	FBlockedPlayersListEOS(int32 InLocalUserNum, FUniqueNetIdEOSRef InOwningNetId)
-		: TOnlinePlayerList<FOnlineBlockedPlayerEOSRef, FOnlineBlockedPlayerEOSPtr>(InLocalUserNum, InOwningNetId)
-	{
-	}
-	virtual ~FBlockedPlayersListEOS() = default;
-};
-
-typedef TSharedRef<FBlockedPlayersListEOS> FBlockedPlayersListEOSRef;
-
-class FRecentPlayersListEOS :
-	public TOnlinePlayerList<FOnlineRecentPlayerEOSRef, FOnlineRecentPlayerEOSPtr>
-{
-public:
-	FRecentPlayersListEOS(int32 InLocalUserNum, FUniqueNetIdEOSRef InOwningNetId)
-		: TOnlinePlayerList<FOnlineRecentPlayerEOSRef, FOnlineRecentPlayerEOSPtr>(InLocalUserNum, InOwningNetId)
-	{
-	}
-	virtual ~FRecentPlayersListEOS() = default;
-};
-
-typedef TSharedRef<FRecentPlayersListEOS> FRecentPlayersListEOSRef;
 
 struct FNotificationIdCallbackPair
 {
@@ -435,12 +375,6 @@ private:
 	/** Per user friends lists accessible by user num or net id */
 	TMap<int32, FFriendsListEOSRef> LocalUserNumToFriendsListMap;
 	TMap<FString, FFriendsListEOSRef> NetIdStringToFriendsListMap;
-	/** Per user blocked player lists accessible by user num or net id */
-	TMap<int32, FBlockedPlayersListEOSRef> LocalUserNumToBlockedPlayerListMap;
-	TMap<FString, FBlockedPlayersListEOSRef> NetIdStringToBlockedPlayerListMap;
-	/** Per user recent player lists accessible by user num or net id */
-	TMap<int32, FRecentPlayersListEOSRef> LocalUserNumToRecentPlayerListMap;
-	TMap<FString, FRecentPlayersListEOSRef> NetIdStringToRecentPlayerListMap;
 
 	/** Ids mapped to remote users */
 	TMap<FString, FOnlineUserPtr> NetIdStringToOnlineUserMap;

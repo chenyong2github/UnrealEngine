@@ -1069,15 +1069,6 @@ void FUserManagerEOS::AddLocalUser(int32 LocalUserNum, EOS_EpicAccountId EpicAcc
 	NetIdStringToFriendsListMap.Emplace(NetId, FriendsList);
 	ReadFriendsList(LocalUserNum, FString());
 
-	FBlockedPlayersListEOSRef BlockedPlayersList = MakeShareable(new FBlockedPlayersListEOS(LocalUserNum, UserNetId));
-	LocalUserNumToBlockedPlayerListMap.Emplace(LocalUserNum, BlockedPlayersList);
-	NetIdStringToBlockedPlayerListMap.Emplace(NetId, BlockedPlayersList);
-	QueryBlockedPlayers(*UserNetId);
-
-	FRecentPlayersListEOSRef RecentPlayersList = MakeShareable(new FRecentPlayersListEOS(LocalUserNum, UserNetId));
-	LocalUserNumToRecentPlayerListMap.Emplace(LocalUserNum, RecentPlayersList);
-	NetIdStringToRecentPlayerListMap.Emplace(NetId, RecentPlayersList);
-
 	// Get auth token info
 	EOS_Auth_Token* AuthToken = nullptr;
 	EOS_Auth_CopyUserAuthTokenOptions Options = { };

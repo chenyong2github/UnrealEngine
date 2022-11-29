@@ -295,52 +295,6 @@ protected:
 	EInviteStatus::Type InviteStatus;
 };
 
-/**
- * Implementation of FOnlineBlockedPlayer methods that adds in the online user template to complete the interface
- */
-template<class BaseClass>
-class TOnlineBlockedPlayerEOS :
-	public TOnlineUserEOS<BaseClass, IAttributeAccessInterface>
-{
-public:
-	TOnlineBlockedPlayerEOS(const FUniqueNetIdEOSRef& InNetIdRef)
-		: TOnlineUserEOS<BaseClass, IAttributeAccessInterface>(InNetIdRef)
-	{
-	}
-};
-
-/**
- * Implementation of FOnlineRecentPlayer methods that adds in the online user template to complete the interface
- */
-template<class BaseClass>
-class TOnlineRecentPlayerEOS :
-	public TOnlineUserEOS<BaseClass, IAttributeAccessInterface>
-{
-public:
-	TOnlineRecentPlayerEOS(const FUniqueNetIdEOSRef& InNetIdRef)
-		: TOnlineUserEOS<BaseClass, IAttributeAccessInterface>(InNetIdRef)
-	{
-	}
-
-// FOnlineRecentPlayer
-	/**
-	 * @return last time the player was seen by the current user
-	 */
-	virtual FDateTime GetLastSeen() const override
-	{
-		return LastSeenTime;
-	}
-//~FOnlineRecentPlayer
-
-	void SetLastSeen(const FDateTime& InLastSeenTime)
-	{
-		LastSeenTime = InLastSeenTime;
-	}
-
-protected:
-	FDateTime LastSeenTime;
-};
-
 /** Class to handle all callbacks generically using a lambda to process callback results */
 template<typename CallbackFuncType, typename CallbackType, typename OwningType>
 class TEOSCallback :
