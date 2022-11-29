@@ -113,6 +113,12 @@ namespace UE
 		public virtual bool SimpleHordeReport { get; set; } = false;
 
 		/// <summary>
+		/// Resume test run on critical failure through pass retry
+		/// </summary>
+		[AutoParam]
+		public bool ResumeOnCriticalFailure = false;
+
+		/// <summary>
 		/// Validate DDC during tests
 		/// </summary>
 		[AutoParam]
@@ -685,7 +691,7 @@ namespace UE
 			{
 				// The test pass did not run at all
 				Log.Verbose("Found not-run tests: {Count}", JsonTestPassResults.NotRun);
-				if (GetConfiguration().ResumeOnCriticalFailure && !HasTimeout)
+				if ((GetConfiguration() is AutomationTestConfig Config) && Config.ResumeOnCriticalFailure && !HasTimeout)
 				{
 					// Reschedule test to resume from last 'in-process' test.
 					if (SetToRetryIfPossible())

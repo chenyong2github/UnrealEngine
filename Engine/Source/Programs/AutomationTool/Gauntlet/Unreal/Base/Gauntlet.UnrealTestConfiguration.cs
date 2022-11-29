@@ -554,12 +554,6 @@ namespace Gauntlet
 		public float MaxDuration { get; set; }
 
 		/// <summary>
-		/// Resume test run on critical failure through pass retry
-		/// </summary>
-		[AutoParam]
-		public bool ResumeOnCriticalFailure = false;
-
-		/// <summary>
 		/// Max number of retries in case of critical failure
 		/// </summary>
 		[AutoParam(3)]
