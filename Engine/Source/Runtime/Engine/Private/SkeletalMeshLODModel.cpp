@@ -1063,15 +1063,18 @@ void FSkeletalMeshLODModel::SyncronizeUserSectionsDataArray(bool bResetNonUsedSe
 	for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
 	{
 		FSkelMeshSection& Section = Sections[SectionIndex];
-		FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
-		Section.bCastShadow					= SectionUserData.bCastShadow;
-		Section.bRecomputeTangent			= SectionUserData.bRecomputeTangent;
-		Section.RecomputeTangentsVertexMaskChannel = SectionUserData.RecomputeTangentsVertexMaskChannel;
-		Section.bDisabled					= SectionUserData.bDisabled;
-		Section.GenerateUpToLodIndex		= SectionUserData.GenerateUpToLodIndex;
-		Section.CorrespondClothAssetIndex	= SectionUserData.CorrespondClothAssetIndex;
-		Section.ClothingData.AssetGuid		= SectionUserData.ClothingData.AssetGuid;
-		Section.ClothingData.AssetLodIndex	= SectionUserData.ClothingData.AssetLodIndex;
+		if (Section.OriginalDataSectionIndex != INDEX_NONE)
+		{
+			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
+			Section.bCastShadow = SectionUserData.bCastShadow;
+			Section.bRecomputeTangent = SectionUserData.bRecomputeTangent;
+			Section.RecomputeTangentsVertexMaskChannel = SectionUserData.RecomputeTangentsVertexMaskChannel;
+			Section.bDisabled = SectionUserData.bDisabled;
+			Section.GenerateUpToLodIndex = SectionUserData.GenerateUpToLodIndex;
+			Section.CorrespondClothAssetIndex = SectionUserData.CorrespondClothAssetIndex;
+			Section.ClothingData.AssetGuid = SectionUserData.ClothingData.AssetGuid;
+			Section.ClothingData.AssetLodIndex = SectionUserData.ClothingData.AssetLodIndex;
+		}
 	}
 
 	//Reset normally happen when we re-import a skeletalmesh, we never want to reset this when we build the skeletalmesh (reduce can remove section, but we need to keep the original section data)
