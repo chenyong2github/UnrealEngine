@@ -9,7 +9,7 @@ static FVector3f UniformSampleHemisphere(FVector2D Uniforms)
 {
 	Uniforms = Uniforms * 2.0f - 1.0f;
 
-	if(Uniforms == FVector2D::ZeroVector)
+	if (Uniforms == FVector2D::ZeroVector)
 	{
 		return FVector3f::ZeroVector;
 	}
@@ -53,7 +53,10 @@ void MeshUtilities::GenerateStratifiedUniformHemisphereSamples(int32 NumSamples,
 			const float Fraction1 = (IndexX + U1) / (float)NumSamplesDim;
 			const float Fraction2 = (IndexY + U2) / (float)NumSamplesDim;
 
-			Samples.Add(UniformSampleHemisphere(FVector2D(Fraction1, Fraction2)));
+			FVector3f Tmp = UniformSampleHemisphere(FVector2D(Fraction1, Fraction2));
+
+			// Workaround issue with compiler optimization by using copy constructor here.
+			Samples.Add(FVector3f(Tmp));
 		}
 	}
 }

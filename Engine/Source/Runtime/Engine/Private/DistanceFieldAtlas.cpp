@@ -132,7 +132,7 @@ FDistanceFieldAsyncQueue* GDistanceFieldAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for distance field data, must be changed when modifying the generation code or data format
-#define DISTANCEFIELD_DERIVEDDATA_VER TEXT("8A773878-E42B-4143-A23B-E231679CE486")
+#define DISTANCEFIELD_DERIVEDDATA_VER TEXT("295895D9-FFCE-48B5-9A4B-131DB318441E")
 
 FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 {
