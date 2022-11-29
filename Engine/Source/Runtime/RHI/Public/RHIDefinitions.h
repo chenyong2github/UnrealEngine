@@ -15,7 +15,6 @@
 #include "HAL/IConsoleManager.h"
 #include "RHIShaderPlatform.h"
 #include "RHIFeatureLevel.h"
-#include "DataDrivenShaderPlatformInfo.h"
 #endif
 
 /** Alignment of the shader parameters struct is required to be 16-byte boundaries. */
@@ -1469,4 +1468,8 @@ inline ERHIResourceType GetRHIResourceType(ETextureDimension Dimension)
 	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)
 #else
 	#define GEOMETRY_SHADER(GeometryShader)	nullptr
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "DataDrivenShaderPlatformInfo.h"
 #endif
