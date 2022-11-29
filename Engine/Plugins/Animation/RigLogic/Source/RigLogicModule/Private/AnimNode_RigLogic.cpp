@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNode_RigLogic.h"
+
 #include "Components/SkeletalMeshComponent.h"
 #include "DNAAsset.h"
 #include "DNAIndexMapping.h"
@@ -33,46 +34,80 @@ FAnimNode_RigLogic::~FAnimNode_RigLogic()
 	}
 }
 
-void FAnimNode_RigLogic::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+bool FAnimNode_RigLogic::NeedsOnInitializeAnimInstance() const
+{
+	return true;
+}
+
+void FAnimNode_RigLogic::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_Evaluate_AnyThread);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_OnInitializeAnimInstance);
 	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
 
-	FAnimNode_Base::Initialize_AnyThread(Context);
-	AnimSequence.Initialize(Context);
-	USkeletalMeshComponent* SkeletalMeshComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
-	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
+	USkeletalMeshComponent* SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent();
+	if (SkeletalMeshComponent == nullptr)
+	{
+		return;
+	}
 
-	static FRWLock GlobalCreationLock;
-	FRWScopeLock ScopeLock(GlobalCreationLock, SLT_ReadOnly);
+	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
+	if (SkeletalMesh == nullptr)
+	{
+		return;
+	}
+
 	UDNAIndexMapping* DNAIndexMappingContainer = Cast<UDNAIndexMapping>(SkeletalMesh->GetAssetUserDataOfClass(UDNAIndexMapping::StaticClass()));
 	if (DNAIndexMappingContainer == nullptr)
 	{
-		ScopeLock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
-		DNAIndexMappingContainer = Cast<UDNAIndexMapping>(SkeletalMesh->GetAssetUserDataOfClass(UDNAIndexMapping::StaticClass()));
-		if (DNAIndexMappingContainer == nullptr)
-		{
-			DNAIndexMappingContainer = NewObject<UDNAIndexMapping>();
-			SkeletalMesh->AddAssetUserData(DNAIndexMappingContainer);
-		}
+		DNAIndexMappingContainer = NewObject<UDNAIndexMapping>(SkeletalMesh);
+		SkeletalMesh->AddAssetUserData(DNAIndexMappingContainer);
 	}
+}
+
+void FAnimNode_RigLogic::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_Initialize_AnyThread);
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
+
+	AnimSequence.Initialize(Context);
 }
 
 void FAnimNode_RigLogic::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_Evaluate_AnyThread);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_CacheBones_AnyThread);
 	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
 
 	AnimSequence.CacheBones(Context);
 
 	// Initialize things that depend on the skeleton of Anim BP
 	USkeletalMeshComponent* SkeletalMeshComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
+	if (SkeletalMeshComponent == nullptr)
+	{
+		return;
+	}
+
 	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
+	if (SkeletalMesh == nullptr)
+	{
+		return;
+	}
+
 	USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
-	UDNAAsset* DNAAsset = Cast<UDNAAsset>(SkeletalMesh->GetAssetUserDataOfClass(UDNAAsset::StaticClass()));
+	if (Skeleton == nullptr)
+	{
+		return;
+	}
+
 	UDNAIndexMapping* DNAIndexMappingContainer = Cast<UDNAIndexMapping>(SkeletalMesh->GetAssetUserDataOfClass(UDNAIndexMapping::StaticClass()));
+	if (DNAIndexMappingContainer == nullptr)
+	{
+		return;
+	}
+
+	UDNAAsset* DNAAsset = Cast<UDNAAsset>(SkeletalMesh->GetAssetUserDataOfClass(UDNAAsset::StaticClass()));
 	if (DNAAsset == nullptr)
 	{
 		return;
@@ -125,12 +160,12 @@ void FAnimNode_RigLogic::Evaluate_AnyThread(FPoseContext& OutputContext)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_Evaluate_AnyThread);
 
-	if (!LocalRigRuntimeContext.IsValid())
+	AnimSequence.Evaluate(OutputContext);
+
+	if (!LocalRigRuntimeContext.IsValid() || !LocalDNAIndexMapping.IsValid())
 	{
 		return;
 	}
-	// Initialize things that depend on the skeleton of Anim BP
-	AnimSequence.Evaluate(OutputContext);
 	UpdateControlCurves(OutputContext, LocalDNAIndexMapping.Get());
 	CalculateRigLogic(LocalRigRuntimeContext->RigLogic.Get());
 	const uint16 CurrentLOD = RigInstance->GetLOD();

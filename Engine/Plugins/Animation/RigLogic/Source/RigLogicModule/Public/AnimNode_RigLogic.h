@@ -25,6 +25,8 @@ public:
 	FAnimNode_RigLogic();
 	~FAnimNode_RigLogic();
 
+	bool NeedsOnInitializeAnimInstance() const override;
+	void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	void Update_AnyThread(const FAnimationUpdateContext& Context) override;
