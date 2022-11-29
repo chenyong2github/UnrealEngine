@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-class UPackage;
-
 namespace UE::Object
 {
 	// Helper function to rename a package which ought to have been freed but which can't be GC'd
