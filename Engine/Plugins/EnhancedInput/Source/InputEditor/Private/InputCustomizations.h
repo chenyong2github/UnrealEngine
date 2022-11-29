@@ -75,8 +75,8 @@ public:
 
 private:
 
-	/** Gather all of the CDO's for the given class, Native and Blueprint. */
-	static TArray<UObject*> GatherClassDetailsCDOs(UClass* Class);
+	/** Gather all of the native class CDOs for the given class. */
+	static void GatherNativeClassDetailsCDOs(UClass* Class, TArray<UObject*>& CDOs);
 
 	/**
 	 * Called when any Asset is added, removed, or renamed.
