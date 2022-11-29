@@ -2815,6 +2815,12 @@ float UKismetMathLibrary::Conv_BoolToFloat(bool InBool)
 }
 
 KISMET_MATH_FORCEINLINE
+double UKismetMathLibrary::Conv_BoolToDouble(bool InBool)
+{
+	return InBool ? 1.0 : 0.0;
+}
+
+KISMET_MATH_FORCEINLINE
 int32 UKismetMathLibrary::Conv_ByteToInt(uint8 InByte)
 {
 	return (int32)InByte;
@@ -2860,12 +2866,6 @@ KISMET_MATH_FORCEINLINE
 FVector UKismetMathLibrary::Conv_DoubleToVector(double InDouble)
 {
 	return FVector(InDouble);
-}
-
-KISMET_MATH_FORCEINLINE
-FVector2D UKismetMathLibrary::Conv_FloatToVector2D(float InFloat)
-{
-	return FVector2D(InFloat);
 }
 
 KISMET_MATH_FORCEINLINE
