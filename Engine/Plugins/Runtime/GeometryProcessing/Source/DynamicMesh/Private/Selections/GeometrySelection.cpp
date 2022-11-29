@@ -5,10 +5,21 @@
 
 using namespace UE::Geometry;
 
-void FGeometrySelectionEditor::Initialize(FGeometrySelection* TargetSelectionIn)
+void FGeometrySelectionEditor::Initialize(FGeometrySelection* TargetSelectionIn, const FGeometrySelectionHitQueryConfig& QueryConfigIn)
 {
 	check(TargetSelectionIn != nullptr);
+	check(QueryConfigIn.ElementType == TargetSelectionIn->ElementType);
+	check(QueryConfigIn.TopologyType == TargetSelectionIn->TopologyType);
 	TargetSelection = TargetSelectionIn;
+	QueryConfig = QueryConfigIn;
+}
+
+
+void FGeometrySelectionEditor::UpdateQueryConfig(const FGeometrySelectionHitQueryConfig& NewConfig)
+{
+	check(NewConfig.ElementType == TargetSelection->ElementType);
+	check(NewConfig.TopologyType == TargetSelection->TopologyType);
+	QueryConfig = NewConfig;
 }
 
 void FGeometrySelectionEditor::ClearSelection(FGeometrySelectionDelta& DeltaOut)

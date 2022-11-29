@@ -8,6 +8,10 @@
 #include "ToolSceneQueriesUtil.h"
 #include "SceneQueries/SceneSnappingManager.h"
 
+#include "BaseBehaviors/SingleClickBehavior.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
+
+
 using namespace UE::Geometry;
 
 void UModelingSelectionInteraction::Initialize(
@@ -26,8 +30,12 @@ void UModelingSelectionInteraction::Initialize(
 	ClickBehavior->Modifiers.RegisterModifier(ToggleSelectionModifier, FInputDeviceState::IsCtrlKeyDown);
 	ClickBehavior->Initialize(this);
 
+	HoverBehavior = NewObject<UMouseHoverBehavior>(this);
+	HoverBehavior->Initialize(this);
+
 	BehaviorSet = NewObject<UInputBehaviorSet>();
 	BehaviorSet->Add(ClickBehavior, this);
+	BehaviorSet->Add(HoverBehavior, this);
 
 	TransformProxy = NewObject<UTransformProxy>(this);
 	// todo: make this repositionable etc. Maybe make this function a delegate? or allow caller to provide the gizmo?
@@ -75,6 +83,7 @@ void UModelingSelectionInteraction::OnUpdateModifierState(int ModifierID, bool b
 	}
 }
 
+
 void UModelingSelectionInteraction::ComputeSceneHits(const FInputDeviceRay& ClickPos,
 	bool& bHitActiveObjects, FInputRayHit& ActiveObjectHit,
 	bool& bHitInactiveObjectFirst, FInputRayHit& InactiveObjectHit)
@@ -111,6 +120,7 @@ void UModelingSelectionInteraction::ComputeSceneHits(const FInputDeviceRay& Clic
 		}
 	}
 }
+
 
 FInputRayHit UModelingSelectionInteraction::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
@@ -174,6 +184,8 @@ FInputRayHit UModelingSelectionInteraction::IsHitByClick(const FInputDeviceRay& 
 	return FInputRayHit();
 }
 
+
+
 void UModelingSelectionInteraction::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	// this flag is set in IsHitByClick test
@@ -203,6 +215,47 @@ void UModelingSelectionInteraction::OnClicked(const FInputDeviceRay& ClickPos)
 }
 
 
+
+
+
+FInputRayHit UModelingSelectionInteraction::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+{
+	if ((SelectionManager->GetMeshTopologyMode() == UGeometrySelectionManager::EMeshTopologyMode::None)
+		|| (CanChangeSelectionCallback() == false)
+		|| ExternalHitCaptureCallback(PressPos))
+	{
+		return FInputRayHit();
+	}
+
+	bool bHitActiveObjects, bHitInactiveObjectFirst;
+	FInputRayHit ActiveObjectHit, InactiveObjectHit;
+	ComputeSceneHits(PressPos, bHitActiveObjects, ActiveObjectHit, bHitInactiveObjectFirst, InactiveObjectHit);
+
+	if (bHitActiveObjects && bHitInactiveObjectFirst == false)
+	{
+		return ActiveObjectHit;
+	}
+	return FInputRayHit();
+}
+
+void UModelingSelectionInteraction::OnBeginHover(const FInputDeviceRay& DevicePos)
+{
+	SelectionManager->UpdateSelectionPreviewViaRaycast(DevicePos.WorldRay);
+}
+
+bool UModelingSelectionInteraction::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	return SelectionManager->UpdateSelectionPreviewViaRaycast(DevicePos.WorldRay);
+}
+
+void UModelingSelectionInteraction::OnEndHover()
+{
+	SelectionManager->ClearSelectionPreview();
+}
+
+
+
+
 void UModelingSelectionInteraction::UpdateGizmoOnSelectionChange()
 {
 	if (SelectionManager->HasSelection() == false)
@@ -216,10 +269,6 @@ void UModelingSelectionInteraction::UpdateGizmoOnSelectionChange()
 		FFrame3d SelectionFrame;
 		SelectionManager->GetSelectionWorldFrame(SelectionFrame);
 		TransformGizmo->ReinitializeGizmoTransform( SelectionFrame.ToFTransform() );
-
-		//FGeometrySelectionBounds Bounds;
-		//SelectionManager->GetSelectionBounds(Bounds);
-		//TransformGizmo->ReinitializeGizmoTransform( FTransform(Bounds.WorldBounds.Center()) );
 	}
 }
 

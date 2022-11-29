@@ -178,6 +178,19 @@ public:
 	FModelingSelectionInteraction_SelectionModified OnSelectionModified;
 
 
+
+	//
+	// Hover/Preview support
+	//
+public:
+
+	virtual bool UpdateSelectionPreviewViaRaycast(
+		const FRay3d& WorldRay
+	);
+
+	virtual void ClearSelectionPreview();
+
+
 	//
 	// Selection queries
 	//
@@ -293,6 +306,8 @@ protected:
 	EMeshTopologyMode MeshTopologyMode = EMeshTopologyMode::None;
 	void SetMeshTopologyModeInternal(EMeshTopologyMode NewTopologyMode);
 
+	UE::Geometry::FGeometrySelectionHitQueryConfig GetCurrentSelectionQueryConfig() const;
+
 	// ITF references
 
 	UPROPERTY()
@@ -351,6 +366,16 @@ protected:
 	bool bSelectionRenderCachesDirty = false;
 	void UpdateSelectionRenderCacheOnTargetChange();
 	void RebuildSelectionRenderCaches();
+
+
+	//
+	// 3D geometry for active hover/preview highlight
+	// note: currently only supporting single target here, will need to be refactored to handle multiple targets...
+	//
+	FGeometrySelection ActivePreviewSelection;
+	FGeometrySelectionElements CachedPreviewRenderElements;
+	void ClearActivePreview();
+
 
 	// various change types need internal access
 

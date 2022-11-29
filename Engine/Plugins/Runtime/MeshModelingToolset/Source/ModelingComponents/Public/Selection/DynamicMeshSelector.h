@@ -16,7 +16,7 @@ class FDynamicMeshSelectionTransformer;
 class FMeshVertexChangeBuilder;
 PREDECLARE_GEOMETRY(class FGroupTopology);
 PREDECLARE_GEOMETRY(class FColliderMesh);
-
+PREDECLARE_GEOMETRY(class FSegmentTree3);
 
 /**
  * FDynamicMeshSelector is an implementation of IGeometrySelector for a UDynamicMesh.
@@ -67,16 +67,20 @@ public:
 	}
 
 	virtual bool RayHitTest(
-		const FRay3d& WorldRay,
+		const FWorldRayQueryInfo& RayInfo,
+		UE::Geometry::FGeometrySelectionHitQueryConfig QueryConfig,
 		FInputRayHit& HitResultOut) override;
 
 
 	virtual void UpdateSelectionViaRaycast(
-		const FRay3d& WorldRay,
+		const FWorldRayQueryInfo& RayInfo,
 		FGeometrySelectionEditor& SelectionEditor,
 		const FGeometrySelectionUpdateConfig& UpdateConfig,
 		FGeometrySelectionUpdateResult& ResultOut) override;
 
+	virtual void GetSelectionPreviewForRaycast(
+		const FWorldRayQueryInfo& RayInfo,
+		FGeometrySelectionEditor& PreviewEditor) override;
 
 	virtual FTransform GetLocalToWorldTransform() const
 	{
@@ -85,7 +89,7 @@ public:
 
 	virtual void GetSelectionFrame(const FGeometrySelection& Selection, UE::Geometry::FFrame3d& SelectionFrame, bool bTransformToWorld) override;
 	virtual void AccumulateSelectionBounds(const FGeometrySelection& Selection, FGeometrySelectionBounds& BoundsInOut, bool bTransformToWorld) override;
-	virtual void AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& Elements, bool bTransformToWorld) override;
+	virtual void AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& Elements, bool bTransformToWorld, bool bIsForPreview) override;
 
 	virtual IGeometrySelectionTransformer* InitializeTransformation(const FGeometrySelection& Selection) override;
 	virtual void ShutdownTransformation(IGeometrySelectionTransformer* Transformer) override;
@@ -115,11 +119,34 @@ protected:
 	void UpdateGroupTopology();
 	const UE::Geometry::FGroupTopology* GetGroupTopology();
 
+	//
+	// GroupEdgeSegmentTree stores a hit-testable AABBTree for the polygroup edges (depends on GroupTopology)
+	//
+	TPimplPtr<UE::Geometry::FSegmentTree3> GroupEdgeSegmentTree;
+	void UpdateGroupEdgeSegmentTree();
+	const UE::Geometry::FSegmentTree3* GetGroupEdgeSpatial();
+
 	// support for sleep/restore
 	TWeakObjectPtr<UDynamicMesh> SleepingTargetMesh = nullptr;
 
 
 	TPimplPtr<FDynamicMeshSelectionTransformer> ActiveTransformer;
+
+
+
+	virtual void UpdateSelectionViaRaycast_GroupEdges(
+		const FWorldRayQueryInfo& RayInfo,
+		FGeometrySelectionEditor& SelectionEditor,
+		const FGeometrySelectionUpdateConfig& UpdateConfig,
+		FGeometrySelectionUpdateResult& ResultOut);
+
+	virtual void UpdateSelectionViaRaycast_MeshTopology(
+		const FWorldRayQueryInfo& RayInfo,
+		FGeometrySelectionEditor& SelectionEditor,
+		const FGeometrySelectionUpdateConfig& UpdateConfig,
+		FGeometrySelectionUpdateResult& ResultOut);
+
+
 
 	// give Transformer access to internals 
 	friend class FDynamicMeshSelectionTransformer;

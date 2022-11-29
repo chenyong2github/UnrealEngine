@@ -4,13 +4,14 @@
 #pragma once
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
-#include "BaseBehaviors/SingleClickBehavior.h"
 #include "InputBehaviorSet.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "FrameTypes.h"
 #include "ModelingSelectionInteraction.generated.h"
 
 class UGeometrySelectionManager;
+class USingleClickInputBehavior;
+class UMouseHoverBehavior;
 
 /**
  * UModelingSelectionInteraction provides element-level selection behavior (ie mesh triangles/edges/vertices)
@@ -31,7 +32,7 @@ class UGeometrySelectionManager;
  * 
  */
 UCLASS()
-class UModelingSelectionInteraction : public UObject, public IInputBehaviorSource, public IClickBehaviorTarget
+class UModelingSelectionInteraction : public UObject, public IInputBehaviorSource, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -62,6 +63,10 @@ public:
 	UPROPERTY()
 	TObjectPtr<USingleClickInputBehavior> ClickBehavior;
 
+	// mouse hover behavior
+	UPROPERTY()
+	TObjectPtr<UMouseHoverBehavior> HoverBehavior;
+
 	// set of all behaviors, will be passed up to UInputRouter
 	UPROPERTY()
 	TObjectPtr<UInputBehaviorSet> BehaviorSet;
@@ -81,6 +86,14 @@ public:
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 
+
+	//
+	// IHoverBehaviorTarget implementation
+	//
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override;
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual void OnEndHover() override;
 
 	//
 	// IModifierToggleBehaviorTarget implementation

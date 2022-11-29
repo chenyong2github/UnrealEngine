@@ -191,6 +191,22 @@ struct DYNAMICMESH_API FGeometrySelection
 };
 
 
+/**
+ * FGeometrySelectionHitQueryConfig defines the desired settings for a "hit query" on
+ * selected meshes/objects. 
+ */
+struct DYNAMICMESH_API FGeometrySelectionHitQueryConfig
+{
+	/** Type of object topology to query */
+	EGeometryTopologyType TopologyType = EGeometryTopologyType::Polygroup;
+	/** Type of object topological element to query */
+	EGeometryElementType ElementType = EGeometryElementType::Face;
+	
+	/** If true, only "visible" elements are considered, otherwise query may return obscured elements (eg, hidden edges occluded by mesh surface) */
+	bool bOnlyVisible = true;
+};
+
+
 
 /**
  * Type of change, relative to a FGeometrySelection
@@ -292,18 +308,33 @@ public:
 	 * Initialize the Editor with the given Selection. The
 	 * TargetSelectionIn must live longer than the FGeometrySelectionEditor
 	 */
-	void Initialize(FGeometrySelection* TargetSelectionIn);
+	void Initialize(
+		FGeometrySelection* TargetSelectionIn,
+		const FGeometrySelectionHitQueryConfig& QueryConfigIn);
 
 	/** @return the Element Type of the Target Selection */
 	EGeometryElementType GetElementType() const { return TargetSelection->ElementType; }
 	/** @return the Topology Type of the Target Selection */
 	EGeometryTopologyType GetTopologyType() const { return TargetSelection->TopologyType; }
 
+	/** @return the active configuration for this Selection Editor, eg what type of element/topology is being selected. This is redundant w/ the above fields.  */
+	const FGeometrySelectionHitQueryConfig& GetQueryConfig() const { return QueryConfig; }
+
+	/** 
+	 * Update the active QueryConfig for this SelectionEditor. This is necessary to keep it in sync w/ the TargetSelection, if
+	 * the ElementType or TopologyType are modified. This perhaps should be revisited as they basically
+	 * always need to be the same...
+	 */
+	void UpdateQueryConfig(const FGeometrySelectionHitQueryConfig& NewConfig);
+
 	/** @return true if the given ID is currently selected in the Target Selection */
 	bool IsSelected(uint64 ID) const;
 
 	/** Clear the Target Selection and return change information in DeltaOut */
 	void ClearSelection(FGeometrySelectionDelta& DeltaOut);
+
+	/** Access the Selection object this Editor is modifying */
+	const FGeometrySelection& GetSelection() const { return *TargetSelection; }
 
 	/** Add the items in the List to the Target Selection and return change information in DeltaOut */
 	template<typename ListType>
@@ -345,6 +376,29 @@ public:
 
 protected:
 	FGeometrySelection* TargetSelection = nullptr;
+	FGeometrySelectionHitQueryConfig QueryConfig;
+};
+
+
+/**
+ * FGeometrySelectionPreview is a combined FGeometrySelection and FGeometrySelectionEditor.
+ * The purpose of this class is to support things like hover-highlighting, where the Selection 
+ * system needs to be queried but the result is going to be discarded. FGeometrySelectionPreview can 
+ * only be constructed based on a parent FGeometrySelectionEditor, from which it derives it's
+ * configuration, which is then how the rest of the system knows what geometry to provide as a preview/etc
+ */
+class DYNAMICMESH_API FGeometrySelectionPreview : public FGeometrySelectionEditor
+{
+public:
+	FGeometrySelection PreviewSelection;
+
+	FGeometrySelectionPreview(const FGeometrySelectionEditor& ActiveEditor)
+	{
+		PreviewSelection.InitializeTypes(ActiveEditor.GetSelection());
+		Initialize(&PreviewSelection, ActiveEditor.GetQueryConfig());
+	}
+
+	bool IsEmpty() const { return PreviewSelection.IsEmpty(); }
 };
 
 

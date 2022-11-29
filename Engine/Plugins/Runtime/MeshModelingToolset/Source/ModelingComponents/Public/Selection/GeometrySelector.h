@@ -6,6 +6,7 @@
 #include "Selections/GeometrySelection.h"
 #include "FrameTypes.h"
 #include "InputState.h"
+#include "ToolContextInterfaces.h"
 
 class IToolsContextTransactionsAPI;
 
@@ -255,13 +256,20 @@ public:
 	 */
 	virtual FGeometryIdentifier GetIdentifier() const = 0;
 
+	struct FWorldRayQueryInfo
+	{
+		FRay3d WorldRay;
+		FViewCameraState CameraState;
+	};
+
 	/**
 	 * Check for intersection between a world-space Ray with the Selector's target object and return a FInputRayHit result.
 	 * RayHitTest() must return true for other raycast-based functions like UpdateSelectionViaRaycast() to be called.
 	 * @return true on hit, false on miss
 	 */
 	virtual bool RayHitTest(
-		const FRay3d& WorldRay,
+		const FWorldRayQueryInfo& RayInfo,
+		UE::Geometry::FGeometrySelectionHitQueryConfig QueryConfig,
 		FInputRayHit& HitResultOut
 	) = 0;
 
@@ -271,10 +279,20 @@ public:
 	 * Information about any changes actually made to the selection via the SelectionEditor are returned in ResultOut
 	 */
 	virtual void UpdateSelectionViaRaycast(	
-		const FRay3d& WorldRay,
+		const FWorldRayQueryInfo& RayInfo,
 		FGeometrySelectionEditor& SelectionEditor,
 		const FGeometrySelectionUpdateConfig& UpdateConfig,
 		FGeometrySelectionUpdateResult& ResultOut 
+	) = 0;
+
+	/**
+	 * Query the Selector for a potential selection based on world-space Ray. The intention of this query
+	 * is that it be used for "selection preview", eg like hover-highlighting. The PreviewEditor will
+	 * always be updated in 'Add' mode, and currently no result information will be returned. 
+	 */
+	virtual void GetSelectionPreviewForRaycast(
+		const FWorldRayQueryInfo& RayInfo,
+		FGeometrySelectionEditor& PreviewEditor
 	) = 0;
 
 	/**
@@ -299,8 +317,9 @@ public:
 	 * Accumulate geometric elements (currently 3D triangles, line segments, and points) for the provided Selection in the provided ElementsInOut. 
 	 * ElementsInOut is not cleared.
 	 * @param bTransformToWorld if true each geometric element will be transformed to World space, based on GetLocalToWorldTransform()
+	 * @param bIsForPreview if true, geometry is being collected for a preview of selection. Selector may return simplified geometry in this case
 	 */
-	virtual void AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& ElementsInOut, bool bTransformToWorld) = 0;
+	virtual void AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& ElementsInOut, bool bTransformToWorld, bool bIsForPreview) = 0;
 
 
 	/**

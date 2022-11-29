@@ -10,6 +10,8 @@
 #include "Changes/MeshVertexChange.h"
 #include "DynamicMesh/ColliderMesh.h"
 #include "GroupTopology.h"
+#include "Spatial/SegmentTree3.h"
+#include "ToolSceneQueriesUtil.h"
 
 using namespace UE::Geometry;
 
@@ -45,6 +47,7 @@ void FDynamicMeshSelector::RegisterMeshChangedHandler()
 	TargetMesh_OnMeshChangedHandle = TargetMesh->OnMeshChanged().AddLambda([this](UDynamicMesh* Mesh, FDynamicMeshChangeInfo ChangeInfo)
 	{
 		ColliderMesh.Reset();
+		GroupEdgeSegmentTree.Reset();
 
 		if (ChangeInfo.Type != EDynamicMeshChangeType::MeshVertexChange)
 		{
@@ -65,6 +68,8 @@ void FDynamicMeshSelector::Shutdown()
 		TargetMesh_OnMeshChangedHandle.Reset();
 		
 		ColliderMesh.Reset();
+		GroupTopology.Reset();
+		GroupEdgeSegmentTree.Reset();
 	}
 	TargetMesh = nullptr;
 }
@@ -81,6 +86,7 @@ bool FDynamicMeshSelector::Sleep()
 
 	ColliderMesh.Reset();
 	GroupTopology.Reset();
+	GroupEdgeSegmentTree.Reset();
 
 	return true;
 }
@@ -98,13 +104,21 @@ bool FDynamicMeshSelector::Restore()
 }
 
 
+
+
+
+
 bool FDynamicMeshSelector::RayHitTest(
-	const FRay3d& WorldRay,
+	const FWorldRayQueryInfo& RayInfo,
+	FGeometrySelectionHitQueryConfig QueryConfig,
 	FInputRayHit& HitResultOut )
 {
-	FTransformSRT3d WorldTransform = GetWorldTransformFunc();
 	HitResultOut = FInputRayHit();
-	FRay3d LocalRay = WorldTransform.InverseTransformRay(WorldRay);
+
+	// todo: do we need to sometimes ignore surface hits here? maybe for Volumes in (eg) edge mode...
+
+	FTransformSRT3d WorldTransform = GetWorldTransformFunc();
+	FRay3d LocalRay = WorldTransform.InverseTransformRay(RayInfo.WorldRay);
 	double RayHitT; int32 HitTriangleID; FVector3d HitBaryCoords;
 	if (GetColliderMesh()->FindNearestHitTriangle(LocalRay, RayHitT, HitTriangleID, HitBaryCoords))
 	{
@@ -112,33 +126,145 @@ bool FDynamicMeshSelector::RayHitTest(
 		HitResultOut.HitIdentifier = HitTriangleID;
 		HitResultOut.HitOwner = TargetMesh.Get();
 		FVector3d WorldPosition = WorldTransform.TransformPosition(LocalRay.PointAt(RayHitT));
-		HitResultOut.HitDepth = WorldRay.GetParameter(WorldPosition);
+		HitResultOut.HitDepth = RayInfo.WorldRay.GetParameter(WorldPosition);
+	}
+	else if ( QueryConfig.TopologyType == EGeometryTopologyType::Polygroup && QueryConfig.ElementType == EGeometryElementType::Edge )
+	{
+		auto EdgeHitToleranceTest = [RayInfo, WorldTransform](int32 ID, const FVector3d& A, const FVector3d& B)
+		{
+			return ToolSceneQueriesUtil::PointSnapQuery(RayInfo.CameraState,
+				WorldTransform.TransformPosition(A), WorldTransform.TransformPosition(B));
+		};
+		FSegmentTree3::FSegment Segment;
+		FSegmentTree3::FRayNearestSegmentInfo SegmentInfo;
+		if (GetGroupEdgeSpatial()->FindNearestVisibleSegmentHitByRay(LocalRay, EdgeHitToleranceTest, Segment, SegmentInfo))
+		{
+			HitResultOut.bHit = true;
+			HitResultOut.HitIdentifier = Segment.ID;
+			HitResultOut.HitOwner = TargetMesh.Get();
+			FVector3d WorldPosition = WorldTransform.TransformPosition(LocalRay.PointAt(SegmentInfo.RayParam));
+			HitResultOut.HitDepth = RayInfo.WorldRay.GetParameter(WorldPosition);
+		}
 	}
 	return HitResultOut.bHit;
 }
 
 
 void FDynamicMeshSelector::UpdateSelectionViaRaycast(
-	const FRay3d& WorldRay,
+	const FWorldRayQueryInfo& RayInfo,
 	FGeometrySelectionEditor& SelectionEditor,
 	const FGeometrySelectionUpdateConfig& UpdateConfig,
 	FGeometrySelectionUpdateResult& ResultOut)
 {
-	FRay3d LocalRay = GetWorldTransformFunc().InverseTransformRay(WorldRay);
-
-	if (SelectionEditor.GetTopologyType() == EGeometryTopologyType::Polygroup)
+	if (SelectionEditor.GetTopologyType() == EGeometryTopologyType::Triangle)
 	{
+		UpdateSelectionViaRaycast_MeshTopology(RayInfo, SelectionEditor, UpdateConfig, ResultOut);
+		return;
+	}
+	check(SelectionEditor.GetTopologyType() == EGeometryTopologyType::Polygroup);	// assume this...
+
+	if (SelectionEditor.GetElementType() == EGeometryElementType::Edge)
+	{
+		UpdateSelectionViaRaycast_GroupEdges(RayInfo, SelectionEditor, UpdateConfig, ResultOut);
+	}
+	else
+	{
+		FRay3d LocalRay = GetWorldTransformFunc().InverseTransformRay(RayInfo.WorldRay);
 		UE::Geometry::UpdateGroupSelectionViaRaycast(
 			GetColliderMesh(), GetGroupTopology(), &SelectionEditor,
 			LocalRay, UpdateConfig, ResultOut);
 	}
-	else
+}
+
+void FDynamicMeshSelector::UpdateSelectionViaRaycast_MeshTopology(
+	const FWorldRayQueryInfo& RayInfo,
+	FGeometrySelectionEditor& SelectionEditor,
+	const FGeometrySelectionUpdateConfig& UpdateConfig,
+	FGeometrySelectionUpdateResult& ResultOut)
+{
+	FRay3d LocalRay = GetWorldTransformFunc().InverseTransformRay(RayInfo.WorldRay);
+	UE::Geometry::UpdateTriangleSelectionViaRaycast(
+		GetColliderMesh(), &SelectionEditor,
+		LocalRay, UpdateConfig, ResultOut);
+}
+
+
+void FDynamicMeshSelector::UpdateSelectionViaRaycast_GroupEdges(
+	const FWorldRayQueryInfo& RayInfo,
+	FGeometrySelectionEditor& SelectionEditor,
+	const FGeometrySelectionUpdateConfig& UpdateConfig,
+	FGeometrySelectionUpdateResult& ResultOut)
+{
+	FTransformSRT3d WorldTransform = GetWorldTransformFunc();
+	FRay3d LocalRay = WorldTransform.InverseTransformRay(RayInfo.WorldRay);
+
+	auto EdgeHitToleranceTest = [RayInfo, WorldTransform](int32 ID, const FVector3d& A, const FVector3d& B)
 	{
-		UE::Geometry::UpdateTriangleSelectionViaRaycast(
-			GetColliderMesh(), &SelectionEditor,
-			LocalRay, UpdateConfig, ResultOut);
+		return ToolSceneQueriesUtil::PointSnapQuery(RayInfo.CameraState,
+			WorldTransform.TransformPosition(A), WorldTransform.TransformPosition(B));
+	};
+
+	if (SelectionEditor.GetQueryConfig().bOnlyVisible)
+	{
+		// Compute mesh hit and then find nearest-segment to the mesh hit point. This filters out 'backface' hits
+		// and avoids complexity of determing "nearest visible" segment. However this will not work for segments
+		// on the mesh silhouette, or if the mesh surface is hidden, so this path should be optional...maybe controlled by the the SelectionEditor?
+		double RayHitT; int32 HitTriangleID; FVector3d HitBaryCoords;
+		bool bSurfaceMeshHit = GetColliderMesh()->FindNearestHitTriangle(LocalRay, RayHitT, HitTriangleID, HitBaryCoords);
+		if (bSurfaceMeshHit)
+		{
+			FVector3d SurfaceHitPos = LocalRay.PointAt(RayHitT);
+			FSegmentTree3::FSegment Segment;
+			if (GetGroupEdgeSpatial()->FindNearestSegment(SurfaceHitPos, Segment))
+			{
+				FVector3d SegmentPoint = Segment.Segment.NearestPoint(SurfaceHitPos);
+				if (EdgeHitToleranceTest(0, SurfaceHitPos, SegmentPoint))
+				{
+					int32 GroupEdgeID = GetGroupTopology()->FindGroupEdgeID(Segment.ID);
+					if (GroupEdgeID >= 0)
+					{
+						FMeshTriEdgeID TriEdgeID;
+						GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) { TriEdgeID = Mesh.GetTriEdgeIDFromEdgeID(Segment.ID); });
+						ResultOut.bSelectionModified = UpdateSelectionWithNewElements(&SelectionEditor, UpdateConfig.ChangeType, TArray<uint64>{(uint64)TriEdgeID.Encoded()}, & ResultOut.SelectionDelta);
+						ResultOut.bSelectionMissed = false;
+					}
+				}
+			}
+			// if we took this path we are not going to consider ray-nearest point
+			return;
+		}
+	}
+
+	// find nearest segment to ray
+	FSegmentTree3::FSegment Segment;
+	FSegmentTree3::FRayNearestSegmentInfo SegmentInfo;
+	if (GetGroupEdgeSpatial()->FindNearestVisibleSegmentHitByRay(LocalRay, EdgeHitToleranceTest, Segment, SegmentInfo))
+	{
+		int32 GroupEdgeID = GetGroupTopology()->FindGroupEdgeID(Segment.ID);
+		if (GroupEdgeID >= 0)
+		{
+			FMeshTriEdgeID TriEdgeID;
+			GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh) { TriEdgeID = Mesh.GetTriEdgeIDFromEdgeID(Segment.ID); });
+			FGeoSelectionID SelectionID(TriEdgeID.Encoded(), GroupEdgeID);
+			ResultOut.bSelectionModified = UpdateSelectionWithNewElements(&SelectionEditor, UpdateConfig.ChangeType, TArray<uint64>{SelectionID.Encoded()}, & ResultOut.SelectionDelta);
+			ResultOut.bSelectionMissed = false;
+		}
 	}
 }
+
+
+
+
+void FDynamicMeshSelector::GetSelectionPreviewForRaycast(
+	const FWorldRayQueryInfo& RayInfo,
+	FGeometrySelectionEditor& PreviewEditor)
+{
+	FGeometrySelectionUpdateResult UpdateResult;
+	UpdateSelectionViaRaycast(RayInfo, PreviewEditor,
+		FGeometrySelectionUpdateConfig(),	// defaults to add
+		UpdateResult);
+}
+
 
 
 void FDynamicMeshSelector::GetSelectionFrame(const FGeometrySelection& Selection, FFrame3d& SelectionFrame, bool bTransformToWorld)
@@ -208,11 +334,12 @@ void FDynamicMeshSelector::AccumulateSelectionBounds(const FGeometrySelection& S
 
 
 
-void FDynamicMeshSelector::AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& Elements, bool bTransformToWorld)
+void FDynamicMeshSelector::AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& Elements, bool bTransformToWorld, bool bIsForPreview)
 {
 	FTransform UseWorldTransform = GetLocalToWorldTransform();
 	const FTransform* ApplyTransform = (bTransformToWorld) ? &UseWorldTransform : nullptr;
 
+	bool bMapFacesToEdges = bIsForPreview;
 	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
 	{
 		const FGroupTopology* Topology = GetGroupTopology();
@@ -222,7 +349,7 @@ void FDynamicMeshSelector::AccumulateSelectionElements(const FGeometrySelection&
 				[&](uint32 VertexID, const FVector3d& Point) { Elements.Points.Add(Point); },
 				[&](uint32 EdgeID, const FSegment3d& Segment) { Elements.Segments.Add(Segment); },
 				[&](uint32 TriangleID, const FTriangle3d& Triangle) { Elements.Triangles.Add(Triangle); },
-				ApplyTransform
+				ApplyTransform, bMapFacesToEdges
 			);
 		});
 	}
@@ -234,7 +361,7 @@ void FDynamicMeshSelector::AccumulateSelectionElements(const FGeometrySelection&
 				[&](uint32 VertexID, const FVector3d& Point) { Elements.Points.Add(Point); },
 				[&](uint32 EdgeID, const FSegment3d& Segment) { Elements.Segments.Add(Segment); },
 				[&](uint32 TriangleID, const FTriangle3d& Triangle) { Elements.Triangles.Add(Triangle); },
-				ApplyTransform
+				ApplyTransform, bMapFacesToEdges
 			);
 		});
 	}
@@ -279,6 +406,36 @@ const FGroupTopology* FDynamicMeshSelector::GetGroupTopology()
 	return GroupTopology.Get();
 }
 
+
+
+void FDynamicMeshSelector::UpdateGroupEdgeSegmentTree()
+{
+	const FGroupTopology* UseGroupTopology = GetGroupTopology();
+
+	TargetMesh->ProcessMesh([&](const UE::Geometry::FDynamicMesh3& SourceMesh)
+	{
+		TArray<int32> EdgeIDs;
+		for (const FGroupTopology::FGroupEdge& GroupEdge : UseGroupTopology->Edges)
+		{
+			EdgeIDs.Append(GroupEdge.Span.Edges);
+		}
+
+		GroupEdgeSegmentTree = MakePimpl<FSegmentTree3>();
+		GroupEdgeSegmentTree->Build(EdgeIDs, [&SourceMesh](int32 EdgeID)
+		{
+			return FSegment3d( SourceMesh.GetEdgePoint(EdgeID, 0), SourceMesh.GetEdgePoint(EdgeID, 1) );
+		}, SourceMesh.EdgeCount() );
+	});
+}
+
+const FSegmentTree3* FDynamicMeshSelector::GetGroupEdgeSpatial()
+{
+	if (!GroupEdgeSegmentTree.IsValid())
+	{
+		UpdateGroupEdgeSegmentTree();
+	}
+	return GroupEdgeSegmentTree.Get();
+}
 
 
 bool FDynamicMeshComponentSelectorFactory::CanBuildForTarget(FGeometryIdentifier TargetIdentifier) const

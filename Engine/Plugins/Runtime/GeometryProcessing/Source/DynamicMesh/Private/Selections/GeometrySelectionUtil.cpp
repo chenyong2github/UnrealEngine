@@ -12,6 +12,52 @@
 #include "Algo/Find.h"
 
 
+
+bool UE::Geometry::AreSelectionsIdentical(
+	const FGeometrySelection& SelectionA, const FGeometrySelection& SelectionB)
+{
+	if ((SelectionA.ElementType != SelectionB.ElementType) || (SelectionA.TopologyType != SelectionB.TopologyType))
+	{
+		return false;
+	}
+	int32 Num = SelectionA.Num();
+	if (Num != SelectionB.Num())
+	{
+		return false;
+	}
+
+	if (SelectionA.TopologyType == EGeometryTopologyType::Polygroup)
+	{
+		// for polygroup topology we may have stored an arbitrary geometry ID and so we cannot rely on TSet Contains
+		for (uint64 ItemA : SelectionA.Selection)
+		{
+			uint32 TopologyID = FGeoSelectionID(ItemA).TopologyID;
+			const uint64* Found = Algo::FindByPredicate(SelectionB.Selection, [&](uint64 Item)
+			{
+				return FGeoSelectionID(Item).TopologyID == TopologyID;
+			});
+			if (Found == nullptr)
+			{
+				return false;
+			}
+		}
+	}
+	else
+	{
+		for (uint64 ItemA : SelectionA.Selection)
+		{
+			if (SelectionB.Selection.Contains(ItemA) == false)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+
+
 bool UE::Geometry::FindInSelectionByTopologyID(
 	const FGeometrySelection& GeometrySelection,
 	uint32 TopologyID,
@@ -137,24 +183,28 @@ void UE::Geometry::UpdateGroupSelectionViaRaycast(
 			FVector3d HitPos = LocalRay.PointAt(RayHitT);
 			FIndex3i TriVerts = ColliderMesh->GetTriangle(HitTriangleID);
 			int32 NearestIdx = -1;
-			double NearestDistSqr = DistanceSquared(ColliderMesh->GetVertex(TriVerts[0]), HitPos);
+			int32 NearestCornerID = IndexConstants::InvalidID;
+			double NearestDistSqr = TNumericLimits<double>::Max();
 			for (int32 k = 0; k < 3; ++k)
 			{
-				if (GroupTopology->GetCornerIDFromVertexID(TriVerts[k]) != IndexConstants::InvalidID)
+				int32 FoundCornerID = GroupTopology->GetCornerIDFromVertexID(TriVerts[k]);
+				if (FoundCornerID != IndexConstants::InvalidID)
 				{
 					double DistSqr = DistanceSquared(ColliderMesh->GetVertex(TriVerts[k]), HitPos);
 					if (DistSqr < NearestDistSqr)
 					{
 						NearestDistSqr = DistSqr;
 						NearestIdx = k;
+						NearestCornerID = FoundCornerID;
 					}
 				}
 			}
-			if (NearestIdx >= 0)
+			if (NearestCornerID != IndexConstants::InvalidID)
 			{
 				// do we need a group here?
 				int32 VertexID = TriVerts[NearestIdx];
-				ResultOut.bSelectionModified = UpdateSelectionWithNewElements(Editor, UpdateConfig.ChangeType, TArray<uint64>{(uint64)VertexID}, &ResultOut.SelectionDelta);
+				FGeoSelectionID SelectionID(VertexID, NearestCornerID);
+				ResultOut.bSelectionModified = UpdateSelectionWithNewElements(Editor, UpdateConfig.ChangeType, TArray<uint64>{SelectionID.Encoded()}, &ResultOut.SelectionDelta);
 				ResultOut.bSelectionMissed = false;
 			}
 		}
@@ -182,8 +232,14 @@ void UE::Geometry::UpdateGroupSelectionViaRaycast(
 			{
 				// do we need a group here?
 				FMeshTriEdgeID TriEdgeID(HitTriangleID, NearestIdx);
-				ResultOut.bSelectionModified = UpdateSelectionWithNewElements(Editor, UpdateConfig.ChangeType, TArray<uint64>{(uint64)TriEdgeID.Encoded()}, & ResultOut.SelectionDelta);
-				ResultOut.bSelectionMissed = false;
+				int32 GroupEdgeID = GroupTopology->FindGroupEdgeID(TriEdgeID);
+				checkSlow(GroupEdgeID >= 0);  // should never fail...
+				if (GroupEdgeID >= 0)
+				{
+					FGeoSelectionID SelectionID(TriEdgeID.Encoded(), GroupEdgeID);
+					ResultOut.bSelectionModified = UpdateSelectionWithNewElements(Editor, UpdateConfig.ChangeType, TArray<uint64>{SelectionID.Encoded()}, & ResultOut.SelectionDelta);
+					ResultOut.bSelectionMissed = false;
+				}
 			}
 		}
 	}
@@ -542,7 +598,8 @@ bool UE::Geometry::EnumerateTriangleSelectionElements(
 	TFunctionRef<void(int32, const FVector3d&)> VertexFunc,
 	TFunctionRef<void(int32, const FSegment3d&)> EdgeFunc,
 	TFunctionRef<void(int32, const FTriangle3d&)> TriangleFunc,
-	const FTransform* ApplyTransform
+	const FTransform* ApplyTransform,
+	bool bMapFacesToEdgeLoops
 )
 {
 	if ( ensure( MeshSelection.TopologyType == EGeometryTopologyType::Triangle ) == false )
@@ -565,7 +622,17 @@ bool UE::Geometry::EnumerateTriangleSelectionElements(
 					B = ApplyTransform->TransformPosition(B);
 					C = ApplyTransform->TransformPosition(C);
 				}
-				TriangleFunc(TriangleID, FTriangle3d(A, B, C));
+				if (bMapFacesToEdgeLoops)
+				{
+					FIndex3i Edges = Mesh.GetTriEdges((int32)TriangleID);
+					EdgeFunc(Edges.A, FSegment3d(A, B));
+					EdgeFunc(Edges.B, FSegment3d(B, C));
+					EdgeFunc(Edges.C, FSegment3d(C, A));
+				}
+				else
+				{
+					TriangleFunc(TriangleID, FTriangle3d(A, B, C));
+				}
 			}
 		}
 	}
@@ -619,7 +686,8 @@ bool UE::Geometry::EnumeratePolygroupSelectionElements(
 	TFunctionRef<void(int32, const FVector3d&)> VertexFunc,
 	TFunctionRef<void(int32, const FSegment3d&)> EdgeFunc,
 	TFunctionRef<void(int32, const FTriangle3d&)> TriangleFunc,
-	const FTransform* ApplyTransform
+	const FTransform* ApplyTransform,
+	bool bMapFacesToEdgeLoops
 )
 {
 	if ( ensure( MeshSelection.TopologyType == EGeometryTopologyType::Polygroup ) == false )
@@ -627,25 +695,65 @@ bool UE::Geometry::EnumeratePolygroupSelectionElements(
 		return false;
 	}
 
+	auto ProcessGroupEdgeID = [GroupTopology, &Mesh, ApplyTransform, &EdgeFunc](int32 GroupEdgeID)
+	{
+		for (int32 EdgeID : GroupTopology->GetGroupEdgeEdges(GroupEdgeID))
+		{
+			FVector3d A, B;
+			Mesh.GetEdgeV(EdgeID, A, B);
+			if (ApplyTransform != nullptr)
+			{
+				A = ApplyTransform->TransformPosition(A);
+				B = ApplyTransform->TransformPosition(B);
+			}
+			EdgeFunc(EdgeID, FSegment3d(A, B));
+		}
+	};
+
 	if (MeshSelection.ElementType == EGeometryElementType::Face)
 	{
-		for (uint64 EncodedID : MeshSelection.Selection)
+		if (bMapFacesToEdgeLoops)
 		{
-			FGeoSelectionID SelectionID(EncodedID);
-			int32 SeedTriangleID = (int32)SelectionID.GeometryID, GroupID = (int32)SelectionID.TopologyID;
-			if (Mesh.IsTriangle(SeedTriangleID))
+			TArray<int32> GroupEdgeIDs;
+			for (uint64 EncodedID : MeshSelection.Selection)
 			{
-				for (int32 TriangleID : GroupTopology->GetGroupFaces(GroupID))
+				int32 GroupID = FGeoSelectionID(EncodedID).TopologyID;
+				if ( const FGroupTopology::FGroup* Group = GroupTopology->FindGroupByID(GroupID) )
 				{
-					FVector3d A, B, C;
-					Mesh.GetTriVertices((int32)TriangleID, A, B, C);
-					if (ApplyTransform != nullptr)
+					for (const FGroupTopology::FGroupBoundary& Boundary : Group->Boundaries)
 					{
-						A = ApplyTransform->TransformPosition(A);
-						B = ApplyTransform->TransformPosition(B);
-						C = ApplyTransform->TransformPosition(C);
+						for (int32 GroupEdgeID : Boundary.GroupEdges)
+						{
+							GroupEdgeIDs.AddUnique(GroupEdgeID);
+						}
 					}
-					TriangleFunc(TriangleID, FTriangle3d(A, B, C));
+				}
+			}
+			for (int32 GroupEdgeID : GroupEdgeIDs)
+			{
+				ProcessGroupEdgeID(GroupEdgeID);
+			}
+		}
+		else
+		{
+			for (uint64 EncodedID : MeshSelection.Selection)
+			{
+				FGeoSelectionID SelectionID(EncodedID);
+				int32 SeedTriangleID = (int32)SelectionID.GeometryID, GroupID = (int32)SelectionID.TopologyID;
+				if (Mesh.IsTriangle(SeedTriangleID))
+				{
+					for (int32 TriangleID : GroupTopology->GetGroupFaces(GroupID))
+					{
+						FVector3d A, B, C;
+						Mesh.GetTriVertices((int32)TriangleID, A, B, C);
+						if (ApplyTransform != nullptr)
+						{
+							A = ApplyTransform->TransformPosition(A);
+							B = ApplyTransform->TransformPosition(B);
+							C = ApplyTransform->TransformPosition(C);
+						}
+						TriangleFunc(TriangleID, FTriangle3d(A, B, C));
+					}
 				}
 			}
 		}
@@ -659,17 +767,7 @@ bool UE::Geometry::EnumeratePolygroupSelectionElements(
 			if (Mesh.IsEdge(SeedEdgeID))
 			{
 				int32 GroupEdgeID = GroupTopology->FindGroupEdgeID(SeedEdgeID);
-				for (int32 EdgeID : GroupTopology->GetGroupEdgeEdges(GroupEdgeID))
-				{
-					FVector3d A, B;
-					Mesh.GetEdgeV(EdgeID, A, B);
-					if (ApplyTransform != nullptr)
-					{
-						A = ApplyTransform->TransformPosition(A);
-						B = ApplyTransform->TransformPosition(B);
-					}
-					EdgeFunc(EdgeID, FSegment3d(A, B));
-				}
+				ProcessGroupEdgeID(GroupEdgeID);
 			}
 		}
 	}

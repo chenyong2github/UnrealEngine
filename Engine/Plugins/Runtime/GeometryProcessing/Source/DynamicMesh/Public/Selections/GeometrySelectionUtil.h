@@ -19,6 +19,18 @@ class FColliderMesh;
 class FGroupTopology;
 struct FGroupTopologySelection;
 
+
+/**
+ * Test if SelectionA and SelectionB are the same selection.
+ * This is currently relatively expensive on Polygroup selections due to how they are encoded
+ * @return true if the selections are iddentical
+ */
+DYNAMICMESH_API bool AreSelectionsIdentical(
+	const FGeometrySelection& SelectionA,
+	const FGeometrySelection& SelectionB);
+
+
+
 /**
  * Assuming that the uint64 values in the GeometrySelection are encoded FGeoSelectionID's, 
  * find the item that has a matching TopologyID, ignoring the GeometryID.
@@ -146,7 +158,8 @@ DYNAMICMESH_API bool EnumerateTriangleSelectionElements(
 	TFunctionRef<void(int32, const FVector3d&)> VertexFunc,
 	TFunctionRef<void(int32, const FSegment3d&)> EdgeFunc,
 	TFunctionRef<void(int32, const FTriangle3d&)> TriangleFunc,
-	const FTransform* ApplyTransform = nullptr
+	const FTransform* ApplyTransform = nullptr,
+	bool bMapFacesToEdgeLoops = false
 );
 /**
  * Call VertexFunc/EdgeFunc/TriangleFunc for the mesh vertices/edges/triangles identified by MeshSelection,
@@ -163,7 +176,8 @@ DYNAMICMESH_API bool EnumeratePolygroupSelectionElements(
 	TFunctionRef<void(int32, const FVector3d&)> VertexFunc,
 	TFunctionRef<void(int32, const FSegment3d&)> EdgeFunc,
 	TFunctionRef<void(int32, const FTriangle3d&)> TriangleFunc,
-	const FTransform* ApplyTransform = nullptr
+	const FTransform* ApplyTransform = nullptr,
+	bool bMapFacesToEdgeLoops = false
 );
 
 

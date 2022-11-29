@@ -4,8 +4,11 @@
 #include "Engine/Engine.h"
 #include "Selection/DynamicMeshSelector.h"
 #include "Selection/SelectionEditInteractiveCommand.h"
+#include "InteractiveToolsContext.h"
+#include "InteractiveToolManager.h"
 #include "ToolContextInterfaces.h"
 #include "ToolDataVisualizer.h"
+#include "Selections/GeometrySelectionUtil.h"
 
 // for debug drawing
 #include "SceneManagement.h"		
@@ -15,6 +18,13 @@
 #include "Selection/PersistentMeshSelection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometrySelectionManager)
+
+static TAutoConsoleVariable<int32> CVarGeometrySelectionManager_FullSelectionHoverHighlights(
+	TEXT("modeling.Selection.FullHoverHighlights"),
+	0,
+	TEXT("Use full selection hover highlights instead of simplified highlights")
+);
+
 
 
 using namespace UE::Geometry;
@@ -109,7 +119,7 @@ void UGeometrySelectionManager::SetSelectionElementTypeInternal(EGeometryElement
 		for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
 		{
 			Target->Selection.ElementType = SelectionElementType;
-			// do we need to update/rebuild Editors here? They currently do not have state...
+			Target->SelectionEditor->UpdateQueryConfig(GetCurrentSelectionQueryConfig());
 		}
 	}
 }
@@ -152,7 +162,7 @@ void UGeometrySelectionManager::SetMeshTopologyModeInternal(EMeshTopologyMode Ne
 		for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
 		{
 			Target->Selection.TopologyType = GetSelectionTopologyType();
-			// do we need to update/rebuild Editors here? They currently do not have state...
+			Target->SelectionEditor->UpdateQueryConfig(GetCurrentSelectionQueryConfig());
 		}
 	}
 }
@@ -197,6 +207,16 @@ EGeometryTopologyType UGeometrySelectionManager::GetSelectionTopologyType() cons
 	}
 }
 
+
+
+UE::Geometry::FGeometrySelectionHitQueryConfig UGeometrySelectionManager::GetCurrentSelectionQueryConfig() const
+{
+	FGeometrySelectionHitQueryConfig HitQueryConfig;
+	HitQueryConfig.TopologyType = GetSelectionTopologyType();
+	HitQueryConfig.ElementType = GetSelectionElementType();
+	HitQueryConfig.bOnlyVisible = true;
+	return HitQueryConfig;
+}
 
 
 bool UGeometrySelectionManager::HasSelection() const
@@ -388,6 +408,7 @@ TSharedPtr<UGeometrySelectionManager::FGeometrySelectionTarget> UGeometrySelecti
 		// ensure these are current, as they may have changed while Target was asleep
 		FoundTarget->Selection.ElementType = GetSelectionElementType();
 		FoundTarget->Selection.TopologyType = GetSelectionTopologyType();
+		FoundTarget->SelectionEditor->UpdateQueryConfig(GetCurrentSelectionQueryConfig());
 
 		return FoundTarget;
 	}
@@ -408,7 +429,8 @@ TSharedPtr<UGeometrySelectionManager::FGeometrySelectionTarget> UGeometrySelecti
 	SelectionTarget->Selection.TopologyType = GetSelectionTopologyType();
 
 	SelectionTarget->SelectionEditor = MakeUnique<FGeometrySelectionEditor>();
-	SelectionTarget->SelectionEditor->Initialize(&SelectionTarget->Selection);
+	FGeometrySelectionHitQueryConfig HitQueryConfig = GetCurrentSelectionQueryConfig();
+	SelectionTarget->SelectionEditor->Initialize(&SelectionTarget->Selection, HitQueryConfig);
 
 	if (SelectionTarget->Selector->SupportsSleep())
 	{
@@ -439,7 +461,16 @@ bool UGeometrySelectionManager::RayHitTest(
 		return false;
 	}
 
-	bool bHit = ActiveTargetReferences[0]->Selector->RayHitTest(WorldRay, HitResultOut);
+	IGeometrySelector::FWorldRayQueryInfo RayQueryInfo;
+	RayQueryInfo.WorldRay = WorldRay;
+	IToolsContextQueriesAPI* QueryAPI = this->ToolsContext->ToolManager->GetContextQueriesAPI();
+	QueryAPI->GetCurrentViewState(RayQueryInfo.CameraState);
+
+	// currently only going to support one object, not sure how to support more yet...
+	FGeometrySelectionTarget* Target = ActiveTargetReferences[0].Get();
+
+	FGeometrySelectionHitQueryConfig HitQueryConfig = GetCurrentSelectionQueryConfig();
+	bool bHit = Target->Selector->RayHitTest(RayQueryInfo, HitQueryConfig, HitResultOut);
 	if (bHit)
 	{
 		HitResultOut.HitOwner = ActiveTargetReferences[0].Get();
@@ -497,8 +528,13 @@ void UGeometrySelectionManager::UpdateSelectionViaRaycast(
 	// currently only going to support one object, not sure how to support more yet...
 	FGeometrySelectionTarget* Target = ActiveTargetReferences[0].Get();
 
+	IGeometrySelector::FWorldRayQueryInfo RayQueryInfo;
+	RayQueryInfo.WorldRay = WorldRay;
+	IToolsContextQueriesAPI* QueryAPI = this->ToolsContext->ToolManager->GetContextQueriesAPI();
+	QueryAPI->GetCurrentViewState(RayQueryInfo.CameraState);
+
 	Target->Selector->UpdateSelectionViaRaycast(
-		WorldRay, *Target->SelectionEditor, UpdateConfig, ResultOut
+		RayQueryInfo, *Target->SelectionEditor, UpdateConfig, ResultOut
 	);
 
 	if (ResultOut.bSelectionModified)
@@ -521,6 +557,45 @@ void UGeometrySelectionManager::UpdateSelectionViaRaycast(
 }
 
 
+
+bool UGeometrySelectionManager::UpdateSelectionPreviewViaRaycast(
+	const FRay3d& WorldRay )
+{
+	if (ActiveTargetReferences.Num() == 0)
+	{
+		return false;
+	}
+	bool bUseSimplifiedPreviewHighlight = (CVarGeometrySelectionManager_FullSelectionHoverHighlights.GetValueOnGameThread() == 0);
+
+	// currently only going to support one object, not sure how to support more yet...
+
+	FGeometrySelectionTarget* Target = ActiveTargetReferences[0].Get();
+
+	IGeometrySelector::FWorldRayQueryInfo RayQueryInfo;
+	RayQueryInfo.WorldRay = WorldRay;
+	IToolsContextQueriesAPI* QueryAPI = this->ToolsContext->ToolManager->GetContextQueriesAPI();
+	QueryAPI->GetCurrentViewState(RayQueryInfo.CameraState);
+
+	FGeometrySelectionPreview NewPreview( *(Target->SelectionEditor) );
+	Target->Selector->GetSelectionPreviewForRaycast( RayQueryInfo, NewPreview );
+	if ( ! UE::Geometry::AreSelectionsIdentical(NewPreview.PreviewSelection, ActivePreviewSelection) )
+	{
+		ActivePreviewSelection = MoveTemp(NewPreview.PreviewSelection);
+		CachedPreviewRenderElements.Reset();
+		if (ActivePreviewSelection.IsEmpty() == false)
+		{
+			Target->Selector->AccumulateSelectionElements(ActivePreviewSelection, CachedPreviewRenderElements, true, bUseSimplifiedPreviewHighlight);
+		}
+	}
+
+	return (ActivePreviewSelection.IsEmpty() == false);
+}
+
+void UGeometrySelectionManager::ClearSelectionPreview()
+{
+	ActivePreviewSelection.Selection.Reset();
+	CachedPreviewRenderElements.Reset();
+}
 
 
 
@@ -814,6 +889,8 @@ void UGeometrySelectionManager::RevertChange(IGeometrySelectionChange* Change)
 void UGeometrySelectionManager::OnTargetGeometryModified(IGeometrySelector* Selector)
 {
 	bSelectionRenderCachesDirty = true;
+
+	ClearActivePreview();
 }
 
 
@@ -822,6 +899,8 @@ void UGeometrySelectionManager::UpdateSelectionRenderCacheOnTargetChange()
 	CachedSelectionRenderElements.Reset();
 	CachedSelectionRenderElements.SetNum(ActiveTargetReferences.Num());
 	bSelectionRenderCachesDirty = true;
+
+	ClearActivePreview();
 }
 
 void UGeometrySelectionManager::RebuildSelectionRenderCaches()
@@ -839,10 +918,17 @@ void UGeometrySelectionManager::RebuildSelectionRenderCaches()
 		FGeometrySelectionElements& Elements = CachedSelectionRenderElements[k];
 		Elements.Reset();
 
-		Target->Selector->AccumulateSelectionElements(Target->Selection, Elements, true);
+		Target->Selector->AccumulateSelectionElements(Target->Selection, Elements, true, false);
 	}
 
 	bSelectionRenderCachesDirty = false;
+}
+
+
+void UGeometrySelectionManager::ClearActivePreview()
+{
+	ActivePreviewSelection.Reset();
+	CachedPreviewRenderElements.Reset();
 }
 
 
@@ -901,14 +987,53 @@ void UGeometrySelectionManager::DebugRender(IToolsContextRenderAPI* RenderAPI)
 		Visualizer.bDepthTested = false;
 		Visualizer.BeginFrame(RenderAPI);
 
-		Visualizer.SetLineParameters(FLinearColor(0,1,0,1), 2.0f);
+		Visualizer.SetLineParameters(FLinearColor(0,0.3f,0.95f,1), 3.0f);
 		for (const FSegment3d& Segment : Elements.Segments)
 		{
 			Visualizer.DrawLine(Segment.StartPoint(), Segment.EndPoint());
 		}
 
-		Visualizer.SetPointParameters(FLinearColor(0,0,1,1), 10.0f);
+		Visualizer.SetPointParameters(FLinearColor(0,0.3f,0.95f,1), 10.0f);
 		for (const FVector3d& Point : Elements.Points)
+		{
+			Visualizer.DrawPoint(Point);
+		}
+
+		Visualizer.EndFrame();
+	}
+
+	// draw selection preview
+	{
+		FPrimitiveDrawInterface* CurrentPDI = RenderAPI->GetPrimitiveDrawInterface();
+		FDynamicMeshBuilder MeshBuilder(CurrentPDI->View->GetFeatureLevel());
+		int32 DepthPriority = SDPG_World; // SDPG_Foreground;  // SDPG_World
+		FVector2f UVs[3] = { FVector2f(0,0), FVector2f(0,1), FVector2f(1,1) };
+		FVector3f Normal = FVector3f(0, 0, 1);
+		FVector3f Tangent = FVector3f(1, 0, 0);
+		for (const FTriangle3d& Triangle : CachedPreviewRenderElements.Triangles)
+		{
+			int32 V0 = MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Triangle.V[0], Tangent, Normal, UVs[0], FColor::White));
+			int32 V1 = MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Triangle.V[1], Tangent, Normal, UVs[1], FColor::White));
+			int32 V2 = MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Triangle.V[2], Tangent, Normal, UVs[2], FColor::White));
+			MeshBuilder.AddTriangle(V0, V1, V2);
+		}
+		//FMaterialRenderProxy* MaterialRenderProxy = TriangleMaterial->GetRenderProxy();		// currently does not work, material does not render
+		FMaterialRenderProxy* MaterialRenderProxy = GEngine->ConstraintLimitMaterialX->GetRenderProxy();
+		MeshBuilder.Draw(CurrentPDI, FMatrix::Identity, MaterialRenderProxy, DepthPriority, false, false);
+
+
+		FToolDataVisualizer Visualizer;
+		Visualizer.bDepthTested = false;
+		Visualizer.BeginFrame(RenderAPI);
+
+		Visualizer.SetLineParameters(FLinearColor(1, 1, 0, 1), 1.0f);
+		for (const FSegment3d& Segment : CachedPreviewRenderElements.Segments)
+		{
+			Visualizer.DrawLine(Segment.StartPoint(), Segment.EndPoint());
+		}
+
+		Visualizer.SetPointParameters(FLinearColor(1, 1, 0, 1), 5.0f);
+		for (const FVector3d& Point : CachedPreviewRenderElements.Points)
 		{
 			Visualizer.DrawPoint(Point);
 		}
