@@ -5005,7 +5005,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			}
 			else if (PropertyPath == TEXT("DefaultValue"))
 			{
-				FRigVMControllerNotifGuard(Controller, true);
+				FRigVMControllerNotifGuard NotifGuard(Controller, true);
 				for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
 				{
 					if (Variable.Name == VariableDescription.Name)
