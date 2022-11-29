@@ -11206,6 +11206,22 @@ void FSequencer::BindCommands()
 		FCanExecuteAction::CreateSP(this, &FSequencer::CanAddTransformKeysForSelectedObjects));
 
 	SequencerCommandBindings->MapAction(
+		Commands.SetKeyTime,
+		FExecuteAction::CreateSP(this, &FSequencer::SetKeyTime),
+		FCanExecuteAction::CreateSP(this, &FSequencer::CanSetKeyTime));
+	SequencerCommandBindings->MapAction(
+		Commands.Rekey,
+		FExecuteAction::CreateSP(this, &FSequencer::Rekey),
+		FCanExecuteAction::CreateSP(this, &FSequencer::CanRekey));
+	SequencerCommandBindings->MapAction(
+		Commands.SnapToFrame,
+		FExecuteAction::CreateSP(this, &FSequencer::SnapToFrame),
+		FCanExecuteAction::CreateSP(this, &FSequencer::CanSnapToFrame));
+	SequencerCommandBindings->MapAction(
+		Commands.DeleteKeys,
+		FExecuteAction::CreateSP(this, &FSequencer::DeleteSelectedKeys));
+
+	SequencerCommandBindings->MapAction(
 		Commands.TogglePilotCamera,
 		FExecuteAction::CreateSP(this, &FSequencer::OnTogglePilotCamera),
 		FCanExecuteAction::CreateLambda( [] { return true; } ),

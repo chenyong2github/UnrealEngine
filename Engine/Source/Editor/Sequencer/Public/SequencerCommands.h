@@ -445,6 +445,18 @@ public:
 	/** Sets a scale key at the current time for the selected actor */
 	TSharedPtr< FUICommandInfo > AddScaleKey;
 
+	/** Set the key to a specified time */
+	TSharedPtr< FUICommandInfo > SetKeyTime;
+
+	/** Set the selected key's time to the current time */
+	TSharedPtr< FUICommandInfo > Rekey;
+
+	/** Snap selected keys to frame */
+	TSharedPtr< FUICommandInfo > SnapToFrame;
+
+	/** Deletes the selected keys */
+	TSharedPtr< FUICommandInfo > DeleteKeys;
+
 	/** Toggle piloting the last camera or the camera cut camera */
 	TSharedPtr< FUICommandInfo > TogglePilotCamera;
 
