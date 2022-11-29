@@ -74,10 +74,17 @@ void FISMComponentBatcher::AddInternal(const UActorComponent* InComponent, TOpti
 			}
 			InstancesTransformsWS.Add(InstanceTransformWS);
 
-			// Add per instance custom data
-			TConstArrayView<float> InstanceCustomData(&ISMC->PerInstanceSMCustomData[InstanceIdx * ISMC->NumCustomDataFloats], ISMC->NumCustomDataFloats);
-			InstancesCustomData.Append(InstanceCustomData);
-			InstancesCustomData.AddDefaulted(NumCustomDataFloats - InstanceCustomData.Num());
+			// Add per instance custom data, if any
+			if (NumCustomDataFloats > 0)
+			{
+				if (ISMC->NumCustomDataFloats > 0)
+				{
+					TConstArrayView<float> InstanceCustomData(&ISMC->PerInstanceSMCustomData[InstanceIdx * ISMC->NumCustomDataFloats], ISMC->NumCustomDataFloats);
+					InstancesCustomData.Append(InstanceCustomData);
+				}
+
+				InstancesCustomData.AddDefaulted(NumCustomDataFloats - ISMC->NumCustomDataFloats);
+			}
 		}
 	}
 	else if (const UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(InComponent))
