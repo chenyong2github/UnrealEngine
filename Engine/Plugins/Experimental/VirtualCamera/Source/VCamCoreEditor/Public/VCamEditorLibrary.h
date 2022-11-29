@@ -4,10 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-
 #include "VCamEditorLibrary.generated.h"
 
-class UVcamComponent;
+class UVCamComponent;
 
 UCLASS()
 class UVCamEditorLibrary : public UBlueprintFunctionLibrary
