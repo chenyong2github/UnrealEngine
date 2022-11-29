@@ -35,8 +35,7 @@ void ADEPRECATED_SmartObjectCollection::PostLoad()
 		{
 			USmartObjectSubsystem::CreatePersistentCollectionFromDeprecatedData(*World, *this);
 			ClearCollection();
-			MarkAsGarbage();
-			MarkPackageDirty();
+			SetActorLabel(TEXT("DEPRECATED_SmartObjectCollection"));
 		}
 	}
 #endif // WITH_EDITORONLY_DATA

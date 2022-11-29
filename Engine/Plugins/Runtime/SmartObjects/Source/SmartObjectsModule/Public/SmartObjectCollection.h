@@ -52,7 +52,7 @@ protected:
 	/** if set to true will result in letting the level-less SmartObjects to register. Required for smart object unit testing. */
 	bool bIgnoreLevelTesting = false;
 
-	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
+	UPROPERTY(VisibleAnywhere, Category = SmartObject, AdvancedDisplay)
 	bool bBuildCollectionAutomatically = false;
 
 	bool bBuildingForWorldPartition = false;
