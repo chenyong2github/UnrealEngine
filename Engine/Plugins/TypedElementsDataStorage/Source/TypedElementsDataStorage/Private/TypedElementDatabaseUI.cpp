@@ -61,9 +61,15 @@ void UTypedElementDatabaseUi::CreateWidgetInstanceFromDescription(
 {
 	FTypedElementWidgetConstructor* Constructor = reinterpret_cast<FTypedElementWidgetConstructor*>(
 		FMemory_Alloca_Aligned(Target->GetStructureSize(), Target->GetMinAlignment()));
-	Target->InitializeStruct(Constructor);
-
-	CreateWidgetInstance(*Constructor, Arguments, ConstructionCallback, Target);
+	if (Constructor)
+	{
+		Target->InitializeStruct(Constructor);
+		CreateWidgetInstance(*Constructor, Arguments, ConstructionCallback, Target);
+	}
+	else
+	{
+		checkf(false, TEXT("Remaining stack space is too small to create a Typed Elements widget constructor from a description."));
+	}
 }
 
 void UTypedElementDatabaseUi::CreateWidgetInstanceFromInstance(
@@ -74,10 +80,16 @@ void UTypedElementDatabaseUi::CreateWidgetInstanceFromInstance(
 {
 	FTypedElementWidgetConstructor* Constructor = reinterpret_cast<FTypedElementWidgetConstructor*>(
 		FMemory_Alloca_Aligned(Target->GetStructureSize(), Target->GetMinAlignment()));
-	Target->InitializeStruct(Constructor);
-	Target->CopyScriptStruct(Constructor, SourceConstructor);
-
-	CreateWidgetInstance(*Constructor, Arguments, ConstructionCallback, Target);
+	if (Constructor)
+	{
+		Target->InitializeStruct(Constructor);
+		Target->CopyScriptStruct(Constructor, SourceConstructor);
+		CreateWidgetInstance(*Constructor, Arguments, ConstructionCallback, Target);
+	}
+	else
+	{
+		checkf(false, TEXT("Remaining stack space is too small to create a Typed Elements widget constructor from an instance."));
+	}
 }
 
 void UTypedElementDatabaseUi::CreateWidgetInstance(
