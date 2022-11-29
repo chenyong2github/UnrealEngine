@@ -5222,20 +5222,9 @@ void AActor::UnregisterAllComponents(const bool bForReregister)
 		}
 	}
 
-	const bool bCachedHasRegisteredAllComponents = bHasRegisteredAllComponents;
 	bHasRegisteredAllComponents = false;
 
 	PostUnregisterAllComponents();
-
-	// This function may be called multiple times for each actor at different states of destruction: 
-	// Use the cached all components registration flag to ensure the world is only notified once.
-	if (bCachedHasRegisteredAllComponents)
-	{
-		if (UWorld* OwningWorld = GetWorld())
-		{
-			OwningWorld->NotifyActorRemovedFromWorld(this);
-		}
-	}
 }
 
 void AActor::PostUnregisterAllComponents()
@@ -5369,9 +5358,6 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegis
 		bHasRegisteredAllComponents = true;
 		// Finally, call PostRegisterAllComponents
 		PostRegisterAllComponents();
-
-		// After all components have been registered the actor is considered fully added: notify the owning world.
-		World->NotifyActorAddedToWorld(this);
 		return true;
 	}
 	
