@@ -315,6 +315,14 @@ protected:
 
 	mutable FRigVMNameCache* NameCache;
 
+#if UE_RIGVM_DEBUG_EXECUTION
+	FString DebugMemoryString;
+
+	TArray<FString> PreviousWorkMemory;
+
+	UEnum* InstanceOpCodeEnum;
+#endif
+
 	friend struct FRigVMExtendedExecuteContext;
 	friend class URigVM;
 	friend class URigVMNativized;
