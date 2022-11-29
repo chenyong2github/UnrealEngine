@@ -22,7 +22,7 @@ namespace GeometryCollection::Facades
 	{
 	public:
 		typedef FGeometryCollectionSection FTriangleSection;
-
+		typedef TMap<FString, int32> FStringIntMap;
 		/**
 		* FRenderingFacade Constuctor
 		* @param VertixDependencyGroup : GroupName the index attribute is dependent on.
@@ -73,6 +73,11 @@ namespace GeometryCollection::Facades
 		/** BuildMeshSections */
 		TArray<FTriangleSection> BuildMeshSections(const TArray<FIntVector>& Indices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices) const;
 		
+
+		//
+		// Geometry Group Attributes
+		//
+
 		/** Geometry Group Start : */
 		int32 StartGeometryGroup(FString InName);
 
@@ -85,8 +90,8 @@ namespace GeometryCollection::Facades
 		const TManagedArray< FString >& GetGeometryNameAttribute() const { return GeometryNameAttribute.Get(); }
 
 		/** HitProxyIDAttribute */
-		const TManagedArray< int32>& GetHitProxyIndexAttribute() const { return HitProxyIndexAttribute.Get(); }
-		TManagedArray< int32 >& ModifyHitProxyIndexAttribute() {check(!IsConst());return HitProxyIndexAttribute.Modify(); }
+		const TManagedArray< int32 >& GetHitProxyIndexAttribute() const { return HitProxyIndexAttribute.Get(); }
+		      TManagedArray< int32 >& ModifyHitProxyIndexAttribute() {check(!IsConst());return HitProxyIndexAttribute.Modify(); }
 
 		/** VertixStartAttribute */
 		const TManagedArray< int32 >& GetVertixStartAttribute() const { return VertixStartAttribute.Get(); }
@@ -99,6 +104,13 @@ namespace GeometryCollection::Facades
 
 		/** IndicesCountAttribute */
 		const TManagedArray< int32 >& GetIndicesCountAttribute() const { return IndicesCountAttribute.Get(); }
+
+		/** SelectionState */
+		const TManagedArray< int32 >& GetSelectionState() const { return SelectionState.Get(); }
+		      TManagedArray< int32 >& ModifySelectionState() { check(!IsConst()); return SelectionState.Modify(); }
+
+		/** GetGeometryNameToIndexMap */
+		FStringIntMap GetGeometryNameToIndexMap() const;
 
 	private : 
 		const FManagedArrayCollection& ConstCollection;
@@ -116,6 +128,7 @@ namespace GeometryCollection::Facades
 		TManagedArrayAccessor<int32> VertixCountAttribute;
 		TManagedArrayAccessor<int32> IndicesStartAttribute;
 		TManagedArrayAccessor<int32> IndicesCountAttribute;
+		TManagedArrayAccessor<int32> SelectionState;
 
 
 	};

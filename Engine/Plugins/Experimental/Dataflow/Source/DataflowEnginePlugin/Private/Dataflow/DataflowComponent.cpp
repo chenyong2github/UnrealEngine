@@ -28,6 +28,7 @@ UDataflowComponent::~UDataflowComponent()
 void UDataflowComponent::Invalidate()
 {
 	bUpdateRender = true;
+	bUpdateSelection = true;
 	bBoundsNeedsUpdate = true;
 	RenderCollection = FManagedArrayCollection();
 }
@@ -47,6 +48,8 @@ void UDataflowComponent::AddRenderTarget(const UDataflowEdNode* InTarget)
 
 void UDataflowComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
+	bool bNeedsSceneProxyUpdate = false;
+
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	if (bUpdateRender)
@@ -63,9 +66,21 @@ void UDataflowComponent::TickComponent(float DeltaTime, enum ELevelTick TickType
 				bNeedsRefresh |= Target->Render(Facade, Context);
 			}
 		}
+
 		UpdateLocalBounds();
 		bUpdateRender = false;
+		bNeedsSceneProxyUpdate = true;
+	}
 
+	if (bUpdateSelection)
+	{
+		SelectionState.UpdateSelection(this);
+		bUpdateSelection = false;
+		bNeedsSceneProxyUpdate = true;
+	}
+
+	if (bNeedsSceneProxyUpdate)
+	{
 		MarkRenderStateDirty();
 	}
 }
@@ -91,6 +106,11 @@ void UDataflowComponent::SetRenderingCollection(FManagedArrayCollection&& InColl
 }
 
 const FManagedArrayCollection& UDataflowComponent::GetRenderingCollection() const
+{
+	return RenderCollection;
+}
+
+FManagedArrayCollection& UDataflowComponent::ModifyRenderingCollection()
 {
 	return RenderCollection;
 }

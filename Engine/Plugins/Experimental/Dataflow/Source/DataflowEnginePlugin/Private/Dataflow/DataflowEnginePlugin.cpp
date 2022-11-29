@@ -13,7 +13,7 @@
 
 
 FColor IDataflowEnginePlugin::SurfaceColor = FLinearColor(0.6,0.6,0.6).ToRGBE();
-FColor IDataflowEnginePlugin::PrimarySelectionColor = FLinearColor(0.8, 0.3, 0.3).ToRGBE();
+FColor IDataflowEnginePlugin::PrimarySelectionColor = FLinearColor(0.8, 0.4, 0.0).ToRGBE();
 
 class FDataflowEnginePlugin : public IDataflowEnginePlugin
 {

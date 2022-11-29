@@ -41,7 +41,6 @@ public:
 
 #if WITH_EDITOR
 	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
-	virtual const FColorVertexBuffer* GetCustomHitProxyIdBuffer() const override;
 #endif // WITH_EDITOR
 
 
@@ -63,8 +62,6 @@ private:
 	FColorVertexBuffer HitProxyIdBuffer;
 	TArray<TRefCountPtr<HHitProxy> > LocalHitProxies;
 #endif // WITH_EDITOR
-
-	TRefCountPtr<HHitProxy> DefaultHitProxy;
 
 	// Render thread copy of data. 
 	UMaterialInterface* RenderMaterial = nullptr;

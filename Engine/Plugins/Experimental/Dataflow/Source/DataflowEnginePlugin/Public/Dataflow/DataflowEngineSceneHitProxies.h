@@ -12,15 +12,18 @@ class UPrimitiveComponent;
 
 /** HitProxy with for dataflow actor.
  */
-struct HDataflowActor : public HActor
+struct HDataflowNode : public HActor
 {
 	DECLARE_HIT_PROXY(DATAFLOWENGINEPLUGIN_API)
+	int32 GeometryIndex = INDEX_NONE;
+	FString NodeName = FString("");
 
-		HDataflowActor(AActor* InActor, const UPrimitiveComponent* InPrimitiveComponent, int32 InSectionIndex, int32 InMaterialIndex)
+	HDataflowNode(AActor* InActor, const UPrimitiveComponent* InPrimitiveComponent, FString InNodeName, int32 InGeometryIndex)
 		: HActor(InActor, InPrimitiveComponent)
 	{
-		SectionIndex= InSectionIndex;
-		MaterialIndex = InMaterialIndex;
+		NodeName = InNodeName;
+		GeometryIndex = InGeometryIndex;
+		SectionIndex = GeometryIndex;
 	}
 
 	virtual EMouseCursor::Type GetMouseCursor() override

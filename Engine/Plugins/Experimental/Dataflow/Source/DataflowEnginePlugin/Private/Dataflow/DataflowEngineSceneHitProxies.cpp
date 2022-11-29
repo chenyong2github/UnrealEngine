@@ -2,4 +2,4 @@
 
 #include "Dataflow/DataflowEngineSceneHitProxies.h"
 
-IMPLEMENT_HIT_PROXY(HDataflowActor, HActor);
+IMPLEMENT_HIT_PROXY(HDataflowNode, HActor);

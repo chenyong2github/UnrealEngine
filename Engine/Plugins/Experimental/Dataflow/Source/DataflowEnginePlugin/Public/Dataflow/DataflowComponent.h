@@ -3,11 +3,13 @@
 
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "Components/MeshComponent.h"
+#include "Dataflow/DataflowComponentSelectionState.h"
 #include "Dataflow/DataflowObject.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "DataflowComponent.generated.h"
+
 
 /**
 *	UDataflowComponent
@@ -37,10 +39,6 @@ public:
 	virtual FMaterialRelevance GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const;
 	UMaterialInterface* GetDefaultMaterial() const;
 
-	// temp code for selection...
-	bool bSelected = false;
-	virtual bool ShouldRenderSelected() const override { return Super::ShouldRenderSelected() || bSelected; }
-
 	/** Render Targets*/
 	void ResetRenderTargets(); 
 	void AddRenderTarget(const UDataflowEdNode* InTarget); 
@@ -52,12 +50,20 @@ public:
 	/** RenderCollection */
 	void SetRenderingCollection(FManagedArrayCollection&& InCollection);
 	const FManagedArrayCollection& GetRenderingCollection() const;
+	      FManagedArrayCollection& ModifyRenderingCollection();
 
 
 	/** Dataflow */
 	void SetDataflow(const UDataflow* InDataflow) { Dataflow = InDataflow; }
 	const UDataflow* GetDataflow() const { return Dataflow; }
 
+	/* Selection */
+	FDataflowSelectionState GetSelectionState() const { return SelectionState; }
+	void SetSelectionState(const FDataflowSelectionState& InState) 
+	{
+		bUpdateSelection = true;
+		SelectionState = InState; 
+	}
 
 
 private:
@@ -67,7 +73,9 @@ private:
 	FManagedArrayCollection RenderCollection;
 
 	bool bUpdateRender = true;
+	bool bUpdateSelection = true;
 	bool bBoundsNeedsUpdate = true;
 	FBoxSphereBounds BoundingBox = FBoxSphereBounds(ForceInitToZero);
+	FDataflowSelectionState SelectionState;
 };
 

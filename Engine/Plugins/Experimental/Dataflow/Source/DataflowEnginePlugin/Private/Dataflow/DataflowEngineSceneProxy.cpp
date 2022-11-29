@@ -17,7 +17,6 @@ FDataflowEngineSceneProxy::FDataflowEngineSceneProxy(UDataflowComponent* Compone
 	: FPrimitiveSceneProxy(Component)
 	, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 	, VertexFactory(GetScene().GetFeatureLevel(), "FTriangleSetSceneProxy")
-	, DefaultHitProxy(new HDataflowActor(Component->GetOwner(), Component, 3, 7))
 	, RenderMaterial(Component->GetMaterial(0))
 	, ConstantData(Component->GetRenderingCollection().NewCopy())
 {}
@@ -48,9 +47,6 @@ void FDataflowEngineSceneProxy::CreateRenderThreadResources()
 	VertexBuffers.StaticMeshVertexBuffer.Init(TotalNumVertices, NumTextureCoordinates);
 	VertexBuffers.ColorVertexBuffer.Init(TotalNumVertices);
 	IndexBuffer.Indices.SetNumUninitialized(TotalNumIndices);
-#if WITH_EDITOR
-	HitProxyIdBuffer.Init(TotalNumVertices);
-#endif
 
 	// Initialize
 	// Triangles are represented as two tris, all of whose vertices are
@@ -81,6 +77,8 @@ void FDataflowEngineSceneProxy::CreateRenderThreadResources()
 
 		const TManagedArray<FIntVector>& Indices = Facade.GetIndices();
 		const TManagedArray<FVector3f>& Vertex = Facade.GetVertices();
+		const TManagedArray<int32>& SelectionArray = Facade.GetSelectionState();
+		const TManagedArray<int32>& GeomIndex = Facade.GetVertexToGeometryIndexAttribute();
 
 		// The color stored in the vertices actually gets interpreted as a linear
 		// color by the material, whereas it is more convenient for the user of the
@@ -112,7 +110,9 @@ void FDataflowEngineSceneProxy::CreateRenderThreadResources()
 		VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(VertexBufferIndex + 1, 0, FVector2f(0, 0));
 		VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(VertexBufferIndex + 2, 0, FVector2f(0, 0));
 
-		FColor FaceColor = IsSelected() ? IDataflowEnginePlugin::PrimarySelectionColor : IDataflowEnginePlugin::SurfaceColor;
+
+
+		FColor FaceColor = SelectionArray[GeomIndex[Indices[i][0]]] ? IDataflowEnginePlugin::PrimarySelectionColor : IDataflowEnginePlugin::SurfaceColor;
 		VertexBuffers.ColorVertexBuffer.VertexColor(VertexBufferIndex + 0) = FaceColor;
 		VertexBuffers.ColorVertexBuffer.VertexColor(VertexBufferIndex + 1) = FaceColor;
 		VertexBuffers.ColorVertexBuffer.VertexColor(VertexBufferIndex + 2) = FaceColor;
@@ -121,13 +121,6 @@ void FDataflowEngineSceneProxy::CreateRenderThreadResources()
 		IndexBuffer.Indices[IndexBufferIndex + 1] = VertexBufferIndex + 1;
 		IndexBuffer.Indices[IndexBufferIndex + 2] = VertexBufferIndex + 2;
 
-#if WITH_EDITOR
-		// @todo(Dataflow) Question : Does this even matter? 
-		// FMeshBatch::BatchHitProxyId has this also and 
-		// when GetCustomHitProxyIdBuffer returns non-null
-		// the hit buffer seems to be ignored in the render.
-		HitProxyIdBuffer.VertexColor(i) = DefaultHitProxy->Id.GetColor();
-#endif
 		});
 
 	}
@@ -148,9 +141,6 @@ void FDataflowEngineSceneProxy::CreateRenderThreadResources()
 
 	VertexFactory.InitResource();
 	IndexBuffer.InitResource();
-#if WITH_EDITOR
-	HitProxyIdBuffer.InitResource();
-#endif
 }
 
 void FDataflowEngineSceneProxy::DestroyRenderThreadResources()
@@ -161,9 +151,6 @@ void FDataflowEngineSceneProxy::DestroyRenderThreadResources()
 	VertexBuffers.ColorVertexBuffer.ReleaseResource();
 	IndexBuffer.ReleaseResource();
 	VertexFactory.ReleaseResource();
-#if WITH_EDITOR
-	HitProxyIdBuffer.ReleaseResource();
-#endif
 	delete ConstantData;
 	ConstantData = nullptr;
 }
@@ -178,9 +165,10 @@ HHitProxy* FDataflowEngineSceneProxy::CreateHitProxies(UPrimitiveComponent* Comp
 	if (Facade.NumTriangles() > 0)
 	{
 		int32 NumGeom = Facade.NumGeometry();
+		const TManagedArray<FString>& NodeName = Facade.GetGeometryNameAttribute();
 		for (int i = 0; i < NumGeom; i++)
 		{
-			HDataflowActor * NodeProxy = new HDataflowActor(Component->GetOwner(), Component, i, INDEX_NONE);
+			HDataflowNode * NodeProxy = new HDataflowNode(Component->GetOwner(), Component, NodeName[i], i);
 			LocalHitProxies.Add(NodeProxy);
 			Facade.ModifyHitProxyIndexAttribute()[i] = LocalHitProxies.Num() - 1;
 			OutHitProxies.Add(NodeProxy);
@@ -189,12 +177,6 @@ HHitProxy* FDataflowEngineSceneProxy::CreateHitProxies(UPrimitiveComponent* Comp
 	return FPrimitiveSceneProxy::CreateHitProxies(Component, OutHitProxies);
 }
 
-
-const FColorVertexBuffer* FDataflowEngineSceneProxy::GetCustomHitProxyIdBuffer() const
-{
-	// returning my own HitProxyIdBuffer causes the Hit to fail. 
-	return nullptr;// &HitProxyIdBuffer;
-}
 #endif // WITH_EDITOR
 
 
@@ -234,8 +216,7 @@ void FDataflowEngineSceneProxy::GetDynamicMeshElements(
 				Mesh.bCanApplyViewModeOverrides = true;
 #if WITH_EDITOR
 				Mesh.BatchHitProxyId = LocalHitProxies[Facade.GetHitProxyIndexAttribute()[MeshBatchData.GeomIndex]]->Id;
-#endif // WITH_EDITOR
-
+#endif
 				Collector.AddMesh(ViewIndex, Mesh);
 			}
 		}

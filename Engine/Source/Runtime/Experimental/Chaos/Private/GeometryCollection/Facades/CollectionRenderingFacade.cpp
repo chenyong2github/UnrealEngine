@@ -24,6 +24,7 @@ namespace GeometryCollection::Facades
 		, VertixCountAttribute(InCollection, "VertexCount", FGeometryCollection::GeometryGroup)
 		, IndicesStartAttribute(InCollection, "IndicesStart", FGeometryCollection::GeometryGroup)
 		, IndicesCountAttribute(InCollection, "IndicesCount", FGeometryCollection::GeometryGroup)
+		, SelectionState(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
 
 	{}
 
@@ -41,6 +42,7 @@ namespace GeometryCollection::Facades
 		, VertixCountAttribute(InCollection, "VertexCount", FGeometryCollection::GeometryGroup)
 		, IndicesStartAttribute(InCollection, "IndicesStart", FGeometryCollection::GeometryGroup, FGeometryCollection::FacesGroup)
 		, IndicesCountAttribute(InCollection, "IndicesCount", FGeometryCollection::GeometryGroup)
+		, SelectionState(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
 	{}
 
 	//
@@ -61,6 +63,7 @@ namespace GeometryCollection::Facades
 		VertixCountAttribute.Add();
 		IndicesStartAttribute.Add();
 		IndicesCountAttribute.Add();
+		SelectionState.Add();
 	}
 
 	bool FRenderingFacade::CanRenderSurface( ) const
@@ -74,8 +77,9 @@ namespace GeometryCollection::Facades
 			IndicesAttribute.IsValid() &&
 			MaterialIDAttribute.IsValid() && TriangleSectionAttribute.IsValid() &&
 			GeometryNameAttribute.IsValid() && HitProxyIndexAttribute.IsValid() &&
-			VertixStartAttribute.IsValid() && VertixCountAttribute.IsValid() && 
-			IndicesStartAttribute.IsValid() && IndicesCountAttribute.IsValid();
+			VertixStartAttribute.IsValid() && VertixCountAttribute.IsValid() &&
+			IndicesStartAttribute.IsValid() && IndicesCountAttribute.IsValid() &&
+			SelectionState.IsValid();
 	}
 
 	int32 FRenderingFacade::NumTriangles() const
@@ -161,6 +165,7 @@ namespace GeometryCollection::Facades
 			VertixCountAttribute.Modify()[GeomIndex] = 0;
 			IndicesStartAttribute.Modify()[GeomIndex] = IndicesAttribute.Num();
 			IndicesCountAttribute.Modify()[GeomIndex] = 0;
+			SelectionState.Modify()[GeomIndex] = 0;
 		}
 		return GeomIndex;
 	}
@@ -197,6 +202,17 @@ namespace GeometryCollection::Facades
 			}
 		}
 	}
+
+	FRenderingFacade::FStringIntMap FRenderingFacade::GetGeometryNameToIndexMap() const
+	{
+		FStringIntMap Map;
+		for (int32 i = 0; i < GeometryNameAttribute.Num(); i++)
+		{
+			Map.Add(GetGeometryNameAttribute()[i], i);
+		}
+		return Map;
+	}
+
 
 }; // GeometryCollection::Facades
 

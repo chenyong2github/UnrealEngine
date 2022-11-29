@@ -6,6 +6,7 @@
 #include "Dataflow/DataflowComponent.h"
 #include "Dataflow/DataflowNodeParameters.h"
 #include "EditorViewportClient.h"
+#include "GeometryCollection/Facades/CollectionRenderingFacade.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "SAssetEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
@@ -19,43 +20,6 @@ class ADataflowActor;
 class FDynamicMeshBuilder;
 
 // ----------------------------------------------------------------------------------
-
-class FDataflowSelectionState
-{
-public:
-	FDataflowSelectionState() {}
-	FDataflowSelectionState(const UDataflowComponent* DataflowComponent) 
-	:bComponentSelected(DataflowComponent->bSelected)
-	{}
-
-	enum EMode
-	{
-		DSS_Dataflow_None,
-		DSS_Dataflow_Object,
-		DSS_Dataflow_Max
-	};
-
-	void UpdateSelection(UDataflowComponent* DataflowComponent) const
-	{
-		DataflowComponent->bSelected = bComponentSelected;
-		DataflowComponent->Invalidate();
-	}
-
-	bool IsEmpty() const
-	{
-		return !bComponentSelected;
-	}
-
-	bool operator==(const FDataflowSelectionState& A) {
-		return A.bComponentSelected == bComponentSelected;
-	}
-	bool operator!=(const FDataflowSelectionState& A) {
-		return !this->operator==(A);
-	}
-
-	bool bComponentSelected = false;
-};
-
 
 class SDataflowEditorViewport : public SAssetEditorViewport, public ICommonEditorViewportToolbarInfoProvider, public FGCObject
 {
@@ -135,7 +99,7 @@ private:
 	//
 	// Selection
 	//
-	FDataflowSelectionState SelectionState;
+
 	FDataflowSelectionState::EMode SelectionMode;
 
 };

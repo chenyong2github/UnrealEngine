@@ -118,10 +118,12 @@ void FDataflowEditorViewportClient::SetSelectionMode(FDataflowSelectionState::EM
 		SelectionMode = InState;
 	}
 
-	if (SelectionMode == FDataflowSelectionState::EMode::DSS_Dataflow_None && !SelectionState.IsEmpty())
+	if (SelectionMode == FDataflowSelectionState::EMode::DSS_Dataflow_None)
 	{
-		SelectionState = FDataflowSelectionState();
-		SelectionState.UpdateSelection(DataflowActor->DataflowComponent);
+		if (!DataflowActor->DataflowComponent->GetSelectionState().IsEmpty())
+		{
+			DataflowActor->DataflowComponent->SetSelectionState(FDataflowSelectionState());
+		}
 	}
 }
 bool FDataflowEditorViewportClient::CanSetSelectionMode(FDataflowSelectionState::EMode InState)
@@ -138,10 +140,9 @@ bool FDataflowEditorViewportClient::CanSetSelectionMode(FDataflowSelectionState:
 		}
 	}
 
-	if (!SelectionState.IsEmpty())
+	if (!DataflowActor->DataflowComponent->GetSelectionState().IsEmpty())
 	{
-		SelectionState = FDataflowSelectionState();
-		SelectionState.UpdateSelection(DataflowActor->DataflowComponent);
+		DataflowActor->DataflowComponent->SetSelectionState(FDataflowSelectionState());
 	}
 
 	return false;
@@ -165,23 +166,35 @@ void FDataflowEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* Hi
 	Super::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
 	if (DataflowActor && DataflowActor->DataflowComponent)
 	{
+		const bool bIsShiftKeyDown = Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift);
+
+		FDataflowSelectionState SelectionState = DataflowActor->DataflowComponent->GetSelectionState();
 		FDataflowSelectionState PreState = SelectionState;
 
 		if (SelectionMode == FDataflowSelectionState::EMode::DSS_Dataflow_Object)
 		{
-			if (HitProxy && HitProxy->IsA(HDataflowActor::StaticGetType()))
+			if (HitProxy && HitProxy->IsA(HDataflowNode::StaticGetType()))
 			{
-				SelectionState.bComponentSelected = !SelectionState.bComponentSelected;
+				HDataflowNode* DataflowNode = (HDataflowNode*)(HitProxy);
+				FDataflowSelectionState::ObjectID ID(DataflowNode->NodeName, DataflowNode->GeometryIndex);
+				if (SelectionState.Nodes.Contains(ID))
+				{
+					SelectionState.Nodes.Remove(ID);
+				}
+				else
+				{
+					SelectionState.Nodes.AddUnique(ID);
+				}
 			}
 			else
 			{
-				SelectionState.bComponentSelected = false;
+				SelectionState.Nodes.Empty();
 			}
 		}
 
 		if (PreState != SelectionState)
 		{
-			SelectionState.UpdateSelection(DataflowActor->DataflowComponent);
+			DataflowActor->DataflowComponent->SetSelectionState(SelectionState);
 		}
 	}
 }
