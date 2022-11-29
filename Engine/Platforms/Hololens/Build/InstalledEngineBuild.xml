@@ -95,6 +95,12 @@
 			<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyHoloLensExceptions)"/>
 
 		</Do>
+		<Do If="!$(WithHoloLens)">
+			<Property Name="CopyHoloLensCsToolsExceptions">
+				Engine\Saved\CsTools\Engine\Intermediate\ScriptModules\HoloLens.Automation.json
+			</Property>
+			<Property Name="CopyWin64CsToolsExceptions" Value="$(CopyWin64CsToolsExceptions);$(CopyHoloLensCsToolsExceptions)"/>
+		</Do>
 	</Extend>
 
 </BuildGraph>
