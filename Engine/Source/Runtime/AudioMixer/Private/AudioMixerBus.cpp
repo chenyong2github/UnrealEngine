@@ -163,7 +163,7 @@ namespace Audio
 			return;
 		}
 
-		int SampleCacheSize = SampleCache.Num();
+		int32 SampleCacheSize = SampleCache.Num();
 		if (0 <= SampleCacheSize)
 		{
 			float* SampleCacheBufferPtr = SampleCache.GetData();
@@ -220,7 +220,7 @@ namespace Audio
 		PatchSplitter.AddNewPatch(InPatchOutputStrongPtr);
 	}
 
-	void FMixerAudioBus::AddNewPatchInput(FPatchInput& InPatchInput)
+	void FMixerAudioBus::AddNewPatchInput(const FPatchInput& InPatchInput)
 	{
 		return PatchMixer.AddNewInput(InPatchInput);
 	}

@@ -1244,7 +1244,7 @@ namespace Audio
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("AddPatchOutputForAudioBus_AudioThread()"));
 	}
 
-	void FMixerSourceManager::AddPatchInputForAudioBus(uint32 InAudioBusId, FPatchInput& InPatchInput)
+	void FMixerSourceManager::AddPatchInputForAudioBus(uint32 InAudioBusId, const FPatchInput& InPatchInput)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 		if (MixerDevice->IsAudioRenderingThread())
@@ -1258,7 +1258,7 @@ namespace Audio
 		else
 		{
 			// Queue up the command via MPSC command queue
-			AudioMixerThreadMPSCCommand([this, InAudioBusId, InPatchInput]() mutable
+			AudioMixerThreadMPSCCommand([this, InAudioBusId, InPatchInput]()
 			{
 				AddPatchInputForAudioBus(InAudioBusId, InPatchInput);
 			});
@@ -1267,9 +1267,9 @@ namespace Audio
 
 	void FMixerSourceManager::AddPatchInputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchInput& InPatchInput)
 	{
-		AudioMixerThreadCommand([this, InAudioBusId, PatchInput = InPatchInput]() mutable
+		AudioMixerThreadCommand([this, InAudioBusId, InPatchInput]()
 		{
-			AddPatchInputForAudioBus(InAudioBusId, PatchInput);
+			AddPatchInputForAudioBus(InAudioBusId, InPatchInput);
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("AddPatchInputForAudioBus_AudioThread()"));
 	}
 

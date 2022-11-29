@@ -108,20 +108,15 @@ namespace Metasound
 				{
 					if (FAudioDevice* AudioDevice = ADM->GetAudioDeviceRaw(AudioDeviceId))
 					{
-						if (AudioDevice->IsAudioMixerEnabled())
-						{
-							AudioBusChannels = AudioBusProxy->NumChannels;
-							BlockSizeFrames = AudioInputs[0]->Num();
-							InterleavedBuffer.AddUninitialized(BlockSizeFrames * AudioBusChannels);
+						// Start the audio bus in case it's not already started
+						AudioBusChannels = AudioBusProxy->NumChannels;
+						AudioDevice->StartAudioBus(AudioBusProxy->AudioBusId, AudioBusChannels, false);
 
-							Audio::FMixerDevice& MixerDevice(static_cast<Audio::FMixerDevice&>(*AudioDevice));
-							MixerDevice.StartAudioBus(AudioBusProxy->AudioBusId, NumChannels, false);
+						BlockSizeFrames = InParams.OperatorSettings.GetNumFramesPerBlock();
+						InterleavedBuffer.AddZeroed(BlockSizeFrames * AudioBusChannels);
 
-							// Create a bus patch input with enough room for the number of samples we expect and some buffering
-							int32 MaxSizeFrames = FMath::Max(BlockSizeFrames, AudioMixerOutputFrames), MinSizeFrames = FMath::Min(BlockSizeFrames, AudioMixerOutputFrames), BufferScale = 3;
-							AudioBusPatchInput = Audio::FPatchInput(MakeShared<Audio::FPatchOutput, ESPMode::ThreadSafe>(BufferScale * MinSizeFrames * FMath::DivideAndRoundUp(MaxSizeFrames, MinSizeFrames) * AudioBusChannels, 1.f));
-							MixerDevice.AddPatchInputForAudioBus(AudioBusPatchInput, AudioBusProxy->AudioBusId);
-						}
+						// Create a bus patch input with enough room for the number of samples we expect and some buffering
+						AudioBusPatchInput = AudioDevice->AddPatchInputForAudioBus(AudioBusProxy->AudioBusId, BlockSizeFrames, AudioBusChannels);
 					}
 				}
 			}
@@ -162,42 +157,42 @@ namespace Metasound
 				return;
 			}
 
-			int32 NumSamplesToPush = InterleavedBuffer.Num();
-			uint32 MinChannels = NumChannels;
-			if (MinChannels < AudioBusChannels)
-			{
-				// There are fewer inputs than outputs, so zero the interleaved buffer
-				FMemory::Memzero(InterleavedBuffer.GetData(), NumSamplesToPush * sizeof(float));
-			}
-			else
-			{
-				MinChannels = AudioBusChannels;
-			}
-
 			// Retrieve input and interleaved buffer pointers
 			const float* AudioInputBufferPtrs[NumChannels];
-			for (uint32 ChannelIndex = 0; ChannelIndex < MinChannels; ++ChannelIndex)
+			for (uint32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
 			{
 				AudioInputBufferPtrs[ChannelIndex] = AudioInputs[ChannelIndex]->GetData();
 			}
 			float* InterleavedBufferPtr = InterleavedBuffer.GetData();
 
-			// Interleave the inputs
-			// Writing the channels of the interleaved buffer sequentially should improve
-			// cache utilization compared to writing each input's frames sequentially.
-			// There is more likely to be a cache line for each buffer than for the
-			// entirety of the interleaved buffer.
-			for (int32 FrameIndex = 0; FrameIndex < BlockSizeFrames; ++FrameIndex)
+			if (AudioBusChannels == 1)
 			{
-				for (uint32 ChannelIndex = 0; ChannelIndex < MinChannels; ++ChannelIndex)
+				FMemory::Memcpy(InterleavedBufferPtr, AudioInputBufferPtrs[0], BlockSizeFrames * sizeof(float));
+			}
+			else
+			{
+				// Interleave the inputs
+				// Writing the channels of the interleaved buffer sequentially should improve
+				// cache utilization compared to writing each input's frames sequentially.
+				// There is more likely to be a cache line for each buffer than for the
+				// entirety of the interleaved buffer.
+				uint32 MinChannels = FMath::Min(AudioBusChannels, NumChannels);
+				for (int32 FrameIndex = 0; FrameIndex < BlockSizeFrames; ++FrameIndex)
 				{
-					InterleavedBufferPtr[ChannelIndex] = *AudioInputBufferPtrs[ChannelIndex]++;
+					for (uint32 ChannelIndex = 0; ChannelIndex < MinChannels; ++ChannelIndex)
+					{
+						InterleavedBufferPtr[ChannelIndex] = *AudioInputBufferPtrs[ChannelIndex]++;
+					}
+					InterleavedBufferPtr += AudioBusChannels;
 				}
-				InterleavedBufferPtr += AudioBusChannels;
 			}
 
 			// Pushes the interleaved data to the audio bus
-			AudioBusPatchInput.PushAudio(InterleavedBuffer.GetData(), NumSamplesToPush);
+			int32 SamplesPushed = AudioBusPatchInput.PushAudio(InterleavedBuffer.GetData(), InterleavedBuffer.Num());
+			if (SamplesPushed < InterleavedBuffer.Num())
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("Underrun detected in audio bus writer node."));
+			}
 		}
 
 	private:
@@ -229,6 +224,9 @@ namespace Metasound
 
 	REGISTER_AUDIO_BUS_WRITER_NODE(1);
 	REGISTER_AUDIO_BUS_WRITER_NODE(2);
+	REGISTER_AUDIO_BUS_WRITER_NODE(4);
+	REGISTER_AUDIO_BUS_WRITER_NODE(6);
+	REGISTER_AUDIO_BUS_WRITER_NODE(8);
 }
 
 #undef LOCTEXT_NAMESPACE

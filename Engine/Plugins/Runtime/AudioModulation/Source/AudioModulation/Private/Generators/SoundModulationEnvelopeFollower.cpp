@@ -203,7 +203,7 @@ namespace AudioModulation
 					FAudioDevice* AudioDevice = DeviceManager->GetAudioDeviceRaw(AudioDeviceId);
 					if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice))
 					{
-						AudioBusPatch = MixerDevice->AddPatchForAudioBus(BusId, Gain);
+						AudioBusPatch = MixerDevice->AddPatchOutputForAudioBus(BusId, MixerDevice->GetNumOutputFrames(), EnvelopeFollower.GetNumChannels(), Gain);
 						bBusRequiresPatch = false;
 					}
 				}

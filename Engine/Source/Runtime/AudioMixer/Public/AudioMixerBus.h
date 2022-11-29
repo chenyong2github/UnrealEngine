@@ -26,7 +26,7 @@ namespace Audio
 		void AddNewPatchOutput(const FPatchOutputStrongPtr& InPatchOutputStrongPtr);
 
 		// Allow anybody to write audio into this audio bus from any thread.
-		void AddNewPatchInput(FPatchInput& InPatchInput);
+		void AddNewPatchInput(const FPatchInput& InPatchInput);
 
 		// Allow anybody to write audio into this audio bus from any thread.
 		void RemovePatchInput(const FPatchInput& InPatchInput);

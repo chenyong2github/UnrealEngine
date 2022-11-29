@@ -209,7 +209,7 @@ namespace Audio
 		void AddPatchOutputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr);
 
 		// Adds a patch input for an audio bus
-		void AddPatchInputForAudioBus(uint32 InAudioBusId, FPatchInput& InPatchInput);
+		void AddPatchInputForAudioBus(uint32 InAudioBusId, const FPatchInput& InPatchInput);
 
 		// Adds a patch input for an audio bus from the Audio Thread
 		void AddPatchInputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchInput& InPatchInput);

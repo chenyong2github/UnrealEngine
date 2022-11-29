@@ -113,7 +113,10 @@ namespace Metasound
 						AudioBusChannels = AudioBusProxy->NumChannels;
 						AudioDevice->StartAudioBus(AudioBusProxy->AudioBusId, AudioBusChannels, false);
 
-						AudioBusPatchOutput = AudioDevice->AddPatchForAudioBus(AudioBusProxy->AudioBusId);
+						int32 BlockSizeFrames = InSettings.GetNumFramesPerBlock();
+
+						// Create a bus patch output with enough room for the number of samples we expect and some buffering
+						AudioBusPatchOutput = AudioDevice->AddPatchOutputForAudioBus(AudioBusProxy->AudioBusId, BlockSizeFrames, AudioBusChannels);
 					}
 				}
 			}
@@ -184,7 +187,11 @@ namespace Metasound
 			if (bPerformPop)
 			{
 				// Pop off the interleaved data from the audio bus
-				AudioBusPatchOutput->PopAudio(InterleavedBuffer.GetData(), NumSamplesToPop, false);
+				int32 SamplesPopped = AudioBusPatchOutput->PopAudio(InterleavedBuffer.GetData(), NumSamplesToPop, false);
+				if (SamplesPopped < NumSamplesToPop)
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Underrun detected in audio bus reader node."));
+				}
 
 				const uint32 MinChannels = FMath::Min(NumChannels, AudioBusChannels);
 				for (uint32 ChannelIndex = 0; ChannelIndex < MinChannels; ++ChannelIndex)
@@ -234,6 +241,9 @@ namespace Metasound
 	
 	REGISTER_AUDIO_BUS_READER_NODE(1);
 	REGISTER_AUDIO_BUS_READER_NODE(2);
+	REGISTER_AUDIO_BUS_READER_NODE(4);
+	REGISTER_AUDIO_BUS_READER_NODE(6);
+	REGISTER_AUDIO_BUS_READER_NODE(8);
 }
 
 #undef LOCTEXT_NAMESPACE

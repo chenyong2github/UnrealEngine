@@ -114,7 +114,7 @@ void FSourceEffectFilter::OnPresetChanged()
 					FAudioBusModulationData& NewModData = ModData.AddDefaulted_GetRef();
 
 					uint32 AudioBusId = BusModulationSettings.AudioBus->GetUniqueID();
-					NewModData.AudioBusPatch = MixerDevice->AddPatchForAudioBus(AudioBusId, 1.0f);
+					NewModData.AudioBusPatch = MixerDevice->AddPatchOutputForAudioBus(AudioBusId, MixerDevice->GetNumOutputFrames(), BusModulationSettings.AudioBus->GetNumChannels());
 
 					NewModData.MinFreqModValue = BusModulationSettings.MinFrequencyModulation;
 					NewModData.MaxFreqModValue = BusModulationSettings.MaxFrequencyModulation;

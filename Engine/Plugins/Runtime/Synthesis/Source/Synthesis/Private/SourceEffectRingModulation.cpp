@@ -51,7 +51,7 @@ void FSourceEffectRingModulation::OnPresetChanged()
 	{
 		Audio::FMixerDevice* MixerDevice = (Audio::FMixerDevice*)AudioDeviceManager->GetAudioDeviceRaw(AudioDeviceId);
 		uint32 AudioBusId = Settings.AudioBusModulator->GetUniqueID();
-		Audio::FPatchOutputStrongPtr AudioBusPatchOutputPtr = MixerDevice->AddPatchForAudioBus(AudioBusId, 1.0f);
+		Audio::FPatchOutputStrongPtr AudioBusPatchOutputPtr = MixerDevice->AddPatchOutputForAudioBus(AudioBusId, MixerDevice->GetNumOutputFrames(), Settings.AudioBusModulator->GetNumChannels());
 		RingModulation.SetExternalPatchSource(AudioBusPatchOutputPtr);
 	}
 	else

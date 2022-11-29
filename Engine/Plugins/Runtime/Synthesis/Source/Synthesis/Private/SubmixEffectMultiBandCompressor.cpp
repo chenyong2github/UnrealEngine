@@ -226,7 +226,7 @@ bool FSubmixEffectMultibandCompressor::UpdateKeySourcePatch()
 				const uint32 ObjectId = KeySource.GetObjectId();
 				if (ObjectId != INDEX_NONE)
 				{
-					KeySource.Patch = MixerDevice->AddPatchForAudioBus(ObjectId, 1.0f /* PatchGain */);
+					KeySource.Patch = MixerDevice->AddPatchOutputForAudioBus(ObjectId, MixerDevice->GetNumOutputFrames(), KeySource.GetNumChannels());
 					if (KeySource.Patch.IsValid())
 					{
 						for (Audio::FDynamicsProcessor& DynamicsProcessor : DynamicsProcessors)
