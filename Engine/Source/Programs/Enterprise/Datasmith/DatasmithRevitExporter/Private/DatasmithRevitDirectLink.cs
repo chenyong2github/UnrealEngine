@@ -171,6 +171,7 @@ namespace DatasmithRevitExporter
 		private FDatasmithFacadeDirectLink								DatasmithDirectLink;
 		private string													SceneName;
 
+		public Dictionary<string, FDocumentData> ExportedDocuments 		= new Dictionary<string, FDocumentData>();
 		private Dictionary<string, int>									ExportedActorNames = new Dictionary<string, int>();
 
 		// The number of times this document was synced (sent to receiver)
@@ -231,6 +232,11 @@ namespace DatasmithRevitExporter
 			FDirectLink ActiveInstance = FDocument.ActiveDocument?.ActiveDirectLinkInstance ?? null;
 
 			Debug.Assert(ActiveInstance != null);
+
+			if (ActiveInstance == null)
+			{
+				return;
+			}
 
 			// Handle modified elements
 			foreach (ElementId ElemId in InArgs.GetModifiedElementIds())

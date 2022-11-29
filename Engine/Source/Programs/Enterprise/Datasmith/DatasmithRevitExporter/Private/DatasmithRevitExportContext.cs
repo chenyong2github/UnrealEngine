@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
@@ -48,7 +49,7 @@ namespace DatasmithRevitExporter
 		private Stack<FDocumentData> DocumentDataStack = new Stack<FDocumentData>();
 
 		// Cache exported document data for future reference (including the parenting (linked documents))
-		private List<FDocumentData> ExportedDocuments = new List<FDocumentData>();
+		private Dictionary<string, FDocumentData> ExportedDocuments = null;
 
 		// List of extra search paths for Revit texture files.
 		private IList<string> ExtraTexturePaths = new List<string>();
@@ -158,10 +159,12 @@ namespace DatasmithRevitExporter
 			{
 				DirectLink.OnBeginExport();
 				DatasmithScene = DirectLink.DatasmithScene;
+				ExportedDocuments = DirectLink.ExportedDocuments;
 			}
 			else
 			{
 				DatasmithScene = new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, PRODUCT_NAME, ProductVersion);
+				ExportedDocuments = new Dictionary<string, FDocumentData>();
 			}
 
 			DatasmithScene.PreExport();
@@ -220,11 +223,97 @@ namespace DatasmithRevitExporter
 			WorldTransformStack.Pop();
 		}
 
+		private int DebugIndent = 0;
+
+		/// <summary>
+		/// Log debug for plugin developer - no runtime toggle(enabled by adding DatasmithRevitDebugOutput conditional compilation symbol)
+		/// </summary>
+		[Conditional("DatasmithRevitDebugOutput")]
+		public void LogDebug(string Message)  
+		{
+			MessageList.Add(String.Concat(Enumerable.Repeat("    ", DebugIndent)) + Message);
+		}
+
+		[Conditional("DatasmithRevitDebugOutput")]
+		private void LogDebugElementBegin(ElementId InElementId)
+		{
+			LogDebug($"OnElementBegin({InElementId})");
+			Element CurrentElement = GetElement(InElementId);
+			if (CurrentElement != null)
+			{
+				LogDebug($" # '{CurrentElement.Name}'({CurrentElement.GetType()}), UID: {CurrentElement.UniqueId}");
+				if (CurrentElement is FamilyInstance Instance)
+				{
+					LogDebug($" # Instance: '{Instance.Name}'");
+					FamilySymbol Symbol = Instance.Symbol;
+					LogDebug($" #  FamilySymbol: '{Symbol.Name}',  Id: {Symbol.Id}, UID: {Symbol.UniqueId}");
+					Family SymbolFamily = Symbol.Family;
+					LogDebug($" #   Family: '{SymbolFamily.Name}',  Id: {SymbolFamily.Id}, UID {SymbolFamily.UniqueId} ");
+				}
+			}
+			else
+			{
+				LogDebug(" # <Unknown>");
+			}
+
+			++DebugIndent;
+		}
+
+		[Conditional("DatasmithRevitDebugOutput")]
+		private void LogDebugElementEnd(ElementId InElementId)
+		{
+			--DebugIndent;
+
+			LogDebug($"OnElementEnd({InElementId})");
+		}
+
+		[Conditional("DatasmithRevitDebugOutput")]
+		private void LogDebugInstanceBegin(InstanceNode InInstanceNode)
+		{
+			LogDebug($"OnInstanceBegin({InInstanceNode.NodeName})");
+
+#if REVIT_API_2023
+			SymbolGeometryId GeometryId = InInstanceNode.GetSymbolGeometryId();
+			LogDebug($" #  GeometryUniqueId: '{GeometryId.AsUniqueIdentifier()}'");
+			Element CurrentFamilySymbol = GetElement(GeometryId.SymbolId);
+#else
+			Element CurrentFamilySymbol = GetElement(InInstanceNode.GetSymbolId());
+#endif
+
+			if (CurrentFamilySymbol != null)
+			{
+				LogDebug($" #  Symbol: '{CurrentFamilySymbol.GetType()}', '{CurrentFamilySymbol.Name}',  Id: {CurrentFamilySymbol.Id}, UID: {CurrentFamilySymbol.UniqueId}");
+
+				switch (CurrentFamilySymbol)
+				{
+					case FamilySymbol Symbol:
+					{
+						Family SymbolFamily = Symbol.Family;
+						LogDebug(
+							$" #   Family: '{SymbolFamily.Name}',  Id: {SymbolFamily.Id}, UID {SymbolFamily.UniqueId} ");
+						break;
+					}
+				}
+			}
+
+			++DebugIndent;
+		}
+
+		[Conditional("DatasmithRevitDebugOutput")]
+		private void LogDebugInstanceEnd(InstanceNode InInstanceNode)
+		{
+			--DebugIndent;
+
+			LogDebug($"OnInstanceEnd({InInstanceNode.NodeName})");
+		}
+
 		// OnElementBegin marks the beginning of an element to be exported.
 		public RenderNodeAction OnElementBegin(
 			ElementId InElementId // exported element ID
 		)
 		{
+			LogDebugElementBegin(InElementId);
+
 			CurrentElementSkipped = true;
 
 			Element CurrentElement = GetElement(InElementId);
@@ -251,8 +340,11 @@ namespace DatasmithRevitExporter
 			ElementId InElementId // exported element ID
 		)
 		{
+			LogDebugElementEnd(InElementId);
+
 			if (GetElement(InElementId) != null)
 			{
+				Debug.Assert(!GetElement(InElementId).IsTransient); // OnElementBegin checks for IsTransient
 				// Forget the current element being exported.
 				PopElement("Element End");
 			}
@@ -263,6 +355,8 @@ namespace DatasmithRevitExporter
 			InstanceNode InInstanceNode // family instance output node
 		)
 		{
+			LogDebugInstanceBegin(InInstanceNode);
+
 #if REVIT_API_2023
 			Element CurrentFamilySymbol = GetElement(InInstanceNode.GetSymbolGeometryId().SymbolId);
 #else
@@ -298,6 +392,8 @@ namespace DatasmithRevitExporter
 			InstanceNode InInstanceNode // family instance output node
 		)
 		{
+			LogDebugInstanceEnd(InInstanceNode);
+
 #if REVIT_API_2023
 			Element CurrentFamilySymbol = GetElement(InInstanceNode.GetSymbolGeometryId().SymbolId);
 #else
@@ -620,18 +716,30 @@ namespace DatasmithRevitExporter
 				DirectLink.OnBeginLinkedDocument(LinkedDocElement);
 			}
 
-			// Check if we have cache for this document.
-			FDocumentData DocumentData = new FDocumentData(InRevitDocument, DocumentSettings, ref MessageList, DirectLink, InLinkedDocumentId);
+			bool bIsTopDocument = InLinkedDocumentId == null;
+			string DocumentId = InLinkedDocumentId ?? "";
+
+			// Check if we have cache for this document so we don't recreate it each Sync
+			// Also ElementData objects are referencing their owning FDocumentData 
+			if (!ExportedDocuments.TryGetValue(DocumentId, out var DocumentData))  
+			{
+				DocumentData = new FDocumentData(InRevitDocument, DocumentSettings, ref MessageList,
+					DirectLink, DocumentId);
+				ExportedDocuments.Add(DocumentId, DocumentData);
+			}
+
+			// Reset DocumentData for new update
+			// todo: Current implementation expects DocumentData to be clean but what is possible is to track created assets and to reuse them when their element changes
+			DocumentData.Reset(this);
 
 			DocumentDataStack.Push(DocumentData);
 
-			if (InLinkedDocumentId == null)
+			if (bIsTopDocument)
 			{
 				// Top level document
 				DocumentDataStack.Peek().AddLocationActors(WorldTransformStack.Peek());
 			}
 
-			ExportedDocuments.Add(DocumentData);
 		}
 
 		private FDocumentData PopDocument()
@@ -836,6 +944,18 @@ namespace DatasmithRevitExporter
 				// Cache new camera actor
 				DirectLink?.CacheElement(RevitDocument, InView3D, new FDocumentData.FBaseElementData(CameraActor, null, DocumentDataStack.Peek()));
 			}
+		}
+
+		public string GetActorName(FDocumentData InDocumentData)
+		{
+			// Expecting this to be called only for current document on the stack
+			Debug.Assert(DocumentDataStack.Peek() == InDocumentData);
+
+			// Use Element "path" in the whole linked documents hierarchy to build unique name for any kind of instance element(e.g. instance of the same family of the same linked file)
+			string ActorName = string.Join(":", 
+				                   DocumentDataStack.Select(DocumentData => $"{DocumentData.DocumentId}({DocumentData.GetElementStackName()})"));
+			LogDebug($"GetActorName:'{ActorName}'");
+			return ActorName;
 		}
 	}
 }
