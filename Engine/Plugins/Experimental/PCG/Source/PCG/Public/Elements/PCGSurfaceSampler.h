@@ -83,7 +83,7 @@ namespace PCGSurfaceSampler
 #endif
 
 		bool Initialize(const UPCGSurfaceSamplerSettings* InSettings, FPCGContext* Context, const FBox& InputBounds);
-		void ComputeCellIndices(int32 Index, int32& CellX, int32& CellY) const;
+		FIntVector2 ComputeCellIndices(int32 Index) const;
 
 		/** Computed values **/
 		FVector InterstitialDistance;
