@@ -167,6 +167,7 @@ void FDataflowEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* Hi
 	if (DataflowActor && DataflowActor->DataflowComponent)
 	{
 		const bool bIsShiftKeyDown = Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift);
+		const bool bIsCtrltKeyDown = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
 
 		FDataflowSelectionState SelectionState = DataflowActor->DataflowComponent->GetSelectionState();
 		FDataflowSelectionState PreState = SelectionState;
@@ -177,16 +178,28 @@ void FDataflowEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* Hi
 			{
 				HDataflowNode* DataflowNode = (HDataflowNode*)(HitProxy);
 				FDataflowSelectionState::ObjectID ID(DataflowNode->NodeName, DataflowNode->GeometryIndex);
-				if (SelectionState.Nodes.Contains(ID))
+
+				if (bIsShiftKeyDown)
 				{
-					SelectionState.Nodes.Remove(ID);
+					if (!SelectionState.Nodes.Contains(ID))
+					{
+						SelectionState.Nodes.AddUnique(ID);
+					}
+				}
+				else if (bIsCtrltKeyDown)
+				{
+					if (SelectionState.Nodes.Contains(ID))
+					{
+						SelectionState.Nodes.Remove(ID);
+					}
 				}
 				else
 				{
+					SelectionState.Nodes.Empty();
 					SelectionState.Nodes.AddUnique(ID);
 				}
 			}
-			else
+			else if (!bIsShiftKeyDown && !bIsCtrltKeyDown)
 			{
 				SelectionState.Nodes.Empty();
 			}

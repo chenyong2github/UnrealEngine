@@ -28,6 +28,6 @@ struct HDataflowNode : public HActor
 
 	virtual EMouseCursor::Type GetMouseCursor() override
 	{
-		return EMouseCursor::GrabHandClosed;
+		return EMouseCursor::Default;
 	}
 };
