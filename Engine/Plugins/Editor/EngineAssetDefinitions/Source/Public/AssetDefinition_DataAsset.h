@@ -21,4 +21,5 @@ public:
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UDataAsset::StaticClass(); }
 	
 	virtual EAssetCommandResult PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const override;
+	virtual EAssetCommandResult GetFilters(TArray<FAssetFilterData>& OutFilters) const override;
 };
