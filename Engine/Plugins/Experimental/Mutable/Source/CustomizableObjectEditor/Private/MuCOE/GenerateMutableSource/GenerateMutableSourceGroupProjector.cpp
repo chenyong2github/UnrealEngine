@@ -570,8 +570,6 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 				ParameterUIData.IntegerParameterGroupType = ECustomizableObjectGroupType::COGT_ONE;
 				ParameterUIData.ParamUIMetadata.ExtraInformation.Add(FString("UseThumbnails"));
 
-				GenerationContext.ParameterUIDataMap.Add(NodeEnumParamName, ParameterUIData);
-
 				for (int ImageIndex = 0; ImageIndex < ArrayOptionImage.Num(); ++ImageIndex)
 				{
 					EnumParameterNode->SetValue(ImageIndex, (float)ImageIndex, TCHAR_TO_ANSI(*ArrayOptionImage[ImageIndex].OptionName));
@@ -582,6 +580,8 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 						ArrayOptionImage[ImageIndex].OptionName,
 						optionMetadata));
 				}
+
+				GenerationContext.ParameterUIDataMap.Add(NodeEnumParamName, ParameterUIData);
 
 				mu::NodeImageSwitchPtr SwitchNode = new mu::NodeImageSwitch;
 				SwitchNode->SetParameter(EnumParameterNode);
