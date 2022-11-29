@@ -26,7 +26,7 @@ void FVisualLoggerBinaryFileDevice::Cleanup(bool bReleaseMemory)
 
 }
 
-void FVisualLoggerBinaryFileDevice::StartRecordingToFile(float TimeStamp)
+void FVisualLoggerBinaryFileDevice::StartRecordingToFile(double TimeStamp)
 {
 	if (FileArchive != nullptr)
 	{
@@ -44,7 +44,7 @@ void FVisualLoggerBinaryFileDevice::StartRecordingToFile(float TimeStamp)
 	FileArchive = IFileManager::Get().CreateFileWriter(*FullFilename);
 }
 
-void FVisualLoggerBinaryFileDevice::StopRecordingToFile(float TimeStamp)
+void FVisualLoggerBinaryFileDevice::StopRecordingToFile(double TimeStamp)
 {
 	if (FileArchive == nullptr)
 	{

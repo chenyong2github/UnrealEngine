@@ -51,8 +51,8 @@ public:
 	bool IsItemVisible(int32 ItemIndex) const { return HiddenItems[ItemIndex] == false; }
 	int32 GetNumberOfHiddenItems() const { return NumHiddenItems; }
 
-	int32 GetClosestItem(float Time) const;
-	int32 GetClosestItem(float Time, float ScrubTime) const;
+	int32 GetClosestItem(double Time) const;
+	int32 GetClosestItem(double Time, double ScrubTime) const;
 
 protected:
 	FVisualLoggerDBEvents& DBEvents;
@@ -112,7 +112,7 @@ struct FVisualLoggerGraphData
 {
 	FName DataName;
 	TArray<FVector2D> Samples;
-	TArray<float> TimeStamps;
+	TArray<double> TimeStamps;
 
 	FVisualLoggerGraphData(FName InDataName) : DataName(InDataName) {}
 };

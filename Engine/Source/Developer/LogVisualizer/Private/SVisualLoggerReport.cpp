@@ -51,7 +51,7 @@ void SVisualLoggerReport::Construct(const FArguments& InArgs, TArray< TSharedPtr
 					.Padding(5.0f)
 					.BorderImage(FAppStyle::Get().GetBrush("BoxShadow"))
 					[
-						SNew(SBorder).Padding(2).HAlign(HAlign_Left)
+						SNew(SBorder).Padding(2.f).HAlign(HAlign_Left)
 						.BorderImage(FLogVisualizerStyle::Get().GetBrush("RichText.Background"))
 						[
 							SAssignNew(InteractiveRichText, SRichTextBlock)

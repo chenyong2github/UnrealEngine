@@ -63,7 +63,7 @@ void AVisualLoggerHUD::PostRender()
 				TextItem.Text = LOCTEXT("NotActorUnderCursor", "Not actor under cursor" );
 			}
 			Canvas->DrawItem( TextItem, X, Y );
-			Y += TextItem.DrawnSize.Y;
+			Y += static_cast<float>(TextItem.DrawnSize.Y);
 
 			if (DebugCamController->PickedActor.IsValid())
 			{

@@ -13,19 +13,19 @@ class FSlateWindowElementList;
 
 struct FVisualLoggerTimeSliderArgs
 {
-	DECLARE_DELEGATE_OneParam( FOnRangeChanged, TRange<float> )
-	DECLARE_DELEGATE_TwoParams( FOnScrubPositionChanged, float, bool )
+	DECLARE_DELEGATE_OneParam( FOnRangeChanged, TRange<double> )
+	DECLARE_DELEGATE_TwoParams( FOnScrubPositionChanged, double, bool )
 
 	FVisualLoggerTimeSliderArgs()
-		: ScrubPosition(0)
-		, ViewRange(TRange<float>(0.0f, 5.0f))
-		, ClampRange(TRange<float>(0.0f, 5.0f))
+		: ScrubPosition(0.)
+		, ViewRange(TRange<double>(0., 5.))
+		, ClampRange(TRange<double>(0., 5.))
 		, AllowZoom(true)
 		, CursorSize(0.05f)
 	{}
 
 	/** The scrub position */
-	TAttribute<float> ScrubPosition;
+	TAttribute<double> ScrubPosition;
 
 	/** Called when the scrub position changes */
 	FOnScrubPositionChanged OnScrubPositionChanged;
@@ -37,16 +37,16 @@ struct FVisualLoggerTimeSliderArgs
 	FSimpleDelegate OnEndScrubberMovement;
 
 	/** View time range */
-	TAttribute< TRange<float> > ViewRange;
+	TAttribute< TRange<double> > ViewRange;
 
 	/** Clamp time range */
-	TAttribute< TRange<float> > ClampRange;
+	TAttribute< TRange<double> > ClampRange;
 
 	/** Called when the view range changes */
 	FOnRangeChanged OnViewRangeChanged;
 
 	/** Attribute defining the time snap interval */
-	TAttribute<float> TimeSnapInterval;
+	TAttribute<double> TimeSnapInterval;
 
 	/** If we are allowed to zoom */
 	bool AllowZoom;
@@ -73,7 +73,7 @@ public:
 	* @param MinTickSpacing	The minimum tick spacing in time units allowed
 	* @return the optimal spacing in time units
 	*/
-	float DetermineOptimalSpacing(float InPixelsPerInput, uint32 MinTick, float MinTickSpacing) const;
+	double DetermineOptimalSpacing(double InPixelsPerInput, uint32 MinTick, float MinTickSpacing) const;
 	void SetTimesliderArgs(const FVisualLoggerTimeSliderArgs& InArgs);
 
 	int32 OnPaintTimeSlider( bool bMirrorLabels, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const;
@@ -94,14 +94,14 @@ public:
 	 * @param NewValue				Value resulting from the user's interaction
 	 * @param bIsScrubbing			True if done via scrubbing, false if just releasing scrubbing
 	 */
-	void CommitScrubPosition( float NewValue, bool bIsScrubbing );
+	void CommitScrubPosition(double NewValue, bool bIsScrubbing );
 
 	void SetExternalScrollbar(TSharedRef<SScrollBar> Scrollbar);
-	void SetTimeRange(float MinValue, float MaxValue);
-	void SetClampRange(float MinValue, float MaxValue);
+	void SetTimeRange(double MinValue, double MaxValue);
+	void SetClampRange(double MinValue, double MaxValue);
 	bool IsPanning() { return bPanning; }
 
-	float GetTimeAtCursorPosition(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const;
+	double GetTimeAtCursorPosition(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const;
 private:
 	// forward declared as class members to prevent name collision with similar types defined in other units
 	struct FScrubRangeToScreen;
@@ -125,7 +125,7 @@ private:
 	/** Brush for drawing cursor background to visualize corsor size */
 	const FSlateBrush* CursorBackground;
 	/** Total mouse delta during dragging **/
-	float DistanceDragged;
+	double DistanceDragged;
 	/** If we are dragging the scrubber */
 	bool bDraggingScrubber;
 	/** If we are currently panning the panel */

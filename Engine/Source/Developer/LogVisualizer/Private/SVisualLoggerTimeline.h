@@ -53,9 +53,13 @@ public:
 	void HandleLogVisualizerSettingChanged(FName Name);
 	TSharedPtr<class SVisualLoggerTimelinesContainer> GetOwner() { return Owner; }
 
+	// @todo: This function currently doesn't do anything!
 	void Goto(float ScrubPosition);
+	// @todo: This function currently doesn't do anything!
 	void GotoNextItem();
+	// @todo: This function currently doesn't do anything!
 	void GotoPreviousItem();
+	// @todo: This function currently doesn't do anything!
 	void MoveCursorByDistance(int32 Distance);
 
 protected:

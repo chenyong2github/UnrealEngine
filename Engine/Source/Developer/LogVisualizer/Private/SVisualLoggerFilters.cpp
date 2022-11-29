@@ -37,7 +37,7 @@ void SVisualLoggerFilters::Construct(const FArguments& InArgs, const TSharedRef<
 		SNew(SComboButton)
 		.ComboButtonStyle(FLogVisualizerStyle::Get(), "Filters.Style")
 		.ForegroundColor(FLinearColor::White)
-		.ContentPadding(0)
+		.ContentPadding(0.f)
 		.OnGetMenuContent(this, &SVisualLoggerFilters::MakeGraphsFilterMenu)
 		.ToolTipText(LOCTEXT("AddFilterToolTip", "Add an asset filter."))
 		.HasDownArrow(true)

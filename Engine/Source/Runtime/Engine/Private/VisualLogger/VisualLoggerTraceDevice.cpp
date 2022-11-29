@@ -26,14 +26,14 @@ void FVisualLoggerTraceDevice::Cleanup(bool bReleaseMemory)
 
 }
 
-void FVisualLoggerTraceDevice::StartRecordingToFile(float TimeStamp)
+void FVisualLoggerTraceDevice::StartRecordingToFile(double TimeStamp)
 {
 #if UE_TRACE_ENABLED
 	UE::Trace::ToggleChannel(TEXT("VisualLogger"), true); 
 #endif
 }
 
-void FVisualLoggerTraceDevice::StopRecordingToFile(float TimeStamp)
+void FVisualLoggerTraceDevice::StopRecordingToFile(double TimeStamp)
 {
 #if UE_TRACE_ENABLED
 	UE::Trace::ToggleChannel(TEXT("VisualLogger"), false); 

@@ -227,7 +227,7 @@ void SVisualLoggerLogsList::RegenerateLogEntries()
 		const TArray<FVisualLogDevice::FVisualLogEntryItem>& Entries = FVisualLoggerDatabase::Get().GetRowByName(CurrentRow).GetItems();
 		
 		int32 BestItemIndex = INDEX_NONE;
-		float BestDistance = MAX_FLT;
+		double BestDistance = MAX_dbl;
 		for (int32 Index = 0; Index < Entries.Num(); Index++)
 		{
 			auto& CurrentEntryItem = Entries[Index];
@@ -237,7 +237,7 @@ void SVisualLoggerLogsList::RegenerateLogEntries()
 			}
 
 			TArray<FVisualLoggerCategoryVerbosityPair> OutCategories;
-			const float CurrentDist = DBRow.GetCurrentItemIndex() == INDEX_NONE ? 0 : FMath::Abs(CurrentEntryItem.Entry.TimeStamp - DBRow.GetCurrentItem().Entry.TimeStamp);
+			const double CurrentDist = DBRow.GetCurrentItemIndex() == INDEX_NONE ? 0. : FMath::Abs(CurrentEntryItem.Entry.TimeStamp - DBRow.GetCurrentItem().Entry.TimeStamp);
 			if (CurrentDist < BestDistance)
 			{
 				BestDistance = CurrentDist;

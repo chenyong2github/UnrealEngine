@@ -166,7 +166,7 @@ struct ENGINE_API FVisualLogDataBlock
 struct ENGINE_API FVisualLogEntry
 {
 #if ENABLE_VISUAL_LOG
-	float TimeStamp;
+	double TimeStamp;
 	FVector Location;
 	uint8 bPassedClassAllowList : 1;
 	uint8 bPassedObjectAllowList : 1;	
@@ -184,7 +184,7 @@ struct ENGINE_API FVisualLogEntry
 	FVisualLogEntry() { Reset(); }
 	FVisualLogEntry(const FVisualLogEntry& Entry);
 	FVisualLogEntry(const AActor* InActor, TArray<TWeakObjectPtr<UObject> >* Children);
-	FVisualLogEntry(float InTimeStamp, FVector InLocation, const UObject* Object, TArray<TWeakObjectPtr<UObject> >* Children);
+	FVisualLogEntry(double InTimeStamp, FVector InLocation, const UObject* Object, TArray<TWeakObjectPtr<UObject> >* Children);
 
 	bool ShouldLog(const ECreateIfNeeded ShouldCreate) const
 	{
@@ -193,13 +193,13 @@ struct ENGINE_API FVisualLogEntry
 		return bIsAllowedToLog && ShouldCreate == ECreateIfNeeded::Create;
 	}
 
-	bool ShouldFlush(float InTimeStamp) const
+	bool ShouldFlush(double InTimeStamp) const
 	{
 		//Same LogOwner can be used for logs at different time in the frame so need to flush entry right away
 		return bIsInitialized && InTimeStamp > TimeStamp;
 	}
 
-	void InitializeEntry( const float InTimeStamp );
+	void InitializeEntry( const double InTimeStamp );
 	void Reset();
 	void SetPassedObjectAllowList(const bool bPassed);
 	void UpdateAllowedToLog();
@@ -270,8 +270,12 @@ public:
 	virtual ~FVisualLogDevice() { }
 	virtual void Serialize(const UObject* LogOwner, FName OwnerName, FName InOwnerClassName, const FVisualLogEntry& LogEntry) = 0;
 	virtual void Cleanup(bool bReleaseMemory = false) { /* Empty */ }
-	virtual void StartRecordingToFile(float TImeStamp) { /* Empty */ }
-	virtual void StopRecordingToFile(float TImeStamp) { /* Empty */ }
+	virtual void StartRecordingToFile(double TimeStamp) { /* Empty */ }
+	virtual void StopRecordingToFile(double TimeStamp) { /* Empty */ }
+	UE_DEPRECATED(5.2, "Use the version which takes a double.")
+	virtual void StartRecordingToFile(float TimeStamp) final { StartRecordingToFile(static_cast<double>(TimeStamp)); }
+	UE_DEPRECATED(5.2, "Use the version which takes a double.")
+	virtual void StopRecordingToFile(float TimeStamp) final { StopRecordingToFile(static_cast<double>(TimeStamp)); }
 	virtual void DiscardRecordingToFile() { /* Empty */ }
 	virtual void SetFileName(const FString& InFileName) { /* Empty */ }
 	virtual void GetRecordedLogs(TArray<FVisualLogDevice::FVisualLogEntryItem>& OutLogs)  const { /* Empty */ }
@@ -299,7 +303,7 @@ struct ENGINE_API FVisualLoggerCategoryVerbosityPair
 struct ENGINE_API FVisualLoggerHelpers
 {
 	static FString GenerateTemporaryFilename(const FString& FileExt);
-	static FString GenerateFilename(const FString& TempFileName, const FString& Prefix, float StartRecordingTime, float EndTimeStamp);
+	static FString GenerateFilename(const FString& TempFileName, const FString& Prefix, double StartRecordingTime, double EndTimeStamp);
 	static FArchive& Serialize(FArchive& Ar, FName& Name);
 	static FArchive& Serialize(FArchive& Ar, TArray<FVisualLogDevice::FVisualLogEntryItem>& RecordedLogs);
 	static void GetCategories(const FVisualLogEntry& RecordedLogs, TArray<FVisualLoggerCategoryVerbosityPair>& OutCategories);
@@ -332,7 +336,9 @@ public:
 
 	virtual void OnItemsSelectionChanged(IVisualLoggerEditorInterface* EdInterface) {};
 	virtual void OnLogLineSelectionChanged(IVisualLoggerEditorInterface* EdInterface, TSharedPtr<struct FLogEntryItem> SelectedItem, int64 UserData) {};
-	virtual void OnScrubPositionChanged(IVisualLoggerEditorInterface* EdInterface, float NewScrubPosition, bool bScrubbing) {}
+	UE_DEPRECATED(5.2, "Use the version which takes a double.")
+	virtual void OnScrubPositionChanged(IVisualLoggerEditorInterface* EdInterface, float NewScrubPosition, bool bScrubbing) final {}
+	virtual void OnScrubPositionChanged(IVisualLoggerEditorInterface* EdInterface, double NewScrubPosition, bool bScrubbing) {}
 };
 
 ENGINE_API  FArchive& operator<<(FArchive& Ar, FVisualLogDevice::FVisualLogEntryItem& FrameCacheItem);

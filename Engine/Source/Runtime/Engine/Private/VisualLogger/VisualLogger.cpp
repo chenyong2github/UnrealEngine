@@ -302,7 +302,7 @@ bool FVisualLogger::CheckVisualLogInputInternal(const UObject* Object, const FNa
 	return true;
 }
 
-float FVisualLogger::GetTimeStampForObject(const UObject* Object) const
+double FVisualLogger::GetTimeStampForObject(const UObject* Object) const
 {
 	if (GetTimeStampFunc)
 	{
@@ -314,10 +314,10 @@ float FVisualLogger::GetTimeStampForObject(const UObject* Object) const
 		return World->TimeSeconds;
 	}
 
-	return 0.0f;
+	return 0.;
 }
 
-void FVisualLogger::SetGetTimeStampFunc(const TFunction<float(const UObject*)> Function)
+void FVisualLogger::SetGetTimeStampFunc(const TFunction<double(const UObject*)> Function)
 {
 	GetTimeStampFunc = Function;
 }
@@ -416,7 +416,7 @@ FVisualLogEntry* FVisualLogger::GetLastEntryForObject(const UObject* Object)
 	return ThreadCurrentEntryPerObject.Find(LogOwner);
 }
 
-FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const float TimeStamp, ECreateIfNeeded ShouldCreate)
+FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const double TimeStamp, ECreateIfNeeded ShouldCreate)
 {
 	const UObject* LogOwner = nullptr;
 	{
@@ -489,7 +489,7 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const flo
 }
 
 
-FVisualLogEntry* FVisualLogger::GetEntryToWriteInternal(const UObject* Object, const float TimeStamp, const ECreateIfNeeded ShouldCreate)
+FVisualLogEntry* FVisualLogger::GetEntryToWriteInternal(const UObject* Object, const double TimeStamp, const ECreateIfNeeded ShouldCreate)
 {
 	// No redirection needed, it should have been done at the time of the thread entry was computed
 	const UObject* LogOwner = Object;
@@ -882,7 +882,7 @@ void FVisualLogger::Cleanup(UWorld* OldWorld, const bool bReleaseMemory)
 	}
 }
 
-int32 FVisualLogger::GetUniqueId(const float Timestamp)
+int32 FVisualLogger::GetUniqueId(const double Timestamp)
 {
 	return LastUniqueIds.FindOrAdd(Timestamp)++;
 }

@@ -190,7 +190,7 @@ void FLogVisualizer::UpdateCameraPosition(FName RowName, int32 ItemIndes)
 
 			FBox BoundingBox = FBox::BuildAABB(CurrentLocation, Extent);
 			const FVector Position = BoundingBox.GetCenter();
-			float Radius = BoundingBox.GetExtent().Size();
+			float Radius = static_cast<float>(BoundingBox.GetExtent().Size());
 			
 			FViewportCameraTransform ViewTransform;
 			ViewTransform.TransitionToLocation(Position, nullptr, true);
@@ -199,10 +199,10 @@ void FLogVisualizer::UpdateCameraPosition(FName RowName, int32 ItemIndes)
 			const float AspectRatio = 1.777777f;
 			CA_SUPPRESS(6326);
 			uint32 MinAxisSize = (AspectRatio > 1.0f) ? Viewport->GetSizeXY().Y : Viewport->GetSizeXY().X;
-			float Zoom = Radius / (MinAxisSize / 2.0f);
+			const float Zoom = Radius / (MinAxisSize / 2.0f);
 
 			NewOrthoZoom = Zoom * (Viewport->GetSizeXY().X*15.0f);
-			NewOrthoZoom = FMath::Clamp<float>(NewOrthoZoom, 250, MAX_FLT);
+			NewOrthoZoom = FMath::Clamp<float>(NewOrthoZoom, 250.0f, MAX_FLT);
 			ViewTransform.SetOrthoZoom(NewOrthoZoom);
 
 			AVisualLoggerCameraController::Instance->GetSpectatorPawn()->TeleportTo(ViewTransform.GetLocation(), ViewTransform.GetRotation(), false, true);
@@ -264,6 +264,7 @@ int32 FLogVisualizer::GetPreviousItem(FName RowName, int32 MoveDistance)
 	return NewItemIndex;
 }
 
+// @todo: This function currently doesn't do anything!
 void FLogVisualizer::GotoNextItem(FName RowName, int32 MoveDistance)
 {
 	FVisualLoggerDBRow& DBRow = FVisualLoggerDatabase::Get().GetRowByName(RowName);
@@ -271,11 +272,12 @@ void FLogVisualizer::GotoNextItem(FName RowName, int32 MoveDistance)
 
 	if (NewItemIndex != DBRow.GetCurrentItemIndex())
 	{
-		auto &Entries = DBRow.GetItems();
+		auto& Entries = DBRow.GetItems();
 		float NewTimeStamp = Entries[NewItemIndex].Entry.TimeStamp;
 	}
 }
 
+// @todo: This function currently doesn't do anything!
 void FLogVisualizer::GotoPreviousItem(FName RowName, int32 MoveDistance)
 {
 	FVisualLoggerDBRow& DBRow = FVisualLoggerDatabase::Get().GetRowByName(RowName);
@@ -283,7 +285,7 @@ void FLogVisualizer::GotoPreviousItem(FName RowName, int32 MoveDistance)
 
 	if (NewItemIndex != DBRow.GetCurrentItemIndex())
 	{
-		auto &Entries = DBRow.GetItems();
+		auto& Entries = DBRow.GetItems();
 		float NewTimeStamp = Entries[NewItemIndex].Entry.TimeStamp;
 	}
 }

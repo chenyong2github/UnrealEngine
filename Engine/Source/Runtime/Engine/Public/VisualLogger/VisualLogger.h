@@ -488,7 +488,7 @@ public:
 	void ClearCategoryAllowList() { CategoryAllowList.Reset(); }
 
 	/** Generates and returns Id unique for given timestamp - used to connect different logs between (ex. text log with geometry shape) */
-	int32 GetUniqueId(float Timestamp);
+	int32 GetUniqueId(double Timestamp);
 
 	/** Starts visual log collecting and recording */
 	void SetIsRecording(const bool bInIsRecording);
@@ -522,7 +522,7 @@ public:
 	/** Returns  current entry for given TimeStamp or creates another one  but first it serialize previous 
 	 *	entry as completed to vislog devices. Use VisualLogger::DontCreate to get current entry without serialization
 	 *	@note this function can return null */
-	FVisualLogEntry* GetEntryToWrite(const UObject* Object, float TimeStamp, ECreateIfNeeded ShouldCreate = ECreateIfNeeded::Create);
+	FVisualLogEntry* GetEntryToWrite(const UObject* Object, double TimeStamp, ECreateIfNeeded ShouldCreate = ECreateIfNeeded::Create);
 	/** Retrieves last used entry for given UObject
 	 *	@note this function can return null */
 	FVisualLogEntry* GetLastEntryForObject(const UObject* Object);
@@ -547,10 +547,10 @@ public:
 	static bool CheckVisualLogInputInternal(const UObject* Object, const FName& CategoryName, ELogVerbosity::Type Verbosity, UWorld **World, FVisualLogEntry **CurrentEntry);
 	
 	/** Returns time stamp for object */
-	float GetTimeStampForObject(const UObject* Object) const;
+	double GetTimeStampForObject(const UObject* Object) const;
 
 	/** Sets function to call to get a timestamp instead of the default implementation (i.e. world time) */
-	void SetGetTimeStampFunc(TFunction<float(const UObject*)> Function);
+	void SetGetTimeStampFunc(TFunction<double(const UObject*)> Function);
 
 	typedef TMap<FObjectKey, TArray<TWeakObjectPtr<const UObject> > > FOwnerToChildrenRedirectionMap;
 	static FOwnerToChildrenRedirectionMap& GetRedirectionMap(const UObject* InObject);
@@ -589,7 +589,7 @@ private:
 	FVisualLoggerObjectEntryMap& GetThreadCurrentEntryMap();
 
 	/** Get global entry to write where all logs are combined together, not thread safe */
-	FVisualLogEntry* GetEntryToWriteInternal(const UObject* Object, float TimeStamp, ECreateIfNeeded ShouldCreate);
+	FVisualLogEntry* GetEntryToWriteInternal(const UObject* Object, double TimeStamp, ECreateIfNeeded ShouldCreate);
 
 	/** Redirect internal implementation, not thread safe */
 	UObject* RedirectInternal(const UObject* FromObject, const UObject* ToObject);
@@ -633,7 +633,7 @@ protected:
 	// Visual Logger extensions map
 	TMap<FName, FVisualLogExtensionInterface*> AllExtensions;
 	// last generated unique id for given times tamp
-	TMap<float, int32> LastUniqueIds;
+	TMap<double, int32> LastUniqueIds;
 	// Current entry with all data
 	FVisualLoggerObjectEntryMap CurrentEntryPerObject;
 	// Threads current entry maps
@@ -667,12 +667,12 @@ protected:
 	/** Indicates there are entries in the redirection map that are invalid */
 	mutable bool bContainsInvalidRedirects : 1;
 	// start recording time
-	float StartRecordingToFileTime;
+	double StartRecordingToFileTime;
 	/** Delegate to set project specific file name for vlogs */
 	FVisualLogFilenameGetterDelegate LogFileNameGetter;
 
 	/** function to call when getting the time stamp */
-	TFunction<float(const UObject*)> GetTimeStampFunc;
+	TFunction<double(const UObject*)> GetTimeStampFunc;
 
 	// if set we are recording and collecting all vlog data
 	static int32 bIsRecording;

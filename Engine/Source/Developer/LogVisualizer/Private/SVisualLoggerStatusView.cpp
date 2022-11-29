@@ -24,7 +24,7 @@ void SVisualLoggerStatusView::Construct(const FArguments& InArgs, const TSharedR
 	ChildSlot
 		[
 			SNew(SBorder)
-			.Padding(1)
+			.Padding(1.f)
 			.BorderImage(FLogVisualizerStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			[
 				SNew(SVerticalBox)

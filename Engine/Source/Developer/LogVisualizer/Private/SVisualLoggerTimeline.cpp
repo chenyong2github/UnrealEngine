@@ -240,21 +240,25 @@ const FSlateBrush* SLogVisualizerTimeline::GetBorder() const
 	}
 }
 
-void SLogVisualizerTimeline::Goto(float ScrubPosition) 
-{ 
+// @todo: This function currently doesn't do anything!
+void SLogVisualizerTimeline::Goto(float ScrubPosition)
+{
 
 }
 
-void SLogVisualizerTimeline::GotoNextItem() 
-{ 
+// @todo: This function currently doesn't do anything!
+void SLogVisualizerTimeline::GotoNextItem()
+{
 	FLogVisualizer::Get().GotoNextItem(GetName());
 }
 
-void SLogVisualizerTimeline::GotoPreviousItem() 
-{ 
+// @todo: This function currently doesn't do anything!
+void SLogVisualizerTimeline::GotoPreviousItem()
+{
 	FLogVisualizer::Get().GotoPreviousItem(GetName());
 }
 
+// @todo: This function currently doesn't do anything!
 void SLogVisualizerTimeline::MoveCursorByDistance(int32 Distance)
 {
 	if (Distance > 0)
@@ -265,5 +269,4 @@ void SLogVisualizerTimeline::MoveCursorByDistance(int32 Distance)
 	{
 		FLogVisualizer::Get().GotoPreviousItem(GetName(), FMath::Abs(Distance));
 	}
-	
 }

@@ -12,7 +12,7 @@
 
 namespace FDebugDrawing
 {
-	const FVector NavOffset(0, 0, 15);
+	const FVector NavOffset(0., 0., 15.);
 }
 
 class UVisualLoggerRenderingComponent;
@@ -110,8 +110,8 @@ namespace
 		if (Verts.Num() >= 3)
 		{
 			const FVector SurfaceNormal = FVector::CrossProduct(Verts[1] - Verts[0], Verts[2] - Verts[0]);
-			const float TestDot = FVector::DotProduct(SurfaceNormal, FVector(0, 0, 1));
-			return TestDot > 0;
+			const double TestDot = FVector::DotProduct(SurfaceNormal, FVector::UpVector);
+			return TestDot > 0.;
 		}
 
 		return false;
@@ -122,7 +122,7 @@ namespace
 		TestMesh.Color = ElementToDraw->GetFColor();
 
 		FClipSMPolygon InPoly(ElementToDraw->Points.Num());
-		InPoly.FaceNormal = FVector(0, 0, 1);
+		InPoly.FaceNormal = FVector::UpVector;
 
 		const bool bHasCorrectWinding = IsPolygonWindingCorrect(ElementToDraw->Points);
 		if (bHasCorrectWinding)
@@ -174,7 +174,7 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 	if (bAddEntryLocationPointer)
 	{
 		constexpr float Length = 100;
-		const FVector DirectionNorm = FVector(0, 0, 1).GetSafeNormal();
+		const FVector DirectionNorm = FVector::UpVector;
 		FVector YAxis, ZAxis;
 		DirectionNorm.FindBestAxisVectors(YAxis, ZAxis);
 		DebugShapes.Cones.Add(FDebugRenderSceneProxy::FCone(FScaleMatrix(FVector(Length)) * FMatrix(DirectionNorm, YAxis, ZAxis, Entry->Location), 5, 5, FColor::Red));
@@ -243,8 +243,8 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 		{
 			struct FHeaderData
 			{
-				float VerticesNum, FacesNum;
-				FHeaderData(const FVector& InVector) : VerticesNum(InVector.X), FacesNum(InVector.Y) {}
+				int32 VerticesNum, FacesNum;
+				FHeaderData(const FVector& InVector) : VerticesNum(static_cast<int32>(InVector.X)), FacesNum(static_cast<int32>(InVector.Y)) {}
 			};
 			const FHeaderData HeaderData(ElementToDraw->Points[0]);
 
@@ -263,9 +263,9 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 			for (int32 VIdx = StartIndex; VIdx < EndIndex; VIdx++)
 			{
 				const FVector &CurrentFace = ElementToDraw->Points[VIdx];
-				TestMesh.Indices.Add(CurrentFace.X);
-				TestMesh.Indices.Add(CurrentFace.Y);
-				TestMesh.Indices.Add(CurrentFace.Z);
+				TestMesh.Indices.Add(static_cast<uint32>(CurrentFace.X));
+				TestMesh.Indices.Add(static_cast<uint32>(CurrentFace.Y));
+				TestMesh.Indices.Add(static_cast<uint32>(CurrentFace.Z));
 			}
 			DebugShapes.Meshes.Add(TestMesh);
 		}
@@ -330,11 +330,11 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 				const FVector Origin = ElementToDraw->Points[Index];
 				const FVector Direction = ElementToDraw->Points[Index + 1].GetSafeNormal();
 				const FVector Angles = ElementToDraw->Points[Index + 2];
-				const float Length = Angles.X;
+				const double Length = Angles.X;
 
 				FVector YAxis, ZAxis;
 				Direction.FindBestAxisVectors(YAxis, ZAxis);
-				DebugShapes.Cones.Add(FDebugRenderSceneProxy::FCone(FScaleMatrix(FVector(Length)) * FMatrix(Direction, YAxis, ZAxis, Origin), Angles.Y, Angles.Z, Color));
+				DebugShapes.Cones.Add(FDebugRenderSceneProxy::FCone(FScaleMatrix(FVector(Length)) * FMatrix(Direction, YAxis, ZAxis, Origin), static_cast<float>(Angles.Y), static_cast<float>(Angles.Z), Color));
 
 				if (bDrawLabel)
 				{
@@ -352,9 +352,11 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 				const FVector Start = ElementToDraw->Points[Index];
 				const FVector End = ElementToDraw->Points[Index + 1];
 				const FVector OtherData = ElementToDraw->Points[Index + 2];
-				const float HalfHeight = 0.5f * (End - Start).Size();
-				const FVector Center = 0.5f * (Start + End);
-				DebugShapes.Cylinders.Add(FDebugRenderSceneProxy::FWireCylinder(Center, OtherData.X, HalfHeight, Color)); // Base parameter is the center of the cylinder
+				const float HalfHeight = FloatCastChecked<float>(0.5 * (End - Start).Size(), UE::LWC::DefaultFloatPrecision);
+				const FVector Center = 0.5 * (Start + End);
+				DebugShapes.Cylinders.Add(FDebugRenderSceneProxy::FWireCylinder(Center
+					, static_cast<float>(OtherData.X)
+					, HalfHeight, Color)); // Base parameter is the center of the cylinder
 				if (bDrawLabel)
 				{
 					DebugShapes.Texts.Add(FDebugRenderSceneProxy::FText3d(ElementToDraw->Description, Center, Color));
@@ -371,8 +373,8 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 				const FVector Base = ElementToDraw->Points[Index + 0];
 				const FVector FirstData = ElementToDraw->Points[Index + 1];
 				const FVector SecondData = ElementToDraw->Points[Index + 2];
-				const float HalfHeight = FirstData.X;
-				const float Radius = FirstData.Y;
+				const float HalfHeight = static_cast<float>(FirstData.X);
+				const float Radius = static_cast<float>(FirstData.Y);
 				const FQuat Rotation = FQuat(FirstData.Z, SecondData.X, SecondData.Y, SecondData.Z);
 
 				const FMatrix Axes = FQuatRotationTranslationMatrix(Rotation, FVector::ZeroVector);
@@ -398,7 +400,7 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 			struct FHeaderData
 			{
 				float MinZ, MaxZ;
-				FHeaderData(const FVector& InVector) : MinZ(InVector.X), MaxZ(InVector.Y) {}
+				FHeaderData(const FVector& InVector) : MinZ(FloatCastChecked<float>(InVector.X, UE::LWC::DefaultFloatPrecision)), MaxZ(FloatCastChecked<float>(InVector.Y, UE::LWC::DefaultFloatPrecision)) {}
 			};
 			const FHeaderData HeaderData(ElementToDraw->Points[0]);
 
@@ -410,27 +412,36 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 			int32 CurrentIndex = 0;
 			FDebugRenderSceneProxy::FMesh TestMesh;
 			TestMesh.Color = ElementToDraw->GetFColor();
+			TestMesh.Vertices.Reserve((AreaMeshPoints.Num() - 1) * 6);
+			TestMesh.Indices.Reserve((AreaMeshPoints.Num() - 1) * 6);
 
 			for (int32 PointIndex = 0; PointIndex < AreaMeshPoints.Num() - 1; PointIndex++)
 			{
 				FVector Point = AreaMeshPoints[PointIndex];
 				FVector NextPoint = AreaMeshPoints[PointIndex + 1];
 
-				FVector3f P1(Point.X, Point.Y, HeaderData.MinZ);
-				FVector3f P2(Point.X, Point.Y, HeaderData.MaxZ);
-				FVector3f P3(NextPoint.X, NextPoint.Y, HeaderData.MinZ);
-				FVector3f P4(NextPoint.X, NextPoint.Y, HeaderData.MaxZ);
+				
+				// LWC_TODO These won't work well with very large coordinates!
+				FVector3f P1(UE::LWC::NarrowWorldPositionChecked(Point.X, Point.Y, HeaderData.MinZ));
+				FVector3f P2(UE::LWC::NarrowWorldPositionChecked(Point.X, Point.Y, HeaderData.MaxZ));
+				FVector3f P3(UE::LWC::NarrowWorldPositionChecked(NextPoint.X, NextPoint.Y, HeaderData.MinZ));
+				FVector3f P4(UE::LWC::NarrowWorldPositionChecked(NextPoint.X, NextPoint.Y, HeaderData.MaxZ));
 
-				TestMesh.Vertices.Add(P1); TestMesh.Vertices.Add(P2); TestMesh.Vertices.Add(P3);
-				TestMesh.Indices.Add(CurrentIndex + 0);
-				TestMesh.Indices.Add(CurrentIndex + 1);
-				TestMesh.Indices.Add(CurrentIndex + 2);
-				CurrentIndex += 3;
-				TestMesh.Vertices.Add(P3); TestMesh.Vertices.Add(P2); TestMesh.Vertices.Add(P4);
-				TestMesh.Indices.Add(CurrentIndex + 0);
-				TestMesh.Indices.Add(CurrentIndex + 1);
-				TestMesh.Indices.Add(CurrentIndex + 2);
-				CurrentIndex += 3;
+				TestMesh.Vertices.Add(P1); 
+				TestMesh.Vertices.Add(P2); 
+				TestMesh.Vertices.Add(P3);
+
+				TestMesh.Indices.Add(CurrentIndex++);
+				TestMesh.Indices.Add(CurrentIndex++);
+				TestMesh.Indices.Add(CurrentIndex++);
+
+				TestMesh.Vertices.Add(P3); 
+				TestMesh.Vertices.Add(P2); 
+				TestMesh.Vertices.Add(P4);
+
+				TestMesh.Indices.Add(CurrentIndex++);
+				TestMesh.Indices.Add(CurrentIndex++);
+				TestMesh.Indices.Add(CurrentIndex++);
 			}
 			DebugShapes.Meshes.Add(TestMesh);
 
@@ -440,15 +451,15 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 				PolygonToDraw.SetColor(ElementToDraw->GetFColor());
 				PolygonToDraw.Points.Reserve(AreaMeshPoints.Num());
 				PolygonToDraw.Points = AreaMeshPoints;
-				GetPolygonMesh(&PolygonToDraw, PolygonMesh, FVector3f(0, 0, HeaderData.MaxZ));
+				GetPolygonMesh(&PolygonToDraw, PolygonMesh, FVector3f(0., 0., HeaderData.MaxZ));
 				DebugShapes.Meshes.Add(PolygonMesh);
 			}
 
 			for (int32 VIdx = 0; VIdx < AreaMeshPoints.Num(); VIdx++)
 			{
 				DebugShapes.Lines.Add(FDebugRenderSceneProxy::FDebugLine(
-					AreaMeshPoints[VIdx] + FVector(0, 0, HeaderData.MaxZ),
-					AreaMeshPoints[(VIdx + 1) % AreaMeshPoints.Num()] + FVector(0, 0, HeaderData.MaxZ),
+					AreaMeshPoints[VIdx] + FVector(0., 0., HeaderData.MaxZ),
+					AreaMeshPoints[(VIdx + 1) % AreaMeshPoints.Num()] + FVector(0., 0., HeaderData.MaxZ),
 					ElementToDraw->GetFColor(),
 					2)
 					);
@@ -485,7 +496,7 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 			{
 				const FVector Center = ElementToDraw->Points[Index + 0];
 				const FVector UpAxis = ElementToDraw->Points[Index + 1];
-				const float Radius = ElementToDraw->Points[Index + 2].X;
+				const double Radius = ElementToDraw->Points[Index + 2].X;
 				const float Thickness = float(ElementToDraw->Thicknes);
 
 				const FQuat Rotation = FQuat::FindBetweenNormals(FVector::UpVector, UpAxis);
@@ -496,7 +507,7 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 				FVector PrevPosition = FVector::ZeroVector;
 				for (int32 Div = 0; Div <= CircleDivs; Div++)
 				{
-					const float Angle = (float)Div / (float)CircleDivs * PI * 2.0f;
+					const float Angle = (float)Div / (float)CircleDivs * UE_PI * 2.0f;
 					const FVector Position = Center + (FMath::Cos(Angle) * XAxis + FMath::Sin(Angle) * YAxis) * Radius;
 					if (Div > 0)
 					{

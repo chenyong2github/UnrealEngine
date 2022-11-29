@@ -2669,6 +2669,16 @@ FORCEINLINE FVector3f NarrowWorldPositionChecked(const FVector& WorldPosition)
 	return Narrowed;
 }
 
+// Validated narrowing cast for world positions. FVector -> FVector3f
+FORCEINLINE FVector3f NarrowWorldPositionChecked(const FVector::FReal InX, const FVector::FReal InY, const FVector::FReal InZ)
+{
+	FVector3f Narrowed;
+	Narrowed.X = FloatCastChecked<float>(InX, DefaultFloatPrecision);
+	Narrowed.Y = FloatCastChecked<float>(InY, DefaultFloatPrecision);
+	Narrowed.Z = FloatCastChecked<float>(InZ, DefaultFloatPrecision);
+	return Narrowed;
+}
+
 } // namespace UE::LWC
 
 } // namespace UE

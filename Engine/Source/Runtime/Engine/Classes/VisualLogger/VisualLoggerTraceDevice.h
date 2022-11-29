@@ -18,8 +18,8 @@ public:
 
 	FVisualLoggerTraceDevice();
 	virtual void Cleanup(bool bReleaseMemory = false) override;
-	virtual void StartRecordingToFile(float TImeStamp) override;
-	virtual void StopRecordingToFile(float TImeStamp) override;
+	virtual void StartRecordingToFile(double TimeStamp) override;
+	virtual void StopRecordingToFile(double TimeStamp) override;
 	virtual void DiscardRecordingToFile() override;
 	virtual void SetFileName(const FString& InFileName) override;
 	virtual void Serialize(const class UObject* LogOwner, FName OwnerName, FName OwnerClassName, const FVisualLogEntry& LogEntry) override;

@@ -877,7 +877,7 @@ void SVisualLogger::OnNewWorld(UWorld* NewWorld)
 
 void SVisualLogger::OnObjectSelectionChanged(const TArray<FName>& RowNames)
 {
-	const float ScrubTime = FLogVisualizer::Get().GetTimeSliderController().Get()->GetTimeSliderArgs().ScrubPosition.Get();
+	const double ScrubTime = FLogVisualizer::Get().GetTimeSliderController().Get()->GetTimeSliderArgs().ScrubPosition.Get();
 	for (auto RowName : RowNames)
 	{
 		FVisualLoggerDBRow& DBRow = FVisualLoggerDatabase::Get().GetRowByName(RowName);
@@ -949,7 +949,7 @@ void SVisualLogger::OnFiltersChanged()
 	const int32 BlockingCycles = int32(FPlatformTime::Cycles() - StartCycles);
 	{
 		const TArray<FName>& SelectedRows = FVisualLoggerDatabase::Get().GetSelectedRows();
-		const float ScrubTime = FLogVisualizer::Get().GetTimeSliderController()->GetTimeSliderArgs().ScrubPosition.Get();
+		const double ScrubTime = FLogVisualizer::Get().GetTimeSliderController()->GetTimeSliderArgs().ScrubPosition.Get();
 		{
 			for (auto RowName : SelectedRows)
 			{
@@ -1114,10 +1114,10 @@ void SVisualLogger::OnLogLineSelectionChanged(TSharedPtr<struct FLogEntryItem> S
 	}
 }
 
-void SVisualLogger::OnScrubPositionChanged(float NewScrubPosition, bool bScrubbing)
+void SVisualLogger::OnScrubPositionChanged(double NewScrubPosition, bool bScrubbing)
 {
 	const TArray<FName> &SelectedRows = FVisualLoggerDatabase::Get().GetSelectedRows();
-	const float ScrubTime = FLogVisualizer::Get().GetTimeSliderController()->GetTimeSliderArgs().ScrubPosition.Get();
+	const double ScrubTime = FLogVisualizer::Get().GetTimeSliderController()->GetTimeSliderArgs().ScrubPosition.Get();
 	for (auto RowName : SelectedRows)
 	{
 		auto& DBRow = FVisualLoggerDatabase::Get().GetRowByName(RowName);
@@ -1154,9 +1154,9 @@ FReply SVisualLogger::OnKeyboardRedirection(const FGeometry& MyGeometry, const F
 	const FKey Key = InKeyEvent.GetKey();
 	if (Key == EKeys::Left || Key == EKeys::Right)
 	{
-		const float ScrubTime = FLogVisualizer::Get().GetTimeSliderController()->GetTimeSliderArgs().ScrubPosition.Get();
-		float NewTimeToSet = ScrubTime;
-		float BestTimeDifference = FLT_MAX;
+		const double ScrubTime = FLogVisualizer::Get().GetTimeSliderController()->GetTimeSliderArgs().ScrubPosition.Get();
+		double NewTimeToSet = ScrubTime;
+		double BestTimeDifference = MAX_dbl;
 
 		const int32 MoveDist = InKeyEvent.IsLeftControlDown() ? InKeyEvent.IsLeftShiftDown() ? 20 : 10 : 1;
 		for (auto RowName : SelectedRows)
@@ -1170,7 +1170,7 @@ FReply SVisualLogger::OnKeyboardRedirection(const FGeometry& MyGeometry, const F
 
 			if (Key == EKeys::Right)
 			{
-				float TimeDifference = DBRow.GetCurrentItem().Entry.TimeStamp - ScrubTime;
+				double TimeDifference = DBRow.GetCurrentItem().Entry.TimeStamp - ScrubTime;
 				if (TimeDifference > 0 && FMath::Abs(TimeDifference) < FMath::Abs(BestTimeDifference))
 				{
 					BestTimeDifference = TimeDifference;
@@ -1187,7 +1187,7 @@ FReply SVisualLogger::OnKeyboardRedirection(const FGeometry& MyGeometry, const F
 			}
 			else if (Key == EKeys::Left)
 			{
-				float TimeDifference = DBRow.GetCurrentItem().Entry.TimeStamp - ScrubTime;
+				double TimeDifference = DBRow.GetCurrentItem().Entry.TimeStamp - ScrubTime;
 				if (TimeDifference < 0 && FMath::Abs(TimeDifference) < FMath::Abs(BestTimeDifference))
 				{
 					BestTimeDifference = TimeDifference;

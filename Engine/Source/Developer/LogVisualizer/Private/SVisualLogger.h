@@ -59,7 +59,7 @@ public:
 	void OnItemsSelectionChanged(const FVisualLoggerDBRow&, int32);
 	void OnNewItemHandler(const FVisualLoggerDBRow& BDRow, int32 ItemIndex);
 	void UpdateVisibilityForEntry(const FVisualLoggerDBRow& BDRow, int32 ItemIndex);
-	void OnScrubPositionChanged(float NewScrubPosition, bool bScrubbing);
+	void OnScrubPositionChanged(double NewScrubPosition, bool bScrubbing);
 
 	void OnFiltersSearchChanged(const FText& Filter);
 	void OnLogLineSelectionChanged(TSharedPtr<struct FLogEntryItem> SelectedItem, int64 UserData, FName TagName);

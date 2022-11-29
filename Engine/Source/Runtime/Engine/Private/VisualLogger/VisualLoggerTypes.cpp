@@ -3,6 +3,7 @@
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "VisualLogger/VisualLoggerDebugSnapshotInterface.h"
 
 namespace
@@ -18,7 +19,9 @@ UVisualLoggerDebugSnapshotInterface::UVisualLoggerDebugSnapshotInterface(const F
 #if ENABLE_VISUAL_LOG
 
 #define DEPRECATED_VISUAL_LOGGER_MAGIC_NUMBER 0xFAFAAFAF
-#define VISUAL_LOGGER_MAGIC_NUMBER 0xAFAFFAFA
+#define VISUAL_LOGGER_MAGIC_NUMBER_OLD_CUSTOM_VERSION 0xAFAFFAFA
+#define VISUAL_LOGGER_MAGIC_NUMBER_CUSTOM_VERSION_CONTAINER 0xBFBFBBFB
+#define VISUAL_LOGGER_MAGIC_NUMBER_LATEST VISUAL_LOGGER_MAGIC_NUMBER_CUSTOM_VERSION_CONTAINER
 
 //----------------------------------------------------------------------//
 // FVisualLogShapeElement 
@@ -76,7 +79,7 @@ FVisualLogEntry::FVisualLogEntry(const AActor* InActor, TArray<TWeakObjectPtr<UO
 		Reset();
 	}
 
-	TimeStamp = InActor->GetWorld()->TimeSeconds;
+	TimeStamp = InActor->GetWorld()->TimeSeconds; // Should we be bypassing FVisualLogger::GetTimeStampForObject() ?
 	Location = InActor->GetActorLocation();
 	bIsLocationValid = true;
 
@@ -102,7 +105,7 @@ FVisualLogEntry::FVisualLogEntry(const AActor* InActor, TArray<TWeakObjectPtr<UO
 	}
 }
 
-FVisualLogEntry::FVisualLogEntry(float InTimeStamp, FVector InLocation, const UObject* Object, TArray<TWeakObjectPtr<UObject> >* Children)
+FVisualLogEntry::FVisualLogEntry(double InTimeStamp, FVector InLocation, const UObject* Object, TArray<TWeakObjectPtr<UObject> >* Children)
 {
 	TimeStamp = InTimeStamp;
 	Location = InLocation;
@@ -130,7 +133,7 @@ FVisualLogEntry::FVisualLogEntry(float InTimeStamp, FVector InLocation, const UO
 	}
 }
 
-void FVisualLogEntry::InitializeEntry(const float InTimeStamp)
+void FVisualLogEntry::InitializeEntry(const double InTimeStamp)
 {
 	Reset();
 	TimeStamp = InTimeStamp;
@@ -139,7 +142,7 @@ void FVisualLogEntry::InitializeEntry(const float InTimeStamp)
 
 void FVisualLogEntry::Reset()
 {
-	TimeStamp = -1;
+	TimeStamp = -1.;
 	Location = FVector::ZeroVector;
 	bIsLocationValid = false;
 	Events.Reset();
@@ -245,7 +248,7 @@ void FVisualLogEntry::AddCircle(const FVector& Center, const FVector& UpAxis, co
 	Element.Points.Reserve(3);
 	Element.Points.Add(Center);
 	Element.Points.Add(UpAxis);
-	Element.Points.Add(FVector(Radius, 0.0f, 0.0f));
+	Element.Points.Add(FVector(Radius, 0., 0.));
 	Element.Verbosity = Verbosity;
 	ElementsToDraw.Add(Element);
 }
@@ -548,10 +551,21 @@ FArchive& operator<<(FArchive& Ar, FVisualLogStatusCategory& Status)
 
 FArchive& operator<<(FArchive& Ar, FVisualLogEntry& LogEntry)
 {
-	Ar << LogEntry.TimeStamp;
+	const int32 VLogsOldVer = Ar.CustomVer(EVisualLoggerVersion::GUID);
+	const int32 VLogsStreamObjectVer = Ar.CustomVer(FUE5MainStreamObjectVersion::GUID);
 
-	const int32 VLogsVer = Ar.CustomVer(EVisualLoggerVersion::GUID);
-	if (VLogsVer >= EVisualLoggerVersion::LargeWorldCoordinatesAndLocationValidityFlag)
+	if (VLogsStreamObjectVer >= FUE5MainStreamObjectVersion::VisualLoggerTimeStampAsDouble)
+	{
+		Ar << LogEntry.TimeStamp;
+	}
+	else
+	{
+		float TimeStampFlt = static_cast<float>(LogEntry.TimeStamp);
+		Ar << TimeStampFlt;
+		LogEntry.TimeStamp = TimeStampFlt;
+	}
+
+	if (VLogsOldVer >= EVisualLoggerVersion::LargeWorldCoordinatesAndLocationValidityFlag)
 	{
 		Ar << LogEntry.Location;
 
@@ -572,7 +586,7 @@ FArchive& operator<<(FArchive& Ar, FVisualLogEntry& LogEntry)
 	Ar << LogEntry.ElementsToDraw;
 	Ar << LogEntry.DataBlocks;
 	
-	if (VLogsVer > EVisualLoggerVersion::Initial)
+	if (VLogsOldVer > EVisualLoggerVersion::Initial)
 	{
 		Ar << LogEntry.HistogramSamples;
 	}
@@ -597,7 +611,7 @@ FString FVisualLoggerHelpers::GenerateTemporaryFilename(const FString& FileExt)
 	return FString::Printf(TEXT("VTEMP_%s.%s"), *FDateTime::Now().ToString(), *FileExt);
 }
 
-FString FVisualLoggerHelpers::GenerateFilename(const FString& TempFileName, const FString& Prefix, float StartRecordingTime, float EndTimeStamp)
+FString FVisualLoggerHelpers::GenerateFilename(const FString& TempFileName, const FString& Prefix, double StartRecordingTime, double EndTimeStamp)
 {
 	const FString FullFilename = FString::Printf(TEXT("%s_%s"), *Prefix, *TempFileName);
 	const FString TimeFrameString = FString::Printf(TEXT("%d-%d_"), FMath::TruncToInt(StartRecordingTime), FMath::TruncToInt(EndTimeStamp));
@@ -624,30 +638,42 @@ FArchive& FVisualLoggerHelpers::Serialize(FArchive& Ar, FName& Name)
 FArchive& FVisualLoggerHelpers::Serialize(FArchive& Ar, TArray<FVisualLogDevice::FVisualLogEntryItem>& RecordedLogs)
 {
 	Ar.UsingCustomVersion(EVisualLoggerVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (Ar.IsLoading())
 	{
 		TArray<FVisualLogDevice::FVisualLogEntryItem> CurrentFrame;
 		while (Ar.AtEnd() == false)
 		{
-			int32 FrameTag = VISUAL_LOGGER_MAGIC_NUMBER;
+			int32 FrameTag = VISUAL_LOGGER_MAGIC_NUMBER_LATEST;
 			Ar << FrameTag;
-			if (FrameTag != DEPRECATED_VISUAL_LOGGER_MAGIC_NUMBER && FrameTag != VISUAL_LOGGER_MAGIC_NUMBER)
+			if (FrameTag != DEPRECATED_VISUAL_LOGGER_MAGIC_NUMBER && FrameTag != VISUAL_LOGGER_MAGIC_NUMBER_OLD_CUSTOM_VERSION && FrameTag != VISUAL_LOGGER_MAGIC_NUMBER_CUSTOM_VERSION_CONTAINER)
 			{
 				break;
 			}
 
-			if (FrameTag == DEPRECATED_VISUAL_LOGGER_MAGIC_NUMBER)
+			if (FrameTag == VISUAL_LOGGER_MAGIC_NUMBER_CUSTOM_VERSION_CONTAINER)
 			{
-				Ar.SetCustomVersion(EVisualLoggerVersion::GUID, EVisualLoggerVersion::Initial, TEXT("VisualLogger"));
+				FCustomVersionContainer CustomVersions;
+				CustomVersions.Serialize(Ar);
+				Ar.SetCustomVersions(CustomVersions);
 			}
 			else
 			{
-				int32 ArchiveVer = -1;
-				Ar << ArchiveVer;
-				check(ArchiveVer >= EVisualLoggerVersion::Initial);
+				Ar.SetCustomVersion(FUE5MainStreamObjectVersion::GUID, FUE5MainStreamObjectVersion::BeforeCustomVersionWasAdded, TEXT("VisualLogger"));
 
-				Ar.SetCustomVersion(EVisualLoggerVersion::GUID, ArchiveVer, TEXT("VisualLogger"));
+				if (FrameTag == VISUAL_LOGGER_MAGIC_NUMBER_OLD_CUSTOM_VERSION)
+				{
+					int32 ArchiveOldVer = -1;
+					Ar << ArchiveOldVer;
+					check(ArchiveOldVer >= 0);
+
+					Ar.SetCustomVersion(EVisualLoggerVersion::GUID, ArchiveOldVer, TEXT("VisualLogger"));
+				}
+				else // DEPRECATED_VISUAL_LOGGER_MAGIC_NUMBER
+				{
+					Ar.SetCustomVersion(EVisualLoggerVersion::GUID, EVisualLoggerVersion::Initial, TEXT("VisualLogger"));
+				}
 			}
 
 			Ar << CurrentFrame;
@@ -657,15 +683,14 @@ FArchive& FVisualLoggerHelpers::Serialize(FArchive& Ar, TArray<FVisualLogDevice:
 	}
 	else
 	{
-		int32 FrameTag = VISUAL_LOGGER_MAGIC_NUMBER;
+		int32 FrameTag = VISUAL_LOGGER_MAGIC_NUMBER_LATEST;
 		Ar << FrameTag;
 
-		int32 ArchiveVer = Ar.CustomVer(EVisualLoggerVersion::GUID);
-		Ar << ArchiveVer;
+		FCustomVersionContainer CustomVersions = Ar.GetCustomVersions();
+		CustomVersions.Serialize(Ar);
+
 		Ar << RecordedLogs;
 	}
-
-	int32 CustomVer = Ar.CustomVer(EVisualLoggerVersion::GUID);
 
 	return Ar;
 }

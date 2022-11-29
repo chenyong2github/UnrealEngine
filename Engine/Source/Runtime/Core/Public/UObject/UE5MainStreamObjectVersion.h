@@ -306,6 +306,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Store the RigVM execute context struct the VM uses in the archive
 		RigVMSerializeExecuteContextStruct,
+
+		// Store the Visual Logger timestamp as a double
+		VisualLoggerTimeStampAsDouble,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

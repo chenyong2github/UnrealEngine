@@ -259,8 +259,8 @@ void SVisualLoggerTimelinesContainer::ResetData()
 	}
 	CachedSelectedTimelines.Reset();
 
-	CachedMinTime = FLT_MAX;
-	CachedMaxTime = 0;
+	CachedMinTime = MAX_dbl;
+	CachedMaxTime = 0.;
 	TimeSliderController->SetClampRange(0, 5);
 	TimeSliderController->SetTimeRange(0, 5);
 }
@@ -281,8 +281,8 @@ void SVisualLoggerTimelinesContainer::Construct(const FArguments& InArgs, TShare
 			]
 		];
 
-	CachedMinTime = FLT_MAX;
-	CachedMaxTime = 0;
+	CachedMinTime = MAX_dbl;
+	CachedMaxTime = 0.;
 
 	FVisualLoggerDatabase::Get().GetEvents().OnNewRow.AddRaw(this, &SVisualLoggerTimelinesContainer::OnNewRowHandler);
 	FVisualLoggerDatabase::Get().GetEvents().OnNewItem.AddRaw(this, &SVisualLoggerTimelinesContainer::OnNewItemHandler);
@@ -319,15 +319,12 @@ void SVisualLoggerTimelinesContainer::OnNewItemHandler(const FVisualLoggerDBRow&
 	CachedMinTime = CachedMinTime < Entry.Entry.TimeStamp ? CachedMinTime : Entry.Entry.TimeStamp;
 	CachedMaxTime = CachedMaxTime > Entry.Entry.TimeStamp ? CachedMaxTime : Entry.Entry.TimeStamp;
 
-	TRange<float> LocalViewRange = TimeSliderController->GetTimeSliderArgs().ViewRange.Get();
-	TRange<float> ClampRange = TimeSliderController->GetTimeSliderArgs().ClampRange.Get();
-	float ZoomLevel = LocalViewRange.Size<float>() / ClampRange.Size<float>();
+	TRange<double> LocalViewRange = TimeSliderController->GetTimeSliderArgs().ViewRange.Get();
+	TRange<double> ClampRange = TimeSliderController->GetTimeSliderArgs().ClampRange.Get();
+	double ZoomLevel = LocalViewRange.Size<double>() / ClampRange.Size<double>();
 
-	TimeSliderController->GetTimeSliderArgs().ClampRange = TRange<float>(CachedMinTime, CachedMaxTime + 0.1f);
-	//if ( FMath::Abs(ZoomLevel - 1) <= SMALL_NUMBER)
-	//{
-		TimeSliderController->GetTimeSliderArgs().ViewRange = TimeSliderController->GetTimeSliderArgs().ClampRange;
-	//}
+	TimeSliderController->GetTimeSliderArgs().ClampRange = TRange<double>(CachedMinTime, CachedMaxTime + 0.1);
+	TimeSliderController->GetTimeSliderArgs().ViewRange = TimeSliderController->GetTimeSliderArgs().ClampRange;
 }
 
 void SVisualLoggerTimelinesContainer::OnSearchChanged(const FText& Filter)

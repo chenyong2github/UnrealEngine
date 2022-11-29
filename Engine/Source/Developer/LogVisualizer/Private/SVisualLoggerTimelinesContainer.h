@@ -83,7 +83,8 @@ protected:
 
 	TArray<TSharedPtr<SLogVisualizerTimeline> > TimelineItems;
 	TArray<TSharedPtr<SLogVisualizerTimeline> > CachedSelectedTimelines;
-	float CachedMinTime, CachedMaxTime;
+	double CachedMinTime;
+	double CachedMaxTime;
 
 	FText CurrentSearchText;
 };
