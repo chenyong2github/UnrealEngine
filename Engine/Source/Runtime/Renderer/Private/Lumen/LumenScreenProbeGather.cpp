@@ -1797,8 +1797,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 			ComputePassFlags);
 	}
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries);
-	ComputeLumenTranslucencyGIVolume(GraphBuilder, View, TracingInputs, TranslucencyVolumeRadianceCacheParameters, ComputePassFlags);
+	ComputeLumenTranslucencyGIVolume(GraphBuilder, View, FrameTemporaries, TranslucencyVolumeRadianceCacheParameters, ComputePassFlags);
 
 	return Outputs;
 }
@@ -2002,8 +2001,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	ScreenProbeParameters.ProbeIndirectArgs = ScreenProbeIndirectArgs;
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries);
-
 	FRDGTextureRef BRDFProbabilityDensityFunction = nullptr;
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH = nullptr;
 	GenerateBRDF_PDF(GraphBuilder, View, SceneTextures, BRDFProbabilityDensityFunction, BRDFProbabilityDensityFunctionSH, ScreenProbeParameters, ComputePassFlags);
@@ -2077,7 +2074,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		LumenRadianceCache::TInlineArray<LumenRadianceCache::FUpdateOutputs> OutputArray;
 
 		InputArray.Add(LumenRadianceCache::FUpdateInputs(
-			TracingInputs,
 			RadianceCacheInputs,
 			FRadianceCacheConfiguration(),
 			View,
@@ -2095,7 +2091,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			LumenRadianceCache::FUpdateInputs TranslucencyVolumeRadianceCacheUpdateInputs = GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 				GraphBuilder,
 				View,
-				TracingInputs,
+				FrameTemporaries,
 				ComputePassFlags);
 
 			if (TranslucencyVolumeRadianceCacheUpdateInputs.IsAnyCallbackBound())
@@ -2109,6 +2105,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 		LumenRadianceCache::UpdateRadianceCaches(
 			GraphBuilder, 
+			FrameTemporaries,
 			InputArray,
 			OutputArray,
 			Scene,
@@ -2196,7 +2193,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		bRenderDirectLighting,
 		SceneTextures,
 		LightingChannelsTexture,
-		TracingInputs,
 		RadianceCacheParameters,
 		ScreenProbeParameters,
 		MeshSDFGridParameters,

@@ -346,7 +346,7 @@ void SetLumenHardwareRayTracingRadianceCacheParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FSceneTextureParameters& SceneTextures,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	float DiffuseConeHalfAngle,
 	bool bApplySkyLight,
@@ -366,7 +366,7 @@ void SetLumenHardwareRayTracingRadianceCacheParameters(
 		GraphBuilder,
 		SceneTextures,
 		View,
-		TracingInputs,
+		TracingParameters,
 		&PassParameters->SharedParameters);
 
 	SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, DiffuseConeHalfAngle);
@@ -421,7 +421,7 @@ void DispatchRayGenOrComputeShader(
 	const FScene* Scene,
 	const FViewInfo& View,
 	const FSceneTextureParameters& SceneTextures,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	const FLumenRadianceCacheHardwareRayTracing::FPermutationDomain& PermutationVector,
 	float DiffuseConeHalfAngle,
@@ -464,7 +464,7 @@ void DispatchRayGenOrComputeShader(
 		GraphBuilder,
 		View,
 		SceneTextures,
-		TracingInputs,
+		TracingParameters,
 		RadianceCacheParameters,
 		DiffuseConeHalfAngle,
 		bApplySkyLight,
@@ -546,7 +546,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	const FScene* Scene,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRadianceCacheConfiguration Configuration,
 	float DiffuseConeHalfAngle,
@@ -594,7 +594,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 		PermutationVector.Set<FLumenRadianceCacheHardwareRayTracing::FPackTraceDataDim>(bUseFarField);
 		PermutationVector.Set<FLumenRadianceCacheHardwareRayTracing::FClipRayDim>(GetRayTracingCulling() != 0);
 
-		DispatchRayGenOrComputeShader(GraphBuilder, Scene, View, SceneTextures, TracingInputs, RadianceCacheParameters, PermutationVector,
+		DispatchRayGenOrComputeShader(GraphBuilder, Scene, View, SceneTextures, TracingParameters, RadianceCacheParameters, PermutationVector,
 			DiffuseConeHalfAngle, MaxNumProbes, MaxProbeTraceTileResolution, bApplySkyLight, bInlineRayTracing,
 			ProbeTraceTileAllocator, ProbeTraceTileData, ProbeTraceData,
 			HardwareRayTracingRayAllocatorBuffer, RetraceDataPackedBuffer, TraceTileResultPackedBuffer);
@@ -623,7 +623,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 			PermutationVector.Set<FLumenRadianceCacheHardwareRayTracing::FPackTraceDataDim>(false);
 			PermutationVector.Set<FLumenRadianceCacheHardwareRayTracing::FClipRayDim>(GetRayTracingCulling() != 0);
 
-			DispatchRayGenOrComputeShader(GraphBuilder, Scene, View, SceneTextures, TracingInputs, RadianceCacheParameters, PermutationVector,
+			DispatchRayGenOrComputeShader(GraphBuilder, Scene, View, SceneTextures, TracingParameters, RadianceCacheParameters, PermutationVector,
 				DiffuseConeHalfAngle, MaxNumProbes, MaxProbeTraceTileResolution, bApplySkyLight, bInlineRayTracing,
 				ProbeTraceTileAllocator, ProbeTraceTileData, ProbeTraceData,
 				FarFieldRayAllocatorBuffer, FarFieldRetraceDataPackedBuffer, TraceTileResultPackedBuffer);
@@ -633,7 +633,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	// Reduce to Atlas
 	{
 		FSplatRadianceCacheIntoAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSplatRadianceCacheIntoAtlasCS::FParameters>();
-		GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+		PassParameters->TracingParameters = TracingParameters;
 		SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, -1.0f);
 		PassParameters->RWRadianceProbeAtlasTexture = RadianceProbeAtlasTextureUAV;
 		PassParameters->RWDepthProbeAtlasTexture = DepthProbeTextureUAV;
@@ -668,7 +668,7 @@ void RenderLumenHardwareRayTracingRadianceCache(
 	const FScene* Scene,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRadianceCacheConfiguration Configuration,
 	float DiffuseConeHalfAngle,
@@ -690,7 +690,7 @@ void RenderLumenHardwareRayTracingRadianceCache(
 		Scene,
 		SceneTextures,
 		View,
-		TracingInputs,
+		TracingParameters,
 		RadianceCacheParameters,
 		Configuration,
 		DiffuseConeHalfAngle,

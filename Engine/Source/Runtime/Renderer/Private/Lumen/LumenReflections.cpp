@@ -42,14 +42,6 @@ FAutoConsoleVariableRef GVarLumenReflectionTraceMeshSDFs(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenReflectionsSurfaceCacheFeedback = 1;
-FAutoConsoleVariableRef CVarLumenReflectionsSurfaceCacheFeedback(
-	TEXT("r.Lumen.Reflections.SurfaceCacheFeedback"),
-	GLumenReflectionsSurfaceCacheFeedback,
-	TEXT("Whether to allow writing into virtual surface cache feedback buffer from reflection rays."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 int32 GLumenReflectionsUseRadianceCache = 0;
 FAutoConsoleVariableRef CVarLumenReflectionsUseRadianceCache(
 	TEXT("r.Lumen.Reflections.RadianceCache"),
@@ -1049,8 +1041,6 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			0);
 	}
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ GLumenReflectionsSurfaceCacheFeedback != 0);
-
 	FRDGTextureDesc TraceRadianceDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ReflectionTracingParameters.TraceRadiance = GraphBuilder.CreateTexture(TraceRadianceDesc, TEXT("Lumen.Reflections.ReflectionTraceRadiance"));
 	ReflectionTracingParameters.RWTraceRadiance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.TraceRadiance));
@@ -1071,7 +1061,6 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		FrameTemporaries,
 		bTraceMeshObjects,
 		SceneTextures,
-		TracingInputs,
 		ReflectionTracingParameters,
 		ReflectionTileParameters,
 		MeshSDFGridParameters,

@@ -330,9 +330,9 @@ void SetLumenHardwareRayTracingScreenProbeParameters(
 	const FSceneTextureParameters& SceneTextures,
 	FScreenProbeParameters& ScreenProbeParameters,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
 	FRDGBufferRef HardwareRayTracingIndirectArgsBuffer,
-	FLumenIndirectTracingParameters& IndirectTracingParameters,
+	const FLumenCardTracingParameters& TracingParameters,
+	const FLumenIndirectTracingParameters& IndirectTracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	const FCompactedTraceParameters& CompactedTraceParameters,
 	bool bApplySkyLight,
@@ -352,7 +352,7 @@ void SetLumenHardwareRayTracingScreenProbeParameters(
 		GraphBuilder,
 		SceneTextures,
 		View,
-		TracingInputs,
+		TracingParameters,
 		&Parameters->SharedParameters
 	);
 
@@ -406,7 +406,7 @@ void DispatchRayGenOrComputeShader(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	FScreenProbeParameters& ScreenProbeParameters,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
 	const FCompactedTraceParameters& CompactedTraceParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
@@ -435,8 +435,8 @@ void DispatchRayGenOrComputeShader(
 		SceneTextures,
 		ScreenProbeParameters,
 		View,
-		TracingInputs,
 		HardwareRayTracingIndirectArgsBuffer,
+		TracingParameters,
 		IndirectTracingParameters,
 		RadianceCacheParameters,
 		CompactedTraceParameters,
@@ -531,7 +531,7 @@ void RenderHardwareRayTracingScreenProbe(
 	const FSceneTextureParameters& SceneTextures,
 	FScreenProbeParameters& ScreenProbeParameters,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	const FCompactedTraceParameters& CompactedTraceParameters)
@@ -580,7 +580,7 @@ void RenderHardwareRayTracingScreenProbe(
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FPackTraceDataDim>(bUseFarFieldForScreenProbeGather);
 
-		DispatchRayGenOrComputeShader(GraphBuilder, Scene, SceneTextures, View, ScreenProbeParameters, TracingInputs, IndirectTracingParameters, CompactedTraceParameters, RadianceCacheParameters,
+		DispatchRayGenOrComputeShader(GraphBuilder, Scene, SceneTextures, View, ScreenProbeParameters, TracingParameters, IndirectTracingParameters, CompactedTraceParameters, RadianceCacheParameters,
 			PermutationVector, MaxRayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing,
 			RayAllocatorBuffer, TraceTexelDataPackedBuffer, RetraceDataPackedBuffer);
 	}
@@ -607,7 +607,7 @@ void RenderHardwareRayTracingScreenProbe(
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FPackTraceDataDim>(false);
 
 		// Trace continuation rays
-		DispatchRayGenOrComputeShader(GraphBuilder, Scene, SceneTextures, View, ScreenProbeParameters, TracingInputs, IndirectTracingParameters, CompactedTraceParameters, RadianceCacheParameters,
+		DispatchRayGenOrComputeShader(GraphBuilder, Scene, SceneTextures, View, ScreenProbeParameters, TracingParameters, IndirectTracingParameters, CompactedTraceParameters, RadianceCacheParameters,
 			PermutationVector, MaxRayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing,
 			FarFieldRayAllocatorBuffer, TraceTexelDataPackedBuffer, FarFieldRetraceDataPackedBuffer);
 	}

@@ -531,14 +531,13 @@ private:
 
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,
-		const class FLumenCardTracingInputs& TracingInputs,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const FLumenCardUpdateContext& CardUpdateContext,
 		ERDGPassFlags ComputePassFlags);
 	
 	void RenderRadiosityForLumenScene(
 		FRDGBuilder& GraphBuilder,
 		const FLumenSceneFrameTemporaries& FrameTemporaries,
-		const class FLumenCardTracingInputs& TracingInputs,
 		FRDGTextureRef RadiosityAtlas,
 		FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
 		const FLumenCardUpdateContext& CardUpdateContext,
@@ -561,13 +560,13 @@ private:
 	LumenRadianceCache::FUpdateInputs GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View, 
-		const FLumenCardTracingInputs& TracingInputs,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		ERDGPassFlags ComputePassFlags);
 
 	void ComputeLumenTranslucencyGIVolume(
 		FRDGBuilder& GraphBuilder,
 		FViewInfo& View,
-		const FLumenCardTracingInputs& TracingInputs,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 		ERDGPassFlags ComputePassFlags);
 

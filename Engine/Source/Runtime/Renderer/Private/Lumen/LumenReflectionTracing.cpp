@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenReflectionTracing.cpp
-=============================================================================*/
-
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
@@ -101,6 +97,14 @@ FAutoConsoleVariableRef GVarLumenReflectionSampleSceneColorRelativeDepthThreshol
 	TEXT("r.Lumen.Reflections.SampleSceneColorRelativeDepthThickness"),
 	GLumenReflectionSampleSceneColorRelativeDepthThreshold,
 	TEXT("Depth threshold that controls how close ray hits have to be to the depth buffer, before sampling SceneColor is allowed."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenReflectionsSurfaceCacheFeedback = 1;
+FAutoConsoleVariableRef CVarLumenReflectionsSurfaceCacheFeedback(
+	TEXT("r.Lumen.Reflections.SurfaceCacheFeedback"),
+	GLumenReflectionsSurfaceCacheFeedback,
+	TEXT("Whether to allow writing into virtual surface cache feedback buffer from reflection rays."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -414,9 +418,9 @@ enum class ECompactedReflectionTracingIndirectArgs
 FCompactedReflectionTraceParameters CompactTraces(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
+	const FLumenCardTracingParameters& TracingParameters,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
-	const FLumenCardTracingInputs& TracingInputs,
 	bool bCullByDistanceFromCamera,
 	float CompactionTracingEndDistanceFromCamera,
 	float CompactionMaxTraceDistance,
@@ -452,7 +456,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 
 	{
 		FReflectionCompactTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionCompactTracesCS::FParameters>();
-		GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+		PassParameters->TracingParameters = TracingParameters;
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 		PassParameters->RWCompactedTraceTexelAllocator = GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT);
@@ -622,7 +626,6 @@ void TraceReflections(
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	bool bTraceMeshObjects,
 	const FSceneTextures& SceneTextures,
-	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenMeshSDFGridParameters& InMeshSDFGridParameters,
@@ -648,6 +651,9 @@ void TraceReflections(
 			0);
 	}
 
+	FLumenCardTracingParameters TracingParameters;
+	GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ GLumenReflectionsSurfaceCacheFeedback != 0, TracingParameters);
+
 	FLumenIndirectTracingParameters IndirectTracingParameters;
 	SetupIndirectTracingParametersForReflections(View, IndirectTracingParameters);
 
@@ -661,7 +667,7 @@ void TraceReflections(
 		FReflectionTraceScreenTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceScreenTexturesCS::FParameters>();
 
 		PassParameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
-		GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+		PassParameters->TracingParameters = TracingParameters;
 		
 		PassParameters->SceneTextures = SceneTextureParameters;
 
@@ -713,9 +719,9 @@ void TraceReflections(
 		FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
 			GraphBuilder,
 			View,
+			TracingParameters,
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
-			TracingInputs,
 			false,
 			0.0f,
 			IndirectTracingParameters.MaxTraceDistance);
@@ -726,9 +732,9 @@ void TraceReflections(
 			SceneTextureParameters,
 			Scene,
 			View,
+			TracingParameters,
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
-			TracingInputs,
 			CompactedTraceParameters,
 			IndirectTracingParameters.MaxTraceDistance,
 			bUseRadianceCache,
@@ -748,7 +754,6 @@ void TraceReflections(
 					Scene, 
 					View,
 					FrameTemporaries,
-					TracingInputs,
 					IndirectTracingParameters,
 					/* out */ MeshSDFGridParameters,
 					ComputePassFlags);
@@ -762,9 +767,9 @@ void TraceReflections(
 				FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
 					GraphBuilder,
 					View,
+					TracingParameters,
 					ReflectionTracingParameters,
 					ReflectionTileParameters,
-					TracingInputs,
 					true,
 					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 					IndirectTracingParameters.MaxMeshSDFTraceDistance,
@@ -772,7 +777,7 @@ void TraceReflections(
 
 				{
 					FReflectionTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceMeshSDFsCS::FParameters>();
-					GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+					PassParameters->TracingParameters = TracingParameters;
 					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 					PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 					PassParameters->IndirectTracingParameters = IndirectTracingParameters;
@@ -810,9 +815,9 @@ void TraceReflections(
 		FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
 			GraphBuilder,
 			View,
+			TracingParameters,
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
-			TracingInputs,
 			false,
 			0.0f,
 			IndirectTracingParameters.MaxTraceDistance,
@@ -820,7 +825,7 @@ void TraceReflections(
 
 		{
 			FReflectionTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceVoxelsCS::FParameters>();
-			GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+			PassParameters->TracingParameters = TracingParameters;
 			PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 			PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;

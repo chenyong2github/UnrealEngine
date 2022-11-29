@@ -535,19 +535,19 @@ void ClearLumenSceneDirectLighting(
 	const FViewInfo& View,
 	FRDGBuilder& GraphBuilder,
 	const FLumenSceneData& LumenSceneData,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FLumenCardUpdateContext CardUpdateContext)
 {
 	FClearLumenCardsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenCardsParameters>();
 
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.DirectLightingAtlas, ERenderTargetLoadAction::ELoad);
-	PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(FrameTemporaries.DirectLightingAtlas, ERenderTargetLoadAction::ELoad);
+	PassParameters->VS.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 	PassParameters->VS.DrawIndirectArgs = CardUpdateContext.DrawCardPageIndicesIndirectArgs;
 	PassParameters->VS.CardPageIndexAllocator = GraphBuilder.CreateSRV(CardUpdateContext.CardPageIndexAllocator);
 	PassParameters->VS.CardPageIndexData = GraphBuilder.CreateSRV(CardUpdateContext.CardPageIndexData);
 	PassParameters->VS.IndirectLightingAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 	PassParameters->PS.View = View.ViewUniformBuffer;
-	PassParameters->PS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
+	PassParameters->PS.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("ClearDirectLighting"),
@@ -1706,7 +1706,7 @@ void CullDirectLightingTiles(
 
 void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 	FRDGBuilder& GraphBuilder,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenCardUpdateContext& CardUpdateContext,
 	ERDGPassFlags ComputePassFlags)
 {
@@ -1720,7 +1720,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 		const FViewInfo& MainView = Views[0];
 		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 
-		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = TracingInputs.LumenCardSceneUniformBuffer;
+		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = FrameTemporaries.LumenCardSceneUniformBuffer;
 
 		TArray<FLumenGatheredLight, TInlineAllocator<64>> GatheredLights;
 		bool bHasRectLights = false;
@@ -1849,7 +1849,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						Scene,
 						View,
 						ViewIndex,
-						TracingInputs,
+						FrameTemporaries,
 						ShadowTraceIndirectArgs,
 						ShadowTraceAllocator,
 						ShadowTraces,
@@ -1891,7 +1891,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			FRDGBufferSRVRef CardTilesSRV = GraphBuilder.CreateSRV(CardTileUpdateContext.CardTiles);
 			FRDGBufferSRVRef LightTileOffsetNumPerCardTileSRV = GraphBuilder.CreateSRV(CullContext.LightTileOffsetNumPerCardTile);
 			FRDGBufferSRVRef LightTilesPerCardTileSRV = GraphBuilder.CreateSRV(CullContext.LightTilesPerCardTile);
-			FRDGTextureUAVRef DirectLightingAtlasUAV = GraphBuilder.CreateUAV(TracingInputs.DirectLightingAtlas);
+			FRDGTextureUAVRef DirectLightingAtlasUAV = GraphBuilder.CreateUAV(FrameTemporaries.DirectLightingAtlas);
 
 			RenderDirectLightIntoLumenCardsBatched(
 				GraphBuilder,
@@ -1913,7 +1913,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			Scene,
 			MainView,
 			GraphBuilder,
-			TracingInputs,
+			FrameTemporaries,
 			CardUpdateContext,
 			CardTileUpdateContext,
 			ComputePassFlags);

@@ -604,7 +604,6 @@ void VisualizeLumenScene(
 	FScreenPassTexture Output,
 	FRDGTextureRef ColorGradingTexture,
 	FRDGTextureRef EyeAdaptationTexture,
-	const FLumenCardTracingInputs& TracingInputs,
 	int32 VisualizeMode,
 	int32 VisualizeTileIndex)
 {
@@ -612,6 +611,9 @@ void VisualizeLumenScene(
 
 	FLumenVisualizeSceneSoftwareRayTracingParameters VisualizeParameters;
 	SetupVisualizeParameters(GraphBuilder, View, Output.ViewRect, ColorGradingTexture, EyeAdaptationTexture, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
+
+	FLumenCardTracingParameters TracingParameters;
+	GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, GVisualizeLumenSceneSurfaceCacheFeedback != 0, TracingParameters);
 
 	const FRadianceCacheState& RadianceCacheState = View.ViewState->Lumen.RadianceCacheState;
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize(View);
@@ -631,7 +633,8 @@ void VisualizeLumenScene(
 			Scene,
 			GetSceneTextureParameters(GraphBuilder, View),
 			View,
-			TracingInputs,
+			FrameTemporaries,
+			TracingParameters,
 			IndirectTracingParameters,
 			VisualizeParameters.CommonParameters,
 			Output.Texture,
@@ -673,7 +676,7 @@ void VisualizeLumenScene(
 		PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 		PassParameters->VisualizeParameters = VisualizeParameters;
 		LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, PassParameters->RadianceCacheParameters);
-		GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+		PassParameters->TracingParameters = TracingParameters;
 
 		FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDF>(bTraceMeshSDF);
@@ -737,8 +740,6 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 					CopyInfo);
 			}
 
-			FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
-
 			if (VisualizeMode == VISUALIZE_MODE_OVERVIEW)
 			{
 				struct FVisualizeTile
@@ -764,7 +765,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 
 				for (int32 TileIndex = 0; TileIndex < LumenVisualize::NumOverviewTilesPerRow; ++TileIndex)
 				{
-					VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, TracingInputs, VisualizeTiles[TileIndex].Mode, TileIndex);	
+					VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, VisualizeTiles[TileIndex].Mode, TileIndex);	
 				}
 
 				AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("LumenVisualizeLabels"), View, FScreenPassRenderTarget(Output, ERenderTargetLoadAction::ELoad),
@@ -788,7 +789,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 			}
 			else
 			{
-				VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, TracingInputs, VisualizeMode, /*VisualizeTileIndex*/ -1);
+				VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, VisualizeMode, /*VisualizeTileIndex*/ -1);
 			}
 		}
 	}

@@ -175,7 +175,7 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	int32 ViewIndex,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	FRDGBufferRef LightTileAllocator,
 	FRDGBufferRef LightTiles,
 	FRDGBufferRef LumenPackedLights,
@@ -188,7 +188,7 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 		GraphBuilder,
 		GetSceneTextureParameters(GraphBuilder, View),
 		View,
-		TracingInputs,
+		TracingParameters,
 		&Parameters->SharedParameters
 	);
 
@@ -221,7 +221,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	const FScene* Scene,
 	const FViewInfo& View,
 	int32 ViewIndex,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FRDGBufferRef ShadowTraceIndirectArgs,
 	FRDGBufferRef ShadowTraceAllocator,
 	FRDGBufferRef ShadowTraces,
@@ -253,12 +253,15 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 			FIntVector(1, 1, 1));
 	}
 
+	FLumenCardTracingParameters TracingParameters;
+	GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ false, TracingParameters);
+
 	FLumenDirectLightingHardwareRayTracingBatched::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenDirectLightingHardwareRayTracingBatched::FParameters>();
 	SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 		GraphBuilder,
 		View,
 		ViewIndex,
-		TracingInputs,
+		TracingParameters,
 		LightTileAllocator,
 		LightTiles,
 		LumenPackedLights,

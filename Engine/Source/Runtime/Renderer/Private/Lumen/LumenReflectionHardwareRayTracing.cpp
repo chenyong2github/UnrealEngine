@@ -325,7 +325,7 @@ void SetLumenHardwareRayTracingReflectionParameters(
 	const FSceneTextures& SceneTextures,
 	const FSceneTextureParameters& SceneTextureParameters,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
@@ -348,7 +348,7 @@ void SetLumenHardwareRayTracingReflectionParameters(
 		GraphBuilder,
 		SceneTextureParameters,
 		View,
-		TracingInputs,
+		TracingParameters,
 		&Parameters->SharedParameters
 	);
 	Parameters->RayAllocator = GraphBuilder.CreateSRV(RayAllocatorBuffer, PF_R32_UINT);
@@ -410,9 +410,9 @@ void DispatchRayGenOrComputeShader(
 	const FSceneTextureParameters& SceneTextureParameters,
 	const FScene* Scene,
 	const FViewInfo& View,
+	const FLumenCardTracingParameters& TracingParameters,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
-	const FLumenCardTracingInputs& TracingInputs,
 	const FCompactedReflectionTraceParameters& CompactedTraceParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	const FLumenReflectionHardwareRayTracing::FPermutationDomain& PermutationVector,
@@ -443,7 +443,7 @@ void DispatchRayGenOrComputeShader(
 		SceneTextures,
 		SceneTextureParameters,
 		View,
-		TracingInputs,
+		TracingParameters,
 		ReflectionTracingParameters,
 		ReflectionTileParameters,
 		RadianceCacheParameters,
@@ -540,9 +540,9 @@ void RenderLumenHardwareRayTracingReflections(
 	const FSceneTextureParameters& SceneTextureParameters,
 	const FScene* Scene,
 	const FViewInfo& View,
+	const FLumenCardTracingParameters& TracingParameters,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
-	const FLumenCardTracingInputs& TracingInputs,
 	const FCompactedReflectionTraceParameters& CompactedTraceParameters,
 	float MaxVoxelTraceDistance,
 	bool bUseRadianceCache,
@@ -576,7 +576,7 @@ void RenderLumenHardwareRayTracingReflections(
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FIndirectDispatchDim>(IsHardwareRayTracingReflectionsIndirectDispatch());
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FPackTraceDataDim>(bUseHitLighting || bUseFarFieldForReflections);
 
-		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
+		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, TracingParameters, ReflectionTracingParameters, ReflectionTileParameters, CompactedTraceParameters, RadianceCacheParameters,
 			PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing, bSampleSceneColorAtHit,
 			RayAllocatorBufferCached, TraceTexelDataPackedBufferCached, TraceDataPackedBufferCached);
 
@@ -605,7 +605,7 @@ void RenderLumenHardwareRayTracingReflections(
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FPackTraceDataDim>(bUseHitLighting);
 
 		// Trace continuation rays
-		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
+		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, TracingParameters, ReflectionTracingParameters, ReflectionTileParameters, CompactedTraceParameters, RadianceCacheParameters,
 			PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache, bInlineRayTracing, bSampleSceneColorAtHit,
 			FarFieldRayAllocatorBuffer, TraceTexelDataPackedBufferCached, FarFieldTraceDataPackedBuffer);
 	}
@@ -652,7 +652,7 @@ void RenderLumenHardwareRayTracingReflections(
 			PermutationVector.Set<FLumenReflectionHardwareRayTracing::FIndirectDispatchDim>(IsHardwareRayTracingReflectionsIndirectDispatch());
 			PermutationVector.Set<FLumenReflectionHardwareRayTracing::FPackTraceDataDim>(false);
 
-			DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
+			DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, TracingParameters, ReflectionTracingParameters, ReflectionTileParameters, CompactedTraceParameters, RadianceCacheParameters,
 				PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache, bUseInline, bSampleSceneColorAtHit,
 				RayAllocatorBuffer, TraceTexelDataPackedBufferCached, TraceDataPackedBuffer);
 		}

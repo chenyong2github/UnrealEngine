@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneLighting.h
-=============================================================================*/
-
 #pragma once
 
 #include "RHIDefinitions.h"
@@ -15,7 +11,6 @@
 
 class FLumenCardRenderer;
 class FLumenLight;
-class FLumenCardTracingInputs;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardScatterParameters, )
 	RDG_BUFFER_ACCESS(DrawIndirectArgs, ERHIAccess::IndirectArgs)
@@ -175,7 +170,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	const FScene* Scene,
 	const FViewInfo& View,
 	int32 ViewIndex,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FRDGBufferRef ShadowTraceIndirectArgs,
 	FRDGBufferRef ShadowTraceAllocator,
 	FRDGBufferRef ShadowTraces,
@@ -209,7 +204,7 @@ namespace Lumen
 		FScene* Scene,
 		const FViewInfo& View,
 		FRDGBuilder& GraphBuilder,
-		const FLumenCardTracingInputs& TracingInputs,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const FLumenCardUpdateContext& CardUpdateContext,
 		const FLumenCardTileUpdateContext& CardTileUpdateContext,
 		ERDGPassFlags ComputePassFlags);

@@ -161,7 +161,7 @@ void Lumen::CombineLumenSceneLighting(
 	FScene* Scene,
 	const FViewInfo& View,
 	FRDGBuilder& GraphBuilder,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenCardUpdateContext& CardUpdateContext,
 	const FLumenCardTileUpdateContext& CardTileUpdateContext,
 	ERDGPassFlags ComputePassFlags)
@@ -172,16 +172,16 @@ void Lumen::CombineLumenSceneLighting(
 	FLumenCardCombineLightingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCombineLightingCS::FParameters>();
 	PassParameters->IndirectArgsBuffer = CardTileUpdateContext.DispatchCardTilesIndirectArgs;
 	PassParameters->View = View.ViewUniformBuffer;
-	PassParameters->LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
+	PassParameters->LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 	PassParameters->DiffuseColorBoost = 1.0f / FMath::Max(View.FinalPostProcessSettings.LumenDiffuseColorBoost, 1.0f);
-	PassParameters->AlbedoAtlas = TracingInputs.AlbedoAtlas;
-	PassParameters->OpacityAtlas = TracingInputs.OpacityAtlas;
-	PassParameters->EmissiveAtlas = TracingInputs.EmissiveAtlas;
-	PassParameters->DirectLightingAtlas = TracingInputs.DirectLightingAtlas;
-	PassParameters->IndirectLightingAtlas = TracingInputs.IndirectLightingAtlas;
+	PassParameters->AlbedoAtlas = FrameTemporaries.AlbedoAtlas;
+	PassParameters->OpacityAtlas = FrameTemporaries.OpacityAtlas;
+	PassParameters->EmissiveAtlas = FrameTemporaries.EmissiveAtlas;
+	PassParameters->DirectLightingAtlas = FrameTemporaries.DirectLightingAtlas;
+	PassParameters->IndirectLightingAtlas = FrameTemporaries.IndirectLightingAtlas;
 	PassParameters->BilinearClampedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->CardTiles = GraphBuilder.CreateSRV(CardTileUpdateContext.CardTiles);
-	PassParameters->RWFinalLightingAtlas = GraphBuilder.CreateUAV(TracingInputs.FinalLightingAtlas);
+	PassParameters->RWFinalLightingAtlas = GraphBuilder.CreateUAV(FrameTemporaries.FinalLightingAtlas);
 	const FIntPoint IndirectLightingAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 	PassParameters->IndirectLightingAtlasHalfTexelSize = FVector2f(0.5f / IndirectLightingAtlasSize.X, 0.5f / IndirectLightingAtlasSize.Y);
 
@@ -240,16 +240,14 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 		LumenSceneData.IncrementSurfaceCacheUpdateFrameIndex();
 
-		FLumenCardTracingInputs TracingInputs(GraphBuilder, LumenSceneData, FrameTemporaries);
-
 		if (LumenSceneData.GetNumCardPages() > 0)
 		{
 			if (LumenSceneData.bDebugClearAllCachedState)
 			{
-				AddClearRenderTargetPass(GraphBuilder, TracingInputs.DirectLightingAtlas);
-				AddClearRenderTargetPass(GraphBuilder, TracingInputs.IndirectLightingAtlas);
-				AddClearRenderTargetPass(GraphBuilder, TracingInputs.RadiosityNumFramesAccumulatedAtlas);
-				AddClearRenderTargetPass(GraphBuilder, TracingInputs.FinalLightingAtlas);
+				AddClearRenderTargetPass(GraphBuilder, FrameTemporaries.DirectLightingAtlas);
+				AddClearRenderTargetPass(GraphBuilder, FrameTemporaries.IndirectLightingAtlas);
+				AddClearRenderTargetPass(GraphBuilder, FrameTemporaries.RadiosityNumFramesAccumulatedAtlas);
+				AddClearRenderTargetPass(GraphBuilder, FrameTemporaries.FinalLightingAtlas);
 			}
 
 			FLumenCardUpdateContext DirectLightingCardUpdateContext;
@@ -265,16 +263,15 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 			RenderDirectLightingForLumenScene(
 				GraphBuilder,
-				TracingInputs,
+				FrameTemporaries,
 				DirectLightingCardUpdateContext,
 				ComputePassFlags);
 
 			RenderRadiosityForLumenScene(
 				GraphBuilder,
 				FrameTemporaries,
-				TracingInputs,
-				TracingInputs.IndirectLightingAtlas,
-				TracingInputs.RadiosityNumFramesAccumulatedAtlas,
+				FrameTemporaries.IndirectLightingAtlas,
+				FrameTemporaries.RadiosityNumFramesAccumulatedAtlas,
 				IndirectLightingCardUpdateContext,
 				ComputePassFlags);
 

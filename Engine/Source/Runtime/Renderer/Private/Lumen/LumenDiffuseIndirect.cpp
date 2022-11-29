@@ -300,7 +300,6 @@ void CullForCardTracing(
 	const FScene* Scene,
 	const FViewInfo& View,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
-	FLumenCardTracingInputs TracingInputs,
 	const FLumenIndirectTracingParameters& IndirectTracingParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	ERDGPassFlags ComputePassFlags)

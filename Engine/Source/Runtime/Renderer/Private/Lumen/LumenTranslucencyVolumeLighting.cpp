@@ -606,7 +606,7 @@ void TraceVoxelsTranslucencyVolume(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	bool bDynamicSkyLight,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters,
 	FLumenTranslucencyLightingVolumeParameters VolumeParameters,
 	FLumenTranslucencyLightingVolumeTraceSetupParameters TraceSetupParameters,
@@ -618,7 +618,7 @@ void TraceVoxelsTranslucencyVolume(
 	PassParameters->RWVolumeTraceRadiance = GraphBuilder.CreateUAV(VolumeTraceRadiance);
 	PassParameters->RWVolumeTraceHitDistance = GraphBuilder.CreateUAV(VolumeTraceHitDistance);
 
-	GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+	PassParameters->TracingParameters = TracingParameters;
 	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 	PassParameters->VolumeParameters = VolumeParameters;
 	PassParameters->TraceSetupParameters = TraceSetupParameters;
@@ -645,7 +645,7 @@ void TraceVoxelsTranslucencyVolume(
 LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	ERDGPassFlags ComputePassFlags)
 {
 	const FLumenTranslucencyLightingVolumeParameters VolumeParameters = GetTranslucencyLightingVolumeParameters(View);
@@ -673,7 +673,6 @@ LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslu
 	}
 
 	LumenRadianceCache::FUpdateInputs RadianceCacheUpdateInputs(
-		TracingInputs,
 		RadianceCacheInputs,
 		Configuration,
 		View,
@@ -688,7 +687,7 @@ LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslu
 void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 	FRDGBuilder& GraphBuilder,
 	FViewInfo& View, 
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	ERDGPassFlags ComputePassFlags)
 {
@@ -704,7 +703,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			LumenRadianceCache::FUpdateInputs TranslucencyVolumeRadianceCacheUpdateInputs = GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 				GraphBuilder,
 				View, 
-				TracingInputs,
+				FrameTemporaries,
 				ComputePassFlags);
 
 			if (TranslucencyVolumeRadianceCacheUpdateInputs.IsAnyCallbackBound())
@@ -716,6 +715,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 
 				LumenRadianceCache::UpdateRadianceCaches(
 					GraphBuilder, 
+					FrameTemporaries,
 					InputArray,
 					OutputArray,
 					Scene,
@@ -726,6 +726,9 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 		}
 
 		{
+			FLumenCardTracingParameters TracingParameters;
+			GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ false, TracingParameters);
+
 			const FLumenTranslucencyLightingVolumeParameters VolumeParameters = GetTranslucencyLightingVolumeParameters(View);
 			const FIntVector TranslucencyGridSize = VolumeParameters.TranslucencyGIGridSize;
 
@@ -755,7 +758,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 				HardwareRayTraceTranslucencyVolume(
 					GraphBuilder,
 					View,
-					TracingInputs,
+					TracingParameters,
 					RadianceCacheParameters,
 					VolumeParameters,
 					TraceSetupParameters, 
@@ -769,7 +772,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 					GraphBuilder,
 					View,
 					bDynamicSkyLight,
-					TracingInputs,
+					TracingParameters,
 					RadianceCacheParameters,
 					VolumeParameters,
 					TraceSetupParameters,

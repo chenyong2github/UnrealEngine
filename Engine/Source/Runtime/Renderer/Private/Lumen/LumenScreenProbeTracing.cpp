@@ -605,7 +605,6 @@ void TraceScreenProbes(
 	bool bRenderDirectLighting,
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
-	const FLumenCardTracingInputs& TracingInputs,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
@@ -646,6 +645,9 @@ void TraceScreenProbes(
 			(uint32)EScreenProbeIndirectArgs::ThreadPerLightSample * sizeof(FRHIDispatchIndirectParameters));
 	}
 
+	FLumenCardTracingParameters TracingParameters;
+	GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ false, TracingParameters);
+
 	FLumenIndirectTracingParameters IndirectTracingParameters;
 	SetupLumenDiffuseTracingParameters(View, IndirectTracingParameters);
 
@@ -662,7 +664,7 @@ void TraceScreenProbes(
 			FScreenProbeTraceScreenTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceScreenTexturesCS::FParameters>();
 
 			PassParameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
-			GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+			PassParameters->TracingParameters = TracingParameters;
 			PassParameters->SceneTextures = SceneTextureParameters;
 
 			if (PassParameters->HZBScreenTraceParameters.PrevSceneColorTexture == SceneTextures.Color.Resolve || !PassParameters->SceneTextures.GBufferVelocityTexture)
@@ -733,12 +735,13 @@ void TraceScreenProbes(
 			IndirectTracingParameters.MaxTraceDistance,
 			bRenderDirectLighting);
 
-		RenderHardwareRayTracingScreenProbe(GraphBuilder,
+		RenderHardwareRayTracingScreenProbe(
+			GraphBuilder,
 			Scene,
 			SceneTextureParameters,
 			ScreenProbeParameters,
 			View,
-			TracingInputs,
+			TracingParameters,
 			IndirectTracingParameters,
 			RadianceCacheParameters,
 			CompactedTraceParameters);
@@ -750,7 +753,6 @@ void TraceScreenProbes(
 			Scene, 
 			View,
 			FrameTemporaries,
-			TracingInputs,
 			IndirectTracingParameters,
 			/* out */ MeshSDFGridParameters,
 			ComputePassFlags);
@@ -773,7 +775,7 @@ void TraceScreenProbes(
 			auto TraceMeshSDFs = [&](bool bTraceLightSamples)
 			{
 				FScreenProbeTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceMeshSDFsCS::FParameters>();
-				GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+				PassParameters->TracingParameters = TracingParameters;
 				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
@@ -841,7 +843,7 @@ void TraceScreenProbes(
 
 		FScreenProbeTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceVoxelsCS::FParameters>();
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
-		GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
+		PassParameters->TracingParameters = TracingParameters;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;

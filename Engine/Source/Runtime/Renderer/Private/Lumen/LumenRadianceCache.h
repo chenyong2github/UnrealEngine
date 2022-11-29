@@ -5,7 +5,6 @@
 #include "LumenRadianceCacheInterpolation.h"
 #include "LumenTracingUtils.h"
 
-class FLumenCardTracingInputs;
 class FSceneTextureParameters;
 class FScreenProbeParameters;
 
@@ -58,7 +57,6 @@ namespace LumenRadianceCache
 	class FUpdateInputs
 	{
 	public:
-		FLumenCardTracingInputs TracingInputs;
 		FRadianceCacheInputs RadianceCacheInputs;
 		FRadianceCacheConfiguration Configuration;
 		const FViewInfo& View;
@@ -69,7 +67,6 @@ namespace LumenRadianceCache
 		FMarkUsedRadianceCacheProbes ComputeMarkUsedRadianceCacheProbes;
 
 		FUpdateInputs(
-			const FLumenCardTracingInputs& InTracingInputs,
 			const FRadianceCacheInputs& InRadianceCacheInputs,
 			FRadianceCacheConfiguration InConfiguration,
 			const FViewInfo& InView,
@@ -77,7 +74,6 @@ namespace LumenRadianceCache
 			FRDGBufferSRVRef InBRDFProbabilityDensityFunctionSH,
 			FMarkUsedRadianceCacheProbes&& InGraphicsMarkUsedRadianceCacheProbes,
 			FMarkUsedRadianceCacheProbes&& InComputeMarkUsedRadianceCacheProbes) :
-			TracingInputs(InTracingInputs),
 			RadianceCacheInputs(InRadianceCacheInputs),
 			Configuration(InConfiguration),
 			View(InView),
@@ -115,6 +111,7 @@ namespace LumenRadianceCache
 	*/
 	void UpdateRadianceCaches(
 		FRDGBuilder& GraphBuilder, 
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const TInlineArray<FUpdateInputs>& InputArray,
 		TInlineArray<FUpdateOutputs>& OutputArray,
 		const FScene* Scene,
@@ -128,7 +125,7 @@ extern void RenderLumenHardwareRayTracingRadianceCache(
 	const FScene* Scene,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRadianceCacheConfiguration Configuration,
 	float DiffuseConeHalfAngle,

@@ -63,35 +63,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER(uint32, NumGlobalSDFClipmaps)
 END_SHADER_PARAMETER_STRUCT()
 
-class FLumenCardTracingInputs
-{
-public:
-
-	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback = true);
-
-	FRDGTextureRef AlbedoAtlas;
-	FRDGTextureRef OpacityAtlas;
-	FRDGTextureRef NormalAtlas;
-	FRDGTextureRef EmissiveAtlas;
-	FRDGTextureRef DepthAtlas;
-
-	FRDGTextureRef DirectLightingAtlas;
-	FRDGTextureRef IndirectLightingAtlas;
-	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas;
-	FRDGTextureRef FinalLightingAtlas;
-
-	// Feedback
-	FRDGBufferUAVRef CardPageLastUsedBufferUAV;
-	FRDGBufferUAVRef CardPageHighResLastUsedBufferUAV;
-	FRDGBufferUAVRef SurfaceCacheFeedbackBufferAllocatorUAV;
-	FRDGBufferUAVRef SurfaceCacheFeedbackBufferUAV;
-	uint32 SurfaceCacheFeedbackBufferSize;
-	uint32 SurfaceCacheFeedbackBufferTileWrapMask;
-	FIntPoint SurfaceCacheFeedbackBufferTileJitter;
-
-	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer;
-};
-
 BEGIN_SHADER_PARAMETER_STRUCT(FOctahedralSolidAngleParameters, )
 	SHADER_PARAMETER(float, OctahedralSolidAngleTextureResolutionSq)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OctahedralSolidAngleTexture)
@@ -99,10 +70,11 @@ END_SHADER_PARAMETER_STRUCT()
 
 extern void GetLumenCardTracingParameters(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View, 
-	const FLumenCardTracingInputs& TracingInputs,
-	FLumenCardTracingParameters& TracingParameters, 
-	bool bShaderWillTraceCardsOnly = false);
+	const FViewInfo& View,
+	const FLumenSceneData& LumenSceneData,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
+	bool bSurfaceCacheFeedback,
+	FLumenCardTracingParameters& TracingParameters);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFTracingParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
@@ -194,7 +166,6 @@ extern void CullForCardTracing(
 	const FScene* Scene,
 	const FViewInfo& View,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
-	FLumenCardTracingInputs TracingInputs,
 	const FLumenIndirectTracingParameters& IndirectTracingParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);

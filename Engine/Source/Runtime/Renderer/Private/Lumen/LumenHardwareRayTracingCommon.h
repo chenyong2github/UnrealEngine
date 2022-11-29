@@ -219,7 +219,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	FLumenHardwareRayTracingShaderBase::FSharedParameters* SharedParameters);
 
 // Hardware ray-tracing pipeline

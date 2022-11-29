@@ -162,7 +162,6 @@ extern void TraceScreenProbes(
 	bool bRenderDirectLighting,
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
-	const FLumenCardTracingInputs& TracingInputs,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
@@ -174,7 +173,7 @@ void RenderHardwareRayTracingScreenProbe(
 	const FSceneTextureParameters& SceneTextures,
 	FScreenProbeParameters& CommonDiffuseParameters,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	FLumenIndirectTracingParameters& DiffuseTracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	const FCompactedTraceParameters& CompactedTraceParameters);

@@ -101,7 +101,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingTranslucencyVo
 void HardwareRayTraceTranslucencyVolume(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingParameters& TracingParameters,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters,
 	FLumenTranslucencyLightingVolumeParameters VolumeParameters,
 	FLumenTranslucencyLightingVolumeTraceSetupParameters TraceSetupParameters,
@@ -121,7 +121,7 @@ void HardwareRayTraceTranslucencyVolume(
 			GraphBuilder,
 			GetSceneTextureParameters(GraphBuilder, View),
 			View,
-			TracingInputs,
+			TracingParameters,
 			&PassParameters->SharedParameters);
 
 		PassParameters->RWVolumeTraceRadiance = GraphBuilder.CreateUAV(VolumeTraceRadiance);

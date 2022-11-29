@@ -513,7 +513,8 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 	const FScene* Scene,
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenCardTracingParameters& TracingParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
 	FLumenVisualizeSceneParameters& VisualizeParameters,
 	FRDGTextureRef SceneColor,
@@ -621,7 +622,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 				GraphBuilder,
 				SceneTextures,
 				View,
-				TracingInputs,
+				TracingParameters,
 				&PassParameters->SharedParameters);
 
 			// Input
@@ -800,7 +801,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 				GraphBuilder,
 				SceneTextures,
 				View,
-				TracingInputs,
+				TracingParameters,
 				&PassParameters->SharedParameters);
 
 			// Input
@@ -902,7 +903,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 				GraphBuilder,
 				SceneTextures,
 				View,
-				TracingInputs,
+				TracingParameters,
 				&PassParameters->SharedParameters);
 
 			// Input

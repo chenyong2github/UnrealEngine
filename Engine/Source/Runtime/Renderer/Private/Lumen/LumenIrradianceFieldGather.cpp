@@ -260,8 +260,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 
 	check(GLumenIrradianceFieldGather != 0);
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries);
-
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenIrradianceFieldGather::SetupRadianceCacheInputs();
 
 	FMarkUsedRadianceCacheProbes Callbacks;
@@ -284,7 +282,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 	LumenRadianceCache::TInlineArray<LumenRadianceCache::FUpdateOutputs> OutputArray;
 
 	InputArray.Add(LumenRadianceCache::FUpdateInputs(
-		TracingInputs,
 		RadianceCacheInputs,
 		FRadianceCacheConfiguration(),
 		View,
@@ -300,7 +297,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 	LumenRadianceCache::FUpdateInputs TranslucencyVolumeRadianceCacheUpdateInputs = GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 		GraphBuilder,
 		View, 
-		TracingInputs,
+		FrameTemporaries,
 		ComputePassFlags);
 
 	if (TranslucencyVolumeRadianceCacheUpdateInputs.IsAnyCallbackBound())
@@ -313,6 +310,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 
 	LumenRadianceCache::UpdateRadianceCaches(
 		GraphBuilder, 
+		FrameTemporaries,
 		InputArray,
 		OutputArray,
 		Scene,

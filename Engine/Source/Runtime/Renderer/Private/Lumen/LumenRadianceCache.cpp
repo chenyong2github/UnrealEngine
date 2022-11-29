@@ -1100,6 +1100,7 @@ public:
 
 void UpdateRadianceCaches(
 	FRDGBuilder& GraphBuilder, 
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const TInlineArray<FUpdateInputs>& InputArray,
 	TInlineArray<FUpdateOutputs>& OutputArray,
 	const FScene* Scene,
@@ -1965,6 +1966,9 @@ void UpdateRadianceCaches(
 			const FViewInfo& View = Inputs.View;
 			const FRadianceCacheSetup& Setup = SetupOutputArray[RadianceCacheIndex];
 
+			FLumenCardTracingParameters TracingParameters;
+			GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ false, TracingParameters);
+
 			FUpdateOutputs& Outputs = OutputArray[RadianceCacheIndex];
 			FRadianceCacheState& RadianceCacheState = Outputs.RadianceCacheState;
 			FRadianceCacheInterpolationParameters& RadianceCacheParameters = Outputs.RadianceCacheParameters;
@@ -1983,7 +1987,7 @@ void UpdateRadianceCaches(
 					Scene,
 					GetSceneTextureParameters(GraphBuilder, View),
 					View,
-					Inputs.TracingInputs,
+					TracingParameters,
 					RadianceCacheParameters,
 					Inputs.Configuration,
 					DiffuseConeHalfAngle,
@@ -2002,7 +2006,7 @@ void UpdateRadianceCaches(
 			else
 			{
 				FRadianceCacheTraceFromProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRadianceCacheTraceFromProbesCS::FParameters>();
-				GetLumenCardTracingParameters(GraphBuilder, View, Inputs.TracingInputs, PassParameters->TracingParameters);
+				PassParameters->TracingParameters = TracingParameters;
 				SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, -1.0f);
 				PassParameters->RWRadianceProbeAtlasTexture = RadianceProbeAtlasTextureUAV;
 				PassParameters->RWDepthProbeAtlasTexture = DepthProbeTextureUAV;
