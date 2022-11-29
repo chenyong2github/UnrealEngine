@@ -104,11 +104,8 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 
 	WorldPartition->BeginCook(CookContext);
 
-	bool bIsSuccess = true;
-	for (IWorldPartitionCookPackageGenerator* CookPackageGenerator : CookContext.GetCookPackageGenerators())
-	{
-		bIsSuccess &= CookPackageGenerator->GatherPackagesToCook(CookContext);
-	}
+	bool bIsSuccess = CookContext.GatherPackagesToCook();
+	UE_CLOG(!bIsSuccess, LogWorldPartition, Warning, TEXT("[Cook] Errors while gathering packages to took from generators for owner object %s."), *GetFullNameSafe(OwnerObject));
 
 	UE_LOG(LogWorldPartition, Log, TEXT("[Cook] Gathered %u packages to generate from %u Generators."), CookContext.NumPackageToGenerate(), CookContext.NumGenerators());
 

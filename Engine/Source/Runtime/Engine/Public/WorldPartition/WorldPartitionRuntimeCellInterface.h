@@ -25,5 +25,12 @@ public:
 	virtual const FBox& GetContentBounds() const = 0;
 	/** Returns the cell bounds. */
 	virtual FBox GetCellBounds() const = 0;
+	/** Returns the associated level package name. */
+	virtual FName GetLevelPackageName() const = 0;
+
+#if WITH_EDITOR
+	/** Returns the referenced actor packages. */
+	virtual TSet<FName> GetActorPackageNames() const = 0;
+#endif
 };
 

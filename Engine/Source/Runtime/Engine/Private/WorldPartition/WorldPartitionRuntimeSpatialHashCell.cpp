@@ -165,9 +165,9 @@ void UWorldPartitionRuntimeSpatialHashCell::MergeStreamingSourceInfo() const
 	}
 }
 
-int32 UWorldPartitionRuntimeSpatialHashCell::SortCompare(const UWorldPartitionRuntimeCell* InOther) const
+int32 UWorldPartitionRuntimeSpatialHashCell::SortCompare(const UWorldPartitionRuntimeCell* InOther, bool bCanUseSortingCache) const
 {
-	int32 Result = Super::SortCompare(InOther);
+	int32 Result = Super::SortCompare(InOther, bCanUseSortingCache);
 	if (Result == 0)
 	{
 		const UWorldPartitionRuntimeSpatialHashCell* Other = Cast<const UWorldPartitionRuntimeSpatialHashCell>(InOther);
@@ -175,7 +175,7 @@ int32 UWorldPartitionRuntimeSpatialHashCell::SortCompare(const UWorldPartitionRu
 		
 		// Level (higher value is higher prio)
 		Result = Other->Level - Level;
-		if (Result == 0)
+		if (bCanUseSortingCache && (Result == 0))
 		{
 			// Closest distance (lower value is higher prio)
 			const double Diff = CachedSourceSortingDistance - Other->CachedSourceSortingDistance;

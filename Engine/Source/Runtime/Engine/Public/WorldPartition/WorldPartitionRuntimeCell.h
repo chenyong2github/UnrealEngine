@@ -170,7 +170,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual bool IsLoading() const { return false; }
 	virtual const FString& GetDebugName() const { return DebugInfo.Name; }
 	virtual bool IsDebugShown() const;
-	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* Other) const;
+	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* Other, bool bCanUseSortingCache = true) const;
 	virtual FName GetGridName() const { return DebugInfo.GridName; }
 	bool GetClientOnlyVisible() const { return bClientOnlyVisible; }
 	virtual FGuid const& GetContentBundleID() const { return ContentBundleID; }
@@ -186,7 +186,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 
 	static void DirtyStreamingSourceCacheEpoch() { ++UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch; }
 
-	// IWorldPartitionCell Interface begin
+	//~Begin IWorldPartitionCell Interface
 	virtual TArray<const UDataLayerInstance*> GetDataLayerInstances() const override;
 	virtual bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const override;
 	virtual bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const override;
@@ -198,7 +198,8 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	}
 	virtual const FBox& GetContentBounds() const override { return ContentBounds; }
 	virtual FBox GetCellBounds() const override { return FBox(ForceInit); }
-	// IWorldPartitionCell Interface end
+	virtual FName GetLevelPackageName() const override;
+	//~End IWorldPartitionCell Interface
 
 	const FVector2D GetMinMaxZ() const { return FVector2D(ContentBounds.Min.Z, ContentBounds.Max.Z); }
 
@@ -206,13 +207,17 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 #if WITH_EDITOR
 	bool NeedsActorToCellRemapping() const;
 	void SetBlockOnSlowLoading(bool bInBlockOnSlowLoading) { bBlockOnSlowLoading = bInBlockOnSlowLoading; }
-
 	void SetClientOnlyVisible(bool bInClientOnlyVisible) { bClientOnlyVisible = bInClientOnlyVisible; }
-
 	void SetDataLayers(const TArray<const UDataLayerInstance*>& InDataLayerInstances);
 	void SetContentBundleUID(const FGuid& InContentBundleID) { ContentBundleID = InContentBundleID; }
 	void SetContentBounds(const FBox& InBounds) { ContentBounds = InBounds; }
 	void SetDebugInfo(int64 InCoordX, int64 InCoordY, int64 InCoordZ, FName InGridName);
+	void SetLevelPackageName(const FName& InLevelPackageName) { LevelPackageName = InLevelPackageName; }
+	
+	//~Begin IWorldPartitionCell Interface
+	virtual TSet<FName> GetActorPackageNames() const override { return TSet<FName>(); }
+	//~End IWorldPartitionCell Interface
+
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
 
@@ -285,5 +290,9 @@ protected:
 #if !UE_BUILD_SHIPPING
 	// Represents the streaming priority relative to other cells
 	float DebugStreamingPriority;
+#endif
+
+#if WITH_EDITOR
+	FName LevelPackageName;
 #endif
 };

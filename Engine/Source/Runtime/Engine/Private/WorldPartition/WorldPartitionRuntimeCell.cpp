@@ -122,10 +122,10 @@ void UWorldPartitionRuntimeCell::AppendStreamingSourceInfo(const FWorldPartition
 void UWorldPartitionRuntimeCell::MergeStreamingSourceInfo() const
 {}
 
-int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* Other) const
+int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* Other, bool bCanUseSortingCache) const
 {
 	// Source priority (lower value is higher prio)
-	const int32 Comparison = (int32)CachedMinSourcePriority - (int32)Other->CachedMinSourcePriority;
+	const int32 Comparison = bCanUseSortingCache ? ((int32)CachedMinSourcePriority - (int32)Other->CachedMinSourcePriority) : 0;
 	// Cell priority (lower value is higher prio)
 	return (Comparison != 0) ? Comparison : (Priority - Other->Priority);
 }
@@ -176,4 +176,13 @@ bool UWorldPartitionRuntimeCell::ContainsDataLayer(const UDataLayerAsset* DataLa
 bool UWorldPartitionRuntimeCell::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const
 {
 	return GetDataLayers().Contains(DataLayerInstance->GetDataLayerFName());
+}
+
+FName UWorldPartitionRuntimeCell::GetLevelPackageName() const
+{ 
+#if WITH_EDITOR
+	return LevelPackageName;
+#else
+	return NAME_None;
+#endif
 }

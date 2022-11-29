@@ -60,6 +60,35 @@ bool UWorldPartitionRuntimeLevelStreamingCell::HasActors() const
 #endif
 }
 
+#if WITH_EDITOR
+TSet<FName> UWorldPartitionRuntimeLevelStreamingCell::GetActorPackageNames() const
+{
+	TSet<FName> Actors;
+	Actors.Reserve(Packages.Num());
+	for (const FWorldPartitionRuntimeCellObjectMapping& Package : Packages)
+	{
+		Actors.Add(Package.Package);
+	}
+	return Actors;
+}
+#endif
+
+FName UWorldPartitionRuntimeLevelStreamingCell::GetLevelPackageName() const
+{
+#if WITH_EDITOR
+	UWorld* World = GetCellOwner()->GetOwningWorld();
+	if (World->IsPlayInEditor())
+	{
+		return FName(UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(GetFName(), World));
+	}
+#endif
+	if (LevelStreaming)
+	{
+		return LevelStreaming->GetWorldAssetPackageFName();
+	}
+	return Super::GetLevelPackageName();
+}
+
 TArray<FName> UWorldPartitionRuntimeLevelStreamingCell::GetActors() const
 {
 	TArray<FName> Actors;

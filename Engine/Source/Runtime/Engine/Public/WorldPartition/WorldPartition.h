@@ -31,6 +31,7 @@ class UWorldPartitionEditorHash;
 class UWorldPartitionRuntimeCell;
 class UWorldPartitionRuntimeHash;
 class UWorldPartitionStreamingPolicy;
+class IWorldPartitionCell;
 class IStreamingGenerationErrorHandler;
 class FLoaderAdapterAlwaysLoadedActors;
 class FLoaderAdapterActorList;
@@ -151,6 +152,7 @@ public:
 	FName GetWorldPartitionEditorName() const;
 
 	// Streaming generation
+	bool CanGenerateStreaming() const { return !StreamingPolicy; }
 	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr);
 	bool GenerateContainerStreaming(const UActorDescContainer* ActorDescContainer, TArray<FString>* OutPackagesToGenerate = nullptr);
 	void FlushStreaming();
@@ -171,8 +173,8 @@ public:
 	virtual bool PrepareGeneratorPackageForCook(IWorldPartitionCookPackageContext& CookContext, TArray<UPackage*>& OutModifiedPackages) override;
 	virtual bool PopulateGeneratorPackageForCook(IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages) override;
 	virtual bool PopulateGeneratedPackageForCook(IWorldPartitionCookPackageContext& CookContext, const FWorldPartitionCookPackage& InPackagesToCool, TArray<UPackage*>& OutModifiedPackages) override;
+	virtual UWorldPartitionRuntimeCell* GetCellForPackage(const FWorldPartitionCookPackage& PackageToCook) const override;
 	//~ End IWorldPartitionCookPackageGenerator Interface 
-
 	// End Cooking
 
 	UE_DEPRECATED(5.1, "GetWorldBounds is deprecated, use GetEditorWorldBounds or GetRuntimeWorldBounds instead.")
@@ -256,6 +258,7 @@ public:
 	bool CanAddLoadedLevelToWorld(ULevel* InLevel) const;
 	bool IsStreamingCompleted(const TArray<FWorldPartitionStreamingSource>* InStreamingSources) const;
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
+	bool GetIntersectingCells(const TArray<FWorldPartitionStreamingQuerySource>& InSources, TArray<const IWorldPartitionCell*>& OutCells) const;
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
 

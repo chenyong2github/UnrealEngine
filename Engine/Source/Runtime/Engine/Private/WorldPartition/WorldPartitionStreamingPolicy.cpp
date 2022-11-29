@@ -311,6 +311,53 @@ uint32 UWorldPartitionStreamingPolicy::ComputeStreamingSourceHash(const FWorldPa
 	return Hash;
 };
 
+bool UWorldPartitionStreamingPolicy::GetIntersectingCells(const TArray<FWorldPartitionStreamingQuerySource>& InSources, TArray<const IWorldPartitionCell*>& OutCells) const
+{
+	if (!WorldPartition || !WorldPartition->RuntimeHash)
+	{
+		return false;
+	}
+
+	FWorldPartitionQueryCache QueryCache;
+	TSet<const UWorldPartitionRuntimeCell*> Cells;
+	for (const FWorldPartitionStreamingQuerySource& Source : InSources)
+	{
+		WorldPartition->RuntimeHash->ForEachStreamingCellsQuery(Source, [&Cells](const UWorldPartitionRuntimeCell* Cell)
+		{
+			Cells.Add(Cell);
+			return true;
+		}, &QueryCache);
+	}
+
+	TArray<const UWorldPartitionRuntimeCell*> SortedCells = Cells.Array();
+	Algo::Sort(SortedCells, [&QueryCache](const UWorldPartitionRuntimeCell* CellA, const UWorldPartitionRuntimeCell* CellB)
+	{
+		const bool bCanUseSortingCache = false;
+		int32 SortCompare = CellA->SortCompare(CellB, bCanUseSortingCache);
+		if (SortCompare == 0)
+		{
+			// Closest distance (lower value is higher prio)
+			const double Diff = QueryCache.GetCellMinSquareDist(CellA) - QueryCache.GetCellMinSquareDist(CellB);
+			if (FMath::IsNearlyZero(Diff))
+			{
+				return CellA->GetLevelPackageName().LexicalLess(CellB->GetLevelPackageName());
+			}
+			else
+			{
+				return Diff < 0;
+			}
+		}
+		return SortCompare < 0;
+	});
+
+	OutCells.Reserve(SortedCells.Num());
+	for (const UWorldPartitionRuntimeCell* Cell : SortedCells)
+	{
+		OutCells.Add(Cell);
+	}
+	return true;
+}
+
 void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState);

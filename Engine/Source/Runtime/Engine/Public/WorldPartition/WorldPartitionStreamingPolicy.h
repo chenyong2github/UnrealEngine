@@ -45,6 +45,7 @@ class UWorldPartitionStreamingPolicy : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+	virtual bool GetIntersectingCells(const TArray<FWorldPartitionStreamingQuerySource>& InSources, TArray<const IWorldPartitionCell*>& OutCells) const;
 	virtual void UpdateStreamingState();
 	virtual bool CanAddLoadedLevelToWorld(class ULevel* InLevel) const;
 	virtual bool DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset, FVector2D& OutUsedCanvasSize);

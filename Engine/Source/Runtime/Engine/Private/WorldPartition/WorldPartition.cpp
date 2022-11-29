@@ -1395,6 +1395,15 @@ void UWorldPartition::UpdateStreamingState()
 	}
 }
 
+bool UWorldPartition::GetIntersectingCells(const TArray<FWorldPartitionStreamingQuerySource>& InSources, TArray<const IWorldPartitionCell*>& OutCells) const
+{
+	if (StreamingPolicy)
+	{
+		return StreamingPolicy->GetIntersectingCells(InSources, OutCells);
+	}
+	return false;
+}
+
 bool UWorldPartition::CanAddLoadedLevelToWorld(class ULevel* InLevel) const
 {
 	if (GetWorld()->IsGameWorld())
@@ -1557,6 +1566,12 @@ bool UWorldPartition::PopulateGeneratedPackageForCook(IWorldPartitionCookPackage
 {
 	check(RuntimeHash);
 	return RuntimeHash->PopulateGeneratedPackageForCook(InPackagesToCook, OutModifiedPackages);
+}
+
+UWorldPartitionRuntimeCell* UWorldPartition::GetCellForPackage(const FWorldPartitionCookPackage& PackageToCook) const
+{
+	check(RuntimeHash);
+	return RuntimeHash->GetCellForPackage(PackageToCook);
 }
 
 TArray<FBox> UWorldPartition::GetUserLoadedEditorRegions() const

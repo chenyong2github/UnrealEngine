@@ -159,7 +159,7 @@ int64 FSpatialHashStreamingGrid::GetCellSize(int32 Level) const
 	return GetGridHelper().Levels[Level].CellSize;
 }
 
-void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells, bool bEnableZCulling) const
+void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells, bool bEnableZCulling, FWorldPartitionQueryCache* QueryCache) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSpatialHashStreamingGrid::GetCells_QuerySource);
 
@@ -196,6 +196,10 @@ void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySour
 						if (ShouldAddCell(Cell, QuerySource))
 						{
 							OutCells.Add(Cell);
+							if (QueryCache)
+							{
+								QueryCache->AddCellInfo(Cell, Shape);
+							}
 						}
 					}
 				});
@@ -1158,6 +1162,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreami
 	// Fix case where StreamingGrids might have been persisted.
 	bIsNameToGridMappingDirty = true;
 	StreamingGrids.Empty();
+	check(PackagesToGenerateForCook.IsEmpty());
 
 	// Append grids from ASpatialHashRuntimeGridInfo actors to runtime spatial hash grids
 	TArray<FSpatialHashRuntimeGrid> AllGrids;
@@ -1474,12 +1479,10 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 						check(!PackageRelativePath.IsEmpty());
 						OutPackagesToGenerate->Add(PackageRelativePath);
 
-						if (IsRunningCookCommandlet())
-						{
-							UE_LOG(LogWorldPartition, Log, TEXT("Creating runtime streaming cells %s."), *StreamingCell->GetName());
-							// Map relative package to StreamingCell for PopulateGeneratedPackageForCook/PopulateGeneratorPackageForCook
-							PackagesToGenerateForCook.Add(PackageRelativePath, StreamingCell);
-						}
+						// Map relative package to StreamingCell for PopulateGeneratedPackageForCook/PopulateGeneratorPackageForCook/GetCellForPackage
+						PackagesToGenerateForCook.Add(PackageRelativePath, StreamingCell);
+
+						UE_CLOG(IsRunningCookCommandlet(), LogWorldPartition, Log, TEXT("Creating runtime streaming cells %s."), *StreamingCell->GetName());
 					}
 				}
 			}
@@ -1501,6 +1504,12 @@ bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratedPackageForCook(const FW
 		}
 	}
 	return false;
+}
+
+UWorldPartitionRuntimeCell* UWorldPartitionRuntimeSpatialHash::GetCellForPackage(const FWorldPartitionCookPackage& PackageToCook) const
+{
+	UWorldPartitionRuntimeCell** MatchingCell = const_cast<UWorldPartitionRuntimeCell**>(PackagesToGenerateForCook.Find(PackageToCook.RelativePath));
+	return MatchingCell ? *MatchingCell : nullptr;
 }
 
 TArray<UWorldPartitionRuntimeCell*> UWorldPartitionRuntimeSpatialHash::GetAlwaysLoadedCells() const
@@ -1530,6 +1539,8 @@ bool UWorldPartitionRuntimeSpatialHash::PrepareGeneratorPackageForCook(TArray<UP
 			return false;
 		}
 	}
+
+	//@todo_ow: here we can safely remove always loaded cells as they are not part of the OutPackagesToGenerate
 	return true;
 }
 
@@ -1554,6 +1565,7 @@ void UWorldPartitionRuntimeSpatialHash::FlushStreaming()
 {
 	bIsNameToGridMappingDirty = true;
 	StreamingGrids.Empty();
+	PackagesToGenerateForCook.Empty();
 }
 
 #endif //WITH_EDITOR
@@ -1601,20 +1613,24 @@ void UWorldPartitionRuntimeSpatialHash::ForEachStreamingCells(TFunctionRef<bool(
 	});
 }
 
-void UWorldPartitionRuntimeSpatialHash::ForEachStreamingCellsQuery(const FWorldPartitionStreamingQuerySource& QuerySource, TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func) const
+void UWorldPartitionRuntimeSpatialHash::ForEachStreamingCellsQuery(const FWorldPartitionStreamingQuerySource& QuerySource, TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func, FWorldPartitionQueryCache* QueryCache) const
 {
 	ForEachStreamingGrid([&](const FSpatialHashStreamingGrid& StreamingGrid)
 	{
 		if (IsCellRelevantFor(StreamingGrid.bClientOnlyVisible))
 		{
 			TSet<const UWorldPartitionRuntimeCell*> Cells;
-			StreamingGrid.GetCells(QuerySource, Cells, GetEffectiveEnableZCulling(bEnableZCulling));
+			StreamingGrid.GetCells(QuerySource, Cells, GetEffectiveEnableZCulling(bEnableZCulling), QueryCache);
 
 			for (const UWorldPartitionRuntimeCell* Cell : Cells)
 			{
-				if (!Func(Cell))
+				//@todo_ow: Remove this test once always loaded cells (which are empty) are removed at cook time
+				if (!Cell->IsAlwaysLoaded())
 				{
-					break;
+					if (!Func(Cell))
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -1670,8 +1686,6 @@ void UWorldPartitionRuntimeSpatialHash::ForEachStreamingCellsSources(const TArra
 
 bool UWorldPartitionRuntimeSpatialHash::InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
 {
-	check(GetWorld()->IsGameWorld());
-
 	if (!ExternalStreamingObjects.Contains(ExternalStreamingObject))
 	{
 		if (URuntimeSpatialHashExternalStreamingObject* SpatialHashExternalStreamingObject = Cast<URuntimeSpatialHashExternalStreamingObject>(ExternalStreamingObject))
@@ -1707,8 +1721,6 @@ bool UWorldPartitionRuntimeSpatialHash::InjectExternalStreamingObject(URuntimeHa
 
 bool UWorldPartitionRuntimeSpatialHash::RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
 {
-	check(GetWorld()->IsGameWorld());
-
 	if (URuntimeSpatialHashExternalStreamingObject* SpatialHashExternalStreamingObject = Cast<URuntimeSpatialHashExternalStreamingObject>(ExternalStreamingObject))
 	{
 		if (ExternalStreamingObjects.Remove(SpatialHashExternalStreamingObject) > 0)

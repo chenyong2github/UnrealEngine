@@ -204,4 +204,23 @@ void UWorldPartitionRuntimeHash::FStreamingSourceCells::AddCell(const UWorldPart
 	Cells.Add(Cell);
 }
 
+void FWorldPartitionQueryCache::AddCellInfo(const UWorldPartitionRuntimeCell* Cell, const FSphericalSector& SourceShape)
+{
+	const double SquareDistance = FVector::DistSquared2D(SourceShape.GetCenter(), Cell->GetCellBounds().GetCenter());
+	if (double* ExistingSquareDistance = CellToSourceMinSqrDistances.Find(Cell))
+	{
+		*ExistingSquareDistance = FMath::Min(*ExistingSquareDistance, SquareDistance);
+	}
+	else
+	{
+		CellToSourceMinSqrDistances.Add(Cell, SquareDistance);
+	}
+}
+
+double FWorldPartitionQueryCache::GetCellMinSquareDist(const UWorldPartitionRuntimeCell* Cell) const
+{
+	const double* Dist = CellToSourceMinSqrDistances.Find(Cell);
+	return Dist ? *Dist : MAX_dbl;
+}
+
 #undef LOCTEXT_NAMESPACE

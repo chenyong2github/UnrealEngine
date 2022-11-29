@@ -5,6 +5,7 @@
 
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/Cook/WorldPartitionCookPackageGenerator.h"
+#include "WorldPartition/WorldPartitionRuntimeCell.h"
 
 FWorldPartitionCookPackageContext::FWorldPartitionCookPackageContext()
 {
@@ -77,6 +78,34 @@ const FWorldPartitionCookPackage* FWorldPartitionCookPackageContext::AddPackageT
 	}
 
 	return nullptr;
+}
+
+bool FWorldPartitionCookPackageContext::GatherPackagesToCook()
+{
+	bool bIsSuccess = true;
+
+	for (IWorldPartitionCookPackageGenerator* CookPackageGenerator : CookPackageGenerators)
+	{
+		if (CookPackageGenerator->GatherPackagesToCook(*this))
+		{
+			if (const TArray<FWorldPartitionCookPackage*>* CookPackages = GetCookPackages(CookPackageGenerator))
+			{
+				for (FWorldPartitionCookPackage* CookPackage : *CookPackages)
+				{
+					if (UWorldPartitionRuntimeCell* Cell = CookPackage ? CookPackageGenerator->GetCellForPackage(*CookPackage) : nullptr)
+					{
+						Cell->SetLevelPackageName(*CookPackage->GetFullGeneratedPath());
+					}
+				}
+			}
+		}
+		else
+		{
+			bIsSuccess = false;
+		}
+	}
+
+	return bIsSuccess;
 }
 
 #endif

@@ -304,7 +304,7 @@ void FContentBundleEditor::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(UnsavedActorMonitor);
 }
 
-void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenerate)
+void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenerate, bool bIsPIE)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FContentBundleEditor::GenerateStreaming);
 
@@ -327,7 +327,7 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 	});
 	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Generated streaming cells. %u cells were generated"), *GetDescriptor()->GetDisplayName(), CellCount);
 
-	if (!IsRunningCookCommandlet())
+	if (bIsPIE)
 	{
 		UContentBundleManager* ContentBundleManager = GetInjectedWorld()->ContentBundleManager;
 		UContentBundleDuplicateForPIEHelper* DuplicateForPIEHelper = ContentBundleManager->GetPIEDuplicateHelper();
@@ -351,7 +351,10 @@ void FContentBundleEditor::OnBeginCook(IWorldPartitionCookPackageContext& CookCo
 bool FContentBundleEditor::GatherPackagesToCook(class IWorldPartitionCookPackageContext& CookContext)
 {
 	TArray<FString> PackageToGenerate;
-	GenerateStreaming(&PackageToGenerate);
+	const bool bIsPIE = false;
+	GenerateStreaming(&PackageToGenerate, bIsPIE);
+
+	CookPackageIdsToCell.Empty();
 
 	bool bIsSuccess = true;
 
@@ -470,6 +473,11 @@ bool FContentBundleEditor::PopulateGeneratedPackageForCook(class IWorldPartition
 	return bIsSuccess;
 }
 
+UWorldPartitionRuntimeCell* FContentBundleEditor::GetCellForPackage(const FWorldPartitionCookPackage& PackageToCook) const
+{
+	UWorldPartitionRuntimeCell** MatchingCell = const_cast<UWorldPartitionRuntimeCell**>(CookPackageIdsToCell.Find(PackageToCook.PackageId));
+	return MatchingCell ? *MatchingCell : nullptr;
+}
 
 void FContentBundleEditor::BroadcastChanged()
 {

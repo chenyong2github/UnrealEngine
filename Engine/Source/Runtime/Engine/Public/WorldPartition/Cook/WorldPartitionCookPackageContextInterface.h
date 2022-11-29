@@ -19,6 +19,8 @@ public:
 
 	virtual const FWorldPartitionCookPackage* AddLevelStreamingPackageToGenerate(IWorldPartitionCookPackageGenerator* Generator, const FString& Root, const FString& RelativePath) = 0;
 	virtual const FWorldPartitionCookPackage* AddGenericPackageToGenerate(IWorldPartitionCookPackageGenerator* Generator, const FString& Root, const FString& RelativePath) = 0;
+
+	virtual bool GatherPackagesToCook() = 0;
 };
 
 #endif

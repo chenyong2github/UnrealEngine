@@ -384,9 +384,10 @@ void FContentBundleContainer::OnPreGenerateStreaming(TArray<FString>* OutPackage
 
 	GetInjectedWorld()->ContentBundleManager->GetPIEDuplicateHelper()->Clear();
 
+	const bool bIsPIE = true;
 	for (TSharedPtr<FContentBundleEditor>& ContentBundle : GetEditorContentBundles())
 	{
-		ContentBundle->GenerateStreaming(OutPackageToGenerate);
+		ContentBundle->GenerateStreaming(OutPackageToGenerate, bIsPIE);
 	}
 }
 

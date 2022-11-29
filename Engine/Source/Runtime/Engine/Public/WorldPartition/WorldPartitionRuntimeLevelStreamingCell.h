@@ -29,6 +29,10 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	virtual bool IsLoading() const override;
 	//~End UWorldPartitionRuntimeCell Interface
 
+	//~Begin IWorldPartitionCell Interface
+	FName GetLevelPackageName() const override;
+	//~End IWorldPartitionCell Interface
+
 	virtual void SetStreamingPriority(int32 InStreamingPriority) const override;
 	class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
 
@@ -50,6 +54,10 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UPackage*>& OutModifiedPackages) override;
 	virtual FString GetPackageNameToCreate() const override;
 	//~End UWorldPartitionRuntimeCell Interface
+
+	//~Begin IWorldPartitionCell Interface
+	virtual TSet<FName> GetActorPackageNames() const override;
+	//~End IWorldPartitionCell Interface
 
 	const TArray<FWorldPartitionRuntimeCellObjectMapping>& GetPackages() const { return Packages; }
 #endif
