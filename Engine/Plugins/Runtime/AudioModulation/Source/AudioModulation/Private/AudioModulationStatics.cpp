@@ -256,6 +256,60 @@ USoundControlBusMix* UAudioModulationStatics::CreateBusMix(UObject* WorldContext
 	return NewBusMix;
 }
 
+USoundModulationParameter* UAudioModulationStatics::CreateModulationParameter(UObject* WorldContextObject, FName Name, TSubclassOf<USoundModulationParameter> ParamClass, float DefaultValue)
+{
+	UWorld* World = GetAudioWorld(WorldContextObject);
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	USoundModulationParameter* NewParam = NewObject<USoundModulationParameter>(WorldContextObject, ParamClass, Name);
+
+	if (NewParam)
+	{
+		NewParam->Settings.ValueNormalized = DefaultValue;
+	}
+
+	return NewParam;
+}
+
+USoundModulationGeneratorEnvelopeFollower* UAudioModulationStatics::CreateEnvelopeFollowerGenerator(UObject* WorldContextObject, FName Name, FEnvelopeFollowerGeneratorParams Params)
+{
+	UWorld* World = GetAudioWorld(WorldContextObject);
+	if (!World)
+	{
+		return nullptr;
+	}
+	
+	USoundModulationGeneratorEnvelopeFollower* NewGenerator = NewObject<USoundModulationGeneratorEnvelopeFollower>(WorldContextObject, USoundModulationGeneratorEnvelopeFollower::StaticClass(), Name);
+
+	if (NewGenerator)
+	{
+		NewGenerator->Params = Params;
+	}
+
+	return NewGenerator;
+}
+
+USoundModulationGeneratorLFO* UAudioModulationStatics::CreateLFOGenerator(UObject* WorldContextObject, FName Name, FSoundModulationLFOParams Params)
+{
+	UWorld* World = GetAudioWorld(WorldContextObject);
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	USoundModulationGeneratorLFO* NewGenerator = NewObject<USoundModulationGeneratorLFO>(WorldContextObject, USoundModulationGeneratorLFO::StaticClass(), Name);
+
+	if (NewGenerator)
+	{
+		NewGenerator->Params = Params;
+	}
+
+	return NewGenerator;
+}
+
 void UAudioModulationStatics::DeactivateBus(const UObject* WorldContextObject, USoundControlBus* Bus)
 {
 	if (Bus)
