@@ -205,7 +205,7 @@ FNiagaraSimulationDebugDrawData* FNiagaraGpuComputeDebug::GetSimulationDebugDraw
 	FNiagaraSimulationDebugDrawData* DebugDrawData = GetSimulationDebugDrawData(SystemInstanceID);
 
 	const uint32 MaxPossibleLines = FMath::Min(FMath::DivideAndRoundDown(GetMaxBufferDimension(), uint64(NiagaraGpuComputeDebugLocal::NumUintsPerLine)), uint64(TNumericLimits<uint32>::Max() >> 1));
-	const uint32 MaxLineInstancesToUse = FMath::Min(FMath::Max3(DebugDrawData->GpuLineMaxInstances, uint32(GNiagaraGpuComputeDebug_MaxLineInstances), OverrideMaxDebugLines), MaxPossibleLines);
+	const uint32 MaxLineInstancesToUse = FMath::Min(FMath::Max(DebugDrawData->GpuLineMaxInstances, OverrideMaxDebugLines > 0 ? OverrideMaxDebugLines : uint32(GNiagaraGpuComputeDebug_MaxLineInstances)), MaxPossibleLines);
 	if (DebugDrawData->GpuLineMaxInstances != MaxLineInstancesToUse)
 	{
 		DebugDrawData->GpuLineBufferArgs.Release();
