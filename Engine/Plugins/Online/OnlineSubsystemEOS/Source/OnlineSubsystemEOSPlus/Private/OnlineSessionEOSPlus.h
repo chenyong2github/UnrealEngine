@@ -49,6 +49,7 @@ public:
 	virtual bool GetResolvedConnectString(FName SessionName, FString& ConnectInfo, FName PortType) override;
 	virtual bool GetResolvedConnectString(const FOnlineSessionSearchResult& SearchResult, FName PortType, FString& ConnectInfo) override;
 	virtual FOnlineSessionSettings* GetSessionSettings(FName SessionName) override;
+	virtual FString GetVoiceChatRoomName(int32 LocalUserNum, const FName& SessionName) override;
 	virtual bool RegisterPlayer(FName SessionName, const FUniqueNetId& PlayerId, bool bWasInvited) override;
 	virtual bool RegisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players, bool bWasInvited = false) override;
 	virtual bool UnregisterPlayer(FName SessionName, const FUniqueNetId& PlayerId) override;

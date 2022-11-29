@@ -847,6 +847,16 @@ public:
 	virtual FOnlineSessionSettings* GetSessionSettings(FName SessionName) = 0;
 
 	/**
+	 * Returns the name for the Voice Chat room, if any were created by setting bUseLobbiesVoiceChatIfAvailable to true during session creation
+	 * 
+	 * @param LocalUserNum the user asking for the room name
+	 * @param SessionName the name of the related session
+	 * 
+	 * @return the name for the corresponding Voice Chat room, or an empty FString if there is none
+	 */
+	virtual FString ONLINESUBSYSTEM_API GetVoiceChatRoomName(int32 LocalUserNum, const FName& SessionName);
+
+	/**
 	 * Registers a player with the online service as being part of the online session
 	 *
 	 * @param SessionName the name of the session the player is joining

@@ -49,6 +49,13 @@ bool IOnlineSession::StartMatchmaking(const TArray<FSessionMatchmakingUser>& Loc
 	return bStartMatchmakingSuccess;
 }
 
+FString IOnlineSession::GetVoiceChatRoomName(int32 LocalUserNum, const FName& SessionName)
+{
+	UE_LOG_ONLINE_SESSION(Warning, TEXT("[IOnlineSession::GetVoiceChatRoomName] This functionality is not implemented on this OSS."));
+
+	return FString();
+}
+
 void IOnlineSession::RemovePlayerFromSession(int32 LocalUserNum, FName SessionName, const FUniqueNetId& TargetPlayerId)
 {
 	UE_LOG_ONLINE_SESSION(Warning, TEXT("[IOnlineSession::RemovePlayerFromSession] This functionality is not implemented by default."));

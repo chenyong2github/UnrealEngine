@@ -3503,6 +3503,41 @@ FUniqueNetIdPtr FOnlineSessionEOS::CreateSessionIdFromString(const FString& Sess
 	return FUniqueNetIdEOSSession::Create(SessionIdStr);
 }
 
+FString FOnlineSessionEOS::GetVoiceChatRoomName(int32 LocalUserNum, const FName& SessionName)
+{
+	FString RTCRoomNameStr;
+
+	FNamedOnlineSession* Session = GetNamedSession(SessionName);
+	if (Session == nullptr)
+	{
+		UE_LOG_ONLINE_SESSION(Verbose, TEXT("[FOnlineSessionEOS::GetRTCRoomNameFromLobbyId] Unable to find session with name %s"), *SessionName.ToString());
+		return RTCRoomNameStr;
+	}
+
+	const FUniqueNetIdEOSLobby& LobbyId = FUniqueNetIdEOSLobby::Cast(Session->SessionInfo->GetSessionId());
+	const auto LobbyIdUTF8 = StringCast<UTF8CHAR>(*LobbyId.ToString());	
+
+	EOS_Lobby_GetRTCRoomNameOptions GetRTCRoomNameOptions = {};
+	GetRTCRoomNameOptions.ApiVersion = EOS_LOBBY_GETRTCROOMNAME_API_LATEST;
+	static_assert(EOS_LOBBY_GETRTCROOMNAME_API_LATEST == 1, "EOS_Lobby_GetRTCRoomNameOptions updated, check new fields");
+	GetRTCRoomNameOptions.LobbyId = (const char*)LobbyIdUTF8.Get();
+	GetRTCRoomNameOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserNum);
+
+	char RTCRoomNameUTF8[256];
+	uint32_t RTCRoomNameUTF8Length = UE_ARRAY_COUNT(RTCRoomNameUTF8);
+	const EOS_EResult Result = EOS_Lobby_GetRTCRoomName(LobbyHandle, &GetRTCRoomNameOptions, RTCRoomNameUTF8, &RTCRoomNameUTF8Length);
+	if (Result == EOS_EResult::EOS_Success)
+	{
+		RTCRoomNameStr = UTF8_TO_TCHAR(RTCRoomNameUTF8);
+	}
+	else
+	{
+		UE_LOG_ONLINE_SESSION(Verbose, TEXT("[FOnlineSessionEOS::GetRTCRoomNameFromLobbyId] EOS_Lobby_GetRTCRoomName not successful. Finished with EOS_EResult %s"), *LexToString(Result));
+	}
+
+	return RTCRoomNameStr;
+}
+
 EOS_ELobbyPermissionLevel FOnlineSessionEOS::GetLobbyPermissionLevelFromSessionSettings(const FOnlineSessionSettings& SessionSettings)
 {
 	EOS_ELobbyPermissionLevel Result;

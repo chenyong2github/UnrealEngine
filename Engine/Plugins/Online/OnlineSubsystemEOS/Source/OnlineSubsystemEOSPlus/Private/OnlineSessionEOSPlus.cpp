@@ -808,6 +808,16 @@ FOnlineSessionSettings* FOnlineSessionEOSPlus::GetSessionSettings(FName SessionN
 	return BaseSessionInterface->GetSessionSettings(SessionName);
 }
 
+FString FOnlineSessionEOSPlus::GetVoiceChatRoomName(int32 LocalUserNum, const FName& SessionName)
+{
+	if (bUseEOSSessions)
+	{
+		return EOSSessionInterface->GetVoiceChatRoomName(LocalUserNum, SessionName);
+	}
+
+	return BaseSessionInterface->GetVoiceChatRoomName(LocalUserNum, SessionName);
+}
+
 bool FOnlineSessionEOSPlus::RegisterPlayer(FName SessionName, const FUniqueNetId& PlayerId, bool bWasInvited)
 {
 	if (bUseEOSSessions)
