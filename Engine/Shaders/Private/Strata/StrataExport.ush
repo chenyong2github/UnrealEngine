@@ -355,6 +355,12 @@ void PackStrataOut(
 				{
 					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_CLOTH;
 				}
+				
+				else if ((OptimisedModeMask & SingleIsThin) == SingleIsThin)
+				{
+					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSWRAP_THIN;
+					SSSData.Header.Bytes = 0; // Force to skip SSSData writing
+				}
 				else if ((OptimisedModeMask & SingleIsWrap) == SingleIsWrap)
 				{
 					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSWRAP;
@@ -574,7 +580,7 @@ void PackStrataOut(
 							// Ensure the rest of the BSDF is not stored with the regular path
 							BSDF.State = 0;
 						}
-						else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP)
+						else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP || OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP_THIN)
 						{
 							const float SSSWOpacity = StrataSubSurfaceGetWrapOpacityFromAnisotropy(SLAB_SSSPHASEANISOTROPY(BSDF));
 

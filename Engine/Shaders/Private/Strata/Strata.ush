@@ -348,6 +348,7 @@ struct FStrataBSDF
 #define SINGLE_OPTLEGACYMODE_CLOTH				2
 #define SINGLE_OPTLEGACYMODE_SSSWRAP			3
 #define SINGLE_OPTLEGACYMODE_SSSPROFILE			4
+#define SINGLE_OPTLEGACYMODE_SSSWRAP_THIN		5
 // 5 more remains: Also how to deal with Aniso?
 
 // Layout 0 (Fast)
@@ -3829,7 +3830,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETHASFUZZ(OutBSDF, 1);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
 			}
-			else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP)
+			else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP || OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP_THIN)
 			{
 			#if STRATA_DEFERRED_SHADING
 				uint Data0 = StrataHeader.SharedLocalBasesTypes_PackedHeader;
@@ -3864,7 +3865,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETHASMFP(OutBSDF, 1);
 				BSDF_SETHASHAZINESS(OutBSDF, 0);
 				BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
-				BSDF_SETISTHIN(OutBSDF, 0);
+				BSDF_SETISTHIN(OutBSDF, (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP_THIN ? 1 : 0));
 				BSDF_SETHASFUZZ(OutBSDF, 0);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
 			}

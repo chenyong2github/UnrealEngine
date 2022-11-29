@@ -447,6 +447,10 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 			{
 				Print(Context, TEXT(" - Legecy SSS-Wrap"), FontLightRed);
 			}
+			else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP_THIN)
+			{
+				Print(Context, TEXT(" - Legecy Foliage"), FontLightRed);
+			}
 			else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSPROFILE)
 			{
 				Print(Context, TEXT(" - Legecy SSS-Profile"), FontLightRed);
