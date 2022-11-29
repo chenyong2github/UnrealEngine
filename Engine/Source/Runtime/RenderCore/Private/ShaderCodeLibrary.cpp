@@ -240,6 +240,7 @@ public:
 	virtual void ReleaseRHI() override;
 
 	// FShaderMapResource interface
+	virtual FSHAHash GetShaderHash(int32 ShaderIndex) override;
 	virtual FRHIShader* CreateRHIShaderOrCrash(int32 ShaderIndex) override;
 	virtual void ReleasePreloadedShaderCode(int32 ShaderIndex) override;
 	virtual bool TryRelease() override;
@@ -1156,6 +1157,11 @@ FShaderMapResource_SharedCode::FShaderMapResource_SharedCode(FShaderLibraryInsta
 FShaderMapResource_SharedCode::~FShaderMapResource_SharedCode()
 {
 	
+}
+
+FSHAHash FShaderMapResource_SharedCode::GetShaderHash(int32 ShaderIndex)
+{
+	return LibraryInstance->Library->GetShaderHash(ShaderMapIndex, ShaderIndex);
 }
 
 FRHIShader* FShaderMapResource_SharedCode::CreateRHIShaderOrCrash(int32 ShaderIndex)

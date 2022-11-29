@@ -650,6 +650,11 @@ FRHIShader* FShaderMapResource::CreateShaderOrCrash(int32 ShaderIndex)
 	return Shader;
 }
 
+FSHAHash FShaderMapResource_InlineCode::GetShaderHash(int32 ShaderIndex)
+{
+	return Code->ShaderHashes[ShaderIndex];
+}
+
 FRHIShader* FShaderMapResource_InlineCode::CreateRHIShaderOrCrash(int32 ShaderIndex)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapResource_InlineCode::CreateRHIShaderOrCrash);

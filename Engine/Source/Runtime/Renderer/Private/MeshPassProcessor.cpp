@@ -907,13 +907,13 @@ void FGraphicsMinimalPipelineStateInitializer::ComputePrecachePSOHash()
 	FMemory::Memzero(&HashKey, sizeof(FHashKey));
 
 	HashKey.VertexDeclaration = BoundShaderState.VertexDeclarationRHI ? BoundShaderState.VertexDeclarationRHI->GetPrecachePSOHash() : 0;
-	HashKey.VertexShader = HashCombine(GetTypeHash(BoundShaderState.VertexShaderIndex), GetTypeHash(BoundShaderState.VertexShaderResource));
-	HashKey.PixelShader = HashCombine(GetTypeHash(BoundShaderState.PixelShaderIndex), GetTypeHash(BoundShaderState.PixelShaderResource));
+	HashKey.VertexShader = BoundShaderState.VertexShaderResource.IsValid() ? GetTypeHash(BoundShaderState.VertexShaderResource->GetShaderHash(BoundShaderState.VertexShaderIndex)) : 0;
+	HashKey.PixelShader = BoundShaderState.PixelShaderResource.IsValid() ? GetTypeHash(BoundShaderState.PixelShaderResource->GetShaderHash(BoundShaderState.PixelShaderIndex)) : 0;
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	HashKey.GeometryShader = HashCombine(GetTypeHash(BoundShaderState.GeometryShaderIndex), GetTypeHash(BoundShaderState.GeometryShaderResource));
+	HashKey.GeometryShader = BoundShaderState.GeometryShaderResource.IsValid() ? GetTypeHash(BoundShaderState.GeometryShaderResource->GetShaderHash(BoundShaderState.GeometryShaderIndex)) : 0;
 #endif
 #if PLATFORM_SUPPORTS_MESH_SHADERS
-	HashKey.MeshShader = HashCombine(GetTypeHash(BoundShaderState.MeshShaderIndex), GetTypeHash(BoundShaderState.MeshShaderResource));
+	HashKey.MeshShader = BoundShaderState.MeshShaderResource.IsValid() ? GetTypeHash(BoundShaderState.MeshShaderResource->GetShaderHash(BoundShaderState.MeshShaderIndex)) : 0;
 #endif
 
 	FBlendStateInitializerRHI BlendStateInitializerRHI;

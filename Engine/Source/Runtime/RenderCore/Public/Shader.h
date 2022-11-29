@@ -349,6 +349,9 @@ public:
 		return Shader;
 	}
 
+	/** Return shader hash for a particular shader without creating it. */
+	virtual FSHAHash GetShaderHash(int32 ShaderIndex) = 0;
+
 	void BeginCreateAllShaders();
 
 #if RHI_RAYTRACING
@@ -524,6 +527,7 @@ public:
 	{}
 
 	// FShaderMapResource interface
+	virtual FSHAHash GetShaderHash(int32 ShaderIndex) override;
 	virtual FRHIShader* CreateRHIShaderOrCrash(int32 ShaderIndex) override;
 	virtual uint32 GetSizeBytes() const override { return sizeof(*this) + GetAllocatedSize(); }
 

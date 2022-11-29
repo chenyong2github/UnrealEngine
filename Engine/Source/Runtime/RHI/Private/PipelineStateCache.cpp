@@ -979,9 +979,6 @@ public:
 				return nullptr;
 			}
 
-			// create new graphics state
-			NewState = new FGraphicsPipelineState();
-
 			// Add to cache before starting async operation, because the async op will remove the task from active ops when done			
 			PrecachedPSOInitializers.Add(Initializer);
 		}
@@ -992,13 +989,26 @@ public:
 			// Only need the hash of the PSO here
 			uint64 PrecachePSOHash = RHIComputePrecachePSOHash(Initializer);
 
+			FRWScopeLock WriteLock(ActivePrecachingTasksRWLock, SLT_Write);
+
+			if (ActivePrecachingTasks.Contains(PrecachePSOHash))
+			{
+				return nullptr;
+			}
+
+			// create new graphics state
+			NewState = new FGraphicsPipelineState();
+
 			FPrecacheTask PrecacheTask;
 			PrecacheTask.Initializer = Initializer;
 			PrecacheTask.PSO = NewState;
 
-			FRWScopeLock WriteLock(ActivePrecachingTasksRWLock, SLT_Write);
-			check(!ActivePrecachingTasks.Contains(PrecachePSOHash));
 			ActivePrecachingTasks.Add(PrecachePSOHash, PrecacheTask);
+		}
+		else
+		{
+			// create new graphics state
+			NewState = new FGraphicsPipelineState();
 		}
 
 		return NewState;
