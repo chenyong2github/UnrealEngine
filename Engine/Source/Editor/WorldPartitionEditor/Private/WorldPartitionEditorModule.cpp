@@ -394,7 +394,7 @@ void FWorldPartitionEditorModule::RunCommandletAsExternalProcess(const FString& 
 
 	while (FPlatformProcess::IsProcRunning(ProcessHandle))
 	{
-		if (SlowTask.ShouldCancel())
+		if (SlowTask.ShouldCancel() || GEditor->GetMapBuildCancelled())
 		{
 			bOutCancelled = true;
 			FPlatformProcess::TerminateProc(ProcessHandle);
