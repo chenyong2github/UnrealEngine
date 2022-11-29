@@ -6,6 +6,7 @@
 #include "OpenColorIOModule.h"
 #include "OpenColorIOShared.h"
 #include "TextureResource.h"
+#include "SystemTextures.h"
 
 void OpenColorIOBindTextureResources(FOpenColorIOPixelShaderParameters* Parameters, const TSortedMap<int32, FTextureResource*>& InTextureResources)
 {
@@ -35,4 +36,10 @@ void OpenColorIOBindTextureResources(FOpenColorIOPixelShaderParameters* Paramete
 	}
 }
 
+FRHITexture* OpenColorIOGetMiniFontTexture()
+{
+	return GSystemTextures.AsciiTexture ? GSystemTextures.AsciiTexture->GetRHI() : GSystemTextures.WhiteDummy->GetRHI();
+}
+
 IMPLEMENT_SHADER_TYPE(, FOpenColorIOPixelShader, TEXT("/Plugin/OpenColorIO/Private/OpenColorIOShader.usf"), TEXT("MainPS"), SF_Pixel)
+IMPLEMENT_SHADER_TYPE(, FOpenColorIOErrorPassPS, TEXT("/Plugin/OpenColorIO/Private/OpenColorIOErrorShader.usf"), TEXT("MainPS"), SF_Pixel);

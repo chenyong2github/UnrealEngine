@@ -28,33 +28,7 @@
 #include "PostProcess/PostProcessMaterial.h"
 
 
-BEGIN_SHADER_PARAMETER_STRUCT(FOpenColorIOErrorShaderParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
-	SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-class FOpenColorIOErrorPassPS : public FGlobalShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FOpenColorIOErrorPassPS);
-	SHADER_USE_PARAMETER_STRUCT(FOpenColorIOErrorPassPS, FGlobalShader);
-
-	using FParameters = FOpenColorIOErrorShaderParameters;
-};
-
-IMPLEMENT_GLOBAL_SHADER(FOpenColorIOErrorPassPS, "/Plugin/OpenColorIO/Private/OpenColorIOErrorShader.usf", "MainPS", SF_Pixel);
-
-
 float FOpenColorIODisplayExtension::DefaultDisplayGamma = 2.2f;
-
-namespace {
-	FRHITexture* GetSystemMiniFontTexture()
-	{
-		return GSystemTextures.AsciiTexture ? GSystemTextures.AsciiTexture->GetRHI() : GSystemTextures.WhiteDummy->GetRHI();
-	}
-};
 
 FOpenColorIODisplayExtension::FOpenColorIODisplayExtension(const FAutoRegister& AutoRegister, FViewportClient* AssociatedViewportClient)
 	: FSceneViewExtensionBase(AutoRegister)
@@ -87,11 +61,7 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 	FOpenColorIOTransformResource* ShaderResource = nullptr;
 	TSortedMap<int32, FTextureResource*> TransformTextureResources;
 
-	if (DisplayConfiguration.ColorConfiguration.ConfigurationSource == nullptr)
-	{
-		UE_LOG(LogOpenColorIO, Warning, TEXT("Can't apply display look - Invalid config asset"));
-	}
-	else
+	if (DisplayConfiguration.ColorConfiguration.ConfigurationSource != nullptr)
 	{
 		const bool bFoundTransform = DisplayConfiguration.ColorConfiguration.ConfigurationSource->GetRenderResources(
 			InViewFamily.GetFeatureLevel()
@@ -99,17 +69,13 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 			, ShaderResource
 			, TransformTextureResources);
 
-		if (!bFoundTransform)
-		{
-			UE_LOG(LogOpenColorIO, Warning, TEXT("Can't apply display look - Couldn't find shader to transform: %s"), *DisplayConfiguration.ColorConfiguration.ToString());
-		}
-		else
+		if (bFoundTransform)
 		{
 			// Transform was found, so shader must be there but doesn't mean the actual shader is available
 			check(ShaderResource);
 			if (ShaderResource->GetShaderGameThread<FOpenColorIOPixelShader>().IsNull())
 			{
-				UE_LOG(LogOpenColorIO, Warning, TEXT("Can't apply display look - Shader was invalid for Resource %s"), *ShaderResource->GetFriendlyName());
+				ensureMsgf(false, TEXT("Can't apply display look - Shader was invalid for Resource %s"), *ShaderResource->GetFriendlyName());
 
 				//Invalidate shader resource
 				ShaderResource = nullptr;
@@ -187,7 +153,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 		FOpenColorIOErrorShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOErrorShaderParameters>();
 		Parameters->InputTexture = SceneColor.Texture;
 		Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
-		Parameters->MiniFontTexture = GetSystemMiniFontTexture();
+		Parameters->MiniFontTexture = OpenColorIOGetMiniFontTexture();
 		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
 		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OCIODisplayLookError"), ViewInfo, OutputViewport, InputViewport, OCIOPixelShader, Parameters);
