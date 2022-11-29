@@ -7971,14 +7971,14 @@ public:
 	virtual FGuid GetMessageType() const override { return MessageType; }
 	virtual const TCHAR* GetDebugName() const override { return TEXT("FShaderLibraryCollector"); }
 
-	virtual void ClientTick(FClientContext& Context) override;
-	virtual void ReceiveMessage(FServerContext& Context, FCbObjectView Message) override;
+	virtual void ClientTick(FMPCollectorClientTickContext& Context) override;
+	virtual void ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message) override;
 
 	static FGuid MessageType;
 };
 FGuid FShaderLibraryCollector::MessageType(TEXT("4DF3B36BBA2F4E04A846E894E24EB2C4"));
 
-void FShaderLibraryCollector::ClientTick(FClientContext& Context)
+void FShaderLibraryCollector::ClientTick(FMPCollectorClientTickContext& Context)
 {
 	FCbWriter Writer;
 	bool bHasData;
@@ -7992,7 +7992,7 @@ void FShaderLibraryCollector::ClientTick(FClientContext& Context)
 	}
 }
 
-void FShaderLibraryCollector::ReceiveMessage(FServerContext& Context, FCbObjectView Message)
+void FShaderLibraryCollector::ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message)
 {
 	bool bSuccessful = FShaderLibraryCooker::AppendFromCompactBinary(Message["S"]);
 	UE_CLOG(!bSuccessful, LogCook, Error,
@@ -9955,14 +9955,14 @@ public:
 	virtual FGuid GetMessageType() const override { return MessageType; }
 	virtual const TCHAR* GetDebugName() const override { return TEXT("FEDLMPCollector"); }
 
-	virtual void ClientTick(FClientContext& Context) override;
-	virtual void ReceiveMessage(FServerContext& Context, FCbObjectView Message) override;
+	virtual void ClientTick(FMPCollectorClientTickContext& Context) override;
+	virtual void ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message) override;
 
 	static FGuid MessageType;
 };
 FGuid FEDLMPCollector::MessageType(TEXT("0164FD08F6884F6A82D2D00F8F70B182"));
 
-void FEDLMPCollector::ClientTick(FClientContext& Context)
+void FEDLMPCollector::ClientTick(FMPCollectorClientTickContext& Context)
 {
 	FCbWriter Writer;
 	bool bHasData;
@@ -9973,7 +9973,7 @@ void FEDLMPCollector::ClientTick(FClientContext& Context)
 	}
 }
 
-void FEDLMPCollector::ReceiveMessage(FServerContext& Context, FCbObjectView Message)
+void FEDLMPCollector::ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message)
 {
 	UE::SavePackageUtilities::EDLCookInfoAppendFromCompactBinary(Message.AsFieldView());
 }

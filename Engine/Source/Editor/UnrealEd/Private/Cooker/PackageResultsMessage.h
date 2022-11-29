@@ -26,7 +26,7 @@ public:
 	/** Marshall the message to a CompactBinaryObject. */
 	virtual void Write(FCbWriter& Writer, const FPackageData& PackageData, const ITargetPlatform* TargetPlatform) const = 0;
 	/** Unmarshall the message from a CompactBinaryObject. */
-	virtual bool TryRead(FCbObject&& Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform) = 0;
+	virtual bool TryRead(FCbObjectView Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform) = 0;
 	/** Return the Guid that identifies the message to the remote connection. */
 	virtual FGuid GetMessageType() const = 0;
 };
@@ -65,7 +65,7 @@ struct FPackageResultsMessage : public UE::CompactBinaryTCP::IMessage
 {
 public:
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObject&& Object) override;
+	virtual bool TryRead(FCbObjectView Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:

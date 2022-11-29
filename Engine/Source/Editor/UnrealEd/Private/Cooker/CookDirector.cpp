@@ -79,6 +79,11 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS, int32 CookProcessCoun
 		RequestedCookWorkerCount+1, RequestedCookWorkerCount, RequestedCookWorkerCount > 1 ? TEXT("CookWorkers") : TEXT("CookWorker"));
 
 	Register(new FLogMessagesMessageHandler());
+	Register(new IMPCollectorCbServerMessage<FRetractionResultsMessage>([this]
+	(FMPCollectorServerMessageContext& Context, bool bReadSuccessful, FRetractionResultsMessage&& Message)
+		{
+			HandleRetractionMessage(Context, bReadSuccessful, MoveTemp(Message));
+		}, TEXT("HandleRetractionMessage")));
 	LastTickTimeSeconds = FPlatformTime::Seconds();
 
 	FCookStatsManager::CookStatsCallbacks.AddRaw(this, &FCookDirector::LogCookStats);
@@ -531,7 +536,7 @@ void FCookDirector::ShutdownCookSession()
 
 void FCookDirector::Register(IMPCollector* Collector)
 {
-	TRefCountPtr<IMPCollector>& Existing = MessageHandlers.FindOrAdd(Collector->GetMessageType());
+	TRefCountPtr<IMPCollector>& Existing = Collectors.FindOrAdd(Collector->GetMessageType());
 	if (Existing)
 	{
 		UE_LOG(LogCook, Error, TEXT("Duplicate IMPCollectors registered. Guid: %s, Existing: %s, Registering: %s. Keeping the Existing."),
@@ -544,12 +549,12 @@ void FCookDirector::Register(IMPCollector* Collector)
 void FCookDirector::Unregister(IMPCollector* Collector)
 {
 	TRefCountPtr<IMPCollector> Existing;
-	MessageHandlers.RemoveAndCopyValue(Collector->GetMessageType(), Existing);
+	Collectors.RemoveAndCopyValue(Collector->GetMessageType(), Existing);
 	if (Existing && Existing.GetReference() != Collector)
 	{
 		UE_LOG(LogCook, Error, TEXT("Duplicate IMPCollector during Unregister. Guid: %s, Existing: %s, Unregistering: %s. Ignoring the Unregister."),
 			*Collector->GetMessageType().ToString(), Existing->GetDebugName(), Collector->GetDebugName());
-		MessageHandlers.Add(Collector->GetMessageType(), MoveTemp(Existing));
+		Collectors.Add(Collector->GetMessageType(), MoveTemp(Existing));
 	}
 }
 
@@ -605,7 +610,7 @@ void FWorkerConnectMessage::Write(FCbWriter& Writer) const
 	Writer << "RemoteIndex" << RemoteIndex;
 }
 
-bool FWorkerConnectMessage::TryRead(FCbObject&& Object)
+bool FWorkerConnectMessage::TryRead(FCbObjectView Object)
 {
 	RemoteIndex = Object["RemoteIndex"].AsInt32(-1);
 	return RemoteIndex >= 0;
@@ -1084,5 +1089,32 @@ void FCookDirector::LogCookStats(FCookStatsManager::AddStatFuncRef AddStat)
 	}
 	AddStat(TEXT("CookDirector"), Stats);
 }
+
+void FCookDirector::HandleRetractionMessage(FMPCollectorServerMessageContext& Context, bool bReadSuccessful,
+	FRetractionResultsMessage&& Message)
+{
+}
+
+void FRetractionRequestMessage::Write(FCbWriter& Writer) const
+{
+	Writer << "RequestedCount" << RequestedCount;
+}
+bool FRetractionRequestMessage::TryRead(FCbObjectView Object)
+{
+	return LoadFromCompactBinary(Object["RequestedCount"], RequestedCount);
+}
+
+FGuid FRetractionRequestMessage::MessageType(TEXT("7109E168E8A8405BA65F9E1E82571D1A"));
+
+void FRetractionResultsMessage::Write(FCbWriter& Writer) const
+{
+	Writer << "ReturnedPackages" << ReturnedPackages;
+}
+bool FRetractionResultsMessage::TryRead(FCbObjectView Object)
+{
+	return LoadFromCompactBinary(Object["ReturnedPackages"], ReturnedPackages);
+}
+
+FGuid FRetractionResultsMessage::MessageType(TEXT("CBFB840A4FB94903A757C490514A4B86"));
 
 }

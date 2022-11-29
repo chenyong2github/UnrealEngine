@@ -474,7 +474,7 @@ class FAssetRegistryPackageMessage : public IPackageMessage
 {
 public:
 	virtual void Write(FCbWriter& Writer, const FPackageData& PackageData, const ITargetPlatform* TargetPlatform) const override;
-	virtual bool TryRead(FCbObject&& Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform) override;
+	virtual bool TryRead(FCbObjectView Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 	TArray<FAssetData> AssetDatas;

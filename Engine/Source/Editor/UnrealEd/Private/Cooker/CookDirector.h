@@ -25,11 +25,13 @@ class FCbObject;
 class FCbWriter;
 class FRunnableThread;
 class UCookOnTheFlyServer;
-namespace UE::Cook { struct FCookWorkerProfileData; }
 namespace UE::Cook { class FCookWorkerServer; }
+namespace UE::Cook { class FMPCollectorServerMessageContext; }
 namespace UE::Cook { class IMPCollector; }
+namespace UE::Cook { struct FCookWorkerProfileData; }
 namespace UE::Cook { struct FInitialConfigMessage; }
 namespace UE::Cook { struct FPackageData; }
+namespace UE::Cook { struct FRetractionResultsMessage; }
 namespace UE::Cook { struct FWorkerId; }
 
 namespace UE::Cook
@@ -180,6 +182,9 @@ private:
 	void SetWorkersStalled(bool bInWorkersStalled);
 	/** Callback for CookStats system to log our stats. */
 	void LogCookStats(FCookStatsManager::AddStatFuncRef AddStat);
+	void HandleRetractionMessage(FMPCollectorServerMessageContext& Context, bool bReadSuccessful,
+		FRetractionResultsMessage&& Message);
+
 
 private:
 	// Synchronization primitives that can be used from any thread
@@ -205,7 +210,7 @@ private:
 
 	// Data that is read-only while the CommunicationThread is active and is readable from any thread
 	FBeginCookContextForWorker BeginCookContext;
-	TMap<FGuid, TRefCountPtr<IMPCollector>> MessageHandlers;
+	TMap<FGuid, TRefCountPtr<IMPCollector>> Collectors;
 	TUniquePtr<FInitialConfigMessage> InitialConfigMessage;
 	FString WorkerConnectAuthority;
 	FString CommandletExecutablePath;
@@ -240,11 +245,41 @@ struct FWorkerConnectMessage : public UE::CompactBinaryTCP::IMessage
 {
 public:
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObject&& Object) override;
+	virtual bool TryRead(FCbObjectView Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
 	int32 RemoteIndex = 0;
+	static FGuid MessageType;
+};
+
+/**
+ * Message sent from CookDirector to a CookWorker to cancel some of its assigned packages and return them
+ * dispatch to idle workers.
+ */
+struct FRetractionRequestMessage : public UE::CompactBinaryTCP::IMessage
+{
+	virtual void Write(FCbWriter& Writer) const override;
+	virtual bool TryRead(FCbObjectView Object) override;
+	virtual FGuid GetMessageType() const override { return MessageType; }
+
+public:
+	int32 RequestedCount = 0;
+	static FGuid MessageType;
+};
+
+/**
+ * Message sent from CookWorker to CookDirector identifying which assigned packages it chose to satisfy a
+ * a RetractionRequest.
+ */
+struct FRetractionResultsMessage : public UE::CompactBinaryTCP::IMessage
+{
+	virtual void Write(FCbWriter& Writer) const override;
+	virtual bool TryRead(FCbObjectView Object) override;
+	virtual FGuid GetMessageType() const override { return MessageType; }
+
+public:
+	TArray<FName> ReturnedPackages;
 	static FGuid MessageType;
 };
 

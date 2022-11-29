@@ -26,34 +26,39 @@ static const ITargetPlatform* IntToPlatformImpl(uint8 PlatformAsInt, TConstArray
 	return nullptr;
 }
 
-void IMPCollector::FClientContext::AddMessage(FCbObject Object)
+void FMPCollectorClientTickContext::AddMessage(FCbObject Object)
 {
 	Messages.Add(Object);
 }
 
-uint8 IMPCollector::FClientContext::PlatformToInt(const ITargetPlatform* Platform) const
+uint8 FMPCollectorClientTickContext::PlatformToInt(const ITargetPlatform* Platform) const
 {
 	return PlatformToIntImpl(Platform, Platforms);
 }
 
-const ITargetPlatform* IMPCollector::FClientContext::IntToPlatform(uint8 PlatformAsInt) const
+const ITargetPlatform* FMPCollectorClientTickContext::IntToPlatform(uint8 PlatformAsInt) const
 {
 	return IntToPlatformImpl(PlatformAsInt, Platforms);
 }
 
-uint8 IMPCollector::FServerContext::PlatformToInt(const ITargetPlatform* Platform) const
+uint8 FMPCollectorClientMessageContext::PlatformToInt(const ITargetPlatform* Platform) const
 {
 	return PlatformToIntImpl(Platform, Platforms);
 }
 
-const ITargetPlatform* IMPCollector::FServerContext::IntToPlatform(uint8 PlatformAsInt) const
+const ITargetPlatform* FMPCollectorClientMessageContext::IntToPlatform(uint8 PlatformAsInt) const
 {
 	return IntToPlatformImpl(PlatformAsInt, Platforms);
 }
 
-void IMPCollector::ReceiveMessage(FServerContext& Context, FCbObjectView Message)
+uint8 FMPCollectorServerMessageContext::PlatformToInt(const ITargetPlatform* Platform) const
 {
+	return PlatformToIntImpl(Platform, Platforms);
+}
 
+const ITargetPlatform* FMPCollectorServerMessageContext::IntToPlatform(uint8 PlatformAsInt) const
+{
+	return IntToPlatformImpl(PlatformAsInt, Platforms);
 }
 
 }

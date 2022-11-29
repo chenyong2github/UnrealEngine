@@ -30,6 +30,11 @@ FCookWorkerClient::FCookWorkerClient(UCookOnTheFlyServer& InCOTFS)
 	FLogMessagesMessageHandler* Handler = new FLogMessagesMessageHandler();
 	Handler->InitializeClient();
 	Register(Handler);
+	Register(new IMPCollectorCbClientMessage<FRetractionRequestMessage>([this]
+	(FMPCollectorClientMessageContext& Context, bool bReadSuccessful, FRetractionRequestMessage&& Message)
+		{
+			HandleRetractionMessage(Context, bReadSuccessful, MoveTemp(Message));
+		}, TEXT("HandleRetractionMessage")));
 }
 
 FCookWorkerClient::~FCookWorkerClient()
@@ -354,7 +359,7 @@ void FCookWorkerClient::PollReceiveConfigMessage()
 	}
 	check(!InitialConfigMessage);
 	InitialConfigMessage = MakeUnique<FInitialConfigMessage>();
-	if (!InitialConfigMessage->TryRead(MoveTemp(Messages[0].Object)))
+	if (!InitialConfigMessage->TryRead(Messages[0].Object))
 	{
 		UE_LOG(LogCook, Warning, TEXT("CookWorker initialization failure: Director sent an invalid InitialConfigMessage."));
 		SendToState(EConnectStatus::LostConnection);
@@ -436,7 +441,7 @@ void FCookWorkerClient::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 			if (Message.MessageType == FAbortWorkerMessage::MessageType)
 			{
 				FAbortWorkerMessage AbortMessage;
-				AbortMessage.TryRead(MoveTemp(Message.Object));
+				AbortMessage.TryRead(Message.Object);
 				if (AbortMessage.Type == FAbortWorkerMessage::EType::CookComplete)
 				{
 					UE_LOG(LogCook, Display, TEXT("CookWorkerClient received CookComplete message from Director. Flushing messages and shutting down."));
@@ -456,13 +461,29 @@ void FCookWorkerClient::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 			else if (Message.MessageType == FAssignPackagesMessage::MessageType)
 			{
 				FAssignPackagesMessage AssignPackagesMessage;
-				if (!AssignPackagesMessage.TryRead(MoveTemp(Message.Object)))
+				if (!AssignPackagesMessage.TryRead(Message.Object))
 				{
 					LogInvalidMessage(TEXT("FAssignPackagesMessage"));
 				}
 				else
 				{
 					AssignPackages(AssignPackagesMessage);
+				}
+			}
+			else
+			{
+				TRefCountPtr<IMPCollector>* Collector = Collectors.Find(Message.MessageType);
+				if (Collector)
+				{
+					check(*Collector);
+					FMPCollectorClientMessageContext Context;
+					Context.Platforms = OrderedSessionPlatforms;
+					(*Collector)->ClientReceiveMessage(Context, Message.Object);
+				}
+				else
+				{
+					UE_LOG(LogCook, Error, TEXT("CookWorkerClient received message of unknown type %s from CookDirector. Ignoring it."),
+						*Message.MessageType.ToString());
 				}
 			}
 		}
@@ -579,12 +600,26 @@ void FCookWorkerClient::AssignPackages(FAssignPackagesMessage& Message)
 
 void FCookWorkerClient::Register(IMPCollector* Collector)
 {
-	CollectorsToTick.AddUnique(Collector);
+	TRefCountPtr<IMPCollector>& Existing = Collectors.FindOrAdd(Collector->GetMessageType());
+	if (Existing)
+	{
+		UE_LOG(LogCook, Error, TEXT("Duplicate IMPCollectors registered. Guid: %s, Existing: %s, Registering: %s. Keeping the Existing."),
+			*Collector->GetMessageType().ToString(), Existing->GetDebugName(), Collector->GetDebugName());
+		return;
+	}
+	Existing = Collector;
 }
 
 void FCookWorkerClient::Unregister(IMPCollector* Collector)
 {
-	CollectorsToTick.RemoveSwap(Collector);
+	TRefCountPtr<IMPCollector> Existing;
+	Collectors.RemoveAndCopyValue(Collector->GetMessageType(), Existing);
+	if (Existing && Existing.GetReference() != Collector)
+	{
+		UE_LOG(LogCook, Error, TEXT("Duplicate IMPCollector during Unregister. Guid: %s, Existing: %s, Unregistering: %s. Ignoring the Unregister."),
+			*Collector->GetMessageType().ToString(), Existing->GetDebugName(), Collector->GetDebugName());
+		Collectors.Add(Collector->GetMessageType(), MoveTemp(Existing));
+	}
 }
 
 void FCookWorkerClient::TickCollectors(FTickStackData& StackData, bool bFlush)
@@ -594,15 +629,16 @@ void FCookWorkerClient::TickCollectors(FTickStackData& StackData, bool bFlush)
 		return;
 	}
 
-	if (!CollectorsToTick.IsEmpty())
+	if (!Collectors.IsEmpty())
 	{
-		IMPCollector::FClientContext Context;
+		FMPCollectorClientTickContext Context;
 		Context.Platforms = OrderedSessionPlatforms;
 		Context.bFlush = bFlush;
 		TArray<UE::CompactBinaryTCP::FMarshalledMessage> MarshalledMessages;
 
-		for (IMPCollector* Collector : CollectorsToTick)
+		for (const TPair<FGuid, TRefCountPtr<IMPCollector>>& Pair: Collectors)
 		{
+			IMPCollector* Collector = Pair.Value.GetReference();
 			Collector->ClientTick(Context);
 			if (!Context.Messages.IsEmpty())
 			{
@@ -625,4 +661,10 @@ void FCookWorkerClient::TickCollectors(FTickStackData& StackData, bool bFlush)
 	NextTickCollectorsTimeSeconds = FPlatformTime::Seconds() + TickCollectorsPeriodSeconds;
 }
 
+void FCookWorkerClient::HandleRetractionMessage(FMPCollectorClientMessageContext& Context, bool bReadSuccessful,
+	FRetractionRequestMessage&& Message)
+{
+
 }
+
+} // namespace UE::Cook

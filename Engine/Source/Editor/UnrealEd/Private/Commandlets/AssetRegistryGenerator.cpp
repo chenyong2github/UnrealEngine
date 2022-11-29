@@ -2662,7 +2662,7 @@ void FAssetRegistryPackageMessage::Write(FCbWriter& Writer, const FPackageData& 
 	Writer << "S" << DiskSize;
 }
 
-bool FAssetRegistryPackageMessage::TryRead(FCbObject&& Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform)
+bool FAssetRegistryPackageMessage::TryRead(FCbObjectView Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform)
 {
 	FCbFieldView AssetDatasField = Object["A"];
 	FCbArrayView AssetDatasArray = AssetDatasField.AsArrayView();

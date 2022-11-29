@@ -468,7 +468,7 @@ void FCookWorkerServer::HandleReceiveMessagesInternal()
 		if (Message.MessageType == FPackageResultsMessage::MessageType)
 		{
 			FPackageResultsMessage ResultsMessage;
-			if (!ResultsMessage.TryRead(MoveTemp(Message.Object)))
+			if (!ResultsMessage.TryRead(Message.Object))
 			{
 				LogInvalidMessage(TEXT("FPackageResultsMessage"));
 			}
@@ -480,7 +480,7 @@ void FCookWorkerServer::HandleReceiveMessagesInternal()
 		else if (Message.MessageType == FDiscoveredPackagesMessage::MessageType)
 		{
 			FDiscoveredPackagesMessage DiscoveredMessage;
-			if (!DiscoveredMessage.TryRead(MoveTemp(Message.Object)))
+			if (!DiscoveredMessage.TryRead(Message.Object))
 			{
 				LogInvalidMessage(TEXT("FDiscoveredPackagesMessage"));
 			}
@@ -494,15 +494,15 @@ void FCookWorkerServer::HandleReceiveMessagesInternal()
 		}
 		else
 		{
-			TRefCountPtr<IMPCollector>* Collector = Director.MessageHandlers.Find(Message.MessageType);
+			TRefCountPtr<IMPCollector>* Collector = Director.Collectors.Find(Message.MessageType);
 			if (Collector)
 			{
 				check(*Collector);
-				IMPCollector::FServerContext Context;
+				FMPCollectorServerMessageContext Context;
 				Context.Platforms = OrderedSessionPlatforms;
 				Context.WorkerId = WorkerId;
 				Context.ProfileId = ProfileId;
-				(*Collector)->ReceiveMessage(Context, Message.Object);
+				(*Collector)->ServerReceiveMessage(Context, Message.Object);
 			}
 			else
 			{
@@ -522,7 +522,7 @@ void FCookWorkerServer::HandleReceivedPackagePlatformMessages(FPackageData& Pack
 		if (Message.MessageType == FAssetRegistryPackageMessage::MessageType)
 		{
 			FAssetRegistryPackageMessage ARMessage;
-			if (!ARMessage.TryRead(MoveTemp(Message.Object), PackageData, TargetPlatform))
+			if (!ARMessage.TryRead(Message.Object, PackageData, TargetPlatform))
 			{
 				LogInvalidMessage(TEXT("FAssetRegistryPackageMessage"));
 			}
@@ -662,7 +662,7 @@ void FAssignPackagesMessage::Write(FCbWriter& Writer) const
 	Writer << "P" << PackageDatas;
 }
 
-bool FAssignPackagesMessage::TryRead(FCbObject&& Object)
+bool FAssignPackagesMessage::TryRead(FCbObjectView Object)
 {
 	return LoadFromCompactBinary(Object["P"], PackageDatas);
 }
@@ -722,7 +722,7 @@ void FAbortPackagesMessage::Write(FCbWriter& Writer) const
 	Writer << "PackageNames" <<  PackageNames;
 }
 
-bool FAbortPackagesMessage::TryRead(FCbObject&& Object)
+bool FAbortPackagesMessage::TryRead(FCbObjectView Object)
 {
 	return LoadFromCompactBinary(Object["PackageNames"], PackageNames);
 }
@@ -739,7 +739,7 @@ void FAbortWorkerMessage::Write(FCbWriter& Writer) const
 	Writer << "Type" << (uint8)Type;
 }
 
-bool FAbortWorkerMessage::TryRead(FCbObject&& Object)
+bool FAbortWorkerMessage::TryRead(FCbObjectView Object)
 {
 	Type = static_cast<EType>(Object["Type"].AsUInt8((uint8)EType::Abort));
 	return true;
@@ -783,7 +783,7 @@ void FInitialConfigMessage::Write(FCbWriter& Writer) const
 	Writer << "CookOnTheFlyOptions" << CookOnTheFlyOptions;
 }
 
-bool FInitialConfigMessage::TryRead(FCbObject&& Object)
+bool FInitialConfigMessage::TryRead(FCbObjectView Object)
 {
 	bool bOk = true;
 	int32 LocalCookMode;
@@ -873,7 +873,7 @@ void FDiscoveredPackagesMessage::Write(FCbWriter& Writer) const
 	Writer << "Packages" << Packages;
 }
 
-bool FDiscoveredPackagesMessage::TryRead(FCbObject&& Object)
+bool FDiscoveredPackagesMessage::TryRead(FCbObjectView Object)
 {
 	return LoadFromCompactBinary(Object["Packages"], Packages);
 }
@@ -926,7 +926,7 @@ void FLogMessagesMessageHandler::InitializeClient()
 	bRegistered = true;
 }
 
-void FLogMessagesMessageHandler::ClientTick(FClientContext& Context)
+void FLogMessagesMessageHandler::ClientTick(FMPCollectorClientTickContext& Context)
 {
 	{
 		FScopeLock QueueScopeLock(&QueueLock);
@@ -943,7 +943,7 @@ void FLogMessagesMessageHandler::ClientTick(FClientContext& Context)
 	}
 }
 
-void FLogMessagesMessageHandler::ReceiveMessage(FServerContext& Context, FCbObjectView InMessage)
+void FLogMessagesMessageHandler::ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView InMessage)
 {
 	TArray<FReplicatedLogData> Messages;
 	if (!LoadFromCompactBinary(InMessage["Messages"], Messages))

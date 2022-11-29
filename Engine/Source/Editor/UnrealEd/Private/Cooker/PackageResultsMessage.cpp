@@ -69,12 +69,12 @@ void FPackageResultsMessage::Write(FCbWriter& Writer) const
 	Writer.EndArray();
 }
 
-bool FPackageResultsMessage::TryRead(FCbObject&& Object)
+bool FPackageResultsMessage::TryRead(FCbObjectView Object)
 {
 	Results.Reset();
-	for (FCbField ResultField : Object["R"])
+	for (FCbFieldView ResultField : Object["R"])
 	{
-		FCbObject ResultObject = ResultField.AsObject();
+		FCbObjectView ResultObject = ResultField.AsObjectView();
 		FPackageRemoteResult& Result = Results.Emplace_GetRef();
 		LoadFromCompactBinary(ResultObject["N"], Result.PackageName);
 		if (Result.PackageName.IsNone())
@@ -89,19 +89,19 @@ bool FPackageResultsMessage::TryRead(FCbObject&& Object)
 		Result.SuppressCookReason = static_cast<ESuppressCookReason>(LocalSuppressCookReason);
 		Result.bReferencedOnlyByEditorOnlyData = ResultObject["E"].AsBool();
 		Result.Platforms.Reset();
-		for (FCbField PlatformField : ResultObject["P"])
+		for (FCbFieldView PlatformField : ResultObject["P"])
 		{
 			FPackageRemoteResult::FPlatformResult& PlatformResult = Result.Platforms.Emplace_GetRef();
-			FCbObject PlatformObject = PlatformField.AsObject();
+			FCbObjectView PlatformObject = PlatformField.AsObjectView();
 
 			PlatformResult.bSuccessful = PlatformObject["S"].AsBool();
 			PlatformResult.PackageGuid = PlatformObject["G"].AsUuid();
-			PlatformResult.TargetDomainDependencies = PlatformObject["D"].AsObject();
+			PlatformResult.TargetDomainDependencies = FCbObject::Clone(PlatformObject["D"].AsObjectView());
 
 			// We read a nonhomogenous array of length 2N. 2N+0 is the Message type, 2N+1 is the message object.
-			FCbArray MessagesArray = PlatformObject["M"].AsArray();
+			FCbArrayView MessagesArray = PlatformObject["M"].AsArrayView();
 			PlatformResult.Messages.Reserve(MessagesArray.Num() / 2);
-			FCbFieldIterator MessageField = MessagesArray.CreateIterator();
+			FCbFieldViewIterator MessageField = MessagesArray.CreateViewIterator();
 			while (MessageField)
 			{
 				UE::CompactBinaryTCP::FMarshalledMessage& Message = PlatformResult.Messages.Emplace_GetRef();
@@ -111,7 +111,7 @@ bool FPackageResultsMessage::TryRead(FCbObject&& Object)
 					return false;
 				}
 				++MessageField;
-				Message.Object = MessageField->AsObject();
+				Message.Object = FCbObject::Clone(MessageField->AsObjectView());
 				if (MessageField.HasError())
 				{
 					return false;

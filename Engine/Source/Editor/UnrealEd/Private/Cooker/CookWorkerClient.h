@@ -7,13 +7,16 @@
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CookTypes.h"
 #include "IPAddress.h"
+#include "Misc/Guid.h"
 
+namespace UE::Cook { class FMPCollectorClientMessageContext; }
 namespace UE::Cook { class IMPCollector; }
 namespace UE::Cook { struct FAssignPackagesMessage; }
 namespace UE::Cook { struct FDirectorConnectionInfo; }
 namespace UE::Cook { struct FDiscoveredPackage; }
 namespace UE::Cook { struct FInitialConfigMessage; }
 namespace UE::Cook { struct FPackageRemoteResult; }
+namespace UE::Cook { struct FRetractionRequestMessage; }
 
 namespace UE::Cook
 {
@@ -104,7 +107,8 @@ private:
 	void AssignPackages(FAssignPackagesMessage& Message);
 	/** Tick the registered collectors. */
 	void TickCollectors(FTickStackData& StackData, bool bFlush);
-
+	void HandleRetractionMessage(FMPCollectorClientMessageContext& Context, bool bReadSuccessful,
+		FRetractionRequestMessage&& Message);
 
 private:
 	TSharedPtr<FInternetAddr> DirectorAddr;
@@ -112,7 +116,7 @@ private:
 	TArray<ITargetPlatform*> OrderedSessionPlatforms;
 	TArray<FPackageRemoteResult> PendingResults;
 	TArray<FDiscoveredPackage> PendingDiscoveredPackages;
-	TArray<TRefCountPtr<IMPCollector>> CollectorsToTick;
+	TMap<FGuid, TRefCountPtr<IMPCollector>> Collectors;
 	UE::CompactBinaryTCP::FSendBuffer SendBuffer;
 	UE::CompactBinaryTCP::FReceiveBuffer ReceiveBuffer;
 	FString DirectorURI;

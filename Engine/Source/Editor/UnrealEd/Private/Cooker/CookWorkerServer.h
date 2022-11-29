@@ -188,7 +188,7 @@ public:
 	FAssignPackagesMessage(TArray<FAssignPackageData>&& InPackageDatas);
 
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObject&& Object) override;
+	virtual bool TryRead(FCbObjectView Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
@@ -204,7 +204,7 @@ public:
 	FAbortPackagesMessage(TArray<FName>&& InPackageNames);
 
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObject&& Object) override;
+	virtual bool TryRead(FCbObjectView Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
@@ -228,7 +228,7 @@ public:
 	};
 	FAbortWorkerMessage(EType InType = EType::Abort);
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObject&& Object) override;
+	virtual bool TryRead(FCbObjectView Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
@@ -241,7 +241,7 @@ struct FInitialConfigMessage : public UE::CompactBinaryTCP::IMessage
 {
 public:
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObject&& Object) override;
+	virtual bool TryRead(FCbObjectView Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 	void ReadFromLocal(const UCookOnTheFlyServer& COTFS, const TArray<ITargetPlatform*>& InOrderedSessionPlatforms,
@@ -290,7 +290,7 @@ struct FDiscoveredPackagesMessage : public UE::CompactBinaryTCP::IMessage
 {
 public:
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObject&& Object) override;
+	virtual bool TryRead(FCbObjectView Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
@@ -321,8 +321,8 @@ public:
 	// IMPCollector
 	virtual FGuid GetMessageType() const override { return MessageType; }
 	virtual const TCHAR* GetDebugName() const override { return TEXT("FLogMessagesMessageHandler"); }
-	virtual void ClientTick(FClientContext& Context) override;
-	virtual void ReceiveMessage(FServerContext& Context, FCbObjectView Message) override;
+	virtual void ClientTick(FMPCollectorClientTickContext& Context) override;
+	virtual void ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message) override;
 
 	// FOutputDevice
 	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override;
