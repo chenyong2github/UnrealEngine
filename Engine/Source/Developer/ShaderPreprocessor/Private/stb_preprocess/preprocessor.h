@@ -22,6 +22,7 @@ enum
 	PP_RESULT_unexpected_character_after_end_of_directive,
 	PP_RESULT_undef_of_predefined_macro,
 	PP_RESULT_identifier_too_long,
+	PP_RESULT_malformed_pragma_message,
 
 	PP_RESULT_count
 };
@@ -35,6 +36,7 @@ enum
 	PP_RESULT_MODE_warning_fast,
 	PP_RESULT_MODE_no_warning
 };
+
 
 struct macro_definition;
 struct stb_arena;
@@ -61,39 +63,46 @@ typedef struct
 #define STB_PP_DEF extern
 #endif
 
-// callback function can be optionally specified to init_preprocessor to override file loading functionality
-// it's probably necessary to provide the freefile callback as well if you provide this (unless you are ok with
-// the default behaviour of calling "free" on the returned pointer)
+// callback function required to be passed to init_preprocessor for implementation of file loading functionality
 typedef const char* (*loadfile_callback_func)(const char* filename, void* custom_context, size_t* out_length);
 
-// callback function can be optionally specified to init_preprocessor to override freeing loaded files
-// it's probably necessary to provide the loadfile callback as well if you provide this
+// callback function required to be passed to init_preprocessor for implementation of freeing loaded files
 typedef void (*freefile_callback_func)(const char* filename, const char* loaded_file, void* custom_context);
 
-// callback function can be optionally specified to init_preprocessor to override include resolution; in the
-// current incarnation this will still attempt file-based loading using the default behaviour in the event
-// that this callback returns null for a given file path.
-// note: returned resolved paths are expected to be allocated for the lifetime of preprocessor execution; 
-// for simplicity use stb_arena_alloc_string using the given "path_arena" stb_arena
-typedef const char* (*resolveinclude_callback_func)(const char* path, unsigned int path_len, const char* parent, struct stb_arena* path_arena, void* custom_context);
+// callback function required to be passed to init_preprocessor for implementation of include resolution
+// the callback is expected to handle both absolute and relative paths (the latter relative to the given
+// "parent" file path)
+// note: returned resolved paths must remain valid for the lifetime of a single preprocessor execution
+typedef const char* (*resolveinclude_callback_func)(const char* path, unsigned int path_len, const char* parent, void* custom_context);
 
-STB_PP_DEF void preprocessor_test(void);
+// init function must be called once before any invocations of preprocess_file
 STB_PP_DEF void init_preprocessor(
 	loadfile_callback_func load_callback,
 	freefile_callback_func free_callback,
 	resolveinclude_callback_func resolve_callback);
+
+// main preprocessing execution function; returns the preprocessed string and sets any diagnostic messages
+// in the pd array (setting num_pd to the diagnostic count). preprocessor_file_free should be called for 
+// each invocation to free any allocated memory.
 STB_PP_DEF char* preprocess_file(
 	char* output_storage,
 	const char* filename,
 	void* custom_context,
-	char** include_paths,
-	int num_include_paths,
-	char** sys_include_paths,
-	int num_sys_include_paths,
 	struct macro_definition** predefined_macros,
 	int num_predefined_macros,
 	pp_diagnostic** pd,
 	int* num_pd);
+
+// frees memory allocated by preprocess_file (preprocessed results and diagnostic messages)
 STB_PP_DEF void preprocessor_file_free(char* text, pp_diagnostic* pd);
-STB_PP_DEF struct macro_definition* pp_define(struct stb_arena* a, const char* p);
-STB_PP_DEF unsigned int preprocessor_hash(const char* data, size_t len);	// hash function for string of length 'len', roughly xxhash32
+
+// constructs a preprocessor definition, allocating on the given arena. "def" should be in the format:
+// DEFINE_NAME DEFINE_VALUE
+STB_PP_DEF struct macro_definition* pp_define(struct stb_arena* a, const char* def);
+
+// override behaviour of a particular error result (can be used to, for instance, downgrade
+// an error to a warning or a "no warning" i.e. valid case).
+STB_PP_DEF void pp_set_warning_mode(int result_code, int result_mode);
+
+// hash function for string of length 'len', roughly xxhash32
+STB_PP_DEF unsigned int preprocessor_hash(const char* data, size_t len);

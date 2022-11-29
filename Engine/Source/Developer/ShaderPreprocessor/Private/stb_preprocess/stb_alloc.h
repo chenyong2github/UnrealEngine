@@ -68,7 +68,7 @@ void* stb_arena_alloc_aligned(struct stb_arena* a, size_t size, size_t align)
 		// grow the list of blocks if necessary
 		if (a->num_blocks == 0)
 		{
-			a->blocks = (void**)malloc(sizeof(a->blocks[0]) * 32);
+			a->blocks = (void**)STB_COMMON_MALLOC(sizeof(a->blocks[0]) * 32);
 		}
 		else if (a->num_blocks >= 32)
 		{
@@ -76,15 +76,15 @@ void* stb_arena_alloc_aligned(struct stb_arena* a, size_t size, size_t align)
 			if ((a->num_blocks & (a->num_blocks - 1)) == 0)
 			{
 				// grow table
-				void* ptr = realloc(a->blocks, sizeof(a->blocks[0]) * a->num_blocks * 2);
+				void* ptr = STB_COMMON_REALLOC(a->blocks, sizeof(a->blocks[0]) * a->num_blocks * 2);
 				if (ptr)
 					a->blocks = (void**)ptr;
 			}
 		}
 
 		// allocate and record allocation
-		a->last_block = (unsigned char*)malloc(a->last_block_size + 31);
-		stb_assume(a->blocks != NULL);
+		a->last_block = (unsigned char*)STB_COMMON_MALLOC(a->last_block_size + 31);
+		STB_ASSUME(a->blocks != NULL);
 		a->blocks[a->num_blocks++] = a->last_block;
 		a->last_block_alloc_offset = 0;
 
@@ -144,8 +144,8 @@ void stb_arena_free(struct stb_arena* a)
 {
 	int i;
 	for (i = 0; i < a->num_blocks; ++i)
-		free(a->blocks[i]);
-	free(a->blocks);
+		STB_COMMON_FREE(a->blocks[i]);
+	STB_COMMON_FREE(a->blocks);
 	a->blocks = 0;
 	a->num_blocks = 0;
 	a->last_block_size = 0;
