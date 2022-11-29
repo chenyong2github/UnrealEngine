@@ -68,6 +68,17 @@ public:
 using FTensorRDGArray = TArray<FTensorRDG, TInlineAllocator<16>>;
 using FIntArray = TArray<int32, TInlineAllocator<16>>;
 
+class FMLRuntimeRDG : public IRuntime
+{
+public:
+	static FGuid GUID;
+	static int32 Version;
+
+	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const;
+	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData);
+	virtual bool CanCreateModel(TConstArrayView<uint8> ModelData) const;
+};
+
 /** 
  * RDG inference model base class
  */
@@ -88,7 +99,7 @@ protected:
 
 	FMLInferenceModelRDG();
 
-	bool LoadModel(const FNNIModelRaw& InModel, FMLRuntimeFormat& Format);
+	bool LoadModel(TConstArrayView<uint8> ModelData, FMLRuntimeFormat& Format);
 
 	int SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& OutTensorRDGs, FIntArray& OutIndices, TConstArrayView<FMLTensorBinding> InBindings, TConstArrayView<FTensorDesc> InTensorDescs, TConstArrayView<FTensorShape> InTensorShapes);
 	

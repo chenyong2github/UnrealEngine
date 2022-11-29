@@ -659,35 +659,4 @@ NNXUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceForma
 	return nullptr;
 }
 
-/** Helper to create an optimized model for a given runtime from ONNX */
-NNXUTILS_API bool CreateRuntimeModelFromONNX(const FNNIModelRaw& ONNXModel, FNNIModelRaw& OptimizedModel, const FString& RuntimeName, const FOptimizerOptionsMap& Options)
-{
-	OptimizedModel = FNNIModelRaw{};
-	
-	//TODO jira 167594: Register the NNEngine even when CreateInferenceModel can't be called
-	//on the platform because of missing hardware support. This would allow
-	//to optimize a model even when the current hardware cannot run inference on current hardware.
-	NNX::IRuntime* Runtime = NNX::GetRuntime(RuntimeName);
-	if (!Runtime)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("Can't find runtime %s!"), *RuntimeName);
-		return false;
-	}
-
-	TUniquePtr<IModelOptimizer> Optimizer = Runtime->CreateModelOptimizer();
-	if (!Optimizer.IsValid())
-	{
-		UE_LOG(LogNNX, Warning, TEXT("No optimizer available for runtime %s!"), *RuntimeName);
-		return false;
-	}
-
-	if (!Optimizer->Optimize(ONNXModel, OptimizedModel, Options))
-	{
-		UE_LOG(LogNNX, Warning, TEXT("Could not create an optimized model for the required runtime %s. Check the log!"), *RuntimeName);
-		return false;
-	}
-
-	return true;
-}
-
 } // namespace NNX

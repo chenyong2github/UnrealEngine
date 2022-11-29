@@ -30,7 +30,7 @@ public:
 	FMLInferenceModelHlsl();
 	~FMLInferenceModelHlsl();
 
-	bool Init(UMLInferenceModel* InModel);
+	bool Init(TConstArrayView<uint8> ModelData);
 
 protected:
 
@@ -63,12 +63,12 @@ FMLInferenceModelHlsl::~FMLInferenceModelHlsl()
 //
 //
 //
-bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
+bool FMLInferenceModelHlsl::Init(TConstArrayView<uint8> ModelData)
 {
-	check(InModel != nullptr);
+	check(ModelData.Num() > 0);
 	FMLRuntimeFormat	Format;
 
-	if (!LoadModel(InModel->GetFormatDesc(), Format))
+	if (!LoadModel(ModelData, Format))
 	{
 		return false;
 	}
@@ -264,7 +264,7 @@ void FMLInferenceModelHlsl::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilde
 //
 //
 //
-class FMLRuntimeHlsl : public IRuntime
+class FMLRuntimeHlsl : public FMLRuntimeRDG
 {
 public:
 
@@ -295,33 +295,27 @@ public:
 		return NNX_RUNTIME_HLSL_NAME;
 	}
 
-	virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const
-	{
-		TUniquePtr<IModelOptimizer> ModelOptimizer = CreateONNXToNNXModelOptimizer();
-		check(ModelOptimizer.IsValid());
-		
-		ModelOptimizer->AddValidator(MakeShared<FModelValidatorHlsl>());
-		
-		return ModelOptimizer;
-	}
-
 	// Returns flags from ERuntimeSupportFlags
 	virtual EMLRuntimeSupportFlags GetSupportFlags() const override
 	{
 		return EMLRuntimeSupportFlags::RDG;
 	}
 
-	virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* Model)
+	virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) override
 	{
-		auto HlslModel = new FMLInferenceModelHlsl();
-
-		if (!HlslModel->Init(Model))
+		if (!CanCreateModel(ModelData))
 		{
-			delete HlslModel;
-			HlslModel = nullptr;
+			return TSharedPtr<FMLInferenceModel>();
 		}
 
-		return HlslModel;
+		// Create the model and initialize it with the data not including the header
+		FMLInferenceModelHlsl* Model = new FMLInferenceModelHlsl();
+		if (!Model->Init(ModelData))
+		{
+			delete Model;
+			return TSharedPtr<FMLInferenceModel>();
+		}
+		return TSharedPtr<FMLInferenceModel>(Model);
 	}
 };
 

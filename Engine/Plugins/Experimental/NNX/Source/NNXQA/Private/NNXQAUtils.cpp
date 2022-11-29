@@ -363,18 +363,7 @@ namespace Test
 	{
 		OutOutputMemBuffers.Empty();
 
-		FOptimizerOptionsMap Options;
-		FNNIModelRaw RuntimeModelData;
-		TUniquePtr<IModelOptimizer> Optimizer = Runtime->CreateModelOptimizer();
-		
-		if (!Optimizer || !Optimizer->Optimize(ONNXModelData, RuntimeModelData, Options))
-		{
-			UE_LOG(LogNNX, Error, TEXT("Failed to optimize the model"));
-			return false;
-		}
-		
-		UMLInferenceModel* UInferenceModel = UMLInferenceModel::CreateFromFormatDesc(RuntimeModelData);
-		TUniquePtr<FMLInferenceModel> InferenceModel(Runtime->CreateInferenceModel(UInferenceModel));
+		TSharedPtr<FMLInferenceModel> InferenceModel = Runtime->CreateModel(Runtime->CreateModelData(FString("onnx"), ONNXModelData.Data));
 		
 		if (!InferenceModel.IsValid())
 		{

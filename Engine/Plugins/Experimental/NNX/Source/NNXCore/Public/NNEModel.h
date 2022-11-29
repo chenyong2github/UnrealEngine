@@ -30,6 +30,9 @@ class NNXCORE_API UNNEModel : public UObject
 
 public:
 
+	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
+	static TArray<FString> GetRuntimeNames();
+
 	/**
 	 * Creates a new model.
 	 */
@@ -40,21 +43,21 @@ public:
 	 * Loads the model from model data for a given runtime.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	virtual bool Load(FString RuntimeName, UNNEModelData* ModelData);
+	bool Load(FString RuntimeName, UNNEModelData* ModelData);
 
 public:
 
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	virtual int32 NumInputs();
+	int32 NumInputs();
 
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	virtual int32 NumOutputs();
+	int32 NumOutputs();
 
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	virtual TArray<int32> GetInputShapes(int32 Index);
+	TArray<int32> GetInputShapes(int32 Index);
 
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	virtual TArray<int32> GetOutputShapes(int32 Index);
+	TArray<int32> GetOutputShapes(int32 Index);
 
 public:
 
@@ -63,7 +66,7 @@ public:
 	 * If changes are made to the shape or data sizes inside the passed tensors, this function must be called again. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	virtual bool SetInputOutput(const TArray<FNNETensor>& Input, UPARAM(ref) TArray<FNNETensor>& Output);
+	bool SetInputOutput(const TArray<FNNETensor>& Input, UPARAM(ref) TArray<FNNETensor>& Output);
 	
 public:
 
@@ -74,14 +77,7 @@ public:
 	 * Upon successful return of this function, the data inside the output tensors passed to SetInputOutput will contain the resulting data.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	virtual bool Run();
-	
-public:
-	
-	/**
-	 * Get the model to gain full access including running from e.g. the render thread.
-	 */
-	TSharedPtr<NNX::FMLInferenceModel> GetModel();
+	bool Run();
 	
 private:
 

@@ -8,6 +8,18 @@
 
 #include "GenericPlatform/GenericPlatformProcess.h"
 
+TArray<FString> UNNEModel::GetRuntimeNames()
+{
+	using namespace NNX;
+	TArray<FString> Result;
+	TArray<NNX::IRuntime*> Runtimes = GetAllRuntimes();
+	for (int i = 0; i < Runtimes.Num(); i++)
+	{
+		Result.Add(Runtimes[i]->GetRuntimeName());
+	}
+	return Result;
+}
+
 UNNEModel* UNNEModel::Create(UObject* Parent, FString RuntimeName, UNNEModelData* ModelData)
 {
 	UNNEModel* Result = NewObject<UNNEModel>(Parent);
@@ -47,16 +59,7 @@ bool UNNEModel::Load(FString RuntimeName, UNNEModelData* ModelData)
 		return false;
 	}
 
-	FNNIModelRaw ModelRaw;
-	ModelRaw.Data = MoveTemp(Data);
-	ModelRaw.Format = ENNXInferenceFormat::ONNX;
-	UMLInferenceModel* TempModelData = UMLInferenceModel::CreateFromFormatDesc(ModelRaw);
-	if (!TempModelData)
-	{
-		return false;
-	}
-
-	Model = TSharedPtr<NNX::FMLInferenceModel>(Runtime->CreateInferenceModel(TempModelData));
+	Model = Runtime->CreateModel(Data);
 
 	return Model.IsValid();
 }
@@ -140,17 +143,21 @@ bool UNNEModel::SetInputOutput(const TArray<FNNETensor>& Input, UPARAM(ref) TArr
 	TArray<NNX::FTensorShape> InputShapes;
 	for (int i = 0; i < Input.Num(); i++)
 	{
-		InputBindings.Add(NNX::FMLTensorBinding::FromCPU((void*)(Input[i].Data.GetData()), 4 * Input[i].Data.Num()));
+		InputBindings.Add(NNX::FMLTensorBinding::FromCPU((void*)(Input[i].Data.GetData()), sizeof(float) * Input[i].Data.Num()));
 
 		InputShapes.Add(NNX::FTensorShape::MakeFromSymbolic(NNX::FSymbolicTensorShape::Make(Input[i].Shape)));
 	}
 
 	for (int i = 0; i < Input.Num(); i++)
 	{
-		OutputBindings.Add(NNX::FMLTensorBinding::FromCPU((void*)(Output[i].Data.GetData()), 4 * Output[i].Data.Num()));
+		OutputBindings.Add(NNX::FMLTensorBinding::FromCPU((void*)(Output[i].Data.GetData()), sizeof(float) * Output[i].Data.Num()));
 	}
 
-	Model->SetInputTensorShapes(InputShapes);
+	if (Model->SetInputTensorShapes(InputShapes) != 0)
+	{
+		UE_LOG(LogNNX, Error, TEXT("UNNEModel: Failed to set input shapes"));
+		return false;
+	}
 
 	return true;
 }
@@ -163,9 +170,4 @@ bool UNNEModel::Run()
 	}
 
 	return Model->Run(InputBindings, OutputBindings) == 0;
-}
-
-TSharedPtr<NNX::FMLInferenceModel> UNNEModel::GetModel()
-{
-	return Model;
 }

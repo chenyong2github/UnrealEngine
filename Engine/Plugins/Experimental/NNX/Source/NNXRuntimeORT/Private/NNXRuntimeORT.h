@@ -50,44 +50,49 @@ namespace NNX
 		GraphOptimizationLevel OptimizationLevel = GraphOptimizationLevel::ORT_ENABLE_ALL;
 	};
 
-	class FRuntimeORTCpu : public IRuntime
+	class FRuntimeORT : public IRuntime
+	{
+	public:
+		static FGuid GUID;
+		static int32 Version;
+
+		virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const;
+		virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData);
+		virtual bool CanCreateModel(TConstArrayView<uint8> ModelData) const;
+	};
+
+	class FRuntimeORTCpu : public FRuntimeORT
 	{
 	public:
 		Ort::Env NNXEnvironmentORT;
 		FRuntimeORTCpu() = default;
 		virtual ~FRuntimeORTCpu() = default;
 		virtual FString GetRuntimeName() const override;
-		virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const override;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const override;
-		virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel);
-		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);
+		virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
 	};
 
 #if PLATFORM_WINDOWS
-	class FRuntimeORTCuda : public IRuntime
+	class FRuntimeORTCuda : public FRuntimeORT
 	{
 	public:
 		Ort::Env NNXEnvironmentORT;
 		FRuntimeORTCuda() = default;
 		virtual ~FRuntimeORTCuda() = default;
 		virtual FString GetRuntimeName() const override;
-		virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const override;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const override;
-		virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel);
-		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);
+		virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
 	};
 
-	class FRuntimeORTDml : public IRuntime
+	class FRuntimeORTDml : public FRuntimeORT
 	{
 	public:
 		Ort::Env NNXEnvironmentORT;
 		FRuntimeORTDml() = default;
 		virtual ~FRuntimeORTDml() = default;
 		virtual FString GetRuntimeName() const override;
-		virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const override;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const override;
-		virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel);
-		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);
+		virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
 	};
 #endif
 
@@ -180,7 +185,7 @@ namespace NNX
 	public:
 		virtual ~FMLInferenceModelORT() = default;
 
-		bool Init(const UMLInferenceModel* InferenceModel);
+		bool Init(TConstArrayView<uint8> ModelData);
 		bool IsLoaded() const;
 
 		virtual int SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes) override;

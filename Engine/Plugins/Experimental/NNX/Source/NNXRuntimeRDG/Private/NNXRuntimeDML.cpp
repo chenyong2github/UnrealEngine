@@ -1172,7 +1172,7 @@ public:
 	FMLInferenceModelDml();
 	~FMLInferenceModelDml();
 
-	bool Init(UMLInferenceModel* InModel, FDeviceContextDml* InDevCtx);
+	bool Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx);
 
 protected:
 
@@ -1190,7 +1190,7 @@ private:
 //
 //
 //
-class FMLRuntimeDml : public IRuntime
+class FMLRuntimeDml : public FMLRuntimeRDG
 {
 public:
 
@@ -1201,32 +1201,27 @@ public:
 	{
 		return NNX_RUNTIME_DML_NAME;
 	}
-
-	virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const
-	{
-		return CreateONNXToNNXModelOptimizer();
-		
-		//TODO jira 167581: Add DML specific model validator
-		//see ModelOptimizer->AddValidator(MakeShared<FModelValidatorHlsl>());
-		//in NNXRuntimeHLSL.cpp
-	}
 	
 	virtual EMLRuntimeSupportFlags GetSupportFlags() const override
 	{
 		return EMLRuntimeSupportFlags::RDG;
 	}
 
-	virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* Model)
+	virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) override
 	{
-		FMLInferenceModelDml* DmlModel = new FMLInferenceModelDml();
-
-		if (!DmlModel->Init(Model, &Ctx))
+		if (!CanCreateModel(ModelData))
 		{
-			delete DmlModel;
-			DmlModel = nullptr;
+			return TSharedPtr<FMLInferenceModel>();
 		}
 
-		return DmlModel;
+		// Create the model and initialize it with the data not including the header
+		FMLInferenceModelDml* Model = new FMLInferenceModelDml();
+		if (!Model->Init(ModelData, &Ctx))
+		{
+			delete Model;
+			return TSharedPtr<FMLInferenceModel>();
+		}
+		return TSharedPtr<FMLInferenceModel>(Model);
 	}
 
 	bool Init();
@@ -1466,12 +1461,12 @@ FMLInferenceModelDml::~FMLInferenceModelDml()
 //
 //
 //
-bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* InDevCtx)
+bool FMLInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContextDml* InDevCtx)
 {
-	check(InModel != nullptr);
+	check(ModelData.Num() > 0);
 	FMLRuntimeFormat	Format;
 
-	if (!LoadModel(InModel->GetFormatDesc(), Format))
+	if (!LoadModel(ModelData, Format))
 	{
 		return false;
 	}

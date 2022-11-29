@@ -29,7 +29,4 @@ inline TUniquePtr<IModelOptimizer> CreateONNXToONNXModelOptimizer()
 	return CreateModelOptimizer(ENNXInferenceFormat::ONNX, ENNXInferenceFormat::ONNX);
 }
 
-/** Helper to create an optimized model for a given runtime from ONNX */
-NNXUTILS_API bool CreateRuntimeModelFromONNX(FNNIModelRaw& OutputModel, const FNNIModelRaw& ONNXModel, const FString& RuntimeName, const FOptimizerOptionsMap& Options);
-
 } // NNX

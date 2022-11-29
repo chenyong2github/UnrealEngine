@@ -2,19 +2,18 @@
 #include "NNXRuntimeCPU.h"
 #include "NNXRuntimeCPUUtils.h"
 #include "NNXModelOptimizer.h"
+#include "NNECoreAttributeMap.h"
 #include "NNEProfilingTimer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 
 using namespace NNX;
 
+FGuid FRuntimeCPU::GUID = FGuid((int32)'R', (int32)'C', (int32)'P', (int32)'U');
+int32 FRuntimeCPU::Version = 0x00000001;
+
 FString FRuntimeCPU::GetRuntimeName() const
 {
 	return NNX_RUNTIME_CPU_NAME;
-}
-
-TUniquePtr<IModelOptimizer> FRuntimeCPU::CreateModelOptimizer() const
-{
-	return CreateONNXToONNXModelOptimizer();
 }
 
 EMLRuntimeSupportFlags FRuntimeCPU::GetSupportFlags() const 
@@ -22,24 +21,73 @@ EMLRuntimeSupportFlags FRuntimeCPU::GetSupportFlags() const
 	return EMLRuntimeSupportFlags::CPU;
 }
 
-
-FMLInferenceModel* FRuntimeCPU::CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXCPUConf& InConf)
+bool FRuntimeCPU::CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const
 {
-	FMLInferenceModelCPU* CPUModel = new FMLInferenceModelCPU(&NNXEnvironmentCPU, InConf);
-	if (!CPUModel->Init(InModel))
-	{
-		delete CPUModel;
-		CPUModel = nullptr;
-	}
-
-	return CPUModel;
+	return FileType.Compare("onnx", ESearchCase::IgnoreCase) == 0;
 }
 
-
-FMLInferenceModel* FRuntimeCPU::CreateInferenceModel(UMLInferenceModel* InModel)
+TArray<uint8> FRuntimeCPU::CreateModelData(FString FileType, TConstArrayView<uint8> FileData)
 {
-	FMLInferenceNNXCPUConf CPUInferenceConf;
-	return CreateInferenceModel(InModel, CPUInferenceConf);
+	if (!CanCreateModelData(FileType, FileData))
+	{
+		return {};
+	}
+
+	TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToONNXModelOptimizer();
+
+	FNNIModelRaw InputModel;
+	InputModel.Data = FileData;
+	InputModel.Format = ENNXInferenceFormat::ONNX;
+	FNNIModelRaw OutputModel;
+	FOptimizerOptionsMap Options;
+	if (!Optimizer->Optimize(InputModel, OutputModel, Options))
+	{
+		return {};
+	}
+
+	int32 GuidSize = sizeof(FRuntimeCPU::GUID);
+	int32 VersionSize = sizeof(FRuntimeCPU::Version);
+	TArray<uint8> Result;
+	FMemoryWriter Writer(Result);
+	Writer << FRuntimeCPU::GUID;
+	Writer << FRuntimeCPU::Version;
+	Writer.Serialize(OutputModel.Data.GetData(), OutputModel.Data.Num());
+	return Result;
+}
+
+bool FRuntimeCPU::CanCreateModel(TConstArrayView<uint8> ModelData) const
+{
+	int32 GuidSize = sizeof(FRuntimeCPU::GUID);
+	int32 VersionSize = sizeof(FRuntimeCPU::Version);
+	if (ModelData.Num() <= GuidSize + VersionSize)
+	{
+		return false;
+	}
+	bool bResult = FGenericPlatformMemory::Memcmp(&(ModelData[0]), &(FRuntimeCPU::GUID), GuidSize) == 0;
+	bResult &= FGenericPlatformMemory::Memcmp(&(ModelData[GuidSize]), &(FRuntimeCPU::Version), VersionSize) == 0;
+	return bResult;
+}
+
+TSharedPtr<FMLInferenceModel> FRuntimeCPU::CreateModel(TConstArrayView<uint8> ModelData)
+{
+	if (!CanCreateModel(ModelData))
+	{
+		return TSharedPtr<FMLInferenceModel>();
+	}
+
+	// Get the header size
+	int32 GuidSize = sizeof(FRuntimeCPU::GUID);
+	int32 VersionSize = sizeof(FRuntimeCPU::Version);
+
+	// Create the model and initialize it with the data not including the header
+	const FMLInferenceNNXCPUConf InConf;
+	FMLInferenceModelCPU* Model = new FMLInferenceModelCPU(&NNXEnvironmentCPU, InConf);
+	if (!Model->Init(ModelData))
+	{
+		delete Model;
+		return TSharedPtr<FMLInferenceModel>();
+	}
+	return TSharedPtr<FMLInferenceModel>(Model);
 }
 
 bool FRuntimeCPU::Init()
@@ -66,13 +114,17 @@ FMLInferenceModelCPU::FMLInferenceModelCPU(
 	ORTEnvironment(InORTEnvironment)
 { }
 
-bool FMLInferenceModelCPU::Init(const UMLInferenceModel* InferenceModel)
+bool FMLInferenceModelCPU::Init(TConstArrayView<uint8> ModelData)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FMLInferenceModelCPU_Init"), STAT_FMLInferenceModelCPU_Init, STATGROUP_MachineLearning);
 	
+	// Get the header size
+	int32 GuidSize = sizeof(FRuntimeCPU::GUID);
+	int32 VersionSize = sizeof(FRuntimeCPU::Version);
+
 	// Clean previous networks
 	bIsLoaded = false;
-	const TArray<uint8>& ModelBuffer{ InferenceModel->GetFormatDesc().Data };
+	TConstArrayView<uint8> ModelBuffer = TConstArrayView<uint8>(&(ModelData.GetData()[GuidSize + VersionSize]), ModelData.Num() - GuidSize - VersionSize);
 
 	// Checking Inference Model 
 	{

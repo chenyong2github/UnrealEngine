@@ -21,7 +21,7 @@ class FRDGBuilder;
 namespace NNX
 {
 class FMLInferenceModel;
-class IModelOptimizer;
+//class IModelOptimizer;
 
 //class IOperatorRegistry;
 
@@ -40,7 +40,9 @@ class IRuntime
 public:
 	virtual ~IRuntime() = default;
 	virtual FString GetRuntimeName() const = 0;
-	virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const = 0;
+
+	// Each runtime has already created its own internal optimizer called inside CreateModelData
+	//virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const = 0;
 
 	// TODO: Replace with QuerySupport()
 	// Returns flags from ERuntimeSupportFlags
@@ -51,7 +53,15 @@ public:
 
 	// ModelOptimizer
 
-	virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* Model) = 0;
+	//virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* Model) = 0;
+
+	// Model data factory interface
+	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const = 0;
+	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) = 0;
+
+	// Model factory interface
+	virtual bool CanCreateModel(TConstArrayView<uint8> ModelData) const = 0;
+	virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) = 0;
 };
 
 /** Tensor memory binding type */

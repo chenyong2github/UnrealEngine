@@ -35,10 +35,13 @@ namespace NNX
 		bool Init();
 		virtual ~FRuntimeCPU();
 		virtual FString GetRuntimeName() const;
-		virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const;
-		virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* Model);
-		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXCPUConf& InConf);
+		virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const;
+		virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData);
+		virtual bool CanCreateModel(TConstArrayView<uint8> ModelData) const;
+		virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
+		static FGuid GUID;
+		static int32 Version;
 	};
 
 	static TUniquePtr<FRuntimeCPU> GCPURuntime;
@@ -81,7 +84,7 @@ namespace NNX
 		FMLInferenceModelCPU(Ort::Env* InORTEnvironment, const FMLInferenceNNXCPUConf& InNNXCPUConfiguration);
 		virtual ~FMLInferenceModelCPU() {};
 
-		bool Init(const UMLInferenceModel* InferenceModel);
+		bool Init(TConstArrayView<uint8> ModelData);
 		bool IsLoaded() const;
 
 		virtual int SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes) override;

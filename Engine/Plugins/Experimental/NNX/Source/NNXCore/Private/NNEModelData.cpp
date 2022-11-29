@@ -57,7 +57,7 @@ inline void PutIntoDDC(const FGuid& FileDataId, const FString& RuntimeName, FSha
 
 #endif
 
-inline TArray<uint8> Create(const FString& RuntimeName, const TArray<uint8>& FileData)
+inline TArray<uint8> Create(const FString& RuntimeName, FString FileType, const TArray<uint8>& FileData)
 {
 	using namespace NNX;
 
@@ -74,25 +74,7 @@ inline TArray<uint8> Create(const FString& RuntimeName, const TArray<uint8>& Fil
 		return {};
 	}
 
-	TUniquePtr<IModelOptimizer> Optimizer = Runtime->CreateModelOptimizer();
-	if (!Optimizer.IsValid())
-	{
-		UE_LOG(LogNNX, Error, TEXT("UNNEModelData: %s cannot create an optimizer"), *RuntimeName);
-		return {};
-	}
-
-	FNNIModelRaw InputModel;
-	InputModel.Data = FileData;
-	InputModel.Format = ENNXInferenceFormat::ONNX;
-	FNNIModelRaw OutputModel;
-	FOptimizerOptionsMap Options;
-	if (!Optimizer->Optimize(InputModel, OutputModel, Options))
-	{
-		UE_LOG(LogNNX, Error, TEXT("UNNEModelData: Optimization failed"));
-		return {};
-	}
-
-	return MoveTemp(OutputModel.Data);
+	return Runtime->CreateModelData(FileType, FileData);
 }
 
 void UNNEModelData::Init(const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd)
@@ -135,7 +117,7 @@ TConstArrayView<uint8> UNNEModelData::GetModelData(const FString& RuntimeName)
 	}
 
 	// Try to create the model
-	TArray<uint8> CreatedData = Create(RuntimeName, FileData);
+	TArray<uint8> CreatedData = Create(RuntimeName, FileType, FileData);
 	if (CreatedData.Num() < 1)
 	{
 		return {};
@@ -181,7 +163,7 @@ void UNNEModelData::Serialize(FArchive& Ar)
 		TArray<NNX::IRuntime*> Runtimes = GetAllRuntimes();
 		for (int i = 0; i < Runtimes.Num(); i++)
 		{
-			TArray<uint8> CreatedData = Create(Runtimes[i]->GetRuntimeName(), FileData);
+			TArray<uint8> CreatedData = Create(Runtimes[i]->GetRuntimeName(), FileType, FileData);
 			if (CreatedData.Num() > 0)
 			{
 				ModelData.Add(Runtimes[i]->GetRuntimeName(), CreatedData);

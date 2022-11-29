@@ -7,6 +7,7 @@
 #include "NNEProfilingTimer.h"
 #include "NNXRuntimeORTUtils.h"
 #include "NNXModelOptimizer.h"
+#include "NNECoreAttributeMap.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 
 // NOTE: For now we only have DML on Windows, we should add support for XSX
@@ -58,78 +59,105 @@ EMLRuntimeSupportFlags FRuntimeORTDml::GetSupportFlags() const
 }
 #endif
 
-TUniquePtr<IModelOptimizer> FRuntimeORTCpu::CreateModelOptimizer() const
+
+FGuid FRuntimeORT::GUID = FGuid((int32)'O', (int32)'N', (int32)'N', (int32)'X');
+int32 FRuntimeORT::Version	= 0x00000001;
+
+bool FRuntimeORT::CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const
 {
-	return CreateONNXToONNXModelOptimizer();
+	return FileType.Compare("onnx", ESearchCase::IgnoreCase) == 0;
+}
+
+TArray<uint8> FRuntimeORT::CreateModelData(FString FileType, TConstArrayView<uint8> FileData)
+{
+	if (!CanCreateModelData(FileType, FileData))
+	{
+		return {};
+	}
+
+	TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToONNXModelOptimizer();
+
+	FNNIModelRaw InputModel;
+	InputModel.Data = FileData;
+	InputModel.Format = ENNXInferenceFormat::ONNX;
+	FNNIModelRaw OutputModel;
+	FOptimizerOptionsMap Options;
+	if (!Optimizer->Optimize(InputModel, OutputModel, Options))
+	{
+		return {};
+	}
+
+	int32 GuidSize = sizeof(FRuntimeORT::GUID);
+	int32 VersionSize = sizeof(FRuntimeORT::Version);
+	TArray<uint8> Result;
+	FMemoryWriter Writer(Result);
+	Writer << FRuntimeORT::GUID;
+	Writer << FRuntimeORT::Version;
+	Writer.Serialize(OutputModel.Data.GetData(), OutputModel.Data.Num());
+	return Result;
+}
+
+
+bool FRuntimeORT::CanCreateModel(TConstArrayView<uint8> ModelData) const
+{
+	int32 GuidSize = sizeof(FRuntimeORT::GUID);
+	int32 VersionSize = sizeof(FRuntimeORT::Version);
+	if (ModelData.Num() <= GuidSize + VersionSize)
+	{
+		return false;
+	}
+	bool bResult = FGenericPlatformMemory::Memcmp(&(ModelData[0]), &(FRuntimeORT::GUID), GuidSize) == 0;
+	bResult &= FGenericPlatformMemory::Memcmp(&(ModelData[GuidSize]), &(FRuntimeORT::Version), VersionSize) == 0;
+	return bResult;
+}
+
+TSharedPtr<FMLInferenceModel> FRuntimeORTCpu::CreateModel(TConstArrayView<uint8> ModelData)
+{
+	if (!CanCreateModel(ModelData))
+	{
+		return TSharedPtr<FMLInferenceModel>();
+	}
+	const FMLInferenceNNXORTConf InConf;
+	FMLInferenceModelORTCpu* Model = new FMLInferenceModelORTCpu(&NNXEnvironmentORT, InConf);
+	if (!Model->Init(ModelData))
+	{
+		delete Model;
+		return TSharedPtr<FMLInferenceModel>();
+	}
+	return TSharedPtr<FMLInferenceModel>(Model);
 }
 
 #if PLATFORM_WINDOWS
-TUniquePtr<IModelOptimizer> FRuntimeORTCuda::CreateModelOptimizer() const
+TSharedPtr<FMLInferenceModel> FRuntimeORTCuda::CreateModel(TConstArrayView<uint8> ModelData)
 {
-	return CreateONNXToONNXModelOptimizer();
-}
-
-TUniquePtr<IModelOptimizer> FRuntimeORTDml::CreateModelOptimizer() const
-{
-	return CreateONNXToONNXModelOptimizer();
-}
-#endif
-
-FMLInferenceModel* FRuntimeORTCpu::CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf)
-{
-	FMLInferenceModelORTCpu* ORTModel = new FMLInferenceModelORTCpu(&NNXEnvironmentORT, InConf);
-	if (!ORTModel->Init(InModel))
+	if (!CanCreateModel(ModelData))
 	{
-		delete ORTModel;
-		ORTModel = nullptr;
+		return TSharedPtr<FMLInferenceModel>();
 	}
-
-	return ORTModel;
-}
-
-#if PLATFORM_WINDOWS
-FMLInferenceModel* FRuntimeORTCuda::CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf)
-{
-	FMLInferenceModelORTCuda* ORTModel = new FMLInferenceModelORTCuda(&NNXEnvironmentORT, InConf);
-	if (!ORTModel->Init(InModel))
+	const FMLInferenceNNXORTConf InConf;
+	FMLInferenceModelORTCuda* Model = new FMLInferenceModelORTCuda(&NNXEnvironmentORT, InConf);
+	if (!Model->Init(ModelData))
 	{
-		delete ORTModel;
-		ORTModel = nullptr;
+		delete Model;
+		return TSharedPtr<FMLInferenceModel>();
 	}
-
-	return ORTModel;
+	return TSharedPtr<FMLInferenceModel>(Model);
 }
 
-FMLInferenceModel* FRuntimeORTDml::CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf)
+TSharedPtr<FMLInferenceModel> FRuntimeORTDml::CreateModel(TConstArrayView<uint8> ModelData)
 {
-	FMLInferenceModelORTDml* ORTModel = new FMLInferenceModelORTDml(&NNXEnvironmentORT, InConf);
-	if (!ORTModel->Init(InModel))
+	if (!CanCreateModel(ModelData))
 	{
-		delete ORTModel;
-		ORTModel = nullptr;
+		return TSharedPtr<FMLInferenceModel>();
 	}
-
-	return ORTModel;
-}
-#endif
-
-FMLInferenceModel* FRuntimeORTCpu::CreateInferenceModel(UMLInferenceModel* InModel)
-{
-	FMLInferenceNNXORTConf ORTInferenceConf;
-	return CreateInferenceModel(InModel, ORTInferenceConf);
-}
-
-#if PLATFORM_WINDOWS
-FMLInferenceModel* FRuntimeORTCuda::CreateInferenceModel(UMLInferenceModel* InModel)
-{
-	FMLInferenceNNXORTConf ORTInferenceConf;
-	return CreateInferenceModel(InModel, ORTInferenceConf);
-}
-
-FMLInferenceModel* FRuntimeORTDml::CreateInferenceModel(UMLInferenceModel* InModel)
-{
-	FMLInferenceNNXORTConf ORTInferenceConf;
-	return CreateInferenceModel(InModel, ORTInferenceConf);
+	const FMLInferenceNNXORTConf InConf;
+	FMLInferenceModelORTDml* Model = new FMLInferenceModelORTDml(&NNXEnvironmentORT, InConf);
+	if (!Model->Init(ModelData))
+	{
+		delete Model;
+		return TSharedPtr<FMLInferenceModel>();
+	}
+	return TSharedPtr<FMLInferenceModel>(Model);
 }
 #endif
 
@@ -144,13 +172,17 @@ FMLInferenceModelORT::FMLInferenceModelORT(
 	ORTConfiguration(InORTConfiguration)
 { }
 
-bool FMLInferenceModelORT::Init(const UMLInferenceModel* InferenceModel)
+bool FMLInferenceModelORT::Init(TConstArrayView<uint8> ModelData)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FMLInferenceModelORT_Init"), STAT_FMLInferenceModelORT_Init, STATGROUP_MachineLearning);
-	
+
+	// Get the header size
+	int32 GuidSize = sizeof(FRuntimeORT::GUID);
+	int32 VersionSize = sizeof(FRuntimeORT::Version);
+
 	// Clean previous networks
 	bIsLoaded = false;
-	const TArray<uint8>& ModelBuffer{ InferenceModel->GetFormatDesc().Data };
+	TConstArrayView<uint8> ModelBuffer = TConstArrayView<uint8>(&(ModelData.GetData()[GuidSize + VersionSize]), ModelData.Num() - GuidSize - VersionSize);
 
 	// Checking Inference Model 
 	{

@@ -3,6 +3,7 @@
 #include "NNXRuntimeRDG.h"
 #include "NNXInferenceModel.h"
 #include "NNXRuntimeFormat.h"
+#include "NNXModelOptimizer.h"
 
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
@@ -12,6 +13,9 @@
 
 namespace NNX
 {
+
+FGuid FMLRuntimeRDG::GUID = FGuid((int32)'R', (int32)'R', (int32)'D', (int32)'G');
+int32 FMLRuntimeRDG::Version = 0x00000001;
 
 struct FMLInferenceModelRDG::FReadbackEntry
 {
@@ -169,6 +173,53 @@ bool FAttributeValidator::Validate(const UE::NNECore::FAttributeMap& AttributesT
 
 	return bAreAttributesValid;
 }
+
+bool FMLRuntimeRDG::CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const
+{
+	return FileType.Compare("onnx", ESearchCase::IgnoreCase) == 0;
+}
+
+TArray<uint8> FMLRuntimeRDG::CreateModelData(FString FileType, TConstArrayView<uint8> FileData)
+{
+	if (!CanCreateModelData(FileType, FileData))
+	{
+		return {};
+	}
+
+	TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToNNXModelOptimizer();
+
+	FNNIModelRaw InputModel;
+	InputModel.Data = FileData;
+	InputModel.Format = ENNXInferenceFormat::ONNX;
+	FNNIModelRaw OutputModel;
+	FOptimizerOptionsMap Options;
+	if (!Optimizer->Optimize(InputModel, OutputModel, Options))
+	{
+		return {};
+	}
+
+	int32 GuidSize = sizeof(FMLRuntimeRDG::GUID);
+	int32 VersionSize = sizeof(FMLRuntimeRDG::Version);
+	TArray<uint8> Result;
+	FMemoryWriter Writer(Result);
+	Writer << FMLRuntimeRDG::GUID;
+	Writer << FMLRuntimeRDG::Version;
+	Writer.Serialize(OutputModel.Data.GetData(), OutputModel.Data.Num());
+	return Result;
+};
+
+bool FMLRuntimeRDG::CanCreateModel(TConstArrayView<uint8> ModelData) const
+{
+	int32 GuidSize = sizeof(FMLRuntimeRDG::GUID);
+	int32 VersionSize = sizeof(FMLRuntimeRDG::Version);
+	if (ModelData.Num() <= GuidSize + VersionSize)
+	{
+		return false;
+	}
+	bool bResult = FGenericPlatformMemory::Memcmp(&(ModelData[0]), &(FMLRuntimeRDG::GUID), GuidSize) == 0;
+	bResult &= FGenericPlatformMemory::Memcmp(&(ModelData[GuidSize]), &(FMLRuntimeRDG::Version), VersionSize) == 0;
+	return bResult;
+};
 	
 //
 //
@@ -188,17 +239,13 @@ FMLInferenceModelRDG::~FMLInferenceModelRDG()
 //
 //
 //
-bool FMLInferenceModelRDG::LoadModel(const FNNIModelRaw& InModel, FMLRuntimeFormat& Format)
+bool FMLInferenceModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntimeFormat& Format)
 {
-	ENNXInferenceFormat FormatType = InModel.Format;
+	int32 GuidSize = sizeof(FMLRuntimeRDG::GUID);
+	int32 VersionSize = sizeof(FMLRuntimeRDG::Version);
+	TArray<uint8> ModelBuffer = TArray<uint8>(&(ModelData.GetData()[GuidSize + VersionSize]), ModelData.Num() - GuidSize - VersionSize);
 
-	if (FormatType != ENNXInferenceFormat::NNXRT)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("Unsupported format type for NNX inference model"));
-		return false;
-	}
-
-	FMemoryReader Reader(InModel.Data);
+	FMemoryReader Reader(ModelBuffer);
 
 	FMLRuntimeFormat::StaticStruct()->SerializeBin(Reader, &Format);
 
