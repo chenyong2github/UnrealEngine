@@ -1935,10 +1935,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		if (pending.change.userRequest) {
 			this.nodeBotLogger.info(shortMessage + ` (reconsider triggered by ${pending.change.owner}):\n${failure.description}.`)
 
-			let message = `While reconsidering CL#${pending.change.cl}\n`
-			if (postIntegrate && pending.change.targetWorkspaceForShelf) {
-				message += `Shelved in workspace ${pending.change.targetWorkspaceForShelf}\n`
-			}
+			let message = `While reconsidering CL#${pending.change.cl}`
 
 			if (failure.summary) {
 				message += '\n' + failure.summary 
@@ -1946,6 +1943,10 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			else
 			{
 				message += '\n' + failure.description
+			}
+
+			if (postIntegrate && pending.change.targetWorkspaceForShelf) {
+				message += `\n\nShelved ${pending.newCl} in workspace ${pending.change.targetWorkspaceForShelf}`
 			}
 
 			if (this.slackMessages) {
