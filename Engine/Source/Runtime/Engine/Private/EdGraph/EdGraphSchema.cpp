@@ -680,9 +680,10 @@ FPinConnectionResponse UEdGraphSchema::MovePinLinks(UEdGraphPin& MoveFromPin, UE
 #endif
 		{
 			FPinConnectionResponse Response = CanCreateConnection(&MoveToPin, NewLink);
+			const bool bCanConnect = Response.CanSafeConnect() || (Response.Response == CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE);
 
 #if WITH_EDITOR
-			if (!Response.CanSafeConnect() && bNotifyLinkedNodes)
+			if (!bCanConnect && bNotifyLinkedNodes)
 			{
 				// Connection failed, so notify and try again
 				if (UEdGraphNode* LinkedToNode = NewLink->GetOwningNodeUnchecked())
@@ -692,9 +693,16 @@ FPinConnectionResponse UEdGraphSchema::MovePinLinks(UEdGraphPin& MoveFromPin, UE
 				}
 			}
 #endif
-			if (Response.CanSafeConnect())
+			if (bCanConnect)
 			{
-				MoveToPin.MakeLinkTo(NewLink);
+				if (Response.Response == CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE)
+				{
+					CreateAutomaticConversionNodeAndConnections(&MoveToPin, NewLink);
+				}
+				else
+				{
+					MoveToPin.MakeLinkTo(NewLink);
+				}
 			}	
 			else
 			{ 
