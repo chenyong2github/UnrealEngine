@@ -163,7 +163,14 @@ void UCommonAnimatedSwitcher::SetActiveWidgetIndex_Internal(int32 Index)
 	{
 		HandleOutgoingWidget();
 
-		Super::SetActiveWidgetIndex(Index);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// For now we can't call setter since it calls MyWidgetSwitcher->SetActiveWidgetIndex(SafeIndex)
+		if (ActiveWidgetIndex != Index)
+		{
+			ActiveWidgetIndex = Index;
+			BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::ActiveWidgetIndex);
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (MyAnimatedSwitcher.IsValid())
 		{
