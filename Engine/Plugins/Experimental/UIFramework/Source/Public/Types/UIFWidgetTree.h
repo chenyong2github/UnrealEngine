@@ -10,7 +10,7 @@
 #include "UIFWidgetTree.generated.h"
 
 #ifndef UE_UIFRAMEWORK_WITH_DEBUG
-	#define UE_UIFRAMEWORK_WITH_DEBUG !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	#define UE_UIFRAMEWORK_WITH_DEBUG !(UE_BUILD_SHIPPING)
 #endif
 
 struct FReplicationFlags;
@@ -19,6 +19,10 @@ class AActor;
 class FOutBunch;
 class UActorChannel;
 class UUIFrameworkWidget;
+
+#if UE_UIFRAMEWORK_WITH_DEBUG
+class UWidget;
+#endif
 
 class IUIFrameworkWidgetTreeOwner
 {
@@ -131,6 +135,8 @@ public:
 
 #if UE_UIFRAMEWORK_WITH_DEBUG
 	void AuthorityTest() const;
+	void LogTree() const;
+	void LogWidgetsChildren() const;
 #endif
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FUIFrameworkWidgetDelegate, UUIFrameworkWidget*);
@@ -141,6 +147,12 @@ private:
 	void AuthorityAddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child, bool bFirst);
 	void AuthorityAddChildRecursiveInternal(UUIFrameworkWidget* Widget);
 	bool AuthorityRemoveChildRecursiveInternal(UUIFrameworkWidget* Widget);
+
+#if UE_UIFRAMEWORK_WITH_DEBUG
+	void LogTreeInternal(const FUIFrameworkWidgetTreeEntry& Entry, FString Spaces) const;
+	void AuthorityLogWidgetsChildrenInternal(UUIFrameworkWidget* Widget, FString Spaces) const;
+	void LocalLogWidgetsChildrenInternal(const UWidget* Widget, FString Spaces) const;
+#endif
 
 private:
 	UPROPERTY()
