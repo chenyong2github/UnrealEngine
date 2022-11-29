@@ -243,8 +243,19 @@ public:
 	 * The Tool must be active. By default, ::DeactivateTool() wil be called. However if some
 	 * external code has bound to the OnToolShutdownRequest delegate, the request will be
 	 * forwarded to that function first (::DeactivateTool() will still be called if it returns false)
+	 * 
+	 * If this function is called during InteractiveTool::Setup(), the Tool invocation will be aborted,
+	 * ie the Tool will be immediately shutdown with EToolShutdownType::Cancel, and never become "Active"/etc. 
+	 * Note also that in this case the shutdown request *will not* be forwarded to the OnToolShutdownRequest delegate.
+	 * 
+	 * @param bShowUnexpectedShutdownMessage if this was an unexpected shutdown, passing true here, along with a non-empty UnexpectedShutdownMessage, will result in OnToolUnexpectedShutdownMessage being called
+	 * @param UnexpectedShutdownMessage message provided by the caller meant to explain why the Tool has unexpectedly been shut down
 	 */
-	virtual bool PostActiveToolShutdownRequest(UInteractiveTool* Tool, EToolShutdownType ShutdownType);
+	virtual bool PostActiveToolShutdownRequest(
+		UInteractiveTool* Tool, 
+		EToolShutdownType ShutdownType,
+		bool bShowUnexpectedShutdownMessage = false,
+		const FText& UnexpectedShutdownMessage = FText() );
 
 	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnToolShutdownRequest, UInteractiveToolManager*, UInteractiveTool*, EToolShutdownType);
 	/**
@@ -253,8 +264,15 @@ public:
 	 * that the request will be handled, otherwise ::DeactivateTool() will be called
 	 */
 	FOnToolShutdownRequest OnToolShutdownRequest;
-	 
+	
+	DECLARE_MULTICAST_DELEGATE_FourParams(FOnToolUnexpectedShutdownMessage, UInteractiveToolManager*, UInteractiveTool*, const FText& Message, bool bWasDuringToolSetup);
 
+	/**
+	 * PostActiveToolShutdownRequest() will broadcast this delegate with a Message if bShowUnexpectedShutdownMessage=true.
+	 * If the shutdown was during Tool Setup/startup, bWasDuringToolSetup will be passed as true
+	 */
+	FOnToolUnexpectedShutdownMessage OnToolUnexpectedShutdownMessage;
+	
 
 	//
 	// access to APIs, etc
@@ -310,6 +328,12 @@ protected:
 
 	/** This flag is set to true on Initialize() and false on Shutdown(). */
 	bool bIsActive = false;
+
+	// This bool is for handling the case where a Tool posts a shutdown request during it's Setup() call.
+	// In that case we will terminate the Tool immediately
+	bool bInToolSetup = false;
+	bool bToolRequestedTerminationDuringSetup = false;
+
 
 	/** Current set of named ToolBuilders */
 	UPROPERTY()

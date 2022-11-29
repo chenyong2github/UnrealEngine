@@ -207,7 +207,18 @@ bool UInteractiveToolManager::ActivateToolInternal(EToolSide Side)
 	ActiveLeftToolName = ActiveLeftBuilderName;
 	DoPostBuild(Side, ActiveLeftTool, ActiveLeftBuilder, InputState);
 
+	bInToolSetup = true;
 	ActiveLeftTool->Setup();
+	bInToolSetup = false;
+	if (bToolRequestedTerminationDuringSetup)
+	{
+		bToolRequestedTerminationDuringSetup = false;
+		ActiveLeftTool->Shutdown(EToolShutdownType::Cancel);		// need to give Tool a chance to clean up...
+		ActiveLeftTool = nullptr;
+		ActiveLeftToolName.Empty();
+		return false;
+	}
+
 	DoPostSetup(Side, ActiveLeftTool, ActiveLeftBuilder, InputState);
 
 	// register new active input behaviors
@@ -436,8 +447,43 @@ bool UInteractiveToolManager::RequestSelectionChange(const FSelectedOjectsChange
 }
 
 
-bool UInteractiveToolManager::PostActiveToolShutdownRequest(UInteractiveTool* Tool, EToolShutdownType ShutdownType)
+bool UInteractiveToolManager::PostActiveToolShutdownRequest(UInteractiveTool* Tool, EToolShutdownType ShutdownType,
+	bool bShowUnexpectedShutdownMessage, const FText& UnexpectedShutdownMessage)
 {
+	if (bShowUnexpectedShutdownMessage)
+	{
+		if (OnToolUnexpectedShutdownMessage.IsBound() == false )
+		{
+			if ( UnexpectedShutdownMessage.IsEmpty() )
+			{
+				if ( bInToolSetup )
+				{
+					UE_LOG(LogTemp, Error, TEXT("[InteractiveToolManager] Tool %s Could not be Initialized"), *Tool->GetToolInfo().ToolDisplayName.ToString());
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("[InteractiveToolManager] Tool %s was Shut Down Automatically, no message provided"), *Tool->GetToolInfo().ToolDisplayName.ToString());
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("[InteractiveToolManager] %s"), *UnexpectedShutdownMessage.ToString());
+			}
+		}
+		else
+		{
+			OnToolUnexpectedShutdownMessage.Broadcast(this, Tool, UnexpectedShutdownMessage, bInToolSetup);
+		}
+	}
+
+	// if Tool calls this function from it's Setup() function, then we need to do some special-case handling because
+	// the code below can't be run yet
+	if (bInToolSetup)
+	{
+		bToolRequestedTerminationDuringSetup = true;
+		return true;
+	}
+
 	bool bIsActiveTool = (Tool != nullptr) && (ActiveLeftTool == Tool || ActiveRightTool == Tool);
 	if (!bIsActiveTool)
 	{
