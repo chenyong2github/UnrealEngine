@@ -9607,6 +9607,14 @@ FBeginCookContext UCookOnTheFlyServer::CreateCookWorkerContext()
 		// PlatformContext.PlatformData is currently null and is set in SelectSessionPlatforms
 	}
 
+	TArray<FWeakObjectPtr>& SessionStartupObjects = CookByTheBookOptions->SessionStartupObjects;
+	SessionStartupObjects.Reset();
+	for (FThreadSafeObjectIterator Iter; Iter; ++Iter)
+	{
+		SessionStartupObjects.Emplace(*Iter);
+	}
+	SessionStartupObjects.Shrink();
+
 	return BeginContext;
 }
 
