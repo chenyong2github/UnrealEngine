@@ -18,6 +18,11 @@ struct FMeshDescription;
 class IMeshDescriptionCommitter;
 struct FOccupancyGrid;
 
+namespace UE::Geometry
+{
+	struct FOccupancyGrid3;
+}
+
 /**
  *
  */
@@ -30,13 +35,12 @@ public:
 	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
+// A mirror of UE::Geometry::ESkinBindingType
 UENUM()
 enum class ESkinWeightsBindType : uint8
 {
 	DirectDistance = 0 UMETA(DisplayName = "Direct Distance"),
-	// GeodesicDistance UMETA(DisplayName = "Geodesic Distance"),
-	// Heatmaps UMETA(DisplayName = "Heatmap"),
-	GeodesicVoxel = 3 UMETA(DisplayName = "Geodesic Voxel"),
+	GeodesicVoxel = 1 UMETA(DisplayName = "Geodesic Voxel"),
 };
 
 UCLASS()
@@ -69,7 +73,7 @@ public:
 	bool bDebugDraw = false;
 	
 	// IBoneReferenceSkeletonProvider
-	USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
+	virtual USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 
 	TObjectPtr<USkeletalMesh> SkeletalMesh;
 };
@@ -86,22 +90,22 @@ class MESHMODELINGTOOLSEXP_API USkinWeightsBindingTool :
 
 public:
 	USkinWeightsBindingTool();
-	~USkinWeightsBindingTool();
+	virtual ~USkinWeightsBindingTool() override;
 	
-	void Setup() override;
-	void OnShutdown(EToolShutdownType ShutdownType) override;
+	virtual void Setup() override;
+	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 	
-	void OnTick(float DeltaTime) override;
-	void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void OnTick(float DeltaTime) override;
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-	bool HasCancel() const override { return true; }
-	bool HasAccept() const override { return true; }
-	bool CanAccept() const override;
+	virtual bool HasCancel() const override { return true; }
+	virtual bool HasAccept() const override { return true; }
+	virtual bool CanAccept() const override;
 
-	void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	// IDynamicMeshOperatorFactory API
-	TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	TObjectPtr<USkinWeightsBindingToolProperties> Properties = nullptr;
@@ -110,14 +114,13 @@ public:
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 protected:
-	TSharedPtr<FOccupancyGrid> Occupancy;
+	TSharedPtr<UE::Geometry::FOccupancyGrid3> Occupancy;
 	
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
-	
-	FBoneContainer BoneContainer;
-	TMap<FName, FBoneIndexType> BoneToIndex;
-	TArray<TPair<FTransform, int32>> TransformHierarchy;
 
+	FReferenceSkeleton ReferenceSkeleton;
+	FBoneContainer BoneContainer;
+	
 	void GenerateAsset(const FDynamicMeshOpResult& Result);
 
 	static FVector4f WeightToColor(float Value);

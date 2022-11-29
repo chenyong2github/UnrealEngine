@@ -11,14 +11,12 @@
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "Misc/Optional.h"
 #include "Containers/Map.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
 
 #include "SkinWeightsPaintTool.generated.h"
 
 
 struct FMeshDescription;
 class USkinWeightsPaintTool;
-class IMeshDescriptionCommitter;
 
 
 

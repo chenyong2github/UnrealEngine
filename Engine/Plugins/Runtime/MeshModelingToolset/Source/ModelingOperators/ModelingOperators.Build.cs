@@ -15,6 +15,7 @@ public class ModelingOperators : ModuleRules
 				"DynamicMesh",
 				"MeshConversion",
 				"GeometryAlgorithms", // required for constrained Delaunay triangulation
+				"SkeletalMeshDescription"
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);
