@@ -104,16 +104,16 @@ namespace Horde.Agent.Tests
 
 		class FakeJsonRpcLoggerBackend : JsonRpcAndStorageLogSink
 		{
-			public NodeLocator Locator { get; private set; }
+			public RefTarget? Target { get; private set; }
 
 			public FakeJsonRpcLoggerBackend(IRpcConnection connection, string logId, IJsonRpcLogSink inner, IStorageClient store, ILogger logger)
 				: base(connection, logId, inner, store, logger)
 			{
 			}
 
-			protected override Task UpdateLogAsync(NodeLocator locator, int lineCount, CancellationToken cancellationToken)
+			protected override Task UpdateLogAsync(RefTarget target, int lineCount, CancellationToken cancellationToken)
 			{
-				Locator = locator;
+				Target = target;
 				return Task.CompletedTask;
 			}
 
@@ -157,7 +157,7 @@ namespace Horde.Agent.Tests
 						logger.LogInformation("Testing {Number}", idx);
 					}
 				}
-				file = await reader.ReadNodeAsync<LogNode>(sink.Locator);
+				file = await reader.ReadNodeAsync<LogNode>(sink.Target!);
 			}
 
 			// Check the index text

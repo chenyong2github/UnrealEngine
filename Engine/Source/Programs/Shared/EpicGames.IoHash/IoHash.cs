@@ -156,6 +156,16 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="text"></param>
 		/// <returns></returns>
+		public static IoHash Parse(ReadOnlySpan<char> text)
+		{
+			return new IoHash(StringUtils.ParseHexString(text));
+		}
+
+		/// <summary>
+		/// Parses a digest from the given hex string
+		/// </summary>
+		/// <param name="text"></param>
+		/// <returns></returns>
 		public static IoHash Parse(ReadOnlySpan<byte> text)
 		{
 			return new IoHash(StringUtils.ParseHexString(text));

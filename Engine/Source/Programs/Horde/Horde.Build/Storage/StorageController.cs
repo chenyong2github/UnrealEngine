@@ -26,7 +26,7 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Locator for the uploaded bundle
 		/// </summary>
-		public BlobLocator Locator { get; set; }
+		public BlobLocator Blob { get; set; }
 
 		/// <summary>
 		/// URL to upload the blob to.
@@ -47,12 +47,17 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Locator for the target blob
 		/// </summary>
-		public BlobLocator Locator { get; set; }
+		public BlobLocator Blob { get; set; }
 
 		/// <summary>
 		/// Export index for the ref
 		/// </summary>
 		public int ExportIdx { get; set; }
+
+		/// <summary>
+		/// Hash of the target node
+		/// </summary>
+		public IoHash Hash { get; set; }
 
 		/// <summary>
 		/// Options for the ref
@@ -76,12 +81,18 @@ namespace Horde.Build.Storage
 		public int ExportIdx { get; set; }
 
 		/// <summary>
+		/// Hash of the target node
+		/// </summary>
+		public IoHash Hash { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReadRefResponse(NodeLocator target)
+		public ReadRefResponse(RefTarget target)
 		{
-			Blob = target.Blob;
-			ExportIdx = target.ExportIdx;
+			Blob = target.Locator.Blob;
+			ExportIdx = target.Locator.ExportIdx;
+			Hash = target.Hash;
 		}
 	}
 
@@ -130,7 +141,7 @@ namespace Horde.Build.Storage
 				}
 				else
 				{
-					return new WriteBlobResponse { Locator = result.Value.Locator, UploadUrl = result.Value.UploadUrl };
+					return new WriteBlobResponse { Blob = result.Value.Locator, UploadUrl = result.Value.UploadUrl };
 				}
 			}
 			else
@@ -138,7 +149,7 @@ namespace Horde.Build.Storage
 				using (Stream stream = file.OpenReadStream())
 				{
 					BlobLocator locator = await client.WriteBlobAsync(stream, prefix: (prefix == null) ? Utf8String.Empty : new Utf8String(prefix), cancellationToken: cancellationToken);
-					return new WriteBlobResponse { Locator = locator, SupportsRedirects = client.SupportsRedirects? (bool?)true : null };
+					return new WriteBlobResponse { Blob = locator, SupportsRedirects = client.SupportsRedirects? (bool?)true : null };
 				}
 			}
 		}
@@ -164,7 +175,7 @@ namespace Horde.Build.Storage
 				}
 				else
 				{
-					return new WriteBlobResponse { Locator = result.Value.Locator, UploadUrl = result.Value.UploadUrl };
+					return new WriteBlobResponse { Blob = result.Value.Locator, UploadUrl = result.Value.UploadUrl };
 				}
 			}
 			else
@@ -172,7 +183,7 @@ namespace Horde.Build.Storage
 				using (Stream stream = file.OpenReadStream())
 				{
 					BlobLocator locator = await client.WriteBlobAsync(stream, prefix: (prefix == null) ? Utf8String.Empty : new Utf8String(prefix), cancellationToken: cancellationToken);
-					return new WriteBlobResponse { Locator = locator, SupportsRedirects = client.SupportsRedirects ? (bool?)true : null };
+					return new WriteBlobResponse { Blob = locator, SupportsRedirects = client.SupportsRedirects ? (bool?)true : null };
 				}
 			}
 		}
@@ -238,7 +249,7 @@ namespace Horde.Build.Storage
 			}
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			NodeLocator target = new NodeLocator(request.Locator, request.ExportIdx);
+			RefTarget target = new RefTarget(request.Hash, new NodeLocator(request.Blob, request.ExportIdx));
 			await client.WriteRefTargetAsync(refName, target, request.Options, cancellationToken);
 
 			return Ok();
@@ -261,8 +272,8 @@ namespace Horde.Build.Storage
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
 
-			NodeLocator target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
-			if (!target.IsValid())
+			RefTarget? target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
+			if (target == null)
 			{
 				return NotFound();
 			}

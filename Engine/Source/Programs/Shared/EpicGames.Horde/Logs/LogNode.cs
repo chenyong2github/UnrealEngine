@@ -269,7 +269,7 @@ namespace EpicGames.Horde.Logs
 		/// <param name="writer">Writer for the output nodes</param>
 		/// <param name="complete">Whether the log is complete</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<NodeLocator> FlushAsync(TreeWriter writer, bool complete, CancellationToken cancellationToken)
+		public async Task<RefTarget> FlushAsync(TreeWriter writer, bool complete, CancellationToken cancellationToken)
 		{
 			// Capture the new data that needs to be written
 			IReadOnlyList<LogChunkNode> writeTextChunks;
@@ -313,7 +313,7 @@ namespace EpicGames.Horde.Logs
 				_indexTextBuilder.Remove(writeIndexTextChunks.Count);
 			}
 
-			return newRootLocator;
+			return new RefTarget(newRootHash, newRootLocator);
 		}
 	}
 

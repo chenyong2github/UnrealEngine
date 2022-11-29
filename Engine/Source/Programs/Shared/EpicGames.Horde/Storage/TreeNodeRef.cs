@@ -54,26 +54,21 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Creates a reference to a node with the given hash
+		/// Creates a reference to a node in memory.
 		/// </summary>
-		/// <param name="hash">Hash of the referenced node</param>
-		/// <param name="locator">Locator for the node</param>
-		public TreeNodeRef(IoHash hash, NodeLocator locator)
+		/// <param name="target">Node to reference</param>
+		public TreeNodeRef(RefTarget target)
 		{
-			Hash = hash;
-			Locator = locator;
+			Hash = target.Hash;
+			Locator = target.Locator;
 		}
 
 		/// <summary>
 		/// Deserialization constructor
 		/// </summary>
 		/// <param name="reader"></param>
-		public TreeNodeRef(ITreeNodeReader reader)
+		public TreeNodeRef(ITreeNodeReader reader) : this(reader.ReadRefTarget())
 		{
-			TreeNodeRefData data = reader.ReadRefData();
-			Hash = data.Hash;
-			Locator = data.Locator;
-			Debug.Assert(Hash != IoHash.Zero);
 		}
 
 		/// <summary>
@@ -196,19 +191,16 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="hash">Hash of the referenced node</param>
-		/// <param name="locator">Locator for the node</param>
-		internal TreeNodeRef(IoHash hash, NodeLocator locator) 
-			: base(hash, locator)
+		/// <param name="target">The referenced node</param>
+		public TreeNodeRef(RefTarget target) : base(target)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="reader"></param>
-		public TreeNodeRef(ITreeNodeReader reader)
-			: base(reader)
+		/// <param name="reader">The reader to deserialize from</param>
+		public TreeNodeRef(ITreeNodeReader reader) : base(reader)
 		{
 		}
 
@@ -234,9 +226,4 @@ namespace EpicGames.Horde.Storage
 			return await reader.ReadNodeAsync<T>(Locator, cancellationToken);
 		}
 	}
-
-	/// <summary>
-	/// Deserialized ref data
-	/// </summary>
-	public record struct TreeNodeRefData(IoHash Hash, NodeLocator Locator);
 }

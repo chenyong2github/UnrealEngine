@@ -37,6 +37,7 @@ namespace EpicGames.Horde.Storage.Backends
 		{
 			public BlobLocator Blob { get; set; }
 			public int ExportIdx { get; set; }
+			public IoHash Hash { get; set; }
 		}
 
 		readonly Func<HttpClient> _createClient;
@@ -195,7 +196,7 @@ namespace EpicGames.Horde.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public override async Task<NodeLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public override async Task<RefTarget?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			using (HttpClient httpClient = _createClient())
 			{
@@ -206,7 +207,7 @@ namespace EpicGames.Horde.Storage.Backends
 						if (response.StatusCode == HttpStatusCode.NotFound)
 						{
 							_logger.LogDebug("Read ref {RefName} -> None", name);
-							return default;
+							return null;
 						}
 						else if (!response.IsSuccessStatusCode)
 						{
@@ -218,7 +219,7 @@ namespace EpicGames.Horde.Storage.Backends
 							response.EnsureSuccessStatusCode();
 							ReadRefResponse? data = await response.Content.ReadFromJsonAsync<ReadRefResponse>(cancellationToken: cancellationToken);
 							_logger.LogDebug("Read ref {RefName} -> {Blob}#{ExportIdx}", name, data!.Blob, data!.ExportIdx);
-							return new NodeLocator(data!.Blob, data!.ExportIdx);
+							return new(data.Hash, new NodeLocator(data!.Blob, data!.ExportIdx));
 						}
 					}
 				}
@@ -226,12 +227,12 @@ namespace EpicGames.Horde.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public override async Task WriteRefTargetAsync(RefName name, NodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default)
+		public override async Task WriteRefTargetAsync(RefName name, RefTarget target, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
-			_logger.LogDebug("Writing ref {RefName} -> {Blob}#{ExportIdx}", name, target.Blob, target.ExportIdx);
+			_logger.LogDebug("Writing ref {RefName} -> {RefTarget}", name, target);
 			using (HttpClient httpClient = _createClient())
 			{
-				using (HttpResponseMessage response = await httpClient.PutAsync($"refs/{name}", new { locator = target.Blob, exportIdx = target.ExportIdx, options }, cancellationToken))
+				using (HttpResponseMessage response = await httpClient.PutAsync($"refs/{name}", new { blob = target.Locator.Blob, exportIdx = target.Locator.ExportIdx, hash = target.Hash, options }, cancellationToken))
 				{
 					response.EnsureSuccessStatusCode();
 				}

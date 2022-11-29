@@ -213,8 +213,8 @@ namespace Horde.Agent.Parser
 
 			if (request.Flush || _bufferLength > FlushLength)
 			{
-				NodeLocator locator = await _builder.FlushAsync(_writer, request.Flush, cancellationToken);
-				await UpdateLogAsync(locator, _builder.LineCount, cancellationToken);
+				RefTarget target = await _builder.FlushAsync(_writer, request.Flush, cancellationToken);
+				await UpdateLogAsync(target, _builder.LineCount, cancellationToken);
 				_bufferLength = 0;
 			}
 
@@ -223,14 +223,14 @@ namespace Horde.Agent.Parser
 
 		#region RPC calls
 
-		protected virtual async Task UpdateLogAsync(NodeLocator locator, int lineCount, CancellationToken cancellationToken)
+		protected virtual async Task UpdateLogAsync(RefTarget target, int lineCount, CancellationToken cancellationToken)
 		{
-			_logger.LogDebug("Updating log {LogId} to line {LineCount}, blob {Locator}", _logId, lineCount, locator);
+			_logger.LogDebug("Updating log {LogId} to line {LineCount}, blob {Locator}", _logId, lineCount, target.Locator);
 
 			UpdateLogRequest request = new UpdateLogRequest();
 			request.LogId = _logId;
 			request.LineCount = lineCount;
-			request.BlobLocator = locator.ToString();
+			request.Target = target.ToString();
 			await _connection.InvokeAsync((LogRpcClient client) => client.UpdateLogAsync(request, cancellationToken: cancellationToken), cancellationToken);
 		}
 

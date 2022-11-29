@@ -259,7 +259,7 @@ namespace EpicGames.Horde.Storage
 			await FlushAsync(cancellationToken);
 
 			Debug.Assert(nodeRef.Locator.IsValid());
-			await _store.WriteRefTargetAsync(name, nodeRef.Locator, options, cancellationToken);
+			await _store.WriteRefTargetAsync(name, new RefTarget(nodeRef.Hash, nodeRef.Locator), options, cancellationToken);
 			return nodeRef.Locator;
 		}
 
@@ -274,7 +274,7 @@ namespace EpicGames.Horde.Storage
 		{
 			await FlushAsync(cancellationToken);
 			NodeLocator locator = GetLocator(root);
-			await _store.WriteRefTargetAsync(name, locator, options, cancellationToken);
+			await _store.WriteRefTargetAsync(name, new RefTarget(root, locator), options, cancellationToken);
 			return locator;
 		}
 

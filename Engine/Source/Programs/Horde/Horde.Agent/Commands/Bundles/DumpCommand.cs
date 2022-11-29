@@ -27,8 +27,8 @@ namespace Horde.Agent.Commands.Bundles
 
 			if (BlobId == null)
 			{
-				NodeLocator locator = await store.ReadRefTargetAsync(RefName);
-				BlobId = locator.Blob;
+				RefTarget locator = await store.ReadRefTargetAsync(RefName);
+				BlobId = locator.Locator.Blob;
 			}
 
 			logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);

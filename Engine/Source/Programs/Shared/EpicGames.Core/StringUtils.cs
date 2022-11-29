@@ -327,12 +327,18 @@ namespace EpicGames.Core
 		/// Parses a hexadecimal string into an array of bytes
 		/// </summary>
 		/// <returns>Array of bytes</returns>
-		public static byte[] ParseHexString(string text)
+		public static byte[] ParseHexString(string text) => ParseHexString(text.AsSpan());
+
+		/// <summary>
+		/// Parses a hexadecimal string into an array of bytes
+		/// </summary>
+		/// <returns>Array of bytes</returns>
+		public static byte[] ParseHexString(ReadOnlySpan<char> text)
 		{
 			byte[]? bytes;
 			if(!TryParseHexString(text, out bytes))
 			{
-				throw new FormatException(String.Format("Invalid hex string: '{0}'", text));
+				throw new FormatException(String.Format("Invalid hex string: '{0}'", text.ToString()));
 			}
 			return bytes;
 		}
@@ -357,7 +363,7 @@ namespace EpicGames.Core
 		/// <param name="text">Text to parse</param>
 		/// <param name="outBytes">Receives the parsed string</param>
 		/// <returns></returns>
-		public static bool TryParseHexString(string text, [NotNullWhen(true)] out byte[]? outBytes)
+		public static bool TryParseHexString(ReadOnlySpan<char> text, [NotNullWhen(true)] out byte[]? outBytes)
 		{
 			if((text.Length & 1) != 0)
 			{

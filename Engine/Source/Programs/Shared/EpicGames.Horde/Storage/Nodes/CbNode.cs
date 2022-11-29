@@ -31,7 +31,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public CbNode(CbObject obj, IReadOnlyDictionary<IoHash, NodeLocator> references)
 		{
 			Object = obj;
-			References = references.ToDictionary(x => x.Key, x => new TreeNodeRef(x.Key, x.Value));
+			References = references.ToDictionary(x => x.Key, x => new TreeNodeRef(new RefTarget(x.Key, x.Value)));
 		}
 
 		/// <summary>
@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public CbNode(ITreeNodeReader reader)
 		{
 			Object = new CbObject(reader.ReadFixedLengthBytes(reader.Length));
-			References = reader.References.ToDictionary(x => x.Key, x => new TreeNodeRef(x.Key, x.Value));
+			References = reader.References.ToDictionary(x => x.Key, x => new TreeNodeRef(new RefTarget(x.Key, x.Value)));
 		}
 
 		/// <inheritdoc/>
