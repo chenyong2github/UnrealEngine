@@ -94,6 +94,13 @@ const COMMAND_LINE_ARGS: {[param: string]: Arg<any>} = {
 		dflt: false
 	},
 
+	noMail: {
+		match: /^(-noMail)$/,
+		parse: _str => true,
+		env: 'ROBO_NO_MAIL',
+		dflt: false
+	},
+
 	noTLS: {
 		match: /^(-noTLS)$/,
 		parse: _str => true,
@@ -106,6 +113,7 @@ const COMMAND_LINE_ARGS: {[param: string]: Arg<any>} = {
 		env: 'ROBO_VAULT_PATH',
 		dflt: '/vault'
 	},
+
 	devMode: {
 		match: /^(-devMode)$/,
 		parse: _str => true,
@@ -303,7 +311,7 @@ async function _initBranchWorkspacesForAllBots(logger: ContextualLogger) {
 
 // should be called after data directory has been synced, to get latest email template
 function _initMailer(logger: ContextualLogger) {
-	robo.mailer = new Mailer(roboAnalytics!, logger);
+	robo.mailer = new Mailer(roboAnalytics!, logger, args.noMail);
 }
 
 function _checkForAutoPauseBots(branches: Branch[], logger: ContextualLogger) {

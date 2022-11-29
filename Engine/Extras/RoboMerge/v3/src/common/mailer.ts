@@ -108,7 +108,12 @@ export class Mailer {
 	analytics: Analytics | null;
 	private readonly mailerLogger = new ContextualLogger('Mailer')
 
-	constructor(analytics: Analytics, parentLogger: ContextualLogger) {
+	constructor(analytics: Analytics, parentLogger: ContextualLogger, mailDisabled: boolean) {
+
+		if (mailDisabled) {
+			return
+		}
+
 		this.mailerLogger = parentLogger.createChild('Mail')
 		this.templates = Mailer.readTemplates(this.mailerLogger)
 		this.mailerLogger.info(`Read email templates: [ ${Array.from(this.templates.keys()).join(', ')} ]`)
