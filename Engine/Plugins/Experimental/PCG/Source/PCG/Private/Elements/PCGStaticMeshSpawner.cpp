@@ -51,7 +51,12 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const bool bOutputPinConnected = Context->Node && Context->Node->IsOutputPinConnected(PCGPinConstants::DefaultOutputLabel);
+#if WITH_EDITOR
+	// In editor, we always want to generate this data for inspection & to prevent caching issues
+	const bool bGenerateOutput = true;
+#else
+	const bool bGenerateOutput = Context->Node && Context->Node->IsOutputPinConnected(PCGPinConstants::DefaultOutputLabel);
+#endif
 
 	for (const FPCGTaggedData& Input : Inputs)
 	{
@@ -73,7 +78,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 
 		UPCGPointData* OutputPointData = nullptr;
 
-		if (bOutputPinConnected || Settings->bForceConnectOutput)
+		if (bGenerateOutput)
 		{
 			FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
 

@@ -88,8 +88,6 @@ public:
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use MeshSelectorType and MeshSelectorInstance instead."))
 	TArray<FPCGStaticMeshSpawnerEntry> Meshes_DEPRECATED;
 
-	bool bForceConnectOutput = false;
-
 protected:
 	void RefreshMeshSelector();
 	void RefreshInstancePacker();

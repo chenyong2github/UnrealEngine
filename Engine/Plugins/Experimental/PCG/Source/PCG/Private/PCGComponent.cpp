@@ -2252,7 +2252,9 @@ void UPCGComponent::DirtyCacheForAllTrackedTags()
 
 bool UPCGComponent::GraphUsesLandscapePin() const
 {
-	return Graph && Graph->GetInputNode()->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeLabel);
+	return Graph &&
+		(Graph->GetInputNode()->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeLabel) ||
+		Graph->GetInputNode()->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeHeightLabel));
 }
 
 #endif // WITH_EDITOR

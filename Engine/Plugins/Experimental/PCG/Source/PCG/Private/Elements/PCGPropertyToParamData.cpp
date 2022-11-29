@@ -71,12 +71,15 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
+#if !WITH_EDITOR
 	// If we have no output connected, nothing to do
+	// Optimization possibly only in non-editor builds, otherwise we could poison the input-driven cache
 	if (!Context->Node || !Context->Node->IsOutputPinConnected(PCGPinConstants::DefaultOutputLabel))
 	{
 		PCGE_LOG(Verbose, "Node is not connected, nothing to do");
 		return true;
 	}
+#endif
 
 	// First find the actor depending on the selection
 	UPCGComponent* OriginalComponent = UPCGBlueprintHelpers::GetOriginalComponent(*Context);

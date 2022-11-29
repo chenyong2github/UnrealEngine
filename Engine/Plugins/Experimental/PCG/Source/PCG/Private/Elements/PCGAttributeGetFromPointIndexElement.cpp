@@ -80,8 +80,10 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 	const FPCGPoint& Point = PointData->GetPoints()[Index];
 
-	// Only create a point if we are connected, or in editor with the component being inspected.
-	if (Context->IsOutputConnectedOrInspecting(PCGAttributeGetFromPointIndexConstants::OutputPointLabel))
+#if !WITH_EDITOR
+	// Eschew output creation only in non-editor builds
+	if(Context->Node && Context->Node->IsOutputPinConnected(PCGAttributeGetFromPointIndexConstants::OutputPointLabel))
+#endif
 	{
 		UPCGPointData* OutputPointData = NewObject<UPCGPointData>();
 		OutputPointData->InitializeFromData(PointData);

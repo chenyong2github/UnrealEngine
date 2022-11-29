@@ -404,7 +404,11 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 	Output.Data = OutputParamData;
 	Output.Pin = PCGAttributeSelectConstants::OutputAttributeLabel;
 
-	if (PointData && Context->IsOutputConnectedOrInspecting(PCGAttributeSelectConstants::OutputPointLabel))
+#if WITH_EDITOR
+	if(PointData)
+#else
+	if(PointData && Context->Node && Context->Node->IsOutputPinConnected(PCGAttributeSelectConstants::OutputPointLabel))
+#endif
 	{
 		UPCGPointData* OutputPointData = NewObject<UPCGPointData>();
 		OutputPointData->InitializeFromData(PointData);

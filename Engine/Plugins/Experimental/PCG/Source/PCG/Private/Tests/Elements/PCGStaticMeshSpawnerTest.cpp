@@ -143,11 +143,6 @@ void TestMeshSelectorByAttribute(
 	UPCGMeshSelectorByAttribute* MeshSelector = CastChecked<UPCGMeshSelectorByAttribute>(Settings->MeshSelectorInstance);
 	MeshSelector->AttributeName = AttributeName;
 
-	if (bValidateOutput)
-	{
-		Settings->bForceConnectOutput = true;
-	}
-
 	// initialize and execute the StaticMeshSpawner
 	FPCGElementPtr StaticMeshSpawner = Settings->GetElement();
 	FPCGContext* Context = StaticMeshSpawner->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr);
@@ -272,11 +267,6 @@ void TestMeshSelectorWeighted(
 	UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(Settings->MeshSelectorInstance);
 	MeshSelector->MeshEntries = Entries;
 
-	if (bValidateOutput)
-	{
-		Settings->bForceConnectOutput = true;
-	}
-
 	// initialize and execute the StaticMeshSpawner
 	FPCGElementPtr StaticMeshSpawner = Settings->GetElement();
 	FPCGContext* Context = StaticMeshSpawner->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr);
@@ -364,11 +354,6 @@ void TestMeshSelectorWeightedByCategory(
 	UPCGMeshSelectorWeightedByCategory* MeshSelector = CastChecked<UPCGMeshSelectorWeightedByCategory>(Settings->MeshSelectorInstance);
 	MeshSelector->CategoryAttribute = AttributeName;
 	MeshSelector->Entries = Entries;
-
-	if (bValidateOutput)
-	{
-		Settings->bForceConnectOutput = true;
-	}
 
 	// initialize and execute the StaticMeshSpawner
 	FPCGElementPtr StaticMeshSpawner = Settings->GetElement();

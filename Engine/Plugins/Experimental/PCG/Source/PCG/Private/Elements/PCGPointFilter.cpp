@@ -608,11 +608,13 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 	const bool bHasInFilterOutputPin = Context->Node && Context->Node->IsOutputPinConnected(PCGPointFilterConstants::InFilterLabel);
 	const bool bHasOutsideFilterOutputPin = Context->Node && Context->Node->IsOutputPinConnected(PCGPointFilterConstants::OutFilterLabel);
 
-	// Early out
+#if !WITH_EDITOR
+	// Early out - only in non-editor builds, otherwise we will potentially poison the cache, since it is input-driven
 	if (!bHasInFilterOutputPin && !bHasOutsideFilterOutputPin)
 	{
 		return true;
 	}
+#endif
 
 	const UPCGPointFilterSettings* Settings = Context->GetInputSettings<UPCGPointFilterSettings>();
 	check(Settings);
@@ -712,14 +714,23 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 		// Additional validation
 		if (TargetFilterType == EPCGPointTargetFilterType::Metadata)
 		{
+			bool bExitToOutFilter = false;
+
 			if (!TargetMetadata)
 			{
-				PCGE_LOG(Error, "Target data to filter has no metadata which is required to filter by metadata");
-				continue;
+				PCGE_LOG(Warning, "Target data to filter has no metadata which is required to filter by metadata");
+				bExitToOutFilter = true;
 			}
 			else if (!TargetMetadata->GetConstAttribute(LocalTargetAttributeName))
 			{
-				PCGE_LOG(Error, "Target metadata does not have the %s attribute", *LocalTargetAttributeName.ToString());
+				PCGE_LOG(Warning, "Target metadata does not have the %s attribute", *LocalTargetAttributeName.ToString());
+				bExitToOutFilter = true;
+			}
+
+			if (bExitToOutFilter)
+			{
+				FPCGTaggedData& OutFilterTaggedData = Outputs.Add_GetRef(Input);
+				OutFilterTaggedData.Pin = PCGPointFilterConstants::OutFilterLabel;
 				continue;
 			}
 		}
@@ -728,14 +739,23 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 		
 		if (ThresholdFilterType == EPCGPointThresholdType::Metadata)
 		{
+			bool bExitToInFilter = false;
+
 			if (!ThresholdMetadata)
 			{
-				PCGE_LOG(Error, "Filter data has no metadata which is required to filter by metadata");
-				continue;
+				PCGE_LOG(Warning, "Filter data has no metadata which is required to filter by metadata");
+				bExitToInFilter = true;
 			}
 			else if (!ThresholdMetadata->GetConstAttribute(LocalThresholdAttributeName))
 			{
-				PCGE_LOG(Error, "Filter metadata does not have the %s attribute", *LocalThresholdAttributeName.ToString());
+				PCGE_LOG(Warning, "Filter metadata does not have the %s attribute", *LocalThresholdAttributeName.ToString());
+				bExitToInFilter = true;
+			}
+
+			if (bExitToInFilter)
+			{
+				FPCGTaggedData& InFilterTaggedData = Outputs.Add_GetRef(Input);
+				InFilterTaggedData.Pin = PCGPointFilterConstants::InFilterLabel;
 				continue;
 			}
 		}
