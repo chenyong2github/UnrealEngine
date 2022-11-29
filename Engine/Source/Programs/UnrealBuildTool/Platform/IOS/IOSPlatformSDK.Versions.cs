@@ -22,7 +22,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The minimum Clang version that a static library can be built with
 		/// </summary>
-		public override Version MinimumStaticLibClangVersion
+		public Version MinimumStaticLibClangVersion
 		{
 			get
 			{

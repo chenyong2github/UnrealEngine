@@ -205,41 +205,6 @@ namespace UnrealBuildTool
 						continue;
 					}
 					ValidatedLibs.Add(LibLoc);
-
-					switch (LibLoc.GetExtension())
-					{
-						case ".a":
-							{
-								// For a static lib, grep it
-								string Args = "-c \"strings ";
-								Args += LibLoc.FullName;
-								Args += " | grep -m1 -i \\(clang\"";
-								string StdOutResult = Utils.RunLocalProcessAndReturnStdOut("bash", Args);
-								if (string.IsNullOrEmpty(StdOutResult))
-								{
-									continue;
-								}
-
-								// This Regex will extract a 2-4 segment version code from string containing a 2-5 segment code 
-								// ie: if given string: "Apple clang version 14.0.0 (clang-1400.0.17.3.1)"
-								//     it'll extract: "1400.0.17.3"  (note the dropped 5th segment)
-								Match M = Regex.Match(StdOutResult, @"(\(clang-(?<ver>\d+.\d+(.(\d+))?(.(\d+))?)(.(\d+))?\))");
-								if (M.Success)
-								{
-									string LibString = M.Groups["ver"].ToString();
-									Version? LibVersion = new Version(LibString);
-									if (LibVersion != null && LibVersion > SDK.MinimumStaticLibClangVersion)
-									{
-										throw new BuildException("macOS Static Library:'{0}' is built with a version of clang newer than UE supports ({1} > {2}). \nPlease rebuild {3} with the minimum supported version of Xcode/clang.", LibLoc, LibString, SDK.MinimumStaticLibClangVersion, LibLoc);
-									}
-								}
-							}
-							break;
-
-						default:
-							// For now, we don't validate any other types of libs (dylib, Framework, etc)
-							break;
-					}
 				}
 			}
 		}
