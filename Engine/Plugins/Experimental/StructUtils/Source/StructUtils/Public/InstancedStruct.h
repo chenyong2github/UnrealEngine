@@ -64,7 +64,7 @@ public:
 		{
 			Reset();
 
-			SetStructData(InOther.GetScriptStruct(), InOther.GetMemory());
+			SetStructData(InOther.GetScriptStruct(), InOther.GetMutableMemory());
 			InOther.SetStructData(nullptr,nullptr);
 		}
 		return *this;
@@ -186,11 +186,10 @@ public:
 		return nullptr;
 	}
 
-	/** Returns a mutable pointer to struct memory. This const_cast here is safe as a ClassName can only be setup from mutable non const memory. */
+	/** Returns a mutable pointer to struct memory. */
 	uint8* GetMutableMemory() const
 	{
-		const uint8* Memory = GetMemory();
-		return const_cast<uint8*>(Memory);
+		return StructMemory;
 	}
 
 	/** Returns mutable reference to the struct, this getter assumes that all data is valid. */
@@ -263,7 +262,7 @@ protected:
 		}
 	}
 
-	FInstancedStruct(const UScriptStruct* InScriptStruct, const uint8* InStructMemory)
+	FInstancedStruct(const UScriptStruct* InScriptStruct, uint8* InStructMemory)
 		: ScriptStruct(InScriptStruct)
 		, StructMemory(InStructMemory)
 	{}
@@ -272,15 +271,14 @@ protected:
 		StructMemory = nullptr;
 		ScriptStruct = nullptr;
 	}
-	void SetStructData(const UScriptStruct* InScriptStruct, const uint8* InStructMemory)
+	void SetStructData(const UScriptStruct* InScriptStruct, uint8* InStructMemory)
 	{
 		ScriptStruct = InScriptStruct;
 		StructMemory = InStructMemory;
 	}
 
-
 	const UScriptStruct* ScriptStruct = nullptr;
-	const uint8* StructMemory = nullptr;
+	uint8* StructMemory = nullptr;
 };
 
 template<>

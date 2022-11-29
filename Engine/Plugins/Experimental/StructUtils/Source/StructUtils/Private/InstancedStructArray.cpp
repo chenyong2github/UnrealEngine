@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstancedStructArray.h"
+#include "StructUtilsTypes.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStructArray)
@@ -369,8 +370,7 @@ void FInstancedStructArray::AddStructReferencedObjects(class FReferenceCollector
 		FItem& Item = GetItem(Index);
 		if (Item.ScriptStruct != nullptr)
 		{
-			Collector.AddReferencedObject(Item.ScriptStruct);
-			Collector.AddReferencedObjects(Item.ScriptStruct, Memory + Item.Offset);
+			UE::StructUtils::AddReferencedObjects(Collector, Item.ScriptStruct, Memory + Item.Offset);
 		}
 	}
 }

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstancedStruct.h"
 #include "StructView.h"
-#include "SharedStruct.h"
+#include "StructUtilsTypes.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStruct)
@@ -84,7 +84,7 @@ void FInstancedStruct::InitializeAs(const UScriptStruct* InScriptStruct, const u
 		{
 			const int32 MinAlignment = InScriptStruct->GetMinAlignment();
 			const int32 RequiredSize = InScriptStruct->GetStructureSize();
-			const uint8* Memory = ((uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize), MinAlignment));
+			uint8* Memory = ((uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize), MinAlignment));
 			SetStructData(InScriptStruct, Memory);
 
 			InScriptStruct->InitializeStruct(GetMutableMemory());
@@ -366,9 +366,9 @@ bool FInstancedStruct::Identical(const FInstancedStruct* Other, uint32 PortFlags
 
 void FInstancedStruct::AddStructReferencedObjects(class FReferenceCollector& Collector)
 {
-	if (const UScriptStruct* Struct = GetScriptStruct())
+	if (ScriptStruct != nullptr)
 	{
-		Collector.AddReferencedObjects(Struct, GetMutableMemory());
+		UE::StructUtils::AddReferencedObjects(Collector, ScriptStruct, GetMutableMemory());
 	}
 }
 
