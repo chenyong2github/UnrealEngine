@@ -26,10 +26,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense")
 	float HearingRange;
 
+	UE_DEPRECATED(5.1, "LoSHearingRange is deprecated. Use HearingRage instead.")
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", meta = (EditCondition = "bUseLoSHearing"))
 	float LoSHearingRange;
 
-	/** Warning: has significant runtime cost */
+	UE_DEPRECATED(5.1, "bUseLoSHearing is deprecated.")
 	UPROPERTY(EditDefaultsOnly, Category = "Sense", meta = (InlineEditConditionToggle))
 	uint32 bUseLoSHearing : 1;
 

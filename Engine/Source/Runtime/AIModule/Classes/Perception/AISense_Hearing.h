@@ -27,7 +27,7 @@ struct AIMODULE_API FAINoiseEvent
 	/**
 	 * Loudness modifier of the sound.
 	 * If MaxRange is non-zero, this modifies the range (by multiplication).
-	 * If there is no MaxRange, then if Square(DistanceToSound) <= Square(HearingRange) * Loudness, the sound is heard, false otherwise.
+	 * If there is no MaxRange, then if Square(DistanceToSound) <= Square(HearingRange * Loudness), the sound is heard, false otherwise.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sense", meta = (UIMin = 0, ClampMin = 0))
 	float Loudness;
@@ -77,9 +77,7 @@ protected:
 	struct FDigestedHearingProperties
 	{
 		float HearingRangeSq;
-		float LoSHearingRangeSq;
 		uint8 AffiliationFlags;
-		uint32 bUseLoSHearing : 1;
 
 		FDigestedHearingProperties(const UAISenseConfig_Hearing& SenseConfig);
 		FDigestedHearingProperties();

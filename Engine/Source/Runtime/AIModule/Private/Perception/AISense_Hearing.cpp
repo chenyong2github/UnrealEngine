@@ -39,13 +39,11 @@ void FAINoiseEvent::Compile()
 UAISense_Hearing::FDigestedHearingProperties::FDigestedHearingProperties(const UAISenseConfig_Hearing& SenseConfig)
 {
 	HearingRangeSq = FMath::Square(SenseConfig.HearingRange);
-	LoSHearingRangeSq = FMath::Square(SenseConfig.LoSHearingRange);
 	AffiliationFlags = SenseConfig.DetectionByAffiliation.GetAsFlags();
-	bUseLoSHearing = SenseConfig.bUseLoSHearing;
 }
 
 UAISense_Hearing::FDigestedHearingProperties::FDigestedHearingProperties()
-	: HearingRangeSq(-1.f), LoSHearingRangeSq(-1.f), AffiliationFlags(-1), bUseLoSHearing(false)
+	: HearingRangeSq(-1.f), AffiliationFlags(-1)
 {
 
 }

@@ -281,10 +281,6 @@ void UAISenseConfig_Hearing::DescribeSelfToGameplayDebugger(const UAIPerceptionC
 		FVector OwnerLocation = BodyActor->GetActorLocation();
 		
 		DebuggerCategory->AddShape(FGameplayDebuggerShape::MakeCylinder(OwnerLocation, HearingRange, 25.0f, HearingRangeColor));
-		if (bUseLoSHearing)
-		{
-			DebuggerCategory->AddShape(FGameplayDebuggerShape::MakeCylinder(OwnerLocation, LoSHearingRange, 25.0f, LoSHearingRangeColor));
-		}
 	}
 }
 #endif // WITH_GAMEPLAY_DEBUGGER
