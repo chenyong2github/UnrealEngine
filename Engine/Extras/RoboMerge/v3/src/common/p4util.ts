@@ -4,7 +4,8 @@ import { ContextualLogger } from './logger';
 import { Change, coercePerforceWorkspace, OpenedFileRecord, PerforceContext, RoboWorkspace } from './perforce';
 
 const USER_WORKSPACE_EXCLUDE_PATTERNS: (RegExp | string)[] = [
-	'horde-p4bridge-'
+	'horde-p4bridge-',
+	'swarm-'
 ]
 
 ///////////////////
