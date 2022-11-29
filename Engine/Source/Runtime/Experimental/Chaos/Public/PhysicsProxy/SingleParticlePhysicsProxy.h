@@ -811,7 +811,7 @@ public:
 
 	const FReal LinearEtherDrag() const
 	{
-		return Read([](auto* Particle)
+		return Read([](auto* Particle) -> FReal
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
@@ -835,7 +835,7 @@ public:
 
 	const FReal AngularEtherDrag() const
 	{
-		return Read([](auto* Particle)
+		return Read([](auto* Particle) -> FReal
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
