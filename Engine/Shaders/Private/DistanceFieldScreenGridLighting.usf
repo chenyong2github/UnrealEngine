@@ -232,13 +232,13 @@ void ConeTraceObjectOcclusionCS(
 void HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	uniform uint ClipmapIndex,
 	uint OutputBaseIndex,
-	float3 WorldShadingPosition,
+	float3 TranslatedWorldPosition,
 	float SceneDepth,
 	float3 WorldNormal,
 	float3 TangentX,
 	float3 TangentY)
 {
-	const float VoxelExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+	const float VoxelExtent = GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 	const float MinStepSize = VoxelExtent;
 	const float InvAOGlobalMaxOcclusionDistance = 1.0f / AOGlobalMaxOcclusionDistance;
 
@@ -250,8 +250,8 @@ void HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 #else
 	// Cover AO leaking by comparing initial step SDF value against initial step size.
 	{
-		float3 WorldSamplePosition = WorldShadingPosition + WorldNormal * InitialOffset;
-		float DistanceToOccluder = SampleGlobalDistanceField(WorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
+		float3 TranslatedWorldSamplePosition = TranslatedWorldPosition + WorldNormal * InitialOffset;
+		float DistanceToOccluder = SampleGlobalDistanceField(TranslatedWorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
 		ConeTraceLeakFill = saturate(Pow2(DistanceToOccluder / InitialOffset)) * 0.4f + 0.6f;
 	}
 #endif
@@ -268,8 +268,8 @@ void HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 		LOOP
 		for (uint StepIndex = 0; StepIndex < NUM_CONE_STEPS && WorldStepOffset < AOGlobalMaxOcclusionDistance; StepIndex++)
 		{
-			float3 WorldSamplePosition = WorldShadingPosition + RotatedConeDirection * WorldStepOffset;
-			float DistanceToOccluder = SampleGlobalDistanceField(WorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
+			float3 TranslatedWorldSamplePosition = TranslatedWorldPosition + RotatedConeDirection * WorldStepOffset;
+			float DistanceToOccluder = SampleGlobalDistanceField(TranslatedWorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
 			float SphereRadius = WorldStepOffset * TanConeHalfAngle;
 			float InvSphereRadius = rcpFast(SphereRadius);
 
@@ -296,13 +296,13 @@ void HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	}
 }
 
-void HemisphereConeTraceAgainstGlobalDistanceField(uint OutputBaseIndex, float3 WorldShadingPosition, float SceneDepth, float3 WorldNormal, float3 TangentX, float3 TangentY)
+void HemisphereConeTraceAgainstGlobalDistanceField(uint OutputBaseIndex, float3 TranslatedWorldPosition, float SceneDepth, float3 WorldNormal, float3 TangentX, float3 TangentY)
 {
 	int MinClipmapIndex = -1;
 
 	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ++ClipmapIndex)
 	{
-		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldShadingPosition);
+		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].www, TranslatedWorldPosition);
 		if (DistanceFromClipmap > AOGlobalMaxOcclusionDistance)
 		{
 			MinClipmapIndex = ClipmapIndex;
@@ -312,7 +312,7 @@ void HemisphereConeTraceAgainstGlobalDistanceField(uint OutputBaseIndex, float3 
 
 	if (MinClipmapIndex >= 0)
 	{
-		HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(MinClipmapIndex, OutputBaseIndex, WorldShadingPosition, SceneDepth, WorldNormal, TangentX, TangentY);
+		HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(MinClipmapIndex, OutputBaseIndex, TranslatedWorldPosition, SceneDepth, WorldNormal, TangentX, TangentY);
 	}
 }
 
@@ -344,11 +344,11 @@ void ConeTraceGlobalOcclusionCS(
 		float2 ScreenUV = GetScreenUVFromScreenGrid(OutputCoordinate);
 		float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 		
-		float3 WorldShadingPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
+		float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 
 		uint OutputBaseIndex = OutputCoordinate.y * ScreenGridConeVisibilitySize.x + OutputCoordinate.x;
 
-		HemisphereConeTraceAgainstGlobalDistanceField(OutputBaseIndex, WorldShadingPosition, SceneDepth, WorldNormal, TangentX, TangentY);
+		HemisphereConeTraceAgainstGlobalDistanceField(OutputBaseIndex, TranslatedWorldPosition, SceneDepth, WorldNormal, TangentX, TangentY);
 	}
 }
 

@@ -509,9 +509,9 @@ void TraceVoxels(
 	FConeTraceInput TraceInput;
 	TraceInput.Setup(SamplePosition, SampleTranslatedPosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, 0.0f, RayData.TraceDistance, 1.0f);
 
-	uint ClipmapForSurfaceExpand = ComputeGlobalDistanceFieldClipmapIndex(WorldPosition + TraceHitDistance * RayData.Direction);
+	uint ClipmapForSurfaceExpand = ComputeGlobalDistanceFieldClipmapIndex(TranslatedWorldPosition + TraceHitDistance * RayData.Direction);
 	// Pull back from where the previous tracing method left off so that we start outside the surface, so that the SDF expansion works properly and prevents leaking through thin objects
-	float PullbackForSurfaceExpand = GlobalVolumeCenterAndExtent[ClipmapForSurfaceExpand].w * GlobalVolumeTexelSize * 4.0f;
+	float PullbackForSurfaceExpand = GlobalVolumeTranslatedCenterAndExtent[ClipmapForSurfaceExpand].w * GlobalVolumeTexelSize * 4.0f;
 	TraceInput.VoxelTraceStartDistance = max(TraceHitDistance - PullbackForSurfaceExpand, 0.0f);
 	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
 	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;

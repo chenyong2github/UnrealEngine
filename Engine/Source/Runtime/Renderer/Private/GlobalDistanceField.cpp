@@ -275,10 +275,10 @@ FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobal
 
 	for (int32 Index = 0; Index < GlobalDistanceField::MaxClipmaps; Index++)
 	{
-		ShaderParameters.GlobalVolumeCenterAndExtent[Index] = ParameterData.CenterAndExtent[Index];
-		ShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = ParameterData.WorldToUVAddAndMul[Index];
-		ShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = ParameterData.MipWorldToUVScale[Index];
-		ShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = ParameterData.MipWorldToUVBias[Index];
+		ShaderParameters.GlobalVolumeTranslatedCenterAndExtent[Index] = ParameterData.TranslatedCenterAndExtent[Index];
+		ShaderParameters.GlobalVolumeTranslatedWorldToUVAddAndMul[Index] = ParameterData.TranslatedWorldToUVAddAndMul[Index];
+		ShaderParameters.GlobalDistanceFieldMipTranslatedWorldToUVScale[Index] = ParameterData.MipTranslatedWorldToUVScale[Index];
+		ShaderParameters.GlobalDistanceFieldMipTranslatedWorldToUVBias[Index] = ParameterData.MipTranslatedWorldToUVBias[Index];
 	}
 
 	ShaderParameters.GlobalDistanceFieldMipFactor = ParameterData.MipFactor;
@@ -460,7 +460,7 @@ void RequestGlobalDistanceFieldReadback(FGlobalDistanceFieldReadback* Readback)
 	}
 }
 
-void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, bool bLumenEnabled, float LumenSceneViewDistance)
+void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, bool bLumenEnabled, float LumenSceneViewDistance, FVector PreViewTranslation)
 {
 	ParameterData.PageTableTexture = nullptr;
 	ParameterData.PageAtlasTexture = nullptr;
@@ -511,33 +511,36 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 			if (ClipmapIndex < Clipmaps.Num())
 			{
 				const FGlobalDistanceFieldClipmap& Clipmap = Clipmaps[ClipmapIndex];
-				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4f((FVector3f)Clipmap.Bounds.GetCenter(), Clipmap.Bounds.GetExtent().X);
 
-				// GlobalUV = (WorldPosition - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz + GlobalVolumeScollOffset[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f;
-				// WorldToUVMul = 1.0f / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2)
-				// WorldToUVAdd = (GlobalVolumeScollOffset[ClipmapIndex].xyz - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f
-				const FVector WorldToUVAdd = (Clipmap.ScrollOffset - Clipmap.Bounds.GetCenter()) / Clipmap.Bounds.GetSize().X + FVector(.5f);
-				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4f((FVector3f)WorldToUVAdd, 1.0f / Clipmap.Bounds.GetSize().X);
+				const FBox TranslatedBounds = Clipmap.Bounds.ShiftBy(PreViewTranslation);
 
-				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector3f(FVector(1.0f) / Clipmap.Bounds.GetSize());
-				ParameterData.MipWorldToUVBias[ClipmapIndex] = FVector3f((-Clipmap.Bounds.Min) / Clipmap.Bounds.GetSize()); // LWC_TODO: precision loss
+				ParameterData.TranslatedCenterAndExtent[ClipmapIndex] = FVector4f((FVector3f)TranslatedBounds.GetCenter(), TranslatedBounds.GetExtent().X);
 
-				ParameterData.MipWorldToUVScale[ClipmapIndex].Z = ParameterData.MipWorldToUVScale[ClipmapIndex].Z / Clipmaps.Num();
-				ParameterData.MipWorldToUVBias[ClipmapIndex].Z = (ParameterData.MipWorldToUVBias[ClipmapIndex].Z + ClipmapIndex) / Clipmaps.Num();
+				// GlobalUV = (TranslatedWorldPosition - GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz + GlobalVolumeScollOffset[ClipmapIndex].xyz) / (GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * 2) + .5f;
+				// TranslatedWorldToUVMul = 1.0f / (GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * 2)
+				// TranslatedWorldToUVAdd = (GlobalVolumeScollOffset[ClipmapIndex].xyz - GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz) / (GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * 2) + .5f
+				const FVector TranslatedWorldToUVAdd = (Clipmap.ScrollOffset - TranslatedBounds.GetCenter()) / TranslatedBounds.GetSize().X + FVector(.5f);
+				ParameterData.TranslatedWorldToUVAddAndMul[ClipmapIndex] = FVector4f((FVector3f)TranslatedWorldToUVAdd, 1.0f / TranslatedBounds.GetSize().X);
+
+				ParameterData.MipTranslatedWorldToUVScale[ClipmapIndex] = FVector3f(FVector(1.0f) / TranslatedBounds.GetSize());
+				ParameterData.MipTranslatedWorldToUVBias[ClipmapIndex] = FVector3f((-TranslatedBounds.Min) / TranslatedBounds.GetSize());
+
+				ParameterData.MipTranslatedWorldToUVScale[ClipmapIndex].Z = ParameterData.MipTranslatedWorldToUVScale[ClipmapIndex].Z / Clipmaps.Num();
+				ParameterData.MipTranslatedWorldToUVBias[ClipmapIndex].Z = (ParameterData.MipTranslatedWorldToUVBias[ClipmapIndex].Z + ClipmapIndex) / Clipmaps.Num();
 
 				// MipUV.z min max for correct bilinear filtering
 				const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution(bLumenEnabled);
 				const float MipUVMinZ = (ClipmapIndex * ClipmapMipResolution + 0.5f) / MipTextureResolution.Z;
 				const float MipUVMaxZ = (ClipmapIndex * ClipmapMipResolution + ClipmapMipResolution - 0.5f) / MipTextureResolution.Z;
-				ParameterData.MipWorldToUVScale[ClipmapIndex].W = MipUVMinZ;
-				ParameterData.MipWorldToUVBias[ClipmapIndex].W = MipUVMaxZ;
+				ParameterData.MipTranslatedWorldToUVScale[ClipmapIndex].W = MipUVMinZ;
+				ParameterData.MipTranslatedWorldToUVBias[ClipmapIndex].W = MipUVMaxZ;
 			}
 			else
 			{
-				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4f(0);
-				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4f(0);
-				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector4f(0);
-				ParameterData.MipWorldToUVBias[ClipmapIndex] = FVector4f(0);
+				ParameterData.TranslatedCenterAndExtent[ClipmapIndex] = FVector4f(0);
+				ParameterData.TranslatedWorldToUVAddAndMul[ClipmapIndex] = FVector4f(0);
+				ParameterData.MipTranslatedWorldToUVScale[ClipmapIndex] = FVector4f(0);
+				ParameterData.MipTranslatedWorldToUVBias[ClipmapIndex] = FVector4f(0);
 			}
 		}
 
@@ -565,7 +568,7 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 }
 
 /** Constructs and adds an update region based on camera movement for the given axis. */
-static void AddUpdateBoundsForAxis(FIntVector MovementInPages,
+static void AddUpdateBoundsForAxis(FInt64Vector MovementInPages,
 	const FBox& ClipmapBounds,
 	float ClipmapPageSize,
 	int32 ComponentIndex, 
@@ -632,6 +635,18 @@ static bool ShouldUpdateClipmapThisFrame(int32 ClipmapIndex, int32 NumClipmaps, 
 	return GlobalDistanceFieldUpdateIndex % Frequency == Phase;
 }
 
+FVector ClampCameraVelocityOffset(FVector CameraVelocityOffset, int32 ClipmapIndex, const FScene* Scene, bool bLumenEnabled)
+{
+	// Clamp the view origin to stay inside the current clipmap extents
+	const float ClipmapExtent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene, bLumenEnabled);
+	const float MaxCameraDriftFraction = .75f;
+	CameraVelocityOffset.X = FMath::Clamp<float>(CameraVelocityOffset.X, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
+	CameraVelocityOffset.Y = FMath::Clamp<float>(CameraVelocityOffset.Y, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
+	CameraVelocityOffset.Z = FMath::Clamp<float>(CameraVelocityOffset.Z, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
+
+	return CameraVelocityOffset;
+}
+
 static void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View, bool bLumenEnabled)
 {
 	// Don't update origin if it has already been updated this frame
@@ -649,12 +664,8 @@ static void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View, bool bLum
 
 			if (Scene && NumClipmaps > 0)
 			{
-				// Clamp the view origin offset to stay inside the current clipmap extents
-				const float LargestVoxelClipmapExtent = GlobalDistanceField::GetClipmapExtent(NumClipmaps - 1, Scene, bLumenEnabled);
-				const float MaxCameraDriftFraction = .75f;
-				CameraVelocityOffset.X = FMath::Clamp<float>(CameraVelocityOffset.X, -LargestVoxelClipmapExtent * MaxCameraDriftFraction, LargestVoxelClipmapExtent * MaxCameraDriftFraction);
-				CameraVelocityOffset.Y = FMath::Clamp<float>(CameraVelocityOffset.Y, -LargestVoxelClipmapExtent * MaxCameraDriftFraction, LargestVoxelClipmapExtent * MaxCameraDriftFraction);
-				CameraVelocityOffset.Z = FMath::Clamp<float>(CameraVelocityOffset.Z, -LargestVoxelClipmapExtent * MaxCameraDriftFraction, LargestVoxelClipmapExtent * MaxCameraDriftFraction);
+				// clamp based on largest voxel clipmap extent
+				CameraVelocityOffset = ClampCameraVelocityOffset(CameraVelocityOffset, NumClipmaps - 1, Scene, bLumenEnabled);
 			}
 		}
 		else
@@ -676,12 +687,7 @@ FVector GetGlobalDistanceFieldViewOrigin(const FViewInfo& View, int32 ClipmapInd
 
 		if (Scene)
 		{
-			// Clamp the view origin to stay inside the current clipmap extents
-			const float ClipmapExtent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene, bLumenEnabled);
-			const float MaxCameraDriftFraction = .75f;
-			CameraVelocityOffset.X = FMath::Clamp<float>(CameraVelocityOffset.X, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
-			CameraVelocityOffset.Y = FMath::Clamp<float>(CameraVelocityOffset.Y, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
-			CameraVelocityOffset.Z = FMath::Clamp<float>(CameraVelocityOffset.Z, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
+			CameraVelocityOffset = ClampCameraVelocityOffset(CameraVelocityOffset, ClipmapIndex, Scene, bLumenEnabled);
 		}
 
 		CameraOrigin += CameraVelocityOffset;
@@ -959,6 +965,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 			const float ClipmapVoxelSize = (2.0f * ClipmapExtent) / ClipmapResolution;
 			const float ClipmapPageSize = GGlobalDistanceFieldPageResolution * ClipmapVoxelSize;
 			const float ClipmapInfluenceRadius = GGlobalDistanceFieldInfluenceRangeInVoxels * ClipmapVoxelSize;
+			const int64 ClipmapSizeInPages = GlobalDistanceField::GetPageTableClipmapResolution(bLumenEnabled);
 
 			// Accumulate primitive modifications in the viewstate in case we don't update the clipmap this frame
 			for (uint32 CacheType = 0; CacheType < GDF_Num; CacheType++)
@@ -990,7 +997,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				const FVector GlobalDistanceFieldViewOrigin = GetGlobalDistanceFieldViewOrigin(View, ClipmapIndex, bLumenEnabled);
 
 				// Snap to the global distance field page's size
-				FIntVector PageGridCenter;
+				FInt64Vector PageGridCenter;
 				PageGridCenter.X = FMath::RoundToInt(GlobalDistanceFieldViewOrigin.X / ClipmapPageSize);
 				PageGridCenter.Y = FMath::RoundToInt(GlobalDistanceFieldViewOrigin.Y / ClipmapPageSize);
 				PageGridCenter.Z = FMath::RoundToInt(GlobalDistanceFieldViewOrigin.Z / ClipmapPageSize);
@@ -1026,10 +1033,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 					for (int32 BoundsIndex = 0; BoundsIndex < PrimitiveModifiedBounds.Num(); BoundsIndex++)
 					{
-						const FBox PrimBounds = PrimitiveModifiedBounds[BoundsIndex];
-						const FVector PrimWorldCenter = PrimBounds.GetCenter();
-						const FVector PrimWorldExtent = PrimBounds.GetExtent();
-						const FBox ModifiedBounds(PrimWorldCenter - PrimWorldExtent, PrimWorldCenter + PrimWorldExtent);
+						const FBox ModifiedBounds = PrimitiveModifiedBounds[BoundsIndex];
 
 						if (ModifiedBounds.ComputeSquaredDistanceToBox(ClipmapBounds) < ClipmapInfluenceRadius * ClipmapInfluenceRadius)
 						{
@@ -1053,11 +1057,11 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 					if (bUsePartialUpdates)
 					{
-						FIntVector MovementInPages = PageGridCenter - ClipmapViewState.LastPartialUpdateOriginInPages;
+						FInt64Vector MovementInPages = PageGridCenter - ClipmapViewState.LastPartialUpdateOriginInPages;
 
 						if (GAOGlobalDistanceFieldForceMovementUpdate != 0)
 						{
-							MovementInPages = FIntVector(GAOGlobalDistanceFieldForceMovementUpdate, GAOGlobalDistanceFieldForceMovementUpdate, GAOGlobalDistanceFieldForceMovementUpdate);
+							MovementInPages = FInt64Vector(GAOGlobalDistanceFieldForceMovementUpdate, GAOGlobalDistanceFieldForceMovementUpdate, GAOGlobalDistanceFieldForceMovementUpdate);
 						}
 
 						if (CacheType == GDF_MostlyStatic || !GAOGlobalDistanceFieldCacheMostlyStaticSeparately)
@@ -1126,7 +1130,9 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				Clipmap.Bounds = FBox(SnappedCenter - ClipmapExtent, SnappedCenter + ClipmapExtent);
 
 				// Scroll offset so the contents of the global distance field don't have to be moved as the camera moves around, only updated in slabs
-				Clipmap.ScrollOffset = FVector(ClipmapViewState.LastPartialUpdateOriginInPages - ClipmapViewState.FullUpdateOriginInPages) * ClipmapPageSize;
+				FInt64Vector ScrollOffsetInPages = ClipmapViewState.LastPartialUpdateOriginInPages - ClipmapViewState.FullUpdateOriginInPages;
+				ScrollOffsetInPages %= ClipmapSizeInPages; // prevent floating point precision issues
+				Clipmap.ScrollOffset = FVector(ScrollOffsetInPages) * ClipmapPageSize;
 			}
 
 			ClipmapViewState.CachedClipmapCenter = (FVector3f)SnappedCenter;
@@ -1174,7 +1180,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		}
 	}
 
-	GlobalDistanceFieldInfo.UpdateParameterData(MaxOcclusionDistance, bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance);
+	GlobalDistanceFieldInfo.UpdateParameterData(MaxOcclusionDistance, bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance, View.ViewMatrices.GetPreViewTranslation());
 }
 
 void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters) const
@@ -1182,10 +1188,10 @@ void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUnif
 	// Initialize global distance field members to defaults, because View.GlobalDistanceFieldInfo is not valid yet
 	for (int32 Index = 0; Index < GlobalDistanceField::MaxClipmaps; Index++)
 	{
-		ViewUniformShaderParameters.GlobalVolumeCenterAndExtent[Index] = FVector4f(0);
-		ViewUniformShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = FVector4f(0);
-		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = FVector4f(0);
-		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = FVector4f(0);
+		ViewUniformShaderParameters.GlobalVolumeTranslatedCenterAndExtent[Index] = FVector4f(0);
+		ViewUniformShaderParameters.GlobalVolumeTranslatedWorldToUVAddAndMul[Index] = FVector4f(0);
+		ViewUniformShaderParameters.GlobalDistanceFieldMipTranslatedWorldToUVScale[Index] = FVector4f(0);
+		ViewUniformShaderParameters.GlobalDistanceFieldMipTranslatedWorldToUVBias[Index] = FVector4f(0);
 	}
 	ViewUniformShaderParameters.GlobalDistanceFieldMipFactor = 1.0f;
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = 0.0f;
@@ -1209,10 +1215,10 @@ void FViewInfo::SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShad
 
 	for (int32 Index = 0; Index < GlobalDistanceField::MaxClipmaps; Index++)
 	{
-		ViewUniformShaderParameters.GlobalVolumeCenterAndExtent[Index] = GlobalDistanceFieldInfo.ParameterData.CenterAndExtent[Index];
-		ViewUniformShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = GlobalDistanceFieldInfo.ParameterData.WorldToUVAddAndMul[Index];
-		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = GlobalDistanceFieldInfo.ParameterData.MipWorldToUVScale[Index];
-		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = GlobalDistanceFieldInfo.ParameterData.MipWorldToUVBias[Index];
+		ViewUniformShaderParameters.GlobalVolumeTranslatedCenterAndExtent[Index] = GlobalDistanceFieldInfo.ParameterData.TranslatedCenterAndExtent[Index];
+		ViewUniformShaderParameters.GlobalVolumeTranslatedWorldToUVAddAndMul[Index] = GlobalDistanceFieldInfo.ParameterData.TranslatedWorldToUVAddAndMul[Index];
+		ViewUniformShaderParameters.GlobalDistanceFieldMipTranslatedWorldToUVScale[Index] = GlobalDistanceFieldInfo.ParameterData.MipTranslatedWorldToUVScale[Index];
+		ViewUniformShaderParameters.GlobalDistanceFieldMipTranslatedWorldToUVBias[Index] = GlobalDistanceFieldInfo.ParameterData.MipTranslatedWorldToUVBias[Index];
 	}
 	ViewUniformShaderParameters.GlobalDistanceFieldMipFactor = GlobalDistanceFieldInfo.ParameterData.MipFactor;
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = GlobalDistanceFieldInfo.ParameterData.MipTransition;

@@ -477,9 +477,7 @@ void CollideWithDistanceField(
 	in float Resilience
 	)
 {
-	//LWC_TODO: The GDF doesn't support LWC currently
 	float3 InPosition = LWCToFloat(LWCAdd(InPosition_LWC, PrimaryView.PreViewTranslation));
-	float3 GDFPosition = LWCHackToFloat(InPosition_LWC);
 
 	// Integration assuming no collision.
 	float3 MidVelocity = InVelocity.xyz + 0.5f * Acceleration;
@@ -487,12 +485,12 @@ void CollideWithDistanceField(
 	float3 NewPosition = InPosition.xyz + DeltaPosition;
 	NewVelocity = InVelocity.xyz + Acceleration;
 
-	float DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(GDFPosition);
+	float DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(InPosition);
 	float MaxCollisionDistance = CollisionRadius + length(DeltaPosition.xyz);
 
 	if (DistanceToNearestSurface < MaxCollisionDistance)
 	{
-		float3 CollisionWorldNormal = normalize(GetDistanceFieldGradientGlobal(GDFPosition));
+		float3 CollisionWorldNormal = normalize(GetDistanceFieldGradientGlobal(InPosition));
 		float3 CollisionWorldPosition = InPosition - CollisionWorldNormal * DistanceToNearestSurface;
 
 		float4 CollisionPlane = float4(CollisionWorldNormal.xyz, dot(CollisionWorldPosition.xyz, CollisionWorldNormal.xyz));

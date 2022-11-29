@@ -682,9 +682,10 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 
 float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTraceResult SDFTraceResult)
 {
-	float3 SampleWorldPosition = TraceInput.ConeOrigin + TraceInput.ConeDirection * SDFTraceResult.HitTime;
-	float3 SampleWorldNormal = ComputeGlobalDistanceFieldNormal(SampleWorldPosition, SDFTraceResult.HitClipmapIndex, -TraceInput.ConeDirection);
-	float ClipmapVoxelExtent = GlobalVolumeCenterAndExtent[SDFTraceResult.HitClipmapIndex].w * GlobalVolumeTexelSize;
+	const float3 SampleWorldPosition = TraceInput.ConeOrigin + TraceInput.ConeDirection * SDFTraceResult.HitTime;
+	const float3 SampleTranslatedWorldPosition = TraceInput.ConeTranslatedOrigin + TraceInput.ConeDirection * SDFTraceResult.HitTime;
+	const float3 SampleWorldNormal = ComputeGlobalDistanceFieldNormal(SampleTranslatedWorldPosition, SDFTraceResult.HitClipmapIndex, -TraceInput.ConeDirection);
+	const float ClipmapVoxelExtent = GlobalVolumeTranslatedCenterAndExtent[SDFTraceResult.HitClipmapIndex].w * GlobalVolumeTexelSize;
 
 	float RadianceFactor = 1.0f;
 	if (TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance)
@@ -701,7 +702,7 @@ float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 	float3 LightingSum = 0.0f;
 	float SampleWeightSum = 0.0f;
 
-	float3 ClipmapVolumeUV = ComputeGlobalUV(SampleWorldPosition, SDFTraceResult.HitClipmapIndex);
+	float3 ClipmapVolumeUV = ComputeGlobalUV(SampleTranslatedWorldPosition, SDFTraceResult.HitClipmapIndex);
 	FGlobalDistanceFieldPage Page = GetGlobalDistanceFieldPage(ClipmapVolumeUV, SDFTraceResult.HitClipmapIndex);
 	if (RadianceFactor > 0.0f && Page.bValid)
 	{
@@ -818,7 +819,7 @@ void RayTraceGlobalDistanceField(
 
 	// Trace SDF ray
 	{
-		FGlobalSDFTraceInput SDFTraceInput = SetupGlobalSDFTraceInput(TraceInput.ConeOrigin, TraceInput.ConeDirection, TraceInput.MinTraceDistance, TraceInput.MaxTraceDistance, TraceInput.SDFStepFactor, TraceInput.MinSDFStepFactor);
+		FGlobalSDFTraceInput SDFTraceInput = SetupGlobalSDFTraceInput(TraceInput.ConeTranslatedOrigin, TraceInput.ConeDirection, TraceInput.MinTraceDistance, TraceInput.MaxTraceDistance, TraceInput.SDFStepFactor, TraceInput.MinSDFStepFactor);
 		SDFTraceInput.bDitheredTransparency = TraceInput.bDitheredTransparency;
 		SDFTraceInput.DitherScreenCoord = TraceInput.DitherScreenCoord;
 		SDFTraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance;

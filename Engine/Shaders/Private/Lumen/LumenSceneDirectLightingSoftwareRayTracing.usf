@@ -126,7 +126,7 @@ float TraceOffscreenShadows(FLumenCardData CardData, uint2 TexelCoord, float3 Wo
 	}
 	#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
 	{
-		FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPosition, L, 0.0f, TraceDistance, 1.0f, 1.0f);
+		FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(TranslatedWorldPosition, L, 0.0f, TraceDistance, 1.0f, 1.0f);
 
 		// Bias away from the starting point on surface
 		TraceInput.VoxelSizeRelativeBias = GetCardBiasForShadowing(L, WorldNormal, GlobalSDFShadowRayBias);

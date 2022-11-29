@@ -118,12 +118,14 @@ void ComputeProbeWorldOffsetsCS(
 	uint GroupThreadId : SV_GroupThreadID)
 {
 	uint ProbeTraceIndex = GroupId.z;
-	float3 ProbeWorldCenter;
+	float3 ProbeWorldCenter; // LUMEN_LWC_TODO
 	uint ClipmapIndex;
 	uint ProbeIndex;
 	GetProbeTraceDataNoOffset(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
 
-	float DistanceToSurface = GetDistanceToNearestSurfaceGlobal(ProbeWorldCenter);
+	const float3 ProbeTranslatedWorldCenter = ProbeWorldCenter + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
+
+	float DistanceToSurface = GetDistanceToNearestSurfaceGlobal(ProbeTranslatedWorldCenter);
 	float TooCloseThreshold = .05f * GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex);
 
 	if (DistanceToSurface < TooCloseThreshold)
@@ -135,7 +137,7 @@ void ComputeProbeWorldOffsetsCS(
 		uint Z = GroupThreadId / 16;
 		{
 			float3 Offset = (float3(X, Y, Z) * 2.0f / 3.0f - 1.0f) * MaxVoxelOffset * GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex);
-			float SampleDistanceToSurface = GetDistanceToNearestSurfaceGlobal(ProbeWorldCenter + Offset);
+			float SampleDistanceToSurface = GetDistanceToNearestSurfaceGlobal(ProbeTranslatedWorldCenter + Offset);
 			SharedBestOffset[GroupThreadId] = float4(Offset, SampleDistanceToSurface);
 		}
 

@@ -133,7 +133,7 @@ void NDICollisionQuery_QueryMeshDistanceFieldGPU(in float3 In_SamplePos, in floa
 {
 #if PLATFORM_SUPPORTS_DISTANCE_FIELDS && (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 	FLWCVector3 LwcSamplePos = MakeLWCVector3(In_LWCTile, In_SamplePos);
-	float3 SamplePosition = LWCToFloat(LwcSamplePos); // TODO: remove LWCToFloat here when GetDistanceToNearestSurfaceGlobal supports LWC
+	float3 SamplePosition = LWCToFloat(LWCAdd(LwcSamplePos, PrimaryView.PreViewTranslation));
 	
 	Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(SamplePosition);
 	Out_FieldGradient = GetDistanceFieldGradientGlobal(SamplePosition);

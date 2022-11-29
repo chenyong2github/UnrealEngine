@@ -22,29 +22,29 @@
 
 #if DISTANCE_FIELD_IN_VIEW_UB
     // for materials, these are in the view UB
-	#define GlobalDistanceFieldPageAtlasTexture			View.GlobalDistanceFieldPageAtlasTexture
-	#define GlobalDistanceFieldCoverageAtlasTexture		View.GlobalDistanceFieldCoverageAtlasTexture
-	#define GlobalDistanceFieldPageTableTexture			View.GlobalDistanceFieldPageTableTexture
-	#define GlobalDistanceFieldMipTexture				View.GlobalDistanceFieldMipTexture
-	#define GlobalVolumeCenterAndExtent					View.GlobalVolumeCenterAndExtent
-	#define GlobalVolumeWorldToUVAddAndMul				View.GlobalVolumeWorldToUVAddAndMul
-	#define GlobalDistanceFieldMipWorldToUVScale		View.GlobalDistanceFieldMipWorldToUVScale
-	#define GlobalDistanceFieldMipWorldToUVBias			View.GlobalDistanceFieldMipWorldToUVBias
-	#define GlobalDistanceFieldMipUVMinZ				View.GlobalDistanceFieldMipUVMinZ
-	#define GlobalDistanceFieldMipUVMaxZ				View.GlobalDistanceFieldMipUVMaxZ
-	#define GlobalDistanceFieldMipFactor				View.GlobalDistanceFieldMipFactor
-	#define GlobalDistanceFieldMipTransition			View.GlobalDistanceFieldMipTransition
-	#define GlobalDistanceFieldInvPageAtlasSize			View.GlobalDistanceFieldInvPageAtlasSize
-	#define GlobalDistanceFieldInvCoverageAtlasSize		View.GlobalDistanceFieldInvCoverageAtlasSize
-	#define GlobalDistanceFieldClipmapSizeInPages		View.GlobalDistanceFieldClipmapSizeInPages
-	#define GlobalVolumeDimension						View.GlobalVolumeDimension
-	#define GlobalVolumeTexelSize						View.GlobalVolumeTexelSize
-	#define NumGlobalSDFClipmaps						View.NumGlobalSDFClipmaps
-	#define CoveredExpandSurfaceScale					View.CoveredExpandSurfaceScale
-	#define NotCoveredExpandSurfaceScale				View.NotCoveredExpandSurfaceScale
-	#define NotCoveredMinStepScale						View.NotCoveredMinStepScale
-	#define DitheredTransparencyStepThreshold			View.DitheredTransparencyStepThreshold
-	#define DitheredTransparencyTraceThreshold			View.DitheredTransparencyTraceThreshold
+	#define GlobalDistanceFieldPageAtlasTexture				View.GlobalDistanceFieldPageAtlasTexture
+	#define GlobalDistanceFieldCoverageAtlasTexture			View.GlobalDistanceFieldCoverageAtlasTexture
+	#define GlobalDistanceFieldPageTableTexture				View.GlobalDistanceFieldPageTableTexture
+	#define GlobalDistanceFieldMipTexture					View.GlobalDistanceFieldMipTexture
+	#define GlobalVolumeTranslatedCenterAndExtent			View.GlobalVolumeTranslatedCenterAndExtent
+	#define GlobalVolumeTranslatedWorldToUVAddAndMul		View.GlobalVolumeTranslatedWorldToUVAddAndMul
+	#define GlobalDistanceFieldMipTranslatedWorldToUVScale	View.GlobalDistanceFieldMipTranslatedWorldToUVScale
+	#define GlobalDistanceFieldMipTranslatedWorldToUVBias	View.GlobalDistanceFieldMipTranslatedWorldToUVBias
+	#define GlobalDistanceFieldMipUVMinZ					View.GlobalDistanceFieldMipUVMinZ
+	#define GlobalDistanceFieldMipUVMaxZ					View.GlobalDistanceFieldMipUVMaxZ
+	#define GlobalDistanceFieldMipFactor					View.GlobalDistanceFieldMipFactor
+	#define GlobalDistanceFieldMipTransition				View.GlobalDistanceFieldMipTransition
+	#define GlobalDistanceFieldInvPageAtlasSize				View.GlobalDistanceFieldInvPageAtlasSize
+	#define GlobalDistanceFieldInvCoverageAtlasSize			View.GlobalDistanceFieldInvCoverageAtlasSize
+	#define GlobalDistanceFieldClipmapSizeInPages			View.GlobalDistanceFieldClipmapSizeInPages
+	#define GlobalVolumeDimension							View.GlobalVolumeDimension
+	#define GlobalVolumeTexelSize							View.GlobalVolumeTexelSize
+	#define NumGlobalSDFClipmaps							View.NumGlobalSDFClipmaps
+	#define CoveredExpandSurfaceScale						View.CoveredExpandSurfaceScale
+	#define NotCoveredExpandSurfaceScale					View.NotCoveredExpandSurfaceScale
+	#define NotCoveredMinStepScale							View.NotCoveredMinStepScale
+	#define DitheredTransparencyStepThreshold				View.DitheredTransparencyStepThreshold
+	#define DitheredTransparencyTraceThreshold				View.DitheredTransparencyTraceThreshold
 
 #else
 	// these are only used for the precomputation shaders; which don't have a view UB
@@ -52,10 +52,10 @@
 	Texture3D GlobalDistanceFieldCoverageAtlasTexture;
 	Texture3D<uint> GlobalDistanceFieldPageTableTexture;
 	Texture3D GlobalDistanceFieldMipTexture;
-	float4 GlobalVolumeCenterAndExtent[MAX_GLOBAL_DF_CLIPMAPS];
-	float4 GlobalVolumeWorldToUVAddAndMul[MAX_GLOBAL_DF_CLIPMAPS];
-	float4 GlobalDistanceFieldMipWorldToUVScale[MAX_GLOBAL_DF_CLIPMAPS];
-	float4 GlobalDistanceFieldMipWorldToUVBias[MAX_GLOBAL_DF_CLIPMAPS];
+	float4 GlobalVolumeTranslatedCenterAndExtent[MAX_GLOBAL_DF_CLIPMAPS];
+	float4 GlobalVolumeTranslatedWorldToUVAddAndMul[MAX_GLOBAL_DF_CLIPMAPS];
+	float4 GlobalDistanceFieldMipTranslatedWorldToUVScale[MAX_GLOBAL_DF_CLIPMAPS];
+	float4 GlobalDistanceFieldMipTranslatedWorldToUVBias[MAX_GLOBAL_DF_CLIPMAPS];
 	float GlobalDistanceFieldMipFactor;
 	float GlobalDistanceFieldMipTransition;
 	float3 GlobalDistanceFieldInvPageAtlasSize;
@@ -176,42 +176,42 @@ float DecodeGlobalDistanceFieldPageDistance(float EncodedDistance, float Clipmap
 	return (EncodedDistance * 2.0f - 1.0f) * ClipmapInfluenceRange;
 }
 
-float3 ComputeGlobalUV(float3 WorldPosition, uint ClipmapIndex)
+float3 ComputeGlobalUV(float3 TranslatedWorldPosition, uint ClipmapIndex)
 {
-	//return ((WorldPosition - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz + GlobalVolumeScollOffset[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f);
-	float4 WorldToUVAddAndMul = GlobalVolumeWorldToUVAddAndMul[ClipmapIndex];
-	float3 UV = frac(WorldPosition * WorldToUVAddAndMul.www + WorldToUVAddAndMul.xyz); // wraparound addressing
+	//return ((TranslatedWorldPosition - GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz + GlobalVolumeScollOffset[ClipmapIndex].xyz) / (GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * 2) + .5f);
+	float4 TranslatedWorldToUVAddAndMul = GlobalVolumeTranslatedWorldToUVAddAndMul[ClipmapIndex];
+	float3 UV = frac(TranslatedWorldPosition * TranslatedWorldToUVAddAndMul.www + TranslatedWorldToUVAddAndMul.xyz); // wraparound addressing
 	UV = frac(UV); // apply frac twice to prevent UV == 1.0f because frac(-0.00...001f) = 1.0f
 	return UV;
 }
 
-float3 ComputeGlobalMipUV(float3 WorldPosition, uint ClipmapIndex)
+float3 ComputeGlobalMipUV(float3 TranslatedWorldPosition, uint ClipmapIndex)
 {
-	float3 MipUV = saturate(WorldPosition * GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex].xyz + GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex].xyz);
+	float3 MipUV = saturate(TranslatedWorldPosition * GlobalDistanceFieldMipTranslatedWorldToUVScale[ClipmapIndex].xyz + GlobalDistanceFieldMipTranslatedWorldToUVBias[ClipmapIndex].xyz);
 
 	// Clamp MipUV.z to a valid bilinear region to prevent filtering across clipmaps
-	float MipUVMinZ = GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex].w;
-	float MipUVMaxZ = GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex].w;
+	float MipUVMinZ = GlobalDistanceFieldMipTranslatedWorldToUVScale[ClipmapIndex].w;
+	float MipUVMaxZ = GlobalDistanceFieldMipTranslatedWorldToUVBias[ClipmapIndex].w;
 	MipUV.z = clamp(MipUV.z, MipUVMinZ, MipUVMaxZ);
 
 	return MipUV;
 }
 
-float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
+float GetDistanceToNearestSurfaceGlobal(float3 TranslatedWorldPosition)
 {
 	float Distance = 0.0f;
 
 	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ClipmapIndex++)
 	{
-		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldPosition);
-		const float ClipmapVoxelExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].www, TranslatedWorldPosition);
+		const float ClipmapVoxelExtent = GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 		const float ClipmapInfluenceRange = 2.0f * GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * ClipmapVoxelExtent;
 
 		Distance = ClipmapInfluenceRange;
 
 		if (DistanceFromClipmap > ClipmapVoxelExtent)
 		{
-			float3 ClipmapVolumeUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
+			float3 ClipmapVolumeUV = ComputeGlobalUV(TranslatedWorldPosition, ClipmapIndex);
 
 			FGlobalDistanceFieldPage Page = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
 			if (Page.bValid)
@@ -232,15 +232,15 @@ float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
 	return Distance;
 }
 
-float SampleGlobalDistanceField(float3 WorldPosition, float MaxDistance, int MinClipmapIndex)
+float SampleGlobalDistanceField(float3 TranslatedWorldPosition, float MaxDistance, int MinClipmapIndex)
 {
 	float Distance = MaxDistance;
 
 	for (uint ClipmapIndex = MinClipmapIndex; Distance <= MaxDistance && ClipmapIndex < NumGlobalSDFClipmaps; ++ClipmapIndex)
 	{
-		const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+		const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 		
-		float3 ClipmapVolumeUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
+		float3 ClipmapVolumeUV = ComputeGlobalUV(TranslatedWorldPosition, ClipmapIndex);
 		FGlobalDistanceFieldPage Page = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
 
 		if (Page.bValid)
@@ -291,9 +291,9 @@ float3 GlobalDistanceFieldPageCentralDiff(float3 ClipmapVolumeUV, uint ClipmapIn
 	return float3(R - L, F - B, U - D);
 }
 
-float3 ComputeGlobalDistanceFieldNormal(float3 SampleWorldPosition, uint ClipmapIndex, float3 FallbackNormal)
+float3 ComputeGlobalDistanceFieldNormal(float3 SampleTranslatedWorldPosition, uint ClipmapIndex, float3 FallbackNormal)
 {
-	float3 ClipmapVolumeUV = ComputeGlobalUV(SampleWorldPosition, ClipmapIndex);
+	float3 ClipmapVolumeUV = ComputeGlobalUV(SampleTranslatedWorldPosition, ClipmapIndex);
 	float3 DistanceFieldGradient = GlobalDistanceFieldPageCentralDiff(ClipmapVolumeUV, ClipmapIndex);
 	float DistanceFieldGradientLength = length(DistanceFieldGradient);
 	float3 DistanceFieldNormal = DistanceFieldGradientLength > 0.001f ? DistanceFieldGradient / DistanceFieldGradientLength : FallbackNormal;
@@ -302,18 +302,18 @@ float3 ComputeGlobalDistanceFieldNormal(float3 SampleWorldPosition, uint Clipmap
 
 // Returns vector (unnormalized) to the nearest surface point.
 // This vector is rescaled by 128 * GlobalVolumeTexelSize for backwards compatiblity.
-float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
+float3 GetDistanceFieldGradientGlobal(float3 TranslatedWorldPosition)
 {
 	float3 Gradient = float3(0, 0, 0.001f);
 
 	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ClipmapIndex++)
 	{
-		const float ClipmapVoxelExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
-		const float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldPosition);
+		const float ClipmapVoxelExtent = GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+		const float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].www, TranslatedWorldPosition);
 
 		if (DistanceFromClipmap >= ClipmapVoxelExtent)
 		{
-			const float3 ClipmapVolumeUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
+			const float3 ClipmapVolumeUV = ComputeGlobalUV(TranslatedWorldPosition, ClipmapIndex);
 			FGlobalDistanceFieldPage Page = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
 
 			if (Page.bValid)
@@ -329,7 +329,7 @@ float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
 
 					const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * ClipmapVoxelExtent;
 					const float PageDistanceDecodeFactor = 2.0f * ClipmapInfluenceRange;
-					float ClipmapExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w;
+					float ClipmapExtent = GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w;
 
 					// Rescale to keep backwards compatability
 					const float BackwardsCompatibilityFactor = 128.0f * GlobalVolumeTexelSize;
@@ -344,14 +344,16 @@ float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
 	return Gradient;
 }
 
-float CalculateDistanceFieldApproxAO(float3 WorldPosition, float3 WorldNormal, uint NumSteps, float StepDistance, float StepScale, float DistanceBias, float MaxDistance)
+float CalculateDistanceFieldApproxAO(FLWCVector3 WorldPosition, float3 WorldNormal, uint NumSteps, float StepDistance, float StepScale, float DistanceBias, float MaxDistance)
 {
-	// determine the min clipmap that covers all the sampling points (sphere centered on WorldPosition with radius = MaxDistance)
+	const float3 TranslatedWorldPosition = LWCToFloat(LWCAdd(WorldPosition, ResolvedView.PreViewTranslation));
+
+	// determine the min clipmap that covers all the sampling points (sphere centered on TranslatedWorldPosition with radius = MaxDistance)
 	int MinClipmapIndex = -1;
 
 	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ++ClipmapIndex)
 	{
-		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldPosition);
+		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].www, TranslatedWorldPosition);
 		if (DistanceFromClipmap > MaxDistance)
 		{
 			MinClipmapIndex = ClipmapIndex;
@@ -371,7 +373,7 @@ float CalculateDistanceFieldApproxAO(float3 WorldPosition, float3 WorldNormal, u
 	for (uint StepIndex = 0; StepIndex < NumSteps; ++StepIndex)
 	{
 		const float CurrentDistance = StepDistance + DistanceBias;
-		const float Dist = max(0.0f, SampleGlobalDistanceField(WorldPosition + WorldNormal * CurrentDistance, CurrentDistance, MinClipmapIndex));
+		const float Dist = max(0.0f, SampleGlobalDistanceField(TranslatedWorldPosition + WorldNormal * CurrentDistance, CurrentDistance, MinClipmapIndex));
 
 		Occlusion += W * Dist / CurrentDistance;
 		TotalW += W;
@@ -385,20 +387,35 @@ float CalculateDistanceFieldApproxAO(float3 WorldPosition, float3 WorldNormal, u
 
 #else
 
-float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
+float GetDistanceToNearestSurfaceGlobal(float3 TranslatedWorldPosition)
 {
 	return MaxGlobalDFAOConeDistance;
 }
 
-float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
+float3 GetDistanceFieldGradientGlobal(float3 TranslatedWorldPosition)
 {
 	return float3(0, 0, .001f);
 }
 
-float CalculateDistanceFieldApproxAO(float3 WorldPosition, float3 WorldNormal, uint NumSteps, float StepDistance, float StepScale, float DistanceBias, float MaxDistance)
+float CalculateDistanceFieldApproxAO(FLWCVector3 WorldPosition, float3 WorldNormal, uint NumSteps, float StepDistance, float StepScale, float DistanceBias, float MaxDistance)
 {
 	return 1.0f;
 }
 
 #endif
+
+float GetDistanceToNearestSurfaceGlobal(FLWCVector3 WorldPosition)
+{
+	const float3 TranslatedWorldPosition = LWCToFloat(LWCAdd(WorldPosition, ResolvedView.PreViewTranslation));
+
+	return GetDistanceToNearestSurfaceGlobal(TranslatedWorldPosition);
+}
+
+float3 GetDistanceFieldGradientGlobal(FLWCVector3 WorldPosition)
+{
+	const float3 TranslatedWorldPosition = LWCToFloat(LWCAdd(WorldPosition, ResolvedView.PreViewTranslation));
+
+	return GetDistanceFieldGradientGlobal(TranslatedWorldPosition);
+}
+
 #endif // FEATURE_LEVEL >= FEATURE_LEVEL_SM5

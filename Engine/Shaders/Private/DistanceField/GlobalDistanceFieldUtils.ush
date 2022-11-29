@@ -8,15 +8,15 @@
 #define GLOBALSDF_USE_COVERAGE_BASED_EXPAND 1
 #endif
 
-uint ComputeGlobalDistanceFieldClipmapIndex(float3 WorldPosition)
+uint ComputeGlobalDistanceFieldClipmapIndex(float3 TranslatedWorldPosition)
 {
 	uint FoundClipmapIndex = 0;
 
 	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ClipmapIndex++)
 	{
-		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldPosition);
+		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].www, TranslatedWorldPosition);
 
-		if (DistanceFromClipmap > GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize)
+		if (DistanceFromClipmap > GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize)
 		{
 			FoundClipmapIndex = ClipmapIndex;
 			break;
@@ -28,7 +28,7 @@ uint ComputeGlobalDistanceFieldClipmapIndex(float3 WorldPosition)
 
 struct FGlobalSDFTraceInput
 {
-	float3 WorldRayStart;
+	float3 TranslatedWorldRayStart;
 	float3 WorldRayDirection;
 	float MinTraceDistance;
 	float MaxTraceDistance;
@@ -50,10 +50,10 @@ struct FGlobalSDFTraceInput
 	float2 DitherScreenCoord;
 };
 
-FGlobalSDFTraceInput SetupGlobalSDFTraceInput(float3 InWorldRayStart, float3 InWorldRayDirection, float InMinTraceDistance, float InMaxTraceDistance, float InStepFactor, float InMinStepFactor)
+FGlobalSDFTraceInput SetupGlobalSDFTraceInput(float3 InTranslatedWorldRayStart, float3 InWorldRayDirection, float InMinTraceDistance, float InMaxTraceDistance, float InStepFactor, float InMinStepFactor)
 {
 	FGlobalSDFTraceInput TraceInput;
-	TraceInput.WorldRayStart = InWorldRayStart;
+	TraceInput.TranslatedWorldRayStart = InTranslatedWorldRayStart;
 	TraceInput.WorldRayDirection = InWorldRayDirection;
 	TraceInput.MinTraceDistance = InMinTraceDistance;
 	TraceInput.MaxTraceDistance = InMaxTraceDistance;
@@ -92,23 +92,23 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 	TraceResult.ExpandSurfaceAmount = 0;
 
 	float TraceNoise = InterleavedGradientNoise(TraceInput.DitherScreenCoord.xy, View.StateFrameIndexMod8);
-	uint MinClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(TraceInput.WorldRayStart + TraceInput.MinTraceDistance * TraceInput.WorldRayDirection);
+	uint MinClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(TraceInput.TranslatedWorldRayStart + TraceInput.MinTraceDistance * TraceInput.WorldRayDirection);
 	float MaxDistance = TraceInput.InitialMaxDistance;
 	float MinRayTime = TraceInput.MinTraceDistance;
 
 	LOOP
 	for (uint ClipmapIndex = MinClipmapIndex; ClipmapIndex < NumGlobalSDFClipmaps && TraceResult.HitTime < 0.0f; ++ClipmapIndex)
 	{
-		float ClipmapVoxelExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+		float ClipmapVoxelExtent = GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 		float MinStepSize = TraceInput.MinStepFactor * ClipmapVoxelExtent;
 		float ExpandSurfaceDistance = ClipmapVoxelExtent;
 		float ClipmapRayBias = ClipmapVoxelExtent * TraceInput.VoxelSizeRelativeBias;
 		float ClipmapRayLength = TraceInput.MaxTraceDistance - ClipmapVoxelExtent * TraceInput.VoxelSizeRelativeRayEndBias;
 
-		float3 GlobalVolumeCenter = GlobalVolumeCenterAndExtent[ClipmapIndex].xyz;
-		float GlobalVolumeExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w - ClipmapVoxelExtent;
-		float3 WorldRayEnd = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * ClipmapRayLength;
-		float2 IntersectionTimes = LineBoxIntersect(TraceInput.WorldRayStart, WorldRayEnd, GlobalVolumeCenter - GlobalVolumeExtent.xxx, GlobalVolumeCenter + GlobalVolumeExtent.xxx);
+		float3 GlobalVolumeTranslatedCenter = GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz;
+		float GlobalVolumeExtent = GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w - ClipmapVoxelExtent;
+		float3 TranslatedWorldRayEnd = TraceInput.TranslatedWorldRayStart + TraceInput.WorldRayDirection * ClipmapRayLength;
+		float2 IntersectionTimes = LineBoxIntersect(TraceInput.TranslatedWorldRayStart, TranslatedWorldRayEnd, GlobalVolumeTranslatedCenter - GlobalVolumeExtent.xxx, GlobalVolumeTranslatedCenter + GlobalVolumeExtent.xxx);
 		IntersectionTimes.xy *= ClipmapRayLength;
 		IntersectionTimes.x = max(IntersectionTimes.x, MinRayTime);
 		IntersectionTimes.x = max(IntersectionTimes.x, ClipmapRayBias);
@@ -119,7 +119,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 			MinRayTime = IntersectionTimes.y;
 
 			float SampleRayTime = IntersectionTimes.x;
-			const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+			const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 
 			uint StepIndex = 0;
 			const uint MaxSteps = 256;
@@ -127,10 +127,10 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 			LOOP
 			for (; StepIndex < MaxSteps; ++StepIndex)
 			{
-				float3 SampleWorldPosition = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * SampleRayTime;
+				float3 SampleTranslatedWorldPosition = TraceInput.TranslatedWorldRayStart + TraceInput.WorldRayDirection * SampleRayTime;
 
-				float3 ClipmapVolumeUV = ComputeGlobalUV(SampleWorldPosition, ClipmapIndex);
-				float3 MipUV = ComputeGlobalMipUV(SampleWorldPosition, ClipmapIndex);
+				float3 ClipmapVolumeUV = ComputeGlobalUV(SampleTranslatedWorldPosition, ClipmapIndex);
+				float3 MipUV = ComputeGlobalMipUV(SampleTranslatedWorldPosition, ClipmapIndex);
 
 				float DistanceFieldMipValue = Texture3DSampleLevel(GlobalDistanceFieldMipTexture, GlobalTrilinearClampedSampler, MipUV, 0).x;
 				float DistanceField = DecodeGlobalDistanceFieldPageDistance(DistanceFieldMipValue, GlobalDistanceFieldMipFactor * ClipmapInfluenceRange);

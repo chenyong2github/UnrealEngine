@@ -137,19 +137,18 @@ void VisualizeMeshDistanceFieldCS(
 
 	float TraceDistance = 100000.0f;
 	float3 TranslatedWorldRayStart = PrimaryView.TranslatedWorldCameraOrigin;
-	float3 WorldRayStart = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
 	float3 WorldRayDirection = normalize(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 	float3 WorldHitNormal = float3(0, 0, 1);
 	bool bHit = false;
 
 #if USE_GLOBAL_DISTANCE_FIELD
-	FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldRayStart, WorldRayDirection, 0.0f, TraceDistance, 1.0f, 1.0f);
+	FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(TranslatedWorldRayStart, WorldRayDirection, 0.0f, TraceDistance, 1.0f, 1.0f);
 	FGlobalSDFTraceResult SDFTraceResult = RayTraceGlobalDistanceField(TraceInput);
 
 	if (GlobalSDFTraceResultIsHit(SDFTraceResult))
 	{
-		float3 WorldRayEnd = WorldRayStart + WorldRayDirection * SDFTraceResult.HitTime;
-		WorldHitNormal = ComputeGlobalDistanceFieldNormal(WorldRayEnd, SDFTraceResult.HitClipmapIndex, -WorldRayDirection);
+		float3 TranslatedWorldRayEnd = TranslatedWorldRayStart + WorldRayDirection * SDFTraceResult.HitTime;
+		WorldHitNormal = ComputeGlobalDistanceFieldNormal(TranslatedWorldRayEnd, SDFTraceResult.HitClipmapIndex, -WorldRayDirection);
 		bHit = true;
 	}
 

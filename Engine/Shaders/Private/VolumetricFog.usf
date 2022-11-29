@@ -383,11 +383,11 @@ RWTexture3D<float4> RWLightScattering;
 
 float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	uniform uint ClipmapIndex,
-	float3 WorldShadingPosition, 
+	float3 TranslatedWorldShadingPosition,
 	float3 ConeDirection,
 	float TanConeHalfAngle)
 {
-	float MinStepSize = GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2 / 100.0f;
+	float MinStepSize = GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].w * 2 / 100.0f;
 	float InvAOGlobalMaxOcclusionDistance = 1.0f / AOGlobalMaxOcclusionDistance;
 
 	float MinVisibility = 1;
@@ -396,8 +396,8 @@ float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	LOOP
 	for (uint StepIndex = 0; StepIndex < NUM_CONE_STEPS && WorldStepOffset < AOGlobalMaxOcclusionDistance; StepIndex++)
 	{
-		float3 WorldSamplePosition = WorldShadingPosition + ConeDirection * WorldStepOffset;
-		float DistanceToOccluder = SampleGlobalDistanceField(WorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
+		float3 TranslatedWorldSamplePosition = TranslatedWorldShadingPosition + ConeDirection * WorldStepOffset;
+		float DistanceToOccluder = SampleGlobalDistanceField(TranslatedWorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
 		float SphereRadius = WorldStepOffset * TanConeHalfAngle;
 		float InvSphereRadius = rcpFast(SphereRadius);
 
@@ -417,12 +417,12 @@ float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	return MinVisibility;
 }
 
-float HemisphereConeTraceAgainstGlobalDistanceField(float3 WorldShadingPosition, float3 ConeDirection, float TanConeHalfAngle)
+float HemisphereConeTraceAgainstGlobalDistanceField(float3 TranslatedWorldShadingPosition, float3 ConeDirection, float TanConeHalfAngle)
 {
 	int MinClipmapIndex = -1;
 	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ++ClipmapIndex)
 	{
-		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldShadingPosition);
+		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeTranslatedCenterAndExtent[ClipmapIndex].www, TranslatedWorldShadingPosition);
 		if (DistanceFromClipmap > AOGlobalMaxOcclusionDistance)
 		{
 			MinClipmapIndex = ClipmapIndex;
@@ -433,7 +433,7 @@ float HemisphereConeTraceAgainstGlobalDistanceField(float3 WorldShadingPosition,
 	float MinVisibility = 1.0f;
 	if (MinClipmapIndex >= 0)
 	{
-		MinVisibility = HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(MinClipmapIndex, WorldShadingPosition, ConeDirection, TanConeHalfAngle);
+		MinVisibility = HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(MinClipmapIndex, TranslatedWorldShadingPosition, ConeDirection, TanConeHalfAngle);
 	}
 
 	return MinVisibility;
@@ -441,7 +441,7 @@ float HemisphereConeTraceAgainstGlobalDistanceField(float3 WorldShadingPosition,
 
 float SkyLightUseStaticShadowing;
 
-float ComputeSkyVisibility(float3 WorldPosition, float3 BrickTextureUVs)
+float ComputeSkyVisibility(float3 TranslatedWorldPosition, float3 BrickTextureUVs)
 {
 	float Visibility = 1;
 
@@ -449,7 +449,7 @@ float ComputeSkyVisibility(float3 WorldPosition, float3 BrickTextureUVs)
 	// Trace one 45 degree cone straight up for sky occlusion
 	float TanConeHalfAngle = tan((float)PI / 4);
 
-	Visibility = HemisphereConeTraceAgainstGlobalDistanceField(WorldPosition, float3(0, 0, 1), TanConeHalfAngle);
+	Visibility = HemisphereConeTraceAgainstGlobalDistanceField(TranslatedWorldPosition, float3(0, 0, 1), TanConeHalfAngle);
 	
 #endif
 
@@ -546,7 +546,7 @@ void LightScatteringCS(
 
 		float SceneDepth;
 		float3 TranslatedWorldPosition = ComputeCellTranslatedWorldPosition(GridCoordinate, CellOffset, SceneDepth);
-		float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+		float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // LWC_TODO
 		float CameraVectorLength = length(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 		float3 CameraVector = (TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin) / CameraVectorLength;
 
@@ -603,8 +603,7 @@ void LightScatteringCS(
 #if LUMEN_GI
 
 		// Lumen Dynamic GI + shadowed Skylight
-		// TODO LWC
-		FTwoBandSHVectorRGB TranslucencyGISH = GetTranslucencyGIVolumeLighting(LWCPromote(WorldPosition), PrimaryView.WorldToClip, false);
+		FTwoBandSHVectorRGB TranslucencyGISH = GetTranslucencyGIVolumeLighting(LWCPromote(WorldPosition), PrimaryView.WorldToClip, false); // LUMEN_LWC_TODO
 
 		LightScattering += max(DotSH(TranslucencyGISH, RotatedHGZonalHarmonic), 0);
 
@@ -635,7 +634,7 @@ void LightScatteringCS(
 				SkyLighting = View.SkyLightColor.rgb * max(DotSH(SkyIrradianceSH, RotatedHGZonalHarmonic), 0) / PI;
 			}
 
-			float SkyVisibility = ComputeSkyVisibility(WorldPosition, BrickTextureUVs);
+			float SkyVisibility = ComputeSkyVisibility(TranslatedWorldPosition, BrickTextureUVs);
 			LightScattering += (SkyVisibility * SkyLightVolumetricScatteringIntensity) * SkyLighting;
 		}
 #endif

@@ -442,8 +442,8 @@ public:
 
 	FGlobalDistanceFieldClipmapState()
 	{
-		FullUpdateOriginInPages = FIntVector::ZeroValue;
-		LastPartialUpdateOriginInPages = FIntVector::ZeroValue;
+		FullUpdateOriginInPages = FInt64Vector::ZeroValue;
+		LastPartialUpdateOriginInPages = FInt64Vector::ZeroValue;
 		CachedClipmapCenter = FVector3f(0.0f, 0.0f, 0.0f);
 		CachedClipmapExtent = 0.0f;
 		CacheClipmapInfluenceRadius = 0.0f;
@@ -451,8 +451,8 @@ public:
 		LastUsedSceneDataForFullUpdate = nullptr;
 	}
 
-	FIntVector FullUpdateOriginInPages;
-	FIntVector LastPartialUpdateOriginInPages;
+	FInt64Vector FullUpdateOriginInPages;
+	FInt64Vector LastPartialUpdateOriginInPages;
 	uint32 CacheMostlyStaticSeparately;
 
 	FVector3f CachedClipmapCenter;

@@ -97,7 +97,7 @@ void CullObjectsForShadowCS(
 	if (ObjectIndex < GetNumSceneObjects())
 	{
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
+		const FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 		const float3 TranslatedCenter = LWCToFloat(LWCAdd(DFObjectBounds.Center, PrimaryView.PreViewTranslation));
 
 		const float3 CenterToShadowBoundingSphere = ShadowBoundingSphere.xyz - TranslatedCenter;
@@ -553,7 +553,7 @@ void CullObjectsToTileWithGather(
 		for (uint IndexInCulledList = ThreadIndex; IndexInCulledList < NumCulledObjects; IndexInCulledList += THREADGROUP_TOTALSIZE)
 		{
 			const uint ObjectIndex = CulledObjectIndices[IndexInCulledList];
-			FDFObjectBounds Bounds = LoadDFObjectBounds(ObjectIndex);
+			const FDFObjectBounds Bounds = LoadDFObjectBounds(ObjectIndex);
 			const float3 TranslatedBoundsCenter = LWCToFloat(LWCAdd(Bounds.Center, PrimaryView.PreViewTranslation));
 
 			BRANCH
