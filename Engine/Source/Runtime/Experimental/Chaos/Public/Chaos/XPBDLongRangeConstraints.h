@@ -41,7 +41,11 @@ public:
 	virtual ~FXPBDLongRangeConstraints() override {}
 
 	// Set stiffness offset and range, as well as the simulation stiffness exponent
-	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyXPBDValues(XPBDLongRangeMaxStiffness); ApplyScale(); }
+	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations)
+	{
+		Stiffness.ApplyXPBDValues(XPBDLongRangeMaxStiffness);
+		TetherScale.ApplyValues();
+	}
 
 	void Init() const
 	{
@@ -57,7 +61,7 @@ public:
 
 		if (Stiffness.HasWeightMap())
 		{
-			if (HasScaleWeightMap())
+			if (TetherScale.HasWeightMap())
 			{
 				int32 ConstraintOffset = 0;
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
@@ -66,7 +70,7 @@ public:
 						{
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
-							const FSolverReal Scale = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							const FSolverReal Scale = TetherScale[LocalParticleIndex];
 							const FSolverReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
 							Apply(Particles, Dt, Tether, ConstraintOffset + Index, ExpStiffnessValue, Scale);
 						}, TetherBatch.Num() < MinParallelSize);
@@ -75,7 +79,7 @@ public:
 			}
 			else
 			{
-				const FSolverReal ScaleValue = ScaleTable[0];
+				const FSolverReal ScaleValue = (FSolverReal)TetherScale;
 				int32 ConstraintOffset = 0;
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
@@ -94,7 +98,7 @@ public:
 		{
 			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 
-			if (HasScaleWeightMap())
+			if (TetherScale.HasWeightMap())
 			{
 				int32 ConstraintOffset = 0;
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
@@ -103,7 +107,7 @@ public:
 						{
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
-							const FSolverReal Scale = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							const FSolverReal Scale = TetherScale[LocalParticleIndex];
 							Apply(Particles, Dt, Tether, ConstraintOffset + Index, ExpStiffnessValue, Scale);
 						}, TetherBatch.Num() < MinParallelSize);
 					ConstraintOffset += TetherBatch.Num();
@@ -111,7 +115,7 @@ public:
 			}
 			else
 			{
-				const FSolverReal ScaleValue = ScaleTable[0];
+				const FSolverReal ScaleValue = (FSolverReal)TetherScale;
 				int32 ConstraintOffset = 0;
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
@@ -148,9 +152,7 @@ private:
 private:
 	using Base::Tethers;
 	using Base::Stiffness;
-	using Base::ParticleOffset;
-	using Base::ScaleTable;
-	using Base::ScaleIndices;
+	using Base::TetherScale;
 
 	mutable TArray<FSolverReal> Lambdas;
 	int32 NumTethers;

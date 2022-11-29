@@ -33,9 +33,8 @@ public:
 private:
 	using Base::Tethers;
 	using Base::Stiffness;
+	using Base::TetherScale;
 	using Base::ParticleOffset;
-	using Base::ScaleTable;
-	using Base::ScaleIndices;
 };
 
 }  // End namespace Chaos::Softs

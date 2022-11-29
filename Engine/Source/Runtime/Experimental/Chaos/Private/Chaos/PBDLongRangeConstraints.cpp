@@ -24,9 +24,9 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 	if (!Stiffness.HasWeightMap())
 	{
 		const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
-		if (!HasScaleWeightMap())
+		if (!TetherScale.HasWeightMap())
 		{
-			const FSolverReal ScaleValue = ScaleTable[0];
+			const FSolverReal ScaleValue = (FSolverReal)TetherScale;
 #if INTEL_ISPC
 			if (bRealTypeCompatibleWithISPC && bChaos_LongRange_ISPC_Enabled)
 			{
@@ -68,8 +68,8 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(const ispc::FTether*)TetherBatch.GetData(),
 						ExpStiffnessValue,
-						ScaleIndices.GetData(),
-						ScaleTable.GetData(),
+						TetherScale.GetIndices().GetData(),
+						TetherScale.GetTable().GetData(),
 						TetherBatch.Num(),
 						ParticleOffset);
 				}
@@ -84,7 +84,7 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 						{
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
-							const FSolverReal ScaleValue = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							const FSolverReal ScaleValue = TetherScale[LocalParticleIndex];
 							Particles.P(ParticleOffset + LocalParticleIndex) += ExpStiffnessValue * GetDelta(Particles, Tether, ScaleValue);
 						}, TetherBatch.Num() < MinParallelSize);
 				}
@@ -93,9 +93,9 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 	}
 	else  // HasStiffnessWeighmap
 	{
-		if (!HasScaleWeightMap())
+		if (!TetherScale.HasWeightMap())
 		{
-			const FSolverReal ScaleValue = ScaleTable[0];
+			const FSolverReal ScaleValue = (FSolverReal)TetherScale;
 
 #if INTEL_ISPC
 			if (bRealTypeCompatibleWithISPC && bChaos_LongRange_ISPC_Enabled)
@@ -142,8 +142,8 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 						(const ispc::FTether*)TetherBatch.GetData(),
 						Stiffness.GetIndices().GetData(),
 						Stiffness.GetTable().GetData(),
-						ScaleIndices.GetData(),
-						ScaleTable.GetData(),
+						TetherScale.GetIndices().GetData(),
+						TetherScale.GetTable().GetData(),
 						TetherBatch.Num(),
 						ParticleOffset);
 				}
@@ -159,7 +159,7 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
 							const FSolverReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
-							const FSolverReal ScaleValue = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							const FSolverReal ScaleValue = TetherScale[LocalParticleIndex];
 							Particles.P(ParticleOffset + LocalParticleIndex) += ExpStiffnessValue * GetDelta(Particles, Tether, ScaleValue);
 						}, TetherBatch.Num() < MinParallelSize);
 				}
