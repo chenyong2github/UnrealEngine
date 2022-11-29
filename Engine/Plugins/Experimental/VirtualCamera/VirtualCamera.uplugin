@@ -33,9 +33,7 @@
 		{
 			"Name": "VCamBlueprintNodes",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ],
-			"TargetDenyList": [ "Server" ]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "VCamCore",
