@@ -499,6 +499,7 @@ protected:
 
 	UFUNCTION()
 	virtual void HandleTriggeringActionCommited(bool& bPassthrough);
+	virtual void HandleTriggeringActionCommited();
 
 	//@TODO: DarenC - API decision, consider removing
 	virtual void ExecuteTriggeredInput();

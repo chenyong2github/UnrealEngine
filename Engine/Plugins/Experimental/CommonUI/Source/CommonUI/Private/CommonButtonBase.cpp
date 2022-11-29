@@ -504,7 +504,7 @@ void UCommonButtonBase::BindTriggeringInputActionToClick()
 
 	if (!TriggeringBindingHandle.IsValid())
 	{
-		FBindUIActionArgs BindArgs(TriggeringInputAction, false, FSimpleDelegate::CreateUObject(this, &UCommonButtonBase::HandleButtonClicked));
+		FBindUIActionArgs BindArgs(TriggeringInputAction, false, FSimpleDelegate::CreateUObject(this, &UCommonButtonBase::HandleTriggeringActionCommited));
 		BindArgs.OnHoldActionProgressed.BindUObject(this, &UCommonButtonBase::NativeOnActionProgress);
 		BindArgs.bIsPersistent = bIsPersistentBinding;
 
@@ -528,6 +528,11 @@ void UCommonButtonBase::UnbindTriggeringInputActionToClick()
 }
 
 void UCommonButtonBase::HandleTriggeringActionCommited(bool& bPassthrough)
+{
+	HandleTriggeringActionCommited();
+}
+
+void UCommonButtonBase::HandleTriggeringActionCommited()
 {
 	// Because this path doesn't go through SButton::Press(), the sound needs to be played from here.
 	FSlateApplication::Get().PlaySound(NormalStyle.PressedSlateSound);
