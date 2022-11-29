@@ -108,6 +108,13 @@ const COMMAND_LINE_ARGS: {[param: string]: Arg<any>} = {
 		dflt: false
 	},
 
+	useSlackInDev: {
+		match: /^(-useSlackInDev)$/,
+		parse: _str => true,
+		env: 'ROBO_USE_SLACK_IN_DEV',
+		dflt: false
+	},
+
 	vault: {
 		match: /^-vault_path=(.+)$/,
 		env: 'ROBO_VAULT_PATH',
@@ -116,7 +123,7 @@ const COMMAND_LINE_ARGS: {[param: string]: Arg<any>} = {
 
 	devMode: {
 		match: /^(-devMode)$/,
-		parse: _str => true,
+		parse: str => str === "false" ? false : true,
 		env: 'ROBO_DEV_MODE',
 		dflt: false
 	},

@@ -187,8 +187,9 @@ function formatResolution(info: PersistentConflict) {
 	if (info.timeTakenToResolveSeconds) {
 		// add time emojis!
 		if (info.timeTakenToResolveSeconds < 2*60) {
-			const poke = Random.choose(['eevee', 'espeon', 'sylveon', 'flareon', 'jolteon', 'leafeon', 'glaceon', 'umbreon', 'vaporeon'])
-			message += ` :${poke}_run:`
+			const emote = Random.choose(['eevee_run', 'espeon_run', 'sylveon_run', 'flareon_run',
+				'jolteon_run', 'leafeon_run', 'glaceon_run', 'umbreon_run', 'vaporeon_run', 'sonic_run', 'fallguy_run'])
+			message += ` :${emote}:`
 		}
 		else if (info.timeTakenToResolveSeconds < 10*60) {
 			message += ' :+1:'
@@ -981,8 +982,8 @@ export function bindBotNotifications(events: BotEvents, slackChannelOverrides: [
 
 	let slackMessages
 
-	const botToken = args.devMode && SLACK_DEV_DUMMY_TOKEN || SLACK_TOKENS.bot
-	const userToken = args.devMode && SLACK_DEV_DUMMY_TOKEN || SLACK_TOKENS.user
+	const botToken = args.devMode && !args.useSlackInDev && SLACK_DEV_DUMMY_TOKEN || SLACK_TOKENS.bot
+	const userToken = args.devMode && !args.useSlackInDev && SLACK_DEV_DUMMY_TOKEN || SLACK_TOKENS.user
 	if (botToken && events.botConfig.slackChannel) {
 		logger.info('Enabling Slack messages for ' +  events.botname)
 		slackMessages = new SlackMessages(new Slack({id: events.botConfig.slackChannel, botToken, userToken}, args.slackDomain), persistence, logger)

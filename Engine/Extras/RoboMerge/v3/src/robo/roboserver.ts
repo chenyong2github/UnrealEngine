@@ -26,7 +26,7 @@ let ENVIRONMENT: {[param: string]: any}
 	const COMMAND_LINE_ARGS: {[param: string]: (Arg<any>)} = {
 		devMode: {
 			match: /^(-devMode)$/,
-			parse: _str => true,
+			parse: str => str === "false" ? false : true,
 			env: 'ROBO_DEV_MODE',
 			dflt: false
 		},
