@@ -100,7 +100,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsInlineRayTracing : 1;
 	uint32 bSupportsRayTracingShaders : 1;
 	uint32 bSupportsVertexShaderLayer : 1;
-	uint32 bSupportsBindless : 1;
+	uint32 BindlessSupport : int32(ERHIBindlessSupport::NumBits);
 	uint32 bSupportsVolumeTextureAtomics : 1;
 	uint32 bSupportsROV : 1;
 	uint32 bSupportsOIT : 1;
@@ -692,9 +692,16 @@ public:
 		return Infos[Platform].bSupportsVertexShaderLayer;
 	}
 
+	static FORCEINLINE_DEBUGGABLE const ERHIBindlessSupport GetBindlessSupport(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return static_cast<ERHIBindlessSupport>(Infos[Platform].BindlessSupport);
+	}
+
+	UE_DEPRECATED(5.2, "You must use GetBindlessSupport instead.")
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsBindless(const FStaticShaderPlatform Platform)
 	{
-		return Infos[Platform].bSupportsBindless;
+		return GetBindlessSupport(Platform) == ERHIBindlessSupport::AllShaderTypes;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsVolumeTextureAtomics(const FStaticShaderPlatform Platform)
