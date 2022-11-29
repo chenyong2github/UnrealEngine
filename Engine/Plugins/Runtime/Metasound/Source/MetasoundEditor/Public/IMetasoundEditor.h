@@ -10,6 +10,7 @@
 
 class IMetasoundEditor : public FAssetEditorToolkit
 {
+public:
 	// Returns the editor's assigned MetaSound UObject.
 	virtual UObject* GetMetasoundObject() const = 0;
 
