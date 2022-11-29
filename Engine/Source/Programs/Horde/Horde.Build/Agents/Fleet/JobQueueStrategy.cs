@@ -223,12 +223,12 @@ namespace Horde.Build.Agents.Fleet
 			{
 				int additionalAgentCount = (int)Math.Ceiling(queueSize * Settings.ScaleOutFactor);
 				int desiredAgentCount = agents.Count + additionalAgentCount;
-				return new PoolSizeResult(pool, agents, desiredAgentCount, status);
+				return new PoolSizeResult(agents.Count, desiredAgentCount, status);
 			}
 			else
 			{
 				int desiredAgentCount = (int)(agents.Count * Settings.ScaleInFactor);
-				return new PoolSizeResult(pool, agents, desiredAgentCount, status);
+				return new PoolSizeResult(agents.Count, desiredAgentCount, status);
 			}
 		}
 	}

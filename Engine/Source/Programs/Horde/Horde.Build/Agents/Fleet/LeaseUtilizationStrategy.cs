@@ -276,7 +276,7 @@ namespace Horde.Build.Agents.Fleet
 				["NumReserveAgents"] = Settings.NumReserveAgents,
 			};
 
-			return new PoolSizeResult(pool, agents, desiredAgentCount, status); 
+			return new PoolSizeResult(agents.Count, desiredAgentCount, status); 
 		}
 		
 		/// <summary>

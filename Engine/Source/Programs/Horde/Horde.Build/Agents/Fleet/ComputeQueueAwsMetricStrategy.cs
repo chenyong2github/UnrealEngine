@@ -131,7 +131,7 @@ namespace Horde.Build.Agents.Fleet
 			}
 
 			// Return the input pool size data as-is since we are only observing and not modifying
-			return new PoolSizeResult(pool, agents, agents.Count);
+			return new PoolSizeResult(numAgents, numAgents);
 		}
 	}
 }

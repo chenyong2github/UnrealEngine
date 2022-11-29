@@ -57,24 +57,19 @@ namespace Horde.Build.Agents.Fleet
 	}
 
 	/// <summary>
-	/// Class for specifying and grouping data together required for calculating pool size
+	/// Result from calculating pool size
 	/// </summary>
 	public class PoolSizeResult
 	{
 		/// <summary>
-		/// Pool being resized
+		/// The agent count as it appeared when pool sizing was calculated
 		/// </summary>
-		public IPool Pool { get; }
-		
-		/// <summary>
-		/// All agents currently associated with the pool
-		/// </summary>
-		public List<IAgent> Agents { get; }
+		public int CurrentAgentCount { get; }
 
 		/// <summary>
-		/// The desired agent count (calculated and updated once the strategy has been run, null otherwise)
+		/// The desired agent count as calculated by pool sizing strategy
 		/// </summary>
-		public int? DesiredAgentCount  { get; }
+		public int DesiredAgentCount { get; }
 		
 		/// <summary>
 		/// Log-friendly metadata object describing the output of the size calculation through key/values
@@ -84,30 +79,14 @@ namespace Horde.Build.Agents.Fleet
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="pool"></param>
-		/// <param name="agents"></param>
+		/// <param name="currentAgentCount"></param>
 		/// <param name="desiredAgentCount"></param>
 		/// <param name="status"></param>
-		public PoolSizeResult(IPool pool, List<IAgent> agents, int? desiredAgentCount, IReadOnlyDictionary<string, object>? status = null)
+		public PoolSizeResult(int currentAgentCount, int desiredAgentCount, IReadOnlyDictionary<string, object>? status = null)
 		{
-			Pool = pool;
-			Agents = agents;
+			CurrentAgentCount = currentAgentCount;
 			DesiredAgentCount = desiredAgentCount;
 			Status = status;
-		}
-
-		/// <summary>
-		/// Copy the object, inheriting any unspecified values from current instance
-		/// Needed because the class is immutable 
-		/// </summary>
-		/// <param name="pool"></param>
-		/// <param name="agents"></param>
-		/// <param name="desiredAgentCount"></param>
-		/// <param name="status"></param>
-		/// <returns>A new copy</returns>
-		public PoolSizeResult Copy(IPool? pool = null, List<IAgent>? agents = null, int? desiredAgentCount = null, IReadOnlyDictionary<string, object>? status = null)
-		{
-			return new PoolSizeResult(pool ?? Pool, agents ?? Agents, desiredAgentCount ?? DesiredAgentCount, status);
 		}
 	}
 	
@@ -139,7 +118,7 @@ namespace Horde.Build.Agents.Fleet
 		/// <inheritdoc/>
 		public Task<PoolSizeResult> CalculatePoolSizeAsync(IPool pool, List<IAgent> agents)
 		{
-			return Task.FromResult(new PoolSizeResult(pool, agents, agents.Count));
+			return Task.FromResult(new PoolSizeResult(agents.Count, agents.Count));
 		}
 
 		/// <inheritdoc/>

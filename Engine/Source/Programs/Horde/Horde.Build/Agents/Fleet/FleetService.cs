@@ -27,7 +27,34 @@ using StatsdClient;
 namespace Horde.Build.Agents.Fleet
 {
 	using PoolId = StringId<IPool>;
-
+	
+	/// <summary>
+	/// Parameters required for calculating pool size
+	/// </summary>
+	public class PoolWithAgents
+	{
+		/// <summary>
+		/// Pool being resized
+		/// </summary>
+		public IPool Pool { get; }
+		
+		/// <summary>
+		/// All agents currently associated with the pool
+		/// </summary>
+		public List<IAgent> Agents { get; }
+	
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="pool"></param>
+		/// <param name="agents"></param>
+		public PoolWithAgents(IPool pool, List<IAgent> agents)
+		{
+			Pool = pool;
+			Agents = agents;
+		}
+	}
+	
 	/// <summary>
 	/// Service for managing the autoscaling of agent pools
 	/// </summary>
@@ -117,9 +144,20 @@ namespace Horde.Build.Agents.Fleet
 			ISpan span = GlobalTracer.Instance.BuildSpan("FleetService.Tick").Start();
 			try
 			{
-				List<PoolSizeResult> input = await GetPoolSizeDataAsync();
-				List<PoolSizeResult> output = await CalculatePoolSizesAsync(input, stoppingToken);
-				await ResizePoolsAsync(output, stoppingToken);
+				List<PoolWithAgents> poolsWithAgents = await GetPoolsWithAgentsAsync();
+			
+				ParallelOptions options = new () { MaxDegreeOfParallelism = MaxParallelTasks, CancellationToken = stoppingToken };
+				await Parallel.ForEachAsync(poolsWithAgents, options, async (input, innerCt) =>
+				{
+					try
+					{
+						await CalculateSizeAndScaleAsync(input.Pool, input.Agents, innerCt);
+					}
+					catch (Exception e)
+					{
+						_logger.LogError(e, "Failed to scale pool {PoolId}", input.Pool.Id);
+					}
+				});
 			}
 			finally
 			{
@@ -141,72 +179,47 @@ namespace Horde.Build.Agents.Fleet
 			}
 		}
 
-		internal async Task<List<PoolSizeResult>> CalculatePoolSizesAsync(List<PoolSizeResult> poolSizeDatas, CancellationToken cancellationToken)
+		internal async Task CalculateSizeAndScaleAsync(IPool pool, List<IAgent> agents, CancellationToken cancellationToken)
 		{
-			ISpan span = GlobalTracer.Instance.BuildSpan("FleetService.CalculatePoolSizes").WithTag("MaxParallelTasks", MaxParallelTasks).Start();
-			ConcurrentQueue<PoolSizeResult> results = new ();
-			
-			try
-			{
-				ParallelOptions options = new () { MaxDegreeOfParallelism = MaxParallelTasks, CancellationToken = cancellationToken };
-				await Parallel.ForEachAsync(poolSizeDatas, options, async (input, innerCt) =>
-				{
-					try
-					{
-						IPoolSizeStrategy sizeStrategy = CreatePoolSizeStrategy(input.Pool);
-						PoolSizeResult output = await sizeStrategy.CalculatePoolSizeAsync(input.Pool, input.Agents);
-						results.Enqueue(output);
-					}
-					catch (Exception e)
-					{
-						_logger.LogError(e, "Failed calculating pool size for pool {PoolId}", input.Pool?.Id);
-					}
-				});
-			}
-			finally
-			{
-				span.Finish();
-			}
-
-			return results.ToList();
+			IPoolSizeStrategy sizeStrategy = CreatePoolSizeStrategy(pool);
+			PoolSizeResult result = await sizeStrategy.CalculatePoolSizeAsync(pool, agents);
+			await ScalePoolAsync(pool, agents, result, cancellationToken);
 		}
 
-		internal async Task<List<PoolSizeResult>> GetPoolSizeDataAsync()
+		internal async Task<List<PoolWithAgents>> GetPoolsWithAgentsAsync()
 		{
 			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok, enabled: true);
 			List<IAgent> GetAgentsInPool(PoolId poolId) => agents.FindAll(a => a.GetPools().Any(p => p == poolId));
 			List<IPool> pools = await _poolCollection.GetAsync();
 
-			return pools.Select(pool => new PoolSizeResult(pool, GetAgentsInPool(pool.Id), null)).ToList();
+			return pools.Select(pool => new PoolWithAgents(pool, GetAgentsInPool(pool.Id))).ToList();
 		}
 
-		internal async Task ResizePoolAsync(PoolSizeResult poolSizeResult, CancellationToken cancellationToken)
+		internal async Task ScalePoolAsync(IPool pool, List<IAgent> agents, PoolSizeResult poolSizeResult, CancellationToken cancellationToken)
 		{
-			IPool pool = poolSizeResult.Pool;
-
-			if (!pool.EnableAutoscaling || poolSizeResult.DesiredAgentCount == null)
+			if (!pool.EnableAutoscaling)
 			{
 				return;
 			}
 
-			int currentAgentCount = poolSizeResult.Agents.Count;
-			int desiredAgentCount = poolSizeResult.DesiredAgentCount.Value;
+			int currentAgentCount = poolSizeResult.CurrentAgentCount;
+			int desiredAgentCount = poolSizeResult.DesiredAgentCount;
 			int deltaAgentCount = desiredAgentCount - currentAgentCount;
 
 			using IScope scope = GlobalTracer.Instance
-				.BuildSpan("FleetService.ResizePool")
+				.BuildSpan("FleetService.ScalePool")
 				.WithTag(Datadog.Trace.OpenTracing.DatadogTags.ResourceName, pool.Id.ToString())
 				.WithTag("CurrentAgentCount", currentAgentCount)
 				.WithTag("DesiredAgentCount", desiredAgentCount)
 				.WithTag("DeltaAgentCount", deltaAgentCount)
 				.StartActive();
 			
-			IFleetManager fleetManager = CreateFleetManager(poolSizeResult.Pool);
+			IFleetManager fleetManager = CreateFleetManager(pool);
 			Dictionary<string, object> logScopeMetadata = new()
 			{
 				["FleetManager"] = fleetManager.GetType().Name,
 				["PoolSizeStrategy"] = poolSizeResult.Status ?? new Dictionary<string, object>(),
-				["PoolId"] = poolSizeResult.Pool.Id,
+				["PoolId"] = pool.Id,
 			};
 
 			using IDisposable logScope = _logger.BeginScope(logScopeMetadata);
@@ -225,7 +238,7 @@ namespace Horde.Build.Agents.Fleet
 						scope.Span.SetTag("isCoolingDown", isCoolingDown);
 						if (!isCoolingDown)
 						{
-							await fleetManager.ExpandPoolAsync(pool, poolSizeResult.Agents, deltaAgentCount, cancellationToken);
+							await fleetManager.ExpandPoolAsync(pool, agents, deltaAgentCount, cancellationToken);
 							await _poolCollection.TryUpdateAsync(pool, lastScaleUpTime: _clock.UtcNow);
 						}
 						else
@@ -248,7 +261,7 @@ namespace Horde.Build.Agents.Fleet
 					scope.Span.SetTag("isCoolingDown", isCoolingDown);
 					if (!isCoolingDown)
 					{
-						await fleetManager.ShrinkPoolAsync(pool, poolSizeResult.Agents, -deltaAgentCount, cancellationToken);
+						await fleetManager.ShrinkPoolAsync(pool, agents, -deltaAgentCount, cancellationToken);
 						await _poolCollection.TryUpdateAsync(pool, lastScaleDownTime: _clock.UtcNow);
 					}
 					else
@@ -266,15 +279,6 @@ namespace Horde.Build.Agents.Fleet
 
 			_dogStatsd.Gauge("agentpools.autoscale.target", desiredAgentCount, tags: new []{"pool:" + pool.Name});
 			_dogStatsd.Gauge("agentpools.autoscale.current", currentAgentCount, tags: new []{"pool:" + pool.Name});
-		}
-		
-		internal async Task ResizePoolsAsync(List<PoolSizeResult> poolSizeDatas, CancellationToken cancellationToken = default)
-		{
-			ParallelOptions options = new () { MaxDegreeOfParallelism = MaxParallelTasks, CancellationToken = cancellationToken };
-			await Parallel.ForEachAsync(poolSizeDatas.OrderByDescending(x => x.Agents.Count), options, async (poolSizeData, innerCt) =>
-			{
-				await ResizePoolAsync(poolSizeData, innerCt);
-			});
 		}
 		
 		internal IEnumerable<string> GetPropValues(string name)
