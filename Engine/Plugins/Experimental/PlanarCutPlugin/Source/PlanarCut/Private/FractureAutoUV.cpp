@@ -604,7 +604,7 @@ bool UVLayout(
 	// To approximate a larger gutter, we tell it to consider a smaller output resolution --
 	//  hoping that e.g. the UVs for a 1 pixel gutter at 256x256 are ~ a 2 pixel gutter at 512x512
 	// TODO: If we make StandardPack support the GutterSize parameter, we can use that instead.
-	Packer.TextureResolution = UVRes / FMathf::Max(1, GutterSize);
+	Packer.TextureResolution = static_cast<int32>( UVRes / FMathf::Max(1.f, GutterSize) );
 	return Packer.StandardPack(&UVMesh, UVIslands);
 }
 
@@ -666,11 +666,11 @@ bool TextureInternalSurfaces(
 	}
 
 	const float AmbientWorkPer = 1, CurvatureWorkPer = 10;
-	const float NumMeshes = TransformIndices.Num();
+	const int32 NumMeshes = TransformIndices.Num();
 	const float AmountOfWork = 
 		float(AmbientIdx > -1) * AmbientWorkPer * NumMeshes +
 		float(CurvatureIdx > -1) * CurvatureWorkPer * NumMeshes;
-	const float WorkIncr = AmountOfWork > 0 ? .9 / AmountOfWork : 0;
+	const float WorkIncr = AmountOfWork > 0 ? 0.9f / AmountOfWork : 0.f;
 
 	FDynamicMeshCollection CollectionMeshes(&Collection, TransformIndices, FTransform::Identity, false);
 	if (bNeedsDynamicMeshes)
@@ -877,7 +877,7 @@ bool TextureInternalSurfaces(
 					{
 						double DistanceSq;
 						OutsideSpatial.FindNearestTriangle(InsidePoint, DistanceSq, AttributeSettings.ToExternal_MaxDistance);
-						float PercentDistance = FMathf::Min(1.0f, FMathf::Sqrt(DistanceSq) / (float)AttributeSettings.ToExternal_MaxDistance);
+						float PercentDistance = FMathf::Min(1.0f, static_cast<float>(FMathd::Sqrt(DistanceSq) / AttributeSettings.ToExternal_MaxDistance));
 						checkSlow(FMath::IsFinite(PercentDistance));
 						OutColor[DistanceToExternalIdx] = PercentDistance;
 					}
@@ -887,7 +887,7 @@ bool TextureInternalSurfaces(
 						{
 							double Min = OutsideSpatial.GetBoundingBox().Min[Dim], Max = OutsideSpatial.GetBoundingBox().Max[Dim];
 							checkSlow(Min != Max);
-							float PercentAlong = (float)(InsidePoint[Dim] - Min) / (Max - Min);
+							float PercentAlong = static_cast<float>( (InsidePoint[Dim] - Min) / (Max - Min) );
 							OutColor[TargetIdx] = PercentAlong;
 						}
 					};

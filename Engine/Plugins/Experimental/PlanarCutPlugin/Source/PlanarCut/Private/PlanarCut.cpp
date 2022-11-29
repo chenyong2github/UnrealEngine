@@ -119,7 +119,7 @@ void FInternalSurfaceMaterials::SetUVScaleFromCollection(const GeometryCollectio
 		FaceStart = FaceStartArray[GeometryIdx];
 		FaceEnd = FaceCountArray[GeometryIdx] + FaceStartArray[GeometryIdx];
 	}
-	float UVDistance = 0;
+	double UVDistance = 0;
 	float WorldDistance = 0;
 	for (int32 FaceIdx = FaceStart; FaceIdx < FaceEnd; FaceIdx++)
 	{
@@ -134,7 +134,7 @@ void FInternalSurfaceMaterials::SetUVScaleFromCollection(const GeometryCollectio
 
 	if (WorldDistance > 0)
 	{
-		GlobalUVScale =  UVDistance / WorldDistance;
+		GlobalUVScale =  static_cast<float>(UVDistance) / WorldDistance;
 	}
 	if (GlobalUVScale <= 0)
 	{
@@ -452,20 +452,20 @@ FPlanarCells::FPlanarCells(const FBox& Region, const FIntVector& CubesPerAxis)
 			}
 		}
 	}
-	float Z = Region.Min.Z;
+	float Z = static_cast<float>( Region.Min.Z );
 	int32 ZSliceSize = VertsPerAxis.X * VertsPerAxis.Y;
 	int32 VIdxOffs[8] = { 0, 1, VertsPerAxis.X + 1, VertsPerAxis.X, ZSliceSize, ZSliceSize + 1, ZSliceSize + VertsPerAxis.X + 1, ZSliceSize + VertsPerAxis.X };
-	for (int32 Zi = 0; Zi < CubesPerAxis.Z; Zi++, Z += CellSizes.Z)
+	for (int32 Zi = 0; Zi < CubesPerAxis.Z; Zi++, Z += static_cast<float>(CellSizes.Z))
 	{
-		float Y = Region.Min.Y;
-		float ZN = Z + CellSizes.Z;
-		for (int32 Yi = 0; Yi < CubesPerAxis.Y; Yi++, Y += CellSizes.Y)
+		float Y = static_cast<float>( Region.Min.Y );
+		float ZN = Z + static_cast<float>(CellSizes.Z);
+		for (int32 Yi = 0; Yi < CubesPerAxis.Y; Yi++, Y += static_cast<float>(CellSizes.Y))
 		{
-			float X = Region.Min.X;
-			float YN = Y + CellSizes.Y;
-			for (int32 Xi = 0; Xi < CubesPerAxis.X; Xi++, X += CellSizes.X)
+			float X = static_cast<float>(Region.Min.X);
+			float YN = Y + static_cast<float>(CellSizes.Y);
+			for (int32 Xi = 0; Xi < CubesPerAxis.X; Xi++, X += static_cast<float>(CellSizes.X))
 			{
-				float XN = X + CellSizes.X;
+				float XN = X + static_cast<float>( CellSizes.X );
 				int VIdx = ToIdxUnsafe(VertsPerAxis, Xi, Yi, Zi);
 				int BoxIdx = ToIdxUnsafe(CubesPerAxis, Xi, Yi, Zi);
 

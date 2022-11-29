@@ -201,8 +201,8 @@ namespace AugmentedDynamicMesh
 	bool GetVisibility(const FDynamicMesh3& Mesh, int TID)
 	{
 		checkSlow(IsAugmented(Mesh));
-		TDynamicMeshScalarTriangleAttribute<bool>* Visible =
-			static_cast<TDynamicMeshScalarTriangleAttribute<bool>*>(Mesh.Attributes()->GetAttachedAttribute(VisibleAttribName));
+		const TDynamicMeshScalarTriangleAttribute<bool>* Visible =
+			static_cast<const TDynamicMeshScalarTriangleAttribute<bool>*>(Mesh.Attributes()->GetAttachedAttribute(VisibleAttribName));
 		return Visible->GetValue(TID);
 	}
 
@@ -244,8 +244,8 @@ namespace AugmentedDynamicMesh
 			UV = FVector2f::Zero();
 			return;
 		}
-		TDynamicMeshVertexAttribute<float, 2>* UVs =
-			static_cast<TDynamicMeshVertexAttribute<float, 2>*>(Mesh.Attributes()->GetAttachedAttribute(UVChannelNames[UVLayer]));
+		const TDynamicMeshVertexAttribute<float, 2>* UVs =
+			static_cast<const TDynamicMeshVertexAttribute<float, 2>*>(Mesh.Attributes()->GetAttachedAttribute(UVChannelNames[UVLayer]));
 		if (ensure(UVs))
 		{
 			UVs->GetValue(VID, UV);
@@ -266,10 +266,10 @@ namespace AugmentedDynamicMesh
 	void GetTangent(const FDynamicMesh3& Mesh, int VID, FVector3f& U, FVector3f& V)
 	{
 		checkSlow(IsAugmented(Mesh));
-		TDynamicMeshVertexAttribute<float, 3>* Us =
-			static_cast<TDynamicMeshVertexAttribute<float, 3>*>(Mesh.Attributes()->GetAttachedAttribute(TangentUAttribName));
-		TDynamicMeshVertexAttribute<float, 3>* Vs =
-			static_cast<TDynamicMeshVertexAttribute<float, 3>*>(Mesh.Attributes()->GetAttachedAttribute(TangentVAttribName));
+		const TDynamicMeshVertexAttribute<float, 3>* Us =
+			static_cast<const TDynamicMeshVertexAttribute<float, 3>*>(Mesh.Attributes()->GetAttachedAttribute(TangentUAttribName));
+		const TDynamicMeshVertexAttribute<float, 3>* Vs =
+			static_cast<const TDynamicMeshVertexAttribute<float, 3>*>(Mesh.Attributes()->GetAttachedAttribute(TangentVAttribName));
 		FVector3f Normal = Mesh.GetVertexNormal(VID);
 		Us->GetValue(VID, U);
 		Vs->GetValue(VID, V);
@@ -663,7 +663,7 @@ namespace AugmentedDynamicMesh
 
 					// Pick number of samples based on the longest edge
 					double LongEdgeLen = FMathd::Sqrt(MaxEdgeLenSq);
-					int Divisions = FMathd::Floor(LongEdgeLen / Spacing);
+					int Divisions = FMath::FloorToInt32(LongEdgeLen / Spacing);
 					double Factor = 1.0 / double(Divisions + 1);
 					int SecondEdgeIdx = (MaxEdgeIdx + 1) % 3;
 					int ThirdEdgeIdx = (MaxEdgeIdx + 2) % 3;
@@ -685,7 +685,7 @@ namespace AugmentedDynamicMesh
 
 						// Choose number of samples between the two edge points based on their distance
 						double AcrossDist = Distance( Triangle.BarycentricPoint(E1Bary), Triangle.BarycentricPoint(E2Bary) );
-						int DivisionsAcross = FMathd::Ceil(AcrossDist / Spacing);
+						int DivisionsAcross = FMath::CeilToInt32(AcrossDist / Spacing);
 						double FactorAcross = 1.0 / double(DivisionsAcross + 1);
 						for (int DivJ = 0; DivJ < DivisionsAcross; DivJ++)
 						{
@@ -1889,7 +1889,7 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithoutNoise(int NumCells, const F
 			for (int BoundaryVertex : PlaneBoundary)
 			{
 				PlaneVertInfo.Position = FVector3d(Cells.PlaneBoundaryVertices[BoundaryVertex]);
-				FVector2f UV = (FVector2f(PlaneFrame.ToPlaneUV(PlaneVertInfo.Position)) - MinUV) * GlobalUVScale;
+				FVector2f UV = (FVector2f(PlaneFrame.ToPlaneUV(PlaneVertInfo.Position)) - MinUV) * static_cast<float>(GlobalUVScale);
 				int VID = Meshes[MeshIdx]->AppendVertex(PlaneVertInfo);
 				AugmentedDynamicMesh::SetAllUV(*Meshes[MeshIdx], VID, UV, NumUVLayers);
 			}
@@ -2022,7 +2022,7 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithNoise(int NumCells, const FPla
 			const FVector& V2 = Cells.PlaneBoundaryVertices[PlaneBoundary[V2Idx]];
 			AreaVec += (V1 - V0) ^ (V2 - V1);
 		}
-		TotalArea += AreaVec.Size();
+		TotalArea += static_cast<float>(AreaVec.Size());
 	}
 	double Spacing = GetSafeNoiseSpacing(TotalArea, Cells.InternalSurfaceMaterials.NoiseSettings->PointSpacing);
 
@@ -2312,7 +2312,7 @@ void FCellMeshes::CreateMeshesForBoundedPlanesWithNoise(int NumCells, const FPla
 				FIndex3i Tri = Mesh.GetTriangle(TID);
 				for (int Idx = 0; Idx < 3; Idx++)
 				{
-					FVector2f UV = ((FVector2f)PlaneFrames[PlaneIdx].ToPlaneUV(Mesh.GetVertex(Tri[Idx])) - PlaneMinUVs[PlaneIdx]) * GlobalUVScale;
+					FVector2f UV = ((FVector2f)PlaneFrames[PlaneIdx].ToPlaneUV(Mesh.GetVertex(Tri[Idx])) - PlaneMinUVs[PlaneIdx]) * static_cast<float>(GlobalUVScale);
 					for (int UVLayerIdx = 0; UVLayerIdx < NumUVLayers; UVLayerIdx++)
 					{
 						AugmentedDynamicMesh::SetUV(Mesh, Tri[Idx], UV, UVLayerIdx);
@@ -2356,7 +2356,7 @@ void FCellMeshes::CreateMeshesForSinglePlane(const FPlanarCells& Cells, const FA
 	for (int CornerIdx = 0; CornerIdx < 4; CornerIdx++)
 	{
 		PlaneVertInfo.Position = PlaneFrame.FromPlaneUV(XYRange.GetCorner(CornerIdx));
-		FVector2f UV = FVector2f(XYRange.GetCorner(CornerIdx) - XYRange.Min) * GlobalUVScale;
+		FVector2f UV = FVector2f(XYRange.GetCorner(CornerIdx) - XYRange.Min) * static_cast<float>(GlobalUVScale);
 		int VID = PlaneMesh.AppendVertex(PlaneVertInfo);
 		AugmentedDynamicMesh::SetAllUV(PlaneMesh, VID, UV, NumUVLayers);
 	}
@@ -2365,7 +2365,7 @@ void FCellMeshes::CreateMeshesForSinglePlane(const FPlanarCells& Cells, const FA
 
 	if (bNoise)
 	{
-		double Spacing = GetSafeNoiseSpacing(XYRange.Area(), Cells.InternalSurfaceMaterials.NoiseSettings->PointSpacing);
+		double Spacing = GetSafeNoiseSpacing(static_cast<float>(XYRange.Area()), Cells.InternalSurfaceMaterials.NoiseSettings->PointSpacing);
 		RemeshForNoise(PlaneMesh, EEdgeRefineFlags::SplitsOnly, Spacing);
 		ApplyNoise(PlaneMesh, PlaneFrame.GetAxis(2), Cells.InternalSurfaceMaterials.NoiseSettings.GetValue(), true);
 		FMeshNormals::QuickComputeVertexNormals(PlaneMesh);
@@ -2638,7 +2638,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 		FMeshIndexMappings IndexMaps;
 		for (int32 PlaneIdx = 0; PlaneIdx < Planes.Num(); PlaneIdx++)
 		{
-			FProgressCancel::FProgressScope MakeMeshScope(Progress, .1 * PerPlaneWorkFrac);
+			FProgressCancel::FProgressScope MakeMeshScope(Progress, .1f * PerPlaneWorkFrac);
 			FPlanarCells PlaneCells(Planes[PlaneIdx]);
 			PlaneCells.InternalSurfaceMaterials = InternalSurfaceMaterials;
 			FCellMeshes PlaneGroutMesh(NumUVLayers, RandomStream);

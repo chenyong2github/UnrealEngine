@@ -146,7 +146,7 @@ struct PLANARCUT_API FPlanarCells
 			
 			for (int32 VIdx : Bdry)
 			{
-				float SD = P.PlaneDot(PlaneBoundaryVertices[VIdx]);
+				const double SD = P.PlaneDot(PlaneBoundaryVertices[VIdx]);
 				if (FMath::Abs(SD) > 1e-4)
 				{
 					return false; // vertices should be on plane!
@@ -156,7 +156,7 @@ struct PLANARCUT_API FPlanarCells
 			{
 				return false;
 			}
-			float AngleMeasure = (NormalDir ^ N).SizeSquared();
+			const double AngleMeasure = (NormalDir ^ N).SizeSquared();
 			if (AngleMeasure > 1e-3) // vectors aren't directionally aligned?
 			{
 				return false;
