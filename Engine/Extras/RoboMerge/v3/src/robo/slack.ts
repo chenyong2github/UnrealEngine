@@ -5,6 +5,7 @@ import * as request from '../common/request';
 export interface SlackChannel {
 	id: string
 	botToken: string
+	userToken: string
 }
 
 export interface SlackMessageField {
@@ -69,8 +70,15 @@ export class Slack {
 	constructor(private channel: SlackChannel, private domain: string) {
 	}
 
-	async addUserToChannel(user: string, channel: string) {
-		return this.post('conversations.invite', {channel: channel, users:user,}, true)
+	async addUserToChannel(user: string, channel: string, externalUser?: boolean) {
+		if (externalUser) {		
+			return this.post_user(this.channel.userToken || this.channel.botToken, 'admin.conversations.invite', {channel_id:channel, user_ids:user}, true)
+		}
+		return this.post('conversations.invite', {channel, users:user}, true)
+	}
+
+	async getChannelInfo(channel:string) {
+		return this.get('conversations.info', {channel})
 	}
 
 	async postMessage(message: SlackMessage) {
@@ -114,11 +122,11 @@ export class Slack {
 		return (await this.post('conversations.open', {users})).channel.id
 	}
 
-	/*private*/ async post(command: string, args: any, canFail? : boolean) {
+	/*private*/ async post_user(userToken: string, command: string, args: any, canFail? : boolean) {
 		const resultJson = await request.post({
 			url: this.domain + '/api/' + command,
 			body: JSON.stringify(args),
-			headers: {Authorization: 'Bearer ' + this.channel.botToken},
+			headers: {Authorization: 'Bearer ' + userToken},
 			contentType: 'application/json; charset=utf-8'
 		})
 		try {
@@ -131,6 +139,10 @@ export class Slack {
 		}
 
 		throw new Error(`${command} generated:\n\t${resultJson}`)
+	}
+
+	/*private*/ async post(command: string, args: any, canFail? : boolean) {
+		return this.post_user(this.channel.botToken, command, args, canFail)
 	}
 
 	/*private*/ async get(command: string, args: any, canFail? : boolean) {
