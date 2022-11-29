@@ -196,11 +196,15 @@ void FOpenGLDynamicRHI::RHIBeginFrame()
 	OpenGL_PollAllFences();
 }
 
+extern void OpenGLCommands_OnEndFrame();
+
 void FOpenGLDynamicRHI::RHIEndFrame()
 {
 	GPUProfilingData.EndFrame();
 
 	OpenGL_PollAllFences();
+
+	OpenGLCommands_OnEndFrame();
 }
 
 void FOpenGLDynamicRHI::RHIPerFrameRHIFlushComplete()
