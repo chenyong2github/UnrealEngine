@@ -395,22 +395,23 @@ void FString::TrimToNullTerminator()
 }
 
 
-int32 FString::Find(const TCHAR* SubStr, ESearchCase::Type SearchCase, ESearchDir::Type SearchDir, int32 StartPosition) const
+int32 FString::Find(const TCHAR* SubStr, int32 SubStrLen, ESearchCase::Type SearchCase, ESearchDir::Type SearchDir, int32 StartPosition) const
 {
-	if (SubStr == nullptr)
-	{
-		return INDEX_NONE;
-	}
-	if( SearchDir == ESearchDir::FromStart)
+	checkf(SubStrLen >= 0, TEXT("Invalid SubStrLen: %d"), SubStrLen);
+
+	if (SearchDir == ESearchDir::FromStart)
 	{
 		const TCHAR* Start = **this;
-		if (StartPosition != INDEX_NONE && Len() > 0)
+		int32 RemainingLength = Len();
+		if (StartPosition != INDEX_NONE && RemainingLength > 0)
 		{
-			Start += FMath::Clamp(StartPosition, 0, Len() - 1);
+			const TCHAR* End = Start + RemainingLength;
+			Start += FMath::Clamp(StartPosition, 0, RemainingLength - 1);
+			RemainingLength = UE_PTRDIFF_TO_INT32(End - Start);
 		}
 		const TCHAR* Tmp = SearchCase == ESearchCase::IgnoreCase
-			? FCString::Stristr(Start, SubStr)
-			: FCString::Strstr(Start, SubStr);
+			? FCString::Strnistr(Start, RemainingLength, SubStr, SubStrLen)
+			: FCString::Strnstr(Start, RemainingLength, SubStr, SubStrLen);
 
 		return Tmp ? UE_PTRDIFF_TO_INT32(Tmp-**this) : INDEX_NONE;
 	}
@@ -420,29 +421,29 @@ int32 FString::Find(const TCHAR* SubStr, ESearchCase::Type SearchCase, ESearchDi
 		// times in the loop below
 		if ( SearchCase == ESearchCase::IgnoreCase)
 		{
-			return ToUpper().Find(FString(SubStr).ToUpper(), ESearchCase::CaseSensitive, SearchDir, StartPosition);
+			return ToUpper().Find(FString(SubStrLen, SubStr).ToUpper(), ESearchCase::CaseSensitive, SearchDir, StartPosition);
 		}
 		else
 		{
-			const int32 SearchStringLength=FMath::Max(1, FCString::Strlen(SubStr));
+			const int32 SearchStringLength=FMath::Max(1, SubStrLen);
 			
-			if ( StartPosition == INDEX_NONE || StartPosition >= Len() )
+			if (StartPosition == INDEX_NONE || StartPosition >= Len())
 			{
 				StartPosition = Len();
 			}
 			
-			for( int32 i = StartPosition - SearchStringLength; i >= 0; i-- )
+			for (int32 i = StartPosition - SearchStringLength; i >= 0; i--)
 			{
 				int32 j;
-				for( j=0; SubStr[j]; j++ )
+				for (j=0; j != SubStrLen; j++)
 				{
-					if( (*this)[i+j]!=SubStr[j] )
+					if ((*this)[i+j]!=SubStr[j])
 					{
 						break;
 					}
 				}
 				
-				if( !SubStr[j] )
+				if (j == SubStrLen)
 				{
 					return i;
 				}
@@ -561,68 +562,31 @@ void FString::RemoveSpacesInline()
 	}
 }
 
-bool FString::StartsWith(const TCHAR* InPrefix, ESearchCase::Type SearchCase) const
+bool FString::StartsWith(const TCHAR* InPrefix, int32 InPrefixLen, ESearchCase::Type SearchCase) const
 {
 	if (SearchCase == ESearchCase::IgnoreCase)
 	{
-		return InPrefix && *InPrefix && !FCString::Strnicmp(**this, InPrefix, FCString::Strlen(InPrefix));
+		return InPrefixLen > 0 && !FCString::Strnicmp(**this, InPrefix, InPrefixLen);
 	}
 	else
 	{
-		return InPrefix && *InPrefix && !FCString::Strncmp(**this, InPrefix, FCString::Strlen(InPrefix));
+		return InPrefixLen > 0 && !FCString::Strncmp(**this, InPrefix, InPrefixLen);
 	}
 }
 
-bool FString::StartsWith(const FString& InPrefix, ESearchCase::Type SearchCase ) const
+bool FString::EndsWith(const TCHAR* InSuffix, int32 InSuffixLen, ESearchCase::Type SearchCase ) const
 {
-	if( SearchCase == ESearchCase::IgnoreCase )
-	{
-		return InPrefix.Len() > 0 && !FCString::Strnicmp(**this, *InPrefix, InPrefix.Len());
-	}
-	else
-	{
-		return InPrefix.Len() > 0 && !FCString::Strncmp(**this, *InPrefix, InPrefix.Len());
-	}
-}
-
-bool FString::EndsWith(const TCHAR* InSuffix, ESearchCase::Type SearchCase) const
-{
-	if (!InSuffix || *InSuffix == TEXT('\0'))
-	{
-		return false;
-	}
-
-	int32 ThisLen   = this->Len();
-	int32 SuffixLen = FCString::Strlen(InSuffix);
-	if (SuffixLen > ThisLen)
-	{
-		return false;
-	}
-
-	const TCHAR* StrPtr = Data.GetData() + ThisLen - SuffixLen;
 	if (SearchCase == ESearchCase::IgnoreCase)
 	{
-		return !FCString::Stricmp(StrPtr, InSuffix);
+		return InSuffixLen > 0 &&
+			Len() >= InSuffixLen &&
+			!FCString::Stricmp( &(*this)[ Len() - InSuffixLen ], InSuffix );
 	}
 	else
 	{
-		return !FCString::Strcmp(StrPtr, InSuffix);
-	}
-}
-
-bool FString::EndsWith(const FString& InSuffix, ESearchCase::Type SearchCase ) const
-{
-	if( SearchCase == ESearchCase::IgnoreCase )
-	{
-		return InSuffix.Len() > 0 &&
-			Len() >= InSuffix.Len() &&
-			!FCString::Stricmp( &(*this)[ Len() - InSuffix.Len() ], *InSuffix );
-	}
-	else
-	{
-		return InSuffix.Len() > 0 &&
-			Len() >= InSuffix.Len() &&
-			!FCString::Strcmp( &(*this)[ Len() - InSuffix.Len() ], *InSuffix );
+		return InSuffixLen > 0 &&
+			Len() >= InSuffixLen &&
+			!FCString::Strcmp( &(*this)[ Len() - InSuffixLen ], InSuffix );
 	}
 }
 
@@ -661,65 +625,32 @@ void FString::RemoveAt(int32 Index, int32 Count, bool bAllowShrinking)
 	Data.RemoveAt(Index, FMath::Clamp(Count, 0, Len()-Index), bAllowShrinking);
 }
 
-bool FString::RemoveFromStart( const TCHAR* InPrefix, ESearchCase::Type SearchCase )
+bool FString::RemoveFromStart(const TCHAR* InPrefix, int32 InPrefixLen, ESearchCase::Type SearchCase)
 {
-	if ( *InPrefix == 0 )
+	if (InPrefixLen == 0 )
 	{
 		return false;
 	}
 
-	if ( StartsWith( InPrefix, SearchCase ) )
+	if (StartsWith(InPrefix, InPrefixLen, SearchCase ))
 	{
-		RemoveAt( 0, FCString::Strlen(InPrefix) );
+		RemoveAt(0, InPrefixLen);
 		return true;
 	}
 
 	return false;
 }
 
-bool FString::RemoveFromStart( const FString& InPrefix, ESearchCase::Type SearchCase )
+bool FString::RemoveFromEnd(const TCHAR* InSuffix, int32 InSuffixLen, ESearchCase::Type SearchCase)
 {
-	if ( InPrefix.IsEmpty() )
+	if (InSuffixLen == 0)
 	{
 		return false;
 	}
 
-	if ( StartsWith( InPrefix, SearchCase ) )
+	if (EndsWith(InSuffix, InSuffixLen, SearchCase))
 	{
-		RemoveAt( 0, InPrefix.Len() );
-		return true;
-	}
-
-	return false;
-}
-
-bool FString::RemoveFromEnd( const TCHAR* InSuffix, ESearchCase::Type SearchCase )
-{
-	if ( *InSuffix == 0 )
-	{
-		return false;
-	}
-
-	if ( EndsWith( InSuffix, SearchCase ) )
-	{
-		int32 SuffixLen = FCString::Strlen(InSuffix);
-		RemoveAt( Len() - SuffixLen, SuffixLen );
-		return true;
-	}
-
-	return false;
-}
-
-bool FString::RemoveFromEnd( const FString& InSuffix, ESearchCase::Type SearchCase )
-{
-	if ( InSuffix.IsEmpty() )
-	{
-		return false;
-	}
-
-	if ( EndsWith( InSuffix, SearchCase ) )
-	{
-		RemoveAt( Len() - InSuffix.Len(), InSuffix.Len() );
+		RemoveAt( Len() - InSuffixLen, InSuffixLen );
 		return true;
 	}
 
@@ -1381,19 +1312,18 @@ int32 FString::ParseIntoArray( TArray<FString>& OutArray, const TCHAR* pchDelim,
 	return OutArray.Num();
 }
 
-bool FString::MatchesWildcard(const TCHAR* InWildcard, ESearchCase::Type SearchCase) const
+bool FString::MatchesWildcard(const TCHAR* InWildcard, int32 InWildcardLen, ESearchCase::Type SearchCase) const
 {
 	const TCHAR* Target = **this;
 	int32        TargetLength = Len();
-	int32        WildcardLength = FCString::Strlen(InWildcard);
 
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
-		return UE::Core::String::Private::MatchesWildcardRecursive<UE::Core::String::Private::FCompareCharsCaseSensitive>(Target, TargetLength, InWildcard, WildcardLength);
+		return UE::Core::String::Private::MatchesWildcardRecursive<UE::Core::String::Private::FCompareCharsCaseSensitive>(Target, TargetLength, InWildcard, InWildcardLen);
 	}
 	else
 	{
-		return UE::Core::String::Private::MatchesWildcardRecursive<UE::Core::String::Private::FCompareCharsCaseInsensitive>(Target, TargetLength, InWildcard, WildcardLength);
+		return UE::Core::String::Private::MatchesWildcardRecursive<UE::Core::String::Private::FCompareCharsCaseInsensitive>(Target, TargetLength, InWildcard, InWildcardLen);
 	}
 }
 

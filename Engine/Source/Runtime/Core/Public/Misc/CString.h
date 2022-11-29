@@ -259,7 +259,7 @@ struct TCString
 	 * Finds string in string, case insensitive 
 	 * @param Str The string to look through
 	 * @param Find The string to find inside Str
-	 * @return Position in Str if Find was found, otherwise, NULL
+	 * @return Position in Str if Find was found, otherwise, nullptr
 	 */
 	static const CharType* Stristr(const CharType* Str, const CharType* Find);
 
@@ -267,9 +267,55 @@ struct TCString
 	 * Finds string in string, case insensitive (non-const version)
 	 * @param Str The string to look through
 	 * @param Find The string to find inside Str
-	 * @return Position in Str if Find was found, otherwise, NULL
+	 * @return Position in Str if Find was found, otherwise, nullptr
 	 */
 	static CharType* Stristr(CharType* Str, const CharType* Find) { return (CharType*)Stristr((const CharType*)Str, Find); }
+
+	/**
+	 * Finds string in string, case insensitive
+	 * @param Str The character array to look through
+	 * @param InStrLen The length of the Str array
+	 * @param Find The character array to find inside Str
+	 * @param FindLen The length of the Find array
+	 * @return Position in Str if Find was found, otherwise, nullptr
+	 */
+	static const CharType* Strnistr(const CharType* Str, int32 InStrLen, const CharType* Find, int32 FindLen);
+
+	/**
+	 * Finds string in string, case insensitive (non-const version)
+	 * @param Str The character array to look through
+	 * @param InStrLen The length of the Str array
+	 * @param Find The character array to find inside Str
+	 * @param FindLen The length of the Find array
+	 * @return Position in Str if Find was found, otherwise, nullptr
+	 */
+	static CharType* Strnistr(CharType* Str, int32 InStrLen, const CharType* Find, int32 FindLen)
+	{
+		return (CharType*)Strnistr((const CharType*)Str, InStrLen, Find, FindLen);
+	}
+
+	/**
+	 * Finds string in string, case sensitive
+	 * @param Str The character array to look through
+	 * @param InStrLen The length of the Str array
+	 * @param Find The character array to find inside Str
+	 * @param FindLen The length of the Find array
+	 * @return Position in Str if Find was found, otherwise, nullptr
+	 */
+	static const CharType* Strnstr(const CharType* Str, int32 InStrLen, const CharType* Find, int32 FindLen);
+
+	/**
+	 * Finds string in string, case sensitive (non-const version)
+	 * @param Str The character array to look through
+	 * @param InStrLen The length of the Str array
+	 * @param Find The character array to find inside Str
+	 * @param FindLen The length of the Find array
+	 * @return Position in Str if Find was found, otherwise, nullptr
+	 */
+	static CharType* Strnstr(CharType* Str, int32 InStrLen, const CharType* Find, int32 FindLen)
+	{
+		return (CharType*)Strnstr((const CharType*)Str, InStrLen, Find, FindLen);
+	}
 
 	/**
 	 * strlen wrapper
@@ -612,10 +658,13 @@ const typename TCString<T>::CharType* TCString<T>::StrfindDelim(const CharType* 
 template <typename T>
 const typename TCString<T>::CharType* TCString<T>::Stristr(const CharType* Str, const CharType* Find)
 {
+	// Note this implementation is not reducible to Strnistr because we need to avoid calling strlen(Str) to
+	// avoid scanning it twice
+
 	// both strings must be valid
-	if( Find == NULL || Str == NULL )
+	if( Find == nullptr || Str == nullptr )
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	// get upper-case first letter of the find string (to reduce the number of full strnicmps)
@@ -639,8 +688,86 @@ const typename TCString<T>::CharType* TCString<T>::Stristr(const CharType* Str, 
 		StrChar = *Str++;
 	}
 
-	// if nothing was found, return NULL
-	return NULL;
+	// if nothing was found, return nullptr
+	return nullptr;
+}
+
+template <typename T>
+const typename TCString<T>::CharType* TCString<T>::Strnistr(const CharType* Str, int32 InStrLen, const CharType* Find, int32 FindLen)
+{
+	if (FindLen <= 0)
+	{
+		checkf(FindLen >= 0, TEXT("Invalid FindLen: %d"), FindLen);
+		return Str;
+	}
+	if (InStrLen < FindLen)
+	{
+		checkf(InStrLen >= 0, TEXT("Invalid InStrLen: %d"), InStrLen);
+		return nullptr;
+	}
+
+	// get upper-case first letter of the find string (to reduce the number of full strnicmps)
+	CharType FindInitial = TChar<CharType>::ToUpper(*Find);
+	// Set FindSuffix,FindSuffixLength to the characters of Find after the first letter
+	int32 FindSuffixLength = FindLen - 1;
+	const CharType* FindSuffix = Find + 1;
+
+	// while the length of the remaining string is >= FindLen
+	const CharType* StrLastChance = Str + InStrLen - FindLen;
+	while (Str <= StrLastChance)
+	{
+		CharType StrChar = *Str++;
+
+		// make sure it's upper-case
+		StrChar = TChar<CharType>::ToUpper(StrChar);
+		// if it matches the first letter of the find string, do a case-insensitive string compare for the length of the find string
+		if (StrChar == FindInitial && !Strnicmp(Str, FindSuffix, FindSuffixLength))
+		{
+			// if we found the string, then return a pointer to the beginning of it in the search string
+			return Str - 1;
+		}
+	}
+
+	// if nothing was found, return nullptr
+	return nullptr;
+}
+
+template <typename T>
+const typename TCString<T>::CharType* TCString<T>::Strnstr(const CharType* Str, int32 InStrLen, const CharType* Find, int32 FindLen)
+{
+	if (FindLen <= 0)
+	{
+		checkf(FindLen >= 0, TEXT("Invalid FindLen: %d"), FindLen);
+		return Str;
+	}
+	if (InStrLen < FindLen)
+	{
+		checkf(InStrLen >= 0, TEXT("Invalid InStrLen: %d"), InStrLen);
+		return nullptr;
+	}
+
+	// get first letter of the find string (to reduce the number of full strncmps)
+	CharType FindInitial = *Find;
+	// Set FindSuffix,FindSuffixLength to the characters of Find after the first letter
+	int32 FindSuffixLength = FindLen - 1;
+	const CharType* FindSuffix = Find + 1;
+
+	// while the length of the remaining string is >= FindLen
+	const CharType* StrLastChance = Str + InStrLen - FindLen;
+	while (Str <= StrLastChance)
+	{
+		CharType StrChar = *Str++;
+
+		// if it matches the first letter of the find string, do a string compare for the length of the find string
+		if (StrChar == FindInitial && !Strncmp(Str, FindSuffix, FindSuffixLength))
+		{
+			// if we found the string, then return a pointer to the beginning of it in the search string
+			return Str - 1;
+		}
+	}
+
+	// if nothing was found, return nullptr
+	return nullptr;
 }
 
 template <typename T> FORCEINLINE

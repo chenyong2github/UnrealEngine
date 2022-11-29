@@ -29,6 +29,8 @@
 #include "Traits/IsCharEncodingCompatibleWith.h"
 #include "Traits/IsCharEncodingSimplyConvertibleTo.h"
 
+#include <type_traits>
+
 struct FStringFormatArg;
 template<typename InKeyType,typename InValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
 
@@ -432,7 +434,12 @@ public:
 	 * @param InPrefix the prefix to search for at the start of the string to remove.
 	 * @return true if the prefix was removed, otherwise false.
 	 */
-	bool RemoveFromStart( const TCHAR* InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase );
+	template <typename TCharRangeType, std::enable_if_t<TIsCharRangeNotCArrayNotFString<TCharRangeType>::Value>* = nullptr>
+	bool RemoveFromStart(TCharRangeType&& InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase)
+	{
+		static_assert(std::is_same_v<typename TElementType<TCharRangeType>::Type, TCHAR>, "Expected a range of TCHAR");
+		return RemoveFromStart(GetData(InPrefix), GetNum(InPrefix), SearchCase);
+	}
 
 	/**
 	 * Removes the text from the start of the string if it exists.
@@ -440,7 +447,30 @@ public:
 	 * @param InPrefix the prefix to search for at the start of the string to remove.
 	 * @return true if the prefix was removed, otherwise false.
 	 */
-	bool RemoveFromStart( const FString& InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase );
+	bool RemoveFromStart(const TCHAR* InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase)
+	{
+		return RemoveFromStart(InPrefix, InPrefix ? FCString::Strlen(InPrefix) : 0, SearchCase);
+	}
+
+	/**
+	 * Removes the text from the start of the string if it exists.
+	 *
+	 * @param InPrefix the prefix to search for at the start of the string to remove.
+	 * @return true if the prefix was removed, otherwise false.
+	 */
+	bool RemoveFromStart(const FString& InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase)
+	{
+		return RemoveFromStart(*InPrefix, InPrefix.Len(), SearchCase);
+	}
+
+	/**
+	 * Removes the text from the start of the string if it exists.
+	 *
+	 * @param InPrefix the prefix to search for at the start of the string to remove.
+	 * @param InPrefixLen length of InPrefix
+	 * @return true if the prefix was removed, otherwise false.
+	 */
+	bool RemoveFromStart(const TCHAR* InPrefix, int32 InPrefixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase);
 
 	/**
 	 * Removes the text from the end of the string if it exists.
@@ -448,7 +478,12 @@ public:
 	 * @param InSuffix the suffix to search for at the end of the string to remove.
 	 * @return true if the suffix was removed, otherwise false.
 	 */
-	bool RemoveFromEnd( const TCHAR* InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase );
+	template <typename TCharRangeType, std::enable_if_t<TIsCharRangeNotCArrayNotFString<TCharRangeType>::Value>* = nullptr>
+	bool RemoveFromEnd(TCharRangeType&& InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase)
+	{
+		static_assert(std::is_same_v<typename TElementType<TCharRangeType>::Type, TCHAR>, "Expected a range of TCHAR");
+		return RemoveFromEnd(GetData(InSuffix), GetNum(InSuffix), SearchCase);
+	}
 
 	/**
 	 * Removes the text from the end of the string if it exists.
@@ -456,7 +491,30 @@ public:
 	 * @param InSuffix the suffix to search for at the end of the string to remove.
 	 * @return true if the suffix was removed, otherwise false.
 	 */
-	bool RemoveFromEnd( const FString& InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase );
+	bool RemoveFromEnd(const TCHAR* InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase)
+	{
+		return RemoveFromEnd(InSuffix, InSuffix ? FCString::Strlen(InSuffix) : 0, SearchCase);
+	}
+
+	/**
+	 * Removes the text from the end of the string if it exists.
+	 *
+	 * @param InSuffix the suffix to search for at the end of the string to remove.
+	 * @return true if the suffix was removed, otherwise false.
+	 */
+	bool RemoveFromEnd(const FString& InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase)
+	{
+		return RemoveFromEnd(*InSuffix, InSuffix.Len(), SearchCase);
+	}
+
+	/**
+	 * Removes the text from the end of the string if it exists.
+	 *
+	 * @param InSuffix the suffix to search for at the end of the string to remove.
+	 * @param InSuffixLen length of InSuffix
+	 * @return true if the suffix was removed, otherwise false.
+	 */
+	bool RemoveFromEnd(const TCHAR* InSuffix, int32 InSuffixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase);
 
 	/**
 	 * Concatenate this path with given path ensuring the / character is used between them
@@ -1011,6 +1069,45 @@ public:
 	 * Searches the string for a substring, and returns index into this string
 	 * of the first found instance. Can search from beginning or end, and ignore case or not.
 	 *
+	 * @param SubStr			The string to search for
+	 * @param StartPosition		The start character position to search from
+	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
+	 *
+	 * @note  When searching backwards where a StartPosition is provided, searching will actually begin from
+	 *        StartPosition - SubStr.Len(), therefore:
+	 *
+	 *        FString("X").Find("X", ESearchCase::CaseSensitive, ESearchDir::FromEnd, 0) == INDEX_NONE
+	 *
+	 *        Consider using UE::String::FindLast() as an alternative.
+	 */
+	template <typename TCharRangeType, std::enable_if_t<TIsCharRangeNotCArrayNotFString<TCharRangeType>::Value>* = nullptr>
+	UE_NODISCARD int32 Find(TCharRangeType&& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
+		ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition = INDEX_NONE) const
+	{
+		static_assert(std::is_same_v<typename TElementType<TCharRangeType>::Type, TCHAR>, "Expected a range of TCHAR");
+		return Find(GetData(SubStr), GetNum(SubStr), SearchCase, SearchDir, StartPosition);
+	}
+
+	/**
+	 * Searches the string for a substring, and returns index into this string
+	 * of the first found instance. Can search from beginning or end, and ignore case or not.
+	 *
+	 * @param SubStr			The string array of TCHAR to search for
+	 * @param StartPosition		The start character position to search from.  See note below.
+	 * @param SearchCase		Indicates whether the search is case sensitive or not
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end.
+	 */
+	UE_NODISCARD int32 Find(const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
+		ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition = INDEX_NONE) const
+	{
+		return SubStr ? Find(SubStr, FCString::Strlen(SubStr), SearchCase, SearchDir, StartPosition) : INDEX_NONE;
+	}
+
+	/**
+	 * Searches the string for a substring, and returns index into this string
+	 * of the first found instance. Can search from beginning or end, and ignore case or not.
+	 *
 	 * @param SubStr			The string array of TCHAR to search for
 	 * @param StartPosition		The start character position to search from.  See note below.
 	 * @param SearchCase		Indicates whether the search is case sensitive or not
@@ -1023,17 +1120,21 @@ public:
 	 *
 	 *        Consider using UE::String::FindLast() as an alternative.
 	 */
-	UE_NODISCARD int32 Find( const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
-				ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition=INDEX_NONE ) const;
+	UE_NODISCARD int32 Find(const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
+		ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition = INDEX_NONE) const
+	{
+		return Find(*SubStr, SubStr.Len(), SearchCase, SearchDir, StartPosition);
+	}
 
 	/**
 	 * Searches the string for a substring, and returns index into this string
 	 * of the first found instance. Can search from beginning or end, and ignore case or not.
 	 *
-	 * @param SubStr			The string to search for
-	 * @param StartPosition		The start character position to search from  See note below.
-	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
-	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
+	 * @param SubStr			The string array of TCHAR to search for
+	 * @param SubStrLen			The length of the SubStr array
+	 * @param StartPosition		The start character position to search from.  See note below.
+	 * @param SearchCase		Indicates whether the search is case sensitive or not
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end.
 	 *
 	 * @note  When searching backwards where a StartPosition is provided, searching will actually begin from
 	 *        StartPosition - SubStr.Len(), therefore:
@@ -1042,11 +1143,9 @@ public:
 	 *
 	 *        Consider using UE::String::FindLast() as an alternative.
 	 */
-	UE_NODISCARD FORCEINLINE int32 Find( const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
-							ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition=INDEX_NONE ) const
-	{
-		return Find( *SubStr, SearchCase, SearchDir, StartPosition );
-	}
+	UE_NODISCARD int32 Find(const TCHAR* SubStr, int32 InSubStrLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
+		ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition = INDEX_NONE) const;
+
 
 	/** 
 	 * Returns whether this string contains the specified substring.
@@ -1309,36 +1408,90 @@ public:
 
 
 	/**
-	 * Test whether this string starts with given string.
+	 * Test whether this string starts with given prefix.
 	 *
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string begins with specified text, false otherwise
 	 */
-	UE_NODISCARD bool StartsWith(const TCHAR* InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	template <typename TCharRangeType, std::enable_if_t<TIsCharRangeNotCArrayNotFString<TCharRangeType>::Value>* = nullptr>
+	UE_NODISCARD bool StartsWith(TCharRangeType&& InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	{
+		static_assert(std::is_same_v<typename TElementType<TCharRangeType>::Type, TCHAR>, "Expected a range of TCHAR");
+		return StartsWith(GetData(InPrefix), GetNum(InPrefix), SearchCase);
+	}
 
 	/**
-	 * Test whether this string starts with given string.
+	 * Test whether this string starts with given prefix.
 	 *
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string begins with specified text, false otherwise
 	 */
-	UE_NODISCARD bool StartsWith(const FString& InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	UE_NODISCARD bool StartsWith(const TCHAR* InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	{
+		return StartsWith(InPrefix, InPrefix ? FCString::Strlen(InPrefix) : 0, SearchCase);
+	}
 
 	/**
-	 * Test whether this string ends with given string.
+	 * Test whether this string starts with given prefix.
+	 *
+	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @return true if this string begins with specified text, false otherwise
+	 */
+	UE_NODISCARD bool StartsWith(const FString& InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	{
+		return StartsWith(*InPrefix, InPrefix.Len(), SearchCase);
+	}
+
+	/**
+	 * Test whether this string starts with given prefix.
+	 *
+	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @return true if this string begins with specified text, false otherwise
+	 */
+	UE_NODISCARD bool StartsWith(const TCHAR* InPrefix, int32 InPrefixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+
+	/**
+	 * Test whether this string ends with given suffix.
 	 *
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string ends with specified text, false otherwise
 	 */
-	UE_NODISCARD bool EndsWith(const TCHAR* InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	template <typename TCharRangeType, std::enable_if_t<TIsCharRangeNotCArrayNotFString<TCharRangeType>::Value>* = nullptr>
+	UE_NODISCARD bool EndsWith(TCharRangeType&& InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	{
+		static_assert(std::is_same_v<typename TElementType<TCharRangeType>::Type, TCHAR>, "Expected a range of TCHAR");
+		return EndsWith(GetData(InSuffix), GetNum(InSuffix), SearchCase);
+	}
 
 	/**
-	 * Test whether this string ends with given string.
+	 * Test whether this string ends with given suffix.
 	 *
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string ends with specified text, false otherwise
 	 */
-	UE_NODISCARD bool EndsWith(const FString& InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase ) const;
+	UE_NODISCARD bool EndsWith(const TCHAR* InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	{
+		return EndsWith(InSuffix, InSuffix ? FCString::Strlen(InSuffix) : 0, SearchCase);
+	}
+
+	/**
+	 * Test whether this string ends with given suffix.
+	 *
+	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @return true if this string ends with specified text, false otherwise
+	 */
+	UE_NODISCARD bool EndsWith(const FString& InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	{
+		return EndsWith(*InSuffix, InSuffix.Len(), SearchCase);
+	}
+
+	/**
+	 * Test whether this string ends with given suffix.
+	 *
+	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @return true if this string ends with specified text, false otherwise
+	 */
+	UE_NODISCARD bool EndsWith(const TCHAR* InSuffix, int32 InSuffixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase ) const;
 
 	/**
 	 * Searches this string for a given wild card
@@ -1348,7 +1501,12 @@ public:
 	 * @return true if this string matches the *?-type wildcard given. 
 	 * @warning This is a simple, SLOW routine. Use with caution
 	 */
-	UE_NODISCARD bool MatchesWildcard(const TCHAR* Wildcard, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	template <typename TCharRangeType, std::enable_if_t<TIsCharRangeNotCArrayNotFString<TCharRangeType>::Value>* = nullptr>
+	UE_NODISCARD bool MatchesWildcard(TCharRangeType&& Wildcard, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	{
+		static_assert(std::is_same_v<typename TElementType<TCharRangeType>::Type, TCHAR>, "Expected a range of TCHAR");
+		return MatchesWildcard(GetData(Wildcard), GetNum(Wildcard), SearchCase);
+	}
 
 	/**
 	 * Searches this string for a given wild card
@@ -1358,10 +1516,33 @@ public:
 	 * @return true if this string matches the *?-type wildcard given.
 	 * @warning This is a simple, SLOW routine. Use with caution
 	 */
-	UE_NODISCARD FORCEINLINE bool MatchesWildcard(const FString& Wildcard, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	UE_NODISCARD bool MatchesWildcard(const TCHAR* Wildcard, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
 	{
-		return MatchesWildcard(*Wildcard, SearchCase);
+		return MatchesWildcard(Wildcard, Wildcard ? FCString::Strlen(Wildcard) : 0, SearchCase);
 	}
+
+	/**
+	 * Searches this string for a given wild card
+	 *
+	 * @param Wildcard		*?-type wildcard
+	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @return true if this string matches the *?-type wildcard given.
+	 * @warning This is a simple, SLOW routine. Use with caution
+	 */
+	UE_NODISCARD bool MatchesWildcard(const FString& Wildcard, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	{
+		return MatchesWildcard(*Wildcard, Wildcard.Len(), SearchCase);
+	}
+
+	/**
+	 * Searches this string for a given wild card
+	 *
+	 * @param Wildcard		*?-type wildcard
+	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @return true if this string matches the *?-type wildcard given.
+	 * @warning This is a simple, SLOW routine. Use with caution
+	 */
+	UE_NODISCARD bool MatchesWildcard(const TCHAR* Wildcard, int32 WildcardLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/**
 	 * Removes whitespace characters from the start and end of this string. Modifies the string in-place.
