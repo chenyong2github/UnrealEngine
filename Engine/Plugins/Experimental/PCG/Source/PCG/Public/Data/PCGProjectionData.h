@@ -16,7 +16,7 @@ class PCG_API UPCGProjectionData : public UPCGSpatialDataWithPointCache
 {
 	GENERATED_BODY()
 public:
-	void Initialize(const UPCGSpatialData* InSource, const UPCGSpatialData* InTarget, const FPCGProjectionParams& InParams);
+	void Initialize(const UPCGSpatialData* InSource, const UPCGSpatialData* InTarget, const FPCGProjectionParams& InProjectionParams);
 
 	//~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override;
@@ -25,7 +25,7 @@ public:
 	virtual FVector GetNormal() const override;
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	virtual bool HasNonTrivialTransform() const override;
-	virtual bool RequiresCollapseToSample() const override { return true; }
+	virtual bool RequiresCollapseToSample() const override;
 protected:
 	virtual UPCGSpatialData* CopyInternal() const override;
 	//~End UPCGSpatialData interface
@@ -58,5 +58,5 @@ protected:
 	FBox CachedStrictBounds = FBox(EForceInit::ForceInit);
 
 	UPROPERTY(BlueprintReadwrite, VisibleAnywhere, Category = SpatialData)
-	FPCGProjectionParams Params;
+	FPCGProjectionParams ProjectionParams;
 };

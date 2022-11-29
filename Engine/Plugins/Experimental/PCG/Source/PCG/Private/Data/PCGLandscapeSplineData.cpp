@@ -229,3 +229,26 @@ UPCGSpatialData* UPCGLandscapeSplineData::CopyInternal() const
 
 	return NewLandscapeSplineData;
 }
+
+UPCGProjectionData* UPCGLandscapeSplineData::ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams) const
+{
+	if (InOther->GetDimension() == 2)
+	{
+		UPCGLandscapeSplineProjectionData* SplineProjectionData = NewObject<UPCGLandscapeSplineProjectionData>();
+		SplineProjectionData->Initialize(this, InOther, InParams);
+		return SplineProjectionData;
+	}
+	else
+	{
+		return Super::ProjectOn(InOther, InParams);
+	}
+}
+
+UPCGSpatialData* UPCGLandscapeSplineProjectionData::CopyInternal() const
+{
+	UPCGLandscapeSplineProjectionData* NewProjectionData = NewObject<UPCGLandscapeSplineProjectionData>();
+
+	CopyBaseProjectionClass(NewProjectionData);
+
+	return NewProjectionData;
+}

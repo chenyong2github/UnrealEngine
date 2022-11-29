@@ -132,10 +132,19 @@ UPCGSpatialData* UPCGSplineData::CopyInternal() const
 
 bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
-	// TODO: support metadata - we don't currently have a good preseentation of what metadata entries mean for non-point data
+	// TODO: support metadata - we don't currently have a good representation of what metadata entries mean for non-point data
 	// TODO: use InBounds when sampling spline (sample in area rather than at closest point)
 
-	// Find nearest point on projected spline
+	if (!ProjectionParams.bProjectPositions)
+	{
+		// If we're not moving anything around, then just defer to super which will sample 3D spline, to make SamplePoint() consistent with behaviour
+		// on 'concrete' data (points).
+		return Super::SamplePoint(InTransform, InBounds, OutPoint, OutMetadata);
+	}
+
+	// Find nearest point on projected spline by lifting point along projection direction to closest position on spline. This way
+	// when we sample the spline we get a similar result to if the spline had been projected onto the surface.
+
 	const FVector InPosition = InTransform.GetLocation();
 	const USplineComponent* Spline = GetSpline()->Spline.Get();
 	const FVector& SurfaceNormal = GetSurface()->GetNormal();
@@ -162,16 +171,14 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 		if (GetSurface()->SamplePoint(SplinePoint.Transform, InBounds, SurfacePoint, OutMetadata))
 		{
 			OutPoint = SplinePoint;
-			OutPoint.Transform = SurfacePoint.Transform;
-			OutPoint.Density *= SurfacePoint.Density;
-			OutPoint.Color *= SurfacePoint.Color;
+
+			ApplyProjectionResult(SurfacePoint, OutPoint);
 
 			if (OutMetadata)
 			{
 				if (SplinePoint.MetadataEntry != PCGInvalidEntryKey && SurfacePoint.MetadataEntry)
 				{
-					// TODO use metadata op from parameters once we have metadata support
-					OutMetadata->MergePointAttributesSubset(SplinePoint, OutMetadata, GetSpline()->Metadata, SurfacePoint, OutMetadata, GetSurface()->Metadata, OutPoint, EPCGMetadataOp::Max);
+					OutMetadata->MergePointAttributesSubset(SplinePoint, OutMetadata, GetSpline()->Metadata, SurfacePoint, OutMetadata, GetSurface()->Metadata, OutPoint, ProjectionParams.AttributeMergeOperation);
 				}
 				else if (SurfacePoint.MetadataEntry != PCGInvalidEntryKey)
 				{
