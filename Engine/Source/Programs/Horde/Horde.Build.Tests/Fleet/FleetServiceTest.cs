@@ -258,6 +258,15 @@ namespace Horde.Build.Tests.Fleet
 		}
 		
 		[TestMethod]
+		public async Task ConfigHandlesMixedCase()
+		{
+			IPoolSizeStrategy s = await CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.JobQueue, null, "{\"scaleOutFactor\": 100, \"SCALEINFACTOR\": 200}"));
+			Assert.AreEqual(typeof(JobQueueStrategy), s.GetType());
+			Assert.AreEqual(100.0, ((JobQueueStrategy)s).Settings.ScaleOutFactor);
+			Assert.AreEqual(200.0, ((JobQueueStrategy)s).Settings.ScaleInFactor);
+		}
+		
+		[TestMethod]
 		public async Task CreateFromEmptyStrategyList()
 		{
 			IPoolSizeStrategy s = await CreateStrategy();

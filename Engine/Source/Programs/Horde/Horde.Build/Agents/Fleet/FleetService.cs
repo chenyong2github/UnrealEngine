@@ -381,7 +381,7 @@ namespace Horde.Build.Agents.Fleet
 		private static T DeserializeConfig<T>(string json)
 		{
 			json = String.IsNullOrEmpty(json) ? "{}" : json;
-			T? config = JsonSerializer.Deserialize<T>(json);
+			T? config = JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 			if (config == null) throw new ArgumentException("Unable to deserialize config: " + json);
 			return config;
 		}
