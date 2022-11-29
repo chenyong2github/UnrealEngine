@@ -5196,6 +5196,7 @@ void UReplicationGraphNode_GridSpatialization2D::PrepareForReplication()
 	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_PrepareForReplication);
 
 	FGlobalActorReplicationInfoMap* GlobalRepMap = GraphGlobals.IsValid() ? GraphGlobals->GlobalActorReplicationInfoMap : nullptr;
+	check(GlobalRepMap);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (CVar_RepGraph_Spatial_BiasCreep != 0.f)
@@ -6016,38 +6017,43 @@ void UReplicationGraphNode_TearOff_ForConnection::NotifyTearOffActor(AActor* Act
 
 // -------------------------------------------------------
 
+void UReplicationGraphNode_AlwaysRelevant_ForConnection::AddCachedRelevantActor(const FConnectionGatherActorListParameters& Params, AActor* NewActor, TWeakObjectPtr<AActor>& LastActor)
+{
+	UpdateCachedRelevantActor(Params, NewActor, LastActor);
+
+	if (NewActor && !ReplicationActorList.Contains(NewActor))
+	{
+		ReplicationActorList.Add(NewActor);
+	}
+}
+
+void UReplicationGraphNode_AlwaysRelevant_ForConnection::UpdateCachedRelevantActor(const FConnectionGatherActorListParameters& Params, AActor* NewActor, TWeakObjectPtr<AActor>& LastActor)
+{
+	if (NewActor != LastActor)
+	{
+		if (NewActor)
+		{
+			// Zero out new actor cull distance
+			Params.ConnectionManager.ActorInfoMap.FindOrAdd(NewActor).SetCullDistanceSquared(0.f);
+		}
+
+		if (AActor* PrevActor = LastActor.Get())
+		{
+			// Reset previous actor culldistance
+			FConnectionReplicationActorInfo& ActorInfo = Params.ConnectionManager.ActorInfoMap.FindOrAdd(PrevActor);
+			ActorInfo.SetCullDistanceSquared(GraphGlobals->GlobalActorReplicationInfoMap->Get(PrevActor).Settings.GetCullDistanceSquared());
+		}
+
+		LastActor = NewActor;
+	}
+}
+
 void UReplicationGraphNode_AlwaysRelevant_ForConnection::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
 {
 	// Call super to add any actors that were explicitly given to use via NotifyAddNetworkActor
 	Super::GatherActorListsForConnection(Params);
 
 #if WITH_SERVER_CODE
-	auto UpdateActor = [&](AActor* NewActor, AActor*& LastActor)
-	{
-		if (NewActor != LastActor)
-		{
-			if (NewActor)
-			{
-				// Zero out new actor cull distance
-				Params.ConnectionManager.ActorInfoMap.FindOrAdd(NewActor).SetCullDistanceSquared(0.f);
-			}
-			if (IsValid(LastActor))
-			{
-				// Reset previous actor culldistance
-				FConnectionReplicationActorInfo& ActorInfo = Params.ConnectionManager.ActorInfoMap.FindOrAdd(LastActor);
-				ActorInfo.SetCullDistanceSquared(GraphGlobals->GlobalActorReplicationInfoMap->Get(LastActor).Settings.GetCullDistanceSquared());
-			}
-
-			LastActor = NewActor;
-
-		}
-
-		if (NewActor && !ReplicationActorList.Contains(NewActor))
-		{
-			ReplicationActorList.Add(NewActor);
-		}
-	};
-
 	// Reset and rebuild another list that will contains our current viewer/viewtarget
 	ReplicationActorList.Reset();
 
@@ -6064,27 +6070,14 @@ void UReplicationGraphNode_AlwaysRelevant_ForConnection::GatherActorListsForConn
 			continue;
 		}
 
-		FAlwaysRelevantActorInfo* LastData = PastRelevantActors.FindByKey<UNetConnection*>(CurViewer.Connection);
+		FCachedAlwaysRelevantActorInfo& LastData = PastRelevantActorMap.FindOrAdd(CurViewer.Connection);
 
-		// We've not seen this actor before, go ahead and add them.
-		if (LastData == nullptr)
-		{
-			FAlwaysRelevantActorInfo NewActorInfo;
-			NewActorInfo.Connection = CurViewer.Connection;
-			LastData = &(PastRelevantActors[PastRelevantActors.Add(NewActorInfo)]);
-		}
-
-		check(LastData != nullptr);
-
-		UpdateActor(CurViewer.InViewer, static_cast<AActor*&>(LastData->LastViewer));
-		UpdateActor(CurViewer.ViewTarget, static_cast<AActor*&>(LastData->LastViewTarget));
+		AddCachedRelevantActor(Params, CurViewer.InViewer, LastData.LastViewer);
+		AddCachedRelevantActor(Params, CurViewer.ViewTarget, LastData.LastViewTarget);
 	}
 
-	// Remove excess
-	PastRelevantActors.RemoveAll([&](FAlwaysRelevantActorInfo& RelActorInfo){
-		return RelActorInfo.Connection == nullptr;
-	});
-	
+	CleanupCachedRelevantActors(PastRelevantActorMap);
+
 	if (ReplicationActorList.Num() > 0)
 	{
 		Params.OutGatheredReplicationLists.AddReplicationActorList(ReplicationActorList);

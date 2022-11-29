@@ -799,7 +799,7 @@ protected:
 // -----------------------------------
 
 USTRUCT()
-struct FAlwaysRelevantActorInfo
+struct UE_DEPRECATED(5.2, "No longer used") FAlwaysRelevantActorInfo
 {
 	GENERATED_BODY()
 
@@ -818,6 +818,12 @@ struct FAlwaysRelevantActorInfo
 	}
 };
 
+struct FCachedAlwaysRelevantActorInfo
+{
+	TWeakObjectPtr<AActor> LastViewer;
+	TWeakObjectPtr<AActor> LastViewTarget;
+};
+
 /** Adds actors that are always relevant for a connection. This engine version just adds the PlayerController and ViewTarget (usually the pawn) */
 UCLASS()
 class REPLICATIONGRAPH_API UReplicationGraphNode_AlwaysRelevant_ForConnection : public UReplicationGraphNode_ActorList
@@ -833,14 +839,32 @@ public:
 	/** Rebuilt-every-frame list based on UNetConnection state */
 	FActorRepListRefView ReplicationActorList;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** List of previously (or currently if nothing changed last tick) focused actor data per connection */
+	UE_DEPRECATED(5.2, "Please use PastRelevantActorMap instead")
 	UPROPERTY()
 	TArray<FAlwaysRelevantActorInfo> PastRelevantActors;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	template<typename KeyType, typename ValueType>
+	static void CleanupCachedRelevantActors(TMap<TObjectKey<KeyType>, ValueType>& ActorMap)
+	{
+		for (auto MapIt = ActorMap.CreateIterator(); MapIt; ++MapIt)
+		{
+			if (MapIt.Key().ResolveObjectPtr() == nullptr)
+			{
+				MapIt.RemoveCurrent();
+			}
+		}
+	}
 
 protected:
-
 	virtual void OnCollectActorRepListStats(struct FActorRepListStatCollector& StatsCollector) const override;
 
+	void AddCachedRelevantActor(const FConnectionGatherActorListParameters& Params, AActor* NewActor, TWeakObjectPtr<AActor>& LastActor);
+	void UpdateCachedRelevantActor(const FConnectionGatherActorListParameters& Params, AActor* NewActor, TWeakObjectPtr<AActor>& LastActor);
+
+	TMap<TObjectKey<UNetConnection>, FCachedAlwaysRelevantActorInfo> PastRelevantActorMap;
 };
 
 // -----------------------------------
