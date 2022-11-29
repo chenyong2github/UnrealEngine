@@ -93,11 +93,22 @@ void UWorld::PropagateLightingScenarioChange()
 		}
 	}
 
+	TArray<UActorComponent*> WorldComponents;
 	for (USceneComponent* Component : TObjectRange<USceneComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 	{
 		if (Component->GetWorld() == this)
 		{
-			Component->PropagateLightingScenarioChange();
+			WorldComponents.Emplace(Component);
+		}
+	}
+
+	{
+		// Use a global context so UpdateAllPrimitiveSceneInfos only runs once, rather than for each component.  Can save minutes of time.
+		FGlobalComponentRecreateRenderStateContext Context(WorldComponents);
+		
+		for (UActorComponent* Component : WorldComponents)
+		{
+			((USceneComponent*)Component)->PropagateLightingScenarioChange();
 		}
 	}
 
