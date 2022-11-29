@@ -22,15 +22,15 @@ namespace UE
 			// cast to integer first (to avoid scientific notation) if we know the cvar is an integer.
 			if (InCVar->IsVariableInt())
 			{
-				InCVar->Set(static_cast<int32>(InValue), EConsoleVariableFlags::ECVF_SetByConsole);
+				InCVar->SetWithCurrentPriority(static_cast<int32>(InValue));
 			}
 			else if (InCVar->IsVariableBool())
 			{
-				InCVar->Set(InValue != 0.f ? true : false, EConsoleVariableFlags::ECVF_SetByConsole);
+				InCVar->SetWithCurrentPriority(InValue != 0.f ? true : false);
 			}
 			else
 			{
-				InCVar->Set(InValue, EConsoleVariableFlags::ECVF_SetByConsole);
+				InCVar->SetWithCurrentPriority(InValue);
 			}
 		}
 	}
