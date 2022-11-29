@@ -1590,7 +1590,8 @@ const TCHAR* DebugWorkerOutputFileName = TEXT("DebugSCW.out");
 
 FString CreateShaderCompilerWorkerDebugCommandLine(const FShaderCompileJob* Job)
 {
-	return FString::Printf(TEXT("\"%s\" 0 \"%s\" %s %s -TimeToLive=0.0f"), // 0 is parent PID, pass zero TTL to make SCW process the single job then exit
+	// 0 is parent PID, pass zero TTL and KeepInput to make SCW process the single job then exit without deleting the input file
+	return FString::Printf(TEXT("\"%s\" 0 \"%s\" %s %s -TimeToLive=0.0f -KeepInput"),
 		*Job->Input.DumpDebugInfoPath, // working directory for SCW
 		*Job->Input.DebugGroupName, // console window title
 		DebugWorkerInputFileName,

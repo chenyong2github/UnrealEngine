@@ -302,6 +302,7 @@ public:
 	// If we have been idle for 20 seconds then exit. Can be overriden from the cmd line with -TimeToLive=N where N is in seconds (and a float value)
 	float TimeToLive = 20.0f;
 	bool DisableFileWrite = false;
+	bool KeepInput = false;
 
 	FWorkLoop(const TCHAR* ParentProcessIdText,const TCHAR* InWorkingDirectory,const TCHAR* InInputFilename,const TCHAR* InOutputFilename, TMap<FString, uint32>& InFormatVersionMap)
 	:	ParentProcessId(FCString::Atoi(ParentProcessIdText))
@@ -323,6 +324,10 @@ public:
 			else if (Switch.Equals(TEXT("DisableFileWrite")))
 			{
 				DisableFileWrite = true;
+			}
+			else if (Switch.Equals(TEXT("KeepInput")))
+			{
+				KeepInput = true;
 			}
 		}
 	}
@@ -855,10 +860,10 @@ private:
 		bool bResult = false;
 
 		// It seems XGE does not support deleting files.
-		// Don't delete the input file if we are running under Incredibuild.
+		// Don't delete the input file if we are running under Incredibuild (or if the cmdline args explicitly told us to keep it).
 		// In xml mode, we signal completion by creating a zero byte "Success" file after the output file has been fully written.
 		// In intercept mode, completion is signaled by this process terminating.
-		if (!IsUsingXGE())
+		if (!IsUsingXGE() && !KeepInput)
 		{
 			do 
 			{
