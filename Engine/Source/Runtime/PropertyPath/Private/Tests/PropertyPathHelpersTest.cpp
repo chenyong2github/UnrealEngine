@@ -16,8 +16,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogPropertyPathHelpersTest, Log, All);
  * SetString
  * SetEnum
  * SetStruct
+ * SetInnerObject
  * SetStructData
  * SetStructMember
+ * SetStructInnerObjectMember
  * SetInnerStructMember
  * SetPrimitivesInnerObject
  * SetStringInnerObject
@@ -29,8 +31,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogPropertyPathHelpersTest, Log, All);
  * GetPrimitives
  * GetString
  * GetStruct
+ * GetInnerObject
  * GetEnum
  * GetStructMember
+ * GetStructInnerObjectMember
  * GetInnerStructMember
  * GetPrimitivesInnerObject
  * GetStringInnerObject
@@ -288,6 +292,27 @@ bool FSetStructTest::RunTest(const FString& Parameters)
 	return GPassing;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSetInnerObjectTest, "System.PropertyPath.SetInnerObjectTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FSetInnerObjectTest::RunTest(const FString& Parameters)
+{
+	bool GPassing = true;
+
+	{
+		FPropertyPathTestBed Test = {};
+		FPropertyPathTestBed CppTest = {};
+		CppTest.Object->InnerObject = CppTest.ModifiedObject;
+
+		PropertyPathHelpers::SetPropertyValue(Test.Object, FString("InnerObject"), Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Inner Object Set"), Test.Object->InnerObject, Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Inner Object Set Cpp Equivalent"), *Test.Object, *CppTest.Object);
+		GPassing &= TestEqual(TEXT("Inner Object Setter Called"), Test.Object->IsSetterCalled(), false);
+		GPassing &= TestEqual(TEXT("Inner Object Getter Called"), Test.Object->IsGetterCalled(), false);
+		Test.Object->ResetGetterSetterFlags();
+	}
+
+	return GPassing;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSetStructDataTest, "System.PropertyPath.SetStructDataTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 bool FSetStructDataTest::RunTest(const FString& Parameters)
 {
@@ -386,6 +411,65 @@ bool FSetStructMemberTest::RunTest(const FString& Parameters)
 		PropertyPathHelpers::SetPropertyValue(Test.Object, FString("StructConstRef.Float"), 1.5f);
 		GPassing &= TestEqual(TEXT("Struct Const Ref Member Set"), Test.Object->StructConstRef.Float, 1.5f);
 		GPassing &= TestEqual(TEXT("Struct Const Ref Member Set Cpp Equivalent"), *Test.Object, *CppTest.Object);
+		GPassing &= TestEqual(TEXT("Struct Setter Called"), Test.Object->IsSetterCalled(), true);
+
+		// Emphasis, see note under coverage at top
+		GPassing &= TestEqual(TEXT("Struct Getter Called"), Test.Object->IsGetterCalled(), true);
+
+		Test.Object->ResetGetterSetterFlags();
+	}
+
+	return GPassing;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSetStructInnerObjectMemberTest, "System.PropertyPath.SetStructInnerObjectMemberTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FSetStructInnerObjectMemberTest::RunTest(const FString& Parameters)
+{
+	bool GPassing = true;
+
+	{
+		FPropertyPathTestBed Test = {};
+		FPropertyPathTestBed CppTest = {};
+		CppTest.Object->Struct.InnerObject = CppTest.ModifiedObject;
+		CppTest.Object->SetStruct(CppTest.Object->Struct);
+
+		PropertyPathHelpers::SetPropertyValue(Test.Object, FString("Struct.InnerObject"), Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Inner Object Member Set"), Test.Object->Struct.InnerObject, Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Inner Object Member Set Cpp Equivalent"), *Test.Object, *CppTest.Object);
+		GPassing &= TestEqual(TEXT("Struct Setter Called"), Test.Object->IsSetterCalled(), true);
+
+		// Emphasis, see note under coverage at top
+		GPassing &= TestEqual(TEXT("Struct Getter Called"), Test.Object->IsGetterCalled(), true);
+
+		Test.Object->ResetGetterSetterFlags();
+	}
+
+	{
+		FPropertyPathTestBed Test = {};
+		FPropertyPathTestBed CppTest = {};
+		CppTest.Object->StructRef.InnerObject = CppTest.ModifiedObject;
+		CppTest.Object->SetStructRef(CppTest.Object->StructRef);
+
+		PropertyPathHelpers::SetPropertyValue(Test.Object, FString("StructRef.InnerObject"), Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Ref Inner Object Member Set"), Test.Object->StructRef.InnerObject, Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Ref Inner Object Member Set Cpp Equivalent"), *Test.Object, *CppTest.Object);
+		GPassing &= TestEqual(TEXT("Struct Setter Called"), Test.Object->IsSetterCalled(), true);
+
+		// Emphasis, see note under coverage at top
+		GPassing &= TestEqual(TEXT("Struct Getter Called"), Test.Object->IsGetterCalled(), true);
+
+		Test.Object->ResetGetterSetterFlags();
+	}
+
+	{
+		FPropertyPathTestBed Test = {};
+		FPropertyPathTestBed CppTest = {};
+		CppTest.Object->StructConstRef.InnerObject = CppTest.ModifiedObject;
+		CppTest.Object->SetStructConstRef(CppTest.Object->StructConstRef);
+
+		PropertyPathHelpers::SetPropertyValue(Test.Object, FString("StructConstRef.InnerObject"), Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Const Ref Inner Object Member Set"), Test.Object->StructConstRef.InnerObject, Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Const Ref Inner Object Member Set Cpp Equivalent"), *Test.Object, *CppTest.Object);
 		GPassing &= TestEqual(TEXT("Struct Setter Called"), Test.Object->IsSetterCalled(), true);
 
 		// Emphasis, see note under coverage at top
@@ -743,6 +827,27 @@ bool FGetStructTest::RunTest(const FString& Parameters)
 	return GPassing;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGetInnerObjectTest, "System.PropertyPath.GetInnerObjectTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FGetInnerObjectTest::RunTest(const FString& Parameters)
+{
+	bool GPassing = true;
+
+	{
+		FPropertyPathTestBed Test = {};
+		FPropertyPathTestBed CppTest = {};
+		CppTest.ModifiedObject = CppTest.Object->InnerObject;
+
+		PropertyPathHelpers::GetPropertyValue(Test.Object, FString("InnerObject"), Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Inner Object Get"), Test.Object->InnerObject, Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Inner Object Get Cpp Equivalent"), *CppTest.ModifiedObject, *Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Inner Object Setter Called"), Test.Object->IsSetterCalled(), false);
+		GPassing &= TestEqual(TEXT("Inner Object Getter Called"), Test.Object->IsGetterCalled(), false);
+		Test.Object->ResetGetterSetterFlags();
+	}
+
+	return GPassing;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGetStructMemberTest, "System.PropertyPath.GetStructMemberTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 bool FGetStructMemberTest::RunTest(const FString& Parameters)
 {
@@ -784,6 +889,56 @@ bool FGetStructMemberTest::RunTest(const FString& Parameters)
 		PropertyPathHelpers::GetPropertyValue(Test.Object, FString("StructConstRef.Float"), Test.ModifiedStruct.Float);
 		GPassing &= TestEqual(TEXT("Struct Const Ref Member Get"), Test.DefaultStruct.Float, Test.ModifiedStruct.Float);
 		GPassing &= TestEqual(TEXT("Struct Const Ref Member Get Cpp Equivalent"), CppTest.ModifiedStruct, Test.ModifiedStruct);
+		GPassing &= TestEqual(TEXT("Struct Setter Called"), Test.Object->IsSetterCalled(), false);
+		GPassing &= TestEqual(TEXT("Struct Getter Called"), Test.Object->IsGetterCalled(), true);
+
+		Test.Object->ResetGetterSetterFlags();
+	}
+
+	return GPassing;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGetStructInnerObjectMemberTest, "System.PropertyPath.GetStructInnerObjectMemberTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FGetStructInnerObjectMemberTest::RunTest(const FString& Parameters)
+{
+	bool GPassing = true;
+
+	{
+		FPropertyPathTestBed Test = {};
+		FPropertyPathTestBed CppTest = {};
+		CppTest.ModifiedObject = CppTest.Object->GetStruct().InnerObject;
+
+		PropertyPathHelpers::GetPropertyValue(Test.Object, FString("Struct.InnerObject"), Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Member Get"), *Test.ModifiedObject, *Test.Object->Struct.InnerObject);
+		GPassing &= TestEqual(TEXT("Struct Member Get Cpp Equivalent"), *CppTest.ModifiedObject, *Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Setter Called"), Test.Object->IsSetterCalled(), false);
+		GPassing &= TestEqual(TEXT("Struct Getter Called"), Test.Object->IsGetterCalled(), true);
+
+		Test.Object->ResetGetterSetterFlags();
+	}
+
+	{
+		FPropertyPathTestBed Test = {};
+		FPropertyPathTestBed CppTest = {};
+		CppTest.ModifiedObject = CppTest.Object->GetStructRef().InnerObject;
+
+		PropertyPathHelpers::GetPropertyValue(Test.Object, FString("StructRef.InnerObject"), Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Ref Member Get"), *Test.ModifiedObject, *Test.Object->StructRef.InnerObject);
+		GPassing &= TestEqual(TEXT("Struct Ref Member Get Cpp Equivalent"), *CppTest.ModifiedObject, *Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Setter Called"), Test.Object->IsSetterCalled(), false);
+		GPassing &= TestEqual(TEXT("Struct Getter Called"), Test.Object->IsGetterCalled(), true);
+
+		Test.Object->ResetGetterSetterFlags();
+	}
+
+	{
+		FPropertyPathTestBed Test = {};
+		FPropertyPathTestBed CppTest = {};
+		CppTest.ModifiedObject = CppTest.Object->GetStructConstRef().InnerObject;
+
+		PropertyPathHelpers::GetPropertyValue(Test.Object, FString("StructConstRef.InnerObject"), Test.ModifiedObject);
+		GPassing &= TestEqual(TEXT("Struct Const Ref Member Get"), *Test.ModifiedObject, *Test.Object->StructConstRef.InnerObject);
+		GPassing &= TestEqual(TEXT("Struct Const Ref Member Get Cpp Equivalent"), *CppTest.ModifiedObject, *Test.ModifiedObject);
 		GPassing &= TestEqual(TEXT("Struct Setter Called"), Test.Object->IsSetterCalled(), false);
 		GPassing &= TestEqual(TEXT("Struct Getter Called"), Test.Object->IsGetterCalled(), true);
 

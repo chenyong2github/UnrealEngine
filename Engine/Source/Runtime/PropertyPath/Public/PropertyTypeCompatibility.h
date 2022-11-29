@@ -313,25 +313,26 @@ inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FSoftClassPath>(FProp
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FSoftClassPath>(Property);
 }
 
-template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<UObject*>(FProperty* Property)
-{
-	if ( FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property) )
-	{
-		return true;
-		//return ObjectProperty->PropertyClass->IsChildOf(T::StaticClass());
-	}
-
-	return false;
-}
-
 /** Standard implementation */
 template<typename T> 
 struct FConcreteTypeCompatibleWithReflectedTypeHelper
 {
 	static bool IsConcreteTypeCompatibleWithReflectedType(FProperty* Property) 
 	{
-		return IsConcreteTypeCompatibleWithReflectedType_Impl<T>(Property);
+		if constexpr (TIsPointerOrObjectPtrToBaseOf<T, UObject>::Value)
+		{
+			if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+			{
+				return true;
+				//return ObjectProperty->PropertyClass->IsChildOf(T::StaticClass());
+			}
+
+			return false;
+		}
+		else
+		{
+			return IsConcreteTypeCompatibleWithReflectedType_Impl<T>(Property);
+		}
 	}
 };
 

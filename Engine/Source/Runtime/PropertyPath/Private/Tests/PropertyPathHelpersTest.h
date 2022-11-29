@@ -8,6 +8,8 @@
 #include "PropertyPathHelpers.h"
 #include "PropertyPathHelpersTest.generated.h"
 
+class UPropertyPathTestObject;
+
 UENUM()
 enum EPropertyPathTestEnum : int
 {
@@ -16,7 +18,6 @@ enum EPropertyPathTestEnum : int
 	Three,
 	Four
 };
-
 
 USTRUCT(BlueprintType)
 struct FPropertyPathTestInnerStruct
@@ -120,6 +121,9 @@ struct FPropertyPathTestStruct
 
 	UPROPERTY()
 	FPropertyPathTestInnerStruct InnerStruct = {};
+
+	UPROPERTY()
+	TObjectPtr<UPropertyPathTestObject> InnerObject = nullptr;
 
 	bool operator ==(const FPropertyPathTestStruct& Other) const
 	{
@@ -309,6 +313,9 @@ struct FPropertyPathTestBed
 	{
 		Object = NewObject<UPropertyPathTestObject>();
 		Object->InnerObject = NewObject<UPropertyPathTestObject>();
+		Object->Struct.InnerObject = NewObject<UPropertyPathTestObject>();
+		Object->StructRef.InnerObject = NewObject<UPropertyPathTestObject>();
+		Object->StructConstRef.InnerObject = NewObject<UPropertyPathTestObject>();
 
 		ModifiedStruct = {};
 
@@ -331,10 +338,24 @@ struct FPropertyPathTestBed
 		ModifiedStruct.InnerStruct.Float = 1.5f;
 
 		DefaultStruct = {};
+
+		ModifiedObject = NewObject<UPropertyPathTestObject>();
+
+		ModifiedObject->Bool = true;
+		ModifiedObject->Integer = 1;
+		ModifiedObject->EnumOne = Two;
+		ModifiedObject->EnumTwo = Two;
+		ModifiedObject->EnumThree = Two;
+		ModifiedObject->EnumFour = Two;
+		ModifiedObject->String = "NewValue";
+		ModifiedObject->Float = 1.5f;
 	}
 
 	UPROPERTY()
 	TObjectPtr<UPropertyPathTestObject> Object;
+
+	UPROPERTY()
+	TObjectPtr<UPropertyPathTestObject> ModifiedObject;
 
 	UPROPERTY()
 	FPropertyPathTestStruct ModifiedStruct;

@@ -525,7 +525,7 @@ namespace PropertyPathHelpersInternal
 		int32 LastContainerInPathIndex = InPropertyPath.GetCachedLastContainerInPathIndex();
 		int32 IndexAfterCachedLastContainer = InPropertyPath.GetCachedLastContainerInPathIndex() + 1;
 
-		void* ContainerPtr = LastContainerInPathIndex == INDEX_NONE 
+		void* ObjectContainerPtr = LastContainerInPathIndex == INDEX_NONE 
 			? InPropertyPath.GetCachedContainer()
 			: InPropertyPath.GetCachedLastContainerInPath();
 
@@ -557,7 +557,7 @@ namespace PropertyPathHelpersInternal
 			ParentArrayIndex = ParentArrayIndex == INDEX_NONE ? 0 : ParentArrayIndex;
 
 			// We want to call the setter with the current value, so just get the pointer to current value via container
-			if (void* ParentAddress = ParentProperty->ContainerPtrToValuePtr<void>(ContainerPtr, ParentArrayIndex))
+			if (void* ParentAddress = ParentProperty->ContainerPtrToValuePtr<void>(ObjectContainerPtr, ParentArrayIndex))
 			{
 				if (ParentProperty->HasGetter())
 				{
@@ -573,13 +573,13 @@ namespace PropertyPathHelpersInternal
 					{
 						ParentProperty->InitializeValue_InContainer(Temp);
 					}
-					ParentProperty->CallGetter(ContainerPtr, Temp);
-					ParentProperty->CallSetter(ContainerPtr, Temp);
+					ParentProperty->CallGetter(ObjectContainerPtr, Temp);
+					ParentProperty->CallSetter(ObjectContainerPtr, Temp);
 					ParentProperty->DestroyValue_InContainer(Temp);
 				}
 				else
 				{
-					ParentProperty->CallSetter(ContainerPtr, ParentAddress);
+					ParentProperty->CallSetter(ObjectContainerPtr, ParentAddress);
 				}
 				return;
 			}
@@ -591,7 +591,7 @@ namespace PropertyPathHelpersInternal
 		int32 LastContainerInPathIndex = InPropertyPath.GetCachedLastContainerInPathIndex();
 		int32 IndexAfterCachedLastContainer = InPropertyPath.GetCachedLastContainerInPathIndex() + 1;
 
-		void* ContainerPtr = LastContainerInPathIndex == INDEX_NONE 
+		void* ObjectContainerPtr = LastContainerInPathIndex == INDEX_NONE 
 			? InPropertyPath.GetCachedContainer()
 			: InPropertyPath.GetCachedLastContainerInPath();
 
@@ -637,7 +637,7 @@ namespace PropertyPathHelpersInternal
 			ParentArrayIndex = ParentArrayIndex == INDEX_NONE ? 0 : ParentArrayIndex;
 
 			// We want to call the Getter with the current value, so just get the pointer to current value via container
-			void* ParentAddress = ParentProperty->ContainerPtrToValuePtr<void>(ContainerPtr, ParentArrayIndex);
+			void* ParentAddress = ParentProperty->ContainerPtrToValuePtr<void>(ObjectContainerPtr, ParentArrayIndex);
 			if (ensure(ParentAddress))
 			{
 				int32 Size = ParentSegment.GetStruct()->GetPropertiesSize();
@@ -649,10 +649,10 @@ namespace PropertyPathHelpersInternal
 				{
 					ParentProperty->InitializeValue_InContainer(Temp);
 				}
-				ParentProperty->CallGetter(ContainerPtr, Temp);
+				ParentProperty->CallGetter(ObjectContainerPtr, Temp);
 
-				// We resolved the property address earlier & it's containing UObject, use this for relative-offset for Temp
-				uint8* TempPropertyAddress = Temp + ((uint8*)InPropertyAddress - (uint8*)ContainerPtr);
+				// We resolved the property address earlier & it's containing parent, use this for relative-offset for Temp
+				uint8* TempPropertyAddress = Temp + ((uint8*)InPropertyAddress - (uint8*)ParentAddress);
 				GetValueFromProperty(OutValue, InPropertyPath, TempPropertyAddress);
 				ParentProperty->DestroyValue_InContainer(Temp);
 			}
