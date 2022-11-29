@@ -23,6 +23,7 @@
 #include "Misc/PathViews.h"
 #include "SceneTexturesConfig.h"
 #include "PSOPrecache.h"
+#include "ShaderCodeLibrary.h"
 
 int32 GMaterialExcludeNonPipelinedShaders = 1;
 static FAutoConsoleVariableRef CVarMaterialExcludeNonPipelinedShaders(
@@ -2788,6 +2789,15 @@ uint32 FMaterialShaderMap::GetShaderNum() const
  */
 void FMaterialShaderMap::Register(EShaderPlatform InShaderPlatform)
 {
+	// Lazy initializer to bind OnSharedShaderMapResourceExplicitRelease to ShaderMapResourceExplicitRelease
+	static struct FMaterialShaderMapInnerLazyInitializer
+	{
+		FMaterialShaderMapInnerLazyInitializer()
+		{
+			OnSharedShaderMapResourceExplicitRelease.BindStatic(&FMaterialShaderMap::ShaderMapResourceExplicitRelease);
+		}
+	} MaterialShaderMapInnerLazyInitializer;
+
 	extern int32 GCreateShadersOnLoad;
 	if (GCreateShadersOnLoad && GetShaderPlatform() == InShaderPlatform)
 	{
@@ -3162,6 +3172,21 @@ void FMaterialShaderMap::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatfo
 	}
 }
 #endif // WITH_EDITOR
+
+void FMaterialShaderMap::ShaderMapResourceExplicitRelease(const FShaderMapResource* ShaderMapResource)
+{
+	EShaderPlatform ShaderPlatform = ShaderMapResource->GetPlatform();
+
+	// visit cached Material shader map and remove ones that have been released (possibly due to GC leak) to avoid use after free in RT
+	FScopeLock ScopeLock(&GIdToMaterialShaderMapCS);
+	for (auto MaterialMapIterator = GIdToMaterialShaderMap[ShaderPlatform].CreateIterator(); MaterialMapIterator; ++MaterialMapIterator)
+	{
+		if (MaterialMapIterator->Value->GetResource() == ShaderMapResource)
+		{
+			MaterialMapIterator.RemoveCurrent();
+		}
+	}
+}
 
 /**
  * Dump material stats for a given platform.

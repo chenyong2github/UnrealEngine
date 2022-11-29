@@ -228,6 +228,8 @@ namespace UE
 TSet<UE::ShaderLibrary::Private::FMountedPakFileInfo> UE::ShaderLibrary::Private::FMountedPakFileInfo::KnownPakFiles;
 FCriticalSection UE::ShaderLibrary::Private::FMountedPakFileInfo::KnownPakFilesAccessLock;
 
+FSharedShaderMapResourceExplicitRelease OnSharedShaderMapResourceExplicitRelease;
+
 class FShaderMapResource_SharedCode final : public FShaderMapResource
 {
 public:
@@ -1221,6 +1223,15 @@ void FShaderMapResource_SharedCode::ReleaseRHI()
 
 	// on assumption that we aren't going to get resurrected
 	LibraryInstance = nullptr;
+
+	if (GetNumRefs()> 0)
+	{
+		ensureMsgf(false, TEXT("FShaderMapResource_SharedCode::ReleaseRHI is still referenced (Num of references %d). Invoking OnSharedShaderMapResourceExplicitRelease delegate."), GetNumRefs());
+		UE_LOG(LogShaderLibrary, Warning, TEXT("FShaderMapResource_SharedCode::ReleaseRHI is still referenced (Num of references %d). Invoking OnSharedShaderMapResourceExplicitRelease delegate."), GetNumRefs());
+		
+		// Invoke delegate to notify shader map resource needs to be forced released
+		OnSharedShaderMapResourceExplicitRelease.ExecuteIfBound(this);
+	}
 }
 
 bool FShaderMapResource_SharedCode::TryRelease()
