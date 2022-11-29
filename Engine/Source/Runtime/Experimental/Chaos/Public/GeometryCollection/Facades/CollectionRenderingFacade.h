@@ -46,7 +46,7 @@ namespace GeometryCollection::Facades
 		// Facade API
 		//
 
-		/**Add a triangle to the rendering view.*/
+		/**Number of triangles to render.*/
 		int32 NumTriangles() const;
 
 		/**Add a triangle to the rendering view.*/
@@ -61,6 +61,9 @@ namespace GeometryCollection::Facades
 		/** GetVertices */
 		const TManagedArray< FVector3f >& GetVertices() const { return VertexAttribute.Get(); }
 
+		/** GetVertexToGeometryIndexAttribute */
+		const TManagedArray< int32 >& GetVertexToGeometryIndexAttribute() const { return VertexToGeometryIndexAttribute.Get(); }
+
 		/** GetMaterialID */
 		const TManagedArray< int32 >& GetMaterialID() const { return MaterialIDAttribute.Get(); }
 
@@ -70,14 +73,50 @@ namespace GeometryCollection::Facades
 		/** BuildMeshSections */
 		TArray<FTriangleSection> BuildMeshSections(const TArray<FIntVector>& Indices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices) const;
 		
+		/** Geometry Group Start : */
+		int32 StartGeometryGroup(FString InName);
+
+		/** Geometry Group End : */
+		void EndGeometryGroup(int32 InGeometryGroupIndex);
+
+		int32 NumGeometry() const { return GeometryNameAttribute.Num(); }
+
+		/** GeometryNameAttribute */
+		const TManagedArray< FString >& GetGeometryNameAttribute() const { return GeometryNameAttribute.Get(); }
+
+		/** HitProxyIDAttribute */
+		const TManagedArray< int32>& GetHitProxyIndexAttribute() const { return HitProxyIndexAttribute.Get(); }
+		TManagedArray< int32 >& ModifyHitProxyIndexAttribute() {check(!IsConst());return HitProxyIndexAttribute.Modify(); }
+
+		/** VertixStartAttribute */
+		const TManagedArray< int32 >& GetVertixStartAttribute() const { return VertixStartAttribute.Get(); }
+
+		/** VertixCountAttribute */
+		const TManagedArray< int32 >& GetVertixCountAttribute() const { return VertixCountAttribute.Get(); }
+
+		/** IndicesStartAttribute */
+		const TManagedArray< int32 >& GetIndicesStartAttribute() const { return IndicesStartAttribute.Get(); }
+
+		/** IndicesCountAttribute */
+		const TManagedArray< int32 >& GetIndicesCountAttribute() const { return IndicesCountAttribute.Get(); }
+
 	private : 
 		const FManagedArrayCollection& ConstCollection;
 		FManagedArrayCollection* Collection = nullptr;
 
 		TManagedArrayAccessor<FVector3f> VertexAttribute;
+		TManagedArrayAccessor<int32> VertexToGeometryIndexAttribute;
 		TManagedArrayAccessor<FIntVector> IndicesAttribute;
 		TManagedArrayAccessor<int32> MaterialIDAttribute;
 		TManagedArrayAccessor<FTriangleSection> TriangleSectionAttribute;
+
+		TManagedArrayAccessor<FString> GeometryNameAttribute;
+		TManagedArrayAccessor<int32> HitProxyIndexAttribute;
+		TManagedArrayAccessor<int32> VertixStartAttribute;
+		TManagedArrayAccessor<int32> VertixCountAttribute;
+		TManagedArrayAccessor<int32> IndicesStartAttribute;
+		TManagedArrayAccessor<int32> IndicesCountAttribute;
+
 
 	};
 

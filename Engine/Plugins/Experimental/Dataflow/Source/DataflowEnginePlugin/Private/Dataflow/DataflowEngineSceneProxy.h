@@ -14,10 +14,11 @@ struct FManagedArrayCollection;
 struct FDataflowTriangleSetMeshBatchData
 {
 	FMaterialRenderProxy* MaterialProxy = nullptr;
-	int32 StartIndex = -1;
-	int32 NumPrimitives = -1;
-	int32 MinVertexIndex = -1;
-	int32 MaxVertexIndex = -1;
+	int32 FirstTriangleIndex = INDEX_NONE;
+	int32 NumTriangles = INDEX_NONE;
+	int32 MinVertexIndex = INDEX_NONE;
+	int32 MaxVertexIndex = INDEX_NONE;
+	int32 GeomIndex = INDEX_NONE;
 };
 
 class FDataflowEngineSceneProxy final : public FPrimitiveSceneProxy
@@ -60,6 +61,7 @@ private:
 	FDynamicMeshIndexBuffer32 IndexBuffer;
 #if WITH_EDITOR
 	FColorVertexBuffer HitProxyIdBuffer;
+	TArray<TRefCountPtr<HHitProxy> > LocalHitProxies;
 #endif // WITH_EDITOR
 
 	TRefCountPtr<HHitProxy> DefaultHitProxy;

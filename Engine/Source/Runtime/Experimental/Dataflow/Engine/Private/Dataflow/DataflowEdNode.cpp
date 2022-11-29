@@ -271,10 +271,15 @@ bool UDataflowEdNode::Render(GeometryCollection::Facades::FRenderingFacade& Rend
 		{
 			if (Dataflow::FRenderingFactory* Factory = Dataflow::FRenderingFactory::GetInstance())
 			{
-				for (Dataflow::FRenderingParameter& Parameter : GetRenderParameters())
+				if (GetRenderParameters().Num())
 				{
-					Factory->RenderNodeOutput(RenderData, { NodeTarget.Get(), Parameter, *Context });
-					bNeedsRefresh = true;
+					int32 GeometryIndex = RenderData.StartGeometryGroup(GetDataflowNodeGuid().ToString());
+					for (Dataflow::FRenderingParameter& Parameter : GetRenderParameters())
+					{
+						Factory->RenderNodeOutput(RenderData, {NodeTarget.Get(), Parameter, *Context});
+						bNeedsRefresh = true;
+					}
+					RenderData.EndGeometryGroup(GeometryIndex);
 				}
 			}
 		}

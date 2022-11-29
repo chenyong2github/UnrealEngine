@@ -30,6 +30,8 @@ FDataflowEngineSceneProxy::~FDataflowEngineSceneProxy()
 
 void FDataflowEngineSceneProxy::CreateRenderThreadResources()
 {
+	static int foobar = INDEX_NONE;
+
 	check(ConstantData);
 	check(IsInRenderingThread());
 
@@ -50,24 +52,32 @@ void FDataflowEngineSceneProxy::CreateRenderThreadResources()
 	HitProxyIdBuffer.Init(TotalNumVertices);
 #endif
 
-	// Initialize points.
+	// Initialize
 	// Triangles are represented as two tris, all of whose vertices are
 	// coincident. The material then offsets them according to the signs of the
 	// vertex normals in a camera facing orientation. Size of the point is given
 	// by U0.
 	if (Facade.NumTriangles() > 0)
 	{
-		MeshBatchDatas.Emplace();
-		FDataflowTriangleSetMeshBatchData& MeshBatchData = MeshBatchDatas.Last();
-		MeshBatchData.MinVertexIndex = 0;
-		MeshBatchData.MaxVertexIndex = NumTriangleVertices - 1;
-		MeshBatchData.StartIndex = 0;
-		MeshBatchData.NumPrimitives = Facade.NumTriangles();
-		if (!RenderMaterial)
+		int32 NumGeom = Facade.NumGeometry();
+		for (int i = 0; i<NumGeom; i++)
 		{
-			RenderMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			MeshBatchDatas.Emplace();
+			FDataflowTriangleSetMeshBatchData& MeshBatchData = MeshBatchDatas.Last();
+
+			MeshBatchData.MinVertexIndex = Facade.GetIndicesStartAttribute()[i] * 3;
+			MeshBatchData.MaxVertexIndex = MeshBatchData.MinVertexIndex + Facade.GetIndicesCountAttribute()[i] * 3 - 1;
+			MeshBatchData.FirstTriangleIndex = Facade.GetIndicesStartAttribute()[i] * 3;
+			MeshBatchData.NumTriangles = Facade.GetIndicesCountAttribute()[i];
+			MeshBatchData.GeomIndex = i;
+
+			if (!RenderMaterial)
+			{
+				RenderMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+			MeshBatchData.MaterialProxy = RenderMaterial->GetRenderProxy();
 		}
-		MeshBatchData.MaterialProxy = RenderMaterial->GetRenderProxy();
+
 
 		const TManagedArray<FIntVector>& Indices = Facade.GetIndices();
 		const TManagedArray<FVector3f>& Vertex = Facade.GetVertices();
@@ -119,6 +129,7 @@ void FDataflowEngineSceneProxy::CreateRenderThreadResources()
 		HitProxyIdBuffer.VertexColor(i) = DefaultHitProxy->Id.GetColor();
 #endif
 		});
+
 	}
 #if WITH_EDITOR
 	SetUsedMaterialForVerification({RenderMaterial});
@@ -162,7 +173,19 @@ void FDataflowEngineSceneProxy::DestroyRenderThreadResources()
 HHitProxy* FDataflowEngineSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies)
 {
 	check(!IsInRenderingThread());
-	OutHitProxies.Add(DefaultHitProxy);
+
+	GeometryCollection::Facades::FRenderingFacade Facade(*ConstantData);
+	if (Facade.NumTriangles() > 0)
+	{
+		int32 NumGeom = Facade.NumGeometry();
+		for (int i = 0; i < NumGeom; i++)
+		{
+			HDataflowActor * NodeProxy = new HDataflowActor(Component->GetOwner(), Component, i, INDEX_NONE);
+			LocalHitProxies.Add(NodeProxy);
+			Facade.ModifyHitProxyIndexAttribute()[i] = LocalHitProxies.Num() - 1;
+			OutHitProxies.Add(NodeProxy);
+		}
+	}
 	return FPrimitiveSceneProxy::CreateHitProxies(Component, OutHitProxies);
 }
 
@@ -181,6 +204,7 @@ void FDataflowEngineSceneProxy::GetDynamicMeshElements(
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_OverlaySceneProxy_GetDynamicMeshElements);
 	check(IsInRenderingThread());
+	const GeometryCollection::Facades::FRenderingFacade Facade(*ConstantData);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -200,8 +224,8 @@ void FDataflowEngineSceneProxy::GetDynamicMeshElements(
 				BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
 				//BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 
-				BatchElement.FirstIndex = MeshBatchData.StartIndex;
-				BatchElement.NumPrimitives = MeshBatchData.NumPrimitives;
+				BatchElement.FirstIndex = MeshBatchData.FirstTriangleIndex;
+				BatchElement.NumPrimitives = MeshBatchData.NumTriangles;
 				BatchElement.MinVertexIndex = MeshBatchData.MinVertexIndex;
 				BatchElement.MaxVertexIndex = MeshBatchData.MaxVertexIndex;
 				Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
@@ -209,7 +233,7 @@ void FDataflowEngineSceneProxy::GetDynamicMeshElements(
 				Mesh.DepthPriorityGroup = SDPG_World;
 				Mesh.bCanApplyViewModeOverrides = true;
 #if WITH_EDITOR
-				Mesh.BatchHitProxyId = DefaultHitProxy->Id;
+				Mesh.BatchHitProxyId = LocalHitProxies[Facade.GetHitProxyIndexAttribute()[MeshBatchData.GeomIndex]]->Id;
 #endif // WITH_EDITOR
 
 				Collector.AddMesh(ViewIndex, Mesh);

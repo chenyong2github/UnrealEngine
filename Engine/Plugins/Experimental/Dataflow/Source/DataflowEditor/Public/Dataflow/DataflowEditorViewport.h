@@ -119,7 +119,6 @@ public:
 
 	// FEditorViewportClient interface
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
-	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
 	virtual void Tick(float DeltaSeconds) override;
 	// End of FEditorViewportClient
 
@@ -128,23 +127,14 @@ public:
 	virtual FString GetReferencerName() const override { return TEXT("FDataflowEditorViewportClient"); }
 
 private:
-	void RenderIntoStructures();
-	void ReleaseRenderStructures();
 
 	TWeakPtr<FDataflowEditorToolkit> DataflowEditorToolkitPtr = nullptr;
 	Dataflow::FTimestamp LastModifiedTimestamp = Dataflow::FTimestamp::Invalid;
 	ADataflowActor* DataflowActor = nullptr;
 
-	bool bIsSelected = false;
-	FManagedArrayCollection RenderCollection;
-
-	// Renderables
-	bool bRenderMesh = false;
-	TArray<uint32> IndexBuffer;
-	TArray<FDynamicMeshVertex> VertexBuffer;
-	TUniquePtr<FDynamicMeshBuilder> MeshBuilder;
-
-	// State
+	//
+	// Selection
+	//
 	FDataflowSelectionState SelectionState;
 	FDataflowSelectionState::EMode SelectionMode;
 
