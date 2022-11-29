@@ -385,10 +385,15 @@ namespace Horde.Build.Tests
 			
 			processExitInstance.TrySetResult(true);
 		}
-		
-		private class DowntimeServiceStub : IDowntimeService
+	}
+	
+	public class DowntimeServiceStub : IDowntimeService
+	{
+		public DowntimeServiceStub(bool isDowntimeActive = false)
 		{
-			public bool IsDowntimeActive { get; } = false;
+			IsDowntimeActive = isDowntimeActive;
 		}
+
+		public bool IsDowntimeActive { get; set; }
 	}
 }

@@ -230,18 +230,26 @@ namespace Horde.Build.Agents.Fleet
 			{
 				if (deltaAgentCount > 0)
 				{
-					TimeSpan scaleOutCooldown = pool.ScaleOutCooldown ?? _defaultScaleOutCooldown;
-					bool isCoolingDown = pool.LastScaleUpTime != null && pool.LastScaleUpTime + scaleOutCooldown > _clock.UtcNow;
-					scope.Span.SetTag("isCoolingDown", isCoolingDown);
-					if (!isCoolingDown)
+					if (!_downtimeService.IsDowntimeActive)
 					{
-						await fleetManager.ExpandPoolAsync(pool, poolSizeResult.Agents, deltaAgentCount, cancellationToken);
-						await _poolCollection.TryUpdateAsync(pool, lastScaleUpTime: _clock.UtcNow);
+						TimeSpan scaleOutCooldown = pool.ScaleOutCooldown ?? _defaultScaleOutCooldown;
+						bool isCoolingDown = pool.LastScaleUpTime != null && pool.LastScaleUpTime + scaleOutCooldown > _clock.UtcNow;
+						scope.Span.SetTag("isCoolingDown", isCoolingDown);
+						if (!isCoolingDown)
+						{
+							await fleetManager.ExpandPoolAsync(pool, poolSizeResult.Agents, deltaAgentCount, cancellationToken);
+							await _poolCollection.TryUpdateAsync(pool, lastScaleUpTime: _clock.UtcNow);
+						}
+						else
+						{
+							TimeSpan? cooldownTimeLeft = pool.LastScaleUpTime + _defaultScaleOutCooldown - _clock.UtcNow;
+							_logger.LogDebug("Cannot scale out {PoolName}, it's cooling down for another {TimeLeft} secs", pool.Name, cooldownTimeLeft?.TotalSeconds);
+						}
 					}
 					else
 					{
-						TimeSpan? cooldownTimeLeft = pool.LastScaleUpTime + _defaultScaleOutCooldown - _clock.UtcNow;
-						_logger.LogDebug("Cannot scale out {PoolName}, it's cooling down for another {TimeLeft} secs", pool.Name, cooldownTimeLeft?.TotalSeconds);
+						_logger.LogDebug("Cannot scale out {PoolName}, downtime is active", pool.Name);
+						scope.Span.SetTag("IsDowntimeActive", true);
 					}
 				}
 
