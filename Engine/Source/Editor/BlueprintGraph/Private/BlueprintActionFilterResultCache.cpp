@@ -2,6 +2,7 @@
 
 #include "BlueprintActionFilterResultCache.h"
 #include "Concepts/EqualityComparable.h"
+#include "EdGraph/EdGraphPin.h"
 
 /*******************************************************************************
  * FActionFilterCacheKey
