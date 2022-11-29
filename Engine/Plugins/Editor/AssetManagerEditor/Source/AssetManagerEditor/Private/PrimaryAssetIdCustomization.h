@@ -7,7 +7,11 @@
 #include "IPropertyTypeCustomization.h"
 #include "SGraphPin.h"
 
+class FAssetThumbnail;
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
 class IPropertyHandle;
+class SBorder;
 
 /** Customization for a primary asset id, shows an asset picker with filters */
 class FPrimaryAssetIdCustomization : public IPropertyTypeCustomization
@@ -19,8 +23,8 @@ public:
 	}
 
 	/** IPropertyTypeCustomization interface */
-	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override {}
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override {}
 
 private:
 	void OnIdSelected(FPrimaryAssetId AssetId);
@@ -46,11 +50,17 @@ private:
 	/** Specified type */
 	TArray<FPrimaryAssetType> AllowedTypes;
 
+	/** Classes which can be selected with this PrimaryAssetId  */
+	TArray<const UClass*> AllowedClasses;
+
+	/** Classes which cannot be selected with this PrimaryAssetId  */
+	TArray<const UClass*> DisallowedClasses;
+	
 	/** Thumbnail resource */
-	TSharedPtr<class FAssetThumbnail> AssetThumbnail;
+	TSharedPtr<FAssetThumbnail> AssetThumbnail;
 
 	/** The border surrounding the thumbnail image. */
-	TSharedPtr< class SBorder > ThumbnailBorder;
+	TSharedPtr<SBorder> ThumbnailBorder;
 };
 
 /** Graph pin version of UI */

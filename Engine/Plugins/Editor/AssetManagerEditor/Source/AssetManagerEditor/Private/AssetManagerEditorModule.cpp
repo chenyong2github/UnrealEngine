@@ -7,7 +7,7 @@
 #include "PrimaryAssetIdCustomization.h"
 #include "SAssetAuditBrowser.h"
 #include "Engine/PrimaryAssetLabel.h"
-#include <Templates/UniquePtr.h>
+#include "Templates/UniquePtr.h"
 
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -78,7 +78,7 @@ DEFINE_LOG_CATEGORY(LogAssetManagerEditor);
 
 class FAssetManagerGraphPanelNodeFactory : public FGraphPanelNodeFactory
 {
-	virtual TSharedPtr<class SGraphNode> CreateNode(UEdGraphNode* Node) const override
+	virtual TSharedPtr<SGraphNode> CreateNode(UEdGraphNode* Node) const override
 	{
 		if (UEdGraphNode_Reference* DependencyNode = Cast<UEdGraphNode_Reference>(Node))
 		{
@@ -91,7 +91,7 @@ class FAssetManagerGraphPanelNodeFactory : public FGraphPanelNodeFactory
 
 class FAssetManagerGraphPanelPinFactory : public FGraphPanelPinFactory
 {
-	virtual TSharedPtr<class SGraphPin> CreatePin(class UEdGraphPin* InPin) const override
+	virtual TSharedPtr<SGraphPin> CreatePin(UEdGraphPin* InPin) const override
 	{
 		if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && InPin->PinType.PinSubCategoryObject == TBaseStructure<FPrimaryAssetId>::Get())
 		{
@@ -136,9 +136,10 @@ TSharedRef<SWidget> IAssetManagerEditorModule::MakePrimaryAssetTypeSelector(FOnG
 	return PropertyCustomizationHelpers::MakePropertyComboBox(nullptr, GetStrings, GetValue, SetValue);
 }
 
-TSharedRef<SWidget> IAssetManagerEditorModule::MakePrimaryAssetIdSelector(FOnGetPrimaryAssetDisplayText OnGetDisplayText, FOnSetPrimaryAssetId OnSetId, bool bAllowClear, TArray<FPrimaryAssetType> AllowedTypes)
+TSharedRef<SWidget> IAssetManagerEditorModule::MakePrimaryAssetIdSelector(FOnGetPrimaryAssetDisplayText OnGetDisplayText, FOnSetPrimaryAssetId OnSetId, bool bAllowClear, 
+	TArray<FPrimaryAssetType> AllowedTypes, TArray<const UClass*> AllowedClasses, TArray<const UClass*> DisallowedClasses)
 {
-	FOnGetContent OnCreateMenuContent = FOnGetContent::CreateLambda([OnGetDisplayText, OnSetId, bAllowClear, AllowedTypes]()
+	FOnGetContent OnCreateMenuContent = FOnGetContent::CreateLambda([OnGetDisplayText, OnSetId, bAllowClear, AllowedTypes, AllowedClasses, DisallowedClasses]()
 	{
 		FOnShouldFilterAsset AssetFilter = FOnShouldFilterAsset::CreateStatic(&IAssetManagerEditorModule::OnShouldFilterPrimaryAsset, AllowedTypes);
 		FOnSetObject OnSetObject = FOnSetObject::CreateLambda([OnSetId](const FAssetData& AssetData)
@@ -156,13 +157,13 @@ TSharedRef<SWidget> IAssetManagerEditorModule::MakePrimaryAssetIdSelector(FOnGet
 			OnSetId.Execute(AssetId);
 		});
 
-		TArray<const UClass*> AllowedClasses;
 		TArray<UFactory*> NewAssetFactories;
 
 		return PropertyCustomizationHelpers::MakeAssetPickerWithMenu(
 			FAssetData(),
 			bAllowClear,
 			AllowedClasses,
+			DisallowedClasses,
 			NewAssetFactories,
 			AssetFilter,
 			OnSetObject,
@@ -183,7 +184,7 @@ TSharedRef<SWidget> IAssetManagerEditorModule::MakePrimaryAssetIdSelector(FOnGet
 		];
 }
 
-void IAssetManagerEditorModule::GeneratePrimaryAssetTypeComboBoxStrings(TArray< TSharedPtr<FString> >& OutComboBoxStrings, TArray<TSharedPtr<class SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems, bool bAllowClear, bool bAllowAll)
+void IAssetManagerEditorModule::GeneratePrimaryAssetTypeComboBoxStrings(TArray< TSharedPtr<FString> >& OutComboBoxStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems, bool bAllowClear, bool bAllowAll)
 {
 	UAssetManager& AssetManager = UAssetManager::Get();
 

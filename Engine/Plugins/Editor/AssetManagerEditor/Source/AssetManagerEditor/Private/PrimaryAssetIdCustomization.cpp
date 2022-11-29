@@ -101,6 +101,9 @@ void FPrimaryAssetIdCustomization::CustomizeHeader(TSharedRef<class IPropertyHan
 	// Can the field be cleared
 	const bool bAllowClear = !(StructPropertyHandle->GetMetaDataProperty()->PropertyFlags & CPF_NoClear);
 
+	AllowedClasses = PropertyCustomizationHelpers::GetClassesFromMetadataString(StructPropertyHandle->GetMetaData("AllowedClasses"));
+	DisallowedClasses = PropertyCustomizationHelpers::GetClassesFromMetadataString(StructPropertyHandle->GetMetaData("DisallowedClasses"));
+	
 	ValueBox->AddSlot()
 		.FillWidth(1.0f)
 		.VAlign(VAlign_Center)
@@ -108,7 +111,7 @@ void FPrimaryAssetIdCustomization::CustomizeHeader(TSharedRef<class IPropertyHan
 			IAssetManagerEditorModule::MakePrimaryAssetIdSelector(
 				FOnGetPrimaryAssetDisplayText::CreateSP(this, &FPrimaryAssetIdCustomization::GetDisplayText),
 				FOnSetPrimaryAssetId::CreateSP(this, &FPrimaryAssetIdCustomization::OnIdSelected),
-				bAllowClear, AllowedTypes)
+				bAllowClear, AllowedTypes, AllowedClasses, DisallowedClasses)
 		];
 
 	ValueBox->AddSlot()
@@ -131,6 +134,7 @@ void FPrimaryAssetIdCustomization::CustomizeHeader(TSharedRef<class IPropertyHan
 		[
 			PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &FPrimaryAssetIdCustomization::OnClear))
 		];
+
 	HeaderRow
 	.NameContent()
 	[
