@@ -18,6 +18,15 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelStreamingProfilingSubsystem)
 
 DEFINE_LOG_CATEGORY_STATIC(LogLevelStreamingProfiling, Log, All);
+CSV_DEFINE_CATEGORY_MODULE(ENGINE_API, LevelStreaming, true);
+
+static float GLateStreamingDistanceSquared = 0.0f;
+static FAutoConsoleVariableRef CVarLateStreamingDistanceSquared(
+	TEXT("LevelStreaming.Profiling.LateStreamingDistanceSquared"),
+	GLateStreamingDistanceSquared,
+	TEXT("The squared distance (e.g. from world partition cell bounds) below which a level is considered to have streamed in late."),
+	ECVF_Default
+);
 
 ULevelStreamingProfilingSubsystem::ULevelStreamingProfilingSubsystem(const FObjectInitializer& ObjectInitializer)
 {
@@ -25,6 +34,11 @@ ULevelStreamingProfilingSubsystem::ULevelStreamingProfilingSubsystem(const FObje
 
 ULevelStreamingProfilingSubsystem::~ULevelStreamingProfilingSubsystem()
 {
+}
+
+double ULevelStreamingProfilingSubsystem::GetLateStreamingDistanceSquared()
+{
+	return GLateStreamingDistanceSquared;
 }
 
 bool ULevelStreamingProfilingSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const

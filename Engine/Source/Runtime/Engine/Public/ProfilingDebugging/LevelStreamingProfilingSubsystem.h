@@ -19,6 +19,8 @@ class ULevelStreaming;
 enum class ELevelStreamingState : uint8;
 enum class ELevelStreamingTargetState : uint8;
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, LevelStreaming);
+
 /** 
  * This subsystem captures level streaming operations for a specified time and outputs a .tsv (tab separated values) file to the 
  * profiling directory containing the amount of time spent loading levels and the time levels spent queuing for theability to load.
@@ -50,6 +52,9 @@ public:
 	ENGINE_API virtual void PostReport() { }
 #endif
 
+	// Access to tuning values set by cvars for other systems
+	/* Returns the squared distance (e.g. from world partition cell bounds) at which a level is considered to have streamed in too late. */
+	static ENGINE_API double GetLateStreamingDistanceSquared();
 
 protected:
 	// WorldSubsystem interface
