@@ -32,6 +32,11 @@ namespace Horde.Build.Agents.Pools
 		/// Configuration for the strategy, serialized as JSON
 		/// </summary>
 		public string Config { get; set; } = "";
+		
+		/// <summary>
+		/// Integer to add after pool size has been calculated. Can also be negative.
+		/// </summary>
+		public int ExtraAgentCount { get; set; } = 0;
 
 		/// <summary>
 		/// Empty constructor for JSON serialization
@@ -43,7 +48,7 @@ namespace Horde.Build.Agents.Pools
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PoolSizeStrategyInfo(PoolSizeStrategy type, Condition? condition, string? config)
+		public PoolSizeStrategyInfo(PoolSizeStrategy type, Condition? condition, string? config, int extraAgentCount = 0)
 		{
 			config = String.IsNullOrWhiteSpace(config) ? "{}" : config;
 
@@ -54,6 +59,7 @@ namespace Horde.Build.Agents.Pools
 			Type = type;
 			Condition = condition;
 			Config = config;
+			ExtraAgentCount = extraAgentCount;
 		}
 	}
 	

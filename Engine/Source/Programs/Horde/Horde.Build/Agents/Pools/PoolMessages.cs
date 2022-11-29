@@ -27,6 +27,11 @@ namespace Horde.Build.Agents.Pools
 		public string Config { get; set; } = "";
 		
 		/// <summary>
+		/// Integer to add after pool size has been calculated. Can also be negative.
+		/// </summary>
+		public int ExtraAgentCount { get; set; } = 0;
+		
+		/// <summary>
 		/// Empty constructor for JSON serialization
 		/// </summary>
 		public PoolSizeStrategyMessage()
@@ -42,6 +47,7 @@ namespace Horde.Build.Agents.Pools
 			Type = strategy.Type;
 			Condition = strategy.Condition;
 			Config = strategy.Config;
+			ExtraAgentCount = strategy.ExtraAgentCount;
 		}
 		
 		/// <summary>
@@ -50,7 +56,7 @@ namespace Horde.Build.Agents.Pools
 		/// <returns></returns>
 		public PoolSizeStrategyInfo Convert()
 		{
-			return new PoolSizeStrategyInfo(Type, Condition, Config);
+			return new PoolSizeStrategyInfo(Type, Condition, Config, ExtraAgentCount);
 		}
 	}
 	

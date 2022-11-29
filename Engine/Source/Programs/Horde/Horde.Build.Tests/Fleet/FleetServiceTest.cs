@@ -224,6 +224,14 @@ namespace Horde.Build.Tests.Fleet
 		}
 		
 		[TestMethod]
+		public async Task CreateStrategyWithExtraAgentCount()
+		{
+			IPoolSizeStrategy s = await CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.NoOp, null, "{}", 39));
+			PoolSizeResult result = await s.CalculatePoolSizeAsync(null!, new List<IAgent>());
+			Assert.AreEqual(39, result.DesiredAgentCount);
+		}
+		
+		[TestMethod]
 		public async Task EmptyOrInvalidJsonConfig()
 		{
 			await CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.LeaseUtilization, null, ""));

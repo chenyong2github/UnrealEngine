@@ -124,4 +124,35 @@ namespace Horde.Build.Agents.Fleet
 		/// <inheritdoc/>
 		public string Name { get; } = "NoOp";
 	}
+	
+	/// <summary>
+	/// Pool size strategy wrapping a normal strategy and
+	/// applies an extra agent count to the desired agent count.
+	/// </summary>
+	public class ExtraAgentCountStrategy : IPoolSizeStrategy
+	{
+		private readonly IPoolSizeStrategy _backingStrategy;
+		private readonly int _extraAgentCount;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="backingStrategy">Strategy to be wrapped</param>
+		/// <param name="extraAgentCount">Extra count to apply</param>
+		public ExtraAgentCountStrategy(IPoolSizeStrategy backingStrategy, int extraAgentCount)
+		{
+			_backingStrategy = backingStrategy;
+			_extraAgentCount = extraAgentCount;
+		}
+
+		/// <inheritdoc/>
+		public async Task<PoolSizeResult> CalculatePoolSizeAsync(IPool pool, List<IAgent> agents)
+		{
+			PoolSizeResult result = await _backingStrategy.CalculatePoolSizeAsync(pool, agents);
+			return new PoolSizeResult(result.CurrentAgentCount, result.DesiredAgentCount + _extraAgentCount, result.Status);
+		}
+
+		/// <inheritdoc/>
+		public string Name => _backingStrategy.Name;
+	}
 }

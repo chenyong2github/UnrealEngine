@@ -337,11 +337,13 @@ namespace Horde.Build.Agents.Fleet
 						{
 							case PoolSizeStrategy.JobQueue:
 								JobQueueSettings jqSettings = DeserializeConfig<JobQueueSettings>(info.Config);
-								return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, _cache, jqSettings);
+								JobQueueStrategy jqStrategy = new (_jobCollection, _graphCollection, _streamService, _clock, _cache, jqSettings);
+								return info.ExtraAgentCount != 0 ? new ExtraAgentCountStrategy(jqStrategy, info.ExtraAgentCount) : jqStrategy;
 							
 							case PoolSizeStrategy.LeaseUtilization:
 								LeaseUtilizationSettings luSettings = DeserializeConfig<LeaseUtilizationSettings>(info.Config);
-								return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache, luSettings);
+								LeaseUtilizationStrategy luStrategy = new (_agentCollection, _poolCollection, _leaseCollection, _clock, _cache, luSettings);
+								return info.ExtraAgentCount != 0 ? new ExtraAgentCountStrategy(luStrategy, info.ExtraAgentCount) : luStrategy;
 							
 							// Disabled until moved to a separate factory class as FleetService should not contain AWS-specific classes
 							// case PoolSizeStrategy.ComputeQueueAwsMetric:
@@ -349,7 +351,8 @@ namespace Horde.Build.Agents.Fleet
 							// 	return new ComputeQueueAwsMetricStrategy(_awsCloudWatch, _computeService, cqamSettings);
 							
 							case PoolSizeStrategy.NoOp:
-								return new NoOpPoolSizeStrategy();
+								NoOpPoolSizeStrategy noStrategy = new ();
+								return info.ExtraAgentCount != 0 ? new ExtraAgentCountStrategy(noStrategy, info.ExtraAgentCount) : noStrategy;
 							
 							default:
 								throw new ArgumentException("Invalid pool size strategy type " + info.Type);
