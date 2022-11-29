@@ -1594,7 +1594,8 @@ void USkeletalMeshComponent::ConditionallyDispatchQueuedAnimEvents()
 	{
 		bNeedsQueuedAnimEventsDispatched = false;
 
-		for (UAnimInstance* LinkedInstance : LinkedInstances)
+		// Copy linked instances here, as anim notifies could potentially modify this array
+		for (UAnimInstance* LinkedInstance : TArray<TObjectPtr<UAnimInstance>, TInlineAllocator<8>>(LinkedInstances))
 		{
 			LinkedInstance->DispatchQueuedAnimEvents();
 		}
