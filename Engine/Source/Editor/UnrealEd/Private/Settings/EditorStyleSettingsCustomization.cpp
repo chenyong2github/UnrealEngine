@@ -691,6 +691,7 @@ void FEditorStyleSettingsCustomization::OnThemePicked(TSharedPtr<FString> NewSel
 	// If set directly in code, the theme was already applied
 	if(SelectInfo != ESelectInfo::Direct)
 	{
+		StyleSetting->SaveConfig();
 		USlateThemeManager::Get().ApplyTheme(StyleSetting->CurrentAppliedTheme);
 	}
 }
