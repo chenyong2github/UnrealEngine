@@ -16,6 +16,8 @@
 #include "String/ParseTokens.h"
 #include "Misc/BufferedOutputDevice.h"
 #include "Misc/OutputDeviceFile.h"
+#include "Async/ParallelFor.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if RHI_ENABLE_RESOURCE_INFO
 #include "HAL/FileManager.h"
