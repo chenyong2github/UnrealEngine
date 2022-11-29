@@ -679,6 +679,15 @@ FLWCMatrix GetInstanceToWorld(FMaterialVertexParameters Parameters)
 	#endif
 }
 
+FLWCMatrix GetPrevInstanceToWorld(FMaterialVertexParameters Parameters)
+{
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY || IS_NANITE_PASS
+	return Parameters.PrevFrameLocalToWorld;
+#else
+	return GetPrimitiveData(Parameters).PreviousLocalToWorld;
+#endif
+}
+
 FLWCMatrix GetInstanceToWorld(FMaterialPixelParameters Parameters)
 {
 	#if HAS_INSTANCE_LOCAL_TO_WORLD_PS
