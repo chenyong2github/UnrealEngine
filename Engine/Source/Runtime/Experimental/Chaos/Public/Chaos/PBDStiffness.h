@@ -3,10 +3,10 @@
 
 #include "Chaos/Core.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
+#include "Chaos/PBDWeightMap.h"
 #include "Containers/ArrayView.h"
 #include "Containers/ContainersFwd.h"
 #include "ChaosStats.h"
-#include "PBDWeightMap.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Stiffness Apply Values"), STAT_PBD_StiffnessApplyValues, STATGROUP_Chaos);
 
@@ -57,6 +57,9 @@ public:
 private:
 	const FSolverReal ParameterFitBase;
 	const FSolverReal ParameterFitLogBase;
+	FSolverReal PrevDtOrMaxStiffness = (FSolverReal)0.;
+	int32 PrevNumIterations = 0;
+	using FPBDWeightMap::bIsDirty;
 };
 
 FPBDStiffness::FPBDStiffness(
@@ -105,36 +108,35 @@ void FPBDStiffness::ApplyValues(const FSolverReal Dt, const int32 NumIterations)
 
 	// Define the stiffness mapping function
 	auto SimulationValue = [this, Exponent](const FSolverReal InValue)->FSolverReal
-	{
-		// If InValue is 1 then LogValue = -inf and the output becomes -inf as well,
-		// in order for this function to be continuous, we want the output to be 1 when InValue = 1
-		// and need the stiffness to be exactly 0 when the input is 0
-		if (InValue <= (FSolverReal)UE_DOUBLE_SMALL_NUMBER)
 		{
-			return (FSolverReal)0.;
-		}
-		if (InValue >= (FSolverReal)(1. - UE_DOUBLE_SMALL_NUMBER))
-		{
-			return (FSolverReal)1.;
-		}
-		const FSolverReal ParameterFit = CalcExponentialParameterFit(ParameterFitBase, ParameterFitLogBase, InValue);
+			// If InValue is 1 then LogValue = -inf and the output becomes -inf as well,
+			// in order for this function to be continuous, we want the output to be 1 when InValue = 1
+			// and need the stiffness to be exactly 0 when the input is 0
+			if (InValue <= (FSolverReal)UE_DOUBLE_SMALL_NUMBER)
+			{
+				return (FSolverReal)0.;
+			}
+			if (InValue >= (FSolverReal)(1. - UE_DOUBLE_SMALL_NUMBER))
+			{
+				return (FSolverReal)1.;
+			}
+			const FSolverReal ParameterFit = CalcExponentialParameterFit(ParameterFitBase, ParameterFitLogBase, InValue);
 
-		// Use simulation dependent stiffness exponent to alleviate the variations in effect when Dt and NumIterations change
-		// This is based on the Position-Based Simulation Methods paper (page 8),
-		// but uses the delta time in addition of the number of iterations in the calculation of the error term.
-		const FSolverReal LogValue = FMath::Loge((FSolverReal)1. - ParameterFit);
-		return (FSolverReal)1. - FMath::Exp(LogValue * Exponent);
-	};
-
-	const FSolverReal Offset = WeightedValue[0];
-	const FSolverReal Range = WeightedValue[1] - WeightedValue[0];
-	const int32 TableSize = Table.Num();
-	const FSolverReal WeightIncrement = (TableSize > 1) ? (FSolverReal)1. / (FSolverReal)(TableSize - 1) : (FSolverReal)1.; // Must allow full range from 0 to 1 included
-	for (int32 Index = 0; Index < TableSize; ++Index)
+			// Use simulation dependent stiffness exponent to alleviate the variations in effect when Dt and NumIterations change
+			// This is based on the Position-Based Simulation Methods paper (page 8),
+			// but uses the delta time in addition of the number of iterations in the calculation of the error term.
+			const FSolverReal LogValue = FMath::Loge((FSolverReal)1. - ParameterFit);
+			return (FSolverReal)1. - FMath::Exp(LogValue * Exponent);
+		};
+	
+	if (Dt != PrevDtOrMaxStiffness || NumIterations != PrevNumIterations)
 	{
-		const FSolverReal Weight = (FSolverReal)Index * WeightIncrement;
-		Table[Index] = SimulationValue(Offset + Weight * Range);
+		PrevDtOrMaxStiffness = Dt;
+		PrevNumIterations = NumIterations;
+		bIsDirty = true;
 	}
+
+	FPBDWeightMap::ApplyValues(SimulationValue);  // Note, this still needs to be called even when not dirty for dealing with any change in values
 }
 
 void FPBDStiffness::ApplyXPBDValues(const FSolverReal MaxStiffness)
@@ -142,20 +144,18 @@ void FPBDStiffness::ApplyXPBDValues(const FSolverReal MaxStiffness)
 	SCOPE_CYCLE_COUNTER(STAT_PBD_StiffnessApplyValues);
 	
 	auto SimulationValue = [this, MaxStiffness](const FSolverReal InValue)->FSolverReal
-	{
-		// Do not apply exponential to XPBDStiffnesses. They are authored in terms of true stiffness values (e.g., kg/s^2), not exponential compliance
-		return FMath::Clamp(InValue, (FSolverReal)0., MaxStiffness);
-	};
+		{
+			// Do not apply exponential to XPBDStiffnesses. They are authored in terms of true stiffness values (e.g., kg/s^2), not exponential compliance
+			return FMath::Clamp(InValue, (FSolverReal)0., MaxStiffness);
+		};
 
-	const FSolverReal Offset = WeightedValue[0];
-	const FSolverReal Range = WeightedValue[1] - WeightedValue[0];
-	const int32 TableSize = Table.Num();
-	const FSolverReal WeightIncrement = (TableSize > 1) ? (FSolverReal)1. / (FSolverReal)(TableSize - 1) : (FSolverReal)1.; // Must allow full range from 0 to 1 included
-	for (int32 Index = 0; Index < TableSize; ++Index)
+	if (MaxStiffness != PrevDtOrMaxStiffness)
 	{
-		const FSolverReal Weight = (FSolverReal)Index * WeightIncrement;
-		Table[Index] = SimulationValue(Offset + Weight * Range);
+		PrevDtOrMaxStiffness = MaxStiffness;
+		bIsDirty = true;
 	}
+
+	FPBDWeightMap::ApplyValues(SimulationValue);  // Note, this still needs to be called even when not dirty for dealing with any change in values
 }
 
 }  // End namespace Chaos::Softs

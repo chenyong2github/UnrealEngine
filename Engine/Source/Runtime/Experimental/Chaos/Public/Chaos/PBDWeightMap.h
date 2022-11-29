@@ -54,14 +54,14 @@ public:
 	 * The weight map table only gets updated after ApplyValues is called.
 	 * Low and high values are clamped between [0,1]
 	 */
-	void SetWeightedValue(const FSolverVec2& InWeightedValue) { WeightedValue = InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.); }
+	void SetWeightedValue(const FSolverVec2& InWeightedValue) { WeightedValue = InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.); bIsDirty = true; }
 
 	/**
 	 * Set the low and high values of the weight map.
 	 * The weight map table only gets updated after ApplyValues is called.
 	 * Low and high values are not clamped. Commonly used for XPBD Stiffness values which are not [0,1]
 	 */
-	void SetWeightedValueUnclamped(const FSolverVec2& InWeightedValue) { WeightedValue = InWeightedValue; }
+	void SetWeightedValueUnclamped(const FSolverVec2& InWeightedValue) { WeightedValue = InWeightedValue; bIsDirty = true; }
 
 	/**
 	 * Return the low and high values set for this weight map.
@@ -70,7 +70,7 @@ public:
 	const FSolverVec2& GetWeightedValue() const { return WeightedValue; }
 
 	/** Update the weight map table with the current simulation parameters. */
-	inline void ApplyValues();
+	void ApplyValues() { ApplyValues([](FSolverReal Value)->FSolverReal { return Value; }); }
 
 	/**
 	 * Lookup for the exponential weighted value at the specified weight map index.
@@ -97,12 +97,16 @@ public:
 	inline void ReorderIndices(const TArray<int32>& OrigToReorderedIndices);
 
 protected:
+	template<typename FunctorType>
+	inline void ApplyValues(FunctorType&& MappingFunction);
+
 	TArray<uint8> Indices; // Per particle/constraints array of index to the stiffness table
 	TArray<FSolverReal> Table;  // Fixed lookup table of stiffness values, use uint8 indexation
 	FSolverVec2 WeightedValue;
+	bool bIsDirty = true;  // Whether the values have changed and the table needs updating
 };
 
-FPBDWeightMap::FPBDWeightMap(
+inline FPBDWeightMap::FPBDWeightMap(
 	const FSolverVec2& InWeightedValue,
 	const TConstArrayView<FRealSingle>& Multipliers,
 	int32 ParticleCount,
@@ -135,7 +139,7 @@ FPBDWeightMap::FPBDWeightMap(
 }
 
 template<int32 Valence>
-FPBDWeightMap::FPBDWeightMap(
+inline FPBDWeightMap::FPBDWeightMap(
 	const FSolverVec2& InWeightedValue,
 	const TConstArrayView<FRealSingle>& Multipliers,
 	const TConstArrayView<TVector<int32, Valence>>& Constraints,
@@ -181,22 +185,27 @@ FPBDWeightMap::FPBDWeightMap(
 	}
 }
 
-void FPBDWeightMap::ApplyValues()
+template<typename FunctorType>
+inline void FPBDWeightMap::ApplyValues(FunctorType&& MappingFunction)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_WeightMapApplyValues);
-
-	const FSolverReal Offset = WeightedValue[0];
-	const FSolverReal Range = WeightedValue[1] - WeightedValue[0];
-	const int32 TableSize = Table.Num();
-	const FSolverReal WeightIncrement = (TableSize > 1) ? (FSolverReal)1. / (FSolverReal)(TableSize - 1) : (FSolverReal)1.; // Must allow full range from 0 to 1 included
-	for (int32 Index = 0; Index < TableSize; ++Index)
+	if (bIsDirty)
 	{
-		const FSolverReal Weight = (FSolverReal)Index * WeightIncrement;
-		Table[Index] = Offset + Weight * Range;
+		const FSolverReal Offset = WeightedValue[0];
+		const FSolverReal Range = WeightedValue[1] - WeightedValue[0];
+		const int32 TableSize = Table.Num();
+		const FSolverReal WeightIncrement = (TableSize > 1) ? (FSolverReal)1. / (FSolverReal)(TableSize - 1) : (FSolverReal)1.; // Must allow full range from 0 to 1 included
+		for (int32 Index = 0; Index < TableSize; ++Index)
+		{
+			const FSolverReal Weight = (FSolverReal)Index * WeightIncrement;
+			Table[Index] = MappingFunction(Offset + Weight * Range);
+		}
+
+		bIsDirty = false;
 	}
 }
 
-void FPBDWeightMap::ReorderIndices(const TArray<int32>& OrigToReorderedConstraintIndices)
+inline void FPBDWeightMap::ReorderIndices(const TArray<int32>& OrigToReorderedConstraintIndices)
 {
 	if (Indices.Num() == OrigToReorderedConstraintIndices.Num())
 	{
