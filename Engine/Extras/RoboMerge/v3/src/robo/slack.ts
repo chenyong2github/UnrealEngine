@@ -61,10 +61,14 @@ export interface SlackMessage {
 	channel: string
 	// Allows Markdown formatting in messages
 	mrkdwn: boolean
+
+	// For the dummy server implementation we store additional information
+	cl?: number
+	target?: string
 }
 
 
-const MAIN_MESSAGE_FIELDS = new Set(['username', 'icon_emoji', 'channel']);
+const MAIN_MESSAGE_FIELDS = new Set(['username', 'icon_emoji', 'channel', 'target', 'cl']);
 
 export class Slack {
 	constructor(private channel: SlackChannel, private domain: string) {

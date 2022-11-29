@@ -247,6 +247,10 @@ export class SlackMessages {
 		}
 		// Otherwise, we will need to create a new one
 		else {
+
+			message.target = resolveBranchArg(branchArg, true)
+			message.cl = cl
+
 			let timestamp
 			try {
 				timestamp = await this.slack.postMessage(message)

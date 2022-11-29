@@ -5,6 +5,14 @@ import * as bent from 'bent'
 import * as System from './system';
 import { Change, Perforce, VERBOSE } from './test-perforce';
 
+// This must be kept in sync with dummyslackserver.ts
+class DummyThread {
+	CL: number
+	target: string
+	timestamp: number
+	messages: string[] // the first message is the original post, the rest are replies
+}
+
 const getJson = bent('json')
 
 const colors = require('colors')
@@ -669,12 +677,12 @@ export abstract class FunctionalTest {
 	}
 
 	wasMessagePostedToSlack(channel: string, cl: number, target: string) {
-		const targetName = this.fullBranchName(target)
+		const targetName = this.fullBranchName(target).toUpperCase()
 		return getJson(DUMMY_SLACK_DOMAIN + '/posted/' + channel)
-			.then((perTargetCls: [string, number[]][]) => {
-				for (const [target, cls] of perTargetCls) {
+			.then((perTargetThreads: [string, DummyThread[]][]) => {
+				for (const [target, dummyThreads] of perTargetThreads) {
 					if (target === targetName) {
-						return cls.indexOf(cl) >= 0
+						return dummyThreads.filter(dt => dt.CL == cl).length == 1
 					}
 				}
 				return false
