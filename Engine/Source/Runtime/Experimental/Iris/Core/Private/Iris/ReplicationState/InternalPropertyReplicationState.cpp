@@ -133,7 +133,19 @@ void CopyPropertyReplicationState(uint8* RESTRICT DstStateBuffer, uint8* RESTRIC
 bool InternalCompareMember(const FReplicationStateDescriptor* Descriptor, uint32 MemberIndex, const void* RESTRICT ValueA, const void* RESTRICT ValueB)
 {
 	const FReplicationStateMemberSerializerDescriptor& MemberSerializerDescriptor = Descriptor->MemberSerializerDescriptors[MemberIndex];
-	if (IsUsingStructNetSerializer(MemberSerializerDescriptor))
+
+	if (EnumHasAnyFlags(MemberSerializerDescriptor.Serializer->Traits, ENetSerializerTraits::UseSerializerIsEqual))
+	{
+		FNetSerializationContext Context;
+		FNetIsEqualArgs Args;
+		Args.NetSerializerConfig = MemberSerializerDescriptor.SerializerConfig;
+		Args.Source0 = NetSerializerValuePointer(ValueA);
+		Args.Source1 = NetSerializerValuePointer(ValueB);
+		Args.bStateIsQuantized = false;
+
+		return MemberSerializerDescriptor.Serializer->IsEqual(Context, Args);
+	}
+	else if (IsUsingStructNetSerializer(MemberSerializerDescriptor))
 	{
 		const FStructNetSerializerConfig* StructConfig = static_cast<const FStructNetSerializerConfig*>(MemberSerializerDescriptor.SerializerConfig);
 		const FReplicationStateDescriptor* StructDescriptor = StructConfig->StateDescriptor;
@@ -175,7 +187,7 @@ bool InternalCompareMember(const FReplicationStateDescriptor* Descriptor, uint32
 		}
 	}
 
-	// Default handling for all properties except for structs and arrays that have some non-replicated members
+	// Default handling
 	const FProperty* Property = Descriptor->MemberProperties[MemberIndex];
 	return Property->Identical(ValueA, ValueB);
 }

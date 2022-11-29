@@ -30,6 +30,7 @@ struct FGameplayAbilityRepAnimMontageNetSerializer
 	static constexpr bool bIsForwardingSerializer = true; // Triggers asserts if a function is missing
 	static constexpr bool bHasConnectionSpecificSerialization = true; // One of our members requires connection specific serialization
 	static constexpr bool bHasCustomNetReference = true; // We have object references that are not directly accessible
+	static constexpr bool bUseSerializerIsEqual = true; // Since FGameplayAbilityRepAnimMontageNetSerializer conditionally replicates position and SectionId we need to use the IsEqual function provided by the NetSerializer when comparing the property
 
 	// Types
 	enum EReplicationFlags : uint8
@@ -167,8 +168,6 @@ void FGameplayAbilityRepAnimMontageNetSerializer::Deserialize(FNetSerializationC
 
 void FGameplayAbilityRepAnimMontageNetSerializer::SerializeDelta(FNetSerializationContext& Context, const FNetSerializeDeltaArgs& Args)
 {
-	//NetSerializeDeltaDefault<Serialize>(Context, Args);
-
 	const QuantizedType& Value = *reinterpret_cast<QuantizedType*>(Args.Source);
 	const QuantizedType& PrevValue = *reinterpret_cast<QuantizedType*>(Args.Prev);
 
@@ -306,13 +305,13 @@ void FGameplayAbilityRepAnimMontageNetSerializer::Dequantize(FNetSerializationCo
 	{
 		TargetValue.Position = SourceValue.Position;
 		TargetValue.SectionIdToPlay = 0;
-		TargetValue.SkipPositionCorrection = 1;
+		TargetValue.SkipPositionCorrection = 0;
 	}
 	else
 	{
 		TargetValue.Position = 0.f;
 		TargetValue.SectionIdToPlay = SourceValue.SectionIdToPlay;
-		TargetValue.SkipPositionCorrection = 0;
+		TargetValue.SkipPositionCorrection = 1;
 	}
 }
 
@@ -339,7 +338,7 @@ bool FGameplayAbilityRepAnimMontageNetSerializer::IsEqual(FNetSerializationConte
 			return false;
 		}
 
-		if (Value0.ReplicationFlags != Value1.ReplicationFlags || Value0.Position != Value1.Position || Value0.SectionIdToPlay != Value1.SectionIdToPlay)
+		if (Value0.Position != Value1.Position || Value0.SectionIdToPlay != Value1.SectionIdToPlay)
 		{
 			return false;
 		}

@@ -47,6 +47,7 @@ enum class EReplicationStateMemberTraits : uint16
 	HasObjectReference = HasDynamicState << 1U,
 	HasConnectionSpecificSerialization = HasObjectReference << 1U,
 	HasRepNotifyAlways = HasConnectionSpecificSerialization << 1U,
+	UseSerializerIsEqual = HasRepNotifyAlways << 1U,
 };
 ENUM_CLASS_FLAGS(EReplicationStateMemberTraits);
 
@@ -177,6 +178,7 @@ enum class EReplicationStateTraits : uint32
 	HasPushBasedDirtiness				= HasConnectionSpecificSerialization << 1U,
 	// Whether delta compression is supported or not
 	SupportsDeltaCompression			= HasPushBasedDirtiness << 1U,
+	UseSerializerIsEqual				= SupportsDeltaCompression << 1U,	
 };
 ENUM_CLASS_FLAGS(EReplicationStateTraits);
 

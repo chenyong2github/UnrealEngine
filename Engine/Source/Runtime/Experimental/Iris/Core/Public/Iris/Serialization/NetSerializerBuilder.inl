@@ -124,6 +124,7 @@ private:
 		static constexpr bool bHasCustomNetReference = true;
 		static constexpr bool bHasDynamicState = true;
 		static constexpr bool bUseDefaultDelta = true;
+		static constexpr bool bUseSerializerIsEqual = false;
 	};
 
 	template<typename U, U> struct FSignatureCheck;
@@ -139,6 +140,12 @@ private:
 
 	template<typename U> static ETrueType TestHasCustomNetReferenceIsBool(typename TEnableIf<TIsSame<decltype(&FTraits::bHasCustomNetReference), decltype(&U::bHasCustomNetReference)>::Value>::Type*);
 	template<typename> static EFalseType TestHasCustomNetReferenceIsBool(...);
+
+	template<typename U> static ETrueType TestUseSerializerIsEqualIsPresent(FTypeCheck<decltype(&U::bUseSerializerIsEqual)>*);
+	template<typename> static EFalseType TestUseSerializerIsEqualIsPresent(...);
+
+	template<typename U> static ETrueType TestUseSerializerIsEqualIsBool(typename TEnableIf<TIsSame<decltype(&FTraits::bUseSerializerIsEqual), decltype(&U::bUseSerializerIsEqual)>::Value>::Type*);
+	template<typename> static EFalseType TestUseSerializerIsEqualIsBool(...);
 
 	template<typename U> static ETrueType TestIsForwardingSerializerIsPresent(FTypeCheck<decltype(&U::bIsForwardingSerializer)>*);
 	template<typename> static EFalseType TestIsForwardingSerializerIsPresent(...);
@@ -225,6 +232,9 @@ private:
 		HasCustomNetReferenceIsPresent = unsigned(decltype(TestHasCustomNetReferenceIsPresent<NetSerializerImpl>(nullptr))::Value),
 		HasCustomNetReferenceIsBool = unsigned(decltype(TestHasCustomNetReferenceIsBool<NetSerializerImpl>(nullptr))::Value),
 
+		UseSerializerIsEqualIsPresent = unsigned(decltype(TestUseSerializerIsEqualIsPresent<NetSerializerImpl>(nullptr))::Value),
+		UseSerializerIsEqualIsBool = unsigned(decltype(TestUseSerializerIsEqualIsBool<NetSerializerImpl>(nullptr))::Value),
+
 		IsForwardingSerializerIsPresent = unsigned(decltype(TestIsForwardingSerializerIsPresent<NetSerializerImpl>(nullptr))::Value),
 		IsForwardingSerializerIsBool = unsigned(decltype(TestIsForwardingSerializerIsBool<NetSerializerImpl>(nullptr))::Value),
 		HasConnectionSpecificSerializationIsPresent = unsigned(decltype(TestHasConnectionSpecificSerializationIsPresent<NetSerializerImpl>(nullptr))::Value),
@@ -269,6 +279,12 @@ public:
 
 	template<typename T = void, typename U = typename TEnableIf<!HasCustomNetReferenceIsBool, T>::Type, char V = 0>
 	static constexpr bool HasCustomNetReference() { return false; }
+
+	template<typename T = void, typename U = typename TEnableIf<UseSerializerIsEqualIsBool && HasIsEqual, T>::Type, bool V = true>
+	static constexpr bool UseSerializerIsEqual() { return NetSerializerImpl::bUseSerializerIsEqual; }
+
+	template<typename T = void, typename U = typename TEnableIf<!(UseSerializerIsEqualIsBool && HasIsEqual), T>::Type, char V = 0>
+	static constexpr bool UseSerializerIsEqual() { return false; }
 
 	template<typename T = void, typename U = typename TEnableIf<IsForwardingSerializerIsBool, T>::Type, bool V = true>
 	static constexpr bool IsForwardingSerializer() { return NetSerializerImpl::bIsForwardingSerializer; }
@@ -426,6 +442,8 @@ public:
 		Traits |= (HasConnectionSpecificSerialization() ? ENetSerializerTraits::HasConnectionSpecificSerialization : ENetSerializerTraits::None);
 		Traits |= (HasCustomNetReference() ? ENetSerializerTraits::HasCustomNetReference : ENetSerializerTraits::None);
 		Traits |= (HasDynamicState() ? ENetSerializerTraits::HasDynamicState : ENetSerializerTraits::None);
+		Traits |= (UseSerializerIsEqual() ? ENetSerializerTraits::UseSerializerIsEqual : ENetSerializerTraits::None);
+
 		return Traits;
 	}
 

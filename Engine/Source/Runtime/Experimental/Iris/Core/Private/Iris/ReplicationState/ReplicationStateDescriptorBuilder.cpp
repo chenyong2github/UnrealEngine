@@ -77,6 +77,7 @@ enum class EMemberPropertyTraits : uint32
 	IsFastArrayItem						= IsNativeFastArray << 1U,
 	HasConnectionSpecificSerialization	= IsFastArrayItem << 1U,
 	HasPushBasedDirtiness				= HasConnectionSpecificSerialization << 1U,
+	UseSerializerIsEqual				= HasPushBasedDirtiness << 1U,
 };
 ENUM_CLASS_FLAGS(EMemberPropertyTraits);
 
@@ -508,6 +509,11 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberCache(FBuilderContex
 				Member.Traits |= EMemberPropertyTraits::HasConnectionSpecificSerialization;
 			}
 
+			if (EnumHasAnyFlags(Descriptor->Traits, EReplicationStateTraits::UseSerializerIsEqual))
+			{
+				Member.Traits |= EMemberPropertyTraits::UseSerializerIsEqual;
+			}
+
 			if (!EnumHasAnyFlags(Descriptor->Traits, EReplicationStateTraits::AllMembersAreReplicated))
 			{
 				// If we are building a struct containing a struct that isn't fully replicated then this struct isn't fully replicated either.
@@ -531,9 +537,15 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberCache(FBuilderContex
 			const FReplicationStateDescriptor* Descriptor = CurrentCacheEntry->Descriptor.GetReference();
 
 			// Propagate some traits. Doing this earlier would be quite expensive.
+
 			if (EnumHasAnyFlags(Descriptor->Traits, EReplicationStateTraits::HasObjectReference))
 			{
 				Member.Traits |= EMemberPropertyTraits::HasObjectReference;
+			}
+
+			if (EnumHasAnyFlags(Descriptor->Traits, EReplicationStateTraits::UseSerializerIsEqual))
+			{
+				Member.Traits |= EMemberPropertyTraits::UseSerializerIsEqual;
 			}
 
 			// We propagate this up so that a struct wrapping an array that is not fully replicated will also have this set
@@ -967,6 +979,7 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberTraitsDescriptors(FR
 		CurrentMemberTraitsDescriptor->Traits |= (EnumHasAnyFlags(Info.Traits, EMemberPropertyTraits::HasDynamicState) ? EReplicationStateMemberTraits::HasDynamicState : EReplicationStateMemberTraits::None);
 		CurrentMemberTraitsDescriptor->Traits |= (EnumHasAnyFlags(Info.Traits, EMemberPropertyTraits::HasObjectReference) ? EReplicationStateMemberTraits::HasObjectReference : EReplicationStateMemberTraits::None);
 		CurrentMemberTraitsDescriptor->Traits |= (EnumHasAnyFlags(Info.Traits, EMemberPropertyTraits::RepNotifyAlways) ? EReplicationStateMemberTraits::HasRepNotifyAlways : EReplicationStateMemberTraits::None);
+		CurrentMemberTraitsDescriptor->Traits |= (EnumHasAnyFlags(Info.Traits, EMemberPropertyTraits::UseSerializerIsEqual) ? EReplicationStateMemberTraits::UseSerializerIsEqual : EReplicationStateMemberTraits::None);
 		++CurrentMemberTraitsDescriptor;
 	}
 
@@ -1362,6 +1375,11 @@ EReplicationStateTraits FPropertyReplicationStateDescriptorBuilder::BuildReplica
 	if (EnumHasAnyFlags(PropertyTraits, EMemberPropertyTraits::HasConnectionSpecificSerialization))
 	{
 		Traits |= EReplicationStateTraits::HasConnectionSpecificSerialization;
+	}
+
+	if (EnumHasAnyFlags(PropertyTraits, EMemberPropertyTraits::UseSerializerIsEqual))
+	{
+		Traits |= EReplicationStateTraits::UseSerializerIsEqual;
 	}
 
 	// Only set the PushBasedDirtiness trait if all properties are push based. An alternative could be to split into multiple states.
@@ -1814,6 +1832,7 @@ void FPropertyReplicationStateDescriptorBuilder::GetSerializerTraits(FMemberProp
 	OutMemberProperty.Traits |= GetHasObjectReferenceTraits(NetSerializer);
 	OutMemberProperty.Traits |= EnumHasAnyFlags(NetSerializer->Traits, ENetSerializerTraits::HasDynamicState) ? EMemberPropertyTraits::HasDynamicState : EMemberPropertyTraits::None;
 	OutMemberProperty.Traits |= EnumHasAnyFlags(NetSerializer->Traits, ENetSerializerTraits::HasConnectionSpecificSerialization) ? EMemberPropertyTraits::HasConnectionSpecificSerialization : EMemberPropertyTraits::None;
+	OutMemberProperty.Traits |= EnumHasAnyFlags(NetSerializer->Traits, ENetSerializerTraits::UseSerializerIsEqual) ? EMemberPropertyTraits::UseSerializerIsEqual : EMemberPropertyTraits::None;
 	OutMemberProperty.Traits |= GetFastArrayPropertyTraits(NetSerializer, Property);
 }
 

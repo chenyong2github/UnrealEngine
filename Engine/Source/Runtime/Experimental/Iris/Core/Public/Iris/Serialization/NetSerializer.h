@@ -346,6 +346,9 @@ enum class ENetSerializerTraits : uint32
 	HasConnectionSpecificSerialization = HasDynamicState << 1U,
 	/** There are net references that need to be gathered via calls to CollectNetReferences. */
 	HasCustomNetReference = HasConnectionSpecificSerialization << 1U,
+
+	/** Data replicated using this serializer should use the IsEqual implementation in order to determine whether the data is dirty or not. */
+	UseSerializerIsEqual = HasCustomNetReference << 1U,
 };
 ENUM_CLASS_FLAGS(ENetSerializerTraits);
 
