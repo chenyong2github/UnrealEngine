@@ -3676,11 +3676,6 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			}
 		}
 
-		if(Pin->GetDirection() == ERigVMPinDirection::Hidden)
-		{
-			JoinedDefaultValue.Empty();
-		}
-	
 		Operand = WorkData.AddProperty(MemoryType, RegisterName, CPPType, Pin->GetCPPTypeObject(), JoinedDefaultValue);
 	}
 	ensure(Operand.IsValid());
