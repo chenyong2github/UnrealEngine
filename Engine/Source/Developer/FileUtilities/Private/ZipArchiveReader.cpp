@@ -4,6 +4,46 @@
 
 #if WITH_EDITOR
 
+// Temporarily disabled while we fix libzip for mac
+#if PLATFORM_MAC
+
+#include "ZipArchivePrivate.h"
+
+class FZipArchiveReader::FImpl
+{
+};
+
+FZipArchiveReader::FZipArchiveReader(IFileHandle* InFileHandle, FOutputDevice* ErrorHandler)
+{
+	if (ErrorHandler)
+	{
+		ErrorHandler->Log(LogZipArchive.GetCategoryName(), ELogVerbosity::Display, TEXT("Not yet implemented on PLATFORM_MAC"));
+	}
+}
+
+FZipArchiveReader::~FZipArchiveReader() = default;
+
+bool FZipArchiveReader::IsValid() const
+{
+	return false;
+}
+
+TArray<FString> FZipArchiveReader::GetFileNames() const
+{
+	return TArray<FString>();
+}
+
+bool FZipArchiveReader::TryReadFile(FStringView FileName, TArray<uint8>& OutData, FOutputDevice* ErrorHandler) const
+{
+	if (ErrorHandler)
+	{
+		ErrorHandler->Log(LogZipArchive.GetCategoryName(), ELogVerbosity::Display, TEXT("Not yet implemented on PLATFORM_MAC"));
+	}
+	return false;
+}
+
+#else // PLATFORM_MAC
+
 #include "Containers/StringConv.h"
 #include "Containers/Map.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -334,5 +374,7 @@ zip_int64_t FZipArchiveReader::FImpl::ZipSourceFunctionReader(
 		return 0;
 	}
 }
+
+#endif // PLATFORM_MAC
 
 #endif
