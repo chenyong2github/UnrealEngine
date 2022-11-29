@@ -1133,9 +1133,10 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	// TODO: add support for LWC, we should pack it as integer tile coordinates 
 	float3 TilePosition = float3(0,0,0);
 
-	// TODO: pack important primitive and instance flags here
-	const uint PrimitiveFlags = asuint(InstanceTransform1.w);
-	const uint InstanceFlags = (PrimitiveFlags >> 16);
+	// TODO: pack important primitive and instance flags here 
+	// (25 + 7)
+	const uint PrimitiveFlags = asuint(InstanceTransform1.w) & 0x01FFFFFF;
+	const uint InstanceFlags = (PrimitiveFlags >> 25u);
 
 	// Reconstruct InstanceData from a packed data
 	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
