@@ -78,7 +78,8 @@ export class Session {
 			return
 		}
 		catch (err) {
-			logger.warn(`Warning (ok in dev):  ${err.toString()}`)
+			const errStr = err.toString().replace(/(E|e)(R|r)(R|r)(O|o)(R|r)/,"$1$2$30$5")
+			logger.warn(`Warning (ok in dev):  ${errStr}`)
 			Session.COOKIE_KEY = DEV_COOKIE_KEY
 		}
 

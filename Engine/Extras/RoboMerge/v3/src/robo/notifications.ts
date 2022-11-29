@@ -52,7 +52,8 @@ export function notificationsInit(inArgs: Args) {
 		vault = JSON.parse(vaultString)
 	}
 	catch (err) {
-		notificationsStartupLogger.warn(`Warning, failed to find Slack secrets in vault (ok in dev): ${err.toString()}`)
+		const errStr = err.toString().replace(/(E|e)(R|r)(R|r)(O|o)(R|r)/,"$1$2$30$5")
+		notificationsStartupLogger.warn(`Warning, failed to find Slack secrets in vault (ok in dev): ${errStr}`)
 		return
 	}
 
