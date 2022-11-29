@@ -194,6 +194,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
 	void SetMargin(const FMargin& InMargin);
 
+	UFUNCTION(BlueprintCallable, Category = "Common Text|Mobile")
+	float GetMobileFontSizeMultiplier() const;
+	
+	/** Sets the new value and then applies the FontSizeMultiplier */
+	UFUNCTION(BlueprintCallable, Category = "Common Text|Mobile")
+	void SetMobileFontSizeMultiplier(float InMobileFontSizeMultiplier);
+
 	UFUNCTION(BlueprintCallable, Category = "Common Text|Scroll Style")
 	void ResetScrollState();
 
@@ -205,7 +212,7 @@ protected:
 	virtual void SynchronizeProperties() override;
 
 	/** Mobile font size multiplier. Activated by default on mobile. See CVar Mobile_PreviewFontSize */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mobile", meta = (ClampMin = "0.01", ClampMax = "5.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Mobile", meta = (ClampMin = "0.01", ClampMax = "5.0"))
 	float MobileFontSizeMultiplier = 1.0f;
 	
 #if WITH_EDITOR

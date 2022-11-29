@@ -559,6 +559,24 @@ void UCommonTextBlock::SetScrollingEnabled(bool bInIsScrollingEnabled)
 	SynchronizeProperties();
 }
 
+float UCommonTextBlock::GetMobileFontSizeMultiplier() const
+{
+	return MobileFontSizeMultiplier;
+}
+
+void UCommonTextBlock::SetMobileFontSizeMultiplier(float InMobileFontSizeMultiplier)
+{
+	if (MobileFontSizeMultiplier != InMobileFontSizeMultiplier)
+	{
+		MobileFontSizeMultiplier = InMobileFontSizeMultiplier;
+
+		if (CommonUIUtils::ShouldDisplayMobileUISizes())
+		{
+			ApplyFontSizeMultiplier();
+		}
+	}
+}
+
 void UCommonTextBlock::SynchronizeProperties()
 {
 	UpdateFromStyle();
@@ -743,7 +761,7 @@ void UCommonTextBlock::ApplyFontSizeMultiplier() const
 	if (MyTextBlock.IsValid())
 	{
 		FSlateFontInfo FontInfo = GetFont();
-		FontInfo.Size *= MobileFontSizeMultiplier;
+		FontInfo.Size *= GetMobileFontSizeMultiplier();
 		MyTextBlock->SetFont(FontInfo);
 	}
 }
