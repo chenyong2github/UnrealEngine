@@ -148,8 +148,8 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 protected:
-	bool UpdatePins();
-	bool UpdatePins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator);
+	EPCGChangeType UpdatePins();
+	EPCGChangeType UpdatePins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator);
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
