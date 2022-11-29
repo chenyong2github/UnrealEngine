@@ -4,8 +4,8 @@
 
 #include "Containers/EnumAsByte.h"
 
-#ifndef USE_STATIC_SHADER_PLATFORM_ENUMS
-#define USE_STATIC_SHADER_PLATFORM_ENUMS 0
+#ifndef USE_STATIC_FEATURE_LEVEL_ENUMS
+#define USE_STATIC_FEATURE_LEVEL_ENUMS 0
 #endif
 
 /**
@@ -99,7 +99,7 @@ private:
 	ERHIFeatureLevel::Type FeatureLevel;
 };
 
-#if USE_STATIC_SHADER_PLATFORM_ENUMS
+#if USE_STATIC_FEATURE_LEVEL_ENUMS
 #include COMPILED_PLATFORM_HEADER(StaticFeatureLevel.inl)
 #else
 using FStaticFeatureLevel = FGenericStaticFeatureLevel;
