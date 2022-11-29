@@ -324,6 +324,14 @@ FAutoConsoleVariableRef CVarRDGEvents(
 
 #if RDG_ENABLE_PARALLEL_TASKS
 
+int32 GRDGParallelDestruction = 1;
+FAutoConsoleVariableRef CVarRDGParallelDestruction(
+	TEXT("r.RDG.ParallelDestruction"), GRDGParallelDestruction,
+	TEXT("RDG will destruct the graph using an async task.")
+	TEXT(" 0: graph destruction is done synchronously;")
+	TEXT(" 1: graph destruction may be done asynchronously (default);"),
+	ECVF_RenderThreadSafe);
+
 int32 GRDGParallelSetup = 1;
 FAutoConsoleVariableRef CVarRDGParallelSetup(
 	TEXT("r.RDG.ParallelSetup"), GRDGParallelSetup,

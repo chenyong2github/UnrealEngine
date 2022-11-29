@@ -585,7 +585,7 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 
 FRDGBuilder::~FRDGBuilder()
 {
-	if (bParallelExecuteEnabled)
+	if (bParallelExecuteEnabled && GRDGParallelDestruction > 0)
 	{
 		// Move expensive operations into the async deleter, which will be called in the base class destructor.
 		BeginAsyncDelete([

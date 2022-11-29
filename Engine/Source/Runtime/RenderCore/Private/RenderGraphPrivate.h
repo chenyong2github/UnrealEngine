@@ -116,6 +116,7 @@ extern int32 GRDGTransientIndirectArgBuffers;
 
 #if RDG_ENABLE_PARALLEL_TASKS
 
+extern int32 GRDGParallelDestruction;
 extern int32 GRDGParallelSetup;
 extern int32 GRDGParallelExecute;
 extern int32 GRDGParallelExecutePassMin;
@@ -123,6 +124,7 @@ extern int32 GRDGParallelExecutePassMax;
 
 #else
 
+const int32 GRDGParallelDestruction = 0;
 const int32 GRDGParallelSetup = 0;
 const int32 GRDGParallelExecute = 0;
 const int32 GRDGParallelExecutePassMin = 0;
