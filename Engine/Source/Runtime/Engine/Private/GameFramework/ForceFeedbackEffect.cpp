@@ -182,8 +182,8 @@ bool FActiveForceFeedbackEffect::Update(const float DeltaTime, FForceFeedbackVal
 	{
 		return false;
 	}
-	// Update the effect values if we can
-	if (PlayTime <= EffectDuration)
+	// Update the effect values if we can. Always get the values for a looping effect.
+	if (PlayTime <= EffectDuration || Parameters.bLooping)
 	{
 		GetValues(Values);
 	}	
