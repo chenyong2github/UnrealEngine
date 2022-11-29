@@ -521,7 +521,7 @@ void SBlueprintActionMenu::CollectAllActions(FGraphActionListBuilderBase& OutAll
 	FBlueprintActionContext FilterContext;
 	ConstructActionContext(FilterContext);
 	
-	FBlueprintActionMenuBuilder MenuBuilder(EditorPtr);
+	FBlueprintActionMenuBuilder MenuBuilder;
 	// NOTE: cannot call GetGraphContextActions() during serialization and GC due to its use of FindObject()
 	if(!GIsSavingPackage && !IsGarbageCollecting() && FilterContext.Blueprints.Num() > 0)
 	{

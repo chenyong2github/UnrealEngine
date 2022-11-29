@@ -678,7 +678,7 @@ static double GenerateBlueprintAPIUtils::GetPaletteMenuActions(FCategorizedGraph
 	FBlueprintActionContext FilterContext;
 	FilterContext.Blueprints.Add(const_cast<UBlueprint*>(Blueprint));
 
-	FBlueprintActionMenuBuilder MenuBuilder(nullptr);
+	FBlueprintActionMenuBuilder MenuBuilder;
 	{
 		// prime the database so it's not recorded in our timing capture
 		FBlueprintActionDatabase::Get();

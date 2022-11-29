@@ -99,6 +99,9 @@ public:
 	/** Invokes the Find and Replace UI */
 	virtual void SummonFindAndReplaceUI() = 0;
 
+	/** Returns the currently focused graph context, or NULL if no graph is available. */
+	virtual UEdGraph* GetFocusedGraph() const = 0;
+
 	/** Tries to open the specified graph and bring it's document to the front (note: this can return NULL) */
 	virtual TSharedPtr<class SGraphEditor> OpenGraphAndBringToFront(class UEdGraph* Graph, bool bSetFocus = true) = 0;
 

@@ -16,16 +16,12 @@
 #include "EditorCategoryUtils.h"
 #include "ObjectEditorUtils.h"
 
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+#include "Misc/OutputDeviceFile.h"
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
 #define LOCTEXT_NAMESPACE "BlueprintActionMenuBuilder"
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintActionMenuItemFactory, Log, All);
-
-#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-static TAutoConsoleVariable<bool> CVarBPEnableActionMenuFilterTestStatsLogging(
-	TEXT("BP.EnableActionMenuFilterTestStatsLogging"),
-	false,
-	TEXT("If enabled, filter test stats will be logged for each menu section each time a Blueprint action menu is built for display.")
-);
-#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 
 /*******************************************************************************
  * FBlueprintActionMenuItemFactory
@@ -53,11 +49,10 @@ public:
 	 * Spawns a new FBlueprintActionMenuItem with the node-spawner. Constructs
 	 * the menu item's category, name, tooltip, etc.
 	 * 
-	 * @param  EditorContext	
 	 * @param  Action			The node-spawner that the new menu item should wrap.
 	 * @return A newly allocated FBlueprintActionMenuItem (which wraps the supplied action).
 	 */
-	TSharedPtr<FBlueprintActionMenuItem> MakeActionMenuItem(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo const& ActionInfo);
+	TSharedPtr<FBlueprintActionMenuItem> MakeActionMenuItem(FBlueprintActionInfo const& ActionInfo);
 
 	/**
 	 * Spawns a new FBlueprintDragDropMenuItem with the node-spawner. Constructs
@@ -74,7 +69,7 @@ public:
 	 * @param  BoundAction	
 	 * @return 
 	 */
-	TSharedPtr<FBlueprintActionMenuItem> MakeBoundMenuItem(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo const& ActionInfo);
+	TSharedPtr<FBlueprintActionMenuItem> MakeBoundMenuItem(FBlueprintActionInfo const& ActionInfo);
 	
 private:
 	/**
@@ -86,21 +81,15 @@ private:
 	UBlueprint* GetTargetBlueprint() const;
 
 	/**
-	 * 
-	 * 
-	 * @param  EditorContext	
 	 * @return 
 	 */
-	UEdGraph* GetTargetGraph(TWeakPtr<FBlueprintEditor> EditorContext) const;
+	UEdGraph* GetTargetGraph() const;
 
 	/**
-	 *
-	 *
-	 * @param  EditorContext
 	 * @param  ActionInfo
 	 * @return
 	 */
-	FBlueprintActionUiSpec GetActionUiSignature(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo const& ActionInfo);
+	FBlueprintActionUiSpec GetActionUiSignature(FBlueprintActionInfo const& ActionInfo);
 };
 
 //------------------------------------------------------------------------------
@@ -112,11 +101,11 @@ FBlueprintActionMenuItemFactory::FBlueprintActionMenuItemFactory(FBlueprintActio
 }
 
 //------------------------------------------------------------------------------
-TSharedPtr<FBlueprintActionMenuItem> FBlueprintActionMenuItemFactory::MakeActionMenuItem(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo const& ActionInfo)
+TSharedPtr<FBlueprintActionMenuItem> FBlueprintActionMenuItemFactory::MakeActionMenuItem(FBlueprintActionInfo const& ActionInfo)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionMenuItemFactory::MakeActionMenuItem);
 
-	FBlueprintActionUiSpec UiSignature = GetActionUiSignature(EditorContext, ActionInfo);
+	FBlueprintActionUiSpec UiSignature = GetActionUiSignature(ActionInfo);
 
 	UBlueprintNodeSpawner const* Action = ActionInfo.NodeSpawner;
 	FBlueprintActionMenuItem* NewMenuItem = new FBlueprintActionMenuItem(Action, UiSignature, IBlueprintNodeBinder::FBindingSet(), FText::FromString(RootCategory.ToString() + TEXT('|') + UiSignature.Category.ToString()), MenuGrouping);
@@ -193,9 +182,9 @@ TSharedPtr<FBlueprintDragDropMenuItem> FBlueprintActionMenuItemFactory::MakeDrag
 }
 
 //------------------------------------------------------------------------------
-TSharedPtr<FBlueprintActionMenuItem> FBlueprintActionMenuItemFactory::MakeBoundMenuItem(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo const& ActionInfo)
+TSharedPtr<FBlueprintActionMenuItem> FBlueprintActionMenuItemFactory::MakeBoundMenuItem(FBlueprintActionInfo const& ActionInfo)
 {
-	FBlueprintActionUiSpec UiSignature = GetActionUiSignature(EditorContext, ActionInfo);
+	FBlueprintActionUiSpec UiSignature = GetActionUiSignature(ActionInfo);
 
 	UBlueprintNodeSpawner const* Action = ActionInfo.NodeSpawner;
 	FBlueprintActionMenuItem* NewMenuItem = new FBlueprintActionMenuItem(Action, UiSignature, ActionInfo.GetBindings(), FText::FromString(RootCategory.ToString() + TEXT('|') + UiSignature.Category.ToString()), MenuGrouping);
@@ -215,7 +204,7 @@ UBlueprint* FBlueprintActionMenuItemFactory::GetTargetBlueprint() const
 }
 
 //------------------------------------------------------------------------------
-UEdGraph* FBlueprintActionMenuItemFactory::GetTargetGraph(TWeakPtr<FBlueprintEditor> EditorContext) const
+UEdGraph* FBlueprintActionMenuItemFactory::GetTargetGraph() const
 {
 	UEdGraph* TargetGraph = nullptr;
 	if (Context.Graphs.Num() > 0)
@@ -231,22 +220,22 @@ UEdGraph* FBlueprintActionMenuItemFactory::GetTargetGraph(TWeakPtr<FBlueprintEdi
 		{
 			TargetGraph = Blueprint->UbergraphPages[0];
 		}
-		else if (EditorContext.IsValid())
+		else if (Context.EditorPtr.IsValid())
 		{
-			TargetGraph = EditorContext.Pin()->GetFocusedGraph();
+			TargetGraph = Context.EditorPtr.Pin()->GetFocusedGraph();
 		}
 	}
 	return TargetGraph;
 }
 
 //------------------------------------------------------------------------------
-FBlueprintActionUiSpec FBlueprintActionMenuItemFactory::GetActionUiSignature(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo const& ActionInfo)
+FBlueprintActionUiSpec FBlueprintActionMenuItemFactory::GetActionUiSignature(FBlueprintActionInfo const& ActionInfo)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionMenuItemFactory::GetActionUiSignature);
 
 	UBlueprintNodeSpawner const* Action = ActionInfo.NodeSpawner;
 
-	UEdGraph* TargetGraph = GetTargetGraph(EditorContext);
+	UEdGraph* TargetGraph = GetTargetGraph();
 	Action->PrimeDefaultUiSpec(TargetGraph);
 
 	return Action->GetUiSpec(Context, ActionInfo.GetBindings());
@@ -285,21 +274,19 @@ namespace FBlueprintActionMenuBuilderImpl
 		 * FBlueprintActionMenuItem for the specified menu (does not add the 
 		 * item to the menu-builder itself).
 		 *
-		 * @param  EditorContext	
 		 * @param  DatabaseAction	The node-spawner that the new menu item should wrap.
 		 * @return An empty TSharedPtr if the action was filtered out, otherwise a newly allocated FBlueprintActionMenuItem.
 		 */
-		MenuItemList MakeMenuItems(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo& DatabaseAction);
+		MenuItemList MakeMenuItems(FBlueprintActionInfo& DatabaseAction);
 
 		/**
 		 * 
 		 * 
-		 * @param  EditorContext	
 		 * @param  DatabaseAction	
 		 * @param  Bindings	
 		 * @return 
 		 */
-		void AddBoundMenuItems(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo& DatabaseAction, TArray<FFieldVariant> const& Bindings, MenuItemList& MenuItemsOut);
+		void AddBoundMenuItems(FBlueprintActionInfo& DatabaseAction, TArray<FFieldVariant> const& Bindings, MenuItemList& MenuItemsOut);
 		
 		/**
 		 * Clears out any consolidated properties that this may have been 
@@ -313,14 +300,14 @@ namespace FBlueprintActionMenuBuilderImpl
 		/** Tracks the properties that we've already consolidated and passed (when using the ConsolidatePropertyActions flag)*/
 		TMap<FProperty const*, TSharedPtr<FBlueprintDragDropMenuItem>> ConsolidatedProperties;
 	};
-	
-	/**
-	 * 
-	 * 
-	 * @param  Context	
-	 * @return 
-	 */
-	static TArray<FFieldVariant> GetBindingCandidates(FBlueprintActionContext const& Context);
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	static TAutoConsoleVariable<bool> CVarBPEnableActionMenuDumpToFile(
+		TEXT("BP.EnableActionMenuDumpToFile"),
+		false,
+		TEXT("If enabled, action menu contents will be dumped to a file after building.")
+	);
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 }
 
 //------------------------------------------------------------------------------
@@ -350,8 +337,10 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::SetSectionSortOrde
 }
 // 
 //------------------------------------------------------------------------------
-void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo& DatabaseActionInfo, TArray<FFieldVariant> const& PerspectiveBindings, MenuItemList& MenuItemsOut)
+void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(FBlueprintActionInfo& DatabaseActionInfo, TArray<FFieldVariant> const& PerspectiveBindings, MenuItemList& MenuItemsOut)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMenuSectionDefinition::AddBoundMenuItems);
+
 	UBlueprintNodeSpawner const* DatabaseAction = DatabaseActionInfo.NodeSpawner;
 
 	TSharedPtr<FBlueprintActionMenuItem> LastMadeMenuItem;
@@ -392,7 +381,7 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(
 			{
 				if (!bConsolidate || !LastMadeMenuItem.IsValid())
 				{
-					LastMadeMenuItem = ItemFactory.MakeBoundMenuItem(EditorContext, BoundActionInfo);
+					LastMadeMenuItem = ItemFactory.MakeBoundMenuItem(BoundActionInfo);
 					MenuItemsOut.Add(LastMadeMenuItem);
 
 					if (Flags & FBlueprintActionMenuBuilder::FlattenCategoryHierarcy)
@@ -408,16 +397,12 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(
 				}
 			}
 			CompatibleBindings.Empty(); // do before we copy back over cached fields for DatabaseActionInfo
-
-			// copy over any fields that got cached for filtering (with
-			// an empty binding set)
-			/*DatabaseActionInfo = FBlueprintActionInfo(BoundActionInfo, CompatibleBindings);*/
 		}
 	}
 }
 
 //------------------------------------------------------------------------------
-FBlueprintActionMenuBuilderImpl::MenuItemList FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::MakeMenuItems(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo& DatabaseAction)
+FBlueprintActionMenuBuilderImpl::MenuItemList FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::MakeMenuItems(FBlueprintActionInfo& DatabaseAction)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMenuSectionDefinition::MakeMenuItems);
 
@@ -461,7 +446,7 @@ FBlueprintActionMenuBuilderImpl::MenuItemList FBlueprintActionMenuBuilderImpl::F
 
 	if (!UnBoundMenuEntry.IsValid() && bPassedFilter)
 	{
-		UnBoundMenuEntry = ItemFactory.MakeActionMenuItem(EditorContext, DatabaseAction);
+		UnBoundMenuEntry = ItemFactory.MakeActionMenuItem(DatabaseAction);
 		if (Flags & FBlueprintActionMenuBuilder::FlattenCategoryHierarcy)
 		{
 			UnBoundMenuEntry->CosmeticUpdateCategory( ItemFactory.RootCategory );
@@ -473,7 +458,7 @@ FBlueprintActionMenuBuilderImpl::MenuItemList FBlueprintActionMenuBuilderImpl::F
 	{
 		MenuItems.Add(UnBoundMenuEntry);
 	}
-	AddBoundMenuItems(EditorContext, DatabaseAction, GetBindingCandidates(Filter.Context), MenuItems);
+	AddBoundMenuItems(DatabaseAction, Filter.Context.SelectedObjects, MenuItems);
 
 	return MenuItems;
 }
@@ -484,21 +469,17 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::Empty()
 	ConsolidatedProperties.Empty();
 }
 
-//------------------------------------------------------------------------------
-static TArray<FFieldVariant> FBlueprintActionMenuBuilderImpl::GetBindingCandidates(FBlueprintActionContext const& Context)
-{
-	return Context.SelectedObjects;
-}
-
 /*******************************************************************************
  * FBlueprintActionMenuBuilder
  ******************************************************************************/
 
 //------------------------------------------------------------------------------
+// @todo_deprecated - Remove this definition along w/ its declaration in a future release.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FBlueprintActionMenuBuilder::FBlueprintActionMenuBuilder(TWeakPtr<FBlueprintEditor> InBlueprintEditorPtr)
-	: BlueprintEditorPtr(InBlueprintEditorPtr)
 {
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 //------------------------------------------------------------------------------
 void FBlueprintActionMenuBuilder::Empty()
@@ -536,6 +517,10 @@ void FBlueprintActionMenuBuilder::RebuildActionList()
 	
 	FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
 	FBlueprintActionDatabase::FActionRegistry const& ActionRegistry = ActionDatabase.GetAllActions();
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	int32 TotalActionCount = 0;
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 	
 	for (auto Iterator(ActionRegistry.CreateConstIterator()); Iterator; ++Iterator)
 	{
@@ -548,11 +533,13 @@ void FBlueprintActionMenuBuilder::RebuildActionList()
 			{
 				FBlueprintActionInfo BlueprintAction(ActionObject, NodeSpawner);
 
-				// @TODO: could probably have a super filter that spreads across 
-				//        all MenuSctions (to pair down on performance?)
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+				++TotalActionCount;
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
 				for (TSharedRef<FMenuSectionDefinition> const& MenuSection : MenuSections)
 				{
-					for (TSharedPtr<FEdGraphSchemaAction> MenuEntry : MenuSection->MakeMenuItems(BlueprintEditorPtr, BlueprintAction))
+					for (TSharedPtr<FEdGraphSchemaAction> MenuEntry : MenuSection->MakeMenuItems(BlueprintAction))
 					{
 						AddAction(MenuEntry);
 					}
@@ -567,18 +554,65 @@ void FBlueprintActionMenuBuilder::RebuildActionList()
 	}
 
 #if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	if (CVarBPEnableActionMenuFilterTestStatsLogging.GetValueOnGameThread())
+	if (FBlueprintActionFilter::IsFilterTestStatsLoggingEnabled())
 	{
+		UE_LOG(LogBlueprintActionMenuItemFactory, Log, TEXT("=== UNFILTERED ACTIONS: %d"), TotalActionCount);
+
 		// Dump detailed stats information about each filter test that was involved with building each menu section.
-		for (const TSharedRef<FMenuSectionDefinition>& MenuSection : MenuSections)
+		for (int32 SectionIdx = 0; SectionIdx < MenuSections.Num(); ++SectionIdx)
 		{
-			UE_LOG(LogBlueprintActionMenuItemFactory, Log, TEXT("=== %s: FILTER TEST PROFILE ==="), *MenuSection->GetSectionHeading().ToString());
+			const TSharedRef<FMenuSectionDefinition>& MenuSection = MenuSections[SectionIdx];
+			FString DisplayName = FString::Printf(TEXT("MenuSection[%d]"), SectionIdx);
+			const FText& SectionHeading = MenuSection->GetSectionHeading();
+			if (!SectionHeading.IsEmptyOrWhitespace())
+			{
+				DisplayName.Appendf(TEXT(" (%s)"), *SectionHeading.ToString());
+			}
+
+			UE_LOG(LogBlueprintActionMenuItemFactory, Log, TEXT("=== FILTER TEST PROFILE: %s ==="), *DisplayName);
 
 			for (const FString& ProfileEntry : MenuSection->Filter.GetFilterTestProfile())
 			{
 				UE_LOG(LogBlueprintActionMenuItemFactory, Log, TEXT("%s"), *ProfileEntry);
 			}
 		}
+	}
+
+	if (CVarBPEnableActionMenuDumpToFile.GetValueOnGameThread())
+	{
+		TStringBuilder<512> CurrentLine;
+		TStringBuilder<256> CategoryPrefix;
+
+		FString DumpFilePath = FPaths::ProfilingDir() / TEXT("ActionMenu") / FString::Printf(TEXT("MenuDump_%s.txt"), *FDateTime::Now().ToString());
+		FOutputDeviceFile DumpFile(*DumpFilePath, true);
+
+		DumpFile.SetSuppressEventTag(true);
+
+		UE_LOG(LogBlueprintActionMenuItemFactory, Log, TEXT("Dumping menu builder action list to \"%s\"..."), *DumpFilePath);
+
+		int32 TotalCount = 0;
+
+		for (int32 i = 0; i < GetNumActions(); ++i)
+		{
+			const ActionGroup& CurrentEntry = GetAction(i);
+
+			CategoryPrefix.Reset();
+			for (const FString& Category : CurrentEntry.GetCategoryChain())
+			{
+				CategoryPrefix.Append(FString::Printf(TEXT("%s|"), *Category));
+			}
+
+			for (const TSharedPtr<FEdGraphSchemaAction>& Action : CurrentEntry.Actions)
+			{
+				CurrentLine = FString::Printf(TEXT("%05d "), ++TotalCount);
+				CurrentLine.Append(CategoryPrefix.ToString());
+				CurrentLine.Append(Action->GetMenuDescription().ToString());
+
+				DumpFile.Log(CurrentLine.ToString());
+			}
+		}
+
+		CVarBPEnableActionMenuDumpToFile.AsVariable()->Set(false);
 	}
 #endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 }

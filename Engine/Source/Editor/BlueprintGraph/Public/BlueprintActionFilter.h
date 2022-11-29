@@ -26,28 +26,20 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-class FBlueprintActionFilter;
-class FProperty;
-class UClass;
-class UEdGraphNode;
-class UFunction;
-class UObject;
-
 #define ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) && 0)
 
-
-
-class FActionFilterCacheNode;
+class FProperty;
+class UClass;
+class UFunction;
+class UObject;
 class IAssetReferenceFilter;
 class IBlueprintEditor;
 class UBlueprint;
 class UBlueprintNodeSpawner;
 class UEdGraph;
 class UEdGraphPin;
-template<typename TKeyType>
-class TActionFilterCacheKeyNode;
-template<typename TKeyType>
-class TActionFilterCacheLeaf;
+class UEdGraphNode;
+
 /*******************************************************************************
  * FBlueprintActionContext
  ******************************************************************************/
@@ -168,8 +160,6 @@ struct BLUEPRINTGRAPH_API FBlueprintActionInfo
 	 */
 	UFunction const* GetAssociatedFunction();
 
-	bool operator==(const FBlueprintActionInfo& other) const;
-
 	/** The raw action that this struct represent (const so we don't mutate the database) */
 	UBlueprintNodeSpawner const* const NodeSpawner;
 
@@ -190,231 +180,24 @@ private:
 	IBlueprintNodeBinder::FBindingSet Bindings;
 };
 
-uint32 GetTypeHash(const FBlueprintActionInfo& BlueprintActionInfo);
-
-/*******************************************************************************
- * FActionFilterCacheNode
- ******************************************************************************/
-
-/**
- * This class is used by FActionFilterCache to create a tree structure that is used to store cached filter results in
- * such a way that they can be looked up using all the relevant context data that determines how items are filtered.
- * each node has a type agnostic key so that we can easily change how the cache is keyed in the future.
- * (See FActionFilterCache::GetIsFilteredByThisCache)
- */
-class FActionFilterCacheNode : public TSharedFromThis<FActionFilterCacheNode>
-{
-public:
-	template<typename TKeyType>
-	friend class TActionFilterCacheKeyNode;
-
-	// Branching nodes
-	using FWeakNode = TWeakPtr<FActionFilterCacheNode>;
-	template<typename TKeyType>
-	using TWeakKeyNode = TWeakPtr<TActionFilterCacheKeyNode<TKeyType>>;
-	template<typename TKeyType>
-	using TWeakLeaf = TWeakPtr<TActionFilterCacheLeaf<TKeyType>>;
-
-	// Leaf nodes
-	using FSharedNode = TSharedPtr<FActionFilterCacheNode>;
-	template<typename TKeyType>
-	using TSharedKeyNode = TSharedPtr<TActionFilterCacheKeyNode<TKeyType>>;
-	template<typename TKeyType>
-	using TSharedLeaf = TSharedPtr<TActionFilterCacheLeaf<TKeyType>>;
-	
-	FActionFilterCacheNode() = default;
-	virtual ~FActionFilterCacheNode() = default;
-
-	/** Looks up a child of this node by key. Note: the key is not hashed. This is O(n) */
-	template<typename TKeyType>
-	TSharedKeyNode<TKeyType> Find(const TKeyType& Key) const
-	{
-		for (const TSharedPtr<FActionFilterCacheNode>& Child : Children)
-		{
-			if (Child->KeysMatch(&Key))
-			{
-				return StaticCastSharedPtr<TActionFilterCacheKeyNode<TKeyType>>(Child);
-			}
-		}
-		return nullptr;
-	}
-
-	/** Looks up a child of this node by key and creates one if one doesnt exist.
-	 *	The node that is created will be a TActionFilterCacheKeyNode. Use FindOrCacheChildLeaf if you need it to be a
-	 *	TActionFilterCacheLeaf
-	 *  Note: the key is not hashed. This is O(n) */
-	template<typename TKeyType>
-	TSharedKeyNode<TKeyType> FindOrCacheChildNode(const TKeyType& Key, const FString& InDebugName = FString(), TDelegate<bool(const TKeyType&, const TKeyType&)> Comparison = nullptr, bool *OutFoundWithoutCaching = nullptr)
-	{
-		TSharedKeyNode<TKeyType> Result = Find(Key);
-		if (OutFoundWithoutCaching)
-		{
-			*OutFoundWithoutCaching = Result.IsValid();
-		}
-		
-		if (Result.IsValid())
-		{
-			return Result;
-		}
-		
-#if UE_BUILD_DEBUG
-		DebugName = InDebugName;
-#endif
-		return Cache(new TActionFilterCacheKeyNode<TKeyType>(Key, Comparison));
-	}
-
-	/** Looks up a child of this node by key and creates one if one doesnt exist.
-	 *	The node that is created will be a TActionFilterCacheLeaf. Use FindOrCacheChildNode if you need it to be a
-	 *	TActionFilterCacheKeyNode
-	 *  Note: the key is not hashed. This is O(n) */
-	template<typename TKeyType>
-	TSharedLeaf<TKeyType> FindOrCacheChildLeaf(const TKeyType& Key, const FString& InDebugName = FString(), TDelegate<bool(const TKeyType&, const TKeyType&)> Comparison = nullptr, bool *OutFoundWithoutCaching = nullptr)
-	{
-		TSharedKeyNode<TKeyType> Result = Find(Key);
-		if (OutFoundWithoutCaching)
-		{
-			*OutFoundWithoutCaching = Result.IsValid();
-		}
-		
-		if (Result.IsValid())
-		{
-			TSharedLeaf<TKeyType> Leaf = StaticCastSharedPtr<TActionFilterCacheLeaf<TKeyType>>(Result);
-			++Leaf->AccessCount;
-			return Leaf;
-		}
-#if UE_BUILD_DEBUG
-		DebugName = InDebugName;
-#endif
-		return Cache(new TActionFilterCacheLeaf<TKeyType>(Key, Comparison));
-	}
-
-	/** get the number of times this leaf has been accessed
-	 *  Warning: throws and error if this isn't a TActionFilterCacheLeaf */
-	virtual uint32 GetLeafAccessCount() const
-	{
-		checkf(false, TEXT("GetLeafAccessCount was called on a non-leaf node"))
-		return 0;
-	}
-
-	/** decrement the number of times this leaf has been accessed
-	 *  Warning: throws and error if this isn't a TActionFilterCacheLeaf */
-	virtual void DecrementLeafAccessCount()
-	{
-		checkf(false, TEXT("DecrementLeafAccessCount was called on a non-leaf node"))
-	}
-
-	/** remove this node from the the tree */
-	virtual void UnCacheSelf(){}
-
-#if UE_BUILD_DEBUG
-	FString DebugName;
-#endif
-
-protected:
-	virtual bool KeysMatch(const void* RawKey) const
-	{
-		checkf(false, TEXT("Tried to call KeysMatch on a Node with no keys"))
-		return false;
-	}
-
-	template<typename TNodeType>
-	TSharedPtr<TNodeType> Cache(TNodeType* Child)
-	{
-		Child->Parent = AsShared();
-		Children.Emplace(MakeShareable<FActionFilterCacheNode>(Child));
-		return StaticCastSharedPtr<TNodeType>(Children.Last());
-	}
-	
-	TArray<FSharedNode> Children;
-	FWeakNode Parent;
-};
-
-/*******************************************************************************
- * FActionFilterCache
- ******************************************************************************/
-
-/**
- * This class creates a tree structure that is used to store cached filter results in such a way that they can be
- * looked up using all the relevant context data that determines how items are filtered.
- * each node has a type agnostic key so that we can easily change how the cache is keyed.
- * (See FActionFilterCache::GetIsFilteredByThisCache)
- */
-class FActionFilterCache
-{
-public:
-	FActionFilterCache();
-
-	static void OnReloadComplete(EReloadCompleteReason Reason);
-	static void OnModuleChanged(FName ModuleName, EModuleChangeReason ChangeReason);
-	static void ClearAllCache();
-
-	/** get the cached map used by FBlueprintActionFilter::IsFilteredByThis to determine whether BP actions are filtered out */
-	TSharedPtr<TMap<FBlueprintActionInfo, bool>> GetCachedFilterResults(const FBlueprintActionFilter &Filter);
-
-private:
-	template<typename TKeyType>
-	void FindOrCacheChildNode(TSharedPtr<FActionFilterCacheNode> &Current, const TKeyType& Key, FString DebugName, TDelegate<bool(const TKeyType&, const TKeyType&)> Comparison = nullptr)
-	{
-		TSharedPtr<TActionFilterCacheKeyNode<TKeyType>> Found = Current->FindOrCacheChildNode(Key, DebugName, Comparison);
-		Current = StaticCastSharedPtr<FActionFilterCacheNode>(Found);
-		
-	}
-
-	template<typename TKeyType>
-	void FindOrCacheLeaf(TSharedPtr<FActionFilterCacheNode> &Current, const TKeyType& Key, FString DebugName, TDelegate<bool(const TKeyType&, const TKeyType&)> Comparison = nullptr)
-	{
-		bool bFoundWithoutCaching = false;
-		TSharedPtr<TActionFilterCacheLeaf<TKeyType>> Found = Current->FindOrCacheChildLeaf(Key, DebugName, Comparison, &bFoundWithoutCaching);
-		CachedFilterResults = Found->CachedFilterResults;
-		Current = StaticCastSharedPtr<FActionFilterCacheNode>(Found);
-
-		// if we just expanded the cache, log it and check if the cache is getting too big
-		if (!bFoundWithoutCaching)
-		{
-			if (CacheLeafs.Num() >= CVarCacheLeafCapacity.GetValueOnGameThread())
-			{
-				PopCache();
-			}
-			CacheLeafs.Push(Found);
-		}
-	}
-
-	/** Find the least likely item in the cache to be used again, and remove it to make room for more data */
-	static void PopCache();
-
-private:
-	/** the shared tree that stores previously calculated filter results for several different contects */
-	static TSharedPtr<FActionFilterCacheNode> SharedCache;
-	
-	static TAutoConsoleVariable<int32> CVarCacheLeafCapacity;
-
-	/** array of all the leaf nodes in SharedCache so we can pop a rarely used node if we exceed CacheLeafCapacity */
-	static TArray<TWeakPtr<FActionFilterCacheNode>> CacheLeafs;
-
-	static FDelegateHandle ReloadCompleteDelegate;
-	static FDelegateHandle ModuleChangedDelegate;
-
-	/** cached results from GetIsFilteredByThisCache so we don't have to re-search the tree */
-	TSharedPtr<TMap<FBlueprintActionInfo, bool>> CachedFilterResults;
-};
-
 /*******************************************************************************
  * EBlueprintActionFilterRejectionTestFlags
  ******************************************************************************/
 
+// @todo - Need to revisit this later; for now these flags remain in place for backcompat but are currently not in use.
 enum class EActionFilterTestFlags
 {
 	None = 0,
-	
+
 	/**
 	 * these tests will be have their combined result cached for faster lookup.
 	 * note: rejection tests can only be cached if they either
 	 *		A: Don't access any mutable data
 	 *		or B: Only access mutable data that is listed as a filter key in FActionFilterCache::GetCachedFilterResults
 	 */
-	CacheResults = 1 << 0,
-	
-	Default = None, // this would allow us to change the default behavior
+	 CacheResults = 1 << 0,
+
+	 Default = None, // this would allow us to change the default behavior
 };
 
 ENUM_CLASS_FLAGS(EActionFilterTestFlags);
@@ -423,10 +206,11 @@ ENUM_CLASS_FLAGS(EActionFilterTestFlags);
  * FActionFilterTest
 ******************************************************************************/
 
+// @todo - Need to revisit this later; for now this wrapper type remains in place for backcompat, but flags are currently not in use.
 struct BLUEPRINTGRAPH_API FActionFilterTest : TSharedFromThis<FActionFilterTest>
 {
 	static TAutoConsoleVariable<bool> CVarEnableCaching;
-	
+
 	/** The filter uses a series of rejection tests matching */
 	typedef FBlueprintGraphModule::FActionMenuRejectionTest FRejectionDelegate;
 
@@ -437,24 +221,16 @@ struct BLUEPRINTGRAPH_API FActionFilterTest : TSharedFromThis<FActionFilterTest>
 		EnumAddFlags(Flags, InFlags);
 		return AsShared();
 	}
-	
-	bool Call(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& ActionInfo, TMap<FString, uint32> *FilterTestToCpuSpecIds = nullptr);
+
+	bool Call(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& ActionInfo);
 	bool operator==(const FActionFilterTest& other) const;
-	
+
 	FRejectionDelegate RejectionDelegate;
 	FString Name; // this name must be unique
 	EActionFilterTestFlags Flags = EActionFilterTestFlags::Default;
-	
-#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	struct FFilterTestProfileRecord
-	{
-		float TotalTimeMs = 0.0f;
-		int32 NumIterations = 0;
-		int32 NumFilteredOut = 0;
-	} ProfileRecord;
-#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 };
 
+// @todo - Need to revisit this; currently defined for backcompat but we may deprecate its use later as it is somewhat rigid.
 // constructor for TSharedRef<FBlueprintActionFilterRejectionTest> that auto deduces the name
 #define MAKE_ACTION_FILTER_REJECTION_TEST(TestFunc, ...) \
 	MakeShared<FActionFilterTest>(FActionFilterTest::FRejectionDelegate::CreateStatic(TestFunc, ##__VA_ARGS__), TEXT(#TestFunc))
@@ -466,9 +242,9 @@ struct BLUEPRINTGRAPH_API FActionFilterTest : TSharedFromThis<FActionFilterTest>
 class BLUEPRINTGRAPH_API FBlueprintActionFilter
 {
 public:
-	friend FActionFilterCache;
+	/** The filter uses a series of rejection tests matching */
+	typedef FBlueprintGraphModule::FActionMenuRejectionTest FRejectionTestDelegate;
 
-public:
 	enum EFlags // Flags, which configure certain rejection tests.
 	{
 		BPFILTER_NoFlags					= (0),
@@ -572,7 +348,12 @@ public:
 	 * Users can extend the filter and add their own rejection tests with this
 	 * method. We use rejection "IsFiltered" tests rather than inclusive tests 
 	 * because it is more optimal to whittle down the list of actions early.
-	 * 
+	 *
+	 * @param  RejectionTestDelegate	The rejection test you wish to add to this filter.
+	 */
+	void AddRejectionTest(FRejectionTestDelegate RejectionTestDelegate);
+
+	/**
 	 * @param  RejectionTest	a test this filter will run to cull blueprint actions
 	 * @param  Flags	List of flags that will be added in the provided rejection test
 	 */
@@ -612,18 +393,10 @@ public:
 	 */
 	FBlueprintActionFilter const& operator&=(FBlueprintActionFilter const& Rhs);
 
-	TSharedPtr<TMap<FBlueprintActionInfo, bool>> GetCachedFilterResults();
-
-	const TArray<TSharedRef<FActionFilterTest>> &GetFilterTests() const;
-	
-#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	TArray<FString> GetFilterTestProfile();
-#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-
 	/**
 	 * @return TRUE if any of the given configuration flags are set on this filter.
 	 */
-	FORCEINLINE bool HasAnyFlags(EFlags InFlags) const
+	inline bool HasAnyFlags(EFlags InFlags) const
 	{
 		return (FilterFlags & InFlags) != 0;
 	}
@@ -631,10 +404,16 @@ public:
 	/**
 	 * @return TRUE if all of the given configuration flags are set on this filter.
 	 */
-	FORCEINLINE bool HasAllFlags(EFlags InFlags) const
+	inline bool HasAllFlags(EFlags InFlags) const
 	{
 		return (FilterFlags & InFlags) == InFlags;
 	}
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	static bool IsFilterTestTraceLoggingEnabled();
+	static bool IsFilterTestStatsLoggingEnabled();
+	TArray<FString> GetFilterTestProfile();
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 
 private:
 	/**
@@ -644,22 +423,13 @@ private:
 	 * @param  BlueprintAction	The node-spawner you wish to test.
 	 * @return False if the action passes the filter, otherwise true (the action got filtered out).
 	 */
-	bool IsFilteredByThis(FBlueprintActionInfo& BlueprintAction);
-
-	/**
-	 * Query to check and see if the specified action gets filtered out by the filter tests
-	 * that have been marked as cacheable
-	 * 
-	 * @param  BlueprintAction	The node-spawner you wish to test.
-	 * @return False if the action passes the filter tests, otherwise true (the action got filtered out).
-	 */
-	bool IsFilteredByCachedFilters(FBlueprintActionInfo& BlueprintAction);
+	bool IsFilteredByThis(FBlueprintActionInfo& BlueprintAction) const;
 
 	/** Configuration flags for this filter. */
 	EFlags FilterFlags = BPFILTER_NoFlags;
 
 	/** Set of rejection tests for this specific filter. */
-	TArray<TSharedRef<FActionFilterTest>> FilterTests;
+	TArray<FRejectionTestDelegate> FilterTests;
 
 	/** Filters to be logically and'd in with the IsFilteredByThis() result. */
 	TArray<FBlueprintActionFilter> AndFilters;
@@ -667,7 +437,20 @@ private:
 	/** Alternative filters to be logically or'd in with the IsFilteredByThis() result. */
 	TArray<FBlueprintActionFilter> OrFilters;
 
-	FActionFilterCache ActionFilterCache;
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	struct FFilterTestProfileRecord
+	{
+		uint64 TestFuncPtr = 0;
+		float TotalTimeMs = 0.0f;
+		int32 NumIterations = 0;
+		int32 NumFilteredOut = 0;
+	};
+
+	mutable TMap<int32, FFilterTestProfileRecord> FilterTestProfiles;
+
+	FFilterTestProfileRecord* BeginFilterTestProfileEvent(int32 FilterTestIndex, uint64 FilterTestFuncPtr) const;
+	void EndFilterTestProfileEvent(FFilterTestProfileRecord* InEvent, bool bWasFiltered, double StartTime) const;
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 };
 
 ENUM_CLASS_FLAGS(FBlueprintActionFilter::EFlags);

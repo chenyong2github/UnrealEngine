@@ -346,7 +346,7 @@ void SBlueprintFavoritesPalette::CollectAllActions(FGraphActionListBuilderBase& 
 	FilterContext.Blueprints.Add(GetBlueprint());
 	FilterContext.EditorPtr = BlueprintEditorPtr;
 
-	FBlueprintActionMenuBuilder FavoritesBuilder(BlueprintEditorPtr);
+	FBlueprintActionMenuBuilder FavoritesBuilder;
 	FBlueprintActionMenuUtils::MakeFavoritesMenu(FilterContext, FavoritesBuilder);
 
 	OutAllActions.Append(FavoritesBuilder);

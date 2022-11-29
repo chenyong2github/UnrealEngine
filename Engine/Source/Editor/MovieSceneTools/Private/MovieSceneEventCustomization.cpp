@@ -67,7 +67,7 @@ namespace UE_MovieSceneEventCustomization
 		};
 
 
-		FBlueprintActionMenuBuilder ContextMenuBuilder(nullptr);
+		FBlueprintActionMenuBuilder ContextMenuBuilder;
 
 		if (BoundObjectPinClass)
 		{
@@ -91,7 +91,7 @@ namespace UE_MovieSceneEventCustomization
 			// but also prevents displaying functions on BP components. Comment out for now.
 			//CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyUnboundActions));
 			
-			CallOnMemberFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(RejectAnyNonFunctions)->WithFlags(EActionFilterTestFlags::CacheResults));
+			CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyNonFunctions));
 
 			ContextMenuBuilder.AddMenuSection(CallOnMemberFilter, FText::FromName(BoundObjectPinClass->GetFName()), 0);
 		}
@@ -110,7 +110,7 @@ namespace UE_MovieSceneEventCustomization
 			{
 				FBlueprintActionFilter::AddUnique(MenuFilter.TargetClasses, Blueprint->SkeletonGeneratedClass);
 			}
-			MenuFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(RejectAnyNonFunctions)->WithFlags(EActionFilterTestFlags::CacheResults));
+			MenuFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyNonFunctions));
 
 
 			ContextMenuBuilder.AddMenuSection(MenuFilter, LOCTEXT("SequenceDirectorMenu", "This Sequence"), 0);
@@ -143,14 +143,14 @@ namespace UE_MovieSceneEventCustomization
 
 		MenuFilter.Context.Blueprints.Add(Blueprint);
 
-		MenuFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(RejectAnyForeignFunctions, Blueprint));
+		MenuFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyForeignFunctions, Blueprint));
 
 		if (Blueprint->SkeletonGeneratedClass)
 		{
 			FBlueprintActionFilter::AddUnique(MenuFilter.TargetClasses, Blueprint->SkeletonGeneratedClass);
 		}
 
-		FBlueprintActionMenuBuilder ContextMenuBuilder(nullptr);
+		FBlueprintActionMenuBuilder ContextMenuBuilder;
 
 		ContextMenuBuilder.AddMenuSection(MenuFilter, LOCTEXT("SequenceDirectorMenu", "This Sequence"), 0);
 		ContextMenuBuilder.RebuildActionList();

@@ -46,6 +46,9 @@ public:
 	};
 	
 public:
+	FBlueprintActionMenuBuilder() = default;
+
+	UE_DEPRECATED(5.2, "The action filter now stores a reference to the authoritative editor context. Please use the default constructor instead.")
 	FBlueprintActionMenuBuilder(TWeakPtr<FBlueprintEditor> BlueprintEditorPtr);
 	
 	// FGraphActionListBuilderBase interface
@@ -80,7 +83,4 @@ private:
 	 * this API clean).
 	 */
 	TArray< TSharedRef<FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition> > MenuSections;
-
-	/** */
-	TWeakPtr<FBlueprintEditor> BlueprintEditorPtr;
 };

@@ -276,6 +276,7 @@ public:
 	virtual void JumpToPin(const class UEdGraphPin* Pin) override;
 	virtual void SummonSearchUI(bool bSetFindWithinBlueprint, FString NewSearchTerms = FString(), bool bSelectFirstResult = false) override;
 	virtual void SummonFindAndReplaceUI() override;
+	virtual UEdGraph* GetFocusedGraph() const override;
 	virtual TSharedPtr<SGraphEditor> OpenGraphAndBringToFront(UEdGraph* Graph, bool bSetFocus = true) override;
 
 	UE_DEPRECATED(5.0, "GetSelectedSCSEditorTreeNodes has been deprecated. Use GetSelectedSubobjectEditorTreeNodes instead.")
@@ -722,11 +723,6 @@ public:
 	{
 		return CustomizeSubobjectEditor(InComponentToCustomize);
 	}
-
-	/**
-	 * Returns the currently focused graph in the Blueprint editor
-	 */
-	UEdGraph* GetFocusedGraph() const;
 
 	/** Adds to a list of custom objects for debugging beyond what will automatically be found/used */
 	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const { }
