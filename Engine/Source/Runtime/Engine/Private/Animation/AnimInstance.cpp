@@ -318,11 +318,7 @@ void UAnimInstance::UninitializeAnimation()
 			{
 				const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
 				const FAnimNotifyEventReference& EventReference = ActiveAnimNotifyEventReference[Index];
-				if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass)
-#if WITH_EDITOR
-					&& !AnimNotifyEvent.NotifyStateClass->IsUnreachable()
-#endif
-				)
+				if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass) && !AnimNotifyEvent.NotifyStateClass->IsUnreachable())
 				{
 #if WITH_EDITOR
 					// Prevent firing notifies in animation editors if requested 
