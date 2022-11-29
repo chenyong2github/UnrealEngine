@@ -1497,6 +1497,11 @@ bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup)
 				bReadyToRender = false;
 			}
 
+			if (PrimitiveSceneInfo->Proxy->StaticMeshHasPendingStreaming())
+			{
+				bReadyToRender = false;
+			}
+
 			if (PrimitiveGroup.bHeightfield && PrimitiveSceneInfo->Proxy->HeightfieldHasPendingStreaming())
 			{
 				bReadyToRender = false;

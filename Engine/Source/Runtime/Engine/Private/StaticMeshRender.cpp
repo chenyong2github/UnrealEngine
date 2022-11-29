@@ -2107,6 +2107,11 @@ bool FStaticMeshSceneProxy::HasDistanceFieldRepresentation() const
 	return CastsDynamicShadow() && AffectsDistanceFieldLighting() && DistanceFieldData;
 }
 
+bool FStaticMeshSceneProxy::StaticMeshHasPendingStreaming() const
+{
+	return StaticMesh && StaticMesh->bHasStreamingUpdatePending;
+}
+
 bool FStaticMeshSceneProxy::HasDynamicIndirectShadowCasterRepresentation() const
 {
 	return bCastsDynamicIndirectShadow && FStaticMeshSceneProxy::HasDistanceFieldRepresentation();
