@@ -15,7 +15,9 @@
 #endif
 #include "ComponentInstanceDataCache.h"
 #include "Components/ActorComponent.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "SceneComponent.generated.h"
 
 class AActor;
@@ -27,6 +29,7 @@ struct FLevelCollection;
 
 struct FOverlapInfo;
 typedef TArrayView<const FOverlapInfo> TOverlapArrayView;
+namespace ERHIFeatureLevel { enum Type : int; }
 
 /** Detail mode for scene component rendering, corresponds with the integer value of UWorld::GetDetailMode() */
 UENUM()

@@ -7,14 +7,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
 #include "SceneTypes.h"
+#endif
 
 #define WITH_DEBUG_VIEW_MODES !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 class UMaterialInterface;
 struct FSlowTask;
 struct FMeshMaterialShaderPermutationParameters;
+enum EShaderPlatform : uint16;
+namespace ERHIFeatureLevel { enum Type : int; }
+
+namespace EMaterialQualityLevel { enum Type : uint8; }
 
 /** 
  * Enumeration for different Quad Overdraw visualization mode.

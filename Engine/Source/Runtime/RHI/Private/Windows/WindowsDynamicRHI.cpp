@@ -6,6 +6,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 #include "Containers/StaticArray.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if WINDOWS_USE_FEATURE_DYNAMIC_RHI
 

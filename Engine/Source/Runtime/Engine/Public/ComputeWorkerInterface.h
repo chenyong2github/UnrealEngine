@@ -2,7 +2,13 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
+
+class FRDGBuilder;
+namespace ERHIFeatureLevel { enum Type : int; }
 
 /** 
  * Interface for a compute task worker.
@@ -14,7 +20,7 @@ public:
 	virtual ~IComputeTaskWorker() {}
 
 	/** Add any scheduled work to an RDGBuilder ready for execution. */
-	virtual void SubmitWork(class FRDGBuilder& GraphBuilder, FName InExecutionGroupName, ERHIFeatureLevel::Type FeatureLevel) = 0;
+	virtual void SubmitWork(FRDGBuilder& GraphBuilder, FName InExecutionGroupName, ERHIFeatureLevel::Type FeatureLevel) = 0;
 };
 
 /** Core execution group names for use in IComputeTaskWorker::SubmitWork(). */

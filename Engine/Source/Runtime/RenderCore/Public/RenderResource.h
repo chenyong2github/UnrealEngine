@@ -26,6 +26,7 @@
 #include "RenderCore.h"
 #include "RenderingThread.h"
 #include "Serialization/MemoryLayout.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 typedef TBitArray<TInlineAllocator<EShaderPlatform::SP_NumPlatforms / 8>>	ShaderPlatformMaskType;
 

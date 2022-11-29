@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Particles/ParticlePerfStats.h"
-#include "RHIDefinitions.h"
 #include "UObject/ObjectKey.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakFieldPtr.h"
@@ -21,6 +20,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "NiagaraCompileHashVisitor.h"
+#include "RHIDefinitions.h"
 #endif
 
 #include "NiagaraCommon.generated.h"
@@ -37,6 +37,10 @@ class UNiagaraParameterDefinitionsBase;
 struct FNiagaraParameterStore;
 enum class EPSCPoolMethod : uint8;
 enum ETextureRenderTargetFormat : int;
+
+namespace ERHIFeatureLevel { enum Type : int; }
+enum EShaderPlatform : uint16;
+enum EPixelFormat : uint8;
 
 #define NIAGARA_MEMORY_TRACKING	!UE_BUILD_SHIPPING
 
@@ -1210,14 +1214,14 @@ namespace FNiagaraUtilities
 
 	inline bool SupportsNiagaraRendering(ERHIFeatureLevel::Type FeatureLevel)
 	{
-		return FeatureLevel >= ERHIFeatureLevel::SM5 || FeatureLevel == ERHIFeatureLevel::ES3_1;
+		return true;
 	}
 
 	inline bool SupportsNiagaraRendering(EShaderPlatform ShaderPlatform)
 	{
 		// Note:
 		// IsFeatureLevelSupported does a FeatureLevel < MaxFeatureLevel(ShaderPlatform) so checking ES3.1 support will return true for SM5. I added it explicitly to be clear what we are doing.
-		return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) || IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::ES3_1);
+		return true;
 	}
 
 	// When enabled log more information for the end user

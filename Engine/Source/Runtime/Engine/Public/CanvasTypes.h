@@ -38,6 +38,7 @@ class FRDGTexture;
 namespace ERHIFeatureLevel { enum Type : int; }
 struct FMeshPassProcessorRenderState;
 using FRDGTextureRef = FRDGTexture*;
+enum EShaderPlatform : uint16;
 
 /**
  * General purpose data structure for grouping all parameters needed when sizing or wrapping a string

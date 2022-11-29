@@ -17,7 +17,9 @@
 #include "UObject/ScriptMacros.h"
 #include "RenderCommandFence.h"
 #include "SceneTypes.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "Engine/BlendableInterface.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Interfaces/Interface_AssetUserData.h"
@@ -25,6 +27,7 @@
 #include "Materials/MaterialRelevance.h"
 #include "MaterialRecursionGuard.h"
 #include "MaterialShaderPrecompileMode.h"
+#include "RHIFeatureLevel.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHI.h"
@@ -58,6 +61,7 @@ class FMaterialCachedHLSLTree;
 #if WITH_EDITORONLY_DATA
 struct FParameterChannelNames;
 #endif
+enum EShaderPlatform : uint16;
 
 typedef TArray<FMaterialResource*> FMaterialResourceDeferredDeletionArray;
 
@@ -1061,7 +1065,7 @@ protected:
 	void UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy);
 
 	/** Filter out ShadingModels field to a shader platform settings */
-	static void FilterOutPlatformShadingModels(const FStaticShaderPlatform Platform, FMaterialShadingModelField& ShadingModels);
+	static void FilterOutPlatformShadingModels(EShaderPlatform Platform, FMaterialShadingModelField& ShadingModels);
 
 	/**
 	 * Cached data generated from the material's expressions, may be nullptr

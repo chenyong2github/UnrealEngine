@@ -5,11 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "SceneTypes.h"
 #include "MaterialShaderQualitySettings.generated.h"
 
 class UShaderPlatformQualitySettings;
+enum EShaderPlatform : uint16;
 
 //UCLASS(config = Engine, defaultconfig)
 UCLASS()

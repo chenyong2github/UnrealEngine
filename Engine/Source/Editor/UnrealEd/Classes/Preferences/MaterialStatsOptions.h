@@ -10,7 +10,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
+#include "RHIShaderPlatform.h"
 #include "SceneTypes.h"
 #include "MaterialStatsOptions.generated.h"
 

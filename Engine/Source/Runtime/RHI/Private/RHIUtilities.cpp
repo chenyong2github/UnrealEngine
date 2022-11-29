@@ -12,6 +12,7 @@ RHIUtilities.cpp:
 #include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/PlatformFramePacer.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #define USE_FRAME_OFFSET_THREAD 1
 

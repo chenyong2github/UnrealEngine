@@ -7,6 +7,7 @@
 #include "HAL/Platform.h"
 #include "PixelFormat.h"
 #include "RHIDefinitions.h"
+#include "RHIShaderPlatform.h"
 
 enum EGBufferSlot
 {

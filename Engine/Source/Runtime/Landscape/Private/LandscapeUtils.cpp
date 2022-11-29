@@ -3,6 +3,7 @@
 #include "LandscapeUtils.h"
 
 #include "Engine/Level.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if WITH_EDITOR
 #include "EditorDirectories.h"

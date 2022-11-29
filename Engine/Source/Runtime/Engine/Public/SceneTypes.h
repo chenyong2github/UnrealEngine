@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "UObject/ObjectMacros.h"
 #include "Templates/RefCounting.h"
 #include "Containers/List.h"
@@ -13,6 +15,8 @@
 class FLightMap;
 class FSceneViewStateInterface;
 class FShadowMap;
+
+namespace ERHIFeatureLevel { enum Type : int; }
 
 /** A reference to a light-map. */
 typedef TRefCountPtr<FLightMap> FLightMapRef;
@@ -180,7 +184,7 @@ enum EShadowMapInteractionType
 /** Quality levels that a material can be compiled for. */
 namespace EMaterialQualityLevel
 {
-	enum Type
+	enum Type : uint8
 	{
 		Low,
 		High,

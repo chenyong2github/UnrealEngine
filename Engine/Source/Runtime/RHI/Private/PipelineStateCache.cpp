@@ -14,6 +14,7 @@ PipelineStateCache.cpp: Pipeline state cache implementation.
 #include "Containers/DiscardableKeyValueCache.h"
 #include "Async/Async.h"
 #include "HAL/PlatformMisc.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 // perform cache eviction each frame, used to stress the system and flush out bugs
 #define PSO_DO_CACHE_EVICT_EACH_FRAME 0

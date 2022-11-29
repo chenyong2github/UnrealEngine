@@ -11,6 +11,8 @@
 #include "Misc/MemStack.h"
 #include "Misc/GeneratedTypeName.h"
 #include "RHIDefinitions.h"
+#include "RHIShaderPlatform.h"
+#include "RHIFeatureLevel.h"
 #include "HLSLTree/HLSLTreeTypes.h"
 #include "HLSLTree/HLSLTreeHash.h"
 

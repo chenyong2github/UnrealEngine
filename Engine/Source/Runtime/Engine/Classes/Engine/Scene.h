@@ -11,7 +11,9 @@
 #include "UObject/Object.h"
 #include "UObject/ScriptInterface.h"
 #include "Engine/BlendableInterface.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "SceneUtils.h"
 #include "Engine/EngineTypes.h"
 #include "Scene.generated.h"
@@ -138,16 +140,8 @@ namespace EMobilePixelProjectedReflectionQuality
 
 ENGINE_API int32 GetMobilePlanarReflectionMode();
 ENGINE_API int32 GetMobilePixelProjectedReflectionQuality();
-
-FORCEINLINE bool IsMobilePixelProjectedReflectionEnabled(EShaderPlatform ShaderPlatform)
-{
-	return IsMobilePlatform(ShaderPlatform) && IsMobileHDR() && (GetMobilePlanarReflectionMode() == EMobilePlanarReflectionMode::MobilePPRExclusive || GetMobilePlanarReflectionMode() == EMobilePlanarReflectionMode::MobilePPR);
-}
-
-FORCEINLINE bool IsUsingMobilePixelProjectedReflection(EShaderPlatform ShaderPlatform)
-{
-	return IsMobilePixelProjectedReflectionEnabled(ShaderPlatform) && GetMobilePixelProjectedReflectionQuality() > EMobilePixelProjectedReflectionQuality::Disabled;
-}
+ENGINE_API bool IsMobilePixelProjectedReflectionEnabled(EShaderPlatform ShaderPlatform);
+ENGINE_API bool IsUsingMobilePixelProjectedReflection(EShaderPlatform ShaderPlatform);
 
 USTRUCT(BlueprintType)
 struct FColorGradePerRangeSettings

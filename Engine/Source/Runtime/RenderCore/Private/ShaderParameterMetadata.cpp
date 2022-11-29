@@ -8,6 +8,12 @@
 #include "RenderCore.h"
 #include "ShaderCore.h"
 #include "ShaderParameters.h"
+#include "DataDrivenShaderPlatformInfo.h"
+
+bool SupportShaderPrecisionModifier(EShaderPlatform Platform)
+{
+	return IsMobilePlatform(Platform);
+}
 
 FUniformBufferStaticSlotRegistrar::FUniformBufferStaticSlotRegistrar(const TCHAR* InName)
 {

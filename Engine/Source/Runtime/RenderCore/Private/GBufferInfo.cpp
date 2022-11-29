@@ -6,7 +6,7 @@
 
 #include "GBufferInfo.h"
 #include "HAL/IConsoleManager.h"
-
+#include "DataDrivenShaderPlatformInfo.h"
 
 // This is very ugly, but temporary. We can't include EngineTypes.h because this file is ShaderCore and that
 // file is Engine. But since we will remove this flag anyways, we will copy/paste the enums for now, but remove

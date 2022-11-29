@@ -7,6 +7,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Settings/LevelEditorPlaySettings.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 void UEditorEngine::StartPlayInNewProcessSession(FRequestPlaySessionParams& InRequestParams)
 {

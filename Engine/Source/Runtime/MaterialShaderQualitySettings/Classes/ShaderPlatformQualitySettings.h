@@ -6,8 +6,12 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "SceneTypes.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "ShaderPlatformQualitySettings.generated.h"
+
+enum EShaderPlatform : uint16;
 
 /**
 * 

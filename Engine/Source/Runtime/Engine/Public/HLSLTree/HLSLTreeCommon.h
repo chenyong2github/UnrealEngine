@@ -4,7 +4,9 @@
 #if WITH_EDITOR
 
 #include "HLSLTree/HLSLTree.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 
 namespace UE::HLSLTree
 {
@@ -244,11 +246,7 @@ public:
 class FExpressionFeatureLevelSwitch : public FExpressionSwitchBase
 {
 public:
-	static_assert(MaxInputs >= (int32)ERHIFeatureLevel::Num, "FExpressionSwitchBase is too small for FExpressionFeatureLevelSwitch");
-	FExpressionFeatureLevelSwitch(TConstArrayView<const FExpression*> InInputs) : FExpressionSwitchBase(InInputs)
-	{
-		check(InInputs.Num() == (int32)ERHIFeatureLevel::Num);
-	}
+	FExpressionFeatureLevelSwitch(TConstArrayView<const FExpression*> InInputs);
 
 	virtual const FExpression* NewSwitch(FTree& Tree, TConstArrayView<const FExpression*> InInputs) const override { return Tree.NewExpression<FExpressionFeatureLevelSwitch>(InInputs); }
 	virtual bool IsInputActive(const FEmitContext& Context, int32 Index) const override;
@@ -257,11 +255,7 @@ public:
 class FExpressionShadingPathSwitch : public FExpressionSwitchBase
 {
 public:
-	static_assert(MaxInputs >= (int32)ERHIShadingPath::Num, "FExpressionSwitchBase is too small for FExpressionShadingPathSwitch");
-	FExpressionShadingPathSwitch(TConstArrayView<const FExpression*> InInputs) : FExpressionSwitchBase(InInputs)
-	{
-		check(InInputs.Num() == (int32)ERHIShadingPath::Num);
-	}
+	FExpressionShadingPathSwitch(TConstArrayView<const FExpression*> InInputs);
 
 	virtual const FExpression* NewSwitch(FTree& Tree, TConstArrayView<const FExpression*> InInputs) const override { return Tree.NewExpression<FExpressionShadingPathSwitch>(InInputs); }
 	virtual bool IsInputActive(const FEmitContext& Context, int32 Index) const override;

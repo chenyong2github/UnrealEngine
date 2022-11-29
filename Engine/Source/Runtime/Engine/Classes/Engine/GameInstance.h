@@ -10,7 +10,9 @@
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/NetworkDelegates.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "GameFramework/OnlineReplStructs.h"
@@ -35,6 +37,7 @@ enum EPlayNetMode : int;
 struct FLatentActionManager;
 class ULevelEditorPlaySettings;
 class IAnalyticsProvider;
+namespace ERHIFeatureLevel { enum Type : int; }
 
 // 
 // 	EWelcomeScreen, 	//initial screen.  Used for platforms where we may not have a signed in user yet.

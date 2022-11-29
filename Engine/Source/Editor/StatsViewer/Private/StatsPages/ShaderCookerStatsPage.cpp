@@ -7,7 +7,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
-#include "RHIDefinitions.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "StatsPages/ShaderCookerStatsPage.h"
 #include "CoreGlobals.h"

@@ -13,6 +13,7 @@ PipelineFileCache.cpp: Pipeline state cache implementation.
 #include "Serialization/MemoryWriter.h"
 #include "RHI.h"
 #include "RHIResources.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/Paths.h"
 #include "Async/AsyncFileHandle.h"

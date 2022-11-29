@@ -1516,8 +1516,9 @@ void UMaterialInterface::EnsureIsComplete()
 #endif
 }
 
-void UMaterialInterface::FilterOutPlatformShadingModels(const FStaticShaderPlatform Platform, FMaterialShadingModelField& ShadingModels)
+void UMaterialInterface::FilterOutPlatformShadingModels(const EShaderPlatform InPlatform, FMaterialShadingModelField& ShadingModels)
 {
+	const FStaticShaderPlatform Platform(InPlatform);
 	if (ShadingModels.CountShadingModels() > 1 && !AllowPerPixelShadingModels(Platform))
 	{
 		ShadingModels = FMaterialShadingModelField(ShadingModels.GetFirstShadingModel());

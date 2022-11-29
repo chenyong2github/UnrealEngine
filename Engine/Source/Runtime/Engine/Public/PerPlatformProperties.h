@@ -143,45 +143,6 @@ struct ENGINE_API TPerPlatformProperty
 
 		return Ptr ? *Ptr : This->Default;
 	}
-
-	/* Return the value */
-	UE_DEPRECATED(5.0, "GetValueForPlatform should now be used, with a single platform name")
-		_ValueType GetValueForPlatformIdentifiers(FName PlatformGroupName, FName VanillaPlatformName = NAME_None) const
-	{
-		const _StructType* This = StaticCast<const _StructType*>(this);
-
-		using MapType = decltype(This->PerPlatform);
-		using KeyFuncs = typename PerPlatformProperty::Private::KeyFuncs<MapType>;
-		
-		const _ValueType* ValuePtr = [This, VanillaPlatformName, PlatformGroupName]() -> const _ValueType*
-		{
-			const _ValueType* Ptr = nullptr;
-			if (VanillaPlatformName != NAME_None)
-			{
-				TArray<FName> Keys;
-				This->PerPlatform.GetKeys(Keys);
-				const FName* MatchedName = Keys.FindByPredicate([VanillaPlatformName](FName& Name)
-				{
-					return VanillaPlatformName.ToString().Contains(Name.ToString());
-				});
-				Ptr = MatchedName ? This->PerPlatform.Find(KeyFuncs::NameToKey(*MatchedName)) : nullptr;
-			}			
-			if (Ptr == nullptr && PlatformGroupName != NAME_None)
-			{				
-				Ptr = This->PerPlatform.Find(KeyFuncs::NameToKey(PlatformGroupName));
-			}
-			return Ptr;			
-		}();
-
-		return ValuePtr != nullptr ? *ValuePtr : This->Default;
-	}
-
-	UE_DEPRECATED(4.22, "GetValueForPlatformGroup renamed GetValueForPlatformIdentifiers")
-	_ValueType GetValueForPlatformGroup(FName PlatformGroupName) const
-	{
-		return GetValueForPlatformIdentifiers(PlatformGroupName);
-	}
-
 #endif
 
 	_ValueType GetDefault() const
@@ -206,29 +167,6 @@ struct ENGINE_API TPerPlatformProperty
 			const _StructType* This = StaticCast<const _StructType*>(this);
 			return This->Default;
 		}
-	}
-
-	UE_DEPRECATED(4.26, "GetValueForFeatureLevel is not needed for platform previewing and GetValue() should be used instead.")
-	_ValueType GetValueForFeatureLevel(ERHIFeatureLevel::Type FeatureLevel) const
-	{
-#if WITH_EDITORONLY_DATA
-		FName PlatformGroupName;
-		switch (FeatureLevel)
-		{
-		    case ERHIFeatureLevel::ES3_1:
-		    {
-			    PlatformGroupName = NAME_Mobile;
-			    break;
-		    }
-		    default:
-			    PlatformGroupName = NAME_None;
-			    break;
-		}
-		return GetValueForPlatformIdentifiers(PlatformGroupName);
-#else
-		const _StructType* This = StaticCast<const _StructType*>(this);
-		return This->Default;
-#endif
 	}
 
 	/* Load old properties that have been converted to FPerPlatformX */

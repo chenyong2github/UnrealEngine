@@ -7,7 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RHIDefinitions.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 extern int32 GCapsuleShadows;
 extern int32 GCapsuleDirectShadows;

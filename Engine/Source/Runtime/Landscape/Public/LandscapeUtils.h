@@ -4,10 +4,13 @@
 
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "UObject/NameTypes.h"
 
 class ULevel;
+enum EShaderPlatform : uint16;
 
 namespace UE::Landscape
 {

@@ -12,7 +12,9 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/EnumClassFlags.h"
 #include "PixelFormat.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "Stats/Stats.h"
 #include "Stats/Stats2.h"
 #include "Templates/RefCounting.h"
@@ -24,6 +26,7 @@ class FRHICommandListImmediate;
 class FRHIShaderResourceView;
 class FRHITexture;
 class FRHIUnorderedAccessView;
+namespace ERHIFeatureLevel { enum Type : int; }
 
 union FVirtualTextureProducerHandle
 {

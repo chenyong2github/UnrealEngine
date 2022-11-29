@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 
 #include "MaterialOverrideNanite.generated.h"
 
 class ITargetPlatform;
 class UMaterialInterface;
+enum EShaderPlatform : uint16;
 
 /**
  * Storage for nanite material override.

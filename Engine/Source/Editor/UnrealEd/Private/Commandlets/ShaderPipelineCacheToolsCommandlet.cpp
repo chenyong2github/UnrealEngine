@@ -38,6 +38,7 @@
 #include "PipelineFileCache.h"
 #include "RHI.h"
 #include "RHIDefinitions.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"

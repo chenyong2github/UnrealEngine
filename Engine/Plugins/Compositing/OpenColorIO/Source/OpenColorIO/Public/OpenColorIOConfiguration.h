@@ -7,7 +7,9 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "OpenColorIOColorSpace.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 
 #if WITH_EDITOR && WITH_OCIO
 #include "OpenColorIO/OpenColorIO.h"
@@ -21,6 +23,7 @@ class FTextureResource;
 class UOpenColorIOColorTransform;
 struct FFileChangeData;
 class SNotificationItem;
+namespace ERHIFeatureLevel { enum Type : int; }
 
 /**
  * Asset to manage allowed OpenColorIO color spaces. This will create required transform objects.

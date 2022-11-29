@@ -10,6 +10,7 @@
 #include "RHIValidationCommon.h"
 #include "RHIValidationUtils.h"
 #include "RHIValidationContext.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if ENABLE_RHI_VALIDATION
 class FValidationComputeContext;

@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RHIDefinitions.h"
 #include "Templates/SharedPointer.h"
 #include "NiagaraScriptStatsViewModel.generated.h"
 
 class FNiagaraSystemViewModel;
+enum EShaderPlatform : uint16;
+
 namespace NiagaraScriptStatsLocal
 {
 	struct FNiagaraScriptStats;

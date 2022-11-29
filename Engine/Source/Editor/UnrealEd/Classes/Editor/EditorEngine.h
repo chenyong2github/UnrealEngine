@@ -33,6 +33,7 @@
 #include "Templates/PimplPtr.h"
 #include "Templates/UniqueObj.h"
 #include "Editor/AssetReferenceFilter.h"
+#include "RHIShaderPlatform.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Model.h"

@@ -38,10 +38,7 @@ namespace EShaderPrecisionModifier
 };
 
 /** Returns whether EShaderPrecisionModifier is supported. */
-inline bool SupportShaderPrecisionModifier(EShaderPlatform Platform)
-{
-	return IsMobilePlatform(Platform);
-}
+bool SupportShaderPrecisionModifier(EShaderPlatform Platform);
 
 /** Each entry in a resource table is provided to the shader compiler for creating mappings. */
 struct FResourceTableEntry

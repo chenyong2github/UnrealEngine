@@ -4,10 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "OptimusSettings.generated.h"
 
 class UMeshDeformer;
+enum EShaderPlatform : uint16;
 
 UENUM()
 enum class EOptimusDefaultDeformerMode : uint8

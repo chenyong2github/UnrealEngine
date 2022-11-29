@@ -5,6 +5,7 @@
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 int32 GetMobilePlanarReflectionMode()
 {
@@ -18,6 +19,16 @@ int32 GetMobilePixelProjectedReflectionQuality()
 	static const auto MobilePixelProjectedReflectionQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.PixelProjectedReflectionQuality"));
 
 	return MobilePixelProjectedReflectionQualityCVar->GetValueOnAnyThread();
+}
+
+bool IsMobilePixelProjectedReflectionEnabled(EShaderPlatform ShaderPlatform)
+{
+	return IsMobilePlatform(ShaderPlatform) && IsMobileHDR() && (GetMobilePlanarReflectionMode() == EMobilePlanarReflectionMode::MobilePPRExclusive || GetMobilePlanarReflectionMode() == EMobilePlanarReflectionMode::MobilePPR);
+}
+
+bool IsUsingMobilePixelProjectedReflection(EShaderPlatform ShaderPlatform)
+{
+	return IsMobilePixelProjectedReflectionEnabled(ShaderPlatform) && GetMobilePixelProjectedReflectionQuality() > EMobilePixelProjectedReflectionQuality::Disabled;
 }
 
 void FColorGradingSettings::ExportToPostProcessSettings(FPostProcessSettings* OutPostProcessSettings) const

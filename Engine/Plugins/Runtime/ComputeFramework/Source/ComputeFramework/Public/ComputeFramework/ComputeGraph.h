@@ -3,7 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
+#if WITH_EDITORONLY_DATA
+#include "RHIFeatureLevel.h"
+#endif
+
 #include "ComputeGraph.generated.h"
 
 class FArchive;
@@ -18,6 +24,7 @@ struct FShaderParametersMetadataAllocations;
 class UComputeDataInterface;
 class UComputeDataProvider;
 class UComputeKernel;
+enum EShaderPlatform : uint16;
 
 /** 
  * Description of a single edge in a UComputeGraph. 

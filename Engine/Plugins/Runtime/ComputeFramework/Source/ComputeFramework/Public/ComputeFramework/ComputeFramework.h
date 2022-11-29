@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 
 class FSceneInterface;
+enum EShaderPlatform : uint16;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogComputeFramework, Log, All);
 

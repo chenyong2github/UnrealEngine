@@ -6,7 +6,9 @@
 #include "GameFramework/Actor.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Online/CoreOnlineFwd.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#endif
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -35,6 +37,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "CollisionProfile.h"
+#include "RHIFeatureLevel.h"
 
 #include "World.generated.h"
 

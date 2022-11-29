@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "RHIShaderPlatform.h"
 
 static FName NAME_PCD3D_SM6(TEXT("PCD3D_SM6"));
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));

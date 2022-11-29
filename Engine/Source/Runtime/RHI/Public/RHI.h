@@ -18,29 +18,11 @@
 #include "Math/TranslationMatrix.h"
 #include "ProfilingDebugging/CsvProfilerConfig.h"
 #include "GpuProfilerTrace.h"
-
-#ifndef RHI_COMMAND_LIST_DEBUG_TRACES
-#define RHI_COMMAND_LIST_DEBUG_TRACES 0
-#endif
+#include "RHIShaderPlatform.h"
+#include "RHIFeatureLevel.h"
 
 class FResourceArrayInterface;
 class FResourceBulkDataInterface;
-
-/** Alignment of the shader parameters struct is required to be 16-byte boundaries. */
-#define SHADER_PARAMETER_STRUCT_ALIGNMENT 16
-
-/** The alignment in bytes between elements of array shader parameters. */
-#define SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT 16
-
-// RHICreateUniformBuffer assumes C++ constant layout matches the shader layout when extracting float constants, yet the C++ struct contains pointers.  
-// Enforce a min size of 64 bits on pointer types in uniform buffer structs to guarantee layout matching between languages.
-#define SHADER_PARAMETER_POINTER_ALIGNMENT sizeof(uint64)
-static_assert(sizeof(void*) <= SHADER_PARAMETER_POINTER_ALIGNMENT, "The alignment of pointer needs to match the largest pointer.");
-
-// Support platforms which require indirect dispatch arguments to not cross memory boundaries
-#ifndef PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE
-	#define PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE	0
-#endif
 
 /** RHI Logging. */
 RHI_API DECLARE_LOG_CATEGORY_EXTERN(LogRHI,Log,VeryVerbose);
@@ -85,12 +67,6 @@ extern RHI_API bool GSupportsQuadBufferStereo;
 /** true if the RHI supports textures that may be bound as both a render target and a shader resource. */
 extern RHI_API bool GSupportsRenderDepthTargetableShaderResources;
 
-// The maximum feature level and shader platform available on this system
-// GRHIFeatureLevel and GRHIShaderPlatform have been deprecated. There is no longer a current featurelevel/shaderplatform that
-// should be used for all rendering, rather a specific set for each view.
-extern RHI_API ERHIFeatureLevel::Type GMaxRHIFeatureLevel;
-extern RHI_API EShaderPlatform GMaxRHIShaderPlatform;
-
 /** true if the RHI supports Draw Indirect */
 extern RHI_API bool GRHISupportsDrawIndirect;
 
@@ -132,12 +108,6 @@ RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId);
 
 // helper to return the shader language version for Metal shader.
 RHI_API uint32 RHIGetMetalShaderLanguageVersion(const FStaticShaderPlatform Platform);
-
-// helper to check that the shader platform supports creating a UAV off an index buffer.
-inline bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsIndexBufferUAVs(Platform);
-}
 
 // helper to check if a preview feature level has been requested.
 RHI_API bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT);
@@ -185,178 +155,13 @@ struct FRHIResourceStats
 
 RHI_API void RHIGetTrackedResourceStats(TArray<TSharedPtr<FRHIResourceStats>>& OutResourceStats);
 
-inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
-}
-
-UE_DEPRECATED(5.1, "RHISupportsMultiView has been deprecated. Use RHISupportsMultiViewport to avoid confusion.")
-inline bool RHISupportsMultiView(const FStaticShaderPlatform Platform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FDataDrivenShaderPlatformInfo::GetSupportsMultiView(Platform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-/** 
- * Can this platform implement instanced stereo rendering by rendering to multiple viewports.
- * Note: run-time users should always check GRHISupportsArrayIndexFromAnyShader as well, since for some SPs (particularly PCD3D_SM5) minspec does not guarantee that feature.
- **/
-inline bool RHISupportsMultiViewport(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsMultiViewport(Platform) != ERHIFeatureSupport::Unsupported;
-}
-
-inline bool RHISupportsMSAA(const FStaticShaderPlatform Platform)
-{
-	// @todo platplug: Maybe this should become bDisallowMSAA to default of 0 is a better default (since now MSAA is opt-out more than opt-in) 
-	return FDataDrivenShaderPlatformInfo::GetSupportsMSAA(Platform);
-}
-
-inline bool RHISupportsBufferLoadTypeConversion(const FStaticShaderPlatform Platform)
-{
-	return !IsMetalPlatform(Platform) && !IsOpenGLPlatform(Platform);
-}
-
-/** Whether the platform supports reading from volume textures (does not cover rendering to volume textures). */
-inline bool RHISupportsVolumeTextures(const FStaticFeatureLevel FeatureLevel)
-{
-	return FeatureLevel >= ERHIFeatureLevel::SM5;
-}
-
-inline bool RHISupportsVertexShaderLayer(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsVertexShaderLayer(Platform);
-}
-
-/** Return true if and only if the GPU support rendering to volume textures (2D Array, 3D) is guaranteed supported for a target platform.
-	if PipelineVolumeTextureLUTSupportGuaranteedAtRuntime is true then it is guaranteed that GSupportsVolumeTextureRendering is true at runtime.
-*/
-inline bool RHIVolumeTextureRenderingSupportGuaranteed(const FStaticShaderPlatform Platform)
-{
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)
-		&& (!IsMetalPlatform(Platform) || RHISupportsVertexShaderLayer(Platform)) // For Metal only shader platforms & versions that support vertex-shader-layer can render to volume textures - this is a compile/cook time check.
-		&& !IsOpenGLPlatform(Platform);		// Apparently, some OpenGL 3.3 cards support SM4 but can't render to volume textures
-}
-
-inline bool RHISupports4ComponentUAVReadWrite(const FStaticShaderPlatform Platform)
-{
-	// Must match usf PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
-	// D3D11 does not support multi-component loads from a UAV: "error X3676: typed UAV loads are only allowed for single-component 32-bit element types"
-	return FDataDrivenShaderPlatformInfo::GetSupports4ComponentUAVReadWrite(Platform);
-}
-
-/** Whether Manual Vertex Fetch is supported for the specified shader platform.
-	Shader Platform must not use the mobile renderer, and for Metal, the shader language must be at least 2. */
-inline bool RHISupportsManualVertexFetch(const FStaticShaderPlatform InShaderPlatform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsManualVertexFetch(InShaderPlatform);
-}
-
-inline bool RHISupportsSwapchainUAVs(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsSwapchainUAVs(Platform);
-}
-
-/** 
- * Returns true if SV_VertexID contains BaseVertexIndex passed to the draw call, false if shaders must manually construct an absolute VertexID.
- */
-inline bool RHISupportsAbsoluteVertexID(const FStaticShaderPlatform InShaderPlatform)
-{
-	return IsVulkanPlatform(InShaderPlatform) || IsVulkanMobilePlatform(InShaderPlatform);
-}
-
-/** Whether this platform can build acceleration structures and use full ray tracing pipelines or inline ray tracing (ray queries).
- *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
- *  Check GRHISupportsRayTracingShaders before using full ray tracing pipeline state objects.
- *  Check GRHISupportsInlineRayTracing before using inline ray tracing features in compute and other shaders.
- **/
-inline RHI_API bool RHISupportsRayTracing(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform);
-}
-
-/** Whether this platform can compile ray tracing shaders (regardless of project settings).
- *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
- **/
-inline RHI_API bool RHISupportsRayTracingShaders(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracingShaders(Platform);
-}
-
-/** Whether this platform can compile shaders with inline ray tracing features.
- *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
- **/
-inline RHI_API bool RHISupportsInlineRayTracing(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsInlineRayTracing(Platform);
-}
-
-/** Whether this platform can compile ray tracing callable shaders.
- *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
- **/
-inline RHI_API bool RHISupportsRayTracingCallableShaders(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracingCallableShaders(Platform);
-}
-
-/** Can this platform compile mesh shaders with tier0 capability.
- *  To use at runtime, also check GRHISupportsMeshShadersTier0.
- **/
-inline bool RHISupportsMeshShadersTier0(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsMeshShadersTier0(Platform);
-}
-
-/** Can this platform compile mesh shaders with tier1 capability.
- *  To use at runtime, also check GRHISupportsMeshShadersTier1.
- **/
-inline bool RHISupportsMeshShadersTier1(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsMeshShadersTier1(Platform);
-}
-
-inline uint32 RHIMaxMeshShaderThreadGroupSize(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetMaxMeshShaderThreadGroupSize(Platform);
-}
-
-/** Can this platform compile shaders that use shader model 6.0 wave intrinsics.
- *  To use such shaders at runtime, also check GRHISupportsWaveOperations.
- **/
-inline RHI_API bool RHISupportsWaveOperations(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Platform) != ERHIFeatureSupport::Unsupported;
-}
-
-/** True if the given shader platform supports a render target write mask */
-inline bool RHISupportsRenderTargetWriteMask(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsRenderTargetWriteMask(Platform);
-}
-
-/** True if the given shader platform supports overestimated conservative rasterization */
-inline RHI_API bool RHISupportsConservativeRasterization(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsConservativeRasterization(Platform);
-}
-
-/** True if the given shader platform supports bindless resources/views. */
 inline ERHIBindlessSupport RHIGetBindlessSupport(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetBindlessSupport(Platform);
 }
 
 UE_DEPRECATED(5.2, "You must use RHIGetBindlessSupport instead.")
-inline bool RHISupportsBindless(EShaderPlatform Platform)
-{
-	return RHIGetBindlessSupport(Platform) == ERHIBindlessSupport::AllShaderTypes;
-}
-
-inline bool RHISupportsVolumeTextureAtomics(EShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsVolumeTextureAtomics(Platform);
-}
+	return FDataDrivenShaderPlatformInfo::GetSupportsBindless(Platform);
 
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.
 template <typename TValueType>
@@ -899,9 +704,6 @@ inline bool RHIIsTypedUAVStoreSupported(EPixelFormat InFormat)
 */
 extern RHI_API SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format);
 
-RHI_API FName LegacyShaderPlatformToShaderFormat(EShaderPlatform Platform);
-RHI_API EShaderPlatform ShaderFormatToLegacyShaderPlatform(FName ShaderFormat);
-RHI_API FName ShaderPlatformToPlatformName(EShaderPlatform Platform);
 
 /**
  * Adjusts a projection matrix to output in the correct clip space for the
@@ -922,16 +724,6 @@ RHI_API void RHISetMobilePreviewFeatureLevel(ERHIFeatureLevel::Type MobilePrevie
 /** Current shader platform. */
 
 
-/** Finds a corresponding ERHIFeatureLevel::Type given an FName, or returns false if one could not be found. */
-extern RHI_API bool GetFeatureLevelFromName(FName Name, ERHIFeatureLevel::Type& OutFeatureLevel);
-
-/** Creates a string for the given feature level. */
-extern RHI_API void GetFeatureLevelName(ERHIFeatureLevel::Type InFeatureLevel, FString& OutName);
-
-/** Creates an FName for the given feature level. */
-extern RHI_API void GetFeatureLevelName(ERHIFeatureLevel::Type InFeatureLevel, FName& OutName);
-
-
 /** Table for finding out which shader platform corresponds to a given feature level for this RHI. */
 extern RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num];
 
@@ -940,12 +732,6 @@ inline EShaderPlatform GetFeatureLevelShaderPlatform(const FStaticFeatureLevel I
 {
 	return GShaderPlatformForFeatureLevel[InFeatureLevel];
 }
-
-/** Stringifies EShaderPlatform */
-extern RHI_API FString LexToString(EShaderPlatform Platform);
-
-/** Stringifies ERHIFeatureLevel */
-extern RHI_API FString LexToString(ERHIFeatureLevel::Type Level);
 
 /** Stringifies ERHIDescriptorHeapType */
 extern RHI_API const TCHAR* LexToString(ERHIDescriptorHeapType InHeapType);
@@ -2894,3 +2680,14 @@ inline void RHIValidation::FTracker::AddOp(const RHIValidation::FOperation& Op)
 }
 
 #endif // ENABLE_RHI_VALIDATION
+
+// Return what the expected number of samplers will be supported by a feature level
+// Note that since the Feature Level is pretty orthogonal to the RHI/HW, this is not going to be perfect
+// If should only be used for a guess at the limit, the real limit will not be known until runtime
+inline uint32 GetExpectedFeatureLevelMaxTextureSamplers(const FStaticFeatureLevel FeatureLevel)
+{
+	return 16;
+}
+
+RHI_API ERHIBindlessConfiguration RHIGetBindlessResourcesConfiguration(EShaderPlatform Platform);
+RHI_API ERHIBindlessConfiguration RHIGetBindlessSamplersConfiguration(EShaderPlatform Platform);

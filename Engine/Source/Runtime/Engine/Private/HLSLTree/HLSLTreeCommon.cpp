@@ -944,9 +944,23 @@ void FExpressionSwitchBase::EmitValuePreshader(FEmitContext& Context, FEmitScope
 	}
 }
 
+FExpressionFeatureLevelSwitch::FExpressionFeatureLevelSwitch(TConstArrayView<const FExpression*> InInputs)
+	: FExpressionSwitchBase(InInputs)
+{
+	static_assert(MaxInputs >= (int32)ERHIFeatureLevel::Num, "FExpressionSwitchBase is too small for FExpressionFeatureLevelSwitch");
+	check(InInputs.Num() == (int32)ERHIFeatureLevel::Num);
+}
+
 bool FExpressionFeatureLevelSwitch::IsInputActive(const FEmitContext& Context, int32 Index) const
 {
 	return Context.TargetParameters.IsGenericTarget() || (Index == (int32)Context.TargetParameters.FeatureLevel);
+}
+
+FExpressionShadingPathSwitch::FExpressionShadingPathSwitch(TConstArrayView<const FExpression*> InInputs)
+	: FExpressionSwitchBase(InInputs)
+{
+	static_assert(MaxInputs >= (int32)ERHIShadingPath::Num, "FExpressionSwitchBase is too small for FExpressionShadingPathSwitch");
+	check(InInputs.Num() == (int32)ERHIShadingPath::Num);
 }
 
 bool FExpressionShadingPathSwitch::IsInputActive(const FEmitContext& Context, int32 Index) const

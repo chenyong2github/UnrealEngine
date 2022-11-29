@@ -8,6 +8,8 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "RHIFeatureLevel.h"
+#include "RHIShaderPlatform.h"
 
 // IOS and TVOS use the mobile toolchain.
 enum EAppleSDKType
