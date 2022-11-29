@@ -484,7 +484,8 @@ export class BotNotifications implements BotEventHandler {
 		const issue = blockage.failure.kind.toLowerCase()
 
 		const userEmail = await blockage.ownerEmail
-		const channelPing = `@${blockage.owner}`
+		const slackUser = userEmail ? await this.slackMessages.getSlackUser(userEmail) : null
+		const channelPing = slackUser ? `<@${slackUser}>` : `@${blockage.owner}`
 
 		const isBotUser = isUserAKnownBot(blockage.owner)
 		const text =
@@ -535,11 +536,19 @@ export class BotNotifications implements BotEventHandler {
 				let text = ''
 
 				for (const exclusiveLockUser of exclusiveLockUsers) {
-					text += `@${exclusiveLockUser.user} `
+					let exclusiveLockSlackUser
 					const exclusiveLockUserEmail = await exclusiveLockUser.userEmail
 					if (exclusiveLockUserEmail) {
+						exclusiveLockSlackUser = await this.slackMessages.getSlackUser(exclusiveLockUserEmail)
+						if (exclusiveLockSlackUser) {
+							exclusiveLockSlackUser = `<@${exclusiveLockSlackUser}> `
+						}
 						usersToInvite.add(exclusiveLockUserEmail)
 					}
+					if (!exclusiveLockSlackUser) {
+						exclusiveLockSlackUser = `@${exclusiveLockUser.user} `
+					}
+					text += exclusiveLockSlackUser
 				}
 				text += `\n\nPlease unlock the files blocking robomerge or work with ${blockage.owner} to resolve the conflict`
 				

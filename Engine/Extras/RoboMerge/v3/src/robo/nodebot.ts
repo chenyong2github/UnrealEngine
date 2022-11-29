@@ -2068,8 +2068,13 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 									triager = `<@${user}>`
 								}
 								else {
+									triager = `@${triager}`
 									this.nodeBotLogger.error(`Unable to look up triager from ${triager} (${emailAddress})`)
 								}
+							}
+							else {
+								triager = `@${triager}`
+								this.nodeBotLogger.error(`Unable to look up email address for triager ${triager}`)
 							}
 						}
 
