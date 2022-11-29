@@ -168,6 +168,10 @@ struct FBasedMovementInfo
 {
 	GENERATED_USTRUCT_BODY()
 
+	/** Unique (within a reasonable timespan) ID of the base component. Can be used to detect changes in the base when the pointer can't replicate, eg during fast shared replication. */
+	UPROPERTY()
+	uint16 BaseID = 0;
+
 	/** Component we are based on */
 	UPROPERTY()
 	TObjectPtr<UPrimitiveComponent> MovementBase = nullptr;

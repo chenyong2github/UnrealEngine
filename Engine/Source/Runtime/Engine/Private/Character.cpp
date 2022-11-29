@@ -26,6 +26,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogCharacter, Log, All);
 
 DECLARE_CYCLE_STAT(TEXT("Char OnNetUpdateSimulatedPosition"), STAT_CharacterOnNetUpdateSimulatedPosition, STATGROUP_Character);
 
+
 FName ACharacter::MeshComponentName(TEXT("CharacterMesh0"));
 FName ACharacter::CharacterMovementComponentName(TEXT("CharMoveComp"));
 FName ACharacter::CapsuleComponentName(TEXT("CollisionCylinder"));
@@ -766,6 +767,11 @@ void ACharacter::SetBase( UPrimitiveComponent* NewBaseComponent, const FName InB
 		UPrimitiveComponent* OldBase = BasedMovement.MovementBase;
 		BasedMovement.MovementBase = NewBaseComponent;
 		BasedMovement.BoneName = BoneName;
+		if (bBaseChanged)
+		{
+			// Increment base ID.
+			BasedMovement.BaseID++;
+		}
 
 		if (CharacterMovement)
 		{
@@ -804,7 +810,7 @@ void ACharacter::SetBase( UPrimitiveComponent* NewBaseComponent, const FName InB
 			const ENetRole LocalRole = GetLocalRole();
 			if (LocalRole == ROLE_Authority || LocalRole == ROLE_AutonomousProxy)
 			{
-				BasedMovement.bServerHasBaseComponent = (BasedMovement.MovementBase != nullptr); // Also set on proxies for nicer debugging.
+				BasedMovement.bServerHasBaseComponent = (BasedMovement.MovementBase != nullptr); // Also set on autonomous proxies for nicer debugging.
 				UE_LOG(LogCharacter, Verbose, TEXT("Setting base on %s for '%s' to '%s'"), LocalRole == ROLE_Authority ? TEXT("Server") : TEXT("AutoProxy"), *GetName(), *GetFullNameSafe(NewBaseComponent));
 			}
 			else
