@@ -3,17 +3,17 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -1045,10 +1045,11 @@ namespace GitDependencies
 			State.NumBytesTotal = RequiredPacks.Sum(x => x.Pack.CompressedSize);
 
 			// Create all the worker threads
+			CancellationTokenSource CancellationToken = new CancellationTokenSource();
 			Thread[] WorkerThreads = new Thread[NumThreads];
 			for(int Idx = 0; Idx < NumThreads; Idx++)
 			{
-				WorkerThreads[Idx] = new Thread(x => DownloadWorker(DownloadQueue, State, MaxRetries));
+				WorkerThreads[Idx] = new Thread(x => DownloadWorker(DownloadQueue, State, MaxRetries, CancellationToken.Token));
 				WorkerThreads[Idx].Start();
 			}
 
@@ -1085,13 +1086,15 @@ namespace GitDependencies
 			// If we finished with an error, try to clean up and return
 			if(State.NumFilesRead < State.NumFiles)
 			{
-				foreach(Thread WorkerThread in WorkerThreads)
-				{
-					WorkerThread.Abort();
-				}
+				CancellationToken.Cancel();
+
 				if(State.LastDownloadError != null)
 				{
 					Log.WriteError("{0}", State.LastDownloadError);
+				}
+				else
+				{
+					Log.WriteError("Aborting dependency updating due to unknown failure(s).");
 				}
 				return false;
 			}
@@ -1128,11 +1131,17 @@ namespace GitDependencies
 			return Files.OrderBy(x => x.MinPackOffset).ToArray();
 		}
 
-		static void DownloadWorker(ConcurrentQueue<IncomingPack> DownloadQueue, AsyncDownloadState State, int MaxRetries)
+		static void DownloadWorker(ConcurrentQueue<IncomingPack> DownloadQueue, AsyncDownloadState State, int MaxRetries, CancellationToken CancellationToken)
 		{
 			int Retries = 0;
 			for(;;)
 			{
+				if (CancellationToken.IsCancellationRequested)
+				{
+					Interlocked.Increment(ref State.NumFailingOrIdleDownloads);
+					return;
+				}
+
 				// Remove the next file from the download queue, or wait before polling again
 				IncomingPack NextPack;
 				if (!DownloadQueue.TryDequeue(out NextPack))
@@ -1162,7 +1171,7 @@ namespace GitDependencies
 					}
 					else
 					{
-						DownloadAndExtractFiles(NextPack.Url, NextPack.Proxy, NextPack.CacheFileName, NextPack.CompressedSize, NextPack.Hash, NextPack.Files, Size => { RollbackSize += Size; Interlocked.Add(ref State.NumBytesRead, Size); });
+						DownloadAndExtractFiles(NextPack.Url, NextPack.Proxy, NextPack.CacheFileName, NextPack.CompressedSize, NextPack.Hash, NextPack.Files, Size => { RollbackSize += Size; Interlocked.Add(ref State.NumBytesRead, Size); }).Wait();
 					}
 
 					// Update the stats
@@ -1229,23 +1238,21 @@ namespace GitDependencies
 			return false;
 		}
 
-		static void DownloadAndExtractFiles(string Url, Uri Proxy, string CacheFileName, long CompressedSize, string ExpectedHash, IncomingFile[] Files, NotifyReadDelegate NotifyRead)
+		static async Task DownloadAndExtractFiles(string Url, Uri Proxy, string CacheFileName, long CompressedSize, string ExpectedHash, IncomingFile[] Files, NotifyReadDelegate NotifyRead)
 		{
 			// Create the web request
-			WebRequest Request = WebRequest.Create(Url);
-			if(Proxy == null)
+			HttpClientHandler Handler = new HttpClientHandler();
+			if(Proxy != null)
 			{
-				Request.Proxy = null;
-			}
-			else
-			{
-				Request.Proxy = new WebProxy(Proxy, true, null, MakeCredentialsFromUri(Proxy));
+				Handler.Proxy = new WebProxy(Proxy, true, null, MakeCredentialsFromUri(Proxy));
 			}
 
+			HttpClient Client = new HttpClient(Handler);
+
 			// Read the response and extract the files
-			using (WebResponse Response = Request.GetResponse())
+			using (HttpResponseMessage Response = await Client.GetAsync(Url))
 			{
-				using (Stream ResponseStream = new NotifyReadStream(Response.GetResponseStream(), NotifyRead))
+				using (Stream ResponseStream = new NotifyReadStream(Response.Content.ReadAsStream(), NotifyRead))
 				{
 					if(CacheFileName == null)
 					{
@@ -1574,9 +1581,10 @@ namespace GitDependencies
 
 		static string ComputeHashForFile(string FileName)
 		{
+			SHA1 Hasher = SHA1.Create();
 			using(FileStream InputStream = File.OpenRead(FileName))
 			{
-				byte[] Hash = new SHA1CryptoServiceProvider().ComputeHash(InputStream);
+				byte[] Hash = Hasher.ComputeHash(InputStream);
 				return BitConverter.ToString(Hash).ToLower().Replace("-", "");
 			}
 		}
