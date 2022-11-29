@@ -198,6 +198,12 @@ void FOpenXREyeTracker::UpdateDeviceLocations(XrSession InSession, XrTime Displa
 		check(GazeActionSpace != XR_NULL_HANDLE);
 		XR_ENSURE(xrLocateSpace(GazeActionSpace, TrackingSpace, DisplayTime, &EyeTrackerSpaceLocation));
 	}
+	else
+	{
+		// Clear the tracked bits if the action is not active
+		const XrSpaceLocationFlags TrackedFlags = XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT | XR_SPACE_LOCATION_POSITION_TRACKED_BIT;
+		EyeTrackerSpaceLocation.locationFlags &= ~TrackedFlags;
+	}
 }
 
 bool FOpenXREyeTracker::GetEyeTrackerGazeData(FEyeTrackerGazeData& OutGazeData) const
