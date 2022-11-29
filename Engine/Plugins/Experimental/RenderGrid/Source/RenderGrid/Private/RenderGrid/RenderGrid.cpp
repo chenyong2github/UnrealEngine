@@ -9,7 +9,19 @@
 #include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MovieScene.h"
+#include "RenderGrid/RenderGridQueue.h"
 #include "UObject/ObjectSaveContext.h"
+
+
+URenderGridSettings::URenderGridSettings()
+	: PropsSourceType(ERenderGridPropsSourceType::RemoteControl)
+	, PropsSourceOrigin_RemoteControl(nullptr)
+	, CachedPropsSource(nullptr)
+	, CachedPropsSourceType(ERenderGridPropsSourceType::Local)
+	, CachedPropsSourceOriginWeakPtr(nullptr)
+{
+	SetFlags(RF_Public | RF_Transactional);
+}
 
 
 URenderGridDefaults::URenderGridDefaults()
@@ -47,14 +59,14 @@ TOptional<int32> URenderGridJob::GetSequenceStartFrame() const
 	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
+	const UMoviePipelineOutputSetting* MovieOutputSettings = GetRenderPresetOutputSettings();
 
-	if (bOverrideStartFrame || (IsValid(Settings) && Settings->bUseCustomPlaybackRange))
+	if (bOverrideStartFrame || (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomPlaybackRange))
 	{
-		int32 Frame = (bOverrideStartFrame ? CustomStartFrame : Settings->CustomStartFrame);
-		if (IsValid(Settings) && Settings->bUseCustomFrameRate)
+		int32 Frame = (bOverrideStartFrame ? CustomStartFrame : MovieOutputSettings->CustomStartFrame);
+		if (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomFrameRate)
 		{
-			return FMath::FloorToInt(Frame / (Settings->OutputFrameRate / DisplayRate).AsDecimal());
+			return FMath::FloorToInt(Frame / (MovieOutputSettings->OutputFrameRate / DisplayRate).AsDecimal());
 		}
 		return Frame;
 	}
@@ -73,14 +85,14 @@ TOptional<int32> URenderGridJob::GetSequenceEndFrame() const
 	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
+	const UMoviePipelineOutputSetting* MovieOutputSettings = GetRenderPresetOutputSettings();
 
-	if (bOverrideEndFrame || (IsValid(Settings) && Settings->bUseCustomPlaybackRange))
+	if (bOverrideEndFrame || (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomPlaybackRange))
 	{
-		int32 Frame = (bOverrideEndFrame ? CustomEndFrame : Settings->CustomEndFrame);
-		if (IsValid(Settings) && Settings->bUseCustomFrameRate)
+		int32 Frame = (bOverrideEndFrame ? CustomEndFrame : MovieOutputSettings->CustomEndFrame);
+		if (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomFrameRate)
 		{
-			return FMath::FloorToInt(Frame / (Settings->OutputFrameRate / DisplayRate).AsDecimal());
+			return FMath::FloorToInt(Frame / (MovieOutputSettings->OutputFrameRate / DisplayRate).AsDecimal());
 		}
 		return Frame;
 	}
@@ -156,10 +168,10 @@ TOptional<int32> URenderGridJob::GetStartFrame() const
 		return CustomStartFrame;
 	}
 
-	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
-	if (IsValid(Settings) && Settings->bUseCustomPlaybackRange)
+	const UMoviePipelineOutputSetting* MovieOutputSettings = GetRenderPresetOutputSettings();
+	if (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomPlaybackRange)
 	{
-		return Settings->CustomStartFrame;
+		return MovieOutputSettings->CustomStartFrame;
 	}
 
 	if (!IsValid(LevelSequence))
@@ -170,9 +182,9 @@ TOptional<int32> URenderGridJob::GetStartFrame() const
 	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
+	if (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomFrameRate)
 	{
-		DisplayRate = Settings->OutputFrameRate;
+		DisplayRate = MovieOutputSettings->OutputFrameRate;
 	}
 	const int32 StartFrameNumber = MovieScene->GetPlaybackRange().GetLowerBoundValue().Value;
 	return FMath::FloorToInt(StartFrameNumber / (TickResolution / DisplayRate).AsDecimal());
@@ -185,10 +197,10 @@ TOptional<int32> URenderGridJob::GetEndFrame() const
 		return CustomEndFrame;
 	}
 
-	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
-	if (IsValid(Settings) && Settings->bUseCustomPlaybackRange)
+	const UMoviePipelineOutputSetting* MovieOutputSettings = GetRenderPresetOutputSettings();
+	if (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomPlaybackRange)
 	{
-		return Settings->CustomEndFrame;
+		return MovieOutputSettings->CustomEndFrame;
 	}
 
 	if (!IsValid(LevelSequence))
@@ -199,9 +211,9 @@ TOptional<int32> URenderGridJob::GetEndFrame() const
 	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
+	if (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomFrameRate)
 	{
-		DisplayRate = Settings->OutputFrameRate;
+		DisplayRate = MovieOutputSettings->OutputFrameRate;
 	}
 	const int32 EndFrameNumber = MovieScene->GetPlaybackRange().GetUpperBoundValue().Value;
 	return FMath::FloorToInt(EndFrameNumber / (TickResolution / DisplayRate).AsDecimal());
@@ -220,13 +232,13 @@ TOptional<double> URenderGridJob::GetStartTime() const
 		return TOptional<double>();
 	}
 
-	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
+	const UMoviePipelineOutputSetting* MovieOutputSettings = GetRenderPresetOutputSettings();
 
 	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
+	if (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomFrameRate)
 	{
-		DisplayRate = Settings->OutputFrameRate;
+		DisplayRate = MovieOutputSettings->OutputFrameRate;
 	}
 	return StartFrame.Get(0) / DisplayRate.AsDecimal();
 }
@@ -244,13 +256,13 @@ TOptional<double> URenderGridJob::GetEndTime() const
 		return TOptional<double>();
 	}
 
-	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
+	const UMoviePipelineOutputSetting* MovieOutputSettings = GetRenderPresetOutputSettings();
 
 	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
+	if (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomFrameRate)
 	{
-		DisplayRate = Settings->OutputFrameRate;
+		DisplayRate = MovieOutputSettings->OutputFrameRate;
 	}
 	return EndFrame.Get(0) / DisplayRate.AsDecimal();
 }
@@ -269,13 +281,13 @@ TOptional<double> URenderGridJob::GetDurationInSeconds() const
 		return TOptional<double>();
 	}
 
-	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
+	const UMoviePipelineOutputSetting* MovieOutputSettings = GetRenderPresetOutputSettings();
 
 	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
+	if (IsValid(MovieOutputSettings) && MovieOutputSettings->bUseCustomFrameRate)
 	{
-		DisplayRate = Settings->OutputFrameRate;
+		DisplayRate = MovieOutputSettings->OutputFrameRate;
 	}
 	return (EndFrame.Get(0) - StartFrame.Get(0)) / DisplayRate.AsDecimal();
 }
@@ -286,19 +298,19 @@ FIntPoint URenderGridJob::GetOutputResolution() const
 	{
 		return CustomResolution;
 	}
-	if (UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings())
+	if (UMoviePipelineOutputSetting* MovieOutputSettings = GetRenderPresetOutputSettings())
 	{
-		return Settings->OutputResolution;
+		return MovieOutputSettings->OutputResolution;
 	}
 	return GetDefault<UMoviePipelineOutputSetting>()->OutputResolution;
 }
 
 double URenderGridJob::GetOutputAspectRatio() const
 {
-	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
-	if (IsValid(Settings))
+	const UMoviePipelineOutputSetting* MovieOutputSettings = GetRenderPresetOutputSettings();
+	if (IsValid(MovieOutputSettings))
 	{
-		return static_cast<double>(Settings->OutputResolution.X) / static_cast<double>(Settings->OutputResolution.Y);
+		return static_cast<double>(MovieOutputSettings->OutputResolution.X) / static_cast<double>(MovieOutputSettings->OutputResolution.Y);
 	}
 
 	const UMoviePipelineOutputSetting* DefaultSettings = GetDefault<UMoviePipelineOutputSetting>();
@@ -354,19 +366,19 @@ UMoviePipelineOutputSetting* URenderGridJob::GetRenderPresetOutputSettings() con
 	{
 		return nullptr;
 	}
-	for (UMoviePipelineSetting* Settings : RenderPreset->FindSettingsByClass(UMoviePipelineOutputSetting::StaticClass(), false))
+	for (UMoviePipelineSetting* MovieSettings : RenderPreset->FindSettingsByClass(UMoviePipelineOutputSetting::StaticClass(), false))
 	{
-		if (!IsValid(Settings))
+		if (!IsValid(MovieSettings))
 		{
 			continue;
 		}
-		if (UMoviePipelineOutputSetting* OutputSettings = Cast<UMoviePipelineOutputSetting>(Settings))
+		if (UMoviePipelineOutputSetting* MovieOutputSettings = Cast<UMoviePipelineOutputSetting>(MovieSettings))
 		{
-			if (!OutputSettings->IsEnabled())
+			if (!MovieOutputSettings->IsEnabled())
 			{
 				continue;
 			}
-			return OutputSettings;
+			return MovieOutputSettings;
 		}
 	}
 	return nullptr;
@@ -435,12 +447,9 @@ bool URenderGridJob::SetRemoteControlValue(const TSharedPtr<FRemoteControlEntity
 
 URenderGrid::URenderGrid()
 	: Guid(FGuid::NewGuid())
-	, PropsSourceType(ERenderGridPropsSourceType::RemoteControl)
-	, PropsSourceOrigin_RemoteControl(nullptr)
+	, Settings(CreateDefaultSubobject<URenderGridSettings>(TEXT("RenderGridSettings")))
 	, Defaults(CreateDefaultSubobject<URenderGridDefaults>(TEXT("RenderGridDefaults")))
 	, bExecutingBlueprintEvent(false)
-	, CachedPropsSource(nullptr)
-	, CachedPropsSourceType(ERenderGridPropsSourceType::Local)
 {
 	SetFlags(RF_Public);
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_DefaultSubObject))
@@ -451,12 +460,6 @@ URenderGrid::URenderGrid()
 
 UWorld* URenderGrid::GetWorld() const
 {
-	if (HasAllFlags(RF_ClassDefaultObject))
-	{
-		// If we are a CDO, we must return nullptr instead of calling Outer->GetWorld() to fool UObject::ImplementsGetWorld.
-		return nullptr;
-	}
-
 	for (const FWorldContext& Context : GEngine->GetWorldContexts())
 	{
 		if (Context.WorldType == EWorldType::PIE)
@@ -474,11 +477,15 @@ UWorld* URenderGrid::GetWorld() const
 	{
 		return CachedWorld;
 	}
-	UObject* Outer = GetOuter();// Could be a GameInstance, could be World, could also be a WidgetTree, so we're just going to follow the outer chain to find the world we're in.
-	while (Outer)
+	UObject* Outer = GetOuter(); // Could be a GameInstance, could be World, could also be a WidgetTree, so we're just going to follow the outer chain to find the world we're in.
+	while (IsValid(Outer))
 	{
-		UWorld* World = Outer->GetWorld();
-		if (IsValid(World))
+		if (UWorld* World = Cast<UWorld>(Outer); IsValid(World))
+		{
+			CachedWorldWeakPtr = World;
+			return World;
+		}
+		if (UWorld* World = Outer->GetWorld(); IsValid(World))
 		{
 			CachedWorldWeakPtr = World;
 			return World;
@@ -497,12 +504,24 @@ void URenderGrid::PostLoad()
 {
 	Super::PostLoad();
 
-	if (PropsSourceType == ERenderGridPropsSourceType::Local)
+	SetFlags(RF_Public);
+
+	if (!IsValid(Settings))
 	{
-		PropsSourceType = ERenderGridPropsSourceType::RemoteControl;
+		Settings = NewObject<URenderGridSettings>(this, TEXT("RenderGridSettings"));
+	}
+	Settings->SetFlags(RF_Public | RF_Transactional);
+	if (Settings->PropsSourceType == ERenderGridPropsSourceType::Local)
+	{
+		Settings->PropsSourceType = ERenderGridPropsSourceType::RemoteControl;
 	}
 
-	SetFlags(RF_Public);
+	if (!IsValid(Defaults))
+	{
+		Defaults = NewObject<URenderGridDefaults>(this, TEXT("RenderGridDefaults"));
+	}
+	Defaults->SetFlags(RF_Public | RF_Transactional);
+
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_DefaultSubObject))
 	{
 		ClearFlags(RF_Transactional);
@@ -514,11 +533,6 @@ void URenderGrid::PostLoad()
 			Job->SetFlags(RF_Public | RF_Transactional);
 		}
 	}
-	if (!IsValid(Defaults))
-	{
-		Defaults = NewObject<URenderGridDefaults>(this, TEXT("RenderGridDefaults"));
-	}
-	Defaults->SetFlags(RF_Public | RF_Transactional);
 }
 
 void URenderGrid::CopyJobs(URenderGrid* From)
@@ -618,34 +632,73 @@ void URenderGrid::EndViewportRender(URenderGridJob* Job)
 	bExecutingBlueprintEvent = false;
 }
 
+URenderGridQueue* URenderGrid::Render()
+{
+	return RenderJobs(GetEnabledRenderGridJobs());
+}
+
+URenderGridQueue* URenderGrid::RenderJobs(const TArray<URenderGridJob*>& Jobs)
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if (URenderGrid* DefaultObject = Cast<URenderGrid>(GetClass()->GetDefaultObject(true)); IsValid(DefaultObject))
+		{
+			CopyAllProperties(DefaultObject);
+			return DefaultObject->RenderJobs(Jobs);
+		}
+		return nullptr;
+	}
+
+	TArray<URenderGridJob*> JobsToRender;
+	for (URenderGridJob* Job : Jobs)
+	{
+		if (IsValid(Job) && HasRenderGridJob(Job))
+		{
+			JobsToRender.Add(Job);
+		}
+	}
+	if (URenderGridQueue* RenderQueue = UE::RenderGrid::IRenderGridModule::Get().GetManager().CreateBatchRenderQueue(this, Jobs); IsValid(RenderQueue))
+	{
+		RenderQueue->Execute();
+		return RenderQueue;
+	}
+	return nullptr;
+}
+
+URenderGridQueue* URenderGrid::RenderJob(URenderGridJob* Job)
+{
+	return RenderJobs({Job});
+}
+
 void URenderGrid::SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin)
 {
 	if (InPropsSourceType == ERenderGridPropsSourceType::RemoteControl)
 	{
-		PropsSourceType = InPropsSourceType;
-		PropsSourceOrigin_RemoteControl = Cast<URemoteControlPreset>(InPropsSourceOrigin);
+		Settings->PropsSourceType = InPropsSourceType;
+		Settings->PropsSourceOrigin_RemoteControl = Cast<URemoteControlPreset>(InPropsSourceOrigin);
 		return;
 	}
-	PropsSourceType = ERenderGridPropsSourceType::RemoteControl;
+	Settings->PropsSourceType = ERenderGridPropsSourceType::RemoteControl;
+	Settings->PropsSourceOrigin_RemoteControl = nullptr;
 }
 
 URenderGridPropsSourceBase* URenderGrid::GetPropsSource() const
 {
 	UObject* PropsSourceOrigin = GetPropsSourceOrigin();
-	if (!IsValid(CachedPropsSource) || (CachedPropsSourceType != PropsSourceType) || (CachedPropsSourceOriginWeakPtr.Get() != PropsSourceOrigin))
+	if (!IsValid(Settings->CachedPropsSource) || (Settings->CachedPropsSourceType != Settings->PropsSourceType) || (Settings->CachedPropsSourceOriginWeakPtr.Get() != PropsSourceOrigin))
 	{
-		CachedPropsSourceType = PropsSourceType;
-		CachedPropsSourceOriginWeakPtr = PropsSourceOrigin;
-		CachedPropsSource = UE::RenderGrid::IRenderGridModule::Get().CreatePropsSource(const_cast<URenderGrid*>(this), PropsSourceType, PropsSourceOrigin);
+		Settings->CachedPropsSourceType = Settings->PropsSourceType;
+		Settings->CachedPropsSourceOriginWeakPtr = PropsSourceOrigin;
+		Settings->CachedPropsSource = UE::RenderGrid::IRenderGridModule::Get().CreatePropsSource(const_cast<URenderGrid*>(this), Settings->PropsSourceType, PropsSourceOrigin);
 	}
-	return CachedPropsSource;
+	return Settings->CachedPropsSource;
 }
 
 UObject* URenderGrid::GetPropsSourceOrigin() const
 {
-	if (PropsSourceType == ERenderGridPropsSourceType::RemoteControl)
+	if (Settings->PropsSourceType == ERenderGridPropsSourceType::RemoteControl)
 	{
-		return PropsSourceOrigin_RemoteControl;
+		return Settings->PropsSourceOrigin_RemoteControl;
 	}
 	return nullptr;
 }
@@ -656,19 +709,19 @@ UMoviePipelineOutputSetting* URenderGrid::GetDefaultRenderPresetOutputSettings()
 	{
 		return nullptr;
 	}
-	for (UMoviePipelineSetting* Settings : Defaults->RenderPreset->FindSettingsByClass(UMoviePipelineOutputSetting::StaticClass(), false))
+	for (UMoviePipelineSetting* MovieSettings : Defaults->RenderPreset->FindSettingsByClass(UMoviePipelineOutputSetting::StaticClass(), false))
 	{
-		if (!IsValid(Settings))
+		if (!IsValid(MovieSettings))
 		{
 			continue;
 		}
-		if (UMoviePipelineOutputSetting* OutputSettings = Cast<UMoviePipelineOutputSetting>(Settings))
+		if (UMoviePipelineOutputSetting* MovieOutputSettings = Cast<UMoviePipelineOutputSetting>(MovieSettings))
 		{
-			if (!OutputSettings->IsEnabled())
+			if (!MovieOutputSettings->IsEnabled())
 			{
 				continue;
 			}
-			return OutputSettings;
+			return MovieOutputSettings;
 		}
 	}
 	return nullptr;

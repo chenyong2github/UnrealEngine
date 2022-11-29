@@ -49,10 +49,6 @@ namespace UE::RenderGrid::Private
 		void Refresh();
 
 	private:
-		void OnBatchRenderingStarted(URenderGridQueue* Queue) { Refresh(); }
-		void OnBatchRenderingFinished(URenderGridQueue* Queue) { Refresh(); }
-
-	private:
 		/** A reference to the blueprint editor that owns the render grid instance. */
 		TWeakPtr<IRenderGridEditor> BlueprintEditorWeakPtr;
 

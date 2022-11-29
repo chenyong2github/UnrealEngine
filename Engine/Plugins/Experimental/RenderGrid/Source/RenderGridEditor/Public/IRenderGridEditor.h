@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BlueprintEditor.h"
+#include "RenderGrid/RenderGridQueue.h"
 
 
 class URenderGridQueue;
@@ -38,10 +39,13 @@ namespace UE::RenderGrid
 		virtual TSharedPtr<Private::FRenderGridBlueprintEditorToolbar> GetRenderGridToolbarBuilder() = 0;
 
 		/** Returns whether it is currently rendering or playing (so changes in the level and such should be ignored). */
-		virtual bool IsCurrentlyRenderingOrPlaying() const { return IsBatchRendering() || IsPreviewRendering() || IsValid(GEditor->PlayWorld); }
+		virtual bool IsCurrentlyRenderingOrPlaying() const { return IsBatchRendering() || IsPreviewRendering() || URenderGridQueue::IsExecutingAny() || IsValid(GEditor->PlayWorld); }
 
 		/** Returns whether it can currently render (like a preview render or a batch render) or not. */
 		virtual bool CanCurrentlyRender() const { return !IsCurrentlyRenderingOrPlaying(); }
+
+		/** Returns whether it is should currently hide the UI for things to not cause any bugs (like during rendering etc). */
+		virtual bool ShouldHideUI() const { return (IsCurrentlyRenderingOrPlaying() && !IsPreviewRendering()); }
 
 		/** Returns whether it is currently batch rendering or not. */
 		virtual bool IsBatchRendering() const = 0;
@@ -76,11 +80,8 @@ namespace UE::RenderGrid
 		DECLARE_MULTICAST_DELEGATE(FOnRenderGridJobsSelectionChanged);
 		virtual FOnRenderGridJobsSelectionChanged& OnRenderGridJobsSelectionChanged() { return OnRenderGridJobsSelectionChangedDelegate; }
 
-		DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderGridBatchRenderingStarted, URenderGridQueue*);
-		virtual FOnRenderGridBatchRenderingStarted& OnRenderGridBatchRenderingStarted() { return OnRenderGridBatchRenderingStartedDelegate; }
-
-		DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderGridBatchRenderingFinished, URenderGridQueue*);
-		virtual FOnRenderGridBatchRenderingFinished& OnRenderGridBatchRenderingFinished() { return OnRenderGridBatchRenderingFinishedDelegate; }
+		DECLARE_MULTICAST_DELEGATE(FOnRenderGridShouldHideUIChanged);
+		virtual FOnRenderGridShouldHideUIChanged& OnRenderGridShouldHideUIChanged() { return OnRenderGridShouldHideUIChangedDelegate; }
 
 		DECLARE_MULTICAST_DELEGATE(FOnRenderGridPreviewRenderedFirstTimeSinceAppStart)
 		virtual FOnRenderGridPreviewRenderedFirstTimeSinceAppStart& OnRenderGridPreviewRenderedFirstTimeSinceAppStart() { return OnRenderGridPreviewRenderedFirstTimeSinceAppStartDelegate; }
@@ -95,11 +96,8 @@ namespace UE::RenderGrid
 		/** The delegate for when the selection of render grid jobs changed. */
 		FOnRenderGridJobsSelectionChanged OnRenderGridJobsSelectionChangedDelegate;
 
-		/** The delegate for when batch rendering of a render grid has started. */
-		FOnRenderGridBatchRenderingStarted OnRenderGridBatchRenderingStartedDelegate;
-
-		/** The delegate for when batch rendering of a render grid has finished, successfully or not. */
-		FOnRenderGridBatchRenderingFinished OnRenderGridBatchRenderingFinishedDelegate;
+		/** The delegate for when the the result of ShouldHideUI() has changed. */
+		FOnRenderGridShouldHideUIChanged OnRenderGridShouldHideUIChangedDelegate;
 
 		/** The delegate for the first time (since the start of this application) that the preview is rendered. */
 		FOnRenderGridPreviewRenderedFirstTimeSinceAppStart OnRenderGridPreviewRenderedFirstTimeSinceAppStartDelegate;

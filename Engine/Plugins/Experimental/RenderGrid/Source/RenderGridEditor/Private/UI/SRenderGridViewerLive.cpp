@@ -25,7 +25,7 @@ UE::RenderGrid::Private::FRenderGridEditorViewportClient::FRenderGridEditorViewp
 
 	bDisableInput = true;
 	SetGameView(true);
-	SetRealtime(false);// we manually render every frame, because automatic rendering stops temporarily when you're dragging another widget (with the mouse)
+	SetRealtime(false); // we manually render every frame, because automatic rendering stops temporarily when you're dragging another widget (with the mouse)
 }
 
 
@@ -83,7 +83,7 @@ void UE::RenderGrid::Private::SRenderGridEditorViewport::Render()
 
 				BlueprintEditor->SetIsDebugging(true);
 
-				SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequenceTime, EUpdatePositionMethod::Play));// execute this every tick, in case any sequencer values get overwritten (by remote control props for example)
+				SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequenceTime, EUpdatePositionMethod::Play)); // execute this every tick, in case any sequencer values get overwritten (by remote control props for example)
 				Grid->BeginViewportRender(RenderGridJob);
 
 				if (UCameraComponent* Camera = SequencePlayer->GetActiveCameraComponent(); IsValid(Camera))
@@ -222,7 +222,7 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::Construct(const FArguments&
 		.OnValueChanged(this, &SRenderGridViewerLive::FrameSliderValueChanged);
 
 	SelectedJobChanged();
-	ViewportWidget->Render();// prevents the waiting text from showing up for 1 frame when switching from any other viewer mode to the live viewer mode
+	ViewportWidget->Render(); // prevents the waiting text from showing up for 1 frame when switching from any other viewer mode to the live viewer mode
 
 	InBlueprintEditor->OnRenderGridChanged().AddSP(this, &SRenderGridViewerLive::RenderGridJobDataChanged);
 	InBlueprintEditor->OnRenderGridJobsSelectionChanged().AddSP(this, &SRenderGridViewerLive::SelectedJobChanged);

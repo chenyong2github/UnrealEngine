@@ -54,7 +54,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::Tick(const FGeometry&, const d
 {
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		if (RenderGridWeakPtr != BlueprintEditor->GetInstance())
+		if ((RenderGridWeakPtr != BlueprintEditor->GetInstance()) || (BlueprintEditor->IsBatchRendering() != bPreviousIsBatchRendering))
 		{
 			Refresh();
 		}
@@ -73,8 +73,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::Construct(const FArguments& In
 	Refresh();
 	InBlueprintEditor->OnRenderGridJobCreated().AddSP(this, &SRenderGridJobList::OnRenderGridJobCreated);
 	InBlueprintEditor->OnRenderGridChanged().AddSP(this, &SRenderGridJobList::Refresh);
-	InBlueprintEditor->OnRenderGridBatchRenderingStarted().AddSP(this, &SRenderGridJobList::OnBatchRenderingStarted);
-	InBlueprintEditor->OnRenderGridBatchRenderingFinished().AddSP(this, &SRenderGridJobList::OnBatchRenderingFinished);
+	InBlueprintEditor->OnRenderGridJobsSelectionChanged().AddSP(this, &SRenderGridJobList::Refresh);
 	FCoreUObjectDelegates::OnObjectModified.AddSP(this, &SRenderGridJobList::OnObjectModified);
 
 	ChildSlot
@@ -313,7 +312,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::Refresh()
 {
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		const bool bIsBatchRendering = BlueprintEditor->IsBatchRendering();// show all jobs during a batch render, ignore the search bar
+		bPreviousIsBatchRendering = BlueprintEditor->IsBatchRendering(); // show all jobs during a batch render, ignore the search bar
 		const FString SearchBarContent = (!RenderGridSearchBox.IsValid() ? TEXT("") : RenderGridSearchBox->GetText().ToString());
 
 		RenderGridJobs.Empty();
@@ -322,7 +321,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::Refresh()
 		{
 			for (URenderGridJob* Job : Grid->GetRenderGridJobs())
 			{
-				if (bIsBatchRendering || Job->MatchesSearchTerm(SearchBarContent))
+				if (bPreviousIsBatchRendering || Job->MatchesSearchTerm(SearchBarContent))
 				{
 					RenderGridJobs.Add(Job);
 				}
@@ -332,7 +331,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::Refresh()
 		RefreshHeaderEnabledCheckbox();
 
 		RemoveRenderStatusColumn();
-		if (bIsBatchRendering)
+		if (bPreviousIsBatchRendering)
 		{
 			AddRenderStatusColumn();
 		}
@@ -347,7 +346,6 @@ void UE::RenderGrid::Private::SRenderGridJobList::Refresh()
 			});
 			RenderGridJobListWidget->ClearSelection();
 			RenderGridJobListWidget->SetItemSelection(SelectedJobs, true);
-			BlueprintEditor->SetSelectedRenderGridJobs(SelectedJobs);
 		}
 	}
 }

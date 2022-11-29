@@ -157,7 +157,7 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridRemoteControlField::Cons
 			Generator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(Args);
 			Generator->SetObjects({Objects[0]});
 
-			if (TSharedPtr<IDetailTreeNode> Node = RenderGridWidgetUtils::FindNode(Generator->GetRootTreeNodes(), Field->FieldPathInfo.ToPathPropertyString(), RenderGridWidgetUtils::ERenderGridFindNodeMethod::Path))
+			if (const TSharedPtr<IDetailTreeNode> Node = RenderGridWidgetUtils::FindNode(Generator->GetRootTreeNodes(), Field->FieldPathInfo.ToPathPropertyString(), RenderGridWidgetUtils::ERenderGridFindNodeMethod::Path))
 			{
 				TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
 				Node->GetChildren(ChildNodes);

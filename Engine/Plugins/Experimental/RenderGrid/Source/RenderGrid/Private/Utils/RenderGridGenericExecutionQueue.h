@@ -131,7 +131,7 @@ namespace UE::RenderGrid::Private
 		void Stop();
 
 		/** Returns true if Start() has been called and Stop() hasn't been called yet. */
-		bool IsRunning() { return bStarted; }
+		bool IsRunning() { return bRunning; }
 
 	protected:
 		/** Executes the next delay (if there are any), otherwise it executes the next entry (action). */
@@ -155,7 +155,7 @@ namespace UE::RenderGrid::Private
 
 	protected:
 		/** Whether it has started (and hasn't been stopped/paused yet). This means that if this is true, Start() has been called, and Stop() hasn't been called yet since then. */
-		bool bStarted = false;
+		bool bRunning = false;
 
 		/** Whether it's currently executing a delay or an entry (action). False means there were no delays and entries queued up anymore. */
 		bool bExecuting = false;

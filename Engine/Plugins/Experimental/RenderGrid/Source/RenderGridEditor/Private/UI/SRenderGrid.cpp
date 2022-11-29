@@ -19,7 +19,7 @@ void UE::RenderGrid::Private::SRenderGrid::Tick(const FGeometry&, const double, 
 		{
 			if (URenderGrid* Grid = BlueprintEditor->GetInstance())
 			{
-				if (!IsValid(Grid) || BlueprintEditor->IsBatchRendering())
+				if (!IsValid(Grid) || BlueprintEditor->ShouldHideUI())
 				{
 					Grid = nullptr;
 				}
@@ -48,6 +48,7 @@ void UE::RenderGrid::Private::SRenderGrid::Construct(const FArguments& InArgs, T
 	DetailsViewArgs.NotifyHook = this;
 
 	RenderGridDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	RenderGridSettingsDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	RenderGridDefaultsDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
 	SetRenderGrid(InBlueprintEditor->GetInstance());
@@ -60,6 +61,12 @@ void UE::RenderGrid::Private::SRenderGrid::Construct(const FArguments& InArgs, T
 		.AutoHeight()
 		[
 			RenderGridDetailsView->AsShared()
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			RenderGridSettingsDetailsView->AsShared()
 		]
 
 		+ SVerticalBox::Slot()
@@ -89,6 +96,7 @@ void UE::RenderGrid::Private::SRenderGrid::SetRenderGrid(URenderGrid* RenderGrid
 {
 	RenderGridWeakPtr = RenderGrid;
 	RenderGridDetailsView->SetObject(RenderGrid);
+	RenderGridSettingsDetailsView->SetObject(IsValid(RenderGrid) ? RenderGrid->GetSettingsObject() : nullptr);
 	RenderGridDefaultsDetailsView->SetObject(IsValid(RenderGrid) ? RenderGrid->GetDefaultsObject() : nullptr);
 }
 

@@ -44,6 +44,43 @@ public:
  * This is placed in a separate class, primarily so that it be separated easily from the render grid when using the details view widget.
  */
 UCLASS()
+class RENDERGRID_API URenderGridSettings : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	URenderGridSettings();
+
+public:
+	/** The type of the properties that a job in this grid can have. */
+	UPROPERTY(/*EditInstanceOnly, Category="Render Grid", Meta=(DisplayName="Properties Type")*/)
+	ERenderGridPropsSourceType PropsSourceType;
+
+	/** The remote control properties that a job in this grid can have, only use this if PropsSourceType is ERenderGridPropsSourceType::RemoteControl. */
+	UPROPERTY(EditInstanceOnly, Category="Render Grid", Meta=(DisplayName="Remote Control Preset" /*, EditCondition="PropsSourceType == ERenderGridPropsSourceType::RemoteControl", EditConditionHides*/))
+	TObjectPtr<URemoteControlPreset> PropsSourceOrigin_RemoteControl;
+
+public:
+	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the result (the PropsSource) that has been last outputted by that function. */
+	UPROPERTY(Transient)
+	mutable TObjectPtr<URenderGridPropsSourceBase> CachedPropsSource;
+
+	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the PropsSourceType last used in that function. */
+	UPROPERTY(Transient)
+	mutable ERenderGridPropsSourceType CachedPropsSourceType;
+
+	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the PropsSourceOrigin last used in that function. */
+	UPROPERTY(Transient)
+	mutable TWeakObjectPtr<UObject> CachedPropsSourceOriginWeakPtr;
+};
+
+
+/**
+ * This class contains the default values of render grid jobs.
+ *
+ * This is placed in a separate class, primarily so that it be separated easily from the render grid when using the details view widget.
+ */
+UCLASS()
 class RENDERGRID_API URenderGridDefaults : public UObject
 {
 	GENERATED_BODY()
@@ -445,6 +482,19 @@ public:
 	virtual void EndViewportRender(URenderGridJob* Job);
 
 public:
+	/** Renders all the enabled jobs of this render grid. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid")
+	URenderGridQueue* Render();
+
+	/** Renders all the given jobs of this render grid. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid")
+	URenderGridQueue* RenderJobs(const TArray<URenderGridJob*>& Jobs);
+
+	/** Renders the given job of this render grid. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid")
+	URenderGridQueue* RenderJob(URenderGridJob* Job);
+
+public:
 	/** Returns the GUID, which is randomly generated at creation. */
 	UFUNCTION(BlueprintPure, Category="Render Grid")
 	FGuid GetGuid() const { return Guid; }
@@ -452,6 +502,9 @@ public:
 	/** Randomly generates a new GUID. */
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
 	void GenerateNewGuid() { Guid = FGuid::NewGuid(); }
+
+public:
+	URenderGridSettings* GetSettingsObject() { return Settings; }
 
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
 	void SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin = nullptr);
@@ -467,7 +520,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category="Render Grid")
-	ERenderGridPropsSourceType GetPropsSourceType() const { return PropsSourceType; }
+	ERenderGridPropsSourceType GetPropsSourceType() const { return Settings->PropsSourceType; }
 
 	UFUNCTION(BlueprintPure, Category="Render Grid")
 	UObject* GetPropsSourceOrigin() const;
@@ -504,7 +557,7 @@ public:
 public:
 	UFUNCTION(BlueprintCallable, Category="Render Grid", Meta=(Keywords="remove delete all"))
 	void ClearRenderGridJobs();
-	
+
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
 	void SetRenderGridJobs(const TArray<URenderGridJob*>& Jobs);
 
@@ -582,21 +635,15 @@ private:
 	FGuid Guid;
 
 
-	/** The type of the properties that a job in this grid can have. */
-	UPROPERTY(/*EditInstanceOnly, Category="Render Grid", Meta=(DisplayName="Properties Type", AllowPrivateAccess="true")*/)
-	ERenderGridPropsSourceType PropsSourceType;
-
-	/** The remote control properties that a job in this grid can have, only use this if PropsSourceType is ERenderGridPropsSourceType::RemoteControl. */
-	UPROPERTY(EditInstanceOnly, Category="Render Grid", Meta=(DisplayName="Remote Control Preset", AllowPrivateAccess="true" /*, EditCondition="PropsSourceType == ERenderGridPropsSourceType::RemoteControl", EditConditionHides*/))
-	TObjectPtr<URemoteControlPreset> PropsSourceOrigin_RemoteControl;
-
+	/** The settings of this render grid. */
+	UPROPERTY(Instanced)
+	TObjectPtr<URenderGridSettings> Settings;
 
 	/** The default values for new jobs. */
 	UPROPERTY(Instanced)
 	TObjectPtr<URenderGridDefaults> Defaults;
 
-
-	/** The jobs of this grid. */
+	/** The jobs of this render grid. */
 	UPROPERTY(Instanced)
 	TArray<TObjectPtr<URenderGridJob>> RenderGridJobs;
 
@@ -604,19 +651,6 @@ private:
 	/** True when it's currently executing a blueprint event, false otherwise. */
 	UPROPERTY(Transient)
 	bool bExecutingBlueprintEvent;
-
-
-	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the result (the PropsSource) that has been last outputted by that function. */
-	UPROPERTY(Transient)
-	mutable TObjectPtr<URenderGridPropsSourceBase> CachedPropsSource;
-
-	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the PropsSourceType last used in that function. */
-	UPROPERTY(Transient)
-	mutable ERenderGridPropsSourceType CachedPropsSourceType;
-
-	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the PropsSourceOrigin last used in that function. */
-	UPROPERTY(Transient)
-	mutable TWeakObjectPtr<UObject> CachedPropsSourceOriginWeakPtr;
 
 
 	/** GetWorld calls can be expensive, we speed them up by caching the last found world until it goes away. */

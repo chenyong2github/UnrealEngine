@@ -137,7 +137,7 @@ URenderGridMoviePipelineRenderJob* URenderGridMoviePipelineRenderJob::Create(URe
 		// anti-aliasing settings already present (and enabled)
 		if ((UE::MovieRenderPipeline::GetEffectiveAntiAliasingMethod(ExistingAntiAliasingSettings) == AAM_FXAA) && (ExistingAntiAliasingSettings->SpatialSampleCount <= 1) && (ExistingAntiAliasingSettings->TemporalSampleCount <= 1))
 		{
-			ExistingAntiAliasingSettings->TemporalSampleCount = 2;// FXAA transparency fix
+			ExistingAntiAliasingSettings->TemporalSampleCount = 2; // FXAA transparency fix
 		}
 	}
 	else if (UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = Cast<UMoviePipelineAntiAliasingSetting>(NewJob->GetConfiguration()->FindOrAddSettingByClass(UMoviePipelineAntiAliasingSetting::StaticClass())))
@@ -303,6 +303,75 @@ void URenderGridMoviePipelineRenderJob::ExecuteFinished(UMoviePipelineExecutorBa
 }
 
 
+TQueue<TObjectPtr<URenderGridQueue>> URenderGridQueue::ExecutingQueues;
+URenderGridQueue::FOnExecutionQueueChanged URenderGridQueue::OnExecutionQueueChangedDelegate;
+
+bool URenderGridQueue::IsExecutingAny()
+{
+	return (GetCurrentlyExecutingQueue() != nullptr);
+}
+
+URenderGridQueue* URenderGridQueue::GetCurrentlyExecutingQueue()
+{
+	bool bRemovedAny = false;
+	while (TObjectPtr<URenderGridQueue>* CurrentlyExecutingQueue = ExecutingQueues.Peek())
+	{
+		URenderGridQueue* Queue = CurrentlyExecutingQueue->Get();
+		if (!IsValid(Queue))
+		{
+			ExecutingQueues.Pop();
+			bRemovedAny = true;
+			continue;
+		}
+		if (bRemovedAny)
+		{
+			if (!Queue->bPaused)
+			{
+				Queue->Queue->Start();
+			}
+			OnExecutionQueueChanged().Broadcast();
+		}
+		return Queue;
+	}
+	return nullptr;
+}
+
+void URenderGridQueue::AddExecutingQueue(URenderGridQueue* Queue)
+{
+	ExecutingQueues.Enqueue(Queue);
+	if ((GetCurrentlyExecutingQueue() == Queue) && !Queue->bPaused)
+	{
+		Queue->Queue->Start(); // can be called twice here, which is fine (once in GetCurrentlyExecutingQueue() if the previous Queue became invalid, and then once again here)
+	}
+	OnExecutionQueueChanged().Broadcast();
+}
+
+void URenderGridQueue::DoNextExecutingQueue()
+{
+	ExecutingQueues.Pop();
+	if (URenderGridQueue* Queue = GetCurrentlyExecutingQueue())
+	{
+		if (!Queue->bPaused)
+		{
+			Queue->Queue->Start(); // can be called twice here, which is fine (once in GetCurrentlyExecutingQueue() if the previous Queue became invalid, and then once again here)
+		}
+	}
+	OnExecutionQueueChanged().Broadcast();
+}
+
+
+void URenderGridQueue::Tick(float DeltaTime)
+{
+	if (bStarted && bFinished)
+	{
+		if (OnExecuteFinishedDelegate.IsBound())
+		{
+			OnExecuteFinishedDelegate.Broadcast(this, !bCanceled);
+			OnExecuteFinishedDelegate.Clear();
+		}
+	}
+}
+
 URenderGridQueue* URenderGridQueue::Create(const UE::RenderGrid::FRenderGridQueueCreateArgs& Args)
 {
 	URenderGrid* RenderGrid = Args.RenderGrid.Get();
@@ -315,7 +384,9 @@ URenderGridQueue* URenderGridQueue::Create(const UE::RenderGrid::FRenderGridQueu
 	RenderQueue->Args = Args;
 	RenderQueue->Queue = MakeShareable(new UE::RenderGrid::Private::FRenderGridGenericExecutionQueue);
 	RenderQueue->RenderGrid = RenderGrid;
+	RenderQueue->bStarted = false;
 	RenderQueue->bCanceled = false;
+	RenderQueue->bFinished = false;
 
 	for (const TStrongObjectPtr<URenderGridJob>& JobPtr : Args.RenderGridJobs)
 	{
@@ -329,18 +400,13 @@ URenderGridQueue* URenderGridQueue::Create(const UE::RenderGrid::FRenderGridQueu
 
 void URenderGridQueue::Execute()
 {
-	if (Queue->IsRunning())
-	{
-		return;
-	}
-
 	OnStart();
 }
 
 
 void URenderGridQueue::AddJob(URenderGridJob* Job)
 {
-	if (!IsValid(Job) || bCanceled)
+	if (!IsValid(Job) || bCanceled || bFinished)
 	{
 		return;
 	}
@@ -354,17 +420,25 @@ void URenderGridQueue::AddJob(URenderGridJob* Job)
 
 void URenderGridQueue::Pause()
 {
-	Queue->Stop();
+	bPaused = true;
+	if (bStarted && !bCanceled && !bFinished)
+	{
+		Queue->Stop();
+	}
 }
 
 void URenderGridQueue::Resume()
 {
-	Queue->Start();
+	bPaused = false;
+	if (bStarted && !bCanceled && !bFinished)
+	{
+		Queue->Start();
+	}
 }
 
 void URenderGridQueue::Cancel()
 {
-	if (bCanceled)
+	if (bCanceled || bFinished)
 	{
 		return;
 	}
@@ -439,7 +513,7 @@ int32 URenderGridQueue::GetJobsCount() const
 
 int32 URenderGridQueue::GetJobsRemainingCount() const
 {
-	if (bCanceled)
+	if (bCanceled || bFinished)
 	{
 		return 0;
 	}
@@ -468,7 +542,7 @@ int32 URenderGridQueue::GetJobsCompletedCount() const
 
 float URenderGridQueue::GetStatusPercentage() const
 {
-	if (bCanceled)
+	if (bCanceled || bFinished)
 	{
 		return 100.0;
 	}
@@ -484,9 +558,21 @@ float URenderGridQueue::GetStatusPercentage() const
 
 FString URenderGridQueue::GetStatus() const
 {
-	if (bCanceled)
+	if (bCanceled || bFinished)
 	{
 		return TEXT("Done");
+	}
+	if (!bStarted)
+	{
+		return TEXT("Waiting to be executed");
+	}
+	if (!IsCurrentlyRendering())
+	{
+		return TEXT("Waiting in queue");
+	}
+	if (bPaused)
+	{
+		return TEXT("Paused");
 	}
 	return TEXT("Rendering...");
 }
@@ -494,7 +580,14 @@ FString URenderGridQueue::GetStatus() const
 
 void URenderGridQueue::OnStart()
 {
+	if (bStarted || bCanceled || bFinished)
+	{
+		return;
+	}
+	bStarted = true;
+
 	OnExecuteStartedDelegate.Broadcast(this);
+	OnExecuteStartedDelegate.Clear();
 	AddToRoot();
 
 	Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueAction::CreateLambda([this]()
@@ -507,19 +600,22 @@ void URenderGridQueue::OnStart()
 	{
 		Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueAction::CreateLambda([this]()
 		{
-			RenderGrid->BeginBatchRender(this);
+			if (IsValid(RenderGrid))
+			{
+				RenderGrid->BeginBatchRender(this);
+			}
 		}));
 		Queue->DelayFrames(2);
 	}
 
-	OnProcessJob(nullptr);// starts the job execution queueing
+	OnProcessJob(nullptr); // starts the job execution queueing
 
-	Queue->Start();
+	AddExecutingQueue(this);
 }
 
 void URenderGridQueue::OnProcessJob(URenderGridJob* Job)
 {
-	if (IsValid(Job) && !bCanceled)
+	if (IsValid(Job) && !bCanceled && !bFinished)
 	{
 		if (TObjectPtr<URenderGridMoviePipelineRenderJob>* EntryPtr = Entries.Find(Job))
 		{
@@ -527,13 +623,19 @@ void URenderGridQueue::OnProcessJob(URenderGridJob* Job)
 			{
 				Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueActionReturningDelay::CreateLambda([this, Job]() -> UE::RenderGrid::Private::FRenderGridGenericExecutionQueueDelay
 				{
-					PreviousProps = UE::RenderGrid::IRenderGridModule::Get().GetManager().ApplyJobPropValues(RenderGrid, Job);
-					return UE::RenderGrid::Private::FRenderGridGenericExecutionQueueDelay::Frames(2 + Job->GetWaitFramesBeforeRendering());
+					if (IsValid(RenderGrid))
+					{
+						PreviousProps = UE::RenderGrid::IRenderGridModule::Get().GetManager().ApplyJobPropValues(RenderGrid, Job);
+					}
+					return UE::RenderGrid::Private::FRenderGridGenericExecutionQueueDelay::Frames(2 + (IsValid(RenderGrid) ? Job->GetWaitFramesBeforeRendering() : 0));
 				}));
 
 				Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueAction::CreateLambda([this, Job]()
 				{
-					RenderGrid->BeginJobRender(this, Job);
+					if (IsValid(RenderGrid) && IsValid(Job))
+					{
+						RenderGrid->BeginJobRender(this, Job);
+					}
 				}));
 
 				Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueActionReturningDelayFuture::CreateLambda([Entry]() -> TSharedFuture<void>
@@ -543,7 +645,10 @@ void URenderGridQueue::OnProcessJob(URenderGridJob* Job)
 
 				Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueAction::CreateLambda([this, Job]()
 				{
-					RenderGrid->EndJobRender(this, Job);
+					if (IsValid(RenderGrid) && IsValid(Job))
+					{
+						RenderGrid->EndJobRender(this, Job);
+					}
 				}));
 
 				Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueActionReturningDelay::CreateLambda([this]() -> UE::RenderGrid::Private::FRenderGridGenericExecutionQueueDelay
@@ -566,7 +671,7 @@ void URenderGridQueue::OnProcessJob(URenderGridJob* Job)
 
 	Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueAction::CreateLambda([this]()
 	{
-		while (!RemainingJobs.IsEmpty() && !bCanceled)
+		while (!RemainingJobs.IsEmpty() && !bCanceled && !bFinished)
 		{
 			TObjectPtr<URenderGridJob> NextJob = RemainingJobs[0];
 			RemainingJobs.RemoveAt(0, 1, false);
@@ -577,16 +682,36 @@ void URenderGridQueue::OnProcessJob(URenderGridJob* Job)
 				return;
 			}
 		}
-		OnFinish();
+
+		Queue->DelayFrames(2);
+		Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueAction::CreateLambda([this]()
+		{
+			OnFinish();
+		}));
 	}));
 }
 
 void URenderGridQueue::OnFinish()
 {
-	bool bSuccess = !bCanceled;
-	Cancel();// to prevent any new jobs from being added to it
+	if (bFinished)
+	{
+		return;
+	}
+	bFinished = true; // prevents any new jobs from being added to it
 
-	if (Args.bIsBatchRender)
+	if (!bStarted)
+	{
+		return;
+	}
+
+	if (GetCurrentlyExecutingQueue() == this)
+	{
+		DoNextExecutingQueue(); // will start the next queue (during the next tick)
+	}
+
+	Queue->Stop();
+
+	if (Args.bIsBatchRender && IsValid(RenderGrid))
 	{
 		RenderGrid->EndBatchRender(this);
 	}
@@ -595,5 +720,7 @@ void URenderGridQueue::OnFinish()
 	PreviousFrameLimitSettings = FRenderGridPreviousEngineFpsSettings();
 
 	RemoveFromRoot();
-	OnExecuteFinishedDelegate.Broadcast(this, bSuccess);
+
+	OnExecuteFinishedDelegate.Broadcast(this, !bCanceled);
+	OnExecuteFinishedDelegate.Clear();
 }

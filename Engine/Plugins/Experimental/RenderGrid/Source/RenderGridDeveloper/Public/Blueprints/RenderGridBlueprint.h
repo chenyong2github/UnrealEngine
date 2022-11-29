@@ -59,9 +59,17 @@ public:
 	void PropagateAllPropertiesToAsset(URenderGrid* Instance);
 
 public:
-	/** Returns the RenderGrid reference that this RenderGrid asset contains. */
+	/** Returns the RenderGrid reference that this RenderGrid asset contains. This is simply the data representation of the render grid, meaning that it won't contain a blueprint graph or any user code. */
 	UFUNCTION(BlueprintPure, Category="Render Grid")
 	URenderGrid* GetRenderGrid() const { return RenderGrid; }
+
+	/** Returns the RenderGrid reference that this RenderGrid asset contains. This will be the subclass of the blueprint class, meaning it will contain a blueprint graph. */
+	UFUNCTION(BlueprintPure, Category="Render Grid")
+	URenderGrid* GetRenderGridWithBlueprintGraph() const;
+
+	/** Returns the RenderGrid reference that this RenderGrid asset contains. This will be the default object of the subclass of the blueprint class, meaning it will contain a blueprint graph. */
+	UFUNCTION(BlueprintPure, Category="Render Grid")
+	URenderGrid* GetRenderGridClassDefaultObject() const;
 
 private:
 	virtual void OnPostVariablesChange(UBlueprint* InBlueprint);

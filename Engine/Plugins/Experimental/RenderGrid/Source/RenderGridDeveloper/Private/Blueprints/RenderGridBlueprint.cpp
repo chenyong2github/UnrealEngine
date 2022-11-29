@@ -66,7 +66,7 @@ void URenderGridBlueprint::RunOnInstances(const UE::RenderGrid::FRenderGridBluep
 {
 	if (UClass* MyRenderGridClass = GeneratedClass; IsValid(MyRenderGridClass))
 	{
-		if (URenderGrid* DefaultObject = Cast<URenderGrid>(MyRenderGridClass->GetDefaultObject(false)); IsValid(DefaultObject))
+		if (URenderGrid* DefaultObject = Cast<URenderGrid>(MyRenderGridClass->GetDefaultObject(true)); IsValid(DefaultObject))
 		{
 			Callback.ExecuteIfBound(DefaultObject);
 
@@ -95,7 +95,7 @@ void URenderGridBlueprint::Save()
 {
 	if (UClass* MyRenderGridClass = GeneratedClass; IsValid(MyRenderGridClass))
 	{
-		if (URenderGrid* DefaultObject = Cast<URenderGrid>(MyRenderGridClass->GetDefaultObject(false)); IsValid(DefaultObject))
+		if (URenderGrid* DefaultObject = Cast<URenderGrid>(MyRenderGridClass->GetDefaultObject(true)); IsValid(DefaultObject))
 		{
 			for (URenderGridJob* Job : DefaultObject->GetRenderGridJobsRef())
 			{
@@ -145,6 +145,31 @@ void URenderGridBlueprint::PropagateAllPropertiesToAsset(URenderGrid* Instance)
 {
 	check(IsValid(Instance));
 	RenderGrid->CopyAllProperties(Instance);
+}
+
+URenderGrid* URenderGridBlueprint::GetRenderGridWithBlueprintGraph() const
+{
+	URenderGrid* Result = GetRenderGrid();
+	const_cast<URenderGridBlueprint*>(this)->RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([&Result](URenderGrid* Instance)
+	{
+		if (!IsValid(Result) || Result->HasAnyFlags(RF_ClassDefaultObject | RF_DefaultSubObject))
+		{
+			Result = Instance;
+		}
+	}));
+	return Result;
+}
+
+URenderGrid* URenderGridBlueprint::GetRenderGridClassDefaultObject() const
+{
+	if (UClass* MyRenderGridClass = GeneratedClass; IsValid(MyRenderGridClass))
+	{
+		if (URenderGrid* DefaultObject = Cast<URenderGrid>(MyRenderGridClass->GetDefaultObject(true)); IsValid(DefaultObject))
+		{
+			return DefaultObject;
+		}
+	}
+	return nullptr;
 }
 
 void URenderGridBlueprint::OnPostVariablesChange(UBlueprint* InBlueprint)

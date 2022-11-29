@@ -57,6 +57,11 @@ namespace UE::RenderGrid::Private
 		/** The time it should remain in debugging mode after it has been turned off. */
 		static constexpr float TimeInSecondsToRemainDebugging = 4.0f;
 
+	protected:
+		/** The currently selected render grid jobs. It's static so multiple open render grid editors won't cause bugs with each other. */
+		static TStrongObjectPtr<URenderGridJobSelection> RenderGridJobSelection;
+
+
 	public:
 		void InitRenderGridEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, URenderGridBlueprint* InRenderGridBlueprint);
 
@@ -142,7 +147,7 @@ namespace UE::RenderGrid::Private
 		void BatchRenderListAction();
 
 		/** The callback for when the batch render list action finishes. */
-		void OnBatchRenderListActionFinished(URenderGridQueue* Queue, bool bSuccess);
+		void OnBatchRenderListActionFinished();
 
 		/** Undo the last action. */
 		void UndoAction();
@@ -186,9 +191,6 @@ namespace UE::RenderGrid::Private
 		/** The current render grid instance that's visible in the editor. */
 		mutable TWeakObjectPtr<URenderGrid> RenderGridWeakPtr;
 
-		/** The currently selected render grid jobs. */
-		TStrongObjectPtr<URenderGridJobSelection> RenderGridJobSelection;
-
 		/** True if it should call BatchRenderListAction() next frame. */
 		bool bRunRenderNewBatch;
 
@@ -203,5 +205,11 @@ namespace UE::RenderGrid::Private
 
 		/** True if the graph editor is currently in debugging mode. */
 		bool bIsDebugging;
+
+		/** The value of ShouldHideUI() during the last tick. */
+		bool bPreviousShouldHideUI;
+
+		/** The value of RenderGridJobSelection.Get()->SelectedRenderGridJobIds() during the last tick. */
+		TSet<FGuid> PreviousSelectedRenderGridJobIds;
 	};
 }

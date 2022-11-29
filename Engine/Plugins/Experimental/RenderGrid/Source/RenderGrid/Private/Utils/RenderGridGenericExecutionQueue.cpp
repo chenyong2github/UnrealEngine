@@ -40,12 +40,12 @@ void UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::Tick(float Delta
 
 void UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::Start()
 {
-	bStarted = true;
+	bRunning = true;
 }
 
 void UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::Stop()
 {
-	bStarted = false;
+	bRunning = false;
 }
 
 void UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::ExecuteNext()
@@ -63,7 +63,7 @@ void UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::ExecuteNext()
 			// continue in Tick event
 			return;
 		}
-		if (bStarted && ExecuteNextEntry())
+		if (bRunning && ExecuteNextEntry())
 		{
 			// execution completed, restart this loop  (to check for new delays, and to execute the next entry)
 			continue;

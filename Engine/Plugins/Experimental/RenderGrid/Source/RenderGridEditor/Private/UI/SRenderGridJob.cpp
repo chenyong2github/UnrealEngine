@@ -25,9 +25,8 @@ void UE::RenderGrid::Private::SRenderGridJob::Construct(const FArguments& InArgs
 	DetailsView->SetObject(nullptr);
 
 	Refresh();
+	InBlueprintEditor->OnRenderGridShouldHideUIChanged().AddSP(this, &SRenderGridJob::Refresh);
 	InBlueprintEditor->OnRenderGridJobsSelectionChanged().AddSP(this, &SRenderGridJob::Refresh);
-	InBlueprintEditor->OnRenderGridBatchRenderingStarted().AddSP(this, &SRenderGridJob::OnBatchRenderingStarted);
-	InBlueprintEditor->OnRenderGridBatchRenderingFinished().AddSP(this, &SRenderGridJob::OnBatchRenderingFinished);
 
 	ChildSlot
 	[
@@ -55,7 +54,7 @@ void UE::RenderGrid::Private::SRenderGridJob::Refresh()
 		if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 		{
 			TArray<TWeakObjectPtr<UObject>> WeakSelectedJobs;
-			if (!BlueprintEditor->IsBatchRendering())
+			if (!BlueprintEditor->ShouldHideUI())
 			{
 				if (const TArray<URenderGridJob*> SelectedJobs = BlueprintEditor->GetSelectedRenderGridJobs(); (SelectedJobs.Num() == 1))
 				{

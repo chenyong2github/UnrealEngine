@@ -7,11 +7,11 @@
 #include "MoviePipelinePIEExecutor.h"
 
 
-URenderGridQueue* UE::RenderGrid::FRenderGridManager::CreateBatchRenderQueue(URenderGrid* Grid)
+URenderGridQueue* UE::RenderGrid::FRenderGridManager::CreateBatchRenderQueue(URenderGrid* Grid, const TArray<URenderGridJob*>& Jobs)
 {
 	FRenderGridQueueCreateArgs JobArgs;
 	JobArgs.RenderGrid = TStrongObjectPtr(Grid);
-	JobArgs.RenderGridJobs.Append(Grid->GetEnabledRenderGridJobs());
+	JobArgs.RenderGridJobs.Append(Jobs);
 	JobArgs.bIsBatchRender = true;
 	URenderGridQueue* NewRenderQueue = URenderGridQueue::Create(JobArgs);
 	if (!IsValid(NewRenderQueue))
@@ -51,7 +51,7 @@ URenderGridQueue* UE::RenderGrid::FRenderGridManager::RenderPreviewFrame(const F
 
 	if (Args.Frame.IsSet())
 	{
-		constexpr int32 RenderFramesCount = 1;// can be more than 1 to prevent rendering issues, will always take the last frame that's rendered
+		constexpr int32 RenderFramesCount = 1; // can be more than 1 to prevent rendering issues, will always take the last frame that's rendered
 
 		JobCopy->SetIsUsingCustomStartFrame(true);
 		JobCopy->SetCustomStartFrame(Args.Frame.Get(0));

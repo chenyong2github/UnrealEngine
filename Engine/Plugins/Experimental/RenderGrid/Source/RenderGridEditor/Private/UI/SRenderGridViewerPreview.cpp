@@ -323,7 +323,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::InternalRenderNewPreview
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
 		double WidgetWidth = FMath::Max(120.0, FMath::Min(GetTickSpaceGeometry().Size.X, GetTickSpaceGeometry().Size.Y * Job->GetOutputAspectRatio()));
-		double RenderResolution = WidgetWidth * (IsPreviewWidget() ? 1.25 : 0.75);// pixels in width
+		double RenderResolution = WidgetWidth * (IsPreviewWidget() ? 1.25 : 0.75); // pixels in width
 
 		FRenderGridManagerRenderPreviewFrameArgs JobArgs;
 		if (IsPreviewWidget())

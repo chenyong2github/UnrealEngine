@@ -24,8 +24,7 @@ void UE::RenderGrid::Private::SRenderGridViewer::Construct(const FArguments& InA
 		.BorderImage(new FSlateNoResource());
 
 	Refresh();
-	InBlueprintEditor->OnRenderGridBatchRenderingStarted().AddSP(this, &SRenderGridViewer::OnBatchRenderingStarted);
-	InBlueprintEditor->OnRenderGridBatchRenderingFinished().AddSP(this, &SRenderGridViewer::OnBatchRenderingFinished);
+	InBlueprintEditor->OnRenderGridShouldHideUIChanged().AddSP(this, &SRenderGridViewer::Refresh);
 
 	ChildSlot
 	[
@@ -99,7 +98,7 @@ void UE::RenderGrid::Private::SRenderGridViewer::Refresh()
 	}
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		ERenderGridViewerMode CurrentViewerMode = (BlueprintEditor->IsBatchRendering() ? ERenderGridViewerMode::None : ViewerMode);
+		ERenderGridViewerMode CurrentViewerMode = (BlueprintEditor->ShouldHideUI() ? ERenderGridViewerMode::None : ViewerMode);
 		if (CurrentViewerMode == CachedViewerMode)
 		{
 			return;

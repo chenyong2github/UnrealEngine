@@ -74,8 +74,6 @@ namespace UE::RenderGrid::Private
 
 	private:
 		void OnObjectModified(UObject* Object);
-		void OnBatchRenderingStarted(URenderGridQueue* Queue) { Refresh(); }
-		void OnBatchRenderingFinished(URenderGridQueue* Queue) { Refresh(); }
 		void OnSearchBarTextChanged(const FText& Text) { Refresh(); }
 
 	private:
@@ -96,6 +94,9 @@ namespace UE::RenderGrid::Private
 
 		/** The header checkbox for the enable/disable column. */
 		TSharedPtr<SCheckBox> RenderGridJobEnabledHeaderCheckbox;
+
+		/** The value of BlueprintEditorWeakPtr.Get()->IsBatchRendering() during the last Refresh(). */
+		bool bPreviousIsBatchRendering;
 	};
 
 

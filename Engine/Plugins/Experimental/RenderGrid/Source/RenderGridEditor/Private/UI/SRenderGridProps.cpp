@@ -38,9 +38,8 @@ void UE::RenderGrid::Private::SRenderGridProps::Construct(const FArguments& InAr
 	Refresh();
 	//InBlueprintEditor->OnRenderGridChanged().AddSP(this, &SRenderGridProps::Refresh); // should technically be correct, but causes the remote control properties to bug out
 	InBlueprintEditor->OnRenderGridPreviewRenderedFirstTimeSinceAppStart().AddSP(this, &SRenderGridProps::Refresh);
+	InBlueprintEditor->OnRenderGridShouldHideUIChanged().AddSP(this, &SRenderGridProps::Refresh);
 	InBlueprintEditor->OnRenderGridJobsSelectionChanged().AddSP(this, &SRenderGridProps::Refresh);
-	InBlueprintEditor->OnRenderGridBatchRenderingStarted().AddSP(this, &SRenderGridProps::OnBatchRenderingStarted);
-	InBlueprintEditor->OnRenderGridBatchRenderingFinished().AddSP(this, &SRenderGridProps::OnBatchRenderingFinished);
 
 	ChildSlot
 	[
@@ -60,7 +59,7 @@ void UE::RenderGrid::Private::SRenderGridProps::Refresh()
 
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		if (!BlueprintEditor->IsBatchRendering())
+		if (!BlueprintEditor->ShouldHideUI())
 		{
 			if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 			{

@@ -87,11 +87,11 @@ namespace UE::RenderGrid
 
 
 	public:
-		/** Batch render the currently enabled render grid job(s) of the given render grid. **/
-		URenderGridQueue* CreateBatchRenderQueue(URenderGrid* Grid);
+		/** Batch render the given render grid job(s) of the given render grid. */
+		URenderGridQueue* CreateBatchRenderQueue(URenderGrid* Grid, const TArray<URenderGridJob*>& Jobs);
 
 
-		/** Render a preview frame (or multiple if no frame number is specified) of the given render grid job. **/
+		/** Render a preview frame (or multiple if no frame number is specified) of the given render grid job. */
 		URenderGridQueue* RenderPreviewFrame(const FRenderGridManagerRenderPreviewFrameArgs& Args);
 
 		/** Gets the rendered preview frame (of a rendering in which the frame number was specified). */

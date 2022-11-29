@@ -53,7 +53,7 @@ public:
 	{
 		if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 		{
-			if (TSharedPtr<FDragDropOperation> DragDropOp = CreateDragDropOperation())
+			if (const TSharedPtr<FDragDropOperation> DragDropOp = CreateDragDropOperation())
 			{
 				return FReply::Handled().BeginDragDrop(DragDropOp.ToSharedRef());
 			}

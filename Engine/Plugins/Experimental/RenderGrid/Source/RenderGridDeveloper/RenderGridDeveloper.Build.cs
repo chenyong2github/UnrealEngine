@@ -15,6 +15,7 @@ public class RenderGridDeveloper : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"Engine",
 				"KismetCompiler",
 			}
 		);

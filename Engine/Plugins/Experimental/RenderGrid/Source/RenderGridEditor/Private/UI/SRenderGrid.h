@@ -51,6 +51,9 @@ namespace UE::RenderGrid::Private
 		TSharedPtr<IDetailsView> RenderGridDetailsView;
 
 		/** A reference to the details view. */
+		TSharedPtr<IDetailsView> RenderGridSettingsDetailsView;
+
+		/** A reference to the details view. */
 		TSharedPtr<IDetailsView> RenderGridDefaultsDetailsView;
 	};
 }
