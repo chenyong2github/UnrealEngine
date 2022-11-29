@@ -781,8 +781,16 @@ public:
 		check(!bIsMissing);
 		check(!bHasFailed);
 		check(!HasPackage());
-		PackageObjectIndex = GUObjectArray.ObjectToIndex(InPackage);
-		OriginalPackageName = InPackage->GetFName();
+		if (InPackage)
+		{
+			PackageObjectIndex = GUObjectArray.ObjectToIndex(InPackage);
+			OriginalPackageName = InPackage->GetFName();
+		}
+		else
+		{
+			PackageObjectIndex = -1;
+			OriginalPackageName = FName();
+		}
 	}
 
 	void RemoveCompletedRenamedPackage()
