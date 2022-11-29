@@ -4,6 +4,7 @@
 
 #include "Misc/StringBuilder.h"
 #include "UObject/Object.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectGlobalsInternal.h"
 
 namespace UE::Object
