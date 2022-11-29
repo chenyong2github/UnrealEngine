@@ -37,7 +37,7 @@ using namespace NNX;
 
 static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 	TEXT("nnx.test.OptimizeModel"),
-	TEXT("Optimize the model from file and store it into NNX format.Examples: OptimizeModel -f path.onnx, OptimizeModel -op Cos"),
+	TEXT("Optimize the model from file and store it into NNX format. Example: OptimizeModel -f path.onnx"),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
@@ -60,26 +60,11 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 						return;
 					}
 				}
-				else if (Args[ArgIdx] == TEXT("-op"))
-				{
-					if (ArgIdx + 1 < Args.Num())
-					{
-						OpName = Args[ArgIdx + 1];
-						break;
-					}
-					else
-					{
-						UE_LOG(LogNNX, Warning, TEXT("Found option -op but operator name is not not provided"));
-						return;
-					}
-				}
-
 			}
 
 			FNNIModelRaw ONNXModel;
 			
-			// First try to load model from file, otherwise create a single layer NN with specified
-			// operator name
+			// First try to load model from file
 			if (!ModelPath.IsEmpty())
 			{
 				if (!FFileHelper::LoadFileToArray(ONNXModel.Data, *ModelPath))
@@ -88,16 +73,6 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 					return;
 				}
 				ONNXModel.Format = ENNXInferenceFormat::ONNX;
-			}
-			else if (!OpName.IsEmpty())
-			{
-				FTensor InputTensor = FTensor::Make(TEXT("in"), FTensorShape::Make({1, 512 }), EMLTensorDataType::Float);
-				FTensor OutputTensor = FTensor::Make(TEXT("out"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
-
-				if (!NNX::CreateONNXModelForOperator(true, OpName, MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
-				{
-					UE_LOG(LogNNX, Warning, TEXT("Failed to create model for operator:%s"), *OpName);
-				}
 			}
 			else
 			{
@@ -124,29 +99,6 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 			else
 			{
 				UE_LOG(LogNNX, Warning, TEXT("Failed to optimize the model"));
-			}
-		}
-	)
-);
-
-static FAutoConsoleCommand ConsoleCmdNNXCreateModel(
-	TEXT("nnx.test.CreateONNX"),
-	TEXT("Create a single layer ONNX model"),
-	FConsoleCommandWithArgsDelegate::CreateStatic(
-		[](const TArray<FString>& Args)
-		{
-			using NNX::FTensor;
-
-			if (Args.Num() > 0)
-			{
-				FNNIModelRaw ONNXModel;
-				FTensor InputTensor = FTensor::Make(TEXT("in"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
-				FTensor OutputTensor = FTensor::Make(TEXT("out"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
-
-				if (!NNX::CreateONNXModelForOperator(true, Args[0], MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
-				{
-					UE_LOG(LogNNX, Display, TEXT("Failed to create model for operator:%s"), *Args[0]);
-				}
 			}
 		}
 	)

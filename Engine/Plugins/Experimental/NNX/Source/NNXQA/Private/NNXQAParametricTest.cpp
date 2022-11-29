@@ -252,7 +252,7 @@ namespace Test
 
 		static FString GetTestSuffix(const Json::FTestConfigDataset& Dataset)
 		{
-			//Build TestSuffix "<inputshape0>_...=><outputshape0>_..."
+			//Build TestSuffix "<inputshape0>_..._w<weightshape0>_w...=><outputshape0>_..."
 			bool bIsFirstShape = true;
 			FString TestSuffix;
 			for (const Json::FTestConfigTensor& Input : Dataset.Inputs)
@@ -260,6 +260,11 @@ namespace Test
 				if (!bIsFirstShape) TestSuffix += TEXT("_");
 				TestSuffix += ShapeToString<int32>(Input.Shape);
 				bIsFirstShape = false;
+			}
+			for (const Json::FTestConfigTensor& Weight : Dataset.Weights)
+			{
+				TestSuffix += TEXT("_w");
+				TestSuffix += ShapeToString<int32>(Weight.Shape);
 			}
 			TestSuffix += TEXT("=>");
 			//If output is not defined it is the first input shape.
@@ -269,10 +274,12 @@ namespace Test
 			}
 			else
 			{
+				bIsFirstShape = true;
 				for (const Json::FTestConfigTensor& Output : Dataset.Outputs)
 				{
-					TestSuffix += TEXT("_");
+					if (!bIsFirstShape) TestSuffix += TEXT("_");
 					TestSuffix += ShapeToString<int32>(Output.Shape);
+					bIsFirstShape = false;
 				}
 			}
 			return TestSuffix;
@@ -493,16 +500,19 @@ namespace Test
 		else
 		{
 			// Operator test, create model in memory
-			if (!CreateONNXModelForOperator(false, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.AttributeMap, ONNXModel))
+			if (!CreateONNXModelForOperator(false, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.Weights, TestSetup.WeightsData,TestSetup.AttributeMap, ONNXModel))
 			{
 				UE_LOG(LogNNX, Error, TEXT("Failed to create static model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
 				return false;
 			}
-			if (!CreateONNXModelForOperator(true, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.AttributeMap, ONNXModelVariadic))
+			if (!CreateONNXModelForOperator(true, TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.Weights, TestSetup.WeightsData, TestSetup.AttributeMap, ONNXModelVariadic))
 			{
 				UE_LOG(LogNNX, Error, TEXT("Failed to create variadic model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
 				return false;
 			}
+
+            //FFileHelper::SaveArrayToFile(ONNXModel.Data, TEXT("D:\\Opmodel.onnx"));
+            //FFileHelper::SaveArrayToFile(ONNXModelVariadic.Data, TEXT("D:\\OpmodelVar.onnx"));
 		}
 
 		return CompareONNXModelInferenceAcrossRuntimes(ONNXModel, ONNXModelVariadic, TestSetup, RuntimeFilter);

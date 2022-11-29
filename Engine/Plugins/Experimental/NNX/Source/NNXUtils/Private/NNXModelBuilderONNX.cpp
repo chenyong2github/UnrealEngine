@@ -123,7 +123,19 @@ public:
 
 		if (Data)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("ONNX ModelBuilder currently doesn't support tensors with data"));
+			onnx::TensorProto* Tensor = Graph->mutable_initializer()->Add();
+
+			Tensor->set_name(TCHAR_TO_ANSI(*Name));
+			Tensor->set_data_type(ToTensorProtoDataType(DataType));
+			for (int32 Idx = 0; Idx < Shape.Num(); ++Idx)
+			{
+				Tensor->add_dims(Shape[Idx]);
+			}
+
+			checkf(DataType != EMLTensorDataType::Char, TEXT("Char tensors not supported yet!"));
+			// raw_data is not supported for strings, when implementing those one will need to use string_data from TensorProto
+			std::string* raw_data = Tensor->mutable_raw_data();
+			raw_data->assign((const char*)Data, DataSize);
 		}
 
 		return MakeTensorHandle(Value);
@@ -253,7 +265,7 @@ private:
 		onnx::TypeProto*		Type = Value->mutable_type();
 		onnx::TypeProto_Tensor* TensorType = Type->mutable_tensor_type();
 		onnx::TensorShapeProto* Shape = TensorType->mutable_shape();
-
+		
 		Value->set_name(TCHAR_TO_ANSI(*Name));
 		TensorType->set_elem_type(ToTensorProtoDataType(DataType));
 
@@ -296,15 +308,6 @@ private:
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, FNNIModelRaw& Model)
-{
-	UE::NNECore::FAttributeMap EmptyAttributeMap;
-	return CreateONNXModelForOperator(UseVariadicShapeForModel, OperatorName, InInputTensors, InOutputTensors, EmptyAttributeMap, Model);
-}
-
-//
-//
-//
 void BuildShapeForModel(bool ConvertToVariadicShape, const FTensorShape& InShape, TArray<int32>& OutShape)
 {
 	OutShape.Empty();
@@ -322,7 +325,10 @@ void BuildShapeForModel(bool ConvertToVariadicShape, const FTensorShape& InShape
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& Model)
+NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName,
+	TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors,
+	TConstArrayView<FTensor> InWeightTensors, TConstArrayView<TArray<char>> InWeightTensorsData,
+	const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& Model)
 {
 	Model = FNNIModelRaw{};
 	
@@ -343,7 +349,7 @@ NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 		Builder->AddInput(Tensor);
 	}
 
-	TArray<IMLModelBuilder::HTensor>	OutputTensors;
+	TArray<IMLModelBuilder::HTensor> OutputTensors;
 
 	for (int32 Idx = 0; Idx < InOutputTensors.Num(); ++Idx)
 	{
@@ -355,11 +361,32 @@ NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 		Builder->AddOutput(Tensor);
 	}
 
+	checkf(InWeightTensors.Num() == InWeightTensorsData.Num(), TEXT("Invalid weight tensors data"));
+	TArray<IMLModelBuilder::HTensor> WeightTensors;
+
+	for (int32 Idx = 0; Idx < InWeightTensors.Num(); ++Idx)
+	{
+		const FTensor& Desc = InWeightTensors[Idx];
+		const TArray<char>& Data = InWeightTensorsData[Idx];
+		check(Data.Num() == Desc.GetDataSize());
+		BuildShapeForModel(false, Desc.GetShape(), ShapeForModel);
+		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), ShapeForModel, Data.GetData(), Data.Num());
+
+		WeightTensors.Emplace(Tensor);
+	}
+
 	auto Op = Builder->AddOperator(OperatorName);
 
 	for (int32 Idx = 0; Idx < InputTensors.Num(); ++Idx)
 	{
 		Builder->AddOperatorInput(Op, InputTensors[Idx]);
+	}
+
+	for (int32 Idx = 0; Idx < WeightTensors.Num(); ++Idx)
+	{
+		// For now weights are added after model inputs in the list of
+		// operator inputs. This should be made more flexible if needed by future tests cases.
+		Builder->AddOperatorInput(Op, WeightTensors[Idx]);
 	}
 
 	for (int32 Idx = 0; Idx < OutputTensors.Num(); ++Idx)
