@@ -92,22 +92,29 @@ void UVPScoutingMode::Enter()
 	// (stereo rendering) has started, and we need to defer creation of the interactors, etc.
 	BeginEntry();
 
-	XrExt->GetHmdDeviceTypeFuture() = XrExt->GetHmdDeviceTypeFuture().Next([this](FName DeviceType)
-	{
-		if (DeviceType != NAME_None)
+	XrExt->GetHmdDeviceTypeFuture() = XrExt->GetHmdDeviceTypeFuture().Next(
+		[WeakThis = TWeakObjectPtr<UVPScoutingMode>(this)]
+		(FName DeviceType)
 		{
-			SetHMDDeviceTypeOverride(DeviceType);
-		}
-		else
-		{
-			UE_LOG(LogVirtualScouting, Error, TEXT("Unable to map legacy HMD device type"));
-		}
+			UVPScoutingMode* This = WeakThis.Get();
+			if (!This || !This->bIsFullyInitialized)
+			{
+				UE_LOG(LogVirtualScouting, Warning, TEXT("Stale UVPScoutingMode; ignoring HmdDeviceType future"));
+				return DeviceType;
+			}
 
-		SetupSubsystems();
-		FinishEntry();
+			if (DeviceType == NAME_None)
+			{
+				UE_LOG(LogVirtualScouting, Error, TEXT("Unable to map legacy HMD device type"));
+				return DeviceType;
+			}
 
-		return DeviceType;
-	});
+			This->SetHMDDeviceTypeOverride(DeviceType);
+			This->SetupSubsystems();
+			This->FinishEntry();
+
+			return DeviceType;
+		});
 }
 
 

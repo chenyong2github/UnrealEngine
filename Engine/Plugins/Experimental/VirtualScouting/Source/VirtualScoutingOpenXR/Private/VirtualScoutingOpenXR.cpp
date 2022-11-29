@@ -170,7 +170,7 @@ void FVirtualScoutingOpenXRExtension::PostSyncActions(XrSession InSession)
 
 void FVirtualScoutingOpenXRExtension::TryFulfillDeviceTypePromise()
 {
-	if (!DeviceTypeFuture.IsReady())
+	if (DeviceTypeFuture.IsValid() && !DeviceTypeFuture.IsReady())
 	{
 		TOptional<FName> MaybeType = TryGetHmdDeviceType();
 		if (MaybeType)
