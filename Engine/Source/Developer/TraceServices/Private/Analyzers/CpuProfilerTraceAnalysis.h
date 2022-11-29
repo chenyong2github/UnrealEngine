@@ -45,6 +45,7 @@ private:
 		TArray<FPendingEvent> PendingEvents;
 		IEditableTimeline<FTimingProfilerEvent>* Timeline = nullptr;
 		uint64 LastCycle = 0;
+		bool bShouldIgnorePendingEvents = false; // becomes true when we detect first pending event with incorrect timestamp (i.e < LastCycle)
 	};
 
 	void OnCpuScopeEnter(const FOnEventContext& Context);
