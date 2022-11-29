@@ -116,21 +116,6 @@ struct FD3D12QuantizedBoundShaderState
 };
 
 /**
-* Creates a discrete bound shader state object from a collection of graphics pipeline shaders.
-*/
-
-class FD3D12BoundShaderState;
-class FD3D12ComputeShader;
-
-extern FD3D12QuantizedBoundShaderState QuantizeBoundGraphicsShaderState(FD3D12Adapter& Adapter, const FD3D12BoundShaderState* BSS);
-extern FD3D12QuantizedBoundShaderState QuantizeBoundComputeShaderState(FD3D12Adapter& Adapter, const FD3D12ComputeShader* ComputeShader);
-
-#if D3D12_RHI_RAYTRACING
-class FD3D12RayTracingShader;
-extern FD3D12QuantizedBoundShaderState QuantizeBoundRayTracingShaderState(FD3D12Adapter& Adapter, EShaderFrequency ShaderFrequency, const FD3D12RayTracingShader* Shader);
-#endif
-
-/**
 * Convert from ECubeFace to D3DCUBEMAP_FACES type
 * @param Face - ECubeFace type to convert
 * @return D3D cube face enum value

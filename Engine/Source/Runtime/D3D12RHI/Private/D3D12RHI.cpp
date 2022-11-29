@@ -208,7 +208,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 
 	GRHISupportsRHIThread = true;
 
-	GRHISupportsParallelRHIExecute = D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE;
+	GRHISupportsParallelRHIExecute = true;
 
 	GRHISupportsRawViewsForAnyBuffer = true;
 

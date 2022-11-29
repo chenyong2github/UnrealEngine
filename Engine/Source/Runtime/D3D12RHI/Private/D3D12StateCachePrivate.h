@@ -411,12 +411,10 @@ protected:
 
 	void InternalSetStreamSource(FD3D12ResourceLocation* VertexBufferLocation, uint32 StreamIndex, uint32 Stride, uint32 Offset);
 
-	template <typename TShader> struct StateCacheShaderTraits;
+	template <typename TShader> struct TStateCacheShaderTraits;
 #define DECLARE_SHADER_TRAITS(Name) \
-	template <> struct StateCacheShaderTraits<FD3D12##Name##Shader> \
+	template <> struct TStateCacheShaderTraits<FD3D12##Name##Shader> \
 	{ \
-		static const EShaderFrequency Frequency = SF_##Name; \
-		static FD3D12##Name##Shader* GetShader(FD3D12BoundShaderState* BSS) { return BSS ? BSS->Get##Name##Shader() : nullptr; } \
 		static FD3D12##Name##Shader* GetShader(FD3D12GraphicsPipelineState* PSO) { return PSO ? (FD3D12##Name##Shader*)PSO->PipelineStateInitializer.BoundShaderState.Get##Name##Shader() : nullptr; } \
 	}
 	DECLARE_SHADER_TRAITS(Vertex);
@@ -619,7 +617,7 @@ public:
 	template <typename TShader>
 	D3D12_STATE_CACHE_INLINE TShader* GetShader()
 	{
-		return StateCacheShaderTraits<TShader>::GetShader(GetGraphicsPipelineState());
+		return TStateCacheShaderTraits<TShader>::GetShader(GetGraphicsPipelineState());
 	}
 
 	void SetNewShaderData(EShaderFrequency InFrequency, const FD3D12ShaderData* InShaderData);

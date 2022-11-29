@@ -302,7 +302,7 @@ static FString D3D11CreateShaderCompileCommandLine(
 
 
 // Validate that we are not going over to maximum amount of resource bindings support by the default root signature on DX12
-// Currently limited for hard-coded root signature setup (see: FD3D12RootSignatureDesc::GetStaticGraphicsRootSignatureDesc)
+// Currently limited for hard-coded root signature setup (see: FD3D12Adapter::StaticGraphicsRootSignature)
 // In theory this limitation is only required for DX12, but we don't want a shader to compile on DX11 while not working on DX12.
 // (DX11 has an API limit on 128 SRVs, 16 Samplers, 8 UAVs and 14 CBs but if you go over these values then the shader won't compile)
 bool ValidateResourceCounts(uint32 NumSRVs, uint32 NumSamplers, uint32 NumUAVs, uint32 NumCBs, TArray<FString>& OutFilteredErrors)

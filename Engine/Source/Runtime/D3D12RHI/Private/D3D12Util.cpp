@@ -1057,42 +1057,48 @@ static bool IsCompatibleWithBindlessResources(const FD3D12ShaderData* ShaderData
 	return true;
 }
 
-FD3D12QuantizedBoundShaderState QuantizeBoundGraphicsShaderState(FD3D12Adapter& Adapter, const FD3D12BoundShaderState* const BSS)
+const FD3D12RootSignature* FD3D12Adapter::GetRootSignature(const FBoundShaderStateInput& BSS)
 {
+#if USE_STATIC_ROOT_SIGNATURE
+
+	return &StaticGraphicsRootSignature;
+
+#else //! USE_STATIC_ROOT_SIGNATURE
+
 	// BSS quantizer. There is a 1:1 mapping of quantized bound shader state objects to root signatures.
 	// The objective is to allow a single root signature to represent many bound shader state objects.
 	// The bigger the quantization step sizes, the fewer the root signatures.
 	FD3D12QuantizedBoundShaderState QBSS{};
 
-	QBSS.bAllowIAInputLayout = BSS->GetVertexDeclaration() != nullptr;	// Does the root signature need access to vertex buffers?
+	QBSS.bAllowIAInputLayout = BSS.VertexDeclarationRHI != nullptr;	// Does the root signature need access to vertex buffers?
 
-	const D3D12_RESOURCE_BINDING_TIER ResourceBindingTier = Adapter.GetResourceBindingTier();
+	const D3D12_RESOURCE_BINDING_TIER ResourceBindingTier = GetResourceBindingTier();
 
-	QuantizeBoundShaderStateCommon(QBSS, BSS->GetVertexShader(),        ResourceBindingTier, SV_Vertex);
+	QuantizeBoundShaderStateCommon(QBSS, FD3D12DynamicRHI::ResourceCast(BSS.GetVertexShader()),        ResourceBindingTier, SV_Vertex);
 #if PLATFORM_SUPPORTS_MESH_SHADERS
-	QuantizeBoundShaderStateCommon(QBSS, BSS->GetMeshShader(),          ResourceBindingTier, SV_Mesh);
-	QuantizeBoundShaderStateCommon(QBSS, BSS->GetAmplificationShader(), ResourceBindingTier, SV_Amplification);
+	QuantizeBoundShaderStateCommon(QBSS, FD3D12DynamicRHI::ResourceCast(BSS.GetMeshShader()),          ResourceBindingTier, SV_Mesh);
+	QuantizeBoundShaderStateCommon(QBSS, FD3D12DynamicRHI::ResourceCast(BSS.GetAmplificationShader()), ResourceBindingTier, SV_Amplification);
 #endif
-	QuantizeBoundShaderStateCommon(QBSS, BSS->GetPixelShader(),         ResourceBindingTier, SV_Pixel, true /*bAllowUAVs*/);
-	QuantizeBoundShaderStateCommon(QBSS, BSS->GetGeometryShader(),      ResourceBindingTier, SV_Geometry);
+	QuantizeBoundShaderStateCommon(QBSS, FD3D12DynamicRHI::ResourceCast(BSS.GetPixelShader()),         ResourceBindingTier, SV_Pixel, true /*bAllowUAVs*/);
+	QuantizeBoundShaderStateCommon(QBSS, FD3D12DynamicRHI::ResourceCast(BSS.GetGeometryShader()),      ResourceBindingTier, SV_Geometry);
 
 #if DO_CHECK && PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	if (QBSS.bUseDirectlyIndexedResourceHeap || QBSS.bUseDirectlyIndexedSamplerHeap)
 	{
 		struct FGenericShaderPair
 		{
-			const FRHIGraphicsShader* RHI;
 			const FD3D12ShaderData* Data;
+			const FRHIGraphicsShader* RHI;
 		};
 		const FGenericShaderPair ShaderDatas[] =
 		{
-			{ BSS->GetVertexShader(), BSS->GetVertexShader() },
+			{ FD3D12DynamicRHI::ResourceCast(BSS.GetVertexShader()), BSS.GetVertexShader() },
 #if PLATFORM_SUPPORTS_MESH_SHADERS
-			{ BSS->GetMeshShader(), BSS->GetMeshShader() },
-			{ BSS->GetAmplificationShader(), BSS->GetAmplificationShader() },
+			{ FD3D12DynamicRHI::ResourceCast(BSS.GetMeshShader()), BSS.GetMeshShader() },
+			{ FD3D12DynamicRHI::ResourceCast(BSS.GetAmplificationShader()), BSS.GetAmplificationShader() },
 #endif
-			{ BSS->GetPixelShader(), BSS->GetPixelShader() },
-			{ BSS->GetGeometryShader(), BSS->GetGeometryShader() },
+			{ FD3D12DynamicRHI::ResourceCast(BSS.GetPixelShader()), BSS.GetPixelShader() },
+			{ FD3D12DynamicRHI::ResourceCast(BSS.GetGeometryShader()), BSS.GetGeometryShader() },
 		};
 
 		for (const FGenericShaderPair& ShaderPair : ShaderDatas)
@@ -1112,11 +1118,19 @@ FD3D12QuantizedBoundShaderState QuantizeBoundGraphicsShaderState(FD3D12Adapter& 
 	}
 #endif
 
-	return QBSS;
+	return RootSignatureManager.GetRootSignature(QBSS);
+
+#endif //! USE_STATIC_ROOT_SIGNATURE
 }
 
-FD3D12QuantizedBoundShaderState QuantizeBoundComputeShaderState(FD3D12Adapter& Adapter, const FD3D12ComputeShader* const ComputeShader)
+const FD3D12RootSignature* FD3D12Adapter::GetRootSignature(const FD3D12ComputeShader* ComputeShader)
 {
+#if USE_STATIC_ROOT_SIGNATURE
+
+	return &StaticComputeRootSignature;
+
+#else //! USE_STATIC_ROOT_SIGNATURE
+
 	check(ComputeShader);
 
 	// BSS quantizer. There is a 1:1 mapping of quantized bound shader state objects to root signatures.
@@ -1124,16 +1138,25 @@ FD3D12QuantizedBoundShaderState QuantizeBoundComputeShaderState(FD3D12Adapter& A
 	// The bigger the quantization step sizes, the fewer the root signatures.
 	FD3D12QuantizedBoundShaderState QBSS{};
 
-	QuantizeBoundShaderStateCommon(QBSS, ComputeShader, Adapter.GetResourceBindingTier(), SV_All, true /*bAllowUAVs*/);
+	QuantizeBoundShaderStateCommon(QBSS, ComputeShader, GetResourceBindingTier(), SV_All, true /*bAllowUAVs*/);
 
 	check(QBSS.bAllowIAInputLayout == false); // No access to vertex buffers needed
-	return QBSS;
+
+	return RootSignatureManager.GetRootSignature(QBSS);
+
+#endif //! USE_STATIC_ROOT_SIGNATURE
 }
 
 #if D3D12_RHI_RAYTRACING
 
-FD3D12QuantizedBoundShaderState GetRayTracingGlobalRootSignatureDesc(const FD3D12Adapter& Adapter)
+const FD3D12RootSignature* FD3D12Adapter::GetGlobalRayTracingRootSignature()
 {
+#if USE_STATIC_ROOT_SIGNATURE
+
+	return StaticRayTracingGlobalRootSignature;
+
+#else //!USE_STATIC_ROOT_SIGNATURE
+
 	FD3D12QuantizedBoundShaderState QBSS{};
 	FShaderRegisterCounts& QBSSRegisterCounts = QBSS.RegisterCounts[SV_All];
 
@@ -1141,8 +1164,8 @@ FD3D12QuantizedBoundShaderState GetRayTracingGlobalRootSignatureDesc(const FD3D1
 	QBSS.bUseDiagnosticBuffer = true;
 
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
-	QBSS.bUseDirectlyIndexedResourceHeap = Adapter.AreBindlessResourcesAllowed();
-	QBSS.bUseDirectlyIndexedSamplerHeap = Adapter.AreBindlessSamplersAllowed();
+	QBSS.bUseDirectlyIndexedResourceHeap = bBindlessResourcesAllowed;
+	QBSS.bUseDirectlyIndexedSamplerHeap = bBindlessSamplersAllowed;
 #endif
 
 	QBSSRegisterCounts.SamplerCount = MAX_SAMPLERS;
@@ -1150,34 +1173,41 @@ FD3D12QuantizedBoundShaderState GetRayTracingGlobalRootSignatureDesc(const FD3D1
 	QBSSRegisterCounts.ConstantBufferCount = MAX_CBS;
 	QBSSRegisterCounts.UnorderedAccessCount = MAX_UAVS;
 
-	return QBSS;
+	return RootSignatureManager.GetRootSignature(QBSS);
+
+#endif //! USE_STATIC_ROOT_SIGNATURE
 }
 
-const FD3D12RootSignature* GetGlobalRayTracingRootSignature(FD3D12Adapter& Adapter)
+const FD3D12RootSignature* FD3D12Adapter::GetRootSignature(const FD3D12RayTracingShader* RayTracingShader)
 {
 #if USE_STATIC_ROOT_SIGNATURE
-	return Adapter.GetStaticRayTracingGlobalRootSignature();
-#else // USE_STATIC_ROOT_SIGNATURE
-	FD3D12QuantizedBoundShaderState RSDesc = GetRayTracingGlobalRootSignatureDesc(Adapter);
-	return Adapter.GetRootSignature(RSDesc);
-#endif // USE_STATIC_ROOT_SIGNATURE
-}
 
-FD3D12QuantizedBoundShaderState QuantizeBoundRayTracingShaderState(FD3D12Adapter& Adapter, EShaderFrequency ShaderFrequency, const FD3D12RayTracingShader* const RayTracingShader
-)
-{
+	switch (RayTracingShader->GetFrequency())
+	{
+	default:
+		checkNoEntry(); // Unexpected shader target frequency
+		return nullptr;
+
+	case SF_RayGen:
+		return StaticRayTracingGlobalRootSignature;
+
+	case SF_RayHitGroup:
+	case SF_RayCallable:
+	case SF_RayMiss:
+		return StaticRayTracingLocalRootSignature;
+	}
+
+#else //! USE_STATIC_ROOT_SIGNATURE
+
 	FD3D12QuantizedBoundShaderState QBSS{};
 
 	FShaderRegisterCounts& QBSSRegisterCounts = QBSS.RegisterCounts[SV_All];
 
-	switch (ShaderFrequency)
+	switch (RayTracingShader->GetFrequency())
 	{
 	case SF_RayGen:
-	{
 		// Shared conservative root signature layout is used for all raygen and miss shaders.
-		QBSS = GetRayTracingGlobalRootSignatureDesc(Adapter);
-		break;
-	}
+		return GetGlobalRayTracingRootSignature();
 
 	case SF_RayHitGroup:
 	case SF_RayCallable:
@@ -1207,7 +1237,9 @@ FD3D12QuantizedBoundShaderState QuantizeBoundRayTracingShaderState(FD3D12Adapter
 
 	SetBoundShaderStateFlags(QBSS, RayTracingShader);
 
-	return QBSS;
+	return RootSignatureManager.GetRootSignature(QBSS);
+
+#endif //! USE_STATIC_ROOT_SIGNATURE
 }
 #endif // D3D12_RHI_RAYTRACING
 

@@ -573,12 +573,9 @@ FGraphicsPipelineStateRHIRef FD3D12DynamicRHI::RHICreateGraphicsPipelineState(co
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FD3D12DynamicRHI::RHICreateGraphicsPipelineState);
 
-	// TODO: Remove the need for BoundShaderState objects. Currently they are needed for the Root Signature.
-	FBoundShaderStateRHIRef const BSS = DX12CreateBoundShaderState(Initializer.BoundShaderState);
+	const FD3D12RootSignature* RootSignature = GetAdapter().GetRootSignature(Initializer.BoundShaderState);
 
 	// Next try to find the PSO based on the hash of its desc.
-	FD3D12BoundShaderState* const BoundShaderState = FD3D12DynamicRHI::ResourceCast(BSS.GetReference());
-	const FD3D12RootSignature* RootSignature = BoundShaderState->pRootSignature;
 
 	FD3D12LowLevelGraphicsPipelineStateDesc LowLevelDesc;
 #if D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE

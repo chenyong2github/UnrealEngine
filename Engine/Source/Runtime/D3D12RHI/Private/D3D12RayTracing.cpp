@@ -390,8 +390,6 @@ inline void UnregisterD3D12RayTracingGeometry(FD3D12RayTracingGeometry* Geometry
 #define RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE 1
 #endif // RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
 
-const FD3D12RootSignature* GetGlobalRayTracingRootSignature(FD3D12Adapter& Adapter);
-
 struct FD3D12ShaderIdentifier
 {
 	uint64 Data[4] = {~0ull, ~0ull, ~0ull, ~0ull};
@@ -1259,7 +1257,7 @@ public:
 	ID3D12RootSignature* GetGlobalRootSignature()
 	{
 		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-		const FD3D12RootSignature* RootSignature = GetGlobalRayTracingRootSignature(*Adapter);
+		const FD3D12RootSignature* RootSignature = Adapter->GetGlobalRayTracingRootSignature();
 		return RootSignature->GetRootSignature();
 	}
 
@@ -5075,7 +5073,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 	// Bind diagnostic buffer to allow asserts in ray generation shaders
 	{
-		const FD3D12RootSignature* RootSignature = GetGlobalRayTracingRootSignature(*Adapter);
+		const FD3D12RootSignature* RootSignature = Adapter->GetGlobalRayTracingRootSignature();
 
 		const int8 DiagnosticBufferSlot = RootSignature->GetDiagnosticBufferSlot();
 		FD3D12Queue& Queue = CommandContext.GetParentDevice()->GetQueue(CommandContext.QueueType);

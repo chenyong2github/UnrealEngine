@@ -187,11 +187,6 @@ public:
 	FORCEINLINE IDXGIFactory6* GetDXGIFactory6() const { return DxgiFactory6; }
 #endif
 
-#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
-	FORCEINLINE bool AreBindlessResourcesAllowed() const { return bBindlessResourcesAllowed; }
-	FORCEINLINE bool AreBindlessSamplersAllowed() const { return bBindlessSamplersAllowed; }
-#endif
-
 	FORCEINLINE const bool IsDebugDevice() const { return bDebugDevice; }
 
 	FORCEINLINE const ED3D12GPUCrashDebuggingModes GetGPUCrashDebuggingModes() const { return GPUCrashDebuggingModes; }
@@ -226,29 +221,10 @@ public:
 
 	FORCEINLINE FD3D12PipelineStateCache& GetPSOCache() { return PipelineStateCache; }
 
-#if USE_STATIC_ROOT_SIGNATURE
-	FORCEINLINE const FD3D12RootSignature* GetStaticGraphicsRootSignature()
-	{
-		return &StaticGraphicsRootSignature;
-	}
-	FORCEINLINE const FD3D12RootSignature* GetStaticComputeRootSignature()
-	{
-		return &StaticComputeRootSignature;
-	}
-	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingGlobalRootSignature()
-	{
-		return &StaticRayTracingGlobalRootSignature;
-	}
-	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingLocalRootSignature()
-	{
-		return &StaticRayTracingLocalRootSignature;
-	}
-#endif // USE_STATIC_ROOT_SIGNATURE
-
-	FORCEINLINE FD3D12RootSignature* GetRootSignature(const FD3D12QuantizedBoundShaderState& QBSS) 
-	{
-		return RootSignatureManager.GetRootSignature(QBSS);
-	}
+	const FD3D12RootSignature* GetRootSignature(const FBoundShaderStateInput& BoundShaderState);
+	const FD3D12RootSignature* GetRootSignature(const class FD3D12RayTracingShader* Shader);
+	const FD3D12RootSignature* GetRootSignature(const class FD3D12ComputeShader* Shader);
+	const FD3D12RootSignature* GetGlobalRayTracingRootSignature();
 
 	FORCEINLINE FD3D12RootSignatureManager* GetRootSignatureManager()
 	{

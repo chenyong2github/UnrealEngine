@@ -5,7 +5,6 @@
 #pragma once
 
 class FD3D12RootSignature; // forward-declare
-class FD3D12BoundShaderState; // forward-declare
 struct FD3D12ComputePipelineStateDesc;
 struct FD3D12LowLevelGraphicsPipelineStateDesc;
 

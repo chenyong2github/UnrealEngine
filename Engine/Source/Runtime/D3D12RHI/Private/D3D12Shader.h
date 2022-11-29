@@ -133,54 +133,6 @@ public:
 	const FD3D12RootSignature* RootSignature = nullptr;
 };
 
-/**
-* Combined shader state and vertex definition for rendering geometry.
-* Each unique instance consists of a vertex decl, vertex shader, and pixel shader.
-*/
-class FD3D12BoundShaderState : public FRHIBoundShaderState
-{
-public:
-
-#if D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
-	FCachedBoundShaderStateLink_Threadsafe CacheLink;
-#else
-	FCachedBoundShaderStateLink CacheLink;
-#endif
-
-	const FD3D12RootSignature* pRootSignature;
-
-	/** Initialization constructor. */
-	FD3D12BoundShaderState(
-		FRHIVertexDeclaration* InVertexDeclarationRHI,
-		FRHIVertexShader* InVertexShaderRHI,
-		FRHIPixelShader* InPixelShaderRHI,
-		FRHIGeometryShader* InGeometryShaderRHI,
-		FD3D12Adapter* InAdapter
-	);
-
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-	/** Initialization constructor. */
-	FD3D12BoundShaderState(
-		FRHIMeshShader* InMeshShaderRHI,
-		FRHIAmplificationShader* InAmplificationShaderRHI,
-		FRHIPixelShader* InPixelShaderRHI,
-		FD3D12Adapter* InAdapter
-	);
-#endif
-
-	virtual ~FD3D12BoundShaderState();
-
-	/**
-	* Get the shader for the given frequency.
-	*/
-	FORCEINLINE FD3D12VertexDeclaration*   GetVertexDeclaration()   const { return (FD3D12VertexDeclaration*)   CacheLink.GetVertexDeclaration();   }
-	FORCEINLINE FD3D12VertexShader*        GetVertexShader()        const { return (FD3D12VertexShader*)        CacheLink.GetVertexShader();        }
-	FORCEINLINE FD3D12MeshShader*          GetMeshShader()          const { return (FD3D12MeshShader*)          CacheLink.GetMeshShader();          }
-	FORCEINLINE FD3D12AmplificationShader* GetAmplificationShader() const { return (FD3D12AmplificationShader*) CacheLink.GetAmplificationShader(); }
-	FORCEINLINE FD3D12PixelShader*         GetPixelShader()         const { return (FD3D12PixelShader*)         CacheLink.GetPixelShader();         }
-	FORCEINLINE FD3D12GeometryShader*      GetGeometryShader()      const { return (FD3D12GeometryShader*)      CacheLink.GetGeometryShader();      }
-};
-
 #if D3D12_RHI_RAYTRACING
 
 class FD3D12RayTracingShader : public FRHIRayTracingShader, public FD3D12ShaderData
@@ -233,9 +185,4 @@ template<>
 struct TD3D12ResourceTraits<FRHIVertexDeclaration>
 {
 	typedef FD3D12VertexDeclaration TConcreteType;
-};
-template<>
-struct TD3D12ResourceTraits<FRHIBoundShaderState>
-{
-	typedef FD3D12BoundShaderState TConcreteType;
 };
