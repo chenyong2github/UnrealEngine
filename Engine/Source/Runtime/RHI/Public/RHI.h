@@ -155,14 +155,6 @@ struct FRHIResourceStats
 
 RHI_API void RHIGetTrackedResourceStats(TArray<TSharedPtr<FRHIResourceStats>>& OutResourceStats);
 
-inline ERHIBindlessSupport RHIGetBindlessSupport(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetBindlessSupport(Platform);
-}
-
-UE_DEPRECATED(5.2, "You must use RHIGetBindlessSupport instead.")
-	return FDataDrivenShaderPlatformInfo::GetSupportsBindless(Platform);
-
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.
 template <typename TValueType>
 class TRHIGlobal

@@ -1115,9 +1115,15 @@ inline RHI_API bool RHISupportsConservativeRasterization(const FStaticShaderPlat
 }
 
 /** True if the given shader platform supports bindless resources/views. */
+inline ERHIBindlessSupport RHIGetBindlessSupport(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetBindlessSupport(Platform);
+}
+
+UE_DEPRECATED(5.2, "You must use RHIGetBindlessSupport instead.")
 inline bool RHISupportsBindless(EShaderPlatform Platform)
 {
-	return FDataDrivenShaderPlatformInfo::GetSupportsBindless(Platform);
+	return RHIGetBindlessSupport(Platform) == ERHIBindlessSupport::AllShaderTypes;
 }
 
 inline bool RHISupportsVolumeTextureAtomics(EShaderPlatform Platform)
