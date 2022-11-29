@@ -336,6 +336,7 @@ public:
 		}
 		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 	}
 }; // class FTemporalSuperResolutionShader
 
