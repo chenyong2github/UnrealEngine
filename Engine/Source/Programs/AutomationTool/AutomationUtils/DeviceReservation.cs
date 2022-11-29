@@ -357,27 +357,13 @@ namespace AutomationTool.DeviceReservation
 
 		public void Renew(Uri BaseUri, TimeSpan NewDuration)
 		{
-			try
-			{
-				Utils.InvokeAPI(BaseUri.AppendPath("api/v1/reservations/" + Guid.ToString()), "PUT", NewDuration);
-			}
-			catch (Exception ex)
-			{
-				throw new AutomationException(ex, "Failed to renew device reservation.");
-			}
+			Utils.InvokeAPI(BaseUri.AppendPath("api/v1/reservations/" + Guid.ToString()), "PUT", NewDuration);
 		}
 
 		public void Delete(Uri BaseUri)
 		{
-			try
-			{
-				Utils.InvokeAPI(BaseUri.AppendPath("api/v1/reservations/" + Guid.ToString()), "DELETE");
-				Console.WriteLine("Successfully deleted device reservation \"{0}\".", Guid);
-			}
-			catch (Exception ex)
-			{
-				Utils.Log(string.Format("Failed to delete device reservation: {0}", ex.Message));
-			}
+			Utils.InvokeAPI(BaseUri.AppendPath("api/v1/reservations/" + Guid.ToString()), "DELETE");
+			Console.WriteLine("Successfully deleted device reservation \"{0}\".", Guid);
 		}
 
 		static public void ReportDeviceError(string InBaseUri, string DeviceName, string Error)
