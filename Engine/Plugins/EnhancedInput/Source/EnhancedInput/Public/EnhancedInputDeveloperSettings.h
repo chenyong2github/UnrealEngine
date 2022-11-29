@@ -43,6 +43,17 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input",  meta = (editCondition = "bEnableDefaultMappingContexts"))
 	TArray<FDefaultContextSetting> DefaultMappingContexts;
+	
+	/**
+	 * Array of any input mapping contexts that you want to be applied by default to the Enhanced Input world subsystem.
+	 * NOTE: These mapping context's can only be from your game's root content directory, not plugins.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input", meta = (editCondition = "bEnableDefaultMappingContexts"))
+	TArray<FDefaultContextSetting> DefaultWorldSubsystemMappingContexts;
+	
+	/** The default player input class that the Enhanced Input world subsystem will use. */
+	UPROPERTY(config, EditAnywhere, NoClear, Category = "Enhanced Input")
+	TSoftClassPtr<class UEnhancedPlayerInput> DefaultWorldInputClass;
 
 	/**
 	 * Platform specific settings for Enhanced Input.
@@ -59,4 +70,11 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = "Enhanced Input", meta=(ConsoleVariable="EnhancedInput.OnlyTriggerLastActionInChord"))
 	bool bShouldOnlyTriggerLastActionInChord = true;
+	
+	/**
+ 	 * If true then the Enhanced Input world subsystem will log all input that is being processed by it (keypresses, analog values, etc)
+ 	 * Note: This can produce A LOT of logs, so only use this if you are debugging something.
+ 	 */
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input World Subsystem", meta=(ConsoleVariable="EnhancedInput.bShouldLogAllWorldSubsystemInputs"))
+	uint8 bShouldLogAllWorldSubsystemInputs : 1;
 };

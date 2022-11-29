@@ -4,10 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "EnhancedInputSubsystemInterface.h"
+#include "EnhancedInputWorldProcessor.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "Subsystems/EngineSubsystem.h"
+#include "Subsystems/WorldSubsystem.h"
 
 #include "EnhancedInputSubsystems.generated.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogWorldSubsystemInput, Log, All);
 
 // Per local player input subsystem
 UCLASS()
@@ -30,4 +34,85 @@ public:
 	 */
 	UPROPERTY(BlueprintAssignable, DisplayName=OnControlMappingsRebuilt, Category = "Input")
 	FOnControlMappingsRebuilt ControlMappingsRebuiltDelegate;
+};
+
+/**
+ * Per world input subsystem that allows you to bind input delegates to actors without an owning Player Controller. 
+ * This should be used when an actor needs to receive input delegates but will never have an owning Player Controller.
+ * For example, you can add input delegates to unlock a door when the user has a certain set of keys pressed.
+ * Be sure to enable input on the actor, or else the input delegates won't fire!
+ * 
+ * Note: if you do have an actor with an owning Player Controller use the local player input subsystem instead.
+ */
+UCLASS()
+class ENHANCEDINPUT_API UEnhancedInputWorldSubsystem : public UTickableWorldSubsystem, public IEnhancedInputSubsystemInterface
+{
+	GENERATED_BODY()
+
+public:
+
+	//~ Begin USubsystem interface
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+	//~ End USubsystem interface
+
+	//~ Begin FTickableGameObject interface
+	//virtual UWorld* GetTickableGameObjectWorld() const override;
+	virtual bool IsTickableInEditor() const { return true; }
+	virtual ETickableTickType GetTickableTickType() const override;
+	virtual void Tick(float DeltaTime) override;
+	TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UEnhancedInputWorldSubsystem, STATGROUP_Tickables); }
+	//~ End FTickableGameObject interface
+	
+	//~ Begin IEnhancedInputSubsystemInterface
+	virtual UEnhancedPlayerInput* GetPlayerInput() const override;
+	//~ End IEnhancedInputSubsystemInterface
+
+	/** Pushes this input component onto the stack to be processed by this subsystem's tick function */
+	UFUNCTION(BlueprintCallable, Category = "Input|World")
+	void PushInputComponent(AActor* Actor);
+
+	/** Removes this input component onto the stack to be processed by this subsystem's tick function */
+	UFUNCTION(BlueprintCallable, Category = "Input|World")
+	bool PopInputComponent(AActor* Actor);
+	
+	/** Start the consumption of input messages in this subsystem. This is required to have any Input Action delegates be fired. */
+	UFUNCTION(BlueprintCallable, Category = "Input|World")
+	void StartConsumingInput();
+
+	/** Tells this subsystem to stop ticking and consuming any input. This will stop any Input Action Delegates from being called. */
+	UFUNCTION(BlueprintCallable, Category = "Input|World")
+	void StopConsumingInput();
+	
+	/** Returns true if this subsystem is currently consuming input */
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Input|World")
+    bool IsConsumingInput() const { return bIsCurrentlyConsumingInput; }
+	
+    /** Inputs a key on this subsystem's player input which can then be processed as normal during Tick. */
+    bool InputKey(const FInputKeyParams& Params);
+	
+	/** Adds all the default mapping contexts */
+	void AddDefaultMappingContexts();
+
+	/** Removes all the default mapping contexts */
+	void RemoveDefaultMappingContexts();
+	
+private:
+
+	/** The player input that is processing the input within this subsystem */
+	UPROPERTY()
+	TObjectPtr<UEnhancedPlayerInput> PlayerInput = nullptr;
+
+	/**
+	 * Input processor that is created on Initalize.
+	 */
+	TSharedPtr<FEnhancedInputWorldProcessor> InputPreprocessor = nullptr;
+	
+	/** If true, then this subsystem will Tick and process input delegates. */
+	bool bIsCurrentlyConsumingInput = false;
+	
+	/** Internal. This is the current stack of InputComponents that is being processed by the PlayerInput. */
+	UPROPERTY(Transient)
+	TArray<TWeakObjectPtr<UInputComponent>> CurrentInputStack;
 };

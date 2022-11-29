@@ -1174,6 +1174,13 @@ public:
 	virtual void EnableInput(class APlayerController* PlayerController);
 
 	/** 
+	 * Creates an input component from the input component passed in
+	 * @param InputComponentToCreate The UInputComponent to create.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void CreateInputComponent(TSubclassOf<UInputComponent> InputComponentToCreate);
+
+	/** 
 	 * Removes this actor from the stack of input being handled by a PlayerController.
 	 * @param PlayerController The PlayerController whose input events we no longer want to receive. If null, this actor will stop receiving input from all PlayerControllers.
 	 */

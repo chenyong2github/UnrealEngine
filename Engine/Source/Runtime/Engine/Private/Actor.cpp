@@ -4219,6 +4219,19 @@ void AActor::EnableInput(APlayerController* PlayerController)
 	}
 }
 
+void AActor::CreateInputComponent(TSubclassOf<UInputComponent> InputComponentToCreate)
+{
+	if (InputComponentToCreate && !InputComponent)
+	{
+		InputComponent = NewObject<UInputComponent>(this, InputComponentToCreate);
+		InputComponent->RegisterComponent();
+		InputComponent->bBlockInput = bBlockInput;
+		InputComponent->Priority = InputPriority;
+
+		UInputDelegateBinding::BindInputDelegatesWithSubojects(this, InputComponent);
+	}
+}
+
 void AActor::DisableInput(APlayerController* PlayerController)
 {
 	if (InputComponent)
