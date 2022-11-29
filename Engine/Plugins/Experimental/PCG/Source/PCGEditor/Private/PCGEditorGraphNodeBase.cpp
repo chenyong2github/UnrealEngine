@@ -253,7 +253,7 @@ void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType Cha
 			}
 		}
 		
-		if (!!(ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Cosmetic)))
+		if (!!(ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Node | EPCGChangeType::Edge | EPCGChangeType::Cosmetic)))
 		{
 			ReconstructNode();
 		}
