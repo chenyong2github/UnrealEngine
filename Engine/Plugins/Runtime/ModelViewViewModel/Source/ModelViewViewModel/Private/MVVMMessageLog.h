@@ -6,6 +6,8 @@
 
 #include "Blueprint/UserWidget.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogMVVM, Log, All);
+
 namespace UE::MVVM
 {
 	class MODELVIEWVIEWMODEL_API FMessageLog : private ::FMessageLog

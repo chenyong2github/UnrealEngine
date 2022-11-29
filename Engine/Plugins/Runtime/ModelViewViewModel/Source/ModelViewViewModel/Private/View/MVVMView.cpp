@@ -4,6 +4,7 @@
 #include "View/MVVMViewClass.h"
 #include "View/MVVMViewWorldSubsystem.h"
 
+#include "Debugging/MVVMDebugging.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Engine/World.h"
@@ -37,6 +38,10 @@ void UMVVMView::Construct()
 		Item.CreateInstance(ClassExtension, this, GetUserWidget());
 	}
 
+#if UE_WITH_MVVM_DEBUGGING
+	UE::MVVM::FDebugging::BroadcastViewConstructed(this);
+#endif
+
 	bHasEveryTickBinding = false;
 
 	const TArrayView<const FMVVMViewClass_CompiledBinding> CompiledBindings = ClassExtension->GetCompiledBindings();
@@ -62,6 +67,10 @@ void UMVVMView::Destruct()
 {
 	check(bConstructed == true);
 	bConstructed = false;
+
+#if UE_WITH_MVVM_DEBUGGING
+	UE::MVVM::FDebugging::BroadcastViewBeginDestruction(this);
+#endif
 
 	for (FRegisteredSource& Source : AllSources)
 	{
@@ -91,8 +100,7 @@ bool UMVVMView::SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldV
 		FObjectPropertyBase* FoundObjectProperty = FindFProperty<FObjectPropertyBase>(GetUserWidget()->GetClass(), ViewModelName);
 		if (FoundObjectProperty == nullptr)
 		{
-			UE::MVVM::FMessageLog Log(GetUserWidget());
-			Log.Error(LOCTEXT("SetViewModelInvalidName", "Invalid viewmodel name for SetViewModel."));
+			UE_LOG(LogMVVM, Error, TEXT("There is no viewmodel named '%s' in the view '%s'"), *ViewModelName.ToString(), *GetFullName());
 			return false;
 		}
 
@@ -107,6 +115,7 @@ bool UMVVMView::SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldV
 					{
 						UE::MVVM::FMessageLog Log(GetUserWidget());
 						Log.Error(LOCTEXT("SetViewModelInvalidValueType", "The new viewmodel is not of the expected type."));
+						UE_LOG(LogMVVM, Error, TEXT("The viewmodel name '%s' is invalid for the view '%s'"), *ViewModelName.ToString(), *GetFullName());
 						return false;
 					}
 					break;
@@ -309,6 +318,18 @@ void UMVVMView::ExecuteLibraryBinding(const FMVVMViewClass_CompiledBinding& Bind
 
 	FMVVMCompiledBindingLibrary::EConversionFunctionType FunctionType = Binding.IsConversionFunctionComplex() ? FMVVMCompiledBindingLibrary::EConversionFunctionType::Complex : FMVVMCompiledBindingLibrary::EConversionFunctionType::Simple;
 	TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> ExecutionResult = ClassExtension->GetBindingLibrary().Execute(GetUserWidget(), Binding.GetBinding(), FunctionType);
+
+#if UE_WITH_MVVM_DEBUGGING
+	if (ExecutionResult.HasError())
+	{
+		UE::MVVM::FDebugging::BroadcastLibraryBindingExecuted(this, Binding, ExecutionResult.GetError());
+	}
+	else
+	{
+		UE::MVVM::FDebugging::BroadcastLibraryBindingExecuted(this, Binding);
+	}
+#endif
+
 	if (ExecutionResult.HasError())
 	{
 		UE::MVVM::FMessageLog Log(GetUserWidget());
@@ -331,6 +352,17 @@ void UMVVMView::ExecuteLibraryBinding(const FMVVMViewClass_CompiledBinding& Bind
 	TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> ExecutionResult = Binding.IsConversionFunctionComplex()
 		? ClassExtension->GetBindingLibrary().Execute(GetUserWidget(), Binding.GetBinding(), FMVVMCompiledBindingLibrary::EConversionFunctionType::Complex)
 		: ClassExtension->GetBindingLibrary().ExecuteWithSource(GetUserWidget(), Binding.GetBinding(), Source);
+
+#if UE_WITH_MVVM_DEBUGGING
+	if (ExecutionResult.HasError())
+	{
+		UE::MVVM::FDebugging::BroadcastLibraryBindingExecuted(this, Binding, ExecutionResult.GetError());
+	}
+	else
+	{
+		UE::MVVM::FDebugging::BroadcastLibraryBindingExecuted(this, Binding);
+	}
+#endif
 	if (ExecutionResult.HasError())
 	{
 		UE::MVVM::FMessageLog Log(GetUserWidget());
@@ -442,16 +474,20 @@ bool UMVVMView::RegisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Bin
 	TValueOrError<UE::FieldNotification::FFieldId, void> FieldIdResult = ClassExtension->GetBindingLibrary().GetFieldId(Binding.GetSourceFieldId());
 	if (FieldIdResult.HasError())
 	{
-		UE::MVVM::FMessageLog Log(GetUserWidget());
-		Log.Error(FText::Format(LOCTEXT("RegisterBindingInvalidFieldId", "Can't register binding '{0}'. The FieldId is invalid."), FText::FromString(Binding.ToString())));
+#if UE_WITH_MVVM_DEBUGGING
+		UE::MVVM::FDebugging::BroadcastLibraryBindingRegistered(this, Binding, UE::MVVM::FDebugging::ERegisterLibraryBindingResult::Failed_InvalidFieldId);
+#endif
+		UE_LOG(LogMVVM, Error, TEXT("'%s' can't register binding '%s'. The FieldId is invalid."), *GetFullName(), *Binding.ToString());
 		return false;
 	}
 
 	UE::FieldNotification::FFieldId FieldId = FieldIdResult.StealValue();
 	if (!FieldId.IsValid())
 	{
-		UE::MVVM::FMessageLog Log(GetUserWidget());
-		Log.Error(FText::Format(LOCTEXT("RegisterBindingNoFieldId", "Can't register binding '{0}'. The FieldId was not found on the source."), FText::FromString(Binding.ToString())));
+#if UE_WITH_MVVM_DEBUGGING
+		UE::MVVM::FDebugging::BroadcastLibraryBindingRegistered(this, Binding, UE::MVVM::FDebugging::ERegisterLibraryBindingResult::Failed_FieldIdNotFound);
+#endif
+		UE_LOG(LogMVVM, Error, TEXT("'%s' can't register binding '%s'. The FieldId was not found on the source."), *GetFullName(), *Binding.ToString());
 		return false;
 	}
 
@@ -459,10 +495,12 @@ bool UMVVMView::RegisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Bin
 	TScriptInterface<INotifyFieldValueChanged> Source = FindSource(Binding, true);
 	if (Source.GetInterface() == nullptr)
 	{
+#if UE_WITH_MVVM_DEBUGGING
+		UE::MVVM::FDebugging::BroadcastLibraryBindingRegistered(this, Binding, UE::MVVM::FDebugging::ERegisterLibraryBindingResult::Failed_InvalidSource);
+#endif
 		if (!Binding.IsRegistrationOptional())
 		{
-			UE::MVVM::FMessageLog Log(GetUserWidget());
-			Log.Error(FText::Format(LOCTEXT("RegisterBindingInvalidSourceInstance", "Can't register binding '{0}'. The source is invalid."), FText::FromString(Binding.ToString())));
+			UE_LOG(LogMVVM, Error, TEXT("'%s' can't register binding '%s'. The source is invalid."), *GetFullName(), *Binding.ToString());
 		}
 		return false;
 	}
@@ -470,14 +508,18 @@ bool UMVVMView::RegisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Bin
 	// Only bind if the source and the destination are valid.
 	if (ClassExtension->GetBindingLibrary().EvaluateFieldPath(GetUserWidget(), Binding.GetBinding().GetSourceFieldPath()).HasError())
 	{
-		UE::MVVM::FMessageLog Log(GetUserWidget());
-		Log.Warning(FText::Format(LOCTEXT("RegisterBindingSourceNotEvaluated", "Can't register binding '{0}'. The source was not evaluated."), FText::FromString(Binding.ToString())));
+#if UE_WITH_MVVM_DEBUGGING
+		UE::MVVM::FDebugging::BroadcastLibraryBindingRegistered(this, Binding, UE::MVVM::FDebugging::ERegisterLibraryBindingResult::Failed_InvalidSourceField);
+#endif
+		UE_LOG(LogMVVM, Warning, TEXT("'%s' can't register binding '%s'. The destination was not evaluated."), *GetFullName(), *Binding.ToString());
 		return false;
 	}
 	if (ClassExtension->GetBindingLibrary().EvaluateFieldPath(GetUserWidget(), Binding.GetBinding().GetDestinationFieldPath()).HasError())
 	{
-		UE::MVVM::FMessageLog Log(GetUserWidget());
-		Log.Warning(FText::Format(LOCTEXT("RegisterBindingInvalidDestination2", "Can't register binding '{0}'. The destination was not evaluated."), FText::FromString(Binding.ToString())));
+#if UE_WITH_MVVM_DEBUGGING
+		UE::MVVM::FDebugging::BroadcastLibraryBindingRegistered(this, Binding, UE::MVVM::FDebugging::ERegisterLibraryBindingResult::Failed_InvalidDestinationField);
+#endif
+		UE_LOG(LogMVVM, Warning, TEXT("'%s' can't register binding '%s'. The destination was not evaluated."), *GetFullName(), *Binding.ToString());
 		return false;
 	}
 
@@ -499,6 +541,9 @@ bool UMVVMView::RegisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Bin
 			AllSources.Add(MoveTemp(Item));
 		}
 	}
+#if UE_WITH_MVVM_DEBUGGING
+	UE::MVVM::FDebugging::BroadcastLibraryBindingRegistered(this, Binding, UE::MVVM::FDebugging::ERegisterLibraryBindingResult::Success);
+#endif
 	return bResult;
 }
 
@@ -538,8 +583,7 @@ TScriptInterface<INotifyFieldValueChanged> UMVVMView::FindSource(const FMVVMView
 	const FObjectPropertyBase* SourceObjectProperty = CastField<FObjectPropertyBase>(UserWidget->GetClass()->FindPropertyByName(Binding.GetSourceObjectPropertyName()));
 	if (SourceObjectProperty == nullptr)
 	{
-		UE::MVVM::FMessageLog Log(GetUserWidget());
-		Log.Error(FText::Format(LOCTEXT("FindSourceInvalidPropertyName", "We could not evaluate the source for binding '{0}'. The property name is invalid."), FText::FromString(Binding.ToString())));
+		UE_LOG(LogMVVM, Error, TEXT("'%s' could not evaluate the source for binding '%s'. The property name is invalid."), *GetFullName(), *Binding.ToString());
 		return TScriptInterface<INotifyFieldValueChanged>();
 	}
 
@@ -548,16 +592,14 @@ TScriptInterface<INotifyFieldValueChanged> UMVVMView::FindSource(const FMVVMView
 	{
 		if (!bAllowNull)
 		{
-			UE::MVVM::FMessageLog Log(GetUserWidget());
-			Log.Warning(FText::Format(LOCTEXT("FindSourceInvalidUObject", "We could not evaluate the source for binding '{0}'. The path point to an invalid object."), FText::FromString(Binding.ToString())));
+			UE_LOG(LogMVVM, Error, TEXT("'%s' could not evaluate the source for binding '%s'. The path point to an invalid object."), *GetFullName(), *Binding.ToString());
 		}
 		return TScriptInterface<INotifyFieldValueChanged>();
 	}
 
 	if (!Source->Implements<UNotifyFieldValueChanged>())
 	{
-		UE::MVVM::FMessageLog Log(GetUserWidget());
-		Log.Error(FText::Format(LOCTEXT("FindSourceNotTheCorrectInterface", "We could not evaluate the source for binding '{0}'. The object {1} doesn't implements INotifyFieldValueChanged."), FText::FromString(Binding.ToString()), FText::FromName(Source->GetFName())));
+		UE_LOG(LogMVVM, Error, TEXT("'%s' could not evaluate the source for binding '%s'. The object '%s' doesn't implements INotifyFieldValueChanged."), *GetFullName(), *Binding.ToString(), *Source->GetFName().ToString());
 		return TScriptInterface<INotifyFieldValueChanged>();
 	}
 

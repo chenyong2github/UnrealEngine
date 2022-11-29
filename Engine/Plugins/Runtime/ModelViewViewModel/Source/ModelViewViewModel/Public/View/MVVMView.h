@@ -18,6 +18,10 @@ struct FMVVMViewClass_CompiledBinding;
 struct FMVVMViewDelayedBinding;
 class UMVVMViewModelBase;
 class UWidget;
+namespace UE::MVVM
+{
+	class FDebugging;
+}
 
 /**
  * Instance UMVVMClassExtension_View for the UUserWdiget
@@ -27,6 +31,8 @@ class MODELVIEWVIEWMODEL_API UMVVMView : public UUserWidgetExtension
 {
 	GENERATED_BODY()
 
+	friend UE::MVVM::FDebugging;
+
 public:
 	void ConstructView(const UMVVMViewClass* ClassExtension);
 
@@ -34,6 +40,11 @@ public:
 	virtual void Construct() override;
 	virtual void Destruct() override;
 	//~ End UUserWidgetExtension implementation
+
+	const UMVVMViewClass* GetViewClass() const
+	{
+		return ClassExtension;
+	}
 
 	void ExecuteDelayedBinding(const FMVVMViewDelayedBinding& DelayedBinding) const;
 	void ExecuteEveryTickBindings() const;
