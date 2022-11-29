@@ -3033,6 +3033,12 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		bExecuteNextStep					= Level->bAreComponentsCurrentlyRegistered && (!bConsiderTimeLimit || !IsTimeLimitExceeded(TEXT("updating components"), StartTime, Level, TimeLimit));
 	}
 
+#if WITH_EDITOR
+	// Gives a chance to any assets being used for PIE/game to complete before calling
+	// BeginPlay on all actors
+	FAssetCompilingManager::Get().ProcessAsyncTasks();
+#endif
+
 	if( IsGameWorld() && AreActorsInitialized() )
 	{
 		// Initialize all actors and start execution.
@@ -4910,6 +4916,11 @@ void UWorld::BeginPlay()
 	{
 		ServerStreamingLevelsVisibility = AServerStreamingLevelsVisibility::SpawnServerActor(this);
 	}
+
+#if WITH_EDITOR
+	// Gives a chance to any assets being used for PIE/game to complete
+	FAssetCompilingManager::Get().ProcessAsyncTasks();
+#endif
 
 	for (UWorldSubsystem* WorldSubsystem : WorldSubsystems)
 	{

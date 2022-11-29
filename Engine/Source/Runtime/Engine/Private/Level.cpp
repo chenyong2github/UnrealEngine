@@ -1783,6 +1783,7 @@ bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
 	if (CurrentActorIndexForIncrementalUpdate >= Actors.Num())
 	{
 		CurrentActorIndexForIncrementalUpdate = 0;
+		bCachedHasStaticMeshCompilationPending.Reset();
 		return true;
 	}
 	return false;
@@ -1845,6 +1846,31 @@ void ULevel::MarkLevelComponentsRenderStateDirty()
 
 #if WITH_EDITOR
 
+bool ULevel::HasStaticMeshCompilationPending()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULevel::HasStaticMeshCompilationPending);
+
+	bool bHasStaticMeshCompilationPending = false;
+	ForEachObjectWithOuterBreakable(
+		this,
+		[&bHasStaticMeshCompilationPending](UObject* InObject)
+		{
+			if (UStaticMeshComponent* Component = Cast<UStaticMeshComponent>(InObject))
+			{
+				if (Component->IsCompiling())
+				{
+					bHasStaticMeshCompilationPending = false;
+					return false;
+				}
+			}
+
+			return true;
+		}
+	);
+
+	return bHasStaticMeshCompilationPending;
+}
+
 bool ULevel::DeferRunningConstructionScripts(AActor* InActor)
 {
 	// if there are outstanding asset (static meshes) compilation when loading actors
@@ -1854,8 +1880,16 @@ bool ULevel::DeferRunningConstructionScripts(AActor* InActor)
 	if (FStaticMeshCompilingManager::Get().GetNumRemainingMeshes() &&
 		InActor->HasNonTrivialUserConstructionScript())
 	{
-		FActorDeferredScriptManager::Get().AddActor(InActor);
-		return true;
+		if (!bCachedHasStaticMeshCompilationPending.IsSet())
+		{
+			bCachedHasStaticMeshCompilationPending = HasStaticMeshCompilationPending();
+		}
+
+		if (bCachedHasStaticMeshCompilationPending)
+		{
+			FActorDeferredScriptManager::Get().AddActor(InActor);
+			return true;
+		}
 	}
 	return false;
 }

@@ -1310,6 +1310,11 @@ public:
 	 * Call on a level that was loaded from disk instead of PIE-duplicating, to fixup actor references
 	 */
 	ENGINE_API void FixupForPIE(int32 PIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> CustomFixupFunction = [](int32, FSoftObjectPath&) {});
+
+	/**
+	 * Returns true if the level contains static meshes that have not finished compiling yet.
+	 */
+	ENGINE_API bool HasStaticMeshCompilationPending();
 #endif
 
 	/** @todo document */
@@ -1361,7 +1366,7 @@ private:
 	bool IncrementalRegisterComponents(bool bPreRegisterComponents, int32 NumComponentsToUpdate, FRegisterComponentContext* Context);
 #if WITH_EDITOR
 	bool IncrementalRunConstructionScripts(bool bProcessAllActors);
-
+	TOptional<bool> bCachedHasStaticMeshCompilationPending;
 private:
 	/**
 	 * Potentially defer the running of an actor's construction script on load
