@@ -114,10 +114,29 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshSelection
 		TFunctionRef<void(int32)> PerVertexFunc,
 		bool bProcessAllVertsIfSelectionEmpty = false) const;
 
+
+	// Required by TStructOpsTypeTraits interface
+	bool operator==(const FGeometryScriptMeshSelection& Other) const
+	{
+		return GeoSelection.Get() == Other.GeoSelection.Get(); 
+	}
+	bool operator!=(const FGeometryScriptMeshSelection& Other) const
+	{
+		return GeoSelection.Get() != Other.GeoSelection.Get(); 
+	}
+
 private:
 	// keeping this private for now in case it needs to be revised in 5.2+
 	TSharedPtr<UE::Geometry::FGeometrySelection> GeoSelection;
 };
 
 
+template<>
+struct TStructOpsTypeTraits<FGeometryScriptMeshSelection> : public TStructOpsTypeTraitsBase2<FGeometryScriptMeshSelection>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+	};
+};
 
