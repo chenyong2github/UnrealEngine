@@ -75,6 +75,7 @@ public:
 	// Columns sorting methods
 	/** Sets the sorting method to be applied */
 	void SortListView(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type NewSortMode);
+	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
 
 	/** Get the pin name which is actually displayed. */
 	static FText GetPinName(const UEdGraphPin& Pin);
@@ -97,6 +98,7 @@ private:
 	
 	/** Current column. */
 	FName CurrentSortColumn = COLUMN_TYPE;
+	EColumnSortMode::Type SortMode = EColumnSortMode::Type::None;
 
 	FString CurrentFilter;
 
