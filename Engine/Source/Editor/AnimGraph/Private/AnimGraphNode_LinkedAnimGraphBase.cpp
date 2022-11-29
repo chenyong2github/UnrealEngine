@@ -287,7 +287,9 @@ void UAnimGraphNode_LinkedAnimGraphBase::PostEditChangeProperty(FPropertyChanged
 			{
 				if(TargetClass != nullptr)
 				{
-					FunctionReference.SetExternalMember(FunctionName, TargetClass);
+					FGuid FunctionGuid;
+					FBlueprintEditorUtils::GetFunctionGuidFromClassByFieldName(FBlueprintEditorUtils::GetMostUpToDateClass(TargetClass), FunctionName, FunctionGuid);
+					FunctionReference.SetExternalMember(FunctionName, TargetClass, FunctionGuid);
 				}
 				else
 				{
