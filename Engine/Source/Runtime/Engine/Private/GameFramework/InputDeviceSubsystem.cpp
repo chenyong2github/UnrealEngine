@@ -10,6 +10,7 @@
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Framework/Application/SlateApplication.h"			// For RegisterInputPreProcessor
 #include "GameFramework/PlayerController.h"
+#include "Misc/App.h"	// For FApp::GetDeltaTime()
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputDeviceSubsystem)
 
@@ -263,8 +264,14 @@ TStatId UInputDeviceSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UInputDeviceSubsystem, STATGROUP_Tickables);
 }
 
-void UInputDeviceSubsystem::Tick(float DeltaTime)
+void UInputDeviceSubsystem::Tick(float InDeltaTime)
 {
+	// If a property doesn't want to be affected by time dilation then we can use this instead
+	const double NonDialatedDeltaTime = FApp::GetDeltaTime();
+
+	const UWorld* World = GetTickableGameObjectWorld();
+	const bool bIsGamePaused = World ? World->IsPaused() : false;
+
 	for (int32 Index = ActiveProperties.Num() - 1; Index >= 0; --Index)
 	{
 		if (!ActiveProperties[Index].Property)
@@ -275,6 +282,15 @@ void UInputDeviceSubsystem::Tick(float DeltaTime)
 			continue;
 		}
 
+		// If the game is paused, only play effects that have explicitly specified that they should be 
+		// played while paused.
+		if (bIsGamePaused && !ActiveProperties[Index].bPlayWhilePaused)
+		{
+			continue;
+		}
+
+		const double DeltaTime = ActiveProperties[Index].bIgnoreTimeDilation ? NonDialatedDeltaTime : static_cast<double>(InDeltaTime);
+		
 		// Increase the evaluated time of this property
 		ActiveProperties[Index].EvaluatedDuration += DeltaTime;
 
@@ -347,8 +363,10 @@ FInputDevicePropertyHandle UInputDeviceSubsystem::SetDeviceProperty(const FSetDe
 		ensure(ActiveProp.Property);
 
 		ActiveProp.PlatformUser = Params.UserId;
-		ActiveProp.bRemoveAfterEvaluationTime = Params.bRemoveAfterEvaluationTime;
 		ActiveProp.PropertyHandle = OutHandle;
+		ActiveProp.bRemoveAfterEvaluationTime = Params.bRemoveAfterEvaluationTime;	
+		ActiveProp.bIgnoreTimeDilation = Params.bIgnoreTimeDilation;
+		ActiveProp.bPlayWhilePaused = Params.bPlayWhilePaused;
 
 		ActiveProperties.Add(ActiveProp);
 	}

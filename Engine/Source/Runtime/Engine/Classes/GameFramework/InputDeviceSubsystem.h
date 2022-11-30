@@ -66,6 +66,9 @@ struct ENGINE_API FActiveDeviceProperty
 	/** The platform user that is actively receiving this device property */
 	FPlatformUserId PlatformUser = PLATFORMUSERID_NONE;
 
+	/** The handle of this active property. */
+	FInputDevicePropertyHandle PropertyHandle = FInputDevicePropertyHandle::InvalidHandle;
+
 	/**
 	* If true, then when the InputDeviceProperty is done being evaluated and has fulfilled its duration, then 
 	* it will have it's Reset function called. Set this to false if you want your device property to stay 
@@ -73,8 +76,11 @@ struct ENGINE_API FActiveDeviceProperty
 	*/
 	bool bRemoveAfterEvaluationTime = true;
 
-	/** The handle of this active property. */
-	FInputDevicePropertyHandle PropertyHandle = FInputDevicePropertyHandle::InvalidHandle;
+	/** If true, then this device property will ignore dilated delta time and use the Applications delta time instead */
+	bool bIgnoreTimeDilation = false;
+
+	/** If true, then this device property will be played even if the game world is paused. */
+	bool bPlayWhilePaused = false;
 };
 
 /** Parameters for the UInputDeviceSubsystem::SetDeviceProperty function */
@@ -103,6 +109,14 @@ struct ENGINE_API FSetDevicePropertyParams
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
 	bool bRemoveAfterEvaluationTime = true;
+
+	/** If true, then this device property will ignore dilated delta time and use the Applications delta time instead */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
+	bool bIgnoreTimeDilation = false;
+
+	/** If true, then this device property will be played even if the game world is paused. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
+	bool bPlayWhilePaused = false;
 };
 
 /**
@@ -138,7 +152,7 @@ public:
 	virtual bool IsAllowedToTick() const override;
 	virtual bool IsTickableInEditor() const override;
 	virtual TStatId GetStatId() const override;
-	virtual void Tick(float DeltaTime) override;
+	virtual void Tick(float InDeltaTime) override;
 	//~ End FTickableGameObject interface
 
 	/** Get the player controller who has the given Platform User ID. */
