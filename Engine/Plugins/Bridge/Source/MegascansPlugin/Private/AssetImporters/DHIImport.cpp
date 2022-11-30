@@ -44,6 +44,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Input/Reply.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "DHIImport"
 
@@ -77,6 +78,9 @@ public:
 
 		this->ChildSlot
 		[
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
+			[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
@@ -200,7 +204,8 @@ public:
 					.OnClicked(this, &SOVerwriteDialog::HandleOK)
 				]
 			]
-		];
+		]
+        ];
 	}
 	
 private:
@@ -463,15 +468,15 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 
 
 	// TODO: Removed
-	// if (PlatformFile.DirectoryExists(*CharacterDestination))
-	// {
-	// 	bIsNewCharacter = false;
-	// 	if (MHInLevel(BPPath))
-	// 	{
-	// 		EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::Ok, FText(FText::FromString("This MetaHuman already exists in this level. In order to continue, you will need to close the level and import the MetaHuman into a new or different level.")));
-	// 		return;
-	// 	}
-	// }
+	if (PlatformFile.DirectoryExists(*CharacterDestination))
+	{
+		bIsNewCharacter = false;
+		if (MHInLevel(BPPath))
+		{
+			EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::Ok, FText(FText::FromString("This MetaHuman already exists in this level. In order to continue, you will need to close the level and import the MetaHuman into a new or different level.")));
+			return;
+		}
+	}
 
 
 	// TODO: Partially Removed
@@ -515,10 +520,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 
     CommonDestinationPath = FPaths::Combine(MetaHumansRoot, TEXT("Common"));
 
-	if (bShouldUpdateAll)
-	{
-		PlatformFile.CopyFile(*ProjectAssetsVersionPath, *SourceVersionFilePath);
-	}
+	
 
 	// NOTE: the RigLogic plugin (and maybe others) must be loaded and added to the project before loading the asset
 	// otherwise we get rid of the RigLogic nodes, resulting in leaving the asset in an undefined state. In the context
@@ -731,6 +733,11 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 	}
 
     AssetRegistryModule.Get().ScanPathsSynchronous(AssetsBasePath, true);
+
+	if (bShouldUpdateAll)
+	{
+		PlatformFile.CopyFile(*ProjectAssetsVersionPath, *SourceVersionFilePath);
+	}
 
     FAssetData CharacterAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(BPPath));
 
