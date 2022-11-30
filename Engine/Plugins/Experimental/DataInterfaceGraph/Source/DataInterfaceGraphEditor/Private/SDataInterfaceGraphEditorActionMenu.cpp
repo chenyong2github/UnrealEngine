@@ -16,6 +16,7 @@
 #include "RigVMCore/RigVMRegistry.h"
 #include "Units/RigUnit.h"
 #include "Widgets/SToolTip.h"
+#include "DataInterfaceExecuteContext.h"
 
 #define LOCTEXT_NAMESPACE "DataInterfaceEditor"
 
@@ -24,10 +25,26 @@ namespace UE::DataInterfaceGraphEditor
 
 static void CollectAllDataInterfaceActions(FGraphContextMenuBuilder& MenuBuilder)
 {
-	for(const FRigVMFunction& Function : FRigVMRegistry::Get().GetFunctions())
+	static const TArray<UScriptStruct*> AllowedExecuteContexts =
 	{
+		FRigVMExecuteContext::StaticStruct(),
+		FDataInterfaceExecuteContext::StaticStruct()
+	};
+
+	const TChunkedArray<FRigVMFunction>& Functions = FRigVMRegistry::Get().GetFunctions();
+	const int32 NumFunctions = Functions.Num();
+	for(int i=0; i < NumFunctions; i++)
+	{
+		const FRigVMFunction& Function = Functions[i];
+
+		const UScriptStruct* FunctionContext = Function.GetExecuteContextStruct();
+		if (FunctionContext == nullptr || !AllowedExecuteContexts.Contains(FunctionContext))
+		{
+			continue;
+		}
+
 		UScriptStruct* Struct = Function.Struct;
-		if (!Struct->IsChildOf(FRigUnit::StaticStruct()))
+		if (Struct == nullptr)
 		{
 			continue;
 		}
@@ -40,9 +57,14 @@ static void CollectAllDataInterfaceActions(FGraphContextMenuBuilder& MenuBuilder
 		{
 			MenuDescSuffixMetadata = TEXT(" ") + MenuDescSuffixMetadata;
 		}
-		FText NodeCategory = FText::FromString(CategoryMetadata);
-		FText MenuDesc = FText::FromString(DisplayNameMetadata + MenuDescSuffixMetadata);
-		FText ToolTip = Struct->GetToolTipText();
+		const FText NodeCategory = FText::FromString(CategoryMetadata);
+		const FText MenuDesc = FText::FromString(DisplayNameMetadata + MenuDescSuffixMetadata);
+		const FText ToolTip = Struct->GetToolTipText();
+
+		if (MenuDesc.IsEmpty())
+		{
+			continue;
+		}
 
 		MenuBuilder.AddAction(MakeShared<FDataInterfaceGraphSchemaAction_RigUnit>(Struct, NodeCategory, MenuDesc, ToolTip));
 	};

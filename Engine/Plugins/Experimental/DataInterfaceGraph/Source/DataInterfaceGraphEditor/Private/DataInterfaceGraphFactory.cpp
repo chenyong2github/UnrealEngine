@@ -32,6 +32,7 @@ UObject* UDataInterfaceGraphFactory::FactoryCreateNew(UClass* Class, UObject* In
 	UDataInterfaceGraph_EditorData* EditorData = NewObject<UDataInterfaceGraph_EditorData>(NewGraph, TEXT("EditorData"));
 	NewGraph->EditorData = EditorData;
 	EditorData->Initialize(/*bRecompileVM*/false);
+	EditorData->GetRigVMClient()->SetExecuteContextStruct(FDataInterfaceExecuteContext::StaticStruct());
 
 	// Add initial execution unit
 	URigVMController* Controller = EditorData->GetRigVMClient()->GetController(EditorData->RootGraph);

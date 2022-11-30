@@ -105,6 +105,17 @@ const FRigVMClient* UDataInterfaceGraph_EditorData::GetRigVMClient() const
 	return &RigVMClient;
 }
 
+IRigVMGraphFunctionHost* UDataInterfaceGraph_EditorData::GetRigVMGraphFunctionHost()
+{
+	return this;
+}
+
+const IRigVMGraphFunctionHost* UDataInterfaceGraph_EditorData::GetRigVMGraphFunctionHost() const
+{
+	return this;
+}
+
+
 void UDataInterfaceGraph_EditorData::HandleRigVMGraphAdded(const FRigVMClient* InClient, const FString& InNodePath)
 {
 	if(URigVMGraph* RigVMGraph = InClient->GetModel(InNodePath))
@@ -201,6 +212,17 @@ UObject* UDataInterfaceGraph_EditorData::GetEditorObjectForRigVMGraph(URigVMGrap
 	}
 	return nullptr;
 }
+
+FRigVMGraphFunctionStore* UDataInterfaceGraph_EditorData::GetRigVMGraphFunctionStore()
+{
+	return &GraphFunctionStore;
+}
+
+const FRigVMGraphFunctionStore* UDataInterfaceGraph_EditorData::GetRigVMGraphFunctionStore() const
+{
+	return &GraphFunctionStore;
+}
+
 
 void UDataInterfaceGraph_EditorData::RecompileVM()
 {

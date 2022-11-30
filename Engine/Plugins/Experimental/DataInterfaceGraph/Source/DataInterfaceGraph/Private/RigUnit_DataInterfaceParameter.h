@@ -11,7 +11,7 @@ struct FDataInterfaceUnitContext;
 class UDataInterfaceGraph;
 
 /** Unit for reading parameters from context */
-USTRUCT(meta=(DisplayName="Parameter"))
+USTRUCT(meta = (DisplayName = "Parameter", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_DataInterfaceParameter : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
@@ -24,7 +24,7 @@ protected:
 };
 
 /** Unit for reading float parameter from context */
-USTRUCT(meta=(DisplayName="Float Parameter"))
+USTRUCT(meta = (DisplayName = "Float Parameter", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_DataInterfaceParameter_Float : public FRigUnit_DataInterfaceParameter
 {
 	GENERATED_BODY()
@@ -38,7 +38,7 @@ protected:
 };
 
 /** Unit for reading data interface graph parameter from context */
-USTRUCT(meta=(DisplayName="Data Interface Parameter"))
+USTRUCT(meta = (DisplayName = "Data Interface Parameter", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_DataInterfaceParameter_DataInterface : public FRigUnit_DataInterfaceParameter
 {
 	GENERATED_BODY()
@@ -142,7 +142,7 @@ struct FDataInterfaceParameter_DataInterface : public FDataInterfaceParameter
 };
 
 /** Base unit for calling data interfaces from graphs */
-USTRUCT(meta=(DisplayName="Data Interface"))
+USTRUCT(meta = (DisplayName = "Data Interface", Category = "Execution", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_DataInterface : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
@@ -153,7 +153,7 @@ protected:
 };
 
 /** Unit for getting a float via a data interface */
-USTRUCT(meta=(DisplayName="Data Interface Float"))
+USTRUCT(meta = (DisplayName = "Data Interface Float", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_DataInterface_Float : public FRigUnit_DataInterface
 {
 	GENERATED_BODY()
@@ -191,7 +191,7 @@ protected:
 };
 */
 /** Unit for getting a pose via a data interface */
-USTRUCT(meta=(DisplayName="Float Operator"))
+USTRUCT(meta = (DisplayName = "Float Operator", Category = "Operators", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_FloatOperator : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
@@ -220,7 +220,7 @@ protected:
 };
 
 /** Unit for getting a pose via a data interface */
-USTRUCT(meta=(DisplayName="Pose Operator"))
+USTRUCT(meta = (DisplayName = "Pose Operator", Category = "Operators", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_PoseOperator : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
@@ -258,7 +258,7 @@ struct FAnimSequenceParameters
 };
 
 /** Unit for getting a pose via a data interface */
-USTRUCT(meta=(DisplayName="Anim Sequence"))
+USTRUCT(meta = (DisplayName = "Anim Sequence", Category = "Animation", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_DataInterface_SequencePlayer : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
@@ -278,7 +278,7 @@ protected:
 };
 
 /** Unit for getting a pose via a data interface */
-USTRUCT(meta=(DisplayName="Test Float State - Spring Damper Smoothing", Varying))
+USTRUCT(meta = (DisplayName = "Test Float State - Spring Damper Smoothing", Varying, Category = "Animation", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_TestFloatState : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()

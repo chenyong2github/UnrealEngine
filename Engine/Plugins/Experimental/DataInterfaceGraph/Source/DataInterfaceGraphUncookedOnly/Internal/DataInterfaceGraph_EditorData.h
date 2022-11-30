@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "DataInterfaceGraph_EdGraph.h"
+#include "RigVMCore/RigVMGraphFunctionHost.h"
 #include "DataInterfaceGraph_EditorData.generated.h"
 
 class UDataInterfaceGraph;
@@ -20,7 +21,7 @@ namespace UE::DataInterfaceGraphEditor
 }
 
 UCLASS(MinimalAPI)
-class UDataInterfaceGraph_EditorData : public UObject, public IRigVMClientHost
+class UDataInterfaceGraph_EditorData : public UObject, public IRigVMClientHost, public IRigVMGraphFunctionHost
 {
 	GENERATED_BODY()
 
@@ -40,13 +41,17 @@ class UDataInterfaceGraph_EditorData : public UObject, public IRigVMClientHost
 	// IRigVMClientHost interface
 	virtual FRigVMClient* GetRigVMClient() override;
 	virtual const FRigVMClient* GetRigVMClient() const override;
-	virtual IRigVMGraphFunctionHost* GetRigVMGraphFunctionHost() override {return nullptr; }
-	virtual const IRigVMGraphFunctionHost* GetRigVMGraphFunctionHost() const override {return nullptr; }
+	virtual IRigVMGraphFunctionHost* GetRigVMGraphFunctionHost() override;
+	virtual const IRigVMGraphFunctionHost* GetRigVMGraphFunctionHost() const override;
 	virtual void HandleRigVMGraphAdded(const FRigVMClient* InClient, const FString& InNodePath) override;
 	virtual void HandleRigVMGraphRemoved(const FRigVMClient* InClient, const FString& InNodePath) override {}
 	virtual void HandleRigVMGraphRenamed(const FRigVMClient* InClient, const FString& InOldNodePath, const FString& InNewNodePath) override {}
 	virtual void HandleConfigureRigVMController(const FRigVMClient* InClient, URigVMController* InControllerToConfigure) override;
 	virtual UObject* GetEditorObjectForRigVMGraph(URigVMGraph* InVMGraph) const override;
+
+	// IRigVMGraphFunctionHost interface
+	virtual FRigVMGraphFunctionStore* GetRigVMGraphFunctionStore() override;
+	virtual const FRigVMGraphFunctionStore* GetRigVMGraphFunctionStore() const override;
 
 	DATAINTERFACEGRAPHUNCOOKEDONLY_API void Initialize(bool bRecompileVM);
 
@@ -73,6 +78,9 @@ class UDataInterfaceGraph_EditorData : public UObject, public IRigVMClientHost
 
 	UPROPERTY()
 	FRigVMClient RigVMClient;
+
+	UPROPERTY()
+	FRigVMGraphFunctionStore GraphFunctionStore;
 
 	UPROPERTY()
 	TObjectPtr<URigVMGraph> RigVMGraph_DEPRECATED;

@@ -11,7 +11,7 @@
 struct FRigUnitContext;
 
 /** Event for writing back calculated results to external variables */
-USTRUCT(meta=(DisplayName="End Execute Data Interface"))
+USTRUCT(meta = (DisplayName = "End Execute Data Interface", Category = "Events", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution : public FRigUnit_DataInterfaceBase
 {
 	GENERATED_BODY()
@@ -30,7 +30,7 @@ public:
 };
 
 /** Event for writing back a calculated bool */
-USTRUCT(meta=(DisplayName="End Execute Data Interface Bool"))
+USTRUCT(meta = (DisplayName = "End Execute Data Interface Bool", Category = "Events", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution_Bool : public FRigUnit_DataInterfaceEndExecution
 {
 	GENERATED_BODY()
@@ -48,7 +48,7 @@ struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution_Bool : public F
 };
 
 /** Event for writing back a calculated float */
-USTRUCT(meta=(DisplayName="End Execute Data Interface Float"))
+USTRUCT(meta = (DisplayName = "End Execute Data Interface Float", Category = "Events", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution_Float : public FRigUnit_DataInterfaceEndExecution
 {
 	GENERATED_BODY()
