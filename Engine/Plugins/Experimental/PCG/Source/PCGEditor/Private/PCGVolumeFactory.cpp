@@ -19,7 +19,12 @@ UPCGVolumeFactory::UPCGVolumeFactory(const FObjectInitializer& ObjectInitializer
 
 bool UPCGVolumeFactory::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
 {
-	if ( !AssetData.IsValid() || !AssetData.IsInstanceOf(UPCGGraph::StaticClass()))
+	if (UActorFactory::CanCreateActorFrom(AssetData, OutErrorMsg))
+	{
+		return true;
+	}
+
+	if ( AssetData.IsValid() && !AssetData.IsInstanceOf(UPCGGraph::StaticClass()))
 	{
 		OutErrorMsg = LOCTEXT("NoPCGGraph", "A valid PCG graph asset must be specified.");
 		return false;
