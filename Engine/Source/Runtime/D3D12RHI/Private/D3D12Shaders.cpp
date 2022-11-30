@@ -172,6 +172,7 @@ FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<c
 	Ar << Shader->AnyHitEntryPoint;
 	Ar << Shader->IntersectionEntryPoint;
 	Ar << Shader->RayTracingPayloadType;
+	Ar << Shader->RayTracingPayloadSize;
 
 	checkf(Shader->RayTracingPayloadType != 0, TEXT("Ray Tracing Shader must not have an empty payload type!"));
 	checkf(	(FMath::CountBits(Shader->RayTracingPayloadType) == 1 && (ShaderFrequency == SF_RayHitGroup || ShaderFrequency == SF_RayMiss || ShaderFrequency == SF_RayCallable)) ||

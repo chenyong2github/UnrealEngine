@@ -206,6 +206,21 @@ static TArray<FShaderType*>& GetSortedShaderTypes(FShaderType::EShaderTypeForDyn
 	return SortedTypes[(uint32)Type];
 }
 
+
+namespace {
+
+uint32 RegisteredRayTracingPayloads = 0;
+uint32 RayTracingPayloadSizes[32] = {};
+
+bool IsRayTracingPayloadRegistered(ERayTracingPayloadType PayloadType)
+{
+	// make sure all bits are on in the registered bitmask
+	return (static_cast<uint32>(PayloadType) & RegisteredRayTracingPayloads) == static_cast<uint32>(PayloadType);
+}
+
+} // anonymous namespace
+
+
 FShaderType::FShaderType(
 	EShaderTypeForDynamicCast InShaderTypeForDynamicCast,
 	FTypeLayoutDesc& InTypeLayout,
@@ -414,7 +429,10 @@ void FShaderType::ModifyCompilationEnvironment(const FShaderPermutationParameter
 	}
 	if (RayTracingPayloadType != ERayTracingPayloadType::None)
 	{
+		checkf(IsRayTracingPayloadRegistered(RayTracingPayloadType), TEXT("Raytracing shader %s is using a payload type (%u) which was never registered"), Name, RayTracingPayloadType);
+
 		OutEnvironment.SetDefine(TEXT("RT_PAYLOAD_TYPE"), static_cast<int32>(RayTracingPayloadType));
+		OutEnvironment.SetDefine(TEXT("RT_PAYLOAD_MAX_SIZE"), GetRayTracingPayloadTypeMaxSize(RayTracingPayloadType));
 	}
 #endif
 }
@@ -2146,6 +2164,32 @@ EShaderPermutationFlags GetShaderPermutationFlags(const FPlatformTypeLayoutParam
 	if (bProjectSupportsCookedEditor || LayoutParams.WithEditorOnly())
 	{
 		Result |= EShaderPermutationFlags::HasEditorOnlyData;
+	}
+	return Result;
+}
+
+void RegisterRayTracingPayloadType(ERayTracingPayloadType PayloadType, uint32 PayloadSize)
+{
+	// Make sure we haven't registered this payload type yet
+	uint32 PayloadTypeInt = static_cast<uint32>(PayloadType);
+	checkf(FMath::CountBits(PayloadTypeInt) == 1, TEXT("PayloadType should have only 1 bit set -- got %u"), PayloadTypeInt);
+	checkf(!IsRayTracingPayloadRegistered(PayloadType), TEXT("Payload type %u has already been registered"), PayloadTypeInt);
+	int32 PayloadIndex = FPlatformMath::CountTrailingZeros(PayloadTypeInt);
+	RayTracingPayloadSizes[PayloadIndex] = PayloadSize;
+	RegisteredRayTracingPayloads |= PayloadTypeInt;
+}
+
+uint32 GetRayTracingPayloadTypeMaxSize(ERayTracingPayloadType PayloadType)
+{
+	// Compute the largest payload size among all set bits
+	uint32 Result = 0;
+	checkf(IsRayTracingPayloadRegistered(PayloadType), TEXT("Payload type %u has not been registered"), PayloadType);
+	for (uint32 PayloadTypeInt = static_cast<uint32>(PayloadType); PayloadTypeInt;)
+	{
+		const int32 PayloadIndex = FPlatformMath::CountTrailingZeros(PayloadTypeInt);
+		Result = FMath::Max(Result, RayTracingPayloadSizes[PayloadIndex]);
+		// remove bit we just processed
+		PayloadTypeInt &= ~(1u << PayloadIndex);
 	}
 	return Result;
 }

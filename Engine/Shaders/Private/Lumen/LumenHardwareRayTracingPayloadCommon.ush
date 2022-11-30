@@ -81,6 +81,10 @@ struct FLumenMinimalPayload : FMinimalPayload
 		return PackedData[INSTANCE_INDEX];
 	}
 };
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_LUMEN_MINIMAL)
+CHECK_RT_PAYLOAD_SIZE(FLumenMinimalPayload)
+#endif
+
 
 uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
 {

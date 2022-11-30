@@ -1893,28 +1893,51 @@ static bool ValidateRayTracingPipelinePayloadMask(const FRayTracingPipelineState
 		// if we don't have any raygen shaders, the RTPSO is not complete and we can't really do any validation
 		return true;
 	}
-	//const int32 BaseRayTracingPayloadType = InInitializer.GetRayGenTable()[0]->RayTracingPayloadType;
-	int32 BaseRayTracingPayloadType = 0;
+	uint32 BaseRayTracingPayloadType = 0;
 	for (FRHIRayTracingShader* Shader : InInitializer.GetRayGenTable())
 	{
 		checkf(Shader != nullptr, TEXT("RayGen shader table should not contain any NULL entries."));
-		//checkf(Shader->RayTracingPayloadType == BaseRayTracingPayloadType, TEXT("Mismatched Ray Tracing Payload type among raygen shaders! Found payload types %d and %d"), Shader->RayTracingPayloadType, BaseRayTracingPayloadType);
 		BaseRayTracingPayloadType |= Shader->RayTracingPayloadType; // union of all possible bits the raygen shaders want
+		checkf(Shader->RayTracingPayloadSize <= InInitializer.MaxPayloadSizeInBytes,
+			TEXT("Raytracing shader has a %u byte payload, but RTPSO has max set to %u"),
+			Shader->RayTracingPayloadSize,
+			InInitializer.MaxPayloadSizeInBytes);
 	}
 	for (FRHIRayTracingShader* Shader : InInitializer.GetMissTable())
 	{
 		checkf(Shader != nullptr, TEXT("Miss shader table should not contain any NULL entries"));
-		checkf((Shader->RayTracingPayloadType & BaseRayTracingPayloadType) == Shader->RayTracingPayloadType, TEXT("Mismatched Ray Tracing Payload type among miss shaders! Found payload type %d but expecting %d"), Shader->RayTracingPayloadType, BaseRayTracingPayloadType);
+		checkf((Shader->RayTracingPayloadType & BaseRayTracingPayloadType) == Shader->RayTracingPayloadType,
+			TEXT("Mismatched Ray Tracing Payload type among miss shaders! Found payload type %d but expecting %d"),
+			Shader->RayTracingPayloadType,
+			BaseRayTracingPayloadType);
+		checkf(Shader->RayTracingPayloadSize <= InInitializer.MaxPayloadSizeInBytes,
+			TEXT("Raytracing shader has a %u byte payload, but RTPSO has max set to %u"),
+			Shader->RayTracingPayloadSize,
+			InInitializer.MaxPayloadSizeInBytes);
 	}
 	for (FRHIRayTracingShader* Shader : InInitializer.GetHitGroupTable())
 	{
 		checkf(Shader != nullptr, TEXT("Hit group shader table should not contain any NULL entries"));
-		checkf((Shader->RayTracingPayloadType & BaseRayTracingPayloadType) == Shader->RayTracingPayloadType, TEXT("Mismatched Ray Tracing Payload type among hitgroup shaders! Found payload type %d but expecting %d"), Shader->RayTracingPayloadType, BaseRayTracingPayloadType);
+		checkf((Shader->RayTracingPayloadType & BaseRayTracingPayloadType) == Shader->RayTracingPayloadType,
+			TEXT("Mismatched Ray Tracing Payload type among hitgroup shaders! Found payload type %d but expecting %d"),
+			Shader->RayTracingPayloadType,
+			BaseRayTracingPayloadType);
+		checkf(Shader->RayTracingPayloadSize <= InInitializer.MaxPayloadSizeInBytes,
+			TEXT("Raytracing shader has a %u byte payload, but RTPSO has max set to %u"),
+			Shader->RayTracingPayloadSize,
+			InInitializer.MaxPayloadSizeInBytes);
 	}
 	for (FRHIRayTracingShader* Shader : InInitializer.GetCallableTable())
 	{
 		checkf(Shader != nullptr, TEXT("Callable shader table should not contain any NULL entries"));
-		checkf((Shader->RayTracingPayloadType & BaseRayTracingPayloadType) == Shader->RayTracingPayloadType, TEXT("Mismatched Ray Tracing Payload type among callable shaders! Found payload type %d but expecting %d"), Shader->RayTracingPayloadType, BaseRayTracingPayloadType);
+		checkf((Shader->RayTracingPayloadType & BaseRayTracingPayloadType) == Shader->RayTracingPayloadType,
+			TEXT("Mismatched Ray Tracing Payload type among callable shaders! Found payload type %d but expecting %d"),
+			Shader->RayTracingPayloadType,
+			BaseRayTracingPayloadType);
+		checkf(Shader->RayTracingPayloadSize <= InInitializer.MaxPayloadSizeInBytes,
+			TEXT("Raytracing shader has a %u byte payload, but RTPSO has max set to %u"),
+			Shader->RayTracingPayloadSize,
+			InInitializer.MaxPayloadSizeInBytes);
 	}
 	// pass the check that called us, any failure above is sufficient
 	return true;

@@ -338,7 +338,15 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::RayTracingMaterial;
+		FPermutationDomain PermutationVector(PermutationId);
+		if (PermutationVector.Get<FDeferredMaterialMode>() == EDeferredMaterialMode::Gather)
+		{
+			return ERayTracingPayloadType::Deferred;
+		}
+		else
+		{
+			return ERayTracingPayloadType::RayTracingMaterial;
+		}
 	}
 };
 
@@ -452,16 +460,6 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflections(const FViewInfo
 
 	if (bSortMaterials)
 	{
-		{
-			FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FRayTracingReflectionsRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
-			PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
-			PermutationVector.Set<FRayTracingReflectionsRGS::FHybrid>(bHybridReflections);
-			PermutationVector.Set<FRayTracingReflectionsRGS::FRayTraceSkyLightContribution>(bRayTraceSkyLightContribution);
-			auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
-			OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
-		}
-		
 		{
 			FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FRayTracingReflectionsRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());

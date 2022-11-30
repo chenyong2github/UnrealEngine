@@ -306,6 +306,21 @@ public:
 enum class ERayTracingPayloadType : uint32; // actual enum is defined in /Shaders/Shared/RayTracingPayloadType.h
 ENUM_CLASS_FLAGS(ERayTracingPayloadType);
 
+RENDERCORE_API uint32 GetRayTracingPayloadTypeMaxSize(ERayTracingPayloadType PayloadType);
+RENDERCORE_API void RegisterRayTracingPayloadType(ERayTracingPayloadType PayloadType, uint32 PayloadSize);
+
+struct FRegisterRayTracingPayloadTypeHelper
+{
+	FRegisterRayTracingPayloadTypeHelper(ERayTracingPayloadType PayloadType, uint32 PayloadSize)
+	{
+		RegisterRayTracingPayloadType(PayloadType, PayloadSize);
+	}
+};
+
+#define IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT2( x, y ) x##y
+#define IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT( x, y ) IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT2( x, y )
+#define IMPLEMENT_RT_PAYLOAD_TYPE(PayloadType, PayloadSize)  static FRegisterRayTracingPayloadTypeHelper IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT(PayloadHelper, __COUNTER__) = FRegisterRayTracingPayloadTypeHelper(PayloadType, PayloadSize);
+
 class RENDERCORE_API FShaderMapResource : public FRenderResource, public FDeferredCleanupInterface
 {
 public:

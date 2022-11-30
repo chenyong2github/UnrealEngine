@@ -1020,13 +1020,16 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 		// Save results if compilation and reflection succeeded
 		if (Output.bSucceeded)
 		{
-			int32 RayTracingPayloadType = 0;
+			uint32 RayTracingPayloadType = 0;
+			uint32 RayTracingPayloadSize = 0;
 			if (bIsRayTracingShader)
 			{
-				if (const FString* RTPayloadTypePtr = Input.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_TYPE")))
-				{
-					RayTracingPayloadType = FCString::Atoi(**RTPayloadTypePtr);
-				}
+				const FString* RTPayloadTypePtr = Input.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_TYPE"));
+				const FString* RTPayloadSizePtr = Input.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_MAX_SIZE"));
+				checkf(RTPayloadTypePtr != nullptr, TEXT("Ray tracing shaders must provide a payload type as this information is required for offline RTPSO compilation. Check that FShaderType::ModifyCompilationEnvironment correctly set this value."));
+				checkf(RTPayloadSizePtr != nullptr, TEXT("Ray tracing shaders must provide a payload size as this information is required for offline RTPSO compilation. Check that FShaderType::ModifyCompilationEnvironment correctly set this value."));
+				RayTracingPayloadType = FCString::Atoi(**RTPayloadTypePtr);
+				RayTracingPayloadSize = FCString::Atoi(**RTPayloadSizePtr);
 			}
 			auto PostSRTWriterCallback = [&](FMemoryWriter& Ar)
 			{
@@ -1036,6 +1039,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 					Ar << RayAnyHitEntryPoint;
 					Ar << RayIntersectionEntryPoint;
 					Ar << RayTracingPayloadType;
+					Ar << RayTracingPayloadSize;
 				}
 			};
 

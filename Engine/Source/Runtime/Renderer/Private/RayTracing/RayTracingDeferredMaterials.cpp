@@ -25,6 +25,8 @@ bool CanUseRayTracingAMDHitToken()
 		&& CVarRayTracingAMDHitToken.GetValueOnRenderThread() != 0;
 }
 
+IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::Deferred, 12);
+
 class FRayTracingDeferredMaterialCHS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingDeferredMaterialCHS)
@@ -84,7 +86,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingDeferre
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-	Initializer.MaxPayloadSizeInBytes = 12; // sizeof FDeferredMaterialPayload
+	Initializer.MaxPayloadSizeInBytes = GetRayTracingPayloadTypeMaxSize(ERayTracingPayloadType::Deferred);
 
 	// Get the ray tracing materials
 	auto ClosestHitShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialCHS>();

@@ -623,7 +623,10 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 
 	FRayTracingPipelineStateInitializer Initializer;
 
-	Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE; // sizeof(FPackedMaterialClosestHitPayload)
+	Initializer.MaxPayloadSizeInBytes = GetRayTracingPayloadTypeMaxSize(
+		bIsPathTracing
+			? (ERayTracingPayloadType::PathTracingMaterial | ERayTracingPayloadType::Decals)
+			: ERayTracingPayloadType::RayTracingMaterial);
 	Initializer.bAllowHitGroupIndexing = true;
 
 	FRHIRayTracingShader* DefaultMissShader = bIsPathTracing ? GetPathTracingDefaultMissShader(View.ShaderMap) : GetRayTracingDefaultMissShader(View.ShaderMap);

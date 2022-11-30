@@ -28,29 +28,6 @@ public:
 	{}
 };
 
-class FDefaultMainCHS : public FBuiltInRayTracingShader
-{
-	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainCHS, Global, RENDERCORE_API);
-public:
-	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId);
-
-	FDefaultMainCHS() = default;
-	FDefaultMainCHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBuiltInRayTracingShader(Initializer)
-	{}
-};
-
-class FDefaultMainCHSOpaqueAHS : public FBuiltInRayTracingShader
-{
-	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainCHSOpaqueAHS, Global, RENDERCORE_API);
-public:
-	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId);
-
-	FDefaultMainCHSOpaqueAHS() = default;
-	FDefaultMainCHSOpaqueAHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBuiltInRayTracingShader(Initializer)
-	{}
-};
 
 class FDefaultPayloadMS : public FBuiltInRayTracingShader
 {

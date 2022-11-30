@@ -764,12 +764,6 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIlluminationDeferredM
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 	for (int EnableTwoSidedGeometry = 0; EnableTwoSidedGeometry < 2; ++EnableTwoSidedGeometry)
 	{
-		FGlobalIlluminationRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FGlobalIlluminationRGS::FEnableTwoSidedGeometryDim>(EnableTwoSidedGeometry == 1);
-		PermutationVector.Set<FGlobalIlluminationRGS::FEnableTransmissionDim>(EnableTransmission);
-		TShaderMapRef<FGlobalIlluminationRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
-		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
-
 		// Gather
 		{
 			FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS::FPermutationDomain CreateGatherPointsPermutationVector;

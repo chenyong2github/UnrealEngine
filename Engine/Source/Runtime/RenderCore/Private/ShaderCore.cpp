@@ -1777,7 +1777,10 @@ void AppendKeyStringShaderDependencies(
 		OutKeyString.Append(ShaderType->GetName());
 		OutKeyString.AppendInt(ShaderTypeDependency.PermutationId);
 		OutKeyString.AppendChar('_');
-		OutKeyString.AppendInt(static_cast<int32>(ShaderType->GetRayTracingPayloadType(ShaderTypeDependency.PermutationId)));
+		ERayTracingPayloadType RayTracingPayloadType = ShaderType->GetRayTracingPayloadType(ShaderTypeDependency.PermutationId);
+		OutKeyString.AppendInt(static_cast<uint32>(RayTracingPayloadType));
+		OutKeyString.AppendChar('_');
+		OutKeyString.AppendInt(GetRayTracingPayloadTypeMaxSize(RayTracingPayloadType));
 
 		// Add the type's source hash so that we can invalidate cached shaders when .usf changes are made
 		ShaderTypeDependency.SourceHash.AppendString(OutKeyString);

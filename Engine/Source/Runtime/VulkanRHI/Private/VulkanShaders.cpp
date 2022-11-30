@@ -85,6 +85,7 @@ ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVu
 					ShaderType::StaticFrequency == SF_RayMiss)
 				{
 					RetShader->RayTracingPayloadType = RetShader->CodeHeader.RayTracingPayloadType;
+					RetShader->RayTracingPayloadSize = RetShader->CodeHeader.RayTracingPayloadSize;
 				}
 
 				ShaderMap[ShaderType::StaticFrequency].Add(ShaderKey, RetShader);

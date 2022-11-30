@@ -38,6 +38,7 @@ class FLumenHardwareRayTracingMaterialCHS : public FGlobalShader
 	}
 };
 
+IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::LumenMinimal, 20);
 IMPLEMENT_GLOBAL_SHADER(FLumenHardwareRayTracingMaterialCHS, "/Engine/Private/Lumen/LumenHardwareRayTracingMaterials.usf", "LumenHardwareRayTracingMaterialCHS", SF_RayHitGroup);
 
 class FLumenHardwareRayTracingMaterialMS : public FGlobalShader
@@ -153,7 +154,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateLumenHardwareRayT
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-	Initializer.MaxPayloadSizeInBytes = 20; // sizeof FLumenMinimalPayload
+	Initializer.MaxPayloadSizeInBytes = GetRayTracingPayloadTypeMaxSize(ERayTracingPayloadType::LumenMinimal);
 
 	// Get the ray tracing materials
 	auto ClosestHitShader = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialCHS>();

@@ -277,6 +277,8 @@ void GenerateRayTracingScene(
 	);
 }
 
+IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::SparseVoxel, 28);
+
 class FHeterogeneousVolumesSparseVoxelsHitGroup : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHeterogeneousVolumesSparseVoxelsHitGroup)
@@ -534,7 +536,7 @@ FRayTracingPipelineState* BuildRayTracingPipelineState(
 )
 {
 	FRayTracingPipelineStateInitializer Initializer;
-	Initializer.MaxPayloadSizeInBytes = 32; // sizeof FSparseVoxelPayload
+	Initializer.MaxPayloadSizeInBytes = GetRayTracingPayloadTypeMaxSize(ERayTracingPayloadType::SparseVoxel);
 
 	// Get the ray tracing materials
 	auto HitGroupShaders = View.ShaderMap->GetShader<FHeterogeneousVolumesSparseVoxelsHitGroup>();

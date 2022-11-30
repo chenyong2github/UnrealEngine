@@ -1206,7 +1206,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			
 			FRayTracingPipelineStateInitializer PSOInitializer;
 
-			PSOInitializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE;
+			PSOInitializer.MaxPayloadSizeInBytes = GetRayTracingPayloadTypeMaxSize(ERayTracingPayloadType::PathTracingMaterial);
 			PSOInitializer.bAllowHitGroupIndexing = true;
 
 			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
@@ -1243,9 +1243,8 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 			PSOInitializer.SetHitGroupTable(RayTracingHitGroupLibrary);
 
-			TArray<FRHIRayTracingShader*> RayTracingMissLibrary;
-			RayTracingMissLibrary.Add(GetPathTracingDefaultMissShader(GlobalShaderMap));
-			PSOInitializer.SetMissShaderTable(RayTracingMissLibrary);
+			FRHIRayTracingShader* MissTable[] = { GetPathTracingDefaultMissShader(GlobalShaderMap) };
+			PSOInitializer.SetMissShaderTable(MissTable);
 
 			RayTracingPipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, PSOInitializer);
 

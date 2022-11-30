@@ -58,6 +58,7 @@ struct FSparseVoxelPayload
 		return Transmittance;
 	}
 };
+CHECK_RT_PAYLOAD_SIZE(FSparseVoxelPayload)
 
 FSparseVoxelPayload CreateSparseVoxelPayload()
 {

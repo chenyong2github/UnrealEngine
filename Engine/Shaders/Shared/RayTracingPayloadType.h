@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HLSLStaticAssert.h"
 
 #define RT_PAYLOAD_TYPE_MINIMAL					(1 << 0)	// FMinimalPayload
 #define RT_PAYLOAD_TYPE_DEFAULT					(1 << 1)	// FDefaultPayload
@@ -10,7 +11,7 @@
 #define RT_PAYLOAD_TYPE_DEFERRED				(1 << 4)	// FDeferredMaterialPayload
 #define RT_PAYLOAD_TYPE_PATHTRACING_MATERIAL	(1 << 5)	// FPackedPathTracingPayload
 #define RT_PAYLOAD_TYPE_LUMEN_MINIMAL			(1 << 6)	// FLumenMinimalPayload
-#define RT_PAYLOAD_TYPE_NIAGARA					(1 << 7)	// FVFXTracePayload
+#define RT_PAYLOAD_TYPE_VFX   					(1 << 7)	// FVFXTracePayload
 #define RT_PAYLOAD_TYPE_DECALS					(1 << 8)	// FDecalShaderParams 
 #define RT_PAYLOAD_TYPE_SPARSE_VOXEL			(1 << 9)	// FSparseVoxelPayload
 
@@ -35,7 +36,7 @@ enum ERayTracingPayloadType : uint // HLSL
 	Deferred = RT_PAYLOAD_TYPE_DEFERRED,
 	PathTracingMaterial = RT_PAYLOAD_TYPE_PATHTRACING_MATERIAL,
 	LumenMinimal = RT_PAYLOAD_TYPE_LUMEN_MINIMAL,
-	Niagara = RT_PAYLOAD_TYPE_NIAGARA,
+	VFX = RT_PAYLOAD_TYPE_VFX,
 	Decals = RT_PAYLOAD_TYPE_DECALS,
 	SparseVoxel = RT_PAYLOAD_TYPE_SPARSE_VOXEL,
 };
@@ -50,5 +51,16 @@ enum ERayTracingPayloadType : uint // HLSL
 
 // If no payload type was defined, we can't possibly have any enabled
 #define IS_PAYLOAD_ENABLED(T)    (0)
+
+#endif
+
+
+#ifdef RT_PAYLOAD_MAX_SIZE
+
+#define CHECK_RT_PAYLOAD_SIZE(StructName)		HLSL_STATIC_ASSERT(sizeof(StructName) <= RT_PAYLOAD_MAX_SIZE, "Payload " #StructName " is larger than expected");
+
+#else
+
+#define CHECK_RT_PAYLOAD_SIZE(StructName)		
 
 #endif

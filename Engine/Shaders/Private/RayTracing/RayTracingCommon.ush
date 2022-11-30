@@ -251,6 +251,9 @@ struct FMinimalPayload
 
 	void SetMiss() { HitT = -1; }
 };
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_MINIMAL)
+CHECK_RT_PAYLOAD_SIZE(FMinimalPayload)
+#endif
 
 struct FIntersectionPayload : FMinimalPayload
 {
@@ -263,13 +266,18 @@ struct FDefaultPayload : FIntersectionPayload
 {
 	uint   InstanceID; // Value of FRayTracingGeometryInstance::UserData. Undefined on miss.
 };
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DEFAULT)
+CHECK_RT_PAYLOAD_SIZE(FDefaultPayload)
+#endif
 
-#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_NIAGARA)
+
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_VFX)
 struct FVFXTracePayload : FIntersectionPayload
 {
 	float3 TranslatedWorldPosition;
 	float3 WorldNormal;
 };
+CHECK_RT_PAYLOAD_SIZE(FVFXTracePayload)
 #endif
 
 #define RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID   0xFFFFFFFF
@@ -280,6 +288,10 @@ struct FDeferredMaterialPayload : FMinimalPayload
 	uint   SortKey;          // MaterialID by default
 	uint   PixelCoordinates; // X in low 16 bits, Y in high 16 bits
 };
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DEFERRED)
+CHECK_RT_PAYLOAD_SIZE(FDeferredMaterialPayload)
+#endif
+
 
 #ifndef RAY_TRACING_SUPPORT_CUSTOM_UINT_IN_INTERSECTION_ATTRIBUTES
 #	define RAY_TRACING_SUPPORT_CUSTOM_UINT_IN_INTERSECTION_ATTRIBUTES 0
@@ -920,6 +932,10 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 
 #endif // STRATA_ENABLED
 
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_RAYTRACING_MATERIAL)
+CHECK_RT_PAYLOAD_SIZE(FPackedMaterialClosestHitPayload)
+#endif
+
 #endif // !COMPUTESHADER
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -990,6 +1006,7 @@ struct FDecalShaderParams
 	}
 	float3 GetEmissive() { return float3(Data[12], Data[13], Data[14]); }
 };
+CHECK_RT_PAYLOAD_SIZE(FDecalShaderParams)
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

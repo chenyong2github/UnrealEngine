@@ -107,6 +107,9 @@ struct FPackedPathTracingPayload : FMinimalPayload
 		PackedData[6] = asuint(Tau.z);
 	}
 };
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_PATH_TRACING_MATERIAL)
+CHECK_RT_PAYLOAD_SIZE(FPackedPathTracingPayload)
+#endif
 
 // This payload structure is the expanded version of the above which is more convenient to work with
 struct FPathTracingPayload : FMinimalPayload

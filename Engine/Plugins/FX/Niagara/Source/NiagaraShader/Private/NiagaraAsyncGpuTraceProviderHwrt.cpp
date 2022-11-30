@@ -33,6 +33,8 @@ struct FVFXTracePayload
 	float WorldNormal[3];
 };
 
+IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::VFX, sizeof(FVFXTracePayload));
+
 BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraGPUSceneParameters, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
@@ -70,7 +72,7 @@ class FNiagaraCollisionRayTraceRG : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::Niagara;
+		return ERayTracingPayloadType::VFX;
 	}
 
 	static TShaderRef< FNiagaraCollisionRayTraceRG> GetShader(FGlobalShaderMap* ShaderMap, bool SupportsCollisionGroups);
@@ -86,7 +88,7 @@ class FNiagaraCollisionRayTraceCH : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::Niagara;
+		return ERayTracingPayloadType::VFX;
 	}
 
 	FNiagaraCollisionRayTraceCH() = default;
@@ -101,7 +103,7 @@ class FNiagaraCollisionRayTraceMiss : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		return ERayTracingPayloadType::Niagara;
+		return ERayTracingPayloadType::VFX;
 	}
 
 	FNiagaraCollisionRayTraceMiss() = default;

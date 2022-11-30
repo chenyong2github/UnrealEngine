@@ -578,7 +578,6 @@ static TRefCountPtr<ID3D12StateObject> CreateRayTracingStateObject(
 	ShaderConfig.MaxAttributeSizeInBytes = MaxAttributeSizeInBytes;
 	check(ShaderConfig.MaxAttributeSizeInBytes <= RAY_TRACING_MAX_ALLOWED_ATTRIBUTE_SIZE);
 	ShaderConfig.MaxPayloadSizeInBytes = MaxPayloadSizeInBytes;
-	check(ShaderConfig.MaxPayloadSizeInBytes <= RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE);
 
 	const uint32 ShaderConfigIndex = Index;
 	Subobjects[Index++] = D3D12_STATE_SUBOBJECT{ D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, &ShaderConfig};
@@ -2213,25 +2212,6 @@ public:
 };
 
 
-template<typename ShaderType>
-static FD3D12RayTracingShader* GetBuildInRayTracingShader()
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-	auto Shader = ShaderMap->GetShader<ShaderType>();
-	FD3D12RayTracingShader* RayTracingShader = static_cast<FD3D12RayTracingShader*>(Shader.GetRayTracingShader());
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	return RayTracingShader;
-}
-
-template<typename ShaderType>
-static void GetBuildInShaderLibrary(FDXILLibrary& ShaderLibrary)
-{
-	FD3D12RayTracingShader* RayTracingShader = GetBuildInRayTracingShader<ShaderType>();
-	LPCWSTR EntryName[1] = { *RayTracingShader->EntryPoint };
-	ShaderLibrary.InitFromDXIL(RayTracingShader->GetShaderBytecode().pShaderBytecode, RayTracingShader->GetShaderBytecode().BytecodeLength, EntryName, EntryName, 1);
-}
-
 void FD3D12Device::DestroyRayTracingDescriptorCache()
 {
 	delete RayTracingDescriptorHeapCache;
@@ -2417,22 +2397,8 @@ public:
 
 		ID3D12Device5* RayTracingDevice = Device->GetDevice5();
 
-		// Use hit and miss shaders from initializer or fall back to default ones if none were provided
-
-		FRHIRayTracingShader* DefaultHitShader = GetBuildInRayTracingShader<FDefaultMainCHS>();
-		FRHIRayTracingShader* DefaultHitGroupTable[] = { DefaultHitShader };
-
-		TArrayView<FRHIRayTracingShader*> InitializerHitGroups = (Initializer.GetHitGroupTable().Num() || Initializer.bPartial)
-			? Initializer.GetHitGroupTable()
-			: DefaultHitGroupTable;
-
-		FRHIRayTracingShader* DefaultMissShader = GetBuildInRayTracingShader<FDefaultPayloadMS>();
-		FRHIRayTracingShader* DefaultMissTable[] = { DefaultMissShader };
-
-		TArrayView<FRHIRayTracingShader*> InitializerMissShaders = (Initializer.GetMissTable().Num() || Initializer.bPartial)
-			? Initializer.GetMissTable()
-			: DefaultMissTable;
-
+		TArrayView<FRHIRayTracingShader*> InitializerHitGroups = Initializer.GetHitGroupTable();
+		TArrayView<FRHIRayTracingShader*> InitializerMissShaders = Initializer.GetMissTable();
 		TArrayView<FRHIRayTracingShader*> InitializerRayGenShaders = Initializer.GetRayGenTable();
 		TArrayView<FRHIRayTracingShader*> InitializerCallableShaders = Initializer.GetCallableTable();
 

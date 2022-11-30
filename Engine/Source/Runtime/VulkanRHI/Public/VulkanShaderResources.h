@@ -185,6 +185,8 @@ struct FVulkanShaderHeader
 
 	// Relevant for Ray Tracing Shaders
 	uint32                                  RayTracingPayloadType = 0;
+	uint32                                  RayTracingPayloadSize = 0;
+
 
 	FSHAHash								SourceHash;
 	uint32									SpirvCRC = 0;
@@ -290,6 +292,7 @@ inline FArchive& operator<<(FArchive& Ar, FVulkanShaderHeader& Header)
 	Ar << Header.EmulatedUBsCopyInfo;
 	Ar << Header.InOutMask;
 	Ar << Header.RayTracingPayloadType;
+	Ar << Header.RayTracingPayloadSize;
 	Ar << Header.SourceHash;
 	Ar << Header.SpirvCRC;
 	Ar << Header.WaveSize;

@@ -876,6 +876,12 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 	{
 		OutHeader.RayTracingPayloadType = FCString::Atoi(**RTPayloadTypePtr);
 	}
+	OutHeader.RayTracingPayloadSize = 0;
+	if (const FString* RTPayloadSizePtr = ShaderInput.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_MAX_SIZE")))
+	{
+		OutHeader.RayTracingPayloadSize = FCString::Atoi(**RTPayloadSizePtr);
+	}
+
 }
 
 
