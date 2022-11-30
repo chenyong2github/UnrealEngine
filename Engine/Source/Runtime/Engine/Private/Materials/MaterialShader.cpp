@@ -603,7 +603,8 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 
 	if (!bIsLegacyPackage)
 	{
-		Ar << (int32&)QualityLevel;
+		static_assert(sizeof(QualityLevel) == 1, "If you change the size of QualityLevel, you must adjust this serialization code and bump MATERIALSHADERMAP_DERIVEDDATA_VER");
+		Ar << (uint8&)QualityLevel;
 		Ar << (int32&)FeatureLevel;
 	}
 	else
