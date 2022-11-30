@@ -697,8 +697,15 @@ void UAISense_Sight::OnPendingQueryProcessed(const int32 SightQueryIndex, const 
 	}
 	else
 	{
-		SightQueriesOutOfRange.Insert(SightQuery, NextOutOfRangeIndex);
-		++NextOutOfRangeIndex;
+		if (bSightQueriesOutOfRangeDirty)
+		{
+			SightQueriesOutOfRange.Add(SightQuery); 
+		}
+		else
+		{
+			SightQueriesOutOfRange.Insert(SightQuery, NextOutOfRangeIndex);
+			++NextOutOfRangeIndex;
+		}
 	}
 }
 
