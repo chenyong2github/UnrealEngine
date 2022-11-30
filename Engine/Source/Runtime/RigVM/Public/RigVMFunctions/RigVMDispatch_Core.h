@@ -6,20 +6,16 @@
 #include "RigVMDispatch_Core.generated.h"
 
 USTRUCT(meta=(Abstract, Category = "Core", NodeColor = "0.762745, 1,0, 0.329412"))
-struct FRigVMDispatch_CoreBase : public FRigVMDispatchFactory
+struct RIGVM_API FRigVMDispatch_CoreBase : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
-
-protected:
-
-	static const FString TrueString;
 };
 
 /*
  * Compares any two values and return true if they are identical
  */
 USTRUCT(meta=(DisplayName = "Equals", Keywords = "Same,=="))
-struct FRigVMDispatch_CoreEquals : public FRigVMDispatch_CoreBase
+struct RIGVM_API FRigVMDispatch_CoreEquals : public FRigVMDispatch_CoreBase
 {
 	GENERATED_BODY()
 
@@ -85,7 +81,7 @@ protected:
  * Compares any two values and return true if they are identical
  */
 USTRUCT(meta=(DisplayName = "Not Equals", Keywords = "Different,!=,Xor"))
-struct FRigVMDispatch_CoreNotEquals : public FRigVMDispatch_CoreEquals
+struct RIGVM_API FRigVMDispatch_CoreNotEquals : public FRigVMDispatch_CoreEquals
 {
 	GENERATED_BODY()
 

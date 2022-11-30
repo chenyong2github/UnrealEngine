@@ -9,7 +9,7 @@
  * Prints any value to the log
  */
 USTRUCT(meta=(DisplayName = "Print", NodeColor = "0.8, 0, 0.2, 1"))
-struct FRigVMDispatch_Print : public FRigVMDispatchFactory
+struct RIGVM_API FRigVMDispatch_Print : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
 

@@ -6,8 +6,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDispatch_Core)
 
-const FString FRigVMDispatch_CoreBase::TrueString = TEXT("True");
-
 TArray<FRigVMTemplateArgument> FRigVMDispatch_CoreEquals::GetArguments() const
 {
 	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/Nodes/RigVMTemplateNode.h"
+#include "RigVMStringUtils.h"
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMModel/RigVMController.h"
 #include "UObject/ObjectSaveContext.h"
@@ -724,11 +725,18 @@ FName URigVMTemplateNode::GetDisplayNameForPin(const FName& InRootPinName,
 		const FText DisplayNameText = Template->GetDisplayNameForArgument(InRootPinName, *PermutationIndicesPtr);
 		if(DisplayNameText.IsEmpty())
 		{
-			return InRootPinName;
+			return NAME_None;
+		}
+
+		FString DefaultDisplayName = InRootPinName.ToString();
+		FString Left, Right;
+		if(RigVMStringUtils::SplitPinPathAtEnd(DefaultDisplayName, Left, Right))
+		{
+			DefaultDisplayName = Right;
 		}
 
 		const FName DisplayName = *DisplayNameText.ToString();
-		if(DisplayName.IsEqual(InRootPinName))
+		if(DisplayName.IsEqual(*DefaultDisplayName))
 		{
 			return NAME_None;
 		}

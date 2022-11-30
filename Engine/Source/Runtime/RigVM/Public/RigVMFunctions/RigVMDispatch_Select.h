@@ -10,7 +10,7 @@
  * Pick from a list of values based on an integer index
  */
 USTRUCT(meta=(DisplayName = "Select", Category = "Execution", Keywords = "Switch,Case", NodeColor = "0,1,0,1"))
-struct FRigVMDispatch_SelectInt32 : public FRigVMDispatch_CoreBase
+struct RIGVM_API FRigVMDispatch_SelectInt32 : public FRigVMDispatch_CoreBase
 {
 	GENERATED_BODY()
 

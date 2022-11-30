@@ -8,6 +8,7 @@
 #include "HAL/PlatformTLS.h"
 #include "Async/ParallelFor.h"
 #include "GenericPlatform/GenericPlatformSurvey.h"
+#include "RigVMCore/RigVMStruct.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
@@ -2862,7 +2863,7 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 			{
 				const FRigVMJumpToBranchOp& Op = ByteCode.GetOpAt<FRigVMJumpToBranchOp>(Instruction);
 				// BranchLabel = Op.Arg
-				const FName& BranchLabel = *(FName*)CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]].GetData();
+				FName BranchLabel = *(FName*)CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]].GetData();
 
 				// iterate over the branches stored in the bytecode,
 				// starting at the first branch index stored in the operator.
@@ -2875,26 +2876,39 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(int32 InFirstInstruction, int32 
 					UE_LOG(LogRigVM, Error, TEXT("No branches in ByteCode - but JumpToBranch instruction %d found. Likely a corrupt VM. Exiting."), ContextPublicData.InstructionIndex);
 					return CurrentExecuteResult = ERigVMExecuteResult::Failed;
 				}
-					
-				for(int32 BranchIndex = Op.FirstBranchInfoIndex // start at the first branch known to this jump op
-					; BranchIndex < Branches.Num(); BranchIndex++)
+
+				for(int32 PassIndex = 0; PassIndex < 2; PassIndex++)
 				{
-					const FRigVMBranchInfo& Branch = Branches[BranchIndex];
-					if(Branch.InstructionIndex != ContextPublicData.InstructionIndex)
+					for(int32 BranchIndex = Op.FirstBranchInfoIndex // start at the first branch known to this jump op
+						; BranchIndex < Branches.Num(); BranchIndex++)
 					{
-						break;
+						const FRigVMBranchInfo& Branch = Branches[BranchIndex];
+						if(Branch.InstructionIndex != ContextPublicData.InstructionIndex)
+						{
+							break;
+						}
+						if(Branch.Label == BranchLabel)
+						{
+							ContextPublicData.InstructionIndex = Branch.FirstInstruction;
+							bBranchFound = true;
+							break;
+						}
 					}
-					if(Branch.Label == BranchLabel)
+
+					// if we don't find the branch - try to jump to the completed branch
+					if (!bBranchFound)
 					{
-						ContextPublicData.InstructionIndex = Branch.FirstInstruction;
-						bBranchFound = true;
-						break;
+						if(PassIndex == 0 && BranchLabel != FRigVMStruct::ControlFlowCompletedName)
+						{
+							UE_LOG(LogRigVM, Warning, TEXT("Branch '%s' was not found for instruction %d."), *BranchLabel.ToString(), ContextPublicData.InstructionIndex);
+							BranchLabel = FRigVMStruct::ControlFlowCompletedName;
+							continue;
+						}
+						
+						UE_LOG(LogRigVM, Error, TEXT("Branch '%s' was not found for instruction %d."), *BranchLabel.ToString(), ContextPublicData.InstructionIndex);
+						return ERigVMExecuteResult::Failed;
 					}
-				}
-				if (!bBranchFound)
-				{
-					UE_LOG(LogRigVM, Error, TEXT("Branch '%s' was not found for instruction %d. Exiting."), *BranchLabel.ToString(), ContextPublicData.InstructionIndex);
-					return CurrentExecuteResult = ERigVMExecuteResult::Failed;
+					break;
 				}
 				break;
 			}

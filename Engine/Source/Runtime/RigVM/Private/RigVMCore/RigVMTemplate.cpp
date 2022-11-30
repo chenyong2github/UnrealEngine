@@ -836,7 +836,12 @@ FText FRigVMTemplate::GetDisplayNameForArgument(const FName& InArgumentName, con
 {
 	if(const FRigVMDispatchFactory* Factory = GetDispatchFactory())
 	{
-		return Factory->GetDisplayNameForArgument(InArgumentName);
+		const FName DisplayName = Factory->GetDisplayNameForArgument(InArgumentName);
+		if(DisplayName.IsNone())
+		{
+			return FText();
+		}
+		return FText::FromName(DisplayName);
 	}
 
 	if(const FRigVMTemplateArgument* Argument = FindArgument(InArgumentName))

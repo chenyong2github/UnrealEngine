@@ -674,7 +674,7 @@ bool UControlRigGraphNode::CreateGraphPinFromModelPin(const URigVMPin* InModelPi
 	UEdGraphPin* InParentPin)
 {
 	// don't create output pins for array elements
-	if(InDirection == EGPD_Output && InModelPin->IsArrayElement())
+	if(InDirection == EGPD_Output && InModelPin->IsArrayElement() && !InModelPin->GetParentPin()->IsFixedSizeArray())
 	{
 		return false;
 	}

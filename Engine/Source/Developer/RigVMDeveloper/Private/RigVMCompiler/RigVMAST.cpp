@@ -832,40 +832,46 @@ FRigVMExprAST* FRigVMParserAST::TraverseMutableNode(const FRigVMASTProxy& InNode
 
 		TraversePins(InNodeProxy, NodeExpr);
 
-		for (URigVMPin* SourcePin : Node->GetPins())
+		TArray<URigVMPin*> SourcePins = Node->GetPins().FilterByPredicate([](const URigVMPin* InPin) -> bool
 		{
-			if (SourcePin->GetDirection() == ERigVMPinDirection::Output || SourcePin->GetDirection() == ERigVMPinDirection::IO)
+			return (InPin->GetDirection() == ERigVMPinDirection::Output || InPin->GetDirection() == ERigVMPinDirection::IO) && InPin->IsExecuteContext();
+		});
+
+		for(int32 SourcePinIndex = 0; SourcePinIndex < SourcePins.Num(); SourcePinIndex++)
+		{
+			URigVMPin* SourcePin = SourcePins[SourcePinIndex];
+			FRigVMASTProxy SourcePinProxy = InNodeProxy.GetSibling(SourcePin);
+
+			FRigVMExprAST* ParentExpr = InParentExpr;
+
+			if(SourcePin->IsFixedSizeArray())
 			{
-				if (SourcePin->IsExecuteContext())
+				// also process elements of execute fixed arrays
+				SourcePins.Append(SourcePin->GetSubPins());
+			}
+			else if (Node->IsControlFlowNode())
+			{
+				if (FRigVMExprAST** PinExpr = SubjectToExpression.Find(SourcePinProxy))
 				{
-					FRigVMASTProxy SourcePinProxy = InNodeProxy.GetSibling(SourcePin);
-
-					FRigVMExprAST* ParentExpr = InParentExpr;
-					if (Node->IsControlFlowNode())
-					{
-						if (FRigVMExprAST** PinExpr = SubjectToExpression.Find(SourcePinProxy))
-						{
-							FRigVMBlockExprAST* BlockExpr = MakeExpr<FRigVMBlockExprAST>(FRigVMExprAST::EType::Block, FRigVMASTProxy());
-							BlockExpr->AddParent(*PinExpr);
-							BlockExpr->Name = SourcePin->GetFName();
-							ParentExpr = BlockExpr;
-						}
-					}
-
-					const TArray<int32>& LinkIndices = GetTargetLinkIndices(SourcePinProxy);
-					for(const int32 LinkIndex : LinkIndices)
-					{
-						const FRigVMASTLinkDescription& Link = Links[LinkIndex];
-						if(ShouldLinkBeSkipped(Link))
-						{
-							continue;
-						}
-
-						URigVMNode* TargetNode = Link.TargetProxy.GetSubjectChecked<URigVMPin>()->GetNode();
-						FRigVMASTProxy TargetNodeProxy = Link.TargetProxy.GetSibling(TargetNode);
-						TraverseMutableNode(TargetNodeProxy, ParentExpr);
-					}
+					FRigVMBlockExprAST* BlockExpr = MakeExpr<FRigVMBlockExprAST>(FRigVMExprAST::EType::Block, FRigVMASTProxy());
+					BlockExpr->AddParent(*PinExpr);
+					BlockExpr->Name = SourcePin->GetFName();
+					ParentExpr = BlockExpr;
 				}
+			}
+
+			const TArray<int32>& LinkIndices = GetTargetLinkIndices(SourcePinProxy);
+			for(const int32 LinkIndex : LinkIndices)
+			{
+				const FRigVMASTLinkDescription& Link = Links[LinkIndex];
+				if(ShouldLinkBeSkipped(Link))
+				{
+					continue;
+				}
+
+				URigVMNode* TargetNode = Link.TargetProxy.GetSubjectChecked<URigVMPin>()->GetNode();
+				FRigVMASTProxy TargetNodeProxy = Link.TargetProxy.GetSibling(TargetNode);
+				TraverseMutableNode(TargetNodeProxy, ParentExpr);
 			}
 		}
 	}

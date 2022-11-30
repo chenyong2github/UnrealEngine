@@ -88,10 +88,10 @@ public:
 	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const;
 
 	// Returns the display name text for an argument 
-	virtual FText GetDisplayNameForArgument(const FName& InArgumentName) const { return FText::FromName(InArgumentName); }
+	virtual FName GetDisplayNameForArgument(const FName& InArgumentName) const;
 
 	// Returns meta data on the property of the permutations 
-	virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const { return FString(); }
+	virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const;
 
 	// Returns true if the factory provides metadata for a given argument
 	bool HasArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
@@ -206,6 +206,7 @@ protected:
 	virtual const TArray<FName>& GetControlFlowBlocks_Impl(const FRigVMDispatchContext& InContext) const;
 
 	static const FString DispatchPrefix;
+	static const FString TrueString;
 
 	UScriptStruct* FactoryScriptStruct;
 	mutable const FRigVMTemplate* CachedTemplate;

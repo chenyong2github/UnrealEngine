@@ -3460,9 +3460,13 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 					bValidHiddenPin = true;
 				}
 			}
-			else if(Pin->GetNode()->IsA<URigVMDispatchNode>())
+			else if(URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Pin->GetNode()))
 			{
 				bValidHiddenPin = true;
+				if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
+				{
+					bValidHiddenPin = !Factory->HasArgumentMetaData(Pin->GetFName(), FRigVMStruct::SingletonMetaName);
+				}
 			}
 
 			if(bValidHiddenPin)

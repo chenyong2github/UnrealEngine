@@ -3,10 +3,12 @@
 #include "RigVMCore/RigVMDispatchFactory.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMStruct.h"
+#include "RigVMStringUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDispatchFactory)
 
 const FString FRigVMDispatchFactory::DispatchPrefix = TEXT("DISPATCH_");
+const FString FRigVMDispatchFactory::TrueString = TEXT("True");
 
 FName FRigVMDispatchFactory::GetFactoryName() const
 {
@@ -19,6 +21,25 @@ FName FRigVMDispatchFactory::GetFactoryName() const
 FName FRigVMDispatchFactory::GetNextAggregateName(const FName& InLastAggregatePinName) const
 {
 	return FRigVMStruct().GetNextAggregateName(InLastAggregatePinName);
+}
+
+FName FRigVMDispatchFactory::GetDisplayNameForArgument(const FName& InArgumentName) const
+{
+	if(InArgumentName == FRigVMStruct::ExecuteContextName)
+	{
+		return FRigVMStruct::ExecuteName;
+	}
+	return NAME_None;
+}
+
+FString FRigVMDispatchFactory::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
+{
+	if(InArgumentName == FRigVMStruct::ControlFlowBlockToRunName &&
+		InMetaDataKey == FRigVMStruct::SingletonMetaName)
+	{
+		return TrueString;
+	}
+	return FString();
 }
 
 FLinearColor FRigVMDispatchFactory::GetNodeColor() const

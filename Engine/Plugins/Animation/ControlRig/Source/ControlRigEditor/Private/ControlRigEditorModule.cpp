@@ -1426,7 +1426,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							})
 						));
 		}
-					if(ModelPin->IsArrayElement() && !bIsExecutePin)
+					if(ModelPin->IsArrayElement())
 					{
 						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinArrays", LOCTEXT("PinArrays", "Arrays"));
 						Section.AddMenuEntry(

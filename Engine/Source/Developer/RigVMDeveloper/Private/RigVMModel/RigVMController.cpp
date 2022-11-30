@@ -16355,8 +16355,8 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 
 				if(Factory)
 				{
-					const FText DisplayNameText = Factory->GetDisplayNameForArgument(MissingPin.GetName());
-					if(!DisplayNameText.IsEmpty())
+					const FName DisplayNameText = Factory->GetDisplayNameForArgument(MissingPin.GetName());
+					if(!DisplayNameText.IsNone())
 					{
 						Pin->DisplayName = *DisplayNameText.ToString();
 					}

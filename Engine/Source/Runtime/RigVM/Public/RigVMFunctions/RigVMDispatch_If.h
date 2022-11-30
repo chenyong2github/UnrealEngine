@@ -10,7 +10,7 @@
  * Chooses between two values based on a condition
  */
 USTRUCT(meta=(DisplayName = "If", Category = "Execution", Keywords = "Branch,Condition", NodeColor = "0,1,0,1"))
-struct FRigVMDispatch_If : public FRigVMDispatch_CoreBase
+struct RIGVM_API FRigVMDispatch_If : public FRigVMDispatch_CoreBase
 {
 	GENERATED_BODY()
 

@@ -357,6 +357,14 @@ FName URigVMPin::GetDisplayName() const
 {
 	if (DisplayName == NAME_None)
 	{
+		if(const URigVMTemplateNode* Node = Cast<URigVMTemplateNode>(GetNode()))
+		{
+			const FName DisplayNameForArgument = Node->GetDisplayNameForPin(*this->GetSegmentPath(true));
+			if(!DisplayNameForArgument.IsNone())
+			{
+				return DisplayNameForArgument;
+			}
+		}
 		return GetFName();
 	}
 
