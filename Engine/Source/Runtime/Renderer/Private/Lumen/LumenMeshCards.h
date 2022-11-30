@@ -42,8 +42,8 @@ public:
 	}
 
 	FMatrix LocalToWorld = FMatrix::Identity;
-	FVector3f LocalToWorldScale;
-	FMatrix WorldToLocalRotation;
+	FVector3f LocalToWorldScale = FVector3f(1.0f, 1.0f, 1.0f);
+	FMatrix WorldToLocalRotation = FMatrix::Identity;
 	FBox LocalBounds = FBox(FVector(-1.0f), FVector(-1.0f));
 
 	int32 PrimitiveGroupIndex = -1;
