@@ -403,6 +403,7 @@ namespace Horde.Build
 			});
 			services.AddSingleton<ICommitService, CommitService>();
 			services.AddSingleton<IClock, Clock>();
+			services.AddSingleton<ConfigUpdateService>();
 			services.AddSingleton<IDowntimeService, DowntimeService>();
 			services.AddSingleton<IssueService>();
 			services.AddSingleton<JobService>();
@@ -421,6 +422,7 @@ namespace Horde.Build
 				services.AddSingleton<PerforceService>();
 				services.AddSingleton<IPerforceService>(sp => sp.GetRequiredService<PerforceService>());
 			}
+			services.AddSingleton<PerforceReplicator>();
 
 			services.AddSingleton<PerforceLoadBalancer>();
 			services.AddSingleton<PoolService>();
@@ -546,7 +548,7 @@ namespace Horde.Build
 						{
 							options.Authority = settings.OidcAuthority;
 							options.ClientId = settings.OidcClientId;
-							options.Scope.Remove("groups");								
+								options.Scope.Remove("groups");								
 
 							if (!String.IsNullOrEmpty(settings.OidcSigninRedirect))
 							{
@@ -638,7 +640,7 @@ namespace Horde.Build
 				{
 					services.AddHostedService(provider => provider.GetRequiredService<SlackNotificationSink>());
 				}
-				services.AddHostedService<ConfigUpdateService>();
+				services.AddHostedService(provider => provider.GetRequiredService<ConfigUpdateService>());
 				services.AddHostedService<TelemetryService>();
 				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());				
 			}
@@ -1079,10 +1081,20 @@ namespace Horde.Build
 			return LogEventLevel.Information;
 		}
 
+		class HostApplicationLifetime : IHostApplicationLifetime
+		{
+			public CancellationToken ApplicationStarted => CancellationToken.None;
+			public CancellationToken ApplicationStopped => CancellationToken.None;
+			public CancellationToken ApplicationStopping => CancellationToken.None;
+
+			public void StopApplication() { }
+		}
+
 		public static void AddServices(IServiceCollection serviceCollection, IConfiguration configuration)
 		{
 			Startup startup = new Startup(configuration);
 			startup.ConfigureServices(serviceCollection);
+			serviceCollection.AddSingleton<IHostApplicationLifetime, HostApplicationLifetime>();
 		}
 
 		public static IServiceProvider CreateServiceProvider(IConfiguration configuration)

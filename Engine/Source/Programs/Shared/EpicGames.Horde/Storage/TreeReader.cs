@@ -52,6 +52,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		public List<Type> Types { get; } = new List<Type>
 		{
+			typeof(Nodes.CommitNode),
 			typeof(Nodes.DirectoryNode),
 			typeof(Nodes.LeafFileNode),
 			typeof(Nodes.InteriorFileNode),

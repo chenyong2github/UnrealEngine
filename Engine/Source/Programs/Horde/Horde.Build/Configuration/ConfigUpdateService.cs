@@ -84,6 +84,15 @@ namespace Horde.Build.Configuration
 			_logger = logger;
 		}
 
+		/// <summary>
+		/// Triggers an immediate update of the config service
+		/// </summary>
+		/// <param name="cancellationToken"></param>
+		public async ValueTask ForceUpdateAsync(CancellationToken cancellationToken)
+		{
+			await TickLeaderAsync(cancellationToken);
+		}
+
 		/// <inheritdoc/>
 		public async Task StartAsync(CancellationToken cancellationToken)
 		{
