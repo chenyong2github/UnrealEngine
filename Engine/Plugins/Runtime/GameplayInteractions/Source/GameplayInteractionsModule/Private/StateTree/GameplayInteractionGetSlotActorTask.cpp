@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayInteractionGetSlotActorTask.h"
 #include "StateTreeExecutionContext.h"
@@ -41,7 +41,7 @@ EStateTreeRunStatus FGameplayInteractionGetSlotActorTask::EnterState(FStateTreeE
 	{
 		if (const FGameplayInteractionSlotUserData* UserData = SlotView.GetStateDataPtr<FGameplayInteractionSlotUserData>())
 		{
-			InstanceData.ResultActor = UserData->UserActor;
+			InstanceData.ResultActor = UserData->UserActor.Get();
 		}
 	}
 	

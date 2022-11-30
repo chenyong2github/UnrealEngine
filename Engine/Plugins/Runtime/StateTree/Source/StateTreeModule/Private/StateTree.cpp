@@ -10,6 +10,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "StateTreeDelegates.h"
 #include "Logging/LogScopedVerbosityOverride.h"
+#include "StructUtilsTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree)
 
@@ -124,7 +125,7 @@ void UStateTree::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 		{
 			uint8* StructMemory = (uint8*)InstanceData.Get();
 			const UScriptStruct* ScriptStruct = FStateTreeInstanceData::StaticStruct();
-			Collector.AddReferencedObjects(ScriptStruct, StructMemory);
+			UE::StructUtils::AddReferencedObjects(Collector, ScriptStruct, StructMemory);
 		}
 	}
 }
@@ -408,7 +409,7 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 			else
 			{
 				MemUsage.NodeCount++;
-				MemUsage.AddUsage(DefaultInstanceData.GetMutableObject(Task.InstanceIndex.Get()));
+				MemUsage.AddUsage(DefaultInstanceData.GetObject(Task.InstanceIndex.Get()));
 			}
 		}
 	}
@@ -458,11 +459,11 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 		const FStateTreeEvaluatorBase& Eval = Nodes[EvalIndex].Get<FStateTreeEvaluatorBase>();
 		if (Eval.bInstanceIsObject == false)
 		{
-			EvalMemUsage.AddUsage(DefaultInstanceData.GetMutableStruct(Eval.InstanceIndex.Get()));
+			EvalMemUsage.AddUsage(DefaultInstanceData.GetStruct(Eval.InstanceIndex.Get()));
 		}
 		else
 		{
-			EvalMemUsage.AddUsage(DefaultInstanceData.GetMutableObject(Eval.InstanceIndex.Get()));
+			EvalMemUsage.AddUsage(DefaultInstanceData.GetObject(Eval.InstanceIndex.Get()));
 		}
 		EvalMemUsage.NodeCount++;
 	}

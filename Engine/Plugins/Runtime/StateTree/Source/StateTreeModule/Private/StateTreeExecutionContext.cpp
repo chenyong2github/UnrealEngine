@@ -144,7 +144,8 @@ void FStateTreeExecutionContext::UpdateSubtreeStateParameters(const FCompactStat
 		}
 
 		// Set view to default parameters.
-		const FStateTreeDataView ParamInstanceView = StateTree.DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()); // These are used as const, so get them from the tree initial values.
+		const FConstStructView ParamInstance = StateTree.DefaultInstanceData.GetStruct(State.ParameterInstanceIndex.Get()); // These are used as const, so get them from the tree initial values.
+		const FStateTreeDataView ParamInstanceView(ParamInstance.GetScriptStruct(), const_cast<uint8*>(ParamInstance.GetMemory())); 
 		const FCompactStateTreeParameters& Params = ParamInstanceView.GetMutable<FCompactStateTreeParameters>();
 		DataViews[State.ParameterDataViewIndex.Get()] = FStateTreeDataView(Params.Parameters.GetMutableValue());
 	}
@@ -261,7 +262,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop()
 	}
 
 	// Capture events added between ticks.
-	FStateTreeEventQueue& EventQueue = InstanceData.GetEventQueue();
+	FStateTreeEventQueue& EventQueue = InstanceData.GetMutableEventQueue();
 	EventsToProcess = EventQueue.GetEvents();
 	EventQueue.Reset();
 
@@ -324,7 +325,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 	const TSharedPtr<FStateTreeInstanceData> SharedInstanceData = StateTree.GetSharedInstanceData();
 	check(SharedInstanceData.IsValid());
 	
-	FStateTreeEventQueue& EventQueue = InstanceData.GetEventQueue();
+	FStateTreeEventQueue& EventQueue = InstanceData.GetMutableEventQueue();
 	
 	FStateTreeExecutionState* Exec = &GetExecState();
 
@@ -453,10 +454,9 @@ void FStateTreeExecutionContext::SendEvent(const FGameplayTag Tag, const FConstS
 
 	STATETREE_LOG(Verbose, TEXT("Send Event '%s'"), *Tag.ToString());
 
-	FStateTreeEventQueue& EventQueue = InstanceData.GetEventQueue();
+	FStateTreeEventQueue& EventQueue = InstanceData.GetMutableEventQueue();
 	EventQueue.SendEvent(&Owner, Tag, Payload, Origin);
 }
-
 
 void FStateTreeExecutionContext::UpdateInstanceData(const FStateTreeActiveStates& CurrentActiveStates, const FStateTreeActiveStates& NextActiveStates)
 {
@@ -473,13 +473,13 @@ void FStateTreeExecutionContext::UpdateInstanceData(const FStateTreeActiveStates
 
 	// @todo: change this so that we only put the newly added structs and objects here.
 	TArray<FConstStructView> InstanceStructs;
-	TArray<TObjectPtr<UObject>> InstanceObjects;
+	TArray<const UObject*> InstanceObjects;
 	
 	int32 NumCommonInstanceStructs = 0;
 	int32 NumCommonInstanceObjects = 0;
 
 	// Exec
-	InstanceStructs.Add(StateTree.DefaultInstanceData.GetMutableStruct(0));
+	InstanceStructs.Add(StateTree.DefaultInstanceData.GetStruct(0));
 
 	// Evaluators
 	for (int32 EvalIndex = StateTree.EvaluatorsBegin; EvalIndex < (StateTree.EvaluatorsBegin + StateTree.EvaluatorsNum); EvalIndex++)
@@ -487,11 +487,11 @@ void FStateTreeExecutionContext::UpdateInstanceData(const FStateTreeActiveStates
 		const FStateTreeEvaluatorBase& Eval =  StateTree.Nodes[EvalIndex].Get<FStateTreeEvaluatorBase>();
 		if (Eval.bInstanceIsObject)
 		{
-			InstanceObjects.Add(StateTree.DefaultInstanceData.GetMutableObject(Eval.InstanceIndex.Get()));
+			InstanceObjects.Add(StateTree.DefaultInstanceData.GetObject(Eval.InstanceIndex.Get()));
 		}
 		else
 		{
-			InstanceStructs.Add(StateTree.DefaultInstanceData.GetMutableStruct(Eval.InstanceIndex.Get()));
+			InstanceStructs.Add(StateTree.DefaultInstanceData.GetStruct(Eval.InstanceIndex.Get()));
 		}
 	}
 
@@ -514,7 +514,7 @@ void FStateTreeExecutionContext::UpdateInstanceData(const FStateTreeActiveStates
 		if (State.Type == EStateTreeStateType::Linked)
 		{
 			check(State.ParameterInstanceIndex.IsValid());
-			InstanceStructs.Add(StateTree.DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()));
+			InstanceStructs.Add(StateTree.DefaultInstanceData.GetStruct(State.ParameterInstanceIndex.Get()));
 		}
 		
 		for (int32 TaskIndex = State.TasksBegin; TaskIndex < (State.TasksBegin + State.TasksNum); TaskIndex++)
@@ -522,11 +522,11 @@ void FStateTreeExecutionContext::UpdateInstanceData(const FStateTreeActiveStates
 			const FStateTreeTaskBase& Task = StateTree.Nodes[TaskIndex].Get<FStateTreeTaskBase>();
 			if (Task.bInstanceIsObject)
 			{
-				InstanceObjects.Add(StateTree.DefaultInstanceData.GetMutableObject(Task.InstanceIndex.Get()));
+				InstanceObjects.Add(StateTree.DefaultInstanceData.GetObject(Task.InstanceIndex.Get()));
 			}
 			else
 			{
-				InstanceStructs.Add(StateTree.DefaultInstanceData.GetMutableStruct(Task.InstanceIndex.Get()));
+				InstanceStructs.Add(StateTree.DefaultInstanceData.GetStruct(Task.InstanceIndex.Get()));
 			}
 		}
 		
@@ -553,7 +553,7 @@ void FStateTreeExecutionContext::UpdateInstanceData(const FStateTreeActiveStates
 	}
 
 	// Remove instance data that was not common.
-	InstanceData.Prune(NumCommonInstanceStructs, NumCommonInstanceObjects);
+	InstanceData.ShrinkTo(NumCommonInstanceStructs, NumCommonInstanceObjects);
 
 	// Add new instance data.
 	InstanceData.Append(Owner,
@@ -1060,6 +1060,12 @@ bool FStateTreeExecutionContext::TestAllConditions(FStateTreeInstanceData& Share
 		}
 
 		const bool bValue = Cond.TestCondition(*this);
+
+		// Reset copied properties that might contain object references.
+		if (Cond.BindingsBatch.IsValid())
+		{
+			StateTree.PropertyBindings.ResetObjects(Cond.BindingsBatch, DataViews[Cond.DataViewIndex.Get()]);
+		}
 
 		const int32 DeltaIndent = Cond.DeltaIndent;
 		const int32 OpenParens = FMath::Max(0, DeltaIndent) + 1;	// +1 for the current value that is stored at the empty slot at the top of the value stack.

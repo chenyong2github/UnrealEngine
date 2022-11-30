@@ -99,8 +99,11 @@ public:
 	/** @retuen mutable references to the instance data in use, or nullptr if the context is not valid. */
 	FStateTreeInstanceData* GetMutableInstanceData() const { return &InstanceData; }
 
-	/** @retuen mutable references to the instance data in use. */
-	FStateTreeEventQueue& GetEventQueue() const { return InstanceData.GetEventQueue(); }
+	/** @return mutable references to the instance data in use. */
+	const FStateTreeEventQueue& GetEventQueue() const { return InstanceData.GetEventQueue(); }
+
+	/** @return mutable references to the instance data in use. */
+	FStateTreeEventQueue& GetMutableEventQueue() const { return InstanceData.GetMutableEventQueue(); }
 
 	/** @return The owner of the context */
 	UObject* GetOwner() const { return &Owner; }

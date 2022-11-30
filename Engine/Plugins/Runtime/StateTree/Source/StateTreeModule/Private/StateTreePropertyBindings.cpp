@@ -615,6 +615,79 @@ bool FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> Sour
 	return bResult;
 }
 
+void FStateTreePropertyBindings::PerformResetObjects(const FStateTreePropCopy& Copy, uint8* TargetAddress) const
+{
+	// Source property can be null
+	check(Copy.TargetLeafProperty);
+	check(TargetAddress);
+
+	switch (Copy.Type)
+	{
+	case EStateTreePropertyCopyType::CopyComplex:
+		Copy.TargetLeafProperty->InitializeValue(TargetAddress);
+		break;
+	case EStateTreePropertyCopyType::CopyStruct:
+		static_cast<const FStructProperty*>(Copy.TargetLeafProperty)->Struct->ClearScriptStruct(TargetAddress);
+		break;
+	case EStateTreePropertyCopyType::CopyObject:
+		static_cast<const FObjectPropertyBase*>(Copy.TargetLeafProperty)->SetObjectPropertyValue(TargetAddress, nullptr);
+		break;
+	case EStateTreePropertyCopyType::CopyName:
+		break;
+	case EStateTreePropertyCopyType::CopyFixedArray:
+	{
+		// Copy into fixed sized array (EditFixedSize). Resizable arrays are copied as Complex, and regular fixed sizes arrays via the regular copies (dim specifies array size).
+		const FArrayProperty* TargetArrayProperty = static_cast<const FArrayProperty*>(Copy.TargetLeafProperty);
+		FScriptArrayHelper TargetArrayHelper(TargetArrayProperty, TargetAddress);
+		for (int32 ElementIndex = 0; ElementIndex < TargetArrayHelper.Num(); ++ElementIndex)
+		{
+			TargetArrayProperty->Inner->InitializeValue(TargetArrayHelper.GetRawPtr(ElementIndex));
+		}
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+bool FStateTreePropertyBindings::ResetObjects(const FStateTreeIndex16 TargetBatchIndex, FStateTreeDataView TargetStructView) const
+{
+	// This is made ensure so that the programmers have the change to catch it (it's usually programming error not to call ResolvePaths(), and it wont spam log for others.
+	if (!ensureMsgf(bBindingsResolved, TEXT("Bindings must be resolved successfully before copying. See ResolvePaths()")))
+	{
+		return false;
+	}
+
+	if (TargetBatchIndex.IsValid() == false)
+	{
+		return false;
+	}
+
+	check(CopyBatches.IsValidIndex(TargetBatchIndex.Get()));
+	const FStateTreePropCopyBatch& Batch = CopyBatches[TargetBatchIndex.Get()];
+
+	check(TargetStructView.IsValid());
+	check(TargetStructView.GetStruct() == Batch.TargetStruct.Struct);
+
+	bool bResult = true;
+	
+	for (int32 i = Batch.BindingsBegin; i != Batch.BindingsEnd; i++)
+	{
+		const FStateTreePropCopy& Copy = PropertyCopies[i];
+		// Copies that fail to be resolved (i.e. property path does not resolve, types changed) will be marked as None, skip them.
+		if (Copy.Type == EStateTreePropertyCopyType::None)
+		{
+			continue;
+		}
+		
+		uint8* TargetAddress = GetAddress(TargetStructView, Copy.TargetIndirection, Copy.TargetLeafProperty);
+		check(TargetAddress != nullptr);
+		PerformResetObjects(Copy, TargetAddress);
+	}
+
+	return bResult;
+}
+
 void FStateTreePropertyBindings::DebugPrintInternalLayout(FString& OutString) const
 {
 	/** Array of expected source structs. */

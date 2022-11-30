@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayInteractionSyncSlotTagStateTask.h"
 #include "StateTreeExecutionContext.h"
@@ -64,7 +64,7 @@ EStateTreeRunStatus FGameplayInteractionSyncSlotTagStateTask::EnterState(FStateT
 		return EStateTreeRunStatus::Failed;
 	}
 
-	FStateTreeEventQueue& EventQueue = Context.GetEventQueue();
+	FStateTreeEventQueue& EventQueue = Context.GetMutableEventQueue();
 	
 	// Check initial state
 	const FSmartObjectSlotView SlotView = SmartObjectSubsystem.GetSlotView(InstanceData.TargetSlot);

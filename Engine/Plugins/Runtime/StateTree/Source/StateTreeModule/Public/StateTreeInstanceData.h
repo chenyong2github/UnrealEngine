@@ -3,43 +3,31 @@
 #pragma once
 
 #include "InstancedStructArray.h"
+#include "InstancedStruct.h"
 #include "StructView.h"
 #include "StateTreeEvents.h"
 #include "StateTreeInstanceData.generated.h"
 
+
 /**
- * StateTree instance data is used to store the runtime state of a StateTree.
- * The layout of the data is described in a FStateTreeInstanceDataLayout.
+ * State Tree instance data is used to store the runtime state of a State Tree. It is used together with FStateTreeExecution context to tick the state tree.
+ * You are supposed to use FStateTreeInstanceData as a property to store the instance data. That ensures that any UObject references will get GC'd correctly.
  *
- * Note: Serialization is supported only for FArchive::IsModifyingWeakAndStrongReferences(), that is replacing object references.
+ * The FStateTreeInstanceData wraps FStateTreeInstanceStorage, where the data is actually stored. This indirection is done in order to allow the FStateTreeInstanceData
+ * to be bitwise relocatable (e.g. you can put it in an array), and we can still allow delegates to bind to the instance data of individual tasks.
+ *
+ * Since the tasks in the instance data are stored in a array that may get resized you will need to use TStateTreeInstanceDataStructRef
+ * to reference a struct based task instance data. It is defined below, and has example how to use it.
  */
+
+/** Storage for the actual instance data. */
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeInstanceData
+struct STATETREEMODULE_API FStateTreeInstanceStorage
 {
 	GENERATED_BODY()
 
-	FStateTreeInstanceData() = default;
-	~FStateTreeInstanceData() { Reset(); }
-
-	/** Initializes the array with specified items. */
-	void Init(UObject& InOwner, TConstArrayView<FInstancedStruct> InStructs, TConstArrayView<UObject*> InObjects);
-	void Init(UObject& InOwner, TConstArrayView<FConstStructView> InStructs, TConstArrayView<UObject*> InObjects);
-
-	/** Appends new items to the instance. */
-	void Append(UObject& InOwner, TConstArrayView<FInstancedStruct> InStructs, TConstArrayView<UObject*> InObjects);
-	void Append(UObject& InOwner, TConstArrayView<FConstStructView> InStructs, TConstArrayView<UObject*> InObjects);
-
-	/** Prunes the array sizes to specified lengths. */
-	void Prune(const int32 NumStructs, const int32 NumObjects);
-
-	/** Shares the layout from another instance data, and copies the data over. */
-	void CopyFrom(UObject& InOwner, const FStateTreeInstanceData& InOther);
-
-	/** Resets the data to empty. */
-	void Reset();
-
 	/** @return true if the instance is correctly initialized. */
-	bool IsValid() const { return InstanceStructs.Num() > 0 || InstanceObjects.Num() > 0; }
+	bool IsValid() const;
 
 	/** @return Number of items in the instance data. */
 	int32 NumStructs() const { return InstanceStructs.Num(); }
@@ -62,21 +50,10 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	/** @return const pointer to an instance object   */
 	const UObject* GetObject(const int32 Index) const { return InstanceObjects[Index]; }
 
-	/** @return array to store unprocessed events. */
-	UE_DEPRECATED(5.2, "Use GetEventQueue() instead.")
-	TArray<FStateTreeEvent>& GetEvents();
-
 	/** @return reference to the event queue. */
-	FStateTreeEventQueue& GetEventQueue() { return EventQueue; }
+	FStateTreeEventQueue& GetEventQueue();
 	
-	int32 GetEstimatedMemoryUsage() const;
-	int32 GetNumItems() const;
-	
-	/** Type traits */
-	bool Identical(const FStateTreeInstanceData* Other, uint32 PortFlags) const;
-	
-private:
-	
+protected:
 	/** Struct instances */
 	UPROPERTY()
 	FInstancedStructArray InstanceStructs;
@@ -88,6 +65,98 @@ private:
 	/** Events */
 	UPROPERTY()
 	FStateTreeEventQueue EventQueue;
+
+	friend struct FStateTreeInstanceData;
+};
+
+/**
+ * StateTree instance data is used to store the runtime state of a StateTree.
+ * The layout of the data is described in a FStateTreeInstanceDataLayout.
+ *
+ * Note: If FStateTreeInstanceData is placed on an struct, you must call AddStructReferencedObjects() manually,
+ *		 as it is not automatically called recursively.   
+ * Note: Serialization is supported only for FArchive::IsModifyingWeakAndStrongReferences(), that is replacing object references.
+ */
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeInstanceData
+{
+	GENERATED_BODY()
+
+	FStateTreeInstanceData();
+	~FStateTreeInstanceData();
+
+	/** Initializes the array with specified items. */
+	void Init(UObject& InOwner, TConstArrayView<FInstancedStruct> InStructs, TConstArrayView<const UObject*> InObjects);
+	void Init(UObject& InOwner, TConstArrayView<FConstStructView> InStructs, TConstArrayView<const UObject*> InObjects);
+
+	/** Appends new items to the instance. */
+	void Append(UObject& InOwner, TConstArrayView<FInstancedStruct> InStructs, TConstArrayView<const UObject*> InObjects);
+	void Append(UObject& InOwner, TConstArrayView<FConstStructView> InStructs, TConstArrayView<const UObject*> InObjects);
+
+	/** Shrinks the array sizes to specified lengths. Sizes must be small or equal than current size. */
+	void ShrinkTo(const int32 NumStructs, const int32 NumObjects);
+
+	/** Shares the layout from another instance data, and copies the data over. */
+	void CopyFrom(UObject& InOwner, const FStateTreeInstanceData& InOther);
+
+	/** Resets the data to empty. */
+	void Reset();
+
+	/** @return true if the instance is correctly initialized. */
+	bool IsValid() const;
+
+	/** @return Number of items in the instance data. */
+	int32 NumStructs() const { return GetStorage().InstanceStructs.Num(); }
+
+	/** @return true if the specified index is valid index into the struct data container. */
+	bool IsValidStructIndex(const int32 Index) const { return GetStorage().InstanceStructs.IsValidIndex(Index); }
+	
+	/** @return mutable view to the struct at specified index. */
+	FStructView GetMutableStruct(const int32 Index) { return GetStorage().InstanceStructs[Index]; }
+
+	/** @return const view to the struct at specified index. */
+	FConstStructView GetStruct(const int32 Index) const { return GetStorage().InstanceStructs[Index]; }
+
+	/** @return number of instance objects */
+	int32 NumObjects() const { return GetStorage().InstanceObjects.Num(); }
+
+	/** @return pointer to an instance object   */
+	UObject* GetMutableObject(const int32 Index) { return GetStorage().InstanceObjects[Index]; }
+
+	/** @return const pointer to an instance object   */
+	const UObject* GetObject(const int32 Index) const { return GetStorage().InstanceObjects[Index]; }
+
+	/** @return array to store unprocessed events. */
+	UE_DEPRECATED(5.2, "Use GetEventQueue() instead.")
+	TArray<FStateTreeEvent>& GetEvents() const;
+
+	/** @return reference to the event queue. */
+	FStateTreeEventQueue& GetMutableEventQueue();
+	const FStateTreeEventQueue& GetEventQueue() const;
+
+	const FStateTreeInstanceStorage& GetStorage() const;
+	FStateTreeInstanceStorage& GetMutableStorage();
+
+	int32 GetEstimatedMemoryUsage() const;
+	int32 GetNumItems() const;
+	
+	/** Type traits */
+	bool Identical(const FStateTreeInstanceData* Other, uint32 PortFlags) const;
+	void PostSerialize(const FArchive& Ar);
+
+protected:
+
+	/** Storage for the actual instance data, always stores FStateTreeInstanceStorage. */
+	UPROPERTY()
+	FInstancedStruct InstanceStorage;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(meta = (DeprecatedProperty))
+	FInstancedStructArray InstanceStructs_DEPRECATED;
+
+	UPROPERTY(meta = (DeprecatedProperty))
+	TArray<TObjectPtr<UObject>> InstanceObjects_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 };
 
 template<>
@@ -96,14 +165,18 @@ struct TStructOpsTypeTraits<FStateTreeInstanceData> : public TStructOpsTypeTrait
 	enum
 	{
 		WithIdentical = true,
+		WithPostSerialize = true,
 	};
 };
+
 
 /**
  * Stores indexed reference to a instance data struct.
  * The instance data structs may be relocated when the instance data composition changed. For that reason you cannot store pointers to the instance data.
  * This is often needed for example when dealing with delegate lambda's. This helper struct stores the instance data as index to the instance data array.
  * That way we can access the instance data even of the array changes.
+ *
+ * Note that the reference is valid only during the lifetime of a task (between EnterState() and ExitState()). 
  *
  * You generally do not use this directly, but via FStateTreeExecutionContext.
  *
@@ -127,13 +200,13 @@ template <typename T>
 struct TStateTreeInstanceDataStructRef
 {
 	TStateTreeInstanceDataStructRef(FStateTreeInstanceData& InInstanceData, const T& InstanceDataStruct)
-		: InstanceData(InInstanceData)
+		: Storage(InInstanceData.GetMutableStorage())
 	{
 		const FConstStructView InstanceDataStructView = FConstStructView::template Make(InstanceDataStruct);
 		// Find struct in the instance data.
-		for (int32 Index = 0; Index < InstanceData.NumStructs(); Index++)
+		for (int32 Index = 0; Index < Storage.NumStructs(); Index++)
 		{
-			if (InstanceData.GetStruct(Index) == InstanceDataStructView)
+			if (Storage.GetStruct(Index) == InstanceDataStructView)
 			{
 				StructIndex = Index;
 				break;
@@ -142,17 +215,17 @@ struct TStateTreeInstanceDataStructRef
 		check(StructIndex != INDEX_NONE);
 	}
 
-	bool IsValid() const { return InstanceData.IsValidStructIndex(StructIndex); }
+	bool IsValid() const { return Storage.IsValidStructIndex(StructIndex); }
 
 	T& operator*() const
 	{
 		check(IsValid());
-		const FStructView Struct = InstanceData.GetMutableStruct(StructIndex);
+		const FStructView Struct = Storage.GetMutableStruct(StructIndex);
 		check(Struct.GetScriptStruct() == TBaseStructure<T>::Get());
 		return *reinterpret_cast<T*>(Struct.GetMutableMemory());
 	}
 
 protected:
-	FStateTreeInstanceData& InstanceData;
+	FStateTreeInstanceStorage& Storage;
 	int32 StructIndex = INDEX_NONE;
 };

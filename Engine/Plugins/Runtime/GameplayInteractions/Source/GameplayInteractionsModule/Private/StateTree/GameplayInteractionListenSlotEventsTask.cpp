@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayInteractionListenSlotEventsTask.h"
 #include "StateTreeExecutionContext.h"
@@ -43,7 +43,7 @@ EStateTreeRunStatus FGameplayInteractionListenSlotEventsTask::EnterState(FStateT
 		return EStateTreeRunStatus::Failed;
 	}
 
-	FStateTreeEventQueue& EventQueue = Context.GetEventQueue();
+	FStateTreeEventQueue& EventQueue = Context.GetMutableEventQueue();
 
 	// Start piping Smart Object slot events into State Tree.
 	InstanceData.OnEventHandle = OnEventDelegate->AddLambda([&EventQueue, Owner = Context.GetOwner()](const FSmartObjectEventData& Data)

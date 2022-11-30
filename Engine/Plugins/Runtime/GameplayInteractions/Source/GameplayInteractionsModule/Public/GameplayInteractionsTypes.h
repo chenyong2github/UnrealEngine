@@ -55,8 +55,7 @@ struct GAMEPLAYINTERACTIONSMODULE_API FGameplayInteractionSlotUserData : public 
 	FGameplayInteractionSlotUserData() = default;
 	explicit FGameplayInteractionSlotUserData(AActor* InUserActor) : UserActor(InUserActor) {}
 		
-	UPROPERTY()
-	TObjectPtr<AActor> UserActor = nullptr;
+	TWeakObjectPtr<AActor> UserActor = nullptr;
 };
 
 
