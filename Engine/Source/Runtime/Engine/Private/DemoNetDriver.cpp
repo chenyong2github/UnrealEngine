@@ -3017,10 +3017,12 @@ void UDemoNetDriver::FinalizeFastForward(const double StartTime)
 			}
 		}
 
-		for (auto& DormantPair : ServerConnection->DormantReplicatorMap)
+		UE::Net::FExecuteForEachDormantReplicator CallRepNotifies = [](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
 		{
-			DormantPair.Value->CallRepNotifies(true);
-		}
+			ReplicatorRef->CallRepNotifies(true);
+		};
+
+		ServerConnection->ExecuteOnAllDormantReplicators(CallRepNotifies);
 	}
 
 	// We may have been fast-forwarding immediately after loading a checkpoint
@@ -3918,10 +3920,12 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 			}
 		}
 
-		for (auto& DormantPair : ServerConnection->DormantReplicatorMap)
+		UE::Net::FExecuteForEachDormantReplicator CallRepNotifies = [](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
 		{
-			DormantPair.Value->CallRepNotifies( true );
-		}
+			ReplicatorRef->CallRepNotifies(true);
+		};
+
+		ServerConnection->ExecuteOnAllDormantReplicators(CallRepNotifies);
 	}
 
 	return true;
@@ -5096,7 +5100,7 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 					Channel->ReleaseReferences(false);
 				}
 
-				Connection->DormantReplicatorMap.Remove(Actor);
+				Connection->CleanupDormantReplicatorsForActor(Actor);
 			}
 
 			GetNetworkObjectList().Remove(Actor);

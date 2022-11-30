@@ -35,6 +35,7 @@
 #include "Net/NetAnalyticsTypes.h"
 #include "Net/Core/Connection/NetCloseResult.h"
 #include "Net/TrafficControl.h"
+#include "Net/NetDormantHolder.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "GameFramework/Actor.h"
 
@@ -58,7 +59,8 @@ namespace UE::Net
 {
 	class FNetPing;
 	class FNetConnectionFaultRecovery;
-}
+
+} // end namespace UE::Net
 
 typedef TMap<TWeakObjectPtr<AActor>, UActorChannel*, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<AActor>, UActorChannel*>> FActorChannelMap;
 
@@ -781,7 +783,14 @@ public:
 	TMap<FNetworkGUID, TArray<class UActorChannel*>> KeepProcessingActorChannelBunchesMap;
 
 	/** A list of replicators that belong to recently dormant actors/objects */
-	TMap<FObjectKey, TSharedRef<FObjectReplicator>> DormantReplicatorMap;	
+	UE_DEPRECATED(5.2, "The DormantReplicatorMap is deprecated in favor of the private DormantReplicatorSet.")
+	TMap<FObjectKey, TSharedRef<FObjectReplicator>> DormantReplicatorMap;
+
+private:
+
+	UE::Net::Private::FDormantReplicatorHolder DormantReplicatorSet;
+
+public:
 
 	ENGINE_API FName GetClientWorldPackageName() const { return ClientWorldPackageName; }
 
@@ -1198,7 +1207,16 @@ public:
 	ENGINE_API void ForcePropertyCompare( AActor* Actor );
 
 	/** Wrapper for validating an objects dormancy state, and to prepare the object for replication again */
-	void FlushDormancyForObject( UObject* Object );
+	UE_DEPRECATED(5.2, "FlushDormancyForObject has been replaced with a version that needs to receive the dormant actor.")
+	void FlushDormancyForObject( UObject* Object ) {}
+
+	/**
+	* Validate an objects dormancy state and prepare the object for replication again
+	* 
+	* @param DormantActor The dormant actor that owns the replicated object that needs to be flushed
+	* @param ReplicatedObject The replicated object that is flushed.
+	*/
+	void FlushDormancyForObject(AActor* DormantActor, UObject* ReplicatedObject);
 
 	/** 
 	 * Wrapper for setting the current client login state, so we can trap for debugging, and verbosity purposes. 
@@ -1290,14 +1308,32 @@ public:
 	TArray<FOutBunch *>& GetOutgoingBunches() { return OutgoingBunches; }
 
 	/** Add a replicator to the dormancy map and release its strong pointer to its object */
-	void AddDormantReplicator(UObject* Object, const TSharedRef<FObjectReplicator>& Replicator);
+	UE_DEPRECATED(5.2, "AddDormantReplicator has been replaced by StoreDormantReplicator and will be removed soon.")
+	void AddDormantReplicator(UObject* Object, const TSharedRef<FObjectReplicator>& Replicator) {}
+
+	/** Store a replicator to the dormancy map and release its strong pointer to its object */
+	void StoreDormantReplicator(AActor* OwnerActor, UObject* Object, const TSharedRef<FObjectReplicator>& ObjectReplicator);
 	
 	/** Find a dormant replicator for the channel actor or one of its subobjects. Removes it from the map if found. */
-	TSharedPtr<FObjectReplicator> FindAndRemoveDormantReplicator(UObject* Object);
+	UE_DEPRECATED(5.2, "FindAndRemoveDormantReplicator is deprecated. Use the new version that needs to receive the owning actor.")
+	TSharedPtr<FObjectReplicator> FindAndRemoveDormantReplicator(UObject* Object) { return {}; }
 
+	/** Find a dormant replicator for the channel actor or one of its subobjects. Removes it from the map if found. */
+	TSharedPtr<FObjectReplicator> FindAndRemoveDormantReplicator(AActor* OwnerActor, UObject* Object);
+
+	/** Remove any reference to the dormant object replicator */
+	void RemoveDormantReplicator(AActor* Actor, UObject* Object);
+
+	/** Remove the reference of all dormant object replicators owned by an actor */
 	void CleanupDormantReplicatorsForActor(AActor* Actor);
 
-	/** Removes stale entries from DormantReplicatorMap. */
+	/** Trigger a callback on all dormant replicators of every dormant actor we stored */
+	void ExecuteOnAllDormantReplicators(UE::Net::FExecuteForEachDormantReplicator ExecuteFunction);
+
+	/** Trigger a callback on all dormant replicators owned by a dormant actor */
+	void ExecuteOnAllDormantReplicatorsOfActor(AActor* OwnerActor, UE::Net::FExecuteForEachDormantReplicator ExecuteFunction);
+
+	/** Removes dormant object replicators from objects now invalid. */
 	void CleanupStaleDormantReplicators();
 
 	/** Called before Driver.TickDispatch processes received packets */

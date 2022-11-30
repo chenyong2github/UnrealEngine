@@ -340,7 +340,9 @@ UNetConnection::UNetConnection(FVTableHelper& Helper)
 {
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UNetConnection::~UNetConnection() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UNetConnection::InitChannelData()
 {
@@ -854,7 +856,7 @@ void UNetConnection::Serialize( FArchive& Ar )
 		);
 
 		// ObjectReplicators are going to be counted by UNetDriver::Serialize AllOwnedReplicators.
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DormantReplicatorMap", DormantReplicatorMap.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DormantReplicatorSet", DormantReplicatorSet.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibleLevelNames", ClientVisibleLevelNames.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibleActorOuters", ClientVisibleActorOuters.CountBytes(Ar));
@@ -4736,7 +4738,6 @@ void UNetConnection::ResetGameWorldState()
 	ClientVisibleLevelNames.Empty();
 	ClientMakingVisibleLevelNames.Empty();
 	KeepProcessingActorChannelBunchesMap.Empty();
-	DormantReplicatorMap.Empty();
 	CleanupDormantActorState();
 	ClientVisibleActorOuters.Empty();
 
@@ -4754,23 +4755,23 @@ void UNetConnection::ResetGameWorldState()
 
 void UNetConnection::CleanupDormantActorState()
 {
-	DormantReplicatorMap.Empty();
+	DormantReplicatorSet.EmptySet();
 }
 
-void UNetConnection::FlushDormancy(class AActor* Actor)
+void UNetConnection::FlushDormancy(AActor* Actor)
 {
 	UE_LOG( LogNetDormancy, Verbose, TEXT( "FlushDormancy: %s. Connection: %s" ), *Actor->GetName(), *GetName() );
 	
 	if ( Driver->GetNetworkObjectList().MarkActive( Actor, this, Driver ) )
 	{
-		FlushDormancyForObject( Actor );
+		FlushDormancyForObject( Actor, Actor );
 
 		// TODO: Is this set of objects sufficient? Should we query the dormancy map from the connection instead?
 		for ( UActorComponent* ActorComp : Actor->GetReplicatedComponents() )
 		{
 			if ( ActorComp && ActorComp->GetIsReplicated() )
 			{
-				FlushDormancyForObject( ActorComp );
+				FlushDormancyForObject(Actor, ActorComp );
 			}
 		}
 	}
@@ -4804,29 +4805,40 @@ void UNetConnection::ForcePropertyCompare( AActor* Actor )
 	}
 }
 
-/** Wrapper for validating an objects dormancy state, and to prepare the object for replication again */
-void UNetConnection::FlushDormancyForObject(UObject* Object)
+void UNetConnection::FlushDormancyForObject(AActor* DormantActor, UObject* ReplicatedObject)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetConnection_FlushDormancyForObject)
 
-	TSharedRef<FObjectReplicator>* Replicator = DormantReplicatorMap.Find(Object);
-	if (Replicator)
-	{
-		if (GNetDormancyValidate == 1)
-		{
-			Replicator->Get().ValidateAgainstState( Object );
-		}
+	bool bReuseReplicators = false;
 
-		if (!GbNetReuseReplicatorsForDormantObjects || !Driver || !Driver->IsServer())
+	if (GbNetReuseReplicatorsForDormantObjects && Driver && Driver->IsServer())
+	{
+		bReuseReplicators = true;
+	}
+
+	if (GNetDormancyValidate == 1)
+	{
+		TSharedPtr<FObjectReplicator> Replicator = DormantReplicatorSet.FindReplicator(DormantActor, ReplicatedObject);
+		if (Replicator.IsValid())
 		{
-			Replicator = nullptr;
+			Replicator->ValidateAgainstState(ReplicatedObject);
 		}
 	}
 
-	if (Replicator == nullptr)
+	// If we want to reuse replicators, make sure they exist for this object
+	if (bReuseReplicators)
 	{
-		Replicator = &DormantReplicatorMap.Add(Object, MakeShared<FObjectReplicator>());
-		Replicator->Get().InitWithObject(Object, this, false);		// Init using the objects current state
+		bReuseReplicators = DormantReplicatorSet.DoesReplicatorExist(DormantActor, ReplicatedObject);
+	}
+
+	// If we need to create a new replicator when flushing
+	if (!bReuseReplicators)
+	{
+		const TSharedRef<FObjectReplicator>& ObjectReplicatorRef = DormantReplicatorSet.CreateAndStoreReplicator(DormantActor, ReplicatedObject);
+		
+		// Init using the objects current state
+		constexpr bool bUseDefaultState = false; 
+		ObjectReplicatorRef->InitWithObject(ReplicatedObject, this, bUseDefaultState);
 
 		// Flush the must be mapped GUIDs, the initialization may add them, but they're phantom and will be remapped when actually sending
 		if (UPackageMapClient* PackageMapClient = CastChecked<UPackageMapClient>(PackageMap))
@@ -5007,55 +5019,67 @@ void UNetConnection::DestroyIgnoredActor(AActor* Actor)
 	}
 }
 
-void UNetConnection::AddDormantReplicator(UObject* Object, const TSharedRef<FObjectReplicator>& Replicator)
+void UNetConnection::StoreDormantReplicator(AActor* OwnerActor, UObject* Object, const TSharedRef<FObjectReplicator>& ObjectReplicator)
 {
-	Replicator->ReleaseStrongReference();
-	DormantReplicatorMap.Add(Object, Replicator);
+	ObjectReplicator->ReleaseStrongReference();
+
+	if (ensureMsgf(OwnerActor, TEXT("StoreDormantReplicator cannot receive a null owner while storing %s"), *GetNameSafe(Object)))
+	{
+		DormantReplicatorSet.StoreReplicator(OwnerActor, Object, ObjectReplicator);
+	}
 }
 
-TSharedPtr<FObjectReplicator> UNetConnection::FindAndRemoveDormantReplicator(UObject* Object)
+TSharedPtr<FObjectReplicator> UNetConnection::FindAndRemoveDormantReplicator(AActor* OwnerActor, UObject* Object)
 {
-	FObjectKey Key(Object);
-	
-	if (DormantReplicatorMap.Contains(Key))
-	{
-		TSharedRef<FObjectReplicator> Ref = DormantReplicatorMap.FindAndRemoveChecked(Key);
+	const FObjectKey ObjectKey(Object);
 
+	TSharedPtr<FObjectReplicator> ReplicatorPtr = DormantReplicatorSet.FindAndRemoveReplicator(OwnerActor, Object);
+
+	if (ReplicatorPtr.IsValid())
+	{
 		// Only return the replicator if the object is still valid, otherwise just remove it from the cache and allow the caller to create a new one
-		if (UObject* StrongPtr = Ref->GetWeakObjectPtr().Get())
+		if (UObject* StrongPtr = ReplicatorPtr->GetWeakObjectPtr().Get())
 		{
 			// Reassign the strong pointer for GC/faster resolve
-			Ref->SetObject(StrongPtr);
-			return Ref;
+			ReplicatorPtr->SetObject(StrongPtr);
+		}
+		else
+		{
+			ReplicatorPtr.Reset();
 		}
 	}
-	return {};
+
+	return ReplicatorPtr;
+}
+
+void UNetConnection::RemoveDormantReplicator(AActor* Actor, UObject* Object)
+{
+	const FObjectKey ObjectKey = Object;
+
+	DormantReplicatorSet.RemoveStoredReplicator(Actor, ObjectKey);
+}
+
+void UNetConnection::ExecuteOnAllDormantReplicators(UE::Net::FExecuteForEachDormantReplicator ExecuteFunction)
+{
+	DormantReplicatorSet.ForEachDormantReplicator(ExecuteFunction);
+}
+
+void UNetConnection::ExecuteOnAllDormantReplicatorsOfActor(AActor* OwnerActor, UE::Net::FExecuteForEachDormantReplicator ExecuteFunction)
+{
+	DormantReplicatorSet.ForEachDormantReplicatorOfActor(OwnerActor, ExecuteFunction);	
 }
 
 void UNetConnection::CleanupDormantReplicatorsForActor(AActor* Actor)
 {
 	if (Actor)
 	{
-		// TODO: The DormantReplicator map contains not only replicated components, but any subobjects
-		// that are replicated (such as Gameplay Attribute Sets).
-		// That means we are likely leaking entries here (at least until CleanupStaleDormantReplicators is called).
-		DormantReplicatorMap.Remove(Actor);
-		for (UActorComponent* const Component : Actor->GetReplicatedComponents())
-		{
-			DormantReplicatorMap.Remove(Component);
-		}
+		DormantReplicatorSet.CleanupAllReplicatorsOfActor(Actor);
 	}
 }
 
 void UNetConnection::CleanupStaleDormantReplicators()
 {
-	for (auto It = DormantReplicatorMap.CreateIterator(); It; ++It)
-	{
-		if (!It.Value()->GetWeakObjectPtr().IsValid())
-		{
-			It.RemoveCurrent();
-		}
-	}
+	DormantReplicatorSet.CleanupStaleObjects();
 }
 
 void UNetConnection::SetPendingCloseDueToReplicationFailure()

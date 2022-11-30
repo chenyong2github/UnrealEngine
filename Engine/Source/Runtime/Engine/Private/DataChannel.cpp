@@ -2275,7 +2275,7 @@ void UActorChannel::CleanupReplicators(const bool bKeepReplicators)
 			//		KeepProcessingActorChannelBunchesMap will get in here, then when the channel closes a second time, we'll hit this assert
 			//		It should be okay to just set the most recent replicator
 			//check( Connection->DormantReplicatorMap.Find( CompIt.Value()->GetObject() ) == NULL );
-			Connection->AddDormantReplicator(ObjectReplicatorRef->GetObject(), ObjectReplicatorRef);
+			Connection->StoreDormantReplicator(Actor, ObjectReplicatorRef->GetObject(), ObjectReplicatorRef);
 			ObjectReplicatorRef->StopReplicating(this);		// Stop replicating on this channel
 		}
 		else
@@ -4951,23 +4951,25 @@ TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj, boo
 	TSharedPtr<FObjectReplicator> NewReplicator;
 	if (bCheckDormantReplicators)
 	{
-		NewReplicator = Connection->FindAndRemoveDormantReplicator(Obj);
+		NewReplicator = Connection->FindAndRemoveDormantReplicator(Actor, Obj);
 	}
 	else
 	{
-		Connection->FindAndRemoveDormantReplicator(Obj); // Discard dormant replicator if there was one that we're not using;
+		// Discard dormant replicator if there was one that we're not using
+		Connection->RemoveDormantReplicator(Actor, Obj);
 	}
 
 	// Check if we found it and that it is has a valid object
 	if(NewReplicator.IsValid())
 	{
-		UE_LOG( LogNetTraffic, Log, TEXT( "Found existing replicator for %s" ), *Obj->GetName() );
+		UE_LOG(LogNetTraffic, Log, TEXT("CreateReplicator - Found existing replicator for (0x%p) %s - Replicator (0x%p)"), Obj , *Obj->GetName(), NewReplicator.Get());
 	}
 	else
 	{
 		// Didn't find one, need to create
-		UE_LOG( LogNetTraffic, Log, TEXT( "Creating Replicator for %s" ), *Obj->GetName() );
 		NewReplicator = Connection->CreateReplicatorForNewActorChannel(Obj);
+
+		UE_LOG(LogNetTraffic, Log, TEXT("CreateReplicator - creating new replicator for (0x%p) %s - Replicator (0x%p)"), Obj, *Obj->GetName(), NewReplicator.Get());
 	}
 
 	// Add to the replication map

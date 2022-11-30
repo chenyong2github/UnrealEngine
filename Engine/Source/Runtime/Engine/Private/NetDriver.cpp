@@ -5171,18 +5171,19 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 		// net.DormancyValidate can be set to 2 to validate all dormant actors against last known state before going dormant
 		if ( GNetDormancyValidate == 2 )
 		{
-			// TODO: DormantReplicatorMap will actually contain all Actors and Subobjects.
-			// This means that we will call FObjectReplicator::ValidateAgainstState multiple times for
-			// the same object (once for itself and again for each subobject).
-			for ( auto It = Connection->DormantReplicatorMap.CreateIterator(); It; ++It )
+			UE::Net::FExecuteForEachDormantReplicator ValidateFunction = [](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
 			{
-				FObjectReplicator& Replicator = It.Value().Get();
+				FObjectReplicator& Replicator = ReplicatorRef.Get();
 
-				if ( Replicator.OwningChannel != nullptr )
+				// We will call FObjectReplicator::ValidateAgainstState multiple times for
+				// the same object (once for itself and again for each subobject).
+				if (Replicator.OwningChannel != nullptr)
 				{
-					Replicator.ValidateAgainstState( Replicator.OwningChannel->GetActor() );
+					Replicator.ValidateAgainstState(Replicator.OwningChannel->GetActor());
 				}
-			}
+			};
+				
+			Connection->ExecuteOnAllDormantReplicators(ValidateFunction);
 		}
 
 		// if this client shouldn't be ticked this frame
