@@ -364,10 +364,15 @@ private:
 	 * The set of folders that should always be visible, even if they contain no assets in the Content Browser view.
 	 * This will include root content folders, and any folders that have been created directly (or indirectly) by a user action.
 	 */
-	TSet<FString> AlwaysVisibleAssetFolders;
+	TSet<FName> AlwaysVisibleAssetFolders;
 
 	/**
 	 * A cache of folders that contain no assets in the Content Browser view.
 	 */
-	TSet<FString> EmptyAssetFolders;
+	TSet<FName> EmptyAssetFolders;
+	
+	/**
+	 * A cache of folders that visited since the last time any empty asset folders were added.
+	 */
+	TSet<FName> VisitedEmptyAssetFolders;
 };
