@@ -31,9 +31,10 @@ DEFINE_LOG_CATEGORY(LogEGL);
 typedef int32(*PFN_ANativeWindow_setBuffersTransform)(struct ANativeWindow* window, int32 transform);
 static PFN_ANativeWindow_setBuffersTransform ANativeWindow_setBuffersTransform_API = nullptr;
 
+// Use blit by default as setBuffersTransform is broken on random devices
 static TAutoConsoleVariable<int32> CVarAndroidGLESFlipYMethod(
 	TEXT("r.Android.GLESFlipYMethod"),
-	0,
+	2,
 	TEXT(" 0: Flip Y method detected automatically by GPU vendor.\n"
 		 " 1: Force flip Y by native window setBuffersTransform.\n"
 		 " 2: Force flip Y by BlitFrameBuffer."),

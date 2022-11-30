@@ -252,6 +252,9 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport
 			);
 
 			glEnable(GL_FRAMEBUFFER_SRGB);
+
+			// Bind viewport FBO so driver knows we don't need backbuffer image anymore
+			glBindFramebuffer(GL_FRAMEBUFFER, Context->ViewportFramebuffer);
 		}
 	}
 
@@ -268,10 +271,6 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport
 	}
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.UseFrameTimeStampsForPacing"));
 	const bool bForceGPUFence = CVar ? CVar->GetInt() != 0 : false;
-
-	// Bind a dummy FBO so driver knows we don't need backbuffer anymore
-	check(Context->DummyFrameBuffer != 0);
-	glBindFramebuffer(GL_FRAMEBUFFER, Context->DummyFrameBuffer);
 
 	return bPresent && ShouldUseGPUFencesToLimitLatency();
 }
