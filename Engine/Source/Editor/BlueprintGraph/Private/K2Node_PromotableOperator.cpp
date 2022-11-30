@@ -976,8 +976,13 @@ bool UK2Node_PromotableOperator::CreateIntermediateCast(UK2Node_CallFunction* So
 	check(InputPin && OutputPin);
 	const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
 
-	// If the pin types are the same, than no casts are needed and we can just connect
-	if (InputPin->PinType == OutputPin->PinType)
+	// If the pin types are the same, than no casts are needed and we can just connect.
+	// This includes real number types that may have a different subcategory, which we implicitly convert.
+	const bool bPinTypesMatch =
+		(InputPin->PinType == OutputPin->PinType) ||
+		((InputPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Real) && (OutputPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Real));
+
+	if (bPinTypesMatch)
 	{
 		// If SourceNode is 'this' then we need to move the pin links instead of just 
 		// creating the connection because the output is not another new node, but 
