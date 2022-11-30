@@ -188,7 +188,7 @@ namespace EpicGames.Horde.Storage
 		public static async Task<NodeLocator> WriteNodeAsync(this IStorageClient store, RefName name, TreeNode node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
 			TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
-			return await writer.WriteRefAsync(name, node, refOptions, cancellationToken);
+			return await writer.WriteAsync(name, node, refOptions, cancellationToken);
 		}
 
 		/// <summary>

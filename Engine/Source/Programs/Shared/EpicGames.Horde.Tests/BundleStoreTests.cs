@@ -88,7 +88,7 @@ namespace EpicGames.Horde.Tests
 
 				SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new TreeNodeRef<SimpleNode>(node4), new TreeNodeRef<SimpleNode>(node3) });
 
-				await writer.WriteRefAsync(new RefName("test"), root);
+				await writer.WriteAsync(new RefName("test"), root);
 
 				TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
 				await CheckTree(reader, root);
@@ -188,7 +188,7 @@ namespace EpicGames.Horde.Tests
 				FileNode world = await FileNode.CreateAsync(Encoding.UTF8.GetBytes("world"), new ChunkingOptions(), writer, CancellationToken.None);
 				hello.AddFile("world", FileEntryFlags.None, world);
 
-				await writer.WriteRefAsync(new RefName("test"), root);
+				await writer.WriteAsync(new RefName("test"), root);
 
 				await CheckFileTreeAsync(reader, root);
 			}
@@ -326,7 +326,7 @@ namespace EpicGames.Horde.Tests
 				FileNode file = await FileNode.CreateAsync(data, options, writer, CancellationToken.None);
 				root.AddFile("test", FileEntryFlags.None, file);
 
-				await writer.WriteRefAsync(new RefName("test"), root);
+				await writer.WriteAsync(new RefName("test"), root);
 
 				TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
 				await CheckLargeFileTreeAsync(reader, root, data);

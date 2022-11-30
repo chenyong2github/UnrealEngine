@@ -40,7 +40,7 @@ namespace Horde.Build.Commands.Bundles
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, CancellationToken.None);
 
-			await writer.WriteRefAsync(RefName, node);
+			await writer.WriteAsync(RefName, node);
 			return 0;
 		}
 	}

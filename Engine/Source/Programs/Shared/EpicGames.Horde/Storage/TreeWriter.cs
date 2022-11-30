@@ -134,6 +134,17 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="store">Store to write data to</param>
+		/// <param name="refName">Ref being written. Will be used as a prefix for storing blobs.</param>
+		/// <param name="options">Options for the writer</param>
+		public TreeWriter(IStorageClient store, RefName refName, TreeOptions? options = null)
+			: this(store, options, refName.Text)
+		{
+		}
+
+		/// <summary>
 		/// Copies settings from another tree writer
 		/// </summary>
 		/// <param name="other">Other instance to copy from</param>
@@ -245,25 +256,6 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Writes a node to the given ref
-		/// </summary>
-		/// <param name="name">Name of the ref to write</param>
-		/// <param name="node"></param>
-		/// <param name="options"></param>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		public async Task<NodeLocator> WriteRefAsync(RefName name, TreeNode node, RefOptions? options = null, CancellationToken cancellationToken = default)
-		{
-			TreeNodeRef nodeRef = new TreeNodeRef(node);
-			await WriteAsync(nodeRef, cancellationToken);
-			await FlushAsync(cancellationToken);
-
-			Debug.Assert(nodeRef.Locator.IsValid());
-			await _store.WriteRefTargetAsync(name, new RefTarget(nodeRef.Hash, nodeRef.Locator), options, cancellationToken);
-			return nodeRef.Locator;
-		}
-
-		/// <summary>
 		/// Writes a ref to the node with the given hash
 		/// </summary>
 		/// <param name="name">Name of the ref to write</param>
@@ -276,6 +268,25 @@ namespace EpicGames.Horde.Storage
 			NodeLocator locator = GetLocator(root);
 			await _store.WriteRefTargetAsync(name, new RefTarget(root, locator), options, cancellationToken);
 			return locator;
+		}
+
+		/// <summary>
+		/// Writes a node to the given ref
+		/// </summary>
+		/// <param name="name">Name of the ref to write</param>
+		/// <param name="node"></param>
+		/// <param name="options"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public async Task<NodeLocator> WriteAsync(RefName name, TreeNode node, RefOptions? options = null, CancellationToken cancellationToken = default)
+		{
+			TreeNodeRef nodeRef = new TreeNodeRef(node);
+			await WriteAsync(nodeRef, cancellationToken);
+			await FlushAsync(cancellationToken);
+
+			Debug.Assert(nodeRef.Locator.IsValid());
+			await _store.WriteRefTargetAsync(name, new RefTarget(nodeRef.Hash, nodeRef.Locator), options, cancellationToken);
+			return nodeRef.Locator;
 		}
 
 		void FlushPacket()

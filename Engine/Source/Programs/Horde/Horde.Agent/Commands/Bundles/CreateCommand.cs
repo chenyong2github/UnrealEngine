@@ -106,7 +106,7 @@ namespace Horde.Agent.Commands.Bundles
 			ChunkingOptions options = new ChunkingOptions();
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), options, writer, CancellationToken.None);
 
-			await writer.WriteRefAsync(RefName, node);
+			await writer.WriteAsync(RefName, node);
 
 			logger.LogInformation("Time: {Time}", timer.Elapsed.TotalSeconds);
 			return 0;

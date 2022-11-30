@@ -903,7 +903,7 @@ namespace Horde.Agent.Execution
 				}
 
 				// Write the final node
-				await treeWriter.WriteRefAsync(refName, outputNode, new RefOptions { Lifetime = TimeSpan.FromDays(3.0) }, cancellationToken);
+				await treeWriter.WriteAsync(refName, outputNode, new RefOptions { Lifetime = TimeSpan.FromDays(3.0) }, cancellationToken);
 				logger.LogInformation("Upload took {Time:n1}s", timer.Elapsed.TotalSeconds);
 			}
 
@@ -1293,7 +1293,7 @@ namespace Horde.Agent.Execution
 				ChunkingOptions options = new ChunkingOptions();
 				await directoryNode.CopyFromDirectoryAsync(logDir.ToDirectoryInfo(), options, treeWriter, cancellationToken);
 
-				await treeWriter.WriteRefAsync(refName, directoryNode, cancellationToken: cancellationToken);
+				await treeWriter.WriteAsync(refName, directoryNode, cancellationToken: cancellationToken);
 			}
 			else
 			{
