@@ -31,10 +31,16 @@ class UCurveFloat;
 UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew, CollapseCategories, meta = (ShowWorldContextPin))
 class ENGINE_API UInputDeviceProperty : public UObject
 {
+	friend class UInputDeviceSubsystem;
+	// TODO: Make force feedback effects just use the subsystem instead of ticking stuff themselves
+	friend class UForceFeedbackEffect;
+
 	GENERATED_BODY()
 public:
 
 	UInputDeviceProperty(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+protected:
 
 	/**
 	* Evaluate this device property for a given duration. 
@@ -84,6 +90,8 @@ public:
 	
 	/** Gets a pointer to the current input device property that the IInputInterface can use. */
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() { return nullptr; };
+
+public:
 
 	/**
 	* The duration that this device property should last. Override this if your property has any dynamic curves 
