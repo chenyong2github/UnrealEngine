@@ -195,6 +195,9 @@ public:
 	bool IsGenerating() const { return CurrentGenerationTask != InvalidPCGTaskId; }
 	bool IsCleaningUp() const { return CurrentCleanupTask != InvalidPCGTaskId; }
 
+	/** Returns task ids to do internal chaining */
+	FPCGTaskId GetGenerationTaskId() const { return CurrentGenerationTask; }
+
 #if WITH_EDITOR
 	void Refresh();
 	void OnRefresh();

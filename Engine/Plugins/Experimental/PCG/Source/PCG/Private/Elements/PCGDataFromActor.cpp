@@ -3,12 +3,24 @@
 #include "Elements/PCGDataFromActor.h"
 
 #include "PCGComponent.h"
+#include "PCGSubsystem.h"
 #include "Data/PCGSpatialData.h"
 
 #include "GameFramework/Actor.h"
 #include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDataFromActor)
+
+#if WITH_EDITOR
+void UPCGDataFromActorSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
+{
+	if (ActorSelector.ActorSelection == EPCGActorSelection::ByTag &&
+		ActorSelector.ActorFilter == EPCGActorFilter::AllWorldActors)
+	{
+		OutTagToSettings.FindOrAdd(ActorSelector.ActorSelectionTag).Add(this);
+	}
+}
+#endif
 
 FPCGElementPtr UPCGDataFromActorSettings::CreateElement() const
 {
@@ -30,29 +42,101 @@ TArray<FPCGPinProperties> UPCGDataFromActorSettings::OutputPinProperties() const
 	return Pins;
 }
 
-bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* Context) const
+FPCGContext* FPCGDataFromActorElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
+{
+	FPCGDataFromActorContext* Context = new FPCGDataFromActorContext();
+	Context->InputData = InputData;
+	Context->SourceComponent = SourceComponent;
+	Context->Node = Node;
+
+	return Context;
+}
+
+bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* InContext) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDataFromActorElement::Execute);
 
-	check(Context);
+	check(InContext);
+	FPCGDataFromActorContext* Context = static_cast<FPCGDataFromActorContext*>(InContext);
+
 	const UPCGDataFromActorSettings* Settings = Context->GetInputSettings<UPCGDataFromActorSettings>();
 	check(Settings);
 
 	UWorld* World = Context->SourceComponent.IsValid() ? Context->SourceComponent->GetWorld() : nullptr;
-	TArray<AActor*> FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, World, nullptr);
 
-	if (FoundActors.IsEmpty())
+	if (!Context->bPerformedQuery)
 	{
-		PCGE_LOG(Warning, "No matching actor was found.");
-		return true;
+		Context->FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, World, nullptr);
+		Context->bPerformedQuery = true;
+
+		if (Context->FoundActors.IsEmpty())
+		{
+			PCGE_LOG(Warning, "No matching actor was found.");
+			return true;
+		}
+
+		// If we're looking for PCG component data, we might have to wait for it.
+		if (Settings->Mode == EPCGGetDataFromActorMode::GetDataFromPCGComponent || Settings->Mode == EPCGGetDataFromActorMode::GetDataFromPCGComponentOrParseComponents)
+		{
+			TArray<FPCGTaskId> WaitOnTaskIds;
+			for (AActor* Actor : Context->FoundActors)
+			{
+				GatherWaitTasks(Actor, WaitOnTaskIds);
+			}
+
+			if (!WaitOnTaskIds.IsEmpty())
+			{
+				UPCGSubsystem* Subsystem = Context->SourceComponent.IsValid() ? Context->SourceComponent->GetSubsystem() : nullptr;
+				if (Subsystem)
+				{
+					// Add a trivial task after these generations that wakes up this task
+					Context->bIsPaused = true;
+
+					Subsystem->ScheduleGeneric([Context]()
+					{
+						// Wake up the current task
+						Context->bIsPaused = false;
+						return true;
+					}, Context->SourceComponent.Get(), WaitOnTaskIds);
+
+					return false;
+				}
+				else
+				{
+					PCGE_LOG(Error, "Was unable to wait for end of generation tasks");
+				}
+			}
+		}
 	}
 
-	for (AActor* Actor : FoundActors)
+	if (Context->bPerformedQuery)
 	{
-		ProcessActor(Context, Settings, Actor);
+		for (AActor* Actor : Context->FoundActors)
+		{
+			ProcessActor(Context, Settings, Actor);
+		}
 	}
 
 	return true;
+}
+
+void FPCGDataFromActorElement::GatherWaitTasks(AActor* FoundActor, TArray<FPCGTaskId>& OutWaitTasks) const
+{
+	if (!FoundActor)
+	{
+		return;
+	}
+
+	TInlineComponentArray<UPCGComponent*, 1> PCGComponents;
+	FoundActor->GetComponents(PCGComponents);
+
+	for (UPCGComponent* Component : PCGComponents)
+	{
+		if (Component->IsGenerating())
+		{
+			OutWaitTasks.Add(Component->GetGenerationTaskId());
+		}
+	}
 }
 
 void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, AActor* FoundActor) const
@@ -60,12 +144,12 @@ void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGData
 	check(Context);
 	check(Settings);
 
-	if (!FoundActor)
+	if (!FoundActor || !IsValid(FoundActor))
 	{
 		return;
 	}
 
-	TArray<UPCGComponent*> PCGComponents;
+	TInlineComponentArray<UPCGComponent*, 1> PCGComponents;
 	bool bHasGeneratedPCGData = false;
 	FProperty* FoundProperty = nullptr;
 

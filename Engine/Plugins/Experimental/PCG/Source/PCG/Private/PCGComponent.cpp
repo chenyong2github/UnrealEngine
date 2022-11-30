@@ -2116,7 +2116,7 @@ bool UPCGComponent::AddTrackedActor(AActor* InActor, bool bForce)
 
 		bAppliedChange = true;
 		CachedTrackedActorToTags.FindOrAdd(InActor).Add(Tag);
-		PCGHelpers::GatherDependencies(InActor, CachedTrackedActorToDependencies.FindOrAdd(InActor));
+		PCGHelpers::GatherDependencies(InActor, CachedTrackedActorToDependencies.FindOrAdd(InActor), 1);
 
 		if (!bForce)
 		{

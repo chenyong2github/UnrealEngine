@@ -28,6 +28,7 @@ public:
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("DataFromActor")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
+	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const override;
 #endif
 
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return TArray<FPCGPinProperties>(); }
@@ -51,12 +52,21 @@ public:
 	FName PropertyName = NAME_None;
 };
 
-class FPCGDataFromActorElement : public FSimplePCGElement
+class FPCGDataFromActorContext : public FPCGContext
 {
 public:
+	TArray<AActor*> FoundActors;
+	bool bPerformedQuery = false;
+};
+
+class FPCGDataFromActorElement : public IPCGElement
+{
+public:
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node) override;
 	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const override { return true; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;
+	void GatherWaitTasks(AActor* FoundActor, TArray<FPCGTaskId>& OutWaitTasks) const;
 	void ProcessActor(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, AActor* FoundActor) const;
 };
