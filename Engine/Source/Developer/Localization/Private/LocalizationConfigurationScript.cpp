@@ -424,7 +424,7 @@ namespace LocalizationConfigurationScript
 			{
 				ConfigSection.Add( TEXT("InputKeys"), Specification.MetaDataKey.Name );
 				ConfigSection.Add( TEXT("OutputNamespaces"), Specification.TextNamespace );
-				ConfigSection.Add( TEXT("OutputKeys"), FString::Printf(TEXT("\"%s\""), *Specification.TextKeyPattern.Pattern) );
+				ConfigSection.Add(TEXT("OutputKeys"), Specification.TextKeyPattern.Pattern);
 			}
 
 			ConfigSection.Add( TEXT("ShouldGatherFromEditorOnlyData"), Target->Settings.GatherFromMetaData.ShouldGatherFromEditorOnlyData ? TEXT("true") : TEXT("false") );
