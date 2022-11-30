@@ -18,6 +18,7 @@
 #include "UVEditorUXSettings.h"
 #include "ContextObjects/UVToolContextObjects.h"
 #include "EngineAnalytics.h"
+#include "Algo/Unique.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorSeamTool)
 
@@ -40,7 +41,48 @@ namespace UVEditorSeamToolLocals
 	
 	const FString& ExistingSeamsID(TEXT("SeamLineSet"));
 
-	void GetVidPath(FDynamicMesh3* Mesh, const TArray<int32>& StartVids, int32 EndVid, TArray<int32>& VidPathOut)
+	constexpr double SeamEuclideanDistanceMultiplier = 0.01;
+
+	typedef TFunction<double(int32 FromVID, int32 ToVID, int32 SeedVID, double EuclideanDistance)> FPathDistanceFunc;
+
+	FPathDistanceFunc GetUVDistanceFunction(const UUVEditorToolMeshInput& Target, bool bUnwrapMeshSource, bool bTrackBoundaryEdges)
+	{
+		if (!bTrackBoundaryEdges)
+		{
+			return [&Target](int32 FromVID, int32 ToVID, int32 SeedVID, double EuclideanDistance)
+			{
+				return EuclideanDistance;
+			};
+		}
+		else
+		{
+			if (bUnwrapMeshSource)
+			{
+				return [&Target](int32 FromVID, int32 ToVID, int32 SeedVID, double EuclideanDistance)
+				{
+					if (Target.UnwrapCanonical.Get()->IsBoundaryEdge(Target.UnwrapCanonical.Get()->FindEdge(FromVID, ToVID)))
+					{
+						return EuclideanDistance * SeamEuclideanDistanceMultiplier;
+					}
+					return EuclideanDistance;
+				};
+			}
+			else
+			{
+				return [&Target](int32 FromVID, int32 ToVID, int32 SeedVID, double EuclideanDistance)
+				{					
+					const FDynamicMeshUVOverlay* CanonicalOverlay = Target.AppliedCanonical->Attributes()->GetUVLayer(Target.UVLayerIndex);
+					if (CanonicalOverlay->IsSeamEdge(Target.AppliedCanonical->FindEdge(FromVID, ToVID)))
+					{
+						return EuclideanDistance * SeamEuclideanDistanceMultiplier;
+					}
+					return EuclideanDistance;
+				};
+			}
+		}
+	}
+
+	void GetVidPath(FDynamicMesh3* Mesh, const TArray<int32>& StartVids, int32 EndVid, TArray<int32>& VidPathOut, FPathDistanceFunc PathDistanceFunc = nullptr)
 	{
 		VidPathOut.Reset();
 		if (StartVids.Contains(EndVid))
@@ -55,7 +97,13 @@ namespace UVEditorSeamToolLocals
 		{
 			SeedPoints.Add({ StartVid, StartVid, 0 });
 		}
-		
+
+		if (PathDistanceFunc)
+		{
+			PathFinder.bEnableDistanceWeighting = true;
+			PathFinder.GetWeightedDistanceFunc = PathDistanceFunc;
+		}
+
 		if (PathFinder.ComputeToTargetPoint(SeedPoints, EndVid))
 		{
 			PathFinder.FindPathToNearestSeed(EndVid, VidPathOut);
@@ -64,9 +112,9 @@ namespace UVEditorSeamToolLocals
 	}
 
 	// Like the other GetVidPath, just starts from a specific vert rather than from multiple
-	void GetVidPath(FDynamicMesh3* Mesh, int32 StartVid, int32 EndVid, TArray<int32>& VidPathOut)
+	void GetVidPath(FDynamicMesh3* Mesh, int32 StartVid, int32 EndVid, TArray<int32>& VidPathOut, FPathDistanceFunc PathDistanceFunc = nullptr)
 	{
-		GetVidPath(Mesh, TArray<int32> {StartVid}, EndVid, VidPathOut);
+		GetVidPath(Mesh, TArray<int32> {StartVid}, EndVid, VidPathOut, PathDistanceFunc);
 	}
 
 	void AddDisplayedPoints(UUVEditorToolMeshInput* InputObject,
@@ -87,7 +135,7 @@ namespace UVEditorSeamToolLocals
 
 	void AddDisplayedPath(UUVEditorToolMeshInput* InputObject, 
 		ULineSetComponent* UnwrapLineSet, ULineSetComponent* AppliedLineSet,
-		const TArray<int32>& NewPathVids, bool bPathIsFromUnwrap, 
+		const TArray<int32>& NewPathVids, bool bPathIsFromUnwrap, bool bForceDisplaySeamPaths,
 		const FColor& Color, float Thickness, float DepthBias)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AddDisplayedPath);
@@ -144,11 +192,11 @@ namespace UVEditorSeamToolLocals
 		}
 		else
 		{
-			// We'll only add an edge to the unwrap path if its unique. If it's not, the edge
-			// must be on a seam, and it's not useful to visualize it.
-			auto GetUniqueUnwrapEid = [InputObject](const TArray<int32>& Vids1, const TArray<int32>& Vids2)
+			// Since the tool supports both cutting and joining seams, we want to display all matching edges, so we
+			// can highlight seams in the unwrap mesh when selecting on the applied mesh.
+			auto GetUnwrapEids = [InputObject](const TArray<int32>& Vids1, const TArray<int32>& Vids2)
 			{
-				int32 UniqueEid = IndexConstants::InvalidID;
+				TArray<int32> Eids;
 				for (int32 Vid1 : Vids1)
 				{
 					for (int32 Vid2 : Vids2)
@@ -156,20 +204,13 @@ namespace UVEditorSeamToolLocals
 						int32 Eid = InputObject->UnwrapCanonical->FindEdge(Vid1, Vid2);
 						if (Eid != IndexConstants::InvalidID)
 						{
-							// Make sure this is the first edge we've found.
-							if (UniqueEid == IndexConstants::InvalidID)
-							{
-								UniqueEid = Eid;
-							}
-							else
-							{
-								// Not unique
-								return IndexConstants::InvalidID;
-							}
+							Eids.Add(Eid);
 						}
 					}
 				}
-				return UniqueEid;
+				Eids.Sort();
+				Eids.SetNum(Algo::Unique(Eids));
+				return Eids;
 			};
 
 			TArray<int32> Vids1, Vids2;
@@ -180,14 +221,21 @@ namespace UVEditorSeamToolLocals
 			for (int32 i = 1; i < NewPathVids.Num(); ++i)
 			{
 				InputObject->AppliedVidToUnwrapVids(NewPathVids[i], *EndPoints2);
-				int32 UnwrapEid = GetUniqueUnwrapEid(*EndPoints1, *EndPoints2);
-				if (UnwrapEid != IndexConstants::InvalidID)
+				TArray<int32> UnwrapEids = GetUnwrapEids(*EndPoints1, *EndPoints2);
+
+				// Normally we want to just want to render unwrap edges if there's a one to one relationship
+				// between the applied mesh, but in other cases, like when doing seam joining, we want to
+				// render all replicas to show where joins will happen.
+				if (bForceDisplaySeamPaths || UnwrapEids.Num() == 1)
 				{
-					FIndex2i EdgeVids = InputObject->UnwrapCanonical->GetEdgeV(UnwrapEid);
-					UnwrapLineSet->AddLine(FRenderableLine(
-						(FVector)InputObject->UnwrapCanonical->GetVertex(EdgeVids.A), 
-						(FVector)InputObject->UnwrapCanonical->GetVertex(EdgeVids.B),
-						Color, Thickness, DepthBias));
+					for (int32 UnwrapEid : UnwrapEids)
+					{
+						FIndex2i EdgeVids = InputObject->UnwrapCanonical->GetEdgeV(UnwrapEid);
+						UnwrapLineSet->AddLine(FRenderableLine(
+							(FVector)InputObject->UnwrapCanonical->GetVertex(EdgeVids.A),
+							(FVector)InputObject->UnwrapCanonical->GetVertex(EdgeVids.B),
+							Color, Thickness, DepthBias));
+					}
 				}
 				Swap(EndPoints1, EndPoints2);
 			}
@@ -296,6 +344,11 @@ void UUVEditorSeamTool::Setup()
 
 	UInteractiveTool::Setup();
 
+	Settings = NewObject<UUVEditorSeamToolProperties>();
+	Settings->RestoreProperties(this);
+	Settings->WatchProperty(Settings->Mode, [&](EUVEditorSeamMode) { OnSeamModeChanged(); });
+	AddToolPropertySource(Settings);
+
 	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
 	EmitChangeAPI = ContextStore->FindContext<UUVToolEmitChangeAPI>();
 	LivePreviewAPI = ContextStore->FindContext<UUVToolLivePreviewAPI>();
@@ -349,6 +402,16 @@ void UUVEditorSeamTool::Setup()
 	{
 		ClearHover();
 	};
+	UnwrapHoverBehavior->Modifiers.RegisterModifier(TemporaryModeToggleModifierID, FInputDeviceState::IsShiftKeyDown);
+	UnwrapHoverBehavior->OnUpdateModifierStateFunc = [this](int ModifierID, bool bIsOn) {
+		if (ModifierID == TemporaryModeToggleModifierID && bModeIsTemporarilyToggled != bIsOn)
+		{
+			bModeIsTemporarilyToggled = bIsOn;
+			ClearHover();
+			UpdateHover();
+			ResetPreviewColors();		
+		}
+	};
 	AddInputBehavior(UnwrapHoverBehavior);
 
 	// Now the applied/live preview viewport...
@@ -368,6 +431,7 @@ void UUVEditorSeamTool::Setup()
 			OnMeshVertexClicked(Vid, IndexOfMesh, false);
 		}
 	};
+
 	LivePreviewBehaviorSet->Add(LivePreviewClickBehavior, this);
 
 	ULocalMouseHoverBehavior* LivePreviewHoverBehavior = NewObject<ULocalMouseHoverBehavior>();
@@ -392,6 +456,17 @@ void UUVEditorSeamTool::Setup()
 	LivePreviewHoverBehavior->OnEndHoverFunc = [this]()
 	{
 		ClearHover();
+	};
+	LivePreviewHoverBehavior->Modifiers.RegisterModifier(TemporaryModeToggleModifierID, FInputDeviceState::IsShiftKeyDown);
+	LivePreviewHoverBehavior->OnUpdateModifierStateFunc = [this](int ModifierID, bool bIsOn)
+	{
+		if (ModifierID == TemporaryModeToggleModifierID && bModeIsTemporarilyToggled != bIsOn)
+		{
+			bModeIsTemporarilyToggled = bIsOn;
+			ClearHover();
+			UpdateHover();
+			ResetPreviewColors();
+		}
 	};
 	LivePreviewBehaviorSet->Add(LivePreviewHoverBehavior, this);
 
@@ -526,19 +601,19 @@ void UUVEditorSeamTool::ReconstructLockedPathVisualization()
 		UUVEditorToolMeshInput* ClickedTarget = Targets[ClickedMeshIndex];
 
 		AddDisplayedPath(ClickedTarget, UnwrapLineSet, AppliedLineSet, LockedPath,
-			false, FUVEditorUXSettings::ToolLockedPathColor,
+			false, IsInJoinMode(), GetLockedPathColor(),
 			FUVEditorUXSettings::ToolLockedPathThickness,
 			FUVEditorUXSettings::ToolLockedPathDepthBias);
 
 		TArray<int32> UnwrapVids;
 		ClickedTarget->AppliedVidToUnwrapVids(LastLockedAppliedVid, UnwrapVids);
 		AddDisplayedPoints(ClickedTarget, UnwrapPointSet, AppliedPointSet, LastLockedAppliedVid, UnwrapVids, 
-			FUVEditorUXSettings::ToolLockedPathColor, FUVEditorUXSettings::ToolLockedPathDepthBias);
+			GetLockedPathColor(), FUVEditorUXSettings::ToolLockedPathDepthBias);
 
 		UnwrapVids.Reset();
 		ClickedTarget->AppliedVidToUnwrapVids(SeamStartAppliedVid, UnwrapVids);
 		AddDisplayedPoints(ClickedTarget, UnwrapStartPoints, AppliedStartPoints, SeamStartAppliedVid, UnwrapVids,
-			FUVEditorUXSettings::ToolLockedPathColor, FUVEditorUXSettings::ToolLockedPathDepthBias);
+			GetLockedPathColor(), FUVEditorUXSettings::ToolLockedPathDepthBias);
 	}
 }
 
@@ -575,7 +650,7 @@ void UUVEditorSeamTool::Shutdown(EToolShutdownType ShutdownType)
 
 	// Apply any pending seam if needed
 	if (ShutdownType != EToolShutdownType::Cancel && LockedPath.Num() > 0)
-	{
+	{		
 		ApplySeam(LockedPath);
 	}
 
@@ -659,7 +734,7 @@ void UUVEditorSeamTool::UpdateHover()
 	{
 		// Just draw the point and finish
 		AddDisplayedPoints(Targets[HoverMeshIndex], UnwrapPointSet, AppliedPointSet,
-			AppliedVid, UnwrapVids, FUVEditorUXSettings::ToolExtendPathColor, FUVEditorUXSettings::ToolExtendPathDepthBias);
+			AppliedVid, UnwrapVids, GetExtendPathColor(), FUVEditorUXSettings::ToolExtendPathDepthBias);
 		return;
 	}
 
@@ -671,12 +746,14 @@ void UUVEditorSeamTool::UpdateHover()
 		{
 			TArray<int32> LastLockedUnwrapVids;
 			Targets[HoverMeshIndex]->AppliedVidToUnwrapVids(LastLockedAppliedVid, LastLockedUnwrapVids);
-			GetVidPath(Targets[HoverMeshIndex]->UnwrapCanonical.Get(), LastLockedUnwrapVids, HoverVid, NewPathVids);
+			GetVidPath(Targets[HoverMeshIndex]->UnwrapCanonical.Get(), LastLockedUnwrapVids, HoverVid, NewPathVids,
+				       GetUVDistanceFunction(*Targets[HoverMeshIndex], bHoverVidIsFromUnwrap, IsInJoinMode()));
 		}
 		else
 		{
 			ensure(LastLockedAppliedVid != IndexConstants::InvalidID);
-			GetVidPath(Targets[HoverMeshIndex]->AppliedCanonical.Get(), LastLockedAppliedVid, HoverVid, NewPathVids);
+			GetVidPath(Targets[HoverMeshIndex]->AppliedCanonical.Get(), LastLockedAppliedVid, HoverVid, NewPathVids,
+				       GetUVDistanceFunction(*Targets[HoverMeshIndex], bHoverVidIsFromUnwrap, IsInJoinMode()));
 		}
 	}
 
@@ -686,7 +763,7 @@ void UUVEditorSeamTool::UpdateHover()
 		ULineSetComponent* UnwrapLineSet = UnwrapGeometry->FindLineSet(HoverLineSetID);
 		ULineSetComponent* AppliedLineSet = LivePreviewGeometry->FindLineSet(HoverLineSetID);
 		AddDisplayedPath(Targets[HoverMeshIndex], UnwrapLineSet, AppliedLineSet,
-			NewPathVids, bHoverVidIsFromUnwrap, FUVEditorUXSettings::ToolExtendPathColor,
+			NewPathVids, bHoverVidIsFromUnwrap, IsInJoinMode(), GetExtendPathColor(),
 			FUVEditorUXSettings::ToolExtendPathThickness, FUVEditorUXSettings::ToolExtendPathDepthBias);
 	}
 
@@ -702,7 +779,7 @@ void UUVEditorSeamTool::UpdateHover()
 		// there because that turns out to be confusing, esp when we have overlapping islands and
 		// the point is on another island.
 		AddDisplayedPoints(Targets[HoverMeshIndex], UnwrapPointSet, AppliedPointSet,
-			AppliedVid, UnwrapVids, FUVEditorUXSettings::ToolExtendPathColor, FUVEditorUXSettings::ToolExtendPathDepthBias);
+			AppliedVid, UnwrapVids, GetExtendPathColor(), FUVEditorUXSettings::ToolExtendPathDepthBias);
 	}
 }
 
@@ -735,7 +812,7 @@ void UUVEditorSeamTool::ResetPreviewColors()
 	using namespace UVEditorSeamToolLocals;
 
 	FColor Color = bCompletionColorOverride ? FUVEditorUXSettings::ToolCompletionPathColor 
-		: FUVEditorUXSettings::ToolExtendPathColor;
+		: GetExtendPathColor();
 
 	UnwrapGeometry->FindPointSet(HoverPointSetID)->SetAllPointsColor(Color);
 	LivePreviewGeometry->FindPointSet(HoverPointSetID)->SetAllPointsColor(Color);
@@ -743,7 +820,7 @@ void UUVEditorSeamTool::ResetPreviewColors()
 	LivePreviewGeometry->FindLineSet(HoverLineSetID)->SetAllLinesColor(Color);
 
 	Color = bCompletionColorOverride ? FUVEditorUXSettings::ToolCompletionPathColor 
-		: FUVEditorUXSettings::ToolLockedPathColor;
+		: GetLockedPathColor();
 
 	UnwrapGeometry->FindPointSet(LockedPointSetID)->SetAllPointsColor(Color);
 	LivePreviewGeometry->FindPointSet(LockedPointSetID)->SetAllPointsColor(Color);
@@ -776,7 +853,7 @@ void UUVEditorSeamTool::ApplyClick()
 		UPointSetComponent* UnwrapPointSet = UnwrapGeometry->FindPointSet(StartPointSetID);
 		UPointSetComponent* AppliedPointSet = LivePreviewGeometry->FindPointSet(StartPointSetID);
 		AddDisplayedPoints(ClickedTarget, UnwrapPointSet, AppliedPointSet, AppliedVid, UnwrapVids, 
-			FUVEditorUXSettings::ToolLockedPathColor, FUVEditorUXSettings::ToolLockedPathDepthBias);
+			GetLockedPathColor(), FUVEditorUXSettings::ToolLockedPathDepthBias);
 
 		LockedPath.Add(AppliedVid);
 		EmitChangeAPI->EmitToolDependentChange(this, 
@@ -797,7 +874,8 @@ void UUVEditorSeamTool::ApplyClick()
 	{
 		TArray<int32> LastLockedUnwrapVids;
 		ClickedTarget->AppliedVidToUnwrapVids(LastLockedAppliedVid, LastLockedUnwrapVids);
-		GetVidPath(ClickedTarget->UnwrapCanonical.Get(), LastLockedUnwrapVids, ClickedVid, VidPath);
+		GetVidPath(ClickedTarget->UnwrapCanonical.Get(), LastLockedUnwrapVids, ClickedVid, VidPath,
+			       GetUVDistanceFunction(*ClickedTarget, bClickWasInUnwrap, IsInJoinMode()));
 		for (int32 Vid : VidPath)
 		{
 			TempStorage.Add(ClickedTarget->UnwrapVidToAppliedVid(Vid));
@@ -806,7 +884,8 @@ void UUVEditorSeamTool::ApplyClick()
 	}
 	else
 	{
-		GetVidPath(ClickedTarget->AppliedCanonical.Get(), LastLockedAppliedVid, ClickedVid, VidPath);
+		GetVidPath(ClickedTarget->AppliedCanonical.Get(), LastLockedAppliedVid, ClickedVid, VidPath,
+			       GetUVDistanceFunction(*ClickedTarget, bClickWasInUnwrap, IsInJoinMode()));
 	}
 
 	if (VidPath.Num() == 0)
@@ -844,13 +923,13 @@ void UUVEditorSeamTool::ApplyClick()
 	ULineSetComponent* UnwrapLineSet = UnwrapGeometry->FindLineSet(LockedLineSetID);
 	ULineSetComponent* AppliedLineSet = LivePreviewGeometry->FindLineSet(LockedLineSetID);
 	AddDisplayedPath(ClickedTarget, UnwrapLineSet, AppliedLineSet, VidPath,
-		bClickWasInUnwrap, FUVEditorUXSettings::ToolLockedPathColor,
+		bClickWasInUnwrap, IsInJoinMode(), GetLockedPathColor(),
 		FUVEditorUXSettings::ToolLockedPathThickness,
 		FUVEditorUXSettings::ToolLockedPathDepthBias);
 	UnwrapPointSet->Clear();
 	AppliedPointSet->Clear();
 	AddDisplayedPoints(ClickedTarget, UnwrapPointSet, AppliedPointSet, AppliedVid, UnwrapVids, 
-		FUVEditorUXSettings::ToolLockedPathColor, FUVEditorUXSettings::ToolLockedPathDepthBias);
+		GetLockedPathColor(), FUVEditorUXSettings::ToolLockedPathDepthBias);
 	
 	EmitChangeAPI->EmitToolDependentChange(this, 
 		MakeUnique<FPathChange>(*AppliedVidPath, false, ClickedMeshIndex, true),
@@ -866,9 +945,13 @@ void UUVEditorSeamTool::ApplySeam(const TArray<int32>& AppliedVidsIn)
 	using namespace UVEditorSeamToolLocals;
 
 	UUVEditorToolMeshInput* ClickedTarget = Targets[ClickedMeshIndex];
+	
+	FDynamicMeshUVOverlay* UVOverlay = ClickedTarget->AppliedCanonical.Get()->Attributes()->GetUVLayer(ClickedTarget->UVLayerIndex);
+	FDynamicMeshUVEditor UVEditor(ClickedTarget->AppliedCanonical.Get(), UVOverlay);
 
-	// The locked path becomes an actual UV seam.
-
+	// The locked path (represented by AppliedVidsIn) is used to create an actual UV seam or join existing
+	// seams, depending on the current tool mode.
+	
 	// Convert vid path into set of eids path in the applied mesh
 	TSet<int32> EidSet;
 	for (int32 i = 0; i < AppliedVidsIn.Num() - 1; ++i)
@@ -876,21 +959,36 @@ void UUVEditorSeamTool::ApplySeam(const TArray<int32>& AppliedVidsIn)
 		int32 Eid = ClickedTarget->AppliedCanonical->FindEdge(AppliedVidsIn[i], AppliedVidsIn[i + 1]);
 		if (ensure(Eid != IndexConstants::InvalidID))
 		{
-			EidSet.Add(ClickedTarget->AppliedCanonical->FindEdge(AppliedVidsIn[i], AppliedVidsIn[i + 1]));
+			EidSet.Add(Eid);
 		}
 	}
 
-	FUVEditResult UVEditResult;
-	FDynamicMeshUVEditor UVEditor(ClickedTarget->AppliedCanonical.Get(), 
-		ClickedTarget->UVLayerIndex, false);
-	UVEditor.CreateSeamsAtEdges(EidSet, &UVEditResult);
-
-	TSet<int32> TidSet;
-	for (int32 UnwrapVid : UVEditResult.NewUVElements)
+	TSet<int32> TidSet;	
+	TArray<int32> VidSet;
+	if (IsInJoinMode())
 	{
-		TArray<int32> VertTids;
-		ClickedTarget->AppliedCanonical->GetVtxTriangles(ClickedTarget->UnwrapVidToAppliedVid(UnwrapVid), VertTids);
-		TidSet.Append(VertTids);
+		UVEditor.RemoveSeamsAtEdges(EidSet);
+
+		// Don't actually need to update VidSet because no element values changed or were created, only connectivity.
+		for (int32 Vid : AppliedVidsIn)
+		{
+			TArray<int32> VertTids;
+			ClickedTarget->AppliedCanonical->GetVtxTriangles(Vid, VertTids);
+			TidSet.Append(VertTids);
+		}
+	}
+	else
+	{
+		FUVEditResult UVEditResult;
+		UVEditor.CreateSeamsAtEdges(EidSet, &UVEditResult);
+
+		for (int32 UnwrapVid : UVEditResult.NewUVElements)
+		{
+			TArray<int32> VertTids;
+			ClickedTarget->AppliedCanonical->GetVtxTriangles(ClickedTarget->UnwrapVidToAppliedVid(UnwrapVid), VertTids);
+			TidSet.Append(VertTids);
+		}
+		VidSet = UVEditResult.NewUVElements;
 	}
 
 	FDynamicMeshChangeTracker ChangeTracker(ClickedTarget->UnwrapCanonical.Get());
@@ -898,7 +996,7 @@ void UUVEditorSeamTool::ApplySeam(const TArray<int32>& AppliedVidsIn)
 	ChangeTracker.SaveTriangles(TidSet, true);
 
 	TArray<int32> AppliedTids = TidSet.Array();
-	ClickedTarget->UpdateAllFromAppliedCanonical(&UVEditResult.NewUVElements, &AppliedTids, &AppliedTids);
+	ClickedTarget->UpdateAllFromAppliedCanonical(&VidSet, &AppliedTids, &AppliedTids);
 	Spatials2D[ClickedMeshIndex]->Build();
 
 	// Emit transaction
@@ -984,13 +1082,36 @@ int32 UUVEditorSeamTool::Get2DHitVertex(const FRay& WorldRayIn, int32* IndexOf2D
 	}
 	else if (State == EState::SeamInProgress)
 	{
-		// We don't provide a tolerance here because we want to snap to nearest vertex even if 
+		// This part goes about the process slightly differently than above, because in cases
+		// of drawing internal seams, we want to pick not just the nearest vertex to the mouse
+		// position, but the nearest vertex on the nearest triangle. Otherwise, we might end up
+		// picking the vertex on the other side of a recently drawn seam (which shares the same
+		// spatial location) and forcing the path finding to route the long way around the mesh
+		// to get to it.
+
+		// We could call FindNearestTriangle followed by FindNearestVertex with the triangle set
+		// as a filter, but for three vertices, it's probably faster to simply brute force the check.
+		
+		// We don't provide a tolerance here because we want to snap to nearest triangle and vertex even if 
 		// we're far outside the mesh
 		double Distance = -1;
-		int32 Vid = Spatials2D[ClickedMeshIndex]->FindNearestVertex(PlanePoint, Distance);
+		int32 Tid = Spatials2D[ClickedMeshIndex]->FindNearestTriangle(PlanePoint, Distance);
 		if (Distance >= 0)
 		{
-			Result = Vid;
+			TArray<FVector3d> VertPositions;
+			VertPositions.SetNum(3);
+			Targets[ClickedMeshIndex]->UnwrapCanonical->GetTriVertices(Tid, VertPositions[0], VertPositions[1], VertPositions[2]);
+			FIndex3i Vids = Targets[ClickedMeshIndex]->UnwrapCanonical->GetTriangle(Tid);
+			Distance = TNumericLimits<double>::Max();
+			for (uint32 VIndex = 0; VIndex < 3; ++VIndex)
+			{
+				if (FVector3d::DistSquared(VertPositions[VIndex], PlanePoint) < Distance)
+				{
+					Distance = FVector3d::DistSquared(VertPositions[VIndex], PlanePoint);
+					Result = Vids[VIndex];
+				}
+			}
+
 			if (IndexOf2DSpatialOut)
 			{
 				*IndexOf2DSpatialOut = ClickedMeshIndex;
@@ -1185,6 +1306,31 @@ bool UUVEditorSeamTool::ExecuteNestedAcceptCommand()
 		return true;
 	}
 	return false;
+}
+
+FColor UUVEditorSeamTool::GetLockedPathColor() const
+{
+	return !IsInJoinMode() ? FUVEditorUXSettings::ToolLockedCutPathColor :
+     	                     FUVEditorUXSettings::ToolLockedJoinPathColor;
+}
+
+
+FColor UUVEditorSeamTool::GetExtendPathColor() const
+{
+	return !IsInJoinMode() ? FUVEditorUXSettings::ToolExtendCutPathColor :
+    	                     FUVEditorUXSettings::ToolExtendJoinPathColor;
+}
+
+bool UUVEditorSeamTool::IsInJoinMode() const
+{
+	bool bIsJoinMode = Settings && Settings->Mode == EUVEditorSeamMode::Join;
+	return bModeIsTemporarilyToggled ? !bIsJoinMode : bIsJoinMode;
+}
+
+void UUVEditorSeamTool::OnSeamModeChanged()
+{
+	bModeIsTemporarilyToggled = false;
+	ResetPreviewColors();
 }
 
 void UUVEditorSeamTool::RecordAnalytics()

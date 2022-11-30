@@ -204,6 +204,52 @@ void TDynamicMeshOverlay<RealType, ElementSize>::SplitVerticesWithPredicate(TFun
 
 
 template<typename RealType, int ElementSize>
+bool TDynamicMeshOverlay<RealType, ElementSize>::MergeElement(int SourceElementID, int TargetElementID)
+{	
+	if (SourceElementID == TargetElementID)
+	{
+		return false;
+	}
+
+	int SourceParentID = ParentVertices[SourceElementID];
+	int TargetParentID = ParentVertices[TargetElementID];
+
+	auto MergeElementForTriangle = [this, SourceElementID, TargetElementID](int32 TriID)
+	{
+		int ElementTriStart = TriID * 3;
+		for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+		{
+			int CurElID = ElementTriangles[ElementTriStart + SubIdx];
+			if (CurElID == SourceElementID)
+			{
+				ElementsRefCounts.Decrement(SourceElementID);
+				ElementsRefCounts.Increment(TargetElementID);
+				ElementTriangles[ElementTriStart + SubIdx] = TargetElementID;
+			}
+		}
+	};
+
+	checkSlow(SourceParentID == TargetParentID);
+	if (SourceParentID != TargetParentID)
+	{
+		return false;
+	}
+
+	ParentMesh->EnumerateVertexTriangles(SourceParentID, MergeElementForTriangle);
+
+	checkSlow(ElementsRefCounts.IsValid(SourceElementID));
+	checkSlow(ElementsRefCounts.GetRefCount(SourceElementID) == 1);
+	if (ElementsRefCounts.GetRefCount(SourceElementID) == 1)
+	{
+		ElementsRefCounts.Decrement(SourceElementID);
+		ParentVertices[SourceElementID] = FDynamicMesh3::InvalidID;
+	}
+
+	return true;
+}
+
+
+template<typename RealType, int ElementSize>
 int TDynamicMeshOverlay<RealType, ElementSize>::SplitElement(int ElementID, const TArrayView<const int>& TrianglesToUpdate)
 {
 	int ParentID = ParentVertices[ElementID];

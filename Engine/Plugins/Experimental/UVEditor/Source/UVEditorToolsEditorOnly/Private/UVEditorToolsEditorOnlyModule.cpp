@@ -6,9 +6,11 @@
 #include "PropertyEditorModule.h"
 
 #include "DetailsCustomizations/UVTransformToolCustomizations.h"
+#include "DetailsCustomizations/UVEditorSeamToolCustomizations.h"
 
 #include "UVEditorTransformTool.h"
 #include "Operators/UVEditorUVTransformOp.h"
+#include "UVEditorSeamTool.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorToolsEditorOnlyModule"
 
@@ -69,7 +71,10 @@ void FUVEditorToolsEditorOnlyModule::OnPostEngineInit()
 		FOnGetDetailCustomizationInstance::CreateStatic(&FUVEditorUVDistributeToolDetails::MakeInstance));
 	ClassesToUnregisterOnShutdown.Add(UUVEditorUVDistributeProperties::StaticClass()->GetFName());
 
-
+	// Seam Tool
+	PropertyModule.RegisterCustomClassLayout(UUVEditorSeamToolProperties::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FUVEditorSeamToolPropertiesDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UUVEditorSeamToolProperties::StaticClass()->GetFName());
 }
 
 #undef LOCTEXT_NAMESPACE

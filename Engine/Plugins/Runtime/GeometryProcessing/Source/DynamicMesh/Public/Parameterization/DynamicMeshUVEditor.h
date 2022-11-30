@@ -180,8 +180,16 @@ public:
 	 */
 	bool SetTriangleUVsFromFreeBoundarySpectralConformal(const TArray<int32>& Triangles, bool bUseExistingUVTopology, bool bPreserveIrregularity, FUVEditResult* Result = nullptr);
 
+	/** 
+	 * Merge existing UV topology with a set of edges, removing seams at edges if they exist within the UV topology.
+	 * 
+	 * @param EidsToRemoveAsSeams list of edges to remove seams from
+	 * @return true on success
+	 */
+	bool RemoveSeamsAtEdges(const TSet<int32>& EidsToRemoveAsSeams);
+
 	/**
-	 * Cut existing UV topolgy with a set of edges. This allows for creating partial seams/darts, interior cuts, etc.
+	 * Cut existing UV topology with a set of edges. This allows for creating partial seams/darts, interior cuts, etc.
 	 * 
 	 * Avoids creating bowties. In cases where an edge is not next to any present or future seams/borders, some
 	 * adjacent edge will be picked to be made into a seam as well, since it's impossible to make the original

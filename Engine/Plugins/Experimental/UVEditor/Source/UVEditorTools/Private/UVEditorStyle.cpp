@@ -6,6 +6,7 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateStyleMacros.h"
+#include "Styling/ToolBarStyle.h"
 
 FName FUVEditorStyle::StyleName("UVStyle");
 
@@ -72,7 +73,24 @@ FUVEditorStyle::FUVEditorStyle()
 	Set("UVEditor.AlignDirectionCentersHorizontally", new IMAGE_BRUSH_SVG("AlignCentersHorizontal", ToolbarIconSize));
 	Set("UVEditor.AlignDirectionCentersVertically", new IMAGE_BRUSH_SVG("AlignCentersVertical", ToolbarIconSize));
 
+	// Style for the toolbar in the SeamTool customization
+	{
+		// For the selection button toolbar, we want to use something similar to the toolbar we use in the viewport
+		Set("SeamTool.ModeToolbar", FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar"));
 
+		// However, increase the size of the buttons a bit
+		FCheckBoxStyle ToggleButtonStart = FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("EditorViewportToolBar.ToggleButton.Start");
+		ToggleButtonStart.SetPadding(FMargin(9, 7, 6, 7));
+		Set("SeamTool.ModeToolbar.ToggleButton.Start", ToggleButtonStart);
+
+		FCheckBoxStyle ToggleButtonMiddle = FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("EditorViewportToolBar.ToggleButton.Middle");
+		ToggleButtonMiddle.SetPadding(FMargin(9, 7, 6, 7));
+		Set("SeamTool.ModeToolbar.ToggleButton.Middle", ToggleButtonMiddle);
+
+		FCheckBoxStyle ToggleButtonEnd = FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("EditorViewportToolBar.ToggleButton.End");
+		ToggleButtonEnd.SetPadding(FMargin(7, 7, 8, 7));
+		Set("SeamTool.ModeToolbar.ToggleButton.End", ToggleButtonEnd);
+	}
 
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }

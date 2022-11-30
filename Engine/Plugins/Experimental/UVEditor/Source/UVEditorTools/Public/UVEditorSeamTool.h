@@ -24,6 +24,26 @@ class UUVToolLivePreviewAPI;
 
 PREDECLARE_GEOMETRY(class FDynamicMesh);
 
+UENUM()
+enum class EUVEditorSeamMode : uint8
+{
+	/** Marked path will cut the UV island, creating new seams.*/	
+	Cut = 0,
+	/** Marked path will join the UV island, removing seams.*/
+	Join = 1
+};
+
+UCLASS()
+class UVEDITORTOOLS_API UUVEditorSeamToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = Options)
+	EUVEditorSeamMode Mode = EUVEditorSeamMode::Cut;
+};
+
 UCLASS()
 class UVEDITORTOOLS_API UUVEditorSeamToolBuilder : public UInteractiveToolBuilder
 {
@@ -87,6 +107,11 @@ protected:
 
 	void UpdateToolMessage();
 
+	int32 TemporaryModeToggleModifierID = 1;
+	bool bModeIsTemporarilyToggled;
+	bool IsInJoinMode() const;
+	void OnSeamModeChanged();
+
 	enum class EState
 	{
 		WaitingToStart,
@@ -97,6 +122,9 @@ protected:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
+
+	UPROPERTY()
+	TObjectPtr< UUVEditorSeamToolProperties> Settings = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UUVToolLivePreviewAPI> LivePreviewAPI = nullptr;
@@ -142,6 +170,9 @@ protected:
 
 	TArray<int32> LockedPath;
 	TArray<int32> PreviewPath;
+
+	FColor GetLockedPathColor() const;
+	FColor GetExtendPathColor() const;
 
 	// When true, the entire path is changed to the "completion" color to show
 	// that the next click will complete the path.

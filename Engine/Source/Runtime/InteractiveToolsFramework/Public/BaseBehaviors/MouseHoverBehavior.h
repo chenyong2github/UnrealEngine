@@ -83,6 +83,9 @@ public:
 	/** lambda implementation of OnEndHover */
 	TUniqueFunction<void()> OnEndHoverFunc = []() {};
 
+	/** lambda implementation of OnUpdateModifierState */
+	TUniqueFunction< void(int, bool) > OnUpdateModifierStateFunc = [](int ModifierID, bool bIsOn) {};
+
 public:
 	// IHoverBehaviorTarget implementation
 	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override
@@ -103,5 +106,11 @@ public:
 	virtual void OnEndHover() override
 	{
 		OnEndHoverFunc();
+	}
+
+	// IModifierToggleBehaviorTarget implementation
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn)
+	{
+		return OnUpdateModifierStateFunc(ModifierID, bIsOn);
 	}
 };

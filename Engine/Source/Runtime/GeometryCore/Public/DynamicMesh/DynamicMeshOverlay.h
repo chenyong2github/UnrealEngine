@@ -347,6 +347,14 @@ public:
 	 */
 	void SplitVerticesWithPredicate(TFunctionRef<bool(int ElementIdx, int TriID)> ShouldSplitOutVertex, TFunctionRef<void(int ElementIdx, int TriID, RealType* FillVect)> GetNewElementValue);
 
+	/**
+	 * Collapse SourceElementID into TargetElementID, resulting in connecting any containing triangles and reducing the total elements in the overlay.
+	 *
+	 * @param SourceElementID the element to merge away
+	 * @param TargetElementID the element to merge into
+	 * @return If the operation completed successfully, returns true
+	 */
+	bool MergeElement(int SourceElementID, int TargetElementID);
 
 	/**
 	 * Create a new copy of ElementID, and update connected triangles in the TrianglesToUpdate array to reference the copy of ElementID where they used to reference ElementID

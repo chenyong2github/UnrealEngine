@@ -817,6 +817,62 @@ static int32 FindUVElementForVertex(const FDynamicMesh3* Mesh, const FDynamicMes
 }
 
 
+bool FDynamicMeshUVEditor::RemoveSeamsAtEdges(const TSet<int32>& EidsToRemoveAsSeams)
+{
+	for (int32 Eid : EidsToRemoveAsSeams)
+	{
+		FIndex2i EdgeVids = Mesh->GetEdgeV(Eid);
+
+		// The following logic closely resemebles the logic within FDynamicMeshOverlay::IsSeamEdge,
+		// but since we want to know both if it's a seam and use many of the intermediate values
+		// computed by IsSeamEdge, we replicate it here.
+
+		FIndex2i Tris = Mesh->GetEdgeT(Eid);
+		if (Tris.B == FDynamicMesh3::InvalidID)
+		{
+			continue; // Technically a seam, but we don't want this one because there's no opposite edge to merge.
+		}
+
+		bool bASet = UVOverlay->IsSetTriangle(Tris.A), bBSet = UVOverlay->IsSetTriangle(Tris.B);
+		if (!bASet || !bBSet)
+		{
+			continue; // Similar problem as the above case - could be a seam here, but if one triangle
+					  // in the Overlay isn't set, there's nothing to merge.
+		}
+
+		FIndex3i Triangle0 = UVOverlay->GetTriangle(Tris.A);
+		FIndex3i BaseTriangle0 = Mesh->GetTriangle(Tris.A);
+		int idx_base_a0 = BaseTriangle0.IndexOf(EdgeVids.A);
+		int idx_base_b0 = BaseTriangle0.IndexOf(EdgeVids.B);
+
+		FIndex3i Triangle1 = UVOverlay->GetTriangle(Tris.B);
+		FIndex3i BaseTriangle1 = Mesh->GetTriangle(Tris.B);
+		int idx_base_a1 = BaseTriangle1.IndexOf(EdgeVids.A);
+		int idx_base_b1 = BaseTriangle1.IndexOf(EdgeVids.B);
+
+		int el_a_tri0 = Triangle0[idx_base_a0];
+		int el_b_tri0 = Triangle0[idx_base_b0];
+		int el_a_tri1 = Triangle1[idx_base_a1];
+		int el_b_tri1 = Triangle1[idx_base_b1];
+
+		// This shouldn't ever be the case, but lets just check. If true,
+		// it would indicate that there's a joined seam but somehow our pairwise
+		// vertex matching didn't work above for some reason.
+		ensure(!(el_a_tri0 == el_b_tri1 && el_b_tri0 == el_a_tri1));
+
+		if (el_a_tri0 != el_a_tri1)
+		{
+			UVOverlay->MergeElement(el_a_tri0, el_a_tri1);
+		}
+		if (el_b_tri0 != el_b_tri1)
+		{
+			UVOverlay->MergeElement(el_b_tri0, el_b_tri1);
+
+		}
+	}
+	return true;
+}
+
 
 bool FDynamicMeshUVEditor::CreateSeamsAtEdges(const TSet<int32>& EidsToMakeIntoSeams, FUVEditResult* Result)
 {

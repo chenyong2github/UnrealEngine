@@ -68,10 +68,12 @@ public:
 
 	// These are currently used by the seam tool but can be generally used by
 	// tools for displaying paths.
-	static const FColor ToolLockedPathColor;
+	static const FColor ToolLockedCutPathColor;
+	static const FColor ToolLockedJoinPathColor;
 	static const float ToolLockedPathThickness;
 	static const float ToolLockedPathDepthBias;
-	static const FColor ToolExtendPathColor;
+	static const FColor ToolExtendCutPathColor;
+	static const FColor ToolExtendJoinPathColor;
 	static const float ToolExtendPathThickness;
 	static const float ToolExtendPathDepthBias;
 	static const FColor ToolCompletionPathColor;

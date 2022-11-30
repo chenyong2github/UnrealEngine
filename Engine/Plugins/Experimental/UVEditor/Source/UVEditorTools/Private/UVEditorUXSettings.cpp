@@ -13,9 +13,9 @@ const float FUVEditorUXSettings::CameraNearPlaneProportionZ(0.8); // Top layer, 
 // Note: While these are floating point values, they represent percentages and should be separated
 // by at least integer amounts, as they serve double duty in certain cases for translucent primitive
 // sorting order.
-const float FUVEditorUXSettings::ToolLockedPathDepthBias(6.0);
-const float FUVEditorUXSettings::ToolExtendPathDepthBias(6.0);
-const float FUVEditorUXSettings::SewLineDepthOffset(5.0f);
+const float FUVEditorUXSettings::ToolLockedPathDepthBias(8.0);
+const float FUVEditorUXSettings::ToolExtendPathDepthBias(8.0);
+const float FUVEditorUXSettings::SewLineDepthOffset(7.0f);
 const float FUVEditorUXSettings::SelectionHoverWireframeDepthBias(6);
 const float FUVEditorUXSettings::SelectionHoverTriangleDepthBias(5);
 const float FUVEditorUXSettings::SelectionWireframeDepthBias(4.0);
@@ -55,8 +55,10 @@ const FColor FUVEditorUXSettings::SelectionHoverTriangleWireframeColor(FColor::F
 const FColor FUVEditorUXSettings::SewSideLeftColor(FColor::Red);
 const FColor FUVEditorUXSettings::SewSideRightColor(FColor::Green);
 
-const FColor FUVEditorUXSettings::ToolLockedPathColor(FColor::Green);
-const FColor FUVEditorUXSettings::ToolExtendPathColor(FColor::Green);
+const FColor FUVEditorUXSettings::ToolLockedCutPathColor(FColor::Green);
+const FColor FUVEditorUXSettings::ToolExtendCutPathColor(FColor::Green);
+const FColor FUVEditorUXSettings::ToolLockedJoinPathColor(FColor::Turquoise);
+const FColor FUVEditorUXSettings::ToolExtendJoinPathColor(FColor::Turquoise);
 const FColor FUVEditorUXSettings::ToolCompletionPathColor(FColor::Orange);
 
 const FColor FUVEditorUXSettings::LivePreviewExistingSeamColor(FColor::Green);
