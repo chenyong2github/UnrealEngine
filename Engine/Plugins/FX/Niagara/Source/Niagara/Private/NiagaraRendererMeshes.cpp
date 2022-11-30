@@ -295,7 +295,9 @@ void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderDa
 		!bIsWireframe &&
 		!SceneProxy->CastsVolumetricTranslucentShadow() &&
 		ParticleMeshRenderData.DynamicDataMesh->Materials.Num() > 0 &&
-		ParticleMeshRenderData.DynamicDataMesh->IsGpuLowLatencyTranslucencyEnabled();
+		ParticleMeshRenderData.DynamicDataMesh->IsGpuLowLatencyTranslucencyEnabled() &&
+		ViewFamilySupportLowLatencyTranslucency(ViewFamily);
+
 	ParticleMeshRenderData.bHasTranslucentMaterials = false;
 	for (FMaterialRenderProxy* MaterialProxy : ParticleMeshRenderData.DynamicDataMesh->Materials)
 	{

@@ -495,6 +495,17 @@ bool FNiagaraRenderer::UseLocalSpace(const FNiagaraSceneProxy* Proxy)const
 	return bLocalSpace || Proxy->GetProxyDynamicData().bUseCullProxy;
 }
 
+bool FNiagaraRenderer::ViewFamilySupportLowLatencyTranslucency(const FSceneViewFamily& ViewFamily)
+{
+	// when underwater, single layer water will render translucency before opaque
+	const bool bIncludesUnderwaterView = ViewFamily.Views.ContainsByPredicate([](const FSceneView* SceneView)
+	{
+		return SceneView->IsUnderwater();
+	});
+
+	return !bIncludesUnderwaterView;
+}
+
 void FNiagaraRenderer::ProcessMaterialParameterBindings(const FNiagaraRendererMaterialParameters& MaterialParameters, const FNiagaraEmitterInstance* InEmitter, TConstArrayView<UMaterialInterface*> InMaterials) const
 {
 	if (MaterialParameters.HasAnyBindings() == false || !InEmitter)

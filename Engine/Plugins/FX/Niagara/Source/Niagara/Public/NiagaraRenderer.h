@@ -153,6 +153,8 @@ protected:
 	bool IsRendererEnabled(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const;
 	bool UseLocalSpace(const FNiagaraSceneProxy* Proxy) const;
 
+	static bool ViewFamilySupportLowLatencyTranslucency(const FSceneViewFamily& ViewFamily);
+
 	struct FNiagaraDynamicDataBase *DynamicDataRender;
 
 #if RHI_RAYTRACING

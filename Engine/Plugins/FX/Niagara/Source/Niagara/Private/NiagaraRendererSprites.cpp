@@ -209,7 +209,7 @@ void FNiagaraRendererSprites::CreateRenderThreadResources()
 #endif
 }
 
-void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRenderData& ParticleSpriteRenderData, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const
+void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRenderData& ParticleSpriteRenderData, const FSceneViewFamily& ViewFamily, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const
 {
 	ParticleSpriteRenderData.DynamicDataSprites = static_cast<FNiagaraDynamicDataSprites*>(InDynamicData);
 	if (!ParticleSpriteRenderData.DynamicDataSprites || !SceneProxy->GetComputeDispatchInterface())
@@ -232,7 +232,13 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 	const EBlendMode BlendMode = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
 	ParticleSpriteRenderData.BlendMode = BlendMode;
 	ParticleSpriteRenderData.bHasTranslucentMaterials = IsTranslucentBlendMode(BlendMode);
-	ParticleSpriteRenderData.SourceParticleData = ParticleSpriteRenderData.DynamicDataSprites->GetParticleDataToRender(ParticleSpriteRenderData.bHasTranslucentMaterials && bGpuLowLatencyTranslucency && !SceneProxy->CastsVolumetricTranslucentShadow());
+
+	const bool bLowLatencyTranslucencyEnabled = ParticleSpriteRenderData.bHasTranslucentMaterials &&
+		bGpuLowLatencyTranslucency &&
+		!SceneProxy->CastsVolumetricTranslucentShadow() &&
+		ViewFamilySupportLowLatencyTranslucency(ViewFamily);
+
+	ParticleSpriteRenderData.SourceParticleData = ParticleSpriteRenderData.DynamicDataSprites->GetParticleDataToRender(bLowLatencyTranslucencyEnabled);
 	if ( !ParticleSpriteRenderData.SourceParticleData || (SourceMode == ENiagaraRendererSourceDataMode::Particles && ParticleSpriteRenderData.SourceParticleData->GetNumInstances() == 0) )
 	{
 		ParticleSpriteRenderData.SourceParticleData = nullptr;
@@ -924,7 +930,7 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 	// Prepare our particle render data
 	// This will also determine if we have anything to render
 	FParticleSpriteRenderData ParticleSpriteRenderData;
-	PrepareParticleSpriteRenderData(ParticleSpriteRenderData, DynamicDataRender, SceneProxy);
+	PrepareParticleSpriteRenderData(ParticleSpriteRenderData, ViewFamily, DynamicDataRender, SceneProxy);
 
 	if (ParticleSpriteRenderData.SourceParticleData == nullptr)
 	{
@@ -1037,7 +1043,7 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	// Prepare our particle render data
 	// This will also determine if we have anything to render
 	FParticleSpriteRenderData ParticleSpriteRenderData;
-	PrepareParticleSpriteRenderData(ParticleSpriteRenderData, DynamicDataRender, SceneProxy);
+	PrepareParticleSpriteRenderData(ParticleSpriteRenderData, *Context.ReferenceView->Family, DynamicDataRender, SceneProxy);
 
 	if (ParticleSpriteRenderData.SourceParticleData == nullptr)
 	{
