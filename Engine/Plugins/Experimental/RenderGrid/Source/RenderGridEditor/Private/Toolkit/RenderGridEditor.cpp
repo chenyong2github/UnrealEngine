@@ -172,7 +172,7 @@ FGraphAppearanceInfo UE::RenderGrid::Private::FRenderGridEditor::GetGraphAppeara
 	FGraphAppearanceInfo AppearanceInfo = FBlueprintEditor::GetGraphAppearance(InGraph);
 	if (GetBlueprintObj()->IsA(URenderGridBlueprint::StaticClass()))
 	{
-		AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_RenderGrid", "RENDER PAGES");
+		AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_RenderGrid", "RENDER GRID");
 	}
 	return AppearanceInfo;
 }
