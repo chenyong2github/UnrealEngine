@@ -557,7 +557,16 @@ namespace UE::NearestNeighborModel
 
 		const int32 LOD = 0;
 		TArray<UMorphTarget*> MorphTargets;
-		CreateEngineMorphTargets(MorphTargets, Deltas, FString("NNMorphTarget_"), LOD, NearestNeighborModel->GetMorphTargetDeltaThreshold());
+		CreateEngineMorphTargets(
+			MorphTargets, 
+			Deltas, 
+			FString("NNMorphTarget_"),
+			LOD,
+			NearestNeighborModel->GetMorphTargetDeltaThreshold(),
+			NearestNeighborModel->GetIncludeMorphTargetNormals(),
+			NearestNeighborModel->GetMaskChannel(),
+			NearestNeighborModel->GetInvertMaskChannel());
+
 		check(NearestNeighborModel->GetMorphTargetSet().IsValid());
 		FMorphTargetVertexInfoBuffers& MorphBuffers = NearestNeighborModel->GetMorphTargetSet()->MorphBuffers;
 		CompressEngineMorphTargets(MorphBuffers, MorphTargets, LOD, NearestNeighborModel->GetMorphTargetErrorTolerance());
