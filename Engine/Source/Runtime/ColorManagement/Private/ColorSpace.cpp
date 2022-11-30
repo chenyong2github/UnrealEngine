@@ -163,12 +163,12 @@ FMatrix44d FColorSpace::CalcRgbToXYZ() const
 	return Mat;
 }
 
-bool FColorSpace::Equals(const FColorSpace& CS, double Tolerance) const
+bool FColorSpace::Equals(const FColorSpace& ColorSpace, double Tolerance) const
 {
-	return	Chromaticities[0].Equals(CS.Chromaticities[0], Tolerance) &&
-		Chromaticities[1].Equals(CS.Chromaticities[1], Tolerance) &&
-		Chromaticities[2].Equals(CS.Chromaticities[2], Tolerance) &&
-		Chromaticities[3].Equals(CS.Chromaticities[3], Tolerance);
+	return	Chromaticities[0].Equals(ColorSpace.Chromaticities[0], Tolerance) &&
+		Chromaticities[1].Equals(ColorSpace.Chromaticities[1], Tolerance) &&
+		Chromaticities[2].Equals(ColorSpace.Chromaticities[2], Tolerance) &&
+		Chromaticities[3].Equals(ColorSpace.Chromaticities[3], Tolerance);
 }
 
 bool FColorSpace::IsSRGB() const
@@ -192,6 +192,12 @@ FLinearColor FColorSpace::MakeFromColorTemperature(float Temp) const
 	FVector4d RGB = XYZToRgb.TransformVector(XYZ);
 
 	return FLinearColor((float)RGB.X, (float)RGB.Y, (float)RGB.Z);
+}
+
+float FColorSpace::GetLuminance(const FLinearColor& Color) const
+{
+	//Note: Equivalent to the dot product of Color and RgbToXYZ.GetColumn(1).
+	return Color.R * RgbToXYZ.M[0][1] + Color.G * RgbToXYZ.M[1][1] + Color.B * RgbToXYZ.M[2][1];
 }
 
 

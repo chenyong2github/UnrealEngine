@@ -9,7 +9,6 @@
 #include "Math/Matrix.h"
 #include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
-#include "Math/Vector2D.h"
 #include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
 #include "Templates/UnrealTypeTraits.h"
@@ -223,35 +222,35 @@ public:
 	}
 
 	/**
-	 * Check against another vector for equality.
+	 * Check against another color space for equality.
 	 *
-	 * @param V The vector to check against.
+	 * @param ColorSpace The vector to check against.
 	 * @return true if the vectors are equal, false otherwise.
 	 */
-	FORCEINLINE bool operator==(const FColorSpace& CS) const
+	FORCEINLINE bool operator==(const FColorSpace& ColorSpace) const
 	{
-		return Chromaticities == CS.Chromaticities;
+		return Chromaticities == ColorSpace.Chromaticities;
 	}
 
 	/**
-	 * Check against another colorspace for inequality.
+	 * Check against another color space for inequality.
 	 *
-	 * @param V The vector to check against.
+	 * @param ColorSpace The vector to check against.
 	 * @return true if the vectors are not equal, false otherwise.
 	 */
-	FORCEINLINE bool operator!=(const FColorSpace& CS) const
+	FORCEINLINE bool operator!=(const FColorSpace& ColorSpace) const
 	{
-		return Chromaticities != CS.Chromaticities;
+		return Chromaticities != ColorSpace.Chromaticities;
 	}
 
 	/**
-	 * Check against another colorspace for equality, within specified error limits.
+	 * Check against another color space for equality, within specified error limits.
 	 *
-	 * @param V The vector to check against.
+	 * @param ColorSpace The vector to check against.
 	 * @param Tolerance Error tolerance.
 	 * @return true if the vectors are equal within tolerance limits, false otherwise.
 	 */
-	bool Equals(const FColorSpace& CS, double Tolerance = 1.e-7) const;
+	bool Equals(const FColorSpace& ColorSpace, double Tolerance = 1.e-7) const;
 
 	/**
 	 * Convenience function to verify if the color space matches the engine's default sRGB chromaticities.
@@ -264,6 +263,14 @@ public:
 	* Converts temperature in Kelvins of a black body radiator to an RGB color in the current space.
 	*/
 	FLinearColor MakeFromColorTemperature(float Temp) const;
+
+	/**
+	 * Calculate the color's luminance value in the current space.
+	 *
+	 * @param Color The sampled color.
+	 * @return float Luminance value.
+	 */
+	float GetLuminance(const FLinearColor& Color) const;
 
 private:
 
