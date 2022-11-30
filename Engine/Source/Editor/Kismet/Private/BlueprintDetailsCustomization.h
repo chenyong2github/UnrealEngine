@@ -178,6 +178,9 @@ private:
 	void OnVarTypeChanged(const FEdGraphPinType& NewPinType);
 	EVisibility IsTooltipEditVisible() const;
 
+	void OnBrowseToVarType() const;
+	bool CanBrowseToVarType() const;
+
 	/**
 	 * Callback when changing a variable property
 	 *
