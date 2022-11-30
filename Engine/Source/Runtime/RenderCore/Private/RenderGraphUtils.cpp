@@ -1078,6 +1078,41 @@ FRDGWaitForTasksScope::~FRDGWaitForTasksScope()
 	}
 }
 
+void FRDGExternalAccessQueue::Submit(FRDGBuilder& GraphBuilder, ERHIPipeline AllowedPipelines)
+{
+	// Force any resources that were previously submitted with different pipelines back to internal access mode first.
+	for (FResource Resource : Resources)
+	{
+		if (Resource.SubmittedPipelines != ERHIPipeline::None)
+		{
+			GraphBuilder.UseInternalAccessMode(Resource.Resource);
+		}
+	}
+
+	TArray<FResource, FRDGArrayAllocator> ResourcesToKeep;
+
+	if (AllowedPipelines != ERHIPipeline::All)
+	{
+		ResourcesToKeep.Reserve(Resources.Num());
+	}
+
+	for (FResource Resource : Resources)
+	{
+		const ERHIPipeline ResourcePipelines = AllowedPipelines & Resource.RequestedPipelines;
+
+		// If the resource is requesting a pipe that we aren't allowing, then continue to queue the resource for a later submit.
+		if (ResourcePipelines != Resource.RequestedPipelines)
+		{
+			Resource.SubmittedPipelines |= AllowedPipelines;
+			ResourcesToKeep.Emplace(Resource);
+		}
+
+		GraphBuilder.UseExternalAccessMode(Resource.Resource, Resource.Access, ResourcePipelines);
+	}
+
+	Swap(ResourcesToKeep, Resources);
+}
+
 bool AllocatePooledBuffer(
 	const FRDGBufferDesc& Desc,
 	TRefCountPtr<FRDGPooledBuffer>& Out,

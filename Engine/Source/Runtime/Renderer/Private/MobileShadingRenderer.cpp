@@ -951,13 +951,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	// Generate the Sky/Atmosphere look up tables
-	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
-	if (bShouldRenderSkyAtmosphere)
-	{
-		RenderSkyAtmosphereLookUpTables(GraphBuilder);
-	}
-
 	// Notify the FX system that the scene is about to be rendered.
 	if (FXSystem && ViewFamily.EngineShowFlags.Particles)
 	{
@@ -967,9 +960,17 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			GPUSortManager->OnPreRender(GraphBuilder);
 		}
 	}
-	
+
+	FRDGExternalAccessQueue ExternalAccessQueue;
+
+	// Generate the Sky/Atmosphere look up tables
+	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
+	if (bShouldRenderSkyAtmosphere)
+	{
+		RenderSkyAtmosphereLookUpTables(GraphBuilder, ExternalAccessQueue);
+	}
+
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Shadows));
-	FRDGExternalAccessQueue ExternalAccessQueue; // Ideally we'd use the shared access queue and pass that in, but keeping this minimal for now
 	RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
 	ExternalAccessQueue.Submit(GraphBuilder);
 	

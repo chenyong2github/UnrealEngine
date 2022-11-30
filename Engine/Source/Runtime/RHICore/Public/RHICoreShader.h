@@ -177,7 +177,7 @@ void SetResourcesFromTables(TBinder&& Binder, FRHIShader const& Shader, FShaderR
 #if ENABLE_RHI_VALIDATION
 				if (Tracker)
 				{
-					ERHIAccess Access = Shader.GetFrequency() == SF_Compute
+					ERHIAccess Access = IsComputeShaderFrequency(Shader.GetFrequency())
 						? ERHIAccess::SRVCompute
 						: ERHIAccess::SRVGraphics;
 
@@ -197,7 +197,7 @@ void SetResourcesFromTables(TBinder&& Binder, FRHIShader const& Shader, FShaderR
 #if ENABLE_RHI_VALIDATION
 				if (Tracker)
 				{
-					ERHIAccess Access = Shader.GetFrequency() == SF_Compute
+					ERHIAccess Access = IsComputeShaderFrequency(Shader.GetFrequency())
 						? ERHIAccess::SRVCompute
 						: ERHIAccess::SRVGraphics;
 
@@ -214,7 +214,7 @@ void SetResourcesFromTables(TBinder&& Binder, FRHIShader const& Shader, FShaderR
 #if ENABLE_RHI_VALIDATION
 				if (Tracker)
 				{
-					ERHIAccess Access = Shader.GetFrequency() == SF_Compute
+					ERHIAccess Access = IsComputeShaderFrequency(Shader.GetFrequency())
 						? ERHIAccess::UAVCompute
 						: ERHIAccess::UAVGraphics;
 

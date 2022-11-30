@@ -2739,10 +2739,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue, false);
-	if (!CVarShadowsUseSharedExternalAccessQueue.GetValueOnRenderThread())
-	{
-		ExternalAccessQueue.Submit(GraphBuilder);
-	}
+
+	// Changes are flushed to the graphics pipe only, which avoids having to transition from async compute
+	// back to graphics later on during shadow GPU scene updates, which is serializing async Lumen compute work.
+	ExternalAccessQueue.Submit(GraphBuilder, ERHIPipeline::Graphics);
 
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const EShaderPlatform Platform = GetViewFamilyInfo(Views).GetShaderPlatform();
@@ -3039,7 +3039,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (SkyAtmospherePassLocation == ESkyAtmospherePassLocation::BeforeOcclusion && bShouldRenderSkyAtmosphere)
 	{
 		// Generate the Sky/Atmosphere look up tables
-		RenderSkyAtmosphereLookUpTables(GraphBuilder);
+		RenderSkyAtmosphereLookUpTables(GraphBuilder, ExternalAccessQueue);
 	}
 
 	const auto RenderOcclusionLambda = [&]()
@@ -3084,15 +3084,19 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (SkyAtmospherePassLocation == ESkyAtmospherePassLocation::BeforeBasePass && bShouldRenderSkyAtmosphere)
 	{
 		// Generate the Sky/Atmosphere look up tables
-		RenderSkyAtmosphereLookUpTables(GraphBuilder);
+		RenderSkyAtmosphereLookUpTables(GraphBuilder, ExternalAccessQueue);
 	}
+
+	// Changes are flushed to the graphics pipe only, which avoids having to transition from async compute
+	// back to graphics later on during shadow GPU scene updates, which is serializing async Lumen compute work.
+	ExternalAccessQueue.Submit(GraphBuilder, ERHIPipeline::Graphics);
 
 	// Capture the SkyLight using the SkyAtmosphere and VolumetricCloud component if available.
 	const bool bRealTimeSkyCaptureEnabled = Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled && Views.Num() > 0 && ViewFamily.EngineShowFlags.SkyLighting;
 	if (bRealTimeSkyCaptureEnabled)
 	{
 		FViewInfo& MainView = Views[0];
-		Scene->AllocateAndCaptureFrameSkyEnvMap(GraphBuilder, *this, MainView, bShouldRenderSkyAtmosphere, bShouldRenderVolumetricCloud, InstanceCullingManager);
+		Scene->AllocateAndCaptureFrameSkyEnvMap(GraphBuilder, *this, MainView, bShouldRenderSkyAtmosphere, bShouldRenderVolumetricCloud, InstanceCullingManager, ExternalAccessQueue);
 	}
 
 	const ECustomDepthPassLocation CustomDepthPassLocation = GetCustomDepthPassLocation(ShaderPlatform);
@@ -3402,10 +3406,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries);
 		}
 	}
-	if (CVarShadowsUseSharedExternalAccessQueue.GetValueOnRenderThread())
-	{
-		ExternalAccessQueue.Submit(GraphBuilder);
-	}
+
+	ExternalAccessQueue.Submit(GraphBuilder);
+
 	// End shadow and fog after base pass
 
 	// Trigger a command submit here, to avoid GPU bubbles

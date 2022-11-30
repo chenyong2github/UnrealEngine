@@ -1048,7 +1048,7 @@ void AddReadbackBufferPass(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, FRDG
 }
 
 /** Batches up RDG external resource access mode requests and submits them all at once to RDG. */
-class FRDGExternalAccessQueue
+class RENDERCORE_API FRDGExternalAccessQueue
 {
 public:
 	FRDGExternalAccessQueue() = default;
@@ -1091,14 +1091,7 @@ public:
 		Resources.Emplace(Resource, Access, Pipelines);
 	}
 
-	void Submit(FRDGBuilder& GraphBuilder)
-	{
-		for (FResource Resource : Resources)
-		{
-			GraphBuilder.UseExternalAccessMode(Resource.Resource, Resource.Access, Resource.Pipelines);
-		}
-		Resources.Empty();
-	}
+	void Submit(FRDGBuilder& GraphBuilder, ERHIPipeline AllowedPipes = ERHIPipeline::All);
 
 	bool Contains(FRDGViewableResource* Resource)
 	{
@@ -1148,12 +1141,13 @@ private:
 		FResource(FRDGViewableResource* InResource, ERHIAccess InAccess, ERHIPipeline InPipelines)
 			: Resource(InResource)
 			, Access(InAccess)
-			, Pipelines(InPipelines)
+			, RequestedPipelines(InPipelines)
 		{}
 
 		FRDGViewableResource* Resource;
 		ERHIAccess Access;
-		ERHIPipeline Pipelines;
+		ERHIPipeline RequestedPipelines;
+		ERHIPipeline SubmittedPipelines = ERHIPipeline::None;
 	};
 
 	TArray<FResource, FRDGArrayAllocator> Resources;

@@ -534,6 +534,22 @@ thread_local TConstArrayView<const TCHAR*> FRHIValidationBreadcrumbScope::Breadc
 
 void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 {
+	// Report failures only once per session, since many of them will happen repeatedly. This is similar to what ensure() does, but
+	// ensure() looks at the source location to determine if it's seen the error before. We want to look at the actual message, since
+	// all failures of a given kind will come from the same place, but (hopefully) the error message contains the name of the resource
+	// and a description of the state, so it should be unique for each failure.
+	uint32 Hash = FCrc::StrCrc32<TCHAR>(InMessage);
+	
+	SeenFailureHashesMutex.Lock();
+	bool bIsAlreadyInSet;
+	SeenFailureHashes.Add(Hash, &bIsAlreadyInSet);
+	SeenFailureHashesMutex.Unlock();
+
+	if (bIsAlreadyInSet)
+	{
+		return;
+	}
+
 	FString Message;
 
 	if (!FRHIValidationBreadcrumbScope::Breadcrumbs.IsEmpty())
@@ -555,22 +571,6 @@ void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 	else
 	{
 		Message = InMessage;
-	}
-
-	// Report failures only once per session, since many of them will happen repeatedly. This is similar to what ensure() does, but
-	// ensure() looks at the source location to determine if it's seen the error before. We want to look at the actual message, since
-	// all failures of a given kind will come from the same place, but (hopefully) the error message contains the name of the resource
-	// and a description of the state, so it should be unique for each failure.
-	uint32 Hash = FCrc::StrCrc32<TCHAR>(*Message);
-	
-	SeenFailureHashesMutex.Lock();
-	bool bIsAlreadyInSet;
-	SeenFailureHashes.Add(Hash, &bIsAlreadyInSet);
-	SeenFailureHashesMutex.Unlock();
-
-	if (bIsAlreadyInSet)
-	{
-		return;
 	}
 
 	UE_LOG(LogRHI, Error, TEXT("%s"), *Message);

@@ -37,6 +37,7 @@ class FViewInfo;
 class FSceneRenderer;
 class FInstanceCullingManager;
 class FSceneViewStateInterface;
+class FRDGExternalAccessQueue;
 struct FHairStrandsInstance;
 struct FLightRenderParameters;
 class FSparseVolumeTextureViewerSceneProxy;
@@ -197,7 +198,10 @@ public:
 	 */
 	virtual void UpdateSkyCaptureContents(const USkyLightComponent* CaptureComponent, bool bCaptureEmissiveOnly, UTextureCube* SourceCubemap, FTexture* OutProcessedTexture, float& OutAverageBrightness, FSHVectorRGB3& OutIrradianceEnvironmentMap, TArray<FFloat16Color>* OutRadianceMap, FLinearColor* SpecifiedCubemapColorScale) {}
 
+	UE_DEPRECATED(5.2, "AllocateAndCaptureFrameSkyEnvMap now takes an FRDGExternalAccessQueue")
 	virtual void AllocateAndCaptureFrameSkyEnvMap(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud, FInstanceCullingManager& InstanceCullingManager) {}
+
+	virtual void AllocateAndCaptureFrameSkyEnvMap(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue) {}
 	virtual void ValidateSkyLightRealTimeCapture(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture) {}
 
 	virtual void AddPlanarReflection(class UPlanarReflectionComponent* Component) {}

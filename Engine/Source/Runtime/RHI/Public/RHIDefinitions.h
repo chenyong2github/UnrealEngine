@@ -106,6 +106,20 @@ enum EShaderFrequency : uint8
 };
 static_assert(SF_NumFrequencies <= (1 << SF_NumBits), "SF_NumFrequencies will not fit on SF_NumBits");
 
+inline bool IsComputeShaderFrequency(EShaderFrequency ShaderFrequency)
+{
+	switch (ShaderFrequency)
+	{
+	case SF_Compute:
+	case SF_RayGen:
+	case SF_RayMiss:
+	case SF_RayHitGroup:
+	case SF_RayCallable:
+		return true;
+	}
+	return false;
+}
+
 enum ERenderQueryType
 {
 	// e.g. WaitForFrameEventCompletion()
