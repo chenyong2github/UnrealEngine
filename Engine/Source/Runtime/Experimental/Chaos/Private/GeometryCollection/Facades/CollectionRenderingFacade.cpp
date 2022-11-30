@@ -15,16 +15,18 @@ namespace GeometryCollection::Facades
 		, Collection(&InCollection)
 		, VertexAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup)
 		, VertexToGeometryIndexAttribute(InCollection, "GeometryIndex", FGeometryCollection::VerticesGroup, FGeometryCollection::GeometryGroup)
+		, VertexSelectionAttribute(InCollection, "SelectionState", FGeometryCollection::VerticesGroup)
+		, VertexHitProxyIndexAttribute(InCollection, "HitIndex", FGeometryCollection::VerticesGroup)
 		, IndicesAttribute(InCollection, "Indices", FGeometryCollection::FacesGroup, FGeometryCollection::VerticesGroup)
 		, MaterialIDAttribute(InCollection, "MaterialID", FGeometryCollection::FacesGroup)
 		, TriangleSectionAttribute(InCollection, "Sections", FGeometryCollection::MaterialGroup)
 		, GeometryNameAttribute(InCollection, "Name", FGeometryCollection::GeometryGroup)
-		, HitProxyIndexAttribute(InCollection, "HitIndex", FGeometryCollection::GeometryGroup)
-		, VertixStartAttribute(InCollection, "VertexStart", FGeometryCollection::GeometryGroup)
-		, VertixCountAttribute(InCollection, "VertexCount", FGeometryCollection::GeometryGroup)
+		, GeometryHitProxyIndexAttribute(InCollection, "HitIndex", FGeometryCollection::GeometryGroup)
+		, VertexStartAttribute(InCollection, "VertexStart", FGeometryCollection::GeometryGroup)
+		, VertexCountAttribute(InCollection, "VertexCount", FGeometryCollection::GeometryGroup)
 		, IndicesStartAttribute(InCollection, "IndicesStart", FGeometryCollection::GeometryGroup)
 		, IndicesCountAttribute(InCollection, "IndicesCount", FGeometryCollection::GeometryGroup)
-		, SelectionState(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
+		, GeometrySelectionAttribute(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
 
 	{}
 
@@ -33,16 +35,18 @@ namespace GeometryCollection::Facades
 		, Collection(nullptr)
 		, VertexAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup)
 		, VertexToGeometryIndexAttribute(InCollection, "GeometryIndex", FGeometryCollection::VerticesGroup, FGeometryCollection::GeometryGroup)
+		, VertexSelectionAttribute(InCollection, "SelectionState", FGeometryCollection::VerticesGroup)
+		, VertexHitProxyIndexAttribute(InCollection, "HitIndex", FGeometryCollection::VerticesGroup)
 		, IndicesAttribute(InCollection, "Indices", FGeometryCollection::FacesGroup, FGeometryCollection::VerticesGroup)
 		, MaterialIDAttribute(InCollection, "MaterialID", FGeometryCollection::FacesGroup)
 		, TriangleSectionAttribute(InCollection, "Sections", FGeometryCollection::MaterialGroup)
 		, GeometryNameAttribute(InCollection, "Name", FGeometryCollection::GeometryGroup)
-		, HitProxyIndexAttribute(InCollection, "HitIndex", FGeometryCollection::GeometryGroup)
-		, VertixStartAttribute(InCollection, "VertexStart", FGeometryCollection::GeometryGroup, FGeometryCollection::VerticesGroup)
-		, VertixCountAttribute(InCollection, "VertexCount", FGeometryCollection::GeometryGroup)
+		, GeometryHitProxyIndexAttribute(InCollection, "HitIndex", FGeometryCollection::GeometryGroup)
+		, VertexStartAttribute(InCollection, "VertexStart", FGeometryCollection::GeometryGroup, FGeometryCollection::VerticesGroup)
+		, VertexCountAttribute(InCollection, "VertexCount", FGeometryCollection::GeometryGroup)
 		, IndicesStartAttribute(InCollection, "IndicesStart", FGeometryCollection::GeometryGroup, FGeometryCollection::FacesGroup)
 		, IndicesCountAttribute(InCollection, "IndicesCount", FGeometryCollection::GeometryGroup)
-		, SelectionState(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
+		, GeometrySelectionAttribute(InCollection, "SelectionState", FGeometryCollection::GeometryGroup)
 	{}
 
 	//
@@ -53,17 +57,19 @@ namespace GeometryCollection::Facades
 	{
 		check(!IsConst());
 		VertexAttribute.Add();
+		VertexSelectionAttribute.Add();
 		VertexToGeometryIndexAttribute.Add();
+		VertexHitProxyIndexAttribute.Add();
 		IndicesAttribute.Add();
 		MaterialIDAttribute.Add();
 		TriangleSectionAttribute.Add();
 		GeometryNameAttribute.Add();
-		HitProxyIndexAttribute.Add();
-		VertixStartAttribute.Add();
-		VertixCountAttribute.Add();
+		GeometryHitProxyIndexAttribute.Add();
+		VertexStartAttribute.Add();
+		VertexCountAttribute.Add();
 		IndicesStartAttribute.Add();
 		IndicesCountAttribute.Add();
-		SelectionState.Add();
+		GeometrySelectionAttribute.Add();
 	}
 
 	bool FRenderingFacade::CanRenderSurface( ) const
@@ -74,12 +80,13 @@ namespace GeometryCollection::Facades
 	bool FRenderingFacade::IsValid( ) const
 	{
 		return VertexAttribute.IsValid() && VertexToGeometryIndexAttribute.IsValid() &&
+			VertexSelectionAttribute.IsValid() && VertexHitProxyIndexAttribute.IsValid() &&
 			IndicesAttribute.IsValid() &&
 			MaterialIDAttribute.IsValid() && TriangleSectionAttribute.IsValid() &&
-			GeometryNameAttribute.IsValid() && HitProxyIndexAttribute.IsValid() &&
-			VertixStartAttribute.IsValid() && VertixCountAttribute.IsValid() &&
+			GeometryNameAttribute.IsValid() && GeometryHitProxyIndexAttribute.IsValid() &&
+			VertexStartAttribute.IsValid() && VertexCountAttribute.IsValid() &&
 			IndicesStartAttribute.IsValid() && IndicesCountAttribute.IsValid() &&
-			SelectionState.IsValid();
+			GeometrySelectionAttribute.IsValid();
 	}
 
 	int32 FRenderingFacade::NumTriangles() const
@@ -161,11 +168,11 @@ namespace GeometryCollection::Facades
 			GeomIndex = GeometryNameAttribute.AddElements(1);
 			GeometryNameAttribute.Modify()[GeomIndex] = InName;
 
-			VertixStartAttribute.Modify()[GeomIndex] = VertexAttribute.Num();
-			VertixCountAttribute.Modify()[GeomIndex] = 0;
+			VertexStartAttribute.Modify()[GeomIndex] = VertexAttribute.Num();
+			VertexCountAttribute.Modify()[GeomIndex] = 0;
 			IndicesStartAttribute.Modify()[GeomIndex] = IndicesAttribute.Num();
 			IndicesCountAttribute.Modify()[GeomIndex] = 0;
-			SelectionState.Modify()[GeomIndex] = 0;
+			GeometrySelectionAttribute.Modify()[GeomIndex] = 0;
 		}
 		return GeomIndex;
 	}
@@ -177,19 +184,19 @@ namespace GeometryCollection::Facades
 		{
 			check( GeometryNameAttribute.Num()-1 == InGeomIndex );
 
-			if (VertixStartAttribute.Get()[InGeomIndex] < VertexAttribute.Num())
+			if (VertexStartAttribute.Get()[InGeomIndex] < VertexAttribute.Num())
 			{
-				VertixCountAttribute.Modify()[InGeomIndex] = VertexAttribute.Num() - VertixStartAttribute.Get()[InGeomIndex];
+				VertexCountAttribute.Modify()[InGeomIndex] = VertexAttribute.Num() - VertexStartAttribute.Get()[InGeomIndex];
 
 				TManagedArray<int32>& GeomIndexAttr = VertexToGeometryIndexAttribute.Modify();
-				for (int i = VertixStartAttribute.Get()[InGeomIndex]; i < VertexAttribute.Num(); i++)
+				for (int i = VertexStartAttribute.Get()[InGeomIndex]; i < VertexAttribute.Num(); i++)
 				{
 					GeomIndexAttr[i] = InGeomIndex;
 				}
 			}
 			else
 			{
-				VertixStartAttribute.Modify()[InGeomIndex] = VertexAttribute.Num();
+				VertexStartAttribute.Modify()[InGeomIndex] = VertexAttribute.Num();
 			}
 
 			if (IndicesStartAttribute.Get()[InGeomIndex] < IndicesAttribute.Num())
@@ -208,9 +215,21 @@ namespace GeometryCollection::Facades
 		FStringIntMap Map;
 		for (int32 i = 0; i < GeometryNameAttribute.Num(); i++)
 		{
-			Map.Add(GetGeometryNameAttribute()[i], i);
+			Map.Add(GetGeometryName()[i], i);
 		}
 		return Map;
+	}
+
+
+	int32 FRenderingFacade::NumVerticesOnSelectedGeometry() const
+	{
+		const TManagedArray<int32>& SelectedGeometry = GeometrySelectionAttribute.Get();
+		const TManagedArray<int32>& VertexCount = VertexCountAttribute.Get();
+		int32 RetCount = 0;
+		for (int i = 0; i < SelectedGeometry.Num(); i++)
+			if (SelectedGeometry[i])
+				RetCount += VertexCount[i];
+		return RetCount;
 	}
 
 

@@ -2,10 +2,10 @@
 #include "Dataflow/DataflowEditorViewportToolbar.h"
 
 #include "Dataflow/DataflowEditorCommands.h"
+#include "Dataflow/DataflowEditorStyle.h"
 #include "Dataflow/DataflowEditorViewport.h"
 #include "EditorViewportCommands.h"
 #include "Widgets/Layout/SBorder.h"
-
 
 void SDataflowViewportSelectionToolBar::Construct(const FArguments& InArgs)
 {
@@ -50,8 +50,24 @@ TSharedRef<SWidget> SDataflowViewportSelectionToolBar::MakeSelectionModeToolBar(
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.SelectInViewport")),
+			FSlateIcon(FDataflowEditorStyle::Get().GetStyleSetName(), TEXT("Dataflow.SelectObject")),
 			FName(TEXT("SelectObjectMode"))
+		);
+
+		ToolbarBuilder.AddToolBarButton(FDataflowEditorCommands::Get().ToggleFaceSelection,
+										NAME_None,
+										TAttribute<FText>(),
+										TAttribute<FText>(),
+										FSlateIcon(FDataflowEditorStyle::Get().GetStyleSetName(), TEXT("Dataflow.SelectFace")),
+										FName(TEXT("SelectFaceMode"))
+		);
+
+		ToolbarBuilder.AddToolBarButton(FDataflowEditorCommands::Get().ToggleVertexSelection,
+										NAME_None,
+										TAttribute<FText>(),
+										TAttribute<FText>(),
+										FSlateIcon(FDataflowEditorStyle::Get().GetStyleSetName(), TEXT("Dataflow.SelectVertex")),
+										FName(TEXT("SelectVertexMode"))
 		);
 
 

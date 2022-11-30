@@ -12,38 +12,62 @@ void FDataflowSelectionState::UpdateSelection(UDataflowComponent* DataflowCompon
 	FRenderingFacade Facade(DataflowComponent->ModifyRenderingCollection());
 	if (Facade.IsValid())
 	{
-		TManagedArray<int32>& SelectionArray = Facade.ModifySelectionState();
-		if (Nodes.Num())
+		TManagedArray<int32>& ObjectSelectionArray = Facade.ModifySelectionState();
+		TManagedArray<int32>& VertexSelectionArray = Facade.ModifyVertexSelection();
+
+		if (Mode == EMode::DSS_Dataflow_Object)
 		{
-			const TManagedArray<FString>& GeomNameArray = Facade.GetGeometryNameAttribute();
-
-			TArray<bool> bVisited;
-			bVisited.Init(false, Nodes.Num());
-
-			for (int i = 0; i < SelectionArray.Num(); i++)
+			if (Nodes.Num())
 			{
-				ObjectID ID(GeomNameArray[i], i);
-				SelectionArray[i] = false;
-				int32 IndexOf = Nodes.IndexOfByKey(ID);
-				if (IndexOf != INDEX_NONE)
+				const TManagedArray<FString>& GeomNameArray = Facade.GetGeometryName();
+
+				TArray<bool> bVisited;
+				bVisited.Init(false, Nodes.Num());
+
+				for (int i = 0; i < ObjectSelectionArray.Num(); i++)
 				{
-					SelectionArray[i] = true;
-					bVisited[IndexOf] = true;
+					ObjectID ID(GeomNameArray[i], i);
+					ObjectSelectionArray[i] = false;
+					int32 IndexOf = Nodes.IndexOfByKey(ID);
+					if (IndexOf != INDEX_NONE)
+					{
+						ObjectSelectionArray[i] = true;
+						bVisited[IndexOf] = true;
+					}
+				}
+
+				// remove unknown selections
+				for (int32 Ndx = bVisited.Num() - 1; 0 <= Ndx; Ndx--)
+				{
+					if (!bVisited[Ndx])
+					{
+						Nodes.RemoveAt(Ndx);
+					}
 				}
 			}
-
-			// remove unknown selections
-			for (int32 Ndx = bVisited.Num() - 1; 0 <= Ndx; Ndx--)
+			else
 			{
-				if (!bVisited[Ndx])
+				ObjectSelectionArray.Fill(0);
+			}
+		}
+		else if (Mode == EMode::DSS_Dataflow_Vertex)
+		{
+			VertexSelectionArray.Fill(0);
+
+			int32 NumVertices = VertexSelectionArray.Num();
+			for (int32 Index : Vertices)
+			{
+				if (Index < NumVertices)
 				{
-					Nodes.RemoveAt(Ndx);
+					VertexSelectionArray[Index] = 1;
 				}
 			}
 		}
 		else
 		{
-			SelectionArray.Fill(0);
+			VertexSelectionArray.Fill(0);
+			ObjectSelectionArray.Fill(0);
+
 		}
 	}
 }

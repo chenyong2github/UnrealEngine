@@ -21,32 +21,37 @@ public:
 		int32 ID;
 	};
 
-	FDataflowSelectionState() {}
+	enum EMode
+	{
+		DSS_Dataflow_None,
+		DSS_Dataflow_Object,
+		DSS_Dataflow_Face,
+		DSS_Dataflow_Vertex,
+		DSS_Dataflow_Max
+	};
+
+	FDataflowSelectionState(EMode InMode) : Mode(InMode) {}
 	FDataflowSelectionState(const UDataflowComponent* DataflowComponent)
 	{
 		check(DataflowComponent);
 	}
 
-	enum EMode
-	{
-		DSS_Dataflow_None,
-		DSS_Dataflow_Object,
-		DSS_Dataflow_Max
-	};
-
 	void UpdateSelection(UDataflowComponent* DataflowComponent);
 
 	bool IsEmpty() const
 	{
-		return Nodes.Num() == 0;
+		return Nodes.Num() == 0 
+			&& Vertices.Num() == 0;
 	}
 
 	bool operator==(const FDataflowSelectionState& A) const {
-		return A.Nodes == Nodes;
+		return A.Nodes == Nodes && A.Vertices == Vertices;
 	}
 	bool operator!=(const FDataflowSelectionState& A) const {
 		return !this->operator==(A);
 	}
 
+	EMode Mode;
 	TArray<ObjectID> Nodes;
+	TArray<int32> Vertices;
 };

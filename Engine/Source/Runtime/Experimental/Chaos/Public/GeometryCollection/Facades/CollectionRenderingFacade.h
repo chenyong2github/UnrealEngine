@@ -25,7 +25,7 @@ namespace GeometryCollection::Facades
 		typedef TMap<FString, int32> FStringIntMap;
 		/**
 		* FRenderingFacade Constuctor
-		* @param VertixDependencyGroup : GroupName the index attribute is dependent on.
+		* @param VertexDependencyGroup : GroupName the index attribute is dependent on.
 		*/
 		FRenderingFacade(FManagedArrayCollection& InSelf);
 		FRenderingFacade(const FManagedArrayCollection& InSelf);
@@ -58,12 +58,6 @@ namespace GeometryCollection::Facades
 		/** GetIndices */
 		const TManagedArray< FIntVector >& GetIndices() const { return IndicesAttribute.Get(); }
 
-		/** GetVertices */
-		const TManagedArray< FVector3f >& GetVertices() const { return VertexAttribute.Get(); }
-
-		/** GetVertexToGeometryIndexAttribute */
-		const TManagedArray< int32 >& GetVertexToGeometryIndexAttribute() const { return VertexToGeometryIndexAttribute.Get(); }
-
 		/** GetMaterialID */
 		const TManagedArray< int32 >& GetMaterialID() const { return MaterialIDAttribute.Get(); }
 
@@ -72,7 +66,29 @@ namespace GeometryCollection::Facades
 
 		/** BuildMeshSections */
 		TArray<FTriangleSection> BuildMeshSections(const TArray<FIntVector>& Indices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices) const;
-		
+
+
+		//
+		//  Vertices
+		//
+
+		/** GetVertices */
+		const TManagedArray< FVector3f >& GetVertices() const { return VertexAttribute.Get(); }
+
+		/** GetVertexSelectionAttribute */
+		const TManagedArray< int32 >& GetVertexSelection() const { return VertexSelectionAttribute.Get(); }
+		      TManagedArray< int32 >& ModifyVertexSelection() { check(!IsConst()); return VertexSelectionAttribute.Modify(); }
+
+		/** GetVertexToGeometryIndexAttribute */
+		const TManagedArray< int32 >& GetVertexToGeometryIndex() const { return VertexToGeometryIndexAttribute.Get(); }
+
+		/** HitProxyIDAttribute */
+		const TManagedArray< int32 >& GetVertexHitProxyIndex() const { return VertexHitProxyIndexAttribute.Get(); }
+		TManagedArray< int32 >& ModifyVertexHitProxyIndex() { check(!IsConst()); return VertexHitProxyIndexAttribute.Modify(); }
+
+		/** NumVertices */
+		int32 NumVertices() const { return VertexAttribute.Num(); }
+
 
 		//
 		// Geometry Group Attributes
@@ -87,27 +103,30 @@ namespace GeometryCollection::Facades
 		int32 NumGeometry() const { return GeometryNameAttribute.Num(); }
 
 		/** GeometryNameAttribute */
-		const TManagedArray< FString >& GetGeometryNameAttribute() const { return GeometryNameAttribute.Get(); }
+		const TManagedArray< FString >& GetGeometryName() const { return GeometryNameAttribute.Get(); }
 
 		/** HitProxyIDAttribute */
-		const TManagedArray< int32 >& GetHitProxyIndexAttribute() const { return HitProxyIndexAttribute.Get(); }
-		      TManagedArray< int32 >& ModifyHitProxyIndexAttribute() {check(!IsConst());return HitProxyIndexAttribute.Modify(); }
+		const TManagedArray< int32 >& GetGeometryHitProxyIndex() const { return GeometryHitProxyIndexAttribute.Get(); }
+		      TManagedArray< int32 >& ModifyGeometryHitProxyIndex() {check(!IsConst());return GeometryHitProxyIndexAttribute.Modify(); }
 
-		/** VertixStartAttribute */
-		const TManagedArray< int32 >& GetVertixStartAttribute() const { return VertixStartAttribute.Get(); }
+		/** VertexStartAttribute */
+		const TManagedArray< int32 >& GetVertexStart() const { return VertexStartAttribute.Get(); }
 
-		/** VertixCountAttribute */
-		const TManagedArray< int32 >& GetVertixCountAttribute() const { return VertixCountAttribute.Get(); }
+		/** VertexCountAttribute */
+		const TManagedArray< int32 >& GetVertexCount() const { return VertexCountAttribute.Get(); }
 
 		/** IndicesStartAttribute */
-		const TManagedArray< int32 >& GetIndicesStartAttribute() const { return IndicesStartAttribute.Get(); }
+		const TManagedArray< int32 >& GetIndicesStart() const { return IndicesStartAttribute.Get(); }
 
 		/** IndicesCountAttribute */
-		const TManagedArray< int32 >& GetIndicesCountAttribute() const { return IndicesCountAttribute.Get(); }
+		const TManagedArray< int32 >& GetIndicesCount() const { return IndicesCountAttribute.Get(); }
 
 		/** SelectionState */
-		const TManagedArray< int32 >& GetSelectionState() const { return SelectionState.Get(); }
-		      TManagedArray< int32 >& ModifySelectionState() { check(!IsConst()); return SelectionState.Modify(); }
+		const TManagedArray< int32 >& GetSelectionState() const { return GeometrySelectionAttribute.Get(); }
+		      TManagedArray< int32 >& ModifySelectionState() { check(!IsConst()); return GeometrySelectionAttribute.Modify(); }
+
+		/** NumVerticesOnSelectedGeometry */
+		int32 NumVerticesOnSelectedGeometry() const;
 
 		/** GetGeometryNameToIndexMap */
 		FStringIntMap GetGeometryNameToIndexMap() const;
@@ -118,17 +137,20 @@ namespace GeometryCollection::Facades
 
 		TManagedArrayAccessor<FVector3f> VertexAttribute;
 		TManagedArrayAccessor<int32> VertexToGeometryIndexAttribute;
+		TManagedArrayAccessor<int32> VertexSelectionAttribute;
+		TManagedArrayAccessor<int32> VertexHitProxyIndexAttribute;
+
 		TManagedArrayAccessor<FIntVector> IndicesAttribute;
 		TManagedArrayAccessor<int32> MaterialIDAttribute;
 		TManagedArrayAccessor<FTriangleSection> TriangleSectionAttribute;
 
 		TManagedArrayAccessor<FString> GeometryNameAttribute;
-		TManagedArrayAccessor<int32> HitProxyIndexAttribute;
-		TManagedArrayAccessor<int32> VertixStartAttribute;
-		TManagedArrayAccessor<int32> VertixCountAttribute;
+		TManagedArrayAccessor<int32> GeometryHitProxyIndexAttribute;
+		TManagedArrayAccessor<int32> VertexStartAttribute;
+		TManagedArrayAccessor<int32> VertexCountAttribute;
 		TManagedArrayAccessor<int32> IndicesStartAttribute;
 		TManagedArrayAccessor<int32> IndicesCountAttribute;
-		TManagedArrayAccessor<int32> SelectionState;
+		TManagedArrayAccessor<int32> GeometrySelectionAttribute;
 
 
 	};

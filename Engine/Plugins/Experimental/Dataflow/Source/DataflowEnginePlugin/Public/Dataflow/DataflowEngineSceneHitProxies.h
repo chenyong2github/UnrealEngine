@@ -10,6 +10,22 @@
 class UDataflowComponent;
 class UPrimitiveComponent;
 
+
+/** HitProxy with for dataflow actor.
+ */
+struct HDataflowDefault : public HActor
+{
+	DECLARE_HIT_PROXY(DATAFLOWENGINEPLUGIN_API)
+	HDataflowDefault(AActor* InActor, const UPrimitiveComponent* InPrimitiveComponent)
+		: HActor(InActor, InPrimitiveComponent){}
+
+	virtual EMouseCursor::Type GetMouseCursor() override
+	{
+		return EMouseCursor::Default;
+	}
+};
+
+
 /** HitProxy with for dataflow actor.
  */
 struct HDataflowNode : public HActor
@@ -29,5 +45,24 @@ struct HDataflowNode : public HActor
 	virtual EMouseCursor::Type GetMouseCursor() override
 	{
 		return EMouseCursor::Default;
+	}
+};
+
+
+/** HitProxy with for dataflow actor.
+ */
+struct HDataflowVertex : public HActor
+{
+	DECLARE_HIT_PROXY(DATAFLOWENGINEPLUGIN_API)
+
+	HDataflowVertex(AActor* InActor, const UPrimitiveComponent* InPrimitiveComponent, int32 InVertexIndex)
+		: HActor(InActor, InPrimitiveComponent)
+	{
+		SectionIndex = InVertexIndex;
+	}
+
+	virtual EMouseCursor::Type GetMouseCursor() override
+	{
+		return EMouseCursor::Crosshairs;
 	}
 };

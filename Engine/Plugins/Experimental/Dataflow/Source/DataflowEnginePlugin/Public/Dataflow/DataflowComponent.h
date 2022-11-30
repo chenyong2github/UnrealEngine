@@ -58,7 +58,7 @@ public:
 	const UDataflow* GetDataflow() const { return Dataflow; }
 
 	/* Selection */
-	FDataflowSelectionState GetSelectionState() const { return SelectionState; }
+	const FDataflowSelectionState& GetSelectionState() const { return SelectionState; }
 	void SetSelectionState(const FDataflowSelectionState& InState) 
 	{
 		bUpdateSelection = true;
@@ -76,6 +76,6 @@ private:
 	bool bUpdateSelection = true;
 	bool bBoundsNeedsUpdate = true;
 	FBoxSphereBounds BoundingBox = FBoxSphereBounds(ForceInitToZero);
-	FDataflowSelectionState SelectionState;
+	FDataflowSelectionState SelectionState = FDataflowSelectionState(FDataflowSelectionState::EMode::DSS_Dataflow_None);
 };
 

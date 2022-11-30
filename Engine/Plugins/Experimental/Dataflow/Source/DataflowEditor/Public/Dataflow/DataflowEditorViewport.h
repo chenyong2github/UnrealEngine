@@ -100,6 +100,6 @@ private:
 	// Selection
 	//
 
-	FDataflowSelectionState::EMode SelectionMode;
+	FDataflowSelectionState::EMode SelectionMode = FDataflowSelectionState::EMode::DSS_Dataflow_None;
 
 };

@@ -89,6 +89,20 @@ void SDataflowEditorViewport::BindCommands()
 			,FCanExecuteAction::CreateSP(ClientRef, &FDataflowEditorViewportClient::CanSetSelectionMode, FDataflowSelectionState::EMode::DSS_Dataflow_Object)
 			,FIsActionChecked::CreateSP(ClientRef, &FDataflowEditorViewportClient::IsSelectionModeActive, FDataflowSelectionState::EMode::DSS_Dataflow_Object)
 		);
+
+		CommandList->MapAction(
+			Commands.ToggleFaceSelection,
+			FExecuteAction::CreateSP(ClientRef, &FDataflowEditorViewportClient::SetSelectionMode, FDataflowSelectionState::EMode::DSS_Dataflow_Face)
+			, FCanExecuteAction::CreateSP(ClientRef, &FDataflowEditorViewportClient::CanSetSelectionMode, FDataflowSelectionState::EMode::DSS_Dataflow_Face)
+			, FIsActionChecked::CreateSP(ClientRef, &FDataflowEditorViewportClient::IsSelectionModeActive, FDataflowSelectionState::EMode::DSS_Dataflow_Face)
+		);
+
+		CommandList->MapAction(
+			Commands.ToggleVertexSelection,
+			FExecuteAction::CreateSP(ClientRef, &FDataflowEditorViewportClient::SetSelectionMode, FDataflowSelectionState::EMode::DSS_Dataflow_Vertex)
+			, FCanExecuteAction::CreateSP(ClientRef, &FDataflowEditorViewportClient::CanSetSelectionMode, FDataflowSelectionState::EMode::DSS_Dataflow_Vertex)
+			, FIsActionChecked::CreateSP(ClientRef, &FDataflowEditorViewportClient::IsSelectionModeActive, FDataflowSelectionState::EMode::DSS_Dataflow_Vertex)
+		);
 	}
 }
 
@@ -109,6 +123,8 @@ FDataflowEditorViewportClient::FDataflowEditorViewportClient(FPreviewScene* InPr
 
 void FDataflowEditorViewportClient::SetSelectionMode(FDataflowSelectionState::EMode InState)
 {
+	FDataflowSelectionState State = DataflowActor->DataflowComponent->GetSelectionState();
+		
 	if (SelectionMode == InState)
 	{
 		SelectionMode = FDataflowSelectionState::EMode::DSS_Dataflow_None;
@@ -118,11 +134,14 @@ void FDataflowEditorViewportClient::SetSelectionMode(FDataflowSelectionState::EM
 		SelectionMode = InState;
 	}
 
+	State.Mode = SelectionMode;
+	DataflowActor->DataflowComponent->SetSelectionState(State);
+
 	if (SelectionMode == FDataflowSelectionState::EMode::DSS_Dataflow_None)
 	{
 		if (!DataflowActor->DataflowComponent->GetSelectionState().IsEmpty())
 		{
-			DataflowActor->DataflowComponent->SetSelectionState(FDataflowSelectionState());
+			DataflowActor->DataflowComponent->SetSelectionState(FDataflowSelectionState(SelectionMode));
 		}
 	}
 }
@@ -135,14 +154,18 @@ bool FDataflowEditorViewportClient::CanSetSelectionMode(FDataflowSelectionState:
 		{
 			if (Dataflow->GetRenderTargets().Num())
 			{
-				return true;
+				if (InState == FDataflowSelectionState::EMode::DSS_Dataflow_Object)
+				{
+					return true;
+				}
+
+				if (InState == FDataflowSelectionState::EMode::DSS_Dataflow_Vertex
+					&& !DataflowActor->DataflowComponent->GetSelectionState().Nodes.IsEmpty())
+				{
+					return true;
+				}
 			}
 		}
-	}
-
-	if (!DataflowActor->DataflowComponent->GetSelectionState().IsEmpty())
-	{
-		DataflowActor->DataflowComponent->SetSelectionState(FDataflowSelectionState());
 	}
 
 	return false;
@@ -160,6 +183,7 @@ Dataflow::FTimestamp FDataflowEditorViewportClient::LatestTimestamp(const UDataf
 	}
 	return Dataflow::FTimestamp::Invalid;
 }
+
 
 void FDataflowEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
@@ -202,6 +226,38 @@ void FDataflowEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* Hi
 			else if (!bIsShiftKeyDown && !bIsCtrltKeyDown)
 			{
 				SelectionState.Nodes.Empty();
+			}
+		}
+
+		if (SelectionMode == FDataflowSelectionState::EMode::DSS_Dataflow_Vertex)
+		{
+			if (HitProxy && HitProxy->IsA(HDataflowVertex::StaticGetType()))
+			{
+				HDataflowVertex* DataflowVertex = (HDataflowVertex*)(HitProxy);
+				int32 ID = DataflowVertex->SectionIndex;
+				if (bIsShiftKeyDown)
+				{
+					if (!SelectionState.Vertices.Contains(ID))
+					{
+						SelectionState.Vertices.AddUnique(ID);
+					}
+				}
+				else if (bIsCtrltKeyDown)
+				{
+					if (SelectionState.Vertices.Contains(ID))
+					{
+						SelectionState.Vertices.Remove(ID);
+					}
+				}
+				else
+				{
+					SelectionState.Vertices.Empty();
+					SelectionState.Vertices.AddUnique(ID);
+				}
+			}
+			else if (!bIsShiftKeyDown && !bIsCtrltKeyDown)
+			{
+				SelectionState.Vertices.Empty();
 			}
 		}
 

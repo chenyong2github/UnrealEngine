@@ -12,8 +12,10 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
 
-FColor IDataflowEnginePlugin::SurfaceColor = FLinearColor(0.6,0.6,0.6).ToRGBE();
-FColor IDataflowEnginePlugin::PrimarySelectionColor = FLinearColor(0.8, 0.4, 0.0).ToRGBE();
+FColor IDataflowEnginePlugin::SurfaceColor = FLinearColor(0.6, 0.6, 0.6).ToRGBE();
+FColor IDataflowEnginePlugin::VertexColor = FLinearColor(0.0,0.0,0.0).ToRGBE();
+FColor IDataflowEnginePlugin::SelectionPrimaryColor = FLinearColor(0.8, 0.4, 0.0).ToRGBE();
+FColor IDataflowEnginePlugin::SelectionLockedPrimaryColor = FLinearColor(0.8, 0.4, 0.2).ToRGBE();
 
 class FDataflowEnginePlugin : public IDataflowEnginePlugin
 {

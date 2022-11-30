@@ -30,6 +30,7 @@ void UDataflowComponent::Invalidate()
 	bUpdateRender = true;
 	bUpdateSelection = true;
 	bBoundsNeedsUpdate = true;
+	SelectionState.Vertices.Empty();
 	RenderCollection = FManagedArrayCollection();
 }
 
@@ -54,6 +55,7 @@ void UDataflowComponent::TickComponent(float DeltaTime, enum ELevelTick TickType
 
 	if (bUpdateRender)
 	{
+		SelectionState.Vertices.Empty();
 		RenderCollection = FManagedArrayCollection();
 		GeometryCollection::Facades::FRenderingFacade Facade(RenderCollection);
 		Facade.DefineSchema();

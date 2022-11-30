@@ -16,7 +16,9 @@ class IDataflowEnginePlugin : public IModuleInterface
 public:
 
 	static FColor SurfaceColor;
-	static FColor PrimarySelectionColor;
+	static FColor VertexColor;
+	static FColor SelectionPrimaryColor;
+	static FColor SelectionLockedPrimaryColor;
 
 
 	/**
