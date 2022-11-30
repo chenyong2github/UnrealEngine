@@ -2,6 +2,7 @@
 
 #include "FeaturePackContentSource.h"
 
+#include "AssetCompilingManager.h"
 #include "AssetToolsModule.h"
 #include "Containers/Map.h"
 #include "Containers/StringFwd.h"
@@ -566,6 +567,10 @@ void FFeaturePackContentSource::ParseAndImportPacks()
 				{
 					ToSave.AddUnique(ImportedObject->GetOutermost());
 				}
+
+				// Make sure any async compilation kicked off during ImportAssets is completed before we save.
+				FAssetCompilingManager::Get().FinishAllCompilation();
+
 				FEditorFileUtils::PromptForCheckoutAndSave(ToSave, /*bCheckDirty=*/ false, /*bPromptToSave=*/ false);
 				PacksInserted++;
 			}
