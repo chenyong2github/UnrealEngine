@@ -1316,8 +1316,12 @@ void FConfigFile::AddDynamicLayerToHierarchy(const FString& Filename)
 	SourceIniHierarchy.AddDynamicLayer(Filename);
 	CombineFromBuffer(ConfigContent, Filename);
 
-	// Disable saving since dynamic layers are only for runtime
-	NoSave = true;
+	// Removing NoSave flag that was being set to true when adding a dynamic layered to a config hierarchy 
+	// (usually from plugins), which was causing settings in the editor to not be saved out
+	if (!GIsEditor)
+	{
+		NoSave = true;
+	}
 }
 
 
