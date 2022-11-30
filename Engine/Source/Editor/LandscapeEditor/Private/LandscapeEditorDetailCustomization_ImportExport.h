@@ -50,8 +50,11 @@ private:
 	static FText GetImportExportButtonText();
 	static FReply OnImportExportButtonClicked();
 	static bool GetImportExportButtonIsEnabled();
+	
+	static FReply OnOriginResetButtonClicked();
 
 	EVisibility GetImportExportLandscapeErrorVisibility() const;
+	EVisibility GetImportingVisibility() const;
 	FText GetImportExportLandscapeErrorText() const;
 
 	static TSharedRef<SWidget> GetImportLandscapeResolutionMenu();

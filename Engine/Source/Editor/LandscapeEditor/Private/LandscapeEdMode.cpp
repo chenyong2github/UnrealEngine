@@ -510,8 +510,7 @@ void FEdModeLandscape::Enter()
 	if (CurrentGizmoActor.IsValid())
 	{
 		CurrentGizmoActor->SetTargetLandscape(CurrentToolTarget.LandscapeInfo.Get());
-
-		CurrentGizmoActor.Get()->bSnapToLandscapeGrid = UISettings->bSnapGizmo;
+		CurrentGizmoActor->SnapType = UISettings->SnapMode;
 	}
 
 	int32 SquaredDataTex = ALandscapeGizmoActiveActor::DataTexSize * ALandscapeGizmoActiveActor::DataTexSize;

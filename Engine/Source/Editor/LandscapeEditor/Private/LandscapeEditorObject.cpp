@@ -68,7 +68,7 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 
 	, PasteMode(ELandscapeToolPasteMode::Both)
 	, bApplyToAllTargets(true)
-	, bSnapGizmo(false)
+	, SnapMode(ELandscapeGizmoSnapType::None)
 	, bSmoothGizmoBrush(true)
 
 	, MirrorPoint(FVector::ZeroVector)
@@ -139,7 +139,7 @@ void ULandscapeEditorObject::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	SetbUseSelectedRegion(bUseSelectedRegion);
 	SetbUseNegativeMask(bUseNegativeMask);
 	SetPasteMode(PasteMode);
-	SetbSnapGizmo(bSnapGizmo);
+	SetGizmoSnapMode(SnapMode);
 
 	if (PropertyChangedEvent.MemberProperty == nullptr ||
 		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, AlphaTexture) ||
@@ -476,16 +476,16 @@ void ULandscapeEditorObject::SetPasteMode(ELandscapeToolPasteMode InPasteMode)
 	PasteMode = InPasteMode;
 }
 
-void ULandscapeEditorObject::SetbSnapGizmo(bool InbSnapGizmo)
+void ULandscapeEditorObject::SetGizmoSnapMode(ELandscapeGizmoSnapType InSnapMode)
 {
-	bSnapGizmo = InbSnapGizmo;
+	SnapMode = InSnapMode;
 
 	if (ParentMode->CurrentGizmoActor.IsValid())
 	{
-		ParentMode->CurrentGizmoActor->bSnapToLandscapeGrid = bSnapGizmo;
+		ParentMode->CurrentGizmoActor->SnapType = SnapMode;
 	}
 
-	if (bSnapGizmo)
+	if (SnapMode != ELandscapeGizmoSnapType::None)
 	{
 		if (ParentMode->CurrentGizmoActor.IsValid())
 		{

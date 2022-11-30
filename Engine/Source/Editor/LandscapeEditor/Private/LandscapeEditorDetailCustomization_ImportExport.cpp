@@ -18,6 +18,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
+#include "ScopedTransaction.h"
 #include "DesktopPlatformModule.h"
 
 #include "LandscapeEditorObject.h"
@@ -241,6 +242,21 @@ void FLandscapeEditorDetailCustomization_ImportExport::CustomizeDetails(IDetailL
 	TSharedRef<IPropertyHandle> PropertyHandle_Layers = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_Layers));
 	ImportExportCategory.AddProperty(PropertyHandle_Layers);
 
+	ImportExportCategory.AddCustomRow(FText::GetEmpty())
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(1)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("OriginReset", "Reset Import Location"))
+			.OnClicked_Static(&OnOriginResetButtonClicked)
+		]
+	]
+	.Visibility(TAttribute<EVisibility>(this, &FLandscapeEditorDetailCustomization_ImportExport::GetImportingVisibility));
+	
 	ImportExportCategory.AddCustomRow(FText::GetEmpty())
 	[
 		SNew(SHorizontalBox)
@@ -509,6 +525,29 @@ FText FLandscapeEditorDetailCustomization_ImportExport::GetImportExportButtonTex
 	return LOCTEXT("Export", "Export");
 }
 
+FReply FLandscapeEditorDetailCustomization_ImportExport::OnOriginResetButtonClicked()
+{
+	FScopedTransaction Transaction(LOCTEXT("LandscapeEdResetImportLocation", "Reset Import Location"));
+	
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	check(LandscapeEdMode);
+	
+	TWeakObjectPtr<ULandscapeInfo> LandscapeInfo = LandscapeEdMode->CurrentToolTarget.LandscapeInfo;
+	TWeakObjectPtr<ALandscapeGizmoActiveActor> CurrentGizmoActor = LandscapeEdMode->CurrentGizmoActor;
+
+	check(LandscapeInfo.Get());
+	check(CurrentGizmoActor.Get());
+	
+	FIntRect LandscapeExtent; 
+	LandscapeInfo->GetLandscapeExtent(LandscapeExtent);
+	const FTransform LandscapeToWorldTransform = LandscapeInfo->GetLandscapeProxy()->LandscapeActorToWorld();
+	const FVector LandscapeOrigin = LandscapeToWorldTransform.TransformPosition(FVector(LandscapeExtent.Min.X,LandscapeExtent.Min.Y,0.0f));
+
+	CurrentGizmoActor->SetActorLocation(LandscapeOrigin, false);
+	
+	return FReply::Handled();
+}
+
 FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonClicked()
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
@@ -688,6 +727,11 @@ bool FLandscapeEditorDetailCustomization_ImportExport::GetImportExportButtonIsEn
 	}
 
 	return bHasOneSelection && LandscapeEdMode->IsLandscapeResolutionCompliant();
+}
+
+EVisibility FLandscapeEditorDetailCustomization_ImportExport::GetImportingVisibility() const
+{
+	return IsImporting() ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 EVisibility FLandscapeEditorDetailCustomization_ImportExport::GetImportExportLandscapeErrorVisibility() const

@@ -152,7 +152,7 @@ public:
 			&& !FMath::IsNearlyZero(Gizmo->CachedHeight))
 		{
 			ULandscapeInfo* LandscapeInfo = Gizmo->TargetLandscapeInfo;
-			if (LandscapeInfo && LandscapeInfo->GetLandscapeProxy() && !FMath::IsNearlyZero(LandscapeInfo->DrawScale.X))
+ 			if (LandscapeInfo && LandscapeInfo->GetLandscapeProxy() && !FMath::IsNearlyZero(LandscapeInfo->DrawScale.X))
 			{
 				const float ScaleXY = LandscapeInfo->DrawScale.X;
 				SampleSizeX = Gizmo->SampleSizeX;
@@ -567,26 +567,52 @@ void ALandscapeGizmoActiveActor::PostEditMove(bool bFinished)
 FVector ALandscapeGizmoActiveActor::SnapToLandscapeGrid(const FVector& GizmoLocation) const
 {
 	check(TargetLandscapeInfo);
-	const FTransform LToW = TargetLandscapeInfo->GetLandscapeProxy()->LandscapeActorToWorld();
+	const ALandscapeProxy* LandscapeProxy = TargetLandscapeInfo->GetLandscapeProxy();
+
+	const FTransform LToW = LandscapeProxy->LandscapeActorToWorld();
 	const FVector LandscapeSpaceLocation = LToW.InverseTransformPosition(GizmoLocation);
-	const FVector SnappedLandscapeSpaceLocation = LandscapeSpaceLocation.GridSnap(1);
-	const FVector ResultLocation = LToW.TransformPosition(SnappedLandscapeSpaceLocation);
+	float SnapDimension;
+	switch(SnapType)
+	{
+	case ELandscapeGizmoSnapType::Component:
+		SnapDimension = LandscapeProxy->ComponentSizeQuads;
+		break;
+	case ELandscapeGizmoSnapType::Texel:
+		SnapDimension = 1.0f;
+		break;
+	case ELandscapeGizmoSnapType::None:
+		SnapDimension = 0.0f; 
+		break;
+	default:
+		SnapDimension = 0.0f;
+		break;
+	}
+
+	FVector ResultLocation;
+	if (SnapDimension > 0.0f)
+	{
+		const FVector SnappedLandscapeSpaceLocation = LandscapeSpaceLocation.GridSnap(SnapDimension);
+		ResultLocation = LToW.TransformPosition(SnappedLandscapeSpaceLocation);	
+	}
+	else
+	{
+		ResultLocation = GizmoLocation;
+	}
+
+	if (bFollowTerrainHeight)
+	{
+		ResultLocation.Z = LandscapeProxy->GetHeightAtLocation(ResultLocation, EHeightfieldSource::Editor).Get(GizmoLocation.Z);
+	}
+	
 	return ResultLocation;
 }
 
 void ALandscapeGizmoActiveActor::EditorApplyTranslation(const FVector& DeltaTranslation, bool bAltDown, bool bShiftDown, bool bCtrlDown)
 {
-	if (bSnapToLandscapeGrid)
-	{
-		const FVector GizmoLocation = GetActorLocation() + DeltaTranslation;
-		const FVector ResultLocation = SnapToLandscapeGrid(GizmoLocation);
+	const FVector GizmoLocation = GetActorLocation() + DeltaTranslation;
+	const FVector ResultLocation = SnapToLandscapeGrid(GizmoLocation);
 
-		SetActorLocation(ResultLocation, false);
-	}
-	else
-	{
-		Super::EditorApplyTranslation(DeltaTranslation, bAltDown, bShiftDown, bCtrlDown);
-	}
+	SetActorLocation(ResultLocation, false);
 
 	ReregisterAllComponents();
 }
@@ -607,7 +633,7 @@ FRotator ALandscapeGizmoActiveActor::SnapToLandscapeGrid(const FRotator& GizmoRo
 
 void ALandscapeGizmoActiveActor::EditorApplyRotation(const FRotator& DeltaRotation, bool bAltDown, bool bShiftDown, bool bCtrlDown)
 {
-	if (bSnapToLandscapeGrid)
+	if (SnapType == ELandscapeGizmoSnapType::Texel || SnapType == ELandscapeGizmoSnapType::Component)
 	{
 		// Based on AActor::EditorApplyRotation
 		FRotator GizmoRotation = GetActorRotation() + UnsnappedRotation;

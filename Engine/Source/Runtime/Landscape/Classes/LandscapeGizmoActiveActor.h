@@ -24,6 +24,14 @@ enum ELandscapeGizmoType
 	LGT_MAX,
 };
 
+UENUM()
+enum class ELandscapeGizmoSnapType
+{
+	None,
+	Component,
+	Texel
+};
+
 USTRUCT()
 struct FGizmoSelectData
 {
@@ -102,7 +110,10 @@ class ALandscapeGizmoActiveActor : public ALandscapeGizmoActor
 	TArray<TObjectPtr<ULandscapeLayerInfoObject>> LayerInfos;
 
 	UPROPERTY(transient)
-	bool bSnapToLandscapeGrid;
+	ELandscapeGizmoSnapType SnapType = ELandscapeGizmoSnapType::None;
+
+	UPROPERTY(transient)
+	bool bFollowTerrainHeight = true;
 
 	UPROPERTY(transient)
 	FRotator UnsnappedRotation;

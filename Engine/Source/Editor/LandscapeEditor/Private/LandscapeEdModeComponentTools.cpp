@@ -1738,8 +1738,17 @@ public:
 		ALandscapeGizmoActiveActor* Gizmo = this->EdMode->CurrentGizmoActor.Get();
 		if (Gizmo)
 		{
+			Gizmo->bFollowTerrainHeight = false;
 			GEditor->SelectNone(false, true);
 			GEditor->SelectActor(Gizmo, true, true, true);
+		}
+	}
+
+	virtual void ExitTool() override
+	{
+		if (ALandscapeGizmoActiveActor* Gizmo = this->EdMode->CurrentGizmoActor.Get())
+		{
+			Gizmo->bFollowTerrainHeight = true;
 		}
 	}
 
@@ -2612,6 +2621,11 @@ public:
 				PDI->DrawLine(GizmoTransform.TransformPosition(FVector(0, ImportHeight, 0)), GizmoTransform.TransformPosition(FVector(ImportWidth, ImportHeight, 0)), EdgeColor, SDPG_Foreground);
 			}
 		}
+	}
+	
+	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const override
+	{
+		return EAxisList::XY;
 	}
 };
 

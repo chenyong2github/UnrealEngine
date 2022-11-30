@@ -444,9 +444,8 @@ class ULandscapeEditorObject : public UObject
 	UPROPERTY(Category="Tool Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Gizmo copy/paste all layers", ShowForTools="CopyPaste"))
 	bool bApplyToAllTargets;
 
-	// Makes sure the gizmo is snapped perfectly to the landscape so that the sample points line up, which makes copy/paste less blurry. Irrelevant if gizmo is scaled
-	UPROPERTY(Category="Tool Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Snap Gizmo to Landscape grid", ShowForTools="CopyPaste"))
-	bool bSnapGizmo;
+	UPROPERTY(Category="Tool Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Snap Gizmo to Landscape grid", ShowForTools="CopyPaste,ImportExport"))
+	ELandscapeGizmoSnapType SnapMode;
 
 	// Smooths the edges of the gizmo data into the landscape. Without this, the edges of the pasted data will be sharp
 	UPROPERTY(Category="Tool Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Use Smooth Gizmo Brush", ShowForTools="CopyPaste"))
@@ -765,7 +764,7 @@ public:
 		}
 	}
 
-	void SetbSnapGizmo(bool InbSnapGizmo);
+	void SetGizmoSnapMode(ELandscapeGizmoSnapType SnapMode);
 
 	void SetParent(FEdModeLandscape* LandscapeParent)
 	{
