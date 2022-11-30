@@ -2968,6 +2968,7 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 
 	Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::MigrateOldPropertiesToNewRenderingProperties)
@@ -2993,7 +2994,10 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 	}
 
 	// Fixup Nanite meshes which were using the wrong material and didn't have proper UVs :
-	if (Ar.IsLoading() && Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixupNaniteLandscapeMeshes)
+	// Also remove cooked collision data from Nanite landscape meshes, since collisions are handled by ULandscapeHeighfieldCollisionComponent :
+	if (Ar.IsLoading() 
+		&& ((Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixupNaniteLandscapeMeshes)
+			|| (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData)))
 	{
 		// This will force the Nanite meshes to be properly regenerated during the next save :
 		InvalidateNaniteRepresentation(/* bCheckContentId = */ false);

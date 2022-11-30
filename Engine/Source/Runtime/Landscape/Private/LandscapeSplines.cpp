@@ -37,6 +37,7 @@
 #include "Engine/StaticMeshSocket.h"
 #include "EngineGlobals.h"
 #include "TextureResource.h"
+#include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 #if WITH_EDITOR
 #include "Logging/TokenizedMessage.h"
@@ -435,16 +436,30 @@ ULandscapeSplinesComponent::ULandscapeSplinesComponent(const FObjectInitializer&
 		struct FConstructorStatics
 		{
 			ConstructorHelpers::FObjectFinder<UTexture2D> SpriteTexture;
-			ConstructorHelpers::FObjectFinder<UStaticMesh> SplineEditorMesh;
 			FConstructorStatics()
 				: SpriteTexture(TEXT("/Engine/EditorResources/S_Terrain.S_Terrain"))
-				, SplineEditorMesh(TEXT("/Engine/EditorLandscapeResources/SplineEditorMesh"))
 			{
 			}
 		};
 		static FConstructorStatics ConstructorStatics;
 
 		ControlPointSprite = ConstructorStatics.SpriteTexture.Object;
+	}
+
+	// Another one-time initialization (non-conditional to whether we're in the editor, this time): unlike the sprite, which is purely cosmetic, SplineEditorMesh is needed 
+	//  at all times because we often check if a spline segment/control point is using the SplineEditorMesh (on PostLoad, for example) :
+	{
+		// Structure to hold one-time initialization
+		struct FConstructorStatics
+		{
+			ConstructorHelpers::FObjectFinder<UStaticMesh> SplineEditorMesh;
+			FConstructorStatics()
+				: SplineEditorMesh(TEXT("/Engine/EditorLandscapeResources/SplineEditorMesh"))
+			{
+			}
+		};
+		static FConstructorStatics ConstructorStatics;
+
 		SplineEditorMesh = ConstructorStatics.SplineEditorMesh.Object;
 	}
 #endif
@@ -980,10 +995,12 @@ void ULandscapeSplinesComponent::RequestSplineLayerUpdate()
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void ULandscapeSplinesComponent::SetDefaultEditorSplineMesh()
 {
 	SplineEditorMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/EditorLandscapeResources/SplineEditorMesh"));
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void ULandscapeSplinesComponent::ShowSplineEditorMesh(bool bShow)
 {
@@ -1601,6 +1618,7 @@ void ULandscapeSplineControlPoint::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
 
 #if WITH_EDITOR
 	if (Ar.UEVer() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
@@ -1672,7 +1690,9 @@ void ULandscapeSplineControlPoint::PostLoad()
 		}
 	}
 
-	if (GIsEditor && GetLinkerCustomVersion(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::AddingBodyInstanceToSplinesElements)
+	if (GIsEditor 
+		&& ((GetLinkerCustomVersion(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::AddingBodyInstanceToSplinesElements)
+			|| (GetLinkerCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData)))
 	{
 		auto ForeignMeshComponentsMap = GetForeignMeshComponents();
 
@@ -1688,6 +1708,12 @@ void ULandscapeSplineControlPoint::PostLoad()
 			{
 				ForeignMeshComponentsPair.Value->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			}
+
+			// We won't ever enable collisions when using the editor mesh, ensure we don't even cook or load any collision data on this mesh  :
+			if (UBodySetup* BodySetup = ForeignMeshComponentsPair.Value->GetBodySetup())
+			{
+				BodySetup->bNeverNeedsCookedCollisionData = bUsingEditorMesh;
+			}
 		}
 
 		if (LocalMeshComponent != nullptr)
@@ -1701,6 +1727,12 @@ void ULandscapeSplineControlPoint::PostLoad()
 			else
 			{
 				LocalMeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+			}
+
+			// We won't ever enable collisions when using the editor mesh, ensure we don't even cook or load any collision data on this mesh  :
+			if (UBodySetup* BodySetup = LocalMeshComponent->GetBodySetup())
+			{
+				BodySetup->bNeverNeedsCookedCollisionData = bUsingEditorMesh;
 			}
 		}
 	}
@@ -2047,6 +2079,11 @@ void ULandscapeSplineControlPoint::UpdateSplinePoints(bool bUpdateCollision, boo
 		{
 			MeshComponent->Modify();
 			MeshComponent->SetHiddenInGame(bHiddenInGame);
+		}
+
+		if (UBodySetup* BodySetup = MeshComponent->GetBodySetup())
+		{
+			BodySetup->bNeverNeedsCookedCollisionData = bHiddenInGame;
 		}
 
 		if (MeshComponent->LDMaxDrawDistance != LDMaxDrawDistance)
@@ -2420,6 +2457,7 @@ void ULandscapeSplineSegment::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
 
 #if WITH_EDITOR
 	if (Ar.UEVer() < VER_UE4_SPLINE_MESH_ORIENTATION)
@@ -2524,7 +2562,9 @@ void ULandscapeSplineSegment::PostLoad()
 		}
 	}
 
-	if (GIsEditor && GetLinkerCustomVersion(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::AddingBodyInstanceToSplinesElements)
+	if (GIsEditor  
+		&& ((GetLinkerCustomVersion(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::AddingBodyInstanceToSplinesElements)
+			|| (GetLinkerCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData)))
 	{
 		ULandscapeSplinesComponent* OuterSplines = GetOuterULandscapeSplinesComponent();
 
@@ -2544,6 +2584,9 @@ void ULandscapeSplineSegment::PostLoad()
 				{
 					ForeignMeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 				}
+
+				// We won't ever enable collisions when using the editor mesh, ensure we don't even cook or load any collision data on this mesh  :
+				ForeignMeshComponent->SetbNeverNeedsCookedCollisionData(bUsingEditorMesh);
 			}
 		}
 
@@ -2561,6 +2604,9 @@ void ULandscapeSplineSegment::PostLoad()
 				{
 					LocalMeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 				}
+
+				// We won't ever enable collisions when using the editor mesh, ensure we don't even cook or load any collision data on this mesh  :
+				LocalMeshComponent->SetbNeverNeedsCookedCollisionData(bUsingEditorMesh);
 			}
 		}
 	}
@@ -2586,6 +2632,9 @@ void ULandscapeSplineSegment::UpdateMeshCollisionProfile(USplineMeshComponent* M
 
 	const FName DesiredCollisionProfileName = SplinesAlwaysUseBlockAll ? UCollisionProfile::BlockAll_ProfileName : GetCollisionProfileName();
 	const FName CollisionProfile = (bEnableCollision_DEPRECATED && !bUsingEditorMesh) ? DesiredCollisionProfileName : UCollisionProfile::NoCollision_ProfileName;
+
+	// We won't ever enable collisions when using the editor mesh, ensure we don't even cook or load any collision data on this mesh  :
+	MeshComponent->SetbNeverNeedsCookedCollisionData(bUsingEditorMesh);
 #else
 	const FName CollisionProfile = UCollisionProfile::BlockAll_ProfileName;
 #endif
@@ -3140,7 +3189,7 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 
 			MeshComponent->SetRenderCustomDepth(bRenderCustomDepth);
 			MeshComponent->SetCustomDepthStencilWriteMask(CustomDepthStencilWriteMask);
-			MeshComponent->SetCustomDepthStencilValue(CustomDepthStencilValue);
+ 			MeshComponent->SetCustomDepthStencilValue(CustomDepthStencilValue);
 
 			MeshComponent->SetCastShadow(bCastShadow);
 			MeshComponent->InvalidateLightingCache();
@@ -3154,6 +3203,8 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			{
 				MeshComponent->BodyInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			}
+			// If we won't ever enable collisions, ensure we don't even cook or load any collision data on this mesh :
+			MeshComponent->SetbNeverNeedsCookedCollisionData(bUsingEditorMesh);
 
 			if (bUpdateCollision)
 			{

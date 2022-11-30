@@ -1000,9 +1000,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 						
 			ALandscapeSplineActor* NewSplineActor = LandscapeInfo->CreateSplineActor(NewActorLocation);
 
-			// ULandscapeSplinesComponent doesn't assign SplineEditorMesh when IsCommandlet() is true.
-			NewSplineActor->GetSplinesComponent()->SetDefaultEditorSplineMesh();
-
 			NewSplineActors.Add(NewSplineActor);
 			LandscapeInfo->MoveSpline(ControlPoint, NewSplineActor);
 		};

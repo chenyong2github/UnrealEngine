@@ -195,6 +195,7 @@ USplineMeshComponent::USplineMeshComponent(const FObjectInitializer& ObjectIniti
 	SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 	bAllowSplineEditingPerInstance = false;
 	bSmoothInterpRollScale = false;
+	bNeverNeedsCookedCollisionData = false;
 	bHasCustomNavigableGeometry = EHasCustomNavigableGeometry::Yes;
 
 	SplineUpDir.Z = 1.0f;
@@ -461,6 +462,15 @@ void USplineMeshComponent::SetBoundaryMax(float InBoundaryMax, bool bUpdateMesh)
 	}
 }
 
+void USplineMeshComponent::SetbNeverNeedsCookedCollisionData(bool bInValue)
+{
+	bNeverNeedsCookedCollisionData = bInValue;
+	if (BodySetup != nullptr)
+	{
+		BodySetup->bNeverNeedsCookedCollisionData = bInValue;
+	}
+}
+
 void USplineMeshComponent::UpdateMesh()
 {
 	if (bMeshDirty)
@@ -566,7 +576,7 @@ void USplineMeshComponent::Serialize(FArchive& Ar)
 	}
 
 #if WITH_EDITOR
-	if (BodySetup != NULL)
+	if (BodySetup != nullptr)
 	{
 		BodySetup->SetFlags(RF_Transactional);
 	}
@@ -595,7 +605,7 @@ bool USplineMeshComponent::Modify(bool bAlwaysMarkDirty)
 {
 	bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);
 
-	if (BodySetup != NULL)
+	if (BodySetup != nullptr)
 	{
 		BodySetup->Modify(bAlwaysMarkDirty);
 	}
@@ -652,7 +662,7 @@ FPrimitiveSceneProxy* USplineMeshComponent::CreateSceneProxy()
 	}
 	else
 	{
-		return NULL;
+		return nullptr;
 	}
 }
 
@@ -1022,12 +1032,12 @@ UBodySetup* USplineMeshComponent::GetBodySetup()
 {
 	// Don't return a body setup that has no collision, it means we are interactively moving the spline and don't want to build collision.
 	// Instead we explicitly build collision with USplineMeshComponent::RecreateCollision()
-	if (BodySetup != NULL && (BodySetup->ChaosTriMeshes.Num() || BodySetup->AggGeom.GetElementCount() > 0))
+	if (BodySetup != nullptr && (BodySetup->ChaosTriMeshes.Num() || BodySetup->AggGeom.GetElementCount() > 0))
 	{
 		return BodySetup;
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 bool USplineMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
@@ -1080,10 +1090,10 @@ bool USplineMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExp
 
 void USplineMeshComponent::DestroyBodySetup()
 {
-	if (BodySetup != NULL)
+	if (BodySetup != nullptr)
 	{
 		BodySetup->MarkAsGarbage();
-		BodySetup = NULL;
+		BodySetup = nullptr;
 #if WITH_EDITORONLY_DATA
 		CachedMeshBodySetupGuid.Invalidate();
 #endif
@@ -1094,7 +1104,7 @@ void USplineMeshComponent::RecreateCollision()
 {
 	if (GetStaticMesh())
 	{
-		if (BodySetup == NULL)
+		if (BodySetup == nullptr)
 		{
 			BodySetup = DuplicateObject<UBodySetup>(GetStaticMesh()->GetBodySetup(), this);
 			BodySetup->SetFlags(RF_Transactional);
@@ -1110,6 +1120,8 @@ void USplineMeshComponent::RecreateCollision()
 		}
 		BodySetup->BodySetupGuid = GetStaticMesh()->GetBodySetup()->BodySetupGuid;
 		CachedMeshBodySetupGuid = GetStaticMesh()->GetBodySetup()->BodySetupGuid;
+
+		BodySetup->bNeverNeedsCookedCollisionData = bNeverNeedsCookedCollisionData;
 
 		if (BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple)
 		{
@@ -1292,12 +1304,18 @@ void USplineMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 	UStaticMeshComponent::PostEditChangeProperty(PropertyChangedEvent);
 
-		// If the spline params were changed the actual geometry is, so flag the owning HLOD cluster as dirty
+	// If the spline params were changed the actual geometry is, so flag the owning HLOD cluster as dirty
 	if (bIsSplineParamsChange)
 	{
 		IHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<IHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
 		IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
 		Utilities->HandleActorModified(GetOwner());
+	}
+
+	if (MemberPropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(USplineMeshComponent, bNeverNeedsCookedCollisionData))
+	{
+		// TODO [jonathan.bard] : this is currently needed because Setter doesn't correctly do its job in the details panel but eventually this could be removed : 
+		SetbNeverNeedsCookedCollisionData(bNeverNeedsCookedCollisionData);
 	}
 }
 #endif

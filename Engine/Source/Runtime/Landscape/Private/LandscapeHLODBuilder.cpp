@@ -13,8 +13,9 @@
 #include "LandscapeMeshProxyComponent.h"
 
 #include "MeshDescription.h"
-#include "TriangleTypes.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
+#include "TriangleTypes.h"
 
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialUtilities.h"
@@ -28,7 +29,7 @@
 #include "Serialization/ArchiveCrc32.h"
 #include "Engine/HLODProxy.h"
 
-#endif
+#endif // WITH_EDITOR
 
 ULandscapeHLODBuilder::ULandscapeHLODBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -310,8 +311,18 @@ TArray<UActorComponent*> ULandscapeHLODBuilder::Build(const FHLODBuildContext& I
 
 	UStaticMesh::BatchBuild(StaticMeshes);
 
+	// Once static meshes have been built, their BodySetup should be available : 
+	for (UStaticMesh* StaticMesh : StaticMeshes)
+	{
+		// We won't ever enable collisions, ensure we don't even cook or load any collision data on this mesh: 
+		if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
+		{
+			BodySetup->bNeverNeedsCookedCollisionData = true;
+		}
+	}
+
 	return HLODComponents;
 }
 
-#endif
+#endif // WITH_EDITOR
 

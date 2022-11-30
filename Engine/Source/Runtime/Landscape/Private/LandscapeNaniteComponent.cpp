@@ -188,18 +188,20 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 		NaniteStaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 	}
 
-	// Disable collisions
+	SetStaticMesh(NaniteStaticMesh);
+	UStaticMesh::BatchBuild({ NaniteStaticMesh });
+
+	// Disable collisions (needs to be done after UStaticMesh::BatchBuild) since it's what will create the UBodySetup :
 	if (UBodySetup* BodySetup = NaniteStaticMesh->GetBodySetup())
 	{
 		BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+		// We won't ever enable collisions (since collisions are handled by ULandscapeHeighfieldCollisionComponent), ensure we don't even cook or load any collision data on this mesh: 
+		BodySetup->bNeverNeedsCookedCollisionData = true;
 	}
 
 	// Disable navigation
 	NaniteStaticMesh->bHasNavigationData = false;
-
-	SetStaticMesh(NaniteStaticMesh);
-	UStaticMesh::BatchBuild({ NaniteStaticMesh });
 
 	ProxyContentId = NewProxyContentId;
 

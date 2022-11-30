@@ -27,6 +27,9 @@ struct CORE_API FFortniteReleaseBranchCustomObjectVersion
 		// Fixup Nanite meshes which were using the wrong material and didn't have proper UVs :
 		FixupNaniteLandscapeMeshes,
 
+		// Remove any cooked collision data from nanite landscape / editor spline meshes since collisions are not needed there :
+		RemoveUselessLandscapeMeshesCookedCollisionData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

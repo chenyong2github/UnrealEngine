@@ -153,6 +153,16 @@ class ENGINE_API USplineMeshComponent : public UStaticMeshComponent, public IInt
 	uint8 bSelected:1;
 #endif
 
+private:
+	/** Indicates that we will never use convex or trimesh shapes. This is an optimization to skip checking for binary data. */
+	/**
+	* TODO Chaos this is to opt out of CreatePhysicsMeshes for certain meshes
+	* Better long term mesh is to not call CreatePhysicsMeshes until it is known there is a mesh instance that needs it.
+	*/
+	UPROPERTY(EditAnywhere, Getter, Setter, Category = Collision)
+	uint8 bNeverNeedsCookedCollisionData:1;
+
+public:
 	//Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
@@ -329,6 +339,12 @@ public:
 	/** Set the boundary max */
 	UFUNCTION(BlueprintCallable, Category = SplineMesh)
 	void SetBoundaryMax(float InBoundaryMax, bool bUpdateMesh = true);
+
+	/** Setter for bNeverNeedsCookedCollisionData */
+	void SetbNeverNeedsCookedCollisionData(bool bInValue); 
+
+	/** Getter for bNeverNeedsCookedCollisionData */
+	bool GetbNeverNeedsCookedCollisionData() const { return bNeverNeedsCookedCollisionData; }
 
 	// Destroys the body setup, used to clear collision if the mesh goes missing
 	void DestroyBodySetup();
