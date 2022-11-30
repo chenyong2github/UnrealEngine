@@ -920,6 +920,7 @@ namespace Horde.Build.Perforce
 			{
 				string workspaceFilePath = $"//{perforce.Client!.Name}/{filePath.TrimStart('/')}";
 				string diskFilePath = $"{perforce.Client!.Root + filePath.TrimStart('/')}";
+				_logger.LogInformation("Attempting to create new changelist by submitting {WorkspaceFilePath} (local: {DiskFilePath})", workspaceFilePath, diskFilePath);
 
 				int attempt = 0;
 				const int MaxAttempts = 5;
@@ -1007,6 +1008,10 @@ namespace Horde.Build.Perforce
 						SubmitRecord submit = await perforce.SubmitAsync(change.Number, SubmitOptions.SubmitUnchanged, cancellationToken);
 						_logger.LogInformation("Submitted new changelist with {DepotPath}: CL {Change}", depotPath, submit.SubmittedChangeNumber);
 						return submit.SubmittedChangeNumber;
+					}
+					catch (OperationCanceledException)
+					{
+						throw;
 					}
 					catch (Exception ex)
 					{
