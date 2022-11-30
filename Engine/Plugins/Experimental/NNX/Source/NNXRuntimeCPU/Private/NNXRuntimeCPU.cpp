@@ -68,11 +68,11 @@ bool FRuntimeCPU::CanCreateModel(TConstArrayView<uint8> ModelData) const
 	return bResult;
 }
 
-TSharedPtr<FMLInferenceModel> FRuntimeCPU::CreateModel(TConstArrayView<uint8> ModelData)
+TUniquePtr<FMLInferenceModel> FRuntimeCPU::CreateModel(TConstArrayView<uint8> ModelData)
 {
 	if (!CanCreateModel(ModelData))
 	{
-		return TSharedPtr<FMLInferenceModel>();
+		return TUniquePtr<FMLInferenceModel>();
 	}
 
 	// Get the header size
@@ -85,9 +85,9 @@ TSharedPtr<FMLInferenceModel> FRuntimeCPU::CreateModel(TConstArrayView<uint8> Mo
 	if (!Model->Init(ModelData))
 	{
 		delete Model;
-		return TSharedPtr<FMLInferenceModel>();
+		return TUniquePtr<FMLInferenceModel>();
 	}
-	return TSharedPtr<FMLInferenceModel>(Model);
+	return TUniquePtr<FMLInferenceModel>(Model);
 }
 
 bool FRuntimeCPU::Init()
@@ -292,7 +292,7 @@ int FMLInferenceModelCPU::SetInputTensorShapes(TConstArrayView<FTensorShape> InI
 	return 0;
 }
 
-int FMLInferenceModelCPU::Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings)
+int FMLInferenceModelCPU::RunSync(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FMLInferenceModelCPU_Run"), STAT_FMLInferenceModelCPU_Run, STATGROUP_MachineLearning);
 

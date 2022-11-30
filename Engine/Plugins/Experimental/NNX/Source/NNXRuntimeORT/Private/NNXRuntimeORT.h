@@ -69,7 +69,7 @@ namespace NNX
 		virtual ~FRuntimeORTCpu() = default;
 		virtual FString GetRuntimeName() const override;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const override;
-		virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
+		virtual TUniquePtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
 	};
 
 #if PLATFORM_WINDOWS
@@ -81,7 +81,7 @@ namespace NNX
 		virtual ~FRuntimeORTCuda() = default;
 		virtual FString GetRuntimeName() const override;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const override;
-		virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
+		virtual TUniquePtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
 	};
 
 	class FRuntimeORTDml : public FRuntimeORT
@@ -92,7 +92,7 @@ namespace NNX
 		virtual ~FRuntimeORTDml() = default;
 		virtual FString GetRuntimeName() const override;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const override;
-		virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
+		virtual TUniquePtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
 	};
 #endif
 
@@ -189,7 +189,7 @@ namespace NNX
 		bool IsLoaded() const;
 
 		virtual int SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes) override;
-		virtual int Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings) override;
+		virtual int RunSync(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings) override;
 
 		float GetLastRunTimeMSec() const;
 		UE::NNEProfiling::Internal::FStatistics GetRunStatistics() const;

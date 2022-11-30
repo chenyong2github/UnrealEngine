@@ -1207,11 +1207,11 @@ public:
 		return EMLRuntimeSupportFlags::RDG;
 	}
 
-	virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) override
+	virtual TUniquePtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) override
 	{
 		if (!CanCreateModel(ModelData))
 		{
-			return TSharedPtr<FMLInferenceModel>();
+			return TUniquePtr<FMLInferenceModel>();
 		}
 
 		// Create the model and initialize it with the data not including the header
@@ -1219,9 +1219,9 @@ public:
 		if (!Model->Init(ModelData, &Ctx))
 		{
 			delete Model;
-			return TSharedPtr<FMLInferenceModel>();
+			return TUniquePtr<FMLInferenceModel>();
 		}
-		return TSharedPtr<FMLInferenceModel>(Model);
+		return TUniquePtr<FMLInferenceModel>(Model);
 	}
 
 	bool Init();

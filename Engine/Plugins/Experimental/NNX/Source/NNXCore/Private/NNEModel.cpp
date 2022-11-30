@@ -162,12 +162,12 @@ bool UNNEModel::SetInputOutput(const TArray<FNNETensor>& Input, UPARAM(ref) TArr
 	return true;
 }
 
-bool UNNEModel::Run()
+bool UNNEModel::RunSync()
 {
 	if (!Model.IsValid())
 	{
 		return false;
 	}
 
-	return Model->Run(InputBindings, OutputBindings) == 0;
+	return Model->RunSync(InputBindings, OutputBindings) == 0;
 }

@@ -300,7 +300,7 @@ bool FMLInferenceModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntim
 /**
  * Run the inference model (synchronous version)
  */
-int FMLInferenceModelRDG::Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings)
+int FMLInferenceModelRDG::RunSync(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings)
 {
 	// Verify the model inputs were prepared
 	if (InputTensorShapes.Num() == 0)

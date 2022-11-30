@@ -39,7 +39,7 @@ namespace NNX
 		virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const;
 		virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData);
 		virtual bool CanCreateModel(TConstArrayView<uint8> ModelData) const;
-		virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
+		virtual TUniquePtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData);
 		static FGuid GUID;
 		static int32 Version;
 	};
@@ -88,7 +88,7 @@ namespace NNX
 		bool IsLoaded() const;
 
 		virtual int SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes) override;
-		virtual int Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings) override;
+		virtual int RunSync(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings) override;
 
 		float GetLastRunTimeMSec() const;
 		UE::NNEProfiling::Internal::FStatistics GetRunStatistics() const;

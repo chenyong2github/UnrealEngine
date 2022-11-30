@@ -61,7 +61,7 @@ public:
 
 	// Model factory interface
 	virtual bool CanCreateModel(TConstArrayView<uint8> ModelData) const = 0;
-	virtual TSharedPtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) = 0;
+	virtual TUniquePtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) = 0;
 };
 
 /** Tensor memory binding type */
@@ -129,7 +129,7 @@ public:
 
 	/** This call is synchronous on all engine types(CPU, RDG, GPU), i.e.the calling thread will be blocked until execution is finished.
 	* Bindings should point to a buffers big enough */
-	virtual int Run(TConstArrayView<FMLTensorBinding> InInputTensors,
+	virtual int RunSync(TConstArrayView<FMLTensorBinding> InInputTensors,
 					TConstArrayView<FMLTensorBinding> InOutputTensors) = 0;
 
 	/** Enqueue the execution on the Render graph render thread. It's caller's responsibility to actually run the graph.

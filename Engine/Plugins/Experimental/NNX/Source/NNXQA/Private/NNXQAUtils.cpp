@@ -363,7 +363,7 @@ namespace Test
 	{
 		OutOutputMemBuffers.Empty();
 
-		TSharedPtr<FMLInferenceModel> InferenceModel = Runtime->CreateModel(Runtime->CreateModelData(FString("onnx"), ONNXModelData.Data));
+		TUniquePtr<FMLInferenceModel> InferenceModel = Runtime->CreateModel(Runtime->CreateModelData(FString("onnx"), ONNXModelData.Data));
 		
 		if (!InferenceModel.IsValid())
 		{
@@ -416,7 +416,7 @@ namespace Test
 		}
 
 		// Run inference
-		if (0 != InferenceModel->Run(InputBindings, OutputBindings))
+		if (0 != InferenceModel->RunSync(InputBindings, OutputBindings))
 		{
 			UE_LOG(LogNNX, Error, TEXT("Failed to run the model."));
 			return false;

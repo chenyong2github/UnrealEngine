@@ -111,53 +111,53 @@ bool FRuntimeORT::CanCreateModel(TConstArrayView<uint8> ModelData) const
 	return bResult;
 }
 
-TSharedPtr<FMLInferenceModel> FRuntimeORTCpu::CreateModel(TConstArrayView<uint8> ModelData)
+TUniquePtr<FMLInferenceModel> FRuntimeORTCpu::CreateModel(TConstArrayView<uint8> ModelData)
 {
 	if (!CanCreateModel(ModelData))
 	{
-		return TSharedPtr<FMLInferenceModel>();
+		return TUniquePtr<FMLInferenceModel>();
 	}
 	const FMLInferenceNNXORTConf InConf;
 	FMLInferenceModelORTCpu* Model = new FMLInferenceModelORTCpu(&NNXEnvironmentORT, InConf);
 	if (!Model->Init(ModelData))
 	{
 		delete Model;
-		return TSharedPtr<FMLInferenceModel>();
+		return TUniquePtr<FMLInferenceModel>();
 	}
-	return TSharedPtr<FMLInferenceModel>(Model);
+	return TUniquePtr<FMLInferenceModel>(Model);
 }
 
 #if PLATFORM_WINDOWS
-TSharedPtr<FMLInferenceModel> FRuntimeORTCuda::CreateModel(TConstArrayView<uint8> ModelData)
+TUniquePtr<FMLInferenceModel> FRuntimeORTCuda::CreateModel(TConstArrayView<uint8> ModelData)
 {
 	if (!CanCreateModel(ModelData))
 	{
-		return TSharedPtr<FMLInferenceModel>();
+		return TUniquePtr<FMLInferenceModel>();
 	}
 	const FMLInferenceNNXORTConf InConf;
 	FMLInferenceModelORTCuda* Model = new FMLInferenceModelORTCuda(&NNXEnvironmentORT, InConf);
 	if (!Model->Init(ModelData))
 	{
 		delete Model;
-		return TSharedPtr<FMLInferenceModel>();
+		return TUniquePtr<FMLInferenceModel>();
 	}
-	return TSharedPtr<FMLInferenceModel>(Model);
+	return TUniquePtr<FMLInferenceModel>(Model);
 }
 
-TSharedPtr<FMLInferenceModel> FRuntimeORTDml::CreateModel(TConstArrayView<uint8> ModelData)
+TUniquePtr<FMLInferenceModel> FRuntimeORTDml::CreateModel(TConstArrayView<uint8> ModelData)
 {
 	if (!CanCreateModel(ModelData))
 	{
-		return TSharedPtr<FMLInferenceModel>();
+		return TUniquePtr<FMLInferenceModel>();
 	}
 	const FMLInferenceNNXORTConf InConf;
 	FMLInferenceModelORTDml* Model = new FMLInferenceModelORTDml(&NNXEnvironmentORT, InConf);
 	if (!Model->Init(ModelData))
 	{
 		delete Model;
-		return TSharedPtr<FMLInferenceModel>();
+		return TUniquePtr<FMLInferenceModel>();
 	}
-	return TSharedPtr<FMLInferenceModel>(Model);
+	return TUniquePtr<FMLInferenceModel>(Model);
 }
 #endif
 
@@ -346,7 +346,7 @@ int FMLInferenceModelORT::SetInputTensorShapes(TConstArrayView<FTensorShape> InI
 	return 0;
 }
 
-int FMLInferenceModelORT::Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings)
+int FMLInferenceModelORT::RunSync(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FMLTensorBinding> InOutputBindings)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FMLInferenceModelORT_Run"), STAT_FMLInferenceModelORT_Run, STATGROUP_MachineLearning);
 

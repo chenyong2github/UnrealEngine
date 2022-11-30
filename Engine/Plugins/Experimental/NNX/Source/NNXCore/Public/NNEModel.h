@@ -77,11 +77,11 @@ public:
 	 * Upon successful return of this function, the data inside the output tensors passed to SetInputOutput will contain the resulting data.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	bool Run();
+	bool RunSync();
 	
 private:
 
-	TSharedPtr<NNX::FMLInferenceModel> Model;
+	TUniquePtr<NNX::FMLInferenceModel> Model;
 
 	TArray<NNX::FMLTensorBinding> InputBindings;
 	TArray<NNX::FMLTensorBinding> OutputBindings;
