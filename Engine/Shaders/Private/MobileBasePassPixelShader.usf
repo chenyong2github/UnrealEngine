@@ -218,73 +218,6 @@ half3 GetLookupVectorForSphereCaptureMobile(half3 ReflectionVector, half3 WorldP
 	return ProjectedCaptureVector;
 }
 
-half3 GetLookupVectorForBoxCaptureMobile(half3 ReflectionVector, half3 WorldPosition, half4 BoxCapturePositionAndRadius, half4x4 BoxTransform, half4 BoxScales, half3 LocalCaptureOffset, out half DistanceAlpha)
-{
-	// Transform the ray into the local space of the box, where it is an AABB with mins at -1 and maxs at 1
-	half3 LocalRayStart = mul(half4(WorldPosition, 1), BoxTransform).xyz;
-	half3 LocalRayDirection = mul(half4(ReflectionVector, 0), BoxTransform).xyz;
-
-	half3 InvRayDir = rcp(LocalRayDirection);
-
-	//find the ray intersection with each of the 3 planes defined by the minimum extrema.
-	half3 FirstPlaneIntersections = -InvRayDir - LocalRayStart * InvRayDir;
-	//find the ray intersection with each of the 3 planes defined by the maximum extrema.
-	half3 SecondPlaneIntersections = InvRayDir - LocalRayStart * InvRayDir;
-	//get the furthest of these intersections along the ray
-	half3 FurthestPlaneIntersections = max(FirstPlaneIntersections, SecondPlaneIntersections);
-
-	//clamp the intersections to be between RayOrigin and RayEnd on the ray
-	half Intersection = min(FurthestPlaneIntersections.x, min(FurthestPlaneIntersections.y, FurthestPlaneIntersections.z));
-
-	// Compute the reprojected vector
-	half3 IntersectPosition = WorldPosition + Intersection * ReflectionVector;
-	half3 ProjectedCaptureVector = IntersectPosition - (BoxCapturePositionAndRadius.xyz + LocalCaptureOffset);
-
-	// Compute the distance from the receiving pixel to the box for masking
-	// Apply local to world scale to take scale into account without transforming back to world space
-	// Shrink the box by the transition distance (BoxScales.w) so that the fade happens inside the box influence area	
-	half BoxDistance = ComputeDistanceFromBoxToPoint(-(BoxScales.xyz - .5f * BoxScales.w), BoxScales.xyz - .5f * BoxScales.w, LocalRayStart * BoxScales.xyz);
-
-	// Setup a fade based on receiver distance to the box, hides the box influence shape
-	DistanceAlpha = 1.0 - smoothstep(0, .7f * BoxScales.w, BoxDistance);
-
-	return ProjectedCaptureVector;
-}
-
-half3 GetLookupVectorForSphereCaptureMobile(half3 ReflectionVector, half3 WorldPosition, half4 SphereCapturePositionAndRadius, half NormalizedDistanceToCapture, half3 LocalCaptureOffset, inout half DistanceAlpha)
-{
-	half3 ProjectedCaptureVector = ReflectionVector;
-	half ProjectionSphereRadius = SphereCapturePositionAndRadius.w;
-	half SphereRadiusSquared = ProjectionSphereRadius * ProjectionSphereRadius;
-
-	half3 LocalPosition = WorldPosition - SphereCapturePositionAndRadius.xyz;
-	half LocalPositionSqr = dot(LocalPosition, LocalPosition);
-
-	// Find the intersection between the ray along the reflection vector and the capture's sphere
-	half3 QuadraticCoef;
-	QuadraticCoef.x = 1;
-	QuadraticCoef.y = dot(ReflectionVector, LocalPosition);
-	QuadraticCoef.z = LocalPositionSqr - SphereRadiusSquared;
-
-	half Determinant = QuadraticCoef.y * QuadraticCoef.y - QuadraticCoef.z;
-
-	// Only continue if the ray intersects the sphere
-	FLATTEN
-		if (Determinant >= 0)
-		{
-			half FarIntersection = sqrt(Determinant) - QuadraticCoef.y;
-
-			half3 LocalIntersectionPosition = LocalPosition + FarIntersection * ReflectionVector;
-			ProjectedCaptureVector = LocalIntersectionPosition - LocalCaptureOffset;
-			// Note: some compilers don't handle smoothstep min > max (this was 1, .6)
-			//DistanceAlpha = 1.0 - smoothstep(.6, 1, NormalizedDistanceToCapture);
-
-			half x = saturate(2.5 * NormalizedDistanceToCapture - 1.5);
-			DistanceAlpha = 1 - x * x*(3 - 2 * x);
-		}
-	return ProjectedCaptureVector;
-}
-
 void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 	, TextureCube ReflectionCube
 	, SamplerState ReflectionSampler
@@ -689,57 +622,6 @@ void Main(
 	FMobileShadingModelContext ShadingModelContext = (FMobileShadingModelContext)0;
 	ShadingModelContext.Opacity = GetMaterialOpacity(PixelMaterialInputs);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-#if !DEFERRED_SHADING_PATH
-=======
-#if OUTPUT_WORLDNORMALROUGHNESS
->>>>>>> c69d8ac596b (Fixed: Output out_Target1 location or component exceeds max allowed.)
-	OutWorldNormalRoughness.rg = UnitVectorToOctahedron( normalize(GBuffer.WorldNormal) ) * 0.5f + 0.5f;
-	OutWorldNormalRoughness.b = GBuffer.Roughness;
-#endif
-
-	//setting custom adv data, use for many shadingModel
-	FAdvancedData AdvancedData;
-	AdvancedData.Subsurface = GetMaterialSubsurfaceDataRaw(PixelMaterialInputs).rgb;
-	AdvancedData.CustomData0 = GetMaterialCustomData0(MaterialParameters);
-	AdvancedData.CustomData1 = GetMaterialCustomData1(MaterialParameters);
-
-half3 LightColor = MobileDirectionalLight.DirectionalLightColor.rgb;
-float3 LightVector = MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xyz;
-#if NUM_MATERIAL_OUTPUTS_GETSHADINGMODELSUBSURFACE
-	half3 CtrLightColor = GetShadingModelSubsurface1(MaterialParameters);
-	half CtrLightScale = GetShadingModelSubsurface2(MaterialParameters).x;
-	LightColor = CtrLightScale * CtrLightColor;
-#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIRTEST
-	half3 CtrLightColor = GetShadingModelHairTest1(MaterialParameters);
-	half CtrLightScale = GetShadingModelHairTest2(MaterialParameters).x;
-	LightColor = CtrLightScale * CtrLightColor;
-#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIR
-	half3 CtrLightColor = GetShadingModelHair1(MaterialParameters);
-	half CtrLightScale = GetShadingModelHair2(MaterialParameters).x;
-	LightColor = CtrLightScale * CtrLightColor;
-#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELEYE
-	half3 CtrLightColor = GetShadingModelEye1(MaterialParameters);
-	half CtrLightScale = GetShadingModelEye2(MaterialParameters).x;
-	LightColor = CtrLightScale * CtrLightColor;
-#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELCLOTH
-	half3 CtrLightColor = GetShadingModelCloth1(MaterialParameters);
-	half CtrLightScale = GetShadingModelCloth2(MaterialParameters);
-	LightColor = CtrLightScale * CtrLightColor;
-#elif NUM_MATERIAL_OUTPUTS_GETSCENELIGHTPARAMETER
-	LightVector = GetSceneLightParameter0(MaterialParameters);
-	LightColor =  GetSceneLightParameter1(MaterialParameters);
-#endif
-
-	half NoL = dot(MaterialParameters.WorldNormal, LightVector);
-	//float RoL = max(0, dot(float3(MaterialParameters.ReflectionVector), LightVector));
-	half3 H = normalize(MaterialParameters.CameraVector + LightVector);
-	half NoH = max(0, dot(MaterialParameters.WorldNormal, H));
-	half NoV = (dot(MaterialParameters.WorldNormal, MaterialParameters.CameraVector));
-
->>>>>>> e23c5dd7b3e (Support screen space reflection and optimize for the mobile platform.)
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	float TopMaterialCoverage = ShadingModelContext.Opacity;
 
@@ -818,17 +700,8 @@ float3 LightVector = MobileDirectionalLight.DirectionalLightDirectionAndShadowTr
 	// Cascaded Shadow Map
 	if(MobileBasePass.UseCSM)
 	{
-<<<<<<< HEAD
 		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w);
-=======
-		float bias = 0;
-		#if NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIRTEST
-			bias = GetShadingModelHairTest6(MaterialParameters).x;
-		#endif
-		half ShadowMap = 0;
-		ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w,bias);
 		CSMOverlapStaitcShadowMask = (ShadowMap < 0.01f && Shadow < 0.01f);
->>>>>>> ba60a155927 (Fixed: CSM shadow overlapping with static shadow.)
 	#if MOVABLE_DIRECTIONAL_LIGHT
 		Shadow = ShadowMap;
 	#else
@@ -849,16 +722,9 @@ float3 LightVector = MobileDirectionalLight.DirectionalLightDirectionAndShadowTr
 	// MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z saves SpecularScale for direction light.
 	Color += (Shadow) * MobileDirectionalLight.DirectionalLightColor.rgb * (Lighting.Diffuse + Lighting.Specular * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z);
 
-<<<<<<< HEAD
 #if	!(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR)
 	// Environment map has been prenormalized, scale by lightmap luminance
 	half3 SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, GBuffer.Roughness, IndirectIrradiance, 1.0f);
-=======
-	Color=LightAccumulator(Lighting,ShadingModelContext,MaterialParameters,ToonData,Color,ShadowMaskMap);
-	
-	// Environment map has been prenormalized, scale by lightmap luminance                   
-	half3 SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, ShadingModelContext.Roughness, IndirectIrradiance, 1.0f);
->>>>>>> 7ef5c488cd0 (Fix High Quality Reflection bug on mobile. Migrated from 4.26)
 	#if MATERIAL_PLANAR_FORWARD_REFLECTIONS
 		BRANCH
 		if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
@@ -883,8 +749,9 @@ float3 LightVector = MobileDirectionalLight.DirectionalLightDirectionAndShadowTr
 		#endif
 		Color += SpecularIBL * LayerAttenuation * (ShadingModelContext.SpecPreEnvBrdf * AB.x + AB.y * saturate(50 * ShadingModelContext.SpecPreEnvBrdf.g) * (1 - ShadingModelContext.ClearCoat));
 
-		SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, ShadingModelContext.ClearCoatRoughness, IndirectIrradiance, 1.0f);
-		Color += SpecularIBL * F;
+		SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, ShadingModelContext.ClearCoatRoughness, IndirectIrradiance, F);
+		Color += SpecularIBL;
+
 	#else
 		Color += SpecularIBL * ShadingModelContext.SpecularColor;
 	#endif
@@ -977,50 +844,8 @@ float3 LightVector = MobileDirectionalLight.DirectionalLightDirectionAndShadowTr
 
 #endif
 
-<<<<<<< HEAD
-=======
-	float4 FillLightData = 0.0;
-	#if NUM_MATERIAL_OUTPUTS_GETSHADINGMODELSUBSURFACE
-		FillLightData = GetShadingModelSubsurface4(MaterialParameters);
-	#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIRTEST
-		FillLightData = GetShadingModelHairTest4(MaterialParameters);
-	#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIR
-		FillLightData = GetShadingModelHair4(MaterialParameters);
-	#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELEYE
-		FillLightData = GetShadingModelEye4(MaterialParameters);
-	#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELCLOTH
-		FillLightData = GetShadingModelCloth4(MaterialParameters);
-	#endif
-
-	BRANCH
-	if(FillLightData.x>0)
-	{
-		half FillLightMask = dot(float3(MaterialParameters.WorldNormal),normalize(float3(MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xy,0.0)));
-		FillLightMask = lerp(1,1-max(0,FillLightMask),ShadowMaskMap*Shadow);
-
-		half3 FillL = normalize(MaterialParameters.CameraVector);
-		half FillNoL = 0.5 + 0.5 * dot(MaterialParameters.WorldNormal, FillL);
-		FMobileDirectLighting Lightings = MobileIntegrateBxDF(ShadingModelContext, GBuffer, AdvancedData, btn,MaterialParameters.WorldNormal, MaterialParameters.CameraVector,FillL, H, NoH);
-		//LightColor_backup = LightType < 0.5 ? LightColor_backup:LightColor;
-
-		LightAccumulator(Lightings,
-						ShadingModelContext,
-						MaterialParameters, 
-						GBuffer, 
-						AdvancedData,
-						2.0, 					//LightType
-						Color,
-						FillLightData.rgb,
-						FillLightMask*FillNoL, 
-						FillLightData.a,
-						ShadowMaskMap, 
-						1.0);
-		//Color += (FillLightMask * FillNoL) * FillLightData.rgb * (Lightings.Diffuse + Lightings.Specular * FillLightData.a);			
-	}
-
 	Color -= CSMOverlapStaitcShadowMask ? OverlapWithStaticShadowAmount * Color : 0;
 
->>>>>>> ba60a155927 (Fixed: CSM shadow overlapping with static shadow.)
 	// Skylight
 #if ENABLE_SKY_LIGHT
 	//@mw todo
