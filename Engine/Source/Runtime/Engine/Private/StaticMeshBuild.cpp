@@ -199,8 +199,11 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, const F
 					if (Component->IsRenderStateCreated())
 					{
 						Component->DestroyRenderState_Concurrent();
-						StaticMeshComponents[StaticMesh].Add(Component);
 						Scenes.Add(Component->GetScene());
+					}
+					if (Component->IsRegistered())
+					{
+						StaticMeshComponents[StaticMesh].Add(Component);
 					}
 				}
 			}
@@ -223,7 +226,7 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, const F
 				{
 					for (UPrimitiveComponent* Component : *MeshComponents)
 					{
-						if (Component->IsRegistered() && !Component->IsRenderStateCreated())
+						if (Component->IsRegistered() && !Component->IsRenderStateCreated() && Component->ShouldCreateRenderState())
 						{
 							Component->CreateRenderState_Concurrent(nullptr);
 							Scenes.Add(Component->GetScene());
