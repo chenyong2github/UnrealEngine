@@ -186,6 +186,9 @@ public:
 	/** Load the settings affecting the viewport, i.e. environment map */
 	static void LoadDefaultSettings();
 
+	/** Release the materials used for the different rendering options in the viewport */
+	static void ReleaseDefaultMaterials();
+
 	int32 GetDrawCallsAverage() const
 	{
 		return AverageDrawCalls;
@@ -370,23 +373,23 @@ private:
 	bool bWireframeRenderingMode;
 
 	/** Material used to create utility material instances */
-	static TWeakObjectPtr<UMaterial> PreviewMaterial;
+	static TStrongObjectPtr<UMaterial> PreviewMaterial;
 
 	/** Stylized XRay Material */
-	static TWeakObjectPtr<UMaterial> XRayMaterial;
+	static TStrongObjectPtr<UMaterial> XRayMaterial;
 
 	/** Material used to display front facing triangle in green and back facing one in red */
-	static TWeakObjectPtr<UMaterial> BackFaceMaterial;
+	static TStrongObjectPtr<UMaterial> BackFaceMaterial;
 
 	/** Transparent material instance used to display non-selected meshes */
-	static TWeakObjectPtr<UMaterialInstanceConstant> TransparentMaterial;
+	static TStrongObjectPtr<UMaterialInstanceConstant> TransparentMaterial;
 
 	/** Fully reflective material used to display surface discontinuity */
-	static TWeakObjectPtr<UMaterial> ReflectionMaterial;
+	static TStrongObjectPtr<UMaterial> ReflectionMaterial;
 
-	/** Materials	 used to display each mesh component in a different color */
-	static TWeakObjectPtr<UMaterial> PerMeshMaterial;
-	static TArray<TWeakObjectPtr<UMaterialInstanceConstant>> PerMeshMaterialInstances;
+	/** Materials used to display each mesh component in a different color */
+	static TStrongObjectPtr<UMaterial> PerMeshMaterial;
+	static TArray<TStrongObjectPtr<UMaterialInstanceConstant>> PerMeshMaterialInstances;
 
 	TWeakPtr<FDataprepEditor> DataprepEditor;
 

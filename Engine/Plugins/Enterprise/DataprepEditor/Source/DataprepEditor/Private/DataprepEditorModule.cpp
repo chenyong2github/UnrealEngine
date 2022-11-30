@@ -88,6 +88,8 @@ public:
 
 		FKismetEditorUtilities::UnregisterAutoBlueprintNodeCreation(this);
 
+		SDataprepEditorViewport::ReleaseDefaultMaterials();
+
 		SDataprepGraphEditor::UnRegisterFactories();
 
 		MenuExtensibilityManager.Reset();

@@ -45,13 +45,13 @@
 
 #define LOCTEXT_NAMESPACE "DataprepEditorViewport"
 
-TWeakObjectPtr<UMaterial> SDataprepEditorViewport::PreviewMaterial;
-TWeakObjectPtr<UMaterial> SDataprepEditorViewport::XRayMaterial;
-TWeakObjectPtr<UMaterial> SDataprepEditorViewport::BackFaceMaterial;
-TWeakObjectPtr<UMaterial> SDataprepEditorViewport::PerMeshMaterial;
-TWeakObjectPtr<UMaterial> SDataprepEditorViewport::ReflectionMaterial;
-TWeakObjectPtr<UMaterialInstanceConstant> SDataprepEditorViewport::TransparentMaterial;
-TArray<TWeakObjectPtr<UMaterialInstanceConstant>> SDataprepEditorViewport::PerMeshMaterialInstances;
+TStrongObjectPtr<UMaterial> SDataprepEditorViewport::PreviewMaterial;
+TStrongObjectPtr<UMaterial> SDataprepEditorViewport::XRayMaterial;
+TStrongObjectPtr<UMaterial> SDataprepEditorViewport::BackFaceMaterial;
+TStrongObjectPtr<UMaterial> SDataprepEditorViewport::PerMeshMaterial;
+TStrongObjectPtr<UMaterial> SDataprepEditorViewport::ReflectionMaterial;
+TStrongObjectPtr<UMaterialInstanceConstant> SDataprepEditorViewport::TransparentMaterial;
+TArray<TStrongObjectPtr<UMaterialInstanceConstant>> SDataprepEditorViewport::PerMeshMaterialInstances;
 int32 SDataprepEditorViewport::AssetViewerProfileIndex = INDEX_NONE;
 
 
@@ -852,10 +852,13 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 	auto CreateMaterialFunc = [](FString MaterialName) -> UMaterial*
 	{
 		FSoftObjectPath MaterialSoftPath = FSoftObjectPath(FString("/DataprepEditor/") + MaterialName + "." + MaterialName);
-		if(UMaterial* Material = Cast< UMaterial >( MaterialSoftPath.TryLoad() ))
+		if(UMaterial* BaseMaterial = Cast< UMaterial >( MaterialSoftPath.TryLoad() ))
 		{
+			// Temporary solution to fix UE-170536: Duplicate material asset
+			// TODO: Proper solution is to use material instances for the get go. Will be done in future release.
+			UMaterial* Material = DuplicateObject< UMaterial >(BaseMaterial, nullptr);
+			Material->ClearFlags(RF_AllFlags);
 			Material->SetFlags(RF_Transient);
-			Material->ClearFlags(RF_Transactional);
 
 			return Material;
 		}
@@ -866,7 +869,9 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!PreviewMaterial.IsValid())
 	{
-		PreviewMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("PreviewMaterial") );
+		TransparentMaterial.Reset();
+
+		PreviewMaterial = TStrongObjectPtr<UMaterial>( CreateMaterialFunc("PreviewMaterial") );
 		check( PreviewMaterial.IsValid() );
 
 		DataprepCorePrivateUtils::CompileMaterial(PreviewMaterial.Get());
@@ -874,7 +879,7 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!TransparentMaterial.IsValid())
 	{
-		TransparentMaterial = TWeakObjectPtr<UMaterialInstanceConstant>( NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient) );
+		TransparentMaterial = TStrongObjectPtr<UMaterialInstanceConstant>( NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient) );
 		check( TransparentMaterial.IsValid() );
 
 		TransparentMaterial->Parent = PreviewMaterial.Get();
@@ -890,7 +895,7 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!XRayMaterial.IsValid())
 	{
-		XRayMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("xray_material") );
+		XRayMaterial = TStrongObjectPtr<UMaterial>( CreateMaterialFunc("xray_material") );
 		check( XRayMaterial.IsValid() );
 
 		DataprepCorePrivateUtils::CompileMaterial(XRayMaterial.Get());
@@ -898,14 +903,16 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!BackFaceMaterial.IsValid())
 	{
-		BackFaceMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("BackFaceMaterial") );
+		BackFaceMaterial = TStrongObjectPtr<UMaterial>( CreateMaterialFunc("BackFaceMaterial") );
 
 		DataprepCorePrivateUtils::CompileMaterial(BackFaceMaterial.Get());
 	}
 
 	if(!PerMeshMaterial.IsValid())
 	{
-		PerMeshMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("PerMeshMaterial") );
+		PerMeshMaterialInstances.Empty();
+
+		PerMeshMaterial = TStrongObjectPtr<UMaterial>( CreateMaterialFunc("PerMeshMaterial") );
 		check( PerMeshMaterial.IsValid() );
 
 		DataprepCorePrivateUtils::CompileMaterial(PerMeshMaterial.Get());
@@ -918,11 +925,11 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	for(int32 Index = 0; Index < PerMeshMaterialInstances.Num(); ++Index)
 	{
-		TWeakObjectPtr<UMaterialInstanceConstant>& PerMeshMaterialInstance = PerMeshMaterialInstances[Index];
+		TStrongObjectPtr<UMaterialInstanceConstant>& PerMeshMaterialInstance = PerMeshMaterialInstances[Index];
 
 		if(!PerMeshMaterialInstance.IsValid())
 		{
-			PerMeshMaterialInstance = TWeakObjectPtr<UMaterialInstanceConstant>( NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient) );
+			PerMeshMaterialInstance = TStrongObjectPtr<UMaterialInstanceConstant>( NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, EObjectFlags::RF_Transient) );
 			check( PerMeshMaterialInstance.IsValid() );
 
 			PerMeshMaterialInstance->Parent = PerMeshMaterial.Get();
@@ -937,11 +944,22 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!ReflectionMaterial.IsValid())
 	{
-		ReflectionMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("ReflectionMaterial") );
+		ReflectionMaterial = TStrongObjectPtr<UMaterial>( CreateMaterialFunc("ReflectionMaterial") );
 		check( ReflectionMaterial.IsValid() );
 
 		DataprepCorePrivateUtils::CompileMaterial(ReflectionMaterial.Get());
 	}
+}
+
+void SDataprepEditorViewport::ReleaseDefaultMaterials()
+{
+	PreviewMaterial.Reset();
+	XRayMaterial.Reset();
+	BackFaceMaterial.Reset();
+	ReflectionMaterial.Reset();
+	TransparentMaterial.Reset();
+	PerMeshMaterialInstances.Empty();
+	PerMeshMaterial.Reset();
 }
 
 void SDataprepEditorViewport::SetSelection(UStaticMeshComponent* Component)
