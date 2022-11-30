@@ -73,7 +73,7 @@ namespace EAnimationPlaybackSpeeds
 /////////////////////////////////////////////////////////////////////////
 // FAnimationViewportClient
 
-class PERSONA_API FAnimationViewportClient : public FEditorViewportClient
+class PERSONA_API FAnimationViewportClient : public FEditorViewportClient, public TSharedFromThis<FAnimationViewportClient>
 {
 protected:
 
@@ -89,6 +89,8 @@ protected:
 public:
 	FAnimationViewportClient(const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, const TSharedRef<class SAnimationEditorViewport>& InAnimationEditorViewport, const TSharedRef<class FAssetEditorToolkit>& InAssetEditorToolkit, int32 InViewportIndex, bool bInShowStats);
 	virtual ~FAnimationViewportClient();
+
+	void Initialize();
 
 	// FEditorViewportClient interface
 	virtual void Tick(float DeltaSeconds) override;
@@ -155,6 +157,12 @@ public:
 
 	/** Handle the skeletal mesh mesh component being used for preview changing */
 	void HandleSkeletalMeshChanged(class USkeletalMesh* OldSkeletalMesh, class USkeletalMesh* NewSkeletalMesh);
+
+	/** Handle a change in the skeletal mesh mesh component being used for preview changing */
+	void HandleOnMeshChanged();
+
+	/** Handle a change in the skeletal mesh phusics component being used for preview changing */
+	void HandleOnSkelMeshPhysicsCreated();
 
 	/** Function to display bone names*/
 	void ShowBoneNames(FViewport* Viewport, FCanvas* Canvas, UDebugSkelMeshComponent* MeshComponent);
@@ -429,6 +437,9 @@ private:
 
 	/** Draws bones from watched poses*/
 	void DrawWatchedPoses(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI);
+
+	/** Get the typed anim preview scene shared ptr*/
+	TSharedPtr<class FAnimationEditorPreviewScene> GetAnimPreviewScenePtr() const;
 
 	/** Get the typed anim preview scene */
 	TSharedRef<class FAnimationEditorPreviewScene> GetAnimPreviewScene() const;

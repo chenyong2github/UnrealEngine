@@ -84,8 +84,6 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 
 	OnCameraControllerChanged();
 
-	InPreviewScene->RegisterOnCameraOverrideChanged(FSimpleDelegate::CreateRaw(this, &FAnimationViewportClient::OnCameraControllerChanged));
-
 	Widget->SetUsesEditorModeTools(ModeTools.Get());
 	((FAssetEditorModeManager*)ModeTools.Get())->SetPreviewScene(&InPreviewScene.Get());
 	ModeTools->SetDefaultMode(FPersonaEditModes::SkeletonSelection);
@@ -147,21 +145,6 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 			AudioDevice->SetUseAttenuationForNonGameWorlds(ConfigOption->bUseAudioAttenuation);
 		}
 	}
-
-	InPreviewScene->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateRaw(this, &FAnimationViewportClient::HandleSkeletalMeshChanged));
-	if (InPreviewScene->GetPreviewMeshComponent())
-	{
-		HandleSkeletalMeshChanged(nullptr, InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMeshAsset());
-	}
-	InPreviewScene->RegisterOnInvalidateViews(FSimpleDelegate::CreateRaw(this, &FAnimationViewportClient::HandleInvalidateViews));
-	InPreviewScene->RegisterOnFocusViews(FSimpleDelegate::CreateRaw(this, &FAnimationViewportClient::HandleFocusViews));
-	InPreviewScene->RegisterOnPreTick(FSimpleDelegate::CreateRaw(this, &FAnimationViewportClient::HandlePreviewScenePreTick));
-	InPreviewScene->RegisterOnPostTick(FSimpleDelegate::CreateRaw(this, &FAnimationViewportClient::HandlePreviewScenePostTick));
-
-	// Register delegate to update the show flags when the post processing is turned on or off
-	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().AddRaw(this, &FAnimationViewportClient::OnAssetViewerSettingsChanged);
-	// Set correct flags according to current profile settings
-	SetAdvancedShowFlagsForScene(UAssetViewerSettings::Get()->Profiles[GetMutableDefault<UEditorPerProjectUserSettings>()->AssetViewerProfileIndex].bPostProcessingEnabled);
 }
 
 FAnimationViewportClient::~FAnimationViewportClient()
@@ -174,15 +157,15 @@ FAnimationViewportClient::~FAnimationViewportClient()
 	}
 
 	// Unregistering the callbacks is mandatory, else we get random crashes
-	if (PreviewScenePtr.IsValid())
+	if (FAnimationEditorPreviewScene* AnimationEditorPreviewScene = GetAnimPreviewScenePtr().Get())
 	{
-		PreviewScenePtr->UnregisterOnPreviewMeshChanged(this);
-		PreviewScenePtr->UnregisterOnInvalidateViews(this);
-		PreviewScenePtr->UnregisterOnCameraOverrideChanged(this);
-		PreviewScenePtr->UnregisterOnPreTick(this);
-		PreviewScenePtr->UnregisterOnPostTick(this);
+		AnimationEditorPreviewScene->UnregisterOnPreviewMeshChanged(this);
+		AnimationEditorPreviewScene->UnregisterOnInvalidateViews(this);
+		AnimationEditorPreviewScene->UnregisterOnCameraOverrideChanged(this);
+		AnimationEditorPreviewScene->UnregisterOnPreTick(this);
+		AnimationEditorPreviewScene->UnregisterOnPostTick(this);
 
-		if (UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent())
+		if (UDebugSkelMeshComponent* PreviewMeshComponent = AnimationEditorPreviewScene->GetPreviewMeshComponent())
 		{
 			if (OnPhysicsCreatedDelegateHandle.IsValid())
 			{
@@ -202,6 +185,29 @@ FAnimationViewportClient::~FAnimationViewportClient()
 	OnMeshChangedDelegateHandle.Reset();
 
 	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().RemoveAll(this);
+}
+
+void FAnimationViewportClient::Initialize()
+{
+	if (FAnimationEditorPreviewScene* AnimationEditorPreviewScene = GetAnimPreviewScenePtr().Get())
+	{
+		AnimationEditorPreviewScene->RegisterOnCameraOverrideChanged(FSimpleDelegate::CreateSP(this, &FAnimationViewportClient::OnCameraControllerChanged));
+		AnimationEditorPreviewScene->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FAnimationViewportClient::HandleSkeletalMeshChanged));
+		if (AnimationEditorPreviewScene->GetPreviewMeshComponent())
+		{
+			HandleSkeletalMeshChanged(nullptr, AnimationEditorPreviewScene->GetPreviewMeshComponent()->GetSkeletalMeshAsset());
+		}
+		AnimationEditorPreviewScene->RegisterOnInvalidateViews(FSimpleDelegate::CreateSP(this, &FAnimationViewportClient::HandleInvalidateViews));
+		AnimationEditorPreviewScene->RegisterOnFocusViews(FSimpleDelegate::CreateSP(this, &FAnimationViewportClient::HandleFocusViews));
+		AnimationEditorPreviewScene->RegisterOnPreTick(FSimpleDelegate::CreateSP(this, &FAnimationViewportClient::HandlePreviewScenePreTick));
+		AnimationEditorPreviewScene->RegisterOnPostTick(FSimpleDelegate::CreateSP(this, &FAnimationViewportClient::HandlePreviewScenePostTick));
+	}
+
+	// Register delegate to update the show flags when the post processing is turned on or off
+	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().AddSP(this, &FAnimationViewportClient::OnAssetViewerSettingsChanged);
+	// Set correct flags according to current profile settings
+	SetAdvancedShowFlagsForScene(UAssetViewerSettings::Get()->Profiles[GetMutableDefault<UEditorPerProjectUserSettings>()->AssetViewerProfileIndex].bPostProcessingEnabled);
+
 }
 
 void FAnimationViewportClient::OnToggleAutoAlignFloor()
@@ -454,11 +460,7 @@ void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkele
 
 	if (NewSkeletalMesh)
 	{
-		OnMeshChangedDelegateHandle = NewSkeletalMesh->GetOnMeshChanged().AddLambda([this]()
-		{
-			UpdateCameraSetup();
-			Invalidate();
-		});
+		OnMeshChangedDelegateHandle = NewSkeletalMesh->GetOnMeshChanged().AddSP(this, &FAnimationViewportClient::HandleOnMeshChanged);
 	}
 
 	if (OldSkeletalMesh != NewSkeletalMesh || NewSkeletalMesh == nullptr)
@@ -486,14 +488,7 @@ void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkele
 		}
 		// we need to make sure we monitor any change to the PhysicsState being recreated, as this can happen from path that is external to this class
 		// (example: setting a property on a body that is type "simulated" will recreate the state from USkeletalBodySetup::PostEditChangeProperty and let the body simulating (UE-107308)
-		OnPhysicsCreatedDelegateHandle = PreviewMeshComponent->RegisterOnPhysicsCreatedDelegate(FOnSkelMeshPhysicsCreated::CreateLambda([this]()
-			{
-				UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
-				// let's make sure nothing is simulating and that all necessary state are in proper order
-				PreviewMeshComponent->SetPhysicsBlendWeight(0.f);
-				PreviewMeshComponent->SetSimulatePhysics(false);
-				DisableAllBodiesSimulatePhysics(PreviewMeshComponent);
-			}));
+		OnPhysicsCreatedDelegateHandle = PreviewMeshComponent->RegisterOnPhysicsCreatedDelegate(FOnSkelMeshPhysicsCreated::CreateSP(this, &FAnimationViewportClient::HandleOnSkelMeshPhysicsCreated));
 
 		PreviewMeshComponent->TermArticulated();
 		PreviewMeshComponent->InitArticulated(GetWorld()->GetPhysicsScene());
@@ -506,6 +501,21 @@ void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkele
 	}
 
 	Invalidate();
+}
+
+void FAnimationViewportClient::HandleOnMeshChanged()
+{
+	UpdateCameraSetup();
+	Invalidate();
+}
+
+void FAnimationViewportClient::HandleOnSkelMeshPhysicsCreated()
+{
+	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
+	// let's make sure nothing is simulating and that all necessary state are in proper order
+	PreviewMeshComponent->SetPhysicsBlendWeight(0.f);
+	PreviewMeshComponent->SetSimulatePhysics(false);
+	DisableAllBodiesSimulatePhysics(PreviewMeshComponent);
 }
 
 void FAnimationViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
@@ -2264,6 +2274,11 @@ void FAnimationViewportClient::SetPlaybackSpeedMode(EAnimationPlaybackSpeeds::Ty
 EAnimationPlaybackSpeeds::Type FAnimationViewportClient::GetPlaybackSpeedMode() const
 {
 	return AnimationPlaybackSpeedMode;
+}
+
+TSharedPtr<class FAnimationEditorPreviewScene> FAnimationViewportClient::GetAnimPreviewScenePtr() const
+{
+	return StaticCastSharedPtr<FAnimationEditorPreviewScene>(PreviewScenePtr);
 }
 
 TSharedRef<FAnimationEditorPreviewScene> FAnimationViewportClient::GetAnimPreviewScene() const
