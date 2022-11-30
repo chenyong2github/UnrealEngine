@@ -249,7 +249,7 @@ void PreSavePackage(FSaveContext& SaveContext)
 	// if the in memory package filename is different the filename we are saving it to,
 	// regenerate a new persistent id for it.
 	UPackage* Package = SaveContext.GetPackage();
-	if (!SaveContext.IsCooking() && !SaveContext.IsFromAutoSave() && !Package->GetLoadedPath().IsEmpty() && Package->GetLoadedPath() != SaveContext.GetTargetPackagePath())
+	if (!SaveContext.IsProceduralSave() && !SaveContext.IsFromAutoSave() && !Package->GetLoadedPath().IsEmpty() && Package->GetLoadedPath() != SaveContext.GetTargetPackagePath())
 	{
 		Package->SetPersistentGuid(FGuid::NewGuid());
 	}
