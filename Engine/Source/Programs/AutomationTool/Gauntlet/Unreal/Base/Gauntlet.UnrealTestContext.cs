@@ -64,6 +64,12 @@ namespace Gauntlet
 		public string Build = "";
 
 		/// <summary>
+		/// Location of the editor build
+		/// </summary>
+		[AutoParam]
+		public string EditorDir = "";
+
+		/// <summary>
 		/// Does this project use 'Game' or Client/Server?
 		/// </summary>
 		[AutoParam(true)]

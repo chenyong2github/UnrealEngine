@@ -154,8 +154,8 @@ namespace Gauntlet
 			UnrealTargetPlatform DefaultPlatform = BuildHostPlatform.Current.Platform;
 			UnrealTargetConfiguration DefaultConfiguration = UnrealTargetConfiguration.Development;
 
-			DirectoryReference UnrealPath = new DirectoryReference(Environment.CurrentDirectory);
-					
+			DirectoryReference UnrealPath = new DirectoryReference(!string.IsNullOrEmpty(ContextOptions.EditorDir) ? ContextOptions.EditorDir : Environment.CurrentDirectory);
+
 			// todo, pass this in as a BuildSource and remove the ContextOption params specific to finding builds
 			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.Project, ContextOptions.ProjectPath, UnrealPath, ContextOptions.UsesSharedBuildType, ContextOptions.Build, ContextOptions.SearchPaths });
 

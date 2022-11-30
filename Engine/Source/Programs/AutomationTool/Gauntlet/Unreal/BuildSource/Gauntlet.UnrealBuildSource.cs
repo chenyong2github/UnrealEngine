@@ -641,7 +641,7 @@ namespace Gauntlet
 			{
 				FileSystemReference EditorExe = null;
 
-				if (BuildName == "Editor")
+				if (BuildName == "Editor" && string.IsNullOrEmpty(Globals.Params.ParseValue("EditorDir", null)))
 				{
 					try
 					{
