@@ -65,11 +65,7 @@ void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>&
 	TFunction<void(UStaticMesh*)> FinalizeChanges = [](UStaticMesh* StaticMesh) -> void
 	{
 		StaticMesh->PostEditChange();
-		UStaticMesh::FCommitMeshDescriptionParams Params;
-		Params.bMarkPackageDirty = true;
-		Params.bUseHashAsGuid = true;
-		StaticMesh->CommitMeshDescription(0, Params);
-		StaticMesh->ClearMeshDescription(0);
+		StaticMesh->MarkPackageDirty();
 
 		// Refresh associated editor 
 		TSharedPtr<IToolkit> EditingToolkit = FToolkitManager::Get().FindEditorForAsset(StaticMesh);
