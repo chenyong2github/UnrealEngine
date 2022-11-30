@@ -1300,10 +1300,15 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 					mu::NodeImagePtr ImageNode = GenerateMutableSourceImage(ConnectedImagePin, GenerationContext, 0.f);
 					ImagePatchNode->SetImage(ImageNode);
 
-					if (const UEdGraphPin* ConnectedMaskPin = FollowInputPin(*TypedNodeEdit->GetUsedImageMaskPin(ImageId)))
+					const UEdGraphPin* ImageMaskPin = TypedNodeEdit->GetUsedImageMaskPin(ImageId);
+
+					if (ImageMaskPin)
 					{
-						mu::NodeImagePtr MaskNode = GenerateMutableSourceImage(ConnectedMaskPin, GenerationContext, 0.f);
-						ImagePatchNode->SetMask(MaskNode);
+						if (const UEdGraphPin* ConnectedMaskPin = FollowInputPin(*ImageMaskPin))
+						{
+							mu::NodeImagePtr MaskNode = GenerateMutableSourceImage(ConnectedMaskPin, GenerationContext, 0.f);
+							ImagePatchNode->SetMask(MaskNode);
+						}
 					}
 
 					// Add the block indices
