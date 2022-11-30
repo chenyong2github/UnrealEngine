@@ -1885,24 +1885,23 @@ void FFractureEditorModeToolkit::GetStatisticsSummary(FGeometryCollectionStatist
 	{
 		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
 		{
-			if (AGeometryCollectionActor* Actor = Cast<AGeometryCollectionActor>(*Iter))
+			if (AActor* Actor = Cast<AActor>(*Iter))
 			{
-				if (UGeometryCollectionComponent* Component = Actor->GetGeometryCollectionComponent())
+				TInlineComponentArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
+				Actor->GetComponents(GeometryCollectionComponents);
+				for (UGeometryCollectionComponent* GeometryCollectionComponent : GeometryCollectionComponents)
 				{
-					if (const UGeometryCollection* RestCollection = Component->GetRestCollection())
+					if (const UGeometryCollection* RestCollection = GeometryCollectionComponent->GetRestCollection())
 					{
-						const FGeometryCollection* GeometryCollection = RestCollection->GetGeometryCollection().Get();
-
-						if (GeometryCollection != nullptr)
+						if (RestCollection->GetGeometryCollection())
 						{
-							GeometryCollectionArray.Add(GeometryCollection);
+							GeometryCollectionArray.Add(RestCollection->GetGeometryCollection().Get());
 						}
 					}
 				}
 			}
 		}
 	}
-
 
 	if (GeometryCollectionArray.Num() > 0)
 	{
