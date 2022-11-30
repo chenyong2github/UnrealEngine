@@ -338,13 +338,31 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("enum class ").Append(enumObj.CppType);
 				if (enumObj.UnderlyingType != UhtEnumUnderlyingType.Unspecified)
 				{
-					builder.Append(" : ").Append(enumObj.UnderlyingType.ToString());
+					builder.Append(" : ").Append(enumObj.UnderlyingType.ToString().ToLower());
 				}
 				builder.Append(";\r\n");
-				
+
 				// Add TIsUEnumClass typetraits
 				builder.Append("template<> struct TIsUEnumClass<").Append(enumObj.CppType).Append("> { enum { Value = true }; };\r\n");
+			}
+			else if (enumObj.CppForm == UhtEnumCppForm.Regular && enumObj.UnderlyingType != UhtEnumUnderlyingType.Unspecified)
+			{
+				builder.Append("\r\n");
+				builder.Append("enum ").Append(enumObj.CppType);
+				builder.Append(" : ").Append(enumObj.UnderlyingType.ToString().ToLower());
+				builder.Append(";\r\n");
+			}
+			else if (enumObj.CppForm == UhtEnumCppForm.Namespaced && enumObj.UnderlyingType != UhtEnumUnderlyingType.Unspecified)
+			{
+				string[] SplitName = enumObj.CppType.Split("::");
+				builder.Append("\r\n");
+				builder.Append("namespace ").Append(SplitName[0]).Append(" { enum ").Append(SplitName[1]);
+				builder.Append(" : ").Append(enumObj.UnderlyingType.ToString().ToLower());
+				builder.Append("; }\r\n");
+			}
 
+			if (enumObj.CppForm == UhtEnumCppForm.EnumClass || enumObj.UnderlyingType != UhtEnumUnderlyingType.Unspecified)
+			{	
 				// Forward declare the StaticEnum<> specialization for enum classes
 				builder.Append("template<> ").Append(PackageApi).Append("UEnum* StaticEnum<").Append(enumObj.CppType).Append(">();\r\n");
 				builder.Append("\r\n");

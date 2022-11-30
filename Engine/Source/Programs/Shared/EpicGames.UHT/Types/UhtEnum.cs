@@ -43,44 +43,49 @@ namespace EpicGames.UHT.Types
 		Unspecified,
 
 		/// <summary>
-		/// uint8
+		/// Uint8
 		/// </summary>
-		uint8,
+		Uint8,
 
 		/// <summary>
-		/// uint16
+		/// Uint16
 		/// </summary>
-		uint16,
+		Uint16,
 
 		/// <summary>
-		/// uint32
+		/// Uint32
 		/// </summary>
-		uint32,
+		Uint32,
 
 		/// <summary>
-		/// uint64
+		/// Uint64
 		/// </summary>
-		uint64,
+		Uint64,
 
 		/// <summary>
-		/// int8
+		/// Int8
 		/// </summary>
-		int8,
+		Int8,
 
 		/// <summary>
-		/// int16
+		/// Int16
 		/// </summary>
-		int16,
+		Int16,
 
 		/// <summary>
-		/// int32
+		/// Int32
 		/// </summary>
-		int32,
+		Int32,
 
 		/// <summary>
-		/// int64
+		/// Int64
 		/// </summary>
-		int64
+		Int64,
+
+		/// <summary>
+		/// Int
+		/// </summary>
+		Int,
 	}
 
 	/// <summary>
@@ -121,7 +126,7 @@ namespace EpicGames.UHT.Types
 		/// Underlying integer enumeration type
 		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public UhtEnumUnderlyingType UnderlyingType { get; set; } = UhtEnumUnderlyingType.uint8;
+		public UhtEnumUnderlyingType UnderlyingType { get; set; } = UhtEnumUnderlyingType.Uint8;
 
 		/// <summary>
 		/// Full enumeration type.  For namespace enumerations, this includes the namespace name and the enum type name

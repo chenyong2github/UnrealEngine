@@ -151,7 +151,7 @@ namespace EpicGames.UHT.Types
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.BlueprintCallable))
 			{
-				if (Enum != null && Enum.UnderlyingType != UhtEnumUnderlyingType.uint8 && Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified)
+				if (Enum != null && Enum.CppForm == UhtEnumCppForm.EnumClass && Enum.UnderlyingType != UhtEnumUnderlyingType.Uint8 && Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified)
 				{
 					this.LogError("Invalid enum param for Blueprints - currently only uint8 supported");
 				}

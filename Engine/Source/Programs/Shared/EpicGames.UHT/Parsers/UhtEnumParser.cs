@@ -80,7 +80,7 @@ namespace EpicGames.UHT.Parsers
 						{
 							UhtToken enumType = topScope.TokenReader.GetIdentifier("enumeration base");
 
-							if (!System.Enum.TryParse<UhtEnumUnderlyingType>(enumType.Value.ToString(), out UhtEnumUnderlyingType underlyingType) || underlyingType == UhtEnumUnderlyingType.Unspecified)
+							if (!System.Enum.TryParse<UhtEnumUnderlyingType>(enumType.Value.ToString(), true, out UhtEnumUnderlyingType underlyingType) || underlyingType == UhtEnumUnderlyingType.Unspecified)
 							{
 								topScope.TokenReader.LogError(enumType.InputLine, $"Unsupported enum class base type '{enumType.Value}'");
 							}
@@ -89,6 +89,11 @@ namespace EpicGames.UHT.Parsers
 						else
 						{
 							enumObject.UnderlyingType = UhtEnumUnderlyingType.Unspecified;
+						}
+
+						if (enumObject.UnderlyingType != UhtEnumUnderlyingType.Unspecified && enumObject.UnderlyingType != UhtEnumUnderlyingType.Uint8 && enumObject.MetaData.ContainsKey("BlueprintType"))
+						{
+							topScope.TokenReader.LogError("Invalid BlueprintType enum base - currently only uint8 supported");
 						}
 					}
 					else
@@ -99,21 +104,21 @@ namespace EpicGames.UHT.Parsers
 							{
 								UhtToken enumType = topScope.TokenReader.GetIdentifier("enumeration base");
 
-								if (enumType.Value != "int")
+								if (!System.Enum.TryParse<UhtEnumUnderlyingType>(enumType.Value.ToString(), true, out UhtEnumUnderlyingType underlyingType) || underlyingType == UhtEnumUnderlyingType.Unspecified)
 								{
-									topScope.TokenReader.LogError($"Regular enums only support 'int' as the value size");
+									topScope.TokenReader.LogError(enumType.InputLine, $"Unsupported regular enum type '{enumType.Value}'");
 								}
+								enumObject.UnderlyingType = underlyingType;
+							}
+							else
+							{
+								enumObject.UnderlyingType = UhtEnumUnderlyingType.Unspecified;
 							}
 						}
 						if ((enumObject.EnumFlags & EEnumFlags.Flags) != 0)
 						{
 							topScope.TokenReader.LogError("The 'Flags' specifier can only be used on enum classes");
 						}
-					}
-
-					if (enumObject.UnderlyingType != UhtEnumUnderlyingType.uint8 && enumObject.MetaData.ContainsKey("BlueprintType"))
-					{
-						topScope.TokenReader.LogError("Invalid BlueprintType enum base - currently only uint8 supported");
 					}
 
 					//EnumDef.GetDefinitionRange().Start = &Input[InputPos];
@@ -134,10 +139,15 @@ namespace EpicGames.UHT.Parsers
 							{
 								UhtToken enumType = topScope.TokenReader.GetIdentifier("enumeration base");
 
-								if (enumType.Value != "int")
+								if (!System.Enum.TryParse<UhtEnumUnderlyingType>(enumType.Value.ToString(), true, out UhtEnumUnderlyingType underlyingType) || underlyingType == UhtEnumUnderlyingType.Unspecified)
 								{
-									topScope.TokenReader.LogError($"Namespace enums only support 'int' as the value size");
+									topScope.TokenReader.LogError(enumType.InputLine, $"Unsupported namespaced enum type '{enumType.Value}'");
 								}
+								enumObject.UnderlyingType = underlyingType;
+							}
+							else
+							{
+								enumObject.UnderlyingType = UhtEnumUnderlyingType.Unspecified;
 							}
 
 							topScope.TokenReader.Require('{');

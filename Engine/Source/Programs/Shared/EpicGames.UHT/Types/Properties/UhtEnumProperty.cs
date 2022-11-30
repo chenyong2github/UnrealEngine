@@ -44,10 +44,10 @@ namespace EpicGames.UHT.Types
 		public UhtProperty? UnderlyingProperty { get; set; }
 
 		/// <summary>
-		/// Underlying type which defaults to int32 if the referenced enum doesn't have an underlying type
+		/// Underlying type which defaults to Int32 if the referenced enum doesn't have an underlying type
 		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public UhtEnumUnderlyingType UnderlyingType => Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? Enum.UnderlyingType : UhtEnumUnderlyingType.int32;
+		public UhtEnumUnderlyingType UnderlyingType => Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? Enum.UnderlyingType : UhtEnumUnderlyingType.Int32;
 
 		/// <summary>
 		/// Underlying type size.  Defaults to unsized if the referenced enum doesn't have an underlying type
@@ -89,7 +89,7 @@ namespace EpicGames.UHT.Types
 			{
 				return null;
 			}
-			return $"enum class {Enum.SourceName} : {UnderlyingType};";
+			return System.String.Format("enum class {0} : {1};", Enum.SourceName, UnderlyingType.ToString().ToLower());
 		}
 
 		/// <inheritdoc/>
@@ -315,21 +315,21 @@ namespace EpicGames.UHT.Types
 			propertySettings.SourceName = "UnderlyingType";
 			switch (UnderlyingType)
 			{
-				case UhtEnumUnderlyingType.int8:
+				case UhtEnumUnderlyingType.Int8:
 					return new UhtInt8Property(propertySettings, UnderlyingTypeSize);
-				case UhtEnumUnderlyingType.int16:
+				case UhtEnumUnderlyingType.Int16:
 					return new UhtInt16Property(propertySettings, UnderlyingTypeSize);
-				case UhtEnumUnderlyingType.int32:
+				case UhtEnumUnderlyingType.Int32:
 					return new UhtIntProperty(propertySettings, UnderlyingTypeSize);
-				case UhtEnumUnderlyingType.int64:
+				case UhtEnumUnderlyingType.Int64:
 					return new UhtInt64Property(propertySettings, UnderlyingTypeSize);
-				case UhtEnumUnderlyingType.uint8:
+				case UhtEnumUnderlyingType.Uint8:
 					return new UhtByteProperty(propertySettings, UnderlyingTypeSize);
-				case UhtEnumUnderlyingType.uint16:
+				case UhtEnumUnderlyingType.Uint16:
 					return new UhtUInt16Property(propertySettings, UnderlyingTypeSize);
-				case UhtEnumUnderlyingType.uint32:
+				case UhtEnumUnderlyingType.Uint32:
 					return new UhtUInt32Property(propertySettings, UnderlyingTypeSize);
-				case UhtEnumUnderlyingType.uint64:
+				case UhtEnumUnderlyingType.Uint64:
 					return new UhtUInt64Property(propertySettings, UnderlyingTypeSize);
 				default:
 					throw new UhtIceException("Unexpected underlying enum type");
