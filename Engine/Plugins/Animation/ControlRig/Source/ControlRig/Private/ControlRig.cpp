@@ -730,7 +730,7 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	LatestExecutedState = InState;
 
 	FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
-	FControlRigExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicData<FControlRigExecuteContext>();
+	FControlRigExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicDataSafe<FControlRigExecuteContext>();
 	PublicContext.SetDeltaTime(DeltaTime);
 	PublicContext.SetAbsoluteTime(AbsoluteTime);
 

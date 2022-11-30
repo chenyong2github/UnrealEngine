@@ -436,6 +436,16 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		return *(ExecuteContextType*)PublicDataScope.GetStructMemory();
 	}
 
+	template<typename ExecuteContextType = FRigVMExecuteContext>
+	ExecuteContextType& GetPublicDataSafe()
+	{
+		if(!PublicDataScope.GetStruct()->IsChildOf(ExecuteContextType::StaticStruct()))
+		{
+			Initialize(ExecuteContextType::StaticStruct());
+		}
+		return *(ExecuteContextType*)PublicDataScope.GetStructMemory();
+	}
+
 	const FRigVMSlice& GetSlice() const
 	{
 		const int32 SliceOffset = (int32)SliceOffsets[GetPublicData<>().InstructionIndex];
