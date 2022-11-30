@@ -2,7 +2,9 @@
 
 #pragma once
 
-#if WITH_EDITOR	// this has no business existing in a cooked game
+// cooked games may want to load key files for extra information about the PSOs
+#define UE_WITH_PIPELINE_CACHE_UTILITIES			(WITH_EDITOR || !UE_BUILD_SHIPPING)
+#if UE_WITH_PIPELINE_CACHE_UTILITIES
 
 #include "Containers/Array.h"
 #include "Containers/Map.h"
@@ -24,6 +26,8 @@ namespace UE
 {
 namespace PipelineCacheUtilities
 {
+#if WITH_EDITOR	// limit what's compiled for the cooked games
+
 	/** Describes a particular combination of shaders. */
 	struct FPermutation
 	{
@@ -51,6 +55,8 @@ namespace PipelineCacheUtilities
 		}
 	};
 
+#endif // WITH_EDITOR
+
 	/** 
 	 * Loads stable shader keys file (using a proprietary format). Stable key is a way to identify a shader independently of its output hash
 	 * 
@@ -59,6 +65,8 @@ namespace PipelineCacheUtilities
 	 * @return true if successful
 	 */
 	RENDERCORE_API bool LoadStableKeysFile(const FStringView& Filename, TArray<FStableShaderKeyAndValue>& InOutArray);
+
+#if WITH_EDITOR	// limit what's compiled for the cooked games
 
 	/** 
 	 * Saves stable shader keys file (using a proprietary format). Stable key is a way to identify a shader independently of its output hash
@@ -133,7 +141,10 @@ namespace PipelineCacheUtilities
 	 * @param OutPackages packages in this chunk
 	 */
 	RENDERCORE_API bool LoadChunkInfo(const FString& Filename, const FString& InShaderFormat, int32 &OutChunkId, FString& OutChunkedCacheFilename, TSet<FName>& OutPackages);
+
+#endif // WITH_EDITOR
+
 }
 };
 
-#endif // WITH_EDITOR
+#endif // UE_WITH_PIPELINE_CACHE_UTILITIES

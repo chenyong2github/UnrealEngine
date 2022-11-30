@@ -382,8 +382,8 @@ class FShaderPipelineCacheTask
 	friend class FShaderPipelineCache;
 
 public:
-	FShaderPipelineCacheTask(bool bIsUserCacheIn, EShaderPlatform InShaderPlatform) :
-		ShaderPlatform(InShaderPlatform), bIsUserCache(bIsUserCacheIn)
+	FShaderPipelineCacheTask(FShaderPipelineCache* InCache, bool bIsUserCacheIn, EShaderPlatform InShaderPlatform) :
+		ShaderPlatform(InShaderPlatform), bIsUserCache(bIsUserCacheIn), Cache(InCache)
 	{
 		bReady = !CVarPSOFileCacheGameFileMaskEnabled.GetValueOnAnyThread() || CVarPSOFileCachePreOptimizeEnabled.GetValueOnAnyThread();
 	}
@@ -433,6 +433,9 @@ private:
 	bool bReady = false;
 	bool bOpened = false;
 	bool bIsUserCache;
+
+	/** Cache which kicked off this task. */
+	FShaderPipelineCache* Cache = nullptr;
 
 	// as there is only ever one active precompile task at a time
 	// these stats are available to read anywhere.
@@ -836,7 +839,7 @@ bool FShaderPipelineCache::OpenPipelineFileCacheInternal(bool bWantUserCache, co
 {
 	if(!ShaderCacheTasks.Contains(PSOCacheKey))
 	{
-		TUniquePtr<FShaderPipelineCacheTask> NewPSOTask = MakeUnique<FShaderPipelineCacheTask>(bWantUserCache, Platform);
+		TUniquePtr<FShaderPipelineCacheTask> NewPSOTask = MakeUnique<FShaderPipelineCacheTask>(this, bWantUserCache, Platform);
 		bool bOpened = NewPSOTask->Open(PSOCacheKey, CacheName, Platform);
 		if(bOpened)
 		{
@@ -1030,6 +1033,14 @@ bool FShaderPipelineCacheTask::Precompile(FRHICommandListImmediate& RHICmdList, 
 				// This indicates we do not want a fatal error if this compilation fails
 				// (ie, if this entry in the file cache is bad)
 				GraphicsInitializer.bFromPSOFileCache = true;
+
+#if !UE_BUILD_SHIPPING
+				// dump to log to describe
+				if (Cache && Cache->ShaderHashToStableKey.IsInitialized())
+				{
+					Cache->ShaderHashToStableKey.DumpPSOToLogIfConfigured(GraphicsInitializer);
+				}
+#endif
 			}
 			// Use SetGraphicsPipelineState to call down into PipelineStateCache and also handle the fallback case used by OpenGL.
 			// we lose track of our PSO precompile jobs through here. they may not be RHI dependencies and could persist beyond the next tick.
@@ -1538,6 +1549,12 @@ FShaderPipelineCache::FShaderPipelineCache(EShaderPlatform Platform)
 	BatchSize = CVarPSOFileCacheBatchSize.GetValueOnAnyThread();
 	BatchTime = CVarPSOFileCacheBatchTime.GetValueOnAnyThread();
 	
+	FString StableShaderKeyFile;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-shkfile="), StableShaderKeyFile) && !StableShaderKeyFile.IsEmpty())
+	{
+		ShaderHashToStableKey.Initialize(StableShaderKeyFile);
+	}
+
 	uint64 PreCompileMask = (uint64)CVarPSOFileCachePreCompileMask.GetValueOnAnyThread();
 	FPipelineFileCacheManager::SetGameUsageMaskWithComparison(PreCompileMask, PreCompileMaskComparison);
 

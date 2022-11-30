@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "PipelineCacheUtilities.h"
-#if WITH_EDITOR	// this has no business existing in a cooked game
+#if UE_WITH_PIPELINE_CACHE_UTILITIES
 #include "Misc/SecureHash.h"
 #include "Serialization/NameAsStringIndexProxyArchive.h"
 #include "Serialization/VarInt.h"
@@ -48,7 +48,12 @@ namespace Private
 			return Ar << Info.Magic << Info.Version << Info.NumEntries;
 		}
 	};
+#pragma pack(pop)
 
+#if WITH_EDITOR
+
+#pragma pack(push)
+#pragma pack(1)
 	/** Header of the binary stable pipeline cache file. */
 	struct FStablePipelineCacheSerializedHeader
 	{
@@ -290,6 +295,8 @@ namespace Private
 			Current = 1
 		};
 	};
+
+#endif // WITH_EDITOR
 }
 }
 }
@@ -368,6 +375,8 @@ bool UE::PipelineCacheUtilities::LoadStableKeysFile(const FStringView& Filename,
 
 	return true;
 }
+
+#if WITH_EDITOR
 
 bool UE::PipelineCacheUtilities::SaveStableKeysFile(const FStringView& Filename, const TSet<FStableShaderKeyAndValue>& Values)
 {
@@ -1016,5 +1025,5 @@ bool UE::PipelineCacheUtilities::LoadChunkInfo(const FString& Filename, const FS
 
 	return true;
 }
-
 #endif // WITH_EDITOR
+#endif // UE_WITH_PIPELINE_CACHE_UTILITIES

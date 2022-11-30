@@ -14,6 +14,7 @@
 #include "TickableObjectRenderThread.h"
 #include "PipelineFileCache.h"
 #include "Delegates/DelegateCombinations.h"
+#include "ShaderStableKeyDebugInfoReader.h"
 
 class FBlendStateInitializerRHI;
 class FRHIBlendState;
@@ -239,6 +240,9 @@ private:
 	double LastAutoSaveTimeLogBoundPSO = 0.0;
 	int32 LastAutoSaveNum = 0;
 	TSet<uint32> CompiledHashes;
+
+	/** Development tool that can describe PSOs in non-Shipping builds. */
+	UE::ShaderUtils::FShaderStableKeyDebugInfoReader ShaderHashToStableKey;
 
 	static FString UserCacheTaskKey;
 
