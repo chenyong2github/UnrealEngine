@@ -4,8 +4,6 @@
  * Code for reading .shk files and using that information to map shader hashes back to human-readable identifies.
  */
 
-#pragma once
-
 #include "ShaderStableKeyDebugInfoReader.h"
 #include "PipelineCacheUtilities.h"
 
