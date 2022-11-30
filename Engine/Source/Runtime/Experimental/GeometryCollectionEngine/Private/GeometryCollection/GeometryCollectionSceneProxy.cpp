@@ -476,16 +476,18 @@ void FGeometryCollectionSceneProxy::BuildGeometry( const FGeometryCollectionCons
 		OutVertices[PointIdx] =
 			FDynamicMeshVertex(
 				ConstantDataIn->Vertices[PointIdx],
-				ConstantDataIn->UVs[PointIdx][0],
+				ConstantDataIn->UVChannels[0][PointIdx],
 				GetColorFunc(ConstantDataIn, PointIdx, bCapturedShowBoneColors)
 			);
 		OutVertices[PointIdx].SetTangents(ConstantDataIn->TangentU[PointIdx], ConstantDataIn->TangentV[PointIdx], ConstantDataIn->Normals[PointIdx]);
 
-		if (ConstantDataIn->UVs[PointIdx].Num() > 1)
+		const int32 NumUvChannels = ConstantDataIn->UVChannels.Num();
+		if (ConstantDataIn->UVChannels.Num() > 1)
 		{
-			for (int32 UVLayerIdx = 1; UVLayerIdx < ConstantDataIn->UVs[PointIdx].Num(); ++UVLayerIdx)
+			for (int32 UVLayerIdx = 1; UVLayerIdx < NumUvChannels; ++UVLayerIdx)
 			{
-				OutVertices[PointIdx].TextureCoordinate[UVLayerIdx] = ConstantDataIn->UVs[PointIdx][UVLayerIdx];
+				const FGeometryCollectionConstantData::FUVChannel& UVChannel = ConstantDataIn->UVChannels[UVLayerIdx];
+				OutVertices[PointIdx].TextureCoordinate[UVLayerIdx] = UVChannel[PointIdx];
 			}
 		}
 	};

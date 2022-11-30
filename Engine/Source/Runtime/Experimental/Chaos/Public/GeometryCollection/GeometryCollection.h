@@ -219,7 +219,7 @@ public:
 	* Currently, this call assumes that the indices are ordered by MaterialID
 	* #todo(dmp): Refactor this and ReindexMaterials to share code
 	*/
-	TArray<FGeometryCollectionSection> BuildMeshSections(const TArray<FIntVector> &Indices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector> &RetIndices) const;
+	TArray<FGeometryCollectionSection> BuildMeshSections(const TArray<FIntVector> &Indices, const TArray<int32>& BaseMeshOriginalIndicesIndex, TArray<FIntVector> &RetIndices) const;
 	//
 	//
 	//

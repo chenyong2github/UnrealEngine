@@ -100,6 +100,12 @@ FAutoConsoleVariableRef CVarChaosGCUseISMPool(TEXT("p.Chaos.GC.UseISMPool"), bCh
 bool bChaos_GC_UseISMPoolForNonFracturedParts = true;
 FAutoConsoleVariableRef CVarChaosGCUseISMPoolForNonFracturedParts(TEXT("p.Chaos.GC.UseISMPoolForNonFracturedParts"), bChaos_GC_UseISMPoolForNonFracturedParts, TEXT("When enabled, non fractured part will use the ISM pool if specified"));
 
+bool bChaos_GC_InitConstantDataUseParallelFor = true;
+FAutoConsoleVariableRef CVarChaosGCInitConstantDataUseParallelFor(TEXT("p.Chaos.GC.InitConstantDataUseParallelFor"), bChaos_GC_InitConstantDataUseParallelFor, TEXT("When enabled, InitConstant data will use parallelFor for copying some of the data"));
+
+int32 bChaos_GC_InitConstantDataParallelForBatchSize = 5000;
+FAutoConsoleVariableRef CVarChaosGCInitConstantDataParallelForBatchSize(TEXT("p.Chaos.GC.InitConstantDataParallelForBatchSize"), bChaos_GC_InitConstantDataParallelForBatchSize, TEXT("When parallelFor is used in InitConstantData, defined the minimium size of a batch of vertex "));
+
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 extern FGeometryCollectionDynamicDataPool GDynamicDataPool;
@@ -1825,16 +1831,48 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 		ConstantData->TangentU = TArray<FVector3f>(TangentU.GetData(), TangentU.Num());
 		ConstantData->TangentV = TArray<FVector3f>(TangentV.GetData(), TangentV.Num());
 		ConstantData->Normals = TArray<FVector3f>(Normal.GetData(), Normal.Num());
-		ConstantData->UVs = TArray<TArray<FVector2f>>(UVs.GetData(), UVs.Num());
 		ConstantData->Colors = TArray<FLinearColor>(Color.GetData(), Color.Num());
+
+		// use the first point to know the number of channels
+		const int32 NumUVChannels = Collection->UVs.Num() ? Collection->UVs[0].Num() : 1;
+		ConstantData->UVChannels.SetNum(NumUVChannels);
+		for (int32 UVChannelIndex = 0; UVChannelIndex < NumUVChannels; UVChannelIndex++)
+		{
+			ConstantData->UVChannels[UVChannelIndex].AddUninitialized(NumPoints);
+		}
 
 		ConstantData->BoneColors.AddUninitialized(NumPoints);
 
-		ParallelFor(NumPoints, [&](const int32 InPointIndex)
+		if (bChaos_GC_InitConstantDataUseParallelFor)
+		{
+			ParallelFor(TEXT("GC:InitConstantData"), NumPoints, bChaos_GC_InitConstantDataParallelForBatchSize,
+				[&](const int32 InPointIndex)
+				{
+					const int32 BoneIndex = ConstantData->BoneMap[InPointIndex];
+					ConstantData->BoneColors[InPointIndex] = BoneColors[BoneIndex];
+
+					for (int32 UVChannelIndex = 0; UVChannelIndex < NumUVChannels; UVChannelIndex++)
+					{
+						ConstantData->UVChannels[UVChannelIndex][InPointIndex] = Collection->UVs[InPointIndex][UVChannelIndex];
+					}
+				});
+		}
+		else
+		{
+			for (int32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
 			{
-				const int32 BoneIndex = ConstantData->BoneMap[InPointIndex];
-				ConstantData->BoneColors[InPointIndex] = BoneColors[BoneIndex];
-			});
+				const int32 BoneIndex = ConstantData->BoneMap[PointIndex];
+				ConstantData->BoneColors[PointIndex] = BoneColors[BoneIndex];
+			}
+
+			for (int32 UVChannelIndex = 0; UVChannelIndex < NumUVChannels; UVChannelIndex++)
+			{
+				for (int32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
+				{
+					ConstantData->UVChannels[UVChannelIndex][PointIndex] = Collection->UVs[PointIndex][UVChannelIndex];
+				}
+			}
+		}
 
 		int32 NumIndices = 0;
 		const TManagedArray<FIntVector>& Indices = Collection->Indices;

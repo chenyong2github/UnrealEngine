@@ -94,12 +94,14 @@ inline void CopyTransformsWithConversionWhenNeeded(TArray<FMatrix44f>& DstTransf
 /** Immutable rendering data (kind of) */
 struct FGeometryCollectionConstantData
 {
+	using FUVChannel = TArray<FVector2f>;
+
 	TArray<FVector3f> Vertices;
 	TArray<FIntVector> Indices;
 	TArray<FVector3f> Normals;
 	TArray<FVector3f> TangentU;
 	TArray<FVector3f> TangentV;
-	TArray<TArray<FVector2f>> UVs;
+	TArray<FUVChannel> UVChannels;
 	TArray<FLinearColor> Colors;
 	TArray<int32> BoneMap;
 	TArray<FLinearColor> BoneColors;

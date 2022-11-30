@@ -6,7 +6,7 @@
 
 
 TArray<FGeometryCollectionSection>
-FGeometryCollectionSection::BuildMeshSections(const FManagedArrayCollection& InCollection, const TArray<FIntVector>& InputIndices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices)
+FGeometryCollectionSection::BuildMeshSections(const FManagedArrayCollection& InCollection, const TArray<FIntVector>& InputIndices, const TArray<int32>& BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices)
 {
 	TArray<FGeometryCollectionSection> RetSections;
 	TArray<FGeometryCollectionSection> TmpSections;
@@ -53,18 +53,23 @@ FGeometryCollectionSection::BuildMeshSections(const FManagedArrayCollection& InC
 
 		// remap indices so the materials appear to be grouped
 		RetIndices.AddUninitialized(InputIndices.Num());
-		int Idx = 0;
+
+		// since we know the number of trinagle per section we can distribute the faces in RetIndices
+		// this avoid nested loop that result in N * M operations (N=sections M=faces) and we can process it in (N + M) operations instead 
+		TArray<int32> OffsetPerSection;
+		OffsetPerSection.AddUninitialized(TmpSections.Num());
+		int32 SectionOffset = 0;
 		for (int Section = 0; Section < TmpSections.Num(); Section++)
 		{
-			for (int FaceElement = 0; FaceElement < InputIndices.Num(); FaceElement++)
-			{
-				int32 ID = (MaterialID)[BaseMeshOriginalIndicesIndex[FaceElement]];
+			OffsetPerSection[Section] = SectionOffset;
+			SectionOffset += TmpSections[Section].NumTriangles;
+		}
 
-				if (Section == ID)
-				{
-					RetIndices[Idx++] = InputIndices[FaceElement];
-				}
-			}
+		for (int FaceElement = 0; FaceElement < InputIndices.Num(); FaceElement++)
+		{
+			const int32 SectionID = (MaterialID)[BaseMeshOriginalIndicesIndex[FaceElement]];
+			int32& SectionOffsetRef = OffsetPerSection[SectionID];
+			RetIndices[SectionOffsetRef++] = InputIndices[FaceElement];
 		}
 
 		// if a material group no longer has any triangles in it then add material section for removal

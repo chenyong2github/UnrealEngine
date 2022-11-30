@@ -34,7 +34,7 @@ struct CHAOS_API FGeometryCollectionSection
 	}
 
 	static TArray<FGeometryCollectionSection>
-	BuildMeshSections(const FManagedArrayCollection& InCollection, const TArray<FIntVector>& InputIndices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices);
+	BuildMeshSections(const FManagedArrayCollection& InCollection, const TArray<FIntVector>& InputIndices, const TArray<int32>& BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices);
 
 	/** The index of the material with which to render this section. */
 	int32 MaterialID;
