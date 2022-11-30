@@ -821,7 +821,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 	}
 }
 
-int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(FMoviePipelineFilenameResolveParams InParams)
+int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(FMoviePipelineFilenameResolveParams InParams, bool bGetNextVersion)
 {
 	if (!InParams.Job)
 	{
@@ -892,7 +892,7 @@ int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(FMoviePipelineFilenam
 
 		}
 
-		return  HighestVersion + 1;
+		return HighestVersion + (bGetNextVersion ? 1 : 0);
 	}
 
 	return 0;

@@ -233,11 +233,13 @@ FString UMoviePipelineEditorBlueprintLibrary::ResolveOutputDirectoryFromJob(UMov
 	// By having it swap {camera_name} and {shot_name} with an unresolvable tag, it will
 	// stay in the resolved path and can be removed using the code below.
 	static const FString DummyTag = TEXT("{dontresolvethis}");
+	const bool bGetNextVersion = false;
 	FMoviePipelineFilenameResolveParams Params;
 	Params.Job = InJob;
 	Params.ShotNameOverride = DummyTag;
 	Params.CameraNameOverride = DummyTag;
 	Params.InitializationTime = FDateTime::UtcNow();
+	Params.InitializationVersion = UMoviePipelineBlueprintLibrary::ResolveVersionNumber(Params, bGetNextVersion);
 
 	FString OutResolvedPath;
 	FMoviePipelineFormatArgs Dummy;
