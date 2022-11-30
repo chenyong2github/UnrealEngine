@@ -15,9 +15,11 @@ namespace GLTF
 			{
 				T& Obj = Objects[Index];
 
+				Obj.UniqueId = Prefix + FString::FromInt(Index);
+
 				if (Obj.Name.IsEmpty())
 				{
-					Obj.Name = Prefix + FString::FromInt(Index);
+					Obj.Name = Obj.UniqueId;
 				}
 			}
 		}
@@ -72,19 +74,36 @@ namespace GLTF
 		check(!Prefix.IsEmpty());
 
 		{
+			const FString ScenePrefix = Prefix + TEXT("_scene_");
+
+			for (size_t SceneIndex = 0; SceneIndex < Scenes.Num(); SceneIndex++)
+			{
+				FScene& Scene = Scenes[SceneIndex];
+
+				Scene.UniqueId = ScenePrefix + FString::FromInt(SceneIndex);
+
+				if (Scene.Name.IsEmpty())
+				{
+					Scene.Name = Scene.UniqueId;
+				}
+			}
+		}
+
+		{
 			const FString NodePrefix = Prefix + TEXT("_node_");
 			const FString JointPrefix = Prefix + TEXT("_joint_");
 			for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); ++NodeIndex)
 			{
 				FNode& Node = Nodes[NodeIndex];
 
+				bool bIsJoint = Node.Type == FNode::EType::Joint;
+				Node.UniqueId = (bIsJoint ? JointPrefix : NodePrefix);
+
+				Node.UniqueId = Node.UniqueId + FString::FromInt(NodeIndex);
+
 				if (Node.Name.IsEmpty())
 				{
-					bool bIsJoint = Node.Type == FNode::EType::Joint;
-					Node.Name     = (bIsJoint ? JointPrefix : NodePrefix);
-
-					// Make sure node names are unique, in case Name is not empty it is presumed to be unique / handled by the processing pipelines.
-					Node.Name = Node.Name + FString::FromInt(NodeIndex);
+					Node.Name = Node.UniqueId;
 				}
 			}
 		}
@@ -94,6 +113,8 @@ namespace GLTF
 			for (int32 TextureIndex = 0; TextureIndex < Textures.Num(); ++TextureIndex)
 			{
 				FTexture& Tex = Textures[TextureIndex];
+
+				Tex.UniqueId = TexPrefix + FString::FromInt(TextureIndex);
 
 				if (!Tex.Name.IsEmpty())
 				{
@@ -105,14 +126,19 @@ namespace GLTF
 				}
 				else if (!Tex.Source.URI.IsEmpty())
 				{
-					Tex.Name = FPaths::GetBaseFilename(Tex.Source.URI);
+					//in case texture is embedded:
+					if (Tex.Source.URI.StartsWith(TEXT("data:")))
+					{
+						Tex.Name = Tex.UniqueId;
+					}
+					else
+					{
+						Tex.Name = FPaths::GetBaseFilename(Tex.Source.URI);
+					}
 				}
 				else
 				{
-					// GLTF texture name has decorative purpose, not guaranteed to be unique
-					// only its index is unique. Same with glTF image or its source file's basename
-					// So always include texture index into texture's name to increase probability that names are unique
-					Tex.Name = TexPrefix + FString::FromInt(TextureIndex);
+					Tex.Name = Tex.UniqueId;
 				}
 
 			}
@@ -124,6 +150,8 @@ namespace GLTF
 			{
 				FCamera& Camera = Cameras[CameraIndex];
 
+				Camera.UniqueId = CameraPrefix + FString::FromInt(CameraIndex);
+
 				if (Camera.Name.IsEmpty())
 				{
 					if (!Camera.Node.Name.IsEmpty())
@@ -132,7 +160,7 @@ namespace GLTF
 					}
 					else
 					{
-						Camera.Name = CameraPrefix + FString::FromInt(CameraIndex);
+						Camera.Name = Camera.UniqueId;
 					}
 				}
 			}
@@ -144,6 +172,8 @@ namespace GLTF
 			{
 				FLight& Light = Lights[LightIndex];
 
+				Light.UniqueId = LightPrefix + FString::FromInt(LightIndex);
+
 				if (Light.Name.IsEmpty())
 				{
 					if (Light.Node && !Light.Node->Name.IsEmpty())
@@ -152,18 +182,17 @@ namespace GLTF
 					}
 					else
 					{
-						Light.Name = LightPrefix + FString::FromInt(LightIndex);
+						Light.Name = Light.UniqueId;
 					}
 				}
 			}
 		}
 
-		// General pattern here is that we'll have a Prefix that will be a filename (like MyFile). If the
-		// GLTF object has an actual name, it will end up like <index>_<objectname>, like "0_shoe" or "3_spotlight".
-		// If it doesn't have a name, it will end up with a name like <index>_<filename>_<objecttype>, e.g.
-		// "0_MyFile_material" or "3_myfile_mesh".
-		// We want to do images after textures as the textures may want to reuse source image names, but we don't
-		// want to use those if we generated them ourselves.
+		// General pattern here is that we'll have a Prefix that will be a filename (like MyFile). 
+		// The name (display label) and the UniqueId of an object has been separated.
+		// UniqueId will consist of: [Prefil]+[_ElementType_]+[ElementIndex]
+		// Name will be the provided GLTF object.name, if present,
+		// if Name is not present the UniqueId will be used as the Name.
 		GLTF::GenerateNames(Prefix + TEXT("_material_"), Materials);
 		GLTF::GenerateNames(Prefix + TEXT("_skin_"), Skins);
 		GLTF::GenerateNames(Prefix + TEXT("_animation_"), Animations);

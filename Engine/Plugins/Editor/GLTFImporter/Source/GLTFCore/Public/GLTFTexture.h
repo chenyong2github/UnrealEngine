@@ -24,6 +24,8 @@ namespace GLTF
 		uint32       DataByteLength;
 		const uint8* Data;
 
+		FString      UniqueId; //will be generated in FAsset::GenerateNames
+
 		FImage()
 		    : DataByteLength(0)
 		    , Data(nullptr)
@@ -75,6 +77,8 @@ namespace GLTF
 		const FImage&   Source;
 		const FSampler& Sampler;
 		FString         Name;
+
+		FString			UniqueId; //will be generated in FAsset::GenerateNames
 
 		FTexture(const FString& InName, const FImage& InSource, const FSampler& InSampler)
 		    : Source(InSource)
