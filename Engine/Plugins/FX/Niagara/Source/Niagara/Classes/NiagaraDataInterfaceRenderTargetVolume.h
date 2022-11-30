@@ -130,6 +130,7 @@ public:
 	
 	void VMGetSize(FVectorVMExternalFunctionContext& Context); 
 	void VMSetSize(FVectorVMExternalFunctionContext& Context);
+	void VMSetFormat(FVectorVMExternalFunctionContext& Context);
 
 	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 2, EditCondition = "!bInheritUserParameterSettings", EditConditionHides))
 	FIntVector Size;

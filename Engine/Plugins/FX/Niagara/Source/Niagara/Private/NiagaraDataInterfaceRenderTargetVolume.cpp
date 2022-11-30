@@ -38,6 +38,7 @@ namespace NDIRenderTargetVolumeLocal
 	static const FName GetValueFunctionName("GetRenderTargetValue");
 	static const FName SampleValueFunctionName("SampleRenderTargetValue");
 	static const FName SetSizeFunctionName("SetRenderTargetSize");
+	static const FName SetFormatFunctionName("SetRenderTargetFormat");
 	static const FName GetSizeFunctionName("GetRenderTargetSize");
 	static const FName LinearToIndexName("LinearToIndex");
 	static const FName ExecToIndexName("ExecToIndex");
@@ -161,6 +162,25 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetFunctions(TArray<FNiagaraFuncti
 	#if WITH_EDITORONLY_DATA
 		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
 	#endif
+	}
+
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = SetFormatFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));		
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(StaticEnum<ETextureRenderTargetFormat>()), TEXT("Format")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Success")));
+
+		Sig.ModuleUsageBitmask = EmitterSystemOnlyBitmask;
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresExecPin = true;
+		Sig.bRequiresContext = false;
+		Sig.bSupportsCPU = true;
+		Sig.bSupportsGPU = false;
+#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
+#endif
 	}
 
 	{
@@ -308,6 +328,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::UpgradeFunctionCall(FNiagaraFuncti
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMGetSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMSetSize);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMSetFormat);
 void UNiagaraDataInterfaceRenderTargetVolume::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	using namespace NDIRenderTargetVolumeLocal;
@@ -322,6 +343,11 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetVMExternalFunction(const FVMExt
 	{
 		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMSetSize)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == SetFormatFunctionName)
+	{
+		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMSetFormat)::Bind(this, OutFunc);
 	}
 }
 
@@ -758,6 +784,37 @@ void UNiagaraDataInterfaceRenderTargetVolume::VMSetSize(FVectorVMExternalFunctio
 			InstData->Size.X = FMath::Clamp<int>(int(float(SizeX) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
 			InstData->Size.Y = FMath::Clamp<int>(int(float(SizeY) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
 			InstData->Size.Z = FMath::Clamp<int>(int(float(SizeZ) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxVolumeTextureDimensions);
+
+			if (bInheritUserParameterSettings && InstData->RTUserParamBinding.GetValue<UTextureRenderTargetVolume>())
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Overriding inherited volume render target size"));
+			}
+		}		
+	}
+}
+
+void UNiagaraDataInterfaceRenderTargetVolume::VMSetFormat(FVectorVMExternalFunctionContext& Context)
+{
+	// This should only be called from a system or emitter script due to a need for only setting up initially.
+	VectorVM::FUserPtrHandler<FRenderTargetVolumeRWInstanceData_GameThread> InstData(Context);
+	FNDIInputParam<ETextureRenderTargetFormat> InFormat(Context);
+	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
+	{
+		const ETextureRenderTargetFormat Format = InFormat.GetAndAdvance();
+
+
+		const bool bSuccess = (InstData.Get() != nullptr && Context.GetNumInstances() == 1);
+		OutSuccess.SetAndAdvance(bSuccess);
+		if (bSuccess)
+		{
+			InstData->Format = GetPixelFormatFromRenderTargetFormat(Format);
+
+			if (bInheritUserParameterSettings && InstData->RTUserParamBinding.GetValue<UTextureRenderTargetVolume>())
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Overriding inherited volume render target format"));
+			}
 		}
 	}
 }
