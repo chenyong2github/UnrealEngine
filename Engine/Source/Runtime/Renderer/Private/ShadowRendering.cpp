@@ -15,6 +15,7 @@
 #include "HairStrands/HairStrandsRendering.h"
 #include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 #include "Shadows/ShadowSceneRenderer.h"
+#include "RenderCore.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Directional light

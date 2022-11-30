@@ -22,6 +22,7 @@
 #include "HAL/LowLevelMemStats.h"
 #include "InstanceUniformShaderParameters.h"
 #include "ShaderPrint.h"
+#include "RenderCore.h"
 #include "LightSceneData.h"
 
 #define LOG_INSTANCE_ALLOCATIONS 0

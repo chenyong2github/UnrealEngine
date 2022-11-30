@@ -23,6 +23,7 @@
 #include "MeshPassProcessor.inl"
 #include "DebugProbeRendering.h"
 #include "RendererModule.h"
+#include "RenderCore.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarVelocityOutputPass(

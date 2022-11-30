@@ -12,6 +12,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "RHIValidationContext.h"
 #include "HAL/FileManager.h"
+#include "RenderCore.h"
 
 #if NV_AFTERMATH
 #include "GFSDK_Aftermath_GpuCrashDump.h"

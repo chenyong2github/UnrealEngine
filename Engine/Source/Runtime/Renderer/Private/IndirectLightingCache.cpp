@@ -17,6 +17,7 @@
 #include "DynamicPrimitiveDrawing.h"
 #include "ScenePrivate.h"
 #include "PrecomputedLightVolume.h"
+#include "RenderCore.h"
 
 /** 
  * Primitive bounds size will be rounded up to the next value of Pow(BoundSizeRoundUpBase, N) and N is an integer. 

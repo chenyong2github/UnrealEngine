@@ -47,6 +47,7 @@
 #include "RayTracingInstance.h"
 #include "PrimitiveSceneInfo.h"
 #include "NaniteSceneProxy.h"
+#include "RenderCore.h"
 
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"

@@ -21,6 +21,7 @@
 #include "DebugProbeRendering.h"
 #include "AnisotropyRendering.h"
 #include "Nanite/NaniteVisualize.h"
+#include "RenderCore.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarSelectiveBasePassOutputs(

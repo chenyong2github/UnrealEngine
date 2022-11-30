@@ -5,6 +5,7 @@
 #include "MeshPassProcessor.inl"
 #include "ScenePrivate.h"
 #include "DeferredShadingRenderer.h"
+#include "RenderCore.h"
 
 DECLARE_GPU_STAT_NAMED(RenderAnisotropyPass, TEXT("Render Anisotropy Pass"));
 

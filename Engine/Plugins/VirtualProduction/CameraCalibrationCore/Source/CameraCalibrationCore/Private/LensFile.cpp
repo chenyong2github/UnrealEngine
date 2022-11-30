@@ -20,6 +20,7 @@
 #include "Tables/LensTableUtils.h"
 #include "TextureResource.h"
 #include "UObject/Package.h"
+#include "RenderingThread.h"
 
 namespace LensFileUtils
 {

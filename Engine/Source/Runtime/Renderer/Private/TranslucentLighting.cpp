@@ -48,6 +48,7 @@
 #include "MeshPassProcessor.inl"
 #include "SkyAtmosphereRendering.h"
 #include "VolumetricCloudRendering.h"
+#include "RenderCore.h"
 
 class FMaterial;
 

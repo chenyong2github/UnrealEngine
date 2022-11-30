@@ -31,6 +31,7 @@
 #include "RenderGraphUtils.h"
 #include "SceneRenderingUtils.h"
 #include "DebugProbeRendering.h"
+#include "RenderCore.h"
 
 static TAutoConsoleVariable<int32> CVarParallelPrePass(
 	TEXT("r.ParallelPrePass"),

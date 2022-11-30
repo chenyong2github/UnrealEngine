@@ -12,6 +12,7 @@
 #include "ScenePrivate.h"
 #include "VelocityRendering.h"
 #include "VisualizeTexture.h"
+#include "RenderCore.h"
 
 static TAutoConsoleVariable<float> CVarStencilSizeThreshold(
 	TEXT("r.Decal.StencilSizeThreshold"),

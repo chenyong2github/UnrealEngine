@@ -62,6 +62,7 @@
 #include "ODSC/ODSCManager.h"
 #endif
 #include "ProfilingDebugging/CountersTrace.h"
+#include "RenderCore.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 

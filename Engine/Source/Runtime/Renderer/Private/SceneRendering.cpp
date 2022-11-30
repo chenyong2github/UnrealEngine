@@ -81,6 +81,7 @@
 #include "NaniteVisualizationData.h"
 #include "Shadows/ShadowSceneRenderer.h"
 #include "TextureResource.h"
+#include "RenderCore.h"
 
 /*-----------------------------------------------------------------------------
 	Globals

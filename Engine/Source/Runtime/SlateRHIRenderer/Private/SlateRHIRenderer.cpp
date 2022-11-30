@@ -37,6 +37,7 @@
 #include "Rendering/RenderingCommon.h"
 #include "IHeadMountedDisplayModule.h"
 #include "HDRHelper.h"
+#include "RenderCore.h"
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Rendering"), STAT_SlateRenderingRTTime, STATGROUP_Slate);
 

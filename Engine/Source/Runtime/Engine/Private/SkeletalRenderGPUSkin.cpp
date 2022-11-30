@@ -19,6 +19,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "RenderGraphUtils.h"
 #include "Interfaces/IPluginManager.h"
+#include "RenderCore.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalGPUSkinMesh, Warning, All);
 

@@ -25,6 +25,7 @@
 #include "NaniteSceneProxy.h"
 #include "Lumen/LumenSceneRendering.h"
 #include "RayTracingDefinitions.h"
+#include "RenderCore.h"
 
 extern int32 GGPUSceneInstanceClearList;
 extern int32 GGPUSceneInstanceBVH;

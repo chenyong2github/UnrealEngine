@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "Rendering/Texture2DResource.h"
 #include "Components/StaticMeshComponent.h"
+#include "RenderingThread.h"
 
 DECLARE_CYCLE_STAT(TEXT("Fixture Actor Matrix Push Fixture Matrix Cell Data"), STAT_FixtureActorMatrixPushFixtureMatrixCellData, STATGROUP_DMX);
 

@@ -7,6 +7,7 @@ DynamicBufferAllocator.cpp: Classes for allocating transient rendering data.
 #include "DynamicBufferAllocator.h"
 #include "RenderResource.h"
 #include "Misc/ScopeLock.h"
+#include "RenderCore.h"
 
 int32 GMaxReadBufferRenderingBytesAllocatedPerFrame = 32 * 1024 * 1024;
 

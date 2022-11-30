@@ -14,6 +14,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "XRThreadUtils.h"
+#include "RenderingThread.h"
 
 //-------------------------------------------------------------------------------------------------
 // UOculusSceneCaptureCubemap

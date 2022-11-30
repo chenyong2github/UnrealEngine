@@ -20,6 +20,7 @@
 #include "VisualizeTexture.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "PixelShaderUtils.h"
+#include "RenderCore.h"
 
 
 /*-----------------------------------------------------------------------------

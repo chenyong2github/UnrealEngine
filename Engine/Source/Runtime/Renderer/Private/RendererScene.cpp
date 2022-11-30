@@ -68,6 +68,7 @@
 #include "VelocityRendering.h"
 #include "RectLightSceneProxy.h"
 #include "RectLightTextureManager.h"
+#include "RenderCore.h"
 #include "IESTextureManager.h"
 
 #if RHI_RAYTRACING

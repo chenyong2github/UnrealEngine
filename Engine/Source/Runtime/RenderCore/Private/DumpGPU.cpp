@@ -19,6 +19,7 @@
 #include "GlobalShader.h"
 #include "RHIValidation.h"
 #include "RenderGraphPrivate.h"
+#include "RenderCore.h"
 
 IDumpGPUUploadServiceProvider* IDumpGPUUploadServiceProvider::GProvider = nullptr;
 

@@ -21,6 +21,7 @@
 #include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 #include "Lumen/LumenSceneData.h"
 #include "Lumen/LumenTracingUtils.h"
+#include "RenderCore.h"
 
 DECLARE_GPU_STAT_NAMED(RayTracingWaterReflections, TEXT("Ray Tracing Water Reflections"));
 

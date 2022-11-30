@@ -11,7 +11,7 @@
 #include "MetalLLM.h"
 #include "MetalCommandBuffer.h"
 #include "HAL/PThreadEvent.h"
-
+#include "RenderCore.h"
 
 //------------------------------------------------------------------------------
 

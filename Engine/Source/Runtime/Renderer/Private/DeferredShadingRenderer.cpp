@@ -82,6 +82,7 @@
 #include "Shadows/ShadowSceneRenderer.h"
 #include "HeterogeneousVolumes/HeterogeneousVolumes.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "RenderCore.h"
 
 extern int32 GNaniteShowStats;
 extern int32 GNanitePickingDomain;

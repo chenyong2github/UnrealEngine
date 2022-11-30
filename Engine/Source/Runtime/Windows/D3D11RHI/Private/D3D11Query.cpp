@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "D3D11RHIPrivate.h"
+#include "RenderCore.h"
 
 class FD3D11RenderQueryBatcher final
 {

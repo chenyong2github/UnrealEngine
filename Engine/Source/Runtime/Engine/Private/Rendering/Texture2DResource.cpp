@@ -9,6 +9,7 @@
 #include "Engine/Texture2D.h"
 #include "RenderUtils.h"
 #include "SceneTypes.h"
+#include "RenderingThread.h"
 
 // TODO Only adding this setting to allow backwards compatibility to be forced.  The default
 // behavior is to NOT do this.  This variable should be removed in the future.  #ADDED 4.13

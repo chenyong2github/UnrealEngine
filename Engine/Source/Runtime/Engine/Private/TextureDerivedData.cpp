@@ -32,6 +32,7 @@
 #include "VT/VirtualTextureBuiltData.h"
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "RenderingThread.h"
 
 #if WITH_EDITOR
 

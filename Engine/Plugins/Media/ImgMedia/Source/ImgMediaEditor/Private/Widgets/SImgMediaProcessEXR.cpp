@@ -34,6 +34,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Text/STextBlock.h"
 #include "TextureResource.h"
+#include "RenderingThread.h"
 
 #if IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
 #include "OpenExrWrapper.h"

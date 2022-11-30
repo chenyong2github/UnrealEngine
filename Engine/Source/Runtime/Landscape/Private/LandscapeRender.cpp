@@ -48,6 +48,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "TextureResource.h"
 #include "NaniteSceneProxy.h"
 #include "Rendering/Texture2DResource.h"
+#include "RenderCore.h"
 
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");

@@ -8,6 +8,7 @@
 #include "Stats/Stats.h"
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
+#include "RenderCore.h"
 
 static int32 GOpenGLPollRenderQueryResult = 1;
 static FAutoConsoleVariableRef CVarOpenGLPollRenderQueryResult(

@@ -10,6 +10,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "RenderGraphResourcePool.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "RenderCore.h"
 
 #if WITH_EDITOR
 #include "Misc/CoreMisc.h"

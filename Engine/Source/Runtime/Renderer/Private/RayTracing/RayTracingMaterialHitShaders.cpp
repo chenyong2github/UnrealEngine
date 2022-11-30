@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RayTracing/RayTracingMaterialHitShaders.h"
-#include "DeferredShadingRenderer.h"
-#include "PipelineStateCache.h"
 
 #if RHI_RAYTRACING
+#include "DeferredShadingRenderer.h"
+#include "PipelineStateCache.h"
+#include "RenderCore.h"
+
 #include "Nanite/NaniteRayTracing.h"
 
 #include "RayTracingDefinitions.h"

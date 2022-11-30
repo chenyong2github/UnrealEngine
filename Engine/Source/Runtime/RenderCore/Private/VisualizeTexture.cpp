@@ -11,6 +11,7 @@
 #include "CommonRenderResources.h"
 #include "PixelShaderUtils.h"
 #include "Misc/FileHelper.h"
+#include "RenderCore.h"
 
 void FVisualizeTexture::ParseCommands(const TCHAR* Cmd, FOutputDevice &Ar)
 {

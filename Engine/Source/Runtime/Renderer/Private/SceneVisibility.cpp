@@ -47,6 +47,7 @@
 #include "RayTracing/RayTracingInstanceCulling.h"
 #include "RendererModule.h"
 #include "SceneViewExtension.h"
+#include "RenderCore.h"
 
 #if !UE_BUILD_SHIPPING
 #include "ViewDebug.h"

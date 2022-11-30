@@ -15,6 +15,7 @@
 #include "GPUSkinVertexFactory.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "BoneIndices.h"
+#include "RenderCore.h"
 
 struct FMorphTargetDelta;
 

@@ -9,6 +9,7 @@
 #include "Engine/Canvas.h"
 #include "UObject/UObjectThreadContext.h"
 #include "TextureResource.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CanvasRenderTarget2D)
 

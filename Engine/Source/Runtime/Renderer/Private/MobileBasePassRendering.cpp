@@ -20,6 +20,7 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "LocalLightSceneProxy.h"
 #include "ReflectionEnvironment.h"
+#include "RenderCore.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarMobileDisableVertexFog(

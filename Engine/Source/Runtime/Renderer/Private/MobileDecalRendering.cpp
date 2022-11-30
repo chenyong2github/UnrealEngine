@@ -15,6 +15,7 @@
 #include "ScenePrivate.h"
 #include "DecalRenderingCommon.h"
 #include "DecalRenderingShared.h"
+#include "RenderCore.h"
 
 void RenderMeshDecalsMobile(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, EDecalRenderStage DecalRenderStage, EDecalRenderTargetMode RenderTargetMode);
 extern void RenderDeferredDecalsMobile(FRHICommandListImmediate& RHICmdList, const FScene& Scene, const FViewInfo& View, EDecalRenderStage DecalRenderStage, EDecalRenderTargetMode RenderTargetMode);

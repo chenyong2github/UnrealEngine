@@ -9,6 +9,7 @@
 #include "SceneTextureParameters.h"
 #include "ScenePrivate.h"
 #include "DeferredShadingRenderer.h"
+#include "RenderCore.h"
 
 int32 GLightShafts = 1;
 static FAutoConsoleVariableRef CVarLightShaftQuality(

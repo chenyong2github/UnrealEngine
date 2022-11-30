@@ -10,6 +10,7 @@
 #include "RenderGraphBuilder.h"
 #include "ShaderParameterUtils.h"
 #include "RendererInterface.h"
+#include "RenderCore.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
 

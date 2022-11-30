@@ -9,6 +9,7 @@
 #include "VulkanContext.h"
 #include "VulkanCommandBuffer.h"
 #include "EngineGlobals.h"
+#include "RenderCore.h"
 
 #if VULKAN_QUERY_CALLSTACK
 #include "HAL/PlatformStackwalk.h"
