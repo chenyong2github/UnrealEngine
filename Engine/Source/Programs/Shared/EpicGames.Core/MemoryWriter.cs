@@ -482,6 +482,8 @@ namespace EpicGames.Core
 			{
 				Span<byte> span = writer.GetSpan(1);
 				span[0] = 0;
+
+				writer.Advance(1);
 			}
 			else
 			{
