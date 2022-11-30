@@ -546,7 +546,7 @@ void FIOSTargetPlatform::GetReflectionCaptureFormats( TArray<FName>& OutFormats 
 {
 	const bool bMobileDeferredShading = (MobileShadingPath == 1);
 
-	if (SupportsMetalMRT() || bMobileDeferredShading)
+	if (SupportsMetalMRT() || bMobileDeferredShading || bMobileForwardEnableClusteredReflections)
 	{
 		OutFormats.Add(FName(TEXT("FullHDR")));
 	}
