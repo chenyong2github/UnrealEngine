@@ -10,11 +10,7 @@ public class FileUtilities : ModuleRules
 
 		if (Target.bBuildEditor)
 		{
-			// Temporarily disabled while we fix libzip for mac
-			if (Target.Platform != UnrealTargetPlatform.Mac)
-			{
-				PrivateDependencyModuleNames.AddRange(new string[] { "libzip" });
-			}
+			PrivateDependencyModuleNames.AddRange(new string[] { "libzip" });
 		}
 	}
 }
