@@ -502,6 +502,11 @@ namespace Horde.Build.Streams
 		/// Whether to use the AutoSDK
 		/// </summary>
 		public bool UseAutoSdk { get; set; } = true;
+
+		/// <summary>
+		/// Method to use when syncing/materializing data from Perforce
+		/// </summary>
+		public string? Method { get; set; } = null;
 	}
 
 	/// <summary>

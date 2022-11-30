@@ -211,7 +211,7 @@ namespace Horde.Build.Streams
 			if (agentType.Workspace == null)
 			{
 				// Use the default settings (fast switching workspace, clean 
-				workspace = (new AgentWorkspace(null, null, GetDefaultWorkspaceIdentifier(stream), stream.Name, null, false), true);
+				workspace = (new AgentWorkspace(null, null, GetDefaultWorkspaceIdentifier(stream), stream.Name, null, false, null), true);
 				return true;
 			}
 			else
@@ -240,7 +240,7 @@ namespace Horde.Build.Streams
 				}
 
 				// Create the new workspace
-				workspace = (new AgentWorkspace(workspaceType.Cluster, workspaceType.UserName, identifier, workspaceType.Stream ?? stream.Name, workspaceType.View, workspaceType.Incremental), workspaceType.UseAutoSdk);
+				workspace = (new AgentWorkspace(workspaceType.Cluster, workspaceType.UserName, identifier, workspaceType.Stream ?? stream.Name, workspaceType.View, workspaceType.Incremental, workspaceType.Method), workspaceType.UseAutoSdk);
 				return true;
 			}
 		}
