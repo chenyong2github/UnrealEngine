@@ -623,7 +623,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 							BasePos += FVector(0,0,50);
 							constexpr FVector::FReal ViewWeight = 0.6f; // Higher the number the more the view angle affects the score.
 							const FVector::FReal ViewScale = 1. - (ViewDot / MinViewDirDot); // Zero at center of screen
-							NearEntityDescriptions.Emplace(FloatCastChecked<float>(DistanceToEntitySq * ((1. - ViewWeight) + ViewScale * ViewWeight), UE::LWC::DefaultFloatPrecision), BasePos, Status);
+							NearEntityDescriptions.Emplace(static_cast<float>(DistanceToEntitySq * ((1. - ViewWeight) + ViewScale * ViewWeight)), BasePos, Status);
 						}
 					}
 				}
