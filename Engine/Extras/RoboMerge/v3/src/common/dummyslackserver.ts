@@ -17,7 +17,7 @@ const posted = new Map<string, Map<string, DummyThread[]>>()
 
 // The contents of each thread
 // channel -> timestamp -> messages
-const threads = new Map<string, Map<number, DummyThread>>
+const threads = new Map<string, Map<number, DummyThread>>()
 
 export class DummySlackApp implements AppInterface {
 
