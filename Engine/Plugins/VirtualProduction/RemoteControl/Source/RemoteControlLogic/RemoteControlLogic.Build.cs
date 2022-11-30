@@ -17,6 +17,7 @@ public class RemoteControlLogic : ModuleRules
 			new string[] {
 				"Cbor",
 				"Engine",
+				"HTTP",
 				"RemoteControl",
 				"Serialization",
 				"StructUtils"

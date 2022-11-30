@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Behaviour/RCBehaviour.h"
+#include "HttpModule.h"
 #include "RCVirtualProperty.h"
 #include "RemoteControlEntity.h"
 
@@ -20,6 +21,29 @@ namespace SetAssetByPathBehaviourHelpers
 	const FName DefaultInput = FName(TEXT("Default Input"));
 	const FName SetAssetByPathBehaviour = FName(TEXT("Set Asset By Path"));
 }
+
+/** Info used to send request for a file */
+struct FPendingFileRequest
+{
+	/**
+	 * Constructor
+	 */
+	FPendingFileRequest(const FString& InFileName=FString(TEXT("")))
+		:  FileName(InFileName)
+	{
+	}
+
+	/**
+	 * Equality op
+	 */
+	inline bool operator==(const FPendingFileRequest& Other) const
+	{
+		return FileName == Other.FileName;
+	}
+
+	/** File being operated on by the pending request */
+	FString FileName;
+};
 
 /** Struct to help generate Widgts for the DetailsPanel of the Bahviour */
 USTRUCT()
@@ -108,4 +132,9 @@ private:
 	/** Auxiliary Function to apply a Texture onto a given Property */
 	bool SetTextureAsset(TSharedPtr<FRemoteControlProperty> InRemoteControlPropertyPtr, UTexture* InObject);
 
+	/** Auxiliary Function to apply a Texture onto a given Property */
+	bool SetTextureFromPath(TSharedPtr<FRemoteControlProperty> TexturePtr, FString& FileName);
+
+	/** Http Request Process Handler */
+	void ReadFileHttpHandler(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, TSharedPtr<FRemoteControlProperty> InRCPropertyToSet);
 };
