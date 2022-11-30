@@ -4,12 +4,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMSelectNode)
 
-const FString URigVMSelectNode::SelectName = TEXT("Select");
-const FString URigVMSelectNode::IndexName = TEXT("Index");
-const FString URigVMSelectNode::ValueName = TEXT("Values");
-const FString URigVMSelectNode::ResultName = TEXT("Result");
+const FString UDEPRECATED_RigVMSelectNode::SelectName = TEXT("Select");
+const FString UDEPRECATED_RigVMSelectNode::IndexName = TEXT("Index");
+const FString UDEPRECATED_RigVMSelectNode::ValueName = TEXT("Values");
+const FString UDEPRECATED_RigVMSelectNode::ResultName = TEXT("Result");
 
-bool URigVMSelectNode::AllowsLinksOn(const URigVMPin* InPin) const
+bool UDEPRECATED_RigVMSelectNode::AllowsLinksOn(const URigVMPin* InPin) const
 {
 	if(InPin->GetRootPin() == InPin)
 	{
@@ -22,14 +22,14 @@ bool URigVMSelectNode::AllowsLinksOn(const URigVMPin* InPin) const
 	return true;
 }
 
-FName URigVMSelectNode::GetNotation() const
+FName UDEPRECATED_RigVMSelectNode::GetNotation() const
 {
 	static constexpr TCHAR Format[] = TEXT("%s(in %s,in %s,out %s)");
 	static const FName Notation = *FString::Printf(Format, *SelectName, *IndexName, *ValueName, *ResultName);
 	return Notation;
 }
 
-const FRigVMTemplate* URigVMSelectNode::GetTemplate() const
+const FRigVMTemplate* UDEPRECATED_RigVMSelectNode::GetTemplate() const
 {
 	if(const FRigVMTemplate* SuperTemplate = Super::GetTemplate())
 	{

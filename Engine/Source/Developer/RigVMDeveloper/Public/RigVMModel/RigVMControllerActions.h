@@ -524,66 +524,6 @@ public:
 };
 
 /**
- * An action adding an if node to the graph.
- */
-USTRUCT()
-struct FRigVMAddIfNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddIfNodeAction();
-	FRigVMAddIfNodeAction(URigVMIfNode* InNode);
-	virtual ~FRigVMAddIfNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddIfNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FString CPPType;
-
-	UPROPERTY()
-	FName CPPTypeObjectPath;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
- * An action adding a select node to the graph.
- */
-USTRUCT()
-struct FRigVMAddSelectNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddSelectNodeAction();
-	FRigVMAddSelectNodeAction(URigVMSelectNode* InNode);
-	virtual ~FRigVMAddSelectNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddSelectNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FString CPPType;
-
-	UPROPERTY()
-	FName CPPTypeObjectPath;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
  * An action adding an enum node to the graph.
  */
 USTRUCT()

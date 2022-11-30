@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/RigVMNode.h"
+#include "RigVMStringUtils.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
@@ -53,56 +54,27 @@ FString URigVMNode::GetNodePath(bool bRecursive) const
 
 bool URigVMNode::SplitNodePathAtStart(const FString& InNodePath, FString& LeftMost, FString& Right)
 {
-	return InNodePath.Split(TEXT("|"), &LeftMost, &Right, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+	return RigVMStringUtils::SplitNodePathAtStart(InNodePath, LeftMost, Right);
 }
 
 bool URigVMNode::SplitNodePathAtEnd(const FString& InNodePath, FString& Left, FString& RightMost)
 {
-	return InNodePath.Split(TEXT("|"), &Left, &RightMost, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+	return RigVMStringUtils::SplitNodePathAtEnd(InNodePath, Left, RightMost);
 }
 
 bool URigVMNode::SplitNodePath(const FString& InNodePath, TArray<FString>& Parts)
 {
-	int32 OriginalPartsCount = Parts.Num();
-	FString NodePathRemaining = InNodePath;
-	FString Left, Right;
-	Right = NodePathRemaining;
-
-	while (SplitNodePathAtStart(NodePathRemaining, Left, Right))
-	{
-		Parts.Add(Left);
-		Left.Empty();
-		NodePathRemaining = Right;
-	}
-
-	if (!Right.IsEmpty())
-	{
-		Parts.Add(Right);
-	}
-
-	return Parts.Num() > OriginalPartsCount;
+	return RigVMStringUtils::SplitNodePath(InNodePath, Parts);
 }
 
 FString URigVMNode::JoinNodePath(const FString& Left, const FString& Right)
 {
-	ensure(!Left.IsEmpty() && !Right.IsEmpty());
-	return Left + TEXT("|") + Right;
+	return RigVMStringUtils::JoinNodePath(Left, Right);
 }
 
 FString URigVMNode::JoinNodePath(const TArray<FString>& InParts)
 {
-	if (InParts.Num() == 0)
-	{
-		return FString();
-	}
-
-	FString Result = InParts[0];
-	for (int32 PartIndex = 1; PartIndex < InParts.Num(); PartIndex++)
-	{
-		Result += TEXT("|") + InParts[PartIndex];
-	}
-
-	return Result;
+	return RigVMStringUtils::JoinNodePath(InParts);
 }
 
 int32 URigVMNode::GetNodeIndex() const

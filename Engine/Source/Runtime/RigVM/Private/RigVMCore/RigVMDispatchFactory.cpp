@@ -160,10 +160,16 @@ const TArray<FName>& FRigVMDispatchFactory::GetControlFlowBlocks_Impl(const FRig
 TArray<FRigVMExecuteArgument> FRigVMDispatchFactory::GetExecuteArguments(const FRigVMDispatchContext& InContext) const
 {
 	TArray<FRigVMExecuteArgument> Arguments = GetExecuteArguments_Impl(InContext);
-	const TRigVMTypeIndex ExecuteTypeIndex = FRigVMRegistry::Get().GetTypeIndex<FRigVMExecuteContext>();
 	for(FRigVMExecuteArgument& Argument : Arguments)
 	{
-		Argument.TypeIndex = ExecuteTypeIndex;
+		if(Argument.TypeIndex != INDEX_NONE && FRigVMRegistry::Get().IsArrayType(Argument.TypeIndex))
+		{
+			Argument.TypeIndex = RigVMTypeUtils::TypeIndex::ExecuteArray;
+		}
+		else
+		{
+			Argument.TypeIndex = RigVMTypeUtils::TypeIndex::Execute;
+		}
 	}
 	return Arguments;
 }

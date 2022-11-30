@@ -7,8 +7,6 @@
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 #include "RigVMModel/Nodes/RigVMCommentNode.h"
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
-#include "RigVMModel/Nodes/RigVMIfNode.h"
-#include "RigVMModel/Nodes/RigVMSelectNode.h"
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
@@ -83,14 +81,6 @@ FName FRigVMExprAST::GetTypeName() const
 		case EType::Exit:
 		{
 			return TEXT("[.Exit..]");
-		}
-		case EType::If:
-		{
-			return TEXT("[..If...]");
-		}
-		case EType::Select:
-		{
-			return TEXT("[Select.]");
 		}
 		case EType::Array:
 		{
@@ -616,79 +606,6 @@ bool FRigVMVarExprAST::SupportsSoftLinks() const
 	return false;
 }
 
-bool FRigVMIfExprAST::IsConstant() const
-{
-	if (IsAlwaysTrue())
-	{
-		return GetTrueExpr()->IsConstant();
-	}
-	else if (IsAlwaysFalse())
-	{
-		return GetFalseExpr()->IsConstant();
-	}
-	return FRigVMNodeExprAST::IsConstant();
-}
-
-bool FRigVMIfExprAST::IsAlwaysTrue() const
-{
-	const FRigVMVarExprAST* ConditionExpr = GetConditionExpr();
-	if (ConditionExpr->IsA(EType::Literal))
-	{
-		const FString& PinDefaultValue = ConditionExpr->GetDefaultValue();
-		return PinDefaultValue == TEXT("True");
-	}
-	return false;
-}
-
-bool FRigVMIfExprAST::IsAlwaysFalse() const
-{
-	const FRigVMVarExprAST* ConditionExpr = GetConditionExpr();
-	if (ConditionExpr->IsA(EType::Literal))
-	{
-		const FString& PinDefaultValue = ConditionExpr->GetDefaultValue();
-		return PinDefaultValue == TEXT("False") || PinDefaultValue.IsEmpty();
-	}
-	return false;
-}
-
-bool FRigVMSelectExprAST::IsConstant() const
-{
-	int32 ConstantCaseIndex = GetConstantValueIndex();
-	if (ConstantCaseIndex != INDEX_NONE)
-	{
-		return GetValueExpr(ConstantCaseIndex)->IsConstant();
-	}
-	return FRigVMNodeExprAST::IsConstant();
-}
-
-int32 FRigVMSelectExprAST::GetConstantValueIndex() const
-{
-	const FRigVMVarExprAST* IndexExpr = GetIndexExpr();
-	if (IndexExpr->IsA(EType::Literal))
-	{
-		int32 NumCases = NumValues();
-		if (NumCases == 0)
-		{
-			return INDEX_NONE;
-		}
-
-		const FString& PinDefaultValue = IndexExpr->GetDefaultValue();
-		int32 CaseIndex = 0;
-		if (!PinDefaultValue.IsEmpty())
-		{
-			CaseIndex = FCString::Atoi(*PinDefaultValue);
-		}
-
-		return FMath::Clamp<int32>(CaseIndex, 0, NumCases - 1);
-	}
-	return INDEX_NONE;
-}
-
-int32 FRigVMSelectExprAST::NumValues() const
-{
-	return GetNode()->FindPin(URigVMSelectNode::ValueName)->GetArraySize();
-}
-
 void FRigVMParserASTSettings::Report(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage) const
 {
 	if (ReportDelegate.IsBound())
@@ -924,7 +841,7 @@ FRigVMExprAST* FRigVMParserAST::TraverseMutableNode(const FRigVMASTProxy& InNode
 					FRigVMASTProxy SourcePinProxy = InNodeProxy.GetSibling(SourcePin);
 
 					FRigVMExprAST* ParentExpr = InParentExpr;
-					if (NodeExpr->IsA(FRigVMExprAST::Branch) || Node->IsControlFlowNode())
+					if (Node->IsControlFlowNode())
 					{
 						if (FRigVMExprAST** PinExpr = SubjectToExpression.Find(SourcePinProxy))
 						{
@@ -1033,14 +950,6 @@ FRigVMExprAST* FRigVMParserAST::CreateExpressionForNode(const FRigVMASTProxy& In
 		{
 			NodeExpr = MakeExpr<FRigVMNoOpExprAST>(InNodeProxy);
 		}
-		else if (InNodeProxy.IsA<URigVMIfNode>())
-		{
-			NodeExpr = MakeExpr<FRigVMIfExprAST>(InNodeProxy);
-		}
-		else if (InNodeProxy.IsA<URigVMSelectNode>())
-		{
-			NodeExpr = MakeExpr<FRigVMSelectExprAST>(InNodeProxy);
-		}
 		else if (InNodeProxy.IsA<URigVMArrayNode>())
 		{
 			NodeExpr = MakeExpr<FRigVMArrayExprAST>(InNodeProxy);
@@ -1102,7 +1011,7 @@ TArray<FRigVMExprAST*> FRigVMParserAST::TraversePins(const FRigVMASTProxy& InNod
 	}
 
 	// dispatch nodes may contain a fixed size array
-	if(Node->IsA<URigVMDispatchNode>() || Node->IsA<URigVMSelectNode>())
+	if(Node->IsA<URigVMDispatchNode>() || Node->IsA<UDEPRECATED_RigVMSelectNode>())
 	{
 		TArray<URigVMPin*> FlattenedPins;
 		FlattenedPins.Reserve(Pins.Num());
@@ -1127,7 +1036,7 @@ TArray<FRigVMExprAST*> FRigVMParserAST::TraversePins(const FRigVMASTProxy& InNod
 
 		if (InParentExpr && !Pin->IsRootPin())
 		{
-			const FString PinName = FString::Printf(TEXT("%s_%s"), *Pin->GetParentPin()->GetName(), *Pin->GetName());
+			const FString PinName = FRigVMBranchInfo::GetFixedArrayLabel(Pin->GetParentPin()->GetName(), Pin->GetName());
 			const int32 ChildIndex = InParentExpr->Children.Find(PinExpressions.Last());
 			InParentExpr->PinNameToChildIndex.FindOrAdd(*PinName) = ChildIndex;
 		}
@@ -1311,15 +1220,6 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 				ParentExprForLinks = BlockExpr;
 			}
 		}
-		else if ((Pin->GetDirection() == ERigVMPinDirection::IO || Pin->GetDirection() == ERigVMPinDirection::Input) &&
-			(InParentExpr->IsA(FRigVMExprAST::If) || InParentExpr->IsA(FRigVMExprAST::Select)) &&
-			LinkIndices.Num() > 0)
-		{
-			FRigVMBlockExprAST* BlockExpr = MakeExpr<FRigVMBlockExprAST>(FRigVMExprAST::EType::Block, FRigVMASTProxy());
-			BlockExpr->Name = Pin->GetFName();
-			BlockExpr->AddParent(PinExpr);
-			ParentExprForLinks = BlockExpr;
-		}
 	}
 
 	for (const int32 LinkIndex : LinkIndices)
@@ -1369,8 +1269,6 @@ FRigVMExprAST* FRigVMParserAST::TraverseLink(int32 InLinkIndex, FRigVMExprAST* I
 		// if this is a copy expression - we should require the copy to use a ref instead
 		if (NodeExpr->IsA(FRigVMExprAST::EType::CallExtern) ||
 			NodeExpr->IsA(FRigVMExprAST::EType::InlineFunction) ||
-			NodeExpr->IsA(FRigVMExprAST::EType::If) ||
-			NodeExpr->IsA(FRigVMExprAST::EType::Select) ||
 			NodeExpr->IsA(FRigVMExprAST::EType::Array))
 		{
 			for (FRigVMExprAST* ChildExpr : *NodeExpr)
@@ -1579,9 +1477,7 @@ void FRigVMParserAST::BubbleUpExpressions()
 				// parent == pin, grandparent == node
 				if(GrandParents.Num() == 1 && !GrandParents.Contains(nullptr))
 				{
-					if(GrandParents[0]->IsA(FRigVMExprAST::EType::CallExtern) ||
-						GrandParents[0]->IsA(FRigVMExprAST::EType::If) ||
-						GrandParents[0]->IsA(FRigVMExprAST::EType::Select))
+					if(GrandParents[0]->IsA(FRigVMExprAST::EType::CallExtern))
 					{
 						const FRigVMNodeExprAST* NodeExpr = GrandParents[0]->To<FRigVMNodeExprAST>();
 
@@ -1598,21 +1494,6 @@ void FRigVMParserAST::BubbleUpExpressions()
 							if(Pin->GetDirection() == ERigVMPinDirection::Input ||
 								Pin->GetDirection() == ERigVMPinDirection::IO)
 							{
-								if(Pin->GetNode()->IsA<URigVMIfNode>())
-								{
-									if(Pin->GetName() != URigVMIfNode::ConditionName)
-									{
-										continue;
-									}
-								}
-								else if(Pin->GetNode()->IsA<URigVMSelectNode>())
-								{
-									if(Pin->GetName() != URigVMSelectNode::IndexName)
-									{
-										continue;
-									}
-								}
-
 								if(const FRigVMExprAST* PinExpr = NodeExpr->FindExprWithPinName(Pin->GetFName()))
 								{
 									TopLevelBlockExpression = PinExpr->GetFirstChildOfType(FRigVMExprAST::Block);
@@ -2754,7 +2635,6 @@ FString FRigVMParserAST::DumpDot() const
 			{
 				case FRigVMExprAST::EType::Entry:
 				case FRigVMExprAST::EType::Exit:
-				case FRigVMExprAST::EType::Branch:
 				case FRigVMExprAST::EType::Block:
 				{
 					Shape = EVisualGraphShape::Diamond;
@@ -2764,8 +2644,6 @@ FString FRigVMParserAST::DumpDot() const
 				case FRigVMExprAST::EType::Copy:
 				case FRigVMExprAST::EType::CallExtern:
 				case FRigVMExprAST::EType::InlineFunction:
-				case FRigVMExprAST::EType::If:
-				case FRigVMExprAST::EType::Select:
 				case FRigVMExprAST::EType::NoOp:
 				{
 					Shape = EVisualGraphShape::Box;

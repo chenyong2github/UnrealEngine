@@ -477,6 +477,20 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 				bEncounteredGraphError = true;
 			}
 
+			if(ModelNode->IsA<UDEPRECATED_RigVMIfNode>())
+			{
+				static const FString LinkedMessage = TEXT("Node @@ is a deprecated if node. Cannot compile.");
+				Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, LinkedMessage);
+				bEncounteredGraphError = true;
+			}
+
+			if(ModelNode->IsA<UDEPRECATED_RigVMSelectNode>())
+			{
+				static const FString LinkedMessage = TEXT("Node @@ is a deprecated select node. Cannot compile.");
+				Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, LinkedMessage);
+				bEncounteredGraphError = true;
+			}
+
 			if(!InController->RemoveUnusedOrphanedPins(ModelNode))
 			{
 				static const FString LinkedMessage = TEXT("Node @@ uses pins that no longer exist. Please rewire the links and re-compile.");
@@ -1205,16 +1219,6 @@ void URigVMCompiler::TraverseExpression(const FRigVMExprAST* InExpr, FRigVMCompi
 			TraverseExit(InExpr->To<FRigVMExitExprAST>(), WorkData);
 			break;
 		}
-		case FRigVMExprAST::EType::If:
-		{
-			TraverseIf(InExpr->To<FRigVMIfExprAST>(), WorkData);
-			break;
-		}
-		case FRigVMExprAST::EType::Select:
-		{
-			TraverseSelect(InExpr->To<FRigVMSelectExprAST>(), WorkData);
-			break;
-		}
 		case FRigVMExprAST::EType::Array:
 		{
 			TraverseArray(InExpr->To<FRigVMArrayExprAST>(), WorkData);
@@ -1276,12 +1280,19 @@ void URigVMCompiler::TraverseBlock(const FRigVMBlockExprAST* InExpr, FRigVMCompi
 
 					if(Pin)
 					{
-						Pin = Pin->GetRootPin();
-						if(Pin->IsLazy())
+						URigVMPin* RootPin = Pin->GetRootPin();
+						if(RootPin->IsLazy())
 						{
-							CallExternNode = Pin->GetNode();
+							CallExternNode = RootPin->GetNode();
 							
-							BranchInfo.Label = Pin->GetFName();
+							if(RootPin->IsFixedSizeArray() && Pin->GetParentPin() == RootPin)
+							{
+								BranchInfo.Label = FRigVMBranchInfo::GetFixedArrayLabel(RootPin->GetFName(), Pin->GetFName());
+							}
+							else
+							{
+								BranchInfo.Label = RootPin->GetFName();
+							}
 							BranchInfo.InstructionIndex = INDEX_NONE; // we'll fill in the instruction info later
 							BranchInfo.FirstInstruction = WorkData.VM->GetByteCode().GetNumInstructions();
 
@@ -1290,14 +1301,31 @@ void URigVMCompiler::TraverseBlock(const FRigVMBlockExprAST* InExpr, FRigVMCompi
 							{
 								if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
 								{
+									int32 FlatArgumentIndex = 0;
 									for(int32 ArgumentIndex = 0; ArgumentIndex != Template->NumArguments(); ArgumentIndex++)
 									{
 										const FRigVMTemplateArgument* Argument = Template->GetArgument(ArgumentIndex);
-										if(Template->GetArgument(ArgumentIndex)->GetName() == Pin->GetFName())
+										if(Template->GetArgument(ArgumentIndex)->GetName() == RootPin->GetFName())
 										{
-											BranchInfo.ArgumentIndex = ArgumentIndex;
+											BranchInfo.ArgumentIndex = FlatArgumentIndex;
+
+											if(RootPin->IsFixedSizeArray() && Pin->GetParentPin() == RootPin)
+											{
+												BranchInfo.ArgumentIndex += Pin->GetPinIndex();
+											}
 											break;
 										}
+
+										if(const URigVMPin* PinForArgument = RootPin->GetNode()->FindPin(Argument->Name.ToString()))
+										{
+											if(PinForArgument->IsFixedSizeArray())
+											{
+												FlatArgumentIndex += RootPin->GetSubPins().Num();
+												continue;
+											}
+										}
+										
+										FlatArgumentIndex++;
 									}
 								}
 								// we also need to deal with unit nodes separately here. if a unit node does
@@ -1311,7 +1339,7 @@ void URigVMCompiler::TraverseBlock(const FRigVMBlockExprAST* InExpr, FRigVMCompi
 										for(int32 ArgumentIndex = 0; ArgumentIndex != Function->Arguments.Num(); ArgumentIndex++)
 										{
 											const FRigVMFunctionArgument& Argument = Function->Arguments[ArgumentIndex];
-											if(Argument.Name == Pin->GetFName())
+											if(Argument.Name == RootPin->GetFName())
 											{
 												BranchInfo.ArgumentIndex = ArgumentIndex;
 												break;
@@ -1568,8 +1596,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 				{
 					for(URigVMPin* SubPin : Pin->GetSubPins())
 					{
-						static constexpr TCHAR Format[] = TEXT("%s_%s");
-						const FString PinName = FString::Printf(Format, *Pin->GetName(), *SubPin->GetName());
+						const FString PinName = FRigVMBranchInfo::GetFixedArrayLabel(Pin->GetName(), SubPin->GetName());
 						const FRigVMExprAST* SubPinExpr = InExpr->FindExprWithPinName(*PinName);
 						check(SubPinExpr);
 						ProcessArgument(SubPinExpr);
@@ -2249,237 +2276,6 @@ void URigVMCompiler::TraverseExit(const FRigVMExitExprAST* InExpr, FRigVMCompile
 	if (!WorkData.bSetupMemory)
 	{
 		WorkData.VM->GetByteCode().AddExitOp();
-	}
-}
-
-void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
-{
-	ensure(InExpr->NumChildren() == 4);
-
-	if (WorkData.bSetupMemory)
-	{
-		TraverseChildren(InExpr, WorkData);
-		return;
-	}
-
-	URigVMIfNode* IfNode = Cast<URigVMIfNode>(InExpr->GetNode());
-	if(!ValidateNode(IfNode))
-	{
-		return;
-	}
-
-	const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();
-
-	const FRigVMVarExprAST* ConditionExpr = InExpr->ChildAt<FRigVMVarExprAST>(0);
-	const FRigVMVarExprAST* TrueExpr = InExpr->ChildAt<FRigVMVarExprAST>(1);
-	const FRigVMVarExprAST* FalseExpr = InExpr->ChildAt<FRigVMVarExprAST>(2);
-	const FRigVMVarExprAST* ResultExpr = InExpr->ChildAt<FRigVMVarExprAST>(3);
-
-	// traverse the condition first
-	TraverseExpression(ConditionExpr, WorkData);
-
-	if (ConditionExpr->IsA(FRigVMExprAST::CachedValue))
-	{
-		ConditionExpr = ConditionExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr();
-	}
-
-	FRigVMOperand& ConditionOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ConditionExpr));
-	FRigVMOperand& ResultOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ResultExpr));
-
-	// setup the first jump
-	uint64 JumpToFalseByte = WorkData.VM->GetByteCode().AddJumpIfOp(ERigVMOpCode::JumpForwardIf, 1, ConditionOperand, false);
-	int32 JumpToFalseInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// traverse the true case
-	TraverseExpression(TrueExpr, WorkData);
-
-	if (TrueExpr->IsA(FRigVMExprAST::CachedValue))
-	{
-		TrueExpr = TrueExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr();
-	}
-
-	FRigVMOperand& TrueOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(TrueExpr));
-
-	WorkData.VM->GetByteCode().AddCopyOp(WorkData.VM->GetCopyOpForOperands(TrueOperand, ResultOperand));
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	uint64 JumpToEndByte = WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpForward, 1);
-	int32 JumpToEndInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// correct the jump to false instruction index
-	int32 NumInstructionsInTrueCase = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToFalseInstruction;
-	WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpIfOp>(JumpToFalseByte).InstructionIndex = NumInstructionsInTrueCase;
-
-	// traverse the false case
-	TraverseExpression(FalseExpr, WorkData);
-
-	if (FalseExpr->IsA(FRigVMExprAST::CachedValue))
-	{
-		FalseExpr = FalseExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr();
-	}
-
-	FRigVMOperand& FalseOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(FalseExpr));
-
-	WorkData.VM->GetByteCode().AddCopyOp(WorkData.VM->GetCopyOpForOperands(FalseOperand, ResultOperand));
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-	}
-
-	// correct the jump to end instruction index
-	int32 NumInstructionsInFalseCase = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToEndInstruction;
-	WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpOp>(JumpToEndByte).InstructionIndex = NumInstructionsInFalseCase;
-}
-
-void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
-{
-	URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(InExpr->GetNode());
-	if(!ValidateNode(SelectNode))
-	{
-		return;
-	}
-
-	const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();
-
-	int32 NumCases = SelectNode->FindPin(URigVMSelectNode::ValueName)->GetArraySize();
-
-	if (WorkData.bSetupMemory)
-	{
-		TraverseChildren(InExpr, WorkData);
-
-		// setup literals for each index (we don't need zero)
-		for (int32 CaseIndex = 1; CaseIndex < NumCases; CaseIndex++)
-		{
-			if (!WorkData.IntegerLiterals.Contains(CaseIndex))
-			{
-				FName LiteralName = *FString::FromInt(CaseIndex);
-
-				const FString DefaultValue = FString::FromInt(CaseIndex);
-				FRigVMOperand Operand = WorkData.AddProperty(
-					ERigVMMemoryType::Literal,
-					LiteralName,
-					TEXT("int32"),
-					nullptr,
-					DefaultValue);
-				
-				WorkData.IntegerLiterals.Add(CaseIndex, Operand);
-			}
-		}
-
-		if (!WorkData.ComparisonOperand.IsValid())
-		{
-			WorkData.ComparisonOperand = WorkData.AddProperty(
-				ERigVMMemoryType::Work,
-				FName(TEXT("IntEquals")),
-				TEXT("bool"),
-				nullptr,
-				TEXT("false"));
-		}
-		return;
-	}
-
-	const FRigVMVarExprAST* IndexExpr = InExpr->ChildAt<FRigVMVarExprAST>(0);
-	TArray<const FRigVMVarExprAST*> CaseExpressions;
-	for (int32 CaseIndex = 0; CaseIndex < NumCases; CaseIndex++)
-	{
-		CaseExpressions.Add(InExpr->ChildAt<FRigVMVarExprAST>(CaseIndex + 1));
-	}
-
-	const FRigVMVarExprAST* ResultExpr = InExpr->ChildAt<FRigVMVarExprAST>(InExpr->NumChildren() - 1);
-
-	// traverse the condition first
-	TraverseExpression(IndexExpr, WorkData);
-
-	// this can happen if the optimizer doesn't remove it
-	if (CaseExpressions.Num() == 0)
-	{
-		return;
-	}
-
-	if (IndexExpr->IsA(FRigVMExprAST::CachedValue))
-	{
-		IndexExpr = IndexExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr();
-	}
-
-	FRigVMOperand& IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(IndexExpr));
-	FRigVMOperand& ResultOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ResultExpr));
-
-	// setup the jumps for each case
-	TArray<uint64> JumpToCaseBytes;
-	TArray<int32> JumpToCaseInstructions;
-	JumpToCaseBytes.Add(0);
-	JumpToCaseInstructions.Add(0);
-
-	for (int32 CaseIndex = 1; CaseIndex < NumCases; CaseIndex++)
-	{
-		// compare and jump eventually
-		WorkData.VM->GetByteCode().AddEqualsOp(IndexOperand, WorkData.IntegerLiterals.FindChecked(CaseIndex), WorkData.ComparisonOperand);
-		if (Settings.SetupNodeInstructionIndex)
-		{
-			WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-		}
-
-		uint64 JumpByte = WorkData.VM->GetByteCode().AddJumpIfOp(ERigVMOpCode::JumpForwardIf, 1, WorkData.ComparisonOperand, true);
-		int32 JumpInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-		if (Settings.SetupNodeInstructionIndex)
-		{
-			WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-		}
-
-		JumpToCaseBytes.Add(JumpByte);
-		JumpToCaseInstructions.Add(JumpInstruction);
-	}
-
-	TArray<uint64> JumpToEndBytes;
-	TArray<int32> JumpToEndInstructions;
-
-	for (int32 CaseIndex = 0; CaseIndex < NumCases; CaseIndex++)
-	{
-		if (CaseIndex > 0)
-		{
-			int32 NumInstructionsInCase = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToCaseInstructions[CaseIndex];
-			WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpIfOp>(JumpToCaseBytes[CaseIndex]).InstructionIndex = NumInstructionsInCase;
-		}
-
-		TraverseExpression(CaseExpressions[CaseIndex], WorkData);
-
-		// add copy op to copy the result
-		FRigVMOperand& CaseOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(CaseExpressions[CaseIndex]));
-		WorkData.VM->GetByteCode().AddCopyOp(WorkData.VM->GetCopyOpForOperands(CaseOperand, ResultOperand));
-		if (Settings.SetupNodeInstructionIndex)
-		{
-			WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-		}
-		
-		if (CaseIndex < NumCases - 1)
-		{
-			uint64 JumpByte = WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpForward, 1);
-			int32 JumpInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-			if (Settings.SetupNodeInstructionIndex)
-			{
-				WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
-			}
-
-			JumpToEndBytes.Add(JumpByte);
-			JumpToEndInstructions.Add(JumpInstruction);
-		}
-	}
-
-	for (int32 CaseIndex = 0; CaseIndex < NumCases - 1; CaseIndex++)
-	{
-		int32 NumInstructionsToEnd = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToEndInstructions[CaseIndex];
-		WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpOp>(JumpToEndBytes[CaseIndex]).InstructionIndex = NumInstructionsToEnd;
 	}
 }
 

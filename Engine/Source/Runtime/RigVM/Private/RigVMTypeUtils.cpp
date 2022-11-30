@@ -9,6 +9,7 @@
 namespace RigVMTypeUtils
 {
 	TRigVMTypeIndex TypeIndex::Execute = INDEX_NONE;	
+	TRigVMTypeIndex TypeIndex::ExecuteArray = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::Bool = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::Float = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::Double = INDEX_NONE;	

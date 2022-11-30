@@ -4,21 +4,21 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMIfNode)
 
-const FString URigVMIfNode::IfName = TEXT("If");
-const FString URigVMIfNode::ConditionName = TEXT("Condition");
-const FString URigVMIfNode::TrueName = TEXT("True");
-const FString URigVMIfNode::FalseName = TEXT("False");
-const FString URigVMIfNode::ResultName = TEXT("Result");
+const FString UDEPRECATED_RigVMIfNode::IfName = TEXT("If");
+const FString UDEPRECATED_RigVMIfNode::ConditionName = TEXT("Condition");
+const FString UDEPRECATED_RigVMIfNode::TrueName = TEXT("True");
+const FString UDEPRECATED_RigVMIfNode::FalseName = TEXT("False");
+const FString UDEPRECATED_RigVMIfNode::ResultName = TEXT("Result");
 
 
-FName URigVMIfNode::GetNotation() const
+FName UDEPRECATED_RigVMIfNode::GetNotation() const
 {
 	static constexpr TCHAR Format[] = TEXT("%s(in %s,in %s,in %s,out %s)");
 	static const FName Notation = *FString::Printf(Format, *IfName, *ConditionName, *TrueName, *FalseName, *ResultName);
 	return Notation;
 }
 
-const FRigVMTemplate* URigVMIfNode::GetTemplate() const
+const FRigVMTemplate* UDEPRECATED_RigVMIfNode::GetTemplate() const
 {
 	if(const FRigVMTemplate* SuperTemplate = Super::GetTemplate())
 	{

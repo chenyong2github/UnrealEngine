@@ -49,8 +49,6 @@
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigRerouteNodeSpawner.h"
-#include "Graph/NodeSpawners/ControlRigIfNodeSpawner.h"
-#include "Graph/NodeSpawners/ControlRigSelectNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigTemplateNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigEnumNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigFunctionRefNodeSpawner.h"
@@ -1115,18 +1113,6 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		LOCTEXT("RerouteSpawnerCategory", "Organization"), 
 		LOCTEXT("RerouteSpawnerTooltip", "Adds a new reroute node to the graph"));
 	ActionRegistrar.AddBlueprintAction(ActionKey, RerouteNodeSpawner);
-
-	UBlueprintNodeSpawner* IfNodeSpawner = UControlRigIfNodeSpawner::CreateGeneric(
-		LOCTEXT("IfSpawnerDesc", "If"),
-		LOCTEXT("IfSpawnerCategory", "Execution"),
-		LOCTEXT("IfSpawnerTooltip", "Adds a new 'if' node to the graph"));
-	ActionRegistrar.AddBlueprintAction(ActionKey, IfNodeSpawner);
-
-	UBlueprintNodeSpawner* SelectNodeSpawner = UControlRigSelectNodeSpawner::CreateGeneric(
-		LOCTEXT("SelectSpawnerDesc", "Select"),
-		LOCTEXT("SelectSpawnerCategory", "Execution"),
-		LOCTEXT("SelectSpawnerTooltip", "Adds a new 'select' node to the graph"));
-	ActionRegistrar.AddBlueprintAction(ActionKey, SelectNodeSpawner);
 
 	const int32 FirstArrayOpCode = (int32)ERigVMOpCode::FirstArrayOpCode; 
 	const int32 LastArrayOpCode = (int32)ERigVMOpCode::LastArrayOpCode;

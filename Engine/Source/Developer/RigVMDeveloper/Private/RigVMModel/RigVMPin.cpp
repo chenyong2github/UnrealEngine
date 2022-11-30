@@ -23,6 +23,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 #include "RigVMModel/Nodes/RigVMSelectNode.h"
+#include "RigVMStringUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMPin)
 
@@ -56,122 +57,32 @@ const FString URigVMPin::OrphanPinPrefix = TEXT("Orphan::");
 
 bool URigVMPin::SplitPinPathAtStart(const FString& InPinPath, FString& LeftMost, FString& Right)
 {
-	return InPinPath.Split(TEXT("."), &LeftMost, &Right, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+	return RigVMStringUtils::SplitPinPathAtStart(InPinPath, LeftMost, Right);
 }
 
 bool URigVMPin::SplitPinPathAtEnd(const FString& InPinPath, FString& Left, FString& RightMost)
 {
-	return InPinPath.Split(TEXT("."), &Left, &RightMost, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+	return RigVMStringUtils::SplitPinPathAtEnd(InPinPath, Left, RightMost);
 }
 
 bool URigVMPin::SplitPinPath(const FString& InPinPath, TArray<FString>& Parts)
 {
-	int32 OriginalPartsCount = Parts.Num();
-	FString PinPathRemaining = InPinPath;
-	FString Left, Right;
-	while(SplitPinPathAtStart(PinPathRemaining, Left, Right))
-	{
-		Parts.Add(Left);
-		Left.Empty();
-		PinPathRemaining = Right;
-	}
-
-	if (!Right.IsEmpty())
-	{
-		Parts.Add(Right);
-	}
-
-	return Parts.Num() > OriginalPartsCount;
+	return RigVMStringUtils::SplitPinPath(InPinPath, Parts);
 }
 
 FString URigVMPin::JoinPinPath(const FString& Left, const FString& Right)
 {
-	ensure(!Left.IsEmpty() && !Right.IsEmpty());
-	return Left + TEXT(".") + Right;
+	return RigVMStringUtils::JoinPinPath(Left, Right);
 }
 
 FString URigVMPin::JoinPinPath(const TArray<FString>& InParts)
 {
-	if (InParts.Num() == 0)
-	{
-		return FString();
-	}
-
-	FString Result = InParts[0];
-	for (int32 PartIndex = 1; PartIndex < InParts.Num(); PartIndex++)
-	{
-		Result += TEXT(".") + InParts[PartIndex];
-	}
-
-	return Result;
+	return RigVMStringUtils::JoinPinPath(InParts);
 }
 
 TArray<FString> URigVMPin::SplitDefaultValue(const FString& InDefaultValue)
 {
-	TArray<FString> Parts;
-	if (InDefaultValue.IsEmpty())
-	{
-		return Parts;
-	}
-
-	if(InDefaultValue[0] != TCHAR('('))
-	{
-		return Parts;
-	}
-	if(InDefaultValue[InDefaultValue.Len() - 1] != TCHAR(')'))
-	{
-		return Parts;
-	}
-
-	FString Content = InDefaultValue.Mid(1, InDefaultValue.Len() - 2);
-	int32 BraceCount = 0;
-	int32 QuoteCount = 0;
-
-	int32 LastPartStartIndex = 0;
-	for (int32 CharIndex = 0; CharIndex < Content.Len(); CharIndex++)
-	{
-		TCHAR Char = Content[CharIndex];
-		if (QuoteCount > 0)
-		{
-			if (Char == TCHAR('"'))
-			{
-				QuoteCount = 0;
-			}
-		}
-		else if (Char == TCHAR('"'))
-		{
-			QuoteCount = 1;
-		}
-
-		if (Char == TCHAR('('))
-		{
-			if (QuoteCount == 0)
-			{
-				BraceCount++;
-			}
-		}
-		else if (Char == TCHAR(')'))
-		{
-			if (QuoteCount == 0)
-			{
-				BraceCount--;
-				BraceCount = FMath::Max<int32>(BraceCount, 0);
-			}
-		}
-		else if (Char == TCHAR(',') && BraceCount == 0 && QuoteCount == 0)
-		{
-			// ignore whitespaces
-			Parts.Add(Content.Mid(LastPartStartIndex, CharIndex - LastPartStartIndex).Replace(TEXT(" "), TEXT("")));
-			LastPartStartIndex = CharIndex + 1;
-		}
-	}
-
-	if (!Content.IsEmpty())
-	{
-		// ignore whitespaces from the start and end of the string
-		Parts.Add(Content.Mid(LastPartStartIndex).TrimStartAndEnd());
-	}
-	return Parts;
+	return RigVMStringUtils::SplitDefaultValue(InDefaultValue);
 }
 
 FString URigVMPin::GetDefaultValueForArray(TConstArrayView<FString> DefaultValues)
@@ -753,9 +664,9 @@ bool URigVMPin::IsFixedSizeArray() const
 					return Factory->HasArgumentMetaData(GetFName(), FRigVMStruct::FixedSizeArrayMetaName);
 				}
 			}
-			else if(Node->IsA<URigVMSelectNode>())
+			else if(Node->IsA<UDEPRECATED_RigVMSelectNode>())
 			{
-				return GetFName().ToString() == URigVMSelectNode::ValueName;
+				return GetFName().ToString() == UDEPRECATED_RigVMSelectNode::ValueName;
 			}
 		}
 	}

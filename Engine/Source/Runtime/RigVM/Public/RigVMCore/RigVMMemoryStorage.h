@@ -95,6 +95,17 @@ struct RIGVM_API FRigVMBranchInfo
 		return Hash;
 	}
 
+	static FString GetFixedArrayLabel(const FString& InArrayName, const FString& InElementName)
+	{
+		static constexpr TCHAR Format[] = TEXT("%s_%s");
+		return FString::Printf(Format, *InArrayName, *InElementName);
+	}
+
+	static FName GetFixedArrayLabel(const FName& InArrayName, const FName& InElementName)
+	{
+		return *GetFixedArrayLabel(InArrayName.ToString(), InElementName.ToString());
+	}
+
 	UPROPERTY()
 	int32 Index;
 

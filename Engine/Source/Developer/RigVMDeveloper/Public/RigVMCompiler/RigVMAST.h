@@ -26,8 +26,6 @@ class FRigVMAssignExprAST;
 class FRigVMCopyExprAST;
 class FRigVMCachedValueExprAST;
 class FRigVMExitExprAST;
-class FRigVMIfExprAST;
-class FRigVMSelectExprAST;
 class FRigVMArrayExprAST;
 
 class URigVMPin;
@@ -93,9 +91,6 @@ public:
 		Copy,
 		CachedValue,
 		Exit,
-		Branch,
-		If,
-		Select,
 		Array,
 		Invalid
 	};
@@ -321,9 +316,6 @@ inline const FRigVMNodeExprAST* FRigVMExprAST::To() const
 		IsA(EType::CallExtern) ||
 		IsA(EType::InlineFunction) ||
 		IsA(EType::NoOp) ||
-		IsA(EType::Branch) ||
-		IsA(EType::If) ||
-		IsA(EType::Select) ||
 		IsA(EType::Array)
 	);
 	return (const FRigVMNodeExprAST*)this;
@@ -459,28 +451,6 @@ inline const FRigVMExitExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Exit));
 	return (const FRigVMExitExprAST*)this;
-}
-
-// specialized cast for type checking
-// for a If / FRigVMIfExprAST expression
-// will raise if types are not compatible
-// @return this expression cast to FRigVMIfExprAST 
-template<>
-inline const FRigVMIfExprAST* FRigVMExprAST::To() const
-{
-	ensure(IsA(EType::If));
-	return (const FRigVMIfExprAST*)this;
-}
-
-// specialized cast for type checking
-// for a Select / FRigVMSelectExprAST expression
-// will raise if types are not compatible
-// @return this expression cast to FRigVMSelectExprAST 
-template<>
-inline const FRigVMSelectExprAST* FRigVMExprAST::To() const
-{
-	ensure(IsA(EType::Select));
-	return (const FRigVMSelectExprAST*)this;
 }
 
 // specialized cast for type checking
@@ -1099,90 +1069,6 @@ protected:
 	// default constructor (protected so that only parser can access it)
 	FRigVMExitExprAST(const FRigVMASTProxy& InProxy)
 		: FRigVMExprAST(EType::Exit, InProxy)
-	{}
-
-private:
-
-	friend class FRigVMParserAST;
-};
-
-/*
- * An abstract syntax tree if expression represents a branch point for values.
- * In C++ the branch is is the definition: (Condition ? True : False)
- */
-class RIGVMDEVELOPER_API FRigVMIfExprAST : public FRigVMNodeExprAST
-{
-public:
-
-	// virtual destructor
-	virtual ~FRigVMIfExprAST() {}
-
-	// disable copy constructor
-	FRigVMIfExprAST(const FRigVMEntryExprAST&) = delete;
-
-	// overload of the type checking mechanism
-	virtual bool IsA(EType InType) const override
-	{
-		return InType == EType::If;
-	};
-
-	virtual bool IsConstant() const override;
-
-	const FRigVMVarExprAST* GetConditionExpr() const { return ChildAt(0)->To<FRigVMVarExprAST>(); }
-	const FRigVMVarExprAST* GetTrueExpr() const { return ChildAt(1)->To<FRigVMVarExprAST>(); }
-	const FRigVMVarExprAST* GetFalseExpr() const { return ChildAt(2)->To<FRigVMVarExprAST>(); }
-	const FRigVMVarExprAST* GetResultExpr() const { return ChildAt(3)->To<FRigVMVarExprAST>(); }
-
-	bool IsAlwaysTrue() const;
-	bool IsAlwaysFalse() const;
-
-protected:
-
-	// default constructor (protected so that only parser can access it)
-	FRigVMIfExprAST(const FRigVMASTProxy& InProxy)
-		: FRigVMNodeExprAST(EType::If, InProxy)
-	{}
-
-
-private:
-
-	friend class FRigVMParserAST;
-};
-
-/*
- * An abstract syntax tree select expression represents a branch point for
- * selecting between multiple values.
- * In C++ the select is the definition: switch case
- */
-class RIGVMDEVELOPER_API FRigVMSelectExprAST : public FRigVMNodeExprAST
-{
-public:
-
-	// virtual destructor
-	virtual ~FRigVMSelectExprAST() {}
-
-	// disable copy constructor
-	FRigVMSelectExprAST(const FRigVMEntryExprAST&) = delete;
-
-	// overload of the type checking mechanism
-	virtual bool IsA(EType InType) const override
-	{
-		return InType == EType::Select;
-	};
-
-	virtual bool IsConstant() const override;
-
-	int32 GetConstantValueIndex() const;
-	int32 NumValues() const;
-	const FRigVMVarExprAST* GetIndexExpr() const { return ChildAt(0)->To<FRigVMVarExprAST>(); }
-	const FRigVMVarExprAST* GetValueExpr(int32 InIndex) const { return ChildAt(1 + InIndex)->To<FRigVMVarExprAST>(); }
-	const FRigVMVarExprAST* GetResultExpr() const { return ChildAt(NumChildren() - 1)->To<FRigVMVarExprAST>(); }
-
-protected:
-
-	// default constructor (protected so that only parser can access it)
-	FRigVMSelectExprAST(const FRigVMASTProxy& InProxy)
-		: FRigVMNodeExprAST(EType::Select, InProxy)
 	{}
 
 private:

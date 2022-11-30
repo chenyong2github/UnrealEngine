@@ -667,6 +667,7 @@ void FRigVMClient::PatchModelsOnLoad()
 		URigVMController* Controller = GetOrCreateController(Model);
 		Controller->PatchDispatchNodesOnLoad();
 		Controller->PatchBranchNodesOnLoad();
+		Controller->PatchIfSelectNodesOnLoad();
 	}
 }
 

@@ -9,6 +9,10 @@ USTRUCT(meta=(Abstract, Category = "Core", NodeColor = "0.762745, 1,0, 0.329412"
 struct FRigVMDispatch_CoreBase : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
+
+protected:
+
+	static const FString TrueString;
 };
 
 /*

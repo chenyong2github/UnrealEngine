@@ -17,8 +17,8 @@ struct FRigVMTemplate;
 /**
  * A if node is used to pick between two values
  */
-UCLASS(BlueprintType)
-class RIGVMDEVELOPER_API URigVMIfNode : public URigVMTemplateNode
+UCLASS(BlueprintType, Deprecated)
+class RIGVMDEVELOPER_API UDEPRECATED_RigVMIfNode : public URigVMTemplateNode
 {
 	GENERATED_BODY()
 

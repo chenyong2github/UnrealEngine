@@ -51,6 +51,7 @@ namespace RigVMTypeUtils
 	{
 	public:
 		static TRigVMTypeIndex Execute;	
+		static TRigVMTypeIndex ExecuteArray;	
 		static TRigVMTypeIndex Bool;	
 		static TRigVMTypeIndex Float;	
 		static TRigVMTypeIndex Double;	

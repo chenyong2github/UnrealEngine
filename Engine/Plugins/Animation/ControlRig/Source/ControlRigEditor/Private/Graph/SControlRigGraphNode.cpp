@@ -36,8 +36,8 @@
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "Slate/SlateTextures.h"
-//#include "RigVMFunctions/RigVMDispatch_If.h"
-//#include "RigVMFunctions/RigVMDispatch_Select.h"
+#include "RigVMFunctions/RigVMDispatch_If.h"
+#include "RigVMFunctions/RigVMDispatch_Select.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -994,10 +994,9 @@ void SControlRigGraphNode::RefreshErrorInfo()
 			{
 				if(const URigVMNode* RigModelNode = RigGraphNode->GetModelNode())
 				{
-					bool bShowCopyWarning = RigModelNode->IsA<URigVMIfNode>() || RigModelNode->IsA<URigVMSelectNode>();
+					bool bShowCopyWarning = RigModelNode->IsA<UDEPRECATED_RigVMIfNode>() || RigModelNode->IsA<UDEPRECATED_RigVMSelectNode>();
 					if(!bShowCopyWarning)
 					{
-						/*
 						if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(RigModelNode))
 						{
 							if(const UScriptStruct* FactoryStruct = DispatchNode->GetScriptStruct())
@@ -1009,7 +1008,6 @@ void SControlRigGraphNode::RefreshErrorInfo()
 								}
 							}
 						}
-						*/
 					}
 					if(bShowCopyWarning)
 					{
