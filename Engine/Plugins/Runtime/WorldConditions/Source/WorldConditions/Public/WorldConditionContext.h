@@ -155,16 +155,6 @@ protected:
  */
 struct WORLDCONDITIONS_API FWorldConditionContext
 {
-	// @todo Remove, dummy method to help to migrate to the new API, will be removed immeidately in follow up change.
-	explicit FWorldConditionContext(const UObject& Owner, const FWorldConditionQueryDefinition& Defintion, FWorldConditionQueryState& InQueryState, const FWorldConditionContextData& InContextData)
-		: Owner(*InQueryState.Owner)
-		, QueryState(InQueryState)
-		, ContextData(InContextData)
-	{
-		check(InQueryState.Owner);
-		World = Owner.GetWorld();
-	}
-	
 	explicit FWorldConditionContext(FWorldConditionQueryState& InQueryState, const FWorldConditionContextData& InContextData)
 		: Owner(*InQueryState.Owner)
 		, QueryState(InQueryState)

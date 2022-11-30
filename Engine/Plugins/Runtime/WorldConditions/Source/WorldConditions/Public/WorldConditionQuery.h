@@ -323,13 +323,6 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 	 * @return Invalidation handle.	
 	 */
 	FWorldConditionResultInvalidationHandle GetInvalidationHandle(const FWorldConditionBase& Condition) const;
-
-	// @todo Remove, dummy method to help to migrate to the new API, will be removed immeidately in follow up change.
-	void AddReferencedObjects(const FWorldConditionQueryDefinition& Definition, FReferenceCollector& Collector) const
-	{
-		FWorldConditionQueryState* NonConstThis = const_cast<FWorldConditionQueryState*>(this);
-		NonConstThis->AddStructReferencedObjects(Collector);
-	}
 	
 protected:
 
