@@ -134,7 +134,7 @@ UCLASS(BlueprintType)
 class ENGINE_API UInputDeviceSubsystem : public UEngineSubsystem, public FTickableGameObject
 {
 	friend class FInputDeviceSubsystemProcessor;
-	friend class FInputDeviceDebugVisualizer;
+	friend class FInputDeviceDebugTools;
 	
 	GENERATED_BODY()
 

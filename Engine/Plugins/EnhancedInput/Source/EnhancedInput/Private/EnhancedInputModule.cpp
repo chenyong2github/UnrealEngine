@@ -306,7 +306,6 @@ void FEnhancedInputModule::Tick(float DeltaTime)
 void FEnhancedInputModule::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos)
 {
 	static const FName NAME_EnhancedInput("EnhancedInput");
-	static const FName NAME_PlatformDevices("Devices");
 	if (Canvas)
 	{
 		if (HUD->ShouldDisplayDebug(NAME_EnhancedInput))
@@ -324,14 +323,6 @@ void FEnhancedInputModule::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDe
 			{
 				FirstPlayer->ShowDebugInfo(Canvas);
 			}
-		}
-		
-		if (HUD->ShouldDisplayDebug(NAME_PlatformDevices))
-		{
-			UEnhancedInputLibrary::ForEachSubsystem([Canvas](IEnhancedInputSubsystemInterface* Subsystem)
-			{
-				Subsystem->ShowPlatformInputDebugInfo(Canvas);
-			});
 		}
 	}
 	else

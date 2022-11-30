@@ -13,6 +13,8 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"Slate",
 					"InputCore",
+					"CoreUObject",
+					"ApplicationCore"
 				}
 			);
 		}

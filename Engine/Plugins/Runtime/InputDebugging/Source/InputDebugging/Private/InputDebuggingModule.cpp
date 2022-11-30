@@ -4,6 +4,7 @@
 #include "Debug/DebugDrawService.h"
 #include "Engine/Canvas.h"
 #include "TouchInputVisualizer.h"
+#include "InputDeviceDebugTools.h"
 #include "Modules/ModuleManager.h"
 
 class FInputDebuggingModule : public IInputDebuggingInterface
@@ -23,6 +24,10 @@ public:
 #if SUPPORT_TOUCH_INPUT_DISPLAY
 		TouchInputVisualizer = MakeShared<FTouchInputVisualizer>();
 #endif//SUPPORT_TOUCH_INPUT_DISPLAY
+
+#if SUPPORT_INPUT_DEVICE_DEBUGGING
+		InputDeviceVisualizer = MakeShared<FInputDeviceDebugTools>();
+#endif	// SUPPORT_INPUT_DEVICE_DEBUGGING
 	}
 
 	virtual void ShutdownModule() override
@@ -31,6 +36,10 @@ public:
 #if SUPPORT_TOUCH_INPUT_DISPLAY
 		TouchInputVisualizer.Reset();
 #endif//SUPPORT_TOUCH_INPUT_DISPLAY
+
+#if SUPPORT_INPUT_DEVICE_DEBUGGING
+		InputDeviceVisualizer.Reset();
+#endif	// SUPPORT_INPUT_DEVICE_DEBUGGING
 
 		// unregister debug rendering callback
 		UDebugDrawService::Unregister(DrawOnCanvasDelegateHandle);
@@ -56,6 +65,9 @@ private:
 	TSharedPtr<FTouchInputVisualizer> TouchInputVisualizer;
 #endif//SUPPORT_TOUCH_INPUT_DISPLAY
 
+#if SUPPORT_INPUT_DEVICE_DEBUGGING
+	TSharedPtr<FInputDeviceDebugTools> InputDeviceVisualizer;
+#endif	// SUPPORT_INPUT_DEVICE_DEBUGGING
 };
 
-IMPLEMENT_MODULE( FInputDebuggingModule, InputDebugging);
+IMPLEMENT_MODULE(FInputDebuggingModule, InputDebugging);

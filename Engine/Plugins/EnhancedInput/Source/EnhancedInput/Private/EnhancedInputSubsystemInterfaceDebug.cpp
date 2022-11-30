@@ -14,7 +14,6 @@
 #include "InputTriggers.h"
 #include "ImageUtils.h"
 #include "EnhancedInputPlatformSettings.h"
-#include "Framework/Application/SlateApplication.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "UObject/Package.h"
 
@@ -270,93 +269,6 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 					DisplayDebugManager.DrawString(DisplayLine.Line);
 				}
 			}
-		}
-	}
-}
-
-void IEnhancedInputSubsystemInterface::ShowPlatformInputDebugInfo(class UCanvas* Canvas)
-{
-	if (!Canvas)
-	{
-		return;
-	}
-	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
-
-	// Show title
-	DisplayDebugManager.SetFont(GEngine->GetMediumFont());
-	DisplayDebugManager.SetDrawColor(FColor::Orange);
-	DisplayDebugManager.DrawString(TEXT("\n\nPlatform Input Devices"));
-
-	// Gather all current platform users
-	IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
-	TArray<FPlatformUserId> PlatformUsers;
-	const int32 NumUsers = DeviceMapper.GetAllActiveUsers(PlatformUsers);
-	
-	DisplayDebugManager.SetDrawColor(FColor::White);
-	DisplayDebugManager.DrawString(FString::Printf(TEXT("Total Platform Users: %d\n"), NumUsers));
-
-	// Show all the connected input devices for each available platform user
-	// TODO: We could make two commands, one to display all platform users and one to only show this local player's data
-	TArray<FInputDeviceId> UserDeviceIds;
-	for (FPlatformUserId& PlatUser : PlatformUsers)
-	{
-		const int32 NumDevices = DeviceMapper.GetAllInputDevicesForUser(PlatUser, UserDeviceIds);
-		FString UserDebugInfo = FString::Printf(TEXT("Platform User ID '%d' has '%d' input devices"), PlatUser.GetInternalId(), NumDevices);
-		// Show in red if there are no devices, that is a problem!
-		DisplayDebugManager.SetDrawColor(NumDevices > 0 ? FColor::White : FColor::Red);
-		DisplayDebugManager.DrawString(UserDebugInfo);
-
-		// Display the debug info about each input device
-		for (FInputDeviceId& Device : UserDeviceIds)
-		{
-			static const float InputDeviceXOffset = 10.0f;
-			// Display the input device ID
-			FString DeviceIdString = FString::Printf(TEXT("Device ID: %d"), Device.GetId());
-			FString SlateUserIdString = TEXT("Slate UserID is unknown (Application is not initialized)");
-			if (FSlateApplication::IsInitialized())
-			{
-				TOptional<int32> SlateUserId = FSlateApplication::Get().GetUserIndexForInputDevice(Device);
-				if (SlateUserId.IsSet())
-				{
-					SlateUserIdString = FString::Printf(TEXT("Slate UserId ID: %d"), SlateUserId.GetValue());
-				}
-				else
-				{
-					SlateUserIdString = TEXT("Slate UserId ID: invalid");
-				}
-			}
-			
-			DisplayDebugManager.SetDrawColor(FColor::White);
-			DisplayDebugManager.DrawString(DeviceIdString, InputDeviceXOffset);
-			DisplayDebugManager.DrawString(SlateUserIdString, InputDeviceXOffset);
-			
-			// Display the connection state
-			FString ConnectionStateString;
-			FColor ConnectionStateColor = FColor::White;
-			const EInputDeviceConnectionState DeviceState = DeviceMapper.GetInputDeviceConnectionState(Device);
-			
-			switch(DeviceState)
-			{
-				case EInputDeviceConnectionState::Invalid:
-					ConnectionStateString = TEXT("INVALID");
-					ConnectionStateColor = FColor::Red;
-					break;
-				case EInputDeviceConnectionState::Unknown:
-					ConnectionStateString = TEXT("Unknown");
-					ConnectionStateColor = FColor::Orange;
-					break;
-				case EInputDeviceConnectionState::Disconnected:
-					ConnectionStateString = TEXT("Disconnected");
-					ConnectionStateColor = FColor::Silver;
-					break;
-				case EInputDeviceConnectionState::Connected:
-					ConnectionStateString = TEXT("Connected");
-					ConnectionStateColor = FColor::Green;
-					break;
-			}
-			
-			DisplayDebugManager.SetDrawColor(ConnectionStateColor);
-			DisplayDebugManager.DrawString(ConnectionStateString, InputDeviceXOffset);
 		}
 	}
 }
