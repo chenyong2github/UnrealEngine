@@ -133,6 +133,65 @@ bool FindDensityGridIndex(TArray<uint8>& SourceFile, const FString& Filename, ui
 	return false;
 }
 
+bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, const FString& Filename, TArray<FOpenVDBGridInfo>* OutGridInfo)
+{
+#if OPENVDB_AVAILABLE
+	FArrayUint8StreamBuf StreamBuf(SourceFile);
+	std::istream IStream(&StreamBuf);
+	openvdb::io::Stream Stream(IStream, false /*delayLoad*/);
+
+	openvdb::GridPtrVecPtr Grids = Stream.getGrids();
+
+	if (!Grids)
+	{
+		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB file contains no grids: %s"), *Filename);
+		return false;
+	}
+
+	OutGridInfo->Empty(Grids->size());
+
+	uint32 GridIndex = 0;
+	for (openvdb::GridBase::Ptr& Grid : *Grids)
+	{
+		FOpenVDBGridInfo GridInfo;
+		GridInfo.Index = GridIndex;
+		++GridIndex;
+
+		// Figure out the type/format of the grid
+		bool bGridTypeSupported = false;
+		if (Grid->isType<openvdb::FloatGrid>())
+		{
+			GridInfo.Format = EOpenVDBGridFormat::Float;
+			bGridTypeSupported = true;
+		}
+		if (!bGridTypeSupported)
+		{
+			continue;
+		}
+
+		GridInfo.Name = Grid->getName().c_str();
+
+		FStringFormatOrderedArguments FormatArgs;
+		FormatArgs.Add(GridInfo.Name);
+		FormatArgs.Add(OpenVDBGridFormatToString(GridInfo.Format));
+
+		GridInfo.DisplayString = FString::Format(TEXT("Name: {0}, Format: {1}"), FormatArgs);
+
+		OutGridInfo->Add(MoveTemp(GridInfo));
+	}
+
+	if (OutGridInfo->IsEmpty())
+	{
+		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Warning, TEXT("OpenVDB file contains no grids of supported type/format: %s"), *Filename);
+		return false;
+	}
+
+	return true;
+
+#endif // OPENVDB_AVAILABLE
+	return false;
+}
+
 bool ConvertOpenVDBToSparseVolumeTexture(
 	TArray<uint8>& SourceFile,
 	uint32 GridIndex,
@@ -299,7 +358,7 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 			[
 				PageCoordToSplat.Z * Header.PageTableVolumeResolution.X * Header.PageTableVolumeResolution.Y +
 				PageCoordToSplat.Y * Header.PageTableVolumeResolution.X +
-			PageCoordToSplat.X
+				PageCoordToSplat.X
 			] = DestinationTileCoord32bit;
 
 		// Now copy the tile data
@@ -313,7 +372,7 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 						[
 							(DestinationTileCoord.Z * SPARSE_VOLUME_TILE_RES + z) * Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y +
 							(DestinationTileCoord.Y * SPARSE_VOLUME_TILE_RES + y) * Header.TileDataVolumeResolution.X +
-						(DestinationTileCoord.X * SPARSE_VOLUME_TILE_RES + x)
+							(DestinationTileCoord.X * SPARSE_VOLUME_TILE_RES + x)
 						] = TileDataToSplat[z * SPARSE_VOLUME_TILE_RES * SPARSE_VOLUME_TILE_RES + y * SPARSE_VOLUME_TILE_RES + x];
 				}
 			}
@@ -327,6 +386,17 @@ bool ConvertOpenVDBToSparseVolumeTexture(
 #else
 	return false;
 #endif // OPENVDB_AVAILABLE
+}
+
+const TCHAR* OpenVDBGridFormatToString(EOpenVDBGridFormat Format)
+{
+	switch (Format)
+	{
+	case EOpenVDBGridFormat::Float:
+		return TEXT("Float");
+	default:
+		return TEXT("Unknown");
+	}
 }
 
 #endif // WITH_EDITOR

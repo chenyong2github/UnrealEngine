@@ -16,6 +16,11 @@
 
 #include "Editor.h"
 
+#include "OpenVDBImportOptions.h"
+#include "OpenVDBImportWindow.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "Interfaces/IMainFrameModule.h"
+
 #define LOCTEXT_NAMESPACE "USparseVolumeTextureFactory"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTextureFactory, Log, All);
@@ -215,23 +220,89 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		FName NewName(InName.ToString() + TEXT("VDB"));
 		UStaticSparseVolumeTexture* StaticSVTexture = NewObject<UStaticSparseVolumeTexture>(InParent, UStaticSparseVolumeTexture::StaticClass(), NewName, Flags);
 
+		// Load file and get info about each contained grid
 		TArray<uint8> LoadedFile;
-		if (!FFileHelper::LoadFileToArray(LoadedFile, *Filename))
+		TArray<TSharedPtr<FOpenVDBGridInfo>> GridInfoPtrs;
 		{
-			UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file could not be opened: %s"), *Filename);
-			return nullptr;
+			if (!FFileHelper::LoadFileToArray(LoadedFile, *Filename))
+			{
+				UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file could not be opened: %s"), *Filename);
+				return nullptr;
+			}
+
+			TArray<FOpenVDBGridInfo> GridInfo;
+			if (!GetOpenVDBGridInfo(LoadedFile, Filename, &GridInfo))
+			{
+				UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file contains no suitable density grids: %s"), *Filename);
+				return nullptr;
+			}
+
+			// Convert to array of TSharedPtr. SComboBox requires this.
+			GridInfoPtrs.Empty(GridInfo.Num());
+			for (auto& Grid : GridInfo)
+			{
+				GridInfoPtrs.Add(MakeShared<FOpenVDBGridInfo>(Grid));
+			}
+		}
+
+		// Show import dialog
+		FOpenVDBImportOptions ImportOptions{};
+		{
+			TSharedPtr<SWindow> ParentWindow;
+
+			if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+			{
+				IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+				ParentWindow = MainFrame.GetParentWindow();
+			}
+
+			// Compute centered window position based on max window size, which include when all categories are expanded
+			const float ImportWindowWidth = 450.0f;
+			const float ImportWindowHeight = 750.0f;
+			FVector2D ImportWindowSize = FVector2D(ImportWindowWidth, ImportWindowHeight); // Max window size it can get based on current slate
+
+
+			FSlateRect WorkAreaRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
+			FVector2D DisplayTopLeft(WorkAreaRect.Left, WorkAreaRect.Top);
+			FVector2D DisplaySize(WorkAreaRect.Right - WorkAreaRect.Left, WorkAreaRect.Bottom - WorkAreaRect.Top);
+
+			float ScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DisplayTopLeft.X, DisplayTopLeft.Y);
+			ImportWindowSize *= ScaleFactor;
+
+			FVector2D WindowPosition = (DisplayTopLeft + (DisplaySize - ImportWindowSize) / 2.0f) / ScaleFactor;
+
+			TSharedRef<SWindow> Window = SNew(SWindow)
+				.Title(NSLOCTEXT("UnrealEd", "OpenVDBImportOptionsTitle", "OpenVDB Import Options"))
+				.SizingRule(ESizingRule::Autosized)
+				.AutoCenter(EAutoCenter::None)
+				.ClientSize(ImportWindowSize)
+				.ScreenPosition(WindowPosition);
+
+			TSharedPtr<SOpenVDBImportWindow> OpenVDBOptionWindow;
+			Window->SetContent
+			(
+				SAssignNew(OpenVDBOptionWindow, SOpenVDBImportWindow)
+				.ImportOptions(&ImportOptions)
+				.OpenVDBGridInfo(&GridInfoPtrs)
+				.WidgetWindow(Window)
+				.FullPath(FText::FromString(Filename))
+				.MaxWindowHeight(ImportWindowHeight)
+				.MaxWindowWidth(ImportWindowWidth)
+			);
+
+			FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+
+			if (!OpenVDBOptionWindow->ShouldImport())
+			{
+				bOutOperationCanceled = true;
+				return nullptr;
+			}
 		}
 
 		FScopedSlowTask ImportTask(1.0f, LOCTEXT("ImportingVDBStatic", "Importing static OpenVDB"));
 		ImportTask.MakeDialog(true);
 
-		uint32 DensityGridIndex = 0;
-		FOpenVDBData OpenVDBData;
-		if (!FindDensityGridIndex(LoadedFile, Filename, &DensityGridIndex, &OpenVDBData))
-		{
-			UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("OpenVDB file contains no suitable density grid: %s"), *Filename);
-			return nullptr;
-		}
+		uint32 DensityGridIndex = ImportOptions.Density.Index;
 
 		FSparseVolumeRawSource SparseVolumeRawSource{};
 		SparseVolumeRawSource.DensityGridIndex = DensityGridIndex;

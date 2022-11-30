@@ -17,6 +17,10 @@ public class SparseVolumeTexture : ModuleRules
 				"Engine",
 				"Renderer",
 				"RenderCore",
+				"Slate",
+				"SlateCore",
+				"ApplicationCore",
+				"ToolWidgets",
 			}
 		);
 
