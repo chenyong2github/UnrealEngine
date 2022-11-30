@@ -13,11 +13,11 @@ import { MergeAction, OperationResult, PendingChange, resolveBranchArg, StompedR
 import { Conflicts } from './conflicts';
 import { EdgeBot, EdgeMergeResults } from './edgebot';
 import { BotEventTriggers } from './events';
-import { SlackMessages } from './notifications';
+import { makeClLink, SlackMessages } from './notifications';
 import { PerforceStatefulBot } from './perforce-stateful-bot';
 import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Context } from './settings';
-import { SlackMessage, SlackMessageStyles } from './slack';
+import { SlackMessage, SlackMessageField, SlackMessageStyles } from './slack';
 import { PauseState } from './state-interfaces';
 import { newTickJournal, TickJournal } from './tick-journal';
 import { computeTargets, parseDescriptionLines, processOtherBotTargets, getIntegrationOwner, getNodeBotFullName, getNodeBotFullNameForLogging } from './targets';
@@ -1992,6 +1992,29 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		this.conflicts.onBlockage(blockage)
 		return true
+	}
+
+	async reportApprovalRequired(approval: ApprovalOptions, pending: PendingChange) {
+		if (this.slackMessages) {
+			const userEmail = await this.p4.getEmail(pending.change.author)
+			const slackUser = userEmail ? await this.slackMessages.getSlackUser(userEmail) : null
+			const channelPing = slackUser ? `<@${slackUser}>` : `@${pending.change.author}`
+
+			const fields: SlackMessageField[] = [
+				{title: 'Change', short: true, value: makeClLink(pending.newCl)}
+			]
+
+			const opts: SlackMessage = { 
+				title:'', 
+				text: `${channelPing}'s change needs to be approved.`, 
+				style: SlackMessageStyles.DANGER, 
+				fields,
+				mrkdwn: true,
+				channel: approval.channelId
+			}
+
+			this.slackMessages.postNonConflictMessage(opts)
+		}
 	}
 
 	private async sendNagNotifications() {

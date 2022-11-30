@@ -659,15 +659,14 @@ class EdgeBotImpl extends PerforceStatefulBot {
 				// still notify as a 'failure' to trigger normal blockage mechanism
 				failure = { kind: 'Approval required', description: approval.description }
 	
-				const msg = `Integration of CL#${pending.change.cl} to ${pending.action.branch.name} needs approval: ${approval.description}`
 				if (pending.change.userRequest) {
-					postMessageToChannel(msg, approval.channelId, SlackMessageStyles.DANGER)			
+					this.sourceNode.reportApprovalRequired(approval, pending) 
 				}
 				else {
 					// pause this bot
 					this.block(this.createEdgeBlockageInfo(failure, pending))
 					this.sourceNode.findOrCreateBlockage(failure, pending,
-						msg,
+						`Integration of CL#${pending.change.cl} to ${pending.action.branch.name} needs approval: ${approval.description}`,
 						{
 							settings: approval,
 							shelfCl: pending.newCl

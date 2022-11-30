@@ -423,7 +423,7 @@ export class SlackMessages {
 	}
 }
 
-function makeClLink(cl: number, alias?: string) {
+export function makeClLink(cl: number, alias?: string) {
 	return `<https://p4-swarm.companyname.net/changes/${cl}|${alias ? alias : cl}>`
 }
 
