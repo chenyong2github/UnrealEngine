@@ -188,12 +188,19 @@ protected:
 	}
 
 	template<typename T>
-	T& GetOperandSlice(TArray<T>& InOutArray)
+	T& GetOperandSlice(TArray<T>& InOutArray, const T* InDefaultValue = nullptr)
 	{
 		const int32 SliceIndex = Context.GetSlice().GetIndex();
 		if(InOutArray.Num() <= SliceIndex)
 		{
-			InOutArray.AddDefaulted(1 + SliceIndex - InOutArray.Num());
+			const int32 FirstInsertedItem = InOutArray.AddDefaulted(1 + SliceIndex - InOutArray.Num());
+			if (InDefaultValue)
+			{
+				for (int32 i=FirstInsertedItem; i<InOutArray.Num();++i)
+				{
+					InOutArray[i] = *InDefaultValue;
+				}
+			}
 		}
 		return InOutArray[SliceIndex];
 	}
