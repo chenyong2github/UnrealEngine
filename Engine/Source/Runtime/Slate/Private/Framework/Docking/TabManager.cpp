@@ -951,8 +951,34 @@ TSharedRef<FTabManager::FLayout> FTabManager::PersistLayout() const
 
 void FTabManager::SavePersistentLayout()
 {
+	if (PendingLayoutSaveHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(PendingLayoutSaveHandle);
+		PendingLayoutSaveHandle.Reset();
+	}
+
 	const TSharedRef<FLayout> LayoutState = this->PersistLayout();
-	OnPersistLayout_Handler.ExecuteIfBound( LayoutState );
+	OnPersistLayout_Handler.ExecuteIfBound(LayoutState);
+}
+
+void FTabManager::RequestSavePersistentLayout()
+{
+	// if we already have a request pending, remove it and schedule a new one
+	// this is to avoid hitches when eg. resizing a docked tab
+	if (PendingLayoutSaveHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(PendingLayoutSaveHandle);
+		PendingLayoutSaveHandle.Reset();
+	}
+
+	auto OnTick = [this](float FrameTime)
+	{
+		this->PendingLayoutSaveHandle.Reset();
+		this->SavePersistentLayout();
+		return false;
+	};
+
+	PendingLayoutSaveHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(OnTick), 5.0f);
 }
 
 FTabSpawnerEntry& FTabManager::RegisterTabSpawner(const FName TabId, const FOnSpawnTab& OnSpawnTab, const FCanSpawnTab& CanSpawnTab)
@@ -1540,8 +1566,6 @@ FTabManager::FTabManager( const TSharedPtr<SDockTab>& InOwnerTab, const TSharedR
 , OwnerTabPtr( InOwnerTab )
 , PrivateApi( MakeShareable(new FPrivateApi(*this)) )
 , LastDocumentUID( 0 )
-, bIsSavingVisualState( false )
-, bCanDoDragOperation( true )
 , TabPermissionList( MakeShareable(new FNamePermissionList()) )
 {
 	LocalWorkspaceMenuRoot = FWorkspaceItem::NewGroup(LOCTEXT("LocalWorkspaceRoot", "Local Workspace Root"));
@@ -2227,6 +2251,13 @@ void FTabManager::OnTabRelocated( const TSharedRef<SDockTab>& RelocatedTab, cons
 	FGlobalTabmanager::Get()->UpdateMainMenu(RelocatedTab, true);
 
 	UpdateStats();
+
+	RequestSavePersistentLayout();
+
+	if (TSharedPtr<FTabManager> NewTabManager = RelocatedTab->GetTabManagerPtr())
+	{
+		NewTabManager->RequestSavePersistentLayout();
+	}
 }
 
 void FTabManager::OnTabOpening( const TSharedRef<SDockTab>& TabBeingOpened )
@@ -2264,12 +2295,12 @@ bool FTabManager::CanCloseManager( const TSet< TSharedRef<SDockTab> >& TabsToIgn
 	bool bCanCloseManager = true;
 
 	for (int32 DockAreaIndex=0; bCanCloseManager && DockAreaIndex < DockAreas.Num(); ++DockAreaIndex)
-	{
+		{
 		TSharedPtr<SDockingArea> SomeArea = DockAreas[DockAreaIndex].Pin();
 		TArray< TSharedRef<SDockTab> > AreasTabs = SomeArea.IsValid() ? SomeArea->GetAllChildTabs() : TArray< TSharedRef<SDockTab> >();
 		
 		for (int32 TabIndex=0; bCanCloseManager && TabIndex < AreasTabs.Num(); ++TabIndex)	
-		{
+			{
 			bCanCloseManager =
 				TabsToIgnore.Contains( AreasTabs[TabIndex] ) ||
 				AreasTabs[TabIndex]->GetTabRole() != ETabRole::MajorTab ||
@@ -2318,8 +2349,8 @@ TSharedPtr<FTabManager::FStack> FTabManager::FindTabUnderNode( const FTabMatcher
 			StackWithTab = FindTabUnderNode( Matcher, NodeAsSplitter->ChildNodes[ChildIndex] );
 		}
 
-		return StackWithTab;
-	}
+			return StackWithTab;
+		}
 }
 
 
@@ -2348,7 +2379,7 @@ const TSharedPtr<const FTabSpawnerEntry> FTabManager::FindTabSpawnerFor(FName Ta
 
 	return (Spawner != nullptr)
 		? TSharedPtr<const FTabSpawnerEntry>(*Spawner)
-		: TSharedPtr<FTabSpawnerEntry>();
+		: TSharedPtr<const FTabSpawnerEntry>();
 }
 
 int32 FTabManager::FindTabInCollapsedAreas( const FTabMatcher& Matcher )

@@ -307,6 +307,9 @@ private:
 	/** Attempts to find the active tab that can be closed by the CloseMinorTab command */
 	bool CanExecuteCloseMinorTabCommand();
 
+	/** Called when this stack is resized. */
+	virtual void OnResized() override;
+
 #if DEBUG_TAB_MANAGEMENT
 	FString ShowPersistentTabs() const;
 #endif

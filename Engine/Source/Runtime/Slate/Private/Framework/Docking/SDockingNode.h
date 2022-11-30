@@ -67,7 +67,7 @@ public:
 	 *
 	 * @param InParent      Set this node's parent.
 	 */
-	virtual void SetParentNode( TSharedRef<class SDockingSplitter> InParent )
+	virtual void SetParentNode( TSharedRef<SDockingSplitter> InParent )
 	{
 		ParentNodePtr = InParent;
 	}
@@ -140,12 +140,14 @@ protected:
 	/** A live tab was added to this node or one of its descendants */
 	virtual void OnLiveTabAdded();
 
+	virtual void OnResized() {}
+
 	/**
 	 * Weak reference to the parent node. It is NULL until the node
 	 * is inserted into the hierarchy. Also NULL for root nodes (aka SDockingArea)
 	 */
-	TWeakPtr<class SDockingSplitter> ParentNodePtr;
+	TWeakPtr<SDockingSplitter> ParentNodePtr;
 
-	float SizeCoefficient;
+	float SizeCoefficient = 1.0f;
 };
 

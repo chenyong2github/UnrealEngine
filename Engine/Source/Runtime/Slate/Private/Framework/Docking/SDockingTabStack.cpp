@@ -1343,8 +1343,7 @@ void SDockingTabStack::ExecuteCloseMinorTabCommand()
 
 bool SDockingTabStack::CanExecuteCloseMinorTabCommand()
 {
-	auto DockArea = GetDockArea();
-	if (DockArea.IsValid())
+	if (TSharedPtr<SDockingArea> DockArea = GetDockArea())
 	{
 		TSharedPtr<FGlobalTabmanager> GlobalTabManager = FGlobalTabmanager::Get();
 		TSharedPtr<SDockTab> ActiveTab = GlobalTabManager->GetActiveTab();
@@ -1358,6 +1357,14 @@ bool SDockingTabStack::CanExecuteCloseMinorTabCommand()
 		}
 	}
 	return false;
+}
+
+void SDockingTabStack::OnResized()
+{
+	if (TSharedPtr<SDockingArea> DockArea = GetDockArea())
+	{
+		DockArea->GetTabManager()->RequestSavePersistentLayout();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

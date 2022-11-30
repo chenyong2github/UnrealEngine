@@ -108,6 +108,8 @@ protected:
 
 	virtual SDockingNode::ECleanupRetVal CleanUpNodes() override;
 
+	virtual void OnResized() override;
+
 	float ComputeChildCoefficientTotal() const;
 
 	enum class ETabStackToFind

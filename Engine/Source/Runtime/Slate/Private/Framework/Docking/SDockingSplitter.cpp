@@ -43,6 +43,14 @@ void SDockingSplitter::AddChildNode( const TSharedRef<SDockingNode>& InChild, in
 	InChild->SetParentNode( SharedThis(this) );
 }
 
+void SDockingSplitter::OnResized()
+{
+	if (TSharedPtr<SDockingArea> Area = GetDockArea())
+	{
+		Area->GetTabManager()->RequestSavePersistentLayout();
+	}
+}
+
 void SDockingSplitter::ReplaceChild( const TSharedRef<SDockingNode>& InChildToReplace, const TSharedRef<SDockingNode>& Replacement )
 {
 	// We want to replace this placeholder with whatever is being dragged.

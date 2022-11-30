@@ -27,6 +27,8 @@ float SDockingNode::GetSizeCoefficient() const
 void SDockingNode::SetSizeCoefficient( float InSizeCoefficient )
 {
 	SizeCoefficient = InSizeCoefficient;
+
+	OnResized();
 }
 
 void SDockingNode::OnLiveTabAdded()
@@ -41,7 +43,6 @@ void SDockingNode::OnLiveTabAdded()
 }
 
 SDockingNode::SDockingNode()
-: SizeCoefficient(1.0f)
 {
 
 

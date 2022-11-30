@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SlateFwd.h"
+#include "Containers/Ticker.h"
 #include "Misc/Attribute.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/SWindow.h"
@@ -831,6 +832,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		/** Gather the persistent layout and execute the custom delegate for saving it to persistent storage (e.g. into config files) */
 		void SavePersistentLayout();
 
+		/** Request a deferred save of the layout. */
+		void RequestSavePersistentLayout();
+
 		/**
 		 * Register a new tab spawner with the tab manager.  The spawner will be called when anyone calls
 		 * InvokeTab().
@@ -1141,12 +1145,6 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		/** Returns the default window size for the TabId, or the fallback window size if it wasn't registered */
 		static FVector2D GetDefaultTabWindowSize(const FTabId& TabId);
 
-		/**
-		 * Defensive: True when we are saving the visual state.
-		 * Inevitably someone will ask us to save layout while saving layout.
-		 * We will ignore that request them.
-		 */
-		bool bIsSavingVisualState;
 
 		/** The main tab, this tab cannot be closed. */
 		TWeakPtr<const SDockTab> MainNonCloseableTab;
@@ -1155,10 +1153,13 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		TWeakPtr<SWindow> LastMajorDockWindow;
 
 		/* Prevent or allow Drag operation. */
-		bool bCanDoDragOperation;
+		bool bCanDoDragOperation = true;
 
 		/** Whether or not this tab manager puts any registered menus in the windows menu bar area */
 		bool bAllowPerWindowMenu = false;
+
+		/** Handle to a pending layout save. */
+		FTSTicker::FDelegateHandle PendingLayoutSaveHandle;
 
 		/** Allow systems to dynamically hide tabs */
 		TSharedRef<FNamePermissionList> TabPermissionList;
@@ -1335,8 +1336,8 @@ private:
 
 	FGlobalTabmanager()
 	: FTabManager( TSharedPtr<SDockTab>(), MakeShareable( new FTabSpawner() ) )
-	, AllTabsMaxCount(0)
-	, AllAreasWindowMaxCount(0)
+		, AllTabsMaxCount(0)
+		, AllAreasWindowMaxCount(0)
 	{
 	}
 
