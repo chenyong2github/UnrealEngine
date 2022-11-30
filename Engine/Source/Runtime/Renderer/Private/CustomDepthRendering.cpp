@@ -116,14 +116,21 @@ static FViewShaderParameters CreateViewShaderParametersWithoutJitter(const FView
 	FViewShaderParameters Parameters;
 	Parameters.View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformParameters, UniformBuffer_SingleFrame);
 
-	if (const FViewInfo* InstancedView = View.GetInstancedView())
+	if (View.bShouldBindInstancedViewUB)
 	{
-		SetupParameters(*InstancedView, ViewUniformParameters);
-	}
+		FInstancedViewUniformShaderParameters LocalInstancedViewUniformShaderParameters;
+		InstancedViewParametersUtils::CopyIntoInstancedViewParameters(LocalInstancedViewUniformShaderParameters, ViewUniformParameters, 0);
 
-	Parameters.InstancedView = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
-		reinterpret_cast<const FInstancedViewUniformShaderParameters&>(ViewUniformParameters),
-		UniformBuffer_SingleFrame);
+		if (const FViewInfo* InstancedView = View.GetInstancedView())
+		{
+			SetupParameters(*InstancedView, ViewUniformParameters);
+			InstancedViewParametersUtils::CopyIntoInstancedViewParameters(LocalInstancedViewUniformShaderParameters, ViewUniformParameters, 1);
+		}
+
+		Parameters.InstancedView = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
+			LocalInstancedViewUniformShaderParameters,
+			UniformBuffer_SingleFrame);
+	}
 
 	return Parameters;
 }

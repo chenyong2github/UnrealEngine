@@ -75,9 +75,9 @@ public:
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, BoundingSphere, View.ViewMatrices.GetPreViewTranslation());
 		StencilingGeometryParameters.Set(RHICmdList, this, StencilingSpherePosAndScale);
 
-		if (GEngine && GEngine->StereoRenderingDevice)
+		if (ViewId.IsBound())
 		{
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, View.StereoViewIndex);
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, (View.StereoPass == EStereoscopicPass::eSSP_FULL) ? 0 : View.StereoViewIndex);
 		}
 	}
 
@@ -88,9 +88,9 @@ public:
 		// Don't transform if rendering frustum
 		StencilingGeometryParameters.Set(RHICmdList, this, FVector4f(0,0,0,1));
 
-		if (GEngine && GEngine->StereoRenderingDevice)
+		if (ViewId.IsBound())
 		{
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, View.StereoViewIndex);
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, (View.StereoPass == EStereoscopicPass::eSSP_FULL) ? 0 : View.StereoViewIndex);
 		}
 	}
 

@@ -335,14 +335,22 @@ void LumenTranslucencyReflectionsMarkUsedProbes(
 
 		PassParameters->View.View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(DownsampledTranslucencyViewParameters, UniformBuffer_SingleFrame);
 		
-		if (const FViewInfo* InstancedView = View.GetInstancedView())
+		if (View.bShouldBindInstancedViewUB)
 		{
-			InstancedView->SetupViewRectUniformBufferParameters(
-				DownsampledTranslucencyViewParameters,
-				SceneTextures.Config.Extent,
-				GetScaledRect(InstancedView->ViewRect, ViewportScale),
-				ViewMatrices,
-				PrevViewMatrices);
+			FInstancedViewUniformShaderParameters LocalInstancedViewUniformShaderParameters;
+			InstancedViewParametersUtils::CopyIntoInstancedViewParameters(LocalInstancedViewUniformShaderParameters, DownsampledTranslucencyViewParameters, 0);
+
+			if (const FViewInfo* InstancedView = View.GetInstancedView())
+			{
+				InstancedView->SetupViewRectUniformBufferParameters(
+					DownsampledTranslucencyViewParameters,
+					SceneTextures.Config.Extent,
+					GetScaledRect(InstancedView->ViewRect, ViewportScale),
+					ViewMatrices,
+					PrevViewMatrices);
+
+				InstancedViewParametersUtils::CopyIntoInstancedViewParameters(LocalInstancedViewUniformShaderParameters, DownsampledTranslucencyViewParameters, 1);
+			}
 
 			PassParameters->View.InstancedView = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
 				reinterpret_cast<const FInstancedViewUniformShaderParameters&>(DownsampledTranslucencyViewParameters),

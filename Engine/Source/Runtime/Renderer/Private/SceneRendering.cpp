@@ -2014,20 +2014,25 @@ void FViewInfo::CreateViewUniformBuffers(const FViewUniformShaderParameters& Par
 	ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(Params, UniformBuffer_SingleFrame);
 	if (bShouldBindInstancedViewUB)
 	{
+		FInstancedViewUniformShaderParameters LocalInstancedViewUniformShaderParameters;
+		//always copy the left/primary view in array index 0
+		InstancedViewParametersUtils::CopyIntoInstancedViewParameters(LocalInstancedViewUniformShaderParameters, Params, 0);
+
 		if (const FViewInfo* InstancedView = GetInstancedView())
 		{
+			// Copy instanced view (usually right view) into array index 1
 			checkf(InstancedView->CachedViewUniformShaderParameters.IsValid(), TEXT("Instanced view should have had its RHI resources initialized first. Check InitViews order."));
-			InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
-				reinterpret_cast<FInstancedViewUniformShaderParameters&>(*InstancedView->CachedViewUniformShaderParameters),
-				UniformBuffer_SingleFrame);
+			InstancedViewParametersUtils::CopyIntoInstancedViewParameters(LocalInstancedViewUniformShaderParameters, *InstancedView->CachedViewUniformShaderParameters, 1);
 		}
 		else
 		{
-			// If we don't render this view in stereo, we simply initialize with the existing contents.
-			InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
-				reinterpret_cast<const FInstancedViewUniformShaderParameters&>(Params),
-				UniformBuffer_SingleFrame);
+			// If we don't render this view in stereo, we simply initialize index 1 with the existing contents from primary view
+			InstancedViewParametersUtils::CopyIntoInstancedViewParameters(LocalInstancedViewUniformShaderParameters, Params, 1);
 		}
+
+		InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
+			LocalInstancedViewUniformShaderParameters,
+			UniformBuffer_SingleFrame);
 	}
 }
 

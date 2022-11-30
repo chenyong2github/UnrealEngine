@@ -132,6 +132,23 @@ struct CORE_API FMemory
 		return FPlatformMemory::Memzero( Dest, Count );
 	}
 
+	/** Returns true if memory is zeroes, false otherwise. */
+	static FORCEINLINE bool MemIsZero(const void* Ptr, SIZE_T Count)
+	{
+		// first pass implementation
+		uint8* Start = (uint8*)Ptr;
+		uint8* End = Start + Count;
+		while (Start < End)
+		{
+			if ((*Start++) != 0)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	template< class T > 
 	static FORCEINLINE void Memzero( T& Src )
 	{

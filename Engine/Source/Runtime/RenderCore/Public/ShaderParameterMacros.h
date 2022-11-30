@@ -821,6 +821,9 @@ struct TShaderParameterTypeInfo
 	/** Type that is actually alligned. */
 	using TAlignedType = TypeParameter;
 
+	/** Type that has a multiple of 4 components. */
+	using TInstancedType = TypeParameter;
+
 	static const FShaderParametersMetadata* GetStructMetadata() { return &TypeParameter::StaticStructMetadata; }
 };
 
@@ -836,6 +839,7 @@ struct TShaderParameterTypeInfo<bool>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 	
 	using TAlignedType = TAlignedTypedef<bool, Alignment>::Type;
+	using TInstancedType = FUintVector4;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -851,6 +855,7 @@ struct TShaderParameterTypeInfo<uint32>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<uint32, Alignment>::Type;
+	using TInstancedType = FUintVector4;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -867,6 +872,7 @@ struct TShaderParameterTypeInfo<int32>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<int32, Alignment>::Type;
+	using TInstancedType = FIntVector4;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -882,6 +888,7 @@ struct TShaderParameterTypeInfo<float>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<float, Alignment>::Type;
+	using TInstancedType = FVector4f;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -897,6 +904,7 @@ struct TShaderParameterTypeInfo<FVector2f>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FVector2f, Alignment>::Type;
+	using TInstancedType = FVector4f;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -912,6 +920,7 @@ struct TShaderParameterTypeInfo<FVector3f>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FVector3f, Alignment>::Type;
+	using TInstancedType = FVector4f;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -927,6 +936,7 @@ struct TShaderParameterTypeInfo<FVector4f>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FVector4f, Alignment>::Type;
+	using TInstancedType = FVector4f;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -942,6 +952,7 @@ struct TShaderParameterTypeInfo<FLinearColor>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FLinearColor, Alignment>::Type;
+	using TInstancedType = FLinearColor;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -957,6 +968,7 @@ struct TShaderParameterTypeInfo<FIntPoint>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FIntPoint, Alignment>::Type;
+	using TInstancedType = FIntVector4;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -972,6 +984,7 @@ struct TShaderParameterTypeInfo<FUintVector2>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FUintVector2, Alignment>::Type;
+	using TInstancedType = FUintVector4;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -987,6 +1000,7 @@ struct TShaderParameterTypeInfo<FIntVector>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FIntVector, Alignment>::Type;
+	using TInstancedType = FIntVector4;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1002,6 +1016,7 @@ struct TShaderParameterTypeInfo<FUintVector3>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FUintVector3, Alignment>::Type;
+	using TInstancedType = FUintVector4;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1017,6 +1032,7 @@ struct TShaderParameterTypeInfo<FIntVector4>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FIntVector4, Alignment>::Type;
+	using TInstancedType = FIntVector4;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1032,6 +1048,7 @@ struct TShaderParameterTypeInfo<FUintVector4>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FUintVector4, Alignment>::Type;
+	using TInstancedType = FUintVector4;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1047,6 +1064,7 @@ struct TShaderParameterTypeInfo<FIntRect>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FIntRect, Alignment>::Type;
+	using TInstancedType = FIntRect;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1062,6 +1080,7 @@ struct TShaderParameterTypeInfo<FQuat4f>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FQuat4f, Alignment>::Type;
+	using TInstancedType = FQuat4f;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1077,6 +1096,7 @@ struct TShaderParameterTypeInfo<FMatrix44f>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FMatrix44f, Alignment>::Type;
+	using TInstancedType = FMatrix44f;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1108,6 +1128,7 @@ struct TShaderParameterTypeInfo<T[InNumElements]>
 	static constexpr bool bIsStoredInConstantBuffer = TShaderParameterTypeInfo<T>::bIsStoredInConstantBuffer;
 
 	using TAlignedType = TStaticArray<T, InNumElements, Alignment>;
+	using TInstancedType = T;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return TShaderParameterTypeInfo<T>::GetStructMetadata(); }
 
@@ -1125,6 +1146,7 @@ struct TShaderParameterTypeInfo<TStaticArray<T,InNumElements,IgnoredAlignment>>
 	static constexpr bool bIsStoredInConstantBuffer = TShaderParameterTypeInfo<T>::bIsStoredInConstantBuffer;
 
 	using TAlignedType = TStaticArray<T, InNumElements, Alignment>;
+	using TInstancedType = T;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return TShaderParameterTypeInfo<T>::GetStructMetadata(); }
 
@@ -1171,7 +1193,8 @@ struct TShaderParameterTypeInfo<TUniformBufferRef<UniformBufferStructType>>
 	static constexpr bool bIsStoredInConstantBuffer = false;
 	
 	using TAlignedType = TAlignedShaderParameterPtr<TUniformBufferRef<UniformBufferStructType>>;
-	
+	using TInstancedType = UniformBufferStructType;
+
 	static const FShaderParametersMetadata* GetStructMetadata() { return &UniformBufferStructType::StaticStructMetadata; }
 };
 
@@ -1185,6 +1208,7 @@ struct TShaderParameterTypeInfo<TUniformBufferBinding<UniformBufferStructType>>
 	static constexpr bool bIsStoredInConstantBuffer = false;
 
 	using TAlignedType = TUniformBufferBinding<UniformBufferStructType>;
+	using TInstancedType = UniformBufferStructType;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return &UniformBufferStructType::StaticStructMetadata; }
 };
@@ -1199,6 +1223,7 @@ struct TShaderParameterTypeInfo<TRDGUniformBufferBinding<UniformBufferStructType
 	static constexpr bool bIsStoredInConstantBuffer = false;
 
 	using TAlignedType = TRDGUniformBufferBinding<UniformBufferStructType>;
+	using TInstancedType = UniformBufferStructType;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return &UniformBufferStructType::StaticStructMetadata; }
 };
