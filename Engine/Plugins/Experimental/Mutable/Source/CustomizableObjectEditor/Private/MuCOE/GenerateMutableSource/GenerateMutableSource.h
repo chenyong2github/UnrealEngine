@@ -96,6 +96,7 @@ enum class EMutableMeshConversionFlags : uint32
 	IgnorePhysics = 1 << 1
 };
 
+ENUM_CLASS_FLAGS(EMutableMeshConversionFlags)
 
 /** 
 	Struct to store the necessary data to generate the morphs of a skeletal mesh 
@@ -142,7 +143,7 @@ private:
 	int32 LOD;
 
 	/** Flag used to generate this mesh. Bit mask of EMutableMeshConversionFlags */
-	uint32 Flags = 0;
+	EMutableMeshConversionFlags Flags = EMutableMeshConversionFlags::None;
 
 	/** Active morphs at the time of mesh generation. */
 	TArray<FMorphNodeData> MeshMorphStack;
@@ -576,7 +577,7 @@ struct FMutableGraphGenerationContext
 			int32 MaterialIndex = 0;
 
 			/** Flag used to generate this mesh. Bit mask of EMutableMeshConversionFlags */
-			uint32 Flags = 0;
+			EMutableMeshConversionFlags Flags = EMutableMeshConversionFlags::None;
 
 			/** Tags added at the UE level that go through the Mutable core and are merged in the generated mesh.
 			 *  Only add the tags that make the mesh unique and require it not to be cached together with the 
@@ -600,7 +601,7 @@ struct FMutableGraphGenerationContext
 
 	// Stack of mesh generation flags. The last one is the currently valid.
 	// The value is a bit mask of EMutableMeshConversionFlags
-	TArray<uint32> MeshGenerationFlags;
+	TArray<EMutableMeshConversionFlags> MeshGenerationFlags;
 
 	/** Find a mesh if already generated for a given source and flags. */
 	mu::MeshPtr FindGeneratedMesh(const FGeneratedMeshData::FKey& Key);

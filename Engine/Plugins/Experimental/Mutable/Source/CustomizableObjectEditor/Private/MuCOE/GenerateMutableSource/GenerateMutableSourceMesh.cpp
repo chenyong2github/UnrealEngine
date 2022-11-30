@@ -465,14 +465,13 @@ void SetAndPropagatePoseBoneUsage(
 
 }
 
-
 mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD, int MaterialIndex, FMutableGraphGenerationContext& GenerationContext, const UCustomizableObjectNode* CurrentNode)
 {
 	// Get the mesh generation flags to use
-	uint32 CurrentFlags = GenerationContext.MeshGenerationFlags.Last();
-	bool bIgnoreSkeleton = CurrentFlags & uint32(EMutableMeshConversionFlags::IgnoreSkinning);
-	bool bIgnorePhysics = (CurrentFlags & uint32(EMutableMeshConversionFlags::IgnorePhysics)) || 
-						  !GenerationContext.Options.bPhysicsAssetMergeEnebled;
+	const EMutableMeshConversionFlags CurrentFlags = GenerationContext.MeshGenerationFlags.Last();
+	const bool bIgnoreSkeleton = EnumHasAnyFlags(CurrentFlags, EMutableMeshConversionFlags::IgnoreSkinning);
+	const bool bIgnorePhysics = EnumHasAnyFlags(CurrentFlags, EMutableMeshConversionFlags::IgnorePhysics) || 
+								!GenerationContext.Options.bPhysicsAssetMergeEnebled;
 
 	mu::MeshPtr MutableMesh = new mu::Mesh();
 		
@@ -487,12 +486,10 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 
 	TObjectPtr<const USkeletalMesh> SkeletalMesh = InSkeletalMesh;
 
-	FMutableComponentInfo& MutComponentInfo = GenerationContext.GetCurrentComponentInfo();
-	USkeletalMesh* ComponentRefSkeletalMesh = MutComponentInfo.RefSkeletalMesh;
-	USkeleton* ComponentRefSkeleton = MutComponentInfo.RefSkeleton;
-	check(ComponentRefSkeletalMesh);
-	check(ComponentRefSkeleton);
-	
+	// CurrentMeshComponent < 0 implies IgnoreSkeleton flag.  
+	// CurrentMeshComponent < 0 will only happen with modifiers and, for now, any mesh generated from a modifier
+	// should ignore skinning.
+	check(!(GenerationContext.CurrentMeshComponent < 0) || bIgnoreSkeleton);
 
 	// Apply removed bones
 	TMap<int32, int32> RemovedBonesActiveParentIndices;
@@ -542,6 +539,14 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 	// Check for a matching skeleton to the reference mesh
 	if (!bIgnoreSkeleton)
 	{
+		check(GenerationContext.CurrentMeshComponent >= 0);
+
+		FMutableComponentInfo& MutComponentInfo = GenerationContext.GetCurrentComponentInfo();
+		USkeletalMesh* ComponentRefSkeletalMesh = MutComponentInfo.RefSkeletalMesh;
+		USkeleton* ComponentRefSkeleton = MutComponentInfo.RefSkeleton;
+		check(ComponentRefSkeletalMesh);
+		check(ComponentRefSkeleton);
+
 		// Add the RefSkeleton ID to the mesh.
 		const int32 RefSkeletonID = GenerationContext.ReferencedSkeletons.AddUnique(ComponentRefSkeleton);
 		MutableMesh->AddSkeletonID(RefSkeletonID);
@@ -792,6 +797,8 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 		FMemory::Memcpy(MutableMesh->GetVertexBuffers().GetBufferData(0), Vertices.GetData() + VertexStart, VertexCount * ElementSize);
 	}
 
+
+	// TODO: Add Mesh generation flags to not include RT Morph and clothing if not needed.
 	int32 nextBufferIndex = 1;
 	if (GenerationContext.Options.bRealTimeMorphTargetsEnabled)
 	{
@@ -832,7 +839,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 
         // Add SkeletalMesh node used defined realtime morph targets to a temporal array where
         // the actual to be used real-time morphs names will be placed.        
-        TArray<FName> UsedMorphTargetsNames = [&]()
+        TArray<FName> UsedMorphTargetsNames = Invoke([&]()
         {
             TArray<FName> MorphTargetsNames;
             MorphTargetsNames.Reserve(SkeletalMeshMorphTargets.Num());
@@ -854,30 +861,31 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
             }
 
             return MorphTargetsNames;
-        }(); // lambda is invoked.
+        });
 
         //Apply global morph targets overrides to the SkeletalMesh user defined RT morph targets. 
         for (FRealTimeMorphSelectionOverride& MorphTargetOverride : RealTimeMorphTargetOverrides)
         {
-            const ECustomizableObjectSelectionOverride OverrideValue = [&]() -> ECustomizableObjectSelectionOverride
-                {
-                    const ECustomizableObjectSelectionOverride GlobalOverrideValue = MorphTargetOverride.SelectionOverride;
-                    
-                    if (GlobalOverrideValue != ECustomizableObjectSelectionOverride::NoOverride)
-                    {
-                        return GlobalOverrideValue;
-                    } 
-                
-                    const int32 FoundIdx = 
-                            MorphTargetOverride.SkeletalMeshesNames.Find(SkeletalMesh->GetFName());
+            const ECustomizableObjectSelectionOverride OverrideValue = 
+				Invoke([&]() -> ECustomizableObjectSelectionOverride
+				{
+					const ECustomizableObjectSelectionOverride GlobalOverrideValue = MorphTargetOverride.SelectionOverride;
+					
+					if (GlobalOverrideValue != ECustomizableObjectSelectionOverride::NoOverride)
+					{
+						return GlobalOverrideValue;
+					} 
+				
+					const int32 FoundIdx = 
+							MorphTargetOverride.SkeletalMeshesNames.Find(SkeletalMesh->GetFName());
 
-                    if (FoundIdx != INDEX_NONE)
-                    {
-                        return MorphTargetOverride.Override[FoundIdx];
-                    }
+					if (FoundIdx != INDEX_NONE)
+					{
+						return MorphTargetOverride.Override[FoundIdx];
+					}
 
-                    return ECustomizableObjectSelectionOverride::NoOverride;
-                }(); // lambda is invoked.
+					return ECustomizableObjectSelectionOverride::NoOverride;
+				});
 
             if (OverrideValue == ECustomizableObjectSelectionOverride::Enable)
             {
@@ -1033,7 +1041,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 
 		// Create new asset or find an already created one if the section has clothing assets.
 		// clothing assets are shared among all LODs in a section
-		const int32 ClothingAssetIndex = [&]() -> int32
+		const int32 ClothingAssetIndex = Invoke([&]() -> int32
 		{
 			const UClothingAssetBase* ClothingAssetBase = SkeletalMesh->GetSectionClothingAsset(LOD, MaterialIndex);
 
@@ -1079,7 +1087,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 			}
 
 			return NewAssetIndex;
-		}(); // lambda is invoked
+		});
 
 		if (ClothingAssetIndex != INDEX_NONE)
 		{
@@ -1826,7 +1834,7 @@ mu::MeshPtr ConvertStaticMeshToMutable(UStaticMesh* StaticMesh, int LOD, int Mat
 mu::MeshPtr GenerateMutableMesh(UObject * Mesh, int32 LOD, int32 MaterialIndex, const FString& UniqueTags, FMutableGraphGenerationContext & GenerationContext, const UCustomizableObjectNode* CurrentNode)
 {
 	// Get the mesh generation flags to use
-	uint32 CurrentFlags = GenerationContext.MeshGenerationFlags.Last();
+	EMutableMeshConversionFlags CurrentFlags = GenerationContext.MeshGenerationFlags.Last();
 
 	FMutableGraphGenerationContext::FGeneratedMeshData::FKey Key = { Mesh, LOD, MaterialIndex, CurrentFlags, UniqueTags };
 	mu::MeshPtr MutableMesh = GenerationContext.FindGeneratedMesh(Key);
@@ -1851,10 +1859,10 @@ mu::MeshPtr GenerateMutableMesh(UObject * Mesh, int32 LOD, int32 MaterialIndex, 
 			GenerationContext.GeneratedMeshes.Push({ Key, MutableMesh });
 		}
 	}
-
+	
 	if (MutableMesh)
 	{
-		FMeshData MeshData; 
+		FMeshData MeshData;
 		MeshData.Mesh = Mesh;
 		MeshData.LOD = LOD;
 		MeshData.MaterialIndex = MaterialIndex;
@@ -3266,8 +3274,9 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			}		
 		}
 		// We don't need all the data for the shape meshes
-		const uint32 ShapeFlags = uint32(EMutableMeshConversionFlags::IgnoreSkinning) & 
-								  uint32(EMutableMeshConversionFlags::IgnorePhysics);
+		const EMutableMeshConversionFlags ShapeFlags = 
+				EMutableMeshConversionFlags::IgnoreSkinning |
+				EMutableMeshConversionFlags::IgnorePhysics;
 
 		GenerationContext.MeshGenerationFlags.Push( ShapeFlags );
 			

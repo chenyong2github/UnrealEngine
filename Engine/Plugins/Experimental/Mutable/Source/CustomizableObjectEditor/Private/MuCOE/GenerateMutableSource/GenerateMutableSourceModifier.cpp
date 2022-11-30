@@ -62,6 +62,14 @@ mu::NodeModifierPtr GenerateMutableSourceModifier(const UEdGraphPin * Pin, FMuta
 
 	bool bDoNotAddToGeneratedCache = false; // TODO Remove on MTBL-829 
 
+	
+	// We don't need all the data for the modifiers meshes
+	const EMutableMeshConversionFlags ModifiersMeshFlags = 
+			EMutableMeshConversionFlags::IgnoreSkinning |
+			EMutableMeshConversionFlags::IgnorePhysics;
+
+	GenerationContext.MeshGenerationFlags.Push(ModifiersMeshFlags);
+
 	if (const UCustomizableObjectNodeMeshClipMorph* TypedNodeClip = Cast<UCustomizableObjectNodeMeshClipMorph>(Node))
 	{
 		mu::NodeModifierMeshClipMorphPlanePtr ClipNode = new mu::NodeModifierMeshClipMorphPlane();
@@ -132,6 +140,7 @@ mu::NodeModifierPtr GenerateMutableSourceModifier(const UEdGraphPin * Pin, FMuta
 		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeClipMesh->ClipMeshPin()))
 		{
 			FMutableGraphMeshGenerationData DummyMeshData;
+
 			mu::NodeMeshPtr ClipMesh = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, DummyMeshData);
 
 			FPinDataValue* PinData = GenerationContext.PinData.Find(ConnectedPin);
@@ -206,12 +215,15 @@ mu::NodeModifierPtr GenerateMutableSourceModifier(const UEdGraphPin * Pin, FMuta
 		GenerationContext.Compiler->CompilerLog(LOCTEXT("UnimplementedNode", "Node type not implemented yet."), Node);
 	}
 
+	GenerationContext.MeshGenerationFlags.Pop();
+
 	if (!bDoNotAddToGeneratedCache)
 	{
 		GenerationContext.Generated.Add(Key, FGeneratedData(Node, Result));
 	}
 	GenerationContext.GeneratedNodes.Add(Node);
 	
+
 	return Result;
 }
 
