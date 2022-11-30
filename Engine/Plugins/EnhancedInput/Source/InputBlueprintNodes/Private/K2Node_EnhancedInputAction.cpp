@@ -420,7 +420,7 @@ void UK2Node_EnhancedInputAction::GetMenuActions(FBlueprintActionDatabaseRegistr
 		}
 
 		TArray<FAssetData> ActionAssets;
-		AssetRegistry.GetAssetsByClass(UInputAction::StaticClass()->GetClassPathName(), ActionAssets);
+		AssetRegistry.GetAssetsByClass(UInputAction::StaticClass()->GetClassPathName(), ActionAssets, true);
 		for (const FAssetData& ActionAsset : ActionAssets)
 		{
 			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(GetClass());
