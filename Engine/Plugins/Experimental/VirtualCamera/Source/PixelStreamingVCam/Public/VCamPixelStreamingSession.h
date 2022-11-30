@@ -48,6 +48,10 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UPixelStreamingMediaCapture> MediaCapture = nullptr;
 
+	//~ Begin UVCamOutputProviderBase Interface
+	virtual bool ShouldOverrideResolutionOnActivationEvents() const { return true; }
+	//~ End UVCamOutputProviderBase Interface
+
 private:
 	void SetupSignallingServer();
 	void StopSignallingServer();
@@ -56,22 +60,6 @@ private:
 	void SetupCustomInputHandling();
 	void OnCaptureStateChanged();
 	void OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data);
-	
-	/**
-	 * Applies or removes a fixed resolution to a viewport.
-	 * As no viewport is provided this version will try to get the Target Viewport from the VCam Component and use that as the viewport to update
-	 *
-	 * @param bApplyOverride	If true applies the override resolution settings to the viewport otherwise removes any existing override
-	 */
-	void UpdateOverrideResolution(bool bApplyOverride) const;
-
-	/**
-	 * Applies or removes a fixed resolution to a given viewport 
-	 *
-	 * @param bApplyOverride	If true applies the override resolution settings to the viewport otherwise removes any existing override
-	 * @param SceneViewport		The viewport to update the override resolution on. The function assumes this pointer has been validated already and will not test it before use.
-	 */
-	void UpdateOverrideResolution(bool bApplyOverride, const TSharedPtr<FSceneViewport>& SceneViewport) const;
 private:
 	FHitResult 	LastViewportTouchResult;
 	bool 		bUsingDummyUMG = false;

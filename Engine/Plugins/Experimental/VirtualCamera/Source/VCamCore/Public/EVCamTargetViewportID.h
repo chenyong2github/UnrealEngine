@@ -12,5 +12,7 @@ enum class EVCamTargetViewportID : uint8
 	Viewport1 = 1,
 	Viewport2 = 2,
 	Viewport3 = 3,
-	Viewport4 = 4
+	Viewport4 = 4,
+
+	Count UMETA(Hidden)
 };

@@ -12,6 +12,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Slate/SceneViewport.h"
 #include "UObject/UObjectBaseUtility.h"
 
 #if WITH_EDITOR
@@ -78,10 +79,19 @@ void UVCamOutputProviderBase::Activate()
 {
 	CreateUMG();
 	DisplayUMG();
+
+	if (ShouldOverrideResolutionOnActivationEvents() && bUseOverrideResolution)
+	{
+		ApplyOverrideResolutionForViewport(TargetViewport);
+	}
 }
 
 void UVCamOutputProviderBase::Deactivate()
 {
+	if (ShouldOverrideResolutionOnActivationEvents())
+	{
+		RestoreOverrideResolutionForViewport(TargetViewport);
+	}
 	DestroyUMG();
 }
 
@@ -150,6 +160,22 @@ void UVCamOutputProviderBase::CreateUMG()
 
 	UMGWidget->WidgetClass = UMGClass;
 	UE_LOG(LogVCamOutputProvider, Log, TEXT("CreateUMG widget named %s from class %s"), *UMGWidget->GetName(), *UMGWidget->WidgetClass->GetName());
+}
+
+void UVCamOutputProviderBase::RestoreOverrideResolutionForViewport(EVCamTargetViewportID ViewportToRestore)
+{
+	if (const TSharedPtr<FSceneViewport> TargetSceneViewport = GetSceneViewport(ViewportToRestore))
+	{
+		TargetSceneViewport->SetFixedViewportSize(0, 0);
+	}
+}
+
+void UVCamOutputProviderBase::ApplyOverrideResolutionForViewport(EVCamTargetViewportID Viewport)
+{
+	if (const TSharedPtr<FSceneViewport> TargetSceneViewport = GetSceneViewport(Viewport))
+	{
+		TargetSceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
+	}
 }
 
 void UVCamOutputProviderBase::DisplayUMG()
@@ -277,7 +303,7 @@ UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(
 	return nullptr;
 }
 
-TSharedPtr<FSceneViewport> UVCamOutputProviderBase::GetTargetSceneViewport() const
+TSharedPtr<FSceneViewport> UVCamOutputProviderBase::GetSceneViewport(EVCamTargetViewportID InTargetViewport) const
 {
 	TSharedPtr<FSceneViewport> SceneViewport;
 
@@ -307,7 +333,11 @@ TSharedPtr<FSceneViewport> UVCamOutputProviderBase::GetTargetSceneViewport() con
 			}
 			else if (Context.WorldType == EWorldType::Editor)
 			{
-				if (FLevelEditorViewportClient* LevelViewportClient = GetTargetLevelViewportClient())
+				TSharedPtr<SLevelViewport> Viewport = UE::VCamCore::LevelViewportUtils::Private::GetLevelViewport(InTargetViewport);
+				FLevelEditorViewportClient* LevelViewportClient = Viewport
+					? &Viewport->GetLevelViewportClient()
+					: nullptr;
+				if (LevelViewportClient)
 				{
 					TSharedPtr<SEditorViewport> ViewportWidget = LevelViewportClient->GetEditorViewportWidget();
 					if (ViewportWidget.IsValid())
@@ -402,18 +432,38 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	{
 		static FName NAME_IsActive = GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, bIsActive);
 		static FName NAME_UMGClass = GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, UMGClass);
+		static FName NAME_TargetViewport = GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, TargetViewport);
+		static FName NAME_OverrideResolution = GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, OverrideResolution);
+		static FName NAME_bUseOverrideResolution = GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, bUseOverrideResolution);
 
-		if (Property->GetFName() == NAME_IsActive)
+		const FName PropertyName = Property->GetFName();
+		if (PropertyName == NAME_IsActive)
 		{
 			SetActive(bIsActive);
 		}
-		else if (Property->GetFName() == NAME_UMGClass)
+		else if (PropertyName == NAME_UMGClass)
 		{
 			if (bIsActive)
 			{
 				SetActive(false);
 				SetActive(true);
 			}
+		}
+		else if (PropertyName == NAME_TargetViewport)
+		{
+			for (int32 i = 0; i < static_cast<int32>(EVCamTargetViewportID::Count); ++i)
+			{
+				RestoreOverrideResolutionForViewport(static_cast<EVCamTargetViewportID>(i));
+			}
+			ApplyOverrideResolutionForViewport(TargetViewport);
+		}
+		else if (PropertyName == NAME_OverrideResolution)
+		{
+			ApplyOverrideResolutionForViewport(TargetViewport);
+		}
+		else if (PropertyName == NAME_bUseOverrideResolution)
+		{
+			RestoreOverrideResolutionForViewport(TargetViewport);
 		}
 	}
 

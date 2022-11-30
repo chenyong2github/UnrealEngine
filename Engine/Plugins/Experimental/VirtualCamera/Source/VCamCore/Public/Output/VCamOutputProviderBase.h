@@ -129,12 +129,22 @@ protected:
 
 	virtual void CreateUMG();
 
+	/** Whether this subclass supports override resolutions. */
+	virtual bool ShouldOverrideResolutionOnActivationEvents() const { return false; }
+	/** Removes the override resolution from the given viewport. */
+	void RestoreOverrideResolutionForViewport(EVCamTargetViewportID ViewportToRestore);
+	/** Applies OverrideResolution to the passed in viewport - bUseOverrideResolution was already checked. */
+	void ApplyOverrideResolutionForViewport(EVCamTargetViewportID Viewport);
+
 	void DisplayUMG();
 	void DestroyUMG();
 
 	UVCamOutputProviderBase* GetOtherOutputProviderByIndex(int32 Index) const;
 
-	TSharedPtr<FSceneViewport> GetTargetSceneViewport() const;
+	/** Gets the scene viewport identified by the currently configured TargetViewport. */
+	TSharedPtr<FSceneViewport> GetTargetSceneViewport() const { return GetSceneViewport(TargetViewport); }
+	/** Gets the viewport identified by the passed in parameters. */
+	TSharedPtr<FSceneViewport> GetSceneViewport(EVCamTargetViewportID InTargetViewport) const;
 	TWeakPtr<SWindow> GetTargetInputWindow() const;
 
 #if WITH_EDITOR

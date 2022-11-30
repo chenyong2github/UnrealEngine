@@ -52,7 +52,6 @@ void UVCamOutputRemoteSession::Activate()
 	}
 
 	CreateRemoteSession();
-	
 	Super::Activate();
 }
 
@@ -100,17 +99,7 @@ void UVCamOutputRemoteSession::CreateRemoteSession()
 			if (RemoteSessionHost.IsValid())
 			{
 				RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate::CreateUObject(this, &UVCamOutputRemoteSession::OnRemoteSessionChannelChange));
-
 				RemoteSessionHost->Tick(0.0f);
-
-				if (bUseOverrideResolution)
-				{
-					TSharedPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
-					if (SceneViewport.IsValid())
-					{
-						SceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
-					}
-				}
 			}
 			else
 			{
@@ -161,15 +150,6 @@ void UVCamOutputRemoteSession::DestroyRemoteSession()
 			}
 		}
 #endif
-
-		if (bUseOverrideResolution)
-		{
-			TSharedPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
-			if (SceneViewport.IsValid())
-			{
-				SceneViewport->SetFixedViewportSize(0, 0);
-			}
-		}
 	}
 }
 

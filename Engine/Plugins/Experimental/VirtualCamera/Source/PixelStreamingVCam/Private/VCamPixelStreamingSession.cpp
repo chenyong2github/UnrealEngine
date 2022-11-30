@@ -275,9 +275,6 @@ void UVCamPixelStreamingSession::StartCapture()
 		TWeakPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
 		if (TSharedPtr<FSceneViewport> PinnedSceneViewport = SceneViewport.Pin())
 		{
-			// Apply the override resolution if applicable
-			UpdateOverrideResolution(bUseOverrideResolution, PinnedSceneViewport);
-			
 			MediaCapture->CaptureSceneViewport(PinnedSceneViewport, Options);
 			UE_LOG(LogPixelStreamingVCam, Log, TEXT("PixelStreaming set to capture scene viewport."));
 		}
@@ -330,9 +327,6 @@ void UVCamPixelStreamingSession::Deactivate()
 		StopSignallingServer();
 	}
 
-	// Remove the override resolution
-	UpdateOverrideResolution(false);
-
 	Super::Deactivate();
 	if (bUsingDummyUMG)
 	{
@@ -357,42 +351,14 @@ void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& P
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_FromComposureOutputProviderIndex = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, FromComposureOutputProviderIndex);
-		static FName NAME_UseOverrideResolution = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, bUseOverrideResolution);
-
 		const FName PropertyName = Property->GetFName();
-		
 		if (PropertyName == NAME_FromComposureOutputProviderIndex)
 		{
 			SetActive(false);
-		}
-		else if (PropertyName == NAME_UseOverrideResolution)
-		{
-			UpdateOverrideResolution(bUseOverrideResolution);
 		}
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
-
-void UVCamPixelStreamingSession::UpdateOverrideResolution(bool bApplyOverride) const
-{
-	if (const TSharedPtr<FSceneViewport> TargetSceneViewport = GetTargetSceneViewport())
-	{
-		UpdateOverrideResolution(bApplyOverride, TargetSceneViewport);
-	}
-}
-
-void UVCamPixelStreamingSession::UpdateOverrideResolution(bool bApplyOverride, const TSharedPtr<FSceneViewport>& SceneViewport) const
-{
-	// Apply the override resolution if requested otherwise remove any existing override
-	if (bApplyOverride)
-	{
-		SceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
-	}
-	else
-	{
-		SceneViewport->SetFixedViewportSize(0, 0);
-	}
-}
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PixelStreamingVCam)

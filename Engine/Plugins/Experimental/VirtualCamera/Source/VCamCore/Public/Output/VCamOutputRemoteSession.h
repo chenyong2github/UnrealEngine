@@ -48,6 +48,10 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<URemoteSessionMediaCapture> MediaCapture = nullptr;
 
+	//~ Begin UVCamOutputProviderBase Interface
+	virtual bool ShouldOverrideResolutionOnActivationEvents() const { return true; }
+	//~ End UVCamOutputProviderBase Interface
+
 private:
 	TSharedPtr<IRemoteSessionUnmanagedRole> RemoteSessionHost;
 
