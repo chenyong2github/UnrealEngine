@@ -29,7 +29,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 			case EPCGExecutionPhase::PrepareData:
 			{
-				FScopedCallTimer CallTimer(*this, Context);
+				FScopedCall ScopedCall(*this, Context);
 				if (PrepareDataInternal(Context))
 				{
 					Context->CurrentPhase = EPCGExecutionPhase::Execute;
@@ -43,7 +43,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 			case EPCGExecutionPhase::Execute:
 			{
-				FScopedCallTimer CallTimer(*this, Context);
+				FScopedCall ScopedCall(*this, Context);
 				if (ExecuteInternal(Context))
 				{
 					Context->CurrentPhase = EPCGExecutionPhase::PostExecute;
@@ -154,7 +154,7 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 
 #if WITH_EDITOR
 	{
-		FScopeLock Lock(&TimersLock);
+		FScopeLock Lock(&CapturedDataLock);
 		PCGE_LOG(Verbose, "Executed in (%f)s and (%d) frames(s)", Timers[CurrentTimerIndex].ExecutionTime, Timers[CurrentTimerIndex].ExecutionFrameCount);
 	}
 #endif
@@ -212,12 +212,33 @@ void IPCGElement::DebugDisplay(FPCGContext* Context) const
 	}
 }
 
+
+TArray<IPCGElement::FCallTime> IPCGElement::GetTimers() const
+{
+	FScopeLock Lock(&CapturedDataLock);
+	return Timers;
+}
+
+TArray<IPCGElement::FCapturedMessage> IPCGElement::GetCapturedMessages() const
+{
+	FScopeLock Lock(&CapturedDataLock);
+	return CapturedMessages;
+
+}
+
 void IPCGElement::ResetTimers()
 {
-	FScopeLock Lock(&TimersLock);
+	FScopeLock Lock(&CapturedDataLock);
 	Timers.Empty();
 	CurrentTimerIndex = 0;
 }
+
+void IPCGElement::ResetMessages()
+{
+	FScopeLock Lock(&CapturedDataLock);
+	CapturedMessages.Reset();
+}
+
 #endif // WITH_EDITOR
 
 void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
@@ -281,17 +302,24 @@ bool IPCGElement::IsCacheableInstance(const UPCGSettingsInterface* InSettingsInt
 }
 
 #if WITH_EDITOR
-IPCGElement::FScopedCallTimer::FScopedCallTimer(const IPCGElement& InOwner, FPCGContext* InContext)
-	: Owner(InOwner), Context(InContext), Phase(InContext->CurrentPhase)
+IPCGElement::FScopedCall::FScopedCall(const IPCGElement& InOwner, FPCGContext* InContext)
+	: Owner(InOwner)
+	, Context(InContext)
+	, Phase(InContext->CurrentPhase)
+	, ThreadID(FPlatformTLS::GetCurrentThreadId())
 {
 	StartTime = FPlatformTime::Seconds();
+
+	GLog->AddOutputDevice(this);
 }
 
-IPCGElement::FScopedCallTimer::~FScopedCallTimer()
+IPCGElement::FScopedCall::~FScopedCall()
 {
+	GLog->RemoveOutputDevice(this);
+
 	const double ThisFrameTime = FPlatformTime::Seconds() - StartTime;
 
-	FScopeLock Lock(&Owner.TimersLock);
+	FScopeLock Lock(&Owner.CapturedDataLock);
 
 	constexpr int32 MaxNumberOfTrackedTimers = 100;
 	if (Phase == EPCGExecutionPhase::PrepareData)
@@ -327,7 +355,27 @@ IPCGElement::FScopedCallTimer::~FScopedCallTimer()
 
 		Time.PostExecuteTime = ThisFrameTime;
 	}
+
+	Owner.CapturedMessages += std::move(CapturedMessages);
 }
+
+void IPCGElement::FScopedCall::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
+{
+	// TODO: this thread id check will also filter out messages spawned from threads spawned inside of nodes. To improve that,
+	// perhaps set at TLS bit on things from here and inside of PCGAsync spawned jobs. If this was done, CapturedMessages below also will
+	// need protection
+	if (Verbosity > ELogVerbosity::Warning || FPlatformTLS::GetCurrentThreadId() != ThreadID)
+	{
+		// ignore
+		return;
+	}
+
+	// this is a dumb counter just so messages can be sorted in a similar order as when they were logged
+	static volatile int32 MessageCounter = 0;
+
+	CapturedMessages.Add(FCapturedMessage { MessageCounter++, Category, V, Verbosity});
+}
+
 #endif // WITH_EDITOR
 
 FPCGContext* FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)

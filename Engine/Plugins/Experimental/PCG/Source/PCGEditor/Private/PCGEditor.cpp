@@ -31,6 +31,7 @@
 #include "SPCGEditorGraphFind.h"
 #include "SPCGEditorGraphNodePalette.h"
 #include "SPCGEditorGraphProfilingView.h"
+#include "SPCGEditorGraphLogView.h"
 
 #include "AssetToolsModule.h"
 #include "EdGraphUtilities.h"
@@ -73,6 +74,7 @@ namespace FPCGEditor_private
 	const FName FindID = FName(TEXT("Find"));
 	const FName DeterminismID = FName(TEXT("Determinism"));
 	const FName ProfilingID = FName(TEXT("Profiling"));
+	const FName LogID = FName(TEXT("Log"));
 }
 
 void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<class IToolkitHost>& InToolkitHost, UPCGGraph* InPCGGraph)
@@ -102,6 +104,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	AttributesWidget = CreateAttributesWidget();
 	DeterminismWidget = CreateDeterminismWidget();
 	ProfilingWidget = CreateProfilingWidget();
+	LogWidget = CreateLogWidget();
 
 	BindCommands();
 	RegisterToolbar();
@@ -224,6 +227,10 @@ void FPCGEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager
 
 	InTabManager->RegisterTabSpawner(FPCGEditor_private::ProfilingID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Profiling))
 		.SetDisplayName(LOCTEXT("ProfilingTab", "Profiling"))
+		.SetGroup(WorkspaceMenuCategoryRef);
+
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::LogID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Log))
+		.SetDisplayName(LOCTEXT("LogCaptureTab", "Log Capture"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 }
 
@@ -1849,6 +1856,11 @@ TSharedRef<SPCGEditorGraphProfilingView> FPCGEditor::CreateProfilingWidget()
 	return SNew(SPCGEditorGraphProfilingView, SharedThis(this));
 }
 
+TSharedRef<SPCGEditorGraphLogView> FPCGEditor::CreateLogWidget()
+{
+	return SNew(SPCGEditorGraphLogView, SharedThis(this));
+}
+
 void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
@@ -2069,6 +2081,16 @@ TSharedRef<SDockTab> FPCGEditor::SpawnTab_Profiling(const FSpawnTabArgs& Args)
 		.TabColorScale(GetTabColorScale())
 		[
 			ProfilingWidget.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_Log(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGLogTitle", "Log Capture"))
+		.TabColorScale(GetTabColorScale())
+		[
+			LogWidget.ToSharedRef()
 		];
 }
 
