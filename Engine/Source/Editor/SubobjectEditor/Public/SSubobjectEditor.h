@@ -555,6 +555,9 @@ public:
 	// Attempt to find an existing slate node that matches the given handle
 	FSubobjectEditorTreeNodePtrType FindSlateNodeForHandle(const FSubobjectDataHandle& Handle, FSubobjectEditorTreeNodePtrType InStartNodePtr = FSubobjectEditorTreeNodePtrType()) const;
 
+	// Attempt to find an existing slate node that has a given variable name
+	FSubobjectEditorTreeNodePtrType FindSlateNodeForVariableName(FName InVariableName) const;
+
 	/** Pointer to the current object that is represented by the subobject editor */
 	UObject* GetObjectContext() const;
 
@@ -567,7 +570,7 @@ public:
 protected:
 
 	/** Restore the previous selection state when updating the tree */
-	virtual void RestoreSelectionState(TArray<FSubobjectEditorTreeNodePtrType>& SelectedTreeNodes);
+	virtual void RestoreSelectionState(TArray<FSubobjectEditorTreeNodePtrType>& SelectedTreeNodes, bool bFallBackToVariableName = true);
 
 	/** If true, then the blueprint should be modified on TryHandleAssetDragDropOperation */
 	virtual bool ShouldModifyBPOnAssetDrop() const { return false; }
