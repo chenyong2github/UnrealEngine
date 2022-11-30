@@ -38,7 +38,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FBoolProperty::FBoolProperty(FFieldVariant InOwner, const UECodeGen_Private::FBoolPropertyParams& Prop)
-	: FProperty(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithoutOffset&)Prop)
+	: FProperty(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithoutOffset&)Prop, CPF_HasGetValueTypeHash)
 	, FieldSize(0)
 	, ByteOffset(0)
 	, ByteMask(1)
