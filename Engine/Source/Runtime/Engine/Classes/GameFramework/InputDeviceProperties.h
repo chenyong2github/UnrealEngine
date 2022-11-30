@@ -28,7 +28,7 @@ class UCurveFloat;
 * support certain device properties. An older gamepad may not have any advanced trigger haptics for 
 * example. 
 */
-UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew, CollapseCategories)
+UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew, CollapseCategories, meta = (ShowWorldContextPin))
 class ENGINE_API UInputDeviceProperty : public UObject
 {
 	GENERATED_BODY()
