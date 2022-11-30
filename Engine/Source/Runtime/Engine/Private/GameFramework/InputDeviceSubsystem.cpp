@@ -9,6 +9,7 @@
 #include "GenericPlatform/GenericPlatformApplicationMisc.h"	// For FInputDeviceScope
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Framework/Application/SlateApplication.h"			// For RegisterInputPreProcessor
+#include "GameFramework/PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputDeviceSubsystem)
 
@@ -292,6 +293,39 @@ void UInputDeviceSubsystem::Tick(float DeltaTime)
 			ActiveProperties[Index].Property->ApplyDeviceProperty(ActiveProperties[Index].PlatformUser);
 		}
 	}
+}
+
+APlayerController* UInputDeviceSubsystem::GetPlayerControllerFromPlatformUser(const FPlatformUserId UserId)
+{
+	if (UserId.IsValid())
+	{
+		if (const UInputDeviceSubsystem* System = UInputDeviceSubsystem::Get())
+		{
+			if (const UWorld* World = System->GetTickableGameObjectWorld())
+			{
+				for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+				{
+					APlayerController* PlayerController = Iterator->Get();
+					const FPlatformUserId PlayerControllerUserID = PlayerController ? PlayerController->GetPlatformUserId() : PLATFORMUSERID_NONE;
+					if (PlayerControllerUserID.IsValid() && PlayerControllerUserID == UserId)
+					{
+						return PlayerController;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogInputDeviceProperties, Warning, TEXT("Attempting to find the player controller for an invalid Platform"));
+	}
+
+	return nullptr;
+}
+
+APlayerController* UInputDeviceSubsystem::GetPlayerControllerFromInputDevice(const FInputDeviceId DeviceId)
+{
+	return GetPlayerControllerFromPlatformUser(IPlatformInputDeviceMapper::Get().GetUserForInputDevice(DeviceId));
 }
 
 FInputDevicePropertyHandle UInputDeviceSubsystem::SetDeviceProperty(const FSetDevicePropertyParams& Params)

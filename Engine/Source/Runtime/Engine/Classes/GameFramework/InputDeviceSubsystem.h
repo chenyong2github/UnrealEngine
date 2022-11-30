@@ -11,6 +11,7 @@
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogInputDeviceProperties, Log, All);
 
 class UInputDeviceProperty;
+class APlayerController;
 
 /** A handle to an active input device property that is being used by the InputDeviceSubsytem. */
 USTRUCT(BlueprintType)
@@ -139,6 +140,14 @@ public:
 	virtual TStatId GetStatId() const override;
 	virtual void Tick(float DeltaTime) override;
 	//~ End FTickableGameObject interface
+
+	/** Get the player controller who has the given Platform User ID. */
+	UFUNCTION(BlueprintCallable, Category = "Input Devices")
+	static APlayerController* GetPlayerControllerFromPlatformUser(const FPlatformUserId UserId);
+
+	/** Get the player controller who owns the given input device id */
+	UFUNCTION(BlueprintCallable, Category = "Input Devices")
+	static APlayerController* GetPlayerControllerFromInputDevice(const FInputDeviceId DeviceId);
 
 	/** Set the given device property, which will start the evaluation and application of it to the given platform user. */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (AutoCreateRefTerm = "Params"))
