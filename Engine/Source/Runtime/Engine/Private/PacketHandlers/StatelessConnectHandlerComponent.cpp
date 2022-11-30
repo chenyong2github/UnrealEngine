@@ -295,7 +295,7 @@ namespace UE::Net
 
 	static FAutoConsoleVariableRef CVarNetVerifyNetClientID(
 		TEXT("net.VerifyNetClientID"),
-		GVerifyNetSessionID,
+		GVerifyNetClientID,
 		TEXT("Whether or not verification of the packet ClientID value is performed."));
 
 	static int32 GVerifyMagicHeader = 0;
