@@ -12,6 +12,13 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
+#include "ISceneOutliner.h"
+#include "LevelEditor.h"
+#include "ScopedTransaction.h"
+#include "Modules/ModuleManager.h"
+#include "Subsystems/EditorActorSubsystem.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SWrapBox.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXMVRSceneActorDetails"
@@ -35,6 +42,73 @@ void FDMXMVRSceneActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 		}
 	}
 
+	CreateRefreshMVRSceneSection(DetailBuilder);
+	CreateGDTFToActorClassSection(DetailBuilder);
+
+	// Listen to map and actor changes
+	FEditorDelegates::MapChange.AddSP(this, &FDMXMVRSceneActorDetails::OnMapChange);
+
+	if (GEngine)
+	{
+		GEngine->OnLevelActorDeleted().AddSP(this, &FDMXMVRSceneActorDetails::OnActorDeleted);
+	}
+}
+
+void FDMXMVRSceneActorDetails::CreateRefreshMVRSceneSection(IDetailLayoutBuilder& DetailBuilder)
+{
+	IDetailCategoryBuilder& MVRCategory = DetailBuilder.EditCategory("MVR");
+
+	MVRCategory.AddProperty(DetailBuilder.GetProperty(ADMXMVRSceneActor::GetDMXLibraryPropertyNameChecked()));
+	MVRCategory.AddCustomRow(LOCTEXT("RefreshSceneFilterText", "Refresh from DMX Library"))
+		.WholeRowContent()
+		[			
+			SNew(SBorder)
+			.Padding(8.f, 0.f, 0.f, 0.f)
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("RefreshActorsFromDMXLibraryButtonCaption", "Update Actors from DMX Library"))
+				.OnClicked(this, &FDMXMVRSceneActorDetails::OnRefreshActorsFromDMXLibraryClicked)
+			]
+		];
+
+	const TSharedRef<IPropertyHandle> RespawnDeletedActorHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADMXMVRSceneActor, bRespawnDeletedActorsOnRefresh));
+	RespawnDeletedActorHandle->MarkHiddenByCustomization();
+	MVRCategory.AddCustomRow(LOCTEXT("RespawnDeletedActorsFilterText", "Respawn Deleted Actors"))
+		.NameContent()
+		[
+			SNew(SBorder)
+			.Padding(8.f, 0.f, 0.f, 0.f)
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			[
+				RespawnDeletedActorHandle->CreatePropertyNameWidget()
+			]
+		]
+		.ValueContent()
+		[
+			RespawnDeletedActorHandle->CreatePropertyValueWidget()
+		];
+	
+	const TSharedRef<IPropertyHandle> UpdateTransformHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADMXMVRSceneActor, bUpdateTransformsOnRefresh));
+	UpdateTransformHandle->MarkHiddenByCustomization();
+	MVRCategory.AddCustomRow(LOCTEXT("UpdateTransformsFilterText", "Update Transform"))
+		.NameContent()
+		[
+			SNew(SBorder)
+			.Padding(8.f, 0.f, 0.f, 0.f)
+			.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			[
+				UpdateTransformHandle->CreatePropertyNameWidget()
+			]
+		]
+		.ValueContent()
+		[
+			UpdateTransformHandle->CreatePropertyValueWidget()
+		];
+}
+
+void FDMXMVRSceneActorDetails::CreateGDTFToActorClassSection(IDetailLayoutBuilder& DetailBuilder)
+{
 	IDetailCategoryBuilder& ActorTypeForGDTFCategory = DetailBuilder.EditCategory("GDTF to Spawned Actor");
 	ActorTypeForGDTFCategory.InitiallyCollapsed(false);
 
@@ -42,7 +116,7 @@ void FDMXMVRSceneActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	GDTFToDefaultActorClassesHandle->MarkHiddenByCustomization();
 
 	const TSharedPtr<IPropertyHandleArray> GDTFToDefaultActorClassHandleArray = GDTFToDefaultActorClassesHandle->AsArray();
-	FSimpleDelegate GDTFToDefaultActorClassArrayChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXMVRSceneActorDetails::ForceRefresh);
+	FSimpleDelegate GDTFToDefaultActorClassArrayChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXMVRSceneActorDetails::RequestRefresh);
 	GDTFToDefaultActorClassHandleArray->SetOnNumElementsChanged(GDTFToDefaultActorClassArrayChangedDelegate);
 
 	uint32 NumGDTFToDefaultActorClassElements;
@@ -59,26 +133,119 @@ void FDMXMVRSceneActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 		DefaultActorClassHandle->SetOnChildPropertyValuePreChange(FSimpleDelegate::CreateSP(this, &FDMXMVRSceneActorDetails::OnPreEditChangeActorClassInGDTFToActorClasses));
 		DefaultActorClassHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXMVRSceneActorDetails::OnPostEditChangeActorClassInGDTFToActorClasses));
 
+		UObject* GDTFObject;
+		if (!GDTFHandle->GetValue(GDTFObject))
+		{
+			return;
+		}
+		UDMXImportGDTF* GDTF = Cast<UDMXImportGDTF>(GDTFObject);
+		if (!GDTF)
+		{
+			continue;
+		}
+
+		if (!IsAnyActorUsingGDTF(GDTF))
+		{
+			continue;
+		}
+
 		ActorTypeForGDTFCategory.AddCustomRow(LOCTEXT("GDTFToDefaultActorClassFilter", "GDTF"))
-			.NameContent()
-			[
-				GDTFHandle->CreatePropertyValueWidget()
-			]
-			.ValueContent()
+		.NameContent()
+		[
+			GDTFHandle->CreatePropertyValueWidget()
+		]
+		.ValueContent()
+		[
+			SNew(SWrapBox)
+
+			+ SWrapBox::Slot()
 			[
 				DefaultActorClassHandle->CreatePropertyValueWidget()
-			];
+			]
+
+			+ SWrapBox::Slot()
+			[
+				SNew(SButton)
+				.OnClicked(this, &FDMXMVRSceneActorDetails::OnSelectGDTFToActorClassGroupClicked, GDTFObject)
+				.Text(LOCTEXT("SelectGDTFGroupButtonCaption", "Select"))
+			]
+		];
 	}
+}
+
+FReply FDMXMVRSceneActorDetails::OnRefreshActorsFromDMXLibraryClicked()
+{
+	const TArray<TWeakObjectPtr<UObject>> SelectedObjects = PropertyUtilities->GetSelectedObjects();
+
+	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+	{
+		if (ADMXMVRSceneActor* MVRSceneActor = Cast<ADMXMVRSceneActor>(SelectedObject.Get()))
+		{
+			const FScopedTransaction RefreshActorsFromDMXLibraryTransaction(LOCTEXT("RefreshActorsFromDMXLibraryTransaction", "Update MVR Scene form DMX Library"));
+			MVRSceneActor->PreEditChange(ADMXMVRSceneActor::StaticClass()->FindPropertyByName(ADMXMVRSceneActor::GetRelatedAcctorsPropertyNameChecked()));
+
+			MVRSceneActor->RefreshFromDMXLibrary();
+
+			MVRSceneActor->PostEditChange();
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply FDMXMVRSceneActorDetails::OnSelectGDTFToActorClassGroupClicked(UObject* GDTFObject)
+{
+	UDMXImportGDTF* GDTF = Cast<UDMXImportGDTF>(GDTFObject);
+	if (!GDTF)
+	{
+		return FReply::Unhandled();
+	}
+
+	const TArray<TWeakObjectPtr<UObject>> SelectedObjects = PropertyUtilities->GetSelectedObjects();
+
+	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+	{
+		if (ADMXMVRSceneActor* MVRSceneActor = Cast<ADMXMVRSceneActor>(SelectedObject.Get()))
+		{
+			const TArray<AActor*> ActorsForThisGDTF = MVRSceneActor->GetActorsSpawnedForGDTF(GDTF);
+			UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+			if (EditorActorSubsystem)
+			{
+				EditorActorSubsystem->SetSelectedLevelActors(ActorsForThisGDTF);
+			}
+		}
+	}
+
+	// Set focus on the Scene Outliner so the user can execute keyboard commands right away
+	const TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+	const TSharedPtr<class ISceneOutliner> SceneOutliner = LevelEditor.IsValid() ? LevelEditor.Pin()->GetMostRecentlyUsedSceneOutliner() : nullptr;
+	if (SceneOutliner.IsValid())
+	{
+		SceneOutliner->SetKeyboardFocus();
+	}
+
+	return FReply::Handled();
 }
 
 void FDMXMVRSceneActorDetails::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
 {
-	ForceRefresh();
+	RequestRefresh();
 }
 
 void FDMXMVRSceneActorDetails::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
 {
-	ForceRefresh();
+	RequestRefresh();
+}
+
+void FDMXMVRSceneActorDetails::OnMapChange(uint32 MapChangeFlags)
+{
+	RequestRefresh();
+}
+
+void FDMXMVRSceneActorDetails::OnActorDeleted(AActor* DeletedActor)
+{
+	RequestRefresh();
 }
 
 void FDMXMVRSceneActorDetails::OnPreEditChangeActorClassInGDTFToActorClasses()
@@ -103,9 +270,22 @@ void FDMXMVRSceneActorDetails::OnPostEditChangeActorClassInGDTFToActorClasses()
 	}
 }
 
-void FDMXMVRSceneActorDetails::ForceRefresh()
+bool FDMXMVRSceneActorDetails::IsAnyActorUsingGDTF(const UDMXImportGDTF* GDTF) const
 {
-	PropertyUtilities->ForceRefresh();
+	const TArray<TWeakObjectPtr<UObject>> SelectedObjects = PropertyUtilities->GetSelectedObjects();
+	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+	{
+		if (ADMXMVRSceneActor* MVRSceneActor = Cast<ADMXMVRSceneActor>(SelectedObject.Get()))
+		{
+			return !MVRSceneActor->GetActorsSpawnedForGDTF(GDTF).IsEmpty();
+		}
+	}
+	return false;
+}
+
+void FDMXMVRSceneActorDetails::RequestRefresh()
+{
+	PropertyUtilities->RequestRefresh();
 }
 
 #undef LOCTEXT_NAMESPACE

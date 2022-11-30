@@ -7,6 +7,7 @@
 
 #include "DMXMVRSceneActor.generated.h"
 
+class FDMXMVRFixtureActorLibrary;
 class UDMXEntityFixturePatch;
 class UDMXImportGDTF;
 class UDMXLibrary;
@@ -51,10 +52,15 @@ public:
 #endif
 	//~ End AActor interface
 
-public:
 #if WITH_EDITOR
 	/** Sets the dmx library for this MVR actor. Should only be called once, further calls will have no effect and hit an ensure condition */
 	void SetDMXLibrary(UDMXLibrary* NewDMXLibrary);
+
+	/** Refreshes the scene from the DMX Library */
+	void RefreshFromDMXLibrary();
+
+	/** Returns an array of actors that are currently spawned in the scene for specified GDTF */
+	TArray<AActor*> GetActorsSpawnedForGDTF(const UDMXImportGDTF* GDTF) const;
 #endif
 	/** Returns the DMX Library of this MVR Scene Actor */
 	FORCEINLINE UDMXLibrary* GetDMXLibrary() const { return DMXLibrary; }
@@ -70,9 +76,28 @@ public:
 	static FName GetMVRSceneRootPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(ADMXMVRSceneActor, MVRSceneRoot); }
 #endif
 
+#if WITH_EDITORONLY_DATA
+	/** If checked, respawns Fixture Actors deleted from the MVR Scene */
+	UPROPERTY(EditAnywhere, Category = "MVR", Meta = (DisplayName = "Respawn Deleted Actors"))
+	bool bRespawnDeletedActorsOnRefresh = false;
+
+	/** If checked, updates transforms from the DMX Library */
+	UPROPERTY(EditAnywhere, Category = "MVR", Meta = (DisplayName = "Update Transforms"))
+	bool bUpdateTransformsOnRefresh = false;
+#endif
+
 private:
 	/** Set MVR UUIDs for related Actors */
 	void EnsureMVRUUIDsForRelatedActors();
+
+	/** Updates the GDTFToDefaultActorClasses map so it only contains those entries present both in the DMX Libraryand the MVR Scene */
+	void UpdateGDTFToDefaultActorClasses(const TSharedRef<FDMXMVRFixtureActorLibrary>& MVRFixtureActorLibrary);
+
+	/** Gets the Fixture Patch of an Actor, or nullptr if the Fixture Patch cannot be retrieved anymore */
+	UDMXEntityFixturePatch* GetFixturePatchFromActor(AActor* Actor) const;
+
+	/** Sets the Fixture Patch on an Actor if possible or fails silently */
+	void SetFixturePatchOnActor(AActor* Actor, UDMXEntityFixturePatch* FixturePatch);
 
 #if WITH_EDITOR
 	/** Called when a sub-level is loaded */
@@ -86,13 +111,13 @@ private:
 
 	/** Replaces related Actors that use the Default Actor Class for the GDTF with an instance of the new Default Actor Class */
 	void HandleDefaultActorClassForGDTFChanged();
-#endif // WITH_EDITOR
 
 	/** Spawns an MVR Actor in this Scene. Returns the newly spawned Actor, or nullptr if no Actor could be spawned. */
 	AActor* SpawnMVRActor(const TSubclassOf<AActor>&ActorClass, UDMXEntityFixturePatch * FixturePatch, const FTransform & Transform, AActor * Template = nullptr);
 
 	/** Replaces an MVR Actor in this Scene with another. Returns the newly spawned Actor, or nullptr if no Actor could be spawned. */
 	AActor* ReplaceMVRActor(AActor* ActorToReplace, const TSubclassOf<AActor>& ClassOfNewActor);
+#endif // WITH_EDITOR
 
 	/** The DMX Library this Scene Actor uses */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "MVR", Meta = (AllowPrivateAccess = true))
@@ -106,6 +131,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = "MVR", Meta = (DispayName = "Default Actor used for GDTF"))
 	TArray<FDMXMVRSceneGDTFToActorClassPair> GDTFToDefaultActorClasses;
 
+	/** Array holding MVR Fixture UUIDs that were explicitly removed from the scene */
+	UPROPERTY()
+	TArray<FGuid> DeletedMVRFixtureUUIDs;
+
 #if WITH_EDITORONLY_DATA
 	/** The GDTFToDefaultActorClassMap cached of PreEditChange, to find changes. */
 	TArray<FDMXMVRSceneGDTFToActorClassPair> GDTFToDefaultActorClasses_PreEditChange;
@@ -114,11 +143,4 @@ private:
 	/** The root component to which all actors are attached initially */
 	UPROPERTY(VisibleAnywhere, Category = "Actor", AdvancedDisplay, Meta = (AllowPrivateAccess = true))
 	TObjectPtr<USceneComponent> MVRSceneRoot;
-
-private:
-	/** Gets the Fixture Patch of an Actor, or nullptr if the Fixture Patch cannot be retrieved anymore */
-	UDMXEntityFixturePatch* GetFixturePatch(AActor* Actor) const;
-
-	/** Sets the Fixture Patch on an Actor if possible or fails silently */
-	void SetFixturePatch(AActor* Actor, UDMXEntityFixturePatch* FixturePatch);
 };
