@@ -2,46 +2,87 @@
 
 #include "WorldConditionQuery.h"
 #include "WorldConditionContext.h"
+#include "UObject/UObjectThreadContext.h"
+#include "StructUtilsTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldConditionQuery)
 
+//
+// FWorldConditionResultInvalidationHandle
+//
+
+void FWorldConditionResultInvalidationHandle::InvalidateResult() const
+{
+	if (CachedResult && Item)
+	{
+		*CachedResult = EWorldConditionResult::Invalid;
+		Item->CachedResult = EWorldConditionResult::Invalid;
+	}
+}
+
+
+//
+// FWorldConditionQueryState
+//
+
 FWorldConditionQueryState::~FWorldConditionQueryState()
 {
+	if (IsInitialized() && SharedDefinition)
+	{
+		UE_LOG(LogWorldCondition, Error, TEXT("World Condition: State %p is still active on destructor, calling Deactivate() without context data, might leak memory."), this);
+		const FWorldConditionContextData ContextData(*SharedDefinition->SchemaClass.GetDefaultObject());
+		const FWorldConditionContext Context(*this, ContextData);
+		Context.Deactivate();
+	}
+
 	if (Memory)
 	{
-		UE_LOG(LogWorldCondition, Error, TEXT("Expected World Condition state %p to have been freed, might leak memory."), Memory);
+		UE_LOG(LogWorldCondition, Error, TEXT("World Condition: Expected state %p to have been freed, might leak memory."), Memory);
 		FMemory::Free(Memory);
 		Memory = nullptr;
 	}
 }
 	
-void FWorldConditionQueryState::Initialize(const UObject& Owner, const FWorldConditionQueryDefinition& QueryDefinition)
+void FWorldConditionQueryState::Initialize(const UObject& InOwner, const FWorldConditionQueryDefinition& QueryDefinition)
 {
 	if (IsInitialized())
 	{
-		Free(QueryDefinition);
+		Free();
 	}
+
+	Owner = &InOwner;
+	bHasPerConditionState = false;
 
 	if (!QueryDefinition.IsValid())
 	{
+		// Empty condition
+		SharedDefinition = nullptr;
+		NumConditions = 0;
 		bIsInitialized = true;
 		return;
 	}
 
-	NumConditions = IntCastChecked<uint8>(QueryDefinition.Conditions.Num());
-
+	check(QueryDefinition.SharedDefinition);
+	
+	SharedDefinition = QueryDefinition.SharedDefinition;
+	SharedDefinition->ActiveStates++;
+	NumConditions = IntCastChecked<uint8>(SharedDefinition->Conditions.Num());
+	
 	int32 MinAlignment = 8;
 	int32 Offset = 0;
+
+	// Reserve space for cached result
+	Offset += sizeof(EWorldConditionResult); 
 	
 	// Reserve space for condition items.
+	Offset = Align(Offset, alignof(FWorldConditionItem));
+	check(Offset == ItemsOffset);
 	Offset += sizeof(FWorldConditionItem) * static_cast<int32>(NumConditions); 
 
-	bHasPerConditionState = false;
-	
 	// Reserve space for all runtime data.
 	for (int32 Index = 0; Index < static_cast<int32>(NumConditions); Index++)
 	{
-		FWorldConditionBase& Condition = QueryDefinition.Conditions[Index].GetMutable<FWorldConditionBase>();
+		FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].GetMutable<FWorldConditionBase>();
 		if (const UStruct* StateStruct = Condition.GetRuntimeStateType())
 		{
 			int32 StructMinAlignment = 0;
@@ -77,18 +118,22 @@ void FWorldConditionQueryState::Initialize(const UObject& Owner, const FWorldCon
 	}
 
 	const int32 TotalSize = Offset;
-	Memory = (uint8*)FMemory::Malloc(TotalSize, MinAlignment);
+	Memory = static_cast<uint8*>(FMemory::Malloc(TotalSize, MinAlignment));
 
+	// Init cached result
+	EWorldConditionResult& CachedResult = *reinterpret_cast<EWorldConditionResult*>(Memory + CachedResultOffset);
+	CachedResult = EWorldConditionResult::Invalid;
+	
 	// Initialize items
 	for (int32 Index = 0; Index < static_cast<int32>(NumConditions); Index++)
 	{
-		new (Memory + sizeof(FWorldConditionItem) * Index) FWorldConditionItem();
+		new (Memory + ItemsOffset + sizeof(FWorldConditionItem) * Index) FWorldConditionItem();
 	}
 
 	// Initialize state
 	for (int32 Index = 0; Index < static_cast<int32>(NumConditions); Index++)
 	{
-		FWorldConditionBase& Condition = QueryDefinition.Conditions[Index].GetMutable<FWorldConditionBase>();
+		FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].GetMutable<FWorldConditionBase>();
 		if (Condition.StateDataOffset == 0)
 		{
 			continue;
@@ -99,7 +144,7 @@ void FWorldConditionQueryState::Initialize(const UObject& Owner, const FWorldCon
 			new (StateMemory) FWorldConditionStateObject();
 			FWorldConditionStateObject& StateObject = *reinterpret_cast<FWorldConditionStateObject*>(StateMemory);
 			const UClass* StateClass = Cast<UClass>(Condition.GetRuntimeStateType());
-			StateObject.Object = NewObject<UObject>(const_cast<UObject*>(&Owner), StateClass);  
+			StateObject.Object = NewObject<UObject>(const_cast<UObject*>(Owner.Get()), StateClass);  
 		}
 		else
 		{
@@ -111,23 +156,26 @@ void FWorldConditionQueryState::Initialize(const UObject& Owner, const FWorldCon
 	bIsInitialized = true;
 }
 
-void FWorldConditionQueryState::Free(const FWorldConditionQueryDefinition& QueryDefinition)
+void FWorldConditionQueryState::Free()
 {
 	if (Memory == nullptr)
 	{
 		NumConditions = 0;
-		CachedResult = EWorldConditionResult::Invalid;
 		bHasPerConditionState = false;
+		SharedDefinition = nullptr;
 		bIsInitialized = false;
 		return;
 	}
-	
-	// Items don't need destructing.
 
+	check(SharedDefinition);
+	SharedDefinition->ActiveStates--;
+
+	// Items don't need destructing.
+	
 	// Destroy state
 	for (int32 Index = 0; Index < static_cast<int32>(NumConditions); Index++)
 	{
-		FWorldConditionBase& Condition = QueryDefinition.Conditions[Index].GetMutable<FWorldConditionBase>();
+		FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].GetMutable<FWorldConditionBase>();
 		if (Condition.StateDataOffset == 0)
 		{
 			continue;
@@ -146,45 +194,61 @@ void FWorldConditionQueryState::Free(const FWorldConditionQueryDefinition& Query
 	}
 
 	FMemory::Free(Memory);
+	
 	Memory = nullptr;
 	NumConditions = 0;
-	CachedResult = EWorldConditionResult::Invalid;
 	bHasPerConditionState = false;
+	SharedDefinition = nullptr;
 	bIsInitialized = false;
 }
 
-void FWorldConditionQueryState::AddReferencedObjects(const FWorldConditionQueryDefinition& QueryDefinition, class FReferenceCollector& Collector) const
+void FWorldConditionQueryState::AddStructReferencedObjects(class FReferenceCollector& Collector)
 {
+	Collector.AddReferencedObject(Owner);
+	Collector.AddReferencedObject(SharedDefinition);
+
 	if (Memory == nullptr)
 	{
 		return;
 	}
-	
-	check(NumConditions == QueryDefinition.Conditions.Num());
-	
-	for (int32 Index = 0; Index < QueryDefinition.Conditions.Num(); Index++)
+
+	check(SharedDefinition);
+	check(NumConditions == SharedDefinition->Conditions.Num());
+
+	for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
 	{
-		FWorldConditionBase& Condition = QueryDefinition.Conditions[Index].GetMutable<FWorldConditionBase>();
+		const FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].GetMutable<FWorldConditionBase>();
 		if (Condition.StateDataOffset == 0)
 		{
 			continue;
 		}
+		
 		uint8* StateMemory = Memory + Condition.StateDataOffset;
 		if (Condition.bIsStateObject)
 		{
-			FWorldConditionStateObject& StateObject = *reinterpret_cast<FWorldConditionStateObject*>(Memory + Condition.StateDataOffset);
+			FWorldConditionStateObject& StateObject = *reinterpret_cast<FWorldConditionStateObject*>(StateMemory);
 			Collector.AddReferencedObject(StateObject.Object);
 		}
 		else
 		{
-			const UScriptStruct* StateScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType());
-			Collector.AddReferencedObjects(StateScriptStruct, StateMemory);
+			if (const UScriptStruct* StateScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType()))
+			{
+				UE::StructUtils::AddReferencedObjects(Collector, StateScriptStruct, StateMemory);
+			}
 		}
 	}
-	
 }
 
+FWorldConditionResultInvalidationHandle FWorldConditionQueryState::GetInvalidationHandle(const FWorldConditionBase& Condition) const
+{
+	check(bIsInitialized);
+	check(Memory && Condition.ConditionIndex < NumConditions);
 
+	EWorldConditionResult* CachedResult = reinterpret_cast<EWorldConditionResult*>(Memory + CachedResultOffset);
+	FWorldConditionItem* Item = reinterpret_cast<FWorldConditionItem*>(Memory + ItemsOffset + Condition.ConditionIndex * sizeof(FWorldConditionItem));
+
+	return FWorldConditionResultInvalidationHandle(CachedResult, Item);
+}
 
 //
 // FWorldConditionQueryDefinition
@@ -192,17 +256,20 @@ void FWorldConditionQueryState::AddReferencedObjects(const FWorldConditionQueryD
 
 bool FWorldConditionQueryDefinition::IsValid() const
 {
-	return SchemaClass && Conditions.Num() > 0;
+	return SharedDefinition != nullptr;
 }
 
-bool FWorldConditionQueryDefinition::Initialize()
+bool FWorldConditionQueryDefinition::Initialize(UObject& Outer)
 {
 	bool bResult = true;
+
 #if WITH_EDITORONLY_DATA
-	Conditions.Reset();
+	UWorldConditionQuerySharedDefinition* OldSharedDefinition = SharedDefinition; 
+	SharedDefinition = nullptr;
 
 	if (SchemaClass == nullptr)
 	{
+		UE_LOG(LogWorldCondition, Warning, TEXT("World Condition: Failed to initialize query for %s due to missing schema."), *GetFullNameSafe(&Outer));
 		return false;
 	}
 
@@ -227,42 +294,58 @@ bool FWorldConditionQueryDefinition::Initialize()
 			}
 			else
 			{
-				UE_LOG(LogWorldCondition, Warning, TEXT("World condition contains condition of type %s that is not allowed by schema %s."),
-					*GetNameSafe(EditableCondition.Condition.GetScriptStruct()), *GetNameSafe(Schema));
+				UE_LOG(LogWorldCondition, Warning, TEXT("World Condition: Query for %s contains condition of type %s that is not allowed by schema %s."),
+					*GetFullNameSafe(&Outer), *GetNameSafe(EditableCondition.Condition.GetScriptStruct()), *GetNameSafe(Schema));
 			}
 		}
 	}
+	
 	if (ValidConditions.IsEmpty())
 	{
+		// Empty query, do not create definition.
 		return true;
 	}
-	
-	Conditions.Append(ValidConditions);
 
-	if (Conditions.Num() > 0)
+	// We create a new shared definition if one does not exists, or the old one is already in use.
+	// That allows the allocated states to uninitialize properly.
+	if (OldSharedDefinition != nullptr && OldSharedDefinition->ActiveStates == 0)
 	{
-		FWorldConditionBase& Condition = Conditions[0].GetMutable<FWorldConditionBase>();
+		SharedDefinition = OldSharedDefinition;
+		SharedDefinition->SchemaClass = nullptr;
+		SharedDefinition->Conditions.Reset();
+	}
+	else
+	{
+		SharedDefinition = NewObject<UWorldConditionQuerySharedDefinition>(&Outer);
+	}
+	
+	SharedDefinition->SchemaClass = SchemaClass;
+	SharedDefinition->Conditions.Append(ValidConditions);
+
+	if (SharedDefinition->Conditions.Num() > 0)
+	{
+		FWorldConditionBase& Condition = SharedDefinition->Conditions[0].GetMutable<FWorldConditionBase>();
 		Condition.Operator = EWorldConditionOperator::Copy;
 	}
 
-	for (int32 Index = 0; Index < Conditions.Num(); Index++)
+	for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
 	{
 		uint8 NextExpressionDepth = 0;
-		if ((Index + 1) < Conditions.Num())
+		if ((Index + 1) < SharedDefinition->Conditions.Num())
 		{
-			const FWorldConditionBase& NextCondition = Conditions[Index + 1].GetMutable<FWorldConditionBase>();
+			const FWorldConditionBase& NextCondition = SharedDefinition->Conditions[Index + 1].GetMutable<FWorldConditionBase>();
 			NextExpressionDepth = NextCondition.NextExpressionDepth;
 		}
 		
-		FWorldConditionBase& Condition = Conditions[Index].GetMutable<FWorldConditionBase>();
+		FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].GetMutable<FWorldConditionBase>();
 		Condition.NextExpressionDepth = NextExpressionDepth;
 
 		Condition.ConditionIndex = Index;
 	}
 
-	for (int32 Index = 0; Index < Conditions.Num(); Index++)
+	for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
 	{
-		FWorldConditionBase& Condition = Conditions[Index].GetMutable<FWorldConditionBase>();
+		FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].GetMutable<FWorldConditionBase>();
 		bResult &= Condition.Initialize(*Schema);
 	}
 #endif
@@ -275,10 +358,14 @@ void FWorldConditionQueryDefinition::PostSerialize(const FArchive& Ar)
 	if (Ar.IsLoading())
 	{
 #if WITH_EDITOR
-		// Initialize on load in editor.
-		if (Conditions.Num() == 0 && EditableConditions.Num() > 0)
+		// If not initialized yet, but has data, initialize on load in editor.
+		if (!SharedDefinition && EditableConditions.Num() > 0)
 		{
-			Initialize();
+			const FUObjectSerializeContext* LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
+			if (LoadContext && LoadContext->SerializedObject)
+			{
+				Initialize(*LoadContext->SerializedObject);
+			}
 		}
 #endif
 	}
@@ -289,18 +376,8 @@ void FWorldConditionQueryDefinition::PostSerialize(const FArchive& Ar)
 // FWorldConditionQuery
 //
 
-FWorldConditionQuery::~FWorldConditionQuery()
-{
-	if (IsActive())
-	{
-		UE_LOG(LogWorldCondition, Error, TEXT("Active World Condition %p is still active on destructor, calling Deactivate() without context data, might leak memory."), this);
-		check(QueryDefinition.SchemaClass);
-		const FWorldConditionContextData ContextData(*QueryDefinition.SchemaClass.GetDefaultObject());
-		Deactivate(ContextData);
-	}
-}
-
-bool FWorldConditionQuery::DebugInitialize(const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions)
+#if WITH_EDITORONLY_DATA
+bool FWorldConditionQuery::DebugInitialize(UObject& Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions)
 {
 	if (IsActive())
 	{
@@ -308,44 +385,34 @@ bool FWorldConditionQuery::DebugInitialize(const TSubclassOf<UWorldConditionSche
 	}
 
 	QueryDefinition.SchemaClass = InSchemaClass;
-#if WITH_EDITORONLY_DATA
 	QueryDefinition.EditableConditions = InConditions;
-#endif
-	return QueryDefinition.Initialize();
+	return QueryDefinition.Initialize(Outer);
 }
+#endif // WITH_EDITORONLY_DATA
 
-bool FWorldConditionQuery::Activate(const UObject& InOwner, const FWorldConditionContextData& ContextData)
+bool FWorldConditionQuery::Activate(const UObject& InOwner, const FWorldConditionContextData& ContextData) const
 {
-	Owner = &InOwner;
+	QueryState.Initialize(InOwner, QueryDefinition);
+	check(!QueryDefinition.SharedDefinition
+			|| (QueryDefinition.SharedDefinition && QueryState.GetNumConditions() == QueryDefinition.SharedDefinition->Conditions.Num()));
 
-	QueryState.Initialize(*Owner, QueryDefinition);
-	check(QueryState.GetNumConditions() == QueryDefinition.Conditions.Num());
-
-	const FWorldConditionContext Context(*Owner, QueryDefinition, QueryState, ContextData);
+	const FWorldConditionContext Context(QueryState, ContextData);
 	return Context.Activate();
 }
 
 bool FWorldConditionQuery::IsTrue(const FWorldConditionContextData& ContextData) const
 {
-	const FWorldConditionContext Context(*Owner, QueryDefinition, QueryState, ContextData);
+	const FWorldConditionContext Context(QueryState, ContextData);
 	return Context.IsTrue();
 }
 
 void FWorldConditionQuery::Deactivate(const FWorldConditionContextData& ContextData) const
 {
-	const FWorldConditionContext Context(*Owner, QueryDefinition, QueryState, ContextData);
+	const FWorldConditionContext Context(QueryState, ContextData);
 	return Context.Deactivate();
 }
 
 bool FWorldConditionQuery::IsActive() const
 {
 	return QueryState.IsInitialized();
-}
-
-void FWorldConditionQuery::AddStructReferencedObjects(class FReferenceCollector& Collector) const
-{
-	if (QueryState.IsInitialized())
-	{
-		QueryState.AddReferencedObjects(QueryDefinition, Collector);
-	}
 }

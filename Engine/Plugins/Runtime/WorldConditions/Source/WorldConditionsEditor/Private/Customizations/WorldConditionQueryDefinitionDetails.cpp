@@ -59,13 +59,22 @@ void FWorldConditionQueryDefinitionDetails::CustomizeChildren(TSharedRef<IProper
 void FWorldConditionQueryDefinitionDetails::InitializeDefinition() const
 {
 	check(StructProperty);
+
 	TArray<void*> RawNodeData;
+	TArray<UObject*> OuterObjects;
+		
 	StructProperty->AccessRawData(RawNodeData);
-	for (void* Data : RawNodeData)
+	StructProperty->GetOuterObjects(OuterObjects);
+	check(RawNodeData.Num() == OuterObjects.Num());
+		
+	for (int32 Index = 0; Index < RawNodeData.Num(); Index++)
 	{
-		if (FWorldConditionQueryDefinition* QueryDefinition = static_cast<FWorldConditionQueryDefinition*>(Data))
+		if (UObject* Outer = OuterObjects[Index])
 		{
-			QueryDefinition->Initialize();
+			if (FWorldConditionQueryDefinition* QueryDefinition = static_cast<FWorldConditionQueryDefinition*>(RawNodeData[Index]))
+			{
+				QueryDefinition->Initialize(*Outer);
+			}
 		}
 	}
 }

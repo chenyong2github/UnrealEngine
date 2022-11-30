@@ -718,8 +718,6 @@ protected:
 	/** Destroy SmartObjectRuntime contents as Handle's representation. */
 	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, const FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef);
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-
 	/**
 	 * Name of the Space partition class to use.
 	 * Usage:
@@ -745,7 +743,10 @@ protected:
 
 	TSharedPtr<FMassEntityManager> EntityManager;
 
+	UPROPERTY(Transient)
 	TMap<FSmartObjectHandle, FSmartObjectRuntime> RuntimeSmartObjects;
+	
+	UPROPERTY(Transient)
 	TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot> RuntimeSlots;
 
 	/** Keep track of Ids associated to objects entirely created at runtime (i.e. not part of the initial collection) */

@@ -187,6 +187,7 @@ protected:
 	ESmartObjectSlotState State = ESmartObjectSlotState::Free;
 
 	/** World condition runtime state. */
+	UPROPERTY(Transient)
 	mutable FWorldConditionQueryState PreconditionState;
 	
 	/** Index of the slot in the definition. */

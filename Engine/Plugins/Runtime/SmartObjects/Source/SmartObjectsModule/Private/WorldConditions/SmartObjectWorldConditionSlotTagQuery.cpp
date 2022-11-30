@@ -45,12 +45,12 @@ bool FSmartObjectWorldConditionSlotTagQuery::Activate(const FWorldConditionConte
 			{
 				FStateType& State = Context.GetState(*this);
 				State.SlotHandle = *SlotHandle;
-				State.DelegateHandle = SlotDelegate->AddLambda([this, &QueryState = Context.GetQueryState()](const FSmartObjectEventData& Event)
+				State.DelegateHandle = SlotDelegate->AddLambda([InvalidationHandle = Context.GetInvalidationHandle(*this)](const FSmartObjectEventData& Event)
 					{
 						if (Event.Reason == ESmartObjectChangeReason::OnTagAdded
 							|| Event.Reason == ESmartObjectChangeReason::OnTagRemoved)
 						{
-							InvalidateResult(QueryState);
+							InvalidationHandle.InvalidateResult();
 						}
 					});
 				

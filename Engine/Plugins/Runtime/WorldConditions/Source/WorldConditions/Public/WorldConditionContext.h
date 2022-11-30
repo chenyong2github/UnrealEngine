@@ -155,13 +155,23 @@ protected:
  */
 struct WORLDCONDITIONS_API FWorldConditionContext
 {
-	explicit FWorldConditionContext(const UObject& Owner, const FWorldConditionQueryDefinition& InQueryDefinition, FWorldConditionQueryState& InQueryState, const FWorldConditionContextData& InContextData)
-		: Owner(Owner)
-		, World(Owner.GetWorld())
-		, QueryDefinition(InQueryDefinition)
+	// @todo Remove, dummy method to help to migrate to the new API, will be removed immeidately in follow up change.
+	explicit FWorldConditionContext(const UObject& Owner, const FWorldConditionQueryDefinition& Defintion, FWorldConditionQueryState& InQueryState, const FWorldConditionContextData& InContextData)
+		: Owner(*InQueryState.Owner)
 		, QueryState(InQueryState)
 		, ContextData(InContextData)
 	{
+		check(InQueryState.Owner);
+		World = Owner.GetWorld();
+	}
+	
+	explicit FWorldConditionContext(FWorldConditionQueryState& InQueryState, const FWorldConditionContextData& InContextData)
+		: Owner(*InQueryState.Owner)
+		, QueryState(InQueryState)
+		, ContextData(InContextData)
+	{
+		check(InQueryState.Owner);
+		World = Owner.GetWorld();
 	}
 
 	/** @return Pointer to owner of the world conditions to be updated. */
@@ -209,6 +219,17 @@ struct WORLDCONDITIONS_API FWorldConditionContext
 	FWorldConditionQueryState& GetQueryState() const { return QueryState; }
 
 	/**
+	 * Returns handle that can be used to invalidate specific condition and recalculate the condition.
+	 * The handle can be acquired via FWorldConditionContext or FWorldConditionQueryState
+	 * and is guaranteed to be valid while the query is active.
+	 * @return Invalidation handle.	
+	 */
+	FWorldConditionResultInvalidationHandle GetInvalidationHandle(const FWorldConditionBase& Condition) const
+	{
+		return QueryState.GetInvalidationHandle(Condition);
+	}
+
+	/**
 	 * Calls Activate() on the world conditions in the query.
 	 * @return true of the activation succeeded, or false if failed. Failed queries will return false when IsTrue() is called.
 	 */
@@ -233,9 +254,6 @@ protected:
 	
 	/** World of the owner. */
 	UWorld* World = nullptr;
-	
-	/** Reference to the query definition of the query to be updated. */
-	const FWorldConditionQueryDefinition& QueryDefinition;
 	
 	/** Reference to the query state of the query to be updated. */
 	FWorldConditionQueryState& QueryState;

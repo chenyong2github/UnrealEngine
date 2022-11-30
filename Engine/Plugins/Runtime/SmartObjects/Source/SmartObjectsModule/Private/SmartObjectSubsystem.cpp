@@ -256,7 +256,7 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 			ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectHandleRef(), &Handle), TEXT("Expecting USmartObjectWorldConditionSchema::SmartObjectHandleRef to be valid."));
 			ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSlotHandleRef(), &SlotHandle), TEXT("Expecting USmartObjectWorldConditionSchema::SlotHandleRef to be valid."));
 
-			const FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, Slot.PreconditionState, ConditionContextData);
+			const FWorldConditionContext Context(Slot.PreconditionState, ConditionContextData);
 			if (!Context.Activate())
 			{
 				UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Failed to activate Preconditions on SmartObject '%s' slot '%s'."), *LexToString(Handle), *LexToString(SlotHandle));
@@ -339,12 +339,10 @@ void USmartObjectSubsystem::DestroyRuntimeInstanceInternal(const FSmartObjectHan
 		const FSmartObjectRuntimeSlot& RuntimeSlot = RuntimeSlots.FindChecked(SlotHandle);
 		if (RuntimeSlot.PreconditionState.IsInitialized() && ConditionContextData.IsValid())
 		{
-			const FSmartObjectSlotDefinition& SlotDefinition = Definition.GetSlot(RuntimeSlot.SlotIndex);
-
 			ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSmartObjectHandleRef(), &Handle), TEXT("Expecting USmartObjectWorldConditionSchema::SmartObjectHandleRef to be valid."));
 			ensureMsgf(ConditionContextData.SetContextData(DefaultWorldConditionSchema->GetSlotHandleRef(), &SlotHandle), TEXT("Expecting USmartObjectWorldConditionSchema::SlotHandleRef to be valid."));
 
-			const FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, RuntimeSlot.PreconditionState, ConditionContextData);
+			const FWorldConditionContext Context(RuntimeSlot.PreconditionState, ConditionContextData);
 			Context.Deactivate();
 		}
 		
@@ -353,28 +351,6 @@ void USmartObjectSubsystem::DestroyRuntimeInstanceInternal(const FSmartObjectHan
 	}
 
 	EntityManagerRef.Defer().DestroyEntities(EntitiesToDestroy);
-}
-
-void USmartObjectSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{
-	USmartObjectSubsystem* This = CastChecked<USmartObjectSubsystem>(InThis);
-	check(This);
-	Super::AddReferencedObjects(This, Collector);
-
-	// @todo: This can get slow, need to figure out a way to prune this.	
-	for (auto It(This->RuntimeSlots.CreateConstIterator()); It; ++It)
-	{
-		const FSmartObjectRuntimeSlot& RuntimeSlot = It.Value();
-		if (RuntimeSlot.PreconditionState.HasPerConditionState())
-		{
-			if (const FSmartObjectRuntime* SmartObjectRuntime = This->RuntimeSmartObjects.Find(RuntimeSlot.GetOwnerRuntimeObject()))
-			{
-				const USmartObjectDefinition& Definition = SmartObjectRuntime->GetDefinition();
-				const FSmartObjectSlotDefinition& SlotDefinition = Definition.GetSlot(RuntimeSlot.SlotIndex);
-				RuntimeSlot.PreconditionState.AddReferencedObjects(SlotDefinition.SelectionPreconditions, Collector);
-			}
-		}
-	}
 }
 
 bool USmartObjectSubsystem::RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry)
@@ -1208,7 +1184,7 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 			ensureMsgf(ConditionContextData.SetContextData(DefaultSchema->GetSmartObjectHandleRef(), &SmartObjectRuntime.RegisteredHandle), TEXT("Expecting USmartObjectWorldConditionSchema::SmartObjectHandleRef to be valid."));
 			ensureMsgf(ConditionContextData.SetContextData(DefaultSchema->GetSlotHandleRef(), &SlotHandle), TEXT("Expecting USmartObjectWorldConditionSchema::SlotHandleRef to be valid."));
 
-			FWorldConditionContext Context(*this, SlotDefinition.SelectionPreconditions, RuntimeSlot.PreconditionState, ConditionContextData);
+			FWorldConditionContext Context(RuntimeSlot.PreconditionState, ConditionContextData);
 			if (!Context.IsTrue())
 			{
 				continue;
@@ -1503,6 +1479,8 @@ void USmartObjectSubsystem::InitializeRuntime(const TSharedPtr<FMassEntityManage
 	// Note that we use our own flag instead of relying on World.HasBegunPlay() since world might not be marked
 	// as BegunPlay immediately after subsystem OnWorldBeingPlay gets called (e.g. waiting game mode to be ready on clients)
 	bRuntimeInitialized = true;
+
+	UE_CVLOG_UELOG(PendingSmartObjectRegistration.Num() > 0, this, LogSmartObject, VeryVerbose, TEXT("SmartObjectSubsystem: Handling %d pending registrations during runtime initialization."), PendingSmartObjectRegistration.Num());	
 
 	for (TObjectPtr<USmartObjectComponent>& SOComponent : PendingSmartObjectRegistration)
 	{

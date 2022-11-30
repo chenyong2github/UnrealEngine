@@ -37,9 +37,3 @@ void FWorldConditionBase::Deactivate(const FWorldConditionContext& Context) cons
 {
 	// Empty
 }
-
-void FWorldConditionBase::InvalidateResult(FWorldConditionQueryState& QueryState) const
-{
-	QueryState.CachedResult = EWorldConditionResult::Invalid;
-	QueryState.GetItem(ConditionIndex).CachedResult = EWorldConditionResult::Invalid; 
-}

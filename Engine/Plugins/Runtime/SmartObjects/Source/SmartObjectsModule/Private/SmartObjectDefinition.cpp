@@ -198,7 +198,7 @@ void USmartObjectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEv
 		for (FSmartObjectSlotDefinition& Slot : Slots)
 		{
 			Slot.SelectionPreconditions.SchemaClass = WorldConditionSchemaClass;
-			Slot.SelectionPreconditions.Initialize();
+			Slot.SelectionPreconditions.Initialize(*this);
 		}
 	}
 
@@ -209,7 +209,7 @@ void USmartObjectDefinition::PreSave(FObjectPreSaveContext SaveContext)
 {
 	for (FSmartObjectSlotDefinition& Slot : Slots)
 	{
-		Slot.SelectionPreconditions.Initialize();
+		Slot.SelectionPreconditions.Initialize(*this);
 	}
 
 	UpdateSlotReferences();
@@ -272,7 +272,7 @@ void USmartObjectDefinition::PostLoad()
 			Slot.SelectionPreconditions.SchemaClass = WorldConditionSchemaClass;
 		}
 
-		Slot.SelectionPreconditions.Initialize();
+		Slot.SelectionPreconditions.Initialize(*this);
 	}
 	
 #if WITH_EDITOR

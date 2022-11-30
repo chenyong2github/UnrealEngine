@@ -10,18 +10,25 @@ bool FWorldConditionContext::Activate() const
 		return false;
 	}
 
-	for (int32 Index = 0; Index < QueryDefinition.Conditions.Num(); Index++)
+	const UWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.SharedDefinition;
+	if (SharedDefinition == nullptr)
 	{
-		const FWorldConditionBase& Condition = QueryDefinition.Conditions[Index].Get<FWorldConditionBase>();
+		// Initialized but no definition means empty query. Activating empty should succeed.
+		return true;
+	}
+
+	for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
+	{
+		const FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].Get<FWorldConditionBase>();
 		FWorldConditionItem& Item = QueryState.GetItem(Index);
 		Item.Operator = Condition.Operator;
 		Item.NextExpressionDepth = Condition.NextExpressionDepth;
 	}
 
 	bool bSuccess = true;
-	for (int32 Index = 0; Index < QueryDefinition.Conditions.Num(); Index++)
+	for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
 	{
-		const FWorldConditionBase& Condition = QueryDefinition.Conditions[Index].Get<FWorldConditionBase>();
+		const FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].Get<FWorldConditionBase>();
 		bSuccess &= Condition.Activate(*this);
 	}
 
@@ -40,11 +47,18 @@ bool FWorldConditionContext::IsTrue() const
 		return false;
 	}
 
-	if (QueryState.CachedResult != EWorldConditionResult::Invalid)
+	if (QueryState.GetCachedResult() != EWorldConditionResult::Invalid)
 	{
-		return QueryState.CachedResult == EWorldConditionResult::IsTrue;
+		return QueryState.GetCachedResult() == EWorldConditionResult::IsTrue;
 	}
-	
+
+	const UWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.SharedDefinition;
+	if (SharedDefinition == nullptr)
+	{
+		// Empty query is true.
+		return true;
+	}
+
 	static_assert(UE::WorldCondition::MaxExpressionDepth == 4);
 	EWorldConditionResult Results[UE::WorldCondition::MaxExpressionDepth + 1] = { EWorldConditionResult::Invalid, EWorldConditionResult::Invalid, EWorldConditionResult::Invalid, EWorldConditionResult::Invalid, EWorldConditionResult::Invalid };
 	EWorldConditionOperator Operators[UE::WorldCondition::MaxExpressionDepth + 1] = { EWorldConditionOperator::Copy, EWorldConditionOperator::Copy, EWorldConditionOperator::Copy, EWorldConditionOperator::Copy, EWorldConditionOperator::Copy };
@@ -64,8 +78,8 @@ bool FWorldConditionContext::IsTrue() const
 		EWorldConditionResult CurrResult = Item.CachedResult;
 		if (CurrResult == EWorldConditionResult::Invalid)
 		{
-			check(QueryDefinition.Conditions.Num() == QueryState.GetNumConditions());
-			const FWorldConditionBase& Condition = QueryDefinition.Conditions[Index].Get<FWorldConditionBase>();
+			check(SharedDefinition->Conditions.Num() == QueryState.GetNumConditions());
+			const FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].Get<FWorldConditionBase>();
 			CurrResult = Condition.IsTrue(*this);
 			CurrResult = UE::WorldCondition::Invert(CurrResult, Condition.bInvert); 
 			
@@ -90,7 +104,7 @@ bool FWorldConditionContext::IsTrue() const
 
 	const EWorldConditionResult FinalResult = Results[0];
 	
-	QueryState.CachedResult = bAllConditionsCanBeCached ? FinalResult : EWorldConditionResult::Invalid;
+	QueryState.SetCachedResult(bAllConditionsCanBeCached ? FinalResult : EWorldConditionResult::Invalid);
 	
 	return FinalResult == EWorldConditionResult::IsTrue;
 
@@ -102,13 +116,15 @@ void FWorldConditionContext::Deactivate() const
 	{
 		return;
 	}
-	
-	for (int32 Index = 0; Index < QueryDefinition.Conditions.Num(); Index++)
+
+	if (const UWorldConditionQuerySharedDefinition* SharedDefinition = QueryState.SharedDefinition)
 	{
-		const FWorldConditionBase& ConditionDef = QueryDefinition.Conditions[Index].Get<FWorldConditionBase>();
-		ConditionDef.Deactivate(*this);
+		for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
+		{
+			const FWorldConditionBase& ConditionDef = SharedDefinition->Conditions[Index].Get<FWorldConditionBase>();
+			ConditionDef.Deactivate(*this);
+		}
 	}
 
-	QueryState.Free(QueryDefinition);
-
+	QueryState.Free();
 }

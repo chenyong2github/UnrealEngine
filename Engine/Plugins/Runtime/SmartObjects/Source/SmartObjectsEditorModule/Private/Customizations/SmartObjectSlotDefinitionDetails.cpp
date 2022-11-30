@@ -78,14 +78,22 @@ void FSmartObjectSlotDefinitionDetails::OnPaste() const
 	{
 		// Reset GUIDs on paste
 		TArray<void*> RawNodeData;
+		TArray<UObject*> OuterObjects;
+		
 		StructProperty->AccessRawData(RawNodeData);
-		for (void* Data : RawNodeData)
+		StructProperty->GetOuterObjects(OuterObjects);
+		check(RawNodeData.Num() == OuterObjects.Num());
+		
+		for (int32 Index = 0; Index < RawNodeData.Num(); Index++)
 		{
-			if (FSmartObjectSlotDefinition* Slot = static_cast<FSmartObjectSlotDefinition*>(Data))
+			if (UObject* Outer = OuterObjects[Index])
 			{
-				Slot->ID = FGuid::NewGuid();
-				Slot->SelectionPreconditions.SchemaClass = Definition->GetWorldConditionSchemaClass();
-				Slot->SelectionPreconditions.Initialize();
+				if (FSmartObjectSlotDefinition* Slot = static_cast<FSmartObjectSlotDefinition*>(RawNodeData[Index]))
+				{
+					Slot->ID = FGuid::NewGuid();
+					Slot->SelectionPreconditions.SchemaClass = Definition->GetWorldConditionSchemaClass();
+					Slot->SelectionPreconditions.Initialize(*Outer);
+				}
 			}
 		}
 		

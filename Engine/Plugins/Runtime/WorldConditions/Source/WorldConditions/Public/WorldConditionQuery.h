@@ -13,6 +13,7 @@
 
 struct FWorldConditionContext;
 struct FWorldConditionContextData;
+class FReferenceCollector;
 
 /**
  * World Condition Query is an expression of World Conditions whose state can be queried.
@@ -84,6 +85,28 @@ struct WORLDCONDITIONS_API FWorldConditionEditable
 };
 
 /**
+ * Class that describes a specific configuration of a world condition. Should not be used directly.
+ * It is shared between all query states initialized with a specific FWorldConditionQueryDefinition.
+ */
+UCLASS()
+class WORLDCONDITIONS_API UWorldConditionQuerySharedDefinition : public UObject
+{
+public:
+	GENERATED_BODY()
+
+	/** All the conditions of the world conditions. */
+	UPROPERTY()
+	FInstancedStructArray Conditions;
+
+	/** Schema used to create the conditions. */
+	UPROPERTY()
+	TSubclassOf<UWorldConditionSchema> SchemaClass = nullptr;
+
+	/** Describes the number of active states using this definition. */
+	int32 ActiveStates = 0;
+};
+
+/**
  * Definition of a world condition.
  * The mutable state of the world condition is stored in FWorldConditionQueryState.
  * This allows to reuse the definitions and minimize the runtime memory needed to run queries.
@@ -97,15 +120,18 @@ struct WORLDCONDITIONS_API FWorldConditionQueryDefinition
 	bool IsValid() const;
 
 	/** Initialized the condition from editable data. */
-	bool Initialize();
+	bool Initialize(UObject& Outer);
 
 	void PostSerialize(const FArchive& Ar);
-	
-	/** Conditions of the query, populated by Initialize(). */
-	UPROPERTY()
-	FInstancedStructArray Conditions;
 
-	/** Schema of the definition. */
+	/**
+	 * The definition used to initialize and execute world conditions.
+	 * Created from editable conditions during edit via Initialize().
+	 */
+	UPROPERTY()
+	TObjectPtr<UWorldConditionQuerySharedDefinition> SharedDefinition = nullptr;
+	
+	/** Schema of the definition, also stored in SharedDefinition. */
 	UPROPERTY()
 	TSubclassOf<UWorldConditionSchema> SchemaClass = nullptr;
 
@@ -170,6 +196,44 @@ struct WORLDCONDITIONS_API FWorldConditionStateObject
 
 
 /**
+ * Handle that can be used to invalidate the cached result of a condition (and query).
+ * The handle can be acquired via FWorldConditionContext or FWorldConditionQueryState
+ * and is guaranteed to be valid while the query is active.
+ */
+struct WORLDCONDITIONS_API FWorldConditionResultInvalidationHandle
+{
+	FWorldConditionResultInvalidationHandle() = default;
+
+	/** @return True if the handle is valid. */
+	bool IsValid() const { return CachedResult != nullptr && Item != nullptr; }
+
+	/** Resets the handle. */
+	void Reset()
+	{
+		CachedResult = nullptr;
+		Item = nullptr;
+	}
+
+	/**
+	 * When called invalidates the result of the query and condition. 
+	 */
+	void InvalidateResult() const;
+	
+protected:
+
+	explicit FWorldConditionResultInvalidationHandle(EWorldConditionResult* InCachedResult, FWorldConditionItem* InItem)
+		: CachedResult(InCachedResult)
+		, Item(InItem)
+	{
+	}
+
+	EWorldConditionResult* CachedResult = nullptr;
+	FWorldConditionItem* Item = nullptr;
+
+	friend struct FWorldConditionQueryState;
+};
+
+/**
  * Runtime state of a world conditions.
  * The structure of the data for the state is defined in a query definition.
  * The definition and conditions are stored in FWorldConditionQueryDefinition.
@@ -177,8 +241,11 @@ struct WORLDCONDITIONS_API FWorldConditionStateObject
  *
  * Note: Any code embedding this struct is responsible for calling AddReferencedObjects().
  */
+USTRUCT()
 struct WORLDCONDITIONS_API FWorldConditionQueryState
 {
+	GENERATED_BODY()
+
 	FWorldConditionQueryState()
 		: bHasPerConditionState(false)
 		, bIsInitialized(false)
@@ -201,18 +268,28 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 	 * Frees the allocated data and objects. The definition must be the same as used in init
 	 * as it is used to traverse the structure in memory.
 	 */
-	void Free(const FWorldConditionQueryDefinition& QueryDefinition);
+	void Free();
+
+	/** @return cached result stored in the state. */
+	EWorldConditionResult GetCachedResult() const
+	{
+		check(bIsInitialized);
+		// If Memory is null, and the query is initialized, it's empty query, which evaluates to true. 
+		return Memory ? *reinterpret_cast<EWorldConditionResult*>(Memory + CachedResultOffset) : EWorldConditionResult::IsTrue;
+	}
 
 	/** @return Condition item at specific index */
 	FWorldConditionItem& GetItem(const int32 Index) const
 	{
+		check(bIsInitialized);
 		check(Memory && Index >= 0 && Index < (int32)NumConditions);
-		return *(FWorldConditionItem*)(Memory + Index * sizeof(FWorldConditionItem));
+		return *reinterpret_cast<FWorldConditionItem*>(Memory + ItemsOffset + Index * sizeof(FWorldConditionItem));
 	}
 
 	/** @return Object describing the state of a specified condition. */
 	UObject* GetStateObject(const FWorldConditionBase& Condition) const
 	{
+		check(bIsInitialized);
 		check(Condition.StateDataOffset > 0);
 		check(Condition.bIsStateObject);
 		const FWorldConditionStateObject& StateObject = *reinterpret_cast<FWorldConditionStateObject*>(Memory + Condition.StateDataOffset);
@@ -222,6 +299,7 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 	/** @return struct describing the state of a specified condition. */
 	FStructView GetStateStruct(const FWorldConditionBase& Condition) const
 	{
+		check(bIsInitialized);
 		check(Condition.StateDataOffset > 0);
 		check (!Condition.bIsStateObject);
 		const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType());
@@ -236,17 +314,63 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 	int32 GetNumConditions() const { return NumConditions; }
 
 	/** Adds referenced objects to the collector. */
-	void AddReferencedObjects(const FWorldConditionQueryDefinition& QueryDefinition, class FReferenceCollector& Collector) const;
+	void AddStructReferencedObjects(FReferenceCollector& Collector);
+
+	/**
+	 * Returns handle that can be used to invalidate specific condition and recalculate the condition.
+	 * The handle can be acquired via FWorldConditionContext or FWorldConditionQueryState
+	 * and is guaranteed to be valid while the query is active.
+	 * @return Invalidation handle.	
+	 */
+	FWorldConditionResultInvalidationHandle GetInvalidationHandle(const FWorldConditionBase& Condition) const;
+
+	// @todo Remove, dummy method to help to migrate to the new API, will be removed immeidately in follow up change.
+	void AddReferencedObjects(const FWorldConditionQueryDefinition& Definition, FReferenceCollector& Collector) const
+	{
+		FWorldConditionQueryState* NonConstThis = const_cast<FWorldConditionQueryState*>(this);
+		NonConstThis->AddStructReferencedObjects(Collector);
+	}
+	
+protected:
+
+	void SetCachedResult(const EWorldConditionResult InResult) const
+	{
+		check(bIsInitialized);
+		if (Memory)
+		{
+			EWorldConditionResult& CachedResult = *reinterpret_cast<EWorldConditionResult*>(Memory + CachedResultOffset); 
+			CachedResult = InResult;
+		}
+	}
 
 private:
-	EWorldConditionResult CachedResult = EWorldConditionResult::Invalid;
+
+	static constexpr int32 CachedResultOffset = 0;
+	static constexpr int32 ItemsOffset = Align(sizeof(EWorldConditionResult), alignof(FWorldConditionItem));
+ 
 	uint8 NumConditions = 0;
 	uint8 bHasPerConditionState : 1;
 	uint8 bIsInitialized : 1;
 	uint8* Memory = nullptr;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UWorldConditionQuerySharedDefinition> SharedDefinition = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<const UObject> Owner = nullptr;
+
 	friend struct FWorldConditionBase;
 	friend struct FWorldConditionContext;
+	friend struct FWorldConditionQuery;
+};
+
+template<>
+struct TStructOpsTypeTraits<FWorldConditionQueryState> : public TStructOpsTypeTraitsBase2<FWorldConditionQueryState>
+{
+	enum
+	{
+		WithAddStructReferencedObjects = true,
+	};
 };
 
 
@@ -258,8 +382,6 @@ struct WORLDCONDITIONS_API FWorldConditionQuery
 {
 	GENERATED_BODY()
 
-	~FWorldConditionQuery();
-
 	/** @return True if the query is activated. */
 	bool IsActive() const;
 
@@ -268,7 +390,7 @@ struct WORLDCONDITIONS_API FWorldConditionQuery
 	 * @param ContextData ContextData that matches the schema of the query.
 	 * @return true of the activation succeeded, or false if failed. Failed queries will return false when IsTrue() is called.
 	 */
-	bool Activate(const UObject& Owner, const FWorldConditionContextData& ContextData);
+	bool Activate(const UObject& Owner, const FWorldConditionContextData& ContextData) const;
 
 	/**
 	 * Returns the result of the query. Cached state is returned if it is available,
@@ -284,36 +406,20 @@ struct WORLDCONDITIONS_API FWorldConditionQuery
 	 */
 	void Deactivate(const FWorldConditionContextData& ContextData) const;
 
-	/** @return Schema of the query. */
-	const UWorldConditionSchema* GetSchema() const { return QueryDefinition.SchemaClass.GetDefaultObject(); }
-
-	/** Handles object references in the query state. */
-	void AddStructReferencedObjects(class FReferenceCollector& Collector) const;
-
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Initializes a query from array of conditions for testing.
 	 * @return true of the query was created and initialized.
 	 */
-	bool DebugInitialize(const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions);
-
+	bool DebugInitialize(UObject& Outer, const TSubclassOf<UWorldConditionSchema> InSchemaClass, const TConstArrayView<FWorldConditionEditable> InConditions);
+#endif // WITH_EDITORONLY_DATA
+	
 protected:
 	/** Defines the conditions to run on the query.  */
 	UPROPERTY(EditAnywhere, Category="Default");
 	FWorldConditionQueryDefinition QueryDefinition;
 
 	/** Runtime state of the query. */
+	UPROPERTY(Transient);
 	mutable FWorldConditionQueryState QueryState;
-
-	/** Owner of the query. */
-	UPROPERTY()
-	TObjectPtr<const UObject> Owner = nullptr;
-};
-
-template<>
-struct TStructOpsTypeTraits<FWorldConditionQuery> : public TStructOpsTypeTraitsBase2<FWorldConditionQuery>
-{
-	enum
-	{
-		WithAddStructReferencedObjects = true,
-	};
 };

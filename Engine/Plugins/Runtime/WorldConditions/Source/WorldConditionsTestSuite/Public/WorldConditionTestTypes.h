@@ -166,9 +166,9 @@ struct FWorldConditionTestCached : public FWorldConditionBase
 			{
 				FStateType& State = Context.GetState(*this);
 				FWorldConditionTestData* MutableTestData = const_cast<FWorldConditionTestData*>(TestData);
-				State.DelegateHandle = MutableTestData->ValueChanged.AddLambda([this, &QueryState = Context.GetQueryState()]()
+				State.DelegateHandle = MutableTestData->ValueChanged.AddLambda([InvalidationHandle = Context.GetInvalidationHandle(*this)]()
 					{
-						InvalidateResult(QueryState);
+						InvalidationHandle.InvalidateResult();
 					});
 				
 				return true;

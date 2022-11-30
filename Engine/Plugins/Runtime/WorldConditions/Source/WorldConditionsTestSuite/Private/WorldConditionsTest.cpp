@@ -20,7 +20,7 @@ struct FWorldConditionTest_Init : FAITestBase
 		Definition.SchemaClass = UWorldConditionTestSchema::StaticClass();
 		Definition.EditableConditions.Emplace(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest()));
 		Definition.EditableConditions.Emplace(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest()));
-		const bool bInitialized = Definition.Initialize();
+		const bool bInitialized = Definition.Initialize(GetWorld());
 
 		AITEST_TRUE("Query definition should get initialized", bInitialized);
 
@@ -30,7 +30,7 @@ struct FWorldConditionTest_Init : FAITestBase
 		AITEST_EQUAL("Query state should have 2 conditions", State.GetNumConditions(), 2);
 		AITEST_EQUAL("Query state condition 1 operator should be And", State.GetItem(1).Operator, EWorldConditionOperator::And);
 		
-		State.Free(Definition);
+		State.Free();
 		AITEST_EQUAL("Query state should have 0 conditions", State.GetNumConditions(), 0);
 		
 		return true;
@@ -43,7 +43,7 @@ struct FWorldConditionTest_Eval : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(1))),
 				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest(1)))
@@ -78,10 +78,10 @@ struct FWorldConditionTest_EvalInvert : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(1))),
-				FWorldConditionEditable(0, EWorldConditionOperator::And, /*bInveret*/true, FConstStructView::Make(FWorldConditionTest(0)))
+				FWorldConditionEditable(0, EWorldConditionOperator::And, /*bInvert*/true, FConstStructView::Make(FWorldConditionTest(0)))
 			});
 
 		AITEST_TRUE("Query should get initialized", bInitialized);
@@ -113,7 +113,7 @@ struct FWorldConditionTest_CachedEval : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(UWorldConditionTestCachedSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestCachedSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTestCached(1))),
 				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTestCached(1)))
@@ -166,7 +166,7 @@ struct FWorldConditionTest_EvalComplex : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(/*Depth*/0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(0))),	//	if	(A
 				FWorldConditionEditable(/*Depth*/1, EWorldConditionOperator::Or,   FConstStructView::Make(FWorldConditionTest(1))),	//	.	|| B)
@@ -209,7 +209,7 @@ struct FWorldConditionTest_Empty : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(UWorldConditionTestSchema::StaticClass(),{});
+		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),{});
 
 		AITEST_TRUE("Query should get initialized", bInitialized);
 		
@@ -224,7 +224,7 @@ struct FWorldConditionTest_Empty : FAITestBase
 		AITEST_TRUE("Query should be active", Query.IsActive());
 		
 		const bool bResult1 = Query.IsTrue(ContextData);
-		AITEST_FALSE("Query result1 should be false", bResult1);
+		AITEST_TRUE("Query result1 should be true", bResult1);
 
 		Query.Deactivate(ContextData);
 		AITEST_FALSE("Query should not be active", Query.IsActive());
@@ -239,7 +239,7 @@ struct FWorldConditionTest_FailingActivate : FAITestBase
 	virtual bool InstantTest() override
 	{
 		FWorldConditionQuery Query;
-		const bool bInitialized = Query.DebugInitialize(UWorldConditionTestSchema::StaticClass(),
+		const bool bInitialized = Query.DebugInitialize(GetWorld(), UWorldConditionTestSchema::StaticClass(),
 			{
 				FWorldConditionEditable(0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(1))),
 				FWorldConditionEditable(0, EWorldConditionOperator::And, FConstStructView::Make(FWorldConditionTest(1, false))) // this conditions fails to activate

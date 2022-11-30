@@ -126,9 +126,6 @@ struct WORLDCONDITIONS_API FWorldConditionBase
 	virtual void Deactivate(const FWorldConditionContext& Context) const;
 
 protected:
-	/** Invalidates the query state so tha the required cached conditions are reevaluated on next call to IsTrue(). */
-	void InvalidateResult(FWorldConditionQueryState& QueryState) const;
-
 	/** Used internally, Offset of the data in the State storage. */
 	uint16 StateDataOffset = 0;
 
