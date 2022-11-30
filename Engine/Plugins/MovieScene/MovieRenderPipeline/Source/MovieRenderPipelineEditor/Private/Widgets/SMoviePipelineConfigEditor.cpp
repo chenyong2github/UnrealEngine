@@ -761,7 +761,10 @@ void SMoviePipelineConfigEditor::AddSettingFromClass(TSubclassOf<UMoviePipelineS
 	if (*SettingClass && Pipeline)
 	{
 		FScopedTransaction Transaction(FText::Format(LOCTEXT("AddNewSetting", "Add New {0} Setting"), SettingClass->GetDisplayNameText()));
-		UMoviePipelineSetting* NewSetting = Pipeline->FindOrAddSettingByClass(SettingClass);
+
+		const bool bIncludeDisabledSettings = false;
+		const bool bExactMatch = true;
+		UMoviePipelineSetting* NewSetting = Pipeline->FindOrAddSettingByClass(SettingClass, bIncludeDisabledSettings, bExactMatch);
 
 		SettingsWidget->SetSelectedSettings({ NewSetting });
 	}
