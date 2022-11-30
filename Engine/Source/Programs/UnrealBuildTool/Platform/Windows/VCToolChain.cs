@@ -1304,7 +1304,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
+		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			VCCompileAction BaseCompileAction = new VCCompileAction(EnvVars);
 			AppendCLArguments_Global(CompileEnvironment, BaseCompileAction.Arguments);
@@ -1965,6 +1965,16 @@ namespace UnrealBuildTool
 				}
 			}
 			return Result.ToString();
+		}
+
+		public override FileItem[] LinkImportLibrary(LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph)
+		{
+			if (LinkEnvironment.bIsCrossReferenced)
+			{
+				return LinkAllFiles(LinkEnvironment, true, Graph);
+			}
+			// by default do nothing
+			return new FileItem[] { };
 		}
 
 		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)

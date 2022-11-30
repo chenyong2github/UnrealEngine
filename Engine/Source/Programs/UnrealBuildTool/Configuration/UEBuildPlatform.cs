@@ -208,10 +208,23 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Returns true if this platform is capable of building the specified architectures in a single pass
-		/// (e.g. creating a fat binary).
+		/// (e.g. creating a fat library). If both this and CanLinkArchitecturesInSinglePass() return false
+		/// then a UEBuildTarget will be created for each architecture. If one returns true, and one false, then
+		/// UTToolchain will loop over the architectures within CompileAllFIles/LinkAllFiles
 		/// </summary>
 		/// <param name="InArchitectures">Architectures that are being built</param>
-		public virtual bool CanBuildArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
+		public virtual bool CanCompileArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
+		{
+			return false;
+		}
+
+		/// <summary>
+		/// Returns true if this platform is capable of building the specified architectures in a single pass
+		/// (e.g. creating a fat binary). If both this and CanCompileArchitecturesInSinglePass() return false
+		/// then a UEBuildTarget will be created for each architecture
+		/// </summary>
+		/// <param name="InArchitectures">Architectures that are being built</param>
+		public virtual bool CanLinkArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
 		{
 			return false;
 		}

@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 using System.IO;
+using System.Collections.Generic;
 
 public class Embree3 : ModuleRules
 {
@@ -33,7 +34,12 @@ public class Embree3 : ModuleRules
 			RuntimeDependencies.Add("$(TargetOutputDir)/libembree3.3.dylib", Path.Combine(LibDir, "libembree3.3.dylib"));
 			if (Target.Architecture.ToLower().Contains("x86"))
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libtbb.12.dylib"));
+				string DylibPath = Path.Combine(LibDir, "libtbb.12.dylib");
+				PublicAdditionalLibraries.Add(DylibPath);
+
+				// we don't want to linnk this on arm64, as the embree dylib has it statically linked in
+				DependenciesToSkipPerArchitecture[Path.GetFullPath(DylibPath)] = new List<string>() { "arm64" };
+
 				RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.12.dylib", Path.Combine(LibDir, "libtbb.12.dylib"));
 			}
 			PublicDefinitions.Add("USE_EMBREE=1");

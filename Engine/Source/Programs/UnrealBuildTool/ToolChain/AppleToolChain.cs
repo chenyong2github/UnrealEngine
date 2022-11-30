@@ -175,7 +175,7 @@ namespace UnrealBuildTool
 		}
 
 		protected FileReference? ProjectFile;
-		
+
 		protected static bool UseModernXcode(FileReference? ProjectFile)
 		{
 			// Modern Xcode mode does this now

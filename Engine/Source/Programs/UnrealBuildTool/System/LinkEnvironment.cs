@@ -118,6 +118,11 @@ namespace UnrealBuildTool
 		public List<string> DelayLoadDLLs = new List<string>();
 
 		/// <summary>
+		/// Per-architecture lists of dependencies for linking to ignore (useful when building for multiple architectures, and a lib only is needed for one architecture), it's up to the Toolchain to use this
+		/// </summary>
+		public Dictionary<string, HashSet<string>> DependenciesToSkipPerArchitecture = new();
+
+		/// <summary>
 		/// Additional arguments to pass to the linker.
 		/// </summary>
 		public string AdditionalArguments = "";
@@ -216,30 +221,30 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bAllowLTCG;
 
-        /// <summary>
-        /// Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
-        /// </summary>
-        public bool bPGOProfile;
+		/// <summary>
+		/// Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
+		/// </summary>
+		public bool bPGOProfile;
 
-        /// <summary>
-        /// Whether to optimize this build with Profile Guided Optimization (PGO).
-        /// </summary>
-        public bool bPGOOptimize;
+		/// <summary>
+		/// Whether to optimize this build with Profile Guided Optimization (PGO).
+		/// </summary>
+		public bool bPGOOptimize;
 
-        /// <summary>
-        /// Platform specific directory where PGO profiling data is stored.
-        /// </summary>
-        public string? PGODirectory;
+		/// <summary>
+		/// Platform specific directory where PGO profiling data is stored.
+		/// </summary>
+		public string? PGODirectory;
 
-        /// <summary>
-        /// Platform specific filename where PGO profiling data is saved.
-        /// </summary>
-        public string? PGOFilenamePrefix;
+		/// <summary>
+		/// Platform specific filename where PGO profiling data is saved.
+		/// </summary>
+		public string? PGOFilenamePrefix;
 
-        /// <summary>
-        /// Whether to request the linker create a map file as part of the build
-        /// </summary>
-        public bool bCreateMapFile;
+		/// <summary>
+		/// Whether to request the linker create a map file as part of the build
+		/// </summary>
+		public bool bCreateMapFile;
 
 		/// <summary>
 		/// Whether PDB files should be used for Visual C++ builds.
@@ -371,7 +376,7 @@ namespace UnrealBuildTool
 			bCreateDebugInfo = Other.bCreateDebugInfo;
 			bGenerateRuntimeSymbolFiles = Other.bGenerateRuntimeSymbolFiles;
 			bIsBuildingLibrary = Other.bIsBuildingLibrary;
-            bDisableSymbolCache = Other.bDisableSymbolCache;
+			bDisableSymbolCache = Other.bDisableSymbolCache;
 			bIsBuildingDLL = Other.bIsBuildingDLL;
 			bUseStaticCRT = Other.bUseStaticCRT;
 			bUseDebugCRT = Other.bUseDebugCRT;
@@ -386,11 +391,11 @@ namespace UnrealBuildTool
 			bSupportEditAndContinue = Other.bSupportEditAndContinue;
 			bUseIncrementalLinking = Other.bUseIncrementalLinking;
 			bAllowLTCG = Other.bAllowLTCG;
-            bPGOOptimize = Other.bPGOOptimize;
-            bPGOProfile = Other.bPGOProfile;
-            PGODirectory = Other.PGODirectory;
-            PGOFilenamePrefix = Other.PGOFilenamePrefix;
-            bCreateMapFile = Other.bCreateMapFile;
+			bPGOOptimize = Other.bPGOOptimize;
+			bPGOProfile = Other.bPGOProfile;
+			PGODirectory = Other.PGODirectory;
+			PGOFilenamePrefix = Other.PGOFilenamePrefix;
+			bCreateMapFile = Other.bCreateMapFile;
 			bUsePDBFiles = Other.bUsePDBFiles;
 			bUseFastPDBLinking = Other.bUseFastPDBLinking;
 			bUsePIE = Other.bUsePIE;
@@ -409,6 +414,30 @@ namespace UnrealBuildTool
 			IncludeFunctions.AddRange(Other.IncludeFunctions);
 			ModuleDefinitionFile = Other.ModuleDefinitionFile;
 			AdditionalProperties.AddRange(Other.AdditionalProperties);
+
+			foreach (KeyValuePair<string, HashSet<string>> Pair in Other.DependenciesToSkipPerArchitecture)
+			{
+				DependenciesToSkipPerArchitecture[Pair.Key] = new HashSet<string>(Pair.Value);
+			}
+		}
+
+		public LinkEnvironment(LinkEnvironment Other, string OverrideArchitecture)
+			: this(Other)
+		{
+			Architecture = OverrideArchitecture;
+
+			if (DependenciesToSkipPerArchitecture.Count() > 0)
+			{
+				// add more arrays here?
+				Libraries = Libraries.Where(x => !DependenciesToSkipPerArchitecture.ContainsKey(x.FullName) || !DependenciesToSkipPerArchitecture[x.FullName].Contains(Architecture)).ToList();
+				SystemLibraries = SystemLibraries.Where(x => !DependenciesToSkipPerArchitecture.ContainsKey(x) || !DependenciesToSkipPerArchitecture[x].Contains(Architecture)).ToList();
+				Frameworks = Frameworks.Where(x => !DependenciesToSkipPerArchitecture.ContainsKey(x) || !DependenciesToSkipPerArchitecture[x].Contains(Architecture)).ToList();
+				AdditionalFrameworks = AdditionalFrameworks.Where(x => !DependenciesToSkipPerArchitecture.ContainsKey(x.Name) || !DependenciesToSkipPerArchitecture[x.Name].Contains(Architecture)).ToList();
+				WeakFrameworks = WeakFrameworks.Where(x => !DependenciesToSkipPerArchitecture.ContainsKey(x) || !DependenciesToSkipPerArchitecture[x].Contains(Architecture)).ToList();
+				AdditionalBundleResources = AdditionalBundleResources.Where(x => x.ResourcePath == null || !DependenciesToSkipPerArchitecture.ContainsKey(x.ResourcePath) || !DependenciesToSkipPerArchitecture[x.ResourcePath].Contains(Architecture)).ToList();
+				DelayLoadDLLs = DelayLoadDLLs.Where(x => !DependenciesToSkipPerArchitecture.ContainsKey(x) || !DependenciesToSkipPerArchitecture[x].Contains(Architecture)).ToList();
+			}
 		}
 	}
 }
+	

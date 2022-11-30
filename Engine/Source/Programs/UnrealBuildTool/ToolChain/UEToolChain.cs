@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
@@ -41,7 +42,42 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		public abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph);
+		// when compiling/linking separately, if the current architecture matches this, then the output won't include the architecture name in it
+		public string ArchitectureWithoutMarkup()
+		{
+			return "";
+		}
+
+		protected abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph);
+		 
+		public CPPOutput CompileAllCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
+		{
+			CPPOutput Result;
+			string[] ArchStrings = CompileEnvironment.Architecture.Split('+', StringSplitOptions.RemoveEmptyEntries);
+
+			// compile architectures separately if needed
+			if (ArchStrings.Length > 1 && !UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform).CanCompileArchitecturesInSinglePass(ArchStrings))
+			{
+				Result = new CPPOutput();
+				foreach (string ArchString in ArchStrings)
+				{
+					// determine the output location of intermediates (so, if OutputDir had the arch name in it, like Intermediate/x86+arm64, we would replace it with either emptry string
+					// or a single arch name
+					string ArchReplacement = string.Compare(ArchitectureWithoutMarkup(), ArchString, true) == 0 ? "" : ArchString;
+					DirectoryReference ArchOutputDir = new(OutputDir.FullName.Replace(CompileEnvironment.Architecture, ArchReplacement));
+
+					CppCompileEnvironment ArchEnvironment = new(CompileEnvironment, ArchString);
+					CPPOutput ArchResult = CompileCPPFiles(ArchEnvironment, InputFiles, ArchOutputDir, ModuleName, Graph);
+					Result.Merge(ArchResult, ArchString);
+				}
+			}
+			else
+			{
+				Result = CompileCPPFiles(CompileEnvironment, InputFiles, OutputDir, ModuleName, Graph);
+			}
+
+			return Result;
+		}
 
 		public virtual CPPOutput CompileRCFiles(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
@@ -66,11 +102,52 @@ namespace UnrealBuildTool
 			throw new NotSupportedException("This platform does not support type libraries.");
 		}
 
+		/// <summary>
+		/// Allows a toolchain to decide to create an import library if needed for this Environment
+		/// </summary>
+		/// <param name="LinkEnvironment"></param>
+		/// <param name="Graph"></param>
+		/// <returns></returns>
+		public virtual FileItem[] LinkImportLibrary(LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph)
+		{
+			// by default doing nothing
+			return new FileItem[] { };
+		}
+
 		public abstract FileItem? LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph);
 		public virtual FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
-			FileItem? LinkFile = LinkFiles(LinkEnvironment, bBuildImportLibraryOnly, Graph);
-			return LinkFile != null ? new FileItem[] { LinkFile } : new FileItem[] { };
+			List<FileItem> Result = new();
+			string[] ArchStrings = LinkEnvironment.Architecture.Split('+', StringSplitOptions.RemoveEmptyEntries);
+
+			// compile architectures separately if needed
+			if (ArchStrings.Length > 1 && !UEBuildPlatform.GetBuildPlatform(LinkEnvironment.Platform).CanLinkArchitecturesInSinglePass(ArchStrings))
+			{
+				foreach (string ArchString in ArchStrings)
+				{
+					LinkEnvironment ArchEnvironment = new(LinkEnvironment, ArchString);
+						
+					// determine the output location of intermediates (so, if OutputDir had the arch name in it, like Intermediate/x86+arm64, we would replace it with either emptry string
+					// or a single arch name
+					string ArchReplacement = string.Compare(ArchitectureWithoutMarkup(), ArchString, true) == 0 ? "" : ArchString;
+					ArchEnvironment.OutputFilePaths = LinkEnvironment.OutputFilePaths.Select(x => new FileReference(x.FullName.Replace(LinkEnvironment.Architecture, ArchReplacement))).ToList();
+
+					FileItem? LinkFile = LinkFiles(ArchEnvironment, bBuildImportLibraryOnly, Graph);
+					if (LinkFile != null)
+					{
+						Result.Add(LinkFile);
+					}
+				}
+			}
+			else
+			{
+				FileItem? LinkFile = LinkFiles(LinkEnvironment, bBuildImportLibraryOnly, Graph);
+				if (LinkFile != null)
+				{
+					Result.Add(LinkFile);
+				}
+			}
+			return Result.ToArray();
 		}
 
 		/// <summary>
@@ -88,6 +165,12 @@ namespace UnrealBuildTool
 		public virtual ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment ExecutableLinkEnvironment, IActionGraphBuilder Graph)
 		{
 			return new List<FileItem>();
+		}
+
+		public virtual ICollection<FileItem> PostBuild(FileItem[] Executables, LinkEnvironment ExecutableLinkEnvironment, IActionGraphBuilder Graph)
+		{
+			// by default, run PostBuild for exe Exe and merge results
+			return Executables.SelectMany(x => PostBuild(x, ExecutableLinkEnvironment, Graph)).ToList();
 		}
 
 		public virtual void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)

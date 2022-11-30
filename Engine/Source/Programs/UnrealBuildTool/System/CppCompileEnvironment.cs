@@ -118,6 +118,19 @@ namespace UnrealBuildTool
 		public List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
 		public List<FileItem> GeneratedHeaderFiles = new List<FileItem>();
 		public FileItem? PrecompiledHeaderFile = null;
+		public Dictionary<string, FileItem> PerArchPrecompiledHeaderFiles = new();
+
+		public void Merge(CPPOutput Other, string Architecture)
+		{
+			ObjectFiles.AddRange(Other.ObjectFiles);
+			CompiledModuleInterfaces.AddRange(Other.CompiledModuleInterfaces);
+			GeneratedHeaderFiles.AddRange(Other.GeneratedHeaderFiles);
+			ObjectFiles.AddRange(Other.ObjectFiles);
+			if (Other.PrecompiledHeaderFile != null)
+			{
+				PerArchPrecompiledHeaderFiles[Architecture] = Other.PrecompiledHeaderFile;
+			}
+		}
 	}
 
 	/// <summary>
@@ -370,25 +383,25 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bAllowLTCG;
 
-        /// <summary>
-        /// Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
-        /// </summary>
-        public bool bPGOProfile;
-        
-        /// <summary>
-        /// Whether to optimize this build with Profile Guided Optimization (PGO).
-        /// </summary>
-        public bool bPGOOptimize;
+		/// <summary>
+		/// Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
+		/// </summary>
+		public bool bPGOProfile;
 
-        /// <summary>
-        /// Platform specific directory where PGO profiling data is stored.
-        /// </summary>
-        public string? PGODirectory;
+		/// <summary>
+		/// Whether to optimize this build with Profile Guided Optimization (PGO).
+		/// </summary>
+		public bool bPGOOptimize;
 
-        /// <summary>
-        /// Platform specific filename where PGO profiling data is saved.
-        /// </summary>
-        public string? PGOFilenamePrefix;
+		/// <summary>
+		/// Platform specific directory where PGO profiling data is stored.
+		/// </summary>
+		public string? PGODirectory;
+
+		/// <summary>
+		/// Platform specific filename where PGO profiling data is saved.
+		/// </summary>
+		public string? PGOFilenamePrefix;
 
 		/// <summary>
 		/// Whether to log detailed timing info from the compiler
@@ -457,6 +470,11 @@ namespace UnrealBuildTool
 		public FileItem? PrecompiledHeaderFile = null;
 
 		/// <summary>
+		/// A dictionary of PCH files for multiple architectures
+		/// </summary>
+		public Dictionary<string, FileItem>? PerArchPrecompiledHeaderFiles = null;
+
+		/// <summary>
 		/// Whether or not UHT is being built
 		/// </summary>
 		public bool bHackHeaderGenerator;
@@ -506,7 +524,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-        public CppCompileEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture, SourceFileMetadataCache MetadataCache)
+		public CppCompileEnvironment(UnrealTargetPlatform Platform, CppConfiguration Configuration, string Architecture, SourceFileMetadataCache MetadataCache)
 		{
 			this.Platform = Platform;
 			this.Configuration = Configuration;
@@ -595,6 +613,20 @@ namespace UnrealBuildTool
 			IncludeOrderVersion = Other.IncludeOrderVersion;
 			bDeterministic = Other.bDeterministic;
 			CrashDiagnosticDirectory = Other.CrashDiagnosticDirectory;
+		}
+
+		public CppCompileEnvironment(CppCompileEnvironment Other, string OverrideArchitecture)
+			: this(Other)
+		{
+			Architecture = OverrideArchitecture;
+			if (Other.PerArchPrecompiledHeaderFiles != null)
+			{
+				Other.PerArchPrecompiledHeaderFiles.TryGetValue(OverrideArchitecture, out PrecompiledHeaderFile);
+			}
+			else
+			{
+				PrecompiledHeaderFile = null;
+			}
 		}
 	}
 }

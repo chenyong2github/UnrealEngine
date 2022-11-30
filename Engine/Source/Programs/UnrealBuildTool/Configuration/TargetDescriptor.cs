@@ -365,15 +365,16 @@ namespace UnrealBuildTool
 				// Parse the architecture parameter, or get the default for the platform
 				List<string> Architectures = new List<string>(Arguments.GetValues("-Architecture=", '+'));
 
+				UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
 				if (Architectures.Count == 0)
 				{
-					Architectures.Add(UEBuildPlatform.GetBuildPlatform(Platform).GetDefaultArchitecture(ProjectFile));
+					Architectures.Add(BuildPlatform.GetDefaultArchitecture(ProjectFile));
 				}
 				else
 				{
 					// If the platform can do these in a single pass then turn them back into a single + separate string.
 					// It is now responsible for splitting them as necessary.
-					if (UEBuildPlatform.GetBuildPlatform(Platform).CanBuildArchitecturesInSinglePass(Architectures))
+					if (BuildPlatform.CanCompileArchitecturesInSinglePass(Architectures) || BuildPlatform.CanLinkArchitecturesInSinglePass(Architectures))
 					{ 
 						Architectures = new List<string> { string.Join("+", Architectures.OrderBy(S => S)) };
 					}

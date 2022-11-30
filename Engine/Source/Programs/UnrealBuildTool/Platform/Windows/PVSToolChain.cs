@@ -667,7 +667,7 @@ namespace UnrealBuildTool
 			return compileAsCCode;
 		}
 
-		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
+		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			if (CompileEnvironment.bDisableStaticAnalysis)
 			{
@@ -691,7 +691,7 @@ namespace UnrealBuildTool
 			PreprocessCompileEnvironment.Definitions.Add("PVS_STUDIO");
 
 			List<IExternalAction> PreprocessActions = new List<IExternalAction>();
-			CPPOutput Result = InnerToolChain.CompileCPPFiles(PreprocessCompileEnvironment, InputFiles, OutputDir, ModuleName, new ActionGraphCapture(Graph, PreprocessActions));
+			CPPOutput Result = InnerToolChain.CompileAllCPPFiles(PreprocessCompileEnvironment, InputFiles, OutputDir, ModuleName, new ActionGraphCapture(Graph, PreprocessActions));
 
 			// Run the source files through PVS-Studio
 			for(int Idx = 0; Idx < PreprocessActions.Count; Idx++)

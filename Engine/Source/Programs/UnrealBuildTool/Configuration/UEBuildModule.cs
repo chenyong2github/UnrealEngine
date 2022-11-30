@@ -179,6 +179,11 @@ namespace UnrealBuildTool
 		public readonly Dictionary<string, string> AliasRestrictedFolders;
 
 		/// <summary>
+		/// Per-architecture lists of dependencies for linking to ignore (useful when building for multiple architectures, and a lib only is needed for one architecture), it's up to the Toolchain to use this
+		/// </summary>
+		public Dictionary<string, List<string>> DependenciesToSkipPerArchitecture;
+
+		/// <summary>
 		/// The Verse source code directory associated with this module if any
 		/// </summary>
 		public virtual DirectoryReference? VerseDirectory
@@ -279,6 +284,8 @@ namespace UnrealBuildTool
 			RestrictedFoldersAllowList = new HashSet<DirectoryReference>(Rules.AllowedRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
 
 			AliasRestrictedFolders = new Dictionary<string, string>(Rules.AliasRestrictedFolders);
+
+			DependenciesToSkipPerArchitecture = Rules.DependenciesToSkipPerArchitecture;
 
 			// get the module directories from the module
 			ModuleDirectories = Rules.GetAllModuleDirectories();
@@ -781,6 +788,7 @@ namespace UnrealBuildTool
 			List<UEBuildBundleResource> AdditionalBundleResources,
 			List<string> DelayLoadDLLs,
 			List<UEBuildBinary> BinaryDependencies,
+			Dictionary<string, HashSet<string>> DependenciesToSkip,
 			HashSet<UEBuildModule> VisitedModules,
 			DirectoryReference ExeDir
 			)
@@ -815,7 +823,7 @@ namespace UnrealBuildTool
 						if (bIsExternalModule || bIsInStaticLibrary)
 						{
 							DependencyModule.SetupPublicLinkEnvironment(SourceBinary, Libraries, SystemLibraryPaths, SystemLibraries, RuntimeLibraryPaths, Frameworks, WeakFrameworks,
-								AdditionalFrameworks, AdditionalBundleResources, DelayLoadDLLs, BinaryDependencies, VisitedModules, ExeDir);
+								AdditionalFrameworks, AdditionalBundleResources, DelayLoadDLLs, BinaryDependencies, DependenciesToSkip, VisitedModules, ExeDir);
 						}
 					}
 				}
@@ -830,6 +838,16 @@ namespace UnrealBuildTool
 				AdditionalBundleResources.AddRange(PublicAdditionalBundleResources);
 				AdditionalFrameworks.AddRange(PublicAdditionalFrameworks);
 				DelayLoadDLLs.AddRange(PublicDelayLoadDLLs);
+
+				// merge in to the outgoing dictionary
+				foreach (KeyValuePair<string, List<string>> Pair in DependenciesToSkipPerArchitecture)
+				{
+					if (!DependenciesToSkip.ContainsKey(Pair.Key))
+					{
+						DependenciesToSkip[Pair.Key] = new HashSet<string>();
+					}
+					DependenciesToSkip[Pair.Key] = DependenciesToSkip[Pair.Key].Union(Pair.Value).ToHashSet();
+				}
 			}
 		}
 
@@ -849,7 +867,7 @@ namespace UnrealBuildTool
 
 			// Allow the module's public dependencies to add library paths and additional libraries to the link environment.
 			SetupPublicLinkEnvironment(SourceBinary, LinkEnvironment.Libraries, LinkEnvironment.SystemLibraryPaths, LinkEnvironment.SystemLibraries, LinkEnvironment.RuntimeLibraryPaths, LinkEnvironment.Frameworks, LinkEnvironment.WeakFrameworks,
-				LinkEnvironment.AdditionalFrameworks, LinkEnvironment.AdditionalBundleResources, LinkEnvironment.DelayLoadDLLs, BinaryDependencies, VisitedModules, ExeDir);
+				LinkEnvironment.AdditionalFrameworks, LinkEnvironment.AdditionalBundleResources, LinkEnvironment.DelayLoadDLLs, BinaryDependencies, LinkEnvironment.DependenciesToSkipPerArchitecture, VisitedModules, ExeDir);
 
 			// Also allow the module's public and private dependencies to modify the link environment.
 			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>();
@@ -859,7 +877,7 @@ namespace UnrealBuildTool
 			foreach (UEBuildModule DependencyModule in AllDependencyModules)
 			{
 				DependencyModule.SetupPublicLinkEnvironment(SourceBinary, LinkEnvironment.Libraries, LinkEnvironment.SystemLibraryPaths, LinkEnvironment.SystemLibraries, LinkEnvironment.RuntimeLibraryPaths, LinkEnvironment.Frameworks, LinkEnvironment.WeakFrameworks,
-					LinkEnvironment.AdditionalFrameworks, LinkEnvironment.AdditionalBundleResources, LinkEnvironment.DelayLoadDLLs, BinaryDependencies, VisitedModules, ExeDir);
+					LinkEnvironment.AdditionalFrameworks, LinkEnvironment.AdditionalBundleResources, LinkEnvironment.DelayLoadDLLs, BinaryDependencies, LinkEnvironment.DependenciesToSkipPerArchitecture, VisitedModules, ExeDir);
 			}
 
 			// Add all the additional properties

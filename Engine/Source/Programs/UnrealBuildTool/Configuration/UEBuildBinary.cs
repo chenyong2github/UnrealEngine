@@ -206,13 +206,10 @@ namespace UnrealBuildTool
 			{
 				// Mark the link environment as cross-referenced.
 				BinaryLinkEnvironment.bIsCrossReferenced = true;
-
-				if (BinaryLinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Microsoft))
-				{
-					// Create the import library.
-					OutputFiles.AddRange(ToolChain.LinkAllFiles(BinaryLinkEnvironment, true, Graph));
-				}
 			}
+
+			// Create the import library if needed
+			OutputFiles.AddRange(ToolChain.LinkImportLibrary(BinaryLinkEnvironment, Graph));
 
 			// Link the binary.
 			FileItem[] Executables = ToolChain.LinkAllFiles(BinaryLinkEnvironment, false, Graph);

@@ -147,10 +147,8 @@ namespace UnrealBuildTool
 				Target.bUsePCHFiles = false;
 			}
 
-			// Mac-Arm todo - Do we need to compile in two passes so we can set this differently?
+			// Mac-Arm todo - Remove this all when we feel confident no more x86-only plugins will come around
 			bool bCompilingForArm = Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0;
-			bool bCompilingMultipleArchitectures = Target.Architecture.Contains("+");
-
 			if (bCompilingForArm && Target.Name != "UnrealHeaderTool")
 			{
 				Target.DisablePlugins.AddRange(new string[]
@@ -186,9 +184,6 @@ namespace UnrealBuildTool
 			Target.bDeployAfterCompile = true;
 
 			Target.bCheckSystemHeadersForModification = BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac;
-
-
-			Target.bUsePCHFiles = Target.bUsePCHFiles && !bCompilingMultipleArchitectures;
 		}
 
 		static HashSet<FileReference> ValidatedLibs = new();
@@ -214,7 +209,16 @@ namespace UnrealBuildTool
 		/// Returns true since we can do this on Mac (with some caveats, that may necessitate this being an option)
 		/// </summary>
 		/// <param name="InArchitectures">Architectures that are being built</param>
-		public override bool CanBuildArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
+		public override bool CanCompileArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
+		{
+			return false;
+		}
+
+		/// <summary>
+		/// Returns true since we can do this on Mac (with some caveats, that may necessitate this being an option)
+		/// </summary>
+		/// <param name="InArchitectures">Architectures that are being built</param>
+		public override bool CanLinkArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
 		{
 			return true;
 		}
