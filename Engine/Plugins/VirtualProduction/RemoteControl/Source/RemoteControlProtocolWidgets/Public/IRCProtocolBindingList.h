@@ -18,6 +18,9 @@ public:
 	/** Virtual destructor */
 	virtual ~IRCProtocolBindingList() = default;
 
+	/** Adds a new protocol binding of specified type to the current view model. */
+	virtual void AddProtocolBinding(const FName InProtocolName) = 0;
+
 	/** Get the set of entities which is awaiting state and waiting for binding */
 	virtual FRemoteControlProtocolEntitySet GetAwaitingProtocolEntities() const = 0;
 

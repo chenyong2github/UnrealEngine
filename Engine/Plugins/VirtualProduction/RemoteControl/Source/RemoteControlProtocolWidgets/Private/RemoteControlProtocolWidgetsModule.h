@@ -7,6 +7,7 @@
 REMOTECONTROLPROTOCOLWIDGETS_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControlProtocolWidgets, Log, All);
 
 class FProtocolBindingViewModel;
+class FProtocolEntityViewModel;
 class IRCProtocolBindingList;
 class URemoteControlPreset;
 
@@ -20,6 +21,7 @@ public:
 	//~ End IModuleInterface
 
 	//~ Begin IRemoteControlProtocolWidgetsModule Interface
+	virtual void AddProtocolBinding(const FName InProtocolName) override;
 	virtual TSharedRef<SWidget> GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType) override;
 	virtual void ResetProtocolBindingList() override;
 	virtual TSharedPtr<IRCProtocolBindingList> GetProtocolBindingList() const override;

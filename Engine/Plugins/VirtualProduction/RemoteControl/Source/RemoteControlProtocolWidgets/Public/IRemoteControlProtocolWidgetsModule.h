@@ -31,6 +31,9 @@ public:
 		return FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>(ModuleName);
 	}
 
+	/** Adds a new protocol binding of specified type to the current view model. */
+	virtual void AddProtocolBinding(const FName InProtocolName) = 0;
+
 	/** Creates a widget for the given Preset Field and FieldType */
 	virtual TSharedRef<SWidget> GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType = EExposedFieldType::Invalid) = 0;
 

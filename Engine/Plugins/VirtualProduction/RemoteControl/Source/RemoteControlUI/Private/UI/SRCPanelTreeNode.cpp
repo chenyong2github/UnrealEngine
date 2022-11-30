@@ -2,10 +2,13 @@
 
 #include "SRCPanelTreeNode.h"
 
+#include "IRemoteControlProtocolWidgetsModule.h"
+
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelNode"
@@ -21,7 +24,13 @@ TSet<FName> SRCPanelTreeNode::DefaultColumns = {
 
 TSharedRef<SWidget> SRCPanelTreeNode::GetProtocolWidget(const FName ForColumnName, const FName InProtocolName)
 {
-	return SNullWidget::NullWidget;
+	if (ForColumnName == RemoteControlPresetColumns::BindingStatus)
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	return SNew(SEditableTextBox)
+		.OnTextChanged(this, &SRCPanelTreeNode::OnProtocolTextChanged, InProtocolName);
 }
 
 const bool SRCPanelTreeNode::HasProtocolExtension() const
@@ -175,6 +184,13 @@ void SRCPanelTreeNode::OnLeftColumnResized(float) const
 {
 	// This has to be bound or the splitter will take it upon itself to determine the size
 	// We do nothing here because it is handled by the column size data
+}
+
+void SRCPanelTreeNode::OnProtocolTextChanged(const FText& InText, const FName InProtocolName)
+{
+	IRemoteControlProtocolWidgetsModule& RCProtocolsWidgets = IRemoteControlProtocolWidgetsModule::Get();
+
+	RCProtocolsWidgets.AddProtocolBinding(InProtocolName);
 }
 
 float SRCPanelTreeNode::GetLeftColumnWidth() const

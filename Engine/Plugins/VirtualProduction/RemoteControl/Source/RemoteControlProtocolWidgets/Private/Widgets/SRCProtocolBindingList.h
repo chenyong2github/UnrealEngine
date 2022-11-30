@@ -28,6 +28,8 @@ public:
 	virtual ~SRCProtocolBindingList() override;
 
 	//~ Begin IRCProtocolBindingList Interface
+	virtual void AddProtocolBinding(const FName InProtocolName) override;
+
 	/** Get the set of entities which is awaiting state and waiting for binding. */
 	virtual FRemoteControlProtocolEntitySet GetAwaitingProtocolEntities() const override
 	{

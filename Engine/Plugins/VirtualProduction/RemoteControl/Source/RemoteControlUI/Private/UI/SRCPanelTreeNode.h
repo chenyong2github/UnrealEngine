@@ -60,6 +60,7 @@ struct SRCPanelTreeNode : public SCompoundWidget, public IHasProtocolExtensibili
 	virtual TSharedRef<SWidget> GetProtocolWidget(const FName ForColumnName, const FName InProtocolName = NAME_None) override;
 	virtual const bool HasProtocolExtension() const override;
 	virtual const bool GetProtocolBindingsNum() const override;
+	virtual void OnProtocolTextChanged(const FText& InText, const FName InProtocolName);
 	virtual const bool SupportsProtocol(const FName& InProtocolName) const override;
 	//~ END : IHasProtocolExtensibility Interface
 
@@ -105,7 +106,7 @@ protected:
 private:
 	/** Stub handler for column resize callback to prevent the splitter from handling it internally.  */
 	void OnLeftColumnResized(float) const;
-
+	
 	//~ Wrappers around ColumnSizeData's delegate needed in order to offset the splitter for RC Groups. 
 	float GetLeftColumnWidth() const;
 	float GetRightColumnWidth() const;

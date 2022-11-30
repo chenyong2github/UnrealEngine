@@ -25,6 +25,11 @@ public:
 	 * Returns true when the derived classes has two or more protocol bindings.
 	 */
 	virtual const bool GetProtocolBindingsNum() const = 0;
+	
+	/**
+	 * Callback for the editable text's OnTextChanged event.
+	 */
+	virtual void OnProtocolTextChanged(const FText& InText, const FName InProtocolName) = 0;
 
 	/**
 	 * Determines whether the derived class supports the given protocol.

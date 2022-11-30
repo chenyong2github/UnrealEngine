@@ -29,6 +29,16 @@ void FRemoteControlProtocolWidgetsModule::ShutdownModule()
 	OnActiveProtocolChanged().RemoveAll(this);
 }
 
+void FRemoteControlProtocolWidgetsModule::AddProtocolBinding(const FName InProtocolName)
+{
+	if (!RCProtocolBindingList.IsValid())
+	{
+		return;
+	}
+
+	RCProtocolBindingList->AddProtocolBinding(InProtocolName);
+}
+
 TSharedRef<SWidget> FRemoteControlProtocolWidgetsModule::GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType)
 {
 	check(InPreset);

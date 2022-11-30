@@ -5,6 +5,7 @@
 #include "Delegates/Delegate.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "Misc/MessageDialog.h"
 #include "Styling/AppStyle.h"
 #include "IRemoteControlProtocolModule.h"
 #include "RemoteControlProtocolWidgetsModule.h"
@@ -191,6 +192,25 @@ SRCProtocolBindingList::~SRCProtocolBindingList()
 	}
 
 	AwaitingProtocolEntities.Empty();
+}
+
+void SRCProtocolBindingList::AddProtocolBinding(const FName InProtocolName)
+{
+	if (!ViewModel.IsValid())
+	{
+		return;
+	}
+
+	FText CannotAddBinding;
+
+	if (!ViewModel->CanAddBinding(InProtocolName, CannotAddBinding))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, CannotAddBinding);
+
+		return;
+	}
+
+	ViewModel->AddBinding(InProtocolName);
 }
 
 TSharedRef<ITableRow> SRCProtocolBindingList::ConstructBindingWidget(TSharedPtr<IRCTreeNodeViewModel> InViewModel, const TSharedRef<STableViewBase>& InOwnerTable)
