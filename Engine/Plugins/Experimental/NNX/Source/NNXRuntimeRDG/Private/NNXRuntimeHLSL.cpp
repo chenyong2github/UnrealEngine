@@ -12,6 +12,7 @@
 #include "Hlsl/NNIRuntimeRDGConvTranspose.h"
 #include "Hlsl/NNIRuntimeRDGGemm.h"
 #include "Hlsl/NNIRuntimeRDGMatMul.h"
+#include "Hlsl/NNIRuntimeRDGInstanceNormalization.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNXRuntimeRDG.h"
 
@@ -286,6 +287,7 @@ public:
 		UE::NNIRuntimeRDG::Private::Hlsl::RegisterConvOperator(*registry);
 		UE::NNIRuntimeRDG::Private::Hlsl::RegisterConvTransposeOperator(*registry);
 		UE::NNIRuntimeRDG::Private::Hlsl::RegisterMatMulOperator(*registry);
+		UE::NNIRuntimeRDG::Private::Hlsl::RegisterInstanceNormalizationOperator(*registry);
 
 		return true;
 	}
@@ -300,6 +302,29 @@ public:
 	{
 		return EMLRuntimeSupportFlags::RDG;
 	}
+
+	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) override
+	{
+		if (!CanCreateModelData(FileType, FileData))
+		{
+			return {};
+		}
+
+		TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToNNXModelOptimizer();
+		Optimizer->AddValidator(MakeShared<FModelValidatorHlsl>());
+
+		FNNIModelRaw InputModel;
+		InputModel.Data = FileData;
+		InputModel.Format = ENNXInferenceFormat::ONNX;
+
+		FNNIModelRaw OutputModel;
+		if (!Optimizer->Optimize(InputModel, OutputModel, {}))
+		{
+			return {};
+		}
+
+		return ConvertToModelData(OutputModel.Data);
+	};
 
 	virtual TUniquePtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) override
 	{

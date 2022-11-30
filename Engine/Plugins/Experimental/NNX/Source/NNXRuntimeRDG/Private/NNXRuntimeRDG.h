@@ -75,7 +75,7 @@ public:
 	static int32 Version;
 
 	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const;
-	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData);
+	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) = 0;
 	virtual bool CanCreateModel(TConstArrayView<uint8> ModelData) const;
 };
 
@@ -303,6 +303,8 @@ public:
 	}
 };
 
+TArray<uint8> ConvertToModelData(TArrayView<uint8> ModelBuffer);
+
 // NOTE: For now we only have DML on Windows, we should add support for XSX
 #ifdef NNE_USE_DIRECTML
 
@@ -313,7 +315,6 @@ extern void FMLRuntimeDmlShutdown();
 
 extern IRuntime* FMLRuntimeHlslStartup();
 extern void FMLRuntimeHlslShutdown();
-
 
 ///// OperatorId
 //class FOperatorId

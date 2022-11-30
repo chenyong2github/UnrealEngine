@@ -302,6 +302,15 @@
 			"targets": [
 				{ "target": "Pad" }
 			]
+		},
+		{
+			"category": "InstanceNormalization",
+			"runtimes": [
+				{ "name": "NNXRuntimeDml", "skip": true }
+			],
+			"targets": [
+				{ "target": "InstanceNormalization" }
+			]
 		}
 	],
 
@@ -583,6 +592,82 @@
 				  "weights": [ { "shape": [ 2 ], "source": [ "1", "2" ] , "type": "int64" } ],
 				  "outputs": [ { "shape": [ 4 ], "source": [ "0", "1", "0", "0" ] } ] }
 			]
+		},
+		{
+			"name": "InstanceNormalization",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 1, 3 ] }, { "shape": [ 1 ] }, { "shape": [ 1 ] } ], "outputs": [ { "shape": [ 1, 1, 3 ] } ], "runtimes": [ { "name": "NNXRuntimeORTDml", "skip": true, "comment": "Not supported" } ] },
+				{ "inputs": [ { "shape": [ 1, 2, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 1, 2, 3 ] } ], "runtimes": [ { "name": "NNXRuntimeORTDml", "skip": true, "comment": "Not supported" } ] },
+				{ "inputs": [ { "shape": [ 2, 2, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 3 ] } ], "runtimes": [ { "name": "NNXRuntimeORTDml", "skip": true, "comment": "Not supported" } ]},
+				{ "inputs": [ { "shape": [ 1, 2, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 1, 2, 1, 3 ] } ] },
+				{ "inputs": [ { "shape": [ 2, 2, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 1, 3 ] } ] },
+				{ "inputs": [ { "shape": [ 2, 2, 2, 2 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 2, 2 ] } ] },
+				{
+					"inputs": [ { "shape": [ 2, 2, 4, 1, 3 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 4, 1, 3 ] } ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "relative_error": 3.5e-3 },
+						{ "name": "NNXRuntimeORTCpu", "relative_error": 3.5e-3 },
+						{ "name": "NNXRuntimeORTDml", "skip": true, "comment": "Not supported" }
+					]
+				},
+				{
+					"inputs": [ { "shape": [ 2, 2, 4, 4 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 4, 4 ] } ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "relative_error": 3.5e-3 },
+						{ "name": "NNXRuntimeORTCpu", "relative_error": 3.5e-3 },
+						{ "name": "NNXRuntimeORTDml", "relative_error": 3.5e-3 }
+					]
+				},
+				{
+					"inputs": [ { "shape": [ 2, 2, 8, 8 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 8, 8 ] } ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "relative_error": 2 },
+						{ "name": "NNXRuntimeORTCpu", "relative_error": 2 },
+						{ "name": "NNXRuntimeORTDml", "relative_error": 2 }
+					]
+				},
+				{
+					"inputs": [ { "shape": [ 2, 128, 8, 8 ] }, { "shape": [ 128 ] }, { "shape": [ 128 ] } ], "outputs": [ { "shape": [ 2, 128, 8, 8 ] } ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "relative_error": 2 },
+						{ "name": "NNXRuntimeORTCpu", "relative_error": 2 },
+						{ "name": "NNXRuntimeORTDml", "relative_error": 2 }
+					]
+				},
+				{
+					"inputs": [ { "shape": [ 128, 2, 8, 8 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 128, 2, 8, 8 ] } ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "relative_error": 2 },
+						{ "name": "NNXRuntimeORTCpu", "relative_error": 2 },
+						{ "name": "NNXRuntimeORTDml", "relative_error": 2 }
+					]
+				},
+				{
+					"inputs": [ { "shape": [ 64, 64, 8, 8 ] }, { "shape": [ 64 ] }, { "shape": [ 64 ] } ], "outputs": [ { "shape": [ 64, 64, 8, 8 ] } ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "relative_error": 2 },
+						{ "name": "NNXRuntimeORTCpu", "relative_error": 2 },
+						{ "name": "NNXRuntimeORTDml", "relative_error": 2 }
+					]
+				},
+				{
+					"inputs": [ { "shape": [ 2, 2, 45, 45 ] }, { "shape": [ 2 ] }, { "shape": [ 2 ] } ], "outputs": [ { "shape": [ 2, 2, 45, 45 ] } ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "relative_error": 5 },
+						{ "name": "NNXRuntimeORTCpu", "relative_error": 5 },
+						{ "name": "NNXRuntimeORTDml", "relative_error": 5 }
+					]
+				},
+				{
+					"inputs": [ { "shape": [ 1, 128, 56, 56 ] }, { "shape": [ 128 ] }, { "shape": [ 128 ] } ], "outputs": [ { "shape": [ 1, 128, 56, 56 ] } ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHLSL", "relative_error": 9 },
+						{ "name": "NNXRuntimeORTCpu", "relative_error": 9 },
+						{ "name": "NNXRuntimeORTDml", "relative_error": 9 }
+					],
+					"comment": "from 'mosaic-9-sim.onnx'"
+				}
+			]
 		}
 	],
 
@@ -833,6 +918,15 @@
 					{ "name": "auto_pad", "value": "SAME_UPPER", "type": "String" },
 					{ "name": "strides", "value": [ 2, 2 ], "type": "Int32Array"}
 				] }
+			]
+		},
+		{
+			"name": "InstanceNormalization.Algorithms",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "__UE__algorithm", "value": "Simple1x265", "type": "String" } ] },
+				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory8x32", "type": "String" } ] },
+				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory16x16", "type": "String" } ] },
+				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory32x8", "type": "String" } ] }
 			]
 		}
 	]

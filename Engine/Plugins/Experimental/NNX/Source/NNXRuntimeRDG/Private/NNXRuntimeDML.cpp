@@ -1207,6 +1207,28 @@ public:
 		return EMLRuntimeSupportFlags::RDG;
 	}
 
+	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) override
+	{
+		if (!CanCreateModelData(FileType, FileData))
+		{
+			return {};
+		}
+
+		TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToNNXModelOptimizer();
+
+		FNNIModelRaw InputModel;
+		InputModel.Data = FileData;
+		InputModel.Format = ENNXInferenceFormat::ONNX;
+
+		FNNIModelRaw OutputModel;
+		if (!Optimizer->Optimize(InputModel, OutputModel, {}))
+		{
+			return {};
+		}
+
+		return ConvertToModelData(OutputModel.Data);
+	};
+
 	virtual TUniquePtr<FMLInferenceModel> CreateModel(TConstArrayView<uint8> ModelData) override
 	{
 		if (!CanCreateModel(ModelData))

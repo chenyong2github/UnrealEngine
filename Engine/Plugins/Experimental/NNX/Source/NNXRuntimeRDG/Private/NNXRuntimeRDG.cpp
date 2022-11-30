@@ -179,35 +179,6 @@ bool FMLRuntimeRDG::CanCreateModelData(FString FileType, TConstArrayView<uint8> 
 	return FileType.Compare("onnx", ESearchCase::IgnoreCase) == 0;
 }
 
-TArray<uint8> FMLRuntimeRDG::CreateModelData(FString FileType, TConstArrayView<uint8> FileData)
-{
-	if (!CanCreateModelData(FileType, FileData))
-	{
-		return {};
-	}
-
-	TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToNNXModelOptimizer();
-
-	FNNIModelRaw InputModel;
-	InputModel.Data = FileData;
-	InputModel.Format = ENNXInferenceFormat::ONNX;
-	FNNIModelRaw OutputModel;
-	FOptimizerOptionsMap Options;
-	if (!Optimizer->Optimize(InputModel, OutputModel, Options))
-	{
-		return {};
-	}
-
-	int32 GuidSize = sizeof(FMLRuntimeRDG::GUID);
-	int32 VersionSize = sizeof(FMLRuntimeRDG::Version);
-	TArray<uint8> Result;
-	FMemoryWriter Writer(Result);
-	Writer << FMLRuntimeRDG::GUID;
-	Writer << FMLRuntimeRDG::Version;
-	Writer.Serialize(OutputModel.Data.GetData(), OutputModel.Data.Num());
-	return Result;
-};
-
 bool FMLRuntimeRDG::CanCreateModel(TConstArrayView<uint8> ModelData) const
 {
 	int32 GuidSize = sizeof(FMLRuntimeRDG::GUID);
@@ -243,9 +214,9 @@ bool FMLInferenceModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntim
 {
 	int32 GuidSize = sizeof(FMLRuntimeRDG::GUID);
 	int32 VersionSize = sizeof(FMLRuntimeRDG::Version);
-	TArray<uint8> ModelBuffer = TArray<uint8>(&(ModelData.GetData()[GuidSize + VersionSize]), ModelData.Num() - GuidSize - VersionSize);
+	TConstArrayView<uint8> ModelBuffer = {&(ModelData.GetData()[GuidSize + VersionSize]), ModelData.Num() - GuidSize - VersionSize};
 
-	FMemoryReader Reader(ModelBuffer);
+	FMemoryReaderView Reader(ModelBuffer);
 
 	FMLRuntimeFormat::StaticStruct()->SerializeBin(Reader, &Format);
 
@@ -590,6 +561,18 @@ void FMLInferenceModelRDG::AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBui
 			}
 		);
 	}
+}
+
+TArray<uint8> ConvertToModelData(TArrayView<uint8> ModelBuffer)
+{
+	TArray<uint8> Result;
+
+	FMemoryWriter Writer(Result);
+	Writer << FMLRuntimeRDG::GUID;
+	Writer << FMLRuntimeRDG::Version;
+	Writer.Serialize(ModelBuffer.GetData(), ModelBuffer.Num());
+
+	return Result;
 }
 
 } // NNX
