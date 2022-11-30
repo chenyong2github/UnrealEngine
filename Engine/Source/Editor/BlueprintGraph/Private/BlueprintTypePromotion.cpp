@@ -2,6 +2,7 @@
 
 #include "BlueprintTypePromotion.h"
 
+#include "Async/ParallelFor.h"
 #include "Containers/EnumAsByte.h"
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
